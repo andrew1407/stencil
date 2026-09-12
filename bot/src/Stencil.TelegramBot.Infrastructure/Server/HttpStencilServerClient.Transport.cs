@@ -9,10 +9,10 @@ namespace Stencil.TelegramBot.Infrastructure.Server;
 
 public sealed partial class HttpStencilServerClient
 {
-    private async Task<JsonDocument> SendJsonAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
+    private async Task<JsonDocument> sendJsonAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
     {
-        using HttpResponseMessage response = await SendAsync(method, path, content, ct).ConfigureAwait(false);
-        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
+        using HttpResponseMessage response = await sendAsync(method, path, content, ct).ConfigureAwait(false);
+        await ensureSuccessAsync(response, ct).ConfigureAwait(false);
         byte[] body = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
         if (body.Length == 0)
         {
@@ -24,18 +24,18 @@ public sealed partial class HttpStencilServerClient
     // A stored session token dies with a server DB wipe: on 401/403, when this client carries its
     // credential, re-mint once and retry in place (extension connections.js req parity);
     // /auth/token itself never retries.
-    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
+    private async Task<HttpResponseMessage> sendAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
     {
-        HttpResponseMessage response = await SendOnceAsync(method, path, content, _token, ct).ConfigureAwait(false);
+        HttpResponseMessage response = await sendOnceAsync(method, path, content, _token, ct).ConfigureAwait(false);
         int status = (int)response.StatusCode;
         if ((status == 401 || status == 403) && _credential.Length != 0 && path != "/auth/token")
         {
-            string? minted = await TryMintAsync(ct).ConfigureAwait(false);
+            string? minted = await tryMintAsync(ct).ConfigureAwait(false);
             if (minted is not null)
             {
                 response.Dispose();
                 _token = minted;
-                response = await SendOnceAsync(method, path, content, _token, ct).ConfigureAwait(false);
+                response = await sendOnceAsync(method, path, content, _token, ct).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                 {
                     // It minted AND the session works: this credential is an admin token.
@@ -46,7 +46,7 @@ public sealed partial class HttpStencilServerClient
         return response;
     }
 
-    private Task<HttpResponseMessage> SendOnceAsync(HttpMethod method, string path, HttpContent? content, string bearer, CancellationToken ct)
+    private Task<HttpResponseMessage> sendOnceAsync(HttpMethod method, string path, HttpContent? content, string bearer, CancellationToken ct)
     {
         HttpRequestMessage request = new(method, BaseUrl + path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
@@ -58,9 +58,9 @@ public sealed partial class HttpStencilServerClient
     }
 
     // Null on any refusal.
-    private async Task<string?> TryMintAsync(CancellationToken ct)
+    private async Task<string?> tryMintAsync(CancellationToken ct)
     {
-        using HttpResponseMessage response = await SendOnceAsync(HttpMethod.Post, "/auth/token", EmptyBody(), _credential, ct)
+        using HttpResponseMessage response = await sendOnceAsync(HttpMethod.Post, "/auth/token", emptyBody(), _credential, ct)
             .ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
@@ -79,7 +79,7 @@ public sealed partial class HttpStencilServerClient
         }
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
+    private static async Task ensureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
     {
         if (response.IsSuccessStatusCode)
         {
@@ -111,13 +111,13 @@ public sealed partial class HttpStencilServerClient
         throw new ServerException(code, message, status);
     }
 
-    private static string ProjectPath(string id) => "/projects/" + Uri.EscapeDataString(id);
+    private static string projectPath(string id) => "/projects/" + Uri.EscapeDataString(id);
 
-    private static string FilePath(string id, string kind) =>
-        ProjectPath(id) + "/files/" + Uri.EscapeDataString(kind);
+    private static string filePath(string id, string kind) =>
+        projectPath(id) + "/files/" + Uri.EscapeDataString(kind);
 
-    private static StringContent EmptyBody() => JsonContent("{}");
+    private static StringContent emptyBody() => jsonContent("{}");
 
-    private static StringContent JsonContent(string json) =>
+    private static StringContent jsonContent(string json) =>
         new(json, Encoding.UTF8, "application/json");
 }

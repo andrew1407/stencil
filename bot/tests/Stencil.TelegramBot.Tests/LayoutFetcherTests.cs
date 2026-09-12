@@ -10,7 +10,7 @@ namespace Stencil.TelegramBot.Tests;
 /// <summary>The /layout URL fetcher: body pass-through, non-success → null, byte cap.</summary>
 public sealed class LayoutFetcherTests
 {
-    private static LayoutFetcher Make(Func<HttpRequestMessage, byte[], HttpResponseMessage> responder,
+    private static LayoutFetcher make(Func<HttpRequestMessage, byte[], HttpResponseMessage> responder,
         long? maxBytes = null)
     {
         BotOptions options = maxBytes is long cap
@@ -23,7 +23,7 @@ public sealed class LayoutFetcherTests
     public async Task FetchReturnsTheBody()
     {
         const string json = "{\"imageWidth\":1,\"imageHeight\":2,\"lines\":[]}";
-        using LayoutFetcher fetcher = Make((_, _) => CannedHttpMessageHandler.Json(json));
+        using LayoutFetcher fetcher = make((_, _) => CannedHttpMessageHandler.Json(json));
         byte[]? body = await fetcher.FetchAsync("https://layouts.example/a.json");
         Assert.Equal(json, Encoding.UTF8.GetString(body!));
     }
@@ -31,7 +31,7 @@ public sealed class LayoutFetcherTests
     [Fact]
     public async Task FetchReturnsNullOnANonSuccessStatus()
     {
-        using LayoutFetcher fetcher = Make((_, _) => CannedHttpMessageHandler.Empty(HttpStatusCode.NotFound));
+        using LayoutFetcher fetcher = make((_, _) => CannedHttpMessageHandler.Empty(HttpStatusCode.NotFound));
         Assert.Null(await fetcher.FetchAsync("https://layouts.example/missing.json"));
     }
 
@@ -40,7 +40,7 @@ public sealed class LayoutFetcherTests
     {
         // The URL is SSRF-vetted before the fetch; a redirect could bounce the request to
         // a private/metadata host the guard would have rejected, so 3xx yields null.
-        using LayoutFetcher fetcher = Make((_, _) =>
+        using LayoutFetcher fetcher = make((_, _) =>
         {
             HttpResponseMessage redirect = CannedHttpMessageHandler.Empty(HttpStatusCode.Redirect);
             redirect.Headers.Location = new Uri("http://169.254.169.254/latest/meta-data/");
@@ -53,7 +53,7 @@ public sealed class LayoutFetcherTests
     public async Task FetchThrowsPastTheByteCap()
     {
         string big = new('x', 64);
-        using LayoutFetcher fetcher = Make((_, _) => CannedHttpMessageHandler.Json(big), maxBytes: 16);
+        using LayoutFetcher fetcher = make((_, _) => CannedHttpMessageHandler.Json(big), maxBytes: 16);
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => fetcher.FetchAsync("https://layouts.example/huge.json"));
     }

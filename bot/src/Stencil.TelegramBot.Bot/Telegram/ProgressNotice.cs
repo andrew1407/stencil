@@ -37,7 +37,7 @@ public sealed class ProgressNotice
         _text = text;
         _action = action;
         _markup = markup;
-        _loop = Task.Run(RunAsync, CancellationToken.None);
+        _loop = Task.Run(runAsync, CancellationToken.None);
     }
 
     public static string Frame(int i, string text) => $"{Frames[i % Frames.Length]} {text}";
@@ -75,7 +75,7 @@ public sealed class ProgressNotice
         _stop.Dispose();
     }
 
-    private async Task RunAsync()
+    private async Task runAsync()
     {
         for (int frame = 1; ; frame++)
         {

@@ -22,32 +22,32 @@ public static partial class OpRegistry
     // Prompt order: the §2 core ops, then the §10 profile block.
     public static readonly IReadOnlyList<OpDescriptor> Ops =
     [
-        Entry(["crop"], (s, a, c, ct) => s.ApplyCropAsync(c, (CropAction)a, ct)),
-        Entry(["rotate"], (s, a, c, ct) => s.ApplyRotateAsync(c, (RotateAction)a, ct)),
-        Entry(["filter"], (s, a, c, ct) => s.ApplyFilterAsync(c, (FilterAction)a, ct)),
-        Entry(["layout"], (s, a, c, ct) => s.ApplyLayoutAsync(c, (LayoutAction)a, ct)),
-        Entry(["formula"], (s, a, c, ct) => s.ApplyFormulaAsync(c, (FormulaAction)a, ct)),
-        Entry(["page"], (s, a, c, ct) => s.ApplyPageAsync(c, (PageAction)a, ct)),
-        Entry(["blank"], (s, a, c, ct) => s.ApplyBlankAsync(c, (BlankAction)a, ct)),
-        Entry(["undo", "redo"], (s, a, c, ct) => s.StepHistoryAsync(c, a, ct), TopLevelOnly: true),
-        Entry(["frame"], (s, a, c, ct) => s.ApplyFrameAsync(c, (FrameAction)a, ct)),
-        Entry(["image"], (s, a, c, ct) => s.SwitchImageAsync(c, (ImageAction)a, ct), TopLevelOnly: true),
-        Entry(["save"], (s, a, c, ct) => s.SaveProjectAsync(c, (SaveAction)a, ct), TopLevelOnly: true),
-        Entry(["connect", "disconnect"], (s, a, c, ct) => s.ChangeConnectionAsync(c, a, ct),
+        makeEntry(["crop"], (s, a, c, ct) => s.ApplyCropAsync(c, (CropAction)a, ct)),
+        makeEntry(["rotate"], (s, a, c, ct) => s.ApplyRotateAsync(c, (RotateAction)a, ct)),
+        makeEntry(["filter"], (s, a, c, ct) => s.ApplyFilterAsync(c, (FilterAction)a, ct)),
+        makeEntry(["layout"], (s, a, c, ct) => s.ApplyLayoutAsync(c, (LayoutAction)a, ct)),
+        makeEntry(["formula"], (s, a, c, ct) => s.ApplyFormulaAsync(c, (FormulaAction)a, ct)),
+        makeEntry(["page"], (s, a, c, ct) => s.ApplyPageAsync(c, (PageAction)a, ct)),
+        makeEntry(["blank"], (s, a, c, ct) => s.ApplyBlankAsync(c, (BlankAction)a, ct)),
+        makeEntry(["undo", "redo"], (s, a, c, ct) => s.StepHistoryAsync(c, a, ct), TopLevelOnly: true),
+        makeEntry(["frame"], (s, a, c, ct) => s.ApplyFrameAsync(c, (FrameAction)a, ct)),
+        makeEntry(["image"], (s, a, c, ct) => s.SwitchImageAsync(c, (ImageAction)a, ct), TopLevelOnly: true),
+        makeEntry(["save"], (s, a, c, ct) => s.SaveProjectAsync(c, (SaveAction)a, ct), TopLevelOnly: true),
+        makeEntry(["connect", "disconnect"], (s, a, c, ct) => s.ChangeConnectionAsync(c, a, ct),
             Profile: true, Capability: "server-connections"),
-        Entry(["reset"], (s, a, c, ct) => s.ApplyResetAsync(c, ct), Profile: true, TopLevelOnly: true),
-        Entry(["clear"], (s, a, c, ct) => s.ClearImageAsync(c, ct), Profile: true),
-        Entry(["lineStyle"], (s, a, c, ct) => s.ConfigurePenAsync(c, (LineStyleAction)a, ct), Profile: true),
-        Entry(["openUrl"], (s, a, c, ct) => s.OpenUrlAsync(c, (OpenUrlAction)a, ct),
+        makeEntry(["reset"], (s, a, c, ct) => s.ApplyResetAsync(c, ct), Profile: true, TopLevelOnly: true),
+        makeEntry(["clear"], (s, a, c, ct) => s.ClearImageAsync(c, ct), Profile: true),
+        makeEntry(["lineStyle"], (s, a, c, ct) => s.ConfigurePenAsync(c, (LineStyleAction)a, ct), Profile: true),
+        makeEntry(["openUrl"], (s, a, c, ct) => s.OpenUrlAsync(c, (OpenUrlAction)a, ct),
             Profile: true, Capability: "url-fetch"),
-        Entry(["renameProject"], (s, a, c, ct) => s.RenameProjectAsync(c, (RenameProjectAction)a, ct), Profile: true),
-        Entry(["describe"], (s, a, c, ct) => s.DescribeProjectAsync(c, (DescribeAction)a, ct), Profile: true),
-        Entry(["blankColor"], (s, a, c, ct) => s.SetBlankColorAsync(c, (BlankColorAction)a, ct), Profile: true),
-        Entry(["projectColor"], (s, a, c, ct) => s.SetProjectColorAsync(c, (ProjectColorAction)a, ct), Profile: true),
-        Entry(["export"], (s, a, c, ct) => s.ExportAsync(c, (ExportAction)a, ct), Profile: true),
+        makeEntry(["renameProject"], (s, a, c, ct) => s.RenameProjectAsync(c, (RenameProjectAction)a, ct), Profile: true),
+        makeEntry(["describe"], (s, a, c, ct) => s.DescribeProjectAsync(c, (DescribeAction)a, ct), Profile: true),
+        makeEntry(["blankColor"], (s, a, c, ct) => s.SetBlankColorAsync(c, (BlankColorAction)a, ct), Profile: true),
+        makeEntry(["projectColor"], (s, a, c, ct) => s.SetProjectColorAsync(c, (ProjectColorAction)a, ct), Profile: true),
+        makeEntry(["export"], (s, a, c, ct) => s.ExportAsync(c, (ExportAction)a, ct), Profile: true),
         // §10 clearChat executes nothing here; ExecuteAsync surfaces the deferred request on the
         // outcome.
-        Entry(["clearChat"], static (s, a, c, ct) => Task.CompletedTask, Profile: true, TopLevelOnly: true),
+        makeEntry(["clearChat"], static (s, a, c, ct) => Task.CompletedTask, Profile: true, TopLevelOnly: true),
     ];
 
     public static OpHandler? HandlerFor(string op) =>
@@ -78,7 +78,7 @@ public static partial class OpRegistry
     }
 
     // A second name must ride the first's bullet (bulletSharedWith).
-    private static OpDescriptor Entry(
+    private static OpDescriptor makeEntry(
         string[] names, OpHandler handler, bool Profile = false, bool TopLevelOnly = false, string? Capability = null)
     {
         OpEntry lead = OpSchema.Bot.Ops[names[0]];
@@ -129,7 +129,7 @@ public static partial class OpRegistry
             {
                 continue;   // not wired here — the model is never promised it
             }
-            if (SensitiveBullet().IsMatch(op.Bullet))
+            if (sensitiveBullet().IsMatch(op.Bullet))
             {
                 throw new InvalidOperationException(
                     $"op \"{op.Names[0]}\": its prompt bullet matches a sensitive pattern (api key / bearer / token / endpoint) — refusing to assemble the prompt");
@@ -146,5 +146,5 @@ public static partial class OpRegistry
     // The §13 prompt censor; "token" is context-sensitive — the crop bullet's "edge tokens" are
     // legitimate.
     [GeneratedRegex(@"(?i)\bapi[\s_-]?key|\bbearer\b|\bauthorization\b|\b(auth\w*|access|secret|server|api)[\s_-]?token|\bendpoint")]
-    private static partial Regex SensitiveBullet();
+    private static partial Regex sensitiveBullet();
 }

@@ -35,7 +35,7 @@ public static class RemoteImageUrl
         }
         else
         {
-            addresses = await ResolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
+            addresses = await resolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
         }
         if (addresses.Count == 0 || addresses.Any(IsBlockedAddress))
         {
@@ -73,7 +73,7 @@ public static class RemoteImageUrl
         {
             try
             {
-                addresses = await ResolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
+                addresses = await resolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
             }
             catch (InvalidOperationException)
             {
@@ -90,7 +90,7 @@ public static class RemoteImageUrl
     }
 
     // A resolver past timeout reads as unreachable; a real caller cancellation propagates.
-    private static async Task<IReadOnlyList<IPAddress>> ResolveAsync(string host, TimeSpan timeout, CancellationToken ct)
+    private static async Task<IReadOnlyList<IPAddress>> resolveAsync(string host, TimeSpan timeout, CancellationToken ct)
     {
         using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linked.CancelAfter(timeout);

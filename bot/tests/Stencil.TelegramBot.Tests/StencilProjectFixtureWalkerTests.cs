@@ -15,22 +15,22 @@ public sealed class StencilProjectFixtureWalkerTests
 {
     private static readonly string[] Files = ["valid.json", "invalid.json"];
 
-    private static string PathFor(string file) =>
+    private static string pathFor(string file) =>
         Path.Combine(SharedFixtures.ConfigFixtureDir("stencilProject"), file);
 
     public static TheoryData<string> Vectors() =>
-        SharedFixtures.TheoryNames(Files.SelectMany(f => SharedFixtures.CaseNames(PathFor(f))));
+        SharedFixtures.TheoryNames(Files.SelectMany(f => SharedFixtures.CaseNames(pathFor(f))));
 
     [Fact]
     public void TheCorpusHasEveryVector() =>
-        Assert.Equal(21, Files.Sum(f => SharedFixtures.Cases(PathFor(f)).Count));
+        Assert.Equal(21, Files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count));
 
     [Theory]
     [MemberData(nameof(Vectors))]
     public void VectorGetsItsVerdict(string name)
     {
-        string file = Files.First(f => SharedFixtures.CaseNames(PathFor(f)).Contains(name));
-        using JsonDocument doc = SharedFixtures.Case(PathFor(file), name);
+        string file = Files.First(f => SharedFixtures.CaseNames(pathFor(f)).Contains(name));
+        using JsonDocument doc = SharedFixtures.Case(pathFor(file), name);
         JsonElement fx = doc.RootElement;
         string want = SharedFixtures.OverrideFor("stencilProject", name) is JsonElement ov
             ? ov.GetProperty("verdict").GetString()!

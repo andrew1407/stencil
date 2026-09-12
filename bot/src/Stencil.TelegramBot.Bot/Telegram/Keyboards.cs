@@ -14,7 +14,7 @@ public static partial class Keyboards
         for (int i = 0; i < options.Count; i++)
         {
             string tick = multi && picked.Contains(i) ? BotStrings.Mark("askPicked") : multi ? BotStrings.Mark("askUnpicked") : "";
-            rows.Add([InlineKeyboardButton.WithCallbackData($"{tick}{Trim(options[i])}", $"ask:{i}")]);
+            rows.Add([InlineKeyboardButton.WithCallbackData($"{tick}{trim(options[i])}", $"ask:{i}")]);
         }
         if (multi)
         {
@@ -43,29 +43,29 @@ public static partial class Keyboards
         foreach (LlmProfile p in profiles)
         {
             string tick = string.Equals(p.Name, current, StringComparison.OrdinalIgnoreCase) ? BotStrings.Mark("chatApiCurrent") : "";
-            rows.Add([InlineKeyboardButton.WithCallbackData($"{tick}{Trim(p.Label)}", $"api:{p.Name}")]);
+            rows.Add([InlineKeyboardButton.WithCallbackData($"{tick}{trim(p.Label)}", $"api:{p.Name}")]);
         }
         return new InlineKeyboardMarkup(rows);
     }
 
     // Long option text is clipped to stay readable on a phone.
-    private static string Trim(string label) => label.Length <= 40 ? label : label[..39] + "…";
+    private static string trim(string label) => label.Length <= 40 ? label : label[..39] + "…";
 
-    public static InlineKeyboardMarkup MainMenu() => new(MainRows());
+    public static InlineKeyboardMarkup MainMenu() => new(mainRows());
 
     public static InlineKeyboardMarkup StatusMenu(bool hasActiveProject)
     {
-        List<InlineKeyboardButton[]> rows = MainRows();
+        List<InlineKeyboardButton[]> rows = mainRows();
         if (hasActiveProject)
         {
-            rows.AddRange(ProjectActionsRows(hasActiveProject: true));
+            rows.AddRange(projectActionsRows(hasActiveProject: true));
         }
         return new InlineKeyboardMarkup(rows);
     }
 
     // Rename and Describe always show (they carry into /create); five abreast squeeze on a phone,
     // hence two rows.
-    private static List<InlineKeyboardButton[]> ProjectActionsRows(bool hasActiveProject)
+    private static List<InlineKeyboardButton[]> projectActionsRows(bool hasActiveProject)
     {
         List<InlineKeyboardButton[]> rows = new()
         {

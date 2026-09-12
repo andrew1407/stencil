@@ -25,12 +25,12 @@ public static class ImageDimensionReader
     }
 
     public static bool TryRead(ReadOnlySpan<byte> data, out int width, out int height) =>
-        TryReadPng(data, out width, out height)
-        || TryReadGif(data, out width, out height)
-        || TryReadJpeg(data, out width, out height)
-        || TryReadWebp(data, out width, out height);
+        tryReadPng(data, out width, out height)
+        || tryReadGif(data, out width, out height)
+        || tryReadJpeg(data, out width, out height)
+        || tryReadWebp(data, out width, out height);
 
-    private static bool TryReadPng(ReadOnlySpan<byte> d, out int width, out int height)
+    private static bool tryReadPng(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
         if (d.Length < 24 || !d[..8].SequenceEqual(PngSignature)
@@ -43,7 +43,7 @@ public static class ImageDimensionReader
         return width > 0 && height > 0;
     }
 
-    private static bool TryReadGif(ReadOnlySpan<byte> d, out int width, out int height)
+    private static bool tryReadGif(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
         if (d.Length < 10 || d[0] != 'G' || d[1] != 'I' || d[2] != 'F'
@@ -56,7 +56,7 @@ public static class ImageDimensionReader
         return width > 0 && height > 0;
     }
 
-    private static bool TryReadJpeg(ReadOnlySpan<byte> d, out int width, out int height)
+    private static bool tryReadJpeg(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
         if (d.Length < 4 || d[0] != 0xFF || d[1] != 0xD8)
@@ -104,7 +104,7 @@ public static class ImageDimensionReader
         return false;
     }
 
-    private static bool TryReadWebp(ReadOnlySpan<byte> d, out int width, out int height)
+    private static bool tryReadWebp(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
         if (d.Length < 30

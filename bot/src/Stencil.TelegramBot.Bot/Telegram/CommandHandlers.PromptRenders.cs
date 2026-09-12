@@ -12,19 +12,19 @@ public sealed partial class CommandHandlers
 {
     // One EXTRA image (a lone variant / frame pick); a mutating plan's main result goes through
     // RenderAndSendAsync.
-    private async Task SendPromptRenderAsync(long chatId, PromptRender render, UserSession session, CancellationToken ct)
+    private async Task sendPromptRenderAsync(long chatId, PromptRender render, UserSession session, CancellationToken ct)
     {
         await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
-        await SendResultPhotoAsync(chatId, render.Result.Path, PromptCaption(render),
+        await sendResultPhotoAsync(chatId, render.Result.Path, promptCaption(render),
             Keyboards.EditMenu(session.ActiveProjectId is not null), ct);
     }
 
-    private static string PromptCaption(PromptRender render) =>
+    private static string promptCaption(PromptRender render) =>
         $"{render.Label} — {render.Result.Size}";
 
     // A collapsed album shows only the first caption, so it leads with the batch size.
-    private static string AlbumLeadCaption(IReadOnlyList<PromptRender> renders) =>
-        $"{renders.Count} results\n{PromptCaption(renders[0])}";
+    private static string albumLeadCaption(IReadOnlyList<PromptRender> renders) =>
+        $"{renders.Count} results\n{promptCaption(renders[0])}";
 
     private readonly ConcurrentDictionary<long, List<PromptRender>> _renderCaptures = new();
 
@@ -49,14 +49,14 @@ public sealed partial class CommandHandlers
         if (renders.Count == 1)
         {
             await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
-            await SendResultPhotoAsync(chatId, renders[0].Result.Path, PromptCaption(renders[0]), keyboard: null, ct);
+            await sendResultPhotoAsync(chatId, renders[0].Result.Path, promptCaption(renders[0]), keyboard: null, ct);
             return;
         }
-        await SendPromptAlbumAsync(chatId, renders, ct);
+        await sendPromptAlbumAsync(chatId, renders, ct);
     }
 
     // Falls back to sequential photos when the album send fails (e.g. an API limit).
-    private async Task SendPromptAlbumAsync(long chatId, IReadOnlyList<PromptRender> renders, CancellationToken ct)
+    private async Task sendPromptAlbumAsync(long chatId, IReadOnlyList<PromptRender> renders, CancellationToken ct)
     {
         await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
         List<FileStream> streams = new();
@@ -69,7 +69,7 @@ public sealed partial class CommandHandlers
                 streams.Add(stream);
                 media.Add(new InputMediaPhoto(InputFile.FromStream(stream, $"result-{i + 1}.png"))
                 {
-                    Caption = i == 0 ? AlbumLeadCaption(renders) : PromptCaption(renders[i]),
+                    Caption = i == 0 ? albumLeadCaption(renders) : promptCaption(renders[i]),
                 });
             }
             await _bot.SendMediaGroup(chatId, media, cancellationToken: ct);
@@ -88,7 +88,7 @@ public sealed partial class CommandHandlers
         }
         foreach (PromptRender render in renders)
         {
-            await SendResultPhotoAsync(chatId, render.Result.Path, PromptCaption(render), keyboard: null, ct);
+            await sendResultPhotoAsync(chatId, render.Result.Path, promptCaption(render), keyboard: null, ct);
         }
     }
 }

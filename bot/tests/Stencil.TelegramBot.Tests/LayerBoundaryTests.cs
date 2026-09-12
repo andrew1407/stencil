@@ -28,34 +28,34 @@ public sealed partial class LayerBoundaryTests
     private static readonly IReadOnlyDictionary<string, string> Allowances = new Dictionary<string, string>();
 
     [GeneratedRegex(@"^\s*(?:global\s+)?using\s+(?:static\s+)?(?:[\w.]+\s*=\s*)?([\w.]+)\s*;")]
-    private static partial Regex UsingLine();
+    private static partial Regex usingLine();
 
     [GeneratedRegex(@"<ProjectReference\s+Include=""([^""]+)""")]
-    private static partial Regex ProjectReference();
+    private static partial Regex projectReference();
 
     [GeneratedRegex(@"<PackageReference\s+Include=""([^""]+)""")]
-    private static partial Regex PackageReference();
+    private static partial Regex packageReference();
 
-    private static string ProjectDir(string ring) =>
+    private static string projectDir(string ring) =>
         SharedFixtures.PathOf("bot", "src", Prefix + ring);
 
-    private static string CsprojText(string ring) =>
-        File.ReadAllText(Path.Combine(ProjectDir(ring), Prefix + ring + ".csproj"));
+    private static string csprojText(string ring) =>
+        File.ReadAllText(Path.Combine(projectDir(ring), Prefix + ring + ".csproj"));
 
-    private static IEnumerable<string> SourceFiles(string ring) =>
-        Directory.EnumerateFiles(ProjectDir(ring), "*.cs", SearchOption.AllDirectories)
+    private static IEnumerable<string> sourceFiles(string ring) =>
+        Directory.EnumerateFiles(projectDir(ring), "*.cs", SearchOption.AllDirectories)
             .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
                      && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"));
 
-    private static string? RingOf(string ns) =>
+    private static string? ringOf(string ns) =>
         ns.StartsWith(Prefix, StringComparison.Ordinal)
             ? Rings.FirstOrDefault(r => ns == Prefix + r || ns.StartsWith(Prefix + r + ".", StringComparison.Ordinal))
             : null;
 
-    private static string Rel(string path) =>
+    private static string toRel(string path) =>
         Path.GetRelativePath(SharedFixtures.RepoRoot, path).Replace('\\', '/');
 
-    private static bool Allowed(string relPath) => Allowances.ContainsKey(relPath);
+    private static bool isAllowed(string relPath) => Allowances.ContainsKey(relPath);
 
     public static IEnumerable<object[]> RingNames() => Rings.Select(r => new object[] { r });
 
@@ -64,7 +64,7 @@ public sealed partial class LayerBoundaryTests
     public void ProjectReferencesPointInward(string ring)
     {
         string[] allowed = AllowedInternal[ring];
-        string[] offending = ProjectReference().Matches(CsprojText(ring))
+        string[] offending = projectReference().Matches(csprojText(ring))
             .Select(m => Path.GetFileNameWithoutExtension(m.Groups[1].Value.Replace('\\', '/')))
             .Select(name => name[Prefix.Length..])
             .Where(target => target != ring && !allowed.Contains(target))
@@ -79,18 +79,18 @@ public sealed partial class LayerBoundaryTests
     {
         string[] allowed = AllowedInternal[ring];
         List<string> offending = [];
-        foreach (string file in SourceFiles(ring))
+        foreach (string file in sourceFiles(ring))
         {
-            if (Allowed(Rel(file)))
+            if (isAllowed(toRel(file)))
             {
                 continue;
             }
-            foreach (string ns in Usings(file))
+            foreach (string ns in usings(file))
             {
-                string? target = RingOf(ns);
+                string? target = ringOf(ns);
                 if (target is not null && target != ring && !allowed.Contains(target))
                 {
-                    offending.Add($"{Rel(file)}: using {ns}");
+                    offending.Add($"{toRel(file)}: using {ns}");
                 }
             }
         }
@@ -102,17 +102,17 @@ public sealed partial class LayerBoundaryTests
     public void DomainNamesNoAdapterNamespace()
     {
         List<string> offending = [];
-        foreach (string file in SourceFiles("Domain"))
+        foreach (string file in sourceFiles("Domain"))
         {
-            if (Allowed(Rel(file)))
+            if (isAllowed(toRel(file)))
             {
                 continue;
             }
-            foreach (string ns in Usings(file))
+            foreach (string ns in usings(file))
             {
                 if (DomainForbiddenNamespaces.Any(f => ns == f || ns.StartsWith(f + ".", StringComparison.Ordinal)))
                 {
-                    offending.Add($"{Rel(file)}: using {ns}");
+                    offending.Add($"{toRel(file)}: using {ns}");
                 }
             }
         }
@@ -122,7 +122,7 @@ public sealed partial class LayerBoundaryTests
     [Fact]
     public void DomainReferencesNoAdapterPackage()
     {
-        string[] packages = PackageReference().Matches(CsprojText("Domain"))
+        string[] packages = packageReference().Matches(csprojText("Domain"))
             .Select(m => m.Groups[1].Value)
             .Where(p => DomainForbiddenPackages.Any(f => p.Equals(f, StringComparison.OrdinalIgnoreCase)))
             .ToArray();
@@ -143,15 +143,15 @@ public sealed partial class LayerBoundaryTests
     {
         foreach (string ring in Rings)
         {
-            Assert.True(SourceFiles(ring).Any(), $"no sources found for {ring}");
+            Assert.True(sourceFiles(ring).Any(), $"no sources found for {ring}");
         }
     }
 
-    private static IEnumerable<string> Usings(string file)
+    private static IEnumerable<string> usings(string file)
     {
         foreach (string line in File.ReadLines(file))
         {
-            Match m = UsingLine().Match(line);
+            Match m = usingLine().Match(line);
             if (m.Success)
             {
                 yield return m.Groups[1].Value;

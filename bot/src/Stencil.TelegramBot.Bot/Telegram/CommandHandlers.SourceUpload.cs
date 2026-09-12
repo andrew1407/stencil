@@ -12,7 +12,7 @@ public sealed partial class CommandHandlers
 {
     // The chat analog of the console /source-upload; adopts the still like /url does. SSRF-vetted
     // like /url.
-    private async Task SourceUploadAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task sourceUploadAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -20,7 +20,7 @@ public sealed partial class CommandHandlers
             return;
         }
         string url = cmd.Args[0];
-        if (!TryParseSourceUploadArgs(url, cmd.Args, out ScrapeRequest request, out int index, out string? error))
+        if (!tryParseSourceUploadArgs(url, cmd.Args, out ScrapeRequest request, out int index, out string? error))
         {
             await _bot.SendMessage(chatId, $"{error}\n\n{SourceUploadUsage}", cancellationToken: ct);
             return;
@@ -48,7 +48,7 @@ public sealed partial class CommandHandlers
         }
         // Telegram has no modal, so there's no TTY-style confirmation before replacing the working
         // image.
-        await _editing.SetImageFromLocalFileAsync(userId, result.Files[0].Path, LabelFromUrl(url), sourceUrl: url, ct: ct);
+        await _editing.SetImageFromLocalFileAsync(userId, result.Files[0].Path, labelFromUrl(url), sourceUrl: url, ct: ct);
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
@@ -60,7 +60,7 @@ public sealed partial class CommandHandlers
         + "e.g. /sourceupload https://example.com 2 format=png name=cat minw=200";
 
     // Stills only, Count = 1, Group = index so the CLI's paging window isolates one still.
-    private static bool TryParseSourceUploadArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out int index, out string? error)
+    private static bool tryParseSourceUploadArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out int index, out string? error)
     {
         error = null;
         index = 0;
@@ -87,13 +87,13 @@ public sealed partial class CommandHandlers
             {
                 case "index":
                     int? idx = null;
-                    if (!SetInt(ref idx, value, key, out error)) return false;
+                    if (!setInt(ref idx, value, key, out error)) return false;
                     index = idx!.Value;
                     break;
-                case "minw" or "minwidth": if (!SetInt(ref minW, value, key, out error)) return false; break;
-                case "maxw" or "maxwidth": if (!SetInt(ref maxW, value, key, out error)) return false; break;
-                case "minh" or "minheight": if (!SetInt(ref minH, value, key, out error)) return false; break;
-                case "maxh" or "maxheight": if (!SetInt(ref maxH, value, key, out error)) return false; break;
+                case "minw" or "minwidth": if (!setInt(ref minW, value, key, out error)) return false; break;
+                case "maxw" or "maxwidth": if (!setInt(ref maxW, value, key, out error)) return false; break;
+                case "minh" or "minheight": if (!setInt(ref minH, value, key, out error)) return false; break;
+                case "maxh" or "maxheight": if (!setInt(ref maxH, value, key, out error)) return false; break;
                 case "format": format = value; break;
                 case "name": name = value; break;
                 default:

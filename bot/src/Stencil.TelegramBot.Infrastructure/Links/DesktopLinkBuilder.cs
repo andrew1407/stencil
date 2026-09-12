@@ -19,8 +19,8 @@ public static class DesktopLinkBuilder
         bool incognito = false, string scheme = DefaultScheme)
     {
         StringBuilder query = new();
-        query.Append("server=").Append(EncodeComponent(serverUrl));
-        query.Append("&id=").Append(EncodeComponent(projectId));
+        query.Append("server=").Append(encodeComponent(serverUrl));
+        query.Append("&id=").Append(encodeComponent(projectId));
         if (version > 0)
         {
             query.Append("&version=").Append(version.ToString(CultureInfo.InvariantCulture));
@@ -33,14 +33,14 @@ public static class DesktopLinkBuilder
     }
 
     public static string BounceUrl(string? browserBase, string stencilUrl) =>
-        $"{(browserBase ?? "").TrimEnd('/')}/launch.html#stencil-desktop={EncodeComponent(stencilUrl)}";
+        $"{(browserBase ?? "").TrimEnd('/')}/launch.html#stencil-desktop={encodeComponent(stencilUrl)}";
 
     // Null when the operator configured no http(s) browser app base — the caller then says the link
     // surface is off.
     public static string? TryProjectBounceUrl(string? browserBase, string serverUrl, string projectId,
         long version = 0, bool incognito = false)
     {
-        string? origin = NormalizeBase(browserBase);
+        string? origin = normalizeBase(browserBase);
         return origin is null
             ? null
             : BounceUrl(origin, SchemeUrl(serverUrl, projectId, version, incognito));
@@ -49,12 +49,12 @@ public static class DesktopLinkBuilder
     // A link to this machine resolves on whoever taps it, not on the operator's host, so the caller
     // says so.
     public static bool IsLoopbackBase(string? browserBase) =>
-        NormalizeBase(browserBase) is { } origin
+        normalizeBase(browserBase) is { } origin
         && UrlNormalizer.IsLoopbackHost(new Uri(origin).Host);
 
     // The path is kept (the app may be served under one, e.g. GitHub Pages), unlike a server
     // origin.
-    private static string? NormalizeBase(string? browserBase)
+    private static string? normalizeBase(string? browserBase)
     {
         if (string.IsNullOrWhiteSpace(browserBase)
             || !Uri.TryCreate(browserBase.Trim(), UriKind.Absolute, out Uri? uri)
@@ -66,7 +66,7 @@ public static class DesktopLinkBuilder
     }
 
     // JS encodeURIComponent: Uri.EscapeDataString also escapes !'()*, so put those five back.
-    private static string EncodeComponent(string value) =>
+    private static string encodeComponent(string value) =>
         Uri.EscapeDataString(value)
             .Replace("%21", "!", StringComparison.Ordinal)
             .Replace("%27", "'", StringComparison.Ordinal)

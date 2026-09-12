@@ -10,12 +10,12 @@ public sealed partial class PromptService
 {
     internal Task ChangeConnectionAsync(ActionContext ctx, PlanAction action, CancellationToken ct) =>
         action is DisconnectAction disconnect
-            ? DisconnectServerAsync(ctx, disconnect, ct)
-            : ConnectServerAsync(ctx, (ConnectAction)action, ct);
+            ? disconnectServerAsync(ctx, disconnect, ct)
+            : connectServerAsync(ctx, (ConnectAction)action, ct);
 
     // The STORED token rides along; an unknown/ambiguous/refusing server is a warning, never a
     // failed plan.
-    private async Task ConnectServerAsync(ActionContext ctx, ConnectAction connect, CancellationToken ct)
+    private async Task connectServerAsync(ActionContext ctx, ConnectAction connect, CancellationToken ct)
     {
         if (_projects is null)
         {
@@ -23,12 +23,12 @@ public sealed partial class PromptService
             return;
         }
         UserSession session = await _store.GetAsync(ctx.UserId, ct);
-        ServerConnectionInfo? saved = ResolveConnection(connect.Server, session.Connections, out bool ambiguous);
+        ServerConnectionInfo? saved = resolveConnection(connect.Server, session.Connections, out bool ambiguous);
         if (saved is null)
         {
             ctx.Warnings.Add(ambiguous
-                ? $"Skipped connect — \"{Shown(connect.Server)}\" matches several of your connections; use the full URL."
-                : $"Skipped connect — \"{Shown(connect.Server)}\" is not a server you saved; connect it first with /connect <url>.");
+                ? $"Skipped connect — \"{showServer(connect.Server)}\" matches several of your connections; use the full URL."
+                : $"Skipped connect — \"{showServer(connect.Server)}\" is not a server you saved; connect it first with /connect <url>.");
             return;
         }
         try
@@ -42,7 +42,7 @@ public sealed partial class PromptService
     }
 
     // A server that isn't connected is a warning, never a failed plan.
-    private async Task DisconnectServerAsync(ActionContext ctx, DisconnectAction disconnect, CancellationToken ct)
+    private async Task disconnectServerAsync(ActionContext ctx, DisconnectAction disconnect, CancellationToken ct)
     {
         if (_projects is null)
         {
@@ -50,12 +50,12 @@ public sealed partial class PromptService
             return;
         }
         UserSession session = await _store.GetAsync(ctx.UserId, ct);
-        ServerConnectionInfo? connected = ResolveConnection(disconnect.Server, session.Connections, out bool ambiguous);
+        ServerConnectionInfo? connected = resolveConnection(disconnect.Server, session.Connections, out bool ambiguous);
         if (connected is null)
         {
             ctx.Warnings.Add(ambiguous
-                ? $"Skipped disconnect — \"{Shown(disconnect.Server)}\" matches several of your connections; use the full URL."
-                : $"Skipped disconnect — \"{Shown(disconnect.Server)}\" isn't a connected server.");
+                ? $"Skipped disconnect — \"{showServer(disconnect.Server)}\" matches several of your connections; use the full URL."
+                : $"Skipped disconnect — \"{showServer(disconnect.Server)}\" isn't a connected server.");
             return;
         }
         try
@@ -73,7 +73,7 @@ public sealed partial class PromptService
 
     // The browser's resolveServer: exact URL, else a UNIQUE host[:port]/hostname match among the
     // user's OWN connections.
-    private static ServerConnectionInfo? ResolveConnection(
+    private static ServerConnectionInfo? resolveConnection(
         string server, IReadOnlyList<ServerConnectionInfo> connections, out bool ambiguous)
     {
         ambiguous = false;
@@ -92,7 +92,7 @@ public sealed partial class PromptService
         return matches.Count == 1 ? matches[0] : null;
     }
 
-    private static string Shown(string server)
+    private static string showServer(string server)
     {
         string s = server.Trim();
         return s.Length <= MaxLabelChars ? s : s[..MaxLabelChars] + "…";

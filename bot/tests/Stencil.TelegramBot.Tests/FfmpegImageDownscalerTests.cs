@@ -19,7 +19,7 @@ public sealed class FfmpegImageDownscalerTests
     private TimeSpan _timeout;
 
     /// <summary>Record the invocation and answer with <paramref name="outcome"/>.</summary>
-    private FfmpegImageDownscaler With(ProcessOutcome outcome, bool writeOutput)
+    private FfmpegImageDownscaler makeDownscaler(ProcessOutcome outcome, bool writeOutput)
     {
         return new FfmpegImageDownscaler(_options, async (file, argv, timeout, ct) =>
         {
@@ -41,7 +41,7 @@ public sealed class FfmpegImageDownscalerTests
     [Fact]
     public async Task OneShrinkOnlyInvocationResizesAndReEncodes()
     {
-        byte[]? bytes = await With(Ok, writeOutput: true).DownscaleToPngAsync("/tmp/in.jpg", 1024);
+        byte[]? bytes = await makeDownscaler(Ok, writeOutput: true).DownscaleToPngAsync("/tmp/in.jpg", 1024);
 
         Assert.Equal(new byte[] { 1, 2, 3 }, bytes);
         Assert.Equal("ffmpeg", _tool);
@@ -58,7 +58,7 @@ public sealed class FfmpegImageDownscalerTests
     [Fact]
     public async Task TheMaxEdgeRidesIntoBothScaleBounds()
     {
-        await With(Ok, writeOutput: true).DownscaleToPngAsync("/tmp/in.png", 320);
+        await makeDownscaler(Ok, writeOutput: true).DownscaleToPngAsync("/tmp/in.png", 320);
 
         Assert.Contains("scale=w='min(320,iw)':h='min(320,ih)':force_original_aspect_ratio=decrease", _argv);
     }
@@ -66,7 +66,7 @@ public sealed class FfmpegImageDownscalerTests
     [Fact]
     public async Task EachCallGetsItsOwnOutputPath()
     {
-        FfmpegImageDownscaler downscaler = With(Ok, writeOutput: true);
+        FfmpegImageDownscaler downscaler = makeDownscaler(Ok, writeOutput: true);
 
         await downscaler.DownscaleToPngAsync("/tmp/in.png", 64);
         string first = Output;
@@ -80,7 +80,7 @@ public sealed class FfmpegImageDownscalerTests
     [InlineData(255)]
     public async Task ANonZeroExitYieldsNullAndLeavesNoTempFile(int exitCode)
     {
-        byte[]? bytes = await With(new ProcessCompleted(exitCode, "boom"), writeOutput: true)
+        byte[]? bytes = await makeDownscaler(new ProcessCompleted(exitCode, "boom"), writeOutput: true)
             .DownscaleToPngAsync("/tmp/in.jpg", 1024);
 
         Assert.Null(bytes);
@@ -90,14 +90,14 @@ public sealed class FfmpegImageDownscalerTests
     [Fact]
     public async Task FfmpegNotInstalledYieldsNull()
     {
-        Assert.Null(await With(new ProcessStartFailed("no such file"), writeOutput: false)
+        Assert.Null(await makeDownscaler(new ProcessStartFailed("no such file"), writeOutput: false)
             .DownscaleToPngAsync("/tmp/in.jpg", 1024));
     }
 
     [Fact]
     public async Task ATimeoutYieldsNull()
     {
-        Assert.Null(await With(new ProcessTimedOut(), writeOutput: false)
+        Assert.Null(await makeDownscaler(new ProcessTimedOut(), writeOutput: false)
             .DownscaleToPngAsync("/tmp/in.jpg", 1024));
     }
 
@@ -105,7 +105,7 @@ public sealed class FfmpegImageDownscalerTests
     public async Task ACleanExitWithNoOutputFileYieldsNull()
     {
         // ffmpeg reported success but wrote nothing — treated as a failure, not as empty bytes.
-        Assert.Null(await With(Ok, writeOutput: false).DownscaleToPngAsync("/tmp/in.jpg", 1024));
+        Assert.Null(await makeDownscaler(Ok, writeOutput: false).DownscaleToPngAsync("/tmp/in.jpg", 1024));
     }
 
     [Fact]

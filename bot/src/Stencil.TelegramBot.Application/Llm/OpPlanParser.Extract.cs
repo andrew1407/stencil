@@ -5,7 +5,7 @@ namespace Stencil.TelegramBot.Application.Llm;
 
 public static partial class OpPlanParser
 {
-    private static string StripFences(string text)
+    private static string stripFences(string text)
     {
         if (!text.Contains("```"))
         {
@@ -25,11 +25,11 @@ public static partial class OpPlanParser
 
     // String/escape-aware brace matching, retrying from each later { so stray braces in prose don't
     // hide an object.
-    private static bool TryExtractJsonObject(string text, out JsonDocument? doc)
+    private static bool tryExtractJsonObject(string text, out JsonDocument? doc)
     {
         for (int start = text.IndexOf('{'); start >= 0; start = text.IndexOf('{', start + 1))
         {
-            if (!TryFindBalancedEnd(text, start, out int end))
+            if (!tryFindBalancedEnd(text, start, out int end))
             {
                 continue;
             }
@@ -46,7 +46,7 @@ public static partial class OpPlanParser
         return false;
     }
 
-    private static bool TryFindBalancedEnd(string text, int start, out int end)
+    private static bool tryFindBalancedEnd(string text, int start, out int end)
     {
         int depth = 0;
         bool inString = false;

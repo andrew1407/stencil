@@ -20,7 +20,7 @@ public sealed class RedisSessionStore : ISessionStore
     public async Task<UserSession> GetAsync(long userId, CancellationToken ct = default)
     {
         IDatabase db = _redis.GetDatabase();
-        RedisValue value = await db.StringGetAsync(KeyFor(userId)).ConfigureAwait(false);
+        RedisValue value = await db.StringGetAsync(keyFor(userId)).ConfigureAwait(false);
         if (value.IsNullOrEmpty)
         {
             return new UserSession { UserId = userId };
@@ -33,14 +33,14 @@ public sealed class RedisSessionStore : ISessionStore
     {
         IDatabase db = _redis.GetDatabase();
         string json = StencilJson.Serialize(session);
-        await db.StringSetAsync(KeyFor(session.UserId), json).ConfigureAwait(false);
+        await db.StringSetAsync(keyFor(session.UserId), json).ConfigureAwait(false);
     }
 
     public async Task ResetAsync(long userId, CancellationToken ct = default)
     {
         IDatabase db = _redis.GetDatabase();
-        await db.KeyDeleteAsync(KeyFor(userId)).ConfigureAwait(false);
+        await db.KeyDeleteAsync(keyFor(userId)).ConfigureAwait(false);
     }
 
-    private static RedisKey KeyFor(long userId) => $"stencilbot:session:{userId}";
+    private static RedisKey keyFor(long userId) => $"stencilbot:session:{userId}";
 }

@@ -36,14 +36,14 @@ public sealed class ProjectNameHandlerTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private Task Dispatch(string text) =>
+    private Task dispatch(string text) =>
         _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
 
     [Fact]
     public async Task RelabelsTheLocalWorkingImageWithoutTouchingTheServer()
     {
-        await Dispatch("/blank");
-        await Dispatch("/project-name Poster draft");
+        await dispatch("/blank");
+        await dispatch("/project-name Poster draft");
 
         UserSession session = await _store.GetAsync(UserId);
         Assert.Equal("Poster draft", session.ImageLabel);
@@ -54,7 +54,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
     [Fact]
     public async Task WithNoWorkingImageAsksForOne()
     {
-        await Dispatch("/project-name Whatever");
+        await dispatch("/project-name Whatever");
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains("No working image", reply.Text);
@@ -65,10 +65,10 @@ public sealed class ProjectNameHandlerTests : IDisposable
     [Fact]
     public async Task BlankArgumentSendsUsageAndKeepsTheLabel()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         UserSession before = await _store.GetAsync(UserId);
 
-        await Dispatch("/project-name    ");
+        await dispatch("/project-name    ");
 
         SendMessageRequest usage = _bot.Requests.OfType<SendMessageRequest>().Last();
         Assert.Contains("Usage: /project-name", usage.Text);
@@ -79,8 +79,8 @@ public sealed class ProjectNameHandlerTests : IDisposable
     [Fact]
     public async Task DescriptionIsHeldLocallyAndShownInStatusBeforeSaving()
     {
-        await Dispatch("/blank");
-        await Dispatch("/project-description A red study");
+        await dispatch("/blank");
+        await dispatch("/project-description A red study");
 
         UserSession session = await _store.GetAsync(UserId);
         Assert.Equal("A red study", session.ActiveProjectDescription);
@@ -90,9 +90,9 @@ public sealed class ProjectNameHandlerTests : IDisposable
     [Fact]
     public async Task EmptyDescriptionClearsTheLocalDescription()
     {
-        await Dispatch("/blank");
-        await Dispatch("/project-description Something");
-        await Dispatch("/project-description");
+        await dispatch("/blank");
+        await dispatch("/project-description Something");
+        await dispatch("/project-description");
 
         UserSession session = await _store.GetAsync(UserId);
         Assert.Equal("", session.ActiveProjectDescription);

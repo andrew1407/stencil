@@ -79,7 +79,7 @@ public static partial class Replies
         {
             return "";
         }
-        if (!TryParseHex(color, out int r, out int g, out int b))
+        if (!tryParseHex(color, out int r, out int g, out int b))
         {
             return "🎨"; // a named colour we can't cheaply resolve — still signals "has a colour"
         }
@@ -103,7 +103,7 @@ public static partial class Replies
         return best;
     }
 
-    private static bool TryParseHex(string color, out int r, out int g, out int b)
+    private static bool tryParseHex(string color, out int r, out int g, out int b)
     {
         r = g = b = 0;
         string s = color.Trim().TrimStart('#');

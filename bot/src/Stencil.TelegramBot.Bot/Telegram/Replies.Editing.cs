@@ -56,7 +56,7 @@ public static partial class Replies
         return sb.ToString();
     }
 
-    private static string PenSummary(LineStyle pen) =>
+    private static string penSummary(LineStyle pen) =>
         BotStrings.Reply("penSummary", pen.Color, pen.Thickness, pen.Style, pen.PointSize, pen.FillColor);
 
     public static string DescribeEdits(EditState edits)

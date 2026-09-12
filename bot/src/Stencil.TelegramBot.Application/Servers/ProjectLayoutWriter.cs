@@ -15,12 +15,12 @@ public static class ProjectLayoutWriter
     // records).
     public static JsonObject Build(string? baseLayoutJson, EditState edits, int resultWidth, int resultHeight)
     {
-        JsonObject root = TryParseObject(baseLayoutJson) ?? new JsonObject();
-        NormalizeCropRect(root);
+        JsonObject root = tryParseObject(baseLayoutJson) ?? new JsonObject();
+        normalizeCropRect(root);
 
         root["lines"] = JsonSerializer.SerializeToNode(edits.Layout?.Lines ?? [], StencilJson.Options);
 
-        var (mode, color) = FilterFields(edits.Filter);
+        var (mode, color) = filterFields(edits.Filter);
         root["imageFilter"] = mode;
         if (color is not null)
         {
@@ -59,7 +59,7 @@ public static class ProjectLayoutWriter
         Build(baseLayoutJson, edits, resultWidth, resultHeight).ToJsonString();
 
     // bw/sepia/invert/contour stay named; any colour becomes a custom tint; null is none.
-    private static (string Mode, string? Color) FilterFields(string? filter)
+    private static (string Mode, string? Color) filterFields(string? filter)
     {
         if (string.IsNullOrEmpty(filter))
         {
@@ -85,7 +85,7 @@ public static class ProjectLayoutWriter
     }
 
     // A preserved legacy cropRect ({width,height}) is rewritten to the canonical {x,y,w,h} keys.
-    private static void NormalizeCropRect(JsonObject root)
+    private static void normalizeCropRect(JsonObject root)
     {
         if (root["cropRect"] is not JsonObject rect)
         {
@@ -104,7 +104,7 @@ public static class ProjectLayoutWriter
         }
     }
 
-    private static JsonObject? TryParseObject(string? json)
+    private static JsonObject? tryParseObject(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))
         {

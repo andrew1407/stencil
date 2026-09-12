@@ -54,15 +54,15 @@ public sealed class ReplyTonesTests : IDisposable
     }
 
     /// <summary>Route a plain Telegram text message exactly as the poller would.</summary>
-    private Task Send(string text) =>
+    private Task send(string text) =>
         _router.HandleMessageAsync(
             new Message { Chat = new Chat { Id = ChatId }, From = new User { Id = UserId }, Text = text },
             CancellationToken.None);
 
-    private Task Dispatch(string text) =>
+    private Task dispatch(string text) =>
         _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
 
-    private string LastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
+    private string lastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
 
     // The reported case: /connect against a server that rejects the token.
     [Fact]
@@ -70,11 +70,11 @@ public sealed class ReplyTonesTests : IDisposable
     {
         _servers.ConnectThrows = new ServerException("unauthorized", "missing or invalid token", 401);
 
-        await Send("/connect https://stencil.example.com bad-token");
+        await send("/connect https://stencil.example.com bad-token");
 
-        Assert.StartsWith("🔴 ", LastText());
+        Assert.StartsWith("🔴 ", lastText());
         // The wording itself is untouched — only the prefix is new.
-        Assert.Contains("missing or invalid token", LastText());
+        Assert.Contains("missing or invalid token", lastText());
     }
 
     [Fact]
@@ -82,31 +82,31 @@ public sealed class ReplyTonesTests : IDisposable
     {
         _cli.FailWhen = _ => true;
 
-        await Send("/blank");
+        await send("/blank");
 
-        Assert.Equal("🔴 canned CLI failure", LastText());
+        Assert.Equal("🔴 canned CLI failure", lastText());
     }
 
     [Fact]
     public async Task AnAssistantFailureIsMarkedAsAnError()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.Throw = new LlmException("Could not reach the AI service.");
 
-        await Dispatch("/prompt make it sepia");
+        await dispatch("/prompt make it sepia");
 
-        Assert.Equal("🔴 Could not reach the AI service.", LastText());
+        Assert.Equal("🔴 Could not reach the AI service.", lastText());
     }
 
     // A plan that half-ran: the reply stays plain, each warning line carries the warning glyph.
     [Fact]
     public async Task PlanWarningsAreMarkedAsWarnings()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply(
             """{"reply":"Rotated it.","actions":[{"op":"rotate","dir":"right"},{"op":"save"}]}"""));
 
-        await Dispatch("/prompt rotate and save it");
+        await dispatch("/prompt rotate and save it");
 
         string text = _bot.Requests.OfType<SendMessageRequest>().Last().Text;
         Assert.StartsWith("Rotated it.", text);
@@ -117,9 +117,9 @@ public sealed class ReplyTonesTests : IDisposable
     [Fact]
     public async Task AConfirmedServerActionIsMarkedAsSuccess()
     {
-        await Send("/connect https://stencil.example.com");
+        await send("/connect https://stencil.example.com");
 
-        Assert.Equal("✅ Connected to https://stencil.example.com.", LastText());
+        Assert.Equal("✅ Connected to https://stencil.example.com.", lastText());
     }
 
     [Fact]
@@ -128,8 +128,8 @@ public sealed class ReplyTonesTests : IDisposable
         // Nothing failed and nothing changed: /disconnect with no matching connection.
         _servers.DisconnectResult = false;
 
-        await Dispatch("/disconnect https://nowhere.example.com");
+        await dispatch("/disconnect https://nowhere.example.com");
 
-        Assert.Equal("ℹ️ No matching connection to disconnect.", LastText());
+        Assert.Equal("ℹ️ No matching connection to disconnect.", lastText());
     }
 }

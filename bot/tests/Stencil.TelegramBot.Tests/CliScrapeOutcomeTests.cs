@@ -66,7 +66,7 @@ public sealed class CliScrapeOutcomeTests
     [Fact]
     public void ScrapeGoldenFixturesMatch()
     {
-        string json = File.ReadAllText(ScrapeFixturesPath());
+        string json = File.ReadAllText(scrapeFixturesPath());
         using JsonDocument doc = JsonDocument.Parse(json);
         foreach (JsonElement c in doc.RootElement.GetProperty("cases").EnumerateArray())
         {
@@ -80,8 +80,8 @@ public sealed class CliScrapeOutcomeTests
             foreach (JsonElement ef in expectedFiles.EnumerateArray())
             {
                 Assert.Equal(ef.GetProperty("path").GetString(), got.Files[i].Path);
-                Assert.Equal(NullableInt(ef.GetProperty("width")), got.Files[i].Width);
-                Assert.Equal(NullableInt(ef.GetProperty("height")), got.Files[i].Height);
+                Assert.Equal(nullableInt(ef.GetProperty("width")), got.Files[i].Width);
+                Assert.Equal(nullableInt(ef.GetProperty("height")), got.Files[i].Height);
                 i++;
             }
 
@@ -100,11 +100,11 @@ public sealed class CliScrapeOutcomeTests
         }
     }
 
-    private static int? NullableInt(JsonElement e) =>
+    private static int? nullableInt(JsonElement e) =>
         e.ValueKind == JsonValueKind.Null ? null : e.GetInt32();
 
     /// <summary>Locate the shared fixtures relative to THIS test source (compile-time path).</summary>
-    private static string ScrapeFixturesPath([CallerFilePath] string thisFile = "")
+    private static string scrapeFixturesPath([CallerFilePath] string thisFile = "")
     {
         string dir = Path.GetDirectoryName(thisFile)!;
         // .../bot/tests/Stencil.TelegramBot.Tests -> repo root is three levels up.

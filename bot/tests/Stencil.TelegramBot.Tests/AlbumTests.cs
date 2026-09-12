@@ -58,7 +58,7 @@ public sealed class AlbumTests : IDisposable
     }
 
     /// <summary>Route one album member exactly as the poller would deliver it.</summary>
-    private Task SendAlbumPhoto(int messageId, string fileId, string? caption = null, string group = "album-1") =>
+    private Task sendAlbumPhoto(int messageId, string fileId, string? caption = null, string group = "album-1") =>
         _router.HandleMessageAsync(
             new Message
             {
@@ -71,7 +71,7 @@ public sealed class AlbumTests : IDisposable
             },
             CancellationToken.None);
 
-    private Task Send(string text) =>
+    private Task send(string text) =>
         _router.HandleMessageAsync(
             new Message
             {
@@ -82,7 +82,7 @@ public sealed class AlbumTests : IDisposable
             CancellationToken.None);
 
     /// <summary>Release the settle window and wait for the buffered group to flush.</summary>
-    private async Task SettleAsync()
+    private async Task settleAsync()
     {
         _settle.TrySetResult();
         await _albums.WhenIdleAsync();
@@ -93,10 +93,10 @@ public sealed class AlbumTests : IDisposable
     [Fact]
     public async Task CaptionOnTheFirstMemberRunsThePerPhotoBatchInOrderAndRepliesWithOneAlbum()
     {
-        await SendAlbumPhoto(1, "p1", caption: "/filter bw");
-        await SendAlbumPhoto(2, "p2");
-        await SendAlbumPhoto(3, "p3");
-        await SettleAsync();
+        await sendAlbumPhoto(1, "p1", caption: "/filter bw");
+        await sendAlbumPhoto(2, "p2");
+        await sendAlbumPhoto(3, "p3");
+        await settleAsync();
 
         // Each photo was downloaded and rendered once, in album order.
         Assert.Equal(["p1", "p2", "p3"], DownloadedFileIds);
@@ -118,10 +118,10 @@ public sealed class AlbumTests : IDisposable
     [Fact]
     public async Task CaptionOnTheLastMemberBatchesTheSameWay()
     {
-        await SendAlbumPhoto(1, "p1");
-        await SendAlbumPhoto(2, "p2");
-        await SendAlbumPhoto(3, "p3", caption: "/rotate 1");
-        await SettleAsync();
+        await sendAlbumPhoto(1, "p1");
+        await sendAlbumPhoto(2, "p2");
+        await sendAlbumPhoto(3, "p3", caption: "/rotate 1");
+        await settleAsync();
 
         Assert.Equal(["p1", "p2", "p3"], DownloadedFileIds);
         Assert.Equal(3, _cli.EditCalls);
@@ -134,17 +134,17 @@ public sealed class AlbumTests : IDisposable
     [Fact]
     public async Task ChatModeAlbumCaptionGoesToTheAssistantOncePerPhotoInOrder()
     {
-        await Send("/chat");
+        await send("/chat");
         for (int i = 0; i < 3; i++)
         {
             _llm.CannedReplies.Enqueue(new LlmReply(
                 """{"reply":"Done.","actions":[{"op":"filter","mode":"bw"}]}"""));
         }
 
-        await SendAlbumPhoto(1, "p1", caption: "make these black and white");
-        await SendAlbumPhoto(2, "p2");
-        await SendAlbumPhoto(3, "p3");
-        await SettleAsync();
+        await sendAlbumPhoto(1, "p1", caption: "make these black and white");
+        await sendAlbumPhoto(2, "p2");
+        await sendAlbumPhoto(3, "p3");
+        await settleAsync();
 
         // One assistant turn per photo, each carrying the shared caption, in album order.
         Assert.Equal(3, _llm.Requests.Count);
@@ -162,10 +162,10 @@ public sealed class AlbumTests : IDisposable
     [Fact]
     public async Task AnUncaptionedAlbumAdoptsOnlyTheLastPhotoWithOneNote()
     {
-        await SendAlbumPhoto(1, "p1");
-        await SendAlbumPhoto(2, "p2");
-        await SendAlbumPhoto(3, "p3");
-        await SettleAsync();
+        await sendAlbumPhoto(1, "p1");
+        await sendAlbumPhoto(2, "p2");
+        await sendAlbumPhoto(3, "p3");
+        await settleAsync();
 
         // Only the last photo was downloaded/adopted — no per-photo echo spam.
         Assert.Equal(["p3"], DownloadedFileIds);
@@ -179,7 +179,7 @@ public sealed class AlbumTests : IDisposable
     [Fact]
     public async Task APlainCaptionOnASingleNonAlbumPhotoGoesToTheAssistantInChatMode()
     {
-        await Send("/chat");
+        await send("/chat");
         _llm.CannedReplies.Enqueue(new LlmReply(
             """{"reply":"Sepia it is.","actions":[{"op":"filter","mode":"sepia"}]}"""));
 

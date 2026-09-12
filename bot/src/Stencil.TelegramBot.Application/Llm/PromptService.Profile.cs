@@ -46,8 +46,8 @@ public sealed partial class PromptService
     {
         try
         {
-            await _editing.SetImageFromUrlAsync(ctx.UserId, open.Url, LabelFromUrl(open.Url), ct);
-            await ResetMapperAsync(ctx.UserId, ctx.Mapper, ct);
+            await _editing.SetImageFromUrlAsync(ctx.UserId, open.Url, labelFromUrl(open.Url), ct);
+            await resetMapperAsync(ctx.UserId, ctx.Mapper, ct);
             if (open.Incognito)
             {
                 ctx.Warnings.Add("Ignored \"incognito\" — a Telegram chat has no incognito mode.");
@@ -55,7 +55,7 @@ public sealed partial class PromptService
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            ctx.Warnings.Add($"Skipped opening {Shown(open.Url)} — {ex.Message}");
+            ctx.Warnings.Add($"Skipped opening {showServer(open.Url)} — {ex.Message}");
         }
     }
 
@@ -74,13 +74,13 @@ public sealed partial class PromptService
             {
                 string json = _editing.ExportLayoutJson(session);
                 ctx.Exports.Add(new PromptExport(
-                    SafeLabel(session.ImageLabel) + ".json", Encoding.UTF8.GetBytes(json), "Layout JSON"));
+                    safeLabel(session.ImageLabel) + ".json", Encoding.UTF8.GetBytes(json), "Layout JSON"));
             }
             else
             {
                 byte[] bytes = await _editing.ExportProjectFileAsync(ctx.UserId, ct);
                 ctx.Exports.Add(new PromptExport(
-                    SafeLabel(session.ImageLabel) + ".stencil", bytes, "Stencil project"));
+                    safeLabel(session.ImageLabel) + ".stencil", bytes, "Stencil project"));
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -89,7 +89,7 @@ public sealed partial class PromptService
         }
     }
 
-    private static string LabelFromUrl(string url)
+    private static string labelFromUrl(string url)
     {
         if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
         {
@@ -99,7 +99,7 @@ public sealed partial class PromptService
         return "image";
     }
 
-    private static string SafeLabel(string? label)
+    private static string safeLabel(string? label)
     {
         if (string.IsNullOrWhiteSpace(label))
         {

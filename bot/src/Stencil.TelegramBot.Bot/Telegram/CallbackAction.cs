@@ -132,7 +132,7 @@ public sealed class CallbackAction
                 "m:edit" => Keyboards.EditSubmenu(),
                 "m:filter" => Keyboards.FilterSubmenu(),
                 "m:draw" => Keyboards.DrawSubmenu(),
-                _ => Keyboards.EditMenu(await HasActiveProjectAsync(userId, ct)),
+                _ => Keyboards.EditMenu(await hasActiveProjectAsync(userId, ct)),
             };
             await _bot.EditMessageReplyMarkup(chatId, query.Message.MessageId, markup, cancellationToken: ct);
             return;
@@ -193,7 +193,7 @@ public sealed class CallbackAction
         await _handlers.DispatchAsync(userId, chatId, CallbackTokens.Map(data), ct);
     }
 
-    private async Task<bool> HasActiveProjectAsync(long userId, CancellationToken ct)
+    private async Task<bool> hasActiveProjectAsync(long userId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         return session.ActiveProjectId is not null;

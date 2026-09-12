@@ -47,7 +47,7 @@ public sealed class AskCardTaps
             }
             if (!session.AskMulti)
             {
-                await SubmitAsync(userId, chatId, session, [index], ct);
+                await submitAsync(userId, chatId, session, [index], ct);
                 return;
             }
             if (!picked.Remove(index))
@@ -65,12 +65,12 @@ public sealed class AskCardTaps
                 chatId, Replies.Tag(Replies.Tone.Error, "Pick at least one option first."), cancellationToken: ct);
             return;
         }
-        await SubmitAsync(userId, chatId, session, picked, ct);
+        await submitAsync(userId, chatId, session, picked, ct);
     }
 
     // The same prompt path typing them would take; the card is retired so it cannot be answered
     // twice.
-    private async Task SubmitAsync(long userId, long chatId, UserSession session, IReadOnlyList<int> picked, CancellationToken ct)
+    private async Task submitAsync(long userId, long chatId, UserSession session, IReadOnlyList<int> picked, CancellationToken ct)
     {
         string answer = OpPlanParser.AskAnswerText(picked.Select(i => session.AskOptions[i]));
         await _store.SaveAsync(session with { AskOptions = [], AskMulti = false, AskPicked = [] }, ct);

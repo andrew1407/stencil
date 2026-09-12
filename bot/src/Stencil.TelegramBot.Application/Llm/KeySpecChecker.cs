@@ -36,24 +36,24 @@ internal sealed class KeySpecChecker
         return at.ValueKind == JsonValueKind.Number ? (int)at.GetDouble() : throw new InvalidOperationException($"opRegistry: unknown limit \"{name}\"");
     }
 
-    private string Describe(string name) =>
+    private string describeRegex(string name) =>
         describe.TryGetProperty(name, out JsonElement d) ? d.GetString()! : name;
 
     public void CheckValue(JsonElement v, JsonElement spec, SchemaPath path, JsonElement? parent)
     {
         switch (spec.GetProperty("type").GetString())
         {
-            case "string": CheckString(v, spec, path, parent); break;
+            case "string": checkString(v, spec, path, parent); break;
             case "integer":
-            case "number": CheckNumber(v, spec, path); break;
-            case "boolean": CheckBoolean(v, spec, path); break;
-            case "array": CheckArray(v, spec, path); break;
-            case "object": CheckObject(v, spec, path); break;
+            case "number": checkNumber(v, spec, path); break;
+            case "boolean": checkBoolean(v, spec, path); break;
+            case "array": checkArray(v, spec, path); break;
+            case "object": checkObject(v, spec, path); break;
             default: throw new InvalidOperationException($"opRegistry: unknown type \"{spec.GetProperty("type")}\"");
         }
     }
 
-    private void CheckString(JsonElement v, JsonElement spec, SchemaPath path, JsonElement? parent)
+    private void checkString(JsonElement v, JsonElement spec, SchemaPath path, JsonElement? parent)
     {
         if (v.ValueKind != JsonValueKind.String)
         {
@@ -99,15 +99,15 @@ internal sealed class KeySpecChecker
         }
         if (names.Count > 0 && !names.Any(n => regexes[n].IsMatch(s)))
         {
-            throw Bad($"{Label(path)} must be {string.Join(" or ", names.Select(Describe))}");
+            throw Bad($"{Label(path)} must be {string.Join(" or ", names.Select(describeRegex))}");
         }
         if (spec.TryGetProperty("regexNot", out JsonElement not) && regexes[not.GetString()!].IsMatch(s))
         {
-            throw Bad($"{Label(path)} must be a local value, not {Describe(not.GetString()!)}");
+            throw Bad($"{Label(path)} must be a local value, not {describeRegex(not.GetString()!)}");
         }
     }
 
-    private static void CheckNumber(JsonElement v, JsonElement spec, SchemaPath path)
+    private static void checkNumber(JsonElement v, JsonElement spec, SchemaPath path)
     {
         bool integer = spec.GetProperty("type").GetString() == "integer";
         string noun = integer ? "an integer" : "a number";
@@ -131,7 +131,7 @@ internal sealed class KeySpecChecker
         }
     }
 
-    private static void CheckBoolean(JsonElement v, JsonElement spec, SchemaPath path)
+    private static void checkBoolean(JsonElement v, JsonElement spec, SchemaPath path)
     {
         if (v.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
         {
@@ -143,7 +143,7 @@ internal sealed class KeySpecChecker
         }
     }
 
-    private void CheckArray(JsonElement v, JsonElement spec, SchemaPath path)
+    private void checkArray(JsonElement v, JsonElement spec, SchemaPath path)
     {
         if (v.ValueKind != JsonValueKind.Array)
         {
@@ -175,7 +175,7 @@ internal sealed class KeySpecChecker
         }
     }
 
-    private void CheckObject(JsonElement v, JsonElement spec, SchemaPath path)
+    private void checkObject(JsonElement v, JsonElement spec, SchemaPath path)
     {
         if (v.ValueKind != JsonValueKind.Object)
         {

@@ -14,7 +14,7 @@ public sealed class CappingWriteStream : Stream
         _limit = limit;
     }
 
-    private void Account(long count)
+    private void account(long count)
     {
         _written += count;
         if (_written > _limit)
@@ -25,31 +25,31 @@ public sealed class CappingWriteStream : Stream
 
     public override void Write(byte[] buffer, int offset, int count)
     {
-        Account(count);
+        account(count);
         _inner.Write(buffer, offset, count);
     }
 
     public override void Write(ReadOnlySpan<byte> buffer)
     {
-        Account(buffer.Length);
+        account(buffer.Length);
         _inner.Write(buffer);
     }
 
     public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
-        Account(count);
+        account(count);
         return _inner.WriteAsync(buffer, offset, count, cancellationToken);
     }
 
     public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
-        Account(buffer.Length);
+        account(buffer.Length);
         return _inner.WriteAsync(buffer, cancellationToken);
     }
 
     public override void WriteByte(byte value)
     {
-        Account(1);
+        account(1);
         _inner.WriteByte(value);
     }
 

@@ -155,7 +155,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
 
     // `combine` mirrors the GUI editors' Combine/Replace prompt and the CLI console's
     // `apply … combine`: keep what is drawn and add the incoming lines after it.
-    private static StencilLayout LayoutWith(int x) => new()
+    private static StencilLayout layoutWith(int x) => new()
     {
         Lines = [new LayoutLine { Points = [new LayoutPoint(x, x), new LayoutPoint(x + 1, x + 1)] }],
     };
@@ -164,8 +164,8 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     public async Task ApplyLayoutReplacesTheCurrentLinesByDefault()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.ApplyLayoutAsync(UserId, LayoutWith(1));
-        UserSession session = await _service.ApplyLayoutAsync(UserId, LayoutWith(5));
+        await _service.ApplyLayoutAsync(UserId, layoutWith(1));
+        UserSession session = await _service.ApplyLayoutAsync(UserId, layoutWith(5));
 
         Assert.Single(session.Edits.Layout!.Lines);
         Assert.Equal(5, session.Edits.Layout!.Lines[0].Points[0].X);
@@ -175,8 +175,8 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     public async Task ApplyLayoutCombineKeepsTheExistingLinesAndAddsTheNewOnTop()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.ApplyLayoutAsync(UserId, LayoutWith(1));
-        UserSession session = await _service.ApplyLayoutAsync(UserId, LayoutWith(5), combine: true);
+        await _service.ApplyLayoutAsync(UserId, layoutWith(1));
+        UserSession session = await _service.ApplyLayoutAsync(UserId, layoutWith(5), combine: true);
 
         Assert.Equal(2, session.Edits.Layout!.Lines.Count);
         Assert.Equal(1, session.Edits.Layout!.Lines[0].Points[0].X);   // existing first…
@@ -187,7 +187,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     public async Task ApplyLayoutCombineOnAnEmptyDrawingJustAdoptsTheLayout()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
-        UserSession session = await _service.ApplyLayoutAsync(UserId, LayoutWith(3), combine: true);
+        UserSession session = await _service.ApplyLayoutAsync(UserId, layoutWith(3), combine: true);
 
         Assert.Single(session.Edits.Layout!.Lines);
         Assert.Equal(3, session.Edits.Layout!.Lines[0].Points[0].X);

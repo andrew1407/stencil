@@ -46,7 +46,7 @@ public sealed class UpdateRouter
         {
             // The allowlist comes before the album buffer: a stranger's media group is never even
             // collected.
-            if (!IsUngatedMessage(message) && !await _access.AllowsAsync(userId, chatId, ct))
+            if (!isUngatedMessage(message) && !await _access.AllowsAsync(userId, chatId, ct))
             {
                 return;
             }
@@ -62,7 +62,7 @@ public sealed class UpdateRouter
         }, ct);
     }
 
-    private static bool IsUngatedMessage(Message message) =>
+    private static bool isUngatedMessage(Message message) =>
         message.Text is string text && text.StartsWith('/')
             && AccessGate.IsUngated(CommandParser.Parse(text));
 

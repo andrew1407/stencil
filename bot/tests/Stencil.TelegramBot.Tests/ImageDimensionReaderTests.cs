@@ -50,7 +50,7 @@ public sealed class ImageDimensionReaderTests
         return d;
     }
 
-    private static byte[] WebpLossless(int width, int height)
+    private static byte[] webpLossless(int width, int height)
     {
         byte[] d = new byte[30];
         "RIFF"u8.ToArray().CopyTo(d, 0);
@@ -62,7 +62,7 @@ public sealed class ImageDimensionReaderTests
         return d;
     }
 
-    private static byte[] WebpExtended(int width, int height)
+    private static byte[] webpExtended(int width, int height)
     {
         byte[] d = new byte[30];
         "RIFF"u8.ToArray().CopyTo(d, 0);
@@ -83,8 +83,8 @@ public sealed class ImageDimensionReaderTests
             (Gif(320, 200), 320, 200),
             (Jpeg(2000, 1500), 2000, 1500),
             (WebpLossy(1024, 768), 1024, 768),
-            (WebpLossless(555, 44), 555, 44),
-            (WebpExtended(4000, 3000), 4000, 3000),
+            (webpLossless(555, 44), 555, 44),
+            (webpExtended(4000, 3000), 4000, 3000),
         })
         {
             Assert.True(ImageDimensionReader.TryRead(bytes, out int width, out int height));

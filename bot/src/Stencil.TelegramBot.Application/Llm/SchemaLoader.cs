@@ -42,7 +42,7 @@ internal sealed class SchemaLoader
         {
             if (prop.Name is not ("describe" or "note"))
             {
-                regexes[prop.Name] = Compile(prop.Value.GetString()!);
+                regexes[prop.Name] = compile(prop.Value.GetString()!);
             }
         }
         Regexes = regexes;
@@ -68,7 +68,7 @@ internal sealed class SchemaLoader
 
     // JS "$" anchors only at the very end; .NET's also matches before a final newline.
     // ECMAScript mode keeps \d ASCII-only, like the reference engine.
-    private static Regex Compile(string source)
+    private static Regex compile(string source)
     {
         string src = source.EndsWith('$') && !source.EndsWith("\\$", StringComparison.Ordinal)
             ? source[..^1] + "\\z"
@@ -87,7 +87,7 @@ internal sealed class SchemaLoader
             ? mine
             : e.TryGetProperty("keys", out JsonElement k) ? k : EmptyObject;
         string? bullet = e.TryGetProperty("bullet", out JsonElement b) && b.ValueKind == JsonValueKind.String ? b.GetString() : null;
-        if (e.TryGetProperty("bulletVariants", out JsonElement bv) && ForSurface(bv) is JsonElement variant
+        if (e.TryGetProperty("bulletVariants", out JsonElement bv) && forSurface(bv) is JsonElement variant
             && variant.ValueKind == JsonValueKind.String)
         {
             bullet = variant.GetString();
@@ -95,20 +95,20 @@ internal sealed class SchemaLoader
         HashSet<string> flags = new(StringComparer.Ordinal);
         if (e.TryGetProperty("flags", out JsonElement fl))
         {
-            AddFlags(flags, fl);
+            addFlags(flags, fl);
         }
-        if (e.TryGetProperty("surfaceFlags", out JsonElement sf) && ForSurface(sf) is JsonElement extra)
+        if (e.TryGetProperty("surfaceFlags", out JsonElement sf) && forSurface(sf) is JsonElement extra)
         {
-            AddFlags(flags, extra);
+            addFlags(flags, extra);
         }
         return new OpEntry(name, e, keys, Rules(e), flags, bullet,
             e.TryGetProperty("bulletSharedWith", out JsonElement shared) && shared.ValueKind == JsonValueKind.String ? shared.GetString() : null);
     }
 
-    private JsonElement? ForSurface(JsonElement map) =>
+    private JsonElement? forSurface(JsonElement map) =>
         map.TryGetProperty(Surface, out JsonElement s) ? s : map.TryGetProperty(Profile, out JsonElement p) ? p : null;
 
-    private static void AddFlags(HashSet<string> flags, JsonElement map)
+    private static void addFlags(HashSet<string> flags, JsonElement map)
     {
         foreach (JsonProperty prop in map.EnumerateObject())
         {

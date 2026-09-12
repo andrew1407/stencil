@@ -10,7 +10,7 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 
 public sealed partial class CommandHandlers
 {
-    private async Task UrlAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task urlAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -18,12 +18,12 @@ public sealed partial class CommandHandlers
             return;
         }
         string url = cmd.Args[0];
-        await _editing.SetImageFromUrlAsync(userId, url, LabelFromUrl(url), ct);
+        await _editing.SetImageFromUrlAsync(userId, url, labelFromUrl(url), ct);
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
     // Each image comes back as a photo, each video as a document. The URL is SSRF-vetted like /url.
-    private async Task SourceSiteAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task sourceSiteAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -31,7 +31,7 @@ public sealed partial class CommandHandlers
             return;
         }
         string url = cmd.Args[0];
-        if (!TryParseScrapeArgs(url, cmd.Args, out ScrapeRequest request, out string? error))
+        if (!tryParseScrapeArgs(url, cmd.Args, out ScrapeRequest request, out string? error))
         {
             await _bot.SendMessage(chatId, $"{error}\n\n{SourceSiteUsage}", cancellationToken: ct);
             return;
@@ -80,7 +80,7 @@ public sealed partial class CommandHandlers
         + "e.g. /sourcesite https://example.com 6 filter=img format=png|jpg name=cat minw=200";
 
     // A bare integer is the item count, everything else a key=value option.
-    private static bool TryParseScrapeArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out string? error)
+    private static bool tryParseScrapeArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out string? error)
     {
         error = null;
         request = new ScrapeRequest { Url = url };
@@ -104,12 +104,12 @@ public sealed partial class CommandHandlers
             string value = token[(eq + 1)..];
             switch (key)
             {
-                case "count": if (!SetInt(ref count, value, key, out error)) return false; break;
-                case "group": if (!SetInt(ref group, value, key, out error)) return false; break;
-                case "minw" or "minwidth": if (!SetInt(ref minW, value, key, out error)) return false; break;
-                case "maxw" or "maxwidth": if (!SetInt(ref maxW, value, key, out error)) return false; break;
-                case "minh" or "minheight": if (!SetInt(ref minH, value, key, out error)) return false; break;
-                case "maxh" or "maxheight": if (!SetInt(ref maxH, value, key, out error)) return false; break;
+                case "count": if (!setInt(ref count, value, key, out error)) return false; break;
+                case "group": if (!setInt(ref group, value, key, out error)) return false; break;
+                case "minw" or "minwidth": if (!setInt(ref minW, value, key, out error)) return false; break;
+                case "maxw" or "maxwidth": if (!setInt(ref maxW, value, key, out error)) return false; break;
+                case "minh" or "minheight": if (!setInt(ref minH, value, key, out error)) return false; break;
+                case "maxh" or "maxheight": if (!setInt(ref maxH, value, key, out error)) return false; break;
                 case "filter": filter = value; break;
                 case "format": format = value; break;
                 case "name": name = value; break;
@@ -136,7 +136,7 @@ public sealed partial class CommandHandlers
         return true;
     }
 
-    private static bool SetInt(ref int? target, string value, string key, out string? error)
+    private static bool setInt(ref int? target, string value, string key, out string? error)
     {
         if (int.TryParse(value, out int parsed) && parsed >= 0)
         {

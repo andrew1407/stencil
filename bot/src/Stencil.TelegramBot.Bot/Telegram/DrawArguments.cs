@@ -41,11 +41,11 @@ public static class DrawArguments
         {
             return false;
         }
-        if (!TryCoord(parts[0], width, out double x))
+        if (!tryCoord(parts[0], width, out double x))
         {
             return false;
         }
-        if (!TryCoord(parts[1], height, out double y))
+        if (!tryCoord(parts[1], height, out double y))
         {
             return false;
         }
@@ -62,7 +62,7 @@ public static class DrawArguments
             new LayoutPoint(a.X, b.Y),
         };
 
-    private static bool TryCoord(string raw, double dim, out double value)
+    private static bool tryCoord(string raw, double dim, out double value)
     {
         value = 0;
         string s = raw.Trim();

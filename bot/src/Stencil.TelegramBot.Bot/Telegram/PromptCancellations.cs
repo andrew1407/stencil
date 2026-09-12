@@ -18,7 +18,7 @@ public sealed class PromptCancellations
         // An overlapping older turn is cancelled so nothing is left running invisibly behind it.
         if (_running.TryRemove(userId, out CancellationTokenSource? stale))
         {
-            Cancel(stale);
+            cancelSource(stale);
         }
         _running[userId] = cts;
         return new Registration(this, userId, cts);
@@ -31,10 +31,10 @@ public sealed class PromptCancellations
         {
             return false;
         }
-        return Cancel(cts);
+        return cancelSource(cts);
     }
 
-    private static bool Cancel(CancellationTokenSource cts)
+    private static bool cancelSource(CancellationTokenSource cts)
     {
         try
         {

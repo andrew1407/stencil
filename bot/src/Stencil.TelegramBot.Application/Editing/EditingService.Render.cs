@@ -10,7 +10,7 @@ public sealed partial class EditingService
     public async Task<RenderResult> RenderAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
-        return await RenderWithAsync(userId, session, session.Edits, ct);
+        return await renderWithAsync(userId, session, session.Edits, ct);
     }
 
     public Task<RenderResult> RenderContourAsync(long userId, string sourcePath, CancellationToken ct = default) =>
@@ -25,10 +25,10 @@ public sealed partial class EditingService
     public async Task<RenderResult> RenderAsync(long userId, EditState edits, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
-        return await RenderWithAsync(userId, session, edits, ct);
+        return await renderWithAsync(userId, session, edits, ct);
     }
 
-    private async Task<RenderResult> RenderWithAsync(long userId, UserSession session, EditState edits, CancellationToken ct)
+    private async Task<RenderResult> renderWithAsync(long userId, UserSession session, EditState edits, CancellationToken ct)
     {
         if (session.OriginalImagePath is null)
         {

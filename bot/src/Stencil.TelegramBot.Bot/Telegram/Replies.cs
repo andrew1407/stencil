@@ -26,9 +26,9 @@ public static partial class Replies
     // A message that already opens with a glyph of its own keeps it: one glyph per message, never
     // two.
     public static string Tag(Tone tone, string message) =>
-        OpensWithGlyph(message) ? message : $"{Glyph(tone)} {message}";
+        opensWithGlyph(message) ? message : $"{Glyph(tone)} {message}";
 
-    private static bool OpensWithGlyph(string text) =>
+    private static bool opensWithGlyph(string text) =>
         Rune.DecodeFromUtf16(text, out Rune first, out _) == OperationStatus.Done
         && Rune.GetUnicodeCategory(first) is UnicodeCategory.OtherSymbol or UnicodeCategory.MathSymbol
             or UnicodeCategory.ModifierSymbol or UnicodeCategory.CurrencySymbol;
@@ -82,7 +82,7 @@ public static partial class Replies
         {
             sb.AppendLine(BotStrings.Reply("statusVideo"));
         }
-        sb.AppendLine(BotStrings.Reply("statusPen", PenSummary(session.Edits.Pen)));
+        sb.AppendLine(BotStrings.Reply("statusPen", penSummary(session.Edits.Pen)));
         if (session.ChatMode)
         {
             sb.AppendLine(BotStrings.Reply("statusChatMode"));

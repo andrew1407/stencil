@@ -30,12 +30,12 @@ public sealed class WorkspaceJanitor : BackgroundService
     // Half the TTL, floored at 5 minutes.
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        TimeSpan interval = Max(TimeSpan.FromTicks(_options.WorkspaceTtl.Ticks / 2), TimeSpan.FromMinutes(5));
+        TimeSpan interval = max(TimeSpan.FromTicks(_options.WorkspaceTtl.Ticks / 2), TimeSpan.FromMinutes(5));
         while (!ct.IsCancellationRequested)
         {
             try
             {
-                await SweepAsync(ct);
+                await sweepAsync(ct);
             }
             catch (OperationCanceledException)
             {
@@ -56,7 +56,7 @@ public sealed class WorkspaceJanitor : BackgroundService
         }
     }
 
-    private async Task SweepAsync(CancellationToken ct)
+    private async Task sweepAsync(CancellationToken ct)
     {
         DateTime cutoffUtc = DateTime.UtcNow - _options.WorkspaceTtl;
         int total = 0;
@@ -76,5 +76,5 @@ public sealed class WorkspaceJanitor : BackgroundService
         }
     }
 
-    private static TimeSpan Max(TimeSpan a, TimeSpan b) => a >= b ? a : b;
+    private static TimeSpan max(TimeSpan a, TimeSpan b) => a >= b ? a : b;
 }

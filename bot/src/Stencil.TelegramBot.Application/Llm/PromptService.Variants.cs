@@ -10,7 +10,7 @@ public sealed partial class PromptService
 {
     // Independent CLI processes, started together and joined; the CLI adapter's spawn gate bounds
     // them.
-    private async Task<List<PromptRender>> RenderVariantsAsync(long userId, OpPlan plan, UserSession after, CancellationToken ct)
+    private async Task<List<PromptRender>> renderVariantsAsync(long userId, OpPlan plan, UserSession after, CancellationToken ct)
     {
         List<(string Label, EditState Edits)> folded = new(plan.Variants.Count);
         foreach (OpVariant variant in plan.Variants)
@@ -18,12 +18,12 @@ public sealed partial class PromptService
             EditState edits = after.Edits;
             // Variants branch from the post-actions state, so each re-maps through its own
             // crop/rotate steps only.
-            PlanFrameMapper variantMapper = CreateMapper(after);
+            PlanFrameMapper variantMapper = createMapper(after);
             foreach (PlanAction action in variant.Actions)
             {
-                edits = Fold(edits, action, after, variantMapper);
+                edits = fold(edits, action, after, variantMapper);
             }
-            folded.Add((SanitizeLabel(variant.Label, folded.Count + 1), edits));
+            folded.Add((sanitizeLabel(variant.Label, folded.Count + 1), edits));
         }
         // Fold everything before spawning anything: a rejected action can't orphan a started run.
         List<Task<RenderResult>> renders = [.. folded.Select(f => _editing.RenderAsync(userId, f.Edits, ct))];
@@ -33,13 +33,13 @@ public sealed partial class PromptService
     }
 
     // No session mutation; the variant's own crop/rotate steps are recorded for its layout lines.
-    private static EditState Fold(EditState edits, PlanAction action, UserSession session, PlanFrameMapper mapper) => action switch
+    private static EditState fold(EditState edits, PlanAction action, UserSession session, PlanFrameMapper mapper) => action switch
     {
-        CropAction crop => FoldCrop(edits, crop, mapper),
-        RotateAction rotate => FoldRotate(edits, rotate, mapper),
-        FilterAction filter => edits with { Filter = FilterValue(filter) },
-        LayoutAction layout => edits with { Layout = BuildLayout(new LayoutAction(mapper.MapLines(layout.Lines)), session) },
-        FormulaAction formula => FoldFormula(edits, formula),
+        CropAction crop => foldCrop(edits, crop, mapper),
+        RotateAction rotate => foldRotate(edits, rotate, mapper),
+        FilterAction filter => edits with { Filter = filterValue(filter) },
+        LayoutAction layout => edits with { Layout = buildLayout(new LayoutAction(mapper.MapLines(layout.Lines)), session) },
+        FormulaAction formula => foldFormula(edits, formula),
         PageAction page => page.Format is string format
             ? edits with { PageFormat = format, CustomPageWidth = null, CustomPageHeight = null }
             : edits with { PageFormat = "custom", CustomPageWidth = page.WidthCm, CustomPageHeight = page.HeightCm },
@@ -48,7 +48,7 @@ public sealed partial class PromptService
     };
 
     // enabled:false clears both axes (the session path's mapping); enabled:true changes nothing.
-    private static EditState FoldFormula(EditState edits, FormulaAction formula)
+    private static EditState foldFormula(EditState edits, FormulaAction formula)
     {
         if (formula.Enabled is bool enabled)
         {
@@ -58,37 +58,37 @@ public sealed partial class PromptService
         return formula.Axis == "y" ? edits with { FormulaY = value } : edits with { FormulaX = value };
     }
 
-    private static EditState FoldCrop(EditState edits, CropAction crop, PlanFrameMapper mapper)
+    private static EditState foldCrop(EditState edits, CropAction crop, PlanFrameMapper mapper)
     {
         mapper.RecordCrop(crop.Spec);
         return edits with { CropSpec = crop.Spec, Album = false };
     }
 
-    private static EditState FoldRotate(EditState edits, RotateAction rotate, PlanFrameMapper mapper)
+    private static EditState foldRotate(EditState edits, RotateAction rotate, PlanFrameMapper mapper)
     {
-        mapper.RecordRotate(Turns(rotate));
-        return edits with { Rotate = ((edits.Rotate + Turns(rotate)) % 4 + 4) % 4 };
+        mapper.RecordRotate(turns(rotate));
+        return edits with { Rotate = ((edits.Rotate + turns(rotate)) % 4 + 4) % 4 };
     }
 
     // left is negative.
-    private static int Turns(RotateAction rotate) =>
+    private static int turns(RotateAction rotate) =>
         rotate.Dir == "left" ? -rotate.Times : rotate.Times;
 
-    private static string? FilterValue(FilterAction filter) => filter.Mode switch
+    private static string? filterValue(FilterAction filter) => filter.Mode switch
     {
         "none" => null,
         "custom" => filter.Tint,
         _ => filter.Mode,
     };
 
-    private static StencilLayout BuildLayout(LayoutAction layout, UserSession session) => new()
+    private static StencilLayout buildLayout(LayoutAction layout, UserSession session) => new()
     {
         ImageWidth = session.OriginalWidth,
         ImageHeight = session.OriginalHeight,
         Lines = layout.Lines,
     };
 
-    private static string SanitizeLabel(string label, int number)
+    private static string sanitizeLabel(string label, int number)
     {
         StringBuilder sb = new();
         foreach (char c in label)

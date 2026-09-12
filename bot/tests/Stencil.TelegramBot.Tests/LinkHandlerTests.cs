@@ -31,17 +31,17 @@ public sealed class LinkHandlerTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private CommandHandlers Handlers(string? browserAppUrl) =>
+    private CommandHandlers handlers(string? browserAppUrl) =>
         TestHandlers.Create(
             browserAppUrl is null
                 ? new BotOptions { DataDir = _dataDir }                                  // the default base
                 : new BotOptions { DataDir = _dataDir, BrowserAppUrl = browserAppUrl },
             _store, new MockStencilCli(), _bot);
 
-    private Task Dispatch(string? browserAppUrl, string text = "/link") =>
-        Handlers(browserAppUrl).DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+    private Task dispatch(string? browserAppUrl, string text = "/link") =>
+        handlers(browserAppUrl).DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
 
-    private async Task SeedActiveProject()
+    private async Task seedActiveProject()
     {
         UserSession session = await _store.GetAsync(UserId);
         await _store.SaveAsync(session with
@@ -56,9 +56,9 @@ public sealed class LinkHandlerTests : IDisposable
     [Fact]
     public async Task SendsTheBouncedSchemeUrlForTheActiveProject()
     {
-        await SeedActiveProject();
+        await seedActiveProject();
 
-        await Dispatch("https://stencil.example/app/");
+        await dispatch("https://stencil.example/app/");
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains("Poster", reply.Text);
@@ -74,7 +74,7 @@ public sealed class LinkHandlerTests : IDisposable
     [Fact]
     public async Task WithoutAServerProjectAsksForOne()
     {
-        await Dispatch("https://stencil.example/app");
+        await dispatch("https://stencil.example/app");
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains("No active server project", reply.Text);
@@ -84,9 +84,9 @@ public sealed class LinkHandlerTests : IDisposable
     [Fact]
     public async Task UnconfiguredFallsBackToTheDevServerAndFlagsItAsLocalOnly()
     {
-        await SeedActiveProject();
+        await seedActiveProject();
 
-        await Dispatch(browserAppUrl: null);   // BotOptions default: http://localhost:8080
+        await dispatch(browserAppUrl: null);   // BotOptions default: http://localhost:8080
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains("http://localhost:8080/launch.html#stencil-desktop=", reply.Text);
@@ -97,9 +97,9 @@ public sealed class LinkHandlerTests : IDisposable
     [Fact]
     public async Task ARemoteBrowserAppCarriesNoLocalOnlyCaveat()
     {
-        await SeedActiveProject();
+        await seedActiveProject();
 
-        await Dispatch("https://stencil.example/app");
+        await dispatch("https://stencil.example/app");
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.DoesNotContain("only works on this machine", reply.Text);
@@ -108,9 +108,9 @@ public sealed class LinkHandlerTests : IDisposable
     [Fact]
     public async Task AnUnusableConfiguredBaseSaysSoInsteadOfSendingABrokenLink()
     {
-        await SeedActiveProject();
+        await seedActiveProject();
 
-        await Dispatch("not-a-url");
+        await dispatch("not-a-url");
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains("STENCIL_BOT_BROWSER_URL", reply.Text);
@@ -120,11 +120,11 @@ public sealed class LinkHandlerTests : IDisposable
     [Fact]
     public async Task TheAliasesAndTheKeyboardTokenReachTheSameHandler()
     {
-        await SeedActiveProject();
+        await seedActiveProject();
 
         foreach (string text in new[] { "/link", "/desktop", "/open-in", "/openin" })
         {
-            await Dispatch("https://stencil.example/app", text);
+            await dispatch("https://stencil.example/app", text);
         }
 
         List<SendMessageRequest> replies = _bot.Requests.OfType<SendMessageRequest>().ToList();

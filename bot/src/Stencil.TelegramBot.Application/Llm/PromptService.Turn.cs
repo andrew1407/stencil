@@ -18,7 +18,7 @@ public sealed partial class PromptService
         long userId, UserSession session, string text, LlmImage? image, LlmImage? edgeMap = null,
         IReadOnlyList<ServerProjectInfo>? projects = null)
     {
-        List<LlmMessage> history = SnapshotHistory(userId);
+        List<LlmMessage> history = snapshotHistory(userId);
         int lastWithImage = history.FindLastIndex(m => m.Images.Count > 0);
         List<LlmMessage> messages = new(history.Count + 1);
         for (int i = 0; i < history.Count; i++)
@@ -30,9 +30,9 @@ public sealed partial class PromptService
         }
         List<LlmImage> images = image is null ? [] : edgeMap is null ? [image] : [image, edgeMap];
         messages.Add(new LlmMessage(LlmMessage.RoleUser, text, images));
-        LlmOptions options = OptionsFor(session);
-        (string? serverUrl, string? serverToken) = ResolveServer(session, options);
-        string system = ChatSystemPrompt + ContextSuffix(session, projects);
+        LlmOptions options = optionsFor(session);
+        (string? serverUrl, string? serverToken) = resolveServer(session, options);
+        string system = ChatSystemPrompt + contextSuffix(session, projects);
         if (image is not null && edgeMap is not null)
         {
             system += " " + EdgeMapSentence;
@@ -49,7 +49,7 @@ public sealed partial class PromptService
 
     // §7: the working image through the CLI's contour filter. Null silently — the turn must never
     // fail on it.
-    private async Task<LlmImage?> BuildEdgeMapAsync(long userId, UserSession session, LlmImage? image, CancellationToken ct)
+    private async Task<LlmImage?> buildEdgeMapAsync(long userId, UserSession session, LlmImage? image, CancellationToken ct)
     {
         if (image is null || _attachments is null || session.OriginalImagePath is null)
         {
@@ -68,7 +68,7 @@ public sealed partial class PromptService
 
     // An explicit STENCIL_LLM_SERVER_URL wins (reusing the user's stored token), else the first
     // connected server.
-    private (string? Url, string? Token) ResolveServer(UserSession session, LlmOptions options)
+    private (string? Url, string? Token) resolveServer(UserSession session, LlmOptions options)
     {
         if (options.Provider != LlmOptions.ProviderStencilServer)
         {
@@ -105,7 +105,7 @@ public sealed partial class PromptService
 
     // Best-effort: null omits the line (the cli's unreachable rule); a turn must never fail on
     // this.
-    private async Task<IReadOnlyList<ServerProjectInfo>?> ListContextProjectsAsync(
+    private async Task<IReadOnlyList<ServerProjectInfo>?> listContextProjectsAsync(
         long userId, UserSession session, CancellationToken ct)
     {
         if (_projects is null || session.Connections.Count == 0)
@@ -124,7 +124,7 @@ public sealed partial class PromptService
 
     // The short dynamic suffix §4 allows, plus the bot's §10 connections line (the cli console's
     // rule).
-    private static string ContextSuffix(UserSession session, IReadOnlyList<ServerProjectInfo>? projects = null)
+    private static string contextSuffix(UserSession session, IReadOnlyList<ServerProjectInfo>? projects = null)
     {
         string suffix = session.HasImage
             ? $"\n\nCurrent working image: {session.OriginalWidth}x{session.OriginalHeight} pixels."
@@ -133,10 +133,10 @@ public sealed partial class PromptService
         {
             suffix += " The current input is a video, so \"frame\" ops are valid.";
         }
-        return suffix + PenSuffix(session) + ConnectionsSuffix(session) + ProjectsSuffix(projects);
+        return suffix + penSuffix(session) + connectionsSuffix(session) + projectsSuffix(projects);
     }
 
-    private static string PenSuffix(UserSession session)
+    private static string penSuffix(UserSession session)
     {
         LineStyle pen = session.Edits.Pen;
         return "\n\nPen defaults for new lines: color " + pen.Color
@@ -147,7 +147,7 @@ public sealed partial class PromptService
     }
 
     // URLs only — a stored token NEVER enters the prompt.
-    private static string ConnectionsSuffix(UserSession session)
+    private static string connectionsSuffix(UserSession session)
     {
         if (session.Connections.Count == 0)
         {
@@ -161,7 +161,7 @@ public sealed partial class PromptService
     }
 
     // At most MaxContextProjects names per server, then "+N more" (the cli console's rule).
-    private static string ProjectsSuffix(IReadOnlyList<ServerProjectInfo>? projects)
+    private static string projectsSuffix(IReadOnlyList<ServerProjectInfo>? projects)
     {
         if (projects is null)
         {

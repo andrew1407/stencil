@@ -31,11 +31,11 @@ public sealed class SanitizerFixtureWalkerTests
         JsonElement input = fx.GetProperty("input");
         // null input: SanitizeProviderText takes a non-null string; the null case is
         // JsonRead.ErrorDetail's "" — feed "" and expect "" per the schema.
-        string text = input.ValueKind == JsonValueKind.Null ? "" : LenientString(input);
+        string text = input.ValueKind == JsonValueKind.Null ? "" : lenientString(input);
 
         string got = HttpLlmClient.SanitizeProviderText(text);
 
-        Assert.Equal(LenientString(fx.GetProperty("expect")), got);
+        Assert.Equal(lenientString(fx.GetProperty("expect")), got);
         if (!name.StartsWith("DIVERGENCE(", StringComparison.Ordinal))
         {
             return;
@@ -53,7 +53,7 @@ public sealed class SanitizerFixtureWalkerTests
     /// GetString refuses a lone surrogate escape, which one DIVERGENCE expect ends in; fall
     /// back to unescaping the raw JSON text code-unit by code-unit.
     /// </summary>
-    private static string LenientString(JsonElement element)
+    private static string lenientString(JsonElement element)
     {
         try
         {
@@ -62,11 +62,11 @@ public sealed class SanitizerFixtureWalkerTests
         catch (InvalidOperationException)
         {
             string raw = element.GetRawText();
-            return UnescapeJson(raw[1..^1]);
+            return unescapeJson(raw[1..^1]);
         }
     }
 
-    private static string UnescapeJson(string s)
+    private static string unescapeJson(string s)
     {
         System.Text.StringBuilder sb = new(s.Length);
         for (int i = 0; i < s.Length; i++)

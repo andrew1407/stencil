@@ -18,7 +18,7 @@ public sealed class SharedOutcomeFixturesTests
 {
     /// <summary>Locate the shared fixture file relative to THIS test source (compile-time
     /// path), so resolution is independent of the test's working directory.</summary>
-    private static string FixturesPath([CallerFilePath] string thisFile = "")
+    private static string fixturesPath([CallerFilePath] string thisFile = "")
     {
         string dir = Path.GetDirectoryName(thisFile)!;
         // .../bot/tests/Stencil.TelegramBot.Tests -> repo root is three levels up.
@@ -27,42 +27,42 @@ public sealed class SharedOutcomeFixturesTests
     }
 
     private static readonly Lazy<JsonDocument> Corpus =
-        new(() => JsonDocument.Parse(File.ReadAllText(FixturesPath())));
+        new(() => JsonDocument.Parse(File.ReadAllText(fixturesPath())));
 
-    private static IEnumerable<JsonElement> Section(string name) =>
+    private static IEnumerable<JsonElement> sectionOf(string name) =>
         Corpus.Value.RootElement.GetProperty(name).EnumerateArray();
 
-    private static string Name(JsonElement c) =>
+    private static string nameOf(JsonElement c) =>
         c.TryGetProperty("name", out JsonElement n) ? n.GetString() ?? "<unnamed>" : "<unnamed>";
 
-    private static JsonElement Case(string section, string name) =>
-        Section(section).First(c => Name(c) == name);
+    private static JsonElement caseOf(string section, string name) =>
+        sectionOf(section).First(c => nameOf(c) == name);
 
-    private static TheoryData<string> Names(string section)
+    private static TheoryData<string> names(string section)
     {
         TheoryData<string> data = new();
-        foreach (JsonElement c in Section(section))
+        foreach (JsonElement c in sectionOf(section))
         {
-            data.Add(Name(c));
+            data.Add(nameOf(c));
         }
         Assert.True(data.Count > 0, $"the \"{section}\" section of the corpus is empty");
         return data;
     }
 
-    private static string Stderr(JsonElement c) => c.GetProperty("stderr").GetString()!;
+    private static string stderr(JsonElement c) => c.GetProperty("stderr").GetString()!;
 
-    public static TheoryData<string> WroteCases() => Names("wrote");
+    public static TheoryData<string> WroteCases() => names("wrote");
 
-    public static TheoryData<string> RemoteCases() => Names("remotes");
+    public static TheoryData<string> RemoteCases() => names("remotes");
 
-    public static TheoryData<string> ErrorCases() => Names("errors");
+    public static TheoryData<string> ErrorCases() => names("errors");
 
     [Theory]
     [MemberData(nameof(WroteCases))]
     public void WroteFixtureMatches(string name)
     {
-        JsonElement c = Case("wrote", name);
-        RenderResult? got = CliOutcomeParser.ParseWrote(Stderr(c));
+        JsonElement c = caseOf("wrote", name);
+        RenderResult? got = CliOutcomeParser.ParseWrote(stderr(c));
         JsonElement expected = c.GetProperty("expected");
         if (expected.ValueKind == JsonValueKind.Null)
         {
@@ -79,8 +79,8 @@ public sealed class SharedOutcomeFixturesTests
     [MemberData(nameof(RemoteCases))]
     public void RemoteFixtureMatches(string name)
     {
-        JsonElement c = Case("remotes", name);
-        IReadOnlyList<RemoteDelivery> got = CliOutcomeParser.ParseRemotes(Stderr(c));
+        JsonElement c = caseOf("remotes", name);
+        IReadOnlyList<RemoteDelivery> got = CliOutcomeParser.ParseRemotes(stderr(c));
         JsonElement expected = c.GetProperty("expected");
         Assert.Equal(expected.GetArrayLength(), got.Count);
 
@@ -113,7 +113,7 @@ public sealed class SharedOutcomeFixturesTests
     [MemberData(nameof(ErrorCases))]
     public void ErrorFixtureMatches(string name)
     {
-        JsonElement c = Case("errors", name);
-        Assert.Equal(c.GetProperty("expected").GetString(), CliOutcomeParser.ExtractErrors(Stderr(c)));
+        JsonElement c = caseOf("errors", name);
+        Assert.Equal(c.GetProperty("expected").GetString(), CliOutcomeParser.ExtractErrors(stderr(c)));
     }
 }

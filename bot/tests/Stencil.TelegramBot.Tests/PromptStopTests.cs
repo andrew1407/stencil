@@ -49,11 +49,11 @@ public sealed class PromptStopTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private Task Dispatch(string text) =>
+    private Task dispatch(string text) =>
         _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
 
     /// <summary>Tap a button the way the poller does — through the router, gate and all.</summary>
-    private Task Tap(string data) =>
+    private Task tap(string data) =>
         _router.HandleUpdateAsync(
             new Update
             {
@@ -72,10 +72,10 @@ public sealed class PromptStopTests : IDisposable
     [Fact]
     public async Task TheWorkingNoticeCarriesAStopButton()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply("""{"reply":"ok","actions":[]}"""));
 
-        await Dispatch("/prompt anything");
+        await dispatch("/prompt anything");
 
         SendMessageRequest notice = Messages.First(m => m.Text.Contains("Working on your request"));
         InlineKeyboardMarkup keyboard = Assert.IsType<InlineKeyboardMarkup>(notice.ReplyMarkup);
@@ -85,13 +85,13 @@ public sealed class PromptStopTests : IDisposable
     [Fact]
     public async Task StopEndsTheRunningTurnAsPlainInfo()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.BlockUntilCancelled = true;
-        Task turn = Dispatch("/prompt take your time");
+        Task turn = dispatch("/prompt take your time");
         await _llm.InFlight.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
         // The tap lands WHILE the turn holds the user's gate — it must not block on it.
-        await Tap(CallbackAction.StopToken).WaitAsync(TimeSpan.FromSeconds(10));
+        await tap(CallbackAction.StopToken).WaitAsync(TimeSpan.FromSeconds(10));
         await turn.WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.Contains(Messages, m => m.Text.Contains("Stopping"));
@@ -114,17 +114,17 @@ public sealed class PromptStopTests : IDisposable
     [Fact]
     public async Task RetryAfterAStopReRunsTheSamePrompt()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.BlockUntilCancelled = true;
-        Task turn = Dispatch("/prompt take your time");
+        Task turn = dispatch("/prompt take your time");
         await _llm.InFlight.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        await Tap(CallbackAction.StopToken).WaitAsync(TimeSpan.FromSeconds(10));
+        await tap(CallbackAction.StopToken).WaitAsync(TimeSpan.FromSeconds(10));
         await turn.WaitAsync(TimeSpan.FromSeconds(10));
 
         // Second time round the model answers, so the retried turn lands like any other.
         _llm.BlockUntilCancelled = false;
         _llm.CannedReplies.Enqueue(new LlmReply("""{"reply":"done now","actions":[]}"""));
-        await Tap("retry:prompt").WaitAsync(TimeSpan.FromSeconds(10));
+        await tap("retry:prompt").WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.Equal(2, _llm.Requests.Count);
         Assert.Contains("take your time", _llm.Requests[^1].Messages[^1].Text);
@@ -136,9 +136,9 @@ public sealed class PromptStopTests : IDisposable
     [Fact]
     public async Task StopWithNothingRunningSaysSo()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
 
-        await Tap(CallbackAction.StopToken);
+        await tap(CallbackAction.StopToken);
 
         Assert.Contains("already finished", Messages.Last().Text);
     }

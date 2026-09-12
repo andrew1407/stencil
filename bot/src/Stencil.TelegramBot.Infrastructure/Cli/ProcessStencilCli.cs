@@ -33,9 +33,9 @@ public sealed class ProcessStencilCli : IStencilCli
         // --confine-output refuses an ABSOLUTE destination, so the child runs in the output's own
         // folder and is given only the leaf; paths in its output come back relative and are
         // re-rooted below.
-        (string dir, string leaf) = Confine(request.Output);
+        (string dir, string leaf) = confine(request.Output);
         IReadOnlyList<string> argv = CliArgvBuilder.BuildArgv(request with { Output = leaf });
-        CliOutput output = await SpawnAsync(argv, ct, dir).ConfigureAwait(false);
+        CliOutput output = await spawnAsync(argv, ct, dir).ConfigureAwait(false);
         if (!output.Success)
         {
             throw new StencilCliException(CliOutcomeParser.ExtractErrors(output.Stderr));
@@ -58,9 +58,9 @@ public sealed class ProcessStencilCli : IStencilCli
         string outPath = Path.Combine(_options.DataDir, $"stencil-probe-{Guid.NewGuid():N}.png");
         try
         {
-            (string dir, string leaf) = Confine(outPath);
+            (string dir, string leaf) = confine(outPath);
             IReadOnlyList<string> argv = new[] { "-i", input, "--confine-output", leaf };
-            CliOutput output = await SpawnAsync(argv, ct, dir).ConfigureAwait(false);
+            CliOutput output = await spawnAsync(argv, ct, dir).ConfigureAwait(false);
             if (!output.Success)
             {
                 throw new StencilCliException(CliOutcomeParser.ExtractErrors(output.Stderr));
@@ -84,9 +84,9 @@ public sealed class ProcessStencilCli : IStencilCli
     {
         // Same confinement as an edit: the child runs in the destination's PARENT with the leaf
         // directory name.
-        (string parent, string leaf) = Confine(request.OutputDir.TrimEnd('/', '\\'));
+        (string parent, string leaf) = confine(request.OutputDir.TrimEnd('/', '\\'));
         IReadOnlyList<string> argv = CliArgvBuilder.BuildScrapeArgv(request with { OutputDir = leaf });
-        CliOutput output = await SpawnAsync(argv, ct, parent).ConfigureAwait(false);
+        CliOutput output = await spawnAsync(argv, ct, parent).ConfigureAwait(false);
         if (!output.Success)
         {
             throw new StencilCliException(CliOutcomeParser.ExtractErrors(output.Stderr));
@@ -98,7 +98,7 @@ public sealed class ProcessStencilCli : IStencilCli
     }
 
     // A bare name keeps the caller's own working directory.
-    private static (string Dir, string Leaf) Confine(string destination)
+    private static (string Dir, string Leaf) confine(string destination)
     {
         string dir = Path.GetDirectoryName(destination) ?? "";
         return (dir.Length == 0 ? Directory.GetCurrentDirectory() : dir, Path.GetFileName(destination));
@@ -106,7 +106,7 @@ public sealed class ProcessStencilCli : IStencilCli
 
     // Bounded by the spawn gate and by BotOptions.CliTimeout, so a hung run can't pin a scarce slot
     // forever.
-    private async Task<CliOutput> SpawnAsync(IReadOnlyList<string> argv, CancellationToken ct, string workingDirectory)
+    private async Task<CliOutput> spawnAsync(IReadOnlyList<string> argv, CancellationToken ct, string workingDirectory)
     {
         await _spawnGate.WaitAsync(ct).ConfigureAwait(false);
         try

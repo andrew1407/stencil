@@ -62,7 +62,7 @@ public sealed class UrlLink : IMessageHandler
 
     public async Task<bool> TryHandleAsync(MessageContext ctx, CancellationToken ct)
     {
-        if (ctx.Text is not string body || !TryExtractUrl(body, out string url))
+        if (ctx.Text is not string body || !tryExtractUrl(body, out string url))
         {
             return false;
         }
@@ -78,7 +78,7 @@ public sealed class UrlLink : IMessageHandler
         return true;
     }
 
-    private static bool TryExtractUrl(string text, out string url)
+    private static bool tryExtractUrl(string text, out string url)
     {
         url = "";
         foreach (string token in text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))

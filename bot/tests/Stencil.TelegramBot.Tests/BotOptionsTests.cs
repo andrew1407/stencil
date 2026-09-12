@@ -29,13 +29,13 @@ public sealed class BotOptionsTests
     [Fact]
     public void FromEnvironmentParsesLoadKnobs()
     {
-        WithEnv("STENCIL_BOT_HTTP_TIMEOUT_SECONDS", "12", () =>
+        withEnv("STENCIL_BOT_HTTP_TIMEOUT_SECONDS", "12", () =>
             Assert.Equal(TimeSpan.FromSeconds(12), BotOptions.FromEnvironment().ServerHttpTimeout));
-        WithEnv("STENCIL_BOT_MAX_DOWNLOAD_MB", "7", () =>
+        withEnv("STENCIL_BOT_MAX_DOWNLOAD_MB", "7", () =>
             Assert.Equal(7L * 1024 * 1024, BotOptions.FromEnvironment().MaxDownloadBytes));
-        WithEnv("STENCIL_BOT_WORKSPACE_TTL_MINUTES", "15", () =>
+        withEnv("STENCIL_BOT_WORKSPACE_TTL_MINUTES", "15", () =>
             Assert.Equal(TimeSpan.FromMinutes(15), BotOptions.FromEnvironment().WorkspaceTtl));
-        WithEnv("STENCIL_BOT_HTTP_TIMEOUT_SECONDS", "nope", () =>
+        withEnv("STENCIL_BOT_HTTP_TIMEOUT_SECONDS", "nope", () =>
             Assert.Equal(TimeSpan.FromSeconds(30), BotOptions.FromEnvironment().ServerHttpTimeout));
     }
 
@@ -54,20 +54,20 @@ public sealed class BotOptionsTests
     public void FromEnvironmentParsesTheStencilLlmKeys()
     {
         // The base-URL default follows the chosen provider (openai-compat → LM Studio's port)…
-        WithEnv("STENCIL_LLM_PROVIDER", "openai-compat", () =>
+        withEnv("STENCIL_LLM_PROVIDER", "openai-compat", () =>
             Assert.Equal("http://localhost:1234/v1", BotOptions.FromEnvironment().Llm.BaseUrl));
         // …unless overridden explicitly.
-        WithEnv("STENCIL_LLM_BASE_URL", "http://gpu-box:11434", () =>
+        withEnv("STENCIL_LLM_BASE_URL", "http://gpu-box:11434", () =>
             Assert.Equal("http://gpu-box:11434", BotOptions.FromEnvironment().Llm.BaseUrl));
-        WithEnv("STENCIL_LLM_MODEL", "llama3.2-vision", () =>
+        withEnv("STENCIL_LLM_MODEL", "llama3.2-vision", () =>
             Assert.Equal("llama3.2-vision", BotOptions.FromEnvironment().Llm.Model));
-        WithEnv("STENCIL_LLM_API_KEY", "sk-1", () =>
+        withEnv("STENCIL_LLM_API_KEY", "sk-1", () =>
             Assert.Equal("sk-1", BotOptions.FromEnvironment().Llm.ApiKey));
-        WithEnv("STENCIL_LLM_SERVER_URL", "https://stencil.example.com:8090", () =>
+        withEnv("STENCIL_LLM_SERVER_URL", "https://stencil.example.com:8090", () =>
             Assert.Equal("https://stencil.example.com:8090", BotOptions.FromEnvironment().Llm.ServerUrl));
     }
 
-    private static void WithEnv(string name, string value, Action body)
+    private static void withEnv(string name, string value, Action body)
     {
         string? original = Environment.GetEnvironmentVariable(name);
         try

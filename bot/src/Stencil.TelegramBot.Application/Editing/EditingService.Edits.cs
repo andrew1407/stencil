@@ -7,19 +7,19 @@ namespace Stencil.TelegramBot.Application.Editing;
 public sealed partial class EditingService
 {
     public Task<UserSession> SetCropAsync(long userId, string spec, bool album, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits => edits with { CropSpec = spec, Album = album }, ct);
+        applyEditAsync(userId, edits => edits with { CropSpec = spec, Album = album }, ct);
 
     public Task<UserSession> RotateAsync(long userId, int quarterTurns, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits => edits with { Rotate = ((((edits.Rotate + quarterTurns) % 4) + 4) % 4) }, ct);
+        applyEditAsync(userId, edits => edits with { Rotate = ((((edits.Rotate + quarterTurns) % 4) + 4) % 4) }, ct);
 
     public Task<UserSession> SetFilterAsync(long userId, string? filter, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits => edits with { Filter = NormalizeFilter(filter) }, ct);
+        applyEditAsync(userId, edits => edits with { Filter = normalizeFilter(filter) }, ct);
 
     public Task<UserSession> SetPageFormatAsync(long userId, string format, double? widthCm = null, double? heightCm = null, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits => WithPageFormat(edits, format, widthCm, heightCm), ct);
+        applyEditAsync(userId, edits => withPageFormat(edits, format, widthCm, heightCm), ct);
 
     // cm dims only ride a custom format.
-    private static EditState WithPageFormat(EditState edits, string format, double? widthCm, double? heightCm) =>
+    private static EditState withPageFormat(EditState edits, string format, double? widthCm, double? heightCm) =>
         edits with
         {
             PageFormat = format,
@@ -29,7 +29,7 @@ public sealed partial class EditingService
 
     public Task<UserSession> ApplyLayoutAsync(
         long userId, StencilLayout layout, bool combine = false, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits =>
+        applyEditAsync(userId, edits =>
         {
             // Combine keeps what is drawn and puts the incoming lines on top, like the editors and
             // the CLI console.
@@ -39,7 +39,7 @@ public sealed partial class EditingService
         }, ct);
 
     public Task<UserSession> SetFormulaAsync(long userId, string axis, string expr, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits =>
+        applyEditAsync(userId, edits =>
         {
             string? value = string.IsNullOrWhiteSpace(expr) ? null : expr;
             return axis.Equals("y", StringComparison.OrdinalIgnoreCase)
@@ -56,7 +56,7 @@ public sealed partial class EditingService
             return session;
         }
         var (stepped, previous) = history.Undo(session.Edits);
-        return await SaveAsync(EditSessions.With(session, stepped, previous), ct);
+        return await saveAsync(EditSessions.With(session, stepped, previous), ct);
     }
 
     public async Task<UserSession> RedoAsync(long userId, CancellationToken ct = default)
@@ -68,13 +68,13 @@ public sealed partial class EditingService
             return session;
         }
         var (stepped, next) = history.Redo(session.Edits);
-        return await SaveAsync(EditSessions.With(session, stepped, next), ct);
+        return await saveAsync(EditSessions.With(session, stepped, next), ct);
     }
 
     public async Task<UserSession> ResetEditsAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
-        return await SaveAsync(
+        return await saveAsync(
             EditSessions.With(session, HistoryStack<EditState>.Empty, new EditState()), ct);
     }
 
@@ -105,22 +105,22 @@ public sealed partial class EditingService
         return updated;
     }
 
-    private async Task<UserSession> ApplyEditAsync(long userId, Func<UserSession, EditState> mutate, CancellationToken ct)
+    private async Task<UserSession> applyEditAsync(long userId, Func<UserSession, EditState> mutate, CancellationToken ct)
     {
         var session = await _store.GetAsync(userId, ct);
-        return await SaveAsync(EditSessions.WithHistory(session, mutate(session)), ct);
+        return await saveAsync(EditSessions.WithHistory(session, mutate(session)), ct);
     }
 
-    private Task<UserSession> ApplyEditAsync(long userId, Func<EditState, EditState> mutate, CancellationToken ct) =>
-        ApplyEditAsync(userId, session => mutate(session.Edits), ct);
+    private Task<UserSession> applyEditAsync(long userId, Func<EditState, EditState> mutate, CancellationToken ct) =>
+        applyEditAsync(userId, session => mutate(session.Edits), ct);
 
-    private async Task<UserSession> SaveAsync(UserSession updated, CancellationToken ct)
+    private async Task<UserSession> saveAsync(UserSession updated, CancellationToken ct)
     {
         await _store.SaveAsync(updated, ct);
         return updated;
     }
 
-    private static string? NormalizeFilter(string? filter)
+    private static string? normalizeFilter(string? filter)
     {
         if (string.IsNullOrEmpty(filter) || string.Equals(filter, "none", StringComparison.OrdinalIgnoreCase))
         {

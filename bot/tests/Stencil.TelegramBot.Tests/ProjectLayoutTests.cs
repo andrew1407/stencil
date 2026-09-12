@@ -27,9 +27,9 @@ public sealed class ProjectLayoutTests
     }
     """;
 
-    private static JsonElement Parse(string json) => JsonDocument.Parse(json).RootElement;
+    private static JsonElement parse(string json) => JsonDocument.Parse(json).RootElement;
 
-    private static JsonElement Built(string? baseLayout, EditState edits, int w, int h) =>
+    private static JsonElement built(string? baseLayout, EditState edits, int w, int h) =>
         JsonSerializer.Deserialize<JsonElement>(
             ProjectLayoutWriter.Build(baseLayout, edits, w, h).ToJsonString());
 
@@ -38,7 +38,7 @@ public sealed class ProjectLayoutTests
     [Fact]
     public void MapsRealRotatedAndCroppedProject()
     {
-        EditState edits = ProjectLayoutMapper.ToEditState(Parse(CatLayout), 500, 330);
+        EditState edits = ProjectLayoutMapper.ToEditState(parse(CatLayout), 500, 330);
 
         Assert.Equal(1, edits.Rotate);
         Assert.Null(edits.Filter);                                  // imageFilter "none"
@@ -51,7 +51,7 @@ public sealed class ProjectLayoutTests
     [Fact]
     public void CustomFilterResolvesToTheTintColour()
     {
-        var layout = Parse("""{ "imageFilter": "custom", "filterColor": "#ff5623", "lines": [] }""");
+        var layout = parse("""{ "imageFilter": "custom", "filterColor": "#ff5623", "lines": [] }""");
         Assert.Equal("#ff5623", ProjectLayoutMapper.ToEditState(layout, 100, 100).Filter);
     }
 
@@ -62,7 +62,7 @@ public sealed class ProjectLayoutTests
     [InlineData("contour")]
     public void NamedFiltersMapThrough(string mode)
     {
-        var layout = Parse($$"""{ "imageFilter": "{{mode}}", "lines": [] }""");
+        var layout = parse($$"""{ "imageFilter": "{{mode}}", "lines": [] }""");
         Assert.Equal(mode, ProjectLayoutMapper.ToEditState(layout, 100, 100).Filter);
     }
 
@@ -70,11 +70,11 @@ public sealed class ProjectLayoutTests
     public void CropRectReadsCanonicalKeysAndCanonicalWins()
     {
         // Canonical browser form {x,y,w,h} reads.
-        var canonical = Parse("""{ "cropRect": {"x":0,"y":16,"w":330,"h":467}, "rotationQuarters": 1, "lines": [] }""");
+        var canonical = parse("""{ "cropRect": {"x":0,"y":16,"w":330,"h":467}, "rotationQuarters": 1, "lines": [] }""");
         Assert.Equal("x1=16px x2=483px y1=0px y2=329px",
             ProjectLayoutMapper.ToEditState(canonical, 500, 330).CropSpec);
         // Both forms present: canonical wins over the legacy width/height pair.
-        var both = Parse("""{ "cropRect": {"x":0,"y":16,"w":330,"h":467,"width":1,"height":1}, "rotationQuarters": 1, "lines": [] }""");
+        var both = parse("""{ "cropRect": {"x":0,"y":16,"w":330,"h":467,"width":1,"height":1}, "rotationQuarters": 1, "lines": [] }""");
         Assert.Equal("x1=16px x2=483px y1=0px y2=329px",
             ProjectLayoutMapper.ToEditState(both, 500, 330).CropSpec);
     }
@@ -82,7 +82,7 @@ public sealed class ProjectLayoutTests
     [Fact]
     public void FullCoverCropIsSkipped()
     {
-        var layout = Parse("""{ "rotationQuarters": 0, "cropRect": {"x":0,"y":0,"width":100,"height":80}, "lines": [] }""");
+        var layout = parse("""{ "rotationQuarters": 0, "cropRect": {"x":0,"y":0,"width":100,"height":80}, "lines": [] }""");
         EditState edits = ProjectLayoutMapper.ToEditState(layout, 100, 80);
         Assert.Null(edits.CropSpec);   // covers the whole original — no crop
         Assert.Equal(0, edits.Rotate);
@@ -111,7 +111,7 @@ public sealed class ProjectLayoutTests
             Layout = new StencilLayout { Lines = [new LayoutLine { Points = [new LayoutPoint(1, 2)] }] },
         };
 
-        JsonElement el = Built(baseLayout, edits, 330, 467);
+        JsonElement el = built(baseLayout, edits, 330, 467);
 
         Assert.Equal("A4", el.GetProperty("pageSize").GetString());
         Assert.True(el.GetProperty("allowFormulas").GetBoolean());
@@ -131,7 +131,7 @@ public sealed class ProjectLayoutTests
     [InlineData("contour")]
     public void InvertAndContourStayNamedFilters(string mode)
     {
-        JsonElement el = Built(null, new EditState { Filter = mode }, 100, 100);
+        JsonElement el = built(null, new EditState { Filter = mode }, 100, 100);
 
         Assert.Equal(mode, el.GetProperty("imageFilter").GetString()); // NOT coerced to custom
         Assert.False(el.TryGetProperty("filterColor", out _));
@@ -140,7 +140,7 @@ public sealed class ProjectLayoutTests
     [Fact]
     public void PageFormatOverridesTheFetchedPageSize()
     {
-        JsonElement el = Built("""{ "pageSize": "A4", "lines": [] }""", new EditState { PageFormat = "B5" }, 100, 100);
+        JsonElement el = built("""{ "pageSize": "A4", "lines": [] }""", new EditState { PageFormat = "B5" }, 100, 100);
 
         Assert.Equal("B5", el.GetProperty("pageSize").GetString());
     }
@@ -149,7 +149,7 @@ public sealed class ProjectLayoutTests
     public void CustomPageFormatCarriesItsCmDimensions()
     {
         var edits = new EditState { PageFormat = "custom", CustomPageWidth = 10, CustomPageHeight = 15.5 };
-        JsonElement el = Built(null, edits, 100, 100);
+        JsonElement el = built(null, edits, 100, 100);
 
         Assert.Equal("custom", el.GetProperty("pageSize").GetString());
         Assert.Equal(10, el.GetProperty("customPageWidth").GetDouble());
@@ -159,7 +159,7 @@ public sealed class ProjectLayoutTests
     [Fact]
     public void BuildsAFreshLayoutWhenNoBaseIsGiven()
     {
-        JsonElement el = Built(null, new EditState { Filter = "bw" }, 640, 480);
+        JsonElement el = built(null, new EditState { Filter = "bw" }, 640, 480);
 
         Assert.Equal("bw", el.GetProperty("imageFilter").GetString());
         Assert.Equal(0, el.GetProperty("rotationQuarters").GetInt32());
@@ -174,8 +174,8 @@ public sealed class ProjectLayoutTests
     {
         // Map the fetched project, write it straight back, and map it again: the fields the bot
         // owns (rotation, filter, crop, lines) must survive the round trip unchanged.
-        EditState first = ProjectLayoutMapper.ToEditState(Parse(CatLayout), 500, 330);
-        JsonElement written = Built(CatLayout, first, 330, 467);
+        EditState first = ProjectLayoutMapper.ToEditState(parse(CatLayout), 500, 330);
+        JsonElement written = built(CatLayout, first, 330, 467);
         EditState second = ProjectLayoutMapper.ToEditState(written, 500, 330);
 
         Assert.Equal(first.Rotate, second.Rotate);

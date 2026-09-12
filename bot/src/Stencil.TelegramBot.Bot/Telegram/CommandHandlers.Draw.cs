@@ -7,7 +7,7 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 
 public sealed partial class CommandHandlers
 {
-    private async Task DrawAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task drawAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -16,10 +16,10 @@ public sealed partial class CommandHandlers
         }
         string shape = cmd.Args[0];
         IReadOnlyList<string> pointTokens = cmd.Args.Skip(1).ToList();
-        await DrawShapeAsync(userId, chatId, shape, pointTokens, ct);
+        await drawShapeAsync(userId, chatId, shape, pointTokens, ct);
     }
 
-    private async Task DrawShapeAsync(long userId, long chatId, string shape, IReadOnlyList<string> pointTokens, CancellationToken ct)
+    private async Task drawShapeAsync(long userId, long chatId, string shape, IReadOnlyList<string> pointTokens, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         if (!session.HasImage)
@@ -69,7 +69,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task PenColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task penColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -80,9 +80,9 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Pen colour set to {cmd.Args[0]}.", cancellationToken: ct);
     }
 
-    private async Task PenThicknessAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task penThicknessAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
-        if (!TryParseNonNegative(cmd.Args, out double value))
+        if (!tryParseNonNegative(cmd.Args, out double value))
         {
             await _bot.SendMessage(chatId, "Usage: /thickness <n> (pixels, e.g. 4)", cancellationToken: ct);
             return;
@@ -91,9 +91,9 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Pen thickness set to {value}.", cancellationToken: ct);
     }
 
-    private async Task PenPointsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task penPointsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
-        if (!TryParseNonNegative(cmd.Args, out double value))
+        if (!tryParseNonNegative(cmd.Args, out double value))
         {
             await _bot.SendMessage(chatId, "Usage: /points <n> (radius in pixels; 0 hides points), e.g. /points 6", cancellationToken: ct);
             return;
@@ -102,7 +102,7 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Point size set to {value}.", cancellationToken: ct);
     }
 
-    private static bool TryParseNonNegative(IReadOnlyList<string> args, out double value)
+    private static bool tryParseNonNegative(IReadOnlyList<string> args, out double value)
     {
         value = 0;
         return args.Count > 0
@@ -110,7 +110,7 @@ public sealed partial class CommandHandlers
             && value >= 0;
     }
 
-    private async Task PenStyleAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task penStyleAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string style = cmd.Args.Count == 0 ? "" : cmd.Args[0].ToLowerInvariant();
         if (style is not ("solid" or "dashed" or "dotted"))
@@ -122,7 +122,7 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Line style set to {style}.", cancellationToken: ct);
     }
 
-    private async Task PenFillAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task penFillAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -140,7 +140,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private async Task PenAsync(long userId, long chatId, CancellationToken ct)
+    private async Task penAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         await _bot.SendMessage(chatId, Replies.PenText(session.Edits.Pen), cancellationToken: ct);

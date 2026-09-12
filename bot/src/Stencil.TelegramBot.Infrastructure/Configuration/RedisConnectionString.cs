@@ -21,15 +21,15 @@ public static class RedisConnectionString
         bool tls = raw.StartsWith(TlsScheme, StringComparison.OrdinalIgnoreCase);
         if (!tls && !raw.StartsWith(PlainScheme, StringComparison.OrdinalIgnoreCase))
         {
-            return Native(raw);
+            return native(raw);
         }
         if (!Uri.TryCreate(raw, UriKind.Absolute, out Uri? uri) || uri.Host.Length == 0)
         {
-            throw Invalid();
+            throw invalid();
         }
         ConfigurationOptions options = new() { Ssl = tls };
         options.EndPoints.Add(uri.Host, uri.Port > 0 ? uri.Port : DefaultPort);
-        ApplyUserInfo(options, uri.UserInfo);
+        applyUserInfo(options, uri.UserInfo);
         // The path is the database index ("/0"); an empty or non-numeric one leaves the default.
         string db = uri.AbsolutePath.Trim('/');
         if (db.Length > 0 && int.TryParse(db, NumberStyles.None, CultureInfo.InvariantCulture, out int index))
@@ -39,7 +39,7 @@ public static class RedisConnectionString
         return options;
     }
 
-    private static ConfigurationOptions Native(string raw)
+    private static ConfigurationOptions native(string raw)
     {
         try
         {
@@ -47,11 +47,11 @@ public static class RedisConnectionString
         }
         catch (Exception ex) when (ex is ArgumentException or FormatException)
         {
-            throw Invalid();
+            throw invalid();
         }
     }
 
-    private static void ApplyUserInfo(ConfigurationOptions options, string userInfo)
+    private static void applyUserInfo(ConfigurationOptions options, string userInfo)
     {
         if (userInfo.Length == 0)
         {
@@ -70,7 +70,7 @@ public static class RedisConnectionString
         }
     }
 
-    private static ArgumentException Invalid() => new(
+    private static ArgumentException invalid() => new(
         "REDIS_URL must be a redis://[user:password@]host[:port][/db] URL or a "
         + "host:port[,option=value] configuration string");
 }

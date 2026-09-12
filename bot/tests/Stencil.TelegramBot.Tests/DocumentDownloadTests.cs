@@ -55,12 +55,12 @@ public sealed class DocumentDownloadTests : IDisposable
     public async Task AnOversizedLayoutJsonIsRefused()
     {
         _bot.FileBytes = 5 * Megabyte;
-        UpdateRouter router = Router();
+        UpdateRouter router = makeRouter();
 
-        await router.HandleMessageAsync(DocumentFrom("layout.json", "/apply"), CancellationToken.None);
+        await router.HandleMessageAsync(documentFrom("layout.json", "/apply"), CancellationToken.None);
 
-        Assert.Contains("too large", LastText());
-        Assert.Contains("4 MB", LastText()); // the document cap, not the 50 MB photo one
+        Assert.Contains("too large", lastText());
+        Assert.Contains("4 MB", lastText()); // the document cap, not the 50 MB photo one
         Assert.Equal(0, (await _store.GetAsync(UserId, CancellationToken.None)).Edits.LineCount);
     }
 
@@ -68,11 +68,11 @@ public sealed class DocumentDownloadTests : IDisposable
     public async Task AnOversizedProjectFileIsRefused()
     {
         _bot.FileBytes = 5 * Megabyte;
-        UpdateRouter router = Router();
+        UpdateRouter router = makeRouter();
 
-        await router.HandleMessageAsync(DocumentFrom("board.stencil", null), CancellationToken.None);
+        await router.HandleMessageAsync(documentFrom("board.stencil", null), CancellationToken.None);
 
-        Assert.Contains("too large", LastText());
+        Assert.Contains("too large", lastText());
         Assert.False((await _store.GetAsync(UserId, CancellationToken.None)).HasImage);
     }
 
@@ -81,10 +81,10 @@ public sealed class DocumentDownloadTests : IDisposable
     public async Task AnOversizedDocumentLeavesNoTempFile()
     {
         _bot.FileBytes = 5 * Megabyte;
-        UpdateRouter router = Router();
+        UpdateRouter router = makeRouter();
         HashSet<string> before = [.. Directory.GetFiles(Path.GetTempPath(), "stencil-bot-*.json")];
 
-        await router.HandleMessageAsync(DocumentFrom("layout.json", "/apply"), CancellationToken.None);
+        await router.HandleMessageAsync(documentFrom("layout.json", "/apply"), CancellationToken.None);
 
         Assert.Empty(Directory.GetFiles(Path.GetTempPath(), "stencil-bot-*.json").Except(before));
     }
@@ -93,10 +93,10 @@ public sealed class DocumentDownloadTests : IDisposable
     public async Task ASmallLayoutJsonStillApplies()
     {
         _bot.Payload = """{"imageWidth":640,"imageHeight":480,"lines":[{"points":[{"x":1,"y":2},{"x":3,"y":4}]}]}"""u8.ToArray();
-        UpdateRouter router = Router();
-        await Adopt();
+        UpdateRouter router = makeRouter();
+        await adopt();
 
-        await router.HandleMessageAsync(DocumentFrom("layout.json", "/apply"), CancellationToken.None);
+        await router.HandleMessageAsync(documentFrom("layout.json", "/apply"), CancellationToken.None);
 
         Assert.DoesNotContain(_bot.Requests.OfType<SendMessageRequest>(), m => m.Text.Contains("too large"));
         Assert.True((await _store.GetAsync(UserId, CancellationToken.None)).Edits.LineCount > 0);
@@ -107,15 +107,15 @@ public sealed class DocumentDownloadTests : IDisposable
     public async Task APhotoPastTheDocumentCapStillLoads()
     {
         _bot.FileBytes = 5 * Megabyte;
-        UpdateRouter router = Router();
+        UpdateRouter router = makeRouter();
 
-        await router.HandleMessageAsync(PhotoMessage(), CancellationToken.None);
+        await router.HandleMessageAsync(photoMessage(), CancellationToken.None);
 
         Assert.DoesNotContain(_bot.Requests.OfType<SendMessageRequest>(), m => m.Text.Contains("too large"));
         Assert.True((await _store.GetAsync(UserId, CancellationToken.None)).HasImage);
     }
 
-    private UpdateRouter Router()
+    private UpdateRouter makeRouter()
     {
         BotOptions options = new() { DataDir = _dataDir, AllowedUsers = new HashSet<long> { UserId } };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
@@ -126,16 +126,16 @@ public sealed class DocumentDownloadTests : IDisposable
     }
 
     /// <summary>Give the session a working image, so a layout upload has something to draw on.</summary>
-    private async Task Adopt()
+    private async Task adopt()
     {
         long size = _bot.FileBytes;
         _bot.FileBytes = 8;
-        await Router().HandleMessageAsync(PhotoMessage(), CancellationToken.None);
+        await makeRouter().HandleMessageAsync(photoMessage(), CancellationToken.None);
         _bot.FileBytes = size;
         _bot.Requests.Clear();
     }
 
-    private static Message DocumentFrom(string fileName, string? caption) =>
+    private static Message documentFrom(string fileName, string? caption) =>
         new()
         {
             Id = 1,
@@ -145,7 +145,7 @@ public sealed class DocumentDownloadTests : IDisposable
             Document = new Document { FileId = "d1", FileUniqueId = "d1", FileName = fileName },
         };
 
-    private static Message PhotoMessage() =>
+    private static Message photoMessage() =>
         new()
         {
             Id = 2,
@@ -154,7 +154,7 @@ public sealed class DocumentDownloadTests : IDisposable
             Photo = [new PhotoSize { FileId = "p1", FileUniqueId = "p1", Width = 90, Height = 90 }],
         };
 
-    private string LastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
+    private string lastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
 
     /// <summary>A bot client whose downloads actually produce bytes, so the caps are exercised.</summary>
     private sealed class SizedBotClient : MockBotClient

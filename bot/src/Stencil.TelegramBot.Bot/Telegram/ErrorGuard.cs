@@ -26,11 +26,11 @@ public sealed class ErrorGuard
         }
         catch (InvalidOperationException ex)
         {
-            await ReplyError(chatId, ex.Message, ct);
+            await replyError(chatId, ex.Message, ct);
         }
         catch (ServerException ex)
         {
-            await ReplyError(chatId, ex.Message, ct);
+            await replyError(chatId, ex.Message, ct);
         }
         catch (StencilCliException ex)
         {
@@ -38,7 +38,7 @@ public sealed class ErrorGuard
             {
                 _logger.LogError("Stencil CLI unavailable: {Detail}", detail);
             }
-            await ReplyError(chatId, ex.Message, ct);
+            await replyError(chatId, ex.Message, ct);
         }
         catch (OperationCanceledException)
         {
@@ -46,12 +46,12 @@ public sealed class ErrorGuard
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error handling update for chat {ChatId}", chatId);
-            await ReplyError(chatId, "Sorry, something went wrong handling that. Please try again.", ct);
+            await replyError(chatId, "Sorry, something went wrong handling that. Please try again.", ct);
         }
     }
 
     // Best-effort: a failed reply must not mask the original error.
-    private async Task ReplyError(long chatId, string message, CancellationToken ct)
+    private async Task replyError(long chatId, string message, CancellationToken ct)
     {
         try
         {

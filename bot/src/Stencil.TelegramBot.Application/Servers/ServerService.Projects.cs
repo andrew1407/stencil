@@ -14,17 +14,17 @@ public sealed partial class ServerService
     public async Task<IReadOnlyList<ServerProjectInfo>> ListProjectsAsync(long userId, string? url, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
-        var targets = TargetConnections(session, url);
+        var targets = targetConnections(session, url);
         // Answers are stitched back in connection order, not reply order.
-        var answers = await Task.WhenAll(targets.Select(connection => ListOneAsync(connection, ct)));
+        var answers = await Task.WhenAll(targets.Select(connection => listOneAsync(connection, ct)));
         return [.. answers.SelectMany(a => a)];
     }
 
-    private async Task<IReadOnlyList<ServerProjectInfo>> ListOneAsync(ServerConnectionInfo connection, CancellationToken ct)
+    private async Task<IReadOnlyList<ServerProjectInfo>> listOneAsync(ServerConnectionInfo connection, CancellationToken ct)
     {
         try
         {
-            var records = await ClientFor(connection).ListProjectsAsync(ct);
+            var records = await clientFor(connection).ListProjectsAsync(ct);
             return [.. records.Select(record => new ServerProjectInfo(record, connection.Url))];
         }
         catch
@@ -36,10 +36,10 @@ public sealed partial class ServerService
     public async Task<UserSession> FetchAsync(long userId, string nameOrId, string? url, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
-        var targets = TargetConnections(session, url);
+        var targets = targetConnections(session, url);
         foreach (var connection in targets)
         {
-            var client = ClientFor(connection);
+            var client = clientFor(connection);
             ProjectRecord? match;
             try
             {
@@ -95,8 +95,8 @@ public sealed partial class ServerService
         {
             throw new InvalidOperationException("No working image — upload a photo or use /blank first.");
         }
-        var connection = ResolveConnection(session, url);
-        var client = ClientFor(connection);
+        var connection = resolveConnection(session, url);
+        var client = clientFor(connection);
         var render = await _editing.RenderAsync(userId, ct);
         var bytes = await File.ReadAllBytesAsync(render.Path, ct);
         // A locally-held description rides along; null lets the server apply its default.
@@ -113,7 +113,7 @@ public sealed partial class ServerService
         await client.PutFileAsync(record.Id, ProjectFileKind.Original, bytes, "png", render.Width, render.Height, ct);
         // The original upload bumps the version but the file-write response carries none: re-read
         // it or the next version-guarded write would 409 (remoteSync.js createRemoteProject).
-        var version = await CurrentVersionAsync(client, record.Id, record.Version, ct);
+        var version = await currentVersionAsync(client, record.Id, record.Version, ct);
         var updated = session with
         {
             ActiveServerUrl = connection.Url,
@@ -130,8 +130,8 @@ public sealed partial class ServerService
     }
     public async Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default)
     {
-        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
+        var (session, projectId) = await requireActiveSessionAsync(userId, ct);
+        var client = clientForActive(session);
         var name = session.ActiveProjectName ?? projectId;
         try
         {

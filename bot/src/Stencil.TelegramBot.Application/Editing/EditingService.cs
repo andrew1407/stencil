@@ -77,7 +77,7 @@ public sealed partial class EditingService : IEditingService
             else if (session.Edits.CustomPageWidth is double cw && cw > 0
                 && session.Edits.CustomPageHeight is double ch && ch > 0)
             {
-                spec = spec with { Width = CmToBlankPx(cw), Height = CmToBlankPx(ch) };
+                spec = spec with { Width = cmToBlankPx(cw), Height = cmToBlankPx(ch) };
                 customConverted = true;
             }
         }
@@ -94,13 +94,13 @@ public sealed partial class EditingService : IEditingService
         // pick, mirroring the CLI console's doBlank restore order.
         if (spec.Page is string page)
         {
-            updated = updated with { Edits = WithPageFormat(updated.Edits, page, null, null) };
+            updated = updated with { Edits = withPageFormat(updated.Edits, page, null, null) };
         }
         else if (customConverted)
         {
             updated = updated with
             {
-                Edits = WithPageFormat(updated.Edits, "custom", session.Edits.CustomPageWidth, session.Edits.CustomPageHeight),
+                Edits = withPageFormat(updated.Edits, "custom", session.Edits.CustomPageWidth, session.Edits.CustomPageHeight),
             };
         }
         else if (session.Edits.PageFormat is string prior
@@ -109,7 +109,7 @@ public sealed partial class EditingService : IEditingService
         {
             updated = updated with
             {
-                Edits = WithPageFormat(updated.Edits, prior, session.Edits.CustomPageWidth, session.Edits.CustomPageHeight),
+                Edits = withPageFormat(updated.Edits, prior, session.Edits.CustomPageWidth, session.Edits.CustomPageHeight),
             };
         }
         await _store.SaveAsync(updated, ct);
@@ -117,7 +117,7 @@ public sealed partial class EditingService : IEditingService
     }
 
     // cm → px like the core's defaultBlankSizePx: cm / 2.54 * 96.
-    private static int CmToBlankPx(double cm)
+    private static int cmToBlankPx(double cm)
     {
         var px = (int)(cm / 2.54 * 96.0 + 0.5);
         return px < 1 ? 1 : px;
@@ -128,7 +128,7 @@ public sealed partial class EditingService : IEditingService
         var session = await _store.GetAsync(userId, ct);
         var storedVideo = _video.Store(userId, videoSourcePath);
         var result = await _video.GrabAsync(userId, storedVideo, frame, ct);
-        return await SaveAsync(
+        return await saveAsync(
             EditSessions.ResetToImage(session, result.Path, result.Size, label) with { VideoSourcePath = storedVideo }, ct);
     }
 
@@ -142,7 +142,7 @@ public sealed partial class EditingService : IEditingService
         var video = session.VideoSourcePath;
         var label = session.ImageLabel ?? "frame";
         var result = await _video.GrabAsync(userId, video, frame, ct);
-        return await SaveAsync(
+        return await saveAsync(
             EditSessions.ResetToImage(session, result.Path, result.Size, label) with { VideoSourcePath = video }, ct);
     }
 
@@ -160,7 +160,7 @@ public sealed partial class EditingService : IEditingService
     public async Task<UserSession> OpenProjectFileAsync(long userId, StencilProject project, CancellationToken ct = default)
     {
         UserSession session = await _store.GetAsync(userId, ct);
-        return await SaveAsync(await _projectFiles.OpenAsync(userId, session, project, ct), ct);
+        return await saveAsync(await _projectFiles.OpenAsync(userId, session, project, ct), ct);
     }
 
     public async Task<byte[]> ExportProjectFileAsync(long userId, CancellationToken ct = default) =>

@@ -69,10 +69,10 @@ public static partial class CliArgvBuilder
             argv.Add(FlagSourceName);
             argv.Add(req.Name);
         }
-        AddBound(argv, FlagSourceMinWidth, req.MinWidth);
-        AddBound(argv, FlagSourceMaxWidth, req.MaxWidth);
-        AddBound(argv, FlagSourceMinHeight, req.MinHeight);
-        AddBound(argv, FlagSourceMaxHeight, req.MaxHeight);
+        addBound(argv, FlagSourceMinWidth, req.MinWidth);
+        addBound(argv, FlagSourceMaxWidth, req.MaxWidth);
+        addBound(argv, FlagSourceMinHeight, req.MinHeight);
+        addBound(argv, FlagSourceMaxHeight, req.MaxHeight);
 
         argv.Add(FlagConfineOutput);
         argv.Add(req.OutputDir);
@@ -80,7 +80,7 @@ public static partial class CliArgvBuilder
     }
 
     // Only for a set, positive bound: 0/null is unset.
-    private static void AddBound(List<string> argv, string flag, int? value)
+    private static void addBound(List<string> argv, string flag, int? value)
     {
         if (value is int px && px > 0)
         {

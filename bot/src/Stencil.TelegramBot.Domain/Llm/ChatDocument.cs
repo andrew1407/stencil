@@ -36,16 +36,16 @@ public sealed record ChatDocument
         {
             return null;
         }
-        return role == LlmMessage.RoleAssistant && LooksLikeRawPlan(t) ? null : t;
+        return role == LlmMessage.RoleAssistant && looksLikeRawPlan(t) ? null : t;
     }
 
-    private static bool LooksLikeRawPlan(string t) =>
+    private static bool looksLikeRawPlan(string t) =>
         t[0] is '{' or '['
-        && HasJsonKey(t, "version")
-        && (HasJsonKey(t, "actions") || HasJsonKey(t, "reply")
-            || HasJsonKey(t, "variants") || HasJsonKey(t, "ask"));
+        && hasJsonKey(t, "version")
+        && (hasJsonKey(t, "actions") || hasJsonKey(t, "reply")
+            || hasJsonKey(t, "variants") || hasJsonKey(t, "ask"));
 
-    private static bool HasJsonKey(string t, string key)
+    private static bool hasJsonKey(string t, string key)
     {
         string quoted = $"\"{key}\"";
         for (int i = t.IndexOf(quoted, StringComparison.Ordinal); i >= 0;

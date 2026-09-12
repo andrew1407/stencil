@@ -19,26 +19,26 @@ public sealed class ProviderWireFixtureWalkerTests
 {
     private static readonly string[] Files = ["ollama.json", "openai.json", "server.json", "httpErrors.json"];
 
-    private static string PathFor(string file) =>
+    private static string pathFor(string file) =>
         Path.Combine(SharedFixtures.LlmFixtureDir("providerWire"), file);
 
     public static TheoryData<string> Vectors() =>
-        SharedFixtures.TheoryNames(Files.SelectMany(f => SharedFixtures.CaseNames(PathFor(f))));
+        SharedFixtures.TheoryNames(Files.SelectMany(f => SharedFixtures.CaseNames(pathFor(f))));
 
     [Fact]
     public void TheCorpusHasEveryVector() =>
-        Assert.Equal(26, Files.Sum(f => SharedFixtures.Cases(PathFor(f)).Count));
+        Assert.Equal(26, Files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count));
 
     [Theory]
     [MemberData(nameof(Vectors))]
     public async Task VectorMatches(string name)
     {
-        string file = Files.First(f => SharedFixtures.CaseNames(PathFor(f)).Contains(name));
-        using JsonDocument doc = SharedFixtures.Case(PathFor(file), name);
+        string file = Files.First(f => SharedFixtures.CaseNames(pathFor(f)).Contains(name));
+        using JsonDocument doc = SharedFixtures.Case(pathFor(file), name);
         List<string> failures = new();
         try
         {
-            await RunCaseAsync(doc.RootElement, name, failures);
+            await runCaseAsync(doc.RootElement, name, failures);
         }
         catch (Exception ex)
         {
@@ -47,7 +47,7 @@ public sealed class ProviderWireFixtureWalkerTests
         Assert.True(failures.Count == 0, string.Join("\n", failures));
     }
 
-    private static async Task RunCaseAsync(JsonElement fx, string name, List<string> failures)
+    private static async Task runCaseAsync(JsonElement fx, string name, List<string> failures)
     {
         JsonElement settings = fx.GetProperty("settings");
         string provider = fx.GetProperty("provider").GetString()!;
@@ -60,21 +60,21 @@ public sealed class ProviderWireFixtureWalkerTests
                 "server" => LlmOptions.ProviderStencilServer,
                 _ => throw new InvalidOperationException($"unknown provider {provider}"),
             },
-            BaseUrl = ReadString(settings, "baseUrl") ?? "",
-            Model = ReadString(settings, "model") ?? "",
-            ApiKey = ReadString(settings, "apiKey") ?? "",
+            BaseUrl = readString(settings, "baseUrl") ?? "",
+            Model = readString(settings, "model") ?? "",
+            ApiKey = readString(settings, "apiKey") ?? "",
         };
         LlmChatRequest request = new()
         {
             System = fx.GetProperty("chat").GetProperty("system").GetString()!,
-            Messages = ParseMessages(fx.GetProperty("chat").GetProperty("messages")),
-            ServerUrl = ReadString(settings, "serverUrl"),
-            ServerToken = ReadString(fx, "token"),
+            Messages = parseMessages(fx.GetProperty("chat").GetProperty("messages")),
+            ServerUrl = readString(settings, "serverUrl"),
+            ServerToken = readString(fx, "token"),
         };
 
         HttpResponseMessage canned = fx.TryGetProperty("response", out JsonElement response)
             ? CannedHttpMessageHandler.Json(response.GetRawText())
-            : ErrorResponse(fx.GetProperty("errorResponse"));
+            : errorResponse(fx.GetProperty("errorResponse"));
         CannedHttpMessageHandler handler = new((_, _) => canned);
         HttpLlmClient client = new(new HttpClient(handler), options);
 
@@ -105,7 +105,7 @@ public sealed class ProviderWireFixtureWalkerTests
             failures.Add($"{name}: content type {handler.LastContentType} != application/json");
         }
         string? sentAuth = sent.Headers.Authorization?.ToString();
-        string? expectAuth = ReadString(fx, "expectAuthorization");
+        string? expectAuth = readString(fx, "expectAuthorization");
         if (sentAuth != expectAuth)
         {
             failures.Add($"{name}: Authorization \"{sentAuth ?? "<none>"}\" != \"{expectAuth ?? "<none>"}\"");
@@ -122,7 +122,7 @@ public sealed class ProviderWireFixtureWalkerTests
         if (ov is JsonElement o && o.TryGetProperty("error", out JsonElement flippedError))
         {
             // The bot errors where the browser extracts a reply.
-            AssertError(name, error, flippedError, failures);
+            assertError(name, error, flippedError, failures);
             return;
         }
         if (fx.TryGetProperty("expectReply", out JsonElement expectReply))
@@ -139,15 +139,15 @@ public sealed class ProviderWireFixtureWalkerTests
         }
         JsonElement expectError = fx.GetProperty("expectError");
         string kind = (ov is JsonElement k && k.TryGetProperty("kind", out JsonElement kindOv)
-            ? kindOv.GetString() : ReadString(expectError, "kind"))!;
+            ? kindOv.GetString() : readString(expectError, "kind"))!;
         string message = (ov is JsonElement m && m.TryGetProperty("message", out JsonElement msgOv)
-            ? msgOv.GetString() : ReadString(expectError, "message"))!;
+            ? msgOv.GetString() : readString(expectError, "message"))!;
         using JsonDocument wanted = JsonDocument.Parse(
             $"{{\"kind\":{JsonSerializer.Serialize(kind)},\"message\":{JsonSerializer.Serialize(message)}}}");
-        AssertError(name, error, wanted.RootElement, failures);
+        assertError(name, error, wanted.RootElement, failures);
     }
 
-    private static void AssertError(string name, LlmException? error, JsonElement expect, List<string> failures)
+    private static void assertError(string name, LlmException? error, JsonElement expect, List<string> failures)
     {
         if (error is null)
         {
@@ -183,7 +183,7 @@ public sealed class ProviderWireFixtureWalkerTests
         }
     }
 
-    private static HttpResponseMessage ErrorResponse(JsonElement spec)
+    private static HttpResponseMessage errorResponse(JsonElement spec)
     {
         var status = (HttpStatusCode)spec.GetProperty("status").GetInt32();
         JsonElement body = spec.GetProperty("body");
@@ -195,7 +195,7 @@ public sealed class ProviderWireFixtureWalkerTests
             : CannedHttpMessageHandler.Json(body.GetRawText(), status);
     }
 
-    private static List<LlmMessage> ParseMessages(JsonElement messages)
+    private static List<LlmMessage> parseMessages(JsonElement messages)
     {
         List<LlmMessage> parsed = new();
         foreach (JsonElement m in messages.EnumerateArray())
@@ -216,7 +216,7 @@ public sealed class ProviderWireFixtureWalkerTests
         return parsed;
     }
 
-    private static string? ReadString(JsonElement element, string name) =>
+    private static string? readString(JsonElement element, string name) =>
         element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;

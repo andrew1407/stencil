@@ -13,7 +13,7 @@ public static class CommandParser
         {
             return new BotCommand("", "", []);
         }
-        int split = IndexOfWhitespace(trimmed);
+        int split = indexOfWhitespace(trimmed);
         string head = split < 0 ? trimmed : trimmed[..split];
         string rest = split < 0 ? "" : trimmed[(split + 1)..].Trim();
         string verb = head[1..];
@@ -39,7 +39,7 @@ public static class CommandParser
         return new BotCommand("prompt", spec, spec.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
-    private static int IndexOfWhitespace(string value)
+    private static int indexOfWhitespace(string value)
     {
         for (int i = 0; i < value.Length; i++)
         {

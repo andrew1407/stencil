@@ -48,7 +48,7 @@ public sealed class SyncWatcherTests : IDisposable
     }
 
     /// <summary>A synced session on an active project, with a working image to re-render.</summary>
-    private async Task SeedSyncedUser(long lastSeenVersion)
+    private async Task seedSyncedUser(long lastSeenVersion)
     {
         await _editing.BlankAsync(UserId, new BlankSpec(null, null, null, null));
         await _store.SaveAsync(await _store.GetAsync(UserId) with
@@ -63,7 +63,7 @@ public sealed class SyncWatcherTests : IDisposable
     }
 
     /// <summary>Run ticks until <paramref name="done"/>, then stop the service.</summary>
-    private async Task WatchUntil(Func<bool> done)
+    private async Task watchUntil(Func<bool> done)
     {
         SyncWatcher watcher = new(_registry, _servers, _store, _handlers, _bot, new UserGate(), _logger);
         await watcher.StartAsync(CancellationToken.None);
@@ -79,10 +79,10 @@ public sealed class SyncWatcherTests : IDisposable
     [Fact]
     public async Task ANewerServerVersionPullsAndPushesTheRefreshedResult()
     {
-        await SeedSyncedUser(lastSeenVersion: 1);
+        await seedSyncedUser(lastSeenVersion: 1);
         _servers.ActiveVersion = 2;
 
-        await WatchUntil(() => _bot.Requests.OfType<SendPhotoRequest>().Any());
+        await watchUntil(() => _bot.Requests.OfType<SendPhotoRequest>().Any());
 
         Assert.Equal(1, _servers.Pulls);
         Assert.Contains(_bot.Requests.OfType<SendMessageRequest>(),
@@ -96,10 +96,10 @@ public sealed class SyncWatcherTests : IDisposable
     [Fact]
     public async Task AnUnchangedVersionPullsNothing()
     {
-        await SeedSyncedUser(lastSeenVersion: 3);
+        await seedSyncedUser(lastSeenVersion: 3);
         _servers.ActiveVersion = 3; // the peer's version is ours
 
-        await WatchUntil(() => _servers.VersionPolls > 0);
+        await watchUntil(() => _servers.VersionPolls > 0);
 
         Assert.Equal(0, _servers.Pulls);
         Assert.Empty(_bot.Requests);
@@ -108,10 +108,10 @@ public sealed class SyncWatcherTests : IDisposable
     [Fact]
     public async Task AnUnreachableServerIsSkippedWithoutPulling()
     {
-        await SeedSyncedUser(lastSeenVersion: 1);
+        await seedSyncedUser(lastSeenVersion: 1);
         _servers.ActiveVersion = null; // the poll could not reach the server
 
-        await WatchUntil(() => _servers.VersionPolls > 0);
+        await watchUntil(() => _servers.VersionPolls > 0);
 
         Assert.Empty(_bot.Requests);
 
@@ -122,10 +122,10 @@ public sealed class SyncWatcherTests : IDisposable
     [Fact]
     public async Task SyncTurnedOffDropsTheRegistryEntry()
     {
-        await SeedSyncedUser(lastSeenVersion: 1);
+        await seedSyncedUser(lastSeenVersion: 1);
         await _store.SaveAsync(await _store.GetAsync(UserId) with { SyncEnabled = false });
 
-        await WatchUntil(() => _registry.Entries().Count == 0);
+        await watchUntil(() => _registry.Entries().Count == 0);
 
         Assert.Empty(_registry.Entries());
         Assert.Equal(0, _servers.Pulls);
@@ -134,10 +134,10 @@ public sealed class SyncWatcherTests : IDisposable
     [Fact]
     public async Task ADroppedProjectDropsTheRegistryEntryToo()
     {
-        await SeedSyncedUser(lastSeenVersion: 1);
+        await seedSyncedUser(lastSeenVersion: 1);
         await _store.SaveAsync(await _store.GetAsync(UserId) with { ActiveProjectId = null });
 
-        await WatchUntil(() => _registry.Entries().Count == 0);
+        await watchUntil(() => _registry.Entries().Count == 0);
 
         Assert.Equal(0, _servers.Pulls);
     }
@@ -145,10 +145,10 @@ public sealed class SyncWatcherTests : IDisposable
     [Fact]
     public async Task AFailedTickIsLoggedAndTheLoopStaysUp()
     {
-        await SeedSyncedUser(lastSeenVersion: 1);
+        await seedSyncedUser(lastSeenVersion: 1);
         _servers.VersionThrows = new InvalidOperationException("server is down");
 
-        await WatchUntil(() => _logger.Entries.Count > 0);
+        await watchUntil(() => _logger.Entries.Count > 0);
 
         (LogLevel level, string message) = Assert.Single(_logger.Entries);
         Assert.Equal(LogLevel.Warning, level);

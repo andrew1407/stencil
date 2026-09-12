@@ -15,7 +15,7 @@ public sealed class SizeBudgetTests
 
     private readonly record struct Measured(string Path, int Lines, int CommentLines);
 
-    private static readonly Lazy<Measured[]> Sources = new(MeasureAll);
+    private static readonly Lazy<Measured[]> Sources = new(measureAll);
 
     private static readonly Lazy<JsonDocument> Budget = new(() =>
         JsonDocument.Parse(File.ReadAllText(SharedFixtures.PathOf(
@@ -25,7 +25,7 @@ public sealed class SizeBudgetTests
 
     private static int MaxNewFileLines => Root.GetProperty("maxNewFileLines").GetInt32();
 
-    private static bool IsException(string path) =>
+    private static bool isException(string path) =>
         Root.GetProperty("exceptions").TryGetProperty(path, out _);
 
     [Fact]
@@ -33,7 +33,7 @@ public sealed class SizeBudgetTests
     {
         JsonElement files = Root.GetProperty("files");
         string[] unlisted = Sources.Value
-            .Where(f => f.Lines > MaxNewFileLines && !IsException(f.Path))
+            .Where(f => f.Lines > MaxNewFileLines && !isException(f.Path))
             .Where(f => !files.TryGetProperty(f.Path, out _))
             .Select(f => $"{f.Path} ({f.Lines} lines)")
             .ToArray();
@@ -49,7 +49,7 @@ public sealed class SizeBudgetTests
         List<string> grew = [];
         foreach (Measured file in Sources.Value)
         {
-            if (IsException(file.Path) || !files.TryGetProperty(file.Path, out JsonElement budget))
+            if (isException(file.Path) || !files.TryGetProperty(file.Path, out JsonElement budget))
             {
                 continue;
             }
@@ -71,7 +71,7 @@ public sealed class SizeBudgetTests
     {
         JsonElement files = Root.GetProperty("files");
         string[] over = Sources.Value
-            .Where(f => !IsException(f.Path) && !files.TryGetProperty(f.Path, out _))
+            .Where(f => !isException(f.Path) && !files.TryGetProperty(f.Path, out _))
             .Where(f => f.Lines > MaxNewFileLines)
             .Select(f => $"{f.Path} ({f.Lines} lines)")
             .ToArray();
@@ -85,7 +85,7 @@ public sealed class SizeBudgetTests
         List<string> risen = [];
         foreach (JsonProperty dir in Root.GetProperty("commentPct").EnumerateObject())
         {
-            Measured[] inDir = Sources.Value.Where(f => DirOf(f.Path) == dir.Name).ToArray();
+            Measured[] inDir = Sources.Value.Where(f => dirOf(f.Path) == dir.Name).ToArray();
             if (inDir.Length == 0)
             {
                 continue;
@@ -101,9 +101,9 @@ public sealed class SizeBudgetTests
         Assert.True(risen.Count == 0, "comment share rose:\n  " + string.Join("\n  ", risen));
     }
 
-    private static string DirOf(string path) => path[..path.LastIndexOf('/')];
+    private static string dirOf(string path) => path[..path.LastIndexOf('/')];
 
-    private static Measured[] MeasureAll()
+    private static Measured[] measureAll()
     {
         List<Measured> measured = [];
         foreach (string scope in (string[])["src", "tests"])
@@ -117,7 +117,7 @@ public sealed class SizeBudgetTests
                     continue;
                 }
                 string[] lines = File.ReadAllLines(file);
-                measured.Add(new Measured(rel, lines.Length, CountCommentLines(lines)));
+                measured.Add(new Measured(rel, lines.Length, countCommentLines(lines)));
             }
         }
         return [.. measured.OrderBy(m => m.Path, StringComparer.Ordinal)];
@@ -127,7 +127,7 @@ public sealed class SizeBudgetTests
     /// Lines opening with <c>//</c> or <c>/*</c>, plus lines inside a block comment. String,
     /// verbatim, raw-string and char literals are tracked so a <c>//</c> inside one never counts.
     /// </summary>
-    private static int CountCommentLines(string[] lines)
+    private static int countCommentLines(string[] lines)
     {
         bool inBlock = false, inVerbatim = false;
         int rawQuotes = 0, comments = 0;
@@ -141,19 +141,19 @@ public sealed class SizeBudgetTests
                     comments++;
                 }
             }
-            Scan(line, ref inBlock, ref inVerbatim, ref rawQuotes);
+            scan(line, ref inBlock, ref inVerbatim, ref rawQuotes);
         }
         return comments;
     }
 
-    private static void Scan(string line, ref bool inBlock, ref bool inVerbatim, ref int rawQuotes)
+    private static void scan(string line, ref bool inBlock, ref bool inVerbatim, ref int rawQuotes)
     {
         for (int i = 0; i < line.Length;)
         {
             if (rawQuotes > 0)
             {
                 if (line[i] != '"') { i++; continue; }
-                int run = QuoteRun(line, i);
+                int run = quoteRun(line, i);
                 if (run >= rawQuotes) { rawQuotes = 0; }
                 i += run;
             }
@@ -187,14 +187,14 @@ public sealed class SizeBudgetTests
             }
             else if (line[i] == '"')
             {
-                int run = QuoteRun(line, i);
+                int run = quoteRun(line, i);
                 if (run >= 3) { rawQuotes = run; i += run; }
                 else if (run == 2) { i += 2; }
-                else { i = SkipLiteral(line, i, '"'); }
+                else { i = skipLiteral(line, i, '"'); }
             }
             else if (line[i] == '\'')
             {
-                i = SkipLiteral(line, i, '\'');
+                i = skipLiteral(line, i, '\'');
             }
             else
             {
@@ -203,14 +203,14 @@ public sealed class SizeBudgetTests
         }
     }
 
-    private static int QuoteRun(string line, int i)
+    private static int quoteRun(string line, int i)
     {
         int j = i;
         while (j < line.Length && line[j] == '"') { j++; }
         return j - i;
     }
 
-    private static int SkipLiteral(string line, int i, char quote)
+    private static int skipLiteral(string line, int i, char quote)
     {
         for (int j = i + 1; j < line.Length; j++)
         {

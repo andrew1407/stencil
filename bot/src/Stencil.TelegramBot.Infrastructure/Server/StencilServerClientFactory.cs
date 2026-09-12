@@ -11,7 +11,7 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
     // One pooled SocketsHttpHandler per TLS choice: the clients are transient and never disposed,
     // so a per-call handler would leak its whole connection pool.
     private readonly Lazy<SocketsHttpHandler> _verifying = new(() => new SocketsHttpHandler());
-    private readonly Lazy<SocketsHttpHandler> _insecure = new(CreateInsecureHandler);
+    private readonly Lazy<SocketsHttpHandler> _insecure = new(createInsecureHandler);
     private readonly TimeSpan _timeout;
 
     public StencilServerClientFactory(BotOptions options)
@@ -39,7 +39,7 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
     public HttpClient CreateHttpClient(TimeSpan timeout) =>
         new(_verifying.Value, disposeHandler: false) { Timeout = timeout };
 
-    private static SocketsHttpHandler CreateInsecureHandler() => new()
+    private static SocketsHttpHandler createInsecureHandler() => new()
     {
         SslOptions = new SslClientAuthenticationOptions
         {

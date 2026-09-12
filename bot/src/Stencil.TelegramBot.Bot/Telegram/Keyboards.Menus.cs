@@ -5,7 +5,7 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 
 public static partial class Keyboards
 {
-    private static List<InlineKeyboardButton[]> MainRows() =>
+    private static List<InlineKeyboardButton[]> mainRows() =>
         new()
         {
             // Chat mode gets its own full-width row: the entry point to the assistant.
@@ -87,7 +87,7 @@ public static partial class Keyboards
         };
         // The server-only Link/Expiration/Remove row rides along only for a saved server project.
         // Same tokens as StatusMenu.
-        rows.AddRange(ProjectActionsRows(hasActiveProject));
+        rows.AddRange(projectActionsRows(hasActiveProject));
         return new InlineKeyboardMarkup(rows);
     }
 
@@ -105,7 +105,7 @@ public static partial class Keyboards
         {
             rows.Add(new[] { BotStrings.Button("layoutJson") });
         }
-        rows.Add(BackRow());
+        rows.Add(backRow());
         return new InlineKeyboardMarkup(rows);
     }
 
@@ -118,7 +118,7 @@ public static partial class Keyboards
                 BotStrings.Button("rotateMinus90"),
                 BotStrings.Button("crop"),
             },
-            BackRow(),
+            backRow(),
         });
 
     public static InlineKeyboardMarkup FilterSubmenu() =>
@@ -139,7 +139,7 @@ public static partial class Keyboards
                 BotStrings.Button("filterTint"),
                 BotStrings.Button("filterNone"),
             },
-            BackRow(),
+            backRow(),
         });
 
     public static InlineKeyboardMarkup DrawSubmenu() =>
@@ -151,10 +151,10 @@ public static partial class Keyboards
                 BotStrings.Button("undoLine"),
                 BotStrings.Button("clearLines"),
             },
-            BackRow(),
+            backRow(),
         });
 
-    private static InlineKeyboardButton[] BackRow() =>
+    private static InlineKeyboardButton[] backRow() =>
         new[] { BotStrings.Button("back") };
 
     public static InlineKeyboardMarkup ProjectList(IEnumerable<ServerProjectInfo> projects)
@@ -167,13 +167,13 @@ public static partial class Keyboards
             string dot = Replies.ColorDot(p.Record.Color);
             string prefix = dot.Length == 0 ? "" : dot + " ";
             string label = $"{prefix}{p.Record.Name} @ {Replies.Host(p.ServerUrl)}";
-            string token = Token($"fetch:{p.Record.Id}");
+            string token = tokenFor($"fetch:{p.Record.Id}");
             rows.Add(new[] { InlineKeyboardButton.WithCallbackData(label, token) });
         }
         return new InlineKeyboardMarkup(rows);
     }
 
     // Telegram's 64-byte callback limit.
-    private static string Token(string value) =>
+    private static string tokenFor(string value) =>
         value.Length <= 64 ? value : value[..64];
 }

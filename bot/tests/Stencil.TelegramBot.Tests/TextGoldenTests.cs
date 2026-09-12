@@ -17,27 +17,27 @@ public sealed class TextGoldenTests
 {
     [Fact]
     public void RepliesFixedStringsMatchTheGolden() =>
-        TextGolden.Check("replies.txt", BuildReplies());
+        TextGolden.Check("replies.txt", buildReplies());
 
     [Fact]
     public void KeyboardLabelsAndTokensMatchTheGolden() =>
-        TextGolden.Check("keyboards.txt", BuildKeyboards());
+        TextGolden.Check("keyboards.txt", buildKeyboards());
 
     [Fact]
     public void BotCommandMenuMatchesTheGolden() =>
-        TextGolden.Check("commands.txt", BuildCommands());
+        TextGolden.Check("commands.txt", buildCommands());
 
     /// <summary>
     /// Every no-argument public string builder on <see cref="Replies"/>, enumerated by
     /// reflection so a new one shows up here instead of going unpinned, plus the handful whose
     /// only argument is a flag.
     /// </summary>
-    private static string BuildReplies()
+    private static string buildReplies()
     {
         StringBuilder sb = new();
         foreach (Replies.Tone tone in Enum.GetValues<Replies.Tone>().OrderBy(t => t.ToString(), StringComparer.Ordinal))
         {
-            Section(sb, $"Glyph({tone})", Replies.Glyph(tone));
+            section(sb, $"Glyph({tone})", Replies.Glyph(tone));
         }
         MethodInfo[] fixedStrings = typeof(Replies)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -47,32 +47,32 @@ public sealed class TextGoldenTests
         Assert.NotEmpty(fixedStrings);
         foreach (MethodInfo m in fixedStrings)
         {
-            Section(sb, $"{m.Name}()", (string)m.Invoke(null, null)!);
+            section(sb, $"{m.Name}()", (string)m.Invoke(null, null)!);
         }
         foreach (bool flag in new[] { false, true })
         {
-            Section(sb, $"ChatHistoryCleared({Flag(flag)})", Replies.ChatHistoryCleared(flag));
-            Section(sb, $"ChatSaveStatus({Flag(flag)})", Replies.ChatSaveStatus(flag));
+            section(sb, $"ChatHistoryCleared({flagText(flag)})", Replies.ChatHistoryCleared(flag));
+            section(sb, $"ChatSaveStatus({flagText(flag)})", Replies.ChatSaveStatus(flag));
         }
-        Section(sb, "ChatRestored(1)", Replies.ChatRestored(1));
-        Section(sb, "ChatRestored(3)", Replies.ChatRestored(3));
-        Section(sb, "ConnectionsText([])", Replies.ConnectionsText([]));
-        Section(sb, "ConnectionsText([], \"admin\")", Replies.ConnectionsText([], "admin"));
-        Section(sb, "ProjectsText([])", Replies.ProjectsText([]));
-        Section(sb, "ExpiryPrompt(0)", Replies.ExpiryPrompt(0));
-        Section(sb, "ExpiryPrompt(1767225600000)", Replies.ExpiryPrompt(1767225600000));
-        Section(sb, "DeleteConfirmPrompt(\"Poster\", null)", Replies.DeleteConfirmPrompt("Poster", null));
-        Section(sb, "DeleteConfirmPrompt(\"Poster\", \"http://localhost:8090\")",
+        section(sb, "ChatRestored(1)", Replies.ChatRestored(1));
+        section(sb, "ChatRestored(3)", Replies.ChatRestored(3));
+        section(sb, "ConnectionsText([])", Replies.ConnectionsText([]));
+        section(sb, "ConnectionsText([], \"admin\")", Replies.ConnectionsText([], "admin"));
+        section(sb, "ProjectsText([])", Replies.ProjectsText([]));
+        section(sb, "ExpiryPrompt(0)", Replies.ExpiryPrompt(0));
+        section(sb, "ExpiryPrompt(1767225600000)", Replies.ExpiryPrompt(1767225600000));
+        section(sb, "DeleteConfirmPrompt(\"Poster\", null)", Replies.DeleteConfirmPrompt("Poster", null));
+        section(sb, "DeleteConfirmPrompt(\"Poster\", \"http://localhost:8090\")",
             Replies.DeleteConfirmPrompt("Poster", "http://localhost:8090"));
-        Section(sb, "DesktopLink(\"Poster\", \"https://s/launch.html\", loopback: false)",
+        section(sb, "DesktopLink(\"Poster\", \"https://s/launch.html\", loopback: false)",
             Replies.DesktopLink("Poster", "https://s/launch.html", false));
-        Section(sb, "DesktopLink(\"Poster\", \"http://localhost:8080/launch.html\", loopback: true)",
+        section(sb, "DesktopLink(\"Poster\", \"http://localhost:8080/launch.html\", loopback: true)",
             Replies.DesktopLink("Poster", "http://localhost:8080/launch.html", true));
         return sb.ToString();
     }
 
     /// <summary>Every keyboard, row by row, as <c>label => callback token</c>.</summary>
-    private static string BuildKeyboards()
+    private static string buildKeyboards()
     {
         LlmProfile[] profiles =
         [
@@ -80,32 +80,32 @@ public sealed class TextGoldenTests
             new() { Name = "studio", Label = "LM Studio", Options = new LlmOptions { Provider = "openai-compat", BaseUrl = "http://localhost:1234/v1", Model = "gpt-oss" } },
         ];
         StringBuilder sb = new();
-        Keyboard(sb, "AskCardKeyboard([\"Left\", \"Right\"], multi: false, picked: [], allowCustom: false)",
+        keyboard(sb, "AskCardKeyboard([\"Left\", \"Right\"], multi: false, picked: [], allowCustom: false)",
             Keyboards.AskCardKeyboard(["Left", "Right"], false, [], false));
-        Keyboard(sb, "AskCardKeyboard([\"Left\", \"Right\"], multi: true, picked: [1], allowCustom: true)",
+        keyboard(sb, "AskCardKeyboard([\"Left\", \"Right\"], multi: true, picked: [1], allowCustom: true)",
             Keyboards.AskCardKeyboard(["Left", "Right"], true, [1], true));
-        Keyboard(sb, "ChatApiMenu(profiles, \"studio\")", Keyboards.ChatApiMenu(profiles, "studio"));
-        Keyboard(sb, "ChatModeMenu(saveChats: false)", Keyboards.ChatModeMenu(false));
-        Keyboard(sb, "ChatModeMenu(saveChats: true)", Keyboards.ChatModeMenu(true));
-        Keyboard(sb, "ClearChatConfirmMenu()", Keyboards.ClearChatConfirmMenu());
-        Keyboard(sb, "DeleteConfirmMenu()", Keyboards.DeleteConfirmMenu());
-        Keyboard(sb, "DownloadSubmenu(hasEdits: false)", Keyboards.DownloadSubmenu(false));
-        Keyboard(sb, "DownloadSubmenu(hasEdits: true)", Keyboards.DownloadSubmenu(true));
-        Keyboard(sb, "DrawSubmenu()", Keyboards.DrawSubmenu());
-        Keyboard(sb, "EditMenu(hasActiveProject: false)", Keyboards.EditMenu(false));
-        Keyboard(sb, "EditMenu(hasActiveProject: true)", Keyboards.EditMenu(true));
-        Keyboard(sb, "EditSubmenu()", Keyboards.EditSubmenu());
-        Keyboard(sb, "ExpirationMenu()", Keyboards.ExpirationMenu());
-        Keyboard(sb, "FilterSubmenu()", Keyboards.FilterSubmenu());
-        Keyboard(sb, "MainMenu()", Keyboards.MainMenu());
-        Keyboard(sb, "RetryPrompt()", Keyboards.RetryPrompt());
-        Keyboard(sb, "StatusMenu(hasActiveProject: false)", Keyboards.StatusMenu(false));
-        Keyboard(sb, "StatusMenu(hasActiveProject: true)", Keyboards.StatusMenu(true));
-        Keyboard(sb, "StopPrompt()", Keyboards.StopPrompt());
+        keyboard(sb, "ChatApiMenu(profiles, \"studio\")", Keyboards.ChatApiMenu(profiles, "studio"));
+        keyboard(sb, "ChatModeMenu(saveChats: false)", Keyboards.ChatModeMenu(false));
+        keyboard(sb, "ChatModeMenu(saveChats: true)", Keyboards.ChatModeMenu(true));
+        keyboard(sb, "ClearChatConfirmMenu()", Keyboards.ClearChatConfirmMenu());
+        keyboard(sb, "DeleteConfirmMenu()", Keyboards.DeleteConfirmMenu());
+        keyboard(sb, "DownloadSubmenu(hasEdits: false)", Keyboards.DownloadSubmenu(false));
+        keyboard(sb, "DownloadSubmenu(hasEdits: true)", Keyboards.DownloadSubmenu(true));
+        keyboard(sb, "DrawSubmenu()", Keyboards.DrawSubmenu());
+        keyboard(sb, "EditMenu(hasActiveProject: false)", Keyboards.EditMenu(false));
+        keyboard(sb, "EditMenu(hasActiveProject: true)", Keyboards.EditMenu(true));
+        keyboard(sb, "EditSubmenu()", Keyboards.EditSubmenu());
+        keyboard(sb, "ExpirationMenu()", Keyboards.ExpirationMenu());
+        keyboard(sb, "FilterSubmenu()", Keyboards.FilterSubmenu());
+        keyboard(sb, "MainMenu()", Keyboards.MainMenu());
+        keyboard(sb, "RetryPrompt()", Keyboards.RetryPrompt());
+        keyboard(sb, "StatusMenu(hasActiveProject: false)", Keyboards.StatusMenu(false));
+        keyboard(sb, "StatusMenu(hasActiveProject: true)", Keyboards.StatusMenu(true));
+        keyboard(sb, "StopPrompt()", Keyboards.StopPrompt());
         return sb.ToString();
     }
 
-    private static string BuildCommands()
+    private static string buildCommands()
     {
         StringBuilder sb = new();
         foreach (var c in BotCommandList.All())
@@ -115,12 +115,12 @@ public sealed class TextGoldenTests
         return sb.ToString();
     }
 
-    private static string Flag(bool value) => value ? "true" : "false";
+    private static string flagText(bool value) => value ? "true" : "false";
 
-    private static void Section(StringBuilder sb, string header, string body) =>
+    private static void section(StringBuilder sb, string header, string body) =>
         sb.Append("== ").Append(header).Append('\n').Append(body).Append("\n\n");
 
-    private static void Keyboard(StringBuilder sb, string header, InlineKeyboardMarkup markup)
+    private static void keyboard(StringBuilder sb, string header, InlineKeyboardMarkup markup)
     {
         sb.Append("== ").Append(header).Append('\n');
         foreach (IEnumerable<InlineKeyboardButton> row in markup.InlineKeyboard)
@@ -153,11 +153,11 @@ internal static class TextGolden
         {
             return;
         }
-        Assert.Fail($"golden {name} differs (BOT_UPDATE_GOLDENS=1 to rewrite):\n{Diff(expected, actual)}");
+        Assert.Fail($"golden {name} differs (BOT_UPDATE_GOLDENS=1 to rewrite):\n{diff(expected, actual)}");
     }
 
     /// <summary>The first few differing lines, so a failure names the wording that moved.</summary>
-    private static string Diff(string expected, string actual)
+    private static string diff(string expected, string actual)
     {
         string[] want = expected.Split('\n');
         string[] got = actual.Split('\n');

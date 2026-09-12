@@ -11,7 +11,7 @@ public sealed class AlbumCollectorTests
 {
     private const long UserId = 7;
 
-    private static AlbumPhoto Photo(int id) => new(id, $"file-{id}", null);
+    private static AlbumPhoto photo(int id) => new(id, $"file-{id}", null);
 
     /// <summary>Settle windows the test opens by hand: each wait parks until it is released.</summary>
     private sealed class SettleGate
@@ -65,7 +65,7 @@ public sealed class AlbumCollectorTests
         AlbumCollector collector = new(gate.Wait);
         List<IReadOnlyList<AlbumPhoto>> flushed = new();
 
-        collector.Add(UserId, "g1", Photo(1), photos => { flushed.Add(photos); return Task.CompletedTask; },
+        collector.Add(UserId, "g1", photo(1), photos => { flushed.Add(photos); return Task.CompletedTask; },
             CancellationToken.None);
         Assert.Empty(flushed); // still buffering
 
@@ -84,8 +84,8 @@ public sealed class AlbumCollectorTests
         List<IReadOnlyList<AlbumPhoto>> flushed = new();
         Task Flush(IReadOnlyList<AlbumPhoto> photos) { flushed.Add(photos); return Task.CompletedTask; }
 
-        collector.Add(UserId, "g1", Photo(1), Flush, CancellationToken.None);
-        collector.Add(UserId, "g1", Photo(2), Flush, CancellationToken.None); // arrives before the window ends
+        collector.Add(UserId, "g1", photo(1), Flush, CancellationToken.None);
+        collector.Add(UserId, "g1", photo(2), Flush, CancellationToken.None); // arrives before the window ends
 
         // The first window ends with the group having grown, so the collector waits again…
         await gate.ReleaseAsync();
@@ -105,9 +105,9 @@ public sealed class AlbumCollectorTests
         AlbumCollector collector = new(gate.Wait);
         List<string> flushedGroups = new();
 
-        collector.Add(UserId, "g1", Photo(1), _ => { flushedGroups.Add("g1"); return Task.CompletedTask; },
+        collector.Add(UserId, "g1", photo(1), _ => { flushedGroups.Add("g1"); return Task.CompletedTask; },
             CancellationToken.None);
-        collector.Add(UserId, "g2", Photo(2), _ => { flushedGroups.Add("g2"); return Task.CompletedTask; },
+        collector.Add(UserId, "g2", photo(2), _ => { flushedGroups.Add("g2"); return Task.CompletedTask; },
             CancellationToken.None);
 
         await gate.ReleaseAsync(2);
@@ -126,11 +126,11 @@ public sealed class AlbumCollectorTests
         List<IReadOnlyList<AlbumPhoto>> flushed = new();
         Task Flush(IReadOnlyList<AlbumPhoto> photos) { flushed.Add(photos); return Task.CompletedTask; }
 
-        collector.Add(UserId, "g1", Photo(1), Flush, CancellationToken.None);
+        collector.Add(UserId, "g1", photo(1), Flush, CancellationToken.None);
         await gate.ReleaseAsync();
         await collector.WhenIdleAsync();
 
-        collector.Add(UserId, "g1", Photo(2), Flush, CancellationToken.None);
+        collector.Add(UserId, "g1", photo(2), Flush, CancellationToken.None);
         await gate.ReleaseAsync();
         await collector.WhenIdleAsync();
 
@@ -147,7 +147,7 @@ public sealed class AlbumCollectorTests
         using CancellationTokenSource cts = new();
         bool flushed = false;
 
-        collector.Add(UserId, "g1", Photo(1), _ => { flushed = true; return Task.CompletedTask; }, cts.Token);
+        collector.Add(UserId, "g1", photo(1), _ => { flushed = true; return Task.CompletedTask; }, cts.Token);
         await cts.CancelAsync();
         await collector.WhenIdleAsync(); // the started task unwinds, it does not hang
 

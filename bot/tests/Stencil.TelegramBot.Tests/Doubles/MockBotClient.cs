@@ -59,7 +59,7 @@ public class MockBotClient : ITelegramBotClient
         Task.CompletedTask;
 
     /// <summary>Suppress "event never used" warnings — the mock never raises them.</summary>
-    private void TouchEvents()
+    private void touchEvents()
     {
         _ = OnMakingApiRequest;
         _ = OnApiResponseReceived;

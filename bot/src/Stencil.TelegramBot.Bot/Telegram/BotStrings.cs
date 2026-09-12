@@ -9,7 +9,7 @@ public static class BotStrings
 {
     private const string ResourceName = "Stencil.TelegramBot.Bot.Assets.botStrings.json";
 
-    private static readonly Lazy<Loaded> Asset = new(Load);
+    private static readonly Lazy<Loaded> Asset = new(load);
 
     private sealed record Loaded(
         IReadOnlyDictionary<string, string> Replies,
@@ -36,7 +36,7 @@ public static class BotStrings
         return InlineKeyboardButton.WithCallbackData(label, token);
     }
 
-    private static Loaded Load()
+    private static Loaded load()
     {
         using Stream stream = typeof(BotStrings).Assembly.GetManifestResourceStream(ResourceName)
             ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");
@@ -46,10 +46,10 @@ public static class BotStrings
         {
             buttons[entry.Name] = (entry.Value[0].GetString()!, entry.Value[1].GetString()!);
         }
-        return new Loaded(Strings(doc, "replies"), Strings(doc, "tones"), Strings(doc, "marks"), buttons);
+        return new Loaded(strings(doc, "replies"), strings(doc, "tones"), strings(doc, "marks"), buttons);
     }
 
-    private static Dictionary<string, string> Strings(JsonDocument doc, string section)
+    private static Dictionary<string, string> strings(JsonDocument doc, string section)
     {
         Dictionary<string, string> map = new(StringComparer.Ordinal);
         foreach (JsonProperty entry in doc.RootElement.GetProperty(section).EnumerateObject())

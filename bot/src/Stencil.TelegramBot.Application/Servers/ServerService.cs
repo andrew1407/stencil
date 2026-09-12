@@ -28,7 +28,7 @@ public sealed partial class ServerService : IServerService
         _editing = editing;
     }
 
-    private IReadOnlyList<ServerConnectionInfo> TargetConnections(UserSession session, string? url)
+    private IReadOnlyList<ServerConnectionInfo> targetConnections(UserSession session, string? url)
     {
         if (url is null)
         {
@@ -39,7 +39,7 @@ public sealed partial class ServerService : IServerService
         return connection is null ? [] : [connection];
     }
 
-    private ServerConnectionInfo ResolveConnection(UserSession session, string? url)
+    private ServerConnectionInfo resolveConnection(UserSession session, string? url)
     {
         if (url is not null)
         {
@@ -59,18 +59,18 @@ public sealed partial class ServerService : IServerService
     }
 
     // The stored credential re-mints a stale session token in place.
-    private IStencilServerClient ClientFor(ServerConnectionInfo connection) =>
+    private IStencilServerClient clientFor(ServerConnectionInfo connection) =>
         _factory.Create(connection.Url, connection.Token, connection.VerifyTls, connection.Credential,
             connection.CredentialKind);
 
     // Callers must have already checked ActiveServerUrl.
-    private IStencilServerClient ClientForActive(UserSession session)
+    private IStencilServerClient clientForActive(UserSession session)
     {
         var connection = session.FindConnection(session.ActiveServerUrl!);
-        return connection is not null ? ClientFor(connection) : _factory.Create(session.ActiveServerUrl!);
+        return connection is not null ? clientFor(connection) : _factory.Create(session.ActiveServerUrl!);
     }
 
-    private async Task<(UserSession Session, string ProjectId)> RequireActiveSessionAsync(long userId, CancellationToken ct)
+    private async Task<(UserSession Session, string ProjectId)> requireActiveSessionAsync(long userId, CancellationToken ct)
     {
         var session = await _store.GetAsync(userId, ct);
         if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
@@ -80,7 +80,7 @@ public sealed partial class ServerService : IServerService
         return (session, session.ActiveProjectId);
     }
 
-    private static async Task<ProjectRecord> UpdateOrConflictAsync(
+    private static async Task<ProjectRecord> updateOrConflictAsync(
         IStencilServerClient client, string id, UpdateProjectRequest request, string conflictMessage, CancellationToken ct)
     {
         try
@@ -96,13 +96,13 @@ public sealed partial class ServerService : IServerService
     // The read-then-PUT isn't atomic: a peer — or our own preceding upload — advancing the version
     // would 409 and drop the change, so re-read and retry, as pystencil's _update_field_with_retry
     // does.
-    private static async Task<ProjectRecord> UpdateFieldWithRetryAsync(
+    private static async Task<ProjectRecord> updateFieldWithRetryAsync(
         IStencilServerClient client, string id, Func<long, UpdateProjectRequest> build, string conflictMessage, CancellationToken ct)
     {
         ServerException? last = null;
         for (int attempt = 0; attempt < FieldWriteRetries; attempt++)
         {
-            long version = await CurrentVersionAsync(client, id, 0, ct);
+            long version = await currentVersionAsync(client, id, 0, ct);
             try
             {
                 return await client.UpdateProjectAsync(id, build(version), ct);
@@ -116,7 +116,7 @@ public sealed partial class ServerService : IServerService
     }
 
     // A file write bumps the version but returns none; mirrors remoteSync.js currentVersion.
-    private static async Task<long> CurrentVersionAsync(IStencilServerClient client, string id, long fallback, CancellationToken ct)
+    private static async Task<long> currentVersionAsync(IStencilServerClient client, string id, long fallback, CancellationToken ct)
     {
         try
         {

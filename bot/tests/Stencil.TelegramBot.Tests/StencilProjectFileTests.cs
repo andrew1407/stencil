@@ -16,7 +16,7 @@ public class StencilProjectFileTests
 {
     private static readonly byte[] ImageBytes = [0xDE, 0xAD, 0xBE, 0xEF];
 
-    private static JsonElement Layout() => StencilJson.ToElement(new
+    private static JsonElement layout() => StencilJson.ToElement(new
     {
         imageWidth = 4,
         imageHeight = 2,
@@ -38,7 +38,7 @@ public class StencilProjectFileTests
             ImageExt = "png",
             ImageWidth = 4,
             ImageHeight = 2,
-            Layout = Layout(),
+            Layout = layout(),
         };
 
         byte[] bytes = Encoding.UTF8.GetBytes(StencilProjectFile.Build(project));

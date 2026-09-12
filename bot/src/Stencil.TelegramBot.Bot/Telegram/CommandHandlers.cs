@@ -64,7 +64,7 @@ public sealed partial class CommandHandlers
 
     // Streams the result file as a "result.png" photo; shared by the render, prompt-render and
     // album paths.
-    private async Task SendResultPhotoAsync(long chatId, string path, string caption,
+    private async Task sendResultPhotoAsync(long chatId, string path, string caption,
         InlineKeyboardMarkup? keyboard, CancellationToken ct)
     {
         await using FileStream stream = File.OpenRead(path);
@@ -77,10 +77,10 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private Task HelpAsync(long chatId, CancellationToken ct) =>
+    private Task helpAsync(long chatId, CancellationToken ct) =>
         _bot.SendMessage(chatId, Replies.HelpText(), replyMarkup: Keyboards.MainMenu(), cancellationToken: ct);
 
-    private async Task JsonAsync(long userId, long chatId, CancellationToken ct)
+    private async Task jsonAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         if (!session.HasImage)
@@ -93,13 +93,13 @@ public sealed partial class CommandHandlers
         }
         string json = _editing.ExportLayoutJson(session);
         byte[] bytes = Encoding.UTF8.GetBytes(json);
-        string fileName = $"{SafeLabel(session.ImageLabel)}.json";
+        string fileName = $"{safeLabel(session.ImageLabel)}.json";
         using MemoryStream stream = new(bytes);
         InputFileStream document = InputFile.FromStream(stream, fileName);
         await _bot.SendDocument(chatId, document, caption: "Layout JSON", cancellationToken: ct);
     }
 
-    private async Task ProjectAsync(long userId, long chatId, CancellationToken ct)
+    private async Task projectAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         if (!session.HasImage)
@@ -111,13 +111,13 @@ public sealed partial class CommandHandlers
             return;
         }
         byte[] bytes = await _editing.ExportProjectFileAsync(userId, ct);
-        string fileName = $"{SafeLabel(session.ImageLabel)}.stencil";
+        string fileName = $"{safeLabel(session.ImageLabel)}.stencil";
         using MemoryStream stream = new(bytes);
         InputFileStream document = InputFile.FromStream(stream, fileName);
         await _bot.SendDocument(chatId, document, caption: "Stencil project", cancellationToken: ct);
     }
 
-    private async Task StatusAsync(long userId, long chatId, CancellationToken ct)
+    private async Task statusAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         await _bot.SendMessage(
@@ -127,10 +127,10 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private Task CancelAsync(long chatId, CancellationToken ct) =>
+    private Task cancelAsync(long chatId, CancellationToken ct) =>
         _bot.SendMessage(chatId, "Okay, never mind. Send /help for the command list.", cancellationToken: ct);
 
-    private Task UnknownAsync(long chatId, CancellationToken ct) =>
+    private Task unknownAsync(long chatId, CancellationToken ct) =>
         _bot.SendMessage(chatId, "Unknown command. Send /help for the list.", cancellationToken: ct);
 
     // Shared by the mutating commands and by UpdateRouter after a fresh upload or layout apply.
@@ -147,16 +147,16 @@ public sealed partial class CommandHandlers
         await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
         RenderResult result = await _editing.RenderAsync(userId, ct);
         UserSession session = await _store.GetAsync(userId, ct);
-        await SendResultPhotoAsync(chatId, result.Path, BuildCaption(session, result),
+        await sendResultPhotoAsync(chatId, result.Path, buildCaption(session, result),
             Keyboards.EditMenu(session.ActiveProjectId is not null), ct);
         // Live sync: a mutating edit on a synced active project auto-uploads so peers see it.
         if (mutating && session.SyncEnabled && session.ActiveProjectId is not null)
         {
-            await AutoSyncAsync(userId, chatId, ct);
+            await autoSyncAsync(userId, chatId, ct);
         }
     }
 
-    private async Task AutoSyncAsync(long userId, long chatId, CancellationToken ct)
+    private async Task autoSyncAsync(long userId, long chatId, CancellationToken ct)
     {
         try
         {
@@ -174,7 +174,7 @@ public sealed partial class CommandHandlers
         }
     }
 
-    private static string BuildCaption(UserSession session, RenderResult result)
+    private static string buildCaption(UserSession session, RenderResult result)
     {
         string label = session.ImageLabel ?? "image";
         string caption = $"{label} — {result.Size}";
@@ -186,7 +186,7 @@ public sealed partial class CommandHandlers
         return caption;
     }
 
-    private static string LabelFromUrl(string url)
+    private static string labelFromUrl(string url)
     {
         if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
         {
@@ -196,7 +196,7 @@ public sealed partial class CommandHandlers
         return "image";
     }
 
-    private static string SafeLabel(string? label)
+    private static string safeLabel(string? label)
     {
         if (string.IsNullOrWhiteSpace(label))
         {

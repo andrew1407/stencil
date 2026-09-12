@@ -6,7 +6,7 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 
 public sealed partial class CommandHandlers
 {
-    private async Task ProjectColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task projectColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -22,7 +22,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private async Task ProjectNameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task projectNameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         // Project names may contain spaces.
         string name = cmd.ArgumentText.Trim();
@@ -49,7 +49,7 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Working image renamed to: {name} — /create will save it under this name.", cancellationToken: ct);
     }
 
-    private async Task ProjectDescriptionAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task projectDescriptionAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string description = cmd.ArgumentText.Trim();
         UserSession session = await _store.GetAsync(userId, ct);
@@ -77,7 +77,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private async Task BlankColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task blankColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -97,7 +97,7 @@ public sealed partial class CommandHandlers
 
     // /expire custom (the Custom… button) arms a one-shot free-text prompt consumed by
     // UpdateRouter.
-    private async Task ExpireAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task expireAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         if (session.ActiveProjectId is null)
@@ -134,7 +134,7 @@ public sealed partial class CommandHandlers
 
     // Never on a single tap: only /delete confirm deletes. The working image is kept so it can be
     // re-saved elsewhere.
-    private async Task DeleteProjectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task deleteProjectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         if (session.ActiveProjectId is null)

@@ -7,7 +7,7 @@ public static class SystemPromptAsset
 {
     private const string ResourceName = "Stencil.TelegramBot.Application.Assets.systemPrompt.json";
 
-    private static readonly Lazy<IReadOnlyDictionary<string, string>> Parsed = new(Load);
+    private static readonly Lazy<IReadOnlyDictionary<string, string>> Parsed = new(load);
 
     /// <summary>The prose BEFORE the "Available ops" list, ending with its newline.</summary>
     public static string Head => Text("head");
@@ -20,7 +20,7 @@ public static class SystemPromptAsset
             ? value
             : throw new InvalidOperationException($"systemPrompt.json has no \"{key}\"");
 
-    private static IReadOnlyDictionary<string, string> Load()
+    private static IReadOnlyDictionary<string, string> load()
     {
         using Stream stream = typeof(SystemPromptAsset).Assembly.GetManifestResourceStream(ResourceName)
             ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");

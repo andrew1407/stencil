@@ -7,7 +7,7 @@ public static class ProvidersAsset
 {
     private const string ResourceName = "Stencil.TelegramBot.Domain.Assets.providers.json";
 
-    private static readonly Lazy<(string Ollama, string OpenAiCompat, int ChatSeconds)> Parsed = new(Load);
+    private static readonly Lazy<(string Ollama, string OpenAiCompat, int ChatSeconds)> Parsed = new(load);
 
     public static string OllamaBaseUrl => Parsed.Value.Ollama;
 
@@ -16,7 +16,7 @@ public static class ProvidersAsset
     // timeouts.chatSeconds — the cross-surface chat deadline.
     public static int ChatTimeoutSeconds => Parsed.Value.ChatSeconds;
 
-    private static (string, string, int) Load()
+    private static (string, string, int) load()
     {
         using Stream stream = typeof(ProvidersAsset).Assembly.GetManifestResourceStream(ResourceName)
             ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");

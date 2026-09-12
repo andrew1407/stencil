@@ -21,7 +21,7 @@ public sealed class UpdatePump : IAsyncDisposable
     public UpdatePump(ILogger logger, int workers = Workers)
     {
         _logger = logger;
-        _workers = [.. Enumerable.Range(0, workers).Select(_ => Task.Run(WorkAsync))];
+        _workers = [.. Enumerable.Range(0, workers).Select(_ => Task.Run(workAsync))];
     }
 
     public async Task EnqueueAsync(Func<Task> work) => await _queue.Writer.WriteAsync(work);
@@ -33,7 +33,7 @@ public sealed class UpdatePump : IAsyncDisposable
         await Task.WhenAny(Task.WhenAll(_workers), Task.Delay(DrainTimeout));
     }
 
-    private async Task WorkAsync()
+    private async Task workAsync()
     {
         await foreach (Func<Task> work in _queue.Reader.ReadAllAsync())
         {

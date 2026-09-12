@@ -37,7 +37,7 @@ public sealed class WorkspaceJanitorTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
     }
 
-    private string Stale(long userId)
+    private string stale(long userId)
     {
         string path = _workspace.NewFilePath(userId, ".png");
         File.WriteAllBytes(path, new byte[1]);
@@ -46,7 +46,7 @@ public sealed class WorkspaceJanitorTests : IDisposable
     }
 
     /// <summary>Run one sweep: start the service, wait for <paramref name="done"/>, stop it.</summary>
-    private async Task SweepAsync(IUserWorkspace workspace, ISessionStore store, Func<bool> done)
+    private async Task sweepAsync(IUserWorkspace workspace, ISessionStore store, Func<bool> done)
     {
         WorkspaceJanitor janitor = new(workspace, store, _options, _logger);
         await janitor.StartAsync(CancellationToken.None);
@@ -62,12 +62,12 @@ public sealed class WorkspaceJanitorTests : IDisposable
     [Fact]
     public async Task SweepsEveryUserAndKeepsWhatTheirSessionReferences()
     {
-        string keptOrphan = Stale(7);
-        string sweptOrphan = Stale(7);
-        string otherUser = Stale(8);
+        string keptOrphan = stale(7);
+        string sweptOrphan = stale(7);
+        string otherUser = stale(8);
         await _store.SaveAsync(await _store.GetAsync(7) with { OriginalImagePath = keptOrphan });
 
-        await SweepAsync(_workspace, _store, () => !File.Exists(sweptOrphan) && !File.Exists(otherUser));
+        await sweepAsync(_workspace, _store, () => !File.Exists(sweptOrphan) && !File.Exists(otherUser));
 
         Assert.True(File.Exists(keptOrphan));   // referenced by the session, however old
         Assert.False(File.Exists(sweptOrphan));
@@ -78,16 +78,16 @@ public sealed class WorkspaceJanitorTests : IDisposable
     [Fact]
     public async Task AVideoSourceIsKeptTogetherWithTheOriginal()
     {
-        string original = Stale(9);
-        string video = Stale(9);
-        string orphan = Stale(9);
+        string original = stale(9);
+        string video = stale(9);
+        string orphan = stale(9);
         await _store.SaveAsync(await _store.GetAsync(9) with
         {
             OriginalImagePath = original,
             VideoSourcePath = video,
         });
 
-        await SweepAsync(_workspace, _store, () => !File.Exists(orphan));
+        await sweepAsync(_workspace, _store, () => !File.Exists(orphan));
 
         Assert.True(File.Exists(original));
         Assert.True(File.Exists(video));
@@ -96,10 +96,10 @@ public sealed class WorkspaceJanitorTests : IDisposable
     [Fact]
     public async Task ASweepThatThrowsIsLoggedAndTheLoopStaysUp()
     {
-        Stale(7);
+        stale(7);
         ThrowingStore store = new();
 
-        await SweepAsync(_workspace, store, () => _logger.Entries.Count > 0);
+        await sweepAsync(_workspace, store, () => _logger.Entries.Count > 0);
 
         (LogLevel level, string message) = Assert.Single(_logger.Entries);
         Assert.Equal(LogLevel.Warning, level);

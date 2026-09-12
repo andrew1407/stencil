@@ -73,7 +73,7 @@ public sealed class OpSchema
         }
         catch (SchemaError err)
         {
-            throw Rethrow(err, $"invalid \"{entry.Name}\" action: ");
+            throw rethrow(err, $"invalid \"{entry.Name}\" action: ");
         }
     }
 
@@ -91,7 +91,7 @@ public sealed class OpSchema
         }
         catch (SchemaError err)
         {
-            throw Rethrow(err, "");
+            throw rethrow(err, "");
         }
     }
 
@@ -103,7 +103,7 @@ public sealed class OpSchema
         }
         catch (SchemaError err)
         {
-            throw Rethrow(err, "");
+            throw rethrow(err, "");
         }
     }
 
@@ -127,5 +127,5 @@ public sealed class OpSchema
         return null;
     }
 
-    private static OpSchemaException Rethrow(SchemaError err, string prefix) => new(prefix + err.Message);
+    private static OpSchemaException rethrow(SchemaError err, string prefix) => new(prefix + err.Message);
 }

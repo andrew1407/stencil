@@ -6,7 +6,7 @@ namespace Stencil.TelegramBot.Application.Llm;
 public static partial class OpPlanParser
 {
     // inVariant enforces §2.1's top-level-only ops.
-    private static IReadOnlyList<PlanAction> ParseActionList(
+    private static IReadOnlyList<PlanAction> parseActionList(
         JsonElement parent, string name, List<string> warnings, bool inVariant = false)
     {
         if (!parent.TryGetProperty(name, out JsonElement array) || array.ValueKind == JsonValueKind.Null)
@@ -17,7 +17,7 @@ public static partial class OpPlanParser
         List<PlanAction> actions = new();
         foreach (JsonElement element in array.EnumerateArray())
         {
-            PlanAction? action = ParseAction(element, warnings, inVariant);
+            PlanAction? action = parseAction(element, warnings, inVariant);
             if (action is not null)
             {
                 actions.Add(action);
@@ -26,7 +26,7 @@ public static partial class OpPlanParser
         return actions;
     }
 
-    private static PlanAction? ParseAction(JsonElement element, List<string> warnings, bool inVariant = false)
+    private static PlanAction? parseAction(JsonElement element, List<string> warnings, bool inVariant = false)
     {
         if (element.ValueKind != JsonValueKind.Object)
         {
@@ -59,7 +59,7 @@ public static partial class OpPlanParser
         }
         try
         {
-            return Normalize(Schema.ValidateAction(element, entry), entry);
+            return normalize(Schema.ValidateAction(element, entry), entry);
         }
         catch (PlanException ex)
         {
@@ -67,12 +67,12 @@ public static partial class OpPlanParser
         }
     }
 
-    private static bool HasField(JsonElement element, string name) =>
+    private static bool hasField(JsonElement element, string name) =>
         element.TryGetProperty(name, out JsonElement value) && value.ValueKind != JsonValueKind.Null;
 
-    private static string Named(string label) =>
-        label.Trim() is { Length: > 0 } name ? $" (\"{Truncate(name)}\")" : "";
+    private static string named(string label) =>
+        label.Trim() is { Length: > 0 } name ? $" (\"{truncate(name)}\")" : "";
 
-    private static string Truncate(string value) =>
+    private static string truncate(string value) =>
         value.Length <= MaxEchoedChars ? value : value[..MaxEchoedChars] + "…";
 }

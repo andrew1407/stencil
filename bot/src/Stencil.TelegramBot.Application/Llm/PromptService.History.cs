@@ -18,7 +18,7 @@ public sealed partial class PromptService
     // stripped.
     public ChatDocument? BuildChatDocument(long userId)
     {
-        List<LlmMessage> history = SnapshotHistory(userId);
+        List<LlmMessage> history = snapshotHistory(userId);
         if (history.Count == 0)
         {
             return null;
@@ -27,13 +27,13 @@ public sealed partial class PromptService
         foreach (LlmMessage message in history)
         {
             displayed.Add(message.Role == LlmMessage.RoleAssistant
-                ? message with { Text = DisplayedReply(message.Text) }
+                ? message with { Text = displayedReply(message.Text) }
                 : message);
         }
         return ChatDocument.Build(displayed, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
     }
 
-    private static string DisplayedReply(string raw) =>
+    private static string displayedReply(string raw) =>
         OpPlanParser.Parse(raw).Plan is OpPlan plan && plan.Reply.Length > 0 ? plan.Reply : raw;
 
     // §12: seeding never triggers a model call; text-only, re-gated at the point of USE.
@@ -54,11 +54,11 @@ public sealed partial class PromptService
             }
             seeded = history.Messages.Count;
         }
-        EvictIdleUsers(keep: userId);
+        evictIdleUsers(keep: userId);
         return seeded;
     }
 
-    private List<LlmMessage> SnapshotHistory(long userId)
+    private List<LlmMessage> snapshotHistory(long userId)
     {
         if (!_history.TryGetValue(userId, out UserHistory? history))
         {
@@ -71,7 +71,7 @@ public sealed partial class PromptService
         }
     }
 
-    private void RecordTurn(long userId, string text, LlmImage? image, string assistantText)
+    private void recordTurn(long userId, string text, LlmImage? image, string assistantText)
     {
         UserHistory history = _history.GetOrAdd(userId, static _ => new UserHistory());
         history.Touched = Interlocked.Increment(ref _clock);
@@ -97,11 +97,11 @@ public sealed partial class PromptService
                 list.RemoveRange(0, list.Count - MaxHistoryMessages);
             }
         }
-        EvictIdleUsers(keep: userId);
+        evictIdleUsers(keep: userId);
     }
 
     // Drops the least-recently-touched conversation, never the user being served.
-    private void EvictIdleUsers(long keep)
+    private void evictIdleUsers(long keep)
     {
         while (_history.Count > MaxTrackedUsers)
         {

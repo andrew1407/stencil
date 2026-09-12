@@ -11,7 +11,7 @@ public static class BotCommands
 {
     private const string ResourceName = "Stencil.TelegramBot.Bot.Assets.botCommands.json";
 
-    private static readonly Lazy<Loaded> Asset = new(Load);
+    private static readonly Lazy<Loaded> Asset = new(load);
 
     private sealed record Loaded(
         IReadOnlyList<CommandDescriptor> Commands,
@@ -26,7 +26,7 @@ public static class BotCommands
     public static string Canonical(string verb) =>
         Asset.Value.Canonical.TryGetValue(verb, out string? canonical) ? canonical : "";
 
-    private static Loaded Load()
+    private static Loaded load()
     {
         using Stream stream = typeof(BotCommands).Assembly.GetManifestResourceStream(ResourceName)
             ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");

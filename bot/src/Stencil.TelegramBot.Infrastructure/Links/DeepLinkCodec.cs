@@ -17,7 +17,7 @@ public static class DeepLinkCodec
     public static string? Encode(string serverUrl, string projectId)
     {
         string origin = UrlNormalizer.Normalize(serverUrl);
-        string plain = $"{CompressOrigin(origin)}|{projectId}";
+        string plain = $"{compressOrigin(origin)}|{projectId}";
         string payload = "1" + Convert.ToBase64String(Encoding.UTF8.GetBytes(plain))
             .Replace('+', '-')
             .Replace('/', '_')
@@ -33,7 +33,7 @@ public static class DeepLinkCodec
         projectId = "";
         string p = (payload ?? "").Trim();
         if (p.Length < 2 || p[0] != '1' || p.Length > TelegramStartLimit
-            || p.Skip(1).Any(c => !IsBase64UrlChar(c)))
+            || p.Skip(1).Any(c => !isBase64UrlChar(c)))
         {
             return false;
         }
@@ -65,13 +65,13 @@ public static class DeepLinkCodec
         return true;
     }
 
-    private static string CompressOrigin(string origin)
+    private static string compressOrigin(string origin)
     {
         Uri uri = new(origin);
         string defaultScheme = UrlNormalizer.IsLoopbackHost(uri.Host) ? "http" : "https";
         return uri.Scheme == defaultScheme ? uri.Authority : origin;
     }
 
-    private static bool IsBase64UrlChar(char c) =>
+    private static bool isBase64UrlChar(char c) =>
         char.IsAsciiLetterOrDigit(c) || c is '-' or '_';
 }

@@ -16,11 +16,11 @@ public sealed partial class PromptService
 
     // The anchor is verified, so rewording §4 fails loudly instead of shipping a prompt with the
     // block missing.
-    public static readonly string ChatSystemPrompt = BuildChatSystemPrompt();
+    public static readonly string ChatSystemPrompt = buildChatSystemPrompt();
 
     private const string BotOpsSpliceAnchor = "\n\nWhen a choice is genuinely";
 
-    private static string BuildChatSystemPrompt()
+    private static string buildChatSystemPrompt()
     {
         int at = SystemPrompt.IndexOf(BotOpsSpliceAnchor, StringComparison.Ordinal);
         return at >= 0

@@ -46,7 +46,7 @@ public sealed class SyncWatcher : BackgroundService
         {
             try
             {
-                await TickAsync(ct);
+                await tickAsync(ct);
             }
             catch (OperationCanceledException)
             {
@@ -67,7 +67,7 @@ public sealed class SyncWatcher : BackgroundService
         }
     }
 
-    private async Task TickAsync(CancellationToken ct)
+    private async Task tickAsync(CancellationToken ct)
     {
         foreach (var (userId, chatId) in _registry.Entries())
         {

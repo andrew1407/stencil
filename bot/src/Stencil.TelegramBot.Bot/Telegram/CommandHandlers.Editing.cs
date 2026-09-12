@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 public sealed partial class CommandHandlers
 {
     // The command-line sibling of uploading a .json document; URLs are SSRF-vetted like /url.
-    private async Task LayoutAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task layoutAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length == 0)
         {
@@ -66,7 +66,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task BlankAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task blankAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string? page = null;
         int? width = null;
@@ -98,7 +98,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task FormatAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task formatAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -129,7 +129,7 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Page format set to {name} ({PageFormats.Cm(wcm)}×{PageFormats.Cm(hcm)} cm) — the /blank default, saved into the project layout.", cancellationToken: ct);
     }
 
-    private async Task CropAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task cropAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string spec = cmd.ArgumentText;
         bool album = false;
@@ -148,7 +148,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task FrameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task frameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         int frame = 0;
         if (cmd.Args.Count >= 1 && int.TryParse(cmd.Args[0], out int n))
@@ -159,7 +159,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task RotateAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task rotateAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0 || !int.TryParse(cmd.Args[0], out int turns))
         {
@@ -170,7 +170,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task FilterAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task filterAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length == 0)
         {

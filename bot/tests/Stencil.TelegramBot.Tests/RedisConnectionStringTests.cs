@@ -10,7 +10,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class RedisConnectionStringTests
 {
-    private static DnsEndPoint Endpoint(ConfigurationOptions options) =>
+    private static DnsEndPoint endpointOf(ConfigurationOptions options) =>
         Assert.IsType<DnsEndPoint>(Assert.Single(options.EndPoints));
 
     [Fact]
@@ -18,7 +18,7 @@ public sealed class RedisConnectionStringTests
     {
         ConfigurationOptions options = RedisConnectionString.Parse("redis://localhost:6379/0");
 
-        DnsEndPoint endpoint = Endpoint(options);
+        DnsEndPoint endpoint = endpointOf(options);
         Assert.Equal("localhost", endpoint.Host);
         Assert.Equal(6379, endpoint.Port);
         Assert.Equal(0, options.DefaultDatabase);
@@ -28,7 +28,7 @@ public sealed class RedisConnectionStringTests
     [Fact]
     public void AUrlWithoutAPortGetsRedisDefault()
     {
-        Assert.Equal(RedisConnectionString.DefaultPort, Endpoint(RedisConnectionString.Parse("redis://cache.internal")).Port);
+        Assert.Equal(RedisConnectionString.DefaultPort, endpointOf(RedisConnectionString.Parse("redis://cache.internal")).Port);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class RedisConnectionStringTests
         ConfigurationOptions options = RedisConnectionString.Parse("rediss://cache.example:6380/2");
 
         Assert.True(options.Ssl);
-        Assert.Equal(6380, Endpoint(options).Port);
+        Assert.Equal(6380, endpointOf(options).Port);
         Assert.Equal(2, options.DefaultDatabase);
     }
 
@@ -70,7 +70,7 @@ public sealed class RedisConnectionStringTests
     {
         ConfigurationOptions options = RedisConnectionString.Parse("cache:6380,defaultDatabase=3,abortConnect=false");
 
-        Assert.Equal(6380, Endpoint(options).Port);
+        Assert.Equal(6380, endpointOf(options).Port);
         Assert.Equal(3, options.DefaultDatabase);
         Assert.False(options.AbortOnConnectFail);
     }

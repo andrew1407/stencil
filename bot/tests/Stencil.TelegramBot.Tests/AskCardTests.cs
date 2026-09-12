@@ -12,7 +12,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class AskCardTests
 {
-    private static OpPlan Parse(string json)
+    private static OpPlan parse(string json)
     {
         OpPlanParseResult result = OpPlanParser.Parse(json);
         Assert.Null(result.Error);
@@ -20,7 +20,7 @@ public sealed class AskCardTests
         return result.Plan!;
     }
 
-    private static OpPlanParseResult Reject(string json)
+    private static OpPlanParseResult reject(string json)
     {
         OpPlanParseResult result = OpPlanParser.Parse(json);
         Assert.NotNull(result.Error);
@@ -31,7 +31,7 @@ public sealed class AskCardTests
     [Fact]
     public void ParsesACardWithItsDefaults()
     {
-        OpPlan plan = Parse("""
+        OpPlan plan = parse("""
             {"version":1,"reply":"pick","ask":{"question":"Which tint?","options":[{"label":"Sepia"},{"label":"B&W"}]}}
             """);
         Assert.NotNull(plan.Ask);
@@ -46,7 +46,7 @@ public sealed class AskCardTests
     [Fact]
     public void MultiModeCustomRowAndTrimming()
     {
-        OpPlan plan = Parse("""
+        OpPlan plan = parse("""
             {"version":1,"reply":"pick","ask":{"question":"  Which?  ","mode":"multi","allowCustom":true,"customLabel":" Other ","options":[{"label":"  A  "},{"label":"B"}]}}
             """);
         AskCard ask = plan.Ask!;
@@ -60,8 +60,8 @@ public sealed class AskCardTests
     [Fact]
     public void NoCardOnAnOrdinaryOrChatOnlyTurn()
     {
-        Assert.Null(Parse("""{"version":1,"reply":"hi","actions":[]}""").Ask);
-        Assert.Null(Parse("just chatting").Ask);
+        Assert.Null(parse("""{"version":1,"reply":"hi","actions":[]}""").Ask);
+        Assert.Null(parse("just chatting").Ask);
     }
 
     // Never handed to Telegram to fetch: nobody chose that host. The option survives by
@@ -142,12 +142,12 @@ public sealed class AskCardTests
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"url":"file:///etc/passwd"}},{"label":"B"}]}}""")]
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"scanIndex":"2"}},{"label":"B"}]}}""")]
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A"},{"label":"B"}],"allowCustom":"yes"}}""")]
-    public void MalformedCardsRejectTheWholePlan(string json) => Reject(json);
+    public void MalformedCardsRejectTheWholePlan(string json) => reject(json);
 
     [Fact]
     public void FiveOptionsIsTheCapAndItParses()
     {
-        OpPlan plan = Parse("""
+        OpPlan plan = parse("""
             {"version":1,"reply":"pick","ask":{"question":"Q","options":[{"label":"1"},{"label":"2"},{"label":"3"},{"label":"4"},{"label":"5"}]}}
             """);
         Assert.Equal(OpPlanParser.MaxAskOptions, plan.Ask!.Options.Count);

@@ -36,7 +36,7 @@ public sealed class AlbumCollector
         }
         if (start)
         {
-            Task task = FlushWhenSettledAsync(key, group, flush, ct);
+            Task task = flushWhenSettledAsync(key, group, flush, ct);
             _inFlight.TryAdd(task, 0);
             _ = task.ContinueWith(t => _inFlight.TryRemove(t, out _), TaskScheduler.Default);
         }
@@ -44,7 +44,7 @@ public sealed class AlbumCollector
 
     public Task WhenIdleAsync() => Task.WhenAll(_inFlight.Keys);
 
-    private async Task FlushWhenSettledAsync((long, string) key, Group group,
+    private async Task flushWhenSettledAsync((long, string) key, Group group,
         Func<IReadOnlyList<AlbumPhoto>, Task> flush, CancellationToken ct)
     {
         try

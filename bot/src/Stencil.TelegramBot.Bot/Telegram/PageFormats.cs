@@ -11,11 +11,11 @@ public static class PageFormats
     private const string ResourceName = "Stencil.TelegramBot.Bot.Assets.constants.json";
 
     private static readonly Lazy<IReadOnlyList<(string Name, double WidthCm, double HeightCm)>> Table =
-        new(LoadTable);
+        new(loadTable);
 
     public static IReadOnlyList<(string Name, double WidthCm, double HeightCm)> All => Table.Value;
 
-    private static IReadOnlyList<(string, double, double)> LoadTable()
+    private static IReadOnlyList<(string, double, double)> loadTable()
     {
         using Stream stream = typeof(PageFormats).Assembly.GetManifestResourceStream(ResourceName)
             ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");

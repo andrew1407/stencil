@@ -13,8 +13,8 @@ public sealed partial class ServerService
 {
     public async Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default)
     {
-        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
+        var (session, projectId) = await requireActiveSessionAsync(userId, ct);
+        var client = clientForActive(session);
         var render = await _editing.RenderAsync(userId, ct);
         var bytes = await File.ReadAllBytesAsync(render.Path, ct);
         // Merge into the existing layout so crop/page/formula fields survive (ProjectLayoutWriter).
@@ -24,7 +24,7 @@ public sealed partial class ServerService
             Layout = JsonSerializer.Deserialize<JsonElement>(layoutJson),
             Version = session.ActiveProjectVersion,
         };
-        var record = await UpdateOrConflictAsync(
+        var record = await updateOrConflictAsync(
             client,
             projectId,
             request,
@@ -32,7 +32,7 @@ public sealed partial class ServerService
             ct);
         await client.PutFileAsync(projectId, ProjectFileKind.Result, bytes, "png", render.Width, render.Height, ct);
         // The result upload bumps the version too; re-read it (remoteSync.js saveRemoteProject).
-        var version = await CurrentVersionAsync(client, projectId, record.Version, ct);
+        var version = await currentVersionAsync(client, projectId, record.Version, ct);
         var updated = session with { ActiveProjectVersion = version, ActiveProjectLayoutJson = layoutJson };
         await _store.SaveAsync(updated, ct);
         return record with { Version = version };
@@ -44,7 +44,7 @@ public sealed partial class ServerService
         {
             return null;
         }
-        var client = ClientForActive(session);
+        var client = clientForActive(session);
         try
         {
             var full = await client.GetProjectAsync(session.ActiveProjectId, ct);
@@ -68,8 +68,8 @@ public sealed partial class ServerService
 
     public async Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default)
     {
-        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
+        var (session, projectId) = await requireActiveSessionAsync(userId, ct);
+        var client = clientForActive(session);
         // §9: chat is filestore-only — the upload does NOT bump the version, so no re-read is
         // needed.
         await client.PutFileAsync(projectId, ProjectFileKind.Chat,
@@ -83,7 +83,7 @@ public sealed partial class ServerService
         {
             return null;
         }
-        var client = ClientForActive(session);
+        var client = clientForActive(session);
         try
         {
             var bytes = await client.GetFileAsync(session.ActiveProjectId, ProjectFileKind.Chat, ct);
@@ -102,7 +102,7 @@ public sealed partial class ServerService
         {
             return;
         }
-        var client = ClientForActive(session);
+        var client = clientForActive(session);
         // Idempotent per §9 (an absent chat still answers 204); never bumps the version.
         await client.DeleteFileAsync(session.ActiveProjectId, ProjectFileKind.Chat, ct);
     }

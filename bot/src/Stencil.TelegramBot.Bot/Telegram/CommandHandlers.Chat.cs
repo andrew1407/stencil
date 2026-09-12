@@ -9,7 +9,7 @@ public sealed partial class CommandHandlers
 {
     // The list is the operator's; a user picks and never types an endpoint (see LlmProfile). Per
     // user, in the session.
-    private async Task ChatApiAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task chatApiAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (_options.LlmProfiles.Count == 0)
         {
@@ -59,19 +59,19 @@ public sealed partial class CommandHandlers
 
     // While on, UpdateRouter hands each unclaimed plain message to PromptAsync — chatting and
     // /prompt are one path.
-    private async Task ChatAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task chatAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string arg = cmd.ArgumentText.Trim().ToLowerInvariant();
         if (arg is "clear" or "reset" or "forget" or "new")
         {
             // Never gated: someone who used the assistant before the allowlist tightened must still
             // be able to delete it.
-            await ClearChatHistoryAsync(userId, chatId, ct);
+            await clearChatHistoryAsync(userId, chatId, ct);
             return;
         }
         if (arg == "save" || arg.StartsWith("save ", StringComparison.Ordinal))
         {
-            await ChatSaveAsync(userId, chatId, arg["save".Length..].Trim(), ct);
+            await chatSaveAsync(userId, chatId, arg["save".Length..].Trim(), ct);
             return;
         }
         bool? enable = arg switch
@@ -102,7 +102,7 @@ public sealed partial class CommandHandlers
 
     // §12.3, default OFF; the store is the active SERVER project's chat file. Off stops writing,
     // never deletes.
-    private async Task ChatSaveAsync(long userId, long chatId, string arg, CancellationToken ct)
+    private async Task chatSaveAsync(long userId, long chatId, string arg, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         if (arg.Length == 0)
@@ -138,7 +138,7 @@ public sealed partial class CommandHandlers
 
     // Chat mode, image and edits are untouched; per §12.2 the persisted server copy goes too
     // (best-effort).
-    private async Task ClearChatHistoryAsync(long userId, long chatId, CancellationToken ct)
+    private async Task clearChatHistoryAsync(long userId, long chatId, CancellationToken ct)
     {
         _prompts.ClearHistory(userId);
         UserSession session = await _store.GetAsync(userId, ct);

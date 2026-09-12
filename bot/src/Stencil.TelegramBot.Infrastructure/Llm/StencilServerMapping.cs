@@ -9,11 +9,11 @@ namespace Stencil.TelegramBot.Infrastructure.Llm;
 /// bearer. The caller resolves URL + token, so this stays free of session logic.</summary>
 internal sealed class StencilServerMapping : IProviderMapping
 {
-    public string Url(LlmChatRequest request, LlmOptions options) => ServerUrl(request).TrimEnd('/') + "/llm/chat";
+    public string Url(LlmChatRequest request, LlmOptions options) => requireServerUrl(request).TrimEnd('/') + "/llm/chat";
 
     public string? Bearer(LlmChatRequest request, LlmOptions options) => request.ServerToken ?? "";
 
-    private static string ServerUrl(LlmChatRequest request)
+    private static string requireServerUrl(LlmChatRequest request)
     {
         if (request.ServerUrl is not string serverUrl || serverUrl.Length == 0)
         {

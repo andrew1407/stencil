@@ -36,12 +36,12 @@ public sealed class DocumentIntake
             || string.Equals(document.MimeType, "application/json", StringComparison.OrdinalIgnoreCase);
         if (isJson)
         {
-            await ApplyLayoutDocumentAsync(userId, chatId, document.FileId, caption, ct);
+            await applyLayoutDocumentAsync(userId, chatId, document.FileId, caption, ct);
             return;
         }
         if (name.EndsWith(".stencil", StringComparison.OrdinalIgnoreCase))
         {
-            await OpenProjectDocumentAsync(userId, chatId, document.FileId, ct);
+            await openProjectDocumentAsync(userId, chatId, document.FileId, ct);
             return;
         }
         if (DocumentKinds.IsImage(document))
@@ -64,7 +64,7 @@ public sealed class DocumentIntake
             cancellationToken: ct);
     }
 
-    private async Task ApplyLayoutDocumentAsync(long userId, long chatId, string fileId, string? caption, CancellationToken ct)
+    private async Task applyLayoutDocumentAsync(long userId, long chatId, string fileId, string? caption, CancellationToken ct)
     {
         bool explicitApply = string.Equals(caption?.Trim(), "/apply", StringComparison.OrdinalIgnoreCase);
         UserSession session = await _store.GetAsync(userId, ct);
@@ -87,7 +87,7 @@ public sealed class DocumentIntake
         await _handlers.RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task OpenProjectDocumentAsync(long userId, long chatId, string fileId, CancellationToken ct)
+    private async Task openProjectDocumentAsync(long userId, long chatId, string fileId, CancellationToken ct)
     {
         byte[] bytes = await _media.DownloadDocumentBytesAsync(fileId, ".stencil", ct);
         StencilProject? project = StencilProjectFile.Parse(bytes);

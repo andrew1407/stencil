@@ -38,7 +38,7 @@ public sealed class SourceHandlerTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private Task Dispatch(string text) =>
+    private Task dispatch(string text) =>
         _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
 
     // ── shared by both commands ──
@@ -48,7 +48,7 @@ public sealed class SourceHandlerTests : IDisposable
     [InlineData("/sourceupload")]
     public async Task NoArgsSendsUsageHintAndNeverScrapes(string command)
     {
-        await Dispatch(command);
+        await dispatch(command);
 
         SendMessageRequest usage = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains($"Usage: {command}", usage.Text);
@@ -60,7 +60,7 @@ public sealed class SourceHandlerTests : IDisposable
     [InlineData("/sourceupload")]
     public async Task ABadOptionRepliesWithTheUsageHintAndDoesNotScrape(string command)
     {
-        await Dispatch($"{command} {PublicUrl} minw=wide");
+        await dispatch($"{command} {PublicUrl} minw=wide");
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains("minw", reply.Text);
@@ -73,7 +73,7 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task SiteSendsEachScrapedFileAndASummary()
     {
-        await Dispatch($"/sourcesite {PublicUrl}");
+        await dispatch($"/sourcesite {PublicUrl}");
 
         // The image stub goes out as a photo (with its measured dimensions in the caption)…
         SendPhotoRequest photo = Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
@@ -92,9 +92,9 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task SitePassesParsedFiltersAndAServiceOwnedOutputDirToTheCli()
     {
-        await Dispatch($"/sourcesite {PublicUrl} 6 filter=img format=png|jpg name=cat.*\\.jpg minw=200 group=1");
+        await dispatch($"/sourcesite {PublicUrl} 6 filter=img format=png|jpg name=cat.*\\.jpg minw=200 group=1");
 
-        ScrapeRequest req = LastScrape();
+        ScrapeRequest req = lastScrape();
         Assert.Equal(PublicUrl, req.Url);
         Assert.Equal(6, req.Count);
         Assert.Equal(1, req.Group);
@@ -110,9 +110,9 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task SiteNoCountDefaultsToFive()
     {
-        await Dispatch($"/sourcesite {PublicUrl}");
+        await dispatch($"/sourcesite {PublicUrl}");
 
-        Assert.Equal(5, LastScrape().Count);
+        Assert.Equal(5, lastScrape().Count);
     }
 
     [Fact]
@@ -120,9 +120,9 @@ public sealed class SourceHandlerTests : IDisposable
     {
         // An explicit 0 means "all" — it is NOT re-defaulted to 5, and passes straight through
         // (the CLI reads `--source-count 0` as every match).
-        await Dispatch($"/sourcesite {PublicUrl} 0");
+        await dispatch($"/sourcesite {PublicUrl} 0");
 
-        Assert.Equal(0, LastScrape().Count);
+        Assert.Equal(0, lastScrape().Count);
     }
 
     // ── /sourceupload ──
@@ -130,10 +130,10 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task UploadLoadsTheScrapedStillAsTheWorkingImageAndSendsAPhoto()
     {
-        await Dispatch($"/sourceupload {PublicUrl}");
+        await dispatch($"/sourceupload {PublicUrl}");
 
         // The scrape isolates exactly one still: image-category only, Count=1, Group=index(0).
-        ScrapeRequest req = LastScrape();
+        ScrapeRequest req = lastScrape();
         Assert.Equal(PublicUrl, req.Url);
         Assert.Equal("img|background|poster", req.Filter);
         Assert.Equal(1, req.Count);
@@ -153,9 +153,9 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task UploadIndexAndBoundOptionsRideIntoTheScrapeRequest()
     {
-        await Dispatch($"/sourceupload {PublicUrl} index=0 format=png minw=200 maxh=1000");
+        await dispatch($"/sourceupload {PublicUrl} index=0 format=png minw=200 maxh=1000");
 
-        ScrapeRequest req = LastScrape();
+        ScrapeRequest req = lastScrape();
         Assert.Equal(0, req.Group);       // index → Group
         Assert.Equal(1, req.Count);       // always isolate one
         Assert.Equal("png", req.Format);
@@ -168,7 +168,7 @@ public sealed class SourceHandlerTests : IDisposable
     public async Task UploadOutOfRangeIndexRepliesWithTheNoImageHintAndSendsNoPhoto()
     {
         // Only two stubs exist, so index 999 isolates nothing — the handler replies, not renders.
-        await Dispatch($"/sourceupload {PublicUrl} 999");
+        await dispatch($"/sourceupload {PublicUrl} 999");
 
         // The last message is the "no image" reply (the first is the interim "Scraping…" notice,
         // which the mock records as a SendMessage but never deletes — its Message return is null).
@@ -181,7 +181,7 @@ public sealed class SourceHandlerTests : IDisposable
         Assert.False(session.HasImage);
     }
 
-    private ScrapeRequest LastScrape()
+    private ScrapeRequest lastScrape()
     {
         Assert.NotNull(_cli.LastScrapeRequest);
         return _cli.LastScrapeRequest!;

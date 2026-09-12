@@ -12,7 +12,7 @@ public sealed partial class PromptService
 {
     // Pre-flight the whole plan (an invalid plan executes nothing); the main result is NOT rendered
     // here.
-    private async Task<PromptOutcome> ExecuteAsync(long userId, OpPlan plan, IReadOnlyList<string> warnings, CancellationToken ct)
+    private async Task<PromptOutcome> executeAsync(long userId, OpPlan plan, IReadOnlyList<string> warnings, CancellationToken ct)
     {
         if (plan.Actions.Count == 0 && plan.Variants.Count == 0)
         {
@@ -27,11 +27,11 @@ public sealed partial class PromptService
         }
         // §10 user-echo guard: the model may echo the user but can never introduce, complete or
         // rewrite a host.
-        if (OpenUrlEchoError(userId, plan) is string echoError)
+        if (openUrlEchoError(userId, plan) is string echoError)
         {
             return new PromptOutcome($"{echoError} Nothing was changed.", warnings, [], plan.Ask);
         }
-        if (PreflightError(session, plan) is string error)
+        if (preflightError(session, plan) is string error)
         {
             return new PromptOutcome($"{error} Nothing was changed.", warnings, [], plan.Ask);
         }
@@ -39,13 +39,13 @@ public sealed partial class PromptService
         List<PromptExport> exports = new();
         List<string> allWarnings = new(warnings);
         // §1: plan coordinates are in the snapshot frame the model was shown.
-        ActionContext ctx = new(userId, renders, exports, CreateMapper(session), allWarnings);
+        ActionContext ctx = new(userId, renders, exports, createMapper(session), allWarnings);
         foreach (PlanAction action in plan.Actions)
         {
-            await ApplyActionAsync(ctx, action, ct);
+            await applyActionAsync(ctx, action, ct);
         }
         UserSession after = await _store.GetAsync(userId, ct);
-        renders.AddRange(await RenderVariantsAsync(userId, plan, after, ct));
+        renders.AddRange(await renderVariantsAsync(userId, plan, after, ct));
         // A plan of settings/metadata/connection ops changed no pixels; one ending in clear left
         // nothing to render.
         bool touchedPixels = plan.Actions.Any(a => a is not (
@@ -75,22 +75,22 @@ public sealed partial class PromptService
 
     // §10: every openUrl URL must appear VERBATIM in the USER's own messages (the current turn
     // included); assistant text and fetched content never count. Null = the plan may run.
-    private string? OpenUrlEchoError(long userId, OpPlan plan)
+    private string? openUrlEchoError(long userId, OpPlan plan)
     {
         foreach (PlanAction action in plan.Actions)
         {
-            if (action is OpenUrlAction open && !UrlEchoedByUser(userId, open.Url))
+            if (action is OpenUrlAction open && !urlEchoedByUser(userId, open.Url))
             {
-                return $"The plan tried to open a URL you never wrote ({Shown(open.Url)}) — "
+                return $"The plan tried to open a URL you never wrote ({showServer(open.Url)}) — "
                     + "only a link from your own messages may be loaded.";
             }
         }
         return null;
     }
 
-    private bool UrlEchoedByUser(long userId, string url)
+    private bool urlEchoedByUser(long userId, string url)
     {
-        foreach (LlmMessage message in SnapshotHistory(userId))
+        foreach (LlmMessage message in snapshotHistory(userId))
         {
             if (message.Role == LlmMessage.RoleUser && message.Text.Contains(url, StringComparison.Ordinal))
             {
@@ -100,7 +100,7 @@ public sealed partial class PromptService
         return false;
     }
 
-    private static string? PreflightError(UserSession session, OpPlan plan)
+    private static string? preflightError(UserSession session, OpPlan plan)
     {
         // A blank or an awaited URL load at the plan's head PRODUCES the working image.
         bool startsWithLoad = plan.Actions.Count > 0 && plan.Actions[0] is BlankAction or OpenUrlAction;
@@ -133,7 +133,7 @@ public sealed partial class PromptService
 
     // Seeded with the frame the model saw: stored crop on the original dims, dims swapped on an odd
     // rotation.
-    private static PlanFrameMapper CreateMapper(UserSession session)
+    private static PlanFrameMapper createMapper(UserSession session)
     {
         double w = session.OriginalWidth;
         double h = session.OriginalHeight;
@@ -149,17 +149,17 @@ public sealed partial class PromptService
         return new PlanFrameMapper(w, h);
     }
 
-    private async Task ResetMapperAsync(long userId, PlanFrameMapper mapper, CancellationToken ct)
+    private async Task resetMapperAsync(long userId, PlanFrameMapper mapper, CancellationToken ct)
     {
         UserSession fresh = await _store.GetAsync(userId, ct);
         mapper.Reset(fresh.OriginalWidth, fresh.OriginalHeight);
     }
 
     // Undo/redo/reset stepped the SESSION's crop/rotate — reseed at the frame it now resolves to.
-    private async Task ReseedMapperAsync(long userId, PlanFrameMapper mapper, CancellationToken ct)
+    private async Task reseedMapperAsync(long userId, PlanFrameMapper mapper, CancellationToken ct)
     {
         UserSession fresh = await _store.GetAsync(userId, ct);
-        PlanFrameMapper seeded = CreateMapper(fresh);
+        PlanFrameMapper seeded = createMapper(fresh);
         mapper.Reset(seeded.Width, seeded.Height);
     }
 }

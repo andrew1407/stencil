@@ -37,7 +37,7 @@ public sealed class UserGate
         }
         catch
         {
-            Drop(userId, gate);
+            drop(userId, gate);
             throw;
         }
         return new Releaser(this, userId, gate);
@@ -45,7 +45,7 @@ public sealed class UserGate
 
     // Forgotten only when no holder is left, so a caller can never be handed a replacement while
     // still holding it.
-    private void Drop(long userId, Gate gate)
+    private void drop(long userId, Gate gate)
     {
         lock (_gates)
         {
@@ -86,7 +86,7 @@ public sealed class UserGate
             }
             _released = true;
             _gate.Semaphore.Release();
-            _owner.Drop(_userId, _gate);
+            _owner.drop(_userId, _gate);
         }
     }
 }

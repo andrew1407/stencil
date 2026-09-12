@@ -13,9 +13,9 @@ public sealed partial class ServerService
 {
     public async Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default)
     {
-        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        var record = await UpdateFieldWithRetryAsync(
+        var (session, projectId) = await requireActiveSessionAsync(userId, ct);
+        var client = clientForActive(session);
+        var record = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { Color = color, Version = v },
@@ -28,14 +28,14 @@ public sealed partial class ServerService
 
     public async Task<string> SetProjectNameAsync(long userId, string name, CancellationToken ct = default)
     {
-        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await requireActiveSessionAsync(userId, ct);
         var trimmed = name.Trim();
         if (trimmed.Length == 0)
         {
             throw new InvalidOperationException("A project name can't be empty.");
         }
-        var client = ClientForActive(session);
-        var record = await UpdateFieldWithRetryAsync(
+        var client = clientForActive(session);
+        var record = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { Name = trimmed, Version = v },
@@ -54,9 +54,9 @@ public sealed partial class ServerService
 
     public async Task<string> SetProjectDescriptionAsync(long userId, string description, CancellationToken ct = default)
     {
-        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        var record = await UpdateFieldWithRetryAsync(
+        var (session, projectId) = await requireActiveSessionAsync(userId, ct);
+        var client = clientForActive(session);
+        var record = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { Description = description, Version = v },
@@ -73,16 +73,16 @@ public sealed partial class ServerService
 
     public async Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default)
     {
-        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
+        var (session, projectId) = await requireActiveSessionAsync(userId, ct);
+        var client = clientForActive(session);
         var full = await client.GetProjectAsync(projectId, ct);
         return full.Project.BlankColor ?? "";
     }
 
     public async Task<string> SetProjectBlankColorAsync(long userId, string color, CancellationToken ct = default)
     {
-        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
+        var (session, projectId) = await requireActiveSessionAsync(userId, ct);
+        var client = clientForActive(session);
         // Only a blank project has a blank colour; recolouring a non-blank is a no-op (empty
         // result).
         var current = await client.GetProjectAsync(projectId, ct);
@@ -90,7 +90,7 @@ public sealed partial class ServerService
         {
             return "";
         }
-        var record = await UpdateFieldWithRetryAsync(
+        var record = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { BlankColor = color, Version = v },
@@ -103,10 +103,10 @@ public sealed partial class ServerService
 
     public async Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default)
     {
-        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
+        var (session, projectId) = await requireActiveSessionAsync(userId, ct);
+        var client = clientForActive(session);
         // 0 means "keep forever": it is sent explicitly (not null) so the server clears any expiry.
-        var record = await UpdateFieldWithRetryAsync(
+        var record = await updateFieldWithRetryAsync(
             client,
             projectId,
             v => new UpdateProjectRequest { ExpiresAt = expiresAtMs, Version = v },

@@ -28,7 +28,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
         try { Directory.Delete(_dir, recursive: true); } catch { /* best effort */ }
     }
 
-    private string Write(string name, byte[] bytes)
+    private string write(string name, byte[] bytes)
     {
         string path = Path.Combine(_dir, name);
         File.WriteAllBytes(path, bytes);
@@ -41,7 +41,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
         Assert.Null(await _loader.LoadAsync(null));
         Assert.Null(await _loader.LoadAsync(Path.Combine(_dir, "missing.png")));
         // A format outside the contract's accepted set is never attached.
-        Assert.Null(await _loader.LoadAsync(Write("image.bmp", [1, 2, 3])));
+        Assert.Null(await _loader.LoadAsync(write("image.bmp", [1, 2, 3])));
         Assert.Empty(_downscaler.Calls);
     }
 
@@ -49,7 +49,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     public async Task SmallImageAttachesTheOriginalBytesWithoutDownscaling()
     {
         byte[] bytes = ImageDimensionReaderTests.Png(1568, 480);
-        string path = Write("small.png", bytes);
+        string path = write("small.png", bytes);
 
         LlmImage? image = await _loader.LoadAsync(path);
 
@@ -62,7 +62,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     public async Task SmallWebpKeepsItsOwnMediaType()
     {
         byte[] bytes = ImageDimensionReaderTests.WebpLossy(800, 600);
-        LlmImage? image = await _loader.LoadAsync(Write("small.webp", bytes));
+        LlmImage? image = await _loader.LoadAsync(write("small.webp", bytes));
 
         Assert.Equal("image/webp", image!.MediaType);
         Assert.Empty(_downscaler.Calls);
@@ -72,7 +72,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     public async Task OversizedImageIsDownscaledAndBecomesPng()
     {
         _downscaler.Result = [9, 9, 9];
-        string path = Write("big.jpg", ImageDimensionReaderTests.Jpeg(4000, 500));
+        string path = write("big.jpg", ImageDimensionReaderTests.Jpeg(4000, 500));
 
         LlmImage? image = await _loader.LoadAsync(path);
 
@@ -89,7 +89,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     {
         _downscaler.Result = null; // ffmpeg unavailable / failed
         byte[] bytes = ImageDimensionReaderTests.Jpeg(4000, 3000);
-        string path = Write("big.jpg", bytes);
+        string path = write("big.jpg", bytes);
 
         LlmImage? image = await _loader.LoadAsync(path);
 
@@ -102,7 +102,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     public async Task UnchangedFileIsMemoizedAcrossLoads()
     {
         _downscaler.Result = [9, 9, 9];
-        string path = Write("big.jpg", ImageDimensionReaderTests.Jpeg(4000, 500));
+        string path = write("big.jpg", ImageDimensionReaderTests.Jpeg(4000, 500));
 
         LlmImage? first = await _loader.LoadAsync(path);
         LlmImage? second = await _loader.LoadAsync(path);
@@ -116,7 +116,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     public async Task ARewrittenFileInvalidatesTheMemoizedAttachment()
     {
         _downscaler.Result = [9, 9, 9];
-        string path = Write("big.jpg", ImageDimensionReaderTests.Jpeg(4000, 500));
+        string path = write("big.jpg", ImageDimensionReaderTests.Jpeg(4000, 500));
         await _loader.LoadAsync(path);
 
         // New content (different length ⇒ different key) — the attachment is rebuilt.
@@ -136,7 +136,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
         byte[] bytes = new byte[9 * 1024 * 1024];
         header.CopyTo(bytes, 0);
 
-        Assert.Null(await _loader.LoadAsync(Write("huge.jpg", bytes)));
+        Assert.Null(await _loader.LoadAsync(write("huge.jpg", bytes)));
         Assert.Single(_downscaler.Calls);   // the scaler was tried first
     }
 
@@ -148,7 +148,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
         byte[] bytes = new byte[9 * 1024 * 1024];
         header.CopyTo(bytes, 0);
 
-        LlmImage? image = await _loader.LoadAsync(Write("huge-ok.jpg", bytes));
+        LlmImage? image = await _loader.LoadAsync(write("huge-ok.jpg", bytes));
         Assert.Equal("image/png", image!.MediaType);
         Assert.Equal(Convert.ToBase64String([1, 2, 3]), image.Base64Data);
     }
@@ -159,7 +159,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
         // Dimensions unknown — a shrink-only pass is attempted; here it "fails" (no ffmpeg),
         // so the original bytes attach unchanged.
         byte[] bytes = [0x00, 0x01, 0x02, 0x03];
-        LlmImage? image = await _loader.LoadAsync(Write("odd.png", bytes));
+        LlmImage? image = await _loader.LoadAsync(write("odd.png", bytes));
 
         Assert.Single(_downscaler.Calls);
         Assert.Equal("image/png", image!.MediaType);

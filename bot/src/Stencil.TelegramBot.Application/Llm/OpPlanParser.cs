@@ -45,7 +45,7 @@ public static partial class OpPlanParser
     public static OpPlanParseResult Parse(string? raw)
     {
         string text = (raw ?? "").Trim();
-        if (!TryExtractJsonObject(StripFences(text), out JsonDocument? doc))
+        if (!tryExtractJsonObject(stripFences(text), out JsonDocument? doc))
         {
             // No JSON object at all: the turn is chat-only — the raw text is the reply.
             return new OpPlanParseResult(new OpPlan(text, [], []), [], null);
@@ -55,7 +55,7 @@ public static partial class OpPlanParser
             List<string> warnings = new();
             try
             {
-                OpPlan plan = ParsePlan(doc!.RootElement, warnings);
+                OpPlan plan = parsePlan(doc!.RootElement, warnings);
                 return new OpPlanParseResult(plan, warnings, null);
             }
             catch (Exception ex) when (ex is PlanException or OpSchemaException)
@@ -65,7 +65,7 @@ public static partial class OpPlanParser
         }
     }
 
-    private static OpPlan ParsePlan(JsonElement root, List<string> warnings)
+    private static OpPlan parsePlan(JsonElement root, List<string> warnings)
     {
         if (root.ValueKind != JsonValueKind.Object)
         {
@@ -79,7 +79,7 @@ public static partial class OpPlanParser
             || replyElement.GetString() is not string replyText
             || replyText.Trim().Length == 0;
         string reply = replyOmitted ? string.Empty : replyElement.GetString()!;
-        IReadOnlyList<PlanAction> actions = ParseActionList(root, "actions", warnings);
+        IReadOnlyList<PlanAction> actions = parseActionList(root, "actions", warnings);
         List<OpVariant> variants = new();
         if (root.TryGetProperty("variants", out JsonElement variantsElement)
             && variantsElement.ValueKind != JsonValueKind.Null)
@@ -89,24 +89,24 @@ public static partial class OpPlanParser
             foreach (JsonElement variantElement in variantsElement.EnumerateArray())
             {
                 number++;
-                string label = OptionalString(variantElement, Schema.VariantKeys, "label") ?? "";
+                string label = optionalString(variantElement, Schema.VariantKeys, "label") ?? "";
                 // §1's one leniency: a misplaced op costs THIS variant its place, warnings
                 // included.
                 List<string> variantWarnings = new();
                 try
                 {
                     IReadOnlyList<PlanAction> variantActions =
-                        ParseActionList(variantElement, "actions", variantWarnings, inVariant: true);
+                        parseActionList(variantElement, "actions", variantWarnings, inVariant: true);
                     warnings.AddRange(variantWarnings);
                     variants.Add(new OpVariant(label, variantActions));
                 }
                 catch (MisplacedOpException ex)
                 {
-                    warnings.Add($"Dropped variant {number}{Named(label)} — {ex.Message} and can't ride inside a variant.");
+                    warnings.Add($"Dropped variant {number}{named(label)} — {ex.Message} and can't ride inside a variant.");
                 }
             }
         }
-        AskCard? ask = ParseAsk(root, warnings);
+        AskCard? ask = parseAsk(root, warnings);
         // "Done." only when the plan carries work — on an empty plan it reads as a success that
         // never occurred.
         if (replyOmitted)

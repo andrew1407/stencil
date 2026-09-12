@@ -20,7 +20,7 @@ internal sealed class OpenAiMapping : IProviderMapping
         JsonArray messages = new() { new JsonObject { ["role"] = "system", ["content"] = request.System } };
         foreach (LlmMessage message in request.Messages)
         {
-            messages.Add(new JsonObject { ["role"] = message.Role, ["content"] = Content(message) });
+            messages.Add(new JsonObject { ["role"] = message.Role, ["content"] = content(message) });
         }
         return new JsonObject
         {
@@ -30,7 +30,7 @@ internal sealed class OpenAiMapping : IProviderMapping
         };
     }
 
-    private static JsonNode Content(LlmMessage message)
+    private static JsonNode content(LlmMessage message)
     {
         if (message.Images.Count == 0)
         {

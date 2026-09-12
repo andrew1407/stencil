@@ -54,13 +54,13 @@ public static class DotEnv
                 continue;
             }
             string value = line[(eq + 1)..].Trim();
-            value = StripQuotes(value);
+            value = stripQuotes(value);
             result[key] = value;
         }
         return result;
     }
 
-    private static string StripQuotes(string value)
+    private static string stripQuotes(string value)
     {
         if (value.Length < 2)
         {

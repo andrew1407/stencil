@@ -8,7 +8,7 @@ public static partial class CropSpecResolver
 {
     // Atoms split on whitespace/commas with = its own atom; keys are case-insensitive
     // x1/x2/y1/y2/aspect.
-    private static ParsedSpec Parse(string spec)
+    private static ParsedSpec parse(string spec)
     {
         List<string> atoms = new();
         StringBuilder current = new();
@@ -74,7 +74,7 @@ public static partial class CropSpecResolver
     }
 
     // "W:H" with positive integers → W/H; 0.0 for anything else.
-    private static double ParseAspectRatio(string s)
+    private static double parseAspectRatio(string s)
     {
         int colon = s.IndexOf(':');
         if (colon <= 0 || colon + 1 >= s.Length)
@@ -103,9 +103,9 @@ public static partial class CropSpecResolver
 
     // A bare number is a DELTA from the current edge (sign kept); a unit token is absolute,
     // measured from the far end when -prefixed.
-    private static double? ResolveAxisPx(string token, double lengthPx, double pxPerCm, double currentPx)
+    private static double? resolveAxisPx(string token, double lengthPx, double pxPerCm, double currentPx)
     {
-        if (ParseLengthToken(token) is not LengthToken t)
+        if (parseLengthToken(token) is not LengthToken t)
         {
             return null;
         }
@@ -123,7 +123,7 @@ public static partial class CropSpecResolver
     }
 
     // The hand-rolled equivalent of /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/.
-    private static LengthToken? ParseLengthToken(string token)
+    private static LengthToken? parseLengthToken(string token)
     {
         string s = token.Trim().ToLowerInvariant();
         if (s.Length == 0)

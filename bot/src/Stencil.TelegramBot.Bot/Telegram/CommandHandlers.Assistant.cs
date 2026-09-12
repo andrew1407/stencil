@@ -18,13 +18,13 @@ public sealed partial class CommandHandlers
 
     // Re-reads the session first: the turn may have written it (chat history, a partly-applied
     // plan) before it ended.
-    private async Task RememberForRetryAsync(long userId, string text, CancellationToken ct)
+    private async Task rememberForRetryAsync(long userId, string text, CancellationToken ct)
     {
         UserSession pending = await _store.GetAsync(userId, ct);
         await _store.SaveAsync(pending with { LastRetryablePrompt = text }, ct);
     }
 
-    private async Task PromptAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task promptAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string text = cmd.ArgumentText.Trim();
         if (text.Length == 0)
@@ -50,7 +50,7 @@ public sealed partial class CommandHandlers
         {
             // Stopped by the user: plain info, and it keeps the same Retry button a failure gets.
             await working.StopAsync();
-            await RememberForRetryAsync(userId, text, ct);
+            await rememberForRetryAsync(userId, text, ct);
             await _bot.SendMessage(
                 chatId, Replies.PromptStopped(), replyMarkup: Keyboards.RetryPrompt(), cancellationToken: ct);
             return;
@@ -69,7 +69,7 @@ public sealed partial class CommandHandlers
             bool retryable = ex.Failure != LlmFailure.Refusal;
             if (retryable)
             {
-                await RememberForRetryAsync(userId, text, ct);
+                await rememberForRetryAsync(userId, text, ct);
             }
             await _bot.SendMessage(
                 chatId,
@@ -106,11 +106,11 @@ public sealed partial class CommandHandlers
         // Extra images (variant takes / extra frame picks) follow, as one album when several.
         if (outcome.Renders.Count == 1)
         {
-            await SendPromptRenderAsync(chatId, outcome.Renders[0], session, ct);
+            await sendPromptRenderAsync(chatId, outcome.Renders[0], session, ct);
         }
         else if (outcome.Renders.Count > 1)
         {
-            await SendPromptAlbumAsync(chatId, outcome.Renders, ct);
+            await sendPromptAlbumAsync(chatId, outcome.Renders, ct);
         }
         // §10 export: one document per action, into the user's own chat.
         foreach (PromptExport export in outcome.Exports)
@@ -123,11 +123,11 @@ public sealed partial class CommandHandlers
         // turn.
         if (outcome.Ask is AskCard ask)
         {
-            await SendAskCardAsync(chatId, ask, session, ct);
+            await sendAskCardAsync(chatId, ask, session, ct);
         }
         // §12.3: best-effort and last, so a failure can never swallow the reply or the results
         // above.
-        await PersistChatAsync(userId, chatId, session, ct);
+        await persistChatAsync(userId, chatId, session, ct);
         // §10 clearChat, deferred to the END of the turn: nothing is cleared here, the Yes button
         // rides /chat clear.
         if (outcome.ClearChatRequested)
@@ -141,7 +141,7 @@ public sealed partial class CommandHandlers
     }
 
     // §11.4: labels only — nothing here fetches on the model's behalf — stored on the session.
-    private async Task SendAskCardAsync(long chatId, AskCard ask, UserSession session, CancellationToken ct)
+    private async Task sendAskCardAsync(long chatId, AskCard ask, UserSession session, CancellationToken ct)
     {
         IReadOnlyList<string> labels = ask.Options.Select(static o => o.Label).ToList();
         await _store.SaveAsync(session with { AskOptions = labels, AskMulti = ask.Multi, AskPicked = [] }, ct);

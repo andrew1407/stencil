@@ -12,17 +12,17 @@ public readonly record struct HistoryStack<T>(IReadOnlyList<T> Done, IReadOnlyLi
     public bool CanRedo => Undone.Count > 0;
 
     // A fresh edit clears redo.
-    public HistoryStack<T> Push(T current) => new(Bounded(Done.Append(current)), []);
+    public HistoryStack<T> Push(T current) => new(bounded(Done.Append(current)), []);
 
     public (HistoryStack<T> Stack, T Restored) Undo(T current) =>
-        (new(Done.Take(Done.Count - 1).ToList(), Bounded(Undone.Append(current))), Done[^1]);
+        (new(Done.Take(Done.Count - 1).ToList(), bounded(Undone.Append(current))), Done[^1]);
 
     public (HistoryStack<T> Stack, T Restored) Redo(T current) =>
-        (new(Bounded(Done.Append(current)), Undone.Take(Undone.Count - 1).ToList()), Undone[^1]);
+        (new(bounded(Done.Append(current)), Undone.Take(Undone.Count - 1).ToList()), Undone[^1]);
 
     public static HistoryStack<T> Empty => new([], []);
 
-    private static List<T> Bounded(IEnumerable<T> stack)
+    private static List<T> bounded(IEnumerable<T> stack)
     {
         List<T> list = stack.ToList();
         return list.Count > MaxEntries ? list.Skip(list.Count - MaxEntries).ToList() : list;

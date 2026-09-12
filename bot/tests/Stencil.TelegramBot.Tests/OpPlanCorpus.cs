@@ -26,7 +26,7 @@ internal sealed record OpPlanFixture(
 /// </summary>
 internal static class OpPlanCorpus
 {
-    private static readonly Lazy<IReadOnlyList<OpPlanFixture>> Loaded = new(Load);
+    private static readonly Lazy<IReadOnlyList<OpPlanFixture>> Loaded = new(load);
     private static readonly Lazy<IReadOnlyDictionary<string, OpPlanFixture>> Index =
         new(() => Loaded.Value.ToDictionary(f => f.File, StringComparer.Ordinal));
 
@@ -43,24 +43,24 @@ internal static class OpPlanCorpus
 
     public static IEnumerable<string> BotFileNames => All.Where(f => f.AppliesToBot).Select(f => f.File);
 
-    private static IReadOnlyList<OpPlanFixture> Load()
+    private static IReadOnlyList<OpPlanFixture> load()
     {
         string dir = SharedFixtures.LlmFixtureDir("opPlan");
         List<OpPlanFixture> fixtures = [];
         using JsonDocument hand = SharedFixtures.Load(Path.Combine(dir, "cases.json"));
         foreach (JsonElement fx in hand.RootElement.GetProperty("cases").EnumerateArray())
         {
-            fixtures.Add(Read(fx.GetProperty("file").GetString()!, fx, generated: false));
+            fixtures.Add(read(fx.GetProperty("file").GetString()!, fx, generated: false));
         }
         using JsonDocument bundle = SharedFixtures.Load(Path.Combine(dir, "generated", "cases.json"));
         foreach (JsonElement fx in bundle.RootElement.GetProperty("cases").EnumerateArray())
         {
-            fixtures.Add(Read($"{fx.GetProperty("name").GetString()}.json", fx, generated: true));
+            fixtures.Add(read($"{fx.GetProperty("name").GetString()}.json", fx, generated: true));
         }
         return fixtures;
     }
 
-    private static OpPlanFixture Read(string file, JsonElement fx, bool generated)
+    private static OpPlanFixture read(string file, JsonElement fx, bool generated)
     {
         bool profilesOk = fx.TryGetProperty("profiles", out JsonElement profiles)
             && profiles.ValueKind == JsonValueKind.Array && profiles.GetArrayLength() > 0;

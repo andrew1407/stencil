@@ -23,7 +23,7 @@ public static partial class CropSpecResolver
     // a single-axis spec derives the other from the page aspect; aspect=W:H centre-fits the rect.
     public static CropRect? Resolve(string spec, double imageW, double imageH, bool album)
     {
-        ParsedSpec parsed = Parse(spec);
+        ParsedSpec parsed = parse(spec);
         if (!parsed.Valid)
         {
             return null;
@@ -40,7 +40,7 @@ public static partial class CropSpecResolver
             {
                 return current;
             }
-            double? resolved = ResolveAxisPx(token, lengthPx, pxPerCm, current);
+            double? resolved = resolveAxisPx(token, lengthPx, pxPerCm, current);
             if (resolved is null)
             {
                 ok = false;
@@ -62,7 +62,7 @@ public static partial class CropSpecResolver
         bool yGiven = parsed.Y1 is not null || parsed.Y2 is not null;
         if (xGiven != yGiven)
         {
-            double aspect = CropAspect(pageW, pageH, album);   // width / height
+            double aspect = cropAspect(pageW, pageH, album);   // width / height
             if (aspect <= 0.0)
             {
                 aspect = 1.0;
@@ -87,7 +87,7 @@ public static partial class CropSpecResolver
         // Aspect fit exactly like the core: a centered shrink that never grows and keeps ≥ 1px.
         if (parsed.Aspect is string aspectToken)
         {
-            double ratio = ParseAspectRatio(aspectToken);   // width / height
+            double ratio = parseAspectRatio(aspectToken);   // width / height
             if (ratio <= 0.0)
             {
                 return null;   // invalid aspect fails resolution
@@ -111,12 +111,12 @@ public static partial class CropSpecResolver
         }
 
         // Final integer rounding, as stencil_cli_resolveCrop does it.
-        int iw = LRound(imageW);
-        int ih = LRound(imageH);
-        int x = Math.Clamp(LRound(rectX), 0, Math.Max(0, iw));
-        int y = Math.Clamp(LRound(rectY), 0, Math.Max(0, ih));
-        int w = Math.Clamp(LRound(rectW), 0, iw - x);
-        int h = Math.Clamp(LRound(rectH), 0, ih - y);
+        int iw = lRound(imageW);
+        int ih = lRound(imageH);
+        int x = Math.Clamp(lRound(rectX), 0, Math.Max(0, iw));
+        int y = Math.Clamp(lRound(rectY), 0, Math.Max(0, ih));
+        int w = Math.Clamp(lRound(rectW), 0, iw - x);
+        int h = Math.Clamp(lRound(rectH), 0, ih - y);
         if (w <= 0 || h <= 0)
         {
             return null;   // an empty crop is not useful
@@ -125,9 +125,9 @@ public static partial class CropSpecResolver
     }
 
     // Round half away from zero, like the C++ lround.
-    private static int LRound(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
+    private static int lRound(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
 
-    private static double CropAspect(double pageW, double pageH, bool album)
+    private static double cropAspect(double pageW, double pageH, bool album)
     {
         double lo = Math.Min(pageW, pageH);
         double hi = Math.Max(pageW, pageH);

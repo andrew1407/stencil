@@ -42,7 +42,7 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
         }
         if (string.IsNullOrEmpty(_token))
         {
-            using JsonDocument doc = await SendJsonAsync(HttpMethod.Post, "/auth/token", EmptyBody(), ct)
+            using JsonDocument doc = await sendJsonAsync(HttpMethod.Post, "/auth/token", emptyBody(), ct)
                 .ConfigureAwait(false);
             _token = JsonRead.ReadString(doc.RootElement, "token");
             _kind = CredentialKind.None; // minted anonymously: there is no credential to classify
@@ -54,7 +54,7 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
             _credential = _token;
             // A proven admin token cannot list projects, so mint straight away instead of a probe
             // that always 401s.
-            if (_kind == CredentialKind.Admin && await TryMintAsync(ct).ConfigureAwait(false) is string minted)
+            if (_kind == CredentialKind.Admin && await tryMintAsync(ct).ConfigureAwait(false) is string minted)
             {
                 _token = minted;
             }
@@ -71,7 +71,7 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
 
     public async Task<IReadOnlyList<ProjectRecord>> ListProjectsAsync(CancellationToken ct = default)
     {
-        using JsonDocument doc = await SendJsonAsync(HttpMethod.Get, "/projects", null, ct)
+        using JsonDocument doc = await sendJsonAsync(HttpMethod.Get, "/projects", null, ct)
             .ConfigureAwait(false);
         if (!doc.RootElement.TryGetProperty("projects", out JsonElement projects)
             || projects.ValueKind != JsonValueKind.Array)
@@ -92,7 +92,7 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
 
     public async Task<ProjectFull> GetProjectAsync(string id, CancellationToken ct = default)
     {
-        using JsonDocument doc = await SendJsonAsync(HttpMethod.Get, ProjectPath(id), null, ct).ConfigureAwait(false);
+        using JsonDocument doc = await sendJsonAsync(HttpMethod.Get, projectPath(id), null, ct).ConfigureAwait(false);
         JsonElement root = doc.RootElement;
         ProjectRecord project = root.TryGetProperty("project", out JsonElement projectElement)
             ? projectElement.Deserialize<ProjectRecord>(StencilJson.Options) ?? new ProjectRecord()
@@ -115,7 +115,7 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
     public async Task<ProjectRecord> CreateProjectAsync(CreateProjectRequest request, CancellationToken ct = default)
     {
         string json = StencilJson.Serialize(request);
-        using JsonDocument doc = await SendJsonAsync(HttpMethod.Post, "/projects", JsonContent(json), ct)
+        using JsonDocument doc = await sendJsonAsync(HttpMethod.Post, "/projects", jsonContent(json), ct)
             .ConfigureAwait(false);
         return doc.RootElement.Deserialize<ProjectRecord>(StencilJson.Options) ?? new ProjectRecord();
     }
@@ -124,24 +124,24 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
     public async Task<ProjectRecord> UpdateProjectAsync(string id, UpdateProjectRequest request, CancellationToken ct = default)
     {
         string json = StencilJson.Serialize(request);
-        using JsonDocument doc = await SendJsonAsync(HttpMethod.Put, ProjectPath(id), JsonContent(json), ct)
+        using JsonDocument doc = await sendJsonAsync(HttpMethod.Put, projectPath(id), jsonContent(json), ct)
             .ConfigureAwait(false);
         return doc.RootElement.Deserialize<ProjectRecord>(StencilJson.Options) ?? new ProjectRecord();
     }
 
     public async Task DeleteProjectAsync(string id, CancellationToken ct = default)
     {
-        using HttpResponseMessage response = await SendAsync(HttpMethod.Delete, ProjectPath(id), null, ct)
+        using HttpResponseMessage response = await sendAsync(HttpMethod.Delete, projectPath(id), null, ct)
             .ConfigureAwait(false);
-        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
+        await ensureSuccessAsync(response, ct).ConfigureAwait(false);
     }
 
     public async Task<byte[]> GetFileAsync(string id, string kind, CancellationToken ct = default)
     {
-        string path = FilePath(id, kind);
-        using HttpResponseMessage response = await SendAsync(HttpMethod.Get, path, null, ct)
+        string path = filePath(id, kind);
+        using HttpResponseMessage response = await sendAsync(HttpMethod.Get, path, null, ct)
             .ConfigureAwait(false);
-        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
+        await ensureSuccessAsync(response, ct).ConfigureAwait(false);
         return await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
     }
 
@@ -149,10 +149,10 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
     // the body.
     public async Task<FileWriteResult> PutFileAsync(string id, string kind, byte[] data, string ext, int w, int h, CancellationToken ct = default)
     {
-        string path = $"{FilePath(id, kind)}?ext={Uri.EscapeDataString(ext)}&w={w}&h={h}";
+        string path = $"{filePath(id, kind)}?ext={Uri.EscapeDataString(ext)}&w={w}&h={h}";
         ByteArrayContent content = new(data);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-        using JsonDocument doc = await SendJsonAsync(HttpMethod.Post, path, content, ct).ConfigureAwait(false);
+        using JsonDocument doc = await sendJsonAsync(HttpMethod.Post, path, content, ct).ConfigureAwait(false);
         JsonElement root = doc.RootElement;
         string storedPath = JsonRead.ReadString(root, "path");
         int width = JsonRead.ReadInt(root, "w");
@@ -163,8 +163,8 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
     // Idempotent, filestore-only kinds (§9); never bumps the project version.
     public async Task DeleteFileAsync(string id, string kind, CancellationToken ct = default)
     {
-        using HttpResponseMessage response = await SendAsync(HttpMethod.Delete, FilePath(id, kind), null, ct)
+        using HttpResponseMessage response = await sendAsync(HttpMethod.Delete, filePath(id, kind), null, ct)
             .ConfigureAwait(false);
-        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
+        await ensureSuccessAsync(response, ct).ConfigureAwait(false);
     }
 }

@@ -10,7 +10,7 @@ public static class ColorSpec
 {
     private const string ResourceName = "Stencil.TelegramBot.Domain.Assets.colorNames.json";
 
-    private static readonly Lazy<IReadOnlySet<string>> Names = new(LoadNames);
+    private static readonly Lazy<IReadOnlySet<string>> Names = new(loadNames);
 
     public static IReadOnlySet<string> KnownNames => Names.Value;
 
@@ -33,7 +33,7 @@ public static class ColorSpec
         return Names.Value.Contains(s);
     }
 
-    private static IReadOnlySet<string> LoadNames()
+    private static IReadOnlySet<string> loadNames()
     {
         using Stream stream = typeof(ColorSpec).Assembly.GetManifestResourceStream(ResourceName)
             ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");

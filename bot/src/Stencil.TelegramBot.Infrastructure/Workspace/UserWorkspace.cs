@@ -23,7 +23,7 @@ public sealed class UserWorkspace : IUserWorkspace
     public string NewFilePath(long userId, string extension)
     {
         string dir = DirectoryFor(userId);
-        string name = Guid.NewGuid().ToString("N") + NormalizeExtension(extension);
+        string name = Guid.NewGuid().ToString("N") + normalizeExtension(extension);
         return Path.Combine(dir, name);
     }
 
@@ -71,13 +71,13 @@ public sealed class UserWorkspace : IUserWorkspace
         {
             return 0;
         }
-        HashSet<string> kept = new(keep.Select(NormalizePath), StringComparer.Ordinal);
+        HashSet<string> kept = new(keep.Select(normalizePath), StringComparer.Ordinal);
         int deleted = 0;
         // Recurse: scrape mode writes into a nested scrape-<guid>/ subdir that a top-level sweep
         // would never reap.
         foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
         {
-            if (kept.Contains(NormalizePath(file)))
+            if (kept.Contains(normalizePath(file)))
             {
                 continue; // still referenced by the session — never sweep it
             }
@@ -95,13 +95,13 @@ public sealed class UserWorkspace : IUserWorkspace
                 // Retried next sweep.
             }
         }
-        RemoveEmptyDescendants(dir);
-        TryRemoveIfEmpty(dir);
+        removeEmptyDescendants(dir);
+        tryRemoveIfEmpty(dir);
         return deleted;
     }
 
     // Deepest first, so an emptied scrape-<guid>/ doesn't keep the user dir alive.
-    private static void RemoveEmptyDescendants(string root)
+    private static void removeEmptyDescendants(string root)
     {
         try
         {
@@ -109,7 +109,7 @@ public sealed class UserWorkspace : IUserWorkspace
                          .EnumerateDirectories(root, "*", SearchOption.AllDirectories)
                          .OrderByDescending(p => p.Length))
             {
-                TryRemoveIfEmpty(sub);
+                tryRemoveIfEmpty(sub);
             }
         }
         catch
@@ -117,9 +117,9 @@ public sealed class UserWorkspace : IUserWorkspace
         }
     }
 
-    private static string NormalizePath(string path) => Path.GetFullPath(path);
+    private static string normalizePath(string path) => Path.GetFullPath(path);
 
-    private static void TryRemoveIfEmpty(string dir)
+    private static void tryRemoveIfEmpty(string dir)
     {
         try
         {
@@ -133,7 +133,7 @@ public sealed class UserWorkspace : IUserWorkspace
         }
     }
 
-    private static string NormalizeExtension(string extension)
+    private static string normalizeExtension(string extension)
     {
         if (string.IsNullOrWhiteSpace(extension))
         {

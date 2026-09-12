@@ -10,8 +10,8 @@ public sealed partial class EditingService
     {
         // The CLI SKIPS a colour it can't parse, so a typo would silently paint the default: reject
         // it here.
-        RejectUnparseableColor(color, "colour");
-        RejectUnparseableColor(NormalizeFill(fill), "fill");
+        rejectUnparseableColor(color, "colour");
+        rejectUnparseableColor(normalizeFill(fill), "fill");
         var session = await _store.GetAsync(userId, ct);
         var pen = session.Edits.Pen;
         var updatedPen = pen with
@@ -20,7 +20,7 @@ public sealed partial class EditingService
             Thickness = thickness ?? pen.Thickness,
             PointSize = pointSize ?? pen.PointSize,
             Style = style ?? pen.Style,
-            FillColor = NormalizeFill(fill) ?? pen.FillColor,
+            FillColor = normalizeFill(fill) ?? pen.FillColor,
         };
         var updated = session with { Edits = session.Edits with { Pen = updatedPen } };
         await _store.SaveAsync(updated, ct);
@@ -28,7 +28,7 @@ public sealed partial class EditingService
     }
 
     public Task<UserSession> AddLineAsync(long userId, IReadOnlyList<LayoutPoint> points, bool closed, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, session =>
+        applyEditAsync(userId, session =>
         {
             var pen = session.Edits.Pen;
             var pts = points.ToList();
@@ -51,7 +51,7 @@ public sealed partial class EditingService
                 Locked = closed,
                 FillColor = closed ? pen.FillColor : LayoutLine.DefaultFillColor,
             };
-            var layout = session.Edits.Layout ?? EmptyLayout(session);
+            var layout = session.Edits.Layout ?? emptyLayout(session);
             var lines = layout.Lines.Append(line).ToList();
             var updatedLayout = layout with
             {
@@ -89,7 +89,7 @@ public sealed partial class EditingService
         return updated;
     }
 
-    private static StencilLayout EmptyLayout(UserSession session) =>
+    private static StencilLayout emptyLayout(UserSession session) =>
         new()
         {
             ImageWidth = session.OriginalWidth,
@@ -97,7 +97,7 @@ public sealed partial class EditingService
             Lines = [],
         };
 
-    private static void RejectUnparseableColor(string? spec, string label)
+    private static void rejectUnparseableColor(string? spec, string label)
     {
         if (spec is not null && !ColorSpec.IsValid(spec))
         {
@@ -106,7 +106,7 @@ public sealed partial class EditingService
         }
     }
 
-    private static string? NormalizeFill(string? fill)
+    private static string? normalizeFill(string? fill)
     {
         if (fill is null)
         {

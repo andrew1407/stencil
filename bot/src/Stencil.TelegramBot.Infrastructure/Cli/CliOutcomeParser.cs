@@ -20,7 +20,7 @@ public static partial class CliOutcomeParser
     // Reverse-searches " (" so a path containing it still parses; mirrors mcp's parse_wrote.
     public static RenderResult? ParseWrote(string stderr)
     {
-        foreach (string rawLine in SplitLines(stderr))
+        foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
             if (!line.StartsWith(PrefixWrote, StringComparison.Ordinal))
@@ -41,12 +41,12 @@ public static partial class CliOutcomeParser
             }
             tail = tail[..^1];
             // The dims lead; newer builds append " px · {page}" metadata (cm uses '×', not 'x').
-            string? dims = FirstWhitespaceToken(tail);
+            string? dims = firstWhitespaceToken(tail);
             if (dims is null)
             {
                 continue;
             }
-            if (TryParseWxH(dims, out int width, out int height))
+            if (tryParseWxH(dims, out int width, out int height))
             {
                 return new RenderResult(path, width, height);
             }
@@ -57,7 +57,7 @@ public static partial class CliOutcomeParser
     // A project is a document, so the CLI reports no dimensions (which is why ParseWrote skips it).
     public static string? ParseWroteProject(string stderr)
     {
-        foreach (string rawLine in SplitLines(stderr))
+        foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
             if (line.StartsWith(PrefixWrote, StringComparison.Ordinal)
@@ -73,7 +73,7 @@ public static partial class CliOutcomeParser
     public static IReadOnlyList<RemoteDelivery> ParseRemotes(string stderr)
     {
         List<RemoteDelivery> result = new();
-        foreach (string rawLine in SplitLines(stderr))
+        foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
             if (line.StartsWith(PrefixUpdated, StringComparison.Ordinal))
@@ -92,7 +92,7 @@ public static partial class CliOutcomeParser
                     continue;
                 }
                 string dims = dimsTail[..^1];
-                if (TryParseWxH(dims, out int width, out int height))
+                if (tryParseWxH(dims, out int width, out int height))
                 {
                     result.Add(new RemoteDelivery.Updated(id, width, height));
                 }
@@ -123,7 +123,7 @@ public static partial class CliOutcomeParser
     public static string ExtractErrors(string stderr)
     {
         List<string> errors = new();
-        foreach (string rawLine in SplitLines(stderr))
+        foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
             if (line.StartsWith(PrefixError, StringComparison.Ordinal))
@@ -144,7 +144,7 @@ public static partial class CliOutcomeParser
     }
 
     // Splits on the first ASCII 'x' (cm uses '×').
-    private static bool TryParseWxH(string dims, out int width, out int height)
+    private static bool tryParseWxH(string dims, out int width, out int height)
     {
         width = height = 0;
         int x = dims.IndexOf('x');
@@ -153,12 +153,12 @@ public static partial class CliOutcomeParser
             && int.TryParse(dims[(x + 1)..].Trim(), out height);
     }
 
-    private static string? FirstWhitespaceToken(string text)
+    private static string? firstWhitespaceToken(string text)
     {
         string[] tokens = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         return tokens.Length == 0 ? null : tokens[0];
     }
 
-    private static IEnumerable<string> SplitLines(string text) =>
+    private static IEnumerable<string> splitLines(string text) =>
         text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
 }

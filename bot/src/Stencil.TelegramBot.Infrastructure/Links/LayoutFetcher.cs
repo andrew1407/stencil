@@ -19,7 +19,7 @@ public sealed class LayoutFetcher : IDisposable
         HttpMessageHandler? handler = null,
         Func<IPAddress, bool>? isBlockedAddress = null)
     {
-        _http = new HttpClient(handler ?? BuildGuardedHandler(isBlockedAddress));
+        _http = new HttpClient(handler ?? buildGuardedHandler(isBlockedAddress));
         _http.Timeout = options.ServerHttpTimeout;
         _maxBytes = options.MaxDownloadBytes;
     }
@@ -27,7 +27,7 @@ public sealed class LayoutFetcher : IDisposable
     // Resolves the host itself and dials that exact IP, so nothing can rebind between the pre-check
     // and the connect; redirects are refused so a vetted public host cannot bounce us to an
     // internal one.
-    private static SocketsHttpHandler BuildGuardedHandler(Func<IPAddress, bool>? isBlockedAddress)
+    private static SocketsHttpHandler buildGuardedHandler(Func<IPAddress, bool>? isBlockedAddress)
     {
         SocketsHttpHandler handler = new() { AllowAutoRedirect = false };
         if (isBlockedAddress is null)
@@ -75,7 +75,7 @@ public sealed class LayoutFetcher : IDisposable
         {
             response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
         }
-        catch (HttpRequestException ex) when (BlockedAddressCause(ex) is InvalidOperationException blocked)
+        catch (HttpRequestException ex) when (blockedAddressCause(ex) is InvalidOperationException blocked)
         {
             // The guard's verbatim message (SafeAsync shows it) rather than the transport error
             // wrapping it.
@@ -104,7 +104,7 @@ public sealed class LayoutFetcher : IDisposable
         }
     }
 
-    private static InvalidOperationException? BlockedAddressCause(Exception ex)
+    private static InvalidOperationException? blockedAddressCause(Exception ex)
     {
         for (Exception? e = ex.InnerException; e is not null; e = e.InnerException)
         {

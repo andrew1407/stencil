@@ -10,11 +10,11 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 internal static class SharedFixtures
 {
-    private static readonly Lazy<string> Root = new(FindRepoRoot);
+    private static readonly Lazy<string> Root = new(findRepoRoot);
 
     public static string RepoRoot => Root.Value;
 
-    private static string FindRepoRoot()
+    private static string findRepoRoot()
     {
         for (string? dir = AppContext.BaseDirectory; dir is not null; dir = Path.GetDirectoryName(dir))
         {

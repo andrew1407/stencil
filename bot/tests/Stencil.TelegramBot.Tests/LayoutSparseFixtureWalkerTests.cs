@@ -39,11 +39,11 @@ public sealed class LayoutSparseFixtureWalkerTests
         Assert.NotNull(layout);
 
         List<string> failures = new();
-        CompareLines(name, layout!.Lines, fx.GetProperty("expectFilled"), failures);
+        compareLines(name, layout!.Lines, fx.GetProperty("expectFilled"), failures);
         Assert.True(failures.Count == 0, string.Join("\n", failures));
     }
 
-    private static void CompareLines(
+    private static void compareLines(
         string name, IReadOnlyList<LayoutLine> got, JsonElement expect, List<string> failures)
     {
         if (got.Count != expect.GetArrayLength())

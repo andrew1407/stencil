@@ -62,10 +62,10 @@ public sealed class ChatApiTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private Task Dispatch(string text) =>
+    private Task dispatch(string text) =>
         _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
 
-    private Task Tap(string data) =>
+    private Task tap(string data) =>
         _callbacks.HandleAsync(
             new CallbackQuery
             {
@@ -81,7 +81,7 @@ public sealed class ChatApiTests : IDisposable
     [Fact]
     public async Task BareChatApiListsEveryConfiguredApiWithAButtonEach()
     {
-        await Dispatch("/chatapi");
+        await dispatch("/chatapi");
 
         SendMessageRequest list = Assert.Single(Messages);
         Assert.Contains("Llama (local)", list.Text);
@@ -98,13 +98,13 @@ public sealed class ChatApiTests : IDisposable
     [Fact]
     public async Task PickingOneStoresItPerUserAndTheNextTurnCallsIt()
     {
-        await Tap("api:llama");
+        await tap("api:llama");
 
         Assert.Equal("llama", (await _store.GetAsync(UserId)).LlmProfile);
         Assert.Contains("Llama (local)", Messages.Last().Text);
 
-        await Dispatch("/blank");
-        await Dispatch("/prompt make it sepia");
+        await dispatch("/blank");
+        await dispatch("/prompt make it sepia");
 
         // The turn ran against the picked profile, not the bot's default.
         LlmOptions used = Assert.Single(_llm.Requests).Options!;
@@ -116,10 +116,10 @@ public sealed class ChatApiTests : IDisposable
     [Fact]
     public async Task TheCurrentApiIsTickedAndSelectableByName()
     {
-        await Dispatch("/chatapi lmstudio");
+        await dispatch("/chatapi lmstudio");
         Assert.Equal("lmstudio", (await _store.GetAsync(UserId)).LlmProfile);
 
-        await Dispatch("/chatapi");
+        await dispatch("/chatapi");
 
         SendMessageRequest list = Messages.Last();
         Assert.Contains("Now using: LM Studio", list.Text);
@@ -130,7 +130,7 @@ public sealed class ChatApiTests : IDisposable
     [Fact]
     public async Task AnUnknownNameNamesTheOnesThatExist()
     {
-        await Dispatch("/chatapi gpt5");
+        await dispatch("/chatapi gpt5");
 
         SendMessageRequest reply = Assert.Single(Messages);
         Assert.Contains("No chat API called", reply.Text);
@@ -146,8 +146,8 @@ public sealed class ChatApiTests : IDisposable
         // between restarts) must still get a working turn.
         await _store.SaveAsync((await _store.GetAsync(UserId)) with { LlmProfile = "gone" });
 
-        await Dispatch("/blank");
-        await Dispatch("/prompt make it sepia");
+        await dispatch("/blank");
+        await dispatch("/prompt make it sepia");
 
         LlmOptions used = Assert.Single(_llm.Requests).Options!;
         Assert.Equal(new LlmOptions().Provider, used.Provider);

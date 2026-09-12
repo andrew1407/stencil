@@ -52,12 +52,12 @@ public static class DurationParser
             clear = true;
             return true;
         }
-        string letters = FirstRun(s, char.IsLetter);
-        if (!TryMapUnit(letters, out DurationUnit unit, out int multiplier))
+        string letters = firstRun(s, char.IsLetter);
+        if (!tryMapUnit(letters, out DurationUnit unit, out int multiplier))
         {
             return false;
         }
-        string digits = FirstRun(s, char.IsDigit);
+        string digits = firstRun(s, char.IsDigit);
         int count = 1;
         if (digits.Length != 0 && (!int.TryParse(digits, out count) || count <= 0 || count > MaxCount))
         {
@@ -68,7 +68,7 @@ public static class DurationParser
     }
 
     // fortnight = 2 weeks.
-    private static bool TryMapUnit(string word, out DurationUnit unit, out int multiplier)
+    private static bool tryMapUnit(string word, out DurationUnit unit, out int multiplier)
     {
         multiplier = 1;
         switch (word)
@@ -92,7 +92,7 @@ public static class DurationParser
         }
     }
 
-    private static string FirstRun(string s, Func<char, bool> pred)
+    private static string firstRun(string s, Func<char, bool> pred)
     {
         int start = -1;
         for (int i = 0; i < s.Length; i++)

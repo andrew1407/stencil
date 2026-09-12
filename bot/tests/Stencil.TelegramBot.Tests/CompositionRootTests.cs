@@ -37,21 +37,21 @@ public sealed class CompositionRootTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private BotOptions Options(string redisUrl = "") =>
+    private BotOptions makeOptions(string redisUrl = "") =>
         new() { DataDir = _dataDir, BotToken = FakeToken, RedisUrl = redisUrl };
 
-    private ServiceCollection Wired(BotOptions? options = null)
+    private ServiceCollection wired(BotOptions? options = null)
     {
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddStencilBot(options ?? Options(), new TelegramBotClient(FakeToken));
+        services.AddStencilBot(options ?? makeOptions(), new TelegramBotClient(FakeToken));
         return services;
     }
 
     [Fact]
     public void EveryRegisteredServiceResolves()
     {
-        ServiceCollection services = Wired();
+        ServiceCollection services = wired();
         using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
 
         List<string> unresolvable = new();
@@ -76,7 +76,7 @@ public sealed class CompositionRootTests : IDisposable
     [Fact]
     public void TheGraphTheHostPullsOutByHandResolves()
     {
-        using ServiceProvider provider = Wired().BuildServiceProvider(validateScopes: true);
+        using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
         // Exactly what Program.cs asks for after Build(), plus the two hosted loops it starts.
         Assert.NotNull(provider.GetRequiredService<UpdateRouter>());
@@ -89,7 +89,7 @@ public sealed class CompositionRootTests : IDisposable
     [Fact]
     public void ThePolicyIsReachableUnderBothItsContractAndItsRecord()
     {
-        using ServiceProvider provider = Wired().BuildServiceProvider(validateScopes: true);
+        using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
         // Handlers name the Domain contract; the adapters name the record. One instance, both ways.
         Assert.Same(provider.GetRequiredService<BotOptions>(), provider.GetRequiredService<IBotPolicy>());
@@ -98,7 +98,7 @@ public sealed class CompositionRootTests : IDisposable
     [Fact]
     public void TheSharedServicesAreSingletons()
     {
-        using ServiceProvider provider = Wired().BuildServiceProvider(validateScopes: true);
+        using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
         // PromptService owns the per-user chat history and SyncRegistry the live-sync set:
         // a second instance would silently split that state.
@@ -110,7 +110,7 @@ public sealed class CompositionRootTests : IDisposable
     [Fact]
     public void TheInfrastructureAdaptersAreTheRealOnes()
     {
-        using ServiceProvider provider = Wired().BuildServiceProvider(validateScopes: true);
+        using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
         Assert.IsType<ProcessStencilCli>(provider.GetRequiredService<IStencilCli>());
         Assert.IsType<HttpLlmClient>(provider.GetRequiredService<ILlmClient>());
@@ -121,7 +121,7 @@ public sealed class CompositionRootTests : IDisposable
     [Fact]
     public void WithoutRedisTheSessionStoreIsInMemory()
     {
-        using ServiceProvider provider = Wired().BuildServiceProvider(validateScopes: true);
+        using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
         Assert.IsType<InMemorySessionStore>(provider.GetRequiredService<ISessionStore>());
     }
@@ -130,7 +130,7 @@ public sealed class CompositionRootTests : IDisposable
     public void WithRedisTheSessionStoreIsTheRedisOne()
     {
         // Registration only — resolving it would dial the server, which this suite never does.
-        ServiceCollection services = Wired(Options(redisUrl: "redis://localhost:6379"));
+        ServiceCollection services = wired(makeOptions(redisUrl: "redis://localhost:6379"));
 
         ServiceDescriptor store = services.Last(d => d.ServiceType == typeof(ISessionStore));
         Assert.Equal(typeof(RedisSessionStore), store.ImplementationType);
@@ -156,11 +156,11 @@ public sealed class CompositionRootTests : IDisposable
     {
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddStencilInfrastructure(Options());
+        services.AddStencilInfrastructure(makeOptions());
         using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
 
         Assert.NotNull(provider.GetRequiredService<IReadOnlyList<LlmProfile>>());
         Assert.NotNull(provider.GetRequiredService<LlmGate>());
-        Assert.Same(Options().Llm.Provider, provider.GetRequiredService<LlmOptions>().Provider);
+        Assert.Same(makeOptions().Llm.Provider, provider.GetRequiredService<LlmOptions>().Provider);
     }
 }

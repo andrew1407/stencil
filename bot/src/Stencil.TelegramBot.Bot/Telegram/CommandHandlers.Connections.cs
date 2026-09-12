@@ -9,12 +9,12 @@ public sealed partial class CommandHandlers
 {
     // A t.me/<bot>?start=<payload> link from the browser/desktop "Open in…" connects and opens the
     // project.
-    private async Task StartAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task startAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length > 0
             && DeepLinkCodec.TryDecode(cmd.ArgumentText, out string serverUrl, out string projectId))
         {
-            await OpenDeepLinkedProjectAsync(userId, chatId, serverUrl, projectId, ct);
+            await openDeepLinkedProjectAsync(userId, chatId, serverUrl, projectId, ct);
             return;
         }
         await _bot.SendMessage(
@@ -26,7 +26,7 @@ public sealed partial class CommandHandlers
 
     // Connect tokenless when no connection exists (no token ever rides the link); failures reply
     // with the manual recipe.
-    private async Task OpenDeepLinkedProjectAsync(long userId, long chatId, string serverUrl,
+    private async Task openDeepLinkedProjectAsync(long userId, long chatId, string serverUrl,
         string projectId, CancellationToken ct)
     {
         try
@@ -56,7 +56,7 @@ public sealed partial class CommandHandlers
     }
 
     // Server projects only (a link carries a reference, never image bytes), and no token rides it.
-    private async Task LinkAsync(long userId, long chatId, CancellationToken ct)
+    private async Task linkAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
@@ -84,7 +84,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private async Task ConnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task connectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
         {
@@ -102,7 +102,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private async Task DisconnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task disconnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string? url = cmd.Args.Count == 0 ? null : cmd.Args[0];
         bool removed = await _servers.DisconnectAsync(userId, url, ct);
@@ -112,7 +112,7 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, text, cancellationToken: ct);
     }
 
-    private async Task ConnectionsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task connectionsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string filter = cmd.Args.Count == 0 ? "" : cmd.Args[0].ToLowerInvariant();
         if (filter is not ("" or "admin" or "session"))

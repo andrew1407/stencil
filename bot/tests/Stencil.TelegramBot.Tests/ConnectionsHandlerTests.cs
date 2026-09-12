@@ -52,17 +52,17 @@ public sealed class ConnectionsHandlerTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private Task Dispatch(string text) =>
+    private Task dispatch(string text) =>
         _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
 
-    private string LastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
+    private string lastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
 
     [Fact]
     public async Task BareCommandListsThemAllAndMarksTheAdminOneWithoutItsToken()
     {
-        await Dispatch("/connections");
+        await dispatch("/connections");
 
-        string text = LastText();
+        string text = lastText();
         Assert.Contains("Connections (3):", text);
         Assert.Contains("http://a:8090 [admin]", text);
         Assert.Contains("http://b:8090", text);
@@ -74,9 +74,9 @@ public sealed class ConnectionsHandlerTests : IDisposable
     [Fact]
     public async Task AdminFilterKeepsOnlyTheAdminCredentialConnections()
     {
-        await Dispatch("/connections admin");
+        await dispatch("/connections admin");
 
-        string text = LastText();
+        string text = lastText();
         Assert.Contains("Admin-token connections (1):", text);
         Assert.Contains("http://a:8090 [admin]", text);
         Assert.DoesNotContain("http://b:8090", text);
@@ -86,9 +86,9 @@ public sealed class ConnectionsHandlerTests : IDisposable
     [Fact]
     public async Task SessionFilterKeepsEverythingThatIsNotAnAdminCredential()
     {
-        await Dispatch("/connections SESSION"); // case-insensitive, like the other arguments
+        await dispatch("/connections SESSION"); // case-insensitive, like the other arguments
 
-        string text = LastText();
+        string text = lastText();
         Assert.Contains("Session-token connections (2):", text);
         Assert.Contains("http://b:8090", text);
         Assert.Contains("http://c:8090", text);
@@ -100,17 +100,17 @@ public sealed class ConnectionsHandlerTests : IDisposable
     {
         _servers.Connections = [new ServerConnectionInfo { Url = "http://b:8090", CredentialKind = CredentialKind.None }];
 
-        await Dispatch("/connections admin");
+        await dispatch("/connections admin");
 
-        Assert.Contains("No admin-token connections.", LastText());
+        Assert.Contains("No admin-token connections.", lastText());
     }
 
     [Fact]
     public async Task UnknownArgumentRepliesWithUsageAndListsNothing()
     {
-        await Dispatch("/connections everything");
+        await dispatch("/connections everything");
 
-        string text = LastText();
+        string text = lastText();
         Assert.Contains("/connections admin", text);
         Assert.Contains("/connections session", text);
         Assert.DoesNotContain("http://a:8090", text);

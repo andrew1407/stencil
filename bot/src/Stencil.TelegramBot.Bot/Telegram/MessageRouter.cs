@@ -27,11 +27,11 @@ public sealed class MessageRouter
         CommandHandlers handlers, MediaIntake media, DocumentIntake documents,
         ISessionStore store, ITelegramBotClient bot)
     {
-        _chain = Chain(handlers, media, documents, store, bot);
+        _chain = chain(handlers, media, documents, store, bot);
     }
 
     // The one place the order is written down.
-    private static IReadOnlyList<IMessageHandler> Chain(
+    private static IReadOnlyList<IMessageHandler> chain(
         CommandHandlers handlers, MediaIntake media, DocumentIntake documents,
         ISessionStore store, ITelegramBotClient bot) =>
     [

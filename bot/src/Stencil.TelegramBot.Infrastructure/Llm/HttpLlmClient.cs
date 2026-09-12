@@ -44,13 +44,13 @@ public sealed class HttpLlmClient : ILlmClient
                 $"unknown LLM provider \"{options.Provider}\" — set STENCIL_LLM_PROVIDER to "
                 + "ollama, openai-compat or stencil-server");
         }
-        using JsonDocument doc = await PostAsync(
+        using JsonDocument doc = await postAsync(
             mapping.Url(request, options), mapping.Body(request, options),
             mapping.Bearer(request, options), ct).ConfigureAwait(false);
         return mapping.Read(doc.RootElement);
     }
 
-    private async Task<JsonDocument> PostAsync(string url, JsonObject body, string? bearer, CancellationToken ct)
+    private async Task<JsonDocument> postAsync(string url, JsonObject body, string? bearer, CancellationToken ct)
     {
         // Streamed straight onto the request: with multi-MB base64 images a ToJsonString() copy
         // would land on the LOH.
@@ -83,7 +83,7 @@ public sealed class HttpLlmClient : ILlmClient
             byte[] bytes = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
-                throw ErrorFor((int)response.StatusCode, bytes);
+                throw errorFor((int)response.StatusCode, bytes);
             }
             try
             {
@@ -98,7 +98,7 @@ public sealed class HttpLlmClient : ILlmClient
 
     // The reason is said ONCE (§6.3): a provider that explains itself is quoted as-is, no status
     // restating it.
-    private static LlmException ErrorFor(int status, byte[] body)
+    private static LlmException errorFor(int status, byte[] body)
     {
         string detail = "";
         bool disabled = false;

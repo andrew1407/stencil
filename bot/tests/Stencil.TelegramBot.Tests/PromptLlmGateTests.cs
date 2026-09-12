@@ -37,12 +37,12 @@ public sealed class PromptLlmGateTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private PromptService Service(int maxConcurrent) => new(
+    private PromptService makeService(int maxConcurrent) => new(
         _llm, _editing, _store, new LlmOptions(), new MockServerClientFactory(),
         gate: new LlmGate(maxConcurrent));
 
     /// <summary>A held model call: signalled in flight via Entered, finished by Hold.</summary>
-    private TaskCompletionSource HoldModel()
+    private TaskCompletionSource holdModel()
     {
         TaskCompletionSource hold = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _llm.Hold = hold;
@@ -52,8 +52,8 @@ public sealed class PromptLlmGateTests : IDisposable
     [Fact]
     public async Task FullGateAnswersBusyImmediatelyWithoutCallingTheModel()
     {
-        PromptService service = Service(maxConcurrent: 1);
-        TaskCompletionSource hold = HoldModel();
+        PromptService service = makeService(maxConcurrent: 1);
+        TaskCompletionSource hold = holdModel();
         Task<PromptOutcome> first = service.PromptAsync(UserId, "one", null);
         Assert.True(await _llm.Entered.WaitAsync(WaitBudget)); // the slot is really held
 
@@ -70,8 +70,8 @@ public sealed class PromptLlmGateTests : IDisposable
     [Fact]
     public async Task CompletedTurnFreesTheSlotForTheNextPrompt()
     {
-        PromptService service = Service(maxConcurrent: 1);
-        TaskCompletionSource hold = HoldModel();
+        PromptService service = makeService(maxConcurrent: 1);
+        TaskCompletionSource hold = holdModel();
         Task<PromptOutcome> first = service.PromptAsync(UserId, "one", null);
         Assert.True(await _llm.Entered.WaitAsync(WaitBudget));
         hold.SetResult();
@@ -87,8 +87,8 @@ public sealed class PromptLlmGateTests : IDisposable
     [Fact]
     public async Task ZeroMeansUnlimitedAndTurnsRunConcurrently()
     {
-        PromptService service = Service(maxConcurrent: 0);
-        TaskCompletionSource hold = HoldModel();
+        PromptService service = makeService(maxConcurrent: 0);
+        TaskCompletionSource hold = holdModel();
         Task<PromptOutcome> first = service.PromptAsync(UserId, "one", null);
         Task<PromptOutcome> second = service.PromptAsync(UserId + 1, "two", null);
         // Both calls reach the model while neither has answered — nothing was gated out.

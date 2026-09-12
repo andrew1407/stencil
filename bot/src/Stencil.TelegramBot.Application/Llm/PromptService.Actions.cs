@@ -9,7 +9,7 @@ public sealed partial class PromptService
     // Dispatch through the OpRegistry entry that carries the op's bullet, so nothing executes an op
     // the prompt never listed. §2.1/§10 misses are per-ACTION notes, never plan failures; an
     // unregistered op is a no-op.
-    private Task ApplyActionAsync(ActionContext ctx, PlanAction action, CancellationToken ct) =>
+    private Task applyActionAsync(ActionContext ctx, PlanAction action, CancellationToken ct) =>
         OpRegistry.HandlerFor(action.Op) is OpHandler handler
             ? handler(this, action, ctx, ct)
             : Task.CompletedTask;
@@ -22,18 +22,18 @@ public sealed partial class PromptService
 
     internal async Task ApplyRotateAsync(ActionContext ctx, RotateAction rotate, CancellationToken ct)
     {
-        ctx.Mapper.RecordRotate(Turns(rotate));
-        await _editing.RotateAsync(ctx.UserId, Turns(rotate), ct);
+        ctx.Mapper.RecordRotate(turns(rotate));
+        await _editing.RotateAsync(ctx.UserId, turns(rotate), ct);
     }
 
     internal Task ApplyFilterAsync(ActionContext ctx, FilterAction filter, CancellationToken ct) =>
-        _editing.SetFilterAsync(ctx.UserId, FilterValue(filter), ct);
+        _editing.SetFilterAsync(ctx.UserId, filterValue(filter), ct);
 
     internal async Task ApplyLayoutAsync(ActionContext ctx, LayoutAction layout, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(ctx.UserId, ct);
         LayoutAction remapped = new(ctx.Mapper.MapLines(layout.Lines));
-        await _editing.ApplyLayoutAsync(ctx.UserId, BuildLayout(remapped, session), ct: ct);
+        await _editing.ApplyLayoutAsync(ctx.UserId, buildLayout(remapped, session), ct: ct);
     }
 
     internal Task ApplyPageAsync(ActionContext ctx, PageAction page, CancellationToken ct) =>
@@ -54,7 +54,7 @@ public sealed partial class PromptService
         {
             await _editing.BlankAsync(ctx.UserId, new BlankSpec(null, null, blank.Color, blank.Format), ct);
         }
-        await ResetMapperAsync(ctx.UserId, ctx.Mapper, ct);
+        await resetMapperAsync(ctx.UserId, ctx.Mapper, ct);
     }
 
     // Every frame but the last is rendered right away; the last stays current for the main render.
@@ -69,13 +69,13 @@ public sealed partial class PromptService
                 ctx.Renders.Add(new PromptRender($"frame {frame.Indices[i]}", result));
             }
         }
-        await ResetMapperAsync(ctx.UserId, ctx.Mapper, ct);
+        await resetMapperAsync(ctx.UserId, ctx.Mapper, ct);
     }
 
     internal async Task ApplyResetAsync(ActionContext ctx, CancellationToken ct)
     {
         await _editing.ResetEditsAsync(ctx.UserId, ct);
-        await ReseedMapperAsync(ctx.UserId, ctx.Mapper, ct);
+        await reseedMapperAsync(ctx.UserId, ctx.Mapper, ct);
     }
 
     // enabled:false clears BOTH axes (the bot has no kept-but-disabled state); enabled:true is a

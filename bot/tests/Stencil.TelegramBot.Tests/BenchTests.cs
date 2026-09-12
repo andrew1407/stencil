@@ -23,7 +23,7 @@ public sealed class BenchTests
     public BenchTests(ITestOutputHelper output) => _output = output;
 
     /// <summary>Best-of-<see cref="Reps"/> µs per invocation, after a warm-up pass.</summary>
-    private double Micros(string label, int iterations, Action body)
+    private double micros(string label, int iterations, Action body)
     {
         for (int i = 0; i < Math.Min(iterations, 200); i++)
         {
@@ -45,7 +45,7 @@ public sealed class BenchTests
     }
 
     /// <summary>Report a ratio, then hold its ceiling — the assertion every test here makes.</summary>
-    private void Ratio(string label, double slower, double faster, double ceiling)
+    private void assertRatio(string label, double slower, double faster, double ceiling)
     {
         double ratio = slower / faster;
         _output.WriteLine($"  {label}: ratio {ratio:F2}x (ceiling {ceiling}x)");
@@ -57,33 +57,33 @@ public sealed class BenchTests
     public void ValidateActionWalksTheLayoutItIsGivenOnce()
     {
         OpSchema schema = OpSchema.Bot;
-        (JsonElement Action, OpEntry Entry) small = Action(schema, Layout(lines: 40, points: 20));
-        (JsonElement Action, OpEntry Entry) wide = Action(schema, Layout(lines: 80, points: 20));
-        (JsonElement Action, OpEntry Entry) deep = Action(schema, Layout(lines: 40, points: 40));
+        (JsonElement Action, OpEntry Entry) small = action(schema, layout(lines: 40, points: 20));
+        (JsonElement Action, OpEntry Entry) wide = action(schema, layout(lines: 80, points: 20));
+        (JsonElement Action, OpEntry Entry) deep = action(schema, layout(lines: 40, points: 40));
 
-        double baseline = Micros("ValidateAction layout 40x20", 500, () => Validate(schema, small));
-        double twiceTheLines = Micros("ValidateAction layout 80x20", 250, () => Validate(schema, wide));
-        double twiceThePoints = Micros("ValidateAction layout 40x40", 250, () => Validate(schema, deep));
+        double baseline = micros("ValidateAction layout 40x20", 500, () => validate(schema, small));
+        double twiceTheLines = micros("ValidateAction layout 80x20", 250, () => validate(schema, wide));
+        double twiceThePoints = micros("ValidateAction layout 40x40", 250, () => validate(schema, deep));
 
         // The walk is one pass over lines x points; 2x the work is ~2x the time either way.
-        Ratio("twice the lines", twiceTheLines, baseline, ceiling: 3.0);
-        Ratio("twice the points", twiceThePoints, baseline, ceiling: 3.0);
+        assertRatio("twice the lines", twiceTheLines, baseline, ceiling: 3.0);
+        assertRatio("twice the points", twiceThePoints, baseline, ceiling: 3.0);
     }
 
     [Fact]
     public void ValidateActionOfTheScalarOpsStaysInOneBand()
     {
         OpSchema schema = OpSchema.Bot;
-        (JsonElement, OpEntry) rotate = Action(schema, """{"op":"rotate","dir":"right"}""");
-        (JsonElement, OpEntry) crop = Action(schema,
+        (JsonElement, OpEntry) rotate = action(schema, """{"op":"rotate","dir":"right"}""");
+        (JsonElement, OpEntry) crop = action(schema,
             """{"op":"crop","spec":{"x1":"10%","x2":"-10%","y1":"0","y2":"90px","aspect":"4:3"}}""");
 
-        double cheapest = Micros("ValidateAction rotate (1 key)", 50_000, () => Validate(schema, rotate));
-        double dearest = Micros("ValidateAction crop (5 sub-keys)", 50_000, () => Validate(schema, crop));
+        double cheapest = micros("ValidateAction rotate (1 key)", 50_000, () => validate(schema, rotate));
+        double dearest = micros("ValidateAction crop (5 sub-keys)", 50_000, () => validate(schema, crop));
 
         // Both are fixed-key scalar ops, so the spread is the key count and nothing else: a
         // wider gap means a per-call cost crept in (a registry re-resolve, say).
-        Ratio("crop vs rotate", dearest, cheapest, ceiling: 10.0);
+        assertRatio("crop vs rotate", dearest, cheapest, ceiling: 10.0);
     }
 
     [Fact]
@@ -93,30 +93,30 @@ public sealed class BenchTests
         string[] half = [.. all.Take(all.Length / 2)];
         int index = 0;
 
-        double whole = Micros($"OpPlanParser.Parse ({all.Length} cases)", all.Length * 4,
+        double whole = micros($"OpPlanParser.Parse ({all.Length} cases)", all.Length * 4,
             () => OpPlanParser.Parse(all[index++ % all.Length]));
         index = 0;
-        double part = Micros($"OpPlanParser.Parse ({half.Length} cases)", half.Length * 4,
+        double part = micros($"OpPlanParser.Parse ({half.Length} cases)", half.Length * 4,
             () => OpPlanParser.Parse(half[index++ % half.Length]));
 
         // Per-case cost, not per-corpus: halving the corpus must not change µs/op much.
-        Ratio("whole vs half corpus", Math.Max(whole, part), Math.Min(whole, part), ceiling: 2.5);
+        assertRatio("whole vs half corpus", Math.Max(whole, part), Math.Min(whole, part), ceiling: 2.5);
     }
 
     [Fact]
     public void CropSpecResolutionIsLinearInSpecLength()
     {
         // Repeated keys are legal (the last wins), so this grows the tokenizer's input honestly.
-        string shortSpec = Repeat("x1=10% x2=90% y1=10% y2=90% ", 5);
-        string longSpec = Repeat("x1=10% x2=90% y1=10% y2=90% ", 40);
+        string shortSpec = repeat("x1=10% x2=90% y1=10% y2=90% ", 5);
+        string longSpec = repeat("x1=10% x2=90% y1=10% y2=90% ", 40);
 
-        double small = Micros("CropSpecResolver.Resolve (20 tokens)", 20_000,
+        double small = micros("CropSpecResolver.Resolve (20 tokens)", 20_000,
             () => CropSpecResolver.Resolve(shortSpec, 4000, 3000, album: false));
-        double large = Micros("CropSpecResolver.Resolve (160 tokens)", 5_000,
+        double large = micros("CropSpecResolver.Resolve (160 tokens)", 5_000,
             () => CropSpecResolver.Resolve(longSpec, 4000, 3000, album: false));
 
         // 8x the input: linear is 8x, so 16x catches a quadratic tokenizer (string concat).
-        Ratio("8x the spec length", large, small, ceiling: 16.0);
+        assertRatio("8x the spec length", large, small, ceiling: 16.0);
     }
 
     [Fact]
@@ -125,13 +125,13 @@ public sealed class BenchTests
         const string valid = "x1=10% x2=90% y1=10% y2=90%";
         const string malformed = "x1=10% x2=!!!!% y1=10% y2=90%";
 
-        double accepted = Micros("CropSpecResolver.Resolve (valid)", 50_000,
+        double accepted = micros("CropSpecResolver.Resolve (valid)", 50_000,
             () => CropSpecResolver.Resolve(valid, 4000, 3000, album: false));
-        double rejected = Micros("CropSpecResolver.Resolve (malformed)", 50_000,
+        double rejected = micros("CropSpecResolver.Resolve (malformed)", 50_000,
             () => CropSpecResolver.Resolve(malformed, 4000, 3000, album: false));
 
         // The reject path returns null; this is what fails if it ever throws instead.
-        Ratio("malformed vs valid", rejected, accepted, ceiling: 3.0);
+        assertRatio("malformed vs valid", rejected, accepted, ceiling: 3.0);
     }
 
     [Fact]
@@ -144,30 +144,30 @@ public sealed class BenchTests
             ImageDimensionReaderTests.Jpeg(3000, 2000),
             ImageDimensionReaderTests.WebpLossy(800, 600),
         ];
-        byte[][] padded = [.. headers.Select(h => Pad(h, 256 * 1024))];
+        byte[][] padded = [.. headers.Select(h => pad(h, 256 * 1024))];
         int index = 0;
 
-        double bare = Micros("ImageDimensionReader.TryRead (header only)", 200_000,
+        double bare = micros("ImageDimensionReader.TryRead (header only)", 200_000,
             () => ImageDimensionReader.TryRead(headers[index++ % headers.Length], out _, out _));
         index = 0;
-        double withBody = Micros("ImageDimensionReader.TryRead (+256 KiB body)", 200_000,
+        double withBody = micros("ImageDimensionReader.TryRead (+256 KiB body)", 200_000,
             () => ImageDimensionReader.TryRead(padded[index++ % padded.Length], out _, out _));
 
         // The reader's whole point: 256 KiB of untouched body must cost the same as none, so a
         // scan of it would show up here as hundreds of x.
-        Ratio("256 KiB body vs none", withBody, bare, ceiling: 3.0);
+        assertRatio("256 KiB body vs none", withBody, bare, ceiling: 3.0);
     }
 
-    private static void Validate(OpSchema schema, (JsonElement Action, OpEntry Entry) pair) =>
+    private static void validate(OpSchema schema, (JsonElement Action, OpEntry Entry) pair) =>
         schema.ValidateAction(pair.Action, pair.Entry);
 
-    private static (JsonElement, OpEntry) Action(OpSchema schema, string json)
+    private static (JsonElement, OpEntry) action(OpSchema schema, string json)
     {
         JsonElement element = JsonDocument.Parse(json).RootElement;
         return (element, schema.Ops[element.GetProperty("op").GetString()!]);
     }
 
-    private static string Layout(int lines, int points)
+    private static string layout(int lines, int points)
     {
         StringBuilder sb = new("""{"op":"layout","lines":[""");
         for (int line = 0; line < lines; line++)
@@ -182,7 +182,7 @@ public sealed class BenchTests
         return sb.Append("]}").ToString();
     }
 
-    private static string Repeat(string token, int times)
+    private static string repeat(string token, int times)
     {
         StringBuilder sb = new(token.Length * times);
         for (int i = 0; i < times; i++)
@@ -192,7 +192,7 @@ public sealed class BenchTests
         return sb.ToString().TrimEnd();
     }
 
-    private static byte[] Pad(byte[] header, int total)
+    private static byte[] pad(byte[] header, int total)
     {
         byte[] padded = new byte[Math.Max(total, header.Length)];
         header.CopyTo(padded, 0);

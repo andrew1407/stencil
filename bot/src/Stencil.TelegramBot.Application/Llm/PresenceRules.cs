@@ -26,7 +26,7 @@ internal static class PresenceRules
             }
         }
         List<string> declared = fields.EnumerateObject().Select(static f => f.Name).ToList();
-        CheckGroups(obj, holder, declared);
+        checkGroups(obj, holder, declared);
         foreach (JsonProperty field in fields.EnumerateObject())
         {
             string k = field.Name;
@@ -34,7 +34,7 @@ internal static class PresenceRules
             SchemaPath at = Child(path, k);
             if (!IsPresent(obj, k))
             {
-                CheckMissing(obj, spec, at);
+                checkMissing(obj, spec, at);
                 continue;
             }
             if (spec.TryGetProperty("onlyWith", out JsonElement ow))
@@ -51,7 +51,7 @@ internal static class PresenceRules
         }
     }
 
-    private static void CheckGroups(JsonElement obj, JsonElement holder, List<string> declared)
+    private static void checkGroups(JsonElement obj, JsonElement holder, List<string> declared)
     {
         if (holder.TryGetProperty("forms", out JsonElement forms))
         {
@@ -97,7 +97,7 @@ internal static class PresenceRules
         }
     }
 
-    private static void CheckMissing(JsonElement obj, JsonElement spec, SchemaPath at)
+    private static void checkMissing(JsonElement obj, JsonElement spec, SchemaPath at)
     {
         if (Flag(spec, "required"))
         {

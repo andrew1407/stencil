@@ -5,7 +5,7 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 
 public sealed partial class CommandHandlers
 {
-    private async Task UndoAsync(long userId, long chatId, CancellationToken ct)
+    private async Task undoAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession before = await _store.GetAsync(userId, ct);
         if (!before.HasImage)
@@ -22,7 +22,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task RedoAsync(long userId, long chatId, CancellationToken ct)
+    private async Task redoAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession before = await _store.GetAsync(userId, ct);
         if (!before.HasImage)
@@ -39,7 +39,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task UndoLineAsync(long userId, long chatId, CancellationToken ct)
+    private async Task undoLineAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _editing.RemoveLastLineAsync(userId, ct);
         if (!session.HasImage)
@@ -50,7 +50,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task ClearLinesAsync(long userId, long chatId, CancellationToken ct)
+    private async Task clearLinesAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _editing.ClearLinesAsync(userId, ct);
         if (!session.HasImage)
@@ -61,7 +61,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task ResetAsync(long userId, long chatId, CancellationToken ct)
+    private async Task resetAsync(long userId, long chatId, CancellationToken ct)
     {
         await _editing.ResetEditsAsync(userId, ct);
         await RenderAndSendAsync(userId, chatId, ct);
@@ -69,7 +69,7 @@ public sealed partial class CommandHandlers
 
     // A full "start over": the assistant's conversation (which talks about that image) is forgotten
     // too.
-    private async Task DropAsync(long userId, long chatId, CancellationToken ct)
+    private async Task dropAsync(long userId, long chatId, CancellationToken ct)
     {
         await _editing.DropImageAsync(userId, ct);
         _prompts.ClearHistory(userId);
@@ -81,6 +81,6 @@ public sealed partial class CommandHandlers
     }
 
     // Non-mutating — never triggers auto-sync.
-    private Task ImageAsync(long userId, long chatId, CancellationToken ct) =>
+    private Task imageAsync(long userId, long chatId, CancellationToken ct) =>
         RenderAndSendAsync(userId, chatId, ct, mutating: false);
 }

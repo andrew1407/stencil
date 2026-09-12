@@ -43,14 +43,14 @@ public sealed class MediaIntake
             }
             catch
             {
-                TryDelete(path);
+                tryDelete(path);
                 throw;
             }
             await use(path);
         }
         finally
         {
-            TryDelete(path);
+            tryDelete(path);
         }
     }
 
@@ -66,7 +66,7 @@ public sealed class MediaIntake
     public Task AdoptVideoAsync(long userId, long chatId, string fileId, string extension, string label, string? caption, CancellationToken ct) =>
         WithDownloadedAsync(fileId, extension, async path =>
         {
-            (int frame, bool isFrameCaption) = ParseFrameCaption(caption);
+            (int frame, bool isFrameCaption) = parseFrameCaption(caption);
             await _editing.SetImageFromVideoAsync(userId, path, frame, label, ct);
             if (isFrameCaption)
             {
@@ -114,7 +114,7 @@ public sealed class MediaIntake
     public static bool HasCaptionCommand(string? caption) =>
         caption is not null && caption.TrimStart().StartsWith('/');
 
-    private static (int Frame, bool IsFrameCaption) ParseFrameCaption(string? caption)
+    private static (int Frame, bool IsFrameCaption) parseFrameCaption(string? caption)
     {
         if (!HasCaptionCommand(caption))
         {
@@ -147,7 +147,7 @@ public sealed class MediaIntake
         return bytes;
     }
 
-    private static void TryDelete(string path)
+    private static void tryDelete(string path)
     {
         try
         {

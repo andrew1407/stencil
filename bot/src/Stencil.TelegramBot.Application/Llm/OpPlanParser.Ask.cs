@@ -6,7 +6,7 @@ namespace Stencil.TelegramBot.Application.Llm;
 public static partial class OpPlanParser
 {
     // §11: the registry's ask schema; a card nobody can answer rejects the whole plan.
-    private static AskCard? ParseAsk(JsonElement root, List<string> warnings)
+    private static AskCard? parseAsk(JsonElement root, List<string> warnings)
     {
         if (!root.TryGetProperty("ask", out JsonElement ask) || ask.ValueKind == JsonValueKind.Null)
         {
@@ -14,10 +14,10 @@ public static partial class OpPlanParser
         }
         Schema.ValidateAsk(ask);
         JsonElement keys = Schema.AskKeys;
-        string question = OptionalString(ask, keys, "question")!;
-        bool multi = OptionalString(ask, keys, "mode") == "multi";
-        bool allowCustom = OptionalBool(ask, "allowCustom") ?? false;
-        string customLabel = OptionalString(ask, keys, "customLabel") ?? DefaultCustomLabel;
+        string question = optionalString(ask, keys, "question")!;
+        bool multi = optionalString(ask, keys, "mode") == "multi";
+        bool allowCustom = optionalBool(ask, "allowCustom") ?? false;
+        string customLabel = optionalString(ask, keys, "customLabel") ?? DefaultCustomLabel;
         JsonElement optionKeys = keys.GetProperty("options").GetProperty("items").GetProperty("fields");
 
         List<AskOption> options = new();
@@ -26,23 +26,23 @@ public static partial class OpPlanParser
         foreach (JsonElement optionElement in ask.GetProperty("options").EnumerateArray())
         {
             index++;
-            string label = OptionalString(optionElement, optionKeys, "label")!;
-            if (HasField(optionElement, "image"))
+            string label = optionalString(optionElement, optionKeys, "label")!;
+            if (hasField(optionElement, "image"))
             {
-                NoteAskImage(optionElement.GetProperty("image"), index, warnings);
+                noteAskImage(optionElement.GetProperty("image"), index, warnings);
             }
-            if (HasField(optionElement, "actions"))
+            if (hasField(optionElement, "actions"))
             {
                 // §1: a preview with a top-level-only or settings op loses the PREVIEW; the option
                 // and the plan stand.
                 try
                 {
-                    ParseActionList(optionElement, "actions", new List<string>(), inVariant: true);
+                    parseActionList(optionElement, "actions", new List<string>(), inVariant: true);
                     droppedPreview = true;
                 }
                 catch (MisplacedOpException ex)
                 {
-                    warnings.Add($"Dropped the preview for option {index}{Named(label)} — {ex.Message} and can't ride inside an ask option's preview.");
+                    warnings.Add($"Dropped the preview for option {index}{named(label)} — {ex.Message} and can't ride inside an ask option's preview.");
                 }
             }
             options.Add(new AskOption(label));
@@ -55,11 +55,11 @@ public static partial class OpPlanParser
     }
 
     // §11.2: no image resolves here — a url would have Telegram fetch a host nobody chose.
-    private static void NoteAskImage(JsonElement image, int index, List<string> warnings)
+    private static void noteAskImage(JsonElement image, int index, List<string> warnings)
     {
-        warnings.Add(HasField(image, "scanIndex")
+        warnings.Add(hasField(image, "scanIndex")
             ? $"ask option {index} names a page-scan image, which this chat has no access to"
-            : HasField(image, "projectId")
+            : hasField(image, "projectId")
                 ? $"ask option {index} names a stored project, which this chat can't preview"
                 : $"ask option {index} names an image URL, which this chat does not fetch — the option is shown without a preview");
     }

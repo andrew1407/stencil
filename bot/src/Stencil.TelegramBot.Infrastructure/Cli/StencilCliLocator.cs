@@ -35,13 +35,13 @@ public static class StencilCliLocator
                 UnavailableMessage, $"STENCIL_CLI is set to '{envOverride}', which is not a file");
         }
 
-        string? inRepo = FindInRepo();
+        string? inRepo = findInRepo();
         if (inRepo is not null)
         {
             return inRepo;
         }
 
-        string? onPath = FindOnPath();
+        string? onPath = findOnPath();
         if (onPath is not null)
         {
             return onPath;
@@ -52,9 +52,9 @@ public static class StencilCliLocator
 
     public static string? RepoRoot()
     {
-        foreach (string start in StartDirs())
+        foreach (string start in startDirs())
         {
-            string? root = RepoRootFrom(start);
+            string? root = repoRootFrom(start);
             if (root is not null)
             {
                 return root;
@@ -63,7 +63,7 @@ public static class StencilCliLocator
         return null;
     }
 
-    private static IEnumerable<string> StartDirs()
+    private static IEnumerable<string> startDirs()
     {
         List<string> starts = new();
         string cwd = Directory.GetCurrentDirectory();
@@ -79,11 +79,11 @@ public static class StencilCliLocator
         return starts;
     }
 
-    private static string? FindInRepo()
+    private static string? findInRepo()
     {
-        foreach (string start in StartDirs())
+        foreach (string start in startDirs())
         {
-            string? root = RepoRootFrom(start);
+            string? root = repoRootFrom(start);
             if (root is null)
             {
                 continue;
@@ -97,7 +97,7 @@ public static class StencilCliLocator
         return null;
     }
 
-    private static string? RepoRootFrom(string start)
+    private static string? repoRootFrom(string start)
     {
         DirectoryInfo? dir = new(start);
         while (dir is not null)
@@ -112,7 +112,7 @@ public static class StencilCliLocator
         return null;
     }
 
-    private static string? FindOnPath()
+    private static string? findOnPath()
     {
         string? path = Environment.GetEnvironmentVariable("PATH");
         if (path is null)

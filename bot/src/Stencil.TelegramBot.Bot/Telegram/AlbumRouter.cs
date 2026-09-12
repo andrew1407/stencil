@@ -32,19 +32,19 @@ public sealed class AlbumRouter
     public void Buffer(long userId, long chatId, string groupId, Message message, PhotoSize[] album, CancellationToken ct) =>
         _albums.Add(userId, groupId,
             new AlbumPhoto(message.Id, album[^1].FileId, message.Caption),
-            photos => FlushAsync(userId, chatId, photos, ct), ct);
+            photos => flushAsync(userId, chatId, photos, ct), ct);
 
-    private Task FlushAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct) =>
+    private Task flushAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct) =>
         _guard.RunAsync(chatId, async () =>
         {
             using IDisposable gate = await _gate.AcquireAsync(userId, ct);
-            await ProcessAsync(userId, chatId, photos, ct);
+            await processAsync(userId, chatId, photos, ct);
         }, ct);
 
     // With a caption: adopt + run it once per photo in album order, buffered so the batch replies
     // as ONE media group. With no caption only the last photo is adopted — captionless members are
     // never individually echoed.
-    private async Task ProcessAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct)
+    private async Task processAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct)
     {
         List<AlbumPhoto> ordered = photos.OrderBy(p => p.MessageId).ToList();
         await MessageRouter.ClearPendingInputAsync(_store, userId, ct);

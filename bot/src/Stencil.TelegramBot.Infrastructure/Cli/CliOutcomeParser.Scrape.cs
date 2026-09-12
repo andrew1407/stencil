@@ -11,7 +11,7 @@ public static partial class CliOutcomeParser
     {
         List<ScrapedFile> files = new();
         string directory = "";
-        foreach (string rawLine in SplitLines(stderr))
+        foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
             if (line.StartsWith(PrefixWrote, StringComparison.Ordinal))
@@ -31,8 +31,8 @@ public static partial class CliOutcomeParser
                     tail = tail[..^1];
                 }
                 // Only a leading WxH token is dims; a video line leads with "source …" → null.
-                string? token = FirstWhitespaceToken(tail);
-                if (token is not null && TryParseWxH(token, out int width, out int height))
+                string? token = firstWhitespaceToken(tail);
+                if (token is not null && tryParseWxH(token, out int width, out int height))
                 {
                     files.Add(new ScrapedFile(path, width, height));
                 }

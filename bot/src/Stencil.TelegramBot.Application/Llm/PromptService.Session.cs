@@ -8,11 +8,11 @@ public sealed partial class PromptService
 {
     internal Task StepHistoryAsync(ActionContext ctx, PlanAction action, CancellationToken ct) =>
         action is RedoAction redo
-            ? StepHistoryAsync(ctx, redo.Steps, redo: true, ct)
-            : StepHistoryAsync(ctx, ((UndoAction)action).Steps, redo: false, ct);
+            ? stepHistoryByAsync(ctx, redo.Steps, redo: true, ct)
+            : stepHistoryByAsync(ctx, ((UndoAction)action).Steps, redo: false, ct);
 
     // Running out of history is a note, never a failed plan.
-    private async Task StepHistoryAsync(ActionContext ctx, int steps, bool redo, CancellationToken ct)
+    private async Task stepHistoryByAsync(ActionContext ctx, int steps, bool redo, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(ctx.UserId, ct);
         string verb = redo ? "redo" : "undo";
@@ -34,7 +34,7 @@ public sealed partial class PromptService
                 : $"{char.ToUpperInvariant(verb[0])}{verb[1..]} stopped after {available} step(s) — no more history.");
         }
         // The visible frame may have changed (a crop/rotate stepped away) — reseed the mapper.
-        await ReseedMapperAsync(ctx.UserId, ctx.Mapper, ct);
+        await reseedMapperAsync(ctx.UserId, ctx.Mapper, ct);
     }
 
     // A prompt turn carries exactly ONE image: index 1 drops the edits so far; a higher index is a
@@ -53,7 +53,7 @@ public sealed partial class PromptService
             return;
         }
         await _editing.ResetEditsAsync(ctx.UserId, ct);
-        await ResetMapperAsync(ctx.UserId, ctx.Mapper, ct);
+        await resetMapperAsync(ctx.UserId, ctx.Mapper, ct);
     }
 
     // Through the ACTIVE server project (/save), renamed first when named; any failure is a

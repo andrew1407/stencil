@@ -56,7 +56,7 @@ public sealed class LlmAttachmentLoader
         {
             return cached.Image;
         }
-        LlmImage? image = await BuildAsync(path, mediaType, length, ct);
+        LlmImage? image = await buildAsync(path, mediaType, length, ct);
         if (image is null)
         {
             return null;   // too large to send as-is; not cached, so a retry re-tries the scaler
@@ -69,9 +69,9 @@ public sealed class LlmAttachmentLoader
         return image;
     }
 
-    private async Task<LlmImage?> BuildAsync(string path, string mediaType, long length, CancellationToken ct)
+    private async Task<LlmImage?> buildAsync(string path, string mediaType, long length, CancellationToken ct)
     {
-        byte[] prefix = await ReadPrefixAsync(path, (int)Math.Min(length, SniffPrefixBytes), ct);
+        byte[] prefix = await readPrefixAsync(path, (int)Math.Min(length, SniffPrefixBytes), ct);
         if (ImageDimensionReader.TryRead(prefix, out int width, out int height)
             && Math.Max(width, height) <= LlmImage.MaxLongEdgePixels)
         {
@@ -95,7 +95,7 @@ public sealed class LlmAttachmentLoader
         return new LlmImage(mediaType, Convert.ToBase64String(await File.ReadAllBytesAsync(path, ct)));
     }
 
-    private static async Task<byte[]> ReadPrefixAsync(string path, int count, CancellationToken ct)
+    private static async Task<byte[]> readPrefixAsync(string path, int count, CancellationToken ct)
     {
         await using FileStream stream = File.OpenRead(path);
         byte[] buffer = new byte[count];

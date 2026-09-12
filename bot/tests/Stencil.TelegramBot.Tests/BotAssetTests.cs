@@ -16,7 +16,7 @@ public sealed class BotAssetTests
     private const string ReadmeOpen = "<!-- generated from src/Stencil.TelegramBot.Bot/Assets/botCommands.json";
     private const string ReadmeClose = "<!-- /generated -->";
 
-    private static JsonElement Asset(string name) =>
+    private static JsonElement readAsset(string name) =>
         JsonDocument.Parse(File.ReadAllText(SharedFixtures.PathOf(
             "bot", "src", "Stencil.TelegramBot.Bot", "Assets", name))).RootElement;
 
@@ -68,7 +68,7 @@ public sealed class BotAssetTests
     [Fact]
     public void EveryButtonFitsTelegramsCallbackLimit()
     {
-        foreach (JsonProperty button in Asset("botStrings.json").GetProperty("buttons").EnumerateObject())
+        foreach (JsonProperty button in readAsset("botStrings.json").GetProperty("buttons").EnumerateObject())
         {
             string label = button.Value[0].GetString()!;
             string token = button.Value[1].GetString()!;
@@ -86,7 +86,7 @@ public sealed class BotAssetTests
     [Fact]
     public void EveryCommandIsDocumentedOrListedAsUndocumented()
     {
-        JsonElement readme = Asset("botCommands.json").GetProperty("readme");
+        JsonElement readme = readAsset("botCommands.json").GetProperty("readme");
         HashSet<string> documented = readme.GetProperty("tables").EnumerateArray()
             .SelectMany(t => t.GetProperty("rows").EnumerateArray())
             .SelectMany(r => r.GetProperty("verbs").EnumerateArray())
@@ -112,7 +112,7 @@ public sealed class BotAssetTests
     public void TheReadmeCommandTablesMatchTheAsset()
     {
         StringBuilder sb = new();
-        foreach (JsonElement table in Asset("botCommands.json").GetProperty("readme").GetProperty("tables").EnumerateArray())
+        foreach (JsonElement table in readAsset("botCommands.json").GetProperty("readme").GetProperty("tables").EnumerateArray())
         {
             if (sb.Length != 0)
             {

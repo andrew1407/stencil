@@ -7,7 +7,7 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 
 public sealed partial class CommandHandlers
 {
-    private async Task ProjectsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task projectsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string? url = cmd.Args.Count == 0 ? null : cmd.Args[0];
         IReadOnlyList<ServerProjectInfo> projects = await _servers.ListProjectsAsync(userId, url, ct);
@@ -23,7 +23,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private async Task FetchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task fetchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length == 0)
         {
@@ -39,7 +39,7 @@ public sealed partial class CommandHandlers
         UserSession session = await _servers.FetchAsync(userId, cmd.ArgumentText, null, ct);
         // §12: with chat saving on, a fetched project brings its persisted chat back (never a model
         // call).
-        int restored = await TryRestoreChatAsync(userId, session, ct);
+        int restored = await tryRestoreChatAsync(userId, session, ct);
         string loaded = Replies.Tag(Replies.Tone.Success, $"Loaded project '{session.ActiveProjectName}'.");
         if (restored > 0)
         {
@@ -49,7 +49,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct, mutating: false);
     }
 
-    private async Task CreateAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task createAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string? name = cmd.ArgumentText.Length == 0 ? null : cmd.ArgumentText;
         ProjectRecord record = await _servers.CreateProjectAsync(userId, name, null, ct);
@@ -60,7 +60,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private async Task SaveAsync(long userId, long chatId, CancellationToken ct)
+    private async Task saveAsync(long userId, long chatId, CancellationToken ct)
     {
         ProjectRecord record = await _servers.SaveActiveProjectAsync(userId, ct);
         await _bot.SendMessage(
@@ -69,7 +69,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private async Task SyncAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    private async Task syncAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         bool target = cmd.Args.Count == 0

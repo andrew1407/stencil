@@ -10,13 +10,13 @@ internal static class NativeRules
 {
     public static JsonElement Run(string rule, JsonElement a) => rule switch
     {
-        "cropAspectFold" => CropAspectFold(a),
+        "cropAspectFold" => cropAspectFold(a),
         _ => throw new InvalidOperationException($"opRegistry: unknown native rule \"{rule}\""),
     };
 
     // §3.2 tolerance: "aspect" beside "spec" folds into the spec when it lacks one; a conflicting
     // duplicate fails.
-    private static JsonElement CropAspectFold(JsonElement a)
+    private static JsonElement cropAspectFold(JsonElement a)
     {
         if (!IsPresent(a, "aspect") || !a.TryGetProperty("spec", out JsonElement spec) || spec.ValueKind != JsonValueKind.Object)
         {

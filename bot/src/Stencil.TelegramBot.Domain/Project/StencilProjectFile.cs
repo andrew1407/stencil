@@ -25,7 +25,7 @@ public static class StencilProjectFile
     public const string Format = "stencil-project";
     public const int Version = 1;
 
-    private static string MimeForExt(string ext) => ext.ToLowerInvariant() switch
+    private static string mimeForExt(string ext) => ext.ToLowerInvariant() switch
     {
         "png" => "image/png",
         "jpg" or "jpeg" => "image/jpeg",
@@ -35,11 +35,11 @@ public static class StencilProjectFile
         _ => "application/octet-stream",
     };
 
-    private static Dictionary<string, object?> BuildRoot(StencilProject project)
+    private static Dictionary<string, object?> buildRoot(StencilProject project)
     {
         var image = new Dictionary<string, object?>
         {
-            ["dataUrl"] = $"data:{MimeForExt(project.ImageExt)};base64,{Convert.ToBase64String(project.ImageBytes)}",
+            ["dataUrl"] = $"data:{mimeForExt(project.ImageExt)};base64,{Convert.ToBase64String(project.ImageBytes)}",
             ["ext"] = project.ImageExt,
             ["w"] = project.ImageWidth,
             ["h"] = project.ImageHeight,
@@ -65,10 +65,10 @@ public static class StencilProjectFile
     }
 
     public static string Build(StencilProject project) =>
-        JsonSerializer.Serialize(BuildRoot(project), StencilJson.Indented);
+        JsonSerializer.Serialize(buildRoot(project), StencilJson.Indented);
 
     public static byte[] BuildUtf8(StencilProject project) =>
-        JsonSerializer.SerializeToUtf8Bytes(BuildRoot(project), StencilJson.Indented);
+        JsonSerializer.SerializeToUtf8Bytes(buildRoot(project), StencilJson.Indented);
 
     public static StencilProject? Parse(byte[] bytes)
     {
@@ -90,15 +90,15 @@ public static class StencilProjectFile
 
             return new StencilProject
             {
-                Name = GetString(root, "name") ?? "Untitled",
-                Color = GetString(root, "color"),
-                Keywords = GetStringList(root, "keywords"),
-                Source = GetString(root, "source"),
-                Resource = GetString(root, "resource"),
+                Name = getString(root, "name") ?? "Untitled",
+                Color = getString(root, "color"),
+                Keywords = getStringList(root, "keywords"),
+                Source = getString(root, "source"),
+                Resource = getString(root, "resource"),
                 Blank = root.TryGetProperty("blank", out JsonElement bl) && bl.ValueKind == JsonValueKind.True,
-                BlankColor = GetString(root, "blankColor"),
+                BlankColor = getString(root, "blankColor"),
                 ImageBytes = imageBytes,
-                ImageExt = GetString(img, "ext") ?? "png",
+                ImageExt = getString(img, "ext") ?? "png",
                 ImageWidth = img.TryGetProperty("w", out JsonElement w) && w.TryGetInt32(out int wi) ? wi : 0,
                 ImageHeight = img.TryGetProperty("h", out JsonElement h) && h.TryGetInt32(out int hi) ? hi : 0,
                 Layout = root.TryGetProperty("layout", out JsonElement lay) ? lay.Clone() : null,
@@ -110,10 +110,10 @@ public static class StencilProjectFile
         }
     }
 
-    private static string? GetString(JsonElement obj, string key) =>
+    private static string? getString(JsonElement obj, string key) =>
         obj.TryGetProperty(key, out JsonElement v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    private static IReadOnlyList<string> GetStringList(JsonElement obj, string key)
+    private static IReadOnlyList<string> getStringList(JsonElement obj, string key)
     {
         if (!obj.TryGetProperty(key, out JsonElement arr) || arr.ValueKind != JsonValueKind.Array) return [];
         var list = new List<string>();

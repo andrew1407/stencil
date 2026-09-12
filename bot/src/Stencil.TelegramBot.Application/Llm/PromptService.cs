@@ -88,7 +88,7 @@ public sealed partial class PromptService
 
     // A /chatapi profile since removed falls back to the operator's own rather than failing the
     // turn.
-    private LlmOptions OptionsFor(UserSession session) =>
+    private LlmOptions optionsFor(UserSession session) =>
         session.LlmProfile is not string name
             ? _options
             : _profiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))?.Options
@@ -107,7 +107,7 @@ public sealed partial class PromptService
         }
         try
         {
-            return await GatedPromptAsync(userId, text, image, ct);
+            return await gatedPromptAsync(userId, text, image, ct);
         }
         finally
         {
@@ -115,19 +115,19 @@ public sealed partial class PromptService
         }
     }
 
-    private async Task<PromptOutcome> GatedPromptAsync(long userId, string text, LlmImage? image, CancellationToken ct)
+    private async Task<PromptOutcome> gatedPromptAsync(long userId, string text, LlmImage? image, CancellationToken ct)
     {
-        (PromptOutcome outcome, OpPlan? plan) = await RoundAsync(userId, text, image, ct);
+        (PromptOutcome outcome, OpPlan? plan) = await roundAsync(userId, text, image, ct);
         // §7 auto-continuation: a plan that LOADED a picture planned blind, so re-send ONCE with
         // the fresh image, restating the request. A plan that drew a layout committed to its
         // coordinates and is not continued.
-        if (plan is null || !ContinuablePlan(plan)) return outcome;
-        LlmImage? fresh = await RenderForVisionAsync(userId, ct);
+        if (plan is null || !continuablePlan(plan)) return outcome;
+        LlmImage? fresh = await renderForVisionAsync(userId, ct);
         if (fresh is null) return outcome;
         // ChatDocument.ContinuationNote, so this writer and the §12.1 gate that refuses it can
         // never drift apart.
         string note = text + "\n\n" + ChatDocument.ContinuationNote;
-        (PromptOutcome next, _) = await RoundAsync(userId, note, fresh, ct);
+        (PromptOutcome next, _) = await roundAsync(userId, note, fresh, ct);
         return next with
         {
             Warnings = [.. outcome.Warnings, .. next.Warnings],
@@ -138,31 +138,31 @@ public sealed partial class PromptService
         };
     }
 
-    private async Task<(PromptOutcome Outcome, OpPlan? Plan)> RoundAsync(
+    private async Task<(PromptOutcome Outcome, OpPlan? Plan)> roundAsync(
         long userId, string text, LlmImage? image, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
-        LlmImage? edgeMap = await BuildEdgeMapAsync(userId, session, image, ct);
-        IReadOnlyList<ServerProjectInfo>? listings = await ListContextProjectsAsync(userId, session, ct);
+        LlmImage? edgeMap = await buildEdgeMapAsync(userId, session, image, ct);
+        IReadOnlyList<ServerProjectInfo>? listings = await listContextProjectsAsync(userId, session, ct);
         LlmChatRequest request = BuildTurn(userId, session, text, image, edgeMap, listings);
         LlmReply reply = await _llm.ChatAsync(request, ct);
         // Record the exchange first so even a bad plan keeps the conversation coherent.
-        RecordTurn(userId, text, image, reply.Text);
+        recordTurn(userId, text, image, reply.Text);
         OpPlanParseResult parsed = OpPlanParser.Parse(reply.Text);
         if (parsed.Plan is not OpPlan plan)
         {
             return (new PromptOutcome($"The AI answered with an invalid plan — {parsed.Error}. Nothing was changed.", parsed.Warnings, []), null);
         }
-        return (await ExecuteAsync(userId, plan, parsed.Warnings, ct), plan);
+        return (await executeAsync(userId, plan, parsed.Warnings, ct), plan);
     }
 
     // §7: the plan loaded pixels and drew no layout, so the model has yet to see what it produced.
-    private static bool ContinuablePlan(OpPlan plan) =>
+    private static bool continuablePlan(OpPlan plan) =>
         plan.Variants.Count == 0 && plan.Ask is null
         && plan.Actions.Any(a => a is BlankAction or FrameAction or OpenUrlAction)
         && !plan.Actions.Any(a => a is LayoutAction);
 
-    private async Task<LlmImage?> RenderForVisionAsync(long userId, CancellationToken ct)
+    private async Task<LlmImage?> renderForVisionAsync(long userId, CancellationToken ct)
     {
         if (_attachments is null) return null;
         try

@@ -71,7 +71,7 @@ public static class ProcessRunner
         {
             // Kill the whole tree so a child the process spawned doesn't keep fetching/writing
             // after we've given up.
-            KillTree(process);
+            killTree(process);
             if (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
             {
                 return new ProcessTimedOut();
@@ -80,7 +80,7 @@ public static class ProcessRunner
         }
     }
 
-    private static void KillTree(Process process)
+    private static void killTree(Process process)
     {
         try
         {
