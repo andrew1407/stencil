@@ -18,6 +18,7 @@ import {
   STROKE_POP_PEAK, STROKE_FLY_R0, STROKE_RIPPLE_MS, STROKE_RIPPLE_REACH, STROKE_WAKE_ALPHA,
 } from '../js/ui/motion.js';
 import { StrokeFx } from '../js/core/strokeFx.js';
+import { recordingCtx, argsOf, indexOf } from './helpers/recordingCtx.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const drawingAppJs = read('../js/core/drawingApp.js');
@@ -282,48 +283,26 @@ test('a restored or wiped set of lines grounds every flight', () => {
   assert.equal(h.fx.pointsOf(line), line.points);
 });
 
-// A ctx that records the calls that carry geometry, and a StrokeFx stand-in whose flown
-// positions and vertex scale differ from the resting ones — so a geometry pass that read
-// line.points, or a radius that skipped scaleAt, shows up in the recording.
-const recordingCtx = () => {
-  const calls = [];
-  const ctx = new Proxy({ canvas: { width: 10, height: 10 } }, {
-    get: (t, k) => (k in t ? t[k] : (...args) => { calls.push([k, ...args]); }),
-    set: (t, k, v) => { t[k] = v; calls.push(['set:' + String(k), v]); return true; },
-  });
-  return { ctx, calls };
-};
-const flyingFx = (flown, scale) => ({
-  pointsOf: () => flown,
-  scaleAt: () => scale,
-  paintUnder: (...a) => a,
-  paintOver: (...a) => a,
-});
-
 test('the renderer draws the flown positions, at their flown size', async () => {
   const { Renderer } = await import('../js/core/renderer.js');
   const { ctx, calls } = recordingCtx();
   const line = lineOf([0, 0], [100, 0]);
   const flown = [{ x: 7, y: 8 }, { x: 40, y: 9 }];
-  const under = [], over = [];
-  const fx = flyingFx(flown, 3);
-  fx.paintUnder = (c, l, pts) => under.push([c, l, pts, calls.length]);
-  fx.paintOver = (c, l, pts) => over.push([c, l, pts, calls.length]);
-  const app = { ctx, strokeFx: fx, showPoints: true, pointSize: 4, listHoverLineIdx: -1 };
-  new Renderer(app).drawLine(line, false, 0);
-
-  const geom = calls.filter(([k]) => k === 'moveTo' || k === 'lineTo').map(([, x, y]) => ({ x, y }));
-  assert.ok(geom.length >= 2, 'the stroke pass ran');
-  for (const p of geom) assert.ok(flown.some((f) => f.x === p.x && f.y === p.y),
-    `drew (${p.x},${p.y}) — no geometry pass may read the resting array`);
-  const radii = calls.filter(([k]) => k === 'arc').map(([, , , r]) => r);
-  assert.deepEqual(radii, [12, 12], 'the vertex swells as it lands (pointSize x scaleAt)');
-
-  const strokeAt = calls.findIndex(([k]) => k === 'stroke');
-  assert.deepEqual(under.map((u) => [u[0], u[1], u[2]]), [[ctx, line, flown]], 'the wake, on the app ctx');
-  assert.deepEqual(over.map((o) => [o[0], o[1], o[2]]), [[ctx, line, flown]], 'the spark + ring too');
-  assert.ok(under[0][3] <= strokeAt, 'the wake goes under the stroke');
-  assert.ok(over[0][3] > strokeAt, 'the spark + ring over it');
+  const seen = [];
+  const at = (tag) => (c, l, pts) => seen.push([tag, c, l, pts, calls.length]);
+  const fx = { pointsOf: () => flown, scaleAt: () => 3, paintUnder: at('under'), paintOver: at('over') };
+  new Renderer({ ctx, strokeFx: fx, showPoints: true, pointSize: 4, listHoverLineIdx: -1 })
+    .drawLine(line, false, 0);
+  // A geometry pass that read the resting array, or a radius that skipped scaleAt, lands here.
+  const geom = [...argsOf(calls, 'moveTo'), ...argsOf(calls, 'lineTo')];
+  assert.equal(geom.length, line.points.length, 'one stroke pass, every vertex');
+  for (const [x, y] of geom) assert.ok(flown.some((f) => f.x === x && f.y === y),
+    `drew (${x},${y}) — no geometry pass may read the resting array`);
+  assert.deepEqual(argsOf(calls, 'arc').map((a) => a[2]), [12, 12], 'pointSize x scaleAt');
+  const stroke = indexOf(calls, 'stroke');
+  assert.deepEqual(seen.map(([tag, c, l, pts]) => [tag, c, l, pts]),
+    [['under', ctx, line, flown], ['over', ctx, line, flown]], 'both overlays, on the app ctx');
+  assert.ok(seen[0][4] <= stroke && seen[1][4] > stroke, 'the wake under the stroke, the spark over');
 });
 
 test('an export is the resting picture — never a vertex caught mid-air', () => {
