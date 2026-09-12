@@ -152,19 +152,21 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /auth/token", a.limitByIP(a.authRate, a.handleIssueToken))
 
 	guard := auth.Middleware(a.deps.Sessions)
-	protected := func(pattern string, h http.HandlerFunc) {
+	protected := map[string]http.HandlerFunc{
+		"GET /projects":                      a.handleListProjects,
+		"POST /projects":                     limitBySession(a.writeRate, a.handleCreateProject),
+		"GET /projects/{id}":                 a.handleGetProject,
+		"PUT /projects/{id}":                 a.handleUpdateProject,
+		"DELETE /projects/{id}":              a.handleDeleteProject,
+		"GET /projects/{id}/files/{kind}":    a.handleGetFile,
+		"POST /projects/{id}/files/{kind}":   limitBySession(a.writeRate, a.handlePutFile),
+		"DELETE /projects/{id}/files/{kind}": a.handleDeleteFile,
+		"GET /llm/info":                      a.handleLLMInfo,
+		"POST /llm/chat":                     a.handleLLMChat,
+	}
+	for pattern, h := range protected {
 		mux.Handle(pattern, guard(h))
 	}
-	protected("GET /projects", a.handleListProjects)
-	protected("POST /projects", limitBySession(a.writeRate, a.handleCreateProject))
-	protected("GET /projects/{id}", a.handleGetProject)
-	protected("PUT /projects/{id}", a.handleUpdateProject)
-	protected("DELETE /projects/{id}", a.handleDeleteProject)
-	protected("GET /projects/{id}/files/{kind}", a.handleGetFile)
-	protected("POST /projects/{id}/files/{kind}", limitBySession(a.writeRate, a.handlePutFile))
-	protected("DELETE /projects/{id}/files/{kind}", a.handleDeleteFile)
-	protected("GET /llm/info", a.handleLLMInfo)
-	protected("POST /llm/chat", a.handleLLMChat)
 }
 
 func (a *API) Handler() *http.ServeMux {
