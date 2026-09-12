@@ -62,62 +62,17 @@ namespace stencil::gui {
 
     explicit TipBody(QWidget* parent = nullptr) : QLabel(parent) {}
 
-    // New content: settled, and the cap hunt has to run again.
-    void setTip(const QString& rich) {
-      settle();
-      tip_ = rich;
-      setText(rich);
-      caps_.clear();
-      pieces_.clear();
-      hunted_ = false;
-    }
+    void setTip(const QString& rich);
 
-    // How many caps this tooltip drew, hunting for them on first ask. 0 = nothing to shake.
-    int capCount() {
-      if (!hunted_) { hunted_ = true; findCaps(); }
-      return int(caps_.size());
-    }
+    int capCount();
     // Where the caps are along the flick, 0 at rest — what the tests watch.
     int capOffset() const { return dx_; }
 
-    // Put the caps at `t` (0..1) along the keyframes; 0 or 1 is the resting slot.
-    void setShake(double t) {
-      double x = 0, deg = 0;
-      if (t > 0.0 && t < 1.0 && !caps_.isEmpty()) {
-        int i = 0;
-        while (i < kStops - 2 && t > kStopT[i + 1]) i++;
-        const double u = ease().valueForProgress((t - kStopT[i]) / (kStopT[i + 1] - kStopT[i]));
-        x = kStopX[i] + (kStopX[i + 1] - kStopX[i]) * u;
-        deg = kStopDeg[i] + (kStopDeg[i + 1] - kStopDeg[i]) * u;
-      }
-      const int px = qRound(x);
-      if (px == dx_ && qFuzzyCompare(deg + 1.0, deg_ + 1.0)) return;
-      dx_ = px;
-      deg_ = deg;
-      update();
-    }
+    void setShake(double t);
     void settle() { setShake(0.0); }
 
    protected:
-    void paintEvent(QPaintEvent* e) override {
-      if (caps_.isEmpty() || (dx_ == 0 && qFuzzyIsNull(deg_))) { QLabel::paintEvent(e); return; }
-      QPainter p(this);
-      p.setRenderHint(QPainter::SmoothPixmapTransform);
-      QRegion holes;
-      for (const QRect& r : caps_) holes += r;
-      p.setClipRegion(QRegion(rect()) - holes);   // the caps' slots stay empty
-      p.drawPixmap(0, 0, flat_);
-      p.setClipping(false);
-      for (int i = 0; i < caps_.size(); i++) {
-        const QPointF c = QRectF(caps_[i]).center();
-        p.save();
-        p.translate(c + QPointF(dx_, 0));
-        p.rotate(deg_);
-        p.translate(-c);
-        p.drawPixmap(caps_[i].topLeft(), pieces_[i]);
-        p.restore();
-      }
-    }
+    void paintEvent(QPaintEvent* e) override;
 
    private:
     static const QEasingCurve& ease() {  // browser: cubic-bezier(0.36, 0.07, 0.19, 0.97)
@@ -129,59 +84,8 @@ namespace stencil::gui {
       return c;
     }
 
-    // Render with and without the cap faces; the pixels that differ are the caps.
-    void findCaps() {
-      const QString bare = blankKeycaps(tip_);
-      if (bare.isEmpty() || width() <= 0 || height() <= 0) return;
-      flat_ = grab();
-      setText(bare);
-      const QImage without = grab().toImage().convertToFormat(QImage::Format_ARGB32);
-      setText(tip_);
-      const QImage with = flat_.toImage().convertToFormat(QImage::Format_ARGB32);
-      if (with.isNull() || with.size() != without.size()) return;
-      const int w = with.width(), h = with.height();
-      const qreal dpr = flat_.devicePixelRatio() > 0 ? flat_.devicePixelRatio() : 1.0;
-      std::vector<char> diff(size_t(w) * h, 0);
-      for (int y = 0; y < h; y++) {
-        const auto* a = reinterpret_cast<const QRgb*>(with.constScanLine(y));
-        const auto* b = reinterpret_cast<const QRgb*>(without.constScanLine(y));
-        for (int x = 0; x < w; x++)
-          if (a[x] != b[x]) diff[size_t(y) * w + x] = 1;
-      }
-      auto rowHas = [&](int y) {
-        for (int x = 0; x < w; x++) if (diff[size_t(y) * w + x]) return true;
-        return false;
-      };
-      auto colHas = [&](int x, int y0, int y1) {
-        for (int y = y0; y <= y1; y++) if (diff[size_t(y) * w + x]) return true;
-        return false;
-      };
-      // Bands of rows are the tip's lines; runs of columns inside one are its caps (the
-      // untouched "+" between two caps leaves a gap, so a chord splits cap by cap).
-      for (int y0 = 0; y0 < h;) {
-        if (!rowHas(y0)) { y0++; continue; }
-        int y1 = y0;
-        while (y1 + 1 < h && rowHas(y1 + 1)) y1++;
-        for (int x0 = 0; x0 < w;) {
-          if (!colHas(x0, y0, y1)) { x0++; continue; }
-          int x1 = x0;
-          while (x1 + 1 < w && colHas(x1 + 1, y0, y1)) x1++;
-          const QRect r = QRectF(x0 / dpr, y0 / dpr, (x1 - x0 + 1) / dpr, (y1 - y0 + 1) / dpr)
-                              .toAlignedRect()
-                              .intersected(rect());   // rounding never reaches past the label
-          caps_ << r;
-          pieces_ << cut(r, dpr);
-          x0 = x1 + 1;
-        }
-        y0 = y1 + 1;
-      }
-    }
-    QPixmap cut(const QRect& r, qreal dpr) const {
-      QPixmap piece = flat_.copy(QRect(QPoint(qRound(r.x() * dpr), qRound(r.y() * dpr)),
-                                       QSize(qRound(r.width() * dpr), qRound(r.height() * dpr))));
-      piece.setDevicePixelRatio(dpr);
-      return piece;
-    }
+    void findCaps();
+    QPixmap cut(const QRect& r, qreal dpr) const;
 
     QString tip_;
     QList<QRect> caps_;      // the caps' resting slots
@@ -208,161 +112,18 @@ namespace stencil::gui {
     static constexpr int kGap = 15;         // cursor offset, as Qt's own tooltip uses
     static constexpr const char* kObjectName = "stencilAppTooltip";
 
-    explicit AppTooltip(QWidget* parent = nullptr) : QFrame(parent, Qt::ToolTip) {
-      setObjectName(QString::fromLatin1(kObjectName));
-      setAttribute(Qt::WA_TransparentForMouseEvents);
-      setAttribute(Qt::WA_ShowWithoutActivating);
-      setFocusPolicy(Qt::NoFocus);
-      auto* lay = new QVBoxLayout(this);
-      lay->setContentsMargins(0, 0, 0, 0);
-      body_ = new TipBody(this);
-      body_->setTextFormat(Qt::RichText);
-      body_->setObjectName(QStringLiteral("stencilAppTooltipBody"));
-      // Wraps at the browser's own tooltip ceiling (#app-tooltip max-width: 380px). Without
-      // one a long sentence rendered as a single line the width of the screen instead of a
-      // few readable ones.
-      body_->setWordWrap(true);
-      body_->setMaximumWidth(kMaxTipWidth);
-      lay->addWidget(body_);
-      hide();
-
-      fade_ = new QVariantAnimation(this);
-      fade_->setDuration(kFadeMs);
-      QObject::connect(fade_, &QVariantAnimation::valueChanged, this,
-                       [this](const QVariant& v) { setWindowOpacity(v.toDouble()); });
-      QObject::connect(fade_, &QVariantAnimation::finished, this, [this] {
-        if (closing_) { closing_ = false; QFrame::hide(); }
-      });
-      // Anti-stranding heartbeat: a fast pointer sweep can leave the owner without ever
-      // sending a Leave we see (it is destroyed, re-laid-out, or the cursor jumps clear).
-      // Whatever happened, the tooltip goes when the pointer is no longer on its owner.
-      auto* beat = new QTimer(this);
-      beat->setInterval(200);
-      QObject::connect(beat, &QTimer::timeout, this, [this] {
-        if (!isVisible() || closing_) return;
-        if (!owner_ || !owner_->isVisible() || !owner_->window()->isActiveWindow()
-            || !owner_->rect().contains(owner_->mapFromGlobal(QCursor::pos())))
-          hideTip();
-      });
-      beat->start();
-    }
+    explicit AppTooltip(QWidget* parent = nullptr);
 
     QWidget* owner() const { return owner_.data(); }
 
-    // Show `owner`'s tooltip near `globalPos`. Rich text is used as given; a plain string
-    // goes through the same rendering Qt's tooltip would have shown. `originGlobal` is
-    // where the tip's dust forms out of; left invalid it is the owner's centre, which is
-    // wrong for an item view, whose owner is the whole viewport.
     void showFor(QWidget* owner, const QString& text, const QPoint& globalPos,
-                 const QRect& originGlobal = QRect()) {
-      origin_ = originGlobal;
-      // The html pins its own width, so it is rendered HERE, in the type this body draws
-      // with. The owner's tooltip was already rendered when it was set (main.cpp's
-      // ToolTipChange filter) — measured in QToolTip's font, 11pt on macOS against the
-      // body's 13pt, which broke "Image Filter" and a ⇧⌘X chord onto two lines. Every
-      // enriched tooltip remembers the plain text it came from, so it is redone from that.
-      body_->ensurePolished();
-      const QFont font = body_->font();
-      const QVariant plain = owner ? owner->property(kPlainTipProperty) : QVariant();
-      const QString rich = plain.isValid()                    ? enrichedToolTip(plain.toString(), &font)
-                           : text.trimmed().startsWith('<') ? text
-                                                             : enrichedToolTip(text, &font);
-      if (rich.isEmpty()) { hideTip(); return; }
-      bool dusted = false;
-      // An APPEARANCE: a first show, one re-pointed at another control, or new content.
-      // Qt keeps re-sending ToolTip while the pointer wanders inside one control (its own
-      // label never appears, so its wake-up timer re-arms), and those must not re-shake.
-      const bool appearing = !isVisible() || closing_ || owner != owner_ || rich != body_->text();
-      settleShake();                   // never animate away from stale content
-      owner_ = owner;
-      body_->setTip(rich);
-      adjustSize();
-      place(globalPos);
-      closing_ = false;
-      fade_->stop();
-      if (support::motionReduced()) {  // no fade; the end state, at once
-        setWindowOpacity(1.0);
-        show();
-        raise();
-      } else {
-        const qreal from = isVisible() ? windowOpacity() : 0.0;
-        setWindowOpacity(from);
-        show();
-        raise();
-        // An APPEARANCE forms out of the control it describes; a re-send inside the same
-        // control just carries on where it is.
-        dusted = appearing && dust(true);
-        if (dusted) {
-          // The tip waits behind its own motes and fades up as the last of them land.
-          setWindowOpacity(0.0);
-          holdFadeKeys(fade_, kDustInMs);
-          // …and may not MOVE meanwhile: the cloud was aimed where the tip was placed, so
-          // one tracking the cursor mid-flight would leave its own sand behind. It picks
-          // the cursor up again the moment it lands (browser controlTooltip.js).
-          placeHold_.setRemainingTime(kDustInMs);
-        } else {
-          fade_->setKeyValues({});
-          fade_->setDuration(kFadeMs);
-          fade_->setStartValue(from);
-          fade_->setEndValue(1.0);
-        }
-        fade_->start();
-      }
-      // The point of the whole thing: caps on screen announce themselves as they arrive —
-      // once they have ARRIVED. A nudge played while the tip is still assembling out of
-      // its own motes is a movement nobody can see, which is the whole point of it, so
-      // the dust route waits out the gather first.
-      if (appearing && hasKeycaps(rich)) {
-        if (dusted) shakeDelay()->start(kDustInMs);
-        else shakeKeys();
-      }
-    }
+                 const QRect& originGlobal = QRect());
 
-    // Fade out and then hide. Idempotent, and a showFor() mid-fade takes it straight back
-    // up from wherever it got to rather than blinking.
-    // Slide an already-shown tip to a new cursor position: no re-measure, no entrance, no
-    // fade. showFor would re-run its appearance bookkeeping on every mouse move.
-    void moveTo(const QPoint& globalPos) {
-      if (isVisible() && !closing_ && placeHold_.hasExpired()) place(globalPos);
-    }
+    void moveTo(const QPoint& globalPos);
 
-    void hideTip() {
-      if (!isVisible()) { owner_.clear(); return; }
-      settleShake();   // it fades out with its caps home, not mid-flick
-      fade_->stop();
-      if (support::motionReduced()) { owner_.clear(); closing_ = false; QFrame::hide(); return; }
-      // Photographed and dusted while the owner is still known — the cloud is what the
-      // tip leaves behind, so the panel itself hands over in one beat and goes.
-      const bool dusted = dust(false);
-      owner_.clear();
-      closing_ = true;
-      fade_->setKeyValues({});
-      fade_->setDuration(dusted ? kDustHandOverMs : kFadeMs);
-      fade_->setStartValue(windowOpacity());
-      fade_->setEndValue(0.0);
-      fade_->start();
-    }
+    void hideTip();
 
-    // A brief attention shake as the tooltip appears — "and here is its shortcut". One
-    // damped left-right pass over the KEYCAPS, never a loop, settling exactly on them.
-    void shakeKeys() {
-      if (shakeDelay_) shakeDelay_->stop();   // an explicit shake supersedes a queued one
-      if (!isVisible() || support::motionReduced()) return;
-      if (body_->capCount() == 0) return;   // nothing was drawn to move
-      if (!shake_) {
-        shake_ = new QVariantAnimation(this);
-        shake_->setDuration(kShakeMs);
-        shake_->setStartValue(0.0);
-        shake_->setEndValue(1.0);
-        QObject::connect(shake_, &QVariantAnimation::valueChanged, this,
-                         [this](const QVariant& v) { body_->setShake(v.toDouble()); });
-        QObject::connect(shake_, &QVariantAnimation::finished, this,
-                         [this] { body_->settle(); });
-      }
-      shake_->stop();    // a pointer sweep restarts it on the new caps, never stacks
-      body_->settle();
-      shake_->start();
-    }
+    void shakeKeys();
 
     // The offset the caps are at, for tests: 0 when settled. The panel never moves.
     int shakeOffset() const { return body_->capOffset(); }
@@ -373,51 +134,12 @@ namespace stencil::gui {
     bool fadingOut() const { return closing_; }
 
    private:
-    // Fly the tooltip's own motes out of — or back into — the control it describes.
-    // Measured in that control's window (escapeHost lets the cloud past its edge, as a
-    // tip near it goes); without one, or a box too small to grain, the fade above stands in.
-    bool dust(bool gather) {
-      QWidget* owner = owner_.data();
-      if (!owner || !owner->isVisible()) return false;
-      // paintNow on a close: the panel hands over in one 60ms beat, and a deferred
-      // first frame was exactly the gap in which the tip blinked out mote-less.
-      return flyTipDust(this, owner->window(),
-                        origin_.isValid() ? origin_.center()
-                                          : owner->mapToGlobal(owner->rect().center()), gather,
-                        gather ? kDustInMs : kDustOutMs,
-                        /*escapeHost=*/true, /*paintNow=*/!gather)
-             != nullptr;
-    }
+    bool dust(bool gather);
 
-    void place(const QPoint& cursor) {
-      const QScreen* scr = QGuiApplication::screenAt(cursor);
-      if (!scr) scr = QGuiApplication::primaryScreen();
-      const QRect avail = scr ? scr->availableGeometry() : QRect(0, 0, 1024, 768);
-      int left = cursor.x() + kGap;
-      int top = cursor.y() + kGap;
-      if (left + width() > avail.right()) left = cursor.x() - width() - kGap;
-      if (top + height() > avail.bottom()) top = cursor.y() - height() - kGap;
-      left = qBound(avail.left() + 10, left, qMax(avail.left() + 10, avail.right() - width()));
-      top = qBound(avail.top() + 10, top, qMax(avail.top() + 10, avail.bottom() - height()));
-      move(left, top);
-    }
-    // Stop any shake — pending or playing — and put the caps back on their slots. A tip
-    // dismissed or re-pointed mid-flight must never shake the caps of one already gone.
-    void settleShake() {
-      if (shakeDelay_) shakeDelay_->stop();
-      if (shake_) shake_->stop();
-      body_->settle();
-    }
+    void place(const QPoint& cursor);
+    void settleShake();
 
-    // The one-shot that holds the nudge back until the motes have landed.
-    QTimer* shakeDelay() {
-      if (!shakeDelay_) {
-        shakeDelay_ = new QTimer(this);
-        shakeDelay_->setSingleShot(true);
-        QObject::connect(shakeDelay_, &QTimer::timeout, this, [this] { shakeKeys(); });
-      }
-      return shakeDelay_;
-    }
+    QTimer* shakeDelay();
 
     TipBody* body_ = nullptr;
     QVariantAnimation* fade_ = nullptr;
@@ -435,104 +157,20 @@ namespace stencil::gui {
    public:
     explicit AppTooltipFilter(QObject* parent = nullptr) : QObject(parent) {}
 
-    AppTooltip* tip() {
-      if (!tip_) tip_ = new AppTooltip(nullptr);
-      return tip_;
-    }
+    AppTooltip* tip();
 
    protected:
-    bool eventFilter(QObject* o, QEvent* e) override {
-      auto* w = qobject_cast<QWidget*>(o);
-      switch (e->type()) {
-        case QEvent::ToolTip: {
-          // Only a widget carrying its OWN tooltip; anything else (item views resolving a
-          // per-index tooltip in viewportEvent) keeps Qt's path.
-          if (!w || w->toolTip().isEmpty()) break;
-          const QPoint at = static_cast<QHelpEvent*>(e)->globalPos();
-          // The tip forms out of the control it describes — its centre, which for a button
-          // is the button. A control stretched across its row has its content at the left
-          // and its centre in empty space, so wider than it asked to be forms out of the
-          // cursor instead, as the browser's tooltip always does.
-          const bool stretched = w->width() > w->sizeHint().width() + 24;
-          tip()->showFor(w, w->toolTip(), at,
-                         stretched ? QRect(at - QPoint(4, 4), QSize(8, 8)) : QRect());
-          // The follow below needs moves: a control without a :hover rule gets no
-          // HoverMove, and nothing sends MouseMove unpressed without tracking. Turned on
-          // for the life of the tip only — left on, every widget that ever showed one
-          // keeps sending MouseMove through this filter for the rest of the session.
-          if (!w->hasMouseTracking()) {
-            w->setMouseTracking(true);
-            tracked_ = w;
-          }
-          return true;   // Qt's own label must not also appear
-        }
-        case QEvent::Shortcut:
-          // A LIVE shortcut never arrives as a key press — Qt consumes the key and sends
-          // this instead — so it has to be dismissed from here.
-          dismiss();
-          break;
-        case QEvent::KeyPress: {
-          const auto* ke = static_cast<QKeyEvent*>(e);
-          if (ke->isAutoRepeat()) break;
-          // Every key retires the tooltip, Escape included — the shake announces the
-          // shortcut while you read the tip, it is not a way to pin the tooltip open.
-          if (tip_ && tip_->isVisible()) dismiss();
-          break;
-        }
-        // The tip travels with the pointer while it is up, as the browser's does: a slide,
-        // not a re-show — showFor on every move re-ran the appearance and stuttered. Styled
-        // controls get HoverMove (QStyleSheetStyle sets WA_Hover); anything with mouse
-        // tracking sends MouseMove.
-        case QEvent::HoverMove:
-          if (tip_ && w && w == tip_->owner() && tip_->isVisible())
-            tip_->moveTo(w->mapToGlobal(static_cast<QHoverEvent*>(e)->position().toPoint()));
-          break;
-        case QEvent::MouseMove:
-          if (tip_ && w && w == tip_->owner() && tip_->isVisible())
-            tip_->moveTo(static_cast<QMouseEvent*>(e)->globalPosition().toPoint());
-          break;
-        case QEvent::Leave:
-        case QEvent::Hide:
-        case QEvent::WindowDeactivate:
-          if (tip_ && w && w == tip_->owner()) dismiss();
-          break;
-        case QEvent::MouseButtonPress:
-        case QEvent::Wheel:
-          dismiss();
-          break;
-        default:
-          break;
-      }
-      return QObject::eventFilter(o, e);
-    }
+    bool eventFilter(QObject* o, QEvent* e) override;
 
    private:
-    // Hide the tip and hand back whatever mouse tracking it borrowed to follow the cursor.
-    void dismiss() {
-      if (tip_) tip_->hideTip();
-      if (tracked_) tracked_->setMouseTracking(false);
-      tracked_.clear();
-    }
+    void dismiss();
 
     AppTooltip* tip_ = nullptr;
     QPointer<QWidget> tracked_;   // the one widget this tip switched tracking on for
   };
 
-  // Install the fading tooltip on the running application. Idempotent — the filter and
-  // the panel are process-wide, like Qt's own tooltip.
-  inline AppTooltipFilter* installAppTooltips() {
-    static QPointer<AppTooltipFilter> filter;
-    if (!filter && qApp) {
-      filter = new AppTooltipFilter(qApp);
-      qApp->installEventFilter(filter);
-    }
-    return filter.data();
-  }
+  AppTooltipFilter* installAppTooltips();
 
-  // The live panel, creating it on demand; null only with no QApplication.
-  inline AppTooltip* appTooltip() {
-    AppTooltipFilter* f = installAppTooltips();
-    return f ? f->tip() : nullptr;
-  }
+  AppTooltip* appTooltip();
 
 }  // namespace stencil::gui

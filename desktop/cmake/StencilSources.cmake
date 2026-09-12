@@ -78,6 +78,30 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
+# Motion and widget support split out of their headers: each group is several TUs
+# defining one header's members, so every target that uses the header needs the group.
+set(STENCIL_APPTOOLTIP_SOURCES
+  src/support/appTooltip.cpp
+  src/support/appTooltipShow.cpp
+  src/support/appTooltipFilter.cpp)
+
+set(STENCIL_CONTROLREVEAL_SOURCES
+  src/support/controlReveal.cpp
+  src/support/controlRevealShow.cpp
+  src/support/controlRevealBar.cpp)
+
+set(STENCIL_DUSTKIT_SOURCES
+  src/support/dustKit.cpp
+  src/support/dustKitSprites.cpp)
+
+set(STENCIL_FILTERFADE_SOURCES
+  src/support/filterFade.cpp
+  src/support/filterFadeList.cpp)
+
+set(STENCIL_THEMESWAP_SOURCES
+  src/support/themeSwapOverlay.cpp
+  src/support/themeSwapOverlayPaint.cpp)
+
 # Form-control state swaps (support/controlSwap.hpp) are split across three TUs: the
 # checkbox/combo pixmaps and bookkeeping, the value-swap cloud overlay, and the app-wide
 # event filter. They define one header's members, so they travel together.
@@ -220,7 +244,12 @@ set(STENCIL_GUI_SOURCES
   src/support/modalReveal.cpp
   src/support/modalChrome.cpp
   src/support/searchCombo.cpp
+  ${STENCIL_APPTOOLTIP_SOURCES}
+  ${STENCIL_CONTROLREVEAL_SOURCES}
   ${STENCIL_CONTROLSWAP_SOURCES}
+  ${STENCIL_DUSTKIT_SOURCES}
+  ${STENCIL_FILTERFADE_SOURCES}
+  ${STENCIL_THEMESWAP_SOURCES}
   ${STENCIL_DISINTEGRATE_SOURCES}
   ${STENCIL_ICONMOTION_SOURCES}
   ${STENCIL_FACESWAP_SOURCES}
