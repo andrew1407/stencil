@@ -1,7 +1,7 @@
 import { ImageFilterCanvas } from './imageFilterCanvas.js';
 import { drawLine as paintLine, drawPoint as paintPoint, pointColorOf } from './lineRender.js';
-// ── Renderer: per-frame composition — filtered image, lines, points, compare split ──
-// The filter chain lives in imageFilterCanvas.js, one line/point in lineRender.js.
+// Per-frame composition: filtered image, lines, points, compare split. The filter chain
+// lives in imageFilterCanvas.js, one line/point in lineRender.js.
 export { pointColorOf };
 
 export class Renderer {
@@ -28,8 +28,8 @@ export class Renderer {
       ctx.drawImage(this.app.image, 0, 0);
       ctx.filter = 'none';
     } else if (this.app.imageFilter === 'contour') {
-      // Sobel edge detection needs the pixel neighborhood, so no CSS filter exists
-      // for it: blit the cached filtered copy (rebuilt only when the image changes).
+      // Sobel needs the pixel neighborhood, so no CSS filter exists: blit the cached
+      // filtered copy (rebuilt only when the image changes).
       ctx.filter = 'none';
       ctx.drawImage(this.#filters.canvasFor(this.app.image, 'contour', null), 0, 0);
     } else if (this.app.imageFilter === 'custom') {
@@ -41,8 +41,7 @@ export class Renderer {
     }
   }
 
-  // The compare mode actually shown this frame: an Alt+Shift+O hold forces 'original'
-  // regardless of the selected mode.
+  // An Alt+Shift+O hold forces 'original' regardless of the selected mode.
   effectiveCompareMode() {
     return this.app.compareHoldOriginal ? 'original' : (this.app.compareMode || 'none');
   }
@@ -54,7 +53,6 @@ export class Renderer {
 
     const compare = this.effectiveCompareMode();
     if (compare === 'original') {
-      // Original view: the cropped + rotated original alone — no filter, no annotations.
       this.app.ctx.filter = 'none';
       this.app.ctx.drawImage(this.app.image, 0, 0);
       return;
@@ -62,8 +60,7 @@ export class Renderer {
 
     this.drawImageWithFilter(this.app.ctx);
 
-    // In a split compare view the edit side is read-only: draw lines/points but with no
-    // selection glow or hover/focus rings (a clean picture to compare against).
+    // A split compare view's edit side is read-only: no selection glow or hover/focus rings.
     const ro = compare !== 'none';
     this.suppressHighlight = ro;
 
@@ -72,8 +69,7 @@ export class Renderer {
       if (this.app.currentLine && this.app.currentLine.points.length > 0)
         this.drawLine(this.app.currentLine, false, -1);
     } else if (this.app.showPoints) {
-      // Points-only view: iterate committed lines, then the in-progress line separately —
-      // avoids cloning the lines array into a combined list every frame.
+      // Committed lines, then the in-progress line, so no combined array is cloned per frame.
       const drawPts = (line, li, sel) => {
         const ms = line.pointSize ?? this.app.pointSize;
         const fx = this.app.strokeFx;
@@ -88,18 +84,13 @@ export class Renderer {
       if (this.app.currentLine) drawPts(this.app.currentLine, -1, false);
     }
 
-    // Hold-to-draw: faded ghost line from the current anchor to the held cursor.
     if (this.app.holdPreview) this.drawHoldPreview();
 
-    // Split compare: paint the untouched original over the original-side region (covering
-    // the edited pixels + annotations there), then draw the movable divider on top.
+    // The untouched original over the original-side region, then the movable divider.
     if (compare === 'vertical' || compare === 'horizontal') this.drawCompareSplit(compare);
   }
 
-  // Overlay the cropped+rotated original onto the "original" half of a split compare view
-  // (left half for 'vertical', top half for 'horizontal') and draw the draggable divider.
-  // `withDivider: false` (the export path's clean split, e.g. Ctrl+C during a split
-  // compare) skips the divider bar/knob — just the two image halves, no UI chrome.
+  // `withDivider: false` (the export path's clean split) skips the divider bar/knob.
   drawCompareSplit(mode, { withDivider = true } = {}) {
     const ctx = this.app.ctx;
     const w = this.app.canvas.width;
@@ -117,8 +108,7 @@ export class Renderer {
 
     if (!withDivider) return;
 
-    // Divider drawn in image space but kept a constant on-screen thickness by dividing by
-    // the current zoom, so it neither vanishes when zoomed out nor bloats when zoomed in.
+    // Image space, but a constant on-screen thickness: divided by the zoom.
     const scale = this.app.scale || 1;
     const lw = 2 / scale;
     const knob = 7 / scale;
@@ -147,9 +137,8 @@ export class Renderer {
     ctx.restore();
   }
 
-  // Translucent dashed segment from the stroke's anchor point to the live cursor,
-  // plus a ghost point at the cursor — shows where the next point would land
-  // during a hold-to-draw gesture. Purely transient; never committed.
+  // Dashed segment from the stroke's anchor to the live cursor plus a ghost point: where
+  // the next hold-to-draw point would land. Never committed.
   drawHoldPreview() {
     const app = this.app;
     const p = app.holdPreview;
@@ -177,15 +166,13 @@ export class Renderer {
     ctx.restore();
   }
 
-  // Thin seams over lineRender.js: exportService drives both through app.renderer.
   drawLine(line, isSelected = false, lineIdx = -99) { paintLine(this, line, isSelected, lineIdx); }
 
   drawPoint(point, color, pointSize = 4, isSelected = false, highlightState = 0) {
     paintPoint(this, point, color, pointSize, isSelected, highlightState);
   }
 
-  // Decide a point's highlight state (0 none, 1 hover, 2 focused) regardless
-  // of whether its line is the one shown in the coord table.
+  // 0 none, 1 hover, 2 focused — regardless of whether its line is shown in the coord table.
   pointHighlightState(lineIdx, ptIdx) {
     if (this.suppressHighlight) return 0;
     if (lineIdx === this.app.coordLineIdx && ptIdx === this.app.focusedPtIdx) return 2;

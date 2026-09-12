@@ -1,9 +1,7 @@
-// Pure server-listing cache lifted out of ui/projectsModal.js — no DOM here.
-
-// ── Server-listing cache (what the shimmer skeletons answer to) ─────────────
+// Pure server-listing cache (what the shimmer skeletons answer to) — no DOM here.
 // null cache = not loaded, [] = loaded/empty. ensure() starts at most one fetch; a token
 // drops a stale in-flight fetch after invalidate(), which must ALSO clear `loading` or
-// ensure() never fetches again and the skeletons never resolve. Pure factory — unit-tested.
+// ensure() never fetches again and the skeletons never resolve.
 export const createRemoteListing = (load) => {
   const s = { cache: null, loading: false, failed: false, token: 0 };
   return {
@@ -23,8 +21,7 @@ export const createRemoteListing = (load) => {
   };
 };
 
-// Skeleton rows may show ONLY while a server-listing fetch is genuinely in flight; a null
-// cache with no fetch running must fall through to the honest empty/error state, or the
-// skeletons stay up forever. Pure — unit-tested.
+// Skeletons show ONLY while a fetch is genuinely in flight; a null cache with no fetch
+// running falls through to the honest empty/error state.
 export const showsRemoteSkeletons = ({ showServer = false, hasServers = false, cache = null, loading = false } = {}) =>
   !!showServer && !!hasServers && cache === null && !!loading;

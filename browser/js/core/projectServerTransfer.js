@@ -1,24 +1,21 @@
-// Ported from js/core/projectTransferController.js: move/copy of a project between local
-// storage and a collaboration server, both directions. `c` is the ProjectTransferController —
-// these read its storage/tabs/host/remoteSync deps and call back into c.switchToProject.
+// Move/copy of a project between local storage and a collaboration server, both
+// directions. `c` is the ProjectTransferController.
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { buildLayoutPayload, normalizeCropRect } from './layout.js';
 import { buildExternalLaunchUrl } from './deepLink.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../net/remoteSync.js';
 
-// ── Move / copy a project between local storage and a server ──────
-// Create a NEW server project from a local project's content (original bytes + annotated
-// layout) under `name`. Shared by move (then links the local) and copy (leaves local as-is).
-// Returns { link, proj, meta }. Flushes the active project first so the server gets latest.
+// A NEW server project from a local project's content under `name`; shared by move
+// (then links the local) and copy. Returns { link, proj, meta }.
 export async function createServerFromLocal(c, id, address, name = null) {
   const conn = requireConnection(c.getConnections(), address);
-  if (id === c.host.activeProjectId && !c.storage.temporary) c.storage.save();   // flush latest
+  if (id === c.host.activeProjectId && !c.storage.temporary) c.storage.save();
   const proj = c.storage.store.get(id);
   if (!proj) throw new Error('Project not found');
   const meta = c.storage.store.getMeta(id) || {};
   const payload = proj.payload || {};
   const layout = payload.layout || {};
-  // Decode the stored original (a data URL) to raw bytes for the codec-free server.
+  // The stored original (a data URL) → raw bytes for the codec-free server.
   let bytes = null;
   let ext = meta.imageExt || layout.imageExt || 'png';
   const w = layout.imageWidth || meta.imageW || 0;
@@ -36,10 +33,8 @@ export async function createServerFromLocal(c, id, address, name = null) {
     color: meta.color || '',
     bytes, ext, w, h,
   });
-  // Push the annotated layout (lines + filter) so the server holds the full project.
-  // The layout save bumps the server version again, so adopt the refreshed link it
-  // returns — otherwise `link.version` stays at the create-time value and the next
-  // version-guarded field push (colour / rename / expiry) 409s against the server.
+  // The layout save bumps the server version again: adopt the refreshed link, or the next
+  // version-guarded field push 409s.
   const savedLink = await saveRemoteProject(conn, link, {
     name: projName,
     layout: buildLayoutPayload({
@@ -60,56 +55,50 @@ export async function createServerFromLocal(c, id, address, name = null) {
   return { link: savedLink, proj, meta };
 }
 
-// Local → server: create the project on `address`, then LINK the local copy to it (keeping
-// the editor open + the row in place). Returns the new remote id.
+// Local → server: create on `address`, then LINK the local copy (editor + row stay). Returns the remote id.
 export async function moveProjectToServer(c, id, address) {
   const { link, proj, meta } = await createServerFromLocal(c, id, address);
   const linkedMeta = { ...meta, id, address: link.address, remoteId: link.remoteId, remoteVersion: link.version };
   c.storage.store.upsert(linkedMeta, proj.payload || {});
   if (id === c.host.activeProjectId) {
     c.host.remoteLink = { address: link.address, remoteId: link.remoteId, version: link.version };
-    c.host.updateProjectTitle();   // reflect the golden remote outline now
+    c.host.updateProjectTitle();
   }
   c.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
   return link.remoteId;
 }
 
-// Local → server COPY: create a new server project from the local one (default name
-// "<name>-copy") and LEAVE the local project untouched. Returns the new remote id.
+// Local → server COPY (default name "<name>-copy"); the local project stays untouched.
 export async function copyProjectToServer(c, id, address, { name } = {}) {
   const base = c.storage.store.getMeta(id)?.name || 'Untitled';
   const copyName = (name && name.trim()) || `${base}-copy`;
   const { link } = await createServerFromLocal(c, id, address, copyName);
-  c.tabs.projectsChanged({ action: PROJECT_ACTION.UPDATED });   // refresh the remote rows
+  c.tabs.projectsChanged({ action: PROJECT_ACTION.UPDATED });
   return link.remoteId;
 }
 
-// Server → local: fetch the server project's image + layout, save it as a new
-// local project, then delete it from the server. `meta` is a remote-project meta
-// ({ id, serverUrl, name, source }). Returns the new local project id.
+// Server → local: save as a new local project, then delete from the server. `meta` is a
+// remote-project meta ({ id, serverUrl, name, source }). Returns the new local id.
 export async function moveProjectToLocal(c, meta) {
   const host = c.host;
-  // If the moved server project is the open session (or its local cache), follow it to the
-  // new local id so the editor stays open + focused instead of pointing at a deleted server id.
+  // The moved project is the open session: follow it to the new local id.
   const openCacheId = (host.remoteLink && host.remoteLink.remoteId === meta.id
     && host.remoteLink.address === meta.serverUrl) ? host.activeProjectId : null;
   const newId = await importServerProjectToLocal(c, meta, { removeFromServer: true });
   if (openCacheId != null) {
-    if (openCacheId !== newId) c.storage.store.remove(openCacheId);   // drop the now-stale cache
+    if (openCacheId !== newId) c.storage.store.remove(openCacheId);
     c.switchToProject(newId);
   }
   return newId;
 }
 
-// Make a detached LOCAL copy of a server project, leaving the server copy in place. Default
-// name "<name>-copy" (override via `name`). Returns the new local project id; caller opens it.
+// A detached LOCAL copy (default name "<name>-copy"); the server copy stays. Returns the new local id.
 export async function copyServerProjectToLocal(c, meta, { name } = {}) {
   return importServerProjectToLocal(c, meta, { removeFromServer: false, copy: true, name });
 }
 
-// Copy a server project into an INCOGNITO session (no local record, no server link). Current
-// tab: replace the editor with the image + annotations as incognito. New tab: hand off the
-// image via the external-launch URL (image only — the launch payload carries no annotations).
+// Copy a server project into an INCOGNITO session. New tab: the external-launch URL carries
+// the image only (no annotations).
 export async function copyServerProjectToIncognito(c, meta, { newTab = false } = {}) {
   const conn = requireConnection(c.getConnections(), meta.serverUrl);
   const full = await conn.getProject(meta.id);
@@ -125,15 +114,13 @@ export async function copyServerProjectToIncognito(c, meta, { newTab = false } =
     return;
   }
   const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'image/png' });
-  if (!c.storage.incognito) c.storage.save();   // flush any current project first
+  if (!c.storage.incognito) c.storage.save();
   c.host.newEditor();
   c.storage.incognito = true;
   c.host.updateIncognitoUI();
-  // adoptLayout applies the lines/filter/crop/page/formulas without linking (no remoteId).
   c.host.loadImageFromFile(file, { source: src, resource: full.project?.resource || '', layout: full.layout, adoptLayout: true });
 }
 
-// Read a Blob into a data URL (used by the new-tab incognito hand-off).
 export function blobToDataUrl(c, blob) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -143,9 +130,7 @@ export function blobToDataUrl(c, blob) {
   });
 }
 
-// Shared body of move/copy server→local: fetch image + layout, persist a fresh detached
-// local project (crop/rotation included), optionally delete the server copy. `copy` defaults
-// the name to "<base>-copy"; an explicit `name` overrides.
+// Shared body of move/copy server→local; `copy` defaults the name to "<base>-copy".
 export async function importServerProjectToLocal(c, meta, { removeFromServer = false, copy = false, name = null } = {}) {
   const conn = requireConnection(c.getConnections(), meta.serverUrl);
   const full = await conn.getProject(meta.id);
@@ -179,9 +164,8 @@ export async function importServerProjectToLocal(c, meta, { removeFromServer = f
       lines: Array.isArray(sl.lines) ? sl.lines : [],
       imageFilter: sl.imageFilter || 'none',
       filterColor: sl.filterColor || '#7c3aed',
-      cropRect: normalizeCropRect(sl.cropRect),   // server rects are canonical {w,h}; store internal shape
+      cropRect: normalizeCropRect(sl.cropRect),
       rotationQuarters: sl.rotationQuarters || 0,
-      // Carry page format + formulas so the detached local copy keeps them.
       pageSize: sl.pageSize || 'A3',
       customPageWidth: sl.customPageWidth || 21,
       customPageHeight: sl.customPageHeight || 29.7,
@@ -194,7 +178,7 @@ export async function importServerProjectToLocal(c, meta, { removeFromServer = f
       imageResource: full.project?.resource || null,
     },
   });
-  // Remove from the server only for a move (the live feed re-renders its golden row out).
+  // Only a move removes it (the live feed re-renders its golden row out).
   if (removeFromServer) await conn.deleteProject(meta.id);
   c.tabs.projectsChanged({ id: newId, action: PROJECT_ACTION.UPDATED });
   return newId;

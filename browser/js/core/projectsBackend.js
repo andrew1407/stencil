@@ -1,22 +1,17 @@
-// ── projectsBackend: IndexedDB payload storage behind ProjectsStore's sync API ──
-// Payloads carry the full image as a data URL and outgrow localStorage's ~5MB quota, so
-// ONLY the per-project payload keys (stencil_project_<id>) move to IndexedDB — behind
-// ProjectsStore's synchronous localStorage-shaped contract (it is the parity twin of
-// core/state/projectsStore.cpp and must stay sync): an in-memory mirror hydrated once at
-// boot (initProjectsBackend, awaited by index.js) and written through asynchronously.
-// The registry / migration flag / legacy keys stay in localStorage, so cross-tab registry
-// reads and the extension's editorBridge keep working. The payload mirror is per-tab —
-// DrawingApp calls refresh(id) on PROJECTS_CHANGED broadcasts. Write failures surface
-// via onWriteError; no IndexedDB at all degrades to the plain localStorage backend.
+// IndexedDB payload storage behind ProjectsStore's SYNC localStorage-shaped contract (it is
+// the parity twin of core/state/projectsStore.cpp): only the per-project payload keys
+// (stencil_project_<id>) move to IndexedDB, via an in-memory mirror hydrated once at boot
+// (initProjectsBackend, awaited by index.js) and written through asynchronously. The
+// registry / migration flag / legacy keys stay in localStorage for cross-tab reads and the
+// extension's editorBridge. No IndexedDB at all degrades to the plain localStorage backend.
 
 import { PROJECT_PREFIX } from './projectsStore.js';
 
 const PROJECTS_DB_NAME = 'stencil_projects';
 const PROJECTS_DB_STORE = 'payloads';
 
-// Minimal promise KV over one object store — same shape as chatStore.js's
-// createIdbBackend, plus the bulk entries() read hydration needs. Returns null when
-// IndexedDB is missing so createProjectsBackend degrades to localStorage.
+// Minimal promise KV over one object store (chatStore.js's createIdbBackend shape plus the
+// bulk entries() read). Null when IndexedDB is missing.
 const createIdbKv = (idb = (typeof indexedDB !== 'undefined' ? indexedDB : null)) => {
   if (!idb) return null;
   let dbPromise = null;
@@ -37,7 +32,6 @@ const createIdbKv = (idb = (typeof indexedDB !== 'undefined' ? indexedDB : null)
     get: (key) => op('readonly', (s) => s.get(key)),
     set: (key, value) => op('readwrite', (s) => s.put(value, key)),
     remove: (key) => op('readwrite', (s) => s.delete(key)),
-    // getAllKeys/getAll both return in ascending key order, so zipping is safe.
     entries: () => Promise.all([
       op('readonly', (s) => s.getAllKeys()),
       op('readonly', (s) => s.getAll()),
@@ -45,10 +39,8 @@ const createIdbKv = (idb = (typeof indexedDB !== 'undefined' ? indexedDB : null)
   };
 };
 
-// Build the backend: hydrate the payload mirror from IndexedDB, run the one-time
-// localStorage → IndexedDB payload migration, and return the sync facade. `kv` is
-// injectable for tests (an async Map shim); when IndexedDB is unusable the plain
-// `storage` is returned as-is — exactly the pre-IndexedDB behaviour.
+// `kv` is injectable for tests; when IndexedDB is unusable the plain `storage` is returned
+// as-is — exactly the pre-IndexedDB behaviour.
 export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
   const ls = storage !== undefined ? storage
     : (typeof localStorage !== 'undefined' ? localStorage : null);
@@ -62,7 +54,7 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
   try {
     stored = await store.entries();
   } catch {
-    return ls; // IndexedDB refused to open (private-mode quirk) — old behaviour
+    return ls;
   }
   for (const [k, v] of stored) if (isPayload(k)) mirror.set(k, v);
 
@@ -72,10 +64,8 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
     try { return Object.keys(ls); } catch { return []; }
   };
 
-  // One-time migration: move payload keys out of localStorage into IndexedDB, freeing
-  // the origin's localStorage quota. localStorage wins over a stale IndexedDB copy (an
-  // older app version may have written it since), and each key is copied — awaited —
-  // before its localStorage twin is deleted, so a failed write never drops a project.
+  // One-time migration out of localStorage. localStorage wins over a stale IndexedDB copy,
+  // and each key is copied — awaited — before its twin is deleted.
   for (const k of lsKeys()) {
     if (!isPayload(k)) continue;
     const v = ls.getItem(k);
@@ -83,16 +73,15 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
     try {
       await store.set(k, v);
     } catch {
-      mirror.set(k, v); // serve from memory this session; retried next boot
+      mirror.set(k, v);
       continue;
     }
     mirror.set(k, v);
     try { ls.removeItem(k); } catch { /* stays for the next boot's retry — harmless */ }
   }
 
-  // In-flight IndexedDB writes, so flush() can await persistence (tests, shutdown).
-  // The tracked twin swallows rejections (callers attach their own .catch to `p`),
-  // so bookkeeping never spawns an unhandled-rejection of its own.
+  // In-flight writes, so flush() can await persistence. The tracked twin swallows
+  // rejections (callers attach their own .catch), so bookkeeping never leaks a rejection.
   const pending = new Set();
   const track = (p) => {
     const settled = p.catch(() => {});
@@ -102,18 +91,18 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
   };
 
   const backend = {
-    // Async IndexedDB write failure — Storage points this at the save-status line.
+    // Storage points this at the save-status line.
     onWriteError: null,
 
     getItem(k) {
       if (!isPayload(k)) return ls ? ls.getItem(k) : null;
       const v = mirror.get(k);
-      // Fall through to localStorage for a payload a failed migration left behind.
+      // A payload a failed migration left behind is still in localStorage.
       return v !== undefined ? v : (ls ? ls.getItem(k) : null);
     },
     setItem(k, v) {
       if (!isPayload(k)) {
-        if (ls) ls.setItem(k, v); // registry quota errors still propagate to the evict loop
+        if (ls) ls.setItem(k, v);
         return;
       }
       const s = String(v);
@@ -135,9 +124,8 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
       return Array.from(out);
     },
 
-    // Re-read payload(s) from IndexedDB after another tab wrote them: one project's
-    // key when an id is given, the whole mirror otherwise. Best-effort — a failed
-    // refresh leaves the mirror stale rather than throwing; the next event retries.
+    // Re-read from IndexedDB after another tab wrote: one key when an id is given, the whole
+    // mirror otherwise. Best-effort — a failed refresh leaves the mirror stale.
     async refresh(id) {
       try {
         if (id != null) {
@@ -153,16 +141,13 @@ export const createProjectsBackend = async ({ storage, idb, kv } = {}) => {
       } catch { /* stale mirror beats a throw */ }
     },
 
-    // Resolve once every queued IndexedDB write has settled.
     flush: () => Promise.allSettled(Array.from(pending)).then(() => {}),
   };
   return backend;
 };
 
-// ── boot singleton ────────────────────────────────────────────────────────────
-// index.js awaits initProjectsBackend() before constructing DrawingApp; Storage then
-// reads it synchronously. Before init — or under `node --test`, which never inits —
-// getProjectsBackend falls back to plain localStorage, the pre-IndexedDB behaviour.
+// Before init — or under `node --test`, which never inits — getProjectsBackend falls back
+// to plain localStorage.
 let active = null;
 
 export const initProjectsBackend = async (opts) => {
