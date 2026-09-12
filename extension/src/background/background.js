@@ -1,9 +1,6 @@
-// ── Background service worker ───────────────────────────────────────────────
-// Owns the right-click context menu (Stencil actions → editor). Covers real <img>
-// (native 'image' context) and CSS background-image elements (detected by the
-// content-script probe, ctxTarget.js).
-// This file is wiring only: it builds the menu, registers the content scripts, and
-// routes runtime messages / menu clicks to the modules beside it.
+// Background service worker: wiring only. Owns the right-click context menu (real <img>
+// and CSS background-image via the probe, ctxTarget.js) and routes messages/clicks to
+// the modules beside it.
 import { applyAccentActionIcon, watchAccentActionIcon } from '../lib/actionIcon.js';
 import { buildMenus, syncDesktopMenuVisibility } from './menus.js';
 import { injectProbeIntoOpenTabs, setUpScripts } from './registrars.js';
@@ -18,9 +15,8 @@ import './tabState.js';   // per-tab probe state + the pins snapshot, kept fresh
 // don't fire); idempotent thanks to the removeAll above.
 buildMenus();
 
-// React to settings changes: re-scope the editor bridge + editor page API (editorUrl), and
-// toggle the page API (exposeWindowStencil) / the editor page API (editorPageApi). Collected
-// into one pass, so a change that re-scopes two sets is still a single settings read.
+// React to settings changes: re-scope the editor bridge/page APIs, collected into one pass
+// so a change touching two sets is still a single settings read.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'sync') return;
   const keys = [];
@@ -40,16 +36,14 @@ const bootstrap = () => {
 chrome.runtime.onInstalled.addListener(bootstrap);
 chrome.runtime.onStartup.addListener(bootstrap);
 
-// Also set up on every worker start (onInstalled/onStartup don't fire on every wake):
-// re-assert all three registrations; only the bridge also injects into open tabs.
+// Re-assert on every worker start too (onInstalled/onStartup miss some wakes); only the
+// bridge also injects into open tabs.
 setUpScripts({ inject: ['bridge'] });
 applyAccentActionIcon();   // tint the toolbar icon's outline to the saved accent
 watchAccentActionIcon();   // …and re-tint it whenever the accent changes
 
-// ── Runtime-message dispatch ────────────────────────────────────────────────
-// One handler per message `type` (keyed by MSG.*). Two kinds: fire-and-forget handlers
-// return undefined (port closes), request/response ones (the editor-mode group) are
-// wrapped in `answers()` and return true. The listener just propagates that.
+// One handler per message `type`: fire-and-forget ones return undefined (port closes);
+// request/response ones are wrapped in `answers()` and return true, which this propagates.
 const messageHandlers = {
   ...pageApiHandlers, ...dropZoneHandlers, ...ctxProbeHandlers, ...editorModeHandlers,
 };

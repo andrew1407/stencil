@@ -1,4 +1,3 @@
-// ── Context menu: build + desktop-item visibility ───────────────────────────
 // The menu is rebuilt from scratch on every worker start; the desktop-app items are
 // revealed only when a URL scheme is configured.
 import { getSettings } from '../lib/stencil.js';

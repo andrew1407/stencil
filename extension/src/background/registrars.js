@@ -1,10 +1,8 @@
-// ── Registered content scripts ──────────────────────────────────────────────
 // Injection into already-open tabs, plus the SCRIPT_SETS registration pass.
 import { getSettings, originPattern } from '../lib/stencil.js';
 
 // Declared/registered content scripts only inject into pages loaded AFTER
-// install/update/registration — this covers the tabs already open. `scripts` is
-// [{ file, world? }], injected in order into every tab matching `urlPatterns`.
+// install/update/registration — this covers the tabs already open.
 const injectIntoOpenTabs = async (urlPatterns, scripts, { allFrames = false } = {}) => {
   try {
     const tabs = await chrome.tabs.query({ url: urlPatterns });
@@ -28,12 +26,8 @@ const injectIntoOpenTabs = async (urlPatterns, scripts, { allFrames = false } = 
 export const injectProbeIntoOpenTabs = () =>
   injectIntoOpenTabs(['http://*/*', 'https://*/*'], [{ file: 'src/content/ctxTarget.js' }], { allFrames: true });
 
-// Three sets, all registered the same way: the editor bridge (the editor is cross-origin,
-// so a script on ITS origin reads the project registry and reports back to prune the
-// opened ledger), the opt-in page API (window.stencil — off by default, it touches every
-// page's main world), and the editor page API (stencil.extension, editor origin only,
-// which is why it defaults on). `matches` gives the patterns a set registers under for one
-// settings snapshot, or null = off (unregister it).
+// Three sets, registered the same way: the editor bridge, the opt-in page API
+// (window.stencil), and the editor page API (stencil.extension). `matches` = null unregisters.
 const BRIDGE_ID = 'stencil-editor-bridge';
 const BRIDGE_FILE = 'src/content/editorBridge.js';
 const HTTP_PATTERNS = ['http://*/*', 'https://*/*'];
@@ -65,8 +59,7 @@ const SCRIPT_SETS = [
 ];
 
 // Registration is unregister-then-register and several triggers fire it concurrently;
-// interleaved, the second register throws `Duplicate script ID` and is lost, leaving a
-// stale editorUrl registered. Serialised, passes run one at a time and the last wins.
+// interleaved, a second register throws `Duplicate script ID`. Serialised, one at a time.
 let registrationQueue = Promise.resolve();
 const serializeRegistration = (fn) => {
   const next = registrationQueue.then(fn, fn);   // run even if the previous pass rejected
@@ -90,11 +83,8 @@ const replaceContentScript = async (id, script, label) => {
   }
 };
 
-// One pass over the named sets (all of them by default): ONE settings read, then every set
-// (un)registered — and injected into the tabs already open — in parallel. `inject` is true
-// (all sets) or the keys that also cover open tabs. The settings read stays INSIDE the
-// critical section: a pass queued before an editorUrl change must still register the
-// pattern that is current when it actually runs.
+// ONE settings read, then every named set (un)registered and injected into open tabs — the
+// read stays INSIDE the critical section, so a queued pass registers the CURRENT pattern.
 export const setUpScripts = ({ keys, inject = true } = {}) => serializeRegistration(async () => {
   const settings = await getSettings();
   const ctx = { settings, pattern: originPattern(settings.editorUrl) };

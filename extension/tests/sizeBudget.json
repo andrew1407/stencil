@@ -44,8 +44,8 @@
     "extension/tests/surfaces.test.js": 390
   },
   "commentPct": {
-    "extension/src/background": 23,
-    "extension/src/background/handlers": 30,
+    "extension/src/background": 17,
+    "extension/src/background/handlers": 19,
     "extension/src/content": 24,
     "extension/src/crop": 10,
     "extension/src/devtools": 37,

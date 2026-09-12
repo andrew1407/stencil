@@ -1,4 +1,3 @@
-// ── Per-tab right-click state + the pins snapshot ───────────────────────────
 // What the ctxTarget probe last resolved, per tab, plus the pins cache the probe reads
 // synchronously to relabel Pin ↔ Unpin before the native menu appears.
 import { loadPins, PINS_KEY } from '../lib/pins.js';

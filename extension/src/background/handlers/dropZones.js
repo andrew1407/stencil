@@ -1,4 +1,3 @@
-// ── On-page drop zones: arm, disarm, and the drop itself ────────────────────
 // The panel's row drag injects a 4-quadrant overlay on the target tab; a drop in one
 // quadrant comes back here and reuses the same hand-off machinery as the page relays.
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, buildHandoff } from '../../lib/stencil.js';
@@ -11,36 +10,30 @@ import { MSG } from '../../lib/messages.js';
 import { askEditorTab } from '../editorRelay.js';
 
 export const dropZoneHandlers = {
-  // A row drag started in the panel → inject the on-page 4-quadrant drop overlay on that tab,
-  // tinted to the current theme accent (resolved from the saved accent key, so the zones match
-  // the extension's theme rather than a fixed violet).
+  // Inject the on-page 4-quadrant drop overlay, tinted to the theme accent.
   [MSG.DROPZONES_ARM]: (msg) => {
     if (msg.tabId == null) return;
     (async () => {
       let accent = DEFAULT_HL;
-      // The Appearance choice rides along UNRESOLVED: 'system' can only be answered by
-      // the page the zones land on (lib/shellTheme.js makes the same hand-off).
+      // 'system' rides along UNRESOLVED: only the landing page can answer it.
       let mode = 'system';
       try {
         const l = await chrome.storage.local.get([ACCENT_STORAGE_KEY, THEME_STORAGE_KEY]);
         accent = ACCENT_HEX[l[ACCENT_STORAGE_KEY]] || DEFAULT_HL;
         if (THEME_MODES.includes(l[THEME_STORAGE_KEY])) mode = l[THEME_STORAGE_KEY];
       } catch { /* defaults */ }
-      // A live-editor tab gets editor-aware labels (here/incognito/crop act on IT).
       const probe = await askEditorTab(msg.tabId, { type: MSG.EDITOR_STATE, thumbnail: false });
       chrome.scripting.executeScript({ target: { tabId: msg.tabId }, world: 'ISOLATED', func: mountDropZones, args: [accent, !!probe.ok, mode] })
         .catch(() => { /* restricted page — no overlay */ });
     })();
   },
-  // The row drag ended without a page drop → tear the overlay down (backstop; it also
-  // self-removes on drop / leaving the window / Escape / timeout).
+  // Backstop: it also self-removes on drop / leaving the window / Escape / timeout.
   [MSG.DROPZONES_DISARM]: (msg) => {
     if (msg.tabId == null) return;
     chrome.scripting.executeScript({ target: { tabId: msg.tabId }, world: 'ISOLATED', func: unmountDropZones })
       .catch(() => { /* restricted page — nothing to remove */ });
   },
-  // A row was dropped in a quadrant of the on-page overlay → run its action. Reuses the same
-  // hand-off machinery as the page API relays (fetch bytes → buildHandoff → open/crop).
+  // A row dropped in a quadrant reuses the same hand-off machinery as the page API relays.
   [MSG.PAGE_DROP]: (msg, sender) => {
     (async () => {
       try {
@@ -51,15 +44,11 @@ export const dropZoneHandlers = {
         const resource = sender.tab?.url || '';
         const name = filenameFromUrl(url);
         const { page, editorUrl } = await getSettings();
-        // ── Editor-aware: a drop landing ON a live editor acts on THAT editor ──
-        // here/incognito import into it (straight in when it's empty; an occupied
-        // editor raises the injected replace/new-tab/cancel chooser), and crop
-        // imports then opens the editor's OWN crop dialog — never the crop page.
+        // Editor-aware: a drop landing ON a live editor acts on THAT editor.
         const probe = tabId != null ? await askEditorTab(tabId, { type: MSG.EDITOR_STATE, thumbnail: false }) : { ok: false };
         if (probe.ok) {
           let mode = 'new';
-          // Incognito is never persisted and the saved project stays put, so it
-          // needs no replace chooser — it just opens incognito in this editor.
+          // Incognito never persists, so it needs no replace chooser.
           if (action !== 'incognito' && probe.state?.hasImage) {
             let accent = DEFAULT_HL;
             try { const l = await chrome.storage.local.get(ACCENT_STORAGE_KEY); accent = ACCENT_HEX[l[ACCENT_STORAGE_KEY]] || DEFAULT_HL; } catch { /* default */ }

@@ -1,17 +1,12 @@
-// ── Video-frame capture ─────────────────────────────────────────────────────
-// Three routes to a still of the right-clicked <video>, tried in order by ctxActions:
-// in-page canvas readback, an extension-side byte re-fetch replayed in the page, and a
-// crop of the tab screenshot for media that stays unreadable.
+// Three routes to a still of the right-clicked <video>, tried in order by ctxActions: in-page
+// canvas readback, an extension-side byte re-fetch, and a screenshot crop as a last resort.
 import { blobToDataUrl } from '../lib/stencil.js';
 import { isAllowedImageUrl } from '../lib/urlGuard.js';
 
-// Cap the captured frame's longest side: it rides in the editor launch URL as a
-// data URL, and an un-capped retina crop overflows Chrome's URL limit (about:blank).
+// An un-capped retina crop, as a data URL in the editor launch URL, overflows Chrome's limit.
 const FRAME_MAX_SIDE = 1920;
 
-// Crop a tab screenshot to the video's on-screen rectangle. captureVisibleTab
-// returns an extension-owned (never tainted) image; downscale + JPEG-encode so the
-// data URL stays small enough for the launch URL.
+// captureVisibleTab returns an extension-owned (never tainted) image.
 export const captureFrameFromScreenshot = async (windowId, rect, dpr = 1) => {
   const shot = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
   const bitmap = await createImageBitmap(await (await fetch(shot)).blob());
@@ -24,10 +19,8 @@ export const captureFrameFromScreenshot = async (windowId, rect, dpr = 1) => {
   return blobToDataUrl(await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 }));
 };
 
-// Capture a <video>'s current frame by in-page canvas readback at click time: direct
-// draw (same-origin), then a fresh crossOrigin="anonymous" video at the same src/time
-// (works when the CDN serves CORS though the page's <video> is tainted). Returns
-// { frame } (JPEG data URL), { src, t } (tainted; caller re-fetches), or null.
+// Direct draw (same-origin), then a fresh crossOrigin="anonymous" video at the same src/time
+// (CORS CDNs). Returns { frame }, { src, t } (tainted; caller re-fetches), or null.
 export const captureVideoFrameInTab = async (tabId, frameId, point) => {
   if (tabId == null) return null;
   const target = { tabId };
@@ -37,9 +30,7 @@ export const captureVideoFrameInTab = async (tabId, frameId, point) => {
       target,
       args: [point ? point.x : null, point ? point.y : null, FRAME_MAX_SIDE],
       func: async (px, py, maxSide) => {
-        // Smallest <video> whose box contains the cursor — spatially correct even under
-        // an overlay, and (unlike querySelector('video') on an ancestor) never jumps to
-        // another video.
+        // Smallest <video> whose box contains the cursor — correct even under an overlay.
         const at = (x, y) => {
           if (x == null) return null;
           let best = null, bestArea = Infinity;
@@ -70,12 +61,10 @@ export const captureVideoFrameInTab = async (tabId, frameId, point) => {
           c.getContext('2d').drawImage(video, 0, 0, w, h);
           return c.toDataURL('image/jpeg', 0.92);
         };
-        // With a cursor point use only the video under it; largest() is the no-point
-        // fallback (Chrome video context without a probe point).
+        // largest() is the no-point fallback (Chrome video context without a probe point).
         const v = px != null ? at(px, py) : largest();
         if (!v || !v.videoWidth || !v.videoHeight || v.readyState < 2) return null;
-        // Paused at the very start → the poster is showing, not a real frame; let
-        // the caller fall back to the poster instead of grabbing a black frame 0.
+        // Paused at the very start → let the caller fall back to the poster, not a black frame.
         if (v.paused && !v.currentTime) return null;
         try {
           return { frame: draw(v) };
@@ -116,16 +105,12 @@ export const captureVideoFrameInTab = async (tabId, frameId, point) => {
   }
 };
 
-// Current-frame capture for a tainted, non-CORS video: fetch bytes with the extension's
-// host permissions (bypasses page CORS), ship them into the page as a blob URL, draw
-// the frame at the recorded time. Skips huge media (caller falls back to a screenshot
-// crop). Returns a JPEG data URL or null.
+// Current-frame capture for a tainted, non-CORS video: fetch bytes with host permissions,
+// ship them into the page as a blob URL, draw the frame at the recorded time.
 export const captureVideoFrameViaFetch = async (tabId, frameId, src, t, pageUrl = '') => {
   if (tabId == null || !src) return null;
   try {
-    // `src` is page-derived — refuse private/internal targets (urlGuard.js), like
-    // any other unfetchable source: the caller falls back to a screenshot crop.
-    // The tab's own host (pageUrl = tab.url) is allowed through.
+    // `src` is page-derived — refuse private/internal targets (urlGuard.js).
     if (!isAllowedImageUrl(src, { allowSameHostAs: pageUrl })) return null;
     const resp = await fetch(src);
     if (!resp.ok) return null;

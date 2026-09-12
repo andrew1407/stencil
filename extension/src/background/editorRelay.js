@@ -1,4 +1,3 @@
-// ── Editor mode: request/response plumbing ──────────────────────────────────
 // The wrappers the editor-mode handlers are built from: answer-exactly-once, the
 // privileged-sender gate, and the timeboxed ask-one-editor-tab leg.
 import { getSettings } from '../lib/stencil.js';
@@ -10,9 +9,8 @@ import { MSG } from '../lib/messages.js';
 const PAGE_ANSWER_MS = 1500;
 const NO_PAGE_ANSWER = 'the editor page did not answer';
 
-// Wrap an async handler into a request/response one: returns true (holds the response
-// port open) and answers EXACTLY once, turning a throw into the `{ ok:false, error }`
-// object callers branch on — the panel awaits one reply and can't ask twice.
+// Wrap an async handler into a request/response one: returns true (holds the port open) and
+// answers EXACTLY once, turning a throw into the `{ ok:false, error }` object callers branch on.
 export const answers = (fn) => (msg, sender, sendResponse) => {
   Promise.resolve()
     .then(() => fn(msg, sender))
@@ -27,10 +25,8 @@ export const getTab = async (tabId) => {
   try { return await chrome.tabs.get(tabId); } catch { return null; }
 };
 
-// ── Who may ask for the privileged, cross-tab handlers ──────────────────────
-// These reach past the caller's own page (another tab's images, every open tab's URL).
-// Our own pages are identified by ORIGIN, not by a missing `sender.tab` (popup.html can
-// open as an ordinary tab); any other sender must be the editor origin with the API on.
+// Who may ask for the privileged, cross-tab handlers. Our own pages are identified by
+// ORIGIN, not a missing `sender.tab` (popup.html can open as an ordinary tab).
 const senderMayRelayPrivileged = async (sender) => {
   if (!sender) return false;
   const from = sender.url || '';
@@ -62,9 +58,8 @@ export const askEditorTab = async (tabId, message) => {
   }
 };
 
-// One parallel EDITOR_STATE fan-out over candidate tabs: each tab's bridge is asked for
-// its state (a null id yields null). The canvas capture is the expensive part of a state
-// reply, so `thumbnail` defaults off; callers that want previews say so.
+// One parallel EDITOR_STATE fan-out over candidate tabs. Canvas capture is the expensive
+// part of a state reply, so `thumbnail` defaults off; callers that want previews say so.
 export const probeEditorTabs = (tabs, { thumbnail = false } = {}) =>
   Promise.all(tabs.map((tab) => (tab.id == null
     ? null
