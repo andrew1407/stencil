@@ -1,5 +1,4 @@
-#ifndef STENCIL_CORE_CLIAPI_H
-#define STENCIL_CORE_CLIAPI_H
+#pragma once
 
 /* extern "C" surface over the shared core for the Zig CLI (cli/) and pystencil. Mirrors
  * the role of wasmApi.cpp for the browser, but shaped for a native image pipeline: it
@@ -124,5 +123,3 @@ int stencil_cli_parseDuration(const char* spec, long long* outMs);
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif
-
-#endif /* STENCIL_CORE_CLIAPI_H */

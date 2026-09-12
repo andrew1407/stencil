@@ -57,7 +57,7 @@ namespace stencil::gui {
       if (!it || it->data(Qt::UserRole).isNull()) return;
       list_->setCurrentItem(it);
       const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
-      using Zone = ProjectDragZones::Zone;
+      typedef ProjectDragZones::Zone Zone;
       // Open's confirm is shown by MainWindow AFTER the dialog closes — inside the drag release it was dismissed.
       if (zone == Zone::HERE) {
         openSelected();

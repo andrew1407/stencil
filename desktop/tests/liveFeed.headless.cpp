@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
 
   // ── #1 connection-security policy (ServerClient::normalizeBase / isInsecureRemote) ──
   {
-    using SC = ServerClient;
+    typedef ServerClient SC;
     // Secure by default: a bare REMOTE host gets https; loopback keeps plaintext http.
     check(SC::normalizeBase("example.com:8090") == "https://example.com:8090", "bare remote -> https");
     check(SC::normalizeBase("localhost:8090") == "http://localhost:8090", "bare localhost -> http");

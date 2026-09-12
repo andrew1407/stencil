@@ -61,7 +61,7 @@ namespace stencil::gui {
     const int h = canvas_->imageHeight();
     // On a version conflict, union-merge the server's lines with ours and retry (up to 6) so a
     // tight race still converges.
-    using GO = stencil::net::ServerClient::GuardOutcome;
+    typedef stencil::net::ServerClient::GuardOutcome GO;
     stencil::net::ServerClient::runGuardedWriteAsync(
         /*attempts=*/6, /*startVersion=*/remoteSession_->link().version,
         [this, self, c, w, h, pushGuard](qint64 version, std::function<void(GO)> cb) {

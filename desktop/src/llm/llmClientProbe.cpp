@@ -59,7 +59,7 @@ namespace stencil::llm {
   // model suggestions (settings UI; browser listModels parity)
 
   void LlmClient::listModels(const LlmSettings& cfg, std::function<void(QStringList)> done) {
-    using Pick = QStringList (*)(const QJsonObject&);
+    typedef QStringList (*Pick)(const QJsonObject&);
     // Any non-2xx / transport failure ⇒ empty list (suggestions are optional).
     const auto handler = [](std::function<void(QStringList)> done, Pick pick) {
       return [done = std::move(done), pick](int status, QByteArray body, QString) mutable {

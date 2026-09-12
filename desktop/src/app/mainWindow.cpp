@@ -864,7 +864,7 @@ namespace stencil::gui {
     });
     if (execMaybePopover(dlg) != QDialog::Accepted) return;
 
-    using Action = ProjectsDialog::Action;
+    typedef ProjectsDialog::Action Action;
     // Open is already confirmed IN-DIALOG (ProjectsDialog::finishOpen).
     if (dlg.action() == Action::OPEN) {
       loadProjectIntoCanvas(dlg.selectedId());

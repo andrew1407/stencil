@@ -22,7 +22,7 @@ namespace stencil::gui {
       std::function<void(qint64 version,
                          std::function<void(bool ok, qint64 newVersion, bool conflict)> cb)> put,
       std::function<void(bool ok, qint64 outVersion)> done) {
-    using GO = stencil::net::ServerClient::GuardOutcome;
+    typedef stencil::net::ServerClient::GuardOutcome GO;
     auto outVersion = std::make_shared<qint64>(0);
     stencil::net::ServerClient::runGuardedWriteAsync(
         /*attempts=*/4, /*startVersion=*/0,

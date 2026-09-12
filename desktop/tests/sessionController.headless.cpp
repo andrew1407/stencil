@@ -12,7 +12,7 @@
 #include "support/check.hpp"
 
 using stencil::gui::SessionController;
-using Gates = SessionController::Gates;
+typedef SessionController::Gates Gates;
 
 // A normal, saveable editor: local project, picture on screen, not incognito.
 static Gates ready() { return {false, false, true, true}; }

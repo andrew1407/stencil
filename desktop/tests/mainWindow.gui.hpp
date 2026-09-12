@@ -178,7 +178,7 @@ namespace stencil::guitest {
   // The suite runs with STENCIL_NO_ANIM=1, and a case that moves that pin either way must
   // put back what it found — otherwise the next case's waits race a flight that should not
   // be playing. One guard for both directions, so a case can pin it from a loop variable.
-  [[nodiscard]] inline auto motionPinned(bool on) {
+  inline auto motionPinned(bool on) {
     const QByteArray had = qgetenv("STENCIL_NO_ANIM");
     if (on) qunsetenv("STENCIL_NO_ANIM"); else qputenv("STENCIL_NO_ANIM", "1");
     return qScopeGuard([had] {
@@ -186,8 +186,8 @@ namespace stencil::guitest {
     });
   }
 
-  [[nodiscard]] inline auto withoutMotion() { return motionPinned(false); }
-  [[nodiscard]] inline auto withMotion() { return motionPinned(true); }
+  inline auto withoutMotion() { return motionPinned(false); }
+  inline auto withMotion() { return motionPinned(true); }
 
   // Poll until `cond` holds, giving up after `capMs`: the early-exit stand-in for a fixed
   // sleep. Most callers pin motion off, so the first look usually already answers.

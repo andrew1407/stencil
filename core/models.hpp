@@ -28,6 +28,6 @@ namespace stencil::core {
     return line.pointColor.empty() ? line.color : line.pointColor;
   }
 
-  using Lines = std::vector<Line>;
+  typedef std::vector<Line> Lines;
 
 }

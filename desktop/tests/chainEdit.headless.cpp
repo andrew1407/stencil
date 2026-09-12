@@ -17,7 +17,7 @@ using stencil::gui::CanvasWidget;
 namespace chain = stencil::gui::chain;
 namespace core = stencil::core;
 
-using Pts = std::vector<core::Point>;
+typedef std::vector<core::Point> Pts;
 
 static bool same(const core::Point& a, double x, double y) {
   return std::fabs(a.x - x) < 1e-9 && std::fabs(a.y - y) < 1e-9;

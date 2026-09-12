@@ -16,7 +16,7 @@ namespace stencil::gui {
 
   // US customary → inches, everything else (incl. the UK) → cm; a saved preference wins.
   QString localeDefaultUnit() {
-    using MS = core::localeUnit::MeasurementSystem;
+    typedef core::localeUnit::MeasurementSystem MS;
     const auto qsys = QLocale::system().measurementSystem();
     const MS sys = (qsys == QLocale::ImperialUSSystem) ? MS::IMPERIAL_US
                  : (qsys == QLocale::ImperialUKSystem) ? MS::IMPERIAL_UK

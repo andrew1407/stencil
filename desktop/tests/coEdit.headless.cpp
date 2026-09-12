@@ -38,7 +38,7 @@
 using stencil::net::ConnectionManager;
 using stencil::net::ServerClient;
 using stencil::net::ServerProject;
-using GO = ServerClient::GuardOutcome;
+typedef ServerClient::GuardOutcome GO;
 
 int main(int argc, char** argv) {
   QGuiApplication app(argc, argv);

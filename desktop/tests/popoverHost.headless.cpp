@@ -11,7 +11,7 @@
 #include "support/check.hpp"
 
 using stencil::gui::PopoverHost;
-using Facts = PopoverHost::PressFacts;
+typedef PopoverHost::PressFacts Facts;
 
 // A press on empty window chrome while an ordinary popover is open.
 static Facts outside() { return Facts{}; }
