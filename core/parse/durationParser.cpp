@@ -9,13 +9,10 @@ namespace stencil::core {
 
   namespace {
 
-    // Upper bound on a count and on the resulting ms — JS Number.MAX_SAFE_INTEGER
-    // (2^53 - 1). The wasm path marshals the ms back through a double, so a larger
-    // value couldn't round-trip exactly; capping here keeps this port bit-for-bit
-    // identical to durationParser.js's Number.isSafeInteger checks (the parity twin).
+    // JS Number.MAX_SAFE_INTEGER: the wasm path marshals ms through a double, and the
+    // cap keeps this port identical to durationParser.js's Number.isSafeInteger checks.
     constexpr long long kMaxSafe = 9007199254740991LL;  // 2^53 - 1
 
-    // Split on runs of whitespace, dropping empties.
     std::vector<std::string> tokenize(const std::string& s) {
       std::vector<std::string> toks;
       std::size_t i = 0;
@@ -28,9 +25,8 @@ namespace stencil::core {
       return toks;
     }
 
-    // The grammar's vocabulary, in help order. One table so the words a spec may
-    // use and the words unitNames()/offAliases() advertise can never drift apart.
-    // Fixed durations, matching PERIOD_MS in projectsStore.
+    // One table in help order, so the words parse() accepts and the words
+    // unitNames()/offAliases() advertise cannot drift apart.
     struct Unit {
       const char* name;
       long long days;
@@ -39,11 +35,8 @@ namespace stencil::core {
                                {"month", 30}, {"year", 365}};
     constexpr const char* kOffAliases[] = {"off", "never", "none"};
 
-    // Milliseconds for one unit word (singular or trailing-'s' plural). False on
-    // an unknown word.
     bool unitMs(const std::string& word, long long& out) {
       std::string w = word;
-      // Accept an optional plural 's' (days, weeks, months, years, fortnights).
       if (w.size() > 1 && w.back() == 's') w.pop_back();
       for (const Unit& u : kUnits)
         if (w == u.name) { out = u.days * DurationParser::DAY_MS; return true; }
@@ -56,8 +49,7 @@ namespace stencil::core {
       return false;
     }
 
-    // Parse a strictly-positive base-10 integer. False on empty, any non-digit,
-    // or a value past kMaxSafe (matching JS Number.isSafeInteger).
+    // Strictly positive, and capped at kMaxSafe.
     bool positiveInt(const std::string& s, long long& out) {
       if (s.empty()) return false;
       long long v = 0;

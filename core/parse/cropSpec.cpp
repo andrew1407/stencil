@@ -12,8 +12,7 @@ namespace stencil::core {
   CropSpec parseCropSpec(const std::string& spec) {
     CropSpec out;
 
-    // Tokenize into atoms split on whitespace/commas, with '=' as its own atom so
-    // "x1=90", "x1 = 90" and "x1= 90" all reduce to ["x1", "=", "90"].
+    // '=' is its own atom, so "x1=90", "x1 = 90" and "x1= 90" all reduce to ["x1", "=", "90"].
     std::vector<std::string> atoms;
     std::string cur;
     auto flush = [&]() { if (!cur.empty()) { atoms.push_back(cur); cur.clear(); } };
@@ -79,8 +78,7 @@ namespace stencil::core {
       return *r;
     };
 
-    // Defaults mirror the browser: edges default to the current crop, which for the
-    // headless pipeline is the full image (x:0..W, y:0..H).
+    // The browser defaults an edge to the current crop; headless, that is the full image.
     double x1 = edge(spec.x1, 0.0, p.imageW, p.pxPerCmX);
     double x2 = edge(spec.x2, p.imageW, p.imageW, p.pxPerCmX);
     double y1 = edge(spec.y1, 0.0, p.imageH, p.pxPerCmY);
@@ -107,8 +105,7 @@ namespace stencil::core {
     rect.width = std::abs(x2 - x1);
     rect.height = std::abs(y2 - y1);
 
-    // Optional aspect fit: shrink ONE dimension symmetrically about the centre to hit
-    // the W:H ratio — never grow, so the rect stays wherever the edges put it.
+    // Shrink ONE dimension about the centre — never grow, so the rect stays put.
     if (spec.aspect) {
       const double ratio = parseAspectRatio(*spec.aspect);  // width / height
       if (ratio <= 0.0) return std::nullopt;

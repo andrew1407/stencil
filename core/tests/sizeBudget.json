@@ -11,7 +11,7 @@
     "core/format": 21,
     "core/geometry": 9,
     "core/page": 18,
-    "core/parse": 17,
+    "core/parse": 9,
     "core/raster": 10,
     "core/state": 8,
     "core/tests": 7

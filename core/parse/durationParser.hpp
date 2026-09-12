@@ -1,14 +1,8 @@
 #pragma once
 #include <string>
 
-// A small, safe human-duration parser — the shared C++ engine behind the
-// `expire` command (the CLI console verb and the browser's `stencil.expire`).
-// The JS twin kept behaviorally identical is browser/js/core/durationParser.js.
-//
-// It turns a free-form spec into a length in milliseconds; the caller adds that
-// to "now" to get an expiry timestamp (0 == "keep forever"). Parsing is pure and
-// clock-free — core never reads the clock (STL-only, GUI-free).
-//
+// Human-duration parser behind the `expire` command; the twin kept identical is
+// browser/js/core/durationParser.js. Clock-free: the caller adds the ms to "now".
 // Grammar (whitespace-tokenized, case-insensitive; 1 or 2 tokens):
 //
 //   spec  := off | unit | count unit | unit count
@@ -16,29 +10,20 @@
 //   unit  := 'day' | 'week' | 'fortnight' | 'month' | 'year'  (trailing 's' ok)
 //   count := a positive base-10 integer
 //
-// A bare unit means one of it ("day" = 1 day, "month" = 1 month, "fortnight" =
-// 14 days). Fixed durations — week=7d, fortnight=14d, month=30d, year=365d — so
-// this C++ port and the JS twin agree with no calendar library (mirrors the
-// PERIOD_MS presets in projectsStore). Empty / unknown unit / non-positive or
-// non-integer count / overflow are all reported invalid, so a bare `/expire`
-// prints help instead of applying anything.
+// A bare unit means one of it. Fixed durations (month=30d, year=365d) so the two
+// ports agree with no calendar library — the PERIOD_MS presets of projectsStore.
 namespace stencil::core {
 
   class DurationParser {
    public:
-    // Milliseconds per day — the base unit all others multiply. Public so the
-    // adapters can mirror the same constants without re-deriving them.
     static constexpr long long DAY_MS = 24LL * 60 * 60 * 1000;
 
-    // The grammar's vocabulary, space-separated in help order: the unit words
-    // ("day week fortnight month year") and the keep-forever aliases ("off never
-    // none"). Adapters print their `expire` help from these, so a printed list
-    // can't drift from what parse() actually accepts. Static storage.
+    // The vocabulary, space-separated in help order; adapters print their `expire`
+    // help from these so a printed list cannot drift from what parse() accepts.
     static const char* unitNames();
     static const char* offAliases();
 
-    // Parse `spec` into a duration in ms written to `outMs` (0 for off/never).
-    // Returns true iff the spec is valid; leaves `outMs` untouched on failure.
+    // `outMs` is untouched on failure.
     bool parse(const std::string& spec, long long& outMs) const;
   };
 

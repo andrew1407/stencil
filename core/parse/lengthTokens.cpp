@@ -11,10 +11,8 @@ namespace stencil::core {
     constexpr double kCmPerInch = 2.54;  // mirrors CM_PER_INCH in browser/js/utils.js
   }  // namespace
 
-  // Hand-rolled equivalent of /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/ — the core
-  // avoids <regex> (see formulaParser) for speed and small wasm output.
+  // Hand-rolled /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/ — no <regex> in the wasm build.
   std::optional<LengthToken> parseLengthToken(const std::string& token) {
-    // Trim + lowercase, matching the JS `token.trim().toLowerCase()`.
     const std::string s = trimLowerAscii(token);
     if (s.empty()) return std::nullopt;
 
