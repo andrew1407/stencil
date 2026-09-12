@@ -6,6 +6,7 @@
 // new tab is a real page in the same context.
 import { test, expect } from '@playwright/test';
 import { gotoApp, seedProjectsAndOpenList } from '../../helpers/boot.js';
+import { finger, ghostBox } from '../../helpers/drag.js';
 
 // Two saved local projects, then the Projects modal open (helpers/boot.js). Returns the
 // row of the project that is NOT active, so every gesture has something real to switch to.
@@ -13,29 +14,6 @@ const seedAndOpenList = (page, extra = 0) => seedProjectsAndOpenList(page, { ext
 
 const confirmModal = (page) => page.locator('#confirm-modal-overlay');
 const activeId = (page) => page.evaluate(() => window.stencil.current?.id ?? null);
-
-// A REAL finger, through the browser's input pipeline (CDP), not `dispatchEvent`. It has to be:
-// synthetic PointerEvents never reach the compositor, so they can't show whether the browser
-// steals the gesture for scrolling — which is exactly how a reorder that no finger could
-// complete once passed this suite.
-async function finger(page) {
-  const cdp = await page.context().newCDPSession(page);
-  const send = (type, x, y) => cdp.send('Input.dispatchTouchEvent', {
-    type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
-  });
-  return {
-    down: (x, y) => send('touchStart', x, y),
-    move: (x, y) => send('touchMove', x, y),
-    up: (x, y) => send('touchEnd', x, y),
-    // Glide in steps, as a finger does — one jump can be mistaken for a flick.
-    async glide(x, y, tx, ty, steps = 6) {
-      for (let i = 1; i <= steps; i++) {
-        await send('touchMove', x + ((tx - x) * i) / steps, y + ((ty - y) * i) / steps);
-        await page.waitForTimeout(30);
-      }
-    },
-  };
-}
 
 // How far anything has scrolled (page or the list itself — either counts as "the list moved").
 const scrollTop = (page) => page.evaluate(() => Math.max(
@@ -205,11 +183,7 @@ test.describe('projects list: touch gestures', () => {
     const gx = from.x + 40, gy = from.y + from.height / 2;
     await touch.down(gx, gy);
     await page.waitForTimeout(400);                       // pickup (280ms) + margin
-    const ghostAt = () => page.evaluate(() => {
-      const g = [...document.body.children].find((e) => e.style.zIndex === '100005');
-      return g ? { left: g.getBoundingClientRect().left, top: g.getBoundingClientRect().top } : null;
-    });
-    const grabOffset = gx - (await ghostAt()).left;
+    const grabOffset = gx - (await ghostBox(page)).left;
 
     // Drop in the TOP quarter of the other row → land BEFORE it (a real move).
     const tx = other.x + 40, ty = other.y + 6;
@@ -217,7 +191,7 @@ test.describe('projects list: touch gestures', () => {
 
     // The ghost is still there — i.e. the browser did NOT steal the gesture to scroll —
     // and it is still anchored under the finger at the point it was grabbed by.
-    const held = await ghostAt();
+    const held = await ghostBox(page);
     expect(held, 'the drag survived the move (no scroll steal)').not.toBeNull();
     expect(Math.abs(tx - held.left - grabOffset), 'the ghost stays under the finger').toBeLessThan(2);
     await touch.up(tx, ty);

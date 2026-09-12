@@ -11,6 +11,7 @@ import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
 import { startLlmStub } from '../../helpers/llm-stub.js';
+import { contentText, imageUrls, llmSettings as stubLlmSettings } from '../../helpers/chat.js';
 
 const FIXTURE_URL = APP_URL + '__e2e__/page-with-image.html';
 
@@ -35,7 +36,7 @@ test.describe('extension AI assistant (embedded section)', () => {
         chrome.storage.local.set({ llmSettings: llm }, resolve))),
     {
       editorUrl: APP_URL,
-      llm: { provider: 'openai-compat', baseUrl: stub.url + '/v1', model: 'e2e-model', apiKey: '', serverUrl: '', serverToken: '' },
+      llm: { ...stubLlmSettings(stub.url + '/v1'), serverToken: '' },
     });
     await new Promise((r) => setTimeout(r, 500));
   });
@@ -118,7 +119,7 @@ test.describe('extension AI assistant (embedded section)', () => {
     expect(stub.requests).toHaveLength(2);
     const system = stub.requests[0].body.messages[0];
     expect(system.role).toBe('system');
-    expect(system.content).toContain('Images scanned from the current page');
+    expect(contentText(system.content)).toContain('Images scanned from the current page');
 
     await editor.close();
     await host.close();
@@ -163,7 +164,7 @@ test.describe('extension AI assistant (embedded section)', () => {
     stub.queue({ version: 1, reply: 'Ready.', actions: [], variants: [] });
     await sendPrompt(popup, 'What is on this page?');
     await expect(popup.locator('#sec-assistant .msg.assistant')).toHaveText('Ready.', { timeout: 15_000 });
-    const listing = stub.requests[0].body.messages[0].content;
+    const listing = contentText(stub.requests[0].body.messages[0].content);
     const idx = Number(/^(\d+):[^\n]*e2e-svg/m.exec(listing)?.[1]);
     expect(Number.isInteger(idx)).toBeTruthy();
 
@@ -179,10 +180,7 @@ test.describe('extension AI assistant (embedded section)', () => {
 
     // The continuation call carries the rasterised bytes — PNG, never image/svg+xml.
     expect(stub.requests).toHaveLength(3);
-    const images = stub.requests[2].body.messages
-      .flatMap((m) => (Array.isArray(m.content) ? m.content : []))
-      .filter((p) => p.type === 'image_url')
-      .map((p) => p.image_url.url);
+    const images = imageUrls(stub.requests[2]);
     expect(images.length).toBeGreaterThan(0);
     for (const url of images) expect(url.startsWith('data:image/png;base64,')).toBeTruthy();
 

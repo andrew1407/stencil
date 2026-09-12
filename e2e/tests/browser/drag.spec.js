@@ -1,7 +1,10 @@
-// The translucent copy of a row that follows the pointer while it is dragged
-// (browser/js/ui/dragGhost.js), on BOTH input paths.
+// The projects modal's drag surfaces, driven through the REAL browser with real drag
+// input on both paths:
+//   • reorder + the drag-out zones (Open here / Remove) — projectsModal.js attachRowDrag
+//     / performZoneAction end-to-end, no server;
+//   • the translucent copy of the row that follows the pointer (ui/dragGhost.js).
 //
-// It used to be the browser's own drag image, rasterized from a cloned element by
+// The ghost used to be the browser's own drag image, rasterized from a cloned element by
 // `setDragImage`. On a HiDPI display Chrome rendered that snapshot at the device scale
 // while applying the grab offset in the other one, so the ghost came out oversized and
 // trailing far to the right of the cursor — and none of it was reachable from the DOM to
@@ -9,33 +12,58 @@
 // size, right place, gone afterwards, and the same on mouse and finger.
 import { test, expect } from '@playwright/test';
 import { gotoApp, seedProjectsAndOpenList } from '../../helpers/boot.js';
+import { finger, ghostBox, spyOnDragImage } from '../../helpers/drag.js';
 
-// Record what gets handed to the native drag image, to prove we suppress it.
-const spyOnDragImage = (page) => page.addInitScript(() => {
-  window.__dragImages = [];
-  const orig = DataTransfer.prototype.setDragImage;
-  DataTransfer.prototype.setDragImage = function (img, x, y) {
-    window.__dragImages.push({ tag: img && img.tagName, w: img && img.width, h: img && img.height, x, y });
-    return orig.apply(this, arguments);
-  };
+// Create N distinct saved local projects via the facade (each blank auto-saves; newEditor
+// starts a fresh one), then open the Projects modal and wait for the draggable rows.
+async function seedProjects(page, colors) {
+  await page.evaluate(async (cols) => {
+    for (let i = 0; i < cols.length; i++) {
+      if (i > 0) window.stencil.newEditor();
+      await window.stencil.blank(cols[i], { size: { width: 200, height: 150 } });
+    }
+  }, colors);
+  await page.locator('#projects-btn').click();
+  const rows = page.locator('.project-row[draggable="true"]');
+  await expect(rows).toHaveCount(colors.length, { timeout: 5000 });
+  return rows;
+}
+
+test('projects: drag-to-reorder switches to manual order and moves the row', async ({ page }) => {
+  await gotoApp(page);
+  const rows = await seedProjects(page, ['#ffffff', '#000000', '#ff8800']);
+
+  const firstKey = await rows.first().getAttribute('data-drag-key');
+  // Drag the first draggable row onto the third → a manual reorder is persisted.
+  await rows.first().dragTo(rows.nth(2));
+
+  // The sort selector flips to "manual" once a manual drop is persisted (persistManualDrop).
+  await expect(page.locator('#projects-sort')).toHaveValue('manual');
+  // The dragged row is no longer first (it moved down past the drop target).
+  await expect(page.locator('.project-row[draggable="true"]').first())
+    .not.toHaveAttribute('data-drag-key', firstKey);
+});
+
+test('projects: drag a row to the Remove zone deletes it (after confirm)', async ({ page }) => {
+  await gotoApp(page);
+  const rows = await seedProjects(page, ['#ffffff', '#000000']);
+  const countBefore = await rows.count();
+
+  // Real HTML5 drag to the bottom-centre Remove zone (position-based, outside the card): drop on
+  // the full-viewport overlay at a point in the bottom band → performZoneAction('remove').
+  const overlay = page.locator('#projects-modal-overlay');
+  const ob = await overlay.boundingBox();
+  await rows.first().dragTo(overlay, { targetPosition: { x: ob.width / 2, y: ob.height - 12 } });
+
+  // The Remove zone raises a Yes/No confirm; confirming removes the row.
+  const confirm = page.locator('#confirm-modal-overlay.modal-open');
+  await expect(confirm).toBeVisible({ timeout: 3000 });
+  await confirm.getByRole('button', { name: /^yes$/i }).click();
+  await expect(page.locator('.project-row[draggable="true"]')).toHaveCount(countBefore - 1);
 });
 
 // Three saved projects (helpers/boot.js), so nth(1) is a draggable middle row.
 const seedAndOpenList = (page) => seedProjectsAndOpenList(page, { extra: 1 });
-
-// The ghost's box, and the source row's measured at the SAME instant — row heights settle a
-// little after first paint, so a pre-drag measurement would drift against a mid-drag ghost.
-const ghostBox = (page) => page.evaluate(() => {
-  const g = document.querySelector('[data-drag-ghost]');
-  if (!g) return null;
-  const b = g.getBoundingClientRect();
-  const src = document.querySelector('.project-row.project-dragging');
-  const s = src && src.getBoundingClientRect();
-  return {
-    left: b.left, top: b.top, width: b.width, height: b.height,
-    row: s ? { width: s.width, height: s.height } : null,
-  };
-});
 
 test.describe('drag ghost: mouse', () => {
   test.use({ viewport: { width: 1400, height: 900 } });
@@ -119,13 +147,9 @@ test.describe('drag ghost: touch', () => {
 
     const row = page.locator('.project-row[data-drag-key]').nth(1);
     const box = await row.boundingBox();
-    const cdp = await page.context().newCDPSession(page);
-    const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', {
-      type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
-    });
-
+    const touch = await finger(page);
     const gx = box.x + 40, gy = box.y + box.height / 2;
-    await touch('touchStart', gx, gy);
+    await touch.down(gx, gy);
     await page.waitForTimeout(400);                 // the 280ms pickup
     const g = await ghostBox(page);
     expect(g, 'the finger drag draws the same ghost element').not.toBeNull();
@@ -136,13 +160,13 @@ test.describe('drag ghost: touch', () => {
     }
 
     const anchorX = gx - g.left, anchorY = gy - g.top;
-    await touch('touchMove', gx, gy - 60);
+    await touch.move(gx, gy - 60);
     await page.waitForTimeout(60);
     const moved = await ghostBox(page);
     expect(Math.abs(gx - moved.left - anchorX), 'anchored at the grab point').toBeLessThan(2);
     expect(Math.abs((gy - 60) - moved.top - anchorY)).toBeLessThan(2);
 
-    await touch('touchEnd', gx, gy - 60);
+    await touch.up(gx, gy - 60);
     await page.waitForTimeout(300);
     expect(await ghostBox(page)).toBeNull();
   });
