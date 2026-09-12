@@ -13,10 +13,18 @@ export const PNG_DATA_URL =
 
 // Navigate to the app, clear any persisted state so runs are independent, and wait
 // until the scripting facade is live.
-export async function gotoApp(page, { hash = '' } = {}) {
-  await page.addInitScript(() => {
-    try { localStorage.clear(); } catch { /* blocked */ }
-  });
+//
+// `motion` seeds the app's own interface-motion switch (ui/motionPrefs.js) before first
+// paint — prePaintTheme.js reads this key in <head> and stamps <html data-motion>, so
+// 'none' means no entrance ever starts and settleModalAnimations is a no-op. Specs that
+// measure geometry pass it; specs that assert on motion must not.
+export async function gotoApp(page, { hash = '', motion = '' } = {}) {
+  await page.addInitScript((m) => {
+    try {
+      localStorage.clear();
+      if (m) localStorage.setItem('drawingApp_motion', JSON.stringify({ mode: m }));
+    } catch { /* blocked */ }
+  }, motion);
   await page.goto(APP_URL + hash);
   await page.waitForFunction(() => !!(/** @type {any} */ (window).stencil), null, { timeout: 15_000 });
   return page;
@@ -24,12 +32,10 @@ export async function gotoApp(page, { hash = '' } = {}) {
 
 // Seed saved local projects via the facade (each blank auto-saves; newEditor starts a
 // fresh one) — two by default, `extra` more when a test needs the list long enough to
-// actually scroll — then open the Projects modal and wait for the rows. `settleMs`
-// waits out the modal's entry animation (the modalPop scale runs 0.3s — measuring
-// during it reports ~97% of the real geometry). Returns the rows plus the row of the
-// project that is NOT active, so every gesture has something real to switch to
-// (clicking the active row just closes the list — it is already open in this tab).
-export async function seedProjectsAndOpenList(page, { extra = 0, settleMs = 0 } = {}) {
+// actually scroll — then open the Projects modal and wait for the rows. Returns the rows
+// plus the row of the project that is NOT active, so every gesture has something real to
+// switch to (clicking the active row just closes the list — it is already open here).
+export async function seedProjectsAndOpenList(page, { extra = 0 } = {}) {
   await page.evaluate(async (n) => {
     await window.stencil.blank('#ffffff', { size: { width: 200, height: 150 } });
     window.stencil.newEditor();
@@ -45,7 +51,6 @@ export async function seedProjectsAndOpenList(page, { extra = 0, settleMs = 0 } 
   // The dialog flies in from its toolbar icon (base.js modalFromIcon, ~0.5s): geometry
   // read — or a tap aimed — mid-flight is scaled toward the icon, so wait it out.
   await settleModalAnimations(page, 'projects-modal-overlay');
-  if (settleMs) await page.waitForTimeout(settleMs);
   const idx = await rows.evaluateAll((els) => els.findIndex((e) => !e.classList.contains('project-active')));
   expect(idx, 'an inactive project row exists').toBeGreaterThanOrEqual(0);
   return { rows, target: rows.nth(idx) };

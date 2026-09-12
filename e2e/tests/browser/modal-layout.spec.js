@@ -26,21 +26,19 @@ const overflowingInModal = (page, overlayId) => page.evaluate((oid) => {
   return out;
 }, overlayId);
 
-// Open the Settings sheet on a booted app. The dialog flies in from its icon (base.js
-// modalFromIcon) — column widths read mid-flight are scaled down, so wait the motion out.
+// Open the Settings sheet on a booted app. Motion off (the dialog's flight from its icon
+// would scale the column widths read mid-flight), so nothing here has an entrance to wait.
 async function openSettings(page) {
-  await gotoApp(page);
+  await gotoApp(page, { motion: 'none' });
   await page.locator('#settings-btn').click();
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/modal-open/);
   await expect(page.locator('#hotkey-table .hotkey-row').first()).toBeVisible();
   await settleModalAnimations(page, 'settings-modal-overlay');
 }
 
-// Two saved projects, then the Projects modal open and settled (the modalPop scale runs
-// 0.3s — measuring during it reports ~97% of the real geometry).
 async function openProjects(page) {
-  await gotoApp(page);
-  await seedProjectsAndOpenList(page, { settleMs: 500 });
+  await gotoApp(page, { motion: 'none' });
+  await seedProjectsAndOpenList(page);
 }
 
 const MODALS = [

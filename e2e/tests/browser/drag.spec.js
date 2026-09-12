@@ -30,7 +30,7 @@ async function seedProjects(page, colors) {
 }
 
 test('projects: drag-to-reorder switches to manual order and moves the row', async ({ page }) => {
-  await gotoApp(page);
+  await gotoApp(page, { motion: 'none' });
   const rows = await seedProjects(page, ['#ffffff', '#000000', '#ff8800']);
 
   const firstKey = await rows.first().getAttribute('data-drag-key');
@@ -45,7 +45,7 @@ test('projects: drag-to-reorder switches to manual order and moves the row', asy
 });
 
 test('projects: drag a row to the Remove zone deletes it (after confirm)', async ({ page }) => {
-  await gotoApp(page);
+  await gotoApp(page, { motion: 'none' });
   const rows = await seedProjects(page, ['#ffffff', '#000000']);
   const countBefore = await rows.count();
 
@@ -70,7 +70,7 @@ test.describe('drag ghost: mouse', () => {
 
   test('is row-sized, stays under the cursor, and is cleaned up', async ({ page }) => {
     await spyOnDragImage(page);
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     await seedAndOpenList(page);
 
     const row = page.locator('.project-row[data-drag-key]').nth(1);
@@ -119,7 +119,7 @@ test.describe('drag ghost: mouse', () => {
   });
 
   test('the ghost is not mistaken for a real row', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     await seedAndOpenList(page);
     const before = await page.locator('.project-row[data-drag-key]').count();
     const box = await page.locator('.project-row[data-drag-key]').nth(1).boundingBox();
@@ -142,7 +142,7 @@ test.describe('drag ghost: touch', () => {
   test.use({ viewport: { width: 393, height: 851 }, hasTouch: true, isMobile: true });
 
   test('a finger gets the same ghost, anchored the same way', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     await seedAndOpenList(page);
 
     const row = page.locator('.project-row[data-drag-key]').nth(1);

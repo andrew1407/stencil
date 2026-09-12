@@ -23,7 +23,7 @@ const scrollTop = (page) => page.evaluate(() => Math.max(
 
 test.describe('projects list: open gestures', () => {
   test('single click asks first, and opens in THIS tab on confirm', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
     const targetId = await target.getAttribute('data-id');
@@ -46,7 +46,7 @@ test.describe('projects list: open gestures', () => {
   });
 
   test('double click opens immediately — the modal never even flashes', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const targetId = await target.getAttribute('data-id');
 
@@ -68,7 +68,7 @@ test.describe('projects list: open gestures', () => {
   });
 
   test('⌘/Ctrl + click asks, then opens in a NEW TAB', async ({ page, context }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
 
@@ -86,7 +86,7 @@ test.describe('projects list: open gestures', () => {
   });
 
   test('⌘/Ctrl + double click opens a NEW TAB immediately, no modal', async ({ page, context }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
 
@@ -102,7 +102,7 @@ test.describe('projects list: open gestures', () => {
   });
 
   test('keyboard: Enter on a focused row opens it, with the confirmation', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const targetId = await target.getAttribute('data-id');
     await target.focus();
@@ -120,7 +120,7 @@ test.describe('projects list: touch gestures', () => {
   test.use({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true });
 
   test('tap asks and opens here; the ⋯ menu is the new-tab route', async ({ page, context }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
     const box = await target.boundingBox();
@@ -150,7 +150,7 @@ test.describe('projects list: touch gestures', () => {
   });
 
   test('a press-and-hold in place picks the row up to REORDER — it opens nothing', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
     const box = await target.boundingBox();
@@ -169,7 +169,7 @@ test.describe('projects list: touch gestures', () => {
   });
 
   test('a touch reorder drag completes — the finger keeps the gesture, the list never scrolls', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { rows, target } = await seedAndOpenList(page, 2);
     const before = await activeId(page);
     const orderBefore = await page.locator('.project-row[data-drag-key]')
@@ -210,7 +210,7 @@ test.describe('projects list: touch gestures', () => {
   });
 
   test('dragging a row out to the "Open here" zone opens it, by finger', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
     const targetId = await target.getAttribute('data-id');
@@ -234,7 +234,7 @@ test.describe('projects list: touch gestures', () => {
   });
 
   test('a swipe over a row still scrolls the list — it never opens anything', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page, 3);
     const before = await activeId(page);
     const box = await target.boundingBox();
