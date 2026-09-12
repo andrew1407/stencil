@@ -6,16 +6,13 @@ import {
 } from './projectFilePicker.js';
 import { uploadJSON, applyPastedLayout, installLayout } from './layoutInstall.js';
 
-// ── ExportService: image/layout export, clipboard, and file IO ──────
-// Holds no state of its own: reads the app's editor state and routes every mutation back
-// through the app's shared methods, matching the back-reference collaborator pattern.
+// Image/layout export, clipboard and file IO. Holds no state: reads the app's editor state
+// and routes every mutation back through the app's shared methods.
 export class ExportService {
   constructor(app) {
     this.app = app;
   }
 
-  // Trigger a client-side download of `blob` as `filename` via a transient <a> (the
-  // object-URL dance shared by downloadJSON and the .stencil save fallback).
   downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -25,14 +22,9 @@ export class ExportService {
     URL.revokeObjectURL(url);
   }
 
-  // Render one export variant onto a full-resolution offscreen canvas — shared by
-  // saveImage / copyImageToClipboard / shareImage / the Alt-hover preview. The renderer's
-  // helpers write to app.ctx; point that at the offscreen ctx, then restore.
-  //   'current'  — active filter/tint + visible lines/points (the original, default behavior)
-  //   'original' — the cropped+rotated original alone: no filter, no annotations
-  //   'tint'     — active filter/tint, but no lines/points
-  //   'split'    — 'current' plus the compare composite, always CLEAN: the divider and its
-  //                knob are editor UI, so exports opt out of drawCompareSplit's withDivider.
+// One export variant on a full-resolution offscreen canvas; the renderer writes to app.ctx,
+// so point that at the offscreen ctx, then restore. 'original' = cropped+rotated original
+// alone; 'tint' = filter without lines; 'split' = 'current' plus the compare composite, no divider.
   renderExportCanvas(variant = 'current') {
     const app = this.app;
     const offscreen = document.createElement('canvas');
@@ -41,8 +33,7 @@ export class ExportService {
     const ctx = offscreen.getContext('2d');
     const savedCtx = app.ctx;
     app.ctx = ctx;
-    // An export is the RESTING picture: a vertex still flying would otherwise be baked
-    // in mid-air, with its spark, by a Ctrl+C landing during the animation.
+// An export is the RESTING picture: a vertex still flying must not be baked in mid-air.
     app.strokeFx.suspend();
     if (variant === 'original') {
       ctx.filter = 'none';
@@ -68,7 +59,6 @@ export class ExportService {
     return offscreen;
   }
 
-  // Variant suffixes and clipboard labels are data: core/imageVariants.js.
 
   saveImage(variant = 'current') {
     const app = this.app;
@@ -80,12 +70,8 @@ export class ExportService {
       notify('Turn on split compare to download with the splitter', 'fail');
       return;
     }
-    // 'current' is always the plain edited frame (tint + lines/points) — 'split' is its
-    // own explicit variant, a separate row/hotkey slot while a split compare view is
-    // active (desktop parity: dataExportController.cpp saveImageFile). The PRIMARY
-    // gesture (the toolbar click / the saveImage hotkey) decides which of the two to ask
-    // for at the call site (controlsBinder.js / exportOptionsMenu.js openFull) — this
-    // method itself never substitutes one for the other.
+// 'split' is its own explicit variant (desktop parity: dataExportController.cpp
+// saveImageFile); the call site decides which to ask for, this never substitutes.
     const offscreen = this.renderExportCanvas(variant);
 
     const baseName = app.imageBaseName || 'drawing';
@@ -99,15 +85,11 @@ export class ExportService {
     link.href = offscreen.toDataURL(mime);
     link.click();
 
-    // A server-linked session also writes the annotated result + layout back — only for
-    // the canonical "current" download; the other variants are alternate exports, not the
-    // project's saved state.
+// Only the canonical "current" download writes back to a linked server.
     if (app.remoteLink && variant === 'current') app.remoteSync.saveToServer();
   }
 
-  // Share the annotated image via the Web Share API (mobile/PWA). The Share entry
-  // points are only shown when supportsShareFiles() is true (see toolbar/contextMenu
-  // wiring), so this is reached only where file sharing works; we still guard defensively.
+// Web Share API. Entry points show only when supportsShareFiles() is true; still guarded.
   shareImage() {
     const app = this.app;
     if (!app.image) { notify('No image loaded', 'fail'); return; }
@@ -121,9 +103,7 @@ export class ExportService {
         return;
       }
       try {
-        // Some engines throw synchronously (a stale/expired user gesture) rather than
-        // rejecting the promise — caught here so the failure surfaces instead of vanishing
-        // silently behind the menu, which had already closed by the time this callback runs.
+// Some engines throw synchronously on a stale user gesture rather than rejecting.
         navigator.share({ files: [file], title: `${baseName} — Stencil` })
           .catch(err => { if (err && err.name !== 'AbortError') notify('Share failed', 'fail'); });
       } catch {
@@ -139,8 +119,7 @@ export class ExportService {
       return;
     }
 
-    // Export the FULL layout (lines + filter/crop/rotation/page/formulas), matching the
-    // clipboard copy and the server payload so a download round-trips every applied edit.
+// The FULL layout, matching the clipboard copy and the server payload.
     const data = app.currentLayoutPayload();
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -148,8 +127,6 @@ export class ExportService {
   }
 
 
-  // The clipboard, the .stencil file pickers and the layout-install flow are their own
-  // modules beside this one; these keep the one call shape every caller already uses.
   uploadJSON(e) { uploadJSON(this.app, e); }
 
   copyImageToClipboard(variant = 'current') { return copyImageToClipboard(this, variant); }

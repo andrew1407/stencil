@@ -1,21 +1,18 @@
 import { notify } from '../utils.js';
 import { resolveInsertIdx } from './layout.js';
 
-// ── Start / stop drawing, and which shape ───────────────────────
-// Split out of DrawingApp. Starting either continues the selected line (adopting its style)
-// or opens a fresh stroke; stopping commits whatever was drawn. The two button faces these
-// drive are ui/drawToggleUI.js.
+// Start / stop drawing: starting either continues the selected line (adopting its style) or
+// opens a fresh stroke; stopping commits. The button faces are ui/drawToggleUI.js.
 
 export const startDrawingMode = (app, opts = {}) => {
-  if (app.compareReadOnly()) return; // read-only compare view
+  if (app.compareReadOnly()) return;
   if (!app.image) {
     notify('Please upload an image first', 'fail');
     return;
   }
   app.isDrawing = true;
 
-  // Continuation: a line is selected → connect the new drawing to it and
-  // adopt its style (new points/rects become part of the selected line).
+// Continuation: new points/rects become part of the selected line and adopt its style.
   if (opts.connect !== false && app.selectedLineIdx >= 0 && app.lines[app.selectedLineIdx]) {
     app.continueLineIdx = app.selectedLineIdx;
     const line = app.lines[app.continueLineIdx];
@@ -39,8 +36,7 @@ export const startDrawingMode = (app, opts = {}) => {
   app.currentLine = {
     points: [],
     color: app.color,
-    // Resolved AT DRAW TIME (empty setting → the current line colour) so a later
-    // line-colour change never recolours already-drawn points.
+// Resolved at draw time so a later line-colour change never recolours drawn points.
     pointColor: app.pointColor || app.color,
     thickness: app.thickness,
     pointSize: app.pointSize,
@@ -50,7 +46,7 @@ export const startDrawingMode = (app, opts = {}) => {
     app.selectedLineIdx = -1;
     app.hideSelectionPanels();
   }
-  app.undonePoints = []; // stack for redo while drawing
+  app.undonePoints = [];
   app.updateButtons();
   app.renderer.redraw();
 };
@@ -61,7 +57,7 @@ export const setDrawMode = (app, mode) => {
 };
 
 export const stopDrawingMode = (app) => {
-  // Continuation drawing: the line is already in app.lines — just commit & reset
+// Continuation: the line is already in app.lines — commit & reset.
   if (app.continueLineIdx >= 0) {
     const li = app.continueLineIdx;
     app.continueLineIdx = -1;

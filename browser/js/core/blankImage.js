@@ -1,6 +1,5 @@
-// ── Blank projects: a solid-colour raster you can recolour in place ──
-// Extracted from drawingApp.js. The blob is generated on a scratch canvas and handed to the
-// normal load path, so a blank behaves like any other image (lines are a separate overlay).
+// Blank projects: a solid-colour raster generated on a scratch canvas and handed to the
+// normal load path, so a blank behaves like any other image.
 import { notify } from '../utils.js';
 import { normalizeHex } from './accents.js';
 import { defaultBlankSizePx } from './layout.js';
@@ -9,8 +8,6 @@ import { PROJECT_ACTION } from '../worker/messages.js';
 import constants from '../config/constants.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
 
-// Generate a solid-colour PNG blob of size w×h — the raster backing a blank project. Shared by
-// createBlankImage (new blank) and setBlankColor (recolour an existing blank in place).
 const blankFillBlob = (w, h, color) => {
   const cnv = document.createElement('canvas');
   cnv.width = w; cnv.height = h;
@@ -22,9 +19,8 @@ const blankFillBlob = (w, h, color) => {
   });
 };
 
-// Create a solid-color blank image and load it (shared with the console API). width/height
-// in px (clamped 1–8192); omitted → current page size. `address` also creates+links the
-// project on that server, validated up front. Resolves { width, height } once handed off.
+// width/height in px (clamped 1–8192); omitted → current page size. `address` also
+// creates+links the project on that server.
 export const createBlankImage = (app, { color = '#ffffff', width, height, address } = {}) => {
   if (app.storage.incognito) address = undefined;   // incognito never creates on a server
   if (address) requireConnection(app.connections, address);
@@ -36,10 +32,9 @@ export const createBlankImage = (app, { color = '#ffffff', width, height, addres
   const w = Math.max(1, Math.min(8192, Math.round(dims.width)));
   const h = Math.max(1, Math.min(8192, Math.round(dims.height)));
   const fill = normalizeHex(color) || '#ffffff';
-  // A blank's colour IS the page: a filter left over from the previous image
-  // would repaint the fill (bw of a red page is flat gray), so start clean.
+// A filter left over from the previous image would repaint the fill, so start clean.
   if (app.imageFilter !== 'none') app.settings.setImageFilter('none');
-  // blankColor marks this as a (recolourable) blank project; it's persisted into project meta.
+// blankColor marks a recolourable blank; persisted into project meta.
   return blankFillBlob(w, h, fill).then(blob => {
     app.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
       { address: address || undefined, blankColor: fill });
@@ -47,12 +42,9 @@ export const createBlankImage = (app, { color = '#ffffff', width, height, addres
   });
 };
 
-// True while the active session is a blank project (recolourable solid background).
 export const activeIsBlank = (app) => !!app.blankColor;
 
-// Recolour the ACTIVE blank project's background, keeping every drawn line. Regenerates the
-// fill at the current dimensions in place, persists blank/blankColor, updates the registry +
-// peer tabs, and pushes to a server-linked project. No-op unless this is a blank image.
+// Recolour the active blank in place, keeping every drawn line; no-op unless a blank.
 export const setBlankColor = (app, color) => {
   if (!activeIsBlank(app) || !app.image) return this;
   const next = normalizeHex(color);

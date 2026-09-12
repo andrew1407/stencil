@@ -1,10 +1,6 @@
-// ── The core's state/ group: handle classes + project rules ─────
-// stencilCore.js wraps the core's pure functions; the classes in core/state/ own
-// state, so they live in wasm memory behind an opaque int handle (create/destroy
-// plus operations) exported by core/wasmStateApi.cpp. Each wrapper mirrors its JS
-// twin's API exactly, so browser/tests/wasm-parity-state.test.js can drive both
-// through the same script and pin them op-for-op. The group's scalar-only rules
-// (projectRules.js) ride along here, so stencilCore.js has one entry point.
+// The core's state/ group: classes that own state live in wasm memory behind an opaque
+// int handle (core/wasmStateApi.cpp). Each wrapper mirrors its JS twin's API exactly, so
+// browser/tests/wasm-parity-state.test.js drives both through one script.
 
 import { encodeLines, decodeLines } from './linesCodec.js';
 import { buildProjectRules, projectRuleExports } from './projectRules.js';
@@ -12,15 +8,13 @@ import { buildProjectRules, projectRuleExports } from './projectRules.js';
 const F64 = 8;
 const I32 = 4;
 
-// HoldAction codes, in core/state/holdDraw.hpp order (0 = None → no event).
+// In core/state/holdDraw.hpp order (0 = None → no event).
 const HOLD_ACTIONS = [null, 'armed', 'abort', 'start', 'drop', 'preview', 'commit'];
 // The actions that carry coordinates; the rest are bare {type} objects, as in holdDraw.js.
 const HOLD_XY = new Set(['start', 'drop', 'preview']);
-// HoldState codes.
 const HOLD_STATES = ['idle', 'armed', 'drawing', 'aborted'];
 
-// Build the wasm-backed twin of holdDraw.js's HoldDrawController. Instances own a
-// core handle plus a 2-double out slot, released by destroy().
+// Instances own a core handle plus a 2-double out slot, released by destroy().
 const holdDrawClass = (mod) => {
   const c = {
     create: mod.cwrap('stencil_holdDraw_create', 'number', ['number', 'number', 'number']),
@@ -44,7 +38,7 @@ const holdDrawClass = (mod) => {
       this.#out = mod._malloc(2 * F64);
     }
 
-    // Release the core handle and its out slot. Idempotent; the instance is unusable after.
+// Idempotent; the instance is unusable after.
     destroy() {
       if (!this.#handle) return;
       c.destroy(this.#handle);
@@ -74,7 +68,6 @@ const holdDrawClass = (mod) => {
       return this.#handle;
     }
 
-    // Decode an action code into the exact object shape holdDraw.js returns.
     #event(code) {
       const type = HOLD_ACTIONS[code];
       if (!type) return null;
@@ -84,8 +77,7 @@ const holdDrawClass = (mod) => {
   };
 };
 
-// Build the wasm-backed twin of historyStack.js's HistoryStack. Snapshots cross as the
-// flat (nums, text) pair from linesCodec.js, in both directions.
+// Snapshots cross as the flat (nums, text) pair from linesCodec.js, in both directions.
 const historyClass = (mod) => {
   const NUM = ['number', 'number', 'number', 'number', 'number', 'number', 'number'];
   const c = {
@@ -102,8 +94,7 @@ const historyClass = (mod) => {
     read: mod.cwrap('stencil_history_readResult', null, ['number', 'number', 'number']),
   };
 
-  // Copy an encoded snapshot onto the heap, run `use(numsPtr, numsLen, textPtr, textLen)`,
-  // free after. A zero-length buffer still gets a byte, so the pointer is never null.
+// A zero-length buffer still gets a byte, so the pointer is never null.
   const withSnapshot = (lines, use) => {
     const { nums, text } = encodeLines(lines);
     const numsPtr = mod._malloc(Math.max(1, nums.length * F64));
@@ -127,7 +118,6 @@ const historyClass = (mod) => {
       this.#sizes = mod._malloc(2 * I32);
     }
 
-    // Release the core handle and its out slot. Idempotent.
     destroy() {
       if (!this.#handle) return;
       c.destroy(this.#handle);
@@ -157,7 +147,7 @@ const historyClass = (mod) => {
       return this.#handle;
     }
 
-    // 0 from undo/redo is the JS null; otherwise read the snapshot the sizes describe.
+// 0 from undo/redo is the JS null.
     #result(ok) {
       if (!ok) return null;
       const numsLen = mod.getValue(this.#sizes, 'i32');
@@ -176,14 +166,13 @@ const historyClass = (mod) => {
   };
 };
 
-// Everything the core's state/ group installs, keyed like the pure ops.
 export const buildStateOps = (mod) => ({
   HoldDrawController: holdDrawClass(mod),
   HistoryStack: historyClass(mod),
   ...buildProjectRules(mod),
 });
 
-// The C exports these ops cwrap — checked before any wrapper is installed.
+// Checked before any wrapper is installed.
 export const stateExports = [
   'stencil_holdDraw_create', 'stencil_holdDraw_destroy', 'stencil_holdDraw_state',
   'stencil_holdDraw_holdDelay', 'stencil_holdDraw_setHoldDelay', 'stencil_holdDraw_cancel',
