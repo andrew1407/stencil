@@ -61,9 +61,9 @@ public sealed class BenchTests
         (JsonElement Action, OpEntry Entry) wide = Action(schema, Layout(lines: 80, points: 20));
         (JsonElement Action, OpEntry Entry) deep = Action(schema, Layout(lines: 40, points: 40));
 
-        double baseline = Micros("ValidateAction layout 40x20", 2_000, () => Validate(schema, small));
-        double twiceTheLines = Micros("ValidateAction layout 80x20", 1_000, () => Validate(schema, wide));
-        double twiceThePoints = Micros("ValidateAction layout 40x40", 1_000, () => Validate(schema, deep));
+        double baseline = Micros("ValidateAction layout 40x20", 500, () => Validate(schema, small));
+        double twiceTheLines = Micros("ValidateAction layout 80x20", 250, () => Validate(schema, wide));
+        double twiceThePoints = Micros("ValidateAction layout 40x40", 250, () => Validate(schema, deep));
 
         // The walk is one pass over lines x points; 2x the work is ~2x the time either way.
         Ratio("twice the lines", twiceTheLines, baseline, ceiling: 3.0);

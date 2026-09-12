@@ -299,22 +299,23 @@ its input doubles — never a wall-clock ceiling, so the same ceilings hold on C
 laptop. The µs/op are reported, not asserted on; they are the baseline to compare a change
 against (`--logger "console;verbosity=detailed"` prints them).
 
-Baselines below: best of 5 reps, `dotnet test` Debug build, Apple M-series, 2026-09-12.
+Baselines below: best of 5 reps, `dotnet test` Debug build, Apple M-series, 2026-09-12. The
+whole bench suite runs in ~9 s.
 
 | Measurement | µs/op | Relative assertion | Measured | Ceiling |
 |---|---|---|---|---|
 | `OpSchema.ValidateAction` — `rotate`, 1 key | 0.9 | — | — | — |
-| `OpSchema.ValidateAction` — `crop`, 5 sub-keys | 4.3 | vs `rotate` (key count only) | 4.8x | 10x |
-| `OpSchema.ValidateAction` — `layout` 40 lines x 20 points | 754 | — | — | — |
-| `OpSchema.ValidateAction` — `layout` 80 x 20 | 1517 | twice the lines | 2.01x | 3x |
-| `OpSchema.ValidateAction` — `layout` 40 x 40 | 1438 | twice the points | 1.91x | 3x |
-| `OpPlanParser.Parse` — per corpus case (369 bot cases) | 10.5 | whole vs half corpus, per case | 1.15x | 2.5x |
+| `OpSchema.ValidateAction` — `crop`, 5 sub-keys | 4.3 | vs `rotate` (key count only) | 4.7x | 10x |
+| `OpSchema.ValidateAction` — `layout` 40 lines x 20 points | 778 | — | — | — |
+| `OpSchema.ValidateAction` — `layout` 80 x 20 | 1535 | twice the lines | 1.97x | 3x |
+| `OpSchema.ValidateAction` — `layout` 40 x 40 | 1460 | twice the points | 1.88x | 3x |
+| `OpPlanParser.Parse` — per corpus case (369 bot cases) | 10.7 | whole vs half corpus, per case | 1.15x | 2.5x |
 | `CropSpecResolver.Resolve` — 4 keys, valid | 0.97 | — | — | — |
-| `CropSpecResolver.Resolve` — 4 keys, malformed | 0.75 | reject vs resolve (no throwing) | 0.78x | 3x |
+| `CropSpecResolver.Resolve` — 4 keys, malformed | 0.76 | reject vs resolve (no throwing) | 0.77x | 3x |
 | `CropSpecResolver.Resolve` — 20 tokens | 2.0 | — | — | — |
-| `CropSpecResolver.Resolve` — 160 tokens | 11.8 | 8x the spec length (linear = 8x) | 5.79x | 16x |
-| `ImageDimensionReader.TryRead` — header only | 0.036 | — | — | — |
-| `ImageDimensionReader.TryRead` — + 256 KiB body | 0.040 | untouched body vs none | 1.11x | 3x |
+| `CropSpecResolver.Resolve` — 160 tokens | 12.0 | 8x the spec length (linear = 8x) | 5.85x | 16x |
+| `ImageDimensionReader.TryRead` — header only | 0.038 | — | — | — |
+| `ImageDimensionReader.TryRead` — + 256 KiB body | 0.041 | untouched body vs none | 1.08x | 3x |
 
 What each ceiling is actually guarding: the `layout` rows pin that validation is one pass over
 lines x points rather than a re-walk; the corpus row pins per-case, not per-corpus, cost; the
