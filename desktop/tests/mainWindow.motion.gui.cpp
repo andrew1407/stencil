@@ -90,7 +90,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     stencil::gui::SettingsDialog dlg(win.settings_, &win);
     dlg.show();
-    QTest::qWait(30);
+    settleLayout(&dlg, 30);
     auto* combo = static_cast<stencil::gui::SearchComboBox*>(   // no Q_OBJECT on the combo: found as its base
         dlg.findChild<QComboBox*>(QStringLiteral("motionModeCombo")));
     QVERIFY(combo);
@@ -98,7 +98,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(combo->toolTip().isEmpty(), "the browser's dropdown carries no tooltip");
     for (int i = 0; i < combo->count(); ++i) QVERIFY(!combo->itemIcon(i).isNull());
     combo->showPopup();
-    QTest::qWait(60);
+    QTRY_VERIFY(QApplication::activePopupWidget());
     QListView* list = combo->popupList();
     QVERIFY(list && list->isVisible());
     // Measured in LOGICAL pixels: the grab is at the screen's ratio (2x offscreen here).
@@ -158,7 +158,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     // ctest runs this suite with STENCIL_NO_ANIM=1 (dialogs are driven immediately), and
     // revealDialog is a no-op under it — this test is about the flight, so turn it back on.
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
@@ -196,7 +196,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     QToolButton* icon = nullptr;
     for (QToolButton* b : win.findChildren<QToolButton*>())
       if (b->isVisible() && b->property("toolSection").isValid()) { icon = b; break; }
@@ -256,7 +256,7 @@ class MainWindowGuiTest : public QObject {
     QImage img(60, 40, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
     win.loadImageWithLayout(img, QJsonObject());   // rotate needs an image to be enabled
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     QAction* first = win.actRotateLeft_;
     QAction* second = win.actRotateRight_;
     QVERIFY(first && second);
@@ -286,7 +286,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
@@ -311,7 +311,7 @@ class MainWindowGuiTest : public QObject {
     watcher.reset();
     closeSoon();
     win.actProjects_->trigger();
-    QTest::qWait(50);
+    settle([&] { return watcher.captured; }, 50);
     {
       const QPoint want = flightPointOf(icon, &win);
       QVERIFY2(watcher.origin == want,
@@ -347,7 +347,7 @@ class MainWindowGuiTest : public QObject {
     watcher.reset();
     closeSoon();
     act->trigger();
-    QTest::qWait(50);
+    settle([&] { return watcher.captured; }, 50);
     const QRect rowInWin(win.mapFromGlobal(help->mapToGlobal(row.topLeft())), row.size());
     QVERIFY2(watcher.origin == rowInWin.center(),
              qPrintable(QString("menu case: flight starts at %1, row at %2")
@@ -386,7 +386,7 @@ class MainWindowGuiTest : public QObject {
       }
     });
     emit win.canvas_->blankImageRequested();
-    QTest::qWait(500);
+    settle([&] { return closeEnd != QPoint(-1, -1); }, 500);
     const QPoint want = win.mapFromGlobal(card.center());
     QCOMPARE(start, want);
     QVERIFY2(closeScatters, "the close must come APART into the card, not form out of it");
@@ -463,7 +463,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(30);   // let the toolbar's own deferred layout pass settle before measuring it
+    settleLayout(&win, 30);   // let the toolbar's own deferred layout pass settle first
 
     // A shown, enabled toolbar button carrying a SETTLE design — it comes back to rest on
     // its own, so convergence can be asserted without a leave.
@@ -778,9 +778,9 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(dock->isVisible());
     dock->setFloating(true);
     QTRY_VERIFY(dock->isFloating());
-    QTest::qWait(300);
+    settleLayout(&win, 300);
     win.actChat_->setChecked(false);
-    QTest::qWait(60);
+    QTRY_VERIFY(surfaceFlight(&win));
     auto* fx = surfaceFlight(&win);
     QVERIFY2(fx, "the floating chat's flight did not play");
     QVERIFY2(!fx->isWindow(), "offscreen has no desktop to escape onto");

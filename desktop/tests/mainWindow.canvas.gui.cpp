@@ -379,7 +379,7 @@ class MainWindowGuiTest : public QObject {
       Settings s = win.settings_;
       s.themeMode = QStringLiteral("dark");
       win.applySettings(s, /*persist=*/false);
-      QTest::qWait(60);
+      settleLayout(&win, 60);
     }
     win.canvas_->clearImage();
     win.refreshActions();
@@ -514,7 +514,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 850);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QTest::qWait(200);
+    settleLayout(&win, 200);
     QVERIFY(win.status_);
 
     // Synthesize a real hover over the canvas and read the status bar.
@@ -538,24 +538,23 @@ class MainWindowGuiTest : public QObject {
     readoutMoves("plain");
 
     win.actIncognito_->setChecked(true);   // the state the report came from
-    QTest::qWait(80);
+    settleLayout(&win, 80);
     readoutMoves("incognito");
     win.actIncognito_->setChecked(false);
 
     win.actChat_->setChecked(true);        // …with the chat open over the layout
     QTRY_VERIFY(win.chatDock_->isVisible());
-    QTest::qWait(200);
+    awaitAnim(win.chatAnim_);              // …on the slide's own end
     readoutMoves("chat open");
     win.actChat_->setChecked(false);
-    QTest::qWait(200);
+    awaitAnim(win.chatAnim_);
 
     // COMPARE: the canvas is read-only there, but the readout is information,
     // not editing — it must keep following the cursor (it used to stop dead,
     // which is exactly what "the app is frozen" looked like).
     for (const char* mode : {"vertical", "horizontal"}) {
       win.setCompareModeUi(QString::fromLatin1(mode));
-      QTest::qWait(120);
-      QVERIFY2(win.canvas_->compareReadOnly(), "compare did not engage");
+      QTRY_VERIFY2(win.canvas_->compareReadOnly(), "compare did not engage");
       readoutMoves(mode);
     }
     win.setCompareModeUi(QStringLiteral("none"));
@@ -615,7 +614,7 @@ class MainWindowGuiTest : public QObject {
       // Encoding into Display P3 on macOS was a second conversion on an already
       // colour-managed surface and made the whole app read duller.
       win.resize(1900, 900);
-      QTest::qWait(300);
+      settleLayout(&win, 300);
       const QImage bar = win.selectedLineBar_->grab().toImage();
       auto* ds = win.selectedLineBar_->findChild<QWidget*>("selectedLineDeselect");
       QVERIFY(ds);
@@ -661,7 +660,7 @@ class MainWindowGuiTest : public QObject {
       // unchaining leaves two side by side with nothing between. Measured while the group
       // is still there, at a width narrow enough that it costs a second row.
       win.resize(1100, 900);
-      QTest::qWait(300);
+      settleLayout(&win, 300);
       const int barHeightWithFill = win.selectedLineBar_->height();
       const auto visibleSeps = [&] {
         int n = 0;
@@ -766,8 +765,7 @@ class MainWindowGuiTest : public QObject {
     line2.points = {{100, 20}, {160, 80}};
     canvas->setLines({line, line2});
     canvas->selectLineByIndex(1);
-    QTest::qWait(150);
-    QVERIFY2(win.selectedLineDock_->isVisible(), "the bar stays up across a re-selection");
+    QTRY_VERIFY2(win.selectedLineDock_->isVisible(), "the bar stays up across a re-selection");
     beat();
 
     // Deselect: the bar goes away (and, off this platform, dust would scatter out of it).
@@ -827,7 +825,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.compareCombo_);
     QCOMPARE(win.compareCombo_->currentData().toString(), QStringLiteral("none"));
     win.compareCombo_->showPopup();
-    QTest::qWait(60);
+    QTRY_VERIFY(QApplication::activePopupWidget());
     QWidget* popup = nullptr;
     for (QWidget* w : QApplication::topLevelWidgets())
       if (w->isVisible() && w->findChild<QWidget*>("searchComboPopup")) popup = w;
@@ -838,8 +836,7 @@ class MainWindowGuiTest : public QObject {
     const QModelIndex idx = list->model()->index(2, 0);
     QCOMPARE(idx.data(Qt::DisplayRole).toString(), QString::fromUtf8("Split ↔"));
     QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, list->visualRect(idx).center());
-    QTest::qWait(30);
-    QCOMPARE(win.compareCombo_->currentData().toString(), QStringLiteral("vertical"));
+    QTRY_COMPARE(win.compareCombo_->currentData().toString(), QStringLiteral("vertical"));
     QCOMPARE(win.canvas_->compareMode(), QStringLiteral("vertical"));
   }
 

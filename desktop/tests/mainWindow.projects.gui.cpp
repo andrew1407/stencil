@@ -38,8 +38,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(rename->isEnabled(), "the action did not follow the name field");
     QVERIFY(!win.nameBar_.editing);
     rename->trigger();
-    QTest::qWait(50);
-    QVERIFY2(win.nameBar_.editing, "the chord did not enter inline rename");
+    QTRY_VERIFY2(win.nameBar_.editing, "the chord did not enter inline rename");
     QVERIFY(!win.nameBar_.field->isReadOnly());
     QCOMPARE(win.nameBar_.field, win.focusWidget());
     win.cancelProjectName();
@@ -299,9 +298,10 @@ class MainWindowGuiTest : public QObject {
     // editor is sitting somewhere else" right before this project reopens.
     canvas->setScale(1.0);
     QVERIFY(win.loadProjectIntoCanvas(projectId, /*animate=*/false));
-    QTest::qWait(50);   // the scroll half restores a turn later (QTimer::singleShot(0, …))
     QCOMPARE(canvas->scale(), 5.0);
-    QCOMPARE(win.scroll_->horizontalScrollBar()->value(), 30);
+    // The scroll half restores a turn later (QTimer::singleShot(0, …)), so it is the one
+    // to wait on — the scale is already back by the time loadProjectIntoCanvas returns.
+    QTRY_COMPARE(win.scroll_->horizontalScrollBar()->value(), 30);
     QCOMPARE(win.scroll_->verticalScrollBar()->value(), 20);
 
     // Tidy the dev state dir: drop the project this test created.
@@ -427,7 +427,7 @@ class MainWindowGuiTest : public QObject {
           if (list->item(i)->data(Qt::UserRole).toString() == id) item = list->item(i);
         if (!item) { bailOut(); return; }
         list->scrollToItem(item);
-        QTest::qWait(30);
+        settleLayout(list, 30);
         // Aim right of the icon/kebab strips, at the row's text.
         const QRect r = list->visualItemRect(item);
         const QPoint hit(r.left() + r.width() / 2, r.center().y());
@@ -566,7 +566,7 @@ class MainWindowGuiTest : public QObject {
       if (!item) { bailOut(); return; }
       sawRow = true;
       list->scrollToItem(item);
-      QTest::qWait(30);
+      settleLayout(list, 30);
       const QRect r = list->visualItemRect(item);
       const int rowsBefore = list->count();
       const QImage before = list->viewport()->grab(r).toImage();

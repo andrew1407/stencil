@@ -21,7 +21,7 @@ class MainWindowGuiTest : public QObject {
     QImage img(40, 40, QImage::Format_RGB32);
     img.fill(Qt::white);
     win.loadImageWithLayout(img, QJsonObject());   // the IMAGE cluster shows its icons
-    QTest::qWait(120);
+    settleLayout(&win, 120);
 
     const bool shares = stencil::support::shareSheetAvailable();
     QCOMPARE(win.actShareImage_->isVisible(), shares);
@@ -230,7 +230,7 @@ class MainWindowGuiTest : public QObject {
     empty.resize(1400, 700);
     empty.show();
     QVERIFY(QTest::qWaitForWindowExposed(&empty));
-    QTest::qWait(150);
+    settleLayout(&empty, 150);
     QToolButton* dead = empty.startDrawBtn_;
     QVERIFY(dead);
     QVERIFY2(!dead->isEnabled(), "the draw toggle is live with no image loaded");
@@ -390,7 +390,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QTest::qWait(200);   // the pin is taken once the toolbar is built and shown
+    settleLayout(&win, 200);   // the pin is taken once the toolbar is built and shown
 
     const auto naturalWidest = [](QToolButton* b, const QStringList& faces) {
       const QString keep = b->text();
@@ -868,7 +868,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(200);
+    settleLayout(&win, 200);
     // A section row is the widget whose sibling is the "sectionLabel" caption. The tool
     // run WRAPS (support/wrapRow.hpp), so the baseline is shared per LINE — sections are
     // grouped by where the flow put them, not by which toolbar they belong to.
@@ -913,8 +913,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.canvas_->clearImage();
     win.refreshActions();
-    QTest::qWait(200);
-    QVERIFY2(win.openImageBtn_->isVisible(), "the labelled button is not on screen");
+    QTRY_VERIFY2(win.openImageBtn_->isVisible(), "the labelled button is not on screen");
+    settleLayout(&win, 200);
     const QImage im = win.openImageBtn_->grab().toImage();
     // Ink is everything that is not the button's own fill (glyph + label are white on it).
     const QColor fill = im.pixelColor(1, im.height() / 2);
@@ -942,7 +942,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     QAction* chat = win.actChat_;
     QVERIFY(chat && chat->isCheckable());
     QToolButton* btn = qobject_cast<QToolButton*>(win.buttonForAction(chat));
@@ -978,7 +978,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     QVERIFY(win.zoom_);
     for (QAction* a : {win.actZoomIn_, win.actZoomOut_, win.actFit_}) {
       QVERIFY(a);
@@ -1050,7 +1050,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     QToolButton* btn = win.zoomFitBtn_;
     QVERIFY(btn);
     QVERIFY2(btn->property("toolGhost").toBool(),
@@ -1072,8 +1072,7 @@ class MainWindowGuiTest : public QObject {
     // …and once it can act, the fill every other acting button carries.
     openLoaded(win);
     QTRY_VERIFY(win.actFit_->isEnabled());
-    QTest::qWait(120);
-    QCOMPARE(btn->property("toolFill").toString(), QStringLiteral("accent"));
+    QTRY_COMPARE(btn->property("toolFill").toString(), QStringLiteral("accent"));
     const QImage live = btn->grab().toImage();
     QVERIFY2(near(live.pixelColor(live.width() / 2, 3), accent, 50),
              "an enabled fit button is not accent-filled");
@@ -1089,7 +1088,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     QComboBox* filter = win.imageFilter_;
     QVERIFY(filter);
     // The face colour, plus how loudly the text/caret stand out against it.
@@ -1128,7 +1127,7 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::darkCyan);
     win.loadImageWithLayout(img, QJsonObject());
     win.refreshActions();
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     int live = 0, dead = 0;
     for (QToolBar* tb : win.findChildren<QToolBar*>())
       for (QAbstractButton* b : tb->findChildren<QAbstractButton*>()) {
@@ -1413,8 +1412,8 @@ class MainWindowGuiTest : public QObject {
       dlg->findChild<QPushButton*>("descriptionSave")->click();
     });
     win.actDescription_->trigger();
-    QTest::qWait(50);
-    QCOMPARE(QString::fromStdString(win.findProject("meta-gui")->meta.description), QStringLiteral("After"));
+    QTRY_COMPARE(QString::fromStdString(win.findProject("meta-gui")->meta.description),
+                 QStringLiteral("After"));
     QTimer::singleShot(0, [&] {
       QDialog* dlg = nullptr;
       for (int i = 0; i < 200 && !dlg; ++i) {
@@ -1429,8 +1428,8 @@ class MainWindowGuiTest : public QObject {
       QTest::keyClick(area, Qt::Key_Return);   // Enter saves the list
     });
     win.actKeywords_->trigger();
-    QTest::qWait(50);
-    QCOMPARE(win.findProject("meta-gui")->meta.keywords, std::vector<std::string>({"plan", "kitchen"}));
+    QTRY_COMPARE(win.findProject("meta-gui")->meta.keywords,
+                 std::vector<std::string>({"plan", "kitchen"}));
     // …and leave no trace in the store for the next run.
     win.projectList_.erase(std::remove_if(win.projectList_.begin(), win.projectList_.end(),
                                           [](const stencil::gui::Project& p) { return p.meta.id == "meta-gui"; }),
@@ -1449,7 +1448,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1600, 950);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(200);
+    settleLayout(&win, 200);
     QList<QToolBar*> bars = win.findChildren<QToolBar*>();
     std::sort(bars.begin(), bars.end(), [](QToolBar* a, QToolBar* b) {
       return a->mapTo(a->window(), QPoint(0, 0)).y() < b->mapTo(b->window(), QPoint(0, 0)).y();

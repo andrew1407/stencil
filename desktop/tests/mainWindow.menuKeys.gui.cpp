@@ -42,10 +42,7 @@ class MainWindowGuiTest : public QObject {
       for (QAction* a : root->actions()) if (a->text() == "Image / Layout") layoutAct = a;
       if (!layoutAct || !layoutAct->menu()) { root->close(); return; }
       // Walk down to the row with the keyboard, like a user would, then open it.
-      for (int i = 0; i < 12 && root->activeAction() != layoutAct; ++i) {
-        QTest::keyClick(root, Qt::Key_Down);
-        QTest::qWait(30);
-      }
+      walkMenu(root, Qt::Key_Down, [&] { return root->activeAction() == layoutAct; }, 12, 30);
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* layoutMenu = layoutAct->menu();
       // Veiled from its very first frame when the dust reveal is on: a flyout that
@@ -102,10 +99,7 @@ class MainWindowGuiTest : public QObject {
       // Enter picks a row: walk the root to Show Points and toggle it, which also
       // closes the menu (a picked action, not a hosted checkbox row).
       pointsBefore = win.actShowPoints_->isChecked();
-      for (int i = 0; i < 24 && root->activeAction() != win.actShowPoints_; ++i) {
-        QTest::keyClick(root, Qt::Key_Down);
-        QTest::qWait(20);
-      }
+      walkMenu(root, Qt::Key_Down, [&] { return root->activeAction() == win.actShowPoints_; }, 24);
       reachedPoints = root->activeAction() == win.actShowPoints_;
       QTest::keyClick(root, Qt::Key_Return);
       settle([&] { return !(root->isVisible()); }, 1000);
@@ -284,11 +278,7 @@ class MainWindowGuiTest : public QObject {
       };
       // Walk down from the top of the root to a row (the keys go to the active popup).
       auto walkTo = [&](QAction* act) {
-        for (int i = 0; i < 40 && root->activeAction() != act; ++i) {
-          QTest::keyClick(root, Qt::Key_Down);
-          QTest::qWait(20);
-        }
-        return root->activeAction() == act;
+        return walkMenu(root, Qt::Key_Down, [&] { return root->activeAction() == act; });
       };
       QAction* filterAct = rowNamed("Image Filter");
       if (!filterAct || !filterAct->menu() || !walkTo(filterAct)) { root->close(); return; }
@@ -347,10 +337,7 @@ class MainWindowGuiTest : public QObject {
       };
       QAction* styleAct = rowNamed("Style");
       if (!styleAct || !styleAct->menu()) { root->close(); return; }
-      for (int i = 0; i < 40 && root->activeAction() != styleAct; ++i) {
-        QTest::keyClick(root, Qt::Key_Up);
-        QTest::qWait(20);
-      }
+      walkMenu(root, Qt::Key_Up, [&] { return root->activeAction() == styleAct; });
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* style = styleAct->menu();
       settle([&] { return style->isVisible(); }, 1000);
@@ -414,7 +401,7 @@ class MainWindowGuiTest : public QObject {
       QAction* filterAct = nullptr;
       for (QAction* a : root->actions()) if (a->text().startsWith("Image Filter")) filterAct = a;
       if (!filterAct || !filterAct->menu()) { root->close(); return; }
-      for (int i = 0; i < 40 && root->activeAction() != filterAct; ++i) { QTest::keyClick(root, Qt::Key_Down); QTest::qWait(20); }
+      walkMenu(root, Qt::Key_Down, [&] { return root->activeAction() == filterAct; });
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* filter = filterAct->menu();
       settle([&] { return filter->isVisible(); }, 1000);
@@ -524,7 +511,7 @@ class MainWindowGuiTest : public QObject {
         if (p) QTest::keyClick(p, k);
         return p;
       };
-      for (int i = 0; i < 40 && root->activeAction() != filterAct; ++i) { QTest::keyClick(root, Qt::Key_Down); QTest::qWait(20); }
+      walkMenu(root, Qt::Key_Down, [&] { return root->activeAction() == filterAct; });
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* filter = filterAct->menu();
       settle([&] { return filter->isVisible(); }, 1000);

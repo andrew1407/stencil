@@ -111,6 +111,18 @@ namespace stencil::guitest {
     }, capMs);
   }
 
+  // Walk a popup's highlight with `key` until `done` holds. QMenu moves the highlight
+  // inside its own key handler, so a step that lands needs no wait at all; one that does
+  // not still gets `stepMs` to catch up.
+  template <class F>
+  bool walkMenu(QWidget* popup, Qt::Key key, F done, int steps = 40, int stepMs = 20) {
+    for (int i = 0; i < steps && !done(); ++i) {
+      QTest::keyClick(popup, key);
+      (void)QTest::qWaitFor([&] { return done(); }, stepMs);
+    }
+    return done();
+  }
+
   // Every visible rect under `w` — the signature a relayout changes.
   inline QList<QRect> layoutSig(QWidget* w) {
     QList<QRect> r;

@@ -383,7 +383,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 900);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(30);   // let the toolbar's own deferred layout pass settle before measuring it
+    settleLayout(&win, 30);   // let the toolbar's own deferred layout pass settle first
     // A fresh window has no .stencil link, so live-sync is dead while Projects beside it
     // is live: one row, both states.
     QVERIFY(!win.actStencilLiveSync_->isEnabled());
@@ -426,8 +426,7 @@ class MainWindowGuiTest : public QObject {
     // real pointer does — the synthetic sends above only prove the filter's arithmetic.
     moveOver(live);
     QTest::mouseMove(&win, win.mapFromGlobal(dead->mapToGlobal(dead->rect().center())));
-    QTest::qWait(30);
-    QVERIFY2(blocked(), "a real move over the dead icon left the plain cursor");
+    QTRY_VERIFY2(blocked(), "a real move over the dead icon left the plain cursor");
     // …and leaving the window clears it even with no move to land anywhere else.
     QEvent leave(QEvent::Leave);
     qApp->sendEvent(row, &leave);
@@ -445,7 +444,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 850);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     win.settings_.tooltipEnabled = true;    // independent of the machine's saved settings
     win.settings_.tooltipShowScreen = true;
 
@@ -472,7 +471,7 @@ class MainWindowGuiTest : public QObject {
     const auto compareAt = [&](const char* mode, double split) {
       win.setCompareModeUi(QString::fromLatin1(mode));
       canvas->setCompareSplit(split);
-      QTest::qWait(60);
+      settleLayout(&win, 60);
     };
 
     // Baseline (compare off): BOTH points and the segment between them are labelled —
@@ -532,7 +531,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 850);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     win.settings_.tooltipEnabled = true;    // independent of the machine's saved settings
     win.settings_.tooltipShowScreen = true;
 
