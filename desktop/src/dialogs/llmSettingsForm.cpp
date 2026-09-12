@@ -285,65 +285,6 @@ namespace stencil::gui {
             });
   }
 
-  LlmSettingsForm::~LlmSettingsForm() = default;
-
-  void LlmSettingsForm::focusProvider() { provider_->setFocus(); }
-
-  void LlmSettingsForm::syncRows(const QString& prevProvider) {
-    const QString provider = provider_->currentData().toString();
-    const bool off = provider == "none";  // assistant off: every row irrelevant
-    const bool viaServer = provider == "stencil-server";
-    const bool direct = !off && !viaServer;  // called by us over the network
-    if (mode_ == RowMode::HideRows) {
-      // Browser parity: irrelevant rows disappear rather than sitting greyed out —
-      // each together with its .vs-row hairline.
-      const auto showRow = [this](QWidget* row, QFrame* divider, bool on) {
-        form_->setRowVisible(row, on);
-        if (divider) form_->setRowVisible(divider, on);
-      };
-      showRow(baseUrl_, baseUrlDiv_, direct);
-      showRow(model_, modelDiv_, !off);
-      showRow(apiKey_, apiKeyDiv_, provider == "openai-compat");
-      showRow(server_, serverDiv_, viaServer);
-      // The merged note stays (the §12.2 line always applies); only its
-      // local-endpoint line is provider-conditional.
-      note_->setVisible(direct);
-    } else {
-      baseUrl_->setEnabled(direct);
-      model_->setEnabled(!off);
-      apiKey_->setEnabled(provider == "openai-compat");
-      server_->setEnabled(viaServer);
-    }
-    // Re-fill the base URL on a provider switch when it still holds the PREVIOUS
-    // provider's default (i.e. the user never customized it).
-    const QString text = baseUrl_->text().trimmed();
-    if (direct &&
-        (text.isEmpty() || text == stencil::llm::defaultLlmBaseUrl(prevProvider)))
-      baseUrl_->setText(stencil::llm::defaultLlmBaseUrl(provider));
-    // The host dialog shrinks/grows with the visible rows — but only once shown:
-    // an adjustSize during construction (before the host installed its layout)
-    // freezes a too-small size that paints the rows on top of each other.
-    if (mode_ == RowMode::HideRows && window()->isVisible()) window()->adjustSize();
-  }
-
-  void LlmSettingsForm::refreshModels() {
-    stencil::llm::LlmSettings cfg;
-    cfg.provider = provider_->currentData().toString();
-    cfg.baseUrl = baseUrl_->text().trimmed();
-    cfg.apiKey = apiKey_->text().trimmed();
-    cfg.serverUrl = server_->currentData().toString();
-    client_->listModels(cfg, [this](QStringList names) {
-      // The current edit text is preserved across repopulation, so a
-      // free-typed model always survives a suggestion refresh.
-      const QString keep = model_->currentText();
-      const QSignalBlocker block(model_);
-      model_->clear();
-      model_->addItems(names);
-      model_->setCurrentIndex(-1);
-      model_->setEditText(keep);
-    });
-  }
-
   void LlmSettingsForm::refreshStatus() {
     const QString provider = provider_->currentData().toString();
     // "none" is local-only (contract §5): nothing is probed or sent anywhere.
@@ -377,22 +318,5 @@ namespace stencil::gui {
       }
     });
   }
-
-  // Paint the status row: the dot carries the state colour, the text stays the
-  // muted .chat-server-status type (browser #chat-server-status-row).
-  void LlmSettingsForm::setStatus(const char* color, const QString& text) {
-    statusDot_->setText(QStringLiteral("<span style=\"color:%1;\">●</span>")
-                            .arg(QLatin1String(color)));
-    status_->setText(text);
-  }
-
-  void LlmSettingsForm::applyTo(Settings& s) const {
-    s.llmProvider = provider_->currentData().toString();
-    s.llmBaseUrl = baseUrl_->text().trimmed();
-    s.llmModel = model_->currentText().trimmed();
-    s.llmApiKey = apiKey_->text().trimmed();
-    s.llmServerUrl = server_->currentData().toString();
-    s.saveChatsWithProject = saveChats_->isChecked();
-  }
-
 }
+

@@ -251,6 +251,7 @@ set(STENCIL_GUI_SOURCES
   src/app/selectionPanelState.cpp
   src/app/selectedLineBar.cpp
   src/llm/chatDock.cpp
+  src/llm/chatDockChrome.cpp
   src/llm/chatDockShared.cpp
   src/llm/chatDockEvents.cpp
   src/llm/chatDockDrag.cpp
@@ -287,8 +288,10 @@ set(STENCIL_GUI_SOURCES
   src/canvas/canvasTooltip.cpp
   src/canvas/incognitoOverlay.cpp
   src/dialogs/settingsDialog.cpp
+  src/dialogs/settingsDialogState.cpp
   src/dialogs/assistantSettingsDialog.cpp
   src/dialogs/llmSettingsForm.cpp
+  src/dialogs/llmSettingsFormState.cpp
   ${STENCIL_PROJECTS_DIALOG_SOURCES}
   src/dialogs/expirationDialog.cpp
   ${STENCIL_OPENIMAGE_SOURCES}
