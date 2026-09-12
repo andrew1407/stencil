@@ -165,6 +165,8 @@ mcp/
     *_fixtures_test.rs # the shared cross-surface corpora, one reported case per fixture
     fixtures_test.rs   # the CLI's stderr-grammar goldens (cli/testdata/), shared with the bot
     fixture_overrides.json # the measured, mcp-side divergences from those corpora
+    goldens/           # the *.txt text goldens text_golden_test.rs compares against
+    size_budget.json   # the per-file line + comment-share numbers the ratchet reads
     common/            # helpers: the corpus/override loaders, the recording CliRunner, walk.rs
     e2e_test.rs · e2e_prompt_test.rs  # real CLI runs, self-skipping when the binary is absent
   Dockerfile           # builds the Zig CLI + the Rust server into one runtime image
@@ -376,7 +378,7 @@ running behind these keys:
 
 > **Plain-http only, and credentials stay on the box.** Per the contract's
 > no-new-dependency rule, the transport is a small hand-rolled HTTP/1.1 client
-> (`llmtransport.rs`) — `https://` endpoints are rejected. Because there is no TLS, it also
+> (`src/llmtransport/`) — `https://` endpoints are rejected. Because there is no TLS, it also
 > **refuses to send `Authorization` / `x-api-key` to anything but loopback** (decided from
 > the resolved peer address, before the socket opens), so a key can never leave in
 > cleartext. Use a local provider (Ollama / LM Studio), a local TLS proxy, or a
@@ -514,10 +516,10 @@ These are the underlying calls a client makes for prompts like the above:
 ```mermaid
 graph TD
     CLIENT["<b>MCP client</b><br/>Claude Code · Desktop · any agent"]
-    SERVER["<b>stencil-mcp</b> — Rust<br/><i>args.rs</i> params → argv · <i>pipeline.rs</i> spawn"]
+    SERVER["<b>stencil-mcp</b> — Rust<br/><i>args/</i> params → argv · <i>pipeline/</i> spawn"]
     CLI["<b>stencil</b> — Zig CLI<br/>→ C++ <b>core/</b>: crop · rotate · blank · rasterise · filter"]
     OUT["output file<br/>+ success line on stderr"]
-    DELIVER["<i>deliver.rs</i> → surfaces<br/>file · desktop launch · browser URL"]
+    DELIVER["<i>deliver/</i> → surfaces<br/>file · desktop launch · browser URL"]
 
     CLIENT -->|"JSON-RPC over stdio"| SERVER
     SERVER -->|"spawn argv, NO_COLOR=1"| CLI
@@ -555,6 +557,10 @@ Two layers run together (plus an opt-in third):
   filter + inline-layout in one call, and the clobber guard. They **self-skip** when the
   `stencil` binary isn't built or findable, so `cargo test` stays green without a Zig
   toolchain (set `STENCIL_CLI`, or build the CLI, to exercise them — CI does both).
+  The `*_fixtures_test.rs` suites walk the shared cross-surface corpora through
+  `common/walk.rs`, which reports **one named test per fixture case** rather than one per
+  file, so a single divergent case names itself. The whole run is **594 tests** (3 `ignored`:
+  the benchmarks below).
 - **Benchmarks** (`tests/timing_test.rs`) — `#[ignore]`d, so out of CI, like the core's
   `bench` suite and `cli`'s `zig build bench`. Run them with
   `cargo test -- --ignored --nocapture`. Every case prints ns/call and asserts only a RATIO

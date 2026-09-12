@@ -14,7 +14,7 @@ One implementation, four consumers:
 ```mermaid
 graph TD
     CORE["<b>core/</b> — shared logic (C++17, STL-only, GUI-free)"]
-    CORE -->|"emcmake → WebAssembly · wasmApi.cpp"| WEB["<b>Browser</b> (vanilla ES modules)"]
+    CORE -->|"emcmake → WebAssembly · wasm*Api.cpp"| WEB["<b>Browser</b> (vanilla ES modules)"]
     CORE -->|"add_subdirectory(../core) + Qt 6"| DESK["<b>Desktop</b> (C++17 / Qt 6)"]
     CORE -->|"recompiled by build.zig · cliApi.h"| CLI["<b>CLI</b> (Zig + stb_image)"]
     CORE -->|"recompiled by build.py · cliApi.h via ctypes"| PY["<b>Python</b> (pystencil — stdlib only)"]
@@ -51,6 +51,12 @@ Sources are grouped by role; headers are included bare across groups.
 ```
 models.hpp            # shared Point / Line / Lines value types (mirror the browser line object)
 text.hpp              # header-only ASCII string helpers (toLowerAscii, trim, …) shared by groups
+rgba.hpp              # header-only helpers for the packed row-major RGBA8 buffers the ABI moves
+abi/                  # shared by BOTH extern "C" surfaces, never by the library itself:
+  marshal.hpp         #   flat [x0,y0,x1,y1,…] point arrays -> Point vectors
+  handleTable.hpp     #   opaque-int handles for the stateful classes (stale/forged -> rejected)
+  linesCodec.hpp      #   flat (nums, text) Lines snapshot codec; twin of js/core/linesCodec.js
+  shared.inc          #   export bodies identical in both ABIs, emitted once per spelling
 geometry/
   pointMath           # distToSegment · rotate / flip points · bounding-box centre
   hitTest             # findLineAt · nearest point / segment · shouldCloseShape · holdDrawTarget
@@ -75,13 +81,15 @@ format/
   tooltipRows         # builder for the hover-tooltip coordinate rows (Pixel / Page / To edge)
   hotkeyFormat        # portable key-sequence ("Ctrl+Shift+Z") → native / macOS (⇧⌘Z) display
 state/
-  historyStack        # line-snapshot undo/redo with the browser's exact cursor semantics
+  historyStack        # line-snapshot undo/redo, browser cursor semantics, 64-step cap (LIMITS.historyMax)
   projectsStore       # in-memory project registry + one-week expiry sweep (I/O lives in the GUI)
   projectMeta         # the ProjectMeta value type the store and every adapter exchange
   zoomPan             # zoom clamp + anchored / rect zoom math
   holdDraw            # hold-to-draw tick/seed state machine shared with the GUIs
 wasmApi.cpp           # extern "C" ABI compiled to WebAssembly for the browser (see WASM.md)
 wasmCropApi.cpp       # the same ABI, crop-geometry exports (split off wasmApi.cpp on size)
+wasmStateApi.cpp      #   "      "  , the handle-based holdDraw / history exports
+wasmProjectsApi.cpp   #   "      "  , the scalar projectsStore expiry exports
 cliApi.{h,cpp}        # extern "C" ABI consumed by the Zig CLI (RGBA8 buffers + C strings)
 tests/                # Doctest suite — one suite per module, plus the wasm and CLI ABIs
 third_party/          # vendored doctest.h (fetched on demand, gitignored)
@@ -103,14 +111,14 @@ Targets:
 
 - **`stencil_core`** — the static library of shared logic (the desktop app pulls this in
   via `add_subdirectory`; the CLI recompiles the sources instead of linking it).
-- **`stencil_tests`** — the Doctest binary (one suite per module, plus `wasmApi` and
-  `cliApi`). Built when `STENCIL_CORE_BUILD_TESTS=ON` (the default) and **off under
+- **`stencil_tests`** — the Doctest binary (one suite per module, plus the four wasm ABI
+  suites and `cliApi`). Built when `STENCIL_CORE_BUILD_TESTS=ON` (the default) and **off under
   Emscripten**; the desktop build turns it off and defers to this dedicated core build.
 - **`stencil_wasm`** — produced **only** when configured through `emcmake` (which defines
   `EMSCRIPTEN`); a normal native build never enters that branch. See [WASM.md](WASM.md).
 
-`wasmApi.cpp` is plain STL, so it is also compiled **natively into `stencil_tests`** and
-fully exercised even on a machine without `emcc`.
+The four `wasm*Api.cpp` translation units are plain STL, so they are also compiled
+**natively into `stencil_tests`** and fully exercised even on a machine without `emcc`.
 
 ### Benchmarks
 
@@ -147,7 +155,7 @@ The CLI drives the same code end-to-end (with codec encode) via `zig build bench
 ## Design principles
 
 **Behavioral parity with the browser app.** Each core module is a port of a specific
-browser JS call site (noted at the top of every header, e.g. `geometry` ← `utils.js`,
+browser JS call site (noted at the top of every header, e.g. `pointMath` ← `utils.js`,
 `pageMetrics` ← `drawingApp.js`, `historyStack` ← `historyStack.js`) and is kept
 **behaviorally identical** to it — down to edge cases like the history stack's "step 0 →
 empty lines, step -1" undo. The test cases are themselves ported from `browser/tests/`, so

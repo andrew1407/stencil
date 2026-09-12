@@ -4,9 +4,9 @@ The canonical, single-source spec of the Stencil CLI's **argv (input) contract**
 **stderr line grammar (output) contract** — the surface that non-`core/` adapters parse to
 drive the CLI as a black box. Two adapters depend on it and must not silently drift from it:
 
-- **`mcp/`** — the Rust MCP server. Builds argv in `mcp/src/args.rs` (`build_argv`, flag
-  literals as `FLAG_*`); parses stderr in `mcp/src/outcome.rs` (`PREFIX_*` +
-  `parse_wrote` / `parse_remotes` / `extract_errors`).
+- **`mcp/`** — the Rust MCP server. Builds argv in `mcp/src/args/` (`build_argv` in
+  `argv.rs`, the flag literals as `FLAG_*` in `flags.rs`); parses stderr in
+  `mcp/src/outcome.rs` (`PREFIX_*` + `parse_wrote` / `parse_remotes` / `extract_errors`).
 - **`bot/`** — the .NET Telegram bot. Builds argv in
   `bot/src/Stencil.TelegramBot.Infrastructure/Cli/CliArgvBuilder.cs`; parses stderr in
   `.../Cli/CliOutcomeParser.cs`.
@@ -108,7 +108,7 @@ line before matching.
 
 ### 2.1 Success line — `wrote …`
 
-Emitted by `writeOutputLabeled()` in `cli/src/pipeline.zig`:
+Emitted by `writeOutputLabeled()` in `cli/src/pipeline/steps.zig`:
 
 ```zig
 logo.print("wrote {s} ({d}x{d} px · {s})\n", .{ resolved.path, img.width, img.height, page_label });
@@ -154,7 +154,7 @@ parse both sides as unsigned integers. Any step failing ⇒ this line is not a s
 
 ### 2.2 Server-delivery lines — `updated …` / `created …`
 
-Emitted by `deliverToServer()` in `cli/src/pipeline.zig` **after** the `wrote` line, when
+Emitted by `deliverToServer()` in `cli/src/pipeline/oneshot.zig` **after** the `wrote` line, when
 `--remote-update` and/or `--remote` are given. A single run can emit both.
 
 **Update (`--remote-update`),** from

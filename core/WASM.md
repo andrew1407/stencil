@@ -4,9 +4,12 @@ The `core/` library is GUI-free and STL-only, so the same sources that back the 
 desktop app (and the Zig CLI) can compile to WebAssembly and back the **browser** app —
 replacing its hand-written JS engines with one shared, tested implementation.
 
-`core/wasmApi.cpp` (crop geometry in `core/wasmCropApi.cpp`) is a thin `extern "C"`
-surface over the core. The `if(EMSCRIPTEN)` block in `core/CMakeLists.txt` builds it
-into `stencil_core.js` + `stencil_core.wasm`.
+`core/wasmApi.cpp` is a thin `extern "C"` surface over the core, split on size into
+three siblings: `wasmCropApi.cpp` (crop geometry), `wasmStateApi.cpp` (the handle-based
+holdDraw + history) and `wasmProjectsApi.cpp` (the scalar expiry rules). The
+`if(EMSCRIPTEN)` block in `core/CMakeLists.txt` builds all four into `stencil_core.js`
++ `stencil_core.wasm`; `EXPORTED_FUNCTIONS` there is a separate list a new export must
+also join.
 
 The browser app runs the shared C++ core via WebAssembly. The module is built with
 `SINGLE_FILE=1` (wasm embedded as base64 in the `.js`, so it loads under `file://`
@@ -31,7 +34,7 @@ graph LR
 ```
 
 A normal native `cmake` build never enters the Emscripten branch and produces the
-same `stencil_core`, `stencil_tests`, and `stencil` targets; only `emcmake`
+same `stencil_core` and `stencil_tests` targets; only `emcmake`
 (which defines `EMSCRIPTEN`) builds the wasm module. To rebuild it after editing the
 core, follow *Build the wasm module* below and copy `stencil_core.js` to
 `browser/js/wasm/stencilCore.js`.
@@ -49,6 +52,7 @@ core, follow *Build the wasm module* below and copy `stencil_core.js` to
 | `renderer.js` `drawImageWithFilter` (contour) / `contourFilter.js` | `stencil_applyContourRGBA` |
 | `drawingApp.js` `#rotateSelectedLine` rotation + bbox pivot | `stencil_rotatePoints`, `stencil_boundingBoxCenter` |
 | `zoomPan.js` `clampScale` | `stencil_clampScale` (`anchoredZoom` / `rectZoom` available) |
+| `core/cropGeometry.js` — the crop window math behind `cropModal.js` / `imageModel.js` | `stencil_cropAspect`, `stencil_centeredCrop`, `stencil_resizeCropFromCorner`, `stencil_moveCropClamped`, `stencil_scaleCropCentered`, `stencil_cropResizeScale`, `stencil_cropChange`, `stencil_rotateCropRectQuarter`, `stencil_isAlbumOrientation` |
 
 The bw/sepia/invert filters stay on the browser's native CSS `ctx.filter`
 (GPU-fast, exact); the custom duotone — which the JS already did as a per-pixel
@@ -80,8 +84,8 @@ but its scalar expiry rules cross in `wasmProjectsApi.cpp`. The multi-line hit-t
 
 Three layers, run by the three CI jobs (`.github/workflows/ci.yml`):
 
-1. **C++ side of the ABI** — `wasmApi.cpp` is plain STL, so it is compiled
-   **natively into `stencil_tests`** and every export is exercised by
+1. **C++ side of the ABI** — all four `wasm*Api.cpp` files are plain STL, so they are
+   compiled **natively into `stencil_tests`** and every export is exercised by
    `tests/wasmApi.test.cpp` plus `tests/wasmCropApi.test.cpp` (the `core` job) — as are
    the handle and project ABIs, by `tests/wasmStateApi.test.cpp` and
    `tests/wasmProjectsApi.test.cpp`. Covers the C++ marshalling (flat
@@ -175,7 +179,7 @@ cp build-wasm/stencil_core.js ../browser/js/wasm/stencilCore.js
 - **`extern "C"` over embind.** The surface is plain C functions over doubles and
   C strings, exposed via `ccall`/`cwrap` with no extra runtime — minimal and
   ABI-stable. embind would also work but is Emscripten-only and heavier; if
-  adopted it must live solely in this translation unit and never link into the
+  adopted it must live solely in these translation units and never link into the
   desktop build.
-- The wasm translation unit stays **STL-only + core** (no Qt), exactly like the
+- The wasm translation units stay **STL-only + core** (no Qt), exactly like the
   rest of `core/`.

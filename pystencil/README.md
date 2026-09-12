@@ -85,12 +85,16 @@ pystencil/
   build.py                # compiles core/ into the shared lib (subprocess + a C++17 compiler)
   pystencil/
     __init__.py           # public exports (Editor/Image/Layout/… + Stencil alias)
+    __main__.py           # `python -m pystencil` → cli/
     _native.py            # locate → (lazily) build → ctypes-load the shared lib
     core.py               # class Core over the stencil_cli_* ABI (scalar half)
     _rasterops.py         # its pixel-buffer half — crop + the RGBA8 kernels
     _bindings.py          # the ctypes .argtypes/.restype table for that ABI
     _marshal.py           # str/bytes/bytearray → C views, and the buffer guards
     _parallel.py          # the one bounded fan-out both parallel paths share
+    _net.py               # the surface's one fetch guard (scheme, SSRF, redirects, size cap)
+    _severity.py          # the console's `error: ` / `note: ` prefixes (twin of cli/src/logo.zig)
+    _data/                # the embedded copies of browser/js/config/llm/ (drift-tested)
     _opschema/            # the registry-driven op-plan schema engine
                           #   (path · rules · checks · schema)
     image.py              # class Image (RGBA8 buffer)
@@ -99,7 +103,8 @@ pystencil/
     codecs/               # pure-python PNG + BMP encode/decode
                           #   (png · pngfilter · bmp · sniff)
     editor/               # class Editor — the chainable facade, over its history,
-                          #   derive, project, layout_io and source collaborators
+                          #   derive, project, layout_io, edits, assistant and source
+                          #   collaborators (_snapshot.py holds the 64-state depth cap)
     llm/                  # the op-plan contract: config · plan · registry ·
                           #   execute · client · chat
     server/               # ServerConnection + ConnectionManager (urllib REST client)
@@ -107,9 +112,14 @@ pystencil/
     cli/                  # python -m pystencil — the one-shot pipeline, the console
                           #   I/O surface, and the /command REPL (commands/)
   tests/                  # one suite per subject, named after it
+    __init__.py           # the sys.path preamble every suite imports through
     test_codecs.py test_layout.py test_core.py test_image*.py
     test_editor*.py test_projectfile*.py test_fixture_*.py
     test_llm_*.py test_server_*.py test_sitesource_*.py test_cli_*.py
+    test_build.py         # build.py's staleness inputs + its third of the source-list sync
+    test_canonical_drift.py  # byte-equality pins on the _data/ copies
+    *case.py stubs.py servedsite.py  # the shared TestCase bases and offline fixtures
+    goldens/              # *.txt text goldens test_text_goldens.py compares against
     bench_*.py            # opt-in timing tripwires, never run by `discover`
 ```
 
@@ -130,7 +140,10 @@ python3 build.py            # compiles core/*.cpp + cliApi.cpp → the shared li
 the source list mirrored from `STENCIL_CORE_SOURCES` and drops a platform-named shared
 object (`.so` / `.dylib` / `.dll`) next to the package. You don't have to run it by hand:
 the first time the package needs the core, `_native.py` builds it on demand and caches the
-result — `build.py` is just the explicit, scriptable form (and what tests/CI invoke).
+result — `build.py` is just the explicit, scriptable form (and what tests/CI invoke). It
+rebuilds whenever **any** input is newer than the artifact — every compiled source *and*
+every header they include — so a core edit can never be tested against the previous build;
+`tests/test_build.py` pins that input set against the tree.
 
 ## Quickstart
 
@@ -168,7 +181,10 @@ stateless staticmethod scoped to `.stencil` paths — a loaded editor is unaffec
 The editor keeps an **untouched original** plus a history of edit snapshots; the current
 view is **derived on demand** — `rotate → crop → filter → rasterise lines` — mirroring the
 CLI's `console/session.zig` rebuild. Every edit is chainable and snapshotted, so `undo()`,
-`redo()`, and `reset()` walk a full history.
+`redo()`, and `reset()` walk the history. Its depth is capped at **64 states** (the pristine
+one plus 63 undoable edits — `LIMITS.historyMax` in `browser/js/config/constants.json`, the
+same number every surface holds): past that the oldest *edit* is evicted, never the pristine
+state, so `reset()` keeps working after any number of edits.
 
 ## Public API
 
@@ -345,12 +361,29 @@ python3 -m pystencil --blank 800 600 red --layout notes.json out.png
 # a named-format blank page: [format] [w h] [color] (format and w h are exclusive)
 python3 -m pystencil --blank b5 pink out.png
 
+# scrape a page's media into a DIRECTORY (mutually exclusive with -i / --blank)
+python3 -m pystencil --source-site https://example.com --source-filter img \
+  --source-min-width 200 --source-count 10 shots/
+
 # interactive REPL: /command lines applied to one in-memory working image
 python3 -m pystencil --repl
 ```
 
-REPL commands mirror the CLI console — `/upload`, `/blank`, `/format`, `/crop`, `/rotate`,
-`/filter`, `/apply`, `/undo`, `/redo`, `/reset`, `/save`, and `/layout`. `/blank` takes the
+**Scrape mode** (`--source-site <url>`) makes `output` a **directory**: the page is fetched
+through `_net.py`'s guard, its media extracted and filtered **category → format →
+dimension**, and the window `filtered[group*count : …]` downloaded, printing the shared §3
+`wrote …` / `scraped N file(s) …` stderr grammar. The knobs mirror the Zig CLI's:
+`--source-count` (default 5; `0` = all), `--group`, `--source-filter`
+(`img|video|background|poster`), `--source-format`, `--source-name` (a case-insensitive
+regex over each media URL) and the four inclusive `--source-{min,max}-{width,height}`
+bounds. The same machinery is public as `scan_page` / `download_media` / `MediaItem`, and
+fetches fan out through `_parallel.py` in submission order, so the output matches a serial
+run byte for byte.
+
+REPL commands mirror the CLI console — `/upload`, `/source-upload` (alias `/scrape`:
+`<url> [index=0] [format=all] [name=] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]`, loading the
+*index*-th image-category match as the working image), `/blank`, `/format`, `/crop`,
+`/rotate`, `/filter`, `/apply`, `/undo`, `/redo`, `/reset`, `/save`, and `/layout`. `/blank` takes the
 same `[format] [w h] [color]` grammar as `--blank`, and the page the blank is created on
 becomes the session's picked format (so `/blank b5` drives the next bare `/blank` and the
 exported layout's `pageSize`, while a dims-only blank clears it — exactly like the Zig
@@ -485,6 +518,10 @@ the suite with no compiler at all.
 ```bash
 STENCIL_SKIP_NATIVE=1 python3 -m unittest discover -s tests   # no C++ compiler needed
 ```
+
+Every native-backed case goes through one `require_core` gate (`tests/nativecase.py`), so
+the opt-out skips them as a band rather than failing them one by one. The full run is
+**646 tests**.
 
 ### Benchmarks
 

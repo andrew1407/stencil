@@ -28,6 +28,7 @@ graph TD
     BOT["Telegram bot"]
 
     CORE -->|"recompiled by build.zig · cliApi.h"| COREZ
+    ARGS -->|"Options + the Mode a run selected"| PIPE
     PIPE --> COREZ
     PIPE --> IO
     REPL --> PIPE
@@ -63,9 +64,13 @@ src/
   main.zig           # entry: logo, parse args, switch on args.Mode
   args.zig           # flag surface; params/ holds the option blocks + the grammar
   params/            #   options.zig (Options + the Mode a run selected) · parse.zig (argv -> Options)
-  logo.zig           # ANSI-coloured console logo (echoes browser/favicon.svg) + the layer lint
+  logo.zig           # ANSI-coloured console logo + the layer lint; logo/ holds the mark, palette and help
+  brand.zig          # the logo's hexes, comptime-scanned out of the embedded themeTokens.json
+  help.txt           # the --help body, generated from the flag table and @embedFile-d
   report.zig         # the sink everything BELOW the console reports through (default: logo)
   pipeline.zig       # orchestration: source -> crop -> rotate -> layout -> filter -> encode
+  pipeline/          #   sources.zig (resolve a source) · steps.zig (the ops) · oneshot.zig (the run)
+  page.zig           # page-format policy: the A4 fallback, a blank's pixel size, the "<name> WxHcm" label
   console.zig        # interactive --console REPL: input loop + verb/action dispatch
   console/           # the REPL package, driven by console.zig:
     session.zig      #   the working session; session/ holds history, edits, attachments, chat, servers
@@ -76,9 +81,13 @@ src/
     screen.zig       #   full-screen TUI; screen/ holds the model, scrollback, selection, paint, input
   line_edit.zig      # raw-mode line editor (TTY only); line_edit/ holds wrap, history, markers, keys, paint
   theme.zig          # brand-accent palette (mirrors browser/desktop); drives /theme + logo colour
-  clipboard.zig      # /paste + /copy clipboard image I/O (macOS osascript · Linux wl-paste/xclip · Windows PowerShell)
+  clipboard.zig      # /paste + /copy clipboard image I/O; clipboard/ holds the shell helpers, reader and writer
+                     #   (macOS osascript · Linux wl-paste/xclip · Windows PowerShell)
+  messages.zig       # the console's user-facing strings, one named constant each (pinned in tests/pins/)
   core.zig           # typed wrappers over the C++ core's extern "C" ABI (@cImport)
   image.zig          # stb_image decode/encode (RGBA8 <-> file formats; pixel-area capped)
+  imageRows.zig      # the CLI's threading policy over core's [y0,y1) row-range exports (bands, identical bytes)
+  mediaTypes.zig     # what counts as video + format-token normalising, from the embedded mediaTypes.json
   stb_read_impl.c    # stb_image decoder TU: only the formats we read, dimension-capped, UBSan on
   stb_write_impl.c   # stb_image_write encoder TU: built -fno-sanitize=undefined (its signed shifts)
   confine.zig        # output-path guards: `..` always, absolute/~ under --confine-output
@@ -86,16 +95,26 @@ src/
   child.zig          # child processes spawned without the STENCIL_LLM_* environment
   video.zig          # ffmpeg frame grab (to PNG on stdout)
   net.zig            # std.http(s) URL fetch (native TLS, no external tool)
+  host.zig           # the URL-authority split + the SSRF guard every outbound URL passes (split off net.zig)
+  fetchPool.zig      # the bounded fan-out both parallel fetch paths share; results land in submission order
   layout.zig         # std.json -> drawable lines
-  llm.zig            # the assistant; llm/ holds the wire, and llm/opplan/ the validator + §10 guards
+  llm.zig            # the assistant; llm/ holds the wire, transport, registry and opSchema,
+                     #   and llm/opplan/ the validator + §10 guards
   scrape.zig         # --source-site; scrape/ holds the page walker, filters, window and the run loop
-  project.zig        # .stencil project files: parse/build (image + layout + metadata in one file)
+  regex_shim.c       # POSIX regex_t storage for --source-name (Zig 0.16 can't embed it); absent off POSIX
+  project.zig        # .stencil project files; project/ holds the codec, shape and session bridge
   project_cli.zig    # one-shot .stencil open/bundle (reuses the console Session for the layout)
   serverClient.zig   # the collaboration-server client; server/ holds the wire (urls, payload, parse, edit)
+  bench.zig          # the opt-in `zig build bench` entry; bench/ holds timing, fixtures, raster and adapters
 test_root.zig        # test entry point (inline unit tests + the integration suite)
 tests/
   *_test.zig         # integration suites, banded by seam (pipeline ops, layout, console, /prompt, fixtures)
+  *_drift_test.zig   # byte-equality pins on the embedded copies of browser/js/config/ tables
   fixtures/          # sample.png + layout.json used by the tests
+  pins/              # *.txt goldens for the console/TUI text several suites compare against
+testdata/            # the language-neutral stderr goldens mcp/ and bot/ replay (see CONTRACT.md §4)
+scripts/tui_smoke.py # the pseudo-terminal smoke check for --console-full-screen (manual)
+CONTRACT.md          # the argv + stderr-grammar contract the mcp and bot adapters parse
 ```
 
 A module that outgrows one file becomes a package: `x.zig` stays as the surface its callers
@@ -515,6 +534,11 @@ Two layers run together:
   a full **end-to-end** `pipeline.run` (file in → crop + rotate + layout + filter override
   → file out) that reads the result back and checks its dimensions, and a console-mode
   session driven through `console.handle` (upload → crop → rotate → filter → save → reset).
+
+Alongside those: `tests/*_drift_test.zig` re-read each embedded `browser/js/config/` table
+and pin it byte for byte, `tests/pins/*.txt` pin the console and TUI text (SGR escapes
+included), and `tests/size_budget_test.zig` runs the per-file size + comment-share ratchet.
+The whole run is **378 tests**.
 
 The core's own geometry/crop/raster logic is additionally covered by its Doctest suite
 (`../core`).
