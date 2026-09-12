@@ -5,7 +5,10 @@
 // twin's API exactly, so browser/tests/wasm-parity-state.test.js can drive both
 // through the same script and pin them op-for-op.
 
+import { encodeLines, decodeLines } from './linesCodec.js';
+
 const F64 = 8;
+const I32 = 4;
 
 // HoldAction codes, in core/state/holdDraw.hpp order (0 = None → no event).
 const HOLD_ACTIONS = [null, 'armed', 'abort', 'start', 'drop', 'preview', 'commit'];
@@ -79,8 +82,103 @@ const holdDrawClass = (mod) => {
   };
 };
 
+// Build the wasm-backed twin of historyStack.js's HistoryStack. Snapshots cross as the
+// flat (nums, text) pair from linesCodec.js, in both directions.
+const historyClass = (mod) => {
+  const NUM = ['number', 'number', 'number', 'number', 'number', 'number', 'number'];
+  const c = {
+    create: mod.cwrap('stencil_history_create', 'number', []),
+    destroy: mod.cwrap('stencil_history_destroy', null, ['number']),
+    reset: mod.cwrap('stencil_history_reset', null, NUM),
+    push: mod.cwrap('stencil_history_push', null, ['number', 'number', 'number', 'number', 'number']),
+    canUndo: mod.cwrap('stencil_history_canUndo', 'number', ['number']),
+    canRedo: mod.cwrap('stencil_history_canRedo', 'number', ['number']),
+    step: mod.cwrap('stencil_history_step', 'number', ['number']),
+    size: mod.cwrap('stencil_history_size', 'number', ['number']),
+    undo: mod.cwrap('stencil_history_undo', 'number', ['number', 'number']),
+    redo: mod.cwrap('stencil_history_redo', 'number', ['number', 'number']),
+    read: mod.cwrap('stencil_history_readResult', null, ['number', 'number', 'number']),
+  };
+
+  // Copy an encoded snapshot onto the heap, run `use(numsPtr, numsLen, textPtr, textLen)`,
+  // free after. A zero-length buffer still gets a byte, so the pointer is never null.
+  const withSnapshot = (lines, use) => {
+    const { nums, text } = encodeLines(lines);
+    const numsPtr = mod._malloc(Math.max(1, nums.length * F64));
+    const textPtr = mod._malloc(Math.max(1, text.length));
+    try {
+      new Float64Array(mod.HEAPF64.buffer, numsPtr, nums.length).set(nums);
+      mod.HEAPU8.set(text, textPtr);
+      return use(numsPtr, nums.length, textPtr, text.length);
+    } finally {
+      mod._free(numsPtr);
+      mod._free(textPtr);
+    }
+  };
+
+  return class HistoryStack {
+    #handle;
+    #sizes;
+
+    constructor() {
+      this.#handle = c.create();
+      this.#sizes = mod._malloc(2 * I32);
+    }
+
+    // Release the core handle and its out slot. Idempotent.
+    destroy() {
+      if (!this.#handle) return;
+      c.destroy(this.#handle);
+      mod._free(this.#sizes);
+      this.#handle = 0;
+    }
+
+    get historyStep() { return c.step(this.#live()); }
+    get size() { return c.size(this.#live()); }
+
+    reset(lines, baseStep) {
+      const has = baseStep === undefined ? 0 : 1;
+      withSnapshot(lines, (n, nl, t, tl) => c.reset(this.#live(), has, has ? baseStep : 0, n, nl, t, tl));
+    }
+
+    push(lines) {
+      withSnapshot(lines, (n, nl, t, tl) => c.push(this.#live(), n, nl, t, tl));
+    }
+
+    canUndo() { return c.canUndo(this.#live()) === 1; }
+    canRedo() { return c.canRedo(this.#live()) === 1; }
+    undo() { return this.#result(c.undo(this.#live(), this.#sizes)); }
+    redo() { return this.#result(c.redo(this.#live(), this.#sizes)); }
+
+    #live() {
+      if (!this.#handle) throw new Error('history stack destroyed');
+      return this.#handle;
+    }
+
+    // 0 from undo/redo is the JS null; otherwise read the snapshot the sizes describe.
+    #result(ok) {
+      if (!ok) return null;
+      const numsLen = mod.getValue(this.#sizes, 'i32');
+      const textLen = mod.getValue(this.#sizes + I32, 'i32');
+      const numsPtr = mod._malloc(Math.max(1, numsLen * F64));
+      const textPtr = mod._malloc(Math.max(1, textLen));
+      try {
+        c.read(this.#handle, numsPtr, textPtr);
+        return decodeLines(new Float64Array(mod.HEAPF64.buffer, numsPtr, numsLen),
+                           mod.HEAPU8.subarray(textPtr, textPtr + textLen));
+      } finally {
+        mod._free(numsPtr);
+        mod._free(textPtr);
+      }
+    }
+  };
+};
+
 // The stateful classes this core installs, keyed like the pure ops.
-export const buildHandleClasses = (mod) => ({ HoldDrawController: holdDrawClass(mod) });
+export const buildHandleClasses = (mod) => ({
+  HoldDrawController: holdDrawClass(mod),
+  HistoryStack: historyClass(mod),
+});
 
 // The C exports the handle classes cwrap — checked before any wrapper is installed.
 export const handleExports = [
@@ -88,4 +186,8 @@ export const handleExports = [
   'stencil_holdDraw_holdDelay', 'stencil_holdDraw_setHoldDelay', 'stencil_holdDraw_cancel',
   'stencil_holdDraw_pointerDown', 'stencil_holdDraw_pointerMove', 'stencil_holdDraw_tick',
   'stencil_holdDraw_pointerUp',
+  'stencil_history_create', 'stencil_history_destroy', 'stencil_history_reset',
+  'stencil_history_push', 'stencil_history_canUndo', 'stencil_history_canRedo',
+  'stencil_history_step', 'stencil_history_size', 'stencil_history_undo',
+  'stencil_history_redo', 'stencil_history_readResult',
 ];

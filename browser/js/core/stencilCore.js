@@ -88,7 +88,7 @@ class StencilCore {
       'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'flipPoints', 'boundingBoxCenter',
       'clampScale', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
-      'moveCropClamped', 'scaleCropCentered', 'cropResizeScale', 'cropChange', 'HoldDrawController',
+      'moveCropClamped', 'scaleCropCentered', 'cropResizeScale', 'cropChange', 'HoldDrawController', 'HistoryStack',
     ];
   }
 
