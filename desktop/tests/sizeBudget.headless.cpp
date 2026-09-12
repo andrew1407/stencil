@@ -204,6 +204,22 @@ int main(int argc, char** argv) {
   }
   check(overShare == 0, "no directory raised its comment share");
 
+  // Test-count floor, read from ctest's own generated registry: a target that stopped
+  // being registered (the 15 GUI areas share one object library) is invisible to
+  // pass/fail — raise it as the suite grows.
+  const int minTargets = 64;
+  QFile ctestFile(QStringLiteral(STENCIL_CTEST_FILE));
+  check(ctestFile.open(QIODevice::ReadOnly), "the generated CTestTestfile.cmake opens");
+  const QStringList ctestLines =
+      QString::fromUtf8(ctestFile.readAll()).split(QLatin1Char('\n'));
+  int registered = 0;
+  for (const QString& line : ctestLines)
+    if (line.startsWith(QStringLiteral("add_test("))) ++registered;
+  const QByteArray collapsed =
+      QStringLiteral("desktop suite collapsed to %1 ctest targets, floor is %2")
+          .arg(registered).arg(minTargets).toUtf8();
+  check(registered >= minTargets, collapsed.constData());
+
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");
   return failures ? 1 : 0;

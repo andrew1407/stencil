@@ -552,6 +552,7 @@ stencil_headless_test(stencil_layerboundary_headless
 # growing, no directory raising its comment share.
 stencil_headless_test(stencil_sizebudget_headless
   SOURCES tests/sizeBudget.headless.cpp
+  DEFS "STENCIL_CTEST_FILE=\"${CMAKE_CURRENT_BINARY_DIR}/CTestTestfile.cmake\""
   LIBS Qt6::Core)
 
 # Every test writes to an ISOLATED state dir, never the dev .stencil the real
