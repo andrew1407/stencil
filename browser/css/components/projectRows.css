@@ -1,0 +1,136 @@
+/* Batch-select toolbar — appears once rows are checked. */
+.projects-batch-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 18px; border-bottom: 1px solid var(--border-main); background: var(--bg-info);
+}
+/* Never re-flows while its slot closes: the count and Select all collapse by animating
+   max-width to zero under `overflow: hidden`, and wrapping text broke onto a second line
+   instead of being wiped. Same reason .projects-batch-selected stays on one line. */
+.projects-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); white-space: nowrap; }
+.projects-batch-actions > button { white-space: nowrap; flex: 0 0 auto; }
+.projects-batch-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* The selection-only actions, revealed as one group (projectsModal updateBatchBar).
+   At rest the group WRAPS, so a narrow modal (a phone, a squeezed window) never cuts
+   "Remove selected" off at the modal's edge (user report, with a picture). Only while
+   its slot slides open/closed (motion.js reveal-group-transition: max-width animated
+   to zero under `overflow: hidden`) does it hold one line — a wrapping row re-flowed
+   into a column on the way out. */
+.projects-batch-selected {
+    display: inline-flex; align-items: center; gap: 6px;
+    flex-wrap: wrap; white-space: nowrap;
+}
+.projects-batch-selected.reveal-group-transition { flex-wrap: nowrap; }
+.projects-batch-selected > button { flex: 0 0 auto; }
+.projects-batch-actions button:disabled { opacity: 0.45; cursor: default; }
+.project-thumb {
+    width: 56px; height: 56px; flex: 0 0 56px; border-radius: 6px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-info); border: 1px solid var(--border-main);
+}
+.project-thumb img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+.project-thumb-placeholder { font-size: 24px; color: var(--text-muted); }
+/* Magnified hover preview of a row thumbnail — follows the cursor (positioned in JS).
+   z-index must clear the modal overlay (100001), else it renders behind the modal. */
+.project-thumb-zoom {
+    position: fixed; z-index: 100002; display: none; pointer-events: none;
+    padding: 4px; background: var(--input-bg); border-radius: 8px;
+    border: 2px solid var(--remote-gold); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    /* projectsModal.js's positionZoom pins max-width/height to the live window every move —
+       without a clip, a picture the JS couldn't shrink in time would still poke past that box. */
+    overflow: hidden;
+}
+/* The width is set per-thumbnail (a multiple of its own pixels); these clamp it on
+   screen. A hover preview is a GLANCE, not a lightbox — since the stored thumbnail got
+   big enough to magnify sharply, an unclamped zoom filled most of the window. Quarter
+   width / fifth height keeps the list underneath readable. `width: auto` lets the
+   height cap win on portrait images, where the width cap alone never binds. */
+.project-thumb-zoom img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 25vw;
+    max-height: 20vh;
+    object-fit: contain;
+}
+/* Alt held while hovering: the glance doubles (projectsModal applyZoomScale) — the
+   caps double with it, or they clamp the explicit width straight back down. */
+.project-thumb-zoom-xl img { max-width: 50vw; max-height: 40vh; }
+.project-info { flex: 1; min-width: 0; position: relative; }   /* holds the colour swatch (below) */
+.project-name { font-weight: 600; font-size: 14px; color: var(--project-name-fg, #80868f); text-shadow: var(--project-name-shadow, 0 1px 2px rgba(0,0,0,0.55)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Flex row so the date, expiry, and the gold server badge sit on one baseline with
+   a consistent gap (instead of the inline-flex badge gluing to / overlapping the date). */
+.project-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; }
+/* Free-text description line under a project's metadata — one truncated line. */
+.project-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-sub.project-expired { color: var(--danger); font-weight: 600; }
+.project-sub.project-expiring { color: var(--warning); font-weight: 600; }
+.project-open-elsewhere { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); }
+.project-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+/* Whole row opens the project on click; "⋯" (and its menu) stop propagation. */
+.project-row.project-clickable { cursor: pointer; }
+.project-row.is-opening { opacity: 0.6; pointer-events: none; }
+.project-switch:disabled { opacity: 0.6; cursor: default; }
+.project-row.project-incognito { border-color: var(--accent); border-style: dashed; }
+.project-row.project-incognito .project-name { color: var(--accent); }
+/* Server-stored (shared) projects: a golden outline + a small server badge so
+   they're visually distinct from local projects. --remote-gold defaults to the
+   logo yellow; theme.css may override it. */
+:root { --remote-gold: #d4a017; }
+.project-row.project-remote {
+    border-color: var(--remote-gold);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--remote-gold) 55%, transparent);
+}
+/* Golden cue lives on the row block only — the thumbnail keeps its neutral border. */
+.project-remote-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--remote-gold); font-weight: 600;
+}
+.project-remote-badge .ic { color: var(--remote-gold); }
+
+/* File-origin (imported from a .stencil) projects: a bronze outline + a small file badge,
+   so an offline project file reads as distinct from both plain-local rows and the golden
+   server rows. Bronze is warmer/coppery vs the server gold, so the two don't blur together. */
+:root { --file-bronze: #c1783c; }
+.project-row.project-file {
+    border-color: var(--file-bronze);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--file-bronze) 60%, transparent);
+}
+.project-file-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--file-bronze); font-weight: 600;
+}
+.project-file-badge .ic { color: var(--file-bronze); }
+
+/* Pill toggle: an accent-OUTLINED chip when off (transparent fill, accent text), and
+   accent-FILLED with contrasting text when on. The native checkbox is the (hidden) state
+   source; the label chrome shows it. Used for the f(x,y) formula toggle. */
+.pill-toggle {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 13px; font-weight: 600; cursor: pointer; user-select: none;
+    padding: 5px 10px; border-radius: 6px;
+    /* An accent OUTLINE around the theme's own ink — the word is read, so it takes the
+       colour every other label does, light on a dark theme and dark on a light one (user
+       decision; desktop twin: QCheckBox#formulaPill). The fill and white text arrive with
+       `.on`. */
+    border: 1px solid var(--ui-outline); color: var(--text-main);
+    background: transparent;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.pill-toggle:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.pill-toggle > input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+/* ON: accent-filled with contrasting text. Driven by a JS class toggle (settingsController
+   .syncFormulaUI / the change handler) — deterministic across programmatic state changes. */
+.pill-toggle.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+/* Plain local (browser-storage) projects: a muted globe badge (no row outline) — the
+   neutral third state next to the golden server + bronze file rows. */
+.project-local-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--text-muted, #8b93a7); font-weight: 500;
+}
+.project-local-badge .ic { color: var(--text-muted, #8b93a7); }
+
+/* Move-between-storage buttons: gold tint to read as "to/from server". */
+.project-to-server:hover, .project-to-local:hover { color: var(--remote-gold); border-color: var(--remote-gold); }
+.project-to-server:disabled, .project-to-local:disabled { opacity: 0.6; cursor: default; }
+

@@ -1,0 +1,53 @@
+/* ── App logo hover: pulse + levitate + accent shine + orbiting rays ──
+   layout.css keeps the plain scale(1.08) hover; while this sheet is loaded the
+   hover becomes a 1.2s breathing loop instead — the mark swells to 1.12 and
+   floats up 2px while an accent drop-shadow brightens on the same beat, so the
+   glow reads as the pulse's light. Transform/filter only: the logo's box never
+   changes, so the topbar cannot reflow. Under prefers-reduced-motion the loop is
+   removed and the hover falls back to layout.css's simple scale.
+
+   Keyed on .logo-hover (a JS latch, ui/toolbar.js), NOT on :hover: clicking the
+   logo starts an accent view transition, and the browser force-drops the page's
+   :hover for its whole ~560ms — a :hover-gated animation was CANCELLED at the
+   swap's start and REPLAYED from zero at its end, so every click visibly reset
+   the loop. The latch mirrors real hover but holds through the swap (it treats a
+   pointerleave under html.theme-instant as the swap's synthetic one), keeping the
+   animation's clock untouched from pointer-in to pointer-out. */
+@keyframes logoPulse {
+    0%, 100% { transform: translateY(0) scale(1);
+               filter: drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 25%, transparent)); }
+    50%      { transform: translateY(-2px) scale(1.12);
+               filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 80%, transparent)); }
+}
+.app-logo-wrap.logo-hover .app-logo { animation: logoPulse 1.2s ease-in-out infinite; }
+/* Ray layer: an accent conic-gradient of 8 soft spokes, clipped to a thin ring
+   just outside the mark by a radial mask. It turns slowly (one revolution / 8s)
+   while its opacity breathes on the SAME 1.2s beat as the pulse. Absolutely
+   positioned + pointer-events:none: it neither moves the topbar nor widens the
+   logo's hover/click target (clicks still cycle the accent, dblclick still opens
+   the picker parked next to the svg). Hidden at rest; the same .logo-hover latch
+   as the pulse drives it — the wrap is exactly the svg's box. */
+.app-logo-wrap::before {
+    content: "";
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(from -5deg,
+        transparent 0deg, var(--accent) 4deg 6deg, transparent 10deg 45deg);
+    -webkit-mask: radial-gradient(circle, transparent 52%, #000 63%, #000 72%, transparent 82%);
+    mask: radial-gradient(circle, transparent 52%, #000 63%, #000 72%, transparent 82%);
+    opacity: 0;
+    z-index: -1;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+@keyframes logoRaysSpin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes logoRaysShimmer { 0%, 100% { opacity: 0.14; } 50% { opacity: 0.4; } }
+.app-logo-wrap.logo-hover::before {
+    animation: logoRaysSpin 8s linear infinite,
+               logoRaysShimmer 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .app-logo-wrap.logo-hover .app-logo { animation: none; }   /* layout.css's :hover scale(1.08) remains */
+    .app-logo-wrap::before { content: none; }                  /* no static ray ring either */
+}

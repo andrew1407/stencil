@@ -1,0 +1,130 @@
+/* Per-row "⋯" overflow menu (secondary actions) — floats above the modal. */
+.project-more.is-loading .ic, .project-switch.is-loading .ic { animation: spin 0.8s linear infinite; }
+/* .chat-row-menu (right-click on a chat message, chatView.js) is the SAME menu
+   shape — aliased onto this block so the two small row menus can never drift. That
+   includes the STACKING LEVEL: both live in the app's popup tier (100003, shared with
+   #app-tooltip and the confirm dialog), which is above the chat panel (90000) and so
+   above the jump pills (z-index 6) that float inside it. The pills also stand down
+   entirely while a menu is open (chatPanel syncJumps) — belt and braces, because an
+   arrow showing around a menu's edge reads as broken whatever the stacking says. */
+.project-menu, .chat-row-menu {
+    /* Sized to its own widest row, not to a floor: at 184px the menu was wider than anything
+       in it. `max-content` hugs the labels, the smaller floor keeps a two-item menu from
+       looking pinched, and the cap stops a long label running away. */
+    position: fixed; z-index: 100003; width: max-content;
+    min-width: 148px; max-width: min(340px, 90vw); padding: 5px;
+    background: var(--bg-container); border: 1px solid var(--border-main); border-radius: 10px;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 2px;
+}
+.project-menu-item, .chat-row-menu-item {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    background: transparent; border: 0; color: var(--text-main); border-radius: 7px;
+    padding: 8px 10px; font-size: 13px; cursor: pointer; text-align: left;
+}
+.project-menu-item .ic, .chat-row-menu-item .ic { flex: 0 0 auto; color: var(--text-muted); }
+.project-menu-item:hover, .chat-row-menu-item:hover { background: var(--accent); color: var(--on-accent); }
+.project-menu-item:hover .ic, .chat-row-menu-item:hover .ic { color: var(--on-accent); }
+/* Destructive item: red TEXT on the menu background (a dedicated class, NOT the
+   global `.danger`, which would fill the whole button red). */
+.project-menu-item.is-danger { color: var(--danger); }
+.project-menu-item.is-danger .ic { color: var(--danger); }
+.project-menu-item.is-danger:hover { background: var(--danger); color: #fff; }
+.project-menu-item.is-danger:hover .ic { color: #fff; }
+/* The list's one hidden colour field (projectsModal openColorPicker), moved under the
+   button that opens it. Invisible and inert but never `display: none` — an input with no
+   box sends the picker to the page corner. Cf. #project-color-input. */
+.project-color-picker {
+    position: fixed; width: 1px; height: 1px;
+    opacity: 0; pointer-events: none;
+}
+/* The chat variant hugs its content — the 184px floor stays projects-only. */
+.chat-row-menu { min-width: 0; }
+.chat-row-menu-item { padding: 7px 9px; }
+
+/* Hover "…" trigger on a chat bubble (chatView.js chatRowMenuButton): a ghost dot
+   button on the bottom corner facing the panel centre. Hidden wherever hover does
+   not exist — touch surfaces open the menu with a long-press / double-tap instead. */
+.chat-row-menu-btn {
+    /* Anchored to the bottom of the row's VISIBLE slice, not to the row: motion.js
+       publishes --visible-bottom per scroll frame, so a message the scroller cuts still
+       shows its trigger instead of parking it below the fold. 0 = nothing is cut.
+       --row-menu-lift (chatPanel.js syncRowMenuLift) adds on top of that: pushed up
+       clear of the jump pills when this row's trigger would otherwise sit under them. */
+    position: absolute; bottom: calc(var(--visible-bottom, 0px) + var(--row-menu-lift, 0px)); z-index: 2;
+    display: none; align-items: center; justify-content: center;
+    width: 21px; height: 21px; padding: 0; border-radius: 50%;
+    border: 1px solid var(--border-main); background: var(--bg-container);
+    color: var(--text-muted); cursor: pointer;
+    opacity: 0; transition: opacity .12s ease, transform .12s ease, box-shadow .12s ease;
+    -webkit-user-select: none; user-select: none;
+}
+/* Fully beside the bubble (21px button + 6px gap), never overlapping it. */
+.chat-row-menu-btn-left { left: -27px; }
+.chat-row-menu-btn-right { right: -27px; }
+@media (hover: hover) {
+    .chat-row-menu-btn { display: inline-flex; }
+    /* Revealed translucent — a ghost that does not compete with the message it sits
+       beside — and only the one under the cursor goes fully opaque. The second rule
+       needs the row in its selector to outweigh the first. */
+    .chat-msg:hover .chat-row-menu-btn { opacity: .7; }
+    .chat-msg:hover .chat-row-menu-btn:hover { opacity: 1; }
+    /* Beat the generic button:hover accent fill — hover keeps the chrome and
+       adds a small full-accent glow + a 1px lift. */
+    .chat-row-menu-btn:hover {
+        background: var(--bg-container); color: var(--text-muted);
+        box-shadow: 0 1px 6px var(--accent);
+        transform: translateY(-1px);
+    }
+    .chat-row-menu-btn::after { display: none; }   /* no shimmer sweep either */
+}
+/* …and no trigger at all on a row whose visible slice is too short to hold one: pinned
+   to the bottom of that slice it overflows its own bubble and is drawn across the
+   neighbouring message, which reads as a rendering bug (user report). motion.js
+   (revealTriggerFits) publishes the class per scroll frame. Higher specificity than the
+   hover rule above, so it wins wherever it lands. */
+.chat-msg.reveal-no-trigger .chat-row-menu-btn { display: none; }
+/* The jump pills win: on a bubble too short to lift the trigger clear of them
+   (chatPanel.js rowMenuLiftFits), the trigger yields and hides instead of sitting
+   under them — never the other way around (an earlier rule hid the PILLS instead,
+   inverted per user report: the arrows are the higher-priority control). */
+.chat-msg.chat-row-menu-yield .chat-row-menu-btn { opacity: 0 !important; pointer-events: none !important; }
+
+/* Server picker injected into the confirm modal (app.choose). */
+.confirm-choose-row { margin-top: 12px; }
+.confirm-choose-select {
+    width: 100%; padding: 7px 10px; border-radius: 8px;
+    /* background-COLOR — the shorthand would reset the hover sweep sizing (layout.css). */
+    border: 1px solid var(--border-main); background-color: var(--input-bg); color: var(--text-main);
+    font-size: 13px; cursor: pointer;
+}
+/* Text input injected into the confirm modal (app.prompt — copy-with-name). */
+.confirm-prompt-input {
+    width: 100%; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border-main); background: var(--input-bg); color: var(--text-main);
+    font-size: 13px;
+}
+/* Why the typed value cannot be accepted (app.prompt { validate }), under the field and
+   only while it applies — the desktop's QLabel#modalPromptReason. */
+.confirm-prompt-reason { color: var(--danger); font-size: 12px; margin-top: 6px; }
+/* The multi-line shape (app.prompt { multiline: true } — keywords, description): the
+   same field, several rows tall. A one-line bar read as "type a word" for values that
+   are routinely a sentence or a list (user report). */
+textarea.confirm-prompt-input {
+    font-family: inherit;
+    line-height: 1.45;
+    resize: vertical;
+    min-height: 62px;
+    /* Dragged past this the field outgrew the modal (capped at 82vh) and its bottom border
+       was clipped by the scrolling body. The cap leaves room for the header, caption,
+       footer and body padding at every window height. */
+    max-height: 50vh;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+/* The accent focus ring the single-line field gets for free — animations/overlays.css lists the
+   input TYPES that wear it, and a textarea is not one of them, so it fell back to the
+   browser's own blue outline. */
+textarea.confirm-prompt-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}

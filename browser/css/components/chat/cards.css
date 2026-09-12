@@ -1,0 +1,87 @@
+/* Empty-state: one subtle line — ALL provider detail lives in the gear's tooltip. */
+/* Empty-state: prompt SUGGESTION chips (click → prefill the input) instead of an
+   explanation paragraph. The block is removed with the first message. */
+.chat-empty { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 4px; }
+/* The conventional assistant suggestion-chip look: quiet solid pill, accent on hover. */
+.chat-suggest {
+    padding: 6px 12px;
+    font-size: 13px;
+    border: 1px solid var(--border-main);
+    border-radius: 16px;
+    background: var(--bg-container);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.chat-suggest:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-container)); }
+/* Unreachable-provider chat card: message + a configure call-to-action. */
+.chat-error-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+.chat-config-cta, .chat-retry-cta, .chat-reconnect-cta { align-self: flex-start; margin-top: 6px; }
+/* The two labelled CTAs read as a small pill, not a full-size toolbar button: less
+   side padding than the base button, and a touch more room between the glyph and
+   its label than the shared .btn-icon-text gap gives (the gear crowded "Configure"
+   at 6px — user report). Hover stays the SOLID accent instead of lightening to
+   --accent-2: on a pill this small the lighten washed out the glass shimmer sweep
+   riding under it (layout.css), reading as if no hover animation played at all. */
+.chat-config-cta, .chat-reconnect-cta { padding: 7px 10px; gap: 8px; }
+.chat-config-cta:hover:not(:disabled), .chat-reconnect-cta:hover:not(:disabled) { background: var(--accent); }
+/* An error bubble carrying a call-to-action becomes a column, so the button
+   sits under the text instead of dangling inline after it (.chat-msg alone is
+   a plain pre-wrap block). */
+.chat-msg-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.chat-msg {
+    position: relative;   /* anchors the hover "…" trigger without moving the bubble */
+    max-width: 88%;
+    padding: 7px 10px;
+    border-radius: 10px;
+    font-size: 14px;   /* the app's base text size — chat output must not read smaller */
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+    /* Message text is for copying too: selectable EXPLICITLY, so no ancestor
+       user-select:none (the ctx-menu flyout lives inside one) and no future
+       panel chrome can take manual select-and-copy away. */
+    -webkit-user-select: text;
+    user-select: text;
+    cursor: text;
+}
+/* The message text itself: ONE node per row (chatView.js), so a repaint has exactly
+   one thing to write and can never leave a second copy beside the row's buttons.
+   min-width:0 so it still wraps as a flex item on the rows that become columns. */
+.chat-msg-text { min-width: 0; }
+.chat-msg-user {
+    align-self: flex-end;
+    /* Named so the tail below can reach the SAME colours without repeating the
+       color-mix() expressions — and so the swap rule further down only has to flip
+       which corner reads them, never restate them. */
+    --msg-fill: color-mix(in srgb, var(--accent) 14%, var(--bg-container));
+    --msg-border: color-mix(in srgb, var(--accent) 32%, transparent);
+    background: var(--msg-fill);
+    border: 1px solid var(--msg-border);
+    /* Flattened at the tail's corner — the base 10px radius fought the tail's
+       own curve there and left a visible notch (user report). */
+    border-bottom-right-radius: 0;
+}
+.chat-msg-assistant {
+    align-self: flex-start;
+    --msg-fill: var(--bg-container);
+    --msg-border: var(--border-main);
+    background: var(--msg-fill);
+    border: 1px solid var(--msg-border);
+    border-bottom-left-radius: 0;   /* the tail's corner — see .chat-msg-user */
+}
+/* A failed / stopped turn reads as one at a glance: danger text and border over a
+   faint danger wash, rather than an ordinary bubble that merely happens to be red. */
+.chat-msg-error {
+    --msg-fill: color-mix(in srgb, var(--danger) 10%, var(--bg-container));
+    --msg-border: color-mix(in srgb, var(--danger) 45%, transparent);
+    color: var(--danger);
+    border-color: var(--msg-border);
+    background: var(--msg-fill);
+    border-bottom-left-radius: 0;   /* the tail's corner — see .chat-msg-user */
+}
