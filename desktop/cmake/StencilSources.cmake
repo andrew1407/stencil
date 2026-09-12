@@ -238,6 +238,8 @@ set(STENCIL_GUI_SOURCES
   src/app/mainWindowWindows.cpp
   src/app/mainWindowZoom.cpp
   src/app/stayOpenMenu.cpp
+  src/app/stayOpenMenuKeys.cpp
+  src/app/stayOpenMenuWalk.cpp
   src/app/logoHoverFx.cpp
   src/app/dockZonesOverlay.cpp
   src/app/dataExportController.cpp
@@ -271,6 +273,8 @@ set(STENCIL_GUI_SOURCES
   src/llm/chatWidgets.cpp
   src/llm/chatCardRenderer.cpp
   src/llm/chatMenuPanel.cpp
+  src/llm/chatMenuPanelRows.cpp
+  src/llm/chatMenuPanelState.cpp
   src/app/chatPlanTarget.cpp
   src/app/chatPlanTargetServer.cpp
   src/app/chatPlanTargetProjects.cpp
