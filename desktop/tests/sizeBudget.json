@@ -48,7 +48,6 @@
     "desktop/src/net/serverClient.hpp": 270,
     "desktop/src/support/appTooltip.hpp": 540,
     "desktop/src/support/controlReveal.hpp": 464,
-    "desktop/src/support/controlSwap.hpp": 621,
     "desktop/src/support/disintegrateOverlay.hpp": 319,
     "desktop/src/support/dustKit.hpp": 322,
     "desktop/src/support/filterFade.hpp": 362,

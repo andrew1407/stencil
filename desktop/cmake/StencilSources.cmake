@@ -78,6 +78,14 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
+# Form-control state swaps (support/controlSwap.hpp) are split across three TUs: the
+# checkbox/combo pixmaps and bookkeeping, the value-swap cloud overlay, and the app-wide
+# event filter. They define one header's members, so they travel together.
+set(STENCIL_CONTROLSWAP_SOURCES
+  src/support/controlSwap.cpp
+  src/support/controlSwapValue.cpp
+  src/support/controlSwapFilter.cpp)
+
 # The toggle face swap is split across two TUs defining one header's functions (the
 # frame maths and painting, then the live driver); every target that swaps a face needs
 # both, so they travel under one name.
@@ -212,6 +220,7 @@ set(STENCIL_GUI_SOURCES
   src/support/modalReveal.cpp
   src/support/modalChrome.cpp
   src/support/searchCombo.cpp
+  ${STENCIL_CONTROLSWAP_SOURCES}
   ${STENCIL_DISINTEGRATE_SOURCES}
   ${STENCIL_ICONMOTION_SOURCES}
   ${STENCIL_FACESWAP_SOURCES}

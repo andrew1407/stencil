@@ -137,7 +137,8 @@ stencil_headless_test(stencil_faceswap_headless
 # iconSet for faceSwap's glyphs, menuReveal for the dropped list's dust and modalReveal
 # for motionReduced().
 stencil_headless_test(stencil_controlswap_headless
-  SOURCES ${STENCIL_DISINTEGRATE_SOURCES}
+  SOURCES ${STENCIL_CONTROLSWAP_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
     tests/controlSwap.headless.cpp src/support/theme.cpp src/support/iconSet.cpp
     ${STENCIL_FACESWAP_SOURCES} src/support/menuReveal.cpp src/support/modalReveal.cpp
     resources/app.qrc
