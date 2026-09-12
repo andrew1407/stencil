@@ -1,11 +1,7 @@
-// ── Themed Yes/No confirmation ──────────────────────────────────────────────
 import { scatterGridFor, surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
 
-// Themed Yes/No confirmation. The options page has no native modal of its own, so this
-// stands in for window.confirm() and matches the editor's look (lib/theme/ vars). Resolves
-// true on Yes/Enter, false on No/Esc/backdrop click.
-// `anchor` is the button it was raised from: the box's particles fly out of that button
-// and stream back into it, the same as every menu here.
+// Stands in for window.confirm() (the options page has no native modal). Resolves true on
+// Yes/Enter, false on No/Esc/backdrop. `anchor` is the button the particles fly out of and back into.
 export const confirmDialog = (message, anchor) => new Promise((resolve) => {
   const overlay = document.getElementById('confirm-overlay');
   const box = overlay.querySelector('.confirm-box');
@@ -38,6 +34,4 @@ export const confirmDialog = (message, anchor) => new Promise((resolve) => {
   yes.focus();
 });
 
-// A CLEAR is destructive too, so the listed rows scatter rather than fading like a
-// filter — all at once, on the shared mesh budget (scatterGridFor), and out of the DOM
-// before the rebuild.
+// A CLEAR is destructive: the rows scatter (shared mesh budget) and leave the DOM before the rebuild.

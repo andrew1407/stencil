@@ -1,4 +1,3 @@
-// ── AI assistant (LLM) settings ─────────────────────────────────────────────
 import { originPattern } from '../lib/stencil.js';
 import { loadConnections } from '../lib/connections.js';
 import { icon } from '../lib/icons.js';
@@ -6,9 +5,8 @@ import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY 
 import { listModels } from '../llm/llmClient.js';
 import { serverTokenFor } from '../llm/llmSurface.js';
 
-// Persisted under the chrome.storage key `llmSettings` (llm-contract.md §5/§8). The
-// base/server URL is default-refilled per provider but stays editable;
-// ensureLlmHostPermission stays as a guard in case <all_urls> ever narrows.
+// chrome.storage key `llmSettings` (llm-contract.md §5/§8). ensureLlmHostPermission stays as
+// a guard in case <all_urls> ever narrows.
 const llmProviderEl = document.getElementById('llm-provider');
 const llmBaseUrlEl = document.getElementById('llm-baseurl');
 const llmModelEl = document.getElementById('llm-model');
@@ -28,8 +26,7 @@ const syncLlmRows = () => {
   document.getElementById('llm-tabs-row').hidden = off;   // nothing is sent when off
 };
 
-// Refill the base URL for the chosen provider: the saved value when the saved
-// provider matches, else the provider's default. Editable afterwards.
+// The saved value when the saved provider matches, else the provider's default.
 const refillLlmBaseUrl = () => {
   const p = llmProviderEl.value;
   llmBaseUrlEl.value = (llmStored && llmStored.provider === p && llmStored.baseUrl)
@@ -37,9 +34,7 @@ const refillLlmBaseUrl = () => {
     : (PROVIDER_BASE_URLS[p] || '');
 };
 
-// Model suggestions from the provider itself (browser/desktop parity): the datalist
-// refills from the CURRENTLY EDITED fields, best-effort — failures leave it empty.
-// A request counter drops stale async answers when the fields change mid-fetch.
+// Best-effort suggestions from the CURRENTLY EDITED fields; a request counter drops stale answers.
 const llmModelListEl = document.getElementById('llm-model-list');
 let llmModelsReq = 0;
 const refreshLlmModels = async () => {
@@ -82,8 +77,7 @@ llmApiKeyEl.addEventListener('change', refreshLlmModels);
 llmServerUrlEl.addEventListener('change', refreshLlmModels);
 llmServerTokenEl.addEventListener('change', refreshLlmModels);
 
-// Make sure the extension may fetch the configured origin: covered origins pass
-// silently; anything else is requested from the user (needs this click's gesture).
+// Covered origins pass silently; anything else is requested (needs this click's gesture).
 const ensureLlmHostPermission = async (url) => {
   const pattern = originPattern(url);
   if (!pattern || !chrome.permissions) return true;
@@ -113,7 +107,6 @@ document.getElementById('llm-save').addEventListener('click', async () => {
   else setTimeout(() => { llmStatusEl.textContent = ''; }, 1500);
 });
 
-// Another surface (or window) changed the assistant settings — reload the form.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[LLM_SETTINGS_KEY]) loadLlmForm();
 });

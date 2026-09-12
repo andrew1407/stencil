@@ -1,6 +1,4 @@
-// ── Server connections ───────────────────────────────────────────────────────
-// Add (connect + persist) / remove collaboration-server connections. The popup reads
-// the same chrome.storage.local list to render shared pins and offer server pin targets.
+// Server connections; the popup reads the same chrome.storage.local list.
 import { PINS_KEY } from '../lib/pins.js';
 import { CONNECTIONS_KEY, loadConnections, addServer, removeServer, listProjects, reconnectServer, normalizeUrl, filterConnections, isAdminConnection } from '../lib/connections.js';
 import { leaveThenRemove, materialize, scatterGridFor, createListHold, emptyStateVisible, createFilterTransition } from '../lib/motion.js';
@@ -21,20 +19,15 @@ const connKind = () => {
   return on ? on.value : 'all';
 };
 
-// Wipe hold + refresh gate (browser connect modal's pattern, via createListHold): while
-// a row's leave/materialize plays, the storage.onChanged echo is deferred and the empty
-// state hidden — a rebuild mid-wipe would cut the animation and pop the placeholder in.
+// While a row's leave/materialize plays, the storage.onChanged echo is deferred and the
+// empty state hidden — a rebuild mid-wipe would cut the animation short.
 const connHold = createListHold({ settle: () => { renderConnections(); connListEl.style.minHeight = ''; } });
 
-// The kind filter (All / Admin / Non-admin) rebuilds the list wholesale, so the rows it
-// excludes fade out where they stood and the ones it admits ramp in — keyed by the
-// data-url the leave/materialize animations already find a row by.
+// Keyed by data-url, the attribute the leave/materialize animations already find a row by.
 const connTransition = createFilterTransition({ list: connListEl, keyAttr: 'url' });
-// A connection the ADD flow materializes itself: its arrival is already animated, so the
-// transition must not also ramp that one row in.
+// The ADD flow materializes its own row, so the transition must not also ramp it in.
 let materializingUrl = null;
-// Newest render wins — loadConnections() is async, so rapid filter clicks could
-// otherwise land out of order.
+// Newest render wins — rapid filter clicks could otherwise land out of order.
 let connRenderSeq = 0;
 
 const renderConnections = async () => {
@@ -54,7 +47,6 @@ const renderConnections = async () => {
     info.className = 'pin-info';
     const name = document.createElement('div');
     name.className = 'pin-name conn-name';
-    // Status dot: yellow while we probe, green if reachable, red if not.
     const dot = document.createElement('span');
     dot.className = 'conn-status conn-status-connecting';
     dot.setAttribute('role', 'img');   // a bare <span> may not be named; the state is information
@@ -67,12 +59,10 @@ const renderConnections = async () => {
     name.append(label);
     setTip(name, c.url);
     info.appendChild(name);
-    // Probe reachability (auth-checked via GET /projects) and recolor the dot.
     listProjects(c)
       .then(() => { dot.className = 'conn-status conn-status-connected'; setTip(dot, 'Connected', { label: true }); })
       .catch(() => { dot.className = 'conn-status conn-status-error'; setTip(dot, 'Not reachable', { label: true }); });
-    // The admin badge is a row child, NOT part of .conn-name: it belongs beside the
-    // action buttons, and out of the name it can't eat the host label's ellipsis budget.
+    // Out of .conn-name, so the badge can't eat the host label's ellipsis budget.
     let badge = null;
     if (isAdminConnection(c)) {
       badge = document.createElement('span');
@@ -98,14 +88,12 @@ const renderConnections = async () => {
     setTip(remove, 'Remove connection — forgets its saved token', { label: true });
     remove.innerHTML = icon('trash', { size: 15 });
     remove.addEventListener('click', async () => {
-      // The row scatters before the list is rebuilt without it (browser connect
-      // modal parity): the list's height is pinned and the re-render deferred until
-      // the dust has really settled, so the empty state can't land under it.
+      // The list's height is pinned and the re-render deferred until the dust has settled, so
+      // the empty state can't land under it (browser connect-modal parity).
       const held = connListEl.getBoundingClientRect().height;
       if (held) connListEl.style.minHeight = `${held}px`;
       const settle = connHold.begin();
-      // The row leaves the DOM with its scatter, so the rebuild's filter transition
-      // can't fade a deleted row out a second time.
+      // Leaves the DOM with its scatter, so the rebuild's filter transition can't fade it again.
       await leaveThenRemove(li, () => li.remove(), scatterGridFor(1));
       await removeServer(c.url);
       await settle();
@@ -115,12 +103,10 @@ const renderConnections = async () => {
     connListEl.appendChild(li);
   }
   connTransition.end({ skipEnter: materializingUrl ? [materializingUrl] : [] });
-  // Mid-wipe the empty state stays hidden — it waits for the hold's settle render.
   connEmptyEl.hidden = !emptyStateVisible(conns.length, connHold.holding);
   connEmptyEl.textContent = all.length
     ? 'No connections match this filter.'
     : 'No servers connected yet.';
-  // The filter is only worth showing once there is something to filter.
   if (connFiltersEl) connFiltersEl.hidden = all.length === 0;
   const reconnectAll = document.getElementById('conn-reconnect-all');
   if (reconnectAll) reconnectAll.hidden = all.length === 0;
@@ -150,9 +136,7 @@ document.getElementById('conn-add').addEventListener('click', async () => {
     // Back to All, or the filter in force could hide the row that was just added.
     const allPill = connFiltersEl && connFiltersEl.querySelector('input[value="all"]');
     if (allPill) allPill.checked = true;
-    // The new row materializes — the removal played backwards (its box expands while
-    // a dust copy gathers into it). On the same hold as a removal, so the
-    // storage.onChanged echo can't rebuild the list mid-animation.
+    // On the same hold as a removal, so the storage.onChanged echo can't rebuild mid-animation.
     const settle = connHold.begin();
     materializingUrl = normalizeUrl(url);   // this row's arrival is the materialize, not the filter ramp
     await renderConnections();
@@ -165,14 +149,11 @@ document.getElementById('conn-add').addEventListener('click', async () => {
   }
 });
 
-// Live-refresh when pins or connections change anywhere (popup, side panel, page API,
-// another options tab).
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes[PINS_KEY]) renderPins();
   // A connection change can flip which pins are server-stored → refresh the cross-ref.
   if (area === 'local' && changes[CONNECTIONS_KEY]) {
-    // Never mid-wipe: the rebuild would cut the leave/materialize short and pop the
-    // empty state in under the dust — the hold's settle render covers the change.
+    // Never mid-wipe: the hold's settle render covers the change.
     if (!connHold.holding) renderConnections();
     refreshServerPins().then(renderPins);
   }

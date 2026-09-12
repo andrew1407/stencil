@@ -1,4 +1,3 @@
-// ── One pinned-image row ────────────────────────────────────────────────────
 import { setPinned, setPinKeywords, pinKeywords } from '../lib/pins.js';
 import { leaveThenRemove, scatterGridFor } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
@@ -89,8 +88,7 @@ export const renderPinRow = (pin, serverSources) => {
   setTip(unpin, 'Unpin', { label: true });
   unpin.innerHTML = icon('x', { size: 15 });
   unpin.addEventListener('click', async () => {
-    // A DELETE, not a filter: the row scatters (the heavier effect) and leaves the DOM
-    // before the rebuild, so the filter transition can't also fade it out.
+    // A DELETE, not a filter: the row scatters and leaves the DOM before the rebuild.
     const played = leaveThenRemove(li, () => li.remove(), scatterGridFor(1));
     liftDust(li);
     await played;

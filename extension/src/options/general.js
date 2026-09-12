@@ -1,12 +1,9 @@
-// ── The saved settings form ─────────────────────────────────────────────────
-// Editor URL, default page size, the opened-images toggles, the page APIs, the
-// "Open in…" operator config and the on-page highlight colour — loaded into the form
-// and written back by the Save button.
+// The saved settings form: loaded on open, written back by the Save button.
 import { getSettings, setSettings, DEFAULT_EDITOR_URL } from '../lib/stencil.js';
 import { pageSizeOptions } from '../lib/cropGeometry.js';
 import { icon } from '../lib/icons.js';
 
-// ── On-page highlight colour: "theme" (follow the accent) or a custom hex ─────
+// On-page highlight colour: "theme" (follow the accent) or a custom hex.
 const hlMode = document.getElementById('hl-mode');
 const hlColor = document.getElementById('hl-color');
 const hlCustomRow = document.getElementById('hl-custom-row');
@@ -19,8 +16,7 @@ hlMode.addEventListener('change', () => {
 });
 hlColor.addEventListener('input', () => { hlColor.dataset.touched = '1'; });
 
-// Default page size — every ISO A/B/C format from the shared table (canonical
-// order), labelled with its cm dimensions; the stored value is the bare name.
+// Every ISO A/B/C format from the shared table (canonical order); the stored value is the bare name.
 document.getElementById('page').innerHTML = pageSizeOptions();
 
 (async () => {

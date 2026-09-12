@@ -1,7 +1,5 @@
-// ── Pinned-images viewer ─────────────────────────────────────────────────────
-// Browse every pin (chrome.storage.local), grouped by pinning site, with open and
-// unpin. Thumbnails a bare <img> can't load (hotlink-protected) are re-fetched
-// through the extension's host permissions — the popup's recovery.
+// Pinned-images viewer, grouped by pinning site. Thumbnails a bare <img> can't load
+// (hotlink-protected) are re-fetched through the extension's host permissions.
 import { loadPins, matchPinsForSite, sitesOf, clearPins, pinMatchesSearch } from '../lib/pins.js';
 import { loadConnections, collectSharedPins } from '../lib/connections.js';
 import { leaveThenRemove, scatterGridFor } from '../lib/motion.js';
@@ -13,8 +11,7 @@ import { confirmDialog } from './confirmDialog.js';
 const storeSel = document.getElementById('pin-store');
 const showServerChk = document.getElementById('pin-show-server');
 
-// Cached cross-reference of which connected servers store each pinned source URL.
-// Drives the gold outline + the "stored on" filter; refreshed on load + connection changes.
+// Which connected servers store each pinned source URL: the gold outline + the "stored on" filter.
 const emptyServerPins = () => ({ sources: new Set(), byOrigin: new Map(), hosts: [] });
 let serverPins = emptyServerPins();
 
@@ -34,8 +31,7 @@ export const refreshServerPins = async () => {
   } catch { serverPins = emptyServerPins(); }
 };
 
-// Only the newest render may touch the DOM: loadPins() is async, so a burst of filter
-// changes could otherwise land out of order and leave the wrong set on screen.
+// Newest render wins — a burst of filter changes could otherwise land out of order.
 let pinRenderSeq = 0;
 
 export const renderPins = async () => {
@@ -44,14 +40,13 @@ export const renderPins = async () => {
   if (seq !== pinRenderSeq) return;   // a newer render is already in flight
   const sites = sitesOf(pins);
 
-  // Site filter (where the image was pinned). Keep the chosen site if it still has pins.
+  // Keep the chosen site if it still has pins.
   const prevSite = siteSel.value || 'all';
   siteSel.innerHTML = `<option value="all">All sites (${pins.length})</option>` +
     sites.map((s) => `<option value="${s}">${hostLabel(s)} (${matchPinsForSite(pins, s).length})</option>`).join('');
   siteSel.value = (prevSite === 'all' || sites.includes(prevSite)) ? prevSite : 'all';
 
-  // The Clear button targets whatever the site filter shows: every pin, or just the
-  // selected site. Its label + enabled-state track that scope so it matches what it removes.
+  // The Clear button's label + enabled state track the site filter's scope, so it matches what it removes.
   const clearScoped = siteSel.value !== 'all';
   const clearCount = clearScoped ? matchPinsForSite(pins, siteSel.value).length : pins.length;
   pinClearBtn.textContent = clearScoped ? 'Clear site' : 'Clear all';
@@ -60,8 +55,7 @@ export const renderPins = async () => {
     : 'Remove every pinned image, on all sites');
   pinClearBtn.disabled = clearCount === 0;
 
-  // Storage filter (which server a pin is stored on) — populated from connected servers,
-  // hidden (with the "show server pins" checkbox) when none are connected.
+  // Hidden (with the "show server pins" checkbox) when no server is connected.
   const hasServers = serverPins.hosts.length > 0;
   showServerChk.closest('.chk').hidden = !hasServers;
   storeSel.hidden = !hasServers || !showServerChk.checked;
@@ -95,8 +89,7 @@ export const renderPins = async () => {
 siteSel.addEventListener('change', renderPins);
 storeSel.addEventListener('change', renderPins);
 showServerChk.addEventListener('change', renderPins);
-// Typing filters on a pause, not on every keystroke: one render per burst keeps the
-// fades from stacking (and the list from being rebuilt under your fingers).
+// One render per typing burst keeps the fades from stacking.
 const PIN_SEARCH_DEBOUNCE_MS = 150;
 let pinSearchTimer = null;
 if (pinSearchEl) pinSearchEl.addEventListener('input', () => {
@@ -116,8 +109,6 @@ const wipePinRows = async () => {
   }));
 };
 
-// Scoped bulk clear: wipe every pin ("all" scope) or just the selected site's pins.
-// Confirmed first — it's destructive and can't be undone.
 pinClearBtn.addEventListener('click', async () => {
   const pins = await loadPins();
   const scope = siteSel.value || 'all';
