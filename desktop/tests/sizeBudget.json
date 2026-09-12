@@ -22,7 +22,6 @@
     "desktop/src/llm/chatDock.hpp": 550,
     "desktop/src/llm/chatMenuPanel.cpp": 258,
     "desktop/src/llm/chatWidgets.cpp": 389,
-    "desktop/src/llm/chatWidgets.hpp": 410,
     "desktop/src/llm/opPlan.cpp": 500,
     "desktop/src/llm/opPlan.hpp": 231,
     "desktop/src/llm/opRegistry.cpp": 249,

@@ -298,6 +298,7 @@ set(STENCIL_GUI_SOURCES
   src/llm/chatDockVariants.cpp
   src/llm/chatDockState.cpp
   src/llm/chatWidgets.cpp
+  src/llm/chatWidgetsOverlays.cpp
   src/llm/chatCardRenderer.cpp
   src/llm/chatMenuPanel.cpp
   src/llm/chatMenuPanelRows.cpp
