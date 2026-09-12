@@ -252,8 +252,7 @@ document or in any client source:
   prompt suffix verbatim. It belongs to the current turn only: never replayed (the "single most
   recent prior image" is always the working snapshot), never persisted (§12), stripped by the
   text-only latch.
-- **Downscale & media types.** Clients may downscale a large snapshot or attachment before
-  sending and re-encode as PNG or JPEG; accepted `image/png|jpeg|webp|gif`.
+- **Downscale & media types.** Clients may downscale and re-encode (PNG/JPEG); accepted `image/png|jpeg|webp|gif`.
 - Videos are never sent to the LLM. Clients extract frames (desktop MediaLoader, CLI/bot
   ffmpeg, browser `<video>`+canvas) and attach those; `frame` selects from the video input.
 - **Auto-continuation.** A plan whose actions *only load a picture the model has not seen* —
@@ -273,8 +272,7 @@ document or in any client source:
 
 ## 9. Server storage for videos, variants & chats
 
-The collaboration server's per-project file kinds are extended from `original|result` to
-`original | result | video | variant1 … variant8 | chat`.
+File kinds per project: `original | result | video | variant1 … variant8 | chat` (v1 had `original|result`).
 
 `GET/POST /projects/{id}/files/{kind}` work unchanged for the new kinds (allowlist:
 `protocol.IsFileKind`). v1: `video`/`variantN`/`chat` bytes live in the filestore only (no
@@ -282,11 +280,10 @@ dimensions on the project record) and are removed with the project; uploads stay
 `MAX_BODY_BYTES`; the variant cap (8) deliberately matches the op-plan variant cap. `chat`
 holds the §12 document (uploaded `ext=json`, served `application/json`).
 
-**Per-file DELETE** (added with the `chat` kind): `DELETE /projects/{id}/files/{kind}` removes
-that kind's bytes, and is valid **only for filestore-only kinds** (`video`, `variantN`, `chat`)
-— `original`/`result` answer `400`, being part of the project record. Deleting a kind with no
-stored bytes answers `204` all the same (idempotent). Same bearer auth as the other file
-routes; a file delete does not bump the project version.
+**Per-file DELETE**: `DELETE /projects/{id}/files/{kind}` removes that kind's bytes, and is valid
+**only for filestore-only kinds** (`video`, `variantN`, `chat`) — `original`/`result` answer `400`,
+being part of the project record. Deleting a kind with no stored bytes answers `204` (idempotent).
+Same bearer auth as the other file routes; a file delete does not bump the project version.
 
 ## 10. Editor-settings profile (browser & desktop editors; partial profiles)
 
@@ -348,3 +345,6 @@ Every non-browser surface that walks the corpus has one — `cli`/`mcp`/`pystenc
 `tests/Stencil.TelegramBot.Tests/FixtureOverrides.json` (name per language, same mechanism; an
 empty section is normal). A divergence that is a BUG gets fixed instead of recorded; a deliberate
 platform difference also belongs in the registry's `divergence` notes when it affects the schema.
+
+**Follow-ups.** CLI `--variants`: render the base once and cut every variant from the decoded
+intermediate (one layout list in, N files out) — a CLI contract change; adapters re-decode the source per variant until then.
