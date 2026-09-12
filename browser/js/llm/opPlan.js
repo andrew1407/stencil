@@ -1,12 +1,12 @@
 // ── Op-plan: the executor + this module's public surface (llm-contract.md §1–4) ──
 // Pure — no DOM, no fetch. The LLM never touches pixels: it emits a strictly validated plan
 // of whitelisted ops that executeOpPlan maps 1:1 onto the same window.stencil facade calls
-// the toolbar uses. LLM output is data, not instructions. The parts live beside this file.
+// the toolbar uses. LLM output is data, not instructions.
 import { identityFrame } from './frame.js';
 import { OPS } from './opExecutors.js';
 import { FORBIDDEN_OPS, ForbiddenOpError } from './promptAssembly.js';
 import { sanitizeLabel } from './planValues.js';
-import { captureEditorState, capturePixels, restoreWorkingImage } from './planSandbox.js';
+import { captureEditorState, capturePixels, restoreWorkingImage, needsPixelSnapshot } from './planSandbox.js';
 
 export { PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, SCHEMA, LIMITS, ASK_LIMITS, DEFAULT_CUSTOM_LABEL } from './planSchema.js';
 export { sanitizeLabel, resolveServer } from './planValues.js';
@@ -17,19 +17,16 @@ export {
 } from './promptAssembly.js';
 export { MisplacedOpError, validateAsk, askAnswerText, parseOpPlan } from './planParser.js';
 
-
 // Execute a parsed plan against the frozen window.stencil facade — every op routes
 // through the same facade methods the toolbar/console use, never new editor logic.
 // The options are the surface's injected capabilities (chatSession.js wires them all);
 // an absent one makes its op error out or note+skip per §10/§2.1. savedServers is the
-// ONLY pool `connect` may resolve against (§10; plans never carry tokens).
-// Returns { results: [{ label, dataUrl }], warnings }.
-export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink } = {}) => {
+// ONLY pool `connect` may resolve against. Returns { results: [{ label, dataUrl }], warnings }.
+export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink, ranSink } = {}) => {
   const warnings = (plan.warnings || []).slice();
   const results = [];
 
-  // Dispatch through the registry — the parser only emits ops it holds. `notes` lets an
-  // executor report what IT did (rendered with the reply); `frame` is the §1 re-mapping
+  // `notes`: what an executor reports (rendered with the reply); `frame`: the §1 re-mapping
   // accumulated from executed crops/rotates, reset to identity by newFrame ops.
   const ctx = { stencil, exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, results, notes: warnings, frame: identityFrame() };
   const run = async (a) => {
@@ -44,9 +41,10 @@ export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, sav
   // `deferredSink` takes the deferred actions UNEXECUTED instead: the turn runner replays
   // them after the §7 auto-continuation round, at the turn's true end (chatController).
   const deferred = deferredSink || [];
+  // `ranSink` collects the actions that completed — what a preview sandbox must undo.
   for (const a of plan.actions) {
     if (OPS[a.op]?.deferred) deferred.push(a);
-    else await run(a);
+    else { await run(a); ranSink?.push(a); }
   }
 
   if (plan.variants.length) {
@@ -58,19 +56,20 @@ export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, sav
       warnings.push(`Skipped ${plan.variants.length} variant${plan.variants.length === 1 ? '' : 's'} — variants render images and no image is loaded yet`);
     } else {
       // Branch each variant from the state AFTER the top-level actions: snapshot the
-      // working image + editor state, apply the variant's ops, export, then restore both.
+      // editor state (pixels only for a variant that replaces the original), run the
+      // variant's ops from the frame the top-level actions built up, export, restore.
       const state = captureEditorState(stencil);
-      const base = await capturePixels(stencil, exportImage);
-      // Each variant branches from the post-actions state, so its coordinate
-      // re-mapping restarts from the transform the top-level actions built up.
       const postActionsFrame = { ...ctx.frame };
+      let base = null;
       for (const v of plan.variants) {
+        const ran = [];
         try {
+          if (needsPixelSnapshot(v.actions)) base ??= await capturePixels(stencil, exportImage);
           Object.assign(ctx.frame, postActionsFrame);
-          for (const a of v.actions) await run(a);
+          for (const a of v.actions) { await run(a); ran.push(a); }
           results.push({ label: sanitizeLabel(v.label), dataUrl: await exportImage() });
         } finally {
-          await restoreWorkingImage(stencil, base, state, v.actions);
+          await restoreWorkingImage(stencil, base, state, ran);
         }
       }
     }
@@ -98,16 +97,17 @@ export const renderAskPreviews = async (ask, stencil, { exportImage, loadFrame }
     return { previews, warnings };
   }
   const state = captureEditorState(stencil);
-  const base = await capturePixels(stencil, exportImage);
+  let base = null;
   for (const [opt, index] of renderable) {
+    const ran = [];   // whatever happened, the working image AND the editor state go back
     try {
-      await executeOpPlan({ actions: opt.actions, variants: [], warnings: [] }, stencil, { exportImage, loadFrame });
+      if (needsPixelSnapshot(opt.actions)) base ??= await capturePixels(stencil, exportImage);
+      await executeOpPlan({ actions: opt.actions, variants: [], warnings: [] }, stencil, { exportImage, loadFrame, ranSink: ran });
       previews.push({ index, label: opt.label, dataUrl: await exportImage() });
     } catch (err) {
       warnings.push(`Could not preview "${opt.label}" — ${err?.message || err}`);
     } finally {
-      // Whatever happened, the working image AND the editor state go back.
-      await restoreWorkingImage(stencil, base, state, opt.actions);
+      await restoreWorkingImage(stencil, base, state, ran);
     }
   }
   return { previews, warnings };

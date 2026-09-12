@@ -654,7 +654,7 @@ test('layout without a working image fails the turn instead of silently doing no
 });
 
 // ── §1 coordinate re-mapping: plan coords are in the frame the model SAW ──
-const drawnBy = (calls) => calls.filter(([n]) => n === 'setLines').map(([, lines]) => lines);
+const drawnBy = (calls) => calls.filter(([n, , opts]) => n === 'setLines' && !opts).map(([, lines]) => lines);
 
 test('crop then layout: later points shift by the resolved crop origin', async () => {
   const { stub, calls } = makeStub();                    // 640x480
@@ -819,9 +819,8 @@ test('variants: one result per variant, each branching from the post-actions sta
   assert.deepStrictEqual(out.results.map((r) => r.label), ['tinted', 'cropped']);
   // The top-level action ran once, and each variant's own op ran once.
   assert.deepStrictEqual(calls.filter((c) => c[0] === 'rotateLeft').length, 1);
-  assert.deepStrictEqual(calls.filter((c) => c[0] === 'crop').length, 1);
-  // A pixel op (crop) forces the image back; a settings-only variant does not need it.
-  assert.equal(calls.filter((c) => c[0] === 'load').length, 1);
+  assert.deepStrictEqual(calls.filter((c) => c[0] === 'crop').length, 2);   // the variant's + the restore's
+  assert.equal(calls.filter((c) => c[0] === 'load').length, 0);
 });
 
 test('variants do NOT leak their editor state into the working image', async () => {
@@ -853,14 +852,14 @@ test('variants do NOT leak their editor state into the working image', async () 
 test('the variant snapshot carries neither the filter nor the lines', async () => {
   // exportImage() renders both into the pixels, so the snapshot used for RESTORING has
   // to be taken with them off — otherwise reloading it bakes the filter in for good and
-  // burns the annotations into the image.
+  // burns the annotations into the image. Only `blank`/`frame` variants take one.
   const { stub } = makeStub({ filter: 'sepia', showPoints: true, showLines: true });
   const seen = [];
   const exportImage = async () => {
     seen.push({ filter: stub.filter, showPoints: stub.showPoints, showLines: stub.showLines });
     return 'data:image/png;base64,SNAP';
   };
-  const p = parseOpPlan(plan({ variants: [{ label: 'v', actions: [{ op: 'crop', spec: { x1: '5%' } }] }] }));
+  const p = parseOpPlan(plan({ variants: [{ label: 'v', actions: [{ op: 'blank', color: '#ffffff' }] }] }));
   await executeOpPlan(p, stub, { exportImage });
   assert.deepStrictEqual(seen[0], { filter: 'none', showPoints: false, showLines: false },
     'the restore snapshot must be taken clean');
@@ -1250,7 +1249,7 @@ test('validateAsk: null in, null out (the field is optional)', () => {
 // observable: every preview must leave the working image exactly as it found it.
 const previewStencil = () => {
   const calls = [];
-  let current = 'base.png';
+  let current = 'base.png', rot = 0, cropped = false;   // net clockwise turns; off the base rect
   const st = {
     calls,
     filter: 'none', filterColor: '#7c3aed', pageSize: 'A4',
@@ -1259,9 +1258,10 @@ const previewStencil = () => {
     lines: [],
     // What an export shows: the pixels PLUS the active filter, like the real renderer —
     // so a filter is visible in the render without being burnt into the pixels.
-    get loaded() { return current + (st.filter !== 'none' ? '+filter' : ''); },
-    rotateLeft() { calls.push('rotateLeft'); current += '+rotL'; return st; },
-    rotateRight() { calls.push('rotateRight'); current += '+rotR'; return st; },
+    get loaded() { return current + ({ 1: '+rotR', 2: '+rot2', 3: '+rotL' }[rot] || '') + (cropped ? '+crop' : '') + (st.filter !== 'none' ? '+filter' : ''); },
+    get cropRect() { return cropped ? { x: 5, y: 5, w: 50, h: 40 } : { x: 0, y: 0, w: 100, h: 80 }; },
+    rotateLeft() { calls.push('rotateLeft'); rot = (rot + 3) % 4; return st; },
+    rotateRight() { calls.push('rotateRight'); rot = (rot + 1) % 4; return st; },
     apply(o) {
       calls.push(`apply:${JSON.stringify(o)}`);
       for (const k of ['filter', 'filterColor', 'pageSize', 'allowFormulas', 'formulaX', 'formulaY', 'showPoints', 'showLines'])
@@ -1269,8 +1269,8 @@ const previewStencil = () => {
       if (o.page != null) st.pageSize = o.page;
       return st;
     },
-    crop() { calls.push('crop'); current += '+crop'; return st; },
-    async load(url) { calls.push(`load:${url}`); current = url; st.lines = []; return st; },
+    crop(spec) { calls.push('crop'); cropped = spec.x1 !== '0px'; return st; },
+    async load(url) { calls.push(`load:${url}`); current = url; rot = 0; cropped = false; st.lines = []; return st; },
     setLines(lines) { calls.push('setLines'); st.lines = lines || []; return st; },
     get imageSize() { return { width: 100, height: 80 }; },
   };
@@ -1294,11 +1294,11 @@ test('renderAskPreviews: renders one picture per actions-bearing option, restori
   assert.match(previews[0].dataUrl, /\+rotL\)$/);
   assert.match(previews[1].dataUrl, /\+filter\)$/);
   assert.ok(!previews[1].dataUrl.includes('rotL'));
-  // The working image is back to a restored base — a preview never edits.
-  assert.ok(!st.loaded.includes('rotL') && !st.loaded.includes('filter'));
-  // Only the rotate option touched pixels, so only it needed an image reload; the
-  // filter option is undone by putting the setting back.
-  assert.equal(st.calls.filter((c) => c.startsWith('load:')).length, 1);
+  // The working image is back to its base — a preview never edits, and never reloads:
+  // the rotate is turned back on the model, the filter undone by putting the setting back.
+  assert.equal(st.loaded, 'base.png');
+  assert.equal(st.calls.filter((c) => c.startsWith('load:')).length, 0);
+  assert.deepEqual(st.calls.filter((c) => /^rotate/.test(c)), ['rotateLeft', 'rotateRight']);
   assert.equal(st.filter, 'none', 'the previewed filter must not stick');
 });
 
@@ -1324,7 +1324,7 @@ test('renderAskPreviews: one failing option loses its picture, not the card — 
   assert.deepEqual(previews.map((p) => p.label), ['Left']);      // the good one still rendered
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /Could not preview "0:04"/);
-  assert.equal(st.loaded, 'shot(base.png)');                     // restored despite the throw
+  assert.equal(st.loaded, 'base.png');                           // restored despite the throw
 });
 
 test('renderAskPreviews: a frame preview works when the surface can decode video', async () => {

@@ -1,10 +1,15 @@
 // ── Sandboxing variants / ask previews ──────────────────────────
-// Both run their ops against the LIVE editor and then put it back. `load()` restores pixels
-// ONLY — it leaves variant-touched settings and CLEARS the lines — so state is captured too.
+// Ops run against the LIVE facade (§13: never new editor logic), so a sandbox is a
+// snapshot plus an exact inverse: crop/rotate are undone through the model (the original
+// bitmap never changes), settings and lines are written back. Only `blank` and `frame`
+// replace the original, and only they reload the pixel snapshot.
 import { SCHEMA } from './planSchema.js';
 
 // The layout line fields the registry declares — what a preview snapshot copies back.
 const LINE_FIELDS = Object.keys(SCHEMA.ops.get('layout').keys.lines.items.fields);
+
+const rectOf = (r) => (r ? { x: r.x, y: r.y, w: r.w ?? r.width, h: r.h ?? r.height } : null);
+const sameRect = (a, b) => !!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 
 export const captureEditorState = (stencil) => {
   return {
@@ -16,13 +21,14 @@ export const captureEditorState = (stencil) => {
     formulaY: stencil.formulaY,
     // Read from `lines` (the LIVE list), not `layout` — that getter is the persisted
     // project layout and goes stale. Copied to plain data: the facade hands back proxies
-    // into app.lines, which dereference to nothing once load() clears them.
+    // into app.lines, which dereference to nothing once the lines are replaced.
     lines: (stencil.lines || []).map((l) => {
       const out = { points: (l.points || []).map((p) => ({ x: p.x, y: p.y })) };
       for (const k of LINE_FIELDS) if (k !== 'points' && l[k] != null) out[k] = l[k];
       return out;
     }),
     size: stencil.imageSize,
+    cropRect: rectOf(stencil.cropRect),
   };
 };
 
@@ -34,17 +40,17 @@ const lineCount = (stencil) => (stencil.lines || []).length;
 // putting the user's OWN lines back after a sandboxed run, not a new edit.
 const applyLines = (stencil, s) => { stencil.setLines(s.lines, { history: false }); };
 
-const restoreEditorState = async (stencil, s, reloaded) => {
+const applySettings = (stencil, s) => {
   stencil.apply({
     filter: s.filter, filterColor: s.filterColor, pageSize: s.pageSize,
     allowFormulas: s.allowFormulas, formulaX: s.formulaX, formulaY: s.formulaY,
   });
-  // Lines are only touched when the ops disturbed them; otherwise they are already
-  // right and writing them again would be pointless UI noise.
-  if (!reloaded) return;
-  // load() clears the line list a few frames AFTER it resolves. Wait for that, because
-  // installing lines while some still exist raises the editor's "Replace layout?"
-  // prompt — this is an internal restore, never a user paste.
+};
+
+// After a reload: load() clears the line list a few frames AFTER it resolves. Wait for
+// that, because installing lines while some still exist raises the editor's "Replace
+// layout?" prompt — this is an internal restore, never a user paste.
+const settleLinesAfterReload = async (stencil, s) => {
   for (let i = 0; i < 40 && lineCount(stencil) !== 0; i++) await nextFrame();
   if (!s.lines.length) return;
   applyLines(stencil, s);
@@ -69,15 +75,41 @@ export const capturePixels = async (stencil, exportImage) => {
   }
 };
 
-// Ops whose effect a settings restore alone cannot undo — the pixels, or the line list.
-// A variant built only from the others (filter, page, formula) needs no reload at all,
-// which keeps the common case fast and leaves the user's lines untouched.
-const NEEDS_RELOAD = new Set(['crop', 'rotate', 'blank', 'frame', 'layout']);
+// Ops that swap the ORIGINAL bitmap out: only these need the pixel snapshot back.
+const REPLACES_ORIGINAL = new Set(['blank', 'frame']);
+export const needsPixelSnapshot = (actions) => (actions || []).some((a) => REPLACES_ORIGINAL.has(a.op));
 
-// Put the editor back exactly as `state`/`pixels` found it. The reload is skipped when
-// the ops that ran could not have touched the pixels.
+// Ops that move the lines (crop rescales, rotate turns, layout replaces).
+const TOUCHES_LINES = new Set(['crop', 'rotate', 'layout']);
+
+// Net clockwise quarter turns the executed rotates left behind (0..3).
+const netTurns = (actions) => {
+  let q = 0;
+  for (const a of actions) if (a.op === 'rotate') q += (a.dir === 'right' ? 1 : -1) * (a.times || 1);
+  return ((q % 4) + 4) % 4;
+};
+
+// Put the editor back exactly as `state`/`pixels` found it. `actions` are the ops that
+// actually RAN (a variant that threw mid-way is undone only as far as it got): rotates
+// are turned back and the crop re-committed to the saved rect — both exact on the
+// untouched original — so no frame settles and no reload for the common variant.
 export const restoreWorkingImage = async (stencil, pixels, state, actions) => {
-  const reload = (actions || []).some((a) => NEEDS_RELOAD.has(a.op));
-  if (reload) await stencil.load(pixels);
-  await restoreEditorState(stencil, state, reload);
+  const ran = actions || [];
+  if (needsPixelSnapshot(ran)) {
+    await stencil.load(pixels);
+    applySettings(stencil, state);
+    await settleLinesAfterReload(stencil, state);
+    return;
+  }
+  const q = netTurns(ran);
+  if (q === 3) stencil.rotateRight();
+  else for (let i = 0; i < q; i++) stencil.rotateLeft();
+  const r = state.cropRect;
+  if (r && !sameRect(rectOf(stencil.cropRect), r)) {
+    stencil.crop({ x1: `${r.x}px`, x2: `${r.x + r.w}px`, y1: `${r.y}px`, y2: `${r.y + r.h}px` });
+  }
+  applySettings(stencil, state);
+  // Lines are written back only when the ops disturbed them — never as UI noise.
+  const live = stencil.lines || [];
+  if (ran.some((a) => TOUCHES_LINES.has(a.op)) && (live.length || state.lines.length)) applyLines(stencil, state);
 };
