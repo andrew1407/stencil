@@ -5,58 +5,45 @@ using Stencil.TelegramBot.Domain.Layout;
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// Walks the shared sparse-layout vectors
-/// (<c>browser/js/config/fixtures/layout/sparse.json</c>, see <c>_schema.md</c>) through
-/// <see cref="StencilLayoutParser"/>: each vector's sparse lines are wrapped as
-/// <c>{"lines": …}</c> and the parsed lines must equal <c>expectFilled</c> — the sparse
-/// input with the cross-surface per-line defaults filled in. The bot's typed
-/// System.Text.Json binding is stricter than the reference sanitizer (no numeric-string
-/// coercion, no junk skipping); those vectors are pinned as rejects in
-/// <c>FixtureOverrides.json</c>. (payload.json is the browser's export-payload builder —
-/// the bot has no equivalent and does not walk it. Since Phase 6 the bot's
-/// <see cref="StencilLayout.Filter"/> reads BOTH top-level keys — the canonical
-/// <c>imageFilter</c> the browser exports wins over the legacy <c>filter</c> — and
-/// writes only <c>imageFilter</c>.)
+/// The shared sparse-layout vectors through <see cref="StencilLayoutParser"/>, one test per
+/// vector: sparse lines in, cross-surface per-line defaults filled. The bot's typed binding is
+/// stricter than the reference sanitizer (no numeric-string coercion, no junk skipping), so
+/// those vectors are pinned as rejects in <c>FixtureOverrides.json</c>. payload.json targets a
+/// browser-only builder and is not walked.
 /// </summary>
 public sealed class LayoutSparseFixtureWalkerTests
 {
-    [Fact]
-    public void EverySparseVectorFillsDefaultsOrIsPinnedAsReject()
-    {
-        List<string> failures = new();
-        int walked = 0;
-        using JsonDocument doc = SharedFixtures.Load(
-            Path.Combine(SharedFixtures.ConfigFixtureDir("layout"), "sparse.json"));
-        foreach (JsonElement fx in doc.RootElement.EnumerateArray())
-        {
-            walked++;
-            string name = fx.GetProperty("name").GetString()!;
-            byte[] bytes = Encoding.UTF8.GetBytes($"{{\"lines\":{fx.GetProperty("sparse").GetRawText()}}}");
-            StencilLayout? layout = StencilLayoutParser.Parse(bytes);
+    private static string Corpus => Path.Combine(SharedFixtures.ConfigFixtureDir("layout"), "sparse.json");
 
-            bool reject = SharedFixtures.OverrideFor("layoutSparse", name) is JsonElement ov
-                && ov.GetProperty("verdict").GetString() == "reject";
-            if (reject)
-            {
-                if (layout is not null)
-                {
-                    failures.Add($"{name}: pinned as reject but Parse returned a layout");
-                }
-                continue;
-            }
-            if (layout is null)
-            {
-                failures.Add($"{name}: Parse returned null");
-                continue;
-            }
-            CompareLines(name, layout.Lines, fx.GetProperty("expectFilled"), failures);
+    public static TheoryData<string> Vectors() => SharedFixtures.TheoryNames(SharedFixtures.CaseNames(Corpus));
+
+    [Fact]
+    public void Should_Have_Every_Vector_In_The_Corpus() => Assert.Equal(10, SharedFixtures.Cases(Corpus).Count);
+
+    [Theory]
+    [MemberData(nameof(Vectors))]
+    public void Should_Fill_Defaults_Or_Pin_As_Reject_For_Each_Vector(string name)
+    {
+        using JsonDocument doc = SharedFixtures.Case(Corpus, name);
+        JsonElement fx = doc.RootElement;
+        byte[] bytes = Encoding.UTF8.GetBytes($"{{\"lines\":{fx.GetProperty("sparse").GetRawText()}}}");
+        StencilLayout? layout = StencilLayoutParser.Parse(bytes);
+
+        bool reject = SharedFixtures.OverrideFor("layoutSparse", name) is JsonElement ov
+            && ov.GetProperty("verdict").GetString() == "reject";
+        if (reject)
+        {
+            Assert.Null(layout); // pinned as reject
+            return;
         }
-        Assert.Equal(10, walked);
-        Assert.True(failures.Count == 0,
-            $"{failures.Count} sparse-layout mismatches (walked {walked}):\n" + string.Join("\n", failures));
+        Assert.NotNull(layout);
+
+        List<string> failures = new();
+        compareLines(name, layout!.Lines, fx.GetProperty("expectFilled"), failures);
+        Assert.True(failures.Count == 0, string.Join("\n", failures));
     }
 
-    private static void CompareLines(
+    private static void compareLines(
         string name, IReadOnlyList<LayoutLine> got, JsonElement expect, List<string> failures)
     {
         if (got.Count != expect.GetArrayLength())

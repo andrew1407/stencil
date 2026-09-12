@@ -61,7 +61,7 @@ pub fn parse(gpa: std.mem.Allocator, bytes: []const u8) !Layout {
 
     if (obj.get("imageWidth")) |v| layout.image_width = asF64(v, 0);
     if (obj.get("imageHeight")) |v| layout.image_height = asF64(v, 0);
-    // Canonical "imageFilter" wins over the legacy "filter" spelling (Phase 6).
+    // Canonical "imageFilter" wins over the legacy "filter" spelling.
     if (obj.get("imageFilter") orelse obj.get("filter")) |v| {
         if (v == .string) layout.filter = try a.dupeZ(u8, v.string);
     }
@@ -110,7 +110,7 @@ pub fn parse(gpa: std.mem.Allocator, bytes: []const u8) !Layout {
     return layout;
 }
 
-// ── Source→current frame mapping (llm-contract.md §1) ────────────────────────
+// Source→current frame mapping (llm-contract.md §1)
 // Op-plan coordinates are written in the frame of the snapshot the model saw; when a
 // crop/rotate runs before a layout, the executor re-maps the layout's points through
 // those edits with exact arithmetic and clamps them into the working image's bounds.

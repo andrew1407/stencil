@@ -1,8 +1,10 @@
 #include "cliApi.h"
 
+#include "marshal.hpp"
+
 #include "colorNames.hpp"
 #include "cropSpec.hpp"
-#include "durationParser.hpp"
+#include "DurationParser.hpp"
 #include "formulaParser.hpp"
 #include "imageFilter.hpp"
 #include "imageOps.hpp"
@@ -11,9 +13,17 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 using namespace stencil::core;
+
+namespace {
+  FilterMode modeOf(const char* mode) {
+    return filterModeFromString(mode ? std::string(mode) : std::string());
+  }
+}
 
 extern "C" {
 
@@ -34,8 +44,6 @@ extern "C" {
     if (hcm) *hcm = ps.height;
     return 1;
   }
-
-  const char* stencil_cli_pageFormats(void) { return pageFormatNames(); }
 
   void stencil_cli_defaultBlankSizePx(double pageWcm, double pageHcm, double dpi,
                                       int* outW, int* outH) {
@@ -106,17 +114,36 @@ extern "C" {
   void stencil_cli_applyFilter(const char* mode, uint8_t* data, int pixelCount,
                                int tintR, int tintG, int tintB) {
     if (pixelCount <= 0) return;
-    const FilterMode fm = filterModeFromString(mode ? std::string(mode) : std::string());
-    applyFilterRGBA(fm, data, static_cast<std::size_t>(pixelCount), tintR, tintG, tintB);
+    applyFilterRGBA(modeOf(mode), data, static_cast<std::size_t>(pixelCount), tintR, tintG, tintB);
   }
 
-  void stencil_cli_applyContour(uint8_t* data, int width, int height) {
-    applyContourRGBA(data, width, height);
+  void stencil_cli_cropImageRows(const uint8_t* src, int srcW, int srcH,
+                                 int rx, int ry, int rw, int rh, uint8_t* dst,
+                                 int dy0, int dy1) {
+    cropImageRows(src, srcW, srcH, rx, ry, rw, rh, dst, dy0, dy1);
   }
 
-  // `pointColor` is the point colour, appended LAST so the parameter order of every
-  // earlier argument is unchanged. NULL or "" means "inherit the stroke colour", which is
-  // what a caller that does not know about the field passes — see Line::pointColor.
+  void stencil_cli_rotateImageRows(const uint8_t* src, int w, int h, int quarters,
+                                   uint8_t* dst, int oy0, int oy1) {
+    rotateImageRows(src, w, h, quarters, dst, oy0, oy1);
+  }
+
+  void stencil_cli_applyFilterRows(const char* mode, uint8_t* data, int width,
+                                   int y0, int y1, int tintR, int tintG, int tintB) {
+    applyFilterRows(modeOf(mode), data, width, y0, y1, tintR, tintG, tintB);
+  }
+
+  void stencil_cli_buildLumaRows(const uint8_t* data, int width, int height,
+                                 int y0, int y1, uint8_t* luma) {
+    buildLumaRows(data, width, height, y0, y1, luma);
+  }
+
+  void stencil_cli_sobelRows(const uint8_t* luma, uint8_t* data, int width, int height,
+                             int y0, int y1) {
+    sobelRows(luma, data, width, height, y0, y1);
+  }
+
+  // `pointColor` NULL or "" inherits the stroke colour — see Line::pointColor.
   void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,
                                  const double* pts, int nPts,
                                  const char* color, double thickness, double pointSize,
@@ -124,9 +151,7 @@ extern "C" {
                                  const char* pointColor) {
     if (nPts <= 0 || pts == nullptr) return;
     Line line;
-    line.points.reserve(static_cast<std::size_t>(nPts));
-    for (int i = 0; i < nPts; ++i)
-      line.points.push_back(Point{pts[i * 2], pts[i * 2 + 1]});
+    line.points = abi::toPoints(pts, nPts);
     if (color) line.color = color;
     line.thickness = thickness;
     line.pointSize = pointSize;
@@ -137,22 +162,23 @@ extern "C" {
     rasterizeLine(buf, w, h, line);
   }
 
-  int stencil_cli_validateFormula(const char* expr, int var) {
-    return FormulaParser::validate(std::string(expr ? expr : ""), static_cast<char>(var)) ? 1 : 0;
+  int stencil_cli_colorNameCount(void) { return static_cast<int>(colorNameCount()); }
+
+  const char* stencil_cli_colorNameAt(int index, unsigned int* rgb) {
+    if (index < 0) return nullptr;
+    unsigned v = 0;
+    const char* name = colorNameAt(static_cast<std::size_t>(index), &v);
+    if (name && rgb) *rgb = v;
+    return name;
   }
 
-  double stencil_cli_applyFormula(const char* expr, int var, double value,
-                                  int allowFormulas) {
-    return FormulaParser::apply(std::string(expr ? expr : ""), static_cast<char>(var), value,
-                                allowFormulas != 0);
-  }
+  const char* stencil_cli_durationUnits(void) { return DurationParser::unitNames(); }
 
-  int stencil_cli_parseDuration(const char* spec, long long* outMs) {
-    static const DurationParser dp;
-    long long ms = 0;
-    if (!dp.parse(std::string(spec ? spec : ""), ms)) return 0;
-    if (outMs) *outMs = ms;
-    return 1;
-  }
+  const char* stencil_cli_durationOffAliases(void) { return DurationParser::offAliases(); }
+
+  // Five more exports come from abi/shared.inc, verbatim with the wasm ABI.
+#define STENCIL_ABI(wasmName, cliName) stencil_cli_##cliName
+#include "shared.inc"
+#undef STENCIL_ABI
 
 }  // extern "C"

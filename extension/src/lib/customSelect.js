@@ -1,37 +1,21 @@
-// ── Custom <select> dropdown ────────────────────────────────────────────────
-// PORT of browser/js/ui/customSelect.js (the extension can't import across subprojects) —
-// keep the two rule-for-rule.
-//
-// The reason it exists is the same on both sides, and it is the OS, not CSS: the LIST a
-// native <select> opens is drawn by macOS, not by the page, so nothing the extension
-// styles reaches it — it comes up centred on the control, in system type, ignoring the
-// panel's theme entirely (in a small popup window it covers most of the page). This
-// replaces that list with our own, built from the SAME <select>, which stays the source of
-// truth: the wrapped `.value` setter re-syncs the trigger on programmatic sets, a user
-// pick dispatches a bubbling `change`, and `hidden` is mirrored onto the wrapper — so
-// every existing handler and every show/hide in the pages keeps working untouched.
-//
-// `search: true` (the page-size list) pins a filter input at the top of the popup.
+// Custom <select> dropdown — PORT of browser/js/ui/customSelect.js, kept rule-for-rule.
+// The native list is drawn by the OS, so no page style reaches it; this one is built
+// from the SAME <select>, which stays the source of truth (wrapped `.value` setter, a
+// bubbling `change` on pick, `hidden` mirrored onto the wrapper).
 
 import { icon } from './icons.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
 
 
-// Case-insensitive substring match, the browser's base.js rowMatches (not worth a module
-// of its own here — this is its only caller in the extension).
+// The browser's base.js rowMatches.
 const rowMatches = (text, query) => {
   const q = String(query ?? '').trim().toLowerCase();
   return !q || String(text ?? '').toLowerCase().includes(q);
 };
 
-// `icons(value)` answers an inline-SVG string for a row (or ''), shown before the label
-// and in the trigger — the motion modes' glyphs (motionIcons.js) are the one user today.
-// `preview(value)` — optional: called with an option's value while the pointer rests on
-// its row, and again with the committed value on leave/close (no extension consumer passes
-// it today; kept rule-for-rule with the browser's customSelect).
+// `icons(value)` answers an inline-SVG string for a row (or ''); `preview(value)` is
+// called while the pointer rests on a row and again with the committed value on leave.
 export function enhanceSelect(selectEl, { search = false, icons = null, preview = null } = {}) {
-  // Also guards the one select built at runtime (the popup's pin-target dialog): it asks
-  // for this itself, and must not be enhanced before it is in the document.
   if (!selectEl || !selectEl.parentNode || selectEl.dataset.csEnhanced) return;
   selectEl.dataset.csEnhanced = '1';
 
@@ -45,9 +29,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   selectEl.parentNode.insertBefore(wrap, selectEl);
   wrap.appendChild(selectEl);
   selectEl.classList.add('cs-native');
-  // Several of these selects are shown/hidden at runtime (`sel.hidden = …` in popup.js).
-  // The native control is inside the wrapper now, so the wrapper is what has to disappear
-  // with it — watched rather than wrapped, so the pages keep setting `hidden` as they do.
+  // The wrapper follows the native control's `hidden`, so the pages keep setting it.
   const syncHidden = () => { wrap.hidden = selectEl.hidden; };
   syncHidden();
   new MutationObserver(syncHidden).observe(selectEl, { attributes: true, attributeFilter: ['hidden'] });
@@ -57,8 +39,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   trigger.className = 'accent-dd-trigger';
   trigger.setAttribute('aria-haspopup', 'listbox');
   trigger.setAttribute('aria-expanded', 'false');
-  // The hidden <select> keeps the description + accessible name; the visible trigger
-  // inherits both (data-title, never `title` — see lib/tip.js).
+  // The trigger inherits the tip and name (data-title, never `title` — see lib/tip.js).
   const tip = selectEl.dataset ? selectEl.dataset.title : '';
   if (tip) trigger.setAttribute('data-title', tip);
   const aria = selectEl.getAttribute('aria-label');
@@ -75,9 +56,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   const cur = trigger.querySelector('.cs-cur');
   const curIcon = trigger.querySelector('.cs-cur-icon');
 
-  // Hover-preview bookkeeping (see `preview` above): put the committed value back once the
-  // pointer has left the list or the menu closed without a pick. The preview waits for the
-  // pointer to settle, so skimming the rows previews nothing. Browser twin: customSelect.js.
+  // The preview waits for the pointer to settle, so skimming the rows previews nothing.
   const PREVIEW_HOVER_MS = 280;
   let previewActive = false;
   let hoverTimer = null;
@@ -90,9 +69,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   };
   if (preview) menu.addEventListener('pointerleave', restorePreview);
 
-  // Search state — rebuilt with the menu on every open (so each open starts with an
-  // empty query and every row visible). Filtering only toggles row display; the native
-  // select, choose()/sync() and the outside-click close are untouched by it.
+  // Rebuilt with the menu on every open; filtering only toggles row display.
   let searchInput = null;
   let noMatchRow = null;
   const applySearch = () => {
@@ -155,7 +132,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     }
   };
 
-  let shown = null;   // the label on the trigger; null before the first paint
+  let shown = null;   // null before the first paint
   const sync = () => {
     const label = labelOf(selectEl.value);
     const changed = shown !== null && label !== shown;
@@ -163,8 +140,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     shown = label;
     for (const li of menu.querySelectorAll('.accent-dd-opt'))
       li.setAttribute('aria-selected', li.dataset.value === selectEl.value ? 'true' : 'false');
-    // The glyph arrives with its own motion when the VALUE changed, like the label's swap:
-    // .mm-play runs the hover keyframes once, then comes off so a hover can replay them.
+    // .mm-play runs the hover keyframes once on a VALUE change, then comes off.
     const glyph = icons ? icons(selectEl.value) : '';
     if (glyph !== curIcon.innerHTML) {
       curIcon.innerHTML = glyph;
@@ -176,8 +152,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     }
   };
 
-  // Wrap .value so programmatic sets refresh the trigger (a native .value set does not
-  // fire change, so we only re-sync the UI here, never dispatch).
+  // A native .value set fires no change: re-sync the trigger, never dispatch.
   const proto = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
   Object.defineProperty(selectEl, 'value', {
     configurable: true,
@@ -188,8 +163,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     },
   });
 
-  // The open menu lives on <body> (dropdownMenu.js), so it is NOT inside `wrap` — an
-  // outside press has to miss both, or picking an option would close before the click.
+  // The open menu lives on <body>, NOT inside `wrap`: an outside press must miss both.
   const onDocDown = (e) => {
     if (!wrap.contains(e.target) && !menu.contains(e.target)) close();
   };
@@ -200,32 +174,26 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     }
   };
   const open = () => {
-    // Reopening mid-close: abort the exit, or its animationend would hide the fresh list.
+    // Reopening mid-close aborts the exit, or its animationend would hide the fresh list.
     clearTimeout(closeTimer);
     if (closeDone) menu.removeEventListener('animationend', closeDone);
     menu.classList.remove('dd-closing');
     buildOptions();
     sync();
-    // Placed against the trigger in viewport space: `.controls` clips its overflow and
-    // the toolbar sits low enough that a long list would run off the window.
-    // showMenu is what pours the sand out of the trigger (lib/dropdownMenu.js): the list
-    // still GROWS from the corner nearest that control (stMenuFromAnchor's
-    // transform-origin, flipped with .dd-above) — particles are how that growth is drawn.
+    // Placed in viewport space: `.controls` clips its overflow.
     showMenu(menu, trigger);
     if (searchInput) searchInput.focus();
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
-  // Closing hands over to the dust: hideMenu measures the list where it stands and flies
-  // a cloud of it back into the trigger (lib/dropdownMenu.js surfaceOut), so the list
-  // itself goes at once and there is no exit animation to wait on. The `.dd-closing`
-  // clean-up stays only so a reopen mid-flight starts from a clean slate.
+  // hideMenu flies the list back into the trigger at once; the `.dd-closing` clean-up
+  // stays only so a reopen mid-flight starts from a clean slate.
   let closeTimer = null;
   let closeDone = null;
   const close = () => {
     if (menu.hidden || menu.classList.contains('dd-closing')) return;
-    restorePreview();   // a menu dismissed without a pick reverts to the committed value
+    restorePreview();
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onKey);
@@ -238,12 +206,11 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     };
     closeDone();
   };
-  // The pick is APPLIED first, so the exit and the trigger's swap play under what was just
-  // picked (None → Fire used to arrive with None's no-motion — user report). The raw setter
-  // keeps the wrapped one's sync for after the dispatch.
+  // The pick is APPLIED first, so the exit plays under what was just picked (None → Fire
+  // must not arrive with None's no-motion).
   const choose = (v) => {
     clearHover();
-    previewActive = false;   // the pick commits the real value; no revert on the close below
+    previewActive = false;
     proto.set.call(selectEl, v);
     selectEl.dispatchEvent(new Event('change', { bubbles: true }));
     close();
@@ -254,5 +221,5 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     e.preventDefault();
     menu.hidden ? open() : close();
   });
-  sync();   // initial trigger label; the menu itself is (re)built on open()
+  sync();
 }

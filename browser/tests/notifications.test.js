@@ -8,6 +8,8 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
 import { StencilNotifications, MAX_VISIBLE } from '../js/ui/notifications.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { desktopSource } from './helpers/desktopSource.js';
 
 const mkEl = () => {
   const classes = new Set();
@@ -116,11 +118,11 @@ test('a clickable toast runs its action once and dismisses itself', (t) => {
 });
 
 test('the cap matches the desktop stack, and the CSS stacks the column', () => {
-  const hpp = readFileSync(new URL('../../desktop/src/support/notifications.hpp', import.meta.url), 'utf8');
-  assert.equal(MAX_VISIBLE, Number(/kMaxVisible = (\d+)/.exec(hpp)[1]),
+  const hpp = readFileSync(new URL('../../desktop/src/support/Notifications.hpp', import.meta.url), 'utf8');
+  assert.equal(MAX_VISIBLE, Number(/MAX_VISIBLE = (\d+)/.exec(hpp)[1]),
     'browser and desktop must agree on how many toasts are too many');
 
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const host = css.slice(css.indexOf('#notify-balloon {'));
   const hostBlock = host.slice(0, host.indexOf('}'));
   assert.match(hostBlock, /flex-direction: column/, 'the host is the column, not a toast');
@@ -132,7 +134,7 @@ test('the cap matches the desktop stack, and the CSS stacks the column', () => {
 
   // The entrance must not fill FORWARDS: pinning transform:none would kill the
   // clickable toast's hover lift.
-  const anims = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const anims = ANIMATIONS_CSS;
   assert.match(anims, /animation: notifyEnter [^;]*backwards;/, 'entrance fills backwards only');
   assert.match(anims, /\.notify-toast\.notify-leaving \{\n\s*animation: notifyLeave/, 'and the exit is its own');
 });
@@ -206,7 +208,7 @@ test('the toast exit rides the shared scatter curve, on a short clock', () => {
     const stagger = Number(/const TOAST_LEAVE_STAGGER = ([0-9.]+)/.exec(js)[1]);
     assert.ok(stagger <= 0.2, `stagger ${stagger} is enough to leave stragglers`);
     // …and the desktop leaves on the same clock (its constants live in the .cpp).
-    const cpp = readFileSync(new URL('../../desktop/src/support/notifications.cpp', import.meta.url), 'utf8');
-    assert.equal(Number(/constexpr int kToastOutMs = (\d+)/.exec(cpp)[1]), leave,
+    const cpp = desktopSource('support/notifications');
+    assert.equal(Number(/constexpr int TOAST_OUT_MS = (\d+)/.exec(cpp)[1]), leave,
         'the two apps must not drift on the exit clock');
 });

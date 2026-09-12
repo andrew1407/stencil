@@ -1,16 +1,18 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
-	"io"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/service"
 	"stencil/server/internal/store"
 )
 
@@ -21,128 +23,125 @@ import (
 // ever involved. Bytes are served via http.ServeContent over the confined
 // *os.File, so large files (video) stream instead of being read fully into
 // memory per request, and Range requests work for free.
-func (a *API) handleGetFile(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	kind := r.PathValue("kind")
+func (a *API) handleGetFile(rw http.ResponseWriter, req *http.Request) {
+	id := req.PathValue("id")
+	kind := req.PathValue("kind")
 	if !protocol.IsFileKind(kind) {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "unknown file kind")
+		writeBadRequest(rw, msgUnknownFileKind)
 		return
 	}
-	rec, err := a.deps.Projects.GetProject(r.Context(), id)
-	if errors.Is(err, store.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	got := a.lookupFile(ctx, id, kind)
+	if errors.Is(got.recErr, store.ErrNotFound) {
+		writeNotFound(rw, msgProjectNotFound)
 		return
 	}
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not load project")
+	if got.recErr != nil {
+		writeInternalError(rw, msgLoadProject)
 		return
 	}
-	var rel string
+	rel := got.rel
 	switch kind {
 	case protocol.KindOriginal:
-		rel = rec.OriginalPath
+		rel = got.rec.OriginalPath
 	case protocol.KindResult:
-		rel = rec.ResultPath
+		rel = got.rec.ResultPath
 	default:
-		rel, err = a.deps.Files.FindByKind(id, kind)
-		if err != nil && !errors.Is(err, filestore.ErrNotFound) {
-			writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not list files")
+		if got.relErr != nil && !errors.Is(got.relErr, filestore.ErrNotFound) {
+			writeInternalError(rw, msgListFiles)
 			return
 		}
 	}
 	if rel == "" {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "no "+kind+" file")
+		writeNotFound(rw, msgNoFileOfKind(kind))
 		return
 	}
 	f, err := a.deps.Files.OpenByRelPath(rel)
 	if errors.Is(err, filestore.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "file missing")
+		writeNotFound(rw, msgFileMissing)
 		return
 	}
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not read file")
+		writeInternalError(rw, msgReadFile)
 		return
 	}
 	defer f.Close()
-	w.Header().Set("Content-Type", contentTypeForExt(path.Ext(rel)))
+	rw.Header().Set("Content-Type", contentTypeForExt(path.Ext(rel)))
 	// Client-uploaded bytes served from our own origin: pin the declared type, or a
 	// browser may sniff an "image" as something scriptable and run it here.
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	rw.Header().Set("X-Content-Type-Options", "nosniff")
 	// The zero modtime suppresses Last-Modified/conditional handling, keeping
 	// the response shape otherwise unchanged (plus Accept-Ranges).
-	http.ServeContent(w, r, "", time.Time{}, f)
+	http.ServeContent(rw, req, "", time.Time{}, f)
+}
+
+// fileLookup holds the two reads a download needs. Each goroutine below writes
+// its own fields and wg.Wait orders them against the reader.
+type fileLookup struct {
+	rec    protocol.ProjectRecord
+	recErr error
+	rel    string
+	relErr error
+}
+
+// lookupFile reads the project row and, for a filestore-only kind, the stored
+// path — concurrently, because only original/result take their path from the row.
+// The row is still read for every kind: a missing project must answer 404 even
+// when its bytes are on disk, so recErr outranks relErr at the call site.
+func (a *API) lookupFile(ctx context.Context, id, kind string) fileLookup {
+	var (
+		out fileLookup
+		wg  sync.WaitGroup
+	)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		out.rec, out.recErr = a.deps.Projects.GetProject(ctx, id)
+	}()
+	if protocol.IsFilestoreOnlyKind(kind) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			out.rel, out.relErr = a.deps.Files.FindByKind(id, kind)
+		}()
+	}
+	wg.Wait()
+	return out
 }
 
 // handlePutFile stores raw image bytes for a project. The extension and (for
 // originals) the pixel dimensions are passed as query params, since the server
-// is codec-free and never decodes images — clients render and measure.
-func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	kind := r.PathValue("kind")
+// is codec-free and never decodes images — clients render and measure. The
+// three-step, two-store write itself (and the compensating deletes that undo a
+// half-done one) is the service's saga.
+func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
+	id := req.PathValue("id")
+	kind := req.PathValue("kind")
 	if !protocol.IsFileKind(kind) {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "unknown file kind")
+		writeBadRequest(rw, msgUnknownFileKind)
 		return
 	}
-	ext := strings.TrimPrefix(r.URL.Query().Get("ext"), ".")
-	width, _ := strconv.Atoi(r.URL.Query().Get("w"))
-	height, _ := strconv.Atoi(r.URL.Query().Get("h"))
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	put := service.FilePut{ID: id, Kind: kind, Ext: strings.TrimPrefix(req.URL.Query().Get("ext"), ".")}
+	put.W, _ = strconv.Atoi(req.URL.Query().Get("w"))
+	put.H, _ = strconv.Atoi(req.URL.Query().Get("h"))
 
-	body := http.MaxBytesReader(w, r.Body, a.deps.MaxBodyBytes)
-	data, err := io.ReadAll(body)
-	if err != nil {
-		writeErr(w, http.StatusRequestEntityTooLarge, protocol.CodeBadRequest, "body too large or unreadable")
+	// The body streams straight to disk: a 32 MiB upload never sits in the heap.
+	resp, err := a.files.Store(ctx, put, http.MaxBytesReader(rw, req.Body, a.deps.MaxBodyBytes))
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		writeNotFound(rw, msgProjectNotFound)
+		return
+	case errors.Is(err, service.ErrRecordFile):
+		writeInternalError(rw, msgRecordFile)
+		return
+	case err != nil:
+		writeStoreFileErr(rw, err)
 		return
 	}
-	if len(data) == 0 {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "empty file body")
-		return
-	}
-
-	// Ensure the project exists before writing bytes for it.
-	if _, err := a.deps.Projects.GetProject(r.Context(), id); errors.Is(err, store.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
-		return
-	}
-
-	rel, err := a.deps.Files.Put(id, kind, ext, data)
-	if err != nil {
-		var unsafe filestore.ErrUnsafePath
-		if errors.As(err, &unsafe) {
-			writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "rejected path")
-			return
-		}
-		if errors.Is(err, filestore.ErrQuotaExceeded) {
-			// STORAGE_QUOTA_BYTES: the server is full, not the request malformed.
-			writeErr(w, http.StatusInsufficientStorage, protocol.CodeInternal, "server storage quota exceeded")
-			return
-		}
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not store file")
-		return
-	}
-	// Only original/result update the project record; video/variantN bytes are
-	// filestore-only in v1 (llm-contract.md §9) and are removed with the
-	// project. Either way, a project row deleted mid-upload (e.g. the expiry
-	// sweep ran after the existence check above) must not orphan the bytes we
-	// just wrote: drop them and report gone. RemoveKind, not Remove — the latter
-	// deletes the whole project directory over a race on one upload.
-	if kind == protocol.KindOriginal || kind == protocol.KindResult {
-		rec, err := a.deps.Projects.SetFile(r.Context(), id, kind, rel, width, height)
-		if err != nil {
-			if errors.Is(err, store.ErrNotFound) {
-				_ = a.deps.Files.RemoveKind(id, kind)
-				writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
-				return
-			}
-			writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not record file")
-			return
-		}
-		a.publishEvent(r.Context(), protocol.EventUpdated, rec)
-	} else if _, err := a.deps.Projects.GetProject(r.Context(), id); errors.Is(err, store.ErrNotFound) {
-		_ = a.deps.Files.RemoveKind(id, kind)
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
-		return
-	}
-	writeJSON(w, http.StatusCreated, protocol.FileWriteResponse{Path: rel, W: width, H: height})
+	writeJSON(rw, http.StatusCreated, resp)
 }
 
 // handleDeleteFile removes the stored bytes for a filestore-only kind
@@ -150,29 +149,50 @@ func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
 // the project record and are only removed with the project, so deleting them
 // here is rejected. Deleting a kind with no stored bytes still answers 204
 // (idempotent), and a file delete never bumps the project version.
-func (a *API) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	kind := r.PathValue("kind")
+func (a *API) handleDeleteFile(rw http.ResponseWriter, req *http.Request) {
+	id := req.PathValue("id")
+	kind := req.PathValue("kind")
 	if !protocol.IsFileKind(kind) {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "unknown file kind")
+		writeBadRequest(rw, msgUnknownFileKind)
 		return
 	}
 	if !protocol.IsFilestoreOnlyKind(kind) {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, kind+" is removed with the project")
+		writeBadRequest(rw, msgKindGoesWithProject(kind))
 		return
 	}
-	if _, err := a.deps.Projects.GetProject(r.Context(), id); errors.Is(err, store.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	if _, err := a.deps.Projects.GetProject(ctx, id); errors.Is(err, store.ErrNotFound) {
+		writeNotFound(rw, msgProjectNotFound)
 		return
 	} else if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not load project")
+		writeInternalError(rw, msgLoadProject)
 		return
 	}
 	if err := a.deps.Files.RemoveKind(id, kind); err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not delete file")
+		writeInternalError(rw, msgDeleteFile)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	rw.WriteHeader(http.StatusNoContent)
+}
+
+// writeStoreFileErr maps one failed upload onto its response.
+func writeStoreFileErr(rw http.ResponseWriter, err error) {
+	var unsafe filestore.ErrUnsafePath
+	var tooBig *http.MaxBytesError
+	switch {
+	case errors.As(err, &tooBig):
+		writeErr(rw, http.StatusRequestEntityTooLarge, protocol.CodeBadRequest, msgBodyTooLarge)
+	case errors.Is(err, filestore.ErrEmpty):
+		writeBadRequest(rw, msgEmptyBody)
+	case errors.As(err, &unsafe):
+		writeBadRequest(rw, msgRejectedPath)
+	case errors.Is(err, filestore.ErrQuotaExceeded):
+		// STORAGE_QUOTA_BYTES: the server is full, not the request malformed.
+		writeErr(rw, http.StatusInsufficientStorage, protocol.CodeInternal, msgQuotaExceeded)
+	default:
+		writeInternalError(rw, msgStoreFile)
+	}
 }
 
 // contentTypeForExt maps a file extension to a content type without decoding.

@@ -1,0 +1,3 @@
+  NAME           SIZE       CREATED  EXPIRES  CHANGED  SERVER
+  [38;2;128;134;143mposter[0m         1200x800   3d ago   never    5m ago   http://localhost:8080
+  [38;2;79;140;255mshared-remote[0m  2048x1536  10d ago  in 7d    45m ago  https://stencil.example.com  [2m— a remote project on the second server[0m

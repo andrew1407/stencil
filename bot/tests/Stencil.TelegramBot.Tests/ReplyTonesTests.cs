@@ -13,15 +13,14 @@ using Telegram.Bot.Types;
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// The reply-tone convention (<see cref="Replies.Tag"/>): every reply the bot can categorise
-/// wears one glyph — 🔴 for "this didn't happen", 🟡 for "it did, with a caveat", ✅ for a
-/// confirmed action, ℹ️ for a plain notice. Single-sourced in <see cref="Replies"/>, so this
-/// fixture pins both the mapping and one representative reply per category.
+/// The reply-tone convention (<see cref="Replies.Tag"/>) as the user meets it: one
+/// representative reply per category, driven through the real handlers. The glyph mapping
+/// itself needs no rig and lives in <see cref="RepliesTests"/>.
 /// </summary>
 public sealed class ReplyTonesTests : IDisposable
 {
-    private const long UserId = 71;
-    private const long ChatId = 72;
+    private const long _userId = 71;
+    private const long _chatId = 72;
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -35,7 +34,7 @@ public sealed class ReplyTonesTests : IDisposable
     public ReplyTonesTests()
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-tones-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _dataDir };
+        BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, servers: _servers, editing: editing);
         _router = new UpdateRouter(
@@ -55,108 +54,59 @@ public sealed class ReplyTonesTests : IDisposable
     }
 
     /// <summary>Route a plain Telegram text message exactly as the poller would.</summary>
-    private Task Send(string text) =>
+    private Task send(string text) =>
         _router.HandleMessageAsync(
-            new Message { Chat = new Chat { Id = ChatId }, From = new User { Id = UserId }, Text = text },
+            new Message { Chat = new Chat { Id = _chatId }, From = new User { Id = _userId }, Text = text },
             CancellationToken.None);
 
-    private Task Dispatch(string text) =>
-        _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+    private Task dispatch(string text) =>
+        _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
-    private string LastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
-
-    // ── the mapping ──
-
-    [Theory]
-    [InlineData(Replies.Tone.Error, "🔴")]
-    [InlineData(Replies.Tone.Warning, "🟡")]
-    [InlineData(Replies.Tone.Success, "✅")]
-    [InlineData(Replies.Tone.Notice, "ℹ️")]
-    public void EachToneHasItsOwnGlyph(Replies.Tone tone, string expected)
-    {
-        Assert.Equal(expected, Replies.Glyph(tone));
-        Assert.Equal($"{expected} hello", Replies.Tag(tone, "hello"));
-    }
-
-    [Fact]
-    public void TheFourGlyphsAreDistinct()
-    {
-        string[] glyphs =
-        [
-            Replies.Glyph(Replies.Tone.Error),
-            Replies.Glyph(Replies.Tone.Warning),
-            Replies.Glyph(Replies.Tone.Success),
-            Replies.Glyph(Replies.Tone.Notice),
-        ];
-
-        Assert.Equal(glyphs.Length, glyphs.Distinct().Count());
-    }
-
-    // A message that already opens with a glyph of its own keeps it — never two in a row.
-    [Theory]
-    [InlineData("🗑 Removed 'x' from the server.")]
-    [InlineData("↑ synced to 'x' (v2).")]
-    [InlineData("💾 Chat saving on — …")]
-    [InlineData("🟡 already a warning")]
-    public void TagNeverStacksASecondGlyph(string message)
-    {
-        Assert.Equal(message, Replies.Tag(Replies.Tone.Success, message));
-        Assert.Equal(message, Replies.Tag(Replies.Tone.Error, message));
-    }
-
-    [Fact]
-    public void PlainTextStillGetsItsGlyph()
-    {
-        Assert.Equal("🔴 Nope.", Replies.Tag(Replies.Tone.Error, "Nope."));
-        // Punctuation is not a glyph — only a leading symbol rune counts as one.
-        Assert.StartsWith("🟡 —", Replies.Tag(Replies.Tone.Warning, "— careful"));
-    }
-
-    // ── one representative reply per category, through the real handlers ──
+    private string lastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
 
     // The reported case: /connect against a server that rejects the token.
     [Fact]
-    public async Task AConnectionFailureIsMarkedAsAnError()
+    public async Task Should_Mark_A_Connection_Failure_As_An_Error()
     {
         _servers.ConnectThrows = new ServerException("unauthorized", "missing or invalid token", 401);
 
-        await Send("/connect https://stencil.example.com bad-token");
+        await send("/connect https://stencil.example.com bad-token");
 
-        Assert.StartsWith("🔴 ", LastText());
+        Assert.StartsWith("🔴 ", lastText());
         // The wording itself is untouched — only the prefix is new.
-        Assert.Contains("missing or invalid token", LastText());
+        Assert.Contains("missing or invalid token", lastText());
     }
 
     [Fact]
-    public async Task ACliFailureIsMarkedAsAnErrorToo()
+    public async Task Should_Mark_A_Cli_Failure_As_An_Error_Too()
     {
         _cli.FailWhen = _ => true;
 
-        await Send("/blank");
+        await send("/blank");
 
-        Assert.Equal("🔴 canned CLI failure", LastText());
+        Assert.Equal("🔴 canned CLI failure", lastText());
     }
 
     [Fact]
-    public async Task AnAssistantFailureIsMarkedAsAnError()
+    public async Task Should_Mark_An_Assistant_Failure_As_An_Error()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.Throw = new LlmException("Could not reach the AI service.");
 
-        await Dispatch("/prompt make it sepia");
+        await dispatch("/prompt make it sepia");
 
-        Assert.Equal("🔴 Could not reach the AI service.", LastText());
+        Assert.Equal("🔴 Could not reach the AI service.", lastText());
     }
 
     // A plan that half-ran: the reply stays plain, each warning line carries the warning glyph.
     [Fact]
-    public async Task PlanWarningsAreMarkedAsWarnings()
+    public async Task Should_Mark_Plan_Warnings_As_Warnings()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply(
             """{"reply":"Rotated it.","actions":[{"op":"rotate","dir":"right"},{"op":"save"}]}"""));
 
-        await Dispatch("/prompt rotate and save it");
+        await dispatch("/prompt rotate and save it");
 
         string text = _bot.Requests.OfType<SendMessageRequest>().Last().Text;
         Assert.StartsWith("Rotated it.", text);
@@ -165,21 +115,21 @@ public sealed class ReplyTonesTests : IDisposable
     }
 
     [Fact]
-    public async Task AConfirmedServerActionIsMarkedAsSuccess()
+    public async Task Should_Mark_A_Confirmed_Server_Action_As_Success()
     {
-        await Send("/connect https://stencil.example.com");
+        await send("/connect https://stencil.example.com");
 
-        Assert.Equal("✅ Connected to https://stencil.example.com.", LastText());
+        Assert.Equal("✅ Connected to https://stencil.example.com.", lastText());
     }
 
     [Fact]
-    public async Task APlainNoticeIsMarkedAsANotice()
+    public async Task Should_Mark_A_Plain_Notice_As_A_Notice()
     {
         // Nothing failed and nothing changed: /disconnect with no matching connection.
         _servers.DisconnectResult = false;
 
-        await Dispatch("/disconnect https://nowhere.example.com");
+        await dispatch("/disconnect https://nowhere.example.com");
 
-        Assert.Equal("ℹ️ No matching connection to disconnect.", LastText());
+        Assert.Equal("ℹ️ No matching connection to disconnect.", lastText());
     }
 }

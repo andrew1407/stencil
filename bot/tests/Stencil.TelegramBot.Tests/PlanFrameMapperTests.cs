@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class PlanFrameMapperTests
 {
     [Fact]
-    public void CropStepSubtractsTheResolvedOrigin()
+    public void Should_Subtract_The_Resolved_Origin_For_A_Crop_Step()
     {
         PlanFrameMapper mapper = new(400, 300);
         mapper.RecordCrop("x1=100px");   // resolves to rect (100, 0, 300, 300)
@@ -22,7 +22,7 @@ public sealed class PlanFrameMapperTests
     }
 
     [Fact]
-    public void RotateRightMapsWithThePreRotateDims()
+    public void Should_Map_With_The_Pre_Rotate_Dims_For_Rotate_Right()
     {
         PlanFrameMapper mapper = new(400, 300);
         mapper.RecordRotate(1);
@@ -37,7 +37,7 @@ public sealed class PlanFrameMapperTests
     }
 
     [Fact]
-    public void RotateLeftIsThreeClockwiseQuarters()
+    public void Should_Equal_Three_Clockwise_Quarters_For_Rotate_Left()
     {
         PlanFrameMapper mapper = new(400, 300);
         mapper.RecordRotate(-1);
@@ -49,7 +49,7 @@ public sealed class PlanFrameMapperTests
     }
 
     [Fact]
-    public void RotateTwiceIsAPointReflection()
+    public void Should_Be_A_Point_Reflection_When_Rotated_Twice()
     {
         PlanFrameMapper mapper = new(400, 300);
         mapper.RecordRotate(2);
@@ -60,7 +60,7 @@ public sealed class PlanFrameMapperTests
     }
 
     [Fact]
-    public void CropThenRotateChainsThroughBothSteps()
+    public void Should_Chain_Through_Both_Steps_For_Crop_Then_Rotate()
     {
         PlanFrameMapper mapper = new(400, 300);
         mapper.RecordCrop("x1=100px y1=50px");   // rect (100, 50, 300, 250)
@@ -73,7 +73,7 @@ public sealed class PlanFrameMapperTests
     }
 
     [Fact]
-    public void OutOfBoundsPointsClampIntoTheFinalFrame()
+    public void Should_Clamp_Out_Of_Bounds_Points_Into_The_Final_Frame()
     {
         PlanFrameMapper mapper = new(400, 300);
 
@@ -82,7 +82,7 @@ public sealed class PlanFrameMapperTests
     }
 
     [Fact]
-    public void UnresolvableCropRecordsNothing()
+    public void Should_Record_Nothing_For_An_Unresolvable_Crop()
     {
         PlanFrameMapper mapper = new(400, 300);
         mapper.RecordCrop("x1=abc");
@@ -92,7 +92,7 @@ public sealed class PlanFrameMapperTests
     }
 
     [Fact]
-    public void ResetDropsAllStepsAndRestartsAtTheNewFrame()
+    public void Should_Drop_All_Steps_And_Restart_At_The_New_Frame_On_Reset()
     {
         PlanFrameMapper mapper = new(400, 300);
         mapper.RecordCrop("x1=100px");
@@ -105,7 +105,7 @@ public sealed class PlanFrameMapperTests
     }
 
     [Fact]
-    public void MapLinesKeepsEveryNonPointFieldUnchanged()
+    public void Should_Keep_Every_Non_Point_Field_Unchanged_In_Map_Lines()
     {
         PlanFrameMapper mapper = new(400, 300);
         mapper.RecordCrop("x1=100px");

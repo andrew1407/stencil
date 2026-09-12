@@ -5,14 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stencil — quick crop</title>
   <!-- Apply the saved accent (data-accent) before the stylesheet → no flash. -->
+  <script src="../lib/prefs.js"></script>
+  <script src="../lib/swapGeometry.js"></script>
+  <script src="../lib/dustGrains.js"></script>
+  <script src="../lib/dustWake.js"></script>
+  <script src="../lib/themeSwap.js"></script>
   <script src="../lib/accent.js"></script>
-  <link rel="stylesheet" href="../lib/theme.css">
+  <script src="../lib/shellPrefs.js"></script>
+  <link rel="stylesheet" href="../lib/theme/palette.css">
+  <link rel="stylesheet" href="../lib/theme/controls.css">
+  <link rel="stylesheet" href="../lib/theme/tooltip.css">
+  <link rel="stylesheet" href="../lib/theme/select.css">
+  <link rel="stylesheet" href="../lib/theme/fields.css">
   <link rel="stylesheet" href="crop.css">
-  <link rel="stylesheet" href="../lib/animations.css">
+  <link rel="stylesheet" href="../lib/animations/keyframes.css">
+  <link rel="stylesheet" href="../lib/animations/iconHover.css">
+  <link rel="stylesheet" href="../lib/animations/controls.css">
+  <link rel="stylesheet" href="../lib/animations/themeSwap.css">
+  <link rel="stylesheet" href="../lib/animations/reveal.css">
+  <link rel="stylesheet" href="../lib/animations/pages.css">
+  <link rel="stylesheet" href="../lib/animations/motionModes.css">
+  <link rel="stylesheet" href="../lib/animations/reducedMotion.css">
+  <link rel="stylesheet" href="../lib/animations/chat.css">
+  <link rel="stylesheet" href="../lib/animations/overlays.css">
+  <link rel="stylesheet" href="../lib/animations/motionIcons.css">
 </head>
 <body>
   <header>
-    <!-- .logo-wrap carries the hover ray ring (lib/animations.css). -->
+    <!-- .logo-wrap carries the hover ray ring (lib/animations/iconHover.css). -->
     <span class="logo-wrap"><img src="../../icons/icon.svg" alt="" class="logo"></span>
     <h1>Quick crop</h1>
     <span class="hint">Drag inside to move · drag a corner to resize · scroll to zoom</span>

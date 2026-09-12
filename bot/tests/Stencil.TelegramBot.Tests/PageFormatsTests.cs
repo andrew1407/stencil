@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class PageFormatsTests
 {
     [Fact]
-    public void TableCoversAllThirtyThreeFormatsInCanonicalOrder()
+    public void Should_Cover_All_Thirty_Three_Formats_In_Canonical_Order()
     {
         Assert.Equal(33, PageFormats.All.Count);
         Assert.Equal("A0", PageFormats.All[0].Name);
@@ -20,7 +20,7 @@ public sealed class PageFormatsTests
     }
 
     [Fact]
-    public void EmbeddedTableParsesThirtyThreeFormatsWithA4Dimensions()
+    public void Should_Parse_Thirty_Three_Formats_With_A4_Dimensions_From_The_Embedded_Table()
     {
         // Fails fast if the build-time embed of constants.json breaks or goes stale.
         Assert.Equal(33, PageFormats.All.Count);
@@ -31,7 +31,7 @@ public sealed class PageFormatsTests
     }
 
     [Fact]
-    public void EmbeddedConstantsMatchCanonicalFileBytes()
+    public void Should_Match_The_Canonical_File_Bytes_For_The_Embedded_Constants()
     {
         // The embed copies the file at build time; catch drift against the repo's canonical copy.
         using Stream? stream = typeof(PageFormats).Assembly.GetManifestResourceStream(
@@ -48,7 +48,7 @@ public sealed class PageFormatsTests
     [InlineData("A4", "A4", 21, 29.7)]
     [InlineData("b5", "B5", 17.6, 25)]
     [InlineData("c10", "C10", 2.8, 4)]
-    public void TryGetResolvesNamesCaseInsensitively(string given, string canonical, double w, double h)
+    public void Should_Resolve_Names_Case_Insensitively_On_Try_Get(string given, string canonical, double w, double h)
     {
         Assert.True(PageFormats.TryGet(given, out string name, out double wcm, out double hcm));
         Assert.Equal(canonical, name);
@@ -61,13 +61,13 @@ public sealed class PageFormatsTests
     [InlineData("D4")]
     [InlineData("custom")]
     [InlineData("")]
-    public void TryGetRejectsUnknownNames(string given)
+    public void Should_Reject_Unknown_Names_On_Try_Get(string given)
     {
         Assert.False(PageFormats.TryGet(given, out _, out _, out _));
     }
 
     [Fact]
-    public void CmTrimsTrailingZeros()
+    public void Should_Trim_Trailing_Zeros_For_Cm()
     {
         Assert.Equal("100", PageFormats.Cm(100));
         Assert.Equal("29.7", PageFormats.Cm(29.7));

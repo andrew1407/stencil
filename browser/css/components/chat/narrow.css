@@ -1,0 +1,150 @@
+/* ── Narrow column: below this the left/right split has no room to READ as one —
+   88% max-width either squeezes the text into a sliver or the two sides sit close
+   enough to look accidental. Both roles go near-full-width and STACK instead, one
+   under the other; colour + the tail still carry which side spoke. Measured off the
+   TRANSCRIPT's own box (container query), so a resized dock/float answers correctly
+   without a resize listener — the ctx-assist flyout (no container-type) is
+   unaffected, it already renders at a fixed compact width. */
+@container chat-transcript (max-width: 300px) {
+    /* flex-start, not stretch: a short "ok" still sizes to its content — only the
+       alternating LEFT/RIGHT indent goes away, not the bubble's own shape. The doubled
+       class matches the swap rules' specificity above and sits later, so column mode
+       wins with no !important on align-self; max-width keeps its !important because it
+       must also outrank the inline shrink-wrap pin (chatView.js applyShrinkWrap). */
+    .chat-msg.chat-msg-user, .chat-msg.chat-msg-assistant, .chat-msg.chat-msg-error {
+        max-width: 96% !important;
+        align-self: flex-start;
+    }
+}
+
+/* Variant / frame result cards: thumbnail + label + download / open-as-working. */
+/* §11 choice card: the model's question rendered as pick-one / pick-many, with the option
+   previews it rendered. Sits in the transcript flow like a result row. */
+.chat-ask {
+    align-self: flex-start;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 9px 11px;
+    border: 1px solid var(--border-main);
+    border-radius: 10px;
+    background: var(--bg-container);
+    font-size: 12.5px;
+}
+.chat-ask-q { font-weight: 600; }
+.chat-ask-options { display: flex; flex-direction: column; gap: 4px; }
+.chat-ask-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 6px; border-radius: 7px; cursor: pointer;
+}
+.chat-ask-option:hover { background: var(--bg-hover, rgba(127, 127, 127, .12)); }
+.chat-ask-option input { cursor: pointer; margin: 0; flex: 0 0 auto; }
+/* A rendered preview of that choice — bigger than a favicon, small enough for five in a row. */
+.chat-ask-thumb {
+    width: 56px; height: 56px; object-fit: contain; flex: 0 0 auto;
+    border: 1px solid var(--border-main); border-radius: 6px; background: var(--bg-main);
+}
+.chat-ask-label { min-width: 0; overflow-wrap: anywhere; }
+.chat-ask-custom-text {
+    flex: 1 1 auto; min-width: 0; font: inherit; padding: 3px 6px;
+    border: 1px solid var(--border-main); border-radius: 6px;
+    background: var(--bg-main); color: var(--text-main);
+}
+.chat-ask-actions { display: flex; align-items: center; gap: 8px; }
+/* An affirmative action like any other in the app: the accent fill, the hover lift and the
+   glass sweep all come from the shared `button` rules (layout/shell.css) — only the card's
+   tighter metrics are its own. It used to paint itself from `--accent-color`, a variable
+   that does not exist: the whole declaration was invalid, so the button came out as bare
+   white text on the card with no box at all (user report, with a picture). */
+.chat-ask-submit {
+    font: inherit; padding: 3px 12px; border-radius: 7px; cursor: pointer;
+}
+.chat-ask-submit:disabled { opacity: .5; cursor: default; }
+/* Answered: the card stops being a control and becomes the record of what was sent. */
+.chat-ask-answered { opacity: .8; }
+.chat-ask-answered .chat-ask-option { cursor: default; }
+.chat-ask-sent { color: var(--text-muted); font-style: italic; }
+
+.chat-results { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; }
+.chat-result {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 7px;
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    background: var(--bg-container);
+    font-size: 12px;
+}
+.chat-result-thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid var(--border-main);
+}
+.chat-result-label { color: var(--text-muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-result-btn { display: inline-flex; }
+
+/* What the USER attached to a turn: thumbnails above their own message, so they sit
+   on the user's side of the transcript (flex-end) like the bubble they belong to. */
+.chat-attached { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; align-self: flex-end; max-width: 88%; }
+.chat-attached-item { position: relative; display: inline-flex; }
+.chat-attached-thumb {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border-main);
+    background: var(--bg-container);
+}
+/* Hover preview: the thumbnail is deliberately small, so hovering shows the picture
+   at a readable size. On the BODY (the panel clips its overflow), above everything.
+   Sized by the SAME rule as the projects modal's row zoom (.project-thumb-zoom img):
+   a hover preview is a GLANCE, not a lightbox — unclamped it filled most of the
+   window and buried the conversation it belongs to. */
+.chat-thumb-preview {
+    position: fixed;
+    left: -9999px;                 /* measured, then placed by wireThumbPreview */
+    z-index: 100010;               /* over the panel (90000) and its cue */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid var(--border-main);
+    border-radius: 10px;
+    background: var(--bg-controls);
+    box-shadow: 0 10px 30px var(--shadow);
+    pointer-events: none;          /* never steals the hover that opened it */
+    opacity: 0;
+}
+.chat-thumb-preview-in { opacity: 1; }
+.chat-thumb-preview img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 25vw;
+    max-height: 20vh;
+    object-fit: contain;
+    border-radius: 6px;
+}
+.chat-thumb-preview-cap { max-width: 25vw; color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+/* Alt held while hovering: the glance doubles (chatView altPreview). */
+.chat-thumb-preview.chat-thumb-preview-xl img { max-width: 50vw; max-height: 40vh; }
+.chat-thumb-preview.chat-thumb-preview-xl .chat-thumb-preview-cap { max-width: 50vw; }
+
+/* A video attachment shows its first sampled frame — the badge says so, since the
+   video itself never goes to the model (contract §7). */
+.chat-attached-badge {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--text-key);
+    background: color-mix(in srgb, var(--accent) 85%, transparent);
+}
+

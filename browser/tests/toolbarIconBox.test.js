@@ -8,8 +8,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { LAYOUT_CSS, COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
-const read = (f) => readFileSync(new URL(`../css/${f}`, import.meta.url), 'utf8');
+const SHEETS = { 'layout.css': LAYOUT_CSS, 'components.css': COMPONENTS_CSS, 'animations.css': ANIMATIONS_CSS };
+const read = (f) => SHEETS[f] ?? readFileSync(new URL(`../css/${f}`, import.meta.url), 'utf8');
 // The declaration block for a selector, as written.
 const ruleFor = (css, selector) => {
   const at = css.indexOf(selector + ' {');
@@ -42,7 +44,7 @@ test('the ghost buttons all agree with each other', () => {
 // back into it — the same modalFromIcon/modalToIcon motion the modals use — instead of the
 // old pop-in-place. chatPanel.js feeds the keyframes the icon→panel delta.
 test('the floating chat panel animates from the toolbar icon', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const open = css.match(/stencil-chat-panel\.chat-open\.chat-dock-float\s*\{([^}]*)\}/)?.[1] || '';
   const close = css.match(/stencil-chat-panel\.chat-open\.chat-closing\.chat-dock-float\s*\{([^}]*)\}/)?.[1] || '';
   assert.match(open, /modalFromIcon/, `float open is "${open.trim()}"`);
@@ -120,10 +122,14 @@ test('newTemporary resets the canvas size/zoom and the viewport scroll, not just
   assert.match(body, /this\.app\.canvas\.style\.width = ''/, 'a stale inline CSS width survives the clear');
   assert.match(body, /this\.app\.canvas\.style\.height = ''/, 'a stale inline CSS height survives the clear');
   assert.match(body, /this\.app\.scale = 1/, 'the zoom level is never reset on clear');
-  const scroll = body.match(/const vp = document\.getElementById\('canvas-viewport'\);\s*\n\s*if \(vp\) \{ ([^}]+) \}/)?.[1];
-  assert.ok(scroll, 'the viewport scroll position is never reset on clear');
-  assert.match(scroll, /vp\.scrollLeft = 0/);
-  assert.match(scroll, /vp\.scrollTop = 0/);
+  assert.match(body, /resetViewportScroll\(\);/, 'the viewport scroll position is never reset on clear');
+  // …and that helper (ui/layoutControls.js) is what actually puts it back to the corner.
+  const controls = readFileSync(new URL('../js/ui/layoutControls.js', import.meta.url), 'utf8');
+  assert.match(controls, /export const resetViewportScroll = \(\) => scrollViewportTo\(0, 0\);/);
+  const scroll = controls.match(/export const scrollViewportTo[\s\S]{0,200}if \(vp\) \{ ([^}]+) \}/)?.[1];
+  assert.ok(scroll, 'scrollViewportTo must touch the viewport');
+  assert.match(scroll, /vp\.scrollLeft = left \|\| 0/);
+  assert.match(scroll, /vp\.scrollTop = top \|\| 0/);
 });
 
 // Collapsed to its rail, the points/lines panel shows one chevron. As a `display: block`
@@ -131,7 +137,7 @@ test('newTemporary resets the canvas size/zoom and the viewport scroll, not just
 // — 24x25 with the glyph riding high and dead space beneath it inside the rail. An
 // explicit flex square takes text metrics out of the box entirely.
 test('the points-panel chevron is one centred square in both states', () => {
-  const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const css = LAYOUT_CSS;
   const base = css.match(/\n#toggle-coord-panel \{([^}]*)\}/)?.[1] || '';
   assert.ok(base, 'the chevron rule is gone');
   // The box has to come from the RULE, not from font metrics — a 16px glyph in a text

@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { animationsCss } from './helpers/sources.js';
 import { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } from '../src/lib/motionIcons.js';
 const MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'none'];
 
@@ -27,7 +28,7 @@ test('every motion mode has a glyph, and only the modes do', () => {
 });
 
 test('the CSS plays each mode on hover, in the direction asked for', () => {
-  const css = read('../src/lib/animations.css');
+  const css = animationsCss();
   assert.match(css, /\.accent-dd-opt:hover \.mm-line, \.accent-dd-trigger:hover \.mm-line, \.mm-play \.mm-line \{ animation: mmLineDraw/);
   assert.match(css, /@keyframes mmLineDraw \{ from \{ stroke-dashoffset: 11\.4; \} to \{ stroke-dashoffset: 0; \} \}/, 'drawn from the top-right end');
   assert.match(css, /@keyframes mmShaft \{ from \{ stroke-dashoffset: 9\.9; \} to \{ stroke-dashoffset: 0; \} \}/, 'drawn from the bottom-left end');

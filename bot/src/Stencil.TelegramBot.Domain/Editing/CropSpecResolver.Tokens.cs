@@ -1,0 +1,193 @@
+using System.Globalization;
+using System.Text;
+
+namespace Stencil.TelegramBot.Domain.Editing;
+
+// The spec's text side: atom tokenizer, aspect ratio and length tokens (px/cm/mm/in/%/delta).
+public static partial class CropSpecResolver
+{
+    // Atoms split on whitespace/commas with = its own atom; keys are case-insensitive
+    // x1/x2/y1/y2/aspect.
+    private static ParsedSpec parse(string spec)
+    {
+        List<string> atoms = new();
+        StringBuilder current = new();
+        void flush()
+        {
+            if (current.Length > 0)
+            {
+                atoms.Add(current.ToString());
+                current.Clear();
+            }
+        }
+        foreach (char c in spec)
+        {
+            if (c is ' ' or '\t' or '\n' or '\r' or ',')
+            {
+                flush();
+            }
+            else if (c == '=')
+            {
+                flush();
+                atoms.Add("=");
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+        flush();
+
+        string? x1 = null, x2 = null, y1 = null, y2 = null, aspect = null;
+        bool valid = true;
+        int i = 0;
+        while (i < atoms.Count)
+        {
+            string key = atoms[i++];
+            if (i >= atoms.Count || atoms[i] != "=")
+            {
+                valid = false;
+                break;
+            }
+            i++;   // consume '='
+            if (i >= atoms.Count || atoms[i] == "=")
+            {
+                valid = false;
+                break;
+            }
+            string value = atoms[i++];
+            switch (key.ToLowerInvariant())
+            {
+                case "x1": x1 = value; break;
+                case "x2": x2 = value; break;
+                case "y1": y1 = value; break;
+                case "y2": y2 = value; break;
+                case "aspect": aspect = value; break;
+                default: valid = false; break;
+            }
+            if (!valid)
+            {
+                break;
+            }
+        }
+        return new ParsedSpec(x1, x2, y1, y2, aspect, valid);
+    }
+
+    // "W:H" with positive integers → W/H; 0.0 for anything else.
+    private static double parseAspectRatio(string s)
+    {
+        int colon = s.IndexOf(':');
+        if (colon <= 0 || colon + 1 >= s.Length)
+        {
+            return 0.0;
+        }
+        string[] parts = [s[..colon], s[(colon + 1)..]];
+        double[] vals = [0.0, 0.0];
+        for (int i = 0; i < 2; i++)
+        {
+            foreach (char c in parts[i])
+            {
+                if (c is < '0' or > '9')
+                {
+                    return 0.0;
+                }
+                vals[i] = vals[i] * 10.0 + (c - '0');
+            }
+            if (vals[i] <= 0.0)
+            {
+                return 0.0;
+            }
+        }
+        return vals[0] / vals[1];
+    }
+
+    // A bare number is a DELTA from the current edge (sign kept); a unit token is absolute,
+    // measured from the far end when -prefixed.
+    private static double? resolveAxisPx(string token, double lengthPx, double pxPerCm, double currentPx)
+    {
+        if (parseLengthToken(token) is not LengthToken t)
+        {
+            return null;
+        }
+        if (t.Kind == LengthKind.DELTA)
+        {
+            return currentPx + t.Value;
+        }
+        double px = t.Kind switch
+        {
+            LengthKind.PX => t.Value,
+            LengthKind.CM => t.Value * pxPerCm,
+            _ => t.Value / 100.0 * lengthPx,   // percent
+        };
+        return t.FromEnd ? lengthPx - px : px;
+    }
+
+    // The hand-rolled equivalent of /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/.
+    private static LengthToken? parseLengthToken(string token)
+    {
+        string s = token.Trim().ToLowerInvariant();
+        if (s.Length == 0)
+        {
+            return null;
+        }
+        int i = 0;
+        bool fromEnd = false;
+        if (s[i] == '-')
+        {
+            fromEnd = true;
+            i++;
+        }
+        while (i < s.Length && char.IsWhiteSpace(s[i]))
+        {
+            i++;
+        }
+        // Number: \d*\.?\d+ (at least one digit, at most one dot, no trailing dot).
+        int numStart = i;
+        int dots = 0, digitsAfterDot = 0, digits = 0;
+        while (i < s.Length)
+        {
+            char c = s[i];
+            if (c is >= '0' and <= '9')
+            {
+                digits++;
+                if (dots > 0)
+                {
+                    digitsAfterDot++;
+                }
+                i++;
+            }
+            else if (c == '.')
+            {
+                if (dots > 0)
+                {
+                    break;
+                }
+                dots++;
+                i++;
+            }
+            else
+            {
+                break;
+            }
+        }
+        if (digits == 0 || (dots > 0 && digitsAfterDot == 0))
+        {
+            return null;
+        }
+        double value = double.Parse(s[numStart..i], CultureInfo.InvariantCulture);
+        while (i < s.Length && char.IsWhiteSpace(s[i]))
+        {
+            i++;
+        }
+        return s[i..] switch
+        {
+            "%" => new LengthToken(LengthKind.PERCENT, value, fromEnd),
+            "cm" => new LengthToken(LengthKind.CM, value, fromEnd),
+            "mm" => new LengthToken(LengthKind.CM, value / 10.0, fromEnd),
+            "in" => new LengthToken(LengthKind.CM, value * _cmPerInch, fromEnd),
+            "px" => new LengthToken(LengthKind.PX, value, fromEnd),
+            "" => new LengthToken(LengthKind.DELTA, fromEnd ? -value : value, false),
+            _ => null,   // unknown unit suffix
+        };
+    }
+}

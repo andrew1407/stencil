@@ -35,7 +35,7 @@ const now = () => (typeof performance !== 'undefined' ? performance.now() : Date
 // describes (rectCenter — a detached owner has no point, and the dust declines). But a
 // control STRETCHED across its row has its content at one end and its centre in empty
 // space, so past this distance the pointer is the better origin. Desktop twin:
-// appTooltip.hpp's `stretched` test.
+// AppTooltip.hpp's `stretched` test.
 export const DUST_CURSOR_PX = 40;
 // The choice itself, pure so it is testable without a pointer.
 export const dustOrigin = (centre, cursor, maxPx = DUST_CURSOR_PX) => {

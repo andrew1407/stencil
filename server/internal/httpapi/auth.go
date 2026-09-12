@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"stencil/server/internal/auth"
+	"stencil/server/internal/clock"
 	"stencil/server/internal/protocol"
 )
 
@@ -19,40 +20,42 @@ type issueTokenRequest struct {
 // per-boot token precisely so this can never be open by accident. AUTH_OPEN
 // (Deps.AuthOpen) is the explicit opt-out: issuance succeeds with no bearer at
 // all, though the per-IP rate limit and the admin token both keep working.
-func (a *API) handleIssueToken(w http.ResponseWriter, r *http.Request) {
-	if !a.deps.AuthOpen && !a.adminAuthorized(r) {
-		writeErr(w, http.StatusUnauthorized, protocol.CodeUnauthorized, "admin token required to issue tokens")
+func (a *API) handleIssueToken(rw http.ResponseWriter, req *http.Request) {
+	if !a.deps.AuthOpen && !a.adminAuthorized(req) {
+		writeErr(rw, http.StatusUnauthorized, protocol.CodeUnauthorized, msgAdminRequired)
 		return
 	}
-	var req issueTokenRequest
-	if r.ContentLength != 0 {
-		if !a.decodeJSON(w, r, &req) {
+	var body issueTokenRequest
+	if req.ContentLength != 0 {
+		if !a.decodeJSON(rw, req, &body) {
 			return
 		}
 	}
 
 	token, hash, err := auth.GenerateToken()
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "token generation failed")
+		writeInternalError(rw, msgTokenGenFailed)
 		return
 	}
-	now := nowMs()
+	now := clock.NowMs()
 	expires := now + a.deps.TokenTTL.Milliseconds()
-	if _, err := a.deps.Sessions.CreateSession(r.Context(), hash, req.Label, now, expires); err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not persist session")
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	if _, err := a.deps.Sessions.CreateSession(ctx, hash, body.Label, now, expires); err != nil {
+		writeInternalError(rw, msgPersistSession)
 		return
 	}
-	writeJSON(w, http.StatusOK, protocol.TokenResponse{Token: token, ExpiresAt: expires})
+	writeJSON(rw, http.StatusOK, protocol.TokenResponse{Token: token, ExpiresAt: expires})
 }
 
 // adminAuthorized reports whether the request may issue tokens.
-func (a *API) adminAuthorized(r *http.Request) bool {
+func (a *API) adminAuthorized(req *http.Request) bool {
 	if a.deps.AdminToken == "" {
 		return false // fail closed: no admin token means nobody can issue
 	}
-	presented := r.Header.Get("X-Admin-Token")
+	presented := req.Header.Get("X-Admin-Token")
 	if presented == "" {
-		presented = auth.BearerToken(r)
+		presented = auth.BearerToken(req)
 	}
 	return subtle.ConstantTimeCompare([]byte(presented), []byte(a.deps.AdminToken)) == 1
 }

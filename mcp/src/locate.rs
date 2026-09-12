@@ -6,10 +6,14 @@
 //!      nearest ancestor containing `cli/build.zig`, then `cli/zig-out/bin/stencil`.
 //!   3. `stencil` on `PATH`.
 //!
+//! Steps 2-3 walk the filesystem, so a resolved path is cached process-wide; the override
+//! is re-read every call and stays authoritative.
+//!
 //! The server never builds the CLI itself — it stays side-effect-free and reports a
 //! clear, actionable error when the binary is missing.
 
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 const BINARY_NAME: &str = "stencil";
 
@@ -39,15 +43,15 @@ pub fn find_cli() -> Result<PathBuf, String> {
         ));
     }
 
-    if let Some(path) = find_in_repo() {
-        return Ok(path);
+    // The walk stats every ancestor of the CWD and of the executable, and one prompt turn
+    // spawns the CLI once per variant — so remember a hit. Only a hit: a miss stays live, so
+    // a CLI built while the server runs still resolves.
+    static RESOLVED: OnceLock<PathBuf> = OnceLock::new();
+    if let Some(found) = RESOLVED.get() {
+        return Ok(found.clone());
     }
-
-    if let Some(path) = find_on_path() {
-        return Ok(path);
-    }
-
-    Err(missing_message())
+    let found = find_in_repo().or_else(find_on_path).ok_or_else(missing_message)?;
+    Ok(RESOLVED.get_or_init(|| found).clone())
 }
 
 /// Find the repo root (nearest ancestor with `cli/build.zig`) above the CWD or the running

@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileEntryHint, createLogoDragMenu, LOGO_DROP_HINT } from '../src/lib/logoDragMenu.js';
+import { stubDoc, stubEl as sharedEl } from './helpers/domStub.js';
 
 const tick = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -18,41 +19,11 @@ test('fileEntryHint reads a dragged FILE\'s MIME mid-drag: video, image, or noth
   assert.equal(fileEntryHint(null), null);
 });
 
-// ── Stub DOM ──
-const stubEl = () => {
-  const classes = new Set();
-  const el = {
-    hidden: false, style: {}, dataset: {}, title: '',
-    children: [], handlers: {},
-    rect: { left: 20, right: 60, top: 8, bottom: 40 },
-    classList: {
-      add: (c) => classes.add(c), remove: (c) => classes.delete(c),
-      toggle: (c, on) => { (on === undefined ? !classes.has(c) : on) ? classes.add(c) : classes.delete(c); },
-      contains: (c) => classes.has(c),
-    },
-    prepend: (n) => el.children.unshift(n),
-    appendChild: (n) => { el.children.push(n); return n; },
-    contains: (n) => el.children.includes(n) || n === el,
-    addEventListener: (t, fn) => { (el.handlers[t] || (el.handlers[t] = [])).push(fn); },
-    getBoundingClientRect: () => el.rect,
-    fire: (t, ev = {}) => { for (const fn of el.handlers[t] || []) fn(ev); },
-  };
-  Object.defineProperty(el, 'innerHTML', {
-    get: () => '', set: (v) => { if (v === '') el.children = []; },
-  });
-  return el;
-};
+// The brand sits at a known place on screen: the menu is placed off its rect.
+const stubEl = () => sharedEl('div', { rect: { left: 20, right: 60, top: 8, bottom: 40 } });
 
 const build = ({ draggingRow = null } = {}) => {
-  const listeners = {};
-  const doc = {
-    createElement: () => stubEl(),
-    createElementNS: () => ({ textContent: '' }),
-    querySelector: () => null,   // no header h1 in the stub
-    addEventListener: (t, fn, capture) => { (listeners[t] || (listeners[t] = [])).push({ fn, capture }); },
-    fire: (t, ev) => { for (const l of listeners[t] || []) l.fn(ev); },
-    listeners,
-  };
+  const doc = stubDoc({ createElement: stubEl });
   const logoEl = stubEl();
   const menuEl = stubEl();
   menuEl.hidden = true;

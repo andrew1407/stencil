@@ -169,3 +169,35 @@ test "pipeline: the wrote-line page label follows the effective page state" {
     defer a.free(def);
     try testing.expectEqualStrings("A4 21×29.7cm", def);
 }
+
+test "pipeline: --confine-output refuses an output path outside the cwd; the default keeps it" {
+    if (@import("builtin").os.tag == .windows) return error.SkipZigTest; // POSIX temp path
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+
+    const abs = "/tmp/stencil_confine_out.png";
+    const rel = "stencil_confine_out.png";
+    defer dir.deleteFile(io, abs) catch {};
+    defer dir.deleteFile(io, rel) catch {};
+
+    var opts = args.Options{ .blank = .{ .width = 16, .height = 12, .color = "white" }, .output = abs };
+    // Default: a human's absolute path is written, exactly as before.
+    try pipeline.run(a, io, opts);
+    try dir.access(io, abs, .{});
+
+    // Confined: the same path is refused, as is a ~ that would expand to one …
+    opts.confine_output = true;
+    try testing.expectError(error.UnsafeOutputPath, pipeline.run(a, io, opts));
+    opts.output = "~/stencil_confine_out.png";
+    try testing.expectError(error.UnsafeOutputPath, pipeline.run(a, io, opts));
+    opts.output = "../stencil_confine_out.png";
+    try testing.expectError(error.UnsafeOutputPath, pipeline.run(a, io, opts));
+
+    // … while a path inside the working directory still writes.
+    opts.output = rel;
+    try pipeline.run(a, io, opts);
+    try dir.access(io, rel, .{});
+}

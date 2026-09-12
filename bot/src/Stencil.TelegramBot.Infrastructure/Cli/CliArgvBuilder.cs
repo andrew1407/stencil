@@ -3,54 +3,25 @@ using Stencil.TelegramBot.Domain.Exceptions;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-/// <summary>
-/// Maps an <see cref="EditRequest"/> to the exact <c>stencil [options] &lt;output&gt;</c>
-/// argv. A faithful port of <c>mcp/src/args.rs</c> (<c>build_argv</c>), with the same
-/// validation invariants the CLI would otherwise reject with a terse message.
-/// </summary>
-/// <remarks>
-/// The pipeline order is fixed by the CLI itself (source → crop → rotate → filter → layout →
-/// encode), so argv order here is only cosmetic — the CLI parses flags order-independently.
-/// </remarks>
-public static class CliArgvBuilder
+// A port of mcp's build_argv, with the same validation invariants; argv order is cosmetic, the
+// pipeline order is the CLI's own.
+public static partial class CliArgvBuilder
 {
-    /// <summary>
-    /// Build the argv for one edit. Throws <see cref="StencilCliException"/> when the
-    /// source/output/blank invariants are violated (exactly one of input/blank; non-empty
-    /// output; blank width and height together or both omitted; a blank page format and
-    /// explicit width/height are mutually exclusive).
-    /// </summary>
-    // ── CLI flag names ──
-    // The exact option strings understood by the Zig CLI (cli/src/args.zig), centralized so the
-    // flag contract is single-sourced and greppable — the .NET peer of mcp's FLAG_* consts
-    // (mcp/src/args.rs). See cli/CONTRACT.md §1.
-    private const string FlagServer = "--server";
-    private const string FlagInput = "-i";
-    private const string FlagBlank = "--blank";
-    private const string FlagFrame = "-f";
-    private const string FlagCrop = "-c";
-    private const string FlagAlbum = "--album";
-    private const string FlagRotate = "-r";
-    private const string FlagLayout = "-l";
-    private const string FlagFilter = "--filter";
-    private const string FlagRemoteUpdate = "--remote-update";
-    private const string FlagRemote = "--remote";
-    private const string FlagRemoteName = "--remote-name";
-
-    // ── Source-site scrape flags (DESIGN source-site contract §1) ──
-    // The scrape mode's option strings, kept next to the edit flags so the whole CLI flag
-    // contract is single-sourced here — the .NET peer of mcp's FLAG_SOURCE_* consts.
-    private const string FlagSourceSite = "--source-site";
-    private const string FlagSourceCount = "--source-count";
-    private const string FlagSourceGroup = "--group";
-    private const string FlagSourceFilter = "--source-filter";
-    private const string FlagSourceFormat = "--source-format";
-    private const string FlagSourceName = "--source-name";
-    private const string FlagSourceMinWidth = "--source-min-width";
-    private const string FlagSourceMaxWidth = "--source-max-width";
-    private const string FlagSourceMinHeight = "--source-min-height";
-    private const string FlagSourceMaxHeight = "--source-max-height";
-
+    // The exact option strings of cli/src/args.zig (cli/CONTRACT.md §1) — the peer of mcp's FLAG_*
+    // consts.
+    private const string _flagServer = "--server";
+    private const string _flagInput = "-i";
+    private const string _flagBlank = "--blank";
+    private const string _flagFrame = "-f";
+    private const string _flagCrop = "-c";
+    private const string _flagAlbum = "--album";
+    private const string _flagRotate = "-r";
+    private const string _flagLayout = "-l";
+    private const string _flagFilter = "--filter";
+    private const string _flagConfineOutput = "--confine-output";
+    private const string _flagRemoteUpdate = "--remote-update";
+    private const string _flagRemote = "--remote";
+    private const string _flagRemoteName = "--remote-name";
     public static IReadOnlyList<string> BuildArgv(EditRequest req)
     {
         bool hasInput = req.Input is not null;
@@ -68,13 +39,8 @@ public static class CliArgvBuilder
         {
             throw new StencilCliException("`output` must not be empty");
         }
-        // Flag-injection guard, mirroring build_argv in mcp/src/args.rs. The output is a
-        // positional operand appended last, and the CLI (cli/src/args.zig) has no `--`
-        // end-of-options terminator, so an output like `--album` or `-l` would be parsed as a
-        // flag rather than the output path. A real output path never starts with a dash — the
-        // CLI could never accept one in the positional slot — so reject one up front. (Today
-        // Output is always a GUID workspace path, never user-supplied; this keeps the port in
-        // sync and is defense-in-depth should that ever change.)
+        // Flag-injection guard (mcp build_argv): no `--` terminator, so an output like `--album`
+        // would parse as a flag.
         if (req.Output.StartsWith('-'))
         {
             throw new StencilCliException(
@@ -82,8 +48,7 @@ public static class CliArgvBuilder
                 "would be parsed as a CLI flag, not the output path");
         }
 
-        // Collaboration-server invariants, mirroring the CLI's own checks (cli/src/pipeline.zig)
-        // and mcp/src/args.rs (Source::try_from).
+        // Server invariants, mirroring cli/src/pipeline.zig and mcp's Source::try_from.
         if (req.Server is not null)
         {
             if (hasBlank)
@@ -110,24 +75,22 @@ public static class CliArgvBuilder
 
         List<string> argv = new();
 
-        // Source: `--server <url> -i <name>`, `-i <input>`, or the `--blank …` series.
-        // `--server` conceptually precedes `-i` (it changes what `-i` means), though the CLI
-        // parses order-independently.
+        // --server changes what -i means; the CLI parses order-independently.
         if (req.Server is not null)
         {
-            argv.Add(FlagServer);
+            argv.Add(_flagServer);
             argv.Add(req.Server);
         }
 
         if (req.Input is not null)
         {
-            argv.Add(FlagInput);
+            argv.Add(_flagInput);
             argv.Add(req.Input);
         }
 
         if (req.Blank is BlankSpec blank)
         {
-            argv.Add(FlagBlank);
+            argv.Add(_flagBlank);
             bool hasWidth = blank.Width is not null;
             bool hasHeight = blank.Height is not null;
             if (blank.Page is not null && (hasWidth || hasHeight))
@@ -152,13 +115,21 @@ public static class CliArgvBuilder
             }
             if (blank.Color is not null)
             {
+                // The CLI SKIPS a colour it can't parse (the blank would come out white), so reject
+                // it here like mcp does.
+                if (!ColorSpec.IsValid(blank.Color))
+                {
+                    throw new StencilCliException(
+                        $"`blank.color` isn't a colour the CLI understands (got \"{blank.Color}\") — " +
+                        "use #rgb/#rrggbb/#rrggbbaa, a CSS colour name, or transparent");
+                }
                 argv.Add(blank.Color);
             }
         }
 
         if (req.Frame is int frame)
         {
-            argv.Add(FlagFrame);
+            argv.Add(_flagFrame);
             argv.Add(frame.ToString());
         }
 
@@ -167,133 +138,56 @@ public static class CliArgvBuilder
             string spec = req.CropSpec.Trim();
             if (spec.Length != 0)
             {
-                argv.Add(FlagCrop);
+                argv.Add(_flagCrop);
                 argv.Add(spec);
             }
         }
 
         if (req.Album)
         {
-            argv.Add(FlagAlbum);
+            argv.Add(_flagAlbum);
         }
 
         if (req.Rotate is int rotate)
         {
-            argv.Add(FlagRotate);
+            argv.Add(_flagRotate);
             argv.Add(rotate.ToString());
         }
 
         if (req.LayoutPath is not null)
         {
-            argv.Add(FlagLayout);
+            argv.Add(_flagLayout);
             argv.Add(req.LayoutPath);
         }
 
         if (req.Filter is not null)
         {
-            argv.Add(FlagFilter);
+            argv.Add(_flagFilter);
             argv.Add(req.Filter);
         }
 
-        // Server delivery: write the result back into the fetched project, and/or push it as a
-        // new project. The result is always saved locally too (the positional output below).
+        // The result is always saved locally too (the positional output below).
         if (req.RemoteUpdate)
         {
-            argv.Add(FlagRemoteUpdate);
+            argv.Add(_flagRemoteUpdate);
         }
 
         if (req.Remote is not null)
         {
-            argv.Add(FlagRemote);
+            argv.Add(_flagRemote);
             argv.Add(req.Remote);
         }
 
         if (req.RemoteName is not null)
         {
-            argv.Add(FlagRemoteName);
+            argv.Add(_flagRemoteName);
             argv.Add(req.RemoteName);
         }
 
+        // The adapter forwards paths it did not author; ProcessStencilCli picks the working
+        // directory and passes the leaf.
+        argv.Add(_flagConfineOutput);
         argv.Add(req.Output);
         return argv;
-    }
-
-    /// <summary>
-    /// Build the argv for one source-site scrape: <c>--source-site &lt;url&gt; [filters]
-    /// &lt;output-dir&gt;</c>. Emits only the flags the request actually sets — an absent count/group
-    /// or an unset (null or non-positive) dimension bound is left off, matching the CLI's own
-    /// "0 = unset" / "count absent = all" semantics (DESIGN source-site contract §1). Throws
-    /// <see cref="StencilCliException"/> when the url or output dir is empty, or when the output
-    /// dir would be parsed as a flag (a dash-leading value), mirroring <see cref="BuildArgv"/>'s
-    /// flag-injection guard on the positional operand.
-    /// </summary>
-    public static IReadOnlyList<string> BuildScrapeArgv(ScrapeRequest req)
-    {
-        if (string.IsNullOrWhiteSpace(req.Url))
-        {
-            throw new StencilCliException("`url` must not be empty — pass the page to scrape");
-        }
-        if (string.IsNullOrWhiteSpace(req.OutputDir))
-        {
-            throw new StencilCliException("`output` directory must not be empty");
-        }
-        // The output directory is the positional operand appended last, and the CLI has no `--`
-        // end-of-options terminator, so a dash-leading value would be parsed as a flag. Reject
-        // it up front, exactly like BuildArgv guards the edit output.
-        if (req.OutputDir.StartsWith('-'))
-        {
-            throw new StencilCliException(
-                $"`output` directory must not start with '-' (got \"{req.OutputDir}\") — a " +
-                "dash-leading value would be parsed as a CLI flag, not the output path");
-        }
-
-        List<string> argv = new()
-        {
-            FlagSourceSite,
-            req.Url,
-        };
-
-        if (req.Count is int count)
-        {
-            argv.Add(FlagSourceCount);
-            argv.Add(count.ToString());
-        }
-        if (req.Group is int group)
-        {
-            argv.Add(FlagSourceGroup);
-            argv.Add(group.ToString());
-        }
-        if (!string.IsNullOrWhiteSpace(req.Filter))
-        {
-            argv.Add(FlagSourceFilter);
-            argv.Add(req.Filter);
-        }
-        if (!string.IsNullOrWhiteSpace(req.Format))
-        {
-            argv.Add(FlagSourceFormat);
-            argv.Add(req.Format);
-        }
-        if (!string.IsNullOrWhiteSpace(req.Name))
-        {
-            argv.Add(FlagSourceName);
-            argv.Add(req.Name);
-        }
-        AddBound(argv, FlagSourceMinWidth, req.MinWidth);
-        AddBound(argv, FlagSourceMaxWidth, req.MaxWidth);
-        AddBound(argv, FlagSourceMinHeight, req.MinHeight);
-        AddBound(argv, FlagSourceMaxHeight, req.MaxHeight);
-
-        argv.Add(req.OutputDir);
-        return argv;
-    }
-
-    /// <summary>Append <c>flag &lt;value&gt;</c> only for a set, positive dimension bound (0/null = unset).</summary>
-    private static void AddBound(List<string> argv, string flag, int? value)
-    {
-        if (value is int px && px > 0)
-        {
-            argv.Add(flag);
-            argv.Add(px.ToString());
-        }
     }
 }

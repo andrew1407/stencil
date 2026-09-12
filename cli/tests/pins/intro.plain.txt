@@ -1,0 +1,5 @@
+Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down
+recall history; Ctrl-V pastes the clipboard — an image attaches to the line you are typing
+(Backspace over its marker takes it back), text is simply typed. '/help' lists
+commands, '/theme' changes colour, '/mouse' switches between the terminal's own text
+selection and the in-app one, '/exit' (or Ctrl-C twice) leaves.

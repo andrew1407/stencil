@@ -8,6 +8,7 @@
 // iteration). Teardown is opt-in via E2E_STACK_DOWN=1 so local runs keep the DB warm;
 // CI discards the whole VM, so it never needs an explicit down.
 import { execFileSync } from 'node:child_process';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -36,7 +37,6 @@ const compose = (...args) =>
     },
   });
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitForHealthz(timeoutMs = 120_000) {
   const start = Date.now();

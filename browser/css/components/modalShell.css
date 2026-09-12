@@ -1,0 +1,187 @@
+/* ── Shared modal shell (visuals + info dialogs) ── */
+.app-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100001;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+.app-modal-overlay.modal-open { display: flex; }
+/* `modal-closing` keeps the overlay on screen just for the shrink-back animation;
+   ui/base.js drops `modal-open` immediately, so the modal counts as closed at once. */
+.app-modal-overlay.modal-closing { display: flex; }
+/* The confirm/prompt/choose dialog is always spawned FROM another modal (e.g. the open-project
+   confirm over the Projects modal), so it must stack above every other app modal — not merely
+   tie on z-index and rely on DOM order. */
+#confirm-modal-overlay.modal-open { z-index: 100003; }
+/* …and it keeps that place while it LEAVES: the dust hands over on the way out, and a
+   confirm sinking below the window it was asked from would read as the wrong dialog
+   coming apart. */
+#confirm-modal-overlay.modal-closing { z-index: 100003; }
+.app-modal {
+    background: var(--bg-container);
+    color: var(--text-main);
+    /* The hairline the desktop's #modalShell wears on every dialog (theme.cpp, same
+       --border-main): over a dark canvas the shadow alone left no edge at all. */
+    border: 1px solid var(--border-main);
+    border-radius: 10px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+    width: 560px;
+    max-width: calc(100vw - 40px);
+    max-height: min(82vh, 760px);   /* the shared ceiling — see #settings-modal */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+/* ── Modal popover: the compact anchored shape of any app modal ─────────────
+   Opened by dblclick / right-click / long-press on the modal's toolbar icon
+   (ui/popover.js via base.js wireModalShell). The OVERLAY still covers the page —
+   that is what makes click-outside close it — it is just transparent; the box is
+   pinned next to the icon (inline left/top from popoverPosition) and capped small,
+   its body scrolling instead of growing. Applies to the shared .app-modal shell and
+   to the settings modal's own-id shell alike. */
+.app-modal-overlay.modal-popover,
+#settings-modal-overlay.modal-popover {
+    background: transparent;
+    align-items: flex-start;
+    justify-content: flex-start;
+    /* Pointer-TRANSPARENT: an Alt glide must reach the other toolbar icons while
+       a popover shows. Click-outside dismissal is a document listener in
+       base.js wireModalShell now — the box itself keeps its pointer events. */
+    pointer-events: none;
+}
+.modal-popover .app-modal,
+#settings-modal-overlay.modal-popover #settings-modal { pointer-events: auto; }
+.modal-popover .app-modal,
+#settings-modal-overlay.modal-popover #settings-modal {
+    position: fixed;
+    width: 420px;
+    max-width: calc(100vw - 16px);
+    max-height: min(560px, 78vh);
+    box-shadow: 0 10px 34px rgba(0,0,0,0.5);
+    animation: popover-in 0.12s ease-out;
+}
+@keyframes popover-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.app-modal-close {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    font-size: 13px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+}
+/* Takes the theme accent on hover, like every other control here and like the desktop's
+   #modalClosePill (ACCENT_SOFT inside an ACCENT_RING). `!important` on the border only
+   because the resting rule above sets it. */
+.app-modal-close:hover {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+}
+.vs-section {
+    font-weight: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 14px 0 6px;
+}
+.vs-section:first-child { margin-top: 0; }
+.vs-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 4px;
+    border-bottom: 1px solid var(--border-coord);
+    font-size: 13px;
+}
+.vs-row label { font-weight: normal; }
+.vs-row input[type="color"] { width: 46px; height: 24px; padding: 2px; cursor: pointer; }
+.vs-row input[type="number"], .vs-row select { width: 90px; }
+/* ONE control column: every control the same width and height, flush right, so the rows
+   read as a table. A colour well is a chip beside its hex (desktop settingsDialog parity). */
+stencil-visuals-modal { --vs-ctrl-w: 180px; --vs-ctrl-h: 30px; }
+stencil-visuals-modal .vs-row > .vs-ctrl {
+    flex: 0 0 var(--vs-ctrl-w);
+    width: var(--vs-ctrl-w);
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+stencil-visuals-modal .vs-ctrl > input,
+stencil-visuals-modal .vs-ctrl > select,
+stencil-visuals-modal .vs-ctrl > .accent-dd,
+stencil-visuals-modal .vs-ctrl > .cs-dd,
+stencil-visuals-modal .vs-ctrl .accent-dd-trigger {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+stencil-visuals-modal .vs-ctrl > input,
+stencil-visuals-modal .vs-ctrl > select,
+stencil-visuals-modal .vs-ctrl .accent-dd-trigger {
+    height: var(--vs-ctrl-h);
+    padding: 0 10px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+stencil-visuals-modal .vs-ctrl.vs-color {
+    gap: 8px;
+    height: var(--vs-ctrl-h);
+    padding: 0 10px;
+    background: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Menlo','Consolas',monospace;
+    font-size: 12px;
+    font-weight: normal;
+}
+stencil-visuals-modal .vs-ctrl.vs-color:hover { border-color: var(--accent); }
+stencil-visuals-modal .vs-ctrl.vs-color input[type="color"] {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+stencil-visuals-modal .vs-hex { flex: 1 1 auto; letter-spacing: 0.02em; }
+/* A checkbox in that column keeps its own 15px box instead of being stretched to it by
+   the rule above, and sits flush with the column's RIGHT edge — the desktop dialog's own
+   rule for its `column=false` rows (SettingsDialog.cpp), so the two dialogs read alike. */
+stencil-visuals-modal .vs-ctrl.vs-ctrl-check { justify-content: flex-end; }
+stencil-visuals-modal .vs-ctrl.vs-ctrl-check > input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    border-radius: 3px;
+}
+/* Labeled text-field rows (connect/links modals): equal label column so stacked
+   inputs share the same left edge regardless of label length. min-width (not a
+   fixed basis) so a label longer than the column can never clip. */
+.vs-row.vs-field > label { flex: 0 0 auto; min-width: var(--vs-label-w, 48px); }
+/* Image-links modal labels are longer ("Image / video URL") — widen its column. */
+stencil-links-modal { --vs-label-w: 118px; }
+/* "Save to" target selects hold longer option labels ("Local (this browser)",
+   server URLs) — let them size to content instead of clipping at 90px. */
+.vs-row select[id$="-target"] { width: auto; min-width: 150px; max-width: 240px; }
+/* Assistant modal selects (provider names, server URLs) carry long labels too —
+   fill the field row like its text inputs instead of clipping at 90px. */
+stencil-llm-settings-modal .vs-row select { flex: 1 1 auto; width: auto; min-width: 0; }
+/* Quick pre-load edits row (links modal): inline checkboxes + a small page select. */
+.links-quickcrop-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.links-inline-check, .vs-inline-check { display: inline-flex; align-items: center; gap: 5px; font-weight: normal; white-space: nowrap; cursor: pointer; }
+/* Checkbox option groups share one row while they fit, wrapping to further
+   lines (each option as a unit) only when the modal is too narrow. */
+.vs-row.vs-checks { justify-content: flex-start; flex-wrap: wrap; gap: 7px 26px; }
+.oi-replace { display: flex; flex-wrap: wrap; gap: 7px 18px; }

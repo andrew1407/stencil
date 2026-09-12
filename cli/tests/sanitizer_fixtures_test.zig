@@ -28,27 +28,17 @@ fn checkInvariants(out: []const u8) !void {
 }
 
 test "sanitizer corpus: cases.json against the cli sanitizer (byte-counted caps)" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
-
-    const overrides = try fx.parseOverrides(a);
-    const cases = try fx.loadJson(a, io, "llm/fixtures/sanitizer/cases.json");
-    var walked: usize = 0;
-    var skipped: usize = 0;
-    var failures: usize = 0;
-
-    for (cases.array.items) |case| {
+    var w = fx.Walk.start();
+    defer w.stop();
+    try w.loadOverrides();
+    for (try w.cases("llm/fixtures/sanitizer/cases.json")) |case| {
         const name = fx.memberStr(case, "name").?;
         const input_v = fx.member(case, "input").?;
         if (input_v == .null) {
-            skipped += 1; // Zig has no null string; the cli never calls sanitize on one
+            w.skipped += 1; // Zig has no null string; the cli never calls sanitize on one
             continue;
         }
-        walked += 1;
+        w.walked += 1;
         var buf: DetailBuf = undefined;
         const got = llm.sanitizeDetail(input_v.string, &buf);
         try checkInvariants(got);
@@ -58,16 +48,13 @@ test "sanitizer corpus: cases.json against the cli sanitizer (byte-counted caps)
         // override when one is recorded.
         const divergence = std.mem.startsWith(u8, name, "DIVERGENCE(");
         var want: ?[]const u8 = if (divergence) null else fx.memberStr(case, "expect").?;
-        if (fx.overrideFor(overrides, "sanitizer", name)) |ov| {
+        if (w.override("sanitizer", name)) |ov| {
             want = fx.memberStr(ov, "cliExpect") orelse want;
         }
-        if (want) |w| {
-            if (!std.mem.eql(u8, got, w)) {
-                std.debug.print("sanitizer '{s}':\n  want: {s}\n  cli:  {s}\n", .{ name, w, got });
-                failures += 1;
-            }
+        if (want) |want_text| {
+            if (!std.mem.eql(u8, got, want_text))
+                w.fail("sanitizer '{s}':\n  want: {s}\n  cli:  {s}\n", .{ name, want_text, got });
         }
     }
-    std.debug.print("sanitizer corpus: walked {d}, skipped {d} (null input)\n", .{ walked, skipped });
-    try testing.expectEqual(@as(usize, 0), failures);
+    try w.report("sanitizer"); // skipped = the null-input case Zig cannot express
 }

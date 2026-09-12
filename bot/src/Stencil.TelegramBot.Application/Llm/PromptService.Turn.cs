@@ -10,20 +10,15 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// PromptService — request assembly: BuildTurn, the edge map, server resolution for the
-// stencil-server provider, and the §4 context suffix. Class doc lives in PromptService.cs.
 public sealed partial class PromptService
 {
-    /// <summary>
-    /// Assemble one chat request: system prompt + context suffix, the replayed history with the
-    /// image-replay rule applied (only the most recent prior image survives), then the current
-    /// user message. An <paramref name="edgeMap"/> rides only the current turn, never history.
-    /// </summary>
+    // The §7 image-replay rule: only the most recent prior image survives; an edgeMap rides only
+    // the current turn.
     public LlmChatRequest BuildTurn(
         long userId, UserSession session, string text, LlmImage? image, LlmImage? edgeMap = null,
         IReadOnlyList<ServerProjectInfo>? projects = null)
     {
-        List<LlmMessage> history = SnapshotHistory(userId);
+        List<LlmMessage> history = snapshotHistory(userId);
         int lastWithImage = history.FindLastIndex(m => m.Images.Count > 0);
         List<LlmMessage> messages = new(history.Count + 1);
         for (int i = 0; i < history.Count; i++)
@@ -34,10 +29,10 @@ public sealed partial class PromptService
                 : message with { Images = [] });
         }
         List<LlmImage> images = image is null ? [] : edgeMap is null ? [image] : [image, edgeMap];
-        messages.Add(new LlmMessage(LlmMessage.RoleUser, text, images));
-        LlmOptions options = OptionsFor(session);
-        (string? serverUrl, string? serverToken) = ResolveServer(session, options);
-        string system = ChatSystemPrompt + ContextSuffix(session, projects);
+        messages.Add(new LlmMessage(LlmMessage.ROLE_USER, text, images));
+        LlmOptions options = optionsFor(session);
+        (string? serverUrl, string? serverToken) = resolveServer(session, options);
+        string system = ChatSystemPrompt + contextSuffix(session, projects);
         if (image is not null && edgeMap is not null)
         {
             system += " " + EdgeMapSentence;
@@ -52,12 +47,9 @@ public sealed partial class PromptService
         };
     }
 
-    /// <summary>
-    /// The §7 edge map: the working image run through the CLI's <c>contour</c> filter and
-    /// loaded under the same downscale/size rules as the snapshot. Null (silently — the turn
-    /// must never fail on it) when no image is attached this turn or the render/attach fails.
-    /// </summary>
-    private async Task<LlmImage?> BuildEdgeMapAsync(long userId, UserSession session, LlmImage? image, CancellationToken ct)
+    // §7: the working image through the CLI's contour filter. Null silently — the turn must never
+    // fail on it.
+    private async Task<LlmImage?> buildEdgeMapAsync(long userId, UserSession session, LlmImage? image, CancellationToken ct)
     {
         if (image is null || _attachments is null || session.OriginalImagePath is null)
         {
@@ -74,28 +66,23 @@ public sealed partial class PromptService
         }
     }
 
-    /// <summary>
-    /// For the <c>stencil-server</c> provider, resolve which server proxies the call: an
-    /// explicit <c>STENCIL_LLM_SERVER_URL</c> wins (reusing the user's stored token for that
-    /// origin when they have one), otherwise the user's first connected server.
-    /// </summary>
-    private (string? Url, string? Token) ResolveServer(UserSession session, LlmOptions options)
+    // An explicit STENCIL_LLM_SERVER_URL wins (reusing the user's stored token), else the first
+    // connected server.
+    private (string? Url, string? Token) resolveServer(UserSession session, LlmOptions options)
     {
-        if (options.Provider != LlmOptions.ProviderStencilServer)
+        if (options.Provider != LlmOptions.PROVIDER_STENCIL_SERVER)
         {
             return (null, null);
         }
         if (options.ServerUrl is string configured && configured.Trim().Length > 0)
         {
-            // Session connections are keyed by the factory's normalised origin (that's what
-            // ServerService stores), so normalise the configured URL the same way — a bare-host
-            // or trailing-slash STENCIL_LLM_SERVER_URL still finds its stored token.
+            // Normalise like ServerService stores, so a bare-host or trailing-slash configured URL
+            // still finds its token.
             string url = _servers.NormalizeUrl(configured);
             ServerConnectionInfo? match = session.Connections
                 .FirstOrDefault(c => string.Equals(c.Url, url, StringComparison.OrdinalIgnoreCase));
-            // The user's own token first, then the operator's STENCIL_LLM_SERVER_TOKEN. With
-            // neither, say the step the user can take — an empty bearer would come back as the
-            // server's bare "missing or invalid token", which reads as a bot bug.
+            // An empty bearer would come back as the server's bare "missing or invalid token",
+            // which reads as a bot bug.
             string token = match?.Token is string own && own.Length > 0 ? own : options.ServerToken;
             if (token.Length == 0)
             {
@@ -107,22 +94,18 @@ public sealed partial class PromptService
         ServerConnectionInfo? first = session.Connections.FirstOrDefault();
         if (first is null)
         {
-            // Names the one step the user can take; how the bot is configured stays out of chat.
             throw new InvalidOperationException(
                 "The AI assistant runs through a Stencil server — /connect <url> first.");
         }
         return (first.Url, first.Token);
     }
 
-    /// <summary>How many project names one server contributes to the context suffix (the cli console's cap).</summary>
-    public const int MaxContextProjects = 20;
+    // The cli console's cap.
+    public const int MAX_CONTEXT_PROJECTS = 20;
 
-    /// <summary>
-    /// The per-connection project listings for the context suffix, best-effort: null (line
-    /// omitted, the cli's unreachable rule) when the bot has no server service, the user has
-    /// no connections, or the listing call fails. A turn must never fail on this.
-    /// </summary>
-    private async Task<IReadOnlyList<ServerProjectInfo>?> ListContextProjectsAsync(
+    // Best-effort: null omits the line (the cli's unreachable rule); a turn must never fail on
+    // this.
+    private async Task<IReadOnlyList<ServerProjectInfo>?> listContextProjectsAsync(
         long userId, UserSession session, CancellationToken ct)
     {
         if (_projects is null || session.Connections.Count == 0)
@@ -139,12 +122,9 @@ public sealed partial class PromptService
         }
     }
 
-    /// <summary>
-    /// The short dynamic suffix §4 allows: working image dimensions / video-ness, the pen
-    /// defaults and pending-edit stack size, plus the bot's §10 connections line and a capped
-    /// per-server project-name listing (the cli console's rule).
-    /// </summary>
-    private static string ContextSuffix(UserSession session, IReadOnlyList<ServerProjectInfo>? projects = null)
+    // The short dynamic suffix §4 allows, plus the bot's §10 connections line (the cli console's
+    // rule).
+    private static string contextSuffix(UserSession session, IReadOnlyList<ServerProjectInfo>? projects = null)
     {
         string suffix = session.HasImage
             ? $"\n\nCurrent working image: {session.OriginalWidth}x{session.OriginalHeight} pixels."
@@ -153,11 +133,10 @@ public sealed partial class PromptService
         {
             suffix += " The current input is a video, so \"frame\" ops are valid.";
         }
-        return suffix + PenSuffix(session) + ConnectionsSuffix(session) + ProjectsSuffix(projects);
+        return suffix + penSuffix(session) + connectionsSuffix(session) + projectsSuffix(projects);
     }
 
-    /// <summary>The pen defaults + the pending-edit stack size, for the §10 bot context.</summary>
-    private static string PenSuffix(UserSession session)
+    private static string penSuffix(UserSession session)
     {
         LineStyle pen = session.Edits.Pen;
         return "\n\nPen defaults for new lines: color " + pen.Color
@@ -167,12 +146,8 @@ public sealed partial class PromptService
             + $" Pending edits: {session.EditHistory.Count} undoable step(s), {session.EditRedo.Count} redoable.";
     }
 
-    /// <summary>
-    /// The §10 connections line: the user's connected server URLs and the active project, so
-    /// "what am I connected to?" is answered in the reply without ops. URLs only — a stored
-    /// token NEVER enters the prompt.
-    /// </summary>
-    private static string ConnectionsSuffix(UserSession session)
+    // URLs only — a stored token NEVER enters the prompt.
+    private static string connectionsSuffix(UserSession session)
     {
         if (session.Connections.Count == 0)
         {
@@ -185,12 +160,8 @@ public sealed partial class PromptService
             : " No active server project.");
     }
 
-    /// <summary>
-    /// The capped per-server project-name listing (the cli console's rule: at most
-    /// <see cref="MaxContextProjects"/> names per server, then a "+N more"), so "what's on my
-    /// server?" is answered in the reply without ops. Null listings (unreachable) omit the line.
-    /// </summary>
-    private static string ProjectsSuffix(IReadOnlyList<ServerProjectInfo>? projects)
+    // At most MaxContextProjects names per server, then "+N more" (the cli console's rule).
+    private static string projectsSuffix(IReadOnlyList<ServerProjectInfo>? projects)
     {
         if (projects is null)
         {
@@ -201,7 +172,7 @@ public sealed partial class PromptService
         {
             List<string> names = server.Select(static p => p.Record.Name).ToList();
             sb.Append($"\nProjects on {server.Key}: ");
-            int shown = Math.Min(names.Count, MaxContextProjects);
+            int shown = Math.Min(names.Count, MAX_CONTEXT_PROJECTS);
             sb.Append(string.Join(", ", names.Take(shown)));
             if (names.Count > shown)
             {

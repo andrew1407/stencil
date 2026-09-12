@@ -1,21 +1,21 @@
-// Load src/lib/accent.js — a CLASSIC <script> IIFE, not an ES module — into a fabricated
+// Load the extension's pre-paint CLASSIC <script> set — not ES modules — into a fabricated
 // page scope so its behaviour can be asserted from Node.
 //
-// The file can't be imported: MV3 forbids inline page scripts, so accent.js is loaded as a
-// plain <script> in each extension page's <head> and publishes itself on `window`. It also
-// runs its work at load time (that is the point — the accent must be on <html> before first
-// paint), so "load it" and "exercise it" are the same act. This module builds just enough
+// The files can't be imported: MV3 forbids inline page scripts, so they are loaded as plain
+// <script>s in each extension page's <head> and publish themselves on `window`. They also
+// run their work at load time (that is the point — the accent must be on <html> before first
+// paint), so "load them" and "exercise them" are the same act. This module builds just enough
 // of a page — documentElement, a <link rel="icon">, localStorage, chrome.storage, matchMedia
-// and the storage event — to run it honestly, and hands back the levers a test needs.
+// and the storage event — to run them honestly, and hands back the levers a test needs.
+// The order below is the one every host page's <head> uses (see src/lib/accent.js).
 
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const SRC = readFileSync(
-  fileURLToPath(new URL('../../src/lib/accent.js', import.meta.url)),
-  'utf8',
-);
+const SRC = ['prefs.js', 'swapGeometry.js', 'dustGrains.js', 'dustWake.js', 'themeSwap.js',
+  'accent.js', 'shellPrefs.js']
+  .map((f) => readFileSync(fileURLToPath(new URL(`../../src/lib/${f}`, import.meta.url)), 'utf8')).join('\n');
 
 /**
  * Run accent.js against a fresh stub page.
@@ -201,7 +201,7 @@ export const loadAccent = ({
   sandbox.Float32Array = Float32Array;
   sandbox.Int32Array = Int32Array;
   // What dustPaint reads for the wake's colours — the page's palette vars, as they stand
-  // BEFORE the swap applies (the values below stand in for lib/theme.css's light set).
+  // BEFORE the swap applies (the values below stand in for lib/theme/palette.css's light set).
   sandbox.getComputedStyle = () => ({
     getPropertyValue: (name) =>
       ({ '--bg': '#f4f5f7', '--text': '#1d2230', '--accent': '#7c3aed' }[name] || ''),

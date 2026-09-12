@@ -1,0 +1,557 @@
+{
+  "name": "popup-row-menu",
+  "root": "#action-menu",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "div",
+      "classes": "action-menu",
+      "style": {
+        "display": "block",
+        "position": "fixed",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "8px",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "padding": "4px",
+        "width": "168px",
+        "height": "193px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "box-shadow": "rgba(0, 0, 0, 0.55) 0px 10px 30px 0px",
+        "z-index": "20"
+      }
+    },
+    {
+      "path": ":root/button[1]",
+      "tag": "button",
+      "classes": "",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "6px",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "padding": "7px 9px",
+        "gap": "8px",
+        "width": "158px",
+        "height": "29px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[1]/span[1]",
+      "tag": "span",
+      "classes": "ic",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-download",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[2]",
+      "tag": "button",
+      "classes": "",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "6px",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "padding": "7px 9px",
+        "gap": "8px",
+        "width": "158px",
+        "height": "29px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[2]/span[1]",
+      "tag": "span",
+      "classes": "ic",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[2]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-external",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]",
+      "tag": "div",
+      "classes": "sep",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(212, 216, 226)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "margin": "4px 2px",
+        "width": "154px",
+        "height": "1px"
+      }
+    },
+    {
+      "path": ":root/div[2]",
+      "tag": "div",
+      "classes": "submenu",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "width": "158px",
+        "height": "29px"
+      }
+    },
+    {
+      "path": ":root/div[2]/button[1]",
+      "tag": "button",
+      "classes": "submenu-head",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "6px",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "padding": "7px 9px",
+        "gap": "8px",
+        "width": "158px",
+        "height": "29px",
+        "text-align": "left",
+        "justify-content": "space-between",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "ic",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/button[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-pencil",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "submenu-label",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "92px",
+        "height": "14.5px",
+        "text-align": "left"
+      },
+      "text": "Open"
+    },
+    {
+      "path": ":root/div[2]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "caret",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "14.5px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[2]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-right",
+      "style": {
+        "display": "inline-flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "12px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[3]",
+      "tag": "button",
+      "classes": "",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "6px",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "padding": "7px 9px",
+        "gap": "8px",
+        "width": "158px",
+        "height": "29px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[3]/span[1]",
+      "tag": "span",
+      "classes": "ic",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[3]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-crop",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[3]",
+      "tag": "div",
+      "classes": "submenu",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "width": "158px",
+        "height": "29px"
+      }
+    },
+    {
+      "path": ":root/div[3]/button[1]",
+      "tag": "button",
+      "classes": "submenu-head",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "6px",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "padding": "7px 9px",
+        "gap": "8px",
+        "width": "158px",
+        "height": "29px",
+        "text-align": "left",
+        "justify-content": "space-between",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[3]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "ic",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[3]/button[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-external",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[3]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "submenu-label",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "92px",
+        "height": "14.5px",
+        "text-align": "left"
+      },
+      "text": "Open in…"
+    },
+    {
+      "path": ":root/div[3]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "caret",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "14.5px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[3]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-right",
+      "style": {
+        "display": "inline-flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "12px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[4]",
+      "tag": "div",
+      "classes": "submenu",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "13px",
+        "font-family": "system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+        "width": "158px",
+        "height": "29px"
+      }
+    },
+    {
+      "path": ":root/div[4]/button[1]",
+      "tag": "button",
+      "classes": "submenu-head",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "6px",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "padding": "7px 9px",
+        "gap": "8px",
+        "width": "158px",
+        "height": "29px",
+        "text-align": "left",
+        "justify-content": "space-between",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[4]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "ic",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[4]/button[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-pin",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "15px",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[4]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "submenu-label",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "92px",
+        "height": "14.5px",
+        "text-align": "left"
+      },
+      "text": "Pin"
+    },
+    {
+      "path": ":root/div[4]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "caret",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "14.5px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[4]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-right",
+      "style": {
+        "display": "inline-flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12.5px",
+        "font-family": "Arial",
+        "width": "16px",
+        "height": "12px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    }
+  ]
+}

@@ -1,32 +1,23 @@
-// ── Voice dust + ray ring ────────────────────────────────────────────────────
-// While a mic listens, motes leave its tile in step with the voice — the spawn rate goes
-// as the level SQUARED, so room hum stays quiet and a raised voice reads at once. Each is
-// born on the tile's edge, drifts outward slowing and fading, in its own tint from the
-// theme's ink → accent range (the window dust's palette idea, motion.js surfacePaint).
-// The RAY RING shares the canvas: 24 hairlines from the centre, turning once per 8s and
-// breathing on the logo's 1.2s beat, reaching further with the voice.
-//
-// ONE canvas per wearer, fixed over the tile with a margin (a div-a-mote cloud does not
-// scale past a few hundred motes), and the tile's rounded rectangle is punched out of
-// every frame so ring and motes pass BEHIND the icon. The rAF loop runs only while the
-// tile listens or motes are still in flight — idle costs nothing.
-//
-// No voice plumbing of its own: the level is the `--voice-level` <html> variable the
-// toolbar toggle already keeps at ~60 Hz (ui/toolbar.js), and "listening" is the wearer's
-// own class (.active / .chat-voice-listening), watched with a MutationObserver. The pure
-// parts (spawn count, birth, step) are exported for node tests; the DOM side is guarded.
+// Voice dust + ray ring: while a mic listens, motes leave its tile and 24 spokes turn and
+// breathe with the level — spawn rate scales as level SQUARED, so room hum stays quiet.
+// One canvas per wearer (a div-per-mote cloud does not scale), punched out under the
+// tile's own rounded rect so both pass behind the icon; the rAF loop runs only while the
+// tile listens or motes are still in flight. Level: the `--voice-level` <html> variable
+// (ui/toolbar.js, ~60Hz); "listening" is the wearer's own class, watched with a
+// MutationObserver. Pure parts (spawn, birth, step) are exported for node tests; the DOM
+// side is guarded.
 import { dustEnabled } from './motion.js';
 
 export const DUST_MARGIN = 56;            // canvas room around the tile, px
-export const DUST_MAX_LIVE = 540;         // motes alive at once, whatever the shouting
+const DUST_MAX_LIVE = 540;         // motes alive at once, whatever the shouting
 export const DUST_SILENCE = 0.06;         // below this level nothing is born
-export const DUST_LIFE_MS = [420, 900];   // a mote's life, min..max
+export const DUST_LIFE_MS = Object.freeze([420, 900]);   // a mote's life, min..max
 export const DUST_RATE = 48;              // motes per frame at full level
 export const DUST_TINTS = 6;              // palette stops, ink → accent
 export const RING_SPOKES = 24;
 export const RING_SPIN_MS = 8000;         // one revolution (the logo's logoRaysSpin clock)
 export const RING_BEAT_MS = 1200;         // the shimmer beat (logoPulse's)
-export const RING_WIDTH = 1.2;            // hairline, px
+const RING_WIDTH = 1.2;            // hairline, px
 // How far the spokes reach from the tile's centre: past its corners, further with the voice.
 export const ringRadius = (w, h, level) => Math.hypot(w / 2, h / 2) + 8 + 14 * level;
 // The ring's opacity at time t: 0.35 ↔ 0.6 on the beat.
@@ -72,9 +63,8 @@ export const edgePoint = (w, h, angle) => {
 };
 
 // A mote born on the edge of a w×h tile centred at (0,0): a uniformly random direction
-// all the way round, born where that ray leaves the tile and flying on along it with a
-// little angular jitter — so the corners fill as evenly as the sides (side-normal flight
-// left the diagonals empty and drew a cross; user report). Louder = faster, a bit larger.
+// all the way round, flying on along that ray with a little angular jitter, so the
+// corners fill as evenly as the sides. Louder = faster, a bit larger.
 export const newMote = (w, h, level, rnd = Math.random) => {
   const angle = rnd() * 2 * Math.PI;
   const { x, y } = edgePoint(w, h, angle);
@@ -127,9 +117,8 @@ const themePalette = () => {
 };
 
 // The canvas must paint ABOVE the wearer's own layer: the chat panel and the context
-// menu's flyout are stacked far over the page, and a body-level canvas at a small
-// z-index simply vanished under them (user report: the composer mic showed no ring or
-// dust). One above the highest z-index on the wearer's ancestor chain, never below 5.
+// menu's flyout are stacked far over the page, so a body-level canvas needs a z-index one
+// above the highest on the wearer's ancestor chain, never below 5.
 export const layerAbove = (el, get = (typeof getComputedStyle === 'function' ? getComputedStyle : null)) => {
   let z = 4;
   for (let node = el; node && node.nodeType === 1 && get; node = node.parentElement) {
@@ -225,9 +214,8 @@ export const attachVoiceDust = (el, isOn) => {
       ctx.globalAlpha = 1;
     }
     // Behind the tile, and ONLY the tile: its rounded rectangle is cleared out of the frame
-    // so ring and motes pass under the icon — while the neighbouring controls (the chat
-    // button, the composer's "…") stay under the cloud, as the canvas rides above the bar
-    // (user report: the effects must not hide behind the neighbours).
+    // so ring and motes pass under the icon, while neighbouring controls stay under the
+    // cloud, since the canvas rides above the whole bar.
     const rad = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();

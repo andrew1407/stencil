@@ -1,0 +1,72 @@
+/* ── App container reveal on first paint ────────────────────────────── */
+.container {
+    animation: appReveal 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ── Smooth scrolling — content panels only (never the canvas viewport) ─ */
+.settings-body,
+#fs-points-panel,
+.coordinates-panel,
+.app-modal {
+    scroll-behavior: smooth;
+}
+
+/* ── Buttons: richer hover/press feedback ───────────────────────────── */
+/* layout/shell.css gives buttons a background transition; widen it to also cover a
+   subtle lift + shadow. Disabled buttons and the canvas are untouched. */
+button {
+    transition: background 0.25s ease, color 0.2s ease,
+                transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+/* The chat "…" trigger opts out: its hover is an ACCENT glow (components/projects.css),
+   and this rule's specificity would bury it under the plain dark shadow. */
+button:not(:disabled):not(.active):not(.chat-row-menu-btn):hover {
+    box-shadow: 0 3px 10px var(--shadow);
+    transform: translateY(-1px);
+}
+button:not(:disabled):active {
+    transform: translateY(1px) scale(0.99);
+    box-shadow: none;
+}
+/* Primary action buttons get a faint sheen sweep on hover. Scoped to the
+   accent-coloured controls/toolbar buttons so icon/ghost buttons (theme toggle,
+   settings gear, close ✕) stay flat — and #blank-color-btn, a flat info-coloured chip
+   that paints its own ground (layout/shell.css), carries no sheen to sweep. */
+.controls button:not(#toggle-controls):not(#incognito-toggle):not(#fullscreen-toggle):not(#blank-color-btn):not(:disabled) {
+    background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
+    background-size: 220% 100%;
+    background-repeat: no-repeat;
+    background-position: 200% 0;
+}
+.controls button:not(#toggle-controls):not(#incognito-toggle):not(#fullscreen-toggle):not(:disabled):hover {
+    animation: shimmerSweep 0.7s ease;
+}
+
+/* ── Toggle face swap (js/ui/motion.js swapContent) ──────────────────────────
+   A toggle that rewrites itself in place — Start↔Stop, Line↔Rect — turns its new glyph
+   in while the new word rises, and the outgoing face leaves as a ghost stacked exactly
+   on top of it. The ghost is ABSOLUTE (and the host relative only while swapping), so
+   the pinned button width holds and nothing in the row moves mid-animation. */
+@keyframes swapGlyphIn { from { opacity: 0; transform: rotate(-115deg) scale(0.55); } to { opacity: 1; transform: none; } }
+@keyframes swapLabelIn { from { opacity: 0; transform: translateY(0.55em) scale(0.92); } to { opacity: 1; transform: none; } }
+@keyframes swapFaceOut { from { opacity: 0.9; transform: none; } to { opacity: 0; transform: translateY(-0.5em) scale(0.86); } }
+.swapping { position: relative; }
+.swapping > svg { animation: swapGlyphIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.swapping > span:not(.swap-ghost) { animation: swapLabelIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.swap-ghost {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    pointer-events: none;   /* the live face underneath keeps every click */
+    animation: swapFaceOut 0.22s ease-in both;
+}
+/* Reduced motion: swapContent skips the ghost entirely; this covers a preference
+   flipped mid-swap — the new face is already in place, so nothing is lost. */
+@media (prefers-reduced-motion: reduce) {
+    .swapping > svg, .swapping > span:not(.swap-ghost) { animation: none; }
+    .swap-ghost { display: none; animation: none; }
+}

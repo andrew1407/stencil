@@ -1,20 +1,17 @@
-// ── Pure .stencil project-file (de)serializer ───────────────────────────────
-// Pure/DOM-free (Node-testable) JSON bundle of a whole project (ORIGINAL image + export
-// layout + metadata + optional theme); reuses layout.js buildLayoutPayload + sanitizeLines.
+// Pure .stencil project-file (de)serializer: ORIGINAL image + export layout + metadata +
+// optional theme.
 import { buildLayoutPayload, sanitizeLines } from './layout.js';
 import { normalizeHex, isAccent } from './accents.js';
 
 export const STENCIL_FILE_FORMAT = 'stencil-project';
 export const STENCIL_FILE_VERSION = 1;
 
-// Size cap (chars ≈ bytes: the format is ASCII-dominant JSON+base64) checked before
-// JSON.parse — matches the server's 32 MiB MaxBodyBytes, the most a project may be.
+// chars ≈ bytes (ASCII-dominant JSON+base64); matches the server's 32 MiB MaxBodyBytes.
 export const MAX_PROJECT_FILE_CHARS = 32 * 1024 * 1024;
 
 const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
-// Validate the embedded image block: { dataUrl (a `data:` URL), ext, w, h }. Returns
-// a sanitized copy or null. The `data:` check mirrors deepLink.normalizeLaunchPayload.
+// { dataUrl (a `data:` URL), ext, w, h } → sanitized copy or null. Mirrors deepLink.normalizeLaunchPayload.
 const sanitizeImage = (img) => {
   if (!isPlainObject(img)) return null;
   if (typeof img.dataUrl !== 'string' || !/^data:/i.test(img.dataUrl.trim())) return null;
@@ -28,8 +25,7 @@ const sanitizeImage = (img) => {
   return out;
 };
 
-// Validate an optional theme block → { mode?('light'|'dark'), accent?(preset key or #rrggbb) }
-// or null when neither is valid (so a themeless file never carries an empty {} reading as "has theme").
+// → { mode?, accent? } or null, so a themeless file never carries an empty {} reading as "has theme".
 const sanitizeTheme = (t) => {
   if (!isPlainObject(t)) return null;
   const out = {};
@@ -46,8 +42,7 @@ const cleanKeywords = (kw) => Array.isArray(kw)
   ? kw.filter((k) => typeof k === 'string' && k.trim()).map((k) => k.trim())
   : [];
 
-// Build the .stencil document (plain object) from editor `state` (name, color, keywords[],
-// source, resource, blank[Color], image{dataUrl,ext,w,h}, layout, theme); empty fields omitted.
+// `state`: name, color, keywords[], source, resource, blank[Color], image, layout, theme.
 export const buildProjectFile = (state = {}) => {
   const doc = {
     format: STENCIL_FILE_FORMAT,
@@ -67,19 +62,16 @@ export const buildProjectFile = (state = {}) => {
   }
   const image = sanitizeImage(state.image);
   if (image) doc.image = image;
-  // Re-project through buildLayoutPayload so the byte shape matches the server/download
-  // layout exactly (idempotent when the caller already passed an export payload).
+// Through buildLayoutPayload so the byte shape matches the server/download layout exactly.
   doc.layout = buildLayoutPayload(isPlainObject(state.layout) ? state.layout : {});
   const theme = sanitizeTheme(state.theme);
   if (theme) doc.theme = theme;
   return doc;
 };
 
-// Serialize editor state to a pretty-printed .stencil JSON string.
 export const serializeProjectFile = (state) => JSON.stringify(buildProjectFile(state), null, 2);
 
-// Parse + validate a .stencil document (JSON text or parsed object) → { ok:true, project } or
-// { ok:false, error }; `project` is the normalized, hardened shape for DrawingApp.applyProjectFile.
+// → { ok:true, project } (the hardened shape for DrawingApp.applyProjectFile) or { ok:false, error }.
 export const parseProjectFile = (input) => {
   if (typeof input === 'string' && input.length > MAX_PROJECT_FILE_CHARS) {
     return { ok: false, error: 'Project file is too large (over 32 MiB).' };

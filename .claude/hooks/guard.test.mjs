@@ -71,6 +71,32 @@ test('medium-risk commands soft-ask', () => {
   assert.equal(bash('git checkout -- browser/js/index.js').decision, 'ask');
 });
 
+test('history-rewriting / work-discarding git commands soft-ask', () => {
+  const forced = bash('git push --force origin main');
+  assert.equal(forced.decision, 'ask');
+  assert.match(forced.reason, /rewrites remote history/);
+  assert.equal(bash('git push --force-with-lease origin main').decision, 'ask');
+  assert.equal(bash('git push -f origin main').decision, 'ask');
+  assert.equal(bash('git branch -D refactor/phase0-1').decision, 'ask');
+  assert.equal(bash('git stash drop').decision, 'ask');
+  assert.equal(bash('git stash clear').decision, 'ask');
+  // narrower forms that don't lose work stay allowed
+  assert.equal(bash('git branch -d merged-branch').decision, 'allow');
+  assert.equal(bash('git branch --list').decision, 'allow');
+  assert.equal(bash('git stash list').decision, 'allow');
+  assert.equal(bash('git stash push -m wip').decision, 'allow');
+});
+
+test('docker volume destruction soft-asks; plain compose commands allowed', () => {
+  assert.equal(bash('docker compose down -v').decision, 'ask');
+  assert.equal(bash('docker compose -f e2e/docker-compose.yml down --volumes').decision, 'ask');
+  assert.equal(bash('docker-compose down -v').decision, 'ask');
+  assert.equal(bash('docker volume rm stencil_pgdata').decision, 'ask');
+  assert.equal(bash('docker compose down').decision, 'allow');
+  assert.equal(bash('docker compose up -d').decision, 'allow');
+  assert.equal(bash('docker volume ls').decision, 'allow');
+});
+
 test('redirect outside the repo soft-asks; inside is allowed', () => {
   assert.equal(bash('echo hi > /etc/hosts').decision, 'ask');
   assert.equal(bash('echo hi > out.txt').decision, 'allow');

@@ -1,0 +1,57 @@
+/* ── A control group's own slot (js/ui/motion.js revealControls) ────────────
+   The f(x,y) fields and the custom page's W/H boxes open/close their slot in step with
+   the dust, so a neighbouring section slides instead of jumping. A transition, not
+   @keyframes, so it can't fight `.mark-forming`'s own `animation` for the same element. */
+.reveal-group-transition {
+    overflow: hidden;
+    /* --reveal-ease is set per direction by motion.js slideRevealSize: a group's slot
+       opens on easeOutCubic and closes on a gentle S. The app's usual (0.16, 1, .3, 1) is
+       ~half done in 30ms, which on a whole row read as the slot snapping open. */
+    transition: max-width var(--reveal-ms, 320ms) var(--reveal-ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+                max-height var(--reveal-ms, 320ms) var(--reveal-ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+@media (prefers-reduced-motion: reduce) {
+    .reveal-group-transition { transition: none; }
+}
+
+/* ── A selection BAR leaving (js/ui/motion.js revealBar) ─────────────────────
+   The strip sits directly above a list, so it may not blink out and drop everything
+   below it upward: the row underneath moved out from under the eye in one frame (user
+   report — the pinned "Temporary (unsaved)" row jumped when Select all left). It is
+   HELD at its measured height first (its controls fly out inside it, and the last one
+   being hidden would otherwise collapse the strip before any slide began), then its
+   whole footprint closes together — height, padding and the divider under it, or
+   whatever is left of them drops the list at the end anyway. */
+.bar-held { height: var(--bar-h); max-height: var(--bar-h); overflow: hidden; }
+.bar-held.bar-closing {
+    height: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0;
+    /* The gentle S a group's slot closes on (motion.js REVEAL_EASE_OUT). */
+    transition: height var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9),
+                max-height var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9),
+                padding-top var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9),
+                padding-bottom var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9),
+                border-bottom-width var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9);
+}
+@media (prefers-reduced-motion: reduce) {
+    .bar-held.bar-closing { transition: none; }
+}
+
+/* ── Filtering (js/ui/motion.js createFilterAnimator) ────────────────────────
+   A filter is a QUESTION being re-answered, not a removal. What no longer matches was
+   never destroyed, so it does not play OUT at all — it is gone the moment the list
+   rebuilds, and there is deliberately no exit rule here to bring back. The whole effect
+   belongs to the rows that are LEFT: they arrive, as the new answer.
+   Each one waits at zero while its motes gather (motion.js filterDust) and comes up
+   behind them, on a clock slow enough to actually read and a fraction of a deletion's
+   throw, under one mesh budget shared by every row the change moves. Opacity + transform
+   only — no height animation: a listed row is already laid out at its natural size. */
+.filter-entering {
+    animation: rowFilterIn 0.34s cubic-bezier(0, 0, 0.6, 1) both;
+}
+@keyframes rowFilterIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .filter-entering { animation: none; }
+}

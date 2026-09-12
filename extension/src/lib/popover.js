@@ -1,18 +1,12 @@
 // ── Popover placement (panel dialogs) ───────────────────────────────────────
-// Where an anchored panel dialog sits relative to the control that opened it: below the
-// anchor with left edges aligned, flipped above when the bottom would overflow, clamped
-// inside the viewport on both axes. This is a PORT of browser/js/ui/popover.js
-// popoverPosition (the extension can't import from browser/, a separate subproject) —
-// keep the two rule-for-rule; tests/popover.test.js carries the browser suite's
-// placement cases so they can't drift apart.
+// Below the anchor with left edges aligned, flipped above when the bottom would
+// overflow, clamped inside the viewport on both axes. Port of browser/js/ui/popover.js
+// popoverPosition — keep the two rule-for-rule (tests/popover.test.js carries the
+// browser suite's placement cases).
 
 /**
- * @param {object} args
- * @param {{left:number, top:number, bottom:number}} args.anchor - The trigger's rect.
- * @param {{width:number, height:number}} args.box - The dialog's measured size.
- * @param {{width:number, height:number}} args.viewport - The panel window's size.
- * @param {number} [args.gap=8] - Space between the anchor and the box.
- * @param {number} [args.margin=8] - Minimum distance to every viewport edge.
+ * @param {object} args - `{anchor, box, viewport}` rects; `gap` is the anchor↔box space,
+ *   `margin` the minimum distance to every viewport edge.
  * @returns {{left:number, top:number}} The box's fixed position.
  */
 export const popoverPosition = ({ anchor, box, viewport, gap = 8, margin = 8 }) => {

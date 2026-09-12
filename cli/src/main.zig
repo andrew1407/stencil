@@ -9,6 +9,7 @@ const project = @import("project.zig");
 const project_cli = @import("project_cli.zig");
 const llm = @import("llm.zig");
 const logo = @import("logo.zig");
+const child = @import("child.zig");
 
 pub fn main(init: std.process.Init) !void {
     // Colour off when NO_COLOR is set; the severity prefixes also need stderr (the human
@@ -17,6 +18,8 @@ pub fn main(init: std.process.Init) !void {
         init.environ_map.getPtr("NO_COLOR") != null,
         std.Io.File.stderr().isTty(init.io) catch false,
     );
+    // Children (ffmpeg, clipboard helpers) must not inherit the user's LLM key.
+    child.captureEnv(init.environ_map);
     const gpa = init.gpa;
     const io = init.io;
     const arena = init.arena.allocator();
@@ -24,46 +27,29 @@ pub fn main(init: std.process.Init) !void {
     const argv = try init.minimal.args.toSlice(arena);
     const cli_args = argv[1..];
 
-    const opts = args.parse(gpa, cli_args) catch {
+    const opts = args.parse(cli_args) catch {
         logo.banner();
         logo.usage();
         std.process.exit(2);
     };
 
-    if (opts.help or cli_args.len == 0) {
-        logo.banner();
-        logo.usage();
-        return;
-    }
-
-    if (opts.console) {
+    switch (args.modeOf(opts, cli_args.len, project.isStencilPath)) {
+        .usage => {
+            logo.banner();
+            logo.usage();
+            return;
+        },
         // The console's /prompt + /llm commands seed their provider config from the
         // STENCIL_LLM_* environment (llm-contract.md §5).
-        console.run(gpa, io, opts.console_full_screen, llm.Env.fromMap(init.environ_map)) catch {
-            std.process.exit(1);
-        };
-        return;
-    }
-
-    // Scrape mode: --source-site fetches a page, extracts + filters media, and downloads the
-    // matches into <output> (a directory). It ignores the editing/connection flags.
-    if (opts.source_site != null) {
-        scrape.run(gpa, io, opts) catch {
-            // scrape.run prints a human-readable reason before failing.
-            std.process.exit(1);
-        };
-        return;
-    }
-
-    // A `.stencil` project on either side reuses the console Session so its layout renders like the editors; server mode stays on the raster pipeline.
-    if (opts.server == null and
-        ((opts.input != null and project.isStencilPath(opts.input.?)) or
-            (opts.output != null and project.isStencilPath(opts.output.?))))
-    {
-        project_cli.runOneShot(gpa, io, opts) catch {
-            std.process.exit(1);
-        };
-        return;
+        .console => |c| return console.run(gpa, io, c.full_screen, llm.Env.fromMap(init.environ_map)) catch
+            std.process.exit(1),
+        // Scrape mode: --source-site fetches a page, extracts + filters media, and downloads
+        // the matches into <output> (a directory). scrape.run prints its own reason.
+        .scrape => return scrape.run(gpa, io, opts) catch std.process.exit(1),
+        // A `.stencil` project on either side reuses the console Session so its layout renders
+        // like the editors; server mode stays on the raster pipeline.
+        .project => return project_cli.runOneShot(gpa, io, opts) catch std.process.exit(1),
+        .pipeline => {},
     }
 
     pipeline.run(gpa, io, opts) catch {
@@ -91,4 +77,15 @@ test {
     _ = @import("theme.zig");
     _ = @import("line_edit.zig");
     _ = @import("clipboard.zig");
+    _ = @import("child.zig");
+    _ = @import("confine.zig");
+    _ = @import("sanitize.zig");
+    _ = @import("page.zig");
+    _ = @import("brand.zig");
+    _ = @import("host.zig");
+    _ = @import("messages.zig");
+    _ = @import("mediaTypes.zig");
+    _ = @import("fetchPool.zig");
+    _ = @import("imageRows.zig");
+    _ = @import("report.zig");
 }

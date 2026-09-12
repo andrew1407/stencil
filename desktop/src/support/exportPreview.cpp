@@ -14,27 +14,21 @@
 #include <QWidget>
 #include <algorithm>
 
-#include "disintegrateOverlay.hpp"
-#include "modalReveal.hpp"   // support::motionReduced()
-#include "tipContent.hpp"    // gui::currentPalette() — the theme the tip is painted in
+#include "DisintegrateOverlay.hpp"
+#include "modalReveal.hpp"
+#include "tipContent.hpp"
 
 namespace stencil::support {
 
   namespace {
-    constexpr int kPreviewMax = 220;  // px, longest edge of the rendered thumbnail
-    // ── The preview is sand too (browser js/ui/exportPreview.js) ────────────────
-    // It forms from motes streaming out of the row it previews and comes apart into
-    // motes pouring back into it, on the shared tip clock (disintegrateOverlay.hpp):
-    // short, so a flight is over before an Alt-hover sweep reaches the next row.
+    constexpr int PREVIEW_MAX = 220;  // px, longest edge of the rendered thumbnail
+    // The preview is sand too (browser js/ui/exportPreview.js), on the shared tip clock.
 
-    // Lazily built, reused across shows — same idea as canvasTooltip.cpp's floating
-    // readout: a tooltip-flagged frameless window that never steals focus/clicks.
     QWidget* tipWindow() {
       static QWidget* w = nullptr;
       if (!w) {
         // WindowTransparentForInput, not just the widget attribute: a native top-level
-        // stays input-OPAQUE to the OS without it, and a tip clamped under the pointer
-        // then eats the hover (the projects-dialog preview's churn bug, same fix).
+        // stays input-OPAQUE to the OS without it and eats the hover under the pointer.
         w = new QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint |
                                      Qt::WindowTransparentForInput |
                                      Qt::WindowDoesNotAcceptFocus);
@@ -52,9 +46,8 @@ namespace stencil::support {
 
     QPointer<QWidget> lastOwner;
     QRect lastOwnerRect;
-    bool tipClosing = false;   // the fade below is running towards hide()
+    bool tipClosing = false;
 
-    // The tip's windowOpacity ramp — in behind the gather, out behind the leave.
     QVariantAnimation* tipFade() {
       static QVariantAnimation* a = nullptr;
       if (!a) {
@@ -70,13 +63,8 @@ namespace stencil::support {
       return a;
     }
 
-    // The layer the flight is drawn in. The OWNER (a QMenu popup) is its own tiny
-    // top-level window — a child overlay there was clipped to the menu's rect, and
-    // the journey to the tip (floating beside the cursor, mostly OFF the menu) was
-    // simply cropped away (user report: the animation was nearly invisible). The
-    // chain's real window, under every popup, hosts it instead; a top-level layer
-    // stays off the table — it steals the menu's platform grab (see the escapeHost
-    // note in dust()).
+    // The menu chain's real window hosts the flight: a layer inside the popup is
+    // clipped to the menu's rect, and a top-level one steals the menu's platform grab.
     QWidget* dustHost(QWidget* owner) {
       QWidget* w = owner;
       while (auto* m = qobject_cast<QMenu*>(w)) w = m->parentWidget();
@@ -84,19 +72,16 @@ namespace stencil::support {
       return owner ? owner->window() : nullptr;
     }
 
-    // Fly the preview's own motes out of — or back into — the row it belongs to,
-    // or into `overrideGlobal` when the trigger was a KEY, not the pointer (Alt
-    // pressed/released = the flight belongs to the cursor, not the row).
+    // `overrideGlobal`: an Alt press/release flies from the cursor, not the row.
     bool dust(QWidget* owner, const QRect& ownerRect, bool gather,
               const QPoint& overrideGlobal = QPoint()) {
       if (!owner || !owner->isVisible() || !ownerRect.isValid()) return false;
       const QPoint origin =
           overrideGlobal.isNull() ? owner->mapToGlobal(ownerRect.center()) : overrideGlobal;
-      // NOT escapeHost — `host` is the OPEN, Alt-hovered menu itself, still holding the
-      // platform grab (this fires mid-hover): an escape layer's second top-level window
-      // steals that grab and closes the menu the instant Alt is pressed.
+      // NOT escapeHost: a second top-level window steals the open menu's platform grab
+      // and closes it the instant Alt is pressed.
       return gui::flyTipDust(tipWindow(), dustHost(owner), origin, gather,
-                             gather ? gui::kTipDustInMs : gui::kTipDustOutMs,
+                             gather ? gui::TIP_DUST_IN_MS : gui::TIP_DUST_OUT_MS,
                              /*escapeHost=*/false, /*paintNow=*/!gather)
              != nullptr;
     }
@@ -109,22 +94,18 @@ namespace stencil::support {
       return;
     }
     QWidget* w = tipWindow();
-    // The theme's own card (--bg-container over --border-main), read at every show so a
-    // theme swap between two hovers repaints it.
+    // Read at every show so a theme swap between two hovers repaints it.
     const gui::Palette pal = gui::currentPalette();
     w->setStyleSheet(QStringLiteral("#exportPreviewTip { background:%1; border:1px solid %2; "
                                     "border-radius:8px; }")
                          .arg(pal.bgContainer.name(), pal.borderMain.name()));
-    // An APPEARANCE is a FRESH show only: hover-out hides the preview (AltPreviewFilter's
-    // MouseMove check), so landing on another row arrives here hidden and gathers anew;
-    // a re-show that never left its row (per-move QMenu::hovered re-fires) glides.
+    // A re-show that never left its row (per-move QMenu::hovered re-fires) glides.
     const bool appearing = !w->isVisible() || tipClosing;
-    // Same-row re-fire: the pixmap is already up — skip the convert/scale/relayout.
     const bool sameRow = !appearing && owner == lastOwner && ownerRect == lastOwnerRect;
     if (!sameRow) {
       auto* label = w->findChild<QLabel*>("exportPreviewLabel");
       label->setPixmap(QPixmap::fromImage(image).scaled(
-          kPreviewMax, kPreviewMax, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+          PREVIEW_MAX, PREVIEW_MAX, Qt::KeepAspectRatio, Qt::SmoothTransformation));
       w->adjustSize();
     }
 
@@ -145,20 +126,18 @@ namespace stencil::support {
     auto* fade = tipFade();
     fade->stop();
     fade->setKeyValues({});
-    if (support::motionReduced()) {  // the end state, at once
+    if (support::motionReduced()) {
       w->setWindowOpacity(1.0);
       w->show();
       return;
     }
-    // The tip waits behind its own gathering motes and fades up as the last of them
-    // land — shown at once, it covered the very flight that forms it (user report).
     w->setWindowOpacity(0.0);
     w->show();
     if (dust(owner, ownerRect, /*gather=*/true, dustFromGlobal)) {
-      gui::holdFadeKeys(fade, gui::kTipDustInMs);
+      gui::holdFadeKeys(fade, gui::TIP_DUST_IN_MS);
       fade->start();
     } else {
-      w->setWindowOpacity(1.0);   // no flight to wait behind
+      w->setWindowOpacity(1.0);
     }
   }
 
@@ -166,9 +145,7 @@ namespace stencil::support {
     QWidget* w = tipWindow();
     if (tipClosing) return;
     if (!w->isVisible()) { lastOwner.clear(); lastOwnerRect = QRect(); return; }
-    // Photographed and dusted while the row is still known — the cloud is what the
-    // preview leaves behind; the tip itself fades out BEHIND the leaving motes over
-    // one beat instead of blinking off under them.
+    // Dusted while the row is still known.
     const bool dusted =
         !support::motionReduced() && dust(lastOwner.data(), lastOwnerRect, /*gather=*/false, dustToGlobal);
     lastOwner.clear();
@@ -181,7 +158,7 @@ namespace stencil::support {
       return;
     }
     tipClosing = true;
-    fade->setDuration(gui::kDustHandOverMs);
+    fade->setDuration(gui::DUST_HAND_OVER_MS);
     fade->setStartValue(w->windowOpacity());
     fade->setEndValue(0.0);
     fade->start();

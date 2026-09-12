@@ -1,62 +1,45 @@
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>The calendar unit of a parsed expiry duration.</summary>
 public enum DurationUnit
 {
-    Day,
-    Week,
-    Month,
+    DAY,
+    WEEK,
+    MONTH,
 }
 
-/// <summary>
-/// A parsed expiry duration — a positive <see cref="Count"/> of a <see cref="DurationUnit"/>.
-/// Resolved against a base instant so months are calendar months (not a fixed 30 days).
-/// </summary>
+// Resolved against a base instant so months are calendar months (not a fixed 30 days).
 public sealed record ParsedDuration(DurationUnit Unit, int Count)
 {
-    /// <summary>The absolute instant this duration lands on, measured from <paramref name="baseTime"/>.</summary>
     public DateTimeOffset From(DateTimeOffset baseTime) => Unit switch
     {
-        DurationUnit.Day => baseTime.AddDays(Count),
-        DurationUnit.Week => baseTime.AddDays(7L * Count),
-        DurationUnit.Month => baseTime.AddMonths(Count),
+        DurationUnit.DAY => baseTime.AddDays(Count),
+        DurationUnit.WEEK => baseTime.AddDays(7L * Count),
+        DurationUnit.MONTH => baseTime.AddMonths(Count),
         _ => baseTime,
     };
 
-    /// <summary>A human phrase like "3 days" / "1 week" / "2 months".</summary>
+    private static readonly Dictionary<DurationUnit, string> _unitNames = new()
+    {
+        [DurationUnit.DAY] = "day", [DurationUnit.WEEK] = "week", [DurationUnit.MONTH] = "month",
+    };
+
     public override string ToString()
     {
-        string unit = Unit switch
-        {
-            DurationUnit.Day => "day",
-            DurationUnit.Week => "week",
-            DurationUnit.Month => "month",
-            _ => "",
-        };
+        string unit = _unitNames.GetValueOrDefault(Unit, "");
         return $"{Count} {unit}{(Count == 1 ? "" : "s")}";
     }
 }
 
-/// <summary>
-/// Pure parser for the free-text expiry durations the <c>/expire</c> command accepts — a unit
-/// word (singular or plural, or a short form) with an optional count that may lead or trail it:
-/// "day", "days 3", "1 week", "week 4", "2 weeks", "fortnight", "3 months", "3d", "1mo". A set of
-/// keywords ("never", "forever", …) means "clear the expiry". No Telegram types — unit-testable,
-/// like <see cref="CommandParser"/> and <see cref="DrawArguments"/>.
-/// </summary>
+// A unit word (singular, plural or short form) with an optional count that may lead or trail it:
+// "day", "days 3", "1 week", "fortnight", "3d", "1mo"; "never"/"forever" mean "clear the expiry".
 public static class DurationParser
 {
-    /// <summary>Reject absurd counts (and keep well clear of <see cref="DateTimeOffset"/> overflow).</summary>
-    private const int MaxCount = 1000;
+    // Keeps well clear of DateTimeOffset overflow.
+    private const int _maxCount = 1000;
 
-    /// <summary>
-    /// Parse <paramref name="text"/>. Returns false when it isn't a recognised duration or clear
-    /// keyword. On success either <paramref name="clear"/> is true (drop the expiry, keep forever)
-    /// or <paramref name="duration"/> holds a positive unit+count.
-    /// </summary>
     public static bool TryParse(string? text, out ParsedDuration duration, out bool clear)
     {
-        duration = new ParsedDuration(DurationUnit.Day, 1);
+        duration = new ParsedDuration(DurationUnit.DAY, 1);
         clear = false;
         string s = (text ?? "").Trim().ToLowerInvariant();
         if (s.Length == 0)
@@ -68,14 +51,14 @@ public static class DurationParser
             clear = true;
             return true;
         }
-        string letters = FirstRun(s, char.IsLetter);
-        if (!TryMapUnit(letters, out DurationUnit unit, out int multiplier))
+        string letters = firstRun(s, char.IsLetter);
+        if (!tryMapUnit(letters, out DurationUnit unit, out int multiplier))
         {
             return false;
         }
-        string digits = FirstRun(s, char.IsDigit);
+        string digits = firstRun(s, char.IsDigit);
         int count = 1;
-        if (digits.Length != 0 && (!int.TryParse(digits, out count) || count <= 0 || count > MaxCount))
+        if (digits.Length != 0 && (!int.TryParse(digits, out count) || count <= 0 || count > _maxCount))
         {
             return false;
         }
@@ -83,33 +66,25 @@ public static class DurationParser
         return true;
     }
 
-    /// <summary>Map a unit word to its unit and a count multiplier (fortnight = 2 weeks).</summary>
-    private static bool TryMapUnit(string word, out DurationUnit unit, out int multiplier)
+    // fortnight = 2 weeks.
+    private static readonly Dictionary<string, (DurationUnit Unit, int Multiplier)> _units = new(StringComparer.Ordinal)
     {
-        multiplier = 1;
-        switch (word)
-        {
-            case "d" or "day" or "days":
-                unit = DurationUnit.Day;
-                return true;
-            case "w" or "wk" or "wks" or "week" or "weeks":
-                unit = DurationUnit.Week;
-                return true;
-            case "fortnight" or "fortnights":
-                unit = DurationUnit.Week;
-                multiplier = 2;
-                return true;
-            case "mo" or "mon" or "mth" or "mths" or "month" or "months":
-                unit = DurationUnit.Month;
-                return true;
-            default:
-                unit = DurationUnit.Day;
-                return false;
-        }
+        ["d"] = (DurationUnit.DAY, 1), ["day"] = (DurationUnit.DAY, 1), ["days"] = (DurationUnit.DAY, 1),
+        ["w"] = (DurationUnit.WEEK, 1), ["wk"] = (DurationUnit.WEEK, 1), ["wks"] = (DurationUnit.WEEK, 1),
+        ["week"] = (DurationUnit.WEEK, 1), ["weeks"] = (DurationUnit.WEEK, 1),
+        ["fortnight"] = (DurationUnit.WEEK, 2), ["fortnights"] = (DurationUnit.WEEK, 2),
+        ["mo"] = (DurationUnit.MONTH, 1), ["mon"] = (DurationUnit.MONTH, 1), ["mth"] = (DurationUnit.MONTH, 1),
+        ["mths"] = (DurationUnit.MONTH, 1), ["month"] = (DurationUnit.MONTH, 1), ["months"] = (DurationUnit.MONTH, 1),
+    };
+
+    private static bool tryMapUnit(string word, out DurationUnit unit, out int multiplier)
+    {
+        bool known = _units.TryGetValue(word, out (DurationUnit Unit, int Multiplier) mapped);
+        (unit, multiplier) = known ? mapped : (DurationUnit.DAY, 1);
+        return known;
     }
 
-    /// <summary>The first maximal run of characters matching <paramref name="pred"/>, or "".</summary>
-    private static string FirstRun(string s, Func<char, bool> pred)
+    private static string firstRun(string s, Func<char, bool> pred)
     {
         int start = -1;
         for (int i = 0; i < s.Length; i++)

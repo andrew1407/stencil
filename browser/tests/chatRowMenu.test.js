@@ -1,12 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { chatViewSource } from './helpers/chatViewSource.js';
+import { contextMenuSource } from './helpers/contextMenuSource.js';
 
-// ── The transcript row menu (chatView.js wireChatRowMenu) ───────────────────
-// Right-click on a settled chat message opens a small floating menu — Copy /
-// Insert into prompt, plus Resend on USER rows — shared by the
-// panel and the context-menu flyout (each passes its own composer hooks).
-// Driven here against the DOM-lite stub the other chatView tests use.
+// ── The transcript row menu (chatRowMenu.js wireChatRowMenu) ────────────────
+// Right-click on a settled chat message opens a small floating menu — Copy / Insert into
+// prompt, plus Resend on USER rows — shared by the panel and the context-menu flyout
+// (each passes its own composer hooks), driven here against the DOM-lite stub.
 
 // A minimal live DOM: parent/child tracking (contains/remove), listeners with
 // fire(), className/style/dataset — enough for the menu's build + delegation.
@@ -316,7 +318,7 @@ test('the opened menu carries the click-point transform-origin, and CSS pops it 
   assert.strictEqual(menu.style.transformOrigin, '120px 100px',
     'the origin is the click inside the flipped box — the menu grows out of the cursor');
   // The animation itself is CSS: the shared menuPop keyframe, reduced-motion aware.
-  const anims = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const anims = ANIMATIONS_CSS;
   assert.match(anims, /@keyframes menuPop \{ from \{ opacity: 0; transform: scale\(0\.62\); \}/);
   assert.match(anims, /\.chat-row-menu \{ animation: menuPop 0\.14s ease-out; \}/);
   assert.match(anims, /prefers-reduced-motion: reduce\) \{\s*#ctx-menu\.ctx-open, \.chat-row-menu \{ animation: none; \}/);
@@ -352,7 +354,7 @@ test('requeueRowAttachments refills an EMPTY queue only, capped, as analyze-imag
 // ── Both surfaces wire it, and the chrome matches the app's other row menus ──
 test('the panel and the flyout wire the SHARED row menu with insert + resend hooks', () => {
   const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
-  const menu = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const menu = contextMenuSource();
   for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
     assert.ok(src.includes('wireChatRowMenu(transcript, {'), `${name} wires the shared menu`);
     assert.ok(src.includes('onInsert: (text) => {'), `${name} passes its composer hook`);
@@ -360,11 +362,10 @@ test('the panel and the flyout wire the SHARED row menu with insert + resend hoo
     assert.ok(src.includes('runTurn(text).catch('), `${name}'s Resend rides the composer's own send path`);
   }
   // The renderer stamps rows with their log record — that is what the menu reads.
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.ok(view.includes('el._chatRow = row;'));
-  // Repaints must not tear a live selection out of an unchanged row — and the text
-  // they compare is the row's OWN text node, not the whole bubble (the configure CTA's
-  // label made that comparison mismatch forever, rebuilding the card every repaint).
+  // Repaints must not tear a live selection out of an unchanged row — and they compare
+  // the row's OWN text node, not the whole bubble (the CTA label mismatched forever).
   // …replaced only when the text changed — OR when the row is settling out of its
   // typing dots, which read as '' and so "match" an empty reply (the stuck spinner).
   assert.ok(view.includes('} else if (typing || textEl.textContent !== row.text) {'),
@@ -389,7 +390,7 @@ test('chatRowMenuButton: a trigger per settled row, on the corner facing the pan
   assert.strictEqual(chatRowMenuButton({ role: 'assistant', text: '…', pending: true }), null);
   assert.strictEqual(chatRowMenuButton(null), null);
   // renderChatLog appends it per repaint (a text rewrite wipes the row's children).
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.ok(view.includes("if (!el.querySelector('.chat-row-menu-btn'))"));
   assert.ok(view.includes('chatRowMenuButton(row)'));
 });
@@ -484,7 +485,7 @@ test('double-tap on a bubble opens the menu through the transcript wiring; pendi
 
 // ── The chrome deltas ──
 test('the chat menu hugs its content, and the "…" trigger is hover-gated CSS', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const shared = css.indexOf('.project-menu, .chat-row-menu {');
   const override = css.indexOf('.chat-row-menu { min-width: 0; }');
   assert.ok(shared > -1 && override > shared,
@@ -503,7 +504,7 @@ test('the chat menu hugs its content, and the "…" trigger is hover-gated CSS',
 });
 
 test('the row menu wears the projects row menu\'s exact chrome, and messages stay selectable', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   // Aliased selectors, not a copied block — the two menus can never drift apart.
   assert.ok(css.includes('.project-menu, .chat-row-menu {'), 'one floating-menu block');
   assert.ok(css.includes('.project-menu-item, .chat-row-menu-item {'), 'one item treatment');
@@ -523,7 +524,7 @@ test('the row menu wears the projects row menu\'s exact chrome, and messages sta
 // because one number in a stylesheet is not a fix: the menu STACKS above them, and the
 // pills stand down for as long as any menu is open.
 test('the row menu shares the app popup tier, which is above the panel and its pills', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const tier = (re) => { const m = re.exec(css); return m ? Number(m[1]) : null; };
   // The chat menu is ALIASED onto the projects row menu — same block, same level.
   const shared = /\.project-menu, \.chat-row-menu \{[^}]*z-index: (\d+)/.exec(css);
@@ -547,11 +548,11 @@ test('the row menu shares the app popup tier, which is above the panel and its p
 
 test('a chat popup is announced on BOTH edges, and the pills stand down while it is open', async () => {
   stubDom();
-  const { CHAT_POPUP_EVENT, chatPopupOpen, chatRowMenuOpen } = await import('../js/ui/chatView.js?menu-events');
+  const { CHAT_POPUP_EVENT, chatPopupOpen, chatRowMenuOpen } = await import('../js/ui/chatRowMenu.js?menu-events');
   assert.strictEqual(CHAT_POPUP_EVENT, 'stencil:chat-popup');
   assert.strictEqual(chatPopupOpen(), false, 'nothing open to begin with');
   assert.strictEqual(chatRowMenuOpen(), false);
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   // Announced when it opens…
   const open = view.slice(view.indexOf('const openChatRowMenu ='));
   assert.ok(/rowMenuEl = menu;\s*\n\s*rowMenuClose = close;\s*\n\s*announcePopup\(\);/.test(open),
@@ -565,7 +566,7 @@ test('a chat popup is announced on BOTH edges, and the pills stand down while it
   // never hidden by the row-overlap reason any more — that yields the TRIGGER instead).
   const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
   assert.ok(panel.includes('const standDown = chatPopupOpen();'));
-  assert.ok(panel.includes('window.addEventListener(CHAT_POPUP_EVENT, syncJumps);'));
+  assert.ok(panel.includes('subscribe(CHAT_POPUP_EVENT, syncJumps);'));
   // …and standDown gates BOTH classes, so neither arrow can survive an open menu.
   assert.ok(/const up = [^\n]*!standDown;/.test(panel) && /const down = [^\n]*!standDown;/.test(panel));
   // Nothing latches: the only inputs are the live menu/pill state and the hovered
@@ -576,8 +577,8 @@ test('a chat popup is announced on BOTH edges, and the pills stand down while it
 });
 
 test('the flyout shares the one menu, so its menu moves the panel pills too', () => {
-  const menu = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const menu = contextMenuSource();
+  const view = chatViewSource();
   // One module-level menu for both surfaces (the flyout's keep-open predicate reads it),
   // and the announcement is inside that shared open/close — not in a per-surface wrapper.
   assert.ok(view.includes('let rowMenuEl = null;'), 'one menu app-wide');
@@ -594,7 +595,7 @@ test('the flyout shares the one menu, so its menu moves the panel pills too', ()
 // this one is IN-PANEL — absolute inside the composer, popping upward into the pills'
 // corner — so it competes with them directly and lost at z-index 5 vs 6.
 test('the composer overflow menu outranks the jump pills in the panel\'s own stacking', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const lvl = (re) => { const m = re.exec(css); return m ? Number(m[1]) : null; };
   const menuZ = lvl(/\.chat-more-menu \{[^}]*z-index: (\d+)/);
   const jumpsZ = lvl(/\.chat-jumps \{[^}]*z-index: (\d+)/);
@@ -609,7 +610,7 @@ test('the composer overflow menu outranks the jump pills in the panel\'s own sta
 });
 
 test('the composer menu joins the popup accounting on both edges', async () => {
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   // ONE toggle path, so "is it open" can never disagree with what is on screen.
   const wire = view.slice(view.indexOf('export const wireChatMoreMenu'), view.indexOf('export const chatComposerActionsHtml') + 1 || undefined);
   const body = view.slice(view.indexOf('export const wireChatMoreMenu'));
@@ -625,7 +626,7 @@ test('the composer menu joins the popup accounting on both edges', async () => {
   assert.match(view, /export const chatPopupOpen = \(\) => !!rowMenuEl \|\| openComposerMenus\.size > 0;/);
   // Both surfaces wire a composer menu, so both feed the same accounting.
   const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
-  const flyout = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const flyout = contextMenuSource();
   assert.match(panel, /wireChatMoreMenu\('chat'/);
   assert.match(flyout, /wireChatMoreMenu\('ctx-assist'/);
 });
@@ -634,7 +635,7 @@ test('the composer menu joins the popup accounting on both edges', async () => {
 // So we stop finding these one screenshot at a time — a new popup has to be added here
 // with a declared level, or this fails.
 test('every chat-panel popup declares a level that clears the pills', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const lvl = (re) => { const m = re.exec(css); return m ? Number(m[1]) : null; };
   const PANEL = lvl(/stencil-chat-panel \{[^}]*z-index: (\d+)/);
   const JUMPS = lvl(/\.chat-jumps \{[^}]*z-index: (\d+)/);

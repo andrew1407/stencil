@@ -1,16 +1,20 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { DRAW_MODE_ICON } from '../core/drawingApp.js';
 import { hotkeys } from '../core/hotkeys.js';
-import { icon } from './icons.js';
+import { icon, DRAW_MODE_ICON } from './icons.js';
 import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../core/accents.js';
 import { fillAccentMenu, markSelected } from './accentPicker.js';
 import { createModalOpenGesture } from './popover.js';
 import { replayWaves, surfaceIn, surfaceOut, wireHoverDust, foldDust, rectCenter,
          motionReduced, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
-import { isTypingTarget, notify } from '../utils.js';
+import { isTypingTarget, notify, onWindowResize } from '../utils.js';
 import { VOICE_STATE_EVENT } from '../llm/voiceModes.js';
 import { attachVoiceDust } from './voiceDust.js';
 import { pageFormatOptions } from '../core/units.js';
+import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
+import { subscribe, EVENTS } from '../bus/appBus.js';
+import { syncWrappedSeparators } from './toolbarSeparators.js';
+import { wireVoiceChatToggle } from './voiceToggle.js';
+import { wireLogoColorPicker } from './logoAccent.js';
 // ── Component: toolbar (controls-wrapper + all control sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
 // inputs/buttons are wired by DrawingApp via global ids.
@@ -18,7 +22,7 @@ export class StencilToolbar extends StencilElement {
   static inner() {
     return `
             <div class="controls-topbar">
-                <!-- The wrap exists for the hover ray layer (animations.css): SVG elements
+                <!-- The wrap exists for the hover ray layer (animations/iconHover.css): SVG
                      can't host ::before/::after, so the rays live on this span. Clicks and
                      the colour picker stay wired to the .app-logo svg itself. -->
                 <span class="app-logo-wrap">
@@ -52,7 +56,7 @@ export class StencilToolbar extends StencilElement {
                          text), so the "?" reads as belonging to this project rather than
                          floating off in the toolbar. Owns its own hover bubble
                          (.hints-popup), so it opts OUT of the shared floating tooltip. -->
-                    <span id="hints-btn" data-no-tooltip style="display:none;flex:0 0 auto;position:relative;cursor:default;font-size:12px;color:var(--text-muted);border:1px solid var(--border-main);border-radius:12px;padding:2px 8px;user-select:none;">
+                    <span id="hints-btn" class="hints-btn" data-no-tooltip>
                         ?
                         <span class="hints-popup" id="hints-popup"></span>
                     </span>
@@ -141,8 +145,8 @@ export class StencilToolbar extends StencilElement {
                     <!-- Blank-image fill colour (EDIT action: recolours the current blank, keeps lines).
                          Shown only for blank projects; the swatch is a proper colour rect matching the
                          line-colour picker's proportions. -->
-                    <button id="blank-color-btn" type="button" data-title="Blank background color — recolor this blank image (keeps your lines)" style="display:none;align-items:center;gap:7px;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:5px 9px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;cursor:pointer;">
-                        <span id="blank-color-swatch" style="width:30px;height:22px;border-radius:3px;border:1px solid var(--border-main);display:inline-block;flex:0 0 auto;"></span>Blank
+                    <button id="blank-color-btn" class="blank-color-btn" type="button" data-title="Blank background color — recolor this blank image (keeps your lines)">
+                        <span id="blank-color-swatch" class="blank-color-swatch"></span>Blank
                     </button>
                     <input id="blank-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
                 </div>
@@ -156,7 +160,7 @@ export class StencilToolbar extends StencilElement {
                  mixed row where the two same-yellow swatches and two bare numbers blur
                  together. Within a section the captions can stay short (Color / Thickness ·
                  Color / Size) because the section label carries the noun. Mirrored by the
-                 desktop style toolbar (mainWindow.cpp buildStyleToolbar). -->
+                 desktop style toolbar (MainWindow.cpp buildStyleToolbar). -->
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Line</div>
                 <div class="ctrl-section-row">
@@ -202,22 +206,21 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">View</div>
                 <div class="ctrl-section-row">
+                    <!-- Compare LEADS the section (desktop twin: MainWindowToolbar.cpp's View
+                         cluster), on the row's own gap — the extra air was for two bare words. -->
+                    <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);">Compare</label>
+                    <select id="compare-mode" data-hk-title="cycleCompare" data-title="${UI_STRINGS.toolbar.compareTooltip}" data-disabled-reason="Load an image to compare">
+                        <option value="none">None</option>
+                        <option value="original">Original</option>
+                        <option value="vertical">Split ↔</option>
+                        <option value="horizontal">Split ↕</option>
+                    </select>
                     <label data-hk-title="togglePoints" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Points (Alt+P)">
                         <input type="checkbox" id="show-points" checked> Points
                     </label>
                     <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Lines (Alt+L)">
                         <input type="checkbox" id="show-lines" checked> Lines
                     </label>
-                    <!-- Extra left margin, none on the right: the row's flat 8px gap left "Lines"
-                         and "Compare" reading as one run of text. The label belongs to the select,
-                         so the air goes on the side that separates it from the toggles. -->
-                    <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);margin-left:12px;">Compare</label>
-                    <select id="compare-mode" data-hk-title="cycleCompare" data-title="Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)" data-disabled-reason="Load an image to compare">
-                        <option value="none">None</option>
-                        <option value="original">Original</option>
-                        <option value="vertical">Split ↔</option>
-                        <option value="horizontal">Split ↕</option>
-                    </select>
                     <button id="clear-all-lines" class="danger btn-icon" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear">${icon('eraser')}</button>
                 </div>
             </div>
@@ -256,7 +259,6 @@ export class StencilToolbar extends StencilElement {
                         <option value="custom">Custom…</option>
                         ${pageFormatOptions()}
                     </select>
-                    <label style="font-weight:normal;font-size:12px;color:var(--text-muted);">Units:</label>
                     <select id="unit-select" data-title="Display units (cm / inches)">
                         <option value="cm">cm</option>
                         <option value="in">in</option>
@@ -266,7 +268,6 @@ export class StencilToolbar extends StencilElement {
                         <input type="number" id="custom-page-width" value="21" min="0.1" max="500" step="0.1" style="width:96px">
                         <label style="font-weight:normal;font-size:12px;color:var(--text-muted);">H</label>
                         <input type="number" id="custom-page-height" value="29.7" min="0.1" max="500" step="0.1" style="width:96px">
-                        <span id="custom-unit-label" style="font-size:12px;color:var(--text-muted);">cm</span>
                     </span>
                 </div>
             </div>
@@ -274,7 +275,7 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-sep"></div>
 
             <!-- ── Section: Formula ──
-                 Its OWN section, not a tail of Page (desktop parity: mainWindowToolbar.cpp
+                 Its OWN section, not a tail of Page (desktop parity: MainWindowToolbar.cpp
                  builds the same named cluster between PAGE and DATA). The two fields are
                  wide, so inside Page every toggle of the pill resized that section and the
                  whole wrapping row re-flowed around it — the sections after it jumped a row
@@ -349,7 +350,7 @@ export class StencilToolbar extends StencilElement {
       const hasImage = /^Image Size:/.test(size);
       // Shown once an image is open — or, image or not, while incognito is on — and only
       // while the toolbar is COLLAPSED: with the tool rows up the info line already says
-      // this; folded away (layout.css hides it too), this bubble is the one place left.
+      // this; folded away (layout/infoLine.css hides it too), this bubble is the one place left.
       const collapsed = document.body.classList.contains('controls-collapsed');
       const live = (hasImage || incognito) && collapsed;
       hintsBtn.style.display = live ? 'inline-flex' : 'none';
@@ -374,7 +375,7 @@ export class StencilToolbar extends StencilElement {
       // The fold is a body-level state: the info line hides with the rows (CSS), and the
       // "?" badge appears in its place (refresh, via the class observer below).
       document.body.classList.toggle('controls-collapsed', hidden);
-      // The glyph is NOT swapped — animations.css spins the one chevron 180° (up ⇄ down)
+      // The glyph is NOT swapped — animations/collapse.css spins the one chevron 180° (up ⇄ down)
       // off `#controls-body.hidden`, so the arrow turns with the fold instead of blinking.
       btn.dataset.title = hidden ? 'Show controls' : 'Hide controls';
       btn.dataset.tip = hotkeys.hkTitle(hidden ? 'Show controls' : 'Hide controls', 'toggleControls');
@@ -404,326 +405,15 @@ export class StencilToolbar extends StencilElement {
       ro.observe(this);
       for (const sec of this.querySelectorAll('.ctrl-section')) ro.observe(sec);
     }
-    window.addEventListener('resize', syncSeps);
-    window.addEventListener('stencil:fullscreen-changed', () => setTimeout(syncSeps, 0));
+    onWindowResize(syncSeps);
+    subscribe(EVENTS.fullscreenChanged, () => setTimeout(syncSeps, 0));
     syncSeps();
   }
 }
 
-// The hairlines between toolbar sections (.ctrl-sep) live in a wrapping flex row, so a
-// narrowing window can land one at the START of a row — a stray line shoving that section
-// right. A separator whose two neighbours sit on different rows is hidden.
-export const WRAPPED_SEP_CLASS = 'ctrl-sep-wrapped';
-// Hiding one frees its width, which can pull the next section back up — so one pass
-// leaves answers the new layout no longer matches. Re-ask until the set stops moving; a
-// width that oscillates stops at the cap, hidden (a missing hairline beats a stray one).
-export const SEP_SETTLE_PASSES = 4;
-export function syncWrappedSeparators(root, passes = SEP_SETTLE_PASSES) {
-  const seps = [...(root?.querySelectorAll?.('.ctrl-sep') || [])];
-  // Every separator shown first, so a given width always resolves the same way and the
-  // observer that re-runs this never chases its own change.
-  for (const sep of seps) sep.classList.remove(WRAPPED_SEP_CLASS);
-  const top = (el) => Math.round(el.getBoundingClientRect().top);
-  const straddles = (sep) => {
-    const prev = sep.previousElementSibling;
-    const next = sep.nextElementSibling;
-    return !!prev && !!next && top(next) > top(prev);
-  };
-  for (let pass = 0; pass < passes; pass++) {
-    let moved = false;
-    for (const sep of seps) {
-      const want = straddles(sep);
-      if (want === sep.classList.contains(WRAPPED_SEP_CLASS)) continue;
-      sep.classList.toggle(WRAPPED_SEP_CLASS, want);
-      moved = true;
-    }
-    if (!moved) return;   // settled: every hairline agrees with the row it is in
-  }
-  for (const sep of seps) if (straddles(sep)) sep.classList.add(WRAPPED_SEP_CLASS);   // never settled
-}
-
-// The hands-free voice chat toggle (js/llm/voiceModes.js): `--voice-level` on <html>
-// carries the live loudness (css/animations.css sizes the mics' shine from it), and
-// .active marks this button while voice chat is on — mirrored onto the fullscreen
-// toolbar clone like the chat button's own state. The LOGO is not a wearer: its shine
-// is its own hover (and its accent popover's), never the microphone's (user report).
-export function wireVoiceChatToggle(btn, app) {
-  if (!btn || !app) return;
-  const voice = () => app.voice;
-  const buttons = () => document.querySelectorAll('#voice-chat-btn');
-  let wasOn = false;
-  const sync = () => {
-    const v = voice();
-    const on = !!v?.voiceChat;
-    for (const el of buttons()) {
-      el.classList.toggle('active', on);
-      if (on !== wasOn) replayWaves(el, on);   // the waves swell in / fly out
-    }
-    wasOn = on;
-  };
-  if (!voice()?.supported) btn.disabled = true;   // the disabled-reason tooltip says why
-  // Motes leave the tile with the voice while it listens (ui/voiceDust.js).
-  attachVoiceDust(btn, () => btn.classList.contains('active'));
-  btn.addEventListener('click', () => {
-    const v = voice();
-    if (!v) return;
-    try { v.voiceChat = !v.voiceChat; } catch (err) { notify(err?.message || String(err), 'fail'); }
-    sync();
-  });
-  voice()?.onLevel((level) => {
-    document.documentElement.style.setProperty('--voice-level', level.toFixed(3));
-  });
-  window.addEventListener(VOICE_STATE_EVENT, sync);
-  sync();
-}
-
-// Double-click (or double-tap) the logo opens a native colour picker that tints THIS
-// page's accent only — not saved, not synced, gone on reload; a Visuals preset clears
-// it (DrawingApp#applyAccent). Exported for tests/logoAccentMenu.test.js.
-export function wireLogoColorPicker(logo, app) {
-  if (!logo || !app) return;
-  logo.style.cursor = 'pointer';
-  const wrap = logo.closest?.('.app-logo-wrap') || logo;
-
-  // ── Hover latch (.logo-hover) ── the pulse/ray loop (animations.css) keys on this
-  // class, NOT :hover: the browser force-drops page hover for the whole accent/theme
-  // view transition. themeSwap raises `theme-instant` on <html> for exactly that
-  // window — hold the latch through it, then trust real :hover once the swap ends.
-  const setHover = (on) => wrap.classList?.toggle('logo-hover', on);
-  wrap.addEventListener('pointerenter', () => setHover(true));
-  wrap.addEventListener('pointerleave', () => {
-    const root = document.documentElement;
-    // The latch is ANIMATION state only — the menu's peek lifetime is the gesture
-    // machine's business (glide/altRelease/linger below, same as every toolbar icon).
-    if (!root.classList?.contains('theme-instant')) { setHover(false); return; }
-    const settle = () => {
-      if (root.classList.contains('theme-instant')) { setTimeout(settle, 60); return; }
-      // one beat for the browser to re-establish real hover, then trust it
-      setTimeout(() => { if (!wrap.matches(':hover')) setHover(false); }, 90);
-    };
-    settle();
-  });
-
-  // ── Right-click (or Alt+click) → accent preset menu ── the same listbox the Visuals
-  // dialog uses (accentPicker.js; custom colours stay on the double-click picker).
-  // Non-modal — it only borrows the shared popup motion. Selecting applies through the
-  // same setAccent path as the click-cycle, with the logo as the swap origin.
-  const menu = wrap.querySelector?.('.logo-accent-menu');
-  let resetRowHover = null;   // fillAccentMenu's reset (see openMenu / closeMenu)
-  let menuCloseTimer = null;
-  let menuCloseDone = null;
-  // How the menu is open right now: 'peek' (Alt-opened) or 'sticky' (right-click).
-  // Only the Alt+click no-op below needs the distinction; the LIFETIME rules live in
-  // the shared gesture machine.
-  let menuKind = null;
-  let pendingKind = null;   // set around a machine call so openMenu knows who opened it
-  const menuShowing = () => !!menu && !menu.hidden && !menu.classList.contains('dd-closing');
-  // Mid accent/theme swap the browser force-drops page :hover (`theme-instant` marks
-  // the window — see the hover latch). Pointer-driven dismissal must tell those
-  // synthetic leaves from a real one: every swap happens with the menu under the pointer.
-  const swapping = () => !!document.documentElement?.classList?.contains('theme-instant');
-  const reducedMotion = () => motionReduced();
-  const onDocDown = (e) => { if (!wrap.contains(e.target)) closeMenu(); };
-  const onMenuKey = (e) => { if (e.key === 'Escape') closeMenu(); };
-  // The accent moved while the menu shows — a logo click cycles the preset with the list
-  // up, and its ✓ used to stay put (user report). The event carries the NEW value
-  // (app.accent lands a beat later); a custom hex marks nothing.
-  const onAccentMoved = (e) => {
-    if (!menu || menu.hidden) return;
-    const v = typeof e.detail === 'string' ? e.detail : (app.customAccent ? null : app.accent);
-    markSelected(menu, v && /^#/.test(v) ? null : v);
-  };
-  // The list is sand, like every other surface (js/ui/motion.js): it forms from motes
-  // streaming out of the logo and comes apart into motes pouring back into it, on the
-  // shared menu clock. The `hidden` / `.dd-closing` hooks are unchanged — the dust
-  // simply replaces the scale those two used to drive.
-  const MENU_IN_MS = SURFACE_MENU_IN_MS;
-  const MENU_OUT_MS = SURFACE_MENU_OUT_MS;
-  const logoPoint = () => rectCenter(wrap);
-  const dustMenu = (enter) => {
-    if (!menu) return;
-    const point = reducedMotion() ? null : logoPoint();
-    (enter ? surfaceIn : surfaceOut)(menu, point, { ms: enter ? MENU_IN_MS : MENU_OUT_MS });
-  };
-  const openMenu = () => {
-    if (!menu) return;
-    if (pendingKind) menuKind = pendingKind;
-    if (!menu.childElementCount) {
-      // A pick applies the accent and CLOSES the menu (user decision — hovering already
-      // previews, so a click is a commit). Rows are built once, kept across the swap.
-      resetRowHover = fillAccentMenu(menu,
-                     (key) => { app.setAccent(key, logo); markSelected(menu, key); closeMenu(); },
-                     { on: (key) => app.previewAccent?.(key, logo), off: () => app.endAccentPreview?.(logo) });
-    }
-    markSelected(menu, app.customAccent ? null : app.accent);
-    // Size to CONTENT by default (components.css lifts the shared 280px cap for this
-    // copy); cap at the viewport space under the logo so only a genuinely too-short
-    // window makes the list scroll (overflow-y:auto shows a scrollbar only then).
-    const r = wrap.getBoundingClientRect?.();
-    if (r && typeof window !== 'undefined' && typeof window.innerHeight === 'number') {
-      menu.style.maxHeight = `${Math.max(90, window.innerHeight - r.bottom - 18)}px`;
-    }
-    // Reopening mid-close: abort the exit (its animationend must not hide the fresh menu).
-    clearTimeout(menuCloseTimer);
-    if (menuCloseDone) menu.removeEventListener('animationend', menuCloseDone);
-    menu.classList.remove('dd-closing');
-    menu.hidden = false;
-    dustMenu(true);
-    // Idempotent (same refs), so a reopen can't double-register.
-    document.addEventListener('pointerdown', onDocDown, true);
-    document.addEventListener('keydown', onMenuKey);
-    window.addEventListener('stencil:accent-changed', onAccentMoved);
-  };
-  const closeMenu = () => {
-    if (!menu || menu.hidden || menu.classList.contains('dd-closing')) return;
-    // Reverts to the committed accent, and drops the row's latched hover with it, so no
-    // held slide greets the next open (accentPicker.js).
-    resetRowHover?.();
-    app.endAccentPreview?.();
-    menuKind = null;
-    // However it closes, the machine must not keep believing a popover shows — a
-    // leaked mode would let a later Alt glide "close" a menu that is already gone.
-    g.notifyClosed();
-    document.removeEventListener('pointerdown', onDocDown, true);
-    document.removeEventListener('keydown', onMenuKey);
-    window.removeEventListener('stencil:accent-changed', onAccentMoved);
-    menuCloseDone = (e) => {
-      // animationend BUBBLES: every row runs the hover shimmer on its ::after and the
-      // pointer is always over a row at close — an unfiltered listener ended the exit
-      // on the first shimmer. Only the menu's OWN animation (or the fallback timer /
-      // reduced motion, which pass no event) counts.
-      if (e && e.target !== menu) return;
-      clearTimeout(menuCloseTimer);
-      menu.removeEventListener('animationend', menuCloseDone);
-      menu.hidden = true;
-      menu.classList.remove('dd-closing');
-    };
-    // Reduced motion: animations.css neutralises both the rise and the pop-out, so
-    // there is no exit to wait for — hide outright rather than sit through the fallback.
-    if (reducedMotion()) { menuCloseDone(); return; }
-    // Leaves on the shared pop-out; hidden only once the exit has played — with a timer
-    // fallback so a missing/neutralised animation can never wedge the menu open.
-    menu.classList.add('dd-closing');
-    dustMenu(false);
-    menuCloseTimer = setTimeout(menuCloseDone, 250);
-    menu.addEventListener('animationend', menuCloseDone);
-  };
-  // ── The shared toolbar peek system (ui/popover.js) ── the accent menu is a MACHINE
-  // IN THE GLIDE REGISTRY, exactly like every modal icon's mini window: Alt+hover
-  // peeks it (first closing other minis), Alt released over it lingers, elsewhere
-  // closes; a right-click open is 'sticky' but a glide still closes it. Modal gating
-  // rides the system's own live :hover checks, untouched.
-  const g = createModalOpenGesture({
-    openFull: () => {},          // the logo opens no full modal — click cycles the accent
-    openPopover: () => openMenu(),
-    closePopover: () => closeMenu(),
-    isPopoverOpen: menuShowing,
-    // Engaged at release time = the pointer rests inside the menu (peek → linger).
-    isPeekEngaged: () => !!menu?.matches?.(':hover'),
-  });
-  const altPeek = () => { pendingKind = 'peek'; g.altHover(); pendingKind = null; };
-  wrap.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    pendingKind = 'sticky'; g.contextmenu(); pendingKind = null;
-  });
-  // Alt + hover, both orders (mirrors popover.js wireModalOpenGestures): gliding on
-  // with Alt held, and pressing Alt while resting on it. Only the KEY route defers to
-  // a focused text control; preventDefault keeps bare Alt off the browser's menu bar.
-  wrap.addEventListener('mouseenter', (e) => { if (e.altKey) altPeek(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Alt' || !wrap.matches?.(':hover')) return;
-    if (isTypingTarget(document.activeElement)) return;
-    e.preventDefault?.();
-    altPeek();
-  });
-  document.addEventListener('keyup', (e) => { if (e.key === 'Alt') g.altRelease(); });
-  if (typeof window !== 'undefined' && window.addEventListener) {
-    window.addEventListener('blur', () => g.altRelease());
-  }
-  // The pointer crossing the menu edge drives the linger close — but a swap's synthetic
-  // leave lands on a LINGERING menu every time a colour is picked. Hold the decision
-  // until the swap ends and then trust real :hover, exactly like the hover latch.
-  menu?.addEventListener('mouseenter', () => { if (!swapping()) g.boxEnter(); });
-  menu?.addEventListener('mouseleave', () => {
-    if (!swapping()) { g.boxLeave(); return; }
-    const settle = () => {
-      if (swapping()) { setTimeout(settle, 60); return; }
-      setTimeout(() => { if (!menu.matches?.(':hover')) g.boxLeave(); }, 90);
-    };
-    settle();
-  });
-
-  // Single-click cycles the accent to the next preset (a CUSTOM colour resets to the
-  // default), deferred briefly so a double-click cancels it. The logo is handed over as
-  // the swap origin — the palette floods out of the badge you clicked (desktop parity:
-  // mainWindow.cpp anchors its accent cycle to the logo too).
-  const cycleAccent = () => {
-    if (app.customAccent) { app.setAccent(DEFAULT_ACCENT, logo); return; }
-    const keys = ACCENTS.map((a) => a.key);
-    const i = keys.indexOf(app.accent);
-    app.setAccent(keys[(i + 1) % keys.length], logo);
-  };
-  let clickTimer = null;
-  logo.addEventListener('click', (e) => {
-    // Alt+click opens the menu as a PEEK instead of cycling (never schedules the
-    // deferred cycle). Menu already open: an Alt-opened one treats the click as part
-    // of the hold gesture (no-op — Alt's release governs); a sticky one toggles closed.
-    if (e.altKey) {
-      if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
-      if (menuShowing()) { if (menuKind !== 'peek') closeMenu(); return; }
-      altPeek();
-      return;
-    }
-    if (clickTimer) return;   // second click of a dbl — let dblclick handle it
-    clickTimer = setTimeout(() => { clickTimer = null; cycleAccent(); }, 220);
-  });
-
-  // A tiny, near-invisible colour input parked under the logo. It stays in normal flow
-  // (not display:none / zero-size) so the browser will actually render its native picker.
-  const picker = document.createElement('input');
-  picker.type = 'color';
-  picker.setAttribute('aria-hidden', 'true');
-  picker.tabIndex = -1;
-  picker.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;';
-  logo.insertAdjacentElement('afterend', picker);
-
-  // Same origin as the cycle: the native picker is an OS window, so there is no press in
-  // the page to read while the user drags around it.
-  const apply = () => app.setCustomAccent(picker.value, logo); // native colour input yields #rrggbb
-  picker.addEventListener('input', apply);   // live while dragging
-  picker.addEventListener('change', apply);  // final commit
-
-  const open = () => {
-    const cur = app.customAccent || getComputedStyle(document.documentElement).getPropertyValue('--accent');
-    picker.value = normalizeHex(cur) || accentHex(app.accent);
-    // showPicker() is the reliable way to open a picker programmatically (a bare .click()
-    // on a hidden input often won't); fall back to click() on older browsers.
-    try {
-      if (typeof picker.showPicker === 'function') picker.showPicker();
-      else picker.click();
-    } catch {
-      picker.click();
-    }
-  };
-  logo.addEventListener('dblclick', () => {
-    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }   // cancel the single-click cycle
-    open();
-  });
-  // A double-click selects nearby text; clear it so the picker isn't fighting a selection.
-  logo.addEventListener('mousedown', (e) => { if (e.detail > 1) e.preventDefault(); });
-
-  // dblclick is unreliable on touch — detect a double-tap by hand.
-  let lastTap = 0;
-  logo.addEventListener('touchend', (e) => {
-    const now = Date.now();
-    if (now - lastTap < 400) {
-      e.preventDefault();
-      lastTap = 0;
-      open();
-    } else {
-      lastTap = now;
-    }
-  });
-}
+// The pieces the toolbar wires but does not own — re-exported, since the suites and
+// appContainer.js always found them here.
+export { syncWrappedSeparators, WRAPPED_SEP_CLASS } from './toolbarSeparators.js';
+export { wireLogoColorPicker } from './logoAccent.js';
 
 define('stencil-toolbar', StencilToolbar);

@@ -1,21 +1,20 @@
 // Overlay surfaces made of sand (js/ui/motion.js surfaceIn / surfaceOut).
 //
 // A modal, the chat panel and the ⋯/context popups used to grow out of the icon that
-// opened them as a plain scale. They now play the SAME scatter a deleted chat row or
-// project row plays — one clone (or one speck) per grid cell, the same deterministic
-// noise, the same keyframes — only every mote flies INTO, or out of, the point that
-// owns the surface. The origin and the direction are exactly what they were; the
-// rendering is what changed.
+// opened them as a plain scale. They now play the SAME scatter a deleted chat or project
+// row plays — one clone (or speck) per grid cell, the same deterministic noise, the same
+// keyframes — only every mote flies INTO, or out of, the point that owns the surface.
 //
 // What is pinned here:
 //   1. the flight arithmetic (pure: surfaceMotion, dockAwayPoint, reshapeGrid);
 //   2. the CSS contract — the old pop/slide is OFF for good, the dust owns the box's
 //      opacity, and nothing plays at all under reduced motion;
-//   3. the wiring on each surface, including that the origin point is still the icon
-//      (or the click, or the dock edge) and that the removal never waits on the effect.
+//   3. the wiring on each surface: the origin point is still the icon (or the click, or
+//      the dock edge), and the removal never waits on the effect.
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
+import { motionSource } from './helpers/motionSource.js';
 
 import {
   surfaceMotion, dockAwayPoint, reshapeGrid, settleSurface, foldBox, FOLD_INSTANT_CLASS,
@@ -25,18 +24,22 @@ import {
   SURFACE_DRIVEN_CLASS, MOTE_PX,
 } from '../js/ui/motion.js';
 import { FLIGHTS, alphaAt } from '../js/ui/dustCloud.js';
+import { ANIMATIONS_CSS } from './helpers/css.js';
+import { chatViewSource } from './helpers/chatViewSource.js';
+import { contextMenuSource } from './helpers/contextMenuSource.js';
+import { modalShellSource } from './helpers/modalShellSource.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const cloudJs = read('../js/ui/dustCloud.js');
-const animCss = read('../css/animations.css');
-const baseJs = read('../js/ui/base.js');
+const animCss = ANIMATIONS_CSS;
+const baseJs = modalShellSource();
 const chatPanelJs = read('../js/ui/chatPanel.js');
 const confirmJs = read('../js/ui/confirmModal.js');
-const ctxJs = read('../js/ui/contextMenu.js');
-const projectsJs = read('../js/ui/projectsModal.js');
-const chatViewJs = read('../js/ui/chatView.js');
+const ctxJs = contextMenuSource();
+const rowMenuJs = read('../js/ui/projectRowMenu.js');
+const chatViewJs = chatViewSource();
 const llmSettingsJs = read('../js/ui/llmSettingsModal.js');
-const motionJs = read('../js/ui/motion.js');
+const motionJs = motionSource();
 const toolbarJs = read('../js/ui/toolbar.js');
 const mainContentJs = read('../js/ui/mainContent.js');
 
@@ -139,14 +142,13 @@ test('a surface never dusts as copies of ITSELF — a cloud carries no identity'
 
 test('a surface is grained at least as fine as a row, under its own mote ceiling', () => {
   // A window is tens of times a row's area, so the BUDGET is what sizes its cells. The
-  // grain aimed for is the row's or finer; the CEILING is lower than "one per pixel"
-  // would want, because a few thousand of them — each its own compositor layer — is
-  // what read as lag on a big surface (a full-height chat panel, a tall settings
-  // window). The speck stays capped separately, so a coarser grid is still sand.
+  // grain aimed for is the row's or finer; the CEILING is lower than "one per pixel" would
+  // want, because a few thousand compositor layers read as lag on a big surface. The speck
+  // stays capped separately, so a coarser grid is still sand.
   assert.ok(SURFACE_MOTE_PX <= MOTE_PX, 'a surface mote is no coarser than a row’s');
   // 1380 (the original ceiling) still cost ~35ms of build/style/paint on a full-height
   // docked panel, most of a close's own budget spent before the first mote had moved.
-  assert.equal(SURFACE_COLS * SURFACE_ROWS, 1380, 'the surface mote ceiling — the extension’s and the desktop’s (kSurfaceMaxCells)');
+  assert.equal(SURFACE_COLS * SURFACE_ROWS, 1380, 'the surface mote ceiling — the extension’s and the desktop’s (SURFACE_MAX_CELLS)');
   // Whatever the budget leaves, the SPECK drawn in a cell is capped at a grain — a
   // cell-filling square is the "huge rectangles" a scatter must never show.
   assert.ok(SURFACE_SPECK_PX <= MOTE_PX, 'the drawn grain never grows with the cell');
@@ -321,7 +323,7 @@ test('modals: the dust point IS the icon centre setOriginVars already measured',
 test('the chat panel keeps its dock edge, and a float keeps its icon', () => {
   assert.match(chatPanelJs, /if \(host\.classList\.contains\('chat-dock-float'\)\) \{[\s\S]*?anchorBtn\(\)/,
     'a float flies out of the toolbar icon, like a modal');
-  assert.match(chatPanelJs, /return dockAwayPoint\(r, dock\) \|\| \{ x: r\.left \+ r\.width \/ 2, y: -Math\.max\(48, r\.height \* 0\.3\) \};/);
+  assert.match(chatPanelJs, /return dockAwayPoint\(r, chatDock\.mode\(\)\) \|\| \{ x: r\.left \+ r\.width \/ 2, y: -Math\.max\(48, r\.height \* 0\.3\) \};/);
   // Opened AFTER the class, or the panel is display:none and measures nothing.
   assert.match(chatPanelJs, /host\.classList\.toggle\('chat-open', on\);[\s\S]{0,160}if \(on\) playDust\(true\);/);
   // Closed BEFORE it leaves the screen, and on the same clock the class swap uses.
@@ -342,12 +344,12 @@ test('the context menu forms out of the very click it was opened at', () => {
 });
 
 test('the ⋯ overflow menus grow out of the button (or the right-click) that opened them', () => {
-  // Projects: the cursor for a right-click, the "⋯" button's centre otherwise.
-  assert.match(projectsJs, /menuPoint = point \|\| rectCenter\(anchor\);/);
-  assert.match(projectsJs, /surfaceIn\(menu, menuPoint, \{ ms: SURFACE_MENU_IN_MS \}\);/);
-  // …and back into it. The node still goes NOW: the layer owns its own lifetime.
-  assert.match(projectsJs, /surfaceOut\(openMenu, menuPoint, \{ ms: SURFACE_MENU_OUT_MS \}\);\s*\n\s*openMenu\.remove\(\);/);
-  // The chat bubble's "⋯" is cursor-anchored, and uses the same open point both ways.
+  // Projects (ui/projectRowMenu.js): the cursor for a right-click, else the "⋯" centre — and
+  // back into it; the node still goes NOW, the layer owns its own lifetime.
+  assert.match(rowMenuJs, /menuPoint = point \|\| rectCenter\(anchor\);/);
+  assert.match(rowMenuJs, /surfaceIn\(menu, menuPoint, \{ ms: SURFACE_MENU_IN_MS \}\);/);
+  assert.match(rowMenuJs, /surfaceOut\(openMenu, menuPoint, \{ ms: SURFACE_MENU_OUT_MS \}\);\s*\n\s*openMenu\.remove\(\);/);
+  // The chat bubble's "⋯" is cursor-anchored, same open point both ways.
   assert.match(chatViewJs, /surfaceIn\(menu, \{ x, y \}, \{ ms: SURFACE_MENU_IN_MS \}\);/);
   assert.match(chatViewJs, /surfaceOut\(menu, \{ x, y \}, \{ ms: SURFACE_MENU_OUT_MS \}\);\s*\n\s*menu\.remove\(\);/);
 });
@@ -411,10 +413,9 @@ test('a surface forms slower than it leaves — arriving is the half you watch',
 
 
 // ── 5. The two FOLDING surfaces ─────────────────────────────────────────────
-// The toolbar's tool rows and the points panel's table have no opener icon: CSS owns
-// their whole reveal (grid-template-rows / width), so at the moment the toggle flips
-// they are still at the box they are LEAVING — zero on the way in. foldBox is what
-// gets the flight the box it is about to fly over.
+// The toolbar's tool rows and the points panel's table have no opener icon: CSS owns their
+// whole reveal (grid-template-rows / width), so at the moment the toggle flips they are
+// still at the box they are LEAVING — zero on the way in. foldBox gives the flight a box.
 
 // A fake element/scope pair: the box it reports depends on whether `cls` is set, exactly
 // as the real fold's does.

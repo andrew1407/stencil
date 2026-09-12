@@ -70,7 +70,7 @@ pub struct Point {
 
 /// Serialize an inline layout to a temp `*.json` file for `--layout`. The returned handle
 /// keeps the file on disk until it is dropped, so hold it until the CLI has run.
-pub fn write_temp(layout: &Layout) -> anyhow::Result<tempfile::NamedTempFile> {
+pub fn write_temp(layout: &Layout) -> Result<tempfile::NamedTempFile, Box<dyn std::error::Error>> {
     let json = serde_json::to_vec_pretty(layout)?;
     let mut file = tempfile::Builder::new()
         .prefix("stencil-layout-")

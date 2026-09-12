@@ -1,5 +1,5 @@
 #include "opRegistry.hpp"
-#include "opSchema.hpp"
+#include "OpSchema.hpp"
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -23,72 +23,62 @@ static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 // surface cannot run and adding/removing an op is one row here.
 namespace stencil::llm {
 
-  namespace {
-
-  // §4 prose core, parsed once from the qrc canon. "head" carries its trailing
-  // newline and "tail" its leading blank line, so assembly is plain
-  // head + bullets + tail. Empty strings on a broken alias — the configCanon
-  // pins and the llmClient byte-stability test fail fast on that.
-  struct PromptProse { QString head; QString tail; };
-
-  const PromptProse& promptProse() {
-    static const PromptProse prose = [] {
+  // Any string field of the §4 prompt canon, parsed once from the qrc asset. "head"
+  // carries its trailing newline and "tail" its leading blank line, so assembly is plain
+  // head + bullets + tail; the contextSuffix* templates keep their Qt %1/%2 placeholders.
+  // Empty on a broken alias — the configCanon pins and the llmClient byte-stability test
+  // fail fast on that.
+  QString promptText(const QString& key) {
+    static const QJsonObject canon = [] {
       ensureAppResources();
-      PromptProse p;
       QFile f(QStringLiteral(":/config/llm/systemPrompt.json"));
-      if (f.open(QIODevice::ReadOnly)) {
-        const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
-        p.head = o.value(QStringLiteral("head")).toString();
-        p.tail = o.value(QStringLiteral("tail")).toString();
-      }
-      return p;
+      if (!f.open(QIODevice::ReadOnly)) return QJsonObject();
+      return QJsonDocument::fromJson(f.readAll()).object();
     }();
-    return prose;
+    return canon.value(key).toString();
   }
-
-  }  // namespace
 
   namespace {
     struct OpRow { OpKind kind; const char* name; unsigned capability; };
 
     // Emission order = final prompt order: the §2 core ops, then the §10 editor
     // block spliced between the frame and image bullets.
-    constexpr OpRow kRows[] = {
-        {OpKind::Crop, "crop", CapNone},
-        {OpKind::Rotate, "rotate", CapNone},
-        {OpKind::Filter, "filter", CapNone},
-        {OpKind::Layout, "layout", CapNone},
-        {OpKind::Formula, "formula", CapNone},
-        {OpKind::Page, "page", CapNone},
-        {OpKind::Blank, "blank", CapNone},
-        {OpKind::Undo, "undo", CapNone},
-        {OpKind::Redo, "redo", CapNone},
-        {OpKind::Frame, "frame", CapVideo},
-        {OpKind::Theme, "theme", CapNone},
-        {OpKind::Accent, "accent", CapNone},
-        {OpKind::LineStyle, "lineStyle", CapNone},
-        {OpKind::Units, "units", CapNone},
-        {OpKind::View, "view", CapNone},
-        {OpKind::Clear, "clear", CapNone},
-        {OpKind::OpenUrl, "openUrl", CapNone},
-        {OpKind::OpenFile, "openFile", CapFilesystem},
-        {OpKind::Connect, "connect", CapServers},
-        {OpKind::Disconnect, "disconnect", CapServers},
-        {OpKind::Copy, "copy", CapClipboard},
-        {OpKind::RemoveProject, "removeProject", CapNone},
-        {OpKind::ClearProjects, "clearProjects", CapNone},
-        {OpKind::Compare, "compare", CapNone},
-        {OpKind::Zoom, "zoom", CapNone},
-        {OpKind::RenameProject, "renameProject", CapNone},
-        {OpKind::ProjectColor, "projectColor", CapNone},
-        {OpKind::BlankColor, "blankColor", CapNone},
-        {OpKind::OpenProject, "openProject", CapNone},
-        {OpKind::Incognito, "incognito", CapNone},
-        {OpKind::ChatPanel, "chatPanel", CapNone},
-        {OpKind::Dialog, "dialog", CapNone},
-        {OpKind::ClearChat, "clearChat", CapNone},
-        {OpKind::Image, "image", CapNone},
-        {OpKind::Save, "save", CapNone},
+    constexpr OpRow ROWS[] = {
+        {OpKind::CROP, "crop", CAP_NONE},
+        {OpKind::ROTATE, "rotate", CAP_NONE},
+        {OpKind::FILTER, "filter", CAP_NONE},
+        {OpKind::LAYOUT, "layout", CAP_NONE},
+        {OpKind::FORMULA, "formula", CAP_NONE},
+        {OpKind::PAGE, "page", CAP_NONE},
+        {OpKind::BLANK, "blank", CAP_NONE},
+        {OpKind::UNDO, "undo", CAP_NONE},
+        {OpKind::REDO, "redo", CAP_NONE},
+        {OpKind::FRAME, "frame", CAP_VIDEO},
+        {OpKind::THEME, "theme", CAP_NONE},
+        {OpKind::ACCENT, "accent", CAP_NONE},
+        {OpKind::LINE_STYLE, "lineStyle", CAP_NONE},
+        {OpKind::UNITS, "units", CAP_NONE},
+        {OpKind::VIEW, "view", CAP_NONE},
+        {OpKind::CLEAR, "clear", CAP_NONE},
+        {OpKind::OPEN_URL, "openUrl", CAP_NONE},
+        {OpKind::OPEN_FILE, "openFile", CAP_FILESYSTEM},
+        {OpKind::CONNECT, "connect", CAP_SERVERS},
+        {OpKind::DISCONNECT, "disconnect", CAP_SERVERS},
+        {OpKind::COPY, "copy", CAP_CLIPBOARD},
+        {OpKind::REMOVE_PROJECT, "removeProject", CAP_NONE},
+        {OpKind::CLEAR_PROJECTS, "clearProjects", CAP_NONE},
+        {OpKind::COMPARE, "compare", CAP_NONE},
+        {OpKind::ZOOM, "zoom", CAP_NONE},
+        {OpKind::RENAME_PROJECT, "renameProject", CAP_NONE},
+        {OpKind::PROJECT_COLOR, "projectColor", CAP_NONE},
+        {OpKind::BLANK_COLOR, "blankColor", CAP_NONE},
+        {OpKind::OPEN_PROJECT, "openProject", CAP_NONE},
+        {OpKind::INCOGNITO, "incognito", CAP_NONE},
+        {OpKind::CHAT_PANEL, "chatPanel", CAP_NONE},
+        {OpKind::DIALOG, "dialog", CAP_NONE},
+        {OpKind::CLEAR_CHAT, "clearChat", CAP_NONE},
+        {OpKind::IMAGE, "image", CAP_NONE},
+        {OpKind::SAVE, "save", CAP_NONE},
     };
   }  // namespace
 
@@ -98,14 +88,14 @@ namespace stencil::llm {
     static const QVector<OpDescriptor> table = [] {
       const OpSchema& schema = OpSchema::desktop();
       QVector<OpDescriptor> out;
-      for (const OpRow& r : kRows) {
+      for (const OpRow& r : ROWS) {
         OpDescriptor d{r.kind, r.name, QString(), false, false, false, r.capability};
         if (const OpEntry* e = schema.entry(QLatin1String(r.name))) {
           const OpEntry* src = e->bulletSharedWith.isEmpty() ? e : schema.entry(e->bulletSharedWith);
           if (src) d.bullet = src->bullet;
           d.editorSettings = e->flag("editorSetting");
           d.topLevelOnly = d.editorSettings || e->flag("topLevelOnly");
-          d.history = r.kind == OpKind::Undo || r.kind == OpKind::Redo;
+          d.history = r.kind == OpKind::UNDO || r.kind == OpKind::REDO;
         }
         out.append(d);
       }
@@ -135,13 +125,13 @@ namespace stencil::llm {
   }
 
   QString opName(OpKind kind) {
-    for (const OpRow& r : kRows)
+    for (const OpRow& r : ROWS)
       if (r.kind == kind) return QString::fromUtf8(r.name);
     return QString();
   }
 
   bool opKindFor(const QString& name, OpKind* out) {
-    for (const OpRow& r : kRows) {
+    for (const OpRow& r : ROWS) {
       if (name != QLatin1String(r.name)) continue;
       if (out) *out = r.kind;
       return true;
@@ -247,11 +237,12 @@ namespace stencil::llm {
   }
 
   QString assembleSystemPrompt(unsigned caps) {
-    return promptProse().head + assembleOpsSection(caps) + promptProse().tail;
+    return promptText(QStringLiteral("head")) + assembleOpsSection(caps)
+           + promptText(QStringLiteral("tail"));
   }
 
   const QString& assembledSystemPrompt() {
-    static const QString prompt = assembleSystemPrompt(CapAllDesktop);
+    static const QString prompt = assembleSystemPrompt(CAP_ALL_DESKTOP);
     return prompt;
   }
 

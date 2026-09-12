@@ -1,13 +1,8 @@
-// ── "Open in…" operator config loader ───────────────────────────
-// The toolbar's Open-in modal targets (the desktop URL scheme + the optional Telegram
-// bot username) are operator config, kept in a LOCAL, gitignored openInConfig.json —
-// the static-site equivalent of a .env file (copy openInConfig.example.json and fill
-// it in). Loaded at runtime via fetch, NOT a static JSON import, so a fresh clone with
-// no local file still boots — it just falls back to these defaults (desktop enabled,
-// Telegram hidden until a bot username is set). The promise is cached, so the config is
-// fetched at most once and shared by every caller (DrawingApp + the modal).
+// Operator config (the desktop URL scheme, the optional Telegram bot username) in a
+// LOCAL, gitignored JSON file beside this module — the static-site .env. Fetched at
+// runtime, not imported, so a fresh clone boots on the defaults; the promise is cached.
 
-export const OPEN_IN_DEFAULTS = { desktopScheme: 'stencil', telegramBotUsername: '' };
+export const OPEN_IN_DEFAULTS = Object.freeze({ desktopScheme: 'stencil', telegramBotUsername: '' });
 
 let cached = null;
 export const loadOpenInConfig = () => {

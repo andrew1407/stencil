@@ -131,16 +131,12 @@ export const createSchema = (registry, surface) => {
     if (spec.fields || spec.minFields != null) checkFields(v, spec.fields || {}, spec, path, []);
   };
 
+  const CHECKERS = Object.freeze({ string: checkString, integer: checkNumber, number: checkNumber,
+    boolean: checkBoolean, array: checkArray, object: checkObject });
   const checkValue = (v, spec, path, parent) => {
-    switch (spec.type) {
-      case 'string': return checkString(v, spec, path, parent);
-      case 'integer':
-      case 'number': return checkNumber(v, spec, path);
-      case 'boolean': return checkBoolean(v, spec, path);
-      case 'array': return checkArray(v, spec, path);
-      case 'object': return checkObject(v, spec, path);
-      default: throw new Error(`opRegistry: unknown type "${spec.type}"`);
-    }
+    const check = Object.hasOwn(CHECKERS, spec.type) ? CHECKERS[spec.type] : null;
+    if (!check) throw new Error(`opRegistry: unknown type "${spec.type}"`);
+    return check(v, spec, path, parent);
   };
 
   // One object against a key map + its holder's presence rules. `skip` names keys

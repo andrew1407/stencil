@@ -1990,7 +1990,7 @@
   },
   "extras": {
     "draw-mode-icon": {
-      "action": "line / rectangle draw mode — the browser's own inline pair (DRAW_MODE_ICON in core/drawingApp.js), which is the canonical `line`/`rect` pair on a 16-grid instead of 24. A surface drawing the canon uses those two designs; this entry is only for the inline faces.",
+      "action": "line / rectangle draw mode — the browser's own inline pair (svgArt.json `drawMode`, served as DRAW_MODE_ICON by ui/icons.js), which is the canonical `line`/`rect` pair on a 16-grid instead of 24. A surface drawing the canon uses those two designs; this entry is only for the inline faces.",
       "mode": "settle",
       "note": "the canonical `line`/`rect` design at 16 units: the shape DRAWS ITSELF between the two drag handles the way a drag would — the segment (10√2 ≈ 14.2) or the box it spans (4×8 straights + a r1 corner each ≈ 38.3) — and the handles pop as it lands. The face swap owns everything else about this button",
       "grid": 16,

@@ -1,0 +1,163 @@
+{
+  "about": "User-visible prose and UI registries that used to sit as literals inside browser JS. One asset so the surfaces that mirror the editor's wording (desktop, extension) copy from here instead of retyping, and so a contract-mandated disclosure cannot be reworded by accident. Pinned by browser/tests/uiStrings.test.js.",
+  "rules": {
+    "verbatim": "Every string is used BYTE-FOR-BYTE. `&#10;` is the newline a data-title tooltip splits on (tipContent.js) and `•` its bullet — both are part of the string, not markup around it.",
+    "markup": "assistantSettings.saveChatsNote carries inline HTML (<strong>) and the source line break the template emits; it is interpolated into #chat-save-chats-note unchanged.",
+    "windows": "The editor windows stencil.openWindow(title) and the per-window openers resolve. `title` is the window's own <h2>; `aliases` are the other names people call it by; `opener` is the toolbar/menu control it flies out of (an array when two controls open the same window), and its disabled state gates the script route exactly as it gates the click.",
+    "dialogButtonIds": "§10 `dialog` op: op name -> the toolbar button the assistant presses. The very ids controlsBinder's openProjects/openServers/... hotkey actions press, so plan and shortcut take the same path."
+  },
+  "chat": {
+    "suggestions": [
+      "Make it sepia",
+      "3 variants: rotated · tinted · cropped",
+      "Extract the lines from this image",
+      "Crop 10% off every edge, rotate right"
+    ],
+    "sendTitle": "Send · Double-click or hold for voice input",
+    "sendTitlePlain": "Send",
+    "voiceTitleListening": "Listening · Say “send” to send, a pause stops · Click or Escape to pause · Double-click or hold to type",
+    "voiceTitlePaused": "Voice input paused · Click to listen · Double-click or hold to type"
+  },
+  "assistantSettings": {
+    "saveChatsTooltip": "Save the assistant conversation with the active project and restore it when the project is reopened. Text only, most recent 32 turns; incognito never saves.&#10;&#10;For a project on a server the transcript is stored with it, so everyone that project is shared with can read it. Local projects stay on this machine.",
+    "saveChatsNote": "Chats saved with a server project are <strong>readable by everyone\n                        the project is shared with</strong>; local projects stay on this machine."
+  },
+  "toolbar": {
+    "compareTooltip": "Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)"
+  },
+  "windows": [
+    {
+      "key": "projects",
+      "title": "Projects",
+      "overlay": "projects-modal-overlay",
+      "opener": "projects-btn",
+      "hotkey": "openProjects"
+    },
+    {
+      "key": "servers",
+      "title": "Servers",
+      "aliases": [
+        "connections",
+        "connect",
+        "connection"
+      ],
+      "overlay": "connect-modal-overlay",
+      "opener": "connect-btn",
+      "hotkey": "openServers"
+    },
+    {
+      "key": "links",
+      "title": "Image links",
+      "aliases": [
+        "image links",
+        "links"
+      ],
+      "overlay": "links-modal-overlay",
+      "opener": "links-btn",
+      "hotkey": "openLinks"
+    },
+    {
+      "key": "description",
+      "title": "Project description",
+      "overlay": "description-overlay",
+      "opener": "description-btn",
+      "hotkey": "openDescription"
+    },
+    {
+      "key": "keywords",
+      "title": "Project keywords",
+      "overlay": "keywords-overlay",
+      "opener": "keywords-btn",
+      "hotkey": "openKeywords"
+    },
+    {
+      "key": "assistant-settings",
+      "title": "Assistant",
+      "aliases": [
+        "assistant settings",
+        "ai assistant settings",
+        "ai settings",
+        "llm",
+        "llm settings"
+      ],
+      "overlay": "chat-settings-overlay",
+      "opener": "chat-settings-btn",
+      "hotkey": "openAssistantSettings"
+    },
+    {
+      "key": "shortcuts",
+      "title": "Keyboard Shortcuts",
+      "aliases": [
+        "hotkeys"
+      ],
+      "overlay": "settings-modal-overlay",
+      "opener": "settings-btn",
+      "hotkey": "openHotkeys"
+    },
+    {
+      "key": "visuals",
+      "title": "Visuals & Settings",
+      "aliases": [
+        "visuals",
+        "settings"
+      ],
+      "overlay": "visuals-modal-overlay",
+      "opener": "visuals-btn",
+      "hotkey": "openVisuals"
+    },
+    {
+      "key": "help",
+      "title": "Controls & Shortcuts Info",
+      "aliases": [
+        "help",
+        "info",
+        "controls"
+      ],
+      "overlay": "info-modal-overlay",
+      "opener": "info-btn",
+      "hotkey": "openHelp"
+    },
+    {
+      "key": "open-image",
+      "title": "Open Image",
+      "aliases": [
+        "image",
+        "load image",
+        "open"
+      ],
+      "overlay": "open-image-modal-overlay",
+      "opener": [
+        "open-image-btn",
+        "load-image-btn"
+      ],
+      "hotkey": "loadImage"
+    },
+    {
+      "key": "open-in",
+      "title": "Open In…",
+      "aliases": [
+        "open in"
+      ],
+      "overlay": "open-in-modal-overlay",
+      "opener": "open-in-btn",
+      "hotkey": "openIn"
+    },
+    {
+      "key": "crop",
+      "title": "Crop Image",
+      "aliases": [
+        "crop"
+      ],
+      "overlay": "crop-modal-overlay",
+      "opener": "crop-image",
+      "hotkey": "cropImage"
+    }
+  ],
+  "dialogButtonIds": {
+    "projects": "projects-btn",
+    "servers": "connect-btn",
+    "shortcuts": "settings-btn",
+    "visuals": "visuals-btn",
+    "help": "info-btn"
+  }
+}

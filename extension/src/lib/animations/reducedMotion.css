@@ -1,0 +1,28 @@
+/* ───────────────────────────────────────────────────────────────────────
+   Accessibility — honour the user's reduced-motion preference.
+   ─────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+    /* A half-dissolved row is a surprise, not motion — show it whole. */
+    .reveal-item { --dissolve: 0 !important; transform: none !important;
+                   -webkit-mask-image: none !important; mask-image: none !important; }
+    .disintegrate-host { display: none; }
+    /* motion.js already skips the filter transition outright; this covers a class the
+       preference flipped underneath. A filtered-out row is gone, not faded. */
+    .filter-out { display: none !important; }
+    .filter-in { animation: none !important; }
+    /* The tooltip lands where it is, at full size — no rise, no scale. No grain either:
+       a half-sanded tooltip is a surprise, not motion. It shows and hides solid, and
+       `visible` still owns which of the two it is. */
+    #app-tooltip {
+        transition: none; transform: none; --dissolve: 0;
+        -webkit-mask-image: none; mask-image: none;
+    }
+    .tip-key.key-shake { animation: none !important; }
+    .chat-slide-in { animation: none; }
+}

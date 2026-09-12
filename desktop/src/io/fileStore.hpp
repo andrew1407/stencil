@@ -2,7 +2,7 @@
 #include "../llm/llmSettings.hpp"
 #include "cropGeometry.hpp"
 #include "models.hpp"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 #include <QByteArray>
 #include <QHash>
 #include <QJsonArray>
@@ -12,176 +12,121 @@
 #include <optional>
 #include <vector>
 
-// File persistence adapter — the desktop counterpart of browser/js/core/
-// storage.js + projectsStore.js (which use localStorage / IndexedDB). All state
-// lives in a single repo-local, gitignored directory (desktop/.stencil/), as the
-// user requested: settings.json, session.autosave (the "last edited" blob), and
-// projects.json. JSON parsing uses Qt here so the core/ library stays STL-only.
+// File persistence — browser twin js/core/storage.js + projectsStore.js. All state lives in
+// one gitignored directory (desktop/.stencil/); JSON is Qt's here, so core/ stays STL-only.
 namespace stencil::gui {
 
-  // Persisted user settings + default visuals (mirrors the browser settings /
-  // DEFAULT_VISUALS the modals edit).
+  // Persisted settings + default visuals (browser DEFAULT_VISUALS).
   struct Settings {
-    // themeMode follows the browser's tri-state (system|light|dark); "system"
-    // tracks the OS color scheme (S14). The legacy `theme` key is migrated on
-    // load. Default "system" (per the confirmed decision).
+    // Tri-state system|light|dark; the legacy `theme` key is migrated on load.
     QString themeMode = "system";     // "system" | "light" | "dark"
-    // Brand accent preset key (theme.hpp accentPresets); "violet" is the default.
-    // Mirrors the browser/extension data-accent choice, persisted like the web's
-    // localStorage drawingApp_accent / stencil_accent.
+    // Accent preset key (theme.hpp accentPresets); browser data-accent twin.
     QString accentColor = "violet";
     bool autosave = true;
-    // "Sync changes to server" (default on). When off, edits to a fetched server
-    // project stay in this session only — never pushed to the server nor autosaved
-    // locally; the user can export them or "Make local copy" to keep them.
+    // Off: edits to a fetched server project stay in this session only — never pushed nor autosaved.
     bool syncToServer = true;
     bool showPoints = true;
     bool showLines = true;
     QString defaultColor = "#FFFF00";
-    // Default POINT colour for new lines. Empty = follow defaultColor, matching
-    // core::Line::pointColor — so an existing settings file keeps its old behaviour.
+    // Empty = follow defaultColor (core::Line::pointColor), so an old settings file keeps its behaviour.
     QString defaultPointColor = "";
     double defaultThickness = 2.0;
     double defaultPointSize = 4.0;
     QString defaultStyle = "solid";   // solid | dashed | dotted
-    // Fill for a newly LOCKED area with no fill colour of its own yet (browser
-    // DEFAULT_VISUALS.defaultFillColor / layout.js fillState).
+    // Fill for a newly LOCKED area (browser DEFAULT_VISUALS.defaultFillColor).
     QString defaultFillColor = "#ffffff";
-    // Highlight styles (browser DEFAULT_VISUALS.*, same defaults).
     QString selGlowColor = "#ffc800";    // selection highlight glow (lines + points)
     QString hoverRingColor = "#7c3aed";  // hover ring around points
     QString focusRingColor = "#7c3aed";  // focused/clicked point ring
     QString pageSize = "A3";          // a named ISO format ("A3", "B5", …) | custom
-    // Custom page dimensions in cm (browser DEFAULT_PAGE 21 x 29.7).
     double customPageWidth = 21.0;
     double customPageHeight = 29.7;
-    // Display unit for page/length readouts: "cm" (default) | "in". Lengths are
-    // always stored in cm; this only changes how they are shown and entered.
+    // "cm" | "in"; lengths are always STORED in cm.
     QString units = "cm";
-    // Formula transform of page (cm) coords (browser allowFormulas/formulaX/Y).
     bool allowFormulas = false;
     QString formulaX;
     QString formulaY;
-    // Hover tooltip over the canvas (browser tooltipEnabled, default true).
     bool tooltipEnabled = true;
-    // Per-row visibility inside the hover tooltip (browser tooltipShowPage/Screen/Coords,
-    // all default true) — the three checkboxes in the context-menu Tooltip submenu.
+    // Browser tooltipShowPage/Screen/Coords, all default true.
     bool tooltipShowPage = true;
     bool tooltipShowScreen = true;
     bool tooltipShowCoords = true;
-    // Image filter + custom tint (browser drawingApp.js:83-84). "none" | "bw" |
-    // "sepia" | "invert" | "contour" | "custom"; filterColor is the custom
-    // duotone tint.
+    // "none" | "bw" | "sepia" | "invert" | "contour" | "custom"; filterColor is the custom tint.
     QString imageFilter = "none";
     QString filterColor = "#7c3aed";
-    // Hold-to-draw hold/dwell delay in ms (browser holdDrawDelay; clamped 100–3000).
     int holdDrawDelay = 500;
-    // ── Motion (browser js/ui/motionPrefs.js; support/modalReveal.hpp drives them) ──
-    // The canvas stroke animation — a new vertex flying to where it was put, its landing
-    // pop and ripple. On by default, exactly as in the browser.
+    // Motion (browser js/ui/motionPrefs.js; support/modalReveal.hpp drives them).
     bool drawingAnimations = true;
-    // How the interface moves: "particles" (the default), "water" / "fire" (the same
-    // flights as drops / embers), "slide" (no particles) or "none". Unknown values read
-    // as "particles" (support::motionModeFromKey).
+    // "particles" | "water" | "fire" | "slide" | "none"; unknown reads as "particles".
     QString motionMode = "particles";
-    // "Open in…" targets: the browser app's base URL (opened via QDesktopServices
-    // with the #stencil= fragment) and the Telegram bot's username for t.me deep
-    // links (empty hides the Telegram option). Desktop-only settings — the browser
-    // keeps its equivalents in js/config/openInConfig.json.
+    // Desktop-only "Open in…" targets; the browser keeps its own in js/config/openInConfig.json.
     QString browserBaseUrl = "http://localhost:8080";
     QString telegramBotUsername;
-    // ── AI assistant (llm-contract.md §5; the desktop persistence row of
-    // the provider-config table: llmProvider/llmBaseUrl/llmModel/llmApiKey/
-    // llmServerUrl). Defaults pre-fill the first run: ollama at its canon URL
-    // (the settings dialog re-fills the openai-compat default on a switch). An
-    // empty llmServerUrl resolves at use time to the first saved connection
-    // (net/connectionStore).
+    // AI assistant (llm-contract.md §5). An empty llmServerUrl resolves at use time to the first
+    // saved connection (net/connectionStore).
     QString llmProvider = "ollama";     // "ollama" | "openai-compat" | "stencil-server"
     QString llmBaseUrl = stencil::llm::defaultLlmBaseUrl(QStringLiteral("ollama"));
     QString llmModel;
     QString llmApiKey;                  // openai-compat only (Bearer)
     QString llmServerUrl;               // stencil-server only ("" = first saved connection)
-    // Chat persistence opt-in (llm-contract.md §12): save the assistant
-    // conversation with the active project and restore it on reopen. OFF by
-    // default everywhere — an explicit user opt-in; incognito never persists.
+    // Chat persistence opt-in (llm-contract.md §12): OFF by default; incognito never persists.
     bool saveChatsWithProject = false;
-    // "Swap message sides" (chat "…" menu, between Clear history and Settings):
-    // false (default) is today's layout — user right, assistant/error left.
-    // Browser/extension parity: js/ui/chatLayoutPrefs.js CHAT_SIDE_SWAPPED,
-    // lib/chatLayoutPrefs.js, one boolean apart from their string enum.
+    // false = user right, assistant left (browser chatLayoutPrefs.js CHAT_SIDE_SWAPPED twin).
     bool chatSwapSides = false;
-    // Put the menu bar where the PLATFORM does (macOS/Unity global bar) instead of
-    // inside the window. Default true. It is off-by-default only in effect on the
-    // desktops where Qt's native export leaves an empty in-window bar — the reason
-    // this was hardcoded before it became a choice. Windows has no global bar, so
-    // the value is inert there.
+    // Platform menu bar (macOS/Unity global bar); inert on Windows.
     bool nativeMenuBar = true;
-    // QMainWindow::saveState() bytes, base64 — restores the chat/selection dock
-    // areas + floating geometry on boot ("" = never saved).
+    // QMainWindow::saveState() bytes, base64; "" = never saved.
     QString windowState;
   };
 
-  // The autosaved in-progress drawing ("last edited points"), restored on launch.
-  // Mirrors the browser localStorage layout blob.
+  // The autosaved in-progress drawing (browser localStorage layout blob).
   struct Session {
     QString imagePath;
     QString pageSize = "A3";
     double scale = 1.0;
     core::Lines lines;
-    // Carry a custom page across restart (named formats ride along in pageSize).
     double customPageWidth = 21.0;
     double customPageHeight = 29.7;
-    // Image filter / tint / draw mode ride along in the layout blob (browser
-    // storage.js:40-41,54). drawMode is "line" | "rect".
+    // drawMode is "line" | "rect" (browser storage.js).
     QString imageFilter = "none";
     QString filterColor = "#7c3aed";
     QString drawMode = "line";
-    // Crop window in rotated-image pixels (width 0 = no crop stored → default
-    // centered crop is applied on load). The original image is never modified.
+    // Rotated-image pixels; width 0 = no crop stored → default centered crop on load.
     core::CropRect cropRect;
-    // 90° quarter-turns (0..3, clockwise) applied to the original before the crop.
     int rotationQuarters = 0;
-    // The saved project the session was editing (empty = unsaved). Without it a
-    // relaunch restored the pixels but forgot WHOSE they were, so deleting that
-    // project later left its image sitting in the editor (browser storage parity).
+    // The project being edited (empty = unsaved), so a relaunch knows WHOSE pixels these are.
     QString activeProjectId;
   };
 
-  // One saved project: registry metadata (handled by core::ProjectsStore) plus
-  // its layout payload.
+  // One saved project: registry metadata (core::ProjectsStore) + layout payload.
   struct Project {
     core::ProjectMeta meta;
     QString imagePath;
     core::Lines lines;
-    // Crop window (rotated-image pixels); width 0 = default crop on load.
     core::CropRect cropRect;
-    // 90° quarter-turns (0..3, clockwise) applied to the original before the crop.
     int rotationQuarters = 0;
-    // Persisted-chat document (llm-contract.md §12.1); empty = no saved
-    // chat. Written only when Settings.saveChatsWithProject is on.
+    // llm-contract.md §12.1; empty = no saved chat.
     QJsonObject chat;
-    // Pan/zoom position (browser parity: storage.js's zoom/scrollLeft/scrollTop), restored
-    // on reopen. 0 = never saved — MainWindow falls back to fitToWindow(), mirroring the
-    // browser's own `if (layout.zoom)` gate.
+    // 0 = never saved → MainWindow falls back to fitToWindow() (browser `if (layout.zoom)` gate).
     double zoomScale = 0.0;
     int scrollLeft = 0;
     int scrollTop = 0;
   };
 
   namespace fileStore {
-    // The gitignored state directory (created on first use). Returns its path.
     QString stateDir();
     QString settingsPath();
     QString sessionPath();
     QString projectsPath();
+    // Owner-only (0600) sidecar for SECRETS (saved connection tokens) — never QSettings plaintext.
+    QString secretsPath();
+    QJsonObject loadSecrets();
+    void saveSecrets(const QJsonObject& o);
 
     Settings loadSettings();
     void saveSettings(const Settings& s);
 
-    // Settings <-> JSON (the settings.json object). Promoted from the .cpp — like
-    // projectToJson — so the round-trip (incl. the llm* keys) is unit-testable
-    // without touching disk. `base` supplies the defaults for absent keys
-    // (loadSettings passes a locale-seeded one).
+    // Exposed so the round-trip is unit-testable without disk; `base` supplies defaults for absent keys.
     QJsonObject settingsToJson(const Settings& s);
     Settings settingsFromJson(const QJsonObject& o, const Settings& base = Settings());
 
@@ -189,24 +134,20 @@ namespace stencil::gui {
     void saveSession(const Session& s);
     void clearSession();
 
-    std::vector<Project> loadProjects();
-    void saveProjects(const std::vector<Project>& projects);
+    std::vector<Project> loadProjects();   // flushes any pending saveProjects first
+    void saveProjects(const std::vector<Project>& projects);   // io/deferredWrite.hpp
+    void flushWrites();   // …force those out: on the way out of the app
 
-    // One project <-> JSON (a projects.json array element). Promoted from the .cpp
-    // so the per-project `color` round-trip is unit-testable without touching disk.
-    // Mirrors the browser project record (projectsStore.js / storage.js).
+    // Exposed so the `color` round-trip is unit-testable without disk (browser projectsStore.js twin).
     QJsonObject projectToJson(const Project& pr);
     Project projectFromJson(const QJsonObject& o);
 
-    // ── Line <-> JSON helpers (promoted from the .cpp anon namespace so the
-    // layout-import/export data actions can reuse them). Mirror the browser
-    // line object fields (storage.js).
+    // Line <-> JSON (browser storage.js line fields); reused by the layout data actions.
     QJsonObject lineToJson(const core::Line& line);
     core::Line lineFromJson(const QJsonObject& o);
     QJsonArray linesToJson(const core::Lines& lines);
     core::Lines linesFromJson(const QJsonArray& arr);
 
-    // Page format + x/y formulas carried in the server layout (omitted when at defaults).
     struct LayoutMeta {
       QString pageSize;             // "" = omit; else a named ISO format | "custom"
       double customPageWidth = 0;   // cm; 0 = unset
@@ -216,27 +157,20 @@ namespace stencil::gui {
       QString formulaY;
     };
 
-    // ── Layout-JSON envelope (mirrors browser layout.js buildLayoutPayload).
-    // Emits {imageWidth,imageHeight,lines,imageFilter,filterColor} plus optional
-    // cropRect (rotated-image pixels) + rotationQuarters, so a reopened project
-    // restores its filter and exact geometry. cropRect is omitted when empty and
-    // rotationQuarters when 0, keeping old file exports byte-identical; parseLayoutJson
-    // fills the out-pointers when supplied, leaving them untouched when absent.
-    // `meta` adds the page format + formulas (server save passes it; file export omits it).
+    // Browser layout.js buildLayoutPayload twin: cropRect and rotationQuarters are omitted when
+    // empty/0 so old exports stay byte-identical; parseLayoutJson leaves an absent out-pointer untouched.
     QJsonObject buildLayoutJson(int w, int h, const core::Lines& lines,
                                 const QString& imageFilter = "none",
                                 const QString& filterColor = "#7c3aed",
                                 const core::CropRect& cropRect = {},
                                 int rotationQuarters = 0,
                                 const LayoutMeta& meta = {});
-    // Read the page format + formulas back out of a layout envelope (fields absent → defaults).
     LayoutMeta parseLayoutMeta(const QJsonObject& o);
     core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
                                 core::CropRect* cropOut = nullptr, int* rotOut = nullptr);
 
-    // ── .stencil portable project files (image + layout + metadata + optional theme) ──
-    // One self-contained JSON doc shared by every Stencil surface; QtCore-only (image as base64, no QImage) so it stays headless-testable. Mirrors browser/js/core/projectFile.js.
-    inline constexpr int kStencilFileVersion = 1;
+    // .stencil portable project file — browser/js/core/projectFile.js twin; QtCore-only (image as base64).
+    inline constexpr int STENCIL_FILE_VERSION = 1;
     struct ProjectFileData {
       QString name = "Untitled";
       QString color;              // "#rrggbb" or "" (omitted from the file when empty)
@@ -252,29 +186,21 @@ namespace stencil::gui {
       bool hasTheme = false;
       QString themeMode;          // "light" | "dark"
       QString themeAccent;        // accent preset key or "#rrggbb"
-      // Optional persisted chat (llm-contract.md §12.3): written only when
-      // the save-chats toggle is on; ignored gracefully by older readers.
+      // llm-contract.md §12.3; written only when the save-chats toggle is on.
       QJsonObject chat;
     };
-    // Serialize a project to pretty-printed .stencil JSON bytes.
     QByteArray buildProjectFile(const ProjectFileData& pf);
-    // Parse + validate. Returns false (and sets *err when given) on a bad/foreign/too-new file;
-    // on success `out.imageBytes` holds the DECODED image and `out.layout` the layout object.
+    // On success `out.imageBytes` holds the DECODED image.
     bool parseProjectFile(const QByteArray& bytes, ProjectFileData& out, QString* err = nullptr);
 
-    // ── Persisted-chat document (llm-contract.md §12.1) ──
-    // {version:1, savedAt:<ms>, messages:[{role:"user"|"assistant", text}]} —
-    // text-only (images never persisted), most recent 32 turns. Both helpers
-    // sanitize: unknown roles/fields and non-string texts are dropped, and an
-    // unknown version reads as "no saved chat" (never an error).
-    inline constexpr int kChatDocVersion = 1;
-    inline constexpr int kChatDocMessageLimit = 32;
+    // llm-contract.md §12.1: text-only, most recent 32 turns; unknown roles/fields/versions are dropped.
+    inline constexpr int CHAT_DOC_VERSION = 1;
+    inline constexpr int CHAT_DOC_MESSAGE_LIMIT = 32;
     QJsonObject buildChatDoc(const QJsonArray& messages, qint64 savedAt);
     QJsonArray parseChatDoc(const QJsonObject& doc);
 
     QString hotkeysPath();
-    // Shortcut overrides (id -> key sequence), layered over hotkeysConfig.json
-    // defaults. Mirrors the browser STORAGE_KEYS.hotkeys blob (S13).
+    // Shortcut overrides over hotkeysConfig.json (browser STORAGE_KEYS.hotkeys twin).
     QHash<QString, QString> loadHotkeys();
     void saveHotkeys(const QHash<QString, QString>& overrides);
   }

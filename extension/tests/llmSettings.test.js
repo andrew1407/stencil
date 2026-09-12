@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   LLM_SETTINGS_KEY, PROVIDERS, PROVIDER_BASE_URLS,
-  defaultSettings, loadLlmSettings, saveLlmSettings, assistantEnabled,
+  defaultSettings, loadLlmSettings, saveLlmSettings, assistantEnabled, isHttpUrl,
 } from '../src/llm/llmSettings.js';
 import { applyAssistantVisibility } from '../src/popup/assistant.js';
 
@@ -164,4 +164,24 @@ test('applyAssistantVisibility hides BOTH the section and the ✦ button, revers
   // Missing elements (a surface without one) are simply skipped.
   assert.doesNotThrow(() => applyAssistantVisibility(false, {}));
   assert.doesNotThrow(() => applyAssistantVisibility(true));
+});
+
+// NEGATIVE: chrome.storage is writable by anything running in the extension, so a
+// poisoned entry must not aim the client at another scheme (browser/js/llm/llmSettings.js
+// applies the same isHttpUrl check on its side).
+test('an endpoint saved on a non-http(s) scheme is dropped for the default', async () => {
+  const mock = installStorageMock();
+  for (const bad of ['javascript:fetch(1)', 'file:///etc/passwd', 'chrome-extension://abc/x',
+    'data:text/html,x', '//evil.example']) {
+    assert.equal(isHttpUrl(bad), false, bad);
+    await saveLlmSettings({ provider: 'ollama', baseUrl: bad, serverUrl: bad });
+    const s = await loadLlmSettings({ connections: [] });
+    assert.equal(s.baseUrl, PROVIDER_BASE_URLS.ollama, bad);
+    assert.equal(s.serverUrl, '', bad);
+  }
+  await saveLlmSettings({ provider: 'ollama', baseUrl: 'HTTPS://box:9000/v1', serverUrl: 'http://srv:8090' });
+  const ok = await loadLlmSettings({ connections: [] });
+  assert.equal(ok.baseUrl, 'HTTPS://box:9000/v1');
+  assert.equal(ok.serverUrl, 'http://srv:8090');
+  mock.reset();
 });

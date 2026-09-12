@@ -18,11 +18,13 @@ import {
   STROKE_POP_PEAK, STROKE_FLY_R0, STROKE_RIPPLE_MS, STROKE_RIPPLE_REACH, STROKE_WAKE_ALPHA,
 } from '../js/ui/motion.js';
 import { StrokeFx } from '../js/core/strokeFx.js';
+import { recordingCtx, argsOf, indexOf } from './helpers/recordingCtx.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const drawingAppJs = read('../js/core/drawingApp.js');
 const inputJs = read('../js/core/inputController.js');
-const rendererJs = read('../js/core/renderer.js');
+const shapeJs = read('../js/core/shapeBuilder.js');   // insert / rect routes
+const clickJs = read('../js/core/canvasClick.js');   // the click router
 const exportJs = read('../js/core/exportService.js');
 
 // ── 1. The arithmetic ───────────────────────────────────────────────────────
@@ -250,20 +252,18 @@ test('a line with nothing in the air is not copied, and paints no overlay', () =
 // ── 3. The wiring ───────────────────────────────────────────────────────────
 
 test('every route that adds a point sends it flying', () => {
-  // drawing-mode click on a fresh line, continuation click, insert-on-segment,
-  // connect-to-selection (both branches), and a rect's corners.
-  // Five click/insert routes plus the Alt+Ctrl pull-out, which adds a point too.
-  assert.equal((drawingAppJs.match(/this\.strokeFx\.flyIn\(/g) || []).length, 6,
-    'drawingApp: every single-point route');
+  // Five click/insert routes, plus the Alt+Ctrl pull-out, which adds a point too.
+  const flights = (src) => (src.match(/(this|app)\.strokeFx\.flyIn\(/g) || []).length;
+  assert.equal(flights(drawingAppJs) + flights(shapeJs) + flights(clickJs), 6, 'every route');
   assert.match(drawingAppJs, /this\.strokeFx\.flyIn\(line, idx, \{ x, y \}\)/,
     'a pulled-out point flies out of the spot it was pulled from');
   // …and all THREE rect routes: appended to a continued line, appended to the selected
   // line, and a standalone one drawn on empty space.
-  assert.equal((drawingAppJs.match(/this\.strokeFx\.flyInRange\(/g) || []).length, 3,
-    'drawingApp: every rect draws itself corner by corner');
-  assert.match(drawingAppJs, /this\.strokeFx\.flyInRange\(rect, 0, corners\.length\)/,
+  assert.equal((shapeJs.match(/app\.strokeFx\.flyInRange\(/g) || []).length, 3,
+    'shapeBuilder: every rect draws itself corner by corner');
+  assert.match(shapeJs, /app\.strokeFx\.flyInRange\(rect, 0, corners\.length\)/,
     'a standalone rect starts at its own first corner');
-  assert.match(drawingAppJs, /flyIn\(line, insertIdx, strokeFoot\(/,
+  assert.match(shapeJs, /flyIn\(line, insertIdx, strokeFoot\(/,
     'an inserted vertex comes out of its foot on the segment');
   // the hold-draw seed, a hold drop on a continued line, and one on a fresh stroke
   assert.equal((inputJs.match(/app\.strokeFx\.flyIn\(/g) || []).length, 3,
@@ -283,13 +283,26 @@ test('a restored or wiped set of lines grounds every flight', () => {
   assert.equal(h.fx.pointsOf(line), line.points);
 });
 
-test('the renderer draws the flown positions, at their flown size', () => {
-  assert.match(rendererJs, /const pts = fx\.pointsOf\(line\);/);
-  assert.ok(!/ctx\.moveTo\(line\.points\[0\]/.test(rendererJs),
-    'no geometry pass still reads the resting array');
-  assert.match(rendererJs, /fx\.scaleAt\(line\.points\[pi\]\)/, 'the vertex swells as it lands');
-  assert.match(rendererJs, /fx\.paintUnder\(this\.app\.ctx, line, pts\)/, 'the wake, under the stroke');
-  assert.match(rendererJs, /fx\.paintOver\(this\.app\.ctx, line, pts\)/, 'the spark + ring, over it');
+test('the renderer draws the flown positions, at their flown size', async () => {
+  const { Renderer } = await import('../js/core/renderer.js');
+  const { ctx, calls } = recordingCtx();
+  const line = lineOf([0, 0], [100, 0]);
+  const flown = [{ x: 7, y: 8 }, { x: 40, y: 9 }];
+  const seen = [];
+  const at = (tag) => (c, l, pts) => seen.push([tag, c, l, pts, calls.length]);
+  const fx = { pointsOf: () => flown, scaleAt: () => 3, paintUnder: at('under'), paintOver: at('over') };
+  new Renderer({ ctx, strokeFx: fx, showPoints: true, pointSize: 4, listHoverLineIdx: -1 })
+    .drawLine(line, false, 0);
+  // A geometry pass that read the resting array, or a radius that skipped scaleAt, lands here.
+  const geom = [...argsOf(calls, 'moveTo'), ...argsOf(calls, 'lineTo')];
+  assert.equal(geom.length, line.points.length, 'one stroke pass, every vertex');
+  for (const [x, y] of geom) assert.ok(flown.some((f) => f.x === x && f.y === y),
+    `drew (${x},${y}) — no geometry pass may read the resting array`);
+  assert.deepEqual(argsOf(calls, 'arc').map((a) => a[2]), [12, 12], 'pointSize x scaleAt');
+  const stroke = indexOf(calls, 'stroke');
+  assert.deepEqual(seen.map(([tag, c, l, pts]) => [tag, c, l, pts]),
+    [['under', ctx, line, flown], ['over', ctx, line, flown]], 'both overlays, on the app ctx');
+  assert.ok(seen[0][4] <= stroke && seen[1][4] > stroke, 'the wake under the stroke, the spark over');
 });
 
 test('an export is the resting picture — never a vertex caught mid-air', () => {

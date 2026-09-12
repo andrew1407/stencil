@@ -1,6 +1,6 @@
 #include "planExecutor.hpp"
 
-#include "canvasWidget.hpp"
+#include "CanvasWidget.hpp"
 #include "colorNames.hpp"
 #include "cropSpec.hpp"
 #include "formulaParser.hpp"
@@ -98,7 +98,7 @@ namespace stencil::llm {
       // pins that), but reject defensively even if one somehow appears.
       if (rejectForbiddenOp(opName(a.op), err)) return false;
       switch (a.op) {
-        case OpKind::Crop: {
+        case OpKind::CROP: {
           if (!target.hasImage()) {
             *err = QStringLiteral("crop: no working image");
             return false;
@@ -113,7 +113,7 @@ namespace stencil::llm {
           frame.composeCrop(rect);
           return true;
         }
-        case OpKind::Rotate: {
+        case OpKind::ROTATE: {
           if (!target.hasImage()) {
             *err = QStringLiteral("rotate: no working image");
             return false;
@@ -125,10 +125,10 @@ namespace stencil::llm {
           }
           return true;
         }
-        case OpKind::Filter:
+        case OpKind::FILTER:
           target.setImageFilter(a.mode, a.tint);
           return true;
-        case OpKind::Layout: {
+        case OpKind::LAYOUT: {
           if (!target.hasImage()) {
             *err = QStringLiteral("layout: no working image");
             return false;
@@ -146,7 +146,7 @@ namespace stencil::llm {
           target.setLayoutLines(lines);
           return true;
         }
-        case OpKind::Formula: {
+        case OpKind::FORMULA: {
           // §2 `enabled` form: the allow-formulas toggle, nothing per-axis.
           if (a.formulaEnabled >= 0) {
             target.setFormulasEnabled(a.formulaEnabled == 1);
@@ -164,22 +164,22 @@ namespace stencil::llm {
           target.setFormula(a.axis, a.expr);
           return true;
         }
-        case OpKind::Page:
+        case OpKind::PAGE:
           // §2: format OR custom cm dims (exactly one — the parser enforced it).
           if (a.widthCm > 0)
             target.setPageCustom(a.widthCm, a.heightCm);
           else
             target.setPageFormat(a.format.toUpper());
           return true;
-        case OpKind::Blank: {
+        case OpKind::BLANK: {
           if (!target.newBlank(a.color, a.format.toUpper(), a.widthCm, a.heightCm, err))
             return false;
           frame.reset();  // a fresh image is a fresh frame
           return true;
         }
-        case OpKind::Undo:
-        case OpKind::Redo: {
-          const bool redo = a.op == OpKind::Redo;
+        case OpKind::UNDO:
+        case OpKind::REDO: {
+          const bool redo = a.op == OpKind::REDO;
           const char* name = redo ? "redo" : "undo";
           if (inVariant) {  // parse-banned; defensive only
             *err = QStringLiteral("%1: not allowed inside a variant").arg(QLatin1String(name));
@@ -204,7 +204,7 @@ namespace stencil::llm {
           if (done > 0) frame.reset();
           return true;
         }
-        case OpKind::Frame: {
+        case OpKind::FRAME: {
           if (inVariant) {
             *err = QStringLiteral("frame: not valid inside a variant");
             return false;
@@ -217,7 +217,7 @@ namespace stencil::llm {
           frame.reset();
           return true;
         }
-        case OpKind::OpenUrl: {
+        case OpKind::OPEN_URL: {
           if (inVariant) {
             *err = QStringLiteral("openUrl: not allowed inside a variant");
             return false;
@@ -235,7 +235,7 @@ namespace stencil::llm {
           frame.reset();  // the loaded picture is a fresh frame
           return true;
         }
-        case OpKind::OpenFile: {
+        case OpKind::OPEN_FILE: {
           if (inVariant) {
             *err = QStringLiteral("openFile: not allowed inside a variant");
             return false;
@@ -252,9 +252,9 @@ namespace stencil::llm {
           frame.reset();  // the loaded picture is a fresh frame
           return true;
         }
-        // ── §2.1 multi-image ops (parse-banned in variants; the guards here
-        // are defensive only) ──
-        case OpKind::Image: {
+        // §2.1 multi-image ops (parse-banned in variants; the guards here
+        // are defensive only)
+        case OpKind::IMAGE: {
           if (inVariant) {
             *err = QStringLiteral("image: not allowed inside a variant");
             return false;
@@ -268,7 +268,7 @@ namespace stencil::llm {
           frame.reset();  // the attachment is a fresh image, so a fresh frame
           return true;
         }
-        case OpKind::Save: {
+        case OpKind::SAVE: {
           if (inVariant) {
             *err = QStringLiteral("save: not allowed inside a variant");
             return false;
@@ -290,33 +290,33 @@ namespace stencil::llm {
           }
           return target.saveProject(a.name, dest, err);
         }
-        case OpKind::ClearChat:
-        case OpKind::Dialog:
+        case OpKind::CLEAR_CHAT:
+        case OpKind::DIALOG:
           // executePlan defers these past every other action; reaching here
           // means a variant/preview slipped through the parse ban.
           *err = QStringLiteral("editor-settings ops are not allowed inside a variant");
           return false;
-        // ── §10 editor-settings ops (parse-banned in variants; the inVariant
-        // guard below is defensive only) ──
-        case OpKind::Theme:
-        case OpKind::Accent:
-        case OpKind::LineStyle:
-        case OpKind::Units:
-        case OpKind::View:
-        case OpKind::Clear:
-        case OpKind::Connect:
-        case OpKind::Disconnect:
-        case OpKind::Copy:
-        case OpKind::RemoveProject:
-        case OpKind::ClearProjects:
-        case OpKind::Compare:
-        case OpKind::Zoom:
-        case OpKind::RenameProject:
-        case OpKind::ProjectColor:
-        case OpKind::BlankColor:
-        case OpKind::OpenProject:
-        case OpKind::ChatPanel:
-        case OpKind::Incognito: {
+        // §10 editor-settings ops (parse-banned in variants; the inVariant
+        // guard below is defensive only)
+        case OpKind::THEME:
+        case OpKind::ACCENT:
+        case OpKind::LINE_STYLE:
+        case OpKind::UNITS:
+        case OpKind::VIEW:
+        case OpKind::CLEAR:
+        case OpKind::CONNECT:
+        case OpKind::DISCONNECT:
+        case OpKind::COPY:
+        case OpKind::REMOVE_PROJECT:
+        case OpKind::CLEAR_PROJECTS:
+        case OpKind::COMPARE:
+        case OpKind::ZOOM:
+        case OpKind::RENAME_PROJECT:
+        case OpKind::PROJECT_COLOR:
+        case OpKind::BLANK_COLOR:
+        case OpKind::OPEN_PROJECT:
+        case OpKind::CHAT_PANEL:
+        case OpKind::INCOGNITO: {
           if (inVariant) {
             *err = QStringLiteral("editor-settings ops are not allowed inside a variant");
             return false;
@@ -331,8 +331,8 @@ namespace stencil::llm {
             return true;
           };
           switch (a.op) {
-            case OpKind::Theme: target.setTheme(a.mode); return true;
-            case OpKind::Accent: {
+            case OpKind::THEME: target.setTheme(a.mode); return true;
+            case OpKind::ACCENT: {
               // §10: a PRESET persists and syncs; unknown preset names are the
               // target's note+skip. A raw hex keeps the current behaviour.
               if (!a.preset.isEmpty()) {
@@ -345,7 +345,7 @@ namespace stencil::llm {
               target.setAccent(a.color);
               return true;
             }
-            case OpKind::LineStyle:
+            case OpKind::LINE_STYLE:
               // §10: fillColor is a BROWSER-only control — this editor notes
               // and skips that field, applying the rest.
               if (!a.fillColor.isEmpty() && notes)
@@ -353,11 +353,11 @@ namespace stencil::llm {
                     "lineStyle: fillColor is a browser-editor control — skipped here");
               target.setDefaultLineStyle(a);
               return true;
-            case OpKind::Units: target.setUnits(a.value); return true;
-            case OpKind::View: target.setViewVisibility(a.viewPoints, a.viewLines); return true;
-            case OpKind::Clear: target.clearImage(); frame.reset(); return true;
-            case OpKind::Connect: return target.connectServer(a.server, err);
-            case OpKind::Copy:
+            case OpKind::UNITS: target.setUnits(a.value); return true;
+            case OpKind::VIEW: target.setViewVisibility(a.viewPoints, a.viewLines); return true;
+            case OpKind::CLEAR: target.clearImage(); frame.reset(); return true;
+            case OpKind::CONNECT: return target.connectServer(a.server, err);
+            case OpKind::COPY:
               // §10: copy what:"layout" needs drawn lines; the default image
               // form needs a working image — both are a note+skip, never a
               // failed plan.
@@ -374,33 +374,33 @@ namespace stencil::llm {
                 return true;
               }
               return target.copyImage(err);
-            case OpKind::RemoveProject: {
+            case OpKind::REMOVE_PROJECT: {
               QString note;
               return noted("removeProject",
                            target.removeProjectNamed(a.name, a.current, &note), note);
             }
-            case OpKind::ClearProjects: {
+            case OpKind::CLEAR_PROJECTS: {
               QString note;
               return noted("clearProjects", target.clearProjects(a.current, &note), note);
             }
-            case OpKind::Compare:
+            case OpKind::COMPARE:
               return target.setCompare(a.mode, a.split, err);
-            case OpKind::Zoom:
+            case OpKind::ZOOM:
               return target.setZoom(a.percent, a.fit, err);
-            case OpKind::RenameProject: {
+            case OpKind::RENAME_PROJECT: {
               QString note;
               return noted("renameProject", target.renameActiveProject(a.name, &note),
                            note);
             }
-            case OpKind::ProjectColor: {
+            case OpKind::PROJECT_COLOR: {
               QString note;
               return noted("projectColor", target.setProjectColor(a.color, &note), note);
             }
-            case OpKind::BlankColor: {
+            case OpKind::BLANK_COLOR: {
               QString note;
               return noted("blankColor", target.setBlankColor(a.color, &note), note);
             }
-            case OpKind::OpenProject: {
+            case OpKind::OPEN_PROJECT: {
               QString note;
               if (!noted("openProject", target.openProjectNamed(a.name, a.current, &note), note))
                 return false;
@@ -410,11 +410,11 @@ namespace stencil::llm {
               if (note.isEmpty()) frame.reset();
               return true;
             }
-            case OpKind::Incognito: {
+            case OpKind::INCOGNITO: {
               QString note;
               return noted("incognito", target.setIncognito(a.incognito, &note), note);
             }
-            case OpKind::ChatPanel: {
+            case OpKind::CHAT_PANEL: {
               QString note;
               return noted("chatPanel", target.setChatPlacement(a.chatOpen, a.dock, &note), note);
             }
@@ -428,98 +428,8 @@ namespace stencil::llm {
 
   }  // namespace
 
-  bool PlanTarget::extractFrames(const QVector<int>&, QString* err) {
-    if (err) *err = QStringLiteral("frame: video frames are not available here");
-    return false;
-  }
-
-  void PlanTarget::setPageCustom(double, double) {}
-  void PlanTarget::setDefaultLineStyle(const Action&) {}
-  void PlanTarget::setViewVisibility(int, int) {}
-
-  int PlanTarget::stepHistory(bool, int) { return -1; }
-
-  void PlanTarget::setAccentPreset(const QString&, QString* note) {
-    if (note) *note = QStringLiteral("accent presets are not available here");
-  }
-
-  bool PlanTarget::copyLayout(QString* err) {
-    if (err) *err = QStringLiteral("copy: the layout clipboard is not available here");
-    return false;
-  }
-
-  bool PlanTarget::setCompare(const QString&, double, QString* err) {
-    if (err) *err = QStringLiteral("compare: the compare view is not available here");
-    return false;
-  }
-
-  bool PlanTarget::setZoom(int, bool, QString* err) {
-    if (err) *err = QStringLiteral("zoom: the view zoom is not available here");
-    return false;
-  }
-
-  bool PlanTarget::renameActiveProject(const QString&, QString* note) {
-    if (note) *note = QStringLiteral("renameProject: managing projects is not available here");
-    return false;
-  }
-
-  bool PlanTarget::setProjectColor(const QString&, QString* note) {
-    if (note) *note = QStringLiteral("projectColor: managing projects is not available here");
-    return false;
-  }
-
   bool PlanTarget::setBlankColor(const QString&, QString* note) {
     if (note) *note = QStringLiteral("blankColor: not available here");
-    return false;
-  }
-
-  bool PlanTarget::openProjectNamed(const QString&, bool, QString* note) {
-    if (note) *note = QStringLiteral("openProject: managing projects is not available here");
-    return false;
-  }
-
-  bool PlanTarget::setIncognito(bool, QString* note) {
-    if (note) *note = QStringLiteral("incognito: not available here");
-    return false;
-  }
-
-  bool PlanTarget::setChatPlacement(int, const QString&, QString* note) {
-    if (note) *note = QStringLiteral("chatPanel: there is no assistant panel here");
-    return false;
-  }
-
-  bool PlanTarget::openDialog(const QString&, QString* note) {
-    if (note) *note = QStringLiteral("dialog: there are no windows to open here");
-    return false;
-  }
-
-  bool PlanTarget::connectServer(const QString&, QString* err) {
-    if (err) *err = QStringLiteral("connect: not available here");
-    return false;
-  }
-
-  bool PlanTarget::copyImage(QString* err) {
-    if (err) *err = QStringLiteral("copy: not available here");
-    return false;
-  }
-
-  bool PlanTarget::disconnectServer(const QString&, QString* err) {
-    if (err) *err = QStringLiteral("disconnect: not available here");
-    return false;
-  }
-
-  bool PlanTarget::removeProjectNamed(const QString&, bool, QString* note) {
-    if (note) *note = QStringLiteral("removeProject: managing projects is not available here");
-    return false;
-  }
-
-  bool PlanTarget::clearProjects(bool, QString* note) {
-    if (note) *note = QStringLiteral("clearProjects: managing projects is not available here");
-    return false;
-  }
-
-  bool PlanTarget::openUrl(const QString&, bool, QString* err) {
-    if (err) *err = QStringLiteral("openUrl: not available here");
     return false;
   }
 
@@ -555,105 +465,6 @@ namespace stencil::llm {
     return false;  // a bare "/" grants nothing
   }
 
-  bool PlanTarget::openFile(const QString&, QString* err) {
-    if (err) *err = QStringLiteral("openFile: reading local files is not available here");
-    return false;
-  }
-
-  bool PlanTarget::clearChat(QString* note) {
-    if (note) *note = QStringLiteral("clearChat: there is no conversation to clear here");
-    return false;
-  }
-
-  bool PlanTarget::loadAttachment(int, QString* err) {
-    if (err) *err = QStringLiteral("this surface cannot switch to attached images");
-    return false;
-  }
-
-  bool PlanTarget::saveProject(const QString&, const QString&, QString* err) {
-    if (err) *err = QStringLiteral("save: saving projects is not available here");
-    return false;
-  }
-
-  QString resolveServerRef(const QString& ref, const QStringList& saved) {
-    const QString want = ref.trimmed();
-    if (want.isEmpty()) return QString();
-    for (const QString& s : saved)  // exact URL first
-      if (QString::compare(s, want, Qt::CaseInsensitive) == 0) return s;
-    const QString host = QUrl::fromUserInput(want).host();
-    if (host.isEmpty()) return QString();
-    QString found;
-    for (const QString& s : saved) {
-      if (QUrl(s).host().compare(host, Qt::CaseInsensitive) == 0) {
-        if (!found.isEmpty()) return QString();  // ambiguous host — refuse
-        found = s;
-      }
-    }
-    return found;
-  }
-
-  // ── CanvasPlanTarget ────────────────────────────────────────────────────────
-
-  CanvasPlanTarget::CanvasPlanTarget(const QImage& image, const core::PageSize& pageCm)
-      : canvas_(std::make_unique<gui::CanvasWidget>()), page_(pageCm) {
-    canvas_->setPageCm(page_.width, page_.height);
-    if (!image.isNull()) {
-      // Adopt the snapshot 1:1 — a FULL-frame crop, so a variant starts from
-      // exactly the working image (no default page-aspect auto-crop).
-      canvas_->loadFromImage(
-          image,
-          core::CropRect{0, 0, static_cast<double>(image.width()),
-                         static_cast<double>(image.height())},
-          0);
-    }
-  }
-
-  CanvasPlanTarget::~CanvasPlanTarget() = default;
-
-  bool CanvasPlanTarget::hasImage() const { return canvas_->hasImage(); }
-
-  QSize CanvasPlanTarget::effectiveOriginalSize() const {
-    return canvas_->effectiveOriginalImage().size();
-  }
-
-  QSize CanvasPlanTarget::workingSize() const { return canvas_->image().size(); }
-
-  bool CanvasPlanTarget::applyCropRect(const core::CropRect& rect) {
-    canvas_->applyCrop(rect, /*recalc=*/true);
-    return true;
-  }
-
-  void CanvasPlanTarget::rotateQuarter(bool clockwise) { canvas_->rotateImage(clockwise); }
-
-  void CanvasPlanTarget::setImageFilter(const QString& mode, const QString& tintHex) {
-    if (tintHex.isEmpty()) canvas_->setFilter(mode);
-    else canvas_->setImageFilter(mode, QColor(tintHex));
-  }
-
-  void CanvasPlanTarget::setLayoutLines(const core::Lines& lines) {
-    canvas_->setLines(lines);
-  }
-
-  void CanvasPlanTarget::setFormula(QChar axis, const QString& expr) {
-    (axis == QLatin1Char('x') ? formulaX : formulaY) = expr;
-  }
-
-  void CanvasPlanTarget::setPageFormat(const QString& isoName) {
-    pageFormat = isoName;
-    const core::PageSize ps = core::namedPageSize(isoName.toStdString());
-    if (ps.width > 0) {
-      page_ = ps;
-      canvas_->setPageCm(page_.width, page_.height);
-    }
-  }
-
-  void CanvasPlanTarget::setPageCustom(double widthCm, double heightCm) {
-    pageCustomW = widthCm;
-    pageCustomH = heightCm;
-    page_ = {widthCm, heightCm};
-    canvas_->setPageCm(page_.width, page_.height);
-  }
-
   bool CanvasPlanTarget::newBlank(const QString& color, const QString& isoName,
                                   double widthCm, double heightCm, QString* err) {
     core::PageSize page = page_;
@@ -678,52 +489,6 @@ namespace stencil::llm {
         core::CropRect{0, 0, static_cast<double>(px.width), static_cast<double>(px.height)},
         0);
     blank_ = true;
-    return true;
-  }
-
-  int CanvasPlanTarget::stepHistory(bool redo, int steps) {
-    int done = 0;
-    for (; done < steps; ++done) {
-      if (redo ? !canvas_->canRedo() : !canvas_->canUndo()) break;
-      if (redo) canvas_->redo();
-      else canvas_->undo();
-    }
-    return done;
-  }
-
-  void CanvasPlanTarget::setDefaultLineStyle(const Action& a) {
-    if (!a.color.isEmpty()) lsColor = a.color;
-    if (a.thickness > 0) lsThickness = a.thickness;
-    if (a.pointSize > 0) lsPointSize = a.pointSize;
-    if (!a.style.isEmpty()) lsStyle = a.style;
-    if (a.pointColorSet) {
-      lsPointColor = a.pointColor;
-      lsPointColorSet = true;
-    }
-    if (!a.drawMode.isEmpty()) lsDrawMode = a.drawMode;
-  }
-
-  void CanvasPlanTarget::setViewVisibility(int points, int lines) {
-    if (points >= 0) viewPoints = points;
-    if (lines >= 0) viewLines = lines;
-  }
-
-  bool CanvasPlanTarget::hasDrawnLines() const { return !canvas_->lines().empty(); }
-
-  bool CanvasPlanTarget::setCompare(const QString& mode, double split, QString*) {
-    compareMode = mode;
-    canvas_->setCompareMode(mode);
-    if (split > 0) {
-      compareSplit = split;
-      canvas_->setCompareSplit(split);
-    }
-    return true;
-  }
-
-  bool CanvasPlanTarget::setZoom(int percent, bool fit, QString*) {
-    zoomPercent = percent;
-    zoomFit = fit;
-    if (!fit && percent > 0) canvas_->setScale(percent / 100.0);
     return true;
   }
 
@@ -754,11 +519,6 @@ namespace stencil::llm {
     return true;
   }
 
-  QImage CanvasPlanTarget::renderResult() const {
-    return canvas_->renderToImage(/*withOverlay=*/true);
-  }
-
-  // ── executePlan ─────────────────────────────────────────────────────────────
 
   ExecResult executePlan(const OpPlan& plan, PlanTarget& target) {
     ExecResult res;
@@ -772,8 +532,8 @@ namespace stencil::llm {
     for (const Action& a : plan.actions) {
       // §10 clearChat is DEFERRED to the end of the plan — wherever the model
       // put it, every other action (and the variants) runs first.
-      if (a.op == OpKind::ClearChat) { clearChatLast = true; continue; }
-      if (a.op == OpKind::Dialog) { dialogLast = a; hasDialog = true; continue; }
+      if (a.op == OpKind::CLEAR_CHAT) { clearChatLast = true; continue; }
+      if (a.op == OpKind::DIALOG) { dialogLast = a; hasDialog = true; continue; }
       if (!applyAction(a, target, frame, /*inVariant=*/false, &res.notes, &err)) {
         res.error = err;
         return res;
@@ -829,5 +589,5 @@ namespace stencil::llm {
     res.ok = true;
     return res;
   }
-
 }  // namespace stencil::llm
+

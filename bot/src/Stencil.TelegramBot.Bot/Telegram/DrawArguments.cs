@@ -3,18 +3,9 @@ using Stencil.TelegramBot.Domain.Layout;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// Pure parsing of <c>/draw</c> point arguments — kept free of Telegram types so it is
-/// unit-testable. A point token is <c>x,y</c> in image pixels, or <c>x%,y%</c> as a percentage
-/// of the working image's width/height (handy when you don't know the exact size).
-/// </summary>
+// A point token is x,y in image pixels, or x%,y% as a percentage of the working image's size.
 public static class DrawArguments
 {
-    /// <summary>
-    /// Parse every <paramref name="tokens"/> entry into a point (percentages resolved against
-    /// <paramref name="width"/>/<paramref name="height"/>). Returns false with a friendly
-    /// <paramref name="error"/> on the first bad token or when no points are given.
-    /// </summary>
     public static bool TryParsePoints(
         IReadOnlyList<string> tokens,
         double width,
@@ -42,7 +33,6 @@ public static class DrawArguments
         return true;
     }
 
-    /// <summary>Parse a single <c>x,y</c> (or <c>x%,y%</c>) token.</summary>
     public static bool TryParsePoint(string token, double width, double height, out LayoutPoint point)
     {
         point = new LayoutPoint(0, 0);
@@ -51,11 +41,11 @@ public static class DrawArguments
         {
             return false;
         }
-        if (!TryCoord(parts[0], width, out double x))
+        if (!tryCoord(parts[0], width, out double x))
         {
             return false;
         }
-        if (!TryCoord(parts[1], height, out double y))
+        if (!tryCoord(parts[1], height, out double y))
         {
             return false;
         }
@@ -63,7 +53,6 @@ public static class DrawArguments
         return true;
     }
 
-    /// <summary>The four corners of the rectangle spanned by two opposite corners.</summary>
     public static IReadOnlyList<LayoutPoint> Rectangle(LayoutPoint a, LayoutPoint b) =>
         new[]
         {
@@ -73,8 +62,7 @@ public static class DrawArguments
             new LayoutPoint(a.X, b.Y),
         };
 
-    /// <summary>Parse one coordinate: a bare pixel value, or a <c>%</c> of <paramref name="dim"/>.</summary>
-    private static bool TryCoord(string raw, double dim, out double value)
+    private static bool tryCoord(string raw, double dim, out double value)
     {
         value = 0;
         string s = raw.Trim();

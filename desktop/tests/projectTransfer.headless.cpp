@@ -7,12 +7,12 @@
 // SELF-SKIPS (exit 0) when no server is reachable, like the gated store/bus tests: point it at one with
 // STENCIL_TEST_SERVER (default http://localhost:8090). Built only when Qt is present (Qt-coupled, like the
 // other *.headless tests); not part of the Qt-free core stencil_tests.
-#include "projectTransferController.hpp"
-#include "serverClient.hpp"
-#include "canvasWidget.hpp"
-#include "notifications.hpp"
+#include "ProjectTransferController.hpp"
+#include "ServerClient.hpp"
+#include "CanvasWidget.hpp"
+#include "Notifications.hpp"
 #include "fileStore.hpp"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 
 #include <QApplication>
 #include <QDateTime>
@@ -29,6 +29,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "support/connectNow.hpp"
 
 using namespace stencil::gui;
 
@@ -46,7 +47,7 @@ int main(int argc, char** argv) {
 
   stencil::net::ConnectionManager mgr;
   QString err;
-  if (!mgr.connectTo(serverUrl, QString(), err)) {
+  if (!stencil::test::connectNow(mgr, serverUrl, QString(), err)) {
     std::printf("SKIP: no reachable stencil server at %s (%s)\n",
                 serverUrl.toUtf8().constData(), err.toUtf8().constData());
     return 0;  // self-skip, mirroring the gated go store/bus integration tests

@@ -238,13 +238,13 @@ test('a kind toggle and the search compose: the set is right after a burst of ch
   assert.equal(tr.ghostCount, 1, 'exactly one row is on its way out — no leaked animations');
 });
 
-test('popup.js wires the transition around its rebuild and keys every row', () => {
-  const js = readFileSync(new URL('../src/popup/popup.js', import.meta.url), 'utf8');
+test('the popup wires the transition around its rebuild and keys every row', () => {
+  // The rebuild and the row it keys live in separate modules of the panel.
+  const js = ['filters.js', 'row.js'].map((f) => readFileSync(new URL(`../src/popup/${f}`, import.meta.url), 'utf8')).join('\n');
   assert.match(js, /filterTransition\.begin\(\);\s*\n\s*listEl\.innerHTML = '';/,
     'the snapshot is taken before the wipe, or nothing can play out');
   assert.match(js, /filterTransition\.end\(\);/);
-  // Every branch of applyFilters (both empty states included) must reach end(), so a
-  // ghost can never be stranded on screen.
+  // Every branch of applyFilters (both empty states) must reach end(), or a ghost is stranded.
   const body = js.slice(js.indexOf('const applyFilters = () => {'));
   assert.equal((body.slice(0, body.indexOf('\n};')).match(/return;/g) || []).length, 0,
     'applyFilters no longer returns early past the transition');

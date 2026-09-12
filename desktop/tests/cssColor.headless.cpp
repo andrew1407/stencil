@@ -18,6 +18,18 @@ int main(int argc, char** argv) {
   check(cssColor(QStringLiteral("red")).isValid(), "named colours still parse");
   check(!cssColor(QStringLiteral("#zzzzzzzz")).isValid(), "garbage is invalid, not silently black");
   check(!cssName(QColor()).size(), "an invalid colour names nothing");
+
+  // The screen must read a colour exactly as rasterize.cpp's export does. QColor's own
+  // table has neither of these, so parsing with it drew nothing where the export drew
+  // a colour (core/color/colorNames.cpp is the shared vocabulary).
+  const QColor rebecca = cssColor(QStringLiteral("rebeccapurple"));
+  check(rebecca.isValid() && rebecca.red() == 102 && rebecca.green() == 51 &&
+        rebecca.blue() == 153, "the CSS Level 4 name QColor lacks resolves like the export");
+  const QColor four = cssColor(QStringLiteral("#abcd"));
+  check(four.isValid() && four.red() == 170 && four.green() == 187 && four.blue() == 204 &&
+        four.alpha() == 221, "#rgba shorthand carries its alpha, as core reads it");
+  // …and the forms only Qt parses still do, so nothing that renders today stops.
+  check(cssColor(QStringLiteral("#aaabbbccc")).isValid(), "Qt-only hex widths still fall through");
   // The counter every check() feeds — without this the suite would pass with failures in it.
   std::printf("cssColor: %s\n", failures ? "FAILED" : "OK");
   return failures ? 1 : 0;

@@ -1,0 +1,33 @@
+/* ── Motion mode (lib/accent.js StencilMotion; browser animations/motionModes.css twin) ──
+   The user's own switch over everything above, stamped on <html data-motion> before
+   first paint and rewritten live when the options page moves it:
+
+     data-motion="particles"  the default — every surface forms out of dust;
+     data-motion="water" / "fire"  the same particles as drops / embers, in the accent
+                              and its shade (lib/dustCloud.js styleFrame — the JS
+                              decides, nothing to write here);
+     data-motion="slide"      no particles: each surface plays the plain entrance it
+                              already owns (stMenuFromAnchor, action-menu-pop, the row
+                              collapse), which is why nothing has to be written for it;
+     data-motion="none"       nothing moves.
+
+   The JS half turns itself off through motionReduced()/dustEnabled(), so this only has
+   to answer for what CSS alone drives. Near-zero rather than `none`, so an animation
+   that carries an element to its END state still lands there (and still fires
+   animationend), exactly as the prefers-reduced-motion block below does. */
+:root[data-motion="none"] *,
+:root[data-motion="none"] *::before,
+:root[data-motion="none"] *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+}
+/* A chat entry is the one surface whose ONLY entrance was its dust. Without particles it
+   would appear from nothing mid-conversation, so `slide` gives it the rise the others
+   already have — motion.js chatIn adds the class exactly when the cloud declined but
+   motion is still on. */
+.chat-slide-in { animation: chatRiseIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes chatRiseIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

@@ -23,6 +23,8 @@ import {
 } from '../js/ui/motion.js';
 import { STYLE_DUST, STYLE_WATER, STYLE_FIRE, edgeBaseOf, FILL_CHUNK } from '../js/ui/dustCloud.js';
 import { FLIGHTS, moteFrame } from '../js/ui/dustCloud.js';
+import { motionSource } from './helpers/motionSource.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS, extensionAnimationsCss } from './helpers/css.js';
 
 const box = (left, top, width, height) => ({ left, top, width, height });
 
@@ -173,7 +175,7 @@ test('the flight is long and hard-eased-out, and CSS lifts the element for it', 
   const [x1, y1, , y2] = FLIP_EASING.match(/[\d.]+/g).map(Number);
   assert.ok(x1 < 0.3 && y1 > 0.9 && y2 === 1, `${FLIP_EASING} should ease hard out`);
 
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const flight = css.slice(css.indexOf(`.canvas-viewport.${FLIP_ACTIVE_CLASS} {`));
   // Scrollbars belong to the settled state — appearing/disappearing mid-scale IS the flicker.
   assert.ok(/overflow: hidden !important/.test(flight.slice(0, 300)), 'no scrollbars mid-flight');
@@ -186,7 +188,7 @@ test('the flight is long and hard-eased-out, and CSS lifts the element for it', 
 
 // ── The CSS half of the contract ────────────────────────────────────────────
 test('animations.css: reveal rest state, drop landing, and reduced-motion opt-outs', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const rest = css.slice(css.indexOf('.reveal-item.reveal-masked {'),
                          css.indexOf('\n}', css.indexOf('.reveal-item.reveal-masked {')));
   const base = css.slice(css.indexOf('.reveal-item {'), css.indexOf('\n}', css.indexOf('.reveal-item {')));
@@ -276,7 +278,7 @@ test('arriveFrom never throws on a missing element or a half-formed point', () =
 });
 
 test('animations.css: the arriving canvas glows only — the flight is the inline FLIP', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const arriving = css.slice(css.indexOf('.canvas-container.drop-arriving {'));
   const rule = arriving.slice(0, arriving.indexOf('}'));
   assert.match(rule, /animation: canvasLandGlow/, 'the accent pulse still plays');
@@ -363,11 +365,11 @@ test('a scroll under a flying stage re-anchors it to the frame', () => {
 
 test('the restore sets the saved scroll BEFORE raising the arrival, in the same tick', () => {
   const src = readFileSync(new URL('../js/core/storage.js', import.meta.url), 'utf8');
-  const scrollAt = src.indexOf('vp.scrollLeft = layout.scrollLeft');
+  const scrollAt = src.indexOf('scrollViewportTo(layout.scrollLeft, layout.scrollTop)');
   const arrivalAt = src.indexOf('playCanvasArrival(this.app.canvas)');
   assert.ok(scrollAt > -1 && arrivalAt > -1 && scrollAt < arrivalAt,
     'saved scroll applied before the dust snapshots the view');
-  assert.ok(!/requestAnimationFrame[\s\S]{0,200}vp\.scrollLeft/.test(src),
+  assert.ok(!/requestAnimationFrame[\s\S]{0,200}scrollViewportTo/.test(src),
     'and not deferred a frame — that jumped the viewport out from under the cloud');
 });
 
@@ -452,8 +454,8 @@ test('playCanvasArrival survives having no DOM to reach for', () => {
 });
 
 test('both routes that put an image on the canvas play the arrival', () => {
-  const loader = readFileSync(new URL('../js/core/drawingApp.js', import.meta.url), 'utf8');
-  assert.match(loader, /playCanvasArrival\(this\.canvas, \{ from: opts\.from \}\)/,
+  const loader = readFileSync(new URL('../js/core/imageSettle.js', import.meta.url), 'utf8');
+  assert.match(loader, /playCanvasArrival\(app\.canvas, \{ from: opts\.from \}\)/,
     'a freshly loaded file arrives');
   const storage = readFileSync(new URL('../js/core/storage.js', import.meta.url), 'utf8');
   // The open passes it; the cross-tab sync path (the other caller) deliberately does not.
@@ -492,7 +494,7 @@ test('hasPixels tells a painted canvas from an empty one', () => {
 // the canonical table; tests/iconMotion.test.js pins it). What stays shared is the
 // TRIGGER: one rule flips the `--ic-on` latch and switches on `--ic-play`.
 test('animations.css: one trigger drives every icon, and the generic tilt is gone', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.ok(!/rotate\(-7deg\) scale\(1\.14\)/.test(css),
     'the one-size-fits-all tilt+swell must not come back');
   // Two selector branches sharing one declaration block, not two rules: a plain
@@ -526,7 +528,7 @@ test('animations.css: one trigger drives every icon, and the generic tilt is gon
 });
 
 test('animations.css: reduced motion cancels the icon hover but not the chevrons’ state', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const block = css.match(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?--ic-on: 0 !important;[\s\S]*?\n\}/);
   assert.ok(block, 'the hover move is cancelled under the preference');
   // Killing the latch and the keyframe switch leaves every glyph in its rest pose —
@@ -540,7 +542,7 @@ test('animations.css: reduced motion cancels the icon hover but not the chevrons
 });
 
 test('animations.css: the canvas waits behind its own dust, both directions', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.match(css, /\.canvas-viewport\.canvas-clearing #canvas \{ opacity: 0; \}/,
     'hidden while the dust falls');
   assert.match(css, /\.canvas-viewport\.canvas-assembling #canvas \{ opacity: 0; transition: none; \}/,
@@ -607,7 +609,7 @@ test('swapPercent expresses the circle as percentages of the viewport', () => {
 
 // ── The ring the dust rides ─────────────────────────────────────────────────
 // swapEase is the JS evaluation of the wipe's own control points — the desktop solves
-// the same bezier (themeSwapOverlay.hpp swapEase, pinned by themeSwapEase.headless.cpp).
+// the same bezier (ThemeSwapOverlay.hpp swapEase, pinned by themeSwapEase.headless.cpp).
 // The dust is seeded off this curve, so it and the clip-path can never disagree.
 test('swapEase walks the wipe’s own curve, easing in slightly and never backwards', () => {
   assert.ok(Math.abs(swapEase(0)) < 1e-6, 'starts at the origin');
@@ -623,7 +625,7 @@ test('swapEase walks the wipe’s own curve, easing in slightly and never backwa
   assert.ok(swapEase(0.2) > 0.1 && swapEase(0.2) < 0.2, `eases in slightly (got ${swapEase(0.2)})`);
   assert.ok(swapEase(0.5) < 0.5, 'still behind the diagonal at half time');
   // …and the control points are the CSS's, verbatim.
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.ok(/animation: themeSwapReveal var\(--swap-ms, 280ms\) cubic-bezier\(0\.4, 0\.25, 0\.95, 1\)/.test(css),
     'the JS curve and the declared reveal share one set of control points');
 });
@@ -862,7 +864,7 @@ test('originOf resolves a control to its centre, and declines an unrendered one'
 });
 
 test('animations.css: the swap wipe is declarative, and the fallback transitions colours', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   // Both default cross-fades are off — motion.js drives the clip itself.
   // Declarative, so the transition waits for it instead of tearing down mid-wipe.
   assert.ok(/::view-transition-old\(root\) \{ z-index: 0; animation: none; \}/.test(css),
@@ -944,7 +946,7 @@ test('originOf declines a control parked outside the viewport', () => {
 });
 
 // ── The origin is a control, or the centre — never the cursor ───────────────
-// desktop/src/app/mainWindow.cpp learned this first: driving the change from a menu
+// desktop/src/app/MainWindow.cpp learned this first: driving the change from a menu
 // leaves the cursor near the screen corner, and the circle appears to come out of the
 // window corner. A stale click in the page is exactly the same trap.
 test('with no control to anchor to, themeSwap blooms from the viewport centre', () => {
@@ -970,11 +972,11 @@ test('with no control to anchor to, themeSwap blooms from the viewport centre', 
 // from the button, still decelerating as it reaches the far corner) and must never ease
 // IN, which is what made the circle appear to creep before it moved.
 test('the wipe: browser and extension share one duration and one ease-out curve', () => {
-  const decls = [['browser', new URL('../css/animations.css', import.meta.url)],
-                 ['extension', new URL('../../extension/src/lib/animations.css', import.meta.url)]]
-    .map(([name, url]) => {
+  const decls = [['browser', ANIMATIONS_CSS],
+                 ['extension', extensionAnimationsCss()]]
+    .map(([name, text]) => {
       const decl = /animation: themeSwapReveal var\(--swap-ms, (\d+)ms\) cubic-bezier\(([^)]*)\)/
-        .exec(readFileSync(url, 'utf8'));
+        .exec(text);
       assert.ok(decl, `${name}: the reveal declaration`);
       return { name, ms: Number(decl[1]), curve: decl[2].split(',').map(Number) };
     });
@@ -984,8 +986,8 @@ test('the wipe: browser and extension share one duration and one ease-out curve'
   // The JS timer that clears the classes has to outlast the CSS, or the fallback
   // cross-fade is cut off mid-way.
   assert.equal(THEME_SWAP_MS, browser.ms, 'motion.js THEME_SWAP_MS is the CSS fallback');
-  const ext = readFileSync(new URL('../../extension/src/lib/accent.js', import.meta.url), 'utf8');
-  assert.equal(Number(/var SWAP_MS = (\d+)/.exec(ext)[1]), browser.ms, 'accent.js SWAP_MS agrees');
+  const ext = readFileSync(new URL('../../extension/src/lib/swapGeometry.js', import.meta.url), 'utf8');
+  assert.equal(Number(/const SWAP_MS = (\d+)/.exec(ext)[1]), browser.ms, 'swapGeometry.js SWAP_MS agrees');
 
   // Judged on the AREA it sweeps, not on its control points. The wipe is a CIRCLE, so the
   // recoloured area grows as r²: an ease-OUT radius floods the screen early and then spends
@@ -1038,7 +1040,7 @@ test('the wipe: browser and extension share one duration and one ease-out curve'
 // height and it wants the straightforward deceleration, while the wipe is a circle whose
 // area grows as r² and needs the correction for that (see the note above its declaration).
 test('the panel folds are an ease-out, and hold visibility for the whole fold', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const token = (name) => new RegExp(`--${name}:\\s*([^;]+);`).exec(css)?.[1].trim();
   const [, y1, , y2] = /cubic-bezier\(([^)]*)\)/.exec(token('fold-ease'))[1].split(',').map(Number);
   assert.ok(y1 > 0.5 && y2 === 1, `--fold-ease ${token('fold-ease')}: leaves at speed, settles at the end`);
@@ -1061,7 +1063,7 @@ test('the panel folds are an ease-out, and hold visibility for the whole fold', 
 });
 
 test('motion.js keeps no pointer state for the swap to fall back to', () => {
-  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const src = motionSource();
   assert.ok(!/addEventListener\(\s*'pointerdown'/.test(src),
     'a remembered press is what put the wipe in the corner — the control is the only origin');
 });
@@ -1075,7 +1077,7 @@ test('originOfId is null when every copy is hidden, and never throws on a stub',
 });
 
 test('animations.css: only the wipe drives the transition — no UA group/old default', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.match(css, /::view-transition-group\(root\) \{ animation: none; \}/,
     'the UA group animation would retime the pair under the wipe');
   assert.match(css, /::view-transition-old\(root\) \{ z-index: 0; animation: none; \}/);
@@ -1086,7 +1088,7 @@ test('animations.css: only the wipe drives the transition — no UA group/old de
 // opposite order. An `outline` can only do both at once, so the frame is four edges
 // whose LENGTH animates — transform would stretch the dash pattern into stripes.
 test('the incognito frame is four edges that grow, not a stretched outline', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.ok(!/body\.incognito-mode \.canvas-viewport \{[^}]*outline:/.test(css),
     'the all-at-once outline is gone');
   const edge = css.slice(css.indexOf('.ig-edge {'), css.indexOf('\n}', css.indexOf('.ig-edge {')));
@@ -1125,20 +1127,20 @@ test('the incognito frame markup ships all four edges, inside the canvas viewpor
 // Switching between two modes that resolve to the SAME palette repaints nothing — playing
 // the wipe for it animates an unchanged screen.
 test('theme mode: picking a mode that resolves to the painted palette does not animate', () => {
-  const src = readFileSync(new URL('../js/core/accentController.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/accentController.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('setThemeMode('), src.indexOf('get themeMode()'));
   assert.match(body, /resolveThemeMode\(next\) === painted/, 'the resolved palette is compared');
   // …and the setting is still stored + announced on that path, or the picker would snap back.
   const noop = body.slice(body.indexOf('=== painted'), body.indexOf('themeSwap('));
   assert.match(noop, /localStorage\.setItem\(THEME_STORAGE_KEY, next\)/, 'the mode is still stored');
-  assert.match(noop, /stencil:theme-changed/, 'and still announced');
-  const ext = readFileSync(new URL('../../extension/src/lib/accent.js', import.meta.url), 'utf8');
-  assert.match(ext, /var repaints = resolveTheme\(next\) !== resolveTheme\(readTheme\(\)\)/,
+  assert.match(noop, /EVENTS\.themeChanged/, 'and still announced');
+  const ext = readFileSync(new URL('../../extension/src/lib/shellPrefs.js', import.meta.url), 'utf8');
+  assert.match(ext, /const repaints = resolveTheme\(next\) !== resolveTheme\(readTheme\(\)\)/,
     'the extension makes the same check');
 });
 
 test('theme mode: three states, system by default, resolved against the OS', async () => {
-  const { THEME_MODES, resolveThemeMode } = await import('../js/core/accentController.js');
+  const { THEME_MODES, resolveThemeMode } = await import('../js/ui/accentController.js');
   assert.deepEqual(THEME_MODES, ['system', 'light', 'dark']);
   // An explicit mode is taken as-is, whatever the OS says.
   assert.equal(resolveThemeMode('dark', false), 'dark');
@@ -1157,13 +1159,13 @@ test('theme mode: the pre-paint script and the app agree on what "system" means'
   assert.match(pre, /savedTheme === 'dark' \|\| savedTheme === 'light'/,
     'the pre-paint script treats a stored mode, not a stored palette');
   assert.match(pre, /prefersDark \? 'dark' : 'light'/, 'and falls through to the OS');
-  const binder = readFileSync(new URL('../js/core/controlsBinder.js', import.meta.url), 'utf8');
+  const binder = readFileSync(new URL('../js/ui/bindings/theme.js', import.meta.url), 'utf8');
   // The OS listener has to test the MODE: keyed on "nothing stored", it stopped following
   // the moment the toggle wrote a value.
   assert.match(binder, /themeMode !== 'system'/, 'the OS is followed while the mode is system');
-  const visuals = readFileSync(new URL('../js/ui/visualsModal.js', import.meta.url), 'utf8');
-  assert.match(visuals, /id="vs-appearance"/, 'and there is a control to get back to system');
-  assert.match(visuals, /setThemeMode\(appearance\.value/, 'which writes the mode');
+  const vis = (f) => readFileSync(new URL(`../js/ui/${f}`, import.meta.url), 'utf8');
+  assert.match(vis('visualsMarkup.js'), /id="vs-appearance"/, 'and there is a control to get back to system');
+  assert.match(vis('visualsModal.js'), /setThemeMode\(appearance\.value/, 'which writes the mode');
 });
 
 // ── Filtering a list (createFilterAnimator) ─────────────────────────────────
@@ -1308,7 +1310,7 @@ test('fast typing: every keystroke renders NOW, and never drops rows', async () 
 });
 
 test('animations.css: a filter has an arrival and no exit at all', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.ok(!/\.filter-leaving/.test(css), 'nothing plays a filtered-out row out any more');
   assert.ok(!/rowFilterOut/.test(css), '…and its keyframes are gone with it');
   assert.match(css, /\.filter-entering \{\s*animation: rowFilterIn 0\.34s/);
@@ -1345,7 +1347,7 @@ test('tileWaypoint sits part-way along the throw, pushed sideways by its own noi
 // overlay flies each cell the window it has left (`t = (t - delay) / (1 - delay)`), and
 // so does this now — the cloud is done AT the span, whatever the sweep.
 test('the scatter fits inside its span: a late mote flies what is left of it, not more', () => {
-  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const src = motionSource();
   assert.match(src, /dur: gather \? gatherMs : Math\.max\(MIN_TILE_MS, span - m\.delay\)/,
     'the grain is given the remainder of the span, not the whole of it');
   // Every cell of a row scatter lands within DISINTEGRATE_MS (the floor is the only
@@ -1388,7 +1390,7 @@ test('a row’s fall and a surface’s flight both carry the waypoint, determini
 });
 
 test('every flight bends through the waypoint on its own first leg, and the cloud is one canvas', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const grain = { x: 100, y: 200, dx: 60, dy: 80, mx: 30, my: 55, r: 4, s: 0.4, a: 1 };
   for (const name of ['scatter', 'gather', 'surfaceGather', 'surfaceScatter', 'fall']) {
     const f = FLIGHTS[name];
@@ -1398,7 +1400,7 @@ test('every flight bends through the waypoint on its own first leg, and the clou
     // …at half its shrink, so nothing snaps at the bend.
     assert.ok(Math.abs(bend.r - 4 * (1 - (1 - 0.4) * 0.5)) < 1e-6, `${name}: half the shrink at the bend`);
     // The first leg carries its own curve, so the bend is a bend, not a stop-and-go
-    // (a mark's fall rides one curve throughout, like the desktop's Sweep::Fall).
+    // (a mark's fall rides one curve throughout, like the desktop's Sweep::FALL).
     if (name !== 'fall') assert.notEqual(f.leg(0.5), f.rest(0.5), `${name}: leg one eases on its own`);
   }
   // No node per grain any more: the layer holds ONE canvas (js/ui/dustCloud.js) and the
@@ -1416,7 +1418,7 @@ test('canvas dust batches its grains: a few alpha steps, one fill per colour and
   // Eight steps on a 3px grain are below what the eye resolves; fewer would band a
   // slow fade, more would multiply the fills the batching exists to avoid.
   assert.equal(DUST_ALPHA_LEVELS, 8);
-  const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const motion = motionSource();
   const dust = motion.slice(motion.indexOf('const drawDust ='), motion.indexOf('const runDust ='));
   assert.match(dust, /fillGrains\(ctx, lvl\[l\], n, poly\)/, 'grains in the style\'s own shape, batched and chunked');
   assert.ok(!/drawImage\(snap, p\./.test(dust), 'never a per-grain blit of the picture');

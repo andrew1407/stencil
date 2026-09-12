@@ -1,0 +1,150 @@
+/* Jump pills riding the transcript's bottom edge: a zero-height strip between the
+   transcript and the tray anchors them, so they float over the log without owning
+   layout. ⌃ = the very beginning, ⌄ = the latest message; each shows only while
+   there is somewhere to go (can-up / can-down, chatPanel syncJumps). */
+.chat-jumps { position: relative; height: 0; overflow: visible; z-index: 6; }
+/* …6 is only ever contested INSIDE the panel: every popup that can cover this corner
+   (the row menu, the tooltip) sits in the 100003 tier, far above the panel's own 90000. */
+.chat-jump-btn {
+    position: absolute;
+    bottom: 8px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--border-main);
+    background: var(--bg-controls);
+    color: var(--text-muted);
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--shadow);
+    /* Translucent at rest so a short bubble under a pill stays readable; the cursor
+       brings it back to full (the same .7 rest the row "…" triggers take). */
+    opacity: .7;
+    transition: opacity .12s ease;
+}
+.chat-jump-btn:hover { color: var(--text-main); border-color: var(--accent); opacity: 1; }
+#chat-jump-bottom { right: 14px; }
+#chat-jump-top { right: 48px; }
+.chat-jumps.can-up #chat-jump-top, .chat-jumps.can-down #chat-jump-bottom { display: inline-flex; }
+.chat-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 10px 0;
+    flex: 0 0 auto;
+}
+.chat-attach-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px 3px 3px;
+    border: 1px solid var(--border-main);
+    border-radius: 12px;
+    background: var(--bg-container);
+    font-size: 12px;
+}
+/* The queued picture, small: what you dropped is recognisable at a glance, and
+   hovering magnifies it (.chat-thumb-preview). */
+.chat-attach-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;   /* rounded square — 9px read as a circle at this size */
+    object-fit: cover;
+    border: 1px solid var(--border-main);
+}
+/* Ellipsised — the full name lives on the title, since a fetched data: URL can have
+   no name worth showing and a page's filenames run long. */
+.chat-attach-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Input row: the textarea stretches; the compact action icons (attach · gear · send)
+   group on the RIGHT. */
+.chat-input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--border-main);
+    flex: 0 0 auto;
+}
+.chat-input-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+    align-self: flex-end;
+    padding-bottom: 2px;
+}
+#chat-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* Height driven by the slider strip above the row (.chat-input-sizer) — the
+       native corner grip is off (the textarea is bottom-anchored, so only its top
+       edge can actually move). Clamped here, persisted by the panel. */
+    resize: none;
+    /* Tall enough that the whole placeholder (three short lines at 14px line
+       height ~19px, plus padding and border) reads without clipping — 64px cut
+       the first line in the compact float; the sizer strip above still
+       grows/shrinks it. */
+    min-height: 76px;
+    max-height: 40vh;
+    font-size: 14px;   /* matches the transcript and the app base size */
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border-main);
+    background: var(--input-bg);
+    color: var(--input-text);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+/* Same focus glow as the app's text/number inputs (animations/overlays.css), which the
+   bare textarea selector there doesn't cover. */
+#chat-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+/* Slider-style input-height handle: same pill affordance as the float handles. */
+.chat-input-sizer { flex: 0 0 auto; height: 8px; position: relative; cursor: ns-resize; touch-action: none; user-select: none; }
+.chat-input-sizer::before, .ctx-assist-sizer::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border-main);
+    transition: background 0.15s, width 0.15s;
+}
+stencil-chat-panel:not(.chat-gesturing) .chat-input-sizer:hover::before, .chat-input-sizer.dragging::before,
+.ctx-assist-sizer:hover::before, .ctx-assist-sizer.dragging::before { background: var(--accent); width: 68px; }
+/* Drop-to-attach cue. The target is the TEXT BOX, not the whole row: a drop there
+   means "take this into the message I'm writing", while the buttons beside it and
+   the transcript above stay out of it (the panel swallows those and says where to
+   aim). The cue is an icon + label drawn OVER the box (pointer-events: none keeps
+   the drop on the wrap), never a tint the input shows through. Extension parity:
+   popup.css .chat-composer.drop-over. */
+.chat-input-wrap { position: relative; display: flex; flex: 1 1 auto; min-width: 0; }
+.chat-drop-cue {
+    position: absolute;
+    inset: 2px;
+    z-index: 5;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 2px dashed var(--accent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 16%, var(--bg-controls));
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    pointer-events: none;
+}
+.chat-input-wrap.chat-drop-target .chat-drop-cue { display: flex; }
+.chat-input-wrap.chat-drop-target textarea { caret-color: transparent; }
+.chat-drop-cue-icon { display: inline-flex; }
+

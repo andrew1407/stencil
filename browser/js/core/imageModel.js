@@ -4,18 +4,15 @@ import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoin
 
 const { PAGE_SIZES } = constants;
 
-// ── ImageModel: non-destructive crop + quarter-turn rotation ────────
-// Owns the geometry transforms over the app's `originalImage` (never modified) → the
-// working cropped `image`, tracked by `cropRect` (rotated-original pixels) and
-// `rotationQuarters`. Holds no state itself; pure geometry math lives in cropGeometry.js
-// (the wasm/JS-parity twin) — this class only orchestrates it + canvas.
+// Non-destructive crop + quarter-turn rotation over `originalImage` (never modified) →
+// the working `image`, tracked by `cropRect` (rotated-original pixels) and
+// `rotationQuarters`. Pure geometry lives in cropGeometry.js (the wasm/JS-parity twin).
 export class ImageModel {
   constructor(app) {
     this.app = app;
   }
 
-  // The page's cm dimensions for the active format (custom uses the entered w/h). Only the
-  // aspect ratio is used by cropping. Mirrors blankImageModal.pageDims.
+// Only the aspect is used by cropping. Mirrors blankImageModal.pageDims.
   #pageCmDims() {
     const app = this.app;
     return app.pageSize === 'custom'
@@ -23,10 +20,8 @@ export class ImageModel {
       : (PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
   }
 
-  // The default centered crop for the loaded original: page aspect in the orientation matching
-  // the image (album when wider than tall). Public so the storage layer can default-crop legacy
-  // projects saved before cropping existed. `albumOverride` forces album (true)/portrait (false);
-  // omitted, orientation auto-matches the image (wider-than-tall ⇒ album).
+// Page aspect in the orientation matching the image; `albumOverride` forces album (true) /
+// portrait (false). Public so storage can default-crop legacy projects.
   defaultCropRect(albumOverride) {
     const { w: iw, h: ih } = this.rotatedOriginalDims();
     const isAlbum = (albumOverride == null) ? isAlbumOrientation(iw, ih) : !!albumOverride;
@@ -35,18 +30,14 @@ export class ImageModel {
     return this.roundRect(centeredCrop(iw, ih, aspect), iw, ih);
   }
 
-  // Dimensions of the original image after the current rotation is applied (the pixel space
-  // `cropRect` lives in). Odd quarter-turns swap width and height. Public — loadImageFromFile
-  // reads it too.
+// The pixel space `cropRect` lives in: odd quarter-turns swap width and height.
   rotatedOriginalDims() {
     const img = this.app.originalImage;
     const w = img.width, h = img.height;
     return (this.app.rotationQuarters % 2) ? { w: h, h: w } : { w, h };
   }
 
-  // The original image rotated by the current quarter-turn count (clockwise). For no rotation
-  // the untouched bitmap is returned; otherwise a freshly-rotated canvas. Used by
-  // rebuildCroppedImage and the crop modal's preview.
+// The untouched bitmap for no rotation, otherwise a freshly-rotated canvas.
   #rotatedOriginalCanvas() {
     const img = this.app.originalImage;
     const q = ((this.app.rotationQuarters % 4) + 4) % 4;
@@ -62,18 +53,16 @@ export class ImageModel {
     return c;
   }
 
-  // The rotated original as { w, h } + a data URL, for the crop modal (which previews the full
-  // original). Returns the stored data URL untouched when not rotated, avoiding a re-encode.
+// For the crop modal; the stored data URL is returned untouched when not rotated (no re-encode).
   effectiveOriginalDims() { return this.rotatedOriginalDims(); }
   effectiveOriginalDataUrl() {
     if (!this.app.rotationQuarters) return this.app.imageDataUrl;
     return this.#rotatedOriginalCanvas().toDataURL();
   }
 
-  // Snap a crop rect to integer pixels, clamped inside the rotated original image. Public —
-  // loadImageFromFile clamps caller-supplied crops with it.
+// Integer pixels, clamped inside the rotated original.
   roundRect(r, iw = this.rotatedOriginalDims().w, ih = this.rotatedOriginalDims().h) {
-    // Reads both wire spellings: canonical {w,h} wins over legacy {width,height}.
+// Canonical {w,h} wins over legacy {width,height}.
     const w = Math.max(1, Math.min(Math.round(r.w ?? r.width), iw));
     const h = Math.max(1, Math.min(Math.round(r.h ?? r.height), ih));
     const x = Math.max(0, Math.min(Math.round(r.x), iw - w));
@@ -81,9 +70,7 @@ export class ImageModel {
     return { x, y, width: w, height: h };
   }
 
-  // Rebuild the working `image` canvas from the rotated `originalImage` + `cropRect`, sizing the
-  // main canvas to the crop. Original never modified. Public so storage can rebuild the view
-  // after restoring original + rotation + cropRect.
+// Public so storage can rebuild the view after restoring original + rotation + cropRect.
   rebuildCroppedImage() {
     const app = this.app;
     const src = this.#rotatedOriginalCanvas();
@@ -97,9 +84,7 @@ export class ImageModel {
     app.canvas.height = r.height;
   }
 
-  // Reset selection/drawing state and refresh every view after the image geometry changes
-  // (rotate or crop): clears the active selection, resets history to the current lines, refits
-  // the viewport, and persists.
+// After rotate or crop: clear the selection, reset history to the current lines, refit, persist.
   #afterImageGeometryChange() {
     const app = this.app;
     app.currentLine = null;
@@ -115,12 +100,10 @@ export class ImageModel {
     app.updateCoordStatus();
     app.coordTable.update(app.lines.length > 0 ? app.lines[app.lines.length - 1].points : null);
     app.storage.save();
-    app.remoteSync.scheduleRemoteSync(); // crop/rotate change the layout's geometry — push it to peers too
+    app.remoteSync.scheduleRemoteSync();
   }
 
-  // Rotate the whole image a quarter turn — dir < 0 rotates left (CCW), dir > 0 rotates right
-  // (CW). The crop window and every line follow the picture so the framing and the drawing stay
-  // put relative to the image content.
+// dir < 0 rotates left (CCW), dir > 0 right (CW); the crop window and every line follow.
   rotateImage(dir) {
     const app = this.app;
     if (!app.originalImage) {
@@ -128,8 +111,8 @@ export class ImageModel {
       return;
     }
     const clockwise = dir > 0;
-    const dims = this.rotatedOriginalDims();  // space the crop currently lives in
-    // Points first — they rotate inside the OLD crop box (width x height).
+    const dims = this.rotatedOriginalDims();
+// Points rotate inside the OLD crop box.
     rotateLinePointsQuarter(app.lines, app.cropRect.width, app.cropRect.height, clockwise);
     const rotated = rotateCropRectQuarter(app.cropRect, dims.w, dims.h, clockwise);
     app.rotationQuarters = (((app.rotationQuarters + (clockwise ? 1 : -1)) % 4) + 4) % 4;
@@ -138,9 +121,7 @@ export class ImageModel {
     this.#afterImageGeometryChange();
   }
 
-  // Apply a new crop rectangle (image-space). With opts.recalc, existing lines are cleared on an
-  // orientation flip or rescaled to the new size (the page relation is preserved). Does NOT
-  // replace the stored original image.
+// With opts.recalc, lines are cleared on an orientation flip or rescaled to the new size.
   applyCrop(rect, opts = {}) {
     const app = this.app;
     if (!app.originalImage) return;

@@ -1,4 +1,4 @@
-// The theme wipe's easing (src/support/themeSwapOverlay.hpp swapEase) — the desktop half
+// The theme wipe's easing (src/support/ThemeSwapOverlay.hpp swapEase) — the desktop half
 // of the contract browser/tests/motion.test.js holds the browser and extension to.
 //
 // The wipe is a CIRCLE, so the area it has recoloured grows as r². A plain ease-out on the
@@ -6,7 +6,7 @@
 // the duration and then spends the rest creeping over a sliver in the far corner — which
 // reads as a snap followed by nothing, and is why the animation felt too quick. The curve
 // is therefore judged on the AREA it sweeps, not on the radius it moves.
-#include "themeSwapOverlay.hpp"
+#include "ThemeSwapOverlay.hpp"
 
 #include <QApplication>
 #include <cmath>
@@ -97,10 +97,10 @@ int main(int argc, char** argv) {
   {
     using stencil::support::ParticleStyle;
     const double R = fullRadius(90, 60, w, h);
-    for (const ParticleStyle s : {ParticleStyle::Dust, ParticleStyle::Water, ParticleStyle::Fire}) {
+    for (const ParticleStyle s : {ParticleStyle::DUST, ParticleStyle::WATER, ParticleStyle::FIRE}) {
       double lo = 1e18, hi = 0;
       bool collapsed = true;
-      for (int k = 0; k < ThemeSwapOverlay::kEdgePoints; k++) {
+      for (int k = 0; k < ThemeSwapOverlay::EDGE_POINTS; k++) {
         const double r = ThemeSwapOverlay::edgeRadiusAt(k, 1.0, R, s);
         lo = std::min(lo, r);
         hi = std::max(hi, r);
@@ -109,14 +109,14 @@ int main(int argc, char** argv) {
       check(lo >= R, "every vertex of the finished front clears the furthest corner");
       check(hi <= R * 1.15, "no tongue overshoots wildly");
       check(collapsed, "the front starts collapsed at the origin");
-      if (s == ParticleStyle::Dust) check(hi - lo < 1e-9, "dust: a perfect circle");
+      if (s == ParticleStyle::DUST) check(hi - lo < 1e-9, "dust: a perfect circle");
       else check(hi - lo > R * 0.03, "water / fire: visibly not a circle");
     }
     // The browser's edgeJitter, op for op (values printed from node — dustCloud.js).
     const auto near = [](double a, double b) { return std::abs(a - b) < 1e-9; };
-    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::Water, 17), -0.015235022) , "water vertex 17 matches the browser");
-    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::Fire, 17), 0.043404486), "fire vertex 17 matches the browser");
-    check(ThemeSwapOverlay::edgeJitter(ParticleStyle::Dust, 17) == 0.0, "dust vertex 17 is on the circle");
+    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::WATER, 17), -0.015235022) , "water vertex 17 matches the browser");
+    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::FIRE, 17), 0.043404486), "fire vertex 17 matches the browser");
+    check(ThemeSwapOverlay::edgeJitter(ParticleStyle::DUST, 17) == 0.0, "dust vertex 17 is on the circle");
   }
 
   // ── Dust in the wipe's wake (dustMoteAt — browser motion.test.js pins swapDustSpecs
@@ -130,19 +130,19 @@ int main(int argc, char** argv) {
     const double full = fullRadius(o.x(), o.y(), w, h);
     ThemeSwapOverlay::DustMote mote;
     bool none = true;
-    for (int i = 0; i < ThemeSwapOverlay::kDustMotes; i++)
+    for (int i = 0; i < ThemeSwapOverlay::DUST_MOTES; i++)
       none = none && !ThemeSwapOverlay::dustMoteAt(i, 0.0, o, full, bounds, &mote);
     check(none, "no mote before the wipe's first tick (the snapshot grab must stay clean)");
 
     bool inside = true, onScreen = true, sane = true, anyLate = false;
     int seen = 0;
-    for (double ms = 20; ms <= ThemeSwapOverlay::kSwapMs + ThemeSwapOverlay::kDustLifeMs; ms += 20) {
+    for (double ms = 20; ms <= ThemeSwapOverlay::SWAP_MS + ThemeSwapOverlay::DUST_LIFE_MS; ms += 20) {
       const double ring =
-          full * ThemeSwapOverlay::swapEase(std::min(1.0, ms / ThemeSwapOverlay::kSwapMs));
-      for (int i = 0; i < ThemeSwapOverlay::kDustMotes; i++) {
+          full * ThemeSwapOverlay::swapEase(std::min(1.0, ms / ThemeSwapOverlay::SWAP_MS));
+      for (int i = 0; i < ThemeSwapOverlay::DUST_MOTES; i++) {
         if (!ThemeSwapOverlay::dustMoteAt(i, ms, o, full, bounds, &mote)) continue;
         seen++;
-        anyLate = anyLate || ms > ThemeSwapOverlay::kSwapMs;
+        anyLate = anyLate || ms > ThemeSwapOverlay::SWAP_MS;
         inside = inside && std::hypot(mote.x - o.x(), mote.y - o.y()) <= ring + 1;
         // Homes are gated to ±16 of the screen; the drift can carry a mote ~29px
         // further before it fades, where the edge clips it — that slack is the bound.
@@ -157,8 +157,8 @@ int main(int argc, char** argv) {
     check(anyLate, "the wake outlives the wipe — the last motes still get their whole life");
     // …but not forever: past the tail the wake is spent, so deleteLater leaves nothing.
     bool spent = true;
-    const double after = ThemeSwapOverlay::kSwapMs + ThemeSwapOverlay::kDustLifeMs + 1;
-    for (int i = 0; i < ThemeSwapOverlay::kDustMotes; i++)
+    const double after = ThemeSwapOverlay::SWAP_MS + ThemeSwapOverlay::DUST_LIFE_MS + 1;
+    for (int i = 0; i < ThemeSwapOverlay::DUST_MOTES; i++)
       spent = spent && !ThemeSwapOverlay::dustMoteAt(i, after, o, full, bounds, &mote);
     check(spent, "every mote has burnt out by the overlay's own end");
     // Deterministic — a hash, not qrand: the same index at the same time is the same mote.
@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
   // life, ease, throw (of 100px), radius (of a 6px grain) and opacity.
   {
     struct Row { double life, ease, x, r, alpha; };
-    static constexpr Row kBrowser[] = {
+    static constexpr Row BROWSER[] = {
       {0.000000000, 0.000000000, 0.000000000, 3.000000000, 0.000000000},
       {0.050000000, 0.130636662, 13.063666224, 2.725663009, 0.643748641},
       {0.180000000, 0.456230521, 45.623052120, 2.041915905, 1.000000000},
@@ -190,19 +190,19 @@ int main(int argc, char** argv) {
     };
     // The browser tabulates its curve in float32, this one in double: they agree to far
     // more than a grain (or an 8-bit alpha) can show.
-    constexpr double kEps = 1e-5;
+    constexpr double EPS = 1e-5;
     bool aligned = true;
-    for (const Row& r : kBrowser) {
+    for (const Row& r : BROWSER) {
       const double e = ThemeSwapOverlay::grainEase(r.life);
-      const double o = r.life < ThemeSwapOverlay::kGrainFlare
-                           ? ThemeSwapOverlay::grainEase(r.life / ThemeSwapOverlay::kGrainFlare)
+      const double o = r.life < ThemeSwapOverlay::GRAIN_FLARE
+                           ? ThemeSwapOverlay::grainEase(r.life / ThemeSwapOverlay::GRAIN_FLARE)
                            : 1.0 - ThemeSwapOverlay::grainEase(
-                                       (r.life - ThemeSwapOverlay::kGrainFlare)
-                                       / (1.0 - ThemeSwapOverlay::kGrainFlare));
-      aligned = aligned && std::abs(e - r.ease) < kEps
-                && std::abs(100.0 * e - r.x) < kEps            // the whole throw, eased
-                && std::abs(3.0 * (1 - 0.7 * e) - r.r) < kEps  // scale(0.3) by the end
-                && std::abs(o - r.alpha) < kEps;
+                                       (r.life - ThemeSwapOverlay::GRAIN_FLARE)
+                                       / (1.0 - ThemeSwapOverlay::GRAIN_FLARE));
+      aligned = aligned && std::abs(e - r.ease) < EPS
+                && std::abs(100.0 * e - r.x) < EPS            // the whole throw, eased
+                && std::abs(3.0 * (1 - 0.7 * e) - r.r) < EPS  // scale(0.3) by the end
+                && std::abs(o - r.alpha) < EPS;
     }
     check(aligned, "the grain rides the browser's curve, not an approximation of it");
     // …and the WAKE rides that curve, not just the helper: take a real mote at each of
@@ -213,20 +213,20 @@ int main(int argc, char** argv) {
       // Most indices are culled (off screen, or behind the ring) — take the first that
       // survives its whole flight, rather than pinning one the noise could move.
       const auto ignition = [](int i) {
-        return ThemeSwapOverlay::kDustMinT
+        return ThemeSwapOverlay::DUST_MIN_T
                + ThemeSwapOverlay::dustNoise(i + 57, 11)
-                     * (ThemeSwapOverlay::kDustMaxT - ThemeSwapOverlay::kDustMinT);
+                     * (ThemeSwapOverlay::DUST_MAX_T - ThemeSwapOverlay::DUST_MIN_T);
       };
       const auto at = [&](int i, double life, ThemeSwapOverlay::DustMote* out) {
         return ThemeSwapOverlay::dustMoteAt(
-            i, ignition(i) * ThemeSwapOverlay::kSwapMs + life * ThemeSwapOverlay::kDustLifeMs,
+            i, ignition(i) * ThemeSwapOverlay::SWAP_MS + life * ThemeSwapOverlay::DUST_LIFE_MS,
             org, full3, QSizeF(w, h), out);
       };
       int i = -1;
       ThemeSwapOverlay::DustMote mo{};
-      for (int c = 0; c < ThemeSwapOverlay::kDustMotes && i < 0; c++) {
+      for (int c = 0; c < ThemeSwapOverlay::DUST_MOTES && i < 0; c++) {
         bool whole = true;
-        for (const Row& r : kBrowser)
+        for (const Row& r : BROWSER)
           if (r.life > 0 && r.alpha >= 1.0 / 255) whole = whole && at(c, r.life, &mo);
         if (whole) i = c;
       }
@@ -234,7 +234,7 @@ int main(int argc, char** argv) {
       const double lit = 0.75 + ThemeSwapOverlay::dustNoise(i + 13, 29) * 0.25;
       bool rides = i >= 0;
       int sampled = 0;
-      for (const Row& r : kBrowser) {
+      for (const Row& r : BROWSER) {
         if (r.life <= 0 || r.alpha < 1.0 / 255) continue;   // not alive, or too faint to paint
         if (!at(i, r.life, &mo)) continue;
         sampled++;
@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
     const QPointF o2(90, 60);
     const double full2 = fullRadius(o2.x(), o2.y(), w, h);
     bool anyInvisible = false;
-    for (double ms = 1; ms <= ThemeSwapOverlay::kSwapMs + ThemeSwapOverlay::kDustLifeMs; ms += 1)
+    for (double ms = 1; ms <= ThemeSwapOverlay::SWAP_MS + ThemeSwapOverlay::DUST_LIFE_MS; ms += 1)
       for (int i = 0; i < 400; i++)
         if (ThemeSwapOverlay::dustMoteAt(i, ms, o2, full2, QSizeF(w, h), &faint))
           anyInvisible = anyInvisible || faint.alpha < 1.0 / 255;

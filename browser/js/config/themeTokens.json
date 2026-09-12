@@ -1,0 +1,260 @@
+{
+  "about": "The app's colour tokens, keyed by their CSS custom-property name. browser/css/theme.css is the SOURCE OF TRUTH and this file is generated from it — browser/tests/themeTokens.test.js re-derives it from the stylesheet and fails on any drift. The surfaces that cannot read CSS embed this instead of retyping hexes: desktop theme.cpp's Palette, the cli's logo/prompt colours.",
+  "rules": {
+    "keys": "The CSS custom-property name, verbatim (leading `--`), in theme.css declaration order.",
+    "light": "The value declared in `:root`.",
+    "dark": "The value declared in `[data-theme=\"dark\"]`, or the light value when that block omits the token — that is what the cascade gives.",
+    "tokens": "Literal values only: a hex, an rgba(), a keyword, a shadow, or a url(). Safe to embed verbatim on any surface.",
+    "derived": "COMPUTED tokens — the value names another token (`var(...)`) or mixes one (`color-mix(...)`), so it has no fixed hex. The EXPRESSION is recorded, never a resolved colour; a non-CSS surface must evaluate it against the accent in play (desktop theme.cpp accentShade(), cli setAccent()). Recording a resolved hex here would freeze the violet default and silently break every other accent.",
+    "accents": "The 12 accent presets are NOT here — they live in accents.json, which every surface already reads.",
+    "brand": "Theme-INDEPENDENT art colours (favicon.svg + the cli logo). Not CSS custom properties, so not pinned against theme.css; the favicon ones are pinned against favicon.svg."
+  },
+  "tokens": {
+    "--accent": {
+      "light": "#7c3aed",
+      "dark": "#7c3aed"
+    },
+    "--dust-ink": {
+      "light": "#1f1f1f",
+      "dark": "#ffffff"
+    },
+    "--on-accent": {
+      "light": "#ffffff",
+      "dark": "#ffffff"
+    },
+    "--accent-tick": {
+      "light": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23ffffff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E\")",
+      "dark": "url(\"data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23ffffff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E\")"
+    },
+    "--bg-page": {
+      "light": "#f0f0f0",
+      "dark": "#1a1a1a"
+    },
+    "--bg-container": {
+      "light": "#ffffff",
+      "dark": "#242424"
+    },
+    "--bg-controls": {
+      "light": "#f8f9fa",
+      "dark": "#2d2d2d"
+    },
+    "--bg-info": {
+      "light": "#e9ecef",
+      "dark": "#2d2d2d"
+    },
+    "--bg-coord-panel": {
+      "light": "#f8f9fa",
+      "dark": "#2d2d2d"
+    },
+    "--bg-coord-table": {
+      "light": "#ffffff",
+      "dark": "#1e1e1e"
+    },
+    "--bg-coord-even": {
+      "light": "#f8f9fa",
+      "dark": "#2a2a2a"
+    },
+    "--bg-coord-hover": {
+      "light": "#e9ecef",
+      "dark": "#3a3a3a"
+    },
+    "--bg-tooltip": {
+      "light": "#f8f9fa",
+      "dark": "#2d2d2d"
+    },
+    "--bg-tt-th": {
+      "light": "#e9ecef",
+      "dark": "#3a3a3a"
+    },
+    "--bg-tt-td": {
+      "light": "#ffffff",
+      "dark": "#242424"
+    },
+    "--bg-sel-panel": {
+      "light": "#fff8e1",
+      "dark": "#2e2a17"
+    },
+    "--border-main": {
+      "light": "#ddd",
+      "dark": "#444"
+    },
+    "--border-canvas": {
+      "light": "#ddd",
+      "dark": "#555"
+    },
+    "--border-coord": {
+      "light": "#ddd",
+      "dark": "#444"
+    },
+    "--border-tooltip": {
+      "light": "#2c3e50",
+      "dark": "#7f8fa6"
+    },
+    "--border-sel": {
+      "light": "#f0b429",
+      "dark": "#b8860b"
+    },
+    "--bg-sel-btn": {
+      "light": "#d99e0b",
+      "dark": "#b8860b"
+    },
+    "--bg-sel-btn-hov": {
+      "light": "#b7791f",
+      "dark": "#9a7009"
+    },
+    "--text-sel-btn": {
+      "light": "#ffffff",
+      "dark": "#ffffff"
+    },
+    "--text-main": {
+      "light": "#000000",
+      "dark": "#e0e0e0"
+    },
+    "--text-label": {
+      "light": "inherit",
+      "dark": "#cccccc"
+    },
+    "--text-muted": {
+      "light": "#888",
+      "dark": "#aaaaaa"
+    },
+    "--text-info": {
+      "light": "inherit",
+      "dark": "#cccccc"
+    },
+    "--text-coord-h3": {
+      "light": "#333",
+      "dark": "#cccccc"
+    },
+    "--text-sel-label": {
+      "light": "#7a5c00",
+      "dark": "#e0b84a"
+    },
+    "--text-shortcut": {
+      "light": "#999",
+      "dark": "#888888"
+    },
+    "--text-empty": {
+      "light": "#666",
+      "dark": "#888888"
+    },
+    "--project-name-fg": {
+      "light": "#80868f",
+      "dark": "#80868f"
+    },
+    "--project-name-shadow": {
+      "light": "0 1px 1px rgba(0, 0, 0, 0.20)",
+      "dark": "0 1px 2px rgba(0, 0, 0, 0.55)"
+    },
+    "--text-tooltip": {
+      "light": "#2c3e50",
+      "dark": "#e0e0e0"
+    },
+    "--text-tt-header": {
+      "light": "#1a252f",
+      "dark": "#f0f0f0"
+    },
+    "--input-bg": {
+      "light": "#ffffff",
+      "dark": "#333333"
+    },
+    "--input-text": {
+      "light": "#000000",
+      "dark": "#e0e0e0"
+    },
+    "--shadow": {
+      "light": "rgba(0,0,0,0.1)",
+      "dark": "rgba(0,0,0,0.4)"
+    },
+    "--danger": {
+      "light": "#d6293e",
+      "dark": "#f0697a"
+    },
+    "--danger-2": {
+      "light": "#b71d30",
+      "dark": "#e8455a"
+    },
+    "--success": {
+      "light": "#2e9e4f",
+      "dark": "#4cc471"
+    },
+    "--warning": {
+      "light": "#c98a00",
+      "dark": "#e6b53c"
+    },
+    "--disabled-bg": {
+      "light": "#e4e6ea",
+      "dark": "#3a3a3a"
+    },
+    "--disabled-text": {
+      "light": "#9aa0a8",
+      "dark": "#777777"
+    },
+    "--sb-track": {
+      "light": "transparent",
+      "dark": "transparent"
+    },
+    "--sb-thumb": {
+      "light": "#d4d8de",
+      "dark": "#6a6a6a"
+    }
+  },
+  "derived": {
+    "--accent-2": {
+      "light": "color-mix(in srgb, var(--accent) 86%, black)",
+      "dark": "color-mix(in srgb, var(--accent) 78%, white)"
+    },
+    "--dust-accent-alt": {
+      "light": "color-mix(in srgb, var(--accent) 55%, #000000)",
+      "dark": "color-mix(in srgb, var(--accent) 30%, #ffffff)"
+    },
+    "--bg-coord-th": {
+      "light": "var(--accent)",
+      "dark": "var(--accent-2)"
+    },
+    "--bg-drop-hint": {
+      "light": "color-mix(in srgb, var(--accent) 9%, white)",
+      "dark": "color-mix(in srgb, var(--accent) 16%, var(--bg-page))"
+    },
+    "--border-hint": {
+      "light": "color-mix(in srgb, var(--accent) 35%, white)",
+      "dark": "color-mix(in srgb, var(--accent) 50%, #2a2a2a)"
+    },
+    "--section-title": {
+      "light": "color-mix(in srgb, var(--text-main) 62%, transparent)",
+      "dark": "color-mix(in srgb, var(--text-main) 62%, transparent)"
+    },
+    "--ui-outline": {
+      "light": "color-mix(in srgb, var(--text-main) 25%, transparent)",
+      "dark": "color-mix(in srgb, var(--text-main) 25%, transparent)"
+    },
+    "--text-key": {
+      "light": "var(--accent-2)",
+      "dark": "var(--accent-2)"
+    },
+    "--sb-thumb-hover": {
+      "light": "var(--accent)",
+      "dark": "var(--accent)"
+    },
+    "--sb-thumb-active": {
+      "light": "var(--accent-2)",
+      "dark": "var(--accent-2)"
+    }
+  },
+  "brand": {
+    "accent": "#7c3aed",
+    "annotation": "#FFFF00",
+    "panel": "#2b2f3a",
+    "panelInner": "#3a3f4b",
+    "panelGrid": "#5a606e",
+    "errorRed": "#ef4444"
+  },
+  "brandNotes": {
+    "accent": "The default brand violet — the same value as tokens[\"--accent\"].light and accents.json's first preset. Repainted per accent at runtime (cli logo.setAccent).",
+    "annotation": "The signature annotation yellow: favicon.svg's polyline + points, and constants.json DEFAULT_VISUALS.color.",
+    "panel": "favicon.svg's app panel fill.",
+    "panelInner": "favicon.svg's inner image-frame fill.",
+    "panelGrid": "The cli logo's faint point outline / grid dots. cli-only — no favicon or CSS twin.",
+    "errorRed": "The cli's `error:` prefix, and layout.css's `var(--danger, #ef4444)` fallback. NOT --danger (#d6293e / #f0697a): the two diverged before this asset existed and unifying them would repaint output, so both are recorded and the convergence is left to a later phase."
+  }
+}

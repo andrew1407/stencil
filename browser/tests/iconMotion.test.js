@@ -12,12 +12,12 @@
 //   • the CSS implements every design, and nothing in it can move a box.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import ICONS from '../js/config/icons.json' with { type: 'json' };
 import MOTION from '../js/config/iconMotion.json' with { type: 'json' };
+import { ANIMATIONS_CSS } from './helpers/css.js';
 
-const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+const css = ANIMATIONS_CSS;
 // The icon-motion section of the sheet, comment header to the next section.
 const SECTION = (() => {
   const from = css.indexOf('/* ── Icon hover: every glyph mimes its own action');

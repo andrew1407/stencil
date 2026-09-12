@@ -2,41 +2,24 @@ using Stencil.TelegramBot.Domain.Exceptions;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-/// <summary>
-/// Discover the Stencil CLI binary the bot shells out to. A faithful port of
-/// <c>mcp/src/locate.rs</c>.
-/// </summary>
-/// <remarks>
-/// Resolution order (first hit wins): an explicit override / <c>STENCIL_CLI</c> env var (must
-/// be an existing file), then the repo checkout — walk up from the CWD <i>and</i> the running
-/// executable's directory for the nearest ancestor containing <c>cli/build.zig</c>, then
-/// <c>cli/zig-out/bin/stencil</c> — then <c>stencil</c> on <c>PATH</c>. The bot never builds
-/// the CLI; it reports a clear, actionable error when the binary is missing.
-/// </remarks>
+// A port of mcp/src/locate.rs. Order: an explicit override / STENCIL_CLI (must exist), then the
+// nearest ancestor of the CWD or the executable holding cli/build.zig → cli/zig-out/bin/stencil,
+// then PATH.
 public static class StencilCliLocator
 {
-    /// <summary>The CLI binary's base name.</summary>
-    private const string BinaryName = "stencil";
+    private const string _binaryName = "stencil";
 
-    /// <summary>The relative path of the built CLI inside a repo checkout.</summary>
-    private const string RepoBinary = "cli/zig-out/bin/stencil";
+    private const string _repoBinary = "cli/zig-out/bin/stencil";
 
-    /// <summary>A sentinel path that identifies the repo root unambiguously.</summary>
-    private const string RepoSentinel = "cli/build.zig";
+    private const string _repoSentinel = "cli/build.zig";
 
-    /// <summary>The actionable message logged for the operator when no CLI binary can be found.</summary>
-    public const string MissingMessage =
+    public const string MISSING_MESSAGE =
         "could not find the `stencil` CLI. Build it with `zig build` in `cli/`, " +
         "set the STENCIL_CLI env var to its path, or run the Docker image.";
 
-    /// <summary>What the chat is told instead — the fix is the operator's, not the user's.</summary>
-    public const string UnavailableMessage = "The image engine isn't available on this bot right now.";
+    // The fix is the operator's, not the user's.
+    public const string UNAVAILABLE_MESSAGE = "The image engine isn't available on this bot right now.";
 
-    /// <summary>
-    /// Resolve the CLI binary path. <paramref name="overridePath"/> (or the
-    /// <c>STENCIL_CLI</c> env var when it is null/blank) takes precedence and must point at an
-    /// existing file. Throws <see cref="StencilCliException"/> when nothing resolves.
-    /// </summary>
     public static string FindCli(string? overridePath)
     {
         string? envOverride = string.IsNullOrWhiteSpace(overridePath)
@@ -49,33 +32,29 @@ public static class StencilCliLocator
                 return envOverride;
             }
             throw StencilCliException.Deployment(
-                UnavailableMessage, $"STENCIL_CLI is set to '{envOverride}', which is not a file");
+                UNAVAILABLE_MESSAGE, $"STENCIL_CLI is set to '{envOverride}', which is not a file");
         }
 
-        string? inRepo = FindInRepo();
+        string? inRepo = findInRepo();
         if (inRepo is not null)
         {
             return inRepo;
         }
 
-        string? onPath = FindOnPath();
+        string? onPath = findOnPath();
         if (onPath is not null)
         {
             return onPath;
         }
 
-        throw StencilCliException.Deployment(UnavailableMessage, MissingMessage);
+        throw StencilCliException.Deployment(UNAVAILABLE_MESSAGE, MISSING_MESSAGE);
     }
 
-    /// <summary>
-    /// Find the repo root (nearest ancestor containing <c>cli/build.zig</c>) above the CWD or
-    /// the running executable's directory, or null when neither is inside a checkout.
-    /// </summary>
     public static string? RepoRoot()
     {
-        foreach (string start in StartDirs())
+        foreach (string start in startDirs())
         {
-            string? root = RepoRootFrom(start);
+            string? root = repoRootFrom(start);
             if (root is not null)
             {
                 return root;
@@ -84,8 +63,7 @@ public static class StencilCliLocator
         return null;
     }
 
-    /// <summary>Candidate directories to start an upward search from (CWD then exe dir).</summary>
-    private static IEnumerable<string> StartDirs()
+    private static IEnumerable<string> startDirs()
     {
         List<string> starts = new();
         string cwd = Directory.GetCurrentDirectory();
@@ -101,17 +79,16 @@ public static class StencilCliLocator
         return starts;
     }
 
-    /// <summary>Look for <c>cli/zig-out/bin/stencil</c> under the nearest repo root above us.</summary>
-    private static string? FindInRepo()
+    private static string? findInRepo()
     {
-        foreach (string start in StartDirs())
+        foreach (string start in startDirs())
         {
-            string? root = RepoRootFrom(start);
+            string? root = repoRootFrom(start);
             if (root is null)
             {
                 continue;
             }
-            string candidate = Path.Combine(root, RepoBinary);
+            string candidate = Path.Combine(root, _repoBinary);
             if (File.Exists(candidate))
             {
                 return candidate;
@@ -120,13 +97,12 @@ public static class StencilCliLocator
         return null;
     }
 
-    /// <summary>Walk up from <paramref name="start"/> for an ancestor containing the sentinel.</summary>
-    private static string? RepoRootFrom(string start)
+    private static string? repoRootFrom(string start)
     {
         DirectoryInfo? dir = new(start);
         while (dir is not null)
         {
-            string sentinel = Path.Combine(dir.FullName, RepoSentinel);
+            string sentinel = Path.Combine(dir.FullName, _repoSentinel);
             if (File.Exists(sentinel))
             {
                 return dir.FullName;
@@ -136,8 +112,7 @@ public static class StencilCliLocator
         return null;
     }
 
-    /// <summary>Scan <c>PATH</c> for an executable file named <c>stencil</c>.</summary>
-    private static string? FindOnPath()
+    private static string? findOnPath()
     {
         string? path = Environment.GetEnvironmentVariable("PATH");
         if (path is null)
@@ -150,7 +125,7 @@ public static class StencilCliLocator
             {
                 continue;
             }
-            string candidate = Path.Combine(dir, BinaryName);
+            string candidate = Path.Combine(dir, _binaryName);
             if (File.Exists(candidate))
             {
                 return candidate;

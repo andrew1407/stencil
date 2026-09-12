@@ -15,7 +15,6 @@ const opplan = @import("llm/opplan.zig");
 // The contract-§1 caps live in the embedded registry: `schema().limitNamed("MAX_ACTIONS")`.
 pub const Schema = opSchema.Schema;
 pub const schema = opSchema.get;
-pub const default_custom_label = opplan.default_custom_label;
 pub const max_attachments = opplan.max_attachments;
 pub const max_label_chars = opplan.max_label_chars;
 pub const max_image_bytes = opplan.max_image_bytes;

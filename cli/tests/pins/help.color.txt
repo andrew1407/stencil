@@ -1,0 +1,63 @@
+Commands  (a leading '/' is optional)
+
+[38;2;124;58;237mImage[0m
+  [38;2;124;58;237m/upload <path|url>[0m      load an image or video frame (bare: the clipboard's picture)
+  [38;2;124;58;237m/source-upload <url> [i] [fmt] [name=][0m scrape a page and load its i-th image (alias /scrape)
+  [38;2;124;58;237m/paste[0m                  load an image from the clipboard (Ctrl-V pastes onto the line instead)
+  [38;2;124;58;237m/unpaste [n][0m            take back an image added this turn (bare = the last; Ctrl-Z)
+  [38;2;124;58;237m/images[0m                 list the images this turn will send to the assistant
+  [38;2;124;58;237m/blank [fmt] [w h] [color][0m create a blank page (default: the picked format or A4, white)
+  [38;2;124;58;237m/format [name|custom w h][0m list the page formats or pick one (drives /blank + the layout)
+
+[38;2;124;58;237mEdit[0m
+  [38;2;124;58;237m/apply <file.json>[0m      draw a layout JSON onto the image
+  [38;2;124;58;237m/crop <spec> [album][0m    crop, e.g. "x1=10% x2=90% y1=10% y2=90%"
+  [38;2;124;58;237m/rotate <int>[0m           rotate int*90 degrees (e.g. -1, 2, 3)
+  [38;2;124;58;237m/filter <mode>[0m          bw | sepia | invert | contour | none | a colour name/#hex (tint)
+  [38;2;124;58;237m/exec <action> ...[0m      run a transform by name (crop | rotate | filter | apply)
+  [38;2;124;58;237m/undo   /redo[0m           step back / forward through edits
+  [38;2;124;58;237m/reset[0m                  revert to the original, dropping all edits
+
+[38;2;124;58;237mSave[0m
+  [38;2;124;58;237m/save [path][0m            write to a file; a bare /save pushes to the active server project
+  [38;2;124;58;237m/delete <file.stencil>[0m  delete a local .stencil project file from disk
+  [38;2;124;58;237m/layout [path][0m          save the layout JSON (bare = <project>.json; a dir saves <project>.json there)
+  [38;2;124;58;237m/formula [x|y <expr>|on|off|clear][0m set the x/y coord-transform formulas (saved in the layout)
+  [38;2;124;58;237m/copy[0m                   copy the current image to the clipboard
+
+[38;2;124;58;237mConnections[0m
+  [38;2;124;58;237m/connect <url [token]>[0m  connect to collaboration servers (token: session or admin, for gated servers)
+  [38;2;124;58;237m/connections [admin|session][0m list connected servers + reachability status (filter by credential)
+  [38;2;124;58;237m/disconnect [url][0m       close a connection (or the most recent)
+  [38;2;124;58;237m/reconnect [url][0m        re-establish one connection (or all) and the live feed
+  [38;2;124;58;237m/projects [url][0m         list projects on a server (or all connected servers)
+  [38;2;124;58;237m/project-color [#hex][0m   show or set the active project's name colour (clear = neutral grey)
+  [38;2;124;58;237m/blank-color [#hex][0m     show or recolour a BLANK project's background fill (blanks only)
+  [38;2;124;58;237m/rename <name>[0m          rename the active server project (pushed live to peers)
+  [38;2;124;58;237m/keywords <project>[0m     show a server project's search keywords (by name)
+  [38;2;124;58;237m/keywords-search <kw...>[0m list projects across servers matching any keyword
+  [38;2;124;58;237m/keywords-add <project|[..]> <kw...>[0m add keywords to one or more projects
+  [38;2;124;58;237m/keywords-del <project|[..]> <kw...>[0m remove keywords from one or more projects
+  [38;2;124;58;237m/expire [<duration>][0m    set when the active project expires (bare = formats; e.g. 'months 3', 'off')
+  [38;2;124;58;237m/fetch <name> [url][0m     load a server project's image to keep editing
+  [38;2;124;58;237m/sync [on|off][0m          live mode (bare /sync toggles): push edits + pull peers' changes
+
+[38;2;124;58;237mAssistant[0m
+  [38;2;124;58;237m/prompt <text>[0m          ask the LLM assistant; it plans + runs edits and renders variant-<label>.png files (alias /p)
+  [38;2;124;58;237m/llm [key <value>][0m      show or set the LLM provider config (provider | url | model | key | server; env STENCIL_LLM_*)
+  [38;2;124;58;237m/chat [on|off|clear][0m    opt-in: save the /prompt conversation with the project + replay it (bare /chat shows; default off)
+
+[38;2;124;58;237mSystem[0m
+  [38;2;124;58;237m/status[0m                 show the working image (path, size, edit position)
+  [38;2;124;58;237m/theme [name][0m           list or switch the accent colour (default violet)
+  [38;2;124;58;237m/mouse [on|off][0m         full-screen: toggle mouse (off frees text selection)
+  [38;2;124;58;237m/reveal-speed [0.01-1][0m  full-screen: how fast output is revealed (1 = instantly, 0.5 default)
+  [38;2;124;58;237m/clear[0m                  clear the screen, redraw the logo + image header
+  [38;2;124;58;237m/drop[0m                   forget the working image entirely
+  [38;2;124;58;237m/help   /exit[0m           show this list / leave (Ctrl-D, or Ctrl-C twice)
+
+Shortcuts  Ctrl-V paste the clipboard — an image attaches to the line (3 on a /prompt,
+           1 on an /upload; Backspace removes it), text is typed straight in
+           Ctrl-C copy the selection (nothing selected: press twice to exit) · Ctrl-S also copies
+           Ctrl-Z un-attach/un-paste · Ctrl-Alt-C copy the image to the clipboard
+           Ctrl/Alt-Backspace delete the word back · Alt-d or Ctrl/Alt-Delete the word ahead

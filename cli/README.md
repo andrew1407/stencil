@@ -17,7 +17,7 @@ stencil -i clip.mp4 -f 24 frame.png
 graph TD
     CORE["<b>core/</b> — shared C++ logic"]
     subgraph CLIP["cli/ — Zig"]
-      ARGS["args.zig — flag parser"]
+      ARGS["args.zig — flag surface (params/)"]
       PIPE["pipeline.zig — source → crop → rotate → filter → layout → encode"]
       COREZ["core.zig — @cImport(cliApi.h) typed wrappers"]
       IO["image · video · net · layout<br/><i>stb_image · ffmpeg · std.http · std.json</i>"]
@@ -28,6 +28,7 @@ graph TD
     BOT["Telegram bot"]
 
     CORE -->|"recompiled by build.zig · cliApi.h"| COREZ
+    ARGS -->|"Options + the Mode a run selected"| PIPE
     PIPE --> COREZ
     PIPE --> IO
     REPL --> PIPE
@@ -57,39 +58,79 @@ HTTP, video, and JSON all live in Zig.
 ## Layout
 
 ```
-build.zig            # compiles ../core/*.cpp + cliApi.cpp + stb_impl.c, links libc++
+build.zig            # compiles ../core/*.cpp + cliApi.cpp + the stb TUs, links libc++
 build.zig.zon        # package manifest + the pinned stb_image dependency
 src/
-  main.zig           # entry: logo, parse args, run pipeline
-  args.zig           # flag parser (+ --help text)
-  logo.zig           # ANSI-coloured console logo (echoes browser/favicon.svg)
+  main.zig           # entry: logo, parse args, switch on args.Mode
+  args.zig           # flag surface; params/ holds the option blocks + the grammar
+  params/            #   options.zig (Options + the Mode a run selected) · parse.zig (argv -> Options)
+  logo.zig           # ANSI-coloured console logo + the layer lint; logo/ holds the mark, palette and help
+  brand.zig          # the logo's hexes, comptime-scanned out of the embedded themeTokens.json
+  help.txt           # the --help body, generated from the flag table and @embedFile-d
+  report.zig         # the sink everything BELOW the console reports through (default: logo)
   pipeline.zig       # orchestration: source -> crop -> rotate -> layout -> filter -> encode
+  pipeline/          #   sources.zig (resolve a source) · steps.zig (the ops) · oneshot.zig (the run)
+  page.zig           # page-format policy: the A4 fallback, a blank's pixel size, the "<name> WxHcm" label
   console.zig        # interactive --console REPL: input loop + verb/action dispatch
   console/           # the REPL package, driven by console.zig:
-    session.zig      #   working image + undo/redo snapshot stack
+    session.zig      #   the working session; session/ holds history, edits, attachments, chat, servers
     commands.zig     #   command grammar (pure parsing: verbs, transforms, /blank, album)
     ui.zig           #   presentation: header, acks, prompt, help, /theme listing
-    handlers.zig     #   command implementations over pipeline.zig's steps
-    screen.zig       #   full-screen TUI: pinned logo header, scrollback, mouse (TTY only)
-  line_edit.zig      # raw-mode line editor: history, cursor keys, mouse, pasted-image markers (TTY only)
+    handlers.zig     #   the verbs; handlers/ holds one file per feature (media, keywords, …)
+    llmPrompt.zig    #   /prompt + /llm; llm/ holds the turn, the plan and the op executors
+    screen.zig       #   full-screen TUI; screen/ holds the model, scrollback, selection, paint, input
+  line_edit.zig      # raw-mode line editor (TTY only); line_edit/ holds wrap, history, markers, keys, paint
   theme.zig          # brand-accent palette (mirrors browser/desktop); drives /theme + logo colour
-  clipboard.zig      # /paste + /copy clipboard image I/O (macOS osascript · Linux wl-paste/xclip · Windows PowerShell)
+  clipboard.zig      # /paste + /copy clipboard image I/O; clipboard/ holds the shell helpers, reader and writer
+                     #   (macOS osascript · Linux wl-paste/xclip · Windows PowerShell)
+  messages.zig       # the console's user-facing strings, one named constant each (pinned in tests/pins/)
   core.zig           # typed wrappers over the C++ core's extern "C" ABI (@cImport)
-  image.zig          # stb_image decode/encode (RGBA8 <-> file formats)
-  stb_impl.c         # the stb_image / stb_image_write implementation translation unit
+  image.zig          # stb_image decode/encode (RGBA8 <-> file formats; pixel-area capped)
+  imageRows.zig      # the CLI's threading policy over core's [y0,y1) row-range exports (bands, identical bytes)
+  mediaTypes.zig     # what counts as video + format-token normalising, from the embedded mediaTypes.json
+  stb_read_impl.c    # stb_image decoder TU: only the formats we read, dimension-capped, UBSan on
+  stb_write_impl.c   # stb_image_write encoder TU: built -fno-sanitize=undefined (its signed shifts)
+  confine.zig        # output-path guards: `..` always, absolute/~ under --confine-output
+  sanitize.zig       # the one sanitizer for untrusted server/provider prose that gets printed
+  child.zig          # child processes spawned without the STENCIL_LLM_* environment
   video.zig          # ffmpeg frame grab (to PNG on stdout)
   net.zig            # std.http(s) URL fetch (native TLS, no external tool)
+  host.zig           # the URL-authority split + the SSRF guard every outbound URL passes (split off net.zig)
+  fetchPool.zig      # the bounded fan-out both parallel fetch paths share; results land in submission order
   layout.zig         # std.json -> drawable lines
-  project.zig        # .stencil project files: parse/build (image + layout + metadata in one file)
+  llm.zig            # the assistant; llm/ holds the wire, transport, registry and opSchema,
+                     #   and llm/opplan/ the validator + §10 guards
+  scrape.zig         # --source-site; scrape/ holds the page walker, filters, window and the run loop
+  regex_shim.c       # POSIX regex_t storage for --source-name (Zig 0.16 can't embed it); absent off POSIX
+  project.zig        # .stencil project files; project/ holds the codec, shape and session bridge
   project_cli.zig    # one-shot .stencil open/bundle (reuses the console Session for the layout)
+  serverClient.zig   # the collaboration-server client; server/ holds the wire (urls, payload, parse, edit)
+  bench.zig          # the opt-in `zig build bench` entry; bench/ holds timing, fixtures, raster and adapters
 test_root.zig        # test entry point (inline unit tests + the integration suite)
 tests/
-  *_test.zig         # integration tests (decode, crop, rotate, format, layout, e2e)
+  *_test.zig         # integration suites, banded by seam (pipeline ops, layout, console, /prompt, fixtures)
+  *_drift_test.zig   # byte-equality pins on the embedded copies of browser/js/config/ tables
   fixtures/          # sample.png + layout.json used by the tests
+  pins/              # *.txt goldens for the console/TUI text several suites compare against
+testdata/            # the language-neutral stderr goldens mcp/ and bot/ replay (see CONTRACT.md §4)
+scripts/tui_smoke.py # the pseudo-terminal smoke check for --console-full-screen (manual)
+CONTRACT.md          # the argv + stderr-grammar contract the mcp and bot adapters parse
 ```
 
-`src/` is kept flat: it's a small, cohesive set of modules and that's the idiomatic
-Zig layout.
+A module that outgrows one file becomes a package: `x.zig` stays as the surface its callers
+bind to (re-exporting the names they already used) and `x/` holds the pieces. Two rules keep
+that honest, both linted as tests:
+
+- **The layer boundary.** Only the presentation layer — `logo.zig`, `report.zig`, the entry
+  points and the two interactive surfaces (`console/`, `line_edit/`) — may write to a
+  terminal. Everything below it reports through `report.zig`, so `pipeline`, `net`,
+  `scrape`, `serverClient` and `llm/` run headlessly behind another sink and never spell an
+  ANSI escape. `logo.zig`'s `test "layering: …"` walks `src/` and fails on a new file that
+  breaks it.
+- **One registration convention.** A package root pulls its files into the test build with
+  `test { _ = @import("…"); }` (or `_ = name;`). `tests/test_registration_test.zig` walks
+  `src/` and fails on any module no `test {}` block names — without it a new file compiles,
+  is reachable through an alias, and silently has no tests run.
 
 > The Zig build recompiles the core sources directly (it does not link the CMake static
 > library), so the file list in `build.zig` must stay in sync with `STENCIL_CORE_SOURCES`
@@ -152,6 +193,7 @@ stencil [options] <output>
 | `--remote <url>` | Upload the result as a **new** project on a server (for a local/web input). |
 | `--remote-name <name>` | Name for the `--remote` project (default: the input image's base name). A web input's URL is recorded as the project source. |
 | `--token <tok>` | Access token for `--server` / `--remote` — needed when the server gates token minting (`ADMIN_TOKEN`). Takes a **session token** or the **admin token** itself (a session is minted from it automatically); without it the CLI self-issues a session, which open servers allow. |
+| `--confine-output` | Refuse an output path that leaves the working directory — an **absolute** path or a leading `~` on top of the `..` traversal that is always refused. Off by default (a human at a terminal keeps writing wherever they name); pass it when something else chooses the path, as the [mcp](../mcp/README.md) and [bot](../bot/README.md) adapters do when they forward LLM-chosen paths. Applies to `<output>` and to the scrape destination directory. |
 | `-h, --help` | Show help |
 | `<output>` | Result path. A missing/unknown extension is filled in from the input format (`png`, `jpg`, `bmp`, `tga`). |
 
@@ -234,6 +276,9 @@ inline `<svg><image>`, `<video>` + its `poster`, `<picture><source src>`, and CS
 downloads the matches into `<output>` (a **directory**, created if missing; default `.`). It
 is adapter-only: no `core/` involvement. The semantics mirror the Chrome extension's image
 scanner, adapted for static HTML.
+
+`--source-name` is a POSIX ERE matched against each media URL; patterns are capped at 200
+characters, since `regexec` can backtrack catastrophically on a crafted one.
 
 Filtering runs **category → format → dimension**. Dimension bounds are inclusive and apply to
 images, whose pixel size is read from a header sniff (PNG/JPEG/GIF/BMP/WebP); videos and any
@@ -490,6 +535,11 @@ Two layers run together:
   → file out) that reads the result back and checks its dimensions, and a console-mode
   session driven through `console.handle` (upload → crop → rotate → filter → save → reset).
 
+Alongside those: `tests/*_drift_test.zig` re-read each embedded `browser/js/config/` table
+and pin it byte for byte, `tests/pins/*.txt` pin the console and TUI text (SGR escapes
+included), and `tests/size_budget_test.zig` runs the per-file size + comment-share ratchet.
+The whole run is **378 tests**.
+
 The core's own geometry/crop/raster logic is additionally covered by its Doctest suite
 (`../core`).
 
@@ -512,9 +562,12 @@ press / recolour sweep / wordmark flourish are clock-paced) — so run it manual
 
 ### Benchmark
 
-An opt-in perf benchmark times the pipeline stages (crop → rotate → filter → layout →
-contour → encode) on a large synthetic image. It is **not** part of `zig build test`, so
-CI never gates on a timing number — it just prints throughput:
+An opt-in perf benchmark, `src/bench.zig` plus the `src/bench/` package, built ReleaseFast and
+**not** part of `zig build test`. `bench/raster.zig` times the pipeline stages (crop → rotate →
+layout → filter → contour → encode) on a large synthetic image; `bench/adapters.zig` times the
+three paths off the raster road at **two input sizes each** and asserts only the RATIO between
+them. No case compares a wall-clock number against a threshold, so a loaded machine cannot fail
+a run — but an algorithmic regression fails it with a nonzero exit.
 
 ```bash
 zig build bench                  # default 4000x3000, 3000 lines
@@ -522,5 +575,30 @@ zig build bench -- 6000 4000 8000    # width height line-count
 ```
 
 It's the adapter-level counterpart to the core's own micro-benchmarks
-(`../core/build/stencil_tests -ts=bench --no-skip`); watch for order-of-magnitude drift
-release-over-release rather than exact milliseconds. See `src/bench.zig`.
+(`../core/build/stencil_tests -ts=bench --no-skip`), and uses the same idiom: best-of-N reps,
+scaling measured as the input grows, us/op reported and never asserted.
+
+#### Benchmark baseline
+
+ReleaseFast, Apple silicon laptop, 2026-09-12, 4000x3000 (12 MP) and 3000 lines. The ratios are
+the contract; the absolute numbers are only a drift reference and move with the machine's load.
+
+| Stage | Best of 3 | Throughput |
+|---|---|---|
+| `crop` (full-frame copy, band-parallel) | 0.44 ms | 27,300 MP/s |
+| `rotate90` | 2.80 ms | 4,290 MP/s |
+| `layout` (3,000 polylines) | 60.4 ms | 49,700 lines/s |
+| `filter(bw)` | 0.88 ms | 13,700 MP/s |
+| `contour` | 1.35 ms | 8,860 MP/s |
+| `encode(png)` — the codec the core never sees | 130.0 ms | 92 MP/s |
+| **pipeline** (sum of stages) | **195.8 ms** | |
+
+| Adapter path | us/call | Ratio asserted | Measured | Ceiling |
+|---|---|---|---|---|
+| `scrapeHtml` — 100 `<img>` tags | 22.7 | 400 tags ÷ 100 tags: the walker is one pass | 4.07x | 8x |
+| `scrapeHtml` — 400 tags (40 KB, 401 media) | 92.6 | | | |
+| `parsePlan` — 7 actions + 2 variants | 8.6 | — | — | — |
+| `parsePlan` — `layout`, 32 points | 14.6 | 256 points ÷ 32 points stays linear | 6.93x | 16x |
+| `parsePlan` — `layout`, 256 points | 101.5 | | | |
+| `redraw` — 600-char line (7 wrapped rows) | 8.2 | 6,000 chars ÷ 600: `maxPromptRows` (8) bounds the paint | 1.01x | 3x |
+| `redraw` — 6,000-char line (clamped to 8 rows) | 8.3 | | | |

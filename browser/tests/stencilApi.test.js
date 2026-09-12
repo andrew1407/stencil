@@ -11,8 +11,8 @@ import assert from 'node:assert/strict';
 import { installFetchStub } from './helpers/fetchStub.js';
 import { installDom, createStubElement } from './helpers/dom.js';
 
-// Inert DOM stubs so the few document/window-touching paths (closeModals, color canvas,
-// the links-modal refresh event) stay no-ops instead of throwing under node --test.
+// Inert DOM stubs so the few document/window-touching paths (the viewport pan, color
+// canvas, the links-modal refresh event) stay no-ops instead of throwing under node --test.
 globalThis.window = globalThis.window ?? {};
 globalThis.window.dispatchEvent = globalThis.window.dispatchEvent ?? (() => {});
 // A mutable stub viewport (stencil.move pans it) + a body whose fullscreen class is

@@ -10,7 +10,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class DrawArgumentsTests
 {
     [Fact]
-    public void ParsesPixelPoints()
+    public void Should_Parse_Pixel_Points()
     {
         bool ok = DrawArguments.TryParsePoints(["10,20", "30,40"], 100, 100, out var points, out var error);
         Assert.True(ok);
@@ -20,7 +20,7 @@ public sealed class DrawArgumentsTests
     }
 
     [Fact]
-    public void ResolvesPercentagesAgainstDimensions()
+    public void Should_Resolve_Percentages_Against_Dimensions()
     {
         bool ok = DrawArguments.TryParsePoints(["50%,25%"], 200, 400, out var points, out _);
         Assert.True(ok);
@@ -31,7 +31,7 @@ public sealed class DrawArgumentsTests
     [InlineData("10")]      // missing the y component
     [InlineData("a,b")]     // non-numeric
     [InlineData("10,")]     // empty component
-    public void RejectsMalformedTokens(string token)
+    public void Should_Reject_Malformed_Tokens(string token)
     {
         bool ok = DrawArguments.TryParsePoints([token], 100, 100, out _, out var error);
         Assert.False(ok);
@@ -39,7 +39,7 @@ public sealed class DrawArgumentsTests
     }
 
     [Fact]
-    public void EmptyTokenListFails()
+    public void Should_Fail_For_An_Empty_Token_List()
     {
         bool ok = DrawArguments.TryParsePoints([], 100, 100, out _, out var error);
         Assert.False(ok);
@@ -47,7 +47,7 @@ public sealed class DrawArgumentsTests
     }
 
     [Fact]
-    public void RectangleExpandsTwoCornersToFour()
+    public void Should_Expand_Two_Rectangle_Corners_To_Four()
     {
         var corners = DrawArguments.Rectangle(new LayoutPoint(0, 0), new LayoutPoint(10, 20));
         Assert.Equal(4, corners.Count);

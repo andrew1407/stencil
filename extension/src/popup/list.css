@@ -1,0 +1,112 @@
+/* The brand's drag menu + drop cue, and the scanned-image rows' badges and cues.
+   Loaded after popup.css; see popup.html for the order. */
+/* Spring-loaded drag menu (hovering the logo mid-drag): four flat actions, each of them
+   a drop target. `.over` is the release-here cue — the accent fill the row menu uses on
+   hover, so aiming reads the same whether you're clicking or dragging. */
+.action-menu .drag-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: transparent; border: 0; color: var(--text); border-radius: 6px;
+  padding: 8px 10px; font-size: 12.5px; cursor: copy; text-align: left;
+}
+.action-menu .drag-item .ic { pointer-events: none; }        /* never let the glyph swallow the drag */
+.action-menu .drag-item * { pointer-events: none; }
+.action-menu .drag-item.over, .action-menu .drag-item:hover { background: var(--accent); color: var(--on-accent); }
+
+/* ARMED: a compatible drag is live SOMEWHERE on the surface, so the logo advertises
+   itself as a target before the pointer gets there — a gentle scale + a breathing accent
+   ring. Only transform/box-shadow/outline animate, so the header never reflows. */
+@keyframes stencilLogoPulse {
+  from { transform: scale(1);    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, #7c3aed) 55%, transparent); }
+  to   { transform: scale(1.08); box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent, #7c3aed) 0%, transparent); }
+}
+header .logo.drag-armed {
+  border-radius: 6px;
+  /* DASHED throughout — armed and hovered differ by strength (and the pulse),
+     never by switching the line style mid-drag. */
+  outline: 2px dashed color-mix(in srgb, var(--accent, #7c3aed) 60%, transparent);
+  outline-offset: 3px;
+  animation: stencilLogoPulse 1.2s ease-in-out infinite alternate;
+}
+/* Hovered beats armed: the pulse settles at the enlarged end and the stronger dashed
+   cue below takes over, so "armed" and "aimed at" read differently. */
+header .logo.drag-armed.drop-over { animation: none; transform: scale(1.08); }
+@media (prefers-reduced-motion: reduce) {
+  /* Keep the ring (the affordance), drop the motion. */
+  header .logo.drag-armed { animation: none; transform: none; }
+}
+
+/* The logo doubles as a DROP TARGET: media dragged off the page onto the brand zone
+   springs open that menu. Same cue language as the other drop targets — an accent ring
+   over a faint accent tint, never an opaque fill. */
+header .logo.drop-over {
+  outline: 2px dashed var(--accent, #7c3aed);
+  outline-offset: 3px;
+  border-radius: 6px;
+  background-color: rgba(124, 58, 237, .14);                                  /* fallback */
+  background-color: color-mix(in srgb, var(--accent, #7c3aed) 14%, transparent);
+}
+
+/* ── Drop cue (shared) ───────────────────────────────────────────────────────
+   The browser editor's treatment (components/chat/narrow.css .chat-drop-target / dropOverlay):
+   a dashed ACCENT outline over a faint accent TINT the content still shows through.
+   Never an opaque fill — a solid panel colour reads as a white block in light theme.
+   Used by the list's drag-to-pin cue and by the Assistant section's drop state. */
+.list.drag-over {
+  outline: 2px dashed var(--accent, #7c3aed);
+  outline-offset: -4px;
+  border-radius: 8px;
+  background-color: rgba(124, 58, 237, .10);                                  /* fallback */
+  background-color: color-mix(in srgb, var(--accent, #7c3aed) 10%, transparent);
+}
+
+.row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 8px; cursor: grab; }
+.row:active { cursor: grabbing; }
+.row.dragging { opacity: .5; }
+.row:hover { background: var(--panel); }
+/* The thumbnail sits on the PAGE colour with a grey outline, like the browser's
+   .project-thumb (components/projects.css: bg-info + border-main): the panel tone behind a
+   transparent PNG or an icon left the artwork floating on a grey slab, and in dark mode
+   that slab was lighter than everything around it. Dark → near-black with a grey edge,
+   light → the page grey with the same edge. */
+.thumb {
+  flex: 0 0 auto; width: 48px; height: 48px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); object-fit: contain; cursor: pointer;
+}
+.meta { flex: 1 1 auto; min-width: 0; }
+.meta .name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta .name.clickable { cursor: pointer; }
+.meta .name.clickable:hover { color: var(--accent-2); text-decoration: underline; }
+/* wrap — a long badge row otherwise overflowed under the pin/⋯ buttons */
+.meta .sub { color: var(--muted); font-size: 11px; display: flex; gap: 2px 6px; align-items: center; flex-wrap: wrap; }
+.badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px;
+  padding: 1px 5px; font-size: 10px; line-height: 1.2; text-transform: uppercase; letter-spacing: .03em;
+}
+.badge.bg { color: var(--yellow); }
+.badge.video { color: #4ade80; }
+.badge.fmt { color: var(--accent-2); }
+/* Kind badges carry their meaning in the TEXT colour and keep the shared outline — a
+   full-colour border made them read as inputs beside the plain IMG / SVG tags next to
+   them (the `opened` / `pinned` / `shared` cues below are the deliberate exception: their
+   border matches a row outline that says the same thing). */
+.badge.poster { color: #38bdf8; }
+.badge.meta { color: #c084fc; }
+/* Already-opened-in-an-editor cue: a yellow OUTLINE flag badge (matching the pinned/shared
+   badges below) + a yellow row outline — not a loud filled block. */
+.badge.opened { color: var(--yellow); border-color: var(--yellow); font-weight: 600; }
+.row.opened { outline: 1.5px solid var(--yellow); outline-offset: -1px; }
+/* Pinned cue: gray pin tag + row outline. An image can be both pinned and opened; the
+   two pin/opened badges disambiguate, so the outline colour alone need not encode both. */
+.badge.pinned { color: var(--text); border-color: var(--muted); font-weight: 600; }
+.badge.pinned .ic { vertical-align: -0.16em; }
+.row.pinned { outline: 1.5px solid var(--muted); outline-offset: -1px; }
+/* Shared-from-a-server cue: a GOLDEN row outline + server badge, distinct from the gray
+   local-pin outline above. Marks rows that are stored on a connected server. */
+.badge.shared { color: #f5c518; border-color: #f5c518; font-weight: 600; }
+.badge.shared .ic { vertical-align: -0.16em; }
+.row.shared { outline: 1.5px solid #f5c518; outline-offset: -1px; }
+/* Reverse-hover cue: the row whose page element is currently under the cursor (on-page
+   highlight on). A strong accent ring + glow so it stands out over the pin/opened outlines. */
+.row.list-hl { outline: 2.5px solid var(--accent, #7c3aed); outline-offset: -2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #7c3aed) 40%, transparent); }

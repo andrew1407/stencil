@@ -1,0 +1,176 @@
+/* The assistant's composer and the entries a turn produces: retry, cards, attachment
+   chips, drop cue, empty-state chips. */
+/* One-click retry on a failed turn (re-sends the same text). Browser .chat-hbtn parity:
+   a NEUTRAL ghost glyph even inside the red error bubble — `color: inherit` here used to
+   pull the bubble's --danger red onto the retry icon, which is why it read as red instead
+   of the quiet grey every other surface uses. */
+/* Browser .chat-retry-cta parity: no fill on hover, just its own muted glyph colour
+   traced as a thin outline — a panel-2 fill read as a stray dark square on the error
+   card's danger wash (user report). Border reserved at rest so hover costs no shift. */
+#sec-assistant .chat-retry { display: flex; align-items: center; justify-content: center; margin-top: 6px; width: 22px; height: 22px; padding: 0; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--muted); cursor: pointer; }
+#sec-assistant .chat-retry:hover { background: transparent; border-color: var(--muted); color: var(--muted); }
+/* "Configure provider" (assistant.js addConfigureCta): browser .chat-config-cta parity —
+   a labelled pill above the icon-only Retry, shown only when the PROVIDER itself is the
+   problem (unreachable/unconfigured). Solid accent on hover, not a lighter fill: a lighten
+   reads as washed-out on a pill this small (the browser's own fix for the same button). */
+#sec-assistant .chat-config-cta {
+  /* Overrides .btn-icon-text's inline-flex (inline outer display, so it would sit
+     beside the preceding text, overlapping it): a block flex row, same reasoning as
+     .chat-retry above, so it lands on its own line under the message. width:max-content
+     keeps it sized to its own label instead of a block box's default of filling the
+     bubble — the button, not the whole width, is what should look pressable. */
+  display: flex; align-items: center; width: max-content; max-width: 100%;
+  margin-top: 6px; padding: 6px 9px; gap: 7px;
+  font: inherit; font-size: 12px; font-weight: 600;
+  border: 0; border-radius: 6px; background: var(--accent); color: var(--on-accent); cursor: pointer;
+}
+#sec-assistant .chat-config-cta:hover { box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 55%, transparent); }
+#sec-assistant .msg.note { align-self: center; color: var(--muted); font-size: 11px; background: none; padding: 0 10px; }
+/* The in-flight bubble carries only the dots, so it sizes to them (browser parity). */
+#sec-assistant .msg.typing-row { display: inline-flex; align-items: center; min-height: 22px; }
+
+/* Images the USER attached to a turn: thumbnails on the user's side, above their
+   message (browser .chat-attached parity). They were assistant-side text cards
+   before — no image, and worded as if the assistant had said it. */
+#sec-assistant .chat-attached { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; align-self: flex-end; max-width: 90%; }
+#sec-assistant .chat-attached-thumb {
+  width: 56px; height: 56px; object-fit: cover;
+  border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2);
+}
+
+/* Executed-action result cards (focus / open / attach). */
+#sec-assistant .card {
+  align-self: flex-start; display: flex; align-items: center; gap: 8px;
+  padding: 5px 9px; border-radius: 9px; font-size: 11px;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+}
+#sec-assistant .card .ic { color: var(--accent); }
+#sec-assistant .card.fail { border-color: #dc3545; }
+#sec-assistant .card.fail .ic { color: #dc3545; }
+
+#sec-assistant .warn { align-self: flex-start; color: var(--yellow); font-size: 11px; padding: 0 4px; }
+
+/* Drop-highlight: dragging an image/file over the COMPOSER (class toggled by
+   lib/chatDrop.js wireDropTarget) covers it with an icon + label drawn ON TOP of it.
+   It used to be an outline + tint on the transcript, which put the drop area
+   UNDERNEATH the messages and chips — a half-transparent mess right where the drag
+   needs a clear answer to "will this land here?" — and it claimed the whole section
+   when only the composer takes a drop. pointer-events: none keeps the drag events
+   flowing to the composer's own handlers. Browser parity: .chat-drop-cue. */
+.chat-composer { position: relative; }
+#sec-assistant .chat-drop-cue {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  align-items: center; justify-content: center; gap: 8px;
+  border: 2px dashed var(--accent, #7c3aed);
+  border-radius: 10px;
+  /* Mostly opaque, mixed INTO the panel colour so it stays theme-correct (a flat
+     white/black block would not) and the composer below can't muddle the label. */
+  background: rgba(124, 58, 237, .16);                                        /* fallback */
+  background: color-mix(in srgb, var(--accent, #7c3aed) 16%, var(--panel));
+  color: var(--accent, #7c3aed);
+  font-size: 13px; font-weight: 600; letter-spacing: .01em;
+  pointer-events: none;
+}
+#sec-assistant .chat-composer.drop-over .chat-drop-cue { display: flex; }
+
+/* Hover preview: the chips and strip thumbnails are deliberately small, so hovering
+   shows the picture at a readable size. On the BODY (the popup's regions all scroll,
+   so an in-place popup would be clipped), above everything. Browser parity:
+   components/chat/narrow.css .chat-thumb-preview. */
+.chat-thumb-preview {
+  position: fixed; left: -9999px;              /* measured, then placed by wireThumbPreview */
+  z-index: 200;                                 /* over the section peek (80) and the menus */
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel); box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  pointer-events: none;                         /* never steals the hover that opened it */
+  opacity: 0;
+}
+.chat-thumb-preview-in { opacity: 1; }
+/* A GLANCE, not a lightbox (browser .chat-thumb-preview / .project-thumb-zoom): the
+   picture is clamped so the surface underneath stays readable. Fixed px rather than
+   the browser's vw/vh — this window can be a 400px popup, where a viewport fraction
+   would shrink the preview back to thumbnail size. */
+.chat-thumb-preview img {
+  display: block; width: auto; height: auto;
+  max-width: 220px; max-height: 220px; object-fit: contain; border-radius: 6px;
+}
+.chat-thumb-preview-cap { max-width: 220px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+/* Alt held while hovering: the glance doubles (chatUi altPreview), still viewport-capped
+   — this window can be a 400px popup. */
+.chat-thumb-preview.chat-thumb-preview-xl img {
+  max-width: min(440px, calc(100vw - 32px));
+  max-height: min(440px, calc(100vh - 32px));
+}
+.chat-thumb-preview.chat-thumb-preview-xl .chat-thumb-preview-cap { max-width: min(440px, calc(100vw - 32px)); }
+
+/* Dismiss (×) on error / notice entries, so failures don't pile up forever. Absolute
+   in the (block) message bubbles, a plain flex item in the (flex) result cards. */
+#sec-assistant .x-dismiss {
+  position: absolute; top: 2px; right: 2px;
+  background: none; border: 0; color: var(--muted); cursor: pointer;
+  font-size: 13px; line-height: 1; width: 16px; height: 16px; border-radius: 4px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#sec-assistant .x-dismiss:hover { color: #fff; background: #dc3545; }
+#sec-assistant .msg.error, #sec-assistant .warn { position: relative; padding-right: 22px; }
+#sec-assistant .warn .x-dismiss { color: var(--yellow); }
+#sec-assistant .card { position: relative; }
+#sec-assistant .card .x-dismiss { position: static; flex: 0 0 auto; align-self: center; margin-left: 2px; }
+
+/* Empty-state prompt chips (browser parity: .chat-empty / .chat-suggest). Clicking
+   one prefills the input — it never sends. Removed with the first message. */
+#sec-assistant .chat-empty { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 0; }
+#sec-assistant .chat-suggest {
+  padding: 4px 10px; font: inherit; font-size: 11px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 14px;
+  background: var(--panel-2); color: var(--text);
+  transition: background .12s ease, border-color .12s ease;
+}
+#sec-assistant .chat-suggest:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel-2));
+}
+
+/* Pending dropped attachments awaiting the next send. */
+.chat-tray { display: flex; flex-wrap: wrap; gap: 6px; }
+.chat-tray[hidden] { display: none; }
+#sec-assistant .chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 5px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; font-size: 11px;
+}
+#sec-assistant .chip img { width: 28px; height: 28px; object-fit: cover; border-radius: 5px; border: 1px solid var(--line); }
+#sec-assistant .chip .chip-name { max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#sec-assistant .chip .chip-x {
+  background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 13px;
+  width: 18px; height: 18px; line-height: 1; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+#sec-assistant .chip .chip-x:hover { color: #fff; background: #dc3545; }
+
+.chat-composer { display: flex; align-items: flex-end; gap: 6px; }
+.chat-composer textarea {
+  flex: 1 1 auto; resize: none; min-height: 34px; max-height: 120px;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 9px; font: inherit; font-size: 12px;
+}
+.chat-composer textarea:focus { outline: none; border-color: var(--accent); }
+.chat-send {
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: 8px;
+  width: 34px; height: 34px; cursor: pointer; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.chat-send:hover { background: var(--accent-2); }
+.chat-send:disabled { opacity: .5; cursor: default; }
+
+/* Assistant: clear-conversation button matches the send button's ghost sizing. */
+#sec-assistant .chat-clear {
+  /* Same box as .chat-send so the composer buttons line up (ghost, not accent). */
+  flex: 0 0 auto; width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+  display: inline-flex; align-items: center; justify-content: center;
+}

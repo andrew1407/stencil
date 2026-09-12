@@ -7,16 +7,11 @@
 import { test, expect } from '@playwright/test';
 import { gotoApp, APP_URL } from '../../helpers/boot.js';
 import { startLlmStub } from '../../helpers/llm-stub.js';
-
-// Contract §4: every request must lead with the canonical system prompt.
-const SYSTEM_PROMPT_HEAD = 'You are the AI assistant inside Stencil';
-
-// The §6.2 openai-compat wire: a text-only message is a plain string, but a turn
-// carrying images (contract §7 auto-attaches the working snapshot + its edge map)
-// is an array of typed parts — read the text from either shape.
-const contentText = (content) => (typeof content === 'string'
-  ? content
-  : (content || []).filter((p) => p.type === 'text').map((p) => p.text).join('\n'));
+import {
+  SYSTEM_PROMPT_HEAD, LLM_SETTINGS_KEY, contentText, seedLlmSettings, openChatPanel,
+  clearConversation, sendChat, openCanvasMenu, openMenuClearOfPanel, pointClearOfPanel,
+  expectFlyoutOnScreen, openAssistantFlyout, settleFlyout,
+} from '../../helpers/chat.js';
 
 test.describe('AI assistant chat panel', () => {
   /** @type {Awaited<ReturnType<typeof startLlmStub>>} */
@@ -26,101 +21,6 @@ test.describe('AI assistant chat panel', () => {
   test.afterAll(async () => { await stub?.close(); });
   test.beforeEach(() => stub.reset());
 
-  // Seed the §5 provider settings (localStorage `drawingApp_llmSettings`) pointing at
-  // the stub. The panel re-reads settings on every send (loadLlmSettings inside
-  // getClient), so seeding after boot needs no reload.
-  const seedSettings = (page) => page.evaluate((baseUrl) => {
-    localStorage.setItem('drawingApp_llmSettings', JSON.stringify({
-      provider: 'openai-compat', baseUrl, model: 'e2e-model', apiKey: '', serverUrl: '',
-    }));
-  }, stub.url + '/v1');
-
-  const openPanel = async (page) => {
-    await page.locator('#chat-btn').click();
-    await expect(page.locator('#chat-panel')).toHaveClass(/chat-open/);
-  };
-
-  // Attach / clear / settings live in the composer's "…" overflow (chatView.js
-  // chatComposerActionsHtml), so reaching one means opening that menu first. The
-  // menu closes itself after an item runs.
-  const clearConversation = async (page, prefix = 'chat') => {
-    await page.locator(`#${prefix}-more-btn`).click();
-    await page.locator(`#${prefix}-clear`).click();
-  };
-
-  // Enter-to-send (the input's documented shortcut): the floating "Get Stencil"
-  // install button can overlap the docked panel's send button and swallow clicks.
-  const send = async (page, text) => {
-    await page.locator('#chat-input').fill(text);
-    await page.locator('#chat-input').press('Enter');
-  };
-
-  // ── The canvas right-click menu's "Assistant ▸" entry (browser/js/ui/contextMenu.js).
-  // It is an ordinary submenu parent whose flyout is a chat, so the two things worth
-  // driving for real are (a) the CLASSIC flyouts still hover-open on-screen — an
-  // earlier build re-clamped the whole menu as the chat grew, which slid the hovered
-  // item out from under the cursor and killed every flyout — and (b) the assistant
-  // flyout survives a whole turn (typing, sending, a plan executing on the canvas)
-  // on the panel's own conversation.
-  const openMenu = async (page) => {
-    // Loading/relaying out an image scrolls the canvas viewport, and a viewport scroll
-    // dismisses the menu by design — settle first, and reopen if a stray scroll lands
-    // between the right-click and the assertion (same flake as the extension flyouts).
-    await page.waitForTimeout(400);
-    const menu = page.locator('#ctx-menu');
-    for (let i = 0; i < 4; i++) {
-      await page.locator('#canvas').click({ button: 'right', position: { x: 40, y: 40 } });
-      if (await menu.evaluate((el) => el.classList.contains('ctx-open'))) break;
-      await page.waitForTimeout(250);
-    }
-    await expect(menu).toHaveClass(/ctx-open/);
-  };
-  // Same, but with the panel possibly open and overlapping: right-click the first
-  // canvas corner the panel does NOT cover (a real right-click at viewport
-  // coordinates, so the topmost element there receives it).
-  const openMenuClearOfPanel = async (page) => {
-    await page.waitForTimeout(400);
-    const menu = page.locator('#ctx-menu');
-    for (let i = 0; i < 4; i++) {
-      const pt = await page.evaluate(() => {
-        const c = document.getElementById('canvas').getBoundingClientRect();
-        const panel = document.getElementById('chat-panel');
-        const pb = panel && panel.classList.contains('chat-open') ? panel.getBoundingClientRect() : null;
-        const covered = (x, y) => !!pb && x >= pb.left && x <= pb.right && y >= pb.top && y <= pb.bottom;
-        const corners = [[c.right - 8, c.top + 8], [c.left + 8, c.top + 8], [c.right - 8, c.bottom - 8], [c.left + 8, c.bottom - 8]];
-        const free = corners.find(([x, y]) => !covered(x, y));
-        return free ? { x: free[0], y: free[1] } : null;
-      });
-      if (!pt) return false;
-      await page.mouse.click(pt.x, pt.y, { button: 'right' });
-      if (await menu.evaluate((el) => el.classList.contains('ctx-open'))) return true;
-      await page.waitForTimeout(250);
-    }
-    return false;
-  };
-  // A flyout must be visible AND fully inside the viewport.
-  const expectFlyoutOnScreen = async (page, id) => {
-    const sub = page.locator(id);
-    await expect(sub).toHaveClass(/ctx-sub-visible/, { timeout: 5000 });
-    await expect(sub).toBeVisible();
-    const box = await sub.boundingBox();
-    const vp = page.viewportSize();
-    expect(box.width, `${id} has width`).toBeGreaterThan(0);
-    expect(box.x, `${id} left edge on-screen`).toBeGreaterThanOrEqual(0);
-    expect(box.y, `${id} top edge on-screen`).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width, `${id} right edge on-screen`).toBeLessThanOrEqual(vp.width + 1);
-    expect(box.y + box.height, `${id} bottom edge on-screen`).toBeLessThanOrEqual(vp.height + 1);
-  };
-  // Open the menu and hover the Assistant parent until its flyout is up on-screen.
-  const openAssistantFlyout = async (page) => {
-    await openMenu(page);
-    await page.locator('#ctx-assist-menu').hover();
-    await expectFlyoutOnScreen(page, '#ctx-assist-sub');
-  };
-  // Wait out the flyout's pop animation — mid-pop everything is scaled by ~0.95.
-  const settleFlyout = (page) => page.waitForFunction(() => document.getElementById('ctx-assist-sub')
-    .getAnimations({ subtree: true }).every((a) => a.playState === 'finished'));
-
   // Every test in this group starts the same way: boot, point the §5 settings at the
   // stub, and lay down a working image so plans have something to apply to and
   // variants can export. (The dock/float smoke at the bottom needs neither, so it
@@ -128,7 +28,7 @@ test.describe('AI assistant chat panel', () => {
   test.describe(() => {
     test.beforeEach(async ({ page }) => {
       await gotoApp(page);
-      await seedSettings(page);
+      await seedLlmSettings(page, stub.url + '/v1');
       await page.evaluate(async () => {
         await window.stencil.blank('#ffffff', { size: { width: 200, height: 150 } });
       });
@@ -148,8 +48,8 @@ test.describe('AI assistant chat panel', () => {
         ],
       });
 
-      await openPanel(page);
-      await send(page, 'Make it sepia and show me two rotated variants');
+      await openChatPanel(page);
+      await sendChat(page, 'Make it sepia and show me two rotated variants');
 
       // Reply bubble replaces the pending "…" once the plan has fully executed. (Scoped
       // to the panel: the context-menu flyout mirrors the very same rows.)
@@ -216,7 +116,7 @@ test.describe('AI assistant chat panel', () => {
     });
 
     test('context menu: classic submenus hover-open on-screen, with the Assistant entry present', async ({ page }) => {
-      await openMenu(page);
+      await openCanvasMenu(page);
       // The Assistant entry is a submenu PARENT sitting with the others (caret + flyout)…
       await expect(page.locator('#ctx-assist-menu')).toBeVisible();
       await expect(page.locator('#ctx-assist-menu .ctx-arrow')).toBeVisible();
@@ -271,8 +171,8 @@ test.describe('AI assistant chat panel', () => {
     test('context-menu assistant: the flyout survives a turn, on the same conversation', async ({ page }) => {
       // Turn 1 in the PANEL, then close it — the menu must continue this conversation.
       stub.queue({ version: 1, reply: 'Panel turn.', actions: [], variants: [] });
-      await openPanel(page);
-      await send(page, 'remember me');
+      await openChatPanel(page);
+      await sendChat(page, 'remember me');
       await expect(page.locator('#chat-transcript .chat-msg-assistant').last()).toHaveText(/Panel turn/, { timeout: 15_000 });
       await page.locator('#chat-close').click();
 
@@ -310,11 +210,11 @@ test.describe('AI assistant chat panel', () => {
 
       // Assistant switched off → the entry is gone and the menu is its old self,
       // classic flyouts included.
-      await page.evaluate(() => {
-        localStorage.setItem('drawingApp_llmSettings', JSON.stringify({ provider: 'none' }));
+      await page.evaluate((key) => {
+        localStorage.setItem(key, JSON.stringify({ provider: 'none' }));
         window.dispatchEvent(new Event('stencil:llm-settings-changed'));
-      });
-      await openMenu(page);
+      }, LLM_SETTINGS_KEY);
+      await openCanvasMenu(page);
       await expect(page.locator('#ctx-assist-menu')).toBeHidden();
       // The separator set is the original one — nothing dangling where the entry was.
       const offSeps = await page.locator('#ctx-menu > .ctx-sep:visible').count();
@@ -404,13 +304,13 @@ test.describe('AI assistant chat panel', () => {
       await page.keyboard.press('Escape');
 
       // 2. Opening the panel AFTERWARDS must render that history, not an empty pane.
-      await openPanel(page);
+      await openChatPanel(page);
       expect(await panelRows()).toEqual(['user:one', 'assistant:First, from the menu.']);
       await expect(page.locator('#chat-transcript .chat-empty')).toHaveCount(0);
 
       // 3. A turn sent from the PANEL lands in both, in order, once.
       stub.queue({ version: 1, reply: 'Second, from the panel.', actions: [], variants: [] });
-      await send(page, 'two');
+      await sendChat(page, 'two');
       await expect(page.locator('#chat-transcript .chat-msg-assistant').last())
         .toHaveText(/Second, from the panel/, { timeout: 15_000 });
       expect(await panelRows()).toEqual(await menuRows());
@@ -425,10 +325,10 @@ test.describe('AI assistant chat panel', () => {
       expect(await openMenuClearOfPanel(page), 'menu opened with the panel open').toBeTruthy();
       await page.locator('#ctx-assist-menu').hover();
       await expectFlyoutOnScreen(page, '#ctx-assist-sub');
-      await page.evaluate(() => {
-        const s = JSON.parse(localStorage.getItem('drawingApp_llmSettings'));
-        localStorage.setItem('drawingApp_llmSettings', JSON.stringify({ ...s, baseUrl: 'http://127.0.0.1:9/v1' }));
-      });
+      await page.evaluate((key) => {
+        const s = JSON.parse(localStorage.getItem(key));
+        localStorage.setItem(key, JSON.stringify({ ...s, baseUrl: 'http://127.0.0.1:9/v1' }));
+      }, LLM_SETTINGS_KEY);
       await page.locator('#ctx-assist-input').fill('three');
       await page.locator('#ctx-assist-input').press('Enter');
       await expect(page.locator('#ctx-assist-transcript .chat-msg-error')).toHaveCount(1, { timeout: 20_000 });
@@ -465,7 +365,7 @@ test.describe('AI assistant chat panel', () => {
       const menuChips = () => chips('#ctx-assist-transcript');
 
       // Both start with the SAME chips (one shared list).
-      await openPanel(page);
+      await openChatPanel(page);
       await page.locator('#chat-float-btn').click();
       const prompts = await panelChips().evaluateAll((els) => els.map((e) => e.dataset.prompt));
       expect(prompts.length).toBeGreaterThanOrEqual(4);
@@ -473,7 +373,7 @@ test.describe('AI assistant chat panel', () => {
 
       // First message: both drop them.
       stub.queue({ version: 1, reply: 'Done.', actions: [], variants: [] });
-      await send(page, 'hello');
+      await sendChat(page, 'hello');
       await expect(page.locator('#chat-transcript .chat-msg-assistant').last()).toHaveText(/Done/, { timeout: 15_000 });
       await expect(panelChips()).toHaveCount(0);
       await expect(menuChips()).toHaveCount(0);
@@ -575,7 +475,7 @@ test.describe('AI assistant chat panel', () => {
       test.use({ viewport: { width: 390, height: 780 } });   // phone width: < 680px
 
       test('context-menu assistant on a phone: a plain item that opens the chat panel', async ({ page }) => {
-        await openMenu(page);
+        await openCanvasMenu(page);
 
         const item = page.locator('#ctx-assist-menu');
         await expect(item).toBeVisible();
@@ -590,7 +490,7 @@ test.describe('AI assistant chat panel', () => {
         await expect(page.locator('#chat-panel')).toHaveClass(/chat-open/);
         // Same shared conversation: a turn typed here continues in the panel.
         stub.queue({ version: 1, reply: 'Phone turn.', actions: [], variants: [] });
-        await send(page, 'from the phone');
+        await sendChat(page, 'from the phone');
         await expect(page.locator('#chat-transcript .chat-msg-assistant').last()).toHaveText(/Phone turn/, { timeout: 15_000 });
       });
     });
@@ -598,7 +498,7 @@ test.describe('AI assistant chat panel', () => {
 
   test('dock, float, drag and resize work; layout resets to defaults on reload', async ({ page, context }) => {
     await gotoApp(page);
-    await openPanel(page);
+    await openChatPanel(page);
     const panel = page.locator('#chat-panel');
 
     // ≤680px viewports force a bottom sheet and hide the dock buttons/resizer, so the
@@ -705,6 +605,11 @@ test.describe('AI assistant chat panel', () => {
     // would be no stranded shape left to assert about. Blur the composer first
     // (openCompact focuses it) or the hotkey is swallowed by the text field.
     await page.evaluate(() => document.activeElement?.blur());
+    // Alt DOWN while the pointer rests on a toolbar icon fires that icon's Alt-glide,
+    // which closes every other mini window (popover.js closeFromGlide) — this popover
+    // included. The dblclick left the cursor on #chat-btn, so park it off the toolbar.
+    const parked = await pointClearOfPanel(page);
+    if (parked) await page.mouse.move(parked.x, parked.y);
     await page.keyboard.press('Alt+f');
     await expect(page.locator('body')).toHaveClass(/fullscreen-mode/);
     // Reveal the fullscreen toolbar so the clone exists and is measurable.

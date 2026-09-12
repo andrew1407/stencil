@@ -4,9 +4,29 @@
   <meta charset="UTF-8">
   <title>Stencil Image Picker — options</title>
   <!-- Apply the saved accent (data-accent) before the stylesheet → no flash. -->
+  <script src="../lib/prefs.js"></script>
+  <script src="../lib/swapGeometry.js"></script>
+  <script src="../lib/dustGrains.js"></script>
+  <script src="../lib/dustWake.js"></script>
+  <script src="../lib/themeSwap.js"></script>
   <script src="../lib/accent.js"></script>
-  <link rel="stylesheet" href="../lib/theme.css">
-  <link rel="stylesheet" href="../lib/animations.css">
+  <script src="../lib/shellPrefs.js"></script>
+  <link rel="stylesheet" href="../lib/theme/palette.css">
+  <link rel="stylesheet" href="../lib/theme/controls.css">
+  <link rel="stylesheet" href="../lib/theme/tooltip.css">
+  <link rel="stylesheet" href="../lib/theme/select.css">
+  <link rel="stylesheet" href="../lib/theme/fields.css">
+  <link rel="stylesheet" href="../lib/animations/keyframes.css">
+  <link rel="stylesheet" href="../lib/animations/iconHover.css">
+  <link rel="stylesheet" href="../lib/animations/controls.css">
+  <link rel="stylesheet" href="../lib/animations/themeSwap.css">
+  <link rel="stylesheet" href="../lib/animations/reveal.css">
+  <link rel="stylesheet" href="../lib/animations/pages.css">
+  <link rel="stylesheet" href="../lib/animations/motionModes.css">
+  <link rel="stylesheet" href="../lib/animations/reducedMotion.css">
+  <link rel="stylesheet" href="../lib/animations/chat.css">
+  <link rel="stylesheet" href="../lib/animations/overlays.css">
+  <link rel="stylesheet" href="../lib/animations/motionIcons.css">
   <style>
     body { background:var(--bg); color:var(--text); font:14px/1.5 system-ui,sans-serif; margin:0; padding:32px; }
     /* Half the inset at the top and on the left (user decision), so the logo and the
@@ -18,7 +38,7 @@
        so `color` drives it → the outline tracks the chosen main theme accent. */
     .brand { display:flex; align-items:center; gap:12px; margin:0 0 4px; }
     .brand .logo { width:34px; height:34px; flex:0 0 auto; color:var(--accent); }
-    /* transition + hover pulse/rays come from lib/animations.css (.logo-wrap). */
+    /* transition + hover pulse/rays come from lib/animations/iconHover.css (.logo-wrap). */
     label.f { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:16px 0 6px; }
     /* Checkbox option groups share one row while they fit, wrapping (each option
        as a unit) only when the card is too narrow. */
@@ -30,10 +50,8 @@
     .saved { color:#4ade80; font-size:13px; }
     .help { color:var(--muted); font-size:12px; margin-top:6px; }
     code { background:var(--panel-2); padding:1px 5px; border-radius:4px; }
-    /* The custom main-theme dropdown (options.js) wears the SHARED rules — lib/theme.css
-       .accent-dd-*, the browser's components.css twins. This page used to carry its own
-       copy, which quietly out-specified them: the swatch chips and their ✓ came from the
-       stylesheet while the rows kept this block's older, roomier padding. */
+    /* The custom main-theme dropdown (options.js) wears the SHARED rules — lib/theme/select.css
+       .accent-dd-*, the browser's components/accentPicker.css twins; a local copy would out-specify them. */
     /* Pinned-images viewer */
     .card + .card { margin-top:20px; }
     .pin-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
@@ -62,7 +80,7 @@
     .pin-list { list-style:none; margin:16px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
     /* opacity is in the transition for the materialize veil: motion.js drops
        .materialize-veil in one tick, so the row CROSSFADES up under the landed dust
-       instead of cutting in (see .materialize-veil in lib/animations.css). */
+       instead of cutting in (see .materialize-veil in lib/animations/reveal.css). */
     .pin-row { display:flex; align-items:center; gap:12px; padding:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; transition:border-color .12s ease, opacity .22s ease; }
     .pin-row:hover { border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
     .pin-thumb { width:48px; height:48px; flex:0 0 auto; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#0003; }
@@ -137,7 +155,7 @@
 <body>
   <div class="card">
     <div class="brand">
-      <!-- .logo-wrap carries the hover ray ring (lib/animations.css) — SVGs can't host ::before. -->
+      <!-- .logo-wrap carries the hover ray ring (lib/animations/iconHover.css) — SVGs can't host ::before. -->
       <span class="logo-wrap">
       <svg class="logo" viewBox="0 0 64 64" role="img" aria-label="Stencil">
         <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>

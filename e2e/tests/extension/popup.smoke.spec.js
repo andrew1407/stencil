@@ -8,6 +8,7 @@
 // ⋯ action menu with a submenu flyout that must stay fully on-screen (the fixed→absolute
 // positioning fix), Crop being a single flat action (no submenu), and the side panel's
 // re-scan when the active tab changes. Runs headed; CI wraps the job in xvfb (see ci.yml).
+import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
@@ -28,7 +29,7 @@ test.describe('extension popup + side panel UI', () => {
     // Point the editor hand-off at the harness app so nothing reaches a real host.
     const sw = await ext.background();
     await sw.evaluate((editorUrl) => new Promise((r) => chrome.storage.sync.set({ editorUrl }, r)), APP_URL);
-    await new Promise((r) => setTimeout(r, 500));
+    await sleep(500);
   });
 
   test.afterAll(async () => { await context?.close(); });
@@ -91,8 +92,7 @@ test.describe('extension popup + side panel UI', () => {
       });
       expect(state.collapsed).toBe(true);
       expect(state.hidden).toBe(true);
-      await host.close();
-      await ui.close();
+      await Promise.all([host.close(), ui.close()]);
     });
   }
 
@@ -134,8 +134,7 @@ test.describe('extension popup + side panel UI', () => {
     expect(box.x + box.width).toBeLessThanOrEqual(vp.width + 1);
     expect(box.y + box.height).toBeLessThanOrEqual(vp.height + 1);
 
-    await host.close();
-    await ui.close();
+    await Promise.all([host.close(), ui.close()]);
   });
 
   // The header logo is SPRING-LOADED: hovering it with page media MID-DRAG (no drop)
@@ -238,8 +237,7 @@ test.describe('extension popup + side panel UI', () => {
     expect(await host.locator('iframe').count()).toBe(0);   // nothing new was launched
     expect(cropTabs()).toBe(0);
 
-    await host.close();
-    await ui.close();
+    await Promise.all([host.close(), ui.close()]);
   });
 
   // The in-page modal SHELL (lib/overlay.js — title bar, frame, pop-out/close buttons)
@@ -269,26 +267,36 @@ test.describe('extension popup + side panel UI', () => {
       };
     });
 
+    const buttonCaughtUp = () => host.evaluate(() => {
+      const h = document.getElementById('stencil-ext-modal');
+      if (!h) return false;
+      const shellVar = (name) => {
+        const n = parseInt(getComputedStyle(h).getPropertyValue(name).trim().slice(1), 16);
+        return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+      };
+      const cs = getComputedStyle(h.shadowRoot.querySelector('.bar button'));
+      return cs.backgroundColor === shellVar('--st-panel2') && cs.color === shellVar('--st-text');
+    });
+
     const seen = {};
     for (const mode of ['dark', 'light']) {
       // Exactly what the header's moon button does (localStorage + the storage mirror).
       await ui.evaluate((m) => window.StencilTheme.set(m), mode);
+      // The mirror is async: a shell mounted before it lands reads the OLD palette, and
+      // the onChanged that would re-paint it has already fired. Wait for the commit.
+      await expect.poll(() => ui.evaluate(() => new Promise((r) =>
+        chrome.storage.local.get(['stencil_theme'], (v) => r(v.stencil_theme))))).toBe(mode);
       await host.evaluate(() => document.getElementById('stencil-ext-modal')?.remove());
       // Double-click a row → the quick-crop modal, mounted in the host page.
       await ui.evaluate(() => document.querySelector('.row .thumb')
         .dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
       await host.waitForFunction(() => !!document.getElementById('stencil-ext-modal'), null, { timeout: 15_000 });
       await expect.poll(async () => (await shell())?.theme, { timeout: 10_000 }).toBe(mode);
-      // The shell's colours transition (.bar button: background .15s), so read it once
-      // two consecutive reads agree — a snapshot mid-fade still wears the other theme.
-      let last = await shell();
-      await expect.poll(async () => {
-        const now = await shell();
-        const settled = JSON.stringify(now) === JSON.stringify(last);
-        last = now;
-        return settled;
-      }, { timeout: 10_000, intervals: [100, 100, 200] }).toBe(true);
-      seen[mode] = last;
+      // `.bar button` transitions background/color .15s when the live re-theme lands,
+      // and under load the transition starts LATE: wait until the rendered button has
+      // caught up with the shell's own --st-panel2 / --st-text, not for stable reads.
+      await expect.poll(buttonCaughtUp, { timeout: 10_000 }).toBe(true);
+      seen[mode] = await shell();
     }
 
     // The shell is painted from the SAME palette as the rest of the chrome (theme.css).
@@ -302,8 +310,7 @@ test.describe('extension popup + side panel UI', () => {
     }
 
     await ui.evaluate(() => window.StencilTheme.set('system'));   // leave no state behind
-    await host.close();
-    await ui.close();
+    await Promise.all([host.close(), ui.close()]);
   });
 
   test('side panel: re-scans and lists images when the active tab changes', async () => {
@@ -314,7 +321,6 @@ test.describe('extension popup + side panel UI', () => {
     await host.bringToFront();
     await ui.waitForFunction(() => document.querySelectorAll('.row').length > 0, null, { timeout: 15_000 });
     expect(await ui.locator('.row').count()).toBeGreaterThan(0);
-    await host.close();
-    await ui.close();
+    await Promise.all([host.close(), ui.close()]);
   });
 });

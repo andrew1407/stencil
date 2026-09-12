@@ -49,27 +49,25 @@ anchor `\n\nWhen a choice is genuinely` (the tail's shared prose from `\n\nOutli
 on stays the asset's, verbatim): no previews and no image options — "this console shows
 the options as a numbered list and cannot display pictures, so make each label say
 enough on its own" — while keeping the 2..5 bound, the answer-as-next-message rule and
-the allowCustom rule. Sources: `cli/src/llm/registry.zig` `console_ask`,
-`pystencil/pystencil/llm.py` `_CONSOLE_ASK`; the same anchor is where the console/bot
-profile bullets splice (§10, §13).
+the allowCustom rule (cli `src/llm/registry.zig`, pystencil `pystencil/llm`). The same
+anchor is where the console/bot profile bullets splice (§10, §13).
 
 ### 11.1 Schema
 
-| field | type | validation |
-|---|---|---|
-| `question` | string | required, non-empty, ≤ 300 chars |
-| `mode` | `"single"` \| `"multi"` | optional, default `"single"` — radio buttons vs checkboxes |
-| `options` | array | required, **2..5** entries |
-| `options[].label` | string | required, non-empty, ≤ 80 chars (shown as the option's text) |
-| `options[].actions` | Action[] | optional — §2 actions the CLIENT renders as a **preview** of that choice |
-| `options[].image` | object | optional — a reference to an EXISTING image: exactly one of `url` (http(s)), `projectId` (string), `scanIndex` (int ≥ 0, extension profile only) |
-| `allowCustom` | bool | optional, default `false` — appends a free-text option. The CLIENT appends it, so a plan that also writes its own "Something else" / "Other" option renders two rows meaning the same thing; the system prompt tells the model not to |
-| `customLabel` | string | optional, ≤ 80 chars, default `"Something else…"` |
+**Normative: `opRegistry.json` → `ask` (+ `limits.ask`)** — the fields (`question`, `mode`
+single|multi, `options[]` with `label`/`actions`/`image`, `allowCustom`, `customLabel`),
+their types and their caps, validated by the same table-driven engine as any op. The rules
+around it:
 
-An option carries **at most one** of `actions` / `image`; with neither it is a plain text
-choice. `actions` and `image` together fail the plan. Unknown fields on `ask` or on an
-option fail the plan (same strictness as §1). An `ask` whose `options` are absent, fewer
-than 2 or more than 5 fails the plan — a question nobody can answer is worse than none.
+- An option carries **at most one** of `actions` (§2 actions the client renders as a
+  preview) and `image` (a reference to an image the client already holds: exactly one of
+  `url`, `projectId`, `scanIndex` — the last extension-only). Both together fail the plan;
+  neither is a plain text choice.
+- Unknown fields on `ask` or on an option fail the plan (§1 strictness). An `ask` whose
+  `options` are absent, fewer than 2 or more than 5 fails the plan — a question nobody can
+  answer is worse than none.
+- `allowCustom` is appended by the CLIENT, so a plan that writes its own "Something else"
+  option renders two rows meaning the same thing; the §4 prompt tells the model not to.
 
 ### 11.2 Where the option images come from
 
@@ -99,21 +97,10 @@ Two sources, and the choice is the model's:
   its own project list, its own page scan, or a preview rendered from `actions`.
 
 **Video frames are the `actions` path.** *"Find me the frame where the cat jumps"* is asked
-with one option per candidate frame, each previewing the §2 `frame` op — no new field, and
-the preview is produced by the same extractor that op already uses (browser `<video>` +
-canvas, desktop MediaLoader, cli/bot ffmpeg). The user picks a frame; the model then edits
-it in the next turn.
-
-```json
-"ask": {
-  "question": "Which frame do you want to edit?",
-  "options": [
-    { "label": "0:04", "actions": [ { "op": "frame", "index": 120 } ] },
-    { "label": "0:07", "actions": [ { "op": "frame", "index": 210 } ] },
-    { "label": "0:11", "actions": [ { "op": "frame", "index": 330 } ] }
-  ]
-}
-```
+with one option per candidate frame (`{"label":"0:04","actions":[{"op":"frame","index":120}]}`,
+…) — no new field, and the preview comes from the same extractor that op already uses
+(browser `<video>`+canvas, desktop MediaLoader, cli/bot ffmpeg). The user picks a frame; the
+model edits it in the next turn.
 
 A `frame` preview whose working input is **not** a video is dropped with a warning (the
 option keeps its label) rather than failing the plan — unlike a `frame` action in `actions`,
@@ -136,18 +123,16 @@ which is a plan-level error per §2. A preview is a suggestion; an edit is a com
 
 ### 11.4 Per-surface rendering
 
-The card is the same contract everywhere; only its widgets differ.
+The card is the same contract everywhere; only its widgets differ — the GUIs render a
+radio/checkbox list with inline thumbnails, the consoles a numbered list answered by number
+(or comma-separated numbers for `multi`), the bot an inline keyboard with a media group when
+previews exist. The normative record of the rendering split is
+[`opRegistry.json`](../browser/js/config/llm/opRegistry.json) → `ask.divergence`; validation is
+identical everywhere.
 
-| surface | single | multi | previews |
-|---|---|---|---|
-| browser / desktop | radio list | checkbox list | rendered thumbnails inline |
-| extension | radio list | checkbox list | rendered thumbnails inline |
-| cli / pystencil console | numbered list, answer by number | numbered list, comma-separated numbers | omitted (a console cannot show them); labels only |
-| bot | inline keyboard, one button per option | tap to toggle, then a Send button | sent as a media group when previews exist |
-
-A surface that cannot render an image preview (the consoles) drops the preview and keeps
-the option — it never drops the option itself. A surface that cannot render `ask` at all
-appends the question text to the reply so the turn is still answerable in prose.
+A surface that cannot render an image preview (the consoles) drops the preview and keeps the
+option — it never drops the option itself. A surface that cannot render `ask` at all appends the
+question text to the reply so the turn is still answerable in prose.
 
 ## 12. Chat persistence (per-project, opt-in)
 
@@ -184,15 +169,14 @@ everywhere** — persisting a chat is always an explicit user opt-in, per surfac
   its replay history from these display texts after a restore; §7 permits both forms.
 - **The machinery filter (both sides of the store).** Because an older or foreign build
   may have serialised its MODEL history, machinery is refused on write AND laundered on
-  read: §7's auto-continuation note (`[The working image is now the picture those
-  actions loaded — continue with it.]`, exact wording or any bracketed variant) and a
+  read: §7's auto-continuation note (any of the asset's per-surface wordings — they share
+  `systemPrompt.json` → `continuationNotePrefix`, and any bracketed variant counts) and a
   raw op-plan stored as an ASSISTANT turn (leading `{`/`[` with `"version"` and an
   `actions`/`reply`/`variants`/`ask` key) are never written and never displayed from an
-  older document — a user is still entitled to paste JSON as THEIR turn and see it
-  again. Reference: browser `js/llm/chatStore.js` `isInternalChatText` (+
-  `sanitizeChatMessages` at the point of restore); the desktop's filter matches it
-  (`desktop/src/io/fileStore.cpp` — "browser chatStore.js isInternalChatText parity",
-  applied by `parseChatDoc` on read). Tolerance vectors: `fixtures/chatDoc/`.
+  older document — a user is still entitled to paste JSON as THEIR turn and see it again.
+  Reference: browser `js/llm/chatStore.js` `isInternalChatText` (+ `sanitizeChatMessages`
+  on restore), which every other surface's reader mirrors. Tolerance vectors:
+  `fixtures/chatDoc/`.
 - On restore, `messages` seed both the client's replay history (§7) and its transcript
   UI, in order. Restoring never triggers a model call.
 
@@ -227,9 +211,9 @@ everywhere** — persisting a chat is always an explicit user opt-in, per surfac
   | Surface | Test |
   |---|---|
   | browser | `tests/chat-markup.test.js` — the `chat-save-chats-note` div, rendered next to the checkbox |
-  | desktop | `tests/mainWindow.gui.cpp` `chatSaveDisclosureSitsAtTheToggle` — the `llmSaveChatsHint` label (visible, not hover-only) + the checkbox tooltip |
+  | desktop | `tests/MainWindow.chatPanel.gui.cpp` `chatSaveDisclosureSitsAtTheToggle` — the `llmSaveChatsHint` label (visible, not hover-only) + the checkbox tooltip |
   | cli | `tests/console_test.zig` "`/chat on` says who can read a saved chat" — captured over the `logo` sink |
-  | pystencil | `tests/test_cli.py` `test_chat_on_says_who_can_read_a_saved_chat` |
+  | pystencil | `tests/test_cli_chat.py` `test_chat_on_says_who_can_read_a_saved_chat` |
   | bot | `ChatPersistenceTests` — the `/chat save on` confirmation, the status read BEFORE opting in, and the 💾 button |
 
   The console surfaces state it on the turn that switches saving **on**, before anything

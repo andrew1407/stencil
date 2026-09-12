@@ -23,15 +23,30 @@ pub const default_key = "violet";
 pub const name_default_hex = "#80868f";
 
 // Parsed lazily on first use: std.json needs an allocator, which comptime can't provide.
-// The strings slice into the embedded JSON (static lifetime); the CLI is single-threaded.
-var parsed_accents: []const Accent = &.{};
+// The strings slice into the embedded JSON (static lifetime). A worker thread can reach
+// this now that scrape fans its fetches out, so the one-shot parse is published through
+// `parse_state`: the first caller fills the scratch, any other waits for it.
+const unparsed = 0;
+const parsing = 1;
+const ready = 2;
+var parse_state: std.atomic.Value(u8) = .init(unparsed);
+var accent_count: usize = 0;
 var accent_storage: [32]Accent = undefined;
 var json_scratch: [4096]u8 = undefined;
 
 /// The accent presets, parsed once from the embedded canonical accents.json.
 pub fn accents() []const Accent {
-    if (parsed_accents.len == 0) parseAccents();
-    return parsed_accents;
+    if (parse_state.load(.acquire) != ready) parseOnce();
+    return accent_storage[0..accent_count];
+}
+
+fn parseOnce() void {
+    if (parse_state.cmpxchgStrong(unparsed, parsing, .acquire, .acquire) == null) {
+        parseAccents();
+        parse_state.store(ready, .release);
+        return;
+    }
+    while (parse_state.load(.acquire) != ready) std.atomic.spinLoopHint();
 }
 
 fn parseAccents() void {
@@ -43,7 +58,7 @@ fn parseAccents() void {
     for (rows, 0..) |row, i| {
         accent_storage[i] = .{ .key = row.key, .label = row.label, .hex = row.hex, .rgb = rgbFromHex(row.hex) };
     }
-    parsed_accents = accent_storage[0..rows.len];
+    accent_count = rows.len;
 }
 
 fn rgbFromHex(hex: []const u8) [3]u8 {

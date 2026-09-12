@@ -8,8 +8,8 @@
 //   - apply(): the store write the Projects window's row menu makes, against a temp
 //     state dir — the value round-trips through fileStore::loadProjects.
 // Offscreen; the modals are driven from a 0-timer inside their own exec() loop.
-#include "descriptionDialog.hpp"
-#include "keywordsDialog.hpp"
+#include "DescriptionDialog.hpp"
+#include "KeywordsDialog.hpp"
 #include "fileStore.hpp"
 #include "modalChrome.hpp"
 

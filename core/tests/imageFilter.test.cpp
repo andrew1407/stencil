@@ -7,19 +7,19 @@ using namespace stencil::core;
 
 TEST_SUITE("imageFilter") {
   TEST_CASE("filterModeFromString maps the browser strings") {
-    CHECK(filterModeFromString("none") == FilterMode::None);
-    CHECK(filterModeFromString("") == FilterMode::None);
-    CHECK(filterModeFromString("bw") == FilterMode::Bw);
-    CHECK(filterModeFromString("sepia") == FilterMode::Sepia);
-    CHECK(filterModeFromString("custom") == FilterMode::Custom);
-    CHECK(filterModeFromString("invert") == FilterMode::Invert);
-    CHECK(filterModeFromString("contour") == FilterMode::Contour);
+    CHECK(filterModeFromString("none") == FilterMode::NONE);
+    CHECK(filterModeFromString("") == FilterMode::NONE);
+    CHECK(filterModeFromString("bw") == FilterMode::BW);
+    CHECK(filterModeFromString("sepia") == FilterMode::SEPIA);
+    CHECK(filterModeFromString("custom") == FilterMode::CUSTOM);
+    CHECK(filterModeFromString("invert") == FilterMode::INVERT);
+    CHECK(filterModeFromString("contour") == FilterMode::CONTOUR);
     // Any other non-"none" value is the custom tint (renderer.js else branch).
-    CHECK(filterModeFromString("teal") == FilterMode::Custom);
+    CHECK(filterModeFromString("teal") == FilterMode::CUSTOM);
   }
 
   TEST_CASE("filterPixel None returns the source unchanged") {
-    const Rgb8 o = filterPixel(FilterMode::None, 12, 34, 56, 1, 2, 3);
+    const Rgb8 o = filterPixel(FilterMode::NONE, 12, 34, 56, 1, 2, 3);
     CHECK(o.r == 12);
     CHECK(o.g == 34);
     CHECK(o.b == 56);
@@ -27,12 +27,12 @@ TEST_SUITE("imageFilter") {
 
   TEST_CASE("filterPixel Bw uses Rec. 709 luma (truncated)") {
     // Pure red: l = (int)(0.2126 * 200) = (int)42.52 = 42 on all channels.
-    const Rgb8 o = filterPixel(FilterMode::Bw, 200, 0, 0, 0, 0, 0);
+    const Rgb8 o = filterPixel(FilterMode::BW, 200, 0, 0, 0, 0, 0);
     CHECK(o.r == 42);
     CHECK(o.g == 42);
     CHECK(o.b == 42);
     // Black stays black.
-    const Rgb8 black = filterPixel(FilterMode::Bw, 0, 0, 0, 0, 0, 0);
+    const Rgb8 black = filterPixel(FilterMode::BW, 0, 0, 0, 0, 0, 0);
     CHECK(black.r == 0);
     CHECK(black.g == 0);
     CHECK(black.b == 0);
@@ -40,11 +40,11 @@ TEST_SUITE("imageFilter") {
 
   TEST_CASE("filterPixel Sepia matches the CSS matrix, clamped high") {
     // White: red/green channels saturate to 255; blue = (int)(255*0.937) = 238.
-    const Rgb8 white = filterPixel(FilterMode::Sepia, 255, 255, 255, 0, 0, 0);
+    const Rgb8 white = filterPixel(FilterMode::SEPIA, 255, 255, 255, 0, 0, 0);
     CHECK(white.r == 255);
     CHECK(white.g == 255);
     CHECK(white.b == 238);
-    const Rgb8 black = filterPixel(FilterMode::Sepia, 0, 0, 0, 0, 0, 0);
+    const Rgb8 black = filterPixel(FilterMode::SEPIA, 0, 0, 0, 0, 0, 0);
     CHECK(black.r == 0);
     CHECK(black.g == 0);
     CHECK(black.b == 0);
@@ -52,7 +52,7 @@ TEST_SUITE("imageFilter") {
 
   TEST_CASE("filterPixel Custom maps a dark pixel onto the tint color") {
     // Black (luma 0, t=0) -> exactly the tint color, for any tint.
-    const Rgb8 o = filterPixel(FilterMode::Custom, 0, 0, 0, 124, 58, 237);
+    const Rgb8 o = filterPixel(FilterMode::CUSTOM, 0, 0, 0, 124, 58, 237);
     CHECK(o.r == 124);
     CHECK(o.g == 58);
     CHECK(o.b == 237);
@@ -61,26 +61,26 @@ TEST_SUITE("imageFilter") {
   TEST_CASE("filterPixel Custom with a black tint degenerates to grayscale") {
     // tint (0,0,0): r' = lround((255-0) * l/255) = lround(l). So a pure-red
     // pixel (luma 42) maps to {42,42,42}, matching the Bw branch.
-    const Rgb8 o = filterPixel(FilterMode::Custom, 200, 0, 0, 0, 0, 0);
+    const Rgb8 o = filterPixel(FilterMode::CUSTOM, 200, 0, 0, 0, 0, 0);
     CHECK(o.r == 42);
     CHECK(o.g == 42);
     CHECK(o.b == 42);
   }
 
   TEST_CASE("filterPixel Invert flips every channel") {
-    const Rgb8 o = filterPixel(FilterMode::Invert, 12, 34, 56, 9, 9, 9);
+    const Rgb8 o = filterPixel(FilterMode::INVERT, 12, 34, 56, 9, 9, 9);
     CHECK(o.r == 243);  // 255 - 12
     CHECK(o.g == 221);  // 255 - 34
     CHECK(o.b == 199);  // 255 - 56
     // Black <-> white round trip.
-    const Rgb8 white = filterPixel(FilterMode::Invert, 0, 0, 0, 0, 0, 0);
+    const Rgb8 white = filterPixel(FilterMode::INVERT, 0, 0, 0, 0, 0, 0);
     CHECK(white.r == 255);
     CHECK(white.g == 255);
     CHECK(white.b == 255);
   }
 
   TEST_CASE("filterPixel Contour passes the source through (not per-pixel)") {
-    const Rgb8 o = filterPixel(FilterMode::Contour, 12, 34, 56, 9, 9, 9);
+    const Rgb8 o = filterPixel(FilterMode::CONTOUR, 12, 34, 56, 9, 9, 9);
     CHECK(o.r == 12);
     CHECK(o.g == 34);
     CHECK(o.b == 56);
@@ -92,12 +92,12 @@ TEST_SUITE("imageFilter") {
 
     SUBCASE("None leaves the buffer untouched") {
       const std::vector<std::uint8_t> before = buf;
-      applyFilterRGBA(FilterMode::None, buf.data(), 2, 9, 9, 9);
+      applyFilterRGBA(FilterMode::NONE, buf.data(), 2, 9, 9, 9);
       CHECK(buf == before);
     }
 
     SUBCASE("Bw grayscales both pixels but keeps each alpha") {
-      applyFilterRGBA(FilterMode::Bw, buf.data(), 2, 0, 0, 0);
+      applyFilterRGBA(FilterMode::BW, buf.data(), 2, 0, 0, 0);
       // red 200 -> luma 42
       CHECK(buf[0] == 42);
       CHECK(buf[1] == 42);
@@ -113,7 +113,7 @@ TEST_SUITE("imageFilter") {
 
   TEST_CASE("applyFilterRGBA Custom tints dark pixels and keeps alpha") {
     std::vector<std::uint8_t> buf = {0, 0, 0, 200};  // black, a=200
-    applyFilterRGBA(FilterMode::Custom, buf.data(), 1, 124, 58, 237);
+    applyFilterRGBA(FilterMode::CUSTOM, buf.data(), 1, 124, 58, 237);
     CHECK(buf[0] == 124);
     CHECK(buf[1] == 58);
     CHECK(buf[2] == 237);
@@ -122,7 +122,7 @@ TEST_SUITE("imageFilter") {
 
   TEST_CASE("applyFilterRGBA Invert flips both pixels and keeps alpha") {
     std::vector<std::uint8_t> buf = {12, 34, 56, 10, 255, 0, 128, 20};
-    applyFilterRGBA(FilterMode::Invert, buf.data(), 2, 9, 9, 9);
+    applyFilterRGBA(FilterMode::INVERT, buf.data(), 2, 9, 9, 9);
     CHECK(buf[0] == 243);
     CHECK(buf[1] == 221);
     CHECK(buf[2] == 199);
@@ -136,14 +136,14 @@ TEST_SUITE("imageFilter") {
   TEST_CASE("applyFilterRGBA Contour is a no-op (needs dimensions)") {
     std::vector<std::uint8_t> buf = {12, 34, 56, 10};
     const std::vector<std::uint8_t> before = buf;
-    applyFilterRGBA(FilterMode::Contour, buf.data(), 1, 9, 9, 9);
+    applyFilterRGBA(FilterMode::CONTOUR, buf.data(), 1, 9, 9, 9);
     CHECK(buf == before);  // callers with dimensions use applyContourRGBA
   }
 
   TEST_CASE("applyFilterRGBA tolerates a null buffer / zero count") {
-    applyFilterRGBA(FilterMode::Bw, nullptr, 0, 0, 0, 0);  // must not crash
+    applyFilterRGBA(FilterMode::BW, nullptr, 0, 0, 0, 0);  // must not crash
     std::vector<std::uint8_t> buf = {1, 2, 3, 4};
-    applyFilterRGBA(FilterMode::Bw, buf.data(), 0, 0, 0, 0);
+    applyFilterRGBA(FilterMode::BW, buf.data(), 0, 0, 0, 0);
     CHECK(buf[0] == 1);  // zero count -> nothing written
   }
 
