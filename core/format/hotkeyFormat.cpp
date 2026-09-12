@@ -5,10 +5,8 @@
 namespace stencil::core::hotkeyFormat {
 
   namespace {
-    // Apple-symbol modifier mapping. For DISPLAY of the portable config strings
-    // the user-facing intent is Ctrl→⌘ (Qt swaps Ctrl/Meta on macOS for
-    // matching, but the table shows the command users actually press).
-    // Apple ordering is Control, Option, Shift, Command, then the key.
+    // Ctrl→⌘ for DISPLAY (Qt swaps Ctrl/Meta on macOS for matching, but the table shows
+    // the key users press). orderOut is the Apple order: Control, Option, Shift, Command.
     std::string macModifier(const std::string& token, int& orderOut) {
       if (token == "Meta")  { orderOut = 0; return "⌃"; }  // ⌃ Control
       if (token == "Alt")   { orderOut = 1; return "⌥"; }  // ⌥ Option
@@ -18,7 +16,6 @@ namespace stencil::core::hotkeyFormat {
       return {};
     }
 
-    // Arrow key names → Apple arrow glyphs (also the natural display elsewhere).
     std::string macKey(const std::string& token) {
       if (token == "Up")    return "↑";
       if (token == "Down")  return "↓";
@@ -44,9 +41,7 @@ namespace stencil::core::hotkeyFormat {
 
     const std::vector<std::string> tokens = split(portable, '+');
 
-    // Collect modifier glyphs keyed by Apple order; the final non-modifier
-    // token(s) form the key. Anything not recognized as a modifier is treated
-    // as the key, so lone keys ("F1") and unknown tokens pass through.
+    // Anything not recognized as a modifier is the key, so unknown tokens pass through.
     std::string mods[4];      // indexed by Apple order 0..3
     bool hasMod[4] = {false, false, false, false};
     std::string keyPart;
@@ -58,8 +53,6 @@ namespace stencil::core::hotkeyFormat {
         mods[order] = glyph;
         hasMod[order] = true;
       } else {
-        // Non-modifier token: part of the key. Joining with the original '+'
-        // would be unusual; in practice there is a single trailing key.
         keyPart += macKey(tok);
       }
     }

@@ -8,7 +8,7 @@
     "core": 11,
     "core/abi": 15,
     "core/color": 11,
-    "core/format": 21,
+    "core/format": 9,
     "core/geometry": 9,
     "core/page": 18,
     "core/parse": 9,
@@ -18,7 +18,7 @@
   },
   "exceptions": {
     "core": "the ABI contract prose at the top of cliApi.h is pinned by core/tests/cliApi.test.cpp and stays",
-    "core/format": "regroup artifact: the comment-dense tooltipRows/hotkeyFormat left core/page (20 -> 18) for their own dir",
+    "core/format": "the Port-of mappings at the top of each header stay (parity contract)",
     "core/geometry": "the Port-of mappings at the top of each header stay (parity contract)",
     "core/raster": "the kMaxCoord/clamp hardening and the pinned-Sobel and two-phase notes stay"
   }
