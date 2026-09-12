@@ -2,15 +2,15 @@
 import { isSplitCompare, hasActiveFilter, hasAnyLines } from '../utils.js';
 
 // Row order: 'split' leads while a split compare view is active.
-export const EXPORT_VARIANTS = ['split', 'current', 'original', 'tint'];
-export const EXPORT_VARIANT_LABELS = {
+export const EXPORT_VARIANTS = Object.freeze(['split', 'current', 'original', 'tint']);
+export const EXPORT_VARIANT_LABELS = Object.freeze({
   split:    'With Compare',
   current:  'Current (Tint + Lines/Points)',
   original: 'Original (No Tint, No Lines/Points)',
   tint:     'Filter Only (No Lines/Points)',
-};
+});
 // 'current' keeps whichever action icon the menu passes (copy/download).
-export const EXPORT_VARIANT_ICONS = { split: 'compare', original: 'image', tint: 'palette' };
+export const EXPORT_VARIANT_ICONS = Object.freeze({ split: 'compare', original: 'image', tint: 'palette' });
 
 // Which variant rows exist now and which owns the primary combo (Ctrl+C / Ctrl+Shift+D).
 // 'split' is a fourth row, first while a split compare is active, and takes the combo from

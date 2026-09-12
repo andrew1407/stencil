@@ -126,12 +126,12 @@ export const bindShrinkWrapResize = (transcript, selector = '.msg', doc = global
 };
 
 // `prompt` is what lands in the input — never sent by itself.
-export const SUGGESTIONS = [
+export const SUGGESTIONS = Object.freeze([
   { label: 'Which of these has a cat?', prompt: 'Which of these images has a cat in it?' },
   { label: 'Find the largest image', prompt: 'Find the largest image on this page and tell me its size' },
   { label: 'Open the first photo in the editor', prompt: 'Open the first photo on this page in the editor' },
   { label: 'Describe the chart', prompt: 'Describe the chart or diagram on this page' },
-];
+]);
 
 export const renderSuggestions = (doc, onPick, items = SUGGESTIONS) => {
   const wrap = doc.createElement('div');

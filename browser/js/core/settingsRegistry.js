@@ -8,13 +8,13 @@ const toNum = n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined
 const toStr = v => String(v);
 
 // In cycle order (Alt+O steps through them).
-export const COMPARE_MODES = ['none', 'original', 'vertical', 'horizontal'];
+export const COMPARE_MODES = Object.freeze(['none', 'original', 'vertical', 'horizontal']);
 
 // One descriptor per simple setting; `set(key, …)` drives it: `field` the model field;
 // `parse` (undefined ABORTS); `mirror` bound DOM twins ({ id, kind }, see applyMirror);
 // `afterSet` per-setter side-effects, after the mirrors and before redraw; `redraw` (always,
 // even on persist:false); `save`/`remoteSync`/`filterDirty` gated behind `persist`.
-export const SETTINGS = {
+export const SETTINGS = Object.freeze({
   color: {
     field: 'color', parse: toStr,
     mirror: [{ id: 'line-color', kind: 'value' }],
@@ -135,4 +135,4 @@ export const SETTINGS = {
     },
     save: true, remoteSync: true,
   },
-};
+});

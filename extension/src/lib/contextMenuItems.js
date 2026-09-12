@@ -3,7 +3,7 @@
 // hidden and the ctxTarget probe reveals them. TWO ROOTS is load-bearing: Chrome decides a
 // PARENT's visibility from its own `contexts`, never from its children, so one 'all' parent
 // would paint "Stencil ▸ (empty)" on plain elements.
-export const MENU = {
+export const MENU = Object.freeze({
   root: 'stencil-root',
   bgRoot: 'stencil-bg-root',
   actionOpen: 'stencil-action-open',
@@ -41,7 +41,7 @@ export const MENU = {
   bgCrop: 'stencil-bg-crop',
   bgDesktop: 'stencil-bg-desktop',
   bgPin: 'stencil-bg-pin'
-};
+});
 
 const ACTION_CONTEXTS = ['action'];
 const IMAGE_CONTEXTS = ['image'];
@@ -54,7 +54,7 @@ const ALL_CONTEXTS = ['all'];
 
 // Passed straight to chrome.contextMenus.create, in order; the explicit "Stencil" parent
 // comes first so the submenu reads "Stencil", not the auto-grouped extension name.
-export const MENU_ITEMS = [
+export const MENU_ITEMS = Object.freeze([
   { id: MENU.root, title: 'Stencil', contexts: STATIC_CONTEXTS },
   { id: MENU.actionOpen, parentId: MENU.root, title: '✎ Open Stencil editor', contexts: ACTION_CONTEXTS },
   { id: MENU.actionOpenIncognito, parentId: MENU.root, title: '🕶 Open Stencil editor (incognito)', contexts: ACTION_CONTEXTS },
@@ -95,27 +95,27 @@ export const MENU_ITEMS = [
   { id: MENU.bgCrop, parentId: MENU.bgRoot, title: '✂ Crop image…', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgDesktop, parentId: MENU.bgRoot, title: '🖥 Open in desktop app', contexts: ALL_CONTEXTS, visible: false },
   { id: MENU.bgPin, parentId: MENU.bgRoot, title: '📌 Pin image', contexts: ALL_CONTEXTS, visible: false }
-];
+]);
 
 // Revealed/hidden together — the group's ROOT first, so it never renders without children.
-export const DYNAMIC_ITEMS = [
+export const DYNAMIC_ITEMS = Object.freeze([
   MENU.bgRoot, MENU.bgOpenParent,
   MENU.bgOpen, MENU.bgOpenResume, MENU.bgOpenIncognito,
   MENU.bgOpenModal, MENU.bgOpenModalIncognito, MENU.bgCrop, MENU.bgPin
-];
+]);
 
 // Toggle on the desktop scheme alone; MENU.bgDesktop ALSO needs the probe's reveal.
-export const STATIC_DESKTOP_ITEMS = [MENU.desktop, MENU.frameDesktop];
+export const STATIC_DESKTOP_ITEMS = Object.freeze([MENU.desktop, MENU.frameDesktop]);
 
 // Handled directly in the SW: they toggle the pinned state of the URL under the cursor.
-export const PIN_ITEMS = [MENU.pin, MENU.framePin, MENU.bgPin];
+export const PIN_ITEMS = Object.freeze([MENU.pin, MENU.framePin, MENU.bgPin]);
 
 // The MENU_ITEMS default titles are the unpinned form of this.
 export const pinItemTitle = (pinned, kind = 'image') =>
   `📌 ${pinned ? 'Unpin' : 'Pin'} ${kind === 'video' ? 'video' : 'image'}`;
 
 // Revealed/hidden together, only when the probed <video> carries a poster.
-export const PREVIEW_ITEMS = [
+export const PREVIEW_ITEMS = Object.freeze([
   MENU.previewParent, MENU.previewTab, MENU.previewOpen, MENU.previewOpenIncognito,
   MENU.previewModal, MENU.previewModalIncognito, MENU.previewCrop
-];
+]);

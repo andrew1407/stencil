@@ -19,7 +19,7 @@ export const UNSUPPORTED_TEXT = 'Voice input is not supported in this browser';
 // The spoken "send" — only as the WHOLE tail of an utterance, longest phrase first so
 // "send it" is never read as "send" + a dangling "it". Trailing punctuation the
 // recognizer adds ("Send it.") is tolerated; "resend" / "send me the file" are words.
-export const SEND_PHRASES = ['send it', 'execute it', 'send', 'execute'];
+export const SEND_PHRASES = Object.freeze(['send it', 'execute it', 'send', 'execute']);
 const SEND_RE = new RegExp(`(^|[\\s,.;:!?])(${SEND_PHRASES.join('|')})[\\s.,;:!?]*$`, 'i');
 export const splitSendPhrase = (raw) => {
   const text = String(raw ?? '').replace(/\s+/g, ' ').trim();

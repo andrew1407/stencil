@@ -3,9 +3,9 @@ import { extractDraggedUrl } from './dragUrl.js';
 
 // Text payload types a draggable URL can ride in. The drag-to-pin listener (popup.js)
 // takes these but NOT 'Files' — a local file has no URL a pin could key on.
-export const URL_DRAG_TYPES = ['text/uri-list', 'text/html', 'text/plain', 'text/x-moz-url'];
+export const URL_DRAG_TYPES = Object.freeze(['text/uri-list', 'text/html', 'text/plain', 'text/x-moz-url']);
 
-export const DRAG_TYPES = ['Files', ...URL_DRAG_TYPES];
+export const DRAG_TYPES = Object.freeze(['Files', ...URL_DRAG_TYPES]);
 
 export const isDropCandidate = (types) => {
   const t = Array.isArray(types) ? types : (types ? [...types] : []);

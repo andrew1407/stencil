@@ -11,7 +11,7 @@ import { dustEnabled } from './motion.js';
 export const DUST_MARGIN = 56;            // canvas room around the tile, px
 const DUST_MAX_LIVE = 540;         // motes alive at once, whatever the shouting
 export const DUST_SILENCE = 0.06;         // below this level nothing is born
-export const DUST_LIFE_MS = [420, 900];   // a mote's life, min..max
+export const DUST_LIFE_MS = Object.freeze([420, 900]);   // a mote's life, min..max
 export const DUST_RATE = 48;              // motes per frame at full level
 export const DUST_TINTS = 6;              // palette stops, ink → accent
 export const RING_SPOKES = 24;

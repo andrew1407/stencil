@@ -4,7 +4,7 @@
 
 // Fire-and-forget, except the editor-mode group: those handlers `return true`, always
 // answer `{ok, …}` (never a rejection), and time out (1500 ms) rather than hang on the page.
-export const MSG = {
+export const MSG = Object.freeze({
   WAKE: 'stencil-wake',                 // ctxTarget → SW: wake the lazy worker so the menu exists
   CTX: 'stencil-ctx',                   // ctxTarget → SW: the right-click target it resolved
   HL_HOVER: 'stencil-hl-hover',         // page highlight (highlight.js) → open panel: source URL now under the cursor ('' = none)
@@ -31,9 +31,9 @@ export const MSG = {
   EDITOR_FOCUS_TAB: 'stencil-editor-focus-tab', // panel / editor page API → SW: focus an editor tab and raise its window
   SOURCE_TABS: 'stencil-source-tabs',   // panel / editor page API → SW: the other open http(s) tabs an image can be pulled from
   SCAN_TAB: 'stencil-scan-tab',         // panel / editor page API → SW: scan one tab for images (the popup's scanner, on a tab you're not on)
-};
+});
 
-export const SRC = {
+export const SRC = Object.freeze({
   PAGE_API: 'stencil-page-api',         // pageApiMain (MAIN world) → pageApiBridge (ISOLATED)
   PAGE_FILTERS: 'stencil-page-filters', // pageApiBridge (ISOLATED) → pageApiMain: pushed popup filters
   PAGE_PINS: 'stencil-page-pins',       // pageApiBridge (ISOLATED) → pageApiMain: pinned source URLs for this site
@@ -46,4 +46,4 @@ export const SRC = {
   EXT_RES: 'stencil-ext-res',           // editor page → editorBridge: the reply to one EXT_REQ
   EXT_API: 'stencil-ext-api',           // editorApiMain (MAIN world, stencil.extension) → editorBridge (ISOLATED): a facade call to relay
   EXT_API_RES: 'stencil-ext-api-res',   // editorBridge → editorApiMain: the reply to one EXT_API call
-};
+});

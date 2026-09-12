@@ -17,7 +17,7 @@ export const FATAL_ERRORS = new Set([
   'not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported', 'bad-grammar',
   'start-failed',
 ]);
-export const NETWORK_BACKOFF_MS = [250, 1000, 2000];   // three network drops in a row → fatal
+export const NETWORK_BACKOFF_MS = Object.freeze([250, 1000, 2000]);   // three network drops in a row → fatal
 // How long to wait before restarting after `fails` consecutive network drops. Anything
 // but a network drop restarts at once; the table's last step is the floor.
 const restartDelayMs = (code, fails) =>

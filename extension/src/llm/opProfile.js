@@ -14,16 +14,16 @@ export const SCHEMA = createSchema(REGISTRY, 'extension');
 
 // Limits — the same numbers in every client (contract §1) + the §8 attach/pin caps and
 // the panel-settings caps, all read from the registry.
-export const LIMITS = {
+export const LIMITS = Object.freeze({
   actions: SCHEMA.limits.MAX_ACTIONS, variants: SCHEMA.limits.MAX_VARIANTS,
   layoutLines: SCHEMA.limits.MAX_LAYOUT_LINES, stringChars: SCHEMA.limits.MAX_STRING_CHARS,
   attachIndices: SCHEMA.limits.extension.attachIndices, pinIndices: SCHEMA.limits.extension.pinIndices,
   filterSearch: SCHEMA.limits.extension.filterSearch, filterFormats: SCHEMA.limits.extension.filterFormats,
   filterSize: SCHEMA.limits.extension.filterSize,
-};
+});
 
 // §11 interactive replies — the same numbers as every other client.
-export const ASK_LIMITS = { ...SCHEMA.limits.ask };
+export const ASK_LIMITS = Object.freeze({ ...SCHEMA.limits.ask });
 export const DEFAULT_CUSTOM_LABEL = REGISTRY.ask.defaultCustomLabel;
 
 // The full §2 core-op set: at the TOP level of an extension plan these are dropped

@@ -2,7 +2,7 @@
 // helpers inside it are inline copies of lib/pageImages.js — keep them in sync.
 // MAX_IMAGES caps what one page yields; BLOCKED_SCHEMES can never be injected into.
 export const MAX_IMAGES = 1000;
-export const BLOCKED_SCHEMES = ['chrome:', 'edge:', 'about:', 'chrome-extension:', 'view-source:'];
+export const BLOCKED_SCHEMES = Object.freeze(['chrome:', 'edge:', 'about:', 'chrome-extension:', 'view-source:']);
 
 // All-frames results → one list, deduped by src (first frame wins), capped at `limit`.
 export const mergeScanFrames = (results, limit = MAX_IMAGES) => {

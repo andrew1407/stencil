@@ -3,7 +3,7 @@
 
 // moveTol: wander allowed for a tap/long-press; tapMaxMs: a longer press is no longer a tap;
 // longPressMs: a stationary press that opens the menu.
-export const TOUCH_DEFAULTS = { moveTol: 8, tapMaxMs: 300, longPressMs: 500 };
+export const TOUCH_DEFAULTS = Object.freeze({ moveTol: 8, tapMaxMs: 300, longPressMs: 500 });
 
 export const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
 

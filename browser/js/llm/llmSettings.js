@@ -10,7 +10,7 @@ const LLM_SETTINGS_KEY = 'drawingApp_llmSettings';
 const ls = () => (typeof localStorage !== 'undefined' ? localStorage : null);
 
 // 'none' is a local-only value: assistant switched off, nothing configured or sent.
-export const PROVIDERS = ['none', ...Object.keys(PROVIDERS_ASSET.providers)];
+export const PROVIDERS = Object.freeze(['none', ...Object.keys(PROVIDERS_ASSET.providers)]);
 
 // Provider → pre-filled default base URL (providers.json, contract §5 table).
 // stencil-server's is null there — it uses an already-configured collaboration
@@ -21,7 +21,7 @@ export const PROVIDER_BASE_URLS = Object.fromEntries(
 
 // Endpoint keys are http(s) ONLY. The gate itself is core/validation.js, so this module,
 // the stencil.llm facade and every other caller share one rule.
-export const URL_KEYS = ['baseUrl', 'serverUrl'];
+export const URL_KEYS = Object.freeze(['baseUrl', 'serverUrl']);
 export const isHttpUrl = (v) => validateHttpUrl(v).ok;
 
 // Switch `settings` to `provider`, pre-filling its default base URL unless the user

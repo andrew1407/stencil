@@ -50,7 +50,7 @@ export const normalizeKeywords = (keywords) => {
 
 export const pinKeywords = (pin) => (pin && Array.isArray(pin.keywords)) ? pin.keywords : [];
 
-export const PIN_SEARCH_MODES = ['common', 'names', 'keywords'];
+export const PIN_SEARCH_MODES = Object.freeze(['common', 'names', 'keywords']);
 
 // Empty query matches everything; case-insensitive substring per the mode.
 export const pinMatchesSearch = (pin, query, mode = 'common') => {

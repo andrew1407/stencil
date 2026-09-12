@@ -2,10 +2,10 @@ import { matchHotkey } from '../../utils.js';
 // Chords that must work even while a text box has focus. These windows autofocus an
 // input, so a blanket typing guard would make their toggles one-way — able to open the
 // panel but never close it from inside the box, exactly when the shortcut is wanted.
-export const HOTKEYS_WHILE_TYPING = [
+export const HOTKEYS_WHILE_TYPING = Object.freeze([
   'toggleChat', 'toggleVoiceChat', 'openHelp', 'openHotkeys', 'openVisuals', 'openProjects', 'openServers', 'openLinks',
   'openDescription', 'openKeywords', 'openAssistantSettings',
-];
+]);
 
 // Which of those a keydown matches while typing, or null for "let the text box have it".
 export const typingHotkeyId = (e, hotkeys, ids = HOTKEYS_WHILE_TYPING) => {

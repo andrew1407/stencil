@@ -76,12 +76,12 @@ export const entryFromDrop = (payload, { items = [], objectUrl = null } = {}) =>
 
 // The menu under the logo MID-DRAG: four flat drop targets. `needsPixels` marks the
 // actions that need something drawable.
-export const DRAG_MENU_ACTIONS = [
+export const DRAG_MENU_ACTIONS = Object.freeze([
   { id: 'editor', label: 'Open in editor', icon: 'monitor', needsPixels: true },
   { id: 'newtab', label: 'Open in new tab', icon: 'external', needsPixels: false },
   { id: 'incognito', label: 'Open incognito', icon: 'incognito', needsPixels: true },
   { id: 'crop', label: 'Crop', icon: 'crop', needsPixels: true },
-];
+]);
 
 // A null `entry` (a `dragover` exposes only types) opens the menu optimistically; the
 // drop re-checks against the real entry.

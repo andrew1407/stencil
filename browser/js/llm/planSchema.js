@@ -14,13 +14,13 @@ export const PROMPT_CORE_TAIL = PROMPT_ASSET.tail;
 export const SCHEMA = createSchema(REGISTRY, 'browser');
 
 // Limits — the same numbers in every client (contract §1), read from the registry.
-export const LIMITS = {
+export const LIMITS = Object.freeze({
   actions: SCHEMA.limits.MAX_ACTIONS, variants: SCHEMA.limits.MAX_VARIANTS,
   layoutLines: SCHEMA.limits.MAX_LAYOUT_LINES, frameIndices: SCHEMA.limits.MAX_FRAME_INDICES,
   stringChars: SCHEMA.limits.MAX_STRING_CHARS, pathChars: SCHEMA.limits.MAX_PATH_CHARS,
-};
+});
 
 // §11 interactive replies: the option cap is what a choice card can show without becoming
 // a menu, and the text caps keep a model-written card from filling the transcript.
-export const ASK_LIMITS = { ...SCHEMA.limits.ask };
+export const ASK_LIMITS = Object.freeze({ ...SCHEMA.limits.ask });
 export const DEFAULT_CUSTOM_LABEL = REGISTRY.ask.defaultCustomLabel;

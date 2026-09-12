@@ -3,7 +3,7 @@
 // save/rename/remove, and the §10 editor settings. Same facade paths as the toolbar.
 import { resolveServer } from './planValues.js';
 
-export const SETTINGS_RUN = {
+export const SETTINGS_RUN = Object.freeze({
   // ── §2.1 multi-image ops: switch to a turn attachment / persist the result.
   // topLevelOnly shares the §10 enforcement (never inside variants or ask previews). ──
   image: async (a, { loadAttachment, notes }) => {
@@ -213,4 +213,4 @@ export const SETTINGS_RUN = {
     const note = await clearChatConversation();
     if (note) notes?.push(`clearChat: ${note}`);
   },
-};
+});

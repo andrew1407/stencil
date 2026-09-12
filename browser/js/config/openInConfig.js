@@ -2,7 +2,7 @@
 // LOCAL, gitignored JSON file beside this module — the static-site .env. Fetched at
 // runtime, not imported, so a fresh clone boots on the defaults; the promise is cached.
 
-export const OPEN_IN_DEFAULTS = { desktopScheme: 'stencil', telegramBotUsername: '' };
+export const OPEN_IN_DEFAULTS = Object.freeze({ desktopScheme: 'stencil', telegramBotUsername: '' });
 
 let cached = null;
 export const loadOpenInConfig = () => {

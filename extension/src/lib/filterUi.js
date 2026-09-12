@@ -3,7 +3,7 @@
 import { distinctFormats, formatOfItem, UNKNOWN_FORMAT, VIDEO_FORMATS } from './filters.js';
 
 // Always offered, ahead of whatever else the page uses.
-export const COMMON_FORMATS = ['png', 'jpg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico', 'tiff'];
+export const COMMON_FORMATS = Object.freeze(['png', 'jpg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico', 'tiff']);
 
 export const FILTERS_KEY = 'popupFilters';
 

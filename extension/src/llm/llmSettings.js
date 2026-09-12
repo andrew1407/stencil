@@ -13,7 +13,7 @@ import { loadConnections } from '../lib/connections.js';
 export const LLM_SETTINGS_KEY = 'llmSettings';
 
 // 'none' is a local-only value: assistant switched off, nothing configured or sent.
-export const PROVIDERS = ['none', ...Object.keys(PROVIDERS_ASSET.providers)];
+export const PROVIDERS = Object.freeze(['none', ...Object.keys(PROVIDERS_ASSET.providers)]);
 
 // Is the assistant switched on? 'none' means OFF (contract §5): nothing is probed or
 // sent, and the surfaces hide their assistant UI entirely rather than offering a chat
@@ -36,7 +36,7 @@ const BOOL_KEYS = ['shareTabs'];
 
 // Endpoint keys are http(s) ONLY, so a poisoned chrome.storage entry can't aim the
 // client at another scheme. Mirrors browser/js/llm/llmSettings.js.
-export const URL_KEYS = ['baseUrl', 'serverUrl'];
+export const URL_KEYS = Object.freeze(['baseUrl', 'serverUrl']);
 export const isHttpUrl = (v) => /^https?:\/\//i.test(String(v == null ? '' : v));
 
 // First-run defaults: ollama on its standard local port, model empty (the user picks),

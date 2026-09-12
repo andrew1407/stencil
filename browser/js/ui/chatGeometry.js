@@ -2,9 +2,9 @@
 import { clamp } from '../utils/math.js';
 import { popoverPosition } from './popover.js';
 import { PROVIDER_LABELS } from '../llm/llmClient.js';
-export const DOCKS = ['left', 'right', 'top', 'bottom', 'float'];
+export const DOCKS = Object.freeze(['left', 'right', 'top', 'bottom', 'float']);
 
-export const FLOAT_DEFAULT = { x: 80, y: 80, w: 360, h: 440 };
+export const FLOAT_DEFAULT = Object.freeze({ x: 80, y: 80, w: 360, h: 440 });
 export const DRAG_THRESHOLD_PX = 4;      // plain header clicks must not twitch the panel
 export const DOCK_MIN_SIZE = 240;
 export const DOCK_MAX_FRACTION = 0.8;    // docked panel never exceeds 80% of the viewport

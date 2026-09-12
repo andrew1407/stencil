@@ -1,7 +1,7 @@
 // The bucket for media whose format cannot be detected.
 export const UNKNOWN_FORMAT = 'etc';
 
-export const VIDEO_FORMATS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'ogv'];
+export const VIDEO_FORMATS = Object.freeze(['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'ogv']);
 
 export const formatOf = (src) => {
   if (!src) return '';

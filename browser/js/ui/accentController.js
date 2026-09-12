@@ -6,7 +6,7 @@ import { publish, EVENTS } from '../bus/appBus.js';
 // Three appearance modes, like the desktop and the extension; 'system' is the default.
 // Same key as the pre-paint script (js/prePaintTheme.js), which resolves 'system' first.
 export const THEME_STORAGE_KEY = 'drawingApp_theme';
-export const THEME_MODES = ['system', 'light', 'dark'];
+export const THEME_MODES = Object.freeze(['system', 'light', 'dark']);
 
 // 'system' is answered by the OS at call time, never stored resolved.
 export const resolveThemeMode = (mode, prefersDark = typeof matchMedia === 'function'

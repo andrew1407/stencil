@@ -4,13 +4,13 @@ import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from './highlightColor.js'
 
 // Same string as the localStorage key in lib/accent.js.
 export const THEME_STORAGE_KEY = 'stencil_theme';
-export const THEME_MODES = ['system', 'light', 'dark'];
+export const THEME_MODES = Object.freeze(['system', 'light', 'dark']);
 
 // Lifted verbatim from lib/theme/palette.css.
-export const SHELL_PALETTES = {
+export const SHELL_PALETTES = Object.freeze({
   dark: { bg: '#21242d', panel: '#2b2f3a', panel2: '#343948', line: '#3d4354', text: '#e8eaf0', muted: '#9aa0b0' },
   light: { bg: '#f4f5f7', panel: '#ffffff', panel2: '#eceef3', line: '#d4d8e2', text: '#1d2230', muted: '#6b7180' },
-};
+});
 
 export const resolveShellMode = (mode, prefersDark = false) =>
   (mode === 'dark' || mode === 'light') ? mode : (prefersDark ? 'dark' : 'light');

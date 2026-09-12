@@ -46,7 +46,7 @@ export const easeLut = (x1, y1, x2, y2) => {
 // the far point, 'far' gathers home). `alpha` are the opacity stops, read on the clock.
 // The grain's size passes through the halfway state at the bend, so nothing snaps there.
 const leg = easeLut;
-export const FLIGHTS = {
+export const FLIGHTS = Object.freeze({
   // A removed row: near-linear into the bend at 38%, then the flight's own ease home.
   scatter: { from: 'home', split: 0.38, leg: leg(0.3, 0.4, 0.7, 0.8), rest: leg(0.22, 0.55, 0.3, 1),
              alpha: [[0, 1], [0.38, 0.85], [1, 0]] },
@@ -68,7 +68,7 @@ export const FLIGHTS = {
   // then dropping away and accelerating, the bend past halfway where a fall's is.
   fall: { from: 'home', split: 0.6, leg: leg(0.45, 0, 0.8, 0.4), rest: leg(0.45, 0, 0.8, 0.4),
           alpha: [[0, 1], [0.38, 0.85], [1, 0]] },
-};
+});
 
 // Opacity at `p` along the stops — linear between them, held at the ends.
 export const alphaAt = (stops, p) => {
@@ -119,7 +119,7 @@ export const STYLE_DUST = 0;
 export const STYLE_WATER = 1;
 export const STYLE_FIRE = 2;
 // The style names motionPrefs.js / the desktop settings speak, to their codes.
-export const PARTICLE_STYLES = { dust: STYLE_DUST, water: STYLE_WATER, fire: STYLE_FIRE };
+export const PARTICLE_STYLES = Object.freeze({ dust: STYLE_DUST, water: STYLE_WATER, fire: STYLE_FIRE });
 // A styled cloud's palette: this many even mixes from the main colour to its shade.
 export const PALETTE_STOPS = TUNE.PALETTE_STOPS;
 export const WATER = TUNE.WATER;

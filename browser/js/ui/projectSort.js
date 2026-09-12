@@ -2,7 +2,7 @@
 // { key, name (lowercased), date (epoch ms), isRemote (bool) }.
 
 // name = server + local interleaved (default); manual = the per-session drag order.
-export const SORT_MODES = ['name', 'local', 'server', 'date-desc', 'date-asc', 'manual'];
+export const SORT_MODES = Object.freeze(['name', 'local', 'server', 'date-desc', 'date-asc', 'manual']);
 
 // Stable tiebreak: name, then newest, then key.
 const cmpName = (a, b) => a.name.localeCompare(b.name) || (b.date - a.date) || a.key.localeCompare(b.key);

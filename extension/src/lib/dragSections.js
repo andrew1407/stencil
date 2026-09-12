@@ -6,7 +6,7 @@ export const ASSISTANT_SECTION = 'sec-assistant';
 export const SEARCH_SECTION = 'sec-search';
 
 // WHICH sections a drag can spring is a property of the surface, not of the kind.
-export const DRAG_KINDS = ['internal', 'files', 'url', 'external'];
+export const DRAG_KINDS = Object.freeze(['internal', 'files', 'url', 'external']);
 
 // Dwell before a collapsed section unfolds, so sweeping across a header doesn't pop it.
 export const SPRING_DWELL_MS = 300;

@@ -16,7 +16,7 @@ const DEFAULT_LANGUAGE = 'default';
 const DEFAULT_RECOGNITION_LANG = 'en-US';
 
 // The settings dialog's menu — a short, common set; the facade takes any tag.
-export const VOICE_LANGUAGES = [
+export const VOICE_LANGUAGES = Object.freeze([
   ['default', 'Default (English)'],
   ['en-US', 'English (US)'],
   ['en-GB', 'English (UK)'],
@@ -30,7 +30,7 @@ export const VOICE_LANGUAGES = [
   ['ru-RU', 'Русский'],
   ['ja-JP', '日本語'],
   ['zh-CN', '中文 (简体)'],
-];
+]);
 
 const ls = () => (typeof localStorage !== 'undefined' ? localStorage : null);
 

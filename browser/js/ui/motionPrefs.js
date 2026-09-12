@@ -16,22 +16,22 @@ const MOTION_WATER = 'water';
 const MOTION_FIRE = 'fire';
 const MOTION_SLIDE = 'slide';
 const MOTION_NONE = 'none';
-export const MOTION_MODES = [MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE, MOTION_SLIDE, MOTION_NONE];
+export const MOTION_MODES = Object.freeze([MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE, MOTION_SLIDE, MOTION_NONE]);
 // The style (dustCloud.js PARTICLE_STYLES) each particle mode paints in.
-export const PARTICLE_MODES = [MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE];
+export const PARTICLE_MODES = Object.freeze([MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE]);
 const PARTICLE_STYLE_OF = { [MOTION_PARTICLES]: 'dust', [MOTION_WATER]: 'water', [MOTION_FIRE]: 'fire' };
 export const DEFAULT_MOTION_MODE = MOTION_PARTICLES;
 export const DEFAULT_DRAWING_ANIMATIONS = true;
 
 // One list for the desktop combo (dialogs/settingsDialog.cpp) and the extension's options
 // page (src/lib/accent.js StencilMotion) to mirror.
-export const MOTION_MODE_LABELS = [
+export const MOTION_MODE_LABELS = Object.freeze([
   [MOTION_PARTICLES, 'Dust'],
   [MOTION_WATER, 'Water'],
   [MOTION_FIRE, 'Fire'],
   [MOTION_SLIDE, 'Sliding'],
   [MOTION_NONE, 'None'],
-];
+]);
 
 const ls = () => (typeof localStorage !== 'undefined' ? localStorage : null);
 

@@ -33,10 +33,10 @@ const PROBE_TIMEOUT_MS = PROVIDERS_ASSET.timeouts.probeMs;
 
 // Human names for status lines ("Ollama @ localhost:11434 — connected").
 // 'none' is the local-only off state — not a provider, so not in providers.json.
-export const PROVIDER_LABELS = {
+export const PROVIDER_LABELS = Object.freeze({
   none: 'None (turned off)',
   ...Object.fromEntries(Object.entries(PROVIDER_INFO).map(([id, p]) => [id, p.displayName])),
-};
+});
 
 // How much of a provider's own prose an error may quote (server upstream.go parity).
 const MAX_PROVIDER_DETAIL = 200;

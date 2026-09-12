@@ -13,7 +13,7 @@ export const WARN_MS = 24 * 60 * 60 * 1000; // warn once a project is within a d
 // the modal's selector.
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const DEFAULT_PERIOD = 'week';
-export const PERIOD_MS = {
+export const PERIOD_MS = Object.freeze({
   day: DAY_MS,
   week: 7 * DAY_MS,
   fortnight: 14 * DAY_MS,
@@ -21,8 +21,8 @@ export const PERIOD_MS = {
   '3month': 90 * DAY_MS,
   '6month': 180 * DAY_MS,
   year: 365 * DAY_MS,
-};
-export const PERIOD_ORDER = ['day', 'week', 'fortnight', 'month', '3month', '6month', 'year'];
+});
+export const PERIOD_ORDER = Object.freeze(['day', 'week', 'fortnight', 'month', '3month', '6month', 'year']);
 
 // Trim, drop blanks, dedupe case-insensitively (first-seen order). Matches the server's
 // joinKeywords so a keyword set round-trips identically.
