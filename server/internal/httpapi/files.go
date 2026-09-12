@@ -1,11 +1,13 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"stencil/server/internal/filestore"
@@ -30,24 +32,23 @@ func (a *API) handleGetFile(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := a.opCtx(r)
 	defer cancel()
-	rec, err := a.deps.Projects.GetProject(ctx, id)
-	if errors.Is(err, store.ErrNotFound) {
+	got := a.lookupFile(ctx, id, kind)
+	if errors.Is(got.recErr, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
 		return
 	}
-	if err != nil {
+	if got.recErr != nil {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
 		return
 	}
-	var rel string
+	rel := got.rel
 	switch kind {
 	case protocol.KindOriginal:
-		rel = rec.OriginalPath
+		rel = got.rec.OriginalPath
 	case protocol.KindResult:
-		rel = rec.ResultPath
+		rel = got.rec.ResultPath
 	default:
-		rel, err = a.deps.Files.FindByKind(id, kind)
-		if err != nil && !errors.Is(err, filestore.ErrNotFound) {
+		if got.relErr != nil && !errors.Is(got.relErr, filestore.ErrNotFound) {
 			writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgListFiles)
 			return
 		}
@@ -73,6 +74,40 @@ func (a *API) handleGetFile(w http.ResponseWriter, r *http.Request) {
 	// The zero modtime suppresses Last-Modified/conditional handling, keeping
 	// the response shape otherwise unchanged (plus Accept-Ranges).
 	http.ServeContent(w, r, "", time.Time{}, f)
+}
+
+// fileLookup holds the two reads a download needs. Each goroutine below writes
+// its own fields and wg.Wait orders them against the reader.
+type fileLookup struct {
+	rec    protocol.ProjectRecord
+	recErr error
+	rel    string
+	relErr error
+}
+
+// lookupFile reads the project row and, for a filestore-only kind, the stored
+// path — concurrently, because only original/result take their path from the row.
+// The row is still read for every kind: a missing project must answer 404 even
+// when its bytes are on disk, so recErr outranks relErr at the call site.
+func (a *API) lookupFile(ctx context.Context, id, kind string) fileLookup {
+	var (
+		out fileLookup
+		wg  sync.WaitGroup
+	)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		out.rec, out.recErr = a.deps.Projects.GetProject(ctx, id)
+	}()
+	if protocol.IsFilestoreOnlyKind(kind) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			out.rel, out.relErr = a.deps.Files.FindByKind(id, kind)
+		}()
+	}
+	wg.Wait()
+	return out
 }
 
 // handlePutFile stores raw image bytes for a project. The extension and (for

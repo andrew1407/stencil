@@ -168,3 +168,22 @@ func TestChatFileLifecycle(t *testing.T) {
 		t.Fatalf("delete on missing project should 404, got %d", r.Code)
 	}
 }
+
+// A download for a filestore-only kind reads the project row and the stored path
+// at once (files.go lookupFile). The row still decides a 404: a missing project
+// must not be reported as a missing file, whichever read finishes first.
+func TestFilestoreOnlyKindOnMissingProjectIsProjectNotFound(t *testing.T) {
+	api, _ := testAPI(t, "")
+	tok := issueToken(t, api, "")
+	for _, kind := range []string{"video", "variant1", "chat"} {
+		rec := do(t, api, http.MethodGet, "/projects/p_missing_a/files/"+kind, tok, nil)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("%s: code %d", kind, rec.Code)
+		}
+		var resp protocol.ErrorResponse
+		json.Unmarshal(rec.Body.Bytes(), &resp)
+		if resp.Message != msgProjectNotFound {
+			t.Fatalf("%s: message %q, want %q", kind, resp.Message, msgProjectNotFound)
+		}
+	}
+}
