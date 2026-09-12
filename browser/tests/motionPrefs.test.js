@@ -148,7 +148,7 @@ test('every cloud in the app is built behind the dust gate, and the strokes behi
   // The canvas stroke flight answers the drawing switch instead.
   assert.match(read('../js/core/strokeFx.js'), /if \(!this\.#schedule \|\| !drawMotionEnabled\(\)\) return null;/);
   // One gate, asked in one place: no component still reads the media query by hand.
-  for (const f of ['../js/ui/base.js', '../js/ui/toolbar.js', '../js/ui/motion.js'])
+  for (const f of ['../js/ui/modalFlight.js', '../js/ui/toolbar.js', '../js/ui/motion.js'])
     assert.ok(!read(f).includes("matchMedia('(prefers-reduced-motion: reduce)')"), f);
 });
 

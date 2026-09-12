@@ -4,14 +4,13 @@
 // opened them as a plain scale. They now play the SAME scatter a deleted chat or project
 // row plays — one clone (or speck) per grid cell, the same deterministic noise, the same
 // keyframes — only every mote flies INTO, or out of, the point that owns the surface.
-// The origin and the direction are exactly what they were; the rendering is what changed.
 //
 // What is pinned here:
 //   1. the flight arithmetic (pure: surfaceMotion, dockAwayPoint, reshapeGrid);
 //   2. the CSS contract — the old pop/slide is OFF for good, the dust owns the box's
 //      opacity, and nothing plays at all under reduced motion;
-//   3. the wiring on each surface, including that the origin point is still the icon
-//      (or the click, or the dock edge) and that the removal never waits on the effect.
+//   3. the wiring on each surface: the origin point is still the icon (or the click, or
+//      the dock edge), and the removal never waits on the effect.
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
@@ -28,11 +27,12 @@ import { FLIGHTS, alphaAt } from '../js/ui/dustCloud.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
+import { modalShellSource } from './helpers/modalShellSource.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const cloudJs = read('../js/ui/dustCloud.js');
 const animCss = ANIMATIONS_CSS;
-const baseJs = read('../js/ui/base.js');
+const baseJs = modalShellSource();
 const chatPanelJs = read('../js/ui/chatPanel.js');
 const confirmJs = read('../js/ui/confirmModal.js');
 const ctxJs = contextMenuSource();

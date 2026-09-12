@@ -407,10 +407,10 @@ test('sweepDust takes down the clouds a window started, and only those', async (
   }
 });
 
-// …and the shell is what calls it: every window closes the same way (base.js close()).
+// …and the shell is what calls it: every window closes the same way (modalShell.js close()).
 test('every modal shell sweeps its own dust as it closes', () => {
-  const base = read('../js/ui/base.js');
-  assert.match(base, /const close = \(\) => \{[\s\S]{0,400}sweepDust\(overlay\);/,
+  const shell = read('../js/ui/modalShell.js');
+  assert.match(shell, /const close = \(\) => \{[\s\S]{0,400}sweepDust\(overlay\);/,
     'the shared close sweeps, so no window has to remember to');
-  assert.match(base, /import \{[^}]*sweepDust[^}]*\} from '\.\/motion\.js'/);
+  assert.match(shell, /import \{[^}]*sweepDust[^}]*\} from '\.\/motion\.js'/);
 });
