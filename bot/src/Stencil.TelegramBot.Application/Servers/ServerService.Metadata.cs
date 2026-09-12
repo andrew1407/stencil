@@ -15,11 +15,11 @@ public sealed partial class ServerService
     /// <inheritdoc />
     public async Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default)
     {
-        var session = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         var record = await UpdateFieldWithRetryAsync(
             client,
-            session.ActiveProjectId,
+            projectId,
             v => new UpdateProjectRequest { Color = color, Version = v },
             "This project was edited elsewhere — reload it before changing its colour.",
             ct);
@@ -31,7 +31,7 @@ public sealed partial class ServerService
     /// <inheritdoc />
     public async Task<string> SetProjectNameAsync(long userId, string name, CancellationToken ct = default)
     {
-        var session = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var trimmed = name.Trim();
         if (trimmed.Length == 0)
         {
@@ -40,7 +40,7 @@ public sealed partial class ServerService
         var client = ClientForActive(session);
         var record = await UpdateFieldWithRetryAsync(
             client,
-            session.ActiveProjectId,
+            projectId,
             v => new UpdateProjectRequest { Name = trimmed, Version = v },
             "This project was edited elsewhere — reload it before renaming it.",
             ct);
@@ -58,11 +58,11 @@ public sealed partial class ServerService
     /// <inheritdoc />
     public async Task<string> SetProjectDescriptionAsync(long userId, string description, CancellationToken ct = default)
     {
-        var session = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         var record = await UpdateFieldWithRetryAsync(
             client,
-            session.ActiveProjectId,
+            projectId,
             v => new UpdateProjectRequest { Description = description, Version = v },
             "This project was edited elsewhere — reload it before changing its description.",
             ct);
@@ -78,26 +78,26 @@ public sealed partial class ServerService
     /// <inheritdoc />
     public async Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default)
     {
-        var session = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
-        var full = await client.GetProjectAsync(session.ActiveProjectId, ct);
+        var full = await client.GetProjectAsync(projectId, ct);
         return full.Project.BlankColor ?? "";
     }
 
     /// <inheritdoc />
     public async Task<string> SetProjectBlankColorAsync(long userId, string color, CancellationToken ct = default)
     {
-        var session = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         // Only a blank project has a blank colour; recolouring a non-blank is a no-op (empty result).
-        var current = await client.GetProjectAsync(session.ActiveProjectId, ct);
+        var current = await client.GetProjectAsync(projectId, ct);
         if (string.IsNullOrEmpty(current.Project.BlankColor))
         {
             return "";
         }
         var record = await UpdateFieldWithRetryAsync(
             client,
-            session.ActiveProjectId,
+            projectId,
             v => new UpdateProjectRequest { BlankColor = color, Version = v },
             "This project was edited elsewhere — reload it before changing its blank colour.",
             ct);
@@ -109,12 +109,12 @@ public sealed partial class ServerService
     /// <inheritdoc />
     public async Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default)
     {
-        var session = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         // 0 means "keep forever": it is sent explicitly (not null) so the server clears any expiry.
         var record = await UpdateFieldWithRetryAsync(
             client,
-            session.ActiveProjectId,
+            projectId,
             v => new UpdateProjectRequest { ExpiresAt = expiresAtMs, Version = v },
             "This project was edited elsewhere — reload it before changing its expiry.",
             ct);

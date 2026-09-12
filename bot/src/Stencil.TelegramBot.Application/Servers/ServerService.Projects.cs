@@ -139,12 +139,12 @@ public sealed partial class ServerService
     /// <inheritdoc />
     public async Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default)
     {
-        var session = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
-        var name = session.ActiveProjectName ?? session.ActiveProjectId;
+        var name = session.ActiveProjectName ?? projectId;
         try
         {
-            await client.DeleteProjectAsync(session.ActiveProjectId, ct);
+            await client.DeleteProjectAsync(projectId, ct);
         }
         catch (ServerException ex) when (ex.IsConflict)
         {

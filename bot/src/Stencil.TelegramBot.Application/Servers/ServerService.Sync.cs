@@ -15,7 +15,7 @@ public sealed partial class ServerService
     /// <inheritdoc />
     public async Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default)
     {
-        var session = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         var render = await _editing.RenderAsync(userId, ct);
         var bytes = await File.ReadAllBytesAsync(render.Path, ct);
@@ -29,14 +29,14 @@ public sealed partial class ServerService
         };
         var record = await UpdateOrConflictAsync(
             client,
-            session.ActiveProjectId,
+            projectId,
             request,
             "This project was edited elsewhere — reload it from the server before saving again.",
             ct);
-        await client.PutFileAsync(session.ActiveProjectId, ProjectFileKind.Result, bytes, "png", render.Width, render.Height, ct);
+        await client.PutFileAsync(projectId, ProjectFileKind.Result, bytes, "png", render.Width, render.Height, ct);
         // The result upload bumps the version too; re-read it so the next save isn't stale
         // (remoteSync.js saveRemoteProject refreshes version after putFile('result')).
-        var version = await CurrentVersionAsync(client, session.ActiveProjectId, record.Version, ct);
+        var version = await CurrentVersionAsync(client, projectId, record.Version, ct);
         var updated = session with { ActiveProjectVersion = version, ActiveProjectLayoutJson = layoutJson };
         await _store.SaveAsync(updated, ct);
         return record with { Version = version };
@@ -75,11 +75,11 @@ public sealed partial class ServerService
     /// <inheritdoc />
     public async Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default)
     {
-        var session = await RequireActiveSessionAsync(userId, ct);
+        var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         // Contract §9: `chat` is filestore-only — the upload does NOT bump the project version
         // (the server only bumps for original/result), so no version re-read/save is needed.
-        await client.PutFileAsync(session.ActiveProjectId!, ProjectFileKind.Chat,
+        await client.PutFileAsync(projectId, ProjectFileKind.Chat,
             Encoding.UTF8.GetBytes(chatJson), "json", 0, 0, ct);
     }
 

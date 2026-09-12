@@ -90,16 +90,16 @@ public sealed partial class ServerService : IServerService
         return connection is not null ? ClientFor(connection) : _factory.Create(session.ActiveServerUrl!);
     }
 
-    /// <summary>Load the session and assert it has an active server project, or throw. Shared
-    /// preamble for the field-mutating project commands (the pollers return null instead).</summary>
-    private async Task<UserSession> RequireActiveSessionAsync(long userId, CancellationToken ct)
+    /// <summary>Load the session and assert it has an active server project, or throw (pollers
+    /// return null instead); the id returns separately so non-null reaches callers as a type.</summary>
+    private async Task<(UserSession Session, string ProjectId)> RequireActiveSessionAsync(long userId, CancellationToken ct)
     {
         var session = await _store.GetAsync(userId, ct);
         if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
         {
             throw new InvalidOperationException("No active server project — /fetch or /create one first.");
         }
-        return session;
+        return (session, session.ActiveProjectId);
     }
 
     /// <summary>Update a project, translating a version conflict into a friendly reload prompt.</summary>
