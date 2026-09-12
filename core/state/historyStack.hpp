@@ -1,5 +1,6 @@
 #pragma once
 #include "models.hpp"
+#include <cstddef>
 #include <optional>
 
 // Line-snapshot undo/redo stack. Port of browser/js/core/historyStack.js,
@@ -9,6 +10,10 @@ namespace stencil::core {
 
   class HistoryStack {
    public:
+    // Depth cap; canon is LIMITS.historyMax in browser/js/config/constants.json, drift-
+    // tested in browser/tests/history.test.js. cli/pystencil match; bot's 25 is a budget.
+    static constexpr std::size_t kMaxSteps = 64;
+
     HistoryStack();
 
     // Initialize from a base snapshot. When `baseStep` is omitted it follows the
@@ -16,7 +21,8 @@ namespace stencil::core {
     void reset(const Lines& lines);
     void reset(const Lines& lines, int baseStep);
 
-    // Push a new snapshot, truncating any redo branch first.
+    // Push a new snapshot, truncating any redo branch first. Past kMaxSteps the oldest
+    // snapshots drop off the front and the cursor shifts down with them.
     void push(const Lines& lines);
 
     bool canUndo() const;

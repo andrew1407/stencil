@@ -10,7 +10,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { core } from '../js/core/stencilCore.js';
-import { HistoryStack } from '../js/core/historyStack.js';
+import { HistoryStack, MAX_STEPS } from '../js/core/historyStack.js';
 import { encodeLines } from '../js/core/linesCodec.js';
 
 const MODULE_BUILT = existsSync(fileURLToPath(new URL('../js/wasm/stencilCore.js', import.meta.url)));
@@ -189,6 +189,18 @@ wtest('history: 600 random push/undo/redo/reset steps stay identical step for st
   }
   const log = drive(script);
   assert.ok(log.filter((x) => Array.isArray(x) && x.length).length > 50, 'expected many real snapshots');
+});
+
+// The cap is the one place a push can move snapshots the cursor is not on, so drive it
+// past the edge both ways: straight through, and with a redo branch to truncate first.
+wtest('history: the depth cap evicts the same snapshot on both sides', () => {
+  const script = [];
+  for (let i = 0; i < MAX_STEPS + 5; i++) script.push(['push', [line({ pointSize: i })]]);
+  for (let i = 0; i < 10; i++) script.push(['undo']);
+  for (let i = 0; i < MAX_STEPS; i++) script.push(['push', [line({ thickness: i })]]);
+  for (let i = 0; i < MAX_STEPS + 5; i++) script.push(['undo']);
+  const log = drive(script);
+  assert.ok(log.some((x) => Array.isArray(x) && x.length === 0), 'expected the step -1 stop');
 });
 
 wtest('history: handles are independent and destroy() releases one for good', () => {

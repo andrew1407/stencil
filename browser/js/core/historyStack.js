@@ -1,6 +1,14 @@
+import constants from '../config/constants.json' with { type: 'json' };
+
 // ── Line-snapshot history (pure data structure) ─────────────────
 // Mirrors DrawingApp's `history` array + `historyStep` cursor semantics exactly:
 // deep-copy on push/undo/redo and the "step 0 → empty lines, step -1" undo behavior.
+
+// Depth cap, shared with core/state/historyStack.hpp's kMaxSteps (drift-tested in
+// tests/history.test.js). cli's max_states and pystencil's _MAX_STATES carry the same
+// 64; the bot's 25 is a per-tenant memory budget, not this undo-depth policy.
+export const MAX_STEPS = constants.LIMITS.historyMax;
+
 export class HistoryStack {
   constructor() {
     this.history = [];
@@ -26,6 +34,12 @@ export class HistoryStack {
     // reallocating the whole array on every push.
     if (this.history.length > this.historyStep) this.history.length = this.historyStep;
     this.history.push(this.#clone(lines));
+    // Bound the depth by dropping the oldest snapshots and shifting the cursor down by
+    // as many, so it still names the snapshot just pushed. Undoing off the trimmed front
+    // still ends at the "empty lines, step -1" stop, just without the evicted steps.
+    if (this.history.length > MAX_STEPS) {
+      this.historyStep -= this.history.splice(0, this.history.length - MAX_STEPS).length;
+    }
   }
 
   canUndo() {
