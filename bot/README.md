@@ -78,6 +78,7 @@ graph TD
       INFRA["Infrastructure — Cli · Server · Sessions · Workspace"]
       DOMAIN["Domain — entities · abstractions<br/><i>(the frozen contract)</i>"]
       PRES --> APP
+      PRES -->|"composition root only"| INFRA
       APP --> DOMAIN
       INFRA --> DOMAIN
     end
@@ -99,34 +100,49 @@ bot/
   Stencil.TelegramBot.slnx
   src/
     Stencil.TelegramBot.Domain/          entities, value objects, abstractions — the frozen contract
-      Layout/        LayoutPoint · LayoutLine · StencilLayout  (the shared layout JSON schema)
-      Editing/       EditState · EditRequest · BlankSpec · RenderResult · ImageSize · HistoryStack
+      Abstractions/  IStencilCli · IStencilServerClient(+Factory) · ISessionStore · IUserWorkspace ·
+                     IImageDownscaler
       Configuration/ IBotPolicy          (the operator policy the presentation layer reads)
+      Editing/       EditState · EditRequest · BlankSpec · RenderResult · ImageSize · HistoryStack ·
+                     CropSpecResolver (+.Tokens) · ColorSpec · RemoteDelivery · Scrape{Request,Result}
+      Exceptions/    StencilCliException · ServerException · LlmException
+      Layout/        LayoutPoint · LayoutLine · LineStyle · StencilLayout · StencilLayoutParser
+      Llm/           OpPlan · PlanAction · AskCard · ChatDocument · ILlmClient · LlmGate ·
+                     Llm{ChatRequest,Image,Message,Options,Profile,Reply} · ProvidersAsset
+      Project/       StencilProjectFile  (the portable single-file .stencil format)
       Projects/      ProjectRecord · ProjectFull · Create/UpdateProjectRequest · FileWriteResult
-      Sessions/      UserSession · ServerConnectionInfo
-      Abstractions/  IStencilCli · IStencilServerClient(+Factory) · ISessionStore · IUserWorkspace
-      Serialization/ StencilJson  (one camelCase JsonSerializerOptions shared everywhere)
-      Exceptions/    StencilCliException · ServerException
+      Serialization/ StencilJson (one camelCase JsonSerializerOptions shared everywhere) · JsonRead
+      Sessions/      UserSession · ServerConnectionInfo · CredentialKind · ServerHandshake ·
+                     PendingInputs
     Stencil.TelegramBot.Application/      use cases over the Domain abstractions
-      Editing/       IEditingService + EditingService   (one base image + a replayable EditState)
-      Llm/           OpSchema (+SchemaLoader/KeySpecChecker/PresenceRules) · OpRegistry · PromptService
-      Servers/       IServerService + ServerService      (connect/list/fetch/create/save)
+      Editing/       IEditingService + EditingService (one base image + a replayable EditState) ·
+                     EditSessions · ProjectFileService · VideoFrames · RemoteImageUrl (the guard)
+      Llm/           OpSchema (+SchemaLoader/KeySpecChecker/PresenceRules/NativeRules/SchemaPath) ·
+                     OpRegistry · OpPlanParser · PromptService · PlanFrameMapper ·
+                     LlmAttachmentLoader · ImageDimensionReader · SystemPromptAsset
+      Servers/       IServerService + ServerService (connect/list/fetch/create/save/sync) ·
+                     ProjectLayout{Mapper,Writer} · InviteLink
     Stencil.TelegramBot.Infrastructure/   the adapters (depend only on Domain)
       Cli/           StencilCliLocator · CliArgvBuilder · CliOutcomeParser · ProcessStencilCli
-      Server/        UrlNormalizer · HttpStencilServerClient · StencilServerClientFactory
-      Sessions/      InMemorySessionStore · RedisSessionStore
-      Workspace/     UserWorkspace        (per-user scratch dir for working images)
+      Configuration/ BotOptions (: IBotPolicy) · LlmProfileOptions · EnvRead · DotEnv ·
+                     RedisConnectionString
+      Links/         DeepLinkCodec · DesktopLinkBuilder · LayoutFetcher
       Llm/           HttpLlmClient + one IProviderMapping per §6 wire shape
-      Configuration/ BotOptions (: IBotPolicy) · LlmProfileOptions · EnvRead · DotEnv
+      Media/         FfmpegImageDownscaler          Processes/  ProcessRunner (the spawn deadline)
+      Server/        UrlNormalizer · HttpStencilServerClient(+.Transport) · StencilServerClientFactory
+      Sessions/      InMemorySessionStore · RedisSessionStore
+      Workspace/     UserWorkspace (per-user scratch dir for working images) · TempFiles
     Stencil.TelegramBot.Bot/              the Telegram presentation + console host
-      Program.cs · BotComposition (the DI root) · UpdatePump (bounded update workers)
-      Telegram/      UpdateRouter, MessageRouter + its IMessageHandler chain, AlbumRouter,
-                     AlbumCollector, MediaIntake, DocumentIntake, ErrorGuard, CommandParser,
-                     CommandHandlers, CallbackAction + CallbackTokens, Keyboards, Replies,
-                     PageFormats, UserGate, SyncWatcher, WorkspaceJanitor
+      Program.cs · BotComposition (the DI root) · UpdatePump (the bounded update queue)
+      Telegram/      AccessGate (the allowlist), UpdateRouter, MessageRouter + its IMessageHandler
+                     chain, AlbumRouter, AlbumCollector, MediaIntake, DocumentIntake, ErrorGuard,
+                     CommandParser, CommandHandlers, CallbackAction + CallbackTokens, AskCardTaps,
+                     Keyboards, Replies, PageFormats, ProgressNotice, UserGate, SyncWatcher +
+                     SyncRegistry, WorkspaceJanitor
       Assets/        botCommands.json · botStrings.json   (the command vocabulary + the chat copy)
   tests/
     Stencil.TelegramBot.Tests/            xUnit — offline (no token, server, CLI or Redis)
+      Doubles/       the hand-written mocks every service suite shares
 ```
 
 - **`IStencilCli` → the Zig CLI.** `ProcessStencilCli` locates the binary (`STENCIL_CLI` →
@@ -254,7 +270,7 @@ link is gated like everything else, because it connects out and fetches a projec
 ```bash
 # from bot/
 dotnet build Stencil.TelegramBot.slnx          # build all five projects
-dotnet test  Stencil.TelegramBot.slnx          # 2118 offline tests — no token/server/CLI/LLM/Redis needed
+dotnet test  Stencil.TelegramBot.slnx          # 2119 offline tests — no token/server/CLI/LLM/Redis needed
 dotnet test  Stencil.TelegramBot.slnx --filter Category=Bench   # the opt-in timing tripwires
 dotnet run --project src/Stencil.TelegramBot.Bot   # run the bot (needs TELEGRAM_BOT_TOKEN + the CLI)
 ```
