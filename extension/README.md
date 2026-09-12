@@ -483,6 +483,9 @@ src/
                      (messages, imageScan, editorTabs, editorApiMain, llm/*) — read by an
                      editor, guarded by tests/dts.test.js, never built or imported
     theme/           shared light/dark palette, keyed on <html data-theme> (linked by popup/crop/options)
+    animations/      the shared motion layer, linked after theme/ (keyframes, iconHover,
+                     controls, themeSwap, reveal, pages, motionModes, reducedMotion, chat,
+                     overlays, motionIcons — in that cascade order)
     accent.js        the accent facade — sixth of seven pre-paint CLASSIC scripts, loaded in
                      this order: prefs.js, swapGeometry.js, dustGrains.js, dustWake.js,
                      themeSwap.js, accent.js, shellPrefs.js (they share window.StencilKit)
