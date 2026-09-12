@@ -538,9 +538,12 @@ press / recolour sweep / wordmark flourish are clock-paced) — so run it manual
 
 ### Benchmark
 
-An opt-in perf benchmark times the pipeline stages (crop → rotate → filter → layout →
-contour → encode) on a large synthetic image. It is **not** part of `zig build test`, so
-CI never gates on a timing number — it just prints throughput:
+An opt-in perf benchmark, `src/bench.zig` plus the `src/bench/` package, built ReleaseFast and
+**not** part of `zig build test`. `bench/raster.zig` times the pipeline stages (crop → rotate →
+layout → filter → contour → encode) on a large synthetic image; `bench/adapters.zig` times the
+three paths off the raster road at **two input sizes each** and asserts only the RATIO between
+them. No case compares a wall-clock number against a threshold, so a loaded machine cannot fail
+a run — but an algorithmic regression fails it with a nonzero exit.
 
 ```bash
 zig build bench                  # default 4000x3000, 3000 lines
@@ -548,5 +551,30 @@ zig build bench -- 6000 4000 8000    # width height line-count
 ```
 
 It's the adapter-level counterpart to the core's own micro-benchmarks
-(`../core/build/stencil_tests -ts=bench --no-skip`); watch for order-of-magnitude drift
-release-over-release rather than exact milliseconds. See `src/bench.zig`.
+(`../core/build/stencil_tests -ts=bench --no-skip`), and uses the same idiom: best-of-N reps,
+scaling measured as the input grows, us/op reported and never asserted.
+
+#### Benchmark baseline
+
+ReleaseFast, Apple silicon laptop, 2026-09-12, 4000x3000 (12 MP) and 3000 lines. The ratios are
+the contract; the absolute numbers are only a drift reference and move with the machine's load.
+
+| Stage | Best of 3 | Throughput |
+|---|---|---|
+| `crop` (full-frame copy, band-parallel) | 0.44 ms | 27,300 MP/s |
+| `rotate90` | 2.80 ms | 4,290 MP/s |
+| `layout` (3,000 polylines) | 60.4 ms | 49,700 lines/s |
+| `filter(bw)` | 0.88 ms | 13,700 MP/s |
+| `contour` | 1.35 ms | 8,860 MP/s |
+| `encode(png)` — the codec the core never sees | 130.0 ms | 92 MP/s |
+| **pipeline** (sum of stages) | **195.8 ms** | |
+
+| Adapter path | us/call | Ratio asserted | Measured | Ceiling |
+|---|---|---|---|---|
+| `scrapeHtml` — 100 `<img>` tags | 22.7 | 400 tags ÷ 100 tags: the walker is one pass | 4.07x | 8x |
+| `scrapeHtml` — 400 tags (40 KB, 401 media) | 92.6 | | | |
+| `parsePlan` — 7 actions + 2 variants | 8.6 | — | — | — |
+| `parsePlan` — `layout`, 32 points | 14.6 | 256 points ÷ 32 points stays linear | 6.93x | 16x |
+| `parsePlan` — `layout`, 256 points | 101.5 | | | |
+| `redraw` — 600-char line (7 wrapped rows) | 8.2 | 6,000 chars ÷ 600: `maxPromptRows` (8) bounds the paint | 1.01x | 3x |
+| `redraw` — 6,000-char line (clamped to 8 rows) | 8.3 | | | |
