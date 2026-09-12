@@ -15,7 +15,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ChatModeTests : ChatModeTestBase
 {
     [Fact]
-    public async Task ChatCommandTurnsTheModeOnConfirmsAndOffersTheWayBack()
+    public async Task Should_Turn_The_Mode_On_Confirm_And_Offer_The_Way_Back_On_Chat_Command()
     {
         await Send("/chat");
 
@@ -29,7 +29,7 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task ChatOffTurnsItBackOffAndConfirms()
+    public async Task Should_Turn_The_Mode_Back_Off_And_Confirm_On_Chat_Off()
     {
         await Send("/chat");
         await Send("/chat off");
@@ -40,7 +40,7 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task TheButtonsToggleTheSameFlagAsTheCommand()
+    public async Task Should_Toggle_The_Same_Flag_As_The_Command_From_The_Buttons()
     {
         await Tap("chat:on");
         Assert.True((await _store.GetAsync(UserId)).ChatMode);
@@ -50,14 +50,14 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public void TheMainMenuAndEditMenuSurfaceTheChatButton()
+    public void Should_Surface_The_Chat_Button_In_The_Main_Menu_And_Edit_Menu()
     {
         Assert.Contains(Keyboards.MainMenu().InlineKeyboard.SelectMany(r => r), b => b.CallbackData == "chat:on");
         Assert.Contains(Keyboards.EditMenu(false).InlineKeyboard.SelectMany(r => r), b => b.CallbackData == "chat:on");
     }
 
     [Fact]
-    public async Task AnUnknownArgumentJustExplainsTheCommandAndChangesNothing()
+    public async Task Should_Just_Explain_The_Command_And_Change_Nothing_For_An_Unknown_Argument()
     {
         await Send("/chat whenever");
 
@@ -66,7 +66,7 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task AnImageLinkWithInstructionsLoadsItThenRunsThemThroughTheAssistant()
+    public async Task Should_Load_An_Image_Link_With_Instructions_Then_Run_Them_Through_The_Assistant()
     {
         await Send("/chat");
         _llm.CannedReplies.Enqueue(new LlmReply(
@@ -88,7 +88,7 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task ABareImageLinkStillJustLoadsItEvenInChatMode()
+    public async Task Should_Still_Just_Load_A_Bare_Image_Link_Even_In_Chat_Mode()
     {
         await Send("/chat");
 
@@ -99,7 +99,7 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task OutsideChatModeALinkWithWordsKeepsLoadingTheLinkOnly()
+    public async Task Should_Keep_Loading_Only_The_Link_For_A_Link_With_Words_Outside_Chat_Mode()
     {
         await Send("look at this https://example.com/a.jpg");
 
@@ -108,7 +108,7 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task PlainTextInChatModeGoesToTheAssistantAndRendersLikePrompt()
+    public async Task Should_Send_Plain_Text_To_The_Assistant_And_Render_Like_Prompt_In_Chat_Mode()
     {
         await Send("/blank");
         await Send("/chat");
@@ -127,7 +127,7 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task VariantsStillComeBackAsOneMediaGroupInChatMode()
+    public async Task Should_Still_Return_Variants_As_One_Media_Group_In_Chat_Mode()
     {
         await Send("/blank");
         await Send("/chat");
@@ -145,7 +145,7 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task WithoutChatModePlainTextStillGetsTheHintAndNeverReachesTheLlm()
+    public async Task Should_Still_Hint_On_Plain_Text_And_Never_Reach_The_Llm_Without_Chat_Mode()
     {
         await Send("make it black and white");
 
@@ -154,7 +154,7 @@ public sealed class ChatModeTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task CommandsAreNeverSwallowedByChatMode()
+    public async Task Should_Never_Swallow_Commands_In_Chat_Mode()
     {
         await Send("/chat");
 

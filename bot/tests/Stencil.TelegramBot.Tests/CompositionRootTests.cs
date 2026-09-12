@@ -49,7 +49,7 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     [Fact]
-    public void EveryRegisteredServiceResolves()
+    public void Should_Resolve_Every_Registered_Service()
     {
         ServiceCollection services = wired();
         using ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
@@ -74,7 +74,7 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     [Fact]
-    public void TheGraphTheHostPullsOutByHandResolves()
+    public void Should_Resolve_The_Graph_The_Host_Pulls_Out_By_Hand()
     {
         using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
@@ -87,7 +87,7 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     [Fact]
-    public void ThePolicyIsReachableUnderBothItsContractAndItsRecord()
+    public void Should_Reach_The_Policy_Under_Both_Its_Contract_And_Its_Record()
     {
         using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
@@ -96,7 +96,7 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     [Fact]
-    public void TheSharedServicesAreSingletons()
+    public void Should_Register_The_Shared_Services_As_Singletons()
     {
         using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
@@ -108,7 +108,7 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     [Fact]
-    public void TheInfrastructureAdaptersAreTheRealOnes()
+    public void Should_Register_The_Real_Infrastructure_Adapters()
     {
         using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
@@ -119,7 +119,7 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     [Fact]
-    public void WithoutRedisTheSessionStoreIsInMemory()
+    public void Should_Use_The_In_Memory_Session_Store_Without_Redis()
     {
         using ServiceProvider provider = wired().BuildServiceProvider(validateScopes: true);
 
@@ -127,7 +127,7 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     [Fact]
-    public void WithRedisTheSessionStoreIsTheRedisOne()
+    public void Should_Use_The_Redis_Session_Store_With_Redis()
     {
         // Registration only — resolving it would dial the server, which this suite never does.
         ServiceCollection services = wired(makeOptions(redisUrl: "redis://localhost:6379"));
@@ -137,7 +137,7 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     [Fact]
-    public void TheApplicationLayerRegistersOnItsOwn()
+    public void Should_Register_The_Application_Layer_On_Its_Own()
     {
         // AddStencilApplication is callable without the host: its dependencies come from
         // Infrastructure, so on its own it declares services but resolves none.
@@ -152,7 +152,7 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     [Fact]
-    public void TheConfiguredChatApisAndLlmCapAreRegistered()
+    public void Should_Register_The_Configured_Chat_Apis_And_Llm_Cap()
     {
         ServiceCollection services = new();
         services.AddLogging();

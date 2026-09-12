@@ -24,7 +24,7 @@ public sealed class BotAssetTests
 
     /// <summary>The dispatch table answers every asset command, and nothing the asset omits.</summary>
     [Fact]
-    public void TheDispatchTableCoversExactlyTheAssetCommands()
+    public void Should_Cover_Exactly_The_Asset_Commands_In_The_Dispatch_Table()
     {
         string[] asset = BotCommands.All.Select(c => c.Verb).Order(StringComparer.Ordinal).ToArray();
         string[] handled = CommandHandlers.HandledVerbs.Order(StringComparer.Ordinal).ToArray();
@@ -33,7 +33,7 @@ public sealed class BotAssetTests
 
     /// <summary>Every alias resolves to its verb; an unowned word resolves to nothing.</summary>
     [Fact]
-    public void EveryAliasResolvesToItsCanonicalVerb()
+    public void Should_Resolve_Every_Alias_To_Its_Canonical_Verb()
     {
         foreach (CommandDescriptor c in BotCommands.All)
         {
@@ -51,7 +51,7 @@ public sealed class BotAssetTests
     /// legal for Telegram (lowercase, ≤32 chars, letters/digits/underscore only).
     /// </summary>
     [Fact]
-    public void TheSlashMenuMatchesTheAssetAndTelegramsRules()
+    public void Should_Match_The_Asset_And_Telegrams_Rules_In_The_Slash_Menu()
     {
         string[] wanted = BotCommands.All.Where(c => c.Menu is not null).Select(c => c.Verb).ToArray();
         Assert.Equal(wanted, BotCommandList.All().Select(c => c.Command).ToArray());
@@ -66,7 +66,7 @@ public sealed class BotAssetTests
 
     /// <summary>Every button carries a label and a callback token inside Telegram's 64-byte cap.</summary>
     [Fact]
-    public void EveryButtonFitsTelegramsCallbackLimit()
+    public void Should_Fit_Every_Button_Within_Telegrams_Callback_Limit()
     {
         foreach (JsonProperty button in readAsset("botStrings.json").GetProperty("buttons").EnumerateObject())
         {
@@ -84,7 +84,7 @@ public sealed class BotAssetTests
     /// so a new one forces the choice instead of quietly missing from the docs.
     /// </summary>
     [Fact]
-    public void EveryCommandIsDocumentedOrListedAsUndocumented()
+    public void Should_Document_Every_Command_Or_List_It_As_Undocumented()
     {
         JsonElement readme = readAsset("botCommands.json").GetProperty("readme");
         HashSet<string> documented = readme.GetProperty("tables").EnumerateArray()
@@ -109,7 +109,7 @@ public sealed class BotAssetTests
 
     /// <summary>README.md's command tables are generated from the asset and committed.</summary>
     [Fact]
-    public void TheReadmeCommandTablesMatchTheAsset()
+    public void Should_Match_The_Asset_In_The_Readme_Command_Tables()
     {
         StringBuilder sb = new();
         foreach (JsonElement table in readAsset("botCommands.json").GetProperty("readme").GetProperty("tables").EnumerateArray())

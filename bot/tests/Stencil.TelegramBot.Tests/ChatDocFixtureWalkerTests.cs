@@ -20,7 +20,7 @@ public sealed class ChatDocFixtureWalkerTests
     public static TheoryData<string> ToleranceDocs() => SharedFixtures.TheoryNames(SharedFixtures.CaseNames(Tolerance));
 
     [Fact]
-    public void BothCorporaHaveEveryVector()
+    public void Should_Have_Every_Vector_In_Both_Corpora()
     {
         Assert.Equal(5, SharedFixtures.Cases(Roundtrip).Count);
         Assert.Equal(17, SharedFixtures.Cases(Tolerance).Count);
@@ -28,7 +28,7 @@ public sealed class ChatDocFixtureWalkerTests
 
     [Theory]
     [MemberData(nameof(RoundtripDocs))]
-    public void RoundtripDocIsAFixedPoint(string name)
+    public void Should_Be_A_Fixed_Point_For_A_Roundtrip_Doc(string name)
     {
         using JsonDocument doc = SharedFixtures.Case(Roundtrip, name);
         string raw = doc.RootElement.GetProperty("doc").GetRawText();
@@ -49,7 +49,7 @@ public sealed class ChatDocFixtureWalkerTests
 
     [Theory]
     [MemberData(nameof(ToleranceDocs))]
-    public void TolerantReadMatchesItsPin(string name)
+    public void Should_Match_Its_Pin_On_A_Tolerant_Read(string name)
     {
         using JsonDocument doc = SharedFixtures.Case(Tolerance, name);
         JsonElement fx = doc.RootElement;

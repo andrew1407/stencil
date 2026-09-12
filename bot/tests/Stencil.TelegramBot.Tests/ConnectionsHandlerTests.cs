@@ -58,7 +58,7 @@ public sealed class ConnectionsHandlerTests : IDisposable
     private string lastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
 
     [Fact]
-    public async Task BareCommandListsThemAllAndMarksTheAdminOneWithoutItsToken()
+    public async Task Should_List_Them_All_And_Mark_The_Admin_One_Without_Its_Token_On_A_Bare_Command()
     {
         await dispatch("/connections");
 
@@ -72,7 +72,7 @@ public sealed class ConnectionsHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task AdminFilterKeepsOnlyTheAdminCredentialConnections()
+    public async Task Should_Keep_Only_The_Admin_Credential_Connections_For_The_Admin_Filter()
     {
         await dispatch("/connections admin");
 
@@ -84,7 +84,7 @@ public sealed class ConnectionsHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task SessionFilterKeepsEverythingThatIsNotAnAdminCredential()
+    public async Task Should_Keep_Everything_That_Is_Not_An_Admin_Credential_For_The_Session_Filter()
     {
         await dispatch("/connections SESSION"); // case-insensitive, like the other arguments
 
@@ -96,7 +96,7 @@ public sealed class ConnectionsHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task FilteringOutEverythingSaysSoInsteadOfTheConnectHint()
+    public async Task Should_Say_So_Instead_Of_The_Connect_Hint_When_Filtering_Out_Everything()
     {
         _servers.Connections = [new ServerConnectionInfo { Url = "http://b:8090", CredentialKind = CredentialKind.NONE }];
 
@@ -106,7 +106,7 @@ public sealed class ConnectionsHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task UnknownArgumentRepliesWithUsageAndListsNothing()
+    public async Task Should_Reply_With_Usage_And_List_Nothing_For_An_Unknown_Argument()
     {
         await dispatch("/connections everything");
 

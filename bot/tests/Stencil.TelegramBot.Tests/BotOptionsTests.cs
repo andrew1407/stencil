@@ -11,14 +11,14 @@ public sealed class BotOptionsTests
     private const string _maxConcurrentCliVar = "STENCIL_BOT_MAX_CONCURRENT_CLI";
 
     [Fact]
-    public void MaxConcurrentCliDefaultsToProcessorCount()
+    public void Should_Default_Max_Concurrent_Cli_To_Processor_Count()
     {
         BotOptions options = new();
         Assert.Equal(Math.Max(1, Environment.ProcessorCount), options.MaxConcurrentCli);
     }
 
     [Fact]
-    public void LoadKnobsHaveSensibleDefaults()
+    public void Should_Have_Sensible_Defaults_For_Load_Knobs()
     {
         BotOptions options = new();
         Assert.Equal(TimeSpan.FromSeconds(30), options.ServerHttpTimeout);
@@ -27,7 +27,7 @@ public sealed class BotOptionsTests
     }
 
     [Fact]
-    public void FromEnvironmentParsesLoadKnobs()
+    public void Should_Parse_Load_Knobs_From_Environment()
     {
         withEnv("STENCIL_BOT_HTTP_TIMEOUT_SECONDS", "12", () =>
             Assert.Equal(TimeSpan.FromSeconds(12), BotOptions.FromEnvironment().ServerHttpTimeout));
@@ -40,7 +40,7 @@ public sealed class BotOptionsTests
     }
 
     [Fact]
-    public void LlmDefaultsFollowTheContract()
+    public void Should_Follow_The_Contract_For_Llm_Defaults()
     {
         Stencil.TelegramBot.Domain.Llm.LlmOptions llm = new BotOptions().Llm;
         Assert.Equal("ollama", llm.Provider);
@@ -51,7 +51,7 @@ public sealed class BotOptionsTests
     }
 
     [Fact]
-    public void FromEnvironmentParsesTheStencilLlmKeys()
+    public void Should_Parse_The_Stencil_Llm_Keys_From_Environment()
     {
         // The base-URL default follows the chosen provider (openai-compat → LM Studio's port)…
         withEnv("STENCIL_LLM_PROVIDER", "openai-compat", () =>
@@ -88,7 +88,7 @@ public sealed class BotOptionsTests
     [InlineData("-4", null)]    // negative → default
     [InlineData("garbage", null)] // unparseable → default
     [InlineData("", null)]      // unset/blank → default
-    public void FromEnvironmentParsesMaxConcurrentCli(string value, int? expected)
+    public void Should_Parse_Max_Concurrent_Cli_From_Environment(string value, int? expected)
     {
         string? original = Environment.GetEnvironmentVariable(_maxConcurrentCliVar);
         try
@@ -111,7 +111,7 @@ public sealed class BotOptionsTests
     [InlineData("-4", 8)]       // negative → default
     [InlineData("garbage", 8)]  // unparseable → default
     [InlineData("", 8)]         // unset/blank → default
-    public void FromEnvironmentParsesMaxConcurrentLlm(string value, int expected)
+    public void Should_Parse_Max_Concurrent_Llm_From_Environment(string value, int expected)
     {
         const string name = "STENCIL_BOT_MAX_CONCURRENT_LLM";
         string? original = Environment.GetEnvironmentVariable(name);
@@ -140,7 +140,7 @@ public sealed class BotOptionsTests
     [InlineData("oops", new long[0])]
     [InlineData("0", new long[0])]
     [InlineData("-1001234", new long[] { -1001234 })]
-    public void FromEnvironmentParsesTheAllowlist(string? value, long[] expected)
+    public void Should_Parse_The_Allowlist_From_Environment(string? value, long[] expected)
     {
         const string name = "STENCIL_BOT_ALLOWED_USERS";
         string? original = Environment.GetEnvironmentVariable(name);

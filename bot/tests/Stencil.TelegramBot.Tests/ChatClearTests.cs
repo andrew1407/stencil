@@ -14,7 +14,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ChatClearTests : ChatModeTestBase
 {
     [Fact]
-    public async Task APendingFreeTextFlowWinsOverChatMode()
+    public async Task Should_Let_A_Pending_Free_Text_Flow_Win_Over_Chat_Mode()
     {
         await Send("/blank");
         await Send("/chat");
@@ -37,7 +37,7 @@ public sealed class ChatClearTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task ClearForgetsTheConversationWithoutLeavingChatMode()
+    public async Task Should_Forget_The_Conversation_Without_Leaving_Chat_Mode_On_Clear()
     {
         await Send("/blank");
         await Send("/chat");
@@ -64,7 +64,7 @@ public sealed class ChatClearTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task TheClearButtonRunsTheSameClear()
+    public async Task Should_Run_The_Same_Clear_From_The_Clear_Button()
     {
         await Send("/blank");
         await Send("/chat");
@@ -81,7 +81,7 @@ public sealed class ChatClearTests : ChatModeTestBase
     // ── §10 clearChat (the model asks; only the user's button clears) ──
 
     [Fact]
-    public async Task AClearChatPlanDefersToAConfirmSentAfterTheReplyAndEdits()
+    public async Task Should_Defer_A_Clear_Chat_Plan_To_A_Confirm_Sent_After_The_Reply_And_Edits()
     {
         await Send("/blank");
         await Send("/chat");
@@ -106,7 +106,7 @@ public sealed class ChatClearTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task TheClearChatYesButtonRunsTheSameClearAsChatClear()
+    public async Task Should_Run_The_Same_Clear_As_Chat_Clear_From_The_Clear_Chat_Yes_Button()
     {
         await Send("/blank");
         await Send("/chat");
@@ -124,7 +124,7 @@ public sealed class ChatClearTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task TheClearChatCancelButtonKeepsTheConversationWithACanceledNote()
+    public async Task Should_Keep_The_Conversation_With_A_Canceled_Note_From_The_Clear_Chat_Cancel_Button()
     {
         await Send("/blank");
         await Send("/chat");
@@ -143,7 +143,7 @@ public sealed class ChatClearTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task DropAlsoForgetsTheConversation()
+    public async Task Should_Also_Forget_The_Conversation_On_Drop()
     {
         await Send("/blank");
         await Send("/chat");
@@ -158,7 +158,7 @@ public sealed class ChatClearTests : ChatModeTestBase
     }
 
     [Fact]
-    public async Task ChatModeIsPerUserAndShowsUpInStatus()
+    public async Task Should_Keep_Chat_Mode_Per_User_And_Show_It_In_Status()
     {
         await Send("/chat");
 

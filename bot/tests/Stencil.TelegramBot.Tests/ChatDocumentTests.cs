@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ChatDocumentTests
 {
     [Fact]
-    public void BuildStripsImagesAndKeepsRolesAndTexts()
+    public void Should_Strip_Images_And_Keep_Roles_And_Texts_On_Build()
     {
         LlmImage image = new("image/png", "aGVsbG8=");
         ChatDocument doc = ChatDocument.Build(
@@ -33,7 +33,7 @@ public sealed class ChatDocumentTests
     }
 
     [Fact]
-    public void BuildDropsUnknownRolesAndTrimsToTheMostRecent32()
+    public void Should_Drop_Unknown_Roles_And_Trim_To_The_Most_Recent_32_On_Build()
     {
         List<LlmMessage> messages = [new LlmMessage("system", "not persisted")];
         for (int i = 0; i < 40; i++)
@@ -50,7 +50,7 @@ public sealed class ChatDocumentTests
     }
 
     [Fact]
-    public void ToJsonMatchesTheContractShapeAndRoundTrips()
+    public void Should_Match_The_Contract_Shape_And_Round_Trip_On_To_Json()
     {
         ChatDocument doc = ChatDocument.Build(
             [new LlmMessage(LlmMessage.ROLE_USER, "hi"), new LlmMessage(LlmMessage.ROLE_ASSISTANT, "hello")],
@@ -76,13 +76,13 @@ public sealed class ChatDocumentTests
     [InlineData("{\"messages\":[]}")]                             // version absent
     [InlineData("{\"version\":2,\"messages\":[]}")]               // wrong version
     [InlineData("{\"version\":\"1\",\"messages\":[]}")]           // version not a number
-    public void TryParseTreatsBadDocumentsAsMissing(string? json)
+    public void Should_Treat_Bad_Documents_As_Missing_On_Try_Parse(string? json)
     {
         Assert.Null(ChatDocument.TryParse(json));
     }
 
     [Fact]
-    public void TryParseDropsMalformedMessagesIgnoresStrayImagesAndUnknownFields()
+    public void Should_Drop_Malformed_Messages_And_Ignore_Stray_Images_And_Unknown_Fields_On_Try_Parse()
     {
         const string json = """
             {
@@ -112,7 +112,7 @@ public sealed class ChatDocumentTests
     }
 
     [Fact]
-    public void TryParseTruncatesAnOverlongDocumentToTheMostRecent32()
+    public void Should_Truncate_An_Overlong_Document_To_The_Most_Recent_32_On_Try_Parse()
     {
         string messages = string.Join(",", Enumerable.Range(0, 50)
             .Select(i => $"{{\"role\":\"user\",\"text\":\"m{i}\"}}"));
@@ -126,7 +126,7 @@ public sealed class ChatDocumentTests
     }
 
     [Fact]
-    public void TryParseToleratesAMissingSavedAtAndMissingMessages()
+    public void Should_Tolerate_A_Missing_Saved_At_And_Missing_Messages_On_Try_Parse()
     {
         ChatDocument? doc = ChatDocument.TryParse("{\"version\":1}");
 
@@ -136,7 +136,7 @@ public sealed class ChatDocumentTests
     }
 
     [Fact]
-    public void BuildKeepsSection7MachineryOutOfTheDocument()
+    public void Should_Keep_Section_7_Machinery_Out_Of_The_Document_On_Build()
     {
         // The §7 continuation round restates the request with the internal note appended;
         // the shared document carries the user's own words, and never a raw op-plan as the
@@ -163,7 +163,7 @@ public sealed class ChatDocumentTests
     }
 
     [Fact]
-    public void TryParseSanitizesADocumentWrittenByAnotherSurfaceOrAnOlderBuild()
+    public void Should_Sanitize_A_Document_Written_By_Another_Surface_Or_An_Older_Build_On_Try_Parse()
     {
         // The document is shared: a note-only turn goes, an appended one is stripped back to
         // the request, and a raw op-plan assistant turn is refused — none of it may be shown
@@ -189,7 +189,7 @@ public sealed class ChatDocumentTests
     }
 
     [Fact]
-    public void ACleanDocumentRoundTripsIdentically()
+    public void Should_Round_Trip_A_Clean_Document_Identically()
     {
         ChatDocument built = ChatDocument.Build(
             [

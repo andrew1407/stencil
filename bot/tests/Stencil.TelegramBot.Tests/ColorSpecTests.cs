@@ -38,7 +38,7 @@ public sealed class ColorSpecTests : IDisposable
     }
 
     [Fact]
-    public void TheEmbeddedTableIsTheCanonical148Names() =>
+    public void Should_Embed_The_Canonical_148_Names_In_The_Table() =>
         Assert.Equal(148, ColorSpec.KnownNames.Count);
 
     [Theory]
@@ -49,7 +49,7 @@ public sealed class ColorSpecTests : IDisposable
     [InlineData("#abcd")]
     [InlineData("#ff5623")]
     [InlineData("#ff562380")]
-    public void AParsableColourIsAccepted(string spec) => Assert.True(ColorSpec.IsValid(spec));
+    public void Should_Accept_A_Parsable_Colour(string spec) => Assert.True(ColorSpec.IsValid(spec));
 
     [Theory]
     [InlineData(null)]
@@ -60,12 +60,12 @@ public sealed class ColorSpecTests : IDisposable
     [InlineData("#abcde")]
     [InlineData("#gggggg")]
     [InlineData("rgb(1,2,3)")]
-    public void AnUnparsableColourIsRejected(string? spec) => Assert.False(ColorSpec.IsValid(spec));
+    public void Should_Reject_An_Unparsable_Colour(string? spec) => Assert.False(ColorSpec.IsValid(spec));
 
     // ── the negative tests: the bad colour never reaches the CLI ──
 
     [Fact]
-    public void BlankRefusesAnUnknownColourInsteadOfBuildingArgv()
+    public void Should_Refuse_An_Unknown_Colour_Instead_Of_Building_Argv_On_Blank()
     {
         EditRequest request = new() { Blank = new BlankSpec(null, null, "puce", "A4"), Output = "/tmp/out.png" };
 
@@ -75,7 +75,7 @@ public sealed class ColorSpecTests : IDisposable
     }
 
     [Fact]
-    public void BlankStillAcceptsAKnownColour()
+    public void Should_Still_Accept_A_Known_Colour_On_Blank()
     {
         EditRequest request = new() { Blank = new BlankSpec(null, null, "pink", "A4"), Output = "/tmp/out.png" };
 
@@ -83,7 +83,7 @@ public sealed class ColorSpecTests : IDisposable
     }
 
     [Fact]
-    public async Task PenColourRefusesAnUnknownColour()
+    public async Task Should_Refuse_An_Unknown_Colour_On_Pen_Colour()
     {
         InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _editing.ConfigurePenAsync(_userId, color: "puce", thickness: null, pointSize: null, style: null, fill: null));
@@ -93,12 +93,12 @@ public sealed class ColorSpecTests : IDisposable
     }
 
     [Fact]
-    public async Task PenFillRefusesAnUnknownColour() =>
+    public async Task Should_Refuse_An_Unknown_Colour_On_Pen_Fill() =>
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             _editing.ConfigurePenAsync(_userId, color: null, thickness: null, pointSize: null, style: null, fill: "puce"));
 
     [Fact]
-    public async Task PenFillStillClearsWithNone()
+    public async Task Should_Still_Clear_With_None_On_Pen_Fill()
     {
         await _editing.ConfigurePenAsync(_userId, color: "#00ff00", thickness: null, pointSize: null, style: null, fill: "none");
 

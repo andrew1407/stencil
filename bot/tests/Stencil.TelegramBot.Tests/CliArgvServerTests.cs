@@ -12,7 +12,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class CliArgvServerTests
 {
     [Fact]
-    public void ServerFetchAndRemoteUpdate()
+    public void Should_Build_Server_Fetch_And_Remote_Update()
     {
         EditRequest req = new()
         {
@@ -35,7 +35,7 @@ public sealed class CliArgvServerTests
     }
 
     [Fact]
-    public void RemoteCreateWithName()
+    public void Should_Build_Remote_Create_With_Name()
     {
         EditRequest req = new()
         {
@@ -58,7 +58,7 @@ public sealed class CliArgvServerTests
     }
 
     [Fact]
-    public void FetchFromOneServerPublishToAnother()
+    public void Should_Fetch_From_One_Server_And_Publish_To_Another()
     {
         EditRequest req = new()
         {
@@ -75,7 +75,7 @@ public sealed class CliArgvServerTests
     }
 
     [Fact]
-    public void ServerWithoutInputIsRejected()
+    public void Should_Reject_Server_Without_Input()
     {
         EditRequest req = new()
         {
@@ -87,7 +87,7 @@ public sealed class CliArgvServerTests
     }
 
     [Fact]
-    public void ServerWithBlankIsRejected()
+    public void Should_Reject_Server_With_Blank()
     {
         // blank carries a source, so `input` is absent — `server` still can't take a blank.
         EditRequest req = new()
@@ -101,7 +101,7 @@ public sealed class CliArgvServerTests
     }
 
     [Fact]
-    public void RemoteUpdateWithoutServerIsRejected()
+    public void Should_Reject_Remote_Update_Without_Server()
     {
         EditRequest req = new()
         {
@@ -114,7 +114,7 @@ public sealed class CliArgvServerTests
     }
 
     [Fact]
-    public void RemoteNameWithoutRemoteIsRejected()
+    public void Should_Reject_Remote_Name_Without_Remote()
     {
         EditRequest req = new()
         {

@@ -12,7 +12,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class CliScrapeOutcomeTests
 {
     [Fact]
-    public void ParsesTwoMeasuredImages()
+    public void Should_Parse_Two_Measured_Images()
     {
         ScrapeResult result = CliOutcomeParser.ParseScraped(
             "wrote out/logo.png (200x80 px · source example.com)\n"
@@ -26,7 +26,7 @@ public sealed class CliScrapeOutcomeTests
     }
 
     [Fact]
-    public void VideoLineHasNullDimensions()
+    public void Should_Give_A_Video_Line_Null_Dimensions()
     {
         ScrapeResult result = CliOutcomeParser.ParseScraped(
             "wrote assets/pic.png (640x480 px · source cdn.test)\n"
@@ -40,7 +40,7 @@ public sealed class CliScrapeOutcomeTests
     }
 
     [Fact]
-    public void ScrapedPathContainingAParenStillParses()
+    public void Should_Still_Parse_A_Scraped_Path_Containing_A_Paren()
     {
         ScrapeResult result = CliOutcomeParser.ParseScraped(
             "wrote out/img (1) (300x300 px · source example.org)\n"
@@ -51,7 +51,7 @@ public sealed class CliScrapeOutcomeTests
     }
 
     [Fact]
-    public void NoMediaStderrParsesToNoFilesAndSurfacesTheError()
+    public void Should_Parse_No_Media_Stderr_To_No_Files_And_Surface_The_Error()
     {
         const string stderr = "error: no media matched at https://example.com/";
         Assert.Empty(CliOutcomeParser.ParseScraped(stderr).Files);
@@ -64,7 +64,7 @@ public sealed class CliScrapeOutcomeTests
     /// and this parser (like mcp's) must recover the files/dirs, so a drift on either side goes red.
     /// </summary>
     [Fact]
-    public void ScrapeGoldenFixturesMatch()
+    public void Should_Match_The_Scrape_Golden_Fixtures()
     {
         string json = File.ReadAllText(scrapeFixturesPath());
         using JsonDocument doc = JsonDocument.Parse(json);

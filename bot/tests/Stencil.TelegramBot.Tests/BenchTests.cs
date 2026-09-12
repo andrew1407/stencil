@@ -54,7 +54,7 @@ public sealed class BenchTests
     }
 
     [Fact]
-    public void ValidateActionWalksTheLayoutItIsGivenOnce()
+    public void Should_Walk_The_Given_Layout_Once_In_Validate_Action()
     {
         OpSchema schema = OpSchema.Bot;
         (JsonElement Action, OpEntry Entry) small = action(schema, layout(lines: 40, points: 20));
@@ -71,7 +71,7 @@ public sealed class BenchTests
     }
 
     [Fact]
-    public void ValidateActionOfTheScalarOpsStaysInOneBand()
+    public void Should_Stay_In_One_Band_For_Validate_Action_Of_The_Scalar_Ops()
     {
         OpSchema schema = OpSchema.Bot;
         (JsonElement, OpEntry) rotate = action(schema, """{"op":"rotate","dir":"right"}""");
@@ -87,7 +87,7 @@ public sealed class BenchTests
     }
 
     [Fact]
-    public void ParsingTheBotCorpusScalesWithTheCaseCount()
+    public void Should_Scale_With_The_Case_Count_When_Parsing_The_Bot_Corpus()
     {
         string[] all = [.. OpPlanCorpus.All.Where(f => f.AppliesToBot).Select(f => f.InputText)];
         string[] half = [.. all.Take(all.Length / 2)];
@@ -104,7 +104,7 @@ public sealed class BenchTests
     }
 
     [Fact]
-    public void CropSpecResolutionIsLinearInSpecLength()
+    public void Should_Resolve_A_Crop_Spec_In_Time_Linear_In_Spec_Length()
     {
         // Repeated keys are legal (the last wins), so this grows the tokenizer's input honestly.
         string shortSpec = repeat("x1=10% x2=90% y1=10% y2=90% ", 5);
@@ -120,7 +120,7 @@ public sealed class BenchTests
     }
 
     [Fact]
-    public void RejectingACropSpecIsNoDearerThanResolvingOne()
+    public void Should_Reject_A_Crop_Spec_No_Dearer_Than_Resolving_One()
     {
         const string valid = "x1=10% x2=90% y1=10% y2=90%";
         const string malformed = "x1=10% x2=!!!!% y1=10% y2=90%";
@@ -135,7 +135,7 @@ public sealed class BenchTests
     }
 
     [Fact]
-    public void ImageHeaderReadingIgnoresTheBodyBehindTheHeader()
+    public void Should_Ignore_The_Body_Behind_The_Header_When_Reading_An_Image_Header()
     {
         byte[][] headers =
         [

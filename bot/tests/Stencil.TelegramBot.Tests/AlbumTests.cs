@@ -91,7 +91,7 @@ public sealed class AlbumTests : IDisposable
     private IEnumerable<string> DownloadedFileIds => _bot.Requests.OfType<GetFileRequest>().Select(r => r.FileId);
 
     [Fact]
-    public async Task CaptionOnTheFirstMemberRunsThePerPhotoBatchInOrderAndRepliesWithOneAlbum()
+    public async Task Should_Run_The_Per_Photo_Batch_In_Order_And_Reply_With_One_Album_When_The_First_Member_Is_Captioned()
     {
         await sendAlbumPhoto(1, "p1", caption: "/filter bw");
         await sendAlbumPhoto(2, "p2");
@@ -116,7 +116,7 @@ public sealed class AlbumTests : IDisposable
     }
 
     [Fact]
-    public async Task CaptionOnTheLastMemberBatchesTheSameWay()
+    public async Task Should_Batch_The_Same_Way_When_The_Last_Member_Is_Captioned()
     {
         await sendAlbumPhoto(1, "p1");
         await sendAlbumPhoto(2, "p2");
@@ -132,7 +132,7 @@ public sealed class AlbumTests : IDisposable
     }
 
     [Fact]
-    public async Task ChatModeAlbumCaptionGoesToTheAssistantOncePerPhotoInOrder()
+    public async Task Should_Send_An_Album_Caption_To_The_Assistant_Once_Per_Photo_In_Order_In_Chat_Mode()
     {
         await send("/chat");
         for (int i = 0; i < 3; i++)
@@ -160,7 +160,7 @@ public sealed class AlbumTests : IDisposable
     }
 
     [Fact]
-    public async Task AnUncaptionedAlbumAdoptsOnlyTheLastPhotoWithOneNote()
+    public async Task Should_Adopt_Only_The_Last_Photo_With_One_Note_For_An_Uncaptioned_Album()
     {
         await sendAlbumPhoto(1, "p1");
         await sendAlbumPhoto(2, "p2");
@@ -177,7 +177,7 @@ public sealed class AlbumTests : IDisposable
     }
 
     [Fact]
-    public async Task APlainCaptionOnASingleNonAlbumPhotoGoesToTheAssistantInChatMode()
+    public async Task Should_Send_A_Plain_Caption_On_A_Single_Non_Album_Photo_To_The_Assistant_In_Chat_Mode()
     {
         await send("/chat");
         _llm.CannedReplies.Enqueue(new LlmReply(

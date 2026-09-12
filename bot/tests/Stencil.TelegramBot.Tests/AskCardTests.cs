@@ -29,7 +29,7 @@ public sealed class AskCardTests
     }
 
     [Fact]
-    public void ParsesACardWithItsDefaults()
+    public void Should_Parse_A_Card_With_Its_Defaults()
     {
         OpPlan plan = parse("""
             {"version":1,"reply":"pick","ask":{"question":"Which tint?","options":[{"label":"Sepia"},{"label":"B&W"}]}}
@@ -44,7 +44,7 @@ public sealed class AskCardTests
     }
 
     [Fact]
-    public void MultiModeCustomRowAndTrimming()
+    public void Should_Parse_Multi_Mode_Custom_Row_And_Trimming()
     {
         OpPlan plan = parse("""
             {"version":1,"reply":"pick","ask":{"question":"  Which?  ","mode":"multi","allowCustom":true,"customLabel":" Other ","options":[{"label":"  A  "},{"label":"B"}]}}
@@ -58,7 +58,7 @@ public sealed class AskCardTests
     }
 
     [Fact]
-    public void NoCardOnAnOrdinaryOrChatOnlyTurn()
+    public void Should_Yield_No_Card_On_An_Ordinary_Or_Chat_Only_Turn()
     {
         Assert.Null(parse("""{"version":1,"reply":"hi","actions":[]}""").Ask);
         Assert.Null(parse("just chatting").Ask);
@@ -67,7 +67,7 @@ public sealed class AskCardTests
     // Never handed to Telegram to fetch: nobody chose that host. The option survives by
     // label with a warning, like any other reference this chat cannot resolve.
     [Fact]
-    public void AnImageUrlIsNotFetchedAndTheOptionKeepsItsLabel()
+    public void Should_Not_Fetch_An_Image_Url_And_Keep_The_Option_Label()
     {
         OpPlanParseResult result = OpPlanParser.Parse("""
             {"version":1,"reply":"pick","ask":{"question":"Which?","options":[{"label":"Web","image":{"url":"https://example.com/cat.jpg"}},{"label":"Plain"}]}}
@@ -82,7 +82,7 @@ public sealed class AskCardTests
     [InlineData("""{"projectId":"p_12"}""")]
     [InlineData("""{"url":"https://example.com/cat.jpg"}""")]
     [InlineData("""{"url":"http://169.254.169.254/latest/meta-data/"}""")]
-    public void AReferenceTheChatCannotResolveKeepsTheOptionButLosesThePicture(string image)
+    public void Should_Keep_The_Option_But_Lose_The_Picture_For_A_Reference_The_Chat_Cannot_Resolve(string image)
     {
         // Built by concatenation: the JSON's own braces fight raw-string interpolation here.
         OpPlanParseResult result = OpPlanParser.Parse(
@@ -96,7 +96,7 @@ public sealed class AskCardTests
     }
 
     [Fact]
-    public void ARenderPreviewIsDroppedWithOneWarningNotTheOption()
+    public void Should_Drop_A_Render_Preview_With_One_Warning_But_Not_The_Option()
     {
         OpPlanParseResult result = OpPlanParser.Parse("""
             {"version":1,"reply":"pick","ask":{"question":"Which tint?","options":[{"label":"Sepia","actions":[{"op":"filter","mode":"sepia"}]},{"label":"B&W","actions":[{"op":"filter","mode":"bw"}]}]}}
@@ -109,7 +109,7 @@ public sealed class AskCardTests
     // §1's one leniency, ask-side: the misplaced op costs the PREVIEW, not the option — and
     // never the plan the user actually asked for.
     [Fact]
-    public void APreviewCarryingAMisplacedOpLosesThePreviewOnlyAndSaysWhich()
+    public void Should_Lose_Only_The_Preview_And_Say_Which_For_A_Preview_Carrying_A_Misplaced_Op()
     {
         OpPlanParseResult result = OpPlanParser.Parse("""
             {"version":1,"reply":"pick","actions":[{"op":"filter","mode":"bw"}],"ask":{"question":"Which?","options":[{"label":"Sepia","actions":[{"op":"filter","mode":"sepia"}]},{"label":"Wiped","actions":[{"op":"clear"}]}]}}
@@ -142,10 +142,10 @@ public sealed class AskCardTests
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"url":"file:///etc/passwd"}},{"label":"B"}]}}""")]
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"scanIndex":"2"}},{"label":"B"}]}}""")]
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A"},{"label":"B"}],"allowCustom":"yes"}}""")]
-    public void MalformedCardsRejectTheWholePlan(string json) => reject(json);
+    public void Should_Reject_The_Whole_Plan_For_A_Malformed_Card(string json) => reject(json);
 
     [Fact]
-    public void FiveOptionsIsTheCapAndItParses()
+    public void Should_Parse_Five_Options_As_The_Cap()
     {
         OpPlan plan = parse("""
             {"version":1,"reply":"pick","ask":{"question":"Q","options":[{"label":"1"},{"label":"2"},{"label":"3"},{"label":"4"},{"label":"5"}]}}
@@ -154,7 +154,7 @@ public sealed class AskCardTests
     }
 
     [Fact]
-    public void AnswerTextJoinsThePicksOrTakesTheTypedText()
+    public void Should_Join_The_Picks_Or_Take_The_Typed_Text_For_Answer_Text()
     {
         Assert.Equal("Sepia", OpPlanParser.AskAnswerText(["Sepia"]));
         Assert.Equal("Sepia, B&W", OpPlanParser.AskAnswerText(["Sepia", "B&W"]));

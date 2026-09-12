@@ -16,7 +16,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ChatRestoreTests : ChatPersistenceTestBase
 {
     [Fact]
-    public async Task FetchWithSavingOnSeedsTheHistoryFromTheStoredDocument()
+    public async Task Should_Seed_The_History_From_The_Stored_Document_On_Fetch_With_Saving_On()
     {
         ServerClient.Files[(ProjectId, ProjectFileKind.CHAT)] = Encoding.UTF8.GetBytes(
             """
@@ -42,7 +42,7 @@ public sealed class ChatRestoreTests : ChatPersistenceTestBase
     }
 
     [Fact]
-    public async Task FetchWithoutAStoredChatRestoresNothingAndStillLoads()
+    public async Task Should_Restore_Nothing_And_Still_Load_On_Fetch_Without_A_Stored_Chat()
     {
         await Send("/chat save on");
 
@@ -53,7 +53,7 @@ public sealed class ChatRestoreTests : ChatPersistenceTestBase
     }
 
     [Fact]
-    public async Task WithSavingOffNoServerFileCallEverHappens()
+    public async Task Should_Never_Call_The_Server_File_Api_With_Saving_Off()
     {
         ServerClient.Files[(ProjectId, ProjectFileKind.CHAT)] = Encoding.UTF8.GetBytes(
             """{"version":1,"messages":[{"role":"user","text":"old"}]}""");
@@ -72,7 +72,7 @@ public sealed class ChatRestoreTests : ChatPersistenceTestBase
     }
 
     [Fact]
-    public async Task ASaveFailureWarnsOnceKeepsTheReplyAndRearmsOnSuccess()
+    public async Task Should_Warn_Once_Keep_The_Reply_And_Rearm_On_Success_After_A_Save_Failure()
     {
         await OpenProjectAsync();
         await Send("/chat save on");

@@ -81,7 +81,7 @@ public sealed class AllowlistTests : IDisposable
     [InlineData("/blank a4 pink")]
     [InlineData("/crop x1=10% x2=90%")]
     [InlineData("/prompt make it sepia")]
-    public async Task AnUnlistedUserIsRefusedForEveryCommand(string command)
+    public async Task Should_Refuse_Every_Command_For_An_Unlisted_User(string command)
     {
         UpdateRouter router = routerFor(_allowed);
 
@@ -96,7 +96,7 @@ public sealed class AllowlistTests : IDisposable
 
     // A photo is the one intake that costs disk before any command runs, so it is gated too.
     [Fact]
-    public async Task AnUnlistedUserCannotUploadAPhoto()
+    public async Task Should_Refuse_A_Photo_Upload_From_An_Unlisted_User()
     {
         UpdateRouter router = routerFor(_allowed);
 
@@ -109,7 +109,7 @@ public sealed class AllowlistTests : IDisposable
 
     // A media group buffers before routing, so the gate has to run ahead of the collector.
     [Fact]
-    public async Task AnUnlistedUserCannotUploadAnAlbum()
+    public async Task Should_Refuse_An_Album_Upload_From_An_Unlisted_User()
     {
         UpdateRouter router = routerFor(_allowed);
         Message member = photoFrom(_stranger);
@@ -122,7 +122,7 @@ public sealed class AllowlistTests : IDisposable
     }
 
     [Fact]
-    public async Task AnUnlistedUsersButtonTapDoesNothing()
+    public async Task Should_Do_Nothing_On_A_Button_Tap_From_An_Unlisted_User()
     {
         UpdateRouter router = routerFor(_allowed);
         Update update = new()
@@ -143,7 +143,7 @@ public sealed class AllowlistTests : IDisposable
     }
 
     [Fact]
-    public async Task AnEmptyListRefusesEveryone()
+    public async Task Should_Refuse_Everyone_When_The_List_Is_Empty()
     {
         // A HashSet with no entries — NOT the tests' allow-everyone default.
         UpdateRouter router = routerFor();
@@ -157,7 +157,7 @@ public sealed class AllowlistTests : IDisposable
     [Theory]
     [InlineData("/start")]
     [InlineData("/help")]
-    public async Task StartAndHelpStillAnswerAnUnlistedUser(string command)
+    public async Task Should_Still_Answer_An_Unlisted_User_For_Start_And_Help(string command)
     {
         UpdateRouter router = routerFor(_allowed);
 
@@ -169,7 +169,7 @@ public sealed class AllowlistTests : IDisposable
 
     // /start with a payload is a deep link: it connects out and fetches a project, so it is gated.
     [Fact]
-    public async Task ADeepLinkedStartIsGated()
+    public async Task Should_Gate_A_Deep_Linked_Start()
     {
         UpdateRouter router = routerFor(_allowed);
 
@@ -179,7 +179,7 @@ public sealed class AllowlistTests : IDisposable
     }
 
     [Fact]
-    public async Task AListedUserIsUnaffected()
+    public async Task Should_Leave_A_Listed_User_Unaffected()
     {
         UpdateRouter router = routerFor(_allowed, _stranger);
 
@@ -192,7 +192,7 @@ public sealed class AllowlistTests : IDisposable
 
     // The operator still learns how to open the gate — from the log, not the chat, once per id.
     [Fact]
-    public async Task TheOperatorHintGoesToTheLogOncePerUser()
+    public async Task Should_Log_The_Operator_Hint_Once_Per_User()
     {
         UpdateRouter router = routerFor(_allowed);
 

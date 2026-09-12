@@ -17,7 +17,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ChatPersistenceTests : ChatPersistenceTestBase
 {
     [Fact]
-    public async Task ChatSaveOnPersistsTheFlagAndOffTurnsItBack()
+    public async Task Should_Persist_The_Flag_On_Chat_Save_On_And_Turn_It_Back_On_Off()
     {
         await Send("/chat save on");
         Assert.True((await _store.GetAsync(UserId)).SaveChats);
@@ -44,7 +44,7 @@ public sealed class ChatPersistenceTests : ChatPersistenceTestBase
     /// to land), and the 💾 button, which must not be a quieter path to the same decision.
     /// </summary>
     [Fact]
-    public async Task EveryChatSaveAffordanceSaysWhoCanReadTheTranscript()
+    public async Task Should_Say_Who_Can_Read_The_Transcript_In_Every_Chat_Save_Affordance()
     {
         await Send("/chat save");
         Assert.False((await _store.GetAsync(UserId)).SaveChats); // still the default
@@ -57,7 +57,7 @@ public sealed class ChatPersistenceTests : ChatPersistenceTestBase
     }
 
     [Fact]
-    public async Task TheSaveButtonTogglesTheFlagAndTheMenuShowsTheState()
+    public async Task Should_Toggle_The_Flag_From_The_Save_Button_And_Show_The_State_In_The_Menu()
     {
         await Tap("chat:save-on");
         Assert.True((await _store.GetAsync(UserId)).SaveChats);
@@ -76,7 +76,7 @@ public sealed class ChatPersistenceTests : ChatPersistenceTestBase
     }
 
     [Fact]
-    public async Task APromptTurnPushesTheDisplayedReplyDocumentToTheChatKind()
+    public async Task Should_Push_The_Displayed_Reply_Document_To_The_Chat_Kind_On_A_Prompt_Turn()
     {
         await OpenProjectAsync();
         await Send("/chat save on");
@@ -105,7 +105,7 @@ public sealed class ChatPersistenceTests : ChatPersistenceTestBase
     }
 
     [Fact]
-    public async Task ChatClearWithSavingOnDeletesTheServerCopy()
+    public async Task Should_Delete_The_Server_Copy_On_Chat_Clear_With_Saving_On()
     {
         await OpenProjectAsync();
         await Send("/chat save on");

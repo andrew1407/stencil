@@ -79,7 +79,7 @@ public sealed class ChatApiTests : IDisposable
     private IEnumerable<SendMessageRequest> Messages => _bot.Requests.OfType<SendMessageRequest>();
 
     [Fact]
-    public async Task BareChatApiListsEveryConfiguredApiWithAButtonEach()
+    public async Task Should_List_Every_Configured_Api_With_A_Button_Each_On_Bare_Chat_Api()
     {
         await dispatch("/chatapi");
 
@@ -96,7 +96,7 @@ public sealed class ChatApiTests : IDisposable
     }
 
     [Fact]
-    public async Task PickingOneStoresItPerUserAndTheNextTurnCallsIt()
+    public async Task Should_Store_The_Pick_Per_User_And_Call_It_On_The_Next_Turn()
     {
         await tap("api:llama");
 
@@ -114,7 +114,7 @@ public sealed class ChatApiTests : IDisposable
     }
 
     [Fact]
-    public async Task TheCurrentApiIsTickedAndSelectableByName()
+    public async Task Should_Tick_The_Current_Api_And_Select_By_Name()
     {
         await dispatch("/chatapi lmstudio");
         Assert.Equal("lmstudio", (await _store.GetAsync(_userId)).LlmProfile);
@@ -128,7 +128,7 @@ public sealed class ChatApiTests : IDisposable
     }
 
     [Fact]
-    public async Task AnUnknownNameNamesTheOnesThatExist()
+    public async Task Should_Name_The_Existing_Apis_For_An_Unknown_Name()
     {
         await dispatch("/chatapi gpt5");
 
@@ -140,7 +140,7 @@ public sealed class ChatApiTests : IDisposable
     }
 
     [Fact]
-    public async Task AProfileTheOperatorRemovedFallsBackToTheDefaultInsteadOfFailing()
+    public async Task Should_Fall_Back_To_The_Default_Instead_Of_Failing_For_A_Profile_The_Operator_Removed()
     {
         // A session left pointing at a profile that is no longer configured (an env change
         // between restarts) must still get a working turn.

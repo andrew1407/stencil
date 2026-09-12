@@ -59,7 +59,7 @@ public sealed class AlbumCollectorTests
     }
 
     [Fact]
-    public async Task FlushesASingleMemberOnceTheWindowElapses()
+    public async Task Should_Flush_A_Single_Member_Once_The_Window_Elapses()
     {
         SettleGate gate = new();
         AlbumCollector collector = new(gate.Wait);
@@ -77,7 +77,7 @@ public sealed class AlbumCollectorTests
     }
 
     [Fact]
-    public async Task ALateMemberRestartsTheWindowAndJoinsTheSameFlush()
+    public async Task Should_Restart_The_Window_And_Join_The_Same_Flush_For_A_Late_Member()
     {
         SettleGate gate = new();
         AlbumCollector collector = new(gate.Wait);
@@ -99,7 +99,7 @@ public sealed class AlbumCollectorTests
     }
 
     [Fact]
-    public async Task TwoGroupsSettleAndFlushIndependently()
+    public async Task Should_Settle_And_Flush_Two_Groups_Independently()
     {
         SettleGate gate = new();
         AlbumCollector collector = new(gate.Wait);
@@ -119,7 +119,7 @@ public sealed class AlbumCollectorTests
     }
 
     [Fact]
-    public async Task TheSameGroupIdStartsAFreshGroupAfterItsFlush()
+    public async Task Should_Start_A_Fresh_Group_For_The_Same_Group_Id_After_Its_Flush()
     {
         SettleGate gate = new();
         AlbumCollector collector = new(gate.Wait);
@@ -140,7 +140,7 @@ public sealed class AlbumCollectorTests
     }
 
     [Fact]
-    public async Task ShutdownDuringTheWindowDropsTheGroupWithoutFlushing()
+    public async Task Should_Drop_The_Group_Without_Flushing_On_Shutdown_During_The_Window()
     {
         SettleGate gate = new();
         AlbumCollector collector = new(gate.Wait);

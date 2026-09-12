@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class CliArgvScrapeTests
 {
     [Fact]
-    public void ScrapeMinimalUrlAndOutputDir()
+    public void Should_Build_Scrape_With_Minimal_Url_And_Output_Dir()
     {
         ScrapeRequest req = new() { Url = "https://example.com", OutputDir = "out" };
         Assert.Equal(
@@ -20,7 +20,7 @@ public sealed class CliArgvScrapeTests
     }
 
     [Fact]
-    public void ScrapeAllFlagsInContractOrder()
+    public void Should_Build_Scrape_With_All_Flags_In_Contract_Order()
     {
         ScrapeRequest req = new()
         {
@@ -55,7 +55,7 @@ public sealed class CliArgvScrapeTests
     }
 
     [Fact]
-    public void ScrapeOmitsAbsentAndUnsetBounds()
+    public void Should_Omit_Absent_And_Unset_Bounds_For_Scrape()
     {
         // count/group absent ⇒ omitted; a 0 or negative dimension bound is "unset" ⇒ omitted.
         ScrapeRequest req = new()
@@ -73,7 +73,7 @@ public sealed class CliArgvScrapeTests
     }
 
     [Fact]
-    public void ScrapeCountZeroRidesThroughAsAll()
+    public void Should_Pass_Scrape_Count_Zero_Through_As_All()
     {
         // A count of 0 is a set int, not "absent": it rides through as `--source-count 0`, which
         // the CLI interprets as "all matches" (the /sourcesite handler maps an explicit 0 here).
@@ -84,7 +84,7 @@ public sealed class CliArgvScrapeTests
     }
 
     [Fact]
-    public void ScrapeIsolateOneStillArgv()
+    public void Should_Keep_Scrape_Isolate_One_As_Argv()
     {
         // The /sourceupload isolate-one shape: image-category stills, Count=1, Group=index.
         ScrapeRequest req = new()
@@ -108,7 +108,7 @@ public sealed class CliArgvScrapeTests
     }
 
     [Fact]
-    public void ScrapeOutputDirIsThePositionalLast()
+    public void Should_Place_Scrape_Output_Dir_As_The_Positional_Last()
     {
         ScrapeRequest req = new()
         {
@@ -121,7 +121,7 @@ public sealed class CliArgvScrapeTests
     }
 
     [Fact]
-    public void ScrapeEmptyUrlIsRejected()
+    public void Should_Reject_An_Empty_Url_For_Scrape()
     {
         ScrapeRequest req = new() { Url = "  ", OutputDir = "out" };
         StencilCliException ex = Assert.Throws<StencilCliException>(() => CliArgvBuilder.BuildScrapeArgv(req));
@@ -129,7 +129,7 @@ public sealed class CliArgvScrapeTests
     }
 
     [Fact]
-    public void ScrapeEmptyOutputDirIsRejected()
+    public void Should_Reject_An_Empty_Output_Dir_For_Scrape()
     {
         ScrapeRequest req = new() { Url = "https://example.com", OutputDir = "" };
         StencilCliException ex = Assert.Throws<StencilCliException>(() => CliArgvBuilder.BuildScrapeArgv(req));
@@ -140,7 +140,7 @@ public sealed class CliArgvScrapeTests
     [InlineData("--source-format")]
     [InlineData("-l")]
     [InlineData("-")]
-    public void ScrapeDashLeadingOutputDirIsRejectedNoFlagInjection(string badDir)
+    public void Should_Reject_A_Dash_Leading_Output_Dir_Without_Flag_Injection_For_Scrape(string badDir)
     {
         // The output dir is the positional operand and the CLI has no `--` terminator, so a
         // dash-leading value would be parsed as a flag. BuildScrapeArgv rejects it outright.

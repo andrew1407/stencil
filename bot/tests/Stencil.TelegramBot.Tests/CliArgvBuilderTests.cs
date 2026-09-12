@@ -13,7 +13,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class CliArgvBuilderTests
 {
     [Fact]
-    public void MinimalInputOutput()
+    public void Should_Build_Minimal_Input_Output()
     {
         EditRequest req = new()
         {
@@ -24,7 +24,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void FullPipelineOrderAndFlags()
+    public void Should_Build_The_Full_Pipeline_Order_And_Flags()
     {
         EditRequest req = new()
         {
@@ -49,7 +49,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void CropSpecWithAnAspectTokenRidesThroughVerbatim()
+    public void Should_Pass_A_Crop_Spec_With_An_Aspect_Token_Through_Verbatim()
     {
         EditRequest req = new()
         {
@@ -63,7 +63,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void NegativeRotateIsPassedThrough()
+    public void Should_Pass_A_Negative_Rotate_Through()
     {
         EditRequest req = new()
         {
@@ -77,7 +77,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void BlankWithDimsColorAndAlbum()
+    public void Should_Build_Blank_With_Dims_Color_And_Album()
     {
         EditRequest req = new()
         {
@@ -91,7 +91,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void BlankDefaultSizeColorOnly()
+    public void Should_Build_Blank_With_Default_Size_And_Color_Only()
     {
         EditRequest req = new()
         {
@@ -104,7 +104,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void BlankWithPageFormatAndColor()
+    public void Should_Build_Blank_With_Page_Format_And_Color()
     {
         EditRequest req = new()
         {
@@ -117,7 +117,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void BlankPageAndDimensionsAreMutuallyExclusive()
+    public void Should_Treat_Blank_Page_And_Dimensions_As_Mutually_Exclusive()
     {
         EditRequest req = new()
         {
@@ -129,7 +129,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void FrameFlagForVideo()
+    public void Should_Emit_The_Frame_Flag_For_Video()
     {
         EditRequest req = new()
         {
@@ -143,7 +143,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void OutputIsPositionalLast()
+    public void Should_Place_Output_As_The_Positional_Last()
     {
         EditRequest req = new()
         {
@@ -156,7 +156,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void InputAndBlankAreMutuallyExclusive()
+    public void Should_Treat_Input_And_Blank_As_Mutually_Exclusive()
     {
         EditRequest req = new()
         {
@@ -169,7 +169,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void MissingSourceIsRejected()
+    public void Should_Reject_A_Missing_Source()
     {
         EditRequest req = new()
         {
@@ -180,7 +180,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void BlankHalfDimensionsAreRejected()
+    public void Should_Reject_Blank_Half_Dimensions()
     {
         EditRequest req = new()
         {
@@ -192,7 +192,7 @@ public sealed class CliArgvBuilderTests
     }
 
     [Fact]
-    public void EmptyOutputIsRejected()
+    public void Should_Reject_An_Empty_Output()
     {
         EditRequest req = new()
         {
