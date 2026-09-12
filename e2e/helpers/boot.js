@@ -5,6 +5,9 @@
 import { expect } from '@playwright/test';
 import { APP_URL } from './config.js';
 
+/** @typedef {import('../../browser/js/console/stencilApi.js').Stencil} Stencil */
+/** @typedef {Window & { stencil?: Stencil }} StencilWindow */
+
 export { APP_URL };
 
 // A 1×1 PNG as a data: URL — a trivially loadable image for deep-link / handoff paths.
@@ -26,7 +29,7 @@ export async function gotoApp(page, { hash = '', motion = '' } = {}) {
     } catch { /* blocked */ }
   }, motion);
   await page.goto(APP_URL + hash);
-  await page.waitForFunction(() => !!(/** @type {any} */ (window).stencil), null, { timeout: 15_000 });
+  await page.waitForFunction(() => !!(/** @type {StencilWindow} */ (window).stencil), null, { timeout: 15_000 });
   return page;
 }
 
