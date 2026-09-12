@@ -22,7 +22,7 @@
     "browser/js/llm/opPlan.js": 114,
     "browser/js/llm/opSchema.js": 256,
     "browser/js/llm/voiceModes.js": 240,
-    "browser/js/net/connectionManager.js": 476,
+    "browser/js/net/connectionManager.js": 206,
     "browser/js/ui/accentPicker.js": 254,
     "browser/js/ui/base.js": 75,
     "browser/js/ui/chatPanel.js": 818,
