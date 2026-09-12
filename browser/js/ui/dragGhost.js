@@ -1,27 +1,22 @@
-// Shared drag ghost for the reorderable modal lists — the translucent copy of the row
-// that follows the pointer. OURS, not `setDragImage`'s: the browser rasterizes a native
-// drag image at device scale and mis-applies the grab offset on HiDPI; a positioned
-// element stays exact, and mouse + touch (touchDrag.js) show the SAME ghost.
+// Drag ghost for the reorderable lists. Ours, not `setDragImage`'s: a native drag image
+// mis-applies the grab offset on HiDPI, and mouse + touch (touchDrag.js) share this one.
 const GHOST_Z = '100005';
 const GHOST_OPACITY = 0.6;
 
-// A 1×1 transparent PNG stands in for the native drag image. Decoded at module load so it
-// is ready at dragstart — an undecoded image makes Chrome fall back to its own snapshot.
+// Decoded at module load: an undecoded drag image makes Chrome fall back to its own snapshot.
 const BLANK_DRAG_IMAGE = typeof Image === 'undefined' ? null : new Image();
 if (BLANK_DRAG_IMAGE) {
   BLANK_DRAG_IMAGE.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 }
 
-// A ghost that follows a point. `grabX/grabY` is where the pointer took hold of the row, so
-// that same pixel stays under the pointer for the whole drag.
+// `grabX/grabY` is where the pointer took hold of the row; that pixel stays under the pointer.
 export function createDragGhost(row, grabX, grabY, opacity = GHOST_OPACITY) {
   const rect = row.getBoundingClientRect();
   const dx = grabX - rect.left;
   const dy = grabY - rect.top;
   const el = row.cloneNode(true);
-  // A copy of a row is not a row: strip what would make it answer queries meant for the
-  // real list (duplicate ids, the drag keys the drop hit-test reads, the source's own
-  // "I am being dragged" dimming class) and hide it from assistive tech.
+// A copy of a row must not answer queries meant for the real list (ids, drag keys, the
+// source's dragging class) and is hidden from assistive tech.
   el.setAttribute('data-drag-ghost', '');
   el.setAttribute('aria-hidden', 'true');
   el.classList.remove(...[...el.classList].filter((c) => c.endsWith('-dragging')));
@@ -33,8 +28,7 @@ export function createDragGhost(row, grabX, grabY, opacity = GHOST_OPACITY) {
   Object.assign(el.style, {
     position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`,
     margin: '0', opacity: String(opacity), pointerEvents: 'none', zIndex: GHOST_Z,
-    // Grow the lift about the grab point, so the pixel under the pointer stays under it —
-    // scaling about the default centre slides the ghost by half the growth.
+// Scale about the grab point, so the pixel under the pointer stays under it.
     transformOrigin: `${dx}px ${dy}px`,
     transform: 'scale(1.02)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
   });
@@ -46,9 +40,8 @@ export function createDragGhost(row, grabX, grabY, opacity = GHOST_OPACITY) {
   };
 }
 
-// Mouse (HTML5 DnD): suppress the browser's drag image and run our own for the drag's
-// lifetime, tracking the cursor through `dragover`. Returns a teardown for callers that
-// end a drag early; dragend/drop clean up on their own.
+// Mouse (HTML5 DnD): suppress the browser's drag image and run our own, tracking the
+// cursor through `dragover`. Returns a teardown for a drag ended early.
 export function setTranslucentDragImage(e, row, opacity = GHOST_OPACITY) {
   let ghost = null;
   try {
@@ -57,10 +50,8 @@ export function setTranslucentDragImage(e, row, opacity = GHOST_OPACITY) {
   } catch {
     return () => {};   // no dataTransfer / no clone → the browser's own ghost, as before
   }
-  // Two sources, because neither alone keeps up: `drag` fires on the source element and
-  // `dragover` on whatever is under the cursor, at different moments in the drag loop, and
-  // some browsers report (0,0) on one of them. Take whichever reports a real position — the
-  // ghost then tracks within a frame instead of visibly trailing the cursor.
+// `drag` (source) and `dragover` (target) fire at different moments and some browsers
+// report (0,0) on one of them; whichever reports a real position moves the ghost.
   const onOver = (ev) => { if (ev.clientX || ev.clientY) ghost.move(ev.clientX, ev.clientY); };
   const stop = () => {
     ghost.destroy();

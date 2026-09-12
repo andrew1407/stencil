@@ -45,10 +45,8 @@ pub fn currentAccentKey() []const u8 {
 }
 
 pub fn promptStr(session: *Session) []const u8 {
-    // The prompt is the caret, nothing else: a bare '>' in full-screen mode (the pinned header
-    // already names the app), 'stencil>' in the plain one. It renders in the accent — that IS
-    // the theme showing where input goes — and carries no '*' image marker, which duplicated
-    // what the image header line says one row up.
+    // The caret alone, in the accent: '>' in full-screen mode (the pinned header already
+    // names the app), 'stencil>' in the plain one. No '*' marker — the header says that.
     _ = session;
     return if (screen.current() != null) "> " else "stencil> ";
 }
@@ -79,9 +77,8 @@ pub fn status(session: *Session) void {
     }
 }
 
-/// The SGR escape painting the active project's name in its custom colour (or the neutral default)
-/// — but only for a fetched server project. "" otherwise (local/temp images), so the name prints
-/// plain. theme.nameSeq applies the no-colour-mode gate.
+/// The SGR escape painting a FETCHED project's name in its custom colour (or neutral grey);
+/// "" for local/temp images, so they print plain. theme.nameSeq gates no-colour mode.
 fn nameColorSeq(session: *Session, buf: []u8) []const u8 {
     if (!session.hasRemote()) return "";
     return theme.nameSeq(session.remote_color orelse "", buf);
@@ -102,8 +99,7 @@ pub fn ack(session: *Session, verb: []const u8) void {
 }
 
 // Clear the screen (interactive only) and reprint the logo + header — the "image on top".
-// In full-screen mode the logo is a pinned header, so just clear the scrollback and reprint
-// the status line into it.
+// Full-screen pins the logo already, so there it just clears the scrollback.
 pub fn redraw(session: *Session) void {
     if (screen.current()) |s| {
         s.clearScrollback();
@@ -139,13 +135,7 @@ pub fn listThemes() void {
 
 /// `/filter` with no argument: list the accepted modes (short list, not one error line).
 pub fn listFilters() void {
-    logo.print("Filters — '/filter <mode>' to apply:\n", .{});
-    logo.print("   bw        greyscale\n", .{});
-    logo.print("   sepia     warm brown tone\n", .{});
-    logo.print("   invert    negative (flip every channel)\n", .{});
-    logo.print("   contour   edge detection (dark edges on white)\n", .{});
-    logo.print("   none      remove the filter\n", .{});
-    logo.print("   <colour>  a name or #hex makes a duotone tint (e.g. '/filter teal')\n", .{});
+    emit(block("filters"));
 }
 
 /// `/format` with no argument: list every named page format with its cm size, marking the
@@ -158,7 +148,7 @@ pub fn listFormats(session: *Session) void {
     while (it.next()) |name| {
         const mark: []const u8 = if (std.ascii.eqlIgnoreCase(name, current)) "*" else " ";
         const tag: []const u8 = if (std.mem.eql(u8, name, "A4")) " (default)" else "";
-        const p = core.namedPageSize(session.gpa, name) orelse continue;
+        const p = core.namedPageSize(core.zstr(name) orelse continue) orelse continue;
         logo.print(" {s} {s:<4} {d:>5} × {d:>5} cm{s}\n", .{ mark, name, p.w, p.h, tag });
     }
     const cmark: []const u8 = if (std.ascii.eqlIgnoreCase("custom", current)) "*" else " ";
@@ -167,127 +157,66 @@ pub fn listFormats(session: *Session) void {
 
 pub fn intro() void {
     if (screen.current()) |s| {
-        logo.print(
-            \\Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down
-            \\recall history; Ctrl-V pastes the clipboard (an image attaches to the line, text is typed),
-            \\Ctrl-C copies the selection. '/help' lists commands, '/exit' leaves.
-            \\
-        , .{});
-        // Which selection is live, and how to reach the other one. Under mouse tracking the
-        // terminal still selects with a modifier held, which is easy to not know about.
-        if (s.mouseOn()) {
-            logo.note("drag to select (Ctrl-S copies) — for the TERMINAL's own selection hold Shift while dragging (macOS VS Code: Option, with terminal.integrated.macOptionClickForcesSelection on), or '/mouse off'\n", .{});
-        } else {
-            logo.note("the terminal owns the mouse — its own selection and copy work; '/mouse on' switches to the in-app accent one (Ctrl-S copies)\n", .{});
-        }
+        emit(block("intro-fullscreen"));
+        // Which selection is live, and how to reach the other one (a held modifier).
+        logo.note("{s}", .{if (s.mouseOn()) block("mouse-app") else block("mouse-terminal")});
         return;
     }
-    logo.print(
-        \\Console mode — '/command <args>' (the '/' is optional). Tab completes, Up/Down
-        \\recall history; Ctrl-V pastes the clipboard — an image attaches to the line you are typing
-        \\(Backspace over its marker takes it back), text is simply typed. '/help' lists
-        \\commands, '/theme' changes colour, '/mouse' switches between the terminal's own text
-        \\selection and the in-app one, '/exit' (or Ctrl-C twice) leaves.
-        \\
-    , .{});
+    emit(block("intro"));
 }
 
-// Help is printed with the section headers + command names in the current accent colour
-// (accentSeq()/resetSeq() are "" when colour is off, so piped output stays plain).
+// The console's prose — intro, filter list, command list — lives in uiText.txt, embedded;
+// tests/repl_text_test.zig checks the command list against commands.zig. Headings and command
+// names print in the accent (accentSeq()/resetSeq() are "" with colour off).
+const ui_text = @embedFile("uiText.txt");
 const help_spaces = " " ** 32;
 
-fn helpSection(accent: []const u8, reset: []const u8, title: []const u8) void {
-    logo.print("\n{s}{s}{s}\n", .{ accent, title, reset });
+/// The lines of the '@name' block in uiText.txt, without its trailing newline. Comptime so a
+/// missing block is a compile error, not a blank screen.
+fn block(comptime name: []const u8) []const u8 {
+    @setEvalBranchQuota(ui_text.len * 4);
+    const at = std.mem.indexOf(u8, ui_text, "\n@" ++ name ++ "\n").? + name.len + 3;
+    const rest = ui_text[at..];
+    const end = std.mem.indexOf(u8, rest, "\n@") orelse return rest[0 .. rest.len - 1];
+    return rest[0..end];
 }
 
-fn helpRow(accent: []const u8, reset: []const u8, cmd: []const u8, desc: []const u8) void {
-    const width = 24; // command column; descriptions line up after it
-    const pad = if (cmd.len < width) help_spaces[0 .. width - cmd.len] else help_spaces[0..1];
-    logo.print("  {s}{s}{s}{s}{s}\n", .{ accent, cmd, reset, pad, desc });
+/// Print a block line by line: a '§' line is a section heading, a TAB splits a command from
+/// its description (laid out in a 24-column gutter), anything else is literal.
+fn emit(text: []const u8) void {
+    const a = logo.accentSeq();
+    const r = logo.resetSeq();
+    var it = std.mem.splitScalar(u8, text, '\n');
+    while (it.next()) |line| {
+        if (std.mem.startsWith(u8, line, "\u{a7}")) {
+            logo.print("{s}{s}{s}\n", .{ a, line[2..], r });
+        } else if (std.mem.indexOfScalar(u8, line, '\t')) |tab| {
+            const cmd = line[0..tab];
+            const width = 24; // command column; descriptions line up after it
+            const pad = if (cmd.len < width) help_spaces[0 .. width - cmd.len] else help_spaces[0..1];
+            logo.print("  {s}{s}{s}{s}{s}\n", .{ a, cmd, r, pad, line[tab + 1 ..] });
+        } else {
+            logo.print("{s}\n", .{line});
+        }
+    }
 }
 
 pub fn help() void {
-    const a = logo.accentSeq();
-    const r = logo.resetSeq();
-    logo.print("Commands  (a leading '/' is optional)\n", .{});
-
-    helpSection(a, r, "Image");
-    helpRow(a, r, "/upload <path|url>", "load an image or video frame (bare: the clipboard's picture)");
-    helpRow(a, r, "/source-upload <url> [i] [fmt] [name=]", "scrape a page and load its i-th image (alias /scrape)");
-    helpRow(a, r, "/paste", "load an image from the clipboard (Ctrl-V pastes onto the line instead)");
-    helpRow(a, r, "/unpaste [n]", "take back an image added this turn (bare = the last; Ctrl-Z)");
-    helpRow(a, r, "/images", "list the images this turn will send to the assistant");
-    helpRow(a, r, "/blank [fmt] [w h] [color]", "create a blank page (default: the picked format or A4, white)");
-    helpRow(a, r, "/format [name|custom w h]", "list the page formats or pick one (drives /blank + the layout)");
-
-    helpSection(a, r, "Edit");
-    helpRow(a, r, "/apply <file.json>", "draw a layout JSON onto the image");
-    helpRow(a, r, "/crop <spec> [album]", "crop, e.g. \"x1=10% x2=90% y1=10% y2=90%\"");
-    helpRow(a, r, "/rotate <int>", "rotate int*90 degrees (e.g. -1, 2, 3)");
-    helpRow(a, r, "/filter <mode>", "bw | sepia | invert | contour | none | a colour name/#hex (tint)");
-    helpRow(a, r, "/exec <action> ...", "run a transform by name (crop | rotate | filter | apply)");
-    helpRow(a, r, "/undo   /redo", "step back / forward through edits");
-    helpRow(a, r, "/reset", "revert to the original, dropping all edits");
-
-    helpSection(a, r, "Save");
-    helpRow(a, r, "/save [path]", "write to a file; a bare /save pushes to the active server project");
-    helpRow(a, r, "/delete <file.stencil>", "delete a local .stencil project file from disk");
-    helpRow(a, r, "/layout [path]", "save the layout JSON (bare = <project>.json; a dir saves <project>.json there)");
-    helpRow(a, r, "/formula [x|y <expr>|on|off|clear]", "set the x/y coord-transform formulas (saved in the layout)");
-    helpRow(a, r, "/copy", "copy the current image to the clipboard");
-
-    helpSection(a, r, "Connections");
-    helpRow(a, r, "/connect <url [token]>", "connect to collaboration servers (token: session or admin, for gated servers)");
-    helpRow(a, r, "/connections [admin|session]", "list connected servers + reachability status (filter by credential)");
-    helpRow(a, r, "/disconnect [url]", "close a connection (or the most recent)");
-    helpRow(a, r, "/reconnect [url]", "re-establish one connection (or all) and the live feed");
-    helpRow(a, r, "/projects [url]", "list projects on a server (or all connected servers)");
-    helpRow(a, r, "/project-color [#hex]", "show or set the active project's name colour (clear = neutral grey)");
-    helpRow(a, r, "/blank-color [#hex]", "show or recolour a BLANK project's background fill (blanks only)");
-    helpRow(a, r, "/rename <name>", "rename the active server project (pushed live to peers)");
-    helpRow(a, r, "/keywords <project>", "show a server project's search keywords (by name)");
-    helpRow(a, r, "/keywords-search <kw...>", "list projects across servers matching any keyword");
-    helpRow(a, r, "/keywords-add <project|[..]> <kw...>", "add keywords to one or more projects");
-    helpRow(a, r, "/keywords-del <project|[..]> <kw...>", "remove keywords from one or more projects");
-    helpRow(a, r, "/expire [<duration>]", "set when the active project expires (bare = formats; e.g. 'months 3', 'off')");
-    helpRow(a, r, "/fetch <name> [url]", "load a server project's image to keep editing");
-    helpRow(a, r, "/sync [on|off]", "live mode (bare /sync toggles): push edits + pull peers' changes");
-
-    helpSection(a, r, "Assistant");
-    helpRow(a, r, "/prompt <text>", "ask the LLM assistant; it plans + runs edits and renders variant-<label>.png files (alias /p)");
-    helpRow(a, r, "/llm [key <value>]", "show or set the LLM provider config (provider | url | model | key | server; env STENCIL_LLM_*)");
-    helpRow(a, r, "/chat [on|off|clear]", "opt-in: save the /prompt conversation with the project + replay it (bare /chat shows; default off)");
-
-    helpSection(a, r, "System");
-    helpRow(a, r, "/status", "show the working image (path, size, edit position)");
-    helpRow(a, r, "/theme [name]", "list or switch the accent colour (default violet)");
-    helpRow(a, r, "/mouse [on|off]", "full-screen: toggle mouse (off frees text selection)");
-    helpRow(a, r, "/reveal-speed [0.01-1]", "full-screen: how fast output is revealed (1 = instantly, 0.5 default)");
-    helpRow(a, r, "/clear", "clear the screen, redraw the logo + image header");
-    helpRow(a, r, "/drop", "forget the working image entirely");
-    helpRow(a, r, "/help   /exit", "show this list / leave (Ctrl-D, or Ctrl-C twice)");
-
-    logo.print("\nShortcuts  Ctrl-V paste the clipboard — an image attaches to the line (3 on a /prompt,\n", .{});
-    logo.print("           1 on an /upload; Backspace removes it), text is typed straight in\n", .{});
-    logo.print("           Ctrl-C copy the selection (nothing selected: press twice to exit) · Ctrl-S also copies\n", .{});
-    logo.print("           Ctrl-Z un-attach/un-paste · Ctrl-Alt-C copy the image to the clipboard\n", .{});
-    logo.print("           Ctrl/Alt-Backspace delete the word back · Alt-d or Ctrl/Alt-Delete the word ahead\n", .{});
+    emit(block("help"));
 }
 
 const testing = std.testing;
 
 test "completions: every console command is offered by Tab-complete" {
-    // Everything offered must really BE a command — a session verb or an image transform —
-    // so a typo in the list can't quietly complete to nothing.
+    // Everything offered must really BE a command, so a typo can't complete to nothing.
     for (completions) |w| {
         if (commands.verbOf(w) != null) continue;
         if (commands.actionOf(w, "") != null) continue;
         std.debug.print("completion '{s}' is not a command\n", .{w});
         return error.UnknownCompletion;
     }
-    // …and every verb must be reachable from the list, which is what keeps a newly added
-    // command from shipping without Tab-completion knowing about it (this is how /reveal,
-    // /chat and /project-description were found missing).
+    // …and every verb must be reachable from the list, so a new command can't ship without
+    // Tab-completion (this is how /reveal, /chat and /project-description were found missing).
     var missing = false;
     inline for (@typeInfo(commands.Verb).@"enum".fields) |f| {
         const want: commands.Verb = @enumFromInt(f.value);

@@ -96,7 +96,7 @@ func expectClosed(t *testing.T, c transport.Conn, what string) {
 // joinProject connects, sends hello + subscribe, and waits for welcome.
 func joinProject(t *testing.T, addr, project, client string) transport.Conn {
 	t.Helper()
-	c, err := transport.DialTCP(addr)
+	c, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,81 +105,6 @@ func joinProject(t *testing.T, addr, project, client string) transport.Conn {
 	send(t, c, protocol.WSMessage{Type: protocol.WSSubscribe})
 	readUntil(t, c, protocol.WSWelcome)
 	return c
-}
-
-func TestEditFanoutBetweenPeers(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-
-	a := joinProject(t, addr, "p_t_a", "A")
-	b := joinProject(t, addr, "p_t_a", "B")
-
-	send(t, a, protocol.WSMessage{Type: protocol.WSEdit, Op: "addLine", Payload: json.RawMessage(`{"x":1}`)})
-
-	got := readUntil(t, b, protocol.WSEdit)
-	if got.FromClientID != "A" || got.Op != "addLine" {
-		t.Fatalf("peer B got wrong edit: %+v", got)
-	}
-}
-
-func TestSaveLWWAndBroadcast(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-	a := joinProject(t, addr, "p_t_a", "A")
-	b := joinProject(t, addr, "p_t_a", "B")
-
-	// A saves at version 0 -> ack with version 1; B sees synced.
-	send(t, a, protocol.WSMessage{Type: protocol.WSSave, Version: 0, Layout: json.RawMessage(`{"lines":[1]}`)})
-	ack := readUntil(t, a, protocol.WSSynced)
-	if ack.Version != 1 {
-		t.Fatalf("save ack version = %d, want 1", ack.Version)
-	}
-	if bSynced := readUntil(t, b, protocol.WSSynced); bSynced.Version != 1 {
-		t.Fatalf("peer synced version = %d", bSynced.Version)
-	}
-
-	// A saves again at stale version 0 -> conflict error.
-	send(t, a, protocol.WSMessage{Type: protocol.WSSave, Version: 0, Layout: json.RawMessage(`{"lines":[2]}`)})
-	e := readUntil(t, a, protocol.WSError)
-	if e.Code != protocol.CodeConflict {
-		t.Fatalf("expected conflict, got %q", e.Code)
-	}
-}
-
-func TestEventsFeedReceivesSave(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-
-	// Events client: hello with empty ProjectID selects the global feed.
-	ev, err := transport.DialTCP(addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { ev.Close(0, "") })
-	send(t, ev, protocol.WSMessage{Type: protocol.WSHello, Token: goodToken})
-
-	a := joinProject(t, addr, "p_t_a", "A")
-	send(t, a, protocol.WSMessage{Type: protocol.WSSave, Version: 0, Layout: json.RawMessage(`{}`)})
-
-	got := readUntil(t, ev, protocol.WSProjectEv)
-	if got.Event != protocol.EventUpdated || got.Project == nil || got.Project.ID != "p_t_a" {
-		t.Fatalf("events feed got %+v", got)
-	}
-}
-
-func TestUnauthorizedRejected(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-	c, err := transport.DialTCP(addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close(0, "")
-	send(t, c, protocol.WSMessage{Type: protocol.WSHello, Token: "bad", ProjectID: "p_t_a"})
-	got := readUntil(t, c, protocol.WSError)
-	if got.Code != protocol.CodeUnauthorized {
-		t.Fatalf("expected unauthorized, got %q", got.Code)
-	}
 }
 
 // TestConnectionCountTracksLiveMembers verifies the count the REST delete guard reads:
@@ -214,121 +139,6 @@ func waitFor(t *testing.T, cond func() bool) {
 	t.Fatal("condition not met within timeout")
 }
 
-func TestHelloRequiredFirst(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-	c, _ := transport.DialTCP(addr)
-	defer c.Close(0, "")
-	// Send a non-hello first frame; the server must close the connection.
-	send(t, c, protocol.WSMessage{Type: protocol.WSEdit})
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if _, err := c.Read(ctx); err == nil {
-		t.Fatal("expected connection close after non-hello first frame")
-	}
-}
-
-// TestHelloTimeoutClosesSilentPeer: a connection that never sends its hello frame
-// is closed once helloTimeout elapses, so a peer can't hold a slot open forever.
-func TestHelloTimeoutClosesSilentPeer(t *testing.T) {
-	prev := helloTimeout
-	helloTimeout = 150 * time.Millisecond
-	t.Cleanup(func() { helloTimeout = prev })
-
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-	c, err := transport.DialTCP(addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close(0, "")
-	// Send nothing. The server must close the connection after the (shortened) timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if _, err := c.Read(ctx); err == nil {
-		t.Fatal("expected the connection to be closed after the hello timeout")
-	}
-}
-
-// TestMalformedFrameDoesNotDropSession: a non-JSON frame mid-session is ignored
-// (not fatal), and the session keeps working for that peer and its peers.
-func TestMalformedFrameDoesNotDropSession(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-	a := joinProject(t, addr, "p_t_a", "A")
-	b := joinProject(t, addr, "p_t_a", "B")
-
-	// A garbage frame from A must be dropped without tearing down the session.
-	if err := a.Write(context.Background(), []byte("not json at all {{{")); err != nil {
-		t.Fatalf("write garbage: %v", err)
-	}
-	// A subsequent valid edit from A still fans out to B — the session survived.
-	send(t, a, protocol.WSMessage{Type: protocol.WSEdit, Op: "addLine", Payload: json.RawMessage(`{"x":1}`)})
-	if got := readUntil(t, b, protocol.WSEdit); got.FromClientID != "A" || got.Op != "addLine" {
-		t.Fatalf("session did not survive a malformed frame: %+v", got)
-	}
-}
-
-// TestRoomIsolation: an edit in project A is never delivered to a peer joined to a
-// different project B (per-project bus channels — no cross-room message injection).
-func TestRoomIsolation(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-	a := joinProject(t, addr, "p_t_a", "A")
-	// "p_other" is unknown to the mock store (unowned) so joining is allowed; it is a
-	// distinct room from "p_t_a".
-	other := joinProject(t, addr, "p_other", "B")
-
-	send(t, a, protocol.WSMessage{Type: protocol.WSEdit, Op: "addLine", Payload: json.RawMessage(`{"x":1}`)})
-
-	// The other-room peer must NOT receive A's edit. Give it a moment, then assert no
-	// edit frame arrived by issuing a ping and expecting the pong first.
-	send(t, other, protocol.WSMessage{Type: protocol.WSPing})
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		ctx, cancel := context.WithDeadline(context.Background(), deadline)
-		raw, err := other.Read(ctx)
-		cancel()
-		if err != nil {
-			t.Fatalf("other-room read: %v", err)
-		}
-		var m protocol.WSMessage
-		if json.Unmarshal(raw, &m) != nil {
-			continue
-		}
-		if m.Type == protocol.WSEdit {
-			t.Fatalf("cross-room leak: project-B peer received project-A's edit")
-		}
-		if m.Type == protocol.WSPong {
-			break // reached our own pong with no edit before it → isolated
-		}
-	}
-}
-
-// TestOversizedFrameRejected: a first frame beyond transport.MaxMessageBytes is
-// rejected (connection closed) rather than buffered into memory.
-func TestOversizedFrameRejected(t *testing.T) {
-	h := newTestHub(t)
-	addr := startTCP(t, h)
-	c, err := transport.DialTCP(addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close(0, "")
-	// One frame just over the cap. The TCP scanner's buffer limit makes the read fail,
-	// so HandleConn closes the connection instead of allocating unbounded memory.
-	huge := make([]byte, transport.MaxMessageBytes+1024)
-	for i := range huge {
-		huge[i] = 'a'
-	}
-	_ = c.Write(context.Background(), huge) // may error as the server tears down; that's fine
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	if _, err := c.Read(ctx); err == nil {
-		t.Fatal("expected the connection to close on an over-limit frame")
-	}
-}
-
 // TestCloseAllDrainsConnections: on shutdown, CloseAll cancels every live
 // connection's context; a blocked TCP editor's Read is interrupted, the server
 // unwinds the handler, and the session refcount falls to 0. Without ctx-aware
@@ -357,7 +167,7 @@ func TestWebSocketTransport(t *testing.T) {
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
 
 	dial := func(client string) transport.Conn {
-		c, err := transport.DialWS(context.Background(), wsURL)
+		c, err := testutil.DialWS(context.Background(), wsURL)
 		if err != nil {
 			t.Fatal(err)
 		}

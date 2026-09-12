@@ -370,7 +370,7 @@ test('filterConnections splits the list three ways', () => {
 // ── The options page wires the kind cue + filter ──
 test('options page: golden admin outline and the three-way kind filter', () => {
   const html = readFileSync(new URL('../src/options/options.html', import.meta.url), 'utf8');
-  const js = readFileSync(new URL('../src/options/options.js', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../src/options/connections.js', import.meta.url), 'utf8');
   // Gold outline, the same #f5c518 cue a server-backed pin wears.
   assert.match(html, /\.pin-row\.conn-admin\s*\{[^}]*#f5c518/);
   assert.match(js, /conn-admin/);
@@ -386,11 +386,9 @@ test('options page: golden admin outline and the three-way kind filter', () => {
 // Source-level pins: the row markup and the CSS it leans on live in two files with no
 // DOM to assert against under `node --test`, so the contract is checked as text.
 const optionsHtml = () => readFileSync(new URL('../src/options/options.html', import.meta.url), 'utf8');
-// Just the connections half of options.js — the pins renderer above it has its own buttons.
-const connectionsJs = () => {
-  const js = readFileSync(new URL('../src/options/options.js', import.meta.url), 'utf8');
-  return js.slice(js.indexOf('── Server connections'));
-};
+// Just the connections module — the pins renderer beside it has its own buttons.
+const connectionsJs = () =>
+  readFileSync(new URL('../src/options/connections.js', import.meta.url), 'utf8');
 
 test('options page: removing a connection uses the destructive trash glyph', () => {
   const js = connectionsJs();
@@ -406,7 +404,7 @@ test('options page: row action buttons read as enabled at rest, disabled only wh
   assert.match(html, /\.pin-btn \{[^}]*background:color-mix\(in srgb, var\(--btn-ink\) \d+%, var\(--panel\)\)/);
   assert.match(html, /\.pin-btn \{[^}]*color:var\(--btn-ink\)/);
   assert.match(html, /\.pin-btn \{[^}]*border:1px solid color-mix\(in srgb, var\(--btn-ink\)/);
-  // Dark borrows the lighter accent shade, like the .chk pills in lib/theme.css.
+  // Dark borrows the lighter accent shade, like the .chk pills in lib/theme/controls.css.
   assert.match(html, /:root\[data-theme="dark"\] \{ --btn-ink:var\(--accent-2\)/);
   // Hover is the enhancement (full accent fill) and never fires on a disabled button.
   assert.match(html, /\.pin-btn:hover:not\(:disabled\) \{[^}]*background:var\(--accent\)/);
@@ -482,7 +480,9 @@ test('reduced motion: the kind filter still lands on exactly the right rows', ()
 });
 
 test('options page: the two lists animate filter changes, and a delete still scatters', () => {
-  const js = readFileSync(new URL('../src/options/options.js', import.meta.url), 'utf8');
+  // The pin list and the connection list live in their own modules now; read them together.
+  const js = ['pinsDom.js', 'pins.js', 'pinRow.js', 'connections.js']
+    .map((f) => readFileSync(new URL(`../src/options/${f}`, import.meta.url), 'utf8')).join('\n');
   // Both lists are wrapped: snapshot before the wipe, play after the rebuild.
   assert.match(js, /createFilterTransition\(\{ list: pinListEl \}\)/);
   assert.match(js, /createFilterTransition\(\{ list: connListEl, keyAttr: 'url' \}\)/);

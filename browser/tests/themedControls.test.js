@@ -1,6 +1,6 @@
 // The theme's two shared control treatments, pinned against the CSS — and against the
 // extension's port of it, which has to look the same (lib/theme.css). Desktop twins:
-// theme.cpp's QLineEdit/QComboBox:hover rule and mainWindowTheme.cpp toolButtonIconColor.
+// theme.cpp's QLineEdit/QComboBox:hover rule and MainWindowTheme.cpp toolButtonIconColor.
 //   • a FIELD rings on hover at twice its resting border — the second pixel an inset
 //     shadow, never a thicker border: a field's height is content-driven, so a fatter
 //     border grew the box and pushed its row;
@@ -10,11 +10,12 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
+import { LAYOUT_CSS, COMPONENTS_CSS, extensionThemeCss } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const layout = read('../css/layout.css');
-const components = read('../css/components.css');
-const extTheme = read('../../extension/src/lib/theme.css');
+const layout = LAYOUT_CSS;
+const components = COMPONENTS_CSS;
+const extTheme = extensionThemeCss();
 
 const ringRuleOf = (css) =>
   css.match(/input\[type="text"\]:hover:not\(:disabled\):not\(:focus\),[\s\S]*?\}/)?.[0] || '';
@@ -40,7 +41,7 @@ test('browser: what a Settings-row button looks like says what it DOES', () => {
   // fullscreen all act on the spot, so they wear the accent FILL every other acting button
   // has. Incognito, the one real TOGGLE left beside them, stays a ghost box until it is on
   // and shows the accent on its hover border alone (user decision). Desktop twin:
-  // mainWindowTheme.cpp's toolFill / toolGhostBox pair.
+  // MainWindowTheme.cpp's toolFill / toolGhostBox pair.
   const filled = components.match(/#settings-btn, #visuals-btn, #info-btn \{[\s\S]*?\}/)?.[0] || '';
   assert.match(filled, /background:\s*var\(--accent\)/, 'the dialog-openers are filled');
   assert.match(filled, /color:\s*var\(--on-accent\)/, '…with the glyph in the accent\'s own ink');
@@ -72,7 +73,7 @@ test('browser: what a Settings-row button looks like says what it DOES', () => {
 test('browser: the DATA section does not borrow the IMAGE section\'s glyphs', () => {
   // Copying/saving the LAYOUT is not copying/saving the image — same icons for both read
   // as the same action twice (user report). The layout is a document; copying it goes to
-  // the clipboard. Desktop twin: mainWindowTheme.cpp set(actDownloadJson_/actCopyLayout_).
+  // the clipboard. Desktop twin: MainWindowTheme.cpp set(actDownloadJson_/actCopyLayout_).
   const toolbar = read('../js/ui/toolbar.js');
   // The layout FILE pair: a blank page with an arrow that says which way it travels, and
   // the arrow moves on hover (iconMotion.json file-down / file-up).

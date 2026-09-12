@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 // Every id hands back a fresh stub element, so updateButtons can set .disabled /
 // .style.display on anything it reaches for and we can read it back.
 import { installDom } from './helpers/dom.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 const makeDom = () => {
   const doc = installDom({ autoCreateById: true });
@@ -71,8 +72,7 @@ test('the button carries no "load an image" reason to show in its tooltip', asyn
 });
 
 test('fullscreen on an empty editor keeps the page ground, not the image-viewing black', async () => {
-  const { readFileSync } = await import('node:fs');
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   // The empty-editor override must come AFTER the plain fullscreen rule it beats, and
   // after the leave-flight rule too — both match with the same specificity.
   const fs = css.indexOf('body.fullscreen-mode .canvas-viewport {');

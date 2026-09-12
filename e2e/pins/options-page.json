@@ -1,0 +1,2938 @@
+{
+  "name": "options-page",
+  "root": "body",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "body",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(244, 245, 247)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "32px",
+        "width": "380px",
+        "height": "4275px"
+      }
+    },
+    {
+      "path": ":root/div[1]",
+      "tag": "div",
+      "classes": "card",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "12px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "12px 24px 24px 12px",
+        "width": "316px",
+        "height": "2290px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]",
+      "tag": "div",
+      "classes": "brand",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "0px 0px 4px",
+        "gap": "12px",
+        "width": "278px",
+        "height": "34px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/span[1]",
+      "tag": "span",
+      "classes": "logo-wrap",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "34px",
+        "height": "34px",
+        "z-index": "0"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "logo",
+      "style": {
+        "display": "block",
+        "color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "34px",
+        "height": "34px",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/span[1]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "position": "absolute",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "1px",
+        "height": "1px",
+        "opacity": "0",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[1]/h1[1]",
+      "tag": "h1",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "18px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif",
+        "width": "174.6px",
+        "height": "27px"
+      },
+      "text": "Stencil Image Picker"
+    },
+    {
+      "path": ":root/div[1]/p[1]",
+      "tag": "p",
+      "classes": "sub",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "0px 0px 20px",
+        "width": "278px",
+        "height": "42px"
+      },
+      "text": "Where the editor is served, how it opens, and the default page size."
+    },
+    {
+      "path": ":root/div[1]/label[1]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Main theme"
+    },
+    {
+      "path": ":root/div[1]/div[2]",
+      "tag": "div",
+      "classes": "accent-dd",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "41px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/button[1]",
+      "tag": "button",
+      "classes": "accent-dd-trigger",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "9px 10px",
+        "gap": "10px",
+        "width": "278px",
+        "height": "41px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "accent-swatch js-cur-sw",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "4px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "16px",
+        "height": "16px",
+        "box-shadow": "rgba(255, 255, 255, 0.15) 0px 0px 0px 1px inset",
+        "text-align": "left",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "accent-dd-name js-cur-name",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "207px",
+        "height": "21px",
+        "text-align": "left",
+        "overflow": "hidden"
+      },
+      "text": "Violet"
+    },
+    {
+      "path": ":root/div[1]/div[2]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd-caret",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-down",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[3]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "54px"
+      },
+      "text": "The brand accent used across the popup, side panel, quick crop and these options. Applies instantly and is remembered on"
+    },
+    {
+      "path": ":root/div[1]/label[2]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Appearance"
+    },
+    {
+      "path": ":root/div[1]/span[1]",
+      "tag": "span",
+      "classes": "accent-dd cs-dd",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "41px"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[1]/button[1]",
+      "tag": "button",
+      "classes": "accent-dd-trigger",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "9px 10px",
+        "gap": "10px",
+        "width": "278px",
+        "height": "41px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[1]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "accent-dd-name cs-cur",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "233px",
+        "height": "21px",
+        "text-align": "left",
+        "overflow": "hidden"
+      },
+      "text": "Light"
+    },
+    {
+      "path": ":root/div[1]/span[1]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd-caret",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[1]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-down",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[4]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "72px"
+      },
+      "text": "Light or dark for the popup, side panel, quick crop and this page. Applies instantly, is remembered on this device, and "
+    },
+    {
+      "path": ":root/div[1]/label[3]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Interface animation"
+    },
+    {
+      "path": ":root/div[1]/span[2]",
+      "tag": "span",
+      "classes": "accent-dd cs-dd",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "41px"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[1]",
+      "tag": "button",
+      "classes": "accent-dd-trigger",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "9px 10px",
+        "gap": "10px",
+        "width": "278px",
+        "height": "41px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "cs-cur-icon",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "16px",
+        "height": "16px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "mm-icon mm-none",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "16px",
+        "height": "16px",
+        "text-align": "left",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "accent-dd-name cs-cur",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "207px",
+        "height": "21px",
+        "text-align": "left",
+        "overflow": "hidden"
+      },
+      "text": "None"
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd-caret",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-down",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[5]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "198px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[5]/b[1]",
+      "tag": "b",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Dust"
+    },
+    {
+      "path": ":root/div[1]/div[5]/b[2]",
+      "tag": "b",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Water"
+    },
+    {
+      "path": ":root/div[1]/div[5]/b[3]",
+      "tag": "b",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Fire"
+    },
+    {
+      "path": ":root/div[1]/div[5]/b[4]",
+      "tag": "b",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Sliding"
+    },
+    {
+      "path": ":root/div[1]/div[5]/b[5]",
+      "tag": "b",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "None"
+    },
+    {
+      "path": ":root/div[1]/label[4]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Editor URL"
+    },
+    {
+      "path": ":root/div[1]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "color(srgb 0.113725 0.133333 0.188235 / 0.25)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "278px",
+        "height": "36px",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[6]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "91px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[6]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "npm run serve"
+    },
+    {
+      "path": ":root/div[1]/div[6]/code[2]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "http://localhost:8080/"
+    },
+    {
+      "path": ":root/div[1]/label[5]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Default page size (crop aspect)"
+    },
+    {
+      "path": ":root/div[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd cs-dd",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "41px"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[3]/button[1]",
+      "tag": "button",
+      "classes": "accent-dd-trigger",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "9px 10px",
+        "gap": "10px",
+        "width": "278px",
+        "height": "41px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[3]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "accent-dd-name cs-cur",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "233px",
+        "height": "21px",
+        "text-align": "left",
+        "overflow": "hidden"
+      },
+      "text": "A3 (29.7 × 42 cm)"
+    },
+    {
+      "path": ":root/div[1]/span[3]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd-caret",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[3]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-down",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/label[6]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Already-opened images"
+    },
+    {
+      "path": ":root/div[1]/div[7]",
+      "tag": "div",
+      "classes": "chk-row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "8px 24px",
+        "width": "278px",
+        "height": "113px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[7]/label[1]",
+      "tag": "label",
+      "classes": "",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "9px",
+        "width": "278px",
+        "height": "63px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[7]/label[1]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-width": "1px",
+        "border-radius": "3px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "22px",
+        "height": "20px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[7]/label[2]",
+      "tag": "label",
+      "classes": "",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "9px",
+        "width": "278px",
+        "height": "42px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[7]/label[2]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-width": "1px",
+        "border-radius": "3px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "22px",
+        "height": "20px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[8]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "72px"
+      },
+      "text": "Uses a local record of images this extension has opened. Turn off marking to always open a fresh editor with no badges. "
+    },
+    {
+      "path": ":root/div[1]/label[7]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "On-page highlight colour"
+    },
+    {
+      "path": ":root/div[1]/span[4]",
+      "tag": "span",
+      "classes": "accent-dd cs-dd",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "41px"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[4]/button[1]",
+      "tag": "button",
+      "classes": "accent-dd-trigger",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "9px 10px",
+        "gap": "10px",
+        "width": "278px",
+        "height": "41px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[4]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "accent-dd-name cs-cur",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "233px",
+        "height": "21px",
+        "text-align": "left",
+        "overflow": "hidden"
+      },
+      "text": "Main theme (follow the accent)"
+    },
+    {
+      "path": ":root/div[1]/span[4]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd-caret",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[4]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-down",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[10]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "72px"
+      },
+      "text": "The outline colour used when you tick “highlight on page” in the popup. “Main theme” keeps it in sync with the accent ab"
+    },
+    {
+      "path": ":root/div[1]/label[8]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Page scripting API (advanced)"
+    },
+    {
+      "path": ":root/div[1]/label[9]",
+      "tag": "label",
+      "classes": "",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "9px",
+        "width": "278px",
+        "height": "63.5px",
+        "align-items": "flex-start"
+      }
+    },
+    {
+      "path": ":root/div[1]/label[9]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-width": "1px",
+        "border-radius": "3px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "margin": "3px 0px 0px",
+        "width": "22px",
+        "height": "20px"
+      }
+    },
+    {
+      "path": ":root/div[1]/label[9]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "247px",
+        "height": "63.5px"
+      }
+    },
+    {
+      "path": ":root/div[1]/label[9]/span[1]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "4px",
+        "font-size": "14px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "window.stencil"
+    },
+    {
+      "path": ":root/div[1]/div[11]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "109.5px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[11]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "stencil.images"
+    },
+    {
+      "path": ":root/div[1]/div[11]/code[2]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "stencil.search('logo')"
+    },
+    {
+      "path": ":root/div[1]/div[11]/code[3]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "stencil.open(el)"
+    },
+    {
+      "path": ":root/div[1]/label[10]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Editor page scripting API"
+    },
+    {
+      "path": ":root/div[1]/label[11]",
+      "tag": "label",
+      "classes": "",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "9px",
+        "width": "278px",
+        "height": "84.5px",
+        "align-items": "flex-start"
+      }
+    },
+    {
+      "path": ":root/div[1]/label[11]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-width": "1px",
+        "border-radius": "3px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "margin": "3px 0px 0px",
+        "width": "22px",
+        "height": "20px"
+      }
+    },
+    {
+      "path": ":root/div[1]/label[11]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "247px",
+        "height": "84.5px"
+      }
+    },
+    {
+      "path": ":root/div[1]/label[11]/span[1]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(29, 34, 48)",
+        "border-radius": "4px",
+        "font-size": "14px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "stencil.extension"
+    },
+    {
+      "path": ":root/div[1]/div[12]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "183px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[12]/strong[1]",
+      "tag": "strong",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "only the editor URL configured at the top of this page"
+    },
+    {
+      "path": ":root/div[1]/div[12]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "stencil.extension"
+    },
+    {
+      "path": ":root/div[1]/div[12]/code[2]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "await stencil.extension.editors()"
+    },
+    {
+      "path": ":root/div[1]/div[12]/code[3]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "await stencil.extension.images(tabId)"
+    },
+    {
+      "path": ":root/div[1]/div[12]/code[4]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "await stencil.extension.open(0)"
+    },
+    {
+      "path": ":root/div[1]/div[12]/code[5]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "stencil.extension"
+    },
+    {
+      "path": ":root/div[1]/div[12]/code[6]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "null"
+    },
+    {
+      "path": ":root/div[1]/label[12]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Open in other apps"
+    },
+    {
+      "path": ":root/div[1]/input[2]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "color(srgb 0.113725 0.133333 0.188235 / 0.25)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "278px",
+        "height": "36px",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[13]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "91px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[13]/strong[1]",
+      "tag": "strong",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Stencil desktop app"
+    },
+    {
+      "path": ":root/div[1]/div[13]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "⋯"
+    },
+    {
+      "path": ":root/div[1]/div[13]/strong[2]",
+      "tag": "strong",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Open in… ▸ Desktop app"
+    },
+    {
+      "path": ":root/div[1]/div[13]/code[2]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "stencil://"
+    },
+    {
+      "path": ":root/div[1]/label[13]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Telegram bot username"
+    },
+    {
+      "path": ":root/div[1]/input[3]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "color(srgb 0.113725 0.133333 0.188235 / 0.25)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "278px",
+        "height": "36px",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[14]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "91.5px"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[14]/strong[1]",
+      "tag": "strong",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Telegram bot"
+    },
+    {
+      "path": ":root/div[1]/div[14]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "@"
+    },
+    {
+      "path": ":root/div[1]/div[14]/code[2]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "⋯"
+    },
+    {
+      "path": ":root/div[1]/div[14]/strong[2]",
+      "tag": "strong",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Open in… ▸ Telegram bot"
+    },
+    {
+      "path": ":root/div[1]/div[14]/em[1]",
+      "tag": "em",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "server"
+    },
+    {
+      "path": ":root/div[1]/div[14]/code[3]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "t.me"
+    },
+    {
+      "path": ":root/div[1]/div[15]",
+      "tag": "div",
+      "classes": "row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "24px 0px 0px",
+        "gap": "12px",
+        "width": "278px",
+        "height": "36px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[15]/button[1]",
+      "tag": "button",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(255, 255, 255)",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "10px 18px",
+        "width": "67.9px",
+        "height": "36px",
+        "text-align": "center"
+      },
+      "text": "Save"
+    },
+    {
+      "path": ":root/div[1]/div[15]/span[1]",
+      "tag": "span",
+      "classes": "saved",
+      "style": {
+        "display": "block",
+        "color": "rgb(74, 222, 128)",
+        "border-color": "rgb(74, 222, 128)",
+        "font-size": "13px",
+        "font-family": "system-ui, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[2]",
+      "tag": "div",
+      "classes": "card",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "12px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "12px 24px 24px 12px",
+        "margin": "20px 0px 0px",
+        "width": "316px",
+        "height": "493px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[1]",
+      "tag": "div",
+      "classes": "pin-head",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "12px",
+        "width": "278px",
+        "height": "27px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[1]/h1[1]",
+      "tag": "h1",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "18px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "27px"
+      },
+      "text": "Server connections"
+    },
+    {
+      "path": ":root/div[2]/p[1]",
+      "tag": "p",
+      "classes": "sub",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "0px 0px 20px",
+        "width": "278px",
+        "height": "84px"
+      }
+    },
+    {
+      "path": ":root/div[2]/p[1]/strong[1]",
+      "tag": "strong",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "14px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "shared pins"
+    },
+    {
+      "path": ":root/div[2]/label[1]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Server URL"
+    },
+    {
+      "path": ":root/div[2]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "color(srgb 0.113725 0.133333 0.188235 / 0.25)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "278px",
+        "height": "36px",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[2]/label[2]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Access token (optional)"
+    },
+    {
+      "path": ":root/div[2]/input[2]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "color(srgb 0.113725 0.133333 0.188235 / 0.25)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "278px",
+        "height": "36px",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[2]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "72.5px"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[2]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "chrome.storage.local"
+    },
+    {
+      "path": ":root/div[2]/div[3]",
+      "tag": "div",
+      "classes": "conn-bar row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "24px 0px 0px",
+        "gap": "10px 12px",
+        "width": "278px",
+        "height": "36px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[3]/button[1]",
+      "tag": "button",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(255, 255, 255)",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "10px 18px",
+        "width": "88.1px",
+        "height": "36px",
+        "text-align": "center"
+      },
+      "text": "Connect"
+    },
+    {
+      "path": ":root/div[2]/div[3]/span[1]",
+      "tag": "span",
+      "classes": "saved",
+      "style": {
+        "display": "block",
+        "color": "rgb(74, 222, 128)",
+        "border-color": "rgb(74, 222, 128)",
+        "font-size": "13px",
+        "font-family": "system-ui, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[2]/ul[1]",
+      "tag": "ul",
+      "classes": "pin-list",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 0px",
+        "gap": "8px",
+        "width": "278px",
+        "flex-direction": "column"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[4]",
+      "tag": "div",
+      "classes": "pin-empty",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "13px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "14px 0px 0px",
+        "width": "278px",
+        "height": "19.5px"
+      },
+      "text": "No servers connected yet."
+    },
+    {
+      "path": ":root/div[3]",
+      "tag": "div",
+      "classes": "card",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "12px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "12px 24px 24px 12px",
+        "margin": "20px 0px 0px",
+        "width": "316px",
+        "height": "1028px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[1]",
+      "tag": "div",
+      "classes": "pin-head",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "12px",
+        "width": "278px",
+        "height": "27px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[1]/h1[1]",
+      "tag": "h1",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "18px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "27px"
+      },
+      "text": "AI assistant"
+    },
+    {
+      "path": ":root/div[3]/p[1]",
+      "tag": "p",
+      "classes": "sub",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "0px 0px 20px",
+        "width": "278px",
+        "height": "105.5px"
+      }
+    },
+    {
+      "path": ":root/div[3]/p[1]/em[1]",
+      "tag": "em",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "focus / open / attach"
+    },
+    {
+      "path": ":root/div[3]/p[1]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "14px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "llm-contract.md"
+    },
+    {
+      "path": ":root/div[3]/label[1]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Provider"
+    },
+    {
+      "path": ":root/div[3]/span[1]",
+      "tag": "span",
+      "classes": "accent-dd cs-dd",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "41px"
+      }
+    },
+    {
+      "path": ":root/div[3]/span[1]/button[1]",
+      "tag": "button",
+      "classes": "accent-dd-trigger",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "9px 10px",
+        "gap": "10px",
+        "width": "278px",
+        "height": "41px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[3]/span[1]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "accent-dd-name cs-cur",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "233px",
+        "height": "21px",
+        "text-align": "left",
+        "overflow": "hidden"
+      },
+      "text": "Ollama"
+    },
+    {
+      "path": ":root/div[3]/span[1]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd-caret",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[3]/span[1]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-down",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[2]",
+      "tag": "div",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "348.5px"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[2]/label[1]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Base URL"
+    },
+    {
+      "path": ":root/div[3]/div[2]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "color(srgb 0.113725 0.133333 0.188235 / 0.25)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "278px",
+        "height": "36px",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[2]/div[1]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "145.5px"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[2]/div[1]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "http://localhost:11434"
+    },
+    {
+      "path": ":root/div[3]/div[2]/div[1]/code[2]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "http://localhost:1234/v1"
+    },
+    {
+      "path": ":root/div[3]/div[2]/div[1]/code[3]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "OLLAMA_ORIGINS"
+    },
+    {
+      "path": ":root/div[3]/div[2]/label[2]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "API key (optional)"
+    },
+    {
+      "path": ":root/div[3]/div[2]/input[2]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "color(srgb 0.113725 0.133333 0.188235 / 0.25)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "278px",
+        "height": "36px",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[2]/div[2]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "55px"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[2]/div[2]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "Authorization: Bearer"
+    },
+    {
+      "path": ":root/div[3]/div[2]/div[2]/code[2]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "chrome.storage.local"
+    },
+    {
+      "path": ":root/div[3]/div[4]",
+      "tag": "div",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "60px"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[4]/label[1]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Model"
+    },
+    {
+      "path": ":root/div[3]/div[4]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "color(srgb 0.113725 0.133333 0.188235 / 0.25)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "278px",
+        "height": "36px",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[5]",
+      "tag": "div",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "256px"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[5]/label[1]",
+      "tag": "label",
+      "classes": "f",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 6px",
+        "width": "278px",
+        "height": "18px"
+      },
+      "text": "Other open tabs"
+    },
+    {
+      "path": ":root/div[3]/div[5]/label[2]",
+      "tag": "label",
+      "classes": "",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "9px",
+        "width": "278px",
+        "height": "63px",
+        "align-items": "flex-start"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[5]/label[2]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-width": "1px",
+        "border-radius": "3px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "margin": "3px 0px 0px",
+        "width": "22px",
+        "height": "20px"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[5]/label[2]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "247px",
+        "height": "63px"
+      },
+      "text": "Let the assistant see the titles and addresses of your other open tabs, so it can scan one on request"
+    },
+    {
+      "path": ":root/div[3]/div[5]/div[1]",
+      "tag": "div",
+      "classes": "help",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "6px 0px 0px",
+        "width": "278px",
+        "height": "163px"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[5]/div[1]/strong[1]",
+      "tag": "strong",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "Off by default."
+    },
+    {
+      "path": ":root/div[3]/div[5]/div[1]/em[1]",
+      "tag": "em",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif"
+      },
+      "text": "every"
+    },
+    {
+      "path": ":root/div[3]/div[5]/div[1]/code[1]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "?query"
+    },
+    {
+      "path": ":root/div[3]/div[5]/div[1]/code[2]",
+      "tag": "code",
+      "classes": "",
+      "style": {
+        "display": "inline",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(107, 113, 128)",
+        "border-radius": "4px",
+        "font-size": "12px",
+        "font-family": "monospace",
+        "padding": "1px 5px"
+      },
+      "text": "scanTab"
+    },
+    {
+      "path": ":root/div[3]/div[6]",
+      "tag": "div",
+      "classes": "row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "24px 0px 0px",
+        "gap": "12px",
+        "width": "278px",
+        "height": "36px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[3]/div[6]/button[1]",
+      "tag": "button",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(255, 255, 255)",
+        "border-radius": "7px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "10px 18px",
+        "width": "67.9px",
+        "height": "36px",
+        "text-align": "center"
+      },
+      "text": "Save"
+    },
+    {
+      "path": ":root/div[3]/div[6]/span[1]",
+      "tag": "span",
+      "classes": "saved",
+      "style": {
+        "display": "block",
+        "color": "rgb(74, 222, 128)",
+        "border-color": "rgb(74, 222, 128)",
+        "font-size": "13px",
+        "font-family": "system-ui, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[4]",
+      "tag": "div",
+      "classes": "card",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "12px",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "12px 24px 24px 12px",
+        "margin": "20px 0px 0px",
+        "width": "316px",
+        "height": "340px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]",
+      "tag": "div",
+      "classes": "pin-head",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "12px",
+        "width": "278px",
+        "height": "145px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/h1[1]",
+      "tag": "h1",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "18px",
+        "font-weight": "700",
+        "font-family": "system-ui, sans-serif",
+        "width": "278px",
+        "height": "27px"
+      },
+      "text": "Pinned images"
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]",
+      "tag": "div",
+      "classes": "pin-filters",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "gap": "10px",
+        "width": "278px",
+        "height": "106px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "12px",
+        "font-family": "Arial",
+        "padding": "5px 10px",
+        "width": "180px",
+        "height": "26px",
+        "overflow": "clip"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[1]",
+      "tag": "span",
+      "classes": "accent-dd cs-dd",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "146px",
+        "height": "30px"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[1]/button[1]",
+      "tag": "button",
+      "classes": "accent-dd-trigger",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "5px 10px",
+        "gap": "10px",
+        "width": "146px",
+        "height": "30px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[1]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "accent-dd-name cs-cur",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "width": "101px",
+        "height": "18px",
+        "text-align": "left",
+        "overflow": "hidden"
+      },
+      "text": "Name + keywords"
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[1]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd-caret",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[1]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-down",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/label[1]",
+      "tag": "label",
+      "classes": "chk",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-width": "1px",
+        "border-radius": "6px",
+        "font-size": "12px",
+        "font-weight": "600",
+        "font-family": "system-ui, sans-serif",
+        "padding": "3px 8px",
+        "gap": "5px",
+        "width": "119.1px",
+        "height": "26px",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/label[1]/input[1]",
+      "tag": "input",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "position": "absolute",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-width": "1px",
+        "border-radius": "3px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "9px 10px",
+        "width": "22px",
+        "height": "20px",
+        "opacity": "0"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd cs-dd",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "width": "109.3px",
+        "height": "30px"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[3]/button[1]",
+      "tag": "button",
+      "classes": "accent-dd-trigger",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "background-color": "rgb(236, 238, 243)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "padding": "5px 10px",
+        "gap": "10px",
+        "width": "109.3px",
+        "height": "30px",
+        "text-align": "left",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[3]/button[1]/span[2]",
+      "tag": "span",
+      "classes": "accent-dd-name cs-cur",
+      "style": {
+        "display": "block",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "12px",
+        "font-family": "system-ui, sans-serif",
+        "width": "64.3px",
+        "height": "18px",
+        "text-align": "left",
+        "overflow": "hidden"
+      },
+      "text": "All sites (0)"
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[3]/button[1]/span[3]",
+      "tag": "span",
+      "classes": "accent-dd-caret",
+      "style": {
+        "display": "flex",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/span[3]/button[1]/span[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-down",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "11px",
+        "font-family": "system-ui, sans-serif",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "left"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[1]/div[1]/button[1]",
+      "tag": "button",
+      "classes": "pin-clear",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(212, 216, 226)",
+        "border-width": "1px",
+        "border-radius": "7px",
+        "font-size": "12px",
+        "font-family": "Arial",
+        "padding": "5px 12px",
+        "width": "70px",
+        "height": "26px",
+        "opacity": "0.45",
+        "text-align": "center"
+      },
+      "text": "Clear all"
+    },
+    {
+      "path": ":root/div[4]/p[1]",
+      "tag": "p",
+      "classes": "sub",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "0px 0px 20px",
+        "width": "278px",
+        "height": "84px"
+      },
+      "text": "Images and videos you pinned with the 📌 button, grouped by the site they were pinned on. Pinning floats them to the top"
+    },
+    {
+      "path": ":root/div[4]/ul[1]",
+      "tag": "ul",
+      "classes": "pin-list",
+      "style": {
+        "display": "flex",
+        "color": "rgb(29, 34, 48)",
+        "border-color": "rgb(29, 34, 48)",
+        "font-size": "14px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "16px 0px 0px",
+        "gap": "8px",
+        "width": "278px",
+        "flex-direction": "column"
+      }
+    },
+    {
+      "path": ":root/div[4]/div[2]",
+      "tag": "div",
+      "classes": "pin-empty",
+      "style": {
+        "display": "block",
+        "color": "rgb(107, 113, 128)",
+        "border-color": "rgb(107, 113, 128)",
+        "font-size": "13px",
+        "font-family": "system-ui, sans-serif",
+        "margin": "14px 0px 0px",
+        "width": "278px",
+        "height": "39px"
+      },
+      "text": "No pinned images yet. Open the popup on any page and pin an image with the 📌 button."
+    }
+  ]
+}

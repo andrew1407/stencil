@@ -4,8 +4,9 @@ A Go server that stores and shares Stencil projects and runs **live, multi-clien
 edit sessions**. Like `mcp/`, it is a **protocol adapter, not a core consumer**:
 it never links or recompiles the C++ `core/`, never decodes images, and keeps the
 parity contract out of scope. It persists project metadata in **Postgres** and
-image bytes in a **custom secured file store**, and fans live edits out over
-**WebSocket and raw TCP** (optionally across instances via **Redis**).
+image bytes in a **path-confined file store** (traversal-proof, *not* encrypted —
+there is no key handling anywhere), and fans live edits out over **WebSocket and
+raw TCP** (optionally across instances via **Redis**).
 
 ## Architecture
 
@@ -17,27 +18,35 @@ graph TD
       REST["bot · mcp → cli<br/><i>(REST only)</i>"]
     end
     subgraph SRV["server/ — Go, codec-free (never links core/)"]
-      API["httpapi/ — REST: auth · project CRUD · file up/download"]
+      API["httpapi/ — transport only: decode · authorize · encode"]
       TRANS["transport/ — WebSocket (ws.go) + TCP NDJSON (tcp.go)"]
+      SVC["service/ — application policy (no rule lives in a handler)"]
       HUB["hub/ — live edit sessions (one run-loop per project)"]
-      AUTH["auth/ — opaque bearer tokens (sha256)"]
+      AUTH["auth/ — opaque bearer tokens (sha256)<br/>ratelimit/ — per-IP + per-session buckets"]
+      LLM["llm/ — chat proxy, 3 wire shapes<br/>validate/ — the §6 request check"]
       STORE["store/ — pgx repos + embedded SQL migrations"]
-      FILES["filestore/ — secured byte store (safeJoin)"]
+      FILES["filestore/ — path-confined byte store (safeJoin)"]
       BUS["bus / redisbus — pub/sub fan-out"]
     end
     PG[("Postgres")]
     RD[("Redis (optional)")]
+    UP["LLM upstream<br/><i>(Anthropic · Ollama · OpenAI-compatible)</i>"]
 
     WS --> TRANS
     TCP --> TRANS
     WS --> API
     REST --> API
     API --> AUTH
+    API --> SVC
+    API --> LLM
+    LLM -.-> UP
     TRANS --> HUB
+    SVC --> STORE
+    SVC --> FILES
+    SVC --> BUS
     HUB --> STORE
     HUB --> BUS
     STORE --> PG
-    STORE --> FILES
     BUS -.-> RD
 ```
 
@@ -82,20 +91,37 @@ GOFLAGS=-mod=vendor GOPROXY=off go build ./...   # offline, from server/vendor/
 
 ## Layout
 
+Eighteen packages, sixteen of them with tests.
+
 ```
 server/
-  cmd/stencil-server/main.go     entry: config -> store+migrate -> filestore -> bus -> api+hub -> HTTP/WS + TCP
+  cmd/stencil-server/   main.go (flags + signals), boot.go (config -> store+migrate ->
+                        filestore -> bus), serve.go (HTTP/WS + TCP listeners, CORS, healthz),
+                        sweep.go (the project-expiry loop)
   internal/
     protocol/   wire DTOs + WS message envelope — the shape every client mirrors
-    config/     env/.env configuration
-    auth/       opaque bearer tokens (sha256-hashed, constant-time), HTTP + WS gate
-    filestore/  custom secured byte store; traversal-proof safeJoin (path.go)
-    store/      pgx ProjectRepository + SessionRepository; embedded SQL migrations
-    bus/        pub/sub interface + in-process implementation
+    config/     the environment configuration: config.go + db.go, redis.go, llm.go, parse.go
+    auth/       opaque bearer tokens (sha256-hashed, resolved by lookup), HTTP + WS gate
+    ratelimit/  the token buckets every limiter shares + clientip.go (X-Forwarded-For)
+    filestore/  path-confined byte store; traversal-proof safeJoin (path.go), atomic put.go,
+                quota.go (the STORAGE_QUOTA_BYTES accounting)
+    store/      pgx ProjectRepository + SessionRepository, pool.go, keyset projectlist.go;
+                embedded SQL migrations
+    service/    the application policy both the REST handlers and the expiry sweep drive —
+                project.go, file.go; owns no transport concept (no ResponseWriter, no statuses)
+    validate/   the llm-contract §6 chat-request check (llmchat.go)
+    llm/        the upstream proxy: client.go + one file per wire shape (anthropic, ollama,
+                openai), providers.go, enablement.go, upstream.go (why it failed), sanitize.go
+    bus/        pub/sub interface + in-process implementation; drop.go (the dropped-delivery
+                WARN — a silent drop reads like a lost edit)
     redisbus/   Redis implementation of bus.Bus
     transport/  Conn abstraction; WebSocket (ws.go) + TCP NDJSON (tcp.go) adapters
-    httpapi/    net/http REST: token issuance, project CRUD, file upload/download
+    httpapi/    net/http REST, transport only: token issuance, project CRUD, file up/download,
+                the LLM routes; assets/ + goldens/ for the pinned user-facing text
     hub/        live edit sessions: one run-loop per project, edit relay + save
+    clock/      the injectable now() the timed tests drive
+    lint/       the size/comment ratchet (sizebudget.json) — a test, not a runtime package
+    testutil/   the shared test rigs (store truncation, dial, LLM doubles)
 ```
 
 ## Run
@@ -107,13 +133,29 @@ go run ./cmd/stencil-server
 
 Requires a reachable Postgres (`DATABASE_URL`). Redis is optional (`REDIS_URL`);
 without it the server uses an in-process bus and is single-instance. The schema
-is created at boot via embedded idempotent migrations.
+is created at boot via embedded idempotent migrations, applied in lexical order
+(`0001_init.sql`, then `0002_keywords_array.sql`, which moves project keywords
+into a GIN-indexed `text[]` and back-fills the newline-joined column it replaces —
+that column is still written, unread, for one release so a rollback keeps working).
 
 Configuration (see `.env.example`): `LISTEN_ADDR`, `TCP_ADDR`, `DATABASE_URL`,
-`REDIS_URL`, `FILESTORE_ROOT`, `ADMIN_TOKEN`, `AUTH_OPEN`, `TOKEN_TTL_HOURS`, `MAX_BODY_BYTES`,
-`PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`,
+`DB_MAX_CONNS`/`DB_MIN_CONNS`/`DB_STATEMENT_TIMEOUT` (pgx pool sizing and the
+server-side per-statement cap, in seconds),
+`REDIS_URL` plus `REDIS_POOL_SIZE`/`REDIS_DIAL_TIMEOUT`/`REDIS_IO_TIMEOUT` (go-redis
+client sizing; the timeouts in seconds, 0 = the library default), `FILESTORE_ROOT`,
+`STORAGE_QUOTA_BYTES` (aggregate cap on stored bytes; an upload past it is refused
+`507`, 0 = unlimited), `ADMIN_TOKEN`, `AUTH_OPEN`, `CORS_ORIGINS`, `TOKEN_TTL_HOURS`,
+`MAX_BODY_BYTES`, `PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`, `OP_TIMEOUT_SECONDS`,
+the abuse buckets (`AUTH_RATE_PER_MINUTE`, `WRITE_RATE_PER_MINUTE`,
+`HELLO_RATE_PER_MINUTE` — see [Security](#security)), `TRUSTED_PROXY_CIDRS`,
 `TLS_CERT`/`TLS_KEY` (one cert/key secures HTTPS+WSS and the TCP edit channel),
-and the LLM proxy keys (`ANTHROPIC_API_KEY`, `LLM_*` — see [LLM proxy](#llm-proxy)).
+and the LLM proxy keys (`LLM_PROVIDER`, `LLM_API_KEY`, `ANTHROPIC_API_KEY`, `LLM_*` —
+see [LLM proxy](#llm-proxy)).
+
+`FILESTORE_ROOT` defaults to the relative `./data/filestore`, which resolves
+against the working directory — in a container with no mounted volume the bytes
+are lost on restart. The server logs a WARN at boot when the configured root is
+relative; set an absolute path in production.
 
 ### Project expiration
 
@@ -134,17 +176,25 @@ All routes except `POST /auth/token` require `Authorization: Bearer <token>`.
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/auth/token` | issue a token+session (always gated by the admin token — set or per-boot generated) |
-| GET | `/projects` | list project metadata (incl. `createdAt`/`expiresAt`), newest-updated first |
+| GET | `/projects` | list project metadata (incl. `createdAt`/`expiresAt`), newest-updated first; optional `?limit=&after=` paging |
 | POST | `/projects` | create a project (optional `expiresAt`; else server default / none) |
 | GET | `/projects/{id}` | full project incl. layout + original content |
 | PUT | `/projects/{id}` | update name/color/`expiresAt`/layout under a version guard (409 on conflict) |
 | DELETE | `/projects/{id}` | delete project + its files |
 | GET | `/projects/{id}/files/{kind}` | download bytes; kind = `original` \| `result` \| `video` \| `variant1`..`variant8` \| `chat` |
-| POST | `/projects/{id}/files/{kind}?ext=&w=&h=` | upload bytes (server is codec-free: dimensions are passed in) |
+| POST | `/projects/{id}/files/{kind}?ext=&w=&h=` | upload bytes (server is codec-free: dimensions are passed in); 507 past `STORAGE_QUOTA_BYTES` |
 | DELETE | `/projects/{id}/files/{kind}` | delete one filestore-only kind (`video`/`variantN`/`chat`); idempotent 204 |
 | GET | `/llm/info` | LLM proxy status: `{enabled, model}` |
 | POST | `/llm/chat` | proxy one chat turn to Anthropic (503 `llmDisabled` without a key; 502 `llmUpstream` with the reason when the upstream fails) |
 | GET | `/healthz` | liveness |
+
+`GET /projects` returns every project by default. Paging is **opt-in**, so the
+default response shape is unchanged: pass `?limit=` (1..500) and the response adds
+`nextCursor`, an opaque token to send back as `?after=` for the following page. The
+walk is a keyset over `(updatedAt DESC, id DESC)` — stable while projects are
+created or updated, unlike an offset — and ends on the page that carries no
+`nextCursor`. A bad `limit`/`after` is a 400. List rows never carry `layout` or
+`originalContent`; fetch those per project via `GET /projects/{id}`.
 
 The `video`/`variantN`/`chat` file kinds are v1 filestore-only: the bytes upload
 and download through the same routes, but no path/dimensions are written to the
@@ -232,6 +282,16 @@ Server → client: `welcome` (snapshot: project, layout, version, peers),
 Edits are relayed live without persistence; `save` writes the full layout to
 Postgres under the version guard and broadcasts the new authoritative version.
 This separates low-latency live relay from durable last-writer-wins snapshots.
+Because live edits are never persisted, a shutdown loses everything since the
+last `save` — so before closing sessions the server sends every connection an
+`error` frame with code `shuttingDown`, and clients can prompt to save/reconnect.
+
+Both bus backends **drop** a delivery rather than stall when a subscriber is behind, and a
+silent drop reads like a lost edit, so `bus.DropLog` warns about it — rate-limited to one
+line per 30 s carrying the count lost since the last one, since the drop storm that matters
+would otherwise be the thing flooding the log. A `WARN <backend>: dropped N message(s) to a
+slow subscriber` in production means a peer is not keeping up — clients recover by version
+resync, so sustained lines mean a stuck peer, not a rejected edit.
 
 ## Security
 
@@ -240,6 +300,11 @@ This separates low-latency live relay from durable last-writer-wins snapshots.
   by the admin token: `ADMIN_TOKEN` when set, otherwise a random per-boot token
   the server generates and prints once at startup. Issuance is never open by
   default.
+- **A token travels as a header, never in a query string** — one exception, and it is
+  narrow: `auth.BearerToken` falls back to `?token=` **only** on an RFC 6455 upgrade
+  request, because the browser `WebSocket` API cannot set headers. On plain REST a URL
+  token is ignored outright rather than honoured, so it can never be the thing that
+  leaks through a log line or a `Referer`.
 - **Open issuance (`AUTH_OPEN=1`)** is an explicit opt-in for trusted networks:
   `POST /auth/token` then mints a token with no bearer at all (the admin token
   keeps working), and the server prints a loud boot warning. Because a token
@@ -248,7 +313,11 @@ This separates low-latency live relay from durable last-writer-wins snapshots.
   `AUTH_RATE_PER_MINUTE` still applies per client IP; everything other than
   issuance stays token-gated exactly as before.
 - WebSocket/TCP connections must authenticate with a `hello` token before joining
-  any session; unauthenticated connections are closed.
+  any session; unauthenticated connections are closed. FAILED hellos are metered
+  per client IP (`HELLO_RATE_PER_MINUTE`, default 30; `0` disables) — the socket
+  accepts any origin by design, so without that meter a page could try tokens at
+  line rate. A valid token spends nothing, and an exhausted bucket is refused
+  before the token is even looked up.
 - **Authorization is coarse by design: a valid token grants access to _every_
   project.** This is the intended shared-collaboration model — there is no
   per-project ownership check, so any client holding any valid token can
@@ -269,17 +338,33 @@ This separates low-latency live relay from durable last-writer-wins snapshots.
 - The file store never touches a client-supplied filename: paths are derived from
   a validated project-id allowlist plus a fixed `original`/`result` kind, run
   through `safeJoin` (clean + root-prefix re-check + symlink-escape guard), and
-  written atomically. Traversal attempts are rejected and tested.
-- REST bodies are size-capped and decoded with unknown-field rejection.
+  written atomically. Traversal attempts are rejected and tested. It is
+  **path-confined, not encrypted**: bytes land on disk as uploaded, so the
+  guarantee is "no path escapes the root", not "at rest protection".
+- REST bodies are size-capped and decoded with unknown-field rejection, and the store's
+  aggregate size is capped by `STORAGE_QUOTA_BYTES` (an upload past it answers
+  `507 Insufficient Storage`; `0`/unset is unlimited and costs neither a lock nor a walk).
+  Per-session write abuse is metered too: `WRITE_RATE_PER_MINUTE` (default 120) covers
+  project creations and file uploads, `AUTH_RATE_PER_MINUTE` (default 10) token issuance
+  per client IP. Both `0` to disable.
 - Transport encryption is opt-in via `TLS_CERT`/`TLS_KEY`: one cert/key secures
   HTTPS + WSS *and* the raw-TCP edit channel (TLS 1.2 minimum). Tokens travel as
   bearer headers, so enable TLS (or front the server with a TLS-terminating proxy)
   on any untrusted network; plaintext is intended only for localhost/dev.
+- **Behind a proxy, set `TRUSTED_PROXY_CIDRS`** (comma-separated networks or bare
+  addresses). Every per-IP limiter keys on the peer address, which behind a
+  TLS-terminating proxy is the proxy itself — one bucket for the whole internet.
+  With it, the client is taken from `X-Forwarded-For` (rightmost hop the trusted
+  chain vouched for). Empty (the default) ignores that header entirely, so a
+  spoofed one from an untrusted peer changes nothing.
+- Every REST handler runs its store calls under `OP_TIMEOUT_SECONDS` (default 10),
+  so one stuck query cannot hold a pool connection for the server's whole
+  5-minute write timeout.
 
 ## Tests
 
 ```bash
-go test ./...            # unit tests (filestore, auth, bus, httpapi, hub) run offline
+go test ./...            # ~250 cases across 16 packages; everything but store/ + redisbus/ is offline
 go test -race ./internal/hub/...
 ```
 
@@ -294,3 +379,39 @@ export TEST_DATABASE_URL='postgres://...stencil_test?sslmode=disable'
 export REDIS_URL='redis://localhost:6379/15'
 go test ./...
 ```
+
+### Benchmarks
+
+Opt-in and out of CI: `go test ./...` never passes `-bench`, so the `Benchmark*`
+functions only compile there. Run them by package:
+
+```bash
+go test -run XXX -bench . ./internal/hub/ ./internal/filestore/ ./internal/validate/
+TEST_DATABASE_URL='postgres://...stencil_test?sslmode=disable' \
+  go test -run XXX -bench . ./internal/store/     # skips without the URL
+```
+
+Baselines, Apple M4 Max (darwin/arm64), Go 1.26, 2026-09-12. Numbers are for
+comparison on one machine across one change — never a pass/fail threshold.
+
+| Benchmark | ns/op | B/op | allocs/op |
+|---|---|---|---|
+| `SessionFanout/peers=1` | 25 | 0 | 0 |
+| `SessionFanout/peers=10` | 477 | 0 | 0 |
+| `SessionFanout/peers=50` | 2,602 | 0 | 0 |
+| `LLMChat/images=none` | 44 | 0 | 0 |
+| `LLMChat/images=max` | 270,299 | 21,018 | 30 |
+| `Put/size=4KiB` | 9,708,093 | 8,206 | 74 |
+| `Put/size=256KiB` | 9,115,384 | 10,038 | 74 |
+| `Put/size=4096KiB` | 10,789,722 | 50,998 | 74 |
+| `PutStream` (256 KiB) | 8,433,981 | 10,207 | 74 |
+| `ListProjects/whole` (500 rows) | 462,376 | 911,797 | 5,520 |
+| `ListProjects/page=50` | 116,211 | 99,185 | 569 |
+
+What they say: fan-out is allocation-free and linear in peers, because the bus
+envelope carries the routing fields and the frame is never re-parsed. `Put` is
+~9 ms regardless of size — that is the `fsync` before the rename, the price of
+never leaving a renamed-but-empty file; only the 4 MiB case is bandwidth-bound.
+Chat validation is free unless attachments are present, where the base64 scan
+dominates. One keyset page costs ~¼ of the whole list at 500 projects, and the
+listing carries no `original_content`/`layout` at any size.

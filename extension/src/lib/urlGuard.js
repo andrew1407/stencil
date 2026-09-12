@@ -1,13 +1,8 @@
-// ── SSRF guard for page-derived fetch URLs ──────────────────────────────────
-// The extension's <all_urls> host permissions let fetch() reach ANY address on the
-// user's network, and the URLs it fetches are harvested from arbitrary pages — so a
-// page could point it at 127.0.0.1, 10.x, or 169.254.169.254 (cloud metadata).
-// Lexical guard only: it blocks literal/nameable private targets (same classes the
-// CLI/pystencil/bot fetchers block). MV3 has no resolve-time hook, so DNS rebinding
-// (a public name resolving privately) cannot be fully prevented here.
+// SSRF guard for page-derived fetch URLs: <all_urls> lets fetch() reach any address on
+// the user's network, and the URLs come from arbitrary pages. Lexical only — the same
+// classes the CLI/pystencil/bot fetchers block; MV3 has no resolve-time hook for DNS rebinding.
 
-// Dotted-quad → [a,b,c,d], or null. The URL parser already canonicalises octal/hex/
-// decimal IPv4 forms (0x7f.1, 2130706433) into dotted-quad before this sees them.
+// The URL parser already canonicalises octal/hex/decimal IPv4 forms into dotted-quad.
 const parseIpv4 = (host) => {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
   if (!m) return null;
@@ -15,8 +10,7 @@ const parseIpv4 = (host) => {
   return p.every((n) => n <= 255) ? p : null;
 };
 
-// IPv6 (bracketed or bare, `::` compression, trailing dotted IPv4, %zone) → eight
-// 16-bit groups, or null.
+// Bracketed or bare, `::` compression, trailing dotted IPv4, %zone → eight groups, or null.
 const parseIpv6 = (host) => {
   let s = host.replace(/^\[|\]$/g, '');
   const pct = s.indexOf('%');
@@ -58,8 +52,8 @@ const isBlockedV4 = ([a, b], allowLoopback) => {
     (a === 100 && b >= 64 && b <= 127);               // CGNAT
 };
 
-// The cloud metadata endpoint (169.254.169.254, incl. its IPv4-mapped IPv6 form) —
-// never fetchable, even under the same-host carve-out.
+// The cloud metadata endpoint (and its IPv4-mapped IPv6 form) is never fetchable, even
+// under the same-host carve-out.
 const isMetadataHost = (host) => {
   const v4 = parseIpv4(host);
   if (v4) return v4[0] === 169 && v4[1] === 254 && v4[2] === 169 && v4[3] === 254;
@@ -78,19 +72,11 @@ const isBlockedV6 = (g, allowLoopback) => {
     (g[0] & 0xfe00) === 0xfc00;                       // fc00::/7 ULA
 };
 
-/**
- * Whether an image/media URL is safe to fetch. data:/blob: pass (no network host);
- * http(s) passes unless the host is a loopback/private/link-local/CGNAT/ULA/
- * unspecified literal or localhost; every other scheme is refused.
- * @param {string} url
- * @param {{allowLoopback?: boolean, allowSameHostAs?: string}} [opts] -
- *   allowLoopback: true only for URLs the USER typed (loopback dev targets).
- *   allowSameHostAs: the TRUSTED http(s) URL of the page the image was scanned from
- *   (sender.tab.url / a scan-recorded resource — never a page-supplied value): a
- *   private host equal to the page's own host is allowed (the browser already talks
- *   to it, so fetching it is no SSRF escalation), except the metadata IP.
- * @returns {boolean}
- */
+// data:/blob: pass; http(s) passes unless the host is a private/loopback/link-local/
+// CGNAT/ULA/unspecified literal or localhost; every other scheme is refused.
+// `allowLoopback` only for URLs the USER typed. `allowSameHostAs` is the TRUSTED page URL
+// (sender.tab.url / a scan-recorded resource, never page-supplied): the browser already
+// talks to that host, so fetching it is no escalation — except the metadata IP.
 export const isAllowedImageUrl = (url, { allowLoopback = false, allowSameHostAs = '' } = {}) => {
   let u;
   try { u = new URL(String(url)); } catch { return false; }

@@ -18,7 +18,10 @@
     "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png" }
   },
   "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; font-src 'self' data:; connect-src 'self' data: blob: https: http: wss: ws:"
+  },
   "web_accessible_resources": [
-    { "resources": ["src/crop/*", "src/lib/*", "icons/*"], "matches": ["<all_urls>"] }
+    { "resources": ["src/crop/crop.html"], "matches": ["<all_urls>"] }
   ]
 }

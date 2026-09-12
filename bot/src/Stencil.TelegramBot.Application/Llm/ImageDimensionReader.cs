@@ -1,29 +1,39 @@
 using System.Buffers.Binary;
+using Stencil.TelegramBot.Domain.Editing;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>
-/// Cheap pixel-dimension sniffing from the headers of the LLM contract's accepted image
-/// formats (§7: PNG, JPEG, WebP, GIF) — so an already-small attachment can skip the ffmpeg
-/// downscale entirely. Returns false for anything it can't read; callers then fall back to a
-/// shrink-only rescale, which is harmless on small images.
-/// </summary>
+// Header sniffing for the §7 formats, so a small attachment skips the ffmpeg downscale and adopting
+// an image needs no CLI probe.
 public static class ImageDimensionReader
 {
-    private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    private static readonly byte[] _pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
-    /// <summary>Read the pixel dimensions from an image file's leading bytes.</summary>
+    // A JPEG's frame header sits past any EXIF/ICC segments, so sniff a generous prefix.
+    private const int _prefixBytes = 64 * 1024;
+
+    public static async Task<ImageSize?> TryReadFileAsync(string path, CancellationToken ct = default)
+    {
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+        await using FileStream stream = File.OpenRead(path);
+        byte[] head = new byte[(int)Math.Min(stream.Length, _prefixBytes)];
+        int read = await stream.ReadAtLeastAsync(head, head.Length, throwOnEndOfStream: false, ct);
+        return TryRead(head.AsSpan(0, read), out int width, out int height) ? new ImageSize(width, height) : null;
+    }
+
     public static bool TryRead(ReadOnlySpan<byte> data, out int width, out int height) =>
-        TryReadPng(data, out width, out height)
-        || TryReadGif(data, out width, out height)
-        || TryReadJpeg(data, out width, out height)
-        || TryReadWebp(data, out width, out height);
+        tryReadPng(data, out width, out height)
+        || tryReadGif(data, out width, out height)
+        || tryReadJpeg(data, out width, out height)
+        || tryReadWebp(data, out width, out height);
 
-    /// <summary>PNG: the IHDR chunk directly follows the 8-byte signature.</summary>
-    private static bool TryReadPng(ReadOnlySpan<byte> d, out int width, out int height)
+    private static bool tryReadPng(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
-        if (d.Length < 24 || !d[..8].SequenceEqual(PngSignature)
+        if (d.Length < 24 || !d[..8].SequenceEqual(_pngSignature)
             || d[12] != 'I' || d[13] != 'H' || d[14] != 'D' || d[15] != 'R')
         {
             return false;
@@ -33,8 +43,7 @@ public static class ImageDimensionReader
         return width > 0 && height > 0;
     }
 
-    /// <summary>GIF87a/GIF89a: the logical-screen size follows the 6-byte signature.</summary>
-    private static bool TryReadGif(ReadOnlySpan<byte> d, out int width, out int height)
+    private static bool tryReadGif(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
         if (d.Length < 10 || d[0] != 'G' || d[1] != 'I' || d[2] != 'F'
@@ -47,8 +56,7 @@ public static class ImageDimensionReader
         return width > 0 && height > 0;
     }
 
-    /// <summary>JPEG: walk the marker segments to the first SOFn frame header.</summary>
-    private static bool TryReadJpeg(ReadOnlySpan<byte> d, out int width, out int height)
+    private static bool tryReadJpeg(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
         if (d.Length < 4 || d[0] != 0xFF || d[1] != 0xD8)
@@ -96,8 +104,7 @@ public static class ImageDimensionReader
         return false;
     }
 
-    /// <summary>WebP: RIFF container with a VP8 (lossy), VP8L (lossless) or VP8X (extended) chunk.</summary>
-    private static bool TryReadWebp(ReadOnlySpan<byte> d, out int width, out int height)
+    private static bool tryReadWebp(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
         if (d.Length < 30

@@ -1,19 +1,12 @@
 #pragma once
 #include "models.hpp"
 
-// Crop-window geometry, shared by the Qt desktop app and the WebAssembly browser
-// build (the math is the same in both front-ends, so it lives here once). A crop
-// is an axis-aligned rectangle in ORIGINAL-image pixel space; the main canvas
-// shows exactly that sub-rectangle, and line and point coords live in crop-local
-// pixels (0..width, 0..height). The original image is never modified — only the
-// rectangle is stored — so the crop can be re-adjusted (moved, resized, or
-// flipped between album/portrait) losslessly.
-//
-// The crop's aspect ratio is fixed to the page (e.g. A3 = 42 / 29.7 ≈ √2), so it
-// can only be resized from a corner; the page relation is preserved across edits.
+// Crop-window geometry shared by the desktop and the wasm browser build. A crop is an
+// axis-aligned rect in ORIGINAL-image pixel space; line and point coords are crop-local.
+// The original is never modified, so the crop re-adjusts losslessly. Its aspect is
+// fixed to the page (A3 = 42 / 29.7), so it resizes from a corner only.
 namespace stencil::core {
 
-  // An axis-aligned crop window in original-image pixel space.
   struct CropRect {
     double x = 0.0;
     double y = 0.0;
@@ -21,73 +14,52 @@ namespace stencil::core {
     double height = 0.0;
   };
 
-  // Landscape ("album") when wider than tall. Mirrors the page-orientation test
-  // used by pageDimensions (canvasWidth > canvasHeight).
   bool isAlbumOrientation(double width, double height);
 
-  // Target crop aspect (width / height) for a page of the given cm dimensions in
-  // the chosen orientation. Album lays the page's long side horizontally; the
-  // page's own width/height order is ignored — only its proportions matter.
+  // Width / height for a page of the given cm dimensions; album lays the long side
+  // horizontally, whichever order the page's own dimensions come in.
   double cropAspect(double pageWidth, double pageHeight, bool album);
 
-  // Largest rectangle of aspect `aspectWoverH` (width / height) that fits inside
-  // imageW x imageH, centered — cutting the surplus off the two opposite sides.
-  // This is the default crop applied when an image is first loaded.
+  // Largest centred rect of aspect `aspectWoverH` inside the image — the default crop.
   CropRect centeredCrop(double imageW, double imageH, double aspectWoverH);
 
-  // Resize a crop by dragging one corner: keeps `aspectWoverH` fixed, anchors the
-  // diagonally-opposite corner, and clamps to the image bounds and `minSize`.
+  // Drag one corner with the aspect fixed and the opposite corner anchored.
   // corner: 0 = top-left, 1 = top-right, 2 = bottom-right, 3 = bottom-left.
   CropRect resizeCropFromCorner(const CropRect& cur, int corner, double cursorX,
                                 double cursorY, double aspectWoverH,
                                 double imageW, double imageH,
                                 double minSize = 16.0);
 
-  // Translate a crop by (dx, dy), clamped so it stays fully inside the image.
   CropRect moveCropClamped(const CropRect& cur, double dx, double dy,
                            double imageW, double imageH);
 
-  // Scale a crop about its CENTRE by `factor` (>1 grows, <1 shrinks), keeping
-  // `aspectWoverH` fixed. The centre stays put, so growth is capped by the nearer
-  // image edge on each axis; neither side drops below `minSize`. Drives the
-  // mouse-wheel / trackpad-pinch resize in the crop UI.
+  // Scale about the CENTRE with the aspect fixed: growth is capped by the nearer image
+  // edge on each axis, neither side drops below `minSize`. The wheel / pinch resize.
   CropRect scaleCropCentered(const CropRect& cur, double factor, double aspectWoverH,
                              double imageW, double imageH, double minSize = 16.0);
 
-  // Uniform scale that maps crop-local points from an old crop width to a new one
-  // (aspect is preserved, so the same factor applies to x and y). 1.0 if oldWidth
-  // is non-positive.
+  // Uniform factor mapping crop-local points across a width change; 1.0 if oldWidth <= 0.
   double cropResizeScale(double oldWidth, double newWidth);
 
-  // What re-cropping implies for existing lines. A flipped orientation
-  // invalidates them (the caller clears the lines after confirming with the
-  // user); otherwise the points are rescaled by `scale` to keep their position
-  // relative to the page.
+  // A flipped orientation invalidates the lines (the caller clears them after
+  // confirming); otherwise the points are rescaled by `scale`.
   struct CropChange {
     bool orientationChanged = false;
     double scale = 1.0;
   };
   CropChange cropChange(const CropRect& oldRect, const CropRect& newRect);
 
-  // Multiply every point of every line by `scale` in place — the crop-local
-  // rescale applied when the crop is resized within the same orientation.
   void scaleLinePoints(Lines& lines, double scale);
 
-  // ── 90° image rotation (shared by the desktop app and the wasm browser build) ──
-  // Rotation is non-destructive: the original image is kept and a quarter-turn
-  // count (0..3, clockwise) is stored alongside the crop rectangle. These helpers
-  // transport the crop window and the crop-local line points across a single
-  // quarter turn so the framing and the drawing follow the rotated picture.
+  // Quarter turns are non-destructive: a 0..3 clockwise count is stored beside the crop,
+  // and these carry the crop window and its crop-local points across one turn.
 
-  // Rotate a crop rectangle one quarter turn within an image of imageW x imageH
-  // (the dimensions of the image the rect currently lives in). The turned image's
-  // dimensions are imageH x imageW. `clockwise` rotates the picture right.
+  // `imageW x imageH` is the image the rect currently lives in; the turned one is
+  // imageH x imageW. `clockwise` rotates the picture right.
   CropRect rotateCropRectQuarter(const CropRect& r, double imageW, double imageH,
                                  bool clockwise);
 
-  // Rotate every crop-local point of every line one quarter turn inside a crop
-  // box of boxW x boxH (in crop-local pixels), in place. After the turn the box
-  // is boxH x boxW. `clockwise` matches rotateCropRectQuarter.
+  // In place inside a crop box of boxW x boxH; after the turn the box is boxH x boxW.
   void rotateLinePointsQuarter(Lines& lines, double boxW, double boxH,
                                bool clockwise);
 

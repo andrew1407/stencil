@@ -17,6 +17,8 @@ import { readFileSync } from 'node:fs';
 import { loadAccent } from './helpers/accentSandbox.js';
 import { ICONS } from '../src/lib/icons.js';
 import { PAGE_SIZES, DEFAULT_PAGE } from '../src/lib/cropGeometry.js';
+import { VIDEO_FORMATS } from '../src/lib/filters.js';
+import { COMMON_FORMATS } from '../src/lib/filterUi.js';
 
 const canonical = (rel) => JSON.parse(readFileSync(new URL(rel, import.meta.url), 'utf8'));
 
@@ -44,10 +46,30 @@ const MANIFEST = [
     canonical: () => canonical('../../browser/js/config/constants.json').PAGE_SIZES,
   },
   {
+    name: 'video filter: lib/filters.js VIDEO_FORMATS ↔ config/mediaTypes.json',
+    mode: 'full',
+    extension: () => VIDEO_FORMATS,
+    canonical: () => canonical('../../browser/js/config/mediaTypes.json').surfaces.extension.videoFilter,
+  },
+  {
+    name: 'format chips: lib/filterUi.js COMMON_FORMATS ↔ config/mediaTypes.json',
+    mode: 'full',
+    extension: () => COMMON_FORMATS,
+    canonical: () => canonical('../../browser/js/config/mediaTypes.json').surfaces.extension.imageFilter,
+  },
+  {
     name: 'providers: src/config/providers.json ↔ config/llm/providers.json',
     mode: 'full',
     extension: () => canonical('../src/config/providers.json'),
     canonical: () => canonical('../../browser/js/config/llm/providers.json'),
+  },
+  {
+    // The motion tuning both copies of dustCloud.js read (portParity pins the module
+    // itself; this pins the numbers it now imports).
+    name: 'motion tuning: src/config/motion.json ↔ config/motion.json',
+    mode: 'full',
+    extension: () => canonical('../src/config/motion.json'),
+    canonical: () => canonical('../../browser/js/config/motion.json'),
   },
   {
     name: 'op registry: src/config/opRegistry.json ↔ config/llm/opRegistry.json',
@@ -94,4 +116,40 @@ for (const { name, mode, extension, canonical: canon, extensionOnly = [] } of MA
 test('DEFAULT_PAGE matches the canonical default format', () => {
   assert.equal(DEFAULT_PAGE,
     canonical('../../browser/js/config/constants.json').DEFAULT_PAGE.size);
+});
+
+// ── Literal copies: pinned by scanning the source ───────────────────────────
+// These live inside modules that ship as classic scripts or big content scripts, so they
+// cannot be imported here; the drift guard reads the file instead.
+const source = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
+
+test('every stencil:* literal in src/ is a channel from config/events.json', () => {
+  const channels = new Set(Object.values(canonical('../../browser/js/config/events.json')));
+  const files = ['../src/content/editorBridge.js', '../src/lib/accent.js', '../src/options/options.js'];
+  const found = new Set();
+  for (const rel of files)
+    for (const m of source(rel).matchAll(/['"`](stencil:[a-z-]+)['"`]/g)) {
+      assert.ok(channels.has(m[1]), `${rel}: "${m[1]}" is not in the canonical events.json`);
+      found.add(m[1]);
+    }
+  // The cross-surface pair the editor bridge exists for must still be wired on this side.
+  const bridge = source('../src/content/editorBridge.js');
+  for (const key of ['switchToSource', 'registryChanged'])
+    assert.ok(bridge.includes(canonical('../../browser/js/config/events.json')[key]),
+      `editorBridge lost ${key}`);
+  assert.ok(found.size >= 3);
+});
+
+test('pageApiMain VIDEO_FMTS matches config/mediaTypes.json surfaces.extension.videoScan', () => {
+  const src = source('../src/content/pageApiMain.js');
+  const list = /const VIDEO_FMTS = new Set\(\[([^\]]*)\]\)/.exec(src)[1]
+    .split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);
+  assert.deepEqual(list, canonical('../../browser/js/config/mediaTypes.json').surfaces.extension.videoScan);
+});
+
+test('both format normalizers apply exactly the canonical rewrites, in order', () => {
+  const rules = Object.entries(canonical('../../browser/js/config/mediaTypes.json').normalize);
+  const chain = rules.map(([from, to]) => `.replace('${from}', '${to}')`).join('');
+  for (const rel of ['../src/lib/filters.js', '../src/content/pageApiMain.js'])
+    assert.ok(source(rel).includes(`ext.toLowerCase()${chain}`), `${rel} drifted from mediaTypes.normalize`);
 });

@@ -2,14 +2,9 @@
 #include <QRect>
 #include <QSize>
 
-// ── Modal popovers: placement for the compact, icon-anchored dialog shape ────
-// Double-click / right-click on a dialog-opening toolbar icon opens the SAME dialog as a
-// small frameless popover pinned next to the icon instead of centred over the window
-// (mainWindow.cpp execMaybePopover). This is the desktop port of the browser's
-// popoverPosition (browser/js/ui/popover.js) — keep the two rule-for-rule: below the
-// anchor with left edges aligned, flipped above when the bottom would overflow, clamped
-// inside the screen on both axes. Header-only and pure so the headless test drives it
-// without a window.
+// Popover placement for a dialog opened next to its toolbar icon (MainWindow.cpp
+// execMaybePopover) — the desktop port of browser/js/ui/popover.js popoverPosition; keep
+// the two rule-for-rule. Header-only and pure, so the headless test drives it.
 namespace stencil::support {
 
   inline QRect popoverRect(const QRect& anchor, const QSize& box, const QRect& screen,

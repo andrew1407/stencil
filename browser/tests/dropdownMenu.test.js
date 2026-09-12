@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 // A DOM small enough to place a menu in, big enough to move it around.
 const setupDom = ({ vw = 1200, vh = 800 } = {}) => {
@@ -164,7 +165,7 @@ test('every select dropdown goes through the portal, and its press-outside sees 
     assert.match(src, new RegExp(`!${host}\\.contains\\(e\\.target\\) && !menu\\.contains\\(e\\.target\\)`),
       `${name} does not close on a press inside its own portaled menu`);
   }
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.match(css, /\.accent-dd-menu\.dd-portal \{[^}]*position: fixed/, 'the portaled menu is viewport-positioned');
   assert.match(css, /\.accent-dd-menu\.dd-portal \{[^}]*right: auto/, 'and anchored from the left it was given');
 });

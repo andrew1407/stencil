@@ -3,7 +3,7 @@
 namespace stencil::core::localeUnit {
 
   std::string defaultUnit(MeasurementSystem system) {
-    return system == MeasurementSystem::ImperialUS ? "in" : "cm";
+    return system == MeasurementSystem::IMPERIAL_US ? "in" : "cm";
   }
 
 }

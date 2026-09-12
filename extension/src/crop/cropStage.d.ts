@@ -1,0 +1,17 @@
+// Shapes for crop/cropStage.js — the quick-crop viewport: fit/zoom, the crop-box
+// overlay and its drag/resize, and the live preview canvas. `aspect` is injected —
+// the page format the rect is locked to belongs to the controls (cropControls.js).
+import type { CropState } from './cropHandoff.js';
+
+export interface CropStage {
+  imgEl: HTMLImageElement;
+  overlay: HTMLElement;
+  fitToWindow(): void;
+  resetCrop(): void;
+  layoutOverlay(): void;
+  renderPreview(): void;
+}
+
+export declare function createCropStage(
+  opts: { state: CropState; aspect: () => number },
+): CropStage;

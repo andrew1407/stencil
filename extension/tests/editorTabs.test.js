@@ -278,8 +278,8 @@ test('the source-page filter animates the same way, and reduced motion just land
   assert.equal(quiet.ghostCount, 0);
 });
 
-test('editorMode.js wraps both rebuilds and keys its rows by tab id', () => {
-  const js = readFileSync(new URL('../src/popup/editorMode.js', import.meta.url), 'utf8');
+test('editor mode wraps both rebuilds and keys its rows by tab id', () => {
+  const js = ['editorList.js', 'sourceTabsList.js'].map((f) => readFileSync(new URL(`../src/popup/${f}`, import.meta.url), 'utf8')).join('\n');
   assert.match(js, /edTransition\.begin\(\);\s*\n\s*listEl\.textContent = '';/);
   assert.match(js, /srcTransition\.begin\(\);\s*\n\s*listedEl\.textContent = '';/);
   assert.match(js, /edTransition\.end\(\)/);

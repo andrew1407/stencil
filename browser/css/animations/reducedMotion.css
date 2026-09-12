@@ -1,0 +1,21 @@
+/* ───────────────────────────────────────────────────────────────────────
+   Accessibility — honour the user's reduced-motion preference.
+   Neutralises every animation/transition added across the whole app.
+   ─────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Attachment chips rise into place as they're appended. Transcript rows used to
+   share this; they now ride the scroll-reveal below, which covers the entrance AND
+   the scroll — and an `animation: … both` end-state would out-rank its transform. */
+@keyframes chatMsgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.chat-attach-chip { animation: chatMsgIn 0.18s ease both; }
+@media (prefers-reduced-motion: reduce) {
+    .chat-attach-chip { animation: none; }
+}

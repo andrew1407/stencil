@@ -1,6 +1,7 @@
 // Server live-session depth: the global /events feed (created/updated/deleted), peer
 // join/leave lifecycle, and ephemeral cursor/presence relay — the parts of
 // server/internal/hub the smoke handshake doesn't reach.
+import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { issueToken, createProject, listProjects, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
 import { dialWS, join, T } from '../../helpers/wire.js';
@@ -15,7 +16,7 @@ test.describe('server events + session lifecycle', () => {
     const ev = await dialWS();
     try {
       ev.send({ type: T.hello, token });                     // no projectId, no subscribe
-      await new Promise((r) => setTimeout(r, 200));          // let the feed subscription settle
+      await sleep(200);          // let the feed subscription settle
 
       const project = await createProject(request, token, { name: 'evt' });
       const created = await ev.readUntil(T.projectEvent);

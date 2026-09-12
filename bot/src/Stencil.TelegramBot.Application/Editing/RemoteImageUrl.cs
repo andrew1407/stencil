@@ -3,30 +3,16 @@ using System.Net.Sockets;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
-/// <summary>
-/// Validates a user-supplied <c>/url</c> image source before it is handed to the CLI to fetch.
-/// The bot is reachable by any Telegram user, so this is the trust boundary that keeps the
-/// CLI's "load from URL/path" capability from being turned into a server-side request forgery
-/// (SSRF) or a local-file read: only <c>http(s)</c> URLs are accepted, and hosts that resolve
-/// to loopback / link-local / private / carrier-grade / cloud-metadata addresses are rejected.
-/// </summary>
-/// <remarks>
-/// The CLI re-resolves and fetches in a separate process, so this cannot by itself close a
-/// DNS-rebinding window; the CLI's own scheme guard and ffmpeg protocol allow-list are the
-/// defence-in-depth backstop. What this reliably blocks is the practical attack: a literal
-/// internal/metadata host, a bare local path (LFI), or a non-http scheme.
-/// </remarks>
+// The trust boundary for a user-supplied /url source: the bot is reachable by any Telegram user, so
+// only http(s) URLs whose hosts resolve to publicly routable addresses reach the CLI (SSRF /
+// local-file read). The CLI re-resolves in its own process, so DNS rebinding is left to its scheme
+// guard and ffmpeg allow-list.
 public static class RemoteImageUrl
 {
-    /// <summary>How long host resolution may take before the link is rejected as unreachable.</summary>
-    private static readonly TimeSpan DefaultResolveTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _defaultResolveTimeout = TimeSpan.FromSeconds(5);
 
-    /// <summary>
-    /// Parse and require an absolute <c>http</c>/<c>https</c> URL. Throws
-    /// <see cref="InvalidOperationException"/> (surfaced verbatim to the user) otherwise —
-    /// which also rejects bare local paths (e.g. <c>/etc/passwd.png</c>) and other schemes
-    /// (<c>file:</c>, <c>ftp:</c>, …).
-    /// </summary>
+    // Throws InvalidOperationException (surfaced verbatim), which also rejects bare local paths and
+    // other schemes.
     public static Uri Parse(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw)
@@ -38,11 +24,7 @@ public static class RemoteImageUrl
         return uri;
     }
 
-    /// <summary>
-    /// Validate the URL and confirm every address its host resolves to is publicly routable.
-    /// Host resolution is bounded by <paramref name="resolveTimeout"/> (default 5s) so a slow or
-    /// hung resolver can't stall the calling update handler.
-    /// </summary>
+    // Resolution is bounded by resolveTimeout so a hung resolver can't stall the update handler.
     public static async Task ValidateAsync(string raw, CancellationToken ct = default, TimeSpan? resolveTimeout = null)
     {
         Uri uri = Parse(raw);
@@ -53,7 +35,7 @@ public static class RemoteImageUrl
         }
         else
         {
-            addresses = await ResolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
+            addresses = await resolveAsync(uri.Host, resolveTimeout ?? _defaultResolveTimeout, ct);
         }
         if (addresses.Count == 0 || addresses.Any(IsBlockedAddress))
         {
@@ -62,16 +44,10 @@ public static class RemoteImageUrl
         }
     }
 
-    /// <summary>
-    /// Validate a user-supplied <c>/connect</c> server origin. Unlike <see cref="ValidateAsync"/>
-    /// this deliberately <em>allows</em> loopback and private-LAN targets — connecting to a
-    /// collaboration server on localhost or the LAN is an intended feature — and blocks only the
-    /// ranges that have no legitimate use as a server target and are the real SSRF danger:
-    /// link-local (the <c>169.254.169.254</c> cloud-metadata endpoint lives in
-    /// <c>169.254.0.0/16</c>; IPv6 <c>fe80::/10</c>), plus the unspecified and multicast ranges.
-    /// A bare host (no scheme) is treated as <c>http://</c>, matching how connections are normalised.
-    /// Host resolution is bounded so a hung resolver can't stall the calling update handler.
-    /// </summary>
+    // The /connect guard deliberately ALLOWS loopback and private-LAN servers and blocks only the
+    // ranges with no legitimate server use: link-local (169.254.0.0/16 holds the cloud-metadata
+    // endpoint; fe80::/10), unspecified and multicast. A bare host is treated as http://, matching
+    // connection normalisation.
     public static async Task ValidateServerUrlAsync(string raw, CancellationToken ct = default, TimeSpan? resolveTimeout = null)
     {
         string s = (raw ?? "").Trim();
@@ -97,13 +73,12 @@ public static class RemoteImageUrl
         {
             try
             {
-                addresses = await ResolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
+                addresses = await resolveAsync(uri.Host, resolveTimeout ?? _defaultResolveTimeout, ct);
             }
             catch (InvalidOperationException)
             {
-                // A host that won't resolve (or a slow resolver) can't be reached anyway, so it is
-                // not an SSRF target: unlike the /url guard we let the connection attempt proceed
-                // and fail on its own. We only ever reject a host we can prove is link-local.
+                // An unresolvable host is not an SSRF target: only a host proven link-local is
+                // rejected.
                 return;
             }
         }
@@ -114,11 +89,8 @@ public static class RemoteImageUrl
         }
     }
 
-    /// <summary>
-    /// Resolve a host with a timeout. A resolver that exceeds <paramref name="timeout"/> is
-    /// reported as unreachable (distinct from a real caller cancellation, which propagates).
-    /// </summary>
-    private static async Task<IReadOnlyList<IPAddress>> ResolveAsync(string host, TimeSpan timeout, CancellationToken ct)
+    // A resolver past timeout reads as unreachable; a real caller cancellation propagates.
+    private static async Task<IReadOnlyList<IPAddress>> resolveAsync(string host, TimeSpan timeout, CancellationToken ct)
     {
         using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linked.CancelAfter(timeout);
@@ -136,11 +108,8 @@ public static class RemoteImageUrl
         }
     }
 
-    /// <summary>
-    /// True for addresses that must never be reachable from a user-supplied link: loopback,
-    /// link-local (incl. the 169.254.169.254 metadata address), private/ULA, carrier-grade
-    /// NAT, multicast, and the unspecified address. IPv4-mapped IPv6 is unwrapped first.
-    /// </summary>
+    // Loopback, link-local (incl. 169.254.169.254), private/ULA, carrier-grade NAT, multicast and
+    // the unspecified address. IPv4-mapped IPv6 is unwrapped first.
     public static bool IsBlockedAddress(IPAddress address)
     {
         IPAddress ip = address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
@@ -184,14 +153,8 @@ public static class RemoteImageUrl
         return false;
     }
 
-    /// <summary>
-    /// The narrow guard for <c>/connect</c> targets: true only for addresses that are never a
-    /// legitimate collaboration server yet are the SSRF danger — link-local (incl. the
-    /// <c>169.254.169.254</c> cloud-metadata endpoint in <c>169.254.0.0/16</c> and IPv6
-    /// <c>fe80::/10</c>), the unspecified address, and multicast/reserved. Loopback and
-    /// private/carrier-grade ranges are deliberately <em>not</em> blocked here (they are allowed
-    /// server targets). IPv4-mapped IPv6 is unwrapped first, mirroring <see cref="IsBlockedAddress"/>.
-    /// </summary>
+    // Link-local, unspecified and multicast/reserved only; loopback and private ranges are allowed
+    // server targets. IPv4-mapped IPv6 is unwrapped first.
     public static bool IsCloudMetadataOrLinkLocal(IPAddress address)
     {
         IPAddress ip = address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;

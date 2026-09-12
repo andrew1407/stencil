@@ -1,0 +1,584 @@
+{
+  "_doc": "The bot's command vocabulary — the single source for the dispatch table, the Telegram '/' menu, /help and the README's command tables. Bot-specific, so it lives here rather than in browser/js/config.",
+  "commands": [
+    {
+      "verb": "help",
+      "menu": "Show the commands and menu"
+    },
+    {
+      "verb": "prompt",
+      "menu": "Ask the AI assistant to edit the image"
+    },
+    {
+      "verb": "chat",
+      "menu": "Chat mode on/off (clear forgets; save on|off stores it with the project)"
+    },
+    {
+      "verb": "chatapi",
+      "menu": "Pick which chat API (model/provider) the assistant uses"
+    },
+    {
+      "verb": "blank",
+      "menu": "Start a blank canvas: [format] [w h] [color]"
+    },
+    {
+      "verb": "format",
+      "menu": "Page format: <name> | custom <w> <h> (bare lists)"
+    },
+    {
+      "verb": "url",
+      "menu": "Load an image from a link"
+    },
+    {
+      "verb": "sourcesite",
+      "menu": "Scrape a page's media: <link> [count] [filter=…]",
+      "aliases": [
+        "source_site",
+        "source-site",
+        "scrape"
+      ]
+    },
+    {
+      "verb": "sourceupload",
+      "menu": "Scrape a page and load one image to edit",
+      "aliases": [
+        "source_upload",
+        "source-upload"
+      ]
+    },
+    {
+      "verb": "frame",
+      "menu": "Grab a video frame: [n]"
+    },
+    {
+      "verb": "crop",
+      "menu": "Crop, e.g. x1=10% x2=90% y1=10% y2=90%"
+    },
+    {
+      "verb": "rotate",
+      "menu": "Rotate 90° × n, e.g. 1, 2 or -1"
+    },
+    {
+      "verb": "filter",
+      "menu": "bw | sepia | invert | contour | none | color"
+    },
+    {
+      "verb": "draw",
+      "menu": "Draw line|rect|poly x1,y1 x2,y2 …"
+    },
+    {
+      "verb": "color",
+      "menu": "Set the pen colour",
+      "aliases": [
+        "colour"
+      ]
+    },
+    {
+      "verb": "thickness",
+      "menu": "Set the pen stroke width"
+    },
+    {
+      "verb": "points",
+      "menu": "Set vertex point size (0 hides)",
+      "aliases": [
+        "point"
+      ]
+    },
+    {
+      "verb": "style",
+      "menu": "Line style: solid | dashed | dotted"
+    },
+    {
+      "verb": "fill",
+      "menu": "Closed-shape fill (or none)"
+    },
+    {
+      "verb": "pen",
+      "menu": "Show the current pen"
+    },
+    {
+      "verb": "undo",
+      "menu": "Step back one edit"
+    },
+    {
+      "verb": "redo",
+      "menu": "Step forward one edit"
+    },
+    {
+      "verb": "undoline",
+      "menu": "Remove the last drawn line",
+      "aliases": [
+        "undo_line"
+      ]
+    },
+    {
+      "verb": "clearlines",
+      "menu": "Remove all drawn lines",
+      "aliases": [
+        "clear_lines"
+      ]
+    },
+    {
+      "verb": "image",
+      "menu": "Re-render and resend the result"
+    },
+    {
+      "verb": "layout",
+      "menu": "Apply a layout: <json | link to .json>"
+    },
+    {
+      "verb": "json",
+      "menu": "Download the layout JSON"
+    },
+    {
+      "verb": "project",
+      "menu": "Download the whole project as a .stencil file"
+    },
+    {
+      "verb": "reset",
+      "menu": "Clear pending edits"
+    },
+    {
+      "verb": "drop",
+      "menu": "Discard the working image"
+    },
+    {
+      "verb": "status",
+      "menu": "Show image, edits and connections"
+    },
+    {
+      "verb": "connect",
+      "menu": "Connect a server: <url> [token]"
+    },
+    {
+      "verb": "disconnect",
+      "menu": "Forget a connection"
+    },
+    {
+      "verb": "connections",
+      "menu": "List connected servers"
+    },
+    {
+      "verb": "projects",
+      "menu": "List server projects"
+    },
+    {
+      "verb": "fetch",
+      "menu": "Open a project by name or id"
+    },
+    {
+      "verb": "create",
+      "menu": "Save the result as a new project"
+    },
+    {
+      "verb": "save",
+      "menu": "Save back to the active project"
+    },
+    {
+      "verb": "sync",
+      "menu": "Live sync on/off (auto-upload + pull)"
+    },
+    {
+      "verb": "link",
+      "menu": "Link that opens the project in the desktop app",
+      "aliases": [
+        "openin",
+        "open_in",
+        "open-in",
+        "desktop"
+      ]
+    },
+    {
+      "verb": "projectcolor",
+      "menu": "Set the project accent colour",
+      "aliases": [
+        "project_color",
+        "project-color",
+        "pcolor"
+      ]
+    },
+    {
+      "verb": "projectname",
+      "menu": "Rename the working image or project",
+      "aliases": [
+        "project_name",
+        "project-name",
+        "pname",
+        "rename"
+      ]
+    },
+    {
+      "verb": "projectdescription",
+      "menu": "Set the description (empty clears; saved on /create)",
+      "aliases": [
+        "project_description",
+        "project-description",
+        "pdesc"
+      ]
+    },
+    {
+      "verb": "blankcolor",
+      "menu": "Recolour a blank project's background",
+      "aliases": [
+        "blank_color",
+        "blank-color",
+        "bcolor"
+      ]
+    },
+    {
+      "verb": "expire",
+      "menu": "Set the project expiry: <n unit> | never",
+      "aliases": [
+        "expiry",
+        "expiration"
+      ]
+    },
+    {
+      "verb": "delete",
+      "menu": "Remove the active project from the server",
+      "aliases": [
+        "remove",
+        "deleteproject",
+        "delete_project"
+      ]
+    },
+    {
+      "verb": "start"
+    },
+    {
+      "verb": "line",
+      "aliases": [
+        "polyline"
+      ]
+    },
+    {
+      "verb": "rect",
+      "aliases": [
+        "rectangle"
+      ]
+    },
+    {
+      "verb": "poly",
+      "aliases": [
+        "polygon"
+      ]
+    },
+    {
+      "verb": "cancel"
+    }
+  ],
+  "help": [
+    "Stencil bot — edit images with the same core as the browser/desktop/CLI.",
+    "",
+    "Set the working image by sending a photo, an image file, or just an image link.",
+    "Add a caption command to apply it at once, e.g. a photo captioned /crop … or /filter bw.",
+    "Send a video to grab a frame (caption /frame n to pick one); or a .json file with caption /apply.",
+    "",
+    "Image commands:",
+    "/prompt <request> — ask the AI assistant to plan and apply edits (/p for short)",
+    "/chat [on|off|clear] — chat mode: keep talking to the assistant without typing /prompt (clear forgets the conversation)",
+    "/chat save [on|off] — store the conversation with the active server project and restore it on /fetch (off by default)",
+    "/blank [format] [w h] [color] — start a blank canvas, e.g. /blank b5 pink",
+    "/format [name | custom w h] — page format for /blank and the saved layout (bare = list)",
+    "/url <link> — load an http(s) image",
+    "/sourcesite <link> [count] [filter=…] [format=…] — scrape a page's media into the chat",
+    "/sourceupload <link> [index=0] [format=…] — scrape a page and load one image to edit",
+    "/frame [n] — grab frame n of the loaded video (needs ffmpeg)",
+    "/crop <spec> [album] — crop, e.g. x1=10% x2=90% y1=10% y2=90%",
+    "/rotate <n> — rotate n quarter-turns clockwise, e.g. /rotate -1",
+    "/filter <bw|sepia|invert|contour|none|color> — recolour / tint (a colour = duotone)",
+    "/undo · /redo — step back / forward one edit   /reset — clear all edits",
+    "/drop — discard the working image",
+    "/image — re-render and re-send the current result image",
+    "/layout <json | link> — apply a layout JSON (or upload the .json file)",
+    "/json — download the layout JSON",
+    "/project — download the whole project as a .stencil file (send one back to open it)",
+    "/status — show the working image, edits and connections",
+    "",
+    "Drawing (annotate the image — coords are pixels or x%,y%):",
+    "/draw line x1,y1 x2,y2 … — a polyline",
+    "/draw rect x1,y1 x2,y2 — a rectangle (two corners)",
+    "/draw poly x1,y1 x2,y2 x3,y3 … — a closed polygon",
+    "/color <#hex|name>   /thickness <n>   /points <n>",
+    "/style <solid|dashed|dotted>   /fill <#hex|name|none>",
+    "/pen — show the current pen   /undoline   /clearlines",
+    "",
+    "Server commands:",
+    "/connect <url> [token] — connect to a collaboration server",
+    "/disconnect [url] — forget a connection",
+    "/connections [admin|session] — list connected servers (filter by credential)",
+    "/projects [url] — list projects (as buttons)",
+    "/fetch <name|id> — load a project as the working image",
+    "/create [name] — save the result as a new project",
+    "/save — save back to the active project",
+    "/sync [on|off] — live mode: auto-upload edits + pull peers' changes",
+    "/link — a link that opens the active project in the desktop app",
+    "/project-name <text> — rename the working image (or the active project)",
+    "/project-color <#hex|name|clear> — set the project's accent colour",
+    "/project-description <text> — set the description (empty clears; saved on /create)",
+    "/expire <n unit | never> — set the project's expiry, e.g. /expire 3 days",
+    "/delete — remove the active project from the server (asks to confirm)",
+    "",
+    "/help — this message   /cancel — never mind",
+    "The inline buttons mirror these commands."
+  ],
+  "readme": {
+    "_doc": "The generated blocks in bot/README.md between the <!-- botCommands:… --> markers. 'verbs' names the commands a row documents; 'undocumented' lists the ones with no row, so a new command forces a choice.",
+    "tables": [
+      {
+        "heading": "**Image**",
+        "rows": [
+          {
+            "verbs": [
+              "start",
+              "help"
+            ],
+            "command": "`/start`, `/help`",
+            "effect": "Greeting / full command list + the main menu"
+          },
+          {
+            "verbs": [
+              "prompt",
+              "p"
+            ],
+            "command": "`/prompt <request>` (alias `/p`)",
+            "effect": "**Ask the AI assistant** to plan and apply edits — e.g. `/prompt make it sepia and crop 10% off each side`, or `/prompt give me 3 variants: rotated, tinted red, contoured`. The reply's validated op-plan (see [`llm-contract.md`](../llm-contract/llm-contract.md)) executes through the **same** editing service as the slash commands, so `/undo` etc. work on AI edits; the working image rides along as the vision attachment (a photo captioned `/prompt …`, or `/prompt` sent as a reply to a photo, targets that photo). One updated result comes back with the edit menu; variants arrive as a media album. A spinning **◐ Working on your request…** notice goes up the moment the turn starts (a vision plan over a big image can take a minute) and is deleted when the reply — or the error — lands. A turn that never delivered — it failed (timeout, unreachable endpoint, a truncated reply) or you ended it with the notice's **⏹ Stop** button — comes back with a **🔄 Retry** button that re-runs the same request, so recovering costs one tap instead of retyping it on a phone; a *refusal* has no button, since re-sending it verbatim would only repeat it"
+          },
+          {
+            "verbs": [
+              "chatapi"
+            ],
+            "command": "`/chatapi [name]`",
+            "effect": "**Pick which chat API the assistant uses** — bare, it lists the ones the operator configured (`STENCIL_LLM_PROFILES`, see [`.env.example`](.env.example)) with a button each and a ✅ on the current one; `/chatapi llama` selects by name. The choice is **per user** and lives in the session, so one person trying a local model never moves anyone else, and it survives restarts. It is a picker, not free text: provider, base URL, model and token all come from the operator's environment, never from a chat message — a bot that took a URL from a message would issue requests to whatever host that message named. With no profiles configured the bot has exactly one chat API and says so"
+          },
+          {
+            "verbs": [
+              "chat"
+            ],
+            "command": "`/chat [on\\|off\\|clear]`",
+            "effect": "**Chat mode** — keep talking to the assistant without retyping `/prompt`. While it is on, every plain message you send is handled exactly like `/prompt <that text>` (same op-plan execution, same edit menu, variants as a media album). Started by `/chat` (or the **💬 Chat with assistant** button on the main menu / the **💬 Chat** button on the edit menu), stopped by `/chat off` or the **🚪 Chat off** button that rides the confirmation. `/chat clear` (or the **🧹 Clear chat** button next to it) makes the assistant forget the conversation so far without leaving chat mode; `/drop` clears it too. Precedence is strict: slash commands are never swallowed, an in-progress free-text flow (Rename / Describe / custom expiry) answers first, and a bare image link still loads like `/url` — only what's left over goes to the assistant. The flag lives in the per-user session (`UserSession.ChatMode`), so it survives across messages and shows in `/status`. `/chat save on\\|off` (or the **💾 Save chats** toggle on the chat menu) is the contract-§12 **chat persistence** opt-in (default off, `UserSession.SaveChats`): with it on, after each assistant turn the conversation (text only, displayed replies, ≤ 32 messages — never images) is uploaded to the active **server** project's `chat` file kind and restored (history reseeded, \"Restored N…\" noted) when that project is `/fetch`ed again; `/chat clear` then also deletes the server copy. The bot keeps no local chat store, so without an active server project nothing is written"
+          },
+          {
+            "verbs": [
+              "blank"
+            ],
+            "command": "`/blank [format] [w h] [color]`",
+            "effect": "Start a blank canvas: a named ISO format (e.g. `b5`) **or** pixel dims (default A4 @ 96 dpi, white)"
+          },
+          {
+            "verbs": [
+              "format"
+            ],
+            "command": "`/format [name\\|custom w h]`",
+            "effect": "Set the page format (A0–C10, case-insensitive, or custom cm dims) — the `/blank` default page (custom cm dims convert to pixels at 96 dpi, like the CLI console), written into the saved layout's `pageSize`; bare lists all 33 formats"
+          },
+          {
+            "verbs": [
+              "url"
+            ],
+            "command": "`/url <link>`",
+            "effect": "Load an `http(s)` image"
+          },
+          {
+            "verbs": [
+              "sourcesite"
+            ],
+            "command": "`/sourcesite <link> [count] [filter=…] [format=…] [minw/maxw/minh/maxh=…] [group=N]`",
+            "effect": "**Scrape a web page's media** into the chat: the CLI fetches the page, extracts + filters its `<img>`/`<video>`/`poster`/CSS-background URLs and downloads the matches (`--source-site` mode — HTML parsing is the CLI's job, not `core/`). Each measured image comes back as a photo, each video/unmeasured item as a document, plus a summary. Bare integer = count (**default 5**; `0` = all); `filter=` category tokens (`img\\|video\\|background\\|poster`), `format=` extension tokens (`png\\|jpg\\|…`), `min/max` inclusive px bounds, `group=` a 0-based page. The link is SSRF-vetted like `/url`"
+          },
+          {
+            "verbs": [
+              "sourceupload"
+            ],
+            "command": "`/sourceupload <link> [index=0] [format=…] [minw/maxw/minh/maxh=…]`",
+            "effect": "**Scrape a page and load ONE image to edit** — the chat analog of the console `/source-upload`. Isolates the still at 0-based `index` (image-category only: `img\\|background\\|poster`, video excluded) via a one-item scrape, adopts it as the **editable** working image (replacing the session, like `/url`), then renders + sends it with the edit menu. Bare integer = the index; `format=`/`min/max` filter the candidate stills. Replies `No image at index N` when nothing lives there. The link is SSRF-vetted like `/url`"
+          },
+          {
+            "verbs": [
+              "frame"
+            ],
+            "command": "`/frame [n]`",
+            "effect": "Grab frame `n` of the loaded video (needs `ffmpeg` on `PATH`)"
+          },
+          {
+            "verbs": [
+              "crop"
+            ],
+            "command": "`/crop <spec> [album]`",
+            "effect": "Crop, e.g. `x1=10% x2=90% y1=10% y2=90%`"
+          },
+          {
+            "verbs": [
+              "rotate"
+            ],
+            "command": "`/rotate <n>`",
+            "effect": "Rotate `n` quarter-turns clockwise (bare lists the variants: `1`, `2`, `-1`)"
+          },
+          {
+            "verbs": [
+              "filter"
+            ],
+            "command": "`/filter <bw\\|sepia\\|invert\\|contour\\|none\\|color>`",
+            "effect": "Black & white, sepia, invert, edge-detect contour, clear, or a duotone tint"
+          },
+          {
+            "verbs": [
+              "reset",
+              "drop"
+            ],
+            "command": "`/reset` · `/drop`",
+            "effect": "Clear pending edits (keep image) · forget the image entirely — `/drop` is a full start-over, so it also clears the assistant's conversation"
+          },
+          {
+            "verbs": [
+              "layout"
+            ],
+            "command": "`/layout <json \\| link>`",
+            "effect": "Apply a layout: inline JSON or an `http(s)` link to a layout `.json` (same validation as uploading the file; links are SSRF-vetted like `/url`)"
+          },
+          {
+            "verbs": [
+              "image",
+              "json"
+            ],
+            "command": "`/image` · `/json`",
+            "effect": "Download the rendered result · download the layout JSON"
+          },
+          {
+            "verbs": [
+              "status"
+            ],
+            "command": "`/status`",
+            "effect": "Show the working image, pending edits, pen and active project"
+          }
+        ]
+      },
+      {
+        "heading": "**Drawing / annotation** — coordinates are image pixels, or `x%,y%` of the image:",
+        "rows": [
+          {
+            "verbs": [
+              "draw"
+            ],
+            "command": "`/draw line x1,y1 x2,y2 …`",
+            "effect": "Draw a polyline (2+ points)"
+          },
+          {
+            "verbs": [
+              "draw"
+            ],
+            "command": "`/draw rect x1,y1 x2,y2`",
+            "effect": "Draw a rectangle (two opposite corners)"
+          },
+          {
+            "verbs": [
+              "draw"
+            ],
+            "command": "`/draw poly x1,y1 x2,y2 x3,y3 …`",
+            "effect": "Draw a closed polygon (3+ points)"
+          },
+          {
+            "verbs": [
+              "color",
+              "thickness",
+              "points",
+              "style",
+              "fill"
+            ],
+            "command": "`/color` · `/thickness` · `/points` · `/style` · `/fill`",
+            "effect": "Set the pen (style for new lines)"
+          },
+          {
+            "verbs": [
+              "pen",
+              "undoline",
+              "clearlines"
+            ],
+            "command": "`/pen` · `/undoline` · `/clearlines`",
+            "effect": "Show the pen · remove the last line · clear all lines"
+          }
+        ]
+      },
+      {
+        "heading": "**Server**",
+        "rows": [
+          {
+            "verbs": [
+              "connect",
+              "disconnect",
+              "connections"
+            ],
+            "command": "`/connect <url> [token]` · `/disconnect [url]` · `/connections [admin\\|session]`",
+            "effect": "Manage server connections. The URL may be an **invite link** (`<url>#token=<tok>`) — its fragment supplies the token; a token argument still wins over it. Each connection remembers what its credential turned out to be (browser parity: an **admin** token can't list projects but mints session tokens, and is proven once a mint-then-validate round succeeds); `/connections` marks those `[admin]` and takes an optional `admin` / `session` filter — tokens themselves are never printed"
+          },
+          {
+            "verbs": [
+              "projects"
+            ],
+            "command": "`/projects [url]`",
+            "effect": "List server projects as tappable buttons (tap to fetch)"
+          },
+          {
+            "verbs": [
+              "fetch"
+            ],
+            "command": "`/fetch <name\\|id>`",
+            "effect": "Load a server project as the working image"
+          },
+          {
+            "verbs": [
+              "create"
+            ],
+            "command": "`/create [name]`",
+            "effect": "Publish the current result as a **new** server project"
+          },
+          {
+            "verbs": [
+              "save"
+            ],
+            "command": "`/save`",
+            "effect": "Save the result + layout back to the active project (version-guarded)"
+          },
+          {
+            "verbs": [
+              "link",
+              "desktop",
+              "open-in"
+            ],
+            "command": "`/link` (`/desktop`, `/open-in`)",
+            "effect": "**Outbound deep link** — the reverse of `/start`: an `https` link (also the 🔗 Link button on the `/status` and edit menus) that opens the active project in the **desktop app**. Chat apps only linkify `http(s)`, so it points at the browser app's `launch.html` bounce page, which forwards to `stencil://open?server=…&id=…&version=…`. Server projects only (a link carries a reference, not image bytes) and **no token rides it** — whoever follows it connects with their own credential. The bounce page comes from `STENCIL_BOT_BROWSER_URL`"
+          },
+          {
+            "verbs": [
+              "expire"
+            ],
+            "command": "`/expire <n unit \\| never>`",
+            "effect": "Set the active project's expiry (version-guarded) — bare `/expire` (or the ⏳ Expiration button in `/status`) opens a duration picker: **1 day · 3 days · 1 week · Fortnight · 1 month · 3 months · Custom · Never**; **Custom** awaits a free-text span like `3 days`, `week 4`, `2 weeks`, `1 month`"
+          },
+          {
+            "verbs": [
+              "start"
+            ],
+            "command": "`/start <payload>`",
+            "effect": "Inbound deep link: t.me `?start=` payloads from the browser/desktop **\"Open in… → Telegram\"** button decode to (server, project id); the bot connects like a fresh client (token minted via `POST /auth/token`) and fetches the project into the chat. Failures reply with the manual `/connect` + `/fetch` recipe"
+          }
+        ]
+      }
+    ],
+    "undocumented": [
+      "blankcolor",
+      "cancel",
+      "delete",
+      "line",
+      "poly",
+      "project",
+      "projectcolor",
+      "projectdescription",
+      "projectname",
+      "rect",
+      "redo",
+      "sync",
+      "undo"
+    ]
+  }
+}

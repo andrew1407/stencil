@@ -1,34 +1,32 @@
 // ── Chat message side placement ("Swap message sides") ──────────────────────
-// A UI-only display preference — which side user/assistant/error bubbles draw on,
-// and which corner their tail points from. Browser app parity: js/ui/chatLayoutPrefs.js
-// is the same module. Deliberately NOT persisted (user report: it should never carry
-// over a reload or a reopened tab/panel) — it lives in a plain module-level variable, so
-// each freshly opened popup/side panel/DevTools panel starts at the default, scoped to
-// that one instance's own session. There used to be a watchChatSide() that kept the
-// three pages in step live via a `storage` event — dropped along with the persistence
-// it depended on; each page's own click toggle is now the only way to change it there.
-// Default ('normal'): user right, assistant/error left — exactly today's layout.
+// PORT of browser/js/ui/chatLayoutPrefs.js (the extension can't import across
+// subprojects) — keep the two rule-for-rule. Deliberately NOT persisted, so each freshly
+// opened popup / side panel / DevTools panel starts at the default.
 let side = 'normal';
 
 export const CHAT_SIDE_NORMAL = 'normal';
 export const CHAT_SIDE_SWAPPED = 'swapped';
-// The class popup.css keys the swap rules off (#sec-assistant .chat-transcript).
+// The class the swap rules key off (.chat-swapped, on a transcript container):
+// css/components/chat/tails.css here, popup.css in the extension — both surfaces stamp it
+// on their own transcript element from the one shared preference below.
 export const CHAT_SWAPPED_CLASS = 'chat-swapped';
 
-export const loadChatSide = () => side;
+export const chatSide = () => side;
 
-export const saveChatSide = (next) => {
+export const setChatSide = (next) => {
   side = next === CHAT_SIDE_SWAPPED ? CHAT_SIDE_SWAPPED : CHAT_SIDE_NORMAL;
 };
 
-// Flips the preference for the rest of this page's session, returning the NEW side.
+// Flips the preference for the rest of this tab's session, returning the NEW side.
 export const toggleChatSide = () => {
-  const next = loadChatSide() === CHAT_SIDE_SWAPPED ? CHAT_SIDE_NORMAL : CHAT_SIDE_SWAPPED;
-  saveChatSide(next);
+  const next = chatSide() === CHAT_SIDE_SWAPPED ? CHAT_SIDE_NORMAL : CHAT_SIDE_SWAPPED;
+  setChatSide(next);
   return next;
 };
 
 // Stamps (or clears) the class a transcript element needs for the CSS swap rules.
-export const applyChatSide = (transcriptEl, side = loadChatSide()) => {
+// `side` defaults to whatever is currently set, so a caller can just call this on
+// mount with no argument.
+export const applyChatSide = (transcriptEl, side = chatSide()) => {
   transcriptEl?.classList?.toggle(CHAT_SWAPPED_CLASS, side === CHAT_SIDE_SWAPPED);
 };

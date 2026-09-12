@@ -1,29 +1,25 @@
 // ── Voice input modes ──────────────────────────────────────────────────────
-// The one coordinator behind every way of talking to the assistant:
-//   'composer'  a chat composer (panel or context-menu flyout) dictates into its
-//               textarea; ONLY a spoken "send / send it / execute / execute it" sends,
-//               through that surface's own send path. A pause longer than the silence
-//               setting ends the dictation instead — the mic goes off and the words stay
-//               in the box, so a pause never fires a half-thought the way chat mode does;
-//   'chat'      the toolbar's hands-free VOICE CHAT — listens with the chat closed,
-//               each utterance becomes a logged turn, toasts stand in for a surface; a
-//               pause OR the spoken phrase sends, and it keeps listening after a send.
-// Exactly one mode listens at a time (turning one on turns the other off).
-// The engine (voiceInput.js) and every clock are injected for `node --test`.
+// The one coordinator behind every way of talking to the assistant. 'composer' dictates
+// into a chat textarea: ONLY a spoken "send / send it / execute / execute it" sends, and a
+// pause longer than the silence setting ends the dictation with the words left in the box.
+// 'chat' is the toolbar's hands-free VOICE CHAT: it listens with the chat closed, each
+// utterance becomes a logged turn, and a pause OR the phrase sends. One mode listens at a
+// time; the engine and every clock are injected for `node --test`.
 import { createVoiceInput, voiceErrorText } from './voiceInput.js';
 import { loadVoiceSettings, recognitionLang, VOICE_SETTINGS_EVENT } from './voiceSettings.js';
 import { loadLlmSettings } from './llmSettings.js';
 import { sharedChatController, runLoggedChatTurn, closedTurnToast, spokenEcho } from './chatSession.js';
 import { notify as appNotify } from '../utils.js';
+import { publish, subscribe, EVENTS } from '../bus/appBus.js';
 
-export const VOICE_STATE_EVENT = 'stencil:voice-state-changed';
+export const VOICE_STATE_EVENT = EVENTS.voiceStateChanged;
 export const VOICE_ACTIVE_LEVEL = 0.2;   // speech reads 0.4–1.0, room noise stays under 0.1
 export const UNSUPPORTED_TEXT = 'Voice input is not supported in this browser';
 
 // The spoken "send" — only as the WHOLE tail of an utterance, longest phrase first so
 // "send it" is never read as "send" + a dangling "it". Trailing punctuation the
 // recognizer adds ("Send it.") is tolerated; "resend" / "send me the file" are words.
-export const SEND_PHRASES = ['send it', 'execute it', 'send', 'execute'];
+export const SEND_PHRASES = Object.freeze(['send it', 'execute it', 'send', 'execute']);
 const SEND_RE = new RegExp(`(^|[\\s,.;:!?])(${SEND_PHRASES.join('|')})[\\s.,;:!?]*$`, 'i');
 export const splitSendPhrase = (raw) => {
   const text = String(raw ?? '').replace(/\s+/g, ' ').trim();
@@ -55,13 +51,8 @@ export const createVoiceModes = ({
   const levelSubs = new Set();
 
   const emit = (extra) => {
-    if (!win?.dispatchEvent) return;
-    const detail = { mode, listening: mode !== 'off' && engine.listening, supported: engine.supported, ...extra };
-    try {
-      win.dispatchEvent(typeof CustomEvent === 'function'
-        ? new CustomEvent(VOICE_STATE_EVENT, { detail })
-        : Object.assign(new Event(VOICE_STATE_EVENT), { detail }));
-    } catch { /* no DOM */ }
+    publish(VOICE_STATE_EVENT, { mode, listening: mode !== 'off' && engine.listening, supported: engine.supported, ...extra },
+            { target: win });
   };
 
   // ── Silence: one timer, armed by results; loudness only leaves a timestamp so the
@@ -173,7 +164,7 @@ export const createVoiceModes = ({
     lang = next;
     engine.start(session());
   };
-  win?.addEventListener?.(VOICE_SETTINGS_EVENT, onSettings);
+  const offSettings = subscribe(VOICE_SETTINGS_EVENT, onSettings, { target: win });
 
   return {
     get supported() { return engine.supported; },
@@ -209,7 +200,7 @@ export const createVoiceModes = ({
     onLevel(fn) { levelSubs.add(fn); return () => levelSubs.delete(fn); },
     dispose() {
       leave();
-      win?.removeEventListener?.(VOICE_SETTINGS_EVENT, onSettings);
+      offSettings();
       levelSubs.clear();
     },
   };

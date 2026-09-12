@@ -5,8 +5,8 @@ using namespace stencil::core;
 
 namespace {
   // A3 in cm; aspect ratio ≈ √2. Used as the page in most cases below.
-  constexpr double kA3W = 29.7;
-  constexpr double kA3H = 42.0;
+  constexpr double A3_W = 29.7;
+  constexpr double A3_H = 42.0;
 }  // namespace
 
 TEST_CASE("isAlbumOrientation is wider-than-tall") {
@@ -17,16 +17,16 @@ TEST_CASE("isAlbumOrientation is wider-than-tall") {
 
 TEST_CASE("cropAspect picks width/height for the orientation, ignoring page order") {
   // Portrait: short / long ≈ 1/√2 ≈ 0.707; album: long / short ≈ √2 ≈ 1.414.
-  CHECK(cropAspect(kA3W, kA3H, false) == doctest::Approx(29.7 / 42.0));
-  CHECK(cropAspect(kA3W, kA3H, true) == doctest::Approx(42.0 / 29.7));
+  CHECK(cropAspect(A3_W, A3_H, false) == doctest::Approx(29.7 / 42.0));
+  CHECK(cropAspect(A3_W, A3_H, true) == doctest::Approx(42.0 / 29.7));
   // A page given album-first yields the same proportions.
-  CHECK(cropAspect(kA3H, kA3W, true) == doctest::Approx(42.0 / 29.7));
+  CHECK(cropAspect(A3_H, A3_W, true) == doctest::Approx(42.0 / 29.7));
   CHECK(cropAspect(0, 0, true) == doctest::Approx(1.0));  // degenerate guard
 }
 
 TEST_CASE("centeredCrop cuts the surplus height of a tall portrait image") {
   // Spec example: a 100x200 image at A3 (portrait) → 100x141, cutting top+bottom.
-  const auto r = centeredCrop(100, 200, cropAspect(kA3W, kA3H, false));
+  const auto r = centeredCrop(100, 200, cropAspect(A3_W, A3_H, false));
   CHECK(r.width == doctest::Approx(100.0));
   CHECK(r.height == doctest::Approx(100.0 * 42.0 / 29.7));  // ≈ 141.4
   CHECK(r.x == doctest::Approx(0.0));
@@ -35,7 +35,7 @@ TEST_CASE("centeredCrop cuts the surplus height of a tall portrait image") {
 
 TEST_CASE("centeredCrop cuts the surplus width of a wide album image") {
   // Spec example: a 200x100 image at A3 (album) → 141x100, cutting left+right.
-  const auto r = centeredCrop(200, 100, cropAspect(kA3W, kA3H, true));
+  const auto r = centeredCrop(200, 100, cropAspect(A3_W, A3_H, true));
   CHECK(r.height == doctest::Approx(100.0));
   CHECK(r.width == doctest::Approx(100.0 * 42.0 / 29.7));  // ≈ 141.4
   CHECK(r.y == doctest::Approx(0.0));
@@ -45,7 +45,7 @@ TEST_CASE("centeredCrop cuts the surplus width of a wide album image") {
 TEST_CASE("centeredCrop of an already-correct-aspect image is the whole image") {
   // A blank image generated at the page size has the page aspect already, so the
   // default crop must not cut anything (no visible change on load).
-  const double aspect = cropAspect(kA3W, kA3H, false);  // portrait
+  const double aspect = cropAspect(A3_W, A3_H, false);  // portrait
   const auto r = centeredCrop(1123, 1587, aspect);       // ≈ A3 @ 96dpi
   // The rounded blank size isn't EXACTLY √2, so at most a sub-pixel sliver is
   // trimmed — the crop must still cover essentially the whole image.
@@ -57,7 +57,7 @@ TEST_CASE("centeredCrop of an already-correct-aspect image is the whole image") 
 
 TEST_CASE("resizeCropFromCorner keeps the aspect ratio and anchors the opposite corner") {
   // Start with a 100x141.4 portrait crop at the image origin.
-  const double aspect = cropAspect(kA3W, kA3H, false);
+  const double aspect = cropAspect(A3_W, A3_H, false);
   CropRect cur{0, 0, 100, 100 / aspect};
   // Drag the bottom-right corner (2) outward; top-left (0,0) stays anchored.
   const auto r = resizeCropFromCorner(cur, 2, 80, 999, aspect, 1000, 1000);
@@ -68,7 +68,7 @@ TEST_CASE("resizeCropFromCorner keeps the aspect ratio and anchors the opposite 
 }
 
 TEST_CASE("resizeCropFromCorner clamps to the image bounds") {
-  const double aspect = cropAspect(kA3W, kA3H, true);  // album ≈ 1.414
+  const double aspect = cropAspect(A3_W, A3_H, true);  // album ≈ 1.414
   CropRect cur{10, 10, 100, 100 / aspect};
   // Drag bottom-right far past the image — must clamp inside 200x200.
   const auto r = resizeCropFromCorner(cur, 2, 5000, 5000, aspect, 200, 200);

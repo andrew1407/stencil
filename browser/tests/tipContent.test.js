@@ -9,6 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTip, renderTip, keysHtml, highlightKeys, isKeyCombo } from '../js/ui/tipContent.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 test('a trailing "(combo)" becomes keycaps, and only when it really is a combo', () => {
   const tip = parseTip('Fit to window (Alt+0)');
@@ -146,7 +147,7 @@ test('the tooltip controller renders the structure, and the CSS styles every par
   const js = readFileSync(new URL('../js/ui/controlTooltip.js', import.meta.url), 'utf8');
   assert.match(js, /renderTip/, 'the controller goes through the content model');
   assert.ok(!/\.textContent\s*=\s*txt/.test(js), 'and no longer prints the title flat');
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   for (const cls of ['.tip-head', '.tip-title', '.tip-keys', '.tip-key', '.tip-plus',
     '.tip-rows', '.tip-term', '.tip-desc', '.tip-bullets', '.tip-hint', '.tip-note']) {
     assert.ok(css.includes(cls), `${cls} is styled`);

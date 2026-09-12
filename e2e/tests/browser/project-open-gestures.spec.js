@@ -6,6 +6,7 @@
 // new tab is a real page in the same context.
 import { test, expect } from '@playwright/test';
 import { gotoApp, seedProjectsAndOpenList } from '../../helpers/boot.js';
+import { finger, ghostBox } from '../../helpers/drag.js';
 
 // Two saved local projects, then the Projects modal open (helpers/boot.js). Returns the
 // row of the project that is NOT active, so every gesture has something real to switch to.
@@ -13,29 +14,6 @@ const seedAndOpenList = (page, extra = 0) => seedProjectsAndOpenList(page, { ext
 
 const confirmModal = (page) => page.locator('#confirm-modal-overlay');
 const activeId = (page) => page.evaluate(() => window.stencil.current?.id ?? null);
-
-// A REAL finger, through the browser's input pipeline (CDP), not `dispatchEvent`. It has to be:
-// synthetic PointerEvents never reach the compositor, so they can't show whether the browser
-// steals the gesture for scrolling — which is exactly how a reorder that no finger could
-// complete once passed this suite.
-async function finger(page) {
-  const cdp = await page.context().newCDPSession(page);
-  const send = (type, x, y) => cdp.send('Input.dispatchTouchEvent', {
-    type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
-  });
-  return {
-    down: (x, y) => send('touchStart', x, y),
-    move: (x, y) => send('touchMove', x, y),
-    up: (x, y) => send('touchEnd', x, y),
-    // Glide in steps, as a finger does — one jump can be mistaken for a flick.
-    async glide(x, y, tx, ty, steps = 6) {
-      for (let i = 1; i <= steps; i++) {
-        await send('touchMove', x + ((tx - x) * i) / steps, y + ((ty - y) * i) / steps);
-        await page.waitForTimeout(30);
-      }
-    },
-  };
-}
 
 // How far anything has scrolled (page or the list itself — either counts as "the list moved").
 const scrollTop = (page) => page.evaluate(() => Math.max(
@@ -45,7 +23,7 @@ const scrollTop = (page) => page.evaluate(() => Math.max(
 
 test.describe('projects list: open gestures', () => {
   test('single click asks first, and opens in THIS tab on confirm', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
     const targetId = await target.getAttribute('data-id');
@@ -68,7 +46,7 @@ test.describe('projects list: open gestures', () => {
   });
 
   test('double click opens immediately — the modal never even flashes', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const targetId = await target.getAttribute('data-id');
 
@@ -90,7 +68,7 @@ test.describe('projects list: open gestures', () => {
   });
 
   test('⌘/Ctrl + click asks, then opens in a NEW TAB', async ({ page, context }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
 
@@ -108,7 +86,7 @@ test.describe('projects list: open gestures', () => {
   });
 
   test('⌘/Ctrl + double click opens a NEW TAB immediately, no modal', async ({ page, context }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
 
@@ -124,7 +102,7 @@ test.describe('projects list: open gestures', () => {
   });
 
   test('keyboard: Enter on a focused row opens it, with the confirmation', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const targetId = await target.getAttribute('data-id');
     await target.focus();
@@ -142,7 +120,7 @@ test.describe('projects list: touch gestures', () => {
   test.use({ viewport: { width: 390, height: 780 }, hasTouch: true, isMobile: true });
 
   test('tap asks and opens here; the ⋯ menu is the new-tab route', async ({ page, context }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
     const box = await target.boundingBox();
@@ -172,7 +150,7 @@ test.describe('projects list: touch gestures', () => {
   });
 
   test('a press-and-hold in place picks the row up to REORDER — it opens nothing', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
     const box = await target.boundingBox();
@@ -191,7 +169,7 @@ test.describe('projects list: touch gestures', () => {
   });
 
   test('a touch reorder drag completes — the finger keeps the gesture, the list never scrolls', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { rows, target } = await seedAndOpenList(page, 2);
     const before = await activeId(page);
     const orderBefore = await page.locator('.project-row[data-drag-key]')
@@ -205,11 +183,7 @@ test.describe('projects list: touch gestures', () => {
     const gx = from.x + 40, gy = from.y + from.height / 2;
     await touch.down(gx, gy);
     await page.waitForTimeout(400);                       // pickup (280ms) + margin
-    const ghostAt = () => page.evaluate(() => {
-      const g = [...document.body.children].find((e) => e.style.zIndex === '100005');
-      return g ? { left: g.getBoundingClientRect().left, top: g.getBoundingClientRect().top } : null;
-    });
-    const grabOffset = gx - (await ghostAt()).left;
+    const grabOffset = gx - (await ghostBox(page)).left;
 
     // Drop in the TOP quarter of the other row → land BEFORE it (a real move).
     const tx = other.x + 40, ty = other.y + 6;
@@ -217,7 +191,7 @@ test.describe('projects list: touch gestures', () => {
 
     // The ghost is still there — i.e. the browser did NOT steal the gesture to scroll —
     // and it is still anchored under the finger at the point it was grabbed by.
-    const held = await ghostAt();
+    const held = await ghostBox(page);
     expect(held, 'the drag survived the move (no scroll steal)').not.toBeNull();
     expect(Math.abs(tx - held.left - grabOffset), 'the ghost stays under the finger').toBeLessThan(2);
     await touch.up(tx, ty);
@@ -236,7 +210,7 @@ test.describe('projects list: touch gestures', () => {
   });
 
   test('dragging a row out to the "Open here" zone opens it, by finger', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page);
     const before = await activeId(page);
     const targetId = await target.getAttribute('data-id');
@@ -260,7 +234,7 @@ test.describe('projects list: touch gestures', () => {
   });
 
   test('a swipe over a row still scrolls the list — it never opens anything', async ({ page }) => {
-    await gotoApp(page);
+    await gotoApp(page, { motion: 'none' });
     const { target } = await seedAndOpenList(page, 3);
     const before = await activeId(page);
     const box = await target.boundingBox();

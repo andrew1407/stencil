@@ -1,7 +1,7 @@
 // Every <select> in the app wears the app's OWN dropdown (js/ui/customSelect.js), not the
 // OS one: macOS draws the native popup itself — centred over the control, in its own
 // palette — so a toolbar of themed controls answered a click with a system menu. The
-// desktop app makes the same swap (support/searchCombo.hpp), and the exception on both
+// desktop app makes the same swap (support/SearchCombo.hpp), and the exception on both
 // sides is the ZOOM control, which is a number field with a preset list attached.
 import { test, expect } from '@playwright/test';
 import { gotoApp } from '../../helpers/boot.js';

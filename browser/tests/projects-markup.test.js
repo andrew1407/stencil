@@ -4,6 +4,9 @@ import assert from 'node:assert';
 // layout() transitively imports every ui component, including the projects modal.
 import { layout } from '../js/ui/layout.js';
 import { escapeHtml } from '../js/ui/base.js';
+import { escapeHtml as tipEscape } from '../js/ui/tipContent.js';
+import { escapeHtml as oneEscape } from '../js/ui/escapeHtml.js';
+import { projectsModalSource } from './helpers/projectsModalSource.js';
 
 // The project-row / server-row badges interpolate server-provenance strings
 // (meta.address, meta.serverUrl — user-typed connect URLs or server-returned
@@ -60,7 +63,7 @@ test('no runtime-only project row ids in static markup', () => {
 // behaviour is unit-tested in motion.test.js, and end-to-end in connectModal.test.js.
 import { readFileSync } from 'node:fs';
 
-const projectsSrc = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+const projectsSrc = projectsModalSource();
 
 test('every projects filter control re-lists through the shared transition', () => {
   assert.match(projectsSrc, /import \{[^}]*createFilterAnimator[^}]*\} from '\.\/motion\.js'/,
@@ -108,4 +111,12 @@ test('a real removal keeps the destructive wipe — a filter is not a delete', (
     'deleting a project still scatters');
   assert.ok(!/runFilter[\s\S]{0,200}scatterGridFor/.test(projectsSrc),
     'nothing on the filter path reaches for the dust');
+});
+
+// ONE escaper: base.js and tipContent.js re-export js/ui/escapeHtml.js rather than each
+// keeping a copy (extension/tests/portParity.test.js pins the extension's port of it).
+test('escapeHtml is a single implementation, re-exported', () => {
+  assert.strictEqual(escapeHtml, oneEscape);
+  assert.strictEqual(tipEscape, oneEscape);
+  assert.strictEqual(escapeHtml(`it's <b>"&"</b>`), 'it&#39;s &lt;b&gt;&quot;&amp;&quot;&lt;/b&gt;');
 });

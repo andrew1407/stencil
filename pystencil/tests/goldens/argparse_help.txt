@@ -1,0 +1,60 @@
+usage: stencil-py [-h] [-i INPUT] [--blank [TOKEN ...]] [-f FRAME] [-c CROP]
+                  [--album] [-r ROTATE] [-l LAYOUT] [--filter FILTER]
+                  [--save-layout SAVE_LAYOUT] [--source-site URL]
+                  [--source-count SOURCE_COUNT] [--group GROUP]
+                  [--source-filter SOURCE_FILTER]
+                  [--source-format SOURCE_FORMAT] [--source-name SOURCE_NAME]
+                  [--source-min-width SOURCE_MIN_WIDTH]
+                  [--source-max-width SOURCE_MAX_WIDTH]
+                  [--source-min-height SOURCE_MIN_HEIGHT]
+                  [--source-max-height SOURCE_MAX_HEIGHT] [--console]
+                  [output]
+
+Headless image editing over the shared Stencil core (Python port of the Zig
+CLI).
+
+positional arguments:
+  output                result image path (extension auto-filled to .png)
+
+options:
+  -h, --help            show this help message and exit
+  -i INPUT, --input INPUT
+                        image source: a file path or http(s):// URL
+  --blank [TOKEN ...]   create a blank page: [format] [w h] [color] (default
+                        A4 @ 96dpi, white)
+  -f FRAME, --frame FRAME
+                        video frame index (parity only)
+  -c CROP, --crop CROP  crop spec, e.g. "x1=10% x2=90% y1=10% y2=90%"
+  --album               derive the missing crop axis from the page
+  -r ROTATE, --rotate ROTATE
+                        rotate by N quarter-turns (N×90°)
+  -l LAYOUT, --layout LAYOUT
+                        layout JSON (path or URL) to DRAW onto the image
+  --filter FILTER       bw | sepia | invert | contour | none | a colour
+                        name/#hex (duotone)
+  --save-layout SAVE_LAYOUT
+                        export the structured layout JSON here
+  --source-site URL     scrape a web page's media into the output DIRECTORY
+                        (activates scrape mode)
+  --source-count SOURCE_COUNT
+                        items per page/group (default 5; 0 = all)
+  --group GROUP         0-based page index
+  --source-filter SOURCE_FILTER
+                        category tokens |-joined: img|video|background|poster
+                        (all = every category)
+  --source-format SOURCE_FORMAT
+                        format tokens |-joined, e.g. png|jpg|webp|mp4 (all =
+                        every format)
+  --source-name SOURCE_NAME
+                        regex (case-insensitive) matched against each media
+                        URL
+  --source-min-width SOURCE_MIN_WIDTH
+                        inclusive min width in px (0 = unset)
+  --source-max-width SOURCE_MAX_WIDTH
+                        inclusive max width in px (0 = unset)
+  --source-min-height SOURCE_MIN_HEIGHT
+                        inclusive min height in px (0 = unset)
+  --source-max-height SOURCE_MAX_HEIGHT
+                        inclusive max height in px (0 = unset)
+  --console, --repl     start the interactive /command REPL instead of a one-
+                        shot run

@@ -32,19 +32,19 @@ public sealed class UserWorkspacePruneTests : IDisposable
     }
 
     [Fact]
-    public void ActiveUserIdsListsNumericDirectoriesOnly()
+    public void Should_List_Numeric_Directories_Only_In_Active_User_Ids()
     {
         _workspace.DirectoryFor(7);
         _workspace.DirectoryFor(42);
         Directory.CreateDirectory(Path.Combine(_root, "not-a-user"));
 
-        IReadOnlyList<long> ids = _workspace.ActiveUserIds();
+        long[] ids = [.. _workspace.ActiveUserIds().OrderBy(x => x)];
 
-        Assert.Equal(new[] { 7L, 42L }, ids.OrderBy(x => x));
+        Assert.Equal(new[] { 7L, 42L }, ids);
     }
 
     [Fact]
-    public void PruneStaleDeletesOldOrphansButKeepsReferencedAndRecent()
+    public void Should_Delete_Old_Orphans_But_Keep_Referenced_And_Recent_On_Prune_Stale()
     {
         string referenced = _workspace.NewFilePath(7, ".png");
         string oldOrphan = _workspace.NewFilePath(7, ".png");
@@ -67,7 +67,7 @@ public sealed class UserWorkspacePruneTests : IDisposable
     }
 
     [Fact]
-    public void PruneStaleRemovesADirectoryLeftEmpty()
+    public void Should_Remove_A_Directory_Left_Empty_On_Prune_Stale()
     {
         string orphan = _workspace.NewFilePath(9, ".png");
         File.WriteAllBytes(orphan, new byte[1]);
@@ -79,13 +79,13 @@ public sealed class UserWorkspacePruneTests : IDisposable
     }
 
     [Fact]
-    public void PruneStaleIsANoOpForAnUnknownUser()
+    public void Should_Do_Nothing_On_Prune_Stale_For_An_Unknown_User()
     {
         Assert.Equal(0, _workspace.PruneStale(123, Array.Empty<string>(), DateTime.UtcNow));
     }
 
     [Fact]
-    public void PruneStaleReapsNestedScrapeSubdirsAndRemovesTheEmptyUserDir()
+    public void Should_Reap_Nested_Scrape_Subdirs_And_Remove_The_Empty_User_Dir_On_Prune_Stale()
     {
         // Scrape mode writes into a nested `scrape-<guid>/` subdir; the sweep must recurse into
         // it (a top-level-only sweep would leak it forever → disk exhaustion).
@@ -105,7 +105,7 @@ public sealed class UserWorkspacePruneTests : IDisposable
     }
 
     [Fact]
-    public void PruneStaleKeepsANestedFileThatIsStillReferenced()
+    public void Should_Keep_A_Nested_File_That_Is_Still_Referenced_On_Prune_Stale()
     {
         string userDir = _workspace.DirectoryFor(12);
         string scrapeDir = Path.Combine(userDir, "scrape-" + Guid.NewGuid().ToString("N"));

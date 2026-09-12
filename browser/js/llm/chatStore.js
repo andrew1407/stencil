@@ -1,20 +1,21 @@
 // ── Per-project chat persistence: the stored document + the IndexedDB store ──
-// llm-contract.md §12: an OPT-IN, text-only chat transcript saved per project. Lives in
-// IndexedDB (not localStorage) to stay out of the projects' quota budget; every operation
-// is best-effort — a failure means "not persisted", never a thrown error in the editor.
-// The backend is injected so `node --test` drives the store with an async Map shim.
+// llm-contract.md §12: an OPT-IN, text-only chat transcript saved per project. IndexedDB,
+// not localStorage, to stay out of the projects' quota budget; every operation is
+// best-effort. The backend is injected so `node --test` drives it with an async Map shim.
 
-export const CHAT_DB_NAME = 'stencil_chats';
-export const CHAT_DB_STORE = 'chats';
+import PROMPT_ASSET from '../config/llm/systemPrompt.json' with { type: 'json' };
+
+const CHAT_DB_NAME = 'stencil_chats';
+const CHAT_DB_STORE = 'chats';
 export const CHAT_DOC_VERSION = 1;
 // §7's history bound — the persisted transcript never exceeds the replay window.
 export const CHAT_MESSAGE_LIMIT = 32;
 
 // §7's continuation note: the internal sentence the controller replays to the MODEL after
-// a plan loaded a new picture. Lives here, beside the persistence rules, so the place that
-// must never store it and the place that writes it agree by construction.
-export const CONTINUATION_NOTE =
-  '[The working image is now the picture those actions loaded — continue with it.]';
+// a plan loaded a new picture. The text is the shared prose asset's, re-exported here —
+// beside the persistence rules — so the place that must never store it and the place that
+// writes it agree by construction. Every bracketed variant is filtered, not just this one.
+export const CONTINUATION_NOTE = PROMPT_ASSET.continuationNote;
 
 // §12.1: "a restored transcript must read as a conversation", so machinery is refused on
 // BOTH sides of the store (never written, never displayed from an older document): §7's

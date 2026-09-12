@@ -20,8 +20,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class PromptStopTests : IDisposable
 {
-    private const long UserId = 77;
-    private const long ChatId = 88;
+    private const long _userId = 77;
+    private const long _chatId = 88;
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -35,7 +35,7 @@ public sealed class PromptStopTests : IDisposable
     public PromptStopTests()
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-stop-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _dataDir };
+        BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, editing: editing, cancellations: _cancellations);
         CallbackAction callbacks = new(_handlers, _bot, _store, _cancellations);
@@ -49,19 +49,19 @@ public sealed class PromptStopTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private Task Dispatch(string text) =>
-        _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+    private Task dispatch(string text) =>
+        _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
     /// <summary>Tap a button the way the poller does — through the router, gate and all.</summary>
-    private Task Tap(string data) =>
+    private Task tap(string data) =>
         _router.HandleUpdateAsync(
             new Update
             {
                 CallbackQuery = new CallbackQuery
                 {
                     Id = "cb",
-                    From = new User { Id = UserId },
-                    Message = new Message { Chat = new Chat { Id = ChatId } },
+                    From = new User { Id = _userId },
+                    Message = new Message { Chat = new Chat { Id = _chatId } },
                     Data = data,
                 },
             },
@@ -70,28 +70,28 @@ public sealed class PromptStopTests : IDisposable
     private IEnumerable<SendMessageRequest> Messages => _bot.Requests.OfType<SendMessageRequest>();
 
     [Fact]
-    public async Task TheWorkingNoticeCarriesAStopButton()
+    public async Task Should_Carry_A_Stop_Button_On_The_Working_Notice()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply("""{"reply":"ok","actions":[]}"""));
 
-        await Dispatch("/prompt anything");
+        await dispatch("/prompt anything");
 
         SendMessageRequest notice = Messages.First(m => m.Text.Contains("Working on your request"));
         InlineKeyboardMarkup keyboard = Assert.IsType<InlineKeyboardMarkup>(notice.ReplyMarkup);
-        Assert.Equal(CallbackAction.StopToken, keyboard.InlineKeyboard.Single().Single().CallbackData);
+        Assert.Equal(CallbackAction.STOP_TOKEN, keyboard.InlineKeyboard.Single().Single().CallbackData);
     }
 
     [Fact]
-    public async Task StopEndsTheRunningTurnAsPlainInfo()
+    public async Task Should_End_The_Running_Turn_As_Plain_Info_On_Stop()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.BlockUntilCancelled = true;
-        Task turn = Dispatch("/prompt take your time");
+        Task turn = dispatch("/prompt take your time");
         await _llm.InFlight.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
         // The tap lands WHILE the turn holds the user's gate — it must not block on it.
-        await Tap(CallbackAction.StopToken).WaitAsync(TimeSpan.FromSeconds(10));
+        await tap(CallbackAction.STOP_TOKEN).WaitAsync(TimeSpan.FromSeconds(10));
         await turn.WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.Contains(Messages, m => m.Text.Contains("Stopping"));
@@ -106,39 +106,39 @@ public sealed class PromptStopTests : IDisposable
         // and the prompt is parked for that button to re-run.
         InlineKeyboardMarkup retry = Assert.IsType<InlineKeyboardMarkup>(last.ReplyMarkup);
         Assert.Equal("retry:prompt", retry.InlineKeyboard.Single().Single().CallbackData);
-        Assert.Equal("take your time", (await _store.GetAsync(UserId)).LastRetryablePrompt);
+        Assert.Equal("take your time", (await _store.GetAsync(_userId)).LastRetryablePrompt);
         // The turn was cancelled before it could plan anything, so the image is untouched.
         Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
     }
 
     [Fact]
-    public async Task RetryAfterAStopReRunsTheSamePrompt()
+    public async Task Should_Re_Run_The_Same_Prompt_On_Retry_After_A_Stop()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
         _llm.BlockUntilCancelled = true;
-        Task turn = Dispatch("/prompt take your time");
+        Task turn = dispatch("/prompt take your time");
         await _llm.InFlight.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        await Tap(CallbackAction.StopToken).WaitAsync(TimeSpan.FromSeconds(10));
+        await tap(CallbackAction.STOP_TOKEN).WaitAsync(TimeSpan.FromSeconds(10));
         await turn.WaitAsync(TimeSpan.FromSeconds(10));
 
         // Second time round the model answers, so the retried turn lands like any other.
         _llm.BlockUntilCancelled = false;
         _llm.CannedReplies.Enqueue(new LlmReply("""{"reply":"done now","actions":[]}"""));
-        await Tap("retry:prompt").WaitAsync(TimeSpan.FromSeconds(10));
+        await tap("retry:prompt").WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.Equal(2, _llm.Requests.Count);
         Assert.Contains("take your time", _llm.Requests[^1].Messages[^1].Text);
         Assert.Contains(Messages, m => m.Text.Contains("done now"));
         // The turn landed, so the button has nothing left to re-run.
-        Assert.Null((await _store.GetAsync(UserId)).LastRetryablePrompt);
+        Assert.Null((await _store.GetAsync(_userId)).LastRetryablePrompt);
     }
 
     [Fact]
-    public async Task StopWithNothingRunningSaysSo()
+    public async Task Should_Say_So_On_Stop_With_Nothing_Running()
     {
-        await Dispatch("/blank");
+        await dispatch("/blank");
 
-        await Tap(CallbackAction.StopToken);
+        await tap(CallbackAction.STOP_TOKEN);
 
         Assert.Contains("already finished", Messages.Last().Text);
     }

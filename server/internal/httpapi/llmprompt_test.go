@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -9,9 +10,10 @@ import (
 	"testing"
 )
 
-// Drift check: the pinned heads must stay exact byte prefixes of the canonical
-// asset browser/js/config/llm/systemPrompt.json (go:embed can't cross the
-// module boundary, so the file is read at test time).
+// Drift check: the embedded copy must stay byte-identical to the canonical
+// asset browser/js/config/llm/systemPrompt.json, and the heads cut from it must
+// stay exact byte prefixes of it. go:embed can't cross the module boundary, so
+// the canonical file is read at test time (pystencil does the same).
 func TestPromptHeadsPinCanonicalAsset(t *testing.T) {
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
@@ -27,6 +29,11 @@ func TestPromptHeadsPinCanonicalAsset(t *testing.T) {
 	}
 	if err != nil {
 		t.Fatalf("read canonical asset: %v", err)
+	}
+
+	if !bytes.Equal(raw, systemPromptAsset) {
+		t.Errorf("assets/systemPrompt.json differs from %s (%d vs %d bytes) — "+
+			"re-copy the canonical asset", assetPath, len(systemPromptAsset), len(raw))
 	}
 
 	var asset struct {

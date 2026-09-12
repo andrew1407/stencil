@@ -1,10 +1,8 @@
-// ── PointerController: mouse pan / rect-draw / zoom-rect / drag ──────
-// Owns the desktop mouse interaction wiring: Alt/middle pan, Shift+drag zoom-rect,
-// rect-draw sweep, and point/segment/whole-line drag. Holds only the pan cursor delta;
-// every drag helper + drag-state field lives on the back-referenced app, shared with the
-// touch path in inputController.js.
+// Mouse interaction wiring: Alt/middle pan, Shift+drag zoom-rect, rect-draw sweep, and
+// point/segment/whole-line drag. Every drag helper + drag-state field lives on the app,
+// shared with the touch path in inputController.js.
 export class PointerController {
-  // Last pointer position during an Alt/middle pan (delta-based scroll).
+  // Last pointer position during a pan (delta-based scroll).
   #panLastX = 0;
   #panLastY = 0;
 
@@ -12,8 +10,7 @@ export class PointerController {
     this.app = app;
   }
 
-  // Slide the divider to the pointer; setCompareSplit clamps (a sliver of each side stays
-  // grabbable) and repaints. Hit-testing the divider lives on app.nearCompareDivider.
+  // setCompareSplit clamps (a sliver of each side stays grabbable) and repaints.
   #moveCompareSplit(clientX, clientY) {
     const app = this.app;
     const { cssX, cssY } = app.canvasCoords(clientX, clientY);
@@ -28,11 +25,9 @@ export class PointerController {
     const app = this.app;
     const viewport = document.getElementById('canvas-viewport');
 
-    // Pan: Alt+left-drag OR middle-mouse-button drag (works in both drawing/non-drawing modes)
     const startPan = e => {
-      // Compare split divider: plain left-drag on the movable divider slides it. Checked
-      // first so it wins over point/line hits underneath, and only when a split mode is the
-      // active (not held) view.
+      // Compare divider: plain left-drag, checked first so it wins over hits underneath,
+      // and only when a split mode is the active (not held) view.
       if (e.button === 0 && !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey && app.image &&
           !app.compareHoldOriginal && app.nearCompareDivider(e.clientX, e.clientY)) {
         app.isDraggingCompareSplit = true;
@@ -42,8 +37,7 @@ export class PointerController {
         return;
       }
 
-      // Compare view is read-only: no drawing/selecting/point-line drags. Only navigation
-      // stays — Alt+left / middle-button pan (the divider drag is handled above).
+      // Compare view is read-only: only the pan gestures stay.
       if (app.compareReadOnly()) {
         const isMiddle = e.button === 1;
         const isAltLeft = e.button === 0 && e.altKey;
@@ -57,9 +51,8 @@ export class PointerController {
         return;
       }
 
-      // Rect-draw mode: plain left-drag sweeps out a rectangle area. Picking the tool is
-      // the intent, so the press turns drawing on itself — it has no hold-to-draw flow to
-      // fall back on. Same default as the Draw button, so a selected line adopts the rect.
+      // Rect-draw mode: plain left-drag sweeps a rectangle. Picking the tool is the intent,
+      // so the press turns drawing on itself (there is no hold-to-draw flow to fall back on).
       if (app.drawMode === 'rect' && e.button === 0 &&
         !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey && app.image) {
         if (!app.isDrawing) app.startDrawingMode();
@@ -73,9 +66,8 @@ export class PointerController {
         return;
       }
 
-      // Alt+Ctrl/⌘+left → pull a NEW point out of the line under the cursor and drag it;
-      // on a closed area the same pull breaks the shape open at that spot. Checked before
-      // the plain Alt gestures, which would otherwise move the point that is already there.
+      // Alt+Ctrl/⌘+left → pull a NEW point out of the line under the cursor (on a closed area
+      // it breaks the shape open). Before the plain Alt gestures, which would move the existing point.
       if (e.button === 0 && e.altKey && (e.ctrlKey || e.metaKey) && !e.shiftKey && app.image) {
         const { x, y } = app.canvasCoords(e.clientX, e.clientY);
         if (app.beginPullOutDrag(x, y)) {
@@ -86,7 +78,7 @@ export class PointerController {
         }
       }
 
-      // Alt+Shift+left → drag whole line (takes priority over zoom-rect)
+      // Alt+Shift+left → drag whole line (takes priority over zoom-rect).
       if (e.button === 0 && e.altKey && e.shiftKey && app.image) {
         const { x, y } = app.canvasCoords(e.clientX, e.clientY);
         const lineIdx = app.findLineAt(x, y);
@@ -94,8 +86,7 @@ export class PointerController {
           e.preventDefault();
           e.stopPropagation();
           const line = app.lines[lineIdx];
-          // When the grabbed line is part of a multi-selection, snapshot EVERY selected line so
-          // the drag translates them all together (whole-line move; ignores segment/point sub-modes).
+          // Part of a multi-selection: snapshot EVERY selected line so the drag moves them all.
           const sel = app.selectedIndices();
           const multiOrig = (sel.length >= 2 && sel.includes(lineIdx))
             ? sel.map((li) => ({ li, pts: app.lines[li].points.map(p => ({ x: p.x, y: p.y })) }))
@@ -113,8 +104,7 @@ export class PointerController {
         }
       }
 
-      // Shift+left (no Alt, no Ctrl/⌘) → start zoom rect selection. Ctrl/⌘+Shift+click is reserved
-      // for multi-line select (handled as a click in canvasClick), so exclude it here.
+      // Shift+left (no Alt, no Ctrl/⌘) → zoom rect. Ctrl/⌘+Shift+click is multi-line select (canvasClick).
       if (e.button === 0 && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && app.image) {
         const { cssX, cssY, x: imgX, y: imgY } = app.canvasCoords(e.clientX, e.clientY);
         app.isZoomRectDragging = true;
@@ -126,15 +116,12 @@ export class PointerController {
       }
 
       const isMiddle = e.button === 1;
-      // Alt+left always pans (with or without Shift). If Alt+Shift was on a line,
-      // the line-drag block above already returned; here means empty area → fast pan.
+      // Alt+left on an empty area (Alt+Shift on a line already returned) → pan.
       const isAltLeft = e.button === 0 && e.altKey;
       if (!isMiddle && !isAltLeft) return;
 
-      // Alt+left: check if clicking on a point → drag the point instead of panning
       if (isAltLeft) {
         const { x, y } = app.canvasCoords(e.clientX, e.clientY);
-        // Priority 1: near a point → drag the point
         const nearPt = app.findNearestPointWithIdx(x, y);
         if (nearPt) {
           e.preventDefault();
@@ -143,7 +130,6 @@ export class PointerController {
           app.canvas.style.cursor = 'move';
           return;
         }
-        // Priority 2: near a segment → drag that segment
         const nearSeg = app.findNearestSegmentWithIdx(x, y);
         if (nearSeg) {
           e.preventDefault();
@@ -160,21 +146,19 @@ export class PointerController {
       app.canvas.style.cursor = 'grabbing';
     };
 
-    // Listen on both canvas and viewport so middle-click anywhere inside works
+    // Both canvas and viewport, so middle-click anywhere inside works.
     app.canvas.addEventListener('mousedown', startPan);
     viewport.addEventListener('mousedown', startPan);
 
-    // Prevent the browser's default middle-click auto-scroll mode
+    // The browser's middle-click auto-scroll mode.
     viewport.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
 
     document.addEventListener('mousemove', e => {
-      // Compare divider drag takes priority over every other gesture.
       if (app.isDraggingCompareSplit) {
         this.#moveCompareSplit(e.clientX, e.clientY);
         return;
       }
 
-      // Handle rect-draw drag (rect drawing mode, plain left-drag)
       if (app.isRectDrawDragging) {
         const { cssX, cssY, x: imgX, y: imgY } = app.canvasCoords(e.clientX, e.clientY);
         app.rectDrawEnd = { imgX, imgY, cssX, cssY };
@@ -182,7 +166,6 @@ export class PointerController {
         return;
       }
 
-      // Handle zoom rect drag (Shift+left-drag)
       if (app.isZoomRectDragging) {
         const { cssX, cssY, x: imgX, y: imgY } = app.canvasCoords(e.clientX, e.clientY);
         app.zoomRectEnd = { imgX, imgY, cssX, cssY };
@@ -196,17 +179,15 @@ export class PointerController {
         return;
       }
 
-      // Segment / whole-line drag. Shift is read per-event so pressing or
-      // releasing it mid-drag switches live between moving just the grabbed
-      // segment and translating the whole line shape — no need to restart.
+      // Shift is read per-event: pressing or releasing it mid-drag switches live between
+      // the grabbed segment and the whole line.
       if ((app.isDraggingSegment && app.draggingSegment) ||
           (app.isDraggingLine && app.draggingLine)) {
         app.dragMove(e.clientX, e.clientY, e.shiftKey);
         return;
       }
       if (!app.isPanning) return;
-      // Delta-based pan with Shift = faster (2.5×). Reading shiftKey per
-      // event means user can speed up / slow down mid-drag without jumps.
+      // Shift = 2.5× faster, read per event so the speed changes mid-drag.
       const speed = e.shiftKey ? 2.5 : 1;
       viewport.scrollLeft -= (e.clientX - this.#panLastX) * speed;
       viewport.scrollTop  -= (e.clientY - this.#panLastY) * speed;
@@ -214,7 +195,7 @@ export class PointerController {
       this.#panLastY = e.clientY;
     });
     document.addEventListener('mouseup', e => {
-      // Finish a compare-divider drag; suppress the trailing click so it isn't a new point.
+      // Suppress the trailing click so it is not a new point.
       if (app.isDraggingCompareSplit) {
         app.isDraggingCompareSplit = false;
         app.canvas.style.cursor = app.isDrawing ? 'crosshair' : 'default';
@@ -223,7 +204,6 @@ export class PointerController {
         return;
       }
 
-      // Finish rect-draw (rect drawing mode)
       if (app.isRectDrawDragging) {
         app.isRectDrawDragging = false;
         app.zoomPan.hideZoomRectOverlay();
@@ -234,18 +214,15 @@ export class PointerController {
           const w = Math.abs(en.imgX - s.imgX);
           const h = Math.abs(en.imgY - s.imgY);
           if (w > 3 && h > 3) {
-            // createRect auto-connects when continuation mode is active
             app.createRect(s.imgX, s.imgY, en.imgX, en.imgY, false);
           }
         }
-        // Stay in rect-drawing mode so multiple rects can be drawn;
-        // suppress the trailing click so it isn't treated as a point.
+        // Stay in rect-drawing mode; suppress the trailing click.
         app.dragJustEnded = true;
         setTimeout(() => { app.dragJustEnded = false; }, 50);
         return;
       }
 
-      // Finish zoom rect (Shift+left-drag)
       if (app.isZoomRectDragging) {
         app.isZoomRectDragging = false;
         app.zoomPan.hideZoomRectOverlay();
@@ -264,18 +241,15 @@ export class PointerController {
             const availH = vp ? vp.clientHeight : window.innerHeight;
             const newScale = Math.min(availW / rectW, availH / rectH, 5);
 
-            // Disable CSS transition so width/height are applied instantly,
-            // allowing scrollLeft/scrollTop to reflect the final canvas size.
+            // No transition, so scrollLeft/scrollTop see the final canvas size at once.
             app.canvas.classList.add('zoom-no-transition');
             app.zoomPan.setZoom(newScale, false);
-            // Force a synchronous layout — this makes scrollWidth reflect
-            // the new canvas size before we assign scrollLeft/scrollTop.
+            // Force a synchronous layout before assigning scrollLeft/scrollTop.
             void app.canvas.getBoundingClientRect();
             if (vp) {
               vp.scrollLeft = Math.max(0, x1 * newScale - (availW - rectW * newScale) / 2);
               vp.scrollTop = Math.max(0, y1 * newScale - (availH - rectH * newScale) / 2);
             }
-            // Re-enable transition and persist after layout settles
             requestAnimationFrame(() => {
               app.canvas.classList.remove('zoom-no-transition');
               if (app.image) app.storage.save();
@@ -316,7 +290,7 @@ export class PointerController {
       }
     });
 
-    // Double-click middle mouse button OR Alt+double-left-click → reset zoom (fit to window)
+    // Middle double-click OR Alt+double-left-click → fit to window.
     const resetZoom = e => {
       const isMiddleDouble = e.button === 1;
       const isAltLeftDouble = e.button === 0 && e.altKey;

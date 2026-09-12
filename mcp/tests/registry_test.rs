@@ -1,13 +1,11 @@
-//! The §13 op registry: §13-style prompt pins (name set vs the contract's mcp surface,
-//! flags, key phrases — never block bytes), the registry/validator cross-check, the
-//! forbidden-op boundary, the capability-exclusion mechanism, and the prompt censor.
+//! The §13 op registry and the schema engine it drives — two views of one table: prompt pins
+//! (names vs the contract's mcp surface, flags, key phrases — never block bytes), the
+//! registry/validator cross-check, limits, the forbidden-op boundary, the grammars.
+//! Generation FROM the registry lives in `prompt_assembly_test.rs`.
 
-use stencil_mcp::llm::llm_system_prompt;
-use stencil_mcp::opplan::{parse_op_plan, OpPlanError};
-use stencil_mcp::registry::{
-    assemble_ops_section, censor_violation, descriptor, is_forbidden, OpDescriptor,
-    FORBIDDEN_OPS, OP_REGISTRY, WIRED_CAPABILITIES,
-};
+use stencil_mcp::opplan::schema::{matches, schema};
+use stencil_mcp::opplan::{parse_op_plan, OpPlanError, MAX_ASK_OPTIONS};
+use stencil_mcp::registry::{descriptor, forbidden_ops, is_forbidden, op_registry};
 
 /// The contract's mcp surface: core §2 + §2.1 in §2 order, minus `undo`/`redo`/`reset` —
 /// a one-shot headless tool has no edit history to step (they fall to §1's unknown-op
@@ -22,29 +20,37 @@ fn plan_with_op(op: &str) -> String {
 
 // ── §13(a): registered op NAMES == the contract's mcp surface ──
 
+/// Both views resolve to the same surface in the same order: the prompt's descriptor table
+/// and the registry entries the validator is driven by.
 #[test]
-fn the_registry_names_are_exactly_the_contracts_mcp_surface_in_prompt_order() {
-    let names: Vec<&str> = OP_REGISTRY.iter().map(|d| d.name).collect();
+fn the_registry_and_the_schema_resolve_to_the_contracts_mcp_surface_in_prompt_order() {
+    let names: Vec<&str> = op_registry().iter().map(|d| d.name).collect();
     assert_eq!(names, MCP_SURFACE);
+
+    let s = schema();
+    assert_eq!(s.profile, "mcp");
+    let entries: Vec<&str> = s.entries.iter().map(|e| e.name.as_str()).collect();
+    assert_eq!(entries, MCP_SURFACE);
+    assert_eq!(s.entry("crop").unwrap().rules, ["cropAspectFold"]);
 }
 
-// ── §13(b): per-op flags ──
+// ── §13(b): per-op flags, on both sides ──
 
 #[test]
 fn only_image_and_save_are_top_level_only_and_only_frame_is_video_only() {
-    for d in OP_REGISTRY {
-        assert_eq!(
-            d.top_level_only,
-            matches!(d.name, "image" | "save"),
-            "top_level_only flag of \"{}\"",
-            d.name
-        );
+    for d in op_registry() {
+        let top_level = matches!(d.name, "image" | "save");
+        assert_eq!(d.top_level_only, top_level, "top_level_only flag of \"{}\"", d.name);
         assert_eq!(d.video_only, d.name == "frame", "video_only flag of \"{}\"", d.name);
         // Every registered op is capability-free on this surface — nothing optional is
         // wired here, so a capability-carrying entry would silently vanish from the prompt.
         assert_eq!(d.capability, None, "capability of \"{}\"", d.name);
+
+        // The registry entry the validator resolves carries the same flag and a bullet.
+        let e = schema().entry(d.name).expect(d.name);
+        assert!(e.bullet.is_some(), "\"{}\" has no bullet", d.name);
+        assert_eq!(e.flag("topLevelOnly"), top_level, "schema topLevelOnly of \"{}\"", d.name);
     }
-    assert!(WIRED_CAPABILITIES.is_empty());
 }
 
 // ── §13(c): one key semantic phrase per bullet (never block bytes) ──
@@ -73,31 +79,13 @@ fn each_bullet_carries_its_key_semantic_phrase() {
     }
 }
 
-// ── Generation: the prompt's ops section comes from the registry ──
-
-#[test]
-fn the_assembled_prompt_carries_every_registered_bullet_in_registry_order() {
-    // Calling llm_system_prompt() in a test (debug) build also fires the transition
-    // golden assertion in llm.rs — the byte-stability proof of the refactor.
-    let prompt = llm_system_prompt();
-    let mut cursor = 0usize;
-    for d in OP_REGISTRY {
-        let at = prompt[cursor..]
-            .find(d.bullet)
-            .unwrap_or_else(|| panic!("bullet of \"{}\" missing or out of order", d.name));
-        cursor += at + d.bullet.len();
-    }
-    let ops = assemble_ops_section(OP_REGISTRY, WIRED_CAPABILITIES).unwrap();
-    assert!(prompt.contains(&ops), "the prompt embeds the assembled ops section verbatim");
-}
-
 // ── Registry names == parser-known ops (cross-check of opplan's match arms) ──
 
 #[test]
 fn every_registered_op_is_known_to_the_validator() {
     // A known op with a bogus extra field FAILS the plan (contract §1) — proving the
     // validator has a real arm for it; an unknown op would only warn.
-    for d in OP_REGISTRY {
+    for d in op_registry() {
         let err = parse_op_plan(&plan_with_op(d.name)).unwrap_err();
         match err {
             OpPlanError::Action { ref op, ref detail } => {
@@ -125,6 +113,15 @@ fn ops_outside_the_registry_fall_to_the_unknown_op_skip() {
     }
 }
 
+/// The §11 option cap is the one limit imported as a constant; the rest come off the registry.
+#[test]
+fn the_limits_come_from_the_registry() {
+    let s = schema();
+    assert_eq!(s.limit("ask.maxOptions") as usize, MAX_ASK_OPTIONS);
+    assert_eq!(s.limit("MAX_ACTIONS"), 16.0);
+    assert_eq!(s.limit("MAX_STRING_CHARS"), 5000.0);
+}
+
 // ── §13 forbidden ops ──
 
 #[test]
@@ -134,14 +131,17 @@ fn forbidden_ops_cover_the_never_model_drivable_boundary() {
         assert!(is_forbidden(op), "\"{op}\" must be forbidden");
     }
     // And no forbidden name ever resolves to an active descriptor.
-    for op in FORBIDDEN_OPS {
+    for op in forbidden_ops() {
         assert!(descriptor(op).is_none(), "forbidden \"{op}\" resolved to a descriptor");
     }
+    // The schema engine reads the same list.
+    assert_eq!(forbidden_ops().to_vec(), schema().forbidden);
+    assert!(schema().is_forbidden("paste") && !schema().is_forbidden("crop"));
 }
 
 #[test]
 fn no_registry_entry_uses_a_forbidden_name() {
-    for d in OP_REGISTRY {
+    for d in op_registry() {
         assert!(!is_forbidden(d.name), "registry entry \"{}\" is forbidden", d.name);
     }
 }
@@ -160,78 +160,38 @@ fn a_plan_naming_a_forbidden_op_is_rejected_not_skipped() {
     }
 }
 
-#[test]
-fn assembly_refuses_a_forbidden_registry_entry() {
-    let rogue = [OpDescriptor {
-        name: "paste",
-        bullet: "- {\"op\":\"paste\"} — read the clipboard.",
-        top_level_only: false,
-        video_only: false,
-        capability: None,
-    }];
-    let err = assemble_ops_section(&rogue, &[]).unwrap_err();
-    assert!(err.contains("never model-drivable"), "{err}");
-}
-
-// ── §13 capability truth (mechanism tested with a stub registry — mcp wires none) ──
+// ── The hand-written matchers vs the registry's regex sources ──
 
 #[test]
-fn an_entry_whose_capability_is_not_wired_is_excluded_from_generation() {
-    let sample = [
-        OpDescriptor {
-            name: "sampleAlways",
-            bullet: "- {\"op\":\"sampleAlways\"} — always available.",
-            top_level_only: false,
-            video_only: false,
-            capability: None,
-        },
-        OpDescriptor {
-            name: "sampleCopy",
-            bullet: "- {\"op\":\"sampleCopy\"} — needs a clipboard.",
-            top_level_only: false,
-            video_only: false,
-            capability: Some("clipboard"),
-        },
+fn the_hand_written_matchers_follow_the_registry_grammars() {
+    let cases: [(&str, &[&str], &[&str]); 9] = [
+        ("CROP_TOKEN", &["10", "-10%", "1.5px", ".5cm", "3in", "0"], &["", "+5", "5.", "1 0", "10pt", "1e3", "--1"]),
+        ("CROP_ASPECT", &["3:4", "01:1", "16:9"], &["0:1", "1:0", "1.5:1", "3/4", "3:", ":4", "a:b"]),
+        ("PAGE_FORMAT", &["a0", "a4", "a10", "b10", "c0"], &["A4", "a11", "d4", "a", "a04", "a4 "]),
+        ("HEX", &["#000000", "#FFffFF", "#1a2B3c"], &["#fff", "000000", "#12345g", "#1234567", " #000000"]),
+        ("CSS_NAME", &["red", "AliceBlue"], &["", "light blue", "red1", "#fff"]),
+        ("FORMULA_X", &["x*2+10", "(x - 1) / 2", "x ** 2"], &["", "y*2", "x^2", "x*2;"]),
+        ("FORMULA_Y", &["y*2+10", "2"], &["x*2", "y^2"]),
+        ("HTTP_URL", &["https://e/x.png", "HTTP://e", "http://e/a?b=c#d"], &["ftp://e", "https://", "https://e x", "e/x.png", "https://e\n", " https://e"]),
+        ("URL_SCHEME", &["https://e", "file:///tmp/p", "a+b.c-d://x", "s3://bucket/key"], &["keep/Here", "/abs/path", "1x://e", "://e", "a b://e", "~/Downloads"]),
     ];
-    let without = assemble_ops_section(&sample, &[]).unwrap();
-    assert!(without.contains("sampleAlways") && !without.contains("sampleCopy"));
-
-    let with = assemble_ops_section(&sample, &["clipboard"]).unwrap();
-    assert_eq!(
-        with,
-        "- {\"op\":\"sampleAlways\"} — always available.\n- {\"op\":\"sampleCopy\"} — needs a clipboard."
-    );
-}
-
-// ── §13 prompt censor ──
-
-#[test]
-fn assembly_errors_on_bullets_matching_sensitive_patterns() {
-    for (bullet, pattern) in [
-        ("- {\"op\":\"x\"} — set the API key first.", "api key"),
-        ("- {\"op\":\"x\"} — send Bearer credentials.", "bearer"),
-        ("- {\"op\":\"x\"} — point the endpoint at a host.", "endpoint"),
-        ("- {\"op\":\"x\"} — include the access token.", "access token"),
-    ] {
-        assert_eq!(censor_violation(bullet), Some(pattern));
-        let sample = [OpDescriptor {
-            name: "x",
-            bullet,
-            top_level_only: false,
-            video_only: false,
-            capability: None,
-        }];
-        let err = assemble_ops_section(&sample, &[]).unwrap_err();
-        assert!(err.contains(pattern) && err.contains("censor"), "{err}");
+    for (name, ok, bad) in cases {
+        for s in ok {
+            assert!(matches(name, s), "{name} should accept {s:?}");
+        }
+        for s in bad {
+            assert!(!matches(name, s), "{name} should reject {s:?}");
+        }
     }
 }
 
+/// The envelope's variant objects take undeclared keys; an op never does.
 #[test]
-fn the_real_bullets_pass_the_censor_including_crops_cropspec_tokens() {
-    for d in OP_REGISTRY {
-        assert_eq!(censor_violation(d.bullet), None, "\"{}\" bullet", d.name);
-    }
-    // The word "tokens" (cropSpec tokens) is legitimate prompt vocabulary — the censor
-    // matches secret-shaped patterns, not the bare word.
-    assert!(descriptor("crop").unwrap().bullet.contains("tokens"));
+fn a_variant_object_tolerates_undeclared_keys_but_ops_stay_strict() {
+    let plan = parse_op_plan(r#"{"reply":"x","variants":[{"label":"v","actions":[],"note":"x"}]}"#)
+        .expect("allowUnknown on the envelope's variant objects");
+    assert_eq!(plan.variants.len(), 1);
+    let err = parse_op_plan(r#"{"reply":"x","actions":[{"op":"rotate","dir":"left","note":"x"}]}"#)
+        .unwrap_err();
+    assert!(err.to_string().contains("unknown field"), "got: {err}");
 }

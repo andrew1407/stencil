@@ -1,0 +1,98 @@
+/* ── Glass shimmer: a soft left→right light sweep on hover — the shared hover treatment for
+   interactive controls (icon buttons, text buttons, and any .shimmer opt-in item), so icons and
+   items across the app feel consistent. The sweep is a clipped ::after gradient; honours
+   prefers-reduced-motion. ── */
+button, .btn-icon, .btn-icon-text, .coord-tab, .pill-toggle, .idle-create-btn,
+.accent-dd-trigger, .name-edit-btn, .project-row, .connect-row, .accent-dd-opt,
+.project-menu-item, .lines-list-row, .ctx-item, .shimmer { position: relative; overflow: hidden; }
+button::after, .btn-icon::after, .btn-icon-text::after, .coord-tab::after, .pill-toggle::after,
+.idle-create-btn::after, .accent-dd-trigger::after, .name-edit-btn::after, .project-row::after,
+.connect-row::after, .accent-dd-opt::after, .project-menu-item::after, .lines-list-row::after,
+.ctx-item::after, .shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 2;
+    background: linear-gradient(115deg, transparent 38%,
+        color-mix(in srgb, #ffffff 55%, transparent) 50%, transparent 62%);
+    transform: translateX(-135%);
+    opacity: 0;
+}
+button:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after,
+.btn-icon-text:hover:not(:disabled)::after, .coord-tab:hover::after, .pill-toggle:hover::after,
+.idle-create-btn:hover::after, .accent-dd-trigger:hover::after, .name-edit-btn:hover:not(:disabled)::after,
+.project-row:hover::after, .connect-row:hover::after, .accent-dd-opt:hover::after,
+.project-menu-item:hover::after, .lines-list-row:hover::after, .ctx-item:hover::after, .shimmer:hover::after {
+    animation: ui-shimmer 0.75s ease;
+}
+@keyframes ui-shimmer {
+    from { transform: translateX(-135%); opacity: 1; }
+    to   { transform: translateX(135%);  opacity: 0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+    button::after, .btn-icon::after, .btn-icon-text::after, .coord-tab::after, .pill-toggle::after,
+    .idle-create-btn::after, .accent-dd-trigger::after, .name-edit-btn::after, .shimmer::after { content: none; }
+}
+/* Text / number / search inputs (e.g. the URL & link fields) can't host an ::after, so their
+   hover shimmer is an animated background band layered over the field's own background-colour
+   (a mostly-transparent white gradient, so the field colour shows through). Selects keep their
+   custom carets, so they use the ::after path via the `button` rules only where applicable. */
+input[type="text"], input[type="number"], input[type="search"], input[type="url"],
+input[type="password"], select {
+    background-repeat: no-repeat;
+    background-size: 250% 100%;
+    background-position: 185% 0;
+}
+/* A field's hover RING, the desktop's twin (theme.cpp QLineEdit/QComboBox:hover): twice
+   the resting border, in the accent at the ring's own strength. Never on a disabled field
+   (a dead control must not light up), and never over :focus, which has its own stronger
+   ring. The second pixel is an INSET shadow just inside the 1px border, not a thicker
+   border: a field's height is content-driven, so growing the border grew the box and
+   pushed its row (border-box only pins a size that was set). `!important` because several
+   fields carry an id-level `border`/`box-shadow` of their own (#zoom-input,
+   #project-name-input…) that outranks this shared rule; only the ring is forced. */
+input[type="text"]:hover:not(:disabled):not(:focus),
+input[type="number"]:hover:not(:disabled):not(:focus),
+input[type="search"]:hover:not(:disabled):not(:focus),
+input[type="url"]:hover:not(:disabled):not(:focus),
+input[type="password"]:hover:not(:disabled):not(:focus),
+textarea:hover:not(:disabled):not(:focus),
+select:hover:not(:disabled):not(:focus),
+.accent-dd-trigger:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent) !important;
+}
+input[type="text"]:hover:not(:disabled):not(:focus),
+input[type="number"]:hover:not(:disabled):not(:focus),
+input[type="search"]:hover:not(:disabled):not(:focus),
+input[type="url"]:hover:not(:disabled):not(:focus),
+input[type="password"]:hover:not(:disabled):not(:focus),
+select:hover:not(:disabled) {
+    background-image: linear-gradient(115deg, transparent 42%,
+        color-mix(in srgb, #ffffff 26%, transparent) 50%, transparent 58%);
+    /* 1.5x the ::after sweep's 0.75s: a band travelling the whole width of a text field
+       reads much faster than the same clock does across a button (user report, the
+       projects search bar). */
+    animation: ui-shimmer-bg 1.125s ease;
+}
+@keyframes ui-shimmer-bg {
+    from { background-position: 185% 0; }
+    to   { background-position: -85% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    input[type="text"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="url"]:hover,
+    input[type="password"]:hover, select:hover { animation: none; background-image: none; }
+}
+/* Points table rows shimmer on hover too (a background band — table rows can't host an ::after).
+   Skips focused/highlighted rows so their own pulse animation isn't overridden. */
+.coordinates-table tbody tr { background-repeat: no-repeat; background-size: 250% 100%; background-position: 185% 0; }
+.coordinates-table tbody tr:hover:not(.row-focused):not(.row-highlighted) {
+    background-image: linear-gradient(115deg, transparent 40%,
+        color-mix(in srgb, #ffffff 24%, transparent) 50%, transparent 60%);
+    animation: ui-shimmer-bg 0.75s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+    .coordinates-table tbody tr:hover { animation: none; background-image: none; }
+}

@@ -1,21 +1,12 @@
-// ── Where the user last acted ───────────────────────────────────────────────
-// Most surfaces fly out of a control: an icon, a trigger, the click a context menu grew
-// from. A CONFIRM dialog has none — it is raised by whatever the user just did, from a
-// dozen different handlers, and none of them knows it is about to ask a question. The
-// honest origin is that gesture's own point, so it is recorded here once for everyone.
-// Keyboard-raised questions fall back to whatever holds focus.
-//
-// Deliberately NOT in ui/motion.js: that module remembers no pointer state at all, and
-// the reason is a scar — a remembered press once played the theme wipe from a corner
-// the user had not clicked (tests/motion.test.js pins it). A press is the right origin
-// only for a surface RAISED by that press, which is exactly what this module is for.
+// Where the user last acted. A confirm dialog is raised by whatever the user just did, from
+// handlers that don't know they are about to ask, so the gesture's own point is recorded
+// here once for everyone. Not in ui/motion.js: a press is the right origin only for a
+// surface raised by that press (tests/motion.test.js pins that motion.js keeps no pointer state).
 
 let point = null;
 let at = 0;
-// How long a press stays "the last thing the user did". Past it the gesture was a key
-// press, and what holds focus is the better answer — a stale click from a minute ago
-// would fly the question out of wherever the pointer happened to be resting.
-export const GESTURE_FRESH_MS = 1500;
+// Past this a key press is the gesture, and what holds focus is the better answer.
+const GESTURE_FRESH_MS = 1500;
 export const GESTURE_ANCHOR_PX = 26;
 
 if (typeof document !== 'undefined' && document.addEventListener)
@@ -31,8 +22,8 @@ const boxAt = (p) => {
            width: GESTURE_ANCHOR_PX, height: GESTURE_ANCHOR_PX };
 };
 
-// A small client rect around that point, in the shape a modal flight wants for its
-// anchor. Null when nothing has been pointed at and nothing holds focus.
+// A small client rect around that point, shaped for a modal flight's anchor. Null when
+// nothing has been pointed at and nothing holds focus.
 export const gestureAnchorRect = () => {
   if (point && Date.now() - at < GESTURE_FRESH_MS) return boxAt(point);
   const a = typeof document !== 'undefined' ? document.activeElement : null;

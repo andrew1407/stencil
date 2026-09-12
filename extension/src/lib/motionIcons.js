@@ -1,7 +1,7 @@
 // ── The motion modes' icons ───────────────────────────────────────────────
 // One inline-SVG glyph per interface-motion mode (motionPrefs.js MOTION_MODES) for the
 // Visuals modal's dropdown: a struck circle, an arrow, a drop, a flame, five specks. Their
-// parts carry the classes the row's hover animates (css/animations.css `.mm-*`).
+// parts carry the classes the row's hover animates (lib/animations/motionIcons.css `.mm-*`).
 // Mirrored byte-for-byte in extension/src/lib/motionIcons.js (portParity.test.js); the
 // desktop paints the same shapes with QPainter (support/motionIcons.hpp).
 
@@ -15,7 +15,7 @@ export const NONE_LINE_LEN = 11.4;
 // …and the arrow's shaft, drawn from its bottom-left end on hover.
 export const SLIDE_SHAFT_LEN = 9.9;
 
-export const MOTION_ICONS = {
+export const MOTION_ICONS = Object.freeze({
   none: svg('none',
     '<circle cx="8" cy="8" r="5.6"/>' +
     `<line class="mm-line" x1="12.05" y1="3.95" x2="3.95" y2="12.05" stroke-dasharray="${NONE_LINE_LEN}"/>`),
@@ -34,7 +34,7 @@ export const MOTION_ICONS = {
     '<circle class="mm-mote" cx="4" cy="6" r="1.3"/><circle class="mm-mote" cx="8.5" cy="4.2" r="1"/>' +
     '<circle class="mm-mote" cx="12" cy="7" r="1.2"/><circle class="mm-mote" cx="6.2" cy="10.5" r="1.1"/>' +
     '<circle class="mm-mote" cx="10.4" cy="11.6" r="1.35"/></g>'),
-};
+});
 
 // The icon for a mode, or '' for a value that has none (a stale stored key).
 export const motionModeIcon = (mode) => MOTION_ICONS[mode] || '';

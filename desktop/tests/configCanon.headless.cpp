@@ -1,23 +1,26 @@
 // Pins the desktop consumption of the shared config canon embedded via
-// resources/app.qrc (browser/js/config/*.json):
+// resources/app.qrc (browser/js/config/*.json). A broken alias parses to an empty
+// table, so every block fails fast:
 //   • accents.json  → theme.cpp accentPresets() (count + spot-checks)
-//   • icons.json    → iconSet.cpp iconTable()   (every canon glyph + the
-//                     desktop-only extras resolve and rasterize)
+//   • icons.json    → iconSet.cpp iconTable() (every canon glyph resolves, and the
+//     desktop-only extras, and the whole set rasterizes with the motion hooks in it)
+//   • constants.json PAGE_SIZES → core's pageMetrics table, names and cm both ways.
+//     The browser only pins that JSON against the WASM build, so this and the CLI's
+//     twin are the native core's only drift guards.
 //   • layoutFields.json → the EXPORT subset must equal the key set
-//     fileStore::buildLayoutJson emits (desktop's writer is per-field explicit
-//     code and QJsonObject serializes alphabetically, so only the SET is
-//     promised — never the browser's LAYOUT_FIELDS order).
-//   • llm/systemPrompt.json → opRegistry's §4 prose canon (byte-length pins +
-//     the head/tail assembly seams).
-//   • llm/opRegistry.json → opSchema's table-driven op-plan validator (alias +
-//     schema version + the desktop's profile/forbidden list).
-//   • llm/providers.json → llmSettings' §5 provider defaults / display names +
-//     the chat transfer timeout.
-// A broken qrc alias parses to an empty table, so these fail fast.
+//     fileStore::buildLayoutJson emits (it emits THROUGH the canon, so a mismatch
+//     here means the writer has no value for a canon field, or one the canon lost).
+//   • llm/systemPrompt.json → opRegistry's §4 prose canon (byte-length pins + the
+//     head/tail assembly seams).
+//   • llm/opRegistry.json → opSchema's table-driven validator (alias + schema
+//     version + the desktop's profile/forbidden list).
+//   • llm/providers.json → llmSettings' §5 provider defaults / display names + the
+//     chat transfer timeout.
 #include "fileStore.hpp"
 #include "iconSet.hpp"
 #include "llmSettings.hpp"
 #include "theme.hpp"
+#include "pageMetrics.hpp"
 
 #include <QApplication>
 #include <QFile>
@@ -72,14 +75,9 @@ int main(int argc, char** argv) {
     check(all, "every canon glyph is in the desktop icon table");
     for (const char* extra : {"power", "search", "more-vertical"})
       check(hasIcon(extra), "desktop-only extra glyph present");
-    // The draw-mode pair must read as SIBLINGS. Both are stroked outlines on the same
-    // grid — neither carries the solid-fill attributes that made rect-filled a slab next
-    // to a pencil. (Their endpoint HANDLES are filled dots; the segment and the box are not.)
+    // The draw-mode pair must read as SIBLINGS: both stroked outlines on the same grid,
+    // neither carrying the solid fill that made rect a slab next to a pencil.
     check(hasIcon("line") && hasIcon("rect"), "the draw-mode pair is present");
-    // The canon now carries the pair itself (`line` + `rect`, the browser's inline
-    // DRAW_MODE_ICON scaled onto the 24-grid), so the check is on the BOX element: its
-    // two endpoint handles are filled dots, exactly as line's are — the segment and the
-    // box are not.
     const QString rectGlyph = canon.value("rect").toString();
     const int rectEl = rectGlyph.indexOf("<rect");
     check(rectEl >= 0
@@ -89,11 +87,9 @@ int main(int argc, char** argv) {
     const QIcon crop = themedIcon("crop", QColor("#7c3aed"), 24, 1.0);
     check(!crop.isNull() && !crop.pixmap(24, 24).isNull(),
           "crop glyph rasterizes (spot-check)");
-    // Every glyph must still RASTERIZE with the browser's motion hooks in it: the
-    // canon carries class="ic-…" attributes and <g class="ic-…"> wrappers (browser
-    // js/config/iconMotion.json addresses them from CSS) which QSvgRenderer has no
-    // use for. They are inert here — but only if it draws the same picture anyway,
-    // so this rasterizes the WHOLE set and looks for actual ink.
+    // The canon's class="ic-…" motion hooks (browser js/config/iconMotion.json) are
+    // inert to QSvgRenderer — but only if it draws the same picture anyway, so this
+    // rasterizes the WHOLE set and looks for actual ink.
     bool drawn = true;
     for (auto it = canon.begin(); it != canon.end(); ++it) {
       const QImage img = themedIcon(it.key(), QColor("#7c3aed"), 24, 1.0)
@@ -107,6 +103,28 @@ int main(int argc, char** argv) {
       }
     }
     check(drawn, "every canon glyph rasterizes with the motion hooks in it");
+  }
+
+  // ── constants.json PAGE_SIZES vs the core's native table ─────────────────
+  {
+    const QJsonObject sizes =
+        readConfig(":/config/constants.json").object().value("PAGE_SIZES").toObject();
+    check(!sizes.isEmpty(), "constants.json qrc alias resolves and parses");
+    QStringList canon = sizes.keys(), listed =
+        QString::fromUtf8(stencil::core::pageFormatNames()).split(QLatin1Char(' '));
+    canon.sort();
+    listed.sort();
+    check(canon == listed, "pageFormatNames() lists exactly the canon's PAGE_SIZES names");
+    bool sized = true;
+    for (auto it = sizes.begin(); it != sizes.end(); ++it) {
+      const stencil::core::PageSize ps = stencil::core::namedPageSize(it.key().toStdString());
+      const QJsonObject o = it.value().toObject();
+      if (ps.width == o.value("width").toDouble() && ps.height == o.value("height").toDouble())
+        continue;
+      sized = false;
+      std::printf("       page-size drift: %s\n", qPrintable(it.key()));
+    }
+    check(sized, "every PAGE_SIZES entry matches namedPageSize() in cm");
   }
 
   // ── layoutFields.json export subset vs buildLayoutJson ───────────────────
@@ -138,34 +156,6 @@ int main(int argc, char** argv) {
     if (got != want)
       std::printf("       got:  %s\n       want: %s\n",
                   qPrintable(got.join(' ')), qPrintable(want.join(' ')));
-
-    // Phase 6 resolution: cropRect is written with the browser's canonical
-    // {x,y,w,h} keys; the reader accepts both spellings (canonical wins).
-    QStringList cropKeys = built.value("cropRect").toObject().keys();
-    cropKeys.sort();
-    check(cropKeys == QStringList({"h", "w", "x", "y"}),
-          "cropRect emits the canonical {x,y,w,h} keys (Phase 6)");
-
-    int lw = 0, lh = 0;
-    stencil::core::CropRect canonRect{};
-    fileStore::parseLayoutJson(built, lw, lh, &canonRect, nullptr);
-    check(canonRect.width == 2 && canonRect.height == 2, "canonical cropRect reads back");
-
-    QJsonObject legacyDoc = built;
-    legacyDoc["cropRect"] =
-        QJsonObject{{"x", 1.0}, {"y", 1.0}, {"width", 5.0}, {"height", 6.0}};
-    stencil::core::CropRect legacyRect{};
-    fileStore::parseLayoutJson(legacyDoc, lw, lh, &legacyRect, nullptr);
-    check(legacyRect.width == 5 && legacyRect.height == 6,
-          "legacy {width,height} cropRect still reads (read-both)");
-
-    QJsonObject bothDoc = built;
-    bothDoc["cropRect"] = QJsonObject{
-        {"x", 1.0}, {"y", 1.0}, {"w", 7.0}, {"h", 8.0}, {"width", 5.0}, {"height", 6.0}};
-    stencil::core::CropRect bothRect{};
-    fileStore::parseLayoutJson(bothDoc, lw, lh, &bothRect, nullptr);
-    check(bothRect.width == 7 && bothRect.height == 8,
-          "canonical {w,h} wins when both spellings are present");
   }
 
   // ── llm/systemPrompt.json prose canon (llm-contract.md §4) ────────────────

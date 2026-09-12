@@ -30,23 +30,24 @@ endif()
 # so the static library, the WebAssembly target, and the Zig CLI compile exactly the same
 # files. Keep this list in sync with cli/build.zig, which recompiles these directly.
 set(STENCIL_CORE_SOURCES
-  geometry/geometry.cpp
+  geometry/pointMath.cpp
+  geometry/hitTest.cpp
   geometry/cropGeometry.cpp
-  geometry/imageOps.cpp
-  geometry/rasterize.cpp
   color/color.cpp
   color/colorNames.cpp
-  color/imageFilter.cpp
+  raster/imageOps.cpp
+  raster/rasterize.cpp
+  raster/imageFilter.cpp
   parse/formulaParser.cpp
-  parse/durationParser.cpp
+  parse/DurationParser.cpp
   parse/lengthTokens.cpp
   parse/cropSpec.cpp
   page/pageMetrics.cpp
-  page/tooltipRows.cpp
   page/localeUnit.cpp
-  page/hotkeyFormat.cpp
-  state/historyStack.cpp
-  state/projectsStore.cpp
+  format/tooltipRows.cpp
+  format/hotkeyFormat.cpp
+  state/HistoryStack.cpp
+  state/ProjectsStore.cpp
   state/zoomPan.cpp
   state/holdDraw.cpp
 )
@@ -57,10 +58,13 @@ set(STENCIL_CORE_SOURCES
 # desktop GUI and the core tests inherit it transitively when they link stencil_core.
 set(STENCIL_CORE_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/abi
   ${CMAKE_CURRENT_SOURCE_DIR}/geometry
+  ${CMAKE_CURRENT_SOURCE_DIR}/raster
   ${CMAKE_CURRENT_SOURCE_DIR}/color
   ${CMAKE_CURRENT_SOURCE_DIR}/parse
   ${CMAKE_CURRENT_SOURCE_DIR}/page
+  ${CMAKE_CURRENT_SOURCE_DIR}/format
   ${CMAKE_CURRENT_SOURCE_DIR}/state)
 
 # ── stencil_core: the shared, GUI-free logic library (STL only) ───────────────
@@ -92,15 +96,17 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
   enable_testing()
   add_executable(stencil_tests
     tests/testMain.cpp
-    tests/geometry.test.cpp
+    tests/pointMath.test.cpp
+    tests/abiShared.test.cpp
+    tests/hitTest.test.cpp
     tests/holdDraw.test.cpp
     tests/color.test.cpp
     tests/pageMetrics.test.cpp
     tests/cropGeometry.test.cpp
     tests/formula.test.cpp
-    tests/durationParser.test.cpp
+    tests/DurationParser.test.cpp
     tests/history.test.cpp
-    tests/projectsStore.test.cpp
+    tests/ProjectsStore.test.cpp
     tests/zoomPan.test.cpp
     tests/tooltipRows.test.cpp
     tests/imageFilter.test.cpp
@@ -111,15 +117,25 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/colorNames.test.cpp
     tests/imageOps.test.cpp
     tests/rasterize.test.cpp
+    tests/rowRanges.test.cpp
+    tests/sizeBudget.test.cpp
     # Perf-regression benchmarks — decorated doctest::skip(), so `ctest` never runs them.
     # Run on demand: stencil_tests -ts=bench --no-skip  (see tests/bench.test.cpp).
     tests/bench.test.cpp
+    tests/benchGeometry.test.cpp
+    tests/benchLogic.test.cpp
     # The extern "C" ABI surfaces (wasm exports + the CLI ABI) are plain STL, so they
     # compile and are exercised natively here — keeping both ABIs covered even on a
     # machine without Emscripten or Zig.
     tests/wasmApi.test.cpp
+    tests/wasmCropApi.test.cpp
+    tests/wasmStateApi.test.cpp
+    tests/wasmProjectsApi.test.cpp
     tests/cliApi.test.cpp
     wasmApi.cpp
+    wasmCropApi.cpp
+    wasmStateApi.cpp
+    wasmProjectsApi.cpp
     cliApi.cpp
   )
   target_include_directories(stencil_tests PRIVATE
@@ -134,13 +150,13 @@ endif()
 # native `cmake` build never enters this branch. The browser app loads the resulting
 # stencil_core.js (see WASM.md).
 if(EMSCRIPTEN)
-  add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} wasmApi.cpp)
+  add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} wasmApi.cpp wasmCropApi.cpp wasmStateApi.cpp wasmProjectsApi.cpp)
   target_include_directories(stencil_wasm PRIVATE ${STENCIL_CORE_INCLUDE_DIRS})
   # Export the extern "C" wrappers + ccall/cwrap helpers; ship an ES6 module.
   set_target_properties(stencil_wasm PROPERTIES
     OUTPUT_NAME "stencil_core"
     # SINGLE_FILE=1 embeds the .wasm as base64 inside the .js so the module loads under
     # file:// (the browser app is serverless — no fetch()).
-    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_pageFormats','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_parseDuration','_stencil_applyFilterRGBA','_stencil_applyContourRGBA','_stencil_rotatePoints','_stencil_flipPoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_scaleCropCentered','_stencil_cropResizeScale','_stencil_cropChange','_stencil_rotateCropRectQuarter','_malloc','_free']")
+    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_pageFormats','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_parseDuration','_stencil_applyFilterRGBA','_stencil_applyContourRGBA','_stencil_rotatePoints','_stencil_flipPoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_scaleCropCentered','_stencil_cropResizeScale','_stencil_cropChange','_stencil_rotateCropRectQuarter','_stencil_holdDraw_create','_stencil_holdDraw_destroy','_stencil_holdDraw_state','_stencil_holdDraw_holdDelay','_stencil_holdDraw_setHoldDelay','_stencil_holdDraw_cancel','_stencil_holdDraw_pointerDown','_stencil_holdDraw_pointerMove','_stencil_holdDraw_tick','_stencil_holdDraw_pointerUp','_stencil_history_create','_stencil_history_destroy','_stencil_history_reset','_stencil_history_push','_stencil_history_canUndo','_stencil_history_canRedo','_stencil_history_step','_stencil_history_size','_stencil_history_undo','_stencil_history_redo','_stencil_history_readResult','_stencil_projects_periodMs','_stencil_projects_addPeriod','_stencil_projects_shouldPersist','_stencil_projects_isExpired','_stencil_projects_isExpiringSoon','_malloc','_free']")
   message(STATUS "Emscripten — building stencil_wasm (stencil_core.js/.wasm)")
 endif()

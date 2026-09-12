@@ -1,0 +1,63 @@
+Commands  (a leading '/' is optional)
+
+Image
+  /upload <path|url>      load an image or video frame (bare: the clipboard's picture)
+  /source-upload <url> [i] [fmt] [name=] scrape a page and load its i-th image (alias /scrape)
+  /paste                  load an image from the clipboard (Ctrl-V pastes onto the line instead)
+  /unpaste [n]            take back an image added this turn (bare = the last; Ctrl-Z)
+  /images                 list the images this turn will send to the assistant
+  /blank [fmt] [w h] [color] create a blank page (default: the picked format or A4, white)
+  /format [name|custom w h] list the page formats or pick one (drives /blank + the layout)
+
+Edit
+  /apply <file.json>      draw a layout JSON onto the image
+  /crop <spec> [album]    crop, e.g. "x1=10% x2=90% y1=10% y2=90%"
+  /rotate <int>           rotate int*90 degrees (e.g. -1, 2, 3)
+  /filter <mode>          bw | sepia | invert | contour | none | a colour name/#hex (tint)
+  /exec <action> ...      run a transform by name (crop | rotate | filter | apply)
+  /undo   /redo           step back / forward through edits
+  /reset                  revert to the original, dropping all edits
+
+Save
+  /save [path]            write to a file; a bare /save pushes to the active server project
+  /delete <file.stencil>  delete a local .stencil project file from disk
+  /layout [path]          save the layout JSON (bare = <project>.json; a dir saves <project>.json there)
+  /formula [x|y <expr>|on|off|clear] set the x/y coord-transform formulas (saved in the layout)
+  /copy                   copy the current image to the clipboard
+
+Connections
+  /connect <url [token]>  connect to collaboration servers (token: session or admin, for gated servers)
+  /connections [admin|session] list connected servers + reachability status (filter by credential)
+  /disconnect [url]       close a connection (or the most recent)
+  /reconnect [url]        re-establish one connection (or all) and the live feed
+  /projects [url]         list projects on a server (or all connected servers)
+  /project-color [#hex]   show or set the active project's name colour (clear = neutral grey)
+  /blank-color [#hex]     show or recolour a BLANK project's background fill (blanks only)
+  /rename <name>          rename the active server project (pushed live to peers)
+  /keywords <project>     show a server project's search keywords (by name)
+  /keywords-search <kw...> list projects across servers matching any keyword
+  /keywords-add <project|[..]> <kw...> add keywords to one or more projects
+  /keywords-del <project|[..]> <kw...> remove keywords from one or more projects
+  /expire [<duration>]    set when the active project expires (bare = formats; e.g. 'months 3', 'off')
+  /fetch <name> [url]     load a server project's image to keep editing
+  /sync [on|off]          live mode (bare /sync toggles): push edits + pull peers' changes
+
+Assistant
+  /prompt <text>          ask the LLM assistant; it plans + runs edits and renders variant-<label>.png files (alias /p)
+  /llm [key <value>]      show or set the LLM provider config (provider | url | model | key | server; env STENCIL_LLM_*)
+  /chat [on|off|clear]    opt-in: save the /prompt conversation with the project + replay it (bare /chat shows; default off)
+
+System
+  /status                 show the working image (path, size, edit position)
+  /theme [name]           list or switch the accent colour (default violet)
+  /mouse [on|off]         full-screen: toggle mouse (off frees text selection)
+  /reveal-speed [0.01-1]  full-screen: how fast output is revealed (1 = instantly, 0.5 default)
+  /clear                  clear the screen, redraw the logo + image header
+  /drop                   forget the working image entirely
+  /help   /exit           show this list / leave (Ctrl-D, or Ctrl-C twice)
+
+Shortcuts  Ctrl-V paste the clipboard — an image attaches to the line (3 on a /prompt,
+           1 on an /upload; Backspace removes it), text is typed straight in
+           Ctrl-C copy the selection (nothing selected: press twice to exit) · Ctrl-S also copies
+           Ctrl-Z un-attach/un-paste · Ctrl-Alt-C copy the image to the clipboard
+           Ctrl/Alt-Backspace delete the word back · Alt-d or Ctrl/Alt-Delete the word ahead

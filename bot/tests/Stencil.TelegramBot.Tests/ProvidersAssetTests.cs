@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ProvidersAssetTests
 {
     [Fact]
-    public void EmbeddedAssetMatchesCanonicalFileBytes()
+    public void Should_Match_Canonical_File_Bytes_For_Embedded_Asset()
     {
         // The embed copies the file at build time; catch drift against the repo's canonical copy.
         using Stream? stream = typeof(ProvidersAsset).Assembly.GetManifestResourceStream(
@@ -25,7 +25,7 @@ public sealed class ProvidersAssetTests
     }
 
     [Fact]
-    public void ParsedConstantsKeepTheirPinnedValues()
+    public void Should_Keep_Pinned_Values_For_Parsed_Constants()
     {
         Assert.Equal(120, ProvidersAsset.ChatTimeoutSeconds);
         Assert.Equal(TimeSpan.FromSeconds(120), HttpLlmClient.DefaultTimeout);

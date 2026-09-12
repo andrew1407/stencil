@@ -4,7 +4,7 @@ namespace Stencil.TelegramBot.Tests.Doubles;
 
 /// <summary>
 /// A set of Telegram user ids containing every id — how fixtures testing the handlers (rather
-/// than the allowlist) open <c>BotOptions.LlmAllowedUsers</c> without threading their own id
+/// than the allowlist) open <c>BotOptions.AllowedUsers</c> without threading their own id
 /// through. Test-only: production keeps a finite set, so "on for everyone" is unreachable.
 /// </summary>
 internal sealed class AnyUser : IReadOnlySet<long>
@@ -15,7 +15,7 @@ internal sealed class AnyUser : IReadOnlySet<long>
 
     public bool Contains(long item) => true;
 
-    // Non-zero so `LlmAllowedUsers.Count == 0` ("nothing configured") reads false.
+    // Non-zero so `AllowedUsers.Count == 0` ("nothing configured") reads false.
     public int Count => int.MaxValue;
 
     public bool IsProperSubsetOf(IEnumerable<long> other) => false;

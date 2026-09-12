@@ -2,29 +2,37 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>
-/// The canonical §4 system-prompt prose around the ops list, parsed once from
-/// <c>browser/js/config/llm/systemPrompt.json</c>, embedded into this assembly at build
-/// time (the same pattern as the bot's <c>constants.json</c> page-format table).
-/// </summary>
+// The canonical §4 prose, parsed once from the embedded browser/js/config/llm/systemPrompt.json.
 public static class SystemPromptAsset
 {
-    private const string ResourceName = "Stencil.TelegramBot.Application.Assets.systemPrompt.json";
+    private const string _resourceName = "Stencil.TelegramBot.Application.Assets.systemPrompt.json";
 
-    private static readonly Lazy<(string Head, string Tail)> Parsed = new(Load);
+    private static readonly Lazy<IReadOnlyDictionary<string, string>> _parsed = new(load);
 
     /// <summary>The prose BEFORE the "Available ops" list, ending with its newline.</summary>
-    public static string Head => Parsed.Value.Head;
+    public static string Head => Text("head");
 
     /// <summary>The prose AFTER the ops list, starting with its blank line.</summary>
-    public static string Tail => Parsed.Value.Tail;
+    public static string Tail => Text("tail");
 
-    private static (string, string) Load()
+    public static string Text(string key) =>
+        _parsed.Value.TryGetValue(key, out string? value)
+            ? value
+            : throw new InvalidOperationException($"systemPrompt.json has no \"{key}\"");
+
+    private static IReadOnlyDictionary<string, string> load()
     {
-        using Stream stream = typeof(SystemPromptAsset).Assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");
+        using Stream stream = typeof(SystemPromptAsset).Assembly.GetManifestResourceStream(_resourceName)
+            ?? throw new InvalidOperationException($"embedded resource {_resourceName} is missing");
         using JsonDocument doc = JsonDocument.Parse(stream);
-        return (doc.RootElement.GetProperty("head").GetString()!,
-                doc.RootElement.GetProperty("tail").GetString()!);
+        Dictionary<string, string> map = new(StringComparer.Ordinal);
+        foreach (JsonProperty entry in doc.RootElement.EnumerateObject())
+        {
+            if (entry.Value.ValueKind == JsonValueKind.String)
+            {
+                map[entry.Name] = entry.Value.GetString()!;
+            }
+        }
+        return map;
     }
 }

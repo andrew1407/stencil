@@ -1,23 +1,23 @@
 {
   "providerWire/plain single turn — empty model is OMITTED, messages carry role+text only": {
     "verdict": { "bodyPatch": { "model": "" } },
-    "note": "desktop chatServer always sends a top-level model key (\"\" when unset, llmClient.cpp:396); the browser omits an empty model"
+    "note": "desktop chatServer always sends a top-level model key (\"\" when unset, LlmClient.cpp:396); the browser omits an empty model"
   },
   "providerWire/image attachments pass through as {mediaType,data} objects; text-only turns omit \"images\"": {
     "verdict": { "bodyPatch": { "model": "" } },
-    "note": "same desktop model:\"\" always-sent divergence (llmClient.cpp:396)"
+    "note": "same desktop model:\"\" always-sent divergence (LlmClient.cpp:396)"
   },
   "providerWire/maxTokens is never sent — the server clamps its own default": {
     "verdict": { "bodyPatch": { "model": "" } },
-    "note": "same desktop model:\"\" always-sent divergence (llmClient.cpp:396); maxTokens absence itself matches"
+    "note": "same desktop model:\"\" always-sent divergence (LlmClient.cpp:396); maxTokens absence itself matches"
   },
   "providerWire/reply extraction: stopReason max_tokens is a typed truncation error, never a reply": {
     "verdict": { "bodyPatch": { "model": "" } },
-    "note": "kind truncated + message match browser exactly; only the desktop model:\"\" always-sent divergence (llmClient.cpp:396)"
+    "note": "kind truncated + message match browser exactly; only the desktop model:\"\" always-sent divergence (LlmClient.cpp:396)"
   },
   "providerWire/reply extraction: stopReason refusal surfaces the reply text as a refusal error": {
     "verdict": { "bodyPatch": { "model": "" } },
-    "note": "kind refusal + surfaced text match; only the desktop model:\"\" always-sent divergence (llmClient.cpp:396)"
+    "note": "kind refusal + surfaced text match; only the desktop model:\"\" always-sent divergence (LlmClient.cpp:396)"
   },
   "providerWire/reply extraction: missing text on end_turn is a typed badReply error": {
     "verdict": { "bodyPatch": { "model": "" } },
@@ -29,7 +29,7 @@
   },
   "providerWire/server 502 llmUpstream renders the sanitized message with its code as plain http": {
     "verdict": { "bodyPatch": { "model": "" } },
-    "note": "kind http + message match; only the desktop model:\"\" always-sent divergence (llmClient.cpp:396)"
+    "note": "kind http + message match; only the desktop model:\"\" always-sent divergence (LlmClient.cpp:396)"
   },
 
   "sanitizer/DIVERGENCE(server): private-use characters survive the browser, the server blanks them": {

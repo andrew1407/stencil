@@ -5,16 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stencil — images on this page</title>
   <!-- Apply the saved accent (data-accent) before the stylesheet → no flash. -->
+  <script src="../lib/prefs.js"></script>
+  <script src="../lib/swapGeometry.js"></script>
+  <script src="../lib/dustGrains.js"></script>
+  <script src="../lib/dustWake.js"></script>
+  <script src="../lib/themeSwap.js"></script>
   <script src="../lib/accent.js"></script>
-  <link rel="stylesheet" href="../lib/theme.css">
+  <script src="../lib/shellPrefs.js"></script>
+  <link rel="stylesheet" href="../lib/theme/palette.css">
+  <link rel="stylesheet" href="../lib/theme/controls.css">
+  <link rel="stylesheet" href="../lib/theme/tooltip.css">
+  <link rel="stylesheet" href="../lib/theme/select.css">
+  <link rel="stylesheet" href="../lib/theme/fields.css">
   <!-- Reuse the popup's controls/list styling, then dock it full-height (sidepanel.css). -->
   <link rel="stylesheet" href="../popup/popup.css">
+  <link rel="stylesheet" href="../popup/list.css">
+  <link rel="stylesheet" href="../popup/editorMode.css">
+  <link rel="stylesheet" href="../popup/chatPanel.css">
+  <link rel="stylesheet" href="../popup/chatComposer.css">
+  <link rel="stylesheet" href="../popup/chatControls.css">
   <link rel="stylesheet" href="sidepanel.css">
-  <link rel="stylesheet" href="../lib/animations.css">
+  <link rel="stylesheet" href="../lib/animations/keyframes.css">
+  <link rel="stylesheet" href="../lib/animations/iconHover.css">
+  <link rel="stylesheet" href="../lib/animations/controls.css">
+  <link rel="stylesheet" href="../lib/animations/themeSwap.css">
+  <link rel="stylesheet" href="../lib/animations/reveal.css">
+  <link rel="stylesheet" href="../lib/animations/pages.css">
+  <link rel="stylesheet" href="../lib/animations/motionModes.css">
+  <link rel="stylesheet" href="../lib/animations/reducedMotion.css">
+  <link rel="stylesheet" href="../lib/animations/chat.css">
+  <link rel="stylesheet" href="../lib/animations/overlays.css">
+  <link rel="stylesheet" href="../lib/animations/motionIcons.css">
 </head>
 <body>
   <header>
-    <!-- .logo-wrap carries the hover ray ring (lib/animations.css) — SVGs can't host ::before. -->
+    <!-- .logo-wrap carries the hover ray ring (lib/animations/iconHover.css) — SVGs can't host ::before. -->
     <span class="logo-wrap">
     <svg class="logo" viewBox="0 0 64 64" role="img" aria-label="Stencil">
       <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>

@@ -2,14 +2,9 @@
 #include <cstddef>
 #include <cstdint>
 
-// Tiny helpers for the tightly-packed, row-major RGBA8 buffers the core moves
-// over its flat ABI (4 bytes/pixel, no stride padding). They centralize the
-// `(y*w + x)*4` index math and the 4-byte pixel copy that were spelled out by
-// hand across the image ops (geometry/imageOps, geometry/rasterize, …).
-//
-// Header-only on purpose: trivial and shared by several TUs, so keeping them
-// inline avoids adding a .cpp that would have to be mirrored across the three
-// build definitions (core/CMakeLists.txt, cli/build.zig, pystencil/build.py).
+// Index math for the core's row-major RGBA8 buffers (4 bytes/pixel, no stride padding).
+// Header-only on purpose: a .cpp would have to be mirrored across the three build
+// definitions (core/CMakeLists.txt, cli/build.zig, pystencil/build.py).
 namespace stencil::core {
 
   inline std::size_t rgbaOffset(int x, int y, int w) {

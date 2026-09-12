@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Infrastructure.Configuration;
 
 namespace Stencil.TelegramBot.Infrastructure.Workspace;
 
-/// <summary>
-/// Owns the on-disk scratch area for each user's working images, under the configured
-/// <see cref="BotOptions.DataDir"/>. Each user gets a sub-directory <c>&lt;DataDir&gt;/&lt;userId&gt;</c>;
-/// files are named with a fresh GUID so writes never collide.
-/// </summary>
+// <DataDir>/<userId>, files named with a fresh GUID so writes never collide.
 public sealed class UserWorkspace : IUserWorkspace
 {
     private readonly BotOptions _options;
@@ -17,7 +13,6 @@ public sealed class UserWorkspace : IUserWorkspace
         _options = options;
     }
 
-    /// <summary>The directory that holds this user's files, created on demand.</summary>
     public string DirectoryFor(long userId)
     {
         string dir = Path.Combine(_options.DataDir, userId.ToString());
@@ -25,15 +20,13 @@ public sealed class UserWorkspace : IUserWorkspace
         return dir;
     }
 
-    /// <summary>A fresh, unique file path for <paramref name="userId"/> with the given extension.</summary>
     public string NewFilePath(long userId, string extension)
     {
         string dir = DirectoryFor(userId);
-        string name = Guid.NewGuid().ToString("N") + NormalizeExtension(extension);
+        string name = Guid.NewGuid().ToString("N") + normalizeExtension(extension);
         return Path.Combine(dir, name);
     }
 
-    /// <summary>Write bytes to a fresh file and return its path.</summary>
     public async Task<string> WriteAsync(long userId, byte[] data, string extension, CancellationToken ct = default)
     {
         string path = NewFilePath(userId, extension);
@@ -41,7 +34,6 @@ public sealed class UserWorkspace : IUserWorkspace
         return path;
     }
 
-    /// <summary>Delete every file for a user (the user's directory), ignoring a missing one.</summary>
     public void Clear(long userId)
     {
         string dir = Path.Combine(_options.DataDir, userId.ToString());
@@ -54,29 +46,24 @@ public sealed class UserWorkspace : IUserWorkspace
         }
         catch (DirectoryNotFoundException)
         {
-            // Already gone — nothing to clear.
         }
     }
 
-    /// <inheritdoc />
-    public IReadOnlyList<long> ActiveUserIds()
+    public IEnumerable<long> ActiveUserIds()
     {
         if (!Directory.Exists(_options.DataDir))
         {
-            return Array.Empty<long>();
+            yield break;
         }
-        List<long> ids = new();
         foreach (string dir in Directory.EnumerateDirectories(_options.DataDir))
         {
             if (long.TryParse(Path.GetFileName(dir), out long userId))
             {
-                ids.Add(userId);
+                yield return userId;
             }
         }
-        return ids;
     }
 
-    /// <inheritdoc />
     public int PruneStale(long userId, IReadOnlyCollection<string> keep, DateTime cutoffUtc)
     {
         string dir = Path.Combine(_options.DataDir, userId.ToString());
@@ -84,13 +71,13 @@ public sealed class UserWorkspace : IUserWorkspace
         {
             return 0;
         }
-        HashSet<string> kept = new(keep.Select(NormalizePath), StringComparer.Ordinal);
+        HashSet<string> kept = new(keep.Select(normalizePath), StringComparer.Ordinal);
         int deleted = 0;
-        // Recurse: scrape mode writes into a nested `scrape-<guid>/` subdir, so a top-level-only
-        // sweep would never reap it and it would grow without bound (disk exhaustion).
+        // Recurse: scrape mode writes into a nested scrape-<guid>/ subdir that a top-level sweep
+        // would never reap.
         foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
         {
-            if (kept.Contains(NormalizePath(file)))
+            if (kept.Contains(normalizePath(file)))
             {
                 continue; // still referenced by the session — never sweep it
             }
@@ -105,39 +92,34 @@ public sealed class UserWorkspace : IUserWorkspace
             }
             catch
             {
-                // Best effort — a file we couldn't delete this pass is retried next sweep.
+                // Retried next sweep.
             }
         }
-        RemoveEmptyDescendants(dir);
-        TryRemoveIfEmpty(dir);
+        removeEmptyDescendants(dir);
+        tryRemoveIfEmpty(dir);
         return deleted;
     }
 
-    /// <summary>Remove now-empty nested sub-directories (deepest first) left behind after a
-    /// sweep — e.g. an emptied <c>scrape-&lt;guid&gt;/</c> — so they don't keep the user dir alive.</summary>
-    private static void RemoveEmptyDescendants(string root)
+    // Deepest first, so an emptied scrape-<guid>/ doesn't keep the user dir alive.
+    private static void removeEmptyDescendants(string root)
     {
         try
         {
-            // Deepest paths first so a child is gone before we test its parent for emptiness.
             foreach (string sub in Directory
                          .EnumerateDirectories(root, "*", SearchOption.AllDirectories)
                          .OrderByDescending(p => p.Length))
             {
-                TryRemoveIfEmpty(sub);
+                tryRemoveIfEmpty(sub);
             }
         }
         catch
         {
-            // Best effort — retried next sweep.
         }
     }
 
-    /// <summary>Canonicalise a path for reference comparison (absolute, OS-native separators).</summary>
-    private static string NormalizePath(string path) => Path.GetFullPath(path);
+    private static string normalizePath(string path) => Path.GetFullPath(path);
 
-    /// <summary>Remove a now-empty user directory so abandoned users leave nothing behind.</summary>
-    private static void TryRemoveIfEmpty(string dir)
+    private static void tryRemoveIfEmpty(string dir)
     {
         try
         {
@@ -148,12 +130,10 @@ public sealed class UserWorkspace : IUserWorkspace
         }
         catch
         {
-            // Harmless — a directory we couldn't remove is retried next sweep.
         }
     }
 
-    /// <summary>Normalise an extension to a leading-dot form (<c>png</c> → <c>.png</c>); blank ⇒ none.</summary>
-    private static string NormalizeExtension(string extension)
+    private static string normalizeExtension(string extension)
     {
         if (string.IsNullOrWhiteSpace(extension))
         {

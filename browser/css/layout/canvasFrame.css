@@ -1,0 +1,100 @@
+.main-content {
+    display: flex;
+    /* Canvas ↔ resizer ↔ panel: 10 + 8 (.panel-resizer) + 10 = 28px total. */
+    gap: 10px;
+    align-items: flex-start;
+    /* Takes the height the toolbar/info rows leave over (fill chain on body). */
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;   /* shrink with the window rather than pushing the page wide */
+}
+.canvas-section {
+    flex: 1;
+    min-width: 0;
+    /* Full height of the row (the panel beside it keeps hugging its content), and a column
+       so the viewport can grow into the space above the status + drop-hint lines. */
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.canvas-viewport {
+    overflow: auto;
+    scrollbar-width: none;   /* its bars are the overlay ones above (js/ui/canvasScrollbars.js) */
+    margin-top: 10px;
+    border: 2px solid var(--border-canvas);
+    max-width: 100%;
+    /* The end of the fill chain — and the frame ALWAYS takes every remaining pixel, image or
+       not, at any zoom: the picture is centred inside it (.canvas-container below), never
+       shrink-wrapped by it. ZoomPan.syncViewportHeight pins that height in px (measured, so
+       a tall canvas scrolls INSIDE the frame instead of stretching the page); these two are
+       what fill the box before it has run. */
+    flex: 1 1 auto;
+    min-height: 0;
+    background: var(--bg-page);
+    /* A column flex box purely so the canvas can centre itself with `margin: auto` below.
+       Column, not row: the sticky .incognito-frame is a flex item too and must stay ABOVE
+       the picture in flow, not beside it. */
+    display: flex;
+    flex-direction: column;
+    /* Cursor: see the canvas-cursor block below — the aim is state-driven, not a constant. */
+    cursor: default;
+    /* anchor for the idle blank-image overlay (.idle-create) */
+    position: relative;
+    /* Touch input: we implement pan/pinch ourselves in #wireTouch, so stop the
+       browser from hijacking these gestures for native scroll/zoom. The callout/
+       select disables iOS's long-press text-selection menu, which would otherwise
+       fight our long-press-to-open-context-menu. Harmless for mouse/desktop. */
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+.canvas-container {
+    position: relative;
+    /* Centre a picture smaller than the frame, both axes. `margin: auto` — NOT
+       justify/align-content or text-align: auto margins take the free space when there is
+       any and collapse to 0 when there isn't, so a zoomed-in canvas still scrolls all the
+       way to its top-left edge instead of overflowing equally in both directions. */
+    margin: auto;
+    /* Pin it to the canvas's own size: a flex item defaults to shrinking, which would
+       squash the picture instead of letting the viewport scroll. (This is also what
+       retires the old inline-block — a flex item sits on no baseline, so the descender
+       gap that once scrolled a fitted canvas ~4px cannot come back.) */
+    flex: none;
+    /* No border here — border is on viewport */
+}
+/* Golden frame while editing a project stored on a server (mirrors the projects
+   modal's remote rows), so server-backed editing is unmistakable. Recolours the
+   viewport's own border + a soft glow — on the viewport (not the inner container)
+   so the scroll overflow can't clip it. */
+.canvas-viewport.remote-editing {
+    border-color: var(--remote-gold);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--remote-gold) 25%, transparent);
+}
+.coord-status {
+    margin-top: 8px;
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--text-tooltip);
+    padding: 6px 10px;
+    background: var(--bg-tooltip);
+    border: 1px solid var(--border-tooltip);
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Reserve one filled line's height (1 line + vertical padding + border, box-sizing:
+       border-box) so the bar keeps its height when the readout is empty (cursor off the
+       canvas) — no layout jump as the cursor enters/leaves. */
+    min-height: calc(1.2em + 14px);
+}
+.drop-hint {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 6px 10px;
+    background: var(--bg-drop-hint);
+    border-radius: 4px;
+    border: 1px dashed var(--border-hint);
+}

@@ -1,0 +1,16 @@
+{
+  "ready": "stencil:ready",
+  "themeChanged": "stencil:theme-changed",
+  "accentChanged": "stencil:accent-changed",
+  "motionChanged": "stencil:motion-changed",
+  "fullscreenChanged": "stencil:fullscreen-changed",
+  "registryChanged": "stencil:registry-changed",
+  "connectionsChanged": "stencil:connections-changed",
+  "switchToSource": "stencil:switch-to-source",
+  "llmSettingsChanged": "stencil:llm-settings-changed",
+  "chatLayoutChanged": "stencil:chat-layout-changed",
+  "chatAttachmentsChanged": "stencil:chat-attachments-changed",
+  "chatPopup": "stencil:chat-popup",
+  "voiceStateChanged": "stencil:voice-state-changed",
+  "voiceSettingsChanged": "stencil:voice-settings-changed"
+}

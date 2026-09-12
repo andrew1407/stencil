@@ -1,11 +1,17 @@
 //! Walk the shared op-plan conformance corpus (`browser/js/config/llm/fixtures/opPlan/`)
-//! through the REAL mcp validator (`opplan::parse_op_plan`). Port of the reference walker
+//! through the REAL mcp validator (`opplan::parse_op_plan`), one reported case per fixture.
+//! Port of the reference walker
 //! `browser/tests/opPlanFixtures.test.js` for the `mcp` profile — this PINS current
 //! behavior; measured disagreements live in `tests/fixture_overrides.json`, never as
 //! edits to the shared fixtures or to production code.
 
+use std::sync::LazyLock;
+
 use serde_json::Value;
 use stencil_mcp::opplan::parse_op_plan;
+
+mod common;
+use common::walk::Walk;
 
 const FIXTURES_DIR: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/llm/fixtures/opPlan");
@@ -13,55 +19,40 @@ const FIXTURES_DIR: &str =
 const PROFILES: [&str; 6] = ["editor", "console", "bot", "mcp", "extension", "all"];
 const SURFACES: [&str; 7] = ["browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension"];
 
-/// The corpus, as (file name, parsed fixture) pairs, sorted by file name.
+/// Both bundles as (label, fixture) pairs, read once per test binary.
+static CORPUS: LazyLock<Vec<(String, Value)>> = LazyLock::new(load_corpus);
+
+fn bundle_cases(rel: &str) -> Vec<Value> {
+    let path = format!("{FIXTURES_DIR}/{rel}");
+    let raw = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
+    let doc: Value = serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{path}: {e}"));
+    doc["cases"].as_array().unwrap_or_else(|| panic!("{path} has no cases array")).clone()
+}
+
 fn load_corpus() -> Vec<(String, Value)> {
-    let mut files: Vec<String> = std::fs::read_dir(FIXTURES_DIR)
-        .unwrap_or_else(|e| panic!("cannot read the opPlan corpus at {FIXTURES_DIR}: {e}"))
-        .filter_map(|entry| {
-            let name = entry.ok()?.file_name().into_string().ok()?;
-            name.ends_with(".json").then_some(name)
-        })
-        .collect();
-    files.sort();
-    let mut corpus: Vec<(String, Value)> = files
+    // Hand-written cases keep their "file" label; generated ones walk as "<name>.json".
+    let hand = bundle_cases("cases.json");
+    let generated = bundle_cases("generated/cases.json");
+    let mut corpus: Vec<(String, Value)> = hand
         .into_iter()
-        .map(|file| {
-            let raw = std::fs::read_to_string(format!("{FIXTURES_DIR}/{file}"))
-                .unwrap_or_else(|e| panic!("cannot read {file}: {e}"));
-            let fx: Value = serde_json::from_str(&raw)
-                .unwrap_or_else(|e| panic!("{file} is not valid JSON: {e}"));
-            (file, fx)
-        })
+        .map(|fx| (fx["file"].as_str().expect("a case label").to_owned(), fx))
         .collect();
-    // The registry-generated bundle (browser/tools/genOpPlanFixtures.mjs): one pseudo-file per case.
-    let bundle = format!("{FIXTURES_DIR}/generated/cases.json");
-    let raw = std::fs::read_to_string(&bundle).unwrap_or_else(|e| panic!("cannot read {bundle}: {e}"));
-    let generated: Value = serde_json::from_str(&raw).expect("generated/cases.json parses");
-    for fx in generated["cases"].as_array().expect("cases array") {
-        let name = fx["name"].as_str().expect("generated case name");
-        corpus.push((format!("{name}.json"), fx.clone()));
+    for fx in generated {
+        let name = fx["name"].as_str().expect("generated case name").to_owned();
+        corpus.push((format!("{name}.json"), fx));
     }
     corpus
 }
 
-/// The mcp-side override table (`tests/fixture_overrides.json`, family `opPlan`).
-fn overrides() -> Value {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixture_overrides.json");
-    let raw = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
-    serde_json::from_str::<Value>(&raw).expect("fixture_overrides.json parses")["opPlan"].clone()
-}
-
-/// Port of the reference walker's corpus-shape check.
-#[test]
+/// The corpus-shape check: one case, and a malformed fixture names itself.
 fn corpus_is_well_formed() {
-    let corpus = load_corpus();
-    assert!(
-        corpus.len() >= 80,
-        "expected a real corpus, found {} fixtures",
-        corpus.len()
-    );
-    for (file, fx) in &corpus {
+    let corpus = &*CORPUS;
+    // Floored per bundle: the generated cases alone would clear a combined floor.
+    let hand = bundle_cases("cases.json").len();
+    let generated = bundle_cases("generated/cases.json").len();
+    assert!(hand >= 180, "hand-written cases.json collapsed to {hand}");
+    assert!(generated >= 400, "generated/cases.json collapsed to {generated}");
+    for (file, fx) in corpus {
         // Strip the NNN- prefix of a hand-written file; generated cases carry none.
         let slug = match file.split_once('-') {
             Some((num, rest)) if num.chars().all(|c| c.is_ascii_digit()) => rest,
@@ -110,44 +101,38 @@ fn corpus_is_well_formed() {
     }
 }
 
-/// Walk every fixture whose profiles include `mcp` or `all` through `parse_op_plan`.
+fn applies(fx: &Value) -> bool {
+    fx["profiles"]
+        .as_array()
+        .is_some_and(|p| p.iter().any(|p| matches!(p.as_str(), Some("mcp" | "all"))))
+}
+
 /// Verdict precedence: local override > knownDivergence.mcp > expect.
-#[test]
-fn mcp_verdicts_match_the_corpus() {
-    let overrides = overrides();
-    let mut walked = 0usize;
-    let mut failures: Vec<String> = Vec::new();
-    for (file, fx) in load_corpus() {
-        let applies = fx["profiles"]
-            .as_array()
-            .is_some_and(|p| p.iter().any(|p| matches!(p.as_str(), Some("mcp" | "all"))));
-        if !applies {
-            continue;
-        }
-        walked += 1;
-        let name = fx["name"].as_str().unwrap_or_default();
-        let want = overrides[name]["verdict"]
-            .as_str()
-            .or_else(|| fx["knownDivergence"]["mcp"].as_str())
-            .or_else(|| fx["expect"].as_str())
-            .unwrap();
-        // String input verbatim; object input serialized, as a model reply would arrive.
-        let text = match &fx["input"] {
-            Value::String(s) => s.clone(),
-            other => serde_json::to_string(other).unwrap(),
-        };
-        let got = match parse_op_plan(&text) {
-            Ok(_) => "valid",
-            Err(_) => "invalid",
-        };
-        if got != want {
-            failures.push(format!("{file}: expected {want}, mcp says {got}"));
-        }
+fn check_verdict(fx: &Value) {
+    let name = fx["name"].as_str().unwrap_or_default();
+    let want = common::overrides("opPlan")[name]["verdict"]
+        .as_str()
+        .or_else(|| fx["knownDivergence"]["mcp"].as_str())
+        .or_else(|| fx["expect"].as_str())
+        .expect("a verdict");
+    // String input verbatim; object input serialized, as a model reply would arrive.
+    let text = match &fx["input"] {
+        Value::String(s) => s.clone(),
+        other => serde_json::to_string(other).unwrap(),
+    };
+    let got = if parse_op_plan(&text).is_ok() { "valid" } else { "invalid" };
+    assert_eq!(got, want, "expected {want}, mcp says {got}");
+}
+
+fn main() {
+    let mut walk = Walk::new();
+    walk.case("corpus_is_well_formed", corpus_is_well_formed);
+    let walked = CORPUS.iter().filter(|(_, fx)| applies(fx)).count();
+    walk.case("every_mcp_profile_fixture_is_walked", move || {
+        assert!(walked >= 80, "expected many mcp-profile fixtures, walked {walked}");
+    });
+    for (file, fx) in CORPUS.iter().filter(|(_, fx)| applies(fx)) {
+        walk.case(format!("mcp/{file}"), || check_verdict(fx));
     }
-    assert!(walked >= 80, "expected many mcp-profile fixtures, walked {walked}");
-    assert!(
-        failures.is_empty(),
-        "op-plan verdict mismatches:\n{}",
-        failures.join("\n")
-    );
+    walk.run()
 }

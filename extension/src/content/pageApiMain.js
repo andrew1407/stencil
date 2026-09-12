@@ -1,12 +1,9 @@
-// ── Page-global window.stencil (MAIN world) ─────────────────────────────────
-// Injected into every page's MAIN world ONLY when opted in (options → "Page scripting
-// API"): console API to scan the page's images/videos and send them to the editor.
-// MAIN world so entries carry LIVE DOM elements; lacking chrome.* there, action
-// requests are postMessage'd to the ISOLATED bridge (content/pageApiBridge.js).
-// The pure helpers below MIRROR lib/pageImages.js (tested source of truth) — keep in sync.
+// window.stencil in every page's MAIN world, only while options → "Page scripting API" is on.
+// MAIN world so entries carry live DOM elements; without chrome.* there, action requests are
+// postMessage'd to the ISOLATED bridge (content/pageApiBridge.js). Classic script — no import;
+// the pure helpers mirror lib/pageImages.js (pageApiMainMirror.test.js pins them).
 (() => {
-  // Don't double-inject, and never clobber the editor's OWN window.stencil (that API
-  // has no __stencil tag; the editor page wins on its own origin).
+  // Never clobber the editor's OWN window.stencil (no __stencil tag): the editor page wins.
   if (window.stencil) {
     if (window.stencil.__stencil === 'page') return;
     if (!window.stencil.__stencil) return;
@@ -16,12 +13,10 @@
   const MSG = { PAGE_OPEN: 'stencil-page-open', PAGE_CROP: 'stencil-page-crop', PAGE_PIN: 'stencil-page-pin', PAGE_REQUEST_SYNC: 'stencil-page-request-sync', PAGE_DISABLE: 'stencil-page-disable', PAGE_SET_FILTERS: 'stencil-page-set-filters' };
   const SRC = { PAGE_API: 'stencil-page-api', PAGE_FILTERS: 'stencil-page-filters', PAGE_PINS: 'stencil-page-pins', PAGE_EDITED: 'stencil-page-edited', PAGE_HL_COLOR: 'stencil-page-hl-color' };
 
-  // Source URLs the bridge tells us are pinned (this site) / opened-in-an-editor;
-  // entry.pinned / entry.isEdited read these synchronously, the bridge keeps them live.
-  // A pin write optimistically updates pinnedSources so the getter flips at once.
+  // Pinned (this site) / opened-in-an-editor source URLs, pushed live by the bridge; a pin
+  // write updates pinnedSources optimistically so the getter flips at once.
   const pinnedSources = new Set();
   const editedSources = new Set();
-  // The highlight outline colour (accent or custom), pushed by the bridge; default violet.
   let hlColor = '#7c3aed';
 
   const send = (message) => window.postMessage({ source: SRC.PAGE_API, message }, '*');
@@ -31,8 +26,7 @@
     const url = m ? m[2].trim() : '';
     return url || '';
   };
-  // Inline mirror of lib/pageImages.js cssImageUrls (see pageApiMainMirror.test.js). Every
-  // image url() in a CSS value, minus inline-SVG data URIs and #fragment paint/filter refs.
+  // Inline mirror of lib/pageImages.js cssImageUrls (pageApiMainMirror.test.js).
   const cssImageUrls = (cssValue) => {
     const s = String(cssValue || '');
     if (!s.includes('url(')) return [];   // cheap skip for none/normal/auto/gradients
@@ -46,7 +40,7 @@
     }
     return urls;
   };
-  // Inline mirror of lib/pageImages.js srcsetUrls — the URL token of each srcset candidate.
+  // Inline mirror of lib/pageImages.js srcsetUrls.
   const srcsetUrls = (srcset) => {
     const s = String(srcset || '').trim();
     if (!s) return [];
@@ -73,7 +67,7 @@
   };
   const videoHasFrame = (v) => !!(v && v.videoWidth && v.videoHeight && v.readyState >= 2 && !(v.paused && !v.currentTime));
 
-  // Lowercase media "format" from a URL / data: URI ('' if unknown) — mirrors lib/filters.js.
+  // Lowercase media format from a URL / data: URI ('' if unknown) — mirrors lib/filters.js.
   const normFmt = (ext) => ext.toLowerCase().replace('jpeg', 'jpg').replace('svg+xml', 'svg').replace('quicktime', 'mov');
   const formatOf = (src) => {
     if (!src) return '';
@@ -119,18 +113,15 @@
     return { kind: null, url: '' };
   };
 
-  // Intrinsic pixel size where the DOM exposes it synchronously (<video> decoded dims,
-  // <img> naturalWidth). A CSS background has no intrinsic size without loading it, so
-  // fall back to the rendered box — 0 when nothing is known.
+  // A CSS background has no intrinsic size without loading it: fall back to the rendered box.
   const entryDims = (el, kind) => {
     if (kind === 'video') return { w: el.videoWidth || 0, h: el.videoHeight || 0 };
     if (el && el.naturalWidth) return { w: el.naturalWidth, h: el.naturalHeight || 0 };
     return { w: (el && el.offsetWidth) || 0, h: (el && el.offsetHeight) || 0 };
   };
 
-  // Hard-guard an API object: a property with a real setter writes through, but writing
-  // a method / read-only getter / data field (or adding/deleting one) THROWS instead of
-  // silently no-opping. Applied to the facade and every scanned entry.
+  // Hard-guard: a real setter writes through; writing a method / read-only getter / data
+  // field (or adding / deleting one) THROWS instead of silently no-opping.
   const guard = (obj) => new Proxy(Object.freeze(obj), {
     set(target, prop, value) {
       const d = Object.getOwnPropertyDescriptor(target, prop);
@@ -141,9 +132,8 @@
     deleteProperty(target, prop) { throw new TypeError(`stencil: "${String(prop)}" cannot be deleted`); },
   });
 
-  // Post a pin / unpin request (→ bridge → SW writes the pin store) and optimistically
-  // reflect it locally so entry.pinned reads true/false immediately. Throws when there's
-  // no openable URL to key the pin on (mirrors open()/resolveTarget).
+  // Optimistic: pinnedSources flips before the bridge → SW write lands. Throws without an
+  // openable URL to key the pin on (mirrors open()/resolveTarget).
   const setPinnedState = (entry, on) => {
     const url = entry && entry.url;
     if (!url) throw new Error('Stencil: nothing to pin — this item has no openable source URL');
@@ -157,17 +147,14 @@
     kind,
     url,
     poster,
-    // Page-furniture image (favicon / og:/twitter: <meta> / manifest icon / preload) — gated
-    // by the "Icons & metadata" toggle, kept out of the plain `images` list. Read-only.
+    // Favicon / og: <meta> / manifest icon / preload — gated by "Icons & metadata", out of `images`.
     meta,
     get name() { return nameFromUrl(url, kind === 'video' ? 'video' : 'image'); },
     get format() { return formatOf(url); },
     get width() { return entryDims(el, kind).w; },
     get height() { return entryDims(el, kind).h; },
-    // Pinned on this site (popup list + options page). Assignable: `entry.pinned = true`.
     get pinned() { return pinnedSources.has(url); },
     set pinned(v) { setPinnedState(this, !!v); },
-    // Whether this image was/is opened (edited) in an editor — read-only, from the ledger.
     get isEdited() { return editedSources.has(url); },
     open(opts) { return api.open(this, opts); },
     crop(opts) { return api.crop(this, opts); },
@@ -175,37 +162,29 @@
     unpin() { setPinnedState(this, false); return this; },
   });
 
-  // Absolutise a raw src/href/content value against the page URL so entries carry a real,
-  // openable, dedupe-stable URL (a favicon/meta ref is often page-relative). data:/blob: pass
-  // through unchanged. Matches imageScan.js, which absolutises every pushed source.
+  // Absolutised against the page URL (a favicon/meta ref is often relative); data:/blob: pass through.
   const absUrl = (raw) => { const s = raw && String(raw).trim(); if (!s) return ''; try { return new URL(s, location.href).href; } catch { return s; } };
 
   // A prefetch <link> has no `as`, so only treat it as an image when its href clearly is one.
   const IMG_EXT = /\.(png|jpe?g|gif|webp|avif|bmp|ico|cur|svg|tiff?)(?:[?#]|$)/i;
 
-  // Scan the page → entry objects (live elements), covering every HTML/CSS image reference.
-  // Deduped by absolute URL (so one <img srcset> can list several alternates, and a poster
-  // that's also a plain <img> collapses to one). Bounded element walk for CSS images.
+  // Deduped by absolute URL: one <img srcset> lists several alternates, a poster that is
+  // also a plain <img> collapses to one. Bounded element walk for CSS images.
   const scan = () => {
     const out = [], seen = new Set();
-    // meta flags an icon/metadata image (favicon/<meta>/preload) — gated separately in passes().
     const add = (el, kind, raw, meta = false) => { const url = absUrl(raw); if (!url || seen.has(url)) return; seen.add(url); out.push(makeEntry(el, kind, url, false, meta)); };
     document.querySelectorAll('img').forEach((el) => add(el, 'image', el.currentSrc || el.getAttribute('src') || ''));
-    // srcset alternates (<img srcset> + <picture><source srcset>) — one element, many URLs.
     document.querySelectorAll('img[srcset], source[srcset]').forEach((el) => srcsetUrls(el.getAttribute('srcset')).forEach((u) => add(el, 'image', u)));
     document.querySelectorAll('image, feImage').forEach((el) => add(el, 'image', el.getAttribute('href') || el.getAttribute('xlink:href') || ''));
     document.querySelectorAll('input[type="image"]').forEach((el) => add(el, 'image', el.currentSrc || el.getAttribute('src') || ''));
     document.querySelectorAll('video').forEach((el) => add(el, 'video', el.currentSrc || el.getAttribute('src') || el.getAttribute('poster') || ''));
-    // Favicons + apple-touch/mask icons, image preloads/prefetches (+ their imagesrcset) — meta.
     document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"], link[rel="mask-icon"], link[rel="preload"][as="image"], link[rel="prefetch"]').forEach((el) => {
       const rel = (el.getAttribute('rel') || '').toLowerCase();
       const href = el.getAttribute('href') || '';
       if (href && (!rel.includes('prefetch') || IMG_EXT.test(href))) add(el, 'image', href, true);
       srcsetUrls(el.getAttribute('imagesrcset')).forEach((u) => add(el, 'image', u, true));
     });
-    // Social-sharing / structured-data preview images (Open Graph, Twitter, schema.org) — meta.
     document.querySelectorAll('meta[property="og:image"], meta[property="og:image:url"], meta[property="og:image:secure_url"], meta[name="twitter:image"], meta[name="twitter:image:src"], meta[itemprop="image"]').forEach((el) => add(el, 'image', el.getAttribute('content') || '', true));
-    // Every CSS image reference on every element + its ::before/::after generated content.
     const all = document.querySelectorAll('*');
     for (let i = 0; i < all.length && i < 8000; i++) {
       const el = all[i];
@@ -218,10 +197,8 @@
     return out;
   };
 
-  // ── Live filter state (mirrors — and SYNCS with — the popup's filter controls) ──
-  // List getters honor it; one-off queries search()/format()/size() stay unfiltered.
-  // Two-way bound to the popup via chrome.storage.local.popupFilters (the bridge
-  // proxies storage for this MAIN-world script — see content/pageApiBridge.js).
+  // Live filter state, two-way bound to the popup's controls via chrome.storage.local.popupFilters
+  // (the bridge proxies storage). One-off queries search()/format()/size() stay unfiltered.
   const filters = {
     searchText: '',
     regex: false,                   // treat searchText as a case-insensitive RegExp (stencil.regex)
@@ -230,9 +207,7 @@
     minWidth: null, maxWidth: null, minHeight: null, maxHeight: null,
   };
   const isNum = (v) => typeof v === 'number' && !isNaN(v);
-  // Case-insensitive search over `hay`: a RegExp when `regex` (invalid pattern → no match),
-  // else a substring. Mirrors lib/filters.js matchesSearch; the query is kept raw so regex
-  // metacharacters (\D, [A-Z]) survive.
+  // Mirrors lib/filters.js matchesSearch; the query stays raw so regex metacharacters survive.
   const searchMatch = (hay, query, regex) => {
     if (!query) return true;
     if (regex) { let re; try { re = new RegExp(query, 'i'); } catch { return false; } return re.test(hay); }
@@ -258,14 +233,12 @@
     return out;
   };
 
-  // ── Highlight: shares the popup's <style id=stencil-hl-style> + data-stencil-hl attr,
-  //    so toggling here is detected by the popup (and vice versa) — same behaviour as
-  //    the popup's lib/highlight.js (kept in sync). ──
+  // Shares the popup's <style id=stencil-hl-style> + data-stencil-hl attr, so toggling here is
+  // detected by the popup and vice versa (lib/highlight.js).
   const HL_STYLE_ID = 'stencil-hl-style';
   const HL_ATTR = 'data-stencil-hl';
   const HL_HOVER = 'data-stencil-hl-hover';
   const highlightActive = () => !!document.getElementById(HL_STYLE_ID);
-  // Hover ring derives from the base colour: same hue brightened toward white, plus a glow.
   const hlToRgb = (hex) => {
     let h = String(hex || '').trim().replace('#', '');
     if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
@@ -280,7 +253,6 @@
       'transition:outline-color .16s ease,outline-offset .16s ease,box-shadow .18s ease !important;}' +
       '[' + HL_HOVER + ']{outline:3px solid ' + hov + ' !important;outline-offset:-3px !important;box-shadow:0 0 0 3px ' + glow + ' !important;}';
   };
-  // Nearest marked ancestor of the cursor target (follows the ring onto a parent bg element).
   const hlAt = (start) => { for (let n = start; n && n.nodeType === 1; n = n.parentElement) if (n.hasAttribute && n.hasAttribute(HL_ATTR)) return n; return null; };
   let hlCurrent = null, hlBound = false;
   const hlOnOver = (e) => {
@@ -298,8 +270,7 @@
       style.textContent = hlStyleText();
       (document.head || document.documentElement).appendChild(style);
     }
-    // Track the cursor so the element under it gets the hover ring (once; cleanup teardown
-    // is shared with the popup via window.__stencilHlCleanup, which clearHighlight calls).
+    // Cleanup teardown is shared with the popup via window.__stencilHlCleanup.
     if (!hlBound && typeof document.addEventListener === 'function') {
       document.addEventListener('mouseover', hlOnOver, true);
       hlBound = true;
@@ -311,7 +282,6 @@
     }
     for (const e of scanFiltered()) { const el = e.element; if (el && el.setAttribute) el.setAttribute(HL_ATTR, ''); }
   };
-  // Re-colour an active highlight in place — just rewrite the style rules, no DOM re-scan.
   const recolorHighlight = () => { const s = document.getElementById(HL_STYLE_ID); if (s) s.textContent = hlStyleText(); };
   const clearHighlight = () => {
     document.querySelectorAll('[' + HL_ATTR + ']').forEach((el) => el.removeAttribute(HL_ATTR));
@@ -320,7 +290,6 @@
     try { if (typeof window.__stencilHlCleanup === 'function') { window.__stencilHlCleanup(); window.__stencilHlCleanup = null; } } catch { /* ignore */ }
   };
 
-  // ── Two-way sync with the popup's persisted filters (chrome.storage popupFilters) ──
   let syncing = false;   // true while applying a pushed update, so we don't echo it back
   const toPopupShape = () => ({
     search: filters.searchText, regex: filters.regex, minW: filters.minWidth, maxW: filters.maxWidth, minH: filters.minHeight, maxH: filters.maxHeight,
@@ -338,12 +307,8 @@
     filters.disabledFormats = new Set(Array.isArray(f.disabledFormats) ? f.disabledFormats : []);
   };
   const persistFilters = () => { if (!syncing) try { send({ type: MSG.PAGE_SET_FILTERS, filters: toPopupShape() }); } catch { /* bridge gone */ } };
-  // Called after any filter mutation: refresh the highlight (if on) and persist (→ popup).
   const onFilterChange = () => { if (highlightActive()) applyHighlight(); persistFilters(); };
-  // Replace a Set's contents with the pushed source-URL list.
   const resetSet = (set, sources) => { set.clear(); for (const s of (Array.isArray(sources) ? sources : [])) if (s) set.add(s); };
-  // The bridge pushes the stored popup filters / pinned sources / opened sources on
-  // load and whenever they change.
   window.addEventListener('message', (e) => {
     if (e.source !== window) return;
     const d = e.data;
@@ -364,8 +329,7 @@
     if (highlightActive()) applyHighlight();
   });
 
-  // Live { <format>: boolean } map for stencil.formats — keys are the lowercase formats
-  // present on the page; assigning false disables that format in the list getters.
+  // { <format>: boolean } for stencil.formats — assigning false hides that format from the lists.
   const formatsToggle = () => {
     const obj = {};
     for (const f of [...new Set(scan().map((e) => e.format).filter(Boolean))].sort()) {
@@ -378,8 +342,6 @@
     return obj;
   };
 
-  // Live { image, background, video, poster, meta: boolean } map for stencil.kinds — assigning
-  // false hides that category from the list getters (the popup's include-* checkboxes).
   const kindsToggle = () => {
     const obj = {};
     for (const k of ['image', 'background', 'video', 'poster', 'meta']) Object.defineProperty(obj, k, {
@@ -390,8 +352,7 @@
     return obj;
   };
 
-  // Validate a target (entry | element | url) → { url? , dataUrl?, name, source }; throws
-  // when nothing loadable is found (mirrors the popup's editableSrc/sourceOf logic).
+  // Throws when nothing loadable is found (mirrors the popup's editableSrc/sourceOf).
   const resolveTarget = (target, opts = {}) => {
     let el = null, kind = null, url = '';
     if (target && target.__stencilEntry) { el = target.element; kind = target.kind; url = target.url; }
@@ -412,9 +373,7 @@
     return { url, name: nameFromUrl(url), source: url };
   };
 
-  // Resolve a pin/unpin target → array of pin-target objects setPinnedState understands.
-  // Accepts an entry, an index into stencil.items, an element, a URL, or an array of
-  // those. No video-frame capture — a pin keys on the source URL, not a frame.
+  // A pin keys on the source URL, not a frame — no video-frame capture here.
   const resolvePinTargets = (target) => {
     if (Array.isArray(target)) return target.flatMap(resolvePinTargets);
     if (typeof target === 'number') { const e = scanFiltered()[target]; return e ? [e] : []; }
@@ -427,13 +386,10 @@
     throw new Error('Stencil: pin() expects an entry, an item index, an element, a URL, or an array of those');
   };
 
-  // Media URL extensions that mark a bare-URL target as a video (vs an image) — only used
-  // to label detect()'s `kind` for a raw URL; element/entry targets carry their own kind.
+  // Only labels detect()'s `kind` for a raw URL; element/entry targets carry their own kind.
   const VIDEO_FMTS = new Set(['mp4', 'webm', 'mov', 'm4v', 'mkv', 'avi', 'ogv', 'ogg']);
 
-  // Inspect a target WITHOUT acting on it — the same union open()/pin() take, minus
-  // arrays. Returns a plain descriptor of what Stencil sees, or null when the target
-  // carries nothing grabbable. Never throws.
+  // Never throws: null when the target carries nothing grabbable.
   const describeTarget = (target) => {
     let el = null, kind = null, url = '';
     let listing = null;                                   // scanFiltered() result, computed at most once
@@ -454,7 +410,6 @@
       format: formatOf(url),
       pinned: !!url && pinnedSources.has(url),
       isEdited: !!url && editedSources.has(url),
-      // Does it currently appear in stencil.items (i.e. survive the live filters)?
       listed: entries().some((e) => (el && e.element === el) || (!!url && e.url === url)),
     };
   };
@@ -463,39 +418,25 @@
     __stencil: 'page',
     get enabled() { return true; },
     set enabled(v) { if (!v) send({ type: MSG.PAGE_DISABLE }); },
-    // Scan of the page's images/videos/backgrounds, honoring the live filters below.
     get items() { return scanFiltered(); },
-    // Just the content images: <img> (+ srcset/<picture> alternates), <input type=image>,
-    // inline <svg><image>/<feImage>. Excludes icon/metadata images — see `icons`.
     get images() { return scanFiltered().filter((e) => e.kind === 'image' && !e.meta); },
-    // Just CSS image elements (background-image, content, mask, border-image, …).
     get backgrounds() { return scanFiltered().filter((e) => e.kind === 'background'); },
-    // Icon / metadata images: favicons, og:/twitter: <meta>, manifest icons, preload hints.
     get icons() { return scanFiltered().filter((e) => e.meta); },
-    // Just the <video> elements.
     get videos() { return scanFiltered().filter((e) => e.kind === 'video'); },
-    // The currently-pinned scanned entries (honors the live filters, like `items`).
     get pins() { return scanFiltered().filter((e) => e.pinned); },
-    // The poster image of every <video> that declares one.
     get posters() { return scanPosters().filter(passes); },
-    // Per-format on/off toggles: stencil.formats.png = false. Object.keys lists the
-    // formats present on the page; the list getters honor the toggles.
+    // stencil.formats.png = false hides that format; keys are the formats present on the page.
     get formats() { return formatsToggle(); },
-    // Per-category on/off toggles: stencil.kinds.video = false (image/background/video/poster).
     get kinds() { return kindsToggle(); },
-    // ── Other filter controls (mirror the popup; the list getters above honor them) ──
     get searchText() { return filters.searchText; }, set searchText(v) { filters.searchText = String(v || ''); onFilterChange(); },
-    // Treat searchText as a case-insensitive RegExp (mirrors the popup's regex checkbox).
     get regex() { return filters.regex; }, set regex(v) { filters.regex = !!v; onFilterChange(); },
     get minWidth() { return filters.minWidth; }, set minWidth(v) { filters.minWidth = v == null ? null : Number(v); onFilterChange(); },
     get maxWidth() { return filters.maxWidth; }, set maxWidth(v) { filters.maxWidth = v == null ? null : Number(v); onFilterChange(); },
     get minHeight() { return filters.minHeight; }, set minHeight(v) { filters.minHeight = v == null ? null : Number(v); onFilterChange(); },
     get maxHeight() { return filters.maxHeight; }, set maxHeight(v) { filters.maxHeight = v == null ? null : Number(v); onFilterChange(); },
-    // Outline the (currently-filtered) images on the page (get/set). Shares the popup's
-    // highlight element, so the two stay in sync. `highlightOnPage` is an alias.
+    // Shares the popup's highlight element so the two stay in sync; `highlightOnPage` is an alias.
     get highlightOnImage() { return highlightActive(); }, set highlightOnImage(v) { v ? applyHighlight() : clearHighlight(); },
     get highlightOnPage() { return highlightActive(); }, set highlightOnPage(v) { v ? applyHighlight() : clearHighlight(); },
-    // Reset every filter and clear the highlight.
     resetFilters() {
       filters.searchText = ''; filters.regex = false; filters.disabledFormats.clear();
       filters.image = filters.background = filters.video = filters.poster = filters.meta = true;
@@ -504,22 +445,17 @@
       persistFilters();
       return this;
     },
-    // One-off query: scanned entries whose name or URL matches q (ignores the live filters).
-    // opts.regex treats q as a case-insensitive RegExp (invalid → no matches); default is a
-    // case-insensitive substring. Empty q returns every scanned entry.
+    // Ignores the live filters. opts.regex: case-insensitive RegExp (invalid → no matches).
     search(q, opts = {}) {
       const query = String(q || '');
       if (!query) return scan();
       return scan().filter((e) => searchMatch(`${e.name} ${e.url}`, query, !!opts.regex));
     },
-    // Entries of a given format (case-insensitive; accepts 'png' or '.png').
     format(fmt) {
       const want = normFmt(String(fmt || '').replace(/^\./, ''));
       return want ? scan().filter((e) => e.format === want) : [];
     },
-    // Entries within pixel-size bounds. opts: { minW, maxW, minH, maxH } (any omitted =
-    // no bound). Entries of unknown size (0, e.g. an unloaded background) pass, exactly
-    // as the popup's size filter does.
+    // Unknown size (0, e.g. an unloaded background) passes, exactly as the popup's size filter does.
     size({ minW, maxW, minH, maxH } = {}) {
       return scan().filter((e) => {
         if (e.width > 0) { if (isNum(minW) && e.width < minW) return false; if (isNum(maxW) && e.width > maxW) return false; }
@@ -527,56 +463,41 @@
         return true;
       });
     },
-    // Open a target. opts: { incognito, newTab, desktop, poster, frame }. Default is the
-    // in-page editor modal; newTab opens a new browser tab; desktop hands the bytes to
-    // the desktop app via its stencil:// scheme (needs a configured desktop scheme).
+    // opts: { incognito, newTab, desktop, poster, frame }; desktop needs a configured stencil:// scheme.
     open(target, opts = {}) {
       const r = resolveTarget(target, opts);
       send({ type: MSG.PAGE_OPEN, url: r.url, dataUrl: r.dataUrl, name: r.name, source: r.source, resource: location.href, incognito: !!opts.incognito, newTab: !!opts.newTab, desktop: !!opts.desktop });
       return this;
     },
-    // Open a target in the quick-crop tool. opts: { album, poster }.
     crop(target, opts = {}) {
       const r = resolveTarget(target, opts);
       send({ type: MSG.PAGE_CROP, url: r.url, dataUrl: r.dataUrl, source: r.source, resource: location.href, album: !!opts.album });
       return this;
     },
-    // Pin / unpin a target so it floats to the top of the popup list (and shows in the
-    // options page's pinned viewer). Accepts an entry, a stencil.items index, an element,
-    // a URL, or an array of those. Chainable.
+    // Chainable; accepts an entry, a stencil.items index, an element, a URL, or an array of those.
     pin(target) { for (const t of resolvePinTargets(target)) setPinnedState(t, true); return this; },
     unpin(target) { for (const t of resolvePinTargets(target)) setPinnedState(t, false); return this; },
-    // Inspect a target without acting on it → { kind, url, name, format, element, hasFrame,
-    // hasPoster, pinned, isEdited, listed } or null. Accepts a scanned entry, a stencil.items
-    // index, a DOM element (e.g. document.querySelector('img')), or an image/video URL.
+    // → { kind, url, name, format, element, hasFrame, hasPoster, pinned, isEdited, listed } or null.
     detect(target) { return describeTarget(target); },
-    // True when Stencil can grab `target` (an image/video/background source, or a
-    // capturable video frame) — the safe, never-throwing pre-check before open()/pin().
-    // Same accepted types as detect(); for an array, test each item.
     grabbable(target) { return !!describeTarget(target); },
   };
 
-  // Hide every member from enumeration so the console shows a clean `stencil`; access
-  // and DevTools autocomplete still work. Must run before the freeze below (freeze
-  // locks descriptors); __stencil stays a property (the back-off guard reads it).
+  // Non-enumerable so the console shows a clean `stencil`. Must run before guard()'s freeze
+  // locks the descriptors; __stencil stays a property (the back-off guard reads it).
   for (const k of Reflect.ownKeys(api)) {
     const d = Object.getOwnPropertyDescriptor(api, k);
     if (d.enumerable) Object.defineProperty(api, k, { ...d, enumerable: false });
   }
-  // Hard-guard with the same proxy as entries: writing a method, read-only getter, or
-  // the __stencil tag THROWS. The only legit setter is `enabled`; methods `return this`
-  // so chaining holds. guard() also does the Object.freeze.
+  // The only legit setter is `enabled`; methods `return this` so chaining holds. guard() freezes.
   const guarded = guard(api);
 
-  // Lock the binding against plain reassignment (writable:false). configurable:true kept
-  // deliberately: on the editor's own page its (non-configurable) window.stencil must be
-  // able to take over — and the back-off guard above already yields to it.
+  // configurable:true on purpose: on the editor's own page its non-configurable window.stencil
+  // must be able to take over (the back-off guard above already yields to it).
   try {
     Object.defineProperty(window, 'stencil', { value: guarded, writable: false, configurable: true, enumerable: false });
   } catch { /* a non-configurable window.stencil already exists (the editor) — leave it */ }
 
-  // Ask the bridge to (re)push pins / edited / filters / highlight colour now that our
-  // listener is installed: the bridge pushes once at document_start, before this
-  // MAIN-world script runs at document_idle — without this that state would be missed.
+  // The bridge pushed once at document_start, before this script ran at document_idle — ask
+  // for pins / edited / filters / highlight colour again now that the listener exists.
   try { send({ type: MSG.PAGE_REQUEST_SYNC }); } catch { /* bridge not present */ }
 })();

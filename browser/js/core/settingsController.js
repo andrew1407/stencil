@@ -1,211 +1,37 @@
-import { setVal, setRadioGroup, cmToUnit } from '../utils.js';
-import { icon } from '../ui/icons.js';
+import { setVal } from '../utils.js';
 import { COMMIT_DEBOUNCE_MS } from '../ui/numericInput.js';
-import { normalizePageSize } from './units.js';
-import { setChecked, swapCheckGlyph } from '../ui/controlSwap.js';
-import { revealControls } from '../ui/motion.js';
 import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../ui/motionPrefs.js';
+import {
+  applyMirror, paintFormulaToggle, paintFormulaError,
+  readControl, forEachControl, paintTooltipOption, paintMotionMode, paintMotionDrawing,
+} from '../ui/settingMirrors.js';
+import { SETTINGS } from './settingsRegistry.js';
 
-// Shared `parse` guards for the settings registry below: the numeric ones return
-// undefined on NaN to ABORT the set (matching the old per-setter guards).
-const toInt = n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; };
-const toNum = n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined : v; };
-const toStr = v => String(v);
+export { COMPARE_MODES } from './settingsRegistry.js';
 
-// Compare-view modes, in cycle order (Alt+O steps through them). See DrawingApp.compareMode.
-export const COMPARE_MODES = ['none', 'original', 'vertical', 'horizontal'];
 
-// ── Mirror kinds: how one bound DOM element reflects a setting value ──
-// Each migrated setting lists its bound elements as { id, kind }; applyMirror writes the
-// value the way that element expects. Tolerant of missing elements (same guards the old
-// per-setter bodies had). 'valueSkipFocus' leaves the element alone while the user is typing
-// in it (the ctx-* number twins), matching the old `document.activeElement !== ctx` guard.
-// 'radio' addresses a *group* by name (its `id` is the input[name] of a ctx radio group,
-// not an element id) and checks the member whose value matches — see setRadioGroup.
-const applyMirror = ({ id, kind }, value) => {
-  if (kind === 'radio') { setRadioGroup(id, value); return; }
-  const el = document.getElementById(id);
-  if (!el) return;
-  switch (kind) {
-    case 'value': el.value = value; break;
-    case 'valueSkipFocus': if (document.activeElement !== el) el.value = value; break;
-    // Both marks come and go as sand (ui/controlSwap.js): a programmatic change — Alt+P,
-    // the context-menu twin, a restored project — animates exactly as a click does.
-    case 'checked': setChecked(el, value); break;
-    case 'checkIcon': swapCheckGlyph(el, value ? icon('check', { size: 14 }) : ''); break;
-  }
-};
-
-// ── The observer-driven setting registry ─────────────────────────────
-// One descriptor per simple setting collapses the near-identical setter bodies (write the
-// model field → mirror the bound DOM twins → redraw/persist/sync) into data. `set(key, ...)`
-// drives it. Each entry:
-//   • field       — the app model field to write.
-//   • parse        — normalize the raw value; returning undefined ABORTS (the int NaN guard).
-//   • mirror       — bound DOM elements to reflect into ({ id, kind }); see applyMirror.
-//   • afterSet     — irreducible per-setter UI side-effects that aren't a plain value mirror
-//                    (conditional display toggles, the coord table, applyUnitToUI, the formula
-//                    inputs). Receives the controller; runs after the mirrors, before redraw.
-//   • redraw       — repaint the canvas (always, even on persist:false live-drag).
-//   • save/remoteSync/filterDirty — commit side-effects, all gated behind `persist`.
-// The public setter methods below stay as thin wrappers so callers/console API are unchanged.
-const SETTINGS = {
-  color: {
-    field: 'color', parse: toStr,
-    mirror: [{ id: 'line-color', kind: 'value' }],
-    save: true,
-  },
-  // Default point colour for new lines, independent of the line colour above.
-  // Redraws, because existing lines that never set their own point colour fall back to
-  // the line colour — but the in-progress point preview follows this default live.
-  pointColor: {
-    field: 'pointColor', parse: toStr,
-    mirror: [{ id: 'point-color', kind: 'value' }],
-    redraw: true, save: true,
-  },
-  thickness: {
-    field: 'thickness', parse: toInt,
-    mirror: [{ id: 'line-thickness', kind: 'value' }, { id: 'ctx-thickness', kind: 'valueSkipFocus' }],
-    redraw: true, save: true,
-  },
-  pointSize: {
-    field: 'pointSize', parse: toInt,
-    mirror: [{ id: 'point-size', kind: 'value' }, { id: 'ctx-point-size', kind: 'valueSkipFocus' }],
-    redraw: true, save: true,
-  },
-  filterColor: {
-    field: 'filterColor', parse: toStr,
-    mirror: [{ id: 'filter-color', kind: 'value' }, { id: 'ctx-tint-color', kind: 'value' }],
-    redraw: true, save: true, remoteSync: true, filterDirty: true,
-  },
-  showPoints: {
-    field: 'showPoints', parse: b => !!b,
-    mirror: [{ id: 'show-points', kind: 'checked' }, { id: 'ctx-chk-points', kind: 'checkIcon' }],
-    redraw: true, save: true,
-  },
-  showLines: {
-    field: 'showLines', parse: b => !!b,
-    mirror: [{ id: 'show-lines', kind: 'checked' }, { id: 'ctx-chk-lines', kind: 'checkIcon' }],
-    redraw: true, save: true,
-  },
-  style: {
-    field: 'style', parse: toStr,
-    mirror: [{ id: 'line-style', kind: 'value' }, { id: 'ctxLineStyle', kind: 'radio' }],
-    save: true,
-  },
-  imageFilter: {
-    field: 'imageFilter', parse: toStr,
-    mirror: [{ id: 'image-filter', kind: 'value' }, { id: 'ctxFilter', kind: 'radio' }],
-    afterSet: (self) => {
-      const app = self.app;
-      const picker = document.getElementById('filter-color');
-      if (picker) picker.style.display = app.imageFilter === 'custom' ? 'inline-block' : 'none';
-      const tintRow = document.getElementById('ctx-tint-row');
-      if (tintRow) tintRow.classList.toggle('ctx-tint-visible', app.imageFilter === 'custom');
-    },
-    redraw: true, save: true, remoteSync: true, filterDirty: true,
-  },
-  compareMode: {
-    field: 'compareMode',
-    parse: v => {
-      const s = String(v);
-      if (!COMPARE_MODES.includes(s))
-        throw new Error(`Unknown compare mode: ${v} (use ${COMPARE_MODES.join(' | ')})`);
-      return s;
-    },
-    mirror: [{ id: 'compare-mode', kind: 'value' }],
-    // Compare is read-only — grey out the editing toolbar controls (Start/Stop/undo/…).
-    afterSet: (self) => self.app.updateButtons(),
-    redraw: true,   // transient view state — repaint only, no save/remoteSync
-  },
-  pageSize: {
-    field: 'pageSize',
-    parse: v => {
-      const n = normalizePageSize(v);
-      if (!n) throw new Error(`Unknown page size: ${v} (use a named ISO format (A0–C10) or 'custom')`);
-      return n;
-    },
-    mirror: [{ id: 'page-size', kind: 'value' }],
-    afterSet: (self) => {
-      const app = self.app;
-      // The W/H boxes a custom page needs form out of motes, and come apart into them
-      // when a named format takes over (ui/motion.js revealControls).
-      revealControls(document.getElementById('custom-size-group'), app.pageSize === 'custom');
-      app.coordTable.update();
-    },
-    redraw: true, save: true, remoteSync: true,   // page format rides the layout — push it to peers/server too
-  },
-  // Width/height are stored in cm (the model unit) but shown in the active display unit, so
-  // the mirror is a converted value (cmToUnit) rather than the raw field — done in afterSet.
-  customPageWidth: {
-    field: 'customPageWidth', parse: toNum,
-    afterSet: (self) => {
-      const app = self.app;
-      setVal('custom-page-width', cmToUnit(app.customPageWidth, app.unit));
-      app.coordTable.update();
-    },
-    redraw: true, save: true, remoteSync: true,
-  },
-  customPageHeight: {
-    field: 'customPageHeight', parse: toNum,
-    afterSet: (self) => {
-      const app = self.app;
-      setVal('custom-page-height', cmToUnit(app.customPageHeight, app.unit));
-      app.coordTable.update();
-    },
-    redraw: true, save: true, remoteSync: true,
-  },
-  unit: {
-    field: 'unit', parse: u => (u === 'in' ? 'in' : 'cm'),
-    mirror: [{ id: 'unit-select', kind: 'value' }],
-    afterSet: (self) => {
-      const app = self.app;
-      app.applyUnitToUI();
-      app.coordTable.update();
-      app.updateCoordStatus();
-    },
-    redraw: true, save: true,
-  },
-  allowFormulas: {
-    field: 'allowFormulas', parse: b => !!b,
-    mirror: [{ id: 'allow-formulas', kind: 'checked' }],
-    // Toggling only shows/hides the inputs and gates whether formulas are applied to the
-    // coordinate conversion — the expressions are KEPT so re-enabling restores them.
-    afterSet: (self) => {
-      const app = self.app;
-      self.syncFormulaUI(app.allowFormulas);
-      if (!app.allowFormulas) self.showFormulaError(false);
-      self.refreshFormulaCoords();
-    },
-    save: true, remoteSync: true,   // formulas ride the layout — push them to peers/server too
-  },
-};
-
-// ── SettingsController: the shared editor setters ───────────────────
-// Single source of truth for top-menu settings: toolbar handlers AND the console API
-// (window.stencil) reach these through DrawingApp's thin delegators. Holds no state —
-// back-references the app. `persist:false` is used by live-drag (input) events that
-// commit on the trailing change (no write per slider tick).
+// The shared editor setters: toolbar handlers AND the console API (window.stencil) reach
+// these through DrawingApp's delegators. `persist:false` is for live-drag (input) events
+// that commit on the trailing change.
 export class SettingsController {
   constructor(app) {
     this.app = app;
   }
 
-  // Registry-driven setter shared by the simple settings above. Writes the model field,
-  // mirrors every bound element, then runs the declared commit (redraw always; save /
-  // remoteSync / filterDirty only when persisting).
+  // Registry-driven setter: write the model field, mirror every bound element, then the
+  // declared commit (redraw always; save / remoteSync / filterDirty only when persisting).
   set(key, value, { persist = true } = {}) {
     const d = SETTINGS[key];
     if (!d) throw new Error(`Unknown setting: ${key}`);
     const app = this.app;
     const v = d.parse ? d.parse(value) : value;
-    if (v === undefined) return;          // parse aborted (e.g. NaN) — no-op, matches old guards
+    if (v === undefined) return;
     app[d.field] = v;
     for (const m of d.mirror || []) applyMirror(m, v);
     if (d.afterSet) d.afterSet(this, v);
     if (d.redraw) app.renderer.redraw();
     if (persist) {
-      if (d.filterDirty) app.filterDirty = true;   // user changed the filter → our filter wins on save
+      if (d.filterDirty) app.filterDirty = true;
       if (d.save) app.storage.save();
       if (d.remoteSync) app.remoteSync.scheduleRemoteSync();
     }
@@ -228,10 +54,8 @@ export class SettingsController {
 
   setCompareMode(m) { this.set('compareMode', m); }
 
-  // Live-apply a setting's VISUAL effect WITHOUT committing it — the dropdowns' hover
-  // preview. Sets the model field and repaints only: no mirror, no afterSet, no
-  // save/history/remoteSync. Restore by previewing the committed value; a bad one is
-  // ignored.
+  // Live-apply a setting's VISUAL effect without committing it (the dropdowns' hover
+  // preview): model field + repaint only. Restore by previewing the committed value.
   preview(key, value) {
     const d = SETTINGS[key];
     if (!d) return;
@@ -242,8 +66,7 @@ export class SettingsController {
     if (d.redraw) this.app.renderer.redraw();
   }
 
-  // Divider position for the split compare modes (0..1), clamped so a sliver of each
-  // side stays visible. Transient view state — redraw only, no persist/sync.
+  // 0..1, clamped so a sliver of each side stays visible. Transient view state — redraw only.
   setCompareSplit(v) {
     const n = parseFloat(v);
     if (Number.isNaN(n)) return;
@@ -255,35 +78,16 @@ export class SettingsController {
 
   setPageSize(size) { this.set('pageSize', size); }
 
-  // Width/height are stored in cm (the model unit); the input is shown in the active
-  // display unit. Pass cm from the UI handler (it converts the typed value first).
+  // Stored in cm (the model unit); the UI handler converts the typed value first.
   setCustomPageWidth(cm) { this.set('customPageWidth', cm); }
 
   setCustomPageHeight(cm) { this.set('customPageHeight', cm); }
 
   setUnit(u) { this.set('unit', u); }
 
-  // ── Formula controls (shared with #wireFormulaControls + #adoptServerFormulas) ──
-  syncFormulaUI(checked) {
-    revealControls(document.getElementById('formula-inputs'), checked);
-    revealControls(document.getElementById('ctx-formula-inputs'), checked, 'block');
-    setChecked(document.getElementById('ctx-allow-formulas'), checked);
-    // Main toolbar pill: reflect the checked state as the accent-filled `.on` class (a
-    // deterministic toggle — the CSS :has() selector doesn't restyle reliably on programmatic
-    // state changes).
-    const mainCb = document.getElementById('allow-formulas');
-    if (mainCb) {
-      setChecked(mainCb, checked);
-      mainCb.closest('.pill-toggle')?.classList.toggle('on', checked);
-    }
-  }
+  syncFormulaUI(checked) { paintFormulaToggle(checked); }
 
-  showFormulaError(hasError) {
-    const el = document.getElementById('formula-error');
-    const ctxEl = document.getElementById('ctx-formula-error');
-    if (el) el.style.display = hasError ? 'inline' : 'none';
-    if (ctxEl) ctxEl.style.display = hasError ? 'block' : 'none';
-  }
+  showFormulaError(hasError) { paintFormulaError(hasError); }
 
   refreshFormulaCoords() {
     const app = this.app;
@@ -296,15 +100,12 @@ export class SettingsController {
 
   setAllowFormulas(b) { this.set('allowFormulas', b); }
 
-  // Wire one pair of f(x,y) fields (toolbar or context-menu pair) so a formula applies
-  // when typing SETTLES, never per keystroke — half-written states like "(x" must not
-  // recompute/persist/sync or reset the transform to identity. Same delay as the numeric
-  // fields (js/ui/numericInput.js); Enter/blur apply at once. `mirrorX`/`mirrorY` are the
-  // twin pair a committed value reflects into; the pair being typed is never written back,
-  // so the caret stays put. Returns the commit fn (for tests / programmatic flushes).
+  // A formula applies when typing SETTLES, never per keystroke — "(x" must not recompute,
+  // persist or sync. Same delay as the numeric fields (js/ui/numericInput.js); Enter/blur
+  // apply at once. The pair being typed is never written back, so the caret stays put.
   wireFormulaInputs({ x, y, mirrorX, mirrorY }) {
     const app = this.app;
-    const read = (id) => (document.getElementById(id)?.value || '').trim();
+    const read = (id) => readControl(id);
     const bothValid = () => app.formula.validate(read(x), 'x') && app.formula.validate(read(y), 'y');
     let timer = null;
 
@@ -313,38 +114,33 @@ export class SettingsController {
       timer = null;
       const fx = read(x);
       const fy = read(y);
-      // Settled and still unparseable → now it's worth flagging. The last good transform
-      // stays in force, so the coordinates on screen never follow a half-written formula.
+      // Settled and still unparseable → flag it; the last good transform stays in force.
       if (!bothValid()) { this.showFormulaError(true); return; }
       this.showFormulaError(false);
-      if (fx === app.formulaX && fy === app.formulaY) return;   // nothing actually changed
+      if (fx === app.formulaX && fy === app.formulaY) return;
       app.formulaX = fx;
       app.formulaY = fy;
       setVal(mirrorX, fx);
       setVal(mirrorY, fy);
       this.refreshFormulaCoords();
       app.storage.save();
-      app.remoteSync.scheduleRemoteSync();   // push the formula change to peers/server
+      app.remoteSync.scheduleRemoteSync();
     };
 
-    for (const id of [x, y]) {
-      const el = document.getElementById(id);
-      if (!el) continue;
+    forEachControl([x, y], (el) => {
       el.addEventListener('input', () => {
         clearTimeout(timer);
-        // Typing your way back to something valid clears a stale error immediately; a wrong
-        // one is only flagged once you stop, so "(x" mid-expression doesn't flash red.
+        // A stale error clears as soon as the text is valid; a wrong one is only flagged on settle.
         if (bothValid()) this.showFormulaError(false);
         timer = setTimeout(commit, COMMIT_DEBOUNCE_MS);
       });
       el.addEventListener('blur', () => commit());
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
-    }
+    });
     return commit;
   }
 
-  // Set the x or y coordinate transform. Throws on an invalid expression so the
-  // console surfaces it; the UI handler catches and shows the inline error instead.
+  // Throws on an invalid expression so the console surfaces it (the UI handler shows the inline error).
   setFormula(axis, expr) {
     const app = this.app;
     const a = axis === 'y' ? 'y' : 'x';
@@ -359,7 +155,7 @@ export class SettingsController {
     app.remoteSync.scheduleRemoteSync();
   }
 
-  // Toggle one tooltip section: key ∈ 'enabled' | 'page' | 'screen' | 'coords'.
+  // key ∈ 'enabled' | 'page' | 'screen' | 'coords'.
   setTooltipOption(key, on) {
     const app = this.app;
     const propMap = { enabled: 'tooltipEnabled', page: 'tooltipShowPage', screen: 'tooltipShowScreen', coords: 'tooltipShowCoords' };
@@ -367,34 +163,30 @@ export class SettingsController {
     const prop = propMap[key];
     if (!prop) throw new Error(`Unknown tooltip option: ${key}`);
     app[prop] = !!on;
-    const el = document.getElementById(idMap[key]);
-    if (el) el.checked = !!on;
+    paintTooltipOption(idMap[key], on);
     app.storage.save();
     try { app.tooltipMgr?.refresh?.(); } catch { /* tooltip not mounted */ }
   }
 
-  // ── Motion preferences (ui/motionPrefs.js) ───────────────────────────
-  // key ∈ 'mode' (particles | water | fire | slide | none) | 'drawing' (the canvas stroke motion).
-  // App-wide, not part of the project, so this writes the shared store rather than a
-  // model field — but it is still the ONE funnel the visuals modal and the console
-  // facade both come through, mirroring the dialog's controls on the way.
+  // key ∈ 'mode' (particles | water | fire | slide | none) | 'drawing'. App-wide, not part of
+  // the project — the shared store, but still the ONE funnel the visuals modal and the
+  // console facade both come through.
   setMotion(key, value) {
     if (key === 'mode') {
       const m = String(value).trim().toLowerCase();
       if (!MOTION_MODES.includes(m))
         throw new Error(`Unknown motion mode: ${value} (use ${MOTION_MODES.join(' | ')})`);
       setMotionPrefs({ mode: m });
-      setVal('vs-motion-mode', m);
+      paintMotionMode(m);
     } else if (key === 'drawing') {
       setMotionPrefs({ drawing: !!value });
-      setChecked(document.getElementById('vs-draw-anim'), !!value);
+      paintMotionDrawing(value);
     } else {
       throw new Error(`Unknown motion setting: ${key} (use mode | drawing)`);
     }
     return motionPrefs();
   }
 
-  // Set one "visual default" colour (shared by the visuals modal + console settings).
   // key ∈ 'fill' | 'selGlow' | 'hoverRing' | 'focusRing'.
   setVisualColor(key, value) {
     const app = this.app;

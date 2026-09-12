@@ -1,27 +1,16 @@
 import { markIn, markOut } from './motion.js';
 
-// ── Form controls: what a tick does when it comes and goes ──────────────────
-// A checkbox's checked indicator (the accent fill + its tick) is a MARK, so it forms
-// out of motes and comes apart into them like every other mark in the app
-// (js/ui/motion.js markIn / markOut). The box itself never moves — only what it
-// displays does — so the veil suppresses the checked look alone and leaves the outline
-// standing throughout.
-//
-// The trigger is ONE delegated listener, for the same reason the desktop has one
-// application-wide event filter (desktop/src/support/controlSwap.hpp): checkboxes are
-// built in a dozen components and no call site should have to know. Programmatic
-// changes fire no `change` event, so the settings mirror calls setChecked() instead —
-// Alt+P and the context-menu twin animate exactly as a click on the box does.
+// A checkbox's checked indicator is a mark: it forms and scatters like every mark
+// (motion.js markIn / markOut); the box itself never moves. One delegated listener,
+// like the desktop's application-wide filter (support/controlSwap.hpp); programmatic
+// changes fire no `change`, so the settings mirror calls setChecked() instead.
 
-// A control opts out with this attribute (the desktop's kNoControlSwapProperty).
-export const NO_SWAP_ATTR = 'data-no-mark-dust';
+// The desktop's NO_CONTROL_SWAP_PROPERTY.
+const NO_SWAP_ATTR = 'data-no-mark-dust';
 
-// What the checked state PAINTS, resolved off the live element rather than guessed:
-// the app-wide box fills with the accent, the context menu's twin with the theme text
-// colour, and a future one with whatever its rule says. Cached, because by the time an
-// UNcheck is seen the element paints nothing at all any more — and where there is no
-// cache yet, the look is probed by ticking the box for the length of one synchronous
-// style read (no event fires, and nothing can repaint in between).
+// What the checked state paints, read off the live element and cached: an unchecked box
+// paints nothing, so with no cache the look is probed by ticking it for one synchronous
+// style read (no event fires in between).
 const checkedInk = (el) => {
   const read = () => getComputedStyle(el).backgroundColor;
   const blank = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
@@ -36,20 +25,17 @@ const checkedInk = (el) => {
   return el.__markInk;
 };
 
-// Play the indicator's arrival or departure. `on` is the state the box has JUST
-// reached, so a tick GATHERS and an untick SCATTERS. Anything that cannot be dusted —
-// reduced motion, a hidden box, a pill whose indicator is `width: 0` — simply does
-// nothing: the state itself has already changed, which is the part that must not wait.
-export function playCheckDust(el, on) {
+// `on` is the state just reached: a tick gathers, an untick scatters. Anything that
+// cannot be dusted does nothing — the state itself has already changed.
+function playCheckDust(el, on) {
   if (!el?.getBoundingClientRect || el.hasAttribute?.(NO_SWAP_ATTR)) return false;
   const ink = checkedInk(el);
-  if (!ink) return false;   // an indicator that paints nothing has nothing to scatter
+  if (!ink) return false;
   const paint = { fill: ink, edge: ink };
   return on ? markIn(el, { paint }) : markOut(el, { paint });
 }
 
-// Set a checkbox from CODE and animate the change, or leave it alone when there is no
-// change to show. The settings mirror (core/settingsController.js) writes through here.
+// Set a checkbox from code and animate the change (core/settingsController.js writes through here).
 export function setChecked(el, value) {
   if (!el) return;
   const on = !!value;
@@ -58,9 +44,8 @@ export function setChecked(el, value) {
   playCheckDust(el, on);
 }
 
-// A check GLYPH that is written in and out of a span (the context menu's rows carry the
-// tick as markup, not as an indicator). Same sand; the span is empty when it is off, so
-// the arrival needs no veil beyond the one markIn already applies.
+// A check glyph written in and out of a span (the context menu's rows); the span is empty
+// when off, so the arrival needs no extra veil.
 export function swapCheckGlyph(el, html) {
   if (!el) return;
   const had = !!el.innerHTML;
@@ -71,8 +56,7 @@ export function swapCheckGlyph(el, html) {
   el.innerHTML = html;
 }
 
-// One delegated listener for every user gesture on a checkbox or radio anywhere in the
-// page — including a click on the <label> that owns it, which fires `change` on the box.
+// One delegated listener for every checkbox or radio, including a click on its <label>.
 export function installControlSwap(root = typeof document !== 'undefined' ? document : null) {
   if (!root?.addEventListener || root.__markSwapWired) return;
   root.__markSwapWired = true;
@@ -81,8 +65,7 @@ export function installControlSwap(root = typeof document !== 'undefined' ? docu
     if (!el || (el.type !== 'checkbox' && el.type !== 'radio')) return;
     playCheckDust(el, el.checked);
     if (el.type !== 'radio') return;
-    // A radio TAKES the mark from whichever sibling had it, and that one loses its tick
-    // with no event of its own — so the group is swept here.
+    // A radio takes the mark from its sibling, which loses its tick with no event of its own.
     if (el.name)
       for (const other of root.querySelectorAll(`input[type=radio][name="${CSS.escape(el.name)}"]`))
         if (other !== el && other.__markWasOn) { playCheckDust(other, false); other.__markWasOn = false; }

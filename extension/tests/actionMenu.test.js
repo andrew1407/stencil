@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { menuPlacement, anchoredX, flyoutPlacement, createActionMenu } from '../src/lib/actionMenu.js';
+import { stubDoc, stubEl, stubWin } from './helpers/domStub.js';
 
 // ── Pure placement ──
 
@@ -61,49 +62,11 @@ test('flyoutPlacement flips left at the right edge and clamps both axes', () => 
   assert.equal(pinned.left, 6 - 0);
 });
 
-// ── Stub DOM ──
-const stubEl = (tag = 'div') => {
-  const classes = new Set();
-  const el = {
-    tag, type: '', textContent: '', style: {}, hidden: false, dataset: {},
-    children: [], handlers: {}, rect: { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 },
-    offsetWidth: 0, offsetHeight: 0,
-    _innerHTML: '',
-    classList: {
-      add: (c) => classes.add(c), remove: (c) => classes.delete(c), contains: (c) => classes.has(c),
-    },
-    append: (...nodes) => { el.children.push(...nodes); },
-    appendChild: (c) => { el.children.push(c); return c; },
-    addEventListener: (t, fn) => { (el.handlers[t] || (el.handlers[t] = [])).push(fn); },
-    getBoundingClientRect: () => el.rect,
-    fire: (t, ev = {}) => { for (const fn of el.handlers[t] || []) fn(ev); },
-  };
-  Object.defineProperty(el, 'innerHTML', {
-    get: () => el._innerHTML,
-    set: (v) => { el._innerHTML = v; if (v === '') el.children = []; },
-  });
-  return el;
-};
-const stubDoc = () => {
-  const listeners = [];   // { type, fn, capture }
-  return {
-    createElement: (tag) => stubEl(tag),
-    createTextNode: (text) => ({ text, isText: true }),
-    addEventListener: (type, fn, capture) => listeners.push({ type, fn, capture }),
-    removeEventListener: (type, fn, capture) => {
-      const i = listeners.findIndex((l) => l.type === type && l.fn === fn && l.capture === capture);
-      if (i >= 0) listeners.splice(i, 1);
-    },
-    listeners,
-  };
-};
-const stubWin = { innerWidth: 400, innerHeight: 600 };
-
 const build = ({ run } = {}) => {
   const doc = stubDoc();
   const menuEl = stubEl();
   menuEl.hidden = true;
-  const menu = createActionMenu({ menuEl, run, doc, win: stubWin });
+  const menu = createActionMenu({ menuEl, run, doc, win: stubWin() });
   return { doc, menuEl, menu };
 };
 

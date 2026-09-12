@@ -1,0 +1,24 @@
+/* ═══════════════ Popup / side panel / devtools ═══════════════════════ */
+/* Button hovers gain a transition + subtle press feedback. */
+.icon-btn, .mini, .more-btn {
+    transition: background 0.16s ease, border-color 0.16s ease,
+                color 0.16s ease, transform 0.12s ease;
+}
+.icon-btn:hover, .mini:hover { transform: translateY(-1px); }
+.icon-btn:active, .mini:active, .more-btn:active { transform: translateY(1px) scale(0.97); }
+
+/* Image rows: smooth hover tint + a thumbnail zoom on hover. Their entrance is
+   the scroll reveal below, which also covers scrolling — stRowIn is kept for
+   surfaces that render a row outside a scroller. */
+.row { transition: background 0.15s ease, outline-color 0.2s ease; }
+.thumb { transition: transform 0.2s ease, border-color 0.2s ease; }
+.row:hover .thumb { transform: scale(1.06); }
+.more-btn { transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease; }
+.meta .name.clickable { transition: color 0.15s ease; }
+.badge { transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease; }
+
+/* Floating popups: hover preview + the "…" action menu fade/scale in. */
+.preview { animation: stPopIn 0.14s ease both; }
+.action-menu { animation: stMenuRise 0.16s cubic-bezier(0.16, 1, 0.3, 1) both; transform-origin: top right; }
+.action-menu button { transition: background 0.14s ease, color 0.14s ease, padding-left 0.14s ease; }
+.action-menu button:hover { padding-left: 12px; }

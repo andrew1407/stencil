@@ -1,12 +1,10 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
+import { subscribe, EVENTS } from '../bus/appBus.js';
 
-// ── Component: source/resource links modal ──────────────────────
-// Opened from the toolbar 🔗 button: view/edit the CURRENT image's provenance — its
-// name, the source image/video URL, and the originating web page (resource). Edits are
-// live (each field commits on change). Adding a NEW image by URL lives in the unified
-// Open dialog (openImageModal); this modal only edits what's already loaded.
+// View/edit the current image's provenance (source URL, resource page); each field commits
+// on change. Adding a new image by URL lives in openImageModal.
 export class StencilLinksModal extends StencilElement {
   static inner() {
     return `
@@ -50,32 +48,25 @@ export class StencilLinksModal extends StencilElement {
     const resourceEl = $('links-resource');
     const footHint = $('links-foot-hint');
 
-    // Re-read the current project's source/resource into the fields. Pulled out
-    // of onOpen so it can also refresh LIVE while the modal is open (e.g. when the
-    // console's stencil.current.source = … updates the active project).
+// Also refreshes live while open (the console's stencil.current.source = … path).
     const syncLinkFields = () => {
       sourceEl.value = app.imageSource || '';
       resourceEl.value = app.imageResource || '';
     };
 
     wireModalShell(overlay, $('links-btn'), $('links-close'), {
-      // The 🔗 button is disabled without an image (see drawingApp refreshActions), so
-      // the modal only ever opens to edit a loaded image's links.
+// The 🔗 button is disabled without an image (drawingApp refreshActions).
       onOpen: () => {
         footHint.textContent = 'Editing the current image’s links.';
         syncLinkFields();
       },
     });
 
-    // Live-refresh the open modal on project-set changes — keeps link fields in sync
-    // with on-the-fly source/resource edits. Uses the window event (fired by
-    // TabsCoordinator.projectsChanged in THIS tab; onProjectsChanged only fires for
-    // OTHER tabs), so same-tab console edits refresh too.
-    window.addEventListener('stencil:registry-changed', () => {
+// The window event fires for THIS tab too (onProjectsChanged only fires for other tabs).
+    subscribe(EVENTS.registryChanged, () => {
       if (overlay.classList.contains('modal-open') && app.image) syncLinkFields();
     });
 
-    // ── Current-project links: edit / open / remove ──
     const persist = () => { app.storage.save(); };
 
     const bindLinkField = (input, openBtn, clearBtn, key) => {

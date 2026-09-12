@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Abstractions;
@@ -6,15 +7,12 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// Background poller that gives the REST-only bot a live feel (the analogue of the CLI's
-/// <c>/sync</c> auto-pull). Every few seconds it checks each sync-enabled user's active project
-/// version on the server; when a peer's change bumps it past what the session last saw, it pulls
-/// the new layout+image and pushes the refreshed result into the chat.
-/// </summary>
-public sealed class SyncWatcher
+// The REST-only analogue of the CLI's /sync auto-pull: polls each sync-enabled user's active
+// project version and, when a peer bumped it, pulls the new layout+image and pushes the refreshed
+// result into the chat.
+public sealed class SyncWatcher : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(6);
+    private static readonly TimeSpan _interval = TimeSpan.FromSeconds(6);
 
     private readonly SyncRegistry _registry;
     private readonly IServerService _servers;
@@ -42,14 +40,13 @@ public sealed class SyncWatcher
         _logger = logger;
     }
 
-    /// <summary>Run the poll loop until <paramref name="ct"/> is cancelled.</summary>
-    public async Task RunAsync(CancellationToken ct)
+    protected override async Task ExecuteAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {
             try
             {
-                await TickAsync(ct);
+                await tickAsync(ct);
             }
             catch (OperationCanceledException)
             {
@@ -61,7 +58,7 @@ public sealed class SyncWatcher
             }
             try
             {
-                await Task.Delay(Interval, ct);
+                await Task.Delay(_interval, ct);
             }
             catch (OperationCanceledException)
             {
@@ -70,13 +67,12 @@ public sealed class SyncWatcher
         }
     }
 
-    /// <summary>One poll pass over every sync-enabled user.</summary>
-    private async Task TickAsync(CancellationToken ct)
+    private async Task tickAsync(CancellationToken ct)
     {
         foreach (var (userId, chatId) in _registry.Entries())
         {
             // Hold the user's gate for the whole pull so a background refresh can't interleave with
-            // (and clobber, or be clobbered by) an interactive edit the same user sends mid-tick.
+            // an interactive edit.
             using IDisposable gate = await _gate.AcquireAsync(userId, ct);
             UserSession session = await _store.GetAsync(userId, ct);
             if (!session.SyncEnabled || session.ActiveProjectId is null)
@@ -89,7 +85,6 @@ public sealed class SyncWatcher
             {
                 continue; // unreachable, or no change since our last-seen version
             }
-            // A peer advanced the version — pull their layout + image and show it.
             await _servers.PullActiveAsync(userId, ct);
             await _bot.SendMessage(chatId, "↺ a peer changed this project — pulled their version.", cancellationToken: ct);
             await _handlers.RenderAndSendAsync(userId, chatId, ct, mutating: false);

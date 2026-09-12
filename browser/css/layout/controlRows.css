@@ -1,0 +1,65 @@
+/* ── Controls section labels & separators ── */
+.controls {
+    align-items: stretch;
+    gap: 4px 6px;
+}
+.ctrl-section-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--section-title, var(--text-muted));
+    white-space: nowrap;
+    padding: 0 4px 4px;
+    margin-bottom: 4px;
+    opacity: 0.85;
+}
+.ctrl-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 4px 6px 4px;
+}
+.ctrl-section-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+.ctrl-sep {
+    width: 1px;
+    align-self: stretch;
+    background: var(--border-main);
+    flex-shrink: 0;
+    margin: 0 4px;
+}
+/* …unless the row wrapped between its two sections (ui/toolbar.js syncWrappedSeparators):
+   a hairline at the head of a row is a stray, not a divider. */
+.ctrl-sep.ctrl-sep-wrapped { display: none; }
+/* Blank-image fill chip (js/ui/toolbar.js; drawingApp.js sets `display` on a blank
+   project). A flat info-coloured control, not an accent action, so it also opts out of
+   the toolbar sheen — see the :not() list in animations/controls.css. Descendant-of-.controls so
+   it outranks the shared `button` and narrow-viewport `.controls button` rules. */
+.controls .blank-color-btn {
+    display: none;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg-info);
+    padding: 5px 9px;
+    border-radius: 4px;
+    border: 1px solid var(--border-main);
+    white-space: nowrap;
+    cursor: pointer;
+}
+.blank-color-swatch {
+    width: 30px;
+    height: 22px;
+    border-radius: 3px;
+    border: 1px solid var(--border-main);
+    display: inline-block;
+    flex: 0 0 auto;
+}

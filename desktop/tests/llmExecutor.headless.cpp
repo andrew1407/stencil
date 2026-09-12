@@ -751,7 +751,7 @@ int main(int argc, char** argv) {
                 r.plan.ask.options[0].actions.isEmpty(),
             "clearChat inside an ask-option preview drops the preview");
     }
-    check(isEditorSettingsOp(OpKind::ClearChat) && isTopLevelOnlyOp(OpKind::ClearChat),
+    check(isEditorSettingsOp(OpKind::CLEAR_CHAT) && isTopLevelOnlyOp(OpKind::CLEAR_CHAT),
           "clearChat is editor-settings scoped and top-level only");
   }
 

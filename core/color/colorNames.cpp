@@ -3,7 +3,10 @@
 #include "hexNibble.hpp"
 #include "text.hpp"
 
+#include <algorithm>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace stencil::core {
 
@@ -109,6 +112,30 @@ namespace stencil::core {
     return Rgba{static_cast<int>((rgb >> 16) & 0xff),
                 static_cast<int>((rgb >> 8) & 0xff),
                 static_cast<int>(rgb & 0xff), 255};
+  }
+
+  namespace {
+    // Alphabetical index over the table above: the map's own order is a hash order.
+    const std::vector<std::pair<const std::string*, unsigned>>& sortedNames() {
+      static const auto list = [] {
+        std::vector<std::pair<const std::string*, unsigned>> v;
+        v.reserve(namedColors().size());
+        for (const auto& e : namedColors()) v.emplace_back(&e.first, e.second);
+        std::sort(v.begin(), v.end(),
+                  [](const auto& a, const auto& b) { return *a.first < *b.first; });
+        return v;
+      }();
+      return list;
+    }
+  }  // namespace
+
+  std::size_t colorNameCount() { return sortedNames().size(); }
+
+  const char* colorNameAt(std::size_t index, unsigned* rgb) {
+    const auto& list = sortedNames();
+    if (index >= list.size()) return nullptr;
+    if (rgb) *rgb = list[index].second;
+    return list[index].first->c_str();
   }
 
 }  // namespace stencil::core

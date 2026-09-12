@@ -9,6 +9,9 @@
   <ItemGroup>
     <!-- Canonical page-format table, embedded so the bot needs no repo checkout at run time. -->
     <EmbeddedResource Include="../../../browser/js/config/constants.json" Link="Assets/constants.json" />
+    <!-- Bot-specific copy: the command vocabulary and the chat strings/buttons. -->
+    <EmbeddedResource Include="Assets/botCommands.json" />
+    <EmbeddedResource Include="Assets/botStrings.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +26,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
 
 </Project>

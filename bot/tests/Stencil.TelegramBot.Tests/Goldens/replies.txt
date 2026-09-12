@@ -1,0 +1,248 @@
+== Glyph(Error)
+🔴
+
+== Glyph(Notice)
+ℹ️
+
+== Glyph(Success)
+✅
+
+== Glyph(Warning)
+🟡
+
+== ChatApiNoProfiles()
+ℹ️ This bot offers one chat API, set by its operator — there is nothing to switch between.
+
+== ChatModeOff()
+Chat mode off. Use /prompt <request> for a one-off question, or /chat to start again.
+
+== ChatModeOn()
+💬 Chat mode on — just send a message and the assistant answers (and edits the image). Slash commands still work as usual. /chat off to stop, /chat clear to forget the conversation.
+
+== ChatSaveFailed()
+🟡 Couldn't store the conversation with the server project this time — the chat itself continues; the next successful turn will save it again.
+
+== ChatSaveOff()
+Chat saving off. An already-saved chat stays with its project until /chat clear removes it.
+
+== ChatSaveOn()
+💾 Chat saving on — after each assistant turn the conversation (text only, never images) is stored with the active server project and restored when you /fetch it again. The bot's only store IS the server project, so anyone that project is shared with can read the conversation (§12.2). /chat save off to stop.
+
+== ChatUsage()
+Use /chat to start chatting with the assistant, /chat off to stop, and /chat clear to make it forget the conversation so far. /chat save on|off stores the conversation with the active server project (off by default; bare /chat save shows the setting). For a single question without switching modes, use /prompt <request>.
+
+== ClearChatCanceled()
+Clear canceled — the conversation is kept.
+
+== ClearChatConfirm()
+🧹 The assistant asked to clear this conversation. Clear it?
+
+== ConnectUsage()
+Use /connect <url> [token] to connect to a server, e.g. /connect http://localhost:8090
+
+== ConnectionsUsage()
+Use /connections to list every connection, /connections admin for the ones connected with the server's admin token, and /connections session for the rest.
+
+== CropUsage()
+Crop: /crop <spec> [album]
+Edges: x1= x2= y1= y2= — each a % of the image, px, or cm.
+e.g. /crop x1=10% x2=90% y1=10% y2=90%
+Add 'album' to derive a missing axis from the page proportion (landscape).
+
+== DesktopLinkUnusable()
+ℹ️ Desktop links are off — STENCIL_BOT_BROWSER_URL has to be an http(s) address of the served browser app, whose launch.html page carries the hand-off.
+
+== DrawHelp()
+Draw onto the image (coordinates are pixels, or x%,y% of the image):
+/draw line x1,y1 x2,y2 …   — a polyline (2+ points)
+/draw rect x1,y1 x2,y2     — a rectangle (two opposite corners)
+/draw poly x1,y1 x2,y2 x3,y3 … — a closed polygon (3+ points)
+
+Style first with /color /thickness /points /style /fill — see /pen.
+
+== ExpireUsage()
+Set the active project's expiry: /expire <amount>
+e.g. /expire 3 days · /expire 1 week · /expire 2 weeks · /expire 1 month · /expire 3 months
+Units: day(s), week(s), fortnight, month(s) — the number may lead or follow (e.g. "week 4").
+/expire never — keep the project forever.
+
+== FilterVariants()
+Filter the image: /filter <mode>
+bw — black & white
+sepia — sepia tone
+invert — invert the colours
+contour — edge-detect outline
+none — clear the filter
+…or a colour name/#hex for a duotone tint, e.g. /filter #ff5623
+
+== HelpText()
+Stencil bot — edit images with the same core as the browser/desktop/CLI.
+
+Set the working image by sending a photo, an image file, or just an image link.
+Add a caption command to apply it at once, e.g. a photo captioned /crop … or /filter bw.
+Send a video to grab a frame (caption /frame n to pick one); or a .json file with caption /apply.
+
+Image commands:
+/prompt <request> — ask the AI assistant to plan and apply edits (/p for short)
+/chat [on|off|clear] — chat mode: keep talking to the assistant without typing /prompt (clear forgets the conversation)
+/chat save [on|off] — store the conversation with the active server project and restore it on /fetch (off by default)
+/blank [format] [w h] [color] — start a blank canvas, e.g. /blank b5 pink
+/format [name | custom w h] — page format for /blank and the saved layout (bare = list)
+/url <link> — load an http(s) image
+/sourcesite <link> [count] [filter=…] [format=…] — scrape a page's media into the chat
+/sourceupload <link> [index=0] [format=…] — scrape a page and load one image to edit
+/frame [n] — grab frame n of the loaded video (needs ffmpeg)
+/crop <spec> [album] — crop, e.g. x1=10% x2=90% y1=10% y2=90%
+/rotate <n> — rotate n quarter-turns clockwise, e.g. /rotate -1
+/filter <bw|sepia|invert|contour|none|color> — recolour / tint (a colour = duotone)
+/undo · /redo — step back / forward one edit   /reset — clear all edits
+/drop — discard the working image
+/image — re-render and re-send the current result image
+/layout <json | link> — apply a layout JSON (or upload the .json file)
+/json — download the layout JSON
+/project — download the whole project as a .stencil file (send one back to open it)
+/status — show the working image, edits and connections
+
+Drawing (annotate the image — coords are pixels or x%,y%):
+/draw line x1,y1 x2,y2 … — a polyline
+/draw rect x1,y1 x2,y2 — a rectangle (two corners)
+/draw poly x1,y1 x2,y2 x3,y3 … — a closed polygon
+/color <#hex|name>   /thickness <n>   /points <n>
+/style <solid|dashed|dotted>   /fill <#hex|name|none>
+/pen — show the current pen   /undoline   /clearlines
+
+Server commands:
+/connect <url> [token] — connect to a collaboration server
+/disconnect [url] — forget a connection
+/connections [admin|session] — list connected servers (filter by credential)
+/projects [url] — list projects (as buttons)
+/fetch <name|id> — load a project as the working image
+/create [name] — save the result as a new project
+/save — save back to the active project
+/sync [on|off] — live mode: auto-upload edits + pull peers' changes
+/link — a link that opens the active project in the desktop app
+/project-name <text> — rename the working image (or the active project)
+/project-color <#hex|name|clear> — set the project's accent colour
+/project-description <text> — set the description (empty clears; saved on /create)
+/expire <n unit | never> — set the project's expiry, e.g. /expire 3 days
+/delete — remove the active project from the server (asks to confirm)
+
+/help — this message   /cancel — never mind
+The inline buttons mirror these commands.
+
+== PageFormatList()
+Page formats (portrait, cm) — set one with /format <name>:
+A0 (84.1×118.9 cm)
+A1 (59.4×84.1 cm)
+A2 (42×59.4 cm)
+A3 (29.7×42 cm)
+A4 (21×29.7 cm)
+A5 (14.8×21 cm)
+A6 (10.5×14.8 cm)
+A7 (7.4×10.5 cm)
+A8 (5.2×7.4 cm)
+A9 (3.7×5.2 cm)
+A10 (2.6×3.7 cm)
+B0 (100×141.4 cm)
+B1 (70.7×100 cm)
+B2 (50×70.7 cm)
+B3 (35.3×50 cm)
+B4 (25×35.3 cm)
+B5 (17.6×25 cm)
+B6 (12.5×17.6 cm)
+B7 (8.8×12.5 cm)
+B8 (6.2×8.8 cm)
+B9 (4.4×6.2 cm)
+B10 (3.1×4.4 cm)
+C0 (91.7×129.7 cm)
+C1 (64.8×91.7 cm)
+C2 (45.8×64.8 cm)
+C3 (32.4×45.8 cm)
+C4 (22.9×32.4 cm)
+C5 (16.2×22.9 cm)
+C6 (11.4×16.2 cm)
+C7 (8.1×11.4 cm)
+C8 (5.7×8.1 cm)
+C9 (4×5.7 cm)
+C10 (2.8×4 cm)
+
+Custom dims: /format custom <w> <h> (cm), e.g. /format custom 10 15.
+The chosen format is the /blank default page and rides the saved project layout.
+
+== PromptStopped()
+ℹ️ Stopped. That request went unanswered — tap Retry to run it again.
+
+== PromptStopping()
+ℹ️ Stopping…
+
+== PromptWorking()
+Working on your request… this can take a minute.
+
+== RotateVariants()
+Rotate by quarter-turns: /rotate <n>
+/rotate 1 — 90° clockwise
+/rotate 2 — 180°
+/rotate -1 — 90° counter-clockwise
+
+== SourcesHelp()
+Load a working image from the web — or just send a photo, or paste an image link:
+/url <link> — load a single image from a direct link
+/sourcesite <link> [count] [filter=img|video|…] [format=…] [name=<regex>] [group=N] — scrape a page's media into the chat
+/sourceupload <link> [index] [format=jpg|png|…] [name=<regex>] — scrape a page and load one image to edit
+e.g. /sourceupload https://en.wikipedia.org/wiki/Cat 0 format=jpg
+
+== ChatHistoryCleared(false)
+🧹 Conversation cleared — the assistant has forgotten the previous turns.
+
+== ChatSaveStatus(false)
+Chat saving is off (the default). /chat save on stores the conversation with the active server project, where anyone it is shared with can read it.
+
+== ChatHistoryCleared(true)
+🧹 Conversation cleared — the assistant has forgotten the previous turns. Chat mode is still on.
+
+== ChatSaveStatus(true)
+Chat saving is on — the conversation is stored with the active server project, where anyone it is shared with can read it. /chat save off to stop.
+
+== ChatRestored(1)
+💾 Restored 1 saved chat message — the assistant remembers this project's conversation.
+
+== ChatRestored(3)
+💾 Restored 3 saved chat messages — the assistant remembers this project's conversation.
+
+== ConnectionsText([])
+No connections. Use /connect <url> [token] to add one.
+
+== ConnectionsText([], "admin")
+No admin-token connections. /connections lists them all.
+
+== ProjectsText([])
+No projects found. Connect to a server with /connect first.
+
+== ExpiryPrompt(0)
+This project has no expiry (kept forever).
+Choose a new expiry:
+
+== ExpiryPrompt(1767225600000)
+Current expiry: 2026-01-01.
+Choose a new expiry:
+
+== DeleteConfirmPrompt("Poster", null)
+Delete 'Poster'? This permanently removes the project for everyone and can't be undone.
+
+== DeleteConfirmPrompt("Poster", "http://localhost:8090")
+Delete 'Poster' from localhost:8090? This permanently removes the project for everyone and can't be undone.
+
+== DesktopLink("Poster", "https://s/launch.html", loopback: false)
+🔗 Open 'Poster' in the Stencil desktop app:
+https://s/launch.html
+
+The page it opens hands the link to the desktop app. It carries no token — whoever follows it connects to the server with their own.
+
+== DesktopLink("Poster", "http://localhost:8080/launch.html", loopback: true)
+🔗 Open 'Poster' in the Stencil desktop app:
+http://localhost:8080/launch.html
+
+The page it opens hands the link to the desktop app. It carries no token — whoever follows it connects to the server with their own.
+
+ℹ️ It points at localhost, so it only works on this machine — set STENCIL_BOT_BROWSER_URL to a public browser app to share it.
+

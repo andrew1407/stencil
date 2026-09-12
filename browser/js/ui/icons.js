@@ -1,28 +1,18 @@
-// ── Shared inline-SVG icon set ──────────────────────────────────
-// One source of truth for every glyph in the browser app (toolbar, context menu,
-// modals, notifications). Stroked line-art on a 24×24 grid using `currentColor`, so
-// glyphs inherit button/text color and theme (light/dark/accent) automatically.
-// The glyph paths live in config/icons.json (name → inner SVG markup in a
-// 0 0 24 24 viewBox); extension/src/lib/icons.js mirrors it — keep in sync.
-// Pure strings (no DOM) so this leaf imports cleanly in Node for the markup tests;
-// icon() output contains no backtick or "${" (the markup tests assert that).
+// One inline-SVG source for every glyph: stroked line-art on a 24×24 grid in `currentColor`.
+// Paths live in config/icons.json; extension/src/lib/icons.js mirrors it — keep in sync.
+// Pure strings: icon() output contains no backtick or "${" (the markup tests assert that).
 import ICONS_DATA from '../config/icons.json' with { type: 'json' };
+import SVG_ART from '../config/svgArt.json' with { type: 'json' };
 
-// Notes that used to sit on individual rows: 'eraser' wipes drawn lines and is
-// deliberately NOT the trash can (trash = delete project/file everywhere else);
-// 'more' is the overflow menu ("⋯"); 'sparkle' is the assistant chat-bubble mark;
-// 'line' and 'rect' are the draw-mode PAIR (the same two drag handles, joined by a
-// segment or the box they span — core/drawingApp.js DRAW_MODE_ICON is this pair
-// inline on a 16-grid, x1.5 apart).
-// Several glyphs carry class="ic-…" hooks on their parts (a trash lid, a download
-// arrow, the sun's rays). They are inert markup for anything that just draws the
-// glyph; what moves them is config/iconMotion.json — the canonical per-icon hover
-// motion every surface implements — via css/animations.css here.
+// 'eraser' wipes drawn lines and is deliberately not the trash can (trash = delete). The
+// class="ic-…" hooks on glyph parts are inert here; config/iconMotion.json moves them via
+// css/animations/iconHover.css.
 export const ICONS = ICONS_DATA;
 
-// Build an <svg> string for a named icon. `size` px (square), optional extra
-// `cls`, optional stroke width `sw`. Returns '' for an unknown name so a typo
-// degrades to no glyph rather than throwing during markup assembly.
+// The draw-mode toggle's two faces: complete <svg> strings on a 16-grid, not built by icon().
+export const DRAW_MODE_ICON = SVG_ART.drawMode;
+
+// Returns '' for an unknown name, so a typo degrades to no glyph during markup assembly.
 export function icon(name, { size = 16, cls = '', sw = 2 } = {}) {
   const inner = ICONS[name];
   if (!inner) return '';
@@ -32,9 +22,8 @@ export function icon(name, { size = 16, cls = '', sw = 2 } = {}) {
     `stroke-linejoin="round" aria-hidden="true" focusable="false">${inner}</svg>`;
 }
 
-// The Select all ↔ Deselect all toggle's face (projects + connections batch bars, and
-// the desktop's updateSelectAll twins): the label AND the glyph say which way it goes
-// — a check gathers, a cross lets go. `all` is "everything on view is already checked".
+// The Select all ↔ Deselect all face (desktop twin: updateSelectAll): a check gathers, a
+// cross lets go. `all` is "everything on view is already checked".
 export const setSelectAllFace = (btn, all) => {
   if (!btn) return;
   const label = btn.querySelector?.('span');

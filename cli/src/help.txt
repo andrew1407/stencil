@@ -1,0 +1,55 @@
+{b}Usage{r}
+  stencil [options] <output>
+
+{b}Source (choose one){r}
+  -i, --input <path|url>     Image or video file/URL to load
+      --blank [fmt] [w h] [color]
+                             Create a blank page: a page format (a0..c10, e.g. b5)
+                             OR explicit dims, default A4; color name/#hex (white)
+
+{b}Options{r}
+  -f, --frame <n>            Video frame index to grab (default 0)
+  -c, --crop "<spec>"        Crop, e.g. "x1=10% x2=90% y1=10% y2=90%"
+                             (units: px, cm, mm, in, %, or a bare pixel delta)
+      --album                With one crop axis, derive the other (landscape)
+  -r, --rotate <int>         Rotate int*90 deg (e.g. -1 = -90, 3 = 270)
+  -l, --layout <path|url>    Layout JSON to draw onto the image
+      --layout-frame <current|source>
+                             Frame the layout's coordinates are in: 'current'
+                             (default) = the cropped/rotated image; 'source' =
+                             the source image — points are re-mapped through
+                             the crop/rotation and clamped into the output
+      --filter <f>           Apply bw | sepia | invert | contour | <color>;
+                             overrides the layout filter
+      --console              Interactive console: /upload, /crop, /rotate, /save, ...
+      --console-full-screen  Console in a full-screen TUI: pinned logo header,
+                             scrollback (wheel/PgUp/PgDn), click logo to change theme
+      --confine-output       Refuse an output path outside the working directory
+                             (absolute or ~); for adapters forwarding chosen paths
+  -h, --help                 Show this help
+
+{b}Scrape a web page (mutually exclusive with the source flags){r}
+      --source-site <url>    Fetch a page, extract + download its media into <output>
+                             (a DIRECTORY, created if missing; default '.')
+      --source-count <n>     Items per page/group (default 5; 0 = all)
+      --group <g>            0-based page index over the filtered list (default 0)
+      --source-filter <s>    Category tokens, '|'-joined: img|video|background|poster
+      --source-format <s>    Format tokens, '|'-joined: png|jpg|webp|gif|svg|mp4|...
+      --source-name <re>     Keep media whose URL matches this regex (POSIX ERE,
+                             case-insensitive; substring match on Windows)
+      --source-min-width <px>  /  --source-max-width <px>
+      --source-min-height <px> /  --source-max-height <px>
+                             Inclusive pixel bounds (0 = unset; images measured)
+
+{b}Output{r}
+  <output>                   Result path (or, in scrape mode, the destination
+                             directory). A missing extension is filled in from
+                             the input/format (png, jpg, bmp, tga).
+
+{b}Examples{r}
+  stencil -i photo.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 out.png
+  stencil --blank 800 600 red --layout notes.json --filter sepia out
+  stencil --blank b5 pink page.png
+  stencil -i clip.mp4 -f 24 frame.png
+  stencil --source-site https://example.com --source-filter img --source-min-width 200 out/
+  stencil --console          (then: /upload photo.png / /crop ... / /rotate 1 / /save out.png)

@@ -59,7 +59,7 @@ namespace stencil::gui {
     QObject::connect(cancelBtn, &QPushButton::clicked, dlg, &QDialog::reject);
     QObject::connect(saveBtn, &QPushButton::clicked, dlg, &QDialog::accept);
 
-    dlg->setFixedWidth(kModalWidth);
+    dlg->setFixedWidth(MODAL_WIDTH);
     dlg->adjustSize();
     edit->setFocus();
     edit->moveCursor(QTextCursor::End);

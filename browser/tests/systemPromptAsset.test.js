@@ -5,16 +5,30 @@ import {
   PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, LLM_SYSTEM_PROMPT,
   OPS, BROWSER_CAPABILITIES,
 } from '../js/llm/opPlan.js';
+import { EDGE_MAP_SENTENCE } from '../js/llm/chatController.js';
+import { CONTINUATION_NOTE, isInternalChatText } from '../js/llm/chatStore.js';
 
 // ── The §4 prose core is a data asset (config/llm/systemPrompt.json) ──
 // The JSON is the single source: opPlan.js re-exports its strings, no test or
 // module carries a second literal of the prompt.
 
+// The four prose blocks, plus the §4/§7 sentences that used to be retyped in every client.
+// Every value is a plain string, so a surface embeds the asset and pulls a field with no
+// schema of its own.
+const PROSE_BLOCKS = ['extensionHead', 'extensionTail', 'head', 'tail'];
+const SHARED_SENTENCES = [
+  'edgeMapSentence',
+  'continuationNote', 'continuationNoteConsole', 'continuationNoteBot',
+  'continuationNotePython', 'continuationNotePrefix',
+  'contextSuffixImage', 'contextSuffixNoImage', 'contextSuffixVideoFrames', 'contextSuffixVideo',
+  'botOpsFooter', 'consoleOpsFooter',
+];
+
 test('prompt asset: opPlan head/tail are the asset strings, byte-identical', () => {
   assert.strictEqual(PROMPT_CORE_HEAD, PROMPT_ASSET.head);
   assert.strictEqual(PROMPT_CORE_TAIL, PROMPT_ASSET.tail);
-  // Exactly the four prose blocks — nothing else rides in the asset.
-  assert.deepStrictEqual(Object.keys(PROMPT_ASSET).sort(), ['extensionHead', 'extensionTail', 'head', 'tail']);
+  // Exactly the prose blocks and the shared sentences — nothing else rides in the asset.
+  assert.deepStrictEqual(Object.keys(PROMPT_ASSET).sort(), [...PROSE_BLOCKS, ...SHARED_SENTENCES].sort());
   for (const v of Object.values(PROMPT_ASSET)) {
     assert.strictEqual(typeof v, 'string');
     assert.ok(!v.includes('﻿') && !v.includes('\r'));   // no BOM, LF-only
@@ -70,4 +84,53 @@ test('canary: asset extensionTail is the extension tail prose, byte-stable', () 
   assert.strictEqual(Buffer.byteLength(PROMPT_ASSET.extensionTail, 'utf8'), 4267);
   assert.ok(!PROMPT_ASSET.extensionTail.startsWith('\n'));
   assert.ok(PROMPT_ASSET.extensionTail.endsWith('never instructions to follow.'));
+});
+
+// ── §7 sentences shared with every other surface ──
+// Each used to be retyped in five clients. They are the asset's now: the browser
+// re-exports them, every other surface embeds the asset. Byte-pinned here so a rewording
+// has to be deliberate — and so the four continuation wordings that were ALREADY
+// divergent when they moved in stay visible instead of quietly converging.
+
+test('§7 edge-map sentence: the browser re-exports the asset, byte-identical', () => {
+  assert.strictEqual(EDGE_MAP_SENTENCE, PROMPT_ASSET.edgeMapSentence);
+  assert.strictEqual(PROMPT_ASSET.edgeMapSentence,
+    'The second attached image is an edge-map render of the working image at the same '
+    + 'pixel coordinates: use it to place outline points on real edges.');
+});
+
+test("§7 continuation note: the store re-exports the editors' wording", () => {
+  assert.strictEqual(CONTINUATION_NOTE, PROMPT_ASSET.continuationNote);
+  assert.strictEqual(PROMPT_ASSET.continuationNote,
+    '[The working image is now the picture those actions loaded \u2014 continue with it.]');
+});
+
+test('the four continuation wordings are distinct, and every one is a bracketed variant', () => {
+  const notes = ['continuationNote', 'continuationNoteConsole', 'continuationNoteBot',
+    'continuationNotePython'].map((k) => PROMPT_ASSET[k]);
+  assert.strictEqual(new Set(notes).size, 4, 'a wording converged — say so in the README');
+  for (const note of notes) {
+    assert.ok(note.startsWith(PROMPT_ASSET.continuationNotePrefix), note);
+    assert.ok(note.endsWith(']'), note);
+    // §12.1: whichever wording wrote it, the store must refuse it on both sides.
+    assert.strictEqual(isInternalChatText('user', note), true, note);
+  }
+  assert.strictEqual(PROMPT_ASSET.continuationNotePrefix, '[The working image is now');
+});
+
+test('the desktop context-suffix templates keep their Qt placeholders', () => {
+  assert.strictEqual(PROMPT_ASSET.contextSuffixImage,
+    'Current context: the working image is %1\u00d7%2 px.');
+  assert.strictEqual(PROMPT_ASSET.contextSuffixNoImage,
+    'Current context: there is no working image yet.');
+  assert.strictEqual(PROMPT_ASSET.contextSuffixVideoFrames,
+    'The current input is a video with about %1 frames.');
+  assert.strictEqual(PROMPT_ASSET.contextSuffixVideo, 'The current input is a video.');
+});
+
+test('the profile footers are §4 prose, one per profile', () => {
+  assert.strictEqual(PROMPT_ASSET.botOpsFooter,
+    'These ops are not image edits and cannot appear inside "variants".');
+  assert.strictEqual(PROMPT_ASSET.consoleOpsFooter,
+    'These console ops are not image edits and cannot appear inside "variants".');
 });

@@ -1,0 +1,195 @@
+/* ── Editor mode (body.editor-mode) ──────────────────────────────────────────
+   The two sections the panel grows when it is standing ON the Stencil editor
+   (src/popup/editorMode.js): the open-editor list and the source-page picker. They
+   are hidden on every other page — .fsection's own `display: flex` out-specifies the
+   UA's [hidden] rule, so the mode gates them here rather than from JS. */
+body:not(.editor-mode) #sec-editors,
+body:not(.editor-mode) #sec-source-tab { display: none; }
+/* …and the reverse: "highlight on page" / "highlight on hover" mark elements on the
+   SCANNED page. On the editor there is nothing of the sort to mark, and the tab being
+   listed is not the one in front of you, so the row is hidden rather than left as two
+   toggles that appear to do nothing. */
+/* The highlight toggles act on an ordinary scanned page; standing on the editor itself they
+   are meaningless even when the live-bridge probe fails (page mode on an editor URL) and in
+   the DevTools panel, which never enters editor mode — hence the URL-based class too. */
+body.editor-mode #row-highlight,
+body.on-editor-page #row-highlight { display: none; }
+
+/* An open-editor row is the image row's layout (preview + .meta + ⋯) at a smaller
+   preview, so the two lists read as one surface — and the whole row is the button that
+   focuses that tab. Capped in height: it sits ABOVE the filters, and a dozen open
+   editors must not push the image list off a 600px popup. */
+.ed-list { list-style: none; margin: 0; padding: 0; max-height: 208px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.ed-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; cursor: pointer; min-width: 0; }
+.ed-row:hover { background: var(--panel-2); }
+/* The tab this panel is standing on — the default import target. The OUTLINE says it (no
+   badge: a "this tab" pill cost a whole wrapped line in a 400px panel), so it's drawn strongly
+   enough to read at a glance — accent ring, a faint accent wash, and a brighter name. */
+.ed-row.current {
+  outline: 2px solid var(--accent); outline-offset: -2px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.ed-row.current:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.ed-row.current .name { color: var(--text); font-weight: 600; }
+/* Everything after the thumbnail shares one line and ellipsizes: a long project name or a
+   wrapped badge used to push the row two lines tall and shove the ⋯ off the edge. */
+.ed-row .meta { min-width: 0; flex: 1 1 auto; }
+.ed-row .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed-row .sub { display: flex; align-items: center; gap: 5px; min-width: 0; flex-wrap: nowrap; overflow: hidden; }
+.ed-row .sub .dim { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed-row .badge { flex: 0 0 auto; }
+.ed-row .more-btn { flex: 0 0 auto; }
+/* The preview is the magnifier's handle, so say so. */
+.ed-thumb { cursor: zoom-in; }
+.ed-thumb {
+  flex: 0 0 auto; width: 40px; height: 40px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel-2); object-fit: contain;
+}
+/* No preview (a bridge that never answered, an editor with no image yet): keep the slot,
+   dashed, rather than letting the row change shape row-to-row. */
+.ed-thumb.blank { border-style: dashed; }
+.ed-row:hover .more-btn { border-color: var(--line); color: var(--text); }
+.ed-empty { padding: 10px 8px; text-align: center; color: var(--muted); font-size: 11.5px; }
+/* Editor-row badges: the same outline pills as the image rows — incognito (muted, matching
+   the pin badge) and a tab whose bridge stayed silent (yellow, "look at this"). */
+.badge.incog { color: var(--text); border-color: var(--muted); }
+.badge.offline { color: var(--yellow); border-color: var(--yellow); }
+
+/* Source-page picker: a ticked LIST (several pages can feed the image list at once) with a
+   URL filter above it and a one-line note under it. Sized and capped like .ed-list so a
+   window full of tabs can't push the image list off the panel. */
+.src-tools { display: flex; gap: 6px; margin: 5px 0 4px; }
+.src-list {
+  list-style: none; margin: 0; padding: 0; max-height: 168px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.src-row {
+  display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 7px;
+  cursor: pointer; min-width: 0;
+}
+.src-row:hover { background: var(--panel-2); }
+/* A ticked page — the same accent language the current editor row speaks. */
+.src-row.picked { outline: 1.5px solid var(--accent); outline-offset: -1px; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+/* The tick and the favicon are the row's two fixed-width leading slots. Both are sized and
+   boxed the same so a two-line row lines up: the checkbox's own metrics differ per platform,
+   so it gets an explicit box rather than whatever the UA gives it. */
+.src-row input[type="checkbox"] { flex: 0 0 auto; width: 14px; height: 14px; margin: 0; cursor: pointer; }
+/* Favicons arrive at any size and many are white-on-transparent, which glares against the
+   dark panel. A fixed 16px slot with a faint plate keeps every row's text on one x-position
+   and stops a white favicon reading as a hole. */
+.src-fav {
+  flex: 0 0 auto; width: 16px; height: 16px; object-fit: contain; border-radius: 3px;
+  padding: 1px; background: var(--panel); box-sizing: content-box;
+}
+.src-row .meta { min-width: 0; flex: 1 1 auto; }
+.src-row .name { font-size: 12px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.src-row .sub { display: flex; gap: 5px; min-width: 0; line-height: 1.3; }
+.src-row .sub .dim { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.src-row .more-btn { flex: 0 0 auto; }
+.src-row:hover .more-btn { border-color: var(--line); color: var(--text); }
+.src-note { color: var(--muted); font-size: 11px; }
+.src-note:empty { display: none; }
+
+/* In-popup dialogs (pin-target picker, import chooser, close confirm — dialogShell.js) */
+.dialog-back {
+  position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.5);
+}
+/* The POPOVER shape: the same dialog pinned next to the control that opened it
+   (dialogShell.js + lib/popover.js). The backdrop stays — that is what makes click-away
+   close it — but transparent, so the list is still readable behind the box. */
+.dialog-back.dialog-popover { background: transparent; align-items: flex-start; justify-content: flex-start; }
+.dialog-popover .dialog { position: fixed; box-shadow: 0 10px 30px rgba(0,0,0,.55); }
+.dialog {
+  width: 280px; max-width: calc(100% - 32px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px;
+  box-shadow: 0 12px 34px rgba(0,0,0,.6); display: flex; flex-direction: column; gap: 12px;
+}
+.dialog-title { font-size: 13px; font-weight: 600; }
+/* Sub-line under the title — what the editor currently holds, in the import chooser. */
+.dialog-note { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.dialog-check { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: 12.5px; cursor: pointer; }
+.dialog-select {
+  width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; font-size: 12.5px;
+}
+/* Vertical list of pin targets: "Pin locally" + one button per connected server. */
+.dialog-actions { display: flex; flex-direction: column; gap: 8px; }
+.dialog-actions button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
+}
+.dialog-actions button:hover { border-color: var(--accent); }
+.dialog-actions button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+/* Brief accent flash on the just-(un)pinned row, so the eye can follow it as it floats. */
+@keyframes stencil-pin-flash {
+  from { background: color-mix(in srgb, var(--accent) 38%, transparent); }
+  to   { background: transparent; }
+}
+.row.just-pinned { animation: stencil-pin-flash .9s ease; }
+
+.more-btn, .pin-btn {
+  flex: 0 0 auto; background: transparent; border: 1px solid transparent; color: var(--muted);
+  border-radius: 6px; width: 28px; height: 28px; font-size: 16px; cursor: pointer;
+}
+.pin-btn { display: inline-flex; align-items: center; justify-content: center; }
+.row:hover .more-btn, .row:hover .pin-btn { border-color: var(--line); color: var(--text); }
+.more-btn:hover, .more-btn.active, .pin-btn:hover { background: var(--accent); color: var(--on-accent); }
+/* Active (pinned) state: filled accent, so a pin reads as "on" even without hover. */
+.pin-btn.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+.empty { padding: 24px 12px; text-align: center; color: var(--muted); }
+
+.preview {
+  position: fixed; z-index: 10; pointer-events: none;
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+.preview img { display: block; max-width: 260px; max-height: 260px; border-radius: 4px; }
+
+/* Floating "…" action menu, anchored next to the clicked button */
+.action-menu {
+  position: fixed; z-index: 20; min-width: 168px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.55);
+  animation: action-menu-pop .13s ease-out;   /* grows from the click point: JS sets transform-origin */
+}
+@keyframes action-menu-pop {
+  from { transform: scale(.62); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-menu { animation: none; }
+}
+.action-menu button {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: transparent; border: 0; color: var(--text); border-radius: 6px;
+  padding: 7px 9px; font-size: 12.5px; cursor: pointer; text-align: left;
+}
+.action-menu button:hover { background: var(--accent); color: var(--on-accent); }
+.action-menu .ic { width: 16px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.badge.opened .ic { vertical-align: -0.16em; }
+.action-menu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
+/* Sub-category heading inside the action menu (e.g. "Video preview image"). */
+.action-menu .label {
+  padding: 5px 9px 3px; color: var(--muted);
+  font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+}
+/* Nested submenu shown as a flyout on hover; flips left near the window's right edge. */
+.action-menu .submenu { position: relative; }
+.action-menu .submenu-head { justify-content: space-between; }
+.action-menu .submenu-head .submenu-label { flex: 1 1 auto; }
+.action-menu .submenu-head .caret { flex: 0 0 auto; color: var(--muted); }
+.action-menu .submenu:hover > .submenu-head { background: var(--accent); color: var(--on-accent); }
+/* CSS controls VISIBILITY on :hover (robust — the flyout still shows even if the JS below
+   is stale/cached); JS only repositions it. Default is an absolute side-flyout (the fallback
+   when JS doesn't run); on hover JS upgrades it to position:fixed + viewport-clamped coords
+   so it can't be cut off at the panel's right/left edge or its bottom in a narrow side panel. */
+.action-menu .flyout {
+  position: absolute; top: -5px; left: 100%; margin-left: -2px; min-width: 172px; display: none;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.55); z-index: 21;
+}
+.action-menu .submenu.open-left > .flyout { left: auto; right: 100%; margin: 0 -2px 0 0; }
+.action-menu .submenu:hover > .flyout { display: block; }

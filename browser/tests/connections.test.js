@@ -10,6 +10,7 @@ import {
 } from '../js/net/remoteSync.js';
 import { installMemoryStorage } from './helpers/memoryStorage.js';
 import { installFetchStub } from './helpers/fetchStub.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 // ── A mock fetch backed by an in-memory server model ──
 // Routes the subset of the REST surface the client uses.
@@ -402,15 +403,15 @@ test('reconnectOne re-establishes a single connection, keeping the rest', async 
 test('remoteProjects aggregates across connections and survives an unreachable one', async () => {
   const a = makeMockServer({ projects: [{ id: 'p_a_a', name: 'A', version: 0 }] });
   const b = makeMockServer({ projects: [{ id: 'p_b_b', name: 'B', version: 0 }] });
+  let aDown = false;
   const fetchImpl = (url, init) => {
     const host = new URL(url).host;
-    if (host === 'down:0') throw new Error('connection refused');
+    if (host === 'down:0' || (host === 'a:1' && aDown)) throw new Error('connection refused');
     return (host === 'a:1' ? a.fetchImpl : b.fetchImpl)(url, init);
   };
   const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect(['http://a:1', 'http://b:2']);
-  // Force one connection to fail on list by swapping its fetch.
-  mgr.get('http://a:1')._fetch = () => { throw new Error('boom'); };
+  aDown = true;   // force one connection to fail on list
   const list = await mgr.remoteProjects();
   assert.equal(list.length, 1);
   assert.equal(list[0].name, 'B');
@@ -850,7 +851,7 @@ test('the connections modal shows expired rows with a labelled Reconnect', () =>
   assert.ok(src.includes('isExpiredSession(err)'));
   assert.match(src, /admin token, which mints a fresh session/);
   assert.ok(src.includes("mgr().reconnectOne(url, String(token).trim())"));
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.match(css, /\.conn-status-expired \{ background: #e0a800/, 'amber, not the red of a dead server');
   // The labelled button wears that amber as a FILL: every other row button is
   // accent-filled, so an amber outline on an accent face was unreadable.
@@ -916,11 +917,11 @@ test('the Servers button says a session needs signing in again — in its toolti
   // Runs at wire time AND on every connections change, and covers the fullscreen clone.
   assert.ok(src.includes("document.querySelectorAll('#fs-controls-panel #connect-btn')"));
   const at = src.indexOf('syncExpiredBadge();');
-  assert.ok(at > -1 && at < src.indexOf("window.addEventListener('stencil:connections-changed'"),
+  assert.ok(at > -1 && at < src.indexOf('subscribe(EVENTS.connectionsChanged'),
     'the tooltip is correct before any event fires');
   // No corner badge on the icon (desktop parity: its toolbar wears none).
   assert.ok(!src.includes('conn-needs-auth'), 'no badge class is set on the button');
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.ok(!css.includes('conn-needs-auth'), 'no badge rule survives in the stylesheet');
 });
 

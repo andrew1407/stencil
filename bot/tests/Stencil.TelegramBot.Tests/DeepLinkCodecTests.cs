@@ -27,16 +27,16 @@ public class DeepLinkCodecTests
 
     [Theory]
     [MemberData(nameof(GoldenVectors))]
-    public void Encode_MatchesGoldenVectors(string url, string id, string expected)
+    public void Should_Match_Golden_Vectors_On_Encode(string url, string id, string expected)
     {
         string? payload = DeepLinkCodec.Encode(url, id);
         Assert.Equal(expected, payload);
-        Assert.True(payload!.Length <= DeepLinkCodec.TelegramStartLimit);
+        Assert.True(payload!.Length <= DeepLinkCodec.TELEGRAM_START_LIMIT);
         Assert.Matches("^1[A-Za-z0-9_-]+$", payload);
     }
 
     [Fact]
-    public void Encode_ReturnsNullPastTheLimit()
+    public void Should_Return_Null_Past_The_Limit_On_Encode()
     {
         // 48 plaintext bytes → 65 payload chars → overflow
         string host = "https://h" + new string('o', 43);
@@ -45,7 +45,7 @@ public class DeepLinkCodecTests
 
     [Theory]
     [MemberData(nameof(GoldenVectors))]
-    public void Decode_RoundTripsEveryVector(string url, string id, string payload)
+    public void Should_Round_Trip_Every_Vector_On_Decode(string url, string id, string payload)
     {
         Assert.True(DeepLinkCodec.TryDecode(payload, out string decodedUrl, out string decodedId));
         // Decoding re-normalizes, so the origin equals the normalized input.
@@ -62,20 +62,20 @@ public class DeepLinkCodecTests
     [InlineData("1cF8x")]                   // decodes to "p_1" — no pipe separator
     [InlineData("1fHBfMQ")]                 // decodes to "|p_1" — empty host
     [InlineData("1bG9jYWxob3N0fA")]         // decodes to "localhost|" — empty id
-    public void Decode_RejectsMalformedPayloads(string? payload)
+    public void Should_Reject_Malformed_Payloads_On_Decode(string? payload)
     {
         Assert.False(DeepLinkCodec.TryDecode(payload, out _, out _));
     }
 
     [Fact]
-    public void Decode_RejectsOverlongPayloads()
+    public void Should_Reject_Overlong_Payloads_On_Decode()
     {
-        string tooLong = "1" + new string('A', DeepLinkCodec.TelegramStartLimit);
+        string tooLong = "1" + new string('A', DeepLinkCodec.TELEGRAM_START_LIMIT);
         Assert.False(DeepLinkCodec.TryDecode(tooLong, out _, out _));
     }
 
     [Fact]
-    public void Decode_RejectsHugePayloadsByLengthAlone()
+    public void Should_Reject_Huge_Payloads_By_Length_Alone_On_Decode()
     {
         // The 64-char bound fires before any charset scan or base64 decode, so even a
         // multi-MB payload is rejected cheaply (mirrors the browser/desktop size caps).

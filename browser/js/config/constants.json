@@ -56,7 +56,8 @@
     "thickMin": 1,
     "thickMax": 20,
     "pointMin": 1,
-    "pointMax": 30
+    "pointMax": 30,
+    "historyMax": 64
   },
   "DEFAULT_PAGE": { "size": "A3", "width": 21, "height": 29.7 }
 }

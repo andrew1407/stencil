@@ -4,43 +4,30 @@ using Stencil.TelegramBot.Infrastructure.Configuration;
 
 namespace Stencil.TelegramBot.Infrastructure.Links;
 
-/// <summary>
-/// Small guarded HTTP GET for <c>/layout &lt;url&gt;</c>: fetches a layout JSON body, bounded
-/// by the same download cap as Telegram file downloads. Callers SSRF-vet the URL first
-/// (<c>RemoteImageUrl.ValidateAsync</c>); this class then re-checks the resolved address at
-/// connect time (see the ctor) so a DNS rebind can't slip a private/metadata host past the
-/// pre-check.
-/// </summary>
+// Guarded GET for /layout <url>, bounded by the Telegram download cap. Callers SSRF-vet the URL
+// first (RemoteImageUrl.ValidateAsync); the resolved address is re-checked at connect time against
+// DNS rebinding.
 public sealed class LayoutFetcher : IDisposable
 {
     private readonly HttpClient _http;
     private readonly long _maxBytes;
 
-    /// <summary>
-    /// <paramref name="handler"/> lets tests inject a canned <see cref="HttpMessageHandler"/>
-    /// (which then bypasses the connect-time guard). In production it is left null and
-    /// <paramref name="isBlockedAddress"/> — the same predicate the pre-check uses
-    /// (<c>RemoteImageUrl.IsBlockedAddress</c>) — is enforced on the address we actually dial.
-    /// </summary>
+    // A test handler bypasses the connect-time guard; in production isBlockedAddress is enforced on
+    // the dialled IP.
     public LayoutFetcher(
         BotOptions options,
         HttpMessageHandler? handler = null,
         Func<IPAddress, bool>? isBlockedAddress = null)
     {
-        _http = new HttpClient(handler ?? BuildGuardedHandler(isBlockedAddress));
+        _http = new HttpClient(handler ?? buildGuardedHandler(isBlockedAddress));
         _http.Timeout = options.ServerHttpTimeout;
         _maxBytes = options.MaxDownloadBytes;
     }
 
-    /// <summary>
-    /// A handler that refuses redirects and, when a guard is supplied, resolves the host itself
-    /// and connects only to a non-blocked address — closing the DNS-rebinding window between the
-    /// caller's pre-check and this fetch (the host could resolve to a public IP during validation
-    /// and a private / link-local / cloud-metadata one now). We pick the address and dial that
-    /// exact IP, so nothing can rebind between the check and the connect. Redirects are refused
-    /// for the same reason: a vetted public host must not bounce us to an internal one.
-    /// </summary>
-    private static SocketsHttpHandler BuildGuardedHandler(Func<IPAddress, bool>? isBlockedAddress)
+    // Resolves the host itself and dials that exact IP, so nothing can rebind between the pre-check
+    // and the connect; redirects are refused so a vetted public host cannot bounce us to an
+    // internal one.
+    private static SocketsHttpHandler buildGuardedHandler(Func<IPAddress, bool>? isBlockedAddress)
     {
         SocketsHttpHandler handler = new() { AllowAutoRedirect = false };
         if (isBlockedAddress is null)
@@ -79,11 +66,8 @@ public sealed class LayoutFetcher : IDisposable
         return handler;
     }
 
-    /// <summary>
-    /// GET the body, or null on a non-success status (redirects included — see the ctor).
-    /// Throws when the body exceeds the download cap, or (as <see cref="InvalidOperationException"/>)
-    /// when the connect-time guard rejects the resolved address.
-    /// </summary>
+    // Null on a non-success status (redirects included); throws past the download cap or on a guard
+    // rejection.
     public async Task<byte[]?> FetchAsync(string url, CancellationToken ct = default)
     {
         HttpResponseMessage response;
@@ -91,10 +75,10 @@ public sealed class LayoutFetcher : IDisposable
         {
             response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
         }
-        catch (HttpRequestException ex) when (BlockedAddressCause(ex) is InvalidOperationException blocked)
+        catch (HttpRequestException ex) when (blockedAddressCause(ex) is InvalidOperationException blocked)
         {
-            // Surface the guard's verbatim message (SafeAsync shows it to the user) rather
-            // than the transport error HttpClient wrapped it in.
+            // The guard's verbatim message (SafeAsync shows it) rather than the transport error
+            // wrapping it.
             throw blocked;
         }
         using (response)
@@ -120,9 +104,7 @@ public sealed class LayoutFetcher : IDisposable
         }
     }
 
-    /// <summary>The <see cref="InvalidOperationException"/> our connect guard threw, if this
-    /// transport failure was caused by it; null otherwise.</summary>
-    private static InvalidOperationException? BlockedAddressCause(Exception ex)
+    private static InvalidOperationException? blockedAddressCause(Exception ex)
     {
         for (Exception? e = ex.InnerException; e is not null; e = e.InnerException)
         {

@@ -1,9 +1,6 @@
-// ── Right-click probe (content script) ───────────────────────────────────────
-// On <all_urls> (also injected into open tabs by the SW). On contextmenu, resolves
-// what Stencil can grab under the cursor and messages the SW: background-image, <video>
-// frame (or a screenshot-crop request when the canvas is tainted), or an overlay-buried
-// image. Real <img>/<svg><image> return null (native context covers). Self-contained
-// (no imports); the guard stops double injection binding two listeners.
+// Right-click probe on <all_urls> (also injected into open tabs by the SW): resolves what
+// Stencil can grab under the cursor and messages the SW. Real <img>/<svg><image> return null
+// (native context covers). Classic script — no import; the guard stops a double injection.
 (() => {
   if (window.__stencilCtxProbe) return;
   window.__stencilCtxProbe = true;
@@ -11,18 +8,15 @@
   // mirror of lib/messages.js (classic content script — can't import)
   const MSG = { WAKE: 'stencil-wake', CTX: 'stencil-ctx' };
 
-  // Wake the lazy SW on load so the menu exists before the first right-click —
-  // receiving the message evaluates the worker, which builds the menu.
+  // Wake the lazy SW so the menu exists before the first right-click.
   try {
     chrome.runtime.sendMessage({ type: MSG.WAKE }, () => void chrome.runtime.lastError);
   } catch {
     /* ignore */
   }
 
-  // ── Poster snapshot ──────────────────────────────────────────────────────
-  // Some players strip <video poster> once playback starts. Stamp every video's poster
-  // early onto the element (non-empty wins) where both this probe and the popup scan —
-  // same isolated world — can recover it.
+  // Some players strip <video poster> once playback starts: stamp it early on the element,
+  // where this probe and the popup scan (same isolated world) can recover it.
   const STAMP = '__stencilPoster';
   const rememberPoster = (v) => {
     if (v && v.tagName === 'VIDEO' && v.poster) {
@@ -33,7 +27,6 @@
       }
     }
   };
-  // The persisted poster for a video: the live attribute, else the early snapshot.
   const posterOf = (v) => (v && (v.poster || v[STAMP])) || '';
   const snapshotPosters = () => {
     try {
@@ -85,14 +78,12 @@
   // data URL, and an un-capped 4K frame overflows Chrome's URL limit (about:blank).
   const FRAME_MAX_SIDE = 1920;
 
-  // True when the video sits on its POSTER, not a real frame: never played (paused at
-  // time 0) or no decoded data yet. drawImage() then yields frame 0 (commonly black),
-  // so the caller should use the poster instead.
+  // On its POSTER (never played, or no decoded data) drawImage() yields frame 0, commonly
+  // black — the caller should use the poster instead.
   const showingPoster = (v) => (v.paused && !v.currentTime) || v.readyState < 2;
 
-  // Current frame of a <video> as a JPEG data URL, or null when the poster is
-  // showing (use it instead) or the canvas is tainted (cross-origin) — the caller
-  // then falls back to the poster, then a tab screenshot.
+  // null when the poster is showing or the canvas is tainted; the caller then falls back to
+  // the poster, then a tab screenshot.
   const captureVideoFrame = (video) => {
     if (!video) return null;
     const vw = video.videoWidth, vh = video.videoHeight;
@@ -109,15 +100,12 @@
     }
   };
 
-  // The <video> the right-click points at. Players lay a controls/link overlay over
-  // the <video>, so closest() misses it; fall back to a geometric hit-test.
+  // Players lay a controls overlay over the <video>, so closest() misses it: geometric hit-test.
   const videoAt = (start, x, y) => {
     const direct = start.closest && start.closest('video');
     if (direct) return direct;
     if (x != null) {
-      // Smallest <video> whose box contains the cursor — spatially correct, and (unlike
-      // querySelector on an ancestor) never picks a different video when several share a
-      // wrapper.
+      // Smallest <video> containing the cursor — never a sibling video sharing the wrapper.
       let best = null, bestArea = Infinity;
       for (const v of document.querySelectorAll('video')) {
         const r = v.getBoundingClientRect();
@@ -133,14 +121,11 @@
     return null;
   };
 
-  // Absolute URL of the first <img>/<svg><image> or background-image element under
-  // the cursor point — for photos buried beneath click-catcher overlays, where
-  // neither the native image context nor an ancestor walk sees the picture.
+  // The image under the cursor POINT, for photos buried beneath click-catcher overlays.
   const imageUnderPoint = (x, y) => {
     if (x == null || typeof document.elementsFromPoint !== 'function') return null;
     for (const el of document.elementsFromPoint(x, y)) {
-      // <img>: currentSrc/src are URL strings. <svg><image>: el.src is an
-      // SVGAnimatedString (not a URL) — read the href attribute instead.
+      // <svg><image>: el.src is an SVGAnimatedString, not a URL — read the href attribute.
       const u = el.tagName === 'IMG' ? (el.currentSrc || el.src)
         : el.tagName === 'IMAGE' ? (el.getAttribute('href') || el.getAttribute('xlink:href'))
           : null;
@@ -163,9 +148,7 @@
     return null;
   };
 
-  // A link (<a href>) pointing straight at an image file (absolute URL). Lets the
-  // menu act on the linked image when there's no <img>/background under the cursor —
-  // restricted to image extensions so a normal page link never reveals the menu.
+  // Restricted to image extensions so a normal page link never reveals the menu.
   const IMG_LINK_EXT = /\.(avif|bmp|gif|jpe?g|png|svg|webp|ico|tiff?)(?:[?#]|$)/i;
   const imageLinkUrl = (start) => {
     const a = start && start.closest && start.closest('a[href]');
@@ -180,7 +163,6 @@
     }
   };
 
-  // Background-image URL on `start` or its ancestors (absolute).
   const bgUrlFor = (start) => {
     for (let node = start; node && node.nodeType === 1; node = node.parentElement) {
       const u = cssImageUrlOf(node);
@@ -195,9 +177,8 @@
     return null;
   };
 
-  // Element's rect in TOP-window coordinates — add each enclosing same-origin iframe's
-  // offset so a tab screenshot crops correctly when the element is framed. Cross-origin
-  // ancestors throw and stop the walk (best effort).
+  // TOP-window coordinates (each same-origin iframe's offset added) so a tab screenshot crops
+  // correctly; a cross-origin ancestor throws and stops the walk.
   const topRect = (el) => {
     const r = el.getBoundingClientRect();
     let x = r.x, y = r.y, win = el.ownerDocument.defaultView;
@@ -213,14 +194,12 @@
     return { x, y, width: r.width, height: r.height };
   };
 
-  // What can Stencil grab from the element under the cursor? Returns the data the SW
-  // should remember, or null. `light` skips the video FRAME capture: hover priming only
-  // needs WHICH menu group applies, and the click handler re-captures in-page anyway.
+  // `light` skips the video FRAME capture: hover priming only needs WHICH menu group applies,
+  // and the click handler re-captures in-page anyway.
   const resolveTarget = (start, x, y, light) => {
     if (!start) return null;
-    // A real <img>/<svg><image>: the native 'image' context already builds the menu, so
-    // report ONLY the image URL (as `imgUrl`, never `url`) — enough for the SW to label the
-    // Pin item (Pin ↔ Unpin), without revealing the background menu group (keyed on `url`).
+    // A real <img>: the native 'image' context builds the menu, so report ONLY `imgUrl` (never
+    // `url`, which would reveal the background group) — enough to label Pin ↔ Unpin.
     const imgEl = start.closest && (start.closest('img') || start.closest('image'));
     if (imgEl) {
       const raw = imgEl.tagName === 'IMAGE'
@@ -232,9 +211,7 @@
     }
     const video = videoAt(start, x, y);
     if (video) {
-      // The poster is a page-level preview image (often unlike any frame). Use the
-      // persisted value (posterOf) so a player stripping the attribute after playback
-      // doesn't hide it. Passed along for the menu's Preview submenu.
+      // posterOf, not the live attribute: a player may strip it after playback.
       let poster = '';
       const rawPoster = posterOf(video);
       if (rawPoster) {
@@ -245,25 +222,21 @@
         }
       }
       const frame = light ? null : captureVideoFrame(video);
-      // The video's media URL (http(s) only) — the openable source a pin keys on, so the
-      // SW can label the Pin item (Pin ↔ Unpin) for this video.
+      // http(s) only — the openable source a pin keys on, so the SW can label Pin ↔ Unpin.
       const rawMedia = video.currentSrc || video.src || '';
       let videoUrl = '';
       if (rawMedia.startsWith('http:') || rawMedia.startsWith('https:')) {
         try { videoUrl = new URL(rawMedia, location.href).href; } catch { videoUrl = rawMedia; }
       }
-      // Tag it `video` so the click handler prefers this frame over info.srcUrl (the
-      // media file, not a still). `posterShown` tells the click handler the video is on
-      // its poster (not played) → use the poster, not a screenshot, when no frame read.
+      // `video` makes the click handler prefer this frame over info.srcUrl (the media file);
+      // `posterShown` tells it to use the poster, not a screenshot, when no frame read.
       if (frame) return { url: frame, video: true, poster, videoUrl };
       return { video: true, rect: topRect(video), dpr: window.devicePixelRatio || 1, poster, posterShown: showingPoster(video), videoUrl };
     }
     const bg = bgUrlFor(start);
     if (bg) return { url: bg };
-    // A real image hidden under overlay elements at the cursor point.
     const under = imageUnderPoint(x, y);
     if (under) return { url: under };
-    // Last resort: a link pointing straight at an image file.
     const link = imageLinkUrl(start);
     return link ? { url: link } : null;
   };
@@ -277,17 +250,14 @@
     }
   };
 
-  // ── Priming ───────────────────────────────────────────────────────────────
-  // The background/link group is revealed by UPDATING the menu, and an update sent from
-  // `contextmenu` races Chrome's menu render (and loses outright when the MV3 worker
-  // must wake first). So resolve on HOVER too, hundreds of ms early — by right-click
-  // time the worker is warm and the right group is already revealed.
+  // Priming: an update sent from `contextmenu` races Chrome's menu render (and loses when the
+  // MV3 worker must wake first), so resolve on HOVER too — by right-click time the worker
+  // is warm and the right group is already revealed.
   const PRIME_MS = 150;
   let primeAt = 0;
   let primedEl = null;
   let primedKey = '';
-  // What the SW would DO with this find — the dedupe key, so hovering ten tiles of the
-  // same background sends one message.
+  // Dedupe key: hovering ten tiles of the same background sends one message.
   const keyOf = (d) => (!d ? '' : `${d.video ? 'v' : 'i'}|${d.url || ''}|${d.imgUrl || ''}|${d.poster || ''}`);
   const prime = (e) => {
     const now = Date.now();
@@ -304,12 +274,10 @@
   };
   document.addEventListener('pointerover', prime, true);
   document.addEventListener('pointermove', prime, true);
-  // A right-BUTTON press beats `contextmenu` to the punch on every platform — one last
-  // chance to prime before the menu is built.
+  // A right-BUTTON press beats `contextmenu` on every platform — one last chance to prime.
   document.addEventListener('mousedown', (e) => { if (e.button === 2) prime(e); }, true);
 
-  // The authoritative resolve: full (frame capture included) and with the exact point,
-  // which the SW uses to re-capture a video frame at click time.
+  // The authoritative resolve: frame capture included, with the exact point for the SW's re-capture.
   document.addEventListener('contextmenu', (e) => {
     let data = null;
     try {

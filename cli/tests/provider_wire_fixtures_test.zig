@@ -58,23 +58,16 @@ fn forcePngDataUrls(a: std.mem.Allocator, body: std.json.Value) !void {
 }
 
 test "providerWire corpus: request building + reply extraction against the cli client" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var w = fx.Walk.start();
+    defer w.stop();
+    const a = w.alloc();
 
-    const overrides = try fx.parseOverrides(a);
-    var walked: usize = 0;
-    var failures: usize = 0;
-
+    try w.loadOverrides();
     for (wire_files) |file| {
-        const cases = try fx.loadJson(a, io, file);
-        for (cases.array.items) |case| {
-            walked += 1;
+        for (try w.cases(file)) |case| {
+            w.walked += 1;
             const name = fx.memberStr(case, "name").?;
-            const ov = fx.overrideFor(overrides, "providerWire", name);
+            const ov = w.override("providerWire", name);
             const provider = providerOf(fx.memberStr(case, "provider").?);
             const settings = fx.member(case, "settings").?;
 
@@ -131,10 +124,8 @@ test "providerWire corpus: request building + reply extraction against the cli c
                 if (fx.member(o, "mediaTypeAlwaysPng") != null) try forcePngDataUrls(a, expect_body);
             }
             const got_body = try std.json.parseFromSliceLeaky(std.json.Value, a, req.body, .{});
-            if (!fx.jsonEquals(expect_body, got_body)) {
-                std.debug.print("providerWire '{s}': body mismatch\n  want {s}\n  got  {s}\n", .{ name, try fx.stringify(a, expect_body), req.body });
-                failures += 1;
-            }
+            if (!fx.jsonEquals(expect_body, got_body))
+                w.fail("providerWire '{s}': body mismatch\n  want {s}\n  got  {s}\n", .{ name, try fx.stringify(a, expect_body), req.body });
 
             // Feed the canned 2xx response through reply extraction.
             if (fx.member(case, "response")) |resp| {
@@ -155,10 +146,8 @@ test "providerWire corpus: request building + reply extraction against the cli c
                         break :blk ex == .refusal and std.mem.eql(u8, ex.refusal, fx.memberStr(fx.member(case, "expectError").?, "message").?);
                     break :blk false;
                 };
-                if (!ok) {
-                    std.debug.print("providerWire '{s}': extraction mismatch (want {s}, got {s})\n", .{ name, want_kind, @tagName(ex) });
-                    failures += 1;
-                }
+                if (!ok)
+                    w.fail("providerWire '{s}': extraction mismatch (want {s}, got {s})\n", .{ name, want_kind, @tagName(ex) });
             }
 
             // Non-2xx: the printed reason is errorDetail's output. expectError.message
@@ -178,10 +167,8 @@ test "providerWire corpus: request building + reply extraction against the cli c
                 if (ov != null and fx.memberStr(ov.?, "detail") != null) want = fx.memberStr(ov.?, "detail").?;
                 const fallback = try std.fmt.allocPrint(a, "HTTP {d}", .{status});
                 if (std.mem.eql(u8, want, fallback)) want = "";
-                if (!std.mem.eql(u8, got, want)) {
-                    std.debug.print("providerWire '{s}': error detail mismatch\n  want: {s}\n  cli:  {s}\n", .{ name, want, got });
-                    failures += 1;
-                }
+                if (!std.mem.eql(u8, got, want))
+                    w.fail("providerWire '{s}': error detail mismatch\n  want: {s}\n  cli:  {s}\n", .{ name, want, got });
                 // expectError.status always matches the transport status the cli's
                 // finish() branches on. The kind: llmDisabled types as the dedicated
                 // LlmDisabled error (finish() keys on isLlmDisabled), all else HttpFailed.
@@ -191,6 +178,5 @@ test "providerWire corpus: request building + reply extraction against the cli c
             }
         }
     }
-    std.debug.print("providerWire corpus: walked {d} cases\n", .{walked});
-    try testing.expectEqual(@as(usize, 0), failures);
+    try w.report("providerWire");
 }

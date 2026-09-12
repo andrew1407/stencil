@@ -17,8 +17,34 @@
   <!-- Classic script, no imports: stamps data-theme / data-accent before first paint. -->
   <script src="js/prePaintTheme.js"></script>
   <link rel="stylesheet" href="css/theme.css">
-  <link rel="stylesheet" href="css/layout.css">
-  <link rel="stylesheet" href="css/animations.css">
+  <!-- css/layout/ — one file per section; ORDER IS THE CASCADE. -->
+  <link rel="stylesheet" href="css/layout/scrollbars.css">
+  <link rel="stylesheet" href="css/layout/shell.css">
+  <link rel="stylesheet" href="css/layout/icons.css">
+  <link rel="stylesheet" href="css/layout/shimmer.css">
+  <link rel="stylesheet" href="css/layout/buttonStates.css">
+  <link rel="stylesheet" href="css/layout/canvasFrame.css">
+  <link rel="stylesheet" href="css/layout/zoomControls.css">
+  <link rel="stylesheet" href="css/layout/selectionPanel.css">
+  <link rel="stylesheet" href="css/layout/canvasCursor.css">
+  <link rel="stylesheet" href="css/layout/infoLine.css">
+  <link rel="stylesheet" href="css/layout/controlRows.css">
+  <link rel="stylesheet" href="css/layout/topbar.css">
+  <link rel="stylesheet" href="css/layout/coordPanel.css">
+  <link rel="stylesheet" href="css/layout/coordRows.css">
+  <!-- css/animations/ — one file per section; ORDER IS THE CASCADE. -->
+  <link rel="stylesheet" href="css/animations/keyframes.css">
+  <link rel="stylesheet" href="css/animations/controls.css">
+  <link rel="stylesheet" href="css/animations/iconHover.css">
+  <link rel="stylesheet" href="css/animations/voice.css">
+  <link rel="stylesheet" href="css/animations/overlays.css">
+  <link rel="stylesheet" href="css/animations/responsive.css">
+  <link rel="stylesheet" href="css/animations/reducedMotion.css">
+  <link rel="stylesheet" href="css/animations/themeSwap.css">
+  <link rel="stylesheet" href="css/animations/collapse.css">
+  <link rel="stylesheet" href="css/animations/reveal.css">
+  <link rel="stylesheet" href="css/animations/dust.css">
+  <link rel="stylesheet" href="css/animations/motionModes.css">
   <style>
     :root { color-scheme: light dark; }
     body {
@@ -60,7 +86,7 @@
 
     /* ── The logo, with the toolbar's hover shine ────────────────────────────
        layout.css gives the mark its accent frame (.app-logo-frame) and the :hover
-       scale; animations.css draws the ray ring on .app-logo-wrap::before and breathes
+       scale; animations/iconHover.css draws the ray ring on .app-logo-wrap::before and breathes
        it with logoPulse. In the app a JS latch adds .logo-hover — here plain :hover
        stands in for it. */
     .app-logo-wrap { display: inline-flex; }
@@ -87,7 +113,7 @@
     }
     a.btn:active, button.btn:active { transform: translateY(1px); }
     /* Each glyph mimes its own action on hover — the shared per-icon transforms in
-       animations.css, keyed off --ic-on. Its trigger lists `button` but not `a`, so the
+       animations/iconHover.css, keyed off --ic-on. Its trigger lists `button` but not `a`, so the
        two links turn the switch on themselves. */
     a.btn:hover :is(.ic, .ic *) { --ic-on: 1; animation-name: var(--ic-play, none); }
     .ic { flex: 0 0 auto; }
@@ -115,7 +141,7 @@
 </head>
 <body>
   <main>
-    <!-- The wrap hosts the ray ring (animations.css) — an <svg> can't carry ::before. -->
+    <!-- The wrap hosts the ray ring (animations/iconHover.css) — an <svg> can't carry ::before. -->
     <span class="app-logo-wrap">
       <svg class="app-logo" viewBox="0 0 64 64" width="56" height="56" role="img" aria-label="Stencil" focusable="false">
         <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>

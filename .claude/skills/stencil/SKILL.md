@@ -52,36 +52,53 @@ ask one concise clarifying question before running anything.
    then report the absolute output path(s) and what was applied. Don't overwrite an
    existing file the user didn't name as the output without confirming.
 
-Run `cli/zig-out/bin/stencil --help` if you need to confirm a flag.
-
-## Action → flag mapping
+## Choosing the command
 
 ```
 stencil [options] <output>
 ```
 
-| User asks for | Flag | Notes |
-|---|---|---|
-| use this image/video | `-i, --input <path\|url>` | local file or `http(s)://` |
-| blank canvas | `--blank [w h] [color]` | omit `w h` → A4 @ 96dpi; color name or `#hex` (default white). **Mutually exclusive with `-i`** |
-| a frame from a video | `-f, --frame <n>` | 0-based; needs `ffmpeg` on PATH; reads *direct* media, not streaming page URLs |
-| crop | `-c, --crop "x1=… x2=… y1=… y2=…"` | each edge is a length token: `px`, `cm`, `mm`, `in`, `%`, or a bare pixel delta; a leading `-` measures from the far edge; omit an edge to keep the image bound |
-| keep page aspect on a 1-axis crop | `--album` | derive the missing axis from the page proportion (landscape) |
-| rotate | `-r, --rotate <int>` | **quarter-turns only**: `int × 90°` (`1`=90° CW, `-1`=90° CCW, `2`=180°). Arbitrary angles aren't supported — say so if asked |
-| draw something on it | `-l, --layout <path\|url>` | layout JSON (see below) |
-| b&w / sepia / tint | `--filter <bw\|sepia\|color>` | a color name or `#hex` makes a duotone tint; **overrides** a filter set inside the layout |
-| edit a **server** project | `--server <url>` | with `-i <name>`, `-i` names a project on the [collaboration server](../../../server/README.md) to fetch + edit (not a local path); incompatible with `--blank` |
-| save back to that project | `--remote-update` | with `--server`, write the result back into the fetched project |
-| publish as a **new** project | `--remote <url>` | upload the result as a new project on a server (any source: local/web `-i`, `--blank`, or a `--server` fetch) |
-| name the new project | `--remote-name <name>` | name for `--remote` (default: input image's base name); a web input's URL is recorded as the project source |
-| (result file) | `<output>` | positional, last; unknown/missing extension auto-filled from input (`png`/`jpg`/`bmp`/`tga`) |
+**`cli/zig-out/bin/stencil --help` is the exhaustive flag list** — read it instead of
+guessing. What you need to *choose* a command:
 
-Order doesn't matter to the CLI; the pipeline always runs
-**source → crop → rotate → filter → layout → encode**, then the result is saved locally
-**and** delivered to any server (`--remote-update` / `--remote`). `--server` and `--remote`
-may point at **different** servers, so one run can fetch a project from one and publish it to
-another. (For an interactive multi-server session — `/connect`, `/fetch`, `/sync`, live
-update notices — use `--console` mode; see `cli/README.md`.)
+| User asks for | Flag |
+|---|---|
+| use this image/video | `-i, --input <path\|url>` (local file or `http(s)://`) |
+| blank canvas | `--blank [fmt] [w h] [color]` — a page format (`a0`…`c10`) **or** explicit `w h`, not both; default A4, default white |
+| a frame from a video | `-f, --frame <n>` (0-based; needs `ffmpeg` on PATH; direct media, not a streaming page URL) |
+| crop | `-c, --crop "x1=… x2=… y1=… y2=…"` — each edge is `px`/`cm`/`mm`/`in`/`%` or a bare pixel delta; a leading `-` measures from the far edge; omit an edge to keep the image bound |
+| keep page aspect on a 1-axis crop | `--album` |
+| rotate | `-r, --rotate <int>` |
+| draw something on it | `-l, --layout <path\|url>` (see below) |
+| b&w / negative / edges / sepia / tint | `--filter <bw\|invert\|contour\|sepia\|color>` — a colour name or `#hex` makes a duotone tint |
+| don't let the output escape the cwd | `--confine-output` |
+| (result file) | `<output>`, positional and last |
+
+Non-obvious rules the flag list won't tell you:
+
+- **Rotation is quarter-turns only** (`int × 90°`: `1` = 90° CW, `-1` = CCW, `2` = 180°).
+  Arbitrary angles aren't supported — say so if asked.
+- `-i` and `--blank` are **mutually exclusive**; so is a page format vs. explicit `w h`.
+- `--filter` **overrides** a filter set inside the layout JSON.
+- Order doesn't matter to the CLI; the pipeline always runs
+  **source → crop → rotate → filter → layout → encode**.
+- `--layout-frame <current|source>` says which image the layout's coordinates are in.
+  Default `current` = the already-cropped/rotated image. Pass `source` when you computed
+  points against the *original* and want them re-mapped through the crop/rotation.
+- `--confine-output` refuses an output path that leaves the working directory (absolute,
+  or a leading `~`; `..` is refused either way). Off by default. Pass it when the path
+  came from somewhere other than the user — that's why the mcp and bot adapters set it.
+
+### Server projects
+
+`--server <url>` makes `-i <name>` fetch a **project** from a [collaboration
+server](../../../server/README.md) instead of reading a local path (it *requires* `-i`, so it
+can't be combined with `--blank`); `--remote-update` writes the result back into it;
+`--remote <url>` (+ `--remote-name <name>`) publishes the result as a **new** project;
+`--token <tok>` authenticates against a server that gates token minting. `--server` and
+`--remote` may be **different** servers, so one run can copy a project between them. The
+result is always saved locally too. For an interactive multi-server session
+(`/connect`, `/fetch`, `/sync`, live update notices) use `--console`; see `cli/README.md`.
 
 ### Examples
 ```bash
@@ -89,6 +106,8 @@ update notices — use `--console` mode; see `cli/README.md`.)
 cli/zig-out/bin/stencil -i photo.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 out.png
 # blank red 800x600, draw a saved layout, tone it sepia
 cli/zig-out/bin/stencil --blank 800 600 red --layout notes.json --filter sepia out
+# blank on a named page format
+cli/zig-out/bin/stencil --blank b5 pink page.png
 # grab the 24th frame of a video as a still
 cli/zig-out/bin/stencil -i clip.mp4 -f 24 frame.png
 # duotone tint an image fetched from a URL
@@ -99,9 +118,8 @@ cli/zig-out/bin/stencil --server http://host:8090 -i Shared --filter sepia --rem
 cli/zig-out/bin/stencil -i photo.png -r 1 --remote http://host:8090 --remote-name "Shared" out.png
 ```
 
-Note: the `/stencil` skill drives the CLI directly; an MCP client can reach the same
-server-project actions through the `stencil_edit` tool's `server` / `remote_update` /
-`remote` / `remote_name` parameters (see `mcp/README.md`).
+Note: an MCP client reaches the same server-project actions through the `stencil_edit`
+tool's `server` / `remote_update` / `remote` / `remote_name` parameters (`mcp/README.md`).
 
 ## Scrape a source site (headless media download)
 
@@ -113,16 +131,13 @@ missing, default `.`), **not** a single rendered image. Scrape mode ignores the 
 above (crop/rotate/layout/filter/frame) and the server flags, and is mutually exclusive with
 `-i` / `--blank`.
 
-| User asks for | Flag | Notes |
-|---|---|---|
-| scrape a page | `--source-site <url>` | activates scrape mode; the page to fetch + parse |
-| how many per page | `--source-count <N>` | items per page/group (**default 5**; `0` ⇒ download ALL matches) |
-| which page/group | `--group <G>` | 0-based page index; window = `filtered[G*N : G*N+N]` |
-| which categories | `--source-filter <s>` | `\|`-joined tokens `img\|video\|background\|poster`; `all` (or absent) = every category |
-| which formats | `--source-format <s>` | `\|`-joined normalized exts, e.g. `png\|jpg\|webp\|gif\|svg\|mp4\|webm\|mov\|avi`; `all`/absent = every format |
-| min/max width | `--source-min-width <px>` / `--source-max-width <px>` | inclusive; `0` = unset (only images are measured; unknown-size items pass) |
-| min/max height | `--source-min-height <px>` / `--source-max-height <px>` | inclusive; `0` = unset |
-| (destination) | `<output>` | positional **directory**, created if missing (default `.`) |
+Narrowing flags (`--help` has the full list): `--source-count <N>` items per group
+(**default 5**; `0` = all matches) with `--group <G>` the 0-based page index over the
+filtered list (`filtered[G*N : G*N+N]`); `--source-filter` (`img|video|background|poster`),
+`--source-format` (`png|jpg|webp|mp4|…`) and `--source-name <regex>` (POSIX ERE,
+case-insensitive) select what to keep; `--source-min-width` / `--source-max-width` /
+`--source-min-height` / `--source-max-height` bound the pixel size inclusively (`0` = unset;
+only images are measured, unknown-size items pass). Absent filters mean `all`.
 
 Each downloaded file prints a `wrote …` line to stderr and the run ends with a
 `scraped {n} file(s) from {host} into {dir}` summary (per-item fetch failures are non-fatal;
@@ -147,14 +162,13 @@ Two non-one-shot ways to drive the *same* `core/` when they fit better than a si
   piping `/command` lines in. See `cli/README.md` → *Console mode*.
 - **Python (`pystencil`).** A stdlib-only package driving the same core via ctypes; prefer it
   when the user wants Python or a chainable script over shell. It mirrors the CLI flags one-shot
-  (`python3 -m pystencil -i in.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 --filter sepia out.png`;
-  also `--blank`, `--layout`, `--repl`), or use the chainable API:
+  (`python3 -m pystencil -i in.jpg -c "…" -r 1 --filter sepia out.png`; also `--blank`,
+  `--layout`, `--repl`), or use the chainable API:
   `Editor().load("in.jpg").crop("…").rotate_right().apply_filter("sepia").save("out.png")`.
   PNG/BMP are native; **JPEG decode falls back to the Zig CLI**. The native lib builds on demand
-  (force it with `python3 build.py`). See `pystencil/README.md`. For **scraping**, a short
-  `pystencil` script (`scan_page` / `download_media`, or `python3 -m pystencil --source-site …`)
-  is usually faster and cheaper in tokens than repeated CLI calls — filter, slice, and loop over
-  the matched media in-process instead of shelling out per page/group.
+  (`python3 build.py` forces it). See `pystencil/README.md`. For **scraping**, a short
+  `pystencil` script (`scan_page` / `download_media`) beats repeated CLI calls — filter, slice
+  and loop over the matched media in-process instead of shelling out per page/group.
 
 ## Drawing / layout
 
@@ -185,10 +199,9 @@ browser's export (`browser/js/core/layout.js`); coordinates are **image pixels**
   closed polylines). `style` ∈ `solid`/`dashed`/`dotted`. `pointSize` 0 hides
   points. Per-line defaults if omitted: color `#FFFF00`, thickness 2,
   pointSize 4, style solid, fillColor transparent.
-- Translate plain requests into points yourself (e.g. "box around the middle third",
-  "a red diagonal line", "outline these corners"). When you need the image's pixel
-  size first, decode it (`sips -g pixelWidth -g pixelHeight <file>` on macOS, or
-  run a no-op crop and read the result) — or generate the blank at a known size.
+- Translate plain requests into points yourself ("box around the middle third", "a red
+  diagonal"). For the image's pixel size, decode it (`sips -g pixelWidth -g pixelHeight`
+  on macOS, or run a no-op crop and read the `wrote …` line) — or blank at a known size.
 - Write the layout to a temp file, pass it via `-l`, and clean it up after — **unless**
   the user's requested output is itself a `*.json`, in which case write the generated
   layout there as the deliverable and don't render an image.

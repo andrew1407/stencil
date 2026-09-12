@@ -5,163 +5,84 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
-/// <summary>
-/// The per-user image-editing surface: one base image on disk plus a re-applicable
-/// <see cref="EditState"/>. Mutating methods fold an intent into the session's
-/// <see cref="EditState"/> and persist it; <see cref="RenderAsync"/> replays the original
-/// plus that state through the CLI to a fresh result file without touching the session.
-/// </summary>
-/// <remarks>
-/// Mirrors the CLI console's single working image + ordered transforms
-/// (<c>cli/README.md</c> console pipeline: source → crop → rotate → layout → filter), but
-/// keeps crop/rotate/filter/layout as the latest re-applicable spec rather than a baked
-/// snapshot, so a render is reproducible and the layout JSON stays exportable.
-/// </remarks>
+// One base image on disk plus a re-applicable EditState; RenderAsync replays the original through
+// the CLI to a fresh file. Edits stay the latest spec, never a baked snapshot, so a render is
+// reproducible.
 public interface IEditingService
 {
-    /// <summary>
-    /// Adopt a local file as the base image: copy it into the user's workspace (keeping its
-    /// extension), probe its dimensions, reset the edit state and clear any active project.
-    /// <paramref name="sourceUrl"/> records the http(s) origin (e.g. the scraped page) for
-    /// display; pass null for a directly-uploaded file.
-    /// </summary>
+    // Copies into the workspace, probes, resets edits and clears any active project.
     Task<UserSession> SetImageFromLocalFileAsync(long userId, string sourcePath, string label, string? sourceUrl = null, CancellationToken ct = default);
 
-    /// <summary>
-    /// Adopt an http(s) image as the base: download/decode it through the CLI to a fresh PNG
-    /// and use the result as the new original (edits reset).
-    /// </summary>
     Task<UserSession> SetImageFromUrlAsync(long userId, string url, string label, CancellationToken ct = default);
 
-    /// <summary>
-    /// Create a blank canvas through the CLI and adopt it as the base image (label "blank").
-    /// </summary>
     Task<UserSession> BlankAsync(long userId, BlankSpec spec, CancellationToken ct = default);
 
-    /// <summary>Set (or replace) the crop spec / album flag on the edit state.</summary>
     Task<UserSession> SetCropAsync(long userId, string spec, bool album, CancellationToken ct = default);
 
-    /// <summary>Accumulate clockwise quarter-turns, normalised to <c>0..3</c>.</summary>
+    // Accumulates clockwise, normalised to 0..3.
     Task<UserSession> RotateAsync(long userId, int quarterTurns, CancellationToken ct = default);
 
-    /// <summary>Set the filter, or clear it when given null/empty/"none".</summary>
+    // Null/empty/"none" clears it.
     Task<UserSession> SetFilterAsync(long userId, string? filter, CancellationToken ct = default);
 
-    /// <summary>
-    /// Set the session's page format: a canonical ISO name (e.g. <c>B5</c>) or <c>custom</c>
-    /// with <paramref name="widthCm"/>/<paramref name="heightCm"/> in cm. A named format is the
-    /// <c>/blank</c> default page; either kind rides the saved project layout's <c>pageSize</c>.
-    /// </summary>
+    // A canonical ISO name (B5) or "custom" with cm; a named format is the /blank default page.
     Task<UserSession> SetPageFormatAsync(long userId, string format, double? widthCm = null, double? heightCm = null, CancellationToken ct = default);
 
-    /// <summary>Apply a whole drawing layout to the edit state (replaces any current lines).</summary>
-    /// <param name="combine">Keep the lines already drawn and add these after them;
-    /// false (the default) replaces them. Mirrors the editors' Combine/Replace prompt.</param>
+    // combine appends to the lines already drawn; false replaces them (the editors'
+    // Combine/Replace).
     Task<UserSession> ApplyLayoutAsync(long userId, StencilLayout layout, bool combine = false, CancellationToken ct = default);
 
-    /// <summary>
-    /// Set the coordinate-transform formula for one axis (<c>x</c>/<c>y</c>) — the LLM
-    /// <c>formula</c> op. A metadata setting (like the browser's <c>formulaX</c>/<c>formulaY</c>):
-    /// it never changes the raster, but rides the saved project layout so the other front-ends
-    /// pick it up. An empty <paramref name="expr"/> clears the axis.
-    /// </summary>
+    // Metadata like the browser's formulaX/Y: never changes the raster; an empty expr clears the
+    // axis.
     Task<UserSession> SetFormulaAsync(long userId, string axis, string expr, CancellationToken ct = default);
 
-    /// <summary>
-    /// Update the pen (the style for newly drawn lines); only non-null arguments change.
-    /// <paramref name="style"/> must be <c>solid</c>/<c>dashed</c>/<c>dotted</c>;
-    /// <paramref name="fill"/> may be <c>none</c>/<c>transparent</c> to clear a closed-shape fill.
-    /// </summary>
+    // Only non-null arguments change; fill takes none/transparent to clear a closed-shape fill.
     Task<UserSession> ConfigurePenAsync(long userId, string? color, double? thickness, double? pointSize, string? style, string? fill, CancellationToken ct = default);
 
-    /// <summary>
-    /// Append a polyline through <paramref name="points"/> (image pixels) styled with the
-    /// current pen. When <paramref name="closed"/> the shape is closed (first point repeated)
-    /// and filled with the pen's fill colour; an open line is never filled.
-    /// </summary>
+    // points are image pixels; closed repeats the first point and fills with the pen's fill colour.
     Task<UserSession> AddLineAsync(long userId, IReadOnlyList<LayoutPoint> points, bool closed, CancellationToken ct = default);
 
-    /// <summary>Remove the most recently drawn line/shape (no-op when none).</summary>
     Task<UserSession> RemoveLastLineAsync(long userId, CancellationToken ct = default);
 
-    /// <summary>Remove every drawn line/shape, keeping the working image and other edits.</summary>
     Task<UserSession> ClearLinesAsync(long userId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Adopt a video as a source: persist it into the workspace, grab frame
-    /// <paramref name="frame"/> through the CLI as the working image, and remember the video so
-    /// <see cref="ExtractFrameAsync"/> can re-grab a different frame. Needs <c>ffmpeg</c> on PATH.
-    /// </summary>
+    // Remembers the video so ExtractFrameAsync can re-grab a frame. Needs ffmpeg on PATH.
     Task<UserSession> SetImageFromVideoAsync(long userId, string videoSourcePath, int frame, string label, CancellationToken ct = default);
 
-    /// <summary>
-    /// Re-grab frame <paramref name="frame"/> from the session's remembered video as the new
-    /// working image (resets edits). Throws when no video source is loaded.
-    /// </summary>
     Task<UserSession> ExtractFrameAsync(long userId, int frame, CancellationToken ct = default);
 
-    /// <summary>Step back one undoable change (crop/rotate/filter/draw); no-op when none.</summary>
     Task<UserSession> UndoAsync(long userId, CancellationToken ct = default);
 
-    /// <summary>Re-apply the most recently undone change; no-op when there is nothing to redo.</summary>
     Task<UserSession> RedoAsync(long userId, CancellationToken ct = default);
 
-    /// <summary>Clear all pending transforms but keep the working image.</summary>
+    // Keeps the working image.
     Task<UserSession> ResetEditsAsync(long userId, CancellationToken ct = default);
 
-    /// <summary>Drop the working image (and active project) entirely and wipe the workspace.</summary>
+    // Drops the working image AND the active project, and wipes the workspace.
     Task<UserSession> DropImageAsync(long userId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Persist raw image bytes into the user's workspace and return the on-disk path. Lets
-    /// the server service (which owns no workspace) adopt a downloaded server original while
-    /// keeping all temp-path handling inside the editing layer.
-    /// </summary>
+    // Lets the server service, which owns no workspace, adopt a downloaded original.
     Task<string> StoreOriginalBytesAsync(long userId, byte[] data, string extension, CancellationToken ct = default);
 
-    /// <summary>
-    /// Replay the original plus the current <see cref="EditState"/> through the CLI to a
-    /// fresh result file. Does not mutate the session. Throws when no working image is loaded.
-    /// </summary>
     Task<RenderResult> RenderAsync(long userId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Run one image file through the CLI's <c>contour</c> filter to a fresh PNG (the §7
-    /// edge-map attachment). Does not touch the session or its edit state.
-    /// </summary>
+    // The CLI's contour filter to a fresh PNG: the §7 edge-map attachment.
     Task<RenderResult> RenderContourAsync(long userId, string sourcePath, CancellationToken ct = default);
 
-    /// <summary>
-    /// Replay the original through the CLI with an explicit <see cref="EditState"/> instead of
-    /// the session's (the LLM variant path: each variant renders from a copy of the current
-    /// state with its own ops folded in). Does not mutate the session.
-    /// </summary>
+    // The variant path: renders from a copy of the state, leaving the session's own state alone.
     Task<RenderResult> RenderAsync(long userId, EditState edits, CancellationToken ct = default);
 
-    /// <summary>Open a <c>.stencil</c> project: adopt its ORIGINAL image and rebuild the <see cref="EditState"/> from its layout, clearing any active server project.</summary>
+    // Adopts the project's ORIGINAL image and rebuilds the EditState from its layout.
     Task<UserSession> OpenProjectFileAsync(long userId, StencilProject project, CancellationToken ct = default);
 
-    /// <summary>
-    /// Bundle the current project — the ORIGINAL image + the export layout + metadata — into
-    /// portable <c>.stencil</c> bytes (openable on every Stencil surface). Throws when no image.
-    /// </summary>
+    // The ORIGINAL image + export layout + metadata as portable .stencil bytes.
     Task<byte[]> ExportProjectFileAsync(long userId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Scrape a web page's media into a fresh per-user scratch directory via the CLI
-    /// (<c>--source-site</c> mode), applying the request's category/format/dimension filters and
-    /// paging window. Does not touch the working image or session — it just downloads and returns
-    /// the matched files. The service fills <see cref="ScrapeRequest.OutputDir"/> with the scratch
-    /// path; the caller supplies the URL and filters. Throws when nothing matched or the fetch failed.
-    /// </summary>
+    // --source-site mode into a fresh per-user scratch directory (the service fills
+    // request.OutputDir); touches neither the working image nor the session.
     Task<ScrapeResult> ScrapeAsync(long userId, ScrapeRequest request, CancellationToken ct = default);
 
-    /// <summary>
-    /// Build the exportable <see cref="StencilLayout"/> for a session from its edit state:
-    /// the original dimensions, the active filter and the applied layout's lines.
-    /// </summary>
     StencilLayout BuildLayout(UserSession session);
 
-    /// <summary>Pretty-print <see cref="BuildLayout"/> as the layout JSON download.</summary>
     string ExportLayoutJson(UserSession session);
 }

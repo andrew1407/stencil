@@ -13,14 +13,12 @@
 //     concurrent save from a STALE editor B merges (both editors' lines survive) instead
 //     of clobbering A's — the property live co-editing depends on.
 //
-// It does NOT exercise MainWindow's canvas adoption itself (that stays UI-coupled); it
-// closes the gap that the async open/save chains + the guarded-write merge had no
-// server-connected coverage (only ProjectTransferController did).
+// It does NOT exercise MainWindow's canvas adoption itself (that stays UI-coupled).
 //
 // SELF-SKIPS (exit 0) when no server is reachable, like the transfer/store integration
 // tests: point it at one with STENCIL_TEST_SERVER (default http://localhost:8090). Built
 // only when Qt is present; not part of the Qt-free core stencil_tests.
-#include "serverClient.hpp"
+#include "ServerClient.hpp"
 
 #include <QBuffer>
 #include <QElapsedTimer>
@@ -35,11 +33,12 @@
 #include <cstdio>
 #include <functional>
 #include <memory>
+#include "support/connectNow.hpp"
 
 using stencil::net::ConnectionManager;
 using stencil::net::ServerClient;
 using stencil::net::ServerProject;
-using GO = ServerClient::GuardOutcome;
+typedef ServerClient::GuardOutcome GO;
 
 int main(int argc, char** argv) {
   QGuiApplication app(argc, argv);
@@ -56,8 +55,8 @@ int main(int argc, char** argv) {
   // Two independent connections = two editors (each gets its own token).
   ConnectionManager mgrA, mgrB;
   QString errA, errB;
-  if (!mgrA.connectTo(serverUrl, QString(), errA) ||
-      !mgrB.connectTo(serverUrl, QString(), errB)) {
+  if (!stencil::test::connectNow(mgrA, serverUrl, QString(), errA) ||
+      !stencil::test::connectNow(mgrB, serverUrl, QString(), errB)) {
     std::printf("SKIP: no reachable stencil server at %s (%s / %s)\n",
                 serverUrl.toUtf8().constData(), errA.toUtf8().constData(),
                 errB.toUtf8().constData());
@@ -112,10 +111,10 @@ int main(int argc, char** argv) {
                                   [cb, winner](bool ok, qint64 nv, bool conflict) {
                                     if (ok) {
                                       *winner = nv;
-                                      cb(GO::Committed);
+                                      cb(GO::COMMITTED);
                                       return;
                                     }
-                                    cb(conflict ? GO::Conflict : GO::Failed);
+                                    cb(conflict ? GO::CONFLICT : GO::FAILED);
                                   });
         },
         [cli, id, myLines, lineKey](qint64 /*version*/,
@@ -139,7 +138,7 @@ int main(int argc, char** argv) {
             cb(true, meta.version);  // adopt the server version, then retry the PUT
           });
         },
-        [done, winner](GO o) { done(o == GO::Committed, *winner); });
+        [done, winner](GO o) { done(o == GO::COMMITTED, *winner); });
   };
 
   // A tiny PNG original so the open/load path has bytes to download + decode.

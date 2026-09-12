@@ -122,7 +122,7 @@ fn eqIgnoreCase(a: []const u8, b: []const u8) bool {
 // canonical), or an optional integer pair, followed by an optional colour. A format token
 // and explicit dims are mutually exclusive. Returns null only when the tokens are present
 // but malformed (e.g. one dimension, format + dims, or junk).
-pub fn parseBlank(gpa: std.mem.Allocator, arg: []const u8) ?args.Blank {
+pub fn parseBlank(arg: []const u8) ?args.Blank {
     var b = args.Blank{};
     var it = std.mem.tokenizeAny(u8, arg, " \t");
     var first = it.next();
@@ -142,12 +142,12 @@ pub fn parseBlank(gpa: std.mem.Allocator, arg: []const u8) ?args.Blank {
         b.width = w;
         b.height = h;
         if (it.next()) |color| {
-            if (core.parseColor(gpa, color) == null) return null;
+            if (core.parseColor(core.zstr(color) orelse "") == null) return null;
             b.color = color;
         }
     } else |_| {
         // Not a number → it must be a colour, and the only token.
-        if (core.parseColor(gpa, first.?) == null) return null;
+        if (core.parseColor(core.zstr(first.?) orelse "") == null) return null;
         b.color = first.?;
         if (it.next() != null) return null; // trailing junk after the colour
     }
@@ -377,43 +377,41 @@ test "parseAction: exec dispatch and layout fallback" {
 }
 
 test "parseBlank: dims, colour, and rejects" {
-    const a = testing.allocator;
-    const b1 = parseBlank(a, "800 600 red").?;
+    const b1 = parseBlank("800 600 red").?;
     try testing.expectEqual(@as(u32, 800), b1.width.?);
     try testing.expectEqual(@as(u32, 600), b1.height.?);
     try testing.expectEqualStrings("red", b1.color);
 
-    const b2 = parseBlank(a, "").?;
+    const b2 = parseBlank("").?;
     try testing.expect(b2.width == null);
     try testing.expectEqualStrings("white", b2.color);
 
-    const b3 = parseBlank(a, "blue").?;
+    const b3 = parseBlank("blue").?;
     try testing.expect(b3.width == null);
     try testing.expectEqualStrings("blue", b3.color);
 
-    try testing.expect(parseBlank(a, "800") == null); // lone dimension
-    try testing.expect(parseBlank(a, "800 600 notacolour") == null);
-    try testing.expect(parseBlank(a, "red extra") == null);
+    try testing.expect(parseBlank("800") == null); // lone dimension
+    try testing.expect(parseBlank("800 600 notacolour") == null);
+    try testing.expect(parseBlank("red extra") == null);
 }
 
 test "parseBlank: leading page-format token, canonical + exclusive with dims" {
-    const a = testing.allocator;
-    const b1 = parseBlank(a, "b5").?;
+    const b1 = parseBlank("b5").?;
     try testing.expectEqualStrings("B5", b1.page.?);
     try testing.expect(b1.width == null);
     try testing.expectEqualStrings("white", b1.color);
 
-    const b2 = parseBlank(a, "A5 pink").?;
+    const b2 = parseBlank("A5 pink").?;
     try testing.expectEqualStrings("A5", b2.page.?);
     try testing.expectEqualStrings("pink", b2.color);
 
-    const b3 = parseBlank(a, "800 600 red").?; // dims still work without a format
+    const b3 = parseBlank("800 600 red").?; // dims still work without a format
     try testing.expect(b3.page == null);
     try testing.expectEqual(@as(u32, 800), b3.width.?);
 
-    try testing.expect(parseBlank(a, "b5 800 600") == null); // format + dims are exclusive
-    try testing.expect(parseBlank(a, "b5 notacolour") == null);
-    try testing.expect(parseBlank(a, "b5 red extra") == null);
+    try testing.expect(parseBlank("b5 800 600") == null); // format + dims are exclusive
+    try testing.expect(parseBlank("b5 notacolour") == null);
+    try testing.expect(parseBlank("b5 red extra") == null);
 }
 
 test "parseConnectArgs: url/token pairs, multi-url form preserved" {

@@ -86,7 +86,7 @@ test('splitDataUrl splits a data URL into the LlmImage wire shape', () => {
   assert.strictEqual(splitDataUrl('http://x/y.png'), null);
 });
 
-test('a 2-variant plan → 2 exports (plus the base snapshot), thumbnails returned', async () => {
+test('a 2-variant plan → 2 exports (no base snapshot), thumbnails returned', async () => {
   const client = makeClient(variantPlan);
   const { controller, calls, exported } = makeController(client);
 
@@ -94,20 +94,18 @@ test('a 2-variant plan → 2 exports (plus the base snapshot), thumbnails return
   assert.strictEqual(entry.reply, 'Two takes for you.');
   assert.strictEqual(entry.chatOnly, false);
   assert.deepStrictEqual(entry.warnings, []);
-  // Base snapshot EXP0 + one export per variant.
-  assert.deepStrictEqual(exported, [pngUrl('EXP0'), pngUrl('EXP1'), pngUrl('EXP2')]);
+  // One export per variant — no base snapshot: crop/rotate variants are undone on the model.
+  assert.deepStrictEqual(exported, [pngUrl('EXP0'), pngUrl('EXP1')]);
   assert.deepStrictEqual(entry.results, [
-    { label: 'sepia', dataUrl: pngUrl('EXP1') },
-    { label: 'cropped', dataUrl: pngUrl('EXP2') },
+    { label: 'sepia', dataUrl: pngUrl('EXP0') },
+    { label: 'cropped', dataUrl: pngUrl('EXP1') },
   ]);
-  // The top-level action and each variant's own op run exactly once.
+  // The top-level action and each variant's own op run exactly once; the sepia variant is
+  // undone by restoring settings (the stub's crop never moves the rect — nothing to re-commit).
   assert.equal(calls.filter((c) => c[0] === 'rotateLeft').length, 1);
   assert.equal(calls.filter((c) => c[0] === 'crop').length, 1);
   assert.ok(calls.some((c) => c[0] === 'apply' && c[1].filter === 'sepia'));
-  // Only the crop variant changed pixels, so only it needs the snapshot put back
-  // (through stencil.load, no opts); the sepia one is undone by restoring settings.
-  const loads = calls.filter((c) => c[0] === 'load');
-  assert.deepStrictEqual(loads, [['load', pngUrl('EXP0'), undefined]]);
+  assert.deepStrictEqual(calls.filter((c) => c[0] === 'load'), []);
 });
 
 test('history keeps the wire shape: user turn + RAW assistant text, chat-only turns too', async () => {

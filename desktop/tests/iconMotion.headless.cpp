@@ -35,13 +35,13 @@ using namespace stencil::gui;
 
 namespace {
 
-  constexpr int kPx = 96;   // big enough for sub-unit moves to show up in the ink box
+  constexpr int PX = 96;   // big enough for sub-unit moves to show up in the ink box
 
   QImage frame(const QString& glyph, const IconMotionSpec& spec,
                const QVector<IconMotionPart>& parts, double t) {
     const QString posed = iconMotionMarkup(glyph, spec, parts, t);
-    return iconFromMarkup(posed, QColor(Qt::black), kPx, 1.0)
-        .pixmap(kPx, kPx)
+    return iconFromMarkup(posed, QColor(Qt::black), PX, 1.0)
+        .pixmap(PX, PX)
         .toImage()
         .convertToFormat(QImage::Format_ARGB32);
   }
@@ -162,8 +162,8 @@ int main(int argc, char** argv) {
   bool sameBox = true, converges = true, restIsRest = true;
   for (auto it = table.begin(); it != table.end(); ++it) {
     const IconMotionSpec& s = it.value();
-    const QImage base = iconFromMarkup(iconMarkup(it.key()), QColor(Qt::black), kPx, 1.0)
-                            .pixmap(kPx, kPx).toImage();
+    const QImage base = iconFromMarkup(iconMarkup(it.key()), QColor(Qt::black), PX, 1.0)
+                            .pixmap(PX, PX).toImage();
     for (double f : {0.0, 0.25, 0.5, 0.75, 1.0}) {
       const QImage im = frame(it.key(), s, s.totalMs * f);
       if (im.size() != base.size()) { sameBox = false; std::printf("       %s: box changed\n", qPrintable(it.key())); }
@@ -303,7 +303,7 @@ int main(int argc, char** argv) {
   {
     const IconMotionSpec* h = iconMotionFor(QStringLiteral("help"));
     const QImage rest = frame("help", *h, 0);
-    const double c = kPx / 2.0, limit = 8.5 / 24.0 * kPx;   // the ring's inner edge is 9u
+    const double c = PX / 2.0, limit = 8.5 / 24.0 * PX;   // the ring's inner edge is 9u
     bool inRing = true;
     for (double f : {0.15, 0.25, 0.4, 0.55, 0.8, 1.0}) {
       const QImage im = frame("help", *h, h->totalMs * f);
@@ -341,21 +341,21 @@ int main(int argc, char** argv) {
     check(inside, "no frame of the `image` play puts ink outside the picture frame");
     // Strictly inside the frame's outline (5..19 of the 24 units), where only the ridge
     // and the little sun live.
-    const QRect in(kPx * 5 / 24, kPx * 5 / 24, kPx * 14 / 24, kPx * 14 / 24);
+    const QRect in(PX * 5 / 24, PX * 5 / 24, PX * 14 / 24, PX * 14 / 24);
     const int early = inkCount(frame("image", *im, im->totalMs * 0.12).copy(in));
     const int whole = inkCount(frame("image", *im, im->totalMs).copy(in));
     check(early < whole * 7 / 10, "…and the ridge inside it draws itself on");
     // The little sun DROPS in from above: over the sun's own columns (6..11.5 units) the
     // frame's outline rows (2..4) are untouched in every frame — it never reaches them —
     // while the sun itself does travel there, high early and home at the end.
-    const int x0 = kPx * 6 / 24, w = kPx * 55 / 240;   // the sun's own columns, 6..11.5u
-    const QRect outline(x0, 0, w, kPx * 4 / 24);       // the frame's top stroke, 2..4u
+    const int x0 = PX * 6 / 24, w = PX * 55 / 240;   // the sun's own columns, 6..11.5u
+    const QRect outline(x0, 0, w, PX * 4 / 24);       // the frame's top stroke, 2..4u
     const QImage rest = frame("image", *im, im->totalMs);
     bool clear = true;
     for (double f : {0.0, 0.1, 0.2, 0.3, 0.45, 0.6, 0.8, 1.0})
       if (frame("image", *im, im->totalMs * f).copy(outline) != rest.copy(outline)) clear = false;
     check(clear, "…and the sun never crosses the frame's outline on its way in");
-    const QRect band(x0, kPx * 45 / 240, w, kPx * 85 / 240);   // under the outline, 4.5..13u
+    const QRect band(x0, PX * 45 / 240, w, PX * 85 / 240);   // under the outline, 4.5..13u
     check(topIn(frame("image", *im, im->totalMs * 0.25).copy(band), 0, 1)
               < topIn(rest.copy(band), 0, 1),
           "…having started ABOVE the place it lands");
@@ -369,7 +369,7 @@ int main(int argc, char** argv) {
     const QRect open = inkBox(frame("incognito", *ic, ic->totalMs));
     check(open.top() < rest.top(), "the hat lifts off");
     check(open.bottom() > rest.bottom(), "…and the glasses drop away from it");
-    check(open.top() > 0 && open.bottom() < kPx - 1, "…without either leaving the icon box");
+    check(open.top() > 0 && open.bottom() < PX - 1, "…without either leaving the icon box");
   }
 
   // The staggered parts really are staggered: sparkle's three dots bounce in turn, so
@@ -424,14 +424,14 @@ int main(int argc, char** argv) {
           "…then eases back on leave");
 
     // The opt-out (a fold chevron, whose angle is state) is honoured.
-    btn->setProperty(kNoIconMotionProperty, true);
+    btn->setProperty(NO_ICON_MOTION_PROPERTY, true);
     btn->setIcon(themedIcon(QStringLiteral("chevron-up"), QColor(Qt::black), 18, 1.0));
     const qint64 chevKey = btn->icon().cacheKey();
     hover(btn, true);
     pumpFor(80);
     check(btn->icon().cacheKey() == chevKey, "an opted-out control keeps its glyph still");
     hover(btn, false);
-    btn->setProperty(kNoIconMotionProperty, false);
+    btn->setProperty(NO_ICON_MOTION_PROPERTY, false);
 
     // A DISABLED control still reacts (iconMotion.json trigger.disabled). It is still
     // hovered — Enter/Leave reach a disabled widget, which is how its tooltip shows the
@@ -470,9 +470,9 @@ int main(int argc, char** argv) {
   }
 
   // ── The idle "＋ Blank image" card mirrors the `image` entry by hand ──────────
-  // Its glyph is stroked by the canvas itself (canvasWidget.cpp), out of reach of the
+  // Its glyph is stroked by the canvas itself (CanvasWidget.cpp), out of reach of the
   // app-wide hover watcher, so the two parts of that entry are evaluated there from the
-  // constants in canvasWidget.hpp. They must BE the canon's numbers.
+  // constants in CanvasWidget.hpp. They must BE the canon's numbers.
   std::printf("idle card glyph:\n");
   {
     const IconMotionSpec* image = iconMotionFor(QStringLiteral("image"));
@@ -487,20 +487,20 @@ int main(int argc, char** argv) {
       }
       check(ridge && orb, "…with the ridge and the sun as its two parts");
       if (ridge && orb) {
-        check(qFuzzyCompare(ridge->durationMs + 1, kIdleGlyphRidgeMs + 1), "ridge duration");
-        check(qFuzzyCompare(ridge->dashArray + 1, kIdleGlyphRidgeLen + 1), "ridge dash length");
-        check(qFuzzyCompare(orb->durationMs + 1, kIdleGlyphOrbMs + 1), "sun duration");
-        check(qFuzzyCompare(orb->delayMs + 1, kIdleGlyphOrbDelayMs + 1), "sun delay");
+        check(qFuzzyCompare(ridge->durationMs + 1, IDLE_GLYPH_RIDGE_MS + 1), "ridge duration");
+        check(qFuzzyCompare(ridge->dashArray + 1, IDLE_GLYPH_RIDGE_LEN + 1), "ridge dash length");
+        check(qFuzzyCompare(orb->durationMs + 1, IDLE_GLYPH_ORB_MS + 1), "sun duration");
+        check(qFuzzyCompare(orb->delayMs + 1, IDLE_GLYPH_ORB_DELAY_MS + 1), "sun delay");
         check(orb->keys.size() == 3, "the sun's three keyframes");
         if (orb->keys.size() == 3) {
-          check(qFuzzyCompare(orb->keys.first().pose.ty + 1, kIdleGlyphOrbDrop + 1),
+          check(qFuzzyCompare(orb->keys.first().pose.ty + 1, IDLE_GLYPH_ORB_DROP + 1),
                 "…the height it drops from");
-          check(qFuzzyCompare(orb->keys.at(1).pose.ty + 1, kIdleGlyphOrbOvershoot + 1),
+          check(qFuzzyCompare(orb->keys.at(1).pose.ty + 1, IDLE_GLYPH_ORB_OVERSHOOT + 1),
                 "…and the overshoot it lands through");
           check(qFuzzyCompare(orb->keys.at(1).at + 1, 70.0 + 1), "…at 70% of the play");
           check(qFuzzyCompare(orb->keys.last().pose.ty + 1, 1.0), "…ending where it rests");
         }
-        check(qFuzzyCompare(image->totalMs + 1, kIdleGlyphPlayMs + 1),
+        check(qFuzzyCompare(image->totalMs + 1, IDLE_GLYPH_PLAY_MS + 1),
               "the card's play is the whole entry's");
       }
     }

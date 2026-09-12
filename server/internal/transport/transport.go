@@ -24,7 +24,6 @@ const MaxMessageBytes = 16 << 20
 const (
 	CloseNormal          = 1000
 	ClosePolicyViolation = 1008
-	CloseInternal        = 1011
 )
 
 // Conn is one bidirectional message stream.

@@ -1,0 +1,6 @@
+  NAME                                                SIZE      CREATED   EXPIRES  CHANGED
+  poster                                              1200x800  3d ago    never    5m ago
+  a-very-long-project-name-that-runs-past-the-column  640x480   90d ago   never    1d ago  — a description long enough that the trailing note…
+  expiring-soon                                       800x600   2d ago    in 3d    2d ago  — expires in three days
+  stale                                               100x100   400d ago  expired  300d ago
+  unrendered                                          -         30s ago   never    30s ago

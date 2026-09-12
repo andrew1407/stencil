@@ -6,6 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { popupCss, themeCss } from './helpers/sources.js';
 import { readFileSync } from 'node:fs';
 import { scrollbarHit } from '../src/lib/scrollbarHover.js';
 
@@ -31,14 +32,14 @@ test('every page wires the document listener once', () => {
 });
 
 test('the theme paints every scrollable thin + grey, and the accent only via .sb-hover', () => {
-  const theme = read('../src/lib/theme.css');
+  const theme = themeCss();
   assert.equal((theme.match(/--sb-thumb-hover: var\(--accent\);/g) || []).length, 2, 'hover IS the accent, both palettes');
   assert.equal((theme.match(/--sb-thumb: #[0-9a-f]{6};/g) || []).length, 2, 'a rest grey per palette');
   assert.match(theme, /\n\* \{\s*scrollbar-width: thin;\s*scrollbar-color: var\(--sb-thumb\) transparent;\s*\}/);
   assert.match(theme, /\.sb-hover \{ scrollbar-color: var\(--sb-thumb-hover\) transparent; \}/);
   // The popup's resource list keeps its classic, space-taking bar — opted back out of
   // the thin rule (Chrome drops ::-webkit-scrollbar under it) but in the same colours.
-  const popup = read('../src/popup/popup.css');
+  const popup = popupCss();
   assert.match(popup, /\.list \{ scrollbar-width: auto; scrollbar-color: auto; \}/);
   assert.match(popup, /\.list::-webkit-scrollbar-thumb \{ background: var\(--sb-thumb\);/);
   assert.match(popup, /\.list\.sb-hover::-webkit-scrollbar-thumb \{ background: var\(--sb-thumb-hover\); \}/);

@@ -11,15 +11,15 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ProgressNoticeTests
 {
-    private const long ChatId = 42;
+    private const long _chatId = 42;
 
     [Fact]
-    public async Task StartPostsTheFirstFrameImmediatelyAndStopRemovesIt()
+    public async Task Should_Post_The_First_Frame_Immediately_On_Start_And_Remove_It_On_Stop()
     {
         MockBotClient bot = new();
 
         ProgressNotice notice = await ProgressNotice.StartAsync(
-            bot, ChatId, "Working on your request…", ChatAction.Typing, CancellationToken.None);
+            bot, _chatId, "Working on your request…", ChatAction.Typing, CancellationToken.None);
 
         SendMessageRequest sent = Assert.Single(bot.Requests.OfType<SendMessageRequest>());
         Assert.Equal("◐ Working on your request…", sent.Text);
@@ -32,11 +32,11 @@ public sealed class ProgressNoticeTests
     }
 
     [Fact]
-    public async Task StoppingTwiceRemovesItOnce()
+    public async Task Should_Remove_It_Once_When_Stopped_Twice()
     {
         MockBotClient bot = new();
         ProgressNotice notice = await ProgressNotice.StartAsync(
-            bot, ChatId, "Working…", ChatAction.Typing, CancellationToken.None);
+            bot, _chatId, "Working…", ChatAction.Typing, CancellationToken.None);
 
         await notice.StopAsync();
         await notice.StopAsync(); // a catch path may stop it before the finally does
@@ -45,19 +45,19 @@ public sealed class ProgressNoticeTests
     }
 
     [Fact]
-    public async Task AFailedSendLeavesTheTurnAloneAndDeletesNothing()
+    public async Task Should_Leave_The_Turn_Alone_And_Delete_Nothing_When_The_Send_Fails()
     {
         ThrowingBotClient bot = new();
 
         ProgressNotice notice = await ProgressNotice.StartAsync(
-            bot, ChatId, "Working…", ChatAction.Typing, CancellationToken.None);
+            bot, _chatId, "Working…", ChatAction.Typing, CancellationToken.None);
         await notice.StopAsync();
 
         Assert.Empty(bot.Requests.OfType<DeleteMessageRequest>());
     }
 
     [Fact]
-    public void TheFrameCyclesThroughEverySpinnerPosition()
+    public void Should_Cycle_The_Frame_Through_Every_Spinner_Position()
     {
         string[] cycle = [.. Enumerable.Range(0, ProgressNotice.Frames.Length)
             .Select(i => ProgressNotice.Frame(i, "x"))];

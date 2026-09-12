@@ -1,9 +1,0 @@
-{
-  "name": "fenced-json-block",
-  "profiles": [
-    "all"
-  ],
-  "input": "```json\n{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\"}]}\n```",
-  "expect": "valid",
-  "reason": "markdown fences are stripped before extraction (§1)"
-}

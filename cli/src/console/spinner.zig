@@ -108,8 +108,6 @@ pub const Spinner = struct {
     }
 };
 
-// ── tests ──────────────────────────────────────────────────────────────────────
-
 const testing = std.testing;
 
 /// A logo.print sink collecting what the console told the user.

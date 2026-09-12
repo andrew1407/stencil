@@ -1,0 +1,124 @@
+/* ── Context-menu assistant: "Assistant ▸" and its chat FLYOUT ──
+   An ordinary submenu parent (same hover-open/placement machinery as Style, Image
+   Filter, …) whose flyout holds a compact view of the SAME conversation as the chat
+   panel (js/llm/chatSession.js) — it reuses the panel's chat-* classes and only
+   re-sizes them for the flyout's width. Present only when a provider is configured
+   (contextMenu.js). Nothing inside dismisses the menu — see the scroll/mousedown
+   guards and the "engaged" hover-out suppression in that module. On phones/coarse
+   pointers the entry is PLAIN (.ctx-assist-plain: no caret, no flyout) and opens the
+   chat panel instead. */
+.ctx-assist-sub { padding: 6px 0; }
+.ctx-assist-plain .ctx-arrow { display: none; }
+.ctx-assist-plain > .ctx-sub { display: none !important; }
+.ctx-assist {
+    /* Wide enough for the panel's full action row (send · attach · gear) next to a
+       usable composer, without the menu itself getting wide. */
+    width: 316px;
+    max-width: calc(100vw - 40px);
+    box-sizing: border-box;
+    padding: 2px 12px 4px;
+    /* A real chat WINDOW: the flyout takes a tall fixed height (scaled to the
+       viewport) and the transcript below flexes into whatever the composer and the
+       attachment chips leave over — otherwise the transcript sits at its floor and
+       the flyout reads as a short box. */
+    display: flex;
+    flex-direction: column;
+    height: min(72vh, 600px);
+    /* The menu is user-select:none; chat text (and the input) must be selectable. */
+    user-select: text;
+}
+.ctx-assist-transcript {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    /* Fills the chat window: never shorter than 300px, never taller than ~60% of the
+       viewport, and it takes every pixel in between (flex-basis 0 so the composer and
+       the chips row are subtracted, not squeezed). The flyout stays fully on-screen
+       either way — positionSub clamps it and .ctx-sub caps its height. */
+    flex: 1 1 0;
+    min-height: 300px;
+    max-height: min(60vh, 520px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.ctx-assist .chat-msg { font-size: 13px; max-width: 92%; }
+.ctx-assist .chat-empty { padding: 2px 0 0; gap: 4px; }
+.ctx-assist .chat-suggest { font-size: 12px; padding: 4px 9px; }
+/* Result cards keep every affordance (download · open as working) at menu scale. */
+.ctx-assist .chat-results { gap: 6px; }
+.ctx-assist .chat-result { padding: 4px 5px; gap: 4px; }
+.ctx-assist .chat-result-thumb { width: 34px; height: 34px; }
+.ctx-assist .chat-result-label { max-width: 78px; }
+/* …and so do the user's attachment thumbnails (same shared row, menu scale). */
+.ctx-assist .chat-attached { gap: 4px; }
+.ctx-assist .chat-attached-thumb { width: 44px; height: 44px; }
+.ctx-assist .chat-config-cta, .ctx-assist .chat-retry-cta,
+.ctx-assist .chat-reconnect-cta { font-size: 12px; padding: 3px 8px; }
+/* Queued attachments, above the composer (same chips as the panel — same queue).
+   display:flex, NOT none: the renderer hides the row with an inline `display:none`
+   and shows it by clearing that inline value, which must fall back to a visible one. */
+.ctx-assist-attachments { display: flex; flex-wrap: wrap; gap: 5px; --chip-gap: 5px; padding: 6px 0 0; }
+.ctx-assist-attachments .chat-attach-name { max-width: 108px; }
+/* Slider-style input-height handle above the composer — the panel's affordance,
+   same pill, same hover/drag treatment (see .chat-input-sizer below). */
+.ctx-assist-sizer { flex: 0 0 auto; height: 8px; position: relative; cursor: ns-resize; touch-action: none; user-select: none; }
+/* The handle sits ABOVE THE INPUT ONLY (its own column), so its centred pill lines
+   up with the textarea rather than with the whole row incl. the action buttons. */
+.ctx-assist-inputcol { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.ctx-assist-row { display: flex; align-items: flex-end; gap: 6px; padding-top: 2px; }
+/* Action row: send · attach · gear, all the same square, never wrapping. */
+.ctx-assist-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-self: flex-end;
+    padding-bottom: 2px;
+}
+#ctx-assist-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    resize: none;   /* the sizer strip above owns resizing, like the panel's input */
+    /* Two rows minimum: the panel's placeholder wording needs them at this width.
+       The drag sets an inline height, clamped between these two. A PERCENTAGE cap is
+       useless here — the composer row is content-sized, so the percentage resolves
+       against the input's own height and pins it to ~60% of whatever was asked for. */
+    min-height: 44px;
+    max-height: 200px;
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.35;
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    background-color: var(--input-bg);   /* not the shorthand — keeps the hover sweep sizing */
+    color: var(--input-text);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+#ctx-assist-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Hotkey hint shown on the right side of ctx menu items — a fixed-width flex item
+   (see .ctx-item .ctx-arrow above), so it and a trailing arrow both always land on
+   the same right edge whichever combination of the two a row has. */
+.ctx-hotkey {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: var(--text-shortcut);
+    white-space: nowrap;
+    padding-left: 10px;
+}
+/* Hovering a row with a shortcut hint shakes its keycaps once — a CSS :hover trigger
+   with no `infinite` plays the keyframe a single time per hover, same as the tooltip's
+   key-shake. `>` scopes it to the row's OWN hotkey, not a nested row's. Targets each
+   .tip-key individually so a multi-key combo shakes key by key, not as one block. */
+.ctx-item:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .accent-dd-opt:hover > .ctx-hotkey .tip-key {
+    animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+@media (prefers-reduced-motion: reduce) {
+    .ctx-item:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .accent-dd-opt:hover > .ctx-hotkey .tip-key { animation: none; }
+}

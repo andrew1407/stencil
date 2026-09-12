@@ -3,20 +3,10 @@ import { rowMatches, escapeHtml } from './base.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
 import { markSwap, pinWidestFace } from './motion.js';
 
-// Custom dropdown overlaying a native <select> (kept as the source of truth) — macOS
-// centers the native popup uncss-ably, so the compact toolbar selects look misplaced.
-// Reuses the .accent-dd styling; the .value setter is wrapped to re-sync the trigger on
-// programmatic sets, and user picks dispatch a bubbling `change` so existing handlers fire.
-// `search: true` (page-size) pins a .modal-search-style input at the top of the popup:
-// auto-focused on open, it filters the option rows (label + value, case-insensitive
-// substring via rowMatches) with a "no match" placeholder; Escape still closes.
-// `icons(value)` answers an inline-SVG string for a row (or ''), shown before the label
-// and in the trigger — the motion modes' glyphs (motionIcons.js) are the one user today.
-// `preview(value)` — optional: called with an option's value while the pointer rests on
-// its row, so a filter or compare mode is live-applied to the canvas as a preview; called
-// again with the committed value (the one the native select still holds) when the pointer
-// leaves the list or the menu closes without a pick. It must NOT persist — it is a repaint
-// only (settingsController.preview). A real pick commits through the normal `change` path.
+// Custom dropdown overlaying a native <select> (kept as source of truth) — macOS cannot
+// style the native popup, so the toolbar's compact selects looked misplaced there.
+// `preview(value)` is a canvas-only repaint on hover; it never persists — only a real
+// pick commits, through the native `change` event.
 export function enhanceSelect(selectEl, { search = false, icons = null, preview = null } = {}) {
   if (!selectEl || selectEl.dataset.csEnhanced) return;
   selectEl.dataset.csEnhanced = '1';
@@ -37,14 +27,12 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   trigger.className = 'accent-dd-trigger';
   trigger.setAttribute('aria-haspopup', 'listbox');
   trigger.setAttribute('aria-expanded', 'false');
-  // The trigger IS the control now, so it inherits the hover text the native select
-  // carried — the rich tooltip attributes included (data-title's bullet list, the
-  // disabled-reason line, the hotkey keycap), or an enhanced control would go silent.
+  // The trigger IS the control now, so it inherits the native select's hover-tooltip
+  // attributes, or an enhanced control would go silent.
   if (selectEl.dataset.title) trigger.dataset.title = selectEl.dataset.title;
   for (const k of ['title', 'disabledReason', 'hkTitle'])
     if (selectEl.dataset[k] != null) trigger.dataset[k] = selectEl.dataset[k];
-  // …and its enabled state: a disabled <select> is hidden here, so nothing would have
-  // shown that image-filter / compare are dead until an image is loaded.
+  // …and its enabled state, or a disabled <select> stays invisible here.
   const syncDisabled = () => {
     trigger.disabled = selectEl.disabled;
     trigger.classList.toggle('cs-disabled', selectEl.disabled);
@@ -62,10 +50,9 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   const cur = trigger.querySelector('.cs-cur');
   const curIcon = trigger.querySelector('.cs-cur-icon');
 
-  // Hover-preview bookkeeping: put the committed value back (selectEl.value — a preview
-  // never touches it) once the pointer has left the list or the menu closed without a
-  // pick. The preview waits for the pointer to settle, so skimming the rows repaints
-  // nothing; moving off cancels a pending one.
+  // Hover-preview bookkeeping: the committed value returns once the pointer leaves the
+  // list or the menu closes without a pick; the preview waits for the pointer to settle,
+  // so skimming the rows repaints nothing.
   const PREVIEW_HOVER_MS = 280;
   let previewActive = false;
   let hoverTimer = null;
@@ -78,9 +65,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   };
   if (preview) menu.addEventListener('pointerleave', restorePreview);
 
-  // Search state — rebuilt with the menu on every open (so each open starts with an
-  // empty query and every row visible). Filtering only toggles row display; the native
-  // select, choose()/sync() and the outside-click close are untouched by it.
+  // Search state, rebuilt with the menu on every open; filtering only toggles row display.
   let searchInput = null;
   let noMatchRow = null;
   const applySearch = () => {
@@ -125,9 +110,8 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
         li.textContent = opt.textContent;
       }
       li.addEventListener('click', () => choose(opt.value));
-      // Hovering a row previews it on the canvas (see `preview` above); leaving the list
-      // puts the committed value back. pointerleave fires once, on the way out of the
-      // whole menu, so moving between rows just re-previews the new one.
+      // Hovering a row previews it (see `preview` above); pointerleave fires once for the
+      // whole menu, so moving between rows just re-previews.
       if (preview) {
         li.addEventListener('pointerenter', () => {
           clearHover();
@@ -146,16 +130,15 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     }
   };
 
-  // The chosen word is a mark like any other (motion.js markSwap): the outgoing value
-  // comes apart into motes and the incoming one forms out of them, in place. Only a real
-  // change flies — the first paint, a re-sync on open and a no-op set write straight
-  // through, or every dropdown would deal itself in on open.
-  // The box stays put because the label is floored at its WIDEST option, not the one
-  // showing, so a row of selects doesn't shuffle as you use them. The app's own face pin
-  // does the measuring — in the real element, so the true font, padding and border count,
-  // and re-measured once webfonts settle. A FLOOR (min-width), not a pin: an option list
-  // that later outgrows the cap should still stretch the control rather than clip.
-  // Capped so one very long server URL can't overrun its row.
+  // The chosen word is a mark (motion.js markSwap): only a REAL change flies, not the
+  // first paint, a re-sync on open, or a no-op set. `settled` flips after the first frame,
+  // so BOOT's restore-then-wire sequence (applyUnitToUI) also counts as that first paint.
+  let settled = false;
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => { settled = true; });
+  else settled = true;
+  // The box floors at the WIDEST option's width (not the shown one) so a row of selects
+  // doesn't reshuffle as you use them — a FLOOR, not a pin, so a later longer option can
+  // still grow it. Capped so one long server URL can't overrun its row.
   const MAX_FIT_PX = 240;
   let fittedCount = -1;
   const fitToWidestOption = () => {
@@ -171,7 +154,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   const sync = () => {
     fitToWidestOption();
     const label = labelOf(selectEl.value);
-    const changed = shown !== null && label !== shown;
+    const changed = settled && shown !== null && label !== shown;
     if (!changed) cur.textContent = label;
     else markSwap(cur, () => { cur.textContent = label; });
     shown = label;
@@ -228,10 +211,9 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
-  // Closing hands over to the dust: hideMenu measures the list where it stands and
-  // flies a cloud of it back into the trigger (ui/dropdownMenu.js surfaceOut), so the
-  // list itself goes at once and there is no exit animation to wait on. The
-  // `.dd-closing` clean-up stays only so a reopen mid-flight starts from a clean slate.
+  // Closing hands to the dust: hideMenu flies the list into the trigger (dropdownMenu.js
+  // surfaceOut) with no exit animation to wait on; `.dd-closing` only guards a reopen
+  // mid-flight.
   let closeTimer = null;
   let closeDone = null;
   const close = () => {
@@ -249,9 +231,8 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     };
     closeDone();
   };
-  // The pick is APPLIED first, so the exit and the trigger's swap play under what was just
-  // picked (None → Fire used to arrive with None's no-motion — user report). The raw setter
-  // keeps the wrapped one's sync for after the dispatch.
+  // The pick applies first, so the exit and the trigger's swap play under the newly picked
+  // value. The raw setter keeps the wrapped one's sync for after the dispatch.
   const choose = (v) => {
     clearHover();
     previewActive = false;   // the pick commits the real value; no revert on the close below
@@ -267,18 +248,16 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     menu.hidden ? open() : close();
   });
   sync();   // initial trigger label; the menu itself is (re)built on open()
-  // A select whose OPTIONS are filled in later (the server list, the open-in targets) has
-  // no value to set — its trigger would sit on the empty label it was born with. Watching
-  // the element covers both that and the disabled flag, which no event reports either.
+  // Options filled in later (server list, open-in targets) leave no value to set on load;
+  // watching the element covers that and the disabled flag, which no event reports either.
   if (typeof MutationObserver === 'function') {
     new MutationObserver(() => { syncDisabled(); sync(); })
       .observe(selectEl, { attributes: true, attributeFilter: ['disabled'], childList: true });
   }
 }
 
-// Every <select> the app has, in one pass: they all wear the same dropdown, and a
-// second call is a no-op (enhanceSelect marks what it has taken over). `search` is for
-// the long lists — the ISO page formats — where scrolling alone is too slow.
+// Every <select> in one pass; a second call is a no-op (enhanceSelect marks what it took
+// over). `search` marks the long lists (e.g. page-size) where scrolling alone is slow.
 export function enhanceAllSelects(root = document, { search = ['page-size'], preview = null } = {}) {
   for (const sel of root.querySelectorAll('select:not([data-cs-skip])'))
     enhanceSelect(sel, { search: search.includes(sel.id), preview: preview ? preview(sel) : null });

@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class StencilCliLocatorTests
 {
     [Fact]
-    public void ExplicitOverrideFileResolves()
+    public void Should_Resolve_An_Explicit_Override_File()
     {
         string temp = Path.Combine(Path.GetTempPath(), "stencil-cli-" + Guid.NewGuid().ToString("N"));
         File.WriteAllText(temp, "#!/bin/sh\n");
@@ -26,7 +26,7 @@ public sealed class StencilCliLocatorTests
     }
 
     [Fact]
-    public void StencilCliEnvFileResolves()
+    public void Should_Resolve_The_Stencil_Cli_Env_File()
     {
         string temp = Path.Combine(Path.GetTempPath(), "stencil-cli-" + Guid.NewGuid().ToString("N"));
         File.WriteAllText(temp, "#!/bin/sh\n");
@@ -46,11 +46,11 @@ public sealed class StencilCliLocatorTests
     // The chat is told the engine is unavailable; the env var and the bad path are the
     // operator's to read in the log, so they ride OperatorDetail instead of the message.
     [Fact]
-    public void NonFileOverrideThrowsWithThePathInTheOperatorDetailOnly()
+    public void Should_Throw_With_The_Path_In_The_Operator_Detail_Only_For_A_Non_File_Override()
     {
         string missing = Path.Combine(Path.GetTempPath(), "stencil-missing-" + Guid.NewGuid().ToString("N"));
         StencilCliException ex = Assert.Throws<StencilCliException>(() => StencilCliLocator.FindCli(missing));
-        Assert.Equal(StencilCliLocator.UnavailableMessage, ex.Message);
+        Assert.Equal(StencilCliLocator.UNAVAILABLE_MESSAGE, ex.Message);
         Assert.DoesNotContain("STENCIL_", ex.Message);
         Assert.DoesNotContain(missing, ex.Message);
         Assert.Contains("not a file", ex.OperatorDetail);
@@ -58,18 +58,18 @@ public sealed class StencilCliLocatorTests
     }
 
     [Fact]
-    public void UnavailableMessageNamesNoDeploymentDetail()
+    public void Should_Name_No_Deployment_Detail_In_The_Unavailable_Message()
     {
-        Assert.DoesNotContain("STENCIL_", StencilCliLocator.UnavailableMessage);
-        Assert.DoesNotContain("zig", StencilCliLocator.UnavailableMessage);
-        Assert.DoesNotContain("/", StencilCliLocator.UnavailableMessage);
+        Assert.DoesNotContain("STENCIL_", StencilCliLocator.UNAVAILABLE_MESSAGE);
+        Assert.DoesNotContain("zig", StencilCliLocator.UNAVAILABLE_MESSAGE);
+        Assert.DoesNotContain("/", StencilCliLocator.UNAVAILABLE_MESSAGE);
     }
 
     [Fact]
-    public void MissingMessageShape()
+    public void Should_Name_The_Cli_The_Env_Knob_And_The_Build_Step_In_The_Missing_Message()
     {
-        Assert.Contains("could not find the `stencil` CLI", StencilCliLocator.MissingMessage);
-        Assert.Contains("STENCIL_CLI", StencilCliLocator.MissingMessage);
-        Assert.Contains("zig build", StencilCliLocator.MissingMessage);
+        Assert.Contains("could not find the `stencil` CLI", StencilCliLocator.MISSING_MESSAGE);
+        Assert.Contains("STENCIL_CLI", StencilCliLocator.MISSING_MESSAGE);
+        Assert.Contains("zig build", StencilCliLocator.MISSING_MESSAGE);
     }
 }

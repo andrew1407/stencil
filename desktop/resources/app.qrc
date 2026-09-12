@@ -14,6 +14,20 @@
     <file alias="llm/systemPrompt.json">../../browser/js/config/llm/systemPrompt.json</file>
     <file alias="llm/providers.json">../../browser/js/config/llm/providers.json</file>
     <file alias="llm/opRegistry.json">../../browser/js/config/llm/opRegistry.json</file>
+    <file alias="themeTokens.json">../../browser/js/config/themeTokens.json</file>
+    <file alias="mediaTypes.json">../../browser/js/config/mediaTypes.json</file>
+    <!-- The "Open in…" config TEMPLATE. An operator's own copy of it is per-machine and
+         gitignored, so it cannot ride here (rcc needs every listed file at build time);
+         the committed example carries the shape and the shipped defaults the surfaces
+         agree on — the desktop URL scheme, and Telegram hidden until a bot name is set. -->
+    <file alias="openInConfig.example.json">../../browser/js/config/openInConfig.example.json</file>
+  </qresource>
+  <qresource prefix="/qss">
+    <!-- The app stylesheet, %TOKEN% placeholders and all (theme.cpp buildStylesheet
+         fills them in). Whitespace is load-bearing only in that the pinned hashes in
+         tests/pins/stylesheets.txt cover the whole string: the leading newline and the
+         trailing indent are the raw literal this was lifted out of, byte for byte. -->
+    <file alias="app.qss">app.qss</file>
   </qresource>
   <qresource prefix="/icons">
     <!-- Same icon as the browser app's favicon, so both front-ends share one

@@ -28,8 +28,9 @@
 
 namespace stencil::gui {
 
-  // Object name that marks (and lets us cancel) an in-flight spinIcon animation.
-  static const QString kIconSpin = QStringLiteral("stencilIconSpin");
+  namespace {
+    const QString ICON_SPIN = QStringLiteral("stencilIconSpin");
+  }  // namespace
 
   QString inlineIconHtml(const QString& name, const QColor& color, int px,
                          const QString& style, qreal dpr) {
@@ -38,9 +39,8 @@ namespace stencil::gui {
     QByteArray png;
     QBuffer buf(&png);
     buf.open(QIODevice::WriteOnly);
-    // The dpr-AWARE pixmap overload: pixmap(w, h) asks for device pixels and would
-    // hand back the raster scaled DOWN to px, throwing the Retina detail away. The
-    // width/height attributes below scale the px·dpr raster back to px on screen.
+    // pixmap(w, h) asks for device pixels and hands back the raster scaled DOWN to px;
+    // the width/height attributes scale the px·dpr raster back on screen (Retina).
     themedIcon(name, color, px, ratio)
         .pixmap(QSize(px, px), ratio)
         .toImage()
@@ -70,8 +70,7 @@ namespace stencil::gui {
   }
 
   bool confirmYesNo(QWidget* parent, const QString& title, const QString& text) {
-    // The browser's styled confirm (modalChrome confirmModal), not a native
-    // QMessageBox — every yes/no question in the app wears the same shell.
+    // The browser's styled confirm (modalChrome confirmModal), never a native QMessageBox.
     ConfirmSpec spec;
     spec.title = title;
     spec.message = text;
@@ -83,9 +82,8 @@ namespace stencil::gui {
     auto* box = new QDialogButtonBox(buttons, parent);
     QObject::connect(box, &QDialogButtonBox::accepted, parent, &QDialog::accept);
     QObject::connect(box, &QDialogButtonBox::rejected, parent, &QDialog::reject);
-    // Only the affirmative action (Ok/Save/Yes/Apply) gets the accent CTA look
-    // (theme.cpp QPushButton[accentCta="true"]); otherwise a Close-/Cancel-only box
-    // auto-promotes its lone button to a CTA.
+    // Only the affirmative action gets the accent CTA look (theme.cpp accentCta); a
+    // Close-/Cancel-only box promotes its lone button.
     for (QAbstractButton* btn : box->buttons()) {
       const QDialogButtonBox::ButtonRole role = box->buttonRole(btn);
       const bool primary = role == QDialogButtonBox::AcceptRole ||
@@ -95,9 +93,7 @@ namespace stencil::gui {
       if (auto* pb = qobject_cast<QPushButton*>(btn)) {
         pb->setDefault(primary);
         pb->setAutoDefault(primary);
-        // Browser parity: every confirm-style button wears its glyph — ✓ on the
-        // affirmative CTA (white on the accent fill), ✕ on Cancel/Close (the
-        // text colour; browser confirmModal / .app-modal-close do the same).
+        // Browser parity: ✓ on the affirmative CTA, ✕ on Cancel/Close (confirmModal / .app-modal-close).
         if (primary)
           pb->setIcon(labelIcon("check", QColor("#ffffff"), 14));
         else if (box->buttonRole(pb) == QDialogButtonBox::RejectRole)
@@ -110,18 +106,17 @@ namespace stencil::gui {
   void spinIcon(QAbstractButton* btn, const QString& name, const QColor& color, int size,
                 qreal fromDeg, qreal toDeg, int ms) {
     if (!btn) return;
-    for (QVariantAnimation* old : btn->findChildren<QVariantAnimation*>(kIconSpin)) {
+    for (QVariantAnimation* old : btn->findChildren<QVariantAnimation*>(ICON_SPIN)) {
       old->stop();
       old->deleteLater();
     }
     auto paint = [btn, name, color, size](qreal deg) {
       btn->setIcon(rotatedIcon(name, color, size, deg));
     };
-    // Reduced motion lands on the end state at once — the angle IS the panel's state,
-    // so only the turn is dropped (faceSwap / filterFade rule).
+    // Reduced motion lands on the end state at once — the angle IS the panel's state.
     if (ms <= 0 || support::motionReduced()) { paint(toDeg); return; }
     auto* anim = new QVariantAnimation(btn);
-    anim->setObjectName(kIconSpin);
+    anim->setObjectName(ICON_SPIN);
     anim->setDuration(ms);
     anim->setEasingCurve(QEasingCurve::OutCubic);   // the extent slides' curve
     anim->setStartValue(fromDeg);
@@ -144,98 +139,17 @@ namespace stencil::gui {
     fitMenuWidth(menu);
   }
 
-  // The colour chip inside the well — the toolbar's own 32x16 (mainWindow.cpp
-  // updateColorSwatch), and what the browser's padded <input type="color"> shows.
-  static const QSize kSwatchChip(32, 16);
-
-  namespace {
-    // A colour well's frame is per-widget QSS, so it is baked in the theme that was live
-    // when it was written — switching the app to the other theme left the wells in the old
-    // one (user report: dark wells in a light Settings dialog). Each well re-swatches
-    // itself off the application palette change instead.
-    class SwatchRestyler : public QObject {
-     public:
-      using QObject::QObject;
-      bool eventFilter(QObject* o, QEvent* e) override {
-        if (e->type() == QEvent::PaletteChange || e->type() == QEvent::ApplicationPaletteChange) {
-          auto* b = qobject_cast<QAbstractButton*>(o);
-          if (b && !b->property("swatchColor").isNull())
-            setColorSwatch(b, b->property("swatchColor").value<QColor>(),
-                           b->property("swatchSize").toSize(), b->property("swatchHex").toBool());
-        }
-        return QObject::eventFilter(o, e);
-      }
-    };
-  }  // namespace
-
-  void setColorSwatch(QAbstractButton* btn, const QColor& color, const QSize& size,
-                      bool withHex) {
-    if (!btn) return;
-    // …remembered, so the filter above can rewrite the frame in the theme that arrives.
-    btn->setProperty("swatchColor", color);
-    btn->setProperty("swatchSize", size);
-    btn->setProperty("swatchHex", withHex);
-    if (!btn->property("swatchRestyled").toBool()) {
-      btn->setProperty("swatchRestyled", true);
-      btn->installEventFilter(new SwatchRestyler(btn));
-    }
-    // ONE colour well across the app: a small colour chip inside the shared input frame,
-    // the treatment the toolbar's pickers use (mainWindow.cpp updateColorSwatch) and the
-    // one the browser mirrors. Painting the button's whole surface read as a colour slab.
-    // The frame is the theme's own inputBg/borderMain, taken from the APPLICATION palette
-    // — a widget built before applyTheme still carries Qt's default white one, which
-    // resolved the light theme inside a dark app and ringed the wells in near-white.
-    const QPalette appPal = QGuiApplication::palette();
-    const Palette pal = themePalette(appPal.color(QPalette::Base).lightness() < 128);
-    btn->setText(withHex ? color.name().toUpper() : QString());
-    btn->setCursor(Qt::PointingHandCursor);
-    // The frame's sheet does not depend on `color` — only the chip below does — and a
-    // live picker preview re-swatches on every drag tick, each setStyleSheet costing a
-    // QSS re-parse and a re-polish. Written only when it would actually change.
-    // With the hex, chip + text sit flush left in the frame (browser .vs-color).
-    const QString sheet = QString("QAbstractButton{background:%1;border:1px solid %2;"
-                                  "border-radius:%4;padding:%5;%6}"
-                                  "QAbstractButton:hover{border-color:%3;}")
-                              .arg(pal.inputBg.name(), pal.borderMain.name(),
-                                   appPal.color(QPalette::Highlight).name(),   // the LIVE accent
-                                   withHex ? QStringLiteral("6px") : QStringLiteral("7px"),
-                                   withHex ? QStringLiteral("0 10px") : QStringLiteral("0"),
-                                   withHex ? QStringLiteral("text-align:left;color:%1;")
-                                                 .arg(pal.inputText.name())
-                                           : QString());
-    if (btn->styleSheet() != sheet) btn->setStyleSheet(sheet);
-    // The chip itself: a rounded rect with a soft luminance-tuned outline, so a colour
-    // close to the input's own ground stays visible in either theme. Alpha is honoured —
-    // a translucent fill shows as one (cssColor.hpp).
-    QPixmap pm(kSwatchChip);
-    pm.fill(Qt::transparent);
-    {
-      QPainter p(&pm);
-      p.setRenderHint(QPainter::Antialiasing);
-      const bool lightFill = color.lightnessF() > 0.7;
-      p.setPen(QPen(lightFill ? QColor(0, 0, 0, 102) : QColor(255, 255, 255, 102), 1));
-      p.setBrush(color);
-      p.drawRoundedRect(QRectF(0.5, 0.5, kSwatchChip.width() - 1.0, kSwatchChip.height() - 1.0), 4, 4);
-    }
-    btn->setIcon(QIcon(pm));
-    btn->setIconSize(pm.size());
-    // AFTER the stylesheet: setStyleSheet re-polishes the widget, which recomputes its
-    // minimum from the QSS box and undid a fixed size set before it.
-    btn->setFixedSize(size);
-  }
-
   void fillPageSizeCombo(QComboBox* combo, bool includeCustom,
                          const QString& units) {
     if (!combo) return;
     const bool inches = (units == QLatin1String("in"));
     const double factor = inches ? 1.0 / 2.54 : 1.0;
     const QString unitLabel = inches ? QStringLiteral("in") : QStringLiteral("cm");
-    // ≤2 decimals, trailing zeros trimmed ("21", "29.7", "8.27") — the shared
-    // option-label contract with the browser page dropdown.
+    // ≤2 decimals, trailing zeros trimmed — the option-label contract with the browser dropdown.
     const auto num = [](double v) {
       return QString::number(std::round(v * 100.0) / 100.0);
     };
-    // Label-only re-render must never fire the callers' change handlers.
+    // A label-only re-render must never fire the callers' change handlers.
     const QSignalBlocker block(combo);
     if (combo->count() == 0) {  // first fill: items in canonical order
       if (includeCustom)
@@ -253,5 +167,5 @@ namespace stencil::gui {
                                      num(ps.height * factor), unitLabel));
     }
   }
-
 }
+

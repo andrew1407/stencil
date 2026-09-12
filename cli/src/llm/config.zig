@@ -4,7 +4,7 @@
 const std = @import("std");
 
 
-// ── Providers & configuration (contract §5) ──────────────────────────────────
+// Providers & configuration (contract §5)
 
 pub const Provider = enum {
     ollama,
@@ -181,7 +181,7 @@ pub fn trimUrl(url: []const u8) []const u8 {
     return std.mem.trimEnd(u8, std.mem.trim(u8, url, " \t"), "/");
 }
 
-// ── /llm command grammar (pure, unit-tested; the handler owns the printing) ──
+// /llm command grammar (pure, unit-tested; the handler owns the printing)
 
 pub const Cmd = union(enum) {
     show, // bare /llm
@@ -211,8 +211,6 @@ pub fn parseCmd(arg: []const u8) Cmd {
     if (eq(word, "server") or eq(word, "serverurl")) return .{ .server = rest };
     return .usage;
 }
-
-// ── tests ────────────────────────────────────────────────────────────────────
 
 const testing = std.testing;
 

@@ -1,11 +1,7 @@
 import { core } from './stencilCore.js';
-// ── Crop-window geometry ────────────────────────────────────────
-// Port of core/cropGeometry.{hpp,cpp}. A crop is an axis-aligned rect {x,y,width,height} in
-// ORIGINAL-image pixel space; the original is never modified (only the rect is stored), so
-// moves/resizes/flips are lossless. Aspect is fixed to the page → corner-only resize. Public
-// functions route to the wasm core when loaded, else the JS reference below (see parity tests).
-
-// ── JS reference implementations (exported for parity tests) ──
+// Port of core/cropGeometry.{hpp,cpp}. A crop is a rect in ORIGINAL-image pixel space; the
+// original is never modified, so moves/resizes/flips are lossless. Aspect is fixed to the
+// page → corner-only resize. Public functions route to wasm when loaded, else the JS reference.
 
 export const isAlbumOrientationJS = (width, height) => width > height;
 
@@ -67,8 +63,7 @@ export const moveCropClampedJS = (cur, dx, dy, imageW, imageH) => {
 export const cropResizeScaleJS = (oldWidth, newWidth) =>
   oldWidth > 0 ? newWidth / oldWidth : 1;
 
-// JS reference for scaleCropCentered (must match core cropGeometry.cpp op-for-op; wasm-parity
-// enforces it): scale the crop about its centre by `factor` — aspect kept, capped, floored at minSize.
+// Scale about the centre by `factor`: aspect kept, capped, floored at minSize.
 export const scaleCropCenteredJS = (cur, factor, aspectWoverH, imageW, imageH, minSize = 16) => {
   if (factor <= 0 || cur.width <= 0 || cur.height <= 0 || aspectWoverH <= 0) return { ...cur };
   const cx = cur.x + cur.width * 0.5;
@@ -100,7 +95,7 @@ export const cropChangeJS = (oldRect, newRect) => {
   };
 };
 
-// Multiply every point of every line by `scale` in place (crop-local rescale).
+// In place; crop-local rescale.
 export const scaleLinePoints = (lines, scale) => {
   for (const line of lines)
     for (const p of line.points) {
@@ -109,17 +104,14 @@ export const scaleLinePoints = (lines, scale) => {
     }
 };
 
-// Rotate a crop rect one quarter turn within an image of imageW x imageH (the
-// space the rect currently lives in). The turned image is imageH x imageW;
-// `clockwise` rotates the picture right. Port of core::rotateCropRectQuarter.
+// Port of core::rotateCropRectQuarter: `r` lives in an imageW x imageH space, the turned
+// image is imageH x imageW; `clockwise` rotates the picture right.
 export const rotateCropRectQuarterJS = (r, imageW, imageH, clockwise) =>
   clockwise
     ? { x: imageH - (r.y + r.height), y: r.x, width: r.height, height: r.width }
     : { x: r.y, y: imageW - (r.x + r.width), width: r.height, height: r.width };
 
-// Rotate every crop-local point of every line one quarter turn inside a crop box
-// of boxW x boxH, in place (the box becomes boxH x boxW). Like scaleLinePoints
-// this runs in JS in both builds — no wasm marshalling needed.
+// In place; the box becomes boxH x boxW. Runs in JS in both builds, like scaleLinePoints.
 export const rotateLinePointsQuarter = (lines, boxW, boxH, clockwise) => {
   for (const line of lines)
     for (const p of line.points) {
@@ -134,8 +126,6 @@ export const rotateLinePointsQuarter = (lines, boxW, boxH, clockwise) => {
       }
     }
 };
-
-// ── Public API: wasm when loaded, JS reference otherwise ──
 
 export const isAlbumOrientation = core.bind('isAlbumOrientation', isAlbumOrientationJS);
 

@@ -4,7 +4,7 @@
 // a same-orientation resize, and line clearing on an orientation flip. Returns
 // non-zero on any failed expectation. Not part of stencil_tests (that target is
 // Qt-free); built only when Qt is present (see CMakeLists).
-#include "canvasWidget.hpp"
+#include "CanvasWidget.hpp"
 #include <QApplication>
 #include <QImage>
 #include <cmath>

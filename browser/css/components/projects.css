@@ -1,0 +1,121 @@
+/* ── Projects modal rows ────────────────────────────────────────── */
+/* The projects modal keeps a real working height even with one row (desktop-dialog
+   parity): the list body flexes and scrolls inside. The compact popover shape and
+   short viewports keep their own caps. */
+#projects-modal-overlay:not(.modal-popover) .app-modal { min-height: min(560px, 82vh); }
+.project-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 10px; border: 1px solid var(--border-main); border-radius: 8px;
+    margin-bottom: 8px; cursor: pointer; background: var(--input-bg);
+}
+.project-row:hover { background: var(--bg-info); }
+.project-row.project-active { border-color: var(--text-key); }
+/* The row for whatever's open in THIS editor right now — "(Current)" in the accent,
+   right after the origin badge it already sits beside (js/ui/projectsModal.js) — no
+   icon or separate mark of its own. */
+.project-current-badge { color: var(--accent); font-weight: 600; }
+.project-row.project-temp { cursor: default; opacity: 0.92; border-style: dashed; }
+.project-row.project-selected { border-color: var(--accent); background: var(--bg-info); }
+/* Drag-reorder cues (Manual sort): the dragged row dims; a bar marks the edge it would
+   land before/after. Skeleton/temp rows aren't draggable. */
+/* Touch drag (touchDrag.js): allow the list to still scroll vertically by finger (pan-y) while a
+   long-press picks a row up for drag; suppress the long-press text-selection / callout menu. */
+.project-row, .connect-row { touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.project-row.project-dragging { opacity: 0.3; }
+/* The row is a real button for the keyboard (Enter/Space open it) — give it the app's
+   focus ring instead of the browser default outline. */
+.project-row:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+/* Insertion line showing WHERE the dragged row will land (a bright bar in the gap above/below). */
+.project-row.project-drop-before { box-shadow: 0 -4px 0 -1px var(--accent); }
+.project-row.project-drop-after { box-shadow: 0 4px 0 -1px var(--accent); }
+/* Drag-out drop zones (feature #4): painted BEHIND the dialog card while a project row is
+   dragged. Top 70% split Open here / Open in a new tab; bottom 30% (full width) red Remove —
+   the two bands abut (no dead gap). Thick dashes + a pulsing icon make them catchy on drag. */
+.project-dropzones { position: absolute; inset: 0; display: none; pointer-events: none; }
+.project-dropzones.is-dragging { display: block; }
+.project-dropzones .pdz {
+    position: absolute; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: center; padding: 8px;
+    /* Each zone has its OWN identity colour via --pdz: grey (here), blue (new tab), red (remove). */
+    border: 5px dashed color-mix(in srgb, var(--pdz) 72%, transparent); border-radius: 12px;
+    /* Mostly-opaque panel with a slight see-through (≈0.9 alpha of the zone-colour-blended fill). */
+    background: color-mix(in srgb, color-mix(in srgb, var(--pdz) 28%, var(--bg-container)) 90%, transparent);
+    color: color-mix(in srgb, var(--pdz) 65%, white);
+}
+/* Small gaps between the three zones so they read as separate targets. */
+/* Labels sit in each zone's OUTER CORNER (here → top-left, new-tab → top-right, remove →
+   bottom-centre) so the centred modal card — which spans most of the width/height — never
+   overlaps a zone's icon/text. The card sits in the empty middle between them. */
+.project-dropzones .pdz-here   { --pdz: #64748b; left: 0;  top: 0; width: calc(50% - 8px); height: 70%; align-items: flex-start; justify-content: flex-start; padding: 26px 0 0 30px; }
+.project-dropzones .pdz-newtab { --pdz: #2563eb; right: 0; top: 0; width: calc(50% - 8px); height: 70%; align-items: flex-start; justify-content: flex-end; padding: 26px 30px 0 0; }
+.project-dropzones .pdz-remove { --pdz: var(--danger); left: 0; bottom: 0; width: 100%; height: calc(30% - 10px); align-items: flex-end; justify-content: center; padding-bottom: 20px; }
+.project-dropzones .pdz-over { background: color-mix(in srgb, color-mix(in srgb, var(--pdz) 48%, var(--bg-container)) 92%, transparent); }
+.project-dropzones .pdz-label { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; pointer-events: none; }
+/* Catchy pulsing zone icon while dragging (shared keyframe with the image drop overlay). */
+.project-dropzones.is-dragging .pdz-label svg { transform-origin: center; animation: dropZonePulse 0.9s ease-in-out infinite; }
+/* Phone: the card is nearly full-bleed, so each zone shows only as a thin strip past its
+   edge. Lay the labels out in a ROW tight against that edge — a stacked icon-over-caption
+   is taller than the strip and the card clips its text away. */
+@media (max-width: 680px) {
+    .project-dropzones .pdz-here   { padding: 10px 0 0 16px; }
+    .project-dropzones .pdz-newtab { padding: 10px 16px 0 0; }
+    .project-dropzones .pdz-remove { padding-bottom: 10px; }
+    .project-dropzones .pdz-label  { flex-direction: row; gap: 6px; font-size: 13px; }
+}
+.project-select { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+/* Filter dropdown sits beside the search field. */
+.modal-search-bar { display: flex; align-items: center; gap: 8px; }
+.modal-search-bar .modal-search { flex: 1; }
+/* Projects modal: the selects live on their own second row under the search bar —
+   tighter top padding so the two rows read as one control block. */
+.projects-filter-row { padding-top: 0; }
+.modal-filter {
+    flex: 0 0 auto; padding: 6px 8px; border-radius: 6px;
+    /* background-COLOR, not the shorthand — the shorthand resets the hover sweep's
+       background-size/position (layout/shimmer.css), freezing the shine band mid-select. */
+    background-color: var(--input-bg); color: var(--input-text); border: 1px solid var(--border-main);
+}
+/* ── Narrow viewports: the shared modal search bar + footer must not overflow ──
+   Both are single, NON-wrapping flex rows sized for the 560px dialog. On a phone the
+   dialog is full-bleed (~393px) and they don't fit: the Projects modal's third select
+   ("Name + keywords") was laid out ~45px past the right edge — clipped away entirely by
+   .app-modal's overflow:hidden — while the search box collapsed to ~25px, and the footer
+   hint was squeezed to ~52px beside its three buttons, wrapping one word per line.
+   Below the 680px phone breakpoint both rows wrap: the search field and the (non-empty)
+   hint each claim a full line, and the selects grow into what's left instead of
+   overflowing at their intrinsic, label-driven widths. Wide layouts are untouched. */
+@media (max-width: 680px) {
+    .modal-search-bar { flex-wrap: wrap; }
+    .modal-search-bar .modal-search { flex: 1 1 100%; min-width: 0; }
+    .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+    /* An enhanced select hides behind its .cs-dd wrap (customSelect.js) — the wrap
+       takes the flex slot the native had, and the trigger fills the wrap. */
+    .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+    .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
+    /* …and on a phone the hint takes the whole line, buttons under it. The 110px floor
+       above still fits beside a full set of footer buttons at this width, so the row never
+       wraps on its own and the hint is squeezed to a fifth of the footer. On its own line
+       it stays left-aligned, the buttons right — the wide layout, stacked. */
+    .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: left; }
+}
+/* The compact popover shape (ui/popover.js) squeezes the box to 420px at ANY viewport
+   width, so it needs the same wrapping the phone breakpoint applies — keyed on the
+   shape class instead of the media query (which never fires on a wide screen). */
+.modal-popover .modal-search-bar { flex-wrap: wrap; }
+.modal-popover .modal-search-bar .modal-search { flex: 1 1 100%; min-width: 0; }
+.modal-popover .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+.modal-popover .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+.modal-popover .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
+.modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: left; }
+/* Three action buttons overrun 420px by a few pixels at the footer's trimmed padding,
+   dropping the last onto a third row — tighten the gap too so they keep the one row the
+   hint's own line was meant to give them. */
+.modal-popover .settings-footer { gap: 6px; }
+/* Touch: the modal's search/filter controls and footer actions meet the app's ≥40px
+   tap-target convention (same rule the chat panel's compact buttons follow). */
+@media (hover: none) and (pointer: coarse) {
+    .modal-search, .modal-filter { min-height: 40px; }
+    /* The trigger IS the control once a select is enhanced — same tap-target floor. */
+    .modal-search-bar .cs-dd .accent-dd-trigger { min-height: 40px; }
+    .settings-footer button { min-height: 40px; }
+}

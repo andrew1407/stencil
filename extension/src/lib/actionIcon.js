@@ -1,10 +1,6 @@
-// ── Toolbar (action) icon recolouring ───────────────────────────────────────
-// Tints the toolbar icon's outline to the selected accent — the way the browser
-// favicon follows the theme. Rendered in the service worker (no DOM) by drawing the
-// Stencil badge with OffscreenCanvas 2D paths (mirrors browser/favicon.svg +
-// extension/icons/icon.svg) → ImageData → chrome.action.setIcon. Re-applied whenever
-// the accent changes (it's mirrored to chrome.storage.local by lib/accent.js).
-// Best-effort: any failure leaves the static manifest PNGs in place.
+// The toolbar icon tinted to the accent, drawn in the service worker (no DOM) with
+// OffscreenCanvas paths that mirror extension/icons/icon.svg. Best-effort: any failure
+// leaves the static manifest PNGs in place.
 import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from './highlightColor.js';
 
 const SIZES = [16, 32, 48];
@@ -12,10 +8,9 @@ const SIZES = [16, 32, 48];
 const PANEL = '#2b2f3a';
 const FRAME = '#3a3f4b';
 const YELLOW = '#FFFF00';
-const POINTS = [[16, 46], [27, 24], [38, 38], [50, 18]]; // polyline vertices = dot centres
+const POINTS = [[16, 46], [27, 24], [38, 38], [50, 18]];
 
-// Draw the badge into `ctx` sized `size` (viewBox is 64), tinting the panel border to
-// `accent`. Corners outside the rounded panel stay transparent.
+// viewBox is 64; corners outside the rounded panel stay transparent.
 const drawBadge = (ctx, size, accent) => {
   const k = size / 64; // viewBox unit → pixels
   const u = (v) => v * k;
@@ -27,8 +22,7 @@ const drawBadge = (ctx, size, accent) => {
   rrect(2, 2, 60, 60, 13);
   ctx.fillStyle = PANEL;
   ctx.fill();
-  // Thick accent ring (width 4 on the 64 grid → visible even at 16px), its outer edge
-  // aligned to the panel edge at 2.
+  // Ring width 4 on the 64 grid stays visible at 16px.
   rrect(4, 4, 56, 56, 11);
   ctx.lineWidth = u(4);
   ctx.strokeStyle = accent;
@@ -77,7 +71,6 @@ const currentAccentHex = async () => {
   }
 };
 
-// Render the accent-bordered badge and install it as the toolbar action icon.
 export const applyAccentActionIcon = async () => {
   try {
     const accent = await currentAccentHex();
@@ -89,7 +82,6 @@ export const applyAccentActionIcon = async () => {
   }
 };
 
-// Re-tint the toolbar icon whenever the accent changes (mirrored to storage.local).
 export const watchAccentActionIcon = () => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[ACCENT_STORAGE_KEY]) applyAccentActionIcon();

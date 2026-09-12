@@ -4,73 +4,74 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// OpPlanParser — the per-op normalizers: each turns an action the registry schema has
-// already validated (types, enums, ranges, grammars, presence rules) into its typed
-// PlanAction, filling the registry defaults. Class doc lives in OpPlanParser.cs.
 public static partial class OpPlanParser
 {
-    private static PlanAction Normalize(JsonElement v, OpEntry entry) => entry.Name switch
+    private static PlanAction normalize(JsonElement v, OpEntry entry) =>
+        _normalizers.TryGetValue(entry.Name, out Func<JsonElement, OpEntry, PlanAction>? make)
+            ? make(v, entry)
+            : throw new InvalidOperationException($"registry op \"{entry.Name}\" has no normalizer");
+
+    // One factory per registry op, keyed by its name.
+    private static readonly Dictionary<string, Func<JsonElement, OpEntry, PlanAction>> _normalizers = new(StringComparer.Ordinal)
     {
-        "crop" => new CropAction(string.Join(' ',
+        ["crop"] = static (v, entry) => new CropAction(string.Join(' ',
             v.GetProperty("spec").EnumerateObject().Where(static p => p.Value.ValueKind != JsonValueKind.Null)
                 .Select(static p => $"{p.Name}={p.Value.GetString()}"))),
-        "rotate" => new RotateAction(Str(v, entry, "dir")!, IntOrDefault(v, entry, "times")),
-        "filter" => new FilterAction(Str(v, entry, "mode")!, Str(v, entry, "tint")),
-        "layout" => new LayoutAction(v.GetProperty("lines").EnumerateArray().Select(NormalizeLine).ToList()),
-        "formula" => OptionalBool(v, "enabled") is bool enabled
+        ["rotate"] = static (v, entry) => new RotateAction(str(v, entry, "dir")!, intOrDefault(v, entry, "times")),
+        ["filter"] = static (v, entry) => new FilterAction(str(v, entry, "mode")!, str(v, entry, "tint")),
+        ["layout"] = static (v, entry) => new LayoutAction(v.GetProperty("lines").EnumerateArray().Select(normalizeLine).ToList()),
+        ["formula"] = static (v, entry) => optionalBool(v, "enabled") is bool enabled
             ? new FormulaAction(null, null, enabled)
-            : new FormulaAction(Str(v, entry, "axis"), Str(v, entry, "expr")),
-        "page" => Str(v, entry, "format") is string format
+            : new FormulaAction(str(v, entry, "axis"), str(v, entry, "expr")),
+        ["page"] = static (v, entry) => str(v, entry, "format") is string format
             ? new PageAction(format)
-            : new PageAction(null, OptionalNumber(v, "width"), OptionalNumber(v, "height")),
-        "blank" => new BlankAction(Str(v, entry, "color")!, Str(v, entry, "format"), OptionalNumber(v, "width"), OptionalNumber(v, "height")),
-        "frame" => new FrameAction(OptionalInt(v, "index") is int index
+            : new PageAction(null, optionalNumber(v, "width"), optionalNumber(v, "height")),
+        ["blank"] = static (v, entry) => new BlankAction(str(v, entry, "color")!, str(v, entry, "format"), optionalNumber(v, "width"), optionalNumber(v, "height")),
+        ["frame"] = static (v, entry) => new FrameAction(optionalInt(v, "index") is int index
             ? [index]
-            : v.GetProperty("indices").EnumerateArray().Select(static x => Int(x, "index")).ToList()),
-        "image" => new ImageAction(OptionalInt(v, "index")!.Value),
-        // A path that is empty after trimming is dropped (registry note: "" is dropped).
-        "save" => new SaveAction(Str(v, entry, "name"), Str(v, entry, "path") is { Length: > 0 } path ? path : null),
-        "undo" => new UndoAction(IntOrDefault(v, entry, "steps")),
-        "redo" => new RedoAction(IntOrDefault(v, entry, "steps")),
-        "reset" => new ResetAction(),
-        "clear" => new ClearAction(),
-        "clearChat" => new ClearChatAction(),
-        "lineStyle" => new LineStyleAction(
-            Str(v, entry, "color"), Str(v, entry, "pointColor"), OptionalInt(v, "thickness"), OptionalInt(v, "pointSize"),
-            Str(v, entry, "style"), Str(v, entry, "drawMode"), Str(v, entry, "fillColor")),
+            : v.GetProperty("indices").EnumerateArray().Select(static x => readInt(x, "index")).ToList()),
+        ["image"] = static (v, entry) => new ImageAction(optionalInt(v, "index")!.Value),
+        ["save"] = static (v, entry) => new SaveAction(str(v, entry, "name"), str(v, entry, "path") is { Length: > 0 } path ? path : null),
+        ["undo"] = static (v, entry) => new UndoAction(intOrDefault(v, entry, "steps")),
+        ["redo"] = static (v, entry) => new RedoAction(intOrDefault(v, entry, "steps")),
+        ["reset"] = static (v, entry) => new ResetAction(),
+        ["clear"] = static (v, entry) => new ClearAction(),
+        ["clearChat"] = static (v, entry) => new ClearChatAction(),
+        ["lineStyle"] = static (v, entry) => new LineStyleAction(
+            str(v, entry, "color"), str(v, entry, "pointColor"), optionalInt(v, "thickness"), optionalInt(v, "pointSize"),
+            str(v, entry, "style"), str(v, entry, "drawMode"), str(v, entry, "fillColor")),
         // Whether the USER actually wrote the URL is the plan-level echo guard's job at execution.
-        "openUrl" => new OpenUrlAction(Str(v, entry, "url")!, OptionalBool(v, "incognito") ?? false),
-        "renameProject" => new RenameProjectAction(Str(v, entry, "name")!),
-        "describe" => new DescribeAction(Str(v, entry, "text")!),
-        "blankColor" => new BlankColorAction(Str(v, entry, "color")!),
-        "projectColor" => new ProjectColorAction(Str(v, entry, "color")!),
-        "export" => new ExportAction(Str(v, entry, "what")!),
-        // Which server a name means is resolved at EXECUTION time against the user's saved connections.
-        "connect" => new ConnectAction(Str(v, entry, "server")!),
-        "disconnect" => new DisconnectAction(Str(v, entry, "server")!),
-        _ => throw new InvalidOperationException($"registry op \"{entry.Name}\" has no normalizer"),
+        ["openUrl"] = static (v, entry) => new OpenUrlAction(str(v, entry, "url")!, optionalBool(v, "incognito") ?? false),
+        ["renameProject"] = static (v, entry) => new RenameProjectAction(str(v, entry, "name")!),
+        ["describe"] = static (v, entry) => new DescribeAction(str(v, entry, "text")!),
+        ["blankColor"] = static (v, entry) => new BlankColorAction(str(v, entry, "color")!),
+        ["projectColor"] = static (v, entry) => new ProjectColorAction(str(v, entry, "color")!),
+        ["export"] = static (v, entry) => new ExportAction(str(v, entry, "what")!),
+        // Which server a name means is resolved at EXECUTION time against the user's saved
+        // connections.
+        ["connect"] = static (v, entry) => new ConnectAction(str(v, entry, "server")!),
+        ["disconnect"] = static (v, entry) => new DisconnectAction(str(v, entry, "server")!),
     };
 
-    private static LayoutLine NormalizeLine(JsonElement line) => new()
+    private static LayoutLine normalizeLine(JsonElement line) => new()
     {
         Points = line.GetProperty("points").EnumerateArray()
             .Select(static p => new LayoutPoint(p.GetProperty("x").GetDouble(), p.GetProperty("y").GetDouble())).ToList(),
-        Color = OptionalString(line, EmptyKeys, "color") ?? LayoutLine.DefaultColor,
-        Thickness = OptionalNumber(line, "thickness") ?? LayoutLine.DefaultThickness,
-        PointSize = OptionalNumber(line, "pointSize") ?? LayoutLine.DefaultPointSize,
-        Style = OptionalString(line, EmptyKeys, "style") ?? LayoutLine.DefaultStyle,
-        Locked = OptionalBool(line, "locked") ?? LayoutLine.DefaultLocked,
-        FillColor = OptionalString(line, EmptyKeys, "fillColor") ?? LayoutLine.DefaultFillColor,
+        Color = optionalString(line, _emptyKeys, "color") ?? LayoutLine.DEFAULT_COLOR,
+        Thickness = optionalNumber(line, "thickness") ?? LayoutLine.DEFAULT_THICKNESS,
+        PointSize = optionalNumber(line, "pointSize") ?? LayoutLine.DEFAULT_POINT_SIZE,
+        Style = optionalString(line, _emptyKeys, "style") ?? LayoutLine.DEFAULT_STYLE,
+        Locked = optionalBool(line, "locked") ?? LayoutLine.DEFAULT_LOCKED,
+        FillColor = optionalString(line, _emptyKeys, "fillColor") ?? LayoutLine.DEFAULT_FILL_COLOR,
     };
 
-    private static readonly JsonElement EmptyKeys = JsonDocument.Parse("{}").RootElement.Clone();
+    private static readonly JsonElement _emptyKeys = JsonDocument.Parse("{}").RootElement.Clone();
 
-    private static string? Str(JsonElement v, OpEntry entry, string key) => OptionalString(v, entry.Keys, key);
+    private static string? str(JsonElement v, OpEntry entry, string key) => optionalString(v, entry.Keys, key);
 
-    /// <summary>An optional string: null when absent/null; trimmed when its spec says <c>trim</c>.</summary>
-    private static string? OptionalString(JsonElement obj, JsonElement keys, string key)
+    private static string? optionalString(JsonElement obj, JsonElement keys, string key)
     {
-        if (!HasField(obj, key))
+        if (!hasField(obj, key))
         {
             return null;
         }
@@ -81,21 +82,20 @@ public static partial class OpPlanParser
             : s;
     }
 
-    private static bool? OptionalBool(JsonElement obj, string key) =>
-        HasField(obj, key) ? obj.GetProperty(key).GetBoolean() : null;
+    private static bool? optionalBool(JsonElement obj, string key) =>
+        hasField(obj, key) ? obj.GetProperty(key).GetBoolean() : null;
 
-    private static double? OptionalNumber(JsonElement obj, string key) =>
-        HasField(obj, key) ? obj.GetProperty(key).GetDouble() : null;
+    private static double? optionalNumber(JsonElement obj, string key) =>
+        hasField(obj, key) ? obj.GetProperty(key).GetDouble() : null;
 
-    private static int? OptionalInt(JsonElement obj, string key) =>
-        HasField(obj, key) ? Int(obj.GetProperty(key), key) : null;
+    private static int? optionalInt(JsonElement obj, string key) =>
+        hasField(obj, key) ? readInt(obj.GetProperty(key), key) : null;
 
-    /// <summary>The registry default when the key is absent (an integer key with a <c>default</c>).</summary>
-    private static int IntOrDefault(JsonElement obj, OpEntry entry, string key) =>
-        OptionalInt(obj, key) ?? Int(entry.Spec(key)!.Value.GetProperty("default"), key);
+    private static int intOrDefault(JsonElement obj, OpEntry entry, string key) =>
+        optionalInt(obj, key) ?? readInt(entry.Spec(key)!.Value.GetProperty("default"), key);
 
     // The schema admits any finite integer; the typed actions hold 32-bit ones.
-    private static int Int(JsonElement v, string key)
+    private static int readInt(JsonElement v, string key)
     {
         double d = v.GetDouble();
         return d is >= int.MinValue and <= int.MaxValue

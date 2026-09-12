@@ -1,10 +1,11 @@
-//! The layout JSON contract (pure).
+//! What mcp WRITES as layout JSON (pure).
 //!
 //! `layout.rs` is one end of a cross-surface agreement: the browser exports this document
 //! (`browser/js/core/layout.js` → buildLayoutPayload), the Zig CLI parses it
 //! (`cli/src/layout.zig`), and this server writes it to a temp file for `--layout`. Nothing
 //! type-checks the three against each other, so a renamed key or a stray `null` would only
-//! show up as a silently mis-drawn image. These tests pin the wire shape.
+//! show up as a silently mis-drawn image. These tests pin the bytes that leave here; what
+//! mcp ACCEPTS — hand-written documents and the shared corpus — is `layout_fixtures_test.rs`.
 
 use stencil_mcp::layout::{write_temp, Layout, Line, Point};
 
@@ -117,74 +118,6 @@ fn renamed_fields_reach_the_wire_as_camel_case() {
             "snake_case key `{stale}` leaked onto the wire"
         );
     }
-}
-
-/// The exact document the CLI's own parser test feeds `cli/src/layout.zig` (it spells the
-/// filter with the legacy `filter` key, which both ends still read). If the two ends ever
-/// disagree about a key, this stops deserializing what that test asserts.
-#[test]
-fn parses_the_document_the_cli_parser_test_uses() {
-    let doc = r#"{ "imageWidth": 10, "imageHeight": 20, "filter": "bw",
-        "lines": [ { "points": [{"x":1,"y":2},{"x":3,"y":4}],
-                     "color": "red", "thickness": 3, "locked": true } ] }"#;
-    let layout: Layout = serde_json::from_str(doc).expect("the CLI's fixture parses here too");
-
-    assert_eq!(layout.image_width, Some(10.0));
-    assert_eq!(layout.image_height, Some(20.0));
-    assert_eq!(layout.filter.as_deref(), Some("bw"));
-    assert_eq!(layout.lines.len(), 1);
-
-    let line = &layout.lines[0];
-    assert_eq!(line.points.len(), 2);
-    assert_eq!(line.color.as_deref(), Some("red"));
-    assert_eq!(line.thickness, Some(3.0));
-    assert_eq!(line.locked, Some(true));
-    // Absent in the document → None here, so the CLI supplies its documented defaults
-    // (pointSize 4, style solid, fillColor transparent).
-    assert_eq!(line.point_size, None);
-    assert_eq!(line.style, None);
-    assert_eq!(line.fill_color, None);
-}
-
-/// Filter key read-both (Phase 6): canonical `imageFilter` and the legacy `filter`
-/// spelling both deserialize into the same field. Spelling BOTH in one document is a
-/// serde duplicate-field error — mcp's strict parser has no both-present precedence.
-#[test]
-fn filter_reads_canonical_and_legacy_keys() {
-    let canonical: Layout = serde_json::from_str(r#"{"imageFilter":"bw"}"#).expect("parses");
-    assert_eq!(canonical.filter.as_deref(), Some("bw"));
-    let legacy: Layout = serde_json::from_str(r#"{"filter":"sepia"}"#).expect("parses");
-    assert_eq!(legacy.filter.as_deref(), Some("sepia"));
-    let both: Result<Layout, _> = serde_json::from_str(r#"{"filter":"a","imageFilter":"b"}"#);
-    assert!(both.is_err(), "both spellings at once is a duplicate-field error");
-}
-
-/// A layout with no `lines` key is legal (`#[serde(default)]`) and means "draw nothing" —
-/// a filter-only layout is a real use of the flag.
-#[test]
-fn missing_lines_defaults_to_empty() {
-    let layout: Layout = serde_json::from_str(r#"{"filter":"sepia"}"#).expect("parses");
-    assert!(layout.lines.is_empty());
-    assert_eq!(layout.filter.as_deref(), Some("sepia"));
-}
-
-/// A line with no points is legal on the wire; the CLI skips it rather than erroring.
-#[test]
-fn a_line_with_no_points_round_trips() {
-    let layout: Layout = serde_json::from_str(r#"{"lines":[{"points":[]}]}"#).expect("parses");
-    assert_eq!(layout.lines.len(), 1);
-    assert!(layout.lines[0].points.is_empty());
-}
-
-/// Unknown keys from a newer browser export must be ignored, never rejected — an older
-/// server should still draw the lines it understands.
-#[test]
-fn unknown_fields_are_ignored() {
-    let doc = r#"{"imageWidth":10,"futureKey":{"a":1},
-                  "lines":[{"points":[{"x":0,"y":0}],"futureLineKey":true}]}"#;
-    let layout: Layout = serde_json::from_str(doc).expect("unknown keys must not be fatal");
-    assert_eq!(layout.image_width, Some(10.0));
-    assert_eq!(layout.lines.len(), 1);
 }
 
 #[test]

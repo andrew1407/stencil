@@ -1,8 +1,7 @@
 // ── Per-surface LLM glue (llm-contract.md §5 + §8) ─────────────────────
-// The one module the SHARED llmClient.js is allowed to differ through: the
-// surface's own wording and its default stencil-server token resolver — plus
-// the extension-only helpers that used to live in llmClient.js (they have no
-// browser twin, so they ride here to keep the client byte-identical).
+// The one module the SHARED llmClient.js is allowed to differ through: the surface's own
+// wording, its default stencil-server token resolver, and the extension-only helpers that
+// have no browser twin — they ride here to keep the client byte-identical.
 //
 // stencil-server auth: the extension already stores server connections (URL +
 // bearer token, lib/connections.js) — serverTokenFor prefers the stored token

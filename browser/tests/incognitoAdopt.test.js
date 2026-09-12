@@ -11,7 +11,7 @@
 // live conversation, switch incognito on, load here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { installDom } from './helpers/dom.js';
 
 installDom({}, {
@@ -68,7 +68,7 @@ test('newTemporary({ keepChat }) is what protects the live conversation', () => 
 // The §10 removeProject fallback resets the editor the same way, mid-turn — so it takes
 // the same keepChat route, and its confirm names what actually goes (there is no project).
 test('the removeProject fallback clears with keepChat and an accurate confirm', () => {
-  const session = src('../js/llm/chatSession.js');
+  const session = src('../js/llm/adapters/project.js');
   const at = session.indexOf('clearWorkingImage: async () =>');
   assert.ok(at > 0, 'the clearWorkingImage capability is gone');
   const body = session.slice(at, at + 700);
@@ -81,10 +81,13 @@ test('the removeProject fallback clears with keepChat and an accurate confirm', 
 // The load-bearing guard: a chat-driven openUrl must never navigate, reload or spawn a
 // tab off the page holding the conversation.
 test('the chat panel opens nothing — no window.open, no location write, no launch URL', () => {
-  const session = src('../js/llm/chatSession.js');
-  assert.doesNotMatch(session, /window\.open\(/, 'chatSession opens a browser tab again');
-  assert.doesNotMatch(session, /buildExternalLaunchUrl/, 'chatSession builds a #stencil= launch again');
-  assert.doesNotMatch(session, /location\.(assign|replace|reload|href\s*=)/, 'chatSession navigates the page');
+  // The capability bag now lives in js/llm/adapters/ — guard the whole of it, not one file.
+  const dir = new URL('../js/llm/adapters/', import.meta.url);
+  const session = [src('../js/llm/chatSession.js'),
+    ...readdirSync(dir).filter((n) => n.endsWith('.js')).map((n) => src(`../js/llm/adapters/${n}`))].join('\n');
+  assert.doesNotMatch(session, /window\.open\(/, 'the chat plumbing opens a browser tab again');
+  assert.doesNotMatch(session, /buildExternalLaunchUrl/, 'the chat plumbing builds a #stencil= launch again');
+  assert.doesNotMatch(session, /location\.(assign|replace|reload|href\s*=)/, 'the chat plumbing navigates the page');
   assert.match(session, /openIncognito: async \(url\) => \{ await window\.stencil\.load\(url, \{ incognito: true \}\); \}/,
     'openIncognito no longer adopts incognito in place');
 });

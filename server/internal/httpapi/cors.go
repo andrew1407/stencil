@@ -33,10 +33,10 @@ func CORS(origins []string) func(http.Handler) http.Handler {
 	}
 
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := r.Header.Get("Origin")
+		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			origin := req.Header.Get("Origin")
 			if origin != "" && originAllowed(origin, allowAny, allowed) {
-				h := w.Header()
+				h := rw.Header()
 				h.Set("Access-Control-Allow-Origin", origin)
 				h.Add("Vary", "Origin")
 				h.Set("Access-Control-Allow-Methods", corsAllowMethods)
@@ -44,11 +44,11 @@ func CORS(origins []string) func(http.Handler) http.Handler {
 				h.Set("Access-Control-Max-Age", corsMaxAge)
 			}
 			// Answer preflight here so OPTIONS never falls through to the mux.
-			if r.Method == http.MethodOptions {
-				w.WriteHeader(http.StatusNoContent)
+			if req.Method == http.MethodOptions {
+				rw.WriteHeader(http.StatusNoContent)
 				return
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(rw, req)
 		})
 	}
 }

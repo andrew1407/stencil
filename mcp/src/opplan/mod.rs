@@ -21,11 +21,13 @@
 //!
 //! Split by stage: [`parse`] (extraction + plan shape), [`schema`] (the registry-driven
 //! check engine every op and the ask card validate through), [`actions`] (the op dispatch
-//! + typed normalizers), [`ask`] (§11 cards), [`lower`] (the mapping onto CLI runs),
+//! + typed normalizers), [`ask`] (§11 cards), [`lower`] (the mapping onto CLI runs) with
+//! [`fold`] (the per-op folds the registry dispatches on),
 //! [`types`] (the validated plan + errors). Limits come from the registry.
 
 mod actions;
 mod ask;
+pub mod fold;
 mod lower;
 mod parse;
 pub mod schema;

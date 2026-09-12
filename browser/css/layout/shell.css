@@ -1,0 +1,134 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: Arial, sans-serif;
+    /* Half the side frame (user decision) — the panel sits closer to the window edges. */
+    padding: 20px 10px;
+    background: var(--bg-page);
+    color: var(--text-main);
+    transition: background 0.3s, color 0.3s;
+    /* The editor OWNS the window: a column that is at least as tall as the viewport, so the
+       canvas can take every pixel the toolbar and status rows leave over instead of the page
+       ending halfway down. dvh (with a vh fallback) so a mobile URL bar can't add a scrollbar.
+       The chain continues through #root → .container → .main-content → .canvas-section →
+       .canvas-viewport, each a flex item that grows; break any link and the fill stops. */
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+/* The mount point the whole app renders into — part of the fill chain above. */
+#root {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.container {
+    /* Full-bleed: the editor's canvas is the point of the page, so it takes the whole window
+       (minus the body's 20px frame) rather than sitting in a centred 1400px column. */
+    max-width: none;
+    /* NOT `margin: 0 auto`: an auto cross-axis margin switches a flex item off `stretch`,
+       so this box sized itself to its CONTENT and grew past the window whenever the
+       coordinates panel was restored wider than the space left (the toolbar's right-hand
+       sections then ran off the edge and the page took a horizontal scrollbar). Full-bleed
+       means filling the parent, which is what stretch does. */
+    margin: 0;
+    /* …and the whole height, per the fill chain on body. */
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* …and never WIDER than the window. A flex item defaults to min-width:auto, i.e. it
+       refuses to shrink below its content — so a coordinates panel restored at a width the
+       window can no longer fit pushed this box past the viewport and the whole page grew a
+       horizontal scrollbar (the toolbar's right-hand sections ran off the edge). The panel
+       is clamped in utils.js too; this is the backstop that keeps any wide content inside. */
+    min-width: 0;
+    background: var(--bg-container);
+    /* Less above the header so the logo row sits higher (user decision). */
+    padding: 12px 20px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px var(--shadow);
+    color: var(--text-main);
+}
+.controls {
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    align-items: center;
+    padding: 12px 15px;
+    background: var(--bg-controls);
+    border-radius: 5px;
+}
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+label {
+    font-weight: bold;
+    font-size: 14px;
+    color: var(--text-label);
+}
+input[type="file"],
+input[type="color"],
+input[type="number"],
+input[type="text"],
+select,
+button {
+    padding: 8px 12px;
+    /* The outline is the control's own ink, not a near-invisible grey: on the dark theme a
+       --border-main box all but vanished behind its glyph, and on the light one it read as
+       a smudge (user report, with pictures of both). Both themes now draw the box in the
+       colour of what is inside it. Desktop twin: theme.cpp's input rule. */
+    border: 1px solid var(--ui-outline);
+    border-radius: 4px;
+    font-size: 14px;
+}
+input[type="file"],
+input[type="number"],
+input[type="text"],
+select {
+    background: var(--input-bg);
+    color: var(--input-text);
+}
+button {
+    background: var(--accent);
+    /* The accent's own ink (theme.css --on-accent); a button that paints its OWN
+       ground sets its own colour. */
+    color: var(--on-accent);
+    cursor: pointer;
+    border: none;
+    transition: background 0.3s;
+}
+button:hover {
+    background: var(--accent-2);
+}
+button:disabled,
+button.danger:disabled,
+button.active:disabled {
+    background: var(--disabled-bg);
+    color: var(--disabled-text);
+    cursor: not-allowed;
+}
+/* Fixed grounds, not the accent: white regardless of what --on-accent resolves to. */
+button.active {
+    background: var(--success);
+    color: #fff;
+}
+button.danger {
+    background: var(--danger);
+    color: #fff;
+}
+/* :not(:disabled) — button.danger:disabled sits earlier above at the SAME specificity
+   (0,2,1), so plain button.danger:hover would win the tie on a disabled danger button
+   (Clear All Lines, Remove) by source order alone, painting it red on hover despite
+   being inactive. */
+button.danger:hover:not(:disabled) {
+    background: var(--danger-2);
+}

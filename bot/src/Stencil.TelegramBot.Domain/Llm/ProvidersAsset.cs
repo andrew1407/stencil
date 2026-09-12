@@ -2,30 +2,24 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Domain.Llm;
 
-/// <summary>
-/// The canonical provider constants — default base URLs and the shared chat timeout —
-/// parsed once from <c>browser/js/config/llm/providers.json</c>, embedded into this
-/// assembly at build time (the same pattern as <c>systemPrompt.json</c>).
-/// </summary>
+// Parsed once from the embedded browser/js/config/llm/providers.json — never a second copy.
 public static class ProvidersAsset
 {
-    private const string ResourceName = "Stencil.TelegramBot.Domain.Assets.providers.json";
+    private const string _resourceName = "Stencil.TelegramBot.Domain.Assets.providers.json";
 
-    private static readonly Lazy<(string Ollama, string OpenAiCompat, int ChatSeconds)> Parsed = new(Load);
+    private static readonly Lazy<(string Ollama, string OpenAiCompat, int ChatSeconds)> _parsed = new(load);
 
-    /// <summary><c>providers.ollama.defaultBaseUrl</c>.</summary>
-    public static string OllamaBaseUrl => Parsed.Value.Ollama;
+    public static string OllamaBaseUrl => _parsed.Value.Ollama;
 
-    /// <summary><c>providers.openai-compat.defaultBaseUrl</c>.</summary>
-    public static string OpenAiCompatBaseUrl => Parsed.Value.OpenAiCompat;
+    public static string OpenAiCompatBaseUrl => _parsed.Value.OpenAiCompat;
 
-    /// <summary><c>timeouts.chatSeconds</c> — the cross-surface chat deadline.</summary>
-    public static int ChatTimeoutSeconds => Parsed.Value.ChatSeconds;
+    // timeouts.chatSeconds — the cross-surface chat deadline.
+    public static int ChatTimeoutSeconds => _parsed.Value.ChatSeconds;
 
-    private static (string, string, int) Load()
+    private static (string, string, int) load()
     {
-        using Stream stream = typeof(ProvidersAsset).Assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");
+        using Stream stream = typeof(ProvidersAsset).Assembly.GetManifestResourceStream(_resourceName)
+            ?? throw new InvalidOperationException($"embedded resource {_resourceName} is missing");
         using JsonDocument doc = JsonDocument.Parse(stream);
         JsonElement providers = doc.RootElement.GetProperty("providers");
         return (

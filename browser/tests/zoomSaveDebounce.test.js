@@ -61,12 +61,15 @@ test('flush runs a pending save NOW, once — and is a no-op when idle', () => {
   assert.strictEqual(saves, 1, 'no ghost save from the flushed cycle');
 });
 
+// Both halves: zoomPan.js owns setZoom, zoomAnimation.js the animated zoom's final snap.
 test('every zoom persist route rides the debounce (source pin)', () => {
-  const src = readFileSync(new URL('../js/core/zoomPan.js', import.meta.url), 'utf8');
-  assert.strictEqual((src.match(/this\.app\.storage\.save\(\)/g) || []).length, 1,
+  const pan = readFileSync(new URL('../js/core/zoomPan.js', import.meta.url), 'utf8');
+  const anim = readFileSync(new URL('../js/core/zoomAnimation.js', import.meta.url), 'utf8');
+  const src = pan + anim;
+  assert.strictEqual((src.match(/storage\.save\(\)/g) || []).length, 1,
     'exactly one direct storage save call — the one inside the trailing runner');
-  assert.match(src, /if \(persist && this\.app\.image\) this\.persistZoom\(\);/,
+  assert.match(pan, /if \(persist && this\.app\.image\) this\.persistZoom\(\);/,
     'setZoom (wheel/hold steps) routes through the debounce');
-  assert.strictEqual((src.match(/this\.persistZoom\(\);/g) || []).length, 2,
+  assert.strictEqual((src.match(/persistZoom\(\);/g) || []).length, 2,
     'both routes — setZoom and the animated zoom’s final snap');
 });

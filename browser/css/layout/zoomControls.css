@@ -1,0 +1,69 @@
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+/* No box of their own: −, + and Fit are icon buttons like every other one in the toolbar,
+   so they take the shared button padding. The tighter one here dates from when − and +
+   were TEXT glyphs at 16px; with real icons in the box it just made these three squat —
+   36 × 24 beside the 40 × 32 of their neighbours (user report, with a picture) — where the
+   desktop's whole toolbar is one 37 × 33 chip (makeToolSection). */
+.zoom-controls button { line-height: 1; }
+.zoom-input-wrap { position: relative; display: inline-flex; }
+/* Zoom preset dropdown — opens on focus/click of #zoom-input; type or click a preset. */
+.zoom-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 60;
+    min-width: 100%;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--bg-page);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    padding: 4px 0;
+}
+.zoom-menu[hidden] { display: none; }
+/* While open, the menu is moved to <body> (js/ui/dropdownMenu.js) — same portal contract
+   as .accent-dd-menu (components/accentPicker.css), which used to slice this list under the row below. */
+.zoom-menu.dd-portal {
+    position: fixed;
+    left: auto;
+    top: auto;
+    z-index: 100002;
+}
+.zoom-menu-item {
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--text-main);
+}
+.zoom-menu-item:hover, .zoom-menu-item.active { background: var(--accent); color: var(--on-accent); }
+#zoom-input {
+    min-width: 52px;
+    width: 62px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 13px;
+    /* background-COLOR — the id-specificity shorthand would kill the hover sweep below. */
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    padding: 4px;
+    -moz-appearance: textfield;
+}
+#zoom-input::-webkit-inner-spin-button,
+#zoom-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+#zoom-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.shortcut-hint {
+    font-size: 12px;
+    color: var(--text-shortcut);
+    margin-left: 4px;
+}

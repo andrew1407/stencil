@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { HistoryStack } from '../js/core/historyStack.js';
+import { readFileSync } from 'node:fs';
+import { HistoryStack, MAX_STEPS } from '../js/core/historyStack.js';
+import constants from '../js/config/constants.json' with { type: 'json' };
 
 test('fresh stack cannot undo at base', () => {
     const h = new HistoryStack();
@@ -89,4 +91,47 @@ test('reset with empty lines leaves NO redo (no stray redo step after a blank)',
     assert.deepStrictEqual(h.undo(), []);
     assert.strictEqual(h.canRedo(), true);
     assert.deepStrictEqual(h.redo(), [{ id: 'b' }]);
+});
+
+// Core parses no JSON, so MAX_STEPS is pinned in its header instead; this is the drift
+// guard between that literal and the canonical LIMITS.historyMax.
+test('the depth cap is one value: constants.json, the JS twin and the core header', () => {
+    assert.strictEqual(constants.LIMITS.historyMax, 64);
+    assert.strictEqual(MAX_STEPS, constants.LIMITS.historyMax);
+    const hpp = readFileSync(new URL('../../core/state/HistoryStack.hpp', import.meta.url), 'utf8');
+    const found = /MAX_STEPS\s*=\s*(\d+)/.exec(hpp);
+    assert.ok(found, 'core/state/HistoryStack.hpp must declare MAX_STEPS');
+    assert.strictEqual(Number(found[1]), constants.LIMITS.historyMax);
+});
+
+test('push caps the depth at MAX_STEPS, evicting the oldest snapshot', () => {
+    const h = new HistoryStack();
+    for (let i = 0; i < MAX_STEPS; i++) h.push([{ id: i }]);
+    assert.strictEqual(h.history.length, MAX_STEPS);
+    assert.strictEqual(h.historyStep, MAX_STEPS - 1);
+
+    // One past the cap: length holds, the cursor still names the snapshot just pushed,
+    // and the oldest (id 0) is gone — the deepest undo now reaches id 1.
+    h.push([{ id: MAX_STEPS }]);
+    assert.strictEqual(h.history.length, MAX_STEPS);
+    assert.strictEqual(h.historyStep, MAX_STEPS - 1);
+    assert.deepStrictEqual(h.history[0], [{ id: 1 }]);
+    assert.strictEqual(h.canRedo(), false);
+    for (let i = 0; i < MAX_STEPS - 1; i++) h.undo();
+    assert.strictEqual(h.historyStep, 0);
+    assert.deepStrictEqual(h.undo(), []);   // past the front is still the step -1 stop
+    assert.strictEqual(h.historyStep, -1);
+    assert.deepStrictEqual(h.redo(), [{ id: 1 }]);
+});
+
+test('the cap holds over a long run and leaves redo reachable', () => {
+    const h = new HistoryStack();
+    for (let i = 0; i < MAX_STEPS * 3; i++) {
+        h.push([{ id: i }]);
+        assert.ok(h.history.length <= MAX_STEPS);
+        assert.strictEqual(h.historyStep, h.history.length - 1);
+    }
+    h.undo();
+    assert.strictEqual(h.canRedo(), true);
+    assert.deepStrictEqual(h.redo(), [{ id: MAX_STEPS * 3 - 1 }]);
 });

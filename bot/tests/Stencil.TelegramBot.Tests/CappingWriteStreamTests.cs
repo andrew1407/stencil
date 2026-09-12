@@ -9,7 +9,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class CappingWriteStreamTests
 {
     [Fact]
-    public async Task WritesUpToTheLimitPassThrough()
+    public async Task Should_Pass_Through_Writes_Up_To_The_Limit()
     {
         using MemoryStream sink = new();
         await using CappingWriteStream capped = new(sink, limit: 8);
@@ -21,7 +21,7 @@ public sealed class CappingWriteStreamTests
     }
 
     [Fact]
-    public async Task ThrowsWhenExceedingTheLimit()
+    public async Task Should_Throw_When_Exceeding_The_Limit()
     {
         using MemoryStream sink = new();
         await using CappingWriteStream capped = new(sink, limit: 8);
@@ -31,7 +31,7 @@ public sealed class CappingWriteStreamTests
     }
 
     [Fact]
-    public async Task DoesNotWriteTheOverflowingChunk()
+    public async Task Should_Not_Write_The_Overflowing_Chunk()
     {
         using MemoryStream sink = new();
         await using CappingWriteStream capped = new(sink, limit: 4);
@@ -41,7 +41,7 @@ public sealed class CappingWriteStreamTests
     }
 
     [Fact]
-    public void LeavesTheInnerStreamOpenAfterDispose()
+    public void Should_Leave_The_Inner_Stream_Open_After_Dispose()
     {
         MemoryStream sink = new();
         using (CappingWriteStream capped = new(sink, limit: 4))

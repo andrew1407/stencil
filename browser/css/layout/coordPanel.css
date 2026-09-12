@@ -1,0 +1,182 @@
+/* ── Coordinates panel ── */
+/* What the panel is wide BEFORE the user has ever dragged it (--coord-panel-width is
+   written by the resizer, js/utils.js). One token, because the fullscreen points drawer
+   and its resizer rail fall back to the same number (components/fullscreen.css and
+   animations/responsive.css) — they read as one panel and must not drift apart. */
+:root { --coord-panel-default: 405px; }
+.coordinates-panel {
+    /* Width is user-resizable via #panel-resizer (drag handle), persisted as --coord-panel-width;
+       clamped to a sensible range. flex:0 0 auto so the canvas-section (flex:1) takes the rest. */
+    flex: 0 0 auto;
+    width: var(--coord-panel-width, var(--coord-panel-default));
+    min-width: 240px;
+    max-width: 640px;
+    background: var(--bg-coord-panel);
+    padding: 10px 12px;
+    border-radius: 5px;
+    margin-top: 20px;
+    transition: padding 0.2s;
+    /* A long point list must scroll INSIDE the panel, not stretch the page under the
+       canvas. Sticky keeps it in view while the rest of the page scrolls. */
+    position: sticky;
+    top: 20px;
+    /* max-height is set by JS (ZoomPan.syncCoordPanelHeight), NOT here: the panel starts
+       below the toolbar, so a `calc(100vh - …)` cap over-reports its room by however far
+       down it sits and let a ~40-row outline run past the window bottom. This is the
+       boot-time fallback for the frame before the first measurement lands. */
+    max-height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
+}
+#coord-body {
+    overflow-y: auto;
+    min-height: 0;   /* a flex child defaults to min-content — without this it never shrinks */
+}
+/* Column headers stay put while the rows scroll under them. */
+.coordinates-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+/* Vertical drag handle between the canvas and the coordinates panel — the browser counterpart of
+   the desktop canvas↔panel splitter. Sits in the .main-content flex row (see mainContent.js). */
+.panel-resizer {
+    position: relative;
+    flex: 0 0 auto;
+    align-self: stretch;
+    width: 8px;
+    margin-top: 20px;
+    border-radius: 3px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.15s;
+}
+/* Always-visible grip so the handle is discoverable (a short vertical bar, centered). */
+.panel-resizer::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 34px;
+    border-radius: 2px;
+    background: var(--border-main);
+    transition: background 0.15s, height 0.15s;
+}
+.panel-resizer:hover::before, .panel-resizer.dragging::before { background: var(--accent); height: 52px; }
+/* No resizing while the panel is collapsed to its 36px rail. */
+.main-content:has(.coordinates-panel.coord-collapsed) .panel-resizer { display: none; }
+.coordinates-panel.coord-collapsed {
+    /* Collapsing is the slower half — see --fold-out-ms (animations/collapse.css). Declared HERE,
+       on the after-change style, so only the way out takes it. */
+    transition: width var(--fold-out-ms) var(--fold-ease),
+                min-width var(--fold-out-ms) var(--fold-ease),
+                padding var(--fold-out-ms) var(--fold-ease);
+    /* 0, not `unset`: `min-width: auto` cannot be interpolated, and with `unset` the
+       240px floor snapped back the instant the class came off — the panel jumped most of
+       the way open before the width transition (animations/collapse.css) had anything left to do. */
+    min-width: 0;
+    max-width: unset;
+    width: 36px;
+    /* Symmetric, so the right-aligned button lands dead centre: 36 - 4 - 28 - 4. */
+    padding: 6px 4px;
+    overflow: hidden;
+}
+.coord-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 6px;
+    white-space: nowrap;
+}
+/* One 28px rounded square in BOTH states — open and collapsed to the rail. It used to be
+   a 30x22 pill here (a 16px glyph in a 14.3px line box: 7px of side padding against 3px
+   above and below) that turned into a square on collapse, so the same control changed
+   shape and sat cramped whenever the panel was open. */
+#toggle-coord-panel {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    line-height: 1;
+    border-radius: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+    /* Keeps it pinned right once the tabs are gone and it is the header's only child. */
+    margin-left: auto;
+}
+#toggle-coord-panel:hover { background: var(--bg-info); }
+/* On the rail it keeps that box and just drops the outline. */
+.coordinates-panel.coord-collapsed #toggle-coord-panel { border: none !important; }
+.coordinates-panel.coord-collapsed #coord-body { display: none; }
+.coordinates-panel.coord-collapsed .coord-tabs { display: none; }
+.coordinates-panel.coord-collapsed .coord-panel-header { margin-bottom: 0; }
+
+/* ── Points | Lines tab strip ── */
+.coord-tabs { display: inline-flex; gap: 2px; }
+.coord-tab {
+    font-weight: bold;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 3px 8px 4px;
+    cursor: pointer;
+    line-height: 1.3;
+}
+.coord-tab:hover { color: var(--text-coord-h3); }
+.coord-tab-active {
+    color: var(--text-coord-h3);
+    border-bottom-color: var(--accent);
+}
+
+/* ── Lines tab: one row per committed line ── */
+.lines-list { display: flex; flex-direction: column; gap: 3px; max-height: 340px; overflow-y: auto; }
+.lines-empty { color: var(--text-muted); font-size: 12px; padding: 8px 4px; text-align: center; }
+.lines-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 6px;
+    border: 1px solid var(--border-coord);
+    border-radius: 5px;
+    background: var(--bg-coord-table);
+    cursor: pointer;
+    font-size: 12px;
+}
+.lines-row:hover { background: var(--bg-coord-hover); }
+/* Canvas-driven counterpart of :hover — the row whose line is under the canvas cursor. */
+.lines-row-hover:not(.lines-row-selected) {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.lines-row-selected {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+.lines-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid var(--border-main);
+    flex-shrink: 0;
+}
+.lines-label { flex: 1; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lines-remove {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    display: inline-flex;
+    border-radius: 4px;
+}
+.lines-remove:hover { color: var(--danger, #ef4444); background: var(--bg-info); }

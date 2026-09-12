@@ -1,4 +1,4 @@
-// Headless check of the scroll-reveal curve (src/app/scrollReveal.hpp) — the desktop
+// Headless check of the scroll-reveal curve (src/support/scrollReveal.hpp) — the desktop
 // port of the browser's .reveal-item / .reveal-in rules (browser/css/animations.css,
 // driven by browser/js/ui/motion.js). The widget/delegate plumbing needs a live view,
 // but the curve that decides how dim a row is does not, so that is what is pinned here:
@@ -11,9 +11,9 @@
 #include <cmath>
 #include <cstdio>
 
-using stencil::gui::kRevealBottomBandPx;
-using stencil::gui::kRevealMinOpacity;
-using stencil::gui::kRevealTopBandPx;
+using stencil::gui::REVEAL_BOTTOM_BAND_PX;
+using stencil::gui::REVEAL_MIN_OPACITY;
+using stencil::gui::REVEAL_TOP_BAND_PX;
 using stencil::gui::revealOpacity;
 using stencil::gui::revealOpacityForItem;
 
@@ -26,20 +26,20 @@ int main(int argc, char** argv) {
 
   // ── Clear of both bands → untouched.
   check(near(revealOpacity(100, 200, viewH), 1.0), "an item in the middle is fully opaque");
-  check(near(revealOpacity(kRevealTopBandPx, viewH - kRevealBottomBandPx, viewH), 1.0),
+  check(near(revealOpacity(REVEAL_TOP_BAND_PX, viewH - REVEAL_BOTTOM_BAND_PX, viewH), 1.0),
         "an item exactly spanning the inner box is fully opaque");
 
   // ── Off-screen → the rest state, in both directions.
-  check(near(revealOpacity(-120, -20, viewH), kRevealMinOpacity), "scrolled off the top → rest state");
-  check(near(revealOpacity(viewH + 10, viewH + 90, viewH), kRevealMinOpacity),
+  check(near(revealOpacity(-120, -20, viewH), REVEAL_MIN_OPACITY), "scrolled off the top → rest state");
+  check(near(revealOpacity(viewH + 10, viewH + 90, viewH), REVEAL_MIN_OPACITY),
         "not yet scrolled in → rest state");
 
   // ── Inside a band → a ramp between the two, monotonic as the item climbs.
-  const double half = revealOpacity(kRevealTopBandPx / 2, kRevealTopBandPx / 2 + 40, viewH);
-  check(half > kRevealMinOpacity && half < 1.0, "an item halfway into the top band is partly dim");
+  const double half = revealOpacity(REVEAL_TOP_BAND_PX / 2, REVEAL_TOP_BAND_PX / 2 + 40, viewH);
+  check(half > REVEAL_MIN_OPACITY && half < 1.0, "an item halfway into the top band is partly dim");
   check(revealOpacity(4, 60, viewH) < revealOpacity(40, 96, viewH),
         "the further into the top band, the dimmer");
-  check(near(revealOpacity(0, 56, viewH), kRevealMinOpacity),
+  check(near(revealOpacity(0, 56, viewH), REVEAL_MIN_OPACITY),
         "an item flush with the top edge is at the rest state");
 
   // ── The asymmetry that matters: the chat transcript pins its NEWEST card flush to
@@ -58,14 +58,14 @@ int main(int argc, char** argv) {
   check(near(revealOpacityForItem(nullptr, QRect(0, 0, 100, 40)), 1.0),
         "a delegate with no viewport paints at full opacity");
 
-  // ── The dissolve mapping (support/dissolveEffect.hpp is driven by this) ──
-  // The reveal ramp bottoms out at kRevealMinOpacity, not 0, so it has to be RESCALED:
+  // ── The dissolve mapping (support/DissolveEffect.hpp is driven by this) ──
+  // The reveal ramp bottoms out at REVEAL_MIN_OPACITY, not 0, so it has to be RESCALED:
   // an out-of-view row must reach a FULL dissolve, not stop 18% short of one.
   using stencil::gui::ScrollReveal;
   check(near(ScrollReveal::dissolveFor(1.0), 0.0), "a fully revealed row is not dissolved at all");
-  check(near(ScrollReveal::dissolveFor(kRevealMinOpacity), 1.0), "an out-of-view row dissolves completely");
+  check(near(ScrollReveal::dissolveFor(REVEAL_MIN_OPACITY), 1.0), "an out-of-view row dissolves completely");
   {
-    const double mid = ScrollReveal::dissolveFor((1.0 + kRevealMinOpacity) / 2.0);
+    const double mid = ScrollReveal::dissolveFor((1.0 + REVEAL_MIN_OPACITY) / 2.0);
     check(mid > 0.45 && mid < 0.55, "the midpoint of the ramp is the midpoint of the dissolve");
   }
   check(near(ScrollReveal::dissolveFor(2.0), 0.0) && near(ScrollReveal::dissolveFor(-1.0), 1.0),

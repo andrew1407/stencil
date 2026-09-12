@@ -1,7 +1,6 @@
 #pragma once
 
-// Small inline helpers shared by the MainWindow translation units
-// (mainWindow.cpp and the TUs split out of it). Header-only on purpose.
+// Inline helpers shared by the MainWindow translation units.
 
 #include "pageMetrics.hpp"
 
@@ -23,45 +22,29 @@
 
 namespace stencil::gui {
 
-  // ── shared toolbar metrics ──
-  inline constexpr int kToolIcon = 18;   // toolbar glyph box
-  // Air between the glyph and the word on the two FACE buttons (Start/Stop, Line/Rect).
-  // Qt's text-beside-icon gap is a fixed 4px and QSS `spacing` does nothing for a
-  // QToolButton, so the room is made in the icon RECT: the same glyph centred in a wider
-  // box hands the label its own air (browser twin: .btn-icon-text's `gap: 6px`).
-  inline constexpr int kFaceIconGap = 3;
-  // The ✎/🎨/✓/✗ chips beside the project name: the box, and the glyph in it. Half again
-  // the mark they carried before — at 17 in a 28 box the pair read as small, faint marks
-  // (user decision, with pictures of both surfaces). Browser twin: .name-edit-btn.
-  inline constexpr int kNameChipBox = 28;
-  // Half the box, as the browser's .name-edit-btn draws it (28px chip, 14px glyph): at 21
-  // the mark filled its chip edge to edge and the pair read as heavy blocks beside the
-  // name (user decision, with the two surfaces side by side).
-  inline constexpr int kNameChipGlyph = 15;
-  // The ✓/✗ that replace them in edit mode are the SAME chip, glyph included: a smaller
-  // pair read as faint, half-there marks beside the field (user decision, after trying both
-  // bigger and smaller). One size for all four, so edit mode never resizes the row.
-  inline constexpr int kToolRowH = 33;   // icon-button height; every section row matches it
-  // The "Controls" pill's chevron sits BESIDE its label, so it is sized against
-  // the text (a toolbar-sized 18 px glyph towered over it).
-  inline constexpr int kPillChevron = 7;    // Controls show/hide arrow (1.5x smaller, user decision)
-  inline constexpr int kHeaderLogo = 33;   // header-row logo mark (user decision); sets the row height floor
-  // The f(x,y) inputs take the browser's inline width (#formula-x / #formula-y,
-  // toolbar.js) where the row has room, shrinking toward the floor rather than
-  // tipping their row into QToolBar's "»".
-  inline constexpr int kFormulaFieldW = 180;
-  inline constexpr int kFormulaFieldMinW = 72;   // still shows a typical "x/2 + 10"
-  // centralLayout_'s RIGHT inset while the points panel is docked open (browser parity: the
-  // slim .main-content gap, css/layout.css). LEFT stays 0 — the canvas gets its own left inset
-  // instead (see MainWindow's ctor). Collapsed, updatePanelReopenButton swaps this for the
-  // wider kCanvasRightMarginCollapsed (mainWindow.cpp), sized for the floating re-open chevron.
-  inline constexpr int kCentralSideMargin = 14;
+  inline constexpr int TOOL_ICON = 18;   // toolbar glyph box
+  // Qt's text-beside-icon gap is a fixed 4px and QSS `spacing` does nothing for a QToolButton, so the air is
+  // made in the icon RECT (browser twin: .btn-icon-text `gap: 6px`).
+  inline constexpr int FACE_ICON_GAP = 3;
+  // The ✎/🎨/✓/✗ chips beside the project name. Browser twin: .name-edit-btn.
+  inline constexpr int NAME_CHIP_BOX = 28;
+  // Half the box, as .name-edit-btn draws it (28px chip, 14px glyph).
+  inline constexpr int NAME_CHIP_GLYPH = 15;
+  // One size for all four, so edit mode never resizes the row.
+  inline constexpr int TOOL_ROW_H = 33;   // icon-button height; every section row matches it
+  // The "Controls" pill's chevron is sized against its label, not the toolbar icons.
+  inline constexpr int PILL_CHEVRON = 7;    // Controls show/hide arrow (1.5x smaller, user decision)
+  inline constexpr int HEADER_LOGO = 33;   // header-row logo mark (user decision); sets the row height floor
+  // The browser's inline width (#formula-x / #formula-y); shrinks toward the floor rather than overflowing into "»".
+  inline constexpr int FORMULA_FIELD_W = 180;
+  inline constexpr int FORMULA_FIELD_MIN_W = 72;   // still shows a typical "x/2 + 10"
+  // centralLayout_'s RIGHT inset while the panel is docked (browser: the .main-content gap); collapsed,
+  // updatePanelReopenButton swaps in CANVAS_RIGHT_MARGIN_COLLAPSED.
+  inline constexpr int CENTRAL_SIDE_MARGIN = 14;
 
   inline long long nowMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
-  // Dismiss the whole open popup-menu chain. A modal dialog must NEVER open
-  // under a menu that still holds the popup grab: it would come up behind the
-  // popup and unfocused, and a native file dialog fights the grab outright.
+  // A modal dialog must NEVER open under a menu still holding the popup grab (it comes up behind, unfocused).
   inline void closeOpenPopupMenus() {
     for (int i = 0; i < 8; ++i) {
       auto* popup = qobject_cast<QMenu*>(QApplication::activePopupWidget());
@@ -70,9 +53,7 @@ namespace stencil::gui {
     }
   }
 
-  // On macOS the primary delete key emits Backspace (⌫), so the shared
-  // "Alt+Delete" defaults must bind to Backspace to fire on the key Mac users
-  // actually press (mirrors the browser's platformizeCombo Delete→Backspace).
+  // On macOS the primary delete key emits Backspace, so "Alt+Delete" binds to Backspace (browser platformizeCombo).
   inline QString platformizeSeq(QString seq) {
 #ifdef Q_OS_MACOS
     seq.replace(QStringLiteral("Delete"), QStringLiteral("Backspace"),
@@ -86,8 +67,7 @@ namespace stencil::gui {
         .toStdString();
   }
 
-  // Encode a QImage as PNG bytes for upload (the server is codec-free, so the
-  // desktop hands it already-encoded image bytes + the dimensions separately).
+  // The server is codec-free: it gets PNG bytes + the dimensions separately.
   inline QByteArray pngBytes(const QImage& img) {
     QByteArray out;
     QBuffer buf(&out);
@@ -96,10 +76,7 @@ namespace stencil::gui {
     return out;
   }
 
-  // min==max-pinned extent slide shared by the points panel, the chat dock and
-  // the toolbar rows: QMainWindow overrides a child's min/max during its own
-  // layout passes, so `apply` must pin the extent every frame and `done` must
-  // release the constraint.
+  // QMainWindow overrides a child's min/max during its own layout passes, so `apply` pins every frame and `done` releases.
   inline QVariantAnimation* startExtentSlide(QObject* owner, int from, int to, int ms,
                                              std::function<void(int)> apply,
                                              std::function<void()> done,
@@ -116,14 +93,12 @@ namespace stencil::gui {
     return anim;
   }
 
-  // Read all of `path` into `out`; false (leaving `out` untouched) on open failure.
   inline bool readFileBytes(const QString& path, QByteArray& out) {
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) return false;
     out = f.readAll();
     return true;
   }
-  // Overwrite `path` with `data` (truncating); false on open failure.
   inline bool writeFileBytes(const QString& path, const QByteArray& data) {
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
@@ -131,10 +106,8 @@ namespace stencil::gui {
     return true;
   }
 
-  // Whether the focused control inside `w` holds TYPED CONTENT — the linger
-  // hold. Content-gated on purpose: an auto-focused empty search field must not
-  // pin its window open.
-  inline bool typedContentInside(QWidget* w) {
+  // Content-gated: an auto-focused empty search field must not pin its window open.
+  inline bool hasTypedContentInside(QWidget* w) {
     QWidget* f = QApplication::focusWidget();
     if (!f || !w || !w->isAncestorOf(f)) return false;
     if (auto* le = qobject_cast<QLineEdit*>(f)) return !le->text().trimmed().isEmpty();
@@ -143,9 +116,7 @@ namespace stencil::gui {
     return false;
   }
 
-  // Natural page dimensions (cm) as selected — NOT orientation-swapped (only
-  // the proportions matter for the crop aspect). Mirrors the browser
-  // cropModal.pageDims helper.
+  // NOT orientation-swapped — only the proportions matter. Browser: cropModal.pageDims.
   inline core::PageSize naturalPageCm(const QString& pageSize, double customW,
                                       double customH) {
     if (pageSize == "custom") return {customW, customH};

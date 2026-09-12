@@ -1,0 +1,78 @@
+/* ── Image-too-large warning banner (js/core/storage.js) ──
+   Fixed warning colours, not theme tokens: the same amber in either theme, as it always
+   was. storage.js sets `display` to raise and drop it. */
+.image-missing-banner {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #856404;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+/* Scoped by the banner so it outranks the shared `button`/`button:hover` accent rules. */
+.image-missing-banner .image-missing-reupload {
+    margin-left: auto;
+    padding: 5px 12px;
+    background: #ffc107;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* ── Notification stack (bottom-left) ──
+   The host is the COLUMN, not a toast: js/ui/notifications.js appends one .notify-toast
+   per message, newest last → newest at the bottom, the stack growing upward. Capped at
+   three there (desktop parity), so it can never wall off the side of the canvas. */
+#notify-balloon {
+    position: fixed;
+    /* A docked chat owns its corner: the panel sets the inset vars (chatPanel.js
+       updateNotifyInset) so the stack sits beside a left dock / above a bottom one. */
+    left: calc(18px + var(--chat-inset-left, 0px));
+    bottom: calc(18px + var(--chat-inset-bottom, 0px));
+    transition: left 0.25s ease, bottom 0.25s ease;
+    /* Above the modal overlay (z-index 100001) + its backdrop blur, so toasts stay
+       crisp and readable while any dialog is open instead of sitting behind it. */
+    z-index: 100002;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    /* The column spans nothing clickable — only a clickable toast opts back in. */
+    pointer-events: none;
+}
+.notify-toast {
+    /* Sized by its text: a 180px floor left "Cleared" as a mostly-empty slab. */
+    min-width: 0;
+    max-width: 380px;
+    /* An unbreakable run (filename/URL) must WRAP inside the cap, never widen past it —
+       belt to squeezeLongTokens' braces (notifications.js). */
+    overflow-wrap: anywhere;
+    /* One inner box on both surfaces: 12px beside the content, 10px above and below,
+       8px between glyph and text (desktop Notifications.cpp mirrors it). */
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #fff;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.28);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+/* TWO colours, not three: red means something went wrong, and everything else — a save, a
+   clear, a plain notice — carries the theme accent. A green success sat outside the palette
+   and made routine confirmations shout as loudly as failures. The ✓ / ✕ / ℹ glyph is what
+   still separates the kinds. Mirrored in desktop/src/support/Notifications.cpp. */
+.notify-toast.notify-ok,
+.notify-toast.notify-info  { background: var(--accent); color: var(--on-accent); }
+.notify-toast.notify-fail  { background: var(--danger); }
+.notify-toast .notify-icon { display: inline-flex; align-items: center; }
+/* Clickable toasts (e.g. "assistant finished while the chat was closed") are real
+   affordances: interactive, pointer cursor, slight lift on hover. */
+.notify-toast.notify-clickable { pointer-events: auto; cursor: pointer; }
+.notify-toast.notify-clickable:hover { transform: translateY(-2px); }

@@ -8,13 +8,11 @@
 namespace stencil::core {
 
   namespace {
-    constexpr double kCmPerInch = 2.54;  // mirrors CM_PER_INCH in browser/js/utils.js
+    constexpr double CM_PER_INCH = 2.54;  // mirrors CM_PER_INCH in browser/js/utils.js
   }  // namespace
 
-  // Hand-rolled equivalent of /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/ — the core
-  // avoids <regex> (see formulaParser) for speed and small wasm output.
+  // Hand-rolled /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/ — no <regex> in the wasm build.
   std::optional<LengthToken> parseLengthToken(const std::string& token) {
-    // Trim + lowercase, matching the JS `token.trim().toLowerCase()`.
     const std::string s = trimLowerAscii(token);
     if (s.empty()) return std::nullopt;
 
@@ -51,23 +49,23 @@ namespace stencil::core {
     LengthToken t;
     t.fromEnd = fromEnd;  // every kind but Delta keeps it; Delta folds it into the sign below
     if (unit == "%") {
-      t.kind = LengthKind::Percent;
+      t.kind = LengthKind::PERCENT;
       t.value = value;
     } else if (unit == "cm") {
-      t.kind = LengthKind::Cm;
+      t.kind = LengthKind::CM;
       t.value = value;
     } else if (unit == "mm") {
-      t.kind = LengthKind::Cm;
+      t.kind = LengthKind::CM;
       t.value = value / 10.0;
     } else if (unit == "in") {
-      t.kind = LengthKind::Cm;
-      t.value = value * kCmPerInch;
+      t.kind = LengthKind::CM;
+      t.value = value * CM_PER_INCH;
     } else if (unit == "px") {
-      t.kind = LengthKind::Px;
+      t.kind = LengthKind::PX;
       t.value = value;
     } else if (unit.empty()) {
       // A bare number is a delta — keep the sign.
-      t.kind = LengthKind::Delta;
+      t.kind = LengthKind::DELTA;
       t.value = fromEnd ? -value : value;
       t.fromEnd = false;
     } else {
@@ -80,11 +78,11 @@ namespace stencil::core {
                                       double pxPerCm, double currentPx) {
     const auto t = parseLengthToken(token);
     if (!t) return std::nullopt;
-    if (t->kind == LengthKind::Delta) return currentPx + t->value;
+    if (t->kind == LengthKind::DELTA) return currentPx + t->value;
 
     double px;
-    if (t->kind == LengthKind::Px) px = t->value;
-    else if (t->kind == LengthKind::Cm) px = t->value * pxPerCm;
+    if (t->kind == LengthKind::PX) px = t->value;
+    else if (t->kind == LengthKind::CM) px = t->value * pxPerCm;
     else px = (t->value / 100.0) * lengthPx;  // percent
 
     return t->fromEnd ? lengthPx - px : px;

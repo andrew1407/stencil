@@ -29,21 +29,10 @@ var tcpIdleTimeout = 5 * time.Minute
 // NewTCP wraps an accepted/ dialed net.Conn as a Conn.
 func NewTCP(conn net.Conn) Conn {
 	sc := bufio.NewScanner(conn)
-	// +1 for the delimiter: the scanner must buffer the '\n' it searches for, so a
-	// cap of exactly MaxMessageBytes would reject a message OF that size. The WS
-	// adapter's SetReadLimit(MaxMessageBytes) accepts it, and MaxMessageBytes is
-	// documented as the cap "on either transport" — so the two must agree.
+	// +1 for the delimiter: the scanner buffers the '\n' too, so a cap of exactly
+	// MaxMessageBytes would reject a message OF that size, which WS accepts.
 	sc.Buffer(make([]byte, 0, 64*1024), MaxMessageBytes+1)
 	return &tcpConn{conn: conn, sc: sc}
-}
-
-// DialTCP connects to a TCP edit endpoint (used by tests and Go-side clients).
-func DialTCP(addr string) (Conn, error) {
-	c, err := net.Dial("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-	return NewTCP(c), nil
 }
 
 func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {

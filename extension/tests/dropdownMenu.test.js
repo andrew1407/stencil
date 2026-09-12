@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { themeCss } from './helpers/sources.js';
 
 test('every page replaces its native selects, and the list is themed + portaled', () => {
   const cs = readFileSync(new URL('../src/lib/customSelect.js', import.meta.url), 'utf8');
@@ -28,7 +29,7 @@ test('every page replaces its native selects, and the list is themed + portaled'
     const src = readFileSync(new URL(`../src/${script}`, import.meta.url), 'utf8');
     assert.match(src, /enhanceSelect\(/, `${script} enhances its selects`);
   }
-  const css = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
+  const css = themeCss();
   assert.match(css, /\.cs-native \{ display: none; \}/, 'the native control is hidden, not removed');
   assert.match(css, /\.accent-dd-menu\.dd-portal \{[^}]*position: fixed/, 'the portaled menu is viewport-positioned');
   assert.match(css, /\.accent-dd-menu\.dd-portal \{[^}]*right: auto/, 'and anchored from the left it was given');

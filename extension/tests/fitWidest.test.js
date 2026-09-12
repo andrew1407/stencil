@@ -11,6 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { themeCss } from './helpers/sources.js';
 import { pinToWidestOption } from '../src/lib/fitWidest.js';
 
 // ── Stub DOM ────────────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ test('a hidden chip or dropdown takes no width', () => {
   // Both components set `display` themselves, which out-specifies the UA's [hidden] rule:
   // without these the popup's "server pins" pill and its per-server list still paint an
   // (empty) box in the filter row with no server connected.
-  const css = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
+  const css = themeCss();
   assert.match(css, /\.chk\[hidden\] \{ display: none; \}/);
   assert.match(css, /\.accent-dd\[hidden\] \{ display: none; \}/);
   // The wrapper only ever gets `hidden` because customSelect mirrors the select's.

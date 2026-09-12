@@ -1,13 +1,17 @@
-//! Walk the shared layout conformance vectors (`browser/js/config/fixtures/layout/`)
-//! through mcp's real layout types (`layout::Layout` / `layout::Line`, plain serde).
-//! mcp has no `buildLayoutPayload`/`sanitizeLines` — its analog is the serde round-trip
-//! the `--layout` temp file goes through — so this PINS what that round-trip does:
-//! which corpus fields survive, which are silently invisible, and which inputs the
-//! strict (non-tolerant) serde parser rejects. Measured disagreements with the corpus
-//! expectations live in `tests/fixture_overrides.json` (family `layout`).
+//! What mcp ACCEPTS as layout JSON: the hand-written documents the CLI and the browser
+//! also parse, then the shared corpus (`browser/js/config/fixtures/layout/`) walked through
+//! the real types. mcp has no `buildLayoutPayload`/`sanitizeLines` — its analog is the serde
+//! round-trip the `--layout` temp file goes through — so this PINS what that round-trip
+//! does: which corpus fields survive, which are invisible, and which inputs the strict
+//! parser rejects. Disagreements live in `tests/fixture_overrides.json` (family `layout`).
+
+use std::sync::LazyLock;
 
 use serde_json::{json, Value};
 use stencil_mcp::layout::{Layout, Line};
+
+mod common;
+use common::walk::Walk;
 
 const FIXTURES_DIR: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/fixtures/layout");
@@ -17,6 +21,9 @@ const FIXTURES_DIR: &str =
 /// `imageFilter` is the canonical wire key since Phase 6 (legacy `filter` is read-only).
 const MCP_VISIBLE_KEYS: [&str; 4] = ["imageWidth", "imageHeight", "imageFilter", "lines"];
 
+static PAYLOAD: LazyLock<Vec<Value>> = LazyLock::new(|| load("payload.json"));
+static SPARSE: LazyLock<Vec<Value>> = LazyLock::new(|| load("sparse.json"));
+
 fn load(file: &str) -> Vec<Value> {
     let path = format!("{FIXTURES_DIR}/{file}");
     let raw = std::fs::read_to_string(&path)
@@ -25,50 +32,39 @@ fn load(file: &str) -> Vec<Value> {
         .unwrap_or_else(|e| panic!("{file} is not a JSON array: {e}"))
 }
 
-fn overrides() -> Value {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixture_overrides.json");
-    let raw = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
-    serde_json::from_str::<Value>(&raw).expect("fixture_overrides.json parses")["layout"].clone()
-}
-
-/// `payload.json`: the browser's export-payload vectors, replayed as a `Layout` serde
-/// round-trip. An override `verdict: "reject"` pins a vector serde refuses; an override
-/// `payload` pins a round-trip that differs from the browser's `expectPayload` (the diff
-/// is exactly the keys invisible to mcp, plus the always-emitted `lines`).
-#[test]
-fn payload_vectors_pin_the_layout_round_trip() {
-    let overrides = overrides();
-    for vector in load("payload.json") {
-        let name = vector["name"].as_str().expect("vector name");
-        let ov = &overrides[name];
-        let parsed: Result<Layout, _> = serde_json::from_value(vector["layout"].clone());
-        if ov["verdict"].as_str() == Some("reject") {
-            assert!(parsed.is_err(), "[{name}] pinned as serde-rejected, but it parsed");
-            continue;
-        }
-        let layout = parsed.unwrap_or_else(|e| panic!("[{name}] mcp Layout rejected: {e}"));
-        let got = serde_json::to_value(&layout).unwrap();
-        let want = if ov["payload"].is_null() { &vector["expectPayload"] } else { &ov["payload"] };
-        assert!(
-            structurally_equal(&got, want),
-            "[{name}] round-trip payload\n got: {got}\nwant: {want}"
-        );
-        // Everything mcp emits comes from its four visible keys; the real `--layout` temp
-        // file serializes the struct directly, so top-level key order is the struct order
-        // (Value round-trips sort keys — check order on the raw serialization instead).
-        for key in got.as_object().unwrap().keys() {
-            assert!(MCP_VISIBLE_KEYS.contains(&key.as_str()), "[{name}] unexpected key {key}");
-        }
-        let raw = serde_json::to_string(&layout).unwrap();
-        let positions: Vec<usize> = MCP_VISIBLE_KEYS
-            .iter()
-            .filter_map(|k| raw.find(&format!("\"{k}\"")))
-            .collect();
-        assert!(
-            positions.windows(2).all(|w| w[0] < w[1]),
-            "[{name}] top-level key order must follow the struct: {raw}"
-        );
+/// `payload.json` replayed as a `Layout` round-trip. Override `verdict: "reject"` pins a
+/// vector serde refuses; override `payload` pins a round-trip that differs from the
+/// browser's `expectPayload` by exactly the keys mcp cannot see, plus `lines`.
+fn check_payload(vector: &Value) {
+    let name = vector["name"].as_str().expect("vector name");
+    let ov = &common::overrides("layout")[name];
+    let parsed: Result<Layout, _> = serde_json::from_value(vector["layout"].clone());
+    if ov["verdict"].as_str() == Some("reject") {
+        assert!(parsed.is_err(), "[{name}] pinned as serde-rejected, but it parsed");
+        return;
     }
+    let layout = parsed.unwrap_or_else(|e| panic!("[{name}] mcp Layout rejected: {e}"));
+    let got = serde_json::to_value(&layout).unwrap();
+    let want = if ov["payload"].is_null() { &vector["expectPayload"] } else { &ov["payload"] };
+    assert!(
+        structurally_equal(&got, want),
+        "[{name}] round-trip payload\n got: {got}\nwant: {want}"
+    );
+    // Everything mcp emits comes from its four visible keys; the real `--layout` temp
+    // file serializes the struct directly, so top-level key order is the struct order
+    // (Value round-trips sort keys — check order on the raw serialization instead).
+    for key in got.as_object().unwrap().keys() {
+        assert!(MCP_VISIBLE_KEYS.contains(&key.as_str()), "[{name}] unexpected key {key}");
+    }
+    let raw = serde_json::to_string(&layout).unwrap();
+    let positions: Vec<usize> = MCP_VISIBLE_KEYS
+        .iter()
+        .filter_map(|k| raw.find(&format!("\"{k}\"")))
+        .collect();
+    assert!(
+        positions.windows(2).all(|w| w[0] < w[1]),
+        "[{name}] top-level key order must follow the struct: {raw}"
+    );
 }
 
 /// The per-line defaults mcp documents (filled by the CLI when a field is omitted;
@@ -106,23 +102,98 @@ fn structurally_equal(a: &Value, b: &Value) -> bool {
 /// `sparse.json`: tolerant-parser vectors. mcp's serde `Vec<Line>` is deliberately strict,
 /// so vectors relying on coercion/skip tolerance are pinned as rejected via overrides;
 /// vectors that parse must fill to the cross-surface `expectFilled` defaults.
-#[test]
-fn sparse_vectors_pin_the_strict_line_parser() {
-    let overrides = overrides();
-    for vector in load("sparse.json") {
-        let name = vector["name"].as_str().expect("vector name");
-        let ov = &overrides[name];
-        let parsed: Result<Vec<Line>, _> = serde_json::from_value(vector["sparse"].clone());
-        if ov["verdict"].as_str() == Some("reject") {
-            assert!(parsed.is_err(), "[{name}] pinned as serde-rejected, but it parsed");
-            continue;
-        }
-        let lines = parsed.unwrap_or_else(|e| panic!("[{name}] mcp Vec<Line> rejected: {e}"));
-        let got = Value::Array(lines.iter().map(filled).collect());
-        assert!(
-            structurally_equal(&got, &vector["expectFilled"]),
-            "[{name}] filled lines\n got: {got}\nwant: {}",
-            vector["expectFilled"]
-        );
+fn check_sparse(vector: &Value) {
+    let name = vector["name"].as_str().expect("vector name");
+    let ov = &common::overrides("layout")[name];
+    let parsed: Result<Vec<Line>, _> = serde_json::from_value(vector["sparse"].clone());
+    if ov["verdict"].as_str() == Some("reject") {
+        assert!(parsed.is_err(), "[{name}] pinned as serde-rejected, but it parsed");
+        return;
     }
+    let lines = parsed.unwrap_or_else(|e| panic!("[{name}] mcp Vec<Line> rejected: {e}"));
+    let got = Value::Array(lines.iter().map(filled).collect());
+    assert!(
+        structurally_equal(&got, &vector["expectFilled"]),
+        "[{name}] filled lines\n got: {got}\nwant: {}",
+        vector["expectFilled"]
+    );
+}
+
+// ── Hand-written documents ──
+
+/// The exact document the CLI's own parser test feeds `cli/src/layout.zig` (legacy `filter`
+/// key included). If the two ends ever disagree about a key, this stops parsing.
+fn parses_the_document_the_cli_parser_test_uses() {
+    let doc = r#"{ "imageWidth": 10, "imageHeight": 20, "filter": "bw",
+        "lines": [ { "points": [{"x":1,"y":2},{"x":3,"y":4}],
+                     "color": "red", "thickness": 3, "locked": true } ] }"#;
+    let layout: Layout = serde_json::from_str(doc).expect("the CLI's fixture parses here too");
+
+    assert_eq!(layout.image_width, Some(10.0));
+    assert_eq!(layout.image_height, Some(20.0));
+    assert_eq!(layout.filter.as_deref(), Some("bw"));
+    assert_eq!(layout.lines.len(), 1);
+
+    let line = &layout.lines[0];
+    assert_eq!(line.points.len(), 2);
+    assert_eq!(line.color.as_deref(), Some("red"));
+    assert_eq!(line.thickness, Some(3.0));
+    assert_eq!(line.locked, Some(true));
+    // Absent in the document → None here, so the CLI supplies its documented defaults
+    // (pointSize 4, style solid, fillColor transparent).
+    assert_eq!(line.point_size, None);
+    assert_eq!(line.style, None);
+    assert_eq!(line.fill_color, None);
+}
+
+/// Canonical `imageFilter` and legacy `filter` both deserialize into the same field;
+/// spelling BOTH is a serde duplicate-field error (no both-present precedence here).
+fn filter_reads_canonical_and_legacy_keys() {
+    let canonical: Layout = serde_json::from_str(r#"{"imageFilter":"bw"}"#).expect("parses");
+    assert_eq!(canonical.filter.as_deref(), Some("bw"));
+    let legacy: Layout = serde_json::from_str(r#"{"filter":"sepia"}"#).expect("parses");
+    assert_eq!(legacy.filter.as_deref(), Some("sepia"));
+    let both: Result<Layout, _> = serde_json::from_str(r#"{"filter":"a","imageFilter":"b"}"#);
+    assert!(both.is_err(), "both spellings at once is a duplicate-field error");
+}
+
+/// A layout with no `lines` key is legal (`#[serde(default)]`) and means "draw nothing" —
+/// a filter-only layout is a real use of the flag.
+fn missing_lines_defaults_to_empty() {
+    let layout: Layout = serde_json::from_str(r#"{"filter":"sepia"}"#).expect("parses");
+    assert!(layout.lines.is_empty());
+    assert_eq!(layout.filter.as_deref(), Some("sepia"));
+}
+
+/// A line with no points is legal on the wire; the CLI skips it rather than erroring.
+fn a_line_with_no_points_round_trips() {
+    let layout: Layout = serde_json::from_str(r#"{"lines":[{"points":[]}]}"#).expect("parses");
+    assert_eq!(layout.lines.len(), 1);
+    assert!(layout.lines[0].points.is_empty());
+}
+
+/// Unknown keys from a newer browser export must be ignored, never rejected — an older
+/// server should still draw the lines it understands.
+fn unknown_fields_are_ignored() {
+    let doc = r#"{"imageWidth":10,"futureKey":{"a":1},
+                  "lines":[{"points":[{"x":0,"y":0}],"futureLineKey":true}]}"#;
+    let layout: Layout = serde_json::from_str(doc).expect("unknown keys must not be fatal");
+    assert_eq!(layout.image_width, Some(10.0));
+    assert_eq!(layout.lines.len(), 1);
+}
+
+fn main() {
+    let mut walk = Walk::new();
+    for vector in &*PAYLOAD {
+        walk.case(format!("payload/{}", vector["name"].as_str().unwrap()), || check_payload(vector));
+    }
+    for vector in &*SPARSE {
+        walk.case(format!("sparse/{}", vector["name"].as_str().unwrap()), || check_sparse(vector));
+    }
+    walk.case("parses_the_document_the_cli_parser_test_uses", parses_the_document_the_cli_parser_test_uses);
+    walk.case("filter_reads_canonical_and_legacy_keys", filter_reads_canonical_and_legacy_keys);
+    walk.case("missing_lines_defaults_to_empty", missing_lines_defaults_to_empty);
+    walk.case("a_line_with_no_points_round_trips", a_line_with_no_points_round_trips);
+    walk.case("unknown_fields_are_ignored", unknown_fields_are_ignored);
+    walk.run()
 }

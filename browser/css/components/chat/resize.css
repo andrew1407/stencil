@@ -1,0 +1,77 @@
+/* Resize handle: an edge strip while docked, the bottom-right corner while floating
+   (same wirePanelResizer feel as the coordinates panel splitter). touch-action off
+   so the pointer drag owns the gesture on touch devices too. */
+.chat-resizer { position: absolute; background: transparent; touch-action: none; user-select: none; }
+/* Hover affordances are gated on :not(.chat-gesturing): while ONE handle drags,
+   the others must not light up as the pointer sweeps them. .dragging always shows. */
+stencil-chat-panel:not(.chat-gesturing) .chat-resizer:hover, .chat-resizer.dragging { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+stencil-chat-panel.chat-dock-left   .chat-resizer { top: 0; right: 0;  bottom: 0; width: 6px;  cursor: col-resize; }
+stencil-chat-panel.chat-dock-right  .chat-resizer { top: 0; left: 0;   bottom: 0; width: 6px;  cursor: col-resize; }
+stencil-chat-panel.chat-dock-top    .chat-resizer { left: 0; right: 0; bottom: 0; height: 6px; cursor: row-resize; }
+stencil-chat-panel.chat-dock-bottom .chat-resizer { left: 0; right: 0; top: 0;    height: 6px; cursor: row-resize; }
+stencil-chat-panel.chat-dock-float  .chat-resizer { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; border-radius: 10px 0 10px 0; }
+/* …and the SE corner shows the same dot the other three do. #chat-resizer owns that
+   corner in every mode, so it never picked up .chat-float-handle::before and sat blank.
+   Anchored 7px in, like the 14px handle box's centred dot; the block tint is dropped
+   in float so all four read alike. */
+stencil-chat-panel.chat-dock-float .chat-resizer::before {
+    content: '';
+    position: absolute;
+    right: 7px;
+    bottom: 7px;
+    transform: translate(50%, 50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-main);
+    transition: background 0.15s, width 0.15s, height 0.15s;
+}
+stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover,
+stencil-chat-panel.chat-dock-float .chat-resizer.dragging { background: transparent; }
+stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover::before,
+stencil-chat-panel.chat-dock-float .chat-resizer.dragging::before { background: var(--accent); width: 8px; height: 8px; }
+
+/* Float-mode edge/corner resize handles (#chat-resizer stays the SE corner grip).
+   Kept fully inside the host rect — the panel is overflow:hidden. Affordance follows
+   #fs-panel-resizer: a centered pill, resting border-main, accent + grow on hover/drag. */
+.chat-float-handle { display: none; position: absolute; background: transparent; touch-action: none; user-select: none; }
+.chat-dock-float .chat-float-handle { display: block; }
+.chat-float-handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 2px;
+    background: var(--border-main);
+    transition: background 0.15s, width 0.15s, height 0.15s;
+}
+.chat-float-handle-n::before, .chat-float-handle-s::before { width: 44px; height: 3px; }
+.chat-float-handle-e::before, .chat-float-handle-w::before { width: 3px; height: 44px; }
+.chat-float-handle-nw::before, .chat-float-handle-ne::before, .chat-float-handle-sw::before { width: 6px; height: 6px; border-radius: 50%; }
+stencil-chat-panel:not(.chat-gesturing) .chat-float-handle:hover::before, .chat-float-handle.dragging::before { background: var(--accent); }
+stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-n:hover::before, stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-s:hover::before,
+.chat-float-handle-n.dragging::before, .chat-float-handle-s.dragging::before { width: 68px; }
+stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-e:hover::before, stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-w:hover::before,
+.chat-float-handle-e.dragging::before, .chat-float-handle-w.dragging::before { height: 68px; }
+stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-nw:hover::before, stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-ne:hover::before, stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-sw:hover::before,
+.chat-float-handle-nw.dragging::before, .chat-float-handle-ne.dragging::before, .chat-float-handle-sw.dragging::before { width: 8px; height: 8px; }
+.chat-float-handle-n  { top: 0; left: 14px; right: 14px; height: 6px; cursor: ns-resize; }
+.chat-float-handle-s  { bottom: 0; left: 14px; right: 20px; height: 6px; cursor: ns-resize; }
+.chat-float-handle-e  { right: 0; top: 14px; bottom: 20px; width: 6px; cursor: ew-resize; }
+.chat-float-handle-w  { left: 0; top: 14px; bottom: 14px; width: 6px; cursor: ew-resize; }
+.chat-float-handle-nw { top: 0; left: 0; width: 14px; height: 14px; cursor: nwse-resize; border-radius: 10px 0 0 0; }
+.chat-float-handle-ne { top: 0; right: 0; width: 14px; height: 14px; cursor: nesw-resize; border-radius: 0 10px 0 0; }
+.chat-float-handle-sw { bottom: 0; left: 0; width: 14px; height: 14px; cursor: nesw-resize; border-radius: 0 0 0 10px; }
+
+/* Phone-modal backdrop; display:none (so it swallows no taps) on every viewport
+   where the panel is a dock/float. Mirrors .app-modal-overlay's dim + blur. */
+#chat-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 89998;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}

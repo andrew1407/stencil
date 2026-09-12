@@ -9,7 +9,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class CommandParserTests
 {
     [Fact]
-    public void ParsesVerbArgumentTextAndTokens()
+    public void Should_Parse_Verb_Argument_Text_And_Tokens()
     {
         BotCommand command = CommandParser.Parse("/crop x1=10% x2=90%");
         Assert.Equal("crop", command.Verb);
@@ -20,7 +20,7 @@ public sealed class CommandParserTests
     }
 
     [Fact]
-    public void StripsBotMentionAndLowercasesVerb()
+    public void Should_Strip_The_Bot_Mention_And_Lowercase_The_Verb()
     {
         BotCommand command = CommandParser.Parse("/Connect@MyBot http://h tok");
         Assert.Equal("connect", command.Verb);
@@ -29,7 +29,7 @@ public sealed class CommandParserTests
     }
 
     [Fact]
-    public void VerbOnlyHasEmptyArguments()
+    public void Should_Yield_Empty_Arguments_For_A_Verb_Only_Command()
     {
         BotCommand command = CommandParser.Parse("/HELP");
         Assert.Equal("help", command.Verb);
@@ -38,7 +38,7 @@ public sealed class CommandParserTests
     }
 
     [Fact]
-    public void NormalizesThePShortcutToPrompt()
+    public void Should_Normalize_The_P_Shortcut_To_Prompt()
     {
         BotCommand command = CommandParser.Parse("/p make it sepia");
         Assert.Equal("prompt", command.Verb);
@@ -46,7 +46,7 @@ public sealed class CommandParserTests
     }
 
     [Fact]
-    public void BlankOrNonSlashYieldsEmptyVerb()
+    public void Should_Yield_An_Empty_Verb_For_Blank_Or_Non_Slash_Text()
     {
         Assert.Equal("", CommandParser.Parse("").Verb);
         Assert.Equal("", CommandParser.Parse("   ").Verb);

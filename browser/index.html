@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stencil</title>
+  <!-- CSP: wasm needs 'wasm-unsafe-eval'; templates carry style="" attributes; the
+       LLM/collaboration endpoints are user-configured, so connect-src can't be 'self'.
+       No frame-ancestors — the extension frames this app in its in-page modal. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; font-src 'self' data:; connect-src 'self' data: blob: https: http: wss: ws:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="theme-color" content="#7c3aed">
   <!-- PWA: installable + offline (see manifest.webmanifest, sw.js) -->
@@ -17,9 +21,69 @@
   <!-- Apply saved theme + accent before paint (classic script → no flash) -->
   <script src="js/prePaintTheme.js"></script>
   <link rel="stylesheet" href="css/theme.css">
-  <link rel="stylesheet" href="css/layout.css">
-  <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/animations.css">
+  <!-- css/layout/ — one file per section; ORDER IS THE CASCADE. -->
+  <link rel="stylesheet" href="css/layout/scrollbars.css">
+  <link rel="stylesheet" href="css/layout/shell.css">
+  <link rel="stylesheet" href="css/layout/icons.css">
+  <link rel="stylesheet" href="css/layout/shimmer.css">
+  <link rel="stylesheet" href="css/layout/buttonStates.css">
+  <link rel="stylesheet" href="css/layout/canvasFrame.css">
+  <link rel="stylesheet" href="css/layout/zoomControls.css">
+  <link rel="stylesheet" href="css/layout/selectionPanel.css">
+  <link rel="stylesheet" href="css/layout/canvasCursor.css">
+  <link rel="stylesheet" href="css/layout/infoLine.css">
+  <link rel="stylesheet" href="css/layout/controlRows.css">
+  <link rel="stylesheet" href="css/layout/topbar.css">
+  <link rel="stylesheet" href="css/layout/coordPanel.css">
+  <link rel="stylesheet" href="css/layout/coordRows.css">
+  <!-- css/components/ — one file per section; ORDER IS THE CASCADE. -->
+  <link rel="stylesheet" href="css/components/controls.css">
+  <link rel="stylesheet" href="css/components/fullscreen.css">
+  <link rel="stylesheet" href="css/components/contextMenu.css">
+  <link rel="stylesheet" href="css/components/contextMenuSubmenu.css">
+  <link rel="stylesheet" href="css/components/ctxAssistant.css">
+  <link rel="stylesheet" href="css/components/notifications.css">
+  <link rel="stylesheet" href="css/components/installButton.css">
+  <link rel="stylesheet" href="css/components/settings.css">
+  <link rel="stylesheet" href="css/components/settingsModal.css">
+  <link rel="stylesheet" href="css/components/panelLayering.css">
+  <link rel="stylesheet" href="css/components/modalShell.css">
+  <link rel="stylesheet" href="css/components/openImage.css">
+  <link rel="stylesheet" href="css/components/accentPicker.css">
+  <link rel="stylesheet" href="css/components/blankImage.css">
+  <link rel="stylesheet" href="css/components/hosts.css">
+  <link rel="stylesheet" href="css/components/projects.css">
+  <link rel="stylesheet" href="css/components/projectRows.css">
+  <link rel="stylesheet" href="css/components/projectRowMenu.css">
+  <link rel="stylesheet" href="css/components/connections.css">
+  <link rel="stylesheet" href="css/components/incognito.css">
+  <link rel="stylesheet" href="css/components/tooltip.css">
+  <link rel="stylesheet" href="css/components/expiration.css">
+  <link rel="stylesheet" href="css/components/chat/panel.css">
+  <link rel="stylesheet" href="css/components/chat/dockZones.css">
+  <link rel="stylesheet" href="css/components/chat/cards.css">
+  <link rel="stylesheet" href="css/components/chat/tails.css">
+  <link rel="stylesheet" href="css/components/chat/narrow.css">
+  <link rel="stylesheet" href="css/components/chat/composer.css">
+  <link rel="stylesheet" href="css/components/chat/resize.css">
+  <link rel="stylesheet" href="css/components/chat/touch.css">
+  <!-- css/animations/ — one file per section; ORDER IS THE CASCADE. -->
+  <link rel="stylesheet" href="css/animations/keyframes.css">
+  <link rel="stylesheet" href="css/animations/controls.css">
+  <link rel="stylesheet" href="css/animations/iconHover.css">
+  <link rel="stylesheet" href="css/animations/iconHoverSettle.css">
+  <link rel="stylesheet" href="css/animations/logoHover.css">
+  <link rel="stylesheet" href="css/animations/voice.css">
+  <link rel="stylesheet" href="css/animations/overlays.css">
+  <link rel="stylesheet" href="css/animations/overlayHovers.css">
+  <link rel="stylesheet" href="css/animations/responsive.css">
+  <link rel="stylesheet" href="css/animations/reducedMotion.css">
+  <link rel="stylesheet" href="css/animations/themeSwap.css">
+  <link rel="stylesheet" href="css/animations/collapse.css">
+  <link rel="stylesheet" href="css/animations/reveal.css">
+  <link rel="stylesheet" href="css/animations/revealGroups.css">
+  <link rel="stylesheet" href="css/animations/dust.css">
+  <link rel="stylesheet" href="css/animations/motionModes.css">
 </head>
 <body>
   <div id="root"></div>

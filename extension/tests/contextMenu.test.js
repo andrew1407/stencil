@@ -11,45 +11,45 @@ test('MENU_ITEMS: a "Stencil" parent per group holds every item; Preview nests o
   // action contexts, and the DYNAMIC one for the probe-revealed background group. They
   // are mutually exclusive in practice — see the "(empty)" tests below for why the split
   // exists.
-  const root = MENU_ITEMS.find(i => i.id === MENU.root);
+  const root = MENU_ITEMS.find(i => i.id === MENU.ROOT);
   assert.ok(root && root.title === 'Stencil' && !root.parentId);
-  const bgRoot = MENU_ITEMS.find(i => i.id === MENU.bgRoot);
+  const bgRoot = MENU_ITEMS.find(i => i.id === MENU.BG_ROOT);
   assert.ok(bgRoot && bgRoot.title === 'Stencil' && !bgRoot.parentId);
-  assert.deepEqual(MENU_ITEMS.filter(i => !i.parentId).map(i => i.id), [MENU.root, MENU.bgRoot]);
+  assert.deepEqual(MENU_ITEMS.filter(i => !i.parentId).map(i => i.id), [MENU.ROOT, MENU.BG_ROOT]);
   // Distinct parents used: the two roots, the three "Open in editor ▸" group parents, and
   // the Preview submenu parent.
   const parents = [...new Set(MENU_ITEMS.filter(i => i.parentId).map(i => i.parentId))].sort();
   assert.deepEqual(parents,
-    [MENU.openParent, MENU.frameOpenParent, MENU.bgOpenParent, MENU.previewParent, MENU.root, MENU.bgRoot].sort());
+    [MENU.OPEN_PARENT, MENU.FRAME_OPEN_PARENT, MENU.BG_OPEN_PARENT, MENU.PREVIEW_PARENT, MENU.ROOT, MENU.BG_ROOT].sort());
   // previewParent hangs off root; its 6 actions hang off it.
-  assert.equal(MENU_ITEMS.find(i => i.id === MENU.previewParent).parentId, MENU.root);
-  assert.equal(MENU_ITEMS.filter(i => i.parentId === MENU.previewParent).length, 6);
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.PREVIEW_PARENT).parentId, MENU.ROOT);
+  assert.equal(MENU_ITEMS.filter(i => i.parentId === MENU.PREVIEW_PARENT).length, 6);
   // The image open variants nest under the "Open in editor ▸" parent (which is on root).
-  assert.equal(MENU_ITEMS.find(i => i.id === MENU.openParent).parentId, MENU.root);
-  for (const id of [MENU.open, MENU.openResume, MENU.openIncognito, MENU.openModal, MENU.openModalIncognito])
-    assert.equal(MENU_ITEMS.find(i => i.id === id).parentId, MENU.openParent);
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.OPEN_PARENT).parentId, MENU.ROOT);
+  for (const id of [MENU.OPEN, MENU.OPEN_RESUME, MENU.OPEN_INCOGNITO, MENU.OPEN_MODAL, MENU.OPEN_MODAL_INCOGNITO])
+    assert.equal(MENU_ITEMS.find(i => i.id === id).parentId, MENU.OPEN_PARENT);
   // Crop + Pin stay at the top level (single actions, not grouped).
-  assert.equal(MENU_ITEMS.find(i => i.id === MENU.crop).parentId, MENU.root);
-  assert.equal(MENU_ITEMS.find(i => i.id === MENU.pin).parentId, MENU.root);
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.CROP).parentId, MENU.ROOT);
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.PIN).parentId, MENU.ROOT);
 
   // Native items are scoped to native contexts: image actions on <img>, frame + preview
   // on <video>. None is on 'page'/'all' (only the root carries 'all'), so they never
   // appear on plain elements (that was the "shows on every element" regression).
-  for (const id of [MENU.open, MENU.crop, MENU.openResume])
+  for (const id of [MENU.OPEN, MENU.CROP, MENU.OPEN_RESUME])
     assert.deepEqual(MENU_ITEMS.find(i => i.id === id).contexts, ['image']);
-  for (const id of [MENU.frameOpen, MENU.frameCrop, MENU.previewParent, MENU.previewOpen])
+  for (const id of [MENU.FRAME_OPEN, MENU.FRAME_CROP, MENU.PREVIEW_PARENT, MENU.PREVIEW_OPEN])
     assert.deepEqual(MENU_ITEMS.find(i => i.id === id).contexts, ['video']);
 
   // The always-on native items (image actions, video current-frame actions) carry no
   // `visible` flag. The dynamically-gated groups (background, Preview, and the desktop-app
   // hand-off — gated on a configured scheme) do.
-  const native = MENU_ITEMS.filter(i => i.id !== MENU.root && i.id !== MENU.bgRoot && !i.contexts.includes('all'));
+  const native = MENU_ITEMS.filter(i => i.id !== MENU.ROOT && i.id !== MENU.BG_ROOT && !i.contexts.includes('all'));
   const nativeAlways = native.filter(i => !PREVIEW_ITEMS.includes(i.id) && !STATIC_DESKTOP_ITEMS.includes(i.id));
   assert.ok(nativeAlways.every(i => !('visible' in i)));
   // The desktop-app items start hidden; the worker reveals them only when a scheme is set.
   const desktop = MENU_ITEMS.filter(i => STATIC_DESKTOP_ITEMS.includes(i.id));
   assert.equal(desktop.length, STATIC_DESKTOP_ITEMS.length);
-  assert.ok(desktop.every(i => i.visible === false && i.parentId === MENU.root));
+  assert.ok(desktop.every(i => i.visible === false && i.parentId === MENU.ROOT));
   const ids = MENU_ITEMS.map(i => i.id);
   assert.equal(new Set(ids).size, ids.length);
 });
@@ -61,17 +61,17 @@ test('MENU_ITEMS: dynamic background/link group hangs off its OWN root, default-
   assert.equal(DYNAMIC_ITEMS.length, 9);
   // The group's ROOT is part of the group — revealed and hidden with its children, which
   // is what makes an empty "Stencil ▸" submenu impossible.
-  assert.ok(DYNAMIC_ITEMS.includes(MENU.bgRoot));
+  assert.ok(DYNAMIC_ITEMS.includes(MENU.BG_ROOT));
   // Each hangs off that root (or the bg "Open" parent), on 'all', so the group CAN show
   // on a background div…
-  assert.ok(bg.every(i => (!i.parentId && i.id === MENU.bgRoot)
-    || i.parentId === MENU.bgRoot || i.parentId === MENU.bgOpenParent));
+  assert.ok(bg.every(i => (!i.parentId && i.id === MENU.BG_ROOT)
+    || i.parentId === MENU.BG_ROOT || i.parentId === MENU.BG_OPEN_PARENT));
   assert.ok(bg.every(i => i.contexts.includes('all')));
   // …and every item carries its own visible:false, so the worker reveals them together.
   assert.ok(bg.every(i => i.visible === false));
   // Nothing from the dynamic group is parented to the STATIC root: a background
   // right-click must not be able to light up the static "Stencil" entry.
-  assert.equal(MENU_ITEMS.filter(i => i.parentId === MENU.root && i.contexts.includes('all')).length, 0);
+  assert.equal(MENU_ITEMS.filter(i => i.parentId === MENU.ROOT && i.contexts.includes('all')).length, 0);
 });
 
 // ── The "(empty)" bug: a parent Chrome draws with nothing under it ──
@@ -81,11 +81,11 @@ test('MENU_ITEMS: dynamic background/link group hangs off its OWN root, default-
 // don't apply, dynamic children still hidden) it painted as "Stencil ▸ (empty)".
 
 test('the static root declares only the contexts it can serve, so Chrome hides it elsewhere', () => {
-  const root = MENU_ITEMS.find(i => i.id === MENU.root);
+  const root = MENU_ITEMS.find(i => i.id === MENU.ROOT);
   assert.deepEqual(root.contexts, ['action', 'image', 'video']);
   assert.ok(!root.contexts.includes('all'), 'contexts:[all] is what drew the empty submenu');
   // Every child of the static root serves one of those contexts.
-  const kids = MENU_ITEMS.filter(i => i.parentId === MENU.root);
+  const kids = MENU_ITEMS.filter(i => i.parentId === MENU.ROOT);
   assert.ok(kids.length > 0);
   assert.ok(kids.every(i => i.contexts.every(c => root.contexts.includes(c))));
 });
@@ -99,12 +99,12 @@ test('a right-click with nothing to offer shows NO Stencil entry (never an empty
 
 test('a probed background reveals its own rooted group', () => {
   const shown = visibleMenu('page', DYNAMIC_ITEMS);
-  assert.ok(shown.includes(MENU.bgRoot), 'the "Stencil" entry appears…');
-  assert.ok(shown.includes(MENU.bgOpen) && shown.includes(MENU.bgCrop) && shown.includes(MENU.bgPin),
+  assert.ok(shown.includes(MENU.BG_ROOT), 'the "Stencil" entry appears…');
+  assert.ok(shown.includes(MENU.BG_OPEN) && shown.includes(MENU.BG_CROP) && shown.includes(MENU.BG_PIN),
     '…with its actions under it');
-  assert.ok(!shown.includes(MENU.root), 'the static root stays hidden on a plain element');
+  assert.ok(!shown.includes(MENU.ROOT), 'the static root stays hidden on a plain element');
   // The image/video items are untouched by the reveal.
-  assert.ok(!shown.includes(MENU.open) && !shown.includes(MENU.frameOpen));
+  assert.ok(!shown.includes(MENU.OPEN) && !shown.includes(MENU.FRAME_OPEN));
 });
 
 test('no visible parent is ever left without visible children, in every menu state', () => {
@@ -113,7 +113,7 @@ test('no visible parent is ever left without visible children, in every menu sta
   const states = [
     ['plain element, nothing probed', 'page', []],
     ['background probed', 'page', DYNAMIC_ITEMS],
-    ['background probed + desktop scheme', 'page', [...DYNAMIC_ITEMS, MENU.bgDesktop]],
+    ['background probed + desktop scheme', 'page', [...DYNAMIC_ITEMS, MENU.BG_DESKTOP]],
     ['a real <img>', 'image', []],
     ['a real <img>, desktop scheme', 'image', STATIC_DESKTOP_ITEMS],
     ['a <video> without a poster', 'video', []],
@@ -151,17 +151,17 @@ test('MENU_ITEMS: video Preview submenu is default-hidden so it shows only when 
   // The parent + its 6 action items.
   assert.equal(preview.length, 7);
   assert.equal(PREVIEW_ITEMS.length, 7);
-  assert.ok(PREVIEW_ITEMS.includes(MENU.previewParent));
+  assert.ok(PREVIEW_ITEMS.includes(MENU.PREVIEW_PARENT));
   // Every item starts hidden; the worker reveals the group only for a video with a
   // poster, so a posterless video never shows a dead (no-op) Preview submenu.
   assert.ok(preview.every(i => i.visible === false));
 });
 
 test('MENU_ITEMS: toolbar-icon (action) menu offers open-editor + incognito under the Stencil parent', () => {
-  for (const id of [MENU.actionOpen, MENU.actionOpenIncognito]) {
+  for (const id of [MENU.ACTION_OPEN, MENU.ACTION_OPEN_INCOGNITO]) {
     const it = MENU_ITEMS.find(i => i.id === id);
     assert.deepEqual(it.contexts, ['action']);   // only on the extension icon, never a page element
-    assert.equal(it.parentId, MENU.root);
+    assert.equal(it.parentId, MENU.ROOT);
     assert.ok(!('visible' in it));                // always available
   }
 });
@@ -169,110 +169,110 @@ test('MENU_ITEMS: toolbar-icon (action) menu offers open-editor + incognito unde
 test('MENU_ITEMS: a pin item sits in each context group (image / video / background)', () => {
   // One pin item per group: <img> + <video> on their native contexts, background on 'all'
   // (default-hidden, revealed with the rest of the dynamic group).
-  assert.deepEqual(PIN_ITEMS, [MENU.pin, MENU.framePin, MENU.bgPin]);
+  assert.deepEqual(PIN_ITEMS, [MENU.PIN, MENU.FRAME_PIN, MENU.BG_PIN]);
   // The default MENU_ITEMS titles are the unpinned ('Pin …') form the SW flips at runtime.
-  assert.equal(MENU_ITEMS.find(i => i.id === MENU.pin).title, pinItemTitle(false, 'image'));
-  assert.equal(MENU_ITEMS.find(i => i.id === MENU.framePin).title, pinItemTitle(false, 'video'));
-  assert.equal(MENU_ITEMS.find(i => i.id === MENU.bgPin).title, pinItemTitle(false, 'image'));
-  assert.deepEqual(MENU_ITEMS.find(i => i.id === MENU.pin).contexts, ['image']);
-  assert.deepEqual(MENU_ITEMS.find(i => i.id === MENU.framePin).contexts, ['video']);
-  const bgPin = MENU_ITEMS.find(i => i.id === MENU.bgPin);
-  assert.ok(bgPin.contexts.includes('all') && bgPin.visible === false && DYNAMIC_ITEMS.includes(MENU.bgPin));
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.PIN).title, pinItemTitle(false, 'image'));
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.FRAME_PIN).title, pinItemTitle(false, 'video'));
+  assert.equal(MENU_ITEMS.find(i => i.id === MENU.BG_PIN).title, pinItemTitle(false, 'image'));
+  assert.deepEqual(MENU_ITEMS.find(i => i.id === MENU.PIN).contexts, ['image']);
+  assert.deepEqual(MENU_ITEMS.find(i => i.id === MENU.FRAME_PIN).contexts, ['video']);
+  const bgPin = MENU_ITEMS.find(i => i.id === MENU.BG_PIN);
+  assert.ok(bgPin.contexts.includes('all') && bgPin.visible === false && DYNAMIC_ITEMS.includes(MENU.BG_PIN));
   // Pin items are handled directly in the SW, not via resolveContextAction.
   for (const id of PIN_ITEMS) assert.equal(resolveContextAction({ menuItemId: id, srcUrl: 'a' }), null);
 });
 
 test('resolveContextAction: background/link items mirror the <img> open/crop actions', () => {
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.bgOpen, srcUrl: 'https://x/bg.jpg' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.BG_OPEN, srcUrl: 'https://x/bg.jpg' }),
     { action: 'open', src: 'https://x/bg.jpg', incognito: false });
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.bgCrop, srcUrl: 'https://x/bg.jpg' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.BG_CROP, srcUrl: 'https://x/bg.jpg' }),
     { action: 'crop', src: 'https://x/bg.jpg' });
-  assert.equal(resolveContextAction({ menuItemId: MENU.bgOpenIncognito, srcUrl: 'a' }).incognito, true);
-  assert.equal(resolveContextAction({ menuItemId: MENU.bgOpenResume, srcUrl: 'a' }).open, 'resume');
+  assert.equal(resolveContextAction({ menuItemId: MENU.BG_OPEN_INCOGNITO, srcUrl: 'a' }).incognito, true);
+  assert.equal(resolveContextAction({ menuItemId: MENU.BG_OPEN_RESUME, srcUrl: 'a' }).open, 'resume');
   // background path resolves from the recorded URL (no native srcUrl on a plain div)
-  assert.equal(resolveContextAction({ menuItemId: MENU.bgOpenModal }, 'https://x/bg.jpg').action, 'open-modal');
+  assert.equal(resolveContextAction({ menuItemId: MENU.BG_OPEN_MODAL }, 'https://x/bg.jpg').action, 'open-modal');
   // main target → no `target` key
-  assert.ok(!('target' in resolveContextAction({ menuItemId: MENU.bgOpen, srcUrl: 'a' })));
+  assert.ok(!('target' in resolveContextAction({ menuItemId: MENU.BG_OPEN, srcUrl: 'a' })));
 });
 
 test('resolveContextAction: desktop items resolve to a plain {action:"desktop", src}', () => {
-  for (const id of [MENU.desktop, MENU.frameDesktop, MENU.bgDesktop])
+  for (const id of [MENU.DESKTOP, MENU.FRAME_DESKTOP, MENU.BG_DESKTOP])
     assert.deepEqual(resolveContextAction({ menuItemId: id, srcUrl: 'https://x/i.jpg' }),
       { action: 'desktop', src: 'https://x/i.jpg' });   // no incognito / open / target keys
 });
 
 test('resolveContextAction: video-frame items mirror the image open/crop actions', () => {
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.frameOpen, srcUrl: 'data:image/jpeg;base64,zz' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.FRAME_OPEN, srcUrl: 'data:image/jpeg;base64,zz' }),
     { action: 'open', src: 'data:image/jpeg;base64,zz', incognito: false });
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.frameCrop, srcUrl: 'data:image/jpeg;base64,zz' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.FRAME_CROP, srcUrl: 'data:image/jpeg;base64,zz' }),
     { action: 'crop', src: 'data:image/jpeg;base64,zz' });
-  assert.equal(resolveContextAction({ menuItemId: MENU.frameModalIncognito, srcUrl: 'a' }).incognito, true);
+  assert.equal(resolveContextAction({ menuItemId: MENU.FRAME_MODAL_INCOGNITO, srcUrl: 'a' }).incognito, true);
   // frame items act on the current frame ('main' target), so carry no target key
-  assert.ok(!('target' in resolveContextAction({ menuItemId: MENU.frameOpen, srcUrl: 'a' })));
+  assert.ok(!('target' in resolveContextAction({ menuItemId: MENU.FRAME_OPEN, srcUrl: 'a' })));
 });
 
 test('resolveContextAction: preview items target the poster (open-tab / open / crop)', () => {
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.previewTab, srcUrl: 'https://x/p.jpg' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.PREVIEW_TAB, srcUrl: 'https://x/p.jpg' }),
     { action: 'open-tab', src: 'https://x/p.jpg', target: 'preview' });
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.previewOpen, srcUrl: 'https://x/p.jpg' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.PREVIEW_OPEN, srcUrl: 'https://x/p.jpg' }),
     { action: 'open', src: 'https://x/p.jpg', incognito: false, target: 'preview' });
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.previewOpenIncognito, srcUrl: 'https://x/p.jpg' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.PREVIEW_OPEN_INCOGNITO, srcUrl: 'https://x/p.jpg' }),
     { action: 'open', src: 'https://x/p.jpg', incognito: true, target: 'preview' });
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.previewCrop, srcUrl: 'https://x/p.jpg' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.PREVIEW_CROP, srcUrl: 'https://x/p.jpg' }),
     { action: 'crop', src: 'https://x/p.jpg', target: 'preview' });
   // No poster recorded → no URL → null (the submenu is a no-op on a non-video spot).
-  assert.equal(resolveContextAction({ menuItemId: MENU.previewOpen }, null), null);
+  assert.equal(resolveContextAction({ menuItemId: MENU.PREVIEW_OPEN }, null), null);
 });
 
 test('resolveContextAction: main items never carry a target key', () => {
-  for (const id of [MENU.open, MENU.openIncognito, MENU.openModal, MENU.crop])
+  for (const id of [MENU.OPEN, MENU.OPEN_INCOGNITO, MENU.OPEN_MODAL, MENU.CROP])
     assert.ok(!('target' in resolveContextAction({ menuItemId: id, srcUrl: 'a' })));
 });
 
 test('resolveContextAction: <img> open uses info.srcUrl', () => {
-  const act = resolveContextAction({ menuItemId: MENU.open, srcUrl: 'https://x/a.png' });
+  const act = resolveContextAction({ menuItemId: MENU.OPEN, srcUrl: 'https://x/a.png' });
   assert.deepEqual(act, { action: 'open', src: 'https://x/a.png', incognito: false });
 });
 
 test('resolveContextAction: background open uses the recorded URL (no srcUrl)', () => {
-  const act = resolveContextAction({ menuItemId: MENU.open }, 'https://x/bg.jpg');
+  const act = resolveContextAction({ menuItemId: MENU.OPEN }, 'https://x/bg.jpg');
   assert.deepEqual(act, { action: 'open', src: 'https://x/bg.jpg', incognito: false });
 });
 
 test('resolveContextAction: srcUrl wins over the recorded background URL', () => {
-  const act = resolveContextAction({ menuItemId: MENU.open, srcUrl: 'https://x/real.png' }, 'https://x/bg.jpg');
+  const act = resolveContextAction({ menuItemId: MENU.OPEN, srcUrl: 'https://x/real.png' }, 'https://x/bg.jpg');
   assert.equal(act.src, 'https://x/real.png');
 });
 
 test('resolveContextAction: incognito + crop variants', () => {
-  assert.equal(resolveContextAction({ menuItemId: MENU.openIncognito, srcUrl: 'a' }).incognito, true);
-  assert.equal(resolveContextAction({ menuItemId: MENU.openIncognito }, 'b').incognito, true);
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.crop, srcUrl: 'a' }), { action: 'crop', src: 'a' });
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.crop }, 'b'), { action: 'crop', src: 'b' });
+  assert.equal(resolveContextAction({ menuItemId: MENU.OPEN_INCOGNITO, srcUrl: 'a' }).incognito, true);
+  assert.equal(resolveContextAction({ menuItemId: MENU.OPEN_INCOGNITO }, 'b').incognito, true);
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.CROP, srcUrl: 'a' }), { action: 'crop', src: 'a' });
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.CROP }, 'b'), { action: 'crop', src: 'b' });
 });
 
 test('resolveContextAction: resume variant carries open:resume; plain open does not', () => {
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.openResume, srcUrl: 'https://x/a.png' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.OPEN_RESUME, srcUrl: 'https://x/a.png' }),
     { action: 'open', src: 'https://x/a.png', incognito: false, open: 'resume' });
   // background-image path (no srcUrl) resolves from the recorded URL and still carries it
-  assert.equal(resolveContextAction({ menuItemId: MENU.openResume }, 'https://x/bg.jpg').open, 'resume');
+  assert.equal(resolveContextAction({ menuItemId: MENU.OPEN_RESUME }, 'https://x/bg.jpg').open, 'resume');
   // a plain open never grows an `open` key (keeps the editor's default import path)
-  assert.ok(!('open' in resolveContextAction({ menuItemId: MENU.open, srcUrl: 'a' })));
+  assert.ok(!('open' in resolveContextAction({ menuItemId: MENU.OPEN, srcUrl: 'a' })));
 });
 
 test('resolveContextAction: in-page modal variants carry the open-modal action', () => {
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.openModal, srcUrl: 'a' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.OPEN_MODAL, srcUrl: 'a' }),
     { action: 'open-modal', src: 'a', incognito: false });
-  assert.deepEqual(resolveContextAction({ menuItemId: MENU.openModalIncognito, srcUrl: 'a' }),
+  assert.deepEqual(resolveContextAction({ menuItemId: MENU.OPEN_MODAL_INCOGNITO, srcUrl: 'a' }),
     { action: 'open-modal', src: 'a', incognito: true });
   // background-image path (no srcUrl) resolves from the recorded URL too
-  assert.equal(resolveContextAction({ menuItemId: MENU.openModal }, 'b').action, 'open-modal');
+  assert.equal(resolveContextAction({ menuItemId: MENU.OPEN_MODAL }, 'b').action, 'open-modal');
 });
 
 test('resolveContextAction: null when id is foreign or no URL is available', () => {
   assert.equal(resolveContextAction({ menuItemId: 'someone-elses-menu', srcUrl: 'a' }), null);
-  assert.equal(resolveContextAction({ menuItemId: MENU.open }, null), null);   // no image under cursor
-  assert.equal(resolveContextAction({ menuItemId: MENU.crop }), null);
+  assert.equal(resolveContextAction({ menuItemId: MENU.OPEN }, null), null);   // no image under cursor
+  assert.equal(resolveContextAction({ menuItemId: MENU.CROP }), null);
 });
 
 test('pinItemTitle: Pin when unpinned, Unpin when pinned, image vs video', () => {

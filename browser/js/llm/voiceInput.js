@@ -1,11 +1,9 @@
 // ── Speech recognition engine ──────────────────────────────────────────────
-// One continuous Web Speech `SpeechRecognition` session that survives the browser's
-// own end-of-utterance stops (Chrome ends a continuous session every few seconds of
-// silence and on every hiccup — we restart from `onend` while the user still wants to
-// listen), plus the level meter (voiceLevel.js) for the visuals. No send policy lives
-// here: voiceModes.js decides WHEN an utterance is done; this module only says WHAT has
-// been heard since the last commit(). The recognizer, timers and meter are injected so
-// `node --test` drives the whole thing with fakes (tests/helpers/speech.js).
+// One continuous Web Speech `SpeechRecognition` session that survives the browser's own
+// end-of-utterance stops (we restart from `onend` while the user still wants to listen),
+// plus the level meter (voiceLevel.js). No send policy here: voiceModes.js decides WHEN an
+// utterance is done, this says WHAT has been heard since the last commit(). The recognizer,
+// timers and meter are injected for `node --test` (tests/helpers/speech.js).
 import { createLevelMeter as realLevelMeter } from './voiceLevel.js';
 
 export const isVoiceSupported = (win = globalThis) =>
@@ -19,10 +17,10 @@ export const FATAL_ERRORS = new Set([
   'not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported', 'bad-grammar',
   'start-failed',
 ]);
-export const NETWORK_BACKOFF_MS = [250, 1000, 2000];   // three network drops in a row → fatal
+export const NETWORK_BACKOFF_MS = Object.freeze([250, 1000, 2000]);   // three network drops in a row → fatal
 // How long to wait before restarting after `fails` consecutive network drops. Anything
 // but a network drop restarts at once; the table's last step is the floor.
-export const restartDelayMs = (code, fails) =>
+const restartDelayMs = (code, fails) =>
   (code === 'network' ? NETWORK_BACKOFF_MS[Math.min(fails, NETWORK_BACKOFF_MS.length) - 1] || 0 : 0);
 
 const ERROR_TEXT = {

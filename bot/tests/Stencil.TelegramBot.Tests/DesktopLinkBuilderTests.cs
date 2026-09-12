@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class DesktopLinkBuilderTests
 {
     [Fact]
-    public void SchemeUrlMatchesTheBrowserServerProjectLink()
+    public void Should_Match_The_Browser_Server_Project_Link_For_Scheme_Url()
     {
         Assert.Equal(
             "stencil://open?server=http%3A%2F%2Flocalhost%3A8090&id=p_1a2b3c_x1&version=7&incognito=1",
@@ -19,7 +19,7 @@ public sealed class DesktopLinkBuilderTests
     }
 
     [Fact]
-    public void SchemeUrlOmitsAnUnsetVersionAndIncognito()
+    public void Should_Omit_An_Unset_Version_And_Incognito_From_Scheme_Url()
     {
         Assert.Equal(
             "stencil://open?server=https%3A%2F%2Fs.example&id=p_1",
@@ -27,7 +27,7 @@ public sealed class DesktopLinkBuilderTests
     }
 
     [Fact]
-    public void SchemeUrlHonoursACustomScheme()
+    public void Should_Honour_A_Custom_Scheme_In_Scheme_Url()
     {
         Assert.StartsWith(
             "stencil-dev://open?",
@@ -35,7 +35,7 @@ public sealed class DesktopLinkBuilderTests
     }
 
     [Fact]
-    public void BounceUrlWrapsTheSchemeUrlForLaunchHtml()
+    public void Should_Wrap_The_Scheme_Url_For_Launch_Html_In_Bounce_Url()
     {
         const string stencilUrl = "stencil://open?server=http%3A%2F%2Flocalhost%3A8090&id=p_1";
         Assert.Equal(
@@ -45,7 +45,7 @@ public sealed class DesktopLinkBuilderTests
     }
 
     [Fact]
-    public void EncodingLeavesTheCharactersEncodeUriComponentLeaves()
+    public void Should_Leave_The_Characters_Encode_Uri_Component_Leaves_When_Encoding()
     {
         // Uri.EscapeDataString escapes !'()* — encodeURIComponent does not, and the two
         // surfaces must emit the same link.
@@ -55,7 +55,7 @@ public sealed class DesktopLinkBuilderTests
     }
 
     [Fact]
-    public void ProjectBounceUrlKeepsABasePathAndDropsQueryFragmentAndSlashes()
+    public void Should_Keep_A_Base_Path_And_Drop_Query_Fragment_And_Slashes_In_Project_Bounce_Url()
     {
         Assert.Equal(
             "https://pages.example/stencil/launch.html#stencil-desktop="
@@ -71,7 +71,7 @@ public sealed class DesktopLinkBuilderTests
     [InlineData("stencil.example")]          // no scheme — never guessed for a link we hand out
     [InlineData("javascript:alert(1)")]      // launch.html would refuse it; never build it either
     [InlineData("file:///tmp/app")]
-    public void ProjectBounceUrlIsNullForAnythingButAnHttpBase(string? browserBase)
+    public void Should_Return_Null_Project_Bounce_Url_For_Anything_But_An_Http_Base(string? browserBase)
     {
         Assert.Null(DesktopLinkBuilder.TryProjectBounceUrl(browserBase, "https://s.example", "p_1"));
     }

@@ -1,0 +1,57 @@
+#pragma once
+#include <QDialog>
+#include <QString>
+
+class QCheckBox;
+class QLabel;
+class QPushButton;
+class QWidget;
+
+// "Open in…" dialog. Mirrors browser/js/ui/openInModal.js: mirror the CURRENT
+// session into another Stencil front-end — the browser app or the Telegram bot.
+// Unusable targets are HIDDEN, not greyed (the caller only opens the dialog when at
+// least one is available). exec(); on QDialog::Accepted read outcome()/incognito().
+// A Telegram link that cannot fit the 64-char start payload keeps the dialog open
+// and shows the browser's fallback row (the two bot commands + copy) instead.
+namespace stencil::gui {
+
+  class OpenInDialog : public QDialog {
+    Q_OBJECT
+   public:
+    enum class Outcome { BROWSER, TELEGRAM };
+
+    // serverProject: the session is linked to a server project on `serverUrl` (shown
+    // in the status line); `serverId` is its id, for the Telegram payload check.
+    // browserAvailable / telegramAvailable gate each button's visibility (already
+    // folded in the config + server-project checks by the caller). startIncognito
+    // seeds the incognito checkbox.
+    OpenInDialog(QWidget* parent, bool serverProject, const QString& serverUrl,
+                 bool browserAvailable, bool telegramAvailable, bool startIncognito,
+                 const QString& serverId = QString());
+
+    bool incognito() const;
+    Outcome outcome() const { return outcome_; }
+    // The fallback row is showing (the Telegram link did not fit).
+    bool fallbackShown() const;
+    QString fallbackCommands() const;
+
+   signals:
+    // The Telegram link did not fit: the owner opens the bot chat (browser parity).
+    void telegramFallback();
+    void toast(const QString& text, bool fail);
+
+   private:
+    void showTelegramFallback();
+
+    QString serverUrl_;
+    QString serverId_;
+    QCheckBox* incognito_ = nullptr;
+    QPushButton* browser_ = nullptr;
+    QPushButton* telegram_ = nullptr;
+    QWidget* fallbackRow_ = nullptr;
+    QLabel* fallbackCmds_ = nullptr;
+    QLabel* hint_ = nullptr;
+    Outcome outcome_ = Outcome::BROWSER;
+  };
+
+}

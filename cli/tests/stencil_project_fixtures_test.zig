@@ -34,11 +34,12 @@ fn wantStr(proj_fx: std.json.Value, ov: ?std.json.Value, key: []const u8, defaul
     return fx.memberStr(proj_fx, key) orelse default;
 }
 
-fn walkFile(a: std.mem.Allocator, io: std.Io, overrides: std.json.Value, sub: []const u8, failures: *usize) !usize {
-    const cases = try fx.loadJson(a, io, sub);
-    for (cases.array.items) |case| {
+fn walkFile(w: *fx.Walk, sub: []const u8) !void {
+    const a = w.alloc();
+    for (try w.cases(sub)) |case| {
+        w.walked += 1;
         const name = fx.memberStr(case, "name").?;
-        const ov = fx.overrideFor(overrides, "stencilProject", name);
+        const ov = w.override("stencilProject", name);
         var want = fx.memberStr(case, "expect").?;
         if (ov) |o| {
             if (fx.memberStr(o, "verdict")) |v| want = v;
@@ -46,16 +47,13 @@ fn walkFile(a: std.mem.Allocator, io: std.Io, overrides: std.json.Value, sub: []
         const file = fx.memberStr(case, "file").?;
 
         var parsed = project.parse(testing.allocator, file) catch |e| {
-            if (!std.mem.eql(u8, want, "error")) {
-                std.debug.print("stencilProject '{s}': want ok, cli rejects with {s}\n", .{ name, @errorName(e) });
-                failures.* += 1;
-            }
+            if (!std.mem.eql(u8, want, "error"))
+                w.fail("stencilProject '{s}': want ok, cli rejects with {s}\n", .{ name, @errorName(e) });
             continue;
         };
         defer parsed.deinit();
         if (std.mem.eql(u8, want, "error")) {
-            std.debug.print("stencilProject '{s}': want error, cli parsed ok\n", .{name});
-            failures.* += 1;
+            w.fail("stencilProject '{s}': want error, cli parsed ok\n", .{name});
             continue;
         }
 
@@ -71,13 +69,13 @@ fn walkFile(a: std.mem.Allocator, io: std.Io, overrides: std.json.Value, sub: []
         try testing.expectEqualStrings(wantStr(img_fx, ov, "ext", "png"), parsed.image_ext);
 
         var want_blank = fx.member(proj_fx, "blank").?.bool;
-        var want_w: i64 = if (fx.member(img_fx, "w")) |w| w.integer else 0;
-        var want_h: i64 = if (fx.member(img_fx, "h")) |h| h.integer else 0;
+        var want_w: i64 = if (fx.member(img_fx, "w")) |v| v.integer else 0;
+        var want_h: i64 = if (fx.member(img_fx, "h")) |v| v.integer else 0;
         if (ov) |o| {
             if (fx.member(o, "cli")) |c| {
                 if (fx.member(c, "blank")) |b| want_blank = b.bool;
-                if (fx.member(c, "w")) |w| want_w = w.integer;
-                if (fx.member(c, "h")) |h| want_h = h.integer;
+                if (fx.member(c, "w")) |v| want_w = v.integer;
+                if (fx.member(c, "h")) |v| want_h = v.integer;
             }
         }
         try testing.expectEqual(want_blank, parsed.blank);
@@ -88,22 +86,13 @@ fn walkFile(a: std.mem.Allocator, io: std.Io, overrides: std.json.Value, sub: []
         const bytes = try decodePayload(a, fx.memberStr(img_fx, "dataUrl").?);
         try testing.expectEqualSlices(u8, bytes, parsed.image_bytes);
     }
-    return cases.array.items.len;
 }
 
 test "stencilProject corpus: valid.json + invalid.json against project.parse" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
-
-    const overrides = try fx.parseOverrides(a);
-    var failures: usize = 0;
-    var walked: usize = 0;
-    walked += try walkFile(a, io, overrides, "fixtures/stencilProject/valid.json", &failures);
-    walked += try walkFile(a, io, overrides, "fixtures/stencilProject/invalid.json", &failures);
-    std.debug.print("stencilProject corpus: walked {d} vectors\n", .{walked});
-    try testing.expectEqual(@as(usize, 0), failures);
+    var w = fx.Walk.start();
+    defer w.stop();
+    try w.loadOverrides();
+    try walkFile(&w, "fixtures/stencilProject/valid.json");
+    try walkFile(&w, "fixtures/stencilProject/invalid.json");
+    try w.report("stencilProject");
 }

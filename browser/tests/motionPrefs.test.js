@@ -4,7 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { motionSource } from './helpers/motionSource.js';
 import { installDom } from './helpers/dom.js';
+import { ANIMATIONS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
@@ -127,7 +129,7 @@ test('prefers-reduced-motion wins over any stored mode', () => {
 
 // ── The wiring: who asks which gate ─────────────────────────────────────────
 test('every cloud in the app is built behind the dust gate, and the strokes behind the drawing one', () => {
-  const motion = read('../js/ui/motion.js');
+  const motion = motionSource();
   // disintegrate() is the one door every element-sized cloud goes through.
   const body = motion.slice(motion.indexOf('export function disintegrate('),
                             motion.indexOf('export const reintegrate'));
@@ -146,7 +148,7 @@ test('every cloud in the app is built behind the dust gate, and the strokes behi
   // The canvas stroke flight answers the drawing switch instead.
   assert.match(read('../js/core/strokeFx.js'), /if \(!this\.#schedule \|\| !drawMotionEnabled\(\)\) return null;/);
   // One gate, asked in one place: no component still reads the media query by hand.
-  for (const f of ['../js/ui/base.js', '../js/ui/toolbar.js', '../js/ui/motion.js'])
+  for (const f of ['../js/ui/modalFlight.js', '../js/ui/toolbar.js', '../js/ui/motion.js'])
     assert.ok(!read(f).includes("matchMedia('(prefers-reduced-motion: reduce)')"), f);
 });
 
@@ -155,7 +157,7 @@ test('the mode reaches the CSS before first paint, and stops what CSS alone driv
   assert.ok(prePaint.includes("localStorage.getItem('drawingApp_motion')"), 'same key as motionPrefs.js');
   assert.match(prePaint, /root\.setAttribute\('data-motion',/);
   assert.ok(prePaint.includes(`[${MOTION_MODES.map((m) => `'${m}'`).join(', ')}]`), 'the inlined mode list is the module\'s');
-  const css = read('../css/animations.css');
+  const css = ANIMATIONS_CSS;
   assert.match(css, /:root\[data-motion="none"\] \*,/);
   assert.match(css, /animation-duration: 0\.01ms !important;/);
   // 'slide' needs no rules of its own — each surface keeps its own entrance — except the
@@ -164,19 +166,22 @@ test('the mode reaches the CSS before first paint, and stops what CSS alone driv
 });
 
 test('both switches are in the Visuals modal and on the console facade', () => {
+  const markup = read('../js/ui/visualsMarkup.js');
+  assert.match(markup, /<div class="vs-section">Motion<\/div>/);
+  assert.match(markup, /id="vs-draw-anim"/);
+  assert.match(markup, /id="vs-motion-mode"/);
   const modal = read('../js/ui/visualsModal.js');
-  assert.match(modal, /<div class="vs-section">Motion<\/div>/);
-  assert.match(modal, /id="vs-draw-anim"/);
-  assert.match(modal, /id="vs-motion-mode"/);
   assert.match(modal, /app\.settings\.setMotion\('drawing', drawAnim\.checked\)/);
   assert.match(modal, /app\.settings\.setMotion\('mode', motionMode\.value\)/);
   // Reset All restores them along with the colours.
   assert.match(modal, /setMotion\('mode', DEFAULT_MOTION_MODE\)/);
-  const api = read('../js/console/stencilApi.js');
+  const api = read('../js/console/settingsFacade.js');   // the facade's settings namespace
   assert.match(api, /get drawingAnimations\(\) \{ return motionPrefs\(\)\.drawing; \}/);
   assert.match(api, /set motionMode\(v\) \{ app\.settings\.setMotion\('mode', v\); \}/);
   // Both surfaces come through the ONE setter, which is also what rejects a bad mode.
   const controller = read('../js/core/settingsController.js');
   assert.match(controller, /if \(!MOTION_MODES\.includes\(m\)\)\s*\n?\s*throw new Error\(`Unknown motion mode/);
-  assert.match(controller, /setVal\('vs-motion-mode', m\)/);
+  assert.match(controller, /paintMotionMode\(m\)/);
+  // …which is the modal's own control (ui/settingMirrors.js owns the element).
+  assert.match(read('../js/ui/settingMirrors.js'), /setVal\('vs-motion-mode', mode\)/);
 });

@@ -2,9 +2,7 @@
 #include <QDialogButtonBox>
 #include <QString>
 
-// Small Qt-coupled scaffolding helpers shared across the GUI dialogs/widgets.
-// Qt-only by design — must NOT live in core/ (which is GUI-free + compiled to
-// WebAssembly). Verified by the stencil build, not doctest.
+// Qt-coupled helpers shared across the dialogs/widgets; never core/ (GUI-free).
 class QAbstractButton;
 class QColor;
 class QComboBox;
@@ -13,77 +11,40 @@ class QWidget;
 
 namespace stencil::gui {
 
-  // A real save panel, not the QFileDialog::getSaveFileName() convenience — that
-  // convenience runs the OS's own native panel, which can be neither dusted nor
-  // centered by us (modalReveal.cpp's DialogRevealFilter skips a still-native
-  // QFileDialog for exactly that reason). DontUseNativeDialog makes this one
-  // Qt-rendered content like every other dialog, so it gets the same reveal flight
-  // and the same parent-centered placement. Empty string on Cancel, same as
-  // getSaveFileName(). Shared by dataExportController's saveImageFile and
-  // mainWindow's saveProjectFileAs.
+  // DontUseNativeDialog, so it gets the reveal flight and centering a native panel
+  // cannot. Empty string on Cancel, as getSaveFileName().
   QString showSaveDialog(QWidget* parent, const QString& title,
                          const QString& suggested, const QString& filter);
 
-  // Create a standard QDialogButtonBox parented to `parent` and wire its
-  // accepted()->accept() / rejected()->reject() to the dialog. Replaces the
-  // identical 3-line pattern in settings/shortcuts/info dialogs.
   QDialogButtonBox* makeButtonBox(QDialog* parent,
                                   QDialogButtonBox::StandardButtons buttons);
 
-  // Yes/No confirmation with NO platform icon — the compact "just the question and
-  // two buttons" shape the app's other modals use, instead of QMessageBox::question's
-  // oversized ? glyph. Defaults to No. True when the user confirmed.
+  // No platform icon; defaults to No.
   bool confirmYesNo(QWidget* parent, const QString& title, const QString& text);
 
-  // Stylesheet for the floating "re-open panel" chevron: a rounded square with a subtle fill +
-  // border and a hover lift. Deliberately theme-INDEPENDENT — it overlays the CANVAS, not a
-  // themed surface, so it has to read against whatever image is under it. Its twin, the panel
-  // header's collapse chevron, sits on the panel and is themed in theme.cpp instead.
+  // Theme-INDEPENDENT: the re-open chevron overlays the canvas image, not a themed surface.
   QString panelToggleQss();
 
-  // Turn the named glyph from `fromDeg` to `toDeg` over `ms` as `btn`'s icon, re-rendering
-  // it each frame. The collapse chevrons spin half a turn with their panel instead of
-  // blinking to the opposite glyph (browser: `#toggle-controls .ic` in animations.css).
-  // A second call supersedes an in-flight spin; the animation dies with the button.
+  // Browser: `#toggle-controls .ic` in animations.css. A second call supersedes an
+  // in-flight spin; the animation dies with the button.
   void spinIcon(QAbstractButton* btn, const QString& name, const QColor& color, int size,
                 qreal fromDeg, qreal toDeg, int ms);
 
-  // An <img> element carrying the named iconSet glyph, tinted `color` and shown at
-  // `px` LOGICAL pixels — for the rich-text QLabels that mix a glyph into a line of
-  // text (the image-size line's incognito tag, the toasts). The PNG is rasterised at
-  // the device pixel ratio and displayed at `px`, so it stays crisp on Retina;
-  // `dpr` (0 = ask qApp) is the same test seam iconSet::themedIcon takes, since an
-  // offscreen screen is always 1x. `style` rides on the element (e.g. vertical-align).
-  // Empty string for an unknown glyph — a typo degrades to "no icon", never markup
-  // pointing at nothing.
+  // `px` is LOGICAL pixels; the PNG is rasterised at the device pixel ratio for Retina.
+  // `dpr` 0 = ask qApp (test seam: offscreen is always 1x). Empty for an unknown glyph.
   QString inlineIconHtml(const QString& name, const QColor& color, int px,
                          const QString& style = QString(), qreal dpr = 0);
 
-  // Paint a flat 20×20 color chip as `btn`'s icon so the swatch reads as its
-  // current color (the browser uses <input type=color>). No-op on a null button.
-  // Shared by mainWindow::updateColorSwatch + selectionPanel::setSwatchColor.
-  // A short, flat icon+label popup (the chat "…" menus, a projects row's "⋯"): compact
-  // padding plus a width fitted to its own longest label, the app-wide QMenu paddings
-  // being sized for the menu bar. Browser twin: .project-menu / .chat-row-menu.
+  // Compact icon+label popups; browser twin: .project-menu / .chat-row-menu.
   void fitMenuWidth(class QMenu& menu);
   void compactIconMenu(class QMenu& menu);
 
-  // `size` is the well's own box — the selected-line bar passes the browser's 46x34 so
-  // its wells stand the same height as the numeric fields beside them.
-  // `withHex` writes the colour's hex beside the chip (browser .vs-color parity).
+  // `withHex` writes the hex beside the chip (browser .vs-color parity).
   void setColorSwatch(QAbstractButton* btn, const QColor& color,
                       const QSize& size = QSize(46, 26), bool withHex = false);
 
-  // Fill `combo` with the page-format options every selector shares: "Custom…"
-  // first (when includeCustom), then the full core::pageFormatNames() series
-  // (A0..A10, B0..B10, C0..C10). Labels render "<name> (<w> × <h> <unit>)" in
-  // the display unit `units` ("cm" default | "in"), values rounded to at most
-  // 2 decimals with trailing zeros trimmed (the label contract shared with the
-  // browser dropdown). The item DATA carries the canonical value ("custom" /
-  // "A4") — callers read/write via currentData/findData, never the label.
-  // Re-invoking on an already-filled combo only re-renders the labels in place
-  // (selection + data untouched) — used when the display unit changes. Shared
-  // by mainWindow (toolbar), settingsDialog, and linksDialog (quick crop).
+  // Labels "<name> (<w> × <h> <unit>)", ≤ 2 decimals trimmed (the browser dropdown's
+  // contract); item DATA is the canonical "custom"/"A4". Re-invoking re-renders labels only.
   void fillPageSizeCombo(QComboBox* combo, bool includeCustom,
                          const QString& units = QStringLiteral("cm"));
 

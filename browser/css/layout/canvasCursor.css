@@ -1,0 +1,25 @@
+canvas {
+    display: block;
+    cursor: default;
+    transition: width 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                height 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+/* ── Canvas cursor: the aim only where clicking actually draws ──
+   The crosshair says "click to place a point". An EMPTY editor has nothing to draw on
+   (its canvas is the drop hint + the "＋ Blank image" card), and a COMPARE view is
+   read-only — both used to show the aim anyway. Both classes come from
+   DrawingApp.updateButtons, off state it already had (`!this.image`, compareReadOnly()),
+   so every transition — load, clear, incognito, compare on/off, draw start/stop — moves
+   the cursor with the controls it already greys out. The per-modifier refinements
+   (copy / zoom-in / grab / pointer-over-a-line) stay inline in canvasMouseMove. */
+body:not(.canvas-empty):not(.canvas-readonly) .canvas-viewport,
+body:not(.canvas-empty):not(.canvas-readonly) canvas { cursor: crosshair; }
+/* The canvas is focusable only so a click can pull focus off the chat textarea; never a Tab
+   stop, so a ring would appear on mouse-down only — noise around the whole image. */
+canvas:focus,
+canvas:focus-visible {
+    outline: none;
+}
+canvas.zoom-no-transition {
+    transition: none !important;
+}

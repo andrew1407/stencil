@@ -1,4 +1,4 @@
-// Clicking the canvas takes keyboard focus (ControlsBinder.wireCanvasPointer). The chat panel
+// Clicking the canvas takes keyboard focus (ui/bindings/canvasPointer.js). The chat panel
 // focuses its textarea on open and kept it, so a bare Delete on a just-clicked line edited chat
 // text instead. DOM-stub idiom from coordTableDeleteKey.test.js: capture the real listeners.
 
@@ -20,10 +20,8 @@ const setup = async () => {
     updateCoordStatus() {},
     renderer: { redraw() {} },
   };
-  const { ControlsBinder } = await import('../js/core/controlsBinder.js');
-  const binder = Object.create(ControlsBinder.prototype);
-  binder.app = app;
-  binder.wireCanvasPointer();
+  const { wireCanvasPointer } = await import('../js/ui/bindings/canvasPointer.js');
+  wireCanvasPointer(app);
   return { canvas, viewport };
 };
 

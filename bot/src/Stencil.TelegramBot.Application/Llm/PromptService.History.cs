@@ -10,22 +10,15 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// PromptService — the per-user conversation registry: record/snapshot/seed/clear the
-// bounded history, the §12.1 chat document, and idle-user eviction. Class doc lives
-// in PromptService.cs.
 public sealed partial class PromptService
 {
-    /// <summary>Forget the user's chat history (e.g. when the working image is dropped).</summary>
     public void ClearHistory(long userId) => _history.TryRemove(userId, out _);
 
-    /// <summary>
-    /// Snapshot the conversation as the §12.1 persisted-chat document (null = nothing to persist).
-    /// History holds the assistant's RAW plan text; the document carries the DISPLAYED reply, so
-    /// each assistant entry is re-parsed. Images never enter it — <see cref="ChatDocument.Build"/> strips them.
-    /// </summary>
+    // History holds the RAW plan text; the §12.1 document carries the DISPLAYED reply, images
+    // stripped.
     public ChatDocument? BuildChatDocument(long userId)
     {
-        List<LlmMessage> history = SnapshotHistory(userId);
+        List<LlmMessage> history = snapshotHistory(userId);
         if (history.Count == 0)
         {
             return null;
@@ -33,22 +26,17 @@ public sealed partial class PromptService
         List<LlmMessage> displayed = new(history.Count);
         foreach (LlmMessage message in history)
         {
-            displayed.Add(message.Role == LlmMessage.RoleAssistant
-                ? message with { Text = DisplayedReply(message.Text) }
+            displayed.Add(message.Role == LlmMessage.ROLE_ASSISTANT
+                ? message with { Text = displayedReply(message.Text) }
                 : message);
         }
         return ChatDocument.Build(displayed, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
     }
 
-    /// <summary>The §12.1 assistant text: the plan's <c>reply</c> when the raw text parses as one.</summary>
-    private static string DisplayedReply(string raw) =>
+    private static string displayedReply(string raw) =>
         OpPlanParser.Parse(raw).Plan is OpPlan plan && plan.Reply.Length > 0 ? plan.Reply : raw;
 
-    /// <summary>
-    /// Replace the in-memory conversation with a restored persisted chat (§12: seeding never
-    /// triggers a model call). Text-only, re-gated at the point of USE — an unparsed document
-    /// can't seed §7 machinery as a real turn. Returns the number of seeded messages.
-    /// </summary>
+    // §12: seeding never triggers a model call; text-only, re-gated at the point of USE.
     public int SeedHistory(long userId, ChatDocument doc)
     {
         UserHistory history = _history.GetOrAdd(userId, static _ => new UserHistory());
@@ -66,11 +54,11 @@ public sealed partial class PromptService
             }
             seeded = history.Messages.Count;
         }
-        EvictIdleUsers(keep: userId);
+        evictIdleUsers(keep: userId);
         return seeded;
     }
 
-    private List<LlmMessage> SnapshotHistory(long userId)
+    private List<LlmMessage> snapshotHistory(long userId)
     {
         if (!_history.TryGetValue(userId, out UserHistory? history))
         {
@@ -83,8 +71,7 @@ public sealed partial class PromptService
         }
     }
 
-    /// <summary>Append the user + assistant messages, keeping only the most recent 32.</summary>
-    private void RecordTurn(long userId, string text, LlmImage? image, string assistantText)
+    private void recordTurn(long userId, string text, LlmImage? image, string assistantText)
     {
         UserHistory history = _history.GetOrAdd(userId, static _ => new UserHistory());
         history.Touched = Interlocked.Increment(ref _clock);
@@ -93,9 +80,8 @@ public sealed partial class PromptService
         {
             if (image is not null)
             {
-                // The §7 replay rule only ever sends the most recent prior image, so older
-                // turns' base64 payloads are dead weight — drop them instead of holding
-                // megabytes per user. BuildTurn already stripped these from the wire shape.
+                // §7 replays only the most recent prior image, so older base64 payloads are
+                // dropped, not held.
                 for (int i = 0; i < list.Count; i++)
                 {
                     if (list[i].Images.Count > 0)
@@ -104,23 +90,20 @@ public sealed partial class PromptService
                     }
                 }
             }
-            list.Add(new LlmMessage(LlmMessage.RoleUser, text, image is null ? [] : [image]));
-            list.Add(new LlmMessage(LlmMessage.RoleAssistant, assistantText));
-            if (list.Count > MaxHistoryMessages)
+            list.Add(new LlmMessage(LlmMessage.ROLE_USER, text, image is null ? [] : [image]));
+            list.Add(new LlmMessage(LlmMessage.ROLE_ASSISTANT, assistantText));
+            if (list.Count > MAX_HISTORY_MESSAGES)
             {
-                list.RemoveRange(0, list.Count - MaxHistoryMessages);
+                list.RemoveRange(0, list.Count - MAX_HISTORY_MESSAGES);
             }
         }
-        EvictIdleUsers(keep: userId);
+        evictIdleUsers(keep: userId);
     }
 
-    /// <summary>
-    /// Keep the registry bounded: while more than <see cref="MaxTrackedUsers"/> conversations
-    /// are held, drop the least-recently-touched one (never the user being served).
-    /// </summary>
-    private void EvictIdleUsers(long keep)
+    // Drops the least-recently-touched conversation, never the user being served.
+    private void evictIdleUsers(long keep)
     {
-        while (_history.Count > MaxTrackedUsers)
+        while (_history.Count > MAX_TRACKED_USERS)
         {
             long oldestId = 0;
             long oldestTouch = long.MaxValue;

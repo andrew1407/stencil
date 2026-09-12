@@ -16,7 +16,7 @@ public sealed class RemoteImageUrlTests
     [InlineData("relative/clip.mp4")]           // bare relative path
     [InlineData("")]                            // empty
     [InlineData("   ")]                         // whitespace
-    public void ParseRejectsNonHttpSources(string raw)
+    public void Should_Reject_Non_Http_Sources_On_Parse(string raw)
     {
         Assert.Throws<InvalidOperationException>(() => RemoteImageUrl.Parse(raw));
     }
@@ -25,7 +25,7 @@ public sealed class RemoteImageUrlTests
     [InlineData("http://example.com/a.png")]
     [InlineData("https://example.com/a.png")]
     [InlineData("https://1.1.1.1/a.png")]
-    public void ParseAcceptsHttpUrls(string raw)
+    public void Should_Accept_Http_Urls_On_Parse(string raw)
     {
         Uri uri = RemoteImageUrl.Parse(raw);
         Assert.True(uri.Scheme is "http" or "https");
@@ -44,7 +44,7 @@ public sealed class RemoteImageUrlTests
     [InlineData("fe80::1")]             // IPv6 link-local
     [InlineData("fc00::1")]             // IPv6 unique-local
     [InlineData("::ffff:127.0.0.1")]    // IPv4-mapped loopback
-    public void IsBlockedAddressFlagsPrivateAndLocal(string ip)
+    public void Should_Flag_Private_And_Local_Addresses_As_Blocked(string ip)
     {
         Assert.True(RemoteImageUrl.IsBlockedAddress(IPAddress.Parse(ip)));
     }
@@ -54,7 +54,7 @@ public sealed class RemoteImageUrlTests
     [InlineData("8.8.8.8")]
     [InlineData("93.184.216.34")]
     [InlineData("2606:4700:4700::1111")]
-    public void IsBlockedAddressAllowsPublic(string ip)
+    public void Should_Allow_Public_Addresses_As_Not_Blocked(string ip)
     {
         Assert.False(RemoteImageUrl.IsBlockedAddress(IPAddress.Parse(ip)));
     }
@@ -63,19 +63,19 @@ public sealed class RemoteImageUrlTests
     [InlineData("http://127.0.0.1/secret.png")]
     [InlineData("https://169.254.169.254/latest/meta-data/")]
     [InlineData("http://[::1]/x.png")]
-    public async Task ValidateRejectsLiteralInternalHosts(string raw)
+    public async Task Should_Reject_Literal_Internal_Hosts_On_Validate(string raw)
     {
         await Assert.ThrowsAsync<InvalidOperationException>(() => RemoteImageUrl.ValidateAsync(raw));
     }
 
     [Fact]
-    public async Task ValidateAllowsPublicLiteralHost()
+    public async Task Should_Allow_A_Public_Literal_Host_On_Validate()
     {
         await RemoteImageUrl.ValidateAsync("https://1.1.1.1/a.png"); // no throw
     }
 
     [Fact]
-    public async Task ValidateRejectsUnresolvableHostWithoutHanging()
+    public async Task Should_Reject_An_Unresolvable_Host_Without_Hanging_On_Validate()
     {
         // A guaranteed-non-resolvable host (.invalid, RFC 2606) with a near-zero resolve budget:
         // whether it times out or fails to resolve, it must surface as InvalidOperationException

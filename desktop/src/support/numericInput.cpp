@@ -7,10 +7,8 @@ namespace stencil::gui {
 
   namespace {
 
-    // A tiny recursive-descent parser over the expression text. Structurally the
-    // same as the JS port (browser/js/ui/numericInput.js) and the core formula
-    // parser: expr → term → unary → power → primary, with unary sitting ABOVE
-    // power so "-2 ** 2" is -(2**2).
+    // Same structure as browser/js/ui/numericInput.js and the core formula parser:
+    // expr → term → unary → power → primary, unary ABOVE power so "-2 ** 2" is -(2**2).
     struct Parser {
       const QString& s;
       int i = 0;
@@ -32,7 +30,6 @@ namespace stencil::gui {
         if (i < s.size() && s[i] == '^') { ++i; return true; }
         return false;
       }
-      // Peek a single '*' or '/' WITHOUT consuming a '**'.
       bool nextIsMulDiv(QChar& op) {
         skip();
         if (i >= s.size()) return false;
@@ -87,7 +84,6 @@ namespace stencil::gui {
           if (!match(')')) { ok = false; return 0.0; }
           return v;
         }
-        // A number: digits with an optional single decimal point.
         const int start = i;
         while (i < s.size() && s[i].isDigit()) ++i;
         if (i < s.size() && s[i] == '.') {
@@ -102,7 +98,6 @@ namespace stencil::gui {
       }
     };
 
-    // A leading *, / or ** means "apply this to what's already in the field".
     const QRegularExpression& continuesCurrent() {
       static const QRegularExpression re(QStringLiteral("^\\s*(\\*\\*|\\^|[*/])"));
       return re;
@@ -126,9 +121,7 @@ namespace stencil::gui {
   }
 
   namespace {
-    // Shared validate(): anything that already evaluates is Acceptable, anything else
-    // is Intermediate so the editor keeps accepting keystrokes mid-expression. Never
-    // Invalid — that would swallow the character the user just typed.
+    // Never Invalid — that would swallow the character the user just typed.
     QValidator::State exprState(const QString& input, double current) {
       if (input.trimmed().isEmpty()) return QValidator::Intermediate;
       bool ok = false;

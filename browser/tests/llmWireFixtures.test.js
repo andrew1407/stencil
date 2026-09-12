@@ -15,8 +15,15 @@ import { parseChatDoc, buildChatDoc, CHAT_DOC_VERSION } from '../js/llm/chatStor
 
 const FIXTURES = fileURLToPath(new URL('../js/config/llm/fixtures/', import.meta.url));
 
-// Every *.json in a family dir is an array of case objects with a unique name.
+// Every *.json in a family dir is an array of case objects with a unique name; read
+// once per family however many times a test asks for it.
+const families = new Map();
 const loadFamily = (family) => {
+  if (!families.has(family)) families.set(family, readFamily(family));
+  return families.get(family);
+};
+
+const readFamily = (family) => {
   const dir = `${FIXTURES}${family}`;
   const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
   assert.ok(files.length > 0, `${family}: no fixture files`);

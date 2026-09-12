@@ -16,8 +16,15 @@ import { normalizeLaunchPayload, encodeTelegramStartPayload, LAUNCH_DATA_URL_MAX
 const CONFIG_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'config');
 const FIXTURES = path.join(CONFIG_DIR, 'fixtures');
 
-// Load a family's vectors from every *.json in its dir (sorted for stable test names).
+// Load a family's vectors from every *.json in its dir (sorted for stable test names),
+// once per family however many times a test asks for it.
+const families = new Map();
 const loadFamily = (family) => {
+  if (!families.has(family)) families.set(family, readFamily(family));
+  return families.get(family);
+};
+
+const readFamily = (family) => {
   const dir = path.join(FIXTURES, family);
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
   assert.ok(files.length > 0, `no fixture files in ${dir}`);

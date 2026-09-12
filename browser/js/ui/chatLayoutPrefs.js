@@ -11,9 +11,9 @@ let side = 'normal';
 
 export const CHAT_SIDE_NORMAL = 'normal';
 export const CHAT_SIDE_SWAPPED = 'swapped';
-// The class components.css keys the swap rules off (.chat-swapped, on a transcript
-// container) — both surfaces apply it to their own transcript element from the one
-// shared preference below.
+// The class the swap rules key off (.chat-swapped, on a transcript container):
+// css/components/chat/tails.css here, popup.css in the extension — both surfaces stamp it
+// on their own transcript element from the one shared preference below.
 export const CHAT_SWAPPED_CLASS = 'chat-swapped';
 
 export const chatSide = () => side;

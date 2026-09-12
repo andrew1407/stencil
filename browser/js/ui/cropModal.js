@@ -5,12 +5,9 @@ import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleC
 import { icon } from './icons.js';
 const { PAGE_SIZES } = constants;
 
-// ── Component: image-crop modal ─────────────────────────────────
-// Move/resize a crop rect over the original image, locked to the page aspect ratio
-// (resizable from corners only; Album/Portrait toggle flips orientation). Confirm
-// stores the rect via DrawingApp.applyCrop WITHOUT replacing the original, so it
-// stays re-adjustable. Geometry runs in the shared C++ core (cropGeometry.js → wasm)
-// so desktop and browser crops match.
+// The crop modal: a rect over the original image, locked to the page aspect. Confirm
+// stores it via DrawingApp.applyCrop without replacing the original. Geometry runs in
+// the shared core (cropGeometry.js → wasm) so desktop and browser crops match.
 export class StencilCropModal extends StencilElement {
   static inner() {
     return `
@@ -55,19 +52,17 @@ export class StencilCropModal extends StencilElement {
     const overlay = document.getElementById('crop-modal-overlay');
     const img = document.getElementById('crop-image-el');
     const box = document.getElementById('crop-box');
-    const shade = document.getElementById('crop-shade');   // clipped dimming backdrop (mirrors box)
+    const shade = document.getElementById('crop-shade');
     const dims = document.getElementById('crop-dims');
     const orientBtn = document.getElementById('crop-orientation');
 
-    // Working state (all rect math in ORIGINAL-image pixel space).
     let rect = { x: 0, y: 0, width: 0, height: 0 };
     let album = false;
     let aspect = 1;
-    let scale = 1;          // display px per image px
-    let iw = 0, ih = 0;     // original image dimensions
+    let scale = 1;
+    let iw = 0, ih = 0;
 
-    // Page natural dimensions (cm), NOT orientation-swapped — only proportions
-    // matter. Mirrors blankImageModal's pageDims() (the as-selected page).
+    // Page natural dimensions (cm), not orientation-swapped; mirrors blankImageModal's pageDims().
     const pageDims = () => (app.pageSize === 'custom'
       ? { width: app.customPageWidth, height: app.customPageHeight }
       : PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
@@ -83,7 +78,6 @@ export class StencilCropModal extends StencilElement {
       box.style.top = (rect.y * scale) + 'px';
       box.style.width = (rect.width * scale) + 'px';
       box.style.height = (rect.height * scale) + 'px';
-      // The dimming backdrop tracks the same rect in its clip layer.
       shade.style.display = 'block';
       shade.style.left = box.style.left;
       shade.style.top = box.style.top;
@@ -93,7 +87,6 @@ export class StencilCropModal extends StencilElement {
       orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${album ? 'Album' : 'Portrait'}</span>`;
     };
 
-    // Re-fit a centered crop for the current orientation (used on open + on flip).
     const recenter = () => {
       aspect = cropAspect(pageDims().width, pageDims().height, album);
       rect = centeredCrop(iw, ih, aspect);
@@ -104,37 +97,31 @@ export class StencilCropModal extends StencilElement {
       onClose: () => { box.style.display = 'none'; }
     });
 
-    // Open guard: needs a loaded original image.
     const openCrop = () => {
       if (!app.originalImage || !app.imageDataUrl) {
         notify('Open an image first', 'fail');
         return;
       }
-      // Preview the rotated original so the crop rect (which lives in rotated
-      // pixel space) lines up with what's shown.
+      // The rotated original, so the crop rect (in rotated pixel space) lines up.
       const dims = app.imageModel.effectiveOriginalDims();
       iw = dims.w;
       ih = dims.h;
-      // Seed from the current applied crop (or a centered default).
       rect = app.cropRect ? { ...app.cropRect } : centeredCrop(iw, ih, cropAspect(pageDims().width, pageDims().height, isAlbumOrientation(iw, ih)));
       album = isAlbumOrientation(rect.width, rect.height);
       aspect = cropAspect(pageDims().width, pageDims().height, album);
       open();
-      // Position once the preview image has its displayed size.
       img.onload = () => { computeScale(); renderBox(); };
       img.src = app.imageModel.effectiveOriginalDataUrl();
       if (img.complete && img.naturalWidth) { computeScale(); renderBox(); }
     };
     document.getElementById('crop-image').addEventListener('click', openCrop);
 
-    // ── Interactive move / corner-resize ──
-    // clientX/Y → image-space pixel, relative to the displayed image.
     const toImage = (clientX, clientY) => {
       const r = img.getBoundingClientRect();
       return { x: (clientX - r.left) / scale, y: (clientY - r.top) / scale };
     };
 
-    let drag = null; // { kind: 'move'|'resize', corner, startImg, startRect }
+    let drag = null;
     const onDown = (e, kind, corner) => {
       e.preventDefault();
       e.stopPropagation();
@@ -164,18 +151,16 @@ export class StencilCropModal extends StencilElement {
     box.querySelectorAll('.crop-handle').forEach(h =>
       h.addEventListener('mousedown', e => onDown(e, 'resize', parseInt(h.dataset.corner, 10))));
 
-    // Mouse wheel / trackpad pinch (a ctrl+wheel event in Chromium) over the crop rect → grow/shrink
-    // it from its centre via core scaleCropCentered (aspect locked, clamped). passive:false to preventDefault.
+    // Wheel / trackpad pinch (a ctrl+wheel event in Chromium) over the crop rect scales it
+    // from its centre; passive:false to preventDefault.
     document.getElementById('crop-stage').addEventListener('wheel', e => {
       if (box.style.display === 'none' || iw <= 0) return;
-      // Only when the cursor is INSIDE the crop rect (not just anywhere over the image).
       const b = box.getBoundingClientRect();
       if (e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom) return;
       e.preventDefault();
-      const factor = Math.pow(1.0015, -e.deltaY);   // wheel up / pinch out → grow
+      const factor = Math.pow(1.0015, -e.deltaY);
       rect = scaleCropCentered(rect, factor, aspect, iw, ih);
-      // If a move/resize drag is underway, re-anchor it to the new size + current cursor so the
-      // next mousemove doesn't snap the rect back to its pre-wheel size.
+      // Re-anchor a live drag to the new size so the next mousemove does not snap it back.
       if (drag) { drag.startRect = { ...rect }; drag.startImg = toImage(e.clientX, e.clientY); }
       renderBox();
     }, { passive: false });
@@ -184,7 +169,6 @@ export class StencilCropModal extends StencilElement {
     document.getElementById('crop-cancel').addEventListener('click', close);
 
     document.getElementById('crop-apply').addEventListener('click', async () => {
-      // Warn before discarding lines on an orientation flip.
       const change = app.cropRect ? cropChange(app.cropRect, rect) : { orientationChanged: false };
       if (change.orientationChanged && app.lines.length > 0 &&
           !(await app.confirm('Changing the crop orientation will remove all placed lines and points. Continue?', { title: 'Change orientation', danger: true, confirmIcon: 'crop' }))) {

@@ -1,11 +1,9 @@
 // ── Opt-in per-project chat persistence (llm-contract.md §12) ───────────
-// Glues the shared conversation to the IndexedDB chat store and, for server-linked
-// projects, the server's `chat` file kind. OFF until the user enables "Save chats with
-// projects"; temporary/incognito editors NEVER persist. Transcript changes snapshot
-// SYNCHRONOUSLY (keyed by the active project id at that instant — no debounce, so a
-// project switch can never misfile a conversation) and write best-effort; an emptied
-// transcript deletes the persisted copy, and switches restore into BOTH the controller
-// replay history and the visible transcript.
+// Glues the shared conversation to the IndexedDB chat store and, for server-linked projects,
+// the server's `chat` file kind. OFF until the user opts in; temporary/incognito editors
+// NEVER persist. Changes snapshot SYNCHRONOUSLY, keyed by the active project id at that
+// instant (no debounce, so a switch cannot misfile a conversation) and write best-effort;
+// an emptied transcript deletes the copy, and a switch restores history AND transcript.
 import {
   chatLog, onChatLog, appendChatRow, clearChatLog, sharedChatController, peekChatController,
 } from './chatSession.js';

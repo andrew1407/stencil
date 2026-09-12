@@ -7,8 +7,29 @@ import { installMemoryStorage } from './helpers/memoryStorage.js';
 
 const mem = installMemoryStorage()._map;
 
-const { defaultSettings, loadLlmSettings, saveLlmSettings, serverBearerToken, PROVIDERS, PROVIDER_BASE_URLS } =
+const { defaultSettings, loadLlmSettings, saveLlmSettings, serverBearerToken, PROVIDERS, PROVIDER_BASE_URLS, isHttpUrl } =
   await import('../js/llm/llmSettings.js');
+
+// NEGATIVE: a poisoned store must not aim the client at another scheme. Same check the
+// stencil.llm setup facade applies (isHttpUrl — one validator, both call sites).
+test('a saved endpoint on a non-http(s) scheme is refused, not loaded', () => {
+  for (const bad of ['javascript:fetch(1)', 'file:///etc/passwd', 'chrome-extension://abc/x', 'data:text/html,x', '//evil.example']) {
+    mem.clear();
+    mem.set('drawingApp_llmSettings', JSON.stringify({ baseUrl: bad, serverUrl: bad }));
+    const out = loadLlmSettings();
+    assert.strictEqual(out.baseUrl, PROVIDER_BASE_URLS.ollama, bad);
+    assert.strictEqual(out.serverUrl, '', bad);
+    assert.strictEqual(isHttpUrl(bad), false, bad);
+  }
+});
+
+test('http(s) endpoints still load unchanged', () => {
+  mem.clear();
+  mem.set('drawingApp_llmSettings', JSON.stringify({ baseUrl: 'HTTP://box:9999/v1', serverUrl: 'https://srv:8090' }));
+  const out = loadLlmSettings();
+  assert.strictEqual(out.baseUrl, 'HTTP://box:9999/v1');
+  assert.strictEqual(out.serverUrl, 'https://srv:8090');
+});
 
 test('defaults match the contract §5 table', () => {
   mem.clear();

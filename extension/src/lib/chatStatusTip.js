@@ -1,19 +1,11 @@
-// ── The assistant "…" trigger's rich status tooltip ──────────────────────────
-// Browser chatPanel.js gearStatusRows / gearTipFootText / showGearTip / hideGearTip,
-// ported — a themed TABLE (provider / endpoint / model / status, the status cell
-// coloured), not the generic flat controlTooltip.js popup: that one prints a `title`
-// as plain lines, and "More — attach, clear, settings" read as a second heading
-// fighting the dropdown's own items for the same information (user report). The
-// dropdown already lists attach/clear/settings, so the tip says only what it alone
-// knows: reachability. Extracted from popup/assistant.js (the chatMsgMenu.js pattern)
-// so `node --test` can drive the row/foot builders and the show/hide wiring.
+// The assistant "…" trigger's status table (port of browser chatPanel.js gearStatusRows /
+// showGearTip). It says only what the dropdown does not: reachability.
 import {
   surfaceIn, surfaceOut, settleSurface, motionReduced, centerOf,
   TIP_DUST_IN_MS, TIP_DUST_OUT_MS,
 } from './motion.js';
 
-// The table's rows for a probe result (null = probe in flight). `labels` maps a
-// provider id to its display name (assistant.js passes llmClient's PROVIDER_LABELS).
+// `probe` null = in flight; `labels` maps a provider id to its display name.
 export const gearStatusRows = (probe, labels = {}) => {
   if (!probe) return [{ label: 'Status', value: 'Checking the configured LLM…', state: 'connecting' }];
   if (probe.provider === 'none') {
@@ -33,7 +25,7 @@ export const gearStatusRows = (probe, labels = {}) => {
 
 export const gearTipFootText = (probe) => {
   const lines = [];
-  if (!probe || probe.provider === 'none' || probe.ok) { /* the table above says it all */ }
+  if (!probe || probe.provider === 'none' || probe.ok) { /* the table says it all */ }
   else {
     lines.push(`No LLM reachable${probe.url ? ` at ${probe.url}` : ''} — ${probe.provider === 'ollama' ? 'start Ollama or ' : ''}configure another provider.`);
   }
@@ -41,9 +33,7 @@ export const gearTipFootText = (probe) => {
   return lines.join('\n');
 };
 
-// Build the floating tip (appended to `doc.body`, .chat-status-tip in popup.css).
-// It dusts in/out of the anchor it hangs off (lib/motion.js), same as every other
-// hover tooltip here — only on the none↔visible edge, never on a live re-render.
+// Dusts in/out of its anchor only on the none↔visible edge, never on a live re-render.
 export const createChatStatusTip = ({ doc = globalThis.document, getAnchor = () => null,
                                       labels = {}, win = globalThis } = {}) => {
   let probe = null;   // null = probe in flight
@@ -94,14 +84,12 @@ export const createChatStatusTip = ({ doc = globalThis.document, getAnchor = () 
     const point = centerOf(getAnchor());
     if (motionReduced() || !point || !surfaceOut(tip, point, { ms: TIP_DUST_OUT_MS })) settleSurface(tip);
   };
-  // A visible tip repaints in place (no flight) as probe results land.
   const setProbe = (p) => {
     probe = p;
     if (tip.classList.contains('visible')) show();
   };
-  // Hover/focus reveal it. A click both focuses the trigger and opens the menu — the
-  // `focus` listener would re-show the tip milliseconds after `pointerdown` hid it,
-  // so it is suppressed for exactly that one click.
+  // A click both focuses the trigger and opens the menu: the `focus` re-show that would
+  // follow the `pointerdown` hide is suppressed for that one click.
   const wire = (btn) => {
     let suppressFocus = false;
     btn.addEventListener('pointerenter', show);

@@ -1,19 +1,10 @@
 namespace Stencil.TelegramBot.Infrastructure.Server;
 
-/// <summary>
-/// Normalise a raw server URL to a stable origin (<c>scheme://host[:port]</c>). A faithful
-/// port of <c>pystencil</c>'s <c>normalize_url</c> (itself a port of the browser
-/// <c>connectionManager.js</c> <c>normalizeUrl</c>).
-/// </summary>
+// A port of pystencil's normalize_url (itself a port of connectionManager.js normalizeUrl).
 public static class UrlNormalizer
 {
-    /// <summary>
-    /// Trim <paramref name="raw"/>; then keep only <c>scheme://authority</c> (drop any path,
-    /// query or fragment) so every connection is keyed by a stable origin. Secure by default:
-    /// a bare REMOTE host gets <c>https://</c>; loopback keeps <c>http://</c> (dev servers run
-    /// plaintext on localhost). An explicit scheme is preserved — the user opts into cleartext.
-    /// Throws <see cref="ArgumentException"/> on empty or invalid input.
-    /// </summary>
+    // Keeps only scheme://authority. Secure by default: a bare REMOTE host gets https://, loopback
+    // keeps http://; an explicit scheme is preserved — the user opts into cleartext.
     public static string Normalize(string? raw)
     {
         string s = (raw ?? "").Trim();
@@ -36,11 +27,7 @@ public static class UrlNormalizer
         return $"{uri.Scheme}://{uri.Authority}";
     }
 
-    /// <summary>
-    /// True for a loopback host (localhost, *.localhost, 127.0.0.0/8, ::1), where plaintext
-    /// http is safe because the bytes never leave the machine. Port of the browser
-    /// <c>connectionManager.js</c> <c>isLoopbackHost</c>.
-    /// </summary>
+    // localhost, *.localhost, 127.0.0.0/8, ::1 — port of connectionManager.js isLoopbackHost.
     public static bool IsLoopbackHost(string? host)
     {
         if (string.IsNullOrEmpty(host))

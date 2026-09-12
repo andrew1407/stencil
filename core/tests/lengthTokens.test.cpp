@@ -6,12 +6,12 @@ using namespace stencil::core;
 TEST_CASE("parseLengthToken: bare numbers are signed deltas") {
   auto a = parseLengthToken("10");
   REQUIRE(a);
-  CHECK(a->kind == LengthKind::Delta);
+  CHECK(a->kind == LengthKind::DELTA);
   CHECK(a->value == doctest::Approx(10.0));
 
   auto b = parseLengthToken("-10");
   REQUIRE(b);
-  CHECK(b->kind == LengthKind::Delta);
+  CHECK(b->kind == LengthKind::DELTA);
   CHECK(b->value == doctest::Approx(-10.0));  // sign folded into the delta
 
   auto c = parseLengthToken(".5");
@@ -22,20 +22,20 @@ TEST_CASE("parseLengthToken: bare numbers are signed deltas") {
 TEST_CASE("parseLengthToken: units and the from-end '-' flag") {
   auto px = parseLengthToken("120px");
   REQUIRE(px);
-  CHECK(px->kind == LengthKind::Px);
+  CHECK(px->kind == LengthKind::PX);
   CHECK(px->value == doctest::Approx(120.0));
   CHECK_FALSE(px->fromEnd);
 
   auto pct = parseLengthToken("-60%");
   REQUIRE(pct);
-  CHECK(pct->kind == LengthKind::Percent);
+  CHECK(pct->kind == LengthKind::PERCENT);
   CHECK(pct->value == doctest::Approx(60.0));  // magnitude only
   CHECK(pct->fromEnd);                          // '-' means measured from the end
 
   CHECK(parseLengthToken("3cm")->value == doctest::Approx(3.0));
   CHECK(parseLengthToken("5mm")->value == doctest::Approx(0.5));   // mm -> cm/10
   CHECK(parseLengthToken("1in")->value == doctest::Approx(2.54));  // in -> cm*2.54
-  CHECK(parseLengthToken("1in")->kind == LengthKind::Cm);
+  CHECK(parseLengthToken("1in")->kind == LengthKind::CM);
 }
 
 TEST_CASE("parseLengthToken: rejects malformed input and unknown units") {

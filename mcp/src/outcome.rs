@@ -75,8 +75,7 @@ pub fn parse_wrote_project(stderr: &str) -> Option<String> {
 /// either written back into a fetched project, or pushed as a brand-new project.
 ///
 /// `Serialize` produces the tool payload's per-delivery object directly
-/// (`{"action":"updated",…}` / `{"action":"created",…}`), so the handler no longer
-/// hand-builds it.
+/// (`{"action":"updated",…}` / `{"action":"created",…}`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "action", rename_all = "lowercase")]
 pub enum Remote {

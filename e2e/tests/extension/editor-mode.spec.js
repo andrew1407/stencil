@@ -12,6 +12,7 @@
 // ORIGIN, and while an origin match is only the pre-filter (a tab must also answer the bridge
 // to count as an editor), feeding it here would need a second origin the harness has not got.
 // Which pages the picker offers is covered by the pure helpers' unit tests instead.
+import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
@@ -33,7 +34,7 @@ test.describe('extension editor mode', () => {
     // editor bridge is scoped to that origin.
     const sw = await ext.background();
     await sw.evaluate((editorUrl) => new Promise((r) => chrome.storage.sync.set({ editorUrl }, r)), EDITOR_URL);
-    await new Promise((r) => setTimeout(r, 800));
+    await sleep(800);
   });
 
   test.afterAll(async () => { await context?.close(); });

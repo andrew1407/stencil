@@ -1,0 +1,70 @@
+/* ── Inline-SVG icons (js/ui/icons.js) ──────────────────────────
+   Icons inherit color (currentColor) so they theme with the button/text. These
+   rules only handle layout: glyph on the text baseline when inline, centered
+   inside icon buttons. */
+.ic {
+    display: inline-block;
+    vertical-align: -0.18em;
+    flex: 0 0 auto;
+}
+/* Icon + label buttons (and label spans): a flex row with an even gap so the
+   glyph and text align regardless of font metrics. */
+.btn-icon-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    /* A label never wraps: while a control slides in (motion.js revealControls animates
+       max-width from 0 under overflow:hidden) the box is briefly narrower than its text,
+       and "Open Image" broke onto two lines — and stayed there when the width the slide
+       measured was the wrapped one. Clipping mid-slide is the browser-side answer; the
+       desktop's Qt buttons never reflow their caption either. */
+    white-space: nowrap;
+}
+.btn-icon-text .ic { vertical-align: 0; }
+/* The two Draw-group toggles swap their own label in place — Start↔Stop, Line↔Rect — and
+   each pairing has a different text width, so an auto-width button resizes under the
+   cursor and shoves the rest of the row sideways mid-click. The box is pinned to the
+   WIDER of that button's own two faces and its content centred inside, so toggling
+   changes what the button says and nothing about where anything sits.
+   The pin is measured at the real font by ui/motion.js pinWidestFace() and written as an
+   inline width — one hard-coded rem for both pairs was a guess, and left short labels
+   ("Start", "Line") swimming in dead space. This is the pre-measure floor: content width,
+   never narrower than the face on show. The two buttons may settle on different widths. */
+.btn-draw-fixed {
+    min-width: max-content;
+    justify-content: center;
+}
+/* The Start/Stop toggle is an ACCENT toggle, not a status light: outlined while idle
+   ("Start"), accent-filled while drawing ("Stop") — the .pill-toggle convention in
+   components/projects.css. It deliberately opts out of the global green `button.active`, which
+   stays as-is for the other active controls (#fullscreen-toggle, #incognito-toggle,
+   the chat button). box-sizing is border-box, so the outline costs no width and the
+   pinned .btn-draw-fixed box never changes between the two states. */
+#draw-toggle {
+    border: 1px solid transparent;
+}
+#draw-toggle:not(:disabled) {
+    background: transparent;
+    /* The plain UI outline every other idle control wears — not the accent (user
+       decision): the accent is what the FILLED, running state says. */
+    border-color: var(--ui-outline);
+    /* The word and its glyph read as TEXT — the accent outline is what marks the toggle
+       (user decision; desktop twin: QToolButton[drawToggle="idle"]). */
+    color: var(--text-main);
+}
+#draw-toggle:not(:disabled):hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+/* Drawing: filled, in the app's on-accent ink — so a yellow accent stays legible. */
+#draw-toggle.active:not(:disabled) {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+#draw-toggle.active:not(:disabled):hover { background: var(--accent-2); }
+/* Icon-only buttons: square-ish, glyph centered; disabled keeps a clear look. */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-icon .ic { vertical-align: 0; }

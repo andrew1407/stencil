@@ -1,34 +1,66 @@
 package httpapi
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 
 	"stencil/server/internal/auth"
 	"stencil/server/internal/bus"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/service"
 	"stencil/server/internal/store"
+	"stencil/server/internal/validate"
 )
 
-func (a *API) handleListProjects(w http.ResponseWriter, r *http.Request) {
-	projects, err := a.deps.Projects.ListProjects(r.Context())
+// listPage reads the opt-in keyset paging params; both absent = every project.
+func listPage(req *http.Request) (store.ProjectPage, error) {
+	q := req.URL.Query()
+	page := store.ProjectPage{}
+	limit, err := validate.ListLimit(q.Get("limit"))
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not list projects")
-		return
+		return page, err
 	}
-	writeJSON(w, http.StatusOK, protocol.ProjectListResponse{Projects: projects})
+	page.Limit = limit
+	after, err := store.ParseProjectCursor(q.Get("after"))
+	if err != nil {
+		return page, errors.New("after is not a cursor from a previous page")
+	}
+	page.After = after
+	return page, nil
 }
 
-func (a *API) handleGetProject(w http.ResponseWriter, r *http.Request) {
-	rec, err := a.deps.Projects.GetProject(r.Context(), r.PathValue("id"))
+func (a *API) handleListProjects(rw http.ResponseWriter, req *http.Request) {
+	page, err := listPage(req)
+	if err != nil {
+		writeBadRequest(rw, err.Error())
+		return
+	}
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	projects, err := a.deps.Projects.ListProjects(ctx, page)
+	if err != nil {
+		writeInternalError(rw, msgListProjects)
+		return
+	}
+	resp := protocol.ProjectListResponse{Projects: projects}
+	// A full page may have more behind it; a short one is the end of the list.
+	if page.Limit > 0 && len(projects) == page.Limit {
+		last := projects[len(projects)-1]
+		resp.NextCursor = store.ProjectCursor{UpdatedAt: last.UpdatedAt, ID: last.ID}.String()
+	}
+	writeJSON(rw, http.StatusOK, resp)
+}
+
+func (a *API) handleGetProject(rw http.ResponseWriter, req *http.Request) {
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	rec, err := a.deps.Projects.GetProject(ctx, req.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
+		writeNotFound(rw, msgProjectNotFound)
 		return
 	}
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not load project")
+		writeInternalError(rw, msgLoadProject)
 		return
 	}
 	resp := protocol.ProjectResponse{
@@ -39,101 +71,78 @@ func (a *API) handleGetProject(w http.ResponseWriter, r *http.Request) {
 	// Avoid duplicating the payload inside Project too.
 	resp.Project.Layout = nil
 	resp.Project.OriginalContent = ""
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(rw, http.StatusOK, resp)
 }
 
-func (a *API) handleCreateProject(w http.ResponseWriter, r *http.Request) {
-	var req protocol.CreateProjectRequest
-	if !a.decodeJSON(w, r, &req) {
-		return
-	}
-	// A Stencil project is created FROM an image — there is no such thing as an
-	// image-less project. The create request must declare an image (HasImage, set by
-	// every real client right before it uploads the `original` bytes); reject bare
-	// metadata-only creates so a project without image bytes can never come to exist.
-	if !req.HasImage {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "a project must be created from an image")
+// handleCreateProject decodes the request; the image rule and the PROJECT_TTL
+// stamping are policy and live in the service.
+func (a *API) handleCreateProject(rw http.ResponseWriter, req *http.Request) {
+	var body protocol.CreateProjectRequest
+	if !a.decodeJSON(rw, req, &body) {
 		return
 	}
 	owner := ""
-	if sess, ok := auth.SessionFromContext(r.Context()); ok {
+	if sess, ok := auth.SessionFromContext(req.Context()); ok {
 		owner = sess.ID
 	}
-	// Server projects have no expiry unless the client set one explicitly, or the
-	// operator configured a default lifetime (PROJECT_TTL). Off by default.
-	if req.ExpiresAt == 0 && a.deps.ProjectTTL > 0 {
-		req.ExpiresAt = nowMs() + a.deps.ProjectTTL.Milliseconds()
-	}
-	rec, err := a.deps.Projects.CreateProject(r.Context(), owner, req)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not create project")
-		return
-	}
-	a.publishEvent(r.Context(), protocol.EventCreated, rec)
-	writeJSON(w, http.StatusCreated, rec)
-}
-
-func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
-	var req protocol.UpdateProjectRequest
-	if !a.decodeJSON(w, r, &req) {
-		return
-	}
-	rec, err := a.deps.Projects.UpdateProject(r.Context(), r.PathValue("id"), store.ProjectPatch{
-		Name:        req.Name,
-		Color:       req.Color,
-		Description: req.Description,
-		Keywords:    req.Keywords,
-		BlankColor:  req.BlankColor,
-		ExpiresAt:   req.ExpiresAt,
-		Layout:      req.Layout,
-	}, req.Version)
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	rec, err := a.projects.Create(ctx, owner, body)
 	switch {
-	case errors.Is(err, store.ErrNotFound):
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
-		return
-	case errors.Is(err, store.ErrConflict):
-		writeErr(w, http.StatusConflict, protocol.CodeConflict, "stale version; reload and retry")
+	case errors.Is(err, service.ErrImageRequired):
+		writeBadRequest(rw, msgImageRequired)
 		return
 	case err != nil:
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not update project")
+		writeInternalError(rw, msgCreateProject)
 		return
 	}
-	a.publishEvent(r.Context(), protocol.EventUpdated, rec)
-	writeJSON(w, http.StatusOK, rec)
+	writeJSON(rw, http.StatusCreated, rec)
 }
 
-func (a *API) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	// A project is a shared workspace: anyone may list/read/edit it. Deletion is the
-	// one destructive op, so it's only allowed when at most one client is in the
-	// project's live edit session (the lone editor tidying up). If two or more clients
-	// are connected, refuse — one peer must not yank the project out from under others.
-	if a.deps.LiveSessions != nil && a.deps.LiveSessions.ConnectionCount(id) >= 2 {
-		writeErr(w, http.StatusConflict, protocol.CodeConflict, "project is in use by other clients; cannot delete")
+func (a *API) handleUpdateProject(rw http.ResponseWriter, req *http.Request) {
+	var body protocol.UpdateProjectRequest
+	if !a.decodeJSON(rw, req, &body) {
 		return
 	}
-	if err := a.deps.Projects.DeleteProject(r.Context(), id); err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not delete project")
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	rec, err := a.deps.Projects.UpdateProject(ctx, req.PathValue("id"), store.ProjectPatch{
+		Name:        body.Name,
+		Color:       body.Color,
+		Description: body.Description,
+		Keywords:    body.Keywords,
+		BlankColor:  body.BlankColor,
+		ExpiresAt:   body.ExpiresAt,
+		Layout:      body.Layout,
+	}, body.Version)
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		writeNotFound(rw, msgProjectNotFound)
+		return
+	case errors.Is(err, store.ErrConflict):
+		writeErr(rw, http.StatusConflict, protocol.CodeConflict, msgStaleVersion)
+		return
+	case err != nil:
+		writeInternalError(rw, msgUpdateProject)
 		return
 	}
-	if a.deps.Files != nil {
-		_ = a.deps.Files.Remove(id)
-	}
-	a.publishEvent(r.Context(), protocol.EventDeleted, protocol.ProjectRecord{ID: id})
-	w.WriteHeader(http.StatusNoContent)
+	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventUpdated, rec)
+	writeJSON(rw, http.StatusOK, rec)
 }
 
-// publishEvent broadcasts a project-lifecycle event to the global feed so every
-// connected client refreshes its projects list live. Best-effort: a bus error
-// never fails the request.
-func (a *API) publishEvent(ctx context.Context, event string, rec protocol.ProjectRecord) {
-	if a.deps.Bus == nil {
+// handleDeleteProject defers to the service: the live-session guard and the
+// row-then-bytes-then-announce ordering are shared with the expiry sweep.
+func (a *API) handleDeleteProject(rw http.ResponseWriter, req *http.Request) {
+	ctx, cancel := a.opCtx(req)
+	defer cancel()
+	err := a.projects.Delete(ctx, req.PathValue("id"))
+	switch {
+	case errors.Is(err, service.ErrProjectInUse):
+		writeErr(rw, http.StatusConflict, protocol.CodeConflict, msgProjectInUse)
+		return
+	case err != nil:
+		writeInternalError(rw, msgDeleteProject)
 		return
 	}
-	msg := protocol.WSMessage{Type: protocol.WSProjectEv, Event: event, Project: &rec}
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return
-	}
-	_ = a.deps.Bus.Publish(ctx, bus.ChannelEvents, data)
+	rw.WriteHeader(http.StatusNoContent)
 }

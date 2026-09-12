@@ -12,13 +12,13 @@ namespace Stencil.TelegramBot.Tests;
 /// <c>fixtures_test.rs</c>, so if the two parsers ever disagree on a case, one of the suites
 /// goes red — that is the drift this catches. Per-parser unit cases still live in
 /// <see cref="CliOutcomeParserTests"/>; this asserts conformance to the canonical contract
-/// (<c>cli/CONTRACT.md</c>). Uses only <c>System.Text.Json</c> from the BCL — no new deps.
+/// (<c>cli/CONTRACT.md</c>). One test per fixture, over a corpus read once.
 /// </summary>
 public sealed class SharedOutcomeFixturesTests
 {
     /// <summary>Locate the shared fixture file relative to THIS test source (compile-time
     /// path), so resolution is independent of the test's working directory.</summary>
-    private static string FixturesPath([CallerFilePath] string thisFile = "")
+    private static string fixturesPath([CallerFilePath] string thisFile = "")
     {
         string dir = Path.GetDirectoryName(thisFile)!;
         // .../bot/tests/Stencil.TelegramBot.Tests -> repo root is three levels up.
@@ -26,81 +26,94 @@ public sealed class SharedOutcomeFixturesTests
             Path.Combine(dir, "..", "..", "..", "cli", "testdata", "outcome_fixtures.json"));
     }
 
-    private static JsonElement Section(string name)
-    {
-        string json = File.ReadAllText(FixturesPath());
-        using JsonDocument doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty(name).Clone();
-    }
+    private static readonly Lazy<JsonDocument> _corpus =
+        new(() => JsonDocument.Parse(File.ReadAllText(fixturesPath())));
 
-    private static string Stderr(JsonElement c) => c.GetProperty("stderr").GetString()!;
+    private static IEnumerable<JsonElement> sectionOf(string name) =>
+        _corpus.Value.RootElement.GetProperty(name).EnumerateArray();
 
-    private static string Name(JsonElement c) =>
+    private static string nameOf(JsonElement c) =>
         c.TryGetProperty("name", out JsonElement n) ? n.GetString() ?? "<unnamed>" : "<unnamed>";
 
-    [Fact]
-    public void WroteFixturesMatch()
+    private static JsonElement caseOf(string section, string name) =>
+        sectionOf(section).First(c => nameOf(c) == name);
+
+    private static TheoryData<string> names(string section)
     {
-        foreach (JsonElement c in Section("wrote").EnumerateArray())
+        TheoryData<string> data = new();
+        foreach (JsonElement c in sectionOf(section))
         {
-            RenderResult? got = CliOutcomeParser.ParseWrote(Stderr(c));
-            JsonElement expected = c.GetProperty("expected");
-            if (expected.ValueKind == JsonValueKind.Null)
+            data.Add(nameOf(c));
+        }
+        Assert.True(data.Count > 0, $"the \"{section}\" section of the corpus is empty");
+        return data;
+    }
+
+    private static string stderr(JsonElement c) => c.GetProperty("stderr").GetString()!;
+
+    public static TheoryData<string> WroteCases() => names("wrote");
+
+    public static TheoryData<string> RemoteCases() => names("remotes");
+
+    public static TheoryData<string> ErrorCases() => names("errors");
+
+    [Theory]
+    [MemberData(nameof(WroteCases))]
+    public void Should_Match_Each_Wrote_Fixture(string name)
+    {
+        JsonElement c = caseOf("wrote", name);
+        RenderResult? got = CliOutcomeParser.ParseWrote(stderr(c));
+        JsonElement expected = c.GetProperty("expected");
+        if (expected.ValueKind == JsonValueKind.Null)
+        {
+            Assert.True(got is null, $"expected no success line, got {got}");
+            return;
+        }
+        Assert.NotNull(got);
+        Assert.Equal(expected.GetProperty("path").GetString(), got!.Path);
+        Assert.Equal(expected.GetProperty("width").GetInt32(), got.Width);
+        Assert.Equal(expected.GetProperty("height").GetInt32(), got.Height);
+    }
+
+    [Theory]
+    [MemberData(nameof(RemoteCases))]
+    public void Should_Match_Each_Remote_Fixture(string name)
+    {
+        JsonElement c = caseOf("remotes", name);
+        IReadOnlyList<RemoteDelivery> got = CliOutcomeParser.ParseRemotes(stderr(c));
+        JsonElement expected = c.GetProperty("expected");
+        Assert.Equal(expected.GetArrayLength(), got.Count);
+
+        int i = 0;
+        foreach (JsonElement e in expected.EnumerateArray())
+        {
+            string action = e.GetProperty("action").GetString()!;
+            switch (got[i])
             {
-                Assert.True(got is null, $"[{Name(c)}] expected no success line, got {got}");
+                case RemoteDelivery.Updated updated:
+                    Assert.Equal("updated", action);
+                    Assert.Equal(e.GetProperty("id").GetString(), updated.Id);
+                    Assert.Equal(e.GetProperty("width").GetInt32(), updated.Width);
+                    Assert.Equal(e.GetProperty("height").GetInt32(), updated.Height);
+                    break;
+                case RemoteDelivery.Created created:
+                    Assert.Equal("created", action);
+                    Assert.Equal(e.GetProperty("name").GetString(), created.Name);
+                    Assert.Equal(e.GetProperty("id").GetString(), created.Id);
+                    break;
+                default:
+                    Assert.Fail($"unexpected delivery type {got[i].GetType().Name}");
+                    break;
             }
-            else
-            {
-                Assert.NotNull(got);
-                Assert.Equal(expected.GetProperty("path").GetString(), got!.Path);
-                Assert.Equal(expected.GetProperty("width").GetInt32(), got.Width);
-                Assert.Equal(expected.GetProperty("height").GetInt32(), got.Height);
-            }
+            i++;
         }
     }
 
-    [Fact]
-    public void RemoteFixturesMatch()
+    [Theory]
+    [MemberData(nameof(ErrorCases))]
+    public void Should_Match_Each_Error_Fixture(string name)
     {
-        foreach (JsonElement c in Section("remotes").EnumerateArray())
-        {
-            IReadOnlyList<RemoteDelivery> got = CliOutcomeParser.ParseRemotes(Stderr(c));
-            JsonElement expected = c.GetProperty("expected");
-            Assert.Equal(expected.GetArrayLength(), got.Count);
-
-            int i = 0;
-            foreach (JsonElement e in expected.EnumerateArray())
-            {
-                string action = e.GetProperty("action").GetString()!;
-                switch (got[i])
-                {
-                    case RemoteDelivery.Updated updated:
-                        Assert.Equal("updated", action);
-                        Assert.Equal(e.GetProperty("id").GetString(), updated.Id);
-                        Assert.Equal(e.GetProperty("width").GetInt32(), updated.Width);
-                        Assert.Equal(e.GetProperty("height").GetInt32(), updated.Height);
-                        break;
-                    case RemoteDelivery.Created created:
-                        Assert.Equal("created", action);
-                        Assert.Equal(e.GetProperty("name").GetString(), created.Name);
-                        Assert.Equal(e.GetProperty("id").GetString(), created.Id);
-                        break;
-                    default:
-                        Assert.Fail($"[{Name(c)}] unexpected delivery type {got[i].GetType().Name}");
-                        break;
-                }
-                i++;
-            }
-        }
-    }
-
-    [Fact]
-    public void ErrorFixturesMatch()
-    {
-        foreach (JsonElement c in Section("errors").EnumerateArray())
-        {
-            string got = CliOutcomeParser.ExtractErrors(Stderr(c));
-            Assert.Equal(c.GetProperty("expected").GetString(), got);
-        }
+        JsonElement c = caseOf("errors", name);
+        Assert.Equal(c.GetProperty("expected").GetString(), CliOutcomeParser.ExtractErrors(stderr(c)));
     }
 }

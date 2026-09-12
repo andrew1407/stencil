@@ -1,0 +1,7 @@
+Filters — '/filter <mode>' to apply:
+   bw        greyscale
+   sepia     warm brown tone
+   invert    negative (flip every channel)
+   contour   edge detection (dark edges on white)
+   none      remove the filter
+   <colour>  a name or #hex makes a duotone tint (e.g. '/filter teal')

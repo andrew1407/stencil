@@ -1,21 +1,15 @@
-// ── The header logo's SPRING-LOADED drag menu ───────────────────────────────
-// Extracted from popup.js. Hover a dragged <img>/<video> over the Stencil mark and a
-// flat drop-aware menu springs open under the drag; each item is itself a drop target,
-// and releasing anywhere else does nothing. The items are drop-ONLY (no click handler),
-// and a once-gate guarantees exactly one action per release; a stray click on the
-// just-dropped item (or the logo under it) is swallowed. The shared #action-menu
-// element and its placement come from the owner (lib/actionMenu.js).
+// The menu that springs open under a drag hovering the header mark: every item is a
+// drop-only target, and a once-gate guarantees exactly one action per release.
 import { createOnceGate } from './onceGate.js';
 import { createDragArmer, dragMenuActions } from './dropEntry.js';
 import { classifyDrop } from './chatDrop.js';
 import { icon } from './icons.js';
 
 export const LOGO_DROP_HINT = 'Drag an image or video here for quick actions';
-// Grace period after leaving the logo — long enough to travel to the menu.
-export const LOGO_GRACE_MS = 450;
+// Long enough to travel from the mark to the menu.
+const LOGO_GRACE_MS = 450;
 
-// A dragged FILE's MIME type IS readable mid-drag (unlike its data), so a video file
-// gets the video-guarded menu straight away; unknown payloads get the optimistic menu.
+// A dragged file's MIME type is readable mid-drag (its data is not).
 export const fileEntryHint = (dt) => {
   const items = dt && dt.items ? [...dt.items] : [];
   const f = items.find((i) => i.kind === 'file' && /^(image|video)\//i.test(i.type || ''));
@@ -25,22 +19,8 @@ export const fileEntryHint = (dt) => {
     : { kind: 'img', src: 'file:pending' };
 };
 
-/**
- * @param {object} deps
- * @param {HTMLElement|null} deps.logoEl - The header mark (null on a page without one).
- * @param {HTMLElement} deps.menuEl - The shared #action-menu element.
- * @param {(x: number, y: number) => void} deps.placeMenu - actionMenu's placement.
- * @param {() => void} deps.closeSharedMenu - actionMenu's close (the row menu may be open).
- * @param {(e: DragEvent) => string|null} deps.dragKind - Payload classification for a
- *   live drag ('internal' = one of our own rows).
- * @param {() => object|null} deps.getDraggingRow - The row being dragged out of our own
- *   list (a dragover can read the payload's TYPES but never its data).
- * @param {(id: string, payload: object) => void} deps.onAction - Runs the chosen action
- *   on the classified drop payload.
- * @param {number} deps.springMs - Dwell before the menu springs open.
- * @param {number} [deps.graceMs]
- * @param {Document} [deps.doc]
- */
+// `menuEl`/`placeMenu`/`closeSharedMenu` are lib/actionMenu.js's shared #action-menu;
+// `springMs` is the dwell before the menu opens.
 export const createLogoDragMenu = ({
   logoEl, menuEl, placeMenu, closeSharedMenu, dragKind, getDraggingRow, onAction,
   springMs, graceMs = LOGO_GRACE_MS, doc = document,
@@ -48,23 +28,19 @@ export const createLogoDragMenu = ({
   const brandZone = (node) => !!(node && node.closest && node.closest('header .logo, header h1'));
   const setLogoOver = (on) => logoEl && logoEl.classList.toggle('drop-over', !!on);
 
-  // "A compatible drag is live" → the logo pulses (CSS keyframes). Armed from anywhere
-  // on the surface, dropped on drop/dragend/window-leave.
   const arm = createDragArmer({
     setArmed: (on) => logoEl && logoEl.classList.toggle('drag-armed', on),
   });
 
   if (logoEl) {
-    // data-title, never an SVG <title> child or a title attribute — both raise Chrome's
-    // own popup on top of ours (lib/tip.js). The logo names itself with aria-label.
+    // data-title, never a title attribute: that raises Chrome's own popup over ours (lib/tip.js).
     logoEl.dataset.title = LOGO_DROP_HINT;
     const h1 = doc.querySelector('header h1');
     if (h1 && h1.dataset && !h1.dataset.title) h1.dataset.title = LOGO_DROP_HINT;
   }
 
-  // One action per release, no matter how many ways the release reaches us…
   const dispatch = createOnceGate();
-  // …and a stray click on the just-dropped item (or the logo under it) is swallowed.
+  // A stray click on the just-dropped item (or the logo under it) is swallowed.
   doc.addEventListener('click', (e) => {
     if (!dispatch.suppressed()) return;
     if (!menuEl.contains(e.target) && !brandZone(e.target)) return;
@@ -86,8 +62,7 @@ export const createLogoDragMenu = ({
     closeSharedMenu();
   };
 
-  // Travelling across the menu's own padding (between items) must not start the grace
-  // countdown. Registered ONCE, not per open.
+  // Travelling across the menu's own padding must not start the grace countdown.
   menuEl.addEventListener('dragover', (e) => {
     if (!open) return;
     e.preventDefault();
@@ -106,7 +81,6 @@ export const createLogoDragMenu = ({
       b.className = 'drag-item';
       b.dataset.action = a.id;
       b.innerHTML = `<span class="ic">${icon(a.icon, { size: 15 })}</span>${a.label}`;
-      // Each item IS a drop target: hovering highlights it, releasing runs it.
       const over = (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -117,14 +91,13 @@ export const createLogoDragMenu = ({
       b.addEventListener('dragenter', over);
       b.addEventListener('dragover', over);
       b.addEventListener('dragleave', () => b.classList.remove('over'));
-      // Drop-ONLY: no click handler, so a release can't reach the action down a second
-      // path; the gate closes that door for good (a synthesized click, a re-dispatch).
+      // No click handler, so a release cannot reach the action down a second path.
       b.addEventListener('drop', (e) => {
         e.preventDefault();
         e.stopPropagation();                       // this drop is the item's, not the document's
         if (!dispatch.allow()) return;
         const payload = classifyDrop(e.dataTransfer);
-        close();                                   // close BEFORE dispatching
+        close();
         setLogoOver(false);
         arm.end();                                 // this drop never reaches the document
         if (payload) onAction(a.id, payload);
@@ -134,8 +107,7 @@ export const createLogoDragMenu = ({
     open = true;
     menuEl.hidden = false;
     const r = logoEl.getBoundingClientRect();
-    // Third argument = the point it grows out of, and the point its particles fly from:
-    // the MARK itself, not the menu's top-left corner a few pixels below it.
+    // The menu grows out of (and its particles fly from) the mark, not its own corner.
     placeMenu(r.left, r.bottom + 6, { x: r.left + r.width / 2, y: r.top + r.height / 2 });
   };
 
@@ -149,8 +121,7 @@ export const createLogoDragMenu = ({
       clearGrace();
       if (inMenu) return;
       setLogoOver(true);
-      // A dragover can only read the payload's TYPES, never its data, so the menu is
-      // built from what we do know: our own dragged row, or a dragged FILE's MIME type.
+      // A dragover exposes only the payload's types: build from our own row or the file's MIME.
       if (!open && !springTimer) {
         const hint = dragKind(e) === 'internal' ? getDraggingRow() : fileEntryHint(e.dataTransfer);
         springTimer = setTimeout(() => { springTimer = null; openMenu(hint); }, springMs);
@@ -158,8 +129,6 @@ export const createLogoDragMenu = ({
     });
   }
 
-  // Leaving the logo (or the menu) starts a short grace countdown rather than closing
-  // at once, so the pointer can travel from the mark to the item it is aiming for.
   const graceOnDragLeave = (e) => {
     if (brandZone(e.relatedTarget) || (open && menuEl.contains(e.relatedTarget))) return;
     if (!brandZone(e.target) && !(open && menuEl.contains(e.target))) return;
@@ -169,13 +138,11 @@ export const createLogoDragMenu = ({
     graceTimer = setTimeout(() => { graceTimer = null; close(); }, graceMs);
   };
 
-  // The release / end-of-drag paths the owner wires to its document listeners.
   const release = () => { setLogoOver(false); arm.end(); close(); };
 
   return {
     graceOnDragLeave,
     release,
-    /** Escape: stop advertising and close (the drop cue clears on the drag's own end). */
     dismiss: () => { arm.end(); close(); },
     armUpdate: (types) => arm.update(types),
     armEnd: () => arm.end(),

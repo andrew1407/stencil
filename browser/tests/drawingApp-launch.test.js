@@ -26,6 +26,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installDom } from './helpers/dom.js';
 import { installFetchStub } from './helpers/fetchStub.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 // notify() (utils.js) posts to a #notify-balloon element if present; expose one so we can spy.
 const notifications = [];
@@ -119,7 +120,7 @@ test('a data: payload fetches without CORS mode and loads the decoded image', as
   assert.equal(fetchCalls.length, 1);
   const [url, opts] = fetchCalls[0];
   assert.equal(url, 'data:image/png;base64,AAAA');
-  assert.equal(opts, undefined);                 // data: URLs are fetched with no options (no CORS mode)
+  assert.ok(opts.signal && opts.mode === undefined, 'data: URLs get no CORS mode — and every fetch is bounded');
   assert.equal(mock.loaded.length, 1);           // loadImageFromFile(file, opts) was reached
   const [file] = mock.loaded[0];
   assert.equal(file.name, 'shared.png');
@@ -135,7 +136,7 @@ test('an https src: payload fetches with { mode: "cors" } and loads the image', 
   assert.equal(fetchCalls.length, 1);
   const [url, opts] = fetchCalls[0];
   assert.equal(url, 'https://cdn.example/i.png');
-  assert.deepEqual(opts, { mode: 'cors' });      // remote image → cross-origin fetch
+  assert.ok(opts.signal && opts.mode === 'cors', 'remote image → cross-origin fetch, bounded like the rest');
   assert.equal(mock.loaded.length, 1);
 });
 
@@ -483,7 +484,7 @@ test('a drag or hold in progress (any kind) never offers the tooltip a hover —
 });
 
 test('the on-canvas overlays never eat the pointer', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const frame = css.slice(css.indexOf('.incognito-frame {'), css.indexOf('}', css.indexOf('.incognito-frame {')));
   assert.match(frame, /pointer-events: none/, 'the incognito frame is pointer-transparent');
   // pointer-events inherits, so the four dashed edges inside it must not re-enable it.

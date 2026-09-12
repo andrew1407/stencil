@@ -1,8 +1,5 @@
-// ── Persisted server connections + auto-connect preference ──────────
-// Remembers the connected server set ({url, token}) and an "auto-connect on
-// open" toggle in localStorage, so the editor can re-establish servers across
-// reloads. All localStorage access is guarded so importing this leaf in Node
-// (the test runner) stays inert.
+// The connected server set ({url, token}) and the auto-connect / sync toggles in
+// localStorage, guarded so importing this leaf in Node stays inert.
 
 const SERVERS_KEY = 'drawingApp_servers';
 const AUTOCONNECT_KEY = 'drawingApp_autoConnectServers';
@@ -15,8 +12,7 @@ export const loadSavedServers = () => {
   try {
     const raw = ls()?.getItem(SERVERS_KEY);
     const arr = raw ? JSON.parse(raw) : [];
-    // `expired` rides along: a credential the server refused stays refused, so boot can
-    // show the row without spending a request on a token that cannot work.
+    // `expired` rides along: boot shows the row without spending a request on a dead token.
     return Array.isArray(arr) ? arr.filter((s) => s && s.url) : [];
   } catch {
     return [];
@@ -27,8 +23,8 @@ export const saveServers = (list) => {
   try {
     const slim = (list || []).map((s) => {
       const out = { url: s.url, token: s.token || '' };
-      // What the credential IS (an admin token mints; a session token is used as-is).
-      // Remembered so the next connect never probes an admin token as a session one.
+      // An admin token mints, a session token is used as-is; remembered so the next connect
+      // never probes an admin token as a session one.
       if (s.kind === 'admin') out.kind = 'admin';
       if (s.expired) out.expired = true;
       return out;
@@ -39,8 +35,7 @@ export const saveServers = (list) => {
   }
 };
 
-// Auto-connect defaults ON (restore servers on open); an explicit '0' disables it
-// so the editor starts with every server closed until the user reconnects.
+// Defaults ON; an explicit '0' starts the editor with every server closed.
 export const getAutoConnect = () => {
   try {
     return ls()?.getItem(AUTOCONNECT_KEY) !== '0';
@@ -57,9 +52,8 @@ export const setAutoConnect = (on) => {
   }
 };
 
-// "Sync changes to server" defaults ON: edits to a fetched server project push live to
-// peers. An explicit '0' makes a fetched project edit-in-memory only — never pushed AND
-// never auto-saved locally; the user can download it or "Make local copy" to persist.
+// Defaults ON: edits to a fetched server project push live to peers. '0' makes it
+// edit-in-memory only — never pushed AND never auto-saved locally.
 export const getSyncToServer = () => {
   try {
     return ls()?.getItem(SYNC_KEY) !== '0';

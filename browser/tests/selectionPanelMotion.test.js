@@ -1,10 +1,11 @@
 // The "Selected Line:" bar's entrance/exit (showSelectionPanel/hideSelectionPanels): forms
 // from, and disperses back into, sand like other surfaces (js/ui/motion.js surfaceIn/
-// surfaceOut). Desktop mirrors it via DisintegrateOverlay over SelectedLineBar (mainWindow.cpp).
+// surfaceOut). Desktop mirrors it via DisintegrateOverlay over SelectedLineBar (MainWindow.cpp).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { barDustPoint } from '../js/ui/selectionPanel.js';
+import { LAYOUT_CSS } from './helpers/css.js';
 
 const src = readFileSync(new URL('../js/ui/selectionPanel.js', import.meta.url), 'utf8');
 
@@ -96,6 +97,6 @@ test('the old plain fadeIn keyframe stays as the reduced-motion / dust-declined 
   // motion.js: "Off again if the dust declines, so a surface that never plays it keeps
   // its old CSS entrance" — settleSurface() never adds SURFACE_DRIVEN_CLASS, so removing
   // this rule would leave a declined bar snapping in with no motion at all.
-  const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const css = LAYOUT_CSS;
   assert.match(css, /#selection-panel \{[\s\S]*?animation: fadeIn 0\.15s ease;[\s\S]*?\}/);
 });

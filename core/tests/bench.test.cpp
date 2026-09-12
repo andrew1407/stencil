@@ -14,66 +14,21 @@
 // generous ceilings: they catch algorithmic / order-of-magnitude regressions
 // (e.g. an O(n) push turning a session O(n^2)), not micro-tuning noise. The one
 // absolute-ish check is a deterministic invariant on HistoryStack size.
+// Three files: this one (image + history), benchGeometry and benchLogic.test.cpp.
 #include "doctest.h"
 
-#include "historyStack.hpp"
+#include "benchSupport.hpp"  // time_ms / best_ms / gradient / checksum
+#include "HistoryStack.hpp"
 #include "imageFilter.hpp"
 #include "imageOps.hpp"
 #include "rasterize.hpp"
 
 #include <algorithm>
-#include <chrono>
 #include <cstdint>
 #include <vector>
 
 using namespace stencil::core;
-
-namespace {
-
-  // Wall-clock of one invocation, in milliseconds.
-  template <class F>
-  double time_ms(F&& f) {
-    const auto t0 = std::chrono::steady_clock::now();
-    f();
-    const auto t1 = std::chrono::steady_clock::now();
-    return std::chrono::duration<double, std::milli>(t1 - t0).count();
-  }
-
-  // Best (min) of `reps` runs — the robust "how fast can it go" estimator, which drops
-  // scheduler noise spikes so the relative ceilings below stay stable across machines.
-  template <class F>
-  double best_ms(int reps, F&& f) {
-    double best = 1e300;
-    for (int i = 0; i < reps; ++i) {
-      const double ms = time_ms(f);
-      if (ms < best) best = ms;
-    }
-    return best;
-  }
-
-  // A non-flat RGBA8 image so bw/sepia do real arithmetic and contour finds edges.
-  std::vector<std::uint8_t> gradient(int w, int h) {
-    std::vector<std::uint8_t> b(static_cast<std::size_t>(w) * h * 4);
-    for (int y = 0; y < h; ++y) {
-      for (int x = 0; x < w; ++x) {
-        const std::size_t i = (static_cast<std::size_t>(y) * w + x) * 4;
-        b[i + 0] = static_cast<std::uint8_t>(x);
-        b[i + 1] = static_cast<std::uint8_t>(y);
-        b[i + 2] = static_cast<std::uint8_t>(x ^ y);
-        b[i + 3] = 255;
-      }
-    }
-    return b;
-  }
-
-  // Sum a buffer so the optimizer can't elide the work we just timed.
-  std::uint64_t checksum(const std::vector<std::uint8_t>& b) {
-    std::uint64_t s = 0;
-    for (auto v : b) s += v;
-    return s;
-  }
-
-}  // namespace
+using namespace bench;
 
 TEST_SUITE("bench") {
 
@@ -89,11 +44,11 @@ TEST_SUITE("bench") {
     auto buf = base;
     const double bw = best_ms(3, [&] {
       buf = base;
-      applyFilterRGBA(FilterMode::Bw, buf.data(), static_cast<std::size_t>(w) * h, 0, 0, 0);
+      applyFilterRGBA(FilterMode::BW, buf.data(), static_cast<std::size_t>(w) * h, 0, 0, 0);
     });
     const double sepia = best_ms(3, [&] {
       buf = base;
-      applyFilterRGBA(FilterMode::Sepia, buf.data(), static_cast<std::size_t>(w) * h, 0, 0, 0);
+      applyFilterRGBA(FilterMode::SEPIA, buf.data(), static_cast<std::size_t>(w) * h, 0, 0, 0);
     });
     const double contour = best_ms(3, [&] {
       buf = base;
@@ -111,8 +66,8 @@ TEST_SUITE("bench") {
   }
 
   // ── Large-image geometry (crop / rotate) ───────────────────────────────────
-  // Both are whole-image per-pixel copies; rotate does extra index math but must stay
-  // in the same order of magnitude as a straight crop copy.
+  // Crop is a per-row memcpy; rotate is a tiled transpose, inherently ~10-15x dearer
+  // per pixel. Guard the ratio so a return to scattered row-order writes shows up.
   TEST_CASE("bench: large-image crop + quarter-turn rotate" * doctest::skip()) {
     const int w = 4000, h = 3000;  // 12 MP
     const double mp = (static_cast<double>(w) * h) / 1e6;
@@ -135,7 +90,7 @@ TEST_SUITE("bench") {
     MESSAGE("geometry @ " << mp << " MP  crop=" << crop << "ms (" << mp / crop * 1000
                           << " MP/s)  rotate90=" << rot << "ms (" << mp / rot * 1000 << " MP/s)");
     CHECK(crop > 0.0);
-    CHECK(rot < crop * 10.0);  // rotate's strided writes cost more, but not an order beyond crop
+    CHECK(rot < crop * 40.0);  // ~12x when tiled; 40x = the untiled-transpose regression
   }
 
   // ── Many drawn lines (CLI / pystencil rasteriser) ──────────────────────────
@@ -189,7 +144,7 @@ TEST_SUITE("bench") {
 
   // ── Editing-session history growth ─────────────────────────────────────────
   // HistoryStack keeps a full Lines snapshot per push with NO size cap (see
-  // historyStack.hpp) — memory grows with edit count. That growth is by design; what
+  // HistoryStack.hpp) — memory grows with edit count. That growth is by design; what
   // MUST stay true is that push() is O(snapshot), NOT O(history): the amortised cost of
   // pushing must not climb as the stack deepens, or a long session goes quadratic.
   TEST_CASE("bench: history push stays O(1) as the session grows" * doctest::skip()) {

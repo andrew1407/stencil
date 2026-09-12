@@ -10,23 +10,12 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Servers;
 
-/// <summary>
-/// Default <see cref="IServerService"/>: a port of <c>pystencil</c>'s <c>ConnectionManager</c>
-/// + <c>remoteSync</c> (server.py) onto the bot's per-user session model. REST only — a
-/// connection is a validated token + base URL, persisted on the <see cref="UserSession"/>.
-/// </summary>
-/// <remarks>
-/// Clients are not cached: each call rebuilds a <see cref="IStencilServerClient"/> from the
-/// session's stored <see cref="ServerConnectionInfo"/> via the factory, so the service stays
-/// stateless and the session remains the single source of truth.
-/// </remarks>
-public sealed class ServerService : IServerService
+// A port of pystencil's ConnectionManager + remoteSync onto the per-user session. Clients are not
+// cached: each call rebuilds one from the session's stored connection, so the session is the truth.
+public sealed partial class ServerService : IServerService
 {
-    /// <summary>
-    /// Attempts for a version-guarded single-field write before giving up on a sustained conflict
-    /// (a port of pystencil's <c>_FIELD_WRITE_RETRIES</c> / the CLI's <c>putProjectField</c> loop).
-    /// </summary>
-    private const int FieldWriteRetries = 4;
+    // A port of pystencil's _FIELD_WRITE_RETRIES / the CLI's putProjectField loop.
+    private const int _fieldWriteRetries = 4;
 
     private readonly IStencilServerClientFactory _factory;
     private readonly ISessionStore _store;
@@ -39,453 +28,7 @@ public sealed class ServerService : IServerService
         _editing = editing;
     }
 
-    /// <inheritdoc />
-    public async Task<ServerConnectionInfo> ConnectAsync(long userId, string url, string? token, bool verifyTls, CancellationToken ct = default)
-    {
-        // Invite links carry the token as a '#token=' fragment; an explicit token wins.
-        (url, token) = InviteLink.Split(url, token);
-        // The bot is open to any Telegram user, so vet the target before issuing any REST call:
-        // localhost/LAN collaboration servers are intended, but link-local / cloud-metadata
-        // (169.254.169.254, fe80::/10, …) hosts are an SSRF-only target and are rejected.
-        await RemoteImageUrl.ValidateServerUrlAsync(url, ct);
-        var session = await _store.GetAsync(userId, ct);
-        var normalized = _factory.NormalizeUrl(url);
-        // Reuse what an earlier connect to this origin proved about the credential, so a known
-        // admin token skips the probe that can only 401 (browser handshake parity).
-        var known = session.FindConnection(normalized)?.CredentialKind ?? CredentialKind.None;
-        var client = _factory.Create(url, token, verifyTls, credential: null, known);
-        var handshake = await client.ConnectAsync(token, ct);
-        // credential = what the user supplied (may be the ADMIN token): kept beside the live
-        // session token so a later stale-session re-mint survives the round-tripped record, with
-        // the kind the handshake proved it to be.
-        var info = new ServerConnectionInfo
-        {
-            Url = normalized,
-            Token = handshake.Token,
-            Credential = token ?? "",
-            CredentialKind = handshake.CredentialKind,
-            VerifyTls = verifyTls,
-        };
-        var connections = session.Connections
-            .Where(c => c.Url != normalized)
-            .Append(info)
-            .ToList();
-        var updated = session with { Connections = connections };
-        await _store.SaveAsync(updated, ct);
-        return info;
-    }
-
-    /// <inheritdoc />
-    public async Task<bool> DisconnectAsync(long userId, string? url, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        var connections = session.Connections.ToList();
-        ServerConnectionInfo? removed;
-        if (url is null)
-        {
-            removed = connections.Count == 0 ? null : connections[^1];
-        }
-        else
-        {
-            var normalized = _factory.NormalizeUrl(url);
-            removed = session.FindConnection(normalized);
-        }
-        if (removed is null)
-        {
-            return false;
-        }
-        connections.Remove(removed);
-        var updated = session with { Connections = connections };
-        await _store.SaveAsync(updated, ct);
-        return true;
-    }
-
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<ServerConnectionInfo>> ConnectionsAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        return session.Connections;
-    }
-
-    /// <inheritdoc />
-    public async Task<IReadOnlyList<ServerProjectInfo>> ListProjectsAsync(long userId, string? url, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        var targets = TargetConnections(session, url);
-        var projects = new List<ServerProjectInfo>();
-        foreach (var connection in targets)
-        {
-            var client = ClientFor(connection);
-            try
-            {
-                var records = await client.ListProjectsAsync(ct);
-                foreach (var record in records)
-                {
-                    projects.Add(new ServerProjectInfo(record, connection.Url));
-                }
-            }
-            catch
-            {
-                // Skip an unreachable/erroring server, like the browser/pystencil does.
-            }
-        }
-        return projects;
-    }
-
-    /// <inheritdoc />
-    public async Task<UserSession> FetchAsync(long userId, string nameOrId, string? url, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        var targets = TargetConnections(session, url);
-        foreach (var connection in targets)
-        {
-            var client = ClientFor(connection);
-            ProjectRecord? match;
-            try
-            {
-                var records = await client.ListProjectsAsync(ct);
-                match = records.FirstOrDefault(r =>
-                    r.Id == nameOrId ||
-                    string.Equals(r.Name, nameOrId, StringComparison.OrdinalIgnoreCase));
-            }
-            catch
-            {
-                // Skip an unreachable/erroring server and keep looking.
-                continue;
-            }
-            if (match is null)
-            {
-                continue;
-            }
-            var full = await client.GetProjectAsync(match.Id, ct);
-            var bytes = await client.GetFileAsync(match.Id, ProjectFileKind.Original, ct);
-            var path = await _editing.StoreOriginalBytesAsync(userId, bytes, ".png", ct);
-            // Rebuild the project's edit state (lines + filter + rotation + crop) from its layout
-            // so re-rendering the original reproduces the same result every other client shows.
-            var edits = full.Layout is JsonElement layout
-                ? ProjectLayoutMapper.ToEditState(layout, full.Project.ImageW, full.Project.ImageH)
-                : new EditState();
-            var updated = session with
-            {
-                OriginalImagePath = path,
-                OriginalWidth = full.Project.ImageW,
-                OriginalHeight = full.Project.ImageH,
-                ImageLabel = full.Project.Name,
-                Edits = edits,
-                EditHistory = [],
-                EditRedo = [],
-                ActiveServerUrl = connection.Url,
-                ActiveProjectId = full.Project.Id,
-                ActiveProjectName = full.Project.Name,
-                ActiveProjectDescription = full.Project.Description ?? "",
-                ActiveProjectCreatedAt = full.Project.CreatedAt,
-                ActiveProjectExpiresAt = full.Project.ExpiresAt,
-                ActiveProjectVersion = full.Project.Version,
-                ActiveProjectLayoutJson = full.Layout?.GetRawText(),
-            };
-            await _store.SaveAsync(updated, ct);
-            return updated;
-        }
-        throw new InvalidOperationException($"Project '{nameOrId}' not found");
-    }
-
-    /// <inheritdoc />
-    public async Task<ProjectRecord> CreateProjectAsync(long userId, string? name, string? url, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        if (!session.HasImage)
-        {
-            throw new InvalidOperationException("No working image — upload a photo or use /blank first.");
-        }
-        var connection = ResolveConnection(session, url);
-        var client = ClientFor(connection);
-        var render = await _editing.RenderAsync(userId, ct);
-        var bytes = await File.ReadAllBytesAsync(render.Path, ct);
-        // Carry any locally-held description (set via /project-description before saving) so the
-        // new project keeps it; null when none so the server applies its default (no description).
-        var description = string.IsNullOrEmpty(session.ActiveProjectDescription) ? null : session.ActiveProjectDescription;
-        var request = new CreateProjectRequest
-        {
-            Name = name ?? session.ImageLabel ?? "Untitled",
-            Description = description,
-            HasImage = true,
-            ImageW = render.Width,
-            ImageH = render.Height,
-        };
-        var record = await client.CreateProjectAsync(request, ct);
-        await client.PutFileAsync(record.Id, ProjectFileKind.Original, bytes, "png", render.Width, render.Height, ct);
-        // The original upload bumps the server-side version but the file-write response carries
-        // none, so re-read it — otherwise the session tracks a stale version and the very next
-        // version-guarded save/colour/expiry would 409 (remoteSync.js createRemoteProject).
-        var version = await CurrentVersionAsync(client, record.Id, record.Version, ct);
-        var updated = session with
-        {
-            ActiveServerUrl = connection.Url,
-            ActiveProjectId = record.Id,
-            ActiveProjectName = record.Name,
-            ActiveProjectDescription = record.Description ?? description ?? "",
-            ActiveProjectCreatedAt = record.CreatedAt,
-            ActiveProjectExpiresAt = record.ExpiresAt,
-            ActiveProjectVersion = version,
-            ActiveProjectLayoutJson = null, // bot-created: no prior layout to preserve
-        };
-        await _store.SaveAsync(updated, ct);
-        return record with { Version = version };
-    }
-
-    /// <inheritdoc />
-    public async Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        var render = await _editing.RenderAsync(userId, ct);
-        var bytes = await File.ReadAllBytesAsync(render.Path, ct);
-        // Merge the current edit state into the project's existing layout so crop/page/formula
-        // fields survive while lines/filter/rotation are updated (see ProjectLayoutWriter).
-        var layoutJson = ProjectLayoutWriter.BuildJson(session.ActiveProjectLayoutJson, session.Edits, render.Width, render.Height);
-        var request = new UpdateProjectRequest
-        {
-            Layout = JsonSerializer.Deserialize<JsonElement>(layoutJson),
-            Version = session.ActiveProjectVersion,
-        };
-        var record = await UpdateOrConflictAsync(
-            client,
-            session.ActiveProjectId,
-            request,
-            "This project was edited elsewhere — reload it from the server before saving again.",
-            ct);
-        await client.PutFileAsync(session.ActiveProjectId, ProjectFileKind.Result, bytes, "png", render.Width, render.Height, ct);
-        // The result upload bumps the version too; re-read it so the next save isn't stale
-        // (remoteSync.js saveRemoteProject refreshes version after putFile('result')).
-        var version = await CurrentVersionAsync(client, session.ActiveProjectId, record.Version, ct);
-        var updated = session with { ActiveProjectVersion = version, ActiveProjectLayoutJson = layoutJson };
-        await _store.SaveAsync(updated, ct);
-        return record with { Version = version };
-    }
-
-    /// <inheritdoc />
-    public async Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default)
-    {
-        var session = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        var record = await UpdateFieldWithRetryAsync(
-            client,
-            session.ActiveProjectId,
-            v => new UpdateProjectRequest { Color = color, Version = v },
-            "This project was edited elsewhere — reload it before changing its colour.",
-            ct);
-        var updated = session with { ActiveProjectVersion = record.Version };
-        await _store.SaveAsync(updated, ct);
-        return record.Color ?? "";
-    }
-
-    /// <inheritdoc />
-    public async Task<string> SetProjectNameAsync(long userId, string name, CancellationToken ct = default)
-    {
-        var session = await RequireActiveSessionAsync(userId, ct);
-        var trimmed = name.Trim();
-        if (trimmed.Length == 0)
-        {
-            throw new InvalidOperationException("A project name can't be empty.");
-        }
-        var client = ClientForActive(session);
-        var record = await UpdateFieldWithRetryAsync(
-            client,
-            session.ActiveProjectId,
-            v => new UpdateProjectRequest { Name = trimmed, Version = v },
-            "This project was edited elsewhere — reload it before renaming it.",
-            ct);
-        // The working-image label mirrors the project name (as /fetch seeds it), so update both.
-        var updated = session with
-        {
-            ActiveProjectVersion = record.Version,
-            ActiveProjectName = record.Name,
-            ImageLabel = record.Name,
-        };
-        await _store.SaveAsync(updated, ct);
-        return record.Name;
-    }
-
-    /// <inheritdoc />
-    public async Task<string> SetProjectDescriptionAsync(long userId, string description, CancellationToken ct = default)
-    {
-        var session = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        var record = await UpdateFieldWithRetryAsync(
-            client,
-            session.ActiveProjectId,
-            v => new UpdateProjectRequest { Description = description, Version = v },
-            "This project was edited elsewhere — reload it before changing its description.",
-            ct);
-        var updated = session with
-        {
-            ActiveProjectVersion = record.Version,
-            ActiveProjectDescription = record.Description ?? "",
-        };
-        await _store.SaveAsync(updated, ct);
-        return record.Description ?? "";
-    }
-
-    /// <inheritdoc />
-    public async Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        var full = await client.GetProjectAsync(session.ActiveProjectId, ct);
-        return full.Project.BlankColor ?? "";
-    }
-
-    /// <inheritdoc />
-    public async Task<string> SetProjectBlankColorAsync(long userId, string color, CancellationToken ct = default)
-    {
-        var session = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        // Only a blank project has a blank colour; recolouring a non-blank is a no-op (empty result).
-        var current = await client.GetProjectAsync(session.ActiveProjectId, ct);
-        if (string.IsNullOrEmpty(current.Project.BlankColor))
-        {
-            return "";
-        }
-        var record = await UpdateFieldWithRetryAsync(
-            client,
-            session.ActiveProjectId,
-            v => new UpdateProjectRequest { BlankColor = color, Version = v },
-            "This project was edited elsewhere — reload it before changing its blank colour.",
-            ct);
-        var updated = session with { ActiveProjectVersion = record.Version };
-        await _store.SaveAsync(updated, ct);
-        return record.BlankColor ?? "";
-    }
-
-    /// <inheritdoc />
-    public async Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default)
-    {
-        var session = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        // 0 means "keep forever": it is sent explicitly (not null) so the server clears any expiry.
-        var record = await UpdateFieldWithRetryAsync(
-            client,
-            session.ActiveProjectId,
-            v => new UpdateProjectRequest { ExpiresAt = expiresAtMs, Version = v },
-            "This project was edited elsewhere — reload it before changing its expiry.",
-            ct);
-        var updated = session with { ActiveProjectVersion = record.Version, ActiveProjectExpiresAt = record.ExpiresAt };
-        await _store.SaveAsync(updated, ct);
-        return record.ExpiresAt;
-    }
-
-    /// <inheritdoc />
-    public async Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        var name = session.ActiveProjectName ?? session.ActiveProjectId;
-        try
-        {
-            await client.DeleteProjectAsync(session.ActiveProjectId, ct);
-        }
-        catch (ServerException ex) when (ex.IsConflict)
-        {
-            throw new ServerException(
-                "conflict",
-                "The project is open by other clients right now — it can't be deleted until they leave.",
-                ex.Status);
-        }
-        // Clear the active project (and live sync, which now has nothing to track); the working
-        // image stays so the user can re-save it as a new project elsewhere.
-        var updated = session with
-        {
-            ActiveServerUrl = null,
-            ActiveProjectId = null,
-            ActiveProjectName = null,
-            ActiveProjectDescription = null,
-            ActiveProjectCreatedAt = 0,
-            ActiveProjectExpiresAt = 0,
-            ActiveProjectVersion = 0,
-            ActiveProjectLayoutJson = null,
-            SyncEnabled = false,
-        };
-        await _store.SaveAsync(updated, ct);
-        return name;
-    }
-
-    /// <inheritdoc />
-    public async Task<long?> ActiveServerVersionAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            return null;
-        }
-        var client = ClientForActive(session);
-        try
-        {
-            var full = await client.GetProjectAsync(session.ActiveProjectId, ct);
-            return full.Project.Version;
-        }
-        catch
-        {
-            return null; // unreachable — the poller simply retries next tick
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task<UserSession?> PullActiveAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            return null;
-        }
-        return await FetchAsync(userId, session.ActiveProjectId, session.ActiveServerUrl, ct);
-    }
-
-    /// <inheritdoc />
-    public async Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default)
-    {
-        var session = await RequireActiveSessionAsync(userId, ct);
-        var client = ClientForActive(session);
-        // Contract §9: `chat` is filestore-only — the upload does NOT bump the project version
-        // (the server only bumps for original/result), so no version re-read/save is needed.
-        await client.PutFileAsync(session.ActiveProjectId!, ProjectFileKind.Chat,
-            Encoding.UTF8.GetBytes(chatJson), "json", 0, 0, ct);
-    }
-
-    /// <inheritdoc />
-    public async Task<string?> LoadChatAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            return null;
-        }
-        var client = ClientForActive(session);
-        try
-        {
-            var bytes = await client.GetFileAsync(session.ActiveProjectId, ProjectFileKind.Chat, ct);
-            return Encoding.UTF8.GetString(bytes);
-        }
-        catch (ServerException ex) when (ex.Status == 404)
-        {
-            return null; // no chat saved with this project
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task DeleteChatAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
-        {
-            return;
-        }
-        var client = ClientForActive(session);
-        // Idempotent per §9 (an absent chat still answers 204); never bumps the version.
-        await client.DeleteFileAsync(session.ActiveProjectId, ProjectFileKind.Chat, ct);
-    }
-
-    /// <summary>The connections to query: the named one (normalised) or every connection.</summary>
-    private IReadOnlyList<ServerConnectionInfo> TargetConnections(UserSession session, string? url)
+    private IReadOnlyList<ServerConnectionInfo> targetConnections(UserSession session, string? url)
     {
         if (url is null)
         {
@@ -496,11 +39,7 @@ public sealed class ServerService : IServerService
         return connection is null ? [] : [connection];
     }
 
-    /// <summary>
-    /// Resolve a create/save target: the named connection, else the single/last one, else
-    /// a friendly "connect first" error.
-    /// </summary>
-    private ServerConnectionInfo ResolveConnection(UserSession session, string? url)
+    private ServerConnectionInfo resolveConnection(UserSession session, string? url)
     {
         if (url is not null)
         {
@@ -519,36 +58,29 @@ public sealed class ServerService : IServerService
         return session.Connections[^1];
     }
 
-    /// <summary>Build a client for a remembered connection, reusing its stored token +
-    /// credential (+ kind) + TLS choice (the credential re-mints a stale session token in place).</summary>
-    private IStencilServerClient ClientFor(ServerConnectionInfo connection) =>
+    // The stored credential re-mints a stale session token in place.
+    private IStencilServerClient clientFor(ServerConnectionInfo connection) =>
         _factory.Create(connection.Url, connection.Token, connection.VerifyTls, connection.Credential,
             connection.CredentialKind);
 
-    /// <summary>
-    /// A client for the active project's server: its remembered connection (with token/TLS), or a
-    /// bare client on the stored origin. Callers must have already checked <c>ActiveServerUrl</c>.
-    /// </summary>
-    private IStencilServerClient ClientForActive(UserSession session)
+    // Callers must have already checked ActiveServerUrl.
+    private IStencilServerClient clientForActive(UserSession session)
     {
         var connection = session.FindConnection(session.ActiveServerUrl!);
-        return connection is not null ? ClientFor(connection) : _factory.Create(session.ActiveServerUrl!);
+        return connection is not null ? clientFor(connection) : _factory.Create(session.ActiveServerUrl!);
     }
 
-    /// <summary>Load the session and assert it has an active server project, or throw. Shared
-    /// preamble for the field-mutating project commands (the pollers return null instead).</summary>
-    private async Task<UserSession> RequireActiveSessionAsync(long userId, CancellationToken ct)
+    private async Task<(UserSession Session, string ProjectId)> requireActiveSessionAsync(long userId, CancellationToken ct)
     {
         var session = await _store.GetAsync(userId, ct);
         if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
         {
             throw new InvalidOperationException("No active server project — /fetch or /create one first.");
         }
-        return session;
+        return (session, session.ActiveProjectId);
     }
 
-    /// <summary>Update a project, translating a version conflict into a friendly reload prompt.</summary>
-    private static async Task<ProjectRecord> UpdateOrConflictAsync(
+    private static async Task<ProjectRecord> updateOrConflictAsync(
         IStencilServerClient client, string id, UpdateProjectRequest request, string conflictMessage, CancellationToken ct)
     {
         try
@@ -561,20 +93,16 @@ public sealed class ServerService : IServerService
         }
     }
 
-    /// <summary>
-    /// A version-guarded single-field write (colour / expiry) with a bounded conflict retry: the
-    /// read-then-PUT isn't atomic, so a peer — or our own preceding file upload — that advanced the
-    /// version between the read and the PUT would 409 and silently drop the change. On a conflict we
-    /// re-read the current version and retry, mirroring pystencil's <c>_update_field_with_retry</c>
-    /// / the CLI's <c>putProjectField</c>. A sustained conflict surfaces the friendly reload prompt.
-    /// </summary>
-    private static async Task<ProjectRecord> UpdateFieldWithRetryAsync(
+    // The read-then-PUT isn't atomic: a peer — or our own preceding upload — advancing the version
+    // would 409 and drop the change, so re-read and retry, as pystencil's _update_field_with_retry
+    // does.
+    private static async Task<ProjectRecord> updateFieldWithRetryAsync(
         IStencilServerClient client, string id, Func<long, UpdateProjectRequest> build, string conflictMessage, CancellationToken ct)
     {
         ServerException? last = null;
-        for (int attempt = 0; attempt < FieldWriteRetries; attempt++)
+        for (int attempt = 0; attempt < _fieldWriteRetries; attempt++)
         {
-            long version = await CurrentVersionAsync(client, id, 0, ct);
+            long version = await currentVersionAsync(client, id, 0, ct);
             try
             {
                 return await client.UpdateProjectAsync(id, build(version), ct);
@@ -587,12 +115,8 @@ public sealed class ServerService : IServerService
         throw new ServerException("conflict", conflictMessage, last?.Status ?? 409);
     }
 
-    /// <summary>
-    /// Re-read a project's current version (a file write bumps it but returns none of its own),
-    /// falling back to <paramref name="fallback"/> when the server is unreachable. Mirrors
-    /// remoteSync.js <c>currentVersion</c> / pystencil <c>_current_version</c>.
-    /// </summary>
-    private static async Task<long> CurrentVersionAsync(IStencilServerClient client, string id, long fallback, CancellationToken ct)
+    // A file write bumps the version but returns none; mirrors remoteSync.js currentVersion.
+    private static async Task<long> currentVersionAsync(IStencilServerClient client, string id, long fallback, CancellationToken ct)
     {
         try
         {
