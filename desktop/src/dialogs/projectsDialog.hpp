@@ -30,60 +30,48 @@ namespace stencil::net {
   class ConnectionManager;
 }
 
-// Saved-projects browser. Mirrors browser/js/ui/projectsModal.js: exec(), then read
-// action()/selectedId()/newName(). Removals are confirmed in-dialog and signalled
-// instead, so the window stays open (see signals). With a ConnectionManager, server
-// projects are listed alongside the local ones and refreshed on a short timer (the
-// desktop analogue of the browser modal's WebSocket project-event feed).
+// Saved-projects browser (browser/js/ui/projectsModal.js): exec(), then read
+// action()/selectedId()/newName(). Removals are confirmed in-dialog and signalled instead, so
+// the window stays open. With a ConnectionManager, server projects are listed alongside the
+// local ones and refreshed on a short timer — the browser modal's project-event feed.
 namespace stencil::gui {
 
   class ProjectDragZones;
   class ListFilterFade;
 
-  // Which batch-transfer directions apply to a selection of `locals` local + `remotes`
-  // server rows. Inapplicable directions are HIDDEN, not greyed (browser parity:
-  // projectsModal.js updateBatchBar). toServer covers move+copy to server; toLocal
-  // covers move+copy to local.
+  // Inapplicable directions are HIDDEN, not greyed (browser projectsModal.js updateBatchBar).
+  // toServer covers move+copy to server, toLocal move+copy to local.
   struct BatchDirections { bool toServer = false; bool toLocal = false; };
   BatchDirections batchDirectionsFor(int locals, int remotes, bool haveServers);
 
   class ProjectsDialog : public QDialog {
     Q_OBJECT
    public:
-    // Supply the main window's drag-out zone overlay (open here / new window / remove), shown
-    // while a project row is dragged out of this (modal) dialog. Optional (nullptr = no zones).
+    // The main window's drag-out zone overlay (open here / new window / remove), shown while a
+    // row is dragged out of this modal dialog. nullptr = no zones.
     void setDragZones(ProjectDragZones* z) { dragZones_ = z; }
 
-    // Whether a hand-off target is configured (a browser URL, or a Telegram bot for server
-    // rows). The row menu hides "Open in another app" when nothing is available, exactly as
-    // the browser hides it (ui/controlState.js) rather than offering a dead action.
+    // A browser URL, or a Telegram bot for server rows. The row menu HIDES "Open in another
+    // app" when nothing is available (browser ui/controlState.js), never greys it.
     void setOpenInAvailable(bool local, bool server) {
       openInLocalOk_ = local;
       openInServerOk_ = server;
     }
 
-    // What the owner must read per action, beyond action() itself:
-    //   OpenInNewWindow  — like Open, into a fresh top-level window.
-    //   OpenRemote       — selectedServerUrl() + selectedId().
-    //   MoveToServer / CopyToServer  — selectedId() + selectedServerUrl() (+ newName()
-    //     for a copy); Move drops the local original, Copy leaves it.
-    //   MoveToLocal / MakeLocalCopy  — selectedServerUrl() + selectedId() + newName();
-    //     Move deletes the server copy, MakeLocalCopy leaves it and opens the copy.
-    //   Batch*           — batchItems() (BatchRemove never reaches action(): it confirms
-    //     in-dialog and emits removeRequested, and stays as runBatch's dispatch tag).
-    //   SetColor         — selectedId() + selectedServerUrl() ("" = local) +
-    //     selectedColor() ("" = theme default).
+    // What the owner reads per action, beyond action(): OpenRemote → selectedServerUrl() +
+    // selectedId(); the four transfers → those plus newName(), Move dropping the original and
+    // Copy leaving it; Batch* → batchItems(); SetColor → selectedColor(), "" = theme default.
+    // BatchRemove never reaches action() — it confirms in-dialog and emits removeRequested,
+    // staying only as runBatch's dispatch tag.
     enum class Action { None, Open, OpenInNewWindow, New, Rename, NewBlank,
                         OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy, CopyToServer,
                         SetColor,
                         BatchRemove, BatchMoveToServer, BatchCopyToServer,
                         BatchMoveToLocal, BatchCopyToLocal, ClearAll };
 
-    // `now` (epoch ms) is the reference point for the per-row expiry labels; the caller
-    // passes its clock so the dialog stays free of time sources. `connections` (nullable)
-    // supplies the shared server projects. `thumbs` maps a local project id to its
-    // pre-rendered EDITED-result preview, shown as the row icon. `activeProjectId` marks
-    // the row open in THIS editor "(Current)" (`accentColor` is unused, kept for ABI).
+    // `now` (epoch ms) is the reference point for the per-row expiry labels, passed in so the
+    // dialog stays free of time sources. `thumbs` maps a local project id to its pre-rendered
+    // EDITED-result preview. `accentColor` is unused, kept for ABI.
     explicit ProjectsDialog(const std::vector<Project>& projects, long long now,
                             stencil::net::ConnectionManager* connections = nullptr,
                             const QHash<QString, QPixmap>& thumbs = {},
@@ -91,234 +79,189 @@ namespace stencil::gui {
                             const QString& activeProjectId = QString(),
                             const QColor& accentColor = QColor());
 
-    // This window's own session is unsaved (no project open): show the pinned "Temporary
-    // (unsaved)" row at the top — "Incognito (unsaved)" for an incognito editor.
+    // This window's session is unsaved: show the pinned "Temporary (unsaved)" row at the top,
+    // or "Incognito (unsaved)" for an incognito editor.
     void setTemporary(bool temporary, bool incognito = false);
 
     Action action() const { return action_; }
     QString selectedId() const { return selectedId_; }
     QString selectedServerUrl() const { return selectedServerUrl_; }
     QString newName() const { return newName_; }
-    // For SetColor: the chosen colour ("#rrggbb"), or "" to clear to the theme default.
     QString selectedColor() const { return selectedColor_; }
-    // For Batch* actions: the checked rows as (id, serverUrl) pairs (serverUrl empty = local).
+    // (id, serverUrl) pairs; an empty serverUrl is a local row.
     const QVector<QPair<QString, QString>>& batchItems() const { return batchItems_; }
 
-    // Replace the listed projects and repaint — the owner calls this after acting on a
-    // request signalled below, so the dialog STAYS OPEN on the new state. The overload
-    // carries the window's session state IN THE SAME repaint: a removal that also blanks
-    // the editor must not repaint twice, or the batch bar and the rows visibly jump.
+    // Called by the owner after acting on a request signalled below, so the dialog STAYS OPEN on
+    // the new state. The overload carries the session state IN THE SAME repaint: a removal that
+    // also blanks the editor must not repaint twice, or the batch bar and the rows visibly jump.
     void setProjects(const std::vector<Project>& projects);
     void setProjects(const std::vector<Project>& projects, bool temporary, bool incognito);
 
    signals:
-    // "Clear All (Local)": already confirmed INSIDE the dialog, so the confirmation sits
-    // over the still-open window rather than replacing it. The owner does the removal and
-    // calls setProjects().
+    // Every signal here is the same stay-open pattern: the dialog already confirmed or
+    // validated in place, over the still-open window, and the owner acts then calls
+    // setProjects(). Nothing here closes the dialog.
     void clearAllRequested();
-    // Remove (single ⋯/right-click Delete, drag-out Remove zone, batch Remove): same
-    // stay-open pattern — already confirmed in-dialog, the doomed rows are scattering.
-    // Items are (id, serverUrl) pairs (serverUrl empty = local); the owner removes them
-    // and calls setProjects().
+    // Single ⋯/right-click Delete, the drag-out Remove zone, or batch Remove; the doomed rows
+    // are already scattering.
     void removeRequested(const QVector<QPair<QString, QString>>& items);
-    // Inline rename (dblclick on the name / the ⋯ menu's Rename): already validated
-    // in-dialog, same stay-open pattern — the owner renames and calls setProjects().
     void renameRequested(const QString& id, const QString& newName);
-    // "Set expiration": the editor already ran OVER this window (never replacing it, browser
-    // parity) and the user saved. Same stay-open pattern — the owner writes the meta and
-    // calls setProjects(). `expiresAt` 0 means "keep forever".
+    // `expiresAt` 0 means "keep forever". The editor already ran OVER this window.
     void expirationRequested(const QString& id, long long expiresAt,
                              const QString& refreshPeriod, bool autoRefresh);
-    // "Open in another app": the owner holds the image + settings a hand-off needs, so
-    // the row just names itself. `serverUrl` empty = a local row. `closeRect` is the row's
-    // "⋯" chip (GLOBAL), where the dialog it opens flies back to. Stay-open, like the rest.
+    // The owner holds the image + settings a hand-off needs, so the row just names itself.
+    // `closeRect` is the row's "⋯" chip in GLOBAL coords, where the dialog flies back to.
     void openInRequested(const QString& id, const QString& serverUrl, const QRect& closeRect);
 
    protected:
-    // Hover-magnify: watch the list viewport so hovering a row's thumbnail pops a
-    // larger floating preview that follows the cursor.
+    // Watches the list viewport for the hover-magnify preview.
     bool eventFilter(QObject* obj, QEvent* ev) override;
-    // Finalize pending row retirements (and stop their scatters) BEFORE the close
-    // flight photographs the dialog — a removed row must never resurface in the
-    // shrinking ghost, however early the dialog is closed.
+    // Finalizes pending row retirements (and stops their scatters) BEFORE the close flight
+    // photographs the dialog — a removed row must never resurface in the shrinking ghost.
     void done(int result) override;
 
    private:
-    // Persist one edited field of a row — the half every per-row editor shares. A local
-    // row updates the registry copy and saves; a server row issues its guarded PUT and
-    // patches the cached record so the tooltip reflects it before the next live re-list.
-    // `mutate` writes the value into a local Project, `push` issues the PUT, `cache`
-    // writes it into the cached ServerProject.
+    // The half every per-row editor shares: a local row updates the registry copy and saves; a
+    // server row issues its guarded PUT and patches the cached record, so the tooltip reflects
+    // it before the next live re-list.
     void commitRowEdit(const QString& id, const QString& server,
                        const std::function<void(Project&)>& mutate,
                        const std::function<void(stencil::net::ServerClient*, qint64,
                                                 std::function<void(bool, qint64)>)>& push,
                        const std::function<void(stencil::net::ServerProject&)>& cache);
     void refresh();
-    // Re-list server projects across every connection and append golden rows.
-    void refreshRemote();
-    // The edited preview for a server project: its rendered `result` (or the
-    // `original` if never saved), fetched via the connection and cached by version.
-    // When the server holds no stored bytes (e.g. an extension-added project that
-    // only recorded the image's web URL), falls back to fetching that `source` URL.
+    void refreshRemote();   // re-list across every connection and append the golden rows
+    // A server project's rendered `result`, or its `original` if never saved, cached by version.
+    // A server holding no stored bytes (an extension-added project that only recorded the web
+    // URL) falls back to fetching that `source` URL.
     QPixmap remoteThumb(const stencil::net::ServerProject& sp);
-    // Fetch a server project's stored preview ASYNCHRONOUSLY: downloadFile("result") →
-    // downloadFile("original") → the `source` web URL, swapping the row icon in on arrival so the
-    // dialog never blocks on the network. `key` is the remoteThumbs_ cache key.
+    // The three fetches above, run ASYNCHRONOUSLY so the dialog never blocks on the network:
+    // downloadFile("result") → downloadFile("original") → the `source` web URL, each swapping
+    // the row icon in on arrival. `key` is the remoteThumbs_ cache key.
     void fetchServerThumbAsync(const QString& key, const stencil::net::ServerProject& sp);
-    // Fetch the project `source` image URL ASYNCHRONOUSLY (no blocking): the row shows
-    // a placeholder immediately and its icon is swapped in when the download finishes.
-    // `key` is the remoteThumbs_ cache key; the result (even a miss) is cached.
     void fetchSourceThumbAsync(const QString& key, const stencil::net::ServerProject& sp);
-    // Cache `img` (scaled) as `key`'s thumb and swap the matching live row's placeholder icon.
-    // Shared tail of the server-download and source-URL fetch paths. An empty `img` caches a miss.
+    // Their shared tail. An empty `img` caches a miss.
     void applyRemoteThumb(const QString& key, const QString& id, const QString& serverUrl,
                           const QImage& img);
-    // A uniform 56×56 fallback tile (centered native glyph) shown when a row has no
-    // image, so every row is the same height. `remote` picks a network vs file glyph.
+    // A uniform 56×56 tile so every row is the same height; `remote` picks a network vs file
+    // glyph.
     QPixmap placeholderIcon(bool remote) const;
     QPixmap temporaryIcon(bool incognito) const;   // the pinned row's pencil / mask tile
-    // The hover-magnify preview is sand too (browser js/ui/projectsModal.js
-    // enableThumbZoom, motion.js surfaceIn/surfaceOut): it forms from motes streaming
-    // out of the row's icon cell and comes apart into motes pouring back in. `it` is
-    // the row the flight belongs to.
+    // The preview is sand too (browser enableThumbZoom + motion.js surfaceIn/surfaceOut): it
+    // forms from motes streaming out of the row's icon cell and comes apart into motes pouring
+    // back in. `it` is the row the flight belongs to.
     bool dustHoverPreview(QListWidgetItem* it, bool gather);
-    // Hide the hover-magnify preview, dusting it back into the row it was shown for.
     void hideHoverPreview();
-    // Place the preview down-right of the (global) cursor, flipped/clamped on-screen —
-    // called on every move, so the glance follows the pointer (browser positionZoom).
+    // Down-right of the global cursor, flipped/clamped on-screen; called on every move, so the
+    // glance follows the pointer (browser positionZoom).
     void placeHoverPreview(const QPoint& globalCursor);
-    // An APPEARANCE: the preview waits behind its own gathering motes and fades up as
-    // the last of them land (appTooltip showFor / browser surfaceIn). Shared by the
-    // first show, a swap onto another row, and the Alt re-scale.
+    // An APPEARANCE: the preview waits behind its own gathering motes and fades up as the last
+    // of them land. Shared by the first show, a swap onto another row, and the Alt re-scale.
     void revealHoverPreview(QListWidgetItem* it);
     QVariantAnimation* hoverFade();   // lazily built windowOpacity ramp for the above
-    // The REAL cursor (not an event's claim) is over the previewed row's thumbnail —
-    // guards the Leave/deactivate backstops against spurious events our own preview
-    // window triggers when it slides under a stationary pointer.
+    // The REAL cursor, not an event's claim: guards the Leave/deactivate backstops against the
+    // spurious events our own preview window triggers as it slides under a stationary pointer.
     bool pointerOverPreviewedIcon() const;
-    // Per-row action menu (the "⋯" kebab + right-click both call this). Selects
-    // `it` first, since the action slots act on the current item.
+    // The "⋯" kebab and right-click both call this. Selects `it` first, since the action slots
+    // act on the current item.
     void showRowMenu(QListWidgetItem* it, const QPoint& globalPos);
     void openSelected();
     void openSelectedInNewWindow();
-    // row-open gestures (browser parity)
-    //   single click            → confirm, then open in the CURRENT window
-    //   double click            → open immediately, no confirmation
-    //   Ctrl/⌘ + single click   → confirm, then open in a NEW window
-    //   Ctrl/⌘ + double click   → new window immediately, no confirmation
-    //   Return on a focused row → treated as a plain single click (confirms)
-    // The confirmation is asked IN-DIALOG (finishOpen) over the still-open list.
-    //
-    // Arm the deferred single-click open. Deferring by doubleClickInterval() is
-    // the crux: a double click must cancel it, or the confirmation flashes up
-    // before the second click lands.
+    // Row-open gestures (browser parity): a single click confirms then opens HERE, a double
+    // click opens at once, Ctrl/⌘ makes either a NEW window, Return is a plain single click.
+    // Deferring the single click by doubleClickInterval() is the crux — a double click must
+    // cancel it, or the confirmation flashes up before the second click lands.
     void scheduleRowOpen(QListWidgetItem* it);
     void fireRowOpen();       // the timer expired → a genuine single click
     void openRow(QListWidgetItem* it, bool newWindow, bool confirm);
-    // Confirm (over the STILL-OPEN dialog, browser parity) then set `act` + accept().
-    // A double click (confirmOpen_ false) accepts straight away; Cancel keeps the
-    // dialog up. `name` labels the question.
+    // Confirms over the STILL-OPEN dialog, then sets `act` and accept()s; confirmOpen_ false
+    // accepts straight away, and Cancel keeps the dialog up. `name` labels the question.
     void finishOpen(Action act, bool newWindow, const QString& name);
     void deleteSelected();
-    // Move the selected LOCAL project to a server (pick one if several connected).
+    // The four transfers. Move drops the original, Copy keeps it and prompts for a name; the
+    // to-server pair picks a server when several are connected.
     void moveToServerSelected();
-    // Copy the selected LOCAL project to a server (local copy kept), prompting a name.
     void copyToServerSelected();
-    // Move the selected SERVER project into local storage.
     void moveToLocalSelected();
-    // Make a detached local copy of the selected SERVER project (server copy kept), prompting a name.
     void makeLocalCopySelected();
-    // Re-apply the storage filter (All / Local / Server / a specific server) + the search
-    // text to the visible rows: excluded rows fade + collapse out, included ones back in.
+    // Storage filter (All / Local / Server / a specific server) plus the search text: excluded
+    // rows fade and collapse out, included ones back in.
     void applyFilter();
-    // Lazily build that transition (support/filterFade); rows that are LEFT arrive
-    // out of sand via the shared ListFilterFade::dustRowIn.
+    // Lazily builds that transition (support/filterFade); rows that are LEFT arrive out of sand
+    // via the shared ListFilterFade::dustRowIn.
     ListFilterFade* filterFade();
-    // (Re)populate the "Show:" combo with All / Local / All-servers + one entry per connected
-    // server, preserving the current selection. Called when the connected-server set changes.
+    // Preserves the current selection. Called when the connected-server set changes.
     void rebuildFilterOptions();
-    // Multi-select: collect the checked rows + show/enable the batch toolbar; run a batch action.
     void onItemChanged(QListWidgetItem* it);
     void updateBatchBar();
-    // Select-all toggle over the CURRENT filtered view (browser: the per-render
-    // `selectables` pool + updateSelectAll).
+    // Over the CURRENT filtered view (browser: the per-render `selectables` pool).
     void updateSelectAll();
     bool allFilteredChecked() const;
     void toggleSelectAll();
     void runBatch(Action act);
-    // Inline rename (browser parity: dblclick the name → a live-validated editor with
-    // ✓/✗ over the row; Enter saves via renameRequested, Esc/click-away discards).
+    // Browser parity: dblclick the name for a live-validated editor with ✓/✗ over the row;
+    // Enter saves via renameRequested, Esc or a click away discards.
     void beginInlineRename(QListWidgetItem* it);
     void closeInlineRename();
-    // Pop a colour picker (seeded with the row's current colour) and emit SetColor.
+    // setColorSelected pops a picker seeded with the row's colour; clearColorSelected emits
+    // SetColor with "" (the theme default).
     void setColorSelected();
-    // Clear the row's colour back to the theme default (emit SetColor with "").
     void clearColorSelected();
-    // Resolve `it`'s (id, serverUrl), set the SetColor result fields, and accept().
     void emitSetColor(QListWidgetItem* it, const QString& color);
-    // A row's current colour ("#rrggbb" or "") — local meta or server record.
-    QString rowColor(const QListWidgetItem* it) const;
-    // …the selected row's, via the same lookup.
+    QString rowColor(const QListWidgetItem* it) const;   // "#rrggbb" or "", local meta or record
     QString currentRowColor() const;
-    // The (serverUrl|id) key for list row `i` (matches checked_ keys); "" for placeholder rows.
-    QString rowKeyAt(int i) const;
-    // Scatter the given rows (empty = every data row) before they leave, the way the single
-    // Remove already does — a painted list row has no widget, so its RECT comes apart.
+    QString rowKeyAt(int i) const;   // (serverUrl|id), matching checked_; "" for placeholder rows
+    // Empty `keys` = every data row. A painted list row has no widget, so its RECT comes apart.
     void scatterRows(const QSet<QString>& keys = {});
-    // Blank `it` the instant its scatter starts (the slot stays open), then drop the
-    // item once the animation has played — the overlay flies a snapshot, so leaving
-    // the real row painted underneath hid the removal entirely.
+    // Blanks `it` the instant its scatter starts, keeping the slot open, then drops the item once
+    // the animation has played: the overlay flies a snapshot, so leaving the real row painted
+    // underneath hid the removal entirely.
     void retireRow(QListWidgetItem* it);
     void createNew();
     void createBlank();
 
-    // The "⋯" chip of the row whose menu is open, in global coords — where a window raised
-    // from that menu flies back to once the menu is gone. Empty on every other path.
     // The selection-only batch actions, revealed as ONE group (see updateBatchBar).
     QWidget* batchSelectedGroup_ = nullptr;
+    // The "⋯" chip of the row whose menu is open, in global coords — where a window raised from
+    // that menu flies back to once the menu is gone. Empty on every other path.
     QRect menuKebabRect_;
     bool openInLocalOk_ = false;    // a browser URL is set → local rows can hand off
     bool openInServerOk_ = false;   // …that, or a Telegram bot → server rows can too
     std::vector<Project> projects_;
     long long now_ = 0;
     stencil::net::ConnectionManager* connections_ = nullptr;
-    QString activeProjectId_;  // the project open in THIS editor right now (its "(Current)" row)
+    QString activeProjectId_;   // its row carries the "(Current)" tag
     QVBoxLayout* barSlot_ = nullptr;   // batch bar + list, spacing 0 (see the .cpp)
-    bool built_ = false;       // the list has been built at least once (arrivals animate after that)
-    bool temporary_ = false;   // setTemporary: this window is an unsaved session → the pinned row
-    bool incognito_ = false;   // …an incognito one
-    // id -> pre-rendered local-project preview (edited result), shown as the row icon.
-    QHash<QString, QPixmap> thumbs_;
-    // Cached server-project previews, keyed "serverUrl|id|version" so the periodic
-    // remote re-list reuses them instead of re-downloading unchanged projects. Bounded:
-    // every edit anywhere bumps a version, and the re-list timer would cache them all.
+    bool built_ = false;       // built at least once — arrivals animate only after that
+    bool temporary_ = false;   // an unsaved session → the pinned row
+    bool incognito_ = false;
+    QHash<QString, QPixmap> thumbs_;   // id → pre-rendered edited-result preview
+    // Keyed "serverUrl|id|version" so the periodic re-list reuses them instead of re-downloading
+    // unchanged projects. Bounded because every edit anywhere bumps a version, and the re-list
+    // timer would otherwise cache them all.
     LruCache<QString, QPixmap> remoteThumbs_{128};
     QVector<stencil::net::ServerProject> remote_;
-    // Cache keys with an in-flight async source fetch, so a re-list doesn't kick off
-    // a duplicate download for the same project.
+    // Keys with an in-flight async source fetch, so a re-list starts no duplicate download.
     QSet<QString> thumbInFlight_;
-    // Frameless floating label showing the magnified thumbnail under the cursor.
-    QLabel* hoverPreview_ = nullptr;
+    QLabel* hoverPreview_ = nullptr;   // frameless floating magnified thumbnail
     QListWidgetItem* hoverItem_ = nullptr;   // the row the shown preview belongs to
     QVariantAnimation* hoverFade_ = nullptr; // its opacity ramp (in behind dust, out behind it)
     bool hoverClosing_ = false;              // the ramp is running towards hide()
     bool hoverZoomCursor_ = false;           // the viewport shows the magnifier cursor
-    // The row whose "⋯" chip the cursor is on (-1 = none), and the looping sweep that
-    // plays over it while it is. Only its OWN hover styles the chip — a row hover used to
-    // brighten it from anywhere on the row.
+    // The row whose "⋯" chip the cursor is on (-1 = none). Only its OWN hover styles the chip,
+    // never a hover anywhere else on the row.
     int kebabHoverRow_ = -1;
     class ShimmerOverlay* kebabSweep_ = nullptr;   // the app's shared glass sweep
     QString tipRowText_;   // the row text the visible tooltip belongs to (moves vs retires)
     void setKebabHover(int row);
     QTimer* remoteTimer_ = nullptr;
     bool remoteBusy_ = false;
-    // False until the first server listing resolves — drives the "Loading shared
-    // projects…" placeholder so the dialog can open instantly (remote fetch deferred).
+    // False until the first server listing resolves: drives the "Loading shared projects…"
+    // placeholder, so the dialog opens instantly with the remote fetch deferred.
     bool remoteLoaded_ = false;
     QListWidget* list_ = nullptr;
-    // "Clear All" (local-only) button; relabelled "Clear All Local" live while a server
-    // is connected so the label tracks the actual removal across the remote poll.
+    // Relabelled "Clear All Local" live while a server is connected, so the label tracks what
+    // the removal actually covers across the remote poll.
     QPushButton* clearAllBtn_ = nullptr;
     QComboBox* filter_ = nullptr;   // All / Local / Server / per-server row filter
     ListFilterFade* filterFade_ = nullptr;  // its enter/exit transition (owned by the list)
@@ -328,8 +271,7 @@ namespace stencil::gui {
     QLineEdit* search_ = nullptr;   // name search box (mirrors the browser modal)
     QPushButton* selectAllBtn_ = nullptr;  // Select all / Deselect all over the filtered view
     QStringList knownServerUrls_;   // last server set the filter combo was built from
-    // Multi-select: checked row keys ("serverUrl|id"; serverUrl empty = local), the batch
-    // toolbar + its buttons, and the resolved (id, serverUrl) pairs for the chosen batch action.
+    // Checked row keys, "serverUrl|id" with an empty serverUrl for a local row.
     QSet<QString> checked_;
     QWidget* batchBar_ = nullptr;
     QLabel* batchCount_ = nullptr;

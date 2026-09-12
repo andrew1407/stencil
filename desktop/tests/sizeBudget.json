@@ -3,7 +3,7 @@
   "maxNewFileLines": 230,
   "files": {
     "desktop/src/app/mainWindow.cpp": 1616,
-    "desktop/src/app/mainWindow.hpp": 1658,
+    "desktop/src/app/mainWindow.hpp": 1263,
     "desktop/src/app/mainWindowActions.cpp": 910,
     "desktop/src/app/mainWindowChat.cpp": 291,
     "desktop/src/app/mainWindowEvents.cpp": 553,
@@ -15,11 +15,11 @@
     "desktop/src/dialogs/llmSettingsForm.cpp": 322,
     "desktop/src/dialogs/openImageDialog.cpp": 390,
     "desktop/src/dialogs/projectsDialog.cpp": 929,
-    "desktop/src/dialogs/projectsDialog.hpp": 380,
+    "desktop/src/dialogs/projectsDialog.hpp": 305,
     "desktop/src/dialogs/settingsDialog.cpp": 374,
     "desktop/src/io/fileStore.hpp": 284,
     "desktop/src/llm/chatDock.cpp": 383,
-    "desktop/src/llm/chatDock.hpp": 550,
+    "desktop/src/llm/chatDock.hpp": 445,
     "desktop/src/llm/chatMenuPanel.cpp": 258,
     "desktop/src/llm/chatWidgets.cpp": 389,
     "desktop/src/llm/opPlan.cpp": 500,
@@ -67,7 +67,7 @@
     "desktop/tests/tipContent.headless.cpp": 317
   },
   "commentPct": {
-    "desktop/src/app": 22,
+    "desktop/src/app": 21,
     "desktop/src/canvas": 18,
     "desktop/src/dialogs": 15,
     "desktop/src/io": 17,
