@@ -5,6 +5,7 @@
 //   extension         Chromium persistent context loading the unpacked MV3 extension/
 //   fullstack         browser app + real Go server (compose) — multi-client collaboration
 //   server-protocol   black-box REST/WS/TCP against the running server binary (no browser)
+//   cli               the built Zig binary, driven as a subprocess (self-skips without it)
 //
 // `webServer` serves browser/ (+ e2e fixtures) on APP_URL (127.0.0.1:8188) for every project. `globalSetup`
 // brings up db+redis+server via docker-compose ONLY when E2E_STACK=1; the stack-dependent
