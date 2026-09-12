@@ -129,34 +129,42 @@ class _LlmCommands:
       return
     key = parts[0].lower()
     val = parts[1].strip() if len(parts) > 1 else ""
-    cfg = self._llm
-    if key == "provider":
-      if val not in PROVIDERS:
-        self._err(
-          "unknown provider '%s' — use %s" % (val, " | ".join(PROVIDERS))
-        )
-        return
-      # set_provider re-fills the provider's default base URL unless the user
-      # pinned one with /llm url (set_base_url); everything else carries over.
-      cfg.set_provider(val)
-      self._say("llm provider %s (url %s)" % (val, cfg.base_url or "-"))
-    elif key == "url":
-      if not val:
-        self._err("/llm url needs a base URL")
-        return
-      cfg.set_base_url(val)
-      self._say("llm url %s" % val)
-    elif key == "model":
-      cfg.model = val
-      self._say("llm model %s" % (val or "(default)"))
-    elif key == "key":
-      cfg.api_key = val
-      self._say("llm key %s" % ("set" if val else "cleared"))
-    elif key == "server":
-      cfg.server_url = val
-      self._say("llm server %s" % (val or "cleared"))
-    else:
+    setters = {"provider": self.__set_provider, "url": self.__set_url, "model": self.__set_model,
+               "key": self.__set_key, "server": self.__set_server}
+    if key not in setters:
       self._err(
         "/llm takes provider | url | model | key | server "
         "(bare /llm shows the config)"
       )
+      return
+    setters[key](val)
+
+  def __set_provider(self, val: str) -> None:
+    if val not in PROVIDERS:
+      self._err(
+        "unknown provider '%s' — use %s" % (val, " | ".join(PROVIDERS))
+      )
+      return
+    # set_provider re-fills the provider's default base URL unless the user
+    # pinned one with /llm url (set_base_url); everything else carries over.
+    self._llm.set_provider(val)
+    self._say("llm provider %s (url %s)" % (val, self._llm.base_url or "-"))
+
+  def __set_url(self, val: str) -> None:
+    if not val:
+      self._err("/llm url needs a base URL")
+      return
+    self._llm.set_base_url(val)
+    self._say("llm url %s" % val)
+
+  def __set_model(self, val: str) -> None:
+    self._llm.model = val
+    self._say("llm model %s" % (val or "(default)"))
+
+  def __set_key(self, val: str) -> None:
+    self._llm.api_key = val
+    self._say("llm key %s" % ("set" if val else "cleared"))
+
+  def __set_server(self, val: str) -> None:
+    self._llm.server_url = val
+    self._say("llm server %s" % (val or "cleared"))

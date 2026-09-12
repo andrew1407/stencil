@@ -19,31 +19,39 @@ class _ChatCommands:
     single-turn); ``clear`` empties the conversation (and best-effort drops the
     active remote project's server `chat` file while the mode is on)."""
     sub = arg.strip().lower()
-    if sub in ("", "show"):
-      turns = len(self._chat.history) if self._chat is not None else 0
-      self._say("chat %s (%d message(s))" % ("on" if self._chat_on else "off", turns))
-    elif sub == "on":
-      self._chat_on = True
-      self._say("chat on")
-      # §12.2: say who can read a saved chat BEFORE one is written anywhere.
-      self._say("  saved into the .stencil project on /save; on a server "
-           "project, readable by everyone it is shared with")
-    elif sub == "off":
-      self._chat_on = False
-      self._say("chat off")
-    elif sub == "clear":
-      if self._chat is not None:
-        self._chat.clear()
-      # §12: clearing the conversation clears the persisted server copy too.
-      if self._chat_on and self._remote is not None:
-        conn, pid = self._remote
-        try:
-          conn.delete_file(pid, "chat")
-        except ServerError as e:
-          self._note("could not delete the server chat (%s)" % e)
-      self._say("chat cleared")
-    else:
+    handlers = {"": self.__chat_show, "show": self.__chat_show, "on": self.__chat_on,
+                "off": self.__chat_off, "clear": self.__chat_clear}
+    if sub not in handlers:
       self._err("/chat takes on | off | clear | show (bare /chat shows the mode)")
+      return
+    handlers[sub]()
+
+  def __chat_show(self) -> None:
+    turns = len(self._chat.history) if self._chat is not None else 0
+    self._say("chat %s (%d message(s))" % ("on" if self._chat_on else "off", turns))
+
+  def __chat_on(self) -> None:
+    self._chat_on = True
+    self._say("chat on")
+    # §12.2: say who can read a saved chat BEFORE one is written anywhere.
+    self._say("  saved into the .stencil project on /save; on a server "
+         "project, readable by everyone it is shared with")
+
+  def __chat_off(self) -> None:
+    self._chat_on = False
+    self._say("chat off")
+
+  def __chat_clear(self) -> None:
+    if self._chat is not None:
+      self._chat.clear()
+    # §12: clearing the conversation clears the persisted server copy too.
+    if self._chat_on and self._remote is not None:
+      conn, pid = self._remote
+      try:
+        conn.delete_file(pid, "chat")
+      except ServerError as e:
+        self._note("could not delete the server chat (%s)" % e)
+    self._say("chat cleared")
 
   def _restore_remote_chat(self, conn, pid: str) -> None:
     """Best-effort §12 restore of a fetched project's saved `chat` file.

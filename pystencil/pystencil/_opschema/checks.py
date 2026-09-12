@@ -103,18 +103,17 @@ class ValueChecks:
 
   def _check_value(self, v: Any, spec: dict, path: dict, parent: (dict | NoneType)) -> None:
     t = spec["type"]
-    if t == "string":
-      self.__check_string(v, spec, path, parent)
-    elif t in ("integer", "number"):
-      self.__check_number(v, spec, path)
-    elif t == "boolean":
-      self.__check_boolean(v, spec, path)
-    elif t == "array":
-      self.__check_array(v, spec, path)
-    elif t == "object":
-      self.__check_object(v, spec, path)
-    else:
+    checks = {
+      "string": lambda: self.__check_string(v, spec, path, parent),
+      "integer": lambda: self.__check_number(v, spec, path),
+      "number": lambda: self.__check_number(v, spec, path),
+      "boolean": lambda: self.__check_boolean(v, spec, path),
+      "array": lambda: self.__check_array(v, spec, path),
+      "object": lambda: self.__check_object(v, spec, path),
+    }
+    if t not in checks:
       raise ValueError('opRegistry: unknown type "%s"' % t)
+    checks[t]()
 
   # One object against a key map + its holder's presence rules. `skip` names keys
   # that are neither declared nor unknown (the action's own "op").
