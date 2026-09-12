@@ -19,7 +19,7 @@ public sealed class PromptContextTests : PromptServiceTestBase
     public PromptContextTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task ContextSuffixListsConnectionUrlsAndTheActiveProjectButNeverATokens()
+    public async Task Should_List_Connection_Urls_And_The_Active_Project_But_Never_A_Token_In_The_Context_Suffix()
     {
         await SeedImage();
         await SeedConnections(Saved("http://alpha:8090", "secret-alpha"), Saved("https://beta:9090", "secret-beta"));
@@ -37,7 +37,7 @@ public sealed class PromptContextTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ContextSuffixSaysSoWhenThereAreNoConnections()
+    public async Task Should_Say_So_In_The_Context_Suffix_When_There_Are_No_Connections()
     {
         await SeedImage();
         Reply("chat");
@@ -49,7 +49,7 @@ public sealed class PromptContextTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task AMultiImageLayoutPlanRunsSilentlyInOneRound()
+    public async Task Should_Run_Silently_In_One_Round_For_A_Multi_Image_Layout_Plan()
     {
         await SeedImage();
         PromptService service = WithAttachments();
@@ -68,7 +68,7 @@ public sealed class PromptContextTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ConfiguredServerUrlIsNormalizedLikeTheConnectionsItMatches()
+    public async Task Should_Normalize_The_Configured_Server_Url_Like_The_Connections_It_Matches()
     {
         UserSession session = await _store.GetAsync(UserId);
         await _store.SaveAsync(session with

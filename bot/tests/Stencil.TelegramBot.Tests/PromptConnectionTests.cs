@@ -19,7 +19,7 @@ public sealed class PromptConnectionTests : PromptServiceTestBase
     public PromptConnectionTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task ConnectResolvesASavedServerByExactUrlAndItsStoredTokenRides()
+    public async Task Should_Resolve_A_Saved_Server_By_Exact_Url_On_Connect_And_Let_Its_Stored_Token_Ride()
     {
         await SeedImage();
         await SeedConnections(Saved("http://alpha:8090", "tok-alpha"), Saved("https://beta:9090", "tok-beta"));
@@ -36,7 +36,7 @@ public sealed class PromptConnectionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectResolvesAUniqueHostMatchLikeTheEditorsDo()
+    public async Task Should_Resolve_A_Unique_Host_Match_On_Connect_Like_The_Editors_Do()
     {
         await SeedImage();
         await SeedConnections(Saved("http://alpha:8090", "ta"), Saved("https://beta:9090", "tb"));
@@ -51,7 +51,7 @@ public sealed class PromptConnectionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectToAServerTheUserNeverSavedIsAWarningNotAnAttempt()
+    public async Task Should_Warn_Instead_Of_Attempting_On_Connect_To_A_Server_The_User_Never_Saved()
     {
         await SeedImage();
         await SeedConnections(Saved("http://alpha:8090", "ta"));
@@ -68,7 +68,7 @@ public sealed class PromptConnectionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectWithAnAmbiguousHostWarnsThatTheFullUrlIsNeeded()
+    public async Task Should_Warn_That_The_Full_Url_Is_Needed_On_Connect_With_An_Ambiguous_Host()
     {
         await SeedImage();
         await SeedConnections(Saved("http://srv:8090", "t1"), Saved("https://srv:9090", "t2"));
@@ -83,7 +83,7 @@ public sealed class PromptConnectionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task DisconnectResolvesAgainstTheConnectionsAndForgetsThatServer()
+    public async Task Should_Resolve_Against_The_Connections_On_Disconnect_And_Forget_That_Server()
     {
         await SeedImage();
         await SeedConnections(Saved("http://alpha:8090"), Saved("https://beta:9090"));
@@ -99,7 +99,7 @@ public sealed class PromptConnectionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task DisconnectingAServerThatIsntConnectedIsAWarning()
+    public async Task Should_Warn_When_Disconnecting_A_Server_That_Isnt_Connected()
     {
         await SeedImage();
         await SeedConnections(Saved("http://alpha:8090"));
@@ -115,7 +115,7 @@ public sealed class PromptConnectionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectionOpsRunWithoutAWorkingImage()
+    public async Task Should_Run_Connection_Ops_Without_A_Working_Image()
     {
         // "Connect to my server" must work before any photo is sent — the image pre-flight
         // only guards ops that touch pixels.
@@ -133,7 +133,7 @@ public sealed class PromptConnectionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ARefusedConnectIsAWarningAndTheTurnStillReplies()
+    public async Task Should_Warn_And_Still_Reply_When_A_Connect_Is_Refused()
     {
         await SeedImage();
         await SeedConnections(Saved("http://alpha:8090", "ta"));

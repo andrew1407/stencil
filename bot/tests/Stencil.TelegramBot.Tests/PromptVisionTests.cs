@@ -19,7 +19,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
     public PromptVisionTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task WorkingImageTurnAttachesTheEdgeMapSecondAndTheSuffixSentence()
+    public async Task Should_Attach_The_Edge_Map_Second_And_The_Suffix_Sentence_On_A_Working_Image_Turn()
     {
         await SeedImage();
         PromptService service = WithAttachments();
@@ -43,7 +43,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task TextOnlyTurnCarriesNeitherEdgeMapNorSentence()
+    public async Task Should_Carry_Neither_Edge_Map_Nor_Sentence_On_A_Text_Only_Turn()
     {
         await SeedImage();
         PromptService service = WithAttachments();
@@ -59,7 +59,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task EdgeMapRenderFailureIsSilentlySkipped()
+    public async Task Should_Silently_Skip_An_Edge_Map_Render_Failure()
     {
         await SeedImage();
         _cli.FailWhen = r => r.Filter == "contour";
@@ -77,7 +77,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task EdgeMapIsNeverReplayedAsThePriorTurnsImage()
+    public async Task Should_Never_Replay_The_Edge_Map_As_The_Prior_Turns_Image()
     {
         await SeedImage();
         PromptService service = WithAttachments();
@@ -96,7 +96,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
     // NO layout planned blind; the turn is re-sent ONCE with the fresh working image attached.
 
     [Fact]
-    public async Task MixedLoadPlanWithoutALayoutContinuesOnceWithTheFreshImage()
+    public async Task Should_Continue_Once_With_The_Fresh_Image_For_A_Mixed_Load_Plan_Without_A_Layout()
     {
         PromptService service = WithAttachments();
         Reply("""{"reply":"made it","actions":[{"op":"blank","color":"#ffffff","format":"a4"},{"op":"filter","mode":"bw"}]}""");
@@ -120,7 +120,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task TheContinuationNoteIsReplayedButNeverPersisted()
+    public async Task Should_Replay_The_Continuation_Note_But_Never_Persist_It()
     {
         PromptService service = WithAttachments();
         Reply("""{"reply":"made it","actions":[{"op":"blank","color":"#ffffff","format":"a4"}]}""");
@@ -139,7 +139,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public void SeedHistoryRefusesMachineryFromADirtyDocument()
+    public void Should_Refuse_Machinery_From_A_Dirty_Document_In_Seed_History()
     {
         // A document from another surface (or an older build) may still carry §7 internals;
         // restoring must not put them back into the replayed conversation (§12.1).
@@ -160,7 +160,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ALoadPlanThatDrewALayoutIsNotContinued()
+    public async Task Should_Not_Continue_A_Load_Plan_That_Drew_A_Layout()
     {
         PromptService service = WithAttachments();
         Reply(
@@ -179,7 +179,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ContinuationIsBoundedToASingleRoundPerTurn()
+    public async Task Should_Bound_Continuation_To_A_Single_Round_Per_Turn()
     {
         PromptService service = WithAttachments();
         Reply("""{"reply":"one","actions":[{"op":"blank","color":"#ffffff"},{"op":"filter","mode":"bw"}]}""");

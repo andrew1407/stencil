@@ -70,7 +70,7 @@ public sealed class PromptStopTests : IDisposable
     private IEnumerable<SendMessageRequest> Messages => _bot.Requests.OfType<SendMessageRequest>();
 
     [Fact]
-    public async Task TheWorkingNoticeCarriesAStopButton()
+    public async Task Should_Carry_A_Stop_Button_On_The_Working_Notice()
     {
         await dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply("""{"reply":"ok","actions":[]}"""));
@@ -83,7 +83,7 @@ public sealed class PromptStopTests : IDisposable
     }
 
     [Fact]
-    public async Task StopEndsTheRunningTurnAsPlainInfo()
+    public async Task Should_End_The_Running_Turn_As_Plain_Info_On_Stop()
     {
         await dispatch("/blank");
         _llm.BlockUntilCancelled = true;
@@ -112,7 +112,7 @@ public sealed class PromptStopTests : IDisposable
     }
 
     [Fact]
-    public async Task RetryAfterAStopReRunsTheSamePrompt()
+    public async Task Should_Re_Run_The_Same_Prompt_On_Retry_After_A_Stop()
     {
         await dispatch("/blank");
         _llm.BlockUntilCancelled = true;
@@ -134,7 +134,7 @@ public sealed class PromptStopTests : IDisposable
     }
 
     [Fact]
-    public async Task StopWithNothingRunningSaysSo()
+    public async Task Should_Say_So_On_Stop_With_Nothing_Running()
     {
         await dispatch("/blank");
 

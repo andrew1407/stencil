@@ -19,7 +19,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     public PromptMetadataTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task RenameProjectRenamesTheActiveServerProject()
+    public async Task Should_Rename_The_Active_Server_Project_On_Rename_Project()
     {
         await SeedImage();
         await SeedActiveProject();
@@ -35,7 +35,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task RenameProjectRelabelsAnUnsavedWorkingImage()
+    public async Task Should_Relabel_An_Unsaved_Working_Image_On_Rename_Project()
     {
         await SeedImage();
         Reply("""{"reply":"renamed","actions":[{"op":"renameProject","name":"cat sketch"}]}""");
@@ -48,7 +48,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ARefusedRenameIsANoteNeverAFailedPlan()
+    public async Task Should_Note_Rather_Than_Fail_The_Plan_When_A_Rename_Is_Refused()
     {
         await SeedImage();
         await SeedActiveProject();
@@ -63,7 +63,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task DescribeWritesThroughToTheServerAndEmptyClears()
+    public async Task Should_Write_Through_To_The_Server_On_Describe_And_Clear_On_Empty()
     {
         await SeedImage();
         await SeedActiveProject();
@@ -82,7 +82,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task DescribeHoldsTheTextLocallyWithoutAServerProject()
+    public async Task Should_Hold_The_Text_Locally_On_Describe_Without_A_Server_Project()
     {
         await SeedImage();
         Reply("""{"reply":"described","actions":[{"op":"describe","text":"holiday shot"}]}""");
@@ -95,7 +95,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task BlankColorRecoloursOnlyABlankServerProject()
+    public async Task Should_Recolour_Only_A_Blank_Server_Project_On_Blank_Color()
     {
         await SeedImage();
         await SeedActiveProject();
@@ -110,7 +110,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task BlankColorOnANonBlankProjectIsANote()
+    public async Task Should_Note_On_Blank_Color_For_A_Non_Blank_Project()
     {
         await SeedImage();
         await SeedActiveProject();
@@ -125,7 +125,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ProjectColorSetsAndClearsButNeedsAnActiveProject()
+    public async Task Should_Set_And_Clear_Project_Color_But_Need_An_Active_Project()
     {
         await SeedImage();
         await SeedActiveProject();
@@ -150,7 +150,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     // ── §10 export (the /json and /project documents, one send per action) ──
 
     [Fact]
-    public async Task ExportProducesOneDocumentPerActionWithTheSlashCommandsShapes()
+    public async Task Should_Produce_One_Document_Per_Export_Action_With_The_Slash_Commands_Shapes()
     {
         await SeedImage();
         Reply("""{"reply":"here","actions":[{"op":"export","what":"layout"},{"op":"export","what":"project"}]}""");
@@ -169,7 +169,7 @@ public sealed class PromptMetadataTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ExportWithoutAWorkingImageIsANote()
+    public async Task Should_Note_On_Export_Without_A_Working_Image()
     {
         Reply("""{"reply":"here","actions":[{"op":"export","what":"layout"}]}""");
 

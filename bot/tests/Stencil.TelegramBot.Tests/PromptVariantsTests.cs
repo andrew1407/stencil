@@ -20,7 +20,7 @@ public sealed class PromptVariantsTests(PromptServiceFixture fixture) : PromptSe
         """;
 
     [Fact]
-    public async Task EveryVariantRenderIsInFlightAtOnce()
+    public async Task Should_Have_Every_Variant_Render_In_Flight_At_Once()
     {
         await _editing.BlankAsync(UserId, new BlankSpec(null, null, null, null));
         using SemaphoreSlim started = new(0);
@@ -45,7 +45,7 @@ public sealed class PromptVariantsTests(PromptServiceFixture fixture) : PromptSe
     }
 
     [Fact]
-    public async Task RendersComeBackInPlanOrderWhicheverFinishesFirst()
+    public async Task Should_Return_Renders_In_Plan_Order_Whichever_Finishes_First()
     {
         await _editing.BlankAsync(UserId, new BlankSpec(null, null, null, null));
         // Reverse the completion order: the first variant's run is the slowest.

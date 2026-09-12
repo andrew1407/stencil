@@ -19,7 +19,7 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
     public PromptHistoryTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task HistoryIsBoundedToTheMostRecent32Messages()
+    public async Task Should_Bound_The_History_To_The_Most_Recent_32_Messages()
     {
         await SeedImage();
         for (int i = 0; i < 25; i++)
@@ -37,7 +37,7 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ImageReplayKeepsOnlyTheCurrentTurnsImagePlusTheMostRecentPriorOne()
+    public async Task Should_Keep_Only_The_Current_Turns_Image_Plus_The_Most_Recent_Prior_One_On_Image_Replay()
     {
         await SeedImage();
         LlmImage a = new("image/png", "AAAA");
@@ -58,7 +58,7 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task IdleUsersHistoriesAreEvictedBeyondTheTrackedBound()
+    public async Task Should_Evict_Idle_Users_Histories_Beyond_The_Tracked_Bound()
     {
         // Fill the registry past the cap: user 0 first, then MaxTrackedUsers more.
         for (long id = 0; id <= PromptService.MAX_TRACKED_USERS; id++)
@@ -78,7 +78,7 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task SystemPromptIsTheCanonicalConstantWithTheBotOpsBlockAndAContextSuffixAppended()
+    public async Task Should_Build_The_System_Prompt_From_The_Canonical_Constant_With_The_Bot_Ops_Block_And_A_Context_Suffix_Appended()
     {
         await SeedImage();
         Reply("chat");
@@ -94,7 +94,7 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public void PromptsAreAssembledFromTheOpRegistry()
+    public void Should_Assemble_The_Prompts_From_The_Op_Registry()
     {
         // §13: no hand-maintained ops block — §4's op list and the §10 profile block are the
         // registry's generated sections verbatim (name/flag/phrase pins live in
@@ -114,7 +114,7 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public void SystemPromptCarriesTheLayoutTracingGuidance()
+    public void Should_Carry_The_Layout_Tracing_Guidance_In_The_System_Prompt()
     {
         Assert.Contains("The attached image is the ground truth", PromptService.SystemPrompt);
         Assert.Contains("trace ONLY what the user", PromptService.SystemPrompt);

@@ -19,7 +19,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     public PromptProviderTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task BlankActionWorksWithoutAWorkingImage()
+    public async Task Should_Run_A_Blank_Action_Without_A_Working_Image()
     {
         int baseline = _cli.EditCalls;
         Reply("""{"reply":"fresh page","actions":[{"op":"blank","color":"#ffffff","format":"a4"}]}""");
@@ -35,7 +35,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task NonBlankPlanWithoutAWorkingImageIsRejectedBeforeExecuting()
+    public async Task Should_Reject_A_Non_Blank_Plan_Before_Executing_Without_A_Working_Image()
     {
         int baseline = _cli.EditCalls;
         Reply("""{"reply":"ok","actions":[{"op":"filter","mode":"bw"}]}""");
@@ -48,7 +48,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task FormulaActionRidesTheEditState()
+    public async Task Should_Ride_The_Edit_State_For_A_Formula_Action()
     {
         await SeedImage();
         Reply("""{"reply":"formula set","actions":[{"op":"formula","axis":"x","expr":"x*2+10"}]}""");
@@ -61,7 +61,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task StencilServerProviderResolvesTheUsersFirstConnection()
+    public async Task Should_Resolve_The_Users_First_Connection_For_The_Stencil_Server_Provider()
     {
         InMemorySessionStore store = new();
         BotOptions options = new() { DataDir = _dataDir };
@@ -84,7 +84,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task StencilServerProviderWithoutAnyConnectionAsksToConnect()
+    public async Task Should_Ask_To_Connect_For_The_Stencil_Server_Provider_Without_Any_Connection()
     {
         PromptService service = new(_llm, _editing, _store,
             new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER },
@@ -96,7 +96,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ExplicitServerUrlWinsAndReusesAMatchingConnectionsToken()
+    public async Task Should_Let_An_Explicit_Server_Url_Win_And_Reuse_A_Matching_Connections_Token()
     {
         UserSession session = await _store.GetAsync(UserId);
         await _store.SaveAsync(session with
@@ -122,7 +122,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task TheConfiguredServerTokenAuthenticatesAUserWhoNeverConnected()
+    public async Task Should_Authenticate_A_User_Who_Never_Connected_With_The_Configured_Server_Token()
     {
         PromptService service = new(_llm, _editing, _store, new LlmOptions
         {
@@ -140,7 +140,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task AUsersOwnConnectionTokenStillWinsOverTheConfiguredOne()
+    public async Task Should_Let_A_Users_Own_Connection_Token_Win_Over_The_Configured_One()
     {
         UserSession session = await _store.GetAsync(UserId);
         await _store.SaveAsync(session with
@@ -161,7 +161,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task WithNoTokenAtAllTheUserIsToldToConnectInsteadOfGettingA401()
+    public async Task Should_Tell_The_User_To_Connect_Instead_Of_Returning_A_401_With_No_Token_At_All()
     {
         PromptService service = new(_llm, _editing, _store, new LlmOptions
         {

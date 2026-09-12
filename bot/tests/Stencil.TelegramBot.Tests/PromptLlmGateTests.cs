@@ -50,7 +50,7 @@ public sealed class PromptLlmGateTests : IDisposable
     }
 
     [Fact]
-    public async Task FullGateAnswersBusyImmediatelyWithoutCallingTheModel()
+    public async Task Should_Answer_Busy_Immediately_Without_Calling_The_Model_When_The_Gate_Is_Full()
     {
         PromptService service = makeService(maxConcurrent: 1);
         TaskCompletionSource hold = holdModel();
@@ -68,7 +68,7 @@ public sealed class PromptLlmGateTests : IDisposable
     }
 
     [Fact]
-    public async Task CompletedTurnFreesTheSlotForTheNextPrompt()
+    public async Task Should_Free_The_Slot_For_The_Next_Prompt_When_A_Turn_Completes()
     {
         PromptService service = makeService(maxConcurrent: 1);
         TaskCompletionSource hold = holdModel();
@@ -85,7 +85,7 @@ public sealed class PromptLlmGateTests : IDisposable
     }
 
     [Fact]
-    public async Task ZeroMeansUnlimitedAndTurnsRunConcurrently()
+    public async Task Should_Run_Turns_Concurrently_When_Zero_Means_Unlimited()
     {
         PromptService service = makeService(maxConcurrent: 0);
         TaskCompletionSource hold = holdModel();

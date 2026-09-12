@@ -19,7 +19,7 @@ public sealed class PromptSaveTests : PromptServiceTestBase
     public PromptSaveTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task ImageIndexOneRestartsTheWorkingImageAndResetsTheCoordinateFrame()
+    public async Task Should_Restart_The_Working_Image_And_Reset_The_Coordinate_Frame_For_Image_Index_One()
     {
         await SeedImage();
         Reply(
@@ -42,7 +42,7 @@ public sealed class PromptSaveTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ImageIndexBeyondThisTurnsAttachmentsWarnsAndTheRestStillRuns()
+    public async Task Should_Warn_And_Still_Run_The_Rest_For_An_Image_Index_Beyond_This_Turns_Attachments()
     {
         await SeedImage();
         Reply(
@@ -60,7 +60,7 @@ public sealed class PromptSaveTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task SaveGoesThroughTheActiveServerProjectAndRenamesWhenTheModelNamesIt()
+    public async Task Should_Save_Through_The_Active_Server_Project_And_Rename_When_The_Model_Names_It()
     {
         await SeedImage();
         await SeedActiveProject();
@@ -76,7 +76,7 @@ public sealed class PromptSaveTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task AnUnnamedSaveKeepsTheActiveProjectsOwnName()
+    public async Task Should_Keep_The_Active_Projects_Own_Name_For_An_Unnamed_Save()
     {
         await SeedImage();
         await SeedActiveProject();
@@ -94,7 +94,7 @@ public sealed class PromptSaveTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ASavePathIsNotedAndTheSaveStillGoesToTheUsualPlace()
+    public async Task Should_Note_A_Save_Path_And_Still_Save_To_The_Usual_Place()
     {
         await SeedImage();
         await SeedActiveProject();
@@ -110,7 +110,7 @@ public sealed class PromptSaveTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task SaveWithoutAnActiveServerProjectIsAWarningNotAFailedPlan()
+    public async Task Should_Warn_Rather_Than_Fail_The_Plan_On_Save_Without_An_Active_Server_Project()
     {
         await SeedImage();
         Reply("""{"reply":"saved","actions":[{"op":"rotate","dir":"right"},{"op":"save"}]}""");
@@ -125,7 +125,7 @@ public sealed class PromptSaveTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task SaveWithNoWorkingImageIsSkippedWithAWarning()
+    public async Task Should_Skip_With_A_Warning_On_Save_With_No_Working_Image()
     {
         // A blank starts the plan (so the pre-flight passes), then the save runs on it.
         RecordingServerService projects = new();
@@ -140,7 +140,7 @@ public sealed class PromptSaveTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task AServerRejectedSaveIsAWarningAndTheTurnStillReplies()
+    public async Task Should_Warn_And_Still_Reply_When_The_Server_Rejects_A_Save()
     {
         await SeedImage();
         await SeedActiveProject();

@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class OpPlanSaveTests
 {
     [Fact]
-    public void ParsesImageAndSaveWithTheirOptionalName()
+    public void Should_Parse_Image_And_Save_With_Their_Optional_Name()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """
@@ -32,7 +32,7 @@ public sealed class OpPlanSaveTests
     [InlineData("""{"op":"image","index":"1"}""")]
     [InlineData("""{"op":"image"}""")]
     [InlineData("""{"op":"image","index":1,"name":"x"}""")]
-    public void ImageIndexMustBeAWholeAttachmentNumber(string action)
+    public void Should_Require_A_Whole_Attachment_Number_For_Image_Index(string action)
     {
         OpPlanParseResult result = OpPlanParser.Parse($$"""{"reply":"x","actions":[{{action}}]}""");
         Assert.Null(result.Plan);
@@ -40,7 +40,7 @@ public sealed class OpPlanSaveTests
     }
 
     [Fact]
-    public void SaveNameIsBoundedTo120Characters()
+    public void Should_Bound_The_Save_Name_To_120_Characters()
     {
         string name = new('x', 121);
         OpPlanParseResult result = OpPlanParser.Parse(
@@ -50,7 +50,7 @@ public sealed class OpPlanSaveTests
     }
 
     [Fact]
-    public void SavePathIsTrimmedAndEmptyAfterTrimIsAbsent()
+    public void Should_Trim_The_Save_Path_And_Treat_Empty_After_Trim_As_Absent()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"x","actions":[{"op":"save","name":"p","path":"  ~/Downloads  "},{"op":"save","path":"   "}]}""");
@@ -60,7 +60,7 @@ public sealed class OpPlanSaveTests
     }
 
     [Fact]
-    public void SavePathIsBoundedTo1024Characters()
+    public void Should_Bound_The_Save_Path_To_1024_Characters()
     {
         string path = new('p', 1025);
         OpPlanParseResult result = OpPlanParser.Parse(
@@ -73,7 +73,7 @@ public sealed class OpPlanSaveTests
     [InlineData("""{"op":"save","path":"https://x.example/out.png"}""")]
     [InlineData("""{"op":"save","path":"file:///tmp/p.stencil"}""")]
     [InlineData("""{"op":"save","path":7}""")]
-    public void SavePathMustBeALocalPathString(string action)
+    public void Should_Require_A_Local_Path_String_For_Save_Path(string action)
     {
         OpPlanParseResult result = OpPlanParser.Parse($$"""{"reply":"x","actions":[{{action}}]}""");
         Assert.Null(result.Plan);
@@ -83,7 +83,7 @@ public sealed class OpPlanSaveTests
     [Theory]
     [InlineData("""{"op":"image","index":1}""")]
     [InlineData("""{"op":"save"}""")]
-    public void ImageAndSaveInsideAVariantOrPreviewCostThatVariantOnly(string action)
+    public void Should_Cost_Only_That_Variant_When_Image_And_Save_Sit_Inside_A_Variant_Or_Preview(string action)
     {
         OpPlanParseResult inVariant = OpPlanParser.Parse(
             $$"""{"reply":"x","variants":[{"label":"v","actions":[{{action}}]}]}""");

@@ -14,7 +14,7 @@ public sealed class ProgressNoticeTests
     private const long _chatId = 42;
 
     [Fact]
-    public async Task StartPostsTheFirstFrameImmediatelyAndStopRemovesIt()
+    public async Task Should_Post_The_First_Frame_Immediately_On_Start_And_Remove_It_On_Stop()
     {
         MockBotClient bot = new();
 
@@ -32,7 +32,7 @@ public sealed class ProgressNoticeTests
     }
 
     [Fact]
-    public async Task StoppingTwiceRemovesItOnce()
+    public async Task Should_Remove_It_Once_When_Stopped_Twice()
     {
         MockBotClient bot = new();
         ProgressNotice notice = await ProgressNotice.StartAsync(
@@ -45,7 +45,7 @@ public sealed class ProgressNoticeTests
     }
 
     [Fact]
-    public async Task AFailedSendLeavesTheTurnAloneAndDeletesNothing()
+    public async Task Should_Leave_The_Turn_Alone_And_Delete_Nothing_When_The_Send_Fails()
     {
         ThrowingBotClient bot = new();
 
@@ -57,7 +57,7 @@ public sealed class ProgressNoticeTests
     }
 
     [Fact]
-    public void TheFrameCyclesThroughEverySpinnerPosition()
+    public void Should_Cycle_The_Frame_Through_Every_Spinner_Position()
     {
         string[] cycle = [.. Enumerable.Range(0, ProgressNotice.Frames.Length)
             .Select(i => ProgressNotice.Frame(i, "x"))];

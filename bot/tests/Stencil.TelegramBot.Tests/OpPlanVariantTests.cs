@@ -23,7 +23,7 @@ public sealed class OpPlanVariantTests
     [InlineData("""{"op":"blankColor","color":"#dbeafe"}""", "§10")]
     [InlineData("""{"op":"projectColor","color":""}""", "§10")]
     [InlineData("""{"op":"export","what":"layout"}""", "§10")]
-    public void ProfileOpsInsideVariantsAndAskPreviewsAreDroppedWithAWarning(string action, string marker)
+    public void Should_Drop_Profile_Ops_With_A_Warning_When_Inside_Variants_And_Ask_Previews(string action, string marker)
     {
         OpPlanParseResult inVariant = OpPlanParser.Parse(
             $$"""{"reply":"x","variants":[{"label":"v","actions":[{{action}}]}]}""");
@@ -44,7 +44,7 @@ public sealed class OpPlanVariantTests
     // §1: losing a whole turn's work to one misplaced op taught the user nothing — the
     // top-level actions and the well-formed variants still run.
     [Fact]
-    public void OneMisplacedVariantIsDroppedWhileTheActionsAndGoodVariantsSurvive()
+    public void Should_Drop_One_Misplaced_Variant_While_The_Actions_And_Good_Variants_Survive()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """
@@ -64,7 +64,7 @@ public sealed class OpPlanVariantTests
     }
 
     [Fact]
-    public void APlanWhoseONLYVariantIsMisplacedStaysAValidPlan()
+    public void Should_Stay_A_Valid_Plan_When_The_Only_Variant_Is_Misplaced()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"here you go","variants":[{"label":"saved","actions":[{"op":"save"}]}]}""");
@@ -77,7 +77,7 @@ public sealed class OpPlanVariantTests
     }
 
     [Fact]
-    public void ADroppedVariantTakesItsOwnWarningsWithIt()
+    public void Should_Take_Its_Own_Warnings_Along_When_A_Variant_Is_Dropped()
     {
         // Nothing of that variant runs, so its unknown-op note has nothing left to explain.
         OpPlanParseResult result = OpPlanParser.Parse(
@@ -89,7 +89,7 @@ public sealed class OpPlanVariantTests
     }
 
     [Fact]
-    public void AKnownOpWithBadParamsInsideAVariantStillFailsTheWholePlan()
+    public void Should_Fail_The_Whole_Plan_For_A_Known_Op_With_Bad_Params_Inside_A_Variant()
     {
         // The leniency is only for MISPLACED ops — every other strictness is unchanged.
         OpPlanParseResult result = OpPlanParser.Parse(
@@ -100,7 +100,7 @@ public sealed class OpPlanVariantTests
     }
 
     [Fact]
-    public void AVariantToleratesUndeclaredKeysWhileItsLabelStaysAString()
+    public void Should_Tolerate_Undeclared_Keys_In_A_Variant_While_Its_Label_Stays_A_String()
     {
         // The envelope's variant objects carry allowUnknown (only ops are strict about fields).
         OpPlanParseResult ok = OpPlanParser.Parse(
@@ -111,7 +111,7 @@ public sealed class OpPlanVariantTests
     }
 
     [Fact]
-    public void HugeInvalidValuesAreNeverEchoedIntoTheErrorMessage()
+    public void Should_Never_Echo_Huge_Invalid_Values_Into_The_Error_Message()
     {
         string token = new('x', 500);
         OpPlanParseResult result = OpPlanParser.Parse(

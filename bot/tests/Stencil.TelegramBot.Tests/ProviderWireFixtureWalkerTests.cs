@@ -26,12 +26,12 @@ public sealed class ProviderWireFixtureWalkerTests
         SharedFixtures.TheoryNames(_files.SelectMany(f => SharedFixtures.CaseNames(pathFor(f))));
 
     [Fact]
-    public void TheCorpusHasEveryVector() =>
+    public void Should_Have_Every_Vector_In_The_Corpus() =>
         Assert.Equal(26, _files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count));
 
     [Theory]
     [MemberData(nameof(Vectors))]
-    public async Task VectorMatches(string name)
+    public async Task Should_Match_Each_Vector(string name)
     {
         string file = _files.First(f => SharedFixtures.CaseNames(pathFor(f)).Contains(name));
         using JsonDocument doc = SharedFixtures.Case(pathFor(file), name);

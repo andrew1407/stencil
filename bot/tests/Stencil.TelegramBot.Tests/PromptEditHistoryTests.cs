@@ -19,7 +19,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     public PromptEditHistoryTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task UndoStepsBackThroughTheEditHistoryLikeTheUndoCommand()
+    public async Task Should_Step_Back_Through_The_Edit_History_On_Undo_Like_The_Undo_Command()
     {
         await SeedImage();
         await _editing.RotateAsync(UserId, 1);
@@ -37,7 +37,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task UndoBeyondTheHistoryIsANoteNeverAFailedPlan()
+    public async Task Should_Note_Rather_Than_Fail_The_Plan_On_Undo_Beyond_The_History()
     {
         await SeedImage();
         await _editing.RotateAsync(UserId, 1);
@@ -52,7 +52,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task UndoWithAnEmptyHistorySaysNothingToUndo()
+    public async Task Should_Say_Nothing_To_Undo_On_Undo_With_An_Empty_History()
     {
         await SeedImage();
         Reply("""{"reply":"ok","actions":[{"op":"undo"}]}""");
@@ -64,7 +64,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task RedoReappliesTheMostRecentlyUndoneEdit()
+    public async Task Should_Reapply_The_Most_Recently_Undone_Edit_On_Redo()
     {
         await SeedImage();
         await _editing.RotateAsync(UserId, 1);
@@ -80,7 +80,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ResetDropsEveryPendingEditAndKeepsTheWorkingImage()
+    public async Task Should_Drop_Every_Pending_Edit_And_Keep_The_Working_Image_On_Reset()
     {
         await SeedImage();
         await _editing.RotateAsync(UserId, 1);
@@ -101,7 +101,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     // ── §10 clear (image + edits ONLY — the conversation survives) ──
 
     [Fact]
-    public async Task ClearRemovesTheImageAndEditsButTheConversationSurvives()
+    public async Task Should_Remove_The_Image_And_Edits_On_Clear_While_The_Conversation_Survives()
     {
         await SeedImage();
         Reply("chat");
@@ -122,7 +122,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ClearWithoutAWorkingImageIsANote()
+    public async Task Should_Note_On_Clear_Without_A_Working_Image()
     {
         Reply("""{"reply":"nothing there","actions":[{"op":"clear"}]}""");
 
@@ -135,7 +135,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     // ── §10 clearChat (deferred, outcome-level — the Bot layer confirms and clears) ──
 
     [Fact]
-    public async Task ClearChatOnlySetsTheDeferredRequestAndClearsNothingItself()
+    public async Task Should_Only_Set_The_Deferred_Request_And_Clear_Nothing_Itself_On_Clear_Chat()
     {
         await SeedImage();
         Reply("chat");
@@ -153,7 +153,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ClearChatOrderedFirstStillRunsTheOtherActionsAndDefersTheClear()
+    public async Task Should_Still_Run_The_Other_Actions_And_Defer_The_Clear_When_Clear_Chat_Is_Ordered_First()
     {
         await SeedImage();
         Reply("""{"reply":"bw then clear","actions":[{"op":"clearChat"},{"op":"filter","mode":"bw"}]}""");
@@ -170,7 +170,7 @@ public sealed class PromptEditHistoryTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ClearChatRunsWithoutAWorkingImage()
+    public async Task Should_Run_Clear_Chat_Without_A_Working_Image()
     {
         Reply("""{"reply":"sure","actions":[{"op":"clearChat"}]}""");
 

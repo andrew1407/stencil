@@ -13,7 +13,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class PromptTurnChromeTests : PromptHandlerTestBase
 {
     [Fact]
-    public async Task AFailedTurnOffersRetryAndTheButtonReRunsTheSamePrompt()
+    public async Task Should_Offer_Retry_On_A_Failed_Turn_And_Re_Run_The_Same_Prompt_From_The_Button()
     {
         await Dispatch("/blank");
         _llm.Throw = new LlmException("The AI service timed out.");
@@ -40,7 +40,7 @@ public sealed class PromptTurnChromeTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task RetryOnAnAlreadyAnsweredTurnSaysSoInsteadOfResending()
+    public async Task Should_Say_So_Instead_Of_Resending_On_Retry_For_An_Already_Answered_Turn()
     {
         await Dispatch("/blank");
 
@@ -51,7 +51,7 @@ public sealed class PromptTurnChromeTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task ARefusalCarriesNoRetryButton()
+    public async Task Should_Carry_No_Retry_Button_On_A_Refusal()
     {
         await Dispatch("/blank");
         _llm.Throw = new LlmException("The AI declined to answer that.", LlmFailure.REFUSAL);
@@ -66,7 +66,7 @@ public sealed class PromptTurnChromeTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task TheWaitNoticeGoesOutBeforeTheTurnAndIsGoneBeforeTheReply()
+    public async Task Should_Send_The_Wait_Notice_Before_The_Turn_And_Remove_It_Before_The_Reply()
     {
         await Dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply(
@@ -86,7 +86,7 @@ public sealed class PromptTurnChromeTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task TheWaitNoticeIsRemovedWhenTheTurnFailsToo()
+    public async Task Should_Remove_The_Wait_Notice_When_The_Turn_Fails_Too()
     {
         await Dispatch("/blank");
         _llm.Throw = new LlmException("The AI service timed out.", LlmFailure.ERROR);
@@ -101,7 +101,7 @@ public sealed class PromptTurnChromeTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task ExportActionsSendOneDocumentEachIntoTheChat()
+    public async Task Should_Send_One_Document_Each_Into_The_Chat_For_Export_Actions()
     {
         await Dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply(
@@ -119,7 +119,7 @@ public sealed class PromptTurnChromeTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task ClearPlanSendsNoPhotoAndTheConversationSurvivesIt()
+    public async Task Should_Send_No_Photo_For_A_Clear_Plan_While_The_Conversation_Survives_It()
     {
         await Dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply("Nice blank!"));

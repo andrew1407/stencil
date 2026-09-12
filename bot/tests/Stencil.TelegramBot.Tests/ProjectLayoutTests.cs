@@ -36,7 +36,7 @@ public sealed class ProjectLayoutTests
     // ── reading a fetched layout ──
 
     [Fact]
-    public void MapsRealRotatedAndCroppedProject()
+    public void Should_Map_A_Real_Rotated_And_Cropped_Project()
     {
         EditState edits = ProjectLayoutMapper.ToEditState(parse(_catLayout), 500, 330);
 
@@ -49,7 +49,7 @@ public sealed class ProjectLayoutTests
     }
 
     [Fact]
-    public void CustomFilterResolvesToTheTintColour()
+    public void Should_Resolve_A_Custom_Filter_To_The_Tint_Colour()
     {
         var layout = parse("""{ "imageFilter": "custom", "filterColor": "#ff5623", "lines": [] }""");
         Assert.Equal("#ff5623", ProjectLayoutMapper.ToEditState(layout, 100, 100).Filter);
@@ -60,14 +60,14 @@ public sealed class ProjectLayoutTests
     [InlineData("sepia")]
     [InlineData("invert")]
     [InlineData("contour")]
-    public void NamedFiltersMapThrough(string mode)
+    public void Should_Map_Named_Filters_Through(string mode)
     {
         var layout = parse($$"""{ "imageFilter": "{{mode}}", "lines": [] }""");
         Assert.Equal(mode, ProjectLayoutMapper.ToEditState(layout, 100, 100).Filter);
     }
 
     [Fact]
-    public void CropRectReadsCanonicalKeysAndCanonicalWins()
+    public void Should_Read_Canonical_Keys_For_Crop_Rect_And_Let_Canonical_Win()
     {
         // Canonical browser form {x,y,w,h} reads.
         var canonical = parse("""{ "cropRect": {"x":0,"y":16,"w":330,"h":467}, "rotationQuarters": 1, "lines": [] }""");
@@ -80,7 +80,7 @@ public sealed class ProjectLayoutTests
     }
 
     [Fact]
-    public void FullCoverCropIsSkipped()
+    public void Should_Skip_A_Full_Cover_Crop()
     {
         var layout = parse("""{ "rotationQuarters": 0, "cropRect": {"x":0,"y":0,"width":100,"height":80}, "lines": [] }""");
         EditState edits = ProjectLayoutMapper.ToEditState(layout, 100, 80);
@@ -92,7 +92,7 @@ public sealed class ProjectLayoutTests
     // ── writing it back ──
 
     [Fact]
-    public void PreservesCropAndPageWhileUpdatingBotFields()
+    public void Should_Preserve_Crop_And_Page_While_Updating_Bot_Fields()
     {
         // A fetched project layout the bot doesn't fully model (crop + page + formulas).
         string baseLayout = """
@@ -129,7 +129,7 @@ public sealed class ProjectLayoutTests
     [Theory]
     [InlineData("invert")]
     [InlineData("contour")]
-    public void InvertAndContourStayNamedFilters(string mode)
+    public void Should_Keep_Invert_And_Contour_As_Named_Filters(string mode)
     {
         JsonElement el = built(null, new EditState { Filter = mode }, 100, 100);
 
@@ -138,7 +138,7 @@ public sealed class ProjectLayoutTests
     }
 
     [Fact]
-    public void PageFormatOverridesTheFetchedPageSize()
+    public void Should_Override_The_Fetched_Page_Size_With_The_Page_Format()
     {
         JsonElement el = built("""{ "pageSize": "A4", "lines": [] }""", new EditState { PageFormat = "B5" }, 100, 100);
 
@@ -146,7 +146,7 @@ public sealed class ProjectLayoutTests
     }
 
     [Fact]
-    public void CustomPageFormatCarriesItsCmDimensions()
+    public void Should_Carry_The_Cm_Dimensions_For_A_Custom_Page_Format()
     {
         var edits = new EditState { PageFormat = "custom", CustomPageWidth = 10, CustomPageHeight = 15.5 };
         JsonElement el = built(null, edits, 100, 100);
@@ -157,7 +157,7 @@ public sealed class ProjectLayoutTests
     }
 
     [Fact]
-    public void BuildsAFreshLayoutWhenNoBaseIsGiven()
+    public void Should_Build_A_Fresh_Layout_When_No_Base_Is_Given()
     {
         JsonElement el = built(null, new EditState { Filter = "bw" }, 640, 480);
 
@@ -170,7 +170,7 @@ public sealed class ProjectLayoutTests
     // ── the two together ──
 
     [Fact]
-    public void WriteThenReadKeepsTheBotOwnedFields()
+    public void Should_Keep_The_Bot_Owned_Fields_On_Write_Then_Read()
     {
         // Map the fetched project, write it straight back, and map it again: the fields the bot
         // owns (rotation, filter, crop, lines) must survive the round trip unchanged.

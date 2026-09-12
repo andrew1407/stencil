@@ -29,7 +29,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     // model call, the traced lines are the result, and no self-check note reaches the reply.
 
     [Fact]
-    public async Task ALayoutTurnIssuesExactlyOneModelRound()
+    public async Task Should_Issue_Exactly_One_Model_Round_For_A_Layout_Turn()
     {
         await SeedImage();
         PromptService service = WithAttachments();
@@ -61,7 +61,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
         """;
 
     [Fact]
-    public async Task AStrayLineNoLongerTriggersAnyFollowUpRound()
+    public async Task Should_Trigger_No_Follow_Up_Round_For_A_Stray_Line()
     {
         await SeedImage();
         PromptService service = WithAttachments();
@@ -77,7 +77,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task NoSelfCheckOrCorrectionNoteEverReachesTheReply()
+    public async Task Should_Let_No_Self_Check_Or_Correction_Note_Reach_The_Reply()
     {
         await SeedImage();
         PromptService service = WithAttachments();
@@ -94,7 +94,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ALayoutTurnRendersNothingExtraForAWithdrawnPass()
+    public async Task Should_Render_Nothing_Extra_For_A_Withdrawn_Pass_On_A_Layout_Turn()
     {
         await SeedImage();
         PromptService service = WithAttachments();
@@ -110,7 +110,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task CropBeforeLayoutRemapsThePointsIntoTheCroppedFrame()
+    public async Task Should_Remap_The_Points_Into_The_Cropped_Frame_When_Crop_Precedes_Layout()
     {
         await SeedImage();   // 640x480
         Reply(
@@ -131,7 +131,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task RotateBeforeLayoutRemapsThePointsThroughTheRotation()
+    public async Task Should_Remap_The_Points_Through_The_Rotation_When_Rotate_Precedes_Layout()
     {
         await SeedImage();   // 640x480
         Reply(
@@ -151,7 +151,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task LayoutOnlyPlanStillClampsOutOfBoundsPoints()
+    public async Task Should_Still_Clamp_Out_Of_Bounds_Points_For_A_Layout_Only_Plan()
     {
         await SeedImage();   // 640x480
         Reply(
@@ -169,7 +169,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task SessionsStoredRotationSeedsTheSnapshotFrameForClamping()
+    public async Task Should_Seed_The_Snapshot_Frame_For_Clamping_From_The_Sessions_Stored_Rotation()
     {
         await SeedImage();                       // 640x480
         await _editing.RotateAsync(UserId, 1);   // the model was shown a 480x640 snapshot
@@ -183,7 +183,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task VariantLayoutRemapsThroughTheVariantsOwnPrecedingSteps()
+    public async Task Should_Remap_A_Variant_Layout_Through_The_Variants_Own_Preceding_Steps()
     {
         await SeedImage();   // 640x480
         Reply(

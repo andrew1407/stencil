@@ -19,7 +19,7 @@ public sealed class PromptPageTests : PromptServiceTestBase
     public PromptPageTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task FormulaEnabledFalseClearsBothAxes()
+    public async Task Should_Clear_Both_Axes_When_Formula_Enabled_Is_False()
     {
         await SeedImage();
         Reply(
@@ -38,7 +38,7 @@ public sealed class PromptPageTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task FormulaEmptyExprClearsThatAxisOnly()
+    public async Task Should_Clear_That_Axis_Only_When_A_Formula_Expr_Is_Empty()
     {
         await SeedImage();
         Reply(
@@ -57,7 +57,7 @@ public sealed class PromptPageTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task PageCustomDimsSetTheCustomPageSize()
+    public async Task Should_Set_The_Custom_Page_Size_From_Page_Custom_Dims()
     {
         await SeedImage();
         Reply("""{"reply":"sized","actions":[{"op":"page","width":20,"height":30}]}""");
@@ -71,7 +71,7 @@ public sealed class PromptPageTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task BlankWithCmDimsMakesTheCanvasThatSizeInPixels()
+    public async Task Should_Make_The_Canvas_That_Size_In_Pixels_For_Blank_With_Cm_Dims()
     {
         Reply("""{"reply":"made","actions":[{"op":"blank","color":"#ffffff","width":10,"height":15}]}""");
 
@@ -91,7 +91,7 @@ public sealed class PromptPageTests : PromptServiceTestBase
     // ── the widened §10 context suffix ──
 
     [Fact]
-    public async Task ContextSuffixCarriesPenDefaultsAndThePendingEditStackSize()
+    public async Task Should_Carry_Pen_Defaults_And_The_Pending_Edit_Stack_Size_In_The_Context_Suffix()
     {
         await SeedImage();
         await _editing.ConfigurePenAsync(UserId, "#00ff00", 3, null, "dashed", null);
@@ -110,7 +110,7 @@ public sealed class PromptPageTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ContextSuffixListsProjectNamesCappedAtTwentyPerServer()
+    public async Task Should_List_Project_Names_Capped_At_Twenty_Per_Server_In_The_Context_Suffix()
     {
         await SeedImage();
         await SeedConnections(Saved("http://alpha:8090", "ta"));
@@ -135,7 +135,7 @@ public sealed class PromptPageTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task AnUnreachableListingOmitsTheProjectsLineAndNeverFailsTheTurn()
+    public async Task Should_Omit_The_Projects_Line_And_Never_Fail_The_Turn_When_The_Listing_Is_Unreachable()
     {
         await SeedImage();
         await SeedConnections(Saved("http://alpha:8090", "ta"));

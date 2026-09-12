@@ -19,7 +19,7 @@ public sealed class PromptPlanTests : PromptServiceTestBase
     public PromptPlanTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task ChatOnlyTurnSendsNoRenderAndReturnsTheRawText()
+    public async Task Should_Send_No_Render_And_Return_The_Raw_Text_For_A_Chat_Only_Turn()
     {
         await SeedImage();
         int baseline = _cli.EditCalls;
@@ -33,7 +33,7 @@ public sealed class PromptPlanTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task ActionsFoldIntoTheSessionStateAndFlagTheMainRenderForTheCaller()
+    public async Task Should_Fold_Actions_Into_The_Session_State_And_Flag_The_Main_Render_For_The_Caller()
     {
         await SeedImage();
         int baseline = _cli.EditCalls;
@@ -67,7 +67,7 @@ public sealed class PromptPlanTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task TwoVariantsRenderTwiceFromStateCopiesWithoutMutatingTheSession()
+    public async Task Should_Render_Twice_From_State_Copies_Without_Mutating_The_Session_For_Two_Variants()
     {
         await SeedImage();
         int baseline = _cli.EditCalls;
@@ -96,7 +96,7 @@ public sealed class PromptPlanTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task VariantsBranchFromTheStateAfterTopLevelActions()
+    public async Task Should_Branch_Variants_From_The_State_After_Top_Level_Actions()
     {
         await SeedImage();
         Reply(
@@ -119,7 +119,7 @@ public sealed class PromptPlanTests : PromptServiceTestBase
     // Contract §1: a variant carrying a top-level-only / settings op costs THAT variant its
     // place — the turn's real work (the actions and the sound variant) still lands.
     [Fact]
-    public async Task AMisplacedOpDropsOnlyItsOwnVariantAndTheRestOfThePlanRuns()
+    public async Task Should_Drop_Only_Its_Own_Variant_And_Run_The_Rest_Of_The_Plan_For_A_Misplaced_Op()
     {
         await SeedImage();
         Reply(
@@ -145,7 +145,7 @@ public sealed class PromptPlanTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task APlanWhoseOnlyVariantIsDroppedRepliesNormallyWithTheWarning()
+    public async Task Should_Reply_Normally_With_The_Warning_For_A_Plan_Whose_Only_Variant_Is_Dropped()
     {
         await SeedImage();
         int baseline = _cli.EditCalls;
@@ -161,7 +161,7 @@ public sealed class PromptPlanTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task UnknownOpWarningSurvivesIntoTheOutcome()
+    public async Task Should_Carry_The_Unknown_Op_Warning_Into_The_Outcome()
     {
         await SeedImage();
         Reply("""{"reply":"ok","actions":[{"op":"sharpen"},{"op":"filter","mode":"bw"}]}""");
@@ -174,7 +174,7 @@ public sealed class PromptPlanTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task InvalidPlanExecutesNothing()
+    public async Task Should_Execute_Nothing_For_An_Invalid_Plan()
     {
         await SeedImage();
         int baseline = _cli.EditCalls;
@@ -190,7 +190,7 @@ public sealed class PromptPlanTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task FrameOpWithoutAVideoIsAPlanLevelErrorAndNothingRuns()
+    public async Task Should_Raise_A_Plan_Level_Error_And_Run_Nothing_For_A_Frame_Op_Without_A_Video()
     {
         await SeedImage(); // an image, but no video source
         int baseline = _cli.EditCalls;

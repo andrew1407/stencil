@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class OpPlanProfileTests
 {
     [Fact]
-    public void LineStyleTakesAnySubsetOfThePenFields()
+    public void Should_Accept_Any_Subset_Of_The_Pen_Fields_For_Line_Style()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """
@@ -47,7 +47,7 @@ public sealed class OpPlanProfileTests
     [InlineData("""{"op":"lineStyle","color":"#12"}""")]
     [InlineData("""{"op":"lineStyle","pointColor":"red"}""")]       // hex or "" only
     [InlineData("""{"op":"lineStyle","width":2}""")]                // unknown field
-    public void LineStyleRejectsBadFields(string action)
+    public void Should_Reject_Bad_Fields_For_Line_Style(string action)
     {
         OpPlanParseResult result = OpPlanParser.Parse($$"""{"reply":"x","actions":[{{action}}]}""");
         Assert.Null(result.Plan);
@@ -57,7 +57,7 @@ public sealed class OpPlanProfileTests
     // ── §10 openUrl ──
 
     [Fact]
-    public void OpenUrlParsesAnHttpUrlTrimmedWithAnOptionalIncognito()
+    public void Should_Parse_A_Trimmed_Http_Url_With_An_Optional_Incognito_For_Open_Url()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"openUrl","url":" https://pics.example/cat.png ","incognito":true}]}""");
@@ -76,7 +76,7 @@ public sealed class OpPlanProfileTests
     [InlineData("""{"op":"openUrl","url":"http://a b/c.png"}""")]
     [InlineData("""{"op":"openUrl","url":"https://x/a.png","incognito":"yes"}""")]
     [InlineData("""{"op":"openUrl","url":"https://x/a.png","cookies":true}""")]
-    public void OpenUrlRejectsNonHttpShapes(string action)
+    public void Should_Reject_Non_Http_Shapes_For_Open_Url(string action)
     {
         OpPlanParseResult result = OpPlanParser.Parse($$"""{"reply":"x","actions":[{{action}}]}""");
         Assert.Null(result.Plan);
@@ -86,7 +86,7 @@ public sealed class OpPlanProfileTests
     // ── §10 renameProject / describe / blankColor / projectColor / export ──
 
     [Fact]
-    public void RenameProjectTrimsAndBoundsTheName()
+    public void Should_Trim_And_Bound_The_Name_For_Rename_Project()
     {
         OpPlanParseResult ok = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"renameProject","name":" Poster draft "}]}""");
@@ -101,7 +101,7 @@ public sealed class OpPlanProfileTests
     }
 
     [Fact]
-    public void DescribeTakesUpTo500CharsAndEmptyClears()
+    public void Should_Take_Up_To_500_Chars_And_Clear_On_Empty_For_Describe()
     {
         OpPlanParseResult empty = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"describe","text":""}]}""");
@@ -120,7 +120,7 @@ public sealed class OpPlanProfileTests
     }
 
     [Fact]
-    public void BlankColorAndProjectColorValidateTheirColours()
+    public void Should_Validate_The_Colours_For_Blank_Color_And_Project_Color()
     {
         OpPlanParseResult ok = OpPlanParser.Parse(
             """
@@ -139,7 +139,7 @@ public sealed class OpPlanProfileTests
     }
 
     [Fact]
-    public void ExportTakesLayoutOrProjectOnly()
+    public void Should_Take_Layout_Or_Project_Only_For_Export()
     {
         OpPlanParseResult ok = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"export","what":"layout"},{"op":"export","what":"project"}]}""");

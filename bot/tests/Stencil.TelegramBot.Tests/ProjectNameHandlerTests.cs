@@ -40,7 +40,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
         _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
     [Fact]
-    public async Task RelabelsTheLocalWorkingImageWithoutTouchingTheServer()
+    public async Task Should_Relabel_The_Local_Working_Image_Without_Touching_The_Server()
     {
         await dispatch("/blank");
         await dispatch("/project-name Poster draft");
@@ -52,7 +52,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task WithNoWorkingImageAsksForOne()
+    public async Task Should_Ask_For_A_Working_Image_When_There_Is_None()
     {
         await dispatch("/project-name Whatever");
 
@@ -63,7 +63,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task BlankArgumentSendsUsageAndKeepsTheLabel()
+    public async Task Should_Send_Usage_And_Keep_The_Label_On_A_Blank_Argument()
     {
         await dispatch("/blank");
         UserSession before = await _store.GetAsync(_userId);
@@ -77,7 +77,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task DescriptionIsHeldLocallyAndShownInStatusBeforeSaving()
+    public async Task Should_Hold_The_Description_Locally_And_Show_It_In_Status_Before_Saving()
     {
         await dispatch("/blank");
         await dispatch("/project-description A red study");
@@ -88,7 +88,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task EmptyDescriptionClearsTheLocalDescription()
+    public async Task Should_Clear_The_Local_Description_On_An_Empty_Description()
     {
         await dispatch("/blank");
         await dispatch("/project-description Something");

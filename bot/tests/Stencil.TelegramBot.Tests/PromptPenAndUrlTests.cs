@@ -19,7 +19,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     public PromptPenAndUrlTests(PromptServiceFixture fixture) : base(fixture) { }
 
     [Fact]
-    public async Task LineStyleConfiguresThePenDefaultsWithoutTouchingThePixels()
+    public async Task Should_Configure_The_Pen_Defaults_Without_Touching_The_Pixels_On_Line_Style()
     {
         await SeedImage();
         int baseline = _cli.EditCalls;
@@ -43,7 +43,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task LineStyleFieldsTheBotDoesNotModelAreNotedAndSkipped()
+    public async Task Should_Note_And_Skip_Line_Style_Fields_The_Bot_Does_Not_Model()
     {
         await SeedImage();
         Reply(
@@ -66,7 +66,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     private const string _echoUrl = "http://203.0.113.9/cat.png";
 
     [Fact]
-    public async Task OpenUrlLoadsTheLinkTheUserWroteAndLaterActionsActOnTheFetchedImage()
+    public async Task Should_Load_The_Link_The_User_Wrote_On_Open_Url_And_Act_On_The_Fetched_Image_In_Later_Actions()
     {
         Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{_echoUrl}}"},{"op":"filter","mode":"bw"}]}""");
 
@@ -85,7 +85,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task OpenUrlTheUserNeverWroteFailsTheWholePlan()
+    public async Task Should_Fail_The_Whole_Plan_On_Open_Url_The_User_Never_Wrote()
     {
         await SeedImage();
         int baseline = _cli.EditCalls;
@@ -103,7 +103,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task OpenUrlEchoedInAnEarlierTurnStillCounts()
+    public async Task Should_Still_Count_An_Open_Url_Echoed_In_An_Earlier_Turn()
     {
         Reply("chat");
         await Prompt($"remember this link: {_echoUrl}");
@@ -117,7 +117,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task OpenUrlKeepsTheUrlPathsSsrfVettingAsANote()
+    public async Task Should_Keep_The_Url_Paths_Ssrf_Vetting_As_A_Note_On_Open_Url()
     {
         await SeedImage();
         string local = "http://127.0.0.1/secret.png";
@@ -133,7 +133,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task OpenUrlIncognitoIsIgnoredWithANote()
+    public async Task Should_Ignore_Incognito_With_A_Note_On_Open_Url()
     {
         Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{_echoUrl}}","incognito":true}]}""");
 
@@ -145,7 +145,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     }
 
     [Fact]
-    public async Task OpenUrlPlanContinuesOnceWithTheFetchedImage()
+    public async Task Should_Continue_Once_With_The_Fetched_Image_For_An_Open_Url_Plan()
     {
         PromptService service = WithAttachments();
         Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{_echoUrl}}"}]}""");

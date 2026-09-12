@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class PromptHandlerTests : PromptHandlerTestBase
 {
     [Fact]
-    public async Task BarePromptSendsTheUsageHintAndNeverCallsTheLlm()
+    public async Task Should_Send_The_Usage_Hint_And_Never_Call_The_Llm_On_A_Bare_Prompt()
     {
         await Dispatch("/prompt");
 
@@ -21,7 +21,7 @@ public sealed class PromptHandlerTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task PromptWithAnActionPlanSendsTheReplyThenThePhoto()
+    public async Task Should_Send_The_Reply_Then_The_Photo_For_A_Prompt_With_An_Action_Plan()
     {
         await Dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply(
@@ -40,7 +40,7 @@ public sealed class PromptHandlerTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task ShortAliasPDispatchesToo()
+    public async Task Should_Dispatch_On_The_Short_Alias_P_Too()
     {
         await Dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply("Just chatting."));
@@ -55,7 +55,7 @@ public sealed class PromptHandlerTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task VariantsGoOutAsOneMediaGroup()
+    public async Task Should_Send_Variants_As_One_Media_Group()
     {
         await Dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply(
@@ -72,7 +72,7 @@ public sealed class PromptHandlerTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task UnknownOpWarningIsAppendedToTheReply()
+    public async Task Should_Append_The_Unknown_Op_Warning_To_The_Reply()
     {
         await Dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply(
@@ -87,7 +87,7 @@ public sealed class PromptHandlerTests : PromptHandlerTestBase
     }
 
     [Fact]
-    public async Task LlmFailuresAreShownAsChatTextNotCrashes()
+    public async Task Should_Show_Llm_Failures_As_Chat_Text_Not_Crashes()
     {
         await Dispatch("/blank");
         _llm.Throw = new LlmException("The AI response was cut off at the token limit — try a shorter or simpler request.", LlmFailure.TRUNCATED);
