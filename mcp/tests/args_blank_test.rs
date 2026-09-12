@@ -93,6 +93,7 @@ fn blank_page_and_dims_are_rejected() {
     assert!(err.contains("mutually exclusive"), "got: {err}");
 }
 
+#[test]
 fn blank_half_dimensions_are_rejected() {
     let p = params(json!({ "blank": { "width": 800 }, "output": "out.png" }));
     let err = build_argv(&p, None).unwrap_err().to_string();
