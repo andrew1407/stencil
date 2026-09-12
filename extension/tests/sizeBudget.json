@@ -17,7 +17,7 @@
     "extension/src/lib/overlay.js": 234,
     "extension/src/lib/stencil.js": 311,
     "extension/src/llm/chatController.js": 230,
-    "extension/src/llm/opPlan.js": 314,
+    "extension/src/llm/opPlan.js": 156,
     "extension/src/options/options.js": 32,
     "extension/src/popup/assistant.js": 109,
     "extension/src/popup/editorMode.js": 157,
