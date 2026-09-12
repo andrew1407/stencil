@@ -32,7 +32,6 @@
     "desktop/src/support/iconMotion.hpp": 252,
     "desktop/src/support/menuReveal.cpp": 380,
     "desktop/src/support/modalReveal.cpp": 539,
-    "desktop/src/support/notifications.cpp": 373,
     "desktop/src/support/tipContent.cpp": 569,
     "desktop/tests/coEdit.headless.cpp": 268,
     "desktop/tests/connectRow.headless.cpp": 601,

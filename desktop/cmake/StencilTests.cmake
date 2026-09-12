@@ -264,7 +264,7 @@ stencil_headless_test(stencil_projecttransfer_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/projectTransfer.headless.cpp src/app/projectTransferController.cpp src/app/projectTransferImport.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
-    ${STENCIL_THEME_SOURCES} src/support/notifications.cpp src/support/iconSet.cpp
+    ${STENCIL_THEME_SOURCES} src/support/notifications.cpp src/support/notificationsStack.cpp src/support/iconSet.cpp
     src/support/modalReveal.cpp   # notifications' toast dust needs motionReduced()
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
@@ -289,7 +289,7 @@ stencil_headless_test(stencil_livefeed_headless
 stencil_headless_test(stencil_notifications_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/notifications.headless.cpp src/support/notifications.cpp
+    tests/notifications.headless.cpp src/support/notifications.cpp src/support/notificationsStack.cpp
     src/support/iconSet.cpp
     src/support/modalReveal.cpp   # the toast dust flight needs motionReduced()
     resources/app.qrc

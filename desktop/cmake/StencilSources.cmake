@@ -349,6 +349,7 @@ set(STENCIL_GUI_SOURCES
   src/io/mediaTypes.cpp
   ${STENCIL_THEME_SOURCES}
   src/support/notifications.cpp
+  src/support/notificationsStack.cpp
   src/support/guiHelpers.cpp
   src/support/guiHelpersColor.cpp
   src/support/menuReveal.cpp
