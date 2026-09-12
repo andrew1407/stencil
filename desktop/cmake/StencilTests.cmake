@@ -463,7 +463,7 @@ stencil_headless_test(stencil_llmexecutor_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/llmExecutor.headless.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
-    ${STENCIL_OPSCHEMA_SOURCES} src/llm/planExecutor.cpp ${STENCIL_CANVAS_SOURCES}
+    ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_PLANEXECUTOR_SOURCES} ${STENCIL_CANVAS_SOURCES}
     src/canvas/idleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets)

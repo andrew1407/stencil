@@ -428,98 +428,8 @@ namespace stencil::llm {
 
   }  // namespace
 
-  bool PlanTarget::extractFrames(const QVector<int>&, QString* err) {
-    if (err) *err = QStringLiteral("frame: video frames are not available here");
-    return false;
-  }
-
-  void PlanTarget::setPageCustom(double, double) {}
-  void PlanTarget::setDefaultLineStyle(const Action&) {}
-  void PlanTarget::setViewVisibility(int, int) {}
-
-  int PlanTarget::stepHistory(bool, int) { return -1; }
-
-  void PlanTarget::setAccentPreset(const QString&, QString* note) {
-    if (note) *note = QStringLiteral("accent presets are not available here");
-  }
-
-  bool PlanTarget::copyLayout(QString* err) {
-    if (err) *err = QStringLiteral("copy: the layout clipboard is not available here");
-    return false;
-  }
-
-  bool PlanTarget::setCompare(const QString&, double, QString* err) {
-    if (err) *err = QStringLiteral("compare: the compare view is not available here");
-    return false;
-  }
-
-  bool PlanTarget::setZoom(int, bool, QString* err) {
-    if (err) *err = QStringLiteral("zoom: the view zoom is not available here");
-    return false;
-  }
-
-  bool PlanTarget::renameActiveProject(const QString&, QString* note) {
-    if (note) *note = QStringLiteral("renameProject: managing projects is not available here");
-    return false;
-  }
-
-  bool PlanTarget::setProjectColor(const QString&, QString* note) {
-    if (note) *note = QStringLiteral("projectColor: managing projects is not available here");
-    return false;
-  }
-
   bool PlanTarget::setBlankColor(const QString&, QString* note) {
     if (note) *note = QStringLiteral("blankColor: not available here");
-    return false;
-  }
-
-  bool PlanTarget::openProjectNamed(const QString&, bool, QString* note) {
-    if (note) *note = QStringLiteral("openProject: managing projects is not available here");
-    return false;
-  }
-
-  bool PlanTarget::setIncognito(bool, QString* note) {
-    if (note) *note = QStringLiteral("incognito: not available here");
-    return false;
-  }
-
-  bool PlanTarget::setChatPlacement(int, const QString&, QString* note) {
-    if (note) *note = QStringLiteral("chatPanel: there is no assistant panel here");
-    return false;
-  }
-
-  bool PlanTarget::openDialog(const QString&, QString* note) {
-    if (note) *note = QStringLiteral("dialog: there are no windows to open here");
-    return false;
-  }
-
-  bool PlanTarget::connectServer(const QString&, QString* err) {
-    if (err) *err = QStringLiteral("connect: not available here");
-    return false;
-  }
-
-  bool PlanTarget::copyImage(QString* err) {
-    if (err) *err = QStringLiteral("copy: not available here");
-    return false;
-  }
-
-  bool PlanTarget::disconnectServer(const QString&, QString* err) {
-    if (err) *err = QStringLiteral("disconnect: not available here");
-    return false;
-  }
-
-  bool PlanTarget::removeProjectNamed(const QString&, bool, QString* note) {
-    if (note) *note = QStringLiteral("removeProject: managing projects is not available here");
-    return false;
-  }
-
-  bool PlanTarget::clearProjects(bool, QString* note) {
-    if (note) *note = QStringLiteral("clearProjects: managing projects is not available here");
-    return false;
-  }
-
-  bool PlanTarget::openUrl(const QString&, bool, QString* err) {
-    if (err) *err = QStringLiteral("openUrl: not available here");
     return false;
   }
 
@@ -555,104 +465,6 @@ namespace stencil::llm {
     return false;  // a bare "/" grants nothing
   }
 
-  bool PlanTarget::openFile(const QString&, QString* err) {
-    if (err) *err = QStringLiteral("openFile: reading local files is not available here");
-    return false;
-  }
-
-  bool PlanTarget::clearChat(QString* note) {
-    if (note) *note = QStringLiteral("clearChat: there is no conversation to clear here");
-    return false;
-  }
-
-  bool PlanTarget::loadAttachment(int, QString* err) {
-    if (err) *err = QStringLiteral("this surface cannot switch to attached images");
-    return false;
-  }
-
-  bool PlanTarget::saveProject(const QString&, const QString&, QString* err) {
-    if (err) *err = QStringLiteral("save: saving projects is not available here");
-    return false;
-  }
-
-  QString resolveServerRef(const QString& ref, const QStringList& saved) {
-    const QString want = ref.trimmed();
-    if (want.isEmpty()) return QString();
-    for (const QString& s : saved)  // exact URL first
-      if (QString::compare(s, want, Qt::CaseInsensitive) == 0) return s;
-    const QString host = QUrl::fromUserInput(want).host();
-    if (host.isEmpty()) return QString();
-    QString found;
-    for (const QString& s : saved) {
-      if (QUrl(s).host().compare(host, Qt::CaseInsensitive) == 0) {
-        if (!found.isEmpty()) return QString();  // ambiguous host — refuse
-        found = s;
-      }
-    }
-    return found;
-  }
-
-
-  CanvasPlanTarget::CanvasPlanTarget(const QImage& image, const core::PageSize& pageCm)
-      : canvas_(std::make_unique<gui::CanvasWidget>()), page_(pageCm) {
-    canvas_->setPageCm(page_.width, page_.height);
-    if (!image.isNull()) {
-      // Adopt the snapshot 1:1 — a FULL-frame crop, so a variant starts from
-      // exactly the working image (no default page-aspect auto-crop).
-      canvas_->loadFromImage(
-          image,
-          core::CropRect{0, 0, static_cast<double>(image.width()),
-                         static_cast<double>(image.height())},
-          0);
-    }
-  }
-
-  CanvasPlanTarget::~CanvasPlanTarget() = default;
-
-  bool CanvasPlanTarget::hasImage() const { return canvas_->hasImage(); }
-
-  QSize CanvasPlanTarget::effectiveOriginalSize() const {
-    return canvas_->effectiveOriginalImage().size();
-  }
-
-  QSize CanvasPlanTarget::workingSize() const { return canvas_->image().size(); }
-
-  bool CanvasPlanTarget::applyCropRect(const core::CropRect& rect) {
-    canvas_->applyCrop(rect, /*recalc=*/true);
-    return true;
-  }
-
-  void CanvasPlanTarget::rotateQuarter(bool clockwise) { canvas_->rotateImage(clockwise); }
-
-  void CanvasPlanTarget::setImageFilter(const QString& mode, const QString& tintHex) {
-    if (tintHex.isEmpty()) canvas_->setFilter(mode);
-    else canvas_->setImageFilter(mode, QColor(tintHex));
-  }
-
-  void CanvasPlanTarget::setLayoutLines(const core::Lines& lines) {
-    canvas_->setLines(lines);
-  }
-
-  void CanvasPlanTarget::setFormula(QChar axis, const QString& expr) {
-    (axis == QLatin1Char('x') ? formulaX : formulaY) = expr;
-  }
-
-  void CanvasPlanTarget::setPageFormat(const QString& isoName) {
-    pageFormat = isoName;
-    const core::PageSize ps = core::namedPageSize(isoName.toStdString());
-    if (ps.width > 0) {
-      page_ = ps;
-      canvas_->setPageCm(page_.width, page_.height);
-    }
-  }
-
-  void CanvasPlanTarget::setPageCustom(double widthCm, double heightCm) {
-    pageCustomW = widthCm;
-    pageCustomH = heightCm;
-    page_ = {widthCm, heightCm};
-    canvas_->setPageCm(page_.width, page_.height);
-  }
-
   bool CanvasPlanTarget::newBlank(const QString& color, const QString& isoName,
                                   double widthCm, double heightCm, QString* err) {
     core::PageSize page = page_;
@@ -677,52 +489,6 @@ namespace stencil::llm {
         core::CropRect{0, 0, static_cast<double>(px.width), static_cast<double>(px.height)},
         0);
     blank_ = true;
-    return true;
-  }
-
-  int CanvasPlanTarget::stepHistory(bool redo, int steps) {
-    int done = 0;
-    for (; done < steps; ++done) {
-      if (redo ? !canvas_->canRedo() : !canvas_->canUndo()) break;
-      if (redo) canvas_->redo();
-      else canvas_->undo();
-    }
-    return done;
-  }
-
-  void CanvasPlanTarget::setDefaultLineStyle(const Action& a) {
-    if (!a.color.isEmpty()) lsColor = a.color;
-    if (a.thickness > 0) lsThickness = a.thickness;
-    if (a.pointSize > 0) lsPointSize = a.pointSize;
-    if (!a.style.isEmpty()) lsStyle = a.style;
-    if (a.pointColorSet) {
-      lsPointColor = a.pointColor;
-      lsPointColorSet = true;
-    }
-    if (!a.drawMode.isEmpty()) lsDrawMode = a.drawMode;
-  }
-
-  void CanvasPlanTarget::setViewVisibility(int points, int lines) {
-    if (points >= 0) viewPoints = points;
-    if (lines >= 0) viewLines = lines;
-  }
-
-  bool CanvasPlanTarget::hasDrawnLines() const { return !canvas_->lines().empty(); }
-
-  bool CanvasPlanTarget::setCompare(const QString& mode, double split, QString*) {
-    compareMode = mode;
-    canvas_->setCompareMode(mode);
-    if (split > 0) {
-      compareSplit = split;
-      canvas_->setCompareSplit(split);
-    }
-    return true;
-  }
-
-  bool CanvasPlanTarget::setZoom(int percent, bool fit, QString*) {
-    zoomPercent = percent;
-    zoomFit = fit;
-    if (!fit && percent > 0) canvas_->setScale(percent / 100.0);
     return true;
   }
 
@@ -751,10 +517,6 @@ namespace stencil::llm {
     if (!keep.empty()) canvas_->setLines(keep);
     blank_ = true;  // loadFromImage doesn't change what this canvas holds
     return true;
-  }
-
-  QImage CanvasPlanTarget::renderResult() const {
-    return canvas_->renderToImage(/*withOverlay=*/true);
   }
 
 
@@ -827,5 +589,5 @@ namespace stencil::llm {
     res.ok = true;
     return res;
   }
-
 }  // namespace stencil::llm
+

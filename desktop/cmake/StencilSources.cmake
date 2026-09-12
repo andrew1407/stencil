@@ -120,6 +120,13 @@ set(STENCIL_SERVERCLIENT_SOURCES
   src/net/serverClientWrites.cpp
   src/net/serverClientManager.cpp)
 
+# The plan executor (llm/planExecutor.hpp) is three TUs: the action dispatch, the
+# MainWindow plan target and the canvas plan target.
+set(STENCIL_PLANEXECUTOR_SOURCES
+  src/llm/planExecutor.cpp
+  src/llm/planExecutorOps.cpp
+  src/llm/planExecutorCanvas.cpp)
+
 # The op-schema validator (llm/opSchema.hpp) is three TUs behind a private checks header:
 # the table and limits, the per-kind field checks, and the action/ask validation.
 set(STENCIL_OPSCHEMA_SOURCES
@@ -300,7 +307,7 @@ set(STENCIL_GUI_SOURCES
   src/llm/llmClient.cpp
   src/llm/llmClientProbe.cpp
   src/llm/llmClientChat.cpp
-  src/llm/planExecutor.cpp
+  ${STENCIL_PLANEXECUTOR_SOURCES}
   src/llm/qtLlmTransport.cpp
   src/support/tipContent.cpp
   ${STENCIL_CANVAS_SOURCES}
