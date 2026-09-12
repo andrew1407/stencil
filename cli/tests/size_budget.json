@@ -29,6 +29,7 @@
   },
   "commentPct": {
     "cli/src": 14,
+    "cli/src/bench": 11,
     "cli/src/console": 15,
     "cli/src/console/handlers": 12,
     "cli/src/console/llm": 17,

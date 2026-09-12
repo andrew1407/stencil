@@ -39,6 +39,8 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
+// Registration only (tests/test_registration_test.zig): these reach the `zig build bench`
+// exe, not the test build, so a compile error here surfaces on a bench run.
 test {
     _ = @import("bench/adapters.zig");
     _ = @import("bench/fixtures.zig");
