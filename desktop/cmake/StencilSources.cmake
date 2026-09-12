@@ -202,6 +202,8 @@ set(STENCIL_GUI_SOURCES
   src/app/mainWindowActionsWiring.cpp
   src/app/mainWindowExportMenu.cpp
   src/app/mainWindowToolbar.cpp
+  src/app/mainWindowToolbarHeader.cpp
+  src/app/mainWindowToolbarRows.cpp
   src/app/mainWindowToolbarSections.cpp
   src/app/mainWindowToolbarName.cpp
   src/app/mainWindowToolbarPage.cpp

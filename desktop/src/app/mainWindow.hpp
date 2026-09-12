@@ -137,12 +137,11 @@ namespace stencil::gui {
     // defaultPointColor when set, else the line colour it inherits (core pointColorOr).
     QColor effectiveDefaultPointColor() const;
     void showContextMenu(const QPoint& globalPos);
-    // Follows the canvas's split-compare state: shows/hides the "With Compare" actions and
-    // moves the real Ctrl+C / Ctrl+Shift+D onto whichever is the primary gesture. Must run
-    // after applyTheme too — styleActionIcons() resets the split action's icon otherwise.
+    // Follows the canvas's split-compare state: shows/hides the "With Compare" actions and moves
+    // the real Ctrl+C / Ctrl+Shift+D onto whichever is the primary gesture. Must run after
+    // applyTheme too — styleActionIcons() resets the split action's icon otherwise.
     void syncSplitCopyDownloadSlot();
-    // Re-sync the persistent context-menu actions to live canvas state. Called as the
-    // first statement of showContextMenu().
+    // Called as the first statement of showContextMenu().
     void syncContextActions();
     void onHoverDetail(double imageX, double imageY, const QPoint& globalPos,
                        Qt::KeyboardModifiers mods, bool immediate = false);
@@ -223,6 +222,8 @@ namespace stencil::gui {
     // buildToolbar() split into its rows; the call order preserves the
     // addToolBar/addToolBarBreak sequencing that fixes visual row order.
     void buildMainToolbar();
+    void buildHeaderRow();         // logo, the Controls pill, the project-name group
+    void buildToolSectionsRow();   // the one wrapping row of named sections below it
     // Called before the Formula section, which takes formulaGroup_ as one of its row
     // widgets so the pill and the inputs share a baseline.
     void buildFormulaFields();
@@ -299,8 +300,7 @@ namespace stencil::gui {
     void positionChatEdge();            // the chat dock's resize-edge tint (dockGrip.hpp)
     void setPanelShown(bool show, bool animate);
     // Browser mainContent.js: the table pours out past the edge it is docked to, behind a veil
-    // (panelVeil_) so the motes ARE the panel, not a cloud over a visible slide. Snapshot taken
-    // at `full` either way; null when nothing played.
+    // (panelVeil_) so the motes ARE the panel. Snapshot taken at `full` either way.
     QPointer<gui::DisintegrateOverlay> panelSurfaceFlight(bool gather, int ms, int full);
     void releasePanelVeil();
     // The TOOL ROWS fold as one block, so the flight is over their UNION rect, streaming
@@ -314,8 +314,7 @@ namespace stencil::gui {
     // `barPicture`'s centre for x, just under the "Image Size:" row for y; falls back to
     // dockAwayPoint off `barPicture` when that row is unmeasurable.
     QPoint selectedLineBarDustPoint(const QRect& barPicture, bool closing);
-    // Browser panel parity. Slides the DOCKED extent with the same min==max pinning
-    // setPanelShown uses; a floating dock is its own window, so it just shows/hides.
+    // Browser panel parity, with setPanelShown's min==max pinning; a float just shows/hides.
     void setChatShown(bool show, bool animate);
     // Holds the panel at a FIXED width so a shared-area chat slide eats into the CANVAS column
     // only, instead of Qt redistributing between the docks. stopChatAnim releases the pin.
