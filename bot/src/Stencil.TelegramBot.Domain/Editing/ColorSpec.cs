@@ -2,28 +2,18 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Domain.Editing;
 
-/// <summary>
-/// Whether a colour string is one the CLI's <c>parseColor</c> accepts (<c>cli/src/core.zig</c> →
-/// <c>parseColor</c> in <c>core/color/colorNames.cpp</c>): <c>transparent</c>, <c>#</c> + 3/4/6/8
-/// hex digits, or a CSS Color Level 4 keyword. A port of <c>is_color</c> in
-/// <c>mcp/src/args.rs</c>, over the same canonical <c>browser/js/config/colorNames.json</c>
-/// embedded here at build time.
-/// </summary>
-/// <remarks>
-/// The CLI silently SKIPS an unparseable colour — a <c>--blank</c> would come out white, a pen
-/// stroke black — so an adapter that forwards a model- or user-chosen colour must reject it
-/// before it reaches argv or the layout.
-/// </remarks>
+// Whether the CLI's parseColor (core/color/colorNames.cpp) accepts a colour: transparent, #hex
+// (3/4/6/8) or a CSS Color Level 4 keyword — a port of mcp's is_color over the embedded canonical
+// colorNames.json. The CLI silently SKIPS an unparseable colour, so a forwarded colour must be
+// rejected before argv.
 public static class ColorSpec
 {
     private const string ResourceName = "Stencil.TelegramBot.Domain.Assets.colorNames.json";
 
     private static readonly Lazy<IReadOnlySet<string>> Names = new(LoadNames);
 
-    /// <summary>The CSS keywords the core recognises, lowercased (148 of them).</summary>
     public static IReadOnlySet<string> KnownNames => Names.Value;
 
-    /// <summary>Whether <paramref name="spec"/> parses, after trimming and ASCII-lowercasing.</summary>
     public static bool IsValid(string? spec)
     {
         string s = (spec ?? "").Trim().ToLowerInvariant();

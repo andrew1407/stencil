@@ -3,14 +3,11 @@ using System.Text;
 
 namespace Stencil.TelegramBot.Domain.Editing;
 
-// CropSpecResolver — the spec's text side: the atom tokenizer, the aspect ratio and the length
-// tokens (px/cm/mm/in/%/delta). Port notes live in CropSpecResolver.cs.
+// The spec's text side: atom tokenizer, aspect ratio and length tokens (px/cm/mm/in/%/delta).
 public static partial class CropSpecResolver
 {
-    /// <summary>
-    /// Tokenize into atoms split on whitespace/commas with <c>=</c> as its own atom, then
-    /// consume <c>key = value</c> pairs; keys are case-insensitive x1/x2/y1/y2/aspect.
-    /// </summary>
+    // Atoms split on whitespace/commas with = its own atom; keys are case-insensitive
+    // x1/x2/y1/y2/aspect.
     private static ParsedSpec Parse(string spec)
     {
         List<string> atoms = new();
@@ -76,7 +73,7 @@ public static partial class CropSpecResolver
         return new ParsedSpec(x1, x2, y1, y2, aspect, valid);
     }
 
-    /// <summary>"W:H" with positive integers → W/H; 0.0 for anything else (zero, sign, junk).</summary>
+    // "W:H" with positive integers → W/H; 0.0 for anything else.
     private static double ParseAspectRatio(string s)
     {
         int colon = s.IndexOf(':');
@@ -104,10 +101,8 @@ public static partial class CropSpecResolver
         return vals[0] / vals[1];
     }
 
-    /// <summary>
-    /// One edge token to pixels: a bare number is a DELTA from the current edge (sign kept);
-    /// a unit token is absolute, measured from the far end when <c>-</c>-prefixed.
-    /// </summary>
+    // A bare number is a DELTA from the current edge (sign kept); a unit token is absolute,
+    // measured from the far end when -prefixed.
     private static double? ResolveAxisPx(string token, double lengthPx, double pxPerCm, double currentPx)
     {
         if (ParseLengthToken(token) is not LengthToken t)
@@ -127,7 +122,7 @@ public static partial class CropSpecResolver
         return t.FromEnd ? lengthPx - px : px;
     }
 
-    /// <summary>The hand-rolled equivalent of <c>/^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/</c>.</summary>
+    // The hand-rolled equivalent of /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/.
     private static LengthToken? ParseLengthToken(string token)
     {
         string s = token.Trim().ToLowerInvariant();

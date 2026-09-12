@@ -1,7 +1,6 @@
 namespace Stencil.TelegramBot.Domain.Exceptions;
 
-// A non-2xx REST response: the server's structured {code, message} (protocol ErrorResponse)
-// plus the raw status, mirroring pystencil's ServerError. Code is conflict/notFound/unauthorized.
+// protocol ErrorResponse {code, message} plus the status; Code is conflict/notFound/unauthorized.
 public sealed class ServerException : Exception
 {
     public string Code { get; }

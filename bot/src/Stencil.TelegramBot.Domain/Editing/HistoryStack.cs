@@ -1,8 +1,7 @@
 namespace Stencil.TelegramBot.Domain.Editing;
 
-// The bot's shape of core/state/historyStack: the session persists the two stacks, not a
-// cursor, so every step returns a NEW stack plus the snapshot to apply. Push truncates redo,
-// as the core's does.
+// The bot's shape of core/state/historyStack: the session persists the two stacks, not a cursor, so
+// every step returns a NEW stack plus the snapshot to apply.
 public readonly record struct HistoryStack<T>(IReadOnlyList<T> Done, IReadOnlyList<T> Undone)
 {
     // Per side; older ones are dropped.

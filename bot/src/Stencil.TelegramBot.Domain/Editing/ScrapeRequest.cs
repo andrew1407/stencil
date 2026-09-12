@@ -1,11 +1,9 @@
 namespace Stencil.TelegramBot.Domain.Editing;
 
-// The `stencil --source-site <url> [filters] <output-dir>` argv as data (cli/CONTRACT.md §1).
-// The CLI is the fetcher/HTML parser; core/ is untouched. Every min/max bound below is an
-// inclusive pixel size, and null or non-positive means unset.
+// The `stencil --source-site <url> [filters] <output-dir>` argv as data (cli/CONTRACT.md §1). Every
+// min/max bound below is an inclusive pixel size; null or non-positive means unset.
 public sealed record ScrapeRequest
 {
-    // The http(s) page to scan; activates scrape mode.
     public required string Url { get; init; }
 
     // Items per group; null takes all matches and ignores Group.
@@ -20,7 +18,7 @@ public sealed record ScrapeRequest
     // Normalized extensions, |-joined; null/"all" = every format.
     public string? Format { get; init; }
 
-    // --source-name: POSIX ERE, case-insensitive (substring on a Windows CLI build); null = every URL.
+    // --source-name: POSIX ERE, case-insensitive; null = every URL.
     public string? Name { get; init; }
 
     public int? MinWidth { get; init; }
@@ -31,6 +29,5 @@ public sealed record ScrapeRequest
 
     public int? MaxHeight { get; init; }
 
-    // Created if missing; the Application layer fills in a per-user scratch path.
     public string OutputDir { get; init; } = "";
 }

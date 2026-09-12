@@ -1,10 +1,9 @@
 namespace Stencil.TelegramBot.Domain.Llm;
 
-// One non-streaming chat turn, provider-agnostic: the adapter maps it onto the configured
-// provider's wire format (§6) and returns raw text. Plan parsing is the Application layer's.
+// One non-streaming turn mapped onto the provider's wire format (§6); plan parsing is
+// Application's.
 public interface ILlmClient
 {
-    // Throws LlmException on transport/provider errors, and with Truncated/Refusal when the
-    // reply stopped on max_tokens/refusal — those are never parsed as plans.
+    // Throws LlmException; Truncated/Refusal stops are never parsed as plans.
     Task<LlmReply> ChatAsync(LlmChatRequest request, CancellationToken ct = default);
 }

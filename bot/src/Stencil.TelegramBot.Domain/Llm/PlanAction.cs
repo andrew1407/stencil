@@ -2,10 +2,8 @@ using Stencil.TelegramBot.Domain.Layout;
 
 namespace Stencil.TelegramBot.Domain.Llm;
 
-// The op-plan action union (llm-contract.md §2), discriminated on Op. Every variant maps 1:1
-// onto an operation Stencil already has, so the executor calls the same code paths the slash
-// commands do. No resize and no free-angle rotation, deliberately: core has neither.
-// "top-level" below means the op is rejected inside a variant.
+// The op-plan action union (§2). No resize and no free-angle rotation, deliberately: core has
+// neither. "top-level" below means the op is rejected inside a variant.
 public abstract record PlanAction
 {
     public abstract string Op { get; }
@@ -29,14 +27,12 @@ public sealed record FilterAction(string Mode, string? Tint) : PlanAction
     public override string Op => "filter";
 }
 
-// The shared layout Line schema, in image-pixel coords.
 public sealed record LayoutAction(IReadOnlyList<LayoutLine> Lines) : PlanAction
 {
     public override string Op => "layout";
 }
 
-// Axis x/y with an Expr in that variable alone (empty clears the axis) — or Enabled alone,
-// where false switches formulas off entirely, restoring identity.
+// Expr in Axis alone (empty clears the axis); Enabled=false switches formulas off entirely.
 public sealed record FormulaAction(string? Axis, string? Expr, bool? Enabled = null) : PlanAction
 {
     public override string Op => "formula";
@@ -54,30 +50,25 @@ public sealed record BlankAction(string Color, string? Format, double? WidthCm =
     public override string Op => "blank";
 }
 
-// Indices holds the single `index` or the `indices` list.
 public sealed record FrameAction(IReadOnlyList<int> Indices) : PlanAction
 {
     public override string Op => "frame";
 }
 
-// §2.1, top-level: switch to the turn's Index-th attachment (1-based), resetting the §1
-// coordinate frame.
+// §2.1, top-level: the turn's Index-th attachment (1-based), resetting the §1 coordinate frame.
 public sealed record ImageAction(int Index) : PlanAction
 {
     public override string Op => "image";
 }
 
-// §2.1, top-level: persist image + layout as a project — for the bot, its active server
-// session. Path is the §10 destination, which the bot cannot honor: it saves to its usual
-// place and says so.
+// §2.1, top-level. Path is the §10 destination the bot cannot honor: it saves to its usual place.
 public sealed record SaveAction(string? Name, string? Path = null) : PlanAction
 {
     public override string Op => "save";
 }
 
-// §10, top-level: re-connect a server the user already SAVED with /connect. Resolved against
-// the session's stored connections ONLY, and the stored token rides along — a plan never
-// carries a token, and never names a host the user did not choose.
+// §10, top-level: resolved against the session's stored connections ONLY, the stored token riding
+// along — a plan never carries a token or names a host the user did not choose.
 public sealed record ConnectAction(string Server) : PlanAction
 {
     public override string Op => "connect";
@@ -101,21 +92,18 @@ public sealed record RedoAction(int Steps) : PlanAction
     public override string Op => "redo";
 }
 
-// §2, top-level: back to the original image (the bot's /reset).
 public sealed record ResetAction : PlanAction
 {
     public override string Op => "reset";
 }
 
-// §10, top-level: removes the working image and its edits ONLY — the conversation survives
-// (clearing that is ClearChatAction, which is user-confirmed).
+// §10, top-level: the working image and its edits ONLY; the conversation survives.
 public sealed record ClearAction : PlanAction
 {
     public override string Op => "clear";
 }
 
-// §10, top-level: the DEFAULT pen for new lines (/color /thickness /points /style /fill). Any
-// subset. PointColor/DrawMode are §10 fields the bot's pen doesn't model — noted and skipped.
+// §10, top-level: the DEFAULT pen; PointColor/DrawMode are not modelled by the bot's pen.
 public sealed record LineStyleAction(
     string? Color, string? PointColor, int? Thickness, int? PointSize,
     string? Style, string? DrawMode, string? FillColor) : PlanAction
@@ -123,15 +111,13 @@ public sealed record LineStyleAction(
     public override string Op => "lineStyle";
 }
 
-// §10, top-level: the /url path with its SSRF vetting. The URL must appear VERBATIM in the
-// user's OWN messages this conversation (the §10 user-echo guard, checked at execution) — a
-// model-named host is never fetched. The executor awaits the load, so later actions see it.
+// §10, top-level: the /url path. The URL must appear VERBATIM in the user's OWN messages (the
+// user-echo guard, checked at execution) — a model-named host is never fetched.
 public sealed record OpenUrlAction(string Url, bool Incognito) : PlanAction
 {
     public override string Op => "openUrl";
 }
 
-// §10, top-level: /projectname.
 public sealed record RenameProjectAction(string Name) : PlanAction
 {
     public override string Op => "renameProject";
@@ -143,7 +129,6 @@ public sealed record DescribeAction(string Text) : PlanAction
     public override string Op => "describe";
 }
 
-// §10, top-level: /blankcolor — recolours a BLANK project's background, keeping the edits.
 public sealed record BlankColorAction(string Color) : PlanAction
 {
     public override string Op => "blankColor";
@@ -155,15 +140,13 @@ public sealed record ProjectColorAction(string Color) : PlanAction
     public override string Op => "projectColor";
 }
 
-// §10, top-level: What is layout (/json) or project (/project), sent into the user's OWN chat
-// as a document — bounded to one send per action.
+// §10, top-level: sent into the user's OWN chat as a document, one send per action.
 public sealed record ExportAction(string What) : PlanAction
 {
     public override string Op => "export";
 }
 
-// §10, top-level: the /chat clear flow. Deferred to the END of the turn and confirmed in-app
-// before anything is forgotten; a declined confirm is a note, never a failed plan.
+// §10, top-level: deferred to the END of the turn and confirmed in-app; a decline is a note.
 public sealed record ClearChatAction : PlanAction
 {
     public override string Op => "clearChat";

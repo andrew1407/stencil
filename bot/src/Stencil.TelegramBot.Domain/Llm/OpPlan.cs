@@ -1,7 +1,6 @@
 namespace Stencil.TelegramBot.Domain.Llm;
 
-// A validated op-plan (llm-contract.md §1). A variant branches from the state AFTER Actions and
-// yields one extra output image.
+// A variant branches from the state AFTER Actions and yields one extra output image (§1).
 public sealed record OpPlan(
     string Reply,
     IReadOnlyList<PlanAction> Actions,

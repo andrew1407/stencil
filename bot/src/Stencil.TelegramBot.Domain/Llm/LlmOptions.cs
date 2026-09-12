@@ -1,7 +1,6 @@
 namespace Stencil.TelegramBot.Domain.Llm;
 
-// The §5 shape (provider / baseUrl / model / apiKey / serverUrl), read from the same
-// STENCIL_LLM_* environment keys pystencil uses.
+// The §5 shape, read from the same STENCIL_LLM_* environment keys pystencil uses.
 public sealed record LlmOptions
 {
     public const string ProviderOllama = "ollama";
@@ -22,18 +21,15 @@ public sealed record LlmOptions
     // Empty = the provider/server default.
     public string Model { get; init; } = "";
 
-    // Sent as Authorization: Bearer on openai-compat only.
     public string ApiKey { get; init; } = "";
 
-    // stencil-server: which server proxies Anthropic. Null = the invoking user's first connected
-    // server, resolved per call from their session.
+    // stencil-server only; null = the invoking user's first connected server, resolved per call.
     public string? ServerUrl { get; init; }
 
-    // With an explicit ServerUrl, the operator's bearer for it — used when the invoking user has
-    // no /connect of their own. Empty = the assistant needs them to connect first.
+    // The operator's bearer for an explicit ServerUrl, used when the user has no /connect of their
+    // own.
     public string ServerToken { get; init; } = "";
 
-    // The §5 defaults table.
     public static string DefaultBaseUrlFor(string provider) =>
         provider == ProviderOpenAiCompat ? DefaultOpenAiCompatBaseUrl : DefaultOllamaBaseUrl;
 }

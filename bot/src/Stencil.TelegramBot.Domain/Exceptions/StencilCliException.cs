@@ -1,7 +1,7 @@
 namespace Stencil.TelegramBot.Domain.Exceptions;
 
-// A non-zero exit, or a success with no parseable `wrote` line. The message carries the CLI's
-// `error: …` stderr text, mirroring mcp's extract_errors.
+// Carries the CLI's `error: …` stderr text (the argv/stderr contract mcp's extract_errors also
+// reads).
 public sealed class StencilCliException : Exception
 {
     public StencilCliException(string message) : base(message) { }

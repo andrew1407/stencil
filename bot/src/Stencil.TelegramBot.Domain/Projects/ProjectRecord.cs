@@ -1,8 +1,7 @@
 namespace Stencil.TelegramBot.Domain.Projects;
 
-// A mirror of server/internal/protocol ProjectRecord — the source of truth every front-end
-// re-declares. Timestamps are epoch ms; Source is the media URL, Resource the origin page,
-// Color a custom accent #rrggbb ("" = theme default), Version the monotonic LWW counter.
+// A mirror of server/internal/protocol ProjectRecord. Timestamps are epoch ms; Color is #rrggbb (""
+// = theme default); Version is the monotonic LWW counter.
 public sealed record ProjectRecord
 {
     public string Id { get; init; } = "";

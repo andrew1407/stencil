@@ -1,7 +1,6 @@
 namespace Stencil.TelegramBot.Domain.Editing;
 
-// Parsed from the CLI's `updated server result …` / `created server project …` stderr lines
-// (cli/CONTRACT.md §2.2) — a port of the Remote enum in mcp's outcome parser.
+// Parsed from the CLI's stderr lines (cli/CONTRACT.md §2.2); a port of mcp's Remote outcome enum.
 public abstract record RemoteDelivery
 {
     private RemoteDelivery() { }

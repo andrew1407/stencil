@@ -2,8 +2,7 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Domain.Projects;
 
-// protocol CreateProjectRequest. Null fields are dropped by the client so the server applies
-// its own defaults.
+// protocol CreateProjectRequest; null fields are dropped so the server applies its defaults.
 public sealed record CreateProjectRequest
 {
     public string? Name { get; init; }

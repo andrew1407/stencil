@@ -1,7 +1,6 @@
 namespace Stencil.TelegramBot.Domain.Layout;
 
-// The pen applied to newly drawn lines. Defaults track LayoutLine's, so a freshly drawn
-// line matches every other front-end.
+// Defaults track LayoutLine's, so a freshly drawn line matches every other front-end.
 public sealed record LineStyle
 {
     public string Color { get; init; } = LayoutLine.DefaultColor;

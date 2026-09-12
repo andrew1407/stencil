@@ -2,8 +2,7 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Domain.Serialization;
 
-// Tolerant JsonElement readers for the HTTP adapters: a missing or wrongly-typed property
-// reads as "" / 0 rather than throwing.
+// A missing or wrongly-typed property reads as "" / 0 rather than throwing.
 public static class JsonRead
 {
     public static string ReadString(JsonElement element, string name) =>

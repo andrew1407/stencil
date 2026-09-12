@@ -2,16 +2,11 @@ using System.Globalization;
 
 namespace Stencil.TelegramBot.Domain.Editing;
 
-/// <summary>A resolved crop rectangle in whole image pixels.</summary>
 public sealed record CropRect(int X, int Y, int Width, int Height);
 
-/// <summary>
-/// C# port of the core's crop-spec resolution — the bot has no <c>core/</c> access, so like
-/// mcp it ports the contract: <c>core/parse/cropSpec.cpp</c> (parse + resolve) +
-/// <c>core/parse/lengthTokens.cpp</c> (length tokens), finished with
-/// <c>core/cliApi.cpp stencil_cli_resolveCrop</c>'s integer rounding/clamping. Page metrics
-/// are A4 oriented to the image, mirroring the CLI's <c>pipeline.namedPageForImage</c>.
-/// </summary>
+// Port of core/parse/cropSpec.cpp + lengthTokens.cpp, finished with stencil_cli_resolveCrop's
+// integer rounding/clamping — the bot has no core/ access, so like mcp it ports the contract. Page
+// metrics are A4 oriented to the image, mirroring the CLI's pipeline.namedPageForImage.
 public static partial class CropSpecResolver
 {
     private const double CmPerInch = 2.54;
@@ -24,12 +19,8 @@ public static partial class CropSpecResolver
 
     private sealed record ParsedSpec(string? X1, string? X2, string? Y1, string? Y2, string? Aspect, bool Valid);
 
-    /// <summary>
-    /// Resolve a crop spec (e.g. <c>x1=10% x2=-10px</c>) against an image, or null when the
-    /// spec is malformed, a token is unparseable, or the rect rounds to an empty area. Edges
-    /// default to the full image; a single-axis spec derives the other axis from the page
-    /// aspect (album = landscape proportion); an <c>aspect=W:H</c> key centre-fits the rect.
-    /// </summary>
+    // Null when the spec is malformed or the rect rounds to empty. Edges default to the full image;
+    // a single-axis spec derives the other from the page aspect; aspect=W:H centre-fits the rect.
     public static CropRect? Resolve(string spec, double imageW, double imageH, bool album)
     {
         ParsedSpec parsed = Parse(spec);
@@ -37,7 +28,6 @@ public static partial class CropSpecResolver
         {
             return null;
         }
-        // A4 laid to match the image orientation, like the CLI pipeline's page derivation.
         double pageW = imageW > imageH ? A4LongCm : A4ShortCm;
         double pageH = imageW > imageH ? A4ShortCm : A4LongCm;
         double pxPerCmX = imageW / pageW;
@@ -94,8 +84,7 @@ public static partial class CropSpecResolver
         double rectW = Math.Abs(x2 - x1);
         double rectH = Math.Abs(y2 - y1);
 
-        // Optional aspect fit, applied to the resolved rect exactly like the core: a centered
-        // shrink to W:H that never grows, keeps ≥ 1px, and holds fractional centres.
+        // Aspect fit exactly like the core: a centered shrink that never grows and keeps ≥ 1px.
         if (parsed.Aspect is string aspectToken)
         {
             double ratio = ParseAspectRatio(aspectToken);   // width / height
@@ -113,7 +102,6 @@ public static partial class CropSpecResolver
             {
                 fitH = rectW / ratio;   // too tall  -> shrink the height
             }
-            // Degenerate results keep at least 1px, but never grow past the resolved rect.
             fitW = Math.Min(rectW, Math.Max(fitW, 1.0));
             fitH = Math.Min(rectH, Math.Max(fitH, 1.0));
             rectX += (rectW - fitW) / 2.0;
@@ -136,10 +124,9 @@ public static partial class CropSpecResolver
         return new CropRect(x, y, w, h);
     }
 
-    /// <summary>Round half away from zero, like the C++ <c>lround</c>.</summary>
+    // Round half away from zero, like the C++ lround.
     private static int LRound(double value) => (int)Math.Round(value, MidpointRounding.AwayFromZero);
 
-    /// <summary>Page aspect (width over height): album takes the landscape proportion.</summary>
     private static double CropAspect(double pageW, double pageH, bool album)
     {
         double lo = Math.Min(pageW, pageH);

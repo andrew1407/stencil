@@ -2,12 +2,11 @@ using Stencil.TelegramBot.Domain.Layout;
 
 namespace Stencil.TelegramBot.Domain.Editing;
 
-// Editing intent, not pixels: the bot keeps one base image on disk and re-derives the result
-// by replaying this through the CLI pipeline (source -> crop -> rotate -> filter -> layout).
-// Crop/rotate are the latest spec, never a baked snapshot, so a render stays reproducible.
+// Editing intent, not pixels: one base image on disk, the result re-derived through the CLI
+// pipeline. Crop/rotate are the latest spec, never a baked snapshot, so a render stays
+// reproducible.
 public sealed record EditState
 {
-    // The CLI's grammar, e.g. x1=10% x2=90% y1=10% y2=90%.
     public string? CropSpec { get; init; }
 
     // On a single-axis crop, derive the missing axis from the page proportion.
@@ -19,8 +18,7 @@ public sealed record EditState
     // bw/sepia/invert/contour/none, or a CSS colour / #hex tint.
     public string? Filter { get; init; }
 
-    // A canonical ISO name (B5) or "custom". Rides the saved layout's pageSize; null preserves
-    // whatever the fetched layout carried.
+    // A canonical ISO name (B5) or "custom"; null preserves whatever the fetched layout carried.
     public string? PageFormat { get; init; }
 
     // In cm, only when PageFormat is "custom".
@@ -28,8 +26,8 @@ public sealed record EditState
 
     public double? CustomPageHeight { get; init; }
 
-    // Coordinate-transform formulas (x*2+10). Metadata, like the browser's: they never change
-    // the raster, but ride the saved layout (formulaX/Y + allowFormulas) for the other surfaces.
+    // Metadata, like the browser's: never changes the raster, rides the saved layout for other
+    // surfaces.
     public string? FormulaX { get; init; }
 
     public string? FormulaY { get; init; }

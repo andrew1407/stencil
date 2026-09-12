@@ -2,8 +2,7 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Domain.Llm;
 
-// Parsed once from browser/js/config/llm/providers.json, embedded into this assembly at build
-// time — the canonical constants, never a second copy.
+// Parsed once from the embedded browser/js/config/llm/providers.json — never a second copy.
 public static class ProvidersAsset
 {
     private const string ResourceName = "Stencil.TelegramBot.Domain.Assets.providers.json";

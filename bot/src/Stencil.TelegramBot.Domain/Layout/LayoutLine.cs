@@ -1,7 +1,7 @@
 namespace Stencil.TelegramBot.Domain.Layout;
 
-// Every default below is pinned by the other front-ends (browser export, cli/src/layout.zig,
-// mcp/src/layout.rs, pystencil/layout.py). JSON keys are camelCase.
+// Every default is pinned by the other front-ends (browser export, layout.zig, layout.rs,
+// layout.py).
 public sealed record LayoutLine
 {
     public const string DefaultColor = "#FFFF00";

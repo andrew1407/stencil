@@ -3,7 +3,6 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Domain.Project;
 
-/// <summary>One parsed <c>.stencil</c> project: original image bytes, metadata, and the raw export-layout <see cref="JsonElement"/>.</summary>
 public sealed record StencilProject
 {
     public string Name { get; init; } = "Untitled";
@@ -20,7 +19,7 @@ public sealed record StencilProject
     public JsonElement? Layout { get; init; }
 }
 
-/// <summary>Build/parse the shared <c>.stencil</c> format (image + layout + metadata JSON); mirrors <c>projectFile.js</c> and the CLI's <c>project.zig</c>.</summary>
+// Mirrors projectFile.js and the CLI's project.zig.
 public static class StencilProjectFile
 {
     public const string Format = "stencil-project";
@@ -36,7 +35,6 @@ public static class StencilProjectFile
         _ => "application/octet-stream",
     };
 
-    /// <summary>Assemble the ordered property bag for a <c>.stencil</c> document (empty metadata omitted).</summary>
     private static Dictionary<string, object?> BuildRoot(StencilProject project)
     {
         var image = new Dictionary<string, object?>
@@ -66,16 +64,12 @@ public static class StencilProjectFile
         return root;
     }
 
-    /// <summary>Serialize a project to pretty-printed <c>.stencil</c> JSON.</summary>
     public static string Build(StencilProject project) =>
         JsonSerializer.Serialize(BuildRoot(project), StencilJson.Indented);
 
-    /// <summary>Serialize a project straight to UTF-8 <c>.stencil</c> bytes — avoids the extra
-    /// full-document string copy of <see cref="Build"/> on the (image-bearing) export path.</summary>
     public static byte[] BuildUtf8(StencilProject project) =>
         JsonSerializer.SerializeToUtf8Bytes(BuildRoot(project), StencilJson.Indented);
 
-    /// <summary>Parse + validate <c>.stencil</c> bytes; null on malformed / foreign / too-new files.</summary>
     public static StencilProject? Parse(byte[] bytes)
     {
         try

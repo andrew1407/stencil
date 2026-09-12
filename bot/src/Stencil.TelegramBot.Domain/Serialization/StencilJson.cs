@@ -3,11 +3,9 @@ using System.Text.Json.Serialization;
 
 namespace Stencil.TelegramBot.Domain.Serialization;
 
-// The one place the bot's JSON conventions live. camelCase matches the wire shapes every other
-// front-end uses (protocol DTOs, the layout schema): ImageWidth -> imageWidth, ImageW -> imageW.
+// camelCase matches the wire shapes every other front-end uses (protocol DTOs, the layout schema).
 public static class StencilJson
 {
-    // camelCase, omit null on write, case-insensitive on read.
     public static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -15,7 +13,6 @@ public static class StencilJson
         PropertyNameCaseInsensitive = true,
     };
 
-    // Same conventions, pretty-printed: human-facing JSON downloads.
     public static readonly JsonSerializerOptions Indented = new(Options)
     {
         WriteIndented = true,
@@ -25,7 +22,6 @@ public static class StencilJson
 
     public static string SerializeIndented<T>(T value) => JsonSerializer.Serialize(value, Indented);
 
-    // A detached element, e.g. a layout payload.
     public static JsonElement ToElement<T>(T value) =>
         JsonSerializer.SerializeToElement(value, Options);
 
