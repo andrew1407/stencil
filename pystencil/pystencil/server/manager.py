@@ -6,6 +6,7 @@ ConnectionManager, REST-only.
 
 from typing import Any, Iterable, Union
 
+from .._types import NoneType
 from .connection import ServerConnection
 from .diff import _poll_loop, diff_projects
 from .urls import normalize_url
@@ -31,7 +32,7 @@ class ConnectionManager:
     """The connected server URLs (insertion order)."""
     return list(self._conns.keys())
 
-  def get(self, url: str) -> ServerConnection | None:
+  def get(self, url: str) -> (ServerConnection | NoneType):
     return self._conns.get(normalize_url(url))
 
   def has(self, url: str) -> bool:
@@ -52,7 +53,7 @@ class ConnectionManager:
     self._last = [(c.base, c.token) for c in self._conns.values()]
     return self
 
-  def disconnect(self, url: str | None = None) -> "ConnectionManager":
+  def disconnect(self, url: (str | NoneType) = None) -> "ConnectionManager":
     """Disconnect a specific url, or the most recently added when omitted."""
     if url is None:
       urls = list(self._conns.keys())
@@ -94,7 +95,7 @@ class ConnectionManager:
   # The session-wide analogue of ServerConnection.watch_projects: polls every connected
   # server and reports name/color/version changes across all of them, the way the
   # extension popup tracks its pinned projects as a set rather than one active project.
-  def poll_project_changes(self, previous: list | None = None) -> tuple:
+  def poll_project_changes(self, previous: (list | NoneType) = None) -> tuple:
     """One-shot poll across every connection. Returns ``(current_list, changes)``
     (see diff_projects). Pass the prior list back to detect what moved."""
     current = self.remote_projects()

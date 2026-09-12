@@ -6,8 +6,9 @@ resolved ``self.limits``/``self.regexes`` and :meth:`describe`.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
+from .._types import NoneType
 from .path import (
   _bad,
   _child,
@@ -28,7 +29,7 @@ class ValueChecks:
   """Type, range, enum, grammar and presence checks shared by every entry."""
 
   # ── value checks ──────────────────────────────────────────────────────────
-  def _check_string(self, v: Any, spec: dict, path: dict, parent: Optional[dict]) -> None:
+  def _check_string(self, v: Any, spec: dict, path: dict, parent: (dict | NoneType)) -> None:
     if not isinstance(v, str):
       _bad("%s must be a string" % _label(path))
     mx = self.limit(spec["maxChars"]) if spec.get("maxChars") is not None else self.limits["MAX_STRING_CHARS"]
@@ -100,7 +101,7 @@ class ValueChecks:
     if spec.get("fields") or spec.get("minFields") is not None:
       self._check_fields(v, spec.get("fields") or {}, spec, path, [])
 
-  def _check_value(self, v: Any, spec: dict, path: dict, parent: Optional[dict]) -> None:
+  def _check_value(self, v: Any, spec: dict, path: dict, parent: (dict | NoneType)) -> None:
     t = spec["type"]
     if t == "string":
       self._check_string(v, spec, path, parent)
@@ -117,7 +118,7 @@ class ValueChecks:
 
   # One object against a key map + its holder's presence rules. `skip` names keys
   # that are neither declared nor unknown (the action's own "op").
-  def _check_fields(self, obj: dict, fields: dict, holder: dict, path: Optional[dict], skip: list) -> None:
+  def _check_fields(self, obj: dict, fields: dict, holder: dict, path: (dict | NoneType), skip: list) -> None:
     def present(k: str) -> bool:
       return obj.get(k) is not None
 

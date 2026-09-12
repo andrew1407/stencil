@@ -3,7 +3,8 @@ from __future__ import annotations
 """Server URL handling: loopback detection, scheme/port normalization, invite links."""
 
 import urllib.parse
-from typing import Optional
+
+from .._types import NoneType
 
 
 # Default port the collaboration server listens on (server/.env.example). Used
@@ -11,7 +12,7 @@ from typing import Optional
 DEFAULT_PORT = 8090
 
 
-def is_loopback_host(host: Optional[str]) -> bool:
+def is_loopback_host(host: (str | NoneType)) -> bool:
   """True for a loopback host (localhost, *.localhost, 127.0.0.0/8, ::1), where
   plaintext http is safe because the bytes never leave the machine. Port of
   connectionManager.js isLoopbackHost."""
@@ -29,7 +30,7 @@ def is_loopback_host(host: Optional[str]) -> bool:
   )
 
 
-def normalize_url(raw: Optional[str]) -> str:
+def normalize_url(raw: (str | NoneType)) -> str:
   """Turn 'host:8090' / 'http://host:8090/path' into a clean origin.
 
   Port of connectionManager.js normalizeUrl: trim, then keep only
@@ -51,7 +52,7 @@ def normalize_url(raw: Optional[str]) -> str:
   return f"{parts.scheme}://{parts.netloc}"
 
 
-def split_invite_token(url: Optional[str], token: str | None = None) -> tuple[str, str | None]:
+def split_invite_token(url: (str | NoneType), token: (str | NoneType) = None) -> tuple[str, (str | NoneType)]:
   """Split an invite link's '#token=<value>' fragment off a connect URL.
 
   Returns (url, token): the fragment is stripped and its value becomes the

@@ -13,17 +13,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-from ._coerce import (
-  _as_float,
-  _as_int,
-  _as_str,
-  _opt_bool,
-  _opt_float,
-  _opt_int,
-  _opt_str,
-)
+from ._types import NoneType
+from ._coerce import _as_float, _as_int, _as_str, _opt_bool, _opt_float, _opt_int, _opt_str
 
 
 # Per-line defaults, applied when a field is omitted. Kept as module constants so
@@ -129,17 +122,17 @@ class Layout:
   image_width: int
   image_height: int
   lines: list[Line] = field(default_factory=list)
-  image_filter: Optional[str] = None
-  filter_color: Optional[str] = None
-  crop_rect: Optional[dict] = None
-  rotation_quarters: Optional[int] = None
+  image_filter: (str | NoneType) = None
+  filter_color: (str | NoneType) = None
+  crop_rect: (dict | NoneType) = None
+  rotation_quarters: (int | NoneType) = None
   # Page format + x/y coordinate-transform formulas (the browser applies them).
-  page_size: Optional[str] = None
-  custom_page_width: Optional[float] = None
-  custom_page_height: Optional[float] = None
-  allow_formulas: Optional[bool] = None
-  formula_x: Optional[str] = None
-  formula_y: Optional[str] = None
+  page_size: (str | NoneType) = None
+  custom_page_width: (float | NoneType) = None
+  custom_page_height: (float | NoneType) = None
+  allow_formulas: (bool | NoneType) = None
+  formula_x: (str | NoneType) = None
+  formula_y: (str | NoneType) = None
 
   def to_dict(self) -> dict:
     """Serialize, omitting optional fields that are ``None``.
@@ -174,7 +167,7 @@ class Layout:
       out["formulaY"] = self.formula_y
     return out
 
-  def to_json(self, indent: Optional[int] = None) -> str:
+  def to_json(self, indent: (int | NoneType) = None) -> str:
     """Serialize to a JSON string (compact by default, ``indent`` to pretty-print)."""
     return json.dumps(self.to_dict(), indent=indent)
 

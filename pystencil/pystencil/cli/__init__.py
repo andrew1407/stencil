@@ -33,8 +33,9 @@ names where callers expect them.
 """
 
 import sys
-from typing import Optional, Sequence
+from typing import Sequence
 
+from .._types import NoneType
 from .. import codecs
 from .._severity import emit_error
 from ..server import ServerError
@@ -46,7 +47,7 @@ from .commands.prompt import _load_only_plan
 from .registry import command
 from .repl import _HELP, _Repl, _parse_command
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: (Sequence[str] | NoneType) = None) -> int:
   """Entry point for ``python -m pystencil`` and the ``stencil-py`` script.
 
   ``argv`` defaults to ``sys.argv[1:]``. Returns a process exit code (0 on

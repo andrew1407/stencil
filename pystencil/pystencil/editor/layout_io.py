@@ -6,8 +6,8 @@ project to browser-compatible layout JSON, and coercing whatever the caller pass
 
 import json
 import os
-from typing import List, Optional, Tuple
 
+from .._types import NoneType
 from .. import _net
 from ..layout import Layout, Line
 from ._snapshot import _Snapshot, LayoutLike
@@ -42,7 +42,7 @@ class _LayoutApi:
     self._require_original()
     core = self._get_core()
     L = self._coerce_layout(layout)
-    crop: Optional[Tuple[int, int, int, int]] = None
+    crop: (tuple[int, int, int, int] | NoneType) = None
     if isinstance(L.crop_rect, dict):
       cr = L.crop_rect
       # Canonical {w,h} wins; legacy {width,height} (pre-Phase-6) still reads.
@@ -113,7 +113,7 @@ class _LayoutApi:
       formula_y=self._formula_y or None,
     )
 
-  def save_layout(self, path: Optional[str] = None) -> str:
+  def save_layout(self, path: (str | NoneType) = None) -> str:
     """Write the current layout JSON, returning the path written.
 
     Path semantics (identical to the Zig CLI's ``/layout``):
@@ -171,7 +171,7 @@ class _LayoutApi:
     raise TypeError("unsupported layout input: %r" % type(layout))
 
   @staticmethod
-  def _coerce_lines(layout: LayoutLike) -> List[Line]:
+  def _coerce_lines(layout: LayoutLike) -> list[Line]:
     """Extract a list of :class:`Line` from any accepted layout input."""
     # A raw list may hold Line objects or line dicts; everything else routes
     # through _coerce_layout so the str/dict/Layout parsing lives in one place.

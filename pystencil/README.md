@@ -65,7 +65,7 @@ sources rather than linking the CMake library. That places it under the repo's
 
 | Purpose | Tool | How it's provided |
 |---|---|---|
-| Language / runtime | **Python 3.9+** | the system `python3`; every module sets `from __future__ import annotations` so `X \| None` hints work on 3.9 |
+| Language / runtime | **Python 3.9+** | the system `python3`; every module sets `from __future__ import annotations` so `(X \| NoneType)` hints work on 3.9 |
 | Calling the core | **`ctypes`** (stdlib) | loads the shared library built from `core/` and binds the `stencil_cli_*` ABI |
 | Shared geometry / crop / raster / filter | **`../core/`** | the C++ core, **recompiled from source** by `build.py` and called over `../core/cliApi.h` |
 | Image decode/encode (PNG/BMP) | **`zlib` + `struct`** (stdlib) | a pure-Python codec in `codecs/` — no PIL/numpy |
@@ -94,6 +94,7 @@ pystencil/
     _parallel.py          # the one bounded fan-out both parallel paths share
     _net.py               # the surface's one fetch guard (scheme, SSRF, redirects, size cap)
     _severity.py          # the console's `error: ` / `note: ` prefixes (twin of cli/src/logo.zig)
+    _types.py             # `NoneType` for the `(X | NoneType)` hint spelling (3.9 fallback)
     _data/                # the embedded copies of browser/js/config/llm/ (drift-tested)
     _opschema/            # the registry-driven op-plan schema engine
                           #   (path · rules · checks · schema)

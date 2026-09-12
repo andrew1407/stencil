@@ -7,12 +7,16 @@ the same shared urllib plumbing as :mod:`pystencil.server`.
 import base64
 import json
 import urllib.error
-from typing import Any, Optional, Sequence, Tuple
+from typing import Any, Sequence
 
+from .._types import NoneType
 from ..server import _http_open, _json_request, _parse_http_error, _LLM_TIMEOUT
 from .config import ACCEPTED_MEDIA_TYPES, DEFAULT_BASE_URLS, LlmConfig
 from .errors import LlmError, _clean_detail
 from .prompt import LLM_SYSTEM_PROMPT
+
+Messages = Sequence[dict]
+
 
 # ── provider client (contract §6) ─────────────────────────────────────────────
 def _b64(data: Any) -> str:
@@ -22,7 +26,7 @@ def _b64(data: Any) -> str:
   return base64.b64encode(bytes(data)).decode("ascii")
 
 
-def _msg_parts(m: dict) -> Tuple[str, str, list]:
+def _msg_parts(m: dict) -> tuple[str, str, list]:
   """Unpack an internal message dict into (role, text, images)."""
   return (
     m.get("role") or "user",
@@ -45,7 +49,7 @@ class LlmClient:
 
   def __init__(
     self,
-    config: Optional[LlmConfig] = None,
+    config: (LlmConfig | NoneType) = None,
     *,
     server: Any = None,
     token: str = "",
@@ -61,7 +65,7 @@ class LlmClient:
 
   # ── request plumbing ──
   def _build_request(
-    self, messages: Sequence[dict], system: str = LLM_SYSTEM_PROMPT
+    self, messages: Messages, system: str = LLM_SYSTEM_PROMPT
   ) -> urllib.request.Request:
     """Pure builder: assemble the provider-specific POST (no network)."""
     provider = self.config.provider
@@ -72,7 +76,7 @@ class LlmClient:
     return self._server_request(messages, system)
 
   def _base_post(
-    self, path: str, wire: list, bearer: Optional[str] = None
+    self, path: str, wire: list, bearer: (str | NoneType) = None
   ) -> urllib.request.Request:
     """The §6.1/§6.2 shared envelope: ``{model, stream:false, messages}`` POSTed
     to ``{baseUrl}{path}``."""
@@ -80,7 +84,7 @@ class LlmClient:
     return self._post(self.config.base_url.rstrip("/") + path, body, bearer=bearer)
 
   def _ollama_request(
-    self, messages: Sequence[dict], system: str
+    self, messages: Messages, system: str
   ) -> urllib.request.Request:
     """``POST {baseUrl}/api/chat`` — native chat, images as bare base64 (§6.1)."""
     wire: list = [{"role": "system", "content": system}]
@@ -93,7 +97,7 @@ class LlmClient:
     return self._base_post("/api/chat", wire)
 
   def _openai_request(
-    self, messages: Sequence[dict], system: str
+    self, messages: Messages, system: str
   ) -> urllib.request.Request:
     """``POST {baseUrl}/chat/completions`` — images as data URLs; optional
     ``Authorization: Bearer <apiKey>`` (§6.2)."""
@@ -117,7 +121,7 @@ class LlmClient:
     )
 
   def _server_request(
-    self, messages: Sequence[dict], system: str
+    self, messages: Messages, system: str
   ) -> urllib.request.Request:
     """``POST {serverUrl}/llm/chat`` — the collaboration server's Anthropic proxy,
     authenticated with the existing Stencil session token (§6.3)."""
@@ -141,7 +145,7 @@ class LlmClient:
     return self._post(self._server_url + "/llm/chat", body, bearer=self._token or "")
 
   @staticmethod
-  def _post(url: str, body: dict, bearer: Optional[str] = None) -> urllib.request.Request:
+  def _post(url: str, body: dict, bearer: (str | NoneType) = None) -> urllib.request.Request:
     """A JSON POST Request; ``bearer`` adds ``Authorization`` (None omits it).
     Delegates to the request builder shared with :mod:`pystencil.server`."""
     return _json_request("POST", url, body, bearer=bearer)
@@ -211,6 +215,6 @@ class LlmClient:
     return text
 
   # ── the one public call ──
-  def chat(self, messages: Sequence[dict], system: str = LLM_SYSTEM_PROMPT) -> str:
+  def chat(self, messages: Messages, system: str = LLM_SYSTEM_PROMPT) -> str:
     """Send one non-streaming chat call and return the raw reply text."""
     return self._extract_reply(self._open(self._build_request(messages, system)))

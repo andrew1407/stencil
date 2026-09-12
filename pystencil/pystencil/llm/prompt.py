@@ -11,7 +11,6 @@ OP_REGISTRY, so the prompt can never promise an op this surface cannot run.
 import importlib.resources
 import json
 import re
-from typing import Dict, FrozenSet, List
 
 from .registry import OP_REGISTRY, OpSpec
 
@@ -77,7 +76,7 @@ EDGE_MAP_SUFFIX = (
 # no theme store, so nothing optional is wired — accent/copy hold no registry
 # entries at all; the tag exists so a capability-carrying entry is EXCLUDED from
 # generation (falling to §1's unknown-op skip) when its capability is not wired.
-_SURFACE_CAPABILITIES: FrozenSet[str] = frozenset()
+_SURFACE_CAPABILITIES: frozenset[str] = frozenset()
 
 # §13 prompt censor: the generator refuses to emit any bullet matching sensitive
 # patterns (api keys, bearer tokens, endpoint-setting instructions) — a registry
@@ -96,9 +95,9 @@ _PROMPT_CENSOR_PATTERNS = tuple(
 
 
 def _assemble_ops_bullets(
-  registry: Dict[str, OpSpec],
+  registry: dict[str, OpSpec],
   scope: str,
-  capabilities: FrozenSet[str] = _SURFACE_CAPABILITIES,
+  capabilities: frozenset[str] = _SURFACE_CAPABILITIES,
 ) -> str:
   """Concatenate a prompt block's op bullets from the registry (contract §13).
 
@@ -107,7 +106,7 @@ def _assemble_ops_bullets(
   emitted once. An entry whose ``capability`` is not in ``capabilities`` is excluded —
   the op is then never promised to the model and falls to §1's unknown-op skip. A
   bullet matching a censor pattern raises."""
-  bullets: List[str] = []
+  bullets: list[str] = []
   for name, spec in registry.items():
     if spec.scope != scope or not spec.bullet:
       continue

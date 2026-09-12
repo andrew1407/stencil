@@ -14,6 +14,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+from .._types import NoneType
 from .._net import _unverified_ssl_context
 from .files import _FileApi
 from .http import ServerError, _http_open, _json_request, _parse_http_error
@@ -24,7 +25,7 @@ from .urls import normalize_url, split_invite_token
 class ServerConnection(_ProjectApi, _FileApi):
   """A single connected Stencil server (validated token + REST surface)."""
 
-  def __init__(self, url: str, token: str | None = None, *, verify: bool = True) -> None:
+  def __init__(self, url: str, token: (str | NoneType) = None, *, verify: bool = True) -> None:
     # Invite links carry the token as a '#token=' fragment; explicit wins.
     url, token = split_invite_token(url, token)
     self.base = normalize_url(url)
@@ -54,10 +55,10 @@ class ServerConnection(_ProjectApi, _FileApi):
     method: str,
     path: str,
     body: Any = None,
-    token: str | None = None,
+    token: (str | NoneType) = None,
     *,
     raw: bool = False,
-    query: dict | None = None,
+    query: (dict | NoneType) = None,
   ) -> urllib.request.Request:
     """Pure builder: assemble a urllib Request for `method base+path`.
 
@@ -107,7 +108,7 @@ class ServerConnection(_ProjectApi, _FileApi):
     *,
     body: Any = None,
     raw: bool = False,
-    query: dict | None = None,
+    query: (dict | NoneType) = None,
     _retried: bool = False,
   ) -> Any:
     req = self._build_request(method, path, body, raw=raw, query=query)

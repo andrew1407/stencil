@@ -6,7 +6,7 @@ Self-contained: every plan coordinate arrives in the frame the model SAW, and th
 composes the crop translations and quarter-turn rotations that have run since.
 """
 
-from typing import Optional, Tuple
+from .._types import NoneType
 
 # ── plan execution over the Editor facade ─────────────────────────────────────
 class _FrameMap:
@@ -22,7 +22,7 @@ class _FrameMap:
   ``resolve_crop_rect``/``image_size``) record nothing and draw plans as-is.
   """
 
-  def __init__(self, steps: Optional[list] = None) -> None:
+  def __init__(self, steps: (list | NoneType) = None) -> None:
     # ("crop", ox, oy) subtracts a resolved crop origin; ("cw", h) is one
     # clockwise quarter-turn of the view whose height was h at that step.
     self._steps: list = list(steps or [])
@@ -42,7 +42,7 @@ class _FrameMap:
       self._steps.append(("cw", h))
       w, h = h, w
 
-  def map_point(self, x: float, y: float) -> Tuple[float, float]:
+  def map_point(self, x: float, y: float) -> tuple[float, float]:
     for step in self._steps:
       if step[0] == "crop":
         x, y = x - step[1], y - step[2]

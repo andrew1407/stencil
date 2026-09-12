@@ -11,8 +11,12 @@ The prefix is bold red / bold amber only when the destination stream is a real t
 byte-for-byte ``error: …`` / ``note: …``.
 """
 
+from __future__ import annotations
+
 import os
-from typing import Optional, TextIO
+from typing import TextIO
+
+from ._types import NoneType
 
 _RESET = "\x1b[0m"
 _RED = "\x1b[1;38;2;239;68;68m"  # #ef4444 `error:` prefix
@@ -22,7 +26,7 @@ ERROR = "error: "
 NOTE = "note: "
 
 
-def color_enabled(stream: Optional[TextIO]) -> bool:
+def color_enabled(stream: (TextIO | NoneType)) -> bool:
   """True when `stream` is a terminal that accepts colour (NO_COLOR wins)."""
   if stream is None or os.environ.get("NO_COLOR") is not None:
     return False
@@ -32,14 +36,14 @@ def color_enabled(stream: Optional[TextIO]) -> bool:
     return False
 
 
-def error_line(msg: str, stream: Optional[TextIO] = None) -> str:
+def error_line(msg: str, stream: (TextIO | NoneType) = None) -> str:
   """``error: <msg>`` — the prefix coloured when `stream` is a colour terminal."""
   if color_enabled(stream):
     return "%s%s%s%s" % (_RED, ERROR, _RESET, msg)
   return ERROR + msg
 
 
-def note_line(msg: str, stream: Optional[TextIO] = None) -> str:
+def note_line(msg: str, stream: (TextIO | NoneType) = None) -> str:
   """``note: <msg>`` — the prefix coloured when `stream` is a colour terminal."""
   if color_enabled(stream):
     return "%s%s%s%s" % (_AMBER, NOTE, _RESET, msg)

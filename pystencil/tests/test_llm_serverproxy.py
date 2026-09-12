@@ -7,7 +7,6 @@ import json
 import unittest
 import urllib.error
 
-
 import pystencil.llm as llm_module
 from pystencil.llm import LLM_SYSTEM_PROMPT, LlmClient, LlmConfig, LlmError
 from pystencil.server import ServerConnection

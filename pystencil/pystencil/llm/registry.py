@@ -9,8 +9,9 @@ cannot express.
 """
 
 from dataclasses import dataclass
-from typing import Callable, Dict, FrozenSet, Optional
+from typing import Callable
 
+from .._types import NoneType
 from .._opschema import SchemaError
 from .console import _apply_console_op
 from .errors import LlmPlanError
@@ -31,7 +32,6 @@ from .ops import (
 )
 
 
-
 # ── per-op normalizers: the typed struct filling the generic deep-pick can't express ──
 # Each runs on the registry-normalized action — {op, declared keys present, defaults,
 # `trim` keys trimmed} — AFTER the table-driven check passed; nothing here validates.
@@ -50,7 +50,10 @@ def _float_dims(out: dict) -> dict:
   return out
 
 
-def _strip_field(key: str) -> Callable[[dict], dict]:
+Normalizer = Callable[[dict], dict]
+
+
+def _strip_field(key: str) -> Normalizer:
   """Store a padded string field trimmed (connect/disconnect server, delete path);
   resolution against the console's own state happens at execution."""
 
@@ -89,9 +92,9 @@ class OpSpec:
   surface cannot run.
   """
 
-  validator: Callable[[dict], dict]
+  validator: Normalizer
   applier: Callable[..., None]
-  fields: FrozenSet[str]          # allowed action keys (including "op" itself)
+  fields: frozenset[str]          # allowed action keys (including "op" itself)
   bullet: str                     # the asset's prompt bullet, verbatim (§4/§10)
   scope: str = "core"             # which block carries the bullet: "core"|"console"
   top_level_only: bool = False    # §2/§2.1: inside "variants" it drops that variant
@@ -100,8 +103,8 @@ class OpSpec:
 
 
 def _make_validator(
-  entry: dict, normalizer: Optional[Callable[[dict], dict]]
-) -> Callable[[dict], dict]:
+  entry: dict, normalizer: (Normalizer | NoneType)
+) -> Normalizer:
   """The registry's check (native rules, unknown fields, types, grammars, presence
   rules) + generic normalize, then this surface's own normalizer, if any."""
 
@@ -123,7 +126,7 @@ def _make_validator(
 # cli console's profile minus accent/reconnect (no theme, no reconnect command) and copy
 # (no clipboard) — the registry restricts those entries to the cli, so they are never
 # registered or promised here.
-_SURFACE_OPS: Dict[str, tuple] = {
+_SURFACE_OPS: dict[str, tuple] = {
   "crop": (_apply_crop, _normalize_crop, "core"),
   "rotate": (_apply_rotate, None, "core"),
   "filter": (_apply_filter, None, "core"),
@@ -148,7 +151,7 @@ _SURFACE_OPS: Dict[str, tuple] = {
   "reset": (_apply_reset, None, "console"),
 }
 
-OP_REGISTRY: Dict[str, OpSpec] = {}
+OP_REGISTRY: dict[str, OpSpec] = {}
 for _name, (_applier, _normalizer, _scope) in _SURFACE_OPS.items():
   _entry = SCHEMA.ops.get(_name)
   if _entry is None:  # pragma: no cover - guards registry edits

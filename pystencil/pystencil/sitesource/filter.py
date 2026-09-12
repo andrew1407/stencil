@@ -5,15 +5,14 @@ from __future__ import annotations
 Pure predicates over :class:`MediaItem`; the page scan applies them in that order.
 """
 
-from typing import Optional
-
+from .._types import NoneType
 from .format import MediaItem
 
 
 _CATEGORY_KIND = {"img": "img", "video": "video", "background": "bg", "poster": "poster"}
 
 
-def _category_kinds(category: str) -> Optional[set]:
+def _category_kinds(category: str) -> (set | NoneType):
   """Selected internal kinds, or ``None`` (every category) for empty / any ``all`` token.
 
   Matches the Zig ``tokenSelected``: as soon as ANY ``|``-separated token equals ``all``
@@ -31,7 +30,7 @@ def _category_kinds(category: str) -> Optional[set]:
   return kinds
 
 
-def _format_tokens(formats: str) -> Optional[set]:
+def _format_tokens(formats: str) -> (set | NoneType):
   """Selected format tokens, or ``None`` (every format) for empty / any ``all`` token."""
   if not formats or not formats.strip():
     return None

@@ -5,11 +5,12 @@ replayed in full on every call, since every provider is stateless.
 """
 
 import time
-from typing import Any, List, Optional, Sequence
+from typing import Any, Sequence
 
 import json
-from typing import Any, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Iterable, Sequence
 
+from .._types import NoneType
 from .client import LlmClient
 from .config import ACCEPTED_MEDIA_TYPES, MAX_ATTACHMENTS, LlmConfig
 from .errors import LlmError
@@ -18,6 +19,9 @@ from .plan import parse_op_plan
 from .prompt import LLM_SYSTEM_PROMPT
 from .run import wire_images
 from .types import OpPlan
+
+Messages = list[dict]
+
 
 # ── stateful chat (contract §7) ───────────────────────────────────────────────
 class Chat:
@@ -30,15 +34,15 @@ class Chat:
   tuples (see the module docstring for the no-downscale deviation).
   """
 
-  def __init__(self, client: Optional[LlmClient] = None) -> None:
+  def __init__(self, client: (LlmClient | NoneType) = None) -> None:
     self.client = client if client is not None else LlmClient()
     # Retained history: dicts {"role", "text", "images"} (newest last). Images
     # that the replay rule can never send again are blanked by send() — see its
     # memory note — so only replayable attachments are held.
-    self.history: List[dict] = []
+    self.history: Messages = []
 
   @staticmethod
-  def _check_images(images: Optional[Iterable], cap: Optional[int] = MAX_ATTACHMENTS) -> list:
+  def _check_images(images: (Iterable | NoneType), cap: (int | NoneType) = MAX_ATTACHMENTS) -> list:
     """Validate/normalize attachments into [(media_type, bytes), ...].
 
     Bounded by ``MAX_ATTACHMENTS`` (contract §7): a turn's images are re-encoded,
@@ -67,16 +71,16 @@ class Chat:
     if len(self.history) > MAX_HISTORY:
       del self.history[: len(self.history) - MAX_HISTORY]
 
-  def _wire_messages(self) -> List[dict]:
+  def _wire_messages(self) -> Messages:
     """History with the image replay rule applied (current turn's images plus
     the single most recent prior image; everything older text-only)."""
     last = len(self.history) - 1
-    prior: Optional[int] = None  # index of the newest earlier image-bearing message
+    prior: (int | NoneType) = None  # index of the newest earlier image-bearing message
     for i in range(last - 1, -1, -1):
       if self.history[i]["images"]:
         prior = i
         break
-    out: List[dict] = []
+    out: Messages = []
     for i, m in enumerate(self.history):
       if i == last:
         images = list(m["images"])
@@ -90,11 +94,11 @@ class Chat:
   def send(
     self,
     text: str,
-    images: Optional[Iterable] = None,
+    images: (Iterable | NoneType) = None,
     *,
-    system: Optional[str] = None,
-    transient_images: Optional[Iterable] = None,
-  ) -> Tuple[str, OpPlan]:
+    system: (str | NoneType) = None,
+    transient_images: (Iterable | NoneType) = None,
+  ) -> tuple[str, OpPlan]:
     """Send one user turn; returns ``(reply, plan)``.
 
     The user message (with its validated attachments) joins the history, the
@@ -146,7 +150,7 @@ class Chat:
     except LlmError:
       return raw
 
-  def to_doc(self, now_ms: Optional[int] = None) -> dict:
+  def to_doc(self, now_ms: (int | NoneType) = None) -> dict:
     """Serialize the conversation as the §12.1 persisted-chat document.
 
     Text-only by contract: images are NEVER persisted, assistant turns store
@@ -156,7 +160,7 @@ class Chat:
     :func:`chat_display_text`. ``now_ms`` pins the informational ``savedAt``
     stamp (tests); the default is the current epoch ms.
     """
-    messages: List[dict] = []
+    messages: Messages = []
     for m in self.history:
       role = m.get("role")
       if role not in ("user", "assistant"):
@@ -180,7 +184,7 @@ class Chat:
   to_dict = to_doc
 
   @classmethod
-  def from_doc(cls, doc: Any, client: Optional[LlmClient] = None) -> "Chat":
+  def from_doc(cls, doc: Any, client: (LlmClient | NoneType) = None) -> "Chat":
     """Rebuild a Chat from a §12.1 document (a dict or its JSON string).
 
     Restore is forgiving by contract — a malformed document, a ``version``

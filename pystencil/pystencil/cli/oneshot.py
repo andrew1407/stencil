@@ -7,7 +7,7 @@ from __future__ import annotations
 import argparse
 import re
 import urllib.parse
-from typing import List, TextIO, Tuple
+from typing import TextIO
 
 from .. import codecs
 from .._severity import emit_error
@@ -15,7 +15,7 @@ from ..editor import Editor
 from ..sitesource import download_media, scan_page
 from .blank import BlankSpec
 
-def _resolve_output(out: str) -> Tuple[str, str]:
+def _resolve_output(out: str) -> tuple[str, str]:
   """Return (path, fmt): fill in a ``.png`` extension when one is missing/unknown."""
   fmt = codecs.format_from_ext(out)
   if fmt is None:
@@ -98,7 +98,7 @@ def _run_pipeline(args: argparse.Namespace, err: TextIO) -> int:
   editor = Editor()
 
   # 1) Source — --blank and --input are mutually exclusive (mirror the Zig parser).
-  blank_leftover: List[str] = []
+  blank_leftover: list[str] = []
   if args.blank is not None and args.input is not None:
     emit_error(err, "--input and --blank are mutually exclusive")
     return 2

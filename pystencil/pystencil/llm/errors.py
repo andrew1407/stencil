@@ -7,7 +7,8 @@ characters, URLs and secret-shaped runs are stripped and it is length-capped.
 """
 
 import re
-from typing import Optional
+
+from .._types import NoneType
 
 # ── errors ────────────────────────────────────────────────────────────────────
 #: How much of a provider's own prose an error may quote (contract §6.3).
@@ -43,8 +44,8 @@ class LlmError(Exception):
     message: str,
     *,
     code: str = "",
-    status: Optional[int] = None,
-    stop_reason: Optional[str] = None,
+    status: (int | NoneType) = None,
+    stop_reason: (str | NoneType) = None,
   ) -> None:
     super().__init__(message)
     self.message = message

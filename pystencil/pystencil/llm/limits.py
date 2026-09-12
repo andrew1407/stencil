@@ -5,8 +5,8 @@ shared op-registry schema, plus the chat-transcript constants built on them.
 """
 
 import re
-from typing import Optional
 
+from .._types import NoneType
 from .._opschema import schema
 
 # ── contract limits (§1/§7/§11 — the same numbers in every client) ────────────
@@ -45,7 +45,7 @@ _PLAN_VERSION_KEY = re.compile(r'"version"\s*:')
 _PLAN_FIELD_KEY = re.compile(r'"(?:actions|reply|variants|ask)"\s*:')
 
 
-def chat_display_text(role: str, text: str) -> Optional[str]:
+def chat_display_text(role: str, text: str) -> (str | NoneType):
   """The §12.1 text to persist/restore for one turn, or None when it is dropped.
 
   The document is SHARED across surfaces and "a restored transcript must read as a

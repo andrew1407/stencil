@@ -7,8 +7,9 @@ invalid params fails the whole plan; a misplaced top-level-only/console op costs
 the variant it appeared in.
 """
 
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable
 
+from .._types import NoneType
 from .._opschema import SchemaError
 from .errors import LlmPlanError
 from .limits import DEFAULT_CUSTOM_LABEL, MAX_ASK_LABEL, SCHEMA
@@ -37,14 +38,14 @@ def _plan_check(check: Callable[[], None]) -> None:
     raise LlmPlanError(str(e)) from None
 
 
-def _validate_actions(raw: Any, warnings: List[str], where: str) -> List[dict]:
+def _validate_actions(raw: Any, warnings: list[str], where: str) -> list[dict]:
   """Validate an actions array: unknown ops are dropped with a warning (forward
   compatibility); a known op with invalid params fails the whole plan. A misplaced
   top-level-only/console op raises :class:`_MisplacedOp` — the variant goes, not the plan."""
   if raw is None:
     return []
   _plan_check(lambda: SCHEMA.check_envelope(raw, "actions"))
-  out: List[dict] = []
+  out: list[dict] = []
   for a in raw:
     op = a.get("op")
     if not isinstance(op, str) or not op:
@@ -66,7 +67,7 @@ def _validate_actions(raw: Any, warnings: List[str], where: str) -> List[dict]:
 
 
 # ── §11 interactive replies (`ask`) ───────────────────────────────────────────
-def _validate_ask(raw: Any, warnings: List[str]) -> Optional[AskCard]:
+def _validate_ask(raw: Any, warnings: list[str]) -> (AskCard | NoneType):
   """Validate the optional ``ask`` object (contract §11) → the card, or ``None``.
 
   The card's structure — keys, caps, 2..5 options, an image reference's exactly-one-of
@@ -81,7 +82,7 @@ def _validate_ask(raw: Any, warnings: List[str]) -> Optional[AskCard]:
     return None
   _plan_check(lambda: SCHEMA.validate_ask(raw))
   card = SCHEMA.normalize_ask(raw)
-  options: List[AskOption] = []
+  options: list[AskOption] = []
   dropped_preview = False
   for i, (ro, opt) in enumerate(zip(raw["options"], card["options"])):
     if ro.get("actions") is not None:

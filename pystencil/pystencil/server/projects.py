@@ -8,8 +8,9 @@ in for the /ws feed this REST-only client does not open.
 """
 
 import urllib.parse
-from typing import Any, Optional
+from typing import Any
 
+from .._types import NoneType
 from .diff import _FIELD_DEFAULT, _FIELD_WRITE_RETRIES, _WATCHED_FIELDS, _poll_loop, diff_projects
 from .http import ServerError
 
@@ -27,7 +28,7 @@ class _ProjectApi:
   # change is modelled as polling, exactly like the desktop's QTimer poll. Two flavours:
   # poll_project_changes() is one-shot (the caller owns the loop), watch_projects() is a
   # ready-made blocking loop. Use get_project(id)'s version to confirm a single project.
-  def poll_project_changes(self, previous: list | None = None) -> tuple:
+  def poll_project_changes(self, previous: (list | NoneType) = None) -> tuple:
     """One-shot poll: fetch the current project list and diff it against `previous`.
 
     Returns ``(current_list, changes)`` (see diff_projects for the change shape).
@@ -50,7 +51,7 @@ class _ProjectApi:
     """GET /projects/{id} → {project, layout?, originalContent?}."""
     return self._request("GET", "/projects/" + urllib.parse.quote(str(pid)))
 
-  def _project_record(self, pid: str) -> Optional[dict]:
+  def _project_record(self, pid: str) -> (dict | NoneType):
     """Fetch a project and unwrap its ProjectRecord from the {project: ...} envelope."""
     full = self.get_project(pid)
     proj = (full or {}).get("project") if isinstance(full, dict) else None
@@ -71,10 +72,10 @@ class _ProjectApi:
     self,
     pid: str,
     layout: Any = None,
-    name: str | None = None,
-    color: str | None = None,
-    description: str | None = None,
-    expires_at: int | None = None,
+    name: (str | NoneType) = None,
+    color: (str | NoneType) = None,
+    description: (str | NoneType) = None,
+    expires_at: (int | NoneType) = None,
     version: int = 0,
   ) -> dict:
     """PUT /projects/{id} → the updated ProjectRecord.
@@ -110,7 +111,7 @@ class _ProjectApi:
     re-read the current version and retry, mirroring the CLI's putProjectField loop
     (cli/src/console/handlers.zig). Raises the last ServerError if it can't win within
     _FIELD_WRITE_RETRIES attempts."""
-    last: Optional[ServerError] = None
+    last: (ServerError | NoneType) = None
     for _ in range(_FIELD_WRITE_RETRIES):
       version = self._current_version(pid, 0)
       try:

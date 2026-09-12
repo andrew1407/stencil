@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import unittest
 
-
 import pystencil.llm as llm_module
 from pystencil.llm import CONSOLE_SETTINGS_PROMPT, CONSOLE_SYSTEM_PROMPT, LLM_SYSTEM_PROMPT
 

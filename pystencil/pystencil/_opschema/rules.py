@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Dict
+from typing import Callable
 
 from .path import _bad, _is_obj
 
@@ -22,4 +22,4 @@ def _crop_aspect_fold(a: dict) -> dict:
   return out
 
 
-_RULES: Dict[str, Callable[[dict], dict]] = {"cropAspectFold": _crop_aspect_fold}
+_RULES: dict[str, Callable[[dict], dict]] = {"cropAspectFold": _crop_aspect_fold}

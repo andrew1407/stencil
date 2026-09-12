@@ -6,8 +6,6 @@ Every mutator elsewhere in the facade goes through ``_push``; ``undo``/``redo``/
 ``reset``/``clear`` move or truncate the cursor and let the view re-derive.
 """
 
-from typing import Optional
-
 from ..image import Image
 from ._snapshot import _MAX_STATES, _Snapshot
 

@@ -4,16 +4,17 @@ from __future__ import annotations
 console, and turning the user's numeric pick back into answer text.
 """
 
-from typing import Any, List, Optional
+from typing import Any
 
 import re
 
+from .._types import NoneType
 from .limits import DEFAULT_CUSTOM_LABEL, MAX_ASK_ANSWER
 from .types import AskCard
 
 def ask_answer_text(
-  card: Optional[AskCard], typed: str
-) -> Optional[str]:
+  card: (AskCard | NoneType), typed: str
+) -> (str | NoneType):
   """Resolve what the user typed at a card into the answer for their next turn.
 
   A console answers by NUMBER (contract §11.4): ``"2"`` picks one option, ``"1,3"`` (or
@@ -26,7 +27,7 @@ def ask_answer_text(
   text = (typed or "").strip()
   if not text:
     return None
-  picked: List[int] = []
+  picked: list[int] = []
   for token in re.split(r"[,\s]+", text):
     if not token:
       continue

@@ -8,8 +8,8 @@ stencil_cli_* entry point on ``self._lib``.
 from __future__ import annotations
 
 import ctypes
-from typing import List, Optional, Tuple
 
+from ._types import NoneType
 from ._bindings import _dblp, _u8p
 from ._marshal import _buf_view, _bytes_arg, _check_dims, _check_pixels, _encode
 
@@ -28,7 +28,7 @@ class RasterOps:
     page_wcm: float,
     page_hcm: float,
     album: bool,
-  ) -> Optional[Tuple[int, int, int, int]]:
+  ) -> (tuple[int, int, int, int] | NoneType):
     """Resolve a crop spec to a clamped integer pixel rect (x,y,w,h), or None."""
     out_x = ctypes.c_int()
     out_y = ctypes.c_int()
@@ -77,7 +77,7 @@ class RasterOps:
     """Normalize a signed quarter-turn count to 0..3 (clockwise)."""
     return int(self._lib.stencil_cli_normalizeQuarters(ctypes.c_int(q)))
 
-  def rotated_dims(self, w: int, h: int, q: int) -> Tuple[int, int]:
+  def rotated_dims(self, w: int, h: int, q: int) -> tuple[int, int]:
     """Dimensions after rotating w x h by `q` quarter-turns."""
     out_w = ctypes.c_int()
     out_h = ctypes.c_int()
@@ -124,7 +124,7 @@ class RasterOps:
     mode: str,
     data: bytearray,
     pixel_count: int,
-    tint: Tuple[int, int, int] = (0, 0, 0),
+    tint: tuple[int, int, int] = (0, 0, 0),
   ) -> None:
     """Apply "none"|"bw"|"sepia"|"invert"|<duotone> in place to a pixel_count RGBA8
     buffer. "contour" is a no-op here (it needs dimensions) — use apply_contour."""
@@ -154,7 +154,7 @@ class RasterOps:
     buf: bytearray,
     w: int,
     h: int,
-    points: List[Tuple[float, float]],
+    points: list[tuple[float, float]],
     color: str = "#FFFF00",
     thickness: float = 2.0,
     point_size: float = 4.0,

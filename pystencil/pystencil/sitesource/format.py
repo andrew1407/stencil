@@ -9,7 +9,6 @@ The leaf of the package: nothing here imports a sibling.
 import re
 import urllib.parse
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
@@ -66,9 +65,9 @@ def format_of(url: str) -> str:
   return _norm(m.group(1)) if m else ""
 
 
-def _extract_css_urls(css: str) -> List[str]:
+def _extract_css_urls(css: str) -> list[str]:
   """Every ``url(...)`` target in a CSS value, skipping inline ``data:image/svg`` icons."""
-  out: List[str] = []
+  out: list[str] = []
   for m in _CSS_URL_RE.finditer(css or ""):
     u = m.group(2)
     if u and not u.lower().startswith("data:image/svg"):

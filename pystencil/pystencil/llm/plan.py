@@ -6,8 +6,9 @@ JSON object from the reply text, then strict validation against the registry.
 
 import json
 import re
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable
 
+from .._types import NoneType
 from .errors import LlmPlanError
 from .limits import (
   MAX_ACTIONS,
@@ -36,7 +37,7 @@ def _strip_fences(text: str) -> str:
   )
 
 
-def _balanced_end(text: str, start: int) -> Optional[int]:
+def _balanced_end(text: str, start: int) -> (int | NoneType):
   """Index of the ``}`` closing the ``{`` at ``start`` (string/escape aware)."""
   depth = 0
   in_string = False
@@ -62,7 +63,7 @@ def _balanced_end(text: str, start: int) -> Optional[int]:
   return None
 
 
-def _first_json_object(text: str) -> Optional[dict]:
+def _first_json_object(text: str) -> (dict | NoneType):
   """The first balanced ``{…}`` in ``text`` that parses as a JSON object, or None."""
   i = text.find("{")
   while i != -1:
@@ -98,13 +99,13 @@ def parse_op_plan(text: str) -> OpPlan:
   if obj is None:
     return OpPlan(reply=raw.strip())
   reply = obj.get("reply")
-  warnings: List[str] = []
+  warnings: list[str] = []
   # §1 reply tolerance: models routinely omit the reply while planning valid
   # actions — substitute rather than lose the plan to a missing pleasantry.
   # The substitute itself is decided below, once the plan's contents are known.
   reply_omitted = not isinstance(reply, str) or not reply.strip()
   actions = _validate_actions(obj.get("actions"), warnings, "actions")
-  variants: List[Variant] = []
+  variants: list[Variant] = []
   raw_variants = obj.get("variants")
   if raw_variants is not None:
     # The registry envelope: ≤ MAX_VARIANTS objects of {label: string, actions}.

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 """Getting a picture into the session: /upload, /source-upload and the §2.1 upload set."""
 
-from typing import List, Optional, Tuple
 
 import urllib.parse
 
+from ..._types import NoneType
 from ... import _net
 from ...editor import Editor
 from ...llm import MAX_UPLOAD_ATTACHMENTS, Chat
@@ -78,7 +78,7 @@ class _SourceCommands:
       return
     url = parts[0]
     opts = {"index": 0, "format": "all", "minw": -1, "maxw": -1, "minh": -1, "maxh": -1}
-    custom_name: Optional[str] = None
+    custom_name: (str | NoneType) = None
     try:
       for tok in parts[1:]:
         if "=" not in tok:

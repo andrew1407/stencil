@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import math
 import re
-from typing import Any, Optional
+from typing import Any
+
+from .._types import NoneType
 
 
 class SchemaError(Exception):
@@ -78,7 +80,7 @@ def _label(p: dict) -> str:
   return '"%s%s"' % (p["root"], p["key"]) + (" in %s" % p["container"] if p["container"] else "")
 
 
-def _child(p: Optional[dict], key: str) -> dict:
+def _child(p: (dict | NoneType), key: str) -> dict:
   if p and p["key"]:
     return {"root": "", "key": key, "container": _where(p)}
   return {"root": p["root"] if p else "", "key": key, "container": None}

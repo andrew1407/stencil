@@ -7,10 +7,11 @@ rasterize lines — and the geometry helpers below are ported one-to-one from
 ``session.zig`` / ``pipeline.zig``.
 """
 
-from typing import List, Optional, Tuple
-
+from .._types import NoneType
 from ..image import Image
 from ._snapshot import _A4_FALLBACK, _Snapshot
+
+CropRect = tuple[int, int, int, int]
 
 
 class _DeriveApi:
@@ -71,8 +72,8 @@ class _DeriveApi:
   def set_page_format(
     self,
     name: str,
-    width: Optional[float] = None,
-    height: Optional[float] = None,
+    width: (float | NoneType) = None,
+    height: (float | NoneType) = None,
   ) -> "Editor":
     """Set the project's page format (mirror the console's ``/format``).
 
@@ -133,7 +134,7 @@ class _DeriveApi:
 
 
   # ── geometry helpers (ported from session.zig) ─────────────────────────────
-  def _view_dims(self, snap: _Snapshot) -> Tuple[int, int]:
+  def _view_dims(self, snap: _Snapshot) -> tuple[int, int]:
     """Dimensions of the view a snapshot derives (rotation then crop; filter/lines keep dims)."""
     orig = self._original
     w, h = orig.width, orig.height
@@ -146,8 +147,8 @@ class _DeriveApi:
 
   @staticmethod
   def _clamp_rect(
-    rect: Tuple[int, int, int, int], w: int, h: int
-  ) -> Tuple[int, int, int, int]:
+    rect: CropRect, w: int, h: int
+  ) -> CropRect:
     """Clamp a rect to lie within a ``w``×``h`` image (port of ``clampRect``)."""
     x, y, rw, rh = rect
     rw = max(1, min(rw, w))
@@ -157,8 +158,8 @@ class _DeriveApi:
     return (x, y, rw, rh)
 
   def _rotate_rect_quarters(
-    self, rect: Tuple[int, int, int, int], w: int, h: int, n: int
-  ) -> Tuple[int, int, int, int]:
+    self, rect: CropRect, w: int, h: int, n: int
+  ) -> CropRect:
     """Map a rect through ``n`` clockwise quarter-turns of its ``w``×``h`` image.
 
     Pure axis-aligned 90° steps; a direct port of the Zig ``rotateRectQuarters``.
@@ -176,7 +177,7 @@ class _DeriveApi:
       q -= 1
     return (x, y, rw, rh)
 
-  def _page_for_image(self, w: int, h: int) -> Tuple[float, float]:
+  def _page_for_image(self, w: int, h: int) -> tuple[float, float]:
     """Page size (cm) for crop metrics — port of ``pipeline.pageForImage``.
 
     A landscape image lays the page on its side; portrait keeps it upright.
@@ -189,13 +190,13 @@ class _DeriveApi:
 
   @staticmethod
   def _build_crop_spec(
-    x1: Optional[float],
-    y1: Optional[float],
-    x2: Optional[float],
-    y2: Optional[float],
+    x1: (float | NoneType),
+    y1: (float | NoneType),
+    x2: (float | NoneType),
+    y2: (float | NoneType),
   ) -> str:
     """Assemble a ``"x1=.. y1=.. x2=.. y2=.."`` crop spec, omitting None edges."""
-    parts: List[str] = []
+    parts: list[str] = []
     if x1 is not None:
       parts.append("x1=%s" % x1)
     if y1 is not None:

@@ -5,8 +5,9 @@ into, declared as a Protocol so the contract is checkable, and the REPL's
 implementation of it.
 """
 
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
+from .._types import NoneType
 from .. import codecs
 from ..llm import resolve_server, url_echoed_by_user
 
@@ -20,17 +21,17 @@ class PlanConsole(Protocol):
   to only RECORD a request it defers to the end of the turn.
   """
 
-  def plan_connect(self, action: dict) -> Optional[str]: ...
+  def plan_connect(self, action: dict) -> (str | NoneType): ...
 
-  def plan_disconnect(self, action: dict) -> Optional[str]: ...
+  def plan_disconnect(self, action: dict) -> (str | NoneType): ...
 
-  def plan_delete(self, action: dict) -> Optional[str]: ...
+  def plan_delete(self, action: dict) -> (str | NoneType): ...
 
-  def plan_open_url(self, action: dict) -> Optional[str]: ...
+  def plan_open_url(self, action: dict) -> (str | NoneType): ...
 
-  def plan_clear(self, action: dict) -> Optional[str]: ...
+  def plan_clear(self, action: dict) -> (str | NoneType): ...
 
-  def plan_clear_chat(self, action: dict) -> Optional[str]: ...
+  def plan_clear_chat(self, action: dict) -> (str | NoneType): ...
 
 
 class _PlanHooks:
@@ -38,7 +39,7 @@ class _PlanHooks:
   matching slash command uses."""
   # ── §10 console-profile op hooks (execute_op_plan calls these via console=self;
   # a returned string is an execution-miss note per §1, None is success) ──
-  def plan_connect(self, action: dict) -> Optional[str]:
+  def plan_connect(self, action: dict) -> (str | NoneType):
     """A plan `connect`: resolve ONLY among the session's live connections (§10's
     stance — the model can never introduce a host); anything else is a note."""
     want = action["server"]
@@ -56,7 +57,7 @@ class _PlanHooks:
     self._say("already connected to %s" % self._manager.connections[match])
     return None
 
-  def plan_disconnect(self, action: dict) -> Optional[str]:
+  def plan_disconnect(self, action: dict) -> (str | NoneType):
     """A plan `disconnect`: resolved against the LIVE connections (exact URL, else
     unique host), then through the same path the /disconnect command takes."""
     want = action["server"]
@@ -75,13 +76,13 @@ class _PlanHooks:
     self._say("disconnected from %s" % url)
     return None
 
-  def plan_delete(self, action: dict) -> Optional[str]:
+  def plan_delete(self, action: dict) -> (str | NoneType):
     """A plan `delete`: the SAME guards + messages as /delete (cli parity — a
     guard rejection prints its error and the plan carries on)."""
     self._cmd_delete(action["path"])
     return None
 
-  def plan_open_url(self, action: dict) -> Optional[str]:
+  def plan_open_url(self, action: dict) -> (str | NoneType):
     """§10 openUrl (user-echo pre-checked in _prompt_round): the same load
     /upload <url> performs, synchronous — later actions see the fetched picture.
     `incognito` is not a console concept and is ignored with a note."""
@@ -99,7 +100,7 @@ class _PlanHooks:
     self._say('loaded "%s" (%dx%d)' % (self._editor.name, w, h))
     return None
 
-  def plan_clear(self, action: dict) -> Optional[str]:
+  def plan_clear(self, action: dict) -> (str | NoneType):
     """§10 `clear` → the /drop path's state, in place: drop the working image and
     its lines, leaving the session empty. The conversation survives (the §10 stance
     for model-driven clears: image and edits only — clearing the CHAT is the
@@ -109,7 +110,7 @@ class _PlanHooks:
     self._say("dropped the working image")
     return None
 
-  def plan_clear_chat(self, action: dict) -> Optional[str]:
+  def plan_clear_chat(self, action: dict) -> (str | NoneType):
     """§10 `clearChat`: only RECORD the request — the confirm and the clear are
     deferred to the end of the turn (_confirm_clear_chat), never run mid-plan."""
     self._clear_chat_pending = True

@@ -5,10 +5,8 @@ image and context plumbing one prompt round needs.
 """
 
 import json
-from typing import Optional, Tuple
 
-from typing import List, Optional, Tuple
-
+from ..._types import NoneType
 from ..._severity import emit_error
 from ...editor import Editor
 from ...llm import (
@@ -91,10 +89,10 @@ class _LlmCommands:
     server's project names fetched best-effort (an unreachable server just omits
     its listing)."""
     active_url = getattr(self._remote[0], "base", "") if self._remote is not None else ""
-    servers: List[ConsoleServer] = []
+    servers: list[ConsoleServer] = []
     for url in self._manager.connections:
       conn = self._manager.get(url)
-      names: Optional[List[str]] = None
+      names: (list[str] | NoneType) = None
       if conn is not None:
         try:
           names = [

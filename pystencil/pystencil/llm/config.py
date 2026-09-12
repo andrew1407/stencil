@@ -8,8 +8,8 @@ import importlib.resources
 import json
 import os
 from dataclasses import dataclass
-from typing import Optional
 
+from .._types import NoneType
 from .errors import LlmError
 
 MAX_ATTACHMENTS = 3
@@ -80,7 +80,7 @@ class LlmConfig:
     return self
 
   def set_provider(
-    self, provider: str, *, keep_url: Optional[bool] = None
+    self, provider: str, *, keep_url: (bool | NoneType) = None
   ) -> "LlmConfig":
     """Switch providers in place, managing the default base URL (this module owns
     :data:`DEFAULT_BASE_URLS`).
@@ -101,7 +101,7 @@ class LlmConfig:
     return self
 
   @classmethod
-  def from_env(cls, env: Optional[dict] = None) -> "LlmConfig":
+  def from_env(cls, env: (dict | NoneType) = None) -> "LlmConfig":
     """Build a config from the ``STENCIL_LLM_*`` environment keys (contract §5).
 
     ``env`` defaults to ``os.environ``; pass a mapping to test without touching

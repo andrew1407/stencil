@@ -13,6 +13,8 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from .._types import NoneType
+
 
 # Bound every REST call so a hostile/slow/hung server can't block the caller
 # indefinitely (seconds).
@@ -32,7 +34,7 @@ _LLM_TIMEOUT = float(
 
 
 def _json_request(
-  method: str, url: str, body: Any = None, bearer: str | None = None
+  method: str, url: str, body: Any = None, bearer: (str | NoneType) = None
 ) -> urllib.request.Request:
   """Assemble a Request whose non-None ``body`` is JSON-encoded.
 
@@ -43,7 +45,7 @@ def _json_request(
   headers: dict[str, str] = {}
   if bearer is not None:
     headers["Authorization"] = "Bearer " + bearer
-  data: bytes | None = None
+  data: (bytes | NoneType) = None
   if body is not None:
     headers["Content-Type"] = "application/json"
     data = json.dumps(body).encode("utf-8")
@@ -118,7 +120,6 @@ def _parse_http_error(e: urllib.error.HTTPError) -> tuple[str, str]:
   return code, message
 
 
-
 class ServerError(Exception):
   """A non-2xx REST response.
 
@@ -127,7 +128,7 @@ class ServerError(Exception):
   codes (e.g. "conflict", "notFound", "unauthorized").
   """
 
-  def __init__(self, code: str, message: str, status: int | None = None) -> None:
+  def __init__(self, code: str, message: str, status: (int | NoneType) = None) -> None:
     super().__init__(f"{code}: {message}" if code else message)
     self.code = code
     self.message = message

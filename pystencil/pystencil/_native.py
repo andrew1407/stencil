@@ -13,14 +13,15 @@ import ctypes
 import importlib.util
 import os
 from pathlib import Path
-from typing import Optional
+
+from ._types import NoneType
 
 
 # build.py sits at the package root (pystencil/build.py), one dir above this file's package.
 _BUILD_PY = Path(__file__).resolve().parent.parent / "build.py"
 
 
-_CDLL: Optional[ctypes.CDLL] = None
+_CDLL: (ctypes.CDLL | NoneType) = None
 
 
 def _load_build():

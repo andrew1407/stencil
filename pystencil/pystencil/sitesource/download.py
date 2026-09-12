@@ -5,8 +5,9 @@ from __future__ import annotations
 import os
 import re
 import urllib.parse
-from typing import List, Optional, TextIO
+from typing import TextIO
 
+from .._types import NoneType
 from .. import _net
 from .._severity import emit_error
 from .. import codecs
@@ -16,13 +17,13 @@ from .net import _sub_strict
 
 
 def download_media(
-  items: List[MediaItem],
+  items: list[MediaItem],
   out_dir: str,
   *,
   host: str,
-  name: Optional[str] = None,
-  err: Optional[TextIO] = None,
-) -> List[str]:
+  name: (str | NoneType) = None,
+  err: (TextIO | NoneType) = None,
+) -> list[str]:
   """Download ``items`` into ``out_dir`` (created if missing); return the written paths.
 
   Each file is named from the sanitized last path segment of its URL with a correct
@@ -35,7 +36,7 @@ def download_media(
   could not fetch …`` per failure); the caller prints the final summary.
   """
   os.makedirs(out_dir, exist_ok=True)
-  written: List[str] = []
+  written: list[str] = []
   used: set = set()
   multiple = len(items) > 1
   # Fetch every item at once (each carries its own guard + cap), then name and write in
@@ -94,9 +95,9 @@ def _safe_filename(
   item: MediaItem,
   idx: int,
   data: bytes,
-  dims: Optional[Tuple[int, int]],
+  dims: (tuple[int, int] | NoneType),
   used: set,
-  custom: Optional[str] = None,
+  custom: (str | NoneType) = None,
   multiple: bool = False,
 ) -> str:
   """Derive a safe, collision-free filename for a downloaded item.

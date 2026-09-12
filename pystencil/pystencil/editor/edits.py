@@ -6,8 +6,7 @@ Each mutator snapshots history through the ``_push`` that :class:`Editor` owns a
 returns ``self``.
 """
 
-from typing import Optional, Tuple
-
+from .._types import NoneType
 from ._snapshot import _Snapshot
 
 
@@ -40,12 +39,12 @@ class _EditApi:
 
   def crop(
     self,
-    spec: Optional[str] = None,
+    spec: (str | NoneType) = None,
     *,
-    x1: Optional[float] = None,
-    y1: Optional[float] = None,
-    x2: Optional[float] = None,
-    y2: Optional[float] = None,
+    x1: (float | NoneType) = None,
+    y1: (float | NoneType) = None,
+    x2: (float | NoneType) = None,
+    y2: (float | NoneType) = None,
     album: bool = False,
   ) -> "Editor":
     """Crop the current view by a crop spec (or x1/y1/x2/y2 edges).
@@ -82,7 +81,7 @@ class _EditApi:
 
   def resolve_crop_rect(
     self, spec: str, *, album: bool = False
-  ) -> Optional[Tuple[int, int, int, int]]:
+  ) -> (tuple[int, int, int, int] | NoneType):
     """Resolve a crop spec against the CURRENT view without applying it.
 
     Exactly the resolution :meth:`crop` performs — the same core ``resolveCrop``

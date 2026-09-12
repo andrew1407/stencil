@@ -4,8 +4,9 @@ from __future__ import annotations
 table the mixins below register into.
 """
 
-from typing import List, Optional, TextIO, Tuple
+from typing import TextIO
 
+from .._types import NoneType
 from ..editor import Editor
 from ..llm import AskCard, Chat, LlmConfig
 from ..server import ConnectionManager, ServerError
@@ -21,7 +22,7 @@ from .hooks import _PlanHooks
 from .registry import build_help, build_table, command
 
 
-def _parse_command(line: str) -> Tuple[str, str]:
+def _parse_command(line: str) -> tuple[str, str]:
   """Split a line into (verb, arg) at the first whitespace, dropping one leading '/'.
 
   Port of commands.zig parseCommand: ``/upload x`` ≡ ``upload x``; a ``://`` in the
@@ -54,7 +55,7 @@ class _Repl(
     self._editor = Editor()
     # The last `ask` card the assistant printed (contract §11), so the next /prompt can
     # answer it by number. Replaced by a later card; cleared once answered.
-    self._ask: Optional[AskCard] = None
+    self._ask: (AskCard | NoneType) = None
     self._manager = ConnectionManager()
     self._console = Console(out)
     # In-session LLM provider config, seeded from the STENCIL_LLM_* env keys
@@ -65,28 +66,28 @@ class _Repl(
       self._llm = LlmConfig()
     # /prompt attachment memo: (editor, its revision, png bytes) — reused while the
     # edit state is unchanged so repeated prompts don't re-encode (contract §7).
-    self._png_cache: Optional[Tuple[Editor, int, bytes]] = None
+    self._png_cache: (tuple[Editor, int, bytes] | NoneType) = None
     # §2.1: this turn's /upload set — (media_type, png bytes, label) in upload
     # order, what a plan's `image` op indexes (the cli console's attachment
     # registry: capped at MAX_UPLOAD_ATTACHMENTS with the oldest falling off; a
     # /prompt marks the set used, so the next /upload starts a fresh one).
-    self._attachments: List[Tuple[str, bytes, str]] = []
+    self._attachments: list[tuple[str, bytes, str]] = []
     self._attachments_used: bool = False
     # §12 chat persistence: /chat on|off (session-scoped, default OFF — /prompt
     # stays single-turn) and the multi-turn Chat used while it is on.
     self._chat_on: bool = False
-    self._chat: Optional[Chat] = None
+    self._chat: (Chat | NoneType) = None
     # The active remote project — (ServerConnection, project id) recorded by
     # /fetch — so /chat clear can also drop the server-side `chat` file.
     # Cleared (with the conversation) whenever the working image is
     # replaced: see _image_replaced().
-    self._remote: Optional[Tuple] = None
+    self._remote: (tuple | NoneType) = None
     # §10 clearChat: set by the plan_clear_chat hook during execution and
     # consumed by the end-of-turn confirm in _cmd_prompt.
     self._clear_chat_pending: bool = False
     # The command stream run() reads; the clearChat confirm reads its y/N
     # answer from the same stream (None until run() starts = declined).
-    self._in: Optional[TextIO] = None
+    self._in: (TextIO | NoneType) = None
 
   # The output channel, reached by the short names every command already uses.
   @property
@@ -105,7 +106,7 @@ class _Repl(
   def _report_wrote(self, path: str, w: int, h: int) -> None:
     self._console.report_wrote(path, w, h)
 
-  def _image_replaced(self, editor: Optional[Editor] = None) -> None:
+  def _image_replaced(self, editor: (Editor | NoneType) = None) -> None:
     """The one chokepoint for "the working image was replaced".
 
     Installs ``editor`` when given (``/drop``'s fresh one; the in-place

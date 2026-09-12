@@ -8,11 +8,12 @@ Sits below the appliers so both they and :mod:`.execute` can reach it.
 
 import os
 import re
-from typing import Any, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Iterable, Sequence
 
+from .._types import NoneType
 from .limits import MAX_SAVE_NAME
 
-def wire_images(images: Optional[Iterable]) -> list:
+def wire_images(images: (Iterable | NoneType)) -> list:
   """Attachments in their WIRE form: strictly ``(media_type, bytes)`` pairs.
 
   An attachment may carry a third element — the source file name §2.1's ``save``
@@ -30,7 +31,7 @@ def wire_images(images: Optional[Iterable]) -> list:
   return out
 
 
-def _attachment_parts(item: Any) -> Tuple[Any, str]:
+def _attachment_parts(item: Any) -> tuple[Any, str]:
   """``(bytes, name)`` from one attachment.
 
   Attachments are the contract's ``(media_type, bytes)`` tuples — the very list a
@@ -52,14 +53,14 @@ class _PlanRun:
   paths and ``active_name`` the name a later unnamed ``save`` derives from.
   """
 
-  def __init__(self, attachments: Optional[Sequence] = None, save_dir: str = "",
+  def __init__(self, attachments: (Sequence | NoneType) = None, save_dir: str = "",
         console: Any = None) -> None:
     self.attachments: list = list(attachments or [])
     self.save_dir = save_dir or ""
     # The §10 console-profile hook object (the REPL), or None at the library level.
     self.console = console
-    self.notes: List[str] = []
-    self.saved: List[str] = []
+    self.notes: list[str] = []
+    self.saved: list[str] = []
     self.active_name = ""
     # One attachment and nothing else: it names an unnamed save even before an
     # explicit `image` op adopts it (the browser's activeAttachment rule).
@@ -88,7 +89,7 @@ def _unique_save_path(directory: str, name: str) -> str:
   return path
 
 
-def _clamp_point(x: float, y: float, w: float, h: float) -> Tuple[float, float]:
+def _clamp_point(x: float, y: float, w: float, h: float) -> tuple[float, float]:
   """Clamp a layout point into the current image's bounds (contract §1)."""
   return (min(max(x, 0.0), float(w)), min(max(y, 0.0), float(h)))
 

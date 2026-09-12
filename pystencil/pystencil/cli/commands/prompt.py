@@ -3,9 +3,6 @@ from __future__ import annotations
 """One /prompt round: build the request, validate the plan, execute it, report."""
 
 import json
-from typing import Optional
-
-from typing import List, Optional, Tuple
 
 from ...llm import (
   CONSOLE_SYSTEM_PROMPT,
@@ -35,6 +32,7 @@ def _load_only_plan(plan) -> bool:
 # Attachment cap for /prompt: the current image rides along for vision only when its
 # encoded PNG stays under ~8 MiB (bigger payloads are skipped with a printed note).
 _PROMPT_IMAGE_LIMIT = 8 * 1024 * 1024
+Attachments = list[tuple[str, bytes]]
 
 
 # Image extensions Python can actually encode (codecs is PNG/BMP only). A bare or
@@ -88,12 +86,12 @@ class _PromptCommands:
   def _prompt_round(self, arg: str):
     """One model round. True = the plan only LOADED an image, so the caller should
     re-send once with it attached; anything else = the turn is finished."""
-    images: List[Tuple[str, bytes]] = []
-    transient: List[Tuple[str, bytes]] = []
+    images: Attachments = []
+    transient: Attachments = []
     # The system prompt is §4 + the console settings-op block; its dynamic suffix
     # carries the console context always, plus the §7 edge-map sentence when the
     # edge map actually rides (the cli console's suffix order).
-    suffix_parts: List[str] = [self._console_context()]
+    suffix_parts: list[str] = [self._console_context()]
     if self._editor.has_image():
       # Attach the current image for vision, unless it encodes too large.
       data = self._current_png()

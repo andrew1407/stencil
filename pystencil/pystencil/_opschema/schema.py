@@ -5,8 +5,9 @@ from __future__ import annotations
 import importlib.resources
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
+from .._types import NoneType
 from .checks import ValueChecks
 from .path import SchemaError, _anchor, _bad, _is_num, _is_obj
 from .rules import _RULES
@@ -34,7 +35,7 @@ class Schema(ValueChecks):
     # This surface's entries: the profile's ops in prompt order, minus entries
     # restricted to other surfaces, each resolved for this surface (surfaceKeys /
     # bulletVariants / surfaceFlags).
-    self.entries: List[dict] = sorted(
+    self.entries: list[dict] = sorted(
       (
         self._resolve(e)
         for e in registry["ops"]
@@ -42,10 +43,10 @@ class Schema(ValueChecks):
       ),
       key=lambda e: order.index(e["name"]),
     )
-    self.ops: Dict[str, dict] = {e["name"]: e for e in self.entries}
+    self.ops: dict[str, dict] = {e["name"]: e for e in self.entries}
     self.forbidden = frozenset(registry["forbidden"]["perSurface"].get(surface, []))
 
-  def _for_surface(self, table: Optional[dict]) -> Any:
+  def _for_surface(self, table: (dict | NoneType)) -> Any:
     if not table:
       return None
     return table.get(self.surface) if table.get(self.surface) is not None else table.get(self.profile)
@@ -151,7 +152,7 @@ def load_registry() -> dict:
   )
 
 
-_SCHEMAS: Dict[str, Schema] = {}
+_SCHEMAS: dict[str, Schema] = {}
 
 
 def schema(surface: str = "pystencil") -> Schema:

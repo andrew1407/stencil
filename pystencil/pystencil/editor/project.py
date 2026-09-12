@@ -8,14 +8,14 @@ import base64
 import binascii
 import json
 import os
-from typing import List, Optional
 
+from .._types import NoneType
 from ..image import Image
 from ..llm import MAX_HISTORY, chat_display_text
 from ._snapshot import _BASE64_PREFIX, _EXT_MIME, _clean_keywords
 from .source import _SourceApi
 
-def _valid_chat_doc(doc) -> Optional[dict]:
+def _valid_chat_doc(doc) -> (dict | NoneType):
   """Return a §12.1-clean copy of ``doc``, or None when it isn't such a document.
 
   Shape (version 1 + a ``messages`` list) plus the §12.1 gate
@@ -30,7 +30,7 @@ def _valid_chat_doc(doc) -> Optional[dict]:
   messages = doc.get("messages")
   if not isinstance(messages, list):
     return None
-  kept: List[dict] = []
+  kept: list[dict] = []
   for m in messages:
     if not isinstance(m, dict):
       continue
@@ -152,7 +152,7 @@ class _ProjectApi:
     return self
 
   @staticmethod
-  def delete_reject(path) -> Optional[str]:
+  def delete_reject(path) -> (str | NoneType):
     """Which guard (if any) blocks deleting ``path`` — the CLI console's
     ``deleteReject`` ported verbatim: ``"empty"`` / ``"url"`` / ``"not_stencil"`` /
     ``"traversal"``, or ``None`` when the path is deletable. Pure (no I/O), so the

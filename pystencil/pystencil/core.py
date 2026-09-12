@@ -10,8 +10,8 @@ silently without argtypes on the double* parameter on 64-bit).
 from __future__ import annotations
 
 import ctypes
-from typing import List, Optional, Tuple
 
+from ._types import NoneType
 from . import _native
 from ._bindings import bind
 from ._marshal import _encode
@@ -31,7 +31,7 @@ class Core(RasterOps):
 
   # ── construction ──────────────────────────────────────────────────────────
   @classmethod
-  def load(cls, lib_path: Optional[str] = None, build: bool = True) -> "Core":
+  def load(cls, lib_path: (str | NoneType) = None, build: bool = True) -> "Core":
     """Find/build/dlopen the shared core and return a ready Core.
 
     `lib_path` overrides discovery with an explicit prebuilt library; `build=False`
@@ -47,7 +47,7 @@ class Core(RasterOps):
     return cls(lib)
 
   # ── colour ────────────────────────────────────────────────────────────────
-  def parse_color(self, spec: str) -> Optional[Tuple[int, int, int, int]]:
+  def parse_color(self, spec: str) -> (tuple[int, int, int, int] | NoneType):
     """Parse a CSS colour to an (r,g,b,a) 0..255 tuple, or None if unrecognized."""
     r = ctypes.c_int()
     g = ctypes.c_int()
@@ -65,7 +65,7 @@ class Core(RasterOps):
     return (r.value, g.value, b.value, a.value)
 
   # ── page sizing ───────────────────────────────────────────────────────────
-  def named_page_size(self, name: str) -> Optional[Tuple[float, float]]:
+  def named_page_size(self, name: str) -> (tuple[float, float] | NoneType):
     """Return (width_cm, height_cm) for a known page name (e.g. "A4"), else None."""
     wcm = ctypes.c_double()
     hcm = ctypes.c_double()
@@ -78,12 +78,12 @@ class Core(RasterOps):
       return None
     return (wcm.value, hcm.value)
 
-  def page_formats(self) -> List[str]:
+  def page_formats(self) -> list[str]:
     """The canonical page-format names ("A0".."C10", no "custom") in canonical order."""
     raw = self._lib.stencil_cli_pageFormats()
     return raw.decode("utf-8").split() if raw else []
 
-  def canonical_page_format(self, name: str) -> Optional[str]:
+  def canonical_page_format(self, name: str) -> (str | NoneType):
     """Canonical page-format name matched case-insensitively ("b5" → "B5"), or None
     (never "custom") for anything unknown — port of the CLI's canonicalPageFormat."""
     low = (name or "").strip().lower()
@@ -94,7 +94,7 @@ class Core(RasterOps):
 
   def default_blank_size_px(
     self, wcm: float, hcm: float, dpi: float = 96.0
-  ) -> Tuple[int, int]:
+  ) -> tuple[int, int]:
     """Default blank-image pixel dimensions for a page (cm) rendered at `dpi`."""
     out_w = ctypes.c_int()
     out_h = ctypes.c_int()
@@ -127,7 +127,7 @@ class Core(RasterOps):
     )
 
   # ── duration (expiration) ───────────────────────────────────────────────────
-  def parse_duration(self, spec: str) -> Optional[int]:
+  def parse_duration(self, spec: str) -> (int | NoneType):
     """Parse a human duration ("days 23", "months 3", "fortnight", "month", "off") to
     milliseconds (0 = keep forever), or None if the spec is invalid — the same
     DurationParser the CLI `/expire` and the browser `stencil.expire` use. Add the
@@ -140,7 +140,7 @@ class Core(RasterOps):
 
 
 # Process-wide singleton so repeated get_core() calls share one library handle.
-_CORE: Optional[Core] = None
+_CORE: (Core | NoneType) = None
 
 
 def get_core() -> Core:

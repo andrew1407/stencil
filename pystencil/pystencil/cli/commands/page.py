@@ -64,7 +64,7 @@ class _PageCommands:
     core = get_core()
     parts = arg.split()
     if not parts:
-      # List every named format with its portrait cm size, marking the current one.
+      # list every named format with its portrait cm size, marking the current one.
       current = self._editor.page_format
       for name in core.page_formats():
         wcm, hcm = core.named_page_size(name) or (0.0, 0.0)

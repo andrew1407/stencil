@@ -6,7 +6,9 @@ matching the lenient JS/CLI layout parsers.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
+
+from ._types import NoneType
 
 
 def _as_float(v: Any, default: float) -> float:
@@ -36,14 +38,14 @@ def _as_str(v: Any, default: str) -> str:
   return str(v)
 
 
-def _opt_str(v: Any) -> Optional[str]:
+def _opt_str(v: Any) -> (str | NoneType):
   """Pass through a string-ish optional, keeping ``None`` as ``None``."""
   if v is None:
     return None
   return str(v)
 
 
-def _opt_int(v: Any) -> Optional[int]:
+def _opt_int(v: Any) -> (int | NoneType):
   """Pass through an int-ish optional, keeping ``None`` as ``None``."""
   if v is None:
     return None
@@ -53,7 +55,7 @@ def _opt_int(v: Any) -> Optional[int]:
     return None
 
 
-def _opt_float(v: Any) -> Optional[float]:
+def _opt_float(v: Any) -> (float | NoneType):
   """Pass through a float-ish optional, keeping ``None`` as ``None``."""
   if v is None:
     return None
@@ -63,7 +65,7 @@ def _opt_float(v: Any) -> Optional[float]:
     return None
 
 
-def _opt_bool(v: Any) -> Optional[bool]:
+def _opt_bool(v: Any) -> (bool | NoneType):
   """Pass through a real JSON bool, keeping everything else as ``None``."""
   if isinstance(v, bool):
     return v

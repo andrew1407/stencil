@@ -25,8 +25,8 @@ Split at its section banners across ``format`` / ``scan`` / ``filter`` / ``downl
 
 import re
 import urllib.parse
-from typing import List, Optional
 
+from .._types import NoneType
 from .. import _net
 from .._net import USER_AGENT
 from .download import download_media
@@ -50,14 +50,14 @@ def scan_page(
   *,
   category: str = "all",
   formats: str = "all",
-  name: Optional[str] = None,
+  name: (str | NoneType) = None,
   min_width: int = -1,
   max_width: int = -1,
   min_height: int = -1,
   max_height: int = -1,
-  count: Optional[int] = None,
+  count: (int | NoneType) = None,
   group: int = 0,
-) -> List[MediaItem]:
+) -> list[MediaItem]:
   """Fetch ``url``, scan it, filter (category → format → dimension), then window it.
 
   ``-1`` on any min/max bound = unset; ``category``/``formats`` are ``|``-joined token

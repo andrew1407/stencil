@@ -5,10 +5,14 @@ applier that calls them, and the helpers that guard and describe console state.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Sequence
+from typing import Any, Sequence
 
+from .._types import NoneType
 from .frame import _FrameMap
 from .types import OpPlan
+
+Messages = Sequence[dict]
+
 
 _CONSOLE_HOOKS = {
   "connect": "plan_connect",
@@ -20,8 +24,8 @@ _CONSOLE_HOOKS = {
 }
 
 
-def _apply_console_op(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-           run: Optional["_PlanRun"] = None) -> None:
+def _apply_console_op(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+           run: ("_PlanRun" | NoneType) = None) -> None:
   """Dispatch a §10 console-profile op to the surface's console hooks.
 
   Without a console session (the library API — ``Editor.prompt`` / a bare
@@ -54,7 +58,7 @@ def _apply_console_op(action: dict, editor: Any, frame: Optional[_FrameMap] = No
 
 
 # ── §10 console-profile executor helpers (the cli console's, ported) ─────────
-def url_echoed_by_user(history: Sequence[dict], current_text: str, url: str) -> bool:
+def url_echoed_by_user(history: Messages, current_text: str, url: str) -> bool:
   """§10 openUrl guard: the model may only ECHO the user — true when ``url`` appears
   verbatim in the current turn's text or a replayed USER turn (assistant text and
   fetched/attached content never count). ``history`` is Chat-shaped message dicts."""
@@ -66,7 +70,7 @@ def url_echoed_by_user(history: Sequence[dict], current_text: str, url: str) -> 
   return False
 
 
-def blocked_open_url(plan: OpPlan, history: Sequence[dict], current_text: str) -> Optional[str]:
+def blocked_open_url(plan: OpPlan, history: Messages, current_text: str) -> (str | NoneType):
   """The first top-level ``openUrl`` whose URL the user never wrote (→ the whole
   plan is blocked, nothing executes), or None when every openUrl is an echo."""
   for a in plan.actions:
@@ -88,7 +92,7 @@ def resolve_server(urls: Sequence[str], want: str):
   for i, u in enumerate(urls):
     if u == want:
       return i
-  found: Optional[int] = None
+  found: (int | NoneType) = None
   low = want.lower()
   for i, u in enumerate(urls):
     auth = u.split("://", 1)[-1].split("/", 1)[0]
@@ -110,7 +114,7 @@ class ConsoleServer:
 
   url: str
   active: bool = False  # hosts the active fetched project
-  projects: Optional[List[str]] = None  # None = not fetched/unreachable (line omitted)
+  projects: (list[str] | NoneType) = None  # None = not fetched/unreachable (line omitted)
 
 
 # How many project names one server contributes to the context suffix.

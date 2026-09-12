@@ -6,8 +6,8 @@ blank page. A mixin over the history plumbing :class:`Editor` owns.
 
 import os
 import urllib.parse
-from typing import Optional, Tuple
 
+from .._types import NoneType
 from .. import _net
 from ..image import Image
 from ._snapshot import _A4_FALLBACK, _Snapshot, LoadSource, _sniff_image_ext
@@ -21,10 +21,10 @@ class _SourceApi:
     self,
     src: LoadSource,
     *,
-    frame: Optional[int] = None,
-    name: Optional[str] = None,
-    source: Optional[str] = None,
-    resource: Optional[str] = None,
+    frame: (int | NoneType) = None,
+    name: (str | NoneType) = None,
+    source: (str | NoneType) = None,
+    resource: (str | NoneType) = None,
   ) -> "Editor":
     """Load a new original from a path, an http(s) URL, raw bytes, or an :class:`Image`.
 
@@ -36,8 +36,8 @@ class _SourceApi:
     img: Image
     derived_name: str
     # Raw encoded source bytes + ext, kept verbatim for a lossless save_project (None ⇒ none).
-    src_bytes: Optional[bytes] = None
-    src_ext: Optional[str] = None
+    src_bytes: (bytes | NoneType) = None
+    src_ext: (str | NoneType) = None
     if isinstance(src, Image):
       # Copy so later in-place core ops never mutate the caller's image.
       img = src.copy()
@@ -72,8 +72,8 @@ class _SourceApi:
 
   def blank(
     self,
-    width: Optional[int] = None,
-    height: Optional[int] = None,
+    width: (int | NoneType) = None,
+    height: (int | NoneType) = None,
     color: str = "#ffffff",
     page: str = "A4",
   ) -> "Editor":
@@ -106,10 +106,10 @@ class _SourceApi:
     img: Image,
     *,
     name: str,
-    source: Optional[str] = None,
-    resource: Optional[str] = None,
-    source_bytes: Optional[bytes] = None,
-    source_ext: Optional[str] = None,
+    source: (str | NoneType) = None,
+    resource: (str | NoneType) = None,
+    source_bytes: (bytes | NoneType) = None,
+    source_ext: (str | NoneType) = None,
   ) -> None:
     """Adopt ``img`` as the new original and reset history to a single pristine state."""
     self._original = img

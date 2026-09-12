@@ -8,7 +8,9 @@ this type instead of each destructuring an anonymous tuple. Port of the Zig CLI'
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence
+from typing import Sequence
+
+from .._types import NoneType
 
 
 def _is_int(tok: str) -> bool:
@@ -25,11 +27,11 @@ class BlankSpec:
   """A parsed blank request. ``leftover`` is whatever followed the grammar — the
   one-shot entry recovers an output path argparse greedily swallowed from it."""
 
-  page: Optional[str] = None
-  width: Optional[int] = None
-  height: Optional[int] = None
+  page: (str | NoneType) = None
+  width: (int | NoneType) = None
+  height: (int | NoneType) = None
   color: str = "white"
-  leftover: List[str] = field(default_factory=list)
+  leftover: list[str] = field(default_factory=list)
 
   @classmethod
   def parse(cls, tokens: Sequence[str]) -> "BlankSpec":

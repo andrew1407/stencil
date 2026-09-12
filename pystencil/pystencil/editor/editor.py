@@ -25,8 +25,8 @@ cursor every mixin reads and pushes through.
 """
 
 import os
-from typing import List, Optional, Tuple
 
+from .._types import NoneType
 from ..core import Core, get_core
 from ..image import Image
 from ._snapshot import _Snapshot, _clean_keywords
@@ -56,33 +56,33 @@ class Editor(
   :meth:`layout`/:meth:`save_layout` for the structured payload.
   """
 
-  def __init__(self, core: Optional[Core] = None) -> None:
+  def __init__(self, core: (Core | NoneType) = None) -> None:
     # A caller may inject a Core; otherwise we lazily share the process singleton so
     # codec-only construction stays cheap and tests can pass an explicit handle.
     self._core = core
-    self._original: Optional[Image] = None
+    self._original: (Image | NoneType) = None
     # Raw encoded bytes of the original + its ext (None ⇒ none), kept so save_project embeds
     # the untouched source (lossless) instead of a PNG re-encode. See _set_source.
-    self._source_bytes: Optional[bytes] = None
-    self._source_ext: Optional[str] = None
-    self._history: List[_Snapshot] = []
+    self._source_bytes: (bytes | NoneType) = None
+    self._source_ext: (str | NoneType) = None
+    self._history: list[_Snapshot] = []
     self._cursor: int = 0
     # Monotonic edit-state counter backing the public `revision` property.
     self._revision: int = 0
     # One-slot memo for result(): ((revision, with_lines), derived Image).
-    self._result: Optional[Tuple[Tuple[int, bool], Image]] = None
+    self._result: (tuple[tuple[int, bool], Image] | NoneType) = None
     # Project name = image basename without extension; "layout" is the documented
     # fallback used by save_layout when nothing better is known.
     self._name: str = "layout"
     # Optional provenance metadata (mirrors the server project's source/resource fields).
-    self._source: Optional[str] = None
-    self._resource: Optional[str] = None
+    self._source: (str | NoneType) = None
+    self._resource: (str | NoneType) = None
     # Custom per-project accent colour painting the project name; "" = theme fallback
     # (mirrors ProjectMeta.color / the server ProjectRecord `color` field).
     self._color: str = ""
     # Free-text keywords/tags (project-level; ride the .stencil file + the server
     # ProjectRecord.keywords). Trimmed, empties dropped — matches projectFile.js cleanKeywords.
-    self._keywords: List[str] = []
+    self._keywords: list[str] = []
     # x/y coordinate-transform formulas (project-level; ride the layout, browser applies them).
     self._allow_formulas: bool = False
     self._formula_x: str = ""
@@ -91,7 +91,7 @@ class Editor(
     # attached persisted-chat document under the top-level "chat" key only while
     # save_chats is on; open_project restores a valid block into chat_doc.
     self.save_chats: bool = False
-    self.chat_doc: Optional[dict] = None
+    self.chat_doc: (dict | NoneType) = None
     # Page format (project-level; rides the layout like the CLI session's page_size).
     # "" = unset (the layout omits pageSize); custom dims are cm, 0 = unset.
     self._page_size: str = ""
@@ -106,7 +106,7 @@ class Editor(
     return self._core
 
 
-  def save(self, path: str, fmt: Optional[str] = None) -> Image:
+  def save(self, path: str, fmt: (str | NoneType) = None) -> Image:
     """Render the current view, write it to ``path``, and return the :class:`Image`."""
     img = self.result()
     img.save(path, fmt)
@@ -124,7 +124,7 @@ class Editor(
     return self._revision
 
   @property
-  def image_size(self) -> Tuple[int, int]:
+  def image_size(self) -> tuple[int, int]:
     """The current view's (width, height) — derived cheaply without rasterizing."""
     self._require_original()
     return self._view_dims(self._current())
@@ -159,7 +159,7 @@ class Editor(
     return self
 
   @property
-  def keywords(self) -> List[str]:
+  def keywords(self) -> list[str]:
     """The project's keywords/tags (trimmed, empties dropped). These ride the saved
     ``.stencil`` file and a server project's ``ProjectRecord.keywords``."""
     return list(self._keywords)

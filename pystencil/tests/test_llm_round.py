@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import unittest
 
-
 from tests.nativecase import NativeCase
 import pystencil.llm as llm_module
 from pystencil.editor import Editor

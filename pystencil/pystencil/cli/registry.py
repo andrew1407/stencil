@@ -7,12 +7,14 @@ rest are aliases. A declaration that carries ``usage`` also earns a ``/help`` en
 the listing cannot silently fall out of step with what the REPL actually dispatches.
 """
 
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable
 
 # Where a help entry's description starts, and the widest signature that still lets its
 # description share the line (a longer one gets the next line, indented to the column).
 _DESC_COL = 25
 _MAX_INLINE_COL = 29
+CommandTable = dict[str, Callable]
+NamedCommands = list[tuple[str, Callable]]
 
 
 class _Command:
@@ -39,13 +41,13 @@ def command(*names: str, usage: str = "", help: str = "") -> Callable:
   return wrap
 
 
-def _registered(cls) -> List[Tuple[str, Callable]]:
+def _registered(cls) -> NamedCommands:
   """Every registered method on ``cls``, in mixin-declaration order then source order.
 
   ``cls``'s own commands come last, so the listing reads mixin by mixin and ends with
   the REPL's own /help and /exit.
   """
-  found: List[Tuple[str, Callable]] = []
+  found: NamedCommands = []
   for klass in [k for k in cls.__mro__[1:] if k is not object] + [cls]:
     entries = [v for v in vars(klass).values() if hasattr(v, "_command")]
     entries.sort(key=lambda fn: fn.__code__.co_firstlineno)
@@ -53,9 +55,9 @@ def _registered(cls) -> List[Tuple[str, Callable]]:
   return found
 
 
-def build_table(cls) -> Dict[str, Callable]:
+def build_table(cls) -> CommandTable:
   """``{verb: method}`` for every name (and alias) registered on ``cls``."""
-  table: Dict[str, Callable] = {}
+  table: CommandTable = {}
   for _owner, fn in _registered(cls):
     for name in fn._command.names:
       if name in table:  # pragma: no cover - guards a duplicate registration

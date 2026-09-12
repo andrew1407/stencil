@@ -8,6 +8,8 @@ from typing import Callable
 
 import time
 
+from .._types import NoneType
+
 
 # Project-metadata fields a watcher reports on. version is the server's monotonic
 # edit counter (any save bumps it); name/color are the user-visible metadata. A change
@@ -76,7 +78,7 @@ def _poll_loop(fetch: Callable[[], list], on_change, interval: float, stop) -> N
     baseline = current
 
 
-def parse_credential_filter(arg: str) -> str | None:
+def parse_credential_filter(arg: str) -> (str | NoneType):
   """Parse a connections-listing filter word (CLI `/connections [admin|session]`).
 
   "" (or "all") keeps everything, "admin" keeps admin-credential connections,

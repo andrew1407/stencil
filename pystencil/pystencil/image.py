@@ -9,6 +9,7 @@ through :mod:`pystencil.codecs` (pure-Python PNG/BMP); the core stays codec-free
 by design, exactly like the browser/wasm and Zig CLI front-ends.
 """
 
+from ._types import NoneType
 from . import codecs
 
 
@@ -85,7 +86,7 @@ class Image:
       return codecs.encode_bmp(self.width, self.height, self.data)
     raise codecs.CodecError("unsupported encode format: %s" % fmt)
 
-  def save(self, path: str, fmt: str | None = None) -> None:
+  def save(self, path: str, fmt: (str | NoneType) = None) -> None:
     """Encode and write this image to ``path``.
 
     When ``fmt`` is omitted, it's inferred from the extension, defaulting to

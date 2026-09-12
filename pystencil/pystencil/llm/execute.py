@@ -4,8 +4,9 @@ from __future__ import annotations
 point that walks a validated plan (and its variants) against an editor.
 """
 
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
+from .._types import NoneType
 from .._parallel import map_parallel
 from .errors import LlmExecutionError
 from .frame import _FrameMap
@@ -17,8 +18,8 @@ from .types import OpPlan
 MAX_VARIANT_WORKERS = 4
 
 
-def _apply_action(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_action(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: ("_PlanRun" | NoneType) = None) -> None:
   """Apply one validated action via the Editor method the op maps to (contract §2)."""
   op = action["op"]
   if op in FORBIDDEN_OPS:  # §13's second tooth — guards hand-built plans too
@@ -34,7 +35,7 @@ def _apply_action(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
 def execute_op_plan(
   plan: OpPlan,
   editor: Any,
-  attachments: Optional[Sequence] = None,
+  attachments: (Sequence | NoneType) = None,
   save_dir: str = "",
   console: Any = None,
 ) -> list:

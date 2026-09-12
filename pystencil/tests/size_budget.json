@@ -3,7 +3,7 @@
   "maxNewFileLines": 230,
   "files": {
     "pystencil/pystencil/core.py": 151,
-    "pystencil/pystencil/layout.py": 217,
+    "pystencil/pystencil/layout.py": 210,
     "pystencil/tests/test_editor.py": 143,
     "pystencil/tests/test_image.py": 144,
     "pystencil/tests/test_projectfile.py": 133

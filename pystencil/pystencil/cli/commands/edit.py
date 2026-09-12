@@ -4,8 +4,6 @@ from __future__ import annotations
 and save, plus the status line most of them print.
 """
 
-from typing import List
-
 from ..oneshot import _resolve_output
 from ..registry import command
 
@@ -28,7 +26,7 @@ class _EditCommands:
   def _cmd_crop(self, arg: str) -> None:
     # Pull a standalone "album"/"--album" token out of the spec (port of stripAlbum).
     album = False
-    kept: List[str] = []
+    kept: list[str] = []
     for tok in arg.split():
       if tok.lower() in ("album", "--album"):
         album = True

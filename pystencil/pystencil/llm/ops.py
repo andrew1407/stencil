@@ -5,8 +5,9 @@ for (contract §2). Each rides its op's OP_REGISTRY entry beside the validator, 
 dispatch is table-driven on both the parse and the execute side.
 """
 
-from typing import Any, Optional
+from typing import Any
 
+from .._types import NoneType
 from ..layout import Line
 from .errors import LlmExecutionError
 from .frame import _FrameMap
@@ -19,8 +20,8 @@ from .run import (
   _unique_save_path,
 )
 
-def _apply_crop(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_crop(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   spec = action["spec"]
   # §10 console profile: the "album": true spec key rides beside the tokens and maps
   # onto the /crop … album axis derivation, never onto the token spec string.
@@ -41,8 +42,8 @@ def _apply_crop(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
   editor.crop(spec_str, album=album) if album else editor.crop(spec_str)
 
 
-def _apply_rotate(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_rotate(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   times = action.get("times", 1)
   quarters = -times if action["dir"] == "left" else times
   if frame is not None:
@@ -52,16 +53,16 @@ def _apply_rotate(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
   editor.rotate(quarters)
 
 
-def _apply_filter(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_filter(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   if action["mode"] == "custom":
     editor.set_filter_color(action["tint"])
   else:
     editor.set_filter(action["mode"])
 
 
-def _apply_layout(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_layout(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   lines = [Line.from_dict(d) for d in action["lines"]]
   size = getattr(editor, "image_size", None)
   for line in lines:
@@ -73,8 +74,8 @@ def _apply_layout(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
   editor.draw(lines)
 
 
-def _apply_formula(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_formula(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   # §2: `enabled` alone toggles formulas (false restores identity, keeping the
   # expressions); otherwise set_formula validates via the shared parser and turns
   # allow_formulas on for a non-empty expression (an empty expr clears that axis).
@@ -84,8 +85,8 @@ def _apply_formula(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
     editor.set_formula(action["axis"], action["expr"])
 
 
-def _apply_page(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_page(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   # §2: custom cm dims map onto the editors' custom page size (one form or the other).
   if "width" in action:
     editor.set_page_format("custom", action["width"], action["height"])
@@ -93,8 +94,8 @@ def _apply_page(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
     editor.set_page_format(action["format"])
 
 
-def _apply_blank(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_blank(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   # §2: explicit cm dims override "format" — rendered at the core's default DPI,
   # exactly like the console's `/blank <w> <h>` custom flow.
   if "width" in action:
@@ -106,8 +107,8 @@ def _apply_blank(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
     editor.blank(color=action["color"], page=action.get("format") or "A4")
 
 
-def _apply_frame(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_frame(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   raise LlmExecutionError(
     'the "frame" op needs a video input; pystencil has no video decoding '
     "(no ffmpeg) and operates on supplied frames — extract the frame with "
@@ -115,8 +116,8 @@ def _apply_frame(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
   )
 
 
-def _apply_image(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_image(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   """§2.1: adopt the turn's Nth attached image as the working image.
 
   An index the turn cannot satisfy is a skipped ACTION with a note, never a failed
@@ -139,8 +140,8 @@ def _apply_image(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
     frame.reset()
 
 
-def _apply_save(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_save(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   """§2.1: write the current image + layout as ``<name>.stencil`` beside the output.
 
   The name comes from the action, else from the active attachment's file name, else
@@ -162,8 +163,8 @@ def _apply_save(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
     run.saved.append(path)
 
 
-def _apply_history_step(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-            run: Optional["_PlanRun"] = None) -> None:
+def _apply_history_step(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+            run: (_PlanRun | NoneType) = None) -> None:
   """§2 ``undo``/``redo``: step the editor's OWN edit history. One step is one
   history entry; running out of entries is a note, never a failed plan."""
   op = action["op"]
@@ -178,8 +179,8 @@ def _apply_history_step(action: dict, editor: Any, frame: Optional[_FrameMap] = 
     )
 
 
-def _apply_reset(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
-        run: Optional["_PlanRun"] = None) -> None:
+def _apply_reset(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+        run: (_PlanRun | NoneType) = None) -> None:
   """§2 ``reset``: drop every pending edit back to the original (the console's
   /reset). Nothing loaded is a skipped action with a note, never a failed plan."""
   has_image = getattr(editor, "has_image", None)

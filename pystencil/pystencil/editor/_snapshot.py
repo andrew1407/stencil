@@ -7,8 +7,9 @@ from __future__ import annotations
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Union
+from typing import Union
 
+from .._types import NoneType
 from ..image import Image
 from ..layout import Layout, Line
 
@@ -41,10 +42,10 @@ class _Snapshot:
   """
 
   rotation: int = 0
-  crop: Optional[Tuple[int, int, int, int]] = None
+  crop: (tuple[int, int, int, int] | NoneType) = None
   filter_mode: str = ""
   filter_color: str = ""
-  lines: List[Line] = field(default_factory=list)
+  lines: list[Line] = field(default_factory=list)
 
   def copy(self) -> "_Snapshot":
     """A shallow-but-safe clone: the line list is copied so appends don't alias."""
@@ -57,7 +58,7 @@ class _Snapshot:
     )
 
 
-def _clean_keywords(kw) -> List[str]:
+def _clean_keywords(kw) -> list[str]:
   """Trim keywords and drop empties/non-strings — port of projectFile.js ``cleanKeywords``.
 
   Kept deliberately simple (no dedupe/lower-casing) so a ``.stencil`` round-trip preserves
@@ -68,7 +69,7 @@ def _clean_keywords(kw) -> List[str]:
   return [k.strip() for k in kw if isinstance(k, str) and k.strip()]
 
 
-def _sniff_image_ext(data: bytes) -> Optional[str]:
+def _sniff_image_ext(data: bytes) -> (str | NoneType):
   """Best-effort image format from magic bytes (for a lossless save when there's no filename)."""
   if data[:8] == b"\x89PNG\r\n\x1a\n":
     return "png"
@@ -86,4 +87,4 @@ def _sniff_image_ext(data: bytes) -> Optional[str]:
 # Source object types accepted by Editor.load().
 LoadSource = Union[str, bytes, bytearray, Image]
 # Layout-ish inputs accepted by draw()/apply_layout().
-LayoutLike = Union[Layout, dict, str, List[Line]]
+LayoutLike = Union[Layout, dict, str, list[Line]]

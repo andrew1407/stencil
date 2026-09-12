@@ -8,6 +8,8 @@ callers can size-filter scraped media without a full decode.
 
 import struct
 
+from .._types import NoneType
+
 
 class CodecError(Exception):
   """Raised for any decode/encode failure (bad magic, unsupported subtype...)."""
@@ -21,6 +23,8 @@ class CodecError(Exception):
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _BMP_MAGIC = b"BM"
 _JPEG_MAGIC = b"\xff\xd8\xff"
+
+Dimensions = tuple[int, int]
 
 
 def sniff(data: bytes) -> str:
@@ -39,7 +43,7 @@ def sniff(data: bytes) -> str:
   return "unknown"
 
 
-def image_dimensions(data: bytes) -> tuple[int, int] | None:
+def image_dimensions(data: bytes) -> (Dimensions | NoneType):
   """Return ``(width, height)`` sniffed from an image header, or ``None``.
 
   A codec-free header read covering PNG (IHDR), GIF (logical screen), BMP
@@ -67,7 +71,7 @@ def image_dimensions(data: bytes) -> tuple[int, int] | None:
   return None
 
 
-def _webp_dimensions(data: bytes) -> tuple[int, int] | None:
+def _webp_dimensions(data: bytes) -> (Dimensions | NoneType):
   """Dimensions from a WebP header (simple VP8, lossless VP8L, or extended VP8X)."""
   fourcc = data[12:16]
   if fourcc == b"VP8 " and len(data) >= 30:
@@ -89,7 +93,7 @@ def _webp_dimensions(data: bytes) -> tuple[int, int] | None:
   return None
 
 
-def _jpeg_dimensions(data: bytes) -> tuple[int, int] | None:
+def _jpeg_dimensions(data: bytes) -> (Dimensions | NoneType):
   """Dimensions from the first JPEG Start-Of-Frame (SOF0-15, excl. DHT/JPG/DAC)."""
   i = 2
   n = len(data)
@@ -115,7 +119,7 @@ def _jpeg_dimensions(data: bytes) -> tuple[int, int] | None:
   return None
 
 
-def format_from_ext(path: str) -> str | None:
+def format_from_ext(path: str) -> (str | NoneType):
   """Map a filename's extension to an encoder name, or ``None`` if unknown.
 
   Used by ``Image.save`` to pick a format when none is given. Case-insensitive

@@ -4,7 +4,7 @@ from __future__ import annotations
 this editor through the same op-plan validator every surface uses.
 """
 
-from typing import Optional, Tuple
+from .._types import NoneType
 
 
 class _AssistantApi:
@@ -13,10 +13,10 @@ class _AssistantApi:
   def prompt(
     self,
     text: str,
-    images: Optional[list] = None,
+    images: (list | NoneType) = None,
     llm=None,
     execute: bool = True,
-  ) -> Tuple[str, list]:
+  ) -> tuple[str, list]:
     """Ask the configured LLM to edit this image; returns ``(reply, outputs)``.
 
     A thin single-turn delegate over :mod:`pystencil.llm`: the prompt (plus any

@@ -6,11 +6,14 @@ DESIGN scan order and dedupes first-wins.
 """
 
 import urllib.parse
-from typing import Dict, List, Optional, Tuple
 from html.parser import HTMLParser
 
+from .._types import NoneType
 from .._net import _is_http
 from .format import MediaItem, _extract_css_urls, format_of
+
+Attrs = dict[str, str]
+MediaRefs = list[tuple[str, str, str]]
 
 
 class _Scanner(HTMLParser):
@@ -24,20 +27,20 @@ class _Scanner(HTMLParser):
     super().__init__(convert_charrefs=True)
     self.base = base_url
     self._page_url = base_url
-    self.imgs: List[Tuple[str, str, str]] = []
-    self.svgs: List[Tuple[str, str, str]] = []
-    self.videos: List[Tuple[str, str, str]] = []
-    self.sources: List[Tuple[str, str, str]] = []
-    self.bgs: List[Tuple[str, str, str]] = []
+    self.imgs: MediaRefs = []
+    self.svgs: MediaRefs = []
+    self.videos: MediaRefs = []
+    self.sources: MediaRefs = []
+    self.bgs: MediaRefs = []
     self._base_set = False
-    self._cur_video: Optional[dict] = None
+    self._cur_video: (dict | NoneType) = None
     self._picture_depth = 0
     self._style_depth = 0
-    self._style_buf: List[str] = []
+    self._style_buf: list[str] = []
 
   # attrs come as a list of (name, value|None) pairs; fold to a lower-cased dict.
   @staticmethod
-  def _attr_dict(attrs) -> Dict[str, str]:
+  def _attr_dict(attrs) -> Attrs:
     return {k.lower(): (v or "") for k, v in attrs}
 
   def handle_starttag(self, tag, attrs):
@@ -54,21 +57,21 @@ class _Scanner(HTMLParser):
     if handler is not None:
       handler(self, a)
 
-  def _start_img(self, a: Dict[str, str]) -> None:
+  def _start_img(self, a: Attrs) -> None:
     raw = self._img_url(a)
     if raw:
       self.imgs.append(("img", raw, a.get("alt", "")))
 
-  def _start_svg_image(self, a: Dict[str, str]) -> None:
+  def _start_svg_image(self, a: Attrs) -> None:
     """Inline ``<svg><image href|xlink:href>``."""
     raw = a.get("href", "").strip() or a.get("xlink:href", "").strip()
     if raw:
       self.svgs.append(("img", raw, ""))
 
-  def _start_picture(self, a: Dict[str, str]) -> None:
+  def _start_picture(self, a: Attrs) -> None:
     self._picture_depth += 1
 
-  def _start_video(self, a: Dict[str, str]) -> None:
+  def _start_video(self, a: Attrs) -> None:
     self._cur_video = {
       "src": a.get("src", "").strip(),
       "poster": a.get("poster", "").strip(),
@@ -76,7 +79,7 @@ class _Scanner(HTMLParser):
       "source": "",
     }
 
-  def _start_source(self, a: Dict[str, str]) -> None:
+  def _start_source(self, a: Attrs) -> None:
     raw = a.get("src", "").strip()
     if self._cur_video is not None:
       # First http(s) <source> stands in when the <video src> isn't usable.
@@ -87,7 +90,7 @@ class _Scanner(HTMLParser):
     elif self._picture_depth > 0 and raw:
       self.sources.append(("img", raw, ""))
 
-  def _start_style(self, a: Dict[str, str]) -> None:
+  def _start_style(self, a: Attrs) -> None:
     self._style_depth += 1
 
   def handle_endtag(self, tag):
@@ -134,7 +137,7 @@ class _Scanner(HTMLParser):
   }
 
   @staticmethod
-  def _img_url(a: Dict[str, str]) -> str:
+  def _img_url(a: Attrs) -> str:
     """Pick an ``<img>`` URL: ``src`` unless it's empty or a ``data:`` placeholder,
     then ``data-src`` / ``data-original`` / ``data-lazy-src`` / first ``srcset`` URL."""
     src = a.get("src", "").strip()
@@ -152,7 +155,7 @@ class _Scanner(HTMLParser):
     return src  # a lone data: placeholder — resolved out as non-http later
 
 
-def scan_html(html: str, base_url: str) -> List[MediaItem]:
+def scan_html(html: str, base_url: str) -> list[MediaItem]:
   """Parse ``html`` and return the ordered, deduped list of http(s) media candidates.
 
   URLs are resolved absolute against ``base_url`` (honoring a ``<base href>``), non-http(s)
@@ -166,8 +169,8 @@ def scan_html(html: str, base_url: str) -> List[MediaItem]:
   records = (
     scanner.imgs + scanner.svgs + scanner.videos + scanner.sources + scanner.bgs
   )
-  seen: Dict[str, MediaItem] = {}
-  out: List[MediaItem] = []
+  seen: dict[str, MediaItem] = {}
+  out: list[MediaItem] = []
   for kind, raw, alt in records:
     if not raw:
       continue

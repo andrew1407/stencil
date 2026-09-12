@@ -10,6 +10,8 @@ the pixel bytes go in an octet-stream body. The sync half ports ``remoteSync.js`
 import urllib.parse
 from typing import Any
 
+from .._types import NoneType
+
 
 class _FileApi:
   """Per-project file bytes and the create/save remote-project flows."""
@@ -61,9 +63,9 @@ class _FileApi:
     self,
     name: str,
     image: Any = None,
-    source: str | None = None,
-    resource: str | None = None,
-    description: str | None = None,
+    source: (str | NoneType) = None,
+    resource: (str | NoneType) = None,
+    description: (str | NoneType) = None,
     layout: Any = None,
   ) -> dict:
     """Create a project and (when an image is given) upload the original.
@@ -96,8 +98,8 @@ class _FileApi:
     version: int,
     layout: Any,
     image: Any = None,
-    name: str | None = None,
-    color: str | None = None,
+    name: (str | NoneType) = None,
+    color: (str | NoneType) = None,
   ) -> dict:
     """Version-guarded save-back (layout/name/color) plus optional result upload.
 

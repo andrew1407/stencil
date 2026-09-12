@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, Sequence
 
+from .._types import NoneType
 from .limits import DEFAULT_CUSTOM_LABEL
 
 # ── op-plan value types ───────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ class Variant:
   """
 
   label: str
-  actions: List[dict] = field(default_factory=list)
+  actions: list[dict] = field(default_factory=list)
 
 
 def variant_slug(label: str) -> str:
@@ -29,7 +30,7 @@ def variant_slug(label: str) -> str:
   return s or "variant"
 
 
-def variant_slugs(variants: Sequence["Variant"]) -> List[str]:
+def variant_slugs(variants: Sequence["Variant"]) -> list[str]:
   """Unique file slugs for a plan's variants, in order.
 
   Each label goes through :func:`variant_slug`; a slug already taken gains the first
@@ -38,7 +39,7 @@ def variant_slugs(variants: Sequence["Variant"]) -> List[str]:
   ``variantStem`` and mcp's ``to_edit_requests`` apply.
   """
   taken: set = set()
-  out: List[str] = []
+  out: list[str] = []
   for v in variants:
     slug = variant_slug(v.label)
     if slug in taken:
@@ -75,7 +76,7 @@ class AskCard:
   multi: bool = False
   allow_custom: bool = False
   custom_label: str = DEFAULT_CUSTOM_LABEL
-  options: List[AskOption] = field(default_factory=list)
+  options: list[AskOption] = field(default_factory=list)
 
 
 @dataclass
@@ -91,8 +92,8 @@ class OpPlan:
   """
 
   reply: str
-  actions: List[dict] = field(default_factory=list)
-  variants: List[Variant] = field(default_factory=list)
-  warnings: List[str] = field(default_factory=list)
-  ask: Optional["AskCard"] = None
-  saved: List[str] = field(default_factory=list)
+  actions: list[dict] = field(default_factory=list)
+  variants: list[Variant] = field(default_factory=list)
+  warnings: list[str] = field(default_factory=list)
+  ask: ("AskCard" | NoneType) = None
+  saved: list[str] = field(default_factory=list)
