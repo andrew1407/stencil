@@ -30,7 +30,7 @@ def _valid_chat_doc(doc) -> (dict | NoneType):
   messages = doc.get("messages")
   if not isinstance(messages, list):
     return None
-  kept: list[dict] = []
+  kept: list[dict] = list()
   for m in messages:
     if not isinstance(m, dict):
       continue

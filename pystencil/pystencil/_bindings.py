@@ -27,7 +27,7 @@ def bind(lib: ctypes.CDLL) -> None:
   lib.stencil_cli_namedPageSize.argtypes = [_cstr, _dblp, _dblp]
 
   lib.stencil_cli_pageFormats.restype = _cstr
-  lib.stencil_cli_pageFormats.argtypes = []
+  lib.stencil_cli_pageFormats.argtypes = list()
 
   lib.stencil_cli_defaultBlankSizePx.restype = None
   lib.stencil_cli_defaultBlankSizePx.argtypes = [

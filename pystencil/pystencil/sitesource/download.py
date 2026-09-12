@@ -36,7 +36,7 @@ def download_media(
   could not fetch …`` per failure); the caller prints the final summary.
   """
   os.makedirs(out_dir, exist_ok=True)
-  written: list[str] = []
+  written: list[str] = list()
   used: set = set()
   multiple = len(items) > 1
   # Fetch every item at once (each carries its own guard + cap), then name and write in

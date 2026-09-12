@@ -12,7 +12,7 @@ class HistoryOpExecutionTest(unittest.TestCase):
   """§2 undo/redo/reset + the new §2 forms, dispatched over the stub editor."""
 
   def setUp(self) -> None:
-    _StubEditor.instances = []
+    _StubEditor.instances = list()
     self.editor = _StubEditor()
 
   def _run(self, actions) -> "OpPlan":
@@ -59,7 +59,7 @@ class ConsoleOpExecutionTest(unittest.TestCase):
   order; without a console they are skipped with a note (the library API)."""
 
   def setUp(self) -> None:
-    _StubEditor.instances = []
+    _StubEditor.instances = list()
     self.editor = _StubEditor()
 
   def test_without_a_console_ops_are_skipped_with_a_note(self):

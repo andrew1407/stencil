@@ -42,7 +42,7 @@ def _json_request(
   empty token — this client always sends the header; the LLM client passes None
   to omit it entirely).
   """
-  headers: dict[str, str] = {}
+  headers: dict[str, str] = dict()
   if bearer is not None:
     headers["Authorization"] = "Bearer " + bearer
   data: (bytes | NoneType) = None

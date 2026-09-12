@@ -99,13 +99,13 @@ def parse_op_plan(text: str) -> OpPlan:
   if obj is None:
     return OpPlan(reply=raw.strip())
   reply = obj.get("reply")
-  warnings: list[str] = []
+  warnings: list[str] = list()
   # §1 reply tolerance: models routinely omit the reply while planning valid
   # actions — substitute rather than lose the plan to a missing pleasantry.
   # The substitute itself is decided below, once the plan's contents are known.
   reply_omitted = not isinstance(reply, str) or not reply.strip()
   actions = _validate_actions(obj.get("actions"), warnings, "actions")
-  variants: list[Variant] = []
+  variants: list[Variant] = list()
   raw_variants = obj.get("variants")
   if raw_variants is not None:
     # The registry envelope: ≤ MAX_VARIANTS objects of {label: string, actions}.

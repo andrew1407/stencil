@@ -16,7 +16,7 @@ from pystencil.layout import Layout, Line, Point
 
 def _lines(count: int, points: int, width: int, height: int) -> Layout:
   """`count` strokes of `points` vertices each, spread across the view."""
-  made = []
+  made = list()
   for i in range(count):
     y = (i * height) // max(count, 1)
     pts = [Point(float((j * width) // max(points - 1, 1)), float(y)) for j in range(points)]

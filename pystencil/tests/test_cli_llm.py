@@ -112,7 +112,7 @@ class ReplConnectTokenTest(unittest.TestCase):
   def _repl(self) -> tuple:
     out = io.StringIO()
     repl = cli._Repl(out)
-    seen: list = []
+    seen: list = list()
     # Stand in for the network handshake; record what the manager was handed.
     repl._manager.connect = lambda spec: seen.append(spec) or repl._manager
     return repl, out, seen

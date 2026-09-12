@@ -63,7 +63,7 @@ def _targets(node, package_parts):
 
 def scan(package):
   """Every cross-module import as (file, from_module, to_module), file-sorted."""
-  edges = []
+  edges = list()
   for path in sorted(package.rglob("*.py")):
     rel = path.relative_to(package).as_posix()
     owner = _owner(rel)

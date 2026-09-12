@@ -18,7 +18,7 @@ class ProjectMetadataTest(unittest.TestCase):
   def test_update_project_body_includes_color(self) -> None:
     # Capture the request update_project builds without hitting the network,
     # so we can assert the `color` field rides the PUT body like `name`.
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       captured["method"] = req.get_method()
@@ -38,7 +38,7 @@ class ProjectMetadataTest(unittest.TestCase):
 
   def test_update_project_omits_color_when_none(self) -> None:
     # color=None must NOT appear in the body (nil => unchanged, like name).
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       captured["body"] = json.loads(req.data.decode("utf-8"))
@@ -52,7 +52,7 @@ class ProjectMetadataTest(unittest.TestCase):
 
   def test_update_project_clears_color_with_empty_string(self) -> None:
     # An explicit "" is a clear request and MUST be sent (it is not None).
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       captured["body"] = json.loads(req.data.decode("utf-8"))
@@ -64,7 +64,7 @@ class ProjectMetadataTest(unittest.TestCase):
 
   def test_update_project_includes_expires_at(self) -> None:
     # expires_at rides the PUT body like color/name; None omits it, 0 is sent (clear).
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       captured["body"] = json.loads(req.data.decode("utf-8"))
@@ -83,7 +83,7 @@ class ProjectMetadataTest(unittest.TestCase):
 
   def test_set_project_expiration_reads_version_then_puts(self) -> None:
     # Mirrors rename_project: GET for the current version, then PUT expiresAt.
-    calls = []
+    calls = list()
 
     def stub_open(req, raw=False):
       calls.append((req.get_method(), req.full_url))

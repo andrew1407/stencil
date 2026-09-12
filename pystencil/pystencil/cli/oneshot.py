@@ -98,7 +98,7 @@ def _run_pipeline(args: argparse.Namespace, err: TextIO) -> int:
   editor = Editor()
 
   # 1) Source — --blank and --input are mutually exclusive (mirror the Zig parser).
-  blank_leftover: list[str] = []
+  blank_leftover: list[str] = list()
   if args.blank is not None and args.input is not None:
     emit_error(err, "--input and --blank are mutually exclusive")
     return 2

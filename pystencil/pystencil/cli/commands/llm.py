@@ -89,7 +89,7 @@ class _LlmCommands:
     server's project names fetched best-effort (an unreachable server just omits
     its listing)."""
     active_url = getattr(self._remote[0], "base", "") if self._remote is not None else ""
-    servers: list[ConsoleServer] = []
+    servers: list[ConsoleServer] = list()
     for url in self._manager.connections:
       conn = self._manager.get(url)
       names: (list[str] | NoneType) = None

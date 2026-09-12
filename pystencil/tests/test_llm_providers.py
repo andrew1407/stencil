@@ -44,7 +44,7 @@ class OllamaRequestTest(unittest.TestCase):
     self.assertNotIn("images", body["messages"][1])
 
   def test_chat_extracts_message_content(self) -> None:
-    captured = {}
+    captured = dict()
 
     def stub_open(req):
       captured["url"] = req.full_url
@@ -116,7 +116,7 @@ class LlmTimeoutTest(unittest.TestCase):
 
     self.assertGreaterEqual(server_mod._LLM_TIMEOUT, 120.0)
     self.assertGreater(server_mod._LLM_TIMEOUT, server_mod._REQUEST_TIMEOUT)
-    seen: list = []
+    seen: list = list()
 
     class _Resp:
       status = 200

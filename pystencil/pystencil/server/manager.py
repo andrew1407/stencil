@@ -24,8 +24,8 @@ class ConnectionManager:
 
   def __init__(self, *, verify: bool = True) -> None:
     self._verify = verify
-    self._conns: dict[str, ServerConnection] = {}  # url -> connection
-    self._last: list[tuple[str, str]] = []  # for reconnect(): [(url, token)]
+    self._conns: dict[str, ServerConnection] = dict()  # url -> connection
+    self._last: list[tuple[str, str]] = list()  # for reconnect(): [(url, token)]
 
   @property
   def connections(self) -> list:

@@ -39,7 +39,7 @@ class VariantRenderConcurrencyTests(unittest.TestCase):
   their outputs stay in plan order."""
 
   def setUp(self):
-    _StubEditor.instances = []
+    _StubEditor.instances = list()
     _BranchEditor.barrier = None
     self.addCleanup(setattr, _BranchEditor, "barrier", None)
 
@@ -71,7 +71,7 @@ class VariantRenderConcurrencyTests(unittest.TestCase):
       execute_op_plan(plan, _BranchEditor())
 
   def test_one_variant_needs_no_thread(self):
-    seen = []
+    seen = list()
     editor = _BranchEditor()
     original = _BranchEditor.result
 

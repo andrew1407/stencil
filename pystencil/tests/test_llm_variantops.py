@@ -15,7 +15,7 @@ class MisplacedVariantOpTest(unittest.TestCase):
   the user nothing and cost them everything."""
 
   def setUp(self) -> None:
-    _StubEditor.instances = []
+    _StubEditor.instances = list()
     self.editor = _StubEditor()
 
   def _run(self, text: str):

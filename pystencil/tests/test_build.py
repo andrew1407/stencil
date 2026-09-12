@@ -116,7 +116,7 @@ class StalenessTests(unittest.TestCase):
     self.assertTrue(build_py.is_stale(self.out, [self.src]))
 
   def test_one_newer_input_among_many_is_enough(self):
-    others = []
+    others = list()
     for i in range(3):
       p = Path(self._dir.name) / ("o%d.hpp" % i)
       p.write_text("y")

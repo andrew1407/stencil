@@ -85,7 +85,7 @@ class ReplChatModeTest(_ReplCase):
     """The one ServerConnection method /chat clear touches, recorded."""
 
     def __init__(self) -> None:
-      self.deleted = []
+      self.deleted = list()
 
     def delete_file(self, pid, kind) -> None:
       self.deleted.append((pid, kind))

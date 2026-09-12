@@ -86,7 +86,7 @@ def decode_png(data: bytes) -> tuple[int, int, bytearray]:
     raise CodecError("PNG pixel data is %d of %d bytes" % (len(raw), wanted))
 
   # Reverse the per-row filter; row 0's "previous row" is all zeros (RFC 2083).
-  rows = []
+  rows = list()
   prev = b"\x00" * stride
   src = 0
   for _y in range(height):

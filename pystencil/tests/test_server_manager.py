@@ -118,7 +118,7 @@ class WatchProjectsTest(unittest.TestCase):
 
     conn.list_projects = fetch  # type: ignore[method-assign]
     stop = threading.Event()
-    received: list = []
+    received: list = list()
 
     def on_change(change) -> None:
       received.append(change)
@@ -134,7 +134,7 @@ class RenameProjectTest(unittest.TestCase):
   def test_rename_reads_version_then_puts_name(self) -> None:
     conn = ServerConnection("http://h:8090", token="t")
     conn._current_version = lambda pid, fb: 7  # type: ignore[method-assign]
-    captured: dict = {}
+    captured: dict = dict()
 
     def stub_update(pid, layout=None, name=None, color=None, version=0):  # noqa: ANN001
       captured.update(pid=pid, name=name, version=version)

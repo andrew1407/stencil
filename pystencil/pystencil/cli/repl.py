@@ -71,7 +71,7 @@ class _Repl(
     # order, what a plan's `image` op indexes (the cli console's attachment
     # registry: capped at MAX_UPLOAD_ATTACHMENTS with the oldest falling off; a
     # /prompt marks the set used, so the next /upload starts a fresh one).
-    self._attachments: list[tuple[str, bytes, str]] = []
+    self._attachments: list[tuple[str, bytes, str]] = list()
     self._attachments_used: bool = False
     # §12 chat persistence: /chat on|off (session-scoped, default OFF — /prompt
     # stays single-turn) and the multi-turn Chat used while it is on.

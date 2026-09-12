@@ -27,7 +27,7 @@ def ask_answer_text(
   text = (typed or "").strip()
   if not text:
     return None
-  picked: list[int] = []
+  picked: list[int] = list()
   for token in re.split(r"[,\s]+", text):
     if not token:
       continue

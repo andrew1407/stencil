@@ -22,7 +22,7 @@ class _SpyCore:
 
   def __init__(self, core):
     self._core = core
-    self.calls = {}
+    self.calls = dict()
 
   def __getattr__(self, name):
     attr = getattr(self._core, name)
@@ -40,7 +40,7 @@ class _SpyCore:
     return sum(self.calls.values())
 
   def reset(self):
-    self.calls = {}
+    self.calls = dict()
 
 
 def _layout():

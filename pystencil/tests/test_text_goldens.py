@@ -24,7 +24,7 @@ def _diff(expected, actual):
   """The first few differing lines, so a failure names the wording that moved."""
   want = expected.split("\n")
   got = actual.split("\n")
-  lines = []
+  lines = list()
   for i in range(max(len(want), len(got))):
     w = want[i] if i < len(want) else "<eof>"
     g = got[i] if i < len(got) else "<eof>"

@@ -39,7 +39,7 @@ def variant_slugs(variants: Sequence["Variant"]) -> list[str]:
   ``variantStem`` and mcp's ``to_edit_requests`` apply.
   """
   taken: set = set()
-  out: list[str] = []
+  out: list[str] = list()
   for v in variants:
     slug = variant_slug(v.label)
     if slug in taken:

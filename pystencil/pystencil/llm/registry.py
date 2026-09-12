@@ -151,7 +151,7 @@ _SURFACE_OPS: dict[str, tuple] = {
   "reset": (_apply_reset, None, "console"),
 }
 
-OP_REGISTRY: dict[str, OpSpec] = {}
+OP_REGISTRY: dict[str, OpSpec] = dict()
 for _name, (_applier, _normalizer, _scope) in _SURFACE_OPS.items():
   _entry = SCHEMA.ops.get(_name)
   if _entry is None:  # pragma: no cover - guards registry edits

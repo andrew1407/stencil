@@ -25,8 +25,8 @@ class _MockLlmClient:
     self.reply = reply
     self.replies = list(replies or [])
     self.raises = raises
-    self.sent: list = []
-    self.systems: list = []
+    self.sent: list = list()
+    self.systems: list = list()
 
   def chat(self, messages, system=None):
     self.sent.append([dict(m) for m in messages])

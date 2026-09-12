@@ -47,7 +47,7 @@ def _registered(cls) -> NamedCommands:
   ``cls``'s own commands come last, so the listing reads mixin by mixin and ends with
   the REPL's own /help and /exit.
   """
-  found: NamedCommands = []
+  found: NamedCommands = list()
   for klass in [k for k in cls.__mro__[1:] if k is not object] + [cls]:
     entries = [v for v in vars(klass).values() if hasattr(v, "_command")]
     entries.sort(key=lambda fn: fn.__code__.co_firstlineno)
@@ -57,7 +57,7 @@ def _registered(cls) -> NamedCommands:
 
 def build_table(cls) -> CommandTable:
   """``{verb: method}`` for every name (and alias) registered on ``cls``."""
-  table: CommandTable = {}
+  table: CommandTable = dict()
   for _owner, fn in _registered(cls):
     for name in fn._command.names:
       if name in table:  # pragma: no cover - guards a duplicate registration

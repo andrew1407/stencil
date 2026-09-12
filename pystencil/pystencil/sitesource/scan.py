@@ -27,16 +27,16 @@ class _Scanner(HTMLParser):
     super().__init__(convert_charrefs=True)
     self.base = base_url
     self._page_url = base_url
-    self.imgs: MediaRefs = []
-    self.svgs: MediaRefs = []
-    self.videos: MediaRefs = []
-    self.sources: MediaRefs = []
-    self.bgs: MediaRefs = []
+    self.imgs: MediaRefs = list()
+    self.svgs: MediaRefs = list()
+    self.videos: MediaRefs = list()
+    self.sources: MediaRefs = list()
+    self.bgs: MediaRefs = list()
     self._base_set = False
     self._cur_video: (dict | NoneType) = None
     self._picture_depth = 0
     self._style_depth = 0
-    self._style_buf: list[str] = []
+    self._style_buf: list[str] = list()
 
   # attrs come as a list of (name, value|None) pairs; fold to a lower-cased dict.
   @staticmethod
@@ -103,7 +103,7 @@ class _Scanner(HTMLParser):
       self._style_depth -= 1
       for raw in _extract_css_urls("".join(self._style_buf)):
         self.bgs.append(("bg", raw, ""))
-      self._style_buf = []
+      self._style_buf = list()
 
   def handle_data(self, data):
     if self._style_depth > 0:
@@ -169,8 +169,8 @@ def scan_html(html: str, base_url: str) -> list[MediaItem]:
   records = (
     scanner.imgs + scanner.svgs + scanner.videos + scanner.sources + scanner.bgs
   )
-  seen: dict[str, MediaItem] = {}
-  out: list[MediaItem] = []
+  seen: dict[str, MediaItem] = dict()
+  out: list[MediaItem] = list()
   for kind, raw, alt in records:
     if not raw:
       continue

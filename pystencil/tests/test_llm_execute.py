@@ -11,7 +11,7 @@ from tests.stubs import _StubEditor, _plan_json
 
 class ExecuteOpPlanStubTest(unittest.TestCase):
   def setUp(self) -> None:
-    _StubEditor.instances = []
+    _StubEditor.instances = list()
     self.editor = _StubEditor()
 
   def _run(self, text: str) -> list:

@@ -130,7 +130,7 @@ class LlmClient:
         "no stencil-server URL configured — set STENCIL_LLM_SERVER_URL or "
         "pass a ServerConnection"
       )
-    wire: list = []
+    wire: list = list()
     for m in messages:
       role, text, images = _msg_parts(m)
       entry: dict = {"role": role, "text": text}
@@ -198,7 +198,7 @@ class LlmClient:
       text = msg.get("content") if isinstance(msg, dict) else None
     else:  # stencil-server
       if not isinstance(payload, dict):
-        payload = {}
+        payload = dict()
       stop = payload.get("stopReason") or ""
       text = payload.get("text")
       if stop == "max_tokens":

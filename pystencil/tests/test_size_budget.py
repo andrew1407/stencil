@@ -123,7 +123,7 @@ class SizeBudgetTests(unittest.TestCase):
     )
 
   def test_recorded_files_do_not_grow(self):
-    notes = []
+    notes = list()
     for rel, recorded in sorted(self.budget["files"].items()):
       if rel in self.budget["exceptions"]:
         continue
@@ -148,7 +148,7 @@ class SizeBudgetTests(unittest.TestCase):
     self.assertEqual(over, [], "file(s) over the %d-line cap for new files" % cap)
 
   def test_comment_share_does_not_rise(self):
-    totals = {}
+    totals = dict()
     for rel in self.files:
       parent = str(Path(rel).parent.as_posix())
       total, comments = self.counts[rel]

@@ -106,7 +106,7 @@ def _assemble_ops_bullets(
   emitted once. An entry whose ``capability`` is not in ``capabilities`` is excluded —
   the op is then never promised to the model and falls to §1's unknown-op skip. A
   bullet matching a censor pattern raises."""
-  bullets: list[str] = []
+  bullets: list[str] = list()
   for name, spec in registry.items():
     if spec.scope != scope or not spec.bullet:
       continue

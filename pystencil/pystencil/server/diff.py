@@ -34,7 +34,7 @@ def diff_projects(prev: list, curr: list) -> list:
   """
   prev_by = {p.get("id"): p for p in (prev or []) if p.get("id")}
   curr_by = {p.get("id"): p for p in (curr or []) if p.get("id")}
-  changes: list = []
+  changes: list = list()
   for pid, new in curr_by.items():
     old = prev_by.get(pid)
     if old is None:
@@ -62,7 +62,7 @@ def _poll_loop(fetch: Callable[[], list], on_change, interval: float, stop) -> N
   try:
     baseline = fetch()
   except Exception:
-    baseline = []
+    baseline = list()
   while not (stop is not None and stop.is_set()):
     if stop is not None:
       if stop.wait(interval):

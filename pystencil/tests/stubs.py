@@ -25,10 +25,10 @@ class _StubEditor:
   for the per-variant editors; the class-level registry collects every instance.
   """
 
-  instances: list = []
+  instances: list = list()
 
   def __init__(self) -> None:
-    self.calls: list = []
+    self.calls: list = list()
     _StubEditor.instances.append(self)
 
   def _record(self, *call):
@@ -99,8 +99,8 @@ class _StubClient:
 
   def __init__(self, *replies: str) -> None:
     self.replies = list(replies)
-    self.sent: list = []
-    self.systems: list = []
+    self.sent: list = list()
+    self.systems: list = list()
 
   def chat(self, messages, system=LLM_SYSTEM_PROMPT):
     self.sent.append([dict(m) for m in messages])
@@ -114,7 +114,7 @@ class _SavingStubEditor(_StubEditor):
 
   def __init__(self) -> None:
     super().__init__()
-    self.saved: list = []
+    self.saved: list = list()
     self.image = True
     self.name = "current"
 
@@ -133,7 +133,7 @@ class _StubConsole:
 
   def __init__(self, notes=None) -> None:
     self.notes = dict(notes or {})
-    self.calls: list = []
+    self.calls: list = list()
 
   def _hook(self, op, action):
     self.calls.append((op, action))

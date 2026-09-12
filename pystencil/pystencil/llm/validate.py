@@ -45,7 +45,7 @@ def _validate_actions(raw: Any, warnings: list[str], where: str) -> list[dict]:
   if raw is None:
     return []
   _plan_check(lambda: SCHEMA.check_envelope(raw, "actions"))
-  out: list[dict] = []
+  out: list[dict] = list()
   for a in raw:
     op = a.get("op")
     if not isinstance(op, str) or not op:
@@ -82,7 +82,7 @@ def _validate_ask(raw: Any, warnings: list[str]) -> (AskCard | NoneType):
     return None
   _plan_check(lambda: SCHEMA.validate_ask(raw))
   card = SCHEMA.normalize_ask(raw)
-  options: list[AskOption] = []
+  options: list[AskOption] = list()
   dropped_preview = False
   for i, (ro, opt) in enumerate(zip(raw["options"], card["options"])):
     if ro.get("actions") is not None:

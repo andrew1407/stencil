@@ -196,7 +196,7 @@ class _DeriveApi:
     y2: (float | NoneType),
   ) -> str:
     """Assemble a ``"x1=.. y1=.. x2=.. y2=.."`` crop spec, omitting None edges."""
-    parts: list[str] = []
+    parts: list[str] = list()
     if x1 is not None:
       parts.append("x1=%s" % x1)
     if y1 is not None:

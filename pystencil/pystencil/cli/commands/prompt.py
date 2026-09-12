@@ -86,8 +86,8 @@ class _PromptCommands:
   def _prompt_round(self, arg: str):
     """One model round. True = the plan only LOADED an image, so the caller should
     re-send once with it attached; anything else = the turn is finished."""
-    images: Attachments = []
-    transient: Attachments = []
+    images: Attachments = list()
+    transient: Attachments = list()
     # The system prompt is §4 + the console settings-op block; its dynamic suffix
     # carries the console context always, plus the §7 edge-map sentence when the
     # edge map actually rides (the cli console's suffix order).

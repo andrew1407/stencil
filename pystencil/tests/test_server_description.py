@@ -16,7 +16,7 @@ class ProjectDescriptionTest(unittest.TestCase):
 
   def test_update_project_body_includes_description(self) -> None:
     # description rides the PUT body like color/name (nil => unchanged contract).
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       captured["method"] = req.get_method()
@@ -31,7 +31,7 @@ class ProjectDescriptionTest(unittest.TestCase):
 
   def test_update_project_omits_description_when_none(self) -> None:
     # description=None must NOT appear (keep the server's current value).
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       captured["body"] = json.loads(req.data.decode("utf-8"))
@@ -43,7 +43,7 @@ class ProjectDescriptionTest(unittest.TestCase):
 
   def test_update_project_clears_description_with_empty_string(self) -> None:
     # An explicit "" is a clear request and MUST be sent (it is not None).
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       captured["body"] = json.loads(req.data.decode("utf-8"))
@@ -55,7 +55,7 @@ class ProjectDescriptionTest(unittest.TestCase):
 
   def test_set_project_description_reads_version_then_puts(self) -> None:
     # Mirrors rename_project: GET for the current version, then a version-guarded PUT.
-    calls = []
+    calls = list()
 
     def stub_open(req, raw=False):
       calls.append(req.get_method())
@@ -73,7 +73,7 @@ class ProjectDescriptionTest(unittest.TestCase):
 
   def test_set_project_description_clears_with_empty(self) -> None:
     # Clearing sends "" under the version guard (not a silent no-op).
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       if req.get_method() == "GET":
@@ -94,7 +94,7 @@ class ProjectDescriptionTest(unittest.TestCase):
 
   def test_create_project_includes_description_when_given(self) -> None:
     # create_project passes description through; a None value is dropped (server default).
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       captured["method"] = req.get_method()

@@ -75,13 +75,13 @@ class _HistoryApi:
     self._original = None
     self._source_bytes = None
     self._source_ext = None
-    self._history = []
+    self._history = list()
     self._cursor = 0
     self._name = "layout"
     self._source = None
     self._resource = None
     self._color = ""
-    self._keywords = []
+    self._keywords = list()
     self._allow_formulas = False
     self._formula_x = ""
     self._formula_y = ""

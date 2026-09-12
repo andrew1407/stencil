@@ -94,7 +94,7 @@ class Line:
     if not isinstance(d, dict):
       return cls()
     raw_points = d.get("points")
-    points: list[Point] = []
+    points: list[Point] = list()
     if isinstance(raw_points, list):
       points = [Point.from_dict(p) for p in raw_points]
     return cls(
@@ -175,9 +175,9 @@ class Layout:
   def from_dict(cls, d: Any) -> "Layout":
     """Parse a layout mapping; missing fields fall back to defaults/empty."""
     if not isinstance(d, dict):
-      d = {}
+      d = dict()
     raw_lines = d.get("lines")
-    lines: list[Line] = []
+    lines: list[Line] = list()
     if isinstance(raw_lines, list):
       lines = [Line.from_dict(ln) for ln in raw_lines]
     return cls(

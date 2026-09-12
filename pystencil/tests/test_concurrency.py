@@ -41,7 +41,7 @@ class FetchAllTests(unittest.TestCase):
     self.assertEqual(_fetch_all(range(MAX_FETCH_WORKERS), job), list(range(MAX_FETCH_WORKERS)))
 
   def test_a_single_job_runs_inline(self):
-    who = []
+    who = list()
     _fetch_all(["only"], lambda j: who.append(threading.current_thread().name))
     self.assertEqual(who, [threading.current_thread().name])
 
@@ -60,7 +60,7 @@ class _FetchStub:
     self.barrier = threading.Barrier(parties, timeout=_TIMEOUT)
     self.bodies = bodies
     self.fail = set(fail)
-    self.urls = []
+    self.urls = list()
     self._lock = threading.Lock()
 
   def __call__(self, url, **kwargs):

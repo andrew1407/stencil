@@ -85,7 +85,7 @@ class Schema(ValueChecks):
     return v
 
   def _pick_fields(self, obj: dict, fields: dict) -> dict:
-    out: dict = {}
+    out: dict = dict()
     for k, spec in fields.items():
       if obj.get(k) is not None:
         out[k] = self._pick(obj[k], spec)
@@ -152,7 +152,7 @@ def load_registry() -> dict:
   )
 
 
-_SCHEMAS: dict[str, Schema] = {}
+_SCHEMAS: dict[str, Schema] = dict()
 
 
 def schema(surface: str = "pystencil") -> Schema:

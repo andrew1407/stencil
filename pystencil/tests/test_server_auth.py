@@ -15,7 +15,7 @@ class CredentialRetentionTest(unittest.TestCase):
     # A connection whose _open is replaced by `handler(bearer, method, path)`;
     # returns (conn, calls) with each call recorded as (bearer, method, path).
     conn = ServerConnection(url, token=token)
-    calls = []
+    calls = list()
 
     def stub_open(req, raw=False):
       bearer = (req.get_header("Authorization") or "").removeprefix("Bearer ")

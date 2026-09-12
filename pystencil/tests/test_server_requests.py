@@ -54,7 +54,7 @@ class BuildRequestTest(unittest.TestCase):
   def test_delete_file_sends_delete_and_returns_none(self) -> None:
     # delete_file drops a filestore-only kind (video/variantN/chat) with the
     # §9 per-file DELETE; the idempotent 204 comes back as None.
-    captured = {}
+    captured = dict()
 
     def stub_open(req, raw=False):
       captured["method"] = req.get_method()

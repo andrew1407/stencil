@@ -46,7 +46,7 @@ class _SourceCommands:
   def _add_attachment(self, label: str) -> None:
     """Remember the just-loaded image as one of this turn's §2.1 attachments."""
     if self._attachments_used:
-      self._attachments = []
+      self._attachments = list()
       self._attachments_used = False
     try:
       data = self._editor.result(with_lines=False).encode("png")

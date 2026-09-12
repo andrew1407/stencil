@@ -18,7 +18,7 @@ class ContinuationPredicateTest(unittest.TestCase):
   def _plan(self, ops):
     class P:
       actions = [{"op": o} for o in ops]
-      variants = []
+      variants = list()
     return P()
 
   def test_a_mixed_load_plan_without_a_layout_continues(self):

@@ -81,7 +81,7 @@ class MultiImageOpExecutionTest(unittest.TestCase):
   """Executor half: attachments, per-action skip warnings, and .stencil naming."""
 
   def setUp(self) -> None:
-    _StubEditor.instances = []
+    _StubEditor.instances = list()
     self.editor = _SavingStubEditor()
     self.tmp = tempfile.mkdtemp(prefix="stencil_save_")
     self.addCleanup(shutil.rmtree, self.tmp, True)

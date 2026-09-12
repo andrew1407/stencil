@@ -39,7 +39,7 @@ class Chat:
     # Retained history: dicts {"role", "text", "images"} (newest last). Images
     # that the replay rule can never send again are blanked by send() — see its
     # memory note — so only replayable attachments are held.
-    self.history: Messages = []
+    self.history: Messages = list()
 
   @staticmethod
   def _check_images(images: (Iterable | NoneType), cap: (int | NoneType) = MAX_ATTACHMENTS) -> list:
@@ -52,7 +52,7 @@ class Chat:
     USER attachment queue, not surface-internal transients (the edge map, the
     console's §2.1 /upload set, which has its own 8-image bound).
     """
-    out: list = []
+    out: list = list()
     for media_type, data in wire_images(images):
       if media_type not in ACCEPTED_MEDIA_TYPES:
         raise ValueError(
@@ -80,14 +80,14 @@ class Chat:
       if self.history[i]["images"]:
         prior = i
         break
-    out: Messages = []
+    out: Messages = list()
     for i, m in enumerate(self.history):
       if i == last:
         images = list(m["images"])
       elif i == prior:
         images = [m["images"][-1]]  # only its most recent image replays
       else:
-        images = []
+        images = list()
       out.append({"role": m["role"], "text": m["text"], "images": images})
     return out
 
@@ -128,7 +128,7 @@ class Chat:
       wire[-1]["images"] = wire[-1]["images"] + transient
     if self.history[-1]["images"]:
       for m in self.history[:-1]:
-        m["images"] = []
+        m["images"] = list()
     raw = self.client.chat(wire, system if system is not None else LLM_SYSTEM_PROMPT)
     plan = parse_op_plan(raw)
     self.history.append({"role": "assistant", "text": raw, "images": []})
@@ -160,7 +160,7 @@ class Chat:
     :func:`chat_display_text`. ``now_ms`` pins the informational ``savedAt``
     stamp (tests); the default is the current epoch ms.
     """
-    messages: Messages = []
+    messages: Messages = list()
     for m in self.history:
       role = m.get("role")
       if role not in ("user", "assistant"):

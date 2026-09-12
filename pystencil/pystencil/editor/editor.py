@@ -65,7 +65,7 @@ class Editor(
     # the untouched source (lossless) instead of a PNG re-encode. See _set_source.
     self._source_bytes: (bytes | NoneType) = None
     self._source_ext: (str | NoneType) = None
-    self._history: list[_Snapshot] = []
+    self._history: list[_Snapshot] = list()
     self._cursor: int = 0
     # Monotonic edit-state counter backing the public `revision` property.
     self._revision: int = 0
@@ -82,7 +82,7 @@ class Editor(
     self._color: str = ""
     # Free-text keywords/tags (project-level; ride the .stencil file + the server
     # ProjectRecord.keywords). Trimmed, empties dropped — matches projectFile.js cleanKeywords.
-    self._keywords: list[str] = []
+    self._keywords: list[str] = list()
     # x/y coordinate-transform formulas (project-level; ride the layout, browser applies them).
     self._allow_formulas: bool = False
     self._formula_x: str = ""

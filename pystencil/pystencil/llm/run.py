@@ -18,7 +18,7 @@ def wire_images(images: (Iterable | NoneType)) -> list:
 
   An attachment may carry a third element — the source file name §2.1's ``save``
   derives its default project name from — which never rides the wire."""
-  out: list = []
+  out: list = list()
   for item in images or []:
     try:
       parts = tuple(item)
@@ -59,8 +59,8 @@ class _PlanRun:
     self.save_dir = save_dir or ""
     # The §10 console-profile hook object (the REPL), or None at the library level.
     self.console = console
-    self.notes: list[str] = []
-    self.saved: list[str] = []
+    self.notes: list[str] = list()
+    self.saved: list[str] = list()
     self.active_name = ""
     # One attachment and nothing else: it names an unnamed save even before an
     # explicit `image` op adopts it (the browser's activeAttachment rule).

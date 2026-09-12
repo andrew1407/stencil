@@ -26,7 +26,7 @@ class _EditCommands:
   def _cmd_crop(self, arg: str) -> None:
     # Pull a standalone "album"/"--album" token out of the spec (port of stripAlbum).
     album = False
-    kept: list[str] = []
+    kept: list[str] = list()
     for tok in arg.split():
       if tok.lower() in ("album", "--album"):
         album = True

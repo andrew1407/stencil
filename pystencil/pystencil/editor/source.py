@@ -121,7 +121,7 @@ class _SourceApi:
     self._resource = resource
     # A fresh source is a fresh project, so its custom accent + keywords reset.
     self._color = ""
-    self._keywords = []
+    self._keywords = list()
     self._history = [_Snapshot()]
     self._cursor = 0
     self._revision += 1

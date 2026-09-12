@@ -68,7 +68,7 @@ def execute_op_plan(
   are skipped with a note (the library API has no connections, no /delete scope,
   no user-echo guard for openUrl, and no conversation for clearChat).
   """
-  outputs: list = []
+  outputs: list = list()
   base = None  # the post-actions snapshot, rendered at most once
   frame = _FrameMap()  # §1: plan coordinates are in the pre-plan frame
   run = _PlanRun(attachments, save_dir, console)
@@ -93,7 +93,7 @@ def execute_op_plan(
       return outputs
     if base is None:
       base = editor.result()  # snapshot AFTER the top-level actions
-    branches = []
+    branches = list()
     for variant in plan.variants:
       branch = type(editor)()
       branch.load(base, name=variant.label)
