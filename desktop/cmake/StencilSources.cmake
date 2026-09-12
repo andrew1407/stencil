@@ -59,6 +59,16 @@ set(STENCIL_PROJECTS_DIALOG_SOURCES
   src/dialogs/projectsThumbs.cpp
   src/dialogs/projectsTransfer.cpp)
 
+# The disintegration cloud (support/disintegrateOverlay.hpp) is split across five TUs
+# defining one class: the maths, the factories, the per-instance state, the paint and the
+# three mote flights. Every target that flies dust needs the whole set.
+set(STENCIL_DISINTEGRATE_SOURCES
+  src/support/disintegrateOverlay.cpp
+  src/support/disintegrateFactory.cpp
+  src/support/disintegrateState.cpp
+  src/support/disintegratePaint.cpp
+  src/support/disintegrateMotes.cpp)
+
 # The toggle face swap is split across two TUs defining one header's functions (the
 # frame maths and painting, then the live driver); every target that swaps a face needs
 # both, so they travel under one name.
@@ -193,6 +203,7 @@ set(STENCIL_GUI_SOURCES
   src/support/modalReveal.cpp
   src/support/modalChrome.cpp
   src/support/searchCombo.cpp
+  ${STENCIL_DISINTEGRATE_SOURCES}
   ${STENCIL_FACESWAP_SOURCES}
   src/support/iconSet.cpp
   src/support/numericInput.cpp
