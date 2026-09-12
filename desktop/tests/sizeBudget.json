@@ -13,7 +13,6 @@
     "desktop/src/app/mainWindowToolbar.cpp": 385,
     "desktop/src/app/projectTransferController.cpp": 310,
     "desktop/src/app/selectedLineBar.cpp": 298,
-    "desktop/src/app/selectionPanel.cpp": 524,
     "desktop/src/app/stayOpenMenu.cpp": 457,
     "desktop/src/app/stencilFileSync.cpp": 265,
     "desktop/src/canvas/canvasWidget.hpp": 610,

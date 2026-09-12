@@ -240,6 +240,8 @@ set(STENCIL_GUI_SOURCES
   src/app/launchOptions.cpp
   src/io/deepLink.cpp
   src/app/selectionPanel.cpp
+  src/app/selectionPanelRows.cpp
+  src/app/selectionPanelState.cpp
   src/app/selectedLineBar.cpp
   src/llm/chatDock.cpp
   src/llm/chatDockShared.cpp
