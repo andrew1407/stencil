@@ -1,17 +1,14 @@
-// ── The per-row "⋯" menu shared by the projects list ────────────
-// Extracted from projectsModal.js. One floating menu reused by every row, so secondary
-// actions live behind one button instead of crowding the row. Closes on click-away,
+// The per-row "⋯" menu, one floating node reused by every row. Closes on click-away,
 // Escape, or re-render (the list calls closeMenu() before it rebuilds).
 import { icon } from './icons.js';
 import { surfaceIn, surfaceOut, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
 
 export const createProjectRowMenu = () => {
   let openMenu = null;
-  let menuPoint = null;   // the "⋯" (or the right-click) the menu grew out of
+  let menuPoint = null;
   const closeMenu = () => {
     if (!openMenu) return;
-    // Back into that same point as dust (js/ui/motion.js) — its own layer, so the
-    // menu node still goes away NOW and nothing can be left half-removed.
+    // Back into that point as dust in its own layer, so the node still goes away NOW.
     surfaceOut(openMenu, menuPoint, { ms: SURFACE_MENU_OUT_MS });
     openMenu.remove();
     openMenu = null;
@@ -26,14 +23,13 @@ export const createProjectRowMenu = () => {
     const menu = document.createElement('div');
     menu.className = 'project-menu';
     for (const it of items) {
-      if (!it) continue;   // skip conditionally-omitted entries
+      if (!it) continue;
       const b = document.createElement('button');
-      // Dedicated danger class (NOT the global `.danger`, which fills the button
-      // red) so the destructive item is red TEXT on the menu background.
+      // Not the global `.danger` (which fills the button red): red text on the menu background.
       b.className = 'project-menu-item btn-icon-text' + (it.danger ? ' is-danger' : '');
       b.innerHTML = `${icon(it.icon, { size: 15 })}<span>${it.label}</span>`;
-      // Each row hands its handler its OWN rect, measured before the menu goes: a window
-      // raised from here grows out of the row that was clicked, not out of thin air.
+      // Each handler gets its row's rect, measured before the menu goes, so a window raised
+      // from here grows out of the clicked row.
       b.addEventListener('click', e => {
         e.stopPropagation();
         const at = b.getBoundingClientRect();
@@ -48,11 +44,9 @@ export const createProjectRowMenu = () => {
     let x;
     let y;
     if (point) {
-      // Cursor-anchored (right-click): open at the point, flipping left/up near edges.
       x = point.x + mw > window.innerWidth - 8 ? point.x - mw : point.x;
       y = point.y + mh > window.innerHeight - 8 ? point.y - mh : point.y;
     } else {
-      // Button-anchored: right-align under the "⋯", flip above if it would clip.
       const r = anchor.getBoundingClientRect();
       x = r.right - mw;
       y = r.bottom + 6;
@@ -61,8 +55,7 @@ export const createProjectRowMenu = () => {
     menu.style.left = `${Math.max(8, x)}px`;
     menu.style.top = `${Math.max(8, y)}px`;
     openMenu = menu;
-    // Grow out of the control that opened it: the cursor for a right-click, the "⋯"
-    // button's centre otherwise.
+    // The cursor for a right-click, the "⋯" button's centre otherwise.
     menuPoint = point || rectCenter(anchor);
     surfaceIn(menu, menuPoint, { ms: SURFACE_MENU_IN_MS });
     setTimeout(() => {

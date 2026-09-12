@@ -1,7 +1,7 @@
 import { cmToUnit, isTypingTarget } from '../utils.js';
 import { icon } from './icons.js';
 import { leaveThenRemove } from './motion.js';
-// ── CoordTable: the points table DOM + per-row interactions ──────
+// The points table DOM + per-row interactions.
 export class CoordTable {
   constructor(app) {
     this.app = app;
@@ -22,8 +22,8 @@ export class CoordTable {
       const pageCoords = this.app.pixelToPageCoords(point.x, point.y);
       const row = document.createElement('tr');
       row.dataset.ptIdx = index;
-      // Focusable so a bare Delete/Backspace can be scoped to this table, the way the
-      // desktop's points table scopes it to widget focus (selectionPanel.cpp eventFilter).
+      // Focusable so a bare Delete/Backspace is scoped to this table, as the desktop's points
+      // table scopes it to widget focus (selectionPanel.cpp eventFilter).
       row.tabIndex = 0;
       if (index === this.app.focusedPtIdx) row.classList.add('row-focused');
 
@@ -54,10 +54,8 @@ export class CoordTable {
         this.app.renderer.redraw();
       });
 
-      // Delete/Backspace on a focused row removes that point — the same key the desktop's
-      // points table takes, and the same core path as the row's 🗑. Bare (no Alt), because
-      // the key is scoped to this table by focus; the global Alt+Delete stays as-is. Skipped
-      // while a px cell is being edited, where Backspace means "erase a digit".
+      // Delete/Backspace on a focused row removes that point (desktop parity); bare, because
+      // focus scopes it. Skipped while a px cell is being edited.
       row.addEventListener('keydown', e => {
         if (e.key !== 'Delete' && e.key !== 'Backspace') return;
         if (isTypingTarget(e.target)) return;
@@ -70,7 +68,7 @@ export class CoordTable {
 
       const makeEditable = (cell, axis) => {
         cell.addEventListener('dblclick', () => {
-          if (this.app.compareReadOnly()) return; // read-only compare view
+          if (this.app.compareReadOnly()) return;
           if (cell.querySelector('.coord-px-input')) return;
           const curVal = Math.round(axis === 'x' ? point.x : point.y);
           cell.innerHTML = '';
@@ -84,7 +82,6 @@ export class CoordTable {
 
           const commit = () => {
             const newVal = parseInt(inp.value, 10);
-            // Shared core path (also used by the console); it re-renders the table.
             if (!isNaN(newVal)) {
               this.app.setPointCoord(lineIdx, index, axis, newVal);
             } else {
@@ -115,10 +112,9 @@ export class CoordTable {
       makeEditable(row.querySelector('.cell-px-x'), 'x');
       makeEditable(row.querySelector('.cell-px-y'), 'y');
 
-      // Delete point button → shared core path (also used by the console).
       row.querySelector('.del-pt-btn').addEventListener('click', e => {
         e.stopPropagation();
-        if (this.app.compareReadOnly()) return; // read-only compare view
+        if (this.app.compareReadOnly()) return;
         // Collapse the row away first; removePoint() rebuilds the table without it.
         leaveThenRemove(row, () => this.app.removePoint(lineIdx, index));
       });
@@ -128,16 +124,14 @@ export class CoordTable {
     this.#capPanel();
   }
 
-  // Re-cap the panel to the window whenever the row count changes (a traced outline is
-  // ~40 rows). Guarded so the table stays usable in contexts without the panel (tests,
-  // the fullscreen clone), where zoomPan/the panel element may not be present.
+  // Re-cap the panel whenever the row count changes; guarded for contexts without the
+  // panel (tests, the fullscreen clone).
   #capPanel() {
     try { this.app.zoomPan?.syncCoordPanelHeight?.(); } catch { /* no panel in this context */ }
   }
 
-  // After a keyboard delete the table is rebuilt, so focus would fall back to <body> and
-  // the next Delete would do nothing. Re-focus the row that slid into the deleted one's
-  // place (the last row when the tail was removed) — Qt's table keeps its current row too.
+  // The table is rebuilt after a keyboard delete, so re-focus the row that slid into the
+  // deleted one's place (Qt's table keeps its current row too).
   focusRowAfterRemoval(index) {
     const rows = this.app.coordinatesBody.querySelectorAll('tr[data-pt-idx]');
     if (!rows.length) return;

@@ -2,13 +2,8 @@ import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
 
-// ── Shared shell: the ACTIVE project's meta editors ──────────────
 // descriptionModal.js and keywordsModal.js are the same window with a different field:
-// the app-modal shell around one textarea, opened from the toolbar's "Description &
-// attributes" section, commit/discard (only Save writes; Cancel, ×, Escape and
-// click-outside discard). Each spec supplies what actually differs — the id prefix and
-// glyph, the field's size and placeholder, the footer hint, how the value is read from
-// and written back to the project, and which Enter commits.
+// one textarea, commit/discard (only Save writes). Each spec supplies what differs.
 export const createProjectMetaModal = ({
   name, title, glyph, rows, placeholder, hint, noun, addLabel, load, save, commitsOn,
 }) => {
@@ -41,11 +36,11 @@ export const createProjectMetaModal = ({
       const $ = (id) => document.getElementById(id);
       const text = $(`${name}-text`);
       const shell = wireModalShell($(`${name}-overlay`), $(`${name}-btn`), $(`${name}-close`), {
-        // Reopening always starts from what is STORED — that is what makes every close a discard.
+        // Reopening from what is stored is what makes every close a discard.
         onOpen: () => {
           const id = app.activeProjectId;
           text.value = load(id != null ? app.storage.store.getMeta(id) : null);
-          setTimeout(() => text.focus(), 0);   // after modal-open applies (display:none can't focus)
+          setTimeout(() => text.focus(), 0);
         },
       });
       const commit = () => {

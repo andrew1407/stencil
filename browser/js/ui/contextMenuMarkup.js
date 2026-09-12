@@ -4,10 +4,8 @@ import { ctxArrow } from './ctxArrow.js';
 import { assistantItemHtml } from './ctxAssistantItem.js';
 import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS } from './exportVariants.js';
 
-// The variant rows of a Copy/Download Image flyout, from the shared registry
-// (exportVariants.js — labels, glyphs, order, and the "With Compare is a FOURTH row"
-// rule live there). split/current share the primary combo (their empty `-hk` chips are
-// filled by syncState); original/tint carry their own data-hk bindings.
+// The variant rows of a Copy/Download Image flyout (exportVariants.js owns labels, glyphs
+// and order). split/current share the primary combo, filled by syncState.
 const exportVariantRows = (prefix, currentIcon, hks) => EXPORT_VARIANTS.map((v) => {
   const hk = v === 'split' || v === 'current'
     ? `<span class="ctx-hotkey" id="${prefix}-${v}-hk"></span>`
@@ -17,8 +15,7 @@ const exportVariantRows = (prefix, currentIcon, hks) => EXPORT_VARIANTS.map((v) 
     + `<span class="ctx-label">${EXPORT_VARIANT_LABELS[v]}</span>${hk}</div>`;
 }).join('\n                        ');
 
-// The menu's static markup — every row, so the wiring in ui/contextMenu.js reads as behaviour
-// alone. State (checks, hotkey chips, visibility) is written afterwards by syncState.
+// The menu's static markup; state (checks, hotkey chips, visibility) is written by syncState.
 export function contextMenuInner() {
     return `
         <!-- Fit zoom to window — FIRST: the most-reached-for entry, and a plain item, so it

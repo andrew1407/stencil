@@ -2,13 +2,9 @@ import { StencilElement, hostTag, define, createModalFlight } from './base.js';
 import { icon } from './icons.js';
 import { gestureAnchorRect } from './gesturePoint.js';
 
-// ── Component: generic confirm dialog ───────────────────────────
-// A single reusable yes/no modal replacing native confirm(). Call via the
-// instance method ask(message, opts) → Promise<boolean>; resolves true on OK,
-// false on Cancel / Close / overlay-click / Escape. opts: { title, confirmLabel,
-// cancelLabel, confirmIcon, danger }. app.confirm() (drawingApp) delegates here.
-// `confirmIcon` (and askAlt's `altIcon`) name a glyph from ui/icons.js — pass one
-// whenever the button says what it DOES, so the icon says the same thing.
+// The reusable yes/no modal behind app.confirm(): ask(message, opts) → Promise<boolean>,
+// false on Cancel / Close / overlay-click / Escape. `confirmIcon` / `altIcon` name a glyph
+// from ui/icons.js so the button's icon says what it does.
 export class StencilConfirmModal extends StencilElement {
   static inner() {
     return `
@@ -37,32 +33,24 @@ export class StencilConfirmModal extends StencilElement {
     const confirmBtn = document.getElementById('confirm-modal-confirm');
 
     const body = overlay.querySelector('.settings-body');
-    // The question is sand like every other window (ui/base.js createModalFlight) — but
-    // it has no opener icon: it is raised by whatever the user just did, so it forms out
-    // of motes streaming from THAT gesture's own point and pours back into it.
+    // No opener icon: the dialog forms out of the gesture that raised it and pours back into it.
     const flight = createModalFlight(overlay, () => overlay.querySelector('.app-modal'));
 
-    // The gesture this dialog grew from, captured on open and reused on close — measured
-    // again at close time it would anchor on the dismiss button instead.
+    // Captured on open and reused on close, or the close would anchor on the dismiss button.
     let openAnchor = null;
-    // …unless the caller names another way back (opts.closeAnchor): a context-menu row is
-    // gone by close time, so the dust pours into the "⋯" the menu hung off. An element,
-    // measured at close time, wherever the list has scrolled to by then.
+    // opts.closeAnchor names another way back (a context-menu row is gone by close time);
+    // an element, measured at close time.
     let closeAnchorEl = null;
     const rectOf = (el) => {
       const r = el?.getBoundingClientRect?.();
       return r && r.width > 0 && r.height > 0 ? r : null;
     };
-    // Resolver for the in-flight ask()/choose(); null when no dialog is open.
     let resolveCurrent = null;
-    // When set, the dialog is in "choose" mode: Confirm resolves with the picked
-    // value, Cancel/Close/Escape resolve null (instead of the plain boolean).
+    // "choose" mode: Confirm resolves the picked value, Cancel/Close/Escape null.
     let choiceSelect = null;
-    // When set, the dialog is in "prompt" mode: Confirm resolves the trimmed text.
     let promptInput = null;
     // Live validation (desktop twin: modalChrome.hpp PromptSpec::validate): the reason the
-    // trimmed text cannot be accepted, '' when it can. A reason disables Confirm — Enter
-    // with it too — and shows under the field, so the button is never a dead click.
+    // trimmed text cannot be accepted, '' when it can; a reason disables Confirm and Enter.
     let promptValidate = null;
     let promptReasonEl = null;
     const promptWhyNot = () =>
@@ -77,19 +65,17 @@ export class StencilConfirmModal extends StencilElement {
         promptReasonEl.style.display = why ? '' : 'none';
       }
     };
-    // Forget the last prompt's gate — the next dialog starts clickable.
     const clearPromptGate = () => {
       promptValidate = null;
       promptReasonEl = null;
       confirmBtn.disabled = false;
       delete confirmBtn.dataset.title;
     };
-    // When set, the dialog has a THIRD button: Confirm resolves 'confirm', the extra
-    // button 'alt', and Cancel/Close/Escape null (see askAlt).
+    // A third button (askAlt): Confirm resolves 'confirm', the extra button 'alt', Cancel null.
     let altBtn = null;
     const settle = (val) => {
-      // Measured while it is still up — display:none measures 0 — then handed to the
-      // cloud, which has a life of its own on <body>: the answer never waits for it.
+      // Measured while still up (display:none measures 0); the cloud lives on <body>, so the
+      // answer never waits for it.
       const animate = overlay.classList.contains('modal-open') && !flight.reducedMotion()
                       && flight.setOrigin(rectOf(closeAnchorEl) || openAnchor);
       overlay.classList.remove('modal-open');
@@ -113,34 +99,28 @@ export class StencilConfirmModal extends StencilElement {
     const onKey = (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); settle(false); }
       else if (e.key === 'Enter') {
-        // A multi-line prompt owns plain Enter — it types a newline — so only the
-        // modifier form confirms there. Everywhere else Enter is still "OK".
+        // A multi-line prompt owns plain Enter; only the modifier form confirms there.
         if (promptInput?.tagName === 'TEXTAREA' && e.target === promptInput && !(e.ctrlKey || e.metaKey)) return;
         e.preventDefault();
-        if (promptWhyNot()) return;   // the same gate the disabled Confirm is behind
+        if (promptWhyNot()) return;
         settle(true);
       }
     };
-    // Shared open: set labels/icon/danger, show the overlay, arm the key handler.
     const beginDialog = (message, opts, defaultTitle) => {
       document.getElementById('confirm-modal-title-text').textContent = opts.title || defaultTitle;
-      // The header glyph says what KIND of dialog this is: the alert triangle for a
-      // question with a consequence, `titleIcon` for anything else — a prompt that just
-      // collects a value (keywords, a description) is information, not a warning.
+      // The alert triangle for a question with a consequence, `titleIcon` for a plain value prompt.
       document.getElementById('confirm-modal-title-icon').innerHTML =
         icon(opts.titleIcon || 'alert', { size: 18 });
       document.getElementById('confirm-modal-message').textContent = message || '';
-      // The glyph follows the ACTION, not the dialog: a plain yes/no keeps the check,
-      // but a named action ("Replace") shows what it does instead of a generic tick.
+      // The glyph follows the action: a named action ("Replace") shows what it does.
       confirmBtn.innerHTML =
         icon(opts.confirmIcon || 'check', { size: 14 }) + '<span id="confirm-modal-confirm-text"></span>';
       document.getElementById('confirm-modal-confirm-text').textContent = opts.confirmLabel || 'OK';
       document.getElementById('confirm-modal-cancel-text').textContent = opts.cancelLabel || 'Cancel';
       confirmBtn.classList.toggle('danger', !!opts.danger);
-      flight.finishClose();   // a question asked while the last one is still leaving
+      flight.finishClose();
       overlay.classList.add('modal-open');
-      // Measured after the class applies — the box has no size while display:none. Captured
-      // once here and reused by settle() so the close flies back to this same point.
+      // Measured after the class applies (no size while display:none); reused by settle().
       openAnchor = gestureAnchorRect();
       closeAnchorEl = opts.closeAnchor || null;
       if (!flight.reducedMotion() && flight.setOrigin(openAnchor)) flight.playDust(true);
@@ -152,8 +132,7 @@ export class StencilConfirmModal extends StencilElement {
     confirmBtn.addEventListener('click', () => settle(true));
     overlay.addEventListener('mousedown', e => { if (e.target === overlay) settle(false); });
 
-    // Cancel any in-flight dialog before a new one opens, dropping its injected row. A picker/
-    // prompt resolves null (its cancel value); a plain ask resolves false.
+    // A picker/prompt resolves null (its cancel value); a plain ask resolves false.
     const dismissPrevious = () => {
       if (resolveCurrent) {
         const prev = resolveCurrent;
@@ -165,7 +144,6 @@ export class StencilConfirmModal extends StencilElement {
       clearPromptGate();
       if (altBtn) { altBtn.remove(); altBtn = null; }
     };
-    // Build a one-element row (select or input) and inject it below the message.
     const injectRow = (el) => {
       const wrap = document.createElement('div');
       wrap.className = 'confirm-choose-row';
@@ -173,7 +151,6 @@ export class StencilConfirmModal extends StencilElement {
       body.appendChild(wrap);
     };
 
-    // Public API consumed by app.confirm().
     this.ask = (message, opts = {}) => new Promise(resolve => {
       dismissPrevious();
       resolveCurrent = resolve;
@@ -181,21 +158,17 @@ export class StencilConfirmModal extends StencilElement {
       setTimeout(() => confirmBtn.focus(), 30);
     });
 
-    // Three-button variant: Cancel | <altLabel> | <confirmLabel>. Resolves 'confirm',
-    // 'alt', or null — for a question with two real answers plus a way out, like
-    // "combine this layout with the existing lines, or replace them?".
+    // Cancel | <altLabel> | <confirmLabel>, resolving 'confirm', 'alt' or null.
     // opts: { title, confirmLabel, altLabel, cancelLabel, confirmIcon, altIcon, danger }.
     this.askAlt = (message, opts = {}) => new Promise(resolve => {
       dismissPrevious();
       resolveCurrent = resolve;
       beginDialog(message, opts, 'Confirm');
-      // Injected at runtime, like the picker/prompt rows, so the static markup (and the
-      // markup tests) stay unchanged.
+      // Injected at runtime so the static markup (and the markup tests) stay unchanged.
       const btn = document.createElement('button');
       btn.id = 'confirm-modal-alt';
       btn.className = 'btn-icon-text';
-      // Carries a glyph like the other two — a bare word beside two icon buttons
-      // reads as the odd one out rather than as an equal choice.
+      // A glyph like the other two, or it reads as the odd one out.
       btn.innerHTML = icon(opts.altIcon || 'plus', { size: 14 }) + '<span></span>';
       btn.querySelector('span').textContent = opts.altLabel || 'Alternative';
       btn.addEventListener('click', () => settle('alt'));
@@ -204,14 +177,12 @@ export class StencilConfirmModal extends StencilElement {
       setTimeout(() => confirmBtn.focus(), 30);
     });
 
-    // Picker variant: same modal with a <select> injected below the message.
-    // Resolves the chosen option value on Confirm, null on Cancel/Close/Escape.
+    // A <select> below the message: resolves the chosen value, null on Cancel/Close/Escape.
     // opts: { title, confirmLabel, cancelLabel, options:[{value,label}] }.
     this.choose = (message, opts = {}) => new Promise(resolve => {
       dismissPrevious();
       resolveCurrent = resolve;
       beginDialog(message, opts, 'Choose');
-      // The picker row is created here, not in static markup, so the markup tests stay green.
       const sel = document.createElement('select');
       sel.className = 'confirm-choose-select';
       for (const o of (opts.options || [])) {
@@ -225,12 +196,9 @@ export class StencilConfirmModal extends StencilElement {
       setTimeout(() => sel.focus(), 30);
     });
 
-    // Text-prompt variant: an <input> below the message, resolving the trimmed text on
-    // Confirm, null otherwise. opts: { title, titleIcon, confirmLabel, defaultValue,
-    // multiline, rows, validate }. `multiline` swaps in a `rows`-tall <textarea>
-    // (default 3) for sentence-shaped values; Enter then types a newline and Ctrl/⌘+Enter
-    // saves. `validate(trimmed)` returns the reason the value cannot be accepted ('' when
-    // it can) — it disables Confirm and Enter and shows under the field.
+    // An <input> below the message: resolves the trimmed text, null otherwise. opts: { title,
+    // titleIcon, confirmLabel, defaultValue, multiline, rows, validate }. `multiline` is a
+    // `rows`-tall <textarea> (Ctrl/⌘+Enter saves); `validate(trimmed)` returns the refusal reason.
     this.prompt = (message, opts = {}) => new Promise(resolve => {
       dismissPrevious();
       resolveCurrent = resolve;
@@ -241,7 +209,7 @@ export class StencilConfirmModal extends StencilElement {
       else inp.type = 'text';
       inp.className = 'confirm-prompt-input';
       inp.value = opts.defaultValue || '';
-      inp.addEventListener('keydown', e => e.stopPropagation());   // keep the modal's Enter/Esc, but let typing through
+      inp.addEventListener('keydown', e => e.stopPropagation());
       injectRow(inp);
       promptInput = inp;
       promptValidate = typeof opts.validate === 'function' ? opts.validate : null;
@@ -252,7 +220,7 @@ export class StencilConfirmModal extends StencilElement {
         inp.parentElement.appendChild(why);
         promptReasonEl = why;
         inp.addEventListener('input', revalidatePrompt);
-        revalidatePrompt();   // an empty box starts refused, not offering a dead button
+        revalidatePrompt();
       }
       setTimeout(() => { inp.focus(); inp.select(); }, 30);
     });

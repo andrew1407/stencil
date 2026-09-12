@@ -1,17 +1,14 @@
-// Pure sort/order helpers for the projects modal (browser/js/ui/projectsModal.js).
-// Kept pure and DOM-free so the five sort-mode comparators and the manual drag-order
-// reconciliation are unit-testable (tests/projectSort.test.js). An "item" is
+// Pure, DOM-free sort/order helpers for projectsModal.js. An "item" is
 // { key, name (lowercased), date (epoch ms), isRemote (bool) }.
 
-// name = by-name-mixed (default: server + local interleaved); manual = the per-session
-// drag order; the rest sort by locality or date.
+// name = server + local interleaved (default); manual = the per-session drag order.
 export const SORT_MODES = ['name', 'local', 'server', 'date-desc', 'date-asc', 'manual'];
 
-// Stable tiebreak: name, then newest, then key — so equal-named rows keep a deterministic order.
+// Stable tiebreak: name, then newest, then key.
 const cmpName = (a, b) => a.name.localeCompare(b.name) || (b.date - a.date) || a.key.localeCompare(b.key);
 
-// Returns a NEW sorted array (never mutates `items`). `order` is the manual key sequence,
-// consulted only for mode 'manual'; keys absent from it fall to the end (by name).
+// Returns a new array. `order` is the manual key sequence (mode 'manual' only); keys absent
+// from it fall to the end.
 export const sortProjectItems = (items, mode, order = []) => {
   const arr = items.slice();
   if (mode === 'local') arr.sort((a, b) => (a.isRemote - b.isRemote) || cmpName(a, b));
@@ -25,13 +22,12 @@ export const sortProjectItems = (items, mode, order = []) => {
       const pb = pos.has(b.key) ? pos.get(b.key) : Infinity;
       return (pa - pb) || cmpName(a, b);
     });
-  } else arr.sort(cmpName);   // 'name' (default) and any unknown mode
+  } else arr.sort(cmpName);
   return arr;
 };
 
-// Reconcile a manual drop into a full key order. Seeds from `base` (the existing manual order
-// when already in manual mode, else the full ordering the modal was showing), guarantees every
-// current key has a slot, then moves draggedKey to before/after targetKey. Returns a new array.
+// Seeds from `base` (the existing manual order, else what the modal was showing), gives
+// every current key a slot, then moves draggedKey before/after targetKey. Returns a new array.
 export const reconcileManualOrder = (fullKeys, base, draggedKey, targetKey, before) => {
   let out = (base && base.length) ? base.slice() : fullKeys.slice();
   for (const k of fullKeys) if (!out.includes(k)) out.push(k);
