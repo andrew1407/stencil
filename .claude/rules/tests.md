@@ -56,9 +56,22 @@ that is the task.
 | server | `cd server && go test ./internal/lint/...` |
 | bot | `cd bot && dotnet test Stencil.TelegramBot.slnx --filter SizeBudgetTests` |
 
-It checks three things: no new file over 230 lines, no listed file grew, no directory's
-comment share rose. Lower a recorded number when code leaves the file; never raise one without
-a note in the budget's `exceptions`.
+It checks four things: no new file over 230 lines, no listed file grew, no directory's
+comment share rose, and **the suite still runs at least its floor of tests**. Lower a recorded
+number when code leaves the file; never raise one without a note in the budget's `exceptions`.
+
+The **test-count floor** is the guard against a suite that reports "0 failed" while running a
+fraction of itself — a glob that stopped matching, a target dropped from a source list, a
+walker that fell out of its manifest. It fails naming both numbers (`… collapsed to N, floor is
+M`). It is a floor, not a pin: adding tests never trips it, so raise one only when its suite has
+grown well past it. Where the runner can be asked what it actually ran, the floor asks it
+(browser and extension spawn an inner `node --test` and read its summary — so these two lint
+commands now take a couple of seconds, not 0.2; core reads doctest's registry; desktop parses
+the generated `CTestTestfile.cmake`; pystencil walks `defaultTestLoader.discover`; bot reflects
+over the assembly and expands every theory's data rows). Zig, Rust and Go offer no such
+introspection, so those three scan declarations and catch a deleted test but not an unexecuted
+one; mcp additionally verifies every `harness = false` walker is still registered in
+`Cargo.toml`.
 
 ## Benchmarks are opt-in
 

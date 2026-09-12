@@ -25,20 +25,26 @@ is not a pass.
 
 | # | Surface | Command (from the repo root) | Expected |
 |---|---|---|---|
-| 1 | browser | `cd browser && npm test` | 3321 pass, 0 fail (~2 s) |
-| 2 | extension | `cd extension && npm test` | 1631 pass, 0 fail (~2 s) |
-| 3 | core | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && nice -n 10 cmake --build core/build -j 4 && ctest --test-dir core/build --output-on-failure` | 1/1 — **247 cases run, 12 skipped** (11 bench + 1 budget), 7208 assertions |
-| 4 | cli | `cd cli && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer zig build test --summary all` | 378 pass (~6 s) |
-| 5 | pystencil | `cd pystencil && python3 -m unittest discover -s tests` | 651 OK |
+| 1 | browser | `cd browser && npm test` | 0 fail, ~3.3k tests (~2 s) |
+| 2 | extension | `cd extension && npm test` | 0 fail, ~1.6k tests (~2 s) |
+| 3 | core | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && nice -n 10 cmake --build core/build -j 4 && ctest --test-dir core/build --output-on-failure` | 1/1 — ~250 cases, **12 skipped** (11 bench + 1 budget) |
+| 4 | cli | `cd cli && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer zig build test --summary all` | 0 fail, ~380 tests (~6 s) |
+| 5 | pystencil | `cd pystencil && python3 -m unittest discover -s tests` | OK, ~650 tests |
 | 6 | server | `cd server && go test ./...` then `go test -race ./internal/hub/...` | 18 pkgs, 16 with tests, all ok |
-| 7 | bot | `cd bot && dotnet test Stencil.TelegramBot.slnx -m:2` | 2141 pass, 0 fail |
-| 8 | mcp | `cd mcp && CARGO_BUILD_JOBS=2 cargo test --locked -j 2` | 599 pass, 0 failed (count with `awk '/^test result/{p+=$4} END{print p}'`), 3 benches ignored |
+| 7 | bot | `cd bot && dotnet test Stencil.TelegramBot.slnx -m:2` | 0 fail, ~2.1k tests |
+| 8 | mcp | `cd mcp && CARGO_BUILD_JOBS=2 cargo test --locked -j 2` | 0 failed, ~600 tests, 3 benches ignored |
 | 9 | desktop | see below | 66/66 |
 
-The size + comment ratchets and the UI pins are **inside** these suites (`sizeBudget` /
-`size_budget` / `SizeBudget` targets, `cssInventory.test.js`, `uiPins` headless, the CLI TUI
-goldens), so a green surface already covers its own lint and pins. There is nothing extra to
-run for them.
+**Do not treat those magnitudes as pins.** They drift on every commit that adds a test, and a
+table nobody updates teaches you to wave real drops through. The collapse check lives in the
+suites instead: each surface's size-budget test asserts a **test-count floor** and fails naming
+both numbers, so a suite that silently stops running most of itself goes red on its own. Raise
+a floor only when its suite has grown well past it.
+
+The size + comment ratchets, the count floors and the UI pins are **inside** these suites
+(`sizeBudget` / `size_budget` / `SizeBudget` targets, `cssInventory.test.js`, `uiPins`
+headless, the CLI TUI goldens), so a green surface already covers its own lint and pins. There
+is nothing extra to run for them.
 
 ## Desktop (chunk 9) — split it
 
@@ -106,5 +112,6 @@ was cached, so the break only shows up once something forces a recompile.
 
 - `git status --porcelain` is empty or holds only what you meant to leave.
 - Every chunk above actually ran. Name any you skipped and why.
-- If a suite's count differs from the table, say so — the counts are the current pins, and a
-  drop means tests disappeared.
+- Report the counts you saw. They are a sanity signal, not a gate — the floors in the suites
+  are the gate. A count far *below* the magnitude above with everything still green means the
+  run was narrower than you think: check the command, not the code.
