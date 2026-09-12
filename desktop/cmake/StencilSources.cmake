@@ -39,7 +39,8 @@ set(STENCIL_CANVAS_SOURCES
   src/canvas/canvasSelection.cpp
   src/canvas/canvasSettings.cpp
   src/canvas/canvasStrokeFx.cpp
-  src/canvas/canvasTransform.cpp)
+  src/canvas/canvasTransform.cpp
+  src/canvas/strokeGrowth.cpp)
 
 # The projects dialog is split across projects*.cpp partials (plus its row delegate),
 # all defining ProjectsDialog:: / ProjectRowDelegate:: members; they travel together.
@@ -254,6 +255,9 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_ICONMOTION_SOURCES}
   ${STENCIL_FACESWAP_SOURCES}
   src/support/iconSet.cpp
+  src/support/menuHotkeys.cpp
+  src/support/motionIcons.cpp
+  src/support/underlineTabBar.cpp
   src/support/numericInput.cpp
   src/support/exportPreview.cpp
   resources/app.qrc)

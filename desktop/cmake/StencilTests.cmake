@@ -476,7 +476,8 @@ stencil_headless_test(stencil_llmsettings_headless
 # drawing switch, the DisintegrateOverlay factories' particle gate, and the two
 # settings keys. Links fileStore for the JSON round-trip.
 stencil_headless_test(stencil_motionprefs_headless
-  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+  SOURCES src/support/motionIcons.cpp
+    ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/motionPrefs.headless.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
     resources/app.qrc
