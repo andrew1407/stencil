@@ -2,7 +2,7 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
-    "browser/js/console/stencilApi.js": 719,
+    "browser/js/console/stencilApi.js": 216,
     "browser/js/core/drawingApp.js": 1136,
     "browser/js/core/exportService.js": 436,
     "browser/js/core/inputController.js": 465,
