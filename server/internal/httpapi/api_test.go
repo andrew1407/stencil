@@ -60,16 +60,16 @@ func issueToken(t *testing.T, api *API, admin string) string {
 
 func do(t *testing.T, api *API, method, path, token string, body []byte) *httptest.ResponseRecorder {
 	t.Helper()
-	var r *http.Request
+	var req *http.Request
 	if body != nil {
-		r = httptest.NewRequest(method, path, bytes.NewReader(body))
+		req = httptest.NewRequest(method, path, bytes.NewReader(body))
 	} else {
-		r = httptest.NewRequest(method, path, nil)
+		req = httptest.NewRequest(method, path, nil)
 	}
 	if token != "" {
-		r.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	rec := httptest.NewRecorder()
-	api.Handler().ServeHTTP(rec, r)
+	api.Handler().ServeHTTP(rec, req)
 	return rec
 }
