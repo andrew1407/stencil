@@ -14,10 +14,13 @@ class QPushButton;
 class QKeyEvent;
 class QLineEdit;
 class QListWidget;
+class QHBoxLayout;
+class QVBoxLayout;
 class QWidget;
 
 namespace stencil::net {
   class ConnectionManager;
+  class ServerClient;
 }
 
 namespace stencil::gui {
@@ -51,7 +54,18 @@ namespace stencil::gui {
     void keyPressEvent(QKeyEvent* e) override;
 
    private:
+    // The ctor's phases, in exactly this call order — the tab order and the order
+    // findChildren reports follow construction order. buildConnectForm hands back its Connect
+    // button, which stays the dialog's default.
+    QPushButton* buildConnectForm(QVBoxLayout* root);
+    void buildConnectionPrefs(QVBoxLayout* root);
+    void buildConnectBatchBar(QVBoxLayout* root);
+    void buildConnectionList(QVBoxLayout* root);
     void rebuildList();
+    // One connection card, and its own row of controls. `rowIndex` is the drag-reorder slot.
+    void addConnectionRow(const QString& url, int rowIndex);
+    void addConnectionRowActions(QHBoxLayout* h, const QString& url,
+                                 stencil::net::ServerClient* cl, bool expired, bool admin);
     // The row cards' QSS (projects-row look + the gold/amber connection states),
     // set once on the list so it cascades to every row widget.
     QString rowStyleSheet() const;

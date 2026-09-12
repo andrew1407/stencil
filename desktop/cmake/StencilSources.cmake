@@ -85,10 +85,13 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
-# The connect list (dialogs/connectDialog.hpp) is four TUs behind a private parts header:
+# The connect list (dialogs/connectDialog.hpp) is seven TUs behind a private parts header:
 # the build and row rebuild, the filter and row QSS, the row actions and the re-auth.
 set(STENCIL_CONNECTDIALOG_SOURCES
   src/dialogs/connectDialog.cpp
+  src/dialogs/connectDialogBatchBar.cpp
+  src/dialogs/connectDialogRow.cpp
+  src/dialogs/connectDialogRowActions.cpp
   src/dialogs/connectDialogFilter.cpp
   src/dialogs/connectDialogActions.cpp
   src/dialogs/connectDialogAuth.cpp)

@@ -9,6 +9,8 @@
 #include <QPixmap>
 #include <QPainter>
 #include <QLabel>
+#include <QIcon>
+#include <QPushButton>
 #include "serverClient.hpp"
 #include <QColor>
 #include <QEvent>
@@ -104,6 +106,20 @@ namespace stencil::gui {
   // A label that elides to whatever width the row gives it (browser: CSS
   // text-overflow). Its size hint stays narrow so a long URL can never force a
   // horizontal scrollbar; the full text lives on the tooltip.
+  // A row action: the app's filled button chrome, compact — the browser's
+  // .connect-reconnect-one / .connect-invite / .connect-disconnect are ordinary
+  // accent-filled .btn-icons. `text` is empty for all but the expired row's fix.
+  inline QPushButton* makeRowActionButton(const QIcon& ic, const QString& tip,
+                                          const QString& text = QString()) {
+    auto* b = new QPushButton(text);
+    b->setIcon(ic);
+    b->setIconSize(QSize(15, 15));   // browser: icon({ size: 15 })
+    b->setToolTip(tip);
+    b->setCursor(Qt::PointingHandCursor);
+    b->setProperty("rowAction", true);   // styled by rowStyleSheet()
+    return b;
+  }
+
   class ElidedLabel : public QLabel {
    public:
     explicit ElidedLabel(const QString& text) : QLabel(text), full_(text) {
