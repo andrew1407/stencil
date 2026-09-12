@@ -541,6 +541,23 @@ Two layers run together (plus an opt-in third):
   filter + inline-layout in one call, and the clobber guard. They **self-skip** when the
   `stencil` binary isn't built or findable, so `cargo test` stays green without a Zig
   toolchain (set `STENCIL_CLI`, or build the CLI, to exercise them — CI does both).
-- **Timing floors** (`tests/timing_test.rs`) — `#[ignore]`d, so out of CI. Run them with
-  `cargo test -- --ignored` to print ns/call for `validate_action`, `sanitize_detail` and
-  `build_argv`; the assertions catch only an order-of-magnitude regression.
+- **Benchmarks** (`tests/timing_test.rs`) — `#[ignore]`d, so out of CI, like the core's
+  `bench` suite and `cli`'s `zig build bench`. Run them with
+  `cargo test -- --ignored --nocapture`. Every case prints ns/call and asserts only a RATIO
+  between two sizes of the SAME call, never a wall-clock threshold, so a loaded machine
+  cannot fail one.
+
+### Benchmark baseline
+
+Best-of-5 batches, **debug build**, Apple silicon laptop, 2026-09-12. Release is several
+times faster; the ratios are the contract, the ns/call are only a drift reference.
+
+| Case | ns/call | Ratio asserted | Measured | Ceiling |
+|---|---|---|---|---|
+| `validate_action` — `crop`, 5 spec keys | 18,200 | — | — | — |
+| `validate_action` — `layout`, 64 points | 245,500 | 512 points ÷ 64 points stays linear | 7.0x | 16x |
+| `validate_action` — `layout`, 512 points | 1,729,000 | | | |
+| `sanitize_detail` — 280 chars | 23,500 | 5,600 chars ÷ 280 chars: the 800-char scan window bounds it | 1.8x | 4x |
+| `sanitize_detail` — 5,600 chars | 42,500 | | | |
+| `build_argv` — input + output only | 295 | loaded ÷ bare tracks the flag count | 5.1x | 12x |
+| `build_argv` — crop + rotate + filter + layout | 1,509 | | | |
