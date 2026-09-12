@@ -1,21 +1,17 @@
-// ── Opened-images ledger ─────────────────────────────────────────────────────
-// The editor's projects live in its own origin's localStorage (unreadable here), so
-// we mirror every image handed off in chrome.storage.local (keyed by source URL) to
-// badge already-opened images and offer resume vs add-a-copy. matchEntries is tested.
+// The editor's projects live in its own origin's localStorage (unreadable here), so every
+// hand-off is mirrored in chrome.storage.local, keyed by source URL.
 export const LEDGER_KEY = 'stencil-opened';
 const MAX_ENTRIES = 500;
 
 const norm = (s) => String(s || '').trim();
 
-// Only real, shareable image/video URLs are worth tracking: a data:/blob: still
-// or an empty source can't be matched against another page's scan meaningfully.
+// A data:/blob: source cannot be matched against another page's scan.
 export const trackableSource = (source) => {
   const s = norm(source);
   return s.startsWith('http:') || s.startsWith('https:');
 };
 
-// Pure: entries matching an image. Prefer exact source URL; fall back to filename
-// only when no source is known (avoids same-named false-matches). Newest-first.
+// Filename matches only when no source is known, to avoid same-named false matches.
 export const matchEntries = (entries, source, name) => {
   const list = Array.isArray(entries) ? entries : [];
   const src = norm(source), nm = norm(name);
@@ -32,9 +28,7 @@ export const loadLedger = async () => {
   }
 };
 
-// Record one hand-off. Dedups on (source, resource, name): a repeat open refreshes the
-// timestamp and bumps `count`. No-op (returns null) for untrackable sources. Newest
-// sorts first; list is capped.
+// Dedups on (source, resource, name); a repeat open bumps `count`.
 export const recordOpened = async ({ source, resource, name, editorUrl, t }) => {
   if (!trackableSource(source)) return null;
   const src = norm(source), res = norm(resource), nm = norm(name);
@@ -60,33 +54,21 @@ export const recordOpened = async ({ source, resource, name, editorUrl, t }) => 
 
 export const lookup = async (source, name) => matchEntries(await loadLedger(), source, name);
 
-// ── Reconciliation (prune entries for deleted projects) ──────────────────────
-// The editor is source of truth: a project removed there must stop badging here. A
-// content script on the editor origin reports its live registry; we drop ledger
-// entries with no matching project.
-
-// Origin of a URL string, or '' when unparseable. Scopes reconciliation to the
-// reporting editor so a second editor (e.g. a prod URL) can't prune the local one's entries.
+// Reconciliation is scoped to the reporting editor's origin, so a second editor cannot
+// prune the local one's entries.
 export const originOf = (url) => {
   try { return new URL(String(url || '')).origin; } catch { return ''; }
 };
 
 // An entry is recorded BEFORE the editor tab saves its project, so a registry read at
-// editor load can briefly lack it. Don't prune entries newer than this, so a fresh
-// open never loses its badge.
+// editor load can briefly lack it; entries younger than this are never pruned.
 export const RECONCILE_GRACE_MS = 2 * 60 * 1000;
 
-// Reconcile ledger entries against the reporting editor's live registry
-// (`projects` = [{ source }]). Only entries for `editorOrigin` are touched. Let `live` =
-// live projects sharing an entry's source:
-//   • live > 0  → keep, set `count` = live (so "opened N×" tracks reality both ways).
-//   • live == 0 → drop, UNLESS newer than `graceMs` (editor may not have saved yet) or
-//                 has no/untrackable source (can't reconcile) → keep as-is.
-// Never adds or reorders; only drops or restamps `count`.
+// Keeps an entry with live projects (restamping `count`), drops one without — unless it
+// is within the grace period or has no source. Never adds or reorders.
 export const reconcileLedger = (entries, projects, editorOrigin, now = Date.now(), graceMs = RECONCILE_GRACE_MS) => {
   const list = Array.isArray(entries) ? entries : [];
   const org = norm(editorOrigin);
-  // Live project count per source for this editor.
   const counts = new Map();
   for (const p of (Array.isArray(projects) ? projects : [])) {
     const s = norm(p && p.source);
@@ -94,20 +76,17 @@ export const reconcileLedger = (entries, projects, editorOrigin, now = Date.now(
   }
   const out = [];
   for (const e of list) {
-    if (originOf(e.editorUrl) !== org) { out.push(e); continue; }   // different editor → leave alone
+    if (originOf(e.editorUrl) !== org) { out.push(e); continue; }
     const src = norm(e.source);
-    if (!src) { out.push(e); continue; }                            // can't reconcile → keep
+    if (!src) { out.push(e); continue; }
     const live = counts.get(src) || 0;
     if (live > 0) { out.push(live === (e.count || 1) ? e : { ...e, count: live }); continue; }
-    if (graceMs && (now - (Number(e.t) || 0)) < graceMs) { out.push(e); continue; } // too fresh → keep
-    // stale: no live project for this source → drop.
+    if (graceMs && (now - (Number(e.t) || 0)) < graceMs) { out.push(e); continue; }
   }
   return out;
 };
 
-// Reconcile the stored ledger against one editor's live registry and persist if
-// changed. reconcile reuses the object for untouched entries, so same length +
-// element-by-element reference match ⇔ no change. Best-effort; returns true when it wrote.
+// reconcileLedger reuses the object for untouched entries, so a reference match ⇔ no change.
 export const pruneLedger = async (projects, editorOrigin) => {
   const before = await loadLedger();
   const after = reconcileLedger(before, projects, editorOrigin);

@@ -1,39 +1,20 @@
-// ── Rasterising ANY scanned image source to PNG bytes ───────────────────────
-// The LLM contract (llm-contract.md §7) accepts image/png|jpeg|webp|gif only —
-// an SVG must be RASTERISED, never sent as-is. It also has to be: Chrome's
-// createImageBitmap() flatly refuses an `image/svg+xml` Blob ("The source image could
-// not be decoded"), so every attach path funnels through here, decoding in two steps:
-//   1. createImageBitmap on the bytes — fast and exact, skipped for SVG;
-//   2. an <img> element at an EXPLICIT pixel size + canvas.drawImage — the same
-//      decoder the popup thumbnails use. This handles SVG (including one with no
-//      intrinsic width/height, which has no natural size to scale from), and anything
-//      else the bitmap decoder chokes on.
-// Sources are always fed in as `data:` URLs (lib/stencil.js fetchAsDataUrl pulls the
-// bytes through the extension's host permissions, so cross-origin/opaque responses and
-// hotlink protection are already handled upstream) or as local File/Blob objects —
-// either way the canvas is never tainted.
-//
-// Every DOM seam (bitmap decoder, image element, canvas, blob/object URLs) is INJECTED,
-// so `node --test` drives the whole module with stubs.
+// Rasterises any image source to PNG: llm-contract.md §7 accepts png/jpeg/webp/gif only,
+// and Chrome's createImageBitmap refuses SVG, so decoding is bitmap-first with an <img>
+// at an explicit size as the fallback. Every DOM seam is injected (node --test stubs it).
 
 import { isAllowedImageUrl } from './urlGuard.js';
 
 // Long edge a decoded image is fitted into by default (contract §7 downscale).
 export const DEFAULT_MAX_EDGE = 1568;
-// Long edge used when the source has NO usable pixel size — the common case for an
-// SVG declared with only a viewBox. Also the minimum a VECTOR source is rasterised at:
-// upscaling costs nothing for vector art and a 16×16 favicon-sized render is useless
-// for vision analysis.
+// Long edge when the source has no usable pixel size (an SVG with only a viewBox), and
+// the minimum a vector source is rasterised at — a favicon-sized render is useless to vision.
 export const DEFAULT_RASTER_EDGE = 512;
-// How long to wait for the <img> decode before giving up (a stuck load must not hang
-// the chat's send loop).
+// A stuck <img> load must not hang the chat's send loop.
 const DECODE_TIMEOUT_MS = 10000;
 
 export const DECODE_ERROR = 'the image could not be decoded (unsupported or blocked source)';
 const BLOCKED_URL = 'blocked private or internal address';
 
-// Is this media type / URL an SVG (the type that must never reach createImageBitmap
-// and must never be sent to the model unrasterised)?
 export const isSvgType = (type) => /^image\/svg(\+xml)?$/i.test(String(type || '').split(';')[0].trim());
 export const isSvgUrl = (url) => /^data:image\/svg\+xml[;,]/i.test(String(url || ''))
   || /\.svgz?(?:[?#]|$)/i.test(String(url || ''));
@@ -53,13 +34,8 @@ export const fitSize = (w, h, maxEdge = DEFAULT_MAX_EDGE) => {
   return { width: Math.max(1, Math.round(W * k)), height: Math.max(1, Math.round(H * k)) };
 };
 
-/**
- * The pixel size to rasterise at. Pure — the whole size policy in one place:
- *   1. the caller's KNOWN dims (the scan entry's w/h) fitted to `maxEdge`;
- *   2. else the decoded source's own intrinsic size, fitted the same way;
- *   3. else a `fallbackEdge` square (an SVG with only a viewBox has neither).
- * `minEdge` (vector sources) then scales the result UP to that long edge.
- */
+// The size policy: known dims, else intrinsic size, else a `fallbackEdge` square — each
+// fitted to `maxEdge`; `minEdge` then scales the result up to that long edge.
 export const rasterSize = ({
   width = 0, height = 0, naturalWidth = 0, naturalHeight = 0,
   maxEdge = DEFAULT_MAX_EDGE, fallbackEdge = DEFAULT_RASTER_EDGE, minEdge = 0,
@@ -80,8 +56,7 @@ export const rasterSize = ({
   return s;
 };
 
-// The real browser seams. Built lazily (inside a function) so importing this module
-// under `node --test`, where none of these globals exist, is harmless.
+// Built lazily so importing under node --test (no DOM globals) is harmless.
 const domDeps = () => ({
   createBitmap: typeof createImageBitmap === 'function' ? (blob) => createImageBitmap(blob) : null,
   makeImage: () => document.createElement('img'),
@@ -100,7 +75,6 @@ const domDeps = () => ({
 
 const deps = (extra) => ({ ...domDeps(), ...(extra || {}) });
 
-// Draw a decoded bitmap/element into a canvas of exactly `size` and export PNG.
 const drawToPng = (src, { width, height }, d) => {
   const c = d.makeCanvas();
   c.width = width;
@@ -113,15 +87,13 @@ const drawToPng = (src, { width, height }, d) => {
   return url;
 };
 
-// Decode `url` with an <img>. The explicit width/height is load-bearing: an SVG with
-// no intrinsic size has nothing to lay out against, and Chrome renders it at the
-// element's box — so the box IS the rasterisation resolution.
+// The explicit width/height is load-bearing: an SVG with no intrinsic size renders at
+// the element's box, so the box IS the rasterisation resolution.
 const decodeViaElement = (url, { width, height }, d, timeoutMs) => new Promise((resolve, reject) => {
   const img = d.makeImage();
   let settled = false;
   let timer = null;
-  // The timeout timer must die with the decode: left running, it keeps the img (and
-  // this closure) alive for the full 10s after every successful attach.
+  // The timer must die with the decode, or it keeps the img alive for the full 10 s.
   const finish = (fn, v) => {
     if (settled) return;
     settled = true;
@@ -139,14 +111,11 @@ const decodeViaElement = (url, { width, height }, d, timeoutMs) => new Promise((
   img.src = url;
 });
 
-// The shared two-step decode skeleton: tries the bitmap path (never for SVG — Chrome
-// rejects it outright) and falls back to the element path, managing the bitmap's and any
-// object URL's lifetime. A `use` failure on the bitmap path also falls through, since the
-// element decoder handles more. `elementSize(vector)` is the <img> box — for an SVG with
-// no intrinsic size, the box IS the rasterisation resolution.
+// Bitmap path first (never for SVG), element path as the fallback; a `use` failure on the
+// bitmap path also falls through, since the element decoder handles more.
 const decode = async ({ dataUrl = '', blob = null }, { d, timeoutMs, elementSize, noSource }, use) => {
-  // Both decoders below reach the network for an http(s) source (fetch, then <img src>),
-  // so the SSRF guard sits here, ahead of either. data:/blob: pass (urlGuard.js).
+  // Both decoders reach the network for an http(s) source (fetch, then <img src>), so
+  // the SSRF guard sits here, ahead of either. data:/blob: pass (urlGuard.js).
   if (dataUrl && !isAllowedImageUrl(dataUrl)) throw new Error(BLOCKED_URL);
   const type = (blob && blob.type) || mediaTypeOf(dataUrl);
   const vector = isSvgType(type) || (!type && isSvgUrl(dataUrl));
@@ -177,13 +146,12 @@ const decode = async ({ dataUrl = '', blob = null }, { d, timeoutMs, elementSize
   }
 };
 
-// Rasterise any image source (`{dataUrl?, blob?, width?, height?}`, dims 0 = unknown) to
-// a PNG data URL, downscaled to `maxEdge`.
+// Dims 0 = unknown.
 export const rasterizeToPngDataUrl = async ({ dataUrl = '', blob = null, width = 0, height = 0 } = {}, opts = {}) => {
   const d = deps(opts.deps);
   const maxEdge = opts.maxEdge || DEFAULT_MAX_EDGE;
   const fallbackEdge = opts.fallbackEdge || DEFAULT_RASTER_EDGE;
-  // `minEdge` upscales only VECTOR sources (upscaling costs nothing for vector art).
+  // Only vector sources upscale (it costs nothing for vector art).
   const size = (vector, natural = {}) => rasterSize({
     width, height, ...natural, maxEdge, fallbackEdge, minEdge: vector ? fallbackEdge : 0,
   });
@@ -193,8 +161,7 @@ export const rasterizeToPngDataUrl = async ({ dataUrl = '', blob = null, width =
     drawToPng(src, size(vector, { naturalWidth: nw, naturalHeight: nh }), d));
 };
 
-// The intrinsic pixel size of `{dataUrl?, blob?}`, using the same two-step decode (so an
-// SVG measures too). Throws when nothing can decode it.
+// Intrinsic pixel size via the same two-step decode (so an SVG measures too).
 export const decodeSize = async ({ dataUrl = '', blob = null } = {}, opts = {}) => {
   const d = deps(opts.deps);
   return decode({ dataUrl, blob }, {

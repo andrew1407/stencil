@@ -1,14 +1,8 @@
-// ── In-page modal (quick-crop) ──────────────────────────────────────────────
-// Frames the quick-crop page in a centered modal over the current page. Injected, so
-// self-contained (no imports). The framed page posts {source:'stencil-modal',
-// type:'ready'|'close'}; if 'ready' never arrives (CSP/mixed-content blocked the frame),
-// drop the modal and open a tab.
-//
-// THEME: the shell can't link lib/theme/ (it lives in someone else's page), so its
-// palette arrives as DATA — `theme` = {mode, accent, palettes, accents} from
-// lib/shellTheme.js. Never prefers-color-scheme: that frames a dark crop page in white
-// whenever the Appearance choice disagrees with the OS. The values become CSS custom
-// properties on the host element, so a live theme/accent change just re-sets them.
+// The quick-crop modal, handed to executeScript({ func }): Chrome serialises the function
+// and nothing else, so it must stay self-contained (no imports). If the frame never posts
+// 'ready' (CSP/mixed content), the modal drops and a tab opens instead.
+// The palette arrives as DATA (`theme` from lib/shellTheme.js), never prefers-color-scheme:
+// that would frame a dark crop page in white when the Appearance choice disagrees with the OS.
 export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const ID = 'stencil-ext-modal';
   const existing = document.getElementById(ID);
@@ -19,7 +13,6 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;';
   const root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
 
-  // ── Palette (data in, CSS variables out) ──
   const t = theme || {};
   const prefersDark = () => {
     try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
@@ -34,7 +27,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const applyTheme = (mode, accent) => {
     const resolved = resolveMode(mode);
     const p = ((t.palettes || FALLBACK)[resolved]) || FALLBACK[resolved];
-    // Readable from outside the shadow root (tests, and anything asking what it drew).
+    // Readable from outside the shadow root.
     host.setAttribute('data-stencil-theme', resolved);
     for (const k in p) host.style.setProperty('--st-' + k, p[k]);
     host.style.setProperty('--st-accent', accent || '#7c3aed');
@@ -42,23 +35,17 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   };
   applyTheme(t.mode, t.accent);
 
-  // ── The sand (the extension's own grain, written out inline) ──
-  // The #app-tooltip mask from lib/theme/tooltip.css: three coprime dot screens (4/7/11px, at
-  // different phases) dying at different rates so the specks thin out in sequence. At
-  // 120% the dots overlap outright, so a settled panel is solid to the pixel. `d` is
-  // 0 (settled) … 1 (dispersed).
+  // The #app-tooltip mask from lib/theme/tooltip.css: three coprime dot screens dying at
+  // different rates; at 120% the dots overlap, so a settled panel is solid to the pixel.
+  // `d` is 0 (settled) … 1 (dispersed).
   const grain = (d) => {
     const stop = (rate) => `radial-gradient(circle at 50% 50%,#000 ${Math.max(0, 120 - rate * d)}%,`
       + `transparent ${Math.max(0, 128 - rate * d)}%)`;
     return `${stop(160)},${stop(140)},${stop(125)}`;
   };
-  // Chrome does NOT interpolate gradients inside mask-image (it flips at the midpoint), so
-  // the dissolve is written out as a ramp of discrete steps rather than two endpoints —
-  // which is what sand does anyway. `ends` carries the opacity/transform for 0% and 100%.
-  // The cell sizes ride along in every step: Chrome resolves mask-size against the
-  // FIRST layer while mask-image is animating, which would flatten the three coprime
-  // grids into one lattice — and one lattice lines its dots up into joining rectangles,
-  // which is exactly what stops it reading as sand.
+  // Chrome does not interpolate gradients inside mask-image, hence discrete steps; and it
+  // resolves mask-size against the FIRST layer while mask-image animates, which would
+  // flatten the three coprime grids into one lattice — so the sizes ride in every step.
   const SIZES = '4px 4px,7px 7px,11px 11px';
   const grainFrames = (name, levels, ends) => `@keyframes ${name}{` + levels.map((d, i) => {
     const pct = Math.round((i / (levels.length - 1)) * 100);
@@ -146,9 +133,8 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
 
   const wrap = document.createElement('div');
   wrap.className = 'wrap';   // .wrap.leaving is what plays the dispersal
-  // The ONE place the extension still uses a native `title`: this shell is injected into
-  // the HOST page (executeScript({func}) — it can't import), so lib/controlTooltip.js
-  // never runs over it and data-title alone would leave the two icons unexplained.
+  // The one place the extension uses a native `title`: lib/controlTooltip.js never runs
+  // over the host page, so data-title alone would leave the two icons unexplained.
   wrap.innerHTML =
     '<div class="backdrop"></div>' +
     '<div class="panel">' +
@@ -163,15 +149,12 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const frame = wrap.querySelector('iframe');
 
   const openTab = () => {
-    // Literal MSG.OPEN_TAB (lib/messages.js): this fn is injected via
-    // executeScript({func}) — serialized, so it can't import. Keep in sync by hand.
+    // Literal MSG.OPEN_TAB (lib/messages.js) — an injected fn cannot import; keep in sync.
     try { chrome.runtime.sendMessage({ type: 'stencil-open-tab', url }); }
     catch { window.open(url, '_blank'); }
   };
-  // Live re-theme: lib/accent.js mirrors the Appearance mode + accent KEY into
-  // chrome.storage.local on every change, so flipping the theme from the popup's
-  // moon button re-paints an OPEN modal instead of waiting for the next one.
-  // (Literal key strings — an injected fn can't import lib/shellTheme.js.)
+  // lib/accent.js mirrors the mode + accent KEY into chrome.storage.local, so an open
+  // modal re-themes live. Literal key strings: an injected fn cannot import lib/shellTheme.js.
   const onStore = (changes, area) => {
     if (area !== 'local') return;
     if (!changes.stencil_theme && !changes.stencil_accent) return;
@@ -190,9 +173,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     try { chrome.storage.onChanged.removeListener(onStore); } catch (e) { /* noop */ }
     clearTimeout(timer);
   };
-  // The modal disperses on the way out too. Listeners go at once (so a second Escape or
-  // a click on the dissolving panel can do nothing) and the node is torn down on a timer
-  // — idempotent, so every close route lands on "gone" however many of them fire.
+  // Listeners go at once, the node on a timer; idempotent across every close route.
   const LEAVE_MS = 260;
   let leaving = false;
   const close = () => {
@@ -206,7 +187,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   const onMsg = (e) => {
     const d = e.data;
-    if (e.source !== frame.contentWindow || !d || d.source !== 'stencil-modal') return;   // only OUR frame
+    if (e.source !== frame.contentWindow || !d || d.source !== 'stencil-modal') return;   // only OUR frame may post
     if (d.type === 'ready') {
       clearTimeout(timer);
       const l = root.querySelector('.loading');

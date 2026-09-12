@@ -1,20 +1,13 @@
-// ── The floating hover preview (the rows' magnifier card) ───────────────────
-// One shared card per surface: debounced so a sweep across rows doesn't strobe cards,
-// token-guarded so a pointer that moves on beats a slow fetch, and a tiny-source memo so
-// a thumbnail-sized image never flashes an empty card twice. Extracted from popup.js.
-//
-// ── The card is sand too (lib/motion.js surfaceIn/surfaceOut) ───────────────
-// It forms from motes streaming out of the row it previews and pours back into it. Its
-// own short clock (as in lib/controlTooltip.js): a sweep across rows re-triggers fast, so
-// a flight must end before the next begins — and an UPGRADE (the small source swapped for
-// the fetched one) replays the gather rather than snapping.
+// The rows' shared magnifier card: debounced, token-guarded against a slow fetch, and
+// memoising thumbnail-sized sources so they never flash an empty card twice. It forms
+// from motes out of the row it previews (lib/motion.js surfaceIn/surfaceOut).
 import {
   surfaceIn, surfaceOut, settleSurface, centerOf, TIP_DUST_IN_MS, TIP_DUST_OUT_MS,
 } from './motion.js';
 
 const GAP = 12;
 
-/** Card placement beside a hovered row: right of it, flipping left / clamping up on overflow. */
+// Right of the row, flipping left / clamping up on overflow.
 export const previewPosition = ({ anchor, size, viewport }) => {
   let left = anchor.right + GAP;
   if (left + size.width > viewport.width) left = Math.max(GAP, anchor.left - size.width - GAP);
@@ -23,33 +16,24 @@ export const previewPosition = ({ anchor, size, viewport }) => {
   return { left, top };
 };
 
-// Skip the preview when the image is no bigger than its row thumbnail (nothing larger
-// to reveal). Unmeasured images (w/h = 0) still get a preview.
+// Unmeasured images (w/h = 0) still get a preview.
 export const previewWorthwhile = (image, thumbPx) =>
   !(image.w > 0 && image.h > 0 && image.w <= thumbPx && image.h <= thumbPx);
 
-/**
- * Wire the shared preview card. `thumbPx` is the row-thumbnail size a preview must beat;
- * `fetchDataUrl` is the host-permission fetch, since a bare <img src> can't load a
- * hotlink-protected source; `getSrc` returns an image's previewable source ('' = none).
- */
+// `fetchDataUrl` is the host-permission fetch: a bare <img src> cannot load a
+// hotlink-protected source.
 export const createHoverPreview = ({
   previewEl, previewImg, thumbPx, fetchDataUrl, getSrc,
   getPageUrl = () => '', win = window, debounceMs = 100,
 }) => {
-  // source → data URL, so re-hovering is instant and each source is fetched at most
-  // once. Exposed: the row thumbnails' recovery path and shared rows reuse it.
-  const cache = new Map();
-  // Sources whose bytes measured no bigger than the row thumbnail — re-hovering them
-  // skips the preview outright instead of flashing an empty card again.
-  const tiny = new Set();
-  let srcKey = '';        // the source behind the currently loading preview
+  const cache = new Map();   // source → data URL; the row thumbnails' recovery path reuses it
+  const tiny = new Set();    // sources whose bytes measured no bigger than the row thumbnail
+  let srcKey = '';
   let showTimer = null;
-  let anchor = null;      // the row the card is anchored to (repositioned on late size)
-  let token = 0;          // drops a stale async fetch when the pointer moves on
-  let dustPoint = null;   // the row's own centre — the card's dust origin/destination
+  let anchor = null;
+  let token = 0;             // drops a stale async fetch when the pointer moves on
+  let dustPoint = null;      // the row's own centre — the card's dust origin/destination
 
-  // The preview only fires once the pointer SETTLES on a row for a beat.
   const schedule = (fn) => {
     clearTimeout(showTimer);
     showTimer = setTimeout(fn, debounceMs);
@@ -73,9 +57,7 @@ export const createHoverPreview = ({
     return dataUrl;
   };
 
-  // Dust the card out and hide it — the cloud is what it leaves behind, so it is
-  // photographed while still the box on screen, not after. A card that was never
-  // shown (the tiny/undecodable bail-outs below) just goes, nothing to leave behind.
+  // The cloud is photographed while the card is still the box on screen, not after.
   const dustHide = () => {
     if (!previewEl.hidden && dustPoint) {
       if (!surfaceOut(previewEl, dustPoint, { ms: TIP_DUST_OUT_MS })) settleSurface(previewEl);
@@ -84,8 +66,7 @@ export const createHoverPreview = ({
     dustPoint = null;
   };
 
-  // Reveal the card beside `el` — the row's centre becomes the dust origin/destination.
-  // Returns whether this was a fresh show (the only edge that flies — see dustIn).
+  // Returns whether this was a fresh show — the only edge that flies.
   const revealAt = (el) => {
     const wasHidden = previewEl.hidden;
     dustPoint = centerOf(el);
@@ -93,13 +74,10 @@ export const createHoverPreview = ({
     position(el);
     return wasHidden;
   };
-  // Gather the card from the dust point, settling instantly when the flight declines.
   const dustIn = () => {
     if (!surfaceIn(previewEl, dustPoint, { ms: TIP_DUST_IN_MS })) settleSurface(previewEl);
   };
 
-  // Reposition once the real dimensions are known; hide when the bytes turn out no
-  // bigger than the row thumbnail (nothing to reveal) or won't decode.
   previewImg.addEventListener('load', () => {
     if (previewImg.naturalWidth > 0 && previewImg.naturalWidth <= thumbPx &&
         previewImg.naturalHeight > 0 && previewImg.naturalHeight <= thumbPx) {
@@ -111,19 +89,16 @@ export const createHoverPreview = ({
   });
   previewImg.addEventListener('error', dustHide);
 
-  // Hide the card. A drag started from a thumbnail suppresses its mouseleave — which
-  // would pin the card over the panel for the whole drag — so the owner also wires this
-  // to any drag start/end/drop on the surface.
+  // A drag started from a thumbnail suppresses its mouseleave, so the owner also wires
+  // this to drag start/end/drop.
   const hide = () => {
-    clearTimeout(showTimer);   // a pending debounced show must not fire late
-    token++;                   // cancel any in-flight fetch for this row
+    clearTimeout(showTimer);
+    token++;
     anchor = null;
     dustHide();
   };
 
-  // The magnifier for a source that is ALREADY bytes (an editor row's canvas capture):
-  // show `small` at once, then swap in whatever `bigger()` resolves. A pointer that
-  // moves on first (the token) wins over a late upgrade.
+  // For a source that is already bytes: show `small` at once, then swap in `bigger()`.
   const bindDataUrl = (el, small, bigger) => {
     el.addEventListener('mouseenter', () => schedule(async () => {
       const t = ++token;
@@ -137,7 +112,6 @@ export const createHoverPreview = ({
       if (!big || t !== token) return;
       previewImg.src = big;
       position(el);
-      // The upgrade is a genuine content swap — replay the gather rather than snap.
       dustIn();
     }));
     el.addEventListener('mouseleave', hide);
@@ -146,7 +120,7 @@ export const createHoverPreview = ({
   const bind = (el, image) => {
     el.addEventListener('mouseenter', () => schedule(async () => {
       const ps = getSrc(image);
-      if (!ps || tiny.has(ps) || !previewWorthwhile(image, thumbPx)) return;   // nothing to preview
+      if (!ps || tiny.has(ps) || !previewWorthwhile(image, thumbPx)) return;
       const t = ++token;
       anchor = el;
       srcKey = ps;
@@ -156,16 +130,16 @@ export const createHoverPreview = ({
       } catch {
         src = ps;   // fall back to a direct load; the error handler hides a void box
       }
-      if (t !== token) return;   // pointer already moved on
+      if (t !== token) return;
       previewImg.src = src;
-      // Decode BEFORE showing — undecodable / thumbnail-sized bytes show no card.
+      // Decode before showing: undecodable / thumbnail-sized bytes show no card.
       try { await previewImg.decode(); } catch { tiny.add(ps); return; }
       if (t !== token) return;
       const nw = previewImg.naturalWidth;
       const nh = previewImg.naturalHeight;
       if (nw > 0 && nh > 0 && nw <= thumbPx && nh <= thumbPx) { tiny.add(ps); return; }
       const wasHidden = revealAt(el);
-      // A 0×0-intrinsic SVG can render collapsed — hide the bare padding pill.
+      // A 0×0-intrinsic SVG renders collapsed — no bare padding pill.
       const box = previewImg.getBoundingClientRect();
       if (box.width < 24 || box.height < 24) {
         previewEl.hidden = true;

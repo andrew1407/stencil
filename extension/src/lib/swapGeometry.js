@@ -3,23 +3,11 @@
 (function () {
   var K = window.StencilKit;
   var particleStyle = K.particleStyle;
-  // ── Palette swap animation (browser parity: browser/js/ui/motion.js themeSwap) ──
-  // The new palette floods out of the CONTROL that changed it, as a growing circle, via
-  // the native View Transitions API; without it every colour consumer gets one beat of
-  // transition instead (lib/animations/themeSwap.css .theme-swapping). Hand-rolled rather than
-  // imported: this file is a pre-paint classic script with no module graph.
-  // ONLY user-initiated changes go through it — the boot-time apply must not animate.
+  // Browser parity: browser/js/ui/motion.js themeSwap. Only user-initiated changes animate.
   var SWAP_MS = 280;   // browser parity: motion.js THEME_SWAP_MS
-  // The origin is the CONTROL that changed the palette — nothing else qualifies, and with
-  // no control on screen the circle blooms from the viewport centre. Never the last
-  // pointerdown: it is often unrelated (a native <select> fires none at all) and floods
-  // the palette out of a corner. Same rule as browser/js/ui/motion.js and desktop's
-  // applyTheme ("the cursor is NOT good enough").
 
-  // Centre of an element that is actually ON SCREEN: `visibility: hidden`, `opacity: 0`
-  // and an off-screen clone all leave a perfectly good rect behind, and blooming from one
-  // puts the wipe in a corner. checkVisibility cannot see an ANCESTOR's `overflow:
-  // hidden` either — hence clippedAway, a port of browser motion.js.
+  // checkVisibility cannot see an ancestor's `overflow: hidden`; a clipped element leaves
+  // a perfectly good rect behind and would bloom the wipe from a corner.
   var clippedAway = function (el, r) {
     if (typeof getComputedStyle !== 'function') return false;
     for (var p = el.parentElement; p; p = p.parentElement) {
@@ -34,7 +22,7 @@
   var centreOf = function (el) {
     if (!el || !el.getBoundingClientRect) return null;
     var r = el.getBoundingClientRect();
-    if (!r.width && !r.height) return null;   // hidden — not a place to start from
+    if (!r.width && !r.height) return null;
     if (el.parentElement && clippedAway(el, r)) return null;
     if (typeof el.checkVisibility === 'function' &&
         !el.checkVisibility({ visibilityProperty: true, opacityProperty: true, contentVisibilityAuto: true }))
@@ -44,11 +32,9 @@
     return c;
   };
 
-  // The control a swap belongs to, so the wipe comes out of the button even when there
-  // was no click to read (a keyboard path, or a change pushed from another surface).
-  // Takes an element, or an id — and for an id scans every element carrying it, not just
-  // getElementById's first hit: a panel that clones its toolbar duplicates ids, and a
-  // hidden copy winning the lookup is exactly how the wipe blooms from the wrong place.
+  // The origin is the CONTROL that changed the palette, never the last pointerdown. An id
+  // scans every element carrying it: a cloned toolbar duplicates ids, and a hidden copy
+  // winning getElementById is how the wipe blooms from the wrong place.
   var originOf = function (ref) {
     if (!ref) return null;
     if (typeof ref !== 'string') return centreOf(ref);
@@ -60,15 +46,8 @@
     return null;
   };
 
-  // ── Dust in the wipe's wake (browser parity: motion.js swapDustSpecs) ──
-  // The growing circle kicks up specks that ignite on its edge and settle just behind it,
-  // in the OLD palette's colours — always INSIDE the ring, because during a view
-  // transition the page renders through ::view-transition-new(root), clipped to it.
-  // Same hash, curve and numbers as the browser (and desktop themeSwapOverlay.hpp).
-  // ── The front (browser parity: motion.js swapEdgePolygon ← lib/dustCloud.js edgeJitter) ──
-  // The wipe's edge wears the particle style: a polygon ring whose vertices ride the wipe's
-  // easing, each pushed off the nominal radius by the style's own recipe. Classic-script
-  // twin of dustCloud.js; tests/accent.test.js pins it.
+  // The wipe's edge: browser parity with motion.js swapEdgePolygon / dustCloud.js
+  // edgeJitter, same numbers as desktop themeSwapOverlay.hpp; tests/accent.test.js pins it.
   var EDGE_POINTS = 240;
   var STYLE_WATER = 1, STYLE_FIRE = 2;
   var EDGE_WATER = { waves: 9, amp: 0.028, ripple: 17, rippleAmp: 0.008 };
@@ -86,15 +65,13 @@
     }
     return 0;
   };
-  // The deepest dip inward: the ring's base overshoots by it (coverage still rules) and
-  // the wake's grains hug just inside it.
+  // The deepest dip inward: the ring's base overshoots by it so coverage still rules.
   var edgeDipOf = function (style) {
     return style === STYLE_WATER ? EDGE_WATER.amp + EDGE_WATER.rippleAmp
       : style === STYLE_FIRE ? EDGE_FIRE.dip + EDGE_FIRE.jag : 0;
   };
   var edgeBaseOf = function (style) { return 1 + edgeDipOf(style) + 0.012; };
-  // One end state of the clip, in viewport percentages; grow 0 = collapsed at the
-  // origin, 1 = the full ring. CSS interpolates the equal-count vertex pairs.
+  // grow 0 = collapsed at the origin, 1 = the full ring; CSS interpolates the vertex pairs.
   var edgePolygon = function (x, y, w, h, grow, style) {
     if (!(w > 0 && h > 0)) return '';
     if (style === undefined) style = styleCode();
@@ -117,8 +94,7 @@
     var v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
     return v - Math.floor(v);
   };
-  // The Y of a cubic-bezier at time t, by bisection on the monotonic X — motion.js
-  // bezierY, verbatim. Shared by the wipe's curve and the grain's.
+  // motion.js bezierY, verbatim.
   var bezierY = function (t, x1, y1, x2, y2) {
     var lo = 0, hi = 1, u = t, x, i;
     for (i = 0; i < 24; i++) {
@@ -128,7 +104,7 @@
     }
     return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
   };
-  // Where the ring IS at time-fraction t: the wipe's own cubic-bezier(0.4,0.25,0.95,1).
+  // The wipe's own curve.
   var dustEase = function (t) { return bezierY(t, 0.4, 0.25, 0.95, 1); };
 
   var styleCode = function () {
@@ -136,7 +112,6 @@
     return s === 'water' ? STYLE_WATER : s === 'fire' ? STYLE_FIRE : 0;
   };
 
-  // Published for the scripts after this one (see accent.js).
   K.DUST_LIFE_MS = DUST_LIFE_MS; K.DUST_MAX_T = DUST_MAX_T; K.DUST_MIN_T = DUST_MIN_T;
   K.DUST_MOTES = DUST_MOTES; K.EDGE_POINTS = EDGE_POINTS; K.STYLE_FIRE = STYLE_FIRE;
   K.STYLE_WATER = STYLE_WATER; K.SWAP_MS = SWAP_MS; K.bezierY = bezierY;
