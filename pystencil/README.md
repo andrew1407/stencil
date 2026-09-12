@@ -482,3 +482,37 @@ the suite with no compiler at all.
 ```bash
 STENCIL_SKIP_NATIVE=1 python3 -m unittest discover -s tests   # no C++ compiler needed
 ```
+
+### Benchmarks
+
+`tests/bench_*.py` time the three hot paths with `timeit`. They are **opt-in**: `unittest
+discover` matches `test*.py`, so the normal suite never runs them and no timing ever gates a
+commit.
+
+```bash
+python3 -m unittest discover -s tests -p "bench_*.py"   # all of them, ~7 s
+python3 -m unittest tests.bench_codecs                  # one file
+```
+
+Every assertion is **relative** — a ratio between two measurements, or how one scales as its
+input doubles — and each ceiling names the algorithmic property it guards. The µs/op are
+printed, never asserted. Baselines below are best-of-5 on an M-series macOS laptop, CPython
+3.9; treat them as orders of magnitude, and compare ratios rather than absolute numbers.
+
+| Bench | Measurement | µs/op | Ratio guarded | Measured | Ceiling |
+|---|---|---|---|---|---|
+| `bench_codecs` | `decode_png` 200×150, filter 0 | 228 | twice the width / height | 1.3× / 2.0× | 3× |
+| | `decode_png` 300×200, filter 0 (none) | 61 | — | — | — |
+| | `decode_png` 300×200, filter 2 (Up) | 487 | Up vs none — whole-row SWAR add | 8.0× | 16× |
+| | `decode_png` 300×200, filter 1 (Sub) | 1,483 | Sub vs none — log₂(stride) row adds | 24.4× | 50× |
+| | `decode_png` 300×200, filter 3 (Average) | 26,429 | **Sub vs Average** — Sub must beat its per-byte twin | 0.06× | 0.5× |
+| | `decode_png` 300×200, filter 4 (Paeth) | 59,129 | Paeth vs Up — per-byte by design | 121× | 250× |
+| | `decode_png` 300×200 palette | 612 | palette vs grayscale — translate tables | 7.1× | 20× |
+| `bench_editor` | `Editor.result` 900×700, memo warm | 18 | **warm vs cold** — the `revision` memo | 0.02× | 0.5× |
+| | `Editor.result` 900×700, memo dropped | 1,116 | warm vs after an edit — an edit invalidates | 0.03× | 0.5× |
+| | `result` 600×400 (rotate+crop+bw) | 284 | twice the width / height | 2.0× / 1.9× | 3× |
+| | `result` + 10 strokes | 440 | twice the strokes / 7 segments vs 1 | 1.9× / 1.1× | 3× / 7× |
+| `bench_opschema` | `validate_action` rotate (1 key) | 1.4 | crop (5 sub-keys) vs rotate | 5.6× | 10× |
+| | `validate_action` rotate, invalid | 2.2 | invalid vs valid — rejecting is not the dear path | 1.5× | 4× |
+| | `validate_action` layout 40×20 | 1,933 | twice the lines / points | 2.0× / 1.9× | 3× |
+| | `parse_op_plan` over the 52-case console corpus | 52 | whole vs half corpus — per-case, not per-corpus | 1.5× | 2.5× |
