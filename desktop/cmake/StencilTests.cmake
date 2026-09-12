@@ -149,7 +149,8 @@ stencil_headless_test(stencil_controlswap_headless
 # trash hinges at its lid), and the driver on a live button. Needs iconSet for the
 # glyphs it poses and modalReveal for motionReduced().
 stencil_headless_test(stencil_iconmotion_headless
-  SOURCES ${STENCIL_DISINTEGRATE_SOURCES}
+  SOURCES ${STENCIL_ICONMOTION_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
     tests/iconMotion.headless.cpp src/support/iconSet.cpp src/support/modalReveal.cpp
     ${STENCIL_FACESWAP_SOURCES} resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg

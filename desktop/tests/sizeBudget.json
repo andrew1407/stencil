@@ -53,7 +53,7 @@
     "desktop/src/support/dustKit.hpp": 322,
     "desktop/src/support/filterFade.hpp": 362,
     "desktop/src/support/guiHelpers.cpp": 257,
-    "desktop/src/support/iconMotion.hpp": 797,
+    "desktop/src/support/iconMotion.hpp": 252,
     "desktop/src/support/menuHotkeys.hpp": 248,
     "desktop/src/support/menuReveal.cpp": 380,
     "desktop/src/support/modalChrome.cpp": 665,

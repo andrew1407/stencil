@@ -69,6 +69,15 @@ set(STENCIL_DISINTEGRATE_SOURCES
   src/support/disintegratePaint.cpp
   src/support/disintegrateMotes.cpp)
 
+# Per-icon hover motion (support/iconMotion.hpp) is split across four TUs: the spec
+# table read off the glyph canon, the pose maths and markup, the two runners, and the
+# app-wide event filter. Every target that hovers an icon needs the set.
+set(STENCIL_ICONMOTION_SOURCES
+  src/support/iconMotion.cpp
+  src/support/iconMotionPose.cpp
+  src/support/iconMotionRunner.cpp
+  src/support/iconMotionFilter.cpp)
+
 # The toggle face swap is split across two TUs defining one header's functions (the
 # frame maths and painting, then the live driver); every target that swaps a face needs
 # both, so they travel under one name.
@@ -204,6 +213,7 @@ set(STENCIL_GUI_SOURCES
   src/support/modalChrome.cpp
   src/support/searchCombo.cpp
   ${STENCIL_DISINTEGRATE_SOURCES}
+  ${STENCIL_ICONMOTION_SOURCES}
   ${STENCIL_FACESWAP_SOURCES}
   src/support/iconSet.cpp
   src/support/numericInput.cpp
