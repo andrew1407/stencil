@@ -24,7 +24,7 @@
     "browser/js/llm/voiceModes.js": 240,
     "browser/js/net/connectionManager.js": 476,
     "browser/js/ui/accentPicker.js": 254,
-    "browser/js/ui/base.js": 370,
+    "browser/js/ui/base.js": 75,
     "browser/js/ui/chatPanel.js": 818,
     "browser/js/ui/chatView.js": 20,
     "browser/js/ui/confirmModal.js": 261,
