@@ -47,12 +47,9 @@ def _includes(vals: list, v: Any) -> bool:
 
 def _js_str(x: Any) -> str:
   """``String(x)`` as JS prints it, for messages."""
-  if isinstance(x, bool):
-    return "true" if x else "false"
-  if x is None:
-    return "null"
-  if isinstance(x, float) and x.is_integer():
-    return str(int(x))
+  if isinstance(x, bool): return "true" if x else "false"
+  if x is None: return "null"
+  if isinstance(x, float) and x.is_integer(): return str(int(x))
   return str(x)
 
 
@@ -81,8 +78,7 @@ def _label(p: dict) -> str:
 
 
 def _child(p: (dict | NoneType), key: str) -> dict:
-  if p and p["key"]:
-    return {"root": "", "key": key, "container": _where(p)}
+  if p and p["key"]: return {"root": "", "key": key, "container": _where(p)}
   return {"root": p["root"] if p else "", "key": key, "container": None}
 
 

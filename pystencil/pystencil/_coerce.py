@@ -13,8 +13,7 @@ from ._types import NoneType
 
 def _as_float(v: Any, default: float) -> float:
   """Coerce to float, falling back to ``default`` on None/bad values."""
-  if v is None:
-    return default
+  if v is None: return default
   try:
     return float(v)
   except (TypeError, ValueError):
@@ -23,8 +22,7 @@ def _as_float(v: Any, default: float) -> float:
 
 def _as_int(v: Any, default: int) -> int:
   """Coerce to int, falling back to ``default`` on None/bad values."""
-  if v is None:
-    return default
+  if v is None: return default
   try:
     return int(v)
   except (TypeError, ValueError):
@@ -33,22 +31,19 @@ def _as_int(v: Any, default: int) -> int:
 
 def _as_str(v: Any, default: str) -> str:
   """Coerce to str, falling back to ``default`` when missing."""
-  if v is None:
-    return default
+  if v is None: return default
   return str(v)
 
 
 def _opt_str(v: Any) -> (str | NoneType):
   """Pass through a string-ish optional, keeping ``None`` as ``None``."""
-  if v is None:
-    return None
+  if v is None: return None
   return str(v)
 
 
 def _opt_int(v: Any) -> (int | NoneType):
   """Pass through an int-ish optional, keeping ``None`` as ``None``."""
-  if v is None:
-    return None
+  if v is None: return None
   try:
     return int(v)
   except (TypeError, ValueError):
@@ -57,8 +52,7 @@ def _opt_int(v: Any) -> (int | NoneType):
 
 def _opt_float(v: Any) -> (float | NoneType):
   """Pass through a float-ish optional, keeping ``None`` as ``None``."""
-  if v is None:
-    return None
+  if v is None: return None
   try:
     return float(v)
   except (TypeError, ValueError):
@@ -67,6 +61,5 @@ def _opt_float(v: Any) -> (float | NoneType):
 
 def _opt_bool(v: Any) -> (bool | NoneType):
   """Pass through a real JSON bool, keeping everything else as ``None``."""
-  if isinstance(v, bool):
-    return v
+  if isinstance(v, bool): return v
   return None

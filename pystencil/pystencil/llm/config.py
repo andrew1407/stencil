@@ -66,8 +66,7 @@ class LlmConfig:
         "unknown LLM provider %r — use one of: %s"
         % (self.provider, ", ".join(PROVIDERS))
       )
-    if not self.base_url:
-      self.base_url = DEFAULT_BASE_URLS.get(self.provider, "")
+    if not self.base_url: self.base_url = DEFAULT_BASE_URLS.get(self.provider, "")
     # True once a caller pins an explicit base URL via set_base_url();
     # set_provider() then keeps it instead of re-filling the provider default.
     self._url_pinned = False

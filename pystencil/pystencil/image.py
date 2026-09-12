@@ -80,10 +80,8 @@ class Image:
   def encode(self, fmt: str = "png") -> bytes:
     """Encode this image to bytes in ``fmt`` ("png" or "bmp")."""
     fmt = fmt.lower()
-    if fmt == "png":
-      return codecs.encode_png(self.width, self.height, self.data)
-    if fmt == "bmp":
-      return codecs.encode_bmp(self.width, self.height, self.data)
+    if fmt == "png": return codecs.encode_png(self.width, self.height, self.data)
+    if fmt == "bmp": return codecs.encode_bmp(self.width, self.height, self.data)
     raise codecs.CodecError("unsupported encode format: %s" % fmt)
 
   def save(self, path: str, fmt: (str | NoneType) = None) -> None:
@@ -92,8 +90,7 @@ class Image:
     When ``fmt`` is omitted, it's inferred from the extension, defaulting to
     PNG for unknown/missing extensions.
     """
-    if fmt is None:
-      fmt = codecs.format_from_ext(path) or "png"
+    if fmt is None: fmt = codecs.format_from_ext(path) or "png"
     data = self.encode(fmt)
     with open(path, "wb") as fh:
       fh.write(data)

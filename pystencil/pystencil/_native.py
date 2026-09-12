@@ -56,13 +56,11 @@ def find_or_build(build_if_missing: bool = True) -> str:
   _build = __load_build()
 
   expected = _build.lib_path()
-  if expected.exists() and not _build.is_stale(expected):
-    return str(expected)
+  if expected.exists() and not _build.is_stale(expected): return str(expected)
 
   if not build_if_missing:
     # Stale but present: the caller refused a compile, so hand back what exists.
-    if expected.exists():
-      return str(expected)
+    if expected.exists(): return str(expected)
     raise FileNotFoundError(
       "stencil core library not built yet (expected at %s)" % expected
     )
@@ -73,8 +71,7 @@ def find_or_build(build_if_missing: bool = True) -> str:
 def load_library() -> ctypes.CDLL:
   """Load (once) and return the ctypes CDLL handle for the shared core."""
   global _CDLL
-  if _CDLL is not None:
-    return _CDLL
+  if _CDLL is not None: return _CDLL
 
   path = find_or_build(build_if_missing=True)
   _CDLL = ctypes.CDLL(path)

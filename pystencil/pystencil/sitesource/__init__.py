@@ -72,12 +72,10 @@ def scan_page(
   items = scan_html(page, url)
 
   kinds = _category_kinds(category)
-  if kinds is not None:
-    items = [it for it in items if it.kind in kinds]
+  if kinds is not None: items = [it for it in items if it.kind in kinds]
 
   tokens = _format_tokens(formats)
-  if tokens is not None:
-    items = [it for it in items if (it.ext or "etc") in tokens]
+  if tokens is not None: items = [it for it in items if (it.ext or "etc") in tokens]
 
   if name:
     # Regex matched against each media URL — parity with the CLI's --source-name. Python re
@@ -99,8 +97,7 @@ def scan_page(
       if _passes_dimension(it, min_width, max_width, min_height, max_height)
     ]
 
-  if count is None:
-    return items
+  if count is None: return items
   start = max(0, group) * count
   return items[start : start + count]
 

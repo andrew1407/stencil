@@ -84,6 +84,5 @@ def build_help(cls) -> str:
   out = ["commands:"]
   for _owner, fn in __registered(cls):
     spec = fn._command
-    if spec.usage:
-      out.append(_entry(spec.usage, spec.help))
+    if spec.usage: out.append(_entry(spec.usage, spec.help))
   return "\n".join(out)

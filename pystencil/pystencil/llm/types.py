@@ -44,8 +44,7 @@ def variant_slugs(variants: Sequence["Variant"]) -> list[str]:
     slug = variant_slug(v.label)
     if slug in taken:
       n = 2
-      while "%s-%d" % (slug, n) in taken:
-        n += 1
+      while "%s-%d" % (slug, n) in taken: n += 1
       slug = "%s-%d" % (slug, n)
     taken.add(slug)
     out.append(slug)

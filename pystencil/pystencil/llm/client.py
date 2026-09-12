@@ -21,8 +21,7 @@ Messages = Sequence[dict]
 # ── provider client (contract §6) ─────────────────────────────────────────────
 def _b64(data: Any) -> str:
   """Base64-encode image bytes (an already-encoded str passes through)."""
-  if isinstance(data, str):
-    return data
+  if isinstance(data, str): return data
   return base64.b64encode(bytes(data)).decode("ascii")
 
 
@@ -69,10 +68,8 @@ class LlmClient:
   ) -> urllib.request.Request:
     """Pure builder: assemble the provider-specific POST (no network)."""
     provider = self.config.provider
-    if provider == "ollama":
-      return self.__ollama_request(messages, system)
-    if provider == "openai-compat":
-      return self.__openai_request(messages, system)
+    if provider == "ollama": return self.__ollama_request(messages, system)
+    if provider == "openai-compat": return self.__openai_request(messages, system)
     return self.__server_request(messages, system)
 
   def __base_post(
@@ -91,8 +88,7 @@ class LlmClient:
     for m in messages:
       role, text, images = _msg_parts(m)
       entry: dict = {"role": role, "content": text}
-      if images:
-        entry["images"] = [_b64(data) for _mt, data in images]
+      if images: entry["images"] = [_b64(data) for _mt, data in images]
       wire.append(entry)
     return self.__base_post("/api/chat", wire)
 
@@ -140,8 +136,7 @@ class LlmClient:
         ]
       wire.append(entry)
     body: dict = {"system": system, "messages": wire}
-    if self.config.model:
-      body["model"] = self.config.model
+    if self.config.model: body["model"] = self.config.model
     return self.__post(self._server_url + "/llm/chat", body, bearer=self._token or "")
 
   @staticmethod
@@ -161,8 +156,7 @@ class LlmClient:
     """
     _status, payload = _http_open(
       req, self._error_from, follow_redirects=False, timeout=_LLM_TIMEOUT)
-    if not payload:
-      raise LlmError("empty response from the LLM provider")
+    if not payload: raise LlmError("empty response from the LLM provider")
     try:
       return json.loads(payload.decode("utf-8"))
     except (ValueError, UnicodeDecodeError):
@@ -197,8 +191,7 @@ class LlmClient:
       msg = first.get("message") if isinstance(first, dict) else None
       text = msg.get("content") if isinstance(msg, dict) else None
     else:  # stencil-server
-      if not isinstance(payload, dict):
-        payload = dict()
+      if not isinstance(payload, dict): payload = dict()
       stop = payload.get("stopReason") or ""
       text = payload.get("text")
       if stop == "max_tokens":

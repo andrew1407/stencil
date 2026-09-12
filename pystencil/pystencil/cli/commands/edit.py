@@ -99,8 +99,7 @@ class _EditCommands:
       # key only while /chat is on (contract §12, opt-in).
       ed = self._editor
       ed.save_chats = self._chat_on
-      if self._chat_on and self._chat is not None and self._chat.history:
-        ed.attach_chat(self._chat)
+      if self._chat_on and self._chat is not None and self._chat.history: ed.attach_chat(self._chat)
       ed.save_project(arg)
       w, h = ed.image_size
       self._say("saved project %s (%dx%d)" % (arg, w, h))

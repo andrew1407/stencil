@@ -45,8 +45,7 @@ def __normalize_crop(out: dict) -> dict:
 def __float_dims(out: dict) -> dict:
   """§2 centimetre dims are floats (page / blank)."""
   for key in ("width", "height"):
-    if key in out:
-      out[key] = float(out[key])
+    if key in out: out[key] = float(out[key])
   return out
 
 

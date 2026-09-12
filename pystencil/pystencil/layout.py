@@ -45,8 +45,7 @@ class Point:
     """Parse a ``{x, y}`` mapping; missing coordinates default to 0."""
     # Tolerate non-dict junk by treating it as the origin, mirroring the
     # browser's defensive ``p && p.x`` handling in lineDedupeKey.
-    if not isinstance(d, dict):
-      return cls(0.0, 0.0)
+    if not isinstance(d, dict): return cls(0.0, 0.0)
     return cls(_as_float(d.get("x"), 0.0), _as_float(d.get("y"), 0.0))
 
 
@@ -84,19 +83,16 @@ class Line:
       "locked": self.locked,
       "fillColor": self.fill_color,
     }
-    if self.point_color:
-      out["pointColor"] = self.point_color
+    if self.point_color: out["pointColor"] = self.point_color
     return out
 
   @classmethod
   def from_dict(cls, d: Any) -> "Line":
     """Parse a line mapping, applying per-line defaults for missing keys."""
-    if not isinstance(d, dict):
-      return cls()
+    if not isinstance(d, dict): return cls()
     raw_points = d.get("points")
     points: list[Point] = list()
-    if isinstance(raw_points, list):
-      points = [Point.from_dict(p) for p in raw_points]
+    if isinstance(raw_points, list): points = [Point.from_dict(p) for p in raw_points]
     return cls(
       points=points,
       color=_as_str(d.get("color"), DEFAULT_COLOR),
@@ -145,26 +141,16 @@ class Layout:
       "imageHeight": self.image_height,
       "lines": [ln.to_dict() for ln in self.lines],
     }
-    if self.image_filter is not None:
-      out["imageFilter"] = self.image_filter
-    if self.filter_color is not None:
-      out["filterColor"] = self.filter_color
-    if self.crop_rect is not None:
-      out["cropRect"] = self.crop_rect
-    if self.rotation_quarters is not None:
-      out["rotationQuarters"] = self.rotation_quarters
-    if self.page_size is not None:
-      out["pageSize"] = self.page_size
-    if self.custom_page_width is not None:
-      out["customPageWidth"] = self.custom_page_width
-    if self.custom_page_height is not None:
-      out["customPageHeight"] = self.custom_page_height
-    if self.allow_formulas is not None:
-      out["allowFormulas"] = self.allow_formulas
-    if self.formula_x is not None:
-      out["formulaX"] = self.formula_x
-    if self.formula_y is not None:
-      out["formulaY"] = self.formula_y
+    if self.image_filter is not None: out["imageFilter"] = self.image_filter
+    if self.filter_color is not None: out["filterColor"] = self.filter_color
+    if self.crop_rect is not None: out["cropRect"] = self.crop_rect
+    if self.rotation_quarters is not None: out["rotationQuarters"] = self.rotation_quarters
+    if self.page_size is not None: out["pageSize"] = self.page_size
+    if self.custom_page_width is not None: out["customPageWidth"] = self.custom_page_width
+    if self.custom_page_height is not None: out["customPageHeight"] = self.custom_page_height
+    if self.allow_formulas is not None: out["allowFormulas"] = self.allow_formulas
+    if self.formula_x is not None: out["formulaX"] = self.formula_x
+    if self.formula_y is not None: out["formulaY"] = self.formula_y
     return out
 
   def to_json(self, indent: (int | NoneType) = None) -> str:
@@ -174,12 +160,10 @@ class Layout:
   @classmethod
   def from_dict(cls, d: Any) -> "Layout":
     """Parse a layout mapping; missing fields fall back to defaults/empty."""
-    if not isinstance(d, dict):
-      d = dict()
+    if not isinstance(d, dict): d = dict()
     raw_lines = d.get("lines")
     lines: list[Line] = list()
-    if isinstance(raw_lines, list):
-      lines = [Line.from_dict(ln) for ln in raw_lines]
+    if isinstance(raw_lines, list): lines = [Line.from_dict(ln) for ln in raw_lines]
     return cls(
       image_width=_as_int(d.get("imageWidth"), 0),
       image_height=_as_int(d.get("imageHeight"), 0),

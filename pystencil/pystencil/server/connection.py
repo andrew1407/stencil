@@ -89,10 +89,8 @@ class ServerConnection(_ProjectApi, _FileApi):
     (file downloads), or None for empty/204 responses.
     """
     status, payload = _http_open(req, self._error_from, context=self._ssl_ctx)
-    if raw:
-      return payload
-    if status == 204 or not payload:
-      return None
+    if raw: return payload
+    if status == 204 or not payload: return None
     return json.loads(payload.decode("utf-8"))
 
   @staticmethod
@@ -150,15 +148,13 @@ class ServerConnection(_ProjectApi, _FileApi):
           self._request("GET", "/projects")  # validate access
           # A probe that passed without _request re-minting (which would have
           # said "admin" already) means an ordinary session token.
-          if self.credential_kind != "admin":
-            self.credential_kind = "session"
+          if self.credential_kind != "admin": self.credential_kind = "session"
         except ServerError as err:
           # Browser/desktop parity: the value may be the server's
           # ADMIN token — it can't list projects, but it can MINT.
           # Only an auth failure (or a status-less error) means that;
           # a 500 etc. propagates as-is.
-          if err.status is not None and err.status not in (401, 403):
-            raise
+          if err.status is not None and err.status not in (401, 403): raise
           r = self._request("POST", "/auth/token", body={})
           self.token = (r or {}).get("token", "")
           self._request("GET", "/projects")

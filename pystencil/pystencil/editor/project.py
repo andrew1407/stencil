@@ -25,21 +25,16 @@ def _valid_chat_doc(doc) -> (dict | NoneType):
   out of :meth:`Editor.save_project`. Never raises: an invalid block is treated as
   "no saved chat", the contract's rule for malformed documents.
   """
-  if not isinstance(doc, dict) or doc.get("version") != 1:
-    return None
+  if not isinstance(doc, dict) or doc.get("version") != 1: return None
   messages = doc.get("messages")
-  if not isinstance(messages, list):
-    return None
+  if not isinstance(messages, list): return None
   kept: list[dict] = list()
   for m in messages:
-    if not isinstance(m, dict):
-      continue
+    if not isinstance(m, dict): continue
     role, text = m.get("role"), m.get("text")
-    if role not in ("user", "assistant") or not isinstance(text, str):
-      continue
+    if role not in ("user", "assistant") or not isinstance(text, str): continue
     shown = chat_display_text(role, text)
-    if shown is not None:
-      kept.append({"role": role, "text": shown})
+    if shown is not None: kept.append({"role": role, "text": shown})
   return dict(doc, messages=kept[-MAX_HISTORY:])
 
 
@@ -64,14 +59,10 @@ class _ProjectApi:
       "version": 1,
       "name": self._name or "Untitled",
     }
-    if self._color:
-      doc["color"] = self._color
-    if self._keywords:
-      doc["keywords"] = list(self._keywords)
-    if self._source:
-      doc["source"] = self._source
-    if self._resource:
-      doc["resource"] = self._resource
+    if self._color: doc["color"] = self._color
+    if self._keywords: doc["keywords"] = list(self._keywords)
+    if self._source: doc["source"] = self._source
+    if self._resource: doc["resource"] = self._resource
     # §12 chat persistence: the attached conversation rides along ONLY while the
     # opt-in save_chats toggle is on (omit-when-empty, like keywords/color).
     if self.save_chats and _valid_chat_doc(self.chat_doc) and self.chat_doc["messages"]:
@@ -110,12 +101,10 @@ class _ProjectApi:
     if version > 1:
       raise ValueError("this project needs a newer pystencil (file version %d)" % version)
     image = doc.get("image")
-    if not isinstance(image, dict):
-      raise ValueError("project file has no embedded image")
+    if not isinstance(image, dict): raise ValueError("project file has no embedded image")
     data_url = image.get("dataUrl", "")
     idx = data_url.find(_BASE64_PREFIX)
-    if idx < 0:
-      raise ValueError("project file has no embedded image")
+    if idx < 0: raise ValueError("project file has no embedded image")
     try:
       image_bytes = base64.b64decode(data_url[idx + len(_BASE64_PREFIX) :])
     except (binascii.Error, ValueError):
@@ -136,8 +125,7 @@ class _ProjectApi:
     # (absent or malformed → None, silently — the format's unknown-key tolerance).
     self.chat_doc = _valid_chat_doc(doc.get("chat"))
     layout = doc.get("layout")
-    if isinstance(layout, dict):
-      self.apply_layout(layout)
+    if isinstance(layout, dict): self.apply_layout(layout)
     return self
 
   def attach_chat(self, chat_or_doc) -> "Editor":
@@ -157,15 +145,13 @@ class _ProjectApi:
     ``deleteReject`` ported verbatim: ``"empty"`` / ``"url"`` / ``"not_stencil"`` /
     ``"traversal"``, or ``None`` when the path is deletable. Pure (no I/O), so the
     REPL and the LLM ``delete`` op share one guard order with the API below."""
-    if not isinstance(path, str) or not path:
-      return "empty"
+    if not isinstance(path, str) or not path: return "empty"
     if _SourceApi._is_url(path):
       return "url"  # URLs aren't local files
     if not path.lower().endswith(".stencil"):
       return "not_stencil"  # scoped to project files, not a general rm
     # No escaping the working directory (parity with the CLI's hasParentTraversal).
-    if ".." in path.replace("\\", "/").split("/"):
-      return "traversal"
+    if ".." in path.replace("\\", "/").split("/"): return "traversal"
     return None
 
   @staticmethod

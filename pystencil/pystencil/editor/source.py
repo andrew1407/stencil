@@ -54,8 +54,7 @@ class _SourceApi:
         src_ext = os.path.splitext(src)[1].lstrip(".").lower() or _sniff_image_ext(src_bytes)
         derived_name = self._name_from_url(src)
         # Default the recorded source to the URL we fetched.
-        if source is None:
-          source = src
+        if source is None: source = src
       else:
         # Read the file once and decode from the bytes (Image.open is just read+decode),
         # keeping the verbatim bytes for lossless .stencil embedding.
@@ -92,10 +91,8 @@ class _SourceApi:
       canonical = core.canonical_page_format(page)
       size = (core.named_page_size(canonical) if canonical else None) or _A4_FALLBACK
       default_w, default_h = core.default_blank_size_px(size[0], size[1])
-      if width is None:
-        width = default_w
-      if height is None:
-        height = default_h
+      if width is None: width = default_w
+      if height is None: height = default_h
     rgba = core.parse_color(color) or (255, 255, 255, 255)
     img = Image.blank(width, height, rgba)
     self.__set_source(img, name="blank")

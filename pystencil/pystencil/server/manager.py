@@ -44,8 +44,7 @@ class ConnectionManager:
       # Split any invite-link fragment before normalizing (it drops fragments).
       url, token = split_invite_token(url, token)
       norm = normalize_url(url)
-      if norm in self._conns:
-        continue
+      if norm in self._conns: continue
       conn = ServerConnection(norm, token, verify=self._verify)
       conn.connect()
       self._conns[norm] = conn
@@ -57,19 +56,16 @@ class ConnectionManager:
     """Disconnect a specific url, or the most recently added when omitted."""
     if url is None:
       urls = list(self._conns.keys())
-      if not urls:
-        return self
+      if not urls: return self
       target = urls[-1]
     else:
       target = normalize_url(url)
     conn = self._conns.pop(target, None)
-    if conn:
-      conn.close()
+    if conn: conn.close()
     return self
 
   def disconnect_all(self) -> "ConnectionManager":
-    for conn in self._conns.values():
-      conn.close()
+    for conn in self._conns.values(): conn.close()
     self._conns.clear()
     return self
 
@@ -77,8 +73,7 @@ class ConnectionManager:
     """Re-establish the last connected set (tokens re-validated/re-issued)."""
     previous = list(self._last)
     self.disconnect_all()
-    for url, token in previous:
-      self.connect({"url": url, "token": token})
+    for url, token in previous: self.connect({"url": url, "token": token})
     return self
 
   def remote_projects(self) -> list:
@@ -110,10 +105,8 @@ class ConnectionManager:
 
 def __one_spec(item: Any) -> tuple[Any, str]:
   """A single (url, token) from a url string or a {url, token?} mapping."""
-  if isinstance(item, str):
-    return item, ""
-  if isinstance(item, dict):
-    return item.get("url"), item.get("token") or ""
+  if isinstance(item, str): return item, ""
+  if isinstance(item, dict): return item.get("url"), item.get("token") or ""
   raise TypeError(f"Unsupported connection spec: {item!r}")
 
 
@@ -123,5 +116,4 @@ def _iter_specs(spec: ConnectSpec):
   if isinstance(spec, (str, dict)):
     yield __one_spec(spec)
     return
-  for item in spec:
-    yield __one_spec(item)
+  for item in spec: yield __one_spec(item)

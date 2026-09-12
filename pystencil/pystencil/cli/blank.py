@@ -50,8 +50,7 @@ class BlankSpec:
     toks = list(tokens)
     if toks and not _is_int(toks[0]):
       spec.page = core.canonical_page_format(toks[0])
-      if spec.page is not None:
-        i = 1
+      if spec.page is not None: i = 1
     if i < len(toks) and _is_int(toks[i]):
       # A format token and explicit dimensions are mutually exclusive (pinned).
       if spec.page is not None:

@@ -20,7 +20,6 @@ def map_parallel(jobs, work, max_workers: int) -> list:
   A batch of one runs inline and costs no thread.
   """
   jobs = list(jobs)
-  if len(jobs) < 2:
-    return [work(job) for job in jobs]
+  if len(jobs) < 2: return [work(job) for job in jobs]
   with ThreadPoolExecutor(max_workers=min(max_workers, len(jobs))) as pool:
     return list(pool.map(work, jobs))

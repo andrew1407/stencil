@@ -43,8 +43,7 @@ def _json_request(
   to omit it entirely).
   """
   headers: dict[str, str] = dict()
-  if bearer is not None:
-    headers["Authorization"] = "Bearer " + bearer
+  if bearer is not None: headers["Authorization"] = "Bearer " + bearer
   data: (bytes | NoneType) = None
   if body is not None:
     headers["Content-Type"] = "application/json"

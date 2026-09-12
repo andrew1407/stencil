@@ -59,8 +59,7 @@ class _EditApi:
     self._require_original()
     core = self._get_core()
     cur = self._current()
-    if spec is None:
-      spec = self._build_crop_spec(x1, y1, x2, y2)
+    if spec is None: spec = self._build_crop_spec(x1, y1, x2, y2)
     rect = self.resolve_crop_rect(spec, album=album)
     if rect is None:
       # Bad spec: leave the editor untouched, just like the Zig handler.
@@ -133,8 +132,7 @@ class _EditApi:
     value raises ``ValueError``.
     """
     low = mode.strip().lower()
-    if low in ("bw", "sepia", "invert", "contour", "none"):
-      return self.set_filter(low)
+    if low in ("bw", "sepia", "invert", "contour", "none"): return self.set_filter(low)
     core = self._get_core()
     parsed = core.parse_color(mode.strip())
     if parsed is None:
@@ -157,8 +155,7 @@ class _EditApi:
       self._formula_y = expr
     else:
       self._formula_x = expr
-    if expr:
-      self._allow_formulas = True
+    if expr: self._allow_formulas = True
     return self
 
   def set_allow_formulas(self, on: bool) -> "Editor":

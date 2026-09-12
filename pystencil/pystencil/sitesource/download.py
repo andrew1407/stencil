@@ -60,8 +60,7 @@ def download_media(
         err.write(
           "wrote %s (%dx%d px · source %s)\n" % (path, dims[0], dims[1], host)
         )
-    elif err is not None:
-      err.write("wrote %s (source %s)\n" % (path, host))
+    elif err is not None: err.write("wrote %s (source %s)\n" % (path, host))
   return written
 
 
@@ -86,8 +85,7 @@ _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 
 def __ext_for(item: MediaItem, data: bytes) -> str:
   """The extension to give a downloaded file: the item's format token, else a sniff."""
-  if item.ext:
-    return item.ext
+  if item.ext: return item.ext
   return _SNIFF_EXT.get(codecs.sniff(data), "")
 
 
@@ -110,11 +108,9 @@ def __safe_filename(
   ext = __ext_for(item, data)
   if custom is not None:
     stem = _UNSAFE_FILENAME_CHARS.sub("_", custom).lstrip(".") or "source"
-    if multiple:
-      stem = "%s-%d" % (stem, idx)
+    if multiple: stem = "%s-%d" % (stem, idx)
     cname = stem
-    if ext and not cname.lower().endswith("." + ext):
-      cname = "%s.%s" % (cname, ext)
+    if ext and not cname.lower().endswith("." + ext): cname = "%s.%s" % (cname, ext)
     return cname
   base = os.path.basename(urllib.parse.urlparse(item.url).path)
   # Guard against path traversal / separators sneaking through a basename.
@@ -125,12 +121,10 @@ def __safe_filename(
     # with '_', then strip leading dots so a ".htaccess"-style name can't hide.
     base = _UNSAFE_FILENAME_CHARS.sub("_", base).lstrip(".")
   name = base
-  if name and ext and not name.lower().endswith("." + ext):
-    name = "%s.%s" % (name, ext)
+  if name and ext and not name.lower().endswith("." + ext): name = "%s.%s" % (name, ext)
   if not name or name in used:
     name = "source-%d" % idx
-    if ext:
-      name = "%s.%s" % (name, ext)
+    if ext: name = "%s.%s" % (name, ext)
   return name
 
 

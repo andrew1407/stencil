@@ -61,10 +61,8 @@ def chat_display_text(role: str, text: str) -> (str | NoneType):
   t = str(text or "").strip()
   if t.endswith("]"):
     at = t.rfind(_CONTINUATION_OPEN)
-    if at != -1:
-      t = t[:at].rstrip()
-  if not t:
-    return None
+    if at != -1: t = t[:at].rstrip()
+  if not t: return None
   if role == "assistant" and t[0] in "{[" and _PLAN_VERSION_KEY.search(t) and _PLAN_FIELD_KEY.search(t):
     return None
   return t

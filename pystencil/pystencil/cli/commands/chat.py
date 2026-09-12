@@ -42,8 +42,7 @@ class _ChatCommands:
     self._say("chat off")
 
   def __chat_clear(self) -> None:
-    if self._chat is not None:
-      self._chat.clear()
+    if self._chat is not None: self._chat.clear()
     # §12: clearing the conversation clears the persisted server copy too.
     if self._chat_on and self._remote is not None:
       conn, pid = self._remote
@@ -65,5 +64,4 @@ class _ChatCommands:
     except (ServerError, OSError, ValueError):
       return
     chat = Chat.from_doc(doc, self._llm_client())
-    if chat.history:
-      self._chat = chat
+    if chat.history: self._chat = chat

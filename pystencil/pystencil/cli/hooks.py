@@ -121,8 +121,7 @@ class _PlanHooks:
     typed yes runs the exact /chat clear path (Chat.clear + the §12 server-side
     `chat` delete); anything else — EOF / non-interactive input included — is a
     "clear canceled" note, never a failed plan."""
-    if not self._clear_chat_pending:
-      return
+    if not self._clear_chat_pending: return
     self._clear_chat_pending = False
     self._say("clear this conversation's history? [y/N]")
     line = self._in.readline() if self._in is not None else ""

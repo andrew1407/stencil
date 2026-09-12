@@ -108,18 +108,15 @@ def _assemble_ops_bullets(
   bullet matching a censor pattern raises."""
   bullets: list[str] = list()
   for name, spec in registry.items():
-    if spec.scope != scope or not spec.bullet:
-      continue
-    if spec.capability and spec.capability not in capabilities:
-      continue
+    if spec.scope != scope or not spec.bullet: continue
+    if spec.capability and spec.capability not in capabilities: continue
     for pattern in _PROMPT_CENSOR_PATTERNS:
       if pattern.search(spec.bullet):
         raise AssertionError(
           'the "%s" op\'s prompt bullet matches the sensitive pattern %r '
           "and may not be emitted (contract §13)" % (name, pattern.pattern)
         )
-    if spec.bullet not in bullets:
-      bullets.append(spec.bullet)
+    if spec.bullet not in bullets: bullets.append(spec.bullet)
   return "\n".join(bullets)
 
 

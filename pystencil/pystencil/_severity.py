@@ -28,8 +28,7 @@ NOTE = "note: "
 
 def color_enabled(stream: (TextIO | NoneType)) -> bool:
   """True when `stream` is a terminal that accepts colour (NO_COLOR wins)."""
-  if stream is None or os.environ.get("NO_COLOR") is not None:
-    return False
+  if stream is None or os.environ.get("NO_COLOR") is not None: return False
   try:
     return bool(stream.isatty())
   except (AttributeError, ValueError):  # detached / closed stream
@@ -38,15 +37,13 @@ def color_enabled(stream: (TextIO | NoneType)) -> bool:
 
 def error_line(msg: str, stream: (TextIO | NoneType) = None) -> str:
   """``error: <msg>`` — the prefix coloured when `stream` is a colour terminal."""
-  if color_enabled(stream):
-    return "%s%s%s%s" % (_RED, ERROR, _RESET, msg)
+  if color_enabled(stream): return "%s%s%s%s" % (_RED, ERROR, _RESET, msg)
   return ERROR + msg
 
 
 def note_line(msg: str, stream: (TextIO | NoneType) = None) -> str:
   """``note: <msg>`` — the prefix coloured when `stream` is a colour terminal."""
-  if color_enabled(stream):
-    return "%s%s%s%s" % (_AMBER, NOTE, _RESET, msg)
+  if color_enabled(stream): return "%s%s%s%s" % (_AMBER, NOTE, _RESET, msg)
   return NOTE + msg
 
 

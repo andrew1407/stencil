@@ -29,13 +29,10 @@ def _parse_command(line: str) -> tuple[str, str]:
   argument is preserved.
   """
   s = line.strip()
-  if s.startswith("/"):
-    s = s[1:].lstrip(" \t")
-  if not s:
-    return ("", "")
+  if s.startswith("/"): s = s[1:].lstrip(" \t")
+  if not s: return ("", "")
   parts = s.split(None, 1)
-  if len(parts) == 1:
-    return (parts[0], "")
+  if len(parts) == 1: return (parts[0], "")
   return (parts[0], parts[1].strip())
 
 
@@ -118,8 +115,7 @@ class _Repl(
     after coming through here — the same funnel shape as the Zig console
     Session's setRemote()/clearRemote() (cli/src/console/session.zig).
     """
-    if editor is not None:
-      self._editor = editor
+    if editor is not None: self._editor = editor
     self._remote = None
     self._chat = None
 
@@ -128,11 +124,9 @@ class _Repl(
     self._in = src
     for raw in src:
       word, arg = _parse_command(raw)
-      if not word:
-        continue
+      if not word: continue
       try:
-        if self.__dispatch(word, arg):
-          break
+        if self.__dispatch(word, arg): break
       except (ValueError, RuntimeError, OSError, ServerError) as e:
         self._err("%s" % e)
     return 0

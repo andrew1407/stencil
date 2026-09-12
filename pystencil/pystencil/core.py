@@ -60,8 +60,7 @@ class Core(RasterOps):
       ctypes.byref(b),
       ctypes.byref(a),
     )
-    if not ok:
-      return None
+    if not ok: return None
     return (r.value, g.value, b.value, a.value)
 
   # ── page sizing ───────────────────────────────────────────────────────────
@@ -74,8 +73,7 @@ class Core(RasterOps):
       ctypes.byref(wcm),
       ctypes.byref(hcm),
     )
-    if not ok:
-      return None
+    if not ok: return None
     return (wcm.value, hcm.value)
 
   def page_formats(self) -> list[str]:
@@ -88,8 +86,7 @@ class Core(RasterOps):
     (never "custom") for anything unknown — port of the CLI's canonicalPageFormat."""
     low = (name or "").strip().lower()
     for fmt in self.page_formats():
-      if fmt.lower() == low:
-        return fmt
+      if fmt.lower() == low: return fmt
     return None
 
   def default_blank_size_px(
@@ -134,8 +131,7 @@ class Core(RasterOps):
     result to an epoch-ms 'now' and pass to ServerConnection.set_project_expiration
     to expire a server project."""
     out = ctypes.c_longlong(0)
-    if not self._lib.stencil_cli_parseDuration(_encode(spec), ctypes.byref(out)):
-      return None
+    if not self._lib.stencil_cli_parseDuration(_encode(spec), ctypes.byref(out)): return None
     return int(out.value)
 
 
@@ -146,6 +142,5 @@ _CORE: (Core | NoneType) = None
 def get_core() -> Core:
   """Return a cached, lazily-loaded Core singleton."""
   global _CORE
-  if _CORE is None:
-    _CORE = Core.load()
+  if _CORE is None: _CORE = Core.load()
   return _CORE

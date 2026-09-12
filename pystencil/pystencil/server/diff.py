@@ -65,16 +65,14 @@ def _poll_loop(fetch: Callable[[], list], on_change, interval: float, stop) -> N
     baseline = list()
   while not (stop is not None and stop.is_set()):
     if stop is not None:
-      if stop.wait(interval):
-        break
+      if stop.wait(interval): break
     else:
       time.sleep(interval)
     try:
       current = fetch()
     except Exception:
       continue  # transient error — keep the baseline, retry next tick
-    for change in diff_projects(baseline, current):
-      on_change(change)
+    for change in diff_projects(baseline, current): on_change(change)
     baseline = current
 
 
@@ -85,17 +83,14 @@ def parse_credential_filter(arg: str) -> (str | NoneType):
   "session" keeps the rest. None = unrecognised, for a usage note.
   """
   w = (arg or "").strip().lower()
-  if w in ("", "all"):
-    return "all"
-  if w in ("admin", "session"):
-    return w
+  if w in ("", "all"): return "all"
+  if w in ("admin", "session"): return w
   return None
 
 
 def credential_filter_matches(flt: str, kind: str) -> bool:
   """True when a connection of credential `kind` belongs in a `flt` listing."""
-  if flt == "admin":
-    return kind == "admin"
+  if flt == "admin": return kind == "admin"
   if flt == "session":
     return kind != "admin"  # a plain session token, or none supplied
   return True

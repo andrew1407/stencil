@@ -37,8 +37,7 @@ def _apply_crop(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
     rect = None
     if callable(resolve):
       rect = resolve(spec_str, album=album) if album else resolve(spec_str)
-    if rect is not None:
-      frame.push_crop(rect[0], rect[1])
+    if rect is not None: frame.push_crop(rect[0], rect[1])
   editor.crop(spec_str, album=album) if album else editor.crop(spec_str)
 
 
@@ -48,8 +47,7 @@ def _apply_rotate(action: dict, editor: Any, frame: (_FrameMap | NoneType) = Non
   quarters = -times if action["dir"] == "left" else times
   if frame is not None:
     size = getattr(editor, "image_size", None)
-    if size is not None:
-      frame.push_rotate(quarters, size[0], size[1])
+    if size is not None: frame.push_rotate(quarters, size[0], size[1])
   editor.rotate(quarters)
 
 
@@ -68,8 +66,7 @@ def _apply_layout(action: dict, editor: Any, frame: (_FrameMap | NoneType) = Non
   for line in lines:
     for p in line.points:
       x, y = frame.map_point(p.x, p.y) if frame is not None else (p.x, p.y)
-      if size is not None:
-        x, y = _clamp_point(x, y, size[0], size[1])
+      if size is not None: x, y = _clamp_point(x, y, size[0], size[1])
       p.x, p.y = x, y
   editor.draw(lines)
 
@@ -129,15 +126,13 @@ def _apply_image(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None
     note = "Skipped switching to attached image %d — this message attached %d image(s)" % (
       index, len(attachments)
     )
-    if run is not None:
-      run.notes.append(note)
+    if run is not None: run.notes.append(note)
     return
   data, name = _attachment_parts(attachments[index - 1])
   stem = _save_stem(name)
   editor.load(data, name=stem) if stem else editor.load(data)
   run.active_name = stem
-  if frame is not None:
-    frame.reset()
+  if frame is not None: frame.reset()
 
 
 def _apply_save(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
@@ -149,8 +144,7 @@ def _apply_save(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
   suffix. Nothing loaded is a skipped action with a note, never a failed plan."""
   has_image = getattr(editor, "has_image", None)
   if has_image is not None and not has_image():
-    if run is not None:
-      run.notes.append("Skipped save — no working image to save")
+    if run is not None: run.notes.append("Skipped save — no working image to save")
     return
   # A "path" destination is valid but not honoured here — note + usual place.
   if action.get("path") and run is not None:
@@ -159,8 +153,7 @@ def _apply_save(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
   name = action.get("name") or active or getattr(editor, "name", "") or "project"
   path = _unique_save_path(run.save_dir if run is not None else "", name)
   editor.save_project(path)
-  if run is not None:
-    run.saved.append(path)
+  if run is not None: run.saved.append(path)
 
 
 def _apply_history_step(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
@@ -171,8 +164,7 @@ def _apply_history_step(action: dict, editor: Any, frame: (_FrameMap | NoneType)
   step = editor.undo if op == "undo" else editor.redo
   steps = action.get("steps", 1)
   done = 0
-  while done < steps and step():
-    done += 1
+  while done < steps and step(): done += 1
   if done < steps and run is not None:
     run.notes.append(
       "%s stopped after %d step(s) — no more history entries" % (op, done)
@@ -185,8 +177,7 @@ def _apply_reset(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None
   /reset). Nothing loaded is a skipped action with a note, never a failed plan."""
   has_image = getattr(editor, "has_image", None)
   if has_image is not None and not has_image():
-    if run is not None:
-      run.notes.append("Skipped reset — no working image")
+    if run is not None: run.notes.append("Skipped reset — no working image")
     return
   editor.reset()
 

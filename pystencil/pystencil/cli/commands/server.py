@@ -95,8 +95,7 @@ class _ServerCommands:
 
   def _detach_remote_on(self, url: str) -> None:
     """Forget the active remote project when its server is being dropped."""
-    if self._remote is not None and getattr(self._remote[0], "base", "") == url:
-      self._remote = None
+    if self._remote is not None and getattr(self._remote[0], "base", "") == url: self._remote = None
 
   @command(
     "connections", "servers",
@@ -120,12 +119,10 @@ class _ServerCommands:
     for url in conns:
       conn = self._manager.get(url)
       kind = getattr(conn, "credential_kind", "")
-      if not credential_filter_matches(flt, kind):
-        continue
+      if not credential_filter_matches(flt, kind): continue
       shown += 1
       self._say(url + ("  [admin]" if kind == "admin" else ""))
-    if shown == 0:
-      self._say("no %s connections (of %d)" % (flt, len(conns)))
+    if shown == 0: self._say("no %s connections (of %d)" % (flt, len(conns)))
 
   @command("projects", "ls", usage="/projects [url]",
       help="list a server's projects (alias: ls)")
@@ -160,8 +157,7 @@ class _ServerCommands:
     if conns is None:
       conns = [self._manager.get(u) for u in self._manager.connections]
     for conn in conns:
-      if conn is None:
-        continue
+      if conn is None: continue
       for proj in conn.list_projects():
         if isinstance(proj, dict) and proj.get("name") == name:
           data = conn.get_file(proj["id"], "original")
@@ -170,8 +166,7 @@ class _ServerCommands:
           # Track the active remote project for /chat clear's server-side
           # delete; restore its saved chat only while /chat is on (§12).
           self._remote = (conn, proj["id"])
-          if self._chat_on:
-            self._restore_remote_chat(conn, proj["id"])
+          if self._chat_on: self._restore_remote_chat(conn, proj["id"])
           w, h = self._editor.image_size
           self._say('fetched "%s" (%dx%d)' % (name, w, h))
           return

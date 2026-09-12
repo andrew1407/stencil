@@ -22,8 +22,7 @@ from ..registry import command
 
 def _load_only_plan(plan) -> bool:
   acts = getattr(plan, "actions", None) or []
-  if not acts or getattr(plan, "variants", None):
-    return False
+  if not acts or getattr(plan, "variants", None): return False
   op_of = lambda a: a.get("op") if isinstance(a, dict) else getattr(a, "op", None)
   ops = [op_of(a) for a in acts]
   return ("blank" in ops or "openUrl" in ops) and "layout" not in ops
@@ -58,8 +57,7 @@ class _PromptCommands:
     # anything else is an ordinary prompt and simply retires the card, since an
     # unanswered question must never block the conversation.
     answer = ask_answer_text(self._ask, arg)
-    if self._ask is not None:
-      self._ask = None
+    if self._ask is not None: self._ask = None
     if answer is not None:
       self._say("→ %s" % answer)
       arg = answer
@@ -71,8 +69,7 @@ class _PromptCommands:
     try:
       text = arg
       for round_no in range(2):
-        if self._prompt_round(text) is not True:
-          return
+        if self._prompt_round(text) is not True: return
         # The note is CONTINUATION_NOTE so this writer and the §12.1 gate that
         # refuses it in the persisted document can never drift apart.
         text = "%s\n\n%s" % (arg, CONTINUATION_NOTE)
@@ -158,8 +155,7 @@ class _PromptCommands:
     variant_outputs = outputs
     # §2.1: each `save` action wrote a project beside the output — report it like
     # /save does, so a multi-image turn says what it kept.
-    for path in plan.saved:
-      self._say("saved project %s" % path)
+    for path in plan.saved: self._say("saved project %s" % path)
     if plan.actions:
       if self._editor.has_image():
         self._say_status_brief("applied %d action(s)" % len(plan.actions))

@@ -64,23 +64,17 @@ def _clean_keywords(kw) -> list[str]:
   Kept deliberately simple (no dedupe/lower-casing) so a ``.stencil`` round-trip preserves
   the exact tag list every other surface reads/writes.
   """
-  if not isinstance(kw, list):
-    return []
+  if not isinstance(kw, list): return []
   return [k.strip() for k in kw if isinstance(k, str) and k.strip()]
 
 
 def _sniff_image_ext(data: bytes) -> (str | NoneType):
   """Best-effort image format from magic bytes (for a lossless save when there's no filename)."""
-  if data[:8] == b"\x89PNG\r\n\x1a\n":
-    return "png"
-  if data[:2] == b"\xff\xd8":
-    return "jpg"
-  if data[:6] in (b"GIF87a", b"GIF89a"):
-    return "gif"
-  if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-    return "webp"
-  if data[:2] == b"BM":
-    return "bmp"
+  if data[:8] == b"\x89PNG\r\n\x1a\n": return "png"
+  if data[:2] == b"\xff\xd8": return "jpg"
+  if data[:6] in (b"GIF87a", b"GIF89a"): return "gif"
+  if data[:4] == b"RIFF" and data[8:12] == b"WEBP": return "webp"
+  if data[:2] == b"BM": return "bmp"
   return None
 
 

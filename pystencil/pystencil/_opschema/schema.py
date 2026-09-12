@@ -47,8 +47,7 @@ class Schema(ValueChecks):
     self.forbidden = frozenset(registry["forbidden"]["perSurface"].get(surface, []))
 
   def __for_surface(self, table: (dict | NoneType)) -> Any:
-    if not table:
-      return None
+    if not table: return None
     return table.get(self.surface) if table.get(self.surface) is not None else table.get(self.profile)
 
   def __resolve(self, e: dict) -> dict:
@@ -66,13 +65,10 @@ class Schema(ValueChecks):
 
   def limit(self, v: Any) -> Any:
     """A cap is a number or a dotted name into `limits` ("MAX_ACTIONS", "ask.label")."""
-    if _is_num(v):
-      return v
+    if _is_num(v): return v
     n: Any = self.limits
-    for k in str(v).split("."):
-      n = n.get(k) if isinstance(n, dict) else None
-    if not _is_num(n):
-      raise ValueError('opRegistry: unknown limit "%s"' % v)
+    for k in str(v).split("."): n = n.get(k) if isinstance(n, dict) else None
+    if not _is_num(n): raise ValueError('opRegistry: unknown limit "%s"' % v)
     return n
   # ── normalization: the declared keys only, defaults applied, trims honoured ──
   def __pick(self, v: Any, spec: dict) -> Any:
@@ -80,8 +76,7 @@ class Schema(ValueChecks):
       return self.__pick_fields(v, spec["fields"])
     if spec["type"] == "array" and isinstance(v, list):
       return [self.__pick(x, spec["items"]) for x in v] if spec.get("items") else list(v)
-    if spec["type"] == "string" and spec.get("trim") and isinstance(v, str):
-      return v.strip()
+    if spec["type"] == "string" and spec.get("trim") and isinstance(v, str): return v.strip()
     return v
 
   def __pick_fields(self, obj: dict, fields: dict) -> dict:
@@ -89,8 +84,7 @@ class Schema(ValueChecks):
     for k, spec in fields.items():
       if obj.get(k) is not None:
         out[k] = self.__pick(obj[k], spec)
-      elif "default" in spec:
-        out[k] = spec["default"]
+      elif "default" in spec: out[k] = spec["default"]
     return out
 
   # ── public surface ────────────────────────────────────────────────────────
@@ -99,8 +93,7 @@ class Schema(ValueChecks):
     action as validated (post-fold) — feed it to :meth:`normalize`."""
     try:
       v = a
-      for rule in entry.get("rules") or []:
-        v = _RULES[rule](v)
+      for rule in entry.get("rules") or []: v = _RULES[rule](v)
       self._check_fields(v, entry["keys"], entry, None, ["op"])
       return v
     except SchemaError as e:
@@ -115,8 +108,7 @@ class Schema(ValueChecks):
   def validate_ask(self, ask: Any) -> None:
     """The §11 card's structure (option ``actions`` only shallowly — the caller
     validates them as preview actions)."""
-    if not _is_obj(ask):
-      _bad('"ask" must be an object')
+    if not _is_obj(ask): _bad('"ask" must be an object')
     schema = self.registry["ask"]["schema"]
     self._check_fields(ask, schema["keys"], schema, {"root": "ask.", "key": "", "container": None}, [])
 
@@ -127,15 +119,13 @@ class Schema(ValueChecks):
     """Resolve an op inside a nested op set (§8 open.actions): an entry to validate
     with, ``"fail"`` for a listed-but-disallowed op, or None for an unknown op."""
     os_ = self.registry["opsets"].get(name)
-    if os_ is None:
-      raise ValueError('opRegistry: unknown opset "%s"' % name)
+    if os_ is None: raise ValueError('opRegistry: unknown opset "%s"' % name)
     override = (os_.get("overrides") or {}).get(op)
     if override:
       return {"name": op, "keys": override["keys"], "rules": override.get("rules") or []}
     if op in os_["ops"]:
       return next((e for e in self.registry["ops"] if e["id"] == op), None)
-    if op in (os_.get("failOps") or []):
-      return "fail"
+    if op in (os_.get("failOps") or []): return "fail"
     return None
 
   def check_envelope(self, v: Any, key: str) -> None:
@@ -158,6 +148,5 @@ _SCHEMAS: dict[str, Schema] = dict()
 def schema(surface: str = "pystencil") -> Schema:
   """The registry resolved for ``surface``, parsed once on first use."""
   s = _SCHEMAS.get(surface)
-  if s is None:
-    s = _SCHEMAS[surface] = Schema(load_registry(), surface)
+  if s is None: s = _SCHEMAS[surface] = Schema(load_registry(), surface)
   return s

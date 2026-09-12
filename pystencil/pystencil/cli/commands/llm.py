@@ -42,12 +42,10 @@ class _LlmCommands:
     falls back to the first connected server. None when not applicable — the
     client then authenticates with whatever token the config carries (none).
     """
-    if self._llm.provider != "stencil-server":
-      return None
+    if self._llm.provider != "stencil-server": return None
     target = self._llm.server_url
     try:
-      if target:
-        return self._manager.get(target)
+      if target: return self._manager.get(target)
       urls = self._manager.connections
       return self._manager.get(urls[0]) if urls else None
     except ValueError:
@@ -56,8 +54,7 @@ class _LlmCommands:
   def _llm_client(self) -> LlmClient:
     """Build the provider client for the session's current /llm config."""
     conn = self.__llm_server_conn()
-    if conn is not None:
-      return LlmClient(self._llm, server=conn)
+    if conn is not None: return LlmClient(self._llm, server=conn)
     return LlmClient(self._llm)
 
   def _current_png(self) -> bytes:
@@ -67,8 +64,7 @@ class _LlmCommands:
     /drop's fresh Editor can't collide with the old one's revision numbers."""
     ed = self._editor
     cache = self._png_cache
-    if cache is not None and cache[0] is ed and cache[1] == ed.revision:
-      return cache[2]
+    if cache is not None and cache[0] is ed and cache[1] == ed.revision: return cache[2]
     data = ed.result().encode("png")
     self._png_cache = (ed, ed.revision, data)
     return data

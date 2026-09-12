@@ -48,8 +48,7 @@ class RasterOps:
       ctypes.byref(out_w),
       ctypes.byref(out_h),
     )
-    if not ok:
-      return None
+    if not ok: return None
     return (out_x.value, out_y.value, out_w.value, out_h.value)
 
   # ── RGBA8 transforms ──────────────────────────────────────────────────────

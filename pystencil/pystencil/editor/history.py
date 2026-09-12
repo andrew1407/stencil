@@ -42,16 +42,14 @@ class _HistoryApi:
   # ── history navigation ─────────────────────────────────────────────────────
   def undo(self) -> bool:
     """Step the cursor back one edit; False if already at the pristine state."""
-    if self._cursor == 0:
-      return False
+    if self._cursor == 0: return False
     self._cursor -= 1
     self._revision += 1
     return True
 
   def redo(self) -> bool:
     """Step the cursor forward one edit; False if already at the newest state."""
-    if self._cursor + 1 >= len(self._history):
-      return False
+    if self._cursor + 1 >= len(self._history): return False
     self._cursor += 1
     self._revision += 1
     return True

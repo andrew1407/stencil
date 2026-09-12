@@ -51,22 +51,18 @@ class _Scanner(HTMLParser):
       self.base = urllib.parse.urljoin(self._page_url, a["href"].strip())
       self._base_set = True
     # Inline background-image on ANY element.
-    for raw in _extract_css_urls(a.get("style", "")):
-      self.bgs.append(("bg", raw, ""))
+    for raw in _extract_css_urls(a.get("style", "")): self.bgs.append(("bg", raw, ""))
     handler = self._START_TAGS.get(tag)
-    if handler is not None:
-      handler(self, a)
+    if handler is not None: handler(self, a)
 
   def _start_img(self, a: Attrs) -> None:
     raw = self.__img_url(a)
-    if raw:
-      self.imgs.append(("img", raw, a.get("alt", "")))
+    if raw: self.imgs.append(("img", raw, a.get("alt", "")))
 
   def _start_svg_image(self, a: Attrs) -> None:
     """Inline ``<svg><image href|xlink:href>``."""
     raw = a.get("href", "").strip() or a.get("xlink:href", "").strip()
-    if raw:
-      self.svgs.append(("img", raw, ""))
+    if raw: self.svgs.append(("img", raw, ""))
 
   def _start_picture(self, a: Attrs) -> None:
     self._picture_depth += 1
@@ -87,8 +83,7 @@ class _Scanner(HTMLParser):
         urllib.parse.urljoin(self.base, raw)
       ):
         self._cur_video["source"] = raw
-    elif self._picture_depth > 0 and raw:
-      self.sources.append(("img", raw, ""))
+    elif self._picture_depth > 0 and raw: self.sources.append(("img", raw, ""))
 
   def _start_style(self, a: Attrs) -> None:
     self._style_depth += 1
@@ -101,13 +96,11 @@ class _Scanner(HTMLParser):
       self._picture_depth -= 1
     elif tag == "style" and self._style_depth > 0:
       self._style_depth -= 1
-      for raw in _extract_css_urls("".join(self._style_buf)):
-        self.bgs.append(("bg", raw, ""))
+      for raw in _extract_css_urls("".join(self._style_buf)): self.bgs.append(("bg", raw, ""))
       self._style_buf = list()
 
   def handle_data(self, data):
-    if self._style_depth > 0:
-      self._style_buf.append(data)
+    if self._style_depth > 0: self._style_buf.append(data)
 
   def __finish_video(self, v: dict) -> None:
     """Emit the video record (its downloadable URL) then a poster record (if any).
@@ -119,10 +112,8 @@ class _Scanner(HTMLParser):
     chosen = ""
     if v["src"] and _is_http(urllib.parse.urljoin(self.base, v["src"])):
       chosen = v["src"]
-    elif v["source"]:
-      chosen = v["source"]
-    if chosen:
-      self.videos.append(("video", chosen, alt or "video"))
+    elif v["source"]: chosen = v["source"]
+    if chosen: self.videos.append(("video", chosen, alt or "video"))
     if v["poster"]:
       self.videos.append(("poster", v["poster"], alt or "video poster"))
 
@@ -141,17 +132,14 @@ class _Scanner(HTMLParser):
     """Pick an ``<img>`` URL: ``src`` unless it's empty or a ``data:`` placeholder,
     then ``data-src`` / ``data-original`` / ``data-lazy-src`` / first ``srcset`` URL."""
     src = a.get("src", "").strip()
-    if src and not src.lower().startswith("data:"):
-      return src
+    if src and not src.lower().startswith("data:"): return src
     for key in ("data-src", "data-original", "data-lazy-src"):
       v = a.get(key, "").strip()
-      if v:
-        return v
+      if v: return v
     srcset = a.get("srcset", "").strip()
     if srcset:
       first = srcset.split(",", 1)[0].strip()
-      if first:
-        return first.split()[0]
+      if first: return first.split()[0]
     return src  # a lone data: placeholder — resolved out as non-http later
 
 
@@ -172,18 +160,15 @@ def scan_html(html: str, base_url: str) -> list[MediaItem]:
   seen: dict[str, MediaItem] = dict()
   out: list[MediaItem] = list()
   for kind, raw, alt in records:
-    if not raw:
-      continue
+    if not raw: continue
     try:
       url = urllib.parse.urljoin(scanner.base, raw.strip())
     except ValueError:
       continue
-    if not _is_http(url):
-      continue
+    if not _is_http(url): continue
     if url in seen:
       existing = seen[url]
-      if kind == "poster" and existing.kind != "poster":
-        existing.kind = "poster"
+      if kind == "poster" and existing.kind != "poster": existing.kind = "poster"
       continue
     item = MediaItem(url=url, kind=kind, width=0, height=0, ext=format_of(url), alt=alt or "")
     seen[url] = item

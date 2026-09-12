@@ -30,23 +30,18 @@ class ValueChecks:
 
   # ── value checks ──────────────────────────────────────────────────────────
   def __check_string(self, v: Any, spec: dict, path: dict, parent: (dict | NoneType)) -> None:
-    if not isinstance(v, str):
-      _bad("%s must be a string" % _label(path))
+    if not isinstance(v, str): _bad("%s must be a string" % _label(path))
     mx = self.limit(spec["maxChars"]) if spec.get("maxChars") is not None else self.limits["MAX_STRING_CHARS"]
     if len(v) > mx:
       _bad("%s is longer than %s characters" % (_label(path), _js_str(mx)))
     s = v.strip() if spec.get("trim") else v
-    if spec.get("nonEmpty") and not s.strip():
-      _bad("%s must be a non-empty string" % _label(path))
+    if spec.get("nonEmpty") and not s.strip(): _bad("%s must be a non-empty string" % _label(path))
     if "enum" in spec and s not in spec["enum"]:
       _bad("%s must be one of %s" % (_label(path), _quote_list(spec["enum"])))
-    if "literals" in spec and s in spec["literals"]:
-      return
-    if spec.get("blankOk") and not s.strip():
-      return
+    if "literals" in spec and s in spec["literals"]: return
+    if spec.get("blankOk") and not s.strip(): return
     names = spec.get("regex") or []
-    if isinstance(names, str):
-      names = [names]
+    if isinstance(names, str): names = [names]
     if "regexBy" in spec:
       by = parent.get(spec["regexBy"]["key"]) if parent else None
       name = spec["regexBy"]["map"].get(by) if isinstance(by, str) else None
@@ -59,8 +54,7 @@ class ValueChecks:
   def __check_number(self, v: Any, spec: dict, path: dict) -> None:
     integer = spec["type"] == "integer"
     noun = "an integer" if integer else "a number"
-    if not (_is_int(v) if integer else _is_num(v)):
-      _bad("%s must be %s" % (_label(path), noun))
+    if not (_is_int(v) if integer else _is_num(v)): _bad("%s must be %s" % (_label(path), noun))
     if "enum" in spec and not _includes(spec["enum"], v):
       _bad("%s must be one of %s" % (_label(path), _quote_list(spec["enum"])))
     if spec.get("range"):
@@ -73,18 +67,15 @@ class ValueChecks:
         _bad("%s must be %s %s" % (_label(path), noun, rng))
 
   def __check_boolean(self, v: Any, spec: dict, path: dict) -> None:
-    if not isinstance(v, bool):
-      _bad("%s must be a boolean" % _label(path))
+    if not isinstance(v, bool): _bad("%s must be a boolean" % _label(path))
     if "enum" in spec and not _includes(spec["enum"], v):
       _bad("%s must be %s" % (_label(path), _quote_list(spec["enum"])))
 
   def __check_array(self, v: Any, spec: dict, path: dict) -> None:
-    if not isinstance(v, list):
-      _bad("%s must be an array" % _label(path))
+    if not isinstance(v, list): _bad("%s must be an array" % _label(path))
     mn = self.limit(spec["minItems"]) if spec.get("minItems") is not None else None
     mx = self.limit(spec["maxItems"]) if spec.get("maxItems") is not None else None
-    if mn == 1 and not v:
-      _bad("%s must be a non-empty array" % _label(path))
+    if mn == 1 and not v: _bad("%s must be a non-empty array" % _label(path))
     window = mn is not None and mn > 1 and mx is not None  # a real N..M window, not just a cap
     held = "%s must hold %s..%s entries" % (_label(path), _js_str(mn), _js_str(mx))
     if mx is not None and len(v) > mx:
@@ -92,12 +83,10 @@ class ValueChecks:
     if mn is not None and len(v) < mn:
       _bad(held if window else "%s must hold at least %s entries" % (_label(path), _js_str(mn)))
     if spec.get("items"):
-      for i, x in enumerate(v):
-        self._check_value(x, spec["items"], _item(path, i), None)
+      for i, x in enumerate(v): self._check_value(x, spec["items"], _item(path, i), None)
 
   def __check_object(self, v: Any, spec: dict, path: dict) -> None:
-    if not _is_obj(v):
-      _bad("%s must be an object" % _label(path))
+    if not _is_obj(v): _bad("%s must be an object" % _label(path))
     if spec.get("fields") or spec.get("minFields") is not None:
       self._check_fields(v, spec.get("fields") or {}, spec, path, [])
 
@@ -111,8 +100,7 @@ class ValueChecks:
       "array": lambda: self.__check_array(v, spec, path),
       "object": lambda: self.__check_object(v, spec, path),
     }
-    if t not in checks:
-      raise ValueError('opRegistry: unknown type "%s"' % t)
+    if t not in checks: raise ValueError('opRegistry: unknown type "%s"' % t)
     checks[t]()
 
   # One object against a key map + its holder's presence rules. `skip` names keys
@@ -137,8 +125,7 @@ class ValueChecks:
         _bad("exactly one of %s is required" % " / ".join(_quote_keys(f, "+") for f in forms))
     for group in holder.get("together") or []:
       n = sum(1 for k in group if present(k))
-      if n and n != len(group):
-        _bad("%s ride together" % _quote_keys(group, " and "))
+      if n and n != len(group): _bad("%s ride together" % _quote_keys(group, " and "))
     for group in holder.get("exclusive") or []:
       if sum(1 for k in group if present(k)) > 1:
         _bad("carries both %s — at most one of them" % _quote_keys(group, " and "))
@@ -149,8 +136,7 @@ class ValueChecks:
           "one" if holder["minFields"] == 1 else holder["minFields"], "/".join(fields)))
     for k, spec in fields.items():
       if not present(k):
-        if spec.get("required"):
-          _bad("%s is required" % _label(at(k)))
+        if spec.get("required"): _bad("%s is required" % _label(at(k)))
         for dep, vals in (spec.get("requiredWith") or {}).items():
           if _includes(vals, obj.get(dep)):
             _bad('%s is required with "%s" %s' % (_label(at(k)), dep, _quote_list([obj.get(dep)])))

@@ -31,8 +31,7 @@ class _SourceCommands:
       self._image_replaced()
       if self._chat_on and self._editor.chat_doc:
         chat = Chat.from_doc(self._editor.chat_doc, self._llm_client())
-        if chat.history:
-          self._chat = chat
+        if chat.history: self._chat = chat
     else:
       self._editor.load(arg)
       self._image_replaced()
@@ -60,8 +59,7 @@ class _SourceCommands:
   def _consume_attachments(self) -> None:
     """Mark the turn's attachments as spent (called once a /prompt used them):
     they stay indexable within the turn, and the next /upload starts a new set."""
-    if self._attachments:
-      self._attachments_used = True
+    if self._attachments: self._attachments_used = True
 
   @command(
     "source-upload", "sourceupload", "scrape",
@@ -81,16 +79,14 @@ class _SourceCommands:
     custom_name: (str | NoneType) = None
     try:
       for tok in parts[1:]:
-        if "=" not in tok:
-          continue
+        if "=" not in tok: continue
         key, val = tok.split("=", 1)
         key = key.strip().lower()
         if key == "format":
           opts["format"] = val.strip() or "all"
         elif key == "name":
           custom_name = val.strip() or None
-        elif key in opts:
-          opts[key] = int(val)
+        elif key in opts: opts[key] = int(val)
     except ValueError:
       self._err("/source-upload options must be key=value (ints, format=/name=)")
       return

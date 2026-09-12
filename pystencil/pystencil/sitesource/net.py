@@ -32,7 +32,6 @@ def _measure_item(item: MediaItem, page_host: str = "") -> None:
   except (OSError, ValueError):
     return
   dims = image_dimensions(data)
-  if dims:
-    item.width, item.height = dims
+  if dims: item.width, item.height = dims
 
 

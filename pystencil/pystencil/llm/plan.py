@@ -49,8 +49,7 @@ def __balanced_end(text: str, start: int) -> (int | NoneType):
         escape = False
       elif ch == "\\":
         escape = True
-      elif ch == '"':
-        in_string = False
+      elif ch == '"': in_string = False
       continue
     if ch == '"':
       in_string = True
@@ -58,8 +57,7 @@ def __balanced_end(text: str, start: int) -> (int | NoneType):
       depth += 1
     elif ch == "}":
       depth -= 1
-      if depth == 0:
-        return i
+      if depth == 0: return i
   return None
 
 
@@ -73,8 +71,7 @@ def __first_json_object(text: str) -> (dict | NoneType):
         obj = json.loads(text[i : end + 1])
       except ValueError:
         obj = None
-      if isinstance(obj, dict):
-        return obj
+      if isinstance(obj, dict): return obj
     i = text.find("{", i + 1)
   return None
 
@@ -96,8 +93,7 @@ def parse_op_plan(text: str) -> OpPlan:
   """
   raw = text if isinstance(text, str) else str(text)
   obj = __first_json_object(__strip_fences(raw))
-  if obj is None:
-    return OpPlan(reply=raw.strip())
+  if obj is None: return OpPlan(reply=raw.strip())
   reply = obj.get("reply")
   warnings: list[str] = list()
   # §1 reply tolerance: models routinely omit the reply while planning valid

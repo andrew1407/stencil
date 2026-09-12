@@ -42,8 +42,7 @@ def _validate_actions(raw: Any, warnings: list[str], where: str) -> list[dict]:
   """Validate an actions array: unknown ops are dropped with a warning (forward
   compatibility); a known op with invalid params fails the whole plan. A misplaced
   top-level-only/console op raises :class:`_MisplacedOp` — the variant goes, not the plan."""
-  if raw is None:
-    return []
+  if raw is None: return []
   _plan_check(lambda: SCHEMA.check_envelope(raw, "actions"))
   out: list[dict] = list()
   for a in raw:
@@ -78,8 +77,7 @@ def _validate_ask(raw: Any, warnings: list[str]) -> (AskCard | NoneType):
   so it is dropped after validation — with ONE note for the card, never one per option —
   and only ``label`` survives.
   """
-  if raw is None:
-    return None
+  if raw is None: return None
   _plan_check(lambda: SCHEMA.validate_ask(raw))
   card = SCHEMA.normalize_ask(raw)
   options: list[AskOption] = list()
@@ -90,8 +88,7 @@ def _validate_ask(raw: Any, warnings: list[str]) -> (AskCard | NoneType):
         _validate_actions(ro["actions"], warnings, "ask option %d" % (i + 1))
       except _MisplacedOp:
         pass  # the preview is dropped below anyway — one card-level note
-    if ro.get("actions") is not None or ro.get("image") is not None:
-      dropped_preview = True
+    if ro.get("actions") is not None or ro.get("image") is not None: dropped_preview = True
     options.append(AskOption(label=opt["label"]))
   if dropped_preview:
     warnings.append(

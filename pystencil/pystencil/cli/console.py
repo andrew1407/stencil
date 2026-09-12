@@ -38,6 +38,5 @@ class Console:
 
 def mask(secret: str) -> str:
   """Mask a credential for display: ``(none)`` when empty, else stars + last 4."""
-  if not secret:
-    return "(none)"
+  if not secret: return "(none)"
   return ("****" + secret[-4:]) if len(secret) > 4 else "****"

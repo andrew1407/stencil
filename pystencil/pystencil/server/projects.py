@@ -92,16 +92,11 @@ class _ProjectApi:
     current expiry.
     """
     body: dict[str, Any] = {"version": version}
-    if name is not None:
-      body["name"] = name
-    if color is not None:
-      body["color"] = color
-    if description is not None:
-      body["description"] = description
-    if expires_at is not None:
-      body["expiresAt"] = expires_at
-    if layout is not None:
-      body["layout"] = layout
+    if name is not None: body["name"] = name
+    if color is not None: body["color"] = color
+    if description is not None: body["description"] = description
+    if expires_at is not None: body["expiresAt"] = expires_at
+    if layout is not None: body["layout"] = layout
     return self._request("PUT", "/projects/" + urllib.parse.quote(str(pid)), body=body)
 
   def _update_field_with_retry(self, pid: str, **fields: Any) -> dict:
@@ -117,8 +112,7 @@ class _ProjectApi:
       try:
         return self.update_project(pid, version=version, **fields)
       except ServerError as err:
-        if err.code != "conflict":
-          raise
+        if err.code != "conflict": raise
         last = err  # a peer won the race — re-read the version and retry
     raise last if last is not None else ServerError(
       "conflict", "gave up after repeated version conflicts", 409)

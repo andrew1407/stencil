@@ -51,8 +51,7 @@ def format_of(url: str) -> str:
   ``data:image/`` / ``data:video/``; otherwise the last ``.<ext>`` (2–5 chars) of the
   pathname (query/fragment stripped) is taken and normalized.
   """
-  if not url:
-    return ""
+  if not url: return ""
   if url.startswith("data:"):
     m = _DATA_FMT_RE.match(url)
     return _norm(m.group(1)) if m else ""
@@ -70,7 +69,6 @@ def _extract_css_urls(css: str) -> list[str]:
   out: list[str] = list()
   for m in _CSS_URL_RE.finditer(css or ""):
     u = m.group(2)
-    if u and not u.lower().startswith("data:image/svg"):
-      out.append(u)
+    if u and not u.lower().startswith("data:image/svg"): out.append(u)
   return out
 

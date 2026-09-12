@@ -18,29 +18,23 @@ def _category_kinds(category: str) -> (set | NoneType):
   Matches the Zig ``tokenSelected``: as soon as ANY ``|``-separated token equals ``all``
   (case-insensitive) the whole filter passes.
   """
-  if not category or not category.strip():
-    return None
+  if not category or not category.strip(): return None
   kinds = set()
   for tok in category.split("|"):
     t = tok.strip().lower()
-    if t == "all":
-      return None
-    if t in _CATEGORY_KIND:
-      kinds.add(_CATEGORY_KIND[t])
+    if t == "all": return None
+    if t in _CATEGORY_KIND: kinds.add(_CATEGORY_KIND[t])
   return kinds
 
 
 def _format_tokens(formats: str) -> (set | NoneType):
   """Selected format tokens, or ``None`` (every format) for empty / any ``all`` token."""
-  if not formats or not formats.strip():
-    return None
+  if not formats or not formats.strip(): return None
   tokens = set()
   for tok in formats.split("|"):
     t = tok.strip().lower()
-    if t == "all":
-      return None
-    if t:
-      tokens.add(t)
+    if t == "all": return None
+    if t: tokens.add(t)
   return tokens
 
 
@@ -54,15 +48,11 @@ def _passes_dimension(
   unmeasured dimension (``<= 0``) passes unconditionally.
   """
   if item.width > 0:
-    if min_w != -1 and item.width < min_w:
-      return False
-    if max_w != -1 and item.width > max_w:
-      return False
+    if min_w != -1 and item.width < min_w: return False
+    if max_w != -1 and item.width > max_w: return False
   if item.height > 0:
-    if min_h != -1 and item.height < min_h:
-      return False
-    if max_h != -1 and item.height > max_h:
-      return False
+    if min_h != -1 and item.height < min_h: return False
+    if max_h != -1 and item.height > max_h: return False
   return True
 
 

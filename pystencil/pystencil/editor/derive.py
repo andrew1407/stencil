@@ -27,8 +27,7 @@ class _DeriveApi:
     ``with_lines=False`` skips the line rasterization (the picture alone).
     """
     key = (self._revision, bool(with_lines))
-    if self._result is not None and self._result[0] == key:
-      return self._result[1].copy()
+    if self._result is not None and self._result[0] == key: return self._result[1].copy()
     orig = self._require_original()
     core = self._get_core()
     snap = self._current()
@@ -46,8 +45,7 @@ class _DeriveApi:
     # 3. filter in place — steps 1-2 hand back fresh buffers, so copy only if neither
     #    ran (custom uses the hex colour as the duotone arg, else the mode; contour is
     #    dimensioned Sobel edge detection, so it takes its own entry point)
-    if img is orig:
-      img = orig.copy()
+    if img is orig: img = orig.copy()
     if snap.filter_mode and snap.filter_mode.lower() != "none":
       if snap.filter_mode.lower() == "contour":
         core.apply_contour(img.data, img.width, img.height)
@@ -138,8 +136,7 @@ class _DeriveApi:
     """Dimensions of the view a snapshot derives (rotation then crop; filter/lines keep dims)."""
     orig = self._original
     w, h = orig.width, orig.height
-    if snap.rotation % 4 != 0:
-      w, h = self._get_core().rotated_dims(w, h, snap.rotation)
+    if snap.rotation % 4 != 0: w, h = self._get_core().rotated_dims(w, h, snap.rotation)
     if snap.crop is not None:
       _, _, cw, ch = self._clamp_rect(snap.crop, w, h)
       w, h = cw, ch
@@ -184,8 +181,7 @@ class _DeriveApi:
     """
     base = self._get_core().named_page_size("A4") or _A4_FALLBACK
     bw, bh = base
-    if w > h:
-      return (max(bw, bh), min(bw, bh))
+    if w > h: return (max(bw, bh), min(bw, bh))
     return (min(bw, bh), max(bw, bh))
 
   @staticmethod
@@ -197,12 +193,8 @@ class _DeriveApi:
   ) -> str:
     """Assemble a ``"x1=.. y1=.. x2=.. y2=.."`` crop spec, omitting None edges."""
     parts: list[str] = list()
-    if x1 is not None:
-      parts.append("x1=%s" % x1)
-    if y1 is not None:
-      parts.append("y1=%s" % y1)
-    if x2 is not None:
-      parts.append("x2=%s" % x2)
-    if y2 is not None:
-      parts.append("y2=%s" % y2)
+    if x1 is not None: parts.append("x1=%s" % x1)
+    if y1 is not None: parts.append("y1=%s" % y1)
+    if x2 is not None: parts.append("x2=%s" % x2)
+    if y2 is not None: parts.append("y2=%s" % y2)
     return " ".join(parts)

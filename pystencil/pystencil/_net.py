@@ -68,8 +68,7 @@ def _is_blocked_ip(ip, strict: bool) -> bool:
   """
   if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
     ip = ip.ipv4_mapped  # classify ::ffff:a.b.c.d as its embedded IPv4
-  if ip.is_loopback:
-    return strict
+  if ip.is_loopback: return strict
   # is_global is False for every private/link-local/reserved/CGNAT/TEST-NET/etc. range.
   return not ip.is_global
 

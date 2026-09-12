@@ -72,8 +72,7 @@ def execute_op_plan(
   base = None  # the post-actions snapshot, rendered at most once
   frame = _FrameMap()  # §1: plan coordinates are in the pre-plan frame
   run = _PlanRun(attachments, save_dir, console)
-  for action in plan.actions:
-    __apply_action(action, editor, frame, run)
+  for action in plan.actions: __apply_action(action, editor, frame, run)
   plan.saved.extend(run.saved)
   if run.notes:
     plan.warnings.extend(run.notes)
@@ -111,6 +110,5 @@ def __render_branch(job) -> Any:
   order by the caller, so a branch's identity never depends on when it finished.
   """
   branch, variant, vframe = job
-  for action in variant.actions:
-    __apply_action(action, branch, vframe)
+  for action in variant.actions: __apply_action(action, branch, vframe)
   return branch.result()

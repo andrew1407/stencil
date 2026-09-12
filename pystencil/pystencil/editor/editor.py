@@ -101,8 +101,7 @@ class Editor(
   # ── core access ────────────────────────────────────────────────────────────
   def _get_core(self) -> Core:
     """Return the injected Core or the lazily-loaded process singleton."""
-    if self._core is None:
-      self._core = get_core()
+    if self._core is None: self._core = get_core()
     return self._core
 
 
@@ -153,8 +152,7 @@ class Editor(
       self._color = ""
       return self
     parsed = self._get_core().parse_color(spec)
-    if parsed is None:
-      raise ValueError("invalid project colour: %r" % color)
+    if parsed is None: raise ValueError("invalid project colour: %r" % color)
     self._color = "#%02x%02x%02x" % (parsed[0], parsed[1], parsed[2])
     return self
 

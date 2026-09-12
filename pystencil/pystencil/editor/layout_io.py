@@ -80,8 +80,7 @@ class _LayoutApi:
     snap = self._current()
     img_w, img_h = self._view_dims(snap)
     image_filter = None
-    if snap.filter_mode and snap.filter_mode.lower() != "none":
-      image_filter = snap.filter_mode
+    if snap.filter_mode and snap.filter_mode.lower() != "none": image_filter = snap.filter_mode
     filter_color = snap.filter_color if snap.filter_color else None
     if snap.crop is not None:
       cx, cy, cw, ch = snap.crop
@@ -148,10 +147,8 @@ class _LayoutApi:
     anything else is returned unchanged so :meth:`Layout.from_json` raises a clear error.
     """
     stripped = src.lstrip()
-    if stripped.startswith("{") or stripped.startswith("["):
-      return src
-    if _SourceApi._is_url(src):
-      return _SourceApi._fetch_url(src).decode("utf-8")
+    if stripped.startswith("{") or stripped.startswith("["): return src
+    if _SourceApi._is_url(src): return _SourceApi._fetch_url(src).decode("utf-8")
     if os.path.exists(src):
       with open(src, "r", encoding="utf-8") as handle:
         return handle.read()
@@ -160,14 +157,11 @@ class _LayoutApi:
   @staticmethod
   def __coerce_layout(layout: LayoutLike) -> Layout:
     """Coerce a Layout|dict|json-str|json-path|url|list[Line] into a :class:`Layout`."""
-    if isinstance(layout, Layout):
-      return layout
+    if isinstance(layout, Layout): return layout
     if isinstance(layout, str):
       return Layout.from_json(_LayoutApi.__read_layout_source(layout))
-    if isinstance(layout, dict):
-      return Layout.from_dict(layout)
-    if isinstance(layout, list):
-      return Layout(0, 0, lines=_LayoutApi.__coerce_lines(layout))
+    if isinstance(layout, dict): return Layout.from_dict(layout)
+    if isinstance(layout, list): return Layout(0, 0, lines=_LayoutApi.__coerce_lines(layout))
     raise TypeError("unsupported layout input: %r" % type(layout))
 
   @staticmethod

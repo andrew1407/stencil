@@ -58,12 +58,10 @@ def main(argv: (Sequence[str] | NoneType) = None) -> int:
   args = parser.parse_args(list(argv) if argv is not None else None)
   err = sys.stderr
 
-  if args.console:
-    return _Repl(err).run(sys.stdin)
+  if args.console: return _Repl(err).run(sys.stdin)
 
   try:
-    if args.source_site is not None:
-      return _run_scrape(args, err)
+    if args.source_site is not None: return _run_scrape(args, err)
     return _run_pipeline(args, err)
   except ServerError as e:
     emit_error(err, "%s" % e)

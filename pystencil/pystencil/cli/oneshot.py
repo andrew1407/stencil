@@ -18,8 +18,7 @@ from .blank import BlankSpec
 def _resolve_output(out: str) -> tuple[str, str]:
   """Return (path, fmt): fill in a ``.png`` extension when one is missing/unknown."""
   fmt = codecs.format_from_ext(out)
-  if fmt is None:
-    return (out + ".png", "png")
+  if fmt is None: return (out + ".png", "png")
   return (out, fmt)
 
 
@@ -119,19 +118,15 @@ def _run_pipeline(args: argparse.Namespace, err: TextIO) -> int:
   output = blank_leftover[-1] if blank_leftover else args.output
 
   # 2) crop → 3) rotate.
-  if args.crop:
-    editor.crop(args.crop, album=args.album)
-  if args.rotate:
-    editor.rotate(args.rotate)
+  if args.crop: editor.crop(args.crop, album=args.album)
+  if args.rotate: editor.rotate(args.rotate)
 
   # 4) filter (explicit --filter; raises on an unrecognized value). It belongs to the
   #    picture — Editor.result() always renders the lines over it, whatever the order.
-  if args.filter:
-    editor.apply_filter(args.filter)
+  if args.filter: editor.apply_filter(args.filter)
 
   # 5) draw the layout (append its lines; the editor reads a path/URL/inline JSON).
-  if args.layout:
-    editor.draw(args.layout)
+  if args.layout: editor.draw(args.layout)
 
   # 6) write the image and/or the layout. At least one output is required.
   if not output and not args.save_layout:
