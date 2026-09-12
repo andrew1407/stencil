@@ -84,8 +84,9 @@ is stale).
 ## 3. Layer model, per app
 
 Imports point **downward only**. A layer may use everything to its left and nothing to its
-right. A "layer" is a role, not necessarily a directory that exists yet — parts of this are
-the target the current refactor is moving toward.
+right. A "layer" is a role, not necessarily a directory that exists yet. Most of this is now real
+and lint-enforced (`desktop/tests/layerBoundary.headless.cpp`, cli's layer lint, the import
+direction checks); where a ring is still a target, it says so.
 
 **browser** — `config/` + `utils.js` → `core/` (pure logic, **no DOM**) → bus (`core/emitter.js`)
 → `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` (pure string-returning
@@ -100,15 +101,21 @@ routes through the same core methods via the frozen `window.stencil` facade.
 of `browser/js/ui/` files and must be synced when the browser side changes. The extension
 never reads `../browser` at runtime.
 
-**desktop** — model (`CoreFacade` + `DocumentModel`) → controllers → `net/`, `io/` →
-`support/` (motion, theme, widgets, platform) → `canvas/`, `dialogs/`, `llm/` → `app/`.
+**desktop** — model → controllers → `net/`, `io/` → `support/` (motion, theme, widgets and
+platform helpers, currently one flat directory) → `canvas/`, `dialogs/`, `llm/` → `app/`.
+The model ring is the one part of this that is still a *target*: a `CoreFacade` +
+`DocumentModel` pair was attempted and deliberately backed out, because the signatures in
+`mainWindow.hpp` speak `core::PageSize`/`Point`/`UnitFormat`/`ProjectMeta`/`ProjectsStore`, so a
+facade that actually removes those includes is a type-vocabulary change across ~40 call sites.
+`tests/layerBoundary.headless.cpp` enforces the rest, and its allowance list is the worklist
+for that change whenever someone takes it on.
 `app/` is composition and the Qt main window; it owns no logic that a controller could hold.
 QSS belongs to the shared ID-selector sheet in `support/theme.cpp`, not to a widget's own
 `setStyleSheet` (a local sheet silently changes child metrics).
 
-**cli** — core wrap (`core.zig`) → params (`args.zig`) → `net.zig` → ops (`pipeline.zig`,
-`image.zig`, `layout.zig`, `page.zig`, `video.zig`) → `llm/` → presentation (`console/`) →
-console app (`main.zig`).
+**cli** — core wrap (`core.zig`) → params (`args.zig` + `params/`) → `net.zig` → ops
+(`pipeline/`, `image.zig`, `layout.zig`, `page.zig`, `video.zig`) → `llm/` (`llm.zig` is a
+façade that re-exports it) → presentation (`console/`) → console app (`main.zig`).
 **`console/` is the only layer allowed to write to a terminal.** Lower layers return values
 and errors; they do not print. (Several older modules still print directly — moving those up
 is part of the refactor, not a licence to add more.)
@@ -125,12 +132,15 @@ by ring), dependencies pointing **inward**: `Domain` (no dependencies) ←
 `Bot` (composition root + the Telegram edge). `Domain` must stay free of Telegram, HTTP and
 process types.
 
-**mcp** — `server/` + tools → `opplan/` → `args.rs` → `pipeline.rs` → `llm.rs`.
+**mcp** — `server/` + tools → `opplan/` → `args/` → `pipeline/` → `llm/` (all three were
+single `.rs` files before the split; `llmtransport/` sits beside `llm/`).
 A thin adapter: its whole contract is the CLI's documented flags and its
 `wrote {path} ({w}x{h})` / `error:` stderr output.
 
-**pystencil** — `_native.py` + `core.py` → `image.py`, `codecs.py`, `layout.py` →
-`editor.py` → `llm.py`, `server.py`, `sitesource.py` → `cli.py`. Stdlib only, ctypes only.
+**pystencil** — `_native.py` + `core.py` → `image.py`, `codecs/`, `layout.py` → `editor/` →
+`llm/`, `server/`, `sitesource/` → `cli/`. Stdlib only, ctypes only; `_net.py` is the single
+fetch guard every network path goes through. (`codecs`, `editor`, `llm`, `server` and `cli` are
+packages now, not modules.)
 
 ---
 

@@ -72,14 +72,20 @@ and video-frame extraction to Zig.
 ```
 README.md             # this overview
 core/                 # shared, GUI-free C++ logic library (sibling of the apps)
-  geometry/           # geometry · cropGeometry · imageOps · rasterize
-  color/              # color · colorNames · imageFilter
-  parse/              # formulaParser · lengthTokens · cropSpec
-  page/               # pageMetrics · tooltipRows · localeUnit · hotkeyFormat
-  state/              # historyStack · projectsStore · zoomPan
-  models.hpp          # shared Point / Line value types
-  wasmApi.cpp         # extern "C" ABI compiled to WebAssembly for the browser
-  cliApi.{h,cpp}      # extern "C" ABI consumed by the Zig CLI
+  geometry/           # pointMath · hitTest · cropGeometry
+  raster/             # rasterize · imageOps · imageFilter
+  color/              # color · colorNames · hexNibble · luma
+  parse/              # formulaParser · lengthTokens · cropSpec · durationParser
+  page/               # pageMetrics · localeUnit
+  format/             # hotkeyFormat · tooltipRows
+  state/              # historyStack · holdDraw · projectsStore · zoomPan · projectMeta
+  abi/                # marshal · handleTable · linesCodec · shared.inc (shared by the ABI files)
+  models.hpp          # shared Point / Line value types (+ rgba.hpp, text.hpp)
+  wasmApi.cpp         # extern "C" ABI compiled to WebAssembly for the browser,
+  wasmCropApi.cpp     #   split by export family — crop, editor state, projects
+  wasmStateApi.cpp    #   (these four live only in core/CMakeLists.txt, not the
+  wasmProjectsApi.cpp #   cli/pystencil source lists)
+  cliApi.{h,cpp}      # extern "C" ABI consumed by the Zig CLI and pystencil
   tests/              # Doctest suite
   third_party/        # vendored doctest.h (fetched on demand)
   CMakeLists.txt
@@ -92,35 +98,43 @@ browser/              # the browser app
   package.json
   README.md
 desktop/              # the desktop app (links the shared core via add_subdirectory)
-  src/                # Qt GUI by role: app · canvas · dialogs · io · net · support
-  tests/              # Qt offscreen headless tests + the QtTest MainWindow GUI e2e
+  src/                # Qt GUI by role: app · canvas · dialogs · io · llm · net · support
+  tests/              # Qt offscreen headless tests + the QtTest MainWindow GUI e2e,
+                      #   one binary per feature area (mainWindow.<area>.gui.cpp)
   resources/  packaging/
   CMakeLists.txt
   README.md
 cli/                  # the command-line tool (Zig)
   build.zig  build.zig.zon
-  src/                # args · pipeline · core ABI bridge · image/video/layout I/O
+  src/                # params · pipeline · core ABI bridge · image/video/layout I/O,
+                      #   console (the only layer that writes a terminal) · llm · scrape
+                      #   · server · line_edit · clipboard · project · logo · bench
   README.md
 pystencil/            # stdlib-only Python package — drives core/ via ctypes (no deps)
   build.py            # compiles core/ + cliApi.cpp into a shared lib for ctypes
   pystencil/          # core binding · codecs · image · layout · editor · server · cli
+                      #   · llm · sitesource · _net (the fetch guard) · _opschema
   tests/              # codecs · layout · core · editor · server · cli (unittest)
   README.md
 mcp/                  # Model Context Protocol server (Rust) — wraps the CLI
   Cargo.toml
-  src/                # server · args · pipeline · locate · layout · outcome
-  tests/              # argv mapping · stderr parsing · gated end-to-end
+  src/                # server · args · pipeline · opplan · deliver · config · llm
+                      #   · llmtransport · registry · layout · locate · outcome
+  tests/              # argv mapping · stderr parsing · fixture walkers · gated end-to-end
   Dockerfile
   README.md
 server/               # collaboration server (Go) — stores/shares projects + live edit
   cmd/stencil-server/ # entry point (HTTP/WS + raw-TCP listeners)
-  internal/           # protocol · config · auth · filestore · store · bus · redisbus · transport · httpapi · hub
+  internal/           # protocol · config · auth · filestore · store · bus · redisbus
+                      #   · transport · httpapi · service · validate · llm · ratelimit
+                      #   · clock · hub · lint · testutil
   Dockerfile  .env.example
   README.md
 extension/            # companion Chrome extension (MV3) for the browser editor
   manifest.json
-  src/                # background / popup / crop / options / lib
-  tests/              # node:test unit tests (pure filtering + crop geometry)
+  src/                # background / popup / crop / options / sidepanel / devtools
+                      #   / content / llm / config / lib
+  tests/              # node:test unit tests + the browser↔extension port-parity pins
   package.json
   README.md
 bot/                  # Telegram bot (.NET, clean architecture) — wraps the CLI + server REST
@@ -131,12 +145,14 @@ bot/                  # Telegram bot (.NET, clean architecture) — wraps the CL
 e2e/                  # cross-surface Playwright smoke harness (drives the REAL artifacts)
   helpers/  fixtures/ # static server + stack compose + boot/REST/WS-TCP wire clients
   tests/              # browser · extension · fullstack · server · cli flows
+  pins/               # style/DOM UI pins — the cross-repo visual regression net
   playwright.config.js  package.json  README.md
 ```
 
-> The **desktop app's own end-to-end test** is a QtTest target that lives with the desktop
-> build (`desktop/tests/mainWindow.gui.cpp`), not in `e2e/` — it drives the real `MainWindow`
-> offscreen. The `e2e/` harness covers the browser, extension, and server surfaces.
+> The **desktop app's own end-to-end test** lives with the desktop build, not in `e2e/`: it is
+> a set of QtTest targets, one per feature area (`desktop/tests/mainWindow.<area>.gui.cpp`,
+> built from a shared `stencil_gui_objs` library), driving the real `MainWindow` offscreen. The
+> `e2e/` harness covers the browser, extension, cli and server surfaces.
 
 ## Development
 
