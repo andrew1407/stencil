@@ -47,7 +47,6 @@ namespace stencil::core {
     if (period == "3month") return 90 * DAY_MS;
     if (period == "6month") return 180 * DAY_MS;
     if (period == "year") return 365 * DAY_MS;
-    // "week", empty, or anything unknown → one week.
     return EXPIRY_MS;
   }
 
@@ -86,7 +85,6 @@ namespace stencil::core {
   }
 
   std::vector<ProjectMeta> ProjectsStore::list() const {
-    // Same filter, same comparator, same stable order — just sorted before copying.
     const std::vector<const ProjectMeta*> refs = listRefs();
     std::vector<ProjectMeta> out;
     out.reserve(refs.size());

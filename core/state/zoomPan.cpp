@@ -3,12 +3,10 @@
 
 namespace stencil::core {
 
-  // Port of browser/js/core/zoomPan.js clamp.
   double clampScale(double scale) {
     return std::max(kZoomMin, std::min(kZoomMax, scale));
   }
 
-  // Port of browser/js/core/zoomPan.js zoomToward.
   AnchoredZoom anchoredZoom(double scrollLeft, double scrollTop, double cursorX,
                             double cursorY, double oldScale, double newScale) {
     newScale = clampScale(newScale);
@@ -23,7 +21,6 @@ namespace stencil::core {
     return r;
   }
 
-  // Port of browser/js/core/zoomPan.js zoomToRect.
   RectZoom rectZoom(double x1, double y1, double rectW, double rectH,
                     double availW, double availH) {
     RectZoom r;

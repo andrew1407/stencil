@@ -1,9 +1,8 @@
 #pragma once
 
-// Hold-to-draw gesture state machine (GUI-free, STL only). Port of the
-// HoldDrawController in browser/js/core/holdDraw.js — the host owns timers,
-// coordinates and rendering; this class is pure and time-injected (monotonic ms),
-// coordinates in host screen space so tolerances stay zoom-independent.
+// Hold-to-draw gesture state machine. Port of the HoldDrawController in
+// browser/js/core/holdDraw.js: time-injected (monotonic ms), coordinates in host
+// screen space so tolerances stay zoom-independent; the host owns timers and rendering.
 
 namespace stencil::core {
 

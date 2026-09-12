@@ -13,7 +13,7 @@
     "core/page": 18,
     "core/parse": 17,
     "core/raster": 10,
-    "core/state": 18,
+    "core/state": 8,
     "core/tests": 7
   },
   "exceptions": {
