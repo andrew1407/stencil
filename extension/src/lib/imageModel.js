@@ -2,7 +2,7 @@
 // DOM-free / chrome-free helpers extracted from popup/popup.js so they can be unit-tested
 // under `node --test` (the popup controller itself is DOM/chrome-bound and untestable there).
 // An "image" here is the popup's row shape: { kind, src, videoUrl, posterUrl, name, w, h, ... }.
-import { filenameFromUrl } from './stencil.js';
+import { filenameFromUrl } from './imageData.js';
 
 // The image's own URL for provenance: its media URL for a video (the still is an opaque
 // frame), else the image/background src. Empty/data: sources aren't tracked upstream.
