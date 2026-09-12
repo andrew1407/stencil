@@ -171,8 +171,16 @@ set(STENCIL_GUI_SOURCES
   src/app/mainWindow.cpp
   src/app/mainWindowActions.cpp
   src/app/mainWindowToolbar.cpp
+  src/app/mainWindowToolbarSections.cpp
+  src/app/mainWindowToolbarName.cpp
+  src/app/mainWindowToolbarPage.cpp
+  src/app/mainWindowToolbarStyle.cpp
+  src/app/mainWindowToolbarView.cpp
   src/app/mainWindowMenus.cpp
   src/app/mainWindowTheme.cpp
+  src/app/mainWindowThemeIcons.cpp
+  src/app/mainWindowThemeFaces.cpp
+  src/app/mainWindowThemeButtons.cpp
   src/app/stencilFileSync.cpp
   src/app/mainWindowChat.cpp
   src/app/mainWindowEvents.cpp
