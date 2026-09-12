@@ -14,23 +14,23 @@ SKIP_NATIVE_ENV = "STENCIL_SKIP_NATIVE"
 
 
 def require_core():
-    """The loaded core binding, or ``SkipTest`` — no compiler, or the env opt-out.
+  """The loaded core binding, or ``SkipTest`` — no compiler, or the env opt-out.
 
-    Builds the library on demand (``build.py`` via ``get_core``).
-    """
-    if os.environ.get(SKIP_NATIVE_ENV, "") not in ("", "0"):
-        raise unittest.SkipTest("%s is set: skipping the native core" % SKIP_NATIVE_ENV)
-    try:
-        from pystencil.core import get_core
+  Builds the library on demand (``build.py`` via ``get_core``).
+  """
+  if os.environ.get(SKIP_NATIVE_ENV, "") not in ("", "0"):
+    raise unittest.SkipTest("%s is set: skipping the native core" % SKIP_NATIVE_ENV)
+  try:
+    from pystencil.core import get_core
 
-        return get_core()
-    except Exception as exc:  # any failure to load/compile means "no native lib"
-        raise unittest.SkipTest("native core unavailable: %s" % exc)
+    return get_core()
+  except Exception as exc:  # any failure to load/compile means "no native lib"
+    raise unittest.SkipTest("native core unavailable: %s" % exc)
 
 
 class NativeCase(unittest.TestCase):
-    """A case whose every test needs the compiled core; ``cls.core`` is the binding."""
+  """A case whose every test needs the compiled core; ``cls.core`` is the binding."""
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.core = require_core()
+  @classmethod
+  def setUpClass(cls) -> None:
+    cls.core = require_core()

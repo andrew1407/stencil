@@ -16,18 +16,18 @@ from .console import _apply_console_op
 from .errors import LlmPlanError
 from .limits import SCHEMA
 from .ops import (
-    _apply_blank,
-    _apply_crop,
-    _apply_filter,
-    _apply_formula,
-    _apply_frame,
-    _apply_history_step,
-    _apply_image,
-    _apply_layout,
-    _apply_page,
-    _apply_reset,
-    _apply_rotate,
-    _apply_save,
+  _apply_blank,
+  _apply_crop,
+  _apply_filter,
+  _apply_formula,
+  _apply_frame,
+  _apply_history_step,
+  _apply_image,
+  _apply_layout,
+  _apply_page,
+  _apply_reset,
+  _apply_rotate,
+  _apply_save,
 )
 
 
@@ -36,83 +36,83 @@ from .ops import (
 # Each runs on the registry-normalized action — {op, declared keys present, defaults,
 # `trim` keys trimmed} — AFTER the table-driven check passed; nothing here validates.
 def _normalize_crop(out: dict) -> dict:
-    """The console-only ``"album": false`` means "no derivation" — dropped from the spec."""
-    if out["spec"].get("album") is False:
-        del out["spec"]["album"]
-    return out
+  """The console-only ``"album": false`` means "no derivation" — dropped from the spec."""
+  if out["spec"].get("album") is False:
+    del out["spec"]["album"]
+  return out
 
 
 def _float_dims(out: dict) -> dict:
-    """§2 centimetre dims are floats (page / blank)."""
-    for key in ("width", "height"):
-        if key in out:
-            out[key] = float(out[key])
-    return out
+  """§2 centimetre dims are floats (page / blank)."""
+  for key in ("width", "height"):
+    if key in out:
+      out[key] = float(out[key])
+  return out
 
 
 def _strip_field(key: str) -> Callable[[dict], dict]:
-    """Store a padded string field trimmed (connect/disconnect server, delete path);
-    resolution against the console's own state happens at execution."""
+  """Store a padded string field trimmed (connect/disconnect server, delete path);
+  resolution against the console's own state happens at execution."""
 
-    def normalize(out: dict) -> dict:
-        out[key] = out[key].strip()
-        return out
+  def normalize(out: dict) -> dict:
+    out[key] = out[key].strip()
+    return out
 
-    return normalize
+  return normalize
 
 
 def _normalize_save(out: dict) -> dict:
-    """An empty (or all-space) path is no destination at all; this executor
-    notes+skips a path anyway."""
-    if out.get("path") == "":
-        del out["path"]
-    return out
+  """An empty (or all-space) path is no destination at all; this executor
+  notes+skips a path anyway."""
+  if out.get("path") == "":
+    del out["path"]
+  return out
 
 
 def _normalize_open_url(out: dict) -> dict:
-    """``incognito`` always rides the action (False when omitted). Whether the USER
-    wrote the URL is the plan-level guard's job (:func:`url_echoed_by_user`)."""
-    out.setdefault("incognito", False)
-    return out
+  """``incognito`` always rides the action (False when omitted). Whether the USER
+  wrote the URL is the plan-level guard's job (:func:`url_echoed_by_user`)."""
+  out.setdefault("incognito", False)
+  return out
 
 
 # ── the op registry (contract §13): ONE entry per op ──────────────────────────
 @dataclass(frozen=True)
 class OpSpec:
-    """One §13 registry entry — the single source of an op's existence on this surface.
+  """One §13 registry entry — the single source of an op's existence on this surface.
 
-    Membership, the key schema and the flags come from the shared opRegistry.json entry
-    (SCHEMA), the prompt bullet included; this surface adds the validator (the
-    table-driven check + normalize), the applier and the block that carries the bullet,
-    so the "Available ops" prompt sections are GENERATED from the same table that
-    validation and execution dispatch on: the prompt can never promise an op this
-    surface cannot run.
-    """
+  Membership, the key schema and the flags come from the shared opRegistry.json entry
+  (SCHEMA), the prompt bullet included; this surface adds the validator (the
+  table-driven check + normalize), the applier and the block that carries the bullet,
+  so the "Available ops" prompt sections are GENERATED from the same table that
+  validation and execution dispatch on: the prompt can never promise an op this
+  surface cannot run.
+  """
 
-    validator: Callable[[dict], dict]
-    applier: Callable[..., None]
-    fields: FrozenSet[str]          # allowed action keys (including "op" itself)
-    bullet: str                     # the asset's prompt bullet, verbatim (§4/§10)
-    scope: str = "core"             # which block carries the bullet: "core"|"console"
-    top_level_only: bool = False    # §2/§2.1: inside "variants" it drops that variant
-    console_settings: bool = False  # §10 console profile: variant ban + console hooks
-    capability: str = ""            # runtime capability the op needs ("" = always wired)
+  validator: Callable[[dict], dict]
+  applier: Callable[..., None]
+  fields: FrozenSet[str]          # allowed action keys (including "op" itself)
+  bullet: str                     # the asset's prompt bullet, verbatim (§4/§10)
+  scope: str = "core"             # which block carries the bullet: "core"|"console"
+  top_level_only: bool = False    # §2/§2.1: inside "variants" it drops that variant
+  console_settings: bool = False  # §10 console profile: variant ban + console hooks
+  capability: str = ""            # runtime capability the op needs ("" = always wired)
 
 
 def _make_validator(
-    entry: dict, normalizer: Optional[Callable[[dict], dict]]
+  entry: dict, normalizer: Optional[Callable[[dict], dict]]
 ) -> Callable[[dict], dict]:
-    """The registry's check (native rules, unknown fields, types, grammars, presence
-    rules) + generic normalize, then this surface's own normalizer, if any."""
+  """The registry's check (native rules, unknown fields, types, grammars, presence
+  rules) + generic normalize, then this surface's own normalizer, if any."""
 
-    def validate(a: dict) -> dict:
-        try:
-            out = SCHEMA.normalize(SCHEMA.validate_action(a, entry), entry)
-        except SchemaError as e:
-            raise LlmPlanError(str(e)) from None
-        return normalizer(out) if normalizer is not None else out
+  def validate(a: dict) -> dict:
+    try:
+      out = SCHEMA.normalize(SCHEMA.validate_action(a, entry), entry)
+    except SchemaError as e:
+      raise LlmPlanError(str(e)) from None
+    return normalizer(out) if normalizer is not None else out
 
-    return validate
+  return validate
 
 
 # What this surface adds to each registry entry: (applier, normalizer, bullet scope).
@@ -124,53 +124,53 @@ def _make_validator(
 # (no clipboard) — the registry restricts those entries to the cli, so they are never
 # registered or promised here.
 _SURFACE_OPS: Dict[str, tuple] = {
-    "crop": (_apply_crop, _normalize_crop, "core"),
-    "rotate": (_apply_rotate, None, "core"),
-    "filter": (_apply_filter, None, "core"),
-    "layout": (_apply_layout, None, "core"),
-    "formula": (_apply_formula, None, "core"),
-    "page": (_apply_page, _float_dims, "core"),
-    "blank": (_apply_blank, _float_dims, "core"),
-    "undo": (_apply_history_step, None, "core"),
-    "redo": (_apply_history_step, None, "core"),
-    "frame": (_apply_frame, None, "core"),
-    "image": (_apply_image, None, "core"),
-    "save": (_apply_save, _normalize_save, "core"),
-    # The §10 console profile.
-    "connect": (_apply_console_op, _strip_field("server"), "console"),
-    "disconnect": (_apply_console_op, _strip_field("server"), "console"),
-    "delete": (_apply_console_op, _strip_field("path"), "console"),
-    "openUrl": (_apply_console_op, _normalize_open_url, "console"),
-    "clear": (_apply_console_op, None, "console"),
-    # clearChat runs via the /chat clear path with an in-app confirm, DEFERRED to the
-    # end of the turn (the REPL's plan_clear_chat hook records it).
-    "clearChat": (_apply_console_op, None, "console"),
-    "reset": (_apply_reset, None, "console"),
+  "crop": (_apply_crop, _normalize_crop, "core"),
+  "rotate": (_apply_rotate, None, "core"),
+  "filter": (_apply_filter, None, "core"),
+  "layout": (_apply_layout, None, "core"),
+  "formula": (_apply_formula, None, "core"),
+  "page": (_apply_page, _float_dims, "core"),
+  "blank": (_apply_blank, _float_dims, "core"),
+  "undo": (_apply_history_step, None, "core"),
+  "redo": (_apply_history_step, None, "core"),
+  "frame": (_apply_frame, None, "core"),
+  "image": (_apply_image, None, "core"),
+  "save": (_apply_save, _normalize_save, "core"),
+  # The §10 console profile.
+  "connect": (_apply_console_op, _strip_field("server"), "console"),
+  "disconnect": (_apply_console_op, _strip_field("server"), "console"),
+  "delete": (_apply_console_op, _strip_field("path"), "console"),
+  "openUrl": (_apply_console_op, _normalize_open_url, "console"),
+  "clear": (_apply_console_op, None, "console"),
+  # clearChat runs via the /chat clear path with an in-app confirm, DEFERRED to the
+  # end of the turn (the REPL's plan_clear_chat hook records it).
+  "clearChat": (_apply_console_op, None, "console"),
+  "reset": (_apply_reset, None, "console"),
 }
 
 OP_REGISTRY: Dict[str, OpSpec] = {}
 for _name, (_applier, _normalizer, _scope) in _SURFACE_OPS.items():
-    _entry = SCHEMA.ops.get(_name)
-    if _entry is None:  # pragma: no cover - guards registry edits
-        raise AssertionError('"%s" has no pystencil entry in opRegistry.json' % _name)
-    _flags = _entry["flags"]
-    OP_REGISTRY[_name] = OpSpec(
-        _make_validator(_entry, _normalizer), _applier,
-        # A bullet shared by two ops (undo/redo, connect/disconnect) sits on the
-        # first entry; the partner's asset bullet is null and emits nothing.
-        frozenset({"op", *_entry["keys"]}), _entry["bullet"] or "", scope=_scope,
-        # §2/§2.1 top-level-only ops drop the variant they appear in; the §10
-        # settings ops do the same (with their own message) and run through the
-        # console hooks.
-        top_level_only=bool(_flags.get("topLevelOnly")),
-        console_settings=bool(_flags.get("editorSetting") or _flags.get("consoleSetting")),
-    )
+  _entry = SCHEMA.ops.get(_name)
+  if _entry is None:  # pragma: no cover - guards registry edits
+    raise AssertionError('"%s" has no pystencil entry in opRegistry.json' % _name)
+  _flags = _entry["flags"]
+  OP_REGISTRY[_name] = OpSpec(
+    _make_validator(_entry, _normalizer), _applier,
+    # A bullet shared by two ops (undo/redo, connect/disconnect) sits on the
+    # first entry; the partner's asset bullet is null and emits nothing.
+    frozenset({"op", *_entry["keys"]}), _entry["bullet"] or "", scope=_scope,
+    # §2/§2.1 top-level-only ops drop the variant they appear in; the §10
+    # settings ops do the same (with their own message) and run through the
+    # console hooks.
+    top_level_only=bool(_flags.get("topLevelOnly")),
+    console_settings=bool(_flags.get("editorSetting") or _flags.get("consoleSetting")),
+  )
 _unbound = sorted(set(SCHEMA.ops) - set(OP_REGISTRY))
 if _unbound:  # pragma: no cover - guards registry edits
-    raise AssertionError(
-        "opRegistry.json registers %s for pystencil, but nothing here executes them"
-        % ", ".join(_unbound)
-    )
+  raise AssertionError(
+    "opRegistry.json registers %s for pystencil, but nothing here executes them"
+    % ", ".join(_unbound)
+  )
 
 
 # §13 forbidden ops — the §10 "never model-drivable" boundary, as NAMES (the
@@ -183,9 +183,9 @@ FORBIDDEN_OPS = tuple(SCHEMA.registry["forbidden"]["perSurface"]["pystencil"])
 
 _forbidden_registered = sorted(set(OP_REGISTRY) & set(FORBIDDEN_OPS))
 if _forbidden_registered:  # pragma: no cover - guards future registry edits
-    raise AssertionError(
-        "FORBIDDEN_OPS names may never be registered: %s" % ", ".join(_forbidden_registered)
-    )
+  raise AssertionError(
+    "FORBIDDEN_OPS names may never be registered: %s" % ", ".join(_forbidden_registered)
+  )
 
 
 # Derived dispatch tables (single source: OP_REGISTRY).

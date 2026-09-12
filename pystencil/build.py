@@ -35,26 +35,26 @@ NATIVE_DIR = _HERE / "pystencil" / "_native"
 # role wasmApi.cpp plays for the browser. CMake lists it separately for the test exe.)
 # ──────────────────────────────────────────────────────────────────────────────
 STENCIL_CORE_SOURCES = [
-    "geometry/pointMath.cpp",
-    "geometry/hitTest.cpp",
-    "geometry/cropGeometry.cpp",
-    "color/color.cpp",
-    "color/colorNames.cpp",
-    "raster/imageOps.cpp",
-    "raster/rasterize.cpp",
-    "raster/imageFilter.cpp",
-    "parse/formulaParser.cpp",
-    "parse/durationParser.cpp",
-    "parse/lengthTokens.cpp",
-    "parse/cropSpec.cpp",
-    "page/pageMetrics.cpp",
-    "page/localeUnit.cpp",
-    "format/tooltipRows.cpp",
-    "format/hotkeyFormat.cpp",
-    "state/historyStack.cpp",
-    "state/projectsStore.cpp",
-    "state/zoomPan.cpp",
-    "state/holdDraw.cpp",
+  "geometry/pointMath.cpp",
+  "geometry/hitTest.cpp",
+  "geometry/cropGeometry.cpp",
+  "color/color.cpp",
+  "color/colorNames.cpp",
+  "raster/imageOps.cpp",
+  "raster/rasterize.cpp",
+  "raster/imageFilter.cpp",
+  "parse/formulaParser.cpp",
+  "parse/durationParser.cpp",
+  "parse/lengthTokens.cpp",
+  "parse/cropSpec.cpp",
+  "page/pageMetrics.cpp",
+  "page/localeUnit.cpp",
+  "format/tooltipRows.cpp",
+  "format/hotkeyFormat.cpp",
+  "state/historyStack.cpp",
+  "state/projectsStore.cpp",
+  "state/zoomPan.cpp",
+  "state/holdDraw.cpp",
 ]
 
 # The extern "C" surface we bind via ctypes (caller-owned RGBA8 buffers + C strings).
@@ -66,100 +66,100 @@ INCLUDE_DIRS = [".", "abi", "geometry", "raster", "color", "parse", "page", "for
 
 
 def lib_filename() -> str:
-    """Platform-correct shared-library file name for the built core."""
-    system = platform.system()
-    if system == "Darwin":
-        return "libstencilcore.dylib"
-    if system == "Windows":
-        return "stencilcore.dll"
-    return "libstencilcore.so"
+  """Platform-correct shared-library file name for the built core."""
+  system = platform.system()
+  if system == "Darwin":
+    return "libstencilcore.dylib"
+  if system == "Windows":
+    return "stencilcore.dll"
+  return "libstencilcore.so"
 
 
 def lib_path() -> Path:
-    """Absolute path where build() writes (and _native.py expects) the shared library."""
-    return NATIVE_DIR / lib_filename()
+  """Absolute path where build() writes (and _native.py expects) the shared library."""
+  return NATIVE_DIR / lib_filename()
 
 
 def _compiler() -> str:
-    """The C++ driver to invoke. Honour $CXX so callers can pin a toolchain; default c++."""
-    return os.environ.get("CXX", "c++")
+  """The C++ driver to invoke. Honour $CXX so callers can pin a toolchain; default c++."""
+  return os.environ.get("CXX", "c++")
 
 
 def build_inputs() -> list:
-    """Every file whose edit invalidates the built artifact: the compiled sources, the
-    headers and .inc bodies they include (INCLUDE_DIRS, non-recursive so third_party/
-    stays out), and this script (it carries the flags and the source list)."""
-    paths = [CORE_DIR / rel for rel in STENCIL_CORE_SOURCES + [ABI_SOURCE]]
-    for inc in INCLUDE_DIRS:
-        for pattern in ("*.hpp", "*.h", "*.inc"):
-            paths.extend(sorted((CORE_DIR / inc).glob(pattern)))
-    paths.append(Path(__file__).resolve())
-    return paths
+  """Every file whose edit invalidates the built artifact: the compiled sources, the
+  headers and .inc bodies they include (INCLUDE_DIRS, non-recursive so third_party/
+  stays out), and this script (it carries the flags and the source list)."""
+  paths = [CORE_DIR / rel for rel in STENCIL_CORE_SOURCES + [ABI_SOURCE]]
+  for inc in INCLUDE_DIRS:
+    for pattern in ("*.hpp", "*.h", "*.inc"):
+      paths.extend(sorted((CORE_DIR / inc).glob(pattern)))
+  paths.append(Path(__file__).resolve())
+  return paths
 
 
 def is_stale(out: Path, inputs=None) -> bool:
-    """True when the artifact is missing or older than any build input.
+  """True when the artifact is missing or older than any build input.
 
-    Existence alone is not enough: a stale .dylib silently makes every core-parity test
-    run against the previous edit. Missing inputs are ignored (the compile reports them).
-    """
+  Existence alone is not enough: a stale .dylib silently makes every core-parity test
+  run against the previous edit. Missing inputs are ignored (the compile reports them).
+  """
+  try:
+    built = out.stat().st_mtime
+  except OSError:
+    return True
+  for src in build_inputs() if inputs is None else inputs:
     try:
-        built = out.stat().st_mtime
-    except OSError:
+      if Path(src).stat().st_mtime > built:
         return True
-    for src in build_inputs() if inputs is None else inputs:
-        try:
-            if Path(src).stat().st_mtime > built:
-                return True
-        except OSError:
-            continue
-    return False
+    except OSError:
+      continue
+  return False
 
 
 def build(force: bool = False, verbose: bool = False) -> Path:
-    """Compile the core into one shared library and return its path.
+  """Compile the core into one shared library and return its path.
 
-    Skips the compile when the artifact is newer than every build input, unless `force`.
-    Raises RuntimeError carrying the compiler's stderr if the build fails.
-    """
-    out = lib_path()
-    if not force and not is_stale(out):
-        return out
-
-    NATIVE_DIR.mkdir(parents=True, exist_ok=True)
-
-    sources = STENCIL_CORE_SOURCES + [ABI_SOURCE]
-
-    # Single-shot compile+link of all translation units into one PIC shared object, run
-    # from core/ so the relative source/include paths resolve. This is the exact command
-    # verified to work on this machine (clang 21 -> ~132KB dylib).
-    cmd = [_compiler(), "-std=c++17", "-O2", "-fPIC", "-shared"]
-    for inc in INCLUDE_DIRS:
-        cmd.append("-I" + inc)
-    cmd.extend(sources)
-    cmd.extend(["-o", str(out)])
-
-    if verbose:
-        print("building:", " ".join(cmd), file=sys.stderr)
-
-    proc = subprocess.run(
-        cmd,
-        cwd=str(CORE_DIR),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(
-            "failed to compile stencil core shared library "
-            "(compiler=%s):\n%s" % (_compiler(), proc.stderr)
-        )
-    if verbose and proc.stderr:
-        print(proc.stderr, file=sys.stderr)
-
+  Skips the compile when the artifact is newer than every build input, unless `force`.
+  Raises RuntimeError carrying the compiler's stderr if the build fails.
+  """
+  out = lib_path()
+  if not force and not is_stale(out):
     return out
+
+  NATIVE_DIR.mkdir(parents=True, exist_ok=True)
+
+  sources = STENCIL_CORE_SOURCES + [ABI_SOURCE]
+
+  # Single-shot compile+link of all translation units into one PIC shared object, run
+  # from core/ so the relative source/include paths resolve. This is the exact command
+  # verified to work on this machine (clang 21 -> ~132KB dylib).
+  cmd = [_compiler(), "-std=c++17", "-O2", "-fPIC", "-shared"]
+  for inc in INCLUDE_DIRS:
+    cmd.append("-I" + inc)
+  cmd.extend(sources)
+  cmd.extend(["-o", str(out)])
+
+  if verbose:
+    print("building:", " ".join(cmd), file=sys.stderr)
+
+  proc = subprocess.run(
+    cmd,
+    cwd=str(CORE_DIR),
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,
+  )
+  if proc.returncode != 0:
+    raise RuntimeError(
+      "failed to compile stencil core shared library "
+      "(compiler=%s):\n%s" % (_compiler(), proc.stderr)
+    )
+  if verbose and proc.stderr:
+    print(proc.stderr, file=sys.stderr)
+
+  return out
 
 
 if __name__ == "__main__":
-    path = build(force=True, verbose=True)
-    print(path)
+  path = build(force=True, verbose=True)
+  print(path)

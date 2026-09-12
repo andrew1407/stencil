@@ -23,34 +23,34 @@ NOTE = "note: "
 
 
 def color_enabled(stream: Optional[TextIO]) -> bool:
-    """True when `stream` is a terminal that accepts colour (NO_COLOR wins)."""
-    if stream is None or os.environ.get("NO_COLOR") is not None:
-        return False
-    try:
-        return bool(stream.isatty())
-    except (AttributeError, ValueError):  # detached / closed stream
-        return False
+  """True when `stream` is a terminal that accepts colour (NO_COLOR wins)."""
+  if stream is None or os.environ.get("NO_COLOR") is not None:
+    return False
+  try:
+    return bool(stream.isatty())
+  except (AttributeError, ValueError):  # detached / closed stream
+    return False
 
 
 def error_line(msg: str, stream: Optional[TextIO] = None) -> str:
-    """``error: <msg>`` — the prefix coloured when `stream` is a colour terminal."""
-    if color_enabled(stream):
-        return "%s%s%s%s" % (_RED, ERROR, _RESET, msg)
-    return ERROR + msg
+  """``error: <msg>`` — the prefix coloured when `stream` is a colour terminal."""
+  if color_enabled(stream):
+    return "%s%s%s%s" % (_RED, ERROR, _RESET, msg)
+  return ERROR + msg
 
 
 def note_line(msg: str, stream: Optional[TextIO] = None) -> str:
-    """``note: <msg>`` — the prefix coloured when `stream` is a colour terminal."""
-    if color_enabled(stream):
-        return "%s%s%s%s" % (_AMBER, NOTE, _RESET, msg)
-    return NOTE + msg
+  """``note: <msg>`` — the prefix coloured when `stream` is a colour terminal."""
+  if color_enabled(stream):
+    return "%s%s%s%s" % (_AMBER, NOTE, _RESET, msg)
+  return NOTE + msg
 
 
 def emit_error(stream: TextIO, msg: str) -> None:
-    """Write one ``error: `` line (newline included) to the human channel."""
-    stream.write(error_line(msg, stream) + "\n")
+  """Write one ``error: `` line (newline included) to the human channel."""
+  stream.write(error_line(msg, stream) + "\n")
 
 
 def emit_note(stream: TextIO, msg: str) -> None:
-    """Write one ``note: `` line (newline included) to the human channel."""
-    stream.write(note_line(msg, stream) + "\n")
+  """Write one ``note: `` line (newline included) to the human channel."""
+  stream.write(note_line(msg, stream) + "\n")

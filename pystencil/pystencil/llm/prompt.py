@@ -24,9 +24,9 @@ from .registry import OP_REGISTRY, OpSpec
 # promise an op this surface cannot run. LLM_SYSTEM_PROMPT / CONSOLE_SETTINGS_PROMPT /
 # CONSOLE_SYSTEM_PROMPT are assembled right after the registry.
 _PROMPT_ASSET = json.loads(
-    importlib.resources.files("pystencil")
-    .joinpath("_data/systemPrompt.json")
-    .read_text(encoding="utf-8")
+  importlib.resources.files("pystencil")
+  .joinpath("_data/systemPrompt.json")
+  .read_text(encoding="utf-8")
 )
 
 _PROMPT_CORE_HEAD = _PROMPT_ASSET["head"]
@@ -45,7 +45,7 @@ Never write your own "Something else" / "Other" option: set "allowCustom": true 
 _TAIL_SHARED_ANCHOR = "\n\nOutlining ("
 _shared_at = _PROMPT_ASSET["tail"].find(_TAIL_SHARED_ANCHOR)
 if _shared_at < 0:  # pragma: no cover - guards asset rewording
-    raise AssertionError("systemPrompt.json tail no longer contains the Outlining anchor")
+  raise AssertionError("systemPrompt.json tail no longer contains the Outlining anchor")
 _PROMPT_CORE_TAIL = _CONSOLE_ASK + _PROMPT_ASSET["tail"][_shared_at:]
 
 
@@ -56,7 +56,7 @@ _PROMPT_CORE_TAIL = _CONSOLE_ASK + _PROMPT_ASSET["tail"][_shared_at:]
 # entries and their bullets are never generated. The console bullets live on their
 # registry entries (scope "console"); only the block's closing sentence is prose.
 _CONSOLE_BLOCK_TAIL = (
-    'These console ops are not image edits and cannot appear inside "variants".'
+  'These console ops are not image edits and cannot appear inside "variants".'
 )
 
 # The op list's end = the `ask` paragraph's start (the same splice anchor the cli's
@@ -67,8 +67,8 @@ CONSOLE_SPLICE_ANCHOR = "\n\nWhen a choice is genuinely"
 # §7 edge map: appended (verbatim) to the system-prompt suffix when — and only
 # when — an edge-map image is actually attached after the working snapshot.
 EDGE_MAP_SUFFIX = (
-    "The second attached image is an edge-map render of the working image at the "
-    "same pixel coordinates: use it to place outline points on real edges."
+  "The second attached image is an edge-map render of the working image at the "
+  "same pixel coordinates: use it to place outline points on real edges."
 )
 
 
@@ -83,66 +83,66 @@ _SURFACE_CAPABILITIES: FrozenSet[str] = frozenset()
 # patterns (api keys, bearer tokens, endpoint-setting instructions) — a registry
 # mistake fails loudly at import instead of leaking into the prompt.
 _PROMPT_CENSOR_PATTERNS = tuple(
-    re.compile(p, re.IGNORECASE)
-    for p in (
-        r"api[\s_-]?key",
-        r"\bbearer\b",
-        r"\bauthorization\b",
-        r"(?:access|auth|session|secret)[\s_-]?token",
-        r"\bendpoint\b",
-        r"base[\s_-]?url",
-    )
+  re.compile(p, re.IGNORECASE)
+  for p in (
+    r"api[\s_-]?key",
+    r"\bbearer\b",
+    r"\bauthorization\b",
+    r"(?:access|auth|session|secret)[\s_-]?token",
+    r"\bendpoint\b",
+    r"base[\s_-]?url",
+  )
 )
 
 
 def _assemble_ops_bullets(
-    registry: Dict[str, OpSpec],
-    scope: str,
-    capabilities: FrozenSet[str] = _SURFACE_CAPABILITIES,
+  registry: Dict[str, OpSpec],
+  scope: str,
+  capabilities: FrozenSet[str] = _SURFACE_CAPABILITIES,
 ) -> str:
-    """Concatenate a prompt block's op bullets from the registry (contract §13).
+  """Concatenate a prompt block's op bullets from the registry (contract §13).
 
-    Registry order is emission order; a bullet shared by two ops (undo/redo,
-    connect/disconnect) sits on the first entry and the partner's is empty, so it is
-    emitted once. An entry whose ``capability`` is not in ``capabilities`` is excluded —
-    the op is then never promised to the model and falls to §1's unknown-op skip. A
-    bullet matching a censor pattern raises."""
-    bullets: List[str] = []
-    for name, spec in registry.items():
-        if spec.scope != scope or not spec.bullet:
-            continue
-        if spec.capability and spec.capability not in capabilities:
-            continue
-        for pattern in _PROMPT_CENSOR_PATTERNS:
-            if pattern.search(spec.bullet):
-                raise AssertionError(
-                    'the "%s" op\'s prompt bullet matches the sensitive pattern %r '
-                    "and may not be emitted (contract §13)" % (name, pattern.pattern)
-                )
-        if spec.bullet not in bullets:
-            bullets.append(spec.bullet)
-    return "\n".join(bullets)
+  Registry order is emission order; a bullet shared by two ops (undo/redo,
+  connect/disconnect) sits on the first entry and the partner's is empty, so it is
+  emitted once. An entry whose ``capability`` is not in ``capabilities`` is excluded —
+  the op is then never promised to the model and falls to §1's unknown-op skip. A
+  bullet matching a censor pattern raises."""
+  bullets: List[str] = []
+  for name, spec in registry.items():
+    if spec.scope != scope or not spec.bullet:
+      continue
+    if spec.capability and spec.capability not in capabilities:
+      continue
+    for pattern in _PROMPT_CENSOR_PATTERNS:
+      if pattern.search(spec.bullet):
+        raise AssertionError(
+          'the "%s" op\'s prompt bullet matches the sensitive pattern %r '
+          "and may not be emitted (contract §13)" % (name, pattern.pattern)
+        )
+    if spec.bullet not in bullets:
+      bullets.append(spec.bullet)
+  return "\n".join(bullets)
 
 
 # The §4 embed: the verbatim prose core around the GENERATED core ops section.
 LLM_SYSTEM_PROMPT = (
-    _PROMPT_CORE_HEAD
-    + _assemble_ops_bullets(OP_REGISTRY, "core")
-    + "\n\n"
-    + _PROMPT_CORE_TAIL
+  _PROMPT_CORE_HEAD
+  + _assemble_ops_bullets(OP_REGISTRY, "core")
+  + "\n\n"
+  + _PROMPT_CORE_TAIL
 )
 
 # The §10 console-profile block: the GENERATED console bullets + the variant-ban
 # closing sentence.
 CONSOLE_SETTINGS_PROMPT = (
-    _assemble_ops_bullets(OP_REGISTRY, "console") + "\n" + _CONSOLE_BLOCK_TAIL
+  _assemble_ops_bullets(OP_REGISTRY, "console") + "\n" + _CONSOLE_BLOCK_TAIL
 )
 
 if CONSOLE_SPLICE_ANCHOR not in LLM_SYSTEM_PROMPT:  # pragma: no cover - guards rewording
-    raise AssertionError("LLM_SYSTEM_PROMPT no longer contains the console-settings splice anchor")
+  raise AssertionError("LLM_SYSTEM_PROMPT no longer contains the console-settings splice anchor")
 
 # §4 + the console block at the end of its op list — what the pystencil console's
 # /prompt sends as its system prompt; LLM_SYSTEM_PROMPT itself stays the §4 embed.
 CONSOLE_SYSTEM_PROMPT = LLM_SYSTEM_PROMPT.replace(
-    CONSOLE_SPLICE_ANCHOR, "\n" + CONSOLE_SETTINGS_PROMPT + CONSOLE_SPLICE_ANCHOR, 1
+  CONSOLE_SPLICE_ANCHOR, "\n" + CONSOLE_SETTINGS_PROMPT + CONSOLE_SPLICE_ANCHOR, 1
 )

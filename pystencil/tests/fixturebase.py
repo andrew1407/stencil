@@ -19,27 +19,27 @@ _FIXTURES = Path(__file__).resolve().parent.parent.parent / "browser" / "js" / "
 _LLM_FIXTURES = _FIXTURES / "llm" / "fixtures"
 
 with open(Path(__file__).resolve().parent / "fixture_overrides.json", encoding="utf-8") as _fh:
-    _OVERRIDES = json.load(_fh)
+  _OVERRIDES = json.load(_fh)
 
 
 def _load(path: Path):
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+  with open(path, encoding="utf-8") as fh:
+    return json.load(fh)
 
 
 def _norm(v):
-    """JSON-structural normalization: NaN floats become the string 'NaN'."""
-    if isinstance(v, float) and math.isnan(v):
-        return "NaN"
-    if isinstance(v, dict):
-        return {k: _norm(x) for k, x in v.items()}
-    if isinstance(v, list):
-        return [_norm(x) for x in v]
-    return v
+  """JSON-structural normalization: NaN floats become the string 'NaN'."""
+  if isinstance(v, float) and math.isnan(v):
+    return "NaN"
+  if isinstance(v, dict):
+    return {k: _norm(x) for k, x in v.items()}
+  if isinstance(v, list):
+    return [_norm(x) for x in v]
+  return v
 
 
 def _filled_line_dict(line: Line) -> dict:
-    """A parsed Line as the corpus's 'filled' shape (pointColor always present)."""
-    d = line.to_dict()
-    d.setdefault("pointColor", line.point_color)
-    return d
+  """A parsed Line as the corpus's 'filled' shape (pointColor always present)."""
+  d = line.to_dict()
+  d.setdefault("pointColor", line.point_color)
+  return d

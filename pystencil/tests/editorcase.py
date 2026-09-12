@@ -14,17 +14,17 @@ from pystencil.editor import Editor
 
 
 def _grayscale_pixels(data, count):
-    """True when every pixel's R==G==B (the b&w filter collapses the channels)."""
-    for i in range(count):
-        d = i * 4
-        if not (data[d] == data[d + 1] == data[d + 2]):
-            return False
-    return True
+  """True when every pixel's R==G==B (the b&w filter collapses the channels)."""
+  for i in range(count):
+    d = i * 4
+    if not (data[d] == data[d + 1] == data[d + 2]):
+      return False
+  return True
 
 
 class EditorCase(NativeCase):
-    """A native-core-backed editor case with the 32x48 blank most tests start from."""
+  """A native-core-backed editor case with the 32x48 blank most tests start from."""
 
-    def _blank(self):
-        """A fresh 32x48 blank editor used by most cases."""
-        return Editor().blank(32, 48)
+  def _blank(self):
+    """A fresh 32x48 blank editor used by most cases."""
+    return Editor().blank(32, 48)
