@@ -326,10 +326,10 @@ manifest.webmanifest  # PWA metadata (name, icons, standalone display)
 sw.js                 # service worker: offline app-shell + runtime cache
 favicon.svg           # icon (also the PWA "any"-purpose icon)
 icon-maskable.svg     # full-bleed PWA icon for adaptive (maskable) masks
-css/                  # theme.css and layout.css, then components/ (18 files plus
+css/                  # theme.css, then layout/ (14), components/ (18 files plus
                       #   chat/) and animations/ (12) — one file per banner section
-                      #   of the old components.css / animations.css; index.html's
-                      #   link order IS the cascade
+                      #   of the old layout.css / components.css / animations.css;
+                      #   index.html's link order IS the cascade
 js/
   index.js            # bootstraps the app on window load
   pwa.js              # registers the service worker (best-effort)

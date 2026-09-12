@@ -77,7 +77,7 @@
 .fullscreen-layer:has(.panel-resizer.dragging) .coordinates-panel { transition: none; }
 #coord-body, .coord-tabs {
     opacity: 1;
-    /* `display` is what actually removes them (layout.css); allow-discrete keeps the
+    /* `display` is what actually removes them (layout/coordPanel.css); allow-discrete keeps the
        fade visible on the way out and @starting-style plays it on the way back in.
        Where it is unsupported the panel still slides — only the fade is skipped. */
     transition: opacity var(--fold-fade-ms) var(--fold-ease),

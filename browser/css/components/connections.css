@@ -94,7 +94,7 @@
 /* Per-row icon buttons (invite / reconnect / disconnect): the projects modal's row
    actions — the app's filled button chrome (.danger for disconnect), just compact.
    The bordered subtle variant read as already-disabled at rest; now hover is an
-   enhancement and only a real :disabled looks dead (button:disabled, layout.css). */
+   enhancement and only a real :disabled looks dead (button:disabled, layout/shell.css). */
 .connect-row .connect-reconnect-one,
 .connect-row .connect-invite,
 .connect-row .connect-disconnect {

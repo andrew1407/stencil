@@ -188,7 +188,7 @@ export const wireModalOpenGestures = (btn, { openFull, openPopover, closePopover
   const g = createModalOpenGesture({ openFull, openPopover, closePopover, isPopoverOpen,
                                      isPeekEngaged, holdLinger, eagerClick });
   // A DISABLED icon opens nothing — mini window included. Checked live on every route:
-  // disabled controls here keep pointer events ON (layout.css — the disabled-reason
+  // disabled controls here keep pointer events ON (layout/buttonStates.css — the disabled-reason
   // tooltip needs the hover), so hover/contextmenu events still arrive.
   const enabled = () => !btn.disabled;
   btn.__stencilGestures = g;   // the hotkey layer reaches the machine through its icon

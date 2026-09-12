@@ -45,7 +45,7 @@ const belowInColumn = (vp) => {
 };
 
 // Where the image starts inside the viewport's scroll content. Auto margins centre a canvas
-// SMALLER than the frame (layout.css), so its origin is not the scroll origin — every
+// SMALLER than the frame (layout/canvasFrame.css), so its origin is not the scroll origin — every
 // viewport→image conversion subtracts this or a focal zoom lands a viewport away. It is 0
 // once the canvas overflows, which is the only time a scroll offset can be non-zero.
 export const canvasOrigin = () => {

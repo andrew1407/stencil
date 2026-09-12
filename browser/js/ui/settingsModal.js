@@ -77,7 +77,7 @@ export class StencilSettingsModal extends StencilElement {
       rows.innerHTML = '';
       HOTKEY_DEFS.forEach(def => {
         const tr = document.createElement('div');
-        // .shimmer: the app-wide glass sweep on hover (css/layout.css), like a list row.
+        // .shimmer: the app-wide glass sweep on hover (css/layout/shimmer.css), like a list row.
         tr.className = 'hotkey-row shimmer';
         tr.setAttribute('role', 'row');
         tr.dataset.id = def.id;

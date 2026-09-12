@@ -27,7 +27,7 @@
    its label than the shared .btn-icon-text gap gives (the gear crowded "Configure"
    at 6px — user report). Hover stays the SOLID accent instead of lightening to
    --accent-2: on a pill this small the lighten washed out the glass shimmer sweep
-   riding under it (layout.css), reading as if no hover animation played at all. */
+   riding under it (layout/shimmer.css), reading as if no hover animation played at all. */
 .chat-config-cta, .chat-reconnect-cta { padding: 7px 10px; gap: 8px; }
 .chat-config-cta:hover:not(:disabled), .chat-reconnect-cta:hover:not(:disabled) { background: var(--accent); }
 /* An error bubble carrying a call-to-action becomes a column, so the button

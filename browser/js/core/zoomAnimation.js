@@ -103,7 +103,7 @@ export const zoomToImagePoint = (zp, newScale, imgX, imgY) => {
   const o0 = canvasOrigin();
   const offX = imgX * scaleStart + o0.x - vp.scrollLeft;
   const offY = imgY * scaleStart + o0.y - vp.scrollTop;
-  // The canvas CSS size TRANSITIONS (layout.css), so mid-flight the scroll range is
+  // The canvas CSS size TRANSITIONS (layout/canvasCursor.css), so mid-flight the scroll range is
   // still the old one and the browser clamps the write below — the focal point slid.
   // Suppress it for this step (the animated zoom does the same), and let it back on a
   // frame later, once the new size is settled and nothing is left to animate.

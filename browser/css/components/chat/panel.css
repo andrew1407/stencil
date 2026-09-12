@@ -97,7 +97,7 @@ a.chat-hbtn { text-decoration: none; }
 .chat-abtn .ic, .ctx-assist-abtn .ic { flex: 0 0 auto; }
 /* Send with nothing typed, where voice input exists: not :disabled (a disabled button
    hears no double-click / hold — the gesture that switches an EMPTY composer to
-   dictation), but drawn as one. Same palette as layout.css's button:disabled. */
+   dictation), but drawn as one. Same palette as layout/shell.css's button:disabled. */
 .chat-abtn.chat-send-idle, .ctx-assist-abtn.chat-send-idle {
     background: var(--disabled-bg);
     color: var(--disabled-text);

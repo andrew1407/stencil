@@ -55,7 +55,7 @@
    on the 1.2s beat) drawn as an accent box-shadow on the tile's ::after — the glass sweep's
    pseudo, repurposed while listening. Alive at silence, and the voice widens and thickens
    it (--voice-level). The animation drives opacity only, so the level-sized shadow never
-   fights the keyframes. The .btn-icon.…-on.…-listening spelling outranks layout.css's
+   fights the keyframes. The .btn-icon.…-on.…-listening spelling outranks layout/shimmer.css's
    .btn-icon:hover:not(:disabled)::after, or a hover would swap the halo for the sweep. */
 #voice-chat-btn.active::after,
 .btn-icon.chat-abtn.chat-voice-on.chat-voice-listening::after,
@@ -80,7 +80,7 @@
    together with the motes, where the tile's rounded rectangle is punched out of every
    frame — so ring and dust sit behind the icon on every browser. (A ::before ring under
    the tile needed mask-composite to cut the tile out, which did not hold everywhere.)
-   The halo needs the tile unclipped (layout.css clips every button for its glass sweep)
+   The halo needs the tile unclipped (layout/shimmer.css clips every button for its glass sweep)
    and its own stacking context, so the z-index:-1 pseudo sits under the glyph and not
    behind the toolbar. */
 #voice-chat-btn, .chat-abtn.chat-voice-on, .ctx-assist-abtn.chat-voice-on { position: relative; }

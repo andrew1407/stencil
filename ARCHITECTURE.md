@@ -169,7 +169,7 @@ Files over 230 lines, after the decomposition rounds. Clean means nothing over t
 | pystencil · bot · server | **0** | clean |
 | core | 1 | `raster/rasterize.cpp` 247 — in all three build lists; its seam is file-local statics on the byte-exact hot path |
 | mcp | 1 | `prompt/response.rs` — 91 production lines; mcp's ratchet measures production, not inline tests |
-| browser/css | 1 | `layout.css` 1211 — 13 test files pin it by path, 8 of them at their own cap |
+| browser/css | **0** | clean — `layout.css` 1211 split into `css/layout/` (14 sheets, 25–182 lines) |
 | e2e/tests | 4 | `chat.spec.js` 643 and three smoke specs |
 | cli/src | 19 raw | **0 real** — cli counts pre-`test {}` lines; `validate.zig` is 779 raw / 189 production |
 | extension/src | 11 | 6 are byte-pinned browser twins; 5 are MV3 content scripts / `executeScript` payloads that cannot take an import |

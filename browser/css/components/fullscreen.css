@@ -51,7 +51,7 @@ body.fullscreen-mode .canvas-viewport {
     border-radius: 0 !important;
     background: #000;
     overflow: auto;
-    /* Centring is the shared one from layout.css: a flex column whose canvas carries
+    /* Centring is the shared one from layout/canvasFrame.css: a flex column whose canvas carries
        `margin: auto`. The old `safe center` pair centred the INCOGNITO FRAME as another
        row item beside the picture; auto margins leave it where its sticky corner needs it. */
     display: flex;

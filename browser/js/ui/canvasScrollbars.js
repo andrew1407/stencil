@@ -2,7 +2,7 @@
 // The browser's native bars cannot do what the desktop's painted thumbs do — the standard
 // scrollbar-color property is ONE colour for both bars, so hovering one coloured the
 // other too, and the webkit pseudo-elements are ignored once scrollbar-width is set
-// (user reports). So the native bars are hidden (layout.css) and these two elements
+// (user reports). So the native bars are hidden (layout/scrollbars.css) and these two elements
 // float over the viewport's edges instead: revealed by a scroll or a zoom, faded after
 // an idle spell, each thumb thin at rest and swelling to the accent only under its OWN
 // pointer, draggable, with a page-step on its track.

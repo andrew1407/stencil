@@ -53,7 +53,7 @@
 }
 .chat-ask-actions { display: flex; align-items: center; gap: 8px; }
 /* An affirmative action like any other in the app: the accent fill, the hover lift and the
-   glass sweep all come from the shared `button` rules (layout.css) — only the card's
+   glass sweep all come from the shared `button` rules (layout/shell.css) — only the card's
    tighter metrics are its own. It used to paint itself from `--accent-color`, a variable
    that does not exist: the whole declaration was invalid, so the button came out as bare
    white text on the card with no box at all (user report, with a picture). */

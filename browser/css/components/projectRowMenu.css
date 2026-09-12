@@ -93,7 +93,7 @@
 .confirm-choose-row { margin-top: 12px; }
 .confirm-choose-select {
     width: 100%; padding: 7px 10px; border-radius: 8px;
-    /* background-COLOR — the shorthand would reset the hover sweep sizing (layout.css). */
+    /* background-COLOR — the shorthand would reset the hover sweep sizing (layout/shimmer.css). */
     border: 1px solid var(--border-main); background-color: var(--input-bg); color: var(--text-main);
     font-size: 13px; cursor: pointer;
 }

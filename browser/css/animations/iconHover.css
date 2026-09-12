@@ -1,5 +1,5 @@
 /* ── Icon hover: every glyph mimes its own action ────────────────────────────
-   The shared shimmer (layout.css) sweeps the BUTTON and the lift above moves its box,
+   The shared shimmer (layout/shimmer.css) sweeps the BUTTON and the lift above moves its box,
    but nothing moved the GLYPH. ONE generic move for all of them is worse than none —
    a minus that swells reads as "increase" — so each icon gets the motion its own
    action means: the trash lid lifts, download's arrow travels down and upload's up,
@@ -56,7 +56,7 @@
    it keeps this rule at class specificity so the reduced-motion override below (and any
    per-control rule) can still outrank it.
    A DISABLED control is deliberately NOT excluded. It is still hovered, still shows its
-   tooltip and its disabled reason (layout.css keeps `pointer-events: auto` on it for
+   tooltip and its disabled reason (layout/buttonStates.css keeps `pointer-events: auto` on it for
    exactly that), and the glyph is what the pointer is on — leaving it frozen made the
    greyed control read as a dead area of the toolbar rather than a control that cannot
    act right now. The motion says what it WOULD do; the grey says it cannot yet. */

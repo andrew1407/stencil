@@ -350,7 +350,7 @@ export class StencilToolbar extends StencilElement {
       const hasImage = /^Image Size:/.test(size);
       // Shown once an image is open — or, image or not, while incognito is on — and only
       // while the toolbar is COLLAPSED: with the tool rows up the info line already says
-      // this; folded away (layout.css hides it too), this bubble is the one place left.
+      // this; folded away (layout/infoLine.css hides it too), this bubble is the one place left.
       const collapsed = document.body.classList.contains('controls-collapsed');
       const live = (hasImage || incognito) && collapsed;
       hintsBtn.style.display = live ? 'inline-flex' : 'none';

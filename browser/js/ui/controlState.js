@@ -32,7 +32,7 @@ export function updateButtons(app) {
   const noImage = !app.image;
   // Publish empty/read-only to the stylesheet: body.canvas-empty keeps fullscreen on the
   // page ground (cinema black is for viewing an image), and both classes drive the canvas
-  // cursor (css/layout.css) — the aim belongs to an editable image only.
+  // cursor (css/layout/canvasCursor.css) — the aim belongs to an editable image only.
   const body = document.body;
   const wasAim = !!body && !body.classList.contains('canvas-empty') &&
     !body.classList.contains('canvas-readonly');

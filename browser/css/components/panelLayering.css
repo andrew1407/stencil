@@ -53,7 +53,7 @@
     flex: 1;
 }
 /* Reset All — this footer's and the visuals modal's: the affirmative action of the
-   dialog, so it wears the accent fill every plain <button> gets (layout.css) rather
+   dialog, so it wears the accent fill every plain <button> gets (layout/shell.css) rather
    than an outline, matching the desktop twins (makeModalCta in shortcutsDialog.cpp /
    settingsDialog.cpp). Only the compact footer sizing is its own; the hover lift
    (--accent-2) and the on-accent ink come from the shared button rules. */

@@ -1,10 +1,10 @@
 /* ── App logo hover: pulse + levitate + accent shine + orbiting rays ──
-   layout.css keeps the plain scale(1.08) hover; while this sheet is loaded the
+   layout/topbar.css keeps the plain scale(1.08) hover; while this sheet is loaded the
    hover becomes a 1.2s breathing loop instead — the mark swells to 1.12 and
    floats up 2px while an accent drop-shadow brightens on the same beat, so the
    glow reads as the pulse's light. Transform/filter only: the logo's box never
    changes, so the topbar cannot reflow. Under prefers-reduced-motion the loop is
-   removed and the hover falls back to layout.css's simple scale.
+   removed and the hover falls back to layout/topbar.css's simple scale.
 
    Keyed on .logo-hover (a JS latch, ui/toolbar.js), NOT on :hover: clicking the
    logo starts an accent view transition, and the browser force-drops the page's
@@ -48,6 +48,6 @@
                logoRaysShimmer 1.2s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-    .app-logo-wrap.logo-hover .app-logo { animation: none; }   /* layout.css's :hover scale(1.08) remains */
+    .app-logo-wrap.logo-hover .app-logo { animation: none; }   /* layout/topbar.css's :hover scale(1.08) remains */
     .app-logo-wrap::before { content: none; }                  /* no static ray ring either */
 }

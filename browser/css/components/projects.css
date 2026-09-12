@@ -72,7 +72,7 @@
 .modal-filter {
     flex: 0 0 auto; padding: 6px 8px; border-radius: 6px;
     /* background-COLOR, not the shorthand — the shorthand resets the hover sweep's
-       background-size/position (layout.css), freezing the shine band mid-select. */
+       background-size/position (layout/shimmer.css), freezing the shine band mid-select. */
     background-color: var(--input-bg); color: var(--input-text); border: 1px solid var(--border-main);
 }
 /* ── Narrow viewports: the shared modal search bar + footer must not overflow ──

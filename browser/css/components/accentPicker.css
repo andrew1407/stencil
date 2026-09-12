@@ -122,7 +122,7 @@
     height: 8px;
 }
 /* While the menu is up (incl. its exit beat), lift the whole wrap: its own stacking
-   context (layout.css, z-index:0) would otherwise let later positioned toolbar
+   context (layout/topbar.css, z-index:0) would otherwise let later positioned toolbar
    content paint over the dropped-down list. */
 .app-logo-wrap:has(.logo-accent-menu:not([hidden])) { z-index: 60; }
 /* Custom toolbar selects (customSelect.js): reuse the .accent-dd look but size the

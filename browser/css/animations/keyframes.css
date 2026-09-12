@@ -8,7 +8,7 @@
    .canvas-viewport scrolling (zoom/pan assign scrollLeft/scrollTop directly, so
    scroll-behavior:smooth would fight the JS and break zoom-to-cursor — smooth
    scroll is scoped to content panels only), and canvas width/height transition
-   (already tuned in layout.css).
+   (already tuned in layout/canvasCursor.css).
    ────────────────────────────────────────────────────────────────────── */
 
 /* ── Keyframes ──────────────────────────────────────────────────────── */

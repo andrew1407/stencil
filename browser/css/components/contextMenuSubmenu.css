@@ -108,7 +108,7 @@
     border: 1px solid var(--border-main);
     border-radius: 4px;
     /* background-COLOR, not the shorthand: the shorthand resets the background-size/
-       position that the input hover sweep (layout.css) rides on, freezing its band. */
+       position that the input hover sweep (layout/shimmer.css) rides on, freezing its band. */
     background-color: var(--input-bg);
     color: var(--input-text);
     font-size: 13px;
