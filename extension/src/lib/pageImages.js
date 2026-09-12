@@ -1,28 +1,17 @@
-// ── Pure helpers for the page-global window.stencil API ─────────────────────
-// The DOM scan runs in the page's MAIN world (so entries hold live element refs the
-// user's console can touch), and MAIN-world scripts can't import — so content/pageApiMain.js
-// carries an inline MIRROR of these. These exported copies are the tested source of
-// truth; keep in sync. No DOM access here beyond what's passed in.
+// MAIN-world scripts cannot import, so content/pageApiMain.js carries an inline mirror of
+// these; the exported copies here are the tested source of truth — keep in sync.
 
-// Extract the URL from a CSS background-image value, or '' when there is none.
-// Inline-SVG data URIs COUNT (lib/rasterize.js turns them into PNG for attach /
-// hand-off), so a data-URI background is listed like any other image. Handles
-// url("…")/url('…')/url(…).
+// Inline-SVG data URIs count: lib/rasterize.js turns them into PNG.
 export const bgImageUrl = (cssValue) => {
   const m = /url\((['"]?)(.*?)\1\)/i.exec(String(cssValue || ''));
   const url = m ? m[2].trim() : '';
   return url;
 };
 
-// EVERY image URL referenced by a CSS value — background-image, content (::before/::after),
-// border-image-source, list-style-image, mask-image/-webkit-mask-image, cursor, shape-outside,
-// and image-set() (which nests url() tokens). Returns them in order, dropping inline-SVG data
-// URIs (not shareable) and bare `#fragment` refs — url(#mask)/url(#clip)/url(#filter) point at
-// an in-document SVG paint server, filter, or clip path, NOT an image. Generalises bgImageUrl.
+// Every url() in a CSS value, in order, minus bare `#fragment` refs — those point at an
+// in-document paint server, filter or clip path, not an image.
 export const cssImageUrls = (cssValue) => {
   const s = String(cssValue || '');
-  // Fast-path the overwhelming majority of computed values (none / normal / auto / gradients)
-  // with a cheap substring test, so the regex is only allocated + run when a url() is present.
   if (!s.includes('url(')) return [];
   const re = /url\((['"]?)(.*?)\1\)/g;
   const out = [];
@@ -35,10 +24,8 @@ export const cssImageUrls = (cssValue) => {
   return out;
 };
 
-// URLs listed in a srcset / imagesrcset attribute. Each candidate is "URL [descriptor]"
-// (e.g. `small.jpg 480w, large.jpg 1024w` or `img.png 1x, img@2x.png 2x`), comma-separated;
-// the descriptor is dropped and the leading token kept. (A data: URL containing a comma is
-// split incorrectly — rare in srcset and not worth a full state-machine parser here.)
+// The URL token of each srcset candidate. A data: URL containing a comma splits wrongly —
+// rare in srcset, not worth a state machine.
 export const srcsetUrls = (srcset) => {
   const s = String(srcset || '').trim();
   if (!s) return [];
@@ -50,8 +37,7 @@ export const srcsetUrls = (srcset) => {
   return out;
 };
 
-// Absolute icon URLs from a parsed web-app-manifest object, resolved against the manifest's
-// own URL (icon `src`s are manifest-relative). Non-object / iconless manifests yield [].
+// Icon `src`s are manifest-relative.
 export const manifestIconUrls = (manifest, manifestUrl) => {
   const icons = manifest && Array.isArray(manifest.icons) ? manifest.icons : [];
   const out = [];
@@ -62,8 +48,7 @@ export const manifestIconUrls = (manifest, manifestUrl) => {
   return out;
 };
 
-// A reasonable file name for an image URL (mirrors lib/stencil.js filenameFromUrl,
-// kept dependency-free for the MAIN world). Falls back to `<fallback>.png`.
+// Mirrors lib/stencil.js filenameFromUrl, dependency-free for the MAIN world.
 export const nameFromUrl = (url, fallback = 'image') => {
   const s = String(url || '');
   try {
@@ -81,7 +66,6 @@ export const nameFromUrl = (url, fallback = 'image') => {
   }
 };
 
-// True when a <video> is currently showing a real, capturable frame (decoded data,
-// real dimensions, and not paused on frame 0 i.e. the poster). Mirrors imageScan.js.
+// Decoded, sized, and not paused on frame 0 (the poster). Mirrors imageScan.js.
 export const videoHasFrame = (v) =>
   !!(v && v.videoWidth && v.videoHeight && v.readyState >= 2 && !(v.paused && !v.currentTime));

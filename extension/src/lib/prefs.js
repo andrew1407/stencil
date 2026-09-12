@@ -1,10 +1,6 @@
-// Accent (brand-colour) presets, the interface-motion mode, and the flash-free reads
-// they share. FIRST of the pre-paint classic scripts (see accent.js for the set and why
-// they are classic, not modules): everything after it reads what this file publishes on
-// window.StencilKit. Choice lives in localStorage (synchronous + shared across
-// same-origin pages, unlike async chrome.storage.sync, which would flash). ACCENTS is a
-// checked-in copy of the canonical browser/js/config/accents.json (a classic script
-// can't import JSON) — pinned by tests/dataParity.test.js.
+// First of the pre-paint classic scripts (see accent.js): publishes window.StencilKit.
+// Choices live in localStorage — synchronous, unlike chrome.storage.sync, which would flash.
+// ACCENTS is a checked-in copy of browser/js/config/accents.json, pinned by tests/dataParity.test.js.
 (function () {
   var ACCENTS = [
     { key: 'violet',  label: 'Violet',      hex: '#7c3aed' },
@@ -25,7 +21,7 @@
   var has = function (k) {
     return ACCENTS.some(function (a) { return a.key === k; });
   };
-  // Both prefs below are a validated localStorage read/write (private mode can throw).
+  // Private mode can throw.
   var readPref = function (key, valid, fallback) {
     try {
       var v = localStorage.getItem(key);
@@ -37,8 +33,7 @@
   var writePref = function (key, v) {
     try { localStorage.setItem(key, v); } catch (e) { /* private mode */ }
   };
-  // Mirror into chrome.storage.local for contexts that can't read this page's
-  // localStorage (the service worker, the page-API bridge).
+  // For contexts that cannot read this page's localStorage (service worker, page-API bridge).
   var mirror = function (obj) {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local)
@@ -47,15 +42,12 @@
   };
   var read = function () { return readPref(KEY, has, DEFAULT); };
 
-  // ── Interface motion (browser parity: js/ui/motionPrefs.js) ────────────────
-  // 'particles' (dust — the default) | 'water' | 'fire' | 'slide' (each surface keeps its
-  // own CSS entrance) | 'none'. Stamped on <html data-motion> before first paint for
-  // lib/animations/motionModes.css; the OS's prefers-reduced-motion still wins. Same localStorage
-  // recipe as the accent, so it reaches every open extension page at once.
+  // Interface motion (browser parity: js/ui/motionPrefs.js), stamped on <html data-motion>
+  // before first paint for lib/animations/motionModes.css; prefers-reduced-motion still wins.
   var MKEY = 'stencil_motion';
   var MOTION_DEFAULT = 'particles';
   var MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'none'];
-  // The browser's MOTION_MODE_LABELS, in its order — what the options page offers.
+  // The browser's MOTION_MODE_LABELS, in its order.
   var MOTION_LABELS = [
     ['particles', 'Dust'],
     ['water', 'Water'],
@@ -70,7 +62,7 @@
     try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
   };
   var motionReduced = function () { return readMotion() === 'none' || osReduced(); };
-  // The style the particles wear — 'dust' | 'water' | 'fire' — or null when none fly.
+  // null when no particles fly.
   var particleStyle = function () {
     var s = PARTICLE_STYLE[readMotion()];
     return s && !osReduced() ? s : null;
@@ -82,9 +74,8 @@
     for (var i = 0; i < ACCENTS.length; i++) if (ACCENTS[i].key === k) return ACCENTS[i].hex;
     return ACCENTS[0].hex;
   };
-  // Accent-backed controls paint their label and line-art ON the accent, so the accent
-  // picks the ink: whichever of white / near-black contrasts more (<html
-  // data-accent-light> → lib/theme/palette.css --on-accent). Browser twin: accents.js.
+  // The accent picks its ink: whichever of white / near-black contrasts more
+  // (<html data-accent-light> → lib/theme/palette.css --on-accent). Browser twin: accents.js.
   var ON_ACCENT_LIGHT = '#ffffff';
   var ON_ACCENT_DARK = '#1a1a1a';
   var srgbToLinear = function (c) {
@@ -106,9 +97,7 @@
     return needsDarkGlyph(hex) ? ON_ACCENT_DARK : ON_ACCENT_LIGHT;
   };
 
-  // Tab favicon as inline SVG with the panel outline painted in `hex` (rest is fixed
-  // brand art) — so an extension page opened as a tab (options) shows the Stencil mark
-  // tinted to the accent. Mirrors the inline header logo and browser accents.js faviconSvg.
+  // Mirrors browser accents.js faviconSvg (pinned by browser/tests/svgArt.test.js).
   var faviconSvg = function (hex) {
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
       '<rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>' +
@@ -119,8 +108,7 @@
       '<circle cx="44" cy="20" r="2.6"/><circle cx="32" cy="16" r="2.6"/><circle cx="20" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/><circle cx="44" cy="40" r="2.6"/><circle cx="32" cy="48" r="2.6"/><circle cx="20" cy="44" r="2.6"/>' +
       '</g></svg>';
   };
-  // Swap the <link rel="icon"> to a data-URL SVG carrying the accent (a static .svg
-  // file the browser can't read our CSS var from). No-op until <head> exists.
+  // A static .svg cannot read our CSS var, hence a data URL. No-op until <head> exists.
   var applyFavicon = function (k) {
     if (typeof document === 'undefined' || !document.head) return;
     var link = document.querySelector('link[rel="icon"]');
@@ -129,7 +117,6 @@
     link.href = 'data:image/svg+xml,' + encodeURIComponent(faviconSvg(hexOf(has(k) ? k : DEFAULT)));
   };
 
-  // The shared page scope the six scripts after this one read (see accent.js).
   window.StencilKit = {
     ACCENTS: ACCENTS, DEFAULT: DEFAULT, KEY: KEY, MKEY: MKEY,
     MOTION_DEFAULT: MOTION_DEFAULT, MOTION_LABELS: MOTION_LABELS, MOTION_MODES: MOTION_MODES, applyFavicon: applyFavicon,

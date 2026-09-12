@@ -1,15 +1,11 @@
-// ── In-page highlight overlay (injected) ─────────────────────────────────────
-// Outlines every grabbable element (<img>, <svg><image>, CSS background-image), tracks
-// the one under the cursor, observes the DOM for lazy content. on=false (or re-run) tears
-// down. Injected, so self-contained (no imports); teardown stashed on window. Returns count.
-// `color` is the outline hex (defaults to the brand violet) — the caller resolves it from
-// the accent / a custom colour (lib/highlightColor.js) so the highlight matches the theme.
+// Outlines every grabbable element on the page; on=false (or a re-run) tears down.
+// Injected via executeScript({ func }), so self-contained: no imports, teardown stashed
+// on window. Returns the count.
 export const toggleStencilHighlight = (on, color = '#7c3aed') => {
   const STYLE_ID = 'stencil-hl-style';
   const ATTR = 'data-stencil-hl';          // statically marked, Stencil-grabbable
   const HOVER = 'data-stencil-hl-hover';   // the one currently under the cursor
 
-  // Tear down any previous run first (idempotent across re-injection).
   if (typeof window.__stencilHlCleanup === 'function') {
     window.__stencilHlCleanup();
     window.__stencilHlCleanup = null;
@@ -34,8 +30,6 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
   };
   const isImageEl = (el) => !!(el.matches && (el.matches('img') || el.matches('image') || el.matches('video')));
   const grabbable = (el) => el.nodeType === 1 && (isImageEl(el) || hasBgImage(el));
-  // Nearest grabbable element at/above `start` — follows the cursor even when
-  // it's over a child of a background element.
   const grabbableAt = (start) => {
     for (let n = start; n && n.nodeType === 1; n = n.parentElement) {
       if (grabbable(n)) return n;
@@ -43,8 +37,6 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     return null;
   };
 
-  // Mark one element (and its descendants) if grabbable. Used for the initial
-  // pass and for nodes the observer reports later.
   const markWithin = (root) => {
     if (!root || root.nodeType !== 1) return;
     if (grabbable(root)) root.setAttribute(ATTR, '');
@@ -56,8 +48,7 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
   };
   markWithin(document.body || document.documentElement);
 
-  // Hover ring = the same colour, brightened a touch, plus a soft glow at 45% alpha —
-  // both derived from `color` so any accent / custom colour stays self-consistent.
+  // The hover ring and glow derive from `color`, so a custom accent stays self-consistent.
   const toRgb = (hex) => {
     let h = String(hex || '').trim().replace('#', '');
     if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
@@ -65,15 +56,14 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     return Number.isFinite(n) && h.length === 6 ? { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 } : { r: 124, g: 58, b: 237 };
   };
   const { r, g, b } = toRgb(color);
-  const lift = (v) => Math.round(v + (255 - v) * 0.28);   // brighten toward white for the hover ring
+  const lift = (v) => Math.round(v + (255 - v) * 0.28);
   const hover = `rgb(${lift(r)},${lift(g)},${lift(b)})`;
   const glow = `rgba(${lift(r)},${lift(g)},${lift(b)},.45)`;
 
   const style = document.createElement('style');
   style.id = STYLE_ID;
-  // Transitions on !important rules still animate (importance is irrelevant), so the
-  // hover ring eases in/out smoothly (box-shadow grows from nothing as HOVER is applied)
-  // without a keyframe animating hundreds of marked elements at once.
+  // Transitions on !important rules still animate, so the ring eases without a keyframe
+  // running on hundreds of marked elements at once.
   style.textContent =
     '[' + ATTR + ']{outline:2px solid ' + color + ' !important;outline-offset:-2px !important;' +
     'transition:outline-color .16s ease,outline-offset .16s ease,box-shadow .18s ease !important;}' +
@@ -81,10 +71,7 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     'box-shadow:0 0 0 3px ' + glow + ' !important;}';
   (document.head || document.documentElement).appendChild(style);
 
-  // The openable source URL of a grabbable element (mirrors lib/imageModel sourceOf +
-  // the scanner): so the open panel can highlight the matching list row (reverse of the
-  // row→page hover). <img>/<video> use currentSrc/src, <svg><image> its href, a
-  // background element its first background-image URL.
+  // Mirrors lib/imageModel.js sourceOf and the scanner, so the panel can find the row.
   const absUrl = (raw) => { try { return new URL(raw, location.href).href; } catch { return ''; } };
   const sourceOfEl = (el) => {
     if (!el) return '';
@@ -100,15 +87,14 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     }
     return '';
   };
-  // mirror of lib/messages.js MSG.HL_HOVER (injected script — can't import)
+  // Literal lib/messages.js MSG.HL_HOVER — an injected script cannot import.
   const HL_HOVER = 'stencil-hl-hover';
   const reportHover = (el) => {
     try { chrome.runtime.sendMessage({ type: HL_HOVER, source: sourceOfEl(el) }, () => void chrome.runtime.lastError); }
-    catch { /* no extension messaging in this context — reverse highlight just won't fire */ }
+    catch { /* no extension messaging in this context */ }
   };
 
-  // A page-sized background container is not a hover target — "whitespace" is
-  // usually body's background, and hovering it scrolled the panel list to that row.
+  // A page-sized background is not a hover target: "whitespace" is usually body's background.
   const pageSizedBg = (el) => {
     if (isImageEl(el)) return false;
     if (el === document.documentElement || el === document.body) return true;
@@ -116,8 +102,6 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     return r.width * r.height >= 0.8 * window.innerWidth * window.innerHeight;
   };
 
-  // Cursor tracking: move the HOVER outline to the grabbable element under the mouse, and
-  // tell the open panel which source is now under the cursor (so it outlines that row).
   let current = null;
   const onOver = (e) => {
     const found = grabbableAt(e.target);
@@ -130,9 +114,7 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
   };
   document.addEventListener('mouseover', onOver, true);
 
-  // Keep up with the page: outline nodes added later (lazy images on scroll,
-  // SPA route changes) and re-evaluate elements whose style/class just changed
-  // (a class can add or remove a background-image).
+  // Lazy images and SPA routes add nodes later; a class change can add or remove a background.
   const observer = new MutationObserver((mutations) => {
     for (const mu of mutations) {
       if (mu.type === 'childList') {
@@ -154,7 +136,7 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     observer.disconnect();
     if (current) current.removeAttribute(HOVER);
     current = null;
-    reportHover(null);   // clear the panel's matching-row outline
+    reportHover(null);
   };
 
   return document.querySelectorAll('[' + ATTR + ']').length;
