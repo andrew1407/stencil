@@ -10,7 +10,7 @@ export const VOICE_SETTINGS_EVENT = EVENTS.voiceSettingsChanged;
 
 export const SILENCE_MS_DEFAULT = 1000;
 export const SILENCE_MS_MIN = 500;
-export const SILENCE_MS_MAX = 10000;
+export const SILENCE_MS_MAX = 10_000;
 // 'default' = the recognizer's English; any BCP-47 tag is accepted (en-GB, uk-UA, …).
 const DEFAULT_LANGUAGE = 'default';
 const DEFAULT_RECOGNITION_LANG = 'en-US';

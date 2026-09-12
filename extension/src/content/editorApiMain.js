@@ -13,7 +13,7 @@
   // Must stay strictly LONGER than the 1500 ms legs it wraps (bridge→page, worker→tab), or it
   // reports "no answer" for answers that do arrive — hence two tiers.
   const CALL_TIMEOUT_MS = 4000;
-  const SLOW_CALL_TIMEOUT_MS = 30000;
+  const SLOW_CALL_TIMEOUT_MS = 30_000;
   const SILENT = 'the Stencil extension did not answer';
 
   // Hard-guard: writing a method / read-only field THROWS — the page API's proxy.

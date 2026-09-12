@@ -10,7 +10,7 @@ export const DEFAULT_MAX_EDGE = 1568;
 // the minimum a vector source is rasterised at — a favicon-sized render is useless to vision.
 export const DEFAULT_RASTER_EDGE = 512;
 // A stuck <img> load must not hang the chat's send loop.
-const DECODE_TIMEOUT_MS = 10000;
+const DECODE_TIMEOUT_MS = 10_000;
 
 export const DECODE_ERROR = 'the image could not be decoded (unsupported or blocked source)';
 const BLOCKED_URL = 'blocked private or internal address';

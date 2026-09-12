@@ -62,8 +62,8 @@ export const mergeLines = (serverLines, localLines) => {
 };
 
 // Bounded so a hostile #stencil= fragment / pasted JSON / co-edit payload cannot DoS the renderer.
-const MAX_LINES = 50000;
-const MAX_POINTS_PER_LINE = 100000;
+const MAX_LINES = 50_000;
+const MAX_POINTS_PER_LINE = 100_000;
 
 const sanitizePoints = (pts) => {
   if (!Array.isArray(pts)) return [];

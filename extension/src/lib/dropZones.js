@@ -160,7 +160,7 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   window.addEventListener('dragleave', onLeave, true);
   window.addEventListener('keydown', onKey, true);
   // A popup drag whose window closed before its dragend could DISARM would strand the overlay.
-  const timer = setTimeout(remove, 12000);
+  const timer = setTimeout(remove, 12_000);
 
   (document.body || document.documentElement).appendChild(host);
   show();

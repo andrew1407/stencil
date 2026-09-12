@@ -20,7 +20,7 @@ export const applyContourRGBA = (data, width, height) => {
   const luma = new Uint8Array(count);
   for (let i = 0; i < count; i++) {
     const p = i * 4;
-    luma[i] = Math.trunc((2126 * data[p] + 7152 * data[p + 1] + 722 * data[p + 2]) / 10000);
+    luma[i] = Math.trunc((2126 * data[p] + 7152 * data[p + 1] + 722 * data[p + 2]) / 10_000);
   }
 
   // Edge-replicated (clamped) luma lookup — 1×1/1×N images work via the clamping

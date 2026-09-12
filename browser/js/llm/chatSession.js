@@ -142,7 +142,7 @@ export const requeueRowAttachments = (controller, attachments = []) => {
 // The panel gear and the context-menu gear show the same dot; caching the last
 // probe (keyed by the settings that produced it, short TTL) means the second
 // surface costs nothing instead of re-hitting the endpoint on every open.
-export const PROBE_TTL_MS = 15000;
+export const PROBE_TTL_MS = 15_000;
 const settingsKey = (s) => [s?.provider, s?.baseUrl, s?.model, s?.serverUrl].join('|');
 let probeEntry = null;
 export const cacheProbe = (settings, probe) => {
