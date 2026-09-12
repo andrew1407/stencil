@@ -120,6 +120,13 @@ set(STENCIL_SERVERCLIENT_SOURCES
   src/net/serverClientWrites.cpp
   src/net/serverClientManager.cpp)
 
+# The theme (support/theme.hpp) is three TUs: the accent resolution, the palette and the
+# stylesheet build.
+set(STENCIL_THEME_SOURCES
+  src/support/theme.cpp
+  src/support/themePalette.cpp
+  src/support/themeStylesheet.cpp)
+
 # The shared modal shell (support/modalChrome.hpp) is four TUs: the parts, the install
 # and confirm path, the prompt/choose dialogs and the footer.
 set(STENCIL_MODALCHROME_SOURCES
@@ -241,6 +248,7 @@ set(STENCIL_GUI_SOURCES
   src/app/stayOpenMenuKeys.cpp
   src/app/stayOpenMenuWalk.cpp
   src/app/logoHoverFx.cpp
+  src/app/logoHoverFxPaint.cpp
   src/app/dockZonesOverlay.cpp
   src/app/dataExportController.cpp
   src/app/remoteSession.cpp
@@ -252,6 +260,7 @@ set(STENCIL_GUI_SOURCES
   src/app/selectionPanelRows.cpp
   src/app/selectionPanelState.cpp
   src/app/selectedLineBar.cpp
+  src/app/selectedLineBarRow.cpp
   src/llm/chatDock.cpp
   src/llm/chatDockChrome.cpp
   src/llm/chatDockShared.cpp
@@ -315,7 +324,7 @@ set(STENCIL_GUI_SOURCES
   src/io/deferredWrite.cpp
   src/io/mediaLoader.cpp
   src/io/mediaTypes.cpp
-  src/support/theme.cpp
+  ${STENCIL_THEME_SOURCES}
   src/support/notifications.cpp
   src/support/guiHelpers.cpp
   src/support/menuReveal.cpp

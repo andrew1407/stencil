@@ -31,7 +31,7 @@ stencil_headless_test(stencil_crop_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/cropCanvas.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
-    src/support/theme.cpp resources/app.qrc
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # Modal-popover placement (support/popover.hpp) — the pure clamp behind the anchored
@@ -52,7 +52,7 @@ stencil_headless_test(stencil_themeswapease_headless
 # Rich control tooltips (support/tipContent.cpp) — the desktop port of the browser's
 # tipContent.js, carrying that suite's parse/render cases. Needs theme.cpp for the palette.
 stencil_headless_test(stencil_tipcontent_headless
-  SOURCES tests/tipContent.headless.cpp src/support/tipContent.cpp src/support/theme.cpp
+  SOURCES tests/tipContent.headless.cpp src/support/tipContent.cpp ${STENCIL_THEME_SOURCES}
     resources/app.qrc
   LIBS Qt6::Widgets)
 
@@ -69,7 +69,7 @@ stencil_headless_test(stencil_chainedit_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/chainEdit.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
-    src/support/theme.cpp resources/app.qrc
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # Stroke growth (canvas/strokeGrowth.hpp) — where a just-added vertex is at a given
@@ -79,7 +79,7 @@ stencil_headless_test(stencil_strokegrowth_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/strokeGrowth.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
-    src/support/theme.cpp resources/app.qrc
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # Fullscreen band + zoom-handoff arithmetic (app/fullscreenController.hpp) — the edge
@@ -147,7 +147,7 @@ stencil_headless_test(stencil_controlswap_headless
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_CONTROLSWAP_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/controlSwap.headless.cpp src/support/theme.cpp src/support/iconSet.cpp
+    tests/controlSwap.headless.cpp ${STENCIL_THEME_SOURCES} src/support/iconSet.cpp
     ${STENCIL_FACESWAP_SOURCES} src/support/menuReveal.cpp src/support/modalReveal.cpp
     resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg
@@ -215,7 +215,7 @@ stencil_headless_test(stencil_holddraw_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/holdDrawCanvas.headless.cpp ${STENCIL_CANVAS_SOURCES}
-    src/canvas/idleCard.cpp src/support/theme.cpp resources/app.qrc
+    src/canvas/idleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # Image-fixture test: loads a real PNG from tests/fixtures/ and runs it through the
@@ -225,7 +225,7 @@ stencil_headless_test(stencil_image_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/imageFixture.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
     src/canvas/incognitoOverlay.cpp src/support/iconSet.cpp src/support/numericInput.cpp
-    src/support/theme.cpp resources/app.qrc
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
@@ -264,7 +264,7 @@ stencil_headless_test(stencil_projecttransfer_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/projectTransfer.headless.cpp src/app/projectTransferController.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
-    src/support/theme.cpp src/support/notifications.cpp src/support/iconSet.cpp
+    ${STENCIL_THEME_SOURCES} src/support/notifications.cpp src/support/iconSet.cpp
     src/support/modalReveal.cpp   # notifications' toast dust needs motionReduced()
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
@@ -310,7 +310,7 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
-    src/support/theme.cpp         # …and its colour wells take the theme's input chrome
+    ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust
     src/support/searchCombo.cpp   # the rows' All/Admin/Non-admin picker is one of these
@@ -355,7 +355,7 @@ stencil_headless_test(stencil_serverauth_headless
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
-    src/support/theme.cpp         # …and its colour wells take the theme's input chrome
+    ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust
     src/support/searchCombo.cpp   # the rows' All/Admin/Non-admin picker is one of these
@@ -380,7 +380,7 @@ stencil_headless_test(stencil_projectsbatch_headless
     src/dialogs/expirationDialog.cpp  # the ⋯ menu's "Expiration…" opens it in place now
     ${STENCIL_SERVERCLIENT_SOURCES} src/net/fetchGuard.cpp        # the row thumbnails' SSRF guard
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/guiHelpers.cpp
-    src/support/theme.cpp         # …and its colour wells take the theme's input chrome
+    ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust
     src/support/searchCombo.cpp   # the dialog's filter/sort/mode pickers are these now
@@ -464,7 +464,7 @@ stencil_headless_test(stencil_llmexecutor_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/llmExecutor.headless.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
     src/llm/opSchema.cpp src/llm/planExecutor.cpp ${STENCIL_CANVAS_SOURCES}
-    src/canvas/idleCard.cpp src/support/theme.cpp resources/app.qrc
+    src/canvas/idleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets)
 
@@ -491,7 +491,7 @@ stencil_headless_test(stencil_motionprefs_headless
 # consume — a broken app.qrc alias fails here fast.
 stencil_headless_test(stencil_configcanon_headless
   SOURCES tests/configCanon.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
-    src/support/iconSet.cpp src/support/theme.cpp resources/app.qrc
+    src/support/iconSet.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
 # Drift guards for the assets the desktop reads instead of embedding: themeTokens.json
@@ -500,7 +500,7 @@ stencil_headless_test(stencil_configcanon_headless
 stencil_headless_test(stencil_canonassets_headless
   SOURCES tests/canonAssets.headless.cpp src/app/launchOptions.cpp ${STENCIL_FILESTORE_SOURCES}
     src/io/deferredWrite.cpp src/io/mediaTypes.cpp src/llm/opRegistry.cpp src/llm/opSchema.cpp
-    src/support/theme.cpp resources/app.qrc
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
 # Saved-connection secrets (net/connectionStore + io/fileStore): the token never lands
