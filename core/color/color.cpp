@@ -8,7 +8,6 @@
 namespace stencil::core {
 
   namespace {
-    // Two hex digits -> int, or -1 if either char is not a hex digit.
     int hexByte(char hi, char lo) {
       const int h = hexNibble(hi);
       const int l = hexNibble(lo);
@@ -16,8 +15,7 @@ namespace stencil::core {
       return h * 16 + l;
     }
 
-    // Format a double the way JS string interpolation would for typical alphas:
-    // integers print without a decimal point, fractions drop trailing zeros.
+    // JS interpolation of an alpha: no decimal point on integers, no trailing zeros.
     std::string trimNumber(double v) {
       std::ostringstream os;
       os << v;

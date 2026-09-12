@@ -11,11 +11,10 @@ namespace stencil::core {
     int b = 0;
   };
 
-  // Parse "#rrggbb" -> Rgb. Returns nullopt if the string is not a 7-char hex.
+  // nullopt unless a 7-char "#rrggbb".
   std::optional<Rgb> parseHex(const std::string& hex);
 
-  // "#rrggbb" + alpha -> "rgba(r,g,b,a)". If `hex` is not a valid 7-char hex,
-  // it is returned unchanged (mirrors the JS pass-through behavior).
+  // "rgba(r,g,b,a)"; anything but a 7-char hex passes through unchanged, like the JS.
   std::string hexToRgba(const std::string& hex, double alpha);
 
 }

@@ -6,8 +6,8 @@
   },
   "commentPct": {
     "core": 11,
-    "core/abi": 15,
-    "core/color": 11,
+    "core/abi": 10,
+    "core/color": 8,
     "core/format": 9,
     "core/geometry": 9,
     "core/page": 10,
