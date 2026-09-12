@@ -4,6 +4,7 @@
 // artifact is generated (gitignored, built per core/WASM.md) and may be absent — so it's
 // imported dynamically inside init(), degrading to the JS fallback (a static import would
 // crash boot). Dynamic-only import keeps this a leaf module, so Node never loads wasm.
+import { buildHandleClasses, handleExports } from './coreHandles.js';
 
 // Generated artifact path, relative to this module. A named constant, not inlined into
 // import() (native ESM accepts a variable specifier; no build step requires a literal).
@@ -38,7 +39,7 @@ class StencilCore {
           console.warn(`[stencil] wasm core is stale (missing ${missing.length} export(s), e.g. ${missing[0]}) — rebuild per core/WASM.md; using JS fallback.`);
           return false;
         }
-        this.#installWrappers(this.#buildWrappers(core));
+        this.#installWrappers({ ...this.#buildWrappers(core), ...buildHandleClasses(core) });
         return true;
       })
       .catch(err => {
@@ -58,7 +59,7 @@ class StencilCore {
     'stencil_pageDimensions', 'stencil_pageFormats', 'stencil_pixelToPageRaw',
     'stencil_rotatePoints', 'stencil_flipPoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
     'stencil_applyContourRGBA', 'stencil_centeredCrop', 'stencil_resizeCropFromCorner',
-    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter',
+    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter', ...handleExports,
   ];
 
   // Names of required exports the instantiated module does not expose as callables.
@@ -87,7 +88,7 @@ class StencilCore {
       'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'flipPoints', 'boundingBoxCenter',
       'clampScale', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
-      'moveCropClamped', 'scaleCropCentered', 'cropResizeScale', 'cropChange',
+      'moveCropClamped', 'scaleCropCentered', 'cropResizeScale', 'cropChange', 'HoldDrawController',
     ];
   }
 
@@ -101,8 +102,7 @@ class StencilCore {
   // Build the typed wrappers over an instantiated Emscripten module. The raw
   // exports speak only numbers and pointers, so this owns the marshalling.
   #buildWrappers(core) {
-    const F64 = 8, I64 = 8;  // 8-byte scratch out slots: double, int64
-    const I32 = 4;
+    const F64 = 8, I64 = 8, I32 = 4;  // scratch out slots: 8-byte double/int64, 4-byte int
 
     // cwrap'd scalar exports (numbers / strings in, number out).
     const cParseHex       = core.cwrap('stencil_parseHex', 'number', ['string', 'number']);
