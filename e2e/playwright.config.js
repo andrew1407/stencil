@@ -15,8 +15,10 @@ import { APP_URL } from './helpers/config.js';
 
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: false,        // shared backing stack + shared server state
-  workers: 1,
+  fullyParallel: false,        // per-project: the UI projects opt in, the stack ones stay serial
+  // Total cap. Each UI project asks for 4, so a local run overlaps two of them; CI's
+  // smaller runner keeps to one project at a time.
+  workers: process.env.CI ? 4 : 8,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
@@ -44,6 +46,8 @@ export default defineConfig({
     {
       name: 'browser-app',
       testMatch: /tests\/browser\/.*\.spec\.js$/,
+      fullyParallel: true,
+      workers: 4,
       use: { ...devices['Desktop Chrome'] },
     },
     {
@@ -51,21 +55,27 @@ export default defineConfig({
       // default `page` fixture can't load extensions), so no `use.channel` here.
       name: 'extension',
       testMatch: /tests\/extension\/.*\.spec\.js$/,
+      fullyParallel: true,
+      workers: 4,
     },
     {
       name: 'fullstack',
       testMatch: /tests\/fullstack\/.*\.spec\.js$/,
+      workers: 1,
       use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'server-protocol',
       testMatch: /tests\/server\/.*\.spec\.js$/,
+      workers: 1,
     },
     {
       // Black-box the Zig CLI binary (no browser, no stack). Self-skips if the binary
       // isn't built; the URL-input case uses the shared static server on :8188.
       name: 'cli',
       testMatch: /tests\/cli\/.*\.spec\.js$/,
+      fullyParallel: true,
+      workers: 4,
     },
   ],
 });
