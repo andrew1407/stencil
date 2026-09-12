@@ -32,7 +32,7 @@
     "bot/tests/Stencil.TelegramBot.Tests/HttpLlmClientTests.cs": 83,
     "bot/tests/Stencil.TelegramBot.Tests/HttpStencilServerClientTests.cs": 118,
     "bot/tests/Stencil.TelegramBot.Tests/PromptHandlerTests.cs": 102,
-    "bot/tests/Stencil.TelegramBot.Tests/ServerServiceTests.cs": 167
+    "bot/tests/Stencil.TelegramBot.Tests/ServerServiceTests.cs": 152
   },
   "commentPct": {
     "bot/src/Stencil.TelegramBot.Application/DependencyInjection": 35,

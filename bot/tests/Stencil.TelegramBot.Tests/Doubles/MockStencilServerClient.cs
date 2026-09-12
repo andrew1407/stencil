@@ -31,6 +31,10 @@ public sealed class MockStencilServerClient : IStencilServerClient
     /// <summary>When true, <see cref="ListProjectsAsync"/> throws (an unreachable server).</summary>
     public bool ThrowOnList { get; set; }
 
+    /// <summary>Awaited inside <see cref="ListProjectsAsync"/>, so a test can hold several
+    /// servers open at once and observe whether the caller fans out or queues.</summary>
+    public Func<Task>? BeforeList { get; set; }
+
     /// <summary>The token the last <see cref="ConnectAsync"/> resolved to.</summary>
     public string? LastConnectToken { get; private set; }
 
@@ -88,7 +92,13 @@ public sealed class MockStencilServerClient : IStencilServerClient
             throw new ServerException("unreachable", "server is down", 503);
         }
         IReadOnlyList<ProjectRecord> list = _projects.Values.ToList();
-        return Task.FromResult(list);
+        return BeforeList is null ? Task.FromResult(list) : Gated(list);
+
+        async Task<IReadOnlyList<ProjectRecord>> Gated(IReadOnlyList<ProjectRecord> records)
+        {
+            await BeforeList();
+            return records;
+        }
     }
 
     /// <inheritdoc />

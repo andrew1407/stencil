@@ -15,10 +15,8 @@ namespace Stencil.TelegramBot.Application.Servers;
 /// <c>pageSize</c> is preserved too unless the user picked one with <c>/format</c>
 /// (<see cref="EditState.PageFormat"/>), which then overrides it.
 /// </summary>
-/// <remarks>
-/// Pure (no I/O), so it's unit-tested. The result matches the browser's <c>buildLayoutPayload</c>
-/// shape, so a browser/desktop client reopening a bot-saved project reconstructs the same result.
-/// </remarks>
+/// <remarks>Pure, and shaped like the browser's <c>buildLayoutPayload</c>, so a browser or
+/// desktop client reopening a bot-saved project rebuilds the same result.</remarks>
 public static class ProjectLayoutWriter
 {
     /// <summary>

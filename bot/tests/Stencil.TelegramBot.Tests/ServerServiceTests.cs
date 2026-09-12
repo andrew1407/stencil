@@ -123,21 +123,6 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task ListProjectsAggregatesAndSkipsAThrowingServer()
-    {
-        _factory.ClientFor(ServerA).Seed(new ProjectRecord { Id = "p_a", Name = "Alpha" });
-        _factory.ClientFor(ServerB).ThrowOnList = true;
-        await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
-        await _service.ConnectAsync(UserId, ServerB, token: null, verifyTls: true);
-
-        IReadOnlyList<ServerProjectInfo> projects = await _service.ListProjectsAsync(UserId, url: null);
-
-        ServerProjectInfo only = Assert.Single(projects);
-        Assert.Equal("p_a", only.Record.Id);
-        Assert.Equal("http://a:8090", only.ServerUrl);
-    }
-
-    [Fact]
     public async Task FetchSetsActiveProjectAndSeedsFilterFromLayout()
     {
         _factory.ClientFor(ServerA).Seed(

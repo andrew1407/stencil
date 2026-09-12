@@ -17,24 +17,23 @@ public sealed partial class ServerService
     {
         var session = await _store.GetAsync(userId, ct);
         var targets = TargetConnections(session, url);
-        var projects = new List<ServerProjectInfo>();
-        foreach (var connection in targets)
+        // Independent servers, so ask them all at once; the answers are stitched back in
+        // connection order, not reply order.
+        var answers = await Task.WhenAll(targets.Select(connection => ListOneAsync(connection, ct)));
+        return [.. answers.SelectMany(a => a)];
+    }
+
+    private async Task<IReadOnlyList<ServerProjectInfo>> ListOneAsync(ServerConnectionInfo connection, CancellationToken ct)
+    {
+        try
         {
-            var client = ClientFor(connection);
-            try
-            {
-                var records = await client.ListProjectsAsync(ct);
-                foreach (var record in records)
-                {
-                    projects.Add(new ServerProjectInfo(record, connection.Url));
-                }
-            }
-            catch
-            {
-                // Skip an unreachable/erroring server, like the browser/pystencil does.
-            }
+            var records = await ClientFor(connection).ListProjectsAsync(ct);
+            return [.. records.Select(record => new ServerProjectInfo(record, connection.Url))];
         }
-        return projects;
+        catch
+        {
+            return [];
+        }
     }
 
     /// <inheritdoc />
