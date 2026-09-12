@@ -2,14 +2,7 @@
 
 from __future__ import annotations
 
-import sys
 import unittest
-from pathlib import Path
-
-# Make the package importable when running `python3 -m unittest` from pystencil/.
-_PKG_ROOT = Path(__file__).resolve().parent.parent
-if str(_PKG_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PKG_ROOT))
 
 from pystencil.layout import Line
 from pystencil.llm import LlmExecutionError, execute_op_plan, parse_op_plan

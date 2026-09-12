@@ -7,13 +7,7 @@ the surface resolution (surfaceKeys / bulletVariants / surfaces) and the helpers
 
 from __future__ import annotations
 
-import sys
 import unittest
-from pathlib import Path
-
-_PKG_ROOT = Path(__file__).resolve().parent.parent
-if str(_PKG_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PKG_ROOT))
 
 from pystencil._opschema import Schema, SchemaError, load_registry, schema
 
