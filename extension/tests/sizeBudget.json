@@ -12,7 +12,7 @@
     "extension/src/lib/contextMenu.js": 86,
     "extension/src/lib/customSelect.js": 258,
     "extension/src/lib/dropZones.js": 204,
-    "extension/src/lib/logoAccent.js": 273,
+    "extension/src/lib/logoAccent.js": 115,
     "extension/src/lib/motion.js": 18,
     "extension/src/lib/overlay.js": 234,
     "extension/src/lib/stencil.js": 72,
