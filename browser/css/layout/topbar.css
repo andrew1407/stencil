@@ -1,0 +1,165 @@
+/* ── Controls collapsible ── */
+.controls-wrapper { margin-bottom: 12px; }
+.controls-topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+/* App logo — its panel outline tracks the chosen accent (the rest of the mark is
+   fixed brand art). A gentle hover lift to match the toolbar's other affordances;
+   animations/iconHover.css enriches it into a pulse/shine/rays loop. The wrap is the anchor
+   for the absolutely-positioned ray layer (and the parked colour-picker input) —
+   z-index:0 makes it a stacking context so the rays' z-index:-1 stays INSIDE it
+   (behind the mark, above the toolbar) instead of dropping behind the page. */
+.app-logo-wrap { flex: 0 0 auto; position: relative; z-index: 0; display: block; }
+.app-logo { display: block; transition: transform 0.2s ease, filter 0.2s ease; }
+.app-logo:hover { transform: scale(1.08); }
+.app-logo-frame { stroke: var(--accent); transition: stroke 0.2s ease; }
+/* Project-name field in the topbar: a read-only title by default. Renaming is
+   explicit — double-click the name or click the ✎ that appears on hover (only for a
+   saved project). The field shows its editable border/background only in edit mode. */
+.project-name-field { position: relative; }
+/* Default name colour + the theme-flipped legibility outline come from CSS (so they re-flip live
+   on a theme toggle); JS only sets an inline colour for a custom per-project colour. Fallbacks
+   keep it visible even if theme.css is cached stale. */
+#project-name-input { color: var(--project-name-fg, #80868f); text-shadow: var(--project-name-shadow, 0 1px 2px rgba(0,0,0,0.55)); }
+#project-name-input:read-only { cursor: default; }
+#project-name-input:not(:read-only) { border-color: var(--border-main); background: var(--bg-info); cursor: text; }
+#project-name-input:not(:read-only):focus { outline: none; border-color: var(--accent, #7c3aed); }
+#project-name-input:disabled { color: var(--text-muted); cursor: default; }
+/* ✎ rename affordance: hidden until you hover the field. JS sets display:none when the
+   project can't be renamed (no project / incognito) or while editing, so this only
+   reveals it when it's actually actionable. */
+/* Revealed by the .name-hover class (controlsBinder wires mouseenter/leave), not a bare
+   :hover — the flip plays markIn/markOut dust, which needs a JS hand on the switch. */
+.name-edit-pencil { visibility: hidden; }
+.project-name-field.name-hover .name-edit-pencil { visibility: visible; }
+/* Palette (project-colour) button hover-reveals with the ✎ pencil — hidden until you hover
+   the name field, so it doesn't sit in the bar permanently. JS still gates display: on a
+   saved project; visibility (not display) keeps the row width stable so nothing shifts. */
+#project-color-btn { visibility: hidden; }
+.project-name-field.name-hover #project-color-btn { visibility: visible; }
+/* Inline rename accept(✓)/cancel(✗) buttons (topbar + projects list). */
+/* The ✎ and 🎨 beside the project name: the toolbar's own filled squares, so they read as
+   buttons of the same family as everything above them rather than as loose glyphs on a
+   tinted chip (user decision; desktop twin: QToolButton[nameAffordance="true"]). SQUARE —
+   one size, the glyph centred — and the accent fill with a white glyph. The ✓/✗ of an
+   open rename keep their own green/red, which is what those two mean. */
+.name-edit-btn {
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+    border-radius: 5px;
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0;
+    font-size: 12px; line-height: 1; cursor: pointer;
+}
+.name-edit-btn:not(:disabled):hover { background: var(--accent-2); border-color: var(--accent-2); }
+.name-edit-btn:disabled { opacity: .4; cursor: not-allowed; }
+/* ✓ and ✗ take the SAME chip as the ✎/🎨 they replace — accent-filled, white glyph — rather
+   than a green tick and a red cross: on the fill those colours read as a warning instead of
+   the two halves of one edit (user decision, with a picture). Desktop twin:
+   QToolButton#projectsRenameBtn / the toolbar's affordanceIcon. */
+/* ✓/✗ are the SAME chip as the ✎/🎨 they replace, glyph included — a smaller pair read as
+   faint, half-there marks beside the field (user decision, after trying both bigger and
+   smaller). One size for all four, so edit mode never resizes the row. */
+.name-edit-accept, .name-edit-cancel { color: var(--on-accent); }
+/* Fills the name column, so the field runs from the name's left edge to just short of the
+   row's "⋯" — desktop parity (projectsDialog beginInlineRename). inline-flex shrank to fit
+   and left the input a stub measuring its `width: 100%` against that stub. */
+.project-rename-wrap { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0; }
+/* A row's inline editor replaces the NAME line, so its chips are sized to that line, not to
+   the toolbar's: at 28px they made the row grow and the editor sat over the "Created …"
+   line under it (user report, with a picture). The desktop's row editor is compact for the
+   same reason. */
+.project-rename-wrap .name-edit-btn { width: 24px; height: 24px; border-radius: 5px; }
+.project-rename-wrap .name-edit-btn .ic { width: 13px; height: 13px; }
+#toggle-controls {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 16px;
+    cursor: pointer;
+    line-height: 1.4;
+}
+/* Hover fills with a soft, transparent accent wash + accent ring — the desktop
+   controlsPill's ACCENT_SOFT hover, so the two surfaces match. */
+#toggle-controls:hover {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+}
+.controls { margin-bottom: 0; }
+/* Collapsed: the fold itself (grid-template-rows + visibility) lives in animations/collapse.css,
+   so the toolbar animates away instead of vanishing between two frames. */
+
+/* The "?" chip beside the project name (js/ui/toolbar.js, which sets `display` to
+   reveal it once there is something for the bubble to say). */
+.hints-btn {
+    display: none;
+    flex: 0 0 auto;
+    position: relative;
+    cursor: default;
+    font-size: 12px;
+    color: var(--text-muted);
+    border: 1px solid var(--border-main);
+    border-radius: 12px;
+    padding: 2px 8px;
+    user-select: none;
+}
+/* hints popup on ? icon */
+.hints-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: var(--bg-tooltip);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    padding: 7px 11px;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text-main);
+    box-shadow: 0 4px 12px var(--shadow);
+    z-index: 600;
+    pointer-events: none;
+}
+#hints-btn:hover .hints-popup { display: block; }
+/* Second (and only other) fact in the bubble: this session is never saved. Same accent the
+   canvas frame uses, on its own line under the size. */
+.hints-incognito {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    color: var(--accent);
+    font-weight: 600;
+}
+/* The same fact on the info line itself (drawingApp.updateInfo), so the mode reads
+   beside the image facts — including in an empty editor, where there are none.
+   inline-flex + gap aligns the glyph with the words; the glyph strokes in
+   currentColor, so it is accent-coloured by this rule alone. */
+.info-incognito {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    vertical-align: middle;
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+    /* Locked to the row's height: the tag can never be what decides it. */
+    line-height: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+/* display:block drops the glyph's inline baseline contribution — an inline svg sits on
+   the text baseline and adds descender space under it, which is exactly the pixel or
+   two that moved the canvas. 13px inside a 20px line box has room to spare. */
+.info-incognito .ic { display: block; flex: 0 0 auto; }
+/* The divider between the image facts and the mode tag — muted, never selectable,
+   and only ever present when the tag is (drawingApp.updateInfo builds the pair). */
+.info-divider {
+    margin: 0 8px;
+    color: var(--text-muted);
+    flex: 0 0 auto;
+    -webkit-user-select: none;
+    user-select: none;
+}

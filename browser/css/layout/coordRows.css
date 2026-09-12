@@ -1,0 +1,83 @@
+/* ── Coord table row interactions ── */
+.coordinates-table { width: 100%; border-collapse: collapse; background: var(--bg-coord-table); font-size: 12px; }
+.coordinates-table th, .coordinates-table td {
+    padding: 6px 5px;
+    text-align: left;
+    border: 1px solid var(--border-coord);
+    color: var(--text-main);
+}
+.coordinates-table th { background: var(--bg-coord-th); color: var(--on-accent); font-weight: bold; }
+.coordinates-table tr:nth-child(even) { background-color: var(--bg-coord-even); }
+.coordinates-table tbody tr:hover { background-color: var(--bg-coord-hover); cursor: pointer; }
+/* The ring is drawn inside the row (outline-offset), not around it: an outline sits
+   outside the border box, so under the sticky header (or against the scroller's edge) its
+   top edge was painted over and the ring came out open. Inset, it is always whole. */
+.coordinates-table tbody tr.row-highlighted {
+    background: color-mix(in srgb, var(--accent) 18%, transparent) !important;
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+.coordinates-table tbody tr.row-focused {
+    background: rgba(255,200,0,0.28) !important;
+    outline: 2px solid #e6b800;
+    outline-offset: -2px;
+}
+
+/* The Fill toggle is a ROW, not inline text: as a plain label the box sat on the text's
+   baseline and the two read as misaligned. Flex centres them on each other. */
+.fill-toggle { display: inline-flex; align-items: center; gap: 6px; }
+
+/* One height for everything in the bar. The row used to mix 34px fields with 28px buttons
+   and a 19px cross, which is what made it look ragged. */
+#selection-panel input:not([type="checkbox"]):not([type="color"]),
+#selection-panel select,
+#selection-panel button { height: 34px; box-sizing: border-box; }
+
+/* The bar's parts, told apart by a hairline in its own amber rather than by spacing
+   alone: the header, the line's own styling, its fill, and the actions. */
+.sel-sep {
+    flex: 0 0 auto;
+    width: 1px;
+    align-self: stretch;
+    margin: 2px 0;
+    background: var(--border-sel);
+    opacity: 0.45;
+}
+
+/* The opacity half of a colour control: the alpha BYTE (0-255) beside its swatch, the
+   same unit the desktop's picker shows. A number, not a slider — a colour is picked to a
+   value, and this one is typed like the thickness/size boxes it sits among. */
+.alpha-input { width: 56px; }
+
+/* Clear-fill: the app's ordinary control button, not a coloured CTA — a small correction
+   beside the swatch, not an action to draw the eye. Tight box + an 11px glyph, matching
+   the desktop's own (selectedLineBar.cpp restyleIcons). */
+.fill-clear { padding: 0 10px; }
+
+/* inline pixel-coord input */
+.coord-px-input {
+    width: 58px;
+    background: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 1px 3px;
+    font-size: 12px;
+    outline: none;
+}
+.coord-px-input:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+/* delete point btn */
+.del-pt-btn {
+    background: transparent;
+    border: none !important;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 3px;
+    line-height: 1;
+    border-radius: 3px;
+    opacity: 0.85;
+    transition: opacity 0.15s;
+}
+.del-pt-btn:hover { opacity: 1; background: color-mix(in srgb, var(--danger) 14%, transparent) !important; }

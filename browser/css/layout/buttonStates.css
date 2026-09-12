@@ -1,0 +1,24 @@
+/* Disabled controls must still receive pointer events so their title tooltip
+   (the reason) shows on hover — :disabled normally swallows them. A disabled
+   button never dispatches click, so this only re-enables the tooltip. */
+button:disabled, select:disabled, input:disabled { pointer-events: auto; }
+/* Theme toggle button. It ACTS (it flips the theme) rather than reporting a state, so it
+   wears the accent fill the other acting buttons in its row do — the ghost box is for the
+   two toggles beside it, which fill only while they are on (user decision; desktop twin:
+   the SETTINGS cluster's toolFill in mainWindowTheme.cpp). Box unchanged, so the row's
+   six squares stay one size. */
+#theme-toggle {
+    background: var(--accent);
+    border: 1px solid var(--accent) !important;
+    color: var(--on-accent);
+    font-size: 18px;
+    padding: 7px 11px;
+    line-height: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+#theme-toggle:hover {
+    background: var(--accent-2);
+    border-color: var(--accent-2) !important;
+}

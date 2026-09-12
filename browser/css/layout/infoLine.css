@@ -1,0 +1,41 @@
+.info {
+    margin-top: 0;
+    padding: 10px;
+    background: var(--bg-info);
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--text-info);
+    /* A FLEX row, not a line box: an inline tag with vertical-align:middle still
+       stretched the line by ~1.4px however tightly its own height was pinned (measured),
+       and that pushed the canvas and the points panel down. As flex items the text and
+       the tag are laid out against the row's height instead of deciding it. */
+    display: flex;
+    align-items: center;
+    line-height: 20px;
+    min-height: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+input[type="number"] {
+    width: 80px;
+}
+/* Color pickers share the dark input chrome (the UA default is a white chip that
+   clashes with the sibling fields); the swatch fills the chip inside a thin frame. */
+input[type="color"] {
+    /* A colour chip inside an input frame — a 32x16 swatch in a 46x26 box, the desktop's own
+       well (guiHelpers setColorSwatch) and the shape all three surfaces share. Filling the
+       box made the colour a slab and the loudest thing in the row. */
+    width: 46px;
+    height: 26px;
+    cursor: pointer;
+    padding: 4px 6px;   /* 46-2*6 = 32 wide, 26-2*4 = 18 high inside the 1px frame */
+    background: var(--input-bg);
+}
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main); border-radius: 3px; }
+.empty-message {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-empty);
+    font-style: italic;
+}

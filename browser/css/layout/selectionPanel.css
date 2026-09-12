@@ -1,0 +1,50 @@
+#selection-panel {
+    margin-bottom: 12px;
+    padding: 10px 15px;
+    background: var(--bg-sel-panel);
+    border: 2px solid var(--border-sel);
+    border-radius: 6px;
+    animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.selection-panel-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+.selection-label {
+    font-weight: bold;
+    font-size: 14px;
+    color: var(--text-sel-label);
+    white-space: nowrap;
+}
+/* Everything inside the bar reads in the bar's own amber, not the app's generic ink and
+   accent, or the component looks assembled out of parts from elsewhere. The Deselect CTA
+   keeps its orange — it is the one action, not a control. */
+#selection-panel label,
+#selection-panel .control-group label { color: var(--text-sel-label); }
+#selection-panel input[type="checkbox"] { accent-color: var(--border-sel); }
+#selection-panel input:focus-visible,
+#selection-panel select:focus-visible { outline: 2px solid var(--border-sel); outline-offset: 1px; }
+#sel-fill-clear, #sel-unchain {
+    background: var(--bg-sel-btn);
+    color: var(--text-sel-btn);
+}
+#sel-fill-clear:hover:not(:disabled), #sel-unchain:hover:not(:disabled) {
+    background: var(--bg-sel-btn-hov);
+}
+#sel-fill-clear .ic, #sel-unchain .ic { color: var(--text-sel-btn); }
+
+/* Deselect wears the SAME amber as the bar's other buttons — one palette, no outlier.
+   The same token, not a copy of its value, so the two can never drift apart. It stays
+   told apart by its icon and label, not by being the one orange thing in the row. */
+.deselect-btn {
+    background: var(--bg-sel-btn) !important;
+    color: var(--text-sel-btn) !important;
+    font-size: 13px;
+    padding: 6px 12px !important;
+}
+.deselect-btn:hover {
+    background: var(--bg-sel-btn-hov) !important;
+}
