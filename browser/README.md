@@ -326,9 +326,9 @@ manifest.webmanifest  # PWA metadata (name, icons, standalone display)
 sw.js                 # service worker: offline app-shell + runtime cache
 favicon.svg           # icon (also the PWA "any"-purpose icon)
 icon-maskable.svg     # full-bleed PWA icon for adaptive (maskable) masks
-css/                  # theme.css, then layout/ (14), components/ (18 files plus
-                      #   chat/) and animations/ (12) — one file per banner section
-                      #   of the old layout.css / components.css / animations.css;
+css/                  # theme.css, then layout/ (14), components/ (22 plus chat/ 8)
+                      #   and animations/ (16) — one file per banner section of the
+                      #   old layout.css / components.css / animations.css;
                       #   index.html's link order IS the cascade
 js/
   index.js            # bootstraps the app on window load
@@ -353,7 +353,9 @@ js/
                       #   chat controller, the app's one shared chat session
                       #   (chatSession.js — panel + context menu), settings
                       #   (see llm-contract.md)
-  console/            # the window.stencil facade
+  console/            # the window.stencil facade — stencilApi.js composes one
+                      #   module per concern (projects, connect, assistant, windows,
+                      #   crop, session, editor/export actions, settings)
   ui/                 # pure string-returning components composed by layout()
                       #   (incl. installButton.js — the PWA install affordance);
                       #   bindings/ wires the toolbar controls to the app, and
@@ -400,9 +402,10 @@ These effects share one import point — `js/ui/motion.js` is a barrel over
   and leaving minimises back into it. `.flip-active` lifts the viewport above the page
   chrome and suppresses its scrollbars for the flight.
 
-The desktop app mirrors all three (`desktop/src/app/scrollReveal.hpp`,
-`MainWindow::consumeDropReveal` / `beginFullscreenZoom`), and the extension mirrors the
-first two (`extension/src/lib/motion.js`).
+The desktop app mirrors these (`desktop/src/support/scrollReveal.hpp`,
+`themeSwapOverlay.hpp`, `dustKit.hpp`, and `MainWindow::consumeDropReveal` /
+`beginFullscreenZoom`); the extension ports the reveal and the disintegration into
+`extension/src/lib/motion/`, behind the same barrel shape (`lib/motion.js`).
 
 ## Console API (`window.stencil`)
 
