@@ -3,7 +3,7 @@
 // matched to what that glyph's action DOES. The browser implements it in
 // css/animations/iconHover.css; the extension ships a deliberate SUBSET of the glyphs
 // (lib/icons.js, pinned by dataParity.test.js) and implements the SAME designs on the SAME
-// numbers in lib/animations.css, so the two match rather than merely both move.
+// numbers in lib/animations/iconHover.css, so the two match rather than merely both move.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -258,7 +258,7 @@ test('every inline glyph copy in a host page names itself, so it animates too', 
 
 test('the injected overlay shell mimes the same two actions', () => {
   const src = read('../src/lib/overlay.js');
-  // It is injected into the host page and cannot link lib/animations.css, so it carries
+  // It is injected into the host page and cannot link lib/animations/, so it carries
   // the two designs inline — on the canonical numbers.
   assert.ok(src.includes('<g class="ic-arrow">'), 'the "open in a tab" arrow carries its hook');
   assert.deepEqual(MOTION.icons.external.parts[0].to.translate, [1.4, -1.4]);

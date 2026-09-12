@@ -109,5 +109,5 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
 
 // ── Reintegration: the snap played backwards (browser motion.js twin) ───────
 // Every mote starts where the scatter would have flung it and flies HOME (stTileGather in
-// animations.css), sweep reversed so the first mote out is the last one in.
+// animations/reveal.css), sweep reversed so the first mote out is the last one in.
 export const reintegrate = (el, opts = {}) => disintegrate(el, { ...opts, gather: true });

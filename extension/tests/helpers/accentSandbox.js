@@ -201,7 +201,7 @@ export const loadAccent = ({
   sandbox.Float32Array = Float32Array;
   sandbox.Int32Array = Int32Array;
   // What dustPaint reads for the wake's colours — the page's palette vars, as they stand
-  // BEFORE the swap applies (the values below stand in for lib/theme.css's light set).
+  // BEFORE the swap applies (the values below stand in for lib/theme/palette.css's light set).
   sandbox.getComputedStyle = () => ({
     getPropertyValue: (name) =>
       ({ '--bg': '#f4f5f7', '--text': '#1d2230', '--accent': '#7c3aed' }[name] || ''),

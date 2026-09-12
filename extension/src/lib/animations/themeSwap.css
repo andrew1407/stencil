@@ -68,7 +68,7 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    re-applies it just after — restarting the row's hover motion a beat behind each one.
    lib/logoAccent.js marks the menu while a preview shows; freeze the replays for that
    whole time (the swap classes are gone before the restart lands). The 2px slide is held
-   the other way round, by the .dd-hover latch (lib/theme.css).
+   the other way round, by the .dd-hover latch (lib/theme/select.css).
    Browser twin: browser/css/animations/themeSwap.css. */
 .accent-dd-menu.dd-preview-hold .accent-dd-opt::after { animation: none !important; }
 .accent-dd-menu.dd-preview-hold .accent-dd-opt :is(.ic, .ic *, [class^="mm-"]) { animation-name: none !important; }

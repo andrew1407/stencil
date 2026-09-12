@@ -306,7 +306,7 @@ test('the tooltip keeps its mask grain as the fallback under the real motes', ()
   // At 120% the dots overlap outright, so a SETTLED tooltip is solid to the pixel —
   // decoration must never cost legibility.
   assert.match(THEME, /#000 max\(0%, calc\(120% - var\(--dissolve\) \* 160%\)\)/);
-  // --dissolve can only be transitioned because animations.css registers it.
+  // --dissolve can only be transitioned because animations/reveal.css registers it.
   assert.match(ANIMS, /@property --dissolve \{ syntax: "<number>"; inherits: false; initial-value: 0; \}/);
   // …and once a real cloud has flown, the mask and the transition are off for good.
   assert.match(THEME, /#app-tooltip\.dust-driven \{[\s\S]*?mask-image: none;/);

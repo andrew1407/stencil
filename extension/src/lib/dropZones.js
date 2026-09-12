@@ -54,7 +54,7 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   let prefersDark = false;
   try { prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { /* no matchMedia */ }
   const dark = mode === 'dark' || (mode !== 'light' && prefersDark);
-  // Panel colours from lib/theme.css, at .69/.72 alpha — a fifth more see-through than
+  // Panel colours from lib/theme/palette.css, at .69/.72 alpha — a fifth more see-through than
   // they were, so the page underneath still reads while the zones are up.
   const cellBg = dark ? 'rgba(33,36,45,.69)' : 'rgba(244,245,247,.72)';
   const cellFg = dark ? '#e8eaf0' : '#1d2230';

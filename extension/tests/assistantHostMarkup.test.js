@@ -123,7 +123,7 @@ test('the drop target is the composer, cued by an animated icon over it', () => 
   assert.match(src, /wireDropTarget\(composerEl, \{\n\s*highlight: composerEl,/);
   assert.match(src, /cue\.className = 'chat-drop-cue';/);
   assert.match(src, /cueIcon\.className = 'chat-drop-cue-icon';/);
-  // …and the icon animates (motion lives in lib/animations.css, reduced-motion safe).
+  // …and the icon animates (motion lives in lib/animations/chat.css, reduced-motion safe).
   const anims = animationsCss();
   assert.match(anims, /\.chat-drop-cue-icon \{ animation: chat-drop-bob/);
   assert.match(anims, /@keyframes chat-drop-bob/);

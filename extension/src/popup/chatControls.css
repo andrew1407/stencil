@@ -65,7 +65,7 @@
 /* An inapplicable item (nothing to clear, attach paused mid-turn) leaves the menu
    instead of greying out — browser/desktop parity. */
 #sec-assistant .chat-more-item:disabled { display: none; }
-/* Transcript entries ride the shared scroll reveal (lib/animations.css), which
+/* Transcript entries ride the shared scroll reveal (lib/animations/reveal.css), which
    covers the entrance AND the scroll — an `animation: … both` end state here
    would out-rank the reveal's transform (browser parity). */
 

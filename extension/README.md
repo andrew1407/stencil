@@ -177,7 +177,7 @@ cropped part** (bake the region into a new image). Both honour an **incognito**
 checkbox; the chosen page size is carried into the editor.
 
 The in-page modal **shell** (title bar, frame, pop-out / close buttons) is injected into
-someone else's page, so it can't link `lib/theme.css` — its palette is handed to it as
+someone else's page, so it can't link the `lib/theme/` sheets — its palette is handed to it as
 data (`lib/shellTheme.js`: the same Appearance choice and accent every other surface
 follows, read from the `chrome.storage.local` mirrors that `lib/accent.js` writes). The
 mode travels unresolved so the target page answers `system` with its own OS preference,
@@ -482,7 +482,7 @@ src/
     *.d.ts           shape files beside the modules whose payloads cross a context
                      (messages, imageScan, editorTabs, editorApiMain, llm/*) — read by an
                      editor, guarded by tests/dts.test.js, never built or imported
-    theme.css        shared light/dark palette, keyed on <html data-theme> (linked by popup/crop/options)
+    theme/           shared light/dark palette, keyed on <html data-theme> (linked by popup/crop/options)
     accent.js        the accent facade — sixth of seven pre-paint CLASSIC scripts, loaded in
                      this order: prefs.js, swapGeometry.js, dustGrains.js, dustWake.js,
                      themeSwap.js, accent.js, shellPrefs.js (they share window.StencilKit)

@@ -11,7 +11,7 @@
   var stopOfTint = K.stopOfTint, styleFrame = K.styleFrame, swap = K.swap, tintOf = K.tintOf, writePref = K.writePref;
   // ── Appearance (light / dark / follow the OS) ───────────────────────────────
   // Stores the CHOSEN mode but stamps the RESOLVED one on <html data-theme="…">, so
-  // lib/theme.css needs a single dark palette. Mirrors browser/js/prePaintTheme.js.
+  // lib/theme/ needs a single dark palette. Mirrors browser/js/prePaintTheme.js.
   var TKEY = 'stencil_theme';
   var MODES = ['system', 'light', 'dark'];
   var isMode = function (m) { return MODES.indexOf(m) >= 0; };

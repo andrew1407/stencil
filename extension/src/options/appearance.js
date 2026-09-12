@@ -32,7 +32,7 @@ if (accent) {
     li.className = 'accent-dd-opt';
     li.setAttribute('role', 'option');
     li.dataset.key = a.key;
-    // Every chip carries the ✓; only the selected row reveals it (lib/theme.css) — the
+    // Every chip carries the ✓; only the selected row reveals it (lib/theme/select.css) — the
     // browser's accentPicker.js row, and the desktop's painted tick.
     li.innerHTML =
       `<span class="accent-swatch" style="background:${a.hex};color:${accent.inkOn(a.hex)}">` +

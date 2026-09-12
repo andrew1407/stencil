@@ -2,7 +2,7 @@
    animations/ — shared motion layer for the extension's own pages
    (popup, side panel, devtools panel, quick-crop, options).
 
-   Every document links the whole set, in the order below, AFTER lib/theme.css
+   Every document links the whole set, in the order below, AFTER the lib/theme/ set
    and the page's own stylesheet: the sheets enrich existing rules, and
    reducedMotion.css has to keep its place in the cascade. Purely cosmetic —
    every surface works without it. Selectors are scoped by class names unique to

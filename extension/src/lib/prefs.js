@@ -50,7 +50,7 @@
   // ── Interface motion (browser parity: js/ui/motionPrefs.js) ────────────────
   // 'particles' (dust — the default) | 'water' | 'fire' | 'slide' (each surface keeps its
   // own CSS entrance) | 'none'. Stamped on <html data-motion> before first paint for
-  // lib/animations.css; the OS's prefers-reduced-motion still wins. Same localStorage
+  // lib/animations/motionModes.css; the OS's prefers-reduced-motion still wins. Same localStorage
   // recipe as the accent, so it reaches every open extension page at once.
   var MKEY = 'stencil_motion';
   var MOTION_DEFAULT = 'particles';
@@ -84,7 +84,7 @@
   };
   // Accent-backed controls paint their label and line-art ON the accent, so the accent
   // picks the ink: whichever of white / near-black contrasts more (<html
-  // data-accent-light> → lib/theme.css --on-accent). Browser twin: accents.js.
+  // data-accent-light> → lib/theme/palette.css --on-accent). Browser twin: accents.js.
   var ON_ACCENT_LIGHT = '#ffffff';
   var ON_ACCENT_DARK = '#1a1a1a';
   var srgbToLinear = function (c) {

@@ -47,7 +47,7 @@ export const tileNoise = (cx, cy) => {
 // ── The waypoint: no mote flies a straight line (browser motion.js twin) ────
 // Part-way along its throw each mote is pushed off its line by its own amount, to its own
 // side, so a cloud churns instead of radiating in spokes. CSS plays it as the mid keyframe
-// (--mx/--my; animations.css stTileScatter and kin). Pure — unit-tested.
+// (--mx/--my; animations/reveal.css stTileScatter and kin). Pure — unit-tested.
 export const WAYPOINT_ALONG = 0.62;
 export const SWIRL_SHARE = 0.32;
 export const SWIRL_MAX_PX = 44;

@@ -85,7 +85,7 @@ export function wireLogoAccent(logo) {
     setTimeout(poll, 60);
   };
   // `dd-preview-hold` freezes the rows' hover replays for as long as a preview shows: each
-  // flood drops and restores :hover, which restarted them (lib/animations.css).
+  // flood drops and restores :hover, which restarted them (lib/animations/iconHover.css).
   const holdReplays = (on) => {
     menu.classList[on ? 'add' : 'remove']('dd-preview-hold');
     holdCursor(on);

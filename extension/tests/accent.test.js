@@ -1,6 +1,6 @@
 // Tests for src/lib/accent.js — the extension's accent + Appearance store.
 //
-// It is loaded as a classic <script> in every extension page's <head> BEFORE lib/theme.css,
+// It is loaded as a classic <script> in every extension page's <head> BEFORE lib/theme/,
 // so the saved choice is stamped on <html> before first paint (no flash). That makes it
 // untestable by import; tests/helpers/accentSandbox.js runs it in a fabricated page instead.
 //
@@ -505,7 +505,7 @@ test('the extension and the browser deliberately use DIFFERENT storage keys', ()
 // ── On-accent ink switch ────────────────────────────────────────────────────
 // Labels and currentColor line-art sit on --accent, so the accent picks the ink that
 // reads on it: whichever of white / near-black contrasts more. accent.js flags
-// <html data-accent-light> for the dark one and lib/theme.css swaps --on-accent.
+// <html data-accent-light> for the dark one and lib/theme/palette.css swaps --on-accent.
 // Mirrors browser/tests/accentController.test.js (same rule).
 
 test('data-accent-light is stamped only for the light presets', () => {

@@ -79,7 +79,7 @@ export const renderRow = (image) => {
   name.textContent = image.name;
   setTip(name, rowTitle(image));
   // Project rows paint the name in the project's custom `color`, or a fixed neutral grey when
-  // unset. Values are inlined (not a CSS var) so a stale-cached theme.css can't blank the name.
+  // unset. Values are inlined (not a CSS var) so a stale-cached theme sheet can't blank the name.
   if (isProjectRow(image)) {
     name.style.color = projectNameColor(image.color, '#80868f');
     name.style.textShadow = '0 1px 2px rgba(0,0,0,0.55)';

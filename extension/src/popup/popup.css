@@ -1,4 +1,4 @@
-/* Palette + box-sizing reset live in ../lib/theme.css (linked first). */
+/* Palette + box-sizing reset live in ../lib/theme/ (linked first). */
 html, body {
   margin: 0; width: 400px; max-height: 600px;
   background: var(--bg); color: var(--text);
@@ -49,7 +49,7 @@ header .icon-btn + .icon-btn { margin-left: 0; }
 .regex-chk { flex: 0 0 auto; font-size: 11px; padding: 3px 7px; }
 .regex-chk code { font-size: 10px; opacity: .85; }
 .frow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-/* The .chk pill-toggle style is shared — defined once in lib/theme.css (used by both the
+/* The .chk pill-toggle style is shared — defined once in lib/theme/controls.css (used by both the
    popup chips and the options page's compact toggles). */
 .frow select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; cursor: pointer; }
 /* …and the same sizing for the custom list that replaces it (lib/customSelect.js): the
@@ -100,7 +100,7 @@ body.search-collapsed #list, body.search-collapsed #status { display: none; }
 }
 #section-peek[hidden] { display: none; }
 #section-peek .peek-title { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
-/* Format filters are the same .chk pills as the "Elements to include" chips (theme.css);
+/* Format filters are the same .chk pills as the "Elements to include" chips (lib/theme/controls.css);
    on/off is the ONLY state they show — `.absent` is carried by the tooltip alone, since
    dimming it just made the label unreadable. */
 .formats { display: flex; flex-wrap: wrap; gap: 5px; max-height: 104px; overflow-y: auto; padding: 1px; }
@@ -126,7 +126,7 @@ body.search-collapsed #list, body.search-collapsed #status { display: none; }
 /* Styled scrollbar so it's a CLASSIC (space-taking) bar, not a macOS overlay that would
    float over the row's ⋯ button. The inset thumb (transparent border + background-clip)
    leaves a gutter, so the scrollbar never touches the button. Chrome ignores these
-   ::-webkit-scrollbar rules under theme.css's app-wide scrollbar-width/color, so the
+   ::-webkit-scrollbar rules under lib/theme/palette.css's app-wide scrollbar-width/color, so the
    list opts back out of those — same colours: thumb grey, the accent on the bar strip
    (.sb-hover, lib/scrollbarHover.js) and under the thumb itself. */
 .list { scrollbar-width: auto; scrollbar-color: auto; }

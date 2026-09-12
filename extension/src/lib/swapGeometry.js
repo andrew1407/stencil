@@ -6,7 +6,7 @@
   // ── Palette swap animation (browser parity: browser/js/ui/motion.js themeSwap) ──
   // The new palette floods out of the CONTROL that changed it, as a growing circle, via
   // the native View Transitions API; without it every colour consumer gets one beat of
-  // transition instead (lib/animations.css .theme-swapping). Hand-rolled rather than
+  // transition instead (lib/animations/themeSwap.css .theme-swapping). Hand-rolled rather than
   // imported: this file is a pre-paint classic script with no module graph.
   // ONLY user-initiated changes go through it — the boot-time apply must not animate.
   var SWAP_MS = 280;   // browser parity: motion.js THEME_SWAP_MS

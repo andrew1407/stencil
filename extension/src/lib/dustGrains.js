@@ -65,7 +65,7 @@
   // Two grains in three ride that accent ramp; the rest wear a TINT off their own hash —
   // white, two greys, a pale and a deep accent (lib/dustCloud.js tintOf / stopOfTint).
   var TINT_SHARE = 0.34;
-  // Two follow the theme (lib/theme.css): a white speck cannot be seen on a pale surface,
+  // Two follow the theme (lib/theme/palette.css): a white speck cannot be seen on a pale surface,
   // nor a deep accent one on a dark surface.
   var TINT_CSS = ['var(--dust-ink, #1f1f1f)', '#b4b4b4', '#6e6e6e',
                   'color-mix(in srgb, var(--accent) 55%, #ffffff)',

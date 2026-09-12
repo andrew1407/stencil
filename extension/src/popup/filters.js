@@ -52,7 +52,7 @@ export const applyFilters = () => {
     listEl.innerHTML = '<li class="empty">No images match the filters.</li>';
   } else {
     // `.status:empty` is display:none, which can't transition — so fade it out first,
-    // then empty it (lib/animations.css .status-leaving).
+    // then empty it (lib/animations/reveal.css .status-leaving).
     clearStatus();
     // Render every matching row; thumbnails + size measurement load lazily on scroll.
     state.filtered.forEach(renderRow);

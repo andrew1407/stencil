@@ -18,7 +18,7 @@
       root._themeSwapTimer = setTimeout(function () { root.classList.remove('theme-swapping'); }, SWAP_MS);
       return;
     }
-    // Handed to the DECLARATIVE keyframes in lib/animations.css. Scripting the animation
+    // Handed to the DECLARATIVE keyframes in lib/animations/themeSwap.css. Scripting the animation
     // from ready.then() instead races the transition's own teardown — it ends as soon as
     // its pseudo-elements have no animations, so the wipe stopped half way.
     // In PERCENTAGES of the viewport, never pixels: an engine that measures the pseudo-

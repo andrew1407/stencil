@@ -4,7 +4,7 @@
 // type:'ready'|'close'}; if 'ready' never arrives (CSP/mixed-content blocked the frame),
 // drop the modal and open a tab.
 //
-// THEME: the shell can't link lib/theme.css (it lives in someone else's page), so its
+// THEME: the shell can't link lib/theme/ (it lives in someone else's page), so its
 // palette arrives as DATA — `theme` = {mode, accent, palettes, accents} from
 // lib/shellTheme.js. Never prefers-color-scheme: that frames a dark crop page in white
 // whenever the Appearance choice disagrees with the OS. The values become CSS custom
@@ -43,7 +43,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   applyTheme(t.mode, t.accent);
 
   // ── The sand (the extension's own grain, written out inline) ──
-  // The #app-tooltip mask from lib/theme.css: three coprime dot screens (4/7/11px, at
+  // The #app-tooltip mask from lib/theme/tooltip.css: three coprime dot screens (4/7/11px, at
   // different phases) dying at different rates so the specks thin out in sequence. At
   // 120% the dots overlap outright, so a settled panel is solid to the pixel. `d` is
   // 0 (settled) … 1 (dispersed).
@@ -77,7 +77,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
       letter-spacing:normal;text-transform:none;direction:ltr;}
     /* Entrance/exit: the panel FORMS OUT OF SAND and disperses again — the same grain the
-       extension's own surfaces use (lib/animations.css). It is the MASK form of the
+       extension's own surfaces use (lib/animations/reveal.css). It is the MASK form of the
        effect, not the cloned-mote form the menus play: this panel frames a live <iframe>,
        and a mote layer would mean cloning that iframe a hundred-odd times. Disabled under
        reduced-motion (block at the bottom). */
@@ -119,7 +119,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     .bar button:active{transform:translateY(1px) scale(.96);}
     .bar button svg{display:block;--ic-on:0;overflow:visible;}
     /* Per-icon hover motion for the two glyphs this shell carries, on the canonical
-       values (browser js/config/iconMotion.json, ported in lib/animations.css — this
+       values (browser js/config/iconMotion.json, ported in lib/animations/iconHover.css — this
        surface is injected and can't link it): the arrow LEAVES the box, and the cross
        is struck out one stroke at a time, because close/clear/disconnect all mean
        "make this go away". Transform / stroke-dashoffset only, so the bar can't reflow. */

@@ -2,12 +2,12 @@
 // facade the options page and the logo gestures drive it through.
 //
 // This file is the sixth of SEVEN classic <script>s (MV3 forbids inline page scripts)
-// loaded in each extension page's <head> BEFORE lib/theme.css, so the saved accent sits
+// loaded in each extension page's <head> BEFORE lib/theme/, so the saved accent sits
 // on <html data-accent="…"> before first paint — a module would be deferred and flash.
 // In order: prefs.js, swapGeometry.js, dustGrains.js, dustWake.js, themeSwap.js, this,
 // shellPrefs.js. They share one page scope through window.StencilKit; each takes what it
 // needs from it at the top and publishes what the next ones use at the bottom.
-// --accent-2 shade and glows derive from --accent via color-mix() in lib/theme.css.
+// --accent-2 shade and glows derive from --accent via color-mix() in lib/theme/palette.css.
 (function () {
   var K = window.StencilKit;
   var ACCENTS = K.ACCENTS, DEFAULT = K.DEFAULT, KEY = K.KEY, applyFavicon = K.applyFavicon, faviconSvg = K.faviconSvg;
@@ -48,7 +48,7 @@
     previewSnap = null;   // a committed change supersedes any hover preview
     document.documentElement.style.removeProperty('--accent');   // drop any custom override
     document.documentElement.setAttribute('data-accent', next);
-    // A light accent flips every on-accent label and glyph to the dark ink (lib/theme.css).
+    // A light accent flips every on-accent label and glyph to the dark ink (lib/theme/palette.css).
     applyAccentInk(hexOf(next));
     applyFavicon(k);
     mirror({ stencil_accent: next });

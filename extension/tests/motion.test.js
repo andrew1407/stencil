@@ -62,7 +62,7 @@ test('flashLanding replays on a second drop and clears itself', (t) => {
   assert.ok(!row.has('just-dropped'));
 });
 
-test('animations.css: reveal rest state, drop landing, drag cue, reduced motion', () => {
+test('animations/: reveal rest state, drop landing, drag cue, reduced motion', () => {
   const rest = css.slice(css.indexOf('.reveal-item.reveal-masked {'),
                          css.indexOf('\n}', css.indexOf('.reveal-item.reveal-masked {')));
   const base = css.slice(css.indexOf('.reveal-item {'), css.indexOf('\n}', css.indexOf('.reveal-item {')));
@@ -87,13 +87,13 @@ test('animations.css: reveal rest state, drop landing, drag cue, reduced motion'
     'reduced motion shows every row whole, mask and all');
 });
 
-test('animations.css: only the wipe drives the theme transition', () => {
+test('animations/: only the wipe drives the theme transition', () => {
   assert.match(css, /::view-transition-group\(root\) \{ animation: none; \}/,
     'the UA group default would retime the snapshots under the wipe');
 });
 
 test('popup.css keeps just-pinned distinct from the drop landing', () => {
-  const css = popupCss();   // shadows the animations.css read above
+  const css = popupCss();   // shadows the animations/ read above
   assert.ok(/\.row\.just-pinned \{ animation: stencil-pin-flash/.test(css),
     'pinning an EXISTING row keeps the plainer flash');
   // The transcript's per-entry entrance moved to the shared reveal; a leftover
@@ -194,7 +194,7 @@ test('materialize: a missing element resolves without touching anything', async 
   await materialize(null);   // must not throw — the add never depends on the animation
 });
 
-test('animations.css: materialize is the leave reversed, veil outranks keyframes', () => {
+test('animations/: materialize is the leave reversed, veil outranks keyframes', () => {
   assert.match(css, /\.materializing \{[^}]*animation: stRowMaterialize 0\.32s cubic-bezier\(0\.16, 1, 0\.3, 1\)/,
     'the box opens on one expo-out curve — 220ms of ease-out read as a pop');
   assert.match(css, /@keyframes stRowMaterialize \{\s*from \{ opacity: 0;[^}]*max-height: 0/,
@@ -383,7 +383,7 @@ test('filterLeave always runs `done` — reduced motion and a missing element in
   assert.equal(ran, 2);
 });
 
-test('animations.css: a filter drop is lighter and quicker than a delete', () => {
+test('animations/: a filter drop is lighter and quicker than a delete', () => {
   const out = css.match(/\.filter-out \{[\s\S]*?\n\}/)[0];
   const secs = (block, name) => parseFloat(block.match(new RegExp(`animation: ${name} ([\\d.]+)s`))[1]);
   const leaving = css.match(/\.leaving \{[\s\S]*?\n\}/)[0];
@@ -450,7 +450,7 @@ test('dustFitsScroller: only a whole entry inside its scroller may fly', () => {
   assert.ok(!dustFitsScroller(at(120, 200), null), 'no scroller');
 });
 
-test('animations.css: an arriving entry is VEILED, never faded up under its own dust', () => {
+test('animations/: an arriving entry is VEILED, never faded up under its own dust', () => {
   const rule = css.slice(css.indexOf('#sec-assistant .chat-transcript > .chat-entering'));
   assert.match(rule.slice(0, 400), /opacity: 0 !important;/,
     'a veil, not a keyframed fade — the entry is not seen until the motes land');

@@ -2,7 +2,7 @@
 import { scatterGridFor, surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
 
 // Themed Yes/No confirmation. The options page has no native modal of its own, so this
-// stands in for window.confirm() and matches the editor's look (theme.css vars). Resolves
+// stands in for window.confirm() and matches the editor's look (lib/theme/ vars). Resolves
 // true on Yes/Enter, false on No/Esc/backdrop click.
 // `anchor` is the button it was raised from: the box's particles fly out of that button
 // and stream back into it, the same as every menu here.

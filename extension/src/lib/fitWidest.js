@@ -14,7 +14,7 @@ export function pinToWidestOption(selectEl) {
   const restore = name.getAttribute('style') || '';
   // Out of the flex flow at max-content for the walk, so the row's own shrinking can't
   // shave a fraction off the label being measured. offsetWidth, not a client rect: this
-  // runs while the card still rides its stCardIn entrance (lib/animations.css), and a
+  // runs while the card still rides its stCardIn entrance (lib/animations/keyframes.css), and a
   // rect measured under that scale(.985) comes back a pixel short — permanently.
   name.style.cssText = 'position:absolute; visibility:hidden; width:max-content; max-width:none;';
   let widest = 0;

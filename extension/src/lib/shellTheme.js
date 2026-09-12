@@ -1,6 +1,6 @@
 // ── Theme for the INJECTED in-page modal shell ──────────────────────────────
 // lib/overlay.js mounts the crop / editor modal into an arbitrary web page, so it can't
-// link lib/theme.css — it gets its palette handed to it as DATA. accent.js mirrors the
+// link lib/theme/ — it gets its palette handed to it as DATA. accent.js mirrors the
 // choice into chrome.storage.local, readable from a page OR the service worker.
 // The MODE travels unresolved ('system' included): only the target page can answer what
 // the OS prefers, so the injected shell resolves it with its own matchMedia.
@@ -11,7 +11,7 @@ import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from './highlightColor.js'
 export const THEME_STORAGE_KEY = 'stencil_theme';
 export const THEME_MODES = ['system', 'light', 'dark'];
 
-// The two palettes, lifted verbatim from lib/theme.css — the shell must look like the
+// The two palettes, lifted verbatim from lib/theme/palette.css — the shell must look like the
 // extension's own chrome, and the framed page inside it uses exactly these values.
 export const SHELL_PALETTES = {
   dark: { bg: '#21242d', panel: '#2b2f3a', panel2: '#343948', line: '#3d4354', text: '#e8eaf0', muted: '#9aa0b0' },

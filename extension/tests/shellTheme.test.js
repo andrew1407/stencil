@@ -26,7 +26,7 @@ test('an explicit choice wins; only "system" asks the OS', () => {
   assert.equal(resolveShellMode('nonsense', false), 'light');
 });
 
-test('the palettes are the two lib/theme.css palettes, and they really differ', () => {
+test('the palettes are the two lib/theme/palette.css palettes, and they really differ', () => {
   const keys = ['bg', 'panel', 'panel2', 'line', 'text', 'muted'];
   for (const mode of ['dark', 'light']) {
     assert.deepEqual(Object.keys(SHELL_PALETTES[mode]).sort(), [...keys].sort());

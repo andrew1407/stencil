@@ -404,7 +404,7 @@ test('options page: row action buttons read as enabled at rest, disabled only wh
   assert.match(html, /\.pin-btn \{[^}]*background:color-mix\(in srgb, var\(--btn-ink\) \d+%, var\(--panel\)\)/);
   assert.match(html, /\.pin-btn \{[^}]*color:var\(--btn-ink\)/);
   assert.match(html, /\.pin-btn \{[^}]*border:1px solid color-mix\(in srgb, var\(--btn-ink\)/);
-  // Dark borrows the lighter accent shade, like the .chk pills in lib/theme.css.
+  // Dark borrows the lighter accent shade, like the .chk pills in lib/theme/controls.css.
   assert.match(html, /:root\[data-theme="dark"\] \{ --btn-ink:var\(--accent-2\)/);
   // Hover is the enhancement (full accent fill) and never fires on a disabled button.
   assert.match(html, /\.pin-btn:hover:not\(:disabled\) \{[^}]*background:var\(--accent\)/);
