@@ -1,16 +1,8 @@
-// ── Editor bridge content script ────────────────────────────────────────────
-// Injected ONLY into the configured Stencil editor origin (registered in background.js
-// from the editorUrl setting). SAME-ORIGIN with the editor, so it can read the editor's
-// project registry from localStorage (unreachable cross-origin from popup/SW). Reports
-// that registry to the SW, which prunes the opened-images ledger for deleted projects
-// (background.js → pruneLedger).
-// READ-ONLY on the editor: never writes the registry or any project (can't create,
-// duplicate, or renumber); only lets the extension drop stale "opened" badges — the
-// editor app stays the sole source of truth.
-// It is also editor mode's relay in BOTH directions — the extension asking this page for
-// state/import/switch, and the page's own `stencil.extension` asking the SW — still without
-// writing anything: every editor mutation goes through the page's own app methods.
-// Self-contained (no imports); the guard stops a second inject rebinding the listeners.
+// Editor bridge, injected only into the configured editor origin (registered from the editorUrl
+// setting). Same-origin, so it reads the editor's project registry from localStorage for the SW
+// (pruneLedger). READ-ONLY on the editor: never writes the registry or a project — every editor
+// mutation goes through the page's own app methods. Also editor mode's relay in both
+// directions. Classic script — no import; the guard stops a second inject.
 (() => {
   if (window.__stencilEditorBridge) return;
   window.__stencilEditorBridge = true;
@@ -50,20 +42,16 @@
     }
   };
 
-  // Report once on load, then on every registry change. The editing tab fires
-  // `stencil:registry-changed` (TabsCoordinator.projectsChanged); the `storage` event
-  // covers OTHER editor tabs (storage fires in every same-origin document except the
-  // one that wrote it).
+  // `stencil:registry-changed` covers the editing tab; the `storage` event covers OTHER editor
+  // tabs (it fires in every same-origin document except the one that wrote).
   publishRegistry();
   window.addEventListener('stencil:registry-changed', publishRegistry);
   window.addEventListener('storage', (e) => {
     if (!e || e.key == null || e.key === REGISTRY_KEY) publishRegistry();
   });
 
-  // Editor → extension UNPIN relay. When a project's image changes, the editor app posts a
-  // same-window message; forward it to the SW as a PAGE_PIN with pin:false (which removes the
-  // pin via setPinned/removePinEntry). `resource` is required so the SW computes the right
-  // (site, source) pin key — the editor passes the OLD image's source/resource.
+  // Editor → extension UNPIN relay, as a PAGE_PIN with pin:false. `resource` is required so the
+  // SW computes the (site, source) pin key — the editor passes the OLD image's.
   window.addEventListener('message', (e) => {
     if (e.source !== window) return;                       // same-document page → bridge only
     const m = e && e.data;
@@ -79,10 +67,8 @@
     }
   });
 
-  // Extension → editor RESUME relay. The panel found this tab already open and wants it to
-  // switch to the project for a source (instead of spawning a new tab). We're same-origin,
-  // so a DOM CustomEvent reaches the editor page's own listener, which calls switchToProject
-  // — still never writing the registry ourselves.
+  // Extension → editor RESUME relay: a DOM CustomEvent reaches the editor's own listener
+  // (switchToProject) — never writing the registry ourselves.
   chrome.runtime.onMessage?.addListener((msg) => {
     if (!msg || msg.type !== MSG.EDITOR_SWITCH) return;
     try {
@@ -94,17 +80,14 @@
     }
   });
 
-  // ── Extension → editor page (request/response) ──────────────────────────────
-  // Unlike everything above these WAIT: an id-tagged EXT_REQ to js/core/extensionBridge.js,
-  // answered EXT_RES. Capped — an editor build without that module never replies at all.
+  // Request/response: an id-tagged EXT_REQ to js/core/extensionBridge.js, answered EXT_RES.
+  // Capped — an editor build without that module never replies at all.
   const PAGE_TIMEOUT_MS = 1500;
   const PAGE_SILENT = 'the editor page did not answer';
-  const pending = new Map();   // request id → settle fn; deleted on the first answer, so a late
-                               // EXT_RES arriving after the timeout is dropped, not re-entered.
+  const pending = new Map();   // request id → settle fn; deleted on the first answer, so a late EXT_RES is dropped
   let seq = 0;
 
-  // One round-trip to the page. Always RESOLVES (`{ok…}`): every caller turns it straight into
-  // a sendResponse, and a rejection would strand the port with no reply.
+  // Always RESOLVES ({ok…}): a rejection would strand the port with no reply.
   const pageRequest = (request, payload) => new Promise((resolve) => {
     const id = `ext-${++seq}-${Date.now()}`;
     const settle = (reply) => { clearTimeout(timer); pending.delete(id); resolve(reply); };
@@ -128,11 +111,9 @@
 
   // `import` and `switch` both answer with the project they landed on; the page owns the ids.
   const projectReply = (r) => (r.ok ? { ok: true, projectId: r.result.projectId || '', projectName: r.result.projectName || '' } : r);
-  // One handler per request/response type. Import/switch reach a content script only on the
-  // SW→bridge hop, which carries `payload` and no `tabId` — the transport picked the tab.
+  // Import/switch reach a content script only on the SW→bridge hop: `payload`, no `tabId`.
   const pageHandlers = {
-    // thumbMax only rides along when a caller asked for one (the hover magnifier), so the
-    // ordinary state request stays the same two-field payload the page has always seen.
+    // thumbMax rides along only when asked for (the hover magnifier).
     [MSG.EDITOR_STATE]: (msg) => pageRequest('state', msg.thumbMax
       ? { thumbnail: msg.thumbnail !== false, thumbMax: msg.thumbMax }
       : { thumbnail: msg.thumbnail !== false })
@@ -149,14 +130,10 @@
     return true;   // answering asynchronously — keep the port open
   });
 
-  // ── Editor page (stencil.extension) → extension ─────────────────────────────
-  // MAIN-world calls arrive as id-tagged EXT_API messages; we relay to the SW and answer on
-  // EXT_API_RES. Any page script can post here, so the relayable types are a WHITELIST.
-  // The whitelist bounds message TYPES, not senders — `e.source === window` only proves
-  // same-document, so any script on the editor origin (an XSS included) can post here, and
-  // some relayable types are privileged (SCAN_TAB, SOURCE_TABS). So the relay also rides on
-  // `editorPageApi`, the toggle governing the page API it serves. Everything above is
-  // unaffected: that is how the popup imports into an open editor.
+  // Editor page (stencil.extension) → extension: id-tagged EXT_API, answered EXT_API_RES. The
+  // relayable types are a WHITELIST — `e.source === window` only proves same-document, so any
+  // script on the editor origin (an XSS included) can post here, and some types are privileged
+  // (SCAN_TAB, SOURCE_TABS). So the relay also rides on the `editorPageApi` toggle.
   let pageApiEnabled = false;
   const readPageApiSetting = () => {
     try {
@@ -182,8 +159,7 @@
   ]);
   const GONE = 'extension is not available';
   const PAGE_API_OFF = 'the editor page API is turned off in the extension options';
-  // No id = a fire-and-forget call (PAGE_OPEN / PAGE_CROP, whose SW handlers never respond):
-  // relay it and stay quiet rather than post an answer nobody is waiting for.
+  // No id = fire-and-forget (PAGE_OPEN / PAGE_CROP never respond): relay and stay quiet.
   const answerApi = (id, reply) => { if (id != null) window.postMessage({ source: SRC.EXT_API_RES, id, ...reply }, '*'); };
 
   window.addEventListener('message', (e) => {
@@ -193,8 +169,7 @@
     if (!pageApiEnabled) { answerApi(d.id, { ok: false, error: PAGE_API_OFF }); return; }
     const m = d.message;
     if (!RELAYABLE.has(m.type)) { answerApi(d.id, { ok: false, error: 'unknown request' }); return; }
-    // "This tab's state" never leaves the page: EDITOR_STATE with no tabId is answered by our
-    // own round-trip (that is what `stencil.extension.current` reads).
+    // EDITOR_STATE with no tabId is answered by our own round-trip (`stencil.extension.current`).
     if (m.type === MSG.EDITOR_STATE && m.tabId == null) {
       pageRequest('state', { thumbnail: m.thumbnail !== false })
         .then((r) => answerApi(d.id, r.ok ? { ok: true, result: { ok: true, state: r.result } } : { ok: false, error: r.error }));
@@ -212,8 +187,7 @@
       (res) => {
         // No receiver / a worker that died mid-call resolves undefined (or rejects below).
         if (!res) { answerApi(d.id, { ok: false, error: GONE }); return; }
-        // The response's own `ok` rides in the envelope; `result` carries it whole either way,
-        // so a refusal keeps its context (the occupied-editor chooser's needsChoice + state).
+        // `result` carries the response whole so a refusal keeps its context (needsChoice + state).
         answerApi(d.id, res.ok === false ? { ok: false, error: res.error || GONE, result: res } : { ok: true, result: res });
       },
       () => answerApi(d.id, { ok: false, error: GONE }),
