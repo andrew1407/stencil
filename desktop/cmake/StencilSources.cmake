@@ -217,6 +217,7 @@ set(STENCIL_GUI_SOURCES
   src/app/stencilFileSync.cpp
   src/app/stencilFileSyncWatch.cpp
   src/app/mainWindowChat.cpp
+  src/app/mainWindowChatReply.cpp
   src/app/mainWindowChatClient.cpp
   src/app/mainWindowChatSend.cpp
   src/app/mainWindowChatNotices.cpp

@@ -3,8 +3,7 @@
   "maxNewFileLines": 230,
   "files": {
     "desktop/src/app/mainWindow.cpp": 1080,
-    "desktop/src/app/mainWindow.hpp": 1241,
-    "desktop/src/app/mainWindowChat.cpp": 291,
+    "desktop/src/app/mainWindow.hpp": 1230,
     "desktop/src/app/selectedLineBar.cpp": 236,
     "desktop/src/canvas/canvasWidget.hpp": 610,
     "desktop/src/dialogs/connectDialog.cpp": 573,

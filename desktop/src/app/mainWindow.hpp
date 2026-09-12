@@ -63,6 +63,8 @@ namespace stencil::net {
 
 namespace stencil::llm {
   class QtLlmTransport;
+  class PlanTarget;
+  struct ExecResult;
   struct OpPlan;
 }
 
@@ -96,8 +98,7 @@ namespace stencil::gui {
     // restoreLast=false skips reloading the last autosaved session: a "New Incognito
     // Editor" window (and an incognito launch) begins blank.
     explicit MainWindow(QWidget* parent = nullptr, bool restoreLast = true);
-    // Out-of-line so unique_ptr members of forward-declared types are destroyed where
-    // their complete type is visible.
+    // Out-of-line, so unique_ptr members of forward-declared types see a complete type.
     ~MainWindow() override;
 
     // Desktop counterpart of the browser's URL deep-links (gui/launchOptions.hpp). Called
@@ -145,8 +146,7 @@ namespace stencil::gui {
     void syncContextActions();
     void onHoverDetail(double imageX, double imageY, const QPoint& globalPos,
                        Qt::KeyboardModifiers mods, bool immediate = false);
-    // Debounces the reveal by the target hovered (browser tooltip.js scheduleShow);
-    // `immediate` skips the wait outright.
+    // Browser tooltip.js scheduleShow; `immediate` skips the wait outright.
     void scheduleHoverShow(const QString& key, std::function<void()> revealFn, bool immediate);
     void hideHoverTooltip();
     // Layout/clipboard/image export live in DataExportController (dataExport_). pasteImage()
@@ -166,8 +166,7 @@ namespace stencil::gui {
     std::optional<bool> filterZoomAndLogo(QObject* obj, QEvent* event);
     std::optional<bool> filterCanvasViewport(QObject* obj, QEvent* event);
     std::optional<bool> filterProjectNameBar(QObject* obj, QEvent* event);
-    // One action: its shortcut, the tooltip carrying it, the window registration that makes it
-    // fire, and the anchor its dialog flies from.
+    // Its shortcut, the tooltip carrying it, the window registration, the reveal anchor.
     QAction* newAction(const QString& text, const QString& seq);
     // buildActions' phases, in call order — the menus and toolbar iterate the actions in
     // CREATION order, so these may be re-cut but never reordered.
@@ -224,8 +223,7 @@ namespace stencil::gui {
     void buildMainToolbar();
     void buildHeaderRow();         // logo, the Controls pill, the project-name group
     void buildToolSectionsRow();   // the one wrapping row of named sections below it
-    // Called before the Formula section, which takes formulaGroup_ as one of its row
-    // widgets so the pill and the inputs share a baseline.
+    // Before the Formula section, which takes formulaGroup_ as a row widget of its own.
     void buildFormulaFields();
 
     // The single wrapping tool row every cluster is appended to (support/wrapRow.hpp).
@@ -261,8 +259,7 @@ namespace stencil::gui {
     void buildDrawViewToolbar();   // row 4: Draw + View (the rows above are full)
     void buildImageInfoBar();
     QString hotkey(const QString& id, const QString& fallback) const;
-    // The canonical value ("A4"/"custom") behind the combo's display label, which carries
-    // the physical size.
+    // The canonical value ("A4"/"custom") behind the label, which carries the physical size.
     QString pageSizeValue() const;
     core::PageSize currentPageDimensions() const;
     core::Point pageCoords(double imageX, double imageY) const;
@@ -434,8 +431,7 @@ namespace stencil::gui {
     // bar, since QSS cannot express "hidden until an unrelated action, then fade out".
     void revealCanvasScrollbars();
     void scheduleScrollbarHide();
-    // The floating bar the user sees/drags (overlayScrollArea.hpp); scroll_'s own scrollbars
-    // stay the value model.
+    // overlayScrollArea.hpp; scroll_'s own scrollbars stay the value model.
     QScrollBar* canvasScrollBar(Qt::Orientation o) const;
     void openProjects();
     // Projects-dialog row icons, through the editor's own canvas/export path: the active project
@@ -467,8 +463,7 @@ namespace stencil::gui {
     void openImageInNewWindow(const QString& path, bool incognito);
     // The same two outcomes for a URL / video source, resolved asynchronously by MediaLoader.
     void openSourceHere(const QString& src, int frame, bool incognito);
-    // `crop*` carry the Open-Image dialog's quick-crop into the fresh window, which
-    // re-resolves the same source (identical pixels) and re-applies it.
+    // `crop*` carry the dialog's quick-crop in; the fresh window re-resolves and re-applies it.
     void openSourceInNewWindow(const QString& src, int frame, bool incognito,
                                bool hasPreview = false, bool cropToPage = false,
                                bool cropAlbum = false,
@@ -484,8 +479,7 @@ namespace stencil::gui {
     bool canReplaceActive() const;
     void replaceProjectImage(const QString& path, bool rename, bool keepAnnotations);
     void replaceServerOriginal(std::function<void()> done = {});
-    // Create + upload original + link the session, leave incognito, then push the layout and
-    // result. Browser parity.
+    // Create + upload original + link, leave incognito, then push the layout and result.
     void publishIncognitoToServer(const QString& serverUrl);
     bool loadLocalImageReset(const QString& path);   // resets page + provenance
     bool openProjectByName(const QString& name);     // --project; case-insensitive, first match
@@ -513,8 +507,7 @@ namespace stencil::gui {
     static void openIncognitoWindow();
     static void openProjectsWindow();
     static void openProjectWindowById(const QString& id);
-    // New Incognito Editor · Open Projects · recent projects. No-op off macOS; call after
-    // project-list changes.
+    // New Incognito Editor · Open Projects · recent projects. No-op off macOS.
     void refreshDockMenu();
     void newProjectFromCanvas();
     // With ≥1 server connected it first asks for a target (this computer vs which server);
@@ -523,8 +516,7 @@ namespace stencil::gui {
     // Persist locally, mark active, refresh, and (when announce) notify. A pathless canvas
     // (blank / remote / video frame) is written to the state dir first, so it keeps its pixels.
     void createLocalProject(const QString& name, bool announce = true, bool fromFile = false);
-    // Browser parity: the active editor is always a saved project. No-op while incognito,
-    // already bound to a project/server session, or with no image.
+    // Browser parity: the active editor is always a saved project. No-op if it already is.
     void adoptCanvasAsLocalProject();
     // createProject + upload the original, then link this session so later saves write back.
     // Browser twin: remoteSync.js createRemoteProject.
@@ -615,6 +607,13 @@ namespace stencil::gui {
     // history per the image replay rule, call the provider, then parse + execute the op plan.
     void onChatSend(const QString& text);
     void onChatReply(const stencil::llm::LlmReply& reply);
+    // Its stages. settleFailedChatReply answers the two ways a turn ends before a plan — the
+    // user stopped it, or the provider failed — and true means the turn is over.
+    bool settleFailedChatReply(const stencil::llm::LlmReply& reply, bool toastWanted);
+    void postChatReplyBubble(const stencil::llm::OpPlan& plan, bool hasWork,
+                             bool adoptAttachment);
+    void renderChatAskCard(const stencil::llm::OpPlan& plan, stencil::llm::PlanTarget& target);
+    void renderChatVariantCards(const stencil::llm::ExecResult& res, const QString& reply);
     // §7 auto-continuation: re-send once when a plan only LOADED an unseen picture.
     bool maybeContinueChat(const stencil::llm::OpPlan& plan);
     // Its plan-shape test, consulted BEFORE the reply renders, so a round-1 bubble a
@@ -636,8 +635,7 @@ namespace stencil::gui {
     // incognito. resetChatState is onChatClear minus the deletion, for restores.
     void resetChatState();
     QJsonObject buildActiveChatDoc() const;   // the §12.1 document; empty object = no chat
-    // To the local project record, or the linked server project's "chat" file kind. Called
-    // after each settled turn.
+    // To the local project record, or the linked server project's "chat" file kind.
     void persistActiveChat();
     // Seeds chatHistory_ and replays the turns into the dock + mirror. Empty doc = a fresh
     // conversation scope. Never triggers a model call, never writes.
@@ -648,8 +646,7 @@ namespace stencil::gui {
     void showChatToast(const QString& text, bool success);
     // Appends and drops the oldest beyond the 32-message bound.
     void pushChatHistory(const stencil::llm::ChatMessage& m);
-    // §7: last 32 messages, and only the current turn's images plus the single most recent
-    // prior image ride along.
+    // §7: last 32 messages; only this turn's images and the one before them ride along.
     QVector<stencil::llm::ChatMessage> wireChatMessages() const;
     // Remembers it as the current video input and extracts a preview frame as an image
     // attachment; a server-linked session is also offered the §8 "video" upload.
@@ -670,8 +667,7 @@ namespace stencil::gui {
     // Blocks until MediaLoader resolves, so a plan's next action edits the loaded picture
     // instead of racing it. Shared by the openUrl and openFile ops; *why gets its reason.
     bool chatLoadSource(const QString& src, bool incognito, QString* why);
-    // The attachment being worked on (file name minus extension), else the editor's own
-    // project/image name.
+    // The attachment being worked on, else the editor's own project/image name.
     QString chatSaveBaseName(const QString& requested) const;
     // `wanted`, else "wanted 2", "wanted 3"… — a batch of saves routinely wants the same
     // base, and project names are unique.
@@ -746,8 +742,7 @@ namespace stencil::gui {
     // Every picture that appears assembles the same way, drop or not — browser drawingApp.js,
     // any non-in-place load (.canvas-container.drop-landing).
     void playImageArrival();
-    // First-show window-opacity ramp, the browser container's appReveal. Runs once; later
-    // shows are instant.
+    // First-show window-opacity ramp (browser appReveal). Runs once; later shows are instant.
     void showEvent(QShowEvent* event) override;
     // Persists the window/dock state. Closing is immediate on every path — no confirmation
     // modal, a deliberate decision.
@@ -812,8 +807,7 @@ namespace stencil::gui {
     bool tearingDown_ = false;   // set in ~MainWindow: ignore late child signals
 
     UnitsController units_;   // app/unitsController.hpp
-    // The QWidgetAction handle (…Act_) is toggled, not the widget, so the toolbar
-    // re-lays-out and makes room for the inputs.
+    // The QWidgetAction handle (…Act_) is toggled, not the widget, so the row re-lays-out.
     QCheckBox* allowFormulas_ = nullptr;
     QWidget* formulaGroup_ = nullptr;
     QLineEdit* formulaX_ = nullptr;
@@ -928,8 +922,7 @@ namespace stencil::gui {
     int execMaybePopover(QDialog& dlg, QAction* opener = nullptr);
     // Rejects it and lets the overlay's own collapse animation carry it out.
     void dismissPopover();
-    // The popover is a child widget of this window, so its own frameGeometry() is not a screen
-    // rect; the hosting overlay's is.
+    // The popover is this window's child, so its frameGeometry() is not a screen rect.
     QRect popoverRectGlobal() const;
     // ONE rule for "a press landed while a popover is open", shared by the app-wide filter (the
     // presses Qt delivers) and the popover's poll (the ones a modal exec() makes the platform
@@ -964,8 +957,7 @@ namespace stencil::gui {
     void startFullscreenZoom();         // run once the new viewport size is in
     // The browser's --coord-panel-default (css/layout.css).
     static constexpr int kPanelDefaultWidth = 405;
-    // The coordinate columns turn into "…" below this; browser .coordinates-panel holds the
-    // same floor (css min-width: 240px).
+    // The coordinate columns elide below this; browser .coordinates-panel has the same floor.
     static constexpr int kPanelMinWidth = 240;
     int panelRestoreWidth_ = kPanelDefaultWidth;   // remembered width for the expand animation
     QVariantAnimation* panelAnim_ = nullptr;
@@ -1156,8 +1148,7 @@ namespace stencil::gui {
     // Promoted to current* in onLaunchImageLoaded() once the async load succeeds.
     QString pendingProvSource_;
     QString pendingProvResource_;
-    // The Open dialog's "Save to" server, consumed once by adoptCanvasAsLocalProject;
-    // empty = this computer.
+    // The Open dialog's "Save to" server, consumed once; empty = this computer.
     QString pendingServerTarget_;
     // Set by openLinks, consumed once in onLaunchImageLoaded. Browser linksModal load opts:
     // Auto = the default page-aspect auto-crop, Page = crop to `page`, None = the full frame.
@@ -1173,8 +1164,7 @@ namespace stencil::gui {
     // refreshers replay onHovered(lastHoverX_, lastHoverY_) into an otherwise empty readout.
     double lastHoverX_ = std::numeric_limits<double>::quiet_NaN();
     double lastHoverY_ = std::numeric_limits<double>::quiet_NaN();
-    // What styleActionIcons last rasterized in, so live handlers can re-icon a widget in the
-    // current theme colour without recomputing the palette.
+    // What styleActionIcons last rasterized in, so a live handler can re-icon without the palette.
     QColor iconColor_{Qt::black};
     // Guards the one-shot first-show fade (see showEvent).
     bool firstShow_ = true;
@@ -1203,8 +1193,7 @@ namespace stencil::gui {
     // Turns whose rendered pixels are unchanged reuse the previous downscale + PNG + base64.
     QByteArray chatImageDigest_;
     stencil::llm::ChatImage chatImageEncoded_;
-    // §7 edge map (contour render of the snapshot): wire-only for the current turn, never
-    // pushed to chatHistory_, so never replayed or persisted.
+    // §7 edge map: wire-only for this turn, never pushed to chatHistory_ and so never replayed.
     stencil::llm::ChatImage chatEdgeMapEncoded_;
     QWidget* chatToast_ = nullptr;   // ChatToast in the .cpp, objectName "chatToast"
     // ChatMenuPanel in the .cpp. The ACTION is parented to the window, not the menu, so it
