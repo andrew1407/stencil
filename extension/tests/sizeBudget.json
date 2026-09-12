@@ -28,6 +28,7 @@
     "extension/tests/chatMsgMenu.test.js": 346,
     "extension/tests/connections.test.js": 496,
     "extension/tests/contextMenu.test.js": 284,
+    "extension/tests/dts.test.js": 238,
     "extension/tests/editorApiMain.test.js": 278,
     "extension/tests/editorBridge.test.js": 265,
     "extension/tests/editorTabs.test.js": 289,
