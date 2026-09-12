@@ -54,7 +54,7 @@ public sealed class PromptTurnChromeTests : PromptHandlerTestBase
     public async Task ARefusalCarriesNoRetryButton()
     {
         await Dispatch("/blank");
-        _llm.Throw = new LlmException("The AI declined to answer that.", LlmFailure.Refusal);
+        _llm.Throw = new LlmException("The AI declined to answer that.", LlmFailure.REFUSAL);
 
         await Dispatch("/prompt do something forbidden");
 
@@ -89,7 +89,7 @@ public sealed class PromptTurnChromeTests : PromptHandlerTestBase
     public async Task TheWaitNoticeIsRemovedWhenTheTurnFailsToo()
     {
         await Dispatch("/blank");
-        _llm.Throw = new LlmException("The AI service timed out.", LlmFailure.Error);
+        _llm.Throw = new LlmException("The AI service timed out.", LlmFailure.ERROR);
         int before = _bot.Requests.Count;
 
         await Dispatch("/prompt do everything");

@@ -109,14 +109,14 @@ public static partial class CropSpecResolver
         {
             return null;
         }
-        if (t.Kind == LengthKind.Delta)
+        if (t.Kind == LengthKind.DELTA)
         {
             return currentPx + t.Value;
         }
         double px = t.Kind switch
         {
-            LengthKind.Px => t.Value,
-            LengthKind.Cm => t.Value * pxPerCm,
+            LengthKind.PX => t.Value,
+            LengthKind.CM => t.Value * pxPerCm,
             _ => t.Value / 100.0 * lengthPx,   // percent
         };
         return t.FromEnd ? lengthPx - px : px;
@@ -181,12 +181,12 @@ public static partial class CropSpecResolver
         }
         return s[i..] switch
         {
-            "%" => new LengthToken(LengthKind.Percent, value, fromEnd),
-            "cm" => new LengthToken(LengthKind.Cm, value, fromEnd),
-            "mm" => new LengthToken(LengthKind.Cm, value / 10.0, fromEnd),
-            "in" => new LengthToken(LengthKind.Cm, value * _cmPerInch, fromEnd),
-            "px" => new LengthToken(LengthKind.Px, value, fromEnd),
-            "" => new LengthToken(LengthKind.Delta, fromEnd ? -value : value, false),
+            "%" => new LengthToken(LengthKind.PERCENT, value, fromEnd),
+            "cm" => new LengthToken(LengthKind.CM, value, fromEnd),
+            "mm" => new LengthToken(LengthKind.CM, value / 10.0, fromEnd),
+            "in" => new LengthToken(LengthKind.CM, value * _cmPerInch, fromEnd),
+            "px" => new LengthToken(LengthKind.PX, value, fromEnd),
+            "" => new LengthToken(LengthKind.DELTA, fromEnd ? -value : value, false),
             _ => null,   // unknown unit suffix
         };
     }

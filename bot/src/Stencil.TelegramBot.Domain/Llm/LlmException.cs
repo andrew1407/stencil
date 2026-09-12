@@ -2,15 +2,15 @@ namespace Stencil.TelegramBot.Domain.Llm;
 
 public enum LlmFailure
 {
-    Error,
+    ERROR,
 
     // Stopped on max_tokens; truncated text is never parsed as a plan.
-    Truncated,
+    TRUNCATED,
 
-    Refusal,
+    REFUSAL,
 
     // The server's 503 llmDisabled: no key configured, so a configure hint, not a broken call.
-    Disabled,
+    DISABLED,
 }
 
 // The message is surfaced verbatim in chat; Failure keeps §6.3's stop reasons apart from errors.
@@ -18,7 +18,7 @@ public sealed class LlmException : Exception
 {
     public LlmFailure Failure { get; }
 
-    public LlmException(string message, LlmFailure failure = LlmFailure.Error)
+    public LlmException(string message, LlmFailure failure = LlmFailure.ERROR)
         : base(message)
     {
         Failure = failure;

@@ -59,7 +59,7 @@ public sealed class ServerRemintWireTests
         // …so the credential is now known to be an admin token, and the next handshake says so.
         ServerHandshake handshake = await client.ConnectAsync("cred");
         Assert.Equal("fresh", handshake.Token);
-        Assert.Equal(CredentialKind.Admin, handshake.CredentialKind);
+        Assert.Equal(CredentialKind.ADMIN, handshake.CredentialKind);
     }
 
     [Fact]

@@ -17,11 +17,11 @@ public static partial class Replies
 
     // Asked for and delivered, so a notice, never an error; ops already applied stay (/undo walks
     // them back).
-    public static string PromptStopped() => Tag(Tone.Notice, BotStrings.Reply("promptStopped"));
+    public static string PromptStopped() => Tag(Tone.NOTICE, BotStrings.Reply("promptStopped"));
 
-    public static string PromptStopping() => Tag(Tone.Notice, BotStrings.Reply("promptStopping"));
+    public static string PromptStopping() => Tag(Tone.NOTICE, BotStrings.Reply("promptStopping"));
 
-    public static string ChatApiNoProfiles() => Tag(Tone.Notice, BotStrings.Reply("chatApiNoProfiles"));
+    public static string ChatApiNoProfiles() => Tag(Tone.NOTICE, BotStrings.Reply("chatApiNoProfiles"));
 
     public static string ChatApiList(IReadOnlyList<LlmProfile> profiles, LlmProfile? current)
     {
@@ -37,10 +37,10 @@ public static partial class Replies
     }
 
     public static string ChatApiSelected(LlmProfile picked) =>
-        Tag(Tone.Success, BotStrings.Reply("chatApiSelected", picked.Label, picked.Summary()));
+        Tag(Tone.SUCCESS, BotStrings.Reply("chatApiSelected", picked.Label, picked.Summary()));
 
     public static string ChatApiUnknown(string wanted, IReadOnlyList<LlmProfile> profiles) => Tag(
-        Tone.Error, BotStrings.Reply("chatApiUnknown", wanted, string.Join(", ", profiles.Select(p => p.Name))));
+        Tone.ERROR, BotStrings.Reply("chatApiUnknown", wanted, string.Join(", ", profiles.Select(p => p.Name))));
 
     // Sent at the END of the plan's turn — the model can ask, but only the user's Yes button clears
     // anything.
@@ -61,7 +61,7 @@ public static partial class Replies
     public static string ChatRestored(int count) =>
         BotStrings.Reply(count == 1 ? "chatRestoredOne" : "chatRestoredMany", count);
 
-    public static string ChatSaveFailed() => Tag(Tone.Warning, BotStrings.Reply("chatSaveFailed"));
+    public static string ChatSaveFailed() => Tag(Tone.WARNING, BotStrings.Reply("chatSaveFailed"));
 
     public static string SourcesHelp() => BotStrings.Reply("sourcesHelp");
 

@@ -61,7 +61,7 @@ public sealed class PromptLlmGateTests : IDisposable
             () => service.PromptAsync(_userId + 1, "two", null));
 
         Assert.Equal(PromptService.BUSY_REPLY, busy.Message);
-        Assert.Equal(LlmFailure.Error, busy.Failure); // not a refusal ⇒ the caller offers Retry
+        Assert.Equal(LlmFailure.ERROR, busy.Failure); // not a refusal ⇒ the caller offers Retry
         Assert.Single(_llm.Requests);                 // the busy turn never reached the model
         hold.SetResult();
         Assert.Equal("ok", (await first).Reply);

@@ -13,7 +13,7 @@ public static partial class CropSpecResolver
     private const double _a4ShortCm = 21.0;
     private const double _a4LongCm = 29.7;
 
-    private enum LengthKind { Px, Cm, Percent, Delta }
+    private enum LengthKind { PX, CM, PERCENT, DELTA }
 
     private readonly record struct LengthToken(LengthKind Kind, double Value, bool FromEnd);
 

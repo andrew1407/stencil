@@ -157,7 +157,7 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(
             chatId,
             // Already opens with its own glyph — Tag leaves it alone rather than stacking ✅ on 🗑.
-            Replies.Tag(Replies.Tone.Success, $"🗑 Removed '{removed}' from the server."),
+            Replies.Tag(Replies.Tone.SUCCESS, $"🗑 Removed '{removed}' from the server."),
             replyMarkup: Keyboards.MainMenu(),
             cancellationToken: ct);
     }

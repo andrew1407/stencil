@@ -10,18 +10,17 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 public static partial class Replies
 {
     // Telegram has no icon assets, so the vocabulary is emoji — the same one the buttons speak.
-    public enum Tone
+    public enum Tone { ERROR, WARNING, SUCCESS, NOTICE }
+
+    // The botStrings.json "tones" keys.
+    private static readonly Dictionary<Tone, string> _toneKeys = new()
     {
-        Error,
+        [Tone.ERROR] = "Error", [Tone.WARNING] = "Warning", [Tone.SUCCESS] = "Success", [Tone.NOTICE] = "Notice",
+    };
 
-        Warning,
+    public static string ToneKey(Tone tone) => _toneKeys[tone];
 
-        Success,
-
-        Notice,
-    }
-
-    public static string Glyph(Tone tone) => BotStrings.Tone(tone.ToString());
+    public static string Glyph(Tone tone) => BotStrings.Tone(ToneKey(tone));
 
     // A message that already opens with a glyph of its own keeps it: one glyph per message, never
     // two.

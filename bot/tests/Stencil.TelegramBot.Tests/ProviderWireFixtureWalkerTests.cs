@@ -160,11 +160,11 @@ public sealed class ProviderWireFixtureWalkerTests
         string kindName = expect.GetProperty("kind").GetString()!;
         LlmFailure? want = kindName switch
         {
-            "truncated" => LlmFailure.Truncated,
-            "refusal" => LlmFailure.Refusal,
-            "disabled" => LlmFailure.Disabled,
-            "badReply" => LlmFailure.Error,
-            "http" => LlmFailure.Error,
+            "truncated" => LlmFailure.TRUNCATED,
+            "refusal" => LlmFailure.REFUSAL,
+            "disabled" => LlmFailure.DISABLED,
+            "badReply" => LlmFailure.ERROR,
+            "http" => LlmFailure.ERROR,
             _ => null,
         };
         if (want is null)

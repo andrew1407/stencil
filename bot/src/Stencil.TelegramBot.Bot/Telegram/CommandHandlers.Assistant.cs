@@ -66,14 +66,14 @@ public sealed partial class CommandHandlers
             await working.StopAsync(); // the notice goes before the failure it was covering
             // A refusal is the model's answer, not a failed call — re-sending it verbatim would
             // just repeat it.
-            bool retryable = ex.Failure != LlmFailure.Refusal;
+            bool retryable = ex.Failure != LlmFailure.REFUSAL;
             if (retryable)
             {
                 await rememberForRetryAsync(userId, text, ct);
             }
             await _bot.SendMessage(
                 chatId,
-                Replies.Tag(Replies.Tone.Error, ex.Message),
+                Replies.Tag(Replies.Tone.ERROR, ex.Message),
                 replyMarkup: retryable ? Keyboards.RetryPrompt() : null,
                 cancellationToken: ct);
             return;
@@ -92,7 +92,7 @@ public sealed partial class CommandHandlers
         if (outcome.Warnings.Count > 0)
         {
             reply += "\n\n" + string.Join("\n",
-                outcome.Warnings.Select(w => Replies.Tag(Replies.Tone.Warning, w)));
+                outcome.Warnings.Select(w => Replies.Tag(Replies.Tone.WARNING, w)));
         }
         await _bot.SendMessage(chatId, reply, cancellationToken: ct);
         // The SAME render-and-send path every slash command uses, so a synced project auto-uploads.

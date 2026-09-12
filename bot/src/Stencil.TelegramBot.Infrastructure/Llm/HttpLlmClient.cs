@@ -116,7 +116,7 @@ public sealed class HttpLlmClient : ILlmClient
         }
         return new LlmException(
             detail.Length == 0 ? $"The LLM endpoint answered HTTP {status}." : detail,
-            disabled ? LlmFailure.Disabled : LlmFailure.Error);
+            disabled ? LlmFailure.DISABLED : LlmFailure.ERROR);
     }
 
     public const int MAX_PROVIDER_DETAIL = 200;

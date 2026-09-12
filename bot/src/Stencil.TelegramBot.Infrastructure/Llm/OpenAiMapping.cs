@@ -61,7 +61,7 @@ internal sealed class OpenAiMapping : IProviderMapping
             case "length":
                 throw ProviderReply.Truncated();
             case "content_filter":
-                throw new LlmException("The AI declined the request (content filter).", LlmFailure.Refusal);
+                throw new LlmException("The AI declined the request (content filter).", LlmFailure.REFUSAL);
         }
         return new LlmReply(ProviderReply.MessageContent(choice)
             ?? throw new LlmException("malformed response (no choices[0].message.content)"));

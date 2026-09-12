@@ -68,7 +68,7 @@ public sealed partial class CommandHandlers
         }
         await _bot.SendMessage(
             chatId,
-            Replies.Tag(Replies.Tone.Success, $"Scraped {result.Files.Count} file(s) from {host}."),
+            Replies.Tag(Replies.Tone.SUCCESS, $"Scraped {result.Files.Count} file(s) from {host}."),
             cancellationToken: ct);
     }
 

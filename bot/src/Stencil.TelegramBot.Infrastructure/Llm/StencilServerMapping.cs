@@ -67,7 +67,7 @@ internal sealed class StencilServerMapping : IProviderMapping
             case "refusal":
                 throw new LlmException(
                     string.IsNullOrEmpty(text) ? "The AI declined the request." : $"The AI declined: {text}",
-                    LlmFailure.Refusal);
+                    LlmFailure.REFUSAL);
         }
         return new LlmReply(text ?? throw new LlmException("malformed server response (no text)"));
     }

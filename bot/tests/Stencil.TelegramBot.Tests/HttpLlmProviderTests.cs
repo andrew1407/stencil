@@ -49,7 +49,7 @@ public sealed class HttpLlmProviderTests
         HttpLlmClient client = Client(handler, new LlmOptions());
 
         LlmException ex = await Assert.ThrowsAsync<LlmException>(() => client.ChatAsync(Request()));
-        Assert.Equal(LlmFailure.Truncated, ex.Failure);
+        Assert.Equal(LlmFailure.TRUNCATED, ex.Failure);
     }
 
     // ── openai-compat (§6.2) ──
@@ -100,8 +100,8 @@ public sealed class HttpLlmProviderTests
     }
 
     [Theory]
-    [InlineData("length", LlmFailure.Truncated)]
-    [InlineData("content_filter", LlmFailure.Refusal)]
+    [InlineData("length", LlmFailure.TRUNCATED)]
+    [InlineData("content_filter", LlmFailure.REFUSAL)]
     public async Task OpenAiCompatMapsFinishReasonsToFailures(string finishReason, LlmFailure expected)
     {
         CannedHttpMessageHandler handler = new((_, _) =>

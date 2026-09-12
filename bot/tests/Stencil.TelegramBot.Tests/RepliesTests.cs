@@ -16,10 +16,10 @@ public sealed class RepliesTests
     // ── tones ──
 
     [Theory]
-    [InlineData(Replies.Tone.Error, "🔴")]
-    [InlineData(Replies.Tone.Warning, "🟡")]
-    [InlineData(Replies.Tone.Success, "✅")]
-    [InlineData(Replies.Tone.Notice, "ℹ️")]
+    [InlineData(Replies.Tone.ERROR, "🔴")]
+    [InlineData(Replies.Tone.WARNING, "🟡")]
+    [InlineData(Replies.Tone.SUCCESS, "✅")]
+    [InlineData(Replies.Tone.NOTICE, "ℹ️")]
     public void EachToneHasItsOwnGlyph(Replies.Tone tone, string expected)
     {
         Assert.Equal(expected, Replies.Glyph(tone));
@@ -31,10 +31,10 @@ public sealed class RepliesTests
     {
         string[] glyphs =
         [
-            Replies.Glyph(Replies.Tone.Error),
-            Replies.Glyph(Replies.Tone.Warning),
-            Replies.Glyph(Replies.Tone.Success),
-            Replies.Glyph(Replies.Tone.Notice),
+            Replies.Glyph(Replies.Tone.ERROR),
+            Replies.Glyph(Replies.Tone.WARNING),
+            Replies.Glyph(Replies.Tone.SUCCESS),
+            Replies.Glyph(Replies.Tone.NOTICE),
         ];
 
         Assert.Equal(glyphs.Length, glyphs.Distinct().Count());
@@ -48,16 +48,16 @@ public sealed class RepliesTests
     [InlineData("🟡 already a warning")]
     public void TagNeverStacksASecondGlyph(string message)
     {
-        Assert.Equal(message, Replies.Tag(Replies.Tone.Success, message));
-        Assert.Equal(message, Replies.Tag(Replies.Tone.Error, message));
+        Assert.Equal(message, Replies.Tag(Replies.Tone.SUCCESS, message));
+        Assert.Equal(message, Replies.Tag(Replies.Tone.ERROR, message));
     }
 
     [Fact]
     public void PlainTextStillGetsItsGlyph()
     {
-        Assert.Equal("🔴 Nope.", Replies.Tag(Replies.Tone.Error, "Nope."));
+        Assert.Equal("🔴 Nope.", Replies.Tag(Replies.Tone.ERROR, "Nope."));
         // Punctuation is not a glyph — only a leading symbol rune counts as one.
-        Assert.StartsWith("🟡 —", Replies.Tag(Replies.Tone.Warning, "— careful"));
+        Assert.StartsWith("🟡 —", Replies.Tag(Replies.Tone.WARNING, "— careful"));
     }
 
     // ── the colour dot: hex → nearest coloured circle (Telegram can't tint text) ──

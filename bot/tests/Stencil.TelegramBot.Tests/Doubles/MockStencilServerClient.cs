@@ -39,8 +39,8 @@ public sealed class MockStencilServerClient : IStencilServerClient
     public string? LastConnectToken { get; private set; }
 
     /// <summary>The credential kind <see cref="ConnectAsync"/> reports for a supplied token
-    /// (a tokenless connect always reports <see cref="CredentialKind.None"/>).</summary>
-    public CredentialKind HandshakeKind { get; set; } = CredentialKind.Session;
+    /// (a tokenless connect always reports <see cref="CredentialKind.NONE"/>).</summary>
+    public CredentialKind HandshakeKind { get; set; } = CredentialKind.SESSION;
 
     /// <summary>Every <see cref="PutFileAsync"/> call, in order.</summary>
     public List<(string Id, string Kind, byte[] Data, string Ext, int W, int H)> Puts { get; } = new();
@@ -81,7 +81,7 @@ public sealed class MockStencilServerClient : IStencilServerClient
         bool anonymous = string.IsNullOrEmpty(token);
         LastConnectToken = anonymous ? MintedToken : token;
         return Task.FromResult(new ServerHandshake(
-            LastConnectToken!, anonymous ? CredentialKind.None : HandshakeKind));
+            LastConnectToken!, anonymous ? CredentialKind.NONE : HandshakeKind));
     }
 
     /// <inheritdoc />

@@ -47,7 +47,7 @@ public sealed class AccessGate
         }
         await _bot.SendMessage(
             chatId,
-            Replies.Tag(Replies.Tone.Error, _options.AllowedUsers.Count == 0
+            Replies.Tag(Replies.Tone.ERROR, _options.AllowedUsers.Count == 0
                 ? "This bot isn't accepting requests."
                 : "This bot isn't enabled for your account."),
             cancellationToken: ct);

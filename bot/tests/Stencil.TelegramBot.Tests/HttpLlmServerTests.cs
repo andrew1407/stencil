@@ -48,8 +48,8 @@ public sealed class HttpLlmServerTests
     }
 
     [Theory]
-    [InlineData("max_tokens", LlmFailure.Truncated)]
-    [InlineData("refusal", LlmFailure.Refusal)]
+    [InlineData("max_tokens", LlmFailure.TRUNCATED)]
+    [InlineData("refusal", LlmFailure.REFUSAL)]
     public async Task StencilServerStopReasonsBecomeFailuresNeverPlans(string stopReason, LlmFailure expected)
     {
         CannedHttpMessageHandler handler = new((_, _) =>
@@ -72,7 +72,7 @@ public sealed class HttpLlmServerTests
 
         LlmException ex = await Assert.ThrowsAsync<LlmException>(() =>
             client.ChatAsync(Request(serverUrl: "http://h:8090", serverToken: "t")));
-        Assert.Equal(LlmFailure.Disabled, ex.Failure);
+        Assert.Equal(LlmFailure.DISABLED, ex.Failure);
         Assert.Contains("LLM support is not configured", ex.Message);
     }
 

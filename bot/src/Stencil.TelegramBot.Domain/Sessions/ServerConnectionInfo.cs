@@ -9,7 +9,7 @@ public sealed record ServerConnectionInfo
     // re-minted.
     public string Credential { get; init; } = "";
 
-    public CredentialKind CredentialKind { get; init; } = CredentialKind.None;
+    public CredentialKind CredentialKind { get; init; } = CredentialKind.NONE;
 
     public bool VerifyTls { get; init; } = true;
 }

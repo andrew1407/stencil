@@ -31,7 +31,7 @@ public sealed class MockServerClientFactory : IStencilServerClientFactory
 
     /// <inheritdoc />
     public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true, string? credential = null,
-        CredentialKind credentialKind = CredentialKind.None)
+        CredentialKind credentialKind = CredentialKind.NONE)
     {
         string normalized = NormalizeUrl(url);
         Created.Add((normalized, token, verifyTls, credential, credentialKind));

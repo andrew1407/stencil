@@ -62,7 +62,7 @@ public sealed class AskCardTaps
         if (picked.Count == 0)
         {
             await _bot.SendMessage(
-                chatId, Replies.Tag(Replies.Tone.Error, "Pick at least one option first."), cancellationToken: ct);
+                chatId, Replies.Tag(Replies.Tone.ERROR, "Pick at least one option first."), cancellationToken: ct);
             return;
         }
         await submitAsync(userId, chatId, session, picked, ct);

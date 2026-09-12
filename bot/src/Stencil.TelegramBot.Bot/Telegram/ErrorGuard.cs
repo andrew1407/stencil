@@ -55,7 +55,7 @@ public sealed class ErrorGuard
     {
         try
         {
-            await _bot.SendMessage(chatId, Replies.Tag(Replies.Tone.Error, message), cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.Tag(Replies.Tone.ERROR, message), cancellationToken: ct);
         }
         catch (Exception ex)
         {

@@ -22,7 +22,7 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
     // The client carries the configured timeout so a slow server can't block a handler
     // indefinitely.
     public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true, string? credential = null,
-        CredentialKind credentialKind = CredentialKind.None)
+        CredentialKind credentialKind = CredentialKind.NONE)
     {
         SocketsHttpHandler handler = (verifyTls ? _verifying : _insecure).Value;
         HttpClient http = new(handler, disposeHandler: false)

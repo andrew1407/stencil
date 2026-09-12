@@ -2,9 +2,9 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 
 public enum DurationUnit
 {
-    Day,
-    Week,
-    Month,
+    DAY,
+    WEEK,
+    MONTH,
 }
 
 // Resolved against a base instant so months are calendar months (not a fixed 30 days).
@@ -12,9 +12,9 @@ public sealed record ParsedDuration(DurationUnit Unit, int Count)
 {
     public DateTimeOffset From(DateTimeOffset baseTime) => Unit switch
     {
-        DurationUnit.Day => baseTime.AddDays(Count),
-        DurationUnit.Week => baseTime.AddDays(7L * Count),
-        DurationUnit.Month => baseTime.AddMonths(Count),
+        DurationUnit.DAY => baseTime.AddDays(Count),
+        DurationUnit.WEEK => baseTime.AddDays(7L * Count),
+        DurationUnit.MONTH => baseTime.AddMonths(Count),
         _ => baseTime,
     };
 
@@ -22,9 +22,9 @@ public sealed record ParsedDuration(DurationUnit Unit, int Count)
     {
         string unit = Unit switch
         {
-            DurationUnit.Day => "day",
-            DurationUnit.Week => "week",
-            DurationUnit.Month => "month",
+            DurationUnit.DAY => "day",
+            DurationUnit.WEEK => "week",
+            DurationUnit.MONTH => "month",
             _ => "",
         };
         return $"{Count} {unit}{(Count == 1 ? "" : "s")}";
@@ -40,7 +40,7 @@ public static class DurationParser
 
     public static bool TryParse(string? text, out ParsedDuration duration, out bool clear)
     {
-        duration = new ParsedDuration(DurationUnit.Day, 1);
+        duration = new ParsedDuration(DurationUnit.DAY, 1);
         clear = false;
         string s = (text ?? "").Trim().ToLowerInvariant();
         if (s.Length == 0)
@@ -74,20 +74,20 @@ public static class DurationParser
         switch (word)
         {
             case "d" or "day" or "days":
-                unit = DurationUnit.Day;
+                unit = DurationUnit.DAY;
                 return true;
             case "w" or "wk" or "wks" or "week" or "weeks":
-                unit = DurationUnit.Week;
+                unit = DurationUnit.WEEK;
                 return true;
             case "fortnight" or "fortnights":
-                unit = DurationUnit.Week;
+                unit = DurationUnit.WEEK;
                 multiplier = 2;
                 return true;
             case "mo" or "mon" or "mth" or "mths" or "month" or "months":
-                unit = DurationUnit.Month;
+                unit = DurationUnit.MONTH;
                 return true;
             default:
-                unit = DurationUnit.Day;
+                unit = DurationUnit.DAY;
                 return false;
         }
     }

@@ -35,9 +35,9 @@ public sealed class TextGoldenTests
     private static string buildReplies()
     {
         StringBuilder sb = new();
-        foreach (Replies.Tone tone in Enum.GetValues<Replies.Tone>().OrderBy(t => t.ToString(), StringComparer.Ordinal))
+        foreach (Replies.Tone tone in Enum.GetValues<Replies.Tone>().OrderBy(Replies.ToneKey, StringComparer.Ordinal))
         {
-            section(sb, $"Glyph({tone})", Replies.Glyph(tone));
+            section(sb, $"Glyph({Replies.ToneKey(tone)})", Replies.Glyph(tone));
         }
         MethodInfo[] fixedStrings = typeof(Replies)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)

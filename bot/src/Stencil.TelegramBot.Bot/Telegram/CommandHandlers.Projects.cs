@@ -40,7 +40,7 @@ public sealed partial class CommandHandlers
         // §12: with chat saving on, a fetched project brings its persisted chat back (never a model
         // call).
         int restored = await tryRestoreChatAsync(userId, session, ct);
-        string loaded = Replies.Tag(Replies.Tone.Success, $"Loaded project '{session.ActiveProjectName}'.");
+        string loaded = Replies.Tag(Replies.Tone.SUCCESS, $"Loaded project '{session.ActiveProjectName}'.");
         if (restored > 0)
         {
             loaded += "\n" + Replies.ChatRestored(restored);
@@ -55,7 +55,7 @@ public sealed partial class CommandHandlers
         ProjectRecord record = await _servers.CreateProjectAsync(userId, name, null, ct);
         await _bot.SendMessage(
             chatId,
-            Replies.Tag(Replies.Tone.Success,
+            Replies.Tag(Replies.Tone.SUCCESS,
                 $"Created project '{record.Name}' (id {record.Id}, v{record.Version})."),
             cancellationToken: ct);
     }
@@ -65,7 +65,7 @@ public sealed partial class CommandHandlers
         ProjectRecord record = await _servers.SaveActiveProjectAsync(userId, ct);
         await _bot.SendMessage(
             chatId,
-            Replies.Tag(Replies.Tone.Success, $"Saved '{record.Name}' (v{record.Version})."),
+            Replies.Tag(Replies.Tone.SUCCESS, $"Saved '{record.Name}' (v{record.Version})."),
             cancellationToken: ct);
     }
 

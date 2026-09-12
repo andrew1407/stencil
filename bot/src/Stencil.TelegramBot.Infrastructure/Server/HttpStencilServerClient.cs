@@ -20,7 +20,7 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
     private CredentialKind _kind;
 
     public HttpStencilServerClient(HttpClient http, string baseUrl, string? token, string? credential = null,
-        CredentialKind credentialKind = CredentialKind.None)
+        CredentialKind credentialKind = CredentialKind.NONE)
     {
         _http = http;
         BaseUrl = UrlNormalizer.Normalize(baseUrl);
@@ -45,7 +45,7 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
             using JsonDocument doc = await sendJsonAsync(HttpMethod.Post, "/auth/token", emptyBody(), ct)
                 .ConfigureAwait(false);
             _token = JsonRead.ReadString(doc.RootElement, "token");
-            _kind = CredentialKind.None; // minted anonymously: there is no credential to classify
+            _kind = CredentialKind.NONE; // minted anonymously: there is no credential to classify
         }
         else
         {
@@ -54,16 +54,16 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
             _credential = _token;
             // A proven admin token cannot list projects, so mint straight away instead of a probe
             // that always 401s.
-            if (_kind == CredentialKind.Admin && await tryMintAsync(ct).ConfigureAwait(false) is string minted)
+            if (_kind == CredentialKind.ADMIN && await tryMintAsync(ct).ConfigureAwait(false) is string minted)
             {
                 _token = minted;
             }
             await ListProjectsAsync(ct).ConfigureAwait(false);
             // SendAsync's rescue round promotes the kind; a credential that listed directly is a
             // session token.
-            if (_kind != CredentialKind.Admin)
+            if (_kind != CredentialKind.ADMIN)
             {
-                _kind = CredentialKind.Session;
+                _kind = CredentialKind.SESSION;
             }
         }
         return new ServerHandshake(_token, _kind);

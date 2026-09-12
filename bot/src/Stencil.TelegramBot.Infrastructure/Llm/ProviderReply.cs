@@ -15,5 +15,5 @@ internal static class ProviderReply
 
     public static LlmException Truncated() => new(
         "The AI response was cut off at the token limit — try a shorter or simpler request.",
-        LlmFailure.Truncated);
+        LlmFailure.TRUNCATED);
 }

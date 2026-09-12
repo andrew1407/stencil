@@ -34,15 +34,15 @@ public sealed class ConnectionsHandlerTests : IDisposable
                 Url = "http://a:8090",
                 Token = "sess-a",
                 Credential = "adm-secret",
-                CredentialKind = CredentialKind.Admin,
+                CredentialKind = CredentialKind.ADMIN,
             },
-            new ServerConnectionInfo { Url = "http://b:8090", Token = "sess-b", CredentialKind = CredentialKind.None },
+            new ServerConnectionInfo { Url = "http://b:8090", Token = "sess-b", CredentialKind = CredentialKind.NONE },
             new ServerConnectionInfo
             {
                 Url = "http://c:8090",
                 Token = "sess-c",
                 Credential = "sess-c",
-                CredentialKind = CredentialKind.Session,
+                CredentialKind = CredentialKind.SESSION,
             },
         ];
     }
@@ -98,7 +98,7 @@ public sealed class ConnectionsHandlerTests : IDisposable
     [Fact]
     public async Task FilteringOutEverythingSaysSoInsteadOfTheConnectHint()
     {
-        _servers.Connections = [new ServerConnectionInfo { Url = "http://b:8090", CredentialKind = CredentialKind.None }];
+        _servers.Connections = [new ServerConnectionInfo { Url = "http://b:8090", CredentialKind = CredentialKind.NONE }];
 
         await dispatch("/connections admin");
 

@@ -39,7 +39,7 @@ public sealed partial class HttpStencilServerClient
                 if (response.IsSuccessStatusCode)
                 {
                     // It minted AND the session works: this credential is an admin token.
-                    _kind = CredentialKind.Admin;
+                    _kind = CredentialKind.ADMIN;
                 }
             }
         }

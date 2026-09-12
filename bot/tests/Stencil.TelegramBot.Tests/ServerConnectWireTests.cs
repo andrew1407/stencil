@@ -24,7 +24,7 @@ public sealed class ServerConnectWireTests
 
         Assert.Equal("minted-abc", handshake.Token);
         // Nothing was supplied, so there is no credential to classify.
-        Assert.Equal(CredentialKind.None, handshake.CredentialKind);
+        Assert.Equal(CredentialKind.NONE, handshake.CredentialKind);
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
         Assert.Equal("/auth/token", handler.LastRequest.RequestUri!.AbsolutePath);
     }
@@ -43,7 +43,7 @@ public sealed class ServerConnectWireTests
         ServerHandshake handshake = await client.ConnectAsync("sess-tok");
 
         Assert.Equal("sess-tok", handshake.Token);
-        Assert.Equal(CredentialKind.Session, handshake.CredentialKind);
+        Assert.Equal(CredentialKind.SESSION, handshake.CredentialKind);
         Assert.Equal(["/projects"], paths.ToArray()); // validated directly, nothing minted
     }
 
@@ -70,7 +70,7 @@ public sealed class ServerConnectWireTests
 
         Assert.Equal("sess-1", handshake.Token);
         // The mint-then-validate round PROVED the credential is the server's admin token.
-        Assert.Equal(CredentialKind.Admin, handshake.CredentialKind);
+        Assert.Equal(CredentialKind.ADMIN, handshake.CredentialKind);
         Assert.Equal(["/projects", "/auth/token", "/projects"], calls.Select(c => c.Path).ToArray());
         Assert.Equal("adm-secret", calls[1].Bearer); // the mint carried the admin token as bearer
     }
@@ -90,12 +90,12 @@ public sealed class ServerConnectWireTests
                         "{\"code\":\"unauthorized\",\"message\":\"admin cannot list\"}", HttpStatusCode.Unauthorized);
         });
         HttpStencilServerClient client = new(new HttpClient(handler), "http://h:8090", null,
-            credential: "adm-secret", credentialKind: CredentialKind.Admin);
+            credential: "adm-secret", credentialKind: CredentialKind.ADMIN);
 
         ServerHandshake handshake = await client.ConnectAsync("adm-secret");
 
         Assert.Equal("sess-2", handshake.Token);
-        Assert.Equal(CredentialKind.Admin, handshake.CredentialKind);
+        Assert.Equal(CredentialKind.ADMIN, handshake.CredentialKind);
         // Mint first, then prove the session works — no 401 probe spent up front.
         Assert.Equal(["/auth/token", "/projects"], calls.Select(c => c.Path).ToArray());
         Assert.Equal("adm-secret", calls[0].Bearer);

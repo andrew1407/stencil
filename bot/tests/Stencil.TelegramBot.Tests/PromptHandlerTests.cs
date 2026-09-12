@@ -90,7 +90,7 @@ public sealed class PromptHandlerTests : PromptHandlerTestBase
     public async Task LlmFailuresAreShownAsChatTextNotCrashes()
     {
         await Dispatch("/blank");
-        _llm.Throw = new LlmException("The AI response was cut off at the token limit — try a shorter or simpler request.", LlmFailure.Truncated);
+        _llm.Throw = new LlmException("The AI response was cut off at the token limit — try a shorter or simpler request.", LlmFailure.TRUNCATED);
 
         await Dispatch("/prompt do everything");
 

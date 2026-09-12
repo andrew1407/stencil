@@ -6,11 +6,14 @@ namespace Stencil.TelegramBot.Domain.Sessions;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum CredentialKind
 {
-    None = 0,
+    [JsonStringEnumMemberName("None")]
+    NONE = 0,
 
     // It listed projects directly, so it is not an admin token.
-    Session = 1,
+    [JsonStringEnumMemberName("Session")]
+    SESSION = 1,
 
     // It can't list projects, but it PROVED it can mint a session token.
-    Admin = 2,
+    [JsonStringEnumMemberName("Admin")]
+    ADMIN = 2,
 }

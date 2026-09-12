@@ -26,9 +26,9 @@ public static partial class Replies
     // A loopback link resolves on whoever taps it, so say so rather than let it look shareable.
     public static string DesktopLink(string name, string url, bool loopback) =>
         BotStrings.Reply("desktopLinkHead", name, url)
-        + (loopback ? BotStrings.Reply("desktopLinkLoopback", Glyph(Tone.Notice)) : "");
+        + (loopback ? BotStrings.Reply("desktopLinkLoopback", Glyph(Tone.NOTICE)) : "");
 
-    public static string DesktopLinkUnusable() => Tag(Tone.Notice, BotStrings.Reply("desktopLinkUnusable"));
+    public static string DesktopLinkUnusable() => Tag(Tone.NOTICE, BotStrings.Reply("desktopLinkUnusable"));
 
     public static string PageFormatList()
     {

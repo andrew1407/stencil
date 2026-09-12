@@ -164,13 +164,13 @@ public sealed partial class CommandHandlers
             // The ↑ already marks it; Tag keeps the line to one glyph.
             await _bot.SendMessage(
                 chatId,
-                Replies.Tag(Replies.Tone.Success, $"↑ synced to '{record.Name}' (v{record.Version})."),
+                Replies.Tag(Replies.Tone.SUCCESS, $"↑ synced to '{record.Name}' (v{record.Version})."),
                 cancellationToken: ct);
         }
         catch (ServerException ex)
         {
             await _bot.SendMessage(
-                chatId, Replies.Tag(Replies.Tone.Error, $"Couldn't sync: {ex.Message}"), cancellationToken: ct);
+                chatId, Replies.Tag(Replies.Tone.ERROR, $"Couldn't sync: {ex.Message}"), cancellationToken: ct);
         }
     }
 

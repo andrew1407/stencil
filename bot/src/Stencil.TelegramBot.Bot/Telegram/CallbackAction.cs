@@ -85,7 +85,7 @@ public sealed class CallbackAction
             {
                 await _bot.SendMessage(
                     chatId,
-                    Replies.Tag(Replies.Tone.Error, "No working image to name — upload a photo or use /blank first."),
+                    Replies.Tag(Replies.Tone.ERROR, "No working image to name — upload a photo or use /blank first."),
                     cancellationToken: ct);
                 return;
             }
@@ -103,7 +103,7 @@ public sealed class CallbackAction
             {
                 await _bot.SendMessage(
                     chatId,
-                    Replies.Tag(Replies.Tone.Error, "No working image to describe — upload a photo or use /blank first."),
+                    Replies.Tag(Replies.Tone.ERROR, "No working image to describe — upload a photo or use /blank first."),
                     cancellationToken: ct);
                 return;
             }
@@ -151,7 +151,7 @@ public sealed class CallbackAction
                 chatId,
                 _cancellations.Cancel(userId)
                     ? Replies.PromptStopping()
-                    : Replies.Tag(Replies.Tone.Notice, "Nothing is running — that turn already finished."),
+                    : Replies.Tag(Replies.Tone.NOTICE, "Nothing is running — that turn already finished."),
                 cancellationToken: ct);
             return;
         }

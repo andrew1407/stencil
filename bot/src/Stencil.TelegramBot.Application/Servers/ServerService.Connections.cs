@@ -22,7 +22,7 @@ public sealed partial class ServerService
         var session = await _store.GetAsync(userId, ct);
         var normalized = _factory.NormalizeUrl(url);
         // A known admin token skips the probe that can only 401 (browser handshake parity).
-        var known = session.FindConnection(normalized)?.CredentialKind ?? CredentialKind.None;
+        var known = session.FindConnection(normalized)?.CredentialKind ?? CredentialKind.NONE;
         var client = _factory.Create(url, token, verifyTls, credential: null, known);
         var handshake = await client.ConnectAsync(token, ct);
         // credential may be the ADMIN token, kept beside the session token so a stale session can

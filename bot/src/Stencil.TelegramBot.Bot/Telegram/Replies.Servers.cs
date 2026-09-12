@@ -30,7 +30,7 @@ public static partial class Replies
         {
             ServerConnectionInfo c = connections[i];
             string tls = c.VerifyTls ? "" : BotStrings.Reply("connectionsTlsOff");
-            string kind = c.CredentialKind == CredentialKind.Admin ? BotStrings.Reply("connectionsAdminMark") : "";
+            string kind = c.CredentialKind == CredentialKind.ADMIN ? BotStrings.Reply("connectionsAdminMark") : "";
             sb.AppendLine(BotStrings.Reply("connectionsEntry", i + 1, c.Url, kind, tls));
         }
         return sb.ToString().TrimEnd();

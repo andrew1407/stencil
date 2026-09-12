@@ -39,7 +39,7 @@ public sealed partial class CommandHandlers
             UserSession updated = await _servers.FetchAsync(userId, projectId, serverUrl, ct);
             await _bot.SendMessage(
                 chatId,
-                Replies.Tag(Replies.Tone.Success,
+                Replies.Tag(Replies.Tone.SUCCESS,
                     $"Loaded shared project '{updated.ActiveProjectName}' from {serverUrl}."),
                 cancellationToken: ct);
             await RenderAndSendAsync(userId, chatId, ct, mutating: false);
@@ -48,7 +48,7 @@ public sealed partial class CommandHandlers
         {
             await _bot.SendMessage(
                 chatId,
-                Replies.Tag(Replies.Tone.Error,
+                Replies.Tag(Replies.Tone.ERROR,
                     $"Couldn't open the shared project — {ex.Message}\n\n"
                     + $"Try manually:\n/connect {serverUrl} [token]\n/fetch {projectId}"),
                 cancellationToken: ct);
@@ -97,7 +97,7 @@ public sealed partial class CommandHandlers
         ServerConnectionInfo info = await _servers.ConnectAsync(userId, url, token, verifyTls, ct);
         await _bot.SendMessage(
             chatId,
-            Replies.Tag(Replies.Tone.Success, $"Connected to {info.Url}."),
+            Replies.Tag(Replies.Tone.SUCCESS, $"Connected to {info.Url}."),
             replyMarkup: Keyboards.MainMenu(),
             cancellationToken: ct);
     }
@@ -107,8 +107,8 @@ public sealed partial class CommandHandlers
         string? url = cmd.Args.Count == 0 ? null : cmd.Args[0];
         bool removed = await _servers.DisconnectAsync(userId, url, ct);
         string text = removed
-            ? Replies.Tag(Replies.Tone.Success, "Disconnected.")
-            : Replies.Tag(Replies.Tone.Notice, "No matching connection to disconnect.");
+            ? Replies.Tag(Replies.Tone.SUCCESS, "Disconnected.")
+            : Replies.Tag(Replies.Tone.NOTICE, "No matching connection to disconnect.");
         await _bot.SendMessage(chatId, text, cancellationToken: ct);
     }
 
@@ -125,7 +125,7 @@ public sealed partial class CommandHandlers
         {
             bool wantAdmin = filter == "admin";
             connections = connections
-                .Where(c => (c.CredentialKind == CredentialKind.Admin) == wantAdmin)
+                .Where(c => (c.CredentialKind == CredentialKind.ADMIN) == wantAdmin)
                 .ToList();
         }
         await _bot.SendMessage(chatId, Replies.ConnectionsText(connections, filter), cancellationToken: ct);

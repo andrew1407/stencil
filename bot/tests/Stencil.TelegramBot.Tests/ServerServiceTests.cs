@@ -45,20 +45,20 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     [Fact]
     public async Task ConnectRecordsTheCredentialKindAndReusesItForLaterClients()
     {
-        _factory.ClientFor(ServerA).HandshakeKind = CredentialKind.Admin;
+        _factory.ClientFor(ServerA).HandshakeKind = CredentialKind.ADMIN;
 
         ServerConnectionInfo info = await _service.ConnectAsync(UserId, ServerA, token: "adm-secret", verifyTls: true);
 
-        Assert.Equal(CredentialKind.Admin, info.CredentialKind);
+        Assert.Equal(CredentialKind.ADMIN, info.CredentialKind);
         UserSession session = await _store.GetAsync(UserId);
-        Assert.Equal(CredentialKind.Admin, Assert.Single(session.Connections).CredentialKind);
+        Assert.Equal(CredentialKind.ADMIN, Assert.Single(session.Connections).CredentialKind);
 
         // Every later client is built with it, so a known admin token skips the doomed probe…
         await _service.ListProjectsAsync(UserId, url: null);
-        Assert.Equal(CredentialKind.Admin, _factory.Created[^1].Kind);
+        Assert.Equal(CredentialKind.ADMIN, _factory.Created[^1].Kind);
         // …including a re-connect to the same origin.
         await _service.ConnectAsync(UserId, ServerA, token: "adm-secret", verifyTls: true);
-        Assert.Equal(CredentialKind.Admin, _factory.Created[^1].Kind);
+        Assert.Equal(CredentialKind.ADMIN, _factory.Created[^1].Kind);
     }
 
     [Fact]
@@ -66,15 +66,15 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     {
         // A supplied token that validated directly is a plain session token…
         ServerConnectionInfo session = await _service.ConnectAsync(UserId, ServerA, token: "sess-tok", verifyTls: true);
-        Assert.Equal(CredentialKind.Session, session.CredentialKind);
+        Assert.Equal(CredentialKind.SESSION, session.CredentialKind);
 
         // …while a tokenless connect mints anonymously: there is no credential to classify.
         ServerConnectionInfo anonymous = await _service.ConnectAsync(UserId, ServerB, token: null, verifyTls: true);
-        Assert.Equal(CredentialKind.None, anonymous.CredentialKind);
+        Assert.Equal(CredentialKind.NONE, anonymous.CredentialKind);
 
         UserSession stored = await _store.GetAsync(UserId);
-        Assert.Equal(CredentialKind.Session, stored.FindConnection(ServerA)!.CredentialKind);
-        Assert.Equal(CredentialKind.None, stored.FindConnection(ServerB)!.CredentialKind);
+        Assert.Equal(CredentialKind.SESSION, stored.FindConnection(ServerA)!.CredentialKind);
+        Assert.Equal(CredentialKind.NONE, stored.FindConnection(ServerB)!.CredentialKind);
     }
 
     [Fact]
