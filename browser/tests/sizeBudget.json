@@ -33,7 +33,7 @@
     "browser/js/ui/controlTooltip.js": 266,
     "browser/js/ui/customSelect.js": 291,
     "browser/js/ui/expirationModal.js": 253,
-    "browser/js/ui/fullscreenLayer.js": 318,
+    "browser/js/ui/fullscreenLayer.js": 191,
     "browser/js/ui/llmSettingsModal.js": 262,
     "browser/js/ui/motion.js": 32,
     "browser/js/ui/numericInput.js": 258,

@@ -5,38 +5,16 @@ import { wirePanelResizer, onWindowResize } from '../utils.js';
 import { flipFrom, FLIP_MS } from './motion.js';
 import { canvasOrigin } from '../core/zoomPan.js';
 import { publish, EVENTS } from '../bus/appBus.js';
+import { fullscreenLayerInner } from './fullscreenMarkup.js';
+import { populateFsControls, populateFsPoints } from './fullscreenClones.js';
+import { createFsPanels } from './fullscreenPanels.js';
 // ── Component: fullscreen trigger zones + slide-in panels ───────
 // Owns the fs trigger/panel markup and fullscreen behavior (cloning the live
 // controls + coord panel, slide-in panels, enter/exit). Exposes the toggle as
 // app.toggleFullscreen, which context menu / hotkeys call through their own app
 // reference — no window global.
 export class StencilFullscreenLayer extends StencilElement {
-  static inner() {
-    return `
-    <!-- Fullscreen hover trigger zones -->
-    <div id="fs-top-trigger"></div>
-    <div id="fs-right-trigger"></div>
-
-    <!-- Fullscreen slide-in: controls (top) -->
-    <!-- No Exit button of its own: the revealed strip IS the toolbar, and the fullscreen
-         toggle inside it (lit while on) is what leaves — plus Escape. A second control for
-         the same thing sat over the cloned rows and read as part of them (user decision). -->
-    <div id="fs-controls-panel">
-        <!-- Controls content will be cloned here by JS -->
-    </div>
-
-    <!-- Fullscreen selection panel overlay (shown over canvas when a line is selected) -->
-    <div id="fs-selection-panel" style="display:none;position:fixed;z-index:10001;left:0;right:0;pointer-events:auto;"></div>
-
-    <!-- Fullscreen slide-in: points list (right) -->
-    <div id="fs-points-panel">
-        <!-- Coord panel content will be mirrored here by JS -->
-    </div>
-    <!-- Drag handle to resize the fullscreen points panel (sibling of the panel so the panel's
-         innerHTML re-clone doesn't wipe it). Positioned at the panel's left edge via the width var. -->
-    <div id="fs-panel-resizer"></div>
-    `;
-  }
+  static inner() { return fullscreenLayerInner(); }
   static template() { return hostTag('stencil-fullscreen-layer', '', StencilFullscreenLayer.inner()); }
 
   wire(app) {
@@ -47,70 +25,14 @@ export class StencilFullscreenLayer extends StencilElement {
     const fsBtn = document.getElementById('fullscreen-toggle');
 
     let isFullscreen = false;
-    let controlsHideTimer = null;
-    let pointsHideTimer = null;
 
-    const populateFsControls = () => {
-      const existing = fsControlsPanel.querySelector('.controls');
-      if (existing) existing.remove();
-      const src = document.querySelector('#controls-body .controls');
-      if (src) {
-        const clone = src.cloneNode(true);
-        fsControlsPanel.appendChild(clone);
-        bindClonedControls(fsControlsPanel, src);
-      }
-    };
-
-    // The clone is display only — every interaction relays to the original controls.
-    const bindClonedControls = (cloneRoot, srcRoot) => {
-      srcRoot.querySelectorAll('[id]').forEach(srcEl => {
-        const cloneEl = cloneRoot.querySelector('#' + srcEl.id);
-        if (!cloneEl) return;
-        if (cloneEl.tagName === 'BUTTON') {
-          cloneEl.addEventListener('click', () => srcEl.click());
-          return;
-        }
-        // Mirror only the input kinds the fs panel uses; ignore others (radio/text).
-        const kind = cloneEl.tagName === 'SELECT' ? 'select' : cloneEl.type;
-        if (!['checkbox', 'color', 'number', 'file', 'select'].includes(kind)) return;
-
-        // Relay clone → original: copy the relevant property, then fire change.
-        cloneEl.addEventListener(kind === 'color' ? 'input' : 'change', () => {
-          if (kind === 'checkbox') {
-            srcEl.checked = cloneEl.checked;
-          } else if (kind === 'file') {
-            const dt = new DataTransfer();
-            [...cloneEl.files].forEach(f => dt.items.add(f));
-            srcEl.files = dt.files;
-          } else {
-            srcEl.value = cloneEl.value;
-          }
-          srcEl.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-        // Keep the clone in sync when the original changes (checkbox + select).
-        if (kind === 'checkbox') srcEl.addEventListener('change', () => { cloneEl.checked = srcEl.checked; });
-        else if (kind === 'select') srcEl.addEventListener('change', () => { cloneEl.value = srcEl.value; });
-      });
-    };
-
-    const populateFsPoints = () => {
-      fsPointsPanel.innerHTML = '';
-      const src = document.getElementById('coord-panel');
-      if (src) {
-        const clone = src.cloneNode(true);
-        // Give cloned elements new ids to avoid conflicts
-        clone.id = 'fs-coord-panel-clone';
-        clone.querySelectorAll('[id]').forEach(el => {
-          el.id = 'fs-clone-' + el.id;
-        });
-        clone.classList.remove('coord-collapsed', 'coord-folding');
-        clone.style.minWidth = '0';
-        clone.style.maxWidth = '100%';
-        clone.style.marginTop = '0';
-        clone.style.background = 'transparent';
-        fsPointsPanel.appendChild(clone);
-      }
-    };
+    // The controls strip / coord panel clones (ui/fullscreenClones.js) and the two
+    // slide-in panels with their auto-hide timers (ui/fullscreenPanels.js).
+    const showPoints = () => populateFsPoints(fsPointsPanel);
+    const {
+      showControlsPanel, hideControlsPanel, showPointsPanel, hidePointsPanel,
+      pauseControlsHide, pausePointsHide,
+    } = createFsPanels({ fsControlsPanel, fsPointsPanel, showPoints });
 
     // Keep fs points panel in sync when the coord table updates. The coord
     // table mutates per-frame while drawing, so coalesce bursts into a single
@@ -122,70 +44,21 @@ export class StencilFullscreenLayer extends StencilElement {
         if (!isFullscreen || fsPointsRaf) return;
         fsPointsRaf = requestAnimationFrame(() => {
           fsPointsRaf = 0;
-          if (isFullscreen) populateFsPoints();
+          if (isFullscreen) showPoints();
         });
       }).observe(coordBody, { childList: true, subtree: true, characterData: true });
     }
 
-    // ── Panel show/hide helpers ──
-    const updateFsSelectionTop = ctrlsVisible => {
-      const fsSel = document.getElementById('fs-selection-panel');
-      if (!fsSel || fsSel.style.display === 'none') return;
-      if (ctrlsVisible) {
-        // Use offsetHeight — not getBoundingClientRect — so transform doesn't affect measurement
-        fsSel.style.top = fsControlsPanel.offsetHeight + 'px';
-      } else {
-        fsSel.style.top = '0px';
-      }
-      // Keep trigger zone covering the selection panel
-      requestAnimationFrame(() => {
-        const trigger = document.getElementById('fs-top-trigger');
-        if (trigger) trigger.style.height = Math.max(8, fsSel.getBoundingClientRect().bottom) + 'px';
-      });
-    };
-
-    const showControlsPanel = () => {
-      clearTimeout(controlsHideTimer);
-      // Update selection panel top BEFORE adding class so CSS transitions start together
-      updateFsSelectionTop(true);
-      fsControlsPanel.classList.add('fs-panel-visible');
-    };
-    const hideControlsPanel = () => {
-      clearTimeout(controlsHideTimer);
-      controlsHideTimer = setTimeout(() => {
-        // Update selection panel top BEFORE removing class
-        updateFsSelectionTop(false);
-        fsControlsPanel.classList.remove('fs-panel-visible');
-        // After CSS transition (0.25s), update trigger height
-        setTimeout(() => {
-          const fsSel = document.getElementById('fs-selection-panel');
-          const trigger = document.getElementById('fs-top-trigger');
-          if (fsSel && trigger && fsSel.style.display !== 'none')
-            trigger.style.height = Math.max(8, fsSel.getBoundingClientRect().bottom) + 'px';
-        }, 260);
-      }, 400);
-    };
-    const showPointsPanel = () => {
-      clearTimeout(pointsHideTimer);
-      populateFsPoints();
-      fsPointsPanel.classList.add('fs-panel-visible');
-    };
-    const hidePointsPanel = () => {
-      clearTimeout(pointsHideTimer);
-      pointsHideTimer = setTimeout(() => {
-        fsPointsPanel.classList.remove('fs-panel-visible');
-      }, 400);
-    };
 
     // Trigger zone hover
     fsTopTrigger.addEventListener('mouseenter', showControlsPanel);
     fsTopTrigger.addEventListener('mouseleave', hideControlsPanel);
-    fsControlsPanel.addEventListener('mouseenter', () => { clearTimeout(controlsHideTimer); });
+    fsControlsPanel.addEventListener('mouseenter', pauseControlsHide);
     fsControlsPanel.addEventListener('mouseleave', hideControlsPanel);
 
     fsRightTrigger.addEventListener('mouseenter', showPointsPanel);
     fsRightTrigger.addEventListener('mouseleave', hidePointsPanel);
-    fsPointsPanel.addEventListener('mouseenter', () => { clearTimeout(pointsHideTimer); });
+    fsPointsPanel.addEventListener('mouseenter', pausePointsHide);
     fsPointsPanel.addEventListener('mouseleave', hidePointsPanel);
 
     // ── Fullscreen panel resizer: drag to set --coord-panel-width (shared with normal mode +
@@ -193,7 +66,7 @@ export class StencilFullscreenLayer extends StencilElement {
     // pause the panel's auto-hide during a drag. ──
     const fsResizer = document.getElementById('fs-panel-resizer');
     if (fsResizer) {
-      const pauseAutoHide = () => clearTimeout(pointsHideTimer);
+      const pauseAutoHide = pausePointsHide;
       const drag = wirePanelResizer(fsResizer, fsPointsPanel, {
         maxFactor: 0.86, onStart: pauseAutoHide, onEnd: pauseAutoHide,
       });
@@ -266,8 +139,8 @@ export class StencilFullscreenLayer extends StencilElement {
         // Hand the box over to the fullscreen rule (components/fullscreen.css pins it to the window):
         // the in-flow height written by syncViewportHeight has no business here.
         if (vp) vp.style.maxHeight = '';
-        populateFsControls();
-        populateFsPoints();
+        populateFsControls(fsControlsPanel);
+        showPoints();
         // Wait one frame so the CSS position:fixed layout is committed and
         // vp.clientWidth/Height reflect the full-window size.
         requestAnimationFrame(() => {
