@@ -71,5 +71,12 @@
   },
   "commentPctNotes": {
     "extension/src/popup": "Raised 18 → 22 as a CORRECTION, not a concession: the measure() scanner read the backtick inside results.js's /^\\s*[{`]/ regex as a template-literal opening, so the last 550 lines of the old 991-line assistant.js were never counted. With the regex-aware scanner this directory measured 22% BEFORE this refactor too (795/3597). No prose was added."
+  },
+  "filesNotes": {
+    "extension/src/content/pageApiMain.js": "MAIN-world classic content script: no import, and a module graph would need web_accessible_resources widened (Phase 1 narrowed it to one file) or a shared global on the PAGE's window. Not splittable without giving up one of the two.",
+    "extension/src/content/editorApiMain.js": "Same MAIN-world constraint as pageApiMain.js.",
+    "extension/src/content/ctxTarget.js": "Classic content script (manifest content_scripts + executeScript into open tabs): one world-shared scope, no import. A split needs an isolated-world global AND ordered injection, which registrars.js's fire-and-forget loop does not guarantee.",
+    "extension/src/lib/overlay.js": "One function handed to executeScript({ func }) — Chrome serialises the function and nothing else, so it must stay self-contained (tests/injectedFuncs.test.js pins that).",
+    "extension/src/lib/customSelect.js": "One closure, and every test on it reads its SOURCE — pins before motion: it needs a behavioural DOM harness before it can be split."
   }
 }
