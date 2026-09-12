@@ -11,10 +11,10 @@
 // override where a cross-surface disagreement has been measured and pinned.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { renderFreshness } from '../tools/genOpPlanFixtures.mjs';
 import { parseOpPlan } from '../js/llm/opPlan.js';
 
 const FIXTURES_DIR = path.join(
@@ -28,20 +28,23 @@ const read = (...rel) => readFileSync(path.join(FIXTURES_DIR, ...rel), 'utf8');
 // Two bundles: the hand-written cases (cases.json, each carrying its stable `file` label)
 // and the registry-generated ones (generated/cases.json — tools/genOpPlanFixtures.mjs),
 // which walk as `<name>.json`.
+const generatedText = read('generated', 'cases.json');
 const hand = JSON.parse(read('cases.json')).cases;
-const generated = JSON.parse(read('generated', 'cases.json')).cases;
+const generated = JSON.parse(generatedText).cases;
 const fixtures = [
   ...hand.map((fx) => ({ file: fx.file, fx })),
   ...generated.map((fx) => ({ file: `${fx.name}.json`, fx })),
 ];
 
-// Two digests instead of re-deriving the 211 KB bundle on every run (~10 ms → ~0.5 ms);
+// Two digests instead of re-deriving the 211 KB bundle on every run (~10 ms → ~0.4 ms);
 // generated/freshness.json is written by `npm run gen-fixtures`.
 test('the generated bundle is fresh against the registry (npm run gen-fixtures)', () => {
-  const registryBytes = readFileSync(path.join(FIXTURES_DIR, '..', '..', 'opRegistry.json'));
-  assert.equal(read('generated', 'freshness.json'),
-    renderFreshness(registryBytes, read('generated', 'cases.json')),
-    'generated/ is stale against opRegistry.json — run `npm run gen-fixtures`');
+  const stored = JSON.parse(read('generated', 'freshness.json'));
+  const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
+  assert.equal(sha256(readFileSync(path.join(FIXTURES_DIR, '..', '..', 'opRegistry.json'))),
+    stored.registry, 'opRegistry.json changed without a regen — run `npm run gen-fixtures`');
+  assert.equal(sha256(generatedText), stored.cases,
+    'generated/cases.json was edited by hand — run `npm run gen-fixtures`');
 });
 
 // Floors per bundle, not on the total: the 444 generated cases alone clear any combined
