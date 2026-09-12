@@ -104,11 +104,13 @@ bot/
                      IImageDownscaler
       Configuration/ IBotPolicy          (the operator policy the presentation layer reads)
       Editing/       EditState · EditRequest · BlankSpec · RenderResult · ImageSize · HistoryStack ·
-                     CropSpecResolver (+.Tokens) · ColorSpec · RemoteDelivery · Scrape{Request,Result}
-      Exceptions/    StencilCliException · ServerException · LlmException
+                     CropSpecResolver (+.Tokens) · ColorSpec · RemoteDelivery ·
+                     Scrape{Request,Result} · ScrapedFile
+      Exceptions/    StencilCliException · ServerException
       Layout/        LayoutPoint · LayoutLine · LineStyle · StencilLayout · StencilLayoutParser
       Llm/           OpPlan · PlanAction · AskCard · ChatDocument · ILlmClient · LlmGate ·
-                     Llm{ChatRequest,Image,Message,Options,Profile,Reply} · ProvidersAsset
+                     LlmException · Llm{ChatRequest,Image,Message,Options,Profile,Reply} ·
+                     ProvidersAsset
       Project/       StencilProjectFile  (the portable single-file .stencil format)
       Projects/      ProjectRecord · ProjectFull · Create/UpdateProjectRequest · FileWriteResult
       Serialization/ StencilJson (one camelCase JsonSerializerOptions shared everywhere) · JsonRead
@@ -117,13 +119,17 @@ bot/
     Stencil.TelegramBot.Application/      use cases over the Domain abstractions
       Editing/       IEditingService + EditingService (one base image + a replayable EditState) ·
                      EditSessions · ProjectFileService · VideoFrames · RemoteImageUrl (the guard)
-      Llm/           OpSchema (+SchemaLoader/KeySpecChecker/PresenceRules/NativeRules/SchemaPath) ·
-                     OpRegistry · OpPlanParser · PromptService · PlanFrameMapper ·
-                     LlmAttachmentLoader · ImageDimensionReader · SystemPromptAsset
-      Servers/       IServerService + ServerService (connect/list/fetch/create/save/sync) ·
+      Llm/           OpSchema (+SchemaLoader/SchemaJson/SchemaPath/KeySpecChecker/PresenceRules/
+                     NativeRules) · OpRegistry · OpPlanParser (.Extract/.Actions/.Ask/.Validate) ·
+                     PromptService (ten partials, one per turn concern) · PlanFrameMapper ·
+                     ActionContext · LlmAttachmentLoader · ImageDimensionReader · SystemPromptAsset
+      Servers/       IServerService + ServerService (connect/list/fetch/create/save/sync, split
+                     .Connections/.Projects/.Metadata/.Sync) · ServerProjectInfo ·
                      ProjectLayout{Mapper,Writer} · InviteLink
+      DependencyInjection/  ServiceCollectionExtensions (what the composition root binds)
     Stencil.TelegramBot.Infrastructure/   the adapters (depend only on Domain)
-      Cli/           StencilCliLocator · CliArgvBuilder · CliOutcomeParser · ProcessStencilCli
+      Cli/           StencilCliLocator · CliArgvBuilder (+.Scrape) · CliOutcomeParser (+.Scrape) ·
+                     ProcessStencilCli
       Configuration/ BotOptions (: IBotPolicy) · LlmProfileOptions · EnvRead · DotEnv ·
                      RedisConnectionString
       Links/         DeepLinkCodec · DesktopLinkBuilder · LayoutFetcher
@@ -132,13 +138,18 @@ bot/
       Server/        UrlNormalizer · HttpStencilServerClient(+.Transport) · StencilServerClientFactory
       Sessions/      InMemorySessionStore · RedisSessionStore
       Workspace/     UserWorkspace (per-user scratch dir for working images) · TempFiles
+      DependencyInjection/  ServiceCollectionExtensions (the adapter bindings)
     Stencil.TelegramBot.Bot/              the Telegram presentation + console host
       Program.cs · BotComposition (the DI root) · UpdatePump (the bounded update queue)
       Telegram/      AccessGate (the allowlist), UpdateRouter, MessageRouter + its IMessageHandler
-                     chain, AlbumRouter, AlbumCollector, MediaIntake, DocumentIntake, ErrorGuard,
-                     CommandParser, CommandHandlers, CallbackAction + CallbackTokens, AskCardTaps,
-                     Keyboards, Replies, PageFormats, ProgressNotice, UserGate, SyncWatcher +
-                     SyncRegistry, WorkspaceJanitor
+                     chain (TextLinks, UploadLinks), AlbumRouter, AlbumCollector, MediaIntake,
+                     DocumentIntake + DocumentKinds + CappingWriteStream, ErrorGuard,
+                     CommandParser, CommandHandlers (twelve partials by command group),
+                     CallbackAction + CallbackTokens, AskCardTaps, Keyboards (+.Menus),
+                     Replies (+.Editing/.Servers/.Chat), BotCommands + BotCommandList +
+                     BotStrings (the Assets readers), PageFormats, DrawArguments,
+                     DurationParser, ProgressNotice + PromptCancellations, UserGate,
+                     SyncWatcher + SyncRegistry, WorkspaceJanitor
       Assets/        botCommands.json · botStrings.json   (the command vocabulary + the chat copy)
   tests/
     Stencil.TelegramBot.Tests/            xUnit — offline (no token, server, CLI or Redis)
@@ -152,7 +163,10 @@ bot/
   (`CliArgvBuilder.BuildScrapeArgv` + `CliOutcomeParser.ParseScraped`, whose multi-file
   `wrote …` / `scraped {n} file(s) from {host} into {dir}` grammar is pinned by the shared
   golden fixtures at `cli/testdata/scrape_fixtures.json`); the HTML parsing/fetch lives entirely
-  in the CLI, never in `core/`.
+  in the CLI, never in `core/`. **Every run passes `--confine-output`** — a destination a model
+  or a chat message chose can then never escape: since the flag refuses an absolute path, the
+  child is spawned *in* the output's own folder and handed only the leaf name, and the relative
+  paths it prints are re-rooted on the way back.
 - **`IStencilServerClient` → the Go server's REST API.** `HttpStencilServerClient` is a port
   of `pystencil/pystencil/server.py` (`/auth/token`, `/projects[...]`, file upload/download,
   `{code,message}` → `ServerException`, last-writer-wins version guard).
@@ -270,7 +284,7 @@ link is gated like everything else, because it connects out and fetches a projec
 ```bash
 # from bot/
 dotnet build Stencil.TelegramBot.slnx          # build all five projects
-dotnet test  Stencil.TelegramBot.slnx          # 2119 offline tests — no token/server/CLI/LLM/Redis needed
+dotnet test  Stencil.TelegramBot.slnx          # 2129 offline tests — no token/server/CLI/LLM/Redis needed
 dotnet test  Stencil.TelegramBot.slnx --filter Category=Bench   # the opt-in timing tripwires
 dotnet run --project src/Stencil.TelegramBot.Bot   # run the bot (needs TELEGRAM_BOT_TOKEN + the CLI)
 ```

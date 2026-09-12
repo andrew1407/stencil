@@ -18,27 +18,35 @@ graph TD
       REST["bot · mcp → cli<br/><i>(REST only)</i>"]
     end
     subgraph SRV["server/ — Go, codec-free (never links core/)"]
-      API["httpapi/ — REST: auth · project CRUD · file up/download"]
+      API["httpapi/ — transport only: decode · authorize · encode"]
       TRANS["transport/ — WebSocket (ws.go) + TCP NDJSON (tcp.go)"]
+      SVC["service/ — application policy (no rule lives in a handler)"]
       HUB["hub/ — live edit sessions (one run-loop per project)"]
-      AUTH["auth/ — opaque bearer tokens (sha256)"]
+      AUTH["auth/ — opaque bearer tokens (sha256)<br/>ratelimit/ — per-IP + per-session buckets"]
+      LLM["llm/ — chat proxy, 3 wire shapes<br/>validate/ — the §6 request check"]
       STORE["store/ — pgx repos + embedded SQL migrations"]
       FILES["filestore/ — path-confined byte store (safeJoin)"]
       BUS["bus / redisbus — pub/sub fan-out"]
     end
     PG[("Postgres")]
     RD[("Redis (optional)")]
+    UP["LLM upstream<br/><i>(Anthropic · Ollama · OpenAI-compatible)</i>"]
 
     WS --> TRANS
     TCP --> TRANS
     WS --> API
     REST --> API
     API --> AUTH
+    API --> SVC
+    API --> LLM
+    LLM -.-> UP
     TRANS --> HUB
+    SVC --> STORE
+    SVC --> FILES
+    SVC --> BUS
     HUB --> STORE
     HUB --> BUS
     STORE --> PG
-    STORE --> FILES
     BUS -.-> RD
 ```
 
@@ -83,20 +91,37 @@ GOFLAGS=-mod=vendor GOPROXY=off go build ./...   # offline, from server/vendor/
 
 ## Layout
 
+Eighteen packages, sixteen of them with tests.
+
 ```
 server/
-  cmd/stencil-server/main.go     entry: config -> store+migrate -> filestore -> bus -> api+hub -> HTTP/WS + TCP
+  cmd/stencil-server/   main.go (flags + signals), boot.go (config -> store+migrate ->
+                        filestore -> bus), serve.go (HTTP/WS + TCP listeners, CORS, healthz),
+                        sweep.go (the project-expiry loop)
   internal/
     protocol/   wire DTOs + WS message envelope — the shape every client mirrors
-    config/     env/.env configuration
+    config/     the environment configuration: config.go + db.go, redis.go, llm.go, parse.go
     auth/       opaque bearer tokens (sha256-hashed, resolved by lookup), HTTP + WS gate
-    filestore/  path-confined byte store; traversal-proof safeJoin (path.go)
-    store/      pgx ProjectRepository + SessionRepository; embedded SQL migrations
-    bus/        pub/sub interface + in-process implementation
+    ratelimit/  the token buckets every limiter shares + clientip.go (X-Forwarded-For)
+    filestore/  path-confined byte store; traversal-proof safeJoin (path.go), atomic put.go,
+                quota.go (the STORAGE_QUOTA_BYTES accounting)
+    store/      pgx ProjectRepository + SessionRepository, pool.go, keyset projectlist.go;
+                embedded SQL migrations
+    service/    the application policy both the REST handlers and the expiry sweep drive —
+                project.go, file.go; owns no transport concept (no ResponseWriter, no statuses)
+    validate/   the llm-contract §6 chat-request check (llmchat.go)
+    llm/        the upstream proxy: client.go + one file per wire shape (anthropic, ollama,
+                openai), providers.go, enablement.go, upstream.go (why it failed), sanitize.go
+    bus/        pub/sub interface + in-process implementation; drop.go (the dropped-delivery
+                WARN — a silent drop reads like a lost edit)
     redisbus/   Redis implementation of bus.Bus
     transport/  Conn abstraction; WebSocket (ws.go) + TCP NDJSON (tcp.go) adapters
-    httpapi/    net/http REST: token issuance, project CRUD, file upload/download
+    httpapi/    net/http REST, transport only: token issuance, project CRUD, file up/download,
+                the LLM routes; assets/ + goldens/ for the pinned user-facing text
     hub/        live edit sessions: one run-loop per project, edit relay + save
+    clock/      the injectable now() the timed tests drive
+    lint/       the size/comment ratchet (sizebudget.json) — a test, not a runtime package
+    testutil/   the shared test rigs (store truncation, dial, LLM doubles)
 ```
 
 ## Run
@@ -117,10 +142,15 @@ Configuration (see `.env.example`): `LISTEN_ADDR`, `TCP_ADDR`, `DATABASE_URL`,
 `DB_MAX_CONNS`/`DB_MIN_CONNS`/`DB_STATEMENT_TIMEOUT` (pgx pool sizing and the
 server-side per-statement cap, in seconds),
 `REDIS_URL` plus `REDIS_POOL_SIZE`/`REDIS_DIAL_TIMEOUT`/`REDIS_IO_TIMEOUT` (go-redis
-client sizing; the timeouts in seconds, 0 = the library default), `FILESTORE_ROOT`, `ADMIN_TOKEN`, `AUTH_OPEN`, `TOKEN_TTL_HOURS`, `MAX_BODY_BYTES`,
-`PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`, `OP_TIMEOUT_SECONDS`, `TRUSTED_PROXY_CIDRS`,
+client sizing; the timeouts in seconds, 0 = the library default), `FILESTORE_ROOT`,
+`STORAGE_QUOTA_BYTES` (aggregate cap on stored bytes; an upload past it is refused
+`507`, 0 = unlimited), `ADMIN_TOKEN`, `AUTH_OPEN`, `CORS_ORIGINS`, `TOKEN_TTL_HOURS`,
+`MAX_BODY_BYTES`, `PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`, `OP_TIMEOUT_SECONDS`,
+the abuse buckets (`AUTH_RATE_PER_MINUTE`, `WRITE_RATE_PER_MINUTE`,
+`HELLO_RATE_PER_MINUTE` — see [Security](#security)), `TRUSTED_PROXY_CIDRS`,
 `TLS_CERT`/`TLS_KEY` (one cert/key secures HTTPS+WSS and the TCP edit channel),
-and the LLM proxy keys (`ANTHROPIC_API_KEY`, `LLM_*` — see [LLM proxy](#llm-proxy)).
+and the LLM proxy keys (`LLM_PROVIDER`, `LLM_API_KEY`, `ANTHROPIC_API_KEY`, `LLM_*` —
+see [LLM proxy](#llm-proxy)).
 
 `FILESTORE_ROOT` defaults to the relative `./data/filestore`, which resolves
 against the working directory — in a container with no mounted volume the bytes
@@ -152,7 +182,7 @@ All routes except `POST /auth/token` require `Authorization: Bearer <token>`.
 | PUT | `/projects/{id}` | update name/color/`expiresAt`/layout under a version guard (409 on conflict) |
 | DELETE | `/projects/{id}` | delete project + its files |
 | GET | `/projects/{id}/files/{kind}` | download bytes; kind = `original` \| `result` \| `video` \| `variant1`..`variant8` \| `chat` |
-| POST | `/projects/{id}/files/{kind}?ext=&w=&h=` | upload bytes (server is codec-free: dimensions are passed in) |
+| POST | `/projects/{id}/files/{kind}?ext=&w=&h=` | upload bytes (server is codec-free: dimensions are passed in); 507 past `STORAGE_QUOTA_BYTES` |
 | DELETE | `/projects/{id}/files/{kind}` | delete one filestore-only kind (`video`/`variantN`/`chat`); idempotent 204 |
 | GET | `/llm/info` | LLM proxy status: `{enabled, model}` |
 | POST | `/llm/chat` | proxy one chat turn to Anthropic (503 `llmDisabled` without a key; 502 `llmUpstream` with the reason when the upstream fails) |
@@ -256,6 +286,13 @@ Because live edits are never persisted, a shutdown loses everything since the
 last `save` — so before closing sessions the server sends every connection an
 `error` frame with code `shuttingDown`, and clients can prompt to save/reconnect.
 
+Both bus backends **drop** a delivery rather than stall when a subscriber is behind, and a
+silent drop reads like a lost edit, so `bus.DropLog` warns about it — rate-limited to one
+line per 30 s carrying the count lost since the last one, since the drop storm that matters
+would otherwise be the thing flooding the log. A `WARN <backend>: dropped N message(s) to a
+slow subscriber` in production means a peer is not keeping up — clients recover by version
+resync, so sustained lines mean a stuck peer, not a rejected edit.
+
 ## Security
 
 - Tokens are 256-bit random values; only their SHA-256 hash is stored, compared
@@ -263,6 +300,11 @@ last `save` — so before closing sessions the server sends every connection an
   by the admin token: `ADMIN_TOKEN` when set, otherwise a random per-boot token
   the server generates and prints once at startup. Issuance is never open by
   default.
+- **A token travels as a header, never in a query string** — one exception, and it is
+  narrow: `auth.BearerToken` falls back to `?token=` **only** on an RFC 6455 upgrade
+  request, because the browser `WebSocket` API cannot set headers. On plain REST a URL
+  token is ignored outright rather than honoured, so it can never be the thing that
+  leaks through a log line or a `Referer`.
 - **Open issuance (`AUTH_OPEN=1`)** is an explicit opt-in for trusted networks:
   `POST /auth/token` then mints a token with no bearer at all (the admin token
   keeps working), and the server prints a loud boot warning. Because a token
@@ -299,7 +341,12 @@ last `save` — so before closing sessions the server sends every connection an
   written atomically. Traversal attempts are rejected and tested. It is
   **path-confined, not encrypted**: bytes land on disk as uploaded, so the
   guarantee is "no path escapes the root", not "at rest protection".
-- REST bodies are size-capped and decoded with unknown-field rejection.
+- REST bodies are size-capped and decoded with unknown-field rejection, and the store's
+  aggregate size is capped by `STORAGE_QUOTA_BYTES` (an upload past it answers
+  `507 Insufficient Storage`; `0`/unset is unlimited and costs neither a lock nor a walk).
+  Per-session write abuse is metered too: `WRITE_RATE_PER_MINUTE` (default 120) covers
+  project creations and file uploads, `AUTH_RATE_PER_MINUTE` (default 10) token issuance
+  per client IP. Both `0` to disable.
 - Transport encryption is opt-in via `TLS_CERT`/`TLS_KEY`: one cert/key secures
   HTTPS + WSS *and* the raw-TCP edit channel (TLS 1.2 minimum). Tokens travel as
   bearer headers, so enable TLS (or front the server with a TLS-terminating proxy)
@@ -317,7 +364,7 @@ last `save` — so before closing sessions the server sends every connection an
 ## Tests
 
 ```bash
-go test ./...            # unit tests (filestore, auth, bus, httpapi, hub) run offline
+go test ./...            # ~250 cases across 16 packages; everything but store/ + redisbus/ is offline
 go test -race ./internal/hub/...
 ```
 
