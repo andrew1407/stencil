@@ -68,6 +68,8 @@ const subBuffer = 64
 
 // InProc is an in-memory Bus for single-instance deployments and tests.
 type InProc struct {
+	drops DropLog
+
 	mu   sync.Mutex
 	subs map[string]map[int]chan Envelope
 	next int
@@ -85,7 +87,8 @@ func (b *InProc) Publish(_ context.Context, channel string, env Envelope) error 
 	for _, ch := range b.subs[channel] {
 		select {
 		case ch <- env:
-		default: // subscriber is behind; drop (recoverable via version resync)
+		default:
+			b.drops.Drop("bus", channel)
 		}
 	}
 	return nil

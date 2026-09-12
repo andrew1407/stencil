@@ -6,6 +6,7 @@ package redisbus
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 
@@ -15,18 +16,41 @@ import (
 // subBuffer mirrors the in-proc bus: a slow consumer drops rather than stalls.
 const subBuffer = 64
 
+// Options size the client; a zero field keeps go-redis's default.
+type Options struct {
+	PoolSize    int
+	DialTimeout time.Duration
+	IOTimeout   time.Duration
+}
+
 // Bus is a Redis-backed implementation of bus.Bus.
 type Bus struct {
 	client *redis.Client
+	drops  bus.DropLog
 }
 
 var _ bus.Bus = (*Bus)(nil)
 
 // New parses redisURL (redis://[user:pass@]host:port/db), connects, and pings.
 func New(ctx context.Context, redisURL string) (*Bus, error) {
+	return NewWithOptions(ctx, redisURL, Options{})
+}
+
+// NewWithOptions is New with explicit sizing. The pool matters under fan-out:
+// every session holds a subscription, and a publish needs a connection of its own.
+func NewWithOptions(ctx context.Context, redisURL string, opts Options) (*Bus, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
+	}
+	if opts.PoolSize > 0 {
+		opt.PoolSize = opts.PoolSize
+	}
+	if opts.DialTimeout > 0 {
+		opt.DialTimeout = opts.DialTimeout
+	}
+	if opts.IOTimeout > 0 {
+		opt.ReadTimeout, opt.WriteTimeout = opts.IOTimeout, opts.IOTimeout
 	}
 	client := redis.NewClient(opt)
 	if err := client.Ping(ctx).Err(); err != nil {
@@ -64,7 +88,8 @@ func (b *Bus) Subscribe(channel string) (<-chan bus.Envelope, func()) {
 			}
 			select {
 			case out <- env:
-			default: // consumer behind; drop (recoverable via version resync)
+			default:
+				b.drops.Drop("redisbus", channel)
 			}
 		}
 	}()

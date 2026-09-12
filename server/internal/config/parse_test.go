@@ -79,27 +79,33 @@ func TestHardeningRejectsBadValues(t *testing.T) {
 	}
 }
 
-// The Postgres pool keys: unset = pgx decides (store.NewWithPool floors it).
-func TestDatabasePoolKeys(t *testing.T) {
+// The backing-service sizing keys (Postgres pool, Redis client): unset means the
+// driver decides — pgx via store.NewWithPool's floor, go-redis via its defaults.
+func TestBackingServiceSizingKeys(t *testing.T) {
 	chdirTemp(t)
 	clearEnv(t)
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.DBMaxConns != 0 || cfg.DBMinConns != 0 || cfg.DBStatementTimeout != 0 {
-		t.Fatalf("pool defaults: %+v", cfg)
+	if cfg.DBMaxConns != 0 || cfg.DBMinConns != 0 || cfg.DBStatementTimeout != 0 || cfg.Redis != (RedisOptions{}) {
+		t.Fatalf("sizing defaults: %+v", cfg)
 	}
-	t.Setenv("DB_MAX_CONNS", "40")
-	t.Setenv("DB_MIN_CONNS", "4")
-	t.Setenv("DB_STATEMENT_TIMEOUT", "15")
+	for k, v := range map[string]string{"DB_MAX_CONNS": "40", "DB_MIN_CONNS": "4", "DB_STATEMENT_TIMEOUT": "15",
+		"REDIS_POOL_SIZE": "32", "REDIS_DIAL_TIMEOUT": "2", "REDIS_IO_TIMEOUT": "4"} {
+		t.Setenv(k, v)
+	}
 	if cfg, err = Load(); err != nil {
 		t.Fatal(err)
 	}
 	if cfg.DBMaxConns != 40 || cfg.DBMinConns != 4 || cfg.DBStatementTimeout != 15*time.Second {
 		t.Fatalf("pool overrides: %d/%d/%v", cfg.DBMaxConns, cfg.DBMinConns, cfg.DBStatementTimeout)
 	}
-	for _, tc := range [][2]string{{"DB_MAX_CONNS", "-1"}, {"DB_MIN_CONNS", "x"}, {"DB_STATEMENT_TIMEOUT", "-5"}} {
+	if want := (RedisOptions{PoolSize: 32, DialTimeout: 2 * time.Second, IOTimeout: 4 * time.Second}); cfg.Redis != want {
+		t.Fatalf("redis overrides: %+v, want %+v", cfg.Redis, want)
+	}
+	for _, tc := range [][2]string{{"DB_MAX_CONNS", "-1"}, {"DB_MIN_CONNS", "x"}, {"DB_STATEMENT_TIMEOUT", "-5"},
+		{"REDIS_POOL_SIZE", "-1"}, {"REDIS_IO_TIMEOUT", "x"}} {
 		chdirTemp(t)
 		clearEnv(t)
 		t.Setenv(tc[0], tc[1])

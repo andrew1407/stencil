@@ -13,12 +13,10 @@ import (
 	"sync"
 	"syscall"
 
-	"stencil/server/internal/bus"
 	"stencil/server/internal/config"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/httpapi"
 	"stencil/server/internal/hub"
-	"stencil/server/internal/redisbus"
 	"stencil/server/internal/service"
 	"stencil/server/internal/store"
 )
@@ -61,7 +59,7 @@ func run() error {
 	}
 
 	// Event/edit bus: Redis when configured, otherwise in-process.
-	b, err := openBus(rootCtx, cfg.RedisURL)
+	b, err := openBus(rootCtx, cfg)
 	if err != nil {
 		return err
 	}
@@ -90,13 +88,4 @@ func run() error {
 		cfg.ListenAddr, tlsConf != nil, cfg.RedisURL != "", fs.Root(), deps.LLM != nil)
 	return serve(rootCtx, httpServer(cfg, httpapi.New(deps), h, tlsConf), tcpLn, h,
 		cfg.TCPAddr, banner, tlsConf != nil, stop, &sweepWG)
-}
-
-// openBus returns a Redis-backed bus when redisURL is set, else an in-process
-// bus (single-instance deployments).
-func openBus(ctx context.Context, redisURL string) (bus.Bus, error) {
-	if redisURL == "" {
-		return bus.NewInProc(), nil
-	}
-	return redisbus.New(ctx, redisURL)
 }

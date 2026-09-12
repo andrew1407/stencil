@@ -18,6 +18,7 @@ type Config struct {
 	TCPAddr             string        // host:port for the raw-TCP (NDJSON) edit listener
 	DatabaseURL         string        // postgres connection string (pgx)
 	RedisURL            string        // redis://... (empty disables the bus; in-memory fan-out only)
+	Redis               RedisOptions  // go-redis client sizing for that URL (redis.go)
 	FilestoreRoot       string        // root directory for the secured file store
 	TokenTTL            time.Duration // lifetime of issued auth tokens
 	ProjectTTL          time.Duration // default lifetime stamped on new projects; 0 = no expiry (off)
@@ -143,11 +144,10 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.SweepInterval = time.Duration(sweepMinutes) * time.Minute
-	if err := loadLLM(get, &cfg); err != nil {
-		return Config{}, err
-	}
-	if err := loadDB(get, &cfg); err != nil {
-		return Config{}, err
+	for _, load := range []func(getter, *Config) error{loadLLM, loadDB, loadRedis} {
+		if err := load(get, &cfg); err != nil {
+			return Config{}, err
+		}
 	}
 	if cfg.AuthRatePerMin, err = positiveInt(get, "AUTH_RATE_PER_MINUTE", defaultAuthRatePerMin, 0); err != nil {
 		return Config{}, err

@@ -4,6 +4,7 @@ package main
 // proxy, and the warnings an operator must see before the listeners come up.
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"stencil/server/internal/httpapi"
 	"stencil/server/internal/hub"
 	"stencil/server/internal/llm"
+	"stencil/server/internal/redisbus"
 	"stencil/server/internal/store"
 )
 
@@ -99,4 +101,14 @@ func filestoreWarning(root string) string {
 	return fmt.Sprintf("WARNING: FILESTORE_ROOT %q is relative — it resolves against the working "+
 		"directory, so in a container with no mounted volume the stored image bytes are lost on restart. "+
 		"Set an absolute path.", root)
+}
+
+// openBus returns a Redis-backed bus when REDIS_URL is set, else an in-process
+// bus (single-instance deployments).
+func openBus(ctx context.Context, cfg config.Config) (bus.Bus, error) {
+	if cfg.RedisURL == "" {
+		return bus.NewInProc(), nil
+	}
+	return redisbus.NewWithOptions(ctx, cfg.RedisURL, redisbus.Options{PoolSize: cfg.Redis.PoolSize,
+		DialTimeout: cfg.Redis.DialTimeout, IOTimeout: cfg.Redis.IOTimeout})
 }
