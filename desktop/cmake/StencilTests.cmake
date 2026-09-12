@@ -399,7 +399,7 @@ stencil_headless_test(stencil_coedit_headless
 # parse matrix (extraction tolerance, strict per-op validation, limits).
 stencil_headless_test(stencil_llmopplan_headless
   SOURCES tests/llmOpPlan.headless.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
-    src/llm/opSchema.cpp resources/app.qrc
+    ${STENCIL_OPSCHEMA_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Core)
 
 # Shared conformance-fixture corpus (browser/js/config/**/fixtures) + the
@@ -413,7 +413,7 @@ set(STENCIL_FIXTURE_WALKER_DEFS
 # the local override map (the desktop drift inventory).
 stencil_headless_test(stencil_opplanfixtures_headless
   SOURCES tests/opPlanFixtures.headless.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
-    src/llm/opSchema.cpp resources/app.qrc
+    ${STENCIL_OPSCHEMA_SOURCES} resources/app.qrc
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Core)
 
@@ -424,7 +424,7 @@ stencil_headless_test(stencil_opplanfixtures_headless
 stencil_headless_test(stencil_llmwirefixtures_headless
   SOURCES tests/llmWireFixtures.headless.cpp src/llm/llmClientProbe.cpp
     src/llm/llmClientChat.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
-    src/llm/opSchema.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
+    ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp resources/app.qrc
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
@@ -435,7 +435,7 @@ stencil_headless_test(stencil_llmwirefixtures_headless
 stencil_headless_test(stencil_llmclient_headless
   SOURCES tests/llmClient.headless.cpp src/llm/llmClient.cpp src/llm/llmClientProbe.cpp
     src/llm/llmClientChat.cpp src/llm/opPlan.cpp
-    src/llm/opRegistry.cpp src/llm/opSchema.cpp ${STENCIL_SERVERCLIENT_SOURCES}
+    src/llm/opRegistry.cpp ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES}
     src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp resources/app.qrc
@@ -463,7 +463,7 @@ stencil_headless_test(stencil_llmexecutor_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/llmExecutor.headless.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
-    src/llm/opSchema.cpp src/llm/planExecutor.cpp ${STENCIL_CANVAS_SOURCES}
+    ${STENCIL_OPSCHEMA_SOURCES} src/llm/planExecutor.cpp ${STENCIL_CANVAS_SOURCES}
     src/canvas/idleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets)
@@ -499,7 +499,7 @@ stencil_headless_test(stencil_configcanon_headless
 # mediaTypes.json against the suffix sniffers, and the prompt canon's context suffixes.
 stencil_headless_test(stencil_canonassets_headless
   SOURCES tests/canonAssets.headless.cpp src/app/launchOptions.cpp ${STENCIL_FILESTORE_SOURCES}
-    src/io/deferredWrite.cpp src/io/mediaTypes.cpp src/llm/opRegistry.cpp src/llm/opSchema.cpp
+    src/io/deferredWrite.cpp src/io/mediaTypes.cpp src/llm/opRegistry.cpp ${STENCIL_OPSCHEMA_SOURCES}
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 

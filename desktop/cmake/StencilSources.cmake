@@ -120,6 +120,13 @@ set(STENCIL_SERVERCLIENT_SOURCES
   src/net/serverClientWrites.cpp
   src/net/serverClientManager.cpp)
 
+# The op-schema validator (llm/opSchema.hpp) is three TUs behind a private checks header:
+# the table and limits, the per-kind field checks, and the action/ask validation.
+set(STENCIL_OPSCHEMA_SOURCES
+  src/llm/opSchema.cpp
+  src/llm/opSchemaChecks.cpp
+  src/llm/opSchemaValidate.cpp)
+
 # The theme (support/theme.hpp) is three TUs: the accent resolution, the palette and the
 # stylesheet build.
 set(STENCIL_THEME_SOURCES
@@ -289,7 +296,7 @@ set(STENCIL_GUI_SOURCES
   src/app/chatPlanTargetProjects.cpp
   src/llm/opPlan.cpp
   src/llm/opRegistry.cpp
-  src/llm/opSchema.cpp
+  ${STENCIL_OPSCHEMA_SOURCES}
   src/llm/llmClient.cpp
   src/llm/llmClientProbe.cpp
   src/llm/llmClientChat.cpp
