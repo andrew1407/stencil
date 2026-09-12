@@ -8,7 +8,7 @@
     "extension/src/content/pageApiMain.js": 582,
     "extension/src/crop/crop.js": 194,
     "extension/src/lib/accent.js": 123,
-    "extension/src/lib/connections.js": 278,
+    "extension/src/lib/connections.js": 88,
     "extension/src/lib/contextMenu.js": 245,
     "extension/src/lib/customSelect.js": 258,
     "extension/src/lib/dropZones.js": 249,
