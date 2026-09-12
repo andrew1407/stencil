@@ -10,14 +10,6 @@ import (
 	"stencil/server/internal/validate"
 )
 
-// upstreamError is the llm package's classified-failure seam (*llm.UpstreamError):
-// an error carrying a sanitized, client-safe reason for an UPSTREAM condition the
-// user can act on — no credits, bad key, unknown model, timeout, unreachable host.
-type upstreamError interface {
-	error
-	ClientMessage() string
-}
-
 // handleLLMInfo reports whether the Anthropic proxy is configured and with
 // which default model, so settings UIs can render "via server X (model)".
 func (a *API) handleLLMInfo(rw http.ResponseWriter, _ *http.Request) {

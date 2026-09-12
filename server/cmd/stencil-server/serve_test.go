@@ -1,6 +1,6 @@
 package main
 
-// buildTLS is the one boot step that turns on encryption for BOTH listeners, so
+// newTLSConfig is the one boot step that turns on encryption for BOTH listeners, so
 // what matters is that it is opt-in and that a misconfigured pair fails the boot
 // rather than silently starting in plaintext.
 
@@ -18,7 +18,7 @@ func TestBuildTLSIsOptIn(t *testing.T) {
 		{"cert only", "cert.pem", ""},
 		{"key only", "", "tls.key"},
 	} {
-		conf, err := buildTLS(config.Config{TLSCert: tc.cert, TLSKey: tc.key})
+		conf, err := newTLSConfig(config.Config{TLSCert: tc.cert, TLSKey: tc.key})
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
@@ -33,7 +33,7 @@ func TestBuildTLSIsOptIn(t *testing.T) {
 func TestBuildTLSFailsOnAnUnreadablePair(t *testing.T) {
 	dir := t.TempDir()
 	cfg := config.Config{TLSCert: filepath.Join(dir, "nope.pem"), TLSKey: filepath.Join(dir, "nope.key")}
-	if _, err := buildTLS(cfg); err == nil {
+	if _, err := newTLSConfig(cfg); err == nil {
 		t.Fatal("a missing certificate must fail the boot, not fall back to plaintext")
 	}
 }

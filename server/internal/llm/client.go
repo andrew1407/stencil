@@ -24,12 +24,6 @@ import (
 // chat responses are well under 1 MiB.
 const maxResponseBytes = 8 << 20 // 8 MiB
 
-// Doer is the outbound HTTP seam: *http.Client satisfies it, tests inject a
-// mock to assert the exact request without a network.
-type Doer interface {
-	Do(*http.Request) (*http.Response, error)
-}
-
 // Client proxies chat turns to the configured upstream (Anthropic, Ollama or
 // any OpenAI-compatible server — llm-contract.md §6).
 type Client struct {

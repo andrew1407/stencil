@@ -12,7 +12,7 @@ import (
 
 // requireRedis returns a live bus or skips the test when REDIS_URL is unset or
 // unreachable, mirroring the self-skipping e2e convention used by mcp/.
-func requireRedis(t *testing.T) *Bus {
+func requireRedis(t *testing.T) bus.Bus {
 	t.Helper()
 	url := os.Getenv("REDIS_URL")
 	if url == "" {

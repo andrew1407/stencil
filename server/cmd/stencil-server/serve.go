@@ -18,11 +18,11 @@ import (
 	"stencil/server/internal/hub"
 )
 
-// buildTLS loads the certificate securing BOTH the HTTP/WS port and the raw-TCP
+// newTLSConfig loads the certificate securing BOTH the HTTP/WS port and the raw-TCP
 // edit channel, so the live-edit transport is encryptable too — not just
 // REST/WS. TLS is opt-in via TLS_CERT/TLS_KEY; without them the server runs
 // plaintext (intended only behind a trusted proxy or on localhost).
-func buildTLS(cfg config.Config) (*tls.Config, error) {
+func newTLSConfig(cfg config.Config) (*tls.Config, error) {
 	if cfg.TLSCert == "" || cfg.TLSKey == "" {
 		return nil, nil
 	}
@@ -33,8 +33,8 @@ func buildTLS(cfg config.Config) (*tls.Config, error) {
 	return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}, nil
 }
 
-// httpServer mounts REST + WS + healthz behind the CORS policy.
-func httpServer(cfg config.Config, api *httpapi.API, h *hub.Hub, tlsConf *tls.Config) *http.Server {
+// newHTTPServer mounts REST + WS + healthz behind the CORS policy.
+func newHTTPServer(cfg config.Config, api *httpapi.API, h *hub.Hub, tlsConf *tls.Config) *http.Server {
 	mux := http.NewServeMux()
 	api.Register(mux)
 	mux.Handle("/ws", h.WSHandler())

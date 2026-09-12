@@ -5,12 +5,6 @@ package llm
 // Response is canonical for all of them — only the wire shape differs (cf.
 // browser llmClient.js).
 
-import (
-	"context"
-
-	"stencil/server/internal/protocol"
-)
-
 // Provider identifiers (the §5 values the clients use, minus the client-only
 // "stencil-server" — from this process's side that IS the upstream choice).
 const (
@@ -18,14 +12,6 @@ const (
 	ProviderOllama    = "ollama"
 	ProviderOpenAI    = "openai-compat"
 )
-
-// providerMapping is one provider's wire mapping: it turns the canonical
-// request into that provider's shape and its reply back into the canonical
-// response. Adding a provider is a table entry plus its own file — never an
-// edit to Chat.
-type providerMapping interface {
-	chat(ctx context.Context, c *Client, req protocol.LlmChatRequest, model string) (protocol.LlmChatResponse, error)
-}
 
 var mappings = map[string]providerMapping{
 	ProviderAnthropic: anthropicMapping{},

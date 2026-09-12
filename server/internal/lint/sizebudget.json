@@ -13,7 +13,7 @@
     "server/internal/hub/hub_test.go": 186,
     "server/internal/hub/session.go": 211,
     "server/internal/llm/anthropic_test.go": 208,
-    "server/internal/llm/providers.go": 86,
+    "server/internal/llm/providers.go": 72,
     "server/internal/llm/providers_test.go": 118,
     "server/internal/llm/upstream.go": 171,
     "server/internal/llm/upstream_test.go": 177,

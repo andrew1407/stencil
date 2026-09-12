@@ -23,22 +23,22 @@ type Options struct {
 	IOTimeout   time.Duration
 }
 
-// Bus is a Redis-backed implementation of bus.Bus.
-type Bus struct {
+// redisBus is the Redis-backed implementation of bus.Bus.
+type redisBus struct {
 	client *redis.Client
 	drops  bus.DropLog
 }
 
-var _ bus.Bus = (*Bus)(nil)
+var _ bus.Bus = (*redisBus)(nil)
 
 // New parses redisURL (redis://[user:pass@]host:port/db), connects, and pings.
-func New(ctx context.Context, redisURL string) (*Bus, error) {
+func New(ctx context.Context, redisURL string) (bus.Bus, error) {
 	return NewWithOptions(ctx, redisURL, Options{})
 }
 
 // NewWithOptions is New with explicit sizing. The pool matters under fan-out:
 // every session holds a subscription, and a publish needs a connection of its own.
-func NewWithOptions(ctx context.Context, redisURL string, opts Options) (*Bus, error) {
+func NewWithOptions(ctx context.Context, redisURL string, opts Options) (bus.Bus, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
@@ -57,12 +57,12 @@ func NewWithOptions(ctx context.Context, redisURL string, opts Options) (*Bus, e
 		_ = client.Close()
 		return nil, err
 	}
-	return &Bus{client: client}, nil
+	return &redisBus{client: client}, nil
 }
 
 // Publish posts one envelope to a Redis channel — the only place it is
 // serialised. Data rides along as raw JSON, so the frame is not re-encoded.
-func (b *Bus) Publish(ctx context.Context, channel string, env bus.Envelope) error {
+func (b *redisBus) Publish(ctx context.Context, channel string, env bus.Envelope) error {
 	payload, err := json.Marshal(env)
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func (b *Bus) Publish(ctx context.Context, channel string, env bus.Envelope) err
 // Subscribe opens a Redis subscription and pumps payloads onto a buffered Go
 // channel. The unsubscribe func closes the subscription, which ends the pump
 // goroutine and closes the returned channel.
-func (b *Bus) Subscribe(channel string) (<-chan bus.Envelope, func()) {
+func (b *redisBus) Subscribe(channel string) (<-chan bus.Envelope, func()) {
 	// The subscription's lifetime is bounded by the returned unsubscribe func
 	// (which closes the pubsub), not by a per-call context, so use a background
 	// context for the initial SUBSCRIBE command.
@@ -97,4 +97,4 @@ func (b *Bus) Subscribe(channel string) (<-chan bus.Envelope, func()) {
 }
 
 // Close disconnects the client.
-func (b *Bus) Close() error { return b.client.Close() }
+func (b *redisBus) Close() error { return b.client.Close() }

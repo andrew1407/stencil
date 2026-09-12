@@ -66,8 +66,8 @@ func PublishProjectEvent(ctx context.Context, b Bus, event string, rec protocol.
 // dropped relay is recoverable).
 const subBuffer = 64
 
-// InProc is an in-memory Bus for single-instance deployments and tests.
-type InProc struct {
+// inProc is an in-memory Bus for single-instance deployments and tests.
+type inProc struct {
 	drops DropLog
 
 	mu   sync.Mutex
@@ -76,12 +76,12 @@ type InProc struct {
 }
 
 // NewInProc creates an in-memory bus.
-func NewInProc() *InProc {
-	return &InProc{subs: make(map[string]map[int]chan Envelope)}
+func NewInProc() Bus {
+	return &inProc{subs: make(map[string]map[int]chan Envelope)}
 }
 
 // Publish delivers env to every subscriber of channel without blocking.
-func (b *InProc) Publish(_ context.Context, channel string, env Envelope) error {
+func (b *inProc) Publish(_ context.Context, channel string, env Envelope) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	for _, ch := range b.subs[channel] {
@@ -95,7 +95,7 @@ func (b *InProc) Publish(_ context.Context, channel string, env Envelope) error 
 }
 
 // Subscribe registers a new subscriber for channel.
-func (b *InProc) Subscribe(channel string) (<-chan Envelope, func()) {
+func (b *inProc) Subscribe(channel string) (<-chan Envelope, func()) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.subs[channel] == nil {
@@ -125,4 +125,4 @@ func (b *InProc) Subscribe(channel string) (<-chan Envelope, func()) {
 	return ch, cancel
 }
 
-func (b *InProc) Close() error { return nil }
+func (b *inProc) Close() error { return nil }

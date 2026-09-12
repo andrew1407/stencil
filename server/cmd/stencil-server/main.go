@@ -76,7 +76,7 @@ func run() error {
 	h := hub.New(rootCtx, st, b, st, hub.WithHelloLimit(cfg.HelloRatePerMin, cfg.TrustedProxies))
 	deps := apiDeps(cfg, st, fs, h, b)
 
-	tlsConf, err := buildTLS(cfg)
+	tlsConf, err := newTLSConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -86,6 +86,6 @@ func run() error {
 	}
 	banner := fmt.Sprintf("HTTP/WS listening on %s (tls=%v, redis=%v, filestore=%s, llm=%v)",
 		cfg.ListenAddr, tlsConf != nil, cfg.RedisURL != "", fs.Root(), deps.LLM != nil)
-	return serve(rootCtx, httpServer(cfg, httpapi.New(deps), h, tlsConf), tcpLn, h,
+	return serve(rootCtx, newHTTPServer(cfg, httpapi.New(deps), h, tlsConf), tcpLn, h,
 		cfg.TCPAddr, banner, tlsConf != nil, stop, &sweepWG)
 }
