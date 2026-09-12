@@ -2,7 +2,7 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
-    "server/cmd/stencil-server/main.go": 102,
+    "server/cmd/stencil-server/main.go": 91,
     "server/internal/config/config.go": 194,
     "server/internal/config/config_test.go": 155,
     "server/internal/filestore/filestore.go": 228,
