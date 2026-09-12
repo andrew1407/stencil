@@ -1,0 +1,37 @@
+/* The composer's drop-to-attach cue: the icon bobs toward the input while a drag
+   hovers it, so the target reads as "let go here" rather than a static outline
+   (browser css/animations/motionModes.css chat-drop-bob twin). The global reduced-motion block
+   above already neutralises it. */
+.chat-drop-cue-icon { animation: chat-drop-bob 1s infinite ease-in-out; }
+@keyframes chat-drop-bob {
+    0%, 100% { transform: translateY(-2px); }
+    50%      { transform: translateY(2px); }
+}
+/* The hover preview fades in once placed, so it never flashes off-screen first. */
+.chat-thumb-preview { transition: opacity .12s ease; }
+
+/* A CHAT entry takes its time on the way out (motion.js CHAT_LEAVE_MS): a deleted
+   message is a deliberate act, and the old 0.22s snap read as a glitch next to the
+   particles still drifting off it. Browser css/animations/reveal.css chatCardLeave twin. */
+#sec-assistant .chat-transcript > .leaving, #sec-assistant .chip.leaving {
+    animation: chatCardLeave 0.26s cubic-bezier(0.33, 0, 0.2, 1) both;
+    will-change: opacity, transform;
+}
+/* Opacity + transform only: an animated blur is composited every frame, and next to
+   hundreds of drifting particles that was what made the removal feel heavy. */
+@keyframes chatCardLeave {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(-8px) scale(0.95); }
+}
+/* …and it ARRIVES the same way, backwards (motion.js chatIn): its own motes gather over
+   it (reintegrate) and the entry appears as they land. A VEIL, not a fade — the entry
+   keeps its height, so the transcript grows and scrolls to it exactly as it always did,
+   but it is never seen ahead of its own dust. Browser css/animations/reveal.css twin. */
+#sec-assistant .chat-transcript > .chat-entering,
+#chat-transcript > .chat-entering {
+    opacity: 0 !important;
+    /* The dust is a photograph of where the entry IS — nothing may move under it. */
+    animation: none !important;
+    transition: none !important;
+    pointer-events: none;
+}

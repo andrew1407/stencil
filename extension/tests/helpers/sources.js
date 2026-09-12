@@ -14,7 +14,10 @@ export const popupCss = () => ['popup.css', 'list.css', 'editorMode.css', 'chatP
 
 // The two shared sheets every extension document links, in that link order.
 export const themeCss = () => ['theme.css'].map((f) => read(`../../src/lib/${f}`)).join('\n');
-export const animationsCss = () => ['animations.css'].map((f) => read(`../../src/lib/${f}`)).join('\n');
+export const animationsCss = () => ['keyframes.css', 'iconHover.css', 'controls.css',
+  'themeSwap.css', 'reveal.css', 'pages.css', 'motionModes.css', 'reducedMotion.css',
+  'chat.css', 'overlays.css', 'motionIcons.css']
+  .map((f) => read(`../../src/lib/animations/${f}`)).join('\n');
 
 // Every stylesheet one document links, concatenated in document order — the text the
 // browser would actually cascade for that page.

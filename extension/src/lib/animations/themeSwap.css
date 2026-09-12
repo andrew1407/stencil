@@ -1,0 +1,96 @@
+/* ── Theme / accent swap (lib/accent.js) ──────────────────────────────
+   The new palette floods out from where the user pressed. With the View
+   Transitions API the NEW snapshot is clipped by a growing circle (scripted, so
+   both default cross-fades are off here); without it, every colour consumer gets
+   one beat of transition. Mirrors browser/css/animations/themeSwap.css. */
+::view-transition-old(root),
+::view-transition-new(root) { mix-blend-mode: normal; }
+::view-transition-old(root) { z-index: 0; animation: none; }
+/* The UA also animates the GROUP (250ms), and it is the parent of both snapshots. When
+   the swap changes page height — a scrollbar coming or going as the palette flips — that
+   default retimes and rescales the pair underneath the wipe, so the circle appears to
+   stall and then jump. Only the wipe below should drive this transition. */
+::view-transition-group(root) { animation: none; }
+/* The reveal is DECLARATIVE, not scripted. A view transition ends the moment its
+   pseudo-elements have no animations left — so killing the default with
+   `animation: none` and then adding one from `ready.then()` races the teardown, and
+   the wipe visibly stops half way. Declaring it here means the animation exists on the
+   very first frame, and the transition waits for it. The origin and radius ride in as
+   custom properties (motion.js / accent.js set them on :root before starting). */
+::view-transition-new(root) {
+    z-index: 1;
+    /* Chosen for the AREA it sweeps, not the radius it moves: the wipe is a CIRCLE, so the
+       painted area grows as r², and an ease-OUT radius floods the screen early and then
+       creeps over a sliver in the far corner — which reads as the animation stopping half
+       way and finishing later. So the radius eases IN slightly. The full measurements and
+       the traps on either side are recorded over the same declaration in
+       browser/css/animations/themeSwap.css; keep the two identical.
+       All three surfaces run this same wipe — the desktop evaluates these very control
+       points as a Qt easing (support/themeSwapOverlay.hpp swapEase) over the same duration.
+       browser/tests/motion.test.js holds this file and the browser's to each other, and
+       desktop/tests/themeSwapEase.headless.cpp holds the desktop's curve to the same
+       area-sweep contract. */
+    animation: themeSwapReveal var(--swap-ms, 280ms) cubic-bezier(0.4, 0.25, 0.95, 1) both;
+}
+/* PERCENTAGES, not pixels: they resolve against the pseudo-element's own box, so the wipe
+   still comes out of the button in an engine that measures that box in device pixels — a px
+   origin lands at half its offset there. accent.js does the maths.
+   The clip is NOT a clean circle: the front is a torn, dusty edge — accent.js
+   edgePolygon hands in a collapsed and a full ragged polygon ring (equal vertex
+   counts, so the browser interpolates them), and the swap-dust grains ride right
+   behind it. The circle stays only as the fallback for a write that never happened.
+   Mirrors browser/css/animations/themeSwap.css. */
+@keyframes themeSwapReveal {
+    from { clip-path: var(--swap-clip-from, circle(0% at var(--swap-x, 50%) var(--swap-y, 50%))); }
+    to   { clip-path: var(--swap-clip-to, circle(var(--swap-r, 150%) at var(--swap-x, 50%) var(--swap-y, 50%))); }
+}
+
+/* While a view transition CAPTURES the new state, every colour transition in the app
+   must be off. The snapshot is taken the instant the palette attribute flips — and
+   `body { transition: background 0.3s }` (plus every button/row transition) means that
+   at that instant the page is still wearing the OLD colours. The wipe then reveals a
+   half-changed page and the real colours creep in behind it, which reads as the theme
+   change lagging the animation. Suppressing transitions makes the snapshot final, so
+   the wipe reveals the finished theme. */
+html.theme-instant, html.theme-instant *,
+html.theme-instant *::before, html.theme-instant *::after {
+    transition: none !important;
+}
+
+html.theme-swapping, html.theme-swapping *,
+html.theme-swapping *::before, html.theme-swapping *::after {
+    transition: background-color 0.45s ease, background-image 0.45s ease, color 0.45s ease,
+                border-color 0.45s ease, outline-color 0.45s ease, fill 0.45s ease,
+                stroke 0.45s ease, box-shadow 0.45s ease !important;
+}
+
+/* Every hover preview plays the palette flood, a View Transition that drops :hover and
+   re-applies it just after — restarting the row's hover motion a beat behind each one.
+   lib/logoAccent.js marks the menu while a preview shows; freeze the replays for that
+   whole time (the swap classes are gone before the restart lands). The 2px slide is held
+   the other way round, by the .dd-hover latch (lib/theme.css).
+   Browser twin: browser/css/animations/themeSwap.css. */
+.accent-dd-menu.dd-preview-hold .accent-dd-opt::after { animation: none !important; }
+.accent-dd-menu.dd-preview-hold .accent-dd-opt :is(.ic, .ic *, [class^="mm-"]) { animation-name: none !important; }
+/* And the CURSOR: the snapshot covers the page, so the pointer stops hitting the row and
+   the hand blinks to an arrow. The snapshot tree hangs off :root — hold it there, in two
+   rules (an engine that drops ::view-transition would drop a shared selector list). */
+html.dd-preview-cursor { cursor: pointer; }
+html.dd-preview-cursor::view-transition { cursor: pointer; }
+
+/* ── Dust in the wipe's wake (lib/accent.js dustSpecs) ────────────────
+   Specks kicked up where the circle's edge has just passed, in the OLD palette's
+   colours. One canvas for the whole wake: accent.js paints the grains and owns their
+   clock. A div per grain ran the same flight declaratively, but at this density it meant
+   thousands of composited layers and the swap dropped half its frames.
+   Mirrors browser/css/animations/themeSwap.css. */
+.swap-dust {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 100011;
+    pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    .swap-dust { display: none; }
+}
