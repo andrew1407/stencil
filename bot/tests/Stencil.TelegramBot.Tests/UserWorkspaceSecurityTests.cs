@@ -70,11 +70,9 @@ public sealed class UserWorkspaceSecurityTests : IDisposable
     [InlineData(".png/../../escape")]
     public void ExtensionDerivationNeverYieldsAPathSeparator(string hostileFileName)
     {
-        // The linchpin of the safety argument: Path.GetExtension (what the router uses) can
-        // never return a value containing a directory separator or a `..` segment — it is the
-        // suffix after the last dot of the *last* path component. So the extension that
-        // reaches NewFilePath is always separator-free, and a GUID basename + a separator-free
-        // suffix cannot climb out of the user directory.
+        // The linchpin of the safety argument: Path.GetExtension (what the router uses) returns
+        // the suffix after the last dot of the LAST path component, so it can hold no separator
+        // and no `..` — and a GUID basename plus that cannot climb out of the user directory.
         string extension = Path.GetExtension(hostileFileName);
 
         Assert.DoesNotContain('/', extension);

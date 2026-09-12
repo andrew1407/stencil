@@ -254,7 +254,7 @@ link is gated like everything else, because it connects out and fetches a projec
 ```bash
 # from bot/
 dotnet build Stencil.TelegramBot.slnx          # build all five projects
-dotnet test  Stencil.TelegramBot.slnx          # 2117 offline tests — no token/server/CLI/LLM/Redis needed
+dotnet test  Stencil.TelegramBot.slnx          # 2118 offline tests — no token/server/CLI/LLM/Redis needed
 dotnet test  Stencil.TelegramBot.slnx --filter Category=Bench   # the opt-in timing tripwires
 dotnet run --project src/Stencil.TelegramBot.Bot   # run the bot (needs TELEGRAM_BOT_TOKEN + the CLI)
 ```
@@ -272,10 +272,38 @@ sleeps: `SyncWatcher` (a peer's version bump pulls and pushes into the chat), `A
 (the settle window and where the caption sits), `WorkspaceJanitor` (an orphan ages out, a
 session-referenced file never does) and `UpdatePump` (the bounded hand-off and its drain).
 `CompositionRootTests` resolves the whole `BotComposition` graph, so a missing registration
-fails there rather than at start-up. `BenchTests` holds order-of-magnitude ceilings on the hot
-paths (op-plan validation, crop-spec resolution, image-header reading); the project's
-`Category!=Bench` filter keeps it out of the default run, so it only runs on the
-`--filter Category=Bench` command above.
+fails there rather than at start-up.
+
+### Benchmarks
+
+`BenchTests` is the opt-in timing suite; the project's `Category!=Bench` filter keeps it out of
+the default run, so it only runs on the `--filter Category=Bench` command above. Every
+assertion is **relative** — a ratio between two measurements, or how one measurement scales as
+its input doubles — never a wall-clock ceiling, so the same ceilings hold on CI and on a loaded
+laptop. The µs/op are reported, not asserted on; they are the baseline to compare a change
+against (`--logger "console;verbosity=detailed"` prints them).
+
+Baselines below: best of 5 reps, `dotnet test` Debug build, Apple M-series, 2026-09-12.
+
+| Measurement | µs/op | Relative assertion | Measured | Ceiling |
+|---|---|---|---|---|
+| `OpSchema.ValidateAction` — `rotate`, 1 key | 0.9 | — | — | — |
+| `OpSchema.ValidateAction` — `crop`, 5 sub-keys | 4.3 | vs `rotate` (key count only) | 4.8x | 10x |
+| `OpSchema.ValidateAction` — `layout` 40 lines x 20 points | 754 | — | — | — |
+| `OpSchema.ValidateAction` — `layout` 80 x 20 | 1517 | twice the lines | 2.01x | 3x |
+| `OpSchema.ValidateAction` — `layout` 40 x 40 | 1438 | twice the points | 1.91x | 3x |
+| `OpPlanParser.Parse` — per corpus case (369 bot cases) | 10.5 | whole vs half corpus, per case | 1.15x | 2.5x |
+| `CropSpecResolver.Resolve` — 4 keys, valid | 0.97 | — | — | — |
+| `CropSpecResolver.Resolve` — 4 keys, malformed | 0.75 | reject vs resolve (no throwing) | 0.78x | 3x |
+| `CropSpecResolver.Resolve` — 20 tokens | 2.0 | — | — | — |
+| `CropSpecResolver.Resolve` — 160 tokens | 11.8 | 8x the spec length (linear = 8x) | 5.79x | 16x |
+| `ImageDimensionReader.TryRead` — header only | 0.036 | — | — | — |
+| `ImageDimensionReader.TryRead` — + 256 KiB body | 0.040 | untouched body vs none | 1.11x | 3x |
+
+What each ceiling is actually guarding: the `layout` rows pin that validation is one pass over
+lines x points rather than a re-walk; the corpus row pins per-case, not per-corpus, cost; the
+malformed-spec row pins that rejection returns null instead of throwing; and the padded-header
+row pins the reader's whole purpose — it reads the header and never scans the body.
 
 ## Chat surface
 

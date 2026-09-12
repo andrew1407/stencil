@@ -208,8 +208,4 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
         Assert.Null(session.Edits.Layout);
     }
 
-    // ── §2.1 multi-image ops ──
-    // One prompt run carries ONE image (an album is batched one run per photo in the adapter),
-    // so index 1 is that image and anything higher is a per-action warning; `save` goes through
-    // the active server project, the bot's own save path.
 }

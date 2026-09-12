@@ -154,8 +154,4 @@ public sealed class PromptSaveTests : PromptServiceTestBase
         Assert.Equal("saved", outcome.Reply);
     }
 
-    // ── §10 connection ops (bot profile) ──
-    // `connect` resolves ONLY against the connections the user saved with /connect — exact
-    // URL, else unique host — with the STORED token riding along; the model can never
-    // introduce a new host or mint a credential. Misses are warnings, never failed plans.
 }

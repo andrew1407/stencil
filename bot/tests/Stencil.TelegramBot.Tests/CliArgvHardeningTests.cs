@@ -85,11 +85,9 @@ public sealed class CliArgvHardeningTests
     [Fact]
     public void BuildArgvReturnsATokenListForArgumentListNoShell()
     {
-        // The no-shell guarantee is structural: BuildArgv yields a token list (IReadOnlyList
-        // of separate strings), which ProcessStencilCli.SpawnAsync feeds one-by-one into
-        // ProcessStartInfo.ArgumentList with UseShellExecute=false — never a single joined
-        // command string. A value with spaces stays exactly one token here, proving nothing
-        // downstream needs to (or does) re-split on whitespace.
+        // Structural, not a convention: SpawnAsync feeds this list one element at a time into
+        // ProcessStartInfo.ArgumentList with UseShellExecute=false, never a joined command
+        // string, so a space-bearing value staying one token here means nothing re-splits it.
         EditRequest req = new()
         {
             Input = "my file with spaces.png",
