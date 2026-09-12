@@ -262,7 +262,7 @@ stencil_headless_test(stencil_projectfile_headless
 stencil_headless_test(stencil_projecttransfer_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/projectTransfer.headless.cpp src/app/projectTransferController.cpp
+    tests/projectTransfer.headless.cpp src/app/projectTransferController.cpp src/app/projectTransferImport.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
     ${STENCIL_THEME_SOURCES} src/support/notifications.cpp src/support/iconSet.cpp
     src/support/modalReveal.cpp   # notifications' toast dust needs motionReduced()
@@ -309,11 +309,11 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_CONNECTDIALOG_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
-    src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
+    src/support/guiHelpers.cpp src/support/guiHelpersColor.cpp    # confirmYesNo() backs the disconnect prompts
     ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust
-    src/support/searchCombo.cpp   # the rows' All/Admin/Non-admin picker is one of these
+    src/support/searchCombo.cpp src/support/searchComboPopup.cpp   # the rows' All/Admin/Non-admin picker is one of these
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
@@ -354,11 +354,11 @@ stencil_headless_test(stencil_serverauth_headless
     ${STENCIL_CONNECTDIALOG_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
-    src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
+    src/support/guiHelpers.cpp src/support/guiHelpersColor.cpp    # confirmYesNo() backs the disconnect prompts
     ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust
-    src/support/searchCombo.cpp   # the rows' All/Admin/Non-admin picker is one of these
+    src/support/searchCombo.cpp src/support/searchComboPopup.cpp   # the rows' All/Admin/Non-admin picker is one of these
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
@@ -379,11 +379,11 @@ stencil_headless_test(stencil_projectsbatch_headless
     ${STENCIL_PROJECTS_DIALOG_SOURCES}
     src/dialogs/expirationDialog.cpp  # the ⋯ menu's "Expiration…" opens it in place now
     ${STENCIL_SERVERCLIENT_SOURCES} src/net/fetchGuard.cpp        # the row thumbnails' SSRF guard
-    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/guiHelpers.cpp
+    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/guiHelpers.cpp src/support/guiHelpersColor.cpp
     ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust
-    src/support/searchCombo.cpp   # the dialog's filter/sort/mode pickers are these now
+    src/support/searchCombo.cpp src/support/searchComboPopup.cpp   # the dialog's filter/sort/mode pickers are these now
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 

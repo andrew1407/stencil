@@ -204,6 +204,7 @@ set(STENCIL_GUI_SOURCES
   src/app/mainWindowThemeFaces.cpp
   src/app/mainWindowThemeButtons.cpp
   src/app/stencilFileSync.cpp
+  src/app/stencilFileSyncWatch.cpp
   src/app/mainWindowChat.cpp
   src/app/mainWindowChatClient.cpp
   src/app/mainWindowChatSend.cpp
@@ -266,9 +267,11 @@ set(STENCIL_GUI_SOURCES
   src/app/logoHoverFxPaint.cpp
   src/app/dockZonesOverlay.cpp
   src/app/dataExportController.cpp
+  src/app/dataExportImage.cpp
   src/app/remoteSession.cpp
   src/app/remoteSyncController.cpp
   src/app/projectTransferController.cpp
+  src/app/projectTransferImport.cpp
   src/app/launchOptions.cpp
   src/io/deepLink.cpp
   src/app/selectionPanel.cpp
@@ -338,14 +341,17 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_FILESTORE_SOURCES}
   src/io/deferredWrite.cpp
   src/io/mediaLoader.cpp
+  src/io/mediaLoaderVideo.cpp
   src/io/mediaTypes.cpp
   ${STENCIL_THEME_SOURCES}
   src/support/notifications.cpp
   src/support/guiHelpers.cpp
+  src/support/guiHelpersColor.cpp
   src/support/menuReveal.cpp
   src/support/modalReveal.cpp
   ${STENCIL_MODALCHROME_SOURCES}
   src/support/searchCombo.cpp
+  src/support/searchComboPopup.cpp
   ${STENCIL_APPTOOLTIP_SOURCES}
   ${STENCIL_CONTROLREVEAL_SOURCES}
   ${STENCIL_CONTROLSWAP_SOURCES}
