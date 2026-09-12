@@ -403,15 +403,15 @@ test('reconnectOne re-establishes a single connection, keeping the rest', async 
 test('remoteProjects aggregates across connections and survives an unreachable one', async () => {
   const a = makeMockServer({ projects: [{ id: 'p_a_a', name: 'A', version: 0 }] });
   const b = makeMockServer({ projects: [{ id: 'p_b_b', name: 'B', version: 0 }] });
+  let aDown = false;
   const fetchImpl = (url, init) => {
     const host = new URL(url).host;
-    if (host === 'down:0') throw new Error('connection refused');
+    if (host === 'down:0' || (host === 'a:1' && aDown)) throw new Error('connection refused');
     return (host === 'a:1' ? a.fetchImpl : b.fetchImpl)(url, init);
   };
   const mgr = new ConnectionManager({ fetchImpl, WebSocketImpl: StubWS });
   await mgr.connect(['http://a:1', 'http://b:2']);
-  // Force one connection to fail on list by swapping its fetch.
-  mgr.get('http://a:1')._fetch = () => { throw new Error('boom'); };
+  aDown = true;   // force one connection to fail on list
   const list = await mgr.remoteProjects();
   assert.equal(list.length, 1);
   assert.equal(list[0].name, 'B');

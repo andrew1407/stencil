@@ -27,6 +27,7 @@ const sameDay = (a, b) => a.getFullYear() === b.getFullYear()
 const fmtDay = (ts) => { try { return new Date(ts).toLocaleDateString(); } catch { return '—'; } };
 
 export class StencilExpirationModal extends StencilElement {
+  #openFor;
   static inner() { return expirationModalInner(); }
 
   static template() {
@@ -35,7 +36,7 @@ export class StencilExpirationModal extends StencilElement {
 
 // `anchors`: `from` the clicked menu row, `backTo` the "⋯" it hung off (the row is gone by
 // the time the window closes).
-  openFor(id, anchors) { this._openFor?.(id, anchors); }
+  openFor(id, anchors) { this.#openFor?.(id, anchors); }
 
   wire(app) {
     const overlay = document.getElementById('expiration-modal-overlay');
@@ -149,7 +150,7 @@ export class StencilExpirationModal extends StencilElement {
 
 // Stacked: opens over the projects list rather than replacing it.
     const { open, close } = wireModalShell(overlay, null, els.close, { stacked: true });
-    this._openFor = (id, { from = null, backTo = null } = {}) => { if (loadFrom(id)) { renderAll(); open(from, backTo); } };
+    this.#openFor = (id, { from = null, backTo = null } = {}) => { if (loadFrom(id)) { renderAll(); open(from, backTo); } };
 
     const seedFromPeriod = () => {
       keep = false;

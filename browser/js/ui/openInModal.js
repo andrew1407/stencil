@@ -16,6 +16,7 @@ const INLINE_MAX_CHARS = 1_000_000;
 // embeds image + layout inline), or the Telegram bot via a t.me link whose 64-char `?start=`
 // payload carries (server, project id) — server projects only.
 export class StencilOpenInModal extends StencilElement {
+  #openFor;
   static inner() {
     // Hidden until wire() confirms a bot username is configured (config loads async).
     const telegram = `<button id="open-in-telegram" class="btn-icon-text" style="display:none;">${icon('message', { size: 14 })}<span>Telegram bot</span></button>`;
@@ -59,7 +60,7 @@ export class StencilOpenInModal extends StencilElement {
 
   // A project other than the one being edited (the projects list's row menu); `anchors` is
   // the flight's two ends (ui/base.js open(from, backTo)).
-  openFor(id, anchors) { this._openFor?.(id, anchors); }
+  openFor(id, anchors) { this.#openFor?.(id, anchors); }
 
   wire(app) {
     const overlay = document.getElementById('open-in-modal-overlay');
@@ -110,7 +111,7 @@ export class StencilOpenInModal extends StencilElement {
     });
     cancelBtn.addEventListener('click', close);
     // Stacked: opens over the projects list; the toolbar button's open() still replaces.
-    this._openFor = (id, { from = null, backTo = null } = {}) => {
+    this.#openFor = (id, { from = null, backTo = null } = {}) => {
       targetId = id;
       open(from, backTo, { stacked: true });
     };

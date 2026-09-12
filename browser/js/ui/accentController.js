@@ -20,6 +20,7 @@ const accentOrigin = () => originOfId('visuals-btn') || originOfId('theme-toggle
 // Theme/accent live on the document element (data-theme / data-accent / --accent);
 // this controller does the writes, the app keeps the getters.
 export class AccentController {
+  #preview = null;
   constructor(app) {
     this.app = app;
   }
@@ -85,7 +86,7 @@ export class AccentController {
 
 // Paint + persist the accent in this tab; returns the resolved key.
   applyAccent(key, originEl = null) {
-    this._preview = null;
+    this.#preview = null;
     const next = isAccent(key) ? key : DEFAULT_ACCENT;
     themeSwap(() => {
       document.documentElement.style.removeProperty('--accent'); // drop any custom (temp) override
@@ -102,7 +103,7 @@ export class AccentController {
   previewAccent(key, originEl = null) {
     if (!isAccent(key)) return;
     const el = document.documentElement;
-    if (!this._preview) this._preview = { data: el.getAttribute('data-accent'),
+    if (!this.#preview) this.#preview = { data: el.getAttribute('data-accent'),
                                           inline: el.style.getPropertyValue('--accent') };
     themeSwap(() => {
       el.style.removeProperty('--accent');
@@ -112,10 +113,10 @@ export class AccentController {
   }
 
   endAccentPreview(originEl = null) {
-    if (!this._preview) return;
+    if (!this.#preview) return;
     const el = document.documentElement;
-    const { data, inline } = this._preview;
-    this._preview = null;
+    const { data, inline } = this.#preview;
+    this.#preview = null;
     themeSwap(() => {
       if (inline) el.style.setProperty('--accent', inline); else el.style.removeProperty('--accent');
       if (data) el.setAttribute('data-accent', data); else el.removeAttribute('data-accent');
@@ -127,7 +128,7 @@ export class AccentController {
   setCustomAccent(hex, originEl = null) {
     const norm = normalizeHex(hex);
     if (!norm) return null;
-    this._preview = null;
+    this.#preview = null;
     themeSwap(() => {
       document.documentElement.style.setProperty('--accent', norm);
       applyFaviconHex(norm);
