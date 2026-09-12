@@ -24,7 +24,7 @@ _BUILD_PY = Path(__file__).resolve().parent.parent / "build.py"
 _CDLL: (ctypes.CDLL | NoneType) = None
 
 
-def _load_build():
+def __load_build():
   """Import pystencil/build.py by path, leaving sys.path (and sys.modules) untouched."""
   spec = importlib.util.spec_from_file_location("pystencil._build", _BUILD_PY)
   if spec is None or spec.loader is None:
@@ -53,7 +53,7 @@ def find_or_build(build_if_missing: bool = True) -> str:
   # build.py knows the platform name and output location. Loaded lazily (a prebuilt-lib
   # deployment needn't ship it) and BY PATH: putting the package root on sys.path would
   # let this library shadow a caller's own top-level `build` module.
-  _build = _load_build()
+  _build = __load_build()
 
   expected = _build.lib_path()
   if expected.exists() and not _build.is_stale(expected):

@@ -131,13 +131,13 @@ class _Repl(
       if not word:
         continue
       try:
-        if self._dispatch(word, arg):
+        if self.__dispatch(word, arg):
           break
       except (ValueError, RuntimeError, OSError, ServerError) as e:
         self._err("%s" % e)
     return 0
 
-  def _dispatch(self, word: str, arg: str) -> bool:
+  def __dispatch(self, word: str, arg: str) -> bool:
     """Run one command. Returns True to request exiting the REPL."""
     handler = self._TABLE.get(word.lower())
     if handler is None:

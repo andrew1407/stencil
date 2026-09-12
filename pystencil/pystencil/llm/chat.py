@@ -66,7 +66,7 @@ class Chat:
       )
     return out
 
-  def _trim(self) -> None:
+  def __trim(self) -> None:
     """Bound the retained history to the most recent MAX_HISTORY messages."""
     if len(self.history) > MAX_HISTORY:
       del self.history[: len(self.history) - MAX_HISTORY]
@@ -121,7 +121,7 @@ class Chat:
     self.history.append(
       {"role": "user", "text": str(text), "images": self._check_images(images)}
     )
-    self._trim()
+    self.__trim()
     wire = self._wire_messages()
     transient = self._check_images(transient_images, cap=None)
     if transient:
@@ -132,7 +132,7 @@ class Chat:
     raw = self.client.chat(wire, system if system is not None else LLM_SYSTEM_PROMPT)
     plan = parse_op_plan(raw)
     self.history.append({"role": "assistant", "text": raw, "images": []})
-    self._trim()
+    self.__trim()
     return plan.reply, plan
 
   # ── §12 chat persistence (per-project, opt-in) ──
@@ -218,7 +218,7 @@ class Chat:
       if shown is None:
         continue
       chat.history.append({"role": role, "text": shown, "images": []})
-    chat._trim()
+    chat.__trim()
     return chat
 
   from_dict = from_doc

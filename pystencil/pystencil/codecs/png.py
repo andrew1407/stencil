@@ -143,7 +143,7 @@ def decode_png(data: bytes) -> tuple[int, int, bytearray]:
   return width, height, rgba
 
 
-def _png_chunk(ctype: bytes, payload: bytes) -> bytes:
+def __png_chunk(ctype: bytes, payload: bytes) -> bytes:
   """Assemble one PNG chunk: length, type, payload, CRC32 over type+payload."""
   crc = zlib.crc32(ctype)
   crc = zlib.crc32(payload, crc) & 0xFFFFFFFF
@@ -172,8 +172,8 @@ def encode_png(width: int, height: int, rgba: bytes | bytearray) -> bytes:
   idat = zlib.compress(raw, 9)
   return (
     _PNG_MAGIC
-    + _png_chunk(b"IHDR", ihdr)
-    + _png_chunk(b"IDAT", idat)
-    + _png_chunk(b"IEND", b"")
+    + __png_chunk(b"IHDR", ihdr)
+    + __png_chunk(b"IDAT", idat)
+    + __png_chunk(b"IEND", b"")
   )
 

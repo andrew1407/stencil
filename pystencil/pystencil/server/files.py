@@ -53,7 +53,7 @@ class _FileApi:
       return fallback
 
   @staticmethod
-  def _image_bytes(image: Any) -> tuple[bytes, int, int]:
+  def __image_bytes(image: Any) -> tuple[bytes, int, int]:
     """Encode an Image to PNG bytes + dimensions (duck-typed to avoid a
     hard import of pystencil.image)."""
     data = image.encode("png")
@@ -86,7 +86,7 @@ class _FileApi:
     rec = rec or {}
     version = rec.get("version", 0)
     if has_image:
-      data, w, h = self._image_bytes(image)
+      data, w, h = self.__image_bytes(image)
       if data:
         self.put_file(rec["id"], "original", data, "png", w, h)
         rec["version"] = self._current_version(rec["id"], version)
@@ -122,7 +122,7 @@ class _FileApi:
     rec = rec or {}
     new_version = rec.get("version", version)
     if image is not None:
-      data, w, h = self._image_bytes(image)
+      data, w, h = self.__image_bytes(image)
       if data:
         self.put_file(pid, "result", data, "png", w, h)
         new_version = self._current_version(pid, new_version)

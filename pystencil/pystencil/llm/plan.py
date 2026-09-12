@@ -30,14 +30,14 @@ from .validate import _MisplacedOp, _plan_check, _validate_actions, _validate_as
 # after the appliers below, which the registry entries reference.
 
 
-def _strip_fences(text: str) -> str:
+def __strip_fences(text: str) -> str:
   """Drop Markdown code-fence lines (``` / ```json) before JSON extraction."""
   return "\n".join(
     line for line in text.split("\n") if not line.strip().startswith("```")
   )
 
 
-def _balanced_end(text: str, start: int) -> (int | NoneType):
+def __balanced_end(text: str, start: int) -> (int | NoneType):
   """Index of the ``}`` closing the ``{`` at ``start`` (string/escape aware)."""
   depth = 0
   in_string = False
@@ -63,11 +63,11 @@ def _balanced_end(text: str, start: int) -> (int | NoneType):
   return None
 
 
-def _first_json_object(text: str) -> (dict | NoneType):
+def __first_json_object(text: str) -> (dict | NoneType):
   """The first balanced ``{…}`` in ``text`` that parses as a JSON object, or None."""
   i = text.find("{")
   while i != -1:
-    end = _balanced_end(text, i)
+    end = __balanced_end(text, i)
     if end is not None:
       try:
         obj = json.loads(text[i : end + 1])
@@ -95,7 +95,7 @@ def parse_op_plan(text: str) -> OpPlan:
   still runs — one misplaced op must not cost the user the whole turn.
   """
   raw = text if isinstance(text, str) else str(text)
-  obj = _first_json_object(_strip_fences(raw))
+  obj = __first_json_object(__strip_fences(raw))
   if obj is None:
     return OpPlan(reply=raw.strip())
   reply = obj.get("reply")

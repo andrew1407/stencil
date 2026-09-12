@@ -149,7 +149,7 @@ def _run_pipeline(args: argparse.Namespace, err: TextIO) -> int:
   return 0
 
 
-def _unset0(v: int) -> int:
+def __unset0(v: int) -> int:
   """Map a CLI dimension flag (``0`` = unset) to the scan_page convention (``-1``)."""
   return v if v and v > 0 else -1
 
@@ -178,10 +178,10 @@ def _run_scrape(args: argparse.Namespace, err: TextIO) -> int:
       category=args.source_filter or "all",
       formats=args.source_format or "all",
       name=args.source_name,
-      min_width=_unset0(args.source_min_width),
-      max_width=_unset0(args.source_max_width),
-      min_height=_unset0(args.source_min_height),
-      max_height=_unset0(args.source_max_height),
+      min_width=__unset0(args.source_min_width),
+      max_width=__unset0(args.source_max_width),
+      min_height=__unset0(args.source_min_height),
+      max_height=__unset0(args.source_max_height),
       count=count,
       group=args.group or 0,
     )

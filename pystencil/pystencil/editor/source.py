@@ -62,11 +62,11 @@ class _SourceApi:
         with open(src, "rb") as fh:
           src_bytes = fh.read()
         img = Image.decode(src_bytes)
-        derived_name = self._name_from_path(src)
+        derived_name = self.__name_from_path(src)
         src_ext = os.path.splitext(src)[1].lstrip(".").lower() or _sniff_image_ext(src_bytes)
     else:
       raise TypeError("unsupported load source: %r" % type(src))
-    self._set_source(img, name=name or derived_name, source=source, resource=resource,
+    self.__set_source(img, name=name or derived_name, source=source, resource=resource,
             source_bytes=src_bytes, source_ext=src_ext)
     return self
 
@@ -98,10 +98,10 @@ class _SourceApi:
         height = default_h
     rgba = core.parse_color(color) or (255, 255, 255, 255)
     img = Image.blank(width, height, rgba)
-    self._set_source(img, name="blank")
+    self.__set_source(img, name="blank")
     return self
 
-  def _set_source(
+  def __set_source(
     self,
     img: Image,
     *,
@@ -146,7 +146,7 @@ class _SourceApi:
     return _net._fetch(url, strict=False, timeout=timeout)
 
   @staticmethod
-  def _name_from_path(path: str) -> str:
+  def __name_from_path(path: str) -> str:
     """Project name = file basename without extension (fallback "image")."""
     stem = os.path.splitext(os.path.basename(path))[0]
     return stem or "image"
@@ -154,4 +154,4 @@ class _SourceApi:
   @staticmethod
   def _name_from_url(url: str) -> str:
     """Derive a project name from a URL's path basename (fallback "image")."""
-    return _SourceApi._name_from_path(urllib.parse.urlparse(url).path)
+    return _SourceApi.__name_from_path(urllib.parse.urlparse(url).path)

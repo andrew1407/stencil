@@ -37,7 +37,7 @@ class Schema(ValueChecks):
     # bulletVariants / surfaceFlags).
     self.entries: list[dict] = sorted(
       (
-        self._resolve(e)
+        self.__resolve(e)
         for e in registry["ops"]
         if profile in e["profiles"] and (not e.get("surfaces") or surface in e["surfaces"])
       ),
@@ -46,19 +46,19 @@ class Schema(ValueChecks):
     self.ops: dict[str, dict] = {e["name"]: e for e in self.entries}
     self.forbidden = frozenset(registry["forbidden"]["perSurface"].get(surface, []))
 
-  def _for_surface(self, table: (dict | NoneType)) -> Any:
+  def __for_surface(self, table: (dict | NoneType)) -> Any:
     if not table:
       return None
     return table.get(self.surface) if table.get(self.surface) is not None else table.get(self.profile)
 
-  def _resolve(self, e: dict) -> dict:
-    variant = self._for_surface(e.get("bulletVariants"))
+  def __resolve(self, e: dict) -> dict:
+    variant = self.__for_surface(e.get("bulletVariants"))
     out = dict(e)
     surface_keys = (e.get("surfaceKeys") or {}).get(self.surface)  # {} is a real (field-less) map
     out["keys"] = surface_keys if surface_keys is not None else e["keys"]
     out["bullet"] = variant if isinstance(variant, str) else e.get("bullet")
     out["addendum"] = variant.get("addendum") if isinstance(variant, dict) else None
-    out["flags"] = dict(e.get("flags") or {}, **(self._for_surface(e.get("surfaceFlags")) or {}))
+    out["flags"] = dict(e.get("flags") or {}, **(self.__for_surface(e.get("surfaceFlags")) or {}))
     return out
 
   def describe(self, name: str) -> str:
@@ -75,20 +75,20 @@ class Schema(ValueChecks):
       raise ValueError('opRegistry: unknown limit "%s"' % v)
     return n
   # ── normalization: the declared keys only, defaults applied, trims honoured ──
-  def _pick(self, v: Any, spec: dict) -> Any:
+  def __pick(self, v: Any, spec: dict) -> Any:
     if spec["type"] == "object" and spec.get("fields") and _is_obj(v):
-      return self._pick_fields(v, spec["fields"])
+      return self.__pick_fields(v, spec["fields"])
     if spec["type"] == "array" and isinstance(v, list):
-      return [self._pick(x, spec["items"]) for x in v] if spec.get("items") else list(v)
+      return [self.__pick(x, spec["items"]) for x in v] if spec.get("items") else list(v)
     if spec["type"] == "string" and spec.get("trim") and isinstance(v, str):
       return v.strip()
     return v
 
-  def _pick_fields(self, obj: dict, fields: dict) -> dict:
+  def __pick_fields(self, obj: dict, fields: dict) -> dict:
     out: dict = dict()
     for k, spec in fields.items():
       if obj.get(k) is not None:
-        out[k] = self._pick(obj[k], spec)
+        out[k] = self.__pick(obj[k], spec)
       elif "default" in spec:
         out[k] = spec["default"]
     return out
@@ -109,7 +109,7 @@ class Schema(ValueChecks):
   def normalize(self, v: dict, entry: dict) -> dict:
     """``{op, declared keys present (deep-picked), defaults}``."""
     out = {"op": entry["name"]}
-    out.update(self._pick_fields(v, entry["keys"]))
+    out.update(self.__pick_fields(v, entry["keys"]))
     return out
 
   def validate_ask(self, ask: Any) -> None:
@@ -121,7 +121,7 @@ class Schema(ValueChecks):
     self._check_fields(ask, schema["keys"], schema, {"root": "ask.", "key": "", "container": None}, [])
 
   def normalize_ask(self, ask: dict) -> dict:
-    return self._pick_fields(ask, self.registry["ask"]["schema"]["keys"])
+    return self.__pick_fields(ask, self.registry["ask"]["schema"]["keys"])
 
   def opset_entry(self, name: str, op: str) -> Any:
     """Resolve an op inside a nested op set (§8 open.actions): an entry to validate

@@ -35,7 +35,7 @@ from ..registry import command
 class _LlmCommands:
   """The provider transport, the images a round attaches, and /llm itself."""
   # ── LLM assistant (llm-contract.md) ──
-  def _llm_server_conn(self):
+  def __llm_server_conn(self):
     """The live /connect-ed ServerConnection the stencil-server provider reuses.
 
     A configured server_url must match a connected server; an empty server_url
@@ -55,7 +55,7 @@ class _LlmCommands:
 
   def _llm_client(self) -> LlmClient:
     """Build the provider client for the session's current /llm config."""
-    conn = self._llm_server_conn()
+    conn = self.__llm_server_conn()
     if conn is not None:
       return LlmClient(self._llm, server=conn)
     return LlmClient(self._llm)
@@ -106,14 +106,14 @@ class _LlmCommands:
     return console_context(servers, active)
 
 
-  def _show_llm(self) -> None:
+  def __show_llm(self) -> None:
     """Bare /llm: print the session's provider config (credentials masked)."""
     cfg = self._llm
     self._say("llm provider %s" % cfg.provider)
     self._say("  url    %s" % (cfg.base_url or "(none)"))
     self._say("  model  %s" % (cfg.model or "(default)"))
     self._say("  key    %s" % _mask(cfg.api_key))
-    conn = self._llm_server_conn()
+    conn = self.__llm_server_conn()
     if conn is not None:
       self._say("  server %s (token from live connection)" % conn.base)
     else:
@@ -125,7 +125,7 @@ class _LlmCommands:
     """/llm: bare shows the config; ``<key> <value>`` sets an in-session override."""
     parts = arg.split(None, 1)
     if not parts:
-      self._show_llm()
+      self.__show_llm()
       return
     key = parts[0].lower()
     val = parts[1].strip() if len(parts) > 1 else ""

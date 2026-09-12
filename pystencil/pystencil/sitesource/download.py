@@ -41,14 +41,14 @@ def download_media(
   multiple = len(items) > 1
   # Fetch every item at once (each carries its own guard + cap), then name and write in
   # INPUT order so filenames, the `used` set and the stderr lines stay deterministic.
-  fetched = _net._fetch_all(items, lambda it: _fetch_media(it, host))
+  fetched = _net._fetch_all(items, lambda it: __fetch_media(it, host))
   for idx, (item, data) in enumerate(zip(items, fetched)):
     if not isinstance(data, bytes):
       if err is not None:
         emit_error(err, "could not fetch %s (%s)" % (item.url, data))
       continue
     dims = image_dimensions(data)
-    fname = _safe_filename(item, idx, data, dims, used, custom=name, multiple=multiple)
+    fname = __safe_filename(item, idx, data, dims, used, custom=name, multiple=multiple)
     used.add(fname)
     path = os.path.join(out_dir, fname)
     with open(path, "wb") as fh:
@@ -65,7 +65,7 @@ def download_media(
   return written
 
 
-def _fetch_media(item: MediaItem, host: str):
+def __fetch_media(item: MediaItem, host: str):
   """Fetch one scraped media URL; returns the bytes, or the exception to report.
 
   Sub-resource URL: loopback is blocked unless it is on the user-named page's host.
@@ -84,14 +84,14 @@ _SNIFF_EXT = {"png": "png", "jpeg": "jpg", "bmp": "bmp"}
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 
 
-def _ext_for(item: MediaItem, data: bytes) -> str:
+def __ext_for(item: MediaItem, data: bytes) -> str:
   """The extension to give a downloaded file: the item's format token, else a sniff."""
   if item.ext:
     return item.ext
   return _SNIFF_EXT.get(codecs.sniff(data), "")
 
 
-def _safe_filename(
+def __safe_filename(
   item: MediaItem,
   idx: int,
   data: bytes,
@@ -107,7 +107,7 @@ def _safe_filename(
   last path segment is used; traversal (``..`` / separators) is rejected and a missing,
   unsafe, or colliding name falls back to ``source-{index}.{ext}``.
   """
-  ext = _ext_for(item, data)
+  ext = __ext_for(item, data)
   if custom is not None:
     stem = _UNSAFE_FILENAME_CHARS.sub("_", custom).lstrip(".") or "source"
     if multiple:

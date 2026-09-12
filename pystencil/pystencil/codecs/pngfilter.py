@@ -8,7 +8,7 @@ the cost ratios between them.
 """
 
 
-def _paeth(a: int, b: int, c: int) -> int:
+def __paeth(a: int, b: int, c: int) -> int:
   """The PNG Paeth predictor (RFC 2083 sec. 6.6): pick the neighbour closest
   to ``a + b - c`` (left, above, upper-left), ties broken toward ``a``."""
   p = a + b - c
@@ -51,7 +51,7 @@ def _unfilter_seq(ftype: int, row: bytes, prev: bytes, bpp: int) -> bytes:
       out[x] = (row[x] + ((a + b) >> 1)) & 0xFF
     else:
       c = prev[x - bpp] if x >= bpp else 0
-      out[x] = (row[x] + _paeth(a, b, c)) & 0xFF
+      out[x] = (row[x] + __paeth(a, b, c)) & 0xFF
   return bytes(out)
 
 

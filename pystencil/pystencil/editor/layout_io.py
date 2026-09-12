@@ -26,7 +26,7 @@ class _LayoutApi:
     ``layout`` may be a :class:`Layout`, dict, JSON string, path, URL or Line list.
     """
     self._require_original()
-    add = self._coerce_lines(layout)
+    add = self.__coerce_lines(layout)
     cur = self._current()
     nxt = cur.copy()
     nxt.lines = (list(cur.lines) + add) if combine else add
@@ -41,7 +41,7 @@ class _LayoutApi:
     """
     self._require_original()
     core = self._get_core()
-    L = self._coerce_layout(layout)
+    L = self.__coerce_layout(layout)
     crop: (tuple[int, int, int, int] | NoneType) = None
     if isinstance(L.crop_rect, dict):
       cr = L.crop_rect
@@ -139,7 +139,7 @@ class _LayoutApi:
 
   # ── layout coercion ────────────────────────────────────────────────────────
   @staticmethod
-  def _read_layout_source(src: str) -> str:
+  def __read_layout_source(src: str) -> str:
     """Turn a layout-source string into layout JSON text.
 
     A string may be inline JSON, an http(s) URL, or a local file path — mirroring the
@@ -158,23 +158,23 @@ class _LayoutApi:
     return src
 
   @staticmethod
-  def _coerce_layout(layout: LayoutLike) -> Layout:
+  def __coerce_layout(layout: LayoutLike) -> Layout:
     """Coerce a Layout|dict|json-str|json-path|url|list[Line] into a :class:`Layout`."""
     if isinstance(layout, Layout):
       return layout
     if isinstance(layout, str):
-      return Layout.from_json(_LayoutApi._read_layout_source(layout))
+      return Layout.from_json(_LayoutApi.__read_layout_source(layout))
     if isinstance(layout, dict):
       return Layout.from_dict(layout)
     if isinstance(layout, list):
-      return Layout(0, 0, lines=_LayoutApi._coerce_lines(layout))
+      return Layout(0, 0, lines=_LayoutApi.__coerce_lines(layout))
     raise TypeError("unsupported layout input: %r" % type(layout))
 
   @staticmethod
-  def _coerce_lines(layout: LayoutLike) -> list[Line]:
+  def __coerce_lines(layout: LayoutLike) -> list[Line]:
     """Extract a list of :class:`Line` from any accepted layout input."""
     # A raw list may hold Line objects or line dicts; everything else routes
-    # through _coerce_layout so the str/dict/Layout parsing lives in one place.
+    # through __coerce_layout so the str/dict/Layout parsing lives in one place.
     if isinstance(layout, list):
       return [ln if isinstance(ln, Line) else Line.from_dict(ln) for ln in layout]
-    return list(_LayoutApi._coerce_layout(layout).lines)
+    return list(_LayoutApi.__coerce_layout(layout).lines)

@@ -70,20 +70,20 @@ class LlmClient:
     """Pure builder: assemble the provider-specific POST (no network)."""
     provider = self.config.provider
     if provider == "ollama":
-      return self._ollama_request(messages, system)
+      return self.__ollama_request(messages, system)
     if provider == "openai-compat":
-      return self._openai_request(messages, system)
-    return self._server_request(messages, system)
+      return self.__openai_request(messages, system)
+    return self.__server_request(messages, system)
 
-  def _base_post(
+  def __base_post(
     self, path: str, wire: list, bearer: (str | NoneType) = None
   ) -> urllib.request.Request:
     """The §6.1/§6.2 shared envelope: ``{model, stream:false, messages}`` POSTed
     to ``{baseUrl}{path}``."""
     body = {"model": self.config.model, "stream": False, "messages": wire}
-    return self._post(self.config.base_url.rstrip("/") + path, body, bearer=bearer)
+    return self.__post(self.config.base_url.rstrip("/") + path, body, bearer=bearer)
 
-  def _ollama_request(
+  def __ollama_request(
     self, messages: Messages, system: str
   ) -> urllib.request.Request:
     """``POST {baseUrl}/api/chat`` — native chat, images as bare base64 (§6.1)."""
@@ -94,9 +94,9 @@ class LlmClient:
       if images:
         entry["images"] = [_b64(data) for _mt, data in images]
       wire.append(entry)
-    return self._base_post("/api/chat", wire)
+    return self.__base_post("/api/chat", wire)
 
-  def _openai_request(
+  def __openai_request(
     self, messages: Messages, system: str
   ) -> urllib.request.Request:
     """``POST {baseUrl}/chat/completions`` — images as data URLs; optional
@@ -116,11 +116,11 @@ class LlmClient:
       else:
         content = text
       wire.append({"role": role, "content": content})
-    return self._base_post(
+    return self.__base_post(
       "/chat/completions", wire, bearer=self.config.api_key or None
     )
 
-  def _server_request(
+  def __server_request(
     self, messages: Messages, system: str
   ) -> urllib.request.Request:
     """``POST {serverUrl}/llm/chat`` — the collaboration server's Anthropic proxy,
@@ -142,10 +142,10 @@ class LlmClient:
     body: dict = {"system": system, "messages": wire}
     if self.config.model:
       body["model"] = self.config.model
-    return self._post(self._server_url + "/llm/chat", body, bearer=self._token or "")
+    return self.__post(self._server_url + "/llm/chat", body, bearer=self._token or "")
 
   @staticmethod
-  def _post(url: str, body: dict, bearer: (str | NoneType) = None) -> urllib.request.Request:
+  def __post(url: str, body: dict, bearer: (str | NoneType) = None) -> urllib.request.Request:
     """A JSON POST Request; ``bearer`` adds ``Authorization`` (None omits it).
     Delegates to the request builder shared with :mod:`pystencil.server`."""
     return _json_request("POST", url, body, bearer=bearer)

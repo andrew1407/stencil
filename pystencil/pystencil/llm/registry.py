@@ -35,14 +35,14 @@ from .ops import (
 # ── per-op normalizers: the typed struct filling the generic deep-pick can't express ──
 # Each runs on the registry-normalized action — {op, declared keys present, defaults,
 # `trim` keys trimmed} — AFTER the table-driven check passed; nothing here validates.
-def _normalize_crop(out: dict) -> dict:
+def __normalize_crop(out: dict) -> dict:
   """The console-only ``"album": false`` means "no derivation" — dropped from the spec."""
   if out["spec"].get("album") is False:
     del out["spec"]["album"]
   return out
 
 
-def _float_dims(out: dict) -> dict:
+def __float_dims(out: dict) -> dict:
   """§2 centimetre dims are floats (page / blank)."""
   for key in ("width", "height"):
     if key in out:
@@ -53,7 +53,7 @@ def _float_dims(out: dict) -> dict:
 Normalizer = Callable[[dict], dict]
 
 
-def _strip_field(key: str) -> Normalizer:
+def __strip_field(key: str) -> Normalizer:
   """Store a padded string field trimmed (connect/disconnect server, delete path);
   resolution against the console's own state happens at execution."""
 
@@ -64,7 +64,7 @@ def _strip_field(key: str) -> Normalizer:
   return normalize
 
 
-def _normalize_save(out: dict) -> dict:
+def __normalize_save(out: dict) -> dict:
   """An empty (or all-space) path is no destination at all; this executor
   notes+skips a path anyway."""
   if out.get("path") == "":
@@ -72,7 +72,7 @@ def _normalize_save(out: dict) -> dict:
   return out
 
 
-def _normalize_open_url(out: dict) -> dict:
+def __normalize_open_url(out: dict) -> dict:
   """``incognito`` always rides the action (False when omitted). Whether the USER
   wrote the URL is the plan-level guard's job (:func:`url_echoed_by_user`)."""
   out.setdefault("incognito", False)
@@ -102,7 +102,7 @@ class OpSpec:
   capability: str = ""            # runtime capability the op needs ("" = always wired)
 
 
-def _make_validator(
+def __make_validator(
   entry: dict, normalizer: (Normalizer | NoneType)
 ) -> Normalizer:
   """The registry's check (native rules, unknown fields, types, grammars, presence
@@ -127,23 +127,23 @@ def _make_validator(
 # (no clipboard) — the registry restricts those entries to the cli, so they are never
 # registered or promised here.
 _SURFACE_OPS: dict[str, tuple] = {
-  "crop": (_apply_crop, _normalize_crop, "core"),
+  "crop": (_apply_crop, __normalize_crop, "core"),
   "rotate": (_apply_rotate, None, "core"),
   "filter": (_apply_filter, None, "core"),
   "layout": (_apply_layout, None, "core"),
   "formula": (_apply_formula, None, "core"),
-  "page": (_apply_page, _float_dims, "core"),
-  "blank": (_apply_blank, _float_dims, "core"),
+  "page": (_apply_page, __float_dims, "core"),
+  "blank": (_apply_blank, __float_dims, "core"),
   "undo": (_apply_history_step, None, "core"),
   "redo": (_apply_history_step, None, "core"),
   "frame": (_apply_frame, None, "core"),
   "image": (_apply_image, None, "core"),
-  "save": (_apply_save, _normalize_save, "core"),
+  "save": (_apply_save, __normalize_save, "core"),
   # The §10 console profile.
-  "connect": (_apply_console_op, _strip_field("server"), "console"),
-  "disconnect": (_apply_console_op, _strip_field("server"), "console"),
-  "delete": (_apply_console_op, _strip_field("path"), "console"),
-  "openUrl": (_apply_console_op, _normalize_open_url, "console"),
+  "connect": (_apply_console_op, __strip_field("server"), "console"),
+  "disconnect": (_apply_console_op, __strip_field("server"), "console"),
+  "delete": (_apply_console_op, __strip_field("path"), "console"),
+  "openUrl": (_apply_console_op, __normalize_open_url, "console"),
   "clear": (_apply_console_op, None, "console"),
   # clearChat runs via the /chat clear path with an in-app confirm, DEFERRED to the
   # end of the turn (the REPL's plan_clear_chat hook records it).
@@ -158,7 +158,7 @@ for _name, (_applier, _normalizer, _scope) in _SURFACE_OPS.items():
     raise AssertionError('"%s" has no pystencil entry in opRegistry.json' % _name)
   _flags = _entry["flags"]
   OP_REGISTRY[_name] = OpSpec(
-    _make_validator(_entry, _normalizer), _applier,
+    __make_validator(_entry, _normalizer), _applier,
     # A bullet shared by two ops (undo/redo, connect/disconnect) sits on the
     # first entry; the partner's asset bullet is null and emits nothing.
     frozenset({"op", *_entry["keys"]}), _entry["bullet"] or "", scope=_scope,

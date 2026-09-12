@@ -108,7 +108,7 @@ class ConnectionManager:
     _poll_loop(self.remote_projects, on_change, interval, stop)
 
 
-def _one_spec(item: Any) -> tuple[Any, str]:
+def __one_spec(item: Any) -> tuple[Any, str]:
   """A single (url, token) from a url string or a {url, token?} mapping."""
   if isinstance(item, str):
     return item, ""
@@ -121,7 +121,7 @@ def _iter_specs(spec: ConnectSpec):
   """Yield (url, token) pairs from a url string, {url,token} dict, or an
   iterable of either. Centralizes the browser's flexible connect() input."""
   if isinstance(spec, (str, dict)):
-    yield _one_spec(spec)
+    yield __one_spec(spec)
     return
   for item in spec:
-    yield _one_spec(item)
+    yield __one_spec(item)

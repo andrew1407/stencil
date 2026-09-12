@@ -41,7 +41,7 @@ def command(*names: str, usage: str = "", help: str = "") -> Callable:
   return wrap
 
 
-def _registered(cls) -> NamedCommands:
+def __registered(cls) -> NamedCommands:
   """Every registered method on ``cls``, in mixin-declaration order then source order.
 
   ``cls``'s own commands come last, so the listing reads mixin by mixin and ends with
@@ -58,7 +58,7 @@ def _registered(cls) -> NamedCommands:
 def build_table(cls) -> CommandTable:
   """``{verb: method}`` for every name (and alias) registered on ``cls``."""
   table: CommandTable = dict()
-  for _owner, fn in _registered(cls):
+  for _owner, fn in __registered(cls):
     for name in fn._command.names:
       if name in table:  # pragma: no cover - guards a duplicate registration
         raise AssertionError("/%s is registered twice" % name)
@@ -82,7 +82,7 @@ def _entry(usage: str, help_text: str) -> str:
 def build_help(cls) -> str:
   """The ``/help`` listing, mirroring the Zig REPL's command listing."""
   out = ["commands:"]
-  for _owner, fn in _registered(cls):
+  for _owner, fn in __registered(cls):
     spec = fn._command
     if spec.usage:
       out.append(_entry(spec.usage, spec.help))

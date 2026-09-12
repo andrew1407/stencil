@@ -65,13 +65,13 @@ def image_dimensions(data: bytes) -> (Dimensions | NoneType):
     h = struct.unpack("<i", data[22:26])[0]
     return (abs(w), abs(h))
   if n >= 30 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-    return _webp_dimensions(data)
+    return __webp_dimensions(data)
   if n >= 2 and data[:2] == b"\xff\xd8":
-    return _jpeg_dimensions(data)
+    return __jpeg_dimensions(data)
   return None
 
 
-def _webp_dimensions(data: bytes) -> (Dimensions | NoneType):
+def __webp_dimensions(data: bytes) -> (Dimensions | NoneType):
   """Dimensions from a WebP header (simple VP8, lossless VP8L, or extended VP8X)."""
   fourcc = data[12:16]
   if fourcc == b"VP8 " and len(data) >= 30:
@@ -93,7 +93,7 @@ def _webp_dimensions(data: bytes) -> (Dimensions | NoneType):
   return None
 
 
-def _jpeg_dimensions(data: bytes) -> (Dimensions | NoneType):
+def __jpeg_dimensions(data: bytes) -> (Dimensions | NoneType):
   """Dimensions from the first JPEG Start-Of-Frame (SOF0-15, excl. DHT/JPG/DAC)."""
   i = 2
   n = len(data)

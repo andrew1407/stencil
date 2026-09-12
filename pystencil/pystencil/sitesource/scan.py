@@ -40,11 +40,11 @@ class _Scanner(HTMLParser):
 
   # attrs come as a list of (name, value|None) pairs; fold to a lower-cased dict.
   @staticmethod
-  def _attr_dict(attrs) -> Attrs:
+  def __attr_dict(attrs) -> Attrs:
     return {k.lower(): (v or "") for k, v in attrs}
 
   def handle_starttag(self, tag, attrs):
-    a = self._attr_dict(attrs)
+    a = self.__attr_dict(attrs)
     # A <base href> re-roots relative URL resolution for the whole document.
     # Per the HTML spec the FIRST <base href> wins; ignore any later one.
     if tag == "base" and a.get("href") and not self._base_set:
@@ -58,7 +58,7 @@ class _Scanner(HTMLParser):
       handler(self, a)
 
   def _start_img(self, a: Attrs) -> None:
-    raw = self._img_url(a)
+    raw = self.__img_url(a)
     if raw:
       self.imgs.append(("img", raw, a.get("alt", "")))
 
@@ -95,7 +95,7 @@ class _Scanner(HTMLParser):
 
   def handle_endtag(self, tag):
     if tag == "video" and self._cur_video is not None:
-      self._finish_video(self._cur_video)
+      self.__finish_video(self._cur_video)
       self._cur_video = None
     elif tag == "picture" and self._picture_depth > 0:
       self._picture_depth -= 1
@@ -109,7 +109,7 @@ class _Scanner(HTMLParser):
     if self._style_depth > 0:
       self._style_buf.append(data)
 
-  def _finish_video(self, v: dict) -> None:
+  def __finish_video(self, v: dict) -> None:
     """Emit the video record (its downloadable URL) then a poster record (if any).
 
     Order is VIDEO then POSTER, matching the Zig CLI and DESIGN §2 item 3.
@@ -137,7 +137,7 @@ class _Scanner(HTMLParser):
   }
 
   @staticmethod
-  def _img_url(a: Attrs) -> str:
+  def __img_url(a: Attrs) -> str:
     """Pick an ``<img>`` URL: ``src`` unless it's empty or a ``data:`` placeholder,
     then ``data-src`` / ``data-original`` / ``data-lazy-src`` / first ``srcset`` URL."""
     src = a.get("src", "").strip()

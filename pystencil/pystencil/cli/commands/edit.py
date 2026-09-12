@@ -11,7 +11,7 @@ from ..registry import command
 class _EditCommands:
   """Crop, rotate, filter, draw, export, save, history navigation and status."""
 
-  def _cmd_filter_variants(self) -> None:
+  def __cmd_filter_variants(self) -> None:
     """Bare /filter: list the possible modes (a bare required-arg command never errors)."""
     self._say("filters:")
     self._say("  bw        black & white")
@@ -48,24 +48,24 @@ class _EditCommands:
   )
   def _cmd_filter(self, arg: str) -> None:
     if not arg:
-      self._cmd_filter_variants()
+      self.__cmd_filter_variants()
       return
     self._editor.apply_filter(arg)
     self._say_status_brief("filtered")
 
   @command("bw")
   def _cmd_bw(self, arg: str) -> None:
-    self._apply_named_filter("bw")
+    self.__apply_named_filter("bw")
 
   @command("sepia")
   def _cmd_sepia(self, arg: str) -> None:
-    self._apply_named_filter("sepia")
+    self.__apply_named_filter("sepia")
 
   @command("none")
   def _cmd_none(self, arg: str) -> None:
-    self._apply_named_filter("none")
+    self.__apply_named_filter("none")
 
-  def _apply_named_filter(self, mode: str) -> None:
+  def __apply_named_filter(self, mode: str) -> None:
     """The /bw, /sepia and /none shortcuts: the verb itself names the mode."""
     self._editor.apply_filter(mode)
     self._say_status_brief("filtered")

@@ -80,7 +80,7 @@ def lib_path() -> Path:
   return NATIVE_DIR / lib_filename()
 
 
-def _compiler() -> str:
+def __compiler() -> str:
   """The C++ driver to invoke. Honour $CXX so callers can pin a toolchain; default c++."""
   return os.environ.get("CXX", "c++")
 
@@ -133,7 +133,7 @@ def build(force: bool = False, verbose: bool = False) -> Path:
   # Single-shot compile+link of all translation units into one PIC shared object, run
   # from core/ so the relative source/include paths resolve. This is the exact command
   # verified to work on this machine (clang 21 -> ~132KB dylib).
-  cmd = [_compiler(), "-std=c++17", "-O2", "-fPIC", "-shared"]
+  cmd = [__compiler(), "-std=c++17", "-O2", "-fPIC", "-shared"]
   for inc in INCLUDE_DIRS:
     cmd.append("-I" + inc)
   cmd.extend(sources)
@@ -152,7 +152,7 @@ def build(force: bool = False, verbose: bool = False) -> Path:
   if proc.returncode != 0:
     raise RuntimeError(
       "failed to compile stencil core shared library "
-      "(compiler=%s):\n%s" % (_compiler(), proc.stderr)
+      "(compiler=%s):\n%s" % (__compiler(), proc.stderr)
     )
   if verbose and proc.stderr:
     print(proc.stderr, file=sys.stderr)

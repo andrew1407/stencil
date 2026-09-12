@@ -29,7 +29,7 @@ class ValueChecks:
   """Type, range, enum, grammar and presence checks shared by every entry."""
 
   # ── value checks ──────────────────────────────────────────────────────────
-  def _check_string(self, v: Any, spec: dict, path: dict, parent: (dict | NoneType)) -> None:
+  def __check_string(self, v: Any, spec: dict, path: dict, parent: (dict | NoneType)) -> None:
     if not isinstance(v, str):
       _bad("%s must be a string" % _label(path))
     mx = self.limit(spec["maxChars"]) if spec.get("maxChars") is not None else self.limits["MAX_STRING_CHARS"]
@@ -56,7 +56,7 @@ class ValueChecks:
     if spec.get("regexNot") and self.regexes[spec["regexNot"]].search(s):
       _bad("%s must be a local value, not %s" % (_label(path), self.describe(spec["regexNot"])))
 
-  def _check_number(self, v: Any, spec: dict, path: dict) -> None:
+  def __check_number(self, v: Any, spec: dict, path: dict) -> None:
     integer = spec["type"] == "integer"
     noun = "an integer" if integer else "a number"
     if not (_is_int(v) if integer else _is_num(v)):
@@ -72,13 +72,13 @@ class ValueChecks:
           rng = ">= %s" % _js_str(lo) if lo is not None else "<= %s" % _js_str(hi)
         _bad("%s must be %s %s" % (_label(path), noun, rng))
 
-  def _check_boolean(self, v: Any, spec: dict, path: dict) -> None:
+  def __check_boolean(self, v: Any, spec: dict, path: dict) -> None:
     if not isinstance(v, bool):
       _bad("%s must be a boolean" % _label(path))
     if "enum" in spec and not _includes(spec["enum"], v):
       _bad("%s must be %s" % (_label(path), _quote_list(spec["enum"])))
 
-  def _check_array(self, v: Any, spec: dict, path: dict) -> None:
+  def __check_array(self, v: Any, spec: dict, path: dict) -> None:
     if not isinstance(v, list):
       _bad("%s must be an array" % _label(path))
     mn = self.limit(spec["minItems"]) if spec.get("minItems") is not None else None
@@ -95,7 +95,7 @@ class ValueChecks:
       for i, x in enumerate(v):
         self._check_value(x, spec["items"], _item(path, i), None)
 
-  def _check_object(self, v: Any, spec: dict, path: dict) -> None:
+  def __check_object(self, v: Any, spec: dict, path: dict) -> None:
     if not _is_obj(v):
       _bad("%s must be an object" % _label(path))
     if spec.get("fields") or spec.get("minFields") is not None:
@@ -104,15 +104,15 @@ class ValueChecks:
   def _check_value(self, v: Any, spec: dict, path: dict, parent: (dict | NoneType)) -> None:
     t = spec["type"]
     if t == "string":
-      self._check_string(v, spec, path, parent)
+      self.__check_string(v, spec, path, parent)
     elif t in ("integer", "number"):
-      self._check_number(v, spec, path)
+      self.__check_number(v, spec, path)
     elif t == "boolean":
-      self._check_boolean(v, spec, path)
+      self.__check_boolean(v, spec, path)
     elif t == "array":
-      self._check_array(v, spec, path)
+      self.__check_array(v, spec, path)
     elif t == "object":
-      self._check_object(v, spec, path)
+      self.__check_object(v, spec, path)
     else:
       raise ValueError('opRegistry: unknown type "%s"' % t)
 

@@ -7,7 +7,7 @@ from typing import Callable
 from .path import _bad, _is_obj
 
 
-def _crop_aspect_fold(a: dict) -> dict:
+def __crop_aspect_fold(a: dict) -> dict:
   """§3.2 tolerance: "aspect" beside "spec" folds into the spec when it lacks one; a
   conflicting duplicate fails. The folded copy is what gets validated + normalized."""
   if a.get("aspect") is None or not _is_obj(a.get("spec")):
@@ -22,4 +22,4 @@ def _crop_aspect_fold(a: dict) -> dict:
   return out
 
 
-_RULES: dict[str, Callable[[dict], dict]] = {"cropAspectFold": _crop_aspect_fold}
+_RULES: dict[str, Callable[[dict], dict]] = {"cropAspectFold": __crop_aspect_fold}

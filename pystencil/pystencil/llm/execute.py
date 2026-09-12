@@ -18,7 +18,7 @@ from .types import OpPlan
 MAX_VARIANT_WORKERS = 4
 
 
-def _apply_action(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
+def __apply_action(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
         run: ("_PlanRun" | NoneType) = None) -> None:
   """Apply one validated action via the Editor method the op maps to (contract §2)."""
   op = action["op"]
@@ -73,7 +73,7 @@ def execute_op_plan(
   frame = _FrameMap()  # §1: plan coordinates are in the pre-plan frame
   run = _PlanRun(attachments, save_dir, console)
   for action in plan.actions:
-    _apply_action(action, editor, frame, run)
+    __apply_action(action, editor, frame, run)
   plan.saved.extend(run.saved)
   if run.notes:
     plan.warnings.extend(run.notes)
@@ -98,11 +98,11 @@ def execute_op_plan(
       branch = type(editor)()
       branch.load(base, name=variant.label)
       branches.append((branch, variant, frame.branch()))
-    outputs.extend(map_parallel(branches, _render_branch, MAX_VARIANT_WORKERS))
+    outputs.extend(map_parallel(branches, __render_branch, MAX_VARIANT_WORKERS))
   return outputs
 
 
-def _render_branch(job) -> Any:
+def __render_branch(job) -> Any:
   """Apply one variant's actions to its own editor and render it — the unit of fan-out.
 
   Runnable on any thread by construction: the branch editor, its pixels and its
@@ -112,5 +112,5 @@ def _render_branch(job) -> Any:
   """
   branch, variant, vframe = job
   for action in variant.actions:
-    _apply_action(action, branch, vframe)
+    __apply_action(action, branch, vframe)
   return branch.result()
