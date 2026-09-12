@@ -4,6 +4,7 @@
 // messages so the projects UI knows tab count, peers, and when another tab changed projects.
 import { MSG } from '../worker/messages.js';
 import { Emitter } from './emitter.js';
+import { PeerRoster } from './peerRoster.js';
 import EVENTS from '../config/events.json' with { type: 'json' };
 
 const CHANNEL_NAME = 'stencil_projects';
@@ -24,9 +25,7 @@ export class TabsCoordinator {
   #resolvedReady = false;
 
   // BroadcastChannel roll-call bookkeeping
-  #peerSeen = new Set();       // peer ids that answered the roll-call
-  #peerActive = new Map();     // peerId -> activeId
-  #peerIncognito = new Map();  // peerId -> { name, updatedAt } (OTHER tabs' incognito sessions)
+  #peers = new PeerRoster();
 
   constructor() {
     this.#readyPromise = new Promise(resolve => { this.#readyResolve = resolve; });
@@ -128,15 +127,14 @@ export class TabsCoordinator {
       return false;
     }
 
-    this.#peerSeen.add(this.#peerId);
+    this.#peers.see(this.#peerId);
     this.#channel.onmessage = e => this.#onChannelMessage(e.data || {});
 
     // Roll call: announce presence and ask who else is here. Peers reply with
     // HERE. After a short window we estimate count/youAreOnly best-effort.
     this.#channel.postMessage({ type: MSG.HELLO, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
     setTimeout(() => {
-      const count = this.#peerSeen.size;
-      this.#lastTabCount = { count, youAreOnly: count <= 1 };
+      this.#lastTabCount = this.#peers.tabCount();
       this.#emitTabCount();
       this.#emitPeersFromMap();
       this.#resolveReady();
@@ -156,9 +154,9 @@ export class TabsCoordinator {
     const { type, peerId } = data;
     if (peerId === this.#peerId) return;
     if (type === MSG.HELLO) {
-      this.#peerSeen.add(peerId);
-      if (data.activeId != null) this.#peerActive.set(peerId, data.activeId);
-      this.#setPeerIncognito(peerId, data.incognito);
+      this.#peers.see(peerId);
+      if (data.activeId != null) this.#peers.setActive(peerId, data.activeId);
+      this.#peers.setIncognito(peerId, data.incognito);
       // Reply so the newcomer can count us, and share our active + incognito state.
       this.#channel.postMessage({ type: MSG.HERE, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
       this.#recountChannel();
@@ -166,56 +164,44 @@ export class TabsCoordinator {
       return;
     }
     if (type === MSG.HERE) {
-      this.#peerSeen.add(peerId);
-      if (data.activeId != null) this.#peerActive.set(peerId, data.activeId);
-      this.#setPeerIncognito(peerId, data.incognito);
+      this.#peers.see(peerId);
+      if (data.activeId != null) this.#peers.setActive(peerId, data.activeId);
+      this.#peers.setIncognito(peerId, data.incognito);
       this.#recountChannel();
       this.#emitIncognitoFromMap();
       return;
     }
     if (type === MSG.ACTIVE) {
-      this.#peerSeen.add(peerId);
-      if (data.activeId == null) this.#peerActive.delete(peerId);
-      else this.#peerActive.set(peerId, data.activeId);
+      this.#peers.see(peerId);
+      this.#peers.setActive(peerId, data.activeId);
       this.#emitPeersFromMap();
       return;
     }
     if (type === MSG.INCOGNITO) {
-      this.#peerSeen.add(peerId);
-      this.#setPeerIncognito(peerId, data.session);
+      this.#peers.see(peerId);
+      this.#peers.setIncognito(peerId, data.session);
       this.#emitIncognitoFromMap();
       return;
     }
     if (type === MSG.PROJECTS_CHANGED) return this.#emitProjectsChanged(data);
     if (type === MSG.ACCENT) return this.#emitAccent(data.key);
     if (type === MSG.BYE) {
-      this.#peerSeen.delete(peerId);
-      this.#peerActive.delete(peerId);
-      this.#peerIncognito.delete(peerId);
+      this.#peers.forget(peerId);
       this.#recountChannel();
       this.#emitIncognitoFromMap();
       return;
     }
   }
 
-  #setPeerIncognito(peerId, session) {
-    if (session) this.#peerIncognito.set(peerId, session);
-    else this.#peerIncognito.delete(peerId);
-  }
-  #emitIncognitoFromMap() {
-    this.#emitIncognitoPeers(Array.from(this.#peerIncognito.values()));
-  }
+  #emitIncognitoFromMap() { this.#emitIncognitoPeers(this.#peers.incognitoSessions()); }
 
   #recountChannel() {
-    const count = this.#peerSeen.size;
-    this.#lastTabCount = { count, youAreOnly: count <= 1 };
+    this.#lastTabCount = this.#peers.tabCount();
     this.#emitTabCount();
     this.#emitPeersFromMap();
   }
 
-  #emitPeersFromMap() {
-    this.#emitPeers(Array.from(this.#peerActive.values()).filter(id => id != null));
-  }
+  #emitPeersFromMap() { this.#emitPeers(this.#peers.activeIds()); }
 
   // ── emit helpers (thin wrappers over the shared bus) ──────────
   #emitTabCount() { this.#bus.emit('tabCount', this.#lastTabCount); }

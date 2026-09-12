@@ -14,7 +14,7 @@
     "browser/js/core/settingsController.js": 219,
     "browser/js/core/stencilCore.js": 393,
     "browser/js/core/storage.js": 381,
-    "browser/js/core/tabsCoordinator.js": 232,
+    "browser/js/core/tabsCoordinator.js": 218,
     "browser/js/core/zoomPan.js": 115,
     "browser/js/llm/chatController.js": 481,
     "browser/js/llm/chatSession.js": 294,
