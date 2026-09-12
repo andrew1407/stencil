@@ -1,6 +1,4 @@
-// ── Chat panel geometry + gear tip text (pure) ──────────────────
-// Every number the dockable panel's layout is made of, and the two tip builders that
-// read a provider probe. No DOM: unit-tested, and the panel wires them to window.inner*.
+// Chat panel geometry + gear tip text: pure, no DOM; the panel wires window.inner*.
 import { clamp } from '../utils/math.js';
 import { popoverPosition } from './popover.js';
 import { PROVIDER_LABELS } from '../llm/llmClient.js';
@@ -11,8 +9,6 @@ export const DRAG_THRESHOLD_PX = 4;      // plain header clicks must not twitch 
 export const DOCK_MIN_SIZE = 240;
 export const DOCK_MAX_FRACTION = 0.8;    // docked panel never exceeds 80% of the viewport
 
-// Clamp a float rect so the WHOLE panel (right/bottom edges included) stays inside
-// the vw×vh viewport. Pure — unit-tested; the panel wires it to window.inner*.
 export const FLOAT_MIN_W = 280;
 export const FLOAT_MIN_H = 220;
 export const clampFloatRect = (r, vw, vh) => {
@@ -26,9 +22,8 @@ export const clampFloatRect = (r, vw, vh) => {
   };
 };
 
-// The compact shape the toolbar icon's popover gestures open (ui/popover.js): the
-// panel floated SMALL and pinned next to the icon, sized like the context-menu chat
-// flyout. Pure — rects in, a clamped float rect out — so it's unit-testable.
+// The compact shape the toolbar icon's popover gestures open: floated small next to
+// the icon, sized like the context-menu chat flyout.
 export const COMPACT_CHAT_W = 340;
 export const COMPACT_CHAT_H = 460;
 export const compactChatRect = (anchor, vw, vh) => {
@@ -38,9 +33,7 @@ export const compactChatRect = (anchor, vw, vh) => {
   return clampFloatRect({ x: p.left, y: p.top, w, h }, vw, vh);
 };
 
-// Resize a float rect by dragging edge/corner `dir` (n|s|e|w|ne|nw|se|sw) by dx/dy.
-// The opposite edge stays anchored; the moving edge is clamped to the min size and
-// the vw×vh viewport. Pure — unit-tested.
+// Resize by dragging edge/corner `dir` (n|s|e|w|ne|nw|se|sw); the opposite edge stays anchored.
 export const resizeFloatRect = (r, dir, dx, dy, vw, vh) => {
   let { x, y, w, h } = r;
   const right = x + w, bottom = y + h;
@@ -51,8 +44,7 @@ export const resizeFloatRect = (r, dir, dx, dy, vw, vh) => {
   return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
 };
 
-// Which edge drop zone (if any) a viewport point falls in during a header drag.
-// Corners resolve to the NEAREST edge; null = keep floating. Pure — unit-tested.
+// Which edge drop zone a point falls in during a header drag; corners take the nearest edge.
 export const DOCK_ZONE_BAND = 72;
 export const dockZoneAt = (x, y, vw, vh, band = DOCK_ZONE_BAND) => {
   const dist = { left: x, right: vw - x, top: y, bottom: vh - y };
@@ -63,8 +55,7 @@ export const dockZoneAt = (x, y, vw, vh, band = DOCK_ZONE_BAND) => {
   return best;
 };
 
-// The configure-gear's status tooltip is a TABLE (.chat-status-tip): one row per
-// fact, the Status cell coloured by `state` (ok|error|connecting). Pure — unit-tested.
+// The gear's status tooltip is a table (.chat-status-tip); `state` colours the Status cell.
 export const gearStatusRows = (probe) => {
   if (!probe) return [{ label: 'Status', value: 'Checking the configured LLM…', state: 'connecting' }];
   if (probe.provider === 'none') {
@@ -82,11 +73,9 @@ export const gearStatusRows = (probe) => {
   return rows;
 };
 
-// The tooltip's footer lines (pre-line text under the table): what to try / the
-// call to action, always ending with the click hint. Pure — unit-tested.
+// The tooltip's footer lines, always ending with the click hint.
 export const gearTipFootText = (probe) => {
   const lines = [];
-  // Connected needs no prose — the table above already says provider/model/status.
   if (!probe || probe.provider === 'none' || probe.ok) { /* the table says it all */ }
   else {
     lines.push(`No LLM reachable${probe.url ? ` at ${probe.url}` : ''} — ${probe.provider === 'ollama' ? 'start Ollama or ' : ''}configure another provider.`);

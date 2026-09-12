@@ -1,6 +1,5 @@
-// ── Rendering the SHARED transcript log ─────────────────────────
-// Keyed by row id and incremental: existing rows update in place. Model output is DATA —
-// every string lands via textContent, never innerHTML.
+// Rendering the shared transcript log. Model output is DATA — every string lands via
+// textContent, never innerHTML.
 import { LEAVING_CLASS, chatIn, observeReveal, wipeDurationMs } from './motion.js';
 import { applyShrinkWrap, bindShrinkWrapResize, rowTextNode, setRowClass } from './chatRowDom.js';
 import { chatAskCard, chatAttachmentStrip, chatConfigureButton, chatReconnectButton, chatResultCard } from './chatCards.js';
@@ -9,28 +8,17 @@ import { chatLeave } from './chatLeave.js';
 import { chatRowMenuButton } from './chatRowMenuModel.js';
 import { icon } from './icons.js';
 
-// Keyed by row id and incremental: existing rows update in place, new rows append in
-// log order, gone rows are removed. Both surfaces call this on every log change —
-// that keeps them in lockstep and renders history a surface opened late has missed.
+// Keyed by row id and incremental; both surfaces call this on every log change.
 export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRetry, onReconnect } = {}) => {
-  // Chat stickiness, measured BEFORE the mutations below: follow the conversation
-  // only when the user is already at (or near) the bottom — never yank them out of
-  // history they scrolled up to read.
+// Stickiness measured before the mutations: follow only when already near the bottom.
   const stick = transcript.scrollHeight - transcript.clientHeight - transcript.scrollTop < 40;
-  // ONE rule, one place: an empty conversation shows the suggestion chips, anything
-  // else doesn't. Bringing them BACK waits until the rows finish leaving (see
-  // restoreEmptyState) — chips reappearing over still-scattering rows flicker.
+// An empty conversation shows the chips; bringing them back waits for the rows to leave.
   if (log.length) transcript.querySelector('.chat-empty')?.remove();
-  // Scroll reveal, bound here rather than per surface so the panel and the
-  // context-menu flyout both get it. Idempotent — one observer per transcript.
-  // smooth: these rows are TEXT — a grainy dissolve on the cut edge reads as corruption.
+// One reveal observer per transcript. smooth: a grainy dissolve on text reads as corruption.
   if (!transcript._revealBound) transcript._revealBound = observeReveal(transcript, '[data-row]', { smooth: true });
   bindShrinkWrapResize(transcript);
-  // Everything that APPEARS in this repaint, collected and played out at the END: the
-  // dust is a CLONE of the entry, so it can only be taken once the row is fully built
-  // (its text, its CTAs, its "…"), and the count is what budgets a burst's mesh.
-  // The FIRST paint of a transcript is deliberately silent — a surface opening onto
-  // history it missed is not a conversation happening in front of you.
+// Arrivals are played at the end: the dust is a clone, so the row must be fully built,
+// and the count budgets the burst's mesh. The first paint of a transcript is silent.
   const entering = [];
   const enters = (el) => { if (transcript._chatPainted) entering.push(el); };
   const live = new Set();
@@ -41,42 +29,32 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
       el = document.createElement('div');
       el.dataset.row = row.id;
       transcript.appendChild(el);
-      // …but NOT a row born pending: the "…" is a placeholder that lives about as long as
-      // the gather itself, so dusting it in kept it veiled for almost its whole life and
-      // the bouncing dots were never seen. Its arrival is the SETTLE below — the reply
-      // taking their place is the thing worth animating.
+// Not a row born pending: the "…" placeholder lives about as long as the gather. Its
+// arrival is the settle below.
       if (!row.pending) enters(el);
     }
-    // …and a settling turn is an arrival too: the reply (or the failure) takes the place
-    // the bouncing dots held, in the SAME element, so nothing above would catch it.
+// A settling turn is an arrival too: the reply takes the dots' place in the same element.
     if (el._chatPending && !row.pending) enters(el);
     el._chatPending = !!row.pending;
-    // A row that will carry a Retry becomes a flex COLUMN for it. Part of the class
-    // string, not a later classList.add: setRowClass rewrites className wholesale on
-    // every repaint, so anything added afterwards is lost on the next log change.
+// Part of the class string: setRowClass rewrites className wholesale on every repaint.
     const retryable = !!(row.error && row.retryText && onRetry);
     setRowClass(el, `chat-msg chat-msg-${row.role}`
       + (row.error ? ' chat-msg-error' : '')
       + (row.card ? ' chat-error-card' : '')
       + (retryable ? ' chat-msg-cta' : ''));
-    // The row menu (wireChatRowMenu) reads the CURRENT log row off its element.
     el._chatRow = row;
-    // An in-flight turn shows bouncing dots; everything else is model output as DATA.
-    // Both land in the row's ONE text node, only when actually changed: a rewrite per
-    // repaint would tear a held selection out of the user's hands.
+// Both land in the row's one text node, only when changed: a rewrite per repaint would
+// tear a held selection out of the user's hands.
     const textEl = rowTextNode(el);
     const typing = textEl.querySelector('.chat-typing');
     if (row.pending) {
       if (!typing) { textEl.textContent = ''; textEl.appendChild(typingDots()); }
-      // A SETTLED row must lose the dots even when its text did not "change": a pending
-      // bubble reads as '', so a turn answering with '' left the dots spinning forever.
+// A settled row must lose the dots even when its text is '' (no "change" to see).
     } else if (typing || textEl.textContent !== row.text) {
       textEl.textContent = row.text;
       applyShrinkWrap(textEl);
     }
-    // The unreachable-provider card adds its configure CTA beside that text — built
-    // once, like every other affordance on the row. An EXPIRED session takes the
-    // reconnect CTA instead: the provider is configured correctly, the token is dead.
+// Built once. An expired session takes the reconnect CTA: the provider is fine, the token is dead.
     const cta = row.reconnect ? '.chat-reconnect-cta' : '.chat-config-cta';
     if (row.card && !el.querySelector(cta)) {
       el.appendChild(row.reconnect
@@ -85,12 +63,10 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
     }
     if (!row.card || row.reconnect) el.querySelector('.chat-config-cta')?.remove();
     if (!row.card || !row.reconnect) el.querySelector('.chat-reconnect-cta')?.remove();
-    // A failed turn that remembers its prompt offers a one-click Retry — the same text
-    // through the normal path (nothing is auto-retried). Built once: the row's buttons
-    // survive a repaint, so re-appending here would stack a second button.
+// Retry sends the same text through the normal path; built once, since the row's buttons
+// survive a repaint.
     if (retryable && !el.querySelector('.chat-retry-cta')) {
-      // Icon-only (the header ghosts' shape): the row is a text bubble, so a
-      // labelled button reads as part of the message.
+// Icon-only: a labelled button reads as part of the message.
       const retry = document.createElement('button');
       retry.className = 'chat-hbtn chat-retry-cta';
       retry.dataset.title = 'Send this message again';
@@ -99,16 +75,12 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
       retry.addEventListener('click', () => onRetry(row.retryText));
       el.appendChild(retry);
     }
-    // Hover "…" trigger (CSS reveals it on hover-capable pointers only), built once:
-    // the text now lives in its own node, so a rewrite no longer wipes the row's
-    // buttons. Every settled row gets one — the first/oldest included.
+// Built once; every settled row gets one, the first included.
     if (!el.querySelector('.chat-row-menu-btn')) {
       const more = chatRowMenuButton(row);
       if (more) el.appendChild(more);
     }
-    // What the user attached rides in its own row just BEFORE their message, on the
-    // user's side — the images are part of what they said. Built once (like the
-    // result cards): a repaint must not reload the thumbnails.
+// Attachments ride in their own row just before the message, built once (no thumbnail reload).
     const attachId = `${row.id}-attachments`;
     if (row.attachments && row.attachments.length) {
       live.add(attachId);
@@ -119,7 +91,6 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
         enters(strip);
       }
     }
-    // Result cards ride in their own row right after the message they belong to.
     const resultsId = `${row.id}-results`;
     let cards = transcript.querySelector(`[data-row="${resultsId}"]`);
     if (row.results && row.results.length) {
@@ -133,11 +104,10 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
         enters(cards);
       }
     } else if (cards && !cards.classList.contains(LEAVING_CLASS)) {
-      cards.removeAttribute('data-row');   // out of every lookup the moment it starts leaving
+      cards.removeAttribute('data-row');
       chatLeave(cards, () => cards.remove());
     }
-    // …and the §11 choice card rides after those, in its own row. Built ONCE: rebuilding it
-    // on every repaint would wipe a half-made selection (and re-fire an answered card).
+// The §11 choice card, built once: a rebuild would wipe a half-made selection.
     const askId = `${row.id}-ask`;
     let askEl = transcript.querySelector(`[data-row="${askId}"]`);
     if (row.ask) {
@@ -156,46 +126,37 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
       chatLeave(askEl, () => askEl.remove());
     }
   }
-  // Rows the log dropped (Clear, or a card that answered) dissolve instead of
-  // blinking out. A row already on its way out is skipped — this runs on EVERY log
-  // change, and re-arming it would restart the animation and never finish.
+// Dropped rows dissolve; one already leaving is skipped, or re-arming would restart it forever.
   const going = [...transcript.querySelectorAll('[data-row]')].filter((el) => !live.has(el.dataset.row));
   const wiped = going.length > 0;
   going.forEach((el, i) => {
-    el.removeAttribute('data-row');   // gone from every lookup, so no repaint re-finds it
+    el.removeAttribute('data-row');
     chatLeave(el, () => el.remove(), going.length, i);
   });
   restoreEmptyState(transcript, log, wiped);
   if (stick) stickToBottom(transcript);
-  // …and only THEN the arrivals (motion.js chatIn), last of all: every entry is fully
-  // built by now (the dust is a clone, so a cloud taken mid-build would be missing the
-  // row's own text and CTAs) and the transcript has been told to scroll. chatIn veils
-  // each entry at once and waits two frames before photographing it, so what it measures
-  // is the settled box — the height is allocated and scrolled to first, the motes fly
-  // second. Sharing one grid budget with the wipe above: a Clear that also lands a fresh
-  // turn must not put two full meshes in the air at once.
+// Arrivals last of all: every entry is fully built and the transcript has been told to
+// scroll (chatIn waits two frames before photographing). One grid budget shared with
+// the wipe above.
   entering.forEach((el, i) => chatIn(el, entering.length + going.length, i));
   transcript._chatPainted = true;
 };
 
-// Pin the transcript to its bottom NOW and again as the entrance animations settle:
-// a freshly appended row grows AFTER the first measure, so a single scrollTop write
-// landed one row short of the indicator.
+// Pin to the bottom now and again as the entrances settle: a fresh row grows after the
+// first measure.
 export const stickToBottom = (transcript) => {
   const pin = () => { transcript.scrollTop = transcript.scrollHeight; };
   pin();
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(pin);
-  setTimeout(pin, 220);   // reveal/entrance settle
+  setTimeout(pin, 220);
 };
 
-// Bring the empty state back only once the transcript has actually emptied ON SCREEN:
-// rows go first, then the chips (the order core/storage.js uses for the cleared canvas).
-// Idempotent under repaints: one waiter, re-checking the world before painting.
+// Bring the empty state back only once the transcript has emptied on screen (rows first,
+// then the chips). One waiter, re-checking before painting.
 const restoreEmptyState = (transcript, log, wiped) => {
   const paint = () => {
     transcript._emptyWaiting = false;
-    // The conversation may have restarted (or the surface been torn down) while the
-    // particles fell — in either case the chips are no longer the right answer.
+// The conversation may have restarted while the particles fell.
     if (log.length || transcript.querySelector('[data-row]')) return;
     if (!transcript.querySelector('.chat-empty')) transcript.prepend(chatEmptyState());
   };
@@ -207,8 +168,7 @@ const restoreEmptyState = (transcript, log, wiped) => {
   setTimeout(paint, wipeDurationMs());
 };
 
-// Wire the suggestion chips ONCE, on the transcript itself: the .chat-empty block is
-// replaced whenever the conversation empties, so a listener bound to it would die with it.
+// On the transcript itself: the .chat-empty block is replaced whenever the conversation empties.
 export const wireChatSuggestions = (transcript, onPick) => {
   transcript.addEventListener('click', (e) => {
     const chip = e.target.closest('.chat-suggest');

@@ -1,8 +1,6 @@
-// ── Shared assistant rendering (chat panel + context-menu chat) ─────────────
-// Both surfaces show the SAME conversation (js/llm/chatSession.js) with the same DOM.
-// Model output is DATA — every string lands via textContent, never innerHTML. The
-// context menu scopes these with .ctx-assist; structure and affordances are identical.
-// The pieces live beside this file; this re-exports them so callers keep one import.
+// Shared assistant rendering (chat panel + context-menu chat): the same conversation
+// (js/llm/chatSession.js) with the same DOM. Model output is DATA — every string lands
+// via textContent, never innerHTML. Re-exports the pieces so callers keep one import.
 
 export { CHAT_SUGGESTIONS, chatDropCueHtml, chatEmptyState, chatSuggestionsHtml, typingDots } from './chatEmpty.js';
 export {
