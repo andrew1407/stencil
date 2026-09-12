@@ -1,16 +1,14 @@
-// ── Shape building: closing a stroke into an area, inserting + connecting points, rects ──
-// Extracted from drawingApp.js; each takes the app and mutates its shared drawing state
-// (lines / currentLine / continueLineIdx / selection), like dragGestures.js next door.
-// The click path (canvasClick) and hold-to-draw (inputController) both come through here.
+// Closing a stroke into an area, inserting + connecting points, rects. Each takes the app
+// and mutates its shared drawing state; the click path (canvasClick) and hold-to-draw
+// (inputController) both come through here.
 import { notify } from '../utils.js';
 import { resolveInsertIdx } from './layout.js';
 import { shouldCloseShape } from './lineTransforms.js';
 import { strokeFoot } from '../ui/motion.js';
 
-// Like every other hit test here, the close grab is a screen radius divided by the
-// zoom — at 25% a fixed image-pixel radius was three screen pixels and unhittable.
-// core adds its own +8, so hand it the size that makes the total screen-constant.
-// Zoomed out only: magnifying must never make the dots harder to hit than at 1:1.
+// A screen radius divided by the zoom (at 25% a fixed image-pixel radius was unhittable).
+// core adds its own +8, so hand it the size that makes the total screen-constant. Zoomed
+// out only: magnifying must never make the dots harder to hit than at 1:1.
 const CLOSE_SLACK = 8;
 export const closeGrabSize = (app, line) => {
   const ps = line.pointSize ?? app.pointSize;
@@ -20,9 +18,7 @@ export const closeGrabSize = (app, line) => {
   return Math.max(ps, (ps + slack) / scale - slack);
 };
 
-// Would a point at (x, y) close the stroke being drawn? If so, close it into a locked
-// area and report it. The one close route: the click path and hold-to-draw both come
-// here, so a shape closes however the last point is put down.
+// The one close route: the click path and hold-to-draw both come here.
 export const tryCloseShapeAt = (app, x, y) => {
   if (!app.isDrawing) return false;
   if (app.continueLineIdx >= 0 && app.lines[app.continueLineIdx]) {
@@ -38,22 +34,17 @@ export const tryCloseShapeAt = (app, x, y) => {
   return true;
 };
 
-// Close the in-progress line into a locked, fillable area.
 export const closeCurrentShape = (app) => {
   closeShape(app, { line: app.currentLine, isContinuation: false });
 };
 
-// Close a line that is being extended (continuation drawing) into a locked area.
 export const closeContinuedShape = (app) => {
   closeShape(app, { line: app.lines[app.continueLineIdx], idx: app.continueLineIdx, isContinuation: true });
 };
 
-// Unified close: append a coincident closing point, lock + default-fill the
-// line, commit it, and select the resulting area. A fresh shape is pushed
-// into app.lines; a continued shape is already there (reset continue state).
+// Append a coincident closing point, lock + default-fill, commit, select the area.
 export const closeShape = (app, { line, idx, isContinuation }) => {
   if (!line || line.points.length < 3) return;
-  // Append a closing point coincident with the first, then lock it
   line.points.push({ x: line.points[0].x, y: line.points[0].y });
   line.locked = true;
   if (line.fillColor === undefined) line.fillColor = 'transparent';
@@ -68,13 +59,11 @@ export const closeShape = (app, { line, idx, isContinuation }) => {
   }
   app.currentLine = null;
   app.isDrawing = false;
-  // Ends exactly like finishing an ordinary line (stopDrawingMode): the coordinate
-  // table follows it and nothing is selected, so no bar pops up over the new shape.
+  // Ends like stopDrawingMode: the coordinate table follows it, nothing is selected.
   app.coordLineIdx = areaIdx;
   app.coordTable.update(app.lines[areaIdx].points, areaIdx);
-  // A CONTINUED shape was drawn on an already-selected line, so its bar is already up:
-  // repopulate it (it just became an area and grew a Fill control) without opening it —
-  // the panel is visible, so this replays no animation.
+  // A CONTINUED shape's bar is already up: repopulate it (it grew a Fill control) without
+  // reopening, so no animation replays.
   if (app.selectedLineIdx === areaIdx) app.showSelectionPanel(app.lines[areaIdx]);
   app.saveHistory();
   app.renderer.redraw();
@@ -86,8 +75,7 @@ export const insertPointOnSegment = (app, lineIdx, insertIdx, x, y) => {
   const line = app.lines[lineIdx];
   if (!line) return;
   line.points.splice(insertIdx, 0, { x, y });
-  // An inserted vertex comes out of the segment it split — from its own foot on the
-  // old straight line, so the bend grows rather than appearing.
+  // From its own foot on the old straight line, so the bend grows rather than appearing.
   app.strokeFx.flyIn(line, insertIdx, strokeFoot(line.points[insertIdx - 1], line.points[insertIdx + 1], x, y));
   app.selectedLineIdx = lineIdx;
   app.coordLineIdx = lineIdx;
@@ -99,9 +87,8 @@ export const insertPointOnSegment = (app, lineIdx, insertIdx, x, y) => {
   app.updateButtons();
 };
 
-// Add a new standalone point — or, if a line/point is selected, connect the
-// new point to that line's last point (or to the focused point), inheriting
-// the selected line's style (subtask: connect new geometry to selection).
+// A new standalone point — or, with a line/point selected, connected to that line's last
+// (or focused) point, inheriting its style.
 export const addConnectedPoint = (app, x, y) => {
   if (app.selectedLineIdx >= 0 && app.lines[app.selectedLineIdx]) {
     const line = app.lines[app.selectedLineIdx];
@@ -124,7 +111,7 @@ export const addConnectedPoint = (app, x, y) => {
   const newLine = {
     points: [{ x, y }],
     color: app.color,
-    pointColor: app.pointColor || app.color,   // resolved at draw time (see startDrawingMode)
+    pointColor: app.pointColor || app.color,
     thickness: app.thickness,
     pointSize: app.pointSize,
     style: app.style
@@ -142,9 +129,8 @@ export const addConnectedPoint = (app, x, y) => {
   app.updateButtons();
 };
 
-// Create a rectangle (4 corner points, locked/fillable area). If a line is
-// selected, the rect's corners are appended to it (connecting to its last/
-// focused point) using that line's style; otherwise a new locked line is made.
+// 4 corner points, locked/fillable. With a line selected the corners are appended to it
+// (connecting to its last/focused point); otherwise a new locked line.
 export const createRect = (app, x1, y1, x2, y2, connect = false) => {
   const xa = Math.min(x1, x2);
   const xb = Math.max(x1, x2);
@@ -154,7 +140,7 @@ export const createRect = (app, x1, y1, x2, y2, connect = false) => {
     { x: xa, y: ya }, { x: xb, y: ya },
     { x: xb, y: yb }, { x: xa, y: yb }
   ];
-  // Continuation drawing → append the corners to the line being extended
+  // Continuation drawing → append the corners to the line being extended.
   if (app.continueLineIdx >= 0 && app.lines[app.continueLineIdx]) {
     const line = app.lines[app.continueLineIdx];
     const insertIdx = app.continueInsertIdx;
@@ -190,7 +176,7 @@ export const createRect = (app, x1, y1, x2, y2, connect = false) => {
   const rect = {
     points: corners,
     color: app.color,
-    pointColor: app.pointColor || app.color,   // resolved at draw time (see startDrawingMode)
+    pointColor: app.pointColor || app.color,
     thickness: app.thickness,
     pointSize: app.pointSize,
     style: app.style,

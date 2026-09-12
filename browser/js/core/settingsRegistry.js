@@ -2,37 +2,25 @@ import { setVal, cmToUnit } from '../utils.js';
 import { normalizePageSize } from './units.js';
 import { applyMirror, paintTintControls, paintCustomSizeGroup } from '../ui/settingMirrors.js';
 
-// Shared `parse` guards for the settings registry below: the numeric ones return
-// undefined on NaN to ABORT the set (matching the old per-setter guards).
+// The numeric parsers return undefined on NaN to ABORT the set.
 const toInt = n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; };
 const toNum = n => { const v = parseFloat(n); return Number.isNaN(v) ? undefined : v; };
 const toStr = v => String(v);
 
-// Compare-view modes, in cycle order (Alt+O steps through them). See DrawingApp.compareMode.
+// In cycle order (Alt+O steps through them).
 export const COMPARE_MODES = ['none', 'original', 'vertical', 'horizontal'];
 
-// ── The observer-driven setting registry ─────────────────────────────
-// One descriptor per simple setting collapses the near-identical setter bodies (write the
-// model field → mirror the bound DOM twins → redraw/persist/sync) into data. `set(key, ...)`
-// drives it. Each entry:
-//   • field       — the app model field to write.
-//   • parse        — normalize the raw value; returning undefined ABORTS (the int NaN guard).
-//   • mirror       — bound DOM elements to reflect into ({ id, kind }); see applyMirror.
-//   • afterSet     — irreducible per-setter UI side-effects that aren't a plain value mirror
-//                    (conditional display toggles, the coord table, applyUnitToUI, the formula
-//                    inputs). Receives the controller; runs after the mirrors, before redraw.
-//   • redraw       — repaint the canvas (always, even on persist:false live-drag).
-//   • save/remoteSync/filterDirty — commit side-effects, all gated behind `persist`.
-// The public setter methods below stay as thin wrappers so callers/console API are unchanged.
+// One descriptor per simple setting; `set(key, …)` drives it: `field` the model field;
+// `parse` (undefined ABORTS); `mirror` bound DOM twins ({ id, kind }, see applyMirror);
+// `afterSet` per-setter side-effects, after the mirrors and before redraw; `redraw` (always,
+// even on persist:false); `save`/`remoteSync`/`filterDirty` gated behind `persist`.
 export const SETTINGS = {
   color: {
     field: 'color', parse: toStr,
     mirror: [{ id: 'line-color', kind: 'value' }],
     save: true,
   },
-  // Default point colour for new lines, independent of the line colour above.
-  // Redraws, because existing lines that never set their own point colour fall back to
-  // the line colour — but the in-progress point preview follows this default live.
+  // Redraws: the in-progress point preview follows this default live.
   pointColor: {
     field: 'pointColor', parse: toStr,
     mirror: [{ id: 'point-color', kind: 'value' }],
@@ -86,9 +74,9 @@ export const SETTINGS = {
       return s;
     },
     mirror: [{ id: 'compare-mode', kind: 'value' }],
-    // Compare is read-only — grey out the editing toolbar controls (Start/Stop/undo/…).
+    // Compare is read-only: grey out the editing toolbar controls.
     afterSet: (self) => self.app.updateButtons(),
-    redraw: true,   // transient view state — repaint only, no save/remoteSync
+    redraw: true,
   },
   pageSize: {
     field: 'pageSize',
@@ -103,10 +91,9 @@ export const SETTINGS = {
       paintCustomSizeGroup(app.pageSize === 'custom');
       app.coordTable.update();
     },
-    redraw: true, save: true, remoteSync: true,   // page format rides the layout — push it to peers/server too
+    redraw: true, save: true, remoteSync: true,
   },
-  // Width/height are stored in cm (the model unit) but shown in the active display unit, so
-  // the mirror is a converted value (cmToUnit) rather than the raw field — done in afterSet.
+  // Stored in cm but shown in the active display unit, so the mirror is a converted value.
   customPageWidth: {
     field: 'customPageWidth', parse: toNum,
     afterSet: (self) => {
@@ -139,14 +126,13 @@ export const SETTINGS = {
   allowFormulas: {
     field: 'allowFormulas', parse: b => !!b,
     mirror: [{ id: 'allow-formulas', kind: 'checked' }],
-    // Toggling only shows/hides the inputs and gates whether formulas are applied to the
-    // coordinate conversion — the expressions are KEPT so re-enabling restores them.
+    // The expressions are KEPT so re-enabling restores them.
     afterSet: (self) => {
       const app = self.app;
       self.syncFormulaUI(app.allowFormulas);
       if (!app.allowFormulas) self.showFormulaError(false);
       self.refreshFormulaCoords();
     },
-    save: true, remoteSync: true,   // formulas ride the layout — push them to peers/server too
+    save: true, remoteSync: true,
   },
 };
