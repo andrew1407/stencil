@@ -182,6 +182,31 @@ class TestFilterAndColorTypeMatrix(unittest.TestCase):
         with self.assertRaises(codecs.CodecError):
             codecs.decode_png(png)
 
+    def test_a_truncated_scanline_raises_instead_of_decoding_short(self):
+        # A short inflate used to unfilter what was there and return a buffer smaller
+        # than width*height*4, which every caller sizes its reads by.
+        for ftype in range(5):
+            with self.subTest(filter=ftype):
+                raw = bytearray([0]) + bytes(16) + bytearray([ftype]) + bytes(5)
+                png = (
+                    b"\x89PNG\r\n\x1a\n"
+                    + _chunk(b"IHDR", struct.pack(">IIBBBBB", 4, 2, 8, 6, 0, 0, 0))
+                    + _chunk(b"IDAT", zlib.compress(bytes(raw), 6))
+                    + _chunk(b"IEND", b"")
+                )
+                with self.assertRaises(codecs.CodecError):
+                    codecs.decode_png(png)
+
+    def test_a_missing_scanline_raises(self):
+        png = bytearray(build_png(4, 3, 6, sample_bytes(4, 3, 6), 0))
+        idat = png.index(b"IDAT") + 4
+        length = struct.unpack(">I", bytes(png[idat - 8:idat - 4]))[0]
+        raw = bytearray(zlib.decompress(bytes(png[idat:idat + length])))
+        rebuilt = _chunk(b"IDAT", zlib.compress(bytes(raw[: len(raw) - 17]), 6))
+        png = png[:idat - 8] + bytearray(rebuilt) + png[idat + length + 4:]
+        with self.assertRaises(codecs.CodecError):
+            codecs.decode_png(bytes(png))
+
 
 if __name__ == "__main__":
     unittest.main()

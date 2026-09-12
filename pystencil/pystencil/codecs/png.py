@@ -22,7 +22,8 @@ def decode_png(data: bytes) -> tuple[int, int, bytearray]:
     Supports color types 0 (grayscale), 2 (RGB), 3 (palette), 4 (gray+alpha)
     and 6 (RGBA), bit depth 8 only. Concatenates all IDAT chunks, inflates them,
     then reverses the per-row filter (none/sub/up/average/paeth) before
-    expanding each sample model out to RGBA.
+    expanding each sample model out to RGBA. A short inflate raises rather than
+    decoding to a buffer under the ``width*height*4`` every caller sizes its reads by.
     """
     if data[:8] != _PNG_MAGIC:
         raise CodecError("not a PNG (bad signature)")
@@ -79,6 +80,10 @@ def decode_png(data: bytes) -> tuple[int, int, bytearray]:
     # Masks for the whole-row adds, built once — every scanline shares the stride.
     low = int.from_bytes(b"\x7f" * stride, "big")
     high = int.from_bytes(b"\x80" * stride, "big")
+
+    wanted = height * (stride + 1)
+    if len(raw) < wanted:
+        raise CodecError("PNG pixel data is %d of %d bytes" % (len(raw), wanted))
 
     # Reverse the per-row filter; row 0's "previous row" is all zeros (RFC 2083).
     rows = []
