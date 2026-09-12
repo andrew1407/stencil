@@ -1,11 +1,13 @@
-// ── Handle-backed wrappers over the core's stateful classes ─────
+// ── The core's state/ group: handle classes + project rules ─────
 // stencilCore.js wraps the core's pure functions; the classes in core/state/ own
 // state, so they live in wasm memory behind an opaque int handle (create/destroy
 // plus operations) exported by core/wasmStateApi.cpp. Each wrapper mirrors its JS
 // twin's API exactly, so browser/tests/wasm-parity-state.test.js can drive both
-// through the same script and pin them op-for-op.
+// through the same script and pin them op-for-op. The group's scalar-only rules
+// (projectRules.js) ride along here, so stencilCore.js has one entry point.
 
 import { encodeLines, decodeLines } from './linesCodec.js';
+import { buildProjectRules, projectRuleExports } from './projectRules.js';
 
 const F64 = 8;
 const I32 = 4;
@@ -174,14 +176,15 @@ const historyClass = (mod) => {
   };
 };
 
-// The stateful classes this core installs, keyed like the pure ops.
-export const buildHandleClasses = (mod) => ({
+// Everything the core's state/ group installs, keyed like the pure ops.
+export const buildStateOps = (mod) => ({
   HoldDrawController: holdDrawClass(mod),
   HistoryStack: historyClass(mod),
+  ...buildProjectRules(mod),
 });
 
-// The C exports the handle classes cwrap — checked before any wrapper is installed.
-export const handleExports = [
+// The C exports these ops cwrap — checked before any wrapper is installed.
+export const stateExports = [
   'stencil_holdDraw_create', 'stencil_holdDraw_destroy', 'stencil_holdDraw_state',
   'stencil_holdDraw_holdDelay', 'stencil_holdDraw_setHoldDelay', 'stencil_holdDraw_cancel',
   'stencil_holdDraw_pointerDown', 'stencil_holdDraw_pointerMove', 'stencil_holdDraw_tick',
@@ -189,5 +192,5 @@ export const handleExports = [
   'stencil_history_create', 'stencil_history_destroy', 'stencil_history_reset',
   'stencil_history_push', 'stencil_history_canUndo', 'stencil_history_canRedo',
   'stencil_history_step', 'stencil_history_size', 'stencil_history_undo',
-  'stencil_history_redo', 'stencil_history_readResult',
+  'stencil_history_redo', 'stencil_history_readResult', ...projectRuleExports,
 ];

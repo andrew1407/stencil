@@ -4,7 +4,7 @@
 // artifact is generated (gitignored, built per core/WASM.md) and may be absent — so it's
 // imported dynamically inside init(), degrading to the JS fallback (a static import would
 // crash boot). Dynamic-only import keeps this a leaf module, so Node never loads wasm.
-import { buildHandleClasses, handleExports } from './coreHandles.js';
+import { buildStateOps, stateExports } from './coreHandles.js';
 
 // Generated artifact path, relative to this module. A named constant, not inlined into
 // import() (native ESM accepts a variable specifier; no build step requires a literal).
@@ -39,7 +39,7 @@ class StencilCore {
           console.warn(`[stencil] wasm core is stale (missing ${missing.length} export(s), e.g. ${missing[0]}) — rebuild per core/WASM.md; using JS fallback.`);
           return false;
         }
-        this.#installWrappers({ ...this.#buildWrappers(core), ...buildHandleClasses(core) });
+        this.#installWrappers({ ...this.#buildWrappers(core), ...buildStateOps(core) });
         return true;
       })
       .catch(err => {
@@ -59,7 +59,7 @@ class StencilCore {
     'stencil_pageDimensions', 'stencil_pageFormats', 'stencil_pixelToPageRaw',
     'stencil_rotatePoints', 'stencil_flipPoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
     'stencil_applyContourRGBA', 'stencil_centeredCrop', 'stencil_resizeCropFromCorner',
-    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter', ...handleExports,
+    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter', ...stateExports,
   ];
 
   // Names of required exports the instantiated module does not expose as callables.
@@ -89,6 +89,7 @@ class StencilCore {
       'clampScale', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
       'moveCropClamped', 'scaleCropCentered', 'cropResizeScale', 'cropChange', 'HoldDrawController', 'HistoryStack',
+      'projectPeriodMs', 'projectAddPeriod', 'projectShouldPersist', 'projectIsExpired', 'projectIsExpiringSoon',
     ];
   }
 
@@ -134,8 +135,7 @@ class StencilCore {
       core.ccall('stencil_boundingBoxCenter', null, ['number', 'number', 'number'], [ptr, n, out]);
     const cFilter     = (mode, ptr, n, r, g, b) =>
       core.ccall('stencil_applyFilterRGBA', null, ['number', 'number', 'number', 'number', 'number', 'number'], [mode, ptr, n, r, g, b]);
-    const cContour    = (ptr, w, h) =>
-      core.ccall('stencil_applyContourRGBA', null, ['number', 'number', 'number'], [ptr, w, h]);
+    const cContour    = (ptr, w, h) => core.ccall('stencil_applyContourRGBA', null, ['number', 'number', 'number'], [ptr, w, h]);
     const cCenteredCrop = (iw, ih, aspect, out) =>
       core.ccall('stencil_centeredCrop', null, ['number', 'number', 'number', 'number'], [iw, ih, aspect, out]);
     const cResizeCorner = (x, y, w, h, corner, cx, cy, aspect, iw, ih, minSize, out) =>

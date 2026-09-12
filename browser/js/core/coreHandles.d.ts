@@ -36,10 +36,10 @@ export interface WasmHistoryStack {
 export interface HoldDrawOptions { holdDelay?: number; moveTolerance?: number; rearmDistance?: number; }
 
 /** Built over an instantiated Emscripten module; keyed like the pure ops in stencilCore.js. */
-export function buildHandleClasses(mod: unknown): {
+export function buildStateOps(mod: unknown): {
   HoldDrawController: new (opts?: HoldDrawOptions) => WasmHoldDrawController;
   HistoryStack: new () => WasmHistoryStack;
 };
 
-/** C export symbols the handle classes cwrap, verified before any wrapper installs. */
-export const handleExports: string[];
+/** C export symbols these ops cwrap, verified before any wrapper installs. */
+export const stateExports: string[];
