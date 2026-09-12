@@ -23,7 +23,7 @@
     "desktop/src/dialogs/expirationDialog.cpp": 310,
     "desktop/src/dialogs/linksDialog.cpp": 520,
     "desktop/src/dialogs/llmSettingsForm.cpp": 398,
-    "desktop/src/dialogs/openImageDialog.cpp": 821,
+    "desktop/src/dialogs/openImageDialog.cpp": 390,
     "desktop/src/dialogs/projectsDialog.cpp": 929,
     "desktop/src/dialogs/projectsDialog.hpp": 380,
     "desktop/src/dialogs/settingsDialog.cpp": 425,

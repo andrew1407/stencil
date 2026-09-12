@@ -79,6 +79,14 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
+# The open dialog (dialogs/openImageDialog.hpp) is four TUs behind a private parts
+# header: the build, the preview/scrub player, the tab state and the read-out.
+set(STENCIL_OPENIMAGE_SOURCES
+  src/dialogs/openImageDialog.cpp
+  src/dialogs/openImageDialogPreview.cpp
+  src/dialogs/openImageDialogState.cpp
+  src/dialogs/openImageDialogResult.cpp)
+
 # Local persistence (io/fileStore.hpp) is four TUs behind a private io header: the layout
 # JSON, the project file and chat doc, the settings, and the session/projects/hotkeys.
 set(STENCIL_FILESTORE_SOURCES
@@ -247,7 +255,7 @@ set(STENCIL_GUI_SOURCES
   src/dialogs/llmSettingsForm.cpp
   ${STENCIL_PROJECTS_DIALOG_SOURCES}
   src/dialogs/expirationDialog.cpp
-  src/dialogs/openImageDialog.cpp
+  ${STENCIL_OPENIMAGE_SOURCES}
   src/dialogs/linksDialog.cpp
   src/dialogs/descriptionDialog.cpp
   src/dialogs/keywordsDialog.cpp
