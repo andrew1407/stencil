@@ -4,9 +4,6 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// OpPlanParser — the per-op normalizers: each turns an action the registry schema has
-// already validated (types, enums, ranges, grammars, presence rules) into its typed
-// PlanAction, filling the registry defaults. Class doc lives in OpPlanParser.cs.
 public static partial class OpPlanParser
 {
     private static PlanAction Normalize(JsonElement v, OpEntry entry) => entry.Name switch
@@ -28,7 +25,6 @@ public static partial class OpPlanParser
             ? [index]
             : v.GetProperty("indices").EnumerateArray().Select(static x => Int(x, "index")).ToList()),
         "image" => new ImageAction(OptionalInt(v, "index")!.Value),
-        // A path that is empty after trimming is dropped (registry note: "" is dropped).
         "save" => new SaveAction(Str(v, entry, "name"), Str(v, entry, "path") is { Length: > 0 } path ? path : null),
         "undo" => new UndoAction(IntOrDefault(v, entry, "steps")),
         "redo" => new RedoAction(IntOrDefault(v, entry, "steps")),
@@ -45,7 +41,8 @@ public static partial class OpPlanParser
         "blankColor" => new BlankColorAction(Str(v, entry, "color")!),
         "projectColor" => new ProjectColorAction(Str(v, entry, "color")!),
         "export" => new ExportAction(Str(v, entry, "what")!),
-        // Which server a name means is resolved at EXECUTION time against the user's saved connections.
+        // Which server a name means is resolved at EXECUTION time against the user's saved
+        // connections.
         "connect" => new ConnectAction(Str(v, entry, "server")!),
         "disconnect" => new DisconnectAction(Str(v, entry, "server")!),
         _ => throw new InvalidOperationException($"registry op \"{entry.Name}\" has no normalizer"),
@@ -67,7 +64,6 @@ public static partial class OpPlanParser
 
     private static string? Str(JsonElement v, OpEntry entry, string key) => OptionalString(v, entry.Keys, key);
 
-    /// <summary>An optional string: null when absent/null; trimmed when its spec says <c>trim</c>.</summary>
     private static string? OptionalString(JsonElement obj, JsonElement keys, string key)
     {
         if (!HasField(obj, key))
@@ -90,7 +86,6 @@ public static partial class OpPlanParser
     private static int? OptionalInt(JsonElement obj, string key) =>
         HasField(obj, key) ? Int(obj.GetProperty(key), key) : null;
 
-    /// <summary>The registry default when the key is absent (an integer key with a <c>default</c>).</summary>
     private static int IntOrDefault(JsonElement obj, OpEntry entry, string key) =>
         OptionalInt(obj, key) ?? Int(entry.Spec(key)!.Value.GetProperty("default"), key);
 

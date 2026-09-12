@@ -4,11 +4,7 @@ using static Stencil.TelegramBot.Application.Llm.SchemaJson;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>
-/// Reads the embedded <c>opRegistry.json</c> and resolves it FOR ONE SURFACE: the profile's op
-/// order, each entry's key map / native rules / merged flags / prompt bullet, the compiled
-/// regex vocabulary, and the forbidden list. Pure loading — no validation lives here.
-/// </summary>
+// Resolves the embedded opRegistry.json FOR ONE SURFACE; pure loading, no validation lives here.
 internal sealed class SchemaLoader
 {
     private const string ResourceName = "Stencil.TelegramBot.Application.Assets.opRegistry.json";
@@ -84,7 +80,6 @@ internal sealed class SchemaLoader
         e.TryGetProperty(list, out JsonElement arr)
         && arr.EnumerateArray().Any(x => x.ValueKind == JsonValueKind.String && x.GetString() == value);
 
-    /// <summary>One registry op element resolved for this surface (keys, bullet, flags, rules).</summary>
     public OpEntry Resolve(JsonElement e)
     {
         string name = e.GetProperty("name").GetString()!;

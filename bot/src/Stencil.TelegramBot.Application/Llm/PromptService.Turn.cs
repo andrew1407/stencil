@@ -10,15 +10,10 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// PromptService — request assembly: BuildTurn, the edge map, server resolution for the
-// stencil-server provider, and the §4 context suffix. Class doc lives in PromptService.cs.
 public sealed partial class PromptService
 {
-    /// <summary>
-    /// Assemble one chat request: system prompt + context suffix, the replayed history with the
-    /// image-replay rule applied (only the most recent prior image survives), then the current
-    /// user message. An <paramref name="edgeMap"/> rides only the current turn, never history.
-    /// </summary>
+    // The §7 image-replay rule: only the most recent prior image survives; an edgeMap rides only
+    // the current turn.
     public LlmChatRequest BuildTurn(
         long userId, UserSession session, string text, LlmImage? image, LlmImage? edgeMap = null,
         IReadOnlyList<ServerProjectInfo>? projects = null)
@@ -52,11 +47,8 @@ public sealed partial class PromptService
         };
     }
 
-    /// <summary>
-    /// The §7 edge map: the working image run through the CLI's <c>contour</c> filter and
-    /// loaded under the same downscale/size rules as the snapshot. Null (silently — the turn
-    /// must never fail on it) when no image is attached this turn or the render/attach fails.
-    /// </summary>
+    // §7: the working image through the CLI's contour filter. Null silently — the turn must never
+    // fail on it.
     private async Task<LlmImage?> BuildEdgeMapAsync(long userId, UserSession session, LlmImage? image, CancellationToken ct)
     {
         if (image is null || _attachments is null || session.OriginalImagePath is null)
@@ -74,11 +66,8 @@ public sealed partial class PromptService
         }
     }
 
-    /// <summary>
-    /// For the <c>stencil-server</c> provider, resolve which server proxies the call: an
-    /// explicit <c>STENCIL_LLM_SERVER_URL</c> wins (reusing the user's stored token for that
-    /// origin when they have one), otherwise the user's first connected server.
-    /// </summary>
+    // An explicit STENCIL_LLM_SERVER_URL wins (reusing the user's stored token), else the first
+    // connected server.
     private (string? Url, string? Token) ResolveServer(UserSession session, LlmOptions options)
     {
         if (options.Provider != LlmOptions.ProviderStencilServer)
@@ -87,15 +76,13 @@ public sealed partial class PromptService
         }
         if (options.ServerUrl is string configured && configured.Trim().Length > 0)
         {
-            // Session connections are keyed by the factory's normalised origin (that's what
-            // ServerService stores), so normalise the configured URL the same way — a bare-host
-            // or trailing-slash STENCIL_LLM_SERVER_URL still finds its stored token.
+            // Normalise like ServerService stores, so a bare-host or trailing-slash configured URL
+            // still finds its token.
             string url = _servers.NormalizeUrl(configured);
             ServerConnectionInfo? match = session.Connections
                 .FirstOrDefault(c => string.Equals(c.Url, url, StringComparison.OrdinalIgnoreCase));
-            // The user's own token first, then the operator's STENCIL_LLM_SERVER_TOKEN. With
-            // neither, say the step the user can take — an empty bearer would come back as the
-            // server's bare "missing or invalid token", which reads as a bot bug.
+            // An empty bearer would come back as the server's bare "missing or invalid token",
+            // which reads as a bot bug.
             string token = match?.Token is string own && own.Length > 0 ? own : options.ServerToken;
             if (token.Length == 0)
             {
@@ -107,21 +94,17 @@ public sealed partial class PromptService
         ServerConnectionInfo? first = session.Connections.FirstOrDefault();
         if (first is null)
         {
-            // Names the one step the user can take; how the bot is configured stays out of chat.
             throw new InvalidOperationException(
                 "The AI assistant runs through a Stencil server — /connect <url> first.");
         }
         return (first.Url, first.Token);
     }
 
-    /// <summary>How many project names one server contributes to the context suffix (the cli console's cap).</summary>
+    // The cli console's cap.
     public const int MaxContextProjects = 20;
 
-    /// <summary>
-    /// The per-connection project listings for the context suffix, best-effort: null (line
-    /// omitted, the cli's unreachable rule) when the bot has no server service, the user has
-    /// no connections, or the listing call fails. A turn must never fail on this.
-    /// </summary>
+    // Best-effort: null omits the line (the cli's unreachable rule); a turn must never fail on
+    // this.
     private async Task<IReadOnlyList<ServerProjectInfo>?> ListContextProjectsAsync(
         long userId, UserSession session, CancellationToken ct)
     {
@@ -139,11 +122,8 @@ public sealed partial class PromptService
         }
     }
 
-    /// <summary>
-    /// The short dynamic suffix §4 allows: working image dimensions / video-ness, the pen
-    /// defaults and pending-edit stack size, plus the bot's §10 connections line and a capped
-    /// per-server project-name listing (the cli console's rule).
-    /// </summary>
+    // The short dynamic suffix §4 allows, plus the bot's §10 connections line (the cli console's
+    // rule).
     private static string ContextSuffix(UserSession session, IReadOnlyList<ServerProjectInfo>? projects = null)
     {
         string suffix = session.HasImage
@@ -166,11 +146,7 @@ public sealed partial class PromptService
             + $" Pending edits: {session.EditHistory.Count} undoable step(s), {session.EditRedo.Count} redoable.";
     }
 
-    /// <summary>
-    /// The §10 connections line: the user's connected server URLs and the active project, so
-    /// "what am I connected to?" is answered in the reply without ops. URLs only — a stored
-    /// token NEVER enters the prompt.
-    /// </summary>
+    // URLs only — a stored token NEVER enters the prompt.
     private static string ConnectionsSuffix(UserSession session)
     {
         if (session.Connections.Count == 0)
@@ -184,11 +160,7 @@ public sealed partial class PromptService
             : " No active server project.");
     }
 
-    /// <summary>
-    /// The capped per-server project-name listing (the cli console's rule: at most
-    /// <see cref="MaxContextProjects"/> names per server, then a "+N more"), so "what's on my
-    /// server?" is answered in the reply without ops. Null listings (unreachable) omit the line.
-    /// </summary>
+    // At most MaxContextProjects names per server, then "+N more" (the cli console's rule).
     private static string ProjectsSuffix(IReadOnlyList<ServerProjectInfo>? projects)
     {
         if (projects is null)

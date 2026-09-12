@@ -4,21 +4,17 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// PromptService — the §10 connection ops. A plan can only re-run a connection the USER already
-// saved: it never introduces a host and never carries a token. Class doc lives in PromptService.cs.
+// A plan can only re-run a connection the USER already saved: it never introduces a host or carries
+// a token.
 public sealed partial class PromptService
 {
-    /// <summary>§10 <c>connect</c>/<c>disconnect</c> — one registry entry, told apart by the action.</summary>
     internal Task ChangeConnectionAsync(ActionContext ctx, PlanAction action, CancellationToken ct) =>
         action is DisconnectAction disconnect
             ? DisconnectServerAsync(ctx, disconnect, ct)
             : ConnectServerAsync(ctx, (ConnectAction)action, ct);
 
-    /// <summary>
-    /// §10 <c>connect</c>: re-run <c>/connect</c> for a server the user ALREADY saved, with the
-    /// STORED token riding along — the model can never introduce a new host and plans never
-    /// carry tokens. An unknown/ambiguous/refusing server is a warning, never a failed plan.
-    /// </summary>
+    // The STORED token rides along; an unknown/ambiguous/refusing server is a warning, never a
+    // failed plan.
     private async Task ConnectServerAsync(ActionContext ctx, ConnectAction connect, CancellationToken ct)
     {
         if (_projects is null)
@@ -45,10 +41,7 @@ public sealed partial class PromptService
         }
     }
 
-    /// <summary>
-    /// §10 <c>disconnect</c>: forget a connection, resolved the same way. A server that
-    /// isn't connected is a warning, never a failed plan.
-    /// </summary>
+    // A server that isn't connected is a warning, never a failed plan.
     private async Task DisconnectServerAsync(ActionContext ctx, DisconnectAction disconnect, CancellationToken ct)
     {
         if (_projects is null)
@@ -78,11 +71,8 @@ public sealed partial class PromptService
         }
     }
 
-    /// <summary>
-    /// §10 server resolution (the browser's <c>resolveServer</c>): exact URL match against the
-    /// user's OWN stored connections, else a UNIQUE host[:port]/hostname match; null otherwise
-    /// (<paramref name="ambiguous"/> tells the misses apart). No new host, no minted credential.
-    /// </summary>
+    // The browser's resolveServer: exact URL, else a UNIQUE host[:port]/hostname match among the
+    // user's OWN connections.
     private static ServerConnectionInfo? ResolveConnection(
         string server, IReadOnlyList<ServerConnectionInfo> connections, out bool ambiguous)
     {
@@ -102,7 +92,6 @@ public sealed partial class PromptService
         return matches.Count == 1 ? matches[0] : null;
     }
 
-    /// <summary>Clip a model-written server string echoed into a warning.</summary>
     private static string Shown(string server)
     {
         string s = server.Trim();

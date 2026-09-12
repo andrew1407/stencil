@@ -1,6 +1,5 @@
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>Where in a payload a check failed: "x1" in spec, "label" in ask.options[2].</summary>
 internal sealed record SchemaPath(string Root, string Key, string? Container)
 {
     public static string Where(SchemaPath p) =>
@@ -15,11 +14,9 @@ internal sealed record SchemaPath(string Root, string Key, string? Container)
     public static SchemaPath Item(SchemaPath p, int i) => new(p.Root, $"{p.Key}[{i}]", p.Container);
 }
 
-/// <summary>An internal check failure, rethrown as an <see cref="OpSchemaException"/> with its prefix.</summary>
 internal sealed class SchemaError : Exception
 {
     public SchemaError(string why) : base(why) { }
 
-    /// <summary>The one place a check says no.</summary>
     public static Exception Bad(string why) => new SchemaError(why);
 }

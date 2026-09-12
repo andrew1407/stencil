@@ -4,10 +4,8 @@ using static Stencil.TelegramBot.Application.Llm.SchemaError;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>
-/// The cross-field rules an entry may name in its <c>rules</c> array — the handful the table
-/// cannot express. Each rewrites the action; the rewritten copy is what gets validated.
-/// </summary>
+// The cross-field rules the table cannot express; each rewrites the action, and the rewritten copy
+// is validated.
 internal static class NativeRules
 {
     public static JsonElement Run(string rule, JsonElement a) => rule switch
@@ -16,8 +14,8 @@ internal static class NativeRules
         _ => throw new InvalidOperationException($"opRegistry: unknown native rule \"{rule}\""),
     };
 
-    // §3.2 tolerance: "aspect" beside "spec" folds into the spec when it lacks one; a
-    // conflicting duplicate fails. The folded copy is what gets validated + normalized.
+    // §3.2 tolerance: "aspect" beside "spec" folds into the spec when it lacks one; a conflicting
+    // duplicate fails.
     private static JsonElement CropAspectFold(JsonElement a)
     {
         if (!IsPresent(a, "aspect") || !a.TryGetProperty("spec", out JsonElement spec) || spec.ValueKind != JsonValueKind.Object)

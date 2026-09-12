@@ -3,8 +3,6 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// OpPlanParser — §1 extraction: strip the fences a model wraps its reply in, then take the
-// first balanced {…} object, skipping braces inside strings. Class doc lives in OpPlanParser.cs.
 public static partial class OpPlanParser
 {
     private static string StripFences(string text)
@@ -25,11 +23,8 @@ public static partial class OpPlanParser
         return sb.ToString();
     }
 
-    /// <summary>
-    /// Find the first balanced <c>{…}</c> substring that parses as JSON (string/escape-aware
-    /// brace matching, retrying from each later <c>{</c> so stray braces in prose don't hide a
-    /// real object).
-    /// </summary>
+    // String/escape-aware brace matching, retrying from each later { so stray braces in prose don't
+    // hide an object.
     private static bool TryExtractJsonObject(string text, out JsonDocument? doc)
     {
         for (int start = text.IndexOf('{'); start >= 0; start = text.IndexOf('{', start + 1))
@@ -45,7 +40,6 @@ public static partial class OpPlanParser
             }
             catch (JsonException)
             {
-                // Balanced but not JSON (e.g. braces in prose) — try the next candidate.
             }
         }
         doc = null;

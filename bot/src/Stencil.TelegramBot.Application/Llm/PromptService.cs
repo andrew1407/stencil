@@ -12,14 +12,11 @@ namespace Stencil.TelegramBot.Application.Llm;
 
 public sealed record PromptRender(string Label, RenderResult Result);
 
-/// <summary>One §10 <c>export</c> document — the same bytes/name/caption <c>/json</c> and
-/// <c>/project</c> send; one document per action, per the contract.</summary>
+// The same bytes/name/caption /json and /project send; one document per action.
 public sealed record PromptExport(string FileName, byte[] Bytes, string Caption);
 
-/// <summary>
-/// One prompt turn's outcome. The main result is NOT rendered here — on <see cref="Mutated"/>
-/// the caller sends it through the shared render path; §10 <c>clearChat</c> is deferred.
-/// </summary>
+// The main result is NOT rendered here: on Mutated the caller sends it through the shared render
+// path.
 public sealed record PromptOutcome(
     string Reply,
     IReadOnlyList<string> Warnings,
@@ -29,34 +26,22 @@ public sealed record PromptOutcome(
     IReadOnlyList<PromptExport>? Exports = null,
     bool ClearChatRequested = false)
 {
-    /// <summary>The §10 export documents (never null; empty on most turns).</summary>
     public IReadOnlyList<PromptExport> Exports { get; init; } = Exports ?? [];
 }
 
-/// <summary>
-/// The <c>/prompt</c> engine: builds each chat turn per <c>llm-contract.md</c>, parses the reply
-/// through <see cref="OpPlanParser"/>, and folds every action onto the SAME
-/// <see cref="IEditingService"/> methods the slash commands use — LLM edits behave like manual ones.
-/// </summary>
-/// <remarks>
-/// History is an in-memory per-user registry bounded to the contract's most recent 32 messages;
-/// it holds base64 images, which is exactly why it stays out of the persisted session JSON.
-/// Split into partial files: Turn (request assembly), History, Execute (plan execution), and
-/// Actions (per-op appliers).
-/// </remarks>
+// The /prompt engine: builds each turn per llm-contract.md and folds every action onto the SAME
+// IEditingService methods the slash commands use. History holds base64 images, which is why it
+// stays out of the session JSON.
 public sealed partial class PromptService
 {
-    /// <summary>The contract's history bound (§7): the most recent 32 messages are replayed.</summary>
+    // The contract's §7 history bound.
     public const int MaxHistoryMessages = 32;
 
-    /// <summary>Longest sanitized variant label kept for captions/file names.</summary>
     private const int MaxLabelChars = 40;
 
-    /// <summary>How many users' conversations stay in memory; beyond it the least-recently-active
-    /// one is forgotten (their next turn starts fresh).</summary>
+    // Beyond it the least-recently-active conversation is forgotten.
     public const int MaxTrackedUsers = 256;
 
-    /// <summary>One user's conversation plus a monotonic last-touched stamp for eviction.</summary>
     private sealed class UserHistory
     {
         public List<LlmMessage> Messages { get; } = new();
@@ -101,10 +86,8 @@ public sealed partial class PromptService
         _gate = gate ?? new LlmGate(0);
     }
 
-    /// <summary>
-    /// The provider config this user's turns run against: their <c>/chatapi</c> profile, else
-    /// the operator's own — a profile since removed falls back rather than failing the turn.
-    /// </summary>
+    // A /chatapi profile since removed falls back to the operator's own rather than failing the
+    // turn.
     private LlmOptions OptionsFor(UserSession session) =>
         session.LlmProfile is not string name
             ? _options
@@ -113,15 +96,11 @@ public sealed partial class PromptService
 
     public const string BusyReply = "The assistant is busy right now — please try again in a moment.";
 
-    /// <summary>
-    /// Run one prompt turn: build the request, call the LLM, parse the plan and execute it.
-    /// <see cref="LlmException"/>s bubble up — a truncated/refused reply is never parsed.
-    /// </summary>
+    // LlmExceptions bubble up — a truncated/refused reply is never parsed.
     public async Task<PromptOutcome> PromptAsync(long userId, string text, LlmImage? image, CancellationToken ct = default)
     {
-        // Full ⇒ busy NOW (the server's llmGate rule): queueing would hold the user for the
-        // whole upstream timeout and answer late anyway. The slot spans the whole turn, so
-        // the §7 continuation round can never go busy halfway through.
+        // Full ⇒ busy NOW (the server's llmGate rule); the slot spans the whole turn, continuation
+        // round included.
         if (!_gate.TryEnter())
         {
             throw new LlmException(BusyReply);
@@ -139,14 +118,14 @@ public sealed partial class PromptService
     private async Task<PromptOutcome> GatedPromptAsync(long userId, string text, LlmImage? image, CancellationToken ct)
     {
         (PromptOutcome outcome, OpPlan? plan) = await RoundAsync(userId, text, image, ct);
-        // Contract §7 auto-continuation: a plan that LOADED a picture the model has not seen
-        // planned blind, so re-send ONCE with the fresh image, restating the request. A plan
-        // that drew a layout committed to its coordinates and is not continued.
+        // §7 auto-continuation: a plan that LOADED a picture planned blind, so re-send ONCE with
+        // the fresh image, restating the request. A plan that drew a layout committed to its
+        // coordinates and is not continued.
         if (plan is null || !ContinuablePlan(plan)) return outcome;
         LlmImage? fresh = await RenderForVisionAsync(userId, ct);
         if (fresh is null) return outcome;
-        // The note is ChatDocument.ContinuationNote so this writer and the §12.1 gate that
-        // refuses it in the persisted document can never drift apart.
+        // ChatDocument.ContinuationNote, so this writer and the §12.1 gate that refuses it can
+        // never drift apart.
         string note = text + "\n\n" + ChatDocument.ContinuationNote;
         (PromptOutcome next, _) = await RoundAsync(userId, note, fresh, ct);
         return next with
@@ -177,8 +156,7 @@ public sealed partial class PromptService
         return (await ExecuteAsync(userId, plan, parsed.Warnings, ct), plan);
     }
 
-    /// <summary>§7: the plan loaded pixels (blank / frame / URL) and drew no layout, so the
-    /// model has yet to see what it produced.</summary>
+    // §7: the plan loaded pixels and drew no layout, so the model has yet to see what it produced.
     private static bool ContinuablePlan(OpPlan plan) =>
         plan.Variants.Count == 0 && plan.Ask is null
         && plan.Actions.Any(a => a is BlankAction or FrameAction or OpenUrlAction)

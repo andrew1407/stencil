@@ -3,14 +3,9 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// OpPlanParser — §2 action lists: the envelope bound, the registry lookup that drops an unknown
-// op with a warning, and §2.1's top-level-only ban. Class doc lives in OpPlanParser.cs.
 public static partial class OpPlanParser
 {
-    /// <summary>
-    /// Parse an optional actions array (missing/null = none), bounded by the registry envelope.
-    /// <paramref name="inVariant"/> enforces §2.1's top-level-only ops.
-    /// </summary>
+    // inVariant enforces §2.1's top-level-only ops.
     private static IReadOnlyList<PlanAction> ParseActionList(
         JsonElement parent, string name, List<string> warnings, bool inVariant = false)
     {
@@ -31,7 +26,6 @@ public static partial class OpPlanParser
         return actions;
     }
 
-    /// <summary>One action: null when it carried an unknown op (skipped with a warning).</summary>
     private static PlanAction? ParseAction(JsonElement element, List<string> warnings, bool inVariant = false)
     {
         if (element.ValueKind != JsonValueKind.Object)
@@ -45,8 +39,8 @@ public static partial class OpPlanParser
         {
             throw new PlanException("an action is missing its \"op\" field");
         }
-        // §2/§2.1: image/save/undo/redo/reset are top-level only — a variant exists to yield
-        // one more take OF the working image, never to switch, persist or rewind one.
+        // §2.1: a variant exists to yield one more take OF the working image, never to switch,
+        // persist or rewind.
         if (inVariant && Array.IndexOf(TopLevelOnlyOps, op) >= 0)
         {
             throw new MisplacedOpException($"\"{op}\" is a top-level action only (§2.1)");
@@ -58,8 +52,8 @@ public static partial class OpPlanParser
         }
         if (!Schema.Ops.TryGetValue(op, out OpEntry? entry))
         {
-            // Forward compatibility: an unknown op is dropped, not fatal (contract §1). A
-            // §13 forbidden name lands here too — the executor refuses it if one ever parses.
+            // Forward compatibility (§1): an unknown op is dropped, not fatal; a §13 forbidden name
+            // lands here too.
             warnings.Add($"Skipped an unknown operation \"{op}\".");
             return null;
         }

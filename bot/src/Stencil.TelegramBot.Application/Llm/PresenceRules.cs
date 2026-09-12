@@ -6,22 +6,15 @@ using static Stencil.TelegramBot.Application.Llm.SchemaPath;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>
-/// The cross-field half of the registry's rules: unknown-key rejection, the <c>forms</c> /
-/// <c>together</c> / <c>exclusive</c> / <c>minFields</c> groups, and each declared key's
-/// <c>required</c> / <c>requiredWith</c> / <c>onlyWith</c> dependencies. Values themselves go
-/// back through <see cref="KeySpecChecker"/>.
-/// </summary>
+// The cross-field half of the registry's rules; values go back through KeySpecChecker.
 internal static class PresenceRules
 {
-    /// <summary>
-    /// One object against a key map + its holder's presence rules. <paramref name="skip"/>
-    /// names keys that are neither declared nor unknown (the action's own "op").
-    /// </summary>
+    // skip names keys that are neither declared nor unknown (the action's own "op").
     public static void CheckFields(
         KeySpecChecker checker, JsonElement obj, JsonElement fields, JsonElement holder, SchemaPath? path, string[] skip)
     {
-        // An object spec with allowUnknown (the envelope's variant objects) tolerates undeclared keys.
+        // An object spec with allowUnknown (the envelope's variant objects) tolerates undeclared
+        // keys.
         if (!Flag(holder, "allowUnknown"))
         {
             foreach (JsonProperty prop in obj.EnumerateObject())
@@ -58,7 +51,6 @@ internal static class PresenceRules
         }
     }
 
-    /// <summary>The holder's whole-object groups: exactly-one forms, ride-together, mutually exclusive, minimum count.</summary>
     private static void CheckGroups(JsonElement obj, JsonElement holder, List<string> declared)
     {
         if (holder.TryGetProperty("forms", out JsonElement forms))
@@ -105,7 +97,6 @@ internal static class PresenceRules
         }
     }
 
-    /// <summary>An absent key is fine unless it is required outright, or required by a sibling's value.</summary>
     private static void CheckMissing(JsonElement obj, JsonElement spec, SchemaPath at)
     {
         if (Flag(spec, "required"))

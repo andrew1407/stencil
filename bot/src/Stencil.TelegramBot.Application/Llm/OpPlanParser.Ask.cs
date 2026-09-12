@@ -3,16 +3,9 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// OpPlanParser — §11's ask card: the question, its options and the answer text a tap composes.
-// Class doc lives in OpPlanParser.cs.
 public static partial class OpPlanParser
 {
-    /// <summary>
-    /// Parse the optional <c>ask</c> object (contract §11): its structure is the registry's
-    /// ask schema (question, 2..5 options, the free-text row, an option's exactly-one-of image
-    /// reference); the preview actions are ordinary §2 actions validated "inside a preview".
-    /// A card nobody can answer rejects the whole plan rather than reaching the user broken.
-    /// </summary>
+    // §11: the registry's ask schema; a card nobody can answer rejects the whole plan.
     private static AskCard? ParseAsk(JsonElement root, List<string> warnings)
     {
         if (!root.TryGetProperty("ask", out JsonElement ask) || ask.ValueKind == JsonValueKind.Null)
@@ -40,9 +33,8 @@ public static partial class OpPlanParser
             }
             if (HasField(optionElement, "actions"))
             {
-                // §1: a preview asking for a top-level-only or settings op loses the PREVIEW
-                // and says which option and why — the option, and the plan, stand. This chat
-                // renders no previews, so a well-formed one is dropped too (with its own notes).
+                // §1: a preview with a top-level-only or settings op loses the PREVIEW; the option
+                // and the plan stand.
                 try
                 {
                     ParseActionList(optionElement, "actions", new List<string>(), inVariant: true);
@@ -62,11 +54,7 @@ public static partial class OpPlanParser
         return new AskCard(question, multi, allowCustom, customLabel, options);
     }
 
-    /// <summary>
-    /// Warn that the bot shows no picture for an option's (already validated) <c>image</c>
-    /// reference (§11.2). None resolves here: a <c>url</c> would have Telegram fetch a host
-    /// nobody chose.
-    /// </summary>
+    // §11.2: no image resolves here — a url would have Telegram fetch a host nobody chose.
     private static void NoteAskImage(JsonElement image, int index, List<string> warnings)
     {
         warnings.Add(HasField(image, "scanIndex")
@@ -76,10 +64,7 @@ public static partial class OpPlanParser
                 : $"ask option {index} names an image URL, which this chat does not fetch — the option is shown without a preview");
     }
 
-    /// <summary>
-    /// The text an answered card sends as the user's next turn: the picked labels joined, or the
-    /// typed custom text, trimmed and capped (contract §11.3).
-    /// </summary>
+    // The picked labels joined, or the typed custom text, trimmed and capped (§11.3).
     public static string AskAnswerText(IEnumerable<string> pickedLabels, string? custom = null)
     {
         string typed = (custom ?? "").Trim();

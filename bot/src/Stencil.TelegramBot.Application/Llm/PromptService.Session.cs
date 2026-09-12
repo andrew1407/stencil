@@ -4,20 +4,14 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// PromptService — the §2/§2.1 ops that move the SESSION rather than the pixels: undo/redo,
-// switching attached image, and saving. Class doc lives in PromptService.cs.
 public sealed partial class PromptService
 {
-    /// <summary>§2 <c>undo</c>/<c>redo</c> — one registry entry, told apart by the action.</summary>
     internal Task StepHistoryAsync(ActionContext ctx, PlanAction action, CancellationToken ct) =>
         action is RedoAction redo
             ? StepHistoryAsync(ctx, redo.Steps, redo: true, ct)
             : StepHistoryAsync(ctx, ((UndoAction)action).Steps, redo: false, ct);
 
-    /// <summary>
-    /// Step the pending-edit stacks through the same service calls the <c>/undo</c>/<c>/redo</c>
-    /// commands use. Running out of history is a note, never a failed plan.
-    /// </summary>
+    // Running out of history is a note, never a failed plan.
     private async Task StepHistoryAsync(ActionContext ctx, int steps, bool redo, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(ctx.UserId, ct);
@@ -43,11 +37,8 @@ public sealed partial class PromptService
         await ReseedMapperAsync(ctx.UserId, ctx.Mapper, ct);
     }
 
-    /// <summary>
-    /// §2.1 <c>image</c>: switch to the turn's Nth attached image. A prompt turn here carries
-    /// exactly ONE image, so index 1 drops the edits made so far; a higher index (albums batch
-    /// one prompt run PER photo in the adapter) is skipped with a warning, never a failed plan.
-    /// </summary>
+    // A prompt turn carries exactly ONE image: index 1 drops the edits so far; a higher index is a
+    // warning.
     internal async Task SwitchImageAsync(ActionContext ctx, ImageAction image, CancellationToken ct)
     {
         if (image.Index > 1)
@@ -65,11 +56,8 @@ public sealed partial class PromptService
         await ResetMapperAsync(ctx.UserId, ctx.Mapper, ct);
     }
 
-    /// <summary>
-    /// §2.1 <c>save</c>: persist through the ACTIVE server project (the <c>/save</c> flow),
-    /// renamed first when the plan named one. No active project/image — and any server failure —
-    /// is a warning, never a failed plan, so it can never swallow the turn's reply.
-    /// </summary>
+    // Through the ACTIVE server project (/save), renamed first when named; any failure is a
+    // warning, never a failed plan.
     internal async Task SaveProjectAsync(ActionContext ctx, SaveAction save, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(ctx.UserId, ct);

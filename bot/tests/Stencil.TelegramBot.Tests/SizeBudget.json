@@ -37,7 +37,7 @@
   "commentPct": {
     "bot/src/Stencil.TelegramBot.Application/DependencyInjection": 10,
     "bot/src/Stencil.TelegramBot.Application/Editing": 7,
-    "bot/src/Stencil.TelegramBot.Application/Llm": 17,
+    "bot/src/Stencil.TelegramBot.Application/Llm": 7,
     "bot/src/Stencil.TelegramBot.Application/Servers": 7,
     "bot/src/Stencil.TelegramBot.Bot": 13,
     "bot/src/Stencil.TelegramBot.Bot/Telegram": 14,

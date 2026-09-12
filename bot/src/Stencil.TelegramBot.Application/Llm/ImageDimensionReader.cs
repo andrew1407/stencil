@@ -3,12 +3,8 @@ using Stencil.TelegramBot.Domain.Editing;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>
-/// Cheap pixel-dimension sniffing from the headers of the LLM contract's accepted image
-/// formats (§7: PNG, JPEG, WebP, GIF) — so an already-small attachment can skip the ffmpeg
-/// downscale, and adopting an image needs no CLI probe. Returns false/null for anything it
-/// can't read; callers then fall back to that decode, which is harmless if slower.
-/// </summary>
+// Header sniffing for the §7 formats, so a small attachment skips the ffmpeg downscale and adopting
+// an image needs no CLI probe.
 public static class ImageDimensionReader
 {
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
@@ -16,10 +12,6 @@ public static class ImageDimensionReader
     // A JPEG's frame header sits past any EXIF/ICC segments, so sniff a generous prefix.
     private const int PrefixBytes = 64 * 1024;
 
-    /// <summary>
-    /// Dimensions of a local image file, or null when its header isn't one we read — the caller
-    /// then falls back to decoding the file (a whole CLI process) to learn the same two numbers.
-    /// </summary>
     public static async Task<ImageSize?> TryReadFileAsync(string path, CancellationToken ct = default)
     {
         if (!File.Exists(path))
@@ -38,7 +30,6 @@ public static class ImageDimensionReader
         || TryReadJpeg(data, out width, out height)
         || TryReadWebp(data, out width, out height);
 
-    /// <summary>PNG: the IHDR chunk directly follows the 8-byte signature.</summary>
     private static bool TryReadPng(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
@@ -52,7 +43,6 @@ public static class ImageDimensionReader
         return width > 0 && height > 0;
     }
 
-    /// <summary>GIF87a/GIF89a: the logical-screen size follows the 6-byte signature.</summary>
     private static bool TryReadGif(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
@@ -66,7 +56,6 @@ public static class ImageDimensionReader
         return width > 0 && height > 0;
     }
 
-    /// <summary>JPEG: walk the marker segments to the first SOFn frame header.</summary>
     private static bool TryReadJpeg(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
@@ -115,7 +104,6 @@ public static class ImageDimensionReader
         return false;
     }
 
-    /// <summary>WebP: RIFF container with a VP8 (lossy), VP8L (lossless) or VP8X (extended) chunk.</summary>
     private static bool TryReadWebp(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;

@@ -2,7 +2,6 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>The value-level JSON predicates the schema checks share.</summary>
 internal static class SchemaJson
 {
     public static readonly JsonElement EmptyObject = JsonDocument.Parse("{}").RootElement.Clone();
@@ -33,7 +32,6 @@ internal static class SchemaJson
     public static string QuoteList(JsonElement list) =>
         string.Join(", ", list.EnumerateArray().Select(static x => x.ValueKind == JsonValueKind.String ? $"\"{x.GetString()}\"" : x.GetRawText()));
 
-    /// <summary>Wrap one value in a single-element array (for a one-value "must be" message).</summary>
     public static JsonElement Single(JsonElement v)
     {
         using JsonDocument doc = JsonDocument.Parse($"[{v.GetRawText()}]");

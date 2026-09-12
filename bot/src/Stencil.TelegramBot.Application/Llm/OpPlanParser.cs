@@ -3,21 +3,12 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>
-/// The outcome of parsing an LLM reply: a plan (always present on success — a reply with no
-/// JSON object at all is a valid <i>chat-only</i> plan), warnings for skipped unknown ops, or
-/// a plan-level <see cref="Error"/> (nothing executes; the error is shown in chat).
-/// </summary>
+// A reply with no JSON object at all is a valid chat-only plan; an Error means nothing executes.
 public sealed record OpPlanParseResult(OpPlan? Plan, IReadOnlyList<string> Warnings, string? Error);
 
-/// <summary>
-/// Op-plan extraction + strict validation, implementing <c>llm-contract.md</c> §1–3 exactly:
-/// fences stripped, the first balanced <c>{…}</c> JSON object taken (none ⇒ chat-only); an
-/// unknown <c>op</c> drops with a warning, a known op with invalid params fails the WHOLE plan
-/// — except §1's leniency: a variant or ask-preview carrying a top-level-only/settings op is
-/// dropped alone. Every shape check is table-driven by <see cref="OpSchema"/> (the embedded
-/// op registry); the per-op normalizers live in OpPlanParser.Actions.cs.
-/// </summary>
+// §1–3 exactly: fences stripped, the first balanced {…} taken (none ⇒ chat-only); an unknown op
+// drops with a warning, a known op with invalid params fails the WHOLE plan — except §1's
+// variant/preview leniency.
 public static partial class OpPlanParser
 {
     private static readonly OpSchema Schema = OpSchema.Bot;
@@ -27,38 +18,25 @@ public static partial class OpPlanParser
     public static readonly int MaxAskAnswer = Schema.Limit("ask.answer");
     public static readonly string DefaultCustomLabel = Schema.DefaultCustomLabel;
 
-    /// <summary>Longest value echoed into a warning (so a huge label can't flood the chat).</summary>
     private const int MaxEchoedChars = 40;
 
-    /// <summary>§2/§2.1 top-level-only ops — banned inside variants AND ask previews (§13: registry-derived).</summary>
+    // Banned inside variants AND ask previews (§13: registry-derived).
     private static readonly string[] TopLevelOnlyOps = OpRegistry.TopLevelOnlyNames;
 
-    /// <summary>
-    /// The §10-scoped ops the bot carries (§13: registry-derived). Not image edits: banned
-    /// inside variants (which exist to produce images) and inside ask-option previews, per
-    /// the existing §10 rule.
-    /// </summary>
+    // §10 settings ops: not image edits, banned inside variants and ask previews.
     private static readonly string[] SettingsOps = OpRegistry.SettingsNames;
 
-    /// <summary>
-    /// Every op name the parser handles — the bot's registry entries in prompt order. Tests
-    /// cross-check this set against <see cref="OpRegistry.Names"/> and against the dispatch
-    /// (each name must parse as a KNOWN op, never the §1 unknown-op skip).
-    /// </summary>
+    // Tests cross-check this against OpRegistry.Names and the dispatch.
     public static readonly IReadOnlyList<string> KnownOps =
         Schema.Entries.Select(static e => e.Name).ToArray();
 
-    /// <summary>Validation failure for a known op — fails the whole plan (contract §1).</summary>
     private sealed class PlanException : Exception
     {
         public PlanException(string message) : base(message) { }
     }
 
-    /// <summary>
-    /// A top-level-only or settings op found inside a variant / ask-option preview — §1's one
-    /// leniency: that variant (or that option's preview) is dropped with a warning, never the
-    /// whole plan. The message is the "why" fragment the warning quotes.
-    /// </summary>
+    // §1's one leniency: the variant (or option preview) is dropped with a warning, never the whole
+    // plan.
     private sealed class MisplacedOpException : Exception
     {
         public MisplacedOpException(string message) : base(message) { }
@@ -93,10 +71,9 @@ public static partial class OpPlanParser
         {
             throw new PlanException("the plan is not a JSON object");
         }
-        // `version` other than 1 (or absent) is accepted but ignored (contract §1).
-        // §1 reply tolerance: models routinely omit the reply while planning valid
-        // actions — substitute rather than lose the plan to a missing pleasantry.
-        // The substitute itself is chosen below, once the plan's contents are known.
+        // A version other than 1 is accepted but ignored (§1). Models routinely omit the reply
+        // while planning valid actions — substitute rather than lose the plan to a missing
+        // pleasantry.
         bool replyOmitted = !root.TryGetProperty("reply", out JsonElement replyElement)
             || replyElement.ValueKind != JsonValueKind.String
             || replyElement.GetString() is not string replyText
@@ -113,8 +90,8 @@ public static partial class OpPlanParser
             {
                 number++;
                 string label = OptionalString(variantElement, Schema.VariantKeys, "label") ?? "";
-                // §1's one leniency: a misplaced op costs THIS variant its place, not the turn.
-                // Its own warnings go with it — nothing of it will run.
+                // §1's one leniency: a misplaced op costs THIS variant its place, warnings
+                // included.
                 List<string> variantWarnings = new();
                 try
                 {
@@ -130,8 +107,8 @@ public static partial class OpPlanParser
             }
         }
         AskCard? ask = ParseAsk(root, warnings);
-        // "Done." only when the plan actually carries work — a bare "Done." on
-        // an empty plan reads as a success that never occurred (contract §1).
+        // "Done." only when the plan carries work — on an empty plan it reads as a success that
+        // never occurred.
         if (replyOmitted)
         {
             if (actions.Count > 0 || variants.Count > 0 || ask is not null)

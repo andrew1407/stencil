@@ -2,11 +2,7 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>
-/// The canonical §4 system-prompt prose around the ops list, parsed once from
-/// <c>browser/js/config/llm/systemPrompt.json</c>, embedded into this assembly at build
-/// time (the same pattern as the bot's <c>constants.json</c> page-format table).
-/// </summary>
+// The canonical §4 prose, parsed once from the embedded browser/js/config/llm/systemPrompt.json.
 public static class SystemPromptAsset
 {
     private const string ResourceName = "Stencil.TelegramBot.Application.Assets.systemPrompt.json";
@@ -19,7 +15,6 @@ public static class SystemPromptAsset
     /// <summary>The prose AFTER the ops list, starting with its blank line.</summary>
     public static string Tail => Text("tail");
 
-    /// <summary>Any other §4 prose string by its asset key.</summary>
     public static string Text(string key) =>
         Parsed.Value.TryGetValue(key, out string? value)
             ? value

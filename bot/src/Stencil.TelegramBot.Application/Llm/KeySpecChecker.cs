@@ -6,11 +6,7 @@ using static Stencil.TelegramBot.Application.Llm.SchemaPath;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>
-/// One declared key against its spec: type, enum, range, string caps, token grammars and array
-/// bounds — the per-VALUE half of the registry's rules. Cross-field presence is
-/// <see cref="PresenceRules"/>'s job; an object value hands back to it.
-/// </summary>
+// The per-VALUE half of the registry's rules; cross-field presence is PresenceRules' job.
 internal sealed class KeySpecChecker
 {
     private readonly JsonElement limits;
@@ -24,7 +20,6 @@ internal sealed class KeySpecChecker
         regexes = loader.Regexes;
     }
 
-    /// <summary>A cap: a number, or a dotted name into <c>limits</c> ("MAX_ACTIONS", "ask.label").</summary>
     public int Limit(JsonElement v) =>
         v.ValueKind == JsonValueKind.Number ? (int)v.GetDouble() : Limit(v.GetString()!);
 
