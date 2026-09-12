@@ -34,7 +34,7 @@ public static partial class CropSpecResolver
         double pxPerCmY = imageH / pageH;
 
         bool ok = true;
-        double Edge(string? token, double current, double lengthPx, double pxPerCm)
+        double edge(string? token, double current, double lengthPx, double pxPerCm)
         {
             if (token is null)
             {
@@ -49,10 +49,10 @@ public static partial class CropSpecResolver
             return resolved.Value;
         }
 
-        double x1 = Edge(parsed.X1, 0.0, imageW, pxPerCmX);
-        double x2 = Edge(parsed.X2, imageW, imageW, pxPerCmX);
-        double y1 = Edge(parsed.Y1, 0.0, imageH, pxPerCmY);
-        double y2 = Edge(parsed.Y2, imageH, imageH, pxPerCmY);
+        double x1 = edge(parsed.X1, 0.0, imageW, pxPerCmX);
+        double x2 = edge(parsed.X2, imageW, imageW, pxPerCmX);
+        double y1 = edge(parsed.Y1, 0.0, imageH, pxPerCmY);
+        double y2 = edge(parsed.Y2, imageH, imageH, pxPerCmY);
         if (!ok)
         {
             return null;

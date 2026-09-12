@@ -12,7 +12,7 @@ public static partial class CropSpecResolver
     {
         List<string> atoms = new();
         StringBuilder current = new();
-        void Flush()
+        void flush()
         {
             if (current.Length > 0)
             {
@@ -24,11 +24,11 @@ public static partial class CropSpecResolver
         {
             if (c is ' ' or '\t' or '\n' or '\r' or ',')
             {
-                Flush();
+                flush();
             }
             else if (c == '=')
             {
-                Flush();
+                flush();
                 atoms.Add("=");
             }
             else
@@ -36,7 +36,7 @@ public static partial class CropSpecResolver
                 current.Append(c);
             }
         }
-        Flush();
+        flush();
 
         string? x1 = null, x2 = null, y1 = null, y2 = null, aspect = null;
         bool valid = true;

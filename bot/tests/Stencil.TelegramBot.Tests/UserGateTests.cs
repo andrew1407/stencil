@@ -16,7 +16,7 @@ public sealed class UserGateTests
         int active = 0;
         int maxObserved = 0;
 
-        async Task Work()
+        async Task work()
         {
             using IDisposable handle = await gate.AcquireAsync(1);
             int now = Interlocked.Increment(ref active);
@@ -25,7 +25,7 @@ public sealed class UserGateTests
             Interlocked.Decrement(ref active);
         }
 
-        await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Work()));
+        await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => work()));
 
         Assert.Equal(1, maxObserved);
     }
