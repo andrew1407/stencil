@@ -9,7 +9,6 @@ import { scriptModalInner } from './scriptModalMarkup.js';
 import constants from '../config/constants.json' with { type: 'json' };
 
 const DRAFT_KEY = constants.STORAGE_KEYS?.script ?? 'drawingApp_script';
-const REPAINT_MS = 60;
 
 const $ = (id) => document.getElementById(id);
 
@@ -94,13 +93,13 @@ export class StencilScriptModal extends StencilElement {
     const pre = $('script-highlight');
     const strip = $('script-diag');
     const overlay = $('script-overlay');
-    let timer = null;
     let checked = false;   // nothing is reported until the script has been run once
 
-    // Run and Download need something to act on; Upload always does.
+    // Run, Copy and Download need something to act on; Upload always does.
     const gateActions = () => {
       const empty = editor.value.trim().length === 0;
       $('script-run').disabled = empty;
+      $('script-copy').disabled = empty;
       $('script-download').disabled = empty;
     };
 
@@ -109,10 +108,11 @@ export class StencilScriptModal extends StencilElement {
       showDiagnostic(strip, checked ? program : null);
       gateActions();
     };
+    // Synchronous: the visible text IS the highlight layer, so a deferred paint would read
+    // as the characters appearing late.
     const schedule = () => {
       checked = false;   // editing clears the last verdict: it is about older text
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(repaint, REPAINT_MS);
+      repaint();
     };
 
     const shell = wireModalShell(overlay, $('script-btn'), $('script-close'), {
@@ -165,6 +165,11 @@ export class StencilScriptModal extends StencilElement {
       const file = e.target.files?.[0];
       if (file) loadScriptFile(file, { app });
       e.target.value = '';
+    });
+    $('script-copy').addEventListener('click', () => {
+      navigator.clipboard.writeText(editor.value)
+        .then(() => notify('Script copied', 'ok'))
+        .catch((err) => notify(`Copy failed: ${err.message || err}`, 'fail'));
     });
     $('script-download').addEventListener('click', () => {
       const blob = new Blob([editor.value], { type: 'text/plain' });

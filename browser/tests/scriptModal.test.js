@@ -14,12 +14,12 @@ import uiStrings from '../js/config/uiStrings.json' with { type: 'json' };
 const MARKUP = layout();
 const src = (p) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8');
 
-test('the opener sits in the Data section, between Upload and the destructive control', () => {
+test('the opener leads the Data section', () => {
   const data = MARKUP.slice(MARKUP.indexOf('<div class="ctrl-section-label">Data</div>'));
   const section = data.slice(0, data.indexOf('</div>\n            </div>'));
   const order = [...section.matchAll(/id="([a-z-]+)"/g)].map((m) => m[1]);
   assert.deepEqual(order, [
-    'copy-json-btn', 'download-json', 'upload-json', 'upload-json-btn', 'script-btn', 'clear-storage',
+    'script-btn', 'copy-json-btn', 'download-json', 'upload-json', 'upload-json-btn', 'clear-storage',
   ]);
 });
 
@@ -32,15 +32,16 @@ test('the opener names its hotkey, its tooltip and why it can be disabled', () =
 
 test('the window is composed with its editor, its diagnostics strip and three actions', () => {
   for (const id of ['script-overlay', 'script-close', 'script-editor-wrap', 'script-highlight',
-    'script-editor', 'script-diag', 'script-upload', 'script-upload-btn', 'script-download',
-    'script-run']) {
+    'script-editor', 'script-diag', 'script-upload', 'script-upload-btn', 'script-copy',
+    'script-download', 'script-run']) {
     assert.equal(MARKUP.split(`id="${id}"`).length - 1, 1, `${id} appears exactly once`);
   }
   // Run is the primary action and comes last, the way Save does in every other window.
   // From the first footer control on, the only script-* ids left are the footer's own.
-  const footer = MARKUP.slice(MARKUP.indexOf('id="script-download"'));
+  const footer = MARKUP.slice(MARKUP.indexOf('id="script-copy"'));
   const order = [...footer.matchAll(/id="(script-[a-z-]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(order, ['script-download', 'script-upload', 'script-upload-btn', 'script-run']);
+  assert.deepEqual(order,
+    ['script-copy', 'script-download', 'script-upload', 'script-upload-btn', 'script-run']);
   assert.match(footer, /id="script-run" class="btn-icon-text primary"/);
 });
 

@@ -2002,6 +2002,9 @@
     "flex-direction": "column",
     "min-height": "0"
    },
+   "|#script-overlay:not(.modal-popover) .app-modal": {
+    "height": "min(82vh, 760px)"
+   },
    "|#sel-fill-clear .ic, #sel-unchain .ic": {
     "color": "var(--text-sel-btn)"
    },
@@ -5374,7 +5377,7 @@
    },
    "|.ic-script .ic-cog": {
     "--ic-ms": "0.3s",
-    "transform-origin": "16.8px 17.2px",
+    "transform-origin": "16.6px 16.6px",
     "transform": "rotate(calc(var(--ic-on) * 45deg))"
    },
    "|.ic-send": {
@@ -6578,10 +6581,12 @@
    },
    "|.script-editor-wrap": {
     "position": "relative",
-    "height": "440px",
+    "flex": "1",
+    "min-height": "160px",
     "border": "1px solid var(--border-main)",
     "border-radius": "8px",
     "background": "var(--input-bg)",
+    "padding": "8px 2px",
     "overflow": "hidden"
    },
    "|.script-editor-wrap:focus-within": {
@@ -6594,9 +6599,9 @@
    },
    "|.script-highlight, .script-input": {
     "position": "absolute",
-    "inset": "0",
+    "inset": "8px 2px",
     "margin": "0",
-    "padding": "10px 12px 26px",
+    "padding": "2px 10px 12px",
     "border": "0",
     "font": "12.5px/1.55 var(--font-mono)",
     "tab-size": "2",
@@ -6620,6 +6625,10 @@
    },
    "|.script-modal": {
     "width": "587px"
+   },
+   "|.script-modal .settings-body": {
+    "display": "flex",
+    "flex-direction": "column"
    },
    "|.sel-sep": {
     "flex": "0 0 auto",
@@ -8184,6 +8193,8 @@
    "|.vs-row.vs-checks",
    "|.oi-replace",
    "|.script-modal",
+   "|#script-overlay:not(.modal-popover) .app-modal",
+   "|.script-modal .settings-body",
    "|.script-editor-wrap",
    "|.script-highlight, .script-input",
    "|.script-highlight",
