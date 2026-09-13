@@ -1,6 +1,7 @@
 using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
+using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
@@ -131,6 +132,28 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
 
         Assert.Contains("too long", outcome.Reply);
         Assert.Null(_cli.LastScriptCall);
+    }
+
+    /// <summary>
+    /// Verbatim stdout from `stencil -i sample.png --script-plan`: the envelope the bot actually
+    /// receives, parsed and executed, so an upstream shape change fails here rather than in a chat.
+    /// </summary>
+    [Fact]
+    public async Task Should_Run_A_Real_Cli_Envelope()
+    {
+        await Adopt();
+        _cli.CannedScriptPlan = CliOutcomeParser.ParseScriptPlan(
+            """
+            {"version":1,"script":"s.stc","diagnostics":[],"blocks":[{"index":0,"source":"","sourceKind":"project","inputs":["sample.png"],"frame":0,"dims":{"width":16,"height":12},"plans":[{"reply":"","actions":[{"op":"crop","spec":{"x1":"10%","x2":"-10%","y1":"10%","y2":"-10%"}},{"op":"filter","mode":"bw"},{"op":"layout","lines":[{"points":[{"x":0,"y":0},{"x":12.8,"y":9.600000000000001}],"color":"#FFFF00","style":"solid","fillColor":"transparent","thickness":2,"pointSize":4,"locked":false}]}]}],"saves":[]}]}
+            """);
+
+        ScriptOutcome outcome = await _service.RunAsync(UserId, "@crop 10%\n@filter bw\n@line (0,0) (100%,100%)\n");
+
+        UserSession session = await _store.GetAsync(UserId);
+        Assert.Equal("Script ran: 3 ops.", outcome.Reply);
+        Assert.Equal("x1=10% x2=-10% y1=10% y2=-10%", session.Edits.CropSpec);
+        Assert.Equal("bw", session.Edits.Filter);
+        Assert.Equal(1, session.Edits.LineCount);
     }
 
     /// <summary>The registry's MAX_ACTIONS is what the CLI chunks at; a chunk past it is refused.</summary>
