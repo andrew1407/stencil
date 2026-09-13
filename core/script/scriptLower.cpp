@@ -168,7 +168,9 @@ namespace stencil::core::script {
               makeDiag(Severity::ERROR, "E_LIMIT_OPS", tokenOf(st), "the script has too many ops"));
           break;
         }
-        op.editIndex = ledger.addEdit(op, normalizedText(st));
+        // Numbered before the ledger copies it, so a replayed edit dumps as the same edit.
+        op.editIndex = ledger.editCount() + 1;
+        ledger.addEdit(op, normalizedText(st));
         out.ops.push_back(op);
         sawEdit = true;
       }

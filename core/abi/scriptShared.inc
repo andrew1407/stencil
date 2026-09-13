@@ -117,6 +117,18 @@ const char* STENCIL_ABI(scriptOpStr, scriptOpStr)(int h, int i, int k) {
   return op->strs[static_cast<std::size_t>(k)].c_str();
 }
 
+int STENCIL_ABI(scriptOpTokCount, scriptOpTokCount)(int h, int i) {
+  const stencil::core::script::Op* op = scriptOpAtIndex(h, i);
+  return op ? static_cast<int>(op->toks.size()) : -1;
+}
+
+// One unresolved length token, e.g. "10%" or "-1in"; see scriptOpResolve for pixels.
+const char* STENCIL_ABI(scriptOpTok, scriptOpTok)(int h, int i, int k) {
+  const stencil::core::script::Op* op = scriptOpAtIndex(h, i);
+  if (!op || k < 0 || k >= static_cast<int>(op->toks.size())) return nullptr;
+  return op->toks[static_cast<std::size_t>(k)].c_str();
+}
+
 int STENCIL_ABI(scriptOpNum, scriptOpNum)(int h, int i, int k, double* out) {
   const stencil::core::script::Op* op = scriptOpAtIndex(h, i);
   if (!op || k < 0 || k >= static_cast<int>(op->nums.size())) return 0;

@@ -144,6 +144,8 @@ int stencil_cli_scriptOpCount(int h);
 int stencil_cli_scriptOpAt(int h, int i, int* kind, int* block, int* editIndex, int* line,
                            int* col, int* strCount, int* numCount);
 const char* stencil_cli_scriptOpStr(int h, int i, int k);
+int stencil_cli_scriptOpTokCount(int h, int i);
+const char* stencil_cli_scriptOpTok(int h, int i, int k);
 int stencil_cli_scriptOpNum(int h, int i, int k, double* out);
 
 /* Length tokens -> pixels against the CURRENT image size; see abi/scriptShared.inc for the
