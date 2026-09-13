@@ -28,18 +28,194 @@ graph TD
     INFRA -.->|"sessions"| RD
 ```
 
-## Rings
+## Layers
 
-Four projects under `src/Stencil.TelegramBot.<Ring>/`, dependencies pointing inward.
-`Domain` has no project references and stays free of Telegram, HTTP and process types.
+`Domain` ← `Application` ← `Infrastructure` ← `Bot`: four projects under
+`src/Stencil.TelegramBot.<Ring>/`, dependencies pointing inward. `Domain` has no project
+references and stays free of Telegram, HTTP and process types. Enforced by the `.csproj`
+`ProjectReference`s and by `tests/…/LayerBoundaryTests.cs`, which reads every `using` line and
+forbids `Telegram.Bot`, `System.Net.Http`, `System.Diagnostics.Process` and
+`StackExchange.Redis` inside `Domain`.
 
-| Ring | Holds | Rule |
+- `Domain`: the frozen contract; pure C#.
+- `Application`: policy only; depends on Domain abstractions, never on an adapter.
+- `Infrastructure`: depends only on Domain; every CLI run passes `--confine-output`.
+- `Bot`: the only ring that sees Telegram types; strings and commands come from the assets,
+  never literals.
+
+## Where things go
+
+| Path | Holds | Rule |
 |---|---|---|
-| `Domain` | entities and value objects (`EditState`, `HistoryStack`, `CropSpecResolver`, the layout and `.stencil` types, `OpPlan`, `UserSession`), the abstractions (`IStencilCli`, `IStencilServerClient`, `ISessionStore`, `IUserWorkspace`, `ILlmClient`, `IBotPolicy`), `StencilJson` (one camelCase serializer) | the frozen contract; pure C# |
-| `Application` | `EditingService` (one base image + a replayable `EditState`), `ServerService` (connect/list/fetch/create/save/sync), `PromptService` (one partial per turn concern), `OpSchema`/`OpRegistry`/`OpPlanParser`, `RemoteImageUrl` (the surface's fetch guard), `ProjectFileService` | policy only; depends on Domain abstractions, never on an adapter |
-| `Infrastructure` | `ProcessStencilCli` + `CliArgvBuilder` + `CliOutcomeParser` (ports of the mcp adapters), `HttpStencilServerClient` (a port of the pystencil client), `HttpLlmClient` + one provider mapping per wire shape, the in-memory and Redis session stores, `UserWorkspace`, `DotEnv`/`BotOptions`, the link builders, `FfmpegImageDownscaler` | depends only on Domain; every CLI run passes `--confine-output` |
-| `Bot` | `Program` + `BotComposition` (the DI root), `UpdatePump`, `Telegram/` (the access gate, routers, intake, `CommandHandlers` partials by group, keyboards, replies, `SyncWatcher`, `WorkspaceJanitor`), `Assets/botCommands.json` + `botStrings.json` | the only ring that sees Telegram types; strings and commands come from the assets, never literals |
+| `src/Stencil.TelegramBot.Domain/Editing/` | `EditState`, `HistoryStack<T>`, `CropSpecResolver`, `EditRequest`, `RenderResult`, `BlankSpec`, `ScrapeRequest`/`ScrapeResult`, `ColorSpec` | value objects; no I/O |
+| `src/Stencil.TelegramBot.Domain/Layout/` | `StencilLayout`, `LayoutLine`, `LayoutPoint`, `LineStyle`, `StencilLayoutParser` | the CLI `--layout` shape; per-line defaults pinned to the other front-ends |
+| `src/Stencil.TelegramBot.Domain/Project/`, `Projects/` | `StencilProject` + `StencilProjectFile` (the `.stencil` bundle), `ProjectRecord`, `ProjectFull`, `Create`/`UpdateProjectRequest`, `ProjectFileKind` | mirrors of `projectFile.js` and `server/internal/protocol` |
+| `src/Stencil.TelegramBot.Domain/Llm/` | `OpPlan`, `OpVariant`, the `PlanAction` union, `AskCard`, `LlmChatRequest`/`LlmMessage`/`LlmReply`, `LlmOptions`, `LlmProfile`, `ChatDocument`, `LlmGate`, `LlmException`, `ILlmClient`, `ProvidersAsset` | the contract's types; no wire format |
+| `src/Stencil.TelegramBot.Domain/Sessions/` | `UserSession`, `ServerConnectionInfo`, `ServerHandshake`, `CredentialKind`, `PendingInputs` | one JSON value per user; paths, never bytes |
+| `src/Stencil.TelegramBot.Domain/Abstractions/`, `Configuration/` | `IStencilCli`, `IStencilServerClient(+Factory)`, `ISessionStore`, `IUserWorkspace`, `IImageDownscaler`, `IBotPolicy` | the ports the adapters implement |
+| `src/Stencil.TelegramBot.Domain/Serialization/`, `Exceptions/` | `StencilJson` (one camelCase serializer), `JsonRead`; `StencilCliException`, `ServerException` | every JSON goes through `StencilJson` |
+| `src/Stencil.TelegramBot.Application/Editing/` | `EditingService` (one base image + a replayable `EditState`), `EditSessions`, `ProjectFileService`, `VideoFrames`, `RemoteImageUrl` (the surface's fetch guard), `ImageDimensionReader` | every render replays the state through `IStencilCli` |
+| `src/Stencil.TelegramBot.Application/Servers/` | `ServerService` (connect/list/fetch/create/save/sync, one partial per concern), `ProjectLayoutMapper`/`Writer`, `InviteLink`, `ServerProjectInfo` | a port of pystencil's `ConnectionManager` + `remoteSync`; version-guarded writes |
+| `src/Stencil.TelegramBot.Application/Llm/` | `PromptService` (one partial per turn concern), `OpSchema`/`OpRegistry`/`OpPlanParser`, `PlanFrameMapper`, `LlmAttachmentLoader`, `SystemPromptAsset`, `ActionContext` | the validator is table-driven from the embedded `opRegistry.json` |
+| `src/Stencil.TelegramBot.Infrastructure/Cli/`, `Processes/` | `ProcessStencilCli` + `CliArgvBuilder` + `CliOutcomeParser` (ports of the mcp adapters), `StencilCliLocator`, `ProcessRunner` | `NO_COLOR=1`; spawned in the output folder with `--confine-output` |
+| `src/Stencil.TelegramBot.Infrastructure/Server/` | `HttpStencilServerClient` (a port of the pystencil client), `StencilServerClientFactory`, `UrlNormalizer` | REST only; every non-2xx is a `ServerException` |
+| `src/Stencil.TelegramBot.Infrastructure/Llm/` | `HttpLlmClient` + one `IProviderMapping` per wire shape (`OllamaMapping`, `OpenAiMapping`, `StencilServerMapping`) | the platform's `HttpClient`; endpoint from configuration only |
+| `src/Stencil.TelegramBot.Infrastructure/Sessions/`, `Workspace/` | `InMemorySessionStore`, `RedisSessionStore`; `UserWorkspace` (`<DataDir>/<userId>/<guid>`), `TempFiles` | Redis when `REDIS_URL` is set, else memory |
+| `src/Stencil.TelegramBot.Infrastructure/Configuration/`, `Links/`, `Media/` | `DotEnv`/`BotOptions`/`RedisConnectionString`; `DeepLinkCodec`, `DesktopLinkBuilder`, `LayoutFetcher`; `FfmpegImageDownscaler` | operator environment in, never chat text |
+| `src/Stencil.TelegramBot.Bot/` | `Program` + `BotComposition` (the DI root), `UpdatePump` | `Program` registers nothing else |
+| `src/Stencil.TelegramBot.Bot/Telegram/` | `AccessGate`, `UpdateRouter`, `MessageRouter` + its links, `AlbumRouter`/`AlbumCollector`, `MediaIntake`/`DocumentIntake`, `CommandHandlers` partials by group, `CallbackAction`, `AskCardTaps`, `Keyboards`, `Replies`, `UserGate`, `ErrorGuard`, `SyncRegistry`, `SyncWatcher`, `WorkspaceJanitor`, `PromptCancellations` | the only code that sees `Telegram.Bot` |
+| `src/Stencil.TelegramBot.Bot/Assets/` | `botCommands.json`, `botStrings.json` | `<EmbeddedResource>`s; the dispatch table, the `/` menu and every reply |
 | `tests/` | xUnit, offline: `Doubles/` (the shared mocks), `Goldens/` (rendered text, byte-pinned), `BenchTests` (opt-in) | never reads `TELEGRAM_BOT_TOKEN`; no server, CLI or Redis |
+
+## Entities
+
+```mermaid
+classDiagram
+    class UserSession {
+        +string OriginalImagePath
+        +EditState Edits
+        +long ActiveProjectVersion
+    }
+    class EditState {
+        +string CropSpec
+        +int Rotate
+        +StencilLayout Layout
+    }
+    class HistoryStack~T~ {
+        +List~T~ Done
+        +List~T~ Undone
+        +Push(T)
+    }
+    class StencilLayout {
+        +double ImageWidth
+        +string Filter
+        +List~LayoutLine~ Lines
+    }
+    class LayoutLine {
+        +List~LayoutPoint~ Points
+        +string Color
+        +double Thickness
+    }
+    class ServerConnectionInfo {
+        +string Url
+        +string Token
+        +CredentialKind CredentialKind
+    }
+    class ProjectRecord {
+        +string Id
+        +string Name
+        +long Version
+    }
+    class StencilProject {
+        +string Name
+        +byte[] ImageBytes
+        +JsonElement Layout
+    }
+    class OpPlan {
+        +string Reply
+        +List~PlanAction~ Actions
+        +AskCard Ask
+    }
+    class PlanAction {
+        +string Op
+    }
+    class LlmChatRequest {
+        +string System
+        +List~LlmMessage~ Messages
+        +LlmOptions Options
+    }
+    UserSession *-- EditState : Edits
+    UserSession *-- ServerConnectionInfo : Connections
+    UserSession o-- HistoryStack : EditHistory + EditRedo
+    UserSession --> ProjectRecord : ActiveProject*
+    EditState *-- StencilLayout : Layout
+    StencilLayout *-- LayoutLine : Lines
+    StencilProject --> EditState : ProjectLayoutMapper
+    OpPlan *-- PlanAction : Actions
+    PlanAction --> LayoutLine : LayoutAction.Lines
+    LlmChatRequest --> OpPlan : reply parsed into
+```
+
+| Entity | What it is | Owned by / lifetime | Relates to |
+|---|---|---|---|
+| `UserSession` | Everything the bot remembers about one Telegram user: base image path and size, edits, undo/redo snapshots, connections, the active server project, chat flags | `ISessionStore`; until `/drop` or a reset | `EditState`, `ServerConnectionInfo`, the active `ProjectRecord` fields |
+| `EditState` | Editing intent, not pixels: crop spec, quarter-turns, filter, page format, formulas, the drawn layout and the pen | `UserSession.Edits`; replaced immutably on every edit | `StencilLayout`, `LineStyle`; replayed into an `EditRequest` |
+| `HistoryStack<T>` | The bot's shape of `core/state/HistoryStack.hpp`: two bounded lists (25 per side); every step returns a new stack plus the snapshot to apply | projected from `EditHistory`/`EditRedo` by `EditSessions`, per call | `EditState` |
+| `StencilLayout` | The JSON the CLI's `--layout` consumes, coordinates in image pixels | `EditState.Layout`; serialized to a workspace file per render | `LayoutLine`; canonical shape is the browser's layout payload |
+| `LayoutLine` | One polyline with color, thickness, point size, style and fill; defaults pinned to the other front-ends | inside a `StencilLayout` or a `LayoutAction` | `LayoutPoint` |
+| `ServerConnectionInfo` | One remembered server: normalized URL, session token, the connect credential and its kind, TLS flag | `UserSession.Connections`; until `/disconnect` | `HttpStencilServerClient` is rebuilt from it per call |
+| `ProjectRecord` | A mirror of `server/internal/protocol` `ProjectRecord`; `Version` is the LWW counter | returned by `IStencilServerClient`; the active one is flattened into `UserSession` | `ProjectFull`, `Update`/`CreateProjectRequest` |
+| `StencilProject` | The portable `.stencil` bundle: name, metadata, original image bytes, the raw layout | built/parsed by `StencilProjectFile` for `/project` and document uploads | `EditState` via `ProjectLayoutMapper`; canonical is the browser's `projectFile.js` |
+| `OpPlan` | A validated model reply: text, top-level actions, up to 16 `OpVariant`s, an optional `AskCard` | produced by `OpPlanParser`; lives for one turn | `PlanAction`; canonical is `browser/js/config/llm/opRegistry.json` |
+| `PlanAction` | The op-plan action union (`CropAction`, `RotateAction`, `LayoutAction`, `SaveAction`, `ConnectAction`, ...), one record per `Op` | inside an `OpPlan` | dispatched through `OpRegistry.HandlerFor` |
+| `LlmChatRequest` | The system prompt plus the full replayed history, the current turn last, the resolved server URL/token and the picked `LlmOptions` | built by `PromptService.BuildTurn`; one per model round | `LlmMessage`, `LlmImage`; mapped by an `IProviderMapping`; persisted as a `ChatDocument` |
+
+## Patterns
+
+| Pattern | Where | Notes |
+|---|---|---|
+| Ports & Adapters | `Domain/Abstractions/*` (`IStencilCli`, `IStencilServerClient`, `ISessionStore`, `IUserWorkspace`, `ILlmClient`, `IBotPolicy`) ← `Infrastructure/*` | the rings themselves; the tests swap every port for a `Doubles/Mock*` |
+| Adapter | `CliArgvBuilder.BuildArgv`, `CliOutcomeParser.ParseWrote`/`ParseRemotes`, `ProcessStencilCli` | a typed `EditRequest` to the CLI's documented flags and back; ports of `mcp/src/{args,outcome,pipeline}.rs` |
+| Command | `HistoryStack<EditState>.Push`/`Undo`/`Redo` via `EditSessions.WithHistory`; the `OpHandler` delegate on each `OpDescriptor` | undo restores a whole `EditState` snapshot; each op-plan action is one executable entry |
+| Strategy | `HttpLlmClient._mappings` → `IProviderMapping` (`OllamaMapping`, `OpenAiMapping`, `StencilServerMapping`) | one wire shape per provider, selected by table lookup |
+| Chain of Responsibility | `MessageRouter.chain`: `CommandLink` → `UploadLink` → `PendingInputLink` → `UrlLink` → `ChatModeLink` → `FallbackLink`; the fetch guard `RemoteImageUrl.ValidateAsync` → `LayoutFetcher(isBlockedAddress)` → the CLI's own scheme guard | each `IMessageHandler.TryHandleAsync` claims or declines; link order is the precedence |
+| Repository | `ISessionStore` → `InMemorySessionStore` / `RedisSessionStore` | `UserSession` behind an interface; chosen in `AddStencilInfrastructure` |
+| Mediator | `CommandHandlers` over `IEditingService`, `IServerService`, `PromptService`, `SyncRegistry`, `ITelegramBotClient`; `UpdateRouter` over the gates and routers | the services never talk to each other or to the chat; every command and tap folds through `DispatchAsync` |
+| Table-driven dispatch | `CommandHandlers._routes` keyed by `BotCommands.Canonical`; `OpRegistry.Ops` → `HandlerFor`; `OpSchema.Bot` over the embedded `opRegistry.json` | the prompt is assembled from the same entries the executor dispatches on |
+| Hosted loop | `SyncWatcher`, `WorkspaceJanitor` (`BackgroundService`) | SIGTERM cancels and awaits both |
+| Fixture walker, Golden pin | `*FixtureWalkerTests`, `SharedOutcomeFixturesTests`; `TextGoldenTests` over `Goldens/*.txt` | the shared corpora under `browser/js/config` and `cli/testdata`; byte-exact user-facing text |
+
+## Design
+
+- **An update.** `Telegram.Bot` hands each update to `UpdatePump` (a bounded channel, 32
+  workers). `UpdateRouter.HandleMessageAsync` runs under `ErrorGuard`, asks
+  `AccessGate.AllowsAsync` unless the command `IsUngated` (`/help`, bare `/start`), buffers
+  album members into `AlbumRouter` outside the gate, takes `UserGate.AcquireAsync`, then walks
+  `MessageRouter`; `CommandLink` parses with `CommandParser` and `CommandHandlers.DispatchAsync`
+  looks the verb up in `_routes`. Taps go to `CallbackAction`; `STOP_TOKEN` skips the user gate.
+- **A photo turn.** `UploadLink` → `MediaIntake.WithDownloadedAsync` (a `CappingWriteStream`)
+  → `EditingService.SetImageFromLocalFileAsync` copies into `UserWorkspace`, reads the size and
+  resets the session. `CommandHandlers.RenderAndSendAsync` → `EditingService.RenderAsync`
+  replays `EditState` as an `EditRequest`; `ProcessStencilCli.EditAsync` spawns in the output's
+  folder with `--confine-output` and the leaf name, and `CliOutcomeParser.ParseWrote` yields
+  the re-rooted `RenderResult` sent with `Keyboards.EditMenu`. Every mutating command pushes
+  the previous state through `HistoryStack.Push`.
+- **An LLM turn.** `/prompt` or chat mode → `CommandHandlers` loads the image through
+  `LlmAttachmentLoader` and calls `PromptService.PromptAsync` under `LlmGate` with a
+  `PromptCancellations` token. `BuildTurn` replays the history plus the contour edge map, and
+  `ILlmClient.ChatAsync` posts through an `IProviderMapping`. `OpPlanParser.Parse` validates
+  against `OpSchema.Bot`; `executeAsync` pre-flights the whole plan (`ForbiddenOpError`, the
+  `openUrl` user-echo guard, `preflightError`), then applies each `PlanAction` through
+  `OpRegistry.HandlerFor` onto the same `IEditingService` methods the slash commands use, with
+  `PlanFrameMapper` re-mapping coordinates. A `Mutated` `PromptOutcome` renders through
+  `RenderAndSendAsync`; an `AskCard` becomes an inline keyboard handled by `AskCardTaps`.
+- **Save and sync.** `/save` → `ServerService.SaveActiveProjectAsync`: render,
+  `ProjectLayoutWriter.BuildJson` merges `EditState` into `ActiveProjectLayoutJson`,
+  `UpdateProjectAsync` guarded by `ActiveProjectVersion` (409 is a conflict), `PutFileAsync` of
+  the result, the version re-read. `/fetch` adopts the original and rebuilds the state with
+  `ProjectLayoutMapper.ToEditState`. `/sync` registers the chat in `SyncRegistry`;
+  `SyncWatcher` polls every 6 s under the user's gate, compares `ActiveServerVersionAsync` with
+  the session, then `PullActiveAsync` and a non-mutating render; a mutating edit on a synced
+  project auto-saves. Clients are rebuilt per call by `StencilServerClientFactory` from the
+  stored `ServerConnectionInfo`, re-minting from `Credential` when the token goes stale.
+- **A fetch.** `/url` → `RemoteImageUrl.ValidateAsync` (http(s) only, every resolved address
+  passes `IsBlockedAddress`, resolution bounded) → `SetImageFromUrlAsync` lets the CLI fetch.
+  `/layout <url>` goes through `LayoutFetcher` with the same predicate; `/sourcesite` through
+  `IStencilCli.ScrapeAsync` into a per-user scratch directory.
+- **Sessions.** `ISessionStore` is `InMemorySessionStore` or, with `BotOptions.RedisUrl`,
+  `RedisSessionStore` (one `StencilJson` value at `stencilbot:session:{userId}` in the Redis
+  the Go server uses). `UserSession` carries paths; bytes live under `UserWorkspace`, and
+  `WorkspaceJanitor` prunes files no session references past `WorkspaceTtl`. The LLM history
+  (base64 images) stays in `PromptService`, bounded by `MAX_HISTORY_MESSAGES` and
+  `MAX_TRACKED_USERS`; with `SaveChats` it is mirrored as a `ChatDocument` into the active
+  project's chat file.
+- **Composition.** `Program` loads `DotEnv`, builds `BotOptions.FromEnvironment()` and calls
+  `BotComposition.AddStencilBot`: `AddStencilInfrastructure` (the options as `IBotPolicy`,
+  `LlmGate`, `UserWorkspace`, `ProcessStencilCli`, `StencilServerClientFactory`,
+  `HttpLlmClient`, `FfmpegImageDownscaler`, the session store), `AddStencilApplication`, then
+  the Telegram client, `SyncRegistry`, `LayoutFetcher(isBlockedAddress:
+  RemoteImageUrl.IsBlockedAddress)`, `UserGate`, `PromptCancellations`, `CommandHandlers`,
+  `CallbackAction`, `UpdateRouter`, and the hosted `SyncWatcher` and `WorkspaceJanitor`.
 
 ## Rules
 
@@ -75,3 +251,11 @@ pystencil, the REST client against a stub `HttpMessageHandler`, services against
 the background loops on injected clocks. `BenchTests` are opt-in and assert only ratios —
 one pass over lines × points, per-case parser cost, rejection without throwing, a header
 reader that never scans the body.
+
+The `*FixtureWalkerTests` (op plans, provider wire, chat documents, `.stencil` files, sparse
+layouts, deep links, the sanitizer) replay the shared corpora under `browser/js/config/`
+through the real parsers, one case per vector, with measured divergences pinned in
+`FixtureOverrides.json`; `SharedOutcomeFixturesTests` replays `cli/testdata/outcome_fixtures.json`,
+the same file the Rust MCP server walks. `TextGoldenTests` pins every reply, keyboard label,
+callback token and menu entry byte-exact in `Goldens/`. `LayerBoundaryTests` pins the ring
+order and `CompositionRootTests` resolves the whole DI graph.

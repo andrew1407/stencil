@@ -20,6 +20,19 @@ graph TD
     CORE -->|"cliApi.h + ctypes"| PY
 ```
 
+## Layers
+
+`models.hpp` / `text.hpp` / `rgba.hpp` → `geometry/`, `color/`, `parse/` → `raster/`,
+`page/`, `format/`, `state/` → `abi/` → `wasm*Api.cpp`, `cliApi.cpp`.
+
+A group includes only what is to its left. `parse/cropSpec` includes `geometry/cropGeometry`;
+`raster/rasterize` includes `color/colorNames` and `raster/imageFilter` includes
+`color/luma`; `format/tooltipRows` includes `page/pageMetrics`; `state/` and `page/` include
+nothing but the root value types; `abi/` includes only `models.hpp`; the library itself never
+includes `abi/`. By convention; no lint. Every group directory is on one flat include path, so
+the includes are bare (`"cropGeometry.hpp"`) and the direction is visible only in the
+`#include` lines.
+
 ## Where things go
 
 | Path | Holds | Rule |
@@ -37,6 +50,157 @@ graph TD
 | `cliApi.{h,cpp}` | the `extern "C"` ABI the CLI and pystencil call | flat `double*` / RGBA8 buffers and C strings; no embind, no host allocation |
 | `tests/` | the Doctest suite, one suite per module, plus the wasm and CLI ABI suites and the `bench` suite | each suite is a port of the matching `browser/tests/` file |
 | `third_party/` | `doctest.h`, fetched at configure time | gitignored; the one dependency, tests only |
+
+## Entities
+
+```mermaid
+classDiagram
+    class Point {
+        +double x
+        +double y
+    }
+    class Line {
+        +vector~Point~ points
+        +string color
+        +double thickness
+        +bool locked
+    }
+    class HistoryStack {
+        +MAX_STEPS = 64
+        -vector~Lines~ history_
+        -int historyStep_
+    }
+    class HistorySlot {
+        +HistoryStack stack
+        +Lines result
+    }
+    class HandleTable~T~ {
+        -map~int, unique_ptr~T~~ items_
+        -int next_
+    }
+    class HoldDrawController {
+        -HoldState state_
+        -double holdDelay_
+        -double moveTol_
+    }
+    class HoldEvent {
+        +HoldAction action
+        +double x
+        +double y
+    }
+    class ProjectMeta {
+        +string id
+        +string name
+        +long expiresAt
+        +string refreshPeriod
+    }
+    class ProjectsStore {
+        +WARN_MS = 1 day
+        -vector~ProjectMeta~ registry_
+        -map~string, size_t~ index_
+    }
+    class CropRect {
+        +double x, y
+        +double width, height
+    }
+    class CropSpec {
+        +optional~string~ x1, x2, y1, y2
+        +optional~string~ aspect
+        +bool valid
+    }
+    class FormulaParser {
+        +validate(expr, var)
+        +apply(expr, var, value, allow)
+    }
+
+    Line "1" *-- "*" Point : points
+    HistoryStack "1" *-- "0..64" Line : history_ snapshots
+    HistorySlot "1" *-- "1" HistoryStack : stack
+    HistorySlot "1" *-- "*" Line : result
+    HandleTable "1" *-- "*" HistorySlot : items_
+    HandleTable "1" *-- "*" HoldDrawController : items_
+    HoldDrawController --> HoldEvent : returns
+    ProjectsStore "1" *-- "*" ProjectMeta : registry_
+    CropSpec --> CropRect : resolveCropRect
+    CropRect --> Line : scaleLinePoints, rotateLinePointsQuarter
+    FormulaParser --> Point : applied per axis after pixelToPageRaw
+```
+
+| Entity | What it is | Owned by / lifetime | Relates to |
+|---|---|---|---|
+| `Point` (`models.hpp`) | one image-pixel coordinate | value; inside a `Line` or a flat `[x0,y0,…]` array; `pixelToPageRaw` maps it onto a `PageSize` | `Line` |
+| `Line` (`models.hpp`) | one drawn polyline or closed area; `Lines` is `vector<Line>`. Twin of the plain line object in `browser/js/core/drawingApp.js`, which is canonical | value; snapshotted by `HistoryStack`, burned by `raster/rasterize` after `parseColor` resolves its colours to `Rgba` | `Point`, `CropRect` |
+| `HistoryStack` (`state/HistoryStack.hpp`) | the undo/redo stack of whole-`Lines` snapshots, capped at `MAX_STEPS` | owned by the desktop's `CanvasWidget` directly, or by a `HistorySlot` over wasm | `Line` |
+| `HistorySlot` (`wasmStateApi.cpp`) | a `HistoryStack` plus the last undo/redo result held until the host reads it | process-global `HandleTable<HistorySlot>`, created and destroyed by the host | `HistoryStack`, `HandleTable` |
+| `HandleTable<T>` (`abi/HandleTable.hpp`) | opaque int → owned instance; a stale or forged handle looks up to `nullptr` | one static table per stateful class in `wasmStateApi.cpp` | `HistorySlot`, `HoldDrawController` |
+| `HoldDrawController` (`state/holdDraw.hpp`) | the hold-to-draw gesture machine over `HoldState` IDLE / ARMED / DRAWING / ABORTED; time-injected, host screen space | the GUI's pointer handler, or a wasm handle | `HoldEvent` |
+| `HoldEvent` (`state/holdDraw.hpp`) | one `HoldAction` (NONE, ARMED, ABORT, START, DROP, PREVIEW, COMMIT) with optional coordinates | value returned per pointer call | `HoldDrawController` |
+| `ProjectMeta` (`state/ProjectMeta.hpp`) | one saved project's metadata, field for field the browser project object (`projectMeta.js`, canonical) and the server `ProjectRecord`; payloads are the adapter's | value inside `ProjectsStore::registry_` | `ProjectsStore` |
+| `ProjectsStore` (`state/ProjectsStore.hpp`) | the in-memory registry with an id index, name rules and the expiry rules; port of the pure parts of `projectsStore.js` | the adapter that loads and persists it | `ProjectMeta` |
+| `CropRect` (`geometry/cropGeometry.hpp`) | the crop window in original-image pixel space; lines are crop-local | value, kept by the adapter beside a 0..3 quarter-turn count | `CropSpec`, `Line` |
+| `CropSpec` (`parse/cropSpec.hpp`) | the CLI's parsed crop string, one length token per edge plus `aspect` | value, consumed by `resolveCropRect` | `CropRect` |
+| `FormulaParser` (`parse/formulaParser.hpp`) | the `f(x)` / `f(y)` arithmetic evaluator; identity on empty or invalid input | stateless; `Eval` lives for one call | `Point` (page coordinates after `pixelToPageRaw`) |
+
+## Patterns
+
+| Pattern | Where | Notes |
+|---|---|---|
+| Facade over core | `cliApi.h`, `wasm*Api.cpp` | the `extern "C"` seam beneath every adapter facade (`window.stencil`, `core.zig`, `pystencil.core`); the desktop links the library directly at the seam its layer lint allows |
+| Command | `HistoryStack` (`state/HistoryStack.hpp`) | an entry is a whole-`Lines` snapshot, so apply and revert are the same copy; `push` truncates the redo branch |
+| Strategy | `FilterMode` + `filterPixel` (`raster/imageFilter.hpp`), `luma::rec709Truncated` / `rec709Scaled` | the mode is chosen by `filterModeFromString`, the per-pixel kernel by one hoisted `switch`; the two luma forms are distinct strategies pinned to distinct JS twins |
+| Repository | `ProjectsStore` (`state/ProjectsStore.hpp`) | registry + `index_` behind `upsert` / `find` / `remove`; serialisation and storage are the adapter's |
+| State machine | `HoldDrawController` (`state/holdDraw.hpp`) | `pointerDown` arms, a move past `moveTol_` aborts, `tick` past `holdDelay_` starts at the press point, a dwell drops a point, `pointerUp` commits; times are injected monotonic ms |
+| Interpreter (recursive descent) | `Eval` in `parse/formulaParser.cpp`, `DurationParser`, `parseCropSpec` + `parseLengthToken` | grammar functions per rule; `DepthGuard` caps recursion at `MAX_DEPTH` = 256, shared with `formulaEngine.js` |
+| Handle table | `abi::HandleTable<T>` | stateful classes cross the ABI as opaque ints; an unknown handle is a no-op returning a neutral value |
+| Flat codec | `abi::encodeLines` / `decodeLines` (`abi/linesCodec.hpp`), `abi::toPoints` (`abi/marshal.hpp`) | `Lines` travel as a doubles buffer plus a UTF-8 text buffer; lengths are honoured, never trusted |
+| One body, two symbols | `abi/shared.inc` with `STENCIL_ABI(wasmName, cliName)` | exports identical on both ABIs are written once and emitted under each spelling |
+| Row-range kernel | the `*Rows` functions in `raster/imageOps.hpp`, `raster/imageFilter.hpp`, `fillPolygonRows` | half-open `[y0, y1)` slices of a whole-image op for a caller-owned thread pool; the core owns no threading |
+
+## Design
+
+- **A wasm call.** `browser/js/core/stencilCore.js` imports the generated module, checks
+  every `EXPORTED_FUNCTIONS` entry is present, and `cwrap`s each; a missing or stale artifact
+  degrades to the JS fallback. Scalars and C strings pass directly, a point list as one flat
+  `[x0,y0,…]` array read through `abi::toPoints`, a result into a `_malloc`ed slot read back
+  from `HEAPF64`. Stateful classes go through `coreHandles.js`: `stencil_history_create`
+  returns an int from `HandleTable<HistorySlot>`, `push` sends `Lines` encoded by
+  `linesCodec.js` and decoded by `abi::decodeLines`, `undo` reports the two buffer sizes and
+  `stencil_history_readResult` encodes the retained `HistorySlot::result`.
+- **A CLI ABI call.** The Zig CLI or pystencil decodes the image itself and owns a `w*h*4`
+  RGBA8 buffer. `stencil_cli_resolveCrop` runs `parseCropSpec` → `resolveCropRect` and clamps
+  to integer pixels; `stencil_cli_cropImageRGBA` / `rotateImageRGBA` write a caller-sized
+  `dst`; `stencil_cli_rasterizeLine` builds a `Line` from flat points and C strings and burns
+  it in place; the `*Rows` exports take `[y0, y1)` for the caller's pool, contour in two
+  phases (`buildLumaRows` for every row, then `sobelRows`). Nothing allocates, frees or
+  retains caller memory; returned strings are static.
+- **A formula evaluation.** `FormulaParser::apply(expr, var, value, allowFormulas)` is the
+  identity when formulas are off, the expression is empty, or evaluation fails. `Eval` walks
+  `expr → term → unary → power → primary` with a `DepthGuard` per nested rule; a non-finite
+  result is invalid. The caller composes it after `pixelToPageRaw`, per axis, as the browser
+  does. `formulaValidate` / `formulaApply` reach both ABIs from `shared.inc`;
+  `stencil_formulaEvaluate` is wasm-only.
+- **A history push and undo.** `push(lines)` advances the step, drops the redo branch,
+  appends the snapshot, and past `MAX_STEPS` erases the oldest and shifts the cursor down.
+  `undo()` at step > 0 returns the previous snapshot; at step 0 returns empty `Lines` and
+  moves to -1; otherwise `nullopt`. `reset(lines)` seeds step 0 with lines, else -1.
+- **Projects store expiry.** The adapter seeds `ProjectMeta::expiresAt` (0 = keep forever)
+  from `addPeriod(now, refreshPeriod)`; `periodMs` uses fixed presets (day, week, fortnight,
+  month = 30 d, 3month, 6month, year = 365 d, unknown = week) so no calendar library enters.
+  `isExpired(meta, now)` is `expiresAt != 0 && now > expiresAt`; `isExpiringSoon` is due
+  within `WARN_MS` and not yet past; `sweepExpired(now)` removes and returns the expired ids.
+  The `expire` command gets its ms from `DurationParser`. Only these pure rules are exported
+  to wasm (`stencil_projects_*`); the registry itself is not a browser twin.
+
+The one wire schema the core owns is the `Lines` snapshot of `abi/linesCodec.hpp`, in two
+caller-owned buffers (`browser/js/core/linesCodec.js` is its twin):
+
+```
+nums (double[]): lineCount, then per line:
+                 pointCount, thickness, pointSize, locked,
+                 len(color), len(style), len(fillColor), len(pointColor),
+                 x0, y0, x1, y1, …
+text (uint8[]):  color, style, fillColor, pointColor per line, UTF-8, concatenated
+```
 
 ## Rules
 
@@ -68,3 +232,12 @@ algorithmic properties as ratios — contour vs. the per-pixel filter, rotate as
 transpose, rasterising and hit tests linear in line count, the parser at `MAX_DEPTH`, the
 two luma forms within 1 of each other, `HistoryStack::push` amortised O(1) — never a
 wall-clock number.
+
+The `wasm*Api.cpp` and `cliApi.cpp` units are plain STL, so `stencil_tests` compiles them
+natively and drives every export through its `extern "C"` prototype, guarding the
+marshalling (flat arrays, out pointers, enum codes, char-code variable names) without
+Emscripten or Zig. `tests/abiShared.test.cpp` calls each `shared.inc` export under both
+spellings and asserts they agree. `tests/rowRanges.test.cpp` pins every `*Rows` kernel
+byte-for-byte against its whole-image call. The browser's `wasm-parity*.test.js` files drive
+the compiled module and the JS fallback through one script; the `Lines` codec is proved
+symmetric by the round trip in `wasm-parity-history.test.js`.
