@@ -1204,29 +1204,29 @@
    "@media (max-width: 960px)|body": {
     "padding": "12px"
    },
-   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-bottom)": {
-    "padding-bottom": "calc(var(--chat-size, 300px) + 20px)"
-   },
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-bottom) #global-drop-overlay": {
     "bottom": "var(--chat-size, 300px)"
-   },
-   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left)": {
-    "padding-left": "calc(var(--chat-size, 340px) + 20px)"
    },
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left) #global-drop-overlay": {
     "left": "var(--chat-size, 340px)"
    },
-   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-right)": {
-    "padding-right": "calc(var(--chat-size, 340px) + 20px)"
-   },
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-right) #global-drop-overlay": {
     "right": "var(--chat-size, 340px)"
    },
-   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top)": {
-    "padding-top": "calc(var(--chat-size, 300px) + 20px)"
-   },
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top) #global-drop-overlay": {
     "top": "var(--chat-size, 300px)"
+   },
+   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-bottom)": {
+    "padding-bottom": "calc(var(--chat-size, 300px) + 20px)"
+   },
+   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-left)": {
+    "padding-left": "calc(var(--chat-size, 340px) + 20px)"
+   },
+   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-right)": {
+    "padding-right": "calc(var(--chat-size, 340px) + 20px)"
+   },
+   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-top)": {
+    "padding-top": "calc(var(--chat-size, 300px) + 20px)"
    },
    "@media (min-width: 961px)|.coordinates-panel.coord-folding #coord-body, .coordinates-panel.coord-folding .coord-tabs": {
     "display": "none",
@@ -7219,7 +7219,7 @@
     "padding": "20px 10px",
     "background": "var(--bg-page)",
     "color": "var(--text-main)",
-    "transition": "background 0.3s, color 0.3s, padding 0.34s ease",
+    "transition": "background 0.3s, color 0.3s, padding 0.51s ease",
     "min-height": "100dvh",
     "display": "flex",
     "flex-direction": "column"
@@ -8694,10 +8694,11 @@
    "|body:has(stencil-chat-panel.chat-open) #install-host",
    "|body.fullscreen-mode stencil-chat-panel",
    "|body",
-   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left)",
-   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-right)",
-   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top)",
-   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-bottom)",
+   "|body:has(stencil-chat-panel.chat-closing)",
+   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-left)",
+   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-right)",
+   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-top)",
+   "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-bottom)",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left) #global-drop-overlay",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-right) #global-drop-overlay",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top) #global-drop-overlay",
