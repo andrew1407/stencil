@@ -122,6 +122,7 @@ namespace stencil::gui {
     // The editable percent combo replaces the browser's +/- steppers; Fit follows it, as in the
     // browser.
     zoomFitBtn_ = new QToolButton(this);
+    zoomFitBtn_->setProperty("zoomFit", true);
     zoomFitBtn_->setDefaultAction(actFit_);
     zoomFitBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     zoomFitBtn_->setAutoRaise(true);

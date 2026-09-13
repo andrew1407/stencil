@@ -151,6 +151,10 @@
         color: %TEXT%; background: transparent; padding: 5px 7px;
         border: 1px solid transparent; border-radius: 7px;
       }
+      /* A tool button is 19px wider than its glyph, so the odd pixel leaves every icon half a
+         pixel left of centre. It only SHOWS on the one glyph that is a frame, so fit-to-window
+         takes the odd pixel on its left edge and its box lands dead centre. */
+      QToolButton[zoomFit="true"] { padding-left: 8px; }
       QToolButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       QToolButton:pressed { background: %ACCENT_SOFT2%; }
       /* The ✎ / 🎨 beside the project name: the toolbar's own filled squares, so they read
