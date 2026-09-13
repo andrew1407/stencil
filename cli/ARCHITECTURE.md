@@ -62,6 +62,136 @@ reports through `report.zig` and never spells an ANSI escape; `logo.zig`'s
 | `testdata/` | the language-neutral stderr goldens `mcp/` and `bot/` replay | one set of goldens for all three suites |
 | `scripts/tui_smoke.py` | the manual pseudo-terminal smoke check for the TUI | not in CI; timing-dependent |
 
+## Entities
+
+```mermaid
+classDiagram
+    class Options {
+      +string input
+      +string source_site
+    }
+    class Rgba8 {
+      +usize width
+      +bytes pixels
+    }
+    class Layout {
+      +string filter
+      +LineDraw lines
+    }
+    class Session {
+      +Rgba8 original
+      +ArrayList~EditState~ history
+      +ArrayList~Client~ servers
+    }
+    class EditState {
+      +i32 rotation
+      +Rect crop
+      +string lines_json
+    }
+    class Command {
+      +string word
+      +string arg
+    }
+    class Plan {
+      +string reply
+      +Action actions
+    }
+    class Action {
+      <<union>>
+      crop CropEdges
+      layout lines_json
+    }
+    class Project {
+      +bytes image_bytes
+      +string layout_json
+    }
+    class Client {
+      +string base
+      +CredentialKind credential_kind
+    }
+    class EditConn {
+      +Stream stream
+      +ArrayList~u8~ rbuf
+    }
+
+    Options --> Rgba8 : pipeline.run acquires
+    Layout --> Rgba8 : drawLayoutDoc
+    Session *-- EditState : history
+    Session --> Rgba8 : original, working
+    Session o-- Client : servers
+    Session o-- EditConn : events
+    Command --> Session : handlers apply
+    Plan *-- Action : actions
+    Plan --> Session : runPlan
+    Project --> Session : loadInto, saveInto
+```
+
+| Entity | What it is | Owned by / lifetime | Relates to |
+|---|---|---|---|
+| `Options` (`params/options.zig`) | One invocation's flags; `modeOf` derives the `Mode` (`usage`, `console`, `scrape`, `project`, `pipeline`) | `main.zig`, the process | Read by `pipeline.run`, `scrape.run`, `project_cli.runOneShot` |
+| `Rgba8` (`image.zig`) | A decoded interleaved RGBA8 buffer, the only pixel type the core transforms | The caller's allocator; `decoded` marks stb's over-aligned plane | Produced by `image.decode`, consumed by every `pipeline/steps` op and `image.encode` |
+| `Layout` (`layout.zig`) | A parsed layout document: dims, filter, page and `core.LineDraw` lines | Its own arena, per run | The browser's `buildLayoutPayload` shape is canonical; re-mapped through `FrameStep` |
+| `Session` (`console/session.zig`) | The console's working document: the original, the undo stack, the derived view, the server pool, the LLM `Config`, `Attachment`s and chat `Turn`s | `console.run` or `project_cli.runOneShot`, for the process | Holds `EditState`, `Client`, `EditConn` |
+| `EditState` (`console/session/state.zig`) | One undoable snapshot: rotation, crop, filter, lines JSON | `Session.history`, up to `max_states` | The browser layout model is canonical; serialized by `currentLayoutJson` |
+| `Command` (`console/commands.zig`) | A parsed console line; `verbOf` yields a `Verb`, `actionOf` a transform `Action` (`crop`/`rotate`/`filter`/`layout`) | Slices into the input line, one dispatch | Switched on by `dispatch.handle` into `handlers.do*` |
+| `Plan` (`llm/opplan/model.zig`) | A validated op plan: reply, actions, variants, an optional `Ask`, warnings | Its own arena, one `/prompt` turn | `opRegistry.json` (browser) is canonical; produced by `parsePlan`, run by `plan.runPlan` |
+| `Action` (`llm/opplan/model.zig`) | One normalized op as a tagged union, one variant per registered op | Arena of its `Plan` | Pinned 1:1 onto `op_registry` at comptime; applied by `applyPlanAction` |
+| `Project` (`project/shape.zig`) | A parsed `.stencil` document: metadata, encoded original, layout JSON, optional chat block | Its own arena; returned by `loadInto` | The browser's `.stencil` writer is canonical; built by `codec.build` from `BuildOpts` |
+| `Client` (`server/rest.zig`) | One collaboration-server connection: origin, session token, what the credential proved to be; its `Transport` returns bodies, and every other fetch ends in a `net.Response` (status + capped body) | `Session.servers` or a one-shot `pipeline.run` | Mirrors `server/internal/protocol`; `request` re-mints once on a stale session |
+| `EditConn` (`server/edit.zig`) | The read-only NDJSON events subscription over the raw-TCP edit port; yields `Event`s (id, name, version, deleted) | `Session.events`, while a project is synced | `pullAction` decides what a peer's edit means |
+
+## Patterns
+
+| Pattern | Where | Notes |
+|---|---|---|
+| Facade over core | `core.zig` over `cliApi.h`; package roots `pipeline.zig`, `llm.zig`, `serverClient.zig`, `project.zig` | Typed, allocation-free wrappers; each root re-exports the names its callers bind to |
+| Command | `EditState` on `Session.history` (`pushState`, `undo`, `redo`, `revert`); `Verb` → `dispatch.handle` → `handlers.do*` | Every edit is a snapshot; the view is rebuilt from it, never patched |
+| Strategy | `Provider` → `wire/body.zig writeBody`; `scrape.Deps`; `server/http.zig Transport`; `report.Writer` | Selected by enum or injected fn pointer; tests swap the seam, production wires the real one |
+| Observer | `EditConn` drained by `remoteEvents.pollEvents` at the prompt boundary; `markDirty` / `flushSync` | `PullAction` is a pure decision over version, dirty and id |
+| Repository | `project.loadInto` / `saveInto`; `Client.getProject` / `updateProject` / `uploadFile` | Persistence behind one bridge, shared by the console and the one-shot path |
+| Chain of Responsibility | `net.request`: `guardHost` (literal host, DNS resolution, `strict`), redirect refusal, `MAX_FETCH_BYTES`; `confine.hasParentTraversal` then `outsideCwd` | One guard per concern, in a fixed order |
+| Adapter | `layout.zig parse` (browser JSON → `LineDraw`), `server/payload.zig buildLayout` (session → envelope), `image.zig` over stb | The CLI never edits the layout schema, it translates to and from it |
+| Pipeline | `pipeline/oneshot.run` over `pipeline/steps.zig` | acquire → crop → rotate → filter → layout → encode; the console drives the same steps one at a time |
+| Table-driven validator | `opSchema.Schema` over the embedded `opRegistry.json`; `registry/table.zig op_registry` | A comptime check pins one descriptor per `Action` variant; forbidden names fail at build |
+
+## Design
+
+- **A one-shot run.** `args.parse` turns argv into `Options`, `modeOf` picks the `Mode`.
+  `pipeline.run` acquires an `Rgba8` (`acquireInput`: a local read, `net.fetch` or
+  `video.extractFrame`; `acquireBlank`; a server `downloadFile`), then `cropInPlace`,
+  `applyRotateBy`, `loadLayoutDoc` → `Layout`, `applyFilterMode`, `drawLayoutDoc`
+  (`core.rasterizeLine`). `writeOutputLabeled` encodes and prints
+  `wrote {path} ({w}x{h} px · {page})` through `report.print`, the one exit for every
+  line below the presentation layer (an installed `Writer` captures them headlessly).
+- **A console turn.** `commands.parseCommand` yields a `Command`; `dispatch.handle` routes
+  a `Verb` to its handler or a transform to `handlers/edit.zig runAction`, which calls
+  `applyCrop`, `applyRotate`, `setFilter` or `addLines`. Each dupes the current
+  `EditState`, `pushState`s it and `rebuild`s the view (`derivedView.Base` caches rotate →
+  crop → filter, then the lines). `/undo` and `/redo` move `cursor`; a recorded edit
+  `markDirty`s and `flushSync` uploads at the prompt boundary.
+- **An LLM turn.** `/prompt` → `console/llm/run.doPrompt`: `Session.llmConfig()` resolves
+  the `Config`, the working image, edge map and `Attachment`s ride as images,
+  `buildRequestWithHistory` builds the `Request` for the `Provider`, `transport.postJson`
+  waits with a `Waiter`, `extractReply` pulls the text. `plan.runPlan` calls `parsePlan`;
+  a `Plan`'s actions run through `applyPlanAction` onto the same handlers, an `Ask` is
+  remembered in `ask_options`, a load-without-trace plan re-sends once.
+- **A server connection.** `/connect url [token]` → `server.connect`: `normalizeBase`,
+  `resolveToken` (a GET /projects probe, an admin re-mint, or an anonymous mint) → a
+  `Client` in `Session.servers`. `/fetch name` uses `findProjectRef`, `downloadFile` and
+  `getProject`, then `adoptServerLayout`, `setRemote` and `openEvents` (an `EditConn`
+  hello). A push sends the `buildLayout` envelope to `updateProject(id, layout, version)`
+  and `uploadFile`s the result; each drained `Event` goes through `pullAction`.
+- **A `.stencil` project.** `Mode.project` runs `project_cli.runOneShot` on a `Session`.
+  `project.loadInto` parses a `Project`, decodes `image_bytes`, `loadImage`s it with the
+  encoded source retained and `adoptServerLayout(layout_json)`; `saveInto` bundles the
+  verbatim source, `currentLayoutJson` and a `SaveMeta` through `codec.build`. The shape is
+  `{format: "stencil-project", version: 1, name, image: {dataUrl, ext, w, h}, layout, chat?}`.
+- **A scrape.** `Mode.scrape` → `scrape.run` with the real `Deps`. The page is fetched
+  non-strict through `net.fetch`, `parseMedia` yields `Media` items, `categoryPass`,
+  `formatPass` and `NameMatcher` filter them, `window` cuts the slice. `fetchPool.fetchAll`
+  runs the `Job`s (`strict = subStrict`) on at most `max_workers` tasks into a `Batch` in
+  submission order; each write prints `wrote {path} ({w}x{h} px · source {host})`.
+
 ## Rules
 
 1. **A module that outgrows one file becomes a package**: `x.zig` stays as the surface its
@@ -82,5 +212,9 @@ reports through `report.zig` and never spells an ANSI escape; `logo.zig`'s
 Inline unit tests in `src/` and integration suites in `tests/` banded by seam: the PNG
 fixture through every op and output format, a full `pipeline.run`, a console session
 through `console.handle`, the drift tests of the embedded tables and the text goldens. The
-raw-mode TUI is covered by a manual pseudo-terminal smoke script. Benchmarks assert only
-ratios between two input sizes of the same stage, never a wall-clock number.
+`*_fixtures_test.zig` suites walk the shared corpora under `browser/js/config/` (op plans,
+provider wire, chat documents, sanitizer, `.stencil`); `testdata/` holds the stderr goldens
+mcp and bot replay; `tests/pins/` the colour and plain rendering of every console screen.
+Every network or disk seam (`scrape.Deps`, `http.Transport`, `report.Writer`) takes an
+in-memory fake, so the suite runs offline; the raw-mode TUI has a manual pseudo-terminal
+smoke script. Benchmarks assert only ratios between two input sizes, never a wall-clock.
