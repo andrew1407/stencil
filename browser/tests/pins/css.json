@@ -1613,6 +1613,22 @@
     "animation": "menuPop 0.14s ease-out",
     "transform-origin": "top left"
    },
+   "|#ctx-script-diag": {
+    "padding": "6px 2px 0",
+    "font-size": "11.5px"
+   },
+   "|#ctx-script-editor": {
+    "cursor": "text"
+   },
+   "|#ctx-script-editor, #ctx-script-highlight": {
+    "inset": "6px 8px",
+    "font-size": "12px",
+    "padding": "1px 3px 10px"
+   },
+   "|#ctx-script-wrap": {
+    "flex": "1 1 0",
+    "min-height": "150px"
+   },
    "|#ctx-tint-row": {
     "display": "none",
     "padding": "5px 14px 7px",
@@ -4541,6 +4557,38 @@
     "color": "var(--text-muted)",
     "min-width": "90px",
     "font-weight": "normal"
+   },
+   "|.ctx-script": {
+    "width": "372px",
+    "max-width": "calc(100vw - 40px)",
+    "box-sizing": "border-box",
+    "padding": "2px 12px 6px",
+    "display": "flex",
+    "flex-direction": "column",
+    "height": "min(58vh, 440px)",
+    "user-select": "text"
+   },
+   "|.ctx-script .ctx-script-actions": {
+    "flex-wrap": "wrap",
+    "gap": "6px"
+   },
+   "|.ctx-script .ctx-script-actions .btn-icon-text": {
+    "font-size": "12px",
+    "padding": "4px 9px"
+   },
+   "|.ctx-script-plain .ctx-arrow": {
+    "display": "none"
+   },
+   "|.ctx-script-plain > .ctx-sub": {
+    "display": "none !important"
+   },
+   "|.ctx-script-row": {
+    "display": "flex",
+    "justify-content": "flex-end",
+    "padding-top": "8px"
+   },
+   "|.ctx-script-sub": {
+    "padding": "6px 0"
    },
    "|.ctx-sel": {
     "flex": "1",
@@ -8067,6 +8115,17 @@
    "|.ctx-hotkey",
    "|.accent-dd-opt:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .ctx-item:hover > .ctx-hotkey .tip-key",
    "@media (prefers-reduced-motion: reduce)|.accent-dd-opt:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .ctx-item:hover > .ctx-hotkey .tip-key",
+   "|.ctx-script-sub",
+   "|.ctx-script-plain .ctx-arrow",
+   "|.ctx-script-plain > .ctx-sub",
+   "|.ctx-script",
+   "|#ctx-script-wrap",
+   "|#ctx-script-editor, #ctx-script-highlight",
+   "|#ctx-script-editor",
+   "|#ctx-script-diag",
+   "|.ctx-script-row",
+   "|.ctx-script .ctx-script-actions",
+   "|.ctx-script .ctx-script-actions .btn-icon-text",
    "|.image-missing-banner",
    "|.image-missing-banner .image-missing-reupload",
    "|#notify-balloon",
