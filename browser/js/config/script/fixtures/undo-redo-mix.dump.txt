@@ -1,0 +1,9 @@
+block 0 file "a.png"
+  op open "a.png" 1
+  op filter edit=1 "bw" ""
+  op rect edit=2 "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
+  op save "one.png"
+  op undo 1
+  op save "two.png"
+  op rect "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
+  op save "three.png"

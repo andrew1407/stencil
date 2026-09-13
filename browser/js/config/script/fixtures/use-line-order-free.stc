@@ -1,0 +1,3 @@
+@source a.png:
+    @use line dashed, #cccccc, point red 2px, fill aqua, 3px
+    @line (1,1) (2,2)

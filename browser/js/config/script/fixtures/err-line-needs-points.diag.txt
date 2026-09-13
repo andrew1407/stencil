@@ -1,0 +1,1 @@
+2:11:1: error: @line needs at least two points [E_LINE_NEEDS_POINTS]

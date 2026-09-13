@@ -1,0 +1,22 @@
+# Templates: name a group of directives once, use it anywhere.
+
+@stencil lines and rect:
+    @use line #cccccc dashed, fill aqua, point red 2px
+    @line (23, 14) (14px, 50%)
+    @rect (10, 10) (90, 60)
+
+# A quoted name may contain anything; an unquoted one is every word
+# before the ':'.
+@stencil "line-style":
+    @use line #cccccc dashed, cm, fill aqua, point red 2px
+
+# @1 and @2 are positional parameters; the count sets the arity.
+@stencil line-style param:
+    @use line @1 dashed, @2, fill aqua, point red 2px
+
+@SOURCE ./somepath/someimage.png:
+    @RECT (23, 14) (56, 90)
+    @use stencil lines and rect:
+    @use stencil "line-style":
+    @use stencil line-style param red cm:
+    @save

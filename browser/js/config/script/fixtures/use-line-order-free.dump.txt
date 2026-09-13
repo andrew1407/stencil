@@ -1,0 +1,3 @@
+block 0 file "a.png"
+  op open "a.png" 1
+  op line edit=1 "#cccccc" "dashed" "aqua" "red" [1px 1px 2px 2px] 3 2 0

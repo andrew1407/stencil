@@ -1,0 +1,9 @@
+@stencil style:
+    @use line red
+
+@stencil style bold:
+    @use line blue, 5px
+
+@source a.png:
+    @use stencil style bold:
+    @line (1,1) (2,2)

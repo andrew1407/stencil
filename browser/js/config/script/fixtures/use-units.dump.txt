@@ -1,0 +1,4 @@
+block 0 file "a.png"
+  op open "a.png" 1
+  op line edit=1 "#FFFF00" "solid" "transparent" "" [1cm 2cm 3cm 4cm] 2 4 0
+  op line edit=2 "#FFFF00" "solid" "transparent" "" [5% 6% 7% 8%] 2 4 0

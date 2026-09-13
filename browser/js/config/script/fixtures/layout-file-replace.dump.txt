@@ -1,0 +1,4 @@
+block 0 file "a.png"
+  op open "a.png" 1
+  op layout edit=1 "./notes.json" "replace" 1
+  op save ""

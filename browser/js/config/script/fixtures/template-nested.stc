@@ -1,0 +1,9 @@
+@stencil inner:
+    @filter bw
+
+@stencil outer:
+    @use stencil inner:
+    @rect (1,1) (2,2)
+
+@source a.png:
+    @use stencil outer:

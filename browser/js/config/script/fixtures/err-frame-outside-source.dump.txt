@@ -1,0 +1,2 @@
+block 0 project ""
+  op filter edit=1 "bw" ""

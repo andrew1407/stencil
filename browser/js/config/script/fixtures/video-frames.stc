@@ -1,0 +1,7 @@
+@source clip.mp4:
+    @frame 8
+    @rect (1,1) (2,2)
+    @save
+    @frame 90
+    @filter bw
+    @save

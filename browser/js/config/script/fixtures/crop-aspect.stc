@@ -1,0 +1,2 @@
+@source a.png:
+    @crop x1=10% aspect=3:2

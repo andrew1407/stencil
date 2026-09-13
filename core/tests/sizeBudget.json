@@ -13,6 +13,7 @@
     "core/page": 10,
     "core/parse": 9,
     "core/raster": 10,
+    "core/script": 5,
     "core/state": 8,
     "core/tests": 7
   },

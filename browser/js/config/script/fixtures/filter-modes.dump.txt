@@ -1,0 +1,7 @@
+block 0 file "a.png"
+  op open "a.png" 1
+  op filter edit=1 "bw" ""
+  op filter edit=2 "sepia" ""
+  op filter edit=3 "invert" ""
+  op filter edit=4 "contour" ""
+  op filter edit=5 "none" ""

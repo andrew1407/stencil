@@ -1,0 +1,6 @@
+@source a.png:
+    @filter bw
+    @filter sepia
+    @filter invert
+    @filter contour
+    @filter none

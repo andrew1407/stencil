@@ -1,0 +1,34 @@
+# Several sources in one script. Each @source block is independent:
+# its own edits, its own undo history, its own saves.
+
+@SOURCE https://example.com/one.png:
+    @rect (23, 14) (56, 90)
+    @use stencil line-style:
+    # On the editors a bare @save saves the open project; a name renames it.
+    @save
+
+@SOURCE https://example.com/two.png:
+    @rect (23, 14) (56, 90)
+    @save project2
+
+# A video source: @frame picks the frame, and starts a fresh set of edits.
+@source ./clip.mp4:
+    @frame 8
+    @rect (10, 10) (90, 60)
+    @save
+    @frame 90
+    @filter sepia
+    @save
+
+# A whole directory, or a glob: every image gets the same treatment.
+@source ./shots/:
+    @filter bw
+    @rect (23, 14) (56, 90)
+    @save
+
+@source ./shots/a*.png:
+    @filter sepia
+    @save ./out/
+
+@stencil line-style:
+    @use line #cccccc dashed, fill aqua, point red 2px

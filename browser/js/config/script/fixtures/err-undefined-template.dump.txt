@@ -1,0 +1,2 @@
+block 0 file "a.png"
+  op open "a.png" 1

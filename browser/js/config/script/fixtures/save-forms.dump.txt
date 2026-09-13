@@ -1,0 +1,7 @@
+block 0 file "a.png"
+  op open "a.png" 1
+  op filter edit=1 "bw" ""
+  op save ""
+  op save "out/"
+  op save "named"
+  op save "out/exact.jpg"

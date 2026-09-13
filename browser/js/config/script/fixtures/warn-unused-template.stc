@@ -1,0 +1,5 @@
+@stencil never used:
+    @filter bw
+
+@source a.png:
+    @filter sepia

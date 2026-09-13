@@ -1,0 +1,3 @@
+block 0 file "a.png"
+  op open "a.png" 1
+  op crop edit=1 "3:2" [10% _ _ _] 0

@@ -1,0 +1,2 @@
+@source a.png:
+    @use stencil nowhere:

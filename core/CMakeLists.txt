@@ -50,6 +50,19 @@ set(STENCIL_CORE_SOURCES
   state/ProjectsStore.cpp
   state/zoomPan.cpp
   state/holdDraw.cpp
+  script/scriptDiagnostics.cpp
+  script/scriptLexer.cpp
+  script/scriptParser.cpp
+  script/scriptValues.cpp
+  script/scriptArgs.cpp
+  script/scriptCrop.cpp
+  script/scriptLineStyle.cpp
+  script/scriptTemplates.cpp
+  script/scriptUndo.cpp
+  script/scriptHistory.cpp
+  script/scriptLower.cpp
+  script/scriptProgram.cpp
+  script/scriptDump.cpp
 )
 
 # Every group dir (plus the core root for models.hpp + the extern "C" API files) is on
@@ -65,7 +78,8 @@ set(STENCIL_CORE_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/parse
   ${CMAKE_CURRENT_SOURCE_DIR}/page
   ${CMAKE_CURRENT_SOURCE_DIR}/format
-  ${CMAKE_CURRENT_SOURCE_DIR}/state)
+  ${CMAKE_CURRENT_SOURCE_DIR}/state
+  ${CMAKE_CURRENT_SOURCE_DIR}/script)
 
 # ── stencil_core: the shared, GUI-free logic library (STL only) ───────────────
 add_library(stencil_core STATIC ${STENCIL_CORE_SOURCES})
@@ -104,6 +118,9 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/pageMetrics.test.cpp
     tests/cropGeometry.test.cpp
     tests/formula.test.cpp
+    tests/script.test.cpp
+    tests/scriptLower.test.cpp
+    tests/scriptFixtures.test.cpp
     tests/DurationParser.test.cpp
     tests/history.test.cpp
     tests/ProjectsStore.test.cpp

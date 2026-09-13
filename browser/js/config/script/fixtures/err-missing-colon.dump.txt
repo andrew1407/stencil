@@ -1,0 +1,2 @@
+block 0 project ""
+  op crop edit=1 "" [10% -10% 10% -10%] 0

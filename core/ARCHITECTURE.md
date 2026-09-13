@@ -23,12 +23,13 @@ graph TD
 ## Layers
 
 `models.hpp` / `text.hpp` / `rgba.hpp` → `geometry/`, `color/`, `parse/` → `raster/`,
-`page/`, `format/`, `state/` → `abi/` → `wasm*Api.cpp`, `cliApi.cpp`.
+`page/`, `format/`, `state/`, `script/` → `abi/` → `wasm*Api.cpp`, `cliApi.cpp`.
 
 A group includes only what is to its left. `parse/cropSpec` includes `geometry/cropGeometry`;
 `raster/rasterize` includes `color/colorNames` and `raster/imageFilter` includes
 `color/luma`; `format/tooltipRows` includes `page/pageMetrics`; `state/` and `page/` include
-nothing but the root value types; `abi/` includes only `models.hpp`; the library itself never
+nothing but the root value types; `script/` includes `parse/`, `color/` and `raster/` — it
+lowers a script into their vocabulary rather than growing its own; `abi/` includes only `models.hpp`; the library itself never
 includes `abi/`. By convention; no lint. Every group directory is on one flat include path, so
 the includes are bare (`"cropGeometry.hpp"`) and the direction is visible only in the
 `#include` lines.
@@ -45,6 +46,7 @@ the includes are bare (`"cropGeometry.hpp"`) and the direction is visible only i
 | `page/` | pixel ↔ page (cm) conversion, the ISO `PAGE_SIZES` table, locale unit | the page table is the one source; adapters read it over the ABI |
 | `format/` | tooltip rows, hotkey display formatting | string building only |
 | `state/` | history stack, projects store + expiry, zoom/pan, hold-draw state machine, `ProjectMeta` | in-memory only; persistence and the event loop belong to the GUI |
+| `script/` | the `.stc` language: lexer, parser, template expansion, lowering, diagnostics, the canonical dump | parses and lowers only — it opens no file, fetches no URL and touches no pixel |
 | `abi/` | marshalling, the handle table, the lines codec, `shared.inc` | used by **both** `extern "C"` surfaces, never by the library itself |
 | `wasm*Api.cpp` | the `extern "C"` ABI compiled to WebAssembly, split by export family | listed only in `core/CMakeLists.txt`; plain STL, so they also compile natively into the tests |
 | `cliApi.{h,cpp}` | the `extern "C"` ABI the CLI and pystencil call | flat `double*` / RGBA8 buffers and C strings; no embind, no host allocation |
@@ -137,6 +139,12 @@ classDiagram
 | `HoldEvent` (`state/holdDraw.hpp`) | one `HoldAction` (NONE, ARMED, ABORT, START, DROP, PREVIEW, COMMIT) with optional coordinates | value returned per pointer call | `HoldDrawController` |
 | `ProjectMeta` (`state/ProjectMeta.hpp`) | one saved project's metadata, field for field the browser project object (`projectMeta.js`, canonical) and the server `ProjectRecord`; payloads are the adapter's | value inside `ProjectsStore::registry_` | `ProjectsStore` |
 | `ProjectsStore` (`state/ProjectsStore.hpp`) | the in-memory registry with an id index, name rules and the expiry rules; port of the pure parts of `projectsStore.js` | the adapter that loads and persists it | `ProjectMeta` |
+| `ScriptProgram` (`script/scriptProgram.hpp`) | one parsed `.stc`: its tokens, diagnostics, blocks and lowered ops. Immutable after `parse`, which is what lets the ABI hand out pointers into it | created per parse; owned by an `abi::HandleTable` slot until destroyed | `Token`, `Diagnostic`, `Block`, `Op` |
+| `Token` (`script/scriptTypes.hpp`) | one lexed span with its line, column, length and `TokenKind` | value inside a `ScriptProgram`; an editor colours by kind | `ScriptProgram` |
+| `Diagnostic` (`script/scriptTypes.hpp`) | one error or warning: a stable code, a span and a message | value inside a `ScriptProgram` | `ScriptProgram` |
+| `Block` (`script/scriptTypes.hpp`) | one `@source` run, or the implicit project block: the spec, its `SourceKind` and its slice of the op stream | value inside a `ScriptProgram` | `Op` |
+| `Op` (`script/scriptTypes.hpp`) | one lowered operation: plain strings, length tokens resolved lazily, and plain numbers | value inside a `ScriptProgram`; `resolveOp` turns its tokens into pixels | `Block`, `CropRect`, `Line` |
+| `EditLedger` (`script/scriptUndo.hpp`) | the per-block record of which edits are still live, and the rewind-and-replay that reconciles them at each `@save` | lives only during lowering | `Op` |
 | `CropRect` (`geometry/cropGeometry.hpp`) | the crop window in original-image pixel space; lines are crop-local | value, kept by the adapter beside a 0..3 quarter-turn count | `CropSpec`, `Line` |
 | `CropSpec` (`parse/cropSpec.hpp`) | the CLI's parsed crop string, one length token per edge plus `aspect` | value, consumed by `resolveCropRect` | `CropRect` |
 | `FormulaParser` (`parse/formulaParser.hpp`) | the `f(x)` / `f(y)` arithmetic evaluator; identity on empty or invalid input | stateless; `Eval` lives for one call | `Point` (page coordinates after `pixelToPageRaw`) |
@@ -151,6 +159,8 @@ classDiagram
 | Repository | `ProjectsStore` (`state/ProjectsStore.hpp`) | registry + `index_` behind `upsert` / `find` / `remove`; serialisation and storage are the adapter's |
 | State machine | `HoldDrawController` (`state/holdDraw.hpp`) | `pointerDown` arms, a move past `moveTol_` aborts, `tick` past `holdDelay_` starts at the press point, a dwell drops a point, `pointerUp` commits; times are injected monotonic ms |
 | Interpreter (recursive descent) | `Eval` in `parse/formulaParser.cpp`, `DurationParser`, `parseCropSpec` + `parseLengthToken` | grammar functions per rule; `DepthGuard` caps recursion at `MAX_DEPTH` = 256, shared with `formulaEngine.js` |
+| Interpreter (lowering) | `script/` | a `.stc` is lexed, parsed, template-expanded and lowered to a flat `Op` stream; the adapters execute ops, never grammar, so every surface runs one language |
+| Rewind and replay | `EditLedger::reconcile` (`script/scriptUndo.hpp`) | `@undo` is resolved when the script is lowered: one `undo` back to where the applied and surviving edits agree, then the survivors again — so no adapter computes an undo count |
 | Handle table | `abi::HandleTable<T>` | stateful classes cross the ABI as opaque ints; an unknown handle is a no-op returning a neutral value |
 | Flat codec | `abi::encodeLines` / `decodeLines` (`abi/linesCodec.hpp`), `abi::toPoints` (`abi/marshal.hpp`) | `Lines` travel as a doubles buffer plus a UTF-8 text buffer; lengths are honoured, never trusted |
 | One body, two symbols | `abi/shared.inc` with `STENCIL_ABI(wasmName, cliName)` | exports identical on both ABIs are written once and emitted under each spelling |
@@ -173,6 +183,15 @@ classDiagram
   it in place; the `*Rows` exports take `[y0, y1)` for the caller's pool, contour in two
   phases (`buildLumaRows` for every row, then `sobelRows`). Nothing allocates, frees or
   retains caller memory; returned strings are static.
+- **A script run.** `ScriptProgram::parse` lexes (where `#` opens a comment unless the token
+  is a hex colour, and `://` never breaks a word), parses statements into blocks whose bodies
+  end where their indentation does, expands `@use stencil` by longest-defined-prefix, then
+  lowers everything to a flat `Op` stream. Lengths stay as tokens because a crop changes the
+  image mid-script: `resolveOp` turns them into pixels against the size the host holds right
+  then, reusing `resolveCropRect` and `resolveAxisPx`. `@undo` never reaches an adapter —
+  `EditLedger` resolves it at each `@save` into one rewind plus a replay of the survivors.
+  The language is normative in `stc-contract/stc-contract.md`; the corpus in
+  `browser/js/config/script/fixtures/` is what proves every surface agrees.
 - **A formula evaluation.** `FormulaParser::apply(expr, var, value, allowFormulas)` is the
   identity when formulas are off, the expression is empty, or evaluation fails. `Eval` walks
   `expr → term → unary → power → primary` with a `DepthGuard` per nested rule; a non-finite
@@ -232,6 +251,14 @@ algorithmic properties as ratios — contour vs. the per-pixel filter, rotate as
 transpose, rasterising and hit tests linear in line count, the parser at `MAX_DEPTH`, the
 two luma forms within 1 of each other, `HistoryStack::push` amortised O(1) — never a
 wall-clock number.
+
+The script suites are two: `script.test.cpp` over the lexer, the argument grammars and
+resolution, and `scriptLower.test.cpp` over templates, history and the caps. Both assert that
+malformed input yields a diagnostic rather than a crash, the way the formula suite does.
+`scriptFixtures.test.cpp` walks the shared corpus, comparing the canonical dump and the
+diagnostics byte for byte and holding the `err-*` naming rule; it also re-parses a fixture
+truncated at every seventh byte, so a half-written script in an editor can never crash a
+surface.
 
 The `wasm*Api.cpp` and `cliApi.cpp` units are plain STL, so `stencil_tests` compiles them
 natively and drives every export through its `extern "C"` prototype, guarding the

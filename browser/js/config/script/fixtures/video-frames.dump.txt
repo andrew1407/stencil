@@ -1,0 +1,8 @@
+block 0 file "clip.mp4"
+  op open "clip.mp4" 1
+  op frame 8
+  op rect edit=1 "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
+  op save ""
+  op frame 90
+  op filter edit=1 "bw" ""
+  op save ""

@@ -1,0 +1,1 @@
+1:1:7: error: '@source <path|url>:' needs a trailing ':' [E_MISSING_COLON]
