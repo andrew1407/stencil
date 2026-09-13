@@ -1,12 +1,45 @@
 #include "ChatPlanTarget.hpp"
 #include "MainWindow.hpp"
 #include "ScriptDialog.hpp"
+#include "mainWindowHelpers.hpp"   // closeOpenPopupMenus()
+#include "ScriptMenuPanel.hpp"
 #include "Notifications.hpp"
 #include "scriptRun.hpp"
+#include "theme.hpp"
 
-// The Data section's script window. The dialog only edits; running is here, through the
-// SAME PlanTarget the assistant's op plans drive. Browser twin: js/ui/scriptModal.js.
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QTimer>
+#include <QWidgetAction>
+
+// The Data section's script window and the context menu's script flyout. Neither edits the
+// project itself: both run through the SAME PlanTarget the assistant's op plans drive.
+// Browser twins: js/ui/scriptModal.js and js/ui/ctxScript.js.
 namespace stencil::gui {
+
+  namespace {
+
+    const QString& scriptFilter() {
+      static const QString filter = QStringLiteral("Stencil script (*.stc)");
+      return filter;
+    }
+
+    // A run's verdict, said the same way wherever it was started from.
+    void reportRun(Notifications* notify, const ScriptRunResult& result) {
+      if (!notify) return;
+      if (result.ok) {
+        notify->success(result.ops == 1 ? QObject::tr("Script ran: 1 op")
+                                        : QObject::tr("Script ran: %1 ops").arg(result.ops));
+        return;
+      }
+      notify->error(result.line > 0 ? QObject::tr("Script failed at line %1 — %2")
+                                          .arg(result.line)
+                                          .arg(result.error)
+                                    : result.error);
+    }
+
+  }  // namespace
 
   void MainWindow::openScript() {
     ScriptDialog dlg(QString(), this);
@@ -16,19 +49,69 @@ namespace stencil::gui {
     while (execMaybePopover(dlg, actScript_) == QDialog::Accepted) {
       ChatPlanTarget target(*this);
       const ScriptRunResult result = runScript(dlg.script(), target);
+      reportRun(notify_, result);
       if (result.ok) {
-        notify_->success(result.ops == 1 ? tr("Script ran: 1 op")
-                                         : tr("Script ran: %1 ops").arg(result.ops));
         refreshAfterScript();
         return;
       }
-
-      notify_->error(result.line > 0
-                         ? tr("Script failed at line %1 — %2").arg(result.line).arg(result.error)
-                         : result.error);
       dlg.showRunDiagnostics();
       if (result.ops > 0) refreshAfterScript();   // whatever ran before it still stands
     }
+  }
+
+  // Parented to the WINDOW so the per-right-click menu rebuild can re-add it, and so the
+  // typed script outlives the menu (QWidgetAction releases, never deletes, its widget).
+  void MainWindow::ensureScriptMenuPanel() {
+    if (scriptMenuAction_) return;
+    ScriptMenuPanel::Hooks hooks;
+    // In place: the menu stays open, with the strip and the underlines on the text that ran.
+    hooks.run = [this](QString text) {
+      ChatPlanTarget target(*this);
+      const ScriptRunResult result = runScript(text, target);
+      reportRun(notify_, result);
+      if (result.ops > 0) refreshAfterScript();
+    };
+    // A file dialog cannot open under the menu's popup grab: dismiss the chain first, then
+    // pick, and hand the text back to the panel that is still holding it.
+    hooks.upload = [this] {
+      closeOpenPopupMenus();
+      QTimer::singleShot(0, this, [this] {
+        const QString path =
+            QFileDialog::getOpenFileName(this, tr("Open script"), QString(), scriptFilter());
+        if (path.isEmpty()) return;
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+          notify_->error(tr("Could not read %1").arg(QFileInfo(path).fileName()));
+          return;
+        }
+        asScriptMenu(scriptMenuPanel_)->setScript(QString::fromUtf8(file.readAll()));
+        notify_->info(tr("Loaded %1 into the script flyout").arg(QFileInfo(path).fileName()));
+      });
+    };
+    hooks.download = [this] {
+      const QString text = asScriptMenu(scriptMenuPanel_)->script();
+      closeOpenPopupMenus();
+      QTimer::singleShot(0, this, [this, text] {
+        const QString path = QFileDialog::getSaveFileName(this, tr("Save script"),
+                                                          QStringLiteral("stencil.stc"),
+                                                          scriptFilter());
+        if (path.isEmpty()) return;
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+          notify_->error(tr("Could not write %1").arg(QFileInfo(path).fileName()));
+          return;
+        }
+        file.write(text.toUtf8());
+      });
+    };
+    hooks.notice = [this](QString text) { if (notify_) notify_->success(text); };
+
+    auto* panel = new ScriptMenuPanel(this, std::move(hooks));
+    scriptMenuPanel_ = panel;
+    scriptMenuEditor_ = panel->editor();
+    scriptMenuAction_ = new QWidgetAction(this);
+    scriptMenuAction_->setDefaultWidget(panel);   // takes ownership of the panel
+    panel->restyle(themePalette(resolveDark(settings_.themeMode), settings_.accentColor));
   }
 
   // A script edits the same state the toolbar does, so the same refresh follows it.
@@ -43,14 +126,7 @@ namespace stencil::gui {
   void MainWindow::runScriptFromFile(const QString& path) {
     ChatPlanTarget target(*this);
     const ScriptRunResult result = runScriptFile(path, target);
-    if (!result.ok) {
-      notify_->error(result.line > 0
-                         ? tr("Script failed at line %1 — %2").arg(result.line).arg(result.error)
-                         : result.error);
-    } else {
-      notify_->success(result.ops == 1 ? tr("Script ran: 1 op")
-                                       : tr("Script ran: %1 ops").arg(result.ops));
-    }
+    reportRun(notify_, result);
     if (result.ops > 0) refreshAfterScript();
   }
 

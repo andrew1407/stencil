@@ -369,6 +369,8 @@ namespace stencil::gui {
     void openLinks();
     void openDescription();
     void openScript();
+    // Parented to the WINDOW, like the chat panel: the typed script survives the menu closing.
+    void ensureScriptMenuPanel();
     void refreshAfterScript();
     void runScriptFromFile(const QString& path);
     void openKeywords();
@@ -867,6 +869,9 @@ namespace stencil::gui {
     QWidgetAction* chatMenuAction_ = nullptr;
     QWidget* chatMenuPanel_ = nullptr;
     QWidget* chatMenuInput_ = nullptr;
+    QWidgetAction* scriptMenuAction_ = nullptr;   // the script flyout, same arrangement
+    QWidget* scriptMenuPanel_ = nullptr;
+    QWidget* scriptMenuEditor_ = nullptr;
     QWidget* dockZones_ = nullptr;
     bool chatStopRequested_ = false;
     bool chatContinued_ = false;

@@ -500,6 +500,18 @@ stencil_headless_test(stencil_scriptdialog_headless
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
+# The script FLYOUT hosted in the canvas context menu (dialogs/ScriptMenuPanel): the same
+# gates as the window, plus the two keys a code editor owns (Tab indents, Ctrl+Enter runs).
+stencil_headless_test(stencil_scriptmenupanel_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/scriptMenuPanel.headless.cpp src/dialogs/ScriptMenuPanel.cpp
+    src/dialogs/ScriptMenuPanelState.cpp
+    src/dialogs/ScriptHighlighter.cpp src/model/ScriptDoc.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp src/support/modalReveal.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
 # .stc runner (app/scriptRun.cpp + model/ScriptDoc) — the desktop half of the script
 # contract: which op reaches which PlanTarget call, and that an error runs nothing.
 stencil_headless_test(stencil_scriptrunner_headless

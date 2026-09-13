@@ -1632,6 +1632,115 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(chippedAfterSubmenu, "Fit to Window's chip was hidden by the Style submenu's own live-poll");
     beat();
   }
+  // The context menu's "Stencil Script" row is a FLYOUT, not an opener (browser
+  // js/ui/ctxScript.js): a compact twin of the script window, hosted exactly like the
+  // Assistant chat above it. Typing and running leave the menu open, the four actions
+  // read Copy · Download · Upload · Run, and the typed script outlives the menu.
+  void contextMenuScriptFlyout() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(guiTestImage());   // the canvas menu opens for an image, and only then
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    win.settings_.llmProvider = "ollama";   // browser: the row sits right under the Assistant
+    auto* canvas = win.findChild<CanvasWidget*>();
+
+    auto findMenu = []() -> QMenu* {
+      QMenu* menu = nullptr;
+      for (int i = 0; i < 200 && !menu; ++i) {
+        menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!menu) QTest::qWait(10);
+      }
+      return menu;
+    };
+    // startsWith, never == : the row carries its Alt+Shift+S hint in the "\t" column.
+    auto scriptRow = [](QMenu* menu) -> QAction* {
+      for (QAction* a : menu->actions())
+        if (a->text().startsWith("Stencil Script")) return a;
+      return nullptr;
+    };
+
+    bool isFlyout = false, keptHint = false, underAssistant = false, opened = false;
+    bool fourActions = false, runIsPrimary = false, typedThrough = false, aliveAfterTyping = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* menu = findMenu();
+      if (!menu) return;
+      QAction* row = scriptRow(menu);
+      if (!row) { menu->close(); return; }
+      isFlyout = row->menu() != nullptr;
+      keptHint = row->text().contains(QLatin1Char('\t'));
+      const QList<QAction*> acts = menu->actions();
+      for (int i = 1; i < acts.size(); ++i)
+        if (acts.at(i) == row) underAssistant = acts.at(i - 1)->text().startsWith("Assistant");
+      if (!isFlyout) { menu->close(); return; }
+
+      // The keyboard path: → reveals the flyout, a second → drops the caret in the editor.
+      menu->setActiveAction(row);
+      QTest::keyClick(menu, Qt::Key_Right);
+      QMenu* sub = row->menu();
+      settle([&] { return sub->isVisible(); }, 1000);
+      opened = sub->isVisible();
+      if (!opened) { menu->close(); return; }
+      QTest::keyClick(menu, Qt::Key_Right);
+
+      auto* edit = sub->findChild<QPlainTextEdit*>("scriptMenuText");
+      auto* copy = sub->findChild<QPushButton*>("scriptMenuCopy");
+      auto* download = sub->findChild<QPushButton*>("scriptMenuDownload");
+      auto* upload = sub->findChild<QPushButton*>("scriptMenuUpload");
+      auto* run = sub->findChild<QPushButton*>("scriptMenuRun");
+      if (!edit || !copy || !download || !upload || !run) { menu->close(); return; }
+      fourActions = copy->x() < download->x() && download->x() < upload->x() &&
+                    upload->x() < run->x();
+      runIsPrimary = run->property("accentCta").toBool();
+
+      // Typed through the menu's own re-dispatch, the way the chat composer is.
+      QTest::keyClicks(sub, "@filter bw");
+      typedThrough = edit->toPlainText() == QLatin1String("@filter bw");
+      aliveAfterTyping = sub->isVisible() && menu->isVisible();
+      menu->close();
+    });
+    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    QVERIFY2(isFlyout, "the Stencil Script row is still a plain opener, not a submenu");
+    QVERIFY2(keptHint, "the Stencil Script row lost its Alt+Shift+S hint");
+    QVERIFY2(underAssistant, "the script flyout is not directly under the Assistant");
+    QVERIFY2(opened, "the script flyout did not open");
+    QVERIFY2(fourActions, "the actions are not Copy, Download, Upload, Run in that order");
+    QVERIFY2(runIsPrimary, "Run is not the primary action");
+    QVERIFY2(typedThrough, "typing never reached the flyout's editor");
+    QVERIFY2(aliveAfterTyping, "typing in the flyout closed the menu");
+
+    // Second open: the panel is the WINDOW's, so the script is still there — and running
+    // it edits the canvas without dismissing anything.
+    const int linesBefore = int(canvas->allLines().size());
+    bool survived = false, ran = false, aliveAfterRun = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* menu = findMenu();
+      if (!menu) return;
+      QAction* row = scriptRow(menu);
+      if (!row || !row->menu()) { menu->close(); return; }
+      menu->setActiveAction(row);
+      QTest::keyClick(menu, Qt::Key_Right);
+      QMenu* sub = row->menu();
+      settle([&] { return sub->isVisible(); }, 1000);
+      auto* edit = sub->findChild<QPlainTextEdit*>("scriptMenuText");
+      auto* run = sub->findChild<QPushButton*>("scriptMenuRun");
+      if (!edit || !run) { menu->close(); return; }
+      survived = edit->toPlainText() == QLatin1String("@filter bw");
+
+      edit->setPlainText(QStringLiteral("@line (1,1) (10,1) (10,8)"));
+      QTest::mouseClick(sub, Qt::LeftButton, {}, run->mapTo(sub, run->rect().center()));
+      settle([&] { return int(canvas->allLines().size()) > linesBefore; }, 1000);
+      ran = int(canvas->allLines().size()) == linesBefore + 1;
+      aliveAfterRun = sub->isVisible() && menu->isVisible();
+      menu->close();
+    });
+    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    QVERIFY2(survived, "the typed script did not survive the menu closing");
+    QVERIFY2(ran, "Run did not apply the script to the canvas");
+    QVERIFY2(aliveAfterRun, "running the script closed the menu");
+    beat();
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)

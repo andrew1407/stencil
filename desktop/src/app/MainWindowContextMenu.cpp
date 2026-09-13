@@ -2,6 +2,7 @@
 #include "MainWindow.hpp"
 #include "StayOpenMenu.hpp"
 #include "ChatPlanTarget.hpp"
+#include "ScriptMenuPanel.hpp"
 #include "LogoHoverFx.hpp"
 #include "planExecutor.hpp"
 #include "OpenImageDialog.hpp"
@@ -98,7 +99,12 @@ namespace stencil::gui {
       assistant->setInteractiveArea(chatMenuPanel_, chatMenuInput_);
       // No separator BELOW it, so the disabled case leaves exactly the original separators.
     }
-    menu.addAction(actScript_);   // browser: #ctx-script, right under the Assistant
+    // browser: #ctx-script, right under the Assistant — a caret onto the same editor the
+    // script window holds, scoped the same way. The window itself stays on Alt+Shift+S.
+    ensureScriptMenuPanel();
+    StayOpenMenu* script = subMenu("script", QStringLiteral("Stencil Script") + hintTab(actScript_));
+    script->addAction(scriptMenuAction_);
+    script->setInteractiveArea(scriptMenuPanel_, scriptMenuEditor_);
 
     // contextMenu.js:28-31
     menu.addAction(canvas_->isDrawing() ? actStopDraw_ : actStartDraw_);

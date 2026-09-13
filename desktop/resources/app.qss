@@ -601,24 +601,37 @@
       /* The FRAME owns the box (browser .script-editor-wrap): accent hairline at rest, two
          hairlines while the caret is in it. The hover glow is a drop shadow set in code —
          QSS has no box-shadow. */
-      QFrame#scriptEditorGlow {
+      /* Both editors wear it: the window's (ScriptDialog) and the context menu's flyout
+         (ScriptMenuPanel) — the browser reuses its script-* classes for the flyout too. */
+      QFrame#scriptEditorGlow, QFrame#scriptMenuGlow {
         background: transparent; border: 3px solid transparent; border-radius: 11px;
       }
-      QFrame#scriptEditorGlow[hovered="true"] { border-color: %ACCENT_SOFT%; }
-      QFrame#scriptEditorWrap {
+      QFrame#scriptEditorGlow[hovered="true"],
+      QFrame#scriptMenuGlow[hovered="true"] { border-color: %ACCENT_SOFT%; }
+      QFrame#scriptEditorWrap, QFrame#scriptMenuWrap {
         background: %INPUT_BG%; border: 1px solid %ACCENT%; border-radius: 8px;
       }
       /* Focus is the browser's second hairline (its inset ring), and nothing else: the halo
          belongs to hover alone, or the focused box wore five pixels of accent at once. */
-      QFrame#scriptEditorWrap[focused="true"] { border: 2px solid %ACCENT%; }
-      QPlainTextEdit#scriptText {
+      QFrame#scriptEditorWrap[focused="true"],
+      QFrame#scriptMenuWrap[focused="true"] { border: 2px solid %ACCENT%; }
+      QPlainTextEdit#scriptText, QPlainTextEdit#scriptMenuText {
         background: transparent; color: %TEXT%; border: 1px solid transparent; padding: 0;
         selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
       }
       /* The strip under it (browser .script-diag): muted until a run reports something. */
-      QLabel#scriptDiag { color: %MUTED%; font-size: 12px; background: transparent; }
-      QLabel#scriptDiag[state="error"] { color: %DANGER%; }
-      QLabel#scriptDiag[state="warn"] { color: %WARNING%; }
+      QLabel#scriptDiag, QLabel#scriptMenuDiag {
+        color: %MUTED%; font-size: 12px; background: transparent;
+      }
+      QLabel#scriptDiag[state="error"], QLabel#scriptMenuDiag[state="error"] { color: %DANGER%; }
+      QLabel#scriptDiag[state="warn"], QLabel#scriptMenuDiag[state="warn"] { color: %WARNING%; }
+      /* The flyout is that editor at MENU scale (browser css/components/ctxScript.css): it
+         sits straight on the menu's own surface, with a tighter strip and smaller actions. */
+      QWidget#scriptMenuPanel { background: transparent; }
+      QLabel#scriptMenuDiag { font-size: 11px; padding: 4px 2px 0; }
+      QWidget#scriptMenuPanel QPushButton {
+        font-size: 12px; padding: 4px 9px; min-height: 14px;
+      }
       /* …and the reason a value cannot be saved, under the field (promptModal validate). */
       QLabel#modalPromptReason { color: %DANGER%; font-size: 12px; background: transparent; }
       /* The picker dialog's select (modalChrome.cpp chooseModal — browser
