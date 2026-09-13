@@ -1318,9 +1318,9 @@ class MainWindowGuiTest : public QObject {
   }
 
   // The script window's button opens the DATA section (browser toolbar.js puts #script-btn
-  // first there), gates on an image with the browser's own reason, and carries the shared
-  // registry's chord. Its dialog is exec()'d, so this checks the wiring, not the window.
-  void scriptButtonOpensDataAndGatesOnAnImage() {
+  // first there) and carries the shared registry's chord. Its dialog is exec()'d, so this
+  // checks the wiring, not the window.
+  void scriptButtonOpensTheDataSection() {
     MainWindow win(nullptr, false);
     win.resize(1400, 850);
     win.show();
@@ -1342,12 +1342,11 @@ class MainWindowGuiTest : public QObject {
       if (m->actions().contains(win.actScript_)) dataMenu = m;
     QVERIFY2(dataMenu, "the script action is not in any menu");
 
-    QVERIFY2(!win.actScript_->isEnabled(), "the script window opens with no image");
-    QVERIFY2(win.actScript_->toolTip().contains(QStringLiteral("\n— Open an image first")),
-             "no disabled reason on the tooltip");
+    // A script can open its OWN source, so the window is live with no image loaded.
+    QVERIFY2(win.actScript_->isEnabled(), "the script window is gated on an image");
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QVERIFY2(win.actScript_->isEnabled(), "an image did not bring the script window back");
+    QVERIFY2(win.actScript_->isEnabled(), "the script window went dead once an image loaded");
     beat();
   }
 

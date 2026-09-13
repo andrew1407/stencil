@@ -114,7 +114,6 @@ namespace stencil::gui {
     actDownloadJson_->setEnabled(hasLines);
     actCopyLayout_->setEnabled(hasLines);
     actUploadJson_->setEnabled(hasImg);
-    actScript_->setEnabled(hasImg);   // browser: #script-btn, same reason
     actSaveProjectFile_->setEnabled(hasImg);
     actPasteLayout_->setEnabled(hasImg);
     syncExportActions();

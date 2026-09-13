@@ -123,7 +123,6 @@ namespace stencil::gui {
     why(actDownloadJson_, "Draw at least one line to export");
     why(actCopyLayout_, "Draw at least one line to copy");
     why(actUploadJson_, "Load an image first");
-    why(actScript_, "Open an image first");
     why(actClearProject_, "Open an image first — nothing to remove");
 
     connect(actInfo_, &QAction::triggered, this, &MainWindow::openInfo);
