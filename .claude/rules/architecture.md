@@ -8,9 +8,11 @@ The reasoning is in `ARCHITECTURE.md`. These are the parts that fail a build or 
 
 ## Per-surface `ARCHITECTURE.md` is normative
 
-Every subproject has one (`browser/ARCHITECTURE.md`, `cli/ARCHITECTURE.md`, …). Read it
-before editing that tree and keep the change inside its layers, "Where things go" table
-and rules. It is an independent document of that surface's design — layers, modules,
+Every subproject has one (`browser/ARCHITECTURE.md`, `cli/ARCHITECTURE.md`, …), with the
+same seven `##` sections in this order: Layers, Where things go, Entities, Patterns, Design,
+Rules, Tests. Keep that shape; a new entity, pattern or flow goes into its section, never a
+new heading. Read it before editing that tree and keep the change inside its layers,
+"Where things go" table and rules. It is an independent document of that surface's design — layers, modules,
 patterns, connections, schemas and tables — and stays current with the tree. The
 `README.md` beside it is user-facing only (build, run, use) and never carries architecture.
 
@@ -22,7 +24,7 @@ A layer may use everything to its left, nothing to its right.
   `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` → render.
 - **extension** — `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup`,
   `options`, `crop`.
-- **desktop** — model (`CoreFacade` + `DocumentModel`) → controllers → `net/`, `io/` →
+- **desktop** — the core seam (`core/` includes the layer lint allows) → controllers → `net/`, `io/` →
   `support/` (motion, theme, widgets, platform) → `canvas/`, `dialogs/`, `llm/` → `app/`.
 - **cli** — `core.zig` → `args.zig` → `net.zig` → ops (`pipeline`, `image`, `layout`, `page`,
   `video`) → `llm/` → `console/` → `main.zig`. **`console/` is the only layer allowed to write

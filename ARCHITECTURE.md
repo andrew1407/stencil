@@ -38,7 +38,11 @@ graph TD
     BOT -.->|"REST"| SRV
 ```
 
-Per-surface diagrams and structure: [core](core/ARCHITECTURE.md) ·
+Every surface has its own `ARCHITECTURE.md` with the same seven sections: **Layers**,
+**Where things go**, **Entities**, **Patterns**, **Design**, **Rules**, **Tests**. Layers
+and Patterns instantiate §3 and §4 below for that surface; Entities is its domain model;
+Where things go is its placement table; Design is its flows and the schemas it owns.
+Per surface: [core](core/ARCHITECTURE.md) ·
 [browser](browser/ARCHITECTURE.md) · [desktop](desktop/ARCHITECTURE.md) ·
 [cli](cli/ARCHITECTURE.md) · [pystencil](pystencil/ARCHITECTURE.md) ·
 [extension](extension/ARCHITECTURE.md) · [mcp](mcp/ARCHITECTURE.md) ·
@@ -157,54 +161,26 @@ range, enum or cap in `opRegistry.json` and every surface changes with it —
 ## 3. Layer model, per app
 
 Imports point **downward only**. A layer may use everything to its left and nothing to its
-right. Each order is lint-enforced (`browser/tests/layerBoundary.test.js`,
-`desktop/tests/layerBoundary.headless.cpp`, the cli's layer lint in `logo.zig`).
+right. The order per surface, and what enforces it:
 
-**browser** — `config/` + `utils.js` → `core/` (pure logic, **no DOM**) → bus (`core/emitter.js`)
-→ `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` (pure string-returning
-components) → render.
-`core/` is DOM-free, which is what makes wasm parity testable. `ui/` never reaches into `net/` or
-`llm/`; it emits on the bus. Every mutation — toolbar, hotkey, console script, LLM plan —
-routes through the same core methods via the frozen `window.stencil` facade.
+| Surface | Order (left → right) | Enforced by |
+|---|---|---|
+| browser | `config/` + `utils.js` → `core/` (no DOM) → bus → `net/` → `llm/` → `console/` → `ui/` → render | `browser/tests/layerBoundary.test.js` |
+| extension | `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup/`, `options/`, `crop/` | `extension/tests/layerBoundary.test.js` |
+| desktop | core seam (the `core/` includes the lint allows) → controllers → `net/`, `io/` → `support/` → `canvas/`, `dialogs/`, `llm/` → `app/` | `desktop/tests/layerBoundary.headless.cpp` |
+| cli | `core.zig` → `args.zig` + `params/` → `net.zig` → ops → `llm/` → `console/` → `main.zig` | the layer lint in `logo.zig` |
+| pystencil | `_native` + `core` → `image`, `codecs/`, `layout` → `editor/` → `llm/`, `server/`, `sitesource/` → `cli/` | `pystencil/tests/test_layer_boundary.py` |
+| server | `cmd/` → `httpapi` (transport only) → `service` → `store` + `filestore` → `hub` → `protocol` | convention |
+| bot | `Domain` ← `Application` ← `Infrastructure` ← `Bot` (dependencies point inward) | project references + `LayerBoundaryTests.cs` |
+| mcp | `server/` + tools → `opplan/` → `args/` → `pipeline/` → `llm/` | `mcp/tests/layer_boundary_test.rs` |
+| core | value types → `geometry/`, `color/`, `parse/` → `raster/`, `page/`, `format/`, `state/` → `abi/` → the two ABIs | convention |
 
-**extension** — `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup/`,
-`options/`, `crop/`.
-`lib/` is the shared, dependency-free bottom; several of its modules are byte-for-byte ports
-of `browser/js/ui/` files. The extension never reads `../browser` at runtime.
-
-**desktop** — model (`CoreFacade` + `DocumentModel`) → controllers → `net/`, `io/` →
-`support/` (motion, theme, widgets and platform helpers) → `canvas/`, `dialogs/`, `llm/` →
-`app/`. `tests/layerBoundary.headless.cpp` enforces it.
-`app/` is composition and the Qt main window; it owns no logic that a controller could hold.
-QSS belongs to the shared ID-selector sheet in `support/theme.cpp`, not to a widget's own
-`setStyleSheet` (a local sheet silently changes child metrics).
-
-**cli** — core wrap (`core.zig`) → params (`args.zig` + `params/`) → `net.zig` → ops
-(`pipeline/`, `image.zig`, `layout.zig`, `page.zig`, `video.zig`) → `llm/` (`llm.zig` is a
-façade that re-exports it) → presentation (`console/`) → console app (`main.zig`).
-**`console/` is the only layer allowed to write to a terminal.** Lower layers return values
-and errors; they do not print.
-
-**server** — `cmd/` → `internal/httpapi` (**transport only**: decode, authorize, encode) →
-service → `internal/store` + `internal/filestore` → `internal/hub` → `internal/protocol`.
-No business rule lives in a handler. `internal/protocol` is the wire contract the four
-front-ends mirror; `internal/ratelimit`, `internal/auth`, `internal/config` are shared
-infrastructure. The server never touches `core/`.
-
-**bot** — four rings under `bot/src/Stencil.TelegramBot.<Ring>/`, dependencies pointing
-**inward**: `Domain` (no dependencies) ←
-`Application` (use cases) ← `Infrastructure` (CLI spawn, HTTP, Telegram, filesystem) ←
-`Bot` (composition root + the Telegram edge). `Domain` is free of Telegram, HTTP and
-process types.
-
-**mcp** — `server/` + tools → `opplan/` → `args/` → `pipeline/` → `llm/` (`llmtransport/`
-sits beside `llm/`).
-A thin adapter: its whole contract is the CLI's documented flags and its
-`wrote {path} ({w}x{h})` / `error:` stderr output.
-
-**pystencil** — `_native.py` + `core.py` → `image.py`, `codecs/`, `layout.py` → `editor/` →
-`llm/`, `server/`, `sitesource/` → `cli/`. Stdlib only, ctypes only; `_net.py` is the single
-fetch guard every network path goes through.
+Two rules cut across every surface: the pure logic ring (browser `core/`, the desktop's core
+seam, `core.zig`, `pystencil.core`) never touches a DOM, a terminal or a socket, which is what makes
+the parity contract testable; and only the outermost ring may write to the user (the cli's
+`console/`, the server's `httpapi`, the bot's `Bot` ring), so every layer below returns values
+and errors. Each surface's `ARCHITECTURE.md` carries its own Layers section with the
+reasoning.
 
 ---
 
@@ -212,7 +188,7 @@ fetch guard every network path goes through.
 
 The recurring structures, under the names the repo uses for them.
 
-- **Facade over core** — `window.stencil` (browser), `CoreFacade` (desktop), `core.zig` (cli),
+- **Facade over core** — `window.stencil` (browser), the lint-gated `core/` seam (desktop), `core.zig` (cli),
   `pystencil.core`. One narrow, guarded surface; every mutation goes through it, so console
   scripting, hotkeys, toolbar and LLM plans cannot diverge.
 - **Mediator** — `DrawingApp` (browser) and `MainWindow` (desktop) wire collaborators to each
