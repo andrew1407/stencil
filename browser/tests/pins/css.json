@@ -1893,8 +1893,7 @@
     "z-index": "100000",
     "display": "flex",
     "flex-direction": "column",
-    "align-items": "flex-end",
-    "gap": "8px"
+    "align-items": "flex-end"
    },
    "|#install-host:focus-within #install-menu, #install-host:hover #install-menu": {
     "display": "flex",
@@ -1905,6 +1904,9 @@
    },
    "|#install-menu": {
     "display": "none",
+    "position": "absolute",
+    "right": "0",
+    "bottom": "calc(100% + 8px)",
     "flex-direction": "column",
     "gap": "4px",
     "padding": "6px",
@@ -1942,6 +1944,14 @@
    },
    "|#install-menu.dust-hold": {
     "display": "flex"
+   },
+   "|#install-menu::before": {
+    "content": "''",
+    "position": "absolute",
+    "left": "0",
+    "right": "0",
+    "top": "100%",
+    "height": "8px"
    },
    "|#install-toggle": {
     "width": "33px",
@@ -8142,6 +8152,7 @@
    "|#install-toggle:active",
    "|#install-menu",
    "|#install-host:focus-within #install-menu, #install-host:hover #install-menu",
+   "|#install-menu::before",
    "@media (hover: none) and (pointer: coarse)|#install-host",
    "@media (hover: none) and (pointer: coarse)|#install-host:focus-within #install-menu, #install-host:hover #install-menu",
    "|#install-menu [role=\"menuitem\"]",
