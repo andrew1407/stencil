@@ -54,6 +54,9 @@ namespace stencil::gui {
     QWidget* dustHost = chatDock_->window();
     if (!dustHost || !support::isDustMotionOk()) return nullptr;
     pin(full);
+    // A dock is placed by the WINDOW's layout: without this the picture was measured at the
+    // hidden dock's stale geometry, and the motes assembled a whole chat below where it lands.
+    if (QLayout* l = layout()) l->activate();
     const QPixmap snap = chatDock_->grab();
     const QRect picture(chatDock_->mapTo(dustHost, QPoint(0, 0)), chatDock_->size());
     pin(gather ? 0 : full);   // gather starts empty; a scatter leaves from the settled size
