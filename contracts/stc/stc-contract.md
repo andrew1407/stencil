@@ -208,7 +208,7 @@ Identical in C++ and in the JS port, so both reject the same input:
 |---|---|---|---|---|
 | cli | `--script <file>`, `/script`, `/script-run` | file, url, dir, glob, video | a file, `-stencil` suffixed | the session history |
 | pystencil | `run_script`, `Editor.script` | the same | the same | the editor history |
-| browser | the script window, `stencil.script(text)` | **url only** | the project | the project history |
+| browser | the script window, the context menu's editor, a dropped `.stc`, `stencil.execScript(text)` | **url only** | the project | the project history |
 | desktop | the script dialog, a dropped `.stc` | url or local path | the project | the project history |
 | bot | `/script`, a `.stc` upload | url only | a rendered reply | the session history |
 | mcp | `stencil_script` | file or url, confined | inside the sandbox root | not applicable |
