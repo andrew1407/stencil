@@ -98,6 +98,7 @@ namespace stencil::gui {
       assistant->setInteractiveArea(chatMenuPanel_, chatMenuInput_);
       // No separator BELOW it, so the disabled case leaves exactly the original separators.
     }
+    menu.addAction(actScript_);   // browser: #ctx-script, right under the Assistant
 
     // contextMenu.js:28-31
     menu.addAction(canvas_->isDrawing() ? actStopDraw_ : actStartDraw_);

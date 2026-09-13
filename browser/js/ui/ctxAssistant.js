@@ -21,8 +21,8 @@ export const wireCtxAssistant = (app, host) => {
     const on = assistantEnabled(loadLlmSettings());
     let item = document.getElementById('ctx-assist-menu');
     if (on && !item) {
-    // Built directly above the Drawing group and wired like the static parents.
-      const anchor = document.getElementById('ctx-draw-toggle');
+    // Built directly above the script window's entry, and wired like the static parents.
+      const anchor = document.getElementById('ctx-script') || document.getElementById('ctx-draw-toggle');
       if (anchor) anchor.insertAdjacentHTML('beforebegin', assistantItemHtml());
       else host.menu.insertAdjacentHTML('beforeend', assistantItemHtml());
       item = document.getElementById('ctx-assist-menu');

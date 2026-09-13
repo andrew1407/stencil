@@ -54,10 +54,10 @@ test('the Assistant entry markup carries each id once, above Start Drawing', () 
   }
   // Same placeholder wording as the panel, and Enter/Shift+Enter documented in it.
   assert.ok(html.includes('placeholder="Ask the assistant… (Enter sends, Shift+Enter newline)"'));
-  // The entry is built by syncAssistant, directly ABOVE Start Drawing (no separator
-  // of its own — the layoutWith test below pins that gating changes nothing else).
+  // Built by syncAssistant directly ABOVE the script entry, itself above Start Drawing.
   const src = contextMenuSource();
-  assert.ok(src.includes("const anchor = document.getElementById('ctx-draw-toggle');"), 'anchored to Start Drawing');
+  assert.ok(src.includes("getElementById('ctx-script') || document.getElementById('ctx-draw-toggle')"),
+            'anchored to the script entry, falling back to Start Drawing');
   assert.ok(src.includes("anchor.insertAdjacentHTML('beforebegin', assistantItemHtml());"), 'inserted immediately above it');
   // Send ships disabled (nothing typed yet) and becomes Stop at runtime.
   assert.ok(html.includes('id="ctx-assist-send" disabled'));

@@ -66,6 +66,11 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
     }, TINT_DEBOUNCE_MS);
   });
 
+  // The script window, right under the Assistant: the toolbar button is the one opener.
+  document.getElementById('ctx-script').addEventListener('click', () => {
+    closeMenu();
+    document.getElementById('script-btn')?.click();
+  });
   document.getElementById('ctx-fullscreen').addEventListener('click', () => {
     closeMenu();
     if (typeof app.toggleFullscreen === 'function') app.toggleFullscreen();

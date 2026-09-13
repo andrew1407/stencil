@@ -47,7 +47,7 @@ namespace stencil::gui {
     // deferred one double-click interval because exec() blocks.
     pop_.dialogActions = {actOpen_, actOpenAnother_, actOpenIn_, actProjects_, actConnect_, actLinks_,
                              actDescription_, actKeywords_, actChat_, actAssistantSettings_, actShortcuts_,
-                             actSettings_, actInfo_};
+                             actSettings_, actInfo_, actScript_};
     pop_.clickTimer = new QTimer(this);
     pop_.clickTimer->setSingleShot(true);
     pop_.clickTimer->setInterval(250);
