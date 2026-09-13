@@ -120,16 +120,17 @@ test.describe('AI assistant chat panel', () => {
       // The Assistant entry is a submenu PARENT sitting with the others (caret + flyout)…
       await expect(page.locator('#ctx-assist-menu')).toBeVisible();
       await expect(page.locator('#ctx-assist-menu .ctx-arrow')).toBeVisible();
-      // …in the TOP group: above Start Drawing, below Fit to Window, with its own
-      // separator between it and the drawing items.
+      // …in the TOP group: it leads the group that runs Script → Start Drawing, below Fit
+      // to Window, with its own separator between it and the drawing items.
       const order = await page.evaluate(() => {
         const kids = [...document.getElementById('ctx-menu').children];
         const at = (id) => kids.findIndex((k) => k.id === id);
-        return { fit: at('ctx-fit-window'), assist: at('ctx-assist-menu'), draw: at('ctx-draw-toggle'),
-          seps: kids.filter((k) => k.classList.contains('ctx-sep')).length };
+        return { fit: at('ctx-fit-window'), assist: at('ctx-assist-menu'), script: at('ctx-script'),
+          draw: at('ctx-draw-toggle'), seps: kids.filter((k) => k.classList.contains('ctx-sep')).length };
       });
       expect(order.fit).toBeLessThan(order.assist);
-      expect(order.assist + 1).toBe(order.draw);   // directly above Start Drawing, adjacent
+      expect(order.assist + 1).toBe(order.script);   // directly above Stencil Script, adjacent
+      expect(order.script + 1).toBe(order.draw);
 
       // Two different classic flyouts still open on hover, and stay on-screen.
       for (const [item, sub] of [['#ctx-style-menu', '#ctx-style-sub'], ['#ctx-filter-menu', '#ctx-filter-sub'],
@@ -219,14 +220,14 @@ test.describe('AI assistant chat panel', () => {
       // The separator set is the original one — nothing dangling where the entry was.
       const offSeps = await page.locator('#ctx-menu > .ctx-sep:visible').count();
       expect(offSeps, 'same separators as a menu that never had an assistant').toBe(3);
-      // The hidden entry occupies no space: the Drawing group sits right under the
-      // group separator (≈11px), with no dead band where the Assistant row was.
+      // The hidden entry occupies no space: the group leader (Stencil Script) sits right
+      // under the group separator (≈11px), with no dead band where the Assistant row was.
       const gap = await page.evaluate(() => {
         const above = document.getElementById('ctx-fullscreen').getBoundingClientRect().bottom;
-        const draw = document.getElementById('ctx-draw-toggle').getBoundingClientRect().top;
-        return draw - above;
+        const lead = document.getElementById('ctx-script').getBoundingClientRect().top;
+        return lead - above;
       });
-      expect(gap, 'the Drawing group runs straight on from the separator').toBeLessThan(20);
+      expect(gap, 'the group runs straight on from the separator').toBeLessThan(20);
       expect(await page.evaluate(() => document.getElementById('ctx-assist-menu').getBoundingClientRect().height))
         .toBe(0);
       await page.locator('#ctx-style-menu').hover();
