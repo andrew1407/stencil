@@ -142,6 +142,14 @@ namespace stencil::core::script {
           j += 3;
           continue;
         }
+        // So does a port's ':', once the word already carries a scheme — the block's own
+        // ':' is never followed by a digit, and "aspect=3:2" carries no scheme.
+        if (src[j] == ':' && j + 1 < src.size() && src[j + 1] >= '0' && src[j + 1] <= '9' &&
+            word.find("://") != std::string::npos) {
+          word.push_back(':');
+          ++j;
+          continue;
+        }
         if (!isWordByte(src[j])) break;
         word.push_back(src[j]);
         ++j;

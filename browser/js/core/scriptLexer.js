@@ -132,6 +132,13 @@ export const lexScript = (text) => {
         j += 3;
         continue;
       }
+      // So does a port's ':', once the word already carries a scheme — the block's own
+      // ':' is never followed by a digit, and "aspect=3:2" carries no scheme.
+      if (src[j] === ':' && isDigit(src[j + 1]) && word.includes('://')) {
+        word += ':';
+        j += 1;
+        continue;
+      }
       if (!isWordByte(src[j])) break;
       word += src[j];
       j += 1;

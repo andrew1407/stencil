@@ -639,6 +639,18 @@ block 0 file "a.png"
   op rect edit=2 "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
   op filter edit=3 "sepia" ""
   op save "three.png"
+=== url-with-port
+--- script
+@source http://127.0.0.1:8188/shots/a.png:
+    @layout https://example.com:8443/notes.json replace
+    @filter bw
+    @save
+--- dump
+block 0 url "http://127.0.0.1:8188/shots/a.png"
+  op open "http://127.0.0.1:8188/shots/a.png" 2
+  op layout edit=1 "https://example.com:8443/notes.json" "replace" 2
+  op filter edit=2 "bw" ""
+  op save ""
 === use-line-order-free
 --- script
 @source a.png:
