@@ -16,6 +16,7 @@ const EXCLUDED = new Map([
     + 'src/parser/index.js re-composes the JS fallback and is pinned declaration-by-declaration below'],
   ['script.d.ts', 'the sibling of script.js; src/parser/index.d.ts describes the narrower surface'],
   ['scriptHandles.js', 'marshals the wasm core\'s handles; there is no wasm in an editor extension'],
+  ['scriptHandles.d.ts', 'the sibling of scriptHandles.js, and describes the same wasm-only surface'],
 ]);
 
 // Data the copies import. Byte-pinned like any other shared table (.claude/rules/architecture.md).
