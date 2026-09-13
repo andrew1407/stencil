@@ -91,11 +91,11 @@ namespace stencil::gui {
     if (src.kind == DropSrc::NONE) return;
     event->acceptProposedAction();
 
-    // A .json layout ignores the save/incognito split.
-    if (src.kind == DropSrc::LOCAL_FILE &&
-        QFileInfo(src.value).suffix().compare("json", Qt::CaseInsensitive) == 0) {
-      applyLayoutFromSource(src.value);
-      return;
+    // A .json layout and a .stc script ignore the save/incognito split: neither opens an image.
+    if (src.kind == DropSrc::LOCAL_FILE) {
+      const QString suffix = QFileInfo(src.value).suffix();
+      if (suffix.compare("json", Qt::CaseInsensitive) == 0) { applyLayoutFromSource(src.value); return; }
+      if (suffix.compare("stc", Qt::CaseInsensitive) == 0) { runScriptFromFile(src.value); return; }
     }
 
     const bool incognito = event->position().x() >= width() / 2.0;

@@ -583,6 +583,20 @@
       }
       QPlainTextEdit#modalPromptText:focus, QPlainTextEdit#descriptionText:focus,
       QPlainTextEdit#keywordsText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
+      /* The script window's editor (ScriptDialog) — the browser's .script-editor-wrap plus
+         .script-input as one widget, since Qt colours the text in place. The mono face and
+         the gutter are set in code; only the frame and the inks belong here. */
+      QPlainTextEdit#scriptText {
+        background: %INPUT_BG%; color: %TEXT%; border: 1px solid %BORDER%;
+        border-radius: 8px; padding: 6px 8px;
+        selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
+      }
+      QPlainTextEdit#scriptText:hover:enabled { border: 1px solid %ACCENT_RING%; }
+      QPlainTextEdit#scriptText:focus { border: 1px solid %ACCENT%; }
+      /* The strip under it (browser .script-diag): muted until a run reports something. */
+      QLabel#scriptDiag { color: %MUTED%; font-size: 12px; background: transparent; }
+      QLabel#scriptDiag[state="error"] { color: %DANGER%; }
+      QLabel#scriptDiag[state="warn"] { color: %WARNING%; }
       /* …and the reason a value cannot be saved, under the field (promptModal validate). */
       QLabel#modalPromptReason { color: %DANGER%; font-size: 12px; background: transparent; }
       /* The picker dialog's select (modalChrome.cpp chooseModal — browser

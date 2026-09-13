@@ -7,10 +7,10 @@
 // Three rules, from the Phase 6 plan:
 //   1. nothing below app/ may include an app/ header (app/ is the top of the order);
 //   2. dialogs/ may not include a canvas/ header (they are siblings, not a stack);
-//   3. a core/ header may only be included from model/ — the seam that Wave 3's
-//      DocumentModel will own. model/ does not exist yet, so today's core includes are
-//      a frozen allowance list below: the lint refuses NEW ones and each entry is
-//      deleted as the wave moves that call site behind the model.
+//   3. a core/ header may only be included from model/ — the seam Wave 3's DocumentModel
+//      will own, which the .stc engine opened (model/ScriptDoc). Everything still above
+//      the seam is a frozen allowance list below: the lint refuses NEW ones, and each
+//      entry is deleted as the wave moves that call site behind the model.
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QDir>
@@ -135,6 +135,8 @@ int main(int argc, char** argv) {
       const QString inc = QFileInfo(m.captured(1)).fileName();
 
       if (coreHeaders.contains(inc) && !owner.contains(inc)) {
+        // model/ IS the seam: it may include core/ freely, and nothing above it may.
+        if (rel.startsWith(QStringLiteral("model/"))) continue;
         sawCore.insert(rel);
         if (!coreAllowed.contains(rel)) intoCore << (rel + " → core/" + inc);
         continue;

@@ -95,4 +95,36 @@ namespace stencil::model {
     return out;
   }
 
+  core::CropRect ScriptDoc::cropRect(const ScriptOp& op, QSize imageSize, bool* ok) {
+    const QVector<double> r = resolve(op, imageSize);
+    if (ok) *ok = r.size() >= 4;
+    core::CropRect rect;
+    if (r.size() < 4) return rect;
+    rect.x = r[0];
+    rect.y = r[1];
+    rect.width = r[2];
+    rect.height = r[3];
+    return rect;
+  }
+
+  /* A shape op becomes one Line: the resolved points, then thickness and pointSize.
+   * `locked` is what closes it and enables the fill. */
+  void ScriptDoc::appendLine(core::Lines& lines, const ScriptOp& op, QSize imageSize, bool* ok) {
+    const QVector<double> r = resolve(op, imageSize);
+    if (ok) *ok = r.size() >= 6;
+    if (r.size() < 6) return;
+
+    core::Line line;
+    for (int i = 0; i + 3 < r.size(); i += 2) line.points.push_back({r[i], r[i + 1]});
+    auto str = [&](int i) { return i < op.strs.size() ? op.strs[i].toStdString() : std::string(); };
+    line.color = str(0);
+    line.style = str(1);
+    line.fillColor = str(2);
+    line.pointColor = str(3);
+    line.thickness = r[r.size() - 2];
+    line.pointSize = r[r.size() - 1];
+    line.locked = op.kind == ScriptOpKind::RECT;
+    lines.push_back(line);
+  }
+
 }  // namespace stencil::model

@@ -6,15 +6,19 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QMimeData>
 #include <QStyle>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTextStream>
+#include <QUrl>
 
 namespace stencil::gui {
 
@@ -25,6 +29,16 @@ namespace stencil::gui {
     const QString& scriptFilter() {
       static const QString filter = QStringLiteral("Stencil script (*.stc)");
       return filter;
+    }
+
+    // The one local .stc among a drag's urls, or empty.
+    QString droppedScript(const QMimeData* mime) {
+      if (!mime) return QString();
+      for (const QUrl& u : mime->urls()) {
+        const QString path = u.toLocalFile();
+        if (!path.isEmpty() && path.endsWith(QStringLiteral(".stc"), Qt::CaseInsensitive)) return path;
+      }
+      return QString();
     }
 
   }  // namespace
@@ -83,10 +97,12 @@ namespace stencil::gui {
     // Painting is a lex of one screenful, so it runs on the keystroke: the colours ARE the
     // text as far as the reader is concerned, and a deferred paint reads as lag.
     connect(edit_, &QPlainTextEdit::textChanged, this, [this] {
+      if (painting_) return;
       checked_ = false;   // editing clears the last verdict: it was about older text
       repaint(false);
     });
 
+    setAcceptDrops(true);
     setFixedWidth(MODAL_WIDTH);
     adjustSize();
     repaint(false);
@@ -98,7 +114,9 @@ namespace stencil::gui {
 
   void ScriptDialog::repaint(bool withDiagnostics) {
     const model::ScriptDoc program = model::ScriptDoc::parse(edit_->toPlainText());
+    painting_ = true;
     highlighter_->setProgram(program, withDiagnostics);
+    painting_ = false;
 
     if (!withDiagnostics) {
       diag_->clear();
@@ -137,13 +155,29 @@ namespace stencil::gui {
     QApplication::clipboard()->setText(edit_->toPlainText());
   }
 
+  bool ScriptDialog::readInto(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return false;
+    edit_->setPlainText(QString::fromUtf8(file.readAll()));
+    edit_->moveCursor(QTextCursor::End);
+    return true;
+  }
+
   void ScriptDialog::loadFile() {
     const QString path = QFileDialog::getOpenFileName(this, tr("Open script"), QString(),
                                                       scriptFilter());
+    if (!path.isEmpty()) readInto(path);
+  }
+
+  void ScriptDialog::dragEnterEvent(QDragEnterEvent* event) {
+    if (!droppedScript(event->mimeData()).isEmpty()) event->acceptProposedAction();
+  }
+
+  void ScriptDialog::dropEvent(QDropEvent* event) {
+    const QString path = droppedScript(event->mimeData());
     if (path.isEmpty()) return;
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
-    edit_->setPlainText(QString::fromUtf8(file.readAll()));
+    event->acceptProposedAction();
+    readInto(path);
   }
 
   void ScriptDialog::saveFile() {

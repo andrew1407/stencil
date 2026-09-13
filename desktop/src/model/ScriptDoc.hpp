@@ -1,5 +1,8 @@
 #pragma once
 
+#include "cropGeometry.hpp"   // core/: this file is the seam that may include it
+#include "models.hpp"
+
 #include <QSize>
 #include <QString>
 #include <QVector>
@@ -75,6 +78,13 @@ namespace stencil::model {
      * rect expanded to its four corners; FRAME/UNDO/REDO -> [n]. Empty when the op carries
      * no geometry, or when a token cannot be resolved against this size. */
     static QVector<double> resolve(const ScriptOp& op, QSize imageSize);
+
+    /* The two shapes an adapter needs back in the core's own vocabulary. Declared here so
+     * nothing above the seam has to name a core type: callers take them with `auto`.
+     * `cropRect` is empty-on-failure, which the caller reports as "resolves to nothing". */
+    static core::CropRect cropRect(const ScriptOp& op, QSize imageSize, bool* ok);
+    static void appendLine(core::Lines& lines, const ScriptOp& op, QSize imageSize, bool* ok);
+    static core::Lines emptyLines() { return {}; }
 
    private:
     QVector<ScriptToken> tokens_;

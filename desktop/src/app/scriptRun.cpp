@@ -1,8 +1,6 @@
 #include "scriptRun.hpp"
 
 #include "ScriptDoc.hpp"
-#include "cropGeometry.hpp"
-#include "models.hpp"
 #include "planExecutor.hpp"
 
 #include <QFile>
@@ -28,23 +26,8 @@ namespace stencil::gui {
       return i < op.strs.size() ? op.strs[i] : QString();
     }
 
-    /* A shape op becomes one Line in the project's own vocabulary: the resolved points, then
-     * thickness and pointSize. `locked` is what closes it and enables the fill. */
-    core::Line lineFrom(const ScriptOp& op, const QVector<double>& r) {
-      core::Line line;
-      for (int i = 0; i + 3 < r.size(); i += 2) line.points.push_back({r[i], r[i + 1]});
-      line.color = strAt(op, 0).toStdString();
-      line.style = strAt(op, 1).toStdString();
-      line.fillColor = strAt(op, 2).toStdString();
-      line.pointColor = strAt(op, 3).toStdString();
-      line.thickness = r.size() >= 2 ? r[r.size() - 2] : 2.0;
-      line.pointSize = r.isEmpty() ? 4.0 : r[r.size() - 1];
-      line.locked = op.kind == ScriptOpKind::RECT;
-      return line;
-    }
-
-    bool runOp(const ScriptOp& op, llm::PlanTarget& target, core::Lines& drawn,
-               ScriptRunResult& out) {
+    template <class Lines>
+    bool runOp(const ScriptOp& op, llm::PlanTarget& target, Lines& drawn, ScriptRunResult& out) {
       QString err;
       switch (op.kind) {
         case ScriptOpKind::OPEN: {
@@ -62,13 +45,9 @@ namespace stencil::gui {
           return true;
         }
         case ScriptOpKind::CROP: {
-          const QVector<double> r = ScriptDoc::resolve(op, target.workingSize());
-          if (r.size() < 4) { out = failure(QStringLiteral("this crop resolves to nothing"), op); return false; }
-          core::CropRect rect;
-          rect.x = r[0];
-          rect.y = r[1];
-          rect.width = r[2];
-          rect.height = r[3];
+          bool resolved = false;
+          const auto rect = ScriptDoc::cropRect(op, target.workingSize(), &resolved);
+          if (!resolved) { out = failure(QStringLiteral("this crop resolves to nothing"), op); return false; }
           if (!target.applyCropRect(rect)) { out = failure(QStringLiteral("the crop was refused"), op); return false; }
           return true;
         }
@@ -79,9 +58,9 @@ namespace stencil::gui {
         }
         case ScriptOpKind::LINE:
         case ScriptOpKind::RECT: {
-          const QVector<double> r = ScriptDoc::resolve(op, target.workingSize());
-          if (r.size() < 6) { out = failure(QStringLiteral("this shape resolves to nothing"), op); return false; }
-          drawn.push_back(lineFrom(op, r));
+          bool resolved = false;
+          ScriptDoc::appendLine(drawn, op, target.workingSize(), &resolved);
+          if (!resolved) { out = failure(QStringLiteral("this shape resolves to nothing"), op); return false; }
           target.setLayoutLines(drawn);
           return true;
         }
@@ -118,14 +97,16 @@ namespace stencil::gui {
       return out;   // an erroring script runs nothing at all
     }
 
-    if (!target.hasImage()) {
+    const auto& ops = program.ops();
+    const bool bringsItsOwn = !ops.isEmpty() && ops.front().kind == ScriptOpKind::OPEN;
+    if (!bringsItsOwn && !target.hasImage()) {
       out.ok = false;
       out.error = QStringLiteral("open an image first");
       return out;
     }
 
-    core::Lines drawn;
-    for (const ScriptOp& op : program.ops()) {
+    auto drawn = ScriptDoc::emptyLines();
+    for (const ScriptOp& op : ops) {
       if (!runOp(op, target, drawn, out)) return out;
       ++out.ops;
     }

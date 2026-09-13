@@ -32,8 +32,8 @@ graph TD
 
 ## Layers
 
-the core seam → controllers → `net/`, `io/` → `support/` → `canvas/`, `dialogs/`, `llm/` →
-`app/`. `tests/layerBoundary.headless.cpp` enforces it: nothing below `app/` includes an `app/`
+the core seam (`src/model/` plus the files the lint lists) → controllers → `net/`, `io/` →
+`support/` → `canvas/`, `dialogs/`, `llm/` → `app/`. `tests/layerBoundary.headless.cpp` enforces it: nothing below `app/` includes an `app/`
 header, `dialogs/` never includes `canvas/`, and a `core/` header enters the GUI only through
 the files the lint lists as the core seam. The document state itself lives in `CanvasWidget`
 (`core::Lines` + `core::HistoryStack`); the controllers are the `*Controller` classes and
@@ -45,7 +45,8 @@ the files the lint lists as the core seam. The document state itself lives in `C
 |---|---|---|
 | `src/app/` | `main.cpp`, `launchOptions`, the controllers, and `MainWindow` — one `MainWindow.hpp` (moc runs on the header) with method groups spread over `MainWindow*.cpp` TUs | composition only; no logic a controller could hold; a new method group is a new TU, not a longer one |
 | `src/canvas/` | `CanvasWidget` (QPainter), split into paint / press / hold TUs, plus the tooltip | pixel, geometry and page math come from `core/`, never re-derived |
-| `src/dialogs/` | one dialog per file: settings, projects, blank, crop, connect, links, info, shortcuts, expiration, assistantSettings | every prompt/picker goes through `promptModal` / `chooseModal` — no `QInputDialog` / `QMessageBox` |
+| `src/model/` | Qt-shaped wrappers over a core type the GUI needs whole: `ScriptDoc` over `core/script` (tokens, diagnostics, ops, and the `core::CropRect` / `core::Lines` an op resolves to) | the core seam — `model/` may include `core/` freely, and nothing above it may |
+| `src/dialogs/` | one dialog per file: settings, projects, blank, crop, connect, links, info, shortcuts, expiration, assistantSettings, script | every prompt/picker goes through `promptModal` / `chooseModal` — no `QInputDialog` / `QMessageBox` |
 | `src/llm/` | chat dock + widgets, `LlmClient`, `QtLlmTransport`, op registry/schema/plan, `planExecutor` | plans validate against the shared registry before execution; the executor calls the same appliers the toolbar uses |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil` (de)serialization), `mediaLoader` (image/video) | QtCore-only serialization; QImage codec work stays in `MainWindow` |
 | `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore` (0600 tokens), `fetchGuard` | `fetchGuard` is the surface's one SSRF guard, a port of `cli/src/net.zig`; tokens never go in `QSettings` |
@@ -152,6 +153,7 @@ classDiagram
 | `Session` | The autosaved in-progress drawing, the browser's localStorage layout blob twin | Written by `SessionController`'s debounce, read once at boot | `CanvasWidget` state, `activeProjectId` |
 | `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `MainWindow::projectList_`, persisted by `fileStore::saveProjects` | `core::ProjectsStore` for the registry; `ProjectFileData` for export |
 | `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat); canonical definition `browser/js/core/projectFile.js` | Transient, built by `buildStencilBytes` or parsed by `openProjectFile` | `Project`, the linked file watcher |
+| `ScriptDoc` | One parsed `.stc`: its token stream, its diagnostics and the op stream the core lowered it to, plus the resolvers that turn an op into a `core::CropRect` or a `core::Line` | Transient, rebuilt on every keystroke in `ScriptDialog` and once per run | `ScriptHighlighter` colours from its tokens; `scriptRun` drives `PlanTarget` from its ops |
 | `LaunchOptions` | Parsed argv or a `stencil://` link; the desktop twin of the browser deep-link | `main.cpp`, consumed once by `applyLaunchOptions` | `MediaLoader`, `openServerLaunch` |
 | `ConnectionManager` | The set of live `ServerClient`s; its `changed()` persists the `SavedServer` snapshot | `MainWindow`, created lazily by `ensureConnections` | `connectionStore`, `RemoteSession` |
 | `ServerClient` | One REST connection: base, bearer token, credential kind, status | `ConnectionManager::clients_` | `ServerProject`, `LiveFeed` |
@@ -193,8 +195,19 @@ classDiagram
   `MainWindow::onCanvasChanged` refreshes actions, rebuilds the `SelectionPanel` rows from
   core page coordinates, and schedules the session autosave, the remote push and the
   `.stencil` autosave. The repaint reads its pixels from the core filter and crop results.
+- **Running a script.** The Data section's script action opens `ScriptDialog`, a plain editor
+  whose every keystroke re-parses the text through `ScriptDoc` and hands the token stream to
+  `ScriptHighlighter`; a re-colour is itself a document change, so the paint is guarded
+  against the `textChanged` it causes. Nothing is REPORTED until Run: only then do the
+  diagnostics reach the strip under the editor and the wavy underlines reach the tokens.
+  Run accepts the dialog, and `MainWindow::openScript` drives `scriptRun` over a
+  `ChatPlanTarget` — the same `PlanTarget` an assistant op plan uses, so a scripted edit and
+  a clicked one take one path. A script with any error runs nothing; a failure part-way keeps
+  the edits already applied and names the line. A `.stc` dropped on the open window fills the
+  editor; dropped on the window behind it, or opened from the OS, it runs at once.
 - **Open and save `.stencil`.** `openPathFromOS` routes by suffix: `.json` to the layout
-  applier, `.stencil` to `openProjectFile`, anything else to `MediaLoader`. `openProjectFile`
+  applier, `.stencil` to `openProjectFile`, `.stc` to `runScriptFile`, anything else to
+  `MediaLoader`. `openProjectFile`
   reads the bytes, `fileStore::parseProjectFile` yields `ProjectFileData`, the image is decoded,
   `loadImageWithLayout` fills the canvas, a local `Project` is created and `linkStencilFile`
   installs the file watcher. `saveProjectFileAs` builds `ProjectFileData` from the untouched
@@ -241,8 +254,10 @@ classDiagram
    `desktop/.stencil/` in dev, the per-user config dir when packaged
    (`-DSTENCIL_DEV_STATE_DIR=OFF`).
 7. **Every user-facing path is one path.** OS open events, drag-and-drop, file arguments and
-   deep links all route through `openPathFromOS`; the model's `openFile`/`save` ops go
-   through the same, gated to paths the user wrote in the conversation.
+   deep links all route through `openPathFromOS`, which forks on suffix: `.json` a layout,
+   `.stencil` a project, `.stc` a script to RUN, anything else an image or video. The model's
+   `openFile`/`save` ops go through the same, gated to paths the user wrote in the
+   conversation.
 
 ## Tests
 
@@ -250,8 +265,8 @@ classDiagram
 offscreen (`QT_QPA_PLATFORM=offscreen`), with an isolated `STENCIL_STATE_DIR` per test, so
 nothing touches the developer's app state. Headless suites are one per concern
 (`tests/<concern>.headless.cpp`: crop, hold-draw, chain edit, project file, transfer, deep
-link, server auth, co-edit, LLM op plan, executor, settings, fetch guard, motion prefs, and
-the rest), each reporting its own failures. The GUI suites are `MainWindow.<area>.gui.cpp`,
+link, server auth, co-edit, LLM op plan, executor, script runner, script dialog, settings,
+fetch guard, motion prefs, and the rest), each reporting its own failures. The GUI suites are `MainWindow.<area>.gui.cpp`,
 one QtTest binary per area (`stencil_mainwindow_<area>_gui`) linked over the single
 `stencil_gui_objs` object library and sharing `MainWindow.gui.hpp`; they drive the real
 `MainWindow` with `STENCIL_NO_ANIM=1`. The fixture walkers (`opPlanFixtures`,

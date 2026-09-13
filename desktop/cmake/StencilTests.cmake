@@ -489,6 +489,29 @@ stencil_headless_test(stencil_llmexecutor_headless
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets)
 
+# The script window (dialogs/ScriptDialog + ScriptHighlighter): the empty-editor gate, the
+# "report nothing until it has been run" rule, and the core-driven colouring.
+stencil_headless_test(stencil_scriptdialog_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/scriptDialog.headless.cpp src/dialogs/ScriptDialog.cpp
+    src/dialogs/ScriptHighlighter.cpp src/model/ScriptDoc.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp src/support/modalReveal.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
+# .stc runner (app/scriptRun.cpp + model/ScriptDoc) — the desktop half of the script
+# contract: which op reaches which PlanTarget call, and that an error runs nothing.
+stencil_headless_test(stencil_scriptrunner_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/scriptRunner.headless.cpp src/app/scriptRun.cpp src/model/ScriptDoc.cpp
+    src/llm/opPlan.cpp src/llm/opRegistry.cpp
+    ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_PLANEXECUTOR_SOURCES} ${STENCIL_CANVAS_SOURCES}
+    src/canvas/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
+  DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
+  LIBS stencil_core Qt6::Widgets)
+
 # LLM settings defaults + fileStore Settings JSON round-trip of the contract
 # §5 llm* keys (and the windowState dock blob).
 stencil_headless_test(stencil_llmsettings_headless

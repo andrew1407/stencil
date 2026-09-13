@@ -94,6 +94,7 @@ namespace stencil::gui {
     setActionTip(actFit_, "Fit to window");
     setActionTip(actDownloadJson_, "Download Layout JSON");
     setActionTip(actUploadJson_, "Upload Layout JSON");
+    setActionTip(actScript_, "Stencil script (.stc) — write and run a script over this project");
     setActionTip(actCopyLayout_, "Copy full Layout JSON (lines + all applied edits)");
     setActionTip(actTheme_, "Toggle dark / light theme");
     setActionTip(actInfo_, "Controls & shortcuts help");
@@ -122,6 +123,7 @@ namespace stencil::gui {
     why(actDownloadJson_, "Draw at least one line to export");
     why(actCopyLayout_, "Draw at least one line to copy");
     why(actUploadJson_, "Load an image first");
+    why(actScript_, "Open an image first");
     why(actClearProject_, "Open an image first — nothing to remove");
 
     connect(actInfo_, &QAction::triggered, this, &MainWindow::openInfo);

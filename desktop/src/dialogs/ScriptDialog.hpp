@@ -26,10 +26,16 @@ namespace stencil::gui {
     // Shows what a run made of the script: the first error, or nothing when it was clean.
     void showRunDiagnostics();
 
+   protected:
+    // A .stc dropped on the OPEN window fills the editor; the browser twin does the same.
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+
    private:
     void repaint(bool withDiagnostics);
     void gateActions();
     void loadFile();
+    bool readInto(const QString& path);
     void saveFile();
     void copyToClipboard();
 
@@ -40,6 +46,9 @@ namespace stencil::gui {
     QPushButton* runBtn_ = nullptr;
     dialogs::ScriptHighlighter* highlighter_ = nullptr;
     bool checked_ = false;   // nothing is reported until the script has been run once
+    /* Re-colouring the document is itself a document change, so the editor's textChanged
+     * comes back at us mid-paint; without this the two call each other until the stack ends. */
+    bool painting_ = false;
   };
 
 }  // namespace stencil::gui

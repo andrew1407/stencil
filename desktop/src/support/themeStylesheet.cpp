@@ -166,6 +166,7 @@ namespace stencil::gui {
         {"%CARET_DIM%", caretImagePath(caretDim)},
         {"%CARET%", caretImagePath(p.textMuted)},
         {"%MUTED%", c(p.textMuted)},
+        {"%WARNING%", c(p.warning)},
         {"%SECTIONTITLE%", rgba(p.textMain, 0.62)},
         {"%DISABLED_TEXT%", c(p.disabledText)},
         {"%ACCENT%", c(p.accent)},
