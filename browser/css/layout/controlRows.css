@@ -1,7 +1,9 @@
 /* ── Controls section labels & separators ── */
+/* The column gap carries the whole 21px between two sections — 10px, the hairline, 10px —
+   so no item stands between them and nothing a separator does can move the wrap. */
 .controls {
     align-items: stretch;
-    gap: 4px 6px;
+    gap: 4px 21px;
 }
 .ctrl-section-label {
     font-size: 9.5px;
@@ -15,6 +17,7 @@
     opacity: 0.85;
 }
 .ctrl-section {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -34,16 +37,19 @@
 .ctrl-section-row .btn-icon .ic,
 .ctrl-section-row .btn-icon-text .ic { width: 18px; height: 18px; }
 
-.ctrl-sep {
+/* Each section paints the hairline before it, centred in the gap it does not occupy. */
+.ctrl-section + .ctrl-section::before {
+    content: '';
+    position: absolute;
+    left: -11px;
+    top: 0;
+    bottom: 0;
     width: 1px;
-    align-self: stretch;
     background: var(--border-main);
-    flex-shrink: 0;
-    margin: 0 4px;
 }
-/* …unless the row wrapped between its two sections (ui/toolbar.js syncWrappedSeparators):
-   a hairline at the head of a row is a stray, not a divider. */
-.ctrl-sep.ctrl-sep-wrapped { display: none; }
+/* …unless the row wrapped in front of this section (ui/toolbarSeparators.js): a hairline
+   at the head of a row is a stray, not a divider. */
+.ctrl-section.ctrl-sep-wrapped::before { content: none; }
 /* Blank-image fill chip (js/ui/toolbar.js; drawingApp.js sets `display` on a blank
    project). A flat info-coloured control, not an accent action, so it also opts out of
    the toolbar sheen — see the :not() list in animations/controls.css. Descendant-of-.controls so
