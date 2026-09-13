@@ -1,0 +1,10 @@
+# Everything the packaged .vsix does not need at runtime. src/parser/ and src/config/ DO
+# ship: the parser copies are what highlights and checks a buffer without the CLI.
+.vscodeignore
+ARCHITECTURE.md
+tests/**
+node_modules/**
+package-lock.json
+**/*.d.ts
+**/.DS_Store
+*.vsix
