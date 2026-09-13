@@ -1,9 +1,12 @@
 //! End-to-end `.stc` script runs: the save-naming matrix, directory and glob sources,
-//! output confinement, and the --script-check line grammar.
+//! output confinement, the --script-check line grammar and the --script-plan envelope.
 const std = @import("std");
 const testing = std.testing;
 
 const check = @import("../src/script/check.zig");
+const opSchema = @import("../src/llm/opSchema.zig");
+const opplan = @import("../src/llm/opplan.zig");
+const plan = @import("../src/script/plan.zig");
 const save = @import("../src/script/save.zig");
 const scriptCore = @import("../src/scriptCore.zig");
 const sources = @import("../src/script/sources.zig");
@@ -101,4 +104,98 @@ test "a block names its source kind so the runner knows how to open it" {
         try testing.expectEqual(c.kind, s.block(0).?.kind);
         try testing.expectEqualStrings(c.spec, s.block(0).?.source);
     }
+}
+
+test "the plan envelope round-trips through std.json and names every save" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+
+    var s = try scriptCore.Script.parse(
+        "@source tests/fixtures/sample.png:\n  @crop x1=10% x2=-10%\n  @filter bw\n  @save out/\n",
+    );
+    defer s.deinit();
+
+    var out: std.Io.Writer.Allocating = .init(gpa);
+    defer out.deinit();
+    try plan.writeEnvelope(gpa, threaded.io(), &out.writer, s, .{}, "s.stc");
+
+    var parsed = try std.json.parseFromSlice(std.json.Value, gpa, out.written(), .{});
+    defer parsed.deinit();
+    const root = parsed.value.object;
+    try testing.expectEqual(@as(i64, plan.VERSION), root.get("version").?.integer);
+
+    const block = root.get("blocks").?.array.items[0].object;
+    try testing.expectEqual(@as(i64, 16), block.get("dims").?.object.get("width").?.integer);
+    const actions = block.get("plans").?.array.items[0].object.get("actions").?.array.items;
+    try testing.expectEqual(@as(usize, 4), actions.len);
+    try testing.expectEqualStrings("openFile", actions[0].object.get("op").?.string);
+    try testing.expectEqualStrings("-10%", actions[1].object.get("spec").?.object.get("x2").?.string);
+    try testing.expectEqualStrings("bw", actions[2].object.get("mode").?.string);
+
+    const saves = block.get("saves").?.array.items;
+    try testing.expectEqual(@as(usize, 1), saves.len);
+    try testing.expectEqualStrings("out/sample-stencil.png", saves[0].object.get("path").?.string);
+}
+
+test "a plan's actions are a plan the op-plan validator itself accepts" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+
+    var s = try scriptCore.Script.parse(
+        "@source tests/fixtures/sample.png:\n  @crop 10%\n  @rect (1,1) (4,4)\n  @filter aqua\n  @save o.png\n",
+    );
+    defer s.deinit();
+
+    var out: std.Io.Writer.Allocating = .init(gpa);
+    defer out.deinit();
+    try plan.writeEnvelope(gpa, threaded.io(), &out.writer, s, .{}, "s.stc");
+
+    var parsed = try std.json.parseFromSlice(std.json.Value, gpa, out.written(), .{});
+    defer parsed.deinit();
+    const one = parsed.value.object.get("blocks").?.array.items[0]
+        .object.get("plans").?.array.items[0];
+    const raw = try std.json.Stringify.valueAlloc(gpa, one, .{});
+    defer gpa.free(raw);
+
+    switch (try opplan.parsePlan(gpa, raw)) {
+        .plan => |p| {
+            var validated = p;
+            defer validated.deinit();
+            try testing.expectEqual(@as(usize, 5), validated.actions.len);
+            try testing.expectEqualStrings("10%", validated.actions[1].crop.x1.?);
+            // The shapes flush at the @save, exactly as run.zig burns them — after the filter.
+            try testing.expectEqual(opplan.FilterMode.custom, validated.actions[2].filter.mode);
+            try testing.expect(validated.actions[3] == .layout);
+        },
+        .invalid => |msg| {
+            defer gpa.free(msg);
+            std.debug.print("the script plan did not validate: {s}\n", .{msg});
+            return error.TestUnexpectedResult;
+        },
+    }
+}
+
+test "a script with an error plans nothing at all, and says why" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+
+    var s = try scriptCore.Script.parse("@source a.png:\n  @crop\n  @save\n");
+    defer s.deinit();
+    try testing.expect(s.hasErrors());
+
+    var out: std.Io.Writer.Allocating = .init(gpa);
+    defer out.deinit();
+    try plan.writeEnvelope(gpa, threaded.io(), &out.writer, s, .{}, "s.stc");
+
+    var parsed = try std.json.parseFromSlice(std.json.Value, gpa, out.written(), .{});
+    defer parsed.deinit();
+    try testing.expectEqual(@as(usize, 0), parsed.value.object.get("blocks").?.array.items.len);
+    try testing.expect(parsed.value.object.get("diagnostics").?.array.items.len > 0);
+}
+
+test "the plan's action cap is the registry's own MAX_ACTIONS" {
+    try testing.expectEqual(@as(f64, @floatFromInt(plan.MAX_ACTIONS)), opSchema.get().limitNamed("MAX_ACTIONS"));
 }

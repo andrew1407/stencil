@@ -136,7 +136,8 @@ stencil --source-site https://example.com --source-format png|jpg --source-count
 ### Running a script
 
 A `.stc` script is a list of `@` directives: one file that opens sources, edits them and
-saves the results. `--script` runs one, `--script-check` only reports what is wrong with it.
+saves the results. `--script` runs one, `--script-check` only reports what is wrong with it,
+and `--script-plan` prints what it would do without doing any of it.
 
 ```stc
 # shots.stc — every PNG in the folder, cropped and toned
@@ -151,12 +152,17 @@ saves the results. `--script` runs one, `--script-check` only reports what is wr
 ```bash
 stencil --script shots.stc              # run it
 stencil --script-check shots.stc        # just the diagnostics, one line each
+stencil --script-plan shots.stc         # what it would do, as JSON on stdout
 stencil -i photo.png --script marks.stc # a script with no @source edits this image
 cat shots.stc | stencil --script -      # '-' reads the script from stdin
 ```
 
 A bare `@save` writes beside the source as `<name>-stencil.<ext>`, so a whole-directory run
 is safe in place. A script with any error runs nothing and exits 1.
+
+`--script-plan` writes one JSON object to stdout — the script's blocks, the files each one
+would open, the edits as op-plan actions and the exact paths each `@save` would write — and
+touches nothing. Its shape is pinned in [`CONTRACT.md`](CONTRACT.md) §4.3.
 
 The language — units, colours, templates, undo — is written out in
 [`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md), and the worked examples

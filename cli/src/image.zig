@@ -115,6 +115,20 @@ pub fn formatFromExt(ext: []const u8) ?Format {
 /// buffer under 1 GiB. Matches the per-side STBI_MAX_DIMENSIONS 16384 in stb_read_impl.c.
 pub const max_pixels: usize = 16384 * 16384;
 
+/// Header-only size probe: no pixel plane is ever allocated. Null when stb cannot read the
+/// header or the dimensions are past `max_pixels`.
+pub fn dims(bytes: []const u8) ?struct { width: usize, height: usize } {
+    var w: c_int = 0;
+    var h: c_int = 0;
+    var channels: c_int = 0;
+    if (c.stbi_info_from_memory(bytes.ptr, @intCast(bytes.len), &w, &h, &channels) == 0) return null;
+    if (w <= 0 or h <= 0) return null;
+    const width: usize = @intCast(w);
+    const height: usize = @intCast(h);
+    if (width * height > max_pixels) return null;
+    return .{ .width = width, .height = height };
+}
+
 /// Decode encoded image bytes into an owned RGBA8 buffer.
 pub fn decode(allocator: std.mem.Allocator, bytes: []const u8) !Rgba8 {
     var w: c_int = 0;

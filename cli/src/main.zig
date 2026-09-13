@@ -52,10 +52,7 @@ pub fn main(init: std.process.Init) !void {
         .script => |sc| switch (sc.kind) {
             .run => return script.run.run(gpa, io, opts, sc.path) catch std.process.exit(1),
             .check => return script.check.run(gpa, io, sc.path) catch std.process.exit(1),
-            .plan => {
-                logo.err("--script-plan is not available yet\n", .{});
-                std.process.exit(1);
-            },
+            .plan => return script.plan.run(gpa, io, opts, sc.path) catch std.process.exit(1),
         },
         // A `.stencil` project on either side reuses the console Session so its layout renders
         // like the editors; server mode stays on the raster pipeline.

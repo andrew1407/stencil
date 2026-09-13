@@ -182,6 +182,17 @@ pub const Script = struct {
         return if (s == null) "" else std.mem.span(s);
     }
 
+    pub fn opTokCount(self: Script, i: u32) u32 {
+        const n = c.stencil_cli_scriptOpTokCount(self.handle, @intCast(i));
+        return if (n < 0) 0 else @intCast(n);
+    }
+
+    /// One UNRESOLVED length token ("10%", "-1in"); `resolve` turns them into pixels.
+    pub fn opTok(self: Script, i: u32, k: u32) []const u8 {
+        const s = c.stencil_cli_scriptOpTok(self.handle, @intCast(i), @intCast(k));
+        return if (s == null) "" else std.mem.span(s);
+    }
+
     pub fn opNum(self: Script, i: u32, k: u32) ?f64 {
         var v: f64 = 0;
         if (c.stencil_cli_scriptOpNum(self.handle, @intCast(i), @intCast(k), &v) == 0) return null;

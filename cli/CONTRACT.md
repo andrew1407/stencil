@@ -66,7 +66,7 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `--confine-output` | switch | Refuse an output path that leaves the working directory: an **absolute** path or a leading `~`, on top of the `..` traversal refused in every mode (`error: --confine-output: refusing to write outside the working directory: …`, exit 1). Off by default. Adapters that forward an LLM-chosen `<output>` (mcp, bot) pass it; it also confines the scrape destination directory. |
 | `--script` | `<path>` value | **Script mode.** Run a `.stc` script (`-` reads stdin). A script with no `@source` block edits the `-i` input. Mutually exclusive with `--script-check` and `--script-plan` (→ `DuplicateSource`). See §4. |
 | `--script-check` | `<path>` value | Print the script's diagnostics **to stdout** and exit 1 if any is an error. See §4. |
-| `--script-plan` | `<path>` value | Print the script lowered to an op plan, as JSON **on stdout**. Not implemented yet: the flag parses and the run exits 1 with `error: --script-plan is not available yet`. |
+| `--script-plan` | `<path>` value | Print the script lowered to an op-plan envelope, as JSON **on stdout** (`-` reads stdin). Runs nothing and writes no file; exits 1 when the script has an error. See §4.3. |
 | `--console`, `--repl` | switch | Interactive console mode (out of scope for this contract). |
 | `-h`, `--help` | switch | Show help. |
 | `<output>` | positional | Result path (last positional wins) — or, in scrape mode, the **destination directory** (created if missing; default `.`). A missing/unknown extension is auto-filled from the input format. |
@@ -256,14 +256,14 @@ The scrape line shapes are pinned by the shared golden set
 
 ---
 
-## 4. Script mode (`--script`, `--script-check`) output contract
+## 4. Script mode (`--script`, `--script-check`, `--script-plan`) output contract
 
 The `.stc` language itself is normative in [`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md);
 this section fixes only what the CLI prints.
 
-**These two flags are the only modes that write to stdout.** Every other mode keeps stdout
-empty; `--script` (the run mode) does too, reporting through the same `wrote …` / `error: …`
-lines as the pipeline.
+**`--script-check` and `--script-plan` are the only modes that write to stdout.** Every other
+mode keeps stdout empty; `--script` (the run mode) does too, reporting through the same
+`wrote …` / `error: …` lines as the pipeline.
 
 ### 4.1 `--script-check` — one line per diagnostic, on stdout
 
@@ -291,6 +291,55 @@ safe to run in place. A run that saved nothing prints `note: the script saved no
 
 A `@source` naming a directory or a glob expands to every media file directly inside it, in
 sorted order, and the block runs once per file. `--confine-output` applies to every `@save`.
+
+### 4.3 `--script-plan` — one op-plan envelope, on stdout
+
+Exactly one JSON object, followed by a newline, and nothing else on stdout. Nothing is
+fetched and nothing is written: the only I/O is a header-only size probe of each block's
+first local input. Exit code **1** if any diagnostic is an error, **0** otherwise.
+
+```json
+{
+  "version": 1,
+  "script": "shots.stc",
+  "diagnostics": [
+    {"severity": "error", "code": "E_UNKNOWN_DIRECTIVE", "line": 2, "col": 3, "len": 4,
+     "message": "unknown directive '@crp' — did you mean '@crop'?"}
+  ],
+  "blocks": [
+    {
+      "index": 0,
+      "source": "shots/",
+      "sourceKind": "project" | "file" | "url" | "dir" | "glob",
+      "inputs": ["shots/a.png", "shots/b.png"],
+      "frame": 0,
+      "dims": {"width": 1600, "height": 1200},
+      "plans": [{"reply": "", "actions": [{"op": "crop", "spec": {"x1": "10%"}}]}],
+      "saves": [{"input": "shots/a.png", "path": "out/a-stencil.png"}]
+    }
+  ]
+}
+```
+
+- `version` is this envelope's version — **1** — bumped only when a consumer must change.
+  `script` is the path as given, or `<stdin>` for `-`.
+- `diagnostics` carries every diagnostic in source order, the §4.1 fields split into keys.
+  **A script with any error emits `"blocks": []`** — nothing in it is safe to act on — and
+  still exits 1 with its diagnostics.
+- `sourceKind` is `project` for the implicit block (the `-i` input, so `source` is `""`);
+  `inputs` is that block's expanded files, in the order `--script` would run them.
+- `dims` is the first input's pixel size from a header probe, or `null` when nothing local
+  could be read (a URL, a video, a missing file). Shape ops are **omitted** when it is
+  `null`: their lengths have nothing to resolve against.
+- `plans` chunks the block's actions at the op-plan's own `limits.MAX_ACTIONS` (**16**), one
+  plan object per chunk, each with an empty `reply`. Every action is a validated op in the
+  `browser/js/config/llm/opRegistry.json` vocabulary — `openFile`/`openUrl`, `frame`, `crop`
+  (edges as cropSpec token strings, unresolved), `filter`, `layout` (points already in image
+  pixels), `save`, `undo`, `redo` — so an adapter can feed a plan straight to its op-plan
+  executor. `@line` / `@rect` accumulate into one `layout` action that lands where a
+  `--script` run would burn them: before the next `@crop` or `@save`.
+- `saves` is the concrete destination of every `@save`, one entry per input × save op, named
+  by the same rule `--script` uses (§4.2).
 
 ## 5. Shared golden fixtures
 
