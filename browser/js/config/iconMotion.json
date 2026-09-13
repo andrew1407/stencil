@@ -1994,7 +1994,7 @@
       "parts": [
         {
           "hook": "ic-cog",
-          "origin": [16.6, 16.6],
+          "origin": [16.6, 17.6],
           "durationMs": 300,
           "to": {
             "rotate": 45

@@ -18,7 +18,7 @@ export const scriptModalInner = () => `
             <div class="script-diag" id="script-diag"></div>
         </div>
         <div class="settings-footer">
-            <span class="footer-hint">Write a .stc script and run it over the open project.</span>
+            <span class="footer-hint">Write a .stc script and run it here.</span>
             <span class="chat-settings-actions">
                 <button id="script-copy" class="btn-icon-text" data-title="Copy this script to the clipboard">${icon('clipboard', { size: 14 })}<span>Copy</span></button>
                 <button id="script-download" class="btn-icon-text" data-title="Download this script as stencil.stc">${icon('file-down', { size: 14 })}<span>Download</span></button>

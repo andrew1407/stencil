@@ -21,16 +21,15 @@
   border: 1px solid var(--border-main);
   border-radius: 8px;
   background: var(--input-bg);
-  padding: 8px 2px;
   overflow: hidden;
 }
 
 .script-highlight,
 .script-input {
   position: absolute;
-  inset: 8px 2px;
+  inset: 8px 10px;
   margin: 0;
-  padding: 2px 10px 12px;
+  padding: 2px 4px 12px;
   border: 0;
   font: 12.5px/1.55 var(--font-mono);
   tab-size: 2;
@@ -74,7 +73,7 @@
 
 .script-diag {
   min-height: 1.4em;
-  padding: 6px 13px 0;
+  padding: 6px 15px 0;
   font-size: 12px;
   color: var(--text-muted);
 }
