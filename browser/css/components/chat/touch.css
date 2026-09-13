@@ -56,10 +56,6 @@ body.fullscreen-mode stencil-chat-panel { z-index: 9990; }
    out-specify body.fullscreen-mode's padding:0). The transition matches the
    panel's own open/close slide so the two move together. */
 body { transition: background 0.3s, color 0.3s, padding 0.51s ease; }
-/* Leaving is the quicker clock (chatPanel.js CLOSE_MS), and the page gives the band back
-   the moment the close starts rather than after the panel has gone — the space used to sit
-   there for the whole slide and only then collapse. */
-body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.26s ease; }
 /* Phones excluded on purpose: the modal overlays the page, and a 340px band on a
    390px viewport overflows the document sideways — which makes a mobile browser
    widen the LAYOUT VIEWPORT, so the fixed panel then hangs off the screen. */
@@ -78,9 +74,9 @@ body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top) #global-drop-overlay { top: var(--chat-size, 300px); }
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-bottom) #global-drop-overlay { bottom: var(--chat-size, 300px); }
 }
-/* Closing plays the reverse slide (.chat-closing keeps .chat-open), so the
-   padding releases on the shorter out-duration in step with the panel. */
-body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.26s ease; }
+/* Closing plays the reverse slide (.chat-closing keeps .chat-open), so the padding
+   releases on the out-duration, in step with the panel and starting with it. */
+body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.39s ease; }
 
 body:has(stencil-chat-panel.chat-open.chat-dock-right) #install-host { right: calc(var(--chat-size, 340px) + 18px); }
 body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host { bottom: calc(var(--chat-size, 300px) + 18px); }

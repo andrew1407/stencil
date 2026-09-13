@@ -169,11 +169,11 @@ stencil-chat-panel.chat-open.chat-dock-float  { animation: modalFromIcon 0.63s c
 @keyframes chatSlideOutTop    { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-28px); } }
 @keyframes chatSlideOutBottom { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(28px); } }
 @keyframes chatPopOut         { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.94) translateY(-6px); } }
-stencil-chat-panel.chat-open.chat-closing.chat-dock-left   { animation: chatSlideOutLeft 0.26s ease both; }
-stencil-chat-panel.chat-open.chat-closing.chat-dock-right  { animation: chatSlideOutRight 0.26s ease both; }
-stencil-chat-panel.chat-open.chat-closing.chat-dock-top    { animation: chatSlideOutTop 0.26s ease both; }
-stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom { animation: chatSlideOutBottom 0.26s ease both; }
-stencil-chat-panel.chat-open.chat-closing.chat-dock-float  { animation: modalToIcon 0.34s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-left   { animation: chatSlideOutLeft 0.39s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-right  { animation: chatSlideOutRight 0.39s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-top    { animation: chatSlideOutTop 0.39s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom { animation: chatSlideOutBottom 0.39s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-float  { animation: modalToIcon 0.51s ease both; }
 /* Phones render the panel as a CENTRED MODAL (components/chat/touch.css), so it takes the
    app-wide modal motion — backdrop fade + content pop — instead of a dock slide,
    whatever dock mode the session happens to hold. */

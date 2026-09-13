@@ -7320,7 +7320,7 @@
     "--ig-delay": "0ms"
    },
    "|body:has(stencil-chat-panel.chat-closing)": {
-    "transition": "background 0.3s, color 0.3s, padding 0.26s ease"
+    "transition": "background 0.3s, color 0.3s, padding 0.39s ease"
    },
    "|body:has(stencil-chat-panel.chat-open) #install-host": {
     "z-index": "89999"
@@ -7600,19 +7600,19 @@
     "display": "flex"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom": {
-    "animation": "chatSlideOutBottom 0.26s ease both"
+    "animation": "chatSlideOutBottom 0.39s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-float": {
-    "animation": "modalToIcon 0.34s ease both"
+    "animation": "modalToIcon 0.51s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-left": {
-    "animation": "chatSlideOutLeft 0.26s ease both"
+    "animation": "chatSlideOutLeft 0.39s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-right": {
-    "animation": "chatSlideOutRight 0.26s ease both"
+    "animation": "chatSlideOutRight 0.39s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-top": {
-    "animation": "chatSlideOutTop 0.26s ease both"
+    "animation": "chatSlideOutTop 0.39s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-dock-bottom": {
     "animation": "chatSlideBottom 0.51s cubic-bezier(0.16, 1, 0.3, 1) both"
@@ -8694,7 +8694,6 @@
    "|body:has(stencil-chat-panel.chat-open) #install-host",
    "|body.fullscreen-mode stencil-chat-panel",
    "|body",
-   "|body:has(stencil-chat-panel.chat-closing)",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-left)",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-right)",
    "@media (min-width: 681px)|body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-top)",
