@@ -5,6 +5,7 @@
 // so a span in the editor and a run of the script can never disagree about a line.
 import { test, expect } from '@playwright/test';
 import { gotoApp, expectModalOpen, settleModalAnimations } from '../../helpers/boot.js';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { stcCase } from '../../helpers/stcCases.js';
 
 const LAYOUT_URL = 'https://example.com/layout.json';
@@ -84,4 +85,46 @@ test('stencil.execScript runs a script straight through the facade', async ({ pa
     return window.stencil.filter;
   });
   expect(filter).toBe('bw');
+});
+
+test('the hotkey opens the window, Upload fills it and Download writes it back out', async ({ page }, testInfo) => {
+  await gotoApp(page, { motion: 'none' });
+  await blank(page, { width: 400, height: 300 });
+
+  // Alt+Shift+S is the registered opener (browser/js/config/hotkeysConfig.json).
+  await page.keyboard.press('Alt+Shift+S');
+  await expectModalOpen(page, 'script-overlay');
+  await settleModalAnimations(page, 'script-overlay');
+
+  const { script } = stcCase('minimal-source');
+  const uploaded = testInfo.outputPath('uploaded.stc');
+  writeFileSync(uploaded, script);
+  await page.setInputFiles('#script-upload', uploaded);
+  await expect(page.locator('#script-editor')).toHaveValue(script);
+
+  const download = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('#script-download').click(),
+  ]).then(([d]) => d);
+  expect(download.suggestedFilename()).toBe('stencil.stc');
+  const saved = testInfo.outputPath('downloaded.stc');
+  await download.saveAs(saved);
+  expect(readFileSync(saved, 'utf8')).toBe(script);
+});
+
+test('a .stc dropped with the window closed runs on the open project', async ({ page }) => {
+  await gotoApp(page, { motion: 'none' });
+  await blank(page, { width: 400, height: 300 });
+  expect(await lineCount(page)).toBe(0);
+
+  // The document-level drop handler routes by file name (js/ui/bindings/dropPaste.js).
+  await page.evaluate((text) => {
+    const data = new DataTransfer();
+    data.items.add(new File([text], 'dropped.stc', { type: 'text/plain' }));
+    document.dispatchEvent(new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true }));
+  }, '@rect (10,10) (100,80)\n');
+
+  await expect.poll(() => lineCount(page)).toBe(1);
+  // It ran rather than opening the editor: the window stayed shut.
+  await expect(page.locator('#script-overlay')).not.toHaveClass(/modal-open/);
 });

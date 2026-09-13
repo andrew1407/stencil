@@ -4,10 +4,11 @@
 // written PNG, or the exact diagnostic line an editor parses — never the CLI's own claim.
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { runCli, parseWrote, pngSize, cliAvailable } from '../../helpers/cli.js';
 import { runConsole } from '../../helpers/consoleCli.js';
 import { stcCase, writeStcCase } from '../../helpers/stcCases.js';
+import { APP_URL } from '../../helpers/config.js';
 
 test.describe('cli .stc scripts', () => {
   test.skip(!cliAvailable(), 'build the CLI first: (cd cli && zig build) or set STENCIL_CLI');
@@ -55,6 +56,62 @@ test.describe('cli .stc scripts', () => {
     expect(r.stdout.trim()).toBe(
       `${name}:${diag.line}:${diag.col}: ${diag.severity}: ${diag.message} [${diag.code}]`,
     );
+  });
+
+  test('--script-plan prints the op-plan envelope on stdout and writes nothing', async ({}, testInfo) => {
+    const dir = testInfo.outputPath();
+    const input = makeInput(dir, 20, 10);
+    const script = writeStcCase('top-level-project', dir);   // @crop 10% · @filter bw · @save
+
+    const r = runCli(['-i', input, '--script-plan', script], { cwd: dir });
+    expect(r.code, r.out).toBe(0);
+    const envelope = JSON.parse(r.stdout);
+    expect(envelope.version).toBe(1);
+    expect(envelope.diagnostics).toEqual([]);
+    expect(envelope.blocks).toHaveLength(1);
+    const [block] = envelope.blocks;
+    expect(block.sourceKind).toBe('project');
+    expect(block.inputs).toEqual([input]);
+    // The actions are the op-plan vocabulary the LLM path already validates.
+    const ops = block.plans.flatMap((p) => p.actions).map((a) => a.op);
+    expect(ops).toEqual(expect.arrayContaining(['crop', 'filter']));
+    expect(block.saves.length).toBeGreaterThan(0);
+    // Planning runs nothing: the @save is described, never performed.
+    expect(existsSync(path.join(dir, 'in-stencil.png'))).toBeFalsy();
+  });
+
+  test('a directory source runs the same edits over every image in it', async ({}, testInfo) => {
+    const dir = testInfo.outputPath();
+    // Inline rather than from the corpus: a real directory has to hold real files, and the
+    // corpus cases name paths that only have to parse.
+    const shots = path.join(dir, 'shots');
+    mkdirSync(shots, { recursive: true });
+    // The save directory has to exist first: a script's @save writes into it, it does not
+    // create it (unlike scrape mode's destination, which the CLI does create).
+    mkdirSync(path.join(dir, 'out'), { recursive: true });
+    for (const name of ['a.png', 'b.png']) {
+      const r = runCli(['--blank', '20', '10', 'white', path.join(shots, name)], { cwd: dir });
+      expect(r.code, r.out).toBe(0);
+    }
+    writeFileSync(path.join(dir, 'dir.stc'), '@source shots/:\n    @crop 10%\n    @save out/\n');
+
+    const r = runCli(['--script', 'dir.stc'], { cwd: dir });
+    expect(r.code, r.out).toBe(0);
+    for (const base of ['a', 'b']) {
+      expect(pngSize(path.join(dir, 'out', `${base}-stencil.png`))).toEqual({ width: 16, height: 8 });
+    }
+  });
+
+  test('a @source URL block is really fetched, edited and saved', async ({}, testInfo) => {
+    const dir = testInfo.outputPath();
+    // The harness's own static server, not the internet: the block goes through the CLI's
+    // fetch guard (cli/src/net.zig) and decodes the bytes it gets back.
+    const url = `${APP_URL}__e2e__/pixel.png`;   // the 3x2 fixture
+    writeFileSync(path.join(dir, 'url.stc'), `@source ${url}:\n    @filter bw\n    @save fetched.png\n`);
+
+    const r = runCli(['--script', 'url.stc'], { cwd: dir });
+    expect(r.code, r.out).toBe(0);
+    expect(pngSize(path.join(dir, 'fetched.png'))).toEqual({ width: 3, height: 2 });
   });
 
   test('the console runs a ;-separated one-liner against the loaded image', async ({}, testInfo) => {
