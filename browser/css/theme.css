@@ -129,7 +129,7 @@
     --bg-coord-table: #1e1e1e;
     --bg-coord-even:  #2a2a2a;
     --bg-coord-hover: #3a3a3a;
-    --bg-coord-th:    var(--accent-2);
+    --bg-coord-th:    var(--accent);
     --bg-tooltip:     #2d2d2d;
     --bg-tt-th:       #3a3a3a;
     --bg-tt-td:       #242424;

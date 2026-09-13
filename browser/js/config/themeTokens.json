@@ -211,7 +211,7 @@
     },
     "--bg-coord-th": {
       "light": "var(--accent)",
-      "dark": "var(--accent-2)"
+      "dark": "var(--accent)"
     },
     "--bg-drop-hint": {
       "light": "color-mix(in srgb, var(--accent) 9%, white)",
