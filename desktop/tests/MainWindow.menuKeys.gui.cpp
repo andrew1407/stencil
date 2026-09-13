@@ -219,7 +219,7 @@ class MainWindowGuiTest : public QObject {
       if (!root) return;
       settle([&] { return root->windowOpacity() >= 1.0; }, 400);   // the reveal, when one plays
       QAction* assistAct = nullptr;
-      for (QAction* a : root->actions()) if (a->text() == "Assistant") assistAct = a;
+      for (QAction* a : root->actions()) if (a->text().startsWith("Assistant")) assistAct = a;
       if (!assistAct || !assistAct->menu()) { root->close(); return; }
       root->setActiveAction(assistAct);
       QTest::keyClick(root, Qt::Key_Right);

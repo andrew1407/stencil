@@ -93,7 +93,7 @@ namespace stencil::gui {
     if (settings_.llmProvider != QLatin1String("none")) {
       ensureChatMenuPanel();
       refreshLlmStatus();  // fresh provider dot/tooltip on the panel's gear
-      StayOpenMenu* assistant = subMenu("sparkle", "Assistant");
+      StayOpenMenu* assistant = subMenu("sparkle", QStringLiteral("Assistant") + hintTab(actChat_));
       assistant->addAction(chatMenuAction_);
       assistant->setInteractiveArea(chatMenuPanel_, chatMenuInput_);
       // No separator BELOW it, so the disabled case leaves exactly the original separators.

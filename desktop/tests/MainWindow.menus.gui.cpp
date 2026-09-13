@@ -90,7 +90,7 @@ class MainWindowGuiTest : public QObject {
       QAction* prev = nullptr;
       doubleSeparator = false;
       for (QAction* a : menu->actions()) {
-        if (a->text() == "Assistant") sawAssistantWhenOff = true;
+        if (a->text().startsWith("Assistant")) sawAssistantWhenOff = true;
         if (a->text().contains("Fullscreen")) sawNormalAction = true;
         // Nothing dangling: the entry's trailing separator must go with it.
         if (a->isSeparator() && prev && prev->isSeparator()) doubleSeparator = true;
@@ -164,7 +164,7 @@ class MainWindowGuiTest : public QObject {
       // drawing actions — not tacked on at the bottom.
       int assistantIdx = -1, startDrawIdx = -1, i = 0;
       for (QAction* a : menu->actions()) {
-        if (a->text() == "Assistant") assistantIdx = i;
+        if (a->text().startsWith("Assistant")) assistantIdx = i;
         if (a->text().contains("Start Drawing") || a->text().contains("Stop Drawing"))
           startDrawIdx = i;
         ++i;
@@ -1289,7 +1289,7 @@ class MainWindowGuiTest : public QObject {
       if (!menu) return;
       QAction* parent = nullptr;
       for (QAction* a : menu->actions())
-        if (a->text() == "Assistant") parent = a;
+        if (a->text().startsWith("Assistant")) parent = a;
       if (!parent || !parent->menu()) { menu->close(); return; }
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
@@ -1353,7 +1353,7 @@ class MainWindowGuiTest : public QObject {
       if (!menu) return;
       QAction* parent = nullptr;
       for (QAction* a : menu->actions())
-        if (a->text() == "Assistant") parent = a;
+        if (a->text().startsWith("Assistant")) parent = a;
       if (!parent || !parent->menu()) { menu->close(); return; }
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
