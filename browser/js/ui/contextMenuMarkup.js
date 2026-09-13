@@ -58,8 +58,10 @@ export function contextMenuInner() {
         <!-- Fullscreen toggle -->
         <div class="ctx-item" id="ctx-fullscreen"><span class="ctx-icon">${icon('maximize')}</span><span class="ctx-label" id="ctx-fs-label">Enter Fullscreen</span><span class="ctx-hotkey" data-hk="fullscreen">Alt+F</span>${ctxArrow()}</div>
         <div class="ctx-sep"></div>
-        <!-- The script window, and above it the Assistant entry syncAssistant builds -->
-        <div class="ctx-item" id="ctx-script"><span class="ctx-icon">${icon('script')}</span><span class="ctx-label">Stencil Script</span><span class="ctx-hotkey" data-hk="openScript">Alt+Shift+S</span>${ctxArrow()}</div>
+        <!-- Stencil Script: a submenu parent whose flyout is a compact editor, hung off this
+             row by ctxScript.js. Above it the Assistant entry syncAssistant builds. The
+             shortcut still opens the full window. -->
+        <div class="ctx-item" id="ctx-script"><span class="ctx-icon">${icon('script')}</span><span class="ctx-label">Stencil Script</span><span class="ctx-hotkey" data-hk="openScript">Alt+Shift+S</span>${ctxArrow(true)}</div>
         <!-- Drawing -->
         <div class="ctx-item" id="ctx-draw-toggle"><span class="ctx-icon">${icon('play', { size: 14 })}</span><span class="ctx-label" id="ctx-draw-label">Start Drawing</span><span class="ctx-hotkey" id="ctx-draw-hotkey" data-hk="startDraw">Alt+A</span>${ctxArrow()}</div>
         <div class="ctx-item" id="ctx-draw-line"><span class="ctx-icon">${icon('line')}</span><span class="ctx-label">Draw Line</span>${ctxArrow()}</div>

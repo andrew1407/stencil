@@ -67,10 +67,20 @@ test('the window is in the openWindow registry, pointing at its own overlay and 
 });
 
 test('the highlight layer is built from nodes, never from markup', () => {
-  const code = src('../js/ui/scriptModal.js');
+  const code = src('../js/ui/scriptHighlight.js');
   assert.ok(!/innerHTML/.test(code), 'a script is untrusted text — it never becomes markup');
   assert.match(code, /createElement\('span'\)/);
   assert.match(code, /textContent = /);
+});
+
+test('the window and the context-menu flyout paint through the ONE highlighter', () => {
+  // Two copies of a token painter would let the two editors disagree about a line.
+  for (const module of ['scriptModal.js', 'ctxScriptEditor.js']) {
+    assert.match(src(`../js/ui/${module}`),
+      /import \{ paintInto, showDiagnostic \} from '\.\/scriptHighlight\.js'/, module);
+    assert.ok(!/const paintInto|function paintInto/.test(src(`../js/ui/${module}`)),
+      `${module} imports the painter instead of keeping its own`);
+  }
 });
 
 test('a dropped .stc is routed to the one loader, and the overlay says so', () => {

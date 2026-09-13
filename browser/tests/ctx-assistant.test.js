@@ -857,7 +857,7 @@ test('contextMenu.js keeps the menu open while chatting', () => {
   assert.match(src, /const assistantBusy = \(\) => assistSending \|\| Date\.now\(\) < assistBusyUntil;/);
   // The entry is (re)built and re-moded on open and when the provider changes.
   assert.ok(src.includes('subscribe(EVENTS.llmSettingsChanged, syncAssistant)'));
-  assert.ok(src.includes('syncAssistant();\n      menu.style.left'), 'entry settled before the menu is measured');
+  assert.ok(src.includes('syncAssistant();\n      syncScript();\n      menu.style.left'), 'both flyout entries settled before the menu is measured');
   // Typing in the flyout (or a running turn) suppresses the hover-out close, but
   // hovering a SIBLING parent still closes it like any other flyout.
   assert.ok(src.includes("flyout._keepOpen = () => host.sending() || resizing || chatRowMenuOpen() || flyout.contains(document.activeElement);"),
