@@ -1061,9 +1061,8 @@
    "@media (max-width: 680px)|.ctrl-section": {
     "padding": "4px"
    },
-   "@media (max-width: 680px)|.ctrl-sep": {
-    "margin": "0 2px",
-    "display": "none"
+   "@media (max-width: 680px)|.ctrl-section + .ctrl-section::before": {
+    "content": "none"
    },
    "@media (max-width: 680px)|.hotkey-cell": {
     "min-width": "0",
@@ -4061,7 +4060,7 @@
     "margin-bottom": "0",
     "display": "flex",
     "flex-wrap": "wrap",
-    "gap": "4px 6px",
+    "gap": "4px 21px",
     "align-items": "stretch",
     "padding": "12px 15px",
     "background": "var(--bg-controls)",
@@ -4275,11 +4274,21 @@
     "display": "none"
    },
    "|.ctrl-section": {
+    "position": "relative",
     "display": "flex",
     "flex-direction": "column",
     "justify-content": "flex-start",
     "gap": "0",
     "padding": "4px 6px 4px"
+   },
+   "|.ctrl-section + .ctrl-section::before": {
+    "content": "''",
+    "position": "absolute",
+    "left": "-11px",
+    "top": "0",
+    "bottom": "0",
+    "width": "1px",
+    "background": "var(--border-main)"
    },
    "|.ctrl-section-label": {
     "font-size": "9.5px",
@@ -4303,15 +4312,8 @@
     "width": "18px",
     "height": "18px"
    },
-   "|.ctrl-sep": {
-    "width": "1px",
-    "align-self": "stretch",
-    "background": "var(--border-main)",
-    "flex-shrink": "0",
-    "margin": "0 4px"
-   },
-   "|.ctrl-sep.ctrl-sep-wrapped": {
-    "display": "none"
+   "|.ctrl-section.ctrl-sep-wrapped::before": {
+    "content": "none"
    },
    "|.ctx-assist": {
     "width": "316px",
@@ -7927,8 +7929,8 @@
    "|.ctrl-section",
    "|.ctrl-section-row",
    "|.ctrl-section-row .btn-icon .ic, .ctrl-section-row .btn-icon-text .ic",
-   "|.ctrl-sep",
-   "|.ctrl-sep.ctrl-sep-wrapped",
+   "|.ctrl-section + .ctrl-section::before",
+   "|.ctrl-section.ctrl-sep-wrapped::before",
    "|.controls .blank-color-btn",
    "|.blank-color-swatch",
    "|.controls-wrapper",
@@ -9224,8 +9226,7 @@
    "@media (max-width: 680px)|.container",
    "@media (max-width: 680px)|.controls",
    "@media (max-width: 680px)|.ctrl-section",
-   "@media (max-width: 680px)|.ctrl-sep",
-   "@media (max-width: 680px)|.ctrl-sep",
+   "@media (max-width: 680px)|.ctrl-section + .ctrl-section::before",
    "@media (max-width: 680px)|#settings-modal, .app-modal",
    "@media (max-width: 680px)|.settings-footer, .settings-header",
    "@media (max-width: 680px)|.settings-body",
