@@ -276,7 +276,7 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Data</div>
                 <div class="ctrl-section-row">
-                    <button id="script-btn" class="btn-icon" data-hk-title="openScript" data-title="Stencil script (.stc) — write and run a script over this project" data-disabled-reason="Open an image first">${icon('script')}</button>
+                    <button id="script-btn" class="btn-icon" data-hk-title="openScript" data-title="Stencil script (.stc) — write and run a script over this project">${icon('script')}</button>
                     <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy">${icon('clipboard')}</button>
                     <button id="download-json" class="btn-icon" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export">${icon('file-down')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">

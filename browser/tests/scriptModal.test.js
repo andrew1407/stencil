@@ -23,11 +23,13 @@ test('the opener leads the Data section', () => {
   ]);
 });
 
-test('the opener names its hotkey, its tooltip and why it can be disabled', () => {
+test('the opener names its hotkey and its tooltip, and carries no disabled reason', () => {
   const btn = MARKUP.slice(MARKUP.indexOf('id="script-btn"'));
   assert.match(btn.slice(0, 300), /data-hk-title="openScript"/);
   assert.match(btn.slice(0, 300), /data-title="Stencil script \(\.stc\)/);
-  assert.match(btn.slice(0, 300), /data-disabled-reason="Open an image first"/);
+  // The window opens with no image — a script can bring its own @source — so nothing
+  // disables this control and a reason line would never be shown.
+  assert.doesNotMatch(btn.slice(0, 300), /data-disabled-reason/);
 });
 
 test('the window is composed with its editor, its diagnostics strip and three actions', () => {
