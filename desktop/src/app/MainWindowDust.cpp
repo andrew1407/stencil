@@ -32,10 +32,18 @@
 namespace stencil::gui {
 
   namespace {
+    /* The surface stays hidden for nearly the whole flight, not DUST_HOLD's 0.55: it is still
+     * sliding into place while the motes settle at the rest position, and cross-fading the two
+     * showed the panel's own text twice, one copy below the other. */
+    constexpr double VEIL_HOLD = 0.9;
+
     // Parented to the veil, so an interrupted flight (stopChatAnim deletes the effect) takes the fade with it.
     QPropertyAnimation* fadeVeilUp(QGraphicsOpacityEffect* veil, int ms) {
       auto* fade = new QPropertyAnimation(veil, "opacity", veil);
-      holdFadeKeys(fade, ms);
+      fade->setDuration(ms);
+      fade->setKeyValueAt(0.0, 0.0);
+      fade->setKeyValueAt(VEIL_HOLD, 0.0);
+      fade->setKeyValueAt(1.0, 1.0);
       fade->start(QAbstractAnimation::DeleteWhenStopped);
       return fade;
     }
