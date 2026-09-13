@@ -253,11 +253,10 @@
       QToolButton[drawToggle="idle"]:disabled, QToolButton[drawToggle="on"]:disabled {
         color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
-      /* Fit-to-window is filled like every other ACTING button now (user decision; browser
-         twin: #zoom-fit in css/components.css) — the toolFill rules above own its look.
-         Only its DISABLED face is its own: the browser's fade rather than the filled
-         chip, since it ends the ZOOM row beside a plain field. */
-      QToolButton[toolGhost="true"]:disabled { color: %DISABLED_TEXT%; background: transparent; border-color: %DISABLED_TEXT%; }
+      /* Fit-to-window is filled like every other ACTING button (user decision; browser twin:
+         #zoom-fit in css/components/settings.css), and DISABLED it is the same grey chip as
+         the − / + steppers beside it — the bordered, transparent face it used to take read
+         as a second, brighter frame around the glyph (user report, with a picture). */
       /* The Settings cluster's TOGGLES: the browser's bordered ghosts (#fullscreen-toggle,
          #incognito-toggle). Keyed on a property set per button rather than on the section,
          because the cluster's other three OPEN DIALOGS and wear the accent fill like every

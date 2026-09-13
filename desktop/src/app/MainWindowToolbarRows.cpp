@@ -123,9 +123,6 @@ namespace stencil::gui {
     // browser.
     zoomFitBtn_ = new QToolButton(this);
     zoomFitBtn_->setDefaultAction(actFit_);
-    // The property is kept for its disabled face alone (theme.cpp
-    // QToolButton[toolGhost="true"]:disabled).
-    zoomFitBtn_->setProperty("toolGhost", true);
     zoomFitBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     zoomFitBtn_->setAutoRaise(true);
     zoomFitBtn_->setIconSize(QSize(TOOL_ICON, TOOL_ICON));

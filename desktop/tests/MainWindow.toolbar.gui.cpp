@@ -1042,10 +1042,9 @@ class MainWindowGuiTest : public QObject {
   }
 
   // Fit to window is FILLED like every other acting button (user decision; browser twin:
-  // #zoom-fit) — pressing it acts at once, it reports no state. What stays its own is the
-  // DISABLED face: the browser's faded outline rather than a filled chip, since it ends
-  // the ZOOM row beside a plain field. Asserts both halves.
-  void fitToWindowIsFilledAndFadesWhenDead() {
+  // #zoom-fit) — pressing it acts at once, it reports no state. DISABLED it is the same
+  // grey chip as the − / + steppers beside it, to the pixel. Asserts both halves.
+  void fitToWindowIsFilledAndGreysWhenDead() {
     MainWindow win(nullptr, false);
     win.resize(1400, 700);
     win.show();
@@ -1053,8 +1052,8 @@ class MainWindowGuiTest : public QObject {
     settleLayout(&win, 150);
     QToolButton* btn = win.zoomFitBtn_;
     QVERIFY(btn);
-    QVERIFY2(btn->property("toolGhost").toBool(),
-             "the ghost tag still drives its disabled face");
+    auto* stepper = qobject_cast<QToolButton*>(win.buttonForAction(win.actZoomOut_));
+    QVERIFY(stepper);
     const stencil::gui::Palette pal =
         stencil::gui::themePalette(win.paintedDark_, win.settings_.accentColor);
     const auto near = [](const QColor& a, const QColor& b, int tol) {

@@ -2252,7 +2252,9 @@
     "transition": "background 0.2s, box-shadow 0.2s, color 0.2s"
    },
    "|#zoom-fit:disabled": {
-    "opacity": "0.45",
+    "background": "var(--disabled-bg)",
+    "box-shadow": "none",
+    "color": "var(--disabled-text)",
     "cursor": "not-allowed"
    },
    "|#zoom-fit:not(:disabled):hover": {
