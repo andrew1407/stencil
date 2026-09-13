@@ -1,6 +1,0 @@
-block 0 file "./somepath/someimage.png"
-  op open "./somepath/someimage.png" 1
-  op rect edit=1 "#FFFF00" "solid" "transparent" "" [23px 14px 56px 90px] 2 4 1
-  op line edit=2 "#cccccc" "dashed" "aqua" "red" [23px 14px 14px 50%] 2 2 0
-  op rect edit=3 "#cccccc" "dashed" "aqua" "red" [10px 10px 90px 60px] 2 2 1
-  op save ""

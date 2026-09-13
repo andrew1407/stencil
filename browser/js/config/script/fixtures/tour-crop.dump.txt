@@ -1,8 +1,0 @@
-block 0 file "./somepath/someimage.png"
-  op open "./somepath/someimage.png" 1
-  op crop edit=1 "" [10% -10% 2cm -1in] 0
-  op crop edit=2 "" [10% -10% 20cm -20cm] 0
-  op filter edit=3 "bw" ""
-  op line edit=4 "#FFFF00" "solid" "transparent" "" [23px 14px 14px 50% 56cm 90cm -5% -89%] 2 4 0
-  op rect edit=5 "#cccccc" "dashed" "aqua" "red" [23px 14px 56px 90px] 2 2 1
-  op save ""

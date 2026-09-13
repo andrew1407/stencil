@@ -97,8 +97,13 @@ namespace stencil::core::script {
   int resolveOp(const ScriptProgram& program, int index, double imageW, double imageH,
                 double pxPerCmX, double pxPerCmY, double* out, int cap) {
     if (index < 0 || index >= static_cast<int>(program.ops().size())) return -1;
+    return resolveOp(program.ops()[static_cast<std::size_t>(index)], imageW, imageH, pxPerCmX,
+                     pxPerCmY, out, cap);
+  }
+
+  int resolveOp(const Op& op, double imageW, double imageH, double pxPerCmX, double pxPerCmY,
+                double* out, int cap) {
     if (!out || cap < 0) return -2;
-    const Op& op = program.ops()[static_cast<std::size_t>(index)];
 
     switch (op.kind) {
       case OpKind::CROP: {

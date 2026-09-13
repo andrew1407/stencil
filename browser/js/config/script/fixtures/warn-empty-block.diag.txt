@@ -1,1 +1,0 @@
-1:1:7: warning: this @source block does nothing [W_EMPTY_BLOCK]

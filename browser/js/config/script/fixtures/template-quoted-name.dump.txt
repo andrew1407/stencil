@@ -1,3 +1,0 @@
-block 0 file "a.png"
-  op open "a.png" 1
-  op line edit=1 "#cccccc" "dashed" "transparent" "" [1px 1px 2px 2px] 2 4 0

@@ -1,5 +1,0 @@
-block 0 project ""
-  op rect edit=1 "#FFFF00" "solid" "transparent" "" [23px 14px 56px 90px] 2 4 1
-  op line edit=2 "#cccccc" "dashed" "aqua" "" [23px 14px 14px 50%] 2 4 0
-  op layout edit=3 "https://example.com/layout.json" "combine" 2
-  op save ""

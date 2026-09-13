@@ -1,3 +1,0 @@
-block 0 file "a.png"
-  op open "a.png" 1
-  op rect edit=1 "#FFFF00" "solid" "transparent" "" [10px 10px 100px 80px] 2 4 1

@@ -1,2 +1,0 @@
-1:1:8: error: '@stencil <name>:' needs a trailing ':' [E_MISSING_COLON]
-1:10:12: error: unterminated string — add a closing quote [E_UNTERMINATED_STRING]

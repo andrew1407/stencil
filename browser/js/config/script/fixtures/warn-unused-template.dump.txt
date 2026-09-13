@@ -1,3 +1,0 @@
-block 0 file "a.png"
-  op open "a.png" 1
-  op filter edit=1 "sepia" ""

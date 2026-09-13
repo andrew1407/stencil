@@ -1,6 +1,0 @@
-@stencil "line-style":
-    @use line #cccccc dashed
-
-@source a.png:
-    @use stencil "line-style":
-    @line (1,1) (2,2)

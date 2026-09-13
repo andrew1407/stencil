@@ -1,4 +1,0 @@
-# a comment
-@SOURCE a.png:
-    @CROP 10%   # trailing comment
-    @FiLtEr BW

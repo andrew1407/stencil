@@ -1,6 +1,0 @@
-@stencil line-style param:
-    @use line @1 dashed, @2
-
-@source a.png:
-    @use stencil line-style param red cm:
-    @line (5,5) (6,6)

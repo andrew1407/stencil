@@ -37,4 +37,9 @@ namespace stencil::core::script {
   int resolveOp(const ScriptProgram& program, int index, double imageW, double imageH,
                 double pxPerCmX, double pxPerCmY, double* out, int cap);
 
+  // The same, for an Op the caller already holds (a GUI carrying its own copy of the
+  // stream). The program version bounds-checks an index and then calls this.
+  int resolveOp(const Op& op, double imageW, double imageH, double pxPerCmX, double pxPerCmY,
+                double* out, int cap);
+
 }  // namespace stencil::core::script

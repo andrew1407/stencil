@@ -1,5 +1,0 @@
-@stencil two params:
-    @use line @1, @2
-
-@source a.png:
-    @use stencil two params red:

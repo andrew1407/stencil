@@ -1,3 +1,0 @@
-@source a.png:
-    @filter bw
-    @redo

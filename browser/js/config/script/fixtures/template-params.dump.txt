@@ -1,3 +1,0 @@
-block 0 file "a.png"
-  op open "a.png" 1
-  op line edit=1 "red" "dashed" "transparent" "" [5cm 5cm 6cm 6cm] 2 4 0

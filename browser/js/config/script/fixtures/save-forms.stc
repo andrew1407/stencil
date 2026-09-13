@@ -1,6 +1,0 @@
-@source a.png:
-    @filter bw
-    @save
-    @save out/
-    @save named
-    @save out/exact.jpg

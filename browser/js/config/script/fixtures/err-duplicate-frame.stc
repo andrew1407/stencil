@@ -1,4 +1,0 @@
-@source clip.mp4:
-    @frame 8
-    @filter bw
-    @frame 8

@@ -1,2 +1,0 @@
-1:1:8: warning: template 'two params' is never used [W_UNUSED_TEMPLATE]
-5:5:4: error: template 'two params' takes 2 argument(s), got 1 [E_TEMPLATE_ARITY]

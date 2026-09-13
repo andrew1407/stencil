@@ -1,5 +1,0 @@
-@source a.png:
-    @filter bw
-    @rect (1,1) (2,2)
-    @undo @rect (1,1) (2,2)
-    @save out.png

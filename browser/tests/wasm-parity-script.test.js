@@ -5,23 +5,23 @@
 // loads the SINGLE_FILE ES module directly.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { core } from '../js/core/stencilCore.js';
 import { parseScript, scriptDiagnostics, scriptDump } from '../js/core/script.js';
+import { readScriptCases } from './helpers/scriptCases.js';
 
 // Generated artifact (gitignored) — skip rather than fail when it has not been built.
 const MODULE_BUILT = existsSync(fileURLToPath(new URL('../js/wasm/stencilCore.js', import.meta.url)));
 const wtest = MODULE_BUILT ? test : test.skip;
 
-const DIR = fileURLToPath(new URL('../js/config/script/fixtures/', import.meta.url));
-const CASES = readdirSync(DIR).filter((f) => f.endsWith('.stc')).sort();
-const source = (f) => readFileSync(DIR + f, 'utf8');
+const CASES = readScriptCases();
+const source = (c) => c.script;
 
 // Captured BEFORE wasm is installed, so these are the hand-written fallback's results.
-const jsRef = CASES.map((f) => {
-  const p = parseScript(source(f));
+const jsRef = CASES.map((c) => {
+  const p = parseScript(c.script);
   return { dump: scriptDump(p), diags: scriptDiagnostics(p), errors: p.errorCount };
 });
 
@@ -36,16 +36,16 @@ wtest('the corpus is what both sides are measured against', () => {
 });
 
 wtest('wasm lowers every fixture exactly as the JS fallback does', () => {
-  CASES.forEach((file, i) => {
-    const program = parseScript(source(file));
-    assert.strictEqual(scriptDump(program), jsRef[i].dump, `dump ${file}`);
-    assert.strictEqual(scriptDiagnostics(program), jsRef[i].diags, `diagnostics ${file}`);
-    assert.strictEqual(program.errorCount, jsRef[i].errors, `errorCount ${file}`);
+  CASES.forEach((c, i) => {
+    const program = parseScript(c.script);
+    assert.strictEqual(scriptDump(program), jsRef[i].dump, `dump ${c.name}`);
+    assert.strictEqual(scriptDiagnostics(program), jsRef[i].diags, `diagnostics ${c.name}`);
+    assert.strictEqual(program.errorCount, jsRef[i].errors, `errorCount ${c.name}`);
   });
 });
 
 wtest('the blocks and ops cross the ABI with their structure intact', () => {
-  const program = parseScript(source('tour-multi-source.stc'));
+  const program = parseScript(CASES.find((c) => c.name === 'tour-multi-source').script);
   assert.equal(program.blocks.length, 5);
   assert.equal(program.blocks[0].kind, 'url');
   assert.equal(program.blocks[3].kind, 'dir');
@@ -67,7 +67,7 @@ wtest('the token stream crosses with the spans an editor colours by', () => {
 });
 
 wtest('the wasm handle is released, so repeated parses do not leak', () => {
-  const src = source('tour-crop.stc');
+  const src = CASES.find((c) => c.name === 'tour-crop').script;
   const first = scriptDump(parseScript(src));
   for (let i = 0; i < 200; i += 1) parseScript(src);
   assert.strictEqual(scriptDump(parseScript(src)), first);
