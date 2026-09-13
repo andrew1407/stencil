@@ -108,6 +108,42 @@ docker run --rm -p 8080:80 stencil-browser   # -> http://localhost:8080
   `launch.html` is a standalone bounce page that forwards a `#stencil-desktop=<url>` fragment
   to the `stencil://` scheme, for channels that don't linkify custom schemes.
 
+### Scripts (`.stc`)
+
+The script button in the toolbar's **Data** section (`Alt+Shift+S`, needs an image open) opens
+the script window: write a `.stc` — crop, filter, draw, layout, save and undo written as `@`
+directives — coloured as you type, and press **Run** (`Ctrl+Enter`) to apply it to the open
+project. **Copy** puts the text on the clipboard, **Download** writes it out as `stencil.stc`,
+**Upload** loads one back in. The window opens empty every time; nothing is kept between opens.
+
+Mistakes are only reported once you press Run: the line is named under the editor and
+underlined in place, and a script with any error runs nothing. A run that succeeds closes the
+window; a failed one stays put with the text and the underlines still in front of you.
+
+The canvas right-click menu's **Stencil Script** row opens the same editor as a compact flyout
+beside the menu, so you can type and run without leaving the canvas — running or failing
+leaves the menu open. On phones and touch pointers the row opens the window instead.
+
+Dropping a `.stc` onto the page loads it into the editor while the script window is open, and
+runs it on the current project when the window is closed.
+
+The browser has no filesystem, so here `@source` and `@layout` name a URL rather than a local
+path, and `@save` saves the open project (a name after it renames it). With no `@source` at
+all the directives apply to whatever is already open:
+
+```stc
+# No @source: the directives apply to the project that is already open.
+@use line #cccccc dashed, fill aqua
+@rect (10, 10) (-10%, -10%)
+@crop 5%
+@filter sepia
+@save
+```
+
+The language is the same one the [CLI's](../cli/README.md) `--script` takes, written up in
+[`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md); the shared example corpus
+is [`js/config/script/fixtures/`](js/config/script/fixtures/cases.txt).
+
 ### Project files (`.stencil`)
 
 A `.stencil` file is a single JSON document bundling a whole project — the original image,
@@ -175,6 +211,8 @@ Orientation:
   `join()`); `line.points[j]` → a `Point` (`x`/`y` settable, `move()`, `remove()`).
 - **Servers**: `connect()`, `disconnect()`, `serverProjects()`, `publishIncognito()`;
   **windows**: `openWindow('Projects')` or the named `open*Window()` openers, `closeWindow()`.
+- **Scripts**: `await stencil.execScript(text)` runs a `.stc` against the open project;
+  `stencil.checkScript(text)` parses only and returns the diagnostics, one string each.
 - **Assistant**: `stencil.llm` (the settings, get/set), `await stencil.prompt(text, { images })`,
   and `stencil.chat` for the panel (`open()`, `dock()`, `history`, `abort()`, `clear()`).
 - **Motion**: `stencil.drawingAnimations`, `stencil.motionMode`, `stencil.holdDrawDelay`.
