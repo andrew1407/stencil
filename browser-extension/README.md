@@ -78,7 +78,7 @@ proxy) are set in **Options → AI assistant**; with the provider `none` the sec
 ✦ button are hidden. The extension reaches providers through its host permissions, so no
 CORS setup is needed. Setup guide: the [root README](../README.md#ai-assistant--setting-up-a-model);
 the op set is the extension profile in
-[`llm-contract/llm-profiles.md`](../llm-contract/llm-profiles.md).
+[`contracts/llm/llm-profiles.md`](../contracts/llm/llm-profiles.md).
 
 ## Editor mode
 

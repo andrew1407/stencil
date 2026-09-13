@@ -124,7 +124,7 @@ const char* stencil_cli_durationOffAliases(void);
 int stencil_cli_parseDuration(const char* spec, long long* outMs);
 
 /* .stc scripts: parse once into a handle, then read diagnostics, tokens, blocks and the
- * lowered ops back out. Normative in stc-contract/stc-contract.md; strings are handle-owned. */
+ * lowered ops back out. Normative in contracts/stc/stc-contract.md; strings are handle-owned. */
 int stencil_cli_scriptParse(const char* text, int len);
 void stencil_cli_scriptDestroy(int h);
 int stencil_cli_scriptErrorCount(int h);

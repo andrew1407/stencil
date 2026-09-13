@@ -22,7 +22,7 @@
       --filter <f>           Apply bw | sepia | invert | contour | <color>;
                              overrides the layout filter
       --script <file>        Run a .stc script ('-' reads stdin). With no @source
-                             block it edits the -i input; see stc-contract/
+                             block it edits the -i input; see contracts/stc/
       --script-check <file>  Print the script's diagnostics and exit 1 on an error
       --script-plan <file>   Print the script lowered to an op plan (JSON, stdout)
       --console              Interactive console: /upload, /crop, /rotate, /save, ...

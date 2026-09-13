@@ -16,7 +16,7 @@ those documents on purpose.
    desktop `src/llm/opPlan.cpp` + `src/llm/planExecutor.cpp`; cli `src/llm/opplan.zig`;
    mcp `src/opplan/{parse,lower,actions}.rs`; bot `Application/Llm/OpPlanParser*.cs` +
    `PromptService.Actions.cs`; pystencil `pystencil/llm.py`; extension `src/llm/opPlan.js`.
-4. `llm-contract/llm-contract.md` (and the split §-files) — the normative prose.
+4. `contracts/llm/llm-contract.md` (and the split §-files) — the normative prose.
 5. Run every surface's fixture walker. They are the cross-language proof.
 
 ### Add a console command (cli, and its pystencil twin)
@@ -46,7 +46,7 @@ those documents on purpose.
 
 1. `browser/js/config/llm/providers.json` — id, `displayName`, `defaultBaseUrl`, `chatPath`,
    `wire`.
-2. `llm-contract/llm-providers.md` — the wire mapping, normatively.
+2. `contracts/llm/llm-providers.md` — the wire mapping, normatively.
 3. The mapping in each client, using its platform's built-in HTTP (**no new dependency**):
    browser `js/llm/llmClient.js`; extension `src/llm/llmClient.js`; desktop
    `src/llm/LlmClient.cpp`; cli `src/llm/wire.zig` + `transport.zig`; mcp

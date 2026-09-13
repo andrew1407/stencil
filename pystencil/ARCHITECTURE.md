@@ -1,6 +1,6 @@
 # pystencil architecture
 
-The system-wide design — the parity contract, canonical data, the layer model, the pattern vocabulary — is in the root [`ARCHITECTURE.md`](../ARCHITECTURE.md). The console grammar and stderr output it twins are `cli/CONTRACT.md`; the LLM behaviour is `llm-contract/`.
+The system-wide design — the parity contract, canonical data, the layer model, the pattern vocabulary — is in the root [`ARCHITECTURE.md`](../ARCHITECTURE.md). The console grammar and stderr output it twins are `cli/CONTRACT.md`; the LLM behaviour is `contracts/llm/`.
 
 ```mermaid
 graph TD

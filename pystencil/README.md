@@ -197,7 +197,7 @@ and `/chat on|off|clear`. A bare command that needs arguments lists its options.
 
 ## LLM prompts
 
-`pystencil.llm` implements the shared [LLM contract](../llm-contract/llm-contract.md): the
+`pystencil.llm` implements the shared [LLM contract](../contracts/llm/llm-contract.md): the
 model answers with an op-plan that is strictly validated and executed through the same
 `Editor` methods above. Chat-only replies come back with zero actions; each plan variant
 yields one extra output image.

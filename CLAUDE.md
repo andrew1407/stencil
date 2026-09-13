@@ -77,10 +77,14 @@ Doctest; each other surface uses its platform's default.
 
 - **`ARCHITECTURE.md`** — the system design: the system map, the core parity contract,
   the shared-data rails, the layer model per app and the pattern vocabulary.
-- **`llm-contract/`** — the normative LLM contract (`llm-contract.md` plus `llm-providers.md`,
-  `llm-profiles.md`, `llm-chat.md`; §1–§13 are stable across the set). It is machine-readable
-  and test-guarded in `browser/js/config/llm/`. The LLM lives **entirely in the adapters** —
-  `core/` has no LLM code.
+- **`contracts/`** — the normative contracts, one directory each.
+  - **`llm/`** — the LLM contract (`llm-contract.md` plus `llm-providers.md`,
+    `llm-profiles.md`, `llm-chat.md`; §1–§13 are stable across the set). Machine-readable and
+    test-guarded in `browser/js/config/llm/`. The LLM lives **entirely in the adapters** —
+    `core/` has no LLM code.
+  - **`stc/`** — the `.stc` script language: lexis, directives, units, templates, undo, the
+    error catalogue and the per-surface execution table. Parsed and lowered in `core/script/`,
+    proved by the corpus in `browser/js/config/script/fixtures/cases.txt`.
 - **`.claude/rules/`** — auto-loaded agent rules: `security.md`, `no-dependencies.md`,
   `architecture.md`, `tests.md`, `checklists.md` (the file-by-file steps for adding an op /
   console command / dialog / provider), and `core-changes.md` (path-scoped to `core/`).

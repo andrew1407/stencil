@@ -150,7 +150,7 @@ Provider, endpoint, model and key live in the assistant settings modal (`Alt+Shi
 to the opt-in **"Save chats with projects"** toggle. Calling a local provider directly needs
 its CORS allowance (Ollama `OLLAMA_ORIGINS`, LM Studio "enable CORS"); the full setup guide
 is in the [root README](../README.md#ai-assistant--setting-up-a-model), the contract in
-[`llm-contract/`](../llm-contract/llm-contract.md).
+[`contracts/llm/`](../contracts/llm/llm-contract.md).
 
 ## Console API (`window.stencil`)
 

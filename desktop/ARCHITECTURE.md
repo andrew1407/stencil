@@ -158,7 +158,7 @@ classDiagram
 | `ServerProject` | A server project record; mirror of `server/internal/protocol` `ProjectRecord`, which is canonical | Transient reply value stamped with `serverUrl` | `RemoteLink` on open, `ProjectsDialog` rows |
 | `RemoteLink` | The bound server project (address, id, version) of the open editor | `RemoteSession::link_`, bound on open, unbound on close | `RemoteSyncController` pushes and polls it |
 | `ChatMessage` | One chat turn with attached images; replayed in full each call | `MainWindow::chatHistory_`, cleared with the conversation | `LlmClient::chat`, `fileStore::buildChatDoc` |
-| `OpPlan` | A parsed, registry-validated assistant reply; the contract in `llm-contract/llm-contract.md` is canonical | Transient, from `parseOpPlan` to `executePlan` | `Action`, `Variant`, `AskCard`, `ExecResult` |
+| `OpPlan` | A parsed, registry-validated assistant reply; the contract in `contracts/llm/llm-contract.md` is canonical | Transient, from `parseOpPlan` to `executePlan` | `Action`, `Variant`, `AskCard`, `ExecResult` |
 | `Action` | One op of a plan, a tagged union on `OpKind` | Inside `OpPlan` | `PlanTarget` appliers |
 
 ## Patterns

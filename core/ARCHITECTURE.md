@@ -190,7 +190,7 @@ classDiagram
   image mid-script: `resolveOp` turns them into pixels against the size the host holds right
   then, reusing `resolveCropRect` and `resolveAxisPx`. `@undo` never reaches an adapter —
   `EditLedger` resolves it at each `@save` into one rewind plus a replay of the survivors.
-  The language is normative in `stc-contract/stc-contract.md`; the corpus in
+  The language is normative in `contracts/stc/stc-contract.md`; the corpus in
   `browser/js/config/script/fixtures/` is what proves every surface agrees.
 - **A formula evaluation.** `FormulaParser::apply(expr, var, value, allowFormulas)` is the
   identity when formulas are off, the expression is empty, or evaluation fails. `Eval` walks

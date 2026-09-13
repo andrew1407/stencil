@@ -76,7 +76,7 @@ with no `nextCursor`. List rows never carry `layout` or `originalContent`.
 The `video`/`variantN`/`chat` file kinds are filestore-only: the bytes upload and download
 through the same routes, but nothing is written to the project record; they are removed with
 the project or via the per-file DELETE. `chat` holds the opt-in persisted-chat JSON document
-([`llm-contract/llm-chat.md`](../llm-contract/llm-chat.md)) and is served as `application/json`.
+([`contracts/llm/llm-chat.md`](../contracts/llm/llm-chat.md)) and is served as `application/json`.
 
 ## LLM proxy
 

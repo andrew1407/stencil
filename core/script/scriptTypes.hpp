@@ -3,7 +3,7 @@
 #include <vector>
 
 // Value types of the .stc script engine. Port target: browser/js/core/scriptTypes.js.
-// The grammar itself is normative in stc-contract/stc-contract.md.
+// The grammar itself is normative in contracts/stc/stc-contract.md.
 namespace stencil::core::script {
 
   // Caps. Identical in the JS port so wasm and the fallback reject the same inputs.

@@ -173,7 +173,7 @@ video and unmeasured items) plus a `wrote …` / `scraped N file(s) …` text su
 
 #### LLM assistant (`stencil_prompt`)
 
-`stencil_prompt` implements the shared [LLM contract](../llm-contract/llm-contract.md): it
+`stencil_prompt` implements the shared [LLM contract](../contracts/llm/llm-contract.md): it
 sends the `prompt` (and, for vision, a local `input` image ≤ 8 MiB) to the configured
 provider, strictly validates the returned op-plan, and executes it through the same CLI
 pipeline as `stencil_edit`. The plan's base actions are written to `{output_dir}/result.png`

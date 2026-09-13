@@ -258,7 +258,7 @@ The scrape line shapes are pinned by the shared golden set
 
 ## 4. Script mode (`--script`, `--script-check`) output contract
 
-The `.stc` language itself is normative in [`stc-contract/stc-contract.md`](../stc-contract/stc-contract.md);
+The `.stc` language itself is normative in [`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md);
 this section fixes only what the CLI prints.
 
 **These two flags are the only modes that write to stdout.** Every other mode keeps stdout

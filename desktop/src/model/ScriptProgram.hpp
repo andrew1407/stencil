@@ -6,7 +6,7 @@
 
 // The desktop's seam onto core/script: the ONE file here that includes a core script
 // header, so the layer lint's "core only from model/" rule holds. Everything above works
-// in Qt types. The language is normative in stc-contract/stc-contract.md.
+// in Qt types. The language is normative in contracts/stc/stc-contract.md.
 namespace stencil::model {
 
   // Mirrors core::script::TokenKind; the dialog's highlighter colours by this.

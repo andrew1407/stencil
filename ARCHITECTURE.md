@@ -80,7 +80,9 @@ server/               # the Go collaboration server: cmd/stencil-server/, intern
 browser-extension/    # the Chrome MV3 extension: manifest.json, src/, tests/
 bot/                  # the .NET Telegram bot: src/ (Domain · Application · Infrastructure · Bot), tests/
 e2e/                  # the Playwright smoke harness: helpers/, fixtures/, tests/, pins/
-llm-contract/         # the normative LLM contract
+contracts/            # the normative contracts, one directory each
+  llm/                # the LLM contract (llm-contract.md + providers · profiles · chat)
+  stc/                # the .stc script language
 tools/                # moveCheck.mjs and commentOnlyDiff.mjs
 ```
 

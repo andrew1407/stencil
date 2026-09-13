@@ -124,10 +124,10 @@ in the cli/pystencil consoles, `/chat save on|off` in the bot).
 
 Each surface's own README carries its settings UI and its endpoint keys; the collaboration
 server's proxy keys are in [server/README.md](server/README.md#llm-proxy). The normative spec
-is [`llm-contract.md`](llm-contract/llm-contract.md), with provider wire mappings in
-[`llm-providers.md`](llm-contract/llm-providers.md), per-surface op profiles in
-[`llm-profiles.md`](llm-contract/llm-profiles.md) and chat persistence in
-[`llm-chat.md`](llm-contract/llm-chat.md).
+is [`llm-contract.md`](contracts/llm/llm-contract.md), with provider wire mappings in
+[`llm-providers.md`](contracts/llm/llm-providers.md), per-surface op profiles in
+[`llm-profiles.md`](contracts/llm/llm-profiles.md) and chat persistence in
+[`llm-chat.md`](contracts/llm/llm-chat.md).
 
 ## Claude Code integration
 
