@@ -19,7 +19,7 @@ export const scriptModalInner = () => `
             <div class="script-diag" id="script-diag"></div>
         </div>
         <div class="settings-footer">
-            <span class="footer-hint">${keysHtml('Ctrl+Enter')} runs · directives are listed in stc-contract</span>
+            <span class="footer-hint">${keysHtml('Ctrl+Enter')} runs</span>
             <span class="chat-settings-actions">
                 <button id="script-download" class="btn-icon-text" data-title="Download this script as stencil.stc">${icon('file-down', { size: 14 })}<span>Download</span></button>
                 <input type="file" id="script-upload" accept=".stc" style="display:none;">

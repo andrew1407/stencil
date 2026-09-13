@@ -5374,7 +5374,7 @@
    },
    "|.ic-script .ic-cog": {
     "--ic-ms": "0.3s",
-    "transform-origin": "12px 15.6px",
+    "transform-origin": "16.8px 17.2px",
     "transform": "rotate(calc(var(--ic-on) * 45deg))"
    },
    "|.ic-send": {
@@ -6619,7 +6619,7 @@
     "outline": "none"
    },
    "|.script-modal": {
-    "width": "880px"
+    "width": "587px"
    },
    "|.sel-sep": {
     "flex": "0 0 auto",
