@@ -16,6 +16,7 @@ You: /crop x1=10% x2=90% y1=10% y2=90%
 You: /color #ff5623   /thickness 4
 You: /draw rect 20%,20% 80%,80%   → annotates the image
 You: /json            → downloads the layout JSON
+You: /script @crop 10% ; @filter bw   (or upload a .stc file)
 You: /connect http://localhost:8090
 You: /create Shared   → publishes the result as a new server project
 ```
@@ -113,7 +114,8 @@ an **image link**. Add a **caption command** to apply it immediately (`/crop …
 `/draw rect 20%,20% 80%,80%`); while `/chat` mode is on, a plain-text caption is a `/prompt`
 about that photo. Send a **video** to grab a frame (caption `/frame n` to pick one). A
 `.json` document captioned `/apply` draws that layout; a **`.stencil` project file** opens a
-whole project, and `/project` downloads the current one as a portable `.stencil`.
+whole project, and `/project` downloads the current one as a portable `.stencil`. A **`.stc`
+script file** runs as a script the moment it arrives — the file form of `/script`.
 
 **Albums** — a multi-photo message runs its caption once per photo, in order, and sends the
 results back as one album; the last photo's result becomes the working image.

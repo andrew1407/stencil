@@ -1,4 +1,5 @@
 using Stencil.TelegramBot.Domain.Editing;
+using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Domain.Abstractions;
 
@@ -12,4 +13,7 @@ public interface IStencilCli
 
     // --source-site mode; throws StencilCliException when nothing matched or the fetch failed.
     Task<ScrapeResult> ScrapeAsync(ScrapeRequest request, CancellationToken ct = default);
+
+    // --script-plan: a .stc lowered to op-plan JSON; `input` is the frame % lengths resolve against.
+    Task<ScriptPlan> ScriptPlanAsync(string scriptPath, string? input = null, CancellationToken ct = default);
 }

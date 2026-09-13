@@ -4,7 +4,7 @@ namespace Stencil.TelegramBot.Infrastructure.Processes;
 
 public abstract record ProcessOutcome;
 
-public sealed record ProcessCompleted(int ExitCode, string Stderr) : ProcessOutcome;
+public sealed record ProcessCompleted(int ExitCode, string Stderr, string Stdout) : ProcessOutcome;
 
 public sealed record ProcessStartFailed(string Message) : ProcessOutcome;
 
@@ -64,8 +64,8 @@ public static class ProcessRunner
             Task<string> stdoutTask = process.StandardOutput.ReadToEndAsync(linkedCts.Token);
             await process.WaitForExitAsync(linkedCts.Token).ConfigureAwait(false);
             string stderr = await stderrTask.ConfigureAwait(false);
-            await stdoutTask.ConfigureAwait(false);
-            return new ProcessCompleted(process.ExitCode, stderr);
+            string stdout = await stdoutTask.ConfigureAwait(false);
+            return new ProcessCompleted(process.ExitCode, stderr, stdout);
         }
         catch (OperationCanceledException)
         {

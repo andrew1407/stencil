@@ -50,14 +50,14 @@ forbids `Telegram.Bot`, `System.Net.Http`, `System.Diagnostics.Process` and
 | `src/Stencil.TelegramBot.Domain/Editing/` | `EditState`, `HistoryStack<T>`, `CropSpecResolver`, `EditRequest`, `RenderResult`, `BlankSpec`, `ScrapeRequest`/`ScrapeResult`, `ColorSpec` | value objects; no I/O |
 | `src/Stencil.TelegramBot.Domain/Layout/` | `StencilLayout`, `LayoutLine`, `LayoutPoint`, `LineStyle`, `StencilLayoutParser` | the CLI `--layout` shape; per-line defaults pinned to the other front-ends |
 | `src/Stencil.TelegramBot.Domain/Project/`, `Projects/` | `StencilProject` + `StencilProjectFile` (the `.stencil` bundle), `ProjectRecord`, `ProjectFull`, `Create`/`UpdateProjectRequest`, `ProjectFileKind` | mirrors of `projectFile.js` and `server/internal/protocol` |
-| `src/Stencil.TelegramBot.Domain/Llm/` | `OpPlan`, `OpVariant`, the `PlanAction` union, `AskCard`, `LlmChatRequest`/`LlmMessage`/`LlmReply`, `LlmOptions`, `LlmProfile`, `ChatDocument`, `LlmGate`, `LlmException`, `ILlmClient`, `ProvidersAsset` | the contract's types; no wire format |
+| `src/Stencil.TelegramBot.Domain/Llm/` | `OpPlan`, `OpVariant`, the `PlanAction` union, `AskCard`, `LlmChatRequest`/`LlmMessage`/`LlmReply`, `LlmOptions`, `LlmProfile`, `ChatDocument`, `LlmGate`, `LlmException`, `ILlmClient`, `ProvidersAsset`, `ScriptPlan`/`ScriptBlock`/`ScriptDiagnostic` | the contract's types; no wire format |
 | `src/Stencil.TelegramBot.Domain/Sessions/` | `UserSession`, `ServerConnectionInfo`, `ServerHandshake`, `CredentialKind`, `PendingInputs` | one JSON value per user; paths, never bytes |
 | `src/Stencil.TelegramBot.Domain/Abstractions/`, `Configuration/` | `IStencilCli`, `IStencilServerClient(+Factory)`, `ISessionStore`, `IUserWorkspace`, `IImageDownscaler`, `IBotPolicy` | the ports the adapters implement |
 | `src/Stencil.TelegramBot.Domain/Serialization/`, `Exceptions/` | `StencilJson` (one camelCase serializer), `JsonRead`; `StencilCliException`, `ServerException` | every JSON goes through `StencilJson` |
 | `src/Stencil.TelegramBot.Application/Editing/` | `EditingService` (one base image + a replayable `EditState`), `EditSessions`, `ProjectFileService`, `VideoFrames`, `RemoteImageUrl` (the surface's fetch guard), `ImageDimensionReader` | every render replays the state through `IStencilCli` |
 | `src/Stencil.TelegramBot.Application/Servers/` | `ServerService` (connect/list/fetch/create/save/sync, one partial per concern), `ProjectLayoutMapper`/`Writer`, `InviteLink`, `ServerProjectInfo` | a port of pystencil's `ConnectionManager` + `remoteSync`; version-guarded writes |
-| `src/Stencil.TelegramBot.Application/Llm/` | `PromptService` (one partial per turn concern), `OpSchema`/`OpRegistry`/`OpPlanParser`, `PlanFrameMapper`, `LlmAttachmentLoader`, `SystemPromptAsset`, `ActionContext` | the validator is table-driven from the embedded `opRegistry.json` |
-| `src/Stencil.TelegramBot.Infrastructure/Cli/`, `Processes/` | `ProcessStencilCli` + `CliArgvBuilder` + `CliOutcomeParser` (ports of the mcp adapters), `StencilCliLocator`, `ProcessRunner` | `NO_COLOR=1`; spawned in the output folder with `--confine-output` |
+| `src/Stencil.TelegramBot.Application/Llm/` | `PromptService` (one partial per turn concern), `ScriptService`, `OpSchema`/`OpRegistry`/`OpPlanParser`, `PlanFrameMapper`, `LlmAttachmentLoader`, `SystemPromptAsset`, `ActionContext` | the validator is table-driven from the embedded `opRegistry.json` |
+| `src/Stencil.TelegramBot.Infrastructure/Cli/`, `Processes/` | `ProcessStencilCli` + `CliArgvBuilder` + `CliOutcomeParser` (ports of the mcp adapters), `StencilCliLocator`, `ProcessRunner` | `NO_COLOR=1`; spawned in the output folder with `--confine-output`, except `--script-plan`, which writes nothing |
 | `src/Stencil.TelegramBot.Infrastructure/Server/` | `HttpStencilServerClient` (a port of the pystencil client), `StencilServerClientFactory`, `UrlNormalizer` | REST only; every non-2xx is a `ServerException` |
 | `src/Stencil.TelegramBot.Infrastructure/Llm/` | `HttpLlmClient` + one `IProviderMapping` per wire shape (`OllamaMapping`, `OpenAiMapping`, `StencilServerMapping`) | the platform's `HttpClient`; endpoint from configuration only |
 | `src/Stencil.TelegramBot.Infrastructure/Sessions/`, `Workspace/` | `InMemorySessionStore`, `RedisSessionStore`; `UserWorkspace` (`<DataDir>/<userId>/<guid>`), `TempFiles` | Redis when `REDIS_URL` is set, else memory |
@@ -124,6 +124,15 @@ classDiagram
         +List~LlmMessage~ Messages
         +LlmOptions Options
     }
+    class ScriptPlan {
+        +List~ScriptDiagnostic~ Diagnostics
+        +List~ScriptBlock~ Blocks
+    }
+    class ScriptBlock {
+        +string Source
+        +string SourceKind
+        +List~string~ Plans
+    }
     UserSession *-- EditState : Edits
     UserSession *-- ServerConnectionInfo : Connections
     UserSession o-- HistoryStack : EditHistory + EditRedo
@@ -134,6 +143,8 @@ classDiagram
     OpPlan *-- PlanAction : Actions
     PlanAction --> LayoutLine : LayoutAction.Lines
     LlmChatRequest --> OpPlan : reply parsed into
+    ScriptPlan *-- ScriptBlock : Blocks
+    ScriptBlock --> OpPlan : plans parsed into
 ```
 
 | Entity | What it is | Owned by / lifetime | Relates to |
@@ -148,6 +159,8 @@ classDiagram
 | `StencilProject` | The portable `.stencil` bundle: name, metadata, original image bytes, the raw layout | built/parsed by `StencilProjectFile` for `/project` and document uploads | `EditState` via `ProjectLayoutMapper`; canonical is the browser's `projectFile.js` |
 | `OpPlan` | A validated model reply: text, top-level actions, up to 16 `OpVariant`s, an optional `AskCard` | produced by `OpPlanParser`; lives for one turn | `PlanAction`; canonical is `browser/js/config/llm/opRegistry.json` |
 | `PlanAction` | The op-plan action union (`CropAction`, `RotateAction`, `LayoutAction`, `SaveAction`, `ConnectAction`, ...), one record per `Op` | inside an `OpPlan` | dispatched through `OpRegistry.HandlerFor` |
+| `ScriptPlan` | One `.stc` as the CLI lowered it: the diagnostics, and — only when there is no error — one `ScriptBlock` per `@source`, each carrying its chunked op-plan actions as raw JSON | produced by `CliOutcomeParser.ParseScriptPlan`; lives for one `/script` run | `ScriptBlock`, `ScriptDiagnostic`; the envelope is `cli/CONTRACT.md` §5 |
+| `ScriptBlock` | One block's source, its kind (`project`/`url`, or a `file`/`dir`/`glob` the bot refuses) and its plans | inside a `ScriptPlan` | each plan is parsed by `OpPlanParser` into an `OpPlan` |
 | `LlmChatRequest` | The system prompt plus the full replayed history, the current turn last, the resolved server URL/token and the picked `LlmOptions` | built by `PromptService.BuildTurn`; one per model round | `LlmMessage`, `LlmImage`; mapped by an `IProviderMapping`; persisted as a `ChatDocument` |
 
 ## Patterns
@@ -155,7 +168,7 @@ classDiagram
 | Pattern | Where | Notes |
 |---|---|---|
 | Ports & Adapters | `Domain/Abstractions/*` (`IStencilCli`, `IStencilServerClient`, `ISessionStore`, `IUserWorkspace`, `ILlmClient`, `IBotPolicy`) ← `Infrastructure/*` | the rings themselves; the tests swap every port for a `Doubles/Mock*` |
-| Adapter | `CliArgvBuilder.BuildArgv`, `CliOutcomeParser.ParseWrote`/`ParseRemotes`, `ProcessStencilCli` | a typed `EditRequest` to the CLI's documented flags and back; ports of `mcp/src/{args,outcome,pipeline}.rs` |
+| Adapter | `CliArgvBuilder.BuildArgv`/`BuildScriptPlanArgv`, `CliOutcomeParser.ParseWrote`/`ParseRemotes`/`ParseScriptPlan`, `ProcessStencilCli` | a typed `EditRequest` to the CLI's documented flags and back; ports of `mcp/src/{args,outcome,pipeline}.rs` |
 | Command | `HistoryStack<EditState>.Push`/`Undo`/`Redo` via `EditSessions.WithHistory`; the `OpHandler` delegate on each `OpDescriptor` | undo restores a whole `EditState` snapshot; each op-plan action is one executable entry |
 | Strategy | `HttpLlmClient._mappings` → `IProviderMapping` (`OllamaMapping`, `OpenAiMapping`, `StencilServerMapping`) | one wire shape per provider, selected by table lookup |
 | Chain of Responsibility | `MessageRouter.chain`: `CommandLink` → `UploadLink` → `PendingInputLink` → `UrlLink` → `ChatModeLink` → `FallbackLink`; the fetch guard `RemoteImageUrl.ValidateAsync` → `LayoutFetcher(isBlockedAddress)` → the CLI's own scheme guard | each `IMessageHandler.TryHandleAsync` claims or declines; link order is the precedence |
@@ -189,6 +202,16 @@ classDiagram
   `OpRegistry.HandlerFor` onto the same `IEditingService` methods the slash commands use, with
   `PlanFrameMapper` re-mapping coordinates. A `Mutated` `PromptOutcome` renders through
   `RenderAndSendAsync`; an `AskCard` becomes an inline keyboard handled by `AskCardTaps`.
+- **A script turn.** `/script <text>`, or an uploaded `.stc` routed by `DocumentIntake`, reaches
+  `CommandHandlers.RunScriptAsync`, which gates on a working image (unless the script opens its own
+  with `@source`) and hands the text to `ScriptService`. That writes a temp `script-<guid>.stc` into
+  the user's workspace, renders the current frame so the CLI has a size for `%` lengths, and calls
+  `IStencilCli.ScriptPlanAsync`; the CLI's `--script-plan` envelope comes back as a `ScriptPlan`.
+  Any error diagnostic ends it there — nothing runs. Otherwise each block's plans go through
+  `OpPlanParser` and `PromptService.RunPlanAsync`, the same validator, pre-flight and executor a
+  model plan takes, with the script text standing in as the `openUrl` echo source. A block naming a
+  local path, directory or glob is refused; several blocks come back as an album. The temp file is
+  deleted in a `finally`.
 - **Save and sync.** `/save` → `ServerService.SaveActiveProjectAsync`: render,
   `ProjectLayoutWriter.BuildJson` merges `EditState` into `ActiveProjectLayoutJson`,
   `UpdateProjectAsync` guarded by `ActiveProjectVersion` (409 is a conflict), `PutFileAsync` of
@@ -222,7 +245,9 @@ classDiagram
 1. **The CLI is the pixel engine.** Locate (`STENCIL_CLI` → `cli/zig-out/bin/stencil` →
    `PATH`), run with `NO_COLOR=1`, parse stderr. Because `--confine-output` refuses an
    absolute path, the child is spawned *in* the output's folder with only the leaf name, and
-   the relative paths it prints are re-rooted on the way back.
+   the relative paths it prints are re-rooted on the way back. `--script-plan` is the one mode
+   that carries no `--confine-output`: it fetches, decodes and writes nothing, and prints its
+   envelope on stdout.
 2. **One base image + a replayable edit state** per user; every render replays `EditState`
    through the CLI, so results are reproducible and the layout is exportable. A `.stencil`
    maps to/from the same `EditState` via `ProjectLayoutMapper`/`Writer`.
@@ -256,6 +281,8 @@ The `*FixtureWalkerTests` (op plans, provider wire, chat documents, `.stencil` f
 layouts, deep links, the sanitizer) replay the shared corpora under `browser/js/config/`
 through the real parsers, one case per vector, with measured divergences pinned in
 `FixtureOverrides.json`; `SharedOutcomeFixturesTests` replays `cli/testdata/outcome_fixtures.json`,
-the same file the Rust MCP server walks. `TextGoldenTests` pins every reply, keyboard label,
+the same file the Rust MCP server walks. The script suites run a canned `--script-plan` envelope
+through the real `ScriptService`, so a lowered plan is proved to take the op-plan route rather than
+a second one. `TextGoldenTests` pins every reply, keyboard label,
 callback token and menu entry byte-exact in `Goldens/`. `LayerBoundaryTests` pins the ring
 order and `CompositionRootTests` resolves the whole DI graph.
