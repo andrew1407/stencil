@@ -43,6 +43,7 @@ from .blank import BlankSpec
 from .console import Console, mask as _mask
 from .hooks import PlanConsole
 from .oneshot import _build_parser, _resolve_output, _run_pipeline, _run_scrape
+from .script import run_mode as _run_script_mode
 from .commands.prompt import _load_only_plan
 from .registry import command
 from .repl import _HELP, _Repl, _parse_command
@@ -61,6 +62,8 @@ def main(argv: (Sequence[str] | NoneType) = None) -> int:
   if args.console: return _Repl(err).run(sys.stdin)
 
   try:
+    if args.script or args.script_check or args.script_plan:
+      return _run_script_mode(args, err)
     if args.source_site is not None: return _run_scrape(args, err)
     return _run_pipeline(args, err)
   except ServerError as e:
