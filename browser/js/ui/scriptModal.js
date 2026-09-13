@@ -6,9 +6,7 @@ import { parseScript } from '../core/script.js';
 import { runScriptHere } from '../console/scriptRunner.js';
 import { notify } from '../utils.js';
 import { scriptModalInner } from './scriptModalMarkup.js';
-import constants from '../config/constants.json' with { type: 'json' };
 
-const DRAFT_KEY = constants.STORAGE_KEYS?.script ?? 'drawingApp_script';
 
 const $ = (id) => document.getElementById(id);
 
@@ -115,9 +113,11 @@ export class StencilScriptModal extends StencilElement {
       repaint();
     };
 
+    // The window opens EMPTY every time — nothing is kept between opens or across a reload.
+    // A script you meant to run is one you just wrote; a stale one sitting there is a trap.
     const shell = wireModalShell(overlay, $('script-btn'), $('script-close'), {
       onOpen: () => {
-        try { editor.value = localStorage.getItem(DRAFT_KEY) ?? ''; } catch { /* storage blocked */ }
+        editor.value = '';
         checked = false;
         repaint();
         // A dropped .stc lands in the editor while the window owns the drop.
@@ -126,8 +126,9 @@ export class StencilScriptModal extends StencilElement {
       },
       onClose: () => {
         overlay.removeAttribute('data-drop-owner');
-        if (app?.storage?.incognito) return;
-        try { localStorage.setItem(DRAFT_KEY, editor.value); } catch { /* storage blocked */ }
+        editor.value = '';
+        checked = false;
+        repaint();
       },
     });
 
