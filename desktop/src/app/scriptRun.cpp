@@ -13,13 +13,13 @@ namespace stencil::gui {
     using model::ScriptOpKind;
     using model::ScriptDoc;
 
-    ScriptRunResult failure(const QString& message, const ScriptOp& op) {
-      ScriptRunResult r;
-      r.ok = false;
-      r.error = message;
-      r.line = op.line;
-      r.col = op.col;
-      return r;
+    // Keeps `ops`: a failure part-way leaves the edits already applied, and the callers
+    // refresh the window when any of them ran.
+    void fail(ScriptRunResult& out, const QString& message, const ScriptOp& op) {
+      out.ok = false;
+      out.error = message;
+      out.line = op.line;
+      out.col = op.col;
     }
 
     QString strAt(const ScriptOp& op, int i) {
@@ -36,19 +36,19 @@ namespace stencil::gui {
                         || spec.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive);
           const bool opened = url ? target.openUrl(spec, false, &err)
                                   : target.openFile(spec, &err);
-          if (!opened) { out = failure(err.isEmpty() ? QStringLiteral("could not open '%1'").arg(spec) : err, op); return false; }
+          if (!opened) { fail(out, err.isEmpty() ? QStringLiteral("could not open '%1'").arg(spec) : err, op); return false; }
           return true;
         }
         case ScriptOpKind::FRAME: {
           const int index = op.nums.isEmpty() ? 0 : static_cast<int>(op.nums[0]);
-          if (!target.extractFrames({index}, &err)) { out = failure(err, op); return false; }
+          if (!target.extractFrames({index}, &err)) { fail(out, err, op); return false; }
           return true;
         }
         case ScriptOpKind::CROP: {
           bool resolved = false;
           const auto rect = ScriptDoc::cropRect(op, target.workingSize(), &resolved);
-          if (!resolved) { out = failure(QStringLiteral("this crop resolves to nothing"), op); return false; }
-          if (!target.applyCropRect(rect)) { out = failure(QStringLiteral("the crop was refused"), op); return false; }
+          if (!resolved) { fail(out, QStringLiteral("this crop resolves to nothing"), op); return false; }
+          if (!target.applyCropRect(rect)) { fail(out, QStringLiteral("the crop was refused"), op); return false; }
           return true;
         }
         case ScriptOpKind::FILTER: {
@@ -60,12 +60,12 @@ namespace stencil::gui {
         case ScriptOpKind::RECT: {
           bool resolved = false;
           ScriptDoc::appendLine(drawn, op, target.workingSize(), &resolved);
-          if (!resolved) { out = failure(QStringLiteral("this shape resolves to nothing"), op); return false; }
+          if (!resolved) { fail(out, QStringLiteral("this shape resolves to nothing"), op); return false; }
           target.setLayoutLines(drawn);
           return true;
         }
         case ScriptOpKind::LAYOUT:
-          out = failure(QStringLiteral("@layout needs a file the app can read — open it instead"), op);
+          fail(out, QStringLiteral("@layout needs a file the app can read — open it instead"), op);
           return false;
         case ScriptOpKind::UNDO:
         case ScriptOpKind::REDO: {
@@ -75,7 +75,7 @@ namespace stencil::gui {
         }
         case ScriptOpKind::SAVE: {
           const QString name = strAt(op, 0);
-          if (!target.saveProject(name, QString(), &err)) { out = failure(err, op); return false; }
+          if (!target.saveProject(name, QString(), &err)) { fail(out, err, op); return false; }
           return true;
         }
       }
