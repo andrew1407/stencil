@@ -118,6 +118,7 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/pageMetrics.test.cpp
     tests/cropGeometry.test.cpp
     tests/formula.test.cpp
+    tests/scriptApi.test.cpp
     tests/script.test.cpp
     tests/scriptLower.test.cpp
     tests/scriptFixtures.test.cpp
@@ -151,6 +152,7 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/cliApi.test.cpp
     wasmApi.cpp
     wasmCropApi.cpp
+    wasmScriptApi.cpp
     wasmStateApi.cpp
     wasmProjectsApi.cpp
     cliApi.cpp
@@ -167,13 +169,13 @@ endif()
 # native `cmake` build never enters this branch. The browser app loads the resulting
 # stencil_core.js (see WASM.md).
 if(EMSCRIPTEN)
-  add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} wasmApi.cpp wasmCropApi.cpp wasmStateApi.cpp wasmProjectsApi.cpp)
+  add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} wasmApi.cpp wasmCropApi.cpp wasmScriptApi.cpp wasmStateApi.cpp wasmProjectsApi.cpp)
   target_include_directories(stencil_wasm PRIVATE ${STENCIL_CORE_INCLUDE_DIRS})
   # Export the extern "C" wrappers + ccall/cwrap helpers; ship an ES6 module.
   set_target_properties(stencil_wasm PROPERTIES
     OUTPUT_NAME "stencil_core"
     # SINGLE_FILE=1 embeds the .wasm as base64 inside the .js so the module loads under
     # file:// (the browser app is serverless — no fetch()).
-    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_pageFormats','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_parseDuration','_stencil_applyFilterRGBA','_stencil_applyContourRGBA','_stencil_rotatePoints','_stencil_flipPoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_scaleCropCentered','_stencil_cropResizeScale','_stencil_cropChange','_stencil_rotateCropRectQuarter','_stencil_holdDraw_create','_stencil_holdDraw_destroy','_stencil_holdDraw_state','_stencil_holdDraw_holdDelay','_stencil_holdDraw_setHoldDelay','_stencil_holdDraw_cancel','_stencil_holdDraw_pointerDown','_stencil_holdDraw_pointerMove','_stencil_holdDraw_tick','_stencil_holdDraw_pointerUp','_stencil_history_create','_stencil_history_destroy','_stencil_history_reset','_stencil_history_push','_stencil_history_canUndo','_stencil_history_canRedo','_stencil_history_step','_stencil_history_size','_stencil_history_undo','_stencil_history_redo','_stencil_history_readResult','_stencil_projects_periodMs','_stencil_projects_addPeriod','_stencil_projects_shouldPersist','_stencil_projects_isExpired','_stencil_projects_isExpiringSoon','_malloc','_free']")
+    LINK_FLAGS "-sMODULARIZE=1 -sEXPORT_ES6=1 -sSINGLE_FILE=1 -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','HEAPU8','HEAPF64'] -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_FUNCTIONS=['_stencil_parseHex','_stencil_distToSegment','_stencil_shouldCloseShape','_stencil_pageDimensions','_stencil_pixelToPageRaw','_stencil_pageFormats','_stencil_formulaValidate','_stencil_formulaApply','_stencil_formulaEvaluate','_stencil_parseDuration','_stencil_applyFilterRGBA','_stencil_applyContourRGBA','_stencil_rotatePoints','_stencil_flipPoints','_stencil_boundingBoxCenter','_stencil_clampScale','_stencil_anchoredZoom','_stencil_rectZoom','_stencil_isAlbumOrientation','_stencil_cropAspect','_stencil_centeredCrop','_stencil_resizeCropFromCorner','_stencil_moveCropClamped','_stencil_scaleCropCentered','_stencil_cropResizeScale','_stencil_cropChange','_stencil_rotateCropRectQuarter','_stencil_holdDraw_create','_stencil_holdDraw_destroy','_stencil_holdDraw_state','_stencil_holdDraw_holdDelay','_stencil_holdDraw_setHoldDelay','_stencil_holdDraw_cancel','_stencil_holdDraw_pointerDown','_stencil_holdDraw_pointerMove','_stencil_holdDraw_tick','_stencil_holdDraw_pointerUp','_stencil_history_create','_stencil_history_destroy','_stencil_history_reset','_stencil_history_push','_stencil_history_canUndo','_stencil_history_canRedo','_stencil_history_step','_stencil_history_size','_stencil_history_undo','_stencil_history_redo','_stencil_history_readResult','_stencil_projects_periodMs','_stencil_projects_addPeriod','_stencil_projects_shouldPersist','_stencil_projects_isExpired','_stencil_projects_isExpiringSoon','_stencil_scriptParse','_stencil_scriptDestroy','_stencil_scriptErrorCount','_stencil_scriptDiagCount','_stencil_scriptDiagAt','_stencil_scriptTokenCount','_stencil_scriptTokenAt','_stencil_scriptBlockCount','_stencil_scriptBlockAt','_stencil_scriptOpCount','_stencil_scriptOpAt','_stencil_scriptOpStr','_stencil_scriptOpNum','_stencil_scriptOpResolve','_stencil_scriptDump','_malloc','_free']")
   message(STATUS "Emscripten — building stencil_wasm (stencil_core.js/.wasm)")
 endif()
