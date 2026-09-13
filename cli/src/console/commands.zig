@@ -23,7 +23,7 @@ pub fn parseCommand(line: []const u8) Command {
     return .{ .word = s, .arg = "" };
 }
 
-pub const Verb = enum { upload, source_upload, blank, save, delete, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, unpaste, images, theme, mouse, reveal_speed, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del, prompt, llm, chat };
+pub const Verb = enum { script, script_run, upload, source_upload, blank, save, delete, layout, formula, format, exec, undo, redo, reset, drop, clear, copy, paste, unpaste, images, theme, mouse, reveal_speed, status, help, quit, connect, disconnect, reconnect, connections, projects, project_color, blank_color, project_description, rename, expire, fetch, sync, keywords, keywords_search, keywords_add, keywords_del, prompt, llm, chat };
 
 // Session-level verbs (everything that is not an image transform). Returns null for words
 // that name a transform (crop/rotate/filter/apply) or are unknown.
@@ -39,6 +39,9 @@ pub fn verbOf(w: []const u8) ?Verb {
     if (eq(w, "formula") or eq(w, "formulas")) return .formula;
     if (eq(w, "format") or eq(w, "formats")) return .format;
     if (eq(w, "exec") or eq(w, "do") or eq(w, "run")) return .exec;
+    // Longer first: verbOf matches whole words, so "script-run" can never be read as "script".
+    if (eq(w, "script-run") or eq(w, "scriptrun") or eq(w, "runscript")) return .script_run;
+    if (eq(w, "script") or eq(w, "stc")) return .script;
     if (eq(w, "undo") or eq(w, "u")) return .undo;
     if (eq(w, "redo") or eq(w, "r")) return .redo;
     if (eq(w, "reset") or eq(w, "revert")) return .reset;

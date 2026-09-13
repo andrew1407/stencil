@@ -101,6 +101,12 @@ pub const chat_usage = "chat takes 'on', 'off', 'show', or 'clear'\n";
 pub const chat_state = "chat {s} ({d} saved turns)\n";
 pub const chat_on_note = "  saved into the .stencil project on /save; on a server project, readable by everyone it is shared with\n";
 
+pub const script_usage = "usage: /script <directives…>  (';' separates statements, e.g. /script @crop 25%;@filter bw)\n";
+pub const script_run_needs_path = "usage: /script-run <file.stc>\n";
+pub const script_unreadable = "could not read that script\n";
+pub const script_failed = "the script stopped partway — earlier edits stand\n";
+pub const script_no_edits = "that script recorded no edit here\n";
+pub const script_source_ignored = "/script ignores @source — the ops apply to the loaded image\n";
 pub const exec_usage = "usage: /exec <action> <args> — actions: crop | rotate | filter | apply (e.g. '/exec rotate 1')\n";
 pub const crop_usage = "usage: /crop <spec> [album] — edges x1= x2= y1= y2= with %, px, cm/mm/in, or a bare pixel delta; omit an edge to keep the image bound\n";
 pub const crop_usage_example = "       e.g. '/crop x1=10% x2=90% y1=10% y2=90%' (add 'album' to derive a missing axis from the page, landscape)\n";
