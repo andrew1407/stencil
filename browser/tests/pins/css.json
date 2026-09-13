@@ -6566,7 +6566,7 @@
    },
    "|.script-diag": {
     "min-height": "1.4em",
-    "padding": "6px 2px 0",
+    "padding": "6px 13px 0",
     "font-size": "12px",
     "color": "var(--text-muted)"
    },
@@ -6578,7 +6578,7 @@
    },
    "|.script-editor-wrap": {
     "position": "relative",
-    "height": "320px",
+    "height": "440px",
     "border": "1px solid var(--border-main)",
     "border-radius": "8px",
     "background": "var(--input-bg)",
@@ -6596,7 +6596,7 @@
     "position": "absolute",
     "inset": "0",
     "margin": "0",
-    "padding": "10px 12px",
+    "padding": "10px 12px 26px",
     "border": "0",
     "font": "12.5px/1.55 var(--font-mono)",
     "tab-size": "2",

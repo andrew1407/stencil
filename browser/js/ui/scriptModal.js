@@ -13,16 +13,25 @@ const REPAINT_MS = 60;
 
 const $ = (id) => document.getElementById(id);
 
-// The editor and the highlight layer share every metric, so a token's span in one lands on
-// the same pixel in the other; only the classes differ.
-const paintInto = (pre, text) => {
+/* The editor and the highlight layer share every metric, so a token's span in one lands on
+ * the same pixel in the other; only the classes differ. Diagnostics are painted only once
+ * the script has been RUN: a half-typed line is not a mistake, and underlining it as one
+ * while you are still writing reads as nagging. */
+const paintInto = (pre, text, withDiagnostics) => {
   const program = parseScript(text);
   while (pre.firstChild) pre.removeChild(pre.firstChild);
 
-  const marks = [];
-  for (const t of program.tokens) marks.push({ line: t.line, col: t.col, len: t.len, cls: `stk-${t.kind}` });
-  for (const d of program.diagnostics) {
-    marks.push({ line: d.line, col: d.col, len: Math.max(1, d.len), cls: `stk-${d.severity}` });
+  const marks = program.tokens.map((t) => ({ line: t.line, col: t.col, len: t.len, cls: `stk-${t.kind}` }));
+  if (withDiagnostics) {
+    for (const d of program.diagnostics) {
+      const len = Math.max(1, d.len);
+      // A diagnostic underlines the token already there rather than replacing it, so the
+      // span keeps its colour AND gains the squiggle.
+      const over = marks.filter((m) => m.line === d.line
+        && m.col < d.col + len && d.col < m.col + Math.max(1, m.len));
+      if (over.length > 0) for (const m of over) m.cls += ` stk-${d.severity}`;
+      else marks.push({ line: d.line, col: d.col, len, cls: `stk-${d.severity}` });
+    }
   }
 
   const lines = text.split('\n');
@@ -46,8 +55,8 @@ const paintInto = (pre, text) => {
 };
 
 const showDiagnostic = (strip, program) => {
-  const first = program.diagnostics.find((d) => d.severity === 'error')
-    ?? program.diagnostics.find((d) => d.severity === 'warning');
+  const first = program?.diagnostics.find((d) => d.severity === 'error')
+    ?? program?.diagnostics.find((d) => d.severity === 'warning');
   strip.textContent = first ? `Line ${first.line}:${first.col} — ${first.message}` : '';
   strip.className = `script-diag${first ? ` script-diag-${first.severity}` : ''}`;
 };
@@ -86,12 +95,22 @@ export class StencilScriptModal extends StencilElement {
     const strip = $('script-diag');
     const overlay = $('script-overlay');
     let timer = null;
+    let checked = false;   // nothing is reported until the script has been run once
+
+    // Run and Download need something to act on; Upload always does.
+    const gateActions = () => {
+      const empty = editor.value.trim().length === 0;
+      $('script-run').disabled = empty;
+      $('script-download').disabled = empty;
+    };
 
     const repaint = () => {
-      const program = paintInto(pre, editor.value);
-      showDiagnostic(strip, program);
+      const program = paintInto(pre, editor.value, checked);
+      showDiagnostic(strip, checked ? program : null);
+      gateActions();
     };
     const schedule = () => {
+      checked = false;   // editing clears the last verdict: it is about older text
       if (timer) clearTimeout(timer);
       timer = setTimeout(repaint, REPAINT_MS);
     };
@@ -99,6 +118,7 @@ export class StencilScriptModal extends StencilElement {
     const shell = wireModalShell(overlay, $('script-btn'), $('script-close'), {
       onOpen: () => {
         try { editor.value = localStorage.getItem(DRAFT_KEY) ?? ''; } catch { /* storage blocked */ }
+        checked = false;
         repaint();
         // A dropped .stc lands in the editor while the window owns the drop.
         overlay.setAttribute('data-drop-owner', 'script');
@@ -130,10 +150,12 @@ export class StencilScriptModal extends StencilElement {
     });
 
     const run = async () => {
+      if (editor.value.trim().length === 0) return;
+      checked = true;   // from here the strip and the underlines mean this exact text
       try {
         await runScriptHere(editor.value, { app });
         shell.close();
-      } catch { /* runScript already reported it, and the strip shows where */ }
+      } catch { /* runScript already reported it, and the strip now shows where */ }
       repaint();
     };
 

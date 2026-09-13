@@ -1,7 +1,6 @@
 // Markup for the script window: a code editor over a highlight layer, a diagnostics strip,
 // and the three actions. Kept apart from scriptModal.js so the shape reads in one piece.
 import { icon } from './icons.js';
-import { keysHtml } from './tipContent.js';
 
 export const scriptModalInner = () => `
     <div class="app-modal script-modal">
@@ -19,12 +18,12 @@ export const scriptModalInner = () => `
             <div class="script-diag" id="script-diag"></div>
         </div>
         <div class="settings-footer">
-            <span class="footer-hint">${keysHtml('Ctrl+Enter')} runs</span>
+            <span class="footer-hint">Write a .stc script and run it over the open project.</span>
             <span class="chat-settings-actions">
                 <button id="script-download" class="btn-icon-text" data-title="Download this script as stencil.stc">${icon('file-down', { size: 14 })}<span>Download</span></button>
                 <input type="file" id="script-upload" accept=".stc" style="display:none;">
                 <button id="script-upload-btn" class="btn-icon-text" data-title="Load a .stc file into the editor">${icon('file-up', { size: 14 })}<span>Upload</span></button>
-                <button id="script-run" class="btn-icon-text primary" data-title="Run this script on the open project">${icon('play', { size: 14 })}<span>Run</span></button>
+                <button id="script-run" class="btn-icon-text primary" data-title="Run this script on the open project (Ctrl+Enter)">${icon('play', { size: 14 })}<span>Run</span></button>
             </span>
         </div>
     </div>`;
