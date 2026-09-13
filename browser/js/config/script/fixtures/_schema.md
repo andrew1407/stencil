@@ -28,5 +28,6 @@ the compiled core and the JS fallback must agree case for case.
 The four `tour-*` cases double as the language's worked examples; the contract points at
 them by name.
 
-To add a case: append a section, run a walker with its update flag, and read the recorded
-output back to confirm it says what you meant.
+To add a case: append a section with its script and the dump you expect, then run a walker.
+Nothing here is recorded for you — a mismatch prints both sides, which is how you check the
+engine's answer says what you meant.

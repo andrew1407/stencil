@@ -5,31 +5,33 @@ Guidance for Claude Code (claude.ai/code) working in this repository.
 ## What this is
 
 Stencil is an image-annotation / drawing tool: **one shared C++ logic core (`core/`) feeding
-four front-ends**, plus four adapters that wrap the CLI or the collaboration server.
+four front-ends**, plus a family of adapters that wrap the CLI or the collaboration server.
 
 | Tree | What | Runs `core/`? |
 |---|---|---|
-| `core/` | C++17, STL-only, GUI-free logic: formulas, geometry, color, page metrics, crop, raster, history, projects | — |
+| `core/` | C++17, STL-only, GUI-free logic: formulas, the `.stc` script engine, geometry, color, page metrics, crop, raster, history, projects | — |
 | `browser/` | vanilla ES-module JS app, no build step — `core/` as wasm, with a JS fallback | yes (wasm) |
 | `desktop/` | C++17 + Qt 6 app — links `core/` via `add_subdirectory(../core)` | yes (linked) |
 | `cli/` | Zig tool — **recompiles** `core/` and drives it over `extern "C"` | yes (recompiled) |
 | `pystencil/` | stdlib-only Python package — **recompiles** `core/`, drives it via ctypes | yes (recompiled) |
 | `browser-extension/` | Chrome MV3 — scans page images, hands them to `browser/` via a URL fragment | no |
+| `vscode-extension/` | VS Code editor support for `.stc` — spawns the `cli/` binary, and carries a byte-equal copy of `browser/js/core/script*.js` for in-editor parsing | no |
 | `mcp/` | Rust MCP server — shells out to the `cli/` binary | no |
 | `server/` | Go collaboration server — projects + live multi-client sessions over REST/WS/TCP; Postgres + a secured file store | no |
 | `bot/` | .NET Telegram bot (clean architecture) — wraps the CLI + server REST | no |
 | `e2e/` | Node/Playwright cross-surface smoke harness over the real wire protocols | no |
 
-`browser-extension/`, `mcp/`, `server/`, `bot/` and `e2e/` are adapters or black-box harnesses: the
-parity contract below does **not** reach them. `mcp/` and `bot/` depend on the CLI's argv
-contract and its `wrote {path} ({w}x{h})` / `error:` stderr output; `server/`'s contract is
-`server/internal/protocol`. The desktop's own GUI e2e is a QtTest target
-(`desktop/tests/MainWindow.<area>.gui.cpp`), not in `e2e/`.
+`browser-extension/`, `vscode-extension/`, `mcp/`, `server/`, `bot/` and `e2e/` are adapters or
+black-box harnesses: the parity contract below does **not** reach them. `mcp/`, `bot/` and
+`vscode-extension/` depend on the CLI's argv contract and its `wrote {path} ({w}x{h})` /
+`error:` stderr output; `server/`'s contract is `server/internal/protocol`. The desktop's own
+GUI e2e is a QtTest target (`desktop/tests/MainWindow.<area>.gui.cpp`), not in `e2e/`.
 
 ## Commands
 
-No dependencies to install anywhere. JS suites use Node's built-in runner; C++ uses CMake +
-Doctest; each other surface uses its platform's default.
+No dependencies to install anywhere except the two sanctioned dev-only ones (`browser/`'s
+`vite`, `vscode-extension/`'s `@vscode/vsce`). JS suites use Node's built-in runner; C++ uses
+CMake + Doctest; each other surface uses its platform's default.
 
 | Subproject | Build | Test | Run / single test |
 |---|---|---|---|
@@ -39,6 +41,7 @@ Doctest; each other surface uses its platform's default.
 | **cli** | `cd cli && zig build` (→ `zig-out/bin/stencil`) | `zig build test --summary all` | `zig build run -- --help` |
 | **pystencil** | `cd pystencil && python3 build.py` (needs a C++17 compiler) | `python3 -m unittest discover -s tests` | `python3 -m pystencil --help` |
 | **browser-extension** | none | `cd browser-extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |
+| **vscode-extension** | none to run it from source (open the folder, press F5); `npm ci && npm run package` → `stencil-stc.vsix` | `cd vscode-extension && npm test` | `code --install-extension stencil-stc.vsix`, then open any `.stc` |
 | **mcp** | `cd mcp && cargo build` (→ `target/debug/stencil-mcp`) | `cargo test` (e2e self-skips without the CLI binary) | `claude mcp add stencil -- $(pwd)/target/debug/stencil-mcp` |
 | **server** | `cd server && go build ./...` | `go test ./...`; `go test -race ./internal/hub/...` (store/bus e2e self-skip without `TEST_DATABASE_URL`/`REDIS_URL`) | `go run ./cmd/stencil-server`; needs `DATABASE_URL` — see the sample env file in `server/` |
 | **bot** | `cd bot && dotnet build Stencil.TelegramBot.slnx` | `dotnet test Stencil.TelegramBot.slnx` (offline: no token, server, CLI or Redis) | `dotnet run --project src/Stencil.TelegramBot.Bot` (needs `TELEGRAM_BOT_TOKEN` + the CLI) |
@@ -53,6 +56,8 @@ Doctest; each other surface uses its platform's default.
   `ADDR=0.0.0.0 PORT=3000 npm run serve`.
 - Docker images compile `core/`, so **build from the repo root** with `-f`:
   `docker build -f browser/Dockerfile -t stencil-browser .`.
+- After editing `browser/js/core/script*.js`: re-copy them into `vscode-extension/src/parser/`
+  (`parserParity.test.js` pins them byte-for-byte, both directions).
 
 ## The parity contract (the most important thing to know)
 
@@ -87,7 +92,8 @@ Doctest; each other surface uses its platform's default.
     proved by the corpus in `browser/js/config/script/fixtures/cases.txt`.
 - **`.claude/rules/`** — auto-loaded agent rules: `security.md`, `no-dependencies.md`,
   `architecture.md`, `tests.md`, `checklists.md` (the file-by-file steps for adding an op /
-  console command / dialog / provider), and `core-changes.md` (path-scoped to `core/`).
+  console command / dialog / provider / script directive), and `core-changes.md` (path-scoped
+  to `core/`).
 - **Each subproject's `ARCHITECTURE.md`** — **normative for that tree.** Before changing a
   surface, read its `ARCHITECTURE.md` and keep the change inside its layers, placement
   table and rules. Each is an independent document of that surface's design, in the same

@@ -3,6 +3,7 @@ description: Which pin to re-record, how to run each surface's size lint, and wh
 paths:
   - "browser/tests/**"
   - "browser-extension/tests/**"
+  - "vscode-extension/tests/**"
   - "core/tests/**"
   - "desktop/tests/**"
   - "cli/tests/**"
@@ -48,6 +49,7 @@ that is the task.
 |---|---|
 | browser | `cd browser && node --test tests/sizeBudget.test.js` |
 | browser-extension | `cd browser-extension && node --test tests/sizeBudget.test.js` |
+| vscode-extension | `cd vscode-extension && node --test tests/sizeBudget.test.js` |
 | core | `core/build/stencil_tests -tc="size budget*"` |
 | desktop | `ctest --test-dir desktop/build -R stencil_sizebudget_headless` |
 | cli | `cd cli && zig build test` (`tests/size_budget_test.zig` is part of the suite) |
@@ -88,6 +90,15 @@ surface's tests — it is the cross-language proof that the seven validators agr
 mechanical half is generated: after any `opRegistry.json` edit, run
 `cd browser && npm run gen-fixtures`, or the browser walker fails on a stale bundle.
 Add the hand-written fixture for the interesting case yourself.
+
+The `.stc` corpus is its twin: one plain-text file,
+`browser/js/config/script/fixtures/cases.txt`, walked by `core/tests/scriptFixtures.test.cpp`,
+`browser/tests/scriptFixtures.test.js` (and the wasm-parity script spec),
+`pystencil/tests/test_fixture_script.py`, `vscode-extension/tests/fixtureWalker.test.js` and
+the `e2e/` cli + browser script specs. Nothing about it is generated and no walker records
+it: append the section by hand, run a walker, and read the mismatch it prints. A case named
+`err-*` must produce an error and every other case must not, so the name is part of the
+assertion.
 
 `node --test` never loads wasm; it always exercises the JS fallback. The wasm-parity test
 self-skips locally without a built artifact — CI builds wasm fresh to run it for real.

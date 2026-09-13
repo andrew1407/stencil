@@ -1,6 +1,6 @@
 # Extension checklists
 
-The file-by-file procedure for the four routine extensions. The architecture itself is in
+The file-by-file procedure for the routine extensions. The architecture itself is in
 `ARCHITECTURE.md` and each surface's `ARCHITECTURE.md`; these are the steps, kept out of
 those documents on purpose.
 
@@ -27,6 +27,31 @@ those documents on purpose.
 4. Help text, then re-record the TUI goldens: `STENCIL_UPDATE_PINS=1 zig build test`.
 5. If the command is part of the shared console profile, mirror it in
    `pystencil/pystencil/cli.py`. Update `cli/README.md`.
+
+### Add a script directive
+
+1. `contracts/stc/stc-contract.md` — §3 for the directive and its argument grammar, §8 for
+   any new diagnostic code (codes are stable — never re-spell one), §9 if it needs a cap.
+2. `core/script/` — the word in `kDirectives` (`scriptParser.cpp`), its grammar in
+   `scriptArgs.cpp` (reuse `parseLengthToken`, `parseColor`, `filterModeFromString`,
+   `parseCropSpec`), the lowering in `scriptLower.cpp`. A new `OpKind` belongs in
+   `scriptTypes.hpp`; a new `.cpp` means **the three source lists**, and a new ABI name means
+   `EXPORTED_FUNCTIONS` as well.
+3. The JS fallback — `browser/js/core/script*.js` + its `.d.ts`, op-for-op with the C++
+   (`DIRECTIVES` is the twin of `kDirectives`). `wasm-parity-script.test.js` is the proof.
+4. A fixture pair in `browser/js/config/script/fixtures/cases.txt`: the correct case, and an
+   `err-*` case for the way it will most often be written wrong.
+5. cli **only if** the directive needs a flag or a console verb — otherwise `--script` already
+   runs it through `cli/src/script/apply.zig`.
+6. Re-copy `browser/js/core/script*.js` into `vscode-extension/src/parser/` byte-for-byte, and
+   add the word to `syntaxes/stc.tmLanguage.json` (its directive list is asserted equal to
+   `DIRECTIVES`).
+7. The adapters **only if the lowered op is new** — the runners: browser
+   `js/console/scriptRunner.js`; desktop `src/app/scriptRun.cpp`; cli `src/script/apply.zig`
+   (+ `planActions.zig` for `--script-plan`); pystencil `pystencil/editor/script.py`. A
+   directive that lowers to ops that already exist needs none of them.
+8. Run every corpus walker — core, browser (fallback **and** wasm parity), pystencil,
+   vscode-extension, and the `e2e/` script specs.
 
 ### Add a desktop dialog
 

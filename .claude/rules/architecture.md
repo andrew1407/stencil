@@ -14,9 +14,9 @@ rules. It is an independent document of that surface's design and stays current 
 tree; the `README.md` beside it is user-facing only (build, run, use) and never carries
 architecture.
 
-All ten carry the same seven `##` sections in this order, each in one fixed form — a table
-where every item has the same fields, a list where they are parallel but uneven, prose where
-it is one argument:
+Every one of them carries the same seven `##` sections in this order, each in one fixed
+form — a table where every item has the same fields, a list where they are parallel but
+uneven, prose where it is one argument:
 
 | Section | Form | Holds |
 |---|---|---|
@@ -40,6 +40,8 @@ A layer may use everything to its left, nothing to its right.
   `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` → render.
 - **browser-extension** — `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup`,
   `options`, `crop`.
+- **vscode-extension** — `src/config/` + `src/parser/` (copied, imports nothing outward) →
+  `src/lib/` (`vscode`-free) → `src/*.js` → `src/extension.js`.
 - **desktop** — the core seam (`core/` includes the layer lint allows) → controllers → `net/`, `io/` →
   `support/` (motion, theme, widgets, platform) → `canvas/`, `dialogs/`, `llm/` → `app/`.
 - **cli** — `core.zig` → `args.zig` → `net.zig` → ops (`pipeline`, `image`, `layout`, `page`,
@@ -59,9 +61,9 @@ A layer may use everything to its left, nothing to its right.
 file already listed in the budget may not grow. Shrink it and lower its number in the same
 commit. Never raise a number without a note in the budget's `exceptions`.
 
-Budgets: `browser|browser-extension/tests/sizeBudget.json`, `core|desktop/tests/sizeBudget.json`,
-`cli|mcp|pystencil/tests/size_budget.json`, `server/internal/lint/sizebudget.json`,
-`bot/tests/Stencil.TelegramBot.Tests/SizeBudget.json`.
+Budgets: `browser|browser-extension|vscode-extension/tests/sizeBudget.json`,
+`core|desktop/tests/sizeBudget.json`, `cli|mcp|pystencil/tests/size_budget.json`,
+`server/internal/lint/sizebudget.json`, `bot/tests/Stencil.TelegramBot.Tests/SizeBudget.json`.
 
 ## Comments
 
@@ -78,6 +80,12 @@ that restates the next line.
 (qrc alias, `@embedFile`, `include_str!`, `<EmbeddedResource Link>`) or ship a checked-in copy
 **with a byte-equality drift test**. A copy without a drift test is a bug. If a value can be
 read back out of the core over the C ABI, do that instead of mirroring it.
+
+The same rule covers copied **code**: the `browser/js/ui` + `llm/llmClient` modules in
+`browser-extension/src/lib/`, and `browser/js/core/script*.js` in
+`vscode-extension/src/parser/`, are byte-equal copies pinned in both directions
+(`portParity.test.js`, `parserParity.test.js`). Edit the original and re-copy; never fix a
+copy in place.
 
 ## Typed boundaries
 
