@@ -12,7 +12,7 @@ export const assistantEnabled = (settings) => (settings?.provider ?? 'none') !==
 export const assistantItemHtml = () => `
         <!-- Assistant submenu: the flyout is a compact chat (chat panel's conversation) -->
         <div class="ctx-item" id="ctx-assist-menu">
-            <span class="ctx-icon">${icon('sparkle')}</span><span class="ctx-label">Assistant</span>${ctxArrow(true)}
+            <span class="ctx-icon">${icon('sparkle')}</span><span class="ctx-label">Assistant</span><span class="ctx-hotkey" data-hk="toggleChat">Alt+G</span>${ctxArrow(true)}
             <div class="ctx-sub ctx-assist-sub" id="ctx-assist-sub">
                 <div class="ctx-assist" id="ctx-assist">
                     <div class="ctx-assist-transcript" id="ctx-assist-transcript">
