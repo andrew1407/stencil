@@ -601,12 +601,17 @@
       /* The FRAME owns the box (browser .script-editor-wrap): accent hairline at rest, two
          hairlines while the caret is in it. The hover glow is a drop shadow set in code —
          QSS has no box-shadow. */
+      QFrame#scriptEditorGlow {
+        background: transparent; border: 3px solid transparent; border-radius: 11px;
+      }
+      QFrame#scriptEditorGlow[hovered="true"] { border-color: %ACCENT_SOFT%; }
+      QFrame#scriptEditorGlow[focused="true"] { border-color: %ACCENT_RING%; }
       QFrame#scriptEditorWrap {
         background: %INPUT_BG%; border: 1px solid %ACCENT%; border-radius: 8px;
       }
       QFrame#scriptEditorWrap[focused="true"] { border: 2px solid %ACCENT%; }
       QPlainTextEdit#scriptText {
-        background: transparent; color: %TEXT%; border: 0; padding: 0;
+        background: transparent; color: %TEXT%; border: 1px solid transparent; padding: 0;
         selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
       }
       /* The strip under it (browser .script-diag): muted until a run reports something. */

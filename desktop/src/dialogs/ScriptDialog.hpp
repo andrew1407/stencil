@@ -43,6 +43,7 @@ namespace stencil::gui {
     void copyToClipboard();
     void setWrapState(const char* key, bool on);
 
+    QFrame* glow_ = nullptr;
     QFrame* wrap_ = nullptr;
     QPlainTextEdit* edit_ = nullptr;
     QLabel* diag_ = nullptr;

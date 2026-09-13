@@ -14,7 +14,6 @@
 #include <QScreen>
 #include <QVBoxLayout>
 #include <QFrame>
-#include <QGraphicsDropShadowEffect>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMimeData>
@@ -48,18 +47,29 @@ namespace stencil::gui {
     /* The browser's .script-editor-wrap: the frame owns the border, the gutter and the
      * background, and the editor inside it is bare. The frame is also what the hover glow
      * hangs on — a graphics effect on the editor itself smears its scrolling viewport. */
-    wrap_ = new QFrame(this);
+    /* The halo is a frame of its own, carrying a border that is always GLOW_PX wide and
+     * only changes colour: a graphics effect is clipped by the layout, and growing a border
+     * on hover would shift every glyph under the pointer. */
+    glow_ = new QFrame(this);
+    glow_->setObjectName(QStringLiteral("scriptEditorGlow"));
+    auto* glowLayout = new QVBoxLayout(glow_);
+    glowLayout->setContentsMargins(0, 0, 0, 0);
+    glow_->setAttribute(Qt::WA_Hover, true);
+    glow_->installEventFilter(this);
+
+    wrap_ = new QFrame(glow_);
     wrap_->setObjectName(QStringLiteral("scriptEditorWrap"));
     auto* wrapLayout = new QVBoxLayout(wrap_);
     wrapLayout->setContentsMargins(WRAP_PAD_X, WRAP_PAD_Y, WRAP_PAD_X, WRAP_PAD_Y);
-    wrap_->setAttribute(Qt::WA_Hover, true);
-    wrap_->installEventFilter(this);
+    glowLayout->addWidget(wrap_);
 
     edit_ = new QPlainTextEdit(initialText, wrap_);
     edit_->setObjectName(QStringLiteral("scriptText"));
     edit_->setPlaceholderText(QStringLiteral("@crop 10%\n@filter bw\n@save"));
     edit_->setLineWrapMode(QPlainTextEdit::NoWrap);   // a script is code; let it scroll
     edit_->setFrameShape(QFrame::NoFrame);
+    // The frame owns the box; the style's own focus ring would draw a second one inside it.
+    edit_->setAttribute(Qt::WA_MacShowFocusRect, false);
     QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
     mono.setPixelSize(EDITOR_FONT_PX);
     edit_->setFont(mono);
@@ -67,7 +77,7 @@ namespace stencil::gui {
     edit_->installEventFilter(this);
     wrapLayout->addWidget(edit_);
     wrap_->setMinimumHeight(EDITOR_MIN_H);
-    chrome.body->addWidget(wrap_, 1);   // the editor takes whatever height the window has
+    chrome.body->addWidget(glow_, 1);   // the editor takes whatever height the window has
 
     diag_ = new QLabel(this);
     diag_->setObjectName(QStringLiteral("scriptDiag"));
@@ -168,7 +178,7 @@ namespace stencil::gui {
   /* Hover lights a small glow in the accent, focus thickens the border — the browser's
    * .script-editor-wrap :hover / :focus-within, which QSS has no box-shadow for. */
   bool ScriptDialog::eventFilter(QObject* watched, QEvent* event) {
-    if (watched == wrap_) {
+    if (watched == glow_) {
       if (event->type() == QEvent::Enter) setWrapState("hovered", true);
       else if (event->type() == QEvent::Leave) setWrapState("hovered", false);
     } else if (watched == edit_) {
@@ -179,20 +189,12 @@ namespace stencil::gui {
   }
 
   void ScriptDialog::setWrapState(const char* key, bool on) {
-    if (!wrap_) return;
-    wrap_->setProperty(key, on);
-    wrap_->style()->unpolish(wrap_);
-    wrap_->style()->polish(wrap_);
-    const bool glow = wrap_->property("hovered").toBool();
-    if (!glow) { wrap_->setGraphicsEffect(nullptr); return; }
-    if (wrap_->graphicsEffect()) return;
-    auto* fx = new QGraphicsDropShadowEffect(wrap_);
-    fx->setBlurRadius(14);
-    fx->setOffset(0, 0);
-    QColor tint = palette().color(QPalette::Highlight);
-    tint.setAlpha(140);
-    fx->setColor(tint);
-    wrap_->setGraphicsEffect(fx);
+    for (QFrame* f : {glow_, wrap_}) {
+      if (!f) continue;
+      f->setProperty(key, on);
+      f->style()->unpolish(f);
+      f->style()->polish(f);
+    }
   }
 
 }  // namespace stencil::gui
