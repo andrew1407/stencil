@@ -1,47 +1,14 @@
 //! `tools/call` dispatch: a real MCP call reaches the tool's own body. Every other suite
 //! starts inside a tool; this drives the public `ServerHandler::call_tool`, so the generated
 //! router, the parameter deserialization and the delegation to `server::tools::*` are all on
-//! the path. The router is private, so the context's peer comes from `serve_directly` over a
-//! dead pipe — nothing here ever calls back to a client.
+//! the path.
 
-use rmcp::model::{CallToolRequestParams, CallToolResult, PaginatedRequestParams, RequestId};
-use rmcp::service::{serve_directly, RequestContext, RunningService};
-use rmcp::{ErrorData, RoleServer, ServerHandler};
-use serde_json::{json, Value};
-use stencil_mcp::server::StencilServer;
+mod common;
+use common::dispatch::{text_of, Harness};
 
-/// A server with a live peer, so the request context a handler needs can be built.
-struct Harness {
-    server: StencilServer,
-    running: RunningService<RoleServer, StencilServer>,
-}
-
-impl Harness {
-    fn new() -> Harness {
-        let server = StencilServer::default();
-        let running = serve_directly(server.clone(), (tokio::io::empty(), tokio::io::sink()), None);
-        Harness { server, running }
-    }
-
-    fn context(&self) -> RequestContext<RoleServer> {
-        RequestContext::new(RequestId::Number(1), self.running.peer().clone())
-    }
-
-    async fn call(&self, name: &str, arguments: Value) -> Result<CallToolResult, ErrorData> {
-        let request: CallToolRequestParams =
-            serde_json::from_value(json!({ "name": name, "arguments": arguments }))
-                .expect("a tools/call params object");
-        self.server.call_tool(request, self.context()).await
-    }
-}
-
-/// The text of a tool result's first content block.
-fn text_of(result: &CallToolResult) -> String {
-    serde_json::to_value(result).unwrap()["content"][0]["text"]
-        .as_str()
-        .expect("a text block")
-        .to_string()
-}
+use rmcp::model::PaginatedRequestParams;
+use rmcp::ServerHandler;
+use serde_json::json;
 
 /// The router advertises exactly the tools `server/mod.rs` declares.
 #[tokio::test]
