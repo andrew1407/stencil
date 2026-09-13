@@ -54,6 +54,15 @@ block 0 file "a.png"
 block 0 file "a.png"
   op open "a.png" 1
   op crop edit=1 "" [10% -10% 2cm -1in] 0
+=== err-arg-count
+--- script
+@source a.png:
+    @layout
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+--- diagnostics
+2:5:7: error: @layout needs a path or URL [E_ARG_COUNT]
 === err-bad-color
 --- script
 @source a.png:
@@ -90,6 +99,15 @@ block 0 file "a.png"
   op open "a.png" 1
 --- diagnostics
 2:11:2: error: @crop takes either key=value pairs or bare insets, not both [E_CROP_MIXED_FORM]
+=== err-crop-unknown-key
+--- script
+@source a.png:
+    @crop x1=10% z9=4
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+--- diagnostics
+2:18:2: error: 'z9' is not a crop key (x1, x2, y1, y2, aspect) [E_CROP_UNKNOWN_KEY]
 === err-dup-line-color
 --- script
 @source a.png:
@@ -112,6 +130,24 @@ block 0 file "clip.mp4"
   op filter edit=1 "bw" ""
 --- diagnostics
 4:5:6: error: frame 8 is already used in this block [E_DUPLICATE_FRAME]
+=== err-duplicate-template
+--- script
+@stencil twice:
+    @filter bw
+
+@stencil twice:
+    @filter sepia
+
+@source a.png:
+    @use stencil twice:
+--- dump
+block 0 project ""
+  op filter edit=1 "sepia" ""
+block 1 file "a.png"
+  op open "a.png" 1
+  op filter edit=1 "bw" ""
+--- diagnostics
+4:1:8: error: template 'twice' is already defined [E_DUPLICATE_TEMPLATE]
 === err-frame-outside-source
 --- script
 @frame 3
@@ -152,6 +188,18 @@ block 0 file "a.png"
 --- diagnostics
 1:1:8: warning: template 'two params' is never used [W_UNUSED_TEMPLATE]
 5:5:4: error: template 'two params' takes 2 argument(s), got 1 [E_TEMPLATE_ARITY]
+=== err-template-param-index
+--- script
+@stencil bad param:
+    @use line @1, @0
+
+@source a.png:
+    @use stencil bad param red:
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+--- diagnostics
+2:19:2: error: '@0' is outside this template's 1 argument(s) [E_TEMPLATE_PARAM_INDEX]
 === err-undefined-template
 --- script
 @source a.png:
@@ -161,6 +209,17 @@ block 0 file "a.png"
   op open "a.png" 1
 --- diagnostics
 2:5:4: error: no template named 'nowhere' [E_UNDEFINED_TEMPLATE]
+=== err-undo-no-edits
+--- script
+@source a.png:
+    @undo
+    @save
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+  op save ""
+--- diagnostics
+2:5:5: error: there is no edit to undo in this block [E_UNDO_NO_EDITS]
 === err-undo-out-of-range
 --- script
 @source a.png:
@@ -233,6 +292,27 @@ block 0 file "a.png"
 block 0 file "a.png"
   op open "a.png" 1
   op line edit=1 "#FFFF00" "solid" "transparent" "" [0px 0px -10% -20%] 2 4 0
+=== minimal-source
+--- script
+@source a.png:
+    @filter bw
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+  op filter edit=1 "bw" ""
+=== quoted-strings
+--- script
+@stencil "say \"hi\"":
+    @filter bw
+
+@source "a \"quoted\" name.png":
+    @use stencil "say \"hi\"":
+    @save
+--- dump
+block 0 file "a "quoted" name.png"
+  op open "a "quoted" name.png" 1
+  op filter edit=1 "bw" ""
+  op save ""
 === rect-two-corners
 --- script
 @source a.png:
@@ -533,6 +613,32 @@ block 0 file "a.png"
   op save "two.png"
   op rect edit=2 "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
   op save "three.png"
+=== undo-selectors
+--- script
+@source a.png:
+    @filter bw
+    @rect (1,1) (2,2)
+    @filter sepia
+    @undo 2
+    @save one.png
+    @undo -1
+    @save two.png
+    @redo 2
+    @save three.png
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+  op filter edit=1 "bw" ""
+  op rect edit=2 "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
+  op filter edit=3 "sepia" ""
+  op undo 2
+  op filter edit=3 "sepia" ""
+  op save "one.png"
+  op undo 1
+  op save "two.png"
+  op rect edit=2 "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
+  op filter edit=3 "sepia" ""
+  op save "three.png"
 === use-line-order-free
 --- script
 @source a.png:
@@ -542,6 +648,21 @@ block 0 file "a.png"
 block 0 file "a.png"
   op open "a.png" 1
   op line edit=1 "#cccccc" "dashed" "aqua" "red" [1px 1px 2px 2px] 3 2 0
+=== use-line-point-forms
+--- script
+@source a.png:
+    @use line dotted, point 3px
+    @line (1,1) (2,2)
+    @use line point blue
+    @line (3,3) (4,4)
+    @use line solid, fill #00000000, point red 1px
+    @rect (5,5) (6,6)
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+  op line edit=1 "#FFFF00" "dotted" "transparent" "" [1px 1px 2px 2px] 2 3 0
+  op line edit=2 "#FFFF00" "dotted" "transparent" "blue" [3px 3px 4px 4px] 2 3 0
+  op rect edit=3 "#FFFF00" "solid" "#00000000" "red" [5px 5px 6px 6px] 2 1 1
 === use-units
 --- script
 @source a.png:
@@ -554,6 +675,20 @@ block 0 file "a.png"
   op open "a.png" 1
   op line edit=1 "#FFFF00" "solid" "transparent" "" [1cm 2cm 3cm 4cm] 2 4 0
   op line edit=2 "#FFFF00" "solid" "transparent" "" [5% 6% 7% 8%] 2 4 0
+=== use-units-mm-in
+--- script
+@source a.png:
+    @use mm
+    @line (1,2) (3,4)
+    @use in
+    @rect (1,1) (2,2)
+    @crop 5
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+  op line edit=1 "#FFFF00" "solid" "transparent" "" [1mm 2mm 3mm 4mm] 2 4 0
+  op rect edit=2 "#FFFF00" "solid" "transparent" "" [1in 1in 2in 2in] 2 4 1
+  op crop edit=3 "" [5in -5in 5in -5in] 0
 === video-frames
 --- script
 @source clip.mp4:
@@ -572,6 +707,24 @@ block 0 file "clip.mp4"
   op frame 90
   op filter edit=1 "bw" ""
   op save ""
+=== warn-ambiguous-undo
+--- script
+@source a.png:
+    @rect (1,1) (2,2)
+    @filter bw
+    @rect (1,1) (2,2)
+    @undo @rect (1,1) (2,2)
+    @save
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+  op rect edit=1 "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
+  op filter edit=2 "bw" ""
+  op rect edit=3 "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
+  op undo 1
+  op save ""
+--- diagnostics
+5:5:5: warning: several edits match — the last one was undone [W_AMBIGUOUS_UNDO]
 === warn-empty-block
 --- script
 @source a.png:

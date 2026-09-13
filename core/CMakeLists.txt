@@ -122,6 +122,7 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/script.test.cpp
     tests/scriptLower.test.cpp
     tests/scriptFixtures.test.cpp
+    tests/scriptLimits.test.cpp
     tests/DurationParser.test.cpp
     tests/history.test.cpp
     tests/ProjectsStore.test.cpp
