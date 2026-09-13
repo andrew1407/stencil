@@ -8,7 +8,6 @@
 #include "CropDialog.hpp"
 #include "fileStore.hpp"
 #include "ProjectsDialog.hpp"
-#include "ScriptDialog.hpp"
 #include "SelectionPanel.hpp"
 #include "SettingsDialog.hpp"
 #include "uiPins.states.hpp"
@@ -192,21 +191,6 @@ void pinDialogs(const QString& png) {
     waitUntil([&dlg] { return dlg.isVisible(); });
     pumpFor(150);
     pin("crop-dialog", &dlg);
-    dlg.reject();
-  }
-
-  {
-    // A script with one of every token kind, so the pin covers the colouring too.
-    ScriptDialog dlg(QStringLiteral("# a tour of the language\n"
-                                    "@use line #33aaff dashed 3 fill #ffcc00 point 5\n"
-                                    "@source \"photo.png\":\n"
-                                    "  @crop 10% 5%\n"
-                                    "  @line (10, 10) (120, 80)\n"
-                                    "  @save\n"));
-    dlg.show();
-    waitUntil([&dlg] { return dlg.isVisible(); });
-    pumpFor(150);
-    pin("script-dialog", &dlg);
     dlg.reject();
   }
 

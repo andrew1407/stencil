@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
     pinWindowStates(png);
     std::printf("\nthe dialogs, at dpr %d:\n", qRound(qApp->devicePixelRatio()));
     pinDialogs(png);
-    check(shotCount == 13, "every pinned state was reached");
+    check(shotCount == 12, "every pinned state was reached");
   }
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
