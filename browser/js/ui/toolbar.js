@@ -304,6 +304,7 @@ export class StencilToolbar extends StencilElement {
                     <button id="download-json" class="btn-icon" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export">${icon('file-down')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
                     <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" data-disabled-reason="Load an image first">${icon('file-up')}</button>
+                    <button id="script-btn" class="btn-icon" data-hk-title="openScript" data-title="Stencil script (.stc) — write and run a script over this project" data-disabled-reason="Open an image first">${icon('script')}</button>
                     <button id="clear-storage" class="danger btn-icon" data-hk-title="clearProject" data-title="Remove current project" data-disabled-reason="Open an image first — nothing to remove">${icon('trash')}</button>
                 </div>
             </div>

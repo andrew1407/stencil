@@ -3,7 +3,8 @@
     "theme": "drawingApp_theme",
     "image": "drawingApp_image",
     "layout": "drawingApp_layout",
-    "hotkeys": "drawingApp_hotkeys"
+    "hotkeys": "drawingApp_hotkeys",
+    "script": "drawingApp_script"
   },
   "PAGE_SIZES": {
     "A0": { "width": 84.1, "height": 118.9 },

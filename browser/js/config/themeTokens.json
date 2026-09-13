@@ -197,7 +197,8 @@
     "--sb-thumb": {
       "light": "#d4d8de",
       "dark": "#6a6a6a"
-    }
+    },
+    "--font-mono": { "light": "'Menlo', 'Consolas', monospace", "dark": "'Menlo', 'Consolas', monospace" }
   },
   "derived": {
     "--accent-2": {

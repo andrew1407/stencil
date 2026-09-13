@@ -2,7 +2,7 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
-    "browser/js/console/stencilApi.js": 208,
+    "browser/js/console/stencilApi.js": 210,
     "browser/js/core/drawingApp.js": 1136,
     "browser/js/core/exportService.js": 170,
     "browser/js/core/inputController.js": 465,
@@ -40,7 +40,7 @@
     "browser/js/ui/openImageModal.js": 455,
     "browser/js/ui/projectsModal.js": 555,
     "browser/js/ui/tipContent.js": 266,
-    "browser/js/ui/toolbar.js": 419,
+    "browser/js/ui/toolbar.js": 420,
     "browser/js/ui/tooltip.js": 256,
     "browser/js/ui/visualsModal.js": 204,
     "browser/js/ui/voiceDust.js": 234,
@@ -101,7 +101,9 @@
     "browser/tools": 22
   },
   "exceptions": {
-    "browser/js/ui/dustCloud.js": "Byte-pinned twin of browser-extension/src/lib/dustCloud.js (browser-extension/tests/portParity.test.js) \u2014 it can only change in lockstep with the port, so it cannot be split here alone."
+    "browser/js/ui/dustCloud.js": "Byte-pinned twin of browser-extension/src/lib/dustCloud.js (browser-extension/tests/portParity.test.js) \u2014 it can only change in lockstep with the port, so it cannot be split here alone.",
+    "browser/js/console/stencilApi.js": "208 -> 210: the facade is a composition list, one line per part. execScript adds the scriptApi import and its entry in `parts`; neither can be traded away without dropping the member from window.stencil.",
+    "browser/js/ui/toolbar.js": "419 -> 420: one <button> for the Data section's script window. The toolbar is markup, so a control costs exactly its own line."
   },
   "_commentPctNote": "browser/js holds only the boot shims now (index.js, prePaintTheme.js, pwa.js) plus the utils barrel \u2014 utils.js's ~480 lines of code moved to browser/js/utils/, so the same prose is a bigger share of a much smaller directory. Comment VOLUME did not rise.",
   "_behaviouralPinNote": "strokeGrowth.test.js 298 \u2192 311: the renderer's flown-geometry pin was five readFileSync regexes; it now drives drawLine over a recording context (tests/helpers/recordingCtx.js) so renderer.js can be split. A behavioural pin costs lines a source regex does not.",

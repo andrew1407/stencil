@@ -5372,6 +5372,11 @@
     "--ic-ease": "cubic-bezier(0.33, 1, 0.68, 1)",
     "--ic-play": "icmRiseIn"
    },
+   "|.ic-script .ic-cog": {
+    "--ic-ms": "0.3s",
+    "transform-origin": "17px 17px",
+    "transform": "rotate(calc(var(--ic-on) * 45deg))"
+   },
    "|.ic-send": {
     "transform": "translate(calc(var(--ic-on) * 7.5%), calc(var(--ic-on) * -7.5%))"
    },
@@ -6559,6 +6564,63 @@
     "border-width": "0",
     "background-color": "var(--sb-thumb-hover)"
    },
+   "|.script-diag": {
+    "min-height": "1.4em",
+    "padding": "6px 2px 0",
+    "font-size": "12px",
+    "color": "var(--text-muted)"
+   },
+   "|.script-diag-error": {
+    "color": "var(--danger)"
+   },
+   "|.script-diag-warning": {
+    "color": "var(--warning)"
+   },
+   "|.script-editor-wrap": {
+    "position": "relative",
+    "height": "320px",
+    "border": "1px solid var(--border-main)",
+    "border-radius": "8px",
+    "background": "var(--input-bg)",
+    "overflow": "hidden"
+   },
+   "|.script-editor-wrap:focus-within": {
+    "border-color": "var(--accent)"
+   },
+   "|.script-highlight": {
+    "color": "var(--text-main)",
+    "pointer-events": "none",
+    "z-index": "0"
+   },
+   "|.script-highlight, .script-input": {
+    "position": "absolute",
+    "inset": "0",
+    "margin": "0",
+    "padding": "10px 12px",
+    "border": "0",
+    "font": "12.5px/1.55 var(--font-mono)",
+    "tab-size": "2",
+    "white-space": "pre",
+    "overflow": "auto",
+    "box-sizing": "border-box"
+   },
+   "|.script-input": {
+    "background": "transparent",
+    "color": "transparent",
+    "caret-color": "var(--text-main)",
+    "resize": "none",
+    "outline": "none",
+    "z-index": "1"
+   },
+   "|.script-input::placeholder": {
+    "color": "var(--text-muted)"
+   },
+   "|.script-input:focus": {
+    "outline": "none"
+   },
+   "|.script-modal": {
+    "width": "720px"
+   },
    "|.sel-sep": {
     "flex": "0 0 auto",
     "width": "1px",
@@ -6637,6 +6699,46 @@
    "|.skel-line.short": {
     "width": "35%",
     "margin-top": "8px"
+   },
+   "|.stk-color": {
+    "color": "var(--text-main)"
+   },
+   "|.stk-comment": {
+    "color": "var(--text-muted)",
+    "font-style": "italic"
+   },
+   "|.stk-directive": {
+    "color": "var(--accent)",
+    "font-weight": "600"
+   },
+   "|.stk-error": {
+    "color": "var(--danger)",
+    "text-decoration": "underline wavy var(--danger)"
+   },
+   "|.stk-ident": {
+    "color": "var(--text-main)"
+   },
+   "|.stk-keyword": {
+    "color": "var(--text-key)"
+   },
+   "|.stk-number": {
+    "color": "var(--text-main)"
+   },
+   "|.stk-param": {
+    "color": "var(--text-key)",
+    "font-style": "italic"
+   },
+   "|.stk-punct": {
+    "color": "var(--text-muted)"
+   },
+   "|.stk-string": {
+    "color": "var(--success)"
+   },
+   "|.stk-unit": {
+    "color": "var(--text-muted)"
+   },
+   "|.stk-warning": {
+    "text-decoration": "underline wavy var(--warning)"
    },
    "|.swap-dust": {
     "position": "fixed",
@@ -6971,6 +7073,7 @@
     "--sb-thumb": "#d4d8de",
     "--sb-thumb-hover": "var(--accent)",
     "--sb-thumb-active": "var(--accent-2)",
+    "--font-mono": "'Menlo', 'Consolas', monospace",
     "--coord-panel-default": "405px",
     "--remote-gold": "#d4a017",
     "--file-bronze": "#c1783c",
@@ -8080,6 +8183,29 @@
    "|.links-inline-check, .vs-inline-check",
    "|.vs-row.vs-checks",
    "|.oi-replace",
+   "|.script-modal",
+   "|.script-editor-wrap",
+   "|.script-highlight, .script-input",
+   "|.script-highlight",
+   "|.script-input",
+   "|.script-input::placeholder",
+   "|.script-input:focus",
+   "|.script-editor-wrap:focus-within",
+   "|.stk-directive",
+   "|.stk-keyword",
+   "|.stk-param",
+   "|.stk-number",
+   "|.stk-unit",
+   "|.stk-color",
+   "|.stk-string",
+   "|.stk-comment",
+   "|.stk-punct",
+   "|.stk-ident",
+   "|.stk-error",
+   "|.stk-warning",
+   "|.script-diag",
+   "|.script-diag-error",
+   "|.script-diag-warning",
    "|.oi-tabs",
    "|.oi-tab",
    "|.oi-tab.is-active:hover, .oi-tab:hover",
@@ -8637,6 +8763,7 @@
    "|.ic-cloud",
    "|.ic-ruler",
    "|.ic-gear",
+   "|.ic-script .ic-cog",
    "|.ic-sun",
    "|.ic-refresh",
    "|.ic-stop",

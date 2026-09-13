@@ -1986,6 +1986,21 @@
           }
         }
       ]
+    },
+    "script": {
+      "action": "open the script window",
+      "mode": "hold",
+      "note": "the cog in the page's corner turns one tooth, like the settings gear",
+      "parts": [
+        {
+          "hook": "ic-cog",
+          "origin": [17, 17],
+          "durationMs": 300,
+          "to": {
+            "rotate": 45
+          }
+        }
+      ]
     }
   },
   "extras": {

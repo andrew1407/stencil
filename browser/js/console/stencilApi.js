@@ -21,6 +21,7 @@ import { createEditorActions } from './editorActions.js';
 import { createExportActions } from './exportActions.js';
 import { createSessionApi } from './sessionApi.js';
 import { createCropApi } from './cropApi.js';
+import { createScriptApi } from './scriptApi.js';
 
 export { WINDOWS } from './windowsApi.js';
 
@@ -118,6 +119,7 @@ export const createStencil = (app) => {
     createExportActions({ app }),
     createSessionApi({ app, connMgr }),
     createCropApi({ app }),
+    createScriptApi(),
   ];
 
   stencil = {

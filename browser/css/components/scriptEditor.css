@@ -1,0 +1,71 @@
+/* The script window's editor: a transparent textarea over a coloured <pre>. Both layers
+   must share every metric that affects where a glyph lands, or the colours drift off the
+   text under them. */
+
+.script-modal { width: 720px; }
+
+.script-editor-wrap {
+  position: relative;
+  height: 320px;
+  border: 1px solid var(--border-main);
+  border-radius: 8px;
+  background: var(--input-bg);
+  overflow: hidden;
+}
+
+.script-highlight,
+.script-input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 10px 12px;
+  border: 0;
+  font: 12.5px/1.55 var(--font-mono);
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.script-highlight {
+  color: var(--text-main);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.script-input {
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text-main);
+  resize: none;
+  outline: none;
+  z-index: 1;
+}
+
+.script-input::placeholder { color: var(--text-muted); }
+.script-input:focus { outline: none; }
+.script-editor-wrap:focus-within { border-color: var(--accent); }
+
+/* Token colours, keyed to the core's TokenKind names. */
+.stk-directive { color: var(--accent); font-weight: 600; }
+.stk-keyword   { color: var(--text-key); }
+.stk-param     { color: var(--text-key); font-style: italic; }
+.stk-number    { color: var(--text-main); }
+.stk-unit      { color: var(--text-muted); }
+.stk-color     { color: var(--text-main); }
+.stk-string    { color: var(--success); }
+.stk-comment   { color: var(--text-muted); font-style: italic; }
+.stk-punct     { color: var(--text-muted); }
+.stk-ident     { color: var(--text-main); }
+.stk-error     { color: var(--danger); text-decoration: underline wavy var(--danger); }
+.stk-warning   { text-decoration: underline wavy var(--warning); }
+
+.script-diag {
+  min-height: 1.4em;
+  padding: 6px 2px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.script-diag-error   { color: var(--danger); }
+.script-diag-warning { color: var(--warning); }

@@ -339,6 +339,11 @@ export interface Stencil extends StencilSettings {
 
   // Crop / coordinates
   crop(spec?: CropSpec): Stencil;
+
+  /** Run a .stc script against the open project (stc-contract/stc-contract.md). */
+  execScript(text: string): Promise<Stencil>;
+  /** Parse only: the formatted diagnostics an editor would underline. */
+  checkScript(text: string, file?: string): string[];
   px2Page(p: XY): XY;
   page2Px(p: XY): XY;
 }

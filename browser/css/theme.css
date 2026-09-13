@@ -88,6 +88,9 @@
        happened" on hover; --accent-2 for the boldest, about-to-drag state. */
     --sb-thumb-hover:  var(--accent);
     --sb-thumb-active: var(--accent-2);
+    /* The one mono stack: the hotkey chips, the hex and formula fields, and the script
+       editor all read code, and should read it in the same face. */
+    --font-mono: 'Menlo', 'Consolas', monospace;
 }
 
 /* Accent presets — set only --accent; --accent-2, --text-key and every glow derive

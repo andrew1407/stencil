@@ -15,7 +15,7 @@ export class StencilDropOverlay extends StencilElement {
                 <span>Load the image without saving it</span>
             </div>
         </div>
-        <div class="drop-foot">…or drop a .json layout / .stencil project file (either side — the split above is for images)</div>
+        <div class="drop-foot">…or drop a .json layout / .stencil project / .stc script (either side — the split above is for images)</div>
     `;
   }
   static template() { return hostTag('stencil-drop-overlay', 'id="global-drop-overlay"', StencilDropOverlay.inner()); }
