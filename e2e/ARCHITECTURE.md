@@ -40,8 +40,8 @@ graph TD
 
 ## Layers
 
-`helpers/config.js` → the helpers (`serverApi.js` feeds `wire.js`; `boot.js` and
-`static-server.js` read `config.js`; every other helper stands alone on `@playwright/test`
+`helpers/config.js` → the helpers (`serverApi.js` feeds `wire.js`, `cli.js` feeds
+`consoleCli.js`; `boot.js` and `static-server.js` read `config.js`; every other helper stands alone on `@playwright/test`
 and Node built-ins) → `tests/<project>/*.spec.js`. A spec imports helpers, Playwright and
 Node built-ins only; specs never import each other, and no helper imports a spec.
 `playwright.config.js` sits above all three, reading `config.js` for `APP_URL`. By
@@ -57,6 +57,8 @@ convention; no lint.
 | `helpers/boot.js` | `gotoApp(page, { motion })`: navigate, clear state, await `window.stencil` | every browser spec boots through it; `{ motion: 'none' }` for specs that measure geometry mid-gesture |
 | `helpers/extension.js` | the persistent-context launch + service-worker/extension-id resolution | headed (`headless: false`, `channel: 'chromium'`); CI wraps in xvfb |
 | `helpers/cli.js` | spawns the Zig binary and reads its argv/outcome contract | the same stderr grammar mcp and bot parse |
+| `helpers/consoleCli.js` | pipes `/command` lines into `stencil --console` and collects the run | async spawn, never `spawnSync`: a stub LLM lives in this process and a sync child would block it out |
+| `helpers/stcCases.js` | reads the shared `.stc` corpus (`browser/js/config/script/fixtures/cases.txt`): a case's script and its expected diagnostics | script inputs come from the corpus, so the cli and the browser run what the core is proved on |
 | `helpers/serverApi.js`, `wire.js` | REST helpers (token issuance with `X-Admin-Token`, project CRUD); WS + raw-TCP clients for the live-edit protocol | |
 | `helpers/chat.js`, `drag.js`, `uiPin.js` | LLM wire-shape readers + the chat gestures; the real-finger CDP touch driver; the computed-style + DOM-shape pin recorder | |
 | `helpers/llm-stub.js` | the scriptable stub LLM (openai-compat / ollama / Anthropic Messages) | **all model traffic ends here**; no spec reaches a real provider |
@@ -84,6 +86,10 @@ classDiagram
     class CliRun {
       +number code
       +string out
+    }
+    class StcCase {
+      +string script
+      +List~Diagnostic~ diagnostics
     }
     class WroteLine {
       +string path
@@ -124,6 +130,8 @@ classDiagram
     PlaywrightProject --> Client : server-protocol
     ExtensionLaunch *-- StencilWindow : pages in context
     CliRun --> WroteLine : parseWrote
+    CliRun ..> StcCase : --script
+    StencilWindow ..> StcCase : script window
     Client --> ProjectRecord : joins
     LlmStub *-- StubRequest : records
     StencilWindow --> Pin : capturePin
@@ -138,6 +146,7 @@ classDiagram
 | `StencilWindow` | the booted app page, the `Window & { stencil }` typedef in `helpers/boot.js`; `gotoApp()` resolves it once `window.stencil` exists | the spec; one `page` per test (browser-app), one per context (fullstack) | every facade call, `expectPin`, `seedLlmSettings` |
 | `ExtensionLaunch` | `launchExtension()` in `helpers/extension.js`: `{ context, background, extId }`, `extId` read from the service worker's URL host | a `test.describe` via `beforeAll` / `afterAll` | host tabs and `chrome-extension://<extId>/...` pages opened on `context` |
 | `CliRun` | `runCli()` in `helpers/cli.js`: `{ code, stdout, stderr, out }` of one `spawnSync` of `CLI_BIN` | the test; `cwd` is `testInfo.outputPath()` | `parseWrote`, `pngSize` on the written file |
+| `StcCase` | `stcCase(name)` in `helpers/stcCases.js`: one corpus case as `{ script, diagnostics }`, each diagnostic `{ line, col, len, severity, message, code }`; `writeStcCase` drops the script into a run directory as `<name>.stc` | the repo; read per call | the cli's `--script` / `--script-check` / `/script`, and the browser's script window |
 | `WroteLine` | `parseWrote()`: the `wrote <path> (<w>x<h> px · <page>)` success line as `{ path, w, h }` | derived from `CliRun.out` | the CLI contract mcp and bot also parse |
 | `ProjectRecord` | the server's project as returned by `createProject()` / `listProjects()` in `helpers/serverApi.js` | the running server; per test | `Client.join` targets its `id`; PUT guards on its `version`. Canonical in `server/internal/protocol` |
 | `Client` | the class in `helpers/wire.js`: one promise-based shape over WS (`dialWS`, one JSON frame per message) and raw TCP (`dialTCP`, NDJSON); `T` names the frame types | the test, `close()` in `finally` | the `WSMessage` envelope, canonical in `server/internal/protocol` |
@@ -150,7 +159,7 @@ classDiagram
 
 | Pattern | Where | Notes |
 |---|---|---|
-| Fixture | `fixtures/` at `/__e2e__/`; `test.beforeAll` in every extension and stub-backed suite | `project.stencil` is decoded by `tests/browser/project-file.spec.js` and rendered by `tests/cli/pipeline.spec.js`, so two surfaces are proven on one file |
+| Fixture | `fixtures/` at `/__e2e__/`; `test.beforeAll` in every extension and stub-backed suite; the `.stc` corpus through `helpers/stcCases.js` | `project.stencil` is decoded by `tests/browser/project-file.spec.js` and rendered by `tests/cli/pipeline.spec.js`, so two surfaces are proven on one file; the corpus does the same for a script, down to the diagnostic a case expects |
 | Stub / Fake | `startLlmStub` (`helpers/llm-stub.js`) | one Node `http` server answering the openai-compat, ollama and Anthropic Messages shapes; a FIFO `queue` of scripted replies with a chat-only `FALLBACK_TEXT`; `hold` / `release` keep upstream calls in flight for the rate-limit spec |
 | Golden / Pin | `expectPin`, `capturePin`, `diffPins` (`helpers/uiPin.js`); `pins/<platform>/` | computed styles + DOM shape, never screenshots; `freezeMotion` pins the app's own motion switch and the light theme first |
 | Driver (page-object style) | `gotoApp`, `seedProjectsAndOpenList`, `settleModalAnimations` (`boot.js`); `openChatPanel`, `sendChat`, `openCanvasMenu` (`chat.js`); `finger`, `ghostBox` (`drag.js`); `launchExtension` | each helper wraps one seam of the artifact; specs compose them and hold no selectors of their own for those seams |
@@ -191,6 +200,14 @@ classDiagram
   it names. The `/prompt` spec spawns `--console` asynchronously with `STENCIL_LLM_*` at
   `stub.url`, pipes command lines on stdin, and asserts the queued op plan changed the
   written PNG's dimensions.
+- **A script spec.** `stcCase(name)` takes a case out of the shared corpus. The cli spec
+  writes it into the run directory, drives `--script` over a `-i` input and reads the saved
+  PNG's IHDR, checks `--script-check`'s exit code and rebuilds the
+  `file:line:col: severity: message [CODE]` line from the case's own expected diagnostic, and
+  pipes the one-liner form through `runConsole` as `/script` + `/save`. The browser spec fills
+  the same text into `#script-editor`, reads the highlight layer's `stk-*` spans, clicks Run
+  and asserts on `stencil.lines`; an erroring case leaves the window open with `#script-diag`
+  naming the line and no op run. `stencil.execScript` is the facade's own door onto it.
 - **A UI pin.** `freezeMotion(page)` emulates light + reduced motion and sets the facade's
   `motionMode` / `darkTheme` (or the extension's `StencilMotion` / `StencilTheme`); the spec
   drives a state, and `expectPin(page, { name, root })` captures the subtree until two reads
@@ -238,7 +255,8 @@ over every HTML and CSS image reference, the editor hand-offs and the panel chro
 `fullstack` two browser clients through one server and the browser-to-server-to-stub LLM
 round trip; `server-protocol` the REST lifecycle and last-writer-wins guard, the handshake,
 edit fan-out, presence, keepalive reaping and the spend controls, with no browser at all;
-`cli` the argv and stderr grammar against the written PNG's real dimensions.
+`cli` the argv and stderr grammar against the written PNG's real dimensions, and the `.stc`
+flags and console verb over the shared corpus — which the browser's script window runs too.
 
 A missing prerequisite is a reported skip, never a pass: the stack-backed specs skip without
 `E2E_STACK=1`, the `cli` project without a binary, the LLM specs when the server reports its
