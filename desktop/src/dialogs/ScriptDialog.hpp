@@ -42,6 +42,7 @@ namespace stencil::gui {
     void saveFile();
     void copyToClipboard();
     void setWrapState(const char* key, bool on);
+    void applyLineHeight();
 
     QFrame* glow_ = nullptr;
     QFrame* wrap_ = nullptr;

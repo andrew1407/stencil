@@ -20,6 +20,8 @@
 #include <QStyle>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QTextBlockFormat>
+#include <QTextCursor>
 #include <QTextStream>
 #include <QUrl>
 
@@ -34,6 +36,7 @@ namespace stencil::gui {
     constexpr double MODAL_SCREEN_SHARE = 0.82;
     constexpr int EDITOR_MIN_H = 160;
     constexpr int EDITOR_FONT_PX = 13;
+    constexpr int LINE_HEIGHT_PCT = 155;   // browser: font 12.5px / line-height 1.55
     constexpr int WRAP_PAD_X = 10;
     constexpr int WRAP_PAD_Y = 8;
 
@@ -75,6 +78,7 @@ namespace stencil::gui {
     edit_->setFont(mono);
     edit_->setTabStopDistance(2 * edit_->fontMetrics().horizontalAdvance(QLatin1Char(' ')));
     edit_->installEventFilter(this);
+    applyLineHeight();
     wrapLayout->addWidget(edit_);
     wrap_->setMinimumHeight(EDITOR_MIN_H);
     chrome.body->addWidget(glow_, 1);   // the editor takes whatever height the window has
@@ -186,6 +190,18 @@ namespace stencil::gui {
       else if (event->type() == QEvent::FocusOut) setWrapState("focused", false);
     }
     return QDialog::eventFilter(watched, event);
+  }
+
+  /* Qt has no line-height, so the leading is a block format. Pressing Return copies the
+   * current block's format into the new one, so this runs once per document — after the
+   * ctor and after any setPlainText, which resets the document to its defaults. */
+  void ScriptDialog::applyLineHeight() {
+    QTextCursor cur(edit_->document());
+    cur.select(QTextCursor::Document);
+    QTextBlockFormat fmt;
+    fmt.setLineHeight(LINE_HEIGHT_PCT, QTextBlockFormat::ProportionalHeight);
+    cur.mergeBlockFormat(fmt);
+    edit_->document()->clearUndoRedoStacks();
   }
 
   void ScriptDialog::setWrapState(const char* key, bool on) {

@@ -36,6 +36,7 @@ namespace stencil::gui {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return false;
     edit_->setPlainText(QString::fromUtf8(file.readAll()));
+    applyLineHeight();   // setPlainText resets the document's block formats
     edit_->moveCursor(QTextCursor::End);
     return true;
   }
