@@ -75,14 +75,19 @@ Doctest; each other surface uses its platform's default.
 
 ## Where to read next
 
-- **`ARCHITECTURE.md`** — the design rulebook: layer model per app, the shared-data rails,
-  size/comment budgets, refactor discipline (pins, UI freeze, move proofs), the pattern
-  vocabulary, and checklists for adding an op / command / dialog / provider.
+- **`ARCHITECTURE.md`** — the system design: the system map, the core parity contract,
+  the shared-data rails, the layer model per app and the pattern vocabulary.
 - **`llm-contract/`** — the normative LLM contract (`llm-contract.md` plus `llm-providers.md`,
   `llm-profiles.md`, `llm-chat.md`; §1–§13 are stable across the set). It is machine-readable
   and test-guarded in `browser/js/config/llm/`. The LLM lives **entirely in the adapters** —
   `core/` has no LLM code.
 - **`.claude/rules/`** — auto-loaded agent rules: `security.md`, `no-dependencies.md`,
-  `architecture.md`, `tests.md`, and `core-changes.md` (path-scoped to `core/`).
-- **Each subproject's `README.md`** — read the relevant one before working in that tree.
+  `architecture.md`, `tests.md`, `checklists.md` (the file-by-file steps for adding an op /
+  console command / dialog / provider), and `core-changes.md` (path-scoped to `core/`).
+- **Each subproject's `ARCHITECTURE.md`** — **normative for that tree.** Before changing a
+  surface, read its `ARCHITECTURE.md` and keep the change inside its layers, placement
+  table and rules. It is an independent document of that surface's design — layers,
+  modules, patterns, connections, schemas and tables — and stays current with the tree.
+- **Each subproject's `README.md`** — the user-facing guide only: what it is, build, run,
+  test, configure, use. No architecture, internals or feature inventories.
 - **`tools/README.md`** — `moveCheck.mjs` and `commentOnlyDiff.mjs`.
