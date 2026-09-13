@@ -56,10 +56,10 @@ test('the floating chat panel animates from the toolbar icon', () => {
   for (const v of ['--modal-dx', '--modal-dy', '--modal-sx', '--modal-sy'])
     assert.ok(js.includes(v), `chatPanel.js never sets ${v}`);
   // …and the close timer has to outlast the longer float flight, or the panel is torn
-  // out of the DOM mid-motion. Docked shares the same 510ms now (the dust flight needs
+  // out of the DOM mid-motion. Docked shares the same 340ms now (the dust flight needs
   // it as much as the float shape does — see CLOSE_MS in chatPanel.js).
   const closeMs = js.match(/const CLOSE_MS = ([^;]+);/)?.[1] || '';
-  assert.match(closeMs, /^510$/, `the close timer does not match modalToIcon: "${closeMs}"`);
+  assert.match(closeMs, /^340$/, `the close timer does not match modalToIcon: "${closeMs}"`);
 });
 
 // Boot starts the editor blank by calling storage.newTemporary(), which also plays the

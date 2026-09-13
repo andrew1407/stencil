@@ -133,16 +133,17 @@ namespace stencil::gui {
     // Interrupting a hide: grow from where it actually is.
     const int from = show ? (wasVisible && extent() < full ? extent() : 0) : extent();
     const int to = show ? full : 0;
-    // Snapshot at FULL extent, veil built in chatSurfaceFlight. Same CHAT_SLIDE_OUT_MS both ways (chatPanel.js closeMs).
-    // Shown BEFORE it is measured: a HIDDEN dock contributes no space to the dock layout.
+    // The dust flight and the slide run one clock (chatPanel.js), and leaving is the quicker
+    // of the two. Shown BEFORE it is measured: a HIDDEN dock contributes no space to the layout.
+    const int slideMs = show ? CHAT_SLIDE_IN_MS : CHAT_SLIDE_OUT_MS;
     if (show) chatDock_->show();
     QPointer<gui::DisintegrateOverlay> dustFx =
-        chatSurfaceFlight(area, /*gather=*/show, CHAT_SLIDE_OUT_MS, pin, show ? full : from);
+        chatSurfaceFlight(area, /*gather=*/show, slideMs, pin, show ? full : from);
     if (show) pin(from);
     // A dock mid-slide is already "away" for results: it stays isVisible() for the whole slide.
     if (!show) { chatClosing_ = true; chatDock_->setClosing(true); }
     chatAnim_ = startExtentSlide(this, from, to,
-                                 CHAT_SLIDE_OUT_MS,  // browser: 0.34s both ways, matching the dust flight above
+                                 slideMs,   // the dust flight above runs the same clock
                                  pinAndRaiseDust(pin, dustFx), [this, show] {
                                    stopChatAnim();  // releases the pinned constraints
                                    if (!show) chatDock_->hide();

@@ -21,7 +21,9 @@ namespace stencil::gui {
 
   // How long the chat takes to leave; the compact popover waits this out (chatPanel.js closeMs
   // parity).
-  inline constexpr int CHAT_SLIDE_OUT_MS = 510;
+  inline constexpr int CHAT_SLIDE_IN_MS = 510;
+  // Leaving is 1.5x quicker than arriving: a panel you dismissed should be gone.
+  inline constexpr int CHAT_SLIDE_OUT_MS = 340;
   inline constexpr int WINDOW_DISMISS_MS = 240;
   // Shared with selectionPanel TOGGLE_BOX/TOGGLE_GLYPH.
   inline constexpr int PANEL_TOGGLE_BOX = 24;

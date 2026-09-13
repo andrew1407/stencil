@@ -482,7 +482,7 @@ export class StencilChatPanel extends StencilElement {
     const openBtn = $('chat-btn');
 // Closing plays the reverse dust flight: keep .chat-open until it finishes, since
 // display:none cannot animate. One clock for every dock.
-    const CLOSE_MS = 510;
+    const CLOSE_MS = 340;
 // Fullscreen shows a clone of the toolbar (ui/fullscreenLayer.js) with the same id, so
 // the active state is mirrored onto it via a scoped querySelectorAll.
     const syncFsCloneActive = (on) => {
