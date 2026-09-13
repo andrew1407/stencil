@@ -121,6 +121,7 @@ STENCIL_CLI=/path/to/stencil claude mcp add stencil -- /path/to/stencil-mcp
 | `stencil_probe` | Read an image's pixel size | `input` |
 | `source_site` | Scrape a web page and download its matching media into a **directory** | `source_site`, `output`, `count`, `group`, `filter`, `format`, `min_width`/`max_width`/`min_height`/`max_height` |
 | `stencil_prompt` | Ask a configured LLM to plan edits from natural language and run them (see [LLM assistant](#llm-assistant-stencil_prompt)) | `prompt`, `input`, `output_dir`, `model` override |
+| `stencil_script` | Run a `.stc` script — batch edits over files, directories or globs, confined to one output directory | `script_text` \| `script_path`, `input`, `output_dir` |
 <!-- /generated -->
 
 `stencil_edit` maps directly onto the CLI (`source → crop → rotate → filter → layout →
