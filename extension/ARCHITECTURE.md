@@ -206,15 +206,15 @@ classDiagram
 
 ## Tests
 
-`tests/` is 73 `node --test` suites, all offline and without Chrome: `helpers/chromeStub.js`
+`tests/` runs under `node --test`, offline and without Chrome: `helpers/chromeStub.js`
 stands in for `chrome.storage` and `chrome.runtime`, `helpers/domStub.js` for the document,
 and every REST and LLM function takes an injected `fetch`. Cross-surface drift is pinned,
 not re-tested: `portParity.test.js` holds the ported modules byte-equal to the browser's,
 `dataParity.test.js` the `src/config/` copies to `browser/js/config/`, and
 `pageApiMainMirror.test.js` the MAIN-world inline helpers equal to `lib/pageImages.js`.
 `fixtureWalkers.test.js` walks the shared corpus under `browser/js/config/` (opPlan for
-profile `extension` in the context `{ listingLength: 8, tabsLength: 4 }`, providerWire,
-sanitizer, deepLink), with measured divergences in `fixtureOverrides.json`. Structure is
+profile `extension` under a fixed listing-and-tabs context, providerWire, sanitizer,
+deepLink), with measured divergences in `fixtureOverrides.json`. Structure is
 asserted from source text: `layerBoundary` (import direction), `dts` (every `.d.ts` names
 live exports), `injectedFuncs` (injected functions close over nothing), `messages` (every
 `MSG` mirror), `manifestSecurity` (CSP, the one web-accessible resource), `assistantHostMarkup`

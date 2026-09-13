@@ -86,8 +86,9 @@ Doctest; each other surface uses its platform's default.
   console command / dialog / provider), and `core-changes.md` (path-scoped to `core/`).
 - **Each subproject's `ARCHITECTURE.md`** — **normative for that tree.** Before changing a
   surface, read its `ARCHITECTURE.md` and keep the change inside its layers, placement
-  table and rules. It is an independent document of that surface's design — layers,
-  modules, patterns, connections, schemas and tables — and stays current with the tree.
+  table and rules. Each is an independent document of that surface's design, in the same
+  seven sections — Layers, Where things go, Entities, Patterns, Design, Rules, Tests — and
+  stays current with the tree.
 - **Each subproject's `README.md`** — the user-facing guide only: what it is, build, run,
   test, configure, use. No architecture, internals or feature inventories.
 - **`tools/README.md`** — `moveCheck.mjs` and `commentOnlyDiff.mjs`.

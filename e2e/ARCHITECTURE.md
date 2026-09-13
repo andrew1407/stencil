@@ -51,7 +51,7 @@ convention; no lint.
 
 | Path | Holds | Rule |
 |---|---|---|
-| `playwright.config.js` | the five projects, workers, the `webServer` | `browser-app`, `extension`, `cli` run parallel (4 workers); `fullstack` and `server-protocol` serial — they share one server's state |
+| `playwright.config.js` | the test projects, their workers, the `webServer` | `browser-app`, `extension`, `cli` run parallel; `fullstack` and `server-protocol` serial — they share one server's state |
 | `helpers/config.js` | the app's host/port (`127.0.0.1:8188`) | the one place; never `:8080`, so a stray `npm run serve` is never reused |
 | `helpers/static-server.js`, `compose.js`, `compose-teardown.js`, `compose.llm.yml` | the Node static server; compose up (only `E2E_STACK=1`) / down (only `E2E_STACK_DOWN=1`); the server's LLM env pointed at the stub | the stack is left running between runs on purpose |
 | `helpers/boot.js` | `gotoApp(page, { motion })`: navigate, clear state, await `window.stencil` | every browser spec boots through it; `{ motion: 'none' }` for specs that measure geometry mid-gesture |
@@ -156,7 +156,7 @@ classDiagram
 | Driver (page-object style) | `gotoApp`, `seedProjectsAndOpenList`, `settleModalAnimations` (`boot.js`); `openChatPanel`, `sendChat`, `openCanvasMenu` (`chat.js`); `finger`, `ghostBox` (`drag.js`); `launchExtension` | each helper wraps one seam of the artifact; specs compose them and hold no selectors of their own for those seams |
 | Adapter over the wire | `Client` with `dialWS` / `dialTCP` / `join` (`wire.js`); `issueToken`, `createProject`, `bearer` (`serverApi.js`) | one `send` / `readUntil` shape over two transports; `T` mirrors `protocol.go` |
 | Adapter over the CLI | `runCli`, `parseWrote`, `pngSize` (`cli.js`) | the argv/stderr grammar of `cli/`, read the way `mcp/` and `bot/` read it; `pngSize` checks the IHDR so the file, not the claim, is asserted |
-| Serial-vs-parallel project split | `playwright.config.js` | `browser-app`, `extension`, `cli` are `fullyParallel` at 4 workers; `fullstack`, `server-protocol` run at 1 because they share one server and one fixed stub port; a stack run caps the whole suite at 1 worker |
+| Serial-vs-parallel project split | `playwright.config.js` | `browser-app`, `extension`, `cli` are `fullyParallel`; `fullstack` and `server-protocol` run serially because they share one server and one fixed stub port, and a stack run serialises the whole suite |
 | Capability gate (self-skip) | `stackEnabled` (`serverApi.js`), `cliAvailable` (`cli.js`), the `PINS_DIR` check in `expectPin`, `GET /llm/info` in the LLM specs | a missing prerequisite is a reported skip, never a pass |
 | Lifecycle hook | `globalSetup` (`compose.js`), `globalTeardown` (`compose-teardown.js`), `webServer` in the config | compose up + `/healthz` poll before any project; the static server for every project |
 
@@ -231,25 +231,17 @@ appears on leaves only; `<svg>` children are not walked; hidden subtrees are ski
 
 ## Tests
 
-A smoke harness, not a port of any unit suite; each project proves one surface's public contract.
+A smoke harness, not a port of any unit suite: each project proves one surface's public
+contract end to end. `browser-app` drives the facade, deep links and fragment privacy,
+`.stencil` files, the chat panel, real-finger drag and the UI pins; `extension` the scanner
+over every HTML and CSS image reference, the editor hand-offs and the panel chrome;
+`fullstack` two browser clients through one server and the browser-to-server-to-stub LLM
+round trip; `server-protocol` the REST lifecycle and last-writer-wins guard, the handshake,
+edit fan-out, presence, keepalive reaping and the spend controls, with no browser at all;
+`cli` the argv and stderr grammar against the written PNG's real dimensions.
 
-- `browser-app`: the facade (blank/draw/rotate/crop), the `#stencil=` deep link and its
-  fragment privacy, `.stencil` files, the chat panel against the stub, real-finger drag,
-  keyboard context menus, custom selects, modal layout and popovers, canvas scrollbars, pins.
-- `extension`: the scanner over every HTML/CSS image reference, the editor hand-offs, popup
-  and side-panel chrome, editor mode, the embedded assistant against the stub, pins.
-- `fullstack`: two browser clients through one server, live reload of a peer's REST edit,
-  and the browser-to-server-to-stub LLM proxy round trip.
-- `server-protocol`: the REST lifecycle and LWW guard, the access model, files and the chat
-  file kind, the WS/TCP handshake, edit fan-out and save ACK, `/events`, presence,
-  garbage-input robustness, keepalive peer reaping, and the `/llm/chat` spend controls.
-- `cli`: the argv/outcome grammar against the written PNG's real dimensions, the shared
-  `project.stencil` and `cli-layout.json`, and a scripted `/prompt` op plan executing.
-
-Self-skips: every `fullstack` and `server-protocol` spec skips on `stackEnabled` being false;
-the `cli` specs skip on `cliAvailable()`; the LLM proxy and rate-limit specs skip when
-`GET /llm/info` reports the proxy disabled (a server started without the compose override);
-the pin specs skip on a platform with no `pins/<PIN_PLATFORM>/` directory. Pins are recorded
-per platform because font metrics and native scrollbars differ by OS; only `macos/` exists.
-All model traffic terminates at `helpers/llm-stub.js`, so the suite needs no network beyond
-loopback and the compose network.
+A missing prerequisite is a reported skip, never a pass: the stack-backed specs skip without
+`E2E_STACK=1`, the `cli` project without a binary, the LLM specs when the server reports its
+proxy disabled, and the pin specs on a platform with no recorded baselines. Pins are recorded
+per platform because font metrics and native scrollbars differ by OS. All model traffic
+terminates at the stub, so the suite needs no network beyond loopback and the compose network.

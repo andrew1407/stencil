@@ -215,25 +215,20 @@ classDiagram
 
 ## Tests
 
-- Every suite in `tests/` runs offline under `node --test`, on the JS fallback path: Node
-  never loads wasm. The DOM, `fetch`, `localStorage` and speech are stubbed once in
-  `tests/helpers/` (`dom.js`, `fetchStub.js`, `memoryStorage.js`, `speech.js`), which
-  `net/` and `llm/` take as injected implementations.
-- **wasm parity.** `wasm-parity.test.js` (pure ops and marshalling), `-history` (the snapshot
-  codec and cursor), `-projects` (expiry arithmetic) and `-state` (the stateful handle
-  classes) load the generated `js/wasm/stencilCore.js` and drive the JS reference and the
-  compiled core through one script; they self-skip without the artifact, which CI builds.
-- **Structural lints.** `layerBoundary.test.js` pins the import direction and the
-  `window.stencil` name to `js/console`; `dts.test.js` keeps every `.d.ts` equal to its
-  module's exports in both directions; `events.test.js`, `themeTokens.test.js`,
-  `csp.test.js` and `opRegistryCanon.test.js` are the drift guards for `events.json`,
-  `themeTokens.json`, the CSP meta versus `nginx.conf`, and the registry versus `OPS`.
-- **Pins.** `cssInventory.test.js` pins every declaration `index.html` loads to
-  `tests/pins/css.json`, file-blind; `ui-markup.test.js` pins the static body ids of `layout()`.
-- **Fixture walkers.** `formatFixtures.test.js`, `opPlanFixtures.test.js` and
-  `llmWireFixtures.test.js` run the shared corpora through the real browser modules; they
-  are the reference the other surfaces' walkers copy.
-- **Cross-surface reads.** `helpers/desktopSource.js` and `helpers/extensionCss.js` read the
-  desktop and extension trees for parity pins; the byte-identical port check for the copied
-  modules lives in `extension/tests/portParity.test.js`. `singleFileBuild.test.js` holds
-  without vite: it checks the rewrite patterns in `tools/singleFilePatterns.js` still match.
+Every suite in `tests/` runs offline under `node --test`, on the JS fallback path: Node never
+loads wasm. The DOM, `fetch`, `localStorage` and speech are stubbed once in `tests/helpers/`,
+which `net/` and `llm/` take as injected implementations. The `wasm-parity*` suites are the
+exception: they load the generated `js/wasm/stencilCore.js` and drive the JS reference and
+the compiled core through one script, covering the pure ops and marshalling, the snapshot
+codec and cursor, the expiry arithmetic and the stateful handle classes; they self-skip
+without the artifact, which CI builds fresh.
+
+The structural lints assert the design rather than behaviour: `layerBoundary` the import
+direction and the `window.stencil` name, `dts` every `.d.ts` against its module's exports in
+both directions, and `events`, `themeTokens`, `csp` and `opRegistryCanon` the drift between
+a config table and its consumer. `cssInventory` pins every declaration `index.html` loads,
+file-blind, and `ui-markup` the static body ids of `layout()`. The fixture walkers run the
+shared corpora through the real modules and are the reference the other surfaces' walkers
+copy. Cross-surface reads live in `tests/helpers/`; the byte-identical port check for the
+copied modules is `extension/tests/portParity.test.js`, and `singleFileBuild` holds without
+vite by checking the rewrite patterns still match.
