@@ -6,10 +6,17 @@ description: Layer boundaries, the 230-line rule, comment policy, canonical data
 
 The reasoning is in `ARCHITECTURE.md`. These are the parts that fail a build or a review.
 
+## Per-surface `ARCHITECTURE.md` is normative
+
+Every subproject has one (`browser/ARCHITECTURE.md`, `cli/ARCHITECTURE.md`, …). Read it
+before editing that tree and keep the change inside its layers, "Where things go" table
+and rules. It is an independent document of that surface's design — layers, modules,
+patterns, connections, schemas and tables — and stays current with the tree. The
+`README.md` beside it is user-facing only (build, run, use) and never carries architecture.
+
 ## Layers — imports point one way
 
-A layer may use everything to its left, nothing to its right. Some of these directories are
-still being introduced; the ordering is the rule either way.
+A layer may use everything to its left, nothing to its right.
 
 - **browser** — `config/` + `utils.js` → `core/` (**no DOM**) → bus (`core/emitter.js`) →
   `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` → render.
@@ -56,8 +63,8 @@ read back out of the core over the C ABI, do that instead of mirroring it.
 
 ## Typed boundaries
 
-Every public JS module gets a sibling `.d.ts` describing its exported surface. This convention
-is being introduced — add one when you create a module or substantially rework its exports.
+Every public JS module gets a sibling `.d.ts` describing its exported surface; add one when
+you create a module or rework its exports.
 
 ## UI
 
