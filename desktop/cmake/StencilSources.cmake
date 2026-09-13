@@ -360,6 +360,7 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_LINKSDIALOG_SOURCES}
   src/dialogs/DescriptionDialog.cpp
   src/dialogs/ScriptDialog.cpp
+  src/dialogs/ScriptDialogFile.cpp
   src/dialogs/ScriptHighlighter.cpp
   src/dialogs/KeywordsDialog.cpp
   src/dialogs/CropDialog.cpp

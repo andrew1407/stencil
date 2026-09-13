@@ -494,7 +494,7 @@ stencil_headless_test(stencil_llmexecutor_headless
 stencil_headless_test(stencil_scriptdialog_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/scriptDialog.headless.cpp src/dialogs/ScriptDialog.cpp
+    tests/scriptDialog.headless.cpp src/dialogs/ScriptDialog.cpp src/dialogs/ScriptDialogFile.cpp
     src/dialogs/ScriptHighlighter.cpp src/model/ScriptDoc.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp src/support/modalReveal.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc

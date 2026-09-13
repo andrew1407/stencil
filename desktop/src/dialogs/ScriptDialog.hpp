@@ -3,6 +3,7 @@
 #include <QDialog>
 #include <QString>
 
+class QFrame;
 class QLabel;
 class QPlainTextEdit;
 class QPushButton;
@@ -30,6 +31,8 @@ namespace stencil::gui {
     // A .stc dropped on the OPEN window fills the editor; the browser twin does the same.
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
+    // The frame's hover glow and the editor's focus border, which QSS alone cannot express.
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
    private:
     void repaint(bool withDiagnostics);
@@ -38,7 +41,9 @@ namespace stencil::gui {
     bool readInto(const QString& path);
     void saveFile();
     void copyToClipboard();
+    void setWrapState(const char* key, bool on);
 
+    QFrame* wrap_ = nullptr;
     QPlainTextEdit* edit_ = nullptr;
     QLabel* diag_ = nullptr;
     QPushButton* copyBtn_ = nullptr;

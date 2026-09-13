@@ -594,13 +594,17 @@
       /* The script window's editor (ScriptDialog) — the browser's .script-editor-wrap plus
          .script-input as one widget, since Qt colours the text in place. The mono face and
          the gutter are set in code; only the frame and the inks belong here. */
+      /* The FRAME owns the box (browser .script-editor-wrap): accent hairline at rest, two
+         hairlines while the caret is in it. The hover glow is a drop shadow set in code —
+         QSS has no box-shadow. */
+      QFrame#scriptEditorWrap {
+        background: %INPUT_BG%; border: 1px solid %ACCENT%; border-radius: 8px;
+      }
+      QFrame#scriptEditorWrap[focused="true"] { border: 2px solid %ACCENT%; }
       QPlainTextEdit#scriptText {
-        background: %INPUT_BG%; color: %TEXT%; border: 1px solid %BORDER%;
-        border-radius: 8px; padding: 6px 8px;
+        background: transparent; color: %TEXT%; border: 0; padding: 0;
         selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
       }
-      QPlainTextEdit#scriptText:hover:enabled { border: 1px solid %ACCENT_RING%; }
-      QPlainTextEdit#scriptText:focus { border: 1px solid %ACCENT%; }
       /* The strip under it (browser .script-diag): muted until a run reports something. */
       QLabel#scriptDiag { color: %MUTED%; font-size: 12px; background: transparent; }
       QLabel#scriptDiag[state="error"] { color: %DANGER%; }

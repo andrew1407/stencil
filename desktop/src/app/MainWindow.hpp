@@ -736,7 +736,6 @@ namespace stencil::gui {
     QAction* actDownloadJson_ = nullptr;
     QAction* actUploadJson_ = nullptr;
     QAction* actScript_ = nullptr;
-    QString lastScript_;   // the script window's draft, for this session
     QAction* actSaveProjectFile_ = nullptr;
     QAction* actOpenProjectFile_ = nullptr;
     QAction* actDeleteProjectFile_ = nullptr;

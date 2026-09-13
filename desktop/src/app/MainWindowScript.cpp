@@ -9,15 +9,13 @@
 namespace stencil::gui {
 
   void MainWindow::openScript() {
-    ScriptDialog dlg(lastScript_, this);
+    ScriptDialog dlg(QString(), this);
 
     // Keep running while the user presses Run: a failed script should leave the window open
     // with its diagnostics, not vanish and make them reopen it.
     while (execMaybePopover(dlg, actScript_) == QDialog::Accepted) {
-      lastScript_ = dlg.script();
-
       ChatPlanTarget target(*this);
-      const ScriptRunResult result = runScript(lastScript_, target);
+      const ScriptRunResult result = runScript(dlg.script(), target);
       if (result.ok) {
         notify_->success(result.ops == 1 ? tr("Script ran: 1 op")
                                          : tr("Script ran: %1 ops").arg(result.ops));
@@ -31,7 +29,6 @@ namespace stencil::gui {
       dlg.showRunDiagnostics();
       if (result.ops > 0) refreshAfterScript();   // whatever ran before it still stands
     }
-    lastScript_ = dlg.script();
   }
 
   // A script edits the same state the toolbar does, so the same refresh follows it.

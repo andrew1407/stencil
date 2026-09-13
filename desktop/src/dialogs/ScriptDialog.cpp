@@ -11,6 +11,10 @@
 #include <QFileDialog>
 #include <QFontDatabase>
 #include <QHBoxLayout>
+#include <QScreen>
+#include <QVBoxLayout>
+#include <QFrame>
+#include <QGraphicsDropShadowEffect>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMimeData>
@@ -24,22 +28,15 @@ namespace stencil::gui {
 
   namespace {
 
-    constexpr int EDITOR_ROWS = 22;   // the browser window's height, in lines
-
-    const QString& scriptFilter() {
-      static const QString filter = QStringLiteral("Stencil script (*.stc)");
-      return filter;
-    }
-
-    // The one local .stc among a drag's urls, or empty.
-    QString droppedScript(const QMimeData* mime) {
-      if (!mime) return QString();
-      for (const QUrl& u : mime->urls()) {
-        const QString path = u.toLocalFile();
-        if (!path.isEmpty() && path.endsWith(QStringLiteral(".stc"), Qt::CaseInsensitive)) return path;
-      }
-      return QString();
-    }
+    // Every metric here is the browser window's (css/components/scriptEditor.css): the two
+    // editors are the same window on two surfaces.
+    constexpr int MODAL_W = 587;
+    constexpr int MODAL_MAX_H = 760;
+    constexpr double MODAL_SCREEN_SHARE = 0.82;
+    constexpr int EDITOR_MIN_H = 160;
+    constexpr int EDITOR_FONT_PX = 13;
+    constexpr int WRAP_PAD_X = 10;
+    constexpr int WRAP_PAD_Y = 8;
 
   }  // namespace
 
@@ -48,22 +45,34 @@ namespace stencil::gui {
     setWindowTitle(tr("Stencil Script"));
     ModalChrome chrome = installModalChrome(this, QStringLiteral("script"), tr("Stencil Script"));
 
-    edit_ = new QPlainTextEdit(initialText, this);
+    /* The browser's .script-editor-wrap: the frame owns the border, the gutter and the
+     * background, and the editor inside it is bare. The frame is also what the hover glow
+     * hangs on — a graphics effect on the editor itself smears its scrolling viewport. */
+    wrap_ = new QFrame(this);
+    wrap_->setObjectName(QStringLiteral("scriptEditorWrap"));
+    auto* wrapLayout = new QVBoxLayout(wrap_);
+    wrapLayout->setContentsMargins(WRAP_PAD_X, WRAP_PAD_Y, WRAP_PAD_X, WRAP_PAD_Y);
+    wrap_->setAttribute(Qt::WA_Hover, true);
+    wrap_->installEventFilter(this);
+
+    edit_ = new QPlainTextEdit(initialText, wrap_);
     edit_->setObjectName(QStringLiteral("scriptText"));
     edit_->setPlaceholderText(QStringLiteral("@crop 10%\n@filter bw\n@save"));
     edit_->setLineWrapMode(QPlainTextEdit::NoWrap);   // a script is code; let it scroll
+    edit_->setFrameShape(QFrame::NoFrame);
     QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    mono.setPointSizeF(mono.pointSizeF() > 0 ? mono.pointSizeF() : 12.0);
+    mono.setPixelSize(EDITOR_FONT_PX);
     edit_->setFont(mono);
     edit_->setTabStopDistance(2 * edit_->fontMetrics().horizontalAdvance(QLatin1Char(' ')));
-    edit_->setFixedHeight(edit_->fontMetrics().lineSpacing() * EDITOR_ROWS + 16);
-    chrome.body->addWidget(edit_);
+    edit_->installEventFilter(this);
+    wrapLayout->addWidget(edit_);
+    wrap_->setMinimumHeight(EDITOR_MIN_H);
+    chrome.body->addWidget(wrap_, 1);   // the editor takes whatever height the window has
 
     diag_ = new QLabel(this);
     diag_->setObjectName(QStringLiteral("scriptDiag"));
     diag_->setWordWrap(true);
     chrome.body->addWidget(diag_);
-    chrome.body->addStretch(1);
 
     highlighter_ = new dialogs::ScriptHighlighter(edit_->document());
 
@@ -73,12 +82,12 @@ namespace stencil::gui {
     copyBtn_->setAutoDefault(false);
     footer->addWidget(copyBtn_);
 
-    downloadBtn_ = new QPushButton(tr("Save…"), this);
+    downloadBtn_ = new QPushButton(tr("Download"), this);
     makeModalCta(downloadBtn_, QStringLiteral("file-down"));
     downloadBtn_->setAutoDefault(false);
     footer->addWidget(downloadBtn_);
 
-    auto* uploadBtn = new QPushButton(tr("Open…"), this);
+    auto* uploadBtn = new QPushButton(tr("Upload"), this);
     makeModalCta(uploadBtn, QStringLiteral("file-up"));
     uploadBtn->setAutoDefault(false);
     footer->addWidget(uploadBtn);
@@ -103,8 +112,9 @@ namespace stencil::gui {
     });
 
     setAcceptDrops(true);
-    setFixedWidth(MODAL_WIDTH);
-    adjustSize();
+    setFixedWidth(MODAL_W);
+    const int avail = screen() ? screen()->availableGeometry().height() : MODAL_MAX_H;
+    resize(MODAL_W, qMin(int(avail * MODAL_SCREEN_SHARE), MODAL_MAX_H));
     repaint(false);
     edit_->setFocus();
     edit_->moveCursor(QTextCursor::End);
@@ -155,39 +165,34 @@ namespace stencil::gui {
     QApplication::clipboard()->setText(edit_->toPlainText());
   }
 
-  bool ScriptDialog::readInto(const QString& path) {
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return false;
-    edit_->setPlainText(QString::fromUtf8(file.readAll()));
-    edit_->moveCursor(QTextCursor::End);
-    return true;
+  /* Hover lights a small glow in the accent, focus thickens the border — the browser's
+   * .script-editor-wrap :hover / :focus-within, which QSS has no box-shadow for. */
+  bool ScriptDialog::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == wrap_) {
+      if (event->type() == QEvent::Enter) setWrapState("hovered", true);
+      else if (event->type() == QEvent::Leave) setWrapState("hovered", false);
+    } else if (watched == edit_) {
+      if (event->type() == QEvent::FocusIn) setWrapState("focused", true);
+      else if (event->type() == QEvent::FocusOut) setWrapState("focused", false);
+    }
+    return QDialog::eventFilter(watched, event);
   }
 
-  void ScriptDialog::loadFile() {
-    const QString path = QFileDialog::getOpenFileName(this, tr("Open script"), QString(),
-                                                      scriptFilter());
-    if (!path.isEmpty()) readInto(path);
-  }
-
-  void ScriptDialog::dragEnterEvent(QDragEnterEvent* event) {
-    if (!droppedScript(event->mimeData()).isEmpty()) event->acceptProposedAction();
-  }
-
-  void ScriptDialog::dropEvent(QDropEvent* event) {
-    const QString path = droppedScript(event->mimeData());
-    if (path.isEmpty()) return;
-    event->acceptProposedAction();
-    readInto(path);
-  }
-
-  void ScriptDialog::saveFile() {
-    const QString path = QFileDialog::getSaveFileName(this, tr("Save script"),
-                                                      QStringLiteral("stencil.stc"),
-                                                      scriptFilter());
-    if (path.isEmpty()) return;
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
-    file.write(edit_->toPlainText().toUtf8());
+  void ScriptDialog::setWrapState(const char* key, bool on) {
+    if (!wrap_) return;
+    wrap_->setProperty(key, on);
+    wrap_->style()->unpolish(wrap_);
+    wrap_->style()->polish(wrap_);
+    const bool glow = wrap_->property("hovered").toBool();
+    if (!glow) { wrap_->setGraphicsEffect(nullptr); return; }
+    if (wrap_->graphicsEffect()) return;
+    auto* fx = new QGraphicsDropShadowEffect(wrap_);
+    fx->setBlurRadius(14);
+    fx->setOffset(0, 0);
+    QColor tint = palette().color(QPalette::Highlight);
+    tint.setAlpha(140);
+    fx->setColor(tint);
+    wrap_->setGraphicsEffect(fx);
   }
 
 }  // namespace stencil::gui
