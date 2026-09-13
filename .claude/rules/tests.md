@@ -94,8 +94,8 @@ Add the hand-written fixture for the interesting case yourself.
 The `.stc` corpus is its twin: one plain-text file,
 `browser/js/config/script/fixtures/cases.txt`, walked by `core/tests/scriptFixtures.test.cpp`,
 `browser/tests/scriptFixtures.test.js` (and the wasm-parity script spec),
-`pystencil/tests/test_fixture_script.py`, `vscode-extension/tests/fixtureWalker.test.js` and
-the `e2e/` cli + browser script specs. Nothing about it is generated and no walker records
+`cli/tests/script_fixtures_test.zig`, `pystencil/tests/test_fixture_script.py`,
+`vscode-extension/tests/fixtureWalker.test.js` and the `e2e/` cli + browser script specs. Nothing about it is generated and no walker records
 it: append the section by hand, run a walker, and read the mismatch it prints. A case named
 `err-*` must produce an error and every other case must not, so the name is part of the
 assertion.
