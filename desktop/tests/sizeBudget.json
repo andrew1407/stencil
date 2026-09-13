@@ -3,7 +3,7 @@
   "maxNewFileLines": 230,
   "files": {
     "desktop/src/app/MainWindow.cpp": 950,
-    "desktop/src/app/MainWindow.hpp": 885,
+    "desktop/src/app/MainWindow.hpp": 890,
     "desktop/src/canvas/CanvasWidget.hpp": 432,
     "desktop/src/dialogs/LinksDialog.cpp": 293,
     "desktop/src/dialogs/OpenImageDialog.cpp": 390,
@@ -16,7 +16,7 @@
     "desktop/src/llm/opPlan.cpp": 500,
     "desktop/src/llm/opRegistry.cpp": 249,
     "desktop/src/llm/planExecutor.cpp": 593,
-    "desktop/src/support/DisintegrateOverlay.hpp": 251,
+    "desktop/src/support/DisintegrateOverlay.hpp": 257,
     "desktop/src/support/iconMotion.hpp": 252,
     "desktop/src/support/menuReveal.cpp": 315,
     "desktop/src/support/modalReveal.cpp": 424,
@@ -70,6 +70,8 @@
     "desktop/src/support": "comment share was raised 21 -> 23 with no comment added: theme.cpp's 817-line QSS literal moved to resources/app.qss, so the directory lost that many non-comment lines from the denominator. Ratcheted back to 21 once the header bodies moved into .cpp TUs: the declarations left behind are comment-dense, the moved bodies are not, and both live in support/.",
     "desktop/src/llm": "comment share was raised 20 -> 21 with no comment added: ChatPlanTarget.cpp, a 605-line low-comment file, moved to app/ where it belongs in the layer order, so llm/ lost those lines from the denominator. Back to 20 after the llm/ TU splits.",
     "desktop/tests": "the MainWindow GUI e2e is one QtTest binary per feature area (MainWindow.<area>.gui.cpp). Each area is still far over 230 lines: a QtTest binary runs one QObject of slots, so an area cannot be split further without splitting the binary again. The chat is four binaries for that reason — chatCards, chatCompact, chatDock and chatPanel/chatTurns — since one chat binary was longer than the whole rest of the suite run in parallel. The budget numbers above are the ratchet — drive them down as cases merge.",
+    "desktop/src/app/MainWindow.hpp": "885 -> 890 for the script window: one QAction, the session draft, and three slots (open, the refresh a script shares with the toolbar, and the entry a dropped .stc uses). moc runs on this header, so a MainWindow member has nowhere else to be declared; the dialog, the core seam and the runner all live outside it.",
+    "desktop/src/support/DisintegrateOverlay.hpp": "251 -> 257 for the tooltip clock: a tooltip shows and hides on every hover, and at the shared 1.5x-faster dust speed its arrival read as a flicker, so TOOLTIP_DUST_IN_MS / _OUT_MS / _FADE_MS / _HAND_OVER_MS run that clock 1.5x slower. They sit beside the family they derive from; splitting four constants into a header of their own would cost more.",
     "desktop/tests/MainWindow.toolbar.gui.cpp": "1569 -> 1603 for one case: the script button's place in DATA, its image gate and its chord. It belongs with the toolbar's other section-order cases, and a QtTest binary runs one QObject of slots, so it cannot move without splitting the binary."
   }
 }

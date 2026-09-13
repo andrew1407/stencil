@@ -37,6 +37,12 @@ namespace stencil::gui {
   // browser surfaceForm's invisible hold while motes gather; surfaceLeave's hand-over beat.
   inline constexpr double DUST_HOLD = 0.55;
   inline constexpr int DUST_HAND_OVER_MS = 60;
+  /* A TOOLTIP runs the same clock 1.5x slower — deliberately off the browser's pace. It shows
+   * and hides on every hover, and at the shared speed the arrival reads as a flicker. */
+  inline constexpr int TOOLTIP_DUST_IN_MS = 320;
+  inline constexpr int TOOLTIP_DUST_OUT_MS = 236;
+  inline constexpr int TOOLTIP_FADE_MS = 135;
+  inline constexpr int TOOLTIP_HAND_OVER_MS = 90;
 
   QPoint dockAwayPoint(const QRect& picture, Qt::DockWidgetArea area,
                        double reach = 1.2);
