@@ -19,6 +19,18 @@ pub enum EditError {
     DashOutput(String),
     /// `source_site` (scrape mode) was empty.
     EmptySourceSite,
+    /// Both `script_text` and `script_path` were given.
+    ScriptSourceConflict,
+    /// Neither `script_text` nor `script_path` carried a script.
+    NoScript,
+    /// `script_text` was larger than `MAX_SCRIPT_BYTES`.
+    ScriptTooLarge(usize),
+    /// `script_path` did not name a `.stc` file.
+    ScriptNotStc(String),
+    /// A named field was empty.
+    EmptyValue(&'static str),
+    /// A named field began with `-` and would misparse as a CLI flag.
+    DashValue(&'static str, String),
     /// `server` was combined with `blank`.
     ServerWithBlank,
     /// `server` was given without an `input` project name.
@@ -56,6 +68,29 @@ impl std::fmt::Display for EditError {
                 f,
                 "`output` must not start with '-' (got \"{output}\") — a dash-leading value \
                  would be parsed as a CLI flag, not the output path"
+            ),
+            EditError::ScriptSourceConflict => f.write_str(
+                "`script_text` and `script_path` are mutually exclusive — pass only one",
+            ),
+            EditError::NoScript => f.write_str(
+                "no script — pass `script_text` (the .stc source) or `script_path` (a .stc file)",
+            ),
+            EditError::ScriptTooLarge(bytes) => write!(
+                f,
+                "`script_text` is {bytes} bytes — the limit is {} bytes; \
+                 write it to a .stc file and pass `script_path` instead",
+                crate::args::MAX_SCRIPT_BYTES
+            ),
+            EditError::ScriptNotStc(path) => write!(
+                f,
+                "`script_path` \"{path}\" is not a .stc file — Stencil scripts carry the \
+                 `.stc` extension"
+            ),
+            EditError::EmptyValue(field) => write!(f, "`{field}` must not be empty"),
+            EditError::DashValue(field, value) => write!(
+                f,
+                "`{field}` must not start with '-' (got \"{value}\") — a dash-leading value \
+                 would be parsed as a CLI flag"
             ),
             EditError::ServerWithBlank => f.write_str(
                 "`server` fetches a project as the source — it can't be combined with `blank`",

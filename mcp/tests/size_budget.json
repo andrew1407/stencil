@@ -3,8 +3,8 @@
   "maxNewFileLines": 230,
   "files": {
     "mcp/src/server/mod.rs": {
-      "lines": 140,
-      "prod": 140
+      "lines": 122,
+      "prod": 120
     },
     "mcp/src/server/tools/prompt/response.rs": {
       "lines": 286,
@@ -16,7 +16,7 @@
   },
   "commentPct": {
     "mcp/src": 23,
-    "mcp/src/args": 24,
+    "mcp/src/args": 23,
     "mcp/src/config": 15,
     "mcp/src/deliver": 12,
     "mcp/src/llm": 21,
@@ -26,7 +26,7 @@
     "mcp/src/opplan/lower": 16,
     "mcp/src/opplan/schema": 6,
     "mcp/src/pipeline": 17,
-    "mcp/src/server": 12,
+    "mcp/src/server": 11,
     "mcp/src/server/tools": 8,
     "mcp/src/server/tools/prompt": 11,
     "mcp/tests": 8,
@@ -37,6 +37,7 @@
     "mcp/src commentPct 19 -> 21": "Splitting config.rs into config/ moved 319 comment-sparse lines out of mcp/src. The directory's ABSOLUTE comment count FELL; only the denominator moved. No comment was added.",
     "mcp/src/opplan commentPct 16 -> 17": "Splitting lower.rs into opplan/lower/ moved 351 comment-sparse lines out of mcp/src/opplan. The directory's ABSOLUTE comment count FELL; only the denominator moved. No comment was added.",
     "mcp/src commentPct 21 -> 23": "Splitting deliver.rs into deliver/ moved 251 comment-sparse lines out of mcp/src. The directory's ABSOLUTE comment count FELL; only the denominator moved. No comment was added.",
-    "mcp/src/server/tools/prompt/response.rs": "90 production lines; the rest is the inline #[cfg(test)] mod tests, which this ratchet measures separately (see _doc). Listed so the test half cannot grow either."
+    "mcp/src/server/tools/prompt/response.rs": "90 production lines; the rest is the inline #[cfg(test)] mod tests, which this ratchet measures separately (see _doc). Listed so the test half cannot grow either.",
+    "mcp/src/server/mod.rs 140 -> 122": "The #[cfg(test)] testwire helpers moved to src/server/testwire.rs, so the file shrank even as stencil_script's #[tool] landed in it."
   }
 }

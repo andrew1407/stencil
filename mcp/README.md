@@ -198,6 +198,37 @@ frames are rejected with an explanation.
     "input": "photo.jpg", "output_dir": "out" } }
 ```
 
+#### Scripts (`stencil_script`)
+
+`stencil_script` runs a Stencil script — a `.stc` file in the batch language documented in
+[`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md). The script names its own
+inputs (`@source <file|url|dir/|glob>:` blocks) and its own outputs (`@save`), so one call can
+edit a whole directory.
+
+| Parameter | Effect |
+|---|---|
+| `script_text` | The `.stc` source inline (up to 256 KiB). Written to a temp file for the run. Mutually exclusive with `script_path`. |
+| `script_path` | An existing `.stc` file to run instead. |
+| `input` | Working image for a script with **no** `@source` block (a path or `http(s)://` URL). |
+| `output_dir` | Directory every `@save` must write inside (created if missing; default: the current directory). |
+
+The run is confined to `output_dir`, so write **relative** `@save` targets — an absolute path
+(and so a bare `@save` beside an absolute source) is refused by the sandbox, and a `@save` into
+a subdirectory needs that directory to already exist. A script with any diagnostic error runs
+nothing; the call fails with the CLI's `file:line:col: error: … [CODE]` lines. Success returns
+every file written with its pixel dimensions, plus the run's notes.
+
+```jsonc
+// tone every PNG in a folder, results named <base>-stencil.png in the run directory
+{ "name": "stencil_script", "arguments": {
+    "script_text": "@source /work/shots/*.png:\n  @filter sepia\n  @save ./\n",
+    "output_dir": "run" } }
+
+// a script with no @source block edits the image the call names
+{ "name": "stencil_script", "arguments": {
+    "script_path": "recipes/thumb.stc", "input": "photo.jpg", "output_dir": "run" } }
+```
+
 #### Collaboration server
 
 `stencil_edit` drives the CLI's server client, so the same tool both fetches a server project

@@ -43,9 +43,9 @@ fn text_of(result: &CallToolResult) -> String {
         .to_string()
 }
 
-/// The router advertises exactly the four tools `server/mod.rs` declares.
+/// The router advertises exactly the tools `server/mod.rs` declares.
 #[tokio::test]
-async fn tools_list_reports_the_four_tools() {
+async fn tools_list_reports_every_declared_tool() {
     let h = Harness::new();
     let listed = h
         .server
@@ -54,7 +54,10 @@ async fn tools_list_reports_the_four_tools() {
         .expect("the router lists its tools");
     let mut names: Vec<&str> = listed.tools.iter().map(|t| t.name.as_ref()).collect();
     names.sort_unstable();
-    assert_eq!(names, ["source_site", "stencil_edit", "stencil_probe", "stencil_prompt"]);
+    assert_eq!(
+        names,
+        ["source_site", "stencil_edit", "stencil_probe", "stencil_prompt", "stencil_script"]
+    );
 }
 
 /// A `tools/call` for `stencil_edit` runs the real body into `args::build_argv`: the unknown
@@ -88,6 +91,22 @@ async fn a_source_site_call_reaches_the_scrape_argv_builder() {
     assert_eq!(serde_json::to_value(&result).unwrap()["isError"], true);
     let message = text_of(&result);
     assert!(message.contains("`source_site` must not be empty"), "got: {message}");
+}
+
+/// The same for `stencil_script`, whose body starts in the script parameter guards — so a
+/// call with no script at all never writes a temp file and never spawns the CLI.
+#[tokio::test]
+async fn a_stencil_script_call_reaches_the_script_guards() {
+    let h = Harness::new();
+    let result = h
+        .call("stencil_script", json!({ "output_dir": "/tmp/never-made" }))
+        .await
+        .expect("a validation failure is a tool error");
+
+    assert_eq!(serde_json::to_value(&result).unwrap()["isError"], true);
+    let message = text_of(&result);
+    assert!(message.contains("no script"), "got: {message}");
+    assert!(!std::path::Path::new("/tmp/never-made").exists());
 }
 
 /// Arguments that do not match the schema fail in the router, before any body runs.
