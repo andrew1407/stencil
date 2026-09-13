@@ -359,9 +359,14 @@
          field a stylesheet of its own (it carries the per-project colour), and a widget's own
          sheet outranks this one for every property it names. Rules here were simply ignored
          (user report). The rest/hover pair lives beside the colour, in that function. */
-      QComboBox:focus, QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+      QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
         border: 2px solid %ACCENT%; padding: 2px 7px;
       }
+      /* A COMBO keeps keyboard focus after its popup closes, so the solid accent a typed
+         field wears sat on the page selector long after the pick and read as a live state.
+         It takes the hover ring instead — visible when tabbed to, never mistaken for "on".
+         Browser twin: .accent-dd-trigger, which rings on hover and not on focus at all. */
+      QComboBox:focus { border: 2px solid %ACCENT_RING%; padding: 2px 7px; }
       QComboBox::drop-down { border: 0; width: 18px; }
       /* The browser's chevron, as a real image. A CSS border-triangle is a browser trick
          Qt's stylesheet engine does not draw — it came out as a small solid square — and
