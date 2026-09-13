@@ -517,16 +517,20 @@
       /* A hairline around every cell, header included — the browser draws one on each th
          and td (layout.css .coordinates-table: border 1px solid --border-coord), which is
          what makes its accent header read as five separate cells rather than one bar. */
+      /* One size across the whole panel — cells, header and the Points | Lines strip. The
+         header and the tabs used to fall back to the system font, so the table read as two
+         type scales stacked on each other. */
       QTableWidget#pointsTable {
         gridline-color: %BORDER%;
         selection-background-color: transparent;  /* the delegate strokes an outline instead */
         selection-color: %TEXT%;
-        font-size: 12px;
+        font-size: 13px;
       }
       QTableWidget#pointsTable QHeaderView::section {
         border-right: 1px solid %BORDER%; border-bottom: 1px solid %BORDER%;
-        padding: 6px 5px; font-weight: bold;
+        padding: 6px 5px; font-weight: bold; font-size: 13px;
       }
+      QTabBar#selectionTabBar::tab { font-size: 13px; }
       /* The browser's own cell padding (layout.css .coordinates-table: 6px 5px). */
       QTableWidget#pointsTable::item { padding: 6px 5px; }
       QTableWidget#pointsTable::item:hover { background: %ACCENT_SOFT%; }
