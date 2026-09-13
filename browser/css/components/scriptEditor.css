@@ -2,7 +2,8 @@
    must share every metric that affects where a glyph lands, or the colours drift off the
    text under them. */
 
-.script-modal { width: 720px; }
+/* Wider than the 560px default: a script is code, and code wants room. */
+.script-modal { width: 880px; }
 
 .script-editor-wrap {
   position: relative;

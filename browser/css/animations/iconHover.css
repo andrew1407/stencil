@@ -91,7 +91,7 @@
    below.) */
 .ic-gear          { --ic-ms: 0.3s; transform: rotate(calc(var(--ic-on) * 45deg)); }
 /* The script page's cog turns one tooth about its own centre, not the icon's. */
-.ic-script .ic-cog { --ic-ms: 0.3s; transform-origin: 17px 17px; transform: rotate(calc(var(--ic-on) * 45deg)); }
+.ic-script .ic-cog { --ic-ms: 0.3s; transform-origin: 12px 15.6px; transform: rotate(calc(var(--ic-on) * 45deg)); }
 .ic-sun           { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 45deg)); }
 .ic-refresh       { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 180deg)); }
 .ic-stop          { transform: scale(calc(1 - var(--ic-on) * 0.15)); }   /* clamps down */
