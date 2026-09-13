@@ -55,7 +55,7 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `--remote-update` | switch | With `--server`, write the result back into the fetched project. |
 | `--remote` | `<url>` value | Upload the result as a **new** project on a server. |
 | `--remote-name` | `<name>` value | Name for the `--remote` project (default: input image base name). |
-| `--source-site` | `<url>` value | **Scrape mode.** Fetch a page, extract + filter its media, download the matches into `<output>` (a **directory**). Mutually exclusive with `-i`, `--blank`, `--server` (→ `DuplicateSource`). See §4. |
+| `--source-site` | `<url>` value | **Scrape mode.** Fetch a page, extract + filter its media, download the matches into `<output>` (a **directory**). Mutually exclusive with `-i`, `--blank`, `--server` (→ `DuplicateSource`). See §3. |
 | `--source-count` | `<u32>` value | Items per page/group (default **5**; `0` = **all**, `--group` ignored). |
 | `--group` | `<u32>` value | 0-based page index; window = `filtered[G*N : G*N+N]` (default 0). |
 | `--source-filter` | `<s>` value | Category tokens, `\|`-joined: `img` \| `video` \| `background` \| `poster` (absent / `all` = every category). |
@@ -64,6 +64,9 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `--source-min-width` / `--source-max-width` | `<u32>` value | Inclusive pixel width bounds (`0` = unset; images measured from a header sniff). |
 | `--source-min-height` / `--source-max-height` | `<u32>` value | Inclusive pixel height bounds (`0` = unset). |
 | `--confine-output` | switch | Refuse an output path that leaves the working directory: an **absolute** path or a leading `~`, on top of the `..` traversal refused in every mode (`error: --confine-output: refusing to write outside the working directory: …`, exit 1). Off by default. Adapters that forward an LLM-chosen `<output>` (mcp, bot) pass it; it also confines the scrape destination directory. |
+| `--script` | `<path>` value | **Script mode.** Run a `.stc` script (`-` reads stdin). A script with no `@source` block edits the `-i` input. Mutually exclusive with `--script-check` and `--script-plan` (→ `DuplicateSource`). See §4. |
+| `--script-check` | `<path>` value | Print the script's diagnostics **to stdout** and exit 1 if any is an error. See §4. |
+| `--script-plan` | `<path>` value | Print the script lowered to an op plan, as JSON **on stdout**. Not implemented yet: the flag parses and the run exits 1 with `error: --script-plan is not available yet`. |
 | `--console`, `--repl` | switch | Interactive console mode (out of scope for this contract). |
 | `-h`, `--help` | switch | Show help. |
 | `<output>` | positional | Result path (last positional wins) — or, in scrape mode, the **destination directory** (created if missing; default `.`). A missing/unknown extension is auto-filled from the input format. |
@@ -253,7 +256,43 @@ The scrape line shapes are pinned by the shared golden set
 
 ---
 
-## 4. Shared golden fixtures
+## 4. Script mode (`--script`, `--script-check`) output contract
+
+The `.stc` language itself is normative in [`stc-contract/stc-contract.md`](../stc-contract/stc-contract.md);
+this section fixes only what the CLI prints.
+
+**These two flags are the only modes that write to stdout.** Every other mode keeps stdout
+empty; `--script` (the run mode) does too, reporting through the same `wrote …` / `error: …`
+lines as the pipeline.
+
+### 4.1 `--script-check` — one line per diagnostic, on stdout
+
+```
+<file>:<line>:<col>: error|warning: <message> [<CODE>]
+```
+
+`<file>` is the path as given, or `<stdin>` for `-`. `<line>` and `<col>` are 1-based.
+`<CODE>` is the stable diagnostic code from the contract's §8 catalogue, which is what an
+editor keys off rather than the prose. Diagnostics come in source order. A script with no
+diagnostics prints **nothing**.
+
+Exit code: **1** if any diagnostic is an error, **0** otherwise (warnings do not fail).
+
+### 4.2 `--script` — the run
+
+Diagnostics go to **stderr** through the usual severity prefixes (`error: `, `note: `), each
+carrying the same `file:line:col` and `[CODE]`. A script with any error runs **nothing** and
+exits 1.
+
+Every `@save` emits the standard §2.1 `wrote …` line, so an adapter parses a script run
+exactly as it parses a one-shot. A bare `@save` writes beside its source with a `-stencil`
+suffix (`shots/a.png` → `shots/a-stencil.png`), which is what makes a whole-directory script
+safe to run in place. A run that saved nothing prints `note: the script saved nothing — add a @save`.
+
+A `@source` naming a directory or a glob expands to every media file directly inside it, in
+sorted order, and the block runs once per file. `--confine-output` applies to every `@save`.
+
+## 5. Shared golden fixtures
 
 `cli/testdata/outcome_fixtures.json` is the language-neutral golden set for §2. It has three
 sections — `wrote`, `remotes`, `errors` — mapping 1:1 to the three parser functions. Each

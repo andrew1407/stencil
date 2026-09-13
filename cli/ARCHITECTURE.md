@@ -32,7 +32,7 @@ the list in `build.zig`, a mirror of `STENCIL_CORE_SOURCES` in `../core/CMakeLis
 
 ## Layers
 
-`core.zig` → `args.zig` (+ `params/`) → `net.zig` → ops (`pipeline/`, `image.zig`,
+`core.zig` + `scriptCore.zig` → `args.zig` (+ `params/`) → `net.zig` → ops (`pipeline/`, `script/`, `image.zig`,
 `layout.zig`, `page.zig`, `video.zig`) → `llm/` → `console/` → `main.zig`.
 **Only the presentation layer may write to a terminal** — `logo.zig`, `report.zig`, the
 entry points and the two interactive surfaces (`console/`, `line_edit/`). Everything below
@@ -47,6 +47,7 @@ reports through `report.zig` and never spells an ANSI escape; `logo.zig`'s
 | `src/main.zig`, `logo.zig` (+ `logo/`), `report.zig`, `help.txt`, `brand.zig`, `theme.zig`, `messages.zig` | the entry point, the console logo + layer lint, the report sink, the generated `--help` body, the brand colours, the user-facing strings | every user-facing string is a named constant in `messages.zig`, pinned in `tests/pins/` |
 | `src/args.zig` + `params/` | the flag surface: `options.zig` (Options + Mode), `parse.zig` (argv → Options) | the flag surface is `CONTRACT.md`, mirrored by `mcp/src/args/` and the bot's `CliArgvBuilder` |
 | `src/pipeline.zig` + `pipeline/` | orchestration: resolve a source, run the steps, the one-shot run | headless; reports through `report.zig` |
+| `src/script.zig` + `script/` | `.stc` script modes: read, check, expand a `@source` into files, run the lowered ops, name the output | the core owns the language; this owns files, pixels and where output lands |
 | `src/core.zig`, `image.zig`, `imageRows.zig`, `stb_*_impl.c`, `mediaTypes.zig`, `page.zig`, `layout.zig`, `video.zig` | the core bridge, codecs, the row-band threading policy, media-type tables, page policy, layout JSON, ffmpeg frame grab | the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; the encoder TU builds without it |
 | `src/net.zig`, `host.zig`, `fetchPool.zig` | the **one fetch guard** (http(s) only, SSRF/redirect checks, 64 MiB cap), the authority split, the bounded fan-out | every outbound URL passes `net.zig`; no code path re-derives the checks |
 | `src/confine.zig`, `sanitize.zig`, `child.zig` | output-path guards, the one sanitizer for untrusted prose, child spawning without `STENCIL_LLM_*` | `..` always refused; absolute/`~` refused under `--confine-output` |
@@ -155,6 +156,15 @@ classDiagram
 | Table-driven validator | `opSchema.Schema` over the embedded `opRegistry.json`; `registry/table.zig op_registry` | A comptime check pins one descriptor per `Action` variant; forbidden names fail at build |
 
 ## Design
+
+- **A script run.** `--script` reads the file (or stdin), hands it to the core, and refuses
+  to run anything if a diagnostic is an error. The core returns blocks and a flat op stream;
+  `script/sources.zig` turns a block's spec into concrete inputs (a file, a fetched URL, or
+  every media file in a directory or glob), and the block replays over each one. Lengths
+  resolve per op against the image as it stands, so a `%` after a crop means what it says.
+  `@undo` never reaches here — the core already rewrote it as a rewind and a replay.
+  `@save` names its file through `script/save.zig`: bare, it writes beside the source with a
+  `-stencil` suffix, which is what makes a whole-directory run safe in place.
 
 - **A one-shot run.** `args.parse` turns argv into `Options`, `modeOf` picks the `Mode`.
   `pipeline.run` acquires an `Rgba8` (`acquireInput`: a local read, `net.fetch` or

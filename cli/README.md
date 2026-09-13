@@ -133,6 +133,35 @@ stencil --source-site https://example.com --source-filter img --source-min-width
 stencil --source-site https://example.com --source-format png|jpg --source-count 10 out/
 ```
 
+### Running a script
+
+A `.stc` script is a list of `@` directives: one file that opens sources, edits them and
+saves the results. `--script` runs one, `--script-check` only reports what is wrong with it.
+
+```stc
+# shots.stc — every PNG in the folder, cropped and toned
+@source shots/:
+    @use line red dashed, 3px, point blue 5px
+    @rect (10, 10) (-10%, -10%)
+    @crop 5%
+    @filter sepia
+    @save out/
+```
+
+```bash
+stencil --script shots.stc              # run it
+stencil --script-check shots.stc        # just the diagnostics, one line each
+stencil -i photo.png --script marks.stc # a script with no @source edits this image
+cat shots.stc | stencil --script -      # '-' reads the script from stdin
+```
+
+A bare `@save` writes beside the source as `<name>-stencil.<ext>`, so a whole-directory run
+is safe in place. A script with any error runs nothing and exits 1.
+
+The language — units, colours, templates, undo — is written out in
+[`stc-contract/stc-contract.md`](../stc-contract/stc-contract.md), and the worked examples
+are the `tour-*.stc` files in `browser/js/config/script/fixtures/`.
+
 ## Console mode
 
 `stencil --console` (alias `--repl`) reads `/command <args>` lines from stdin and applies

@@ -21,6 +21,10 @@
                              the crop/rotation and clamped into the output
       --filter <f>           Apply bw | sepia | invert | contour | <color>;
                              overrides the layout filter
+      --script <file>        Run a .stc script ('-' reads stdin). With no @source
+                             block it edits the -i input; see stc-contract/
+      --script-check <file>  Print the script's diagnostics and exit 1 on an error
+      --script-plan <file>   Print the script lowered to an op plan (JSON, stdout)
       --console              Interactive console: /upload, /crop, /rotate, /save, ...
       --console-full-screen  Console in a full-screen TUI: pinned logo header,
                              scrollback (wheel/PgUp/PgDn), click logo to change theme

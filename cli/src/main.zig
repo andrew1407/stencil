@@ -5,6 +5,7 @@ const args = @import("args.zig");
 const pipeline = @import("pipeline.zig");
 const console = @import("console.zig");
 const scrape = @import("scrape.zig");
+const script = @import("script.zig");
 const project = @import("project.zig");
 const project_cli = @import("project_cli.zig");
 const llm = @import("llm.zig");
@@ -46,6 +47,16 @@ pub fn main(init: std.process.Init) !void {
         // Scrape mode: --source-site fetches a page, extracts + filters media, and downloads
         // the matches into <output> (a directory). scrape.run prints its own reason.
         .scrape => return scrape.run(gpa, io, opts) catch std.process.exit(1),
+        // Script mode: a .stc drives the edits. `check` and `plan` report on stdout and
+        // change nothing; `run` does the work. Each prints its own reason and exits 1.
+        .script => |sc| switch (sc.kind) {
+            .run => return script.run.run(gpa, io, opts, sc.path) catch std.process.exit(1),
+            .check => return script.check.run(gpa, io, sc.path) catch std.process.exit(1),
+            .plan => {
+                logo.err("--script-plan is not available yet\n", .{});
+                std.process.exit(1);
+            },
+        },
         // A `.stencil` project on either side reuses the console Session so its layout renders
         // like the editors; server mode stays on the raster pipeline.
         .project => return project_cli.runOneShot(gpa, io, opts) catch std.process.exit(1),
@@ -63,6 +74,8 @@ test {
     _ = @import("logo.zig");
     _ = @import("args.zig");
     _ = @import("core.zig");
+    _ = @import("scriptCore.zig");
+    _ = @import("script.zig");
     _ = @import("image.zig");
     _ = @import("layout.zig");
     _ = @import("video.zig");
