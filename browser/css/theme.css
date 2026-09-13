@@ -1,6 +1,6 @@
 :root {
     /* Brand accent — violet, matching the Stencil logo + extension palette
-       (extension/src/lib/theme.css). --accent is primary; --accent-2 is the
+       (browser-extension/src/lib/theme.css). --accent is primary; --accent-2 is the
        hover/active shade derived from it (darker in light, lighter in dark) so
        any chosen accent stays harmonised. Swappable via a data-accent preset
        (see below + js/core/accents.js); default violet. */

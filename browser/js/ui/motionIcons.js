@@ -2,7 +2,7 @@
 // One inline-SVG glyph per interface-motion mode (motionPrefs.js MOTION_MODES) for the
 // Visuals modal's dropdown: a struck circle, an arrow, a drop, a flame, five specks. Their
 // parts carry the classes the row's hover animates (css/animations/motionModes.css `.mm-*`).
-// Mirrored byte-for-byte in extension/src/lib/motionIcons.js (portParity.test.js); the
+// Mirrored byte-for-byte in browser-extension/src/lib/motionIcons.js (portParity.test.js); the
 // desktop paints the same shapes with QPainter (support/motionIcons.hpp).
 
 const svg = (mode, body) =>

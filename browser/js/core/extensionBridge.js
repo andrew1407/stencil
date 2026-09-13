@@ -3,9 +3,9 @@ import { scaledDataUrl } from '../utils.js';
 
 // Editor-page side of "editor mode": the extension posts `stencil-ext-req` and we answer
 // `stencil-ext-res`, always and only after validating — it is data, not an authority.
-// Other half: extension/src/content/editorBridge.js.
+// Other half: browser-extension/src/content/editorBridge.js.
 
-// Mirror of extension/src/lib/messages.js (SRC.EXT_REQ / SRC.EXT_RES); the app can't import it.
+// Mirror of browser-extension/src/lib/messages.js (SRC.EXT_REQ / SRC.EXT_RES); the app can't import it.
 const EXT_REQ = 'stencil-ext-req';
 const EXT_RES = 'stencil-ext-res';
 

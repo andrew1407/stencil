@@ -25,7 +25,7 @@ Stencil ships as **one shared logic core with a family of front-ends and service
 | **Collaboration server** | [`server/`](server/) | Go, stores/shares projects + live multi-client edit sessions | [server/README.md](server/README.md) |
 | **Telegram bot** | [`bot/`](bot/) | .NET (C#), chat-driven editing over the CLI + server REST | [bot/README.md](bot/README.md) |
 
-A companion **Chrome extension** ([`extension/`](extension/)) feeds the browser editor: it
+A companion **Chrome extension** ([`browser-extension/`](browser-extension/)) feeds the browser editor: it
 lists, searches and filters every image on any web page and opens a chosen image in the
 Stencil editor, with a quick in-page crop. The cross-surface smoke harness lives in
 [`e2e/`](e2e/).
@@ -52,7 +52,7 @@ configure time; the CLI shells out to a system `ffmpeg` for video input only).
 | MCP server | [mcp/README.md](mcp/README.md) | build, test & register the server |
 | Collaboration server | [server/README.md](server/README.md) | build, test & run the Go server |
 | Telegram bot | [bot/README.md](bot/README.md) | build, test & run the bot |
-| Chrome extension | [extension/README.md](extension/README.md) | load unpacked & test |
+| Chrome extension | [browser-extension/README.md](browser-extension/README.md) | load unpacked & test |
 | E2E harness | [e2e/README.md](e2e/README.md) | run the cross-surface smoke suite |
 
 **Docker.** Five subprojects ship a multi-stage `Dockerfile`. The first four compile
@@ -101,7 +101,7 @@ Where you set it, per surface:
 |---|---|---|
 | [browser](browser/README.md) | the chat's **…** menu ▸ **Settings** (or `Alt+Shift+G`); scriptable as `stencil.llm` | `localStorage` key `drawingApp_llmSettings` |
 | [desktop](desktop/README.md) | the chat dock's **…** menu ▸ **Settings** (or `Alt+Shift+G`, **View ▸ AI Assistant Settings…**), or **Settings ▸ AI assistant** | settings JSON: `llmProvider`, `llmBaseUrl`, `llmModel`, `llmApiKey`, `llmServerUrl` |
-| [extension](extension/README.md) | **Options → AI assistant** | `chrome.storage.local` key `llmSettings` (+ `serverToken`) |
+| [browser-extension](browser-extension/README.md) | **Options → AI assistant** | `chrome.storage.local` key `llmSettings` (+ `serverToken`) |
 | [cli](cli/README.md) | `STENCIL_LLM_*` env; `/llm provider\|url\|model\|key\|server <value>` in-session (bare `/llm` prints the config). Ask with `/prompt` | env + session state |
 | [pystencil](pystencil/README.md) | same env and console commands; in code, `LlmConfig(provider=…, model=…)` | env / `LlmConfig` args |
 | [bot](bot/README.md) | `STENCIL_LLM_*` (+ `STENCIL_LLM_SERVER_TOKEN`) in `bot/.env`. Ask with `/prompt` or `/chat` mode | env/`.env` |

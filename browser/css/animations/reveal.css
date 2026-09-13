@@ -3,7 +3,7 @@
    as they leave, so scrolling reads as motion instead of a jump. motion.js only
    adds .reveal-item once it has an IntersectionObserver to drive it, so a browser
    without one never leaves a row stuck at the dimmed rest state. Mirrored in
-   extension/src/lib/animations.css and desktop/src/app/scrollReveal.hpp. */
+   browser-extension/src/lib/animations.css and desktop/src/app/scrollReveal.hpp. */
 @property --dissolve { syntax: "<number>"; inherits: false; initial-value: 0; }
 
 .reveal-item {

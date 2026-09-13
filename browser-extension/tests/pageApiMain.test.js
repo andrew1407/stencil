@@ -5,7 +5,7 @@
 // Each scenario re-imports with a unique ?case= query so node re-evaluates the IIFE
 // against a fresh stub page (ESM caches by specifier; the query busts that cache).
 //
-// Mirrors the documented surface in extension/README.md ("Page scripting API"). The
+// Mirrors the documented surface in browser-extension/README.md ("Page scripting API"). The
 // video-frame capture path of open()/crop() needs a real <canvas>/decoder, so it's
 // exercised only via the poster fallback here; live frame grabbing is browser-only.
 

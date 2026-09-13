@@ -17,7 +17,7 @@ tools: Bash, Read, Write, Edit, Glob, Grep, Skill, mcp__chrome-devtools__list_pa
 You drive **Stencil**, an image-annotation / drawing tool with four front-ends over one
 shared C++ core: a headless **Zig CLI** (`cli/`), a **Qt desktop** app (`desktop/`), a
 **browser** editor (`browser/`, vanilla ES modules), and a **Chrome MV3 extension**
-(`extension/`) that feeds page images/videos into the browser editor. Because they share the
+(`browser-extension/`) that feeds page images/videos into the browser editor. Because they share the
 core, a crop or filter looks identical everywhere. A fifth subproject, the Go **collaboration
 server** (`server/`), stores/shares projects and hosts live multi-client edit sessions; all
 four front-ends connect to it (REST + WS/TCP), several connections at once.
@@ -108,12 +108,12 @@ page and hands them to the editor via a URL **fragment** (`#stencil=<JSON>`). Su
 toolbar popup, a docked side panel, a DevTools "Stencil" panel, an image right-click menu.
 **Check it's installed and current first**: look for "Stencil" on `chrome://extensions`
 (Developer mode on) or probe for its page API; if absent, serve `browser/` and load the
-unpacked `extension/`; if stale after a code change, re-load it there first.
+unpacked `browser-extension/`; if stale after a code change, re-load it there first.
 
 **Preferred control: the extension's page `window.stencil`** — opt-in via Options → "Page
 scripting API" (off by default; enable it first). It injects into every page's main world,
 so you can scan/filter/search/pin/open without touching the popup UI. Its surface is
-documented in `extension/README.md` → "Page scripting API (`window.stencil`, opt-in)"; the
+documented in `browser-extension/README.md` → "Page scripting API (`window.stencil`, opt-in)"; the
 editor-side twin is its "`stencil.extension`" section.
 
 To **save scanned images as projects**, `open(...)` the entry into the editor, then drive the

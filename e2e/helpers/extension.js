@@ -8,7 +8,7 @@ import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-export const EXT_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../extension');
+export const EXT_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../browser-extension');
 
 // Returns { context, background, extId } — `background()` resolves the MV3 service
 // worker (waiting for it if it is still starting up).

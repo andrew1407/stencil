@@ -14,13 +14,13 @@ four front-ends**, plus four adapters that wrap the CLI or the collaboration ser
 | `desktop/` | C++17 + Qt 6 app — links `core/` via `add_subdirectory(../core)` | yes (linked) |
 | `cli/` | Zig tool — **recompiles** `core/` and drives it over `extern "C"` | yes (recompiled) |
 | `pystencil/` | stdlib-only Python package — **recompiles** `core/`, drives it via ctypes | yes (recompiled) |
-| `extension/` | Chrome MV3 — scans page images, hands them to `browser/` via a URL fragment | no |
+| `browser-extension/` | Chrome MV3 — scans page images, hands them to `browser/` via a URL fragment | no |
 | `mcp/` | Rust MCP server — shells out to the `cli/` binary | no |
 | `server/` | Go collaboration server — projects + live multi-client sessions over REST/WS/TCP; Postgres + a secured file store | no |
 | `bot/` | .NET Telegram bot (clean architecture) — wraps the CLI + server REST | no |
 | `e2e/` | Node/Playwright cross-surface smoke harness over the real wire protocols | no |
 
-`extension/`, `mcp/`, `server/`, `bot/` and `e2e/` are adapters or black-box harnesses: the
+`browser-extension/`, `mcp/`, `server/`, `bot/` and `e2e/` are adapters or black-box harnesses: the
 parity contract below does **not** reach them. `mcp/` and `bot/` depend on the CLI's argv
 contract and its `wrote {path} ({w}x{h})` / `error:` stderr output; `server/`'s contract is
 `server/internal/protocol`. The desktop's own GUI e2e is a QtTest target
@@ -38,7 +38,7 @@ Doctest; each other surface uses its platform's default.
 | **desktop** | `cd desktop && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j` | `ctest --test-dir build --output-on-failure` (needs Qt; headless) | `./build/stencil`; single: `ctest -R <name>` |
 | **cli** | `cd cli && zig build` (→ `zig-out/bin/stencil`) | `zig build test --summary all` | `zig build run -- --help` |
 | **pystencil** | `cd pystencil && python3 build.py` (needs a C++17 compiler) | `python3 -m unittest discover -s tests` | `python3 -m pystencil --help` |
-| **extension** | none | `cd extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |
+| **browser-extension** | none | `cd browser-extension && npm test` | load unpacked at `chrome://extensions` (needs `browser/` served) |
 | **mcp** | `cd mcp && cargo build` (→ `target/debug/stencil-mcp`) | `cargo test` (e2e self-skips without the CLI binary) | `claude mcp add stencil -- $(pwd)/target/debug/stencil-mcp` |
 | **server** | `cd server && go build ./...` | `go test ./...`; `go test -race ./internal/hub/...` (store/bus e2e self-skip without `TEST_DATABASE_URL`/`REDIS_URL`) | `go run ./cmd/stencil-server`; needs `DATABASE_URL` — see the sample env file in `server/` |
 | **bot** | `cd bot && dotnet build Stencil.TelegramBot.slnx` | `dotnet test Stencil.TelegramBot.slnx` (offline: no token, server, CLI or Redis) | `dotnet run --project src/Stencil.TelegramBot.Bot` (needs `TELEGRAM_BOT_TOKEN` + the CLI) |

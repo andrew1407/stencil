@@ -26,7 +26,7 @@ is not a pass.
 | # | Surface | Command (from the repo root) | Expected |
 |---|---|---|---|
 | 1 | browser | `cd browser && npm test` | 0 fail, ~3.3k tests (~2 s) |
-| 2 | extension | `cd extension && npm test` | 0 fail, ~1.6k tests (~2 s) |
+| 2 | browser-extension | `cd browser-extension && npm test` | 0 fail, ~1.6k tests (~2 s) |
 | 3 | core | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && nice -n 10 cmake --build core/build -j 4 && ctest --test-dir core/build --output-on-failure` | 1/1 — ~250 cases, **12 skipped** (11 bench + 1 budget) |
 | 4 | cli | `cd cli && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer zig build test --summary all` | 0 fail, ~380 tests (~6 s) |
 | 5 | pystencil | `cd pystencil && python3 -m unittest discover -s tests` | OK, ~650 tests |

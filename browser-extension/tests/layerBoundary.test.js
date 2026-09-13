@@ -1,4 +1,4 @@
-// Import-direction lint for extension/src (.claude/rules/architecture.md): lib/ → config/ →
+// Import-direction lint for browser-extension/src (.claude/rules/architecture.md): lib/ → config/ →
 // llm/ → background/ → content/ → popup, options, crop, devtools. A layer may import from
 // everything to its left and nothing to its right; today's crossings are a frozen allowance.
 import { test } from 'node:test';
@@ -64,7 +64,7 @@ const edges = scanEdges(SRC);
 const { rightward, sibling, unranked } = findViolations(edges);
 
 test('the scan saw the whole tree', () => {
-  assert.ok(walk(SRC).length > 150, 'extension/src was read');
+  assert.ok(walk(SRC).length > 150, 'browser-extension/src was read');
   assert.ok(edges.length > 100, 'cross-directory imports were found');
   assert.ok(edges.some((e) => e.from === 'popup' && e.to === 'lib'), 'popup → lib is indexed');
   assert.ok(edges.some((e) => e.from === 'llm' && e.to === 'config'), 'llm → config is indexed');

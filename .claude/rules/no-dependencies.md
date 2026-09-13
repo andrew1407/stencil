@@ -16,7 +16,7 @@ always the wrong move here. Match what each subproject already does:
   bundling rules are written out inline in that config — **don't add vite plugins** — no
   lockfile is tracked (`browser/package-lock.json`, installed with `npm ci`), and nothing in
   the app may come to depend on the build.
-- **extension/** — same: plain MV3, `node --test`, no deps.
+- **browser-extension/** — same: plain MV3, `node --test`, no deps.
 - **core/** — **STL-only, codec-free, GUI-free** C++17. No Qt, no image codec, no DOM, no
   third-party libs. The one exception is Doctest — a single pinned header fetched at
   configure time (not a package). Codecs/HTTP/JSON belong in the adapters (Zig CLI, GUIs).

@@ -1,4 +1,4 @@
-// PORT of browser/js/ui/dropdownMenu.js (extension/tests/portParity.test.js).
+// PORT of browser/js/ui/dropdownMenu.js (browser-extension/tests/portParity.test.js).
 export interface Point { x: number; y: number; }
 export declare const menuDustPoint: (trigger: HTMLElement | null | undefined) => Point | null;
 export declare const placeMenu: (menu: HTMLElement | null, trigger: HTMLElement | null) => void;

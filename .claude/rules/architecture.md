@@ -38,7 +38,7 @@ A layer may use everything to its left, nothing to its right.
 
 - **browser** — `config/` + `utils.js` → `core/` (**no DOM**) → bus (`core/emitter.js`) →
   `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` → render.
-- **extension** — `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup`,
+- **browser-extension** — `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup`,
   `options`, `crop`.
 - **desktop** — the core seam (`core/` includes the layer lint allows) → controllers → `net/`, `io/` →
   `support/` (motion, theme, widgets, platform) → `canvas/`, `dialogs/`, `llm/` → `app/`.
@@ -59,7 +59,7 @@ A layer may use everything to its left, nothing to its right.
 file already listed in the budget may not grow. Shrink it and lower its number in the same
 commit. Never raise a number without a note in the budget's `exceptions`.
 
-Budgets: `browser|extension/tests/sizeBudget.json`, `core|desktop/tests/sizeBudget.json`,
+Budgets: `browser|browser-extension/tests/sizeBudget.json`, `core|desktop/tests/sizeBudget.json`,
 `cli|mcp|pystencil/tests/size_budget.json`, `server/internal/lint/sizebudget.json`,
 `bot/tests/Stencil.TelegramBot.Tests/SizeBudget.json`.
 

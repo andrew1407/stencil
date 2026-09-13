@@ -217,7 +217,7 @@ export interface ApplyOptions extends Partial<StencilSettings> {
 
 export interface LayoutInstallOptions { mode?: 'replace' | 'combine'; history?: boolean; }
 
-/** The extension's editor-page API; the extension owns the shape (extension/README.md). */
+/** The extension's editor-page API; the extension owns the shape (browser-extension/README.md). */
 export interface ExtensionEditorApi {
   editors(): Promise<unknown[]>;
   focus(tabId: number): Promise<unknown>;

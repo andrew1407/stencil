@@ -19,7 +19,7 @@ import { launchExtension } from '../../helpers/extension.js';
 
 const EDITOR_URL = APP_URL;
 const POPUP = 'src/popup/popup.html';
-const EDITOR_LIST = 'stencil-editor-list';   // MSG.EDITOR_LIST — extension/src/lib/messages.js
+const EDITOR_LIST = 'stencil-editor-list';   // MSG.EDITOR_LIST — browser-extension/src/lib/messages.js
 
 test.describe('extension editor mode', () => {
   /** @type {import('@playwright/test').BrowserContext} */

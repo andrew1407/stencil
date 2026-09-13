@@ -5,7 +5,7 @@
 // exclusive / minFields / onlyWith / requiredWith). Surfaces keep only their
 // normalizers, executors and the native rules named in an entry's `rules`.
 // Pure module — no DOM, no fetch. The extension ships a byte-identical copy
-// (extension/src/llm/opSchema.js, drift-guarded by its dataParity test).
+// (browser-extension/src/llm/opSchema.js, drift-guarded by its dataParity test).
 
 const isObj = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
 const isFiniteNum = (v) => typeof v === 'number' && Number.isFinite(v);

@@ -34,7 +34,7 @@ path that reaches the network uses it, and does not re-derive the checks.
 |---|---|
 | cli | `cli/src/net.zig` |
 | desktop | `desktop/src/net/fetchGuard.{hpp,cpp}` (a port of `net.zig`) |
-| extension | `extension/src/lib/urlGuard.js` |
+| browser-extension | `browser-extension/src/lib/urlGuard.js` |
 | pystencil | `pystencil/pystencil/_net.py` |
 | bot | `Editing/RemoteImageUrl.cs` in `bot/src/Stencil.TelegramBot.Application/` |
 | server | `internal/ratelimit` + `internal/auth` on the request path |

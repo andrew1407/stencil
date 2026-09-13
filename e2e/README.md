@@ -22,7 +22,7 @@ npm run report                         # open the HTML report after a run
 | Project | Needs Docker stack? | What it drives |
 |---|---|---|
 | `browser-app` | no | Served `browser/` app via `window.stencil` |
-| `extension` | no | Unpacked `extension/` in a persistent Chromium context |
+| `browser-extension` | no | Unpacked `browser-extension/` in a persistent Chromium context |
 | `fullstack` | **yes** | Browser app + real server (multi-client collaboration) |
 | `server-protocol` | **yes** | REST + WS + TCP against the running server binary |
 | `cli` | no | The Zig CLI binary (self-skips unless built / `STENCIL_CLI` set) |
@@ -44,7 +44,7 @@ an older server image — is silently reused by the next run, so after changing 
 the compose env bring it down first: `docker compose down -v` from the repo root, or
 `E2E_STACK_DOWN=1 E2E_STACK=1 npm test`.
 
-**UI pins.** `tests/browser/ui-pins.spec.js` and `tests/extension/ui-pins.spec.js` record
+**UI pins.** `tests/browser/ui-pins.spec.js` and `tests/browser-extension/ui-pins.spec.js` record
 each UI state's computed styles and DOM shape and deep-equal them against
 `pins/<platform>/<name>.json`; a failure names the element path and the property that moved.
 Only `macos/` is recorded, so other platforms skip these specs. After an intended visual

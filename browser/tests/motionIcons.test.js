@@ -59,7 +59,7 @@ test('the Visuals dropdown wears the glyphs; the dropdown puts them before the l
   assert.match(cs, /slot\.className = 'cs-opt-icon';/);
   assert.match(cs, /const glyph = icons \? icons\(selectEl\.value\) : '';/);
   assert.match(cs, /if \(svg && changed\) \{\s*svg\.classList\.add\('mm-play'\);/, 'a changed value plays its glyph in');
-  assert.match(read('../../extension/src/options/options.js'), /icons: el\.id === 'motion' \? motionModeIcon : null/);
+  assert.match(read('../../browser-extension/src/options/options.js'), /icons: el\.id === 'motion' \? motionModeIcon : null/);
 });
 
 test('a pick is applied before the list leaves and the value swaps, so both play in the new mode', () => {

@@ -10,8 +10,8 @@
 - `extensionTail` — the extension's diverged tail (no leading newlines; the extension
   assembles `head + '\n' + bullets + '\n\n' + tail`). The extension ships self-contained
   (MV3), so it consumes a checked-in copy of the two extension keys
-  (`extension/src/config/systemPrompt.json`), drift-guarded by
-  `extension/tests/dataParity.test.js`.
+  (`browser-extension/src/config/systemPrompt.json`), drift-guarded by
+  `browser-extension/tests/dataParity.test.js`.
 
 The assembled prompt is `head + <registry-generated op bullets> + tail` (contract §13);
 `browser/js/llm/opPlan.js` does the assembly and re-exports the strings.

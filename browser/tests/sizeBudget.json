@@ -101,7 +101,7 @@
     "browser/tools": 22
   },
   "exceptions": {
-    "browser/js/ui/dustCloud.js": "Byte-pinned twin of extension/src/lib/dustCloud.js (extension/tests/portParity.test.js) \u2014 it can only change in lockstep with the port, so it cannot be split here alone."
+    "browser/js/ui/dustCloud.js": "Byte-pinned twin of browser-extension/src/lib/dustCloud.js (browser-extension/tests/portParity.test.js) \u2014 it can only change in lockstep with the port, so it cannot be split here alone."
   },
   "_commentPctNote": "browser/js holds only the boot shims now (index.js, prePaintTheme.js, pwa.js) plus the utils barrel \u2014 utils.js's ~480 lines of code moved to browser/js/utils/, so the same prose is a bigger share of a much smaller directory. Comment VOLUME did not rise.",
   "_behaviouralPinNote": "strokeGrowth.test.js 298 \u2192 311: the renderer's flown-geometry pin was five readFileSync regexes; it now drives drawLine over a recording context (tests/helpers/recordingCtx.js) so renderer.js can be split. A behavioural pin costs lines a source regex does not.",

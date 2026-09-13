@@ -1,7 +1,7 @@
 // The size + comment ratchet for the extension: no new oversized module, no listed file
 // growing, no directory getting comment-heavier. The numbers live in sizeBudget.json and
 // only ever go DOWN — a refactor that splits a file lowers its entry (or drops it).
-// Scope: .js under extension/src and extension/tests. Paths are repo-relative so every
+// Scope: .js under browser-extension/src and browser-extension/tests. Paths are repo-relative so every
 // surface's budget reads the same.
 
 import { test } from 'node:test';
@@ -22,7 +22,7 @@ const repoRoot = (() => {
 })();
 
 const budget = JSON.parse(readFileSync(new URL('./sizeBudget.json', import.meta.url), 'utf8'));
-const SCOPE = ['extension/src', 'extension/tests'];
+const SCOPE = ['browser-extension/src', 'browser-extension/tests'];
 const SKIP_DIRS = new Set(['node_modules', 'build', 'dist', 'third_party']);
 
 const walk = (dir, out = []) => {
@@ -146,5 +146,5 @@ test('test-count floor: the suite still discovers and runs its whole tree',
     assert.ok(total, `the inner runner printed no test total (exit ${inner.status})`);
     const count = Number(total[1]);
     assert.ok(count >= TEST_FLOOR,
-      `extension suite collapsed to ${count} tests, floor is ${TEST_FLOOR}`);
+      `browser-extension suite collapsed to ${count} tests, floor is ${TEST_FLOOR}`);
   });

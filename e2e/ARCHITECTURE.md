@@ -3,7 +3,7 @@
 The system-wide design — the parity contract, canonical data, the layer model, the pattern vocabulary — is in the root [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 `e2e/` is one Node/Playwright harness that drives the **built artifacts** of four surfaces
-from outside: the served `browser/` app in a real Chromium, the unpacked MV3 `extension/`,
+from outside: the served `browser/` app in a real Chromium, the unpacked MV3 `browser-extension/`,
 the Zig `cli/` binary as a subprocess, and the Go `server/` over its REST/WS/TCP wire. It
 imports no app code, never links or recompiles `core/`, and reaches no real LLM: every model
 call ends at its own stub. The desktop app's GUI e2e is a QtTest target in `desktop/tests/`,
@@ -51,7 +51,7 @@ convention; no lint.
 
 | Path | Holds | Rule |
 |---|---|---|
-| `playwright.config.js` | the test projects, their workers, the `webServer` | `browser-app`, `extension`, `cli` run parallel; `fullstack` and `server-protocol` serial — they share one server's state |
+| `playwright.config.js` | the test projects, their workers, the `webServer` | `browser-app`, `browser-extension`, `cli` run parallel; `fullstack` and `server-protocol` serial — they share one server's state |
 | `helpers/config.js` | the app's host/port (`127.0.0.1:8188`) | the one place; never `:8080`, so a stray `npm run serve` is never reused |
 | `helpers/static-server.js`, `compose.js`, `compose-teardown.js`, `compose.llm.yml` | the Node static server; compose up (only `E2E_STACK=1`) / down (only `E2E_STACK_DOWN=1`); the server's LLM env pointed at the stub | the stack is left running between runs on purpose |
 | `helpers/boot.js` | `gotoApp(page, { motion })`: navigate, clear state, await `window.stencil` | every browser spec boots through it; `{ motion: 'none' }` for specs that measure geometry mid-gesture |
@@ -62,7 +62,7 @@ convention; no lint.
 | `helpers/llm-stub.js` | the scriptable stub LLM (openai-compat / ollama / Anthropic Messages) | **all model traffic ends here**; no spec reaches a real provider |
 | `fixtures/` | host pages the extension scanner loads over http, `project.stencil`, `cli-layout.json` | `project.stencil` is opened by BOTH the browser and the cli specs, so the two surfaces are proven on the same bytes |
 | `pins/<platform>/` | the UI-pin baselines, one JSON per pinned state | only `macos/` is recorded; other platforms skip |
-| `tests/browser/`, `tests/extension/`, `tests/fullstack/`, `tests/server/`, `tests/cli/` | one representative flow per surface, named by what it proves | a spec drives the real artifact through its public contract (`window.stencil`, the wire protocol, argv) — never an internal |
+| `tests/browser/`, `tests/browser-extension/`, `tests/fullstack/`, `tests/server/`, `tests/cli/` | one representative flow per surface, named by what it proves | a spec drives the real artifact through its public contract (`window.stencil`, the wire protocol, argv) — never an internal |
 
 ## Entities
 
@@ -156,7 +156,7 @@ classDiagram
 | Driver (page-object style) | `gotoApp`, `seedProjectsAndOpenList`, `settleModalAnimations` (`boot.js`); `openChatPanel`, `sendChat`, `openCanvasMenu` (`chat.js`); `finger`, `ghostBox` (`drag.js`); `launchExtension` | each helper wraps one seam of the artifact; specs compose them and hold no selectors of their own for those seams |
 | Adapter over the wire | `Client` with `dialWS` / `dialTCP` / `join` (`wire.js`); `issueToken`, `createProject`, `bearer` (`serverApi.js`) | one `send` / `readUntil` shape over two transports; `T` mirrors `protocol.go` |
 | Adapter over the CLI | `runCli`, `parseWrote`, `pngSize` (`cli.js`) | the argv/stderr grammar of `cli/`, read the way `mcp/` and `bot/` read it; `pngSize` checks the IHDR so the file, not the claim, is asserted |
-| Serial-vs-parallel project split | `playwright.config.js` | `browser-app`, `extension`, `cli` are `fullyParallel`; `fullstack` and `server-protocol` run serially because they share one server and one fixed stub port, and a stack run serialises the whole suite |
+| Serial-vs-parallel project split | `playwright.config.js` | `browser-app`, `browser-extension`, `cli` are `fullyParallel`; `fullstack` and `server-protocol` run serially because they share one server and one fixed stub port, and a stack run serialises the whole suite |
 | Capability gate (self-skip) | `stackEnabled` (`serverApi.js`), `cliAvailable` (`cli.js`), the `PINS_DIR` check in `expectPin`, `GET /llm/info` in the LLM specs | a missing prerequisite is a reported skip, never a pass |
 | Lifecycle hook | `globalSetup` (`compose.js`), `globalTeardown` (`compose-teardown.js`), `webServer` in the config | compose up + `/healthz` poll before any project; the static server for every project |
 
@@ -233,7 +233,7 @@ appears on leaves only; `<svg>` children are not walked; hidden subtrees are ski
 
 A smoke harness, not a port of any unit suite: each project proves one surface's public
 contract end to end. `browser-app` drives the facade, deep links and fragment privacy,
-`.stencil` files, the chat panel, real-finger drag and the UI pins; `extension` the scanner
+`.stencil` files, the chat panel, real-finger drag and the UI pins; `browser-extension` the scanner
 over every HTML and CSS image reference, the editor hand-offs and the panel chrome;
 `fullstack` two browser clients through one server and the browser-to-server-to-stub LLM
 round trip; `server-protocol` the REST lifecycle and last-writer-wins guard, the handshake,

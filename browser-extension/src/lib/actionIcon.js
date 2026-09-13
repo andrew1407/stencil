@@ -1,5 +1,5 @@
 // The toolbar icon tinted to the accent, drawn in the service worker (no DOM) with
-// OffscreenCanvas paths that mirror extension/icons/icon.svg. Best-effort: any failure
+// OffscreenCanvas paths that mirror browser-extension/icons/icon.svg. Best-effort: any failure
 // leaves the static manifest PNGs in place.
 import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from './highlightColor.js';
 

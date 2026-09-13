@@ -8,7 +8,7 @@
 // the theme's palette (the --accent / --accent-2 ramp, or a TINT), never the surface's pixels.
 //
 // Pure except for startCloud, which needs a document. Mirrored byte-for-byte in
-// extension/src/lib/dustCloud.js (extension/tests/portParity.test.js).
+// browser-extension/src/lib/dustCloud.js (browser-extension/tests/portParity.test.js).
 
 // The tuned numbers this painter runs on live in the shared asset, not here.
 import MOTION from '../config/motion.json' with { type: 'json' };

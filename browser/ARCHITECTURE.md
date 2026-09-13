@@ -19,7 +19,7 @@ graph TD
       API["js/console/"]
     end
     FB["JS fallback"]
-    EXT["extension/"]
+    EXT["browser-extension/"]
     SRV["server/"]
 
     CORE -->|"wasm"| WASM
@@ -201,8 +201,8 @@ classDiagram
    literal in code.
 4. **Ported modules stay byte-identical.** `ui/controlTooltip`, `numericInput`,
    `dropdownMenu`, `tipContent`, `scrollbarHover`, `dustCloud`, `motionIcons` and
-   `llm/llmClient` are copied into `extension/src/lib/` and pinned byte-identical
-   (`extension/tests/portParity.test.js`).
+   `llm/llmClient` are copied into `browser-extension/src/lib/` and pinned byte-identical
+   (`browser-extension/tests/portParity.test.js`).
 5. **Typed boundary.** Every public module has a sibling `.d.ts`.
 6. **Motion is decoration.** Every particle cloud is one canvas (`dustCloud.js`); never a
    DOM node per grain. The OS `prefers-reduced-motion` wins over every setting.
@@ -230,5 +230,5 @@ a config table and its consumer. `cssInventory` pins every declaration `index.ht
 file-blind, and `ui-markup` the static body ids of `layout()`. The fixture walkers run the
 shared corpora through the real modules and are the reference the other surfaces' walkers
 copy. Cross-surface reads live in `tests/helpers/`; the byte-identical port check for the
-copied modules is `extension/tests/portParity.test.js`, and `singleFileBuild` holds without
+copied modules is `browser-extension/tests/portParity.test.js`, and `singleFileBuild` holds without
 vite by checking the rewrite patterns still match.

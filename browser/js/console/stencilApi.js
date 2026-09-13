@@ -123,7 +123,7 @@ export const createStencil = (app) => {
   stencil = {
     // ── Browser extension ──
     // Its editor-page API, installed on window.__stencilExt by the content script — the
-    // extension owns the shape (extension/README.md). null unless installed and enabled.
+    // extension owns the shape (browser-extension/README.md). null unless installed and enabled.
     get extension() { return (typeof window !== 'undefined' && window.__stencilExt) || null; },
 
     // ── Settings / modes ──

@@ -2,7 +2,7 @@
 description: Which pin to re-record, how to run each surface's size lint, and why a red pin means fix the code
 paths:
   - "browser/tests/**"
-  - "extension/tests/**"
+  - "browser-extension/tests/**"
   - "core/tests/**"
   - "desktop/tests/**"
   - "cli/tests/**"
@@ -27,7 +27,7 @@ re-pin is the whole commit, with no code motion in it.
 | You touched | Pin | Re-record with |
 |---|---|---|
 | browser CSS | `browser/tests/pins/css.json` | `cd browser && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
-| extension CSS | `extension/tests/pins/css.json` | `cd extension && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
+| browser-extension CSS | `browser-extension/tests/pins/css.json` | `cd browser-extension && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
 | browser or extension UI (rendered state) | `e2e/pins/*.json` — computed styles + DOM for 21 states | `cd e2e && UPDATE_PINS=1 npm run test:ui` |
 | desktop QSS or any painted widget | `desktop/tests/pins/stylesheets.txt` (24 hashes) + `desktop/tests/pins/<platform>/*.png` (24 renders, @1x and @2x) | `STENCIL_UPDATE_UI_PINS=1` on the ui-pins target |
 | CLI terminal output | `cli/tests/pins/*.txt` (20 TUI goldens) | `cd cli && STENCIL_UPDATE_PINS=1 zig build test` |
@@ -47,7 +47,7 @@ that is the task.
 | Surface | Command |
 |---|---|
 | browser | `cd browser && node --test tests/sizeBudget.test.js` |
-| extension | `cd extension && node --test tests/sizeBudget.test.js` |
+| browser-extension | `cd browser-extension && node --test tests/sizeBudget.test.js` |
 | core | `core/build/stencil_tests -tc="size budget*"` |
 | desktop | `ctest --test-dir desktop/build -R stencil_sizebudget_headless` |
 | cli | `cd cli && zig build test` (`tests/size_budget_test.zig` is part of the suite) |

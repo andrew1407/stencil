@@ -18,7 +18,7 @@ graph TD
     CLI["cli/ (Zig)"]
     PY["pystencil/ (Python)"]
     FB["JS fallback"]
-    EXT["extension/ (MV3)"]
+    EXT["browser-extension/ (MV3)"]
     MCP["mcp/ (Rust)"]
     BOT["bot/ (.NET)"]
     SRV["server/ (Go)"]
@@ -45,7 +45,7 @@ Where things go is its placement table; Design is its flows and the schemas it o
 Per surface: [core](core/ARCHITECTURE.md) ·
 [browser](browser/ARCHITECTURE.md) · [desktop](desktop/ARCHITECTURE.md) ·
 [cli](cli/ARCHITECTURE.md) · [pystencil](pystencil/ARCHITECTURE.md) ·
-[extension](extension/ARCHITECTURE.md) · [mcp](mcp/ARCHITECTURE.md) ·
+[browser-extension](browser-extension/ARCHITECTURE.md) · [mcp](mcp/ARCHITECTURE.md) ·
 [bot](bot/ARCHITECTURE.md) · [server](server/ARCHITECTURE.md) · [e2e](e2e/ARCHITECTURE.md).
 The `e2e/` harness drives the built artifacts rather than being a runtime component, so it
 is not a node above.
@@ -77,7 +77,7 @@ cli/                  # the Zig tool: build.zig, src/ (params · pipeline · con
 pystencil/            # the Python package: build.py, pystencil/, tests/
 mcp/                  # the Rust MCP server: src/ (server · args · pipeline · opplan · deliver · llm …)
 server/               # the Go collaboration server: cmd/stencil-server/, internal/
-extension/            # the Chrome MV3 extension: manifest.json, src/, tests/
+browser-extension/    # the Chrome MV3 extension: manifest.json, src/, tests/
 bot/                  # the .NET Telegram bot: src/ (Domain · Application · Infrastructure · Bot), tests/
 e2e/                  # the Playwright smoke harness: helpers/, fixtures/, tests/, pins/
 llm-contract/         # the normative LLM contract
@@ -140,11 +140,11 @@ Five consumption mechanisms, one per surface:
 | **`@embedFile`** | cli | `mod.addAnonymousImport("X.json", …)` in `cli/build.zig`, then `@embedFile("X.json")` |
 | **`include_str!`** | mcp | `include_str!("../../browser/js/config/X.json")` |
 | **`<EmbeddedResource Link>`** | bot | `<EmbeddedResource Include="../../../browser/js/config/X.json" Link="Assets/X.json" />` |
-| **checked-in copy + byte-equality drift test** | extension, pystencil | the copy ships with the surface; a test pins it to the canonical file |
+| **checked-in copy + byte-equality drift test** | browser-extension, pystencil | the copy ships with the surface; a test pins it to the canonical file |
 
 The fifth rail exists only where embedding is impossible: the extension ships self-contained
 (MV3 reads nothing outside its own tree) and pystencil stays relocatable. Every copy on this
-rail carries a byte-equality drift test: `extension/tests/dataParity.test.js` (modes `full` /
+rail carries a byte-equality drift test: `browser-extension/tests/dataParity.test.js` (modes `full` /
 `subset`, with declared `extensionOnly` names) and `pystencil/tests/test_canonical_drift.py`.
 
 A value the core can compute is read rather than mirrored: page formats and colour names
@@ -166,7 +166,7 @@ right. The order per surface, and what enforces it:
 | Surface | Order (left → right) | Enforced by |
 |---|---|---|
 | browser | `config/` + `utils.js` → `core/` (no DOM) → bus → `net/` → `llm/` → `console/` → `ui/` → render | `browser/tests/layerBoundary.test.js` |
-| extension | `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup/`, `options/`, `crop/` | `extension/tests/layerBoundary.test.js` |
+| browser-extension | `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup/`, `options/`, `crop/` | `browser-extension/tests/layerBoundary.test.js` |
 | desktop | core seam (the `core/` includes the lint allows) → controllers → `net/`, `io/` → `support/` → `canvas/`, `dialogs/`, `llm/` → `app/` | `desktop/tests/layerBoundary.headless.cpp` |
 | cli | `core.zig` → `args.zig` + `params/` → `net.zig` → ops → `llm/` → `console/` → `main.zig` | the layer lint in `logo.zig` |
 | pystencil | `_native` + `core` → `image`, `codecs/`, `layout` → `editor/` → `llm/`, `server/`, `sitesource/` → `cli/` | `pystencil/tests/test_layer_boundary.py` |

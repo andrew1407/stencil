@@ -11,5 +11,5 @@ const setText = (dirRel) => {
     .map((f) => readFileSync(dir + f, 'utf8')).join('\n');
 };
 
-export const extensionAnimationsCss = () => setText('../../../extension/src/lib/animations/');
-export const extensionThemeCss = () => setText('../../../extension/src/lib/theme/');
+export const extensionAnimationsCss = () => setText('../../../browser-extension/src/lib/animations/');
+export const extensionThemeCss = () => setText('../../../browser-extension/src/lib/theme/');

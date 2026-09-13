@@ -16,7 +16,7 @@
   "portingNotes": {
     "qt": "Drive each part with a QVariantAnimation on the glyph's own 24-unit space and rasterize through the existing iconSet.cpp path; `origin`/`originSelf` map to the QTransform pivot. `hold` runs forward on enter and backward on leave; `settle` runs once, forward, on enter. Two parts sharing a hook animate in markup order, `stagger` ms apart.",
     "qtReducedMotion": "REQUIRED: honour support::motionReduced() (STENCIL_NO_ANIM=1) — see trigger.reducedMotion. As of this writing three desktop motion helpers do NOT: ShimmerOverlay, LogoHoverFx and guiHelpers::spinIcon() animate regardless, unlike faceSwap / filterFade / menuReveal / modalReveal. The icon-motion port will sit on those helpers, so fix the check centrally rather than inheriting motion that ignores the preference.",
-    "extension": "The extension ships a SUBSET of icons.json (its own checked-in copy, pinned by extension/tests/dataParity.test.js) — implement only the designs for the glyphs it carries, from the same CSS shape as browser/css/animations.css."
+    "extension": "The extension ships a SUBSET of icons.json (its own checked-in copy, pinned by browser-extension/tests/dataParity.test.js) — implement only the designs for the glyphs it carries, from the same CSS shape as browser/css/animations.css."
   },
   "modes": {
     "hold": "Transitions to `to` while hovered and eases back on leave. Feedback that persists while the pointer rests.",

@@ -182,7 +182,7 @@ Orientation:
 The object is a frozen facade: reassigning a method or read-only field throws, and members
 are non-enumerable so `console.log(stencil)` reads as `{}` while autocomplete still works.
 `stencil.extension` is installed by the Chrome extension, not by this app — see
-[`extension/README.md`](../extension/README.md) ("Editor mode") for its surface.
+[`browser-extension/README.md`](../browser-extension/README.md) ("Editor mode") for its surface.
 
 ## Tests
 

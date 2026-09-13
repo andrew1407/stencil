@@ -2,7 +2,7 @@
 //
 // Projects:
 //   browser-app       Chromium against the served browser/ app, driven via window.stencil
-//   extension         Chromium persistent context loading the unpacked MV3 extension/
+//   browser-extension Chromium persistent context loading the unpacked MV3 browser-extension/
 //   fullstack         browser app + real Go server (compose) — multi-client collaboration
 //   server-protocol   black-box REST/WS/TCP against the running server binary (no browser)
 //   cli               the built Zig binary, driven as a subprocess (self-skips without it)
@@ -55,8 +55,8 @@ export default defineConfig({
     {
       // Persistent context + unpacked extension is created inside the test (Playwright's
       // default `page` fixture can't load extensions), so no `use.channel` here.
-      name: 'extension',
-      testMatch: /tests\/extension\/.*\.spec\.js$/,
+      name: 'browser-extension',
+      testMatch: /tests\/browser-extension\/.*\.spec\.js$/,
       fullyParallel: true,
       workers: 4,
     },

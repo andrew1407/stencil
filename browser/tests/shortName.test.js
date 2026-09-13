@@ -5,7 +5,7 @@
 // ("MV5BODg3MzYwMjE4N15BMl5BanBnXkFtZTcwMjU5NzAzNw@@._V1_") went verbatim into the
 // "Remove project …?" confirm, wrapped across three lines and blew out the dialog.
 //
-// Parity: extension/src/lib/displayName.js and desktop/src/support/displayName.hpp are
+// Parity: browser-extension/src/lib/displayName.js and desktop/src/support/displayName.hpp are
 // ports of this — same limit, same head/tail split. Their tests mirror these cases.
 
 import { test } from 'node:test';

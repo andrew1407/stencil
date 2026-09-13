@@ -25,7 +25,7 @@ jobs:
     outputs:
       browser: ${{ steps.filter.outputs.browser }}
       single_file: ${{ steps.filter.outputs.single_file }}
-      extension: ${{ steps.filter.outputs.extension }}
+      browser_extension: ${{ steps.filter.outputs.browser_extension }}
       core: ${{ steps.filter.outputs.core }}
       desktop: ${{ steps.filter.outputs.desktop }}
       wasm: ${{ steps.filter.outputs.wasm }}
@@ -67,11 +67,11 @@ jobs:
           hit() { $all || printf '%s\n' "$files" | grep -Eq "$1"; }
           flag() { local v=false; hit "$2" && v=true; echo "$1=$v" >> "$GITHUB_OUTPUT"; echo "$1: $v"; }
           cfg='^browser/js/config/'
-          # Tests pin parity against sibling trees (browser ↔ desktop/src + extension/src,
-          # extension ↔ browser/js + css), so those count as inputs too.
-          flag browser     '^browser/|^extension/src/|^desktop/src/'
+          # Tests pin parity against sibling trees (browser ↔ desktop/src + browser-extension/src,
+          # browser-extension ↔ browser/js + css), so those count as inputs too.
+          flag browser     '^browser/|^browser-extension/src/|^desktop/src/'
           flag single_file '^browser/'
-          flag extension   '^extension/|^browser/(js|css)/'
+          flag browser_extension '^browser-extension/|^browser/(js|css)/'
           flag core        '^core/'
           flag desktop     "^desktop/|^core/|^browser/js/|^browser/favicon\.svg$"
           flag wasm        '^core/|^browser/'
@@ -80,7 +80,7 @@ jobs:
           flag mcp         "^mcp/|^cli/|^core/|$cfg"
           flag server      "^server/|$cfg"
           flag bot         "^bot/|$cfg"
-          flag e2e         '^e2e/|^browser/|^extension/|^server/|^cli/|^core/|^docker-compose\.yml$'
+          flag e2e         '^e2e/|^browser/|^browser-extension/|^server/|^cli/|^core/|^docker-compose\.yml$'
           flag guard       '^\.claude/hooks/'
 
           # The image matrix: only the images whose build context changed. Each entry is
@@ -135,12 +135,12 @@ jobs:
         working-directory: browser
         run: npm run build
 
-  # Extension: vanilla MV3, no build step; node:test over the chrome/DOM-free modules.
-  extension:
-    name: Extension (JS tests)
+  # Browser extension: vanilla MV3, no build step; node:test over the chrome/DOM-free modules.
+  browser-extension:
+    name: Browser extension (JS tests)
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.extension == 'true'
+    if: needs.changes.outputs.browser_extension == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -148,7 +148,7 @@ jobs:
         with:
           node-version: '22'
       - name: Run JS tests
-        working-directory: extension
+        working-directory: browser-extension
         run: npm test
 
   # Core: the shared GUI-free C++ library + its Doctest suite (desktop reuses the lib, tests OFF).

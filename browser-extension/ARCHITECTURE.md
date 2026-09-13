@@ -8,7 +8,7 @@ fragment. It runs no `core/`, parses no `.stencil` file and never reads `../brow
 
 ```mermaid
 graph TD
-    subgraph EXT["extension/ (MV3)"]
+    subgraph EXT["browser-extension/ (MV3)"]
       SCAN["lib/imageScan.js"]
       SURF["popup · side panel · devtools"]
       CROP["crop/"]

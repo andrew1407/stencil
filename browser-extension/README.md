@@ -11,7 +11,7 @@ page-aspect crop. Vanilla JS, no build step. How it is put together:
 1. Serve the editor: from [`../browser/`](../browser/) run `npm run serve`
    (default `http://localhost:8080/`).
 2. `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select
-   this `extension/` folder.
+   this `browser-extension/` folder.
 3. (Optional) **Options**: editor URL, open mode (modal / tab), default page size,
    appearance, server connections, the AI assistant, and the two scripting-API toggles.
 
@@ -201,7 +201,7 @@ toggle, injected only on the editor origin.
 ## Tests
 
 ```bash
-# from this directory (extension/)
+# from this directory (browser-extension/)
 npm test        # or: node --test
 ```
 
