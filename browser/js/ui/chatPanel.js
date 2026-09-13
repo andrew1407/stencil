@@ -482,7 +482,7 @@ export class StencilChatPanel extends StencilElement {
     const openBtn = $('chat-btn');
 // Closing plays the reverse dust flight: keep .chat-open until it finishes, since
 // display:none cannot animate. One clock for every dock.
-    const CLOSE_MS = 340;
+    const CLOSE_MS = 510;
 // Fullscreen shows a clone of the toolbar (ui/fullscreenLayer.js) with the same id, so
 // the active state is mirrored onto it via a scoped querySelectorAll.
     const syncFsCloneActive = (on) => {
@@ -528,7 +528,7 @@ export class StencilChatPanel extends StencilElement {
     };
     const playDust = (enter) => {
       if (motionReduced()) { settleSurface(host); return; }
-      (enter ? surfaceIn : surfaceOut)(host, dustPoint(), { ms: enter ? 420 : CLOSE_MS });
+      (enter ? surfaceIn : surfaceOut)(host, dustPoint(), { ms: enter ? 630 : CLOSE_MS });
     };
     let closeTimer = null;
 // A sequel to run once the close animation finishes (float → compact). Any later

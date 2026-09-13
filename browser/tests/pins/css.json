@@ -7600,34 +7600,34 @@
     "display": "flex"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom": {
-    "animation": "chatSlideOutBottom 0.26s ease both"
+    "animation": "chatSlideOutBottom 0.39s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-float": {
-    "animation": "modalToIcon 0.34s ease both"
+    "animation": "modalToIcon 0.51s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-left": {
-    "animation": "chatSlideOutLeft 0.26s ease both"
+    "animation": "chatSlideOutLeft 0.39s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-right": {
-    "animation": "chatSlideOutRight 0.26s ease both"
+    "animation": "chatSlideOutRight 0.39s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-closing.chat-dock-top": {
-    "animation": "chatSlideOutTop 0.26s ease both"
+    "animation": "chatSlideOutTop 0.39s ease both"
    },
    "|stencil-chat-panel.chat-open.chat-dock-bottom": {
-    "animation": "chatSlideBottom 0.34s cubic-bezier(0.16, 1, 0.3, 1) both"
+    "animation": "chatSlideBottom 0.51s cubic-bezier(0.16, 1, 0.3, 1) both"
    },
    "|stencil-chat-panel.chat-open.chat-dock-float": {
-    "animation": "modalFromIcon 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both"
+    "animation": "modalFromIcon 0.63s cubic-bezier(0.22, 0.61, 0.36, 1) both"
    },
    "|stencil-chat-panel.chat-open.chat-dock-left": {
-    "animation": "chatSlideLeft 0.34s cubic-bezier(0.16, 1, 0.3, 1) both"
+    "animation": "chatSlideLeft 0.51s cubic-bezier(0.16, 1, 0.3, 1) both"
    },
    "|stencil-chat-panel.chat-open.chat-dock-right": {
-    "animation": "chatSlideRight 0.34s cubic-bezier(0.16, 1, 0.3, 1) both"
+    "animation": "chatSlideRight 0.51s cubic-bezier(0.16, 1, 0.3, 1) both"
    },
    "|stencil-chat-panel.chat-open.chat-dock-top": {
-    "animation": "chatSlideTop 0.34s cubic-bezier(0.16, 1, 0.3, 1) both"
+    "animation": "chatSlideTop 0.51s cubic-bezier(0.16, 1, 0.3, 1) both"
    },
    "|stencil-fullscreen-layer": {
     "display": "contents"
