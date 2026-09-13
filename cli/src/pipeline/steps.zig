@@ -133,7 +133,12 @@ pub fn writeOutputLabeled(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, 
 
     const encoded = try image.encode(gpa, img, resolved.fmt);
     defer gpa.free(encoded);
-    try dir.writeFile(io, .{ .sub_path = resolved.path, .data = encoded });
+    // The only place a result reaches the disk, so it owns the failure line too: a caller
+    // that just propagated would exit 1 with nothing said, and adapters parse `error:`.
+    dir.writeFile(io, .{ .sub_path = resolved.path, .data = encoded }) catch |e| {
+        report.err("could not write {s} ({s})\n", .{ resolved.path, @errorName(e) });
+        return e;
+    };
 
     report.print("wrote {s} ({d}x{d} px · {s})\n", .{ resolved.path, img.width, img.height, page_label });
 }

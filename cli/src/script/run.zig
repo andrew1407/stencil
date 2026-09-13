@@ -79,7 +79,13 @@ fn runBlockOn(
                 canvas.lines.clearRetainingCapacity();
                 const path = try save_mod.resolveTarget(gpa, target, canvas.source, canvas.frame, canvas.fmt);
                 defer gpa.free(path);
-                try save_mod.guard(path, opts.confine_output);
+                save_mod.guard(path, opts.confine_output) catch |e| {
+                    report.err("{s}: {s}\n", .{ path, switch (e) {
+                        save_mod.Error.SaveTraversal => "a @save may not climb out with ..",
+                        save_mod.Error.SaveOutsideCwd => "--confine-output keeps every @save inside the working directory",
+                    } });
+                    return e;
+                };
                 const label = page_mod.pageLabelAlloc(gpa, "", 0, 0, canvas.img.width, canvas.img.height) catch null;
                 defer if (label) |l| gpa.free(l);
                 try pipeline.writeOutputLabeled(gpa, io, canvas.img, path, canvas.fmt, label orelse "");

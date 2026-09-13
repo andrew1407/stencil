@@ -4,12 +4,15 @@ const std = @import("std");
 const testing = std.testing;
 
 const check = @import("../src/script/check.zig");
+const image = @import("../src/image.zig");
 const opSchema = @import("../src/llm/opSchema.zig");
 const opplan = @import("../src/llm/opplan.zig");
 const plan = @import("../src/script/plan.zig");
+const report = @import("../src/report.zig");
 const save = @import("../src/script/save.zig");
 const scriptCore = @import("../src/scriptCore.zig");
 const sources = @import("../src/script/sources.zig");
+const steps = @import("../src/pipeline/steps.zig");
 
 test "the save matrix: bare, directory, named and exact targets" {
     const gpa = testing.allocator;
@@ -198,4 +201,34 @@ test "a script with an error plans nothing at all, and says why" {
 
 test "the plan's action cap is the registry's own MAX_ACTIONS" {
     try testing.expectEqual(@as(f64, @floatFromInt(plan.MAX_ACTIONS)), opSchema.get().limitNamed("MAX_ACTIONS"));
+}
+
+test "a save that cannot be written says so instead of exiting silently" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+
+    const Cap = struct {
+        var sev: report.Severity = .plain;
+        var buf: [256]u8 = undefined;
+        var len: usize = 0;
+        fn take(_: *anyopaque, s: report.Severity, text: []const u8) void {
+            sev = s;
+            len = @min(text.len, buf.len);
+            @memcpy(buf[0..len], text[0..len]);
+        }
+    };
+    var unused: u8 = 0;
+    report.install(.{ .ctx = @ptrCast(&unused), .emitFn = Cap.take });
+    defer report.uninstall();
+
+    const img: image.Rgba8 = .{ .width = 1, .height = 1, .pixels = try gpa.dupe(u8, &[_]u8{ 0, 0, 0, 255 }) };
+    defer gpa.free(img.pixels);
+
+    try testing.expectError(
+        error.FileNotFound,
+        steps.writeOutputLabeled(gpa, threaded.io(), img, "no-such-dir/out.png", .png, ""),
+    );
+    try testing.expectEqual(report.Severity.err, Cap.sev);
+    try testing.expect(std.mem.startsWith(u8, Cap.buf[0..Cap.len], "could not write no-such-dir/out.png"));
 }
