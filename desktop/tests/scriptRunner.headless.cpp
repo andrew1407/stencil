@@ -47,9 +47,15 @@ namespace {
       lines = next;
       CanvasPlanTarget::setLayoutLines(next);
     }
+    int stepHistory(bool redo, int steps) override {
+      (redo ? redos : undos) << steps;
+      const int done = CanvasPlanTarget::stepHistory(redo, steps);
+      stepped << done;
+      return done;
+    }
 
     QStringList opened, saved;
-    QVector<int> frames;
+    QVector<int> frames, undos, redos, stepped;
     stencil::core::Lines lines;
   };
 
@@ -105,6 +111,45 @@ int main(int argc, char** argv) {
       check(rect.points.size() == 4, "a two-corner @rect expands to four corners");
       check(rect.locked, "@rect is closed, so it fills");
     }
+  }
+
+  std::printf("history ops reach the project history:\n");
+  {
+    RecordingTarget target(fixtureImage(), a4);
+    const ScriptRunResult r = runScript(QStringLiteral(
+        "@filter bw\n"
+        "@filter sepia\n"
+        "@save one\n"
+        "@undo 1\n"
+        "@save two\n"
+        "@redo\n"
+        "@save three\n"), target);
+    check(r.ok, "a script with @undo and @redo runs");
+    check(target.saved == QStringList{QStringLiteral("one"), QStringLiteral("two"),
+                                      QStringLiteral("three")},
+          "every @save around the history ops ran");
+    check(target.undos == QVector<int>({2, 1}), "each @undo reached stepHistory with its step count");
+    // §7: the lowerer resolves history, so it replays the survivors instead of emitting a redo.
+    check(target.redos.isEmpty(), "@redo never reaches the target");
+    check(target.stepped == QVector<int>({0, 0}), "an offscreen sandbox has no history to step");
+    const QColor px = target.renderResult().pixelColor(8, 6);
+    check(px.red() > px.blue(), "the replayed @filter sepia is what stands at the end");
+  }
+
+  std::printf("@layout is reported, not skipped:\n");
+  {
+    RecordingTarget target(fixtureImage(), a4);
+    const ScriptRunResult r = runScript(QStringLiteral(
+        "@rect (1,1) (4,4)\n"
+        "@layout marks.json\n"
+        "@filter bw\n"), target);
+    check(!r.ok, "the desktop cannot read a layout file mid-script");
+    check(r.ops == 1, "the @rect before it still counts as run");
+    check(r.line == 2 && r.error.contains(QStringLiteral("@layout")),
+          "the failure names line 2 and the directive");
+    check(target.lines.size() == 1, "only the @rect reached setLayoutLines");
+    const QColor px = target.renderResult().pixelColor(8, 6);
+    check(px.red() != px.green(), "the @filter after it never ran");
   }
 
   std::printf("a bad script runs nothing:\n");

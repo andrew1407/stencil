@@ -524,6 +524,13 @@ stencil_headless_test(stencil_scriptrunner_headless
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets)
 
+# The two OS-driven .stc entries on the real MainWindow (rule 7's one path): a file handed
+# over by the shell and a file dropped on the window both RUN the script.
+stencil_headless_test(stencil_scriptopen_headless
+  SOURCES tests/scriptOpen.headless.cpp
+  LIBS stencil_gui_objs
+  ENV STENCIL_NO_ANIM=1)
+
 # LLM settings defaults + fileStore Settings JSON round-trip of the contract
 # §5 llm* keys (and the windowState dock blob).
 stencil_headless_test(stencil_llmsettings_headless

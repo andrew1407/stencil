@@ -273,7 +273,7 @@ classDiagram
 offscreen (`QT_QPA_PLATFORM=offscreen`), with an isolated `STENCIL_STATE_DIR` per test, so
 nothing touches the developer's app state. Headless suites are one per concern
 (`tests/<concern>.headless.cpp`: crop, hold-draw, chain edit, project file, transfer, deep
-link, server auth, co-edit, LLM op plan, executor, script runner, script dialog, script flyout, settings,
+link, server auth, co-edit, LLM op plan, executor, script runner, script open, script dialog, script flyout, settings,
 fetch guard, motion prefs, and the rest), each reporting its own failures. The GUI suites are `MainWindow.<area>.gui.cpp`,
 one QtTest binary per area (`stencil_mainwindow_<area>_gui`) linked over the single
 `stencil_gui_objs` object library and sharing `MainWindow.gui.hpp`; they drive the real
