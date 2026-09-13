@@ -64,6 +64,30 @@ namespace stencil::support {
 
     constexpr const char* BACKDROP_ATTACHED_PROP = "stencilModalBackdropAttached";
 
+    // Every screen, padded: a drag can outrun one re-anchor, and an uncovered strip is a
+    // press the dialog never hears.
+    QRect allScreensPadded() {
+      QRect all;
+      for (const QScreen* s : QGuiApplication::screens()) all |= s->geometry();
+      return all.adjusted(-2000, -2000, 2000, 2000);
+    }
+
+    /* AppKit moves a CHILD window with its parent, so dragging the dialog dragged the
+     * backdrop out from under the app and a click there stopped dismissing. Re-anchored on
+     * every move, it keeps covering the screens wherever the dialog goes. */
+    class BackdropAnchor : public QObject {
+     public:
+      BackdropAnchor(QDialog* dlg, QWidget* backdrop) : QObject(dlg), backdrop_(backdrop) {}
+
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if ((e->type() == QEvent::Move || e->type() == QEvent::Resize) && backdrop_)
+          backdrop_->setGeometry(allScreensPadded());
+        return QObject::eventFilter(o, e);
+      }
+      QPointer<QWidget> backdrop_;
+    };
+
     class BackdropPress : public QObject {
      public:
       BackdropPress(QWidget* backdrop, QDialog* dlg) : QObject(backdrop), dlg_(dlg) {}
@@ -105,10 +129,9 @@ namespace stencil::support {
         backdrop->setAttribute(Qt::WA_TranslucentBackground);
         backdrop->setAttribute(Qt::WA_NoSystemBackground);
         backdrop->setAttribute(Qt::WA_ShowWithoutActivating);
-        QRect all;
-        for (const QScreen* s : QGuiApplication::screens()) all |= s->geometry();
-        backdrop->setGeometry(all);
+        backdrop->setGeometry(allScreensPadded());
         backdrop->installEventFilter(new BackdropPress(backdrop, dlg));
+        dlg->installEventFilter(new BackdropAnchor(dlg, backdrop));
         backdrop->show();
 
         // BELOW the dialog so it and its popups stay interactive. Deferred so both native windows exist.
