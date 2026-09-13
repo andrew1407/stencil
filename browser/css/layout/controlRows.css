@@ -28,6 +28,12 @@
     flex-wrap: wrap;
     flex: 1;
 }
+/* The toolbar's glyphs match the desktop's 18px box (mainWindowHelpers.hpp TOOL_ICON);
+   the buttons keep their size — only the art inside them grows. Each glyph has a viewBox,
+   so this scales the drawing rather than cropping it. */
+.ctrl-section-row .btn-icon .ic,
+.ctrl-section-row .btn-icon-text .ic { width: 18px; height: 18px; }
+
 .ctrl-sep {
     width: 1px;
     align-self: stretch;

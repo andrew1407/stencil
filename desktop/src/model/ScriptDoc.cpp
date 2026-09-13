@@ -1,4 +1,4 @@
-#include "ScriptProgram.hpp"
+#include "ScriptDoc.hpp"
 
 #include "scriptProgram.hpp"  // core/script — this file is the seam that may include it
 
@@ -58,11 +58,11 @@ namespace stencil::model {
 
   }  // namespace
 
-  ScriptProgram ScriptProgram::parse(const QString& text) {
+  ScriptDoc ScriptDoc::parse(const QString& text) {
     const QByteArray utf8 = text.toUtf8();
     const cs::ScriptProgram p = cs::ScriptProgram::parse(utf8.constData(), utf8.size());
 
-    ScriptProgram out;
+    ScriptDoc out;
     for (const cs::Token& t : p.tokens()) out.tokens_.push_back(toToken(t));
     for (const cs::Diagnostic& d : p.diagnostics()) out.diagnostics_.push_back(toDiagnostic(d));
     for (const cs::Op& op : p.ops()) out.ops_.push_back(toOp(op));
@@ -78,13 +78,13 @@ namespace stencil::model {
     return out;
   }
 
-  bool ScriptProgram::hasErrors() const {
+  bool ScriptDoc::hasErrors() const {
     for (const ScriptDiagnostic& d : diagnostics_)
       if (d.error) return true;
     return false;
   }
 
-  QVector<double> ScriptProgram::resolve(const ScriptOp& op, QSize imageSize) {
+  QVector<double> ScriptDoc::resolve(const ScriptOp& op, QSize imageSize) {
     const cs::Op core = fromOp(op);
     double buf[2 * (cs::MAX_POINTS_PER_LINE + 1)];
     const int n = cs::resolveOp(core, static_cast<double>(imageSize.width()),

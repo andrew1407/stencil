@@ -4271,6 +4271,10 @@
     "flex-wrap": "wrap",
     "flex": "1"
    },
+   "|.ctrl-section-row .btn-icon .ic, .ctrl-section-row .btn-icon-text .ic": {
+    "width": "18px",
+    "height": "18px"
+   },
    "|.ctrl-sep": {
     "width": "1px",
     "align-self": "stretch",
@@ -7858,6 +7862,7 @@
    "|.ctrl-section-label",
    "|.ctrl-section",
    "|.ctrl-section-row",
+   "|.ctrl-section-row .btn-icon .ic, .ctrl-section-row .btn-icon-text .ic",
    "|.ctrl-sep",
    "|.ctrl-sep.ctrl-sep-wrapped",
    "|.controls .blank-color-btn",

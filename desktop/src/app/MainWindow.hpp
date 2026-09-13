@@ -368,6 +368,9 @@ namespace stencil::gui {
     // Browser linksModal.js.
     void openLinks();
     void openDescription();
+    void openScript();
+    void refreshAfterScript();
+    void runScriptFromFile(const QString& path);
     void openKeywords();
     void loadImageByUrl(const QString& source, const QString& resource, int frame);
 
@@ -732,6 +735,8 @@ namespace stencil::gui {
     // Browser toolbar.js Image/Layout buttons and the paste listener.
     QAction* actDownloadJson_ = nullptr;
     QAction* actUploadJson_ = nullptr;
+    QAction* actScript_ = nullptr;
+    QString lastScript_;   // the script window's draft, for this session
     QAction* actSaveProjectFile_ = nullptr;
     QAction* actOpenProjectFile_ = nullptr;
     QAction* actDeleteProjectFile_ = nullptr;

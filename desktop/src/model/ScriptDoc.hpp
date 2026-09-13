@@ -5,7 +5,9 @@
 #include <QVector>
 
 // The desktop's seam onto core/script: the ONE file here that includes a core script
-// header, so the layer lint's "core only from model/" rule holds. Everything above works
+// header, so the layer lint's "core only from model/" rule holds. Named ScriptDoc, not
+// ScriptProgram, because a case-insensitive filesystem would resolve core's own
+// scriptProgram.hpp to this file instead. Everything above works
 // in Qt types. The language is normative in contracts/stc/stc-contract.md.
 namespace stencil::model {
 
@@ -58,9 +60,9 @@ namespace stencil::model {
 
   /* A parsed .stc. Value type: parse once, read as often as you like. A program with any
    * error must not be executed — the dialog reports instead. */
-  class ScriptProgram {
+  class ScriptDoc {
    public:
-    static ScriptProgram parse(const QString& text);
+    static ScriptDoc parse(const QString& text);
 
     const QVector<ScriptToken>& tokens() const { return tokens_; }
     const QVector<ScriptDiagnostic>& diagnostics() const { return diagnostics_; }

@@ -1,6 +1,6 @@
 #include "scriptRun.hpp"
 
-#include "ScriptProgram.hpp"
+#include "ScriptDoc.hpp"
 #include "cropGeometry.hpp"
 #include "models.hpp"
 #include "planExecutor.hpp"
@@ -13,7 +13,7 @@ namespace stencil::gui {
 
     using model::ScriptOp;
     using model::ScriptOpKind;
-    using model::ScriptProgram;
+    using model::ScriptDoc;
 
     ScriptRunResult failure(const QString& message, const ScriptOp& op) {
       ScriptRunResult r;
@@ -62,7 +62,7 @@ namespace stencil::gui {
           return true;
         }
         case ScriptOpKind::CROP: {
-          const QVector<double> r = ScriptProgram::resolve(op, target.workingSize());
+          const QVector<double> r = ScriptDoc::resolve(op, target.workingSize());
           if (r.size() < 4) { out = failure(QStringLiteral("this crop resolves to nothing"), op); return false; }
           core::CropRect rect;
           rect.x = r[0];
@@ -79,7 +79,7 @@ namespace stencil::gui {
         }
         case ScriptOpKind::LINE:
         case ScriptOpKind::RECT: {
-          const QVector<double> r = ScriptProgram::resolve(op, target.workingSize());
+          const QVector<double> r = ScriptDoc::resolve(op, target.workingSize());
           if (r.size() < 6) { out = failure(QStringLiteral("this shape resolves to nothing"), op); return false; }
           drawn.push_back(lineFrom(op, r));
           target.setLayoutLines(drawn);
@@ -107,7 +107,7 @@ namespace stencil::gui {
 
   ScriptRunResult runScript(const QString& text, llm::PlanTarget& target) {
     ScriptRunResult out;
-    const ScriptProgram program = ScriptProgram::parse(text);
+    const ScriptDoc program = ScriptDoc::parse(text);
 
     for (const model::ScriptDiagnostic& d : program.diagnostics()) {
       if (!d.error) continue;

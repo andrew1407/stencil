@@ -1,6 +1,9 @@
 #include "ScriptHighlighter.hpp"
 
-#include "theme.hpp"
+#include "../support/theme.hpp"
+
+#include <QGuiApplication>
+#include <QPalette>
 
 #include <QTextBlock>
 #include <QTextDocument>
@@ -14,7 +17,9 @@ namespace stencil::dialogs {
   }
 
   void ScriptHighlighter::buildFormats() {
-    const support::Palette p = support::currentPalette();
+    // Read the live theme the way the other dialogs do: dark is the window's own lightness.
+    const bool dark = QGuiApplication::palette().color(QPalette::Window).lightness() < 128;
+    const gui::Palette p = gui::themePalette(dark);
     formats_.clear();
 
     auto set = [&](ScriptTokenKind kind, const QColor& colour, bool italic = false,
@@ -32,7 +37,9 @@ namespace stencil::dialogs {
     set(ScriptTokenKind::NUMBER, p.textMain);
     set(ScriptTokenKind::UNIT, p.textMuted);
     set(ScriptTokenKind::COLOR, p.textMain);
-    set(ScriptTokenKind::STRING, p.success);
+    // The Qt palette carries no --success, so a quoted name takes the amber label ink:
+    // distinct from the accent (directives) and from --text-key (keywords).
+    set(ScriptTokenKind::STRING, p.textSelLabel);
     set(ScriptTokenKind::COMMENT, p.textMuted, true);
     set(ScriptTokenKind::PUNCT, p.textMuted);
     set(ScriptTokenKind::IDENT, p.textMain);
@@ -53,7 +60,7 @@ namespace stencil::dialogs {
     rehighlight();
   }
 
-  void ScriptHighlighter::setProgram(const model::ScriptProgram& program, bool withDiagnostics) {
+  void ScriptHighlighter::setProgram(const model::ScriptDoc& program, bool withDiagnostics) {
     byLine_.clear();
     for (const model::ScriptToken& t : program.tokens()) {
       Span s;

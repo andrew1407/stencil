@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ScriptProgram.hpp"
+#include "ScriptDoc.hpp"
 
 #include <QHash>
 #include <QSyntaxHighlighter>
@@ -19,7 +19,7 @@ namespace stencil::dialogs {
     explicit ScriptHighlighter(QTextDocument* document);
 
     // Replaces the spans and repaints. `diagnostics` is empty until the script is run.
-    void setProgram(const model::ScriptProgram& program, bool withDiagnostics);
+    void setProgram(const model::ScriptDoc& program, bool withDiagnostics);
 
     // Re-reads the palette after a theme flip; formats hold resolved colours.
     void restyle();

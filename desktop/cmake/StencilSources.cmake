@@ -269,6 +269,9 @@ set(STENCIL_GUI_SOURCES
   src/app/MainWindowProjectLoad.cpp
   src/app/MainWindowProjectName.cpp
   src/app/MainWindowRefresh.cpp
+  src/app/MainWindowScript.cpp
+  src/app/scriptRun.cpp
+  src/model/ScriptDoc.cpp
   src/app/MainWindowReplace.cpp
   src/app/MainWindowServerProject.cpp
   src/app/MainWindowServerSave.cpp
@@ -356,6 +359,8 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_OPENIMAGE_SOURCES}
   ${STENCIL_LINKSDIALOG_SOURCES}
   src/dialogs/DescriptionDialog.cpp
+  src/dialogs/ScriptDialog.cpp
+  src/dialogs/ScriptHighlighter.cpp
   src/dialogs/KeywordsDialog.cpp
   src/dialogs/CropDialog.cpp
   src/dialogs/CropDialogDrag.cpp
