@@ -259,7 +259,7 @@ one QtTest binary per area (`stencil_mainwindow_<area>_gui`) linked over the sin
 the shared `browser/js/config` corpora on this surface; the LLM suites substitute a mock
 `LlmTransport`, so the whole suite runs offline. `layerBoundary.headless.cpp` is the import
 lint. `uiPins.headless.cpp` pins the app stylesheet hash per theme and accent
-(`tests/pins/stylesheets.txt`) and twelve rendered states at device pixel ratio 1 and 2
+(`tests/pins/stylesheets.txt`) and the rendered states at device pixel ratio 1 and 2
 against `tests/pins/<platform>/`; the render baselines are platform-specific, and a platform
 without them skips that half. The desktop build links `core/` via `add_subdirectory(../core)`
 with the core's own doctest suite off; those tests run under core's own target.

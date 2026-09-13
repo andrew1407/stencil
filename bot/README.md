@@ -62,7 +62,7 @@ Real environment variables always win over `.env`; the real `bot/.env` is gitign
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `TELEGRAM_BOT_TOKEN` | — (**required**) | Bot token from [@BotFather](https://t.me/BotFather) |
+| `TELEGRAM_BOT_TOKEN` | — (**required**) | Bot token from @BotFather |
 | `STENCIL_BOT_ALLOWED_USERS` | empty (**required**) | Comma-separated Telegram user ids allowed to use the bot — see [the allowlist](#the-bot-is-opt-in-per-user). Empty = the bot is off for everyone |
 | `STENCIL_CLI` | auto-discovered | Path to the `stencil` CLI binary |
 | `REDIS_URL` | — (in-memory) | Redis for per-user session state: `redis://[user:password@]host[:port][/db]` (`rediss://` for TLS) or StackExchange's `host:port[,option=value]` |

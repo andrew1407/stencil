@@ -42,15 +42,18 @@ No dependencies to install anywhere: each subproject runs on its platform's buil
 tooling (the desktop needs Qt 6; the C++ tests use a single Doctest header fetched at
 configure time; the CLI shells out to a system `ffmpeg` for video input only).
 
-- Build & test the shared core → [core/README.md](core/README.md)
-- Build & run the browser app → [browser/README.md](browser/README.md)
-- Build, test & run the desktop app → [desktop/README.md](desktop/README.md)
-- Build, test & run the CLI → [cli/README.md](cli/README.md)
-- Build & test the Python package → [pystencil/README.md](pystencil/README.md)
-- Build, test & run the MCP server → [mcp/README.md](mcp/README.md)
-- Build, test & run the Telegram bot → [bot/README.md](bot/README.md)
-- Load & test the Chrome extension → [extension/README.md](extension/README.md)
-- Run the cross-surface e2e smoke harness → [e2e/README.md](e2e/README.md)
+| Subproject | Guide | Covers |
+|---|---|---|
+| Core | [core/README.md](core/README.md) | build & test the shared library |
+| Browser | [browser/README.md](browser/README.md) | serve & test the app, the optional single-file build |
+| Desktop | [desktop/README.md](desktop/README.md) | build, test & run the Qt app |
+| CLI | [cli/README.md](cli/README.md) | build, test & run the Zig tool |
+| Python | [pystencil/README.md](pystencil/README.md) | build & test the package |
+| MCP server | [mcp/README.md](mcp/README.md) | build, test & register the server |
+| Collaboration server | [server/README.md](server/README.md) | build, test & run the Go server |
+| Telegram bot | [bot/README.md](bot/README.md) | build, test & run the bot |
+| Chrome extension | [extension/README.md](extension/README.md) | load unpacked & test |
+| E2E harness | [e2e/README.md](e2e/README.md) | run the cross-surface smoke suite |
 
 **Docker.** Five subprojects ship a multi-stage `Dockerfile`. The first four compile
 `core/`, so **build them from the repo root** with `-f`; the server image builds from its
@@ -75,102 +78,24 @@ docker compose up --build server   # collab server on :8090 (REST/WS) + :8091 (T
 ## AI assistant — setting up a model
 
 Every surface ships an **LLM assistant**: you describe an edit in words ("make it sepia and
-crop 10% off each side", "give me 3 variants: rotated, tinted, contoured", "extract the lines
-from this image") and the model answers with a validated *op-plan* that runs through the very
-same operations the toolbar / CLI flags use. Stencil ships **no model and no API key** — you
-point it at one. Three provider choices, identical everywhere:
+crop 10% off each side", "give me 3 variants: rotated, tinted, contoured") and the model
+answers with a validated *op-plan* that runs through the very same operations the toolbar and
+CLI flags use. Stencil ships **no model and no API key** — you point it at one. Three provider
+choices, identical everywhere:
 
 | Provider | What it is | Default endpoint |
 |---|---|---|
-| `ollama` | a local [Ollama](https://ollama.com) daemon (native `/api/chat`) | `http://localhost:11434` |
-| `openai-compat` | any OpenAI-style local server — LM Studio, `llama.cpp`, vLLM | `http://localhost:1234/v1` |
-| `stencil-server` | Anthropic Claude proxied by a [collaboration server](server/) — the key stays server-side | your configured server URL |
+| `ollama` | a local Ollama daemon (native `/api/chat`) | `http://localhost:11434` |
+| `openai-compat` | any OpenAI-style server — LM Studio, `llama.cpp`, vLLM | `http://localhost:1234/v1` |
+| `stencil-server` | a [collaboration server](server/) proxying its own upstream key, which never leaves it | your configured server URL |
 
 The GUI surfaces (browser, desktop, extension) additionally offer **`none` — assistant off**:
 nothing is probed or sent and the assistant UI is hidden.
 
-Conversations are session-only unless you opt in to **chat persistence** (off by default on
-every surface: a "Save chats with projects" toggle in the browser and desktop, `/chat on|off`
-in the cli/pystencil consoles, `/chat save on|off` in the bot).
+**Pick a vision-capable model.** Every turn ships the image you are working on, so a text-only
+model still handles "crop 10% off each side" but cannot "outline the rabbit's head".
 
-The full spec is [`llm-contract.md`](llm-contract/llm-contract.md), with providers/wire
-mappings in [`llm-providers.md`](llm-contract/llm-providers.md), per-surface op profiles in
-[`llm-profiles.md`](llm-contract/llm-profiles.md) and chat persistence in
-[`llm-chat.md`](llm-contract/llm-chat.md). This section is the setup guide.
-
-### 1. Ollama (local, the default)
-
-Install it from [ollama.com/download](https://ollama.com/download), then:
-
-```bash
-ollama serve                      # daemon on http://localhost:11434
-ollama pull llama3.2-vision       # or: qwen2.5vl · llava — models that can SEE the image
-ollama list                       # confirm what is installed
-```
-
-**Pick a vision-capable model.** Every turn ships the image you are working on; a text-only
-model (`llama3.2`, `mistral`, …) cannot see it, so "crop 10% off each side" still works while
-"outline the rabbit's head" needs a model that can see.
-
-Then set **provider `ollama`**, base URL `http://localhost:11434`, model `llama3.2-vision`
-(see [per-surface configuration](#4-per-surface-configuration)).
-
-**Browser app only — CORS.** The browser calls Ollama from a page origin, so the daemon has to
-allow it:
-
-```bash
-OLLAMA_ORIGINS='http://localhost:8080' ollama serve   # the origin `npm run serve` uses
-```
-
-No other surface needs this.
-
-### 2. OpenAI-compatible (LM Studio, llama.cpp, vLLM)
-
-Start whichever server you have, note its port, and use a base URL that **ends in `/v1`** —
-the clients append `/chat/completions` to it:
-
-```bash
-# LM Studio: load a vision model → Developer tab → Start Server   →  http://localhost:1234/v1
-llama-server -m ./model.gguf --host 127.0.0.1 --port 1234         #  http://localhost:1234/v1
-vllm serve Qwen/Qwen2.5-VL-7B-Instruct --port 8000                #  http://localhost:8000/v1
-```
-
-Leave the model field empty to use whatever the server has loaded, or name it explicitly. The
-optional **API key** (LM Studio and llama.cpp need none; a hosted endpoint does) goes in the
-surface's API-key field / `STENCIL_LLM_API_KEY` — it is sent as `Authorization: Bearer …` on
-this provider only.
-
-**Browser app only:** flip LM Studio's **"enable CORS"** switch in its server settings.
-
-### 3. Stencil collaboration server (Anthropic proxy)
-
-Give the [Go server](server/) an Anthropic key and it proxies chat turns for every client
-that connects to it — the key **never leaves the server**, and clients authenticate with the
-bearer token they already have for it.
-
-```bash
-cd server
-cp .env.example .env       # then set DATABASE_URL + the LLM keys below
-go run ./cmd/stencil-server
-```
-
-Server-side env keys ([`server/.env.example`](server/.env.example), see
-[server/README.md → LLM proxy](server/README.md#llm-proxy)):
-
-| Key | Default | Meaning |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | *(empty)* | **empty = proxy disabled**; the only place the key lives |
-| `LLM_MODEL` | `claude-opus-5` | default model when a request names none |
-| `LLM_BASE_URL` | `https://api.anthropic.com` | Anthropic API base |
-| `LLM_MAX_TOKENS` | `8192` | cap; a request's `maxTokens` is clamped to it |
-| `LLM_TIMEOUT_SECONDS` | `120` | outbound request timeout |
-
-In each client, connect to the server as usual, then pick provider **`stencil-server`** and
-point it at that server's URL. Auth reuses the stored connection's token; `mcp/` has no
-connection store, so it takes an explicit `STENCIL_LLM_SERVER_TOKEN`; the CLI console and the
-bot fall back to that key when no `/connect`-ed server matches.
-
-### 4. Per-surface configuration
+Where you set it, per surface:
 
 | Surface | Where you set it | Stored as |
 |---|---|---|
@@ -193,35 +118,16 @@ export STENCIL_LLM_MODEL=llama3.2-vision
 cd cli && ./zig-out/bin/stencil --console        # then: /prompt make it sepia
 ```
 
-### 5. Verify it works
+Conversations are session-only unless you opt in to **chat persistence** (off by default on
+every surface: a "Save chats with projects" toggle in the browser and desktop, `/chat on|off`
+in the cli/pystencil consoles, `/chat save on|off` in the bot).
 
-Probe the endpoint first — these are the same URLs the clients' status probes hit:
-
-```bash
-curl http://localhost:11434/api/tags            # ollama: the models you pulled
-curl http://localhost:11434/api/version         # ollama: what the status dot checks
-curl http://localhost:1234/v1/models            # openai-compat: the loaded model(s)
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8090/llm/info   # {"enabled":true,"model":"…"}
-```
-
-Then send a first prompt against a loaded image — `make it sepia` is the smallest end-to-end
-check. A healthy setup shows a **green** status dot on the chat's settings gear (browser and
-desktop; amber = still probing, red = unreachable), a bare `/llm` in the cli/pystencil
-console prints the resolved provider, URL and model, and on every surface the reply text
-appears **and** the image changes. A reply with no JSON object is just chat and edits nothing.
-
-### 6. Troubleshooting
-
-| Symptom | Cause / fix |
-|---|---|
-| Browser only: status red, DevTools shows a **CORS** error | The local provider isn't allowing the app's origin. Restart with `OLLAMA_ORIGINS='http://localhost:8080' ollama serve`, or enable LM Studio's CORS switch. |
-| The model chats fine but ignores the picture | The model isn't **vision-capable** — `ollama pull llama3.2-vision` (or `qwen2.5vl` / `llava`), or load a vision model in LM Studio. |
-| `openai-compat` returns **404** on every turn | The base URL is missing `/v1` — it must be `http://host:port/v1`. |
-| `ollama` returns 404 | The opposite mistake: Ollama's base URL takes **no** `/v1`. |
-| `503 llmDisabled` from a collaboration server | No `ANTHROPIC_API_KEY` in *that server's* environment. Check `GET /llm/info`; set the key and restart the server. |
-| Turns hang or time out | First run on a local model can be slow (weights load on demand); for the server proxy raise `LLM_TIMEOUT_SECONDS`. |
-| No assistant UI at all | The provider is **`none`**. Pick a real provider in the settings modal / Options. |
-| mcp: "https rejected" | `mcp/`'s transport is **plain-http only** — use a local provider or an `http://` collaboration server. |
+Each surface's own README carries its settings UI and its endpoint keys; the collaboration
+server's proxy keys are in [server/README.md](server/README.md#llm-proxy). The normative spec
+is [`llm-contract.md`](llm-contract/llm-contract.md), with provider wire mappings in
+[`llm-providers.md`](llm-contract/llm-providers.md), per-surface op profiles in
+[`llm-profiles.md`](llm-contract/llm-profiles.md) and chat persistence in
+[`llm-chat.md`](llm-contract/llm-chat.md).
 
 ## Claude Code integration
 
