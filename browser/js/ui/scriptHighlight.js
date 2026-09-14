@@ -6,9 +6,12 @@ import { DIRECTIVES } from '../core/scriptTypes.js';
 
 // The lexer classifies on the '@' alone, so every word after one arrives as a `directive`.
 // Only a REAL one is coloured, or the accent would say nothing about the word existing.
-// Lowercased like the lowering's own comparison, so @CROP stays a directive.
+// Lowercased like the lowering's own comparison, so @CROP stays a directive. Read off the
+// SOURCE by position, never token.text: the wasm path leaves that empty, so a text-based
+// lookup matched nothing there and every directive lost its colour.
 const DIRECTIVE_WORDS = new Set(DIRECTIVES);
-const knownDirective = (t) => DIRECTIVE_WORDS.has(t.text.slice(1).toLowerCase());
+const knownDirective = (lines, t) =>
+  DIRECTIVE_WORDS.has((lines[t.line - 1] ?? '').slice(t.col, t.col - 1 + t.len).toLowerCase());
 
 /* The editor and the highlight layer share every metric, so a token's span in one lands on
  * the same pixel in the other. Diagnostics are painted only once the script has been RUN:
@@ -24,7 +27,7 @@ export const paintInto = (pre, text, withDiagnostics) => {
   const byLine = Array.from({ length: lines.length + 1 }, () => []);
   const bucket = (line) => byLine[line] ?? (byLine[line] = []);
   for (const t of program.tokens) {
-    if (t.kind === 'directive' && !knownDirective(t)) continue;   // plain text, and still underlined
+    if (t.kind === 'directive' && !knownDirective(lines, t)) continue;   // plain text, and still underlined
     bucket(t.line).push({ col: t.col, len: t.len, cls: `stk-${t.kind}` });
   }
 
