@@ -1,5 +1,6 @@
-// An exact colour per family. The setting is reduced as a pure function; the painting is then
-// driven once through the stub, because what matters is which ranges each colour lands on.
+// An exact colour per family, over the palette the extension paints by default. The setting is
+// reduced as a pure function; the painting is then driven once through the stub, because what
+// matters is which ranges each colour lands on.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -8,10 +9,15 @@ import { parseScript } from '../src/parser/index.js';
 import { installVscodeStub, makeContext, makeDocument, makeEditor, makeVscode } from './helpers/vscodeStub.js';
 
 const require = createRequire(import.meta.url);
-const { FAMILIES, FAMILY_TYPE, overridesFor } = require('../src/lib/colorFamilies.js');
+const families = require('../src/lib/colorFamilies.js');
+const { DEFAULTS, FAMILIES, FAMILY_TYPE, overridesFor } = families;
 
-const withHost = (body, colors = {}) => {
-  const { vscode, calls } = makeVscode({ settings: { 'stencil.colors': colors } });
+const LIGHT = 1;
+const mapped = (palette) => Object.fromEntries(
+  Object.entries(palette).map(([family, color]) => [FAMILY_TYPE[family], color]));
+
+const withHost = (body, colors = {}, themeKind = 2) => {
+  const { vscode, calls } = makeVscode({ settings: { 'stencil.colors': colors }, themeKind });
   const host = installVscodeStub(vscode);
   try {
     return body({ calls, decorations: host.require('decorations.js'), vscode });
@@ -19,6 +25,8 @@ const withHost = (body, colors = {}) => {
     host.restore();
   }
 };
+
+const colorsOf = (calls) => calls.decorationTypes.map((t) => t.options.color);
 
 test('every family names a type that is actually in the legend', () => {
   withHost(({ decorations }) => {
@@ -31,28 +39,57 @@ test('every family names a type that is actually in the legend', () => {
   });
 });
 
-test('only a real family with a real hex colour survives', () => {
-  assert.deepEqual(overridesFor({ filterMode: '#ff8800' }), { enumMember: '#ff8800' });
-  assert.deepEqual(overridesFor({ source: '#abc', comment: '#11223344' }),
-    { macro: '#abc', comment: '#11223344' });
-  assert.deepEqual(overridesFor({ nonsense: '#fff' }), {}, 'an unknown family is dropped');
-  assert.deepEqual(overridesFor({ source: 'red' }), {}, 'a colour name is not a hex colour');
-  assert.deepEqual(overridesFor({ source: '' }), {}, 'empty means: leave it to the theme');
-  assert.deepEqual(overridesFor(undefined), {});
+test('with no setting, the built-in palette paints the families a theme reads as something else', () => {
+  assert.deepEqual(overridesFor({}), mapped(DEFAULTS.dark));
+  assert.deepEqual(overridesFor(undefined), mapped(DEFAULTS.dark));
+  assert.deepEqual(overridesFor({}, { light: true }), mapped(DEFAULTS.light));
+  for (const palette of [DEFAULTS.dark, DEFAULTS.light]) {
+    assert.deepEqual(Object.keys(palette),
+      ['source', 'output', 'unit', 'template', 'filterMode', 'path', 'templateName', 'cropEdge']);
+    for (const color of Object.values(palette)) assert.match(color, families.HEX);
+  }
 });
 
-test('no setting means no decoration type at all — the theme is left alone', () => {
+test('a named family wins over the default, and an empty string hands it back to the theme', () => {
+  assert.equal(overridesFor({ filterMode: '#ff8800' }).enumMember, '#ff8800');
+  assert.equal(overridesFor({ source: '#abc' }).macro, '#abc');
+  assert.ok(!('string' in overridesFor({ path: '' })), 'an empty string leaves the theme in charge');
+  assert.ok(!('enumMember' in overridesFor({ filterMode: '  ' })));
+});
+
+test('a family with no default takes a colour like any other', () => {
+  assert.equal(overridesFor({ comment: '#11223344' }).comment, '#11223344');
+  assert.deepEqual(overridesFor({ comment: '' }), mapped(DEFAULTS.dark), 'nothing to hand back');
+});
+
+test('an unknown family or an unusable value leaves the defaults standing', () => {
+  assert.deepEqual(overridesFor({ nonsense: '#fff' }), mapped(DEFAULTS.dark));
+  assert.deepEqual(overridesFor({ source: 'red' }), mapped(DEFAULTS.dark), 'a name is not a hex');
+  assert.deepEqual(overridesFor({ source: 42 }), mapped(DEFAULTS.dark));
+});
+
+test('no setting still builds one decoration type per built-in family', () => {
   withHost(({ calls, decorations }) => {
     decorations.register(makeContext());
-    assert.deepEqual(calls.decorationTypes, []);
+    assert.deepEqual(colorsOf(calls).sort(), Object.values(mapped(DEFAULTS.dark)).sort());
   });
+});
+
+test('a light theme builds the same families in the light palette', () => {
+  withHost(({ calls, decorations }) => {
+    decorations.register(makeContext());
+    assert.deepEqual(colorsOf(calls).sort(), Object.values(mapped(DEFAULTS.light)).sort());
+  }, {}, LIGHT);
 });
 
 test('each overridden family becomes one decoration type, in its exact colour', () => {
   withHost(({ calls, decorations }) => {
     decorations.register(makeContext());
-    assert.deepEqual(calls.decorationTypes.map((t) => t.options.color).sort(),
-      ['#00ff00', '#ff8800']);
+    const painted = overridesFor({ filterMode: '#ff8800', source: '#00ff00' });
+    assert.equal(painted.macro, '#00ff00', 'the override replaced the default');
+    assert.equal(painted.enumMember, '#ff8800');
+    assert.deepEqual(colorsOf(calls).sort(), Object.values(painted).sort());
+    assert.equal(calls.decorationTypes.length, 8, 'both overrides replaced a default, adding none');
   }, { filterMode: '#ff8800', source: '#00ff00' });
 });
 
@@ -79,13 +116,14 @@ test('painting reaches every visible .stc editor and skips the rest', async () =
     const stc = makeEditor(makeDocument({ text: '@source a.png:\n    @filter sepia\n' }));
     const other = makeEditor(makeDocument({ text: 'hello', languageId: 'plaintext' }));
     calls.editors.push(stc, other);
-    const { paintAll } = decorations.register(makeContext());
+    const { paintAll, typesFor } = decorations.register(makeContext());
     paintAll();
     await new Promise((resolve) => { setImmediate(resolve); });
-    assert.equal(stc.painted.size, 1, 'the one overridden family was painted');
-    const [[type, list]] = [...stc.painted];
-    assert.equal(type.options.color, '#ff8800');
-    assert.equal(list.length, 1, 'sepia is the only filter mode in the buffer');
+    const types = typesFor();
+    assert.equal(types.get('enumMember').options.color, '#ff8800');
+    assert.equal(stc.painted.get(types.get('enumMember')).length, 1, 'sepia is the only mode');
+    assert.equal(stc.painted.get(types.get('string')).length, 1, 'a.png is the only path');
+    assert.deepEqual(stc.painted.get(types.get('type')), [], 'the buffer defines no template');
     assert.equal(other.painted.size, 0, 'a plaintext editor is left alone');
     assert.equal(vscode.window.visibleTextEditors.length, 2);
   }, { filterMode: '#ff8800' });
@@ -94,12 +132,22 @@ test('painting reaches every visible .stc editor and skips the rest', async () =
 test('changing the setting rebuilds the types, with no reload', async () => {
   await withHost(async ({ calls, decorations, vscode }) => {
     decorations.register(makeContext());
-    assert.deepEqual(calls.decorationTypes.map((t) => t.options.color), ['#ff8800']);
+    const built = calls.decorationTypes.length;
     await vscode.workspace.getConfiguration().update('stencil.colors', { source: '#00ff00' });
     calls.events.config[0]({ affectsConfiguration: () => true });
-    assert.ok(calls.decorationTypes[0].disposed, 'the colour it replaced was let go');
-    assert.deepEqual(calls.decorationTypes.map((t) => t.options.color), ['#ff8800', '#00ff00']);
+    assert.ok(calls.decorationTypes.slice(0, built).every((t) => t.disposed), 'the old set was let go');
+    assert.ok(colorsOf(calls).slice(built).includes('#00ff00'));
   }, { filterMode: '#ff8800' });
+});
+
+test('switching to a light theme repaints in the light palette', () => {
+  withHost(({ calls, decorations, vscode }) => {
+    decorations.register(makeContext());
+    const built = calls.decorationTypes.length;
+    vscode.window.activeColorTheme.kind = LIGHT;
+    calls.events.theme[0]({ kind: LIGHT });
+    assert.deepEqual(colorsOf(calls).slice(built).sort(), Object.values(mapped(DEFAULTS.light)).sort());
+  });
 });
 
 test('the types are disposed when the context is, so a reload leaks nothing', () => {

@@ -53,7 +53,7 @@ class Terminal {
 
 /* One stub instance. `settings` seeds workspace.getConfiguration; `calls` collects what the
  * extension registered or showed, so a test can assert on it. */
-export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' } = {}) => {
+export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh', themeKind = 2 } = {}) => {
   const calls = {
     collections: [], commands: new Map(), completionProviders: [], errors: [], events: {},
     decorationTypes: [], editors: [], executed: [], hoverProviders: [], semanticProviders: [],
@@ -69,6 +69,7 @@ export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' }
     // The real enum is much longer; these are the members the completion items name.
     CompletionItemKind: { Keyword: 13, EnumMember: 19, Property: 9, Field: 4, Unit: 10, Color: 15, Function: 2 },
     env: { shell },
+    ColorThemeKind: { Light: 1, Dark: 2, HighContrast: 3, HighContrastLight: 4 },
     DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 },
     SemanticTokensLegend: class { constructor(types, mods = []) { this.tokenTypes = types; this.tokenModifiers = mods; } },
     Uri: { file: (path) => ({ scheme: 'file', fsPath: path, toString: () => `file://${path}` }) },
@@ -104,7 +105,9 @@ export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' }
         calls.decorationTypes.push(type);
         return type;
       },
+      activeColorTheme: { kind: themeKind },
       onDidChangeVisibleTextEditors: on('visibleEditors'),
+      onDidChangeActiveColorTheme: on('theme'),
       onDidChangeActiveTextEditor: on('activeEditor'),
       createTerminal({ name, cwd }) {
         const terminal = new Terminal(name, cwd);

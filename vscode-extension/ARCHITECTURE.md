@@ -64,7 +64,7 @@ the only root file that may import a sibling root file. Enforced by
 | — | each of the three providers reads its own `stencil.*` toggle per request | a toggle must not need a reload, so nothing is decided at `register` time; colouring, recolouring and the icon themes stay VS Code's own settings |
 | `src/completion.js` | the suggestion items, one builder per group | it offers words, never a filename — a path is the user's to type |
 | `src/hover.js` | the Markdown for the token under the caret | the token comes from the same parse the colours do, so a hover cannot land where no colour did |
-| `src/decorations.js` | the `stencil.colors` overrides: one `TextEditorDecorationType` per family the user named, painted over the themed tokens | a theme decides what a token type looks like, so an EXACT colour can only be drawn on top; a family left unset gets no decoration at all, so the theme still owns it |
+| `src/decorations.js` | one `TextEditorDecorationType` per family the extension or `stencil.colors` colours, painted over the themed tokens | a theme decides what a token type looks like, so an EXACT colour can only be drawn on top; the eight families whose type means something else to a theme carry a built-in colour, every other family is the theme's until named, and an empty string hands one back |
 | `src/colors.js` | the one command that is not a CLI invocation: it seeds and opens VS Code's token-colour setting | an extension may not set token colours, so this hands the user the setting rather than owning one; the seeded rules are pinned to the README block (`tests/colors.test.js`) |
 | `src/commands.js` | run, run-on-image, check | one CLI invocation each, in the reused `Stencil` terminal, `cwd` = the script's directory |
 | `src/lib/` | `ids.js` (the contributed identifiers), `cliLocator.js` (the ONE way the binary is found) over `pathSearch.js` (the executable probe and the memoized PATH walk), `terminal.js` (the ONE place a command line is composed) over `shellQuote.js` (the per-shell rules), `scriptCheck.js` (the CLI's `--script-check` answer and its line grammar), `parserHost.js` (the memoized `import()`) and `programCache.js` over it (one parse per document version), `vocabulary.js` (the one reading of the vocabulary table), `tokenClassify.js` (a legend type per token, from the statement it sits in), `colorFamilies.js` (the user-facing name for each legend type, and the reduction of `stencil.colors`) and `completionContext.js` (which suggestion groups a caret takes) | `vscode` is passed in, never imported, so each is a pure unit |
@@ -102,7 +102,7 @@ classDiagram
 | `CliLocation` (`src/lib/cliLocator.js`) | the inputs to finding the binary: the `stencil.cliPath` setting, the workspace folder, the environment | per call; only the PATH walk under it is memoized, briefly and per `PATH` | `ExtensionSettings`; produces the path a `CommandLine` runs |
 | `CommandLine` (`src/lib/terminal.js`) | one composed, fully quoted shell line and the terminal it is sent to | per command invocation; the `Stencil` terminal outlives it | `ShellRules`, and the CLI process |
 | `ShellRules` (`src/lib/shellQuote.js`) | one shell family's quoting: what needs no quotes, how a quote is escaped, how a directory is changed, what a quoted command word needs in front of it | a frozen table entry, chosen per invocation from `vscode.env.shell` | `CommandLine` |
-| `ExtensionSettings` | the `stencil.*` settings, read through `workspace.getConfiguration`: `cliPath`, `checkOnType` and `checkOnSave`, a toggle per editing feature (`highlighting`, `completion`, `hover`) and `colors`, a family → hex map reduced by `colorFamilies.js` | VS Code's, read on each use so a change needs no reload | `CliLocation`, the on-type check, the three providers, the decorations |
+| `ExtensionSettings` | the `stencil.*` settings, read through `workspace.getConfiguration`: `cliPath`, `checkOnType` and `checkOnSave`, a toggle per editing feature (`highlighting`, `completion`, `hover`) and `colors`, a family → hex map laid over `colorFamilies.js`'s built-in palette | VS Code's, read on each use so a change needs no reload | `CliLocation`, the on-type check, the three providers, the decorations |
 
 ## Patterns
 
@@ -130,8 +130,10 @@ classDiagram
   re-paints from a real parse, which is how `#ccc` stays a colour while `# note` is a comment —
   a decision the lexer makes from the whole word and a regex can only approximate; VS Code asks
   for it only while `stencil.highlighting` and `editor.semanticHighlighting.enabled` are both on.
-  A family named in `stencil.colors` is then painted over the top as a decoration, which is the
-  only way an extension can set an exact colour, and is independent of the other two layers.
+  A family is then painted over the top as a decoration, which is the only way an extension can
+  set an exact colour, and is independent of the other two layers: eight families carry one out of
+  the box, in `colorFamilies.js`'s light or dark palette, picked from `activeColorTheme.kind` and
+  rebuilt when it changes; `stencil.colors` lays the user's own rows over them.
 - **A check.** On open and on save — while `stencil.checkOnSave` is on — `collect` locates the
   CLI and runs `execFile(cli, ['--script-check', path])` with no shell, so the extension host is
   never blocked; each output line is read by `CHECK_LINE` into a `DiagnosticEntry`. A run that did

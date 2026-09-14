@@ -26,12 +26,12 @@ test('activate registers diagnostics, semantic tokens and the three commands', (
   }
 });
 
-// open/save/close/change are diagnostics'; visibleEditors and config are decorations'.
+// open/save/close/change are diagnostics'; visibleEditors, config and theme are decorations'.
 test('the listeners are the ones the two live features need, and no others', () => {
   const { calls, host } = boot();
   try {
     assert.deepEqual(Object.keys(calls.events).sort(),
-      ['change', 'close', 'config', 'open', 'save', 'visibleEditors']);
+      ['change', 'close', 'config', 'open', 'save', 'theme', 'visibleEditors']);
   } finally {
     host.restore();
   }

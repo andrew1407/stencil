@@ -14,6 +14,13 @@ const DEBOUNCE_MS = 200;
 
 const setting = () => vscode.workspace.getConfiguration(CONFIG_SECTION).get(SETTINGS.colors, {});
 
+// Which palette the defaults come from; a high-contrast light theme is a light one.
+const onLight = () => {
+  const { Light, HighContrastLight } = vscode.ColorThemeKind ?? {};
+  const kind = vscode.window.activeColorTheme?.kind;
+  return kind === Light || kind === HighContrastLight;
+};
+
 /// type → the ranges its tokens occupy, for the types being overridden.
 const rangesFor = (tokens, types) => {
   const painted = classify(tokens);
@@ -32,7 +39,7 @@ const register = (context) => {
 
   const rebuild = () => {
     for (const type of types.values()) type.dispose();
-    types = new Map(Object.entries(overridesFor(setting()))
+    types = new Map(Object.entries(overridesFor(setting(), { light: onLight() }))
       .map(([type, color]) => [type, vscode.window.createTextEditorDecorationType({ color })]));
   };
 
@@ -60,6 +67,7 @@ const register = (context) => {
   context.subscriptions.push(
     { dispose() { for (const type of types.values()) type.dispose(); } },
     vscode.window.onDidChangeVisibleTextEditors(paintAll),
+    vscode.window.onDidChangeActiveColorTheme(() => { rebuild(); paintAll(); }),
     vscode.workspace.onDidChangeTextDocument(later),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (!e.affectsConfiguration || e.affectsConfiguration(`${CONFIG_SECTION}.${SETTINGS.colors}`)) {

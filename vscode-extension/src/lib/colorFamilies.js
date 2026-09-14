@@ -25,18 +25,36 @@ const FAMILIES = Object.freeze(Object.keys(FAMILY_TYPE));
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
+/* The families the extension colours itself, because the token type each lands on means
+ * something else to a theme: a path is not a string, a filter mode is not an enum member, and
+ * @save is not a function. Two palettes, from the editor's own Dark+ and Light+. */
+const DEFAULTS = Object.freeze({
+  dark: Object.freeze({
+    source: '#569cd6', output: '#569cd6', unit: '#569cd6', template: '#569cd6',
+    filterMode: '#dcdcaa', path: '#d5a07a', templateName: '#d5a07a', cropEdge: '#4ec9b0',
+  }),
+  light: Object.freeze({
+    source: '#0451a5', output: '#0451a5', unit: '#0451a5', template: '#0451a5',
+    filterMode: '#795e26', path: '#9c5a33', templateName: '#9c5a33', cropEdge: '#267f99',
+  }),
+});
+
+const defaultsFor = (light) => (light ? DEFAULTS.light : DEFAULTS.dark);
+
 /**
- * The `stencil.colors` setting reduced to legend type → colour, dropping anything unusable:
- * a family this language does not have, and a value that is not a hex colour. An empty string
- * means "leave it to the theme", which is how a row is turned off again.
+ * The `stencil.colors` setting laid over those defaults and reduced to legend type → colour.
+ * A family this language does not have is ignored, and so is a value that is not a hex colour;
+ * an empty string means "leave it to the theme", which is how a row is handed back.
  */
-const overridesFor = (setting) => {
-  const out = {};
+const overridesFor = (setting, { light = false } = {}) => {
+  const merged = { ...defaultsFor(light) };
   for (const [family, value] of Object.entries(setting ?? {})) {
-    const type = FAMILY_TYPE[family];
-    if (type && typeof value === 'string' && HEX.test(value.trim())) out[type] = value.trim();
+    if (!Object.hasOwn(FAMILY_TYPE, family) || typeof value !== 'string') continue;
+    const text = value.trim();
+    if (text === '') delete merged[family];
+    else if (HEX.test(text)) merged[family] = text;
   }
-  return out;
+  return Object.fromEntries(Object.entries(merged).map(([f, color]) => [FAMILY_TYPE[f], color]));
 };
 
-module.exports = { FAMILIES, FAMILY_TYPE, HEX, overridesFor };
+module.exports = { DEFAULTS, FAMILIES, FAMILY_TYPE, HEX, defaultsFor, overridesFor };

@@ -157,7 +157,7 @@
             "unit": { "type": "string", "description": "px cm mm in %" },
             "comment": { "type": "string", "description": "# comments" }
           },
-          "markdownDescription": "An exact colour per kind of word, as `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` — for example `{ \"filterMode\": \"#ff8800\" }`. A family left out, or set to an empty string, keeps whatever the colour theme gives it. This is painted on top of `.stc` alone, so it wins over the theme and over `#editor.semanticTokenColorCustomizations#`, and it applies with no reload."
+          "markdownDescription": "An exact colour per kind of word, as `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` — for example `{ \"filterMode\": \"#c1873b\" }`. Eight families come already coloured, in a light or a dark variant — `source`, `output`, `unit` and `template` blue, `filterMode` yellow, `path` and `templateName` brick, `cropEdge` teal — because the token type each lands on means something else to a theme; the rest are the theme's. A row set to an empty string hands its family back to the theme. This is painted on top of `.stc` alone, so it wins over the theme and over `#editor.semanticTokenColorCustomizations#`, and it applies with no reload."
         },
         "stencil.hover": {
           "type": "boolean",

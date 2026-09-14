@@ -46,18 +46,30 @@ editor and a run cannot disagree.
 
 ### Colours
 
-Each family takes a standard semantic token type, so an installed theme colours it with no
-setup. To set an exact colour for one kind of word, name its family in `stencil.colors`:
+Most families take a standard semantic token type, so an installed theme colours them with no
+setup. Eight do not, because the type their words land on means something else to a theme — a
+path is not a string, a filter mode is not an enum member, `@save` is not a function — so the
+extension paints those itself, following the theme's light or dark ground:
+
+| Family | Dark | Light |
+|---|---|---|
+| `source` `output` `unit` `template` | `#569cd6` | `#0451a5` |
+| `filterMode` | `#dcdcaa` | `#795e26` |
+| `path` `templateName` | `#d5a07a` | `#9c5a33` |
+| `cropEdge` | `#4ec9b0` | `#267f99` |
+
+To set an exact colour for any family, built-in or not, name it in `stencil.colors`:
 
 ```jsonc
 "stencil.colors": {
-  "filterMode": "#ff8800",   // bw sepia invert contour none
+  "filterMode": "#c1873b",   // bw sepia invert contour none
   "source": "#00b4ff"        // @source
 }
 ```
 
-A family left out — or set to `""` — keeps whatever the theme gives it. The value is a hex
-colour (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`); this paints over the theme for `.stc` only.
+A family left out keeps its built-in colour, or the theme's where it has none; set it to `""`
+to hand it back to the theme. The value is a hex colour (`#rgb`, `#rgba`, `#rrggbb`,
+`#rrggbbaa`); this paints over the theme for `.stc` only.
 
 | Family | Words |
 |---|---|
@@ -157,7 +169,7 @@ run in a terminal called **Stencil**, from the script's own directory — so a r
 | `stencil.highlighting` | `true` | Colour words by the statement they sit in. Off leaves the plain grammar. Needs `editor.semanticHighlighting.enabled`, which a theme may switch off. |
 | `stencil.completion` | `true` | Suggest what is legal at the caret. |
 | `stencil.hover` | `true` | Explain the word under the pointer. |
-| `stencil.colors` | `{}` | An exact colour per family — see [Colours](#colours). Empty leaves every family to the theme; a named family is painted on top, so it wins over the theme and applies even with `stencil.highlighting` off. |
+| `stencil.colors` | `{}` | An exact colour per family, over the eight the extension already paints — see [Colours](#colours). A named family wins over the theme and applies even with `stencil.highlighting` off. |
 
 With a CLI configured, saving checks the file with `stencil --script-check`. While typing,
 whenever no CLI is found, and with `stencil.checkOnSave` off, the same checks run inside the
