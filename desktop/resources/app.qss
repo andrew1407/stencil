@@ -605,9 +605,9 @@
       /* The script window's editor (ScriptDialog) — the browser's .script-editor-wrap plus
          .script-input as one widget, since Qt colours the text in place. The mono face and
          the gutter are set in code; only the frame and the inks belong here. */
-      /* The FRAME owns the box (browser .script-editor-wrap): accent hairline at rest, two
-         hairlines while the caret is in it. The hover glow is the halo's own 3px border,
-         transparent until hovered — QSS has no box-shadow. */
+      /* The FRAME owns the box (browser .script-editor-wrap): ONE accent hairline, at rest and
+         focused alike — a second one lands on top of the first and reads as a doubled edge.
+         The halo above it is the 3px ring the browser draws as a box-shadow. */
       /* Both editors wear it: the window's (ScriptDialog) and the context menu's flyout
          (ScriptMenuPanel) — the browser reuses its script-* classes for the flyout too. */
       QFrame#scriptEditorGlow, QFrame#scriptMenuGlow {
@@ -615,13 +615,13 @@
       }
       QFrame#scriptEditorGlow[hovered="true"],
       QFrame#scriptMenuGlow[hovered="true"] { border-color: %ACCENT_SOFT%; }
+      /* Focus firms that ring rather than adding one; last wins, so hovered-and-focused is
+         the focus ring alone (browser :focus-within overriding :hover on the same shadow). */
+      QFrame#scriptEditorGlow[focused="true"],
+      QFrame#scriptMenuGlow[focused="true"] { border-color: %ACCENT_SOFT2%; }
       QFrame#scriptEditorWrap, QFrame#scriptMenuWrap {
         background: %INPUT_BG%; border: 1px solid %ACCENT%; border-radius: 8px;
       }
-      /* Focus is the browser's second hairline (its inset ring), and nothing else: the halo
-         belongs to hover alone, or the focused box wore five pixels of accent at once. */
-      QFrame#scriptEditorWrap[focused="true"],
-      QFrame#scriptMenuWrap[focused="true"] { border: 2px solid %ACCENT%; }
       QPlainTextEdit#scriptText, QPlainTextEdit#scriptMenuText {
         background: transparent; color: %TEXT%; border: 1px solid transparent; padding: 0;
         selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
