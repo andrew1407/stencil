@@ -12,10 +12,6 @@ import { createStubElement, installDom } from './helpers/dom.js';
 const src = (name) => readFileSync(new URL(`../js/ui/${name}`, import.meta.url), 'utf8');
 
 const asPre = (el) => {
-  el.nodes = [];
-  Object.defineProperty(el, 'firstChild', { get: () => el.nodes[0] ?? null });
-  el.appendChild = (n) => { el.nodes.push(n); return n; };
-  el.removeChild = (n) => { el.nodes.splice(el.nodes.indexOf(n), 1); return n; };
   return el;
 };
 
@@ -35,7 +31,7 @@ const view = (doc, prefix) => {
     onRun: async () => {}, onUpload: () => {},
   });
   const type = (text) => { editor.value = text; editor.dispatch('input'); };
-  return { editor, strip, ids, type, dispose, painted: () => pre.nodes.filter((n) => n.className).map((n) => n.className) };
+  return { editor, strip, ids, type, dispose, painted: () => pre.childNodes.filter((n) => n.className).map((n) => n.className) };
 };
 
 const rig = (t) => {

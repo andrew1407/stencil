@@ -53,10 +53,6 @@ test('the actions are the window\'s five, Run leading and Clear the danger tail'
 
 // ── The rig: a menu row the wiring can hang its flyout off ───────────────────
 const asPre = (el) => {
-  el.nodes = [];
-  Object.defineProperty(el, 'firstChild', { get: () => el.nodes[0] ?? null });
-  el.appendChild = (n) => { el.nodes.push(n); return n; };
-  el.removeChild = (n) => { el.nodes.splice(el.nodes.indexOf(n), 1); return n; };
   return el;
 };
 // Every id the inserted markup declares becomes a stub, so a missing one fails the wiring.
@@ -124,7 +120,7 @@ const typed = (doc, text) => {
   editor.dispatch('input');
   return editor;
 };
-const painted = (doc) => doc.getElementById('ctx-script-highlight').nodes
+const painted = (doc) => doc.getElementById('ctx-script-highlight').childNodes
   .filter((n) => n.className).map((n) => n.className);
 
 test('typing paints the core\'s own tokens as spans, synchronously', (t) => {

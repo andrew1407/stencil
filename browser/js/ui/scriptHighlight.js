@@ -11,13 +11,61 @@ const DIRECTIVE_WORDS = new Set(DIRECTIVES);
 const knownDirective = (lines, t) =>
   DIRECTIVE_WORDS.has((lines[t.line - 1] ?? '').slice(t.col, t.col - 1 + t.len).toLowerCase());
 
+/* The flat run of nodes a paint lands, in the order they sit in the <pre>: `cls` is empty
+ * for a plain stretch and set for a span. Two adjacent plain stretches stay two entries,
+ * because that is what the <pre> holds and the patch below compares against it. */
+const segmentsOf = (lines, bucket) => {
+  const segs = [];
+  lines.forEach((lineText, i) => {
+    let at = 0;
+    for (const m of bucket(i + 1)) {
+      const start = m.col - 1;
+      if (start < at || start > lineText.length) continue;
+      if (start > at) segs.push({ text: lineText.slice(at, start), cls: '' });
+      segs.push({ text: lineText.slice(start, start + m.len), cls: m.cls });
+      at = start + m.len;
+    }
+    if (at < lineText.length) segs.push({ text: lineText.slice(at), cls: '' });
+    if (i < lines.length - 1) segs.push({ text: '\n', cls: '' });
+  });
+  return segs;
+};
+
+const spanOf = (text, cls) => {
+  const span = document.createElement('span');
+  span.className = cls;
+  span.textContent = text;
+  return span;
+};
+
+const same = (node, seg) => !!node && (seg.cls === '') === (node.nodeType === 3)
+  && node.textContent === seg.text && (!seg.cls || node.className === seg.cls);
+
+/* Only the stretch that actually changed is touched: the matching head and tail are found
+ * first, so a keystroke rebuilds its own line and leaves the rest of the document's nodes
+ * alone. Tearing the stream down made every span again. What lands is node for node what a
+ * rebuild lands — the suite paints both ways and compares. */
+const applyTo = (pre, segs) => {
+  const nodes = pre.childNodes;
+  let head = 0;
+  while (head < segs.length && same(nodes[head], segs[head])) head += 1;
+  let tail = 0;
+  while (tail < segs.length - head && tail < nodes.length - head
+      && same(nodes[nodes.length - 1 - tail], segs[segs.length - 1 - tail])) tail += 1;
+
+  while (nodes.length - tail > head) pre.removeChild(nodes[head]);
+  const stop = nodes[head] ?? null;
+  for (let i = head; i < segs.length - tail; i += 1) {
+    const { text, cls } = segs[i];
+    pre.insertBefore(cls ? spanOf(text, cls) : document.createTextNode(text), stop);
+  }
+};
+
 /* The editor and the highlight layer share every metric, so a token's span in one lands on
  * the same pixel in the other. Diagnostics are painted only once the script has been RUN:
  * a half-typed line is not a mistake, and underlining it while you type reads as nagging. */
 export const paintInto = (pre, text, withDiagnostics) => {
   const program = parseScript(text);
-  while (pre.firstChild) pre.removeChild(pre.firstChild);
-
   const lines = text.split('\n');
   // Bucketed by line ONCE: the paint walks lines, and re-filtering every token per line is
   // quadratic on a long script. Tokens arrive in column order, so a diagnostic's own mark is
@@ -51,21 +99,7 @@ export const paintInto = (pre, text, withDiagnostics) => {
     }
   }
 
-  lines.forEach((lineText, i) => {
-    let at = 0;
-    for (const m of bucket(i + 1)) {
-      const start = m.col - 1;
-      if (start < at || start > lineText.length) continue;
-      if (start > at) pre.appendChild(document.createTextNode(lineText.slice(at, start)));
-      const span = document.createElement('span');
-      span.className = m.cls;
-      span.textContent = lineText.slice(start, start + m.len);
-      pre.appendChild(span);
-      at = start + m.len;
-    }
-    if (at < lineText.length) pre.appendChild(document.createTextNode(lineText.slice(at)));
-    if (i < lines.length - 1) pre.appendChild(document.createTextNode('\n'));
-  });
+  applyTo(pre, segmentsOf(lines, bucket));
   return program;
 };
 
