@@ -94,3 +94,14 @@ test('a dropped .stc is routed to the one loader, and the overlay says so', () =
   assert.match(drop, /loadScriptFile\(file\)/);
   assert.match(src('../js/ui/dropOverlay.js'), /\.stc script/);
 });
+
+test('Run is gated on the script having something to do, and Ctrl+Enter obeys the same gate', () => {
+  const wiring = src('../js/ui/scriptEditor.js');
+  // A comment-only script lowers to no ops: running it did nothing and said nothing.
+  assert.match(wiring, /program\.ops\.length === 0 && program\.diagnostics\.length === 0/);
+  // An errored script keeps Run live — the strip and the underlines are how errors surface.
+  assert.match(wiring, /runBtn\.disabled = blank \|\| idle/);
+  // Copy and Download only need text, so they stay on the blank check.
+  assert.match(wiring, /for \(const id of \[ids\.copy, ids\.download\]\)/);
+  assert.match(wiring, /if \(busy\(\) \|\| \$\(ids\.run\)\?\.disabled\) return;/);
+});

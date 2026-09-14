@@ -9,19 +9,24 @@ const $ = (id) => document.getElementById(id);
 export const wireScriptEditor = ({ editor, pre, strip, ids, app, onRun, onUpload, busy = () => false }) => {
   let checked = false;   // nothing is reported until the script has been run once
 
-  // Run, Copy and Download need something to act on; Upload always does.
-  const gateActions = () => {
-    const empty = editor.value.trim().length === 0;
-    for (const id of [ids.run, ids.copy, ids.download]) {
+  // Copy and Download need text; Upload always works. Run needs something to DO — a script
+  // of only comments lowers to no ops, so running it was a no-op with no feedback. An errored
+  // script still runs: the strip and the underlines are how the errors become visible.
+  const gateActions = (program) => {
+    const blank = editor.value.trim().length === 0;
+    for (const id of [ids.copy, ids.download]) {
       const btn = $(id);
-      if (btn) btn.disabled = empty;
+      if (btn) btn.disabled = blank;
     }
+    const idle = !program || (program.ops.length === 0 && program.diagnostics.length === 0);
+    const runBtn = $(ids.run);
+    if (runBtn) runBtn.disabled = blank || idle;
   };
 
   const repaint = () => {
     const program = paintInto(pre, editor.value, checked);
     showDiagnostic(strip, checked ? program : null);
-    gateActions();
+    gateActions(program);
   };
   // Synchronous: the visible text IS the highlight layer, so a deferred paint would read
   // as the characters appearing late.
@@ -31,7 +36,7 @@ export const wireScriptEditor = ({ editor, pre, strip, ids, app, onRun, onUpload
   };
 
   const run = async () => {
-    if (busy() || editor.value.trim().length === 0) return;
+    if (busy() || $(ids.run)?.disabled) return;   // Ctrl+Enter obeys the same gate as the button
     checked = true;   // from here the strip and the underlines mean this exact text
     await onRun(editor.value);
     repaint();
