@@ -6633,6 +6633,13 @@
     "border-width": "0",
     "background-color": "var(--sb-thumb-hover)"
    },
+   "|.script-actions-bar": {
+    "padding": "12px 18px",
+    "border-bottom": "1px solid var(--border-main)",
+    "display": "flex",
+    "justify-content": "flex-start",
+    "align-items": "center"
+   },
    "|.script-diag": {
     "min-height": "1.4em",
     "padding": "6px 15px 0",
@@ -6697,14 +6704,11 @@
     "outline": "none"
    },
    "|.script-modal": {
-    "width": "538px"
+    "width": "600px"
    },
    "|.script-modal .settings-body": {
     "display": "flex",
     "flex-direction": "column"
-   },
-   "|.script-modal .settings-footer": {
-    "justify-content": "flex-start"
    },
    "|.sel-sep": {
     "flex": "0 0 auto",
@@ -8282,7 +8286,7 @@
    "|.vs-row.vs-checks",
    "|.oi-replace",
    "|.script-modal",
-   "|.script-modal .settings-footer",
+   "|.script-actions-bar",
    "|#script-overlay:not(.modal-popover) .app-modal",
    "|.script-modal .settings-body",
    "|.script-editor-wrap",

@@ -2,11 +2,18 @@
    must share every metric that affects where a glyph lands, or the colours drift off the
    text under them. */
 
-/* Wider than the footer needs — code wants room to read — with the actions at the LEFT
-   edge rather than trailing off the right. 466px is the row's own fit; this is 15/13 of it. */
-.script-modal { width: 538px; }
-/* Scoped to this window: the shared footer keeps hint-left/buttons-right for every other modal. */
-.script-modal .settings-footer { justify-content: flex-start; }
+/* Matched to the desktop window (ScriptDialog's FIT_SHARE): the two editors are one window
+   on two surfaces, so they open at the same width. */
+.script-modal { width: 600px; }
+/* The actions ride ABOVE the editor, so the bar wears a bottom rule instead of the footer's
+   top one, and its row starts at the left edge. */
+.script-actions-bar {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-main);
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
 /* Projects grows to the shared ceiling because its list is long; an editor has no such
    content to push it, so take that height outright and give the room to the text. */
 #script-overlay:not(.modal-popover) .app-modal { height: min(82vh, 760px); }
