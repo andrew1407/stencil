@@ -6697,11 +6697,14 @@
     "outline": "none"
    },
    "|.script-modal": {
-    "width": "466px"
+    "width": "699px"
    },
    "|.script-modal .settings-body": {
     "display": "flex",
     "flex-direction": "column"
+   },
+   "|.script-modal .settings-footer": {
+    "justify-content": "flex-start"
    },
    "|.sel-sep": {
     "flex": "0 0 auto",
@@ -8279,6 +8282,7 @@
    "|.vs-row.vs-checks",
    "|.oi-replace",
    "|.script-modal",
+   "|.script-modal .settings-footer",
    "|#script-overlay:not(.modal-popover) .app-modal",
    "|.script-modal .settings-body",
    "|.script-editor-wrap",
