@@ -41,7 +41,8 @@ namespace stencil::gui {
       auto* m = new StayOpenMenu(title, &parent);
       QAction* a = parent.addMenu(m);
       a->setIcon(themedIcon(QString::fromLatin1(icon), iconColor_, subIcon));
-      support::revealSubmenu(*m, parent, *a);  // the same particle dust the top menu plays
+      // The same particle dust the top menu plays, on the same slower clock.
+      support::revealSubmenu(*m, parent, *a, support::CONTEXT_MENU_DUST_MS);
       return m;
     };
     auto subMenu = [&](const char* icon, const QString& title) -> StayOpenMenu* {
@@ -160,7 +161,7 @@ namespace stencil::gui {
     // Declared AFTER menu: destroyed before it, which makes restoring the shared actions' text safe (MenuHotkeys.hpp).
     support::MenuHotkeyChips hotkeyChips(&menu);  // bordered keycap chips (.ctx-hotkey)
     support::MenuShimmer shimmer(&menu);          // per-row hover sweep (browser parity: .ctx-item)
-    support::revealMenu(menu, globalPos);  // grow-from-the-cursor pop
+    support::revealMenu(menu, globalPos, support::CONTEXT_MENU_DUST_MS);  // grow-from-the-cursor pop
     menu.exec(globalPos);
   }
 
