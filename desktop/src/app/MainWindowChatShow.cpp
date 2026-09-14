@@ -90,7 +90,7 @@ namespace stencil::gui {
     }
     // A full open re-docks to the area the popover displaced (browser restoreFromCompact parity).
     if (show && chatDock_->isFloating() && chatCompactPopover_) {
-      chatCompactPopover_ = false;
+      setChatCompactPopover(false);
       // Same orientation rule as dockChatTo's place(): top/bottom claim a full-width row.
       if (chatCompactPrevArea_ == Qt::TopDockWidgetArea
           || chatCompactPrevArea_ == Qt::BottomDockWidgetArea)

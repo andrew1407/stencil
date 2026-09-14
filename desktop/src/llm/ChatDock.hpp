@@ -134,6 +134,8 @@ namespace stencil::gui {
     void setChatSwapSides(bool on);
     bool chatSwapSides() const { return chatSwapSides_; }
     QSize floatingDefaultSize() const;
+    // Pinned beside its icon while compact: the title bar drags nothing.
+    void setCompactPopover(bool on);
     void focusInput();
     // Alt-peek release treats un-sent composer text as engagement.
     bool hasComposerText() const;
@@ -253,15 +255,13 @@ namespace stencil::gui {
     QToolButton* closeBtn_ = nullptr;
     QList<QToolButton*> dockBtns_;
     QColor accentCache_, textCache_, dangerCache_, mutedCache_;
-    QColor chipCache_;
-    QColor borderCache_;
+    QColor chipCache_, borderCache_;
     // setChatSwapSides re-issues chatCardStyleSheet against the last palette.
     Palette paletteCache_;
     bool chatSwapSides_ = false;
     void updatePlacementState();
     // The title-drag events are CONSUMED: Qt's own (window-server) move swallows the release.
-    bool manualDrag_ = false;
-    bool manualDragging_ = false;
+    bool manualDrag_ = false, manualDragging_ = false, compactPopover_ = false;
     QPoint manualGrabOffset_;
     // ~16 ms poll: the native floating-window drag (macOS) swallows move/release events.
     QTimer* dragPoll_ = nullptr;

@@ -91,6 +91,20 @@ namespace stencil::gui {
     // drag runs on the same press). Tracking is poll-based because the native
     // floating-window drag swallows the subsequent move/release events.
     if (obj == titleBar_) {
+      // Pinned beside its icon while compact: swallow every mouse event on the bar, so
+      // neither drag path can start and a double-click cannot float or re-dock it either.
+      if (compactPopover_) {
+        switch (event->type()) {
+          case QEvent::MouseButtonPress:
+          case QEvent::MouseButtonDblClick:
+          case QEvent::MouseMove:
+          case QEvent::MouseButtonRelease:
+            return true;
+          default:
+            break;
+        }
+        return QDockWidget::eventFilter(obj, event);
+      }
       // Test seam installed (offscreen, no real cursor) → the poll path.
       if (dragPosProbe_) {
         if (event->type() == QEvent::MouseButtonPress &&

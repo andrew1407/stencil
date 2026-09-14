@@ -51,6 +51,17 @@ namespace stencil::gui {
     paint(floatBtn_, "maximize", isFloating());
   }
 
+  // Entering compact cancels a press that never became a move, so the grab cannot strand.
+  void ChatDock::setCompactPopover(bool on) {
+    if (compactPopover_ == on) return;
+    compactPopover_ = on;
+    if (on && manualDrag_) {
+      manualDrag_ = manualDragging_ = false;
+      if (titleBar_) titleBar_->releaseMouse();
+    }
+    if (titleBar_) titleBar_->setCursor(on ? Qt::ArrowCursor : Qt::OpenHandCursor);
+  }
+
   bool ChatDock::dragPollActive() const { return dragPoll_ && dragPoll_->isActive(); }
 
   bool ChatDock::dragActive() const { return manualDragging_ || dragPollActive(); }

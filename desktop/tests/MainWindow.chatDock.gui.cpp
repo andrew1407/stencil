@@ -750,6 +750,63 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(activeCount(), 1);   // now it's the float button
   }
 
+  // Compact, the dock is pinned beside its icon: no gesture on the title bar may move it,
+  // and — the part that would strand the panel — dragging must work again once it leaves.
+  void chatCompactPopoverRefusesTitleBarDrags() {
+    MainWindow win;
+    win.resize(1100, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    auto* dock = win.chatDock_;   // the concrete dock: the drag state is ChatDock's own
+    QVERIFY(dock);
+    win.openChatCompact(&win);   // any anchor: the popover only needs a rect to sit beside
+    QTRY_VERIFY(win.chatCompactShowing());
+    QWidget* title = dock->titleBarWidget();
+    QVERIFY(title);
+    settleLayout(&win, 60);
+
+    const QRect before = dock->geometry();
+    const auto pressTitle = [&](QEvent::Type type) {
+      QMouseEvent ev(type, QPointF(8, 8), QPointF(8, 8), QPointF(title->mapToGlobal(QPoint(8, 8))),
+                     Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+      QApplication::sendEvent(title, &ev);
+    };
+    // A press ARMS the drag; only a move past the start distance makes it live, so the
+    // gesture has to be driven all the way through to prove anything either way.
+    const auto moveTitle = [&](const QPoint& to) {
+      QMouseEvent mv(QEvent::MouseMove, QPointF(to), QPointF(to), QPointF(title->mapToGlobal(to)),
+                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+      QApplication::sendEvent(title, &mv);
+    };
+    const auto releaseTitle = [&] {
+      QMouseEvent up(QEvent::MouseButtonRelease, QPointF(8, 8), QPointF(8, 8),
+                     QPointF(title->mapToGlobal(QPoint(8, 8))), Qt::LeftButton,
+                     Qt::NoButton, Qt::NoModifier);
+      QApplication::sendEvent(title, &up);
+    };
+
+    pressTitle(QEvent::MouseButtonPress);
+    moveTitle(QPoint(240, 180));
+    QTest::qWait(40);
+    QVERIFY2(!dock->dragActive(), "a drag on the compact title bar never goes live");
+    QVERIFY2(!dock->dragPollActive(), "and no drag poll either");
+    QCOMPARE(dock->geometry(), before);
+    releaseTitle();
+
+    pressTitle(QEvent::MouseButtonDblClick);
+    QTest::qWait(40);
+    QCOMPARE(dock->geometry(), before);   // double-click floats, docks and moves nothing
+    QVERIFY(win.chatCompactShowing());
+
+    // Back to the full shape: the very same gesture must move it again.
+    win.setChatCompactPopover(false);
+    pressTitle(QEvent::MouseButtonPress);
+    moveTitle(QPoint(240, 180));
+    QTest::qWait(40);
+    QVERIFY2(dock->dragActive(), "leaving compact hands the title bar back its drag");
+    releaseTitle();
+  }
+
   void chatDockDragZones() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);

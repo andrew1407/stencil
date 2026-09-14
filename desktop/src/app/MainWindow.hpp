@@ -699,7 +699,9 @@ namespace stencil::gui {
     QPointer<QGraphicsOpacityEffect> panelVeil_;
     QString chatTextOnlyKey_;
     bool chatClearPending_ = false;
+    // Always through setChatCompactPopover: the dock must hear it too, or it stays undraggable.
     bool chatCompactPopover_ = false;
+    void setChatCompactPopover(bool on);
     bool chatClosing_ = false;
     struct MirrorRow {
       QString role;
