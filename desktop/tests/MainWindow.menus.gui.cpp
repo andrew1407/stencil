@@ -2,6 +2,7 @@
 // peek and the hotkey chips their rows wear.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindow.gui.hpp"
+#include "../src/dialogs/ScriptMenuPanel.hpp"
 #include "menuReveal.hpp"
 
 class MainWindowGuiTest : public QObject {
@@ -426,7 +427,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(escClosedSub, "Escape did not close the assistant submenu");
     QCOMPARE(dustClocks, QList<int>(2, stencil::support::CONTEXT_MENU_DUST_MS));
     QVERIFY2(twoButtons, "the menu composer is not the browser's send + \"…\" pair");
-    QCOMPARE(overflowItems, QStringList({"Add image", "Settings"}));
+    QCOMPARE(overflowItems, QStringList({"Add image", "Swap message sides", "Settings"}));
     QVERIFY2(dotOnMore, "the provider status dot is not on the menu's \"…\"");
     QVERIFY2(transcriptCap >= 140,
              qPrintable(QString("the menu transcript renders only %1 px tall")
@@ -1632,8 +1633,8 @@ class MainWindowGuiTest : public QObject {
   }
   // The context menu's "Stencil Script" row is a FLYOUT, not an opener (browser
   // js/ui/ctxScript.js): a compact twin of the script window, hosted exactly like the
-  // Assistant chat above it. Typing and running leave the menu open, the four actions
-  // read Copy · Download · Upload · Run, and the typed script outlives the menu.
+  // Assistant chat above it. Typing and running leave the menu open, the actions read
+  // Copy · Download · Upload · Run · Clear, and the typed script outlives the menu.
   void contextMenuScriptFlyout() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -1660,7 +1661,7 @@ class MainWindowGuiTest : public QObject {
     };
 
     bool isFlyout = false, keptHint = false, underAssistant = false, opened = false;
-    bool fourActions = false, runIsPrimary = false, typedThrough = false, aliveAfterTyping = false;
+    bool rowInOrder = false, runIsPrimary = false, typedThrough = false, aliveAfterTyping = false;
     QTimer::singleShot(0, [&] {
       QMenu* menu = findMenu();
       if (!menu) return;
@@ -1686,10 +1687,12 @@ class MainWindowGuiTest : public QObject {
       auto* copy = sub->findChild<QPushButton*>("scriptMenuCopy");
       auto* download = sub->findChild<QPushButton*>("scriptMenuDownload");
       auto* upload = sub->findChild<QPushButton*>("scriptMenuUpload");
+      auto* clear = sub->findChild<QPushButton*>("scriptMenuClear");
       auto* run = sub->findChild<QPushButton*>("scriptMenuRun");
-      if (!edit || !copy || !download || !upload || !run) { menu->close(); return; }
-      fourActions = copy->x() < download->x() && download->x() < upload->x() &&
-                    upload->x() < run->x();
+      if (!edit || !copy || !download || !upload || !clear || !run) { menu->close(); return; }
+      // Clear LAST: it throws work away, so it sits past the primary action.
+      rowInOrder = copy->x() < download->x() && download->x() < upload->x() &&
+                   upload->x() < run->x() && run->x() < clear->x();
       runIsPrimary = run->property("accentCta").toBool();
 
       // Typed through the menu's own re-dispatch, the way the chat composer is.
@@ -1703,7 +1706,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(keptHint, "the Stencil Script row lost its Alt+Shift+S hint");
     QVERIFY2(underAssistant, "the script flyout is not directly under the Assistant");
     QVERIFY2(opened, "the script flyout did not open");
-    QVERIFY2(fourActions, "the actions are not Copy, Download, Upload, Run in that order");
+    QVERIFY2(rowInOrder, "the actions are not Copy, Download, Upload, Run, Clear in that order");
     QVERIFY2(runIsPrimary, "Run is not the primary action");
     QVERIFY2(typedThrough, "typing never reached the flyout's editor");
     QVERIFY2(aliveAfterTyping, "typing in the flyout closed the menu");
@@ -1737,6 +1740,24 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(survived, "the typed script did not survive the menu closing");
     QVERIFY2(ran, "Run did not apply the script to the canvas");
     QVERIFY2(aliveAfterRun, "running the script closed the menu");
+
+    // Upload raises a file dialog, and Qt takes every popup down the moment one opens —
+    // native or not. So the hook puts the chain BACK: same place, script row, flyout open.
+    stencil::gui::asScriptMenu(win.scriptMenuPanel_)->setScript(QStringLiteral("@crop 10%"));
+    bool reopened = false, kept = false;
+    QTimer::singleShot(600, [&] {
+      // With the flyout open it IS the active popup; the whole chain goes down either way,
+      // or the menu's own exec would never hand control back.
+      QWidget* top = QApplication::activePopupWidget();
+      auto* edit = top ? top->findChild<QPlainTextEdit*>("scriptMenuText") : nullptr;
+      reopened = edit != nullptr;
+      kept = edit && edit->toPlainText() == QLatin1String("@crop 10%");
+      stencil::gui::closeOpenPopupMenus();
+    });
+    win.reopenScriptFlyout();
+    QTest::qWait(2500);
+    QVERIFY2(reopened, "the picker left the context menu and its script flyout closed");
+    QVERIFY2(kept, "the flyout came back without the script it was holding");
     beat();
   }
 };

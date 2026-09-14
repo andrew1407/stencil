@@ -18,7 +18,10 @@
 #include "RemoteSession.hpp"
 
 #include <QAction>
+#include <QApplication>
+#include <QKeyEvent>
 #include <QKeySequence>
+#include <QTimer>
 #include <QMenu>
 #include <QWidgetAction>
 
@@ -29,6 +32,7 @@ namespace stencil::gui {
   void MainWindow::showContextMenu(const QPoint& globalPos) {
     // No image, no menu — the single gate for all three ways in (contextMenu.js `if (!app.image) return`).
     if (!canvas_ || !canvas_->hasImage()) return;
+    contextMenuAt_ = globalPos;
     syncContextActions();
 
     // Order mirrors contextMenu.js inner() (~5-108). StayOpenMenu keeps a hosted checkbox/radio click from closing it.
@@ -162,6 +166,17 @@ namespace stencil::gui {
     support::MenuHotkeyChips hotkeyChips(&menu);  // bordered keycap chips (.ctx-hotkey)
     support::MenuShimmer shimmer(&menu);          // per-row hover sweep (browser parity: .ctx-item)
     support::revealMenu(menu, globalPos, support::CONTEXT_MENU_DUST_MS);  // grow-from-the-cursor pop
+    // Coming back from the flyout's file dialog: land on the script row, flyout open, as if
+    // the chain had never been dismissed. The keyboard path, so QMenu keeps its own state.
+    if (reopenScriptFlyout_) {
+      reopenScriptFlyout_ = false;
+      QAction* row = script->menuAction();
+      QTimer::singleShot(0, &menu, [&menu, row] {
+        menu.setActiveAction(row);
+        QKeyEvent right(QEvent::KeyPress, Qt::Key_Right, Qt::NoModifier);
+        QApplication::sendEvent(&menu, &right);
+      });
+    }
     menu.exec(globalPos);
   }
 

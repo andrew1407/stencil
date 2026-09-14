@@ -6,6 +6,7 @@
 #include "Notifications.hpp"
 #include "scriptFile.hpp"
 #include "scriptRun.hpp"
+#include "CanvasWidget.hpp"
 #include "theme.hpp"
 
 #include <QFileDialog>
@@ -67,22 +68,25 @@ namespace stencil::gui {
       reportRun(notify_, result);
       if (result.ops > 0) refreshAfterScript();
     };
-    // A file dialog cannot open under the menu's popup grab: dismiss the chain first, then
-    // pick, and hand the text back to the panel that is still holding it.
+    // Qt closes every popup the moment a file dialog opens, native or not, so the chain is
+    // dismissed deliberately and PUT BACK afterwards: the flyout is where it was, either way.
     hooks.upload = [this] {
       closeOpenPopupMenus();
       QTimer::singleShot(0, this, [this] {
         const QString path =
             QFileDialog::getOpenFileName(this, tr("Open script"), QString(), scriptFileFilter());
-        if (path.isEmpty()) return;
         QString text;
-        if (!readScriptFile(path, &text)) {
+        if (path.isEmpty()) {
+          reopenScriptFlyout();
+        } else if (!readScriptFile(path, &text)) {
           if (notify_) notify_->error(tr("Could not read %1").arg(QFileInfo(path).fileName()));
-          return;
+          reopenScriptFlyout();
+        } else {
+          asScriptMenu(scriptMenuPanel_)->setScript(text);
+          if (notify_)
+            notify_->info(tr("Loaded %1 into the script flyout").arg(QFileInfo(path).fileName()));
+          reopenScriptFlyout();
         }
-        asScriptMenu(scriptMenuPanel_)->setScript(text);
-        if (notify_)
-          notify_->info(tr("Loaded %1 into the script flyout").arg(QFileInfo(path).fileName()));
       });
     };
     hooks.download = [this] {
@@ -92,9 +96,9 @@ namespace stencil::gui {
         const QString path = QFileDialog::getSaveFileName(this, tr("Save script"),
                                                           QStringLiteral("stencil.stc"),
                                                           scriptFileFilter());
-        if (path.isEmpty()) return;
-        if (!writeScriptFile(path, text) && notify_)
+        if (!path.isEmpty() && !writeScriptFile(path, text) && notify_)
           notify_->error(tr("Could not write %1").arg(QFileInfo(path).fileName()));
+        reopenScriptFlyout();
       });
     };
     hooks.notice = [this](QString text) { if (notify_) notify_->success(text); };
@@ -105,6 +109,15 @@ namespace stencil::gui {
     scriptMenuAction_ = new QWidgetAction(this);
     scriptMenuAction_->setDefaultWidget(panel);   // takes ownership of the panel
     panel->restyle(themePalette(resolveDark(settings_.themeMode), settings_.accentColor));
+  }
+
+  // The chain the file dialog took down, back where it was and on the script row. Queued, so
+  // the picker's own modal loop is fully unwound before the menu's begins.
+  void MainWindow::reopenScriptFlyout() {
+    if (contextMenuAt_.isNull() || !canvas_ || !canvas_->hasImage()) return;
+    reopenScriptFlyout_ = true;
+    const QPoint at = contextMenuAt_;
+    QTimer::singleShot(0, this, [this, at] { showContextMenu(at); });
   }
 
   // A script edits the same state the toolbar does, so the same refresh follows it.
