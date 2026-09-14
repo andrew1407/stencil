@@ -2,9 +2,11 @@
 
 The system-wide design — the parity contract, canonical data, the layer model, the pattern vocabulary — is in the root [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
-An editor adapter for one file type. It gives `.stc` scripts colour, squiggles and a Run
-button, and every one of those answers comes from Stencil itself: the parser copies in
-`src/parser/` while you type, the `stencil` CLI on save and on Run. It owns no language
+An editor adapter for one file type. It gives `.stc` scripts colour, squiggles, completions,
+hovers and a Run button, and every one of those answers comes from Stencil itself: the parser copies in
+`src/parser/` while you type, the `stencil` CLI on save and on Run. `.stencil` projects are
+contributed too, but as data only — an icon and a grammar that defers to `source.json` —
+because a saved project is JSON this tree has no reason to interpret. It owns no language
 rules of its own — the language lives in [`contracts/stc/`](../contracts/stc/), is
 implemented in `core/script/`, and reaches this tree as copied JavaScript and as a spawned
 binary.
@@ -50,16 +52,24 @@ the only root file that may import a sibling root file. Enforced by
 
 | Path | Holds | Rule |
 |---|---|---|
-| `package.json` | the manifest VS Code reads: language, grammar, commands, settings, menu, keybinding | no root `type` field — the extension is CommonJS; `@vscode/vsce` is the one dependency and it is a devDependency (`tests/manifest.test.js`) |
+| `package.json` | the manifest VS Code reads: the two languages and their icons, grammars, commands, settings, menu, keybinding, gallery logo | no root `type` field — the extension is CommonJS; `@vscode/vsce` is the one dependency and it is a devDependency (`tests/manifest.test.js`) |
 | `language-configuration.json` | `#` line comments, the `()` and `"` pairs, the `@name` word pattern, indent after a `…:` header | its regexes are JS, not Oniguruma — `tests/grammar.test.js` compiles them |
 | `syntaxes/stc.tmLanguage.json` | the TextMate grammar under scope `source.stc` | every scope name ends `.stc`; the directive list is pinned to the parser's `DIRECTIVES` |
+| `language-configuration.project.json` + `syntaxes/stencilProject.tmLanguage.json` | the `.stencil` project file: brackets, and a grammar whose whole body is `include: source.json` | it defers, never re-spells JSON; contributing it must not add an `activationEvents` entry (`tests/manifest.test.js`) |
+| `icons/` | `stencil.svg` (the app mark, the logo's source), `stc.svg` (the mark as a panelled badge, the script's explorer glyph) and the light/dark bare-stroke pair for a project | `stencil.svg` is a copy of `browser/favicon.svg`, pinned by `browser/tests/svgArt.test.js`; the glyphs are this surface's own art. `stc.svg` carries its own panel, so one file serves both themes; the bare stroke does not, so it is a pair |
+| `icon.png` | the extension-page logo, rasterized from `icons/stencil.svg` | PNG, ≥128px — VS Code refuses an SVG here |
 | `src/extension.js` | `activate` / `deactivate` | wiring only; every disposable goes on the context |
 | `src/diagnostics.js` | the two diagnostic sources, the debounce and the version guard | the CLI answers for a saved file, the parser copies for a buffer; both become `vscode.Diagnostic` |
-| `src/semanticTokens.js` | the legend, the `TokenKind` → legend map, the provider | standard VS Code token types only, so any theme colours it |
+| `src/semanticTokens.js` | the legend and the provider | standard VS Code token types only, so any theme colours it; WHICH type a token gets is `lib/tokenClassify.js` |
+| — | each of the three providers reads its own `stencil.*` toggle per request | a toggle must not need a reload, so nothing is decided at `register` time; colouring, recolouring and the icon themes stay VS Code's own settings |
+| `src/completion.js` | the suggestion items, one builder per group | it offers words, never a filename — a path is the user's to type |
+| `src/hover.js` | the Markdown for the token under the caret | the token comes from the same parse the colours do, so a hover cannot land where no colour did |
+| `src/decorations.js` | one `TextEditorDecorationType` per family the extension or `stencil.colors` colours, painted over the themed tokens | a theme decides what a token type looks like, so an EXACT colour can only be drawn on top; the eight families whose type means something else to a theme carry a built-in colour, every other family is the theme's until named, and an empty string hands one back |
+| `src/colors.js` | the one command that is not a CLI invocation: it seeds and opens VS Code's token-colour setting | an extension may not set token colours, so this hands the user the setting rather than owning one; the seeded rules are pinned to the README block (`tests/colors.test.js`) |
 | `src/commands.js` | run, run-on-image, check | one CLI invocation each, in the reused `Stencil` terminal, `cwd` = the script's directory |
-| `src/lib/` | `ids.js` (the contributed identifiers), `cliLocator.js` (the ONE way the binary is found) over `pathSearch.js` (the executable probe and the memoized PATH walk), `terminal.js` (the ONE place a command line is composed) over `shellQuote.js` (the per-shell rules), `scriptCheck.js` (the CLI's `--script-check` answer and its line grammar), `parserHost.js` (the memoized `import()`) and `programCache.js` over it (one parse per document version) | `vscode` is passed in, never imported, so each is a pure unit |
+| `src/lib/` | `ids.js` (the contributed identifiers), `cliLocator.js` (the ONE way the binary is found) over `pathSearch.js` (the executable probe and the memoized PATH walk), `terminal.js` (the ONE place a command line is composed) over `shellQuote.js` (the per-shell rules), `scriptCheck.js` (the CLI's `--script-check` answer and its line grammar), `parserHost.js` (the memoized `import()`) and `programCache.js` over it (one parse per document version), `vocabulary.js` (the one reading of the vocabulary table), `tokenClassify.js` (a legend type per token, from the statement it sits in), `colorFamilies.js` (the user-facing name for each legend type, and the reduction of `stencil.colors`) and `completionContext.js` (which suggestion groups a caret takes) | `vscode` is passed in, never imported, so each is a pure unit |
 | `src/parser/` | byte-equal copies of `browser/js/core/script*.js`, plus `index.js`, which re-composes what `script.js` does without the wasm binding | ESM, scoped by its own `package.json`; pinned both directions by `tests/parserParity.test.js` |
-| `src/config/` | `colorNames.json`, the one table the copies import | byte-pinned to `browser/js/config/colorNames.json` |
+| `src/config/` | `colorNames.json`, the one table the copies import, and `stcVocabulary.json` | `colorNames.json` is byte-pinned to `browser/js/config/colorNames.json`; the vocabulary is this surface's own — no other surface explains the language to a reader — and its directive keys are held to the parser's `DIRECTIVES` |
 | `tests/` | `node --test` suites and `helpers/vscodeStub.js` | ESM, scoped by its own `package.json`; no editor, no network |
 
 ## Entities
@@ -72,7 +82,7 @@ classDiagram
     class DiagnosticEntry { +number line; +number col; +number len; +string severity; +string message; +string code }
     class CliLocation { +string configured; +string baseDir; +Env env }
     class CommandLine { +string cli; +string[] args; +string cwd }
-    class ExtensionSettings { +string cliPath; +boolean checkOnType }
+    class ExtensionSettings { +string cliPath; +boolean checkOnType; +boolean highlighting; +boolean completion; +boolean hover; +ColorOverrides colors }
 
     ScriptProgram *-- "0..*" ScriptToken : tokens
     ScriptProgram *-- "0..*" ScriptDiagnostic : diagnostics
@@ -92,7 +102,7 @@ classDiagram
 | `CliLocation` (`src/lib/cliLocator.js`) | the inputs to finding the binary: the `stencil.cliPath` setting, the workspace folder, the environment | per call; only the PATH walk under it is memoized, briefly and per `PATH` | `ExtensionSettings`; produces the path a `CommandLine` runs |
 | `CommandLine` (`src/lib/terminal.js`) | one composed, fully quoted shell line and the terminal it is sent to | per command invocation; the `Stencil` terminal outlives it | `ShellRules`, and the CLI process |
 | `ShellRules` (`src/lib/shellQuote.js`) | one shell family's quoting: what needs no quotes, how a quote is escaped, how a directory is changed, what a quoted command word needs in front of it | a frozen table entry, chosen per invocation from `vscode.env.shell` | `CommandLine` |
-| `ExtensionSettings` | `stencil.cliPath` and `stencil.checkOnType`, read through `workspace.getConfiguration` | VS Code's, read on each use so a change needs no reload | `CliLocation`, the on-type check |
+| `ExtensionSettings` | the `stencil.*` settings, read through `workspace.getConfiguration`: `cliPath`, `checkOnType` and `checkOnSave`, a toggle per editing feature (`highlighting`, `completion`, `hover`) and `colors`, a family → hex map laid over `colorFamilies.js`'s built-in palette | VS Code's, read on each use so a change needs no reload | `CliLocation`, the on-type check, the three providers, the decorations |
 
 ## Patterns
 
@@ -106,24 +116,31 @@ classDiagram
 | Lazy singleton | `src/lib/parserHost.js` | One memoized `import()` bridges CommonJS to the ESM copies; both features share the module graph. A rejection is never memoized, so one failure does not outlive itself. |
 | Strategy (table) | `src/lib/shellQuote.js` `SHELLS` | PowerShell, cmd.exe and POSIX each get a row; `vscode.env.shell` picks it. Quoting is never re-derived at a call site. |
 | Cache | `src/lib/programCache.js`; the PATH walk in `src/lib/pathSearch.js` | Keyed on what invalidates it — a document's `version`, and the whole `PATH` — so a keystroke lexes once for both features and a burst of opens walks `PATH` once. |
-| Facade | `src/extension.js` | Three `register(context)` calls; no feature knows another exists. |
+| Facade | `src/extension.js` | One `register(context)` call per feature; no feature knows another exists. |
 
 ## Design
 
 - **Activation.** VS Code loads `src/extension.js` on `onLanguage:stencil-script`. `activate`
-  calls `diagnostics.register`, `semanticTokens.register` and `commands.register`; each pushes
-  its own disposables onto the context and returns. Nothing is loaded eagerly — the parser
-  copies arrive on the first parse, through `parserHost`.
-- **Colour.** Two layers. The TextMate grammar paints as the file loads, line by line, and is
+  calls `register(context)` on each feature in turn — diagnostics, semantic tokens, completion,
+  hover, decorations, the colour command, the CLI commands; each pushes its own disposables onto
+  the context and returns. Nothing is loaded eagerly — the parser copies arrive on the first
+  parse, through `parserHost`.
+- **Colour.** Three layers. The TextMate grammar paints as the file loads, line by line, and is
   what a `.stc` looks like before the extension activates. The semantic-token provider then
   re-paints from a real parse, which is how `#ccc` stays a colour while `# note` is a comment —
-  a decision the lexer makes from the whole word and a regex can only approximate.
-- **A check.** On open and on save, `collect` locates the CLI and runs
-  `execFile(cli, ['--script-check', path])` with no shell, so the extension host is never
-  blocked; each output line is read by `CHECK_LINE` into a `DiagnosticEntry`. A run that did
+  a decision the lexer makes from the whole word and a regex can only approximate; VS Code asks
+  for it only while `stencil.highlighting` and `editor.semanticHighlighting.enabled` are both on.
+  A family is then painted over the top as a decoration, which is the only way an extension can
+  set an exact colour, and is independent of the other two layers: eight families carry one out of
+  the box, in `colorFamilies.js`'s light or dark palette, picked from `activeColorTheme.kind` and
+  rebuilt when it changes; `stencil.colors` lays the user's own rows over them.
+- **A check.** On open and on save — while `stencil.checkOnSave` is on — `collect` locates the
+  CLI and runs `execFile(cli, ['--script-check', path])` with no shell, so the extension host is
+  never blocked; each output line is read by `CHECK_LINE` into a `DiagnosticEntry`. A run that did
   not answer about the script — an exit status other than 0 or 1, or a failure that printed
   nothing parsable — is **no answer at all**, not an empty one, so the copies take over rather
-  than the squiggles silently clearing. While typing (`stencil.checkOnType`, default on) the
+  than the squiggles silently clearing — as they do outright with `stencil.checkOnSave` off, which
+  is the one way to stop the extension spawning anything. While typing (`stencil.checkOnType`, default on) the
   copies answer anyway, debounced per document, and a result whose `version` the next keystroke
   has already outdated is dropped instead of painted. Either way `toDiagnostic` turns 1-based
   spans into 0-based ranges, never zero-width, tagged `source: 'stencil'` and carrying the
@@ -177,8 +194,12 @@ pins the three declarations `index.js` re-composes, while `fixtureWalker.test.js
 shared corpus in `browser/js/config/script/fixtures/cases.txt` — the same file the core and
 the browser walk — through the copies. Data is asserted as data: `grammar.test.js` compiles
 every TextMate and language-configuration regex, resolves every `include`, and checks the
-scope names and the directive list; `manifest.test.js` holds `package.json` to `src/lib/ids.js`,
-to the files it points at, and every module to its sibling `.d.ts`. `layerBoundary.test.js` scans import direction and
+scope names and the directive list; `tokenClassify.test.js` and `hover.test.js` run real buffers through the
+parser copies rather than hand-built spans, so a colour or an explanation is asserted where a
+reader would see it, and `vocabulary.test.js` holds the documented words to the parser's own
+lists. `manifest.test.js` holds `package.json` to `src/lib/ids.js`,
+to the files it points at — both languages' configurations, grammars and icons, and the
+logo — and every module to its sibling `.d.ts`. `layerBoundary.test.js` scans import direction and
 `sizeBudget.{json,test.js}` is the line and comment ratchet. There is deliberately **no
 `@vscode/test-electron` end-to-end suite**: it would download a VS Code build per run, which
 this repo's no-new-dependency rule rules out, and the behaviour it would cover is the editor's

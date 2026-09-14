@@ -1,11 +1,23 @@
 {
   "name": "stencil-stc",
-  "displayName": "Stencil script (.stc)",
-  "description": "Highlighting, diagnostics and run/check for Stencil .stc scripts, through the Stencil CLI.",
+  "displayName": "Stencil",
+  "description": "Write Stencil .stc scripts with syntax highlighting, live diagnostics from the real engine, and one-key Run \u2014 batch crops, filters, layouts and annotations over whole folders of images without leaving the editor.",
   "version": "1.0.0",
   "publisher": "stencil",
   "license": "Apache-2.0",
   "private": true,
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#2b2f3a",
+    "theme": "dark"
+  },
+  "keywords": [
+    "stencil",
+    "stc",
+    "image annotation",
+    "batch image editing",
+    "screenshot markup"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/andrew1407/stencil.git",
@@ -33,7 +45,25 @@
         "extensions": [
           ".stc"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/stc.svg",
+          "dark": "./icons/stc.svg"
+        }
+      },
+      {
+        "id": "stencil-project",
+        "aliases": [
+          "Stencil project"
+        ],
+        "extensions": [
+          ".stencil"
+        ],
+        "configuration": "./language-configuration.project.json",
+        "icon": {
+          "light": "./icons/stencil-light.svg",
+          "dark": "./icons/stencil-dark.svg"
+        }
       }
     ],
     "grammars": [
@@ -41,6 +71,11 @@
         "language": "stencil-script",
         "scopeName": "source.stc",
         "path": "./syntaxes/stc.tmLanguage.json"
+      },
+      {
+        "language": "stencil-project",
+        "scopeName": "source.stencil-project",
+        "path": "./syntaxes/stencilProject.tmLanguage.json"
       }
     ],
     "commands": [
@@ -59,6 +94,11 @@
         "command": "stencil.checkScript",
         "title": "Stencil: Check script",
         "category": "Stencil"
+      },
+      {
+        "command": "stencil.configureColors",
+        "title": "Stencil: Configure highlight colours",
+        "category": "Stencil"
       }
     ],
     "configuration": {
@@ -68,12 +108,61 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Path to the Stencil CLI binary. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`."
+          "markdownDescription": "Path to the Stencil CLI binary, used by the run commands and by the check on save. A relative path is taken from the workspace folder. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`."
         },
         "stencil.checkOnType": {
           "type": "boolean",
           "default": true,
-          "description": "Re-check the script while typing, using the in-process parser. On save the CLI checks it."
+          "markdownDescription": "Re-check the script while typing, using the in-process parser. Saving always checks: with the CLI's `--script-check` where a binary is found, with the same in-process parser where none is."
+        },
+        "stencil.checkOnSave": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Check a saved file with the Stencil CLI's `--script-check`, so the editor answers with the same compiled engine that runs the script. Off spawns nothing: the in-process parser answers on save as well, and it sees everything but what only the engine can."
+        },
+        "stencil.highlighting": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Colour `.stc` words by the statement they sit in. Needs `#editor.semanticHighlighting.enabled#`. Off leaves the plain TextMate grammar, which still colours directives, numbers, strings and comments. To recolour rather than disable, use `#editor.semanticTokenColorCustomizations#`."
+        },
+        "stencil.completion": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Suggest the directives, filter modes, stroke styles, crop edges, colour names, units and templates that are legal at the caret. When the list appears is `#editor.quickSuggestions#` and `#editor.suggestOnTriggerCharacters#`."
+        },
+        "stencil.colors": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": false,
+          "patternProperties": {
+            "^(source|template|templateName|edit|output|parameter|filterMode|lineStyle|cropEdge|colorValue|path|number|unit|comment)$": {
+              "type": "string",
+              "pattern": "^(#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}))?$",
+              "patternErrorMessage": "A hex colour — #rgb, #rgba, #rrggbb or #rrggbbaa — or \"\" to leave the family to the theme."
+            }
+          },
+          "properties": {
+            "source": { "type": "string", "description": "@source" },
+            "template": { "type": "string", "description": "@stencil" },
+            "templateName": { "type": "string", "description": "a template's name, where defined and where used" },
+            "edit": { "type": "string", "description": "@use @crop @filter @line @rect @layout @frame" },
+            "output": { "type": "string", "description": "@save @undo @redo" },
+            "parameter": { "type": "string", "description": "@1 @2 — template parameters" },
+            "filterMode": { "type": "string", "description": "bw sepia invert contour none" },
+            "lineStyle": { "type": "string", "description": "solid dashed dotted fill point combine replace" },
+            "cropEdge": { "type": "string", "description": "x1 x2 y1 y2 aspect" },
+            "colorValue": { "type": "string", "description": "#ff3b30, red, transparent" },
+            "path": { "type": "string", "description": "what @source, @save and @layout name" },
+            "number": { "type": "string", "description": "numbers" },
+            "unit": { "type": "string", "description": "px cm mm in %" },
+            "comment": { "type": "string", "description": "# comments" }
+          },
+          "markdownDescription": "An exact colour per kind of word, as `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` — for example `{ \"filterMode\": \"#c1873b\" }`. Eight families come already coloured, in a light or a dark variant — `source`, `output`, `unit` and `template` blue, `filterMode` yellow, `path` and `templateName` brick, `cropEdge` teal — because the token type each lands on means something else to a theme; the rest are the theme's. A row set to an empty string hands its family back to the theme. This is painted on top of `.stc` alone, so it wins over the theme and over `#editor.semanticTokenColorCustomizations#`, and it applies with no reload."
+        },
+        "stencil.hover": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Explain the directive or keyword under the pointer: its meaning, argument grammar and an example. Needs `#editor.hover.enabled#`."
         }
       }
     },

@@ -121,12 +121,14 @@ test('no .stc buffer and no CLI each refuse with a message instead of spawning',
     });
 });
 
-test('register hands VS Code exactly the three contributed ids', async () => {
+// The fourth contributed id, stencil.configureColors, is colors.js's — it spawns no CLI.
+test('register hands VS Code the three script commands', async () => {
   await withHost({}, async ({ calls, commands, host }) => {
     const context = { subscriptions: [] };
     commands.register(context);
     const { COMMANDS } = host.require('lib/ids.js');
-    assert.deepEqual([...calls.commands.keys()].sort(), Object.values(COMMANDS).sort());
+    assert.deepEqual([...calls.commands.keys()].sort(),
+      [COMMANDS.checkScript, COMMANDS.runScript, COMMANDS.runScriptOnImage].sort());
     assert.equal(context.subscriptions.length, 3);
   });
 });

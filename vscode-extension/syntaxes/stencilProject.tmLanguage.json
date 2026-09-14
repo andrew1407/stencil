@@ -1,0 +1,8 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Stencil project",
+  "scopeName": "source.stencil-project",
+  "patterns": [
+    { "include": "source.json" }
+  ]
+}

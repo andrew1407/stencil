@@ -15,7 +15,7 @@ four front-ends**, plus a family of adapters that wrap the CLI or the collaborat
 | `cli/` | Zig tool — **recompiles** `core/` and drives it over `extern "C"` | yes (recompiled) |
 | `pystencil/` | stdlib-only Python package — **recompiles** `core/`, drives it via ctypes | yes (recompiled) |
 | `browser-extension/` | Chrome MV3 — scans page images, hands them to `browser/` via a URL fragment | no |
-| `vscode-extension/` | VS Code editor support for `.stc` — spawns the `cli/` binary, and carries a byte-equal copy of `browser/js/core/script*.js` for in-editor parsing | no |
+| `vscode-extension/` | VS Code editor support for `.stc` (and a `.stencil` project icon) — spawns the `cli/` binary, and carries a byte-equal copy of `browser/js/core/script*.js` for in-editor parsing | no |
 | `mcp/` | Rust MCP server — shells out to the `cli/` binary | no |
 | `server/` | Go collaboration server — projects + live multi-client sessions over REST/WS/TCP; Postgres + a secured file store | no |
 | `bot/` | .NET Telegram bot (clean architecture) — wraps the CLI + server REST | no |

@@ -31,9 +31,9 @@ const toDiagnostic = (entry) => {
 const settings = () => vscode.workspace.getConfiguration(CONFIG_SECTION);
 
 /* The diagnostics for one document. `saved` marks the on-disk path as current, which is what
- * lets the CLI read it; an unsaved buffer, or a CLI that gave no answer, takes the copies. */
+ * lets the CLI read it; an unsaved buffer, a CLI switched off or silent, takes the copies. */
 const collect = async (document, { saved }) => {
-  if (saved && document.uri.scheme === 'file') {
+  if (saved && settings().get(SETTINGS.checkOnSave, true) && document.uri.scheme === 'file') {
     const cli = cliFor(vscode, document);
     const fromCli = cli ? await runCheck(cli, document.uri.fsPath) : null;
     if (fromCli) return fromCli;

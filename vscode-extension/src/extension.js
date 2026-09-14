@@ -2,15 +2,13 @@
 // disposables onto the context, so deactivate() has nothing left to do.
 'use strict';
 
-const commands = require('./commands.js');
-const diagnostics = require('./diagnostics.js');
-const semanticTokens = require('./semanticTokens.js');
+const FEATURES = [
+  require('./diagnostics.js'), require('./semanticTokens.js'), require('./completion.js'),
+  require('./hover.js'), require('./decorations.js'), require('./colors.js'),
+  require('./commands.js'),
+];
 
-const activate = (context) => {
-  diagnostics.register(context);
-  semanticTokens.register(context);
-  commands.register(context);
-};
+const activate = (context) => { for (const feature of FEATURES) feature.register(context); };
 
 const deactivate = () => {};
 

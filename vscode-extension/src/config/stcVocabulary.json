@@ -1,0 +1,116 @@
+{
+  "_doc": "Every word the editor offers, colours and explains. 'group' is the semantic family a word belongs to; the directive groups also decide its colour. Prose is a port of contracts/stc/stc-contract.md — change it there first. tests/vocabulary.test.js holds the directive keys to the parser's DIRECTIVES.",
+  "directives": {
+    "source": {
+      "group": "source",
+      "signature": "@source <file | url | dir/ | glob>:",
+      "summary": "Open a picture and start a block of edits over it.",
+      "detail": "Opens a block. Everything indented under it applies to that picture. The spec is classified for whoever runs the script: `http(s)://…` is a URL, a path with `*`, `?` or `[` is a glob, one ending in `/` is a directory, anything else a single file. A glob or a directory runs the whole block once per file it matches.\n\nStatements written *before* the first `@source` form the project block — they apply to whatever is already open, which on the command line means the `-i` input.",
+      "example": "@source shots/*.png:\n    @crop 5%\n    @save out/"
+    },
+    "stencil": {
+      "group": "template",
+      "signature": "@stencil <name>:",
+      "summary": "Define a reusable block of directives.",
+      "detail": "The name is every word before the `:`, so `lines and rect` is one name. Parameters are positional — `@1`, `@2`, … — and the highest one you reference **is** the template's arity.\n\nA template nothing calls is a warning, not an error.",
+      "example": "@stencil callout:\n    @use line @1, 3px\n    @rect (10%,10%) (90%,90%)"
+    },
+    "use": {
+      "group": "edit",
+      "signature": "@use <unit> | @use line <groups> | @use stencil <name> [args…]:",
+      "summary": "Set the default unit, set the shape style, or expand a template.",
+      "detail": "Three directives in one word:\n\n- `@use cm` — bare numbers mean centimetres until the block ends.\n- `@use line red, dashed, 3px` — the style every `@line` and `@rect` after it is drawn in.\n- `@use stencil callout #ff3b30:` — expand a template here. Note the trailing colon.",
+      "example": "@use cm\n@use line #ff3b30, dashed, 3px\n@use stencil callout red:"
+    },
+    "crop": {
+      "group": "edit",
+      "signature": "@crop <inset…> | x1= x2= y1= y2= [aspect=W:H]",
+      "summary": "Cut the picture down, by insets or by named edges.",
+      "detail": "One value insets all four sides, two inset x then y, four read `x1 y1 x2 y2`. A leading `-` on a united value measures from the far edge, so `10%` becomes `x1=10% x2=-10%`.\n\nThe named form takes any of `x1`, `x2`, `y1`, `y2` and `aspect`. Mixing the two forms is an error.",
+      "example": "@crop 10%\n@crop 10% 20cm -23% -9cm\n@crop x1=10% aspect=3:2"
+    },
+    "filter": {
+      "group": "edit",
+      "signature": "@filter bw | sepia | invert | contour | none | <colour>",
+      "summary": "Recolour the whole picture.",
+      "detail": "Takes one of the five modes, or a colour — a colour makes a duotone in that hue. `none` clears a filter already applied.",
+      "example": "@filter sepia\n@filter #7c3aed"
+    },
+    "line": {
+      "group": "edit",
+      "signature": "@line (x,y) (x,y) …",
+      "summary": "Draw an open polyline through two or more points.",
+      "detail": "A unit may attach to a component — `(14px, 50%)` — or to the pair after its `)`, as in `(56, 90)cm`, where it fills in only for components without one. Commas between points are optional.\n\nThe stroke comes from the `@use line` style in force.",
+      "example": "@use line #ff3b30, 3px\n@line (10%,20%) (50%,50%) (90%,20%)"
+    },
+    "rect": {
+      "group": "edit",
+      "signature": "@rect (x,y) (x,y) …",
+      "summary": "Draw a closed shape; exactly two points are opposite corners.",
+      "detail": "A `@rect` is a `@line` that is closed, which is what lets it take a fill. Give it two points for a rectangle, or more for any closed polygon.",
+      "example": "@use line red, fill #ffffff40\n@rect (12%,40%) (62%,58%)"
+    },
+    "layout": {
+      "group": "edit",
+      "signature": "@layout <path | url> [combine | replace]",
+      "summary": "Draw a saved layout over the picture.",
+      "detail": "Reads a layout JSON — a grid, a set of guides, a frame — and draws it. `combine` (the default) keeps the marks already there; `replace` drops them first.",
+      "example": "@layout grid.json\n@layout https://example.com/frame.json replace"
+    },
+    "save": {
+      "group": "output",
+      "signature": "@save [target]",
+      "summary": "Write the result out.",
+      "detail": "Bare, the CLI writes `<source-dir>/<base>-stencil.<ext>`. A target ending in `/` is a directory and gets the same generated name inside it; a bare name gets `<name>.<ext>` with the extension taken from the source; a full path is used verbatim.\n\nIn the editors a bare `@save` saves the open project, and `@save <name>` renames it first.",
+      "example": "@save\n@save reviewed/\n@save shot-review.png"
+    },
+    "frame": {
+      "group": "edit",
+      "signature": "@frame <n>",
+      "summary": "Pick a frame out of a video, and start a fresh set of edits.",
+      "detail": "Only where the surface can decode video — the CLI and the GUIs. Edit numbering restarts, so an `@undo` after a `@frame` cannot reach back past it. The saved base name becomes `<base>-frame-<n>`.",
+      "example": "@source clip.mp4:\n    @frame 120\n    @crop aspect=16:9\n    @save"
+    },
+    "undo": {
+      "group": "output",
+      "signature": "@undo [selectors…]",
+      "summary": "Take an edit back.",
+      "detail": "Edits are numbered `1..n` as written, templates included, and are never renumbered.\n\n- `@undo` — the last edit still live\n- `@undo 3` — edit 3\n- `@undo -1` — the last edit\n- `@undo 1 2 -1` — each of those\n- `@undo @line (1,1) (2,2)` — the last edit whose text matches\n\nIt is resolved when the script is compiled, not when it runs, so leaving an experiment in the file costs nothing.",
+      "example": "@filter sepia\n@rect (10%,10%) (90%,90%)\n@undo"
+    },
+    "redo": {
+      "group": "output",
+      "signature": "@redo [n]",
+      "summary": "Bring back the most recently undone edit.",
+      "detail": "With a count, repeats that many times.",
+      "example": "@undo 1 2\n@redo 2"
+    }
+  },
+  "words": {
+    "bw": { "group": "mode", "summary": "Black and white.", "detail": "Drops all colour, keeping luminance." },
+    "sepia": { "group": "mode", "summary": "Warm brown tone.", "detail": "The classic aged-photograph cast." },
+    "invert": { "group": "mode", "summary": "Invert every channel.", "detail": "A photographic negative." },
+    "contour": { "group": "mode", "summary": "Edges only.", "detail": "Keeps the outlines and drops the flat areas." },
+    "none": { "group": "mode", "summary": "No filter.", "detail": "Clears a filter applied earlier in the block." },
+    "solid": { "group": "style", "summary": "An unbroken stroke.", "detail": "The default style." },
+    "dashed": { "group": "style", "summary": "A dashed stroke." },
+    "dotted": { "group": "style", "summary": "A dotted stroke." },
+    "fill": { "group": "style", "summary": "fill <colour> — the inside of closed shapes.", "detail": "Only a `@rect`, or any closed shape, is filled. Use `transparent` to clear one." },
+    "point": { "group": "style", "summary": "point <colour> <size> — the marker drawn at each point.", "detail": "Both parts are optional." },
+    "transparent": { "group": "style", "summary": "No colour at all.", "detail": "Accepted anywhere a colour is." },
+    "combine": { "group": "style", "summary": "Keep the marks already on the picture.", "detail": "`@layout`'s default." },
+    "replace": { "group": "style", "summary": "Drop the existing marks first.", "detail": "For `@layout`." },
+    "x1": { "group": "key", "summary": "The left crop edge." },
+    "x2": { "group": "key", "summary": "The right crop edge.", "detail": "A leading `-` measures from the right." },
+    "y1": { "group": "key", "summary": "The top crop edge." },
+    "y2": { "group": "key", "summary": "The bottom crop edge.", "detail": "A leading `-` measures from the bottom." },
+    "aspect": { "group": "key", "summary": "aspect=W:H — crop to a ratio.", "detail": "Combines with any edges you give; the rest are worked out." }
+  },
+  "units": {
+    "px": { "summary": "Pixels of the source image." },
+    "cm": { "summary": "Centimetres, through the page metrics." },
+    "mm": { "summary": "Millimetres." },
+    "in": { "summary": "Inches." },
+    "%": { "summary": "Per cent of the relevant axis.", "detail": "A leading `-` measures from the far end of that axis." }
+  }
+}
