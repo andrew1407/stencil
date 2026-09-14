@@ -1,11 +1,23 @@
 {
   "name": "stencil-stc",
   "displayName": "Stencil script (.stc)",
-  "description": "Highlighting, diagnostics and run/check for Stencil .stc scripts, through the Stencil CLI.",
+  "description": "Write Stencil .stc scripts with syntax highlighting, live diagnostics from the real engine, and one-key Run \u2014 batch crops, filters, layouts and annotations over whole folders of images without leaving the editor.",
   "version": "1.0.0",
   "publisher": "stencil",
   "license": "Apache-2.0",
   "private": true,
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#2b2f3a",
+    "theme": "dark"
+  },
+  "keywords": [
+    "stencil",
+    "stc",
+    "image annotation",
+    "batch image editing",
+    "screenshot markup"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/andrew1407/stencil.git",
@@ -33,7 +45,25 @@
         "extensions": [
           ".stc"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/stc.svg",
+          "dark": "./icons/stc.svg"
+        }
+      },
+      {
+        "id": "stencil-project",
+        "aliases": [
+          "Stencil project"
+        ],
+        "extensions": [
+          ".stencil"
+        ],
+        "configuration": "./language-configuration.project.json",
+        "icon": {
+          "light": "./icons/stencil-light.svg",
+          "dark": "./icons/stencil-dark.svg"
+        }
       }
     ],
     "grammars": [
@@ -41,6 +71,11 @@
         "language": "stencil-script",
         "scopeName": "source.stc",
         "path": "./syntaxes/stc.tmLanguage.json"
+      },
+      {
+        "language": "stencil-project",
+        "scopeName": "source.stencil-project",
+        "path": "./syntaxes/stencilProject.tmLanguage.json"
       }
     ],
     "commands": [

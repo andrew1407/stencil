@@ -33,6 +33,18 @@ class SemanticTokensBuilder {
   build() { return { rows: this.rows }; }
 }
 
+class MarkdownString {
+  constructor(value = '') { this.value = value; this.supportHtml = false; }
+}
+
+class Hover {
+  constructor(contents) { this.contents = contents; }
+}
+
+class CompletionItem {
+  constructor(label, kind) { this.label = label; this.kind = kind; }
+}
+
 class Terminal {
   constructor(name, cwd) { this.name = name; this.cwd = cwd; this.sent = []; this.shown = 0; }
   sendText(text) { this.sent.push(text); }
@@ -43,8 +55,8 @@ class Terminal {
  * extension registered or showed, so a test can assert on it. */
 export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' } = {}) => {
   const calls = {
-    collections: [], commands: new Map(), events: {}, errors: [],
-    semanticProviders: [], terminals: [],
+    collections: [], commands: new Map(), completionProviders: [], events: {}, errors: [],
+    hoverProviders: [], semanticProviders: [], terminals: [],
   };
   const on = (name) => (handler) => {
     (calls.events[name] ??= []).push(handler);
@@ -52,6 +64,9 @@ export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' }
   };
   const vscode = {
     Position, Range, Diagnostic, SemanticTokensBuilder,
+    MarkdownString, Hover, CompletionItem,
+    // The real enum is much longer; these are the members the completion items name.
+    CompletionItemKind: { Keyword: 13, EnumMember: 19, Property: 9, Field: 4, Unit: 10, Color: 15, Function: 2 },
     env: { shell },
     DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 },
     SemanticTokensLegend: class { constructor(types, mods = []) { this.tokenTypes = types; this.tokenModifiers = mods; } },
@@ -64,6 +79,14 @@ export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' }
       },
       registerDocumentSemanticTokensProvider(selector, provider, legend) {
         calls.semanticProviders.push({ selector, provider, legend });
+        return { dispose() {} };
+      },
+      registerCompletionItemProvider(selector, provider, ...triggers) {
+        calls.completionProviders.push({ selector, provider, triggers });
+        return { dispose() {} };
+      },
+      registerHoverProvider(selector, provider) {
+        calls.hoverProviders.push({ selector, provider });
         return { dispose() {} };
       },
     },

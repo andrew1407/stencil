@@ -2,9 +2,11 @@
 
 The system-wide design — the parity contract, canonical data, the layer model, the pattern vocabulary — is in the root [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
-An editor adapter for one file type. It gives `.stc` scripts colour, squiggles and a Run
-button, and every one of those answers comes from Stencil itself: the parser copies in
-`src/parser/` while you type, the `stencil` CLI on save and on Run. It owns no language
+An editor adapter for one file type. It gives `.stc` scripts colour, squiggles, completions,
+hovers and a Run button, and every one of those answers comes from Stencil itself: the parser copies in
+`src/parser/` while you type, the `stencil` CLI on save and on Run. `.stencil` projects are
+contributed too, but as data only — an icon and a grammar that defers to `source.json` —
+because a saved project is JSON this tree has no reason to interpret. It owns no language
 rules of its own — the language lives in [`contracts/stc/`](../contracts/stc/), is
 implemented in `core/script/`, and reaches this tree as copied JavaScript and as a spawned
 binary.
@@ -50,16 +52,21 @@ the only root file that may import a sibling root file. Enforced by
 
 | Path | Holds | Rule |
 |---|---|---|
-| `package.json` | the manifest VS Code reads: language, grammar, commands, settings, menu, keybinding | no root `type` field — the extension is CommonJS; `@vscode/vsce` is the one dependency and it is a devDependency (`tests/manifest.test.js`) |
+| `package.json` | the manifest VS Code reads: the two languages and their icons, grammars, commands, settings, menu, keybinding, gallery logo | no root `type` field — the extension is CommonJS; `@vscode/vsce` is the one dependency and it is a devDependency (`tests/manifest.test.js`) |
 | `language-configuration.json` | `#` line comments, the `()` and `"` pairs, the `@name` word pattern, indent after a `…:` header | its regexes are JS, not Oniguruma — `tests/grammar.test.js` compiles them |
 | `syntaxes/stc.tmLanguage.json` | the TextMate grammar under scope `source.stc` | every scope name ends `.stc`; the directive list is pinned to the parser's `DIRECTIVES` |
+| `language-configuration.project.json` + `syntaxes/stencilProject.tmLanguage.json` | the `.stencil` project file: brackets, and a grammar whose whole body is `include: source.json` | it defers, never re-spells JSON; contributing it must not add an `activationEvents` entry (`tests/manifest.test.js`) |
+| `icons/` | `stencil.svg` (the app mark, the logo's source), `stc.svg` (the mark as a panelled badge, the script's explorer glyph) and the light/dark bare-stroke pair for a project | `stencil.svg` is a copy of `browser/favicon.svg`, pinned by `browser/tests/svgArt.test.js`; the glyphs are this surface's own art. `stc.svg` carries its own panel, so one file serves both themes; the bare stroke does not, so it is a pair |
+| `icon.png` | the extension-page logo, rasterized from `icons/stencil.svg` | PNG, ≥128px — VS Code refuses an SVG here |
 | `src/extension.js` | `activate` / `deactivate` | wiring only; every disposable goes on the context |
 | `src/diagnostics.js` | the two diagnostic sources, the debounce and the version guard | the CLI answers for a saved file, the parser copies for a buffer; both become `vscode.Diagnostic` |
-| `src/semanticTokens.js` | the legend, the `TokenKind` → legend map, the provider | standard VS Code token types only, so any theme colours it |
+| `src/semanticTokens.js` | the legend and the provider | standard VS Code token types only, so any theme colours it; WHICH type a token gets is `lib/tokenClassify.js` |
+| `src/completion.js` | the suggestion items, one builder per group | it offers words, never a filename — a path is the user's to type |
+| `src/hover.js` | the Markdown for the token under the caret | the token comes from the same parse the colours do, so a hover cannot land where no colour did |
 | `src/commands.js` | run, run-on-image, check | one CLI invocation each, in the reused `Stencil` terminal, `cwd` = the script's directory |
-| `src/lib/` | `ids.js` (the contributed identifiers), `cliLocator.js` (the ONE way the binary is found) over `pathSearch.js` (the executable probe and the memoized PATH walk), `terminal.js` (the ONE place a command line is composed) over `shellQuote.js` (the per-shell rules), `scriptCheck.js` (the CLI's `--script-check` answer and its line grammar), `parserHost.js` (the memoized `import()`) and `programCache.js` over it (one parse per document version) | `vscode` is passed in, never imported, so each is a pure unit |
+| `src/lib/` | `ids.js` (the contributed identifiers), `cliLocator.js` (the ONE way the binary is found) over `pathSearch.js` (the executable probe and the memoized PATH walk), `terminal.js` (the ONE place a command line is composed) over `shellQuote.js` (the per-shell rules), `scriptCheck.js` (the CLI's `--script-check` answer and its line grammar), `parserHost.js` (the memoized `import()`) and `programCache.js` over it (one parse per document version), `vocabulary.js` (the one reading of the vocabulary table), `tokenClassify.js` (a legend type per token, from the statement it sits in) and `completionContext.js` (which suggestion groups a caret takes) | `vscode` is passed in, never imported, so each is a pure unit |
 | `src/parser/` | byte-equal copies of `browser/js/core/script*.js`, plus `index.js`, which re-composes what `script.js` does without the wasm binding | ESM, scoped by its own `package.json`; pinned both directions by `tests/parserParity.test.js` |
-| `src/config/` | `colorNames.json`, the one table the copies import | byte-pinned to `browser/js/config/colorNames.json` |
+| `src/config/` | `colorNames.json`, the one table the copies import, and `stcVocabulary.json` | `colorNames.json` is byte-pinned to `browser/js/config/colorNames.json`; the vocabulary is this surface's own — no other surface explains the language to a reader — and its directive keys are held to the parser's `DIRECTIVES` |
 | `tests/` | `node --test` suites and `helpers/vscodeStub.js` | ESM, scoped by its own `package.json`; no editor, no network |
 
 ## Entities
@@ -177,8 +184,12 @@ pins the three declarations `index.js` re-composes, while `fixtureWalker.test.js
 shared corpus in `browser/js/config/script/fixtures/cases.txt` — the same file the core and
 the browser walk — through the copies. Data is asserted as data: `grammar.test.js` compiles
 every TextMate and language-configuration regex, resolves every `include`, and checks the
-scope names and the directive list; `manifest.test.js` holds `package.json` to `src/lib/ids.js`,
-to the files it points at, and every module to its sibling `.d.ts`. `layerBoundary.test.js` scans import direction and
+scope names and the directive list; `tokenClassify.test.js` and `hover.test.js` run real buffers through the
+parser copies rather than hand-built spans, so a colour or an explanation is asserted where a
+reader would see it, and `vocabulary.test.js` holds the documented words to the parser's own
+lists. `manifest.test.js` holds `package.json` to `src/lib/ids.js`,
+to the files it points at — both languages' configurations, grammars and icons, and the
+logo — and every module to its sibling `.d.ts`. `layerBoundary.test.js` scans import direction and
 `sizeBudget.{json,test.js}` is the line and comment ratchet. There is deliberately **no
 `@vscode/test-electron` end-to-end suite**: it would download a VS Code build per run, which
 this repo's no-new-dependency rule rules out, and the behaviour it would cover is the editor's

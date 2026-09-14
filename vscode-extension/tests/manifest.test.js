@@ -30,10 +30,39 @@ test('the language is contributed under the id the code uses', () => {
   assert.equal(contributes.grammars[0].scopeName, ids.SCOPE_NAME);
 });
 
+// .stencil is contributed for its icon and to open as JSON. It must not pull the extension
+// host awake, and its grammar must defer rather than re-spell the JSON rules.
+test('the project file is a second language that defers to source.json', () => {
+  const project = contributes.languages.find((l) => l.id === ids.PROJECT_LANGUAGE_ID);
+  assert.ok(project, `no ${ids.PROJECT_LANGUAGE_ID} language`);
+  assert.deepEqual(project.extensions, [ids.PROJECT_FILE_EXTENSION]);
+  assert.ok(!manifest.activationEvents.some((e) => e.includes(ids.PROJECT_LANGUAGE_ID)),
+    'the project file contributes data only — activating on it would spawn the host for nothing');
+  const grammar = contributes.grammars.find((g) => g.language === ids.PROJECT_LANGUAGE_ID);
+  assert.equal(grammar.scopeName, ids.PROJECT_SCOPE_NAME);
+  const rules = JSON.parse(readFileSync(here(`../${grammar.path}`), 'utf8'));
+  assert.equal(rules.scopeName, ids.PROJECT_SCOPE_NAME);
+  assert.deepEqual(rules.patterns, [{ include: 'source.json' }]);
+});
+
+test('both file types carry a light and a dark icon, and the gallery carries the logo', () => {
+  for (const language of contributes.languages) {
+    for (const variant of ['light', 'dark']) {
+      const path = language.icon?.[variant];
+      assert.ok(path, `${language.id} has no ${variant} icon`);
+      assert.match(path, /\.svg$/, `${path} must be an SVG, so it scales in the explorer`);
+      assert.ok(existsSync(here(`../${path}`)), `${path} is missing`);
+    }
+  }
+  assert.equal(manifest.icon, 'icon.png', 'the extension logo must be a PNG — VS Code rejects SVG');
+  assert.ok(existsSync(here('../icon.png')));
+  assert.equal(manifest.galleryBanner.color, '#2b2f3a', "the app panel's fill");
+});
+
 test('every contributed path exists on disk', () => {
   const paths = [
-    contributes.languages[0].configuration,
-    contributes.grammars[0].path,
+    ...contributes.languages.map((l) => l.configuration),
+    ...contributes.grammars.map((g) => g.path),
   ];
   for (const path of paths) assert.ok(existsSync(here(`../${path}`)), `${path} is missing`);
 });
@@ -98,4 +127,7 @@ test('.vscodeignore keeps the tests out and the parser copies in', () => {
     assert.ok(ignore.includes(line), `${line} must be excluded from the .vsix`);
   }
   assert.ok(!/^src\//m.test(ignore), 'src/ ships whole — the parser copies run in the editor');
+  for (const line of ['icons', 'icon.png', 'README.md']) {
+    assert.ok(!new RegExp(`^${line}`, 'm').test(ignore), `${line} must ship — it is the extension page`);
+  }
 });

@@ -7,7 +7,7 @@
     "vscode-extension/src/extension.js": 17,
     "vscode-extension/src/semanticTokens.js": 62,
     "vscode-extension/src/lib/cliLocator.js": 33,
-    "vscode-extension/src/lib/ids.js": 21,
+    "vscode-extension/src/lib/ids.js": 27,
     "vscode-extension/src/lib/parserHost.js": 12,
     "vscode-extension/src/lib/pathSearch.js": 49,
     "vscode-extension/src/lib/programCache.js": 34,
@@ -24,6 +24,7 @@
     "vscode-extension/tests/helpers": 6
   },
   "exceptions": {
+    "vscode-extension/src/lib/ids.js": "21 \u2192 27: the .stencil project language's three contributed ids. A table of identifiers grows with the manifest; there is nothing here to split.",
     "vscode-extension/src/parser/scriptArgs.js": "byte-equal copy of browser/js/core/scriptArgs.js (parserParity.test.js) \u2014 split it there first",
     "vscode-extension/src/parser/scriptCrop.js": "byte-equal copy of browser/js/core/scriptCrop.js (parserParity.test.js) \u2014 split it there first",
     "vscode-extension/src/parser/scriptDiagnostics.js": "byte-equal copy of browser/js/core/scriptDiagnostics.js (parserParity.test.js) \u2014 split it there first",

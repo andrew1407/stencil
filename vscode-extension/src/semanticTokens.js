@@ -1,42 +1,32 @@
 // Colour from the parser rather than from the grammar: the TextMate rules paint a line at a
 // time, the lexer knows the whole file, so `#ccc` stays a colour and `# note` a comment.
+// Which colour each token gets is lib/tokenClassify.js; this is the legend and the wiring.
 'use strict';
 
 const vscode = require('vscode');
 
 const { LANGUAGE_ID } = require('./lib/ids.js');
 const { programFor } = require('./lib/programCache.js');
+const { classify } = require('./lib/tokenClassify.js');
 
 // Standard VS Code token types only: a theme that has never heard of .stc still colours it.
 const TOKEN_TYPES = Object.freeze([
-  'comment', 'keyword', 'number', 'operator', 'string', 'parameter', 'property', 'variable',
+  'comment', 'namespace', 'class', 'type', 'keyword', 'function', 'parameter',
+  'enumMember', 'modifier', 'property', 'variable', 'string', 'number', 'operator',
 ]);
 
-// Lexer TokenKind → legend entry. `punct`, `ident` and `error` are deliberately absent:
-// punctuation is the grammar's job and an unclassified word carries no colour of its own.
-const KIND_TYPE = Object.freeze({
-  comment: 'comment',
-  directive: 'keyword',
-  keyword: 'keyword',
-  number: 'number',
-  unit: 'operator',
-  color: 'property',
-  string: 'string',
-  param: 'parameter',
-});
-
-const KIND_INDEX = Object.freeze(Object.fromEntries(Object.entries(KIND_TYPE)
-  .map(([kind, type]) => [kind, TOKEN_TYPES.indexOf(type)])));
+const TYPE_INDEX = Object.freeze(Object.fromEntries(TOKEN_TYPES.map((type, i) => [type, i])));
 const LEGEND = new vscode.SemanticTokensLegend(TOKEN_TYPES, []);
 
-// (line, char, length, typeIndex) rows, 0-based; an unmapped or zero-width token is skipped.
+// (line, char, length, typeIndex) rows, 0-based; an unclassified or zero-width token is skipped.
 const tokenRows = (tokens) => {
+  const types = classify(tokens);
   const rows = [];
-  for (const token of tokens ?? []) {
-    const index = KIND_INDEX[token.kind];
-    if (index === undefined || !(token.len > 0)) continue;
+  (tokens ?? []).forEach((token, i) => {
+    const index = TYPE_INDEX[types[i]];
+    if (index === undefined || !(token.len > 0)) return;
     rows.push([token.line - 1, token.col - 1, token.len, index]);
-  }
+  });
   return rows;
 };
 
@@ -59,4 +49,4 @@ const register = (context) => {
   return registration;
 };
 
-module.exports = { KIND_INDEX, KIND_TYPE, LEGEND, TOKEN_TYPES, provider, register, tokenRows };
+module.exports = { LEGEND, TOKEN_TYPES, TYPE_INDEX, provider, register, tokenRows };
