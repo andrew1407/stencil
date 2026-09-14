@@ -6,7 +6,10 @@ export interface CtxScriptEditorHost {
   bumpBusy(): void;
 }
 
-/** Wires the Stencil Script flyout's editor (the script window's behaviour, compacted). */
+/**
+ * Wires the Stencil Script flyout's editor (the script window's behaviour, compacted).
+ * Returns the call that drops it off the shared script buffer.
+ */
 export declare const wireCtxScriptEditor: (
   app: object, host: CtxScriptEditorHost, openScriptWindow: () => void,
-) => void;
+) => () => void;

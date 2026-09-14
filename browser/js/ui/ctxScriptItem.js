@@ -22,6 +22,7 @@ export const scriptFlyoutHtml = () => `
                             <button id="ctx-script-download" class="btn-icon-text" data-title="Download this script as stencil.stc">${icon('file-down', { size: 13 })}<span>Download</span></button>
                             <input type="file" id="ctx-script-upload" accept=".stc" style="display:none;">
                             <button id="ctx-script-upload-btn" class="btn-icon-text" data-title="Load a .stc file into the editor">${icon('file-up', { size: 13 })}<span>Upload</span></button>
+                            <button id="ctx-script-clear" class="btn-icon-text" data-title="Clear this script from the editor">${icon('eraser', { size: 13 })}<span>Clear</span></button>
                             <button id="ctx-script-run" class="btn-icon-text primary" data-title="Run this script on the open project (Ctrl+Enter)">${icon('play', { size: 13 })}<span>Run</span></button>
                         </span>
                     </div>

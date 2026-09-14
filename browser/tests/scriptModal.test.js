@@ -32,10 +32,10 @@ test('the opener names its hotkey and its tooltip, and carries no disabled reaso
   assert.doesNotMatch(btn.slice(0, 300), /data-disabled-reason/);
 });
 
-test('the window is composed with its editor, its diagnostics strip and three actions', () => {
+test('the window is composed with its editor, its diagnostics strip and its actions', () => {
   for (const id of ['script-overlay', 'script-close', 'script-editor-wrap', 'script-highlight',
     'script-editor', 'script-diag', 'script-upload', 'script-upload-btn', 'script-copy',
-    'script-download', 'script-run']) {
+    'script-download', 'script-clear', 'script-run']) {
     assert.equal(MARKUP.split(`id="${id}"`).length - 1, 1, `${id} appears exactly once`);
   }
   // Run is the primary action and comes last, the way Save does in every other window.
@@ -43,7 +43,7 @@ test('the window is composed with its editor, its diagnostics strip and three ac
   const footer = MARKUP.slice(MARKUP.indexOf('id="script-copy"'));
   const order = [...footer.matchAll(/id="(script-[a-z-]+)"/g)].map((m) => m[1]);
   assert.deepEqual(order,
-    ['script-copy', 'script-download', 'script-upload', 'script-upload-btn', 'script-run']);
+    ['script-copy', 'script-download', 'script-upload', 'script-upload-btn', 'script-clear', 'script-run']);
   assert.match(footer, /id="script-run" class="btn-icon-text primary"/);
 });
 
@@ -101,7 +101,7 @@ test('Run is gated on the script having something to do, and Ctrl+Enter obeys th
   assert.match(wiring, /program\.ops\.length === 0 && program\.diagnostics\.length === 0/);
   // An errored script keeps Run live — the strip and the underlines are how errors surface.
   assert.match(wiring, /runBtn\.disabled = blank \|\| idle/);
-  // Copy and Download only need text, so they stay on the blank check.
-  assert.match(wiring, /for \(const id of \[ids\.copy, ids\.download\]\)/);
+  // Copy, Download and Clear only need text, so they stay on the blank check.
+  assert.match(wiring, /for \(const id of \[ids\.copy, ids\.download, ids\.clear\]\)/);
   assert.match(wiring, /if \(busy\(\) \|\| \$\(ids\.run\)\?\.disabled\) return;/);
 });

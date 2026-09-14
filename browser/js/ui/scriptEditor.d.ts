@@ -1,8 +1,9 @@
-/** The element ids of one editor's four actions and its hidden file input. */
+/** The element ids of one editor's five actions and its hidden file input. */
 export interface ScriptEditorIds {
   run: string;
   copy: string;
   download: string;
+  clear: string;
   uploadBtn: string;
   upload: string;
 }
@@ -20,7 +21,11 @@ export interface ScriptEditorOptions {
   busy?: () => boolean;
 }
 
-/** Wires one .stc editor: gating, the paint, Tab-indent, Ctrl+Enter and the four actions. */
+/**
+ * Wires one .stc editor onto the shared buffer: gating, the paint, Tab-indent, Ctrl+Enter
+ * and the five actions. `schedule` republishes the textarea and repaints; `dispose` drops
+ * the editor off the buffer.
+ */
 export declare const wireScriptEditor: (
   options: ScriptEditorOptions,
-) => { repaint: () => void; schedule: () => void };
+) => { schedule: () => void; dispose: () => void };

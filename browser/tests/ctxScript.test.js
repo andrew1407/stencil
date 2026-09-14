@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { layout } from '../js/ui/layout.js';
 import { scriptFlyoutHtml } from '../js/ui/ctxScriptItem.js';
 import { wireCtxScript } from '../js/ui/ctxScript.js';
+import { setScriptText } from '../js/ui/scriptBuffer.js';
 import { ctxKeepsTab } from '../js/ui/ctxKeyboard.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
@@ -17,7 +18,7 @@ const FLYOUT = scriptFlyoutHtml();
 const src = (name) => readFileSync(new URL(`../js/ui/${name}`, import.meta.url), 'utf8');
 const IDS = ['ctx-script-sub', 'ctx-script-pane', 'ctx-script-wrap', 'ctx-script-highlight',
   'ctx-script-editor', 'ctx-script-diag', 'ctx-script-copy', 'ctx-script-download',
-  'ctx-script-upload', 'ctx-script-upload-btn', 'ctx-script-run'];
+  'ctx-script-upload', 'ctx-script-upload-btn', 'ctx-script-clear', 'ctx-script-run'];
 
 // ── The row and the flyout's shape ───────────────────────────────────────────
 test('the menu row is a submenu parent, still naming the window shortcut', () => {
@@ -40,10 +41,10 @@ test('the flyout carries each of its ids once, and never one of the window\'s', 
   assert.match(FLYOUT, /id="ctx-script-upload" accept="\.stc"/);
 });
 
-test('the actions are the window\'s four, Run primary and last', () => {
-  const order = [...FLYOUT.matchAll(/id="(ctx-script-(?:copy|download|upload|upload-btn|run))"/g)].map((m) => m[1]);
+test('the actions are the window\'s five, Run primary and last', () => {
+  const order = [...FLYOUT.matchAll(/id="(ctx-script-(?:copy|download|upload|upload-btn|clear|run))"/g)].map((m) => m[1]);
   assert.deepEqual(order, ['ctx-script-copy', 'ctx-script-download', 'ctx-script-upload',
-    'ctx-script-upload-btn', 'ctx-script-run']);
+    'ctx-script-upload-btn', 'ctx-script-clear', 'ctx-script-run']);
   assert.match(FLYOUT, /id="ctx-script-run" class="btn-icon-text primary"/);
 });
 
@@ -65,6 +66,7 @@ const registerIds = (doc, html) => {
 };
 
 const rig = ({ touch = false, stencil = {} } = {}) => {
+  setScriptText('');   // the buffer outlives one test; each rig starts from an empty page
   const opened = [];
   const doc = installDom({}, { window: { stencil }, matchMedia: () => ({ matches: touch }) });
   doc.createTextNode = (text) => ({ nodeType: 3, textContent: text });
@@ -86,7 +88,7 @@ const rig = ({ touch = false, stencil = {} } = {}) => {
   };
   const app = { export: { downloadBlob: () => {} } };
   const api = wireCtxScript(app, host);
-  return { doc, item, host, api, opened, restore: () => doc.restore() };
+  return { doc, item, host, api, opened, restore: () => { api.dropEditor(); doc.restore(); } };
 };
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
@@ -171,16 +173,16 @@ test('a failing script leaves the text, the menu and the flyout exactly where th
   assert.deepEqual(host.sending, [true, false]);
 });
 
-test('Run, Copy and Download need something to act on; Upload always does', (t) => {
+test('Run, Copy, Download and Clear need something to act on; Upload always does', (t) => {
   const { doc, restore } = rig();
   t.after(restore);
-  const state = () => ['ctx-script-run', 'ctx-script-copy', 'ctx-script-download', 'ctx-script-upload-btn']
-    .map((id) => doc.getElementById(id).disabled);
-  assert.deepEqual(state(), [true, true, true, false], 'an empty editor gates the three');
+  const state = () => ['ctx-script-run', 'ctx-script-copy', 'ctx-script-download',
+    'ctx-script-clear', 'ctx-script-upload-btn'].map((id) => doc.getElementById(id).disabled);
+  assert.deepEqual(state(), [true, true, true, true, false], 'an empty editor gates the four');
   typed(doc, '@save');
-  assert.deepEqual(state(), [false, false, false, false]);
+  assert.deepEqual(state(), [false, false, false, false, false]);
   typed(doc, '   \n  ');
-  assert.deepEqual(state(), [true, true, true, false], 'whitespace is not a script');
+  assert.deepEqual(state(), [true, true, true, true, false], 'whitespace is not a script');
 });
 
 // ── The rules that make an editor in a menu possible ─────────────────────────

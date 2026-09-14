@@ -9,6 +9,7 @@ export const wireCtxScript = (app, host) => {
   // The flyout is not a list of .ctx-items, so none of the "activate → closeMenu()"
   // wiring applies: typing, running and failing leave the menu open.
   let scriptWired = false;
+  let dropEditor = () => {};
   // The phone/touch fallback: the full window, through its one opener.
   const openScriptWindow = () => { document.getElementById('script-btn')?.click(); };
 
@@ -24,7 +25,7 @@ export const wireCtxScript = (app, host) => {
       if (!sub) return;
       scriptWired = true;
       host.wireSubmenu(item, sub);
-      wireCtxScriptEditor(app, host, openScriptWindow);
+      dropEditor = wireCtxScriptEditor(app, host, openScriptWindow);
     }
     // Plain (no flyout) on phones and coarse pointers (the app-wide touch rule, utils.js).
     const plain = isTouchLike();
@@ -38,5 +39,5 @@ export const wireCtxScript = (app, host) => {
   onWindowResize(() => { if (host.menuIsOpen()) syncScript(); });
   syncScript();
 
-  return { syncScript };
+  return { syncScript, dropEditor: () => dropEditor() };
 };

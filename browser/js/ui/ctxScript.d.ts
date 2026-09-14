@@ -9,4 +9,4 @@ export interface CtxScriptHost extends CtxScriptEditorHost {
 /** Gates and wires the context menu's Stencil Script entry; call once per menu instance. */
 export declare const wireCtxScript: (
   app: object, host: CtxScriptHost,
-) => { syncScript: () => void };
+) => { syncScript: () => void; dropEditor: () => void };

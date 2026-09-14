@@ -1,7 +1,9 @@
 // The .stc editor behaviour the script window (scriptModal.js) and the context menu's flyout
-// (ctxScriptEditor.js) share: action gating, the paint, Tab-indent, Ctrl+Enter and the four
+// (ctxScriptEditor.js) share: action gating, the paint, Tab-indent, Ctrl+Enter and the five
 // actions. Each surface keeps only its own chrome — closing the window, marking the menu busy.
+// The text itself belongs to neither: both read and write the one buffer (scriptBuffer.js).
 import { notify } from '../utils.js';
+import { scriptText, setScriptText, subscribeScript } from './scriptBuffer.js';
 import { paintInto, showDiagnostic } from './scriptHighlight.js';
 
 const $ = (id) => document.getElementById(id);
@@ -9,12 +11,12 @@ const $ = (id) => document.getElementById(id);
 export const wireScriptEditor = ({ editor, pre, strip, ids, app, onRun, onUpload, busy = () => false }) => {
   let checked = false;   // nothing is reported until the script has been run once
 
-  // Copy and Download need text; Upload always works. Run needs something to DO — a script
-  // of only comments lowers to no ops, so running it was a no-op with no feedback. An errored
-  // script still runs: the strip and the underlines are how the errors become visible.
+  // Copy, Download and Clear need text; Upload always works. Run needs something to DO — a
+  // script of only comments lowers to no ops, so running it was a no-op with no feedback. An
+  // errored script still runs: the strip and the underlines are how the errors become visible.
   const gateActions = (program) => {
-    const blank = editor.value.trim().length === 0;
-    for (const id of [ids.copy, ids.download]) {
+    const blank = scriptText().trim().length === 0;
+    for (const id of [ids.copy, ids.download, ids.clear]) {
       const btn = $(id);
       if (btn) btn.disabled = blank;
     }
@@ -24,7 +26,7 @@ export const wireScriptEditor = ({ editor, pre, strip, ids, app, onRun, onUpload
   };
 
   const repaint = () => {
-    const program = paintInto(pre, editor.value, checked);
+    const program = paintInto(pre, scriptText(), checked);
     showDiagnostic(strip, checked ? program : null);
     gateActions(program);
   };
@@ -32,13 +34,16 @@ export const wireScriptEditor = ({ editor, pre, strip, ids, app, onRun, onUpload
   // as the characters appearing late.
   const schedule = () => {
     checked = false;   // editing clears the last verdict: it is about older text
+    setScriptText(editor.value, adopt);
     repaint();
   };
+  // The other view changed the shared text: show it, and drop a verdict about the older one.
+  const adopt = (next) => { editor.value = next; checked = false; repaint(); };
 
   const run = async () => {
     if (busy() || $(ids.run)?.disabled) return;   // Ctrl+Enter obeys the same gate as the button
     checked = true;   // from here the strip and the underlines mean this exact text
-    await onRun(editor.value);
+    await onRun(scriptText());
     repaint();
   };
 
@@ -67,15 +72,18 @@ export const wireScriptEditor = ({ editor, pre, strip, ids, app, onRun, onUpload
     e.target.value = '';
     if (file) onUpload(file);
   });
+  $(ids.clear)?.addEventListener('click', () => { editor.value = ''; schedule(); });
   $(ids.copy)?.addEventListener('click', () => {
-    navigator.clipboard.writeText(editor.value)
+    navigator.clipboard.writeText(scriptText())
       .then(() => notify('Script copied', 'ok'))
       .catch((err) => notify(`Copy failed: ${err.message || err}`, 'fail'));
   });
   $(ids.download)?.addEventListener('click', () => {
-    const blob = new Blob([editor.value], { type: 'text/plain' });
+    const blob = new Blob([scriptText()], { type: 'text/plain' });
     app.export.downloadBlob(blob, 'stencil.stc');
   });
 
-  return { repaint, schedule };
+  const dispose = subscribeScript(adopt);
+  adopt(scriptText());   // the buffer, not this textarea, says what is on screen
+  return { schedule, dispose };
 };

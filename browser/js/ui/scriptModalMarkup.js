@@ -1,5 +1,5 @@
 // Markup for the script window: a code editor over a highlight layer, a diagnostics strip,
-// and the three actions. Kept apart from scriptModal.js so the shape reads in one piece.
+// and the five actions. Kept apart from scriptModal.js so the shape reads in one piece.
 import { icon } from './icons.js';
 
 export const scriptModalInner = () => `
@@ -24,6 +24,7 @@ export const scriptModalInner = () => `
                 <button id="script-download" class="btn-icon-text" data-title="Download this script as stencil.stc">${icon('file-down', { size: 14 })}<span>Download</span></button>
                 <input type="file" id="script-upload" accept=".stc" style="display:none;">
                 <button id="script-upload-btn" class="btn-icon-text" data-title="Load a .stc file into the editor">${icon('file-up', { size: 14 })}<span>Upload</span></button>
+                <button id="script-clear" class="btn-icon-text" data-title="Clear this script from the editor">${icon('eraser', { size: 14 })}<span>Clear</span></button>
                 <button id="script-run" class="btn-icon-text primary" data-title="Run this script on the open project (Ctrl+Enter)">${icon('play', { size: 14 })}<span>Run</span></button>
             </span>
         </div>

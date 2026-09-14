@@ -1,6 +1,7 @@
 // The Stencil Script flyout's editor. The flyout is not a list of .ctx-items: typing,
 // running and failing leave the menu open. `host` is the menu's own state. The editor's
-// behaviour is the window's, shared through scriptEditor.js.
+// behaviour is the window's, shared through scriptEditor.js. Returns the editor's drop off
+// the shared buffer (scriptBuffer.js).
 import { notify } from '../utils.js';
 import { runScriptHere } from '../console/scriptRunner.js';
 import { wireScriptEditor } from './scriptEditor.js';
@@ -9,7 +10,7 @@ const $ = (id) => document.getElementById(id);
 
 const EDITOR_IDS = Object.freeze({
   run: 'ctx-script-run', copy: 'ctx-script-copy', download: 'ctx-script-download',
-  uploadBtn: 'ctx-script-upload-btn', upload: 'ctx-script-upload',
+  clear: 'ctx-script-clear', uploadBtn: 'ctx-script-upload-btn', upload: 'ctx-script-upload',
 });
 
 export const wireCtxScriptEditor = (app, host, openScriptWindow) => {
@@ -43,7 +44,7 @@ export const wireCtxScriptEditor = (app, host, openScriptWindow) => {
     editor.focus();
   });
 
-  const { repaint, schedule } = wireScriptEditor({
+  const { schedule, dispose } = wireScriptEditor({
     editor,
     pre,
     strip,
@@ -74,5 +75,5 @@ export const wireCtxScriptEditor = (app, host, openScriptWindow) => {
       }
     },
   });
-  repaint();
+  return dispose;
 };

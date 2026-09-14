@@ -11,7 +11,7 @@ const $ = (id) => document.getElementById(id);
 
 const EDITOR_IDS = Object.freeze({
   run: 'script-run', copy: 'script-copy', download: 'script-download',
-  uploadBtn: 'script-upload-btn', upload: 'script-upload',
+  clear: 'script-clear', uploadBtn: 'script-upload-btn', upload: 'script-upload',
 });
 
 // One entry point for a dropped or uploaded .stc: into the editor when the window is open,
@@ -47,7 +47,7 @@ export class StencilScriptModal extends StencilElement {
     const overlay = $('script-overlay');
     let shell;
 
-    const { schedule } = wireScriptEditor({
+    wireScriptEditor({
       editor,
       pre: $('script-highlight'),
       strip: $('script-diag'),
@@ -62,21 +62,16 @@ export class StencilScriptModal extends StencilElement {
       onUpload: (file) => loadScriptFile(file),
     });
 
-    // The window opens EMPTY every time — nothing is kept between opens or across a reload.
-    // A script you meant to run is one you just wrote; a stale one sitting there is a trap.
+    // The window keeps what you wrote: the text is the page's ONE script buffer
+    // (scriptBuffer.js), shared with the menu flyout, so closing either view does not throw
+    // work away. Nothing persists it, so a reload still starts empty — Clear is the way out.
     shell = wireModalShell(overlay, $('script-btn'), $('script-close'), {
       onOpen: () => {
-        editor.value = '';
-        schedule();
         // A dropped .stc lands in the editor while the window owns the drop.
         overlay.setAttribute('data-drop-owner', 'script');
         setTimeout(() => editor.focus(), 0);
       },
-      onClose: () => {
-        overlay.removeAttribute('data-drop-owner');
-        editor.value = '';
-        schedule();
-      },
+      onClose: () => { overlay.removeAttribute('data-drop-owner'); },
     });
 
     overlay.addEventListener('drop', (e) => {
