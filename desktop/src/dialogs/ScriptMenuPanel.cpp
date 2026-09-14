@@ -42,6 +42,8 @@ namespace stencil::gui {
     col->addWidget(edit_, 1);   // the editor takes whatever the strip and the row leave
 
     // Copy · Download · Upload · Run, right-aligned, Run primary and last (browser order).
+    // All four are accent-FILLED, like the window's and like a plain <button> in the
+    // browser's shell.css; the shared sheet greys the disabled face.
     auto* row = new QHBoxLayout;
     row->setSpacing(6);
     row->addStretch(1);
@@ -50,6 +52,7 @@ namespace stencil::gui {
       b->setObjectName(QString::fromLatin1(name));
       b->setToolTip(tip);
       b->setFocusPolicy(Qt::TabFocus);
+      makeModalCta(b);
       row->addWidget(b);
       return b;
     };
@@ -58,7 +61,6 @@ namespace stencil::gui {
     uploadBtn_ = mk("scriptMenuUpload", tr("Upload"), tr("Load a .stc file into the editor"));
     runBtn_ = mk("scriptMenuRun", tr("Run"),
                  tr("Run this script on the open project (Ctrl+Enter)"));
-    makeModalCta(runBtn_);
     col->addSpacing(8);
     col->addLayout(row);
 

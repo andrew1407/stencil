@@ -2,8 +2,10 @@
 // browser/tests/ctxScript.test.js: it behaves like the window it mirrors (nothing reported
 // until a run, the acting buttons dead while empty) and like a code editor (Tab, Ctrl+Enter).
 #include "ScriptMenuPanel.hpp"
+#include "theme.hpp"
 
 #include <QApplication>
+#include <QImage>
 #include <QClipboard>
 #include <QKeyEvent>
 #include <QLabel>
@@ -20,6 +22,12 @@ namespace {
   template <class W>
   W* find(const ScriptMenuPanel& panel, const char* name) {
     return panel.findChild<W*>(QString::fromLatin1(name));
+  }
+
+  // The fill a footer button actually paints, read left of its label.
+  QColor faceOf(QPushButton* b) {
+    const QImage im = b->grab().toImage();
+    return im.pixelColor(4, im.height() / 2);
   }
 
   void sendKey(QWidget* w, int key, Qt::KeyboardModifiers mods) {
@@ -147,6 +155,34 @@ int main(int argc, char** argv) {
     find<QPushButton>(panel, "scriptMenuDownload")->click();
     check(uploads == 1 && downloads == 1,
           "the two file actions are the window's (a dialog cannot open under the popup grab)");
+  }
+
+  std::printf("the footer buttons are FILLED, like the window's and the browser's:\n");
+  {
+    const stencil::gui::Palette pal = stencil::gui::themePalette(true, QStringLiteral("violet"));
+    qApp->setStyleSheet(stencil::gui::buildStylesheet(true, QStringLiteral("violet")));
+    ScriptMenuPanel panel(nullptr, {});
+    panel.setScript(QStringLiteral("@filter bw\n"));
+    panel.show();
+    QApplication::processEvents();
+    bool allFilled = true, allCta = true;
+    for (const char* n : {"scriptMenuCopy", "scriptMenuDownload", "scriptMenuUpload",
+                          "scriptMenuRun"}) {
+      QPushButton* b = find<QPushButton>(panel, n);
+      if (!b || faceOf(b) != pal.accent) allFilled = false;
+      if (!b || !b->property("accentCta").toBool()) allCta = false;
+    }
+    check(allCta, "Copy, Download, Upload and Run are all the accent CTA");
+    check(allFilled, "…and every one of them paints the accent fill when live");
+
+    panel.setScript(QString());   // Copy/Download/Run go dead, Upload stays live
+    QApplication::processEvents();
+    QPushButton* copy = find<QPushButton>(panel, "scriptMenuCopy");
+    QPushButton* upload = find<QPushButton>(panel, "scriptMenuUpload");
+    check(copy && faceOf(copy) != pal.accent
+              && copy->palette().color(QPalette::ButtonText) == pal.disabledText,
+          "a dead one wears the shared disabled face, not the accent");
+    check(upload && faceOf(upload) == pal.accent, "…while the live one keeps its fill");
   }
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
