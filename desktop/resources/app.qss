@@ -49,6 +49,15 @@
          updateProjectTitle() flips [remoteEditing] for a server-backed project. */
       QScrollArea#canvasViewport { border: 2px solid %BORDER_CANVAS%; }
       QScrollArea#canvasViewport[remoteEditing="true"] { border: 2px solid #d4a017; }
+      /* In fullscreen the frame is the only chrome left on screen, so it takes the browser's
+         fullscreen-panel hairline instead (fullscreen.css #fs-points-panel: 1px --border-main,
+         8px corners). MainWindow::markFullscreenBars flips [fsView]. */
+      QScrollArea#canvasViewport[fsView="true"] {
+        border: 1px solid %BORDER%; border-radius: 8px;
+      }
+      QScrollArea#canvasViewport[fsView="true"][remoteEditing="true"] {
+        border: 1px solid #d4a017; border-radius: 8px;
+      }
 
       /* Live cursor-coord readout, between the canvas and the drop-hint (browser parity:
          layout.css .coord-status — its own --bg-tooltip/--border-tooltip box, not the
