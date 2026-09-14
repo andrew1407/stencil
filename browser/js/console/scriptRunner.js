@@ -138,7 +138,7 @@ export const runScript = async (text, stencil, { fetchLayout } = {}) => {
   }
 
   const warnings = program.diagnostics.filter((d) => d.severity === 'warning');
-  notify(`Script ran: ${ran} op${ran === 1 ? '' : 's'}`, 'ok');
+  notify('Script executed successfully', 'ok');
   if (warnings.length > 0) notify(`Line ${warnings[0].line}: ${warnings[0].message}`, 'info');
   return ran;
 };
