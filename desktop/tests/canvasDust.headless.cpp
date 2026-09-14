@@ -44,9 +44,10 @@ int main(int argc, char** argv) {
   std::printf("the canvas clock is the shared one divided by 1.5:\n");
   {
     check(DisintegrateOverlay::DUST_MS == 1100, "the shared dust clock is browser/1.5");
-    check(stencil::gui::CANVAS_DUST_MS == 733, "the canvas one is a further 1.5x faster");
-    check(stencil::gui::CANVAS_DUST_MS == DisintegrateOverlay::DUST_MS * 2 / 3,
-          "…which is exactly two thirds of it");
+    // Pinned to the browser's GHOST_MS: the two canvases must land and clear alike.
+    check(stencil::gui::CANVAS_DUST_MS == 760, "the canvas clock matches the browser's");
+    check(stencil::gui::CANVAS_DUST_MS < DisintegrateOverlay::DUST_MS,
+          "…and is faster than the shared list-row clock");
   }
 
   std::printf("an image landing on the canvas assembles on the canvas clock:\n");

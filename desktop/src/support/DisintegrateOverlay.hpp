@@ -43,9 +43,10 @@ namespace stencil::gui {
   inline constexpr int TOOLTIP_DUST_OUT_MS = 236;
   inline constexpr int TOOLTIP_FADE_MS = 135;
   inline constexpr int TOOLTIP_HAND_OVER_MS = 90;
-  /* The CANVAS image landing and being cleared, a further 1.5x faster than the shared
-   * DUST_MS below: a full-viewport cloud at the list-row pace reads as a wait. */
-  inline constexpr int CANVAS_DUST_MS = 733;
+  /* The CANVAS image landing and being cleared. Faster than the shared DUST_MS below --
+   * a full-viewport cloud at the list-row pace reads as a wait -- and deliberately the SAME
+   * number as the browser's GHOST_MS, not the 1.5x the other dust clocks keep. */
+  inline constexpr int CANVAS_DUST_MS = 760;
 
   QPoint dockAwayPoint(const QRect& picture, Qt::DockWidgetArea area,
                        double reach = 1.2);

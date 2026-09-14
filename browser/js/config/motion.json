@@ -74,7 +74,7 @@
     "REVEAL_EASE_OUT": "cubic-bezier(0.45, 0.05, 0.6, 0.9)",
     "CHAT_ENTER_REACH": 0.9,
     "CHAT_SLIDE_MS": 320,
-    "GHOST_MS": 900,
+    "GHOST_MS": 760,
     "DUST_CELL_PX": 6,
     "DUST_MAX_PARTICLES": 7000,
     "DUST_ALPHA_LEVELS": 8,
