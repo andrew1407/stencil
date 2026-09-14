@@ -271,6 +271,7 @@ namespace stencil::gui {
     void altPeekOpen(class QToolButton* btn, QAction* act);
     void startLingerPoll();
     void stopLingerPoll();
+    void dropChatVeil();
     void stopChatAnim();
     void setToolbarsShown(bool show, bool animate);
     void refreshStatusHintVisibility();

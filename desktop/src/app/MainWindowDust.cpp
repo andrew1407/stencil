@@ -72,6 +72,9 @@ namespace stencil::gui {
       veil->setOpacity(0.0);
       chatDock_->setGraphicsEffect(veil);
       chatVeil_ = veil;
+      // The hand-over is the overlay's own end, never the slide's: the two clocks start a
+      // beat apart, and that beat drew neither the motes nor the dock.
+      connect(fx, &QObject::destroyed, this, [this] { dropChatVeil(); });
     }
     return fx;
   }

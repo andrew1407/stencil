@@ -58,16 +58,22 @@ namespace stencil::gui {
 
   // Browser chat-panel slide: ~0.34 s in, ~0.26 s out, ease-out. Pin min==max on every frame so QMainWindow's own
   // layout passes can't override the extent; release at the end so the dock stays user-resizable.
+  /* Hands the dock back its own paint. Called the instant the motes are gone — the flight's
+   * clock starts before the slide's, so waiting for the slide left a beat with the overlay
+   * destroyed and the dock still veiled, drawing neither. Idempotent: stopChatAnim repeats it. */
+  void MainWindow::dropChatVeil() {
+    if (!chatVeil_) return;
+    if (chatDock_ && chatDock_->graphicsEffect() == chatVeil_) chatDock_->setGraphicsEffect(nullptr);
+    chatVeil_ = nullptr;
+  }
+
   void MainWindow::stopChatAnim() {
     // An INTERRUPTED slide never runs its completion, so "leaving" is released here too.
     chatClosing_ = false;
     if (chatDock_) chatDock_->setClosing(false);
     // Always released — it must never outlive an interrupted flight.
     if (selPanel_) { selPanel_->setMinimumWidth(PANEL_MIN_WIDTH); selPanel_->setMaximumWidth(QWIDGETSIZE_MAX); }
-    if (chatVeil_) {
-      if (chatDock_ && chatDock_->graphicsEffect() == chatVeil_) chatDock_->setGraphicsEffect(nullptr);
-      chatVeil_ = nullptr;
-    }
+    dropChatVeil();
     if (!chatAnim_) return;
     chatAnim_->stop();
     chatAnim_->deleteLater();
