@@ -68,12 +68,13 @@ jobs:
           hit() { $all || printf '%s\n' "$files" | grep -Eq "$1"; }
           flag() { local v=false; hit "$2" && v=true; echo "$1=$v" >> "$GITHUB_OUTPUT"; echo "$1: $v"; }
           cfg='^browser/js/config/'
-          # Tests pin parity against sibling trees (browser ↔ desktop/src + browser-extension/src,
-          # browser-extension ↔ browser/js + css), so those count as inputs too.
-          flag browser     '^browser/|^browser-extension/src/|^desktop/src/'
+          # Tests pin parity against sibling trees (browser ↔ desktop/src and both extensions'
+          # icons; browser-extension ↔ browser/js + css; vscode-extension ↔ browser/js/core/script*
+          # and colorNames.json), so those count as inputs too.
+          flag browser     '^browser/|^browser-extension/(src|icons)/|^desktop/src/|^vscode-extension/icons/'
           flag single_file '^browser/'
           flag browser_extension '^browser-extension/|^browser/(js|css)/'
-          flag vscode_extension '^vscode-extension/|^browser/js/core/script'
+          flag vscode_extension '^vscode-extension/|^browser/js/core/script|^browser/js/config/colorNames\.json$'
           flag core        '^core/'
           flag desktop     "^desktop/|^core/|^browser/js/|^browser/favicon\.svg$"
           flag wasm        '^core/|^browser/'
