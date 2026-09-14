@@ -41,6 +41,7 @@ namespace stencil::gui {
    private:
     void gateActions();
     void run();
+    int rowWidth() const;   // what the action row needs, gutters included
 
     Hooks hooks_;
     ScriptEditorWidget* edit_ = nullptr;

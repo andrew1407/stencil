@@ -42,7 +42,7 @@ namespace stencil::gui {
     edit_->restyleFormats();   // the formats hold resolved colours; the verdict on screen stands
     // The glyphs just set change what the row needs, and the MENU sizes this panel while it is
     // still hidden — so the width is re-derived here, never from a stale hint on the way in.
-    setFixedWidth(qMax(MENU_SCRIPT_WIDTH, actions_->sizeHint().width() + 2 * MENU_SCRIPT_EDGE));
+    setFixedWidth(rowWidth());
   }
 
 }  // namespace stencil::gui

@@ -83,9 +83,17 @@ namespace stencil::gui {
     connect(edit_, &ScriptEditorWidget::runRequested, this, &ScriptMenuPanel::run);
     connect(edit_, &ScriptEditorWidget::edited, this, &ScriptMenuPanel::gateActions);
 
-    setFixedWidth(MENU_SCRIPT_WIDTH);   // the floor; restyle() re-derives it from the row
+    setFixedWidth(rowWidth());   // provisional; restyle() re-derives it once the glyphs are on
     setFixedHeight(menuScriptHeight(this));
     gateActions();
+  }
+
+  // The flyout IS its action row: the five buttons plus the panel's own side gutters. A
+  // layout caches its size hint, so it is invalidated first — restyle() asks again once the
+  // glyphs and the QSS font have changed what the buttons need.
+  int ScriptMenuPanel::rowWidth() const {
+    actions_->invalidate();
+    return actions_->sizeHint().width() + 2 * MENU_SCRIPT_EDGE;
   }
 
   QWidget* ScriptMenuPanel::editor() const { return edit_->editor(); }
