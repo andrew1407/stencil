@@ -41,6 +41,14 @@ test('the favicon art draws exactly what favicon.svg draws', () => {
     for (const root of [painted[0], onDisk[0]]) assert.ok(root.includes(attr), `${root} lost ${attr}`);
 });
 
+// Two surfaces ship the mark as a FILE, where the browser cannot import it from: the Chrome
+// extension's action icon and the VS Code extension's logo source. Same art, or they drift.
+test('the extension icon files are the same mark as favicon.svg', () => {
+  const onDisk = elements(read('favicon.svg'));
+  for (const copy of ['../browser-extension/icons/icon.svg', '../vscode-extension/icons/stencil.svg'])
+    assert.deepEqual(elements(read(copy)), onDisk, `${copy} drifted from favicon.svg`);
+});
+
 test('%1 is the only placeholder, and it is the accent-stroked panel outline', () => {
   assert.equal(ART.favicon.match(/%\d/g).join(''), '%1', 'one placeholder, exactly once');
   assert.match(ART.favicon, /<rect [^>]*stroke="%1"/, '%1 strokes the panel outline');

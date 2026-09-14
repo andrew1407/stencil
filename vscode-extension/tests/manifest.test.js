@@ -19,6 +19,7 @@ test('the extension is CommonJS, and its entry point exists', () => {
   assert.equal(manifest.main, './src/extension.js');
   assert.ok(existsSync(here(`../${manifest.main}`)));
   assert.equal(manifest.name, 'stencil-stc');
+  assert.equal(manifest.displayName, 'Stencil', 'the name the Extensions view shows');
   assert.equal(manifest.engines.vscode, '^1.90.0');
 });
 
@@ -30,10 +31,44 @@ test('the language is contributed under the id the code uses', () => {
   assert.equal(contributes.grammars[0].scopeName, ids.SCOPE_NAME);
 });
 
+// .stencil is contributed for its icon and to open as JSON. It must not pull the extension
+// host awake, and its grammar must defer rather than re-spell the JSON rules.
+test('the project file is a second language that defers to source.json', () => {
+  const project = contributes.languages.find((l) => l.id === ids.PROJECT_LANGUAGE_ID);
+  assert.ok(project, `no ${ids.PROJECT_LANGUAGE_ID} language`);
+  assert.deepEqual(project.extensions, [ids.PROJECT_FILE_EXTENSION]);
+  assert.ok(!manifest.activationEvents.some((e) => e.includes(ids.PROJECT_LANGUAGE_ID)),
+    'the project file contributes data only — activating on it would spawn the host for nothing');
+  const grammar = contributes.grammars.find((g) => g.language === ids.PROJECT_LANGUAGE_ID);
+  assert.equal(grammar.scopeName, ids.PROJECT_SCOPE_NAME);
+  const rules = JSON.parse(readFileSync(here(`../${grammar.path}`), 'utf8'));
+  assert.equal(rules.scopeName, ids.PROJECT_SCOPE_NAME);
+  assert.deepEqual(rules.patterns, [{ include: 'source.json' }]);
+});
+
+test('both file types carry a light and a dark icon, and the gallery carries the logo', () => {
+  for (const language of contributes.languages) {
+    for (const variant of ['light', 'dark']) {
+      const path = language.icon?.[variant];
+      assert.ok(path, `${language.id} has no ${variant} icon`);
+      assert.match(path, /\.svg$/, `${path} must be an SVG, so it scales in the explorer`);
+      assert.ok(existsSync(here(`../${path}`)), `${path} is missing`);
+    }
+  }
+  assert.equal(manifest.icon, 'icon.png', 'the extension logo must be a PNG — VS Code rejects SVG');
+  assert.equal(manifest.galleryBanner.color, '#2b2f3a', "the app panel's fill");
+  // Read the PNG header rather than trusting the extension: a file that is not really a PNG,
+  // or is under 128px, leaves the extension page showing the generic placeholder.
+  const png = readFileSync(here('../icon.png'));
+  assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 'not a PNG');
+  assert.equal(png.subarray(12, 16).toString('ascii'), 'IHDR');
+  assert.ok(png.readUInt32BE(16) >= 128 && png.readUInt32BE(20) >= 128, 'the logo must be at least 128px');
+});
+
 test('every contributed path exists on disk', () => {
   const paths = [
-    contributes.languages[0].configuration,
-    contributes.grammars[0].path,
+    ...contributes.languages.map((l) => l.configuration),
+    ...contributes.grammars.map((g) => g.path),
   ];
   for (const path of paths) assert.ok(existsSync(here(`../${path}`)), `${path} is missing`);
 });
@@ -57,13 +92,47 @@ test('the run button and the keybinding point at the run command, scoped to .stc
   assert.match(binding.when, new RegExp(`editorLangId == ${ids.LANGUAGE_ID}`));
 });
 
-test('the settings are the two the code reads, under the stencil section', () => {
+test('every setting the code reads is declared, with its default and an explanation', () => {
   const properties = contributes.configuration.properties;
   assert.deepEqual(Object.keys(properties).sort(),
     Object.values(ids.SETTINGS).map((k) => `${ids.CONFIG_SECTION}.${k}`).sort());
-  assert.equal(properties['stencil.cliPath'].type, 'string');
-  assert.equal(properties['stencil.cliPath'].default, '', 'the CLI is found, not assumed');
-  assert.equal(properties['stencil.checkOnType'].type, 'boolean');
+  const defaults = {
+    'stencil.cliPath': '', 'stencil.checkOnType': true, 'stencil.checkOnSave': true,
+    'stencil.highlighting': true, 'stencil.completion': true, 'stencil.colors': {},
+    'stencil.hover': true,
+  };
+  for (const [id, value] of Object.entries(defaults)) {
+    assert.deepEqual(properties[id].default, value, `${id} has the wrong default`);
+    assert.equal(properties[id].type, typeof value, `${id} has the wrong type`);
+    assert.ok(properties[id].markdownDescription ?? properties[id].description,
+      `${id} would sit in the settings UI with nothing said about it`);
+  }
+  assert.equal(properties['stencil.cliPath'].scope, 'machine-overridable',
+    'a binary path belongs to the machine, and a workspace may still override it');
+});
+
+test('stencil.colors names exactly the families, and takes only a hex colour', () => {
+  const { FAMILIES, HEX } = require('../src/lib/colorFamilies.js');
+  const colors = contributes.configuration.properties['stencil.colors'];
+  assert.deepEqual(Object.keys(colors.properties).sort(), [...FAMILIES].sort(),
+    'the settings UI drifted from src/lib/colorFamilies.js');
+  assert.equal(colors.additionalProperties, false, 'a mistyped family is dropped in silence');
+  const [[named, schema]] = Object.entries(colors.patternProperties);
+  const isFamily = new RegExp(named);
+  for (const family of FAMILIES) assert.ok(isFamily.test(family), `${family} is unvalidated`);
+  assert.ok(!isFamily.test('nonsense'), 'the alternation is anchored to the families');
+  const accepted = new RegExp(schema.pattern);
+  for (const value of ['#abc', '#abcd', '#aabbcc', '#aabbccdd', '', 'red', '#ab', '#12345']) {
+    assert.equal(accepted.test(value), value === '' || HEX.test(value),
+      `the schema and colorFamilies.js disagree about ${value || '""'}`);
+  }
+});
+
+test('the README settings table lists exactly the declared settings', () => {
+  const readme = readFileSync(here('../README.md'), 'utf8');
+  const listed = [...readme.matchAll(/^\| `(stencil\.\w+)` \|/gm)].map(([, id]) => id);
+  assert.deepEqual(listed.sort(),
+    Object.keys(contributes.configuration.properties).sort(), 'the README drifted');
 });
 
 test('@vscode/vsce is the only dependency, dev-only and exactly pinned', () => {
@@ -98,4 +167,7 @@ test('.vscodeignore keeps the tests out and the parser copies in', () => {
     assert.ok(ignore.includes(line), `${line} must be excluded from the .vsix`);
   }
   assert.ok(!/^src\//m.test(ignore), 'src/ ships whole — the parser copies run in the editor');
+  for (const line of ['icons', 'icon.png', 'README.md']) {
+    assert.ok(!new RegExp(`^${line}`, 'm').test(ignore), `${line} must ship — it is the extension page`);
+  }
 });

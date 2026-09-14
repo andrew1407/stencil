@@ -83,7 +83,7 @@ pystencil/            # the Python package: build.py, pystencil/, tests/
 mcp/                  # the Rust MCP server: src/ (server · args · pipeline · opplan · deliver · llm …)
 server/               # the Go collaboration server: cmd/stencil-server/, internal/
 browser-extension/    # the Chrome MV3 extension: manifest.json, src/, tests/
-vscode-extension/     # the VS Code .stc extension: package.json, syntaxes/, src/ (+ src/parser/ copies)
+vscode-extension/     # the VS Code .stc extension: package.json, syntaxes/, icons/, src/ (+ src/parser/ copies)
 bot/                  # the .NET Telegram bot: src/ (Domain · Application · Infrastructure · Bot), tests/
 e2e/                  # the Playwright smoke harness: helpers/, fixtures/, tests/, pins/
 contracts/            # the normative contracts, one directory each
