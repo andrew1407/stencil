@@ -39,9 +39,9 @@
    menu's pointer would otherwise inherit down to. */
 #ctx-script-editor { cursor: text; }
 #ctx-script-diag { padding: 6px 2px 0; font-size: 11.5px; }
-/* Copy · Download · Upload · Run · Clear, right-aligned like the window's footer and free to
+/* Copy · Download · Upload · Run · Clear, left-aligned ABOVE the editor like the window's bar, free to
    wrap onto a second line on a narrow viewport. Scoped through .ctx-script so the
    tighter gap outranks the shared .chat-settings-actions row this reuses. */
-.ctx-script-row { display: flex; justify-content: flex-end; padding-top: 8px; }
+.ctx-script-row { display: flex; justify-content: flex-start; padding-bottom: 8px; }
 .ctx-script .ctx-script-actions { flex-wrap: wrap; gap: 6px; }
 .ctx-script .ctx-script-actions .btn-icon-text { font-size: 12px; padding: 4px 9px; }

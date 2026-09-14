@@ -9,13 +9,6 @@ import { icon } from './icons.js';
 export const scriptFlyoutHtml = () => `
             <div class="ctx-sub ctx-script-sub" id="ctx-script-sub">
                 <div class="ctx-script" id="ctx-script-pane">
-                    <div class="script-editor-wrap" id="ctx-script-wrap">
-                        <pre class="script-highlight" id="ctx-script-highlight" aria-hidden="true"></pre>
-                        <textarea id="ctx-script-editor" class="script-input" spellcheck="false" wrap="off"
-                                  aria-label="Stencil script" data-ctx-keep-tab="1"
-                                  placeholder="@crop 10%&#10;@filter bw&#10;@save"></textarea>
-                    </div>
-                    <div class="script-diag" id="ctx-script-diag"></div>
                     <div class="ctx-script-row">
                         <span class="ctx-script-actions chat-settings-actions">
                             <button id="ctx-script-copy" class="btn-icon-text" data-title="Copy this script to the clipboard">${icon('clipboard', { size: 13 })}<span>Copy</span></button>
@@ -26,5 +19,12 @@ export const scriptFlyoutHtml = () => `
                             <button id="ctx-script-clear" class="btn-icon-text danger" data-title="Clear this script from the editor">${icon('trash', { size: 13 })}<span>Clear</span></button>
                         </span>
                     </div>
+                    <div class="script-editor-wrap" id="ctx-script-wrap">
+                        <pre class="script-highlight" id="ctx-script-highlight" aria-hidden="true"></pre>
+                        <textarea id="ctx-script-editor" class="script-input" spellcheck="false" wrap="off"
+                                  aria-label="Stencil script" data-ctx-keep-tab="1"
+                                  placeholder="@crop 10%&#10;@filter bw&#10;@save"></textarea>
+                    </div>
+                    <div class="script-diag" id="ctx-script-diag"></div>
                 </div>
             </div>`;

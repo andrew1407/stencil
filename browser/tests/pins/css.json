@@ -4596,8 +4596,8 @@
    },
    "|.ctx-script-row": {
     "display": "flex",
-    "justify-content": "flex-end",
-    "padding-top": "8px"
+    "justify-content": "flex-start",
+    "padding-bottom": "8px"
    },
    "|.ctx-script-sub": {
     "padding": "6px 0"
