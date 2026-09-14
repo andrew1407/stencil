@@ -51,11 +51,13 @@ namespace stencil::support {
 
     void place(QMenu* menu);
 
-    void shakeRow(QAction* a);
+    void shakeRow(QMenu* menu, QAction* a);
+
+    void stopShake(QAction* a);
 
     std::vector<Row> rows_;
-    // Reset on aboutToHide so a FRESH open shakes its first-hovered row again.
-    QPointer<QAction> current_;
+    // The shaken row per menu LEVEL, reset on aboutToHide so a fresh open shakes again.
+    QHash<QObject*, QPointer<QAction>> current_;
   };
 
 }  // namespace stencil::support
