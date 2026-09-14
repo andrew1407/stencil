@@ -1,5 +1,5 @@
-// One parse per (document, version). A keystroke reaches both the diagnostics and the token
-// provider, and each used to lex, parse and lower the buffer for itself. A document carrying
+// One parse per (document, version): a keystroke reaches both the diagnostics and the token
+// provider, and the buffer is lexed, parsed and lowered once for the pair. A document carrying
 // no version number is never cached, because nothing would ever invalidate it.
 'use strict';
 

@@ -4,11 +4,9 @@
 import { parseScript } from '../core/script.js';
 import { DIRECTIVES } from '../core/scriptTypes.js';
 
-// The lexer classifies on the '@' alone, so every word after one arrives as a `directive`.
-// Only a REAL one is coloured, or the accent would say nothing about the word existing.
-// Lowercased like the lowering's own comparison, so @CROP stays a directive. Read off the
-// SOURCE by position, never token.text: the wasm path leaves that empty, so a text-based
-// lookup matched nothing there and every directive lost its colour.
+// The lexer classifies on the '@' alone, so every word after one arrives as a `directive`;
+// only a REAL one is coloured. Lowercased like the lowering's own comparison, so @CROP stays
+// one. Read off the SOURCE by position, never token.text, which the wasm path leaves empty.
 const DIRECTIVE_WORDS = new Set(DIRECTIVES);
 const knownDirective = (lines, t) =>
   DIRECTIVE_WORDS.has((lines[t.line - 1] ?? '').slice(t.col, t.col - 1 + t.len).toLowerCase());
