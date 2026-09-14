@@ -94,6 +94,11 @@
         "command": "stencil.checkScript",
         "title": "Stencil: Check script",
         "category": "Stencil"
+      },
+      {
+        "command": "stencil.configureColors",
+        "title": "Stencil: Configure highlight colours",
+        "category": "Stencil"
       }
     ],
     "configuration": {

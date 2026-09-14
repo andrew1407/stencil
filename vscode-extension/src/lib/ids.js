@@ -13,9 +13,8 @@ const PROJECT_SCOPE_NAME = 'source.stencil-project';
 const PROJECT_FILE_EXTENSION = '.stencil';
 
 const COMMANDS = Object.freeze({
-  runScript: 'stencil.runScript',
-  runScriptOnImage: 'stencil.runScriptOnImage',
-  checkScript: 'stencil.checkScript',
+  runScript: 'stencil.runScript', runScriptOnImage: 'stencil.runScriptOnImage',
+  checkScript: 'stencil.checkScript', configureColors: 'stencil.configureColors',
 });
 
 const SETTINGS = Object.freeze({

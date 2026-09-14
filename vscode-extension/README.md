@@ -48,8 +48,8 @@ editor and a run cannot disagree.
 
 Each family takes a standard semantic token type, so an installed theme colours it with no
 setup. There is no colour setting in this extension — VS Code lets only a theme or you set
-one. To pick your own, put this in `settings.json` (⌘⇧P → *Preferences: Open User Settings
-(JSON)*) and change any value:
+one. Run **Stencil: Configure highlight colours** from the palette: it opens `settings.json`
+at the right setting, writing this starter block first if you have none. Change any value.
 
 ```jsonc
 "editor.semanticTokenColorCustomizations": {
@@ -115,10 +115,11 @@ Running a script needs the Stencil CLI on the machine: `cd cli && zig build` put
 | Stencil: Run script | `Ctrl+Alt+R` / `⌘⌥R` | `stencil --script <file>` |
 | Stencil: Run script on an image… | — | `stencil -i <image> --script <file>` |
 | Stencil: Check script | — | `stencil --script-check <file>` |
+| Stencil: Configure highlight colours | — | opens the colour setting — see [Colours](#colours) |
 
-There is also a ▶ in the editor title bar. Each saves the file first and runs in a terminal
-called **Stencil**, from the script's own directory — so a relative `@source` path means what
-it means on the command line.
+There is also a ▶ in the editor title bar. The three script commands save the file first and
+run in a terminal called **Stencil**, from the script's own directory — so a relative
+`@source` path means what it means on the command line.
 
 ## Settings
 
@@ -138,7 +139,7 @@ What this extension deliberately does not own, because VS Code already does:
 
 | Want | Setting |
 |---|---|
-| Different highlight colours | `editor.semanticTokenColorCustomizations`, keyed by the token types in [Colours](#colours) |
+| Different highlight colours | `editor.semanticTokenColorCustomizations` — **Stencil: Configure highlight colours** opens it |
 | Highlighting off for `.stc` only | `"[stencil-script]": { "editor.semanticHighlighting.enabled": false }` |
 | Suggestions to stop appearing unprompted | `editor.quickSuggestions`, `editor.suggestOnTriggerCharacters` |
 | File icons off | `workbench.iconTheme` — a language icon is drawn only by themes that allow one, so the choice belongs to the theme, not to this extension |

@@ -55,8 +55,8 @@ class Terminal {
  * extension registered or showed, so a test can assert on it. */
 export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' } = {}) => {
   const calls = {
-    collections: [], commands: new Map(), completionProviders: [], events: {}, errors: [],
-    hoverProviders: [], semanticProviders: [], terminals: [],
+    collections: [], commands: new Map(), completionProviders: [], errors: [], events: {},
+    executed: [], hoverProviders: [], semanticProviders: [], terminals: [], updates: [],
   };
   const on = (name) => (handler) => {
     (calls.events[name] ??= []).push(handler);
@@ -92,6 +92,7 @@ export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' }
     },
     commands: {
       registerCommand(id, handler) { calls.commands.set(id, handler); return { dispose() {} }; },
+      executeCommand(id, ...args) { calls.executed.push({ id, args }); return Promise.resolve(); },
     },
     window: {
       activeTextEditor: undefined,
@@ -107,8 +108,14 @@ export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' }
     workspace: {
       textDocuments: [],
       getWorkspaceFolder: () => undefined,
+      // getConfiguration() with no section is addressed by full id, the way colors.js reads it.
       getConfiguration: (section) => ({
-        get: (key, fallback) => settings[`${section}.${key}`] ?? fallback,
+        get: (key, fallback) => settings[section ? `${section}.${key}` : key] ?? fallback,
+        update: (key, value, global) => {
+          calls.updates.push({ key, value, global });
+          settings[key] = value;
+          return Promise.resolve();
+        },
       }),
       onDidOpenTextDocument: on('open'),
       onDidSaveTextDocument: on('save'),
