@@ -41,10 +41,10 @@ test('the flyout carries each of its ids once, and never one of the window\'s', 
   assert.match(FLYOUT, /id="ctx-script-upload" accept="\.stc"/);
 });
 
-test('the actions are the window\'s five, Run primary and Clear the danger tail', () => {
+test('the actions are the window\'s five, Run leading and Clear the danger tail', () => {
   const order = [...FLYOUT.matchAll(/id="(ctx-script-(?:copy|download|upload|upload-btn|clear|run))"/g)].map((m) => m[1]);
-  assert.deepEqual(order, ['ctx-script-copy', 'ctx-script-download', 'ctx-script-upload',
-    'ctx-script-upload-btn', 'ctx-script-run', 'ctx-script-clear']);
+  assert.deepEqual(order, ['ctx-script-run', 'ctx-script-copy', 'ctx-script-download',
+    'ctx-script-upload', 'ctx-script-upload-btn', 'ctx-script-clear']);
   assert.match(FLYOUT, /id="ctx-script-run" class="btn-icon-text primary"/);
   // Clear throws work away, so it wears the danger red and sits past Run, out of the way.
   assert.match(FLYOUT, /id="ctx-script-clear" class="btn-icon-text danger"/);

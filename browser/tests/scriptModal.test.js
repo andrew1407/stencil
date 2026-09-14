@@ -38,15 +38,15 @@ test('the window is composed with its editor, its diagnostics strip and its acti
     'script-download', 'script-clear', 'script-run']) {
     assert.equal(MARKUP.split(`id="${id}"`).length - 1, 1, `${id} appears exactly once`);
   }
-  // Run is the primary action; Clear throws work away, so it wears the danger red and
-  // sits past Run where a mis-click cannot reach it on the way to the primary action.
+  // Run leads the row as the primary action; Clear throws work away, so it wears the danger
+  // red and sits at the far end, away from everything reached on the way to Run.
   // Sliced to the actions bar: it now sits ABOVE the editor, so "everything after Copy"
   // would sweep the editor's own ids in with it.
   const bar = MARKUP.slice(MARKUP.indexOf('class="script-actions-bar"'));
   const footer = bar.slice(0, bar.indexOf('class="settings-body"'));
   const order = [...footer.matchAll(/id="(script-[a-z-]+)"/g)].map((m) => m[1]);
   assert.deepEqual(order,
-    ['script-copy', 'script-download', 'script-upload', 'script-upload-btn', 'script-run', 'script-clear']);
+    ['script-run', 'script-copy', 'script-download', 'script-upload', 'script-upload-btn', 'script-clear']);
   assert.match(footer, /id="script-run" class="btn-icon-text primary"/);
   assert.match(footer, /id="script-clear" class="btn-icon-text danger"/);
   assert.match(footer, /id="script-clear"[^>]*>.*ic-trash/);

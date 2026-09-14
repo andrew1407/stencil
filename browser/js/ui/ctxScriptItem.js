@@ -11,11 +11,11 @@ export const scriptFlyoutHtml = () => `
                 <div class="ctx-script" id="ctx-script-pane">
                     <div class="ctx-script-row">
                         <span class="ctx-script-actions chat-settings-actions">
+                            <button id="ctx-script-run" class="btn-icon-text primary" data-title="Run this script on the open project (Ctrl+Enter)">${icon('play', { size: 13 })}<span>Run</span></button>
                             <button id="ctx-script-copy" class="btn-icon-text" data-title="Copy this script to the clipboard">${icon('clipboard', { size: 13 })}<span>Copy</span></button>
                             <button id="ctx-script-download" class="btn-icon-text" data-title="Download this script as stencil.stc">${icon('file-down', { size: 13 })}<span>Download</span></button>
                             <input type="file" id="ctx-script-upload" accept=".stc" style="display:none;">
                             <button id="ctx-script-upload-btn" class="btn-icon-text" data-title="Load a .stc file into the editor">${icon('file-up', { size: 13 })}<span>Upload</span></button>
-                            <button id="ctx-script-run" class="btn-icon-text primary" data-title="Run this script on the open project (Ctrl+Enter)">${icon('play', { size: 13 })}<span>Run</span></button>
                             <button id="ctx-script-clear" class="btn-icon-text danger" data-title="Clear this script from the editor">${icon('trash', { size: 13 })}<span>Clear</span></button>
                         </span>
                     </div>
