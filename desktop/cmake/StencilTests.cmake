@@ -196,6 +196,15 @@ foreach(area chatCards chatCompact chatDock chatPanel chatTurns canvas chrome co
 endforeach()
 
 
+# Hovering a context-menu row (support/iconMotion + support/MenuHotkeys): the icon play and
+# the keycap shake start once on arrival, never restart while the pointer stays on the row,
+# and are cancelled when it leaves — QMenu::hovered re-fires and climbs the caused stack, so
+# neither can be driven straight off it. Drives a real QMenu, so it links the GUI objects.
+stencil_headless_test(stencil_menuhover_headless
+  SOURCES tests/menuHover.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
 # Appearance pins: the app stylesheet hashed per theme x accent, plus twelve rendered
 # MainWindow / dialog states diffed against tests/pins (per platform; a platform with
 # no baselines skips that half). Registered TWICE — offscreen runs at devicePixelRatio

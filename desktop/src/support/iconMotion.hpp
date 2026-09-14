@@ -154,12 +154,18 @@ namespace stencil::gui {
 
     void paint(double elapsed);
 
+    void restPaint();   // the rest glyph back on, WITHOUT re-arming a spent settle
+
     QAbstractButton* btn_ = nullptr;
     IconRequest req_;
     const IconMotionSpec* spec_ = nullptr;
     const QVector<IconMotionPart>* parts_ = nullptr;
     QVariantAnimation* anim_ = nullptr;
     double elapsed_ = 0;
+    /* A settle plays ONCE per hover, like the CSS animation-name the browser switches on
+     * with :hover (animations/iconHover.css): re-entering while the pointer never left
+     * must not replay it, and leaving cancels it back to rest. */
+    bool spent_ = false;
   };
 
   // For a menu row (browser: a .chat-more-item / .ctx-item icon animates on row hover),
@@ -182,12 +188,15 @@ namespace stencil::gui {
 
     void paint(double elapsed);
 
+    void restPaint();
+
     QAction* act_ = nullptr;
     IconRequest req_;
     const IconMotionSpec* spec_ = nullptr;
     const QVector<IconMotionPart>* parts_ = nullptr;
     QVariantAnimation* anim_ = nullptr;
     double elapsed_ = 0;
+    bool spent_ = false;
   };
 
   namespace icm {
