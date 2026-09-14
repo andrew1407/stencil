@@ -1,7 +1,7 @@
 #include "ScriptMenuPanel.hpp"
 
 #include "ScriptEditorWidget.hpp"
-#include "../support/modalChrome.hpp"   // makeModalCta — Run is the primary action
+#include "../support/modalChrome.hpp"   // makeModalCta/Go/Danger — the row's three faces
 #include "scriptMenuPanelParts.hpp"
 
 #include <QHBoxLayout>
@@ -57,6 +57,7 @@ namespace stencil::gui {
     };
     runBtn_ = mk("scriptMenuRun", tr("Run"),
                  tr("Run this script on the open project (Ctrl+Enter)"));
+    makeModalGo(runBtn_);   // the one GO action: green, not the accent the others wear
     copyBtn_ = mk("scriptMenuCopy", tr("Copy"), tr("Copy this script to the clipboard"));
     downloadBtn_ = mk("scriptMenuDownload", tr("Download"), tr("Save this script as a .stc file"));
     uploadBtn_ = mk("scriptMenuUpload", tr("Upload"), tr("Load a .stc file into the editor"));

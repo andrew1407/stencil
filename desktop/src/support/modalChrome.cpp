@@ -158,5 +158,11 @@ namespace stencil::gui {
     btn->setProperty("dangerCta", true);   // theme.cpp's #dangerButton face, by property
     if (!iconName.isEmpty()) btn->setIcon(labelIcon(iconName, QColor("#ffffff"), 15));
   }
+
+  void makeModalGo(QPushButton* btn, const QString& iconName) {
+    if (!btn) return;
+    btn->setProperty("successCta", true);   // theme.cpp's green face, by property
+    if (!iconName.isEmpty()) btn->setIcon(labelIcon(iconName, QColor("#ffffff"), 15));
+  }
 }  // namespace stencil::gui
 

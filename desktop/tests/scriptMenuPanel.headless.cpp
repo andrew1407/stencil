@@ -187,14 +187,17 @@ int main(int argc, char** argv) {
     panel.show();
     QApplication::processEvents();
     bool allFilled = true, allCta = true;
-    for (const char* n : {"scriptMenuRun", "scriptMenuCopy", "scriptMenuDownload",
-                          "scriptMenuUpload"}) {
+    for (const char* n : {"scriptMenuCopy", "scriptMenuDownload", "scriptMenuUpload"}) {
       QPushButton* b = find<QPushButton>(panel, n);
       if (!b || faceOf(b) != pal.accent) allFilled = false;
       if (!b || !b->property("accentCta").toBool()) allCta = false;
     }
-    check(allCta, "Run, Copy, Download and Upload are all the accent CTA");
+    check(allCta, "Copy, Download and Upload are all the accent CTA");
     check(allFilled, "…and every one of them paints the accent fill when live");
+    // Run is the one GO action, so it is GREEN — not the accent the other three wear.
+    QPushButton* go = find<QPushButton>(panel, "scriptMenuRun");
+    check(go && go->property("successCta").toBool(), "Run wears the go face, not the accent");
+    check(go && faceOf(go) != pal.accent, "…and paints something other than the accent");
 
     panel.setScript(QString());   // Copy/Download/Run go dead, Upload stays live
     QApplication::processEvents();

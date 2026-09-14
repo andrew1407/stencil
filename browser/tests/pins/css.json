@@ -4588,6 +4588,10 @@
     "font-size": "12px",
     "padding": "4px 9px"
    },
+   "|.ctx-script .primary:not(:disabled), .script-actions-bar .primary:not(:disabled)": {
+    "background": "var(--success)",
+    "border-color": "var(--success)"
+   },
    "|.ctx-script-plain .ctx-arrow": {
     "display": "none"
    },
@@ -8287,6 +8291,7 @@
    "|.oi-replace",
    "|.script-modal",
    "|.script-actions-bar",
+   "|.ctx-script .primary:not(:disabled), .script-actions-bar .primary:not(:disabled)",
    "|#script-overlay:not(.modal-popover) .app-modal",
    "|.script-modal .settings-body",
    "|.script-editor-wrap",

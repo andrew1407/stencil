@@ -83,6 +83,9 @@ namespace stencil::gui {
   // The same shared danger face, for a row that needs its objectName for something else.
   void makeModalDanger(QPushButton* btn, const QString& iconName = QString());
 
+  // The GO face: Run in the script editors, green rather than the accent every other CTA wears.
+  void makeModalGo(QPushButton* btn, const QString& iconName = QString());
+
   // GLOBAL, optional flight endpoints (support/modalReveal.hpp). Browser twin: confirmModal.js `closeAnchor`.
   struct FlightAnchors {
     QRect openRect;    // invalid = the press that raised the dialog

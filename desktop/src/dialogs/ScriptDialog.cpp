@@ -69,7 +69,7 @@ namespace stencil::gui {
     runBtn_ = new QPushButton(tr("Run"), this);
     runBtn_->setObjectName(QStringLiteral("scriptRun"));
     runBtn_->setToolTip(tr("Run this script on the open project (Ctrl+Enter)"));
-    makeModalCta(runBtn_, QStringLiteral("play"));
+    makeModalGo(runBtn_, QStringLiteral("play"));   // the one GO action: green, not accent
     runBtn_->setAutoDefault(false);
     bar->addWidget(runBtn_);
 
