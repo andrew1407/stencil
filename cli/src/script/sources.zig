@@ -4,6 +4,7 @@ const std = @import("std");
 
 const image = @import("../image.zig");
 const net = @import("../net.zig");
+const report = @import("../report.zig");
 const scriptCore = @import("../scriptCore.zig");
 const video = @import("../video.zig");
 
@@ -17,15 +18,15 @@ pub fn globMatch(pattern: []const u8, name: []const u8) bool {
     var p: usize = 0;
     var n: usize = 0;
     var star: ?usize = null;
-    var starName: usize = 0;
+    var star_name: usize = 0;
     while (n < name.len) {
         if (p < pattern.len and pattern[p] == '[') {
             const close = std.mem.indexOfScalarPos(u8, pattern, p + 1, ']') orelse return false;
             const set = pattern[p + 1 .. close];
-            const negate = set.len > 0 and set[0] == '^';
-            const body = if (negate) set[1..] else set;
-            const hit = std.mem.indexOfScalar(u8, body, name[n]) != null;
-            if (hit != negate) {
+            const is_negated = set.len > 0 and set[0] == '^';
+            const body = if (is_negated) set[1..] else set;
+            const is_hit = std.mem.indexOfScalar(u8, body, name[n]) != null;
+            if (is_hit != is_negated) {
                 p = close + 1;
                 n += 1;
                 continue;
@@ -36,14 +37,14 @@ pub fn globMatch(pattern: []const u8, name: []const u8) bool {
             continue;
         } else if (p < pattern.len and pattern[p] == '*') {
             star = p;
-            starName = n;
+            star_name = n;
             p += 1;
             continue;
         }
         if (star) |s| {
             p = s + 1;
-            starName += 1;
-            n = starName;
+            star_name += 1;
+            n = star_name;
             continue;
         }
         return false;
@@ -71,7 +72,8 @@ fn isMedia(name: []const u8) bool {
 }
 
 /// Every input `spec` names, sorted so a directory or glob runs in a stable order. The
-/// caller owns the list and each path in it.
+/// caller owns the list and each path in it. Every refusal says why: main.zig only exits 1,
+/// and the adapters parse the `error:` line.
 pub fn expand(gpa: std.mem.Allocator, io: std.Io, spec: []const u8, kind: scriptCore.SourceKind) ![][]u8 {
     var out: std.ArrayList([]u8) = .empty;
     errdefer {
@@ -81,25 +83,33 @@ pub fn expand(gpa: std.mem.Allocator, io: std.Io, spec: []const u8, kind: script
 
     switch (kind) {
         .url, .file => {
-            if (kind == .file and net.hasForeignScheme(spec)) return Error.ForeignScheme;
+            // The earliest refusal wins: a `.mp4`-looking ftp:// string must not reach a
+            // decoder, so this never becomes an input the runner then tries to open.
+            if (kind == .file and net.hasForeignScheme(spec)) {
+                report.err("@source '{s}': only http(s) URLs and local paths can be opened\n", .{spec});
+                return Error.ForeignScheme;
+            }
             try out.append(gpa, try gpa.dupe(u8, spec));
         },
         .dir, .glob => {
             const parts: DirLeaf = if (kind == .dir) .{ .dir = spec, .leaf = "*" } else splitDir(spec);
-            var dir = std.Io.Dir.cwd().openDir(io, parts.dir, .{ .iterate = true }) catch
+            var dir = std.Io.Dir.cwd().openDir(io, parts.dir, .{ .iterate = true }) catch {
+                report.err("@source '{s}': cannot open the directory '{s}'\n", .{ spec, parts.dir });
                 return Error.NoSuchSource;
+            };
             defer dir.close(io);
-            var walker = try dir.walk(gpa);
-            defer walker.deinit();
-            while (try walker.next(io)) |entry| {
+            // One level, so a plain iterate: walk() would recurse the whole subtree to find it.
+            var it = dir.iterate();
+            while (try it.next(io)) |entry| {
                 if (entry.kind != .file) continue;
-                if (std.mem.indexOfAny(u8, entry.path, "/\\") != null) continue; // one level only
-                if (entry.basename.len > 0 and entry.basename[0] == '.') continue;
-                if (!globMatch(parts.leaf, entry.basename)) continue;
-                if (!isMedia(entry.basename)) continue;
-                if (out.items.len >= MAX_INPUTS) return Error.TooManyInputs;
-                const joined = try std.fs.path.join(gpa, &.{ parts.dir, entry.basename });
-                try out.append(gpa, joined);
+                if (entry.name.len > 0 and entry.name[0] == '.') continue;
+                if (!globMatch(parts.leaf, entry.name)) continue;
+                if (!isMedia(entry.name)) continue;
+                if (out.items.len >= MAX_INPUTS) {
+                    report.err("@source '{s}': more than {d} inputs matched\n", .{ spec, MAX_INPUTS });
+                    return Error.TooManyInputs;
+                }
+                try out.append(gpa, try std.fs.path.join(gpa, &.{ parts.dir, entry.name }));
             }
             std.mem.sort([]u8, out.items, {}, struct {
                 fn lt(_: void, a: []u8, b: []u8) bool {

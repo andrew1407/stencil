@@ -1,6 +1,6 @@
-//! Typed Zig bridge over the core's .stc script ABI (../core/cliApi.h). A script is far
-//! longer than core.zig's 4 KiB scratch, so `parse` heap-dupes its own NUL-terminated copy.
-//! Every string handed back points into the handle and dies with it — copy before destroy.
+//! Typed Zig bridge over the core's .stc script ABI (../core/cliApi.h). `parse` hands the
+//! text through as ptr+len, so a script never needs core.zig's 4 KiB scratch. Every string
+//! handed back points into the handle and dies with it — copy before destroy.
 const std = @import("std");
 
 const c = @cImport({
@@ -67,7 +67,15 @@ pub const Op = struct {
     num_count: u32,
 };
 
-pub const Error = error{ParseFailed, ResolveFailed};
+pub const Error = error{ ParseFailed, ResolveFailed };
+
+/// CSS pixels per cm at 96 dpi — the basis every surface resolves a script length against, so
+/// a planned crop and a run crop land on the same pixels.
+pub const PX_PER_CM: f64 = 96.0 / 2.54;
+
+/// The widest `resolve` result: MAX_POINTS_PER_LINE points plus thickness and pointSize.
+pub const MAX_RESOLVE: usize = 2 * (200 + 1);
+pub const ResolveBuf = [MAX_RESOLVE]f64;
 
 /// A parsed script. `deinit` frees the core handle; every slice this returns dies with it.
 pub const Script = struct {
@@ -177,7 +185,8 @@ pub const Script = struct {
         };
     }
 
-    pub fn opStr(self: Script, i: u32, k: u32) []const u8 {
+    /// NUL-terminated, so it reaches the core's C ABI (a LineDraw colour) without a copy.
+    pub fn opStr(self: Script, i: u32, k: u32) [:0]const u8 {
         const s = c.stencil_cli_scriptOpStr(self.handle, @intCast(i), @intCast(k));
         return if (s == null) "" else std.mem.span(s);
     }

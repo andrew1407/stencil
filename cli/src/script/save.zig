@@ -4,17 +4,23 @@ const std = @import("std");
 
 const confine = @import("../confine.zig");
 const image = @import("../image.zig");
+const net = @import("../net.zig");
 
 pub const Error = error{ SaveOutsideCwd, SaveTraversal };
 
 pub const SUFFIX = "-stencil";
 
-fn baseName(path: []const u8) []const u8 {
+const Split = struct { dir: []const u8, base: []const u8 };
+
+/// A source split at its last separator, with any `?query` / `#fragment` trimmed first. `dir`
+/// keeps its trailing slash, and is EMPTY for a URL: a bare `@save` writes beside a local
+/// source, but into the working directory for a fetched one — never back at the host.
+fn splitPath(path: []const u8) Split {
     var end = path.len;
     if (std.mem.indexOfAny(u8, path, "?#")) |q| end = q;
     const p = path[0..end];
-    const slash = std.mem.lastIndexOfAny(u8, p, "/\\");
-    return if (slash) |i| p[i + 1 ..] else p;
+    const slash = std.mem.lastIndexOfAny(u8, p, "/\\") orelse return .{ .dir = "", .base = p };
+    return .{ .dir = if (net.isUrl(path)) "" else p[0 .. slash + 1], .base = p[slash + 1 ..] };
 }
 
 fn stem(name: []const u8) []const u8 {
@@ -22,17 +28,10 @@ fn stem(name: []const u8) []const u8 {
     return if (dot) |i| (if (i == 0) name else name[0..i]) else name;
 }
 
-fn dirOf(path: []const u8) []const u8 {
-    var end = path.len;
-    if (std.mem.indexOfAny(u8, path, "?#")) |q| end = q;
-    const p = path[0..end];
-    const slash = std.mem.lastIndexOfAny(u8, p, "/\\");
-    return if (slash) |i| p[0 .. i + 1] else "";
-}
-
-fn hasKnownExt(name: []const u8) bool {
-    const dot = std.mem.lastIndexOfScalar(u8, name, '.') orelse return false;
-    return image.formatFromExt(name[dot + 1 ..]) != null;
+/// The frame a canvas is showing, or null when nothing named one: 0 is "as the source opens",
+/// so it never reaches a `-frame-0` name. One rule for the runner and for the planner.
+pub fn frameOf(frame: u32) ?u32 {
+    return if (frame > 0) frame else null;
 }
 
 /// The path a `@save <target>` writes, for a result derived from `source`.
@@ -49,8 +48,8 @@ pub fn resolveTarget(
     fmt: image.Format,
 ) ![]u8 {
     const ext = fmt.ext();
-    const src_base = baseName(source);
-    const src_stem = if (src_base.len == 0) "image" else stem(src_base);
+    const src = splitPath(source);
+    const src_stem = if (src.base.len == 0) "image" else stem(src.base);
 
     var stem_buf: std.ArrayList(u8) = .empty;
     defer stem_buf.deinit(gpa);
@@ -61,12 +60,12 @@ pub fn resolveTarget(
     }
 
     if (target.len == 0)
-        return std.fmt.allocPrint(gpa, "{s}{s}{s}.{s}", .{ dirOf(source), stem_buf.items, SUFFIX, ext });
+        return std.fmt.allocPrint(gpa, "{s}{s}{s}.{s}", .{ src.dir, stem_buf.items, SUFFIX, ext });
 
     if (target[target.len - 1] == '/' or target[target.len - 1] == '\\')
         return std.fmt.allocPrint(gpa, "{s}{s}{s}.{s}", .{ target, stem_buf.items, SUFFIX, ext });
 
-    if (hasKnownExt(baseName(target))) return gpa.dupe(u8, target);
+    if (image.formatFromExt(image.extOf(target) orelse "") != null) return gpa.dupe(u8, target);
     return std.fmt.allocPrint(gpa, "{s}.{s}", .{ target, ext });
 }
 
@@ -114,6 +113,18 @@ test "a url source still yields a sane local name" {
     const p = try resolveTarget(gpa, "out/", "https://example.com/pics/a.png?x=1", null, .png);
     defer gpa.free(p);
     try std.testing.expectEqualStrings("out/a-stencil.png", p);
+}
+
+test "a bare save on a url writes into the working directory, not back at the host" {
+    const gpa = std.testing.allocator;
+    const p = try resolveTarget(gpa, "", "https://example.com/pics/a.png?x=1", null, .png);
+    defer gpa.free(p);
+    try std.testing.expectEqualStrings("a-stencil.png", p);
+}
+
+test "frameOf treats 0 as no frame at all" {
+    try std.testing.expectEqual(@as(?u32, null), frameOf(0));
+    try std.testing.expectEqual(@as(?u32, 7), frameOf(7));
 }
 
 test "traversal is refused always, and outside-cwd under confinement" {

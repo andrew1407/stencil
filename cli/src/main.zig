@@ -48,11 +48,17 @@ pub fn main(init: std.process.Init) !void {
         // the matches into <output> (a directory). scrape.run prints its own reason.
         .scrape => return scrape.run(gpa, io, opts) catch std.process.exit(1),
         // Script mode: a .stc drives the edits. `check` and `plan` report on stdout and
-        // change nothing; `run` does the work. Each prints its own reason and exits 1.
-        .script => |sc| switch (sc.kind) {
-            .run => return script.run.run(gpa, io, opts, sc.path) catch std.process.exit(1),
-            .check => return script.check.run(gpa, io, sc.path) catch std.process.exit(1),
-            .plan => return script.plan.run(gpa, io, opts, sc.path) catch std.process.exit(1),
+        // change nothing; `run` does the work. Each prints its own reason and exits 1. Only
+        // this layer opens a terminal, so the two stdout modes are handed the writer.
+        .script => |sc| {
+            var buf: [4096]u8 = undefined;
+            var stdout = std.Io.File.stdout().writerStreaming(io, &buf);
+            const out = &stdout.interface;
+            switch (sc.kind) {
+                .run => return script.run.run(gpa, io, opts, sc.path) catch std.process.exit(1),
+                .check => return script.check.run(gpa, io, out, sc.path) catch std.process.exit(1),
+                .plan => return script.plan.run(gpa, io, out, opts, sc.path) catch std.process.exit(1),
+            }
         },
         // A `.stencil` project on either side reuses the console Session so its layout renders
         // like the editors; server mode stays on the raster pipeline.

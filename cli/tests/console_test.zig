@@ -744,6 +744,37 @@ test "console: /script-run reads a file, and reports a missing one" {
     try testing.expectEqual(@as(usize, 8), cur(&session).width);
 }
 
+test "console: @save and @frame are reported once each, not skipped in silence" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+
+    const in = "stencil_console_script_skip_in.png";
+    try dir.writeFile(io, .{ .sub_path = in, .data = sample });
+    defer dir.deleteFile(io, in) catch {};
+
+    var session = console.Session{ .gpa = a };
+    defer session.deinit();
+
+    var cap = Capture.init(a);
+    defer cap.deinit();
+    cap.install();
+    defer logo.clearSink();
+
+    _ = try console.handle(&session, io, "/upload " ++ in);
+    cap.buf.clearRetainingCapacity();
+
+    // The console owns a session, not files: both directives are named, and the crop still runs.
+    _ = try console.handle(&session, io, "/script @crop 25%; @save out.png; @save other.png");
+    try testing.expectEqual(@as(usize, 8), cur(&session).width);
+    const text = cap.text();
+    try testing.expect(std.mem.indexOf(u8, text, "/script ignores @save") != null);
+    const first = std.mem.indexOf(u8, text, "ignores @save").?;
+    try testing.expect(std.mem.indexOf(u8, text[first + 1 ..], "ignores @save") == null); // once
+}
+
 test "console: a @source block is noted and its ops still reach the loaded image" {
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});

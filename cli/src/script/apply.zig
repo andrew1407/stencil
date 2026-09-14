@@ -4,61 +4,55 @@ const std = @import("std");
 
 const core = @import("../core.zig");
 const image = @import("../image.zig");
-const layout_mod = @import("../layout.zig");
 const pipeline = @import("../pipeline.zig");
 const report = @import("../report.zig");
 const scriptCore = @import("../scriptCore.zig");
 
-pub const Error = error{ ScriptOpFailed, ScriptUndoUnsupported };
+const decode = @import("decode.zig");
 
-/// CSS pixels per cm at 96 dpi — the same basis the browser and the crop parser use.
-const PX_PER_CM: f64 = 96.0 / 2.54;
+pub const Error = error{ScriptOpFailed};
 
-fn dims(img: image.Rgba8) struct { w: f64, h: f64 } {
-    return .{ .w = @floatFromInt(img.width), .h = @floatFromInt(img.height) };
-}
+/// The marks a block has placed but not yet burned into the pixels, in the order the editors
+/// would stack them. One arena per canvas: a mark's points and colours live until the next
+/// flush and no longer, so nothing here outlives the layout document it came from.
+pub const Marks = struct {
+    arena: std.heap.ArenaAllocator,
+    items: std.ArrayList(core.LineDraw) = .empty,
 
-/// Appends one line to the layout JSON the block is accumulating. Built as text because
-/// that is what layout.parse already takes; the core supplies the resolved geometry.
-fn appendLine(
-    gpa: std.mem.Allocator,
-    lines: *std.ArrayList(u8),
-    pts: []const f64,
-    color: []const u8,
-    style: []const u8,
-    fill: []const u8,
-    point_color: []const u8,
-    thickness: f64,
-    point_size: f64,
-    locked: bool,
-) !void {
-    var aw: std.Io.Writer.Allocating = .init(gpa);
-    defer aw.deinit();
-    const w = &aw.writer;
-    if (lines.items.len > 0) try w.writeAll(",");
-    try w.print("{{\"color\":\"{s}\",\"style\":\"{s}\",\"fillColor\":\"{s}\",\"pointColor\":\"{s}\"," ++
-        "\"thickness\":{d},\"pointSize\":{d},\"locked\":{s},\"points\":[", .{
-        color, style, fill, point_color, thickness, point_size, if (locked) "true" else "false",
-    });
-    var i: usize = 0;
-    while (i + 1 < pts.len) : (i += 2) {
-        if (i > 0) try w.writeAll(",");
-        try w.print("{{\"x\":{d},\"y\":{d}}}", .{ pts[i], pts[i + 1] });
+    pub fn init(gpa: std.mem.Allocator) Marks {
+        return .{ .arena = .init(gpa) };
     }
-    try w.writeAll("]}");
-    try lines.appendSlice(gpa, aw.written());
-}
 
-/// Burns whatever `@line` / `@rect` / `@layout` accumulated into the pixels. Called before
-/// every `@save` so the written file carries the marks.
-pub fn flushLines(gpa: std.mem.Allocator, img: *image.Rgba8, lines: []const u8) !void {
-    if (lines.len == 0) return;
-    const doc = try std.fmt.allocPrint(gpa, "{{\"imageWidth\":{d},\"imageHeight\":{d},\"lines\":[{s}]}}", .{ img.width, img.height, lines });
-    defer gpa.free(doc);
-    var parsed = layout_mod.parse(gpa, doc) catch return Error.ScriptOpFailed;
-    defer parsed.deinit();
-    try pipeline.drawLayoutDoc(gpa, img, &parsed, null);
-}
+    pub fn deinit(self: *Marks) void {
+        self.arena.deinit();
+    }
+
+    /// Copies `line` in, so the caller's resolve buffer or layout doc may go away.
+    pub fn append(self: *Marks, line: core.LineDraw) !void {
+        const a = self.arena.allocator();
+        var copy = line;
+        copy.points = try a.dupe(f64, line.points);
+        copy.color = try a.dupeZ(u8, line.color);
+        copy.style = try a.dupeZ(u8, line.style);
+        copy.fill_color = try a.dupeZ(u8, line.fill_color);
+        copy.point_color = try a.dupeZ(u8, line.point_color);
+        try self.items.append(a, copy);
+    }
+
+    pub fn clear(self: *Marks) void {
+        self.items = .empty;
+        _ = self.arena.reset(.retain_capacity);
+    }
+
+    /// Rasterizes every mark, in order, then clears. Called before each `@save` so the
+    /// written file carries them, and before a `@crop` moves the frame they were placed in.
+    pub fn burn(self: *Marks, img: *image.Rgba8) void {
+        const w: i32 = @intCast(img.width);
+        const h: i32 = @intCast(img.height);
+        for (self.items.items) |line| core.rasterizeLine(img.pixels, w, h, line);
+        self.clear();
+    }
+};
 
 pub fn applyOp(
     gpa: std.mem.Allocator,
@@ -67,78 +61,62 @@ pub fn applyOp(
     index: u32,
     op: scriptCore.Op,
     img: *image.Rgba8,
-    lines: *std.ArrayList(u8),
+    marks: *Marks,
 ) !void {
-    const d = dims(img.*);
-    var buf: [2 * (scriptMaxPoints + 1)]f64 = undefined;
+    var buf: scriptCore.ResolveBuf = undefined;
+    const edit = decode.decode(script, index, op.kind, @floatFromInt(img.width), @floatFromInt(img.height), &buf) orelse {
+        report.err("line {d}: this {s} resolves to nothing\n", .{ op.line, if (op.kind == .crop) "crop" else "shape" });
+        return Error.ScriptOpFailed;
+    };
 
-    switch (op.kind) {
-        .crop => {
-            const r = script.resolve(index, d.w, d.h, PX_PER_CM, PX_PER_CM, &buf) catch {
-                report.err("line {d}: this crop resolves to nothing\n", .{op.line});
-                return Error.ScriptOpFailed;
-            };
-            if (r.len < 4) return Error.ScriptOpFailed;
+    switch (edit) {
+        .crop => |rect| {
             // Marks are in the pre-crop frame, so burn them before the frame moves.
-            try flushLines(gpa, img, lines.items);
-            lines.clearRetainingCapacity();
-            try pipeline.cropToRect(gpa, img, .{
-                .x = @intFromFloat(@round(r[0])),
-                .y = @intFromFloat(@round(r[1])),
-                .w = @intFromFloat(@round(r[2])),
-                .h = @intFromFloat(@round(r[3])),
-            });
+            marks.burn(img);
+            try pipeline.cropToRect(gpa, img, rect);
         },
-        .filter => {
-            const mode = script.opStr(index, 0);
-            const tint = script.opStr(index, 1);
-            pipeline.applyFilterMode(gpa, img, if (std.mem.eql(u8, mode, "custom")) tint else mode);
-        },
-        .line, .rect => {
-            const r = script.resolve(index, d.w, d.h, PX_PER_CM, PX_PER_CM, &buf) catch {
-                report.err("line {d}: this shape resolves to nothing\n", .{op.line});
-                return Error.ScriptOpFailed;
-            };
-            if (r.len < 4) return Error.ScriptOpFailed;
-            const pts = r[0 .. r.len - 2];
-            try appendLine(gpa, lines, pts, script.opStr(index, 0), script.opStr(index, 1), script.opStr(index, 2), script.opStr(index, 3), r[r.len - 2], r[r.len - 1], op.kind == .rect);
-        },
-        .layout => {
-            const src = script.opStr(index, 0);
-            const mode = script.opStr(index, 1);
-            var doc = pipeline.loadLayoutDoc(gpa, io, src) catch {
-                report.err("line {d}: could not load the layout '{s}'\n", .{ op.line, src });
+        .filter => |f| pipeline.applyFilterMode(gpa, img, f.effective()),
+        .shape => |line| try marks.append(line),
+        .layout => |l| {
+            var doc = pipeline.loadLayoutDoc(gpa, io, l.src) catch {
+                report.err("line {d}: could not load the layout '{s}'\n", .{ op.line, l.src });
                 return Error.ScriptOpFailed;
             };
             defer doc.deinit();
-            // "replace" drops the marks accumulated so far; the pixels already burned in
-            // by an earlier @save stay, exactly as they would in the editors.
-            if (std.mem.eql(u8, mode, "replace")) lines.clearRetainingCapacity();
-            try pipeline.drawLayoutDoc(gpa, img, &doc, null);
-        },
-        .undo, .redo => {
-            // The lowerer resolves history statically: it re-emits the surviving edits
-            // rather than asking an adapter to step a stack it does not have here.
-            report.note("line {d}: @undo is resolved when the script is lowered\n", .{op.line});
+            // "replace" drops the marks not yet burned, as the editors replace the line
+            // model; the doc's own lines then queue behind whatever survived.
+            if (std.mem.eql(u8, l.mode, "replace")) marks.clear();
+            for (doc.lines) |line| try marks.append(line);
         },
         else => {},
     }
 }
 
-/// The widest resolve() result: MAX_POINTS_PER_LINE points plus thickness and pointSize.
-const scriptMaxPoints: usize = 200;
-
-test "a line is appended as layout JSON the parser accepts" {
+test "a mark survives the buffer it was resolved out of, and burns onto the pixels" {
     const gpa = std.testing.allocator;
-    var lines: std.ArrayList(u8) = .empty;
-    defer lines.deinit(gpa);
-    try appendLine(gpa, &lines, &.{ 1, 2, 3, 4 }, "#ccc", "dashed", "aqua", "red", 3, 2, true);
-    try std.testing.expect(std.mem.indexOf(u8, lines.items, "\"locked\":true") != null);
-    try std.testing.expect(std.mem.indexOf(u8, lines.items, "{\"x\":1,\"y\":2}") != null);
+    var marks: Marks = .init(gpa);
+    defer marks.deinit();
 
-    const doc = try std.fmt.allocPrint(gpa, "{{\"imageWidth\":10,\"imageHeight\":10,\"lines\":[{s}]}}", .{lines.items});
-    defer gpa.free(doc);
-    var parsed = try layout_mod.parse(gpa, doc);
-    defer parsed.deinit();
-    try std.testing.expectEqual(@as(usize, 1), parsed.lines.len);
+    {
+        var pts = [_]f64{ 0, 0, 3, 3 };
+        try marks.append(.{
+            .points = &pts,
+            .color = "#ff0000",
+            .thickness = 2,
+            .point_size = 0,
+            .style = "solid",
+            .locked = false,
+            .fill_color = "transparent",
+        });
+        pts = .{ 9, 9, 9, 9 }; // the caller's buffer moves on; the mark must not
+    }
+    try std.testing.expectEqual(@as(usize, 1), marks.items.items.len);
+    try std.testing.expectEqual(@as(f64, 3), marks.items.items[0].points[2]);
+
+    var img: image.Rgba8 = .{ .width = 4, .height = 4, .pixels = try gpa.alloc(u8, 4 * 4 * 4) };
+    defer gpa.free(img.pixels);
+    @memset(img.pixels, 0);
+    marks.burn(&img);
+    try std.testing.expectEqual(@as(usize, 0), marks.items.items.len);
+    try std.testing.expect(img.pixels[0] != 0); // something was drawn
 }

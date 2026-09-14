@@ -31,9 +31,7 @@ pub fn acquireInput(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame
         report.err("could not decode an image from '{s}' ({s})\n", .{ input, @errorName(e) });
         return e;
     };
-    if (extOf(input)) |e| {
-        if (image.formatFromExt(e)) |f| default_fmt = f;
-    }
+    if (image.formatOfPath(input)) |f| default_fmt = f;
     // Keep the raw encoded source bytes (owned by the caller) so a .stencil bundle embeds the
     // untouched original instead of a lossy re-encode.
     return .{ .img = img, .default_fmt = default_fmt, .bytes = bytes };
@@ -180,20 +178,12 @@ fn resolveOutput(gpa: std.mem.Allocator, out_raw: []const u8, fallback: image.Fo
         report.err("refusing to write to a path that escapes the working directory: '{s}'\n", .{out});
         return error.UnsafeOutputPath; // the errdefer above frees `out`
     }
-    if (extOf(out)) |e| {
+    if (image.extOf(out)) |e| {
         if (image.formatFromExt(e)) |f| return .{ .path = out, .fmt = f };
     }
     defer gpa.free(out);
     const path = try std.fmt.allocPrint(gpa, "{s}.{s}", .{ out, fallback.ext() });
     return .{ .path = path, .fmt = fallback };
-}
-
-fn extOf(path: []const u8) ?[]const u8 {
-    const dot = std.mem.lastIndexOfScalar(u8, path, '.') orelse return null;
-    const slash = std.mem.lastIndexOfAny(u8, path, "/\\");
-    if (slash) |s| if (dot < s) return null; // the dot is in a directory name
-    if (dot + 1 >= path.len) return null;
-    return path[dot + 1 ..];
 }
 
 const testing = std.testing;

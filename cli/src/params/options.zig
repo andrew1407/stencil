@@ -63,11 +63,12 @@ pub const Options = struct {
     source_max_height: u32 = 0,
 };
 
-/// Which command mode a parsed Options selected. The three modes are mutually exclusive and
-/// read DIFFERENT blocks of the struct, so deciding once here keeps main.zig from re-deriving
-/// the exclusions (and keeps `--source-site` from silently sharing the editing flags).
+/// Which of the three `.stc` entry points `--script*` selected.
 pub const ScriptMode = enum { run, plan, check };
 
+/// Which command mode a parsed Options selected. The modes are mutually exclusive and read
+/// DIFFERENT blocks of the struct, so deciding once here keeps main.zig from re-deriving the
+/// exclusions (and keeps `--source-site` from silently sharing the editing flags).
 pub const Mode = union(enum) {
     /// `--help`, or no arguments at all: banner + usage.
     usage,

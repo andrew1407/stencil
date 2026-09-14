@@ -6,18 +6,14 @@ const std = @import("std");
 const core = @import("../core.zig");
 const scriptCore = @import("../scriptCore.zig");
 
+const decode = @import("decode.zig");
+
 const Value = std.json.Value;
 const ObjectMap = std.json.ObjectMap;
 const Array = std.json.Array;
 
-/// CSS pixels per cm at 96 dpi — the basis apply.zig resolves against, kept identical so a
-/// planned crop and a run crop land on the same pixels.
-const PX_PER_CM: f64 = 96.0 / 2.54;
-
 /// The image size lengths resolve against; it moves as the block's crops narrow it.
 pub const Dims = struct { w: f64, h: f64 };
-
-const MAX_RESOLVE: usize = 2 * (200 + 1); // MAX_POINTS_PER_LINE points + thickness/pointSize
 
 fn numValue(v: f64) Value {
     if (v == @floor(v) and @abs(v) < 1e15) return .{ .integer = @intFromFloat(v) };
@@ -59,51 +55,44 @@ fn cropAction(a: std.mem.Allocator, script: scriptCore.Script, i: u32) !Value {
     return .{ .object = m };
 }
 
-fn filterAction(a: std.mem.Allocator, script: scriptCore.Script, i: u32) !Value {
-    const mode = script.opStr(i, 0);
+fn filterAction(a: std.mem.Allocator, f: decode.Filter) !Value {
     var m = try opObject(a, "filter");
-    try m.put(a, "mode", .{ .string = mode });
-    if (std.mem.eql(u8, mode, "custom")) try m.put(a, "tint", .{ .string = hex(a, script.opStr(i, 1)) });
+    try m.put(a, "mode", .{ .string = f.mode });
+    if (std.mem.eql(u8, f.mode, "custom")) try m.put(a, "tint", .{ .string = hex(a, f.tint) });
     return .{ .object = m };
 }
 
-fn stepsAction(a: std.mem.Allocator, script: scriptCore.Script, i: u32, name: []const u8) !Value {
+fn numberAction(a: std.mem.Allocator, name: []const u8, key: []const u8, n: i64) !Value {
     var m = try opObject(a, name);
-    const n = script.opNum(i, 0) orelse 1;
-    try m.put(a, "steps", .{ .integer = @intFromFloat(@max(1, n)) });
+    try m.put(a, key, .{ .integer = n });
     return .{ .object = m };
 }
 
-fn saveAction(a: std.mem.Allocator, script: scriptCore.Script, i: u32) !Value {
+fn saveAction(a: std.mem.Allocator, target: []const u8) !Value {
     var m = try opObject(a, "save");
-    const target = script.opStr(i, 0);
     if (target.len != 0) try m.put(a, "path", .{ .string = target });
     return .{ .object = m };
 }
 
 /// One `@line` / `@rect` as a layout line object, its points already in image pixels.
-fn lineValue(a: std.mem.Allocator, script: scriptCore.Script, i: u32, d: Dims, locked: bool) !?Value {
-    var buf: [MAX_RESOLVE]f64 = undefined;
-    const r = script.resolve(i, d.w, d.h, PX_PER_CM, PX_PER_CM, &buf) catch return null;
-    if (r.len < 4) return null;
-
+fn lineValue(a: std.mem.Allocator, line: core.LineDraw) !Value {
     var pts: Array = .init(a);
     var k: usize = 0;
-    while (k + 3 < r.len) : (k += 2) {
+    while (k + 1 < line.points.len) : (k += 2) {
         var p: ObjectMap = .empty;
-        try p.put(a, "x", numValue(r[k]));
-        try p.put(a, "y", numValue(r[k + 1]));
+        try p.put(a, "x", numValue(line.points[k]));
+        try p.put(a, "y", numValue(line.points[k + 1]));
         try pts.append(.{ .object = p });
     }
 
     var m: ObjectMap = .empty;
     try m.put(a, "points", .{ .array = pts });
-    try m.put(a, "color", .{ .string = script.opStr(i, 0) });
-    try m.put(a, "style", .{ .string = script.opStr(i, 1) });
-    try m.put(a, "fillColor", .{ .string = script.opStr(i, 2) });
-    try m.put(a, "thickness", numValue(r[r.len - 2]));
-    try m.put(a, "pointSize", numValue(r[r.len - 1]));
-    try m.put(a, "locked", .{ .bool = locked });
+    try m.put(a, "color", .{ .string = line.color });
+    try m.put(a, "style", .{ .string = line.style });
+    try m.put(a, "fillColor", .{ .string = line.fill_color });
+    try m.put(a, "thickness", numValue(line.thickness));
+    try m.put(a, "pointSize", numValue(line.point_size));
+    try m.put(a, "locked", .{ .bool = line.locked });
     return .{ .object = m };
 }
 
@@ -124,34 +113,39 @@ pub fn build(
     const end = block.op_start + block.op_count;
     while (i < end) : (i += 1) {
         const op = script.op(i) orelse continue;
+        var buf: scriptCore.ResolveBuf = undefined;
+        const size = d orelse Dims{ .w = 0, .h = 0 };
+        const edit = decode.decode(script, i, op.kind, size.w, size.h, &buf);
         switch (op.kind) {
             .open => if (first_input.len != 0)
                 try out.append(try openAction(a, first_input, block.kind == .url)),
-            .frame => {
-                var m = try opObject(a, "frame");
-                try m.put(a, "index", .{ .integer = @intFromFloat(script.opNum(i, 0) orelse 0) });
-                try out.append(.{ .object = m });
-            },
+            .frame => try out.append(try numberAction(a, "frame", "index", edit.?.frame)),
             .crop => {
                 try flush(a, &out, &pending);
                 try out.append(try cropAction(a, script, i));
                 if (d) |cur| d = cropDims(script, i, cur);
             },
-            .filter => try out.append(try filterAction(a, script, i)),
-            .line, .rect => if (d) |cur| {
-                if (try lineValue(a, script, i, cur, op.kind == .rect)) |v| try pending.append(v);
+            .filter => try out.append(try filterAction(a, edit.?.filter)),
+            // Without dims a shape has nothing to resolve against, so it is dropped.
+            .line, .rect => if (d != null) {
+                if (edit) |shape| try pending.append(try lineValue(a, shape.shape));
             },
             .layout => {
-                if (std.mem.eql(u8, script.opStr(i, 1), "replace")) pending.clearRetainingCapacity();
-                const kind: scriptCore.SourceKind = @enumFromInt(@as(c_int, @intFromFloat(script.opNum(i, 0) orelse 1)));
-                try out.append(try openAction(a, script.opStr(i, 0), kind == .url));
+                const l = edit.?.layout;
+                // The doc's lines land ON TOP of the marks already placed — apply.zig queues
+                // both in one list — so those flush first; "replace" drops them instead.
+                if (std.mem.eql(u8, l.mode, "replace"))
+                    pending.clearRetainingCapacity()
+                else
+                    try flush(a, &out, &pending);
+                try out.append(try openAction(a, l.src, l.kind == .url));
             },
             .save => {
                 try flush(a, &out, &pending);
-                try out.append(try saveAction(a, script, i));
+                try out.append(try saveAction(a, edit.?.save));
             },
-            .undo => try out.append(try stepsAction(a, script, i, "undo")),
-            .redo => try out.append(try stepsAction(a, script, i, "redo")),
+            .undo => try out.append(try numberAction(a, "undo", "steps", @intCast(edit.?.steps))),
+            .redo => try out.append(try numberAction(a, "redo", "steps", @intCast(edit.?.steps))),
         }
     }
     try flush(a, &out, &pending);
@@ -162,17 +156,15 @@ pub fn build(
 /// pixels. An empty pending list writes nothing — an empty `lines` array would CLEAR them.
 fn flush(a: std.mem.Allocator, out: *Array, pending: *Array) !void {
     if (pending.items.len == 0) return;
-    var lines: Array = .init(a);
-    try lines.appendSlice(pending.items);
     var m = try opObject(a, "layout");
-    try m.put(a, "lines", .{ .array = lines });
+    try m.put(a, "lines", .{ .array = pending.* });
     try out.append(.{ .object = m });
-    pending.clearRetainingCapacity();
+    pending.* = .init(a);
 }
 
 fn cropDims(script: scriptCore.Script, i: u32, cur: Dims) Dims {
     var buf: [8]f64 = undefined;
-    const r = script.resolve(i, cur.w, cur.h, PX_PER_CM, PX_PER_CM, &buf) catch return cur;
+    const r = script.resolve(i, cur.w, cur.h, scriptCore.PX_PER_CM, scriptCore.PX_PER_CM, &buf) catch return cur;
     if (r.len < 4 or r[2] <= 0 or r[3] <= 0) return cur;
     return .{ .w = r[2], .h = r[3] };
 }

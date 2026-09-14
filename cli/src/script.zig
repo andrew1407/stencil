@@ -2,6 +2,7 @@
 //! `run` drives the edits; the core owns the language, so everything here is about files,
 //! pixels and where output lands.
 pub const load = @import("script/load.zig");
+pub const decode = @import("script/decode.zig");
 pub const check = @import("script/check.zig");
 pub const sources = @import("script/sources.zig");
 pub const save = @import("script/save.zig");
@@ -12,6 +13,7 @@ pub const run = @import("script/run.zig");
 
 test {
     _ = load;
+    _ = decode;
     _ = check;
     _ = sources;
     _ = save;

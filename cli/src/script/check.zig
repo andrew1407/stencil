@@ -1,32 +1,26 @@
 //! `--script-check <file>`: print every diagnostic and exit non-zero if any is an error.
 //! Written for an editor to parse, so it goes to STDOUT — one of the only two modes that
-//! use it (see cli/CONTRACT.md). A clean script prints nothing.
+//! use it (see cli/CONTRACT.md). A clean script prints nothing. The writer comes in from
+//! main.zig: opening a terminal is the console layer's privilege, not an op's.
 const std = @import("std");
 
 const load = @import("load.zig");
 const scriptCore = @import("../scriptCore.zig");
 
 /// Writes the diagnostics of `source` to `out`. Returns true when the script has an error.
-pub fn checkInto(out: anytype, source: []const u8, label: []const u8) !bool {
+pub fn checkInto(out: *std.Io.Writer, source: []const u8, label: []const u8) !bool {
     var script = scriptCore.Script.parse(source) catch return load.Error.ScriptUnreadable;
     defer script.deinit();
-
-    var i: u32 = 0;
-    while (i < script.diagnosticCount()) : (i += 1) {
-        const d = script.diagnostic(i) orelse continue;
-        try load.formatDiagnostic(out, label, d);
-    }
+    try load.writeDiagnostics(out, script, label, .editor);
     return script.hasErrors();
 }
 
-pub fn run(gpa: std.mem.Allocator, io: std.Io, path: []const u8) !void {
+pub fn run(gpa: std.mem.Allocator, io: std.Io, out: *std.Io.Writer, path: []const u8) !void {
     const source = try load.readScript(gpa, io, path);
     defer gpa.free(source);
 
-    var buf: [4096]u8 = undefined;
-    var stdout = std.Io.File.stdout().writerStreaming(io, &buf);
-    const failed = try checkInto(&stdout.interface, source, load.labelFor(path));
-    try stdout.interface.flush();
+    const failed = try checkInto(out, source, load.labelFor(path));
+    try out.flush();
     if (failed) return load.Error.ScriptHasErrors;
 }
 

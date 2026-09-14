@@ -1,6 +1,7 @@
 //! `--script-plan <file>`: the script lowered to op-plan JSON on STDOUT, for the adapters
 //! that drive an editor rather than the pixels (mcp, bot). Nothing is fetched and nothing
 //! is written — a header-only size probe of each block's first local input is the only I/O.
+//! The writer comes in from main.zig: opening a terminal is the console layer's privilege.
 const std = @import("std");
 
 const args = @import("../args.zig");
@@ -21,24 +22,26 @@ pub const VERSION: i64 = 1;
 /// which this layer sits below; tests/script_test.zig pins the two together.
 pub const MAX_ACTIONS: usize = 16;
 
-/// How much of an input is read to find its header. Well past any SOF marker, and the
-/// bytes are freed again immediately — no pixel plane is ever allocated.
+/// How much of an input's HEAD is read to find its header. Well past any SOF marker, and a
+/// PREFIX rather than a capped whole-file read: a photo bigger than this still probes.
 const PROBE_BYTES: usize = 4 << 20;
 
 fn fmtOf(path: []const u8) image.Format {
-    var end = path.len;
-    if (std.mem.indexOfAny(u8, path, "?#")) |q| end = q;
-    const dot = std.mem.lastIndexOfScalar(u8, path[0..end], '.') orelse return .png;
-    return image.formatFromExt(path[dot + 1 .. end]) orelse .png;
+    return image.formatOfPath(path) orelse .png;
 }
 
 /// The size lengths resolve against, or null when the input is not a local still this
 /// build can read a header from (a URL, a video, a missing file).
 fn probeDims(gpa: std.mem.Allocator, io: std.Io, input: []const u8) ?planActions.Dims {
     if (input.len == 0 or net.isUrl(input) or video.looksLikeVideo(input)) return null;
-    const bytes = std.Io.Dir.cwd().readFileAlloc(io, input, gpa, .limited(PROBE_BYTES)) catch return null;
-    defer gpa.free(bytes);
-    const d = image.dims(bytes) orelse return null;
+    var file = std.Io.Dir.cwd().openFile(io, input, .{}) catch return null;
+    defer file.close(io);
+    const head = gpa.alloc(u8, PROBE_BYTES) catch return null;
+    defer gpa.free(head);
+    var buf: [4096]u8 = undefined;
+    var reader = file.readerStreaming(io, &buf);
+    const n = reader.interface.readSliceShort(head) catch return null;
+    const d = image.dims(head[0..n]) orelse return null;
     return .{ .w = @floatFromInt(d.width), .h = @floatFromInt(d.height) };
 }
 
@@ -77,12 +80,12 @@ fn writeSaves(
     try js.beginArray();
     for (inputs) |input| {
         const fmt = fmtOf(input);
-        var frame: ?u32 = if (block.frame > 0) block.frame else null;
+        var frame = block.frame;
         var i: u32 = block.op_start;
         while (i < block.op_start + block.op_count) : (i += 1) {
             const op = script.op(i) orelse continue;
             if (op.kind == .frame) {
-                frame = @intFromFloat(script.opNum(i, 0) orelse 0);
+                frame = @intFromFloat(@max(0, script.opNum(i, 0) orelse 0));
                 continue;
             }
             if (op.kind != .save) continue;
@@ -90,7 +93,7 @@ fn writeSaves(
             try js.objectField("input");
             try js.write(input);
             try js.objectField("path");
-            try js.write(try save_mod.resolveTarget(a, script.opStr(i, 0), input, frame, fmt));
+            try js.write(try save_mod.resolveTarget(a, script.opStr(i, 0), input, save_mod.frameOf(frame), fmt));
             try js.endObject();
         }
     }
@@ -128,6 +131,8 @@ fn writeBlock(
         // No @source: the block edits whatever -i named, exactly as the runner does.
         if (opts.input) |in| inputs = try a.dupe([]const u8, &.{in});
     } else {
+        // A source that resolved to nothing still plans, with no inputs: §4.3 promises exactly
+        // one envelope on stdout. `expand` has already said on stderr what went wrong.
         inputs = sources.expand(a, io, block.source, block.kind) catch &.{};
     }
     const first = if (inputs.len > 0) inputs[0] else "";
@@ -193,17 +198,15 @@ pub fn writeEnvelope(
     try out.writeByte('\n');
 }
 
-pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, path: []const u8) !void {
+pub fn run(gpa: std.mem.Allocator, io: std.Io, out: *std.Io.Writer, opts: args.Options, path: []const u8) !void {
     const source = try load.readScript(gpa, io, path);
     defer gpa.free(source);
 
     var script = scriptCore.Script.parse(source) catch return load.Error.ScriptUnreadable;
     defer script.deinit();
 
-    var buf: [4096]u8 = undefined;
-    var stdout = std.Io.File.stdout().writerStreaming(io, &buf);
-    try writeEnvelope(gpa, io, &stdout.interface, script, opts, load.labelFor(path));
-    try stdout.interface.flush();
+    try writeEnvelope(gpa, io, out, script, opts, load.labelFor(path));
+    try out.flush();
     if (script.hasErrors()) return load.Error.ScriptHasErrors;
 }
 

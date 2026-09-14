@@ -114,7 +114,19 @@ classDiagram
       +Stream stream
       +ArrayList~u8~ rbuf
     }
+    class Edit {
+      <<union>>
+      crop Rect
+      shape LineDraw
+    }
+    class Canvas {
+      +Rgba8 img
+      +Marks marks
+      +ArrayList~u32~ edits
+    }
 
+    Canvas *-- Rgba8 : one input, one block
+    Canvas --> Edit : applyOp
     Options --> Rgba8 : pipeline.run acquires
     Layout --> Rgba8 : drawLayoutDoc
     Session *-- EditState : history
@@ -140,6 +152,8 @@ classDiagram
 | `Project` (`project/shape.zig`) | A parsed `.stencil` document: metadata, encoded original, layout JSON, optional chat block | Its own arena; returned by `loadInto` | The browser's `.stencil` writer is canonical; built by `codec.build` from `BuildOpts` |
 | `Client` (`server/rest.zig`) | One collaboration-server connection: origin, session token, what the credential proved to be; its `Transport` returns bodies, and every other fetch ends in a `net.Response` (status + capped body) | `Session.servers` or a one-shot `pipeline.run` | Mirrors `server/internal/protocol`; `request` re-mints once on a stale session |
 | `EditConn` (`server/edit.zig`) | The read-only NDJSON events subscription over the raw-TCP edit port; yields `Event`s (id, name, version, deleted) | `Session.events`, while a project is synced | `pullAction` decides what a peer's edit means |
+| `Edit` (`script/decode.zig`) | One lowered `.stc` op as a tagged union — crop rect, shape `LineDraw`, filter, layout, save, frame, undo steps — with every length already in pixels | The caller's `ResolveBuf`, until the next decode | The core owns the op stream; the runner, the console and the planner all read it through this |
+| `Canvas` (`script/run.zig`) | One input carried through one block: its pixels, save format, frame, the `Marks` not yet burned, and the edits applied so far with a cursor into them | `runBlockOn`, one input | `@undo` moves the cursor and `rewind` replays the survivors onto a freshly opened input |
 
 ## Patterns
 
@@ -162,9 +176,15 @@ classDiagram
   `script/sources.zig` turns a block's spec into concrete inputs (a file, a fetched URL, or
   every media file in a directory or glob), and the block replays over each one. Lengths
   resolve per op against the image as it stands, so a `%` after a crop means what it says.
-  `@undo` never reaches here — the core already rewrote it as a rewind and a replay.
+  `script/decode.zig` reads one op out of the core as a typed edit — every walker of the
+  stream shares it — and `script/apply.zig` turns that edit into pixels; `@line`/`@rect`/
+  `@layout` queue as `Marks` and burn in one pass before a `@crop` or a `@save`.
+  An `@undo N` moves a `Canvas` cursor over the edits it has applied and the image is rebuilt
+  by re-opening the input and replaying the survivors: the lowerer resolves the history, the
+  runner still has to execute the rewind it emitted.
   `@save` names its file through `script/save.zig`: bare, it writes beside the source with a
-  `-stencil` suffix, which is what makes a whole-directory run safe in place.
+  `-stencil` suffix, which is what makes a whole-directory run safe in place — and into the
+  working directory when the source was a URL.
 
 - **A script plan.** `--script-plan` lowers the same stream for an adapter that drives an
   editor instead of pixels. `script/planActions.zig` rewrites each block's ops in the

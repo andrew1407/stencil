@@ -4,11 +4,19 @@
 //! blank line before it belongs to the file.
 const std = @import("std");
 const fx = @import("fixture_corpus.zig");
+const load = @import("../src/script/load.zig");
 const scriptCore = @import("../src/scriptCore.zig");
 const testing = std.testing;
 
 const corpus_path = "script/fixtures/cases.txt";
-const sections = [_][]const u8{ "script", "dump", "diagnostics" };
+
+const Section = enum { script, dump, diagnostics };
+
+const sections = std.StaticStringMap(Section).initComptime(.{
+    .{ "script", .script },
+    .{ "dump", .dump },
+    .{ "diagnostics", .diagnostics },
+});
 
 const Case = struct {
     name: []const u8 = "",
@@ -28,21 +36,17 @@ fn joinBody(a: std.mem.Allocator, body: []const []const u8) ![]u8 {
     return out.toOwnedSlice(a);
 }
 
-fn sectionOf(line: []const u8) ?[]const u8 {
+fn sectionOf(line: []const u8) ?Section {
     if (!std.mem.startsWith(u8, line, "--- ")) return null;
-    for (sections) |k| if (std.mem.eql(u8, line[4..], k)) return k;
-    return null;
+    return sections.get(line[4..]);
 }
 
-fn flush(a: std.mem.Allocator, cur: *Case, section: []const u8, body: []const []const u8) !void {
-    if (section.len == 0) return;
+fn flush(a: std.mem.Allocator, cur: *Case, section: ?Section, body: []const []const u8) !void {
     const text = try joinBody(a, body);
-    if (std.mem.eql(u8, section, "script")) {
-        cur.script = text;
-    } else if (std.mem.eql(u8, section, "dump")) {
-        cur.dump = text;
-    } else {
-        cur.diagnostics = text;
+    switch (section orelse return) {
+        .script => cur.script = text,
+        .dump => cur.dump = text,
+        .diagnostics => cur.diagnostics = text,
     }
 }
 
@@ -50,57 +54,46 @@ fn readCases(a: std.mem.Allocator, bytes: []const u8) ![]Case {
     var cases: std.ArrayList(Case) = .empty;
     var body: std.ArrayList([]const u8) = .empty;
     defer body.deinit(a);
-    var section: []const u8 = "";
+    var section: ?Section = null;
     var cur: Case = .{};
-    var open = false;
+    var is_open = false;
 
     var it = std.mem.splitScalar(u8, bytes, '\n');
     while (it.next()) |raw| {
         const line = if (std.mem.endsWith(u8, raw, "\r")) raw[0 .. raw.len - 1] else raw;
         if (std.mem.startsWith(u8, line, "=== ")) {
-            if (open) {
+            if (is_open) {
                 try flush(a, &cur, section, body.items);
                 try cases.append(a, cur);
             }
             cur = .{ .name = line[4..] };
             body.clearRetainingCapacity();
-            section = "";
-            open = true;
+            section = null;
+            is_open = true;
             continue;
         }
-        if (!open) continue;
+        if (!is_open) continue;
         if (sectionOf(line)) |k| {
             try flush(a, &cur, section, body.items);
             body.clearRetainingCapacity();
             section = k;
             continue;
         }
-        if (section.len != 0) try body.append(a, line);
+        if (section != null) try body.append(a, line);
     }
-    if (open) {
+    if (is_open) {
         try flush(a, &cur, section, body.items);
         try cases.append(a, cur);
     }
     return cases.toOwnedSlice(a);
 }
 
-/// "line:col:len: severity: message [CODE]" — the twin of core's dumpDiagnostics.
+/// "line:col:len: severity: message [CODE]" — the twin of core's dumpDiagnostics, written by
+/// the same formatter --script-check uses (load.Style.corpus).
 fn diagText(a: std.mem.Allocator, s: scriptCore.Script) ![]u8 {
-    var out: std.ArrayList(u8) = .empty;
-    var i: u32 = 0;
-    while (i < s.diagnosticCount()) : (i += 1) {
-        const d = s.diagnostic(i) orelse continue;
-        const line = try std.fmt.allocPrint(a, "{d}:{d}:{d}: {s}: {s} [{s}]\n", .{
-            d.line,
-            d.col,
-            d.len,
-            if (d.severity == .err) "error" else "warning",
-            d.message,
-            d.code,
-        });
-        try out.appendSlice(a, line);
-    }
-    return out.toOwnedSlice(a);
+    var out: std.Io.Writer.Allocating = .init(a);
+    try load.writeDiagnostics(&out.writer, s, "", .corpus);
+    return out.toOwnedSlice();
 }
 
 fn loadCases(w: *fx.Walk) ![]Case {

@@ -158,7 +158,8 @@ cat shots.stc | stencil --script -      # '-' reads the script from stdin
 ```
 
 A bare `@save` writes beside the source as `<name>-stencil.<ext>`, so a whole-directory run
-is safe in place. A script with any error runs nothing and exits 1.
+is safe in place; when the source is a URL it lands in the working directory under that name.
+A script with any error runs nothing and exits 1.
 
 `--script-plan` writes one JSON object to stdout — the script's blocks, the files each one
 would open, the edits as op-plan actions and the exact paths each `@save` would write — and

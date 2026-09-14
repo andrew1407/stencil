@@ -3,105 +3,105 @@
 //! ops still apply to what is open, which is what the user is looking at.
 const std = @import("std");
 
+const core = @import("../../core.zig");
 const logo = @import("../../logo.zig");
 const msg = @import("../../messages.zig");
 const pipeline = @import("../../pipeline.zig");
+const script_mod = @import("../../script.zig");
 const scriptCore = @import("../../scriptCore.zig");
-const script_load = @import("../../script/load.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 
-/// CSS pixels per cm at 96 dpi, the basis the crop parser and the browser share.
-const PX_PER_CM: f64 = 96.0 / 2.54;
+const decode = script_mod.decode;
+const script_load = script_mod.load;
+
+/// What the console cannot honour: it owns a session, not files. Reported once per kind
+/// rather than skipped in silence (stc-contract §10).
+const Skipped = struct {
+    save: bool = false,
+    frame: bool = false,
+
+    fn note(self: *Skipped, kind: scriptCore.OpKind) void {
+        switch (kind) {
+            .save => if (!self.save) {
+                self.save = true;
+                logo.note(msg.script_save_ignored, .{});
+            },
+            .frame => if (!self.frame) {
+                self.frame = true;
+                logo.note(msg.script_frame_ignored, .{});
+            },
+            else => {},
+        }
+    }
+};
 
 fn applyOps(session: *Session, io: std.Io, script: scriptCore.Script) !usize {
     var applied: usize = 0;
-    var lines: std.ArrayList(u8) = .empty;
-    defer lines.deinit(session.gpa);
+    var skipped: Skipped = .{};
 
     var i: u32 = 0;
     while (i < script.opCount()) : (i += 1) {
         const op = script.op(i) orelse continue;
         const view = session.current();
-        const w: f64 = @floatFromInt(view.width);
-        const h: f64 = @floatFromInt(view.height);
-        var buf: [416]f64 = undefined;
+        var buf: scriptCore.ResolveBuf = undefined;
+        const edit = decode.decode(script, i, op.kind, @floatFromInt(view.width), @floatFromInt(view.height), &buf) orelse continue;
 
-        switch (op.kind) {
-            .crop => {
-                const r = script.resolve(i, w, h, PX_PER_CM, PX_PER_CM, &buf) catch continue;
-                if (r.len < 4) continue;
-                try session.applyCrop(.{
-                    .x = @intFromFloat(@round(r[0])),
-                    .y = @intFromFloat(@round(r[1])),
-                    .w = @intFromFloat(@round(r[2])),
-                    .h = @intFromFloat(@round(r[3])),
-                });
+        switch (edit) {
+            .crop => |rect| {
+                try session.applyCrop(rect);
                 applied += 1;
             },
-            .filter => {
-                const mode = script.opStr(i, 0);
-                const tint = script.opStr(i, 1);
-                try session.setFilter(mode, tint);
+            .filter => |f| {
+                try session.setFilter(f.mode, f.tint);
                 applied += 1;
             },
-            .line, .rect => {
-                const r = script.resolve(i, w, h, PX_PER_CM, PX_PER_CM, &buf) catch continue;
-                if (r.len < 4) continue;
-                lines.clearRetainingCapacity();
-                try appendLayout(session.gpa, &lines, script, i, r, op.kind == .rect, view.width, view.height);
-                try session.addLines(lines.items);
+            // One `addLines` per shape, never batched: §7 numbers every edit and the
+            // console's `@undo N` walks that history N single steps.
+            .shape => |line| {
+                const doc = try layoutDoc(session.gpa, line, view.width, view.height);
+                defer session.gpa.free(doc);
+                try session.addLines(doc);
                 applied += 1;
             },
-            .layout => {
-                const bytes = pipeline.loadLayoutBytes(session.gpa, io, script.opStr(i, 0)) catch continue;
+            .layout => |l| {
+                const bytes = pipeline.loadLayoutBytes(session.gpa, io, l.src) catch continue;
                 defer session.gpa.free(bytes);
                 try session.addLines(bytes);
                 applied += 1;
             },
-            .undo => {
-                var n: usize = @intFromFloat(script.opNum(i, 0) orelse 1);
-                while (n > 0) : (n -= 1) _ = session.undo();
+            .steps => |n| {
+                var left = n;
+                while (left > 0) : (left -= 1) _ = if (op.kind == .undo) session.undo() else session.redo();
             },
-            .redo => {
-                var n: usize = @intFromFloat(script.opNum(i, 0) orelse 1);
-                while (n > 0) : (n -= 1) _ = session.redo();
-            },
-            else => {},
+            else => skipped.note(op.kind),
         }
     }
     return applied;
 }
 
-fn appendLayout(
-    gpa: std.mem.Allocator,
-    out: *std.ArrayList(u8),
-    script: scriptCore.Script,
-    i: u32,
-    r: []const f64,
-    locked: bool,
-    w: usize,
-    h: usize,
-) !void {
+/// One resolved shape as the single-line layout document `addLines` merges. Written straight
+/// into the buffer that is handed on — nothing is copied out of a second writer.
+fn layoutDoc(gpa: std.mem.Allocator, line: core.LineDraw, w: usize, h: usize) ![]u8 {
     var aw: std.Io.Writer.Allocating = .init(gpa);
-    defer aw.deinit();
+    errdefer aw.deinit();
     const p = &aw.writer;
     try p.print("{{\"imageWidth\":{d},\"imageHeight\":{d},\"lines\":[{{\"color\":\"{s}\"," ++
         "\"style\":\"{s}\",\"fillColor\":\"{s}\",\"pointColor\":\"{s}\",\"thickness\":{d}," ++
         "\"pointSize\":{d},\"locked\":{s},\"points\":[", .{
-        w,                       h,
-        script.opStr(i, 0),      script.opStr(i, 1),
-        script.opStr(i, 2),      script.opStr(i, 3),
-        r[r.len - 2],            r[r.len - 1],
-        if (locked) "true" else "false",
+        w,                                    h,
+        line.color,                           line.style,
+        line.fill_color,                      line.point_color,
+        line.thickness,                       line.point_size,
+        if (line.locked) "true" else "false",
     });
     var k: usize = 0;
-    while (k + 1 < r.len - 2) : (k += 2) {
+    while (k + 1 < line.points.len) : (k += 2) {
         if (k > 0) try p.writeAll(",");
-        try p.print("{{\"x\":{d},\"y\":{d}}}", .{ r[k], r[k + 1] });
+        try p.print("{{\"x\":{d},\"y\":{d}}}", .{ line.points[k], line.points[k + 1] });
     }
     try p.writeAll("]}]}");
-    try out.appendSlice(gpa, aw.written());
+    return aw.toOwnedSlice();
 }
 
 /// Runs `source` against the session. Returns true when it recorded an edit.

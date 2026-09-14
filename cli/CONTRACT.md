@@ -337,7 +337,9 @@ first local input. Exit code **1** if any diagnostic is an error, **0** otherwis
   (edges as cropSpec token strings, unresolved), `filter`, `layout` (points already in image
   pixels), `save`, `undo`, `redo` — so an adapter can feed a plan straight to its op-plan
   executor. `@line` / `@rect` accumulate into one `layout` action that lands where a
-  `--script` run would burn them: before the next `@crop` or `@save`.
+  `--script` run would burn them: before the next `@crop`, `@save`, or combining `@layout`
+  (so the layout document's own lines land on top of them, as in the editors). A `@layout
+  replace` drops them instead, and they are never described.
 - `saves` is the concrete destination of every `@save`, one entry per input × save op, named
   by the same rule `--script` uses (§4.2).
 

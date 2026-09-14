@@ -9,6 +9,7 @@ const opSchema = @import("../src/llm/opSchema.zig");
 const opplan = @import("../src/llm/opplan.zig");
 const plan = @import("../src/script/plan.zig");
 const report = @import("../src/report.zig");
+const run = @import("../src/script/run.zig");
 const save = @import("../src/script/save.zig");
 const scriptCore = @import("../src/scriptCore.zig");
 const sources = @import("../src/script/sources.zig");
@@ -66,7 +67,7 @@ test "the lowered stream is what the runner walks: open, edits, save" {
     try testing.expectEqualStrings("", s.opStr(3, 0)); // a bare @save
 }
 
-test "undo is resolved before the runner ever sees it" {
+test "the lowered stream carries the undo the runner has to execute" {
     var s = try scriptCore.Script.parse(
         "@source a.png:\n  @filter bw\n  @rect (1,1) (2,2)\n  @undo\n  @save o.png\n",
     );
@@ -83,6 +84,105 @@ test "undo is resolved before the runner ever sees it" {
     }
     try testing.expectEqual(@as(usize, 1), undos);
     try testing.expectEqual(@as(usize, 1), rects);
+}
+
+/// The decoded pixels of a file the runner just wrote.
+fn pixelsOf(gpa: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
+    const bytes = try std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(4 << 20));
+    defer gpa.free(bytes);
+    var img = try image.decode(gpa, bytes);
+    defer img.deinit(gpa);
+    return gpa.dupe(u8, img.pixels);
+}
+
+test "an @undo reaches the pixels: the save after it has no rect in it" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+
+    const stc = "stencil_script_undo.stc";
+    const with_rect = "stencil_script_undo_one.png";
+    const undone = "stencil_script_undo_two.png";
+    const filter_only = "stencil_script_undo_three.png";
+    try dir.writeFile(io, .{ .sub_path = stc, .data = "@source tests/fixtures/sample.png:\n" ++
+        "    @filter bw\n    @rect (0,0) (9,9)\n    @save " ++ with_rect ++ "\n" ++
+        "    @undo\n    @save " ++ undone ++ "\n" ++
+        "@source tests/fixtures/sample.png:\n    @filter bw\n    @save " ++ filter_only ++ "\n" });
+    defer dir.deleteFile(io, stc) catch {};
+    defer dir.deleteFile(io, with_rect) catch {};
+    defer dir.deleteFile(io, undone) catch {};
+    defer dir.deleteFile(io, filter_only) catch {};
+
+    try run.run(gpa, io, .{}, stc);
+
+    const drawn = try pixelsOf(gpa, io, with_rect);
+    defer gpa.free(drawn);
+    const rewound = try pixelsOf(gpa, io, undone);
+    defer gpa.free(rewound);
+    const plain = try pixelsOf(gpa, io, filter_only);
+    defer gpa.free(plain);
+
+    try testing.expect(!std.mem.eql(u8, drawn, rewound)); // the first save burned the rect in
+    try testing.expectEqualSlices(u8, plain, rewound); // the second is the filter alone
+}
+
+/// The index of the first action whose `op` is `op_name` and, when `path` is given, whose
+/// "path" is that file — the plan's input load and a `@layout` load share an op name.
+fn actionAt(actions: []const std.json.Value, op_name: []const u8, path: ?[]const u8) ?usize {
+    for (actions, 0..) |v, i| {
+        if (!std.mem.eql(u8, v.object.get("op").?.string, op_name)) continue;
+        const want = path orelse return i;
+        const got = v.object.get("path") orelse continue;
+        if (std.mem.eql(u8, got.string, want)) return i;
+    }
+    return null;
+}
+
+test "--script-plan advertises the z-order --script paints: a @layout lands on the marks before it" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+
+    const doc = "stencil_script_zorder.json";
+    const stc = "stencil_script_zorder.stc";
+    const out = "stencil_script_zorder.png";
+    const text = "@source tests/fixtures/sample.png:\n    @use line #ff0000 5px\n" ++
+        "    @line (0,6) (15,6)\n    @layout " ++ doc ++ "\n    @save " ++ out ++ "\n";
+
+    try dir.writeFile(io, .{ .sub_path = doc, .data = "{\"imageWidth\":16,\"imageHeight\":12,\"lines\":[" ++
+        "{\"points\":[{\"x\":0,\"y\":6},{\"x\":15,\"y\":6}],\"color\":\"#00ff00\",\"thickness\":5," ++
+        "\"pointSize\":0,\"style\":\"solid\",\"fillColor\":\"transparent\"}]}" });
+    try dir.writeFile(io, .{ .sub_path = stc, .data = text });
+    defer dir.deleteFile(io, doc) catch {};
+    defer dir.deleteFile(io, stc) catch {};
+    defer dir.deleteFile(io, out) catch {};
+
+    // What the pixels do: the layout's green covers the red @line under it.
+    try run.run(gpa, io, .{}, stc);
+    const px = try pixelsOf(gpa, io, out);
+    defer gpa.free(px);
+    const centre = (6 * 16 + 8) * 4;
+    try testing.expect(px[centre + 1] > px[centre]);
+
+    // What the plan says: the marks flush BEFORE the action that loads the doc over them.
+    var s = try scriptCore.Script.parse(text);
+    defer s.deinit();
+    var env: std.Io.Writer.Allocating = .init(gpa);
+    defer env.deinit();
+    try plan.writeEnvelope(gpa, io, &env.writer, s, .{}, "z.stc");
+
+    var parsed = try std.json.parseFromSlice(std.json.Value, gpa, env.written(), .{});
+    defer parsed.deinit();
+    const actions = parsed.value.object.get("blocks").?.array.items[0]
+        .object.get("plans").?.array.items[0].object.get("actions").?.array.items;
+    const marks = actionAt(actions, "layout", null).?;
+    const doc_load = actionAt(actions, "openFile", doc).?;
+    try testing.expect(marks < doc_load);
+    try testing.expect(doc_load < actionAt(actions, "save", null).?);
 }
 
 test "output confinement refuses traversal always and absolutes under the flag" {
