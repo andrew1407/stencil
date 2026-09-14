@@ -124,7 +124,7 @@ Or, in VS Code: **Extensions** → the `…` menu → **Install from VSIX…** �
 `stencil-stc.vsix`. Reload the window, then open any `.stc` file.
 
 Recent VS Code versions gate extensions on their publisher. If `.stc` files stay plain text
-after installing, open the Extensions view, find **Stencil script (.stc)** and click **Trust
+after installing, open the Extensions view, find **Stencil** and click **Trust
 Publisher** — an untrusted publisher's extension contributes nothing, not even a file type.
 
 To develop against it instead, open this folder in VS Code and press **F5** — the Extension

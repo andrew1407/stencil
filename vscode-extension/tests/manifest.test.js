@@ -19,6 +19,7 @@ test('the extension is CommonJS, and its entry point exists', () => {
   assert.equal(manifest.main, './src/extension.js');
   assert.ok(existsSync(here(`../${manifest.main}`)));
   assert.equal(manifest.name, 'stencil-stc');
+  assert.equal(manifest.displayName, 'Stencil', 'the name the Extensions view shows');
   assert.equal(manifest.engines.vscode, '^1.90.0');
 });
 
@@ -55,8 +56,13 @@ test('both file types carry a light and a dark icon, and the gallery carries the
     }
   }
   assert.equal(manifest.icon, 'icon.png', 'the extension logo must be a PNG — VS Code rejects SVG');
-  assert.ok(existsSync(here('../icon.png')));
   assert.equal(manifest.galleryBanner.color, '#2b2f3a', "the app panel's fill");
+  // Read the PNG header rather than trusting the extension: a file that is not really a PNG,
+  // or is under 128px, leaves the extension page showing the generic placeholder.
+  const png = readFileSync(here('../icon.png'));
+  assert.deepEqual([...png.subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 'not a PNG');
+  assert.equal(png.subarray(12, 16).toString('ascii'), 'IHDR');
+  assert.ok(png.readUInt32BE(16) >= 128 && png.readUInt32BE(20) >= 128, 'the logo must be at least 128px');
 });
 
 test('every contributed path exists on disk', () => {

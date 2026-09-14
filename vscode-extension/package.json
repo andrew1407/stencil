@@ -1,6 +1,6 @@
 {
   "name": "stencil-stc",
-  "displayName": "Stencil script (.stc)",
+  "displayName": "Stencil",
   "description": "Write Stencil .stc scripts with syntax highlighting, live diagnostics from the real engine, and one-key Run \u2014 batch crops, filters, layouts and annotations over whole folders of images without leaving the editor.",
   "version": "1.0.0",
   "publisher": "stencil",
