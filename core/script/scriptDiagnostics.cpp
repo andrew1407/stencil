@@ -1,5 +1,6 @@
 #include "scriptDiagnostics.hpp"
 
+#include "scriptParser.hpp"
 #include "text.hpp"
 
 #include <algorithm>
@@ -10,7 +11,7 @@ namespace stencil::core::script {
     constexpr int MAX_EDITS = 2;
   }  // namespace
 
-  int editDistance(const std::string& a, const std::string& b) {
+  int editDistance(std::string_view a, std::string_view b) {
     const int cap = MAX_EDITS + 1;
     const std::size_t n = a.size(), m = b.size();
     if (n > m + MAX_EDITS || m > n + MAX_EDITS) return cap;
@@ -31,18 +32,18 @@ namespace stencil::core::script {
     return std::min(prev[m], cap);
   }
 
-  std::string didYouMean(const std::string& word, const std::vector<std::string>& candidates) {
+  std::string didYouMean(std::string_view word, const std::vector<std::string_view>& candidates) {
     const std::string needle = toLowerAscii(word);
-    std::string best;
+    std::string_view best;
     int bestScore = MAX_EDITS + 1;
-    for (const std::string& c : candidates) {
+    for (std::string_view c : candidates) {
       const int d = editDistance(needle, toLowerAscii(c));
       if (d < bestScore) {
         bestScore = d;
         best = c;
       }
     }
-    return bestScore <= MAX_EDITS ? best : std::string();
+    return bestScore <= MAX_EDITS ? std::string(best) : std::string();
   }
 
   Diagnostic makeDiag(Severity sev, const std::string& code, const Token& at,
@@ -55,6 +56,25 @@ namespace stencil::core::script {
     d.len = at.len;
     d.message = message;
     return d;
+  }
+
+  Token tokenOfStmt(const Stmt& st) {
+    Token t;
+    t.line = st.line;
+    t.col = st.col;
+    t.len = st.len;
+    t.kind = TokenKind::DIRECTIVE;
+    t.text = "@" + st.directive;
+    return t;
+  }
+
+  Diagnostic makeDiag(Severity sev, const std::string& code, const Stmt& at,
+                      const std::string& message) {
+    return makeDiag(sev, code, tokenOfStmt(at), message);
+  }
+
+  Token argErrorToken(const Stmt& st) {
+    return st.args.empty() ? tokenOfStmt(st) : st.args[0];
   }
 
   std::string formatDiagnostic(const std::string& file, const Diagnostic& d) {

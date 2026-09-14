@@ -11,7 +11,7 @@ namespace stencil::core::script {
     LineStyle style;
   };
 
-  // Fills op.strs/toks/nums for @crop. Handles the key form and 1/2/4 positional insets.
+  // @crop: the key form, or 1/2/4 positional insets.
   bool argsCrop(const Stmt& st, const EvalState& state, Op& op, std::vector<Diagnostic>& diags);
 
   // @filter <mode|colour> -> strs{mode, tint}.
@@ -28,16 +28,11 @@ namespace stencil::core::script {
   bool argsSave(const Stmt& st, Op& op, std::vector<Diagnostic>& diags);
   bool argsFrame(const Stmt& st, Op& op, std::vector<Diagnostic>& diags);
 
-  // @use <unit> | @use line <groups> — mutates `state`. Returns false on a hard error.
-  // `isStencilUse` is set when the statement is `@use stencil …`, which the caller expands.
+  // @use <unit> | @use line <groups> — mutates `state`. `isStencilUse` marks the form the
+  // caller expands instead.
   bool argsUse(const Stmt& st, EvalState& state, bool& isStencilUse,
                std::vector<Diagnostic>& diags);
 
   SourceKind classifySource(const std::string& spec);
-
-  std::string unquoteWord(const std::string& s);
-
-  // Joins a statement's argument words back into one string (paths, names, targets).
-  std::string joinWords(const std::vector<Token>& args);
 
 }  // namespace stencil::core::script

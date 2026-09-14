@@ -84,10 +84,8 @@ namespace stencil::core::script {
   bool argsUse(const Stmt& st, EvalState& state, bool& isStencilUse,
                std::vector<Diagnostic>& diags) {
     isStencilUse = false;
-    Token where = st.args.empty() ? Token{st.line, st.col, st.len, TokenKind::DIRECTIVE, "@use"}
-                                  : st.args[0];
     if (st.args.empty()) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", where,
+      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", argErrorToken(st),
                                "@use needs a unit, 'line …' or 'stencil <name>'"));
       return false;
     }

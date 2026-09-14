@@ -1,14 +1,15 @@
 #include "scriptUndo.hpp"
 
 #include <algorithm>
+#include <utility>
 
 namespace stencil::core::script {
 
-  int EditLedger::addEdit(const Op& op, const std::string& text) {
+  int EditLedger::addEdit(Op op, std::string text) {
     EditRec rec;
-    rec.op = op;
-    rec.text = text;
-    edits_.push_back(rec);
+    rec.op = std::move(op);
+    rec.text = std::move(text);
+    edits_.push_back(std::move(rec));
     applied_.push_back(static_cast<int>(edits_.size()) - 1);
     return static_cast<int>(edits_.size());
   }
@@ -79,7 +80,7 @@ namespace stencil::core::script {
     return true;
   }
 
-  void EditLedger::reconcile(std::vector<Op>& out, int block, int line, int col) {
+  bool EditLedger::reconcile(std::vector<Op>& out, int block, int line, int col) {
     std::vector<int> live;
     for (std::size_t i = 0; i < edits_.size(); ++i)
       if (edits_[i].live) live.push_back(static_cast<int>(i));
@@ -88,6 +89,10 @@ namespace stencil::core::script {
     while (k < applied_.size() && k < live.size() && applied_[k] == live[k]) ++k;
 
     const std::size_t steps = applied_.size() - k;
+    const std::size_t appended = (steps > 0 ? 1u : 0u) + (live.size() - k);
+    if (appended > 0 && out.size() + appended >= static_cast<std::size_t>(MAX_OPS))
+      return false;
+
     if (steps > 0) {
       Op undo;
       undo.kind = OpKind::UNDO;
@@ -95,11 +100,12 @@ namespace stencil::core::script {
       undo.line = line;
       undo.col = col;
       undo.nums.assign(1, static_cast<double>(steps));
-      out.push_back(undo);
+      out.push_back(std::move(undo));
     }
     for (std::size_t i = k; i < live.size(); ++i)
       out.push_back(edits_[static_cast<std::size_t>(live[i])].op);
-    applied_ = live;
+    applied_ = std::move(live);
+    return true;
   }
 
   void EditLedger::reset() {

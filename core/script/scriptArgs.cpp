@@ -4,24 +4,7 @@
 #include "scriptValues.hpp"
 #include "text.hpp"
 
-#include <cstdlib>
-
 namespace stencil::core::script {
-
-  std::string unquoteWord(const std::string& s) {
-    if (s.size() >= 2 && s.front() == '"' && s.back() == '"') return s.substr(1, s.size() - 2);
-    return s;
-  }
-
-  std::string joinWords(const std::vector<Token>& args) {
-    std::string out;
-    for (const Token& t : args) {
-      if (t.kind == TokenKind::PUNCT) continue;
-      if (!out.empty()) out.push_back(' ');
-      out += unquoteWord(t.text);
-    }
-    return out;
-  }
 
   SourceKind classifySource(const std::string& spec) {
     if (spec.empty()) return SourceKind::PROJECT;
@@ -36,10 +19,8 @@ namespace stencil::core::script {
 
   bool argsFilter(const Stmt& st, Op& op, std::vector<Diagnostic>& diags) {
     const std::string word = joinWords(st.args);
-    Token where = st.args.empty() ? Token{st.line, st.col, st.len, TokenKind::DIRECTIVE, "@filter"}
-                                  : st.args[0];
     if (word.empty()) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", where,
+      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", argErrorToken(st),
                                "@filter needs a mode (bw, sepia, invert, contour, none) or a colour"));
       return false;
     }
@@ -52,7 +33,7 @@ namespace stencil::core::script {
       op.strs = {"custom", word};
       return true;
     }
-    diags.push_back(makeDiag(Severity::ERROR, "E_UNKNOWN_FILTER", where,
+    diags.push_back(makeDiag(Severity::ERROR, "E_UNKNOWN_FILTER", argErrorToken(st),
                              "'" + word + "' is not a filter mode or a colour"));
     return false;
   }
@@ -61,20 +42,17 @@ namespace stencil::core::script {
                  std::vector<Diagnostic>& diags) {
     ArgCursor c{&st.args, 0};
     std::vector<std::string> pts;
-    Token where = st.args.empty()
-                      ? Token{st.line, st.col, st.len, TokenKind::DIRECTIVE, "@line"}
-                      : st.args[0];
     if (!readPointList(c, state.unit, pts, diags)) return false;
     const std::size_t count = pts.size() / 2;
     if (count < 2) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_LINE_NEEDS_POINTS", where,
+      diags.push_back(makeDiag(Severity::ERROR, "E_LINE_NEEDS_POINTS", argErrorToken(st),
                                std::string(locked ? "@rect" : "@line") +
                                    " needs at least two points"));
       return false;
     }
     op.strs = {state.style.color, state.style.style, state.style.fillColor,
                state.style.pointColor};
-    op.toks = pts;
+    op.toks = std::move(pts);
     op.nums = {state.style.thickness, state.style.pointSize, locked ? 1.0 : 0.0};
     return true;
   }
@@ -89,10 +67,9 @@ namespace stencil::core::script {
       words.push_back(t);
     }
     const std::string src = joinWords(words);
-    Token where = st.args.empty() ? Token{st.line, st.col, st.len, TokenKind::DIRECTIVE, "@layout"}
-                                  : st.args[0];
     if (src.empty()) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", where, "@layout needs a path or URL"));
+      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", argErrorToken(st),
+                               "@layout needs a path or URL"));
       return false;
     }
     op.strs = {src, mode};
@@ -107,13 +84,12 @@ namespace stencil::core::script {
   }
 
   bool argsFrame(const Stmt& st, Op& op, std::vector<Diagnostic>& diags) {
-    Token where = st.args.empty() ? Token{st.line, st.col, st.len, TokenKind::DIRECTIVE, "@frame"}
-                                  : st.args[0];
     if (st.args.empty() || st.args[0].kind != TokenKind::NUMBER) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", where, "@frame needs a frame index"));
+      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", argErrorToken(st),
+                               "@frame needs a frame index"));
       return false;
     }
-    const int n = std::atoi(st.args[0].text.c_str());
+    const int n = parseIntClamped(st.args[0].text);
     if (n < 0) {
       diags.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", st.args[0],
                                "a frame index cannot be negative"));

@@ -68,18 +68,12 @@ namespace stencil::core::script {
     REDO = 9,
   };
 
-  /* One lowered operation. Three payload vectors, fixed per kind:
-   *   strs  plain strings · toks  length tokens resolved lazily against the live image
-   *   nums  plain numbers. scriptOpResolve() turns `toks` into pixels.
-   * OPEN   strs{source} nums{sourceKind}
-   * FRAME  nums{index}
-   * CROP   strs{aspect} toks{x1,x2,y1,y2} nums{album}
-   * FILTER strs{mode,tint}
-   * LINE   strs{color,style,fillColor,pointColor} toks{x0,y0,…} nums{thickness,pointSize,locked}
-   * RECT   as LINE, locked = 1
-   * LAYOUT strs{source,mode} nums{sourceKind}
-   * SAVE   strs{target}
-   * UNDO   nums{steps} · REDO nums{steps} */
+  /* One lowered operation: strs plain strings, toks length tokens scriptOpResolve() turns
+   * into pixels, nums plain numbers. Per kind — OPEN strs{source} nums{sourceKind} · FRAME
+   * nums{index} · CROP strs{aspect} toks{x1,x2,y1,y2} nums{album} · FILTER strs{mode,tint} ·
+   * LINE/RECT strs{color,style,fillColor,pointColor} toks{x0,y0,…} nums{thickness,pointSize,
+   * locked} · LAYOUT strs{source,mode} nums{sourceKind} · SAVE strs{target} · UNDO/REDO
+   * nums{steps}. RECT is a LINE with locked = 1. */
   struct Op {
     OpKind kind = OpKind::CROP;
     int block = 0;
@@ -95,7 +89,7 @@ namespace stencil::core::script {
   struct Block {
     std::string source;  // "" for the implicit project block
     SourceKind kind = SourceKind::PROJECT;
-    int frame = 0;
+    int frame = 0;  // reserved: exported for the adapters, never assigned by the lowerer
     int opStart = 0;
     int opCount = 0;
     int line = 1;

@@ -134,6 +134,15 @@ TEST_CASE("two stroke colours in one @use line is an error") {
   CHECK(hasCode(parse("@source a.png:\n  @use line red blue\n"), "E_DUP_LINE_COLOR"));
 }
 
+TEST_CASE("a nested '@use Stencil' expands whatever its case") {
+  const ScriptProgram p =
+      parse("@stencil inner:\n  @filter bw\n\n@stencil outer:\n  @use Stencil inner\n\n"
+            "@source a.png:\n  @use stencil outer\n");
+  CHECK_FALSE(p.hasErrors());
+  REQUIRE(p.ops().size() == 2);
+  CHECK(p.ops()[1].kind == OpKind::FILTER);
+}
+
 TEST_CASE("a rect is a locked line; two corners become four points on resolve") {
   const ScriptProgram p = parse("@source a.png:\n  @rect (10,10) (100,80)\n");
   CHECK_FALSE(p.hasErrors());

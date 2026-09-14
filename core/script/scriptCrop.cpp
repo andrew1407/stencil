@@ -4,16 +4,20 @@
 #include "scriptValues.hpp"
 #include "text.hpp"
 
+#include <array>
+#include <string_view>
+
 namespace stencil::core::script {
 
   namespace {
 
-    const char* kCropKeys[] = {"x1", "x2", "y1", "y2", "aspect"};
+    constexpr std::array<std::string_view, 5> CROP_KEYS = {"x1", "x2", "y1", "y2", "aspect"};
+    constexpr int ASPECT_SLOT = 4;
 
     bool isCropKey(const std::string& w, int& slot) {
       const std::string k = toLowerAscii(w);
-      for (int i = 0; i < 5; ++i)
-        if (k == kCropKeys[i]) { slot = i; return true; }
+      for (std::size_t i = 0; i < CROP_KEYS.size(); ++i)
+        if (k == CROP_KEYS[i]) { slot = static_cast<int>(i); return true; }
       return false;
     }
 
@@ -27,8 +31,6 @@ namespace stencil::core::script {
 
   bool argsCrop(const Stmt& st, const EvalState& state, Op& op, std::vector<Diagnostic>& diags) {
     ArgCursor c{&st.args, 0};
-    Token where = st.args.empty() ? Token{st.line, st.col, st.len, TokenKind::DIRECTIVE, "@crop"}
-                                  : st.args[0];
     std::string edges[4];  // x1, x2, y1, y2
     std::string aspect;
     bool sawKey = false, sawPositional = false;
@@ -43,7 +45,7 @@ namespace stencil::core::script {
         sawKey = true;
         ++c.i;
         skipPunct(c, "=");
-        if (slot == 4) {  // aspect takes a raw "W:H" word, not a length
+        if (slot == ASPECT_SLOT) {  // aspect takes a raw "W:H" word, not a length
           if (c.atEnd()) {
             diags.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", t, "'aspect' needs a W:H ratio"));
             return false;
@@ -85,7 +87,7 @@ namespace stencil::core::script {
     }
 
     if (sawKey && sawPositional) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_CROP_MIXED_FORM", where,
+      diags.push_back(makeDiag(Severity::ERROR, "E_CROP_MIXED_FORM", argErrorToken(st),
                                "@crop takes either key=value pairs or bare insets, not both"));
       return false;
     }
@@ -106,14 +108,15 @@ namespace stencil::core::script {
         edges[1] = positional[2];
         edges[3] = positional[3];
       } else {
-        diags.push_back(makeDiag(Severity::ERROR, "E_CROP_ARITY", where,
+        diags.push_back(makeDiag(Severity::ERROR, "E_CROP_ARITY", argErrorToken(st),
                                  "@crop takes 1, 2 or 4 insets, got " +
                                      std::to_string(positional.size())));
         return false;
       }
     }
     if (!sawKey && !sawPositional) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", where, "@crop needs an argument"));
+      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", argErrorToken(st),
+                               "@crop needs an argument"));
       return false;
     }
 

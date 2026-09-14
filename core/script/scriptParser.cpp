@@ -1,36 +1,21 @@
 #include "scriptParser.hpp"
 
 #include "scriptDiagnostics.hpp"
+#include "scriptValues.hpp"
 #include "text.hpp"
-
-#include <cstdlib>
 
 namespace stencil::core::script {
 
   namespace {
 
-    const std::vector<std::string> kDirectives = {"source", "stencil", "use",  "crop",
-                                                  "filter", "line",    "rect", "layout",
-                                                  "save",   "frame",   "undo", "redo"};
-
     bool isNewline(const Token& t) {
       return t.kind == TokenKind::PUNCT && (t.text == "\n" || t.text == ";");
     }
 
-    std::string unquote(const std::string& s) {
-      if (s.size() >= 2 && s.front() == '"' && s.back() == '"') return s.substr(1, s.size() - 2);
-      return s;
-    }
-
-    // The name is every word before the ':' — "lines and rect" is one name.
-    std::string joinName(const std::vector<Token>& args) {
-      std::string out;
-      for (const Token& t : args) {
-        if (t.kind == TokenKind::PUNCT) continue;
-        if (!out.empty()) out.push_back(' ');
-        out += unquote(t.text);
-      }
-      return out;
+    Directive resolveDirective(const std::string& word) {
+      for (const DirectiveWord& d : DIRECTIVE_WORDS)
+        if (d.word == word) return d.kind;
+      return Directive::NONE;
     }
 
     int highestParam(const std::vector<Stmt>& body) {
@@ -38,15 +23,13 @@ namespace stencil::core::script {
       for (const Stmt& s : body)
         for (const Token& t : s.args)
           if (t.kind == TokenKind::PARAM) {
-            const int n = std::atoi(t.text.c_str() + 1);
+            const int n = parseIntClamped(t.text.substr(1));
             if (n > top) top = n;
           }
       return top;
     }
 
   }  // namespace
-
-  const std::vector<std::string>& directiveNames() { return kDirectives; }
 
   ParseResult parseScript(const std::vector<Token>& tokens) {
     ParseResult out;
@@ -73,14 +56,14 @@ namespace stencil::core::script {
       }
 
       st.directive = toLowerAscii(head.text.substr(1));
+      st.kind = resolveDirective(st.directive);
       st.len = head.len;
       ++i;
 
-      bool unknown = true;
-      for (const std::string& d : kDirectives)
-        if (d == st.directive) { unknown = false; break; }
-      if (unknown) {
-        const std::string near = didYouMean(st.directive, kDirectives);
+      if (st.kind == Directive::NONE) {
+        std::vector<std::string_view> words;
+        for (const DirectiveWord& d : DIRECTIVE_WORDS) words.push_back(d.word);
+        const std::string near = didYouMean(st.directive, words);
         out.diagnostics.push_back(
             makeDiag(Severity::ERROR, "E_UNKNOWN_DIRECTIVE", head,
                      "unknown directive '@" + st.directive + "'" +
@@ -109,7 +92,7 @@ namespace stencil::core::script {
           st.args.push_back(t);
         ++i;
       }
-      stmts.push_back(st);
+      stmts.push_back(std::move(st));
     }
 
     // Pass 2 — statements into blocks and template definitions.
@@ -119,83 +102,73 @@ namespace stencil::core::script {
     int currentBlock = -1;     // index into sourceBlocks; -1 = the implicit block
     int currentTemplate = -1;  // index into out.templates; -1 = not in a template
 
-    auto tokenAt = [](const Stmt& s) {
-      Token t;
-      t.line = s.line;
-      t.col = s.col;
-      t.len = s.len;
-      t.text = "@" + s.directive;
-      return t;
-    };
-
     // A body that is indented past its header ends at the first statement back at (or
     // left of) the header's column; an unindented body runs to the next block header.
     int bodyColumn = 0, headerColumn = 0;
 
-    for (const Stmt& st : stmts) {
-      const bool isHeader = st.directive == "stencil" || st.directive == "source";
+    for (Stmt& st : stmts) {
+      const bool isHeader = st.kind == Directive::STENCIL || st.kind == Directive::SOURCE;
       if (!isHeader && bodyColumn > 0 && st.col <= headerColumn) {
         currentTemplate = -1;
         currentBlock = -1;
         bodyColumn = 0;
       }
 
-      if (st.directive == "stencil") {
+      if (st.kind == Directive::STENCIL) {
         currentTemplate = -1;
         if (!st.opensBlock) {
-          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_MISSING_COLON", tokenAt(st),
+          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_MISSING_COLON", st,
                                              "'@stencil <name>:' needs a trailing ':'"));
           continue;
         }
         TemplateDef def;
-        def.name = joinName(st.args);
+        def.name = joinWords(st.args);  // every word before the ':' — "lines and rect" is one name
         def.line = st.line;
         def.col = st.col;
         def.len = st.len;
         if (def.name.empty()) {
-          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", tokenAt(st),
+          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", st,
                                              "'@stencil' needs a name before the ':'"));
           continue;
         }
-        bool dup = false;
+        bool isDuplicate = false;
         for (const TemplateDef& d : out.templates)
-          if (d.name == def.name) { dup = true; break; }
-        if (dup) {
-          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_DUPLICATE_TEMPLATE", tokenAt(st),
+          if (d.name == def.name) { isDuplicate = true; break; }
+        if (isDuplicate) {
+          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_DUPLICATE_TEMPLATE", st,
                                              "template '" + def.name + "' is already defined"));
           continue;
         }
         if (static_cast<int>(out.templates.size()) >= MAX_TEMPLATES) {
-          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_LIMIT_TEMPLATES", tokenAt(st),
+          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_LIMIT_TEMPLATES", st,
                                              "too many templates"));
           continue;
         }
-        out.templates.push_back(def);
+        out.templates.push_back(std::move(def));
         currentTemplate = static_cast<int>(out.templates.size()) - 1;
         headerColumn = st.col;
         bodyColumn = 0;
         continue;
       }
 
-      if (st.directive == "source") {
+      if (st.kind == Directive::SOURCE) {
         currentTemplate = -1;  // a block header always closes the template above it
         if (!st.opensBlock) {
-          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_MISSING_COLON", tokenAt(st),
+          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_MISSING_COLON", st,
                                              "'@source <path|url>:' needs a trailing ':'"));
           continue;
         }
         if (static_cast<int>(sourceBlocks.size()) >= MAX_BLOCKS) {
           out.diagnostics.push_back(
-              makeDiag(Severity::ERROR, "E_LIMIT_BLOCKS", tokenAt(st), "too many @source blocks"));
+              makeDiag(Severity::ERROR, "E_LIMIT_BLOCKS", st, "too many @source blocks"));
           continue;
         }
-        RawBlock b;
-        b.header = st;
-        b.implicit = false;
-        sourceBlocks.push_back(b);
+        RawBlock& block = sourceBlocks.emplace_back();
+        block.header = std::move(st);
+        block.implicit = false;
         currentBlock = static_cast<int>(sourceBlocks.size()) - 1;
         currentTemplate = -1;
-        headerColumn = st.col;
+        headerColumn = block.header.col;
         bodyColumn = 0;
         continue;
       }
@@ -205,17 +178,19 @@ namespace stencil::core::script {
         bodyColumn = st.col;
 
       if (currentTemplate >= 0) {
-        out.templates[static_cast<std::size_t>(currentTemplate)].body.push_back(st);
+        out.templates[static_cast<std::size_t>(currentTemplate)].body.push_back(std::move(st));
         continue;
       }
-      if (currentBlock >= 0) sourceBlocks[static_cast<std::size_t>(currentBlock)].body.push_back(st);
-      else implicitBlock.body.push_back(st);
+      if (currentBlock >= 0)
+        sourceBlocks[static_cast<std::size_t>(currentBlock)].body.push_back(std::move(st));
+      else
+        implicitBlock.body.push_back(std::move(st));
     }
 
     for (TemplateDef& d : out.templates) d.arity = highestParam(d.body);
 
-    if (!implicitBlock.body.empty()) out.blocks.push_back(implicitBlock);
-    for (RawBlock& b : sourceBlocks) out.blocks.push_back(b);
+    if (!implicitBlock.body.empty()) out.blocks.push_back(std::move(implicitBlock));
+    for (RawBlock& b : sourceBlocks) out.blocks.push_back(std::move(b));
     return out;
   }
 

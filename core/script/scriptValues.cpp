@@ -5,11 +5,42 @@
 #include "scriptLexer.hpp"
 #include "text.hpp"
 
+#include <climits>
+#include <cstdlib>
+
 namespace stencil::core::script {
 
-  bool isUnitWord(const std::string& w) {
+  namespace {
+    constexpr std::string_view UNIT_WORDS[] = {"px", "cm", "mm", "in", "%"};
+  }  // namespace
+
+  bool isUnitWord(std::string_view w) {
     const std::string u = toLowerAscii(w);
-    return u == "px" || u == "cm" || u == "mm" || u == "in" || u == "%";
+    for (std::string_view unit : UNIT_WORDS)
+      if (u == unit) return true;
+    return false;
+  }
+
+  std::string unquoteWord(const std::string& s) {
+    if (s.size() >= 2 && s.front() == '"' && s.back() == '"') return s.substr(1, s.size() - 2);
+    return s;
+  }
+
+  std::string joinWords(const std::vector<Token>& args) {
+    std::string out;
+    for (const Token& t : args) {
+      if (t.kind == TokenKind::PUNCT) continue;
+      if (!out.empty()) out.push_back(' ');
+      out += unquoteWord(t.text);
+    }
+    return out;
+  }
+
+  int parseIntClamped(const std::string& text) {
+    const long v = std::strtol(text.c_str(), nullptr, 10);
+    if (v > INT_MAX) return INT_MAX;
+    if (v < INT_MIN) return INT_MIN;
+    return static_cast<int>(v);
   }
 
   bool isPunct(const Token& t, const char* text) {

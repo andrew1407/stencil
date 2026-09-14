@@ -1,22 +1,12 @@
 #include "scriptTemplates.hpp"
 
-#include "scriptArgs.hpp"
 #include "scriptDiagnostics.hpp"
-
-#include <cstdlib>
+#include "scriptValues.hpp"
+#include "text.hpp"
 
 namespace stencil::core::script {
 
   namespace {
-
-    Token tokenOf(const Stmt& s) {
-      Token t;
-      t.line = s.line;
-      t.col = s.col;
-      t.len = s.len;
-      t.text = "@" + s.directive;
-      return t;
-    }
 
     // The call's words, in order, with `stencil` already dropped.
     std::vector<std::string> callWords(const Stmt& use) {
@@ -42,7 +32,6 @@ namespace stencil::core::script {
     // Longest defined name that is a prefix of the word run.
     int resolveName(const std::vector<std::string>& words,
                     const std::vector<TemplateDef>& templates, std::size_t& wordsUsed) {
-      int best = -1;
       wordsUsed = 0;
       for (std::size_t n = words.size(); n >= 1; --n) {
         const std::string candidate = joinRange(words, n);
@@ -52,20 +41,26 @@ namespace stencil::core::script {
             return static_cast<int>(k);
           }
       }
-      return best;
+      return -1;
     }
 
     // @1..@n in the body become the call's arguments; every other token passes through.
     Stmt substitute(const Stmt& body, const std::vector<std::string>& args, bool& badIndex,
                     Token& badAt) {
-      Stmt out = body;
-      out.args.clear();
+      Stmt out;
+      out.directive = body.directive;
+      out.kind = body.kind;
+      out.opensBlock = body.opensBlock;
+      out.line = body.line;
+      out.col = body.col;
+      out.len = body.len;
+      out.args.reserve(body.args.size());
       for (const Token& t : body.args) {
         if (t.kind != TokenKind::PARAM) {
           out.args.push_back(t);
           continue;
         }
-        const int n = std::atoi(t.text.c_str() + 1);
+        const int n = parseIntClamped(t.text.substr(1));
         if (n < 1 || n > static_cast<int>(args.size())) {
           badIndex = true;
           badAt = t;
@@ -74,9 +69,14 @@ namespace stencil::core::script {
         Token filled = t;
         filled.text = args[static_cast<std::size_t>(n - 1)];
         filled.kind = TokenKind::IDENT;
-        out.args.push_back(filled);
+        out.args.push_back(std::move(filled));
       }
       return out;
+    }
+
+    bool isNestedStencilUse(const Stmt& st) {
+      return st.kind == Directive::USE && !st.args.empty() &&
+             toLowerAscii(unquoteWord(st.args[0].text)) == "stencil";
     }
 
   }  // namespace
@@ -84,7 +84,7 @@ namespace stencil::core::script {
   bool expandStencilUse(const Stmt& use, std::vector<TemplateDef>& templates, int depth,
                         std::vector<Stmt>& out, std::vector<Diagnostic>& diags) {
     if (depth > MAX_TEMPLATE_DEPTH) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_TEMPLATE_RECURSION", tokenOf(use),
+      diags.push_back(makeDiag(Severity::ERROR, "E_TEMPLATE_RECURSION", use,
                                "templates nest more than " + std::to_string(MAX_TEMPLATE_DEPTH) +
                                    " deep — is one using itself?"));
       return false;
@@ -92,7 +92,7 @@ namespace stencil::core::script {
 
     const std::vector<std::string> words = callWords(use);
     if (words.empty()) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", tokenOf(use),
+      diags.push_back(makeDiag(Severity::ERROR, "E_ARG_COUNT", use,
                                "'@use stencil' needs a template name"));
       return false;
     }
@@ -100,31 +100,29 @@ namespace stencil::core::script {
     std::size_t used = 0;
     const int idx = resolveName(words, templates, used);
     if (idx < 0) {
-      std::vector<std::string> names;
+      std::vector<std::string_view> names;
       for (const TemplateDef& d : templates) names.push_back(d.name);
-      const std::string near = didYouMean(joinRange(words, words.size()), names);
-      diags.push_back(makeDiag(Severity::ERROR, "E_UNDEFINED_TEMPLATE", tokenOf(use),
-                               "no template named '" + joinRange(words, words.size()) + "'" +
+      const std::string all = joinRange(words, words.size());
+      const std::string near = didYouMean(all, names);
+      diags.push_back(makeDiag(Severity::ERROR, "E_UNDEFINED_TEMPLATE", use,
+                               "no template named '" + all + "'" +
                                    (near.empty() ? "" : " — did you mean '" + near + "'?")));
       return false;
     }
 
+    TemplateDef& def = templates[static_cast<std::size_t>(idx)];
     const std::vector<std::string> args(words.begin() + static_cast<long>(used), words.end());
-    const int arity = templates[static_cast<std::size_t>(idx)].arity;
+    const int arity = def.arity;
     if (static_cast<int>(args.size()) != arity) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_TEMPLATE_ARITY", tokenOf(use),
-                               "template '" + templates[static_cast<std::size_t>(idx)].name +
-                                   "' takes " + std::to_string(arity) + " argument(s), got " +
-                                   std::to_string(args.size())));
+      diags.push_back(makeDiag(Severity::ERROR, "E_TEMPLATE_ARITY", use,
+                               "template '" + def.name + "' takes " + std::to_string(arity) +
+                                   " argument(s), got " + std::to_string(args.size())));
       return false;
     }
 
-    templates[static_cast<std::size_t>(idx)].used = true;
-    // Copy the body before recursing: expansion may mark other templates used, and a
-    // nested @use must not see a half-substituted parent.
-    const std::vector<Stmt> body = templates[static_cast<std::size_t>(idx)].body;
-
-    for (const Stmt& st : body) {
+    def.used = true;
+    // Iterated in place: expansion only flips `used`, so no recursion can resize `templates`.
+    for (const Stmt& st : def.body) {
       bool badIndex = false;
       Token badAt;
       Stmt filled = substitute(st, args, badIndex, badAt);
@@ -134,12 +132,17 @@ namespace stencil::core::script {
                                      std::to_string(arity) + " argument(s)"));
         return false;
       }
-      if (filled.directive == "use" && !filled.args.empty() &&
-          unquoteWord(filled.args[0].text) == "stencil") {
+      if (isNestedStencilUse(filled)) {
         if (!expandStencilUse(filled, templates, depth + 1, out, diags)) return false;
         continue;
       }
-      out.push_back(filled);
+      // The fan-out is bounded here, before the statements exist: nested uses multiply.
+      if (static_cast<int>(out.size()) >= MAX_OPS) {
+        diags.push_back(
+            makeDiag(Severity::ERROR, "E_LIMIT_OPS", use, "the script has too many ops"));
+        return false;
+      }
+      out.push_back(std::move(filled));
     }
     return true;
   }

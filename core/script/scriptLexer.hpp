@@ -1,6 +1,8 @@
 #pragma once
 #include "scriptTypes.hpp"
 
+#include <string_view>
+
 // .stc tokenizer. Port target: browser/js/core/scriptLexer.js.
 namespace stencil::core::script {
 
@@ -15,6 +17,6 @@ namespace stencil::core::script {
 
   // True when `word` is a hex colour (#rgb / #rgba / #rrggbb / #rrggbbaa), which is why
   // a '#' does not always open a comment.
-  bool isHexColorWord(const std::string& word);
+  bool isHexColorWord(std::string_view word);
 
 }  // namespace stencil::core::script

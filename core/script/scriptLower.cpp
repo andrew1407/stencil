@@ -7,20 +7,11 @@
 #include "scriptValues.hpp"
 #include "text.hpp"
 
-#include <cstdlib>
+#include <utility>
 
 namespace stencil::core::script {
 
   namespace {
-
-    Token tokenOf(const Stmt& s) {
-      Token t;
-      t.line = s.line;
-      t.col = s.col;
-      t.len = s.len;
-      t.text = "@" + s.directive;
-      return t;
-    }
 
     // What `@undo @line …` matches on: the directive plus its argument words.
     std::string normalizedText(const Stmt& s) {
@@ -33,10 +24,6 @@ namespace stencil::core::script {
       return out;
     }
 
-    bool isEditDirective(const std::string& d) {
-      return d == "crop" || d == "filter" || d == "line" || d == "rect" || d == "layout";
-    }
-
     Op blankOp(OpKind kind, const Stmt& st, int block) {
       Op op;
       op.kind = kind;
@@ -47,15 +34,20 @@ namespace stencil::core::script {
       return op;
     }
 
+    bool isStencilUse(const Stmt& st) {
+      return st.kind == Directive::USE && !st.args.empty() &&
+             toLowerAscii(unquoteWord(st.args[0].text)) == "stencil";
+    }
+
   }  // namespace
 
   LowerResult lowerScript(ParseResult& parsed) {
     LowerResult out;
-    out.diagnostics = parsed.diagnostics;
-    std::vector<Stmt> emptyBlocks;
+    out.diagnostics = std::move(parsed.diagnostics);
+    std::vector<Token> emptyBlocks;
+    bool capped = false;  // a replay that would pass MAX_OPS stops the whole script
 
-    for (std::size_t bi = 0; bi < parsed.blocks.size(); ++bi) {
-      RawBlock& raw = parsed.blocks[bi];
+    for (RawBlock& raw : parsed.blocks) {
       const int blockIndex = static_cast<int>(out.blocks.size());
 
       Block block;
@@ -65,24 +57,20 @@ namespace stencil::core::script {
         block.source = joinWords(raw.header.args);
         block.kind = classifySource(block.source);
         if (static_cast<int>(block.source.size()) > MAX_SOURCE_CHARS) {
-          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_LIMIT_SOURCE",
-                                             tokenOf(raw.header), "the @source spec is too long"));
+          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_LIMIT_SOURCE", raw.header,
+                                             "the @source spec is too long"));
           block.source.resize(MAX_SOURCE_CHARS);
         }
         Op open = blankOp(OpKind::OPEN, raw.header, blockIndex);
         open.strs.assign(1, block.source);
         open.nums.assign(1, static_cast<double>(block.kind));
-        out.ops.push_back(open);
+        out.ops.push_back(std::move(open));
       }
 
       // Expand templates first, so edit numbering counts what a template contributed.
       std::vector<Stmt> body;
-      for (const Stmt& st : raw.body) {
-        if (st.directive != "use") { body.push_back(st); continue; }
-        bool isStencilUse = false;
-        if (!st.args.empty() && toLowerAscii(unquoteWord(st.args[0].text)) == "stencil")
-          isStencilUse = true;
-        if (!isStencilUse) { body.push_back(st); continue; }
+      for (Stmt& st : raw.body) {
+        if (!isStencilUse(st)) { body.push_back(std::move(st)); continue; }
         expandStencilUse(st, parsed.templates, 1, body, out.diagnostics);
       }
 
@@ -91,103 +79,115 @@ namespace stencil::core::script {
       bool sawSave = false, sawEdit = false;
       std::vector<int> frames;
 
-      for (const Stmt& st : body) {
-        const std::string& d = st.directive;
+      auto rewindAndReplay = [&](int line, int col) {
+        if (ledger.reconcile(out.ops, blockIndex, line, col)) return true;
+        out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_LIMIT_OPS", raw.header,
+                                           "the script has too many ops"));
+        capped = true;
+        return false;
+      };
 
-        if (d == "use") {
-          bool isStencilUse = false;
-          argsUse(st, state, isStencilUse, out.diagnostics);
+      for (Stmt& st : body) {
+        if (st.kind == Directive::USE) {
+          bool sawStencil = false;
+          argsUse(st, state, sawStencil, out.diagnostics);
           continue;
         }
 
-        if (d == "frame") {
+        if (st.kind == Directive::FRAME) {
           if (raw.implicit) {
-            out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_FRAME_OUTSIDE_SOURCE",
-                                               tokenOf(st),
+            out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_FRAME_OUTSIDE_SOURCE", st,
                                                "@frame needs a @source block naming a video"));
             continue;
           }
           Op op = blankOp(OpKind::FRAME, st, blockIndex);
           if (!argsFrame(st, op, out.diagnostics)) continue;
           const int idx = static_cast<int>(op.nums[0]);
-          bool dup = false;
+          bool isDuplicate = false;
           for (int f : frames)
-            if (f == idx) { dup = true; break; }
-          if (dup) {
-            out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_DUPLICATE_FRAME", tokenOf(st),
+            if (f == idx) { isDuplicate = true; break; }
+          if (isDuplicate) {
+            out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_DUPLICATE_FRAME", st,
                                                "frame " + std::to_string(idx) +
                                                    " is already used in this block"));
             continue;
           }
           frames.push_back(idx);
-          ledger.reconcile(out.ops, blockIndex, st.line, st.col);
+          if (!rewindAndReplay(st.line, st.col)) break;
           ledger.reset();
-          out.ops.push_back(op);
+          out.ops.push_back(std::move(op));
           continue;
         }
 
-        if (d == "undo" || d == "redo") {
-          if (!applyHistoryStmt(st, d == "redo", ledger, out.diagnostics)) continue;
+        if (st.kind == Directive::UNDO || st.kind == Directive::REDO) {
+          applyHistoryStmt(st, st.kind == Directive::REDO, ledger, out.diagnostics);
           continue;
         }
 
-        if (d == "save") {
+        if (st.kind == Directive::SAVE) {
           Op op = blankOp(OpKind::SAVE, st, blockIndex);
           if (!argsSave(st, op, out.diagnostics)) continue;
-          ledger.reconcile(out.ops, blockIndex, st.line, st.col);
-          out.ops.push_back(op);
+          if (!rewindAndReplay(st.line, st.col)) break;
+          out.ops.push_back(std::move(op));
           sawSave = true;
           continue;
         }
 
-        if (!isEditDirective(d)) {
-          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", tokenOf(st),
-                                             "'@" + d + "' cannot be used here"));
+        if (!isEditDirective(st.kind)) {
+          out.diagnostics.push_back(makeDiag(Severity::ERROR, "E_BAD_TOKEN", st,
+                                             "'@" + st.directive + "' cannot be used here"));
           continue;
         }
 
         Op op;
         bool ok = false;
-        if (d == "crop") {
-          op = blankOp(OpKind::CROP, st, blockIndex);
-          ok = argsCrop(st, state, op, out.diagnostics);
-        } else if (d == "filter") {
-          op = blankOp(OpKind::FILTER, st, blockIndex);
-          ok = argsFilter(st, op, out.diagnostics);
-        } else if (d == "layout") {
-          op = blankOp(OpKind::LAYOUT, st, blockIndex);
-          ok = argsLayout(st, op, out.diagnostics);
-        } else {
-          const bool locked = d == "rect";
-          op = blankOp(locked ? OpKind::RECT : OpKind::LINE, st, blockIndex);
-          ok = argsShape(st, state, locked, op, out.diagnostics);
+        switch (st.kind) {
+          case Directive::CROP:
+            op = blankOp(OpKind::CROP, st, blockIndex);
+            ok = argsCrop(st, state, op, out.diagnostics);
+            break;
+          case Directive::FILTER:
+            op = blankOp(OpKind::FILTER, st, blockIndex);
+            ok = argsFilter(st, op, out.diagnostics);
+            break;
+          case Directive::LAYOUT:
+            op = blankOp(OpKind::LAYOUT, st, blockIndex);
+            ok = argsLayout(st, op, out.diagnostics);
+            break;
+          default: {  // @line, and @rect as a line with locked corners
+            const bool locked = st.kind == Directive::RECT;
+            op = blankOp(locked ? OpKind::RECT : OpKind::LINE, st, blockIndex);
+            ok = argsShape(st, state, locked, op, out.diagnostics);
+            break;
+          }
         }
         if (!ok) continue;
         if (static_cast<int>(out.ops.size()) >= MAX_OPS) {
           out.diagnostics.push_back(
-              makeDiag(Severity::ERROR, "E_LIMIT_OPS", tokenOf(st), "the script has too many ops"));
+              makeDiag(Severity::ERROR, "E_LIMIT_OPS", st, "the script has too many ops"));
           break;
         }
         // Numbered before the ledger copies it, so a replayed edit dumps as the same edit.
         op.editIndex = ledger.editCount() + 1;
         ledger.addEdit(op, normalizedText(st));
-        out.ops.push_back(op);
+        out.ops.push_back(std::move(op));
         sawEdit = true;
       }
 
-      ledger.reconcile(out.ops, blockIndex, block.line, 1);
+      if (!capped) rewindAndReplay(block.line, 1);
+      if (capped) break;  // the capped block is not recorded, so nothing of it dumps
 
-      if (!raw.implicit && !sawEdit && !sawSave) emptyBlocks.push_back(raw.header);
+      if (!raw.implicit && !sawEdit && !sawSave) emptyBlocks.push_back(tokenOfStmt(raw.header));
 
       block.opCount = static_cast<int>(out.ops.size()) - block.opStart;
-      out.blocks.push_back(block);
+      out.blocks.push_back(std::move(block));
     }
 
     reportUnusedTemplates(parsed.templates, out.diagnostics);
     // A script with an error never runs, so "does nothing" would only add noise.
     if (!hasErrors(out.diagnostics))
-      for (const Stmt& header : emptyBlocks)
-        out.diagnostics.push_back(makeDiag(Severity::WARNING, "W_EMPTY_BLOCK", tokenOf(header),
+      for (const Token& header : emptyBlocks)
+        out.diagnostics.push_back(makeDiag(Severity::WARNING, "W_EMPTY_BLOCK", header,
                                            "this @source block does nothing"));
     return out;
   }

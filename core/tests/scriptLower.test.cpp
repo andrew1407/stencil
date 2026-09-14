@@ -22,12 +22,6 @@ namespace {
     return false;
   }
 
-  std::vector<double> resolved(const ScriptProgram& p, int index, double w, double h) {
-    double buf[64];
-    const int n = resolveOp(p, index, w, h, 37.795275590551178, 37.795275590551178, buf, 64);
-    return n > 0 ? std::vector<double>(buf, buf + n) : std::vector<double>();
-  }
-
 }  // namespace
 
 TEST_CASE("templates: longest defined name wins, parameters fill positionally") {

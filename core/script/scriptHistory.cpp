@@ -1,21 +1,11 @@
 #include "scriptDiagnostics.hpp"
 #include "scriptUndo.hpp"
+#include "scriptValues.hpp"
 #include "text.hpp"
-
-#include <cstdlib>
 
 namespace stencil::core::script {
 
   namespace {
-
-    Token tokenOf(const Stmt& s) {
-      Token t;
-      t.line = s.line;
-      t.col = s.col;
-      t.len = s.len;
-      t.text = "@" + s.directive;
-      return t;
-    }
 
     // Built exactly like scriptLower's normalizedText, so a selector and the edit it
     // names produce the same string.
@@ -38,10 +28,10 @@ namespace stencil::core::script {
     if (isRedo) {
       int times = 1;
       if (!st.args.empty() && st.args[0].kind == TokenKind::NUMBER)
-        times = std::atoi(st.args[0].text.c_str());
+        times = parseIntClamped(st.args[0].text);
       if (times < 1) times = 1;
       if (!ledger.redo(times, reason)) {
-        diags.push_back(makeDiag(Severity::WARNING, "W_NOTHING_TO_REDO", tokenOf(st), reason));
+        diags.push_back(makeDiag(Severity::WARNING, "W_NOTHING_TO_REDO", st, reason));
         return false;
       }
       return true;
@@ -49,7 +39,7 @@ namespace stencil::core::script {
 
     if (st.args.empty()) {
       if (!ledger.undoIndex(0, reason)) {
-        diags.push_back(makeDiag(Severity::ERROR, "E_UNDO_NO_EDITS", tokenOf(st), reason));
+        diags.push_back(makeDiag(Severity::ERROR, "E_UNDO_NO_EDITS", st, reason));
         return false;
       }
       return true;
@@ -58,11 +48,11 @@ namespace stencil::core::script {
     if (st.args[0].kind == TokenKind::DIRECTIVE) {
       bool ambiguous = false;
       if (!ledger.undoByText(selectorText(st), ambiguous, reason)) {
-        diags.push_back(makeDiag(Severity::ERROR, "E_UNDO_OUT_OF_RANGE", tokenOf(st), reason));
+        diags.push_back(makeDiag(Severity::ERROR, "E_UNDO_OUT_OF_RANGE", st, reason));
         return false;
       }
       if (ambiguous)
-        diags.push_back(makeDiag(Severity::WARNING, "W_AMBIGUOUS_UNDO", tokenOf(st),
+        diags.push_back(makeDiag(Severity::WARNING, "W_AMBIGUOUS_UNDO", st,
                                  "several edits match — the last one was undone"));
       return true;
     }
@@ -75,7 +65,7 @@ namespace stencil::core::script {
                                  "'" + t.text + "' is not an edit number"));
         return false;
       }
-      const int selector = std::atoi(t.text.c_str());
+      const int selector = parseIntClamped(t.text);
       if (selector == 0) {
         diags.push_back(makeDiag(Severity::ERROR, "E_UNDO_OUT_OF_RANGE", t,
                                  "edits are numbered from 1; use -1 for the last one"));
@@ -91,7 +81,7 @@ namespace stencil::core::script {
       any = true;
     }
     if (!any && !ledger.undoIndex(0, reason)) {
-      diags.push_back(makeDiag(Severity::ERROR, "E_UNDO_NO_EDITS", tokenOf(st), reason));
+      diags.push_back(makeDiag(Severity::ERROR, "E_UNDO_NO_EDITS", st, reason));
       return false;
     }
     return true;

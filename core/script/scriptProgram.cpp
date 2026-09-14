@@ -9,15 +9,16 @@
 #include "scriptParser.hpp"
 
 #include <algorithm>
+#include <utility>
 
 namespace stencil::core::script {
 
   ScriptProgram ScriptProgram::parse(const char* text, int len) {
     ScriptProgram p;
     LexResult lexed = lexScript(text, len);
-    p.tokens_ = lexed.tokens;
+    p.tokens_ = std::move(lexed.tokens);
 
-    ParseResult parsed = parseScript(lexed.tokens);
+    ParseResult parsed = parseScript(p.tokens_);
     parsed.diagnostics.insert(parsed.diagnostics.begin(), lexed.diagnostics.begin(),
                               lexed.diagnostics.end());
 
@@ -28,9 +29,9 @@ namespace stencil::core::script {
                        if (a.line != b.line) return a.line < b.line;
                        return a.col < b.col;
                      });
-    p.diagnostics_ = lowered.diagnostics;
-    p.blocks_ = lowered.blocks;
-    p.ops_ = lowered.ops;
+    p.diagnostics_ = std::move(lowered.diagnostics);
+    p.blocks_ = std::move(lowered.blocks);
+    p.ops_ = std::move(lowered.ops);
     return p;
   }
 
@@ -64,28 +65,26 @@ namespace stencil::core::script {
     int resolveShape(const Op& op, double w, double h, double pxX, double pxY, double* out,
                      int cap) {
       const std::size_t pointCount = op.toks.size() / 2;
-      const bool expand = op.kind == OpKind::RECT && pointCount == 2;
-      const std::size_t outPoints = expand ? 4 : pointCount;
+      const bool shouldExpand = op.kind == OpKind::RECT && pointCount == 2;
+      const std::size_t outPoints = shouldExpand ? 4 : pointCount;
       const int need = static_cast<int>(outPoints) * 2 + 2;
       if (cap < need) return -2;
 
-      std::vector<double> xs, ys;
+      int n = 0;
       for (std::size_t i = 0; i < pointCount; ++i) {
         double x = 0.0, y = 0.0;
         if (!axis(op.toks[i * 2], w, pxX, x)) return -1;
         if (!axis(op.toks[i * 2 + 1], h, pxY, y)) return -1;
-        xs.push_back(x);
-        ys.push_back(y);
+        out[n++] = x;
+        out[n++] = y;
       }
-      if (expand) {  // two opposite corners become a closed rectangle
-        const double x0 = xs[0], y0 = ys[0], x1 = xs[1], y1 = ys[1];
-        xs = {x0, x1, x1, x0};
-        ys = {y0, y0, y1, y1};
-      }
-      int n = 0;
-      for (std::size_t i = 0; i < xs.size(); ++i) {
-        out[n++] = xs[i];
-        out[n++] = ys[i];
+      if (shouldExpand) {  // two opposite corners become a closed rectangle
+        const double x0 = out[0], y0 = out[1], x1 = out[2], y1 = out[3];
+        out[0] = x0; out[1] = y0;
+        out[2] = x1; out[3] = y0;
+        out[4] = x1; out[5] = y1;
+        out[6] = x0; out[7] = y1;
+        n = 8;
       }
       out[n++] = op.nums.size() > 0 ? op.nums[0] : 2.0;
       out[n++] = op.nums.size() > 1 ? op.nums[1] : 4.0;
@@ -108,6 +107,7 @@ namespace stencil::core::script {
     switch (op.kind) {
       case OpKind::CROP: {
         if (cap < 4) return -2;
+        if (op.toks.size() < 4) return -1;
         CropSpec spec;
         if (!op.toks[0].empty()) spec.x1 = op.toks[0];
         if (!op.toks[1].empty()) spec.x2 = op.toks[1];

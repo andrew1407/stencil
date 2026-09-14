@@ -80,6 +80,41 @@ TEST_CASE("a @source spec past MAX_SOURCE_CHARS is an error") {
   CHECK(onlyErrorCode(p) == "E_LIMIT_SOURCE");
 }
 
+TEST_CASE("a script past MAX_TOKENS says so instead of dropping the rest silently") {
+  const ScriptProgram p = parse(repeat("a ", MAX_TOKENS + 1));
+  int found = 0;
+  std::string message;
+  for (const Diagnostic& d : p.diagnostics())
+    if (d.code == "E_LIMIT_TOKENS") {
+      ++found;
+      message = d.message;
+    }
+  CHECK(found == 1);
+  CHECK(message == "script has too many tokens (over 200000)");
+}
+
+TEST_CASE("an @undo replay that would pass MAX_OPS is refused, never multiplied") {
+  const ScriptProgram p =
+      parse("@source a.png:\n" + repeat("  @filter bw\n", 3000) + "  @undo 1\n  @save\n");
+  CHECK(p.hasErrors());
+  CHECK(onlyErrorCode(p) == "E_LIMIT_OPS");
+  REQUIRE(p.diagnostics().size() == 1);
+  CHECK(p.diagnostics()[0].line == 1);  // the block header, not the @save that replayed
+  CHECK(p.blocks().empty());            // a capped block is not recorded, so nothing dumps
+  CHECK(static_cast<int>(p.ops().size()) <= MAX_OPS);
+}
+
+TEST_CASE("nested @use fan-out is bounded before the statements exist") {
+  const std::string src = "@stencil ten:\n" + repeat("  @use px\n", 10) +
+                          "\n@stencil hundred:\n" + repeat("  @use stencil ten\n", 10) +
+                          "\n@stencil thousand:\n" + repeat("  @use stencil hundred\n", 10) +
+                          "\n@source a.png:\n" + repeat("  @use stencil thousand\n", 6);
+  const ScriptProgram p = parse(src);
+  CHECK(p.hasErrors());
+  CHECK(onlyErrorCode(p) == "E_LIMIT_OPS");
+  CHECK(p.ops().size() == 1);  // the block's open, and nothing a template fanned out
+}
+
 TEST_CASE("a script right at each cap is accepted") {
   // Exactly MAX_LINES lines: the last one carries no newline of its own.
   CHECK_FALSE(parse(repeat("\n", MAX_LINES - 1) + "@filter bw").hasErrors());
