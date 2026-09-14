@@ -1690,9 +1690,9 @@ class MainWindowGuiTest : public QObject {
       auto* clear = sub->findChild<QPushButton*>("scriptMenuClear");
       auto* run = sub->findChild<QPushButton*>("scriptMenuRun");
       if (!edit || !copy || !download || !upload || !clear || !run) { menu->close(); return; }
-      // Clear LAST: it throws work away, so it sits past the primary action.
-      rowInOrder = copy->x() < download->x() && download->x() < upload->x() &&
-                   upload->x() < run->x() && run->x() < clear->x();
+      // Run FIRST as the primary action; Clear LAST, clear of the way to it.
+      rowInOrder = run->x() < copy->x() && copy->x() < download->x() &&
+                   download->x() < upload->x() && upload->x() < clear->x();
       runIsPrimary = run->property("accentCta").toBool();
 
       // Typed through the menu's own re-dispatch, the way the chat composer is.
@@ -1706,7 +1706,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(keptHint, "the Stencil Script row lost its Alt+Shift+S hint");
     QVERIFY2(underAssistant, "the script flyout is not directly under the Assistant");
     QVERIFY2(opened, "the script flyout did not open");
-    QVERIFY2(rowInOrder, "the actions are not Copy, Download, Upload, Run, Clear in that order");
+    QVERIFY2(rowInOrder, "the actions are not Run, Copy, Download, Upload, Clear in that order");
     QVERIFY2(runIsPrimary, "Run is not the primary action");
     QVERIFY2(typedThrough, "typing never reached the flyout's editor");
     QVERIFY2(aliveAfterTyping, "typing in the flyout closed the menu");

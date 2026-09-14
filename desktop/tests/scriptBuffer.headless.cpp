@@ -112,7 +112,7 @@ int main(int argc, char** argv) {
     check(windowClear && !windowClear->isEnabled(), "the window carries its own Clear, gated");
   }
 
-  std::printf("Clear sits past Run, in the shared danger red:\n");
+  std::printf("Run leads the row and Clear trails it, in the shared danger red:\n");
   {
     const stencil::gui::Palette pal = stencil::gui::themePalette(true, QStringLiteral("violet"));
     qApp->setStyleSheet(stencil::gui::buildStylesheet(true, QStringLiteral("violet")));
@@ -123,27 +123,29 @@ int main(int argc, char** argv) {
     QApplication::processEvents();
     QPushButton* red = button(panel, "scriptMenuClear");
     QPushButton* run = button(panel, "scriptMenuRun");
-    // It throws work away, so a mis-click on the way to the primary action must not reach it.
-    check(red && run && run->x() < red->x(), "Clear is the last thing in the flyout's row");
     check(red && red->property("dangerCta").toBool() && !red->property("accentCta").toBool(),
-          "…wearing the shared danger face, not the accent CTA");
+          "Clear wears the shared danger face, not the accent CTA");
     check(red && red->grab().toImage().pixelColor(4, red->height() / 2) == pal.danger,
           "…and painting that red when live");
     check(red && !red->icon().isNull(), "…with the trash glyph (trash deletes; eraser wipes)");
 
     // The row does not wrap, so anything it cannot fit is CUT, label first.
-    bool rowFits = true;
-    int lo = panel.width(), hi = 0;
-    for (const char* n : {"scriptMenuCopy", "scriptMenuDownload", "scriptMenuUpload",
-                          "scriptMenuRun", "scriptMenuClear"}) {
+    bool rowFits = true, rowOrdered = true;
+    int lo = panel.width(), hi = 0, prev = -1;
+    for (const char* n : {"scriptMenuRun", "scriptMenuCopy", "scriptMenuDownload",
+                          "scriptMenuUpload", "scriptMenuClear"}) {
       QPushButton* b = button(panel, n);
       if (!b || b->x() < 0 || b->x() + b->width() > panel.width()
           || b->width() < b->sizeHint().width()) rowFits = false;
       if (!b) continue;
+      if (b->x() <= prev) rowOrdered = false;
+      prev = b->x();
       lo = qMin(lo, b->x());
       hi = qMax(hi, b->x() + b->width());
     }
     check(rowFits, "every action fits the flyout whole — a sixth button would trip this");
+    // Run leads as the primary action; Clear throws work away, so it trails clear of the way.
+    check(rowOrdered, "the flyout reads Run, Copy, Download, Upload, Clear");
     // …and FILLS it: the row is right-aligned, so any width the panel has over the row would
     // all pile up on the left. Equal gutters means there is none.
     check(lo == panel.width() - hi,
@@ -156,24 +158,26 @@ int main(int argc, char** argv) {
     QApplication::processEvents();
     QPushButton* windowClear = labelled(dlg, QStringLiteral("Clear"));
     QPushButton* windowRun = dlg.findChild<QPushButton*>(QStringLiteral("scriptRun"));
-    check(windowClear && windowRun && windowRun->x() < windowClear->x()
-              && windowClear->property("dangerCta").toBool(),
-          "the window's action row says the same thing: Clear last, and red");
+    check(windowClear && windowClear->property("dangerCta").toBool(),
+          "the window's action row says the same thing: Clear trails, and red");
 
-    bool barFits = true;
-    int wlo = dlg.width(), whi = 0;
-    for (const QString& label : {QStringLiteral("Copy"), QStringLiteral("Download"),
-                                 QStringLiteral("Upload"), QStringLiteral("Run"),
+    bool barFits = true, barOrdered = true;
+    int wlo = dlg.width(), whi = 0, wprev = -1;
+    for (const QString& label : {QStringLiteral("Run"), QStringLiteral("Copy"),
+                                 QStringLiteral("Download"), QStringLiteral("Upload"),
                                  QStringLiteral("Clear")}) {
       QPushButton* b = labelled(dlg, label);
       if (!b || b->width() < b->sizeHint().width()) barFits = false;
       if (!b) continue;
       const int x = b->mapTo(&dlg, QPoint(0, 0)).x();
       if (x < 0 || x + b->width() > dlg.width()) barFits = false;
+      if (x <= wprev) barOrdered = false;
+      wprev = x;
       wlo = qMin(wlo, x);
       whi = qMax(whi, x + b->width());
     }
     check(barFits, "every action fits the window whole");
+    check(barOrdered, "the window's bar reads Run, Copy, Download, Upload, Clear");
     // The window's row sits at the LEFT content edge, with the slack past it: its gutter is
     // the header's, and the window is half again the width that row alone would need.
     QPushButton* pill = dlg.findChild<QPushButton*>(QStringLiteral("modalClosePill"));

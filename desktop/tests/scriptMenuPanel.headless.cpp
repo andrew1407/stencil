@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
     auto* upload = find<QPushButton>(panel, "scriptMenuUpload");
     auto* clear = find<QPushButton>(panel, "scriptMenuClear");
     check(run && copy && download && upload && clear,
-          "Copy, Download, Upload, Run and Clear are all there");
+          "Run, Copy, Download, Upload and Clear are all there");
     check(run && !run->isEnabled(), "Run is dead while the editor is empty");
     check(copy && !copy->isEnabled() && download && !download->isEnabled()
               && clear && !clear->isEnabled(),
@@ -187,13 +187,13 @@ int main(int argc, char** argv) {
     panel.show();
     QApplication::processEvents();
     bool allFilled = true, allCta = true;
-    for (const char* n : {"scriptMenuCopy", "scriptMenuDownload", "scriptMenuUpload",
-                          "scriptMenuRun"}) {
+    for (const char* n : {"scriptMenuRun", "scriptMenuCopy", "scriptMenuDownload",
+                          "scriptMenuUpload"}) {
       QPushButton* b = find<QPushButton>(panel, n);
       if (!b || faceOf(b) != pal.accent) allFilled = false;
       if (!b || !b->property("accentCta").toBool()) allCta = false;
     }
-    check(allCta, "Copy, Download, Upload and Run are all the accent CTA");
+    check(allCta, "Run, Copy, Download and Upload are all the accent CTA");
     check(allFilled, "…and every one of them paints the accent fill when live");
 
     panel.setScript(QString());   // Copy/Download/Run go dead, Upload stays live

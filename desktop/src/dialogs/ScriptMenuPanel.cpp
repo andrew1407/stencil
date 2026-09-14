@@ -40,9 +40,9 @@ namespace stencil::gui {
 
     edit_ = new ScriptEditorWidget(this, menuStyle());
 
-    // Copy · Download · Upload · Run · Clear, ABOVE the editor like the window's bar. The four
-    // are accent-FILLED like the window's; Clear wears the shared danger red and sits PAST Run,
-    // because it throws work away and a mis-click on the way to Run must not reach it.
+    // Run · Copy · Download · Upload · Clear, ABOVE the editor like the window's bar. The four
+    // are accent-FILLED like the window's; Clear wears the shared danger red at the far END,
+    // because it throws work away and must sit clear of the way to Run.
     auto* row = actions_ = new QHBoxLayout;
     row->setSpacing(6);
     row->addStretch(1);
@@ -55,11 +55,11 @@ namespace stencil::gui {
       row->addWidget(b);
       return b;
     };
+    runBtn_ = mk("scriptMenuRun", tr("Run"),
+                 tr("Run this script on the open project (Ctrl+Enter)"));
     copyBtn_ = mk("scriptMenuCopy", tr("Copy"), tr("Copy this script to the clipboard"));
     downloadBtn_ = mk("scriptMenuDownload", tr("Download"), tr("Save this script as a .stc file"));
     uploadBtn_ = mk("scriptMenuUpload", tr("Upload"), tr("Load a .stc file into the editor"));
-    runBtn_ = mk("scriptMenuRun", tr("Run"),
-                 tr("Run this script on the open project (Ctrl+Enter)"));
     clearBtn_ = new QPushButton(tr("Clear"), this);
     clearBtn_->setObjectName(QStringLiteral("scriptMenuClear"));
     clearBtn_->setToolTip(tr("Empty the script editor"));

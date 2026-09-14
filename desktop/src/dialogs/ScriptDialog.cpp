@@ -65,6 +65,14 @@ namespace stencil::gui {
     editor_ = new ScriptEditorWidget(this, windowStyle());
     chrome.body->addWidget(editor_, 1);   // the editor takes whatever height the window has
 
+    // Run LEADS the row: the primary action is the first one the eye and the cursor reach.
+    runBtn_ = new QPushButton(tr("Run"), this);
+    runBtn_->setObjectName(QStringLiteral("scriptRun"));
+    runBtn_->setToolTip(tr("Run this script on the open project (Ctrl+Enter)"));
+    makeModalCta(runBtn_, QStringLiteral("play"));
+    runBtn_->setAutoDefault(false);
+    bar->addWidget(runBtn_);
+
     copyBtn_ = new QPushButton(tr("Copy"), this);
     makeModalCta(copyBtn_, QStringLiteral("clipboard"));
     copyBtn_->setAutoDefault(false);
@@ -80,15 +88,8 @@ namespace stencil::gui {
     uploadBtn->setAutoDefault(false);
     bar->addWidget(uploadBtn);
 
-    runBtn_ = new QPushButton(tr("Run"), this);
-    runBtn_->setObjectName(QStringLiteral("scriptRun"));
-    runBtn_->setToolTip(tr("Run this script on the open project (Ctrl+Enter)"));
-    makeModalCta(runBtn_, QStringLiteral("play"));
-    runBtn_->setAutoDefault(false);
-    bar->addWidget(runBtn_);
-
-    // Past Run, in the shared danger red: Clear throws work away, so a mis-click on the way
-    // to the primary action must not land on it.
+    // At the far end, in the shared danger red: Clear throws work away, so it sits clear of
+    // everything the cursor passes on its way to Run.
     clearBtn_ = new QPushButton(tr("Clear"), this);
     clearBtn_->setToolTip(tr("Empty the script editor"));
     makeModalDanger(clearBtn_, QStringLiteral("trash"));
