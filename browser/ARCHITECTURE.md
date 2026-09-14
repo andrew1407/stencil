@@ -99,6 +99,8 @@ classDiagram
     class ChatController { +ChatMessage[] history
       +Attachment[] attachments
       +send(text) TurnResult }
+    class ScriptBuffer { +string text
+      +ScriptView[] views }
     DrawingApp "1" *-- "0..*" CodecLine : lines
     DrawingApp "1" *-- "1" HistoryStack : history
     HistoryStack "1" o-- "0..*" CodecLine : snapshots
@@ -127,6 +129,7 @@ classDiagram
 | `ConnectionManager` | The servers one session is connected to plus the expired-credential set; `snapshot()` is what `net/connectionStore.js` persists | Created lazily by the facade, one per app | `ServerConnection` |
 | `Stencil` | The frozen `window.stencil` facade (`console/stencilApi.js`): settings, `Line` / `Point` / `Project` handles, `chat`, `llm` | `createStencil(app)` once at boot | Wraps `DrawingApp`; the executor's only target |
 | `OpPlan` | A validated model reply: `reply`, `actions`, `variants`, `ask`, `warnings`, `chatOnly` (`llm/opPlan.js`); the op set is `config/llm/opRegistry.json`, canonical for every surface | Returned by `parseOpPlan` for one turn | `PlanAction`, `PlanVariant`, `PlanAsk` |
+| `ScriptBuffer` | The one `.stc` the page is editing (`ui/scriptBuffer.js`): the text plus its views, so the script window and the context-menu flyout are two views of it and cannot diverge | Module state for the session; never persisted, so a reload starts empty | `wireScriptEditor` (`ui/scriptEditor.js`) |
 | `ChatController` | The client-side conversation: replayed history, queued `Attachment`s, the send loop (`llm/chatController.js`); its transcript is the `ChatRow` log in `llm/chatSession.js` | One memoized per app via `sharedChatController` | `OpPlan`, `Stencil`, `LlmClient` |
 
 ## Patterns
