@@ -1,12 +1,15 @@
 <img src="icon.png" width="112" align="right" alt="">
 
-# Stencil script for VS Code
+# Stencil — VS Code extension
 
-**Edit pictures the way you edit code.** A `.stc` script is a short, readable recipe — crop
-this, tint that, draw a box here, save it there — that Stencil replays over one image or ten
-thousand. This extension gives those scripts colour, live error squiggles and a Run button,
-and every answer it shows comes from Stencil itself: the same engine that runs the script
-tells the editor what is wrong with it, so the two can never disagree.
+Editor support for the Stencil script language: a `.stc` file is a recipe — crop this, tint
+that, draw a box here, save it there — that Stencil replays over one image or ten thousand.
+The extension colours those scripts, completes and explains their vocabulary, underlines
+their errors as you type, and runs them through the Zig [CLI](../cli/). It carries no
+language rules of its own: the parser it reads a buffer with is a copy of the browser app's,
+and a saved file is checked by the same compiled engine that runs it, so the editor and a run
+can never disagree. For the project overview see the [repository README](../README.md); for
+how the extension is put together, [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ```stc
 # Mark up every screenshot in a folder and file the results next door.
@@ -19,27 +22,34 @@ tells the editor what is wrong with it, so the two can never disagree.
     @save reviewed/
 ```
 
-## What you get
+## Editing support
 
-- **Syntax highlighting that reads the statement, not just the line.** `@source` is coloured
-  as the block it opens, `@save` as the output it writes, the edits as edits, a template name
-  as a name — and `sepia` under `@filter`, `dashed` under `@use line` and `x1` under `@crop`
-  each get their own colour, because the parser says which is which. Standard token types
-  only, so whatever theme you already use colours it.
-- **Completions** for every one of those words — directives on `@`, the five filter modes
-  after `@filter`, the stroke styles after `@use line`, the crop edges after `@crop`, every
-  CSS colour name, the templates your own file defines, and `10` → `10px` / `10cm` / `10%`.
-- **Hover** any directive or keyword for what it means, its syntax and a worked example.
-- **Errors and warnings as you type**, each with its code (`E_UNKNOWN_DIRECTIVE`,
-  `W_EMPTY_BLOCK`, …) in the Problems panel.
-- **Run and Check from the editor** — ⌘⌥R, or the ▶ in the title bar.
-- **File icons** in the explorer: the Stencil badge on a `.stc` script, the bare mark on a
-  `.stencil` project — which now opens as the JSON it is, rather than plain text.
+**Highlighting** is driven by the parser, not by a line-at-a-time grammar, so a word is
+coloured by the statement it sits in: `@source` as the block it opens, `@save` as the output
+it writes, a template name as a name, `sepia` under `@filter` as a filter mode, `dashed`
+under `@use line` as a stroke style, `x1` under `@crop` as a crop edge.
 
-### The colours
+**Completion** offers the words that are legal at the caret: the directives on `@`, the
+filter modes after `@filter`, the stroke styles after `@use line`, the crop edges after
+`@crop`, the CSS colour names, the templates the open file defines, and the units as whole
+replacements of a length being typed — `10` becomes `10px`, `10cm` or `10%`.
 
-Each family is given a standard semantic token type, so your theme colours it with no setup.
-Override any row with `editor.semanticTokenColorCustomizations` if you want your own.
+**Hover** on any directive or keyword gives its meaning, its argument grammar and a worked
+example.
+
+**Diagnostics** appear while typing and again on save, each carrying its code
+(`E_UNKNOWN_DIRECTIVE`, `W_EMPTY_BLOCK`, …) into the Problems panel.
+
+**Run and Check** are a command, a ⌘⌥R keybinding and a ▶ in the editor title bar.
+
+**File icons** mark both file types in the explorer — the Stencil badge on a `.stc` script,
+the bare mark on a `.stencil` project, which also opens as the JSON it is rather than as
+plain text.
+
+### Colours
+
+Each family is given a standard semantic token type, so an installed theme colours it with no
+setup. Any row can be overridden with `editor.semanticTokenColorCustomizations`.
 
 | What | Token type | Dark Modern |
 |---|---|---|
@@ -54,10 +64,10 @@ Override any row with `editor.semanticTokenColorCustomizations` if you want your
 | what `@source`, `@save` and `@layout` name | `string` | orange |
 | numbers, then their `px` `cm` `mm` `in` `%` | `number`, `operator` | pale green, grey |
 
-## What people use it for
+## Examples
 
-**Annotating a screenshot for a bug report.** A red box over the broken control, saved beside
-the original, in one keystroke — and the same script again next week when it regresses.
+**Annotating one image.** A stroke style, a shape over the region of interest, and a save
+beside the original under a name of its own.
 
 ```stc
 @source shot.png:
@@ -66,8 +76,8 @@ the original, in one keystroke — and the same script again next week when it r
     @save shot-review.png
 ```
 
-**Preparing a folder of images at once.** One script, a glob, and every file gets the same
-treatment. This is the job that does not fit in an image editor.
+**Treating a folder alike.** A glob `@source` runs its whole block once per file it matches;
+a `@save` target ending in `/` collects the results in that directory.
 
 ```stc
 @source shots/*.png:
@@ -76,7 +86,8 @@ treatment. This is the job that does not fit in an image editor.
     @save out/
 ```
 
-**Pulling a still out of a video.** Pick the frame, crop it to the aspect you need, done.
+**Taking a still from a video.** `@frame` selects the frame and starts a fresh set of edits;
+the saved name gains a `-frame-<n>` suffix.
 
 ```stc
 @source clip.mp4:
@@ -85,8 +96,8 @@ treatment. This is the job that does not fit in an image editor.
     @save
 ```
 
-**Laying a design over a page.** `@layout` draws a saved layout — a grid, a set of guides, a
-frame — over the image, so a batch of pictures can be dropped into the same template.
+**Drawing a saved layout.** `@layout` reads a layout JSON — a grid, a set of guides, a frame
+— and draws it over the image, combining with the existing marks unless told to `replace`.
 
 ```stc
 @source page.png:
@@ -94,9 +105,9 @@ frame — over the image, so a batch of pictures can be dropped into the same te
     @save
 ```
 
-**Trying something and taking it back.** Edits are numbered as written, and `@undo` resolves
-when the script is compiled — so you can leave an experiment in the file, disabled, instead of
-deleting it.
+**Withdrawing an edit.** Edits are numbered as written, and `@undo` is resolved when the
+script is compiled rather than when it runs, so an experiment can stay in the file, inert,
+instead of being deleted.
 
 ```stc
 @source a.png:
