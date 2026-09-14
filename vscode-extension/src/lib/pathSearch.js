@@ -1,6 +1,6 @@
 // What counts as an executable on disk, and the PATH walk that finds one. No shell is
 // consulted, so nothing is word-split or expanded; the walk is memoized briefly, because an
-// open-and-save burst would otherwise stat every PATH directory twice over.
+// open-and-save burst would otherwise stat every PATH directory twice. A miss sweeps the dead.
 'use strict';
 
 const { accessSync, constants, statSync } = require('node:fs');
@@ -17,9 +17,7 @@ const isExecutableFile = (path) => {
     if (!statSync(path).isFile()) return false;
     accessSync(path, constants.X_OK);
     return true;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 };
 
 const walk = (name, env) => {
@@ -37,8 +35,10 @@ const walk = (name, env) => {
 const onPath = (name, env) => {
   if (name.includes('/') || name.includes('\\')) return isExecutableFile(name) ? name : null;
   const key = `${name}\0${env.PATH ?? ''}`;
+  const now = Date.now();
   const hit = walked.get(key);
-  if (hit && Date.now() - hit.at < WALK_TTL_MS) return hit.path;
+  if (hit && now - hit.at < WALK_TTL_MS) return hit.path;
+  for (const [stale, seen] of walked) if (now - seen.at >= WALK_TTL_MS) walked.delete(stale);
   const path = walk(name, env);
   walked.set(key, { at: Date.now(), path });
   return path;
