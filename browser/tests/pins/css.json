@@ -7424,7 +7424,7 @@
     "background": "var(--success)",
     "color": "#fff"
    },
-   "|button.active:disabled, button.danger:disabled, button:disabled": {
+   "|button.active:disabled, button.danger:disabled, button.primary:disabled, button:disabled": {
     "background": "var(--disabled-bg)",
     "color": "var(--disabled-text)",
     "cursor": "not-allowed"
@@ -7849,7 +7849,7 @@
    "|input[type=\"file\"], input[type=\"number\"], input[type=\"text\"], select",
    "|button",
    "|button:hover",
-   "|button.active:disabled, button.danger:disabled, button:disabled",
+   "|button.active:disabled, button.danger:disabled, button.primary:disabled, button:disabled",
    "|button.active",
    "|button.danger",
    "|button.danger:hover:not(:disabled)",
