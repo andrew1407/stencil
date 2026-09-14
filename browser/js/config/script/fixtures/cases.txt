@@ -254,6 +254,63 @@ block 0 file "a.png"
   op open "a.png" 1
 --- diagnostics
 14:5:4: error: the script has too many ops [E_LIMIT_OPS]
+=== err-limit-template-expansions
+--- script
+@stencil t8:
+
+@stencil t7:
+    @use stencil t8
+    @use stencil t8
+    @use stencil t8
+    @use stencil t8
+    @use stencil t8
+
+@stencil t6:
+    @use stencil t7
+    @use stencil t7
+    @use stencil t7
+    @use stencil t7
+    @use stencil t7
+
+@stencil t5:
+    @use stencil t6
+    @use stencil t6
+    @use stencil t6
+    @use stencil t6
+    @use stencil t6
+
+@stencil t4:
+    @use stencil t5
+    @use stencil t5
+    @use stencil t5
+    @use stencil t5
+    @use stencil t5
+
+@stencil t3:
+    @use stencil t4
+    @use stencil t4
+    @use stencil t4
+    @use stencil t4
+    @use stencil t4
+
+@stencil t2:
+    @use stencil t3
+    @use stencil t3
+    @use stencil t3
+    @use stencil t3
+    @use stencil t3
+
+@stencil t1:
+    @use stencil t2
+    @use stencil t2
+    @use stencil t2
+    @use stencil t2
+    @use stencil t2
+
+@use stencil t1
+--- dump
+--- diagnostics
+7:5:4: error: the script has too many ops [E_LIMIT_OPS]
 === err-line-needs-points
 --- script
 @source a.png:

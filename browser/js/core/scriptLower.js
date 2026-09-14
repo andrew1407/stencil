@@ -5,8 +5,8 @@ import { hasErrors, makeDiag, tokenOfStmt } from './scriptDiagnostics.js';
 import { argsUse } from './scriptLineStyle.js';
 import { expandStencilUse, reportUnusedTemplates, templateIndex } from './scriptTemplates.js';
 import {
-  MAX_OPS, MAX_SOURCE_CHARS, SOURCE_KINDS, classifySource, defaultLineStyle, isEditDirective,
-  isStencilUse,
+  MAX_OPS, MAX_SOURCE_CHARS, MAX_TEMPLATE_EXPANSIONS, SOURCE_KINDS, classifySource,
+  defaultLineStyle, isEditDirective, isStencilUse,
 } from './scriptTypes.js';
 import { EditLedger, applyHistoryStmt } from './scriptUndo.js';
 import { joinWords } from './scriptValues.js';
@@ -49,6 +49,7 @@ export const lowerScript = (parsed) => {
   const emptyBlocks = [];
   const byName = templateIndex(parsed.templates);
   let capped = false; // a replay that would pass MAX_OPS stops the whole script
+  const budget = { used: 0 }; // the whole script fan-out, blocks included
 
   for (const raw of parsed.blocks) {
     const blockIndex = blocks.length;
@@ -79,8 +80,10 @@ export const lowerScript = (parsed) => {
     const body = [];
     for (const st of raw.body) {
       if (st.directive !== 'use' || !isStencilUse(st)) { body.push(st); continue; }
-      expandStencilUse(st, parsed.templates, byName, 1, body, diagnostics);
+      expandStencilUse(st, parsed.templates, byName, 1, budget, body, diagnostics);
+      if (budget.used > MAX_TEMPLATE_EXPANSIONS) { capped = true; break; }
     }
+    if (capped) break; // the capped block is not recorded, so nothing of it dumps
 
     const state = { unit: 'px', style: defaultLineStyle() };
     const ledger = new EditLedger();

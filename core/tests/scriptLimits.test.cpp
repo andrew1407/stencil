@@ -115,6 +115,31 @@ TEST_CASE("nested @use fan-out is bounded before the statements exist") {
   CHECK(p.ops().size() == 1);  // the block's open, and nothing a template fanned out
 }
 
+TEST_CASE("a fan-out that produces no statement at all is bounded too") {
+  // Bodies of nothing but nested uses, bottoming out in an empty one: no statement ever
+  // lands, so neither the depth cap nor the op cap can stop it — only the expansion count.
+  std::string src = "@stencil t8:\n\n";
+  for (int k = 7; k >= 1; --k)
+    src += "@stencil t" + std::to_string(k) + ":\n" +
+           repeat("  @use stencil t" + std::to_string(k + 1) + "\n", 5) + "\n";
+  const ScriptProgram p = parse(src + "@use stencil t1\n");
+  CHECK(p.hasErrors());
+  CHECK(onlyErrorCode(p) == "E_LIMIT_OPS");
+  CHECK(p.blocks().empty());  // a capped block is not recorded, so nothing dumps
+}
+
+TEST_CASE("a chain MAX_TEMPLATE_DEPTH deep that does produce ops is never refused") {
+  // The expansion count a legitimate script reaches is its ops times its nesting depth,
+  // which is what MAX_TEMPLATE_EXPANSIONS is sized from: this one sits far inside it.
+  std::string src = "@stencil t16:\n  @filter bw\n\n";
+  for (int k = 15; k >= 1; --k)
+    src += "@stencil t" + std::to_string(k) + ":\n  @use stencil t" + std::to_string(k + 1) +
+           "\n\n";
+  const ScriptProgram p = parse(src + repeat("@use stencil t1\n", 2000));
+  CHECK_FALSE(p.hasErrors());
+  CHECK(p.ops().size() == 2000);
+}
+
 TEST_CASE("a script right at each cap is accepted") {
   // Exactly MAX_LINES lines: the last one carries no newline of its own.
   CHECK_FALSE(parse(repeat("\n", MAX_LINES - 1) + "@filter bw").hasErrors());

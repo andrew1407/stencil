@@ -201,13 +201,18 @@ Identical in C++ and in the JS port, so both reject the same input, with the sam
 | `MAX_BLOCKS` | 256 | `E_LIMIT_BLOCKS` |
 | `MAX_TEMPLATES` | 256 | `E_LIMIT_TEMPLATES` |
 | `MAX_TEMPLATE_DEPTH` | 16 | `E_TEMPLATE_RECURSION` |
+| `MAX_TEMPLATE_EXPANSIONS` | `MAX_OPS` × `MAX_TEMPLATE_DEPTH` | `E_LIMIT_OPS` |
 | `MAX_POINTS_PER_LINE` | 200 | `E_LIMIT_POINTS` |
 | `MAX_SOURCE_CHARS` | 1024 | `E_LIMIT_SOURCE` |
 
 A cap is never silent: reaching `MAX_TOKENS` stops the lexer and says so, rather than dropping
-the rest of the file. `MAX_OPS` bounds three places, each reporting `E_LIMIT_OPS` once — the
-edits a script writes, the statements a nested `@use` fans out before any op exists, and the
-replay §7 emits; a refused replay also stops the lowering there, so its block yields nothing.
+the rest of the file. `MAX_OPS` bounds four places, each reporting `E_LIMIT_OPS` once — the
+edits a script writes, the statements a nested `@use` fans out before any op exists, the
+expansions themselves, and the replay §7 emits; a refused replay also stops the lowering
+there, so its block yields nothing. Counting only the statements an expansion *produces*
+leaves a body of nothing but nested uses unbounded, so `MAX_TEMPLATE_EXPANSIONS` counts the
+whole script's expansion tree, blocks included. Every op sits under at most
+`MAX_TEMPLATE_DEPTH` expansions, so no script within `MAX_OPS` can reach it.
 
 ## §10 Per-surface execution
 

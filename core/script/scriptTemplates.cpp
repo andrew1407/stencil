@@ -98,11 +98,19 @@ namespace stencil::core::script {
   }  // namespace
 
   bool expandStencilUse(const Stmt& use, std::vector<TemplateDef>& templates, int depth,
-                        std::vector<Stmt>& out, std::vector<Diagnostic>& diags) {
+                        int& expansions, std::vector<Stmt>& out,
+                        std::vector<Diagnostic>& diags) {
     if (depth > MAX_TEMPLATE_DEPTH) {
       diags.push_back(makeDiag(Severity::ERROR, "E_TEMPLATE_RECURSION", use,
                                "templates nest more than " + std::to_string(MAX_TEMPLATE_DEPTH) +
                                    " deep — is one using itself?"));
+      return false;
+    }
+    /* An expansion that yields no statement is still work, and nesting multiplies it: bodies
+     * of nothing but nested uses reach neither the op cap below nor the depth cap above. */
+    if (++expansions > MAX_TEMPLATE_EXPANSIONS) {
+      diags.push_back(
+          makeDiag(Severity::ERROR, "E_LIMIT_OPS", use, "the script has too many ops"));
       return false;
     }
 
@@ -149,7 +157,8 @@ namespace stencil::core::script {
         return false;
       }
       if (isNestedStencilUse(filled)) {
-        if (!expandStencilUse(filled, templates, depth + 1, out, diags)) return false;
+        if (!expandStencilUse(filled, templates, depth + 1, expansions, out, diags))
+          return false;
         continue;
       }
       // The fan-out is bounded here, before the statements exist: nested uses multiply.

@@ -1,6 +1,8 @@
 // Port of core/script/scriptTemplates.cpp — `@stencil` definitions and their expansion.
 import { didYouMean, makeDiag, tokenOfStmt } from './scriptDiagnostics.js';
-import { MAX_OPS, MAX_TEMPLATE_DEPTH, isStencilUse, unquoteWord } from './scriptTypes.js';
+import {
+  MAX_OPS, MAX_TEMPLATE_DEPTH, MAX_TEMPLATE_EXPANSIONS, isStencilUse, unquoteWord,
+} from './scriptTypes.js';
 
 // Name -> index, built once per script: resolveName walks a prefix at a time.
 export const templateIndex = (templates) => new Map(templates.map((d, i) => [d.name, i]));
@@ -64,12 +66,17 @@ const substitute = (body, args) => {
 };
 
 /* Expands one `@use stencil <words> [args…]` into the referenced body. Nested uses expand
- * too, capped at MAX_TEMPLATE_DEPTH; a template that reaches itself hits that cap. The
- * statement count is capped as well — the fan-out is what an op cap alone cannot bound. */
-export const expandStencilUse = (use, templates, byName, depth, out, diags) => {
+ * too, capped at MAX_TEMPLATE_DEPTH; a template that reaches itself hits that cap. `budget`
+ * counts the whole script's tree: a body of nothing but nested uses trips no other cap. */
+export const expandStencilUse = (use, templates, byName, depth, budget, out, diags) => {
   if (depth > MAX_TEMPLATE_DEPTH) {
     diags.push(makeDiag('error', 'E_TEMPLATE_RECURSION', tokenOfStmt(use),
       `templates nest more than ${MAX_TEMPLATE_DEPTH} deep — is one using itself?`));
+    return false;
+  }
+  budget.used += 1;
+  if (budget.used > MAX_TEMPLATE_EXPANSIONS) {
+    diags.push(makeDiag('error', 'E_LIMIT_OPS', tokenOfStmt(use), 'the script has too many ops'));
     return false;
   }
 
@@ -106,7 +113,7 @@ export const expandStencilUse = (use, templates, byName, depth, out, diags) => {
       return false;
     }
     if (stmt.directive === 'use' && isStencilUse(stmt)) {
-      if (!expandStencilUse(stmt, templates, byName, depth + 1, out, diags)) return false;
+      if (!expandStencilUse(stmt, templates, byName, depth + 1, budget, out, diags)) return false;
       continue;
     }
     if (out.length >= MAX_OPS) {

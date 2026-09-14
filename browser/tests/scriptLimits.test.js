@@ -72,6 +72,26 @@ test('a template fan-out past MAX_OPS statements is an error', () => {
   assert.equal(onlyErrorCode(src), 'E_LIMIT_OPS');
 });
 
+test('a fan-out that produces no statement at all is bounded too', () => {
+  // Bodies of nothing but nested uses, bottoming out in an empty one: no statement ever
+  // lands, so neither the depth cap nor the op cap can stop it — only the expansion count.
+  let src = '@stencil t8:\n\n';
+  for (let k = 7; k >= 1; k -= 1) src += `@stencil t${k}:\n${rep(`    @use stencil t${k + 1}`, 5)}\n`;
+  const program = parseScript(`${src}@use stencil t1\n`);
+  assert.equal(onlyErrorCode(`${src}@use stencil t1\n`), 'E_LIMIT_OPS');
+  assert.deepEqual(program.blocks, []); // a capped block is not recorded, so nothing dumps
+});
+
+test('a chain MAX_TEMPLATE_DEPTH deep that does produce ops is never refused', () => {
+  // The expansion count a legitimate script reaches is its ops times its nesting depth,
+  // which is what MAX_TEMPLATE_EXPANSIONS is sized from: this one sits far inside it.
+  let src = '@stencil t16:\n  @filter bw\n\n';
+  for (let k = 15; k >= 1; k -= 1) src += `@stencil t${k}:\n  @use stencil t${k + 1}\n\n`;
+  const program = parseScript(`${src}${rep('@use stencil t1', 2000)}`);
+  assert.equal(program.diagnostics.filter((d) => d.severity === 'error').length, 0);
+  assert.equal(program.ops.length, 2000);
+});
+
 test('a script past MAX_TOKENS stops lexing and says so', () => {
   const { tokens, diagnostics } = lexScript('a '.repeat(MAX_TOKENS + 10));
   assert.equal(tokens.length, MAX_TOKENS);

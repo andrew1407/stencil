@@ -13,6 +13,9 @@ namespace stencil::core::script {
   inline constexpr int MAX_BLOCKS = 256;
   inline constexpr int MAX_TEMPLATES = 256;
   inline constexpr int MAX_TEMPLATE_DEPTH = 16;
+  // Every op sits under at most MAX_TEMPLATE_DEPTH expansions, so a script within MAX_OPS
+  // never reaches this; only a fan-out that yields no op at all can.
+  inline constexpr int MAX_TEMPLATE_EXPANSIONS = MAX_OPS * MAX_TEMPLATE_DEPTH;
   inline constexpr int MAX_POINTS_PER_LINE = 200;
   inline constexpr int MAX_SOURCE_CHARS = 1024;
 

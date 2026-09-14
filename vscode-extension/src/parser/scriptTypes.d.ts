@@ -29,6 +29,7 @@ export const MAX_OPS: number;
 export const MAX_BLOCKS: number;
 export const MAX_TEMPLATES: number;
 export const MAX_TEMPLATE_DEPTH: number;
+export const MAX_TEMPLATE_EXPANSIONS: number;
 export const MAX_POINTS_PER_LINE: number;
 export const MAX_SOURCE_CHARS: number;
 export const TOKEN_KINDS: readonly TokenKind[];

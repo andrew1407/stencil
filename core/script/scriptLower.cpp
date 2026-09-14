@@ -46,6 +46,7 @@ namespace stencil::core::script {
     out.diagnostics = std::move(parsed.diagnostics);
     std::vector<Token> emptyBlocks;
     bool capped = false;  // a replay that would pass MAX_OPS stops the whole script
+    int expansions = 0;   // the whole script's template fan-out, blocks included
 
     for (RawBlock& raw : parsed.blocks) {
       const int blockIndex = static_cast<int>(out.blocks.size());
@@ -71,8 +72,10 @@ namespace stencil::core::script {
       std::vector<Stmt> body;
       for (Stmt& st : raw.body) {
         if (!isStencilUse(st)) { body.push_back(std::move(st)); continue; }
-        expandStencilUse(st, parsed.templates, 1, body, out.diagnostics);
+        expandStencilUse(st, parsed.templates, 1, expansions, body, out.diagnostics);
+        if (expansions > MAX_TEMPLATE_EXPANSIONS) { capped = true; break; }
       }
+      if (capped) break;  // the capped block is not recorded, so nothing of it dumps
 
       EvalState state;
       EditLedger ledger;

@@ -7,6 +7,8 @@ export const MAX_OPS = 5000;
 export const MAX_BLOCKS = 256;
 export const MAX_TEMPLATES = 256;
 export const MAX_TEMPLATE_DEPTH = 16;
+// Bounds a fan-out that yields no op, which MAX_OPS alone cannot see.
+export const MAX_TEMPLATE_EXPANSIONS = MAX_OPS * MAX_TEMPLATE_DEPTH;
 export const MAX_POINTS_PER_LINE = 200;
 export const MAX_SOURCE_CHARS = 1024;
 
