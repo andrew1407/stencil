@@ -257,10 +257,9 @@
       QToolButton[drawToggle="idle"]:disabled, QToolButton[drawToggle="on"]:disabled {
         color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
-      /* Fit-to-window is filled like every other ACTING button (user decision; browser twin:
-         #zoom-fit in css/components/settings.css), and DISABLED it is the same grey chip as
-         the − / + steppers beside it — the bordered, transparent face it used to take read
-         as a second, brighter frame around the glyph (user report, with a picture). */
+      /* Fit-to-window is filled like every other ACTING button (browser twin: #zoom-fit in
+         css/components/settings.css), and DISABLED it is the same grey chip as the − / +
+         steppers beside it, so the glyph never gains a second frame of its own. */
       /* The Settings cluster's TOGGLES: the browser's bordered ghosts (#fullscreen-toggle,
          #incognito-toggle). Keyed on a property set per button rather than on the section,
          because the cluster's other three OPEN DIALOGS and wear the accent fill like every
@@ -517,9 +516,8 @@
       /* A hairline around every cell, header included — the browser draws one on each th
          and td (layout.css .coordinates-table: border 1px solid --border-coord), which is
          what makes its accent header read as five separate cells rather than one bar. */
-      /* One size across the whole panel — cells, header and the Points | Lines strip. The
-         header and the tabs used to fall back to the system font, so the table read as two
-         type scales stacked on each other. */
+      /* One size across the whole panel — cells, header and the Points | Lines strip, so the
+         header and the tabs never fall back to the system font and stack two type scales. */
       QTableWidget#pointsTable {
         gridline-color: %BORDER%;
         selection-background-color: transparent;  /* the delegate strokes an outline instead */
@@ -599,8 +597,8 @@
          .script-input as one widget, since Qt colours the text in place. The mono face and
          the gutter are set in code; only the frame and the inks belong here. */
       /* The FRAME owns the box (browser .script-editor-wrap): accent hairline at rest, two
-         hairlines while the caret is in it. The hover glow is a drop shadow set in code —
-         QSS has no box-shadow. */
+         hairlines while the caret is in it. The hover glow is the halo's own 3px border,
+         transparent until hovered — QSS has no box-shadow. */
       /* Both editors wear it: the window's (ScriptDialog) and the context menu's flyout
          (ScriptMenuPanel) — the browser reuses its script-* classes for the flyout too. */
       QFrame#scriptEditorGlow, QFrame#scriptMenuGlow {

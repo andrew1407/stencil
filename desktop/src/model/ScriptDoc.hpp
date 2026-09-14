@@ -8,10 +8,8 @@
 #include <QVector>
 
 // The desktop's seam onto core/script: the ONE file here that includes a core script
-// header, so the layer lint's "core only from model/" rule holds. Named ScriptDoc, not
-// ScriptProgram, because a case-insensitive filesystem would resolve core's own
-// scriptProgram.hpp to this file instead. Everything above works
-// in Qt types. The language is normative in contracts/stc/stc-contract.md.
+// header, so the layer lint's "core only from model/" rule holds. Everything above works in
+// Qt types, columns included. The language is normative in contracts/stc/stc-contract.md.
 namespace stencil::model {
 
   // Mirrors core::script::TokenKind; the dialog's highlighter colours by this.
@@ -19,16 +17,18 @@ namespace stencil::model {
     COMMENT, DIRECTIVE, KEYWORD, NUMBER, UNIT, COLOR, STRING, PARAM, PUNCT, IDENT, ERROR,
   };
 
+  // `col` and `len` are 1-based QChar offsets: the core lexes UTF-8 bytes, and parse()
+  // converts, so everything above this seam indexes the way QTextDocument does.
   struct ScriptToken {
-    int line = 1;   // 1-based
-    int col = 1;    // 1-based, in bytes
+    int line = 1;
+    int col = 1;
     int len = 0;
     ScriptTokenKind kind = ScriptTokenKind::IDENT;
   };
 
   struct ScriptDiagnostic {
-    bool error = true;   // false = warning
-    QString code;        // the stable code, e.g. "E_UNKNOWN_DIRECTIVE"
+    bool isError = true;   // false = warning
+    QString code;          // the stable code, e.g. "E_UNKNOWN_DIRECTIVE"
     int line = 1;
     int col = 1;
     int len = 0;
@@ -39,9 +39,8 @@ namespace stencil::model {
 
   enum class ScriptOpKind { OPEN, FRAME, CROP, FILTER, LINE, RECT, LAYOUT, SAVE, UNDO, REDO };
 
-  /* One lowered operation. `strs` and `nums` are the op's own payload; `resolve()` turns its
-   * length tokens into pixels, which is a separate call because a crop changes the image
-   * size mid-script. See core/script/scriptTypes.hpp for the per-kind layouts. */
+  /* One lowered operation. `resolve()` is a separate call because a crop changes the image
+   * size mid-script. See core/script/scriptTypes.hpp for the per-kind payloads. */
   struct ScriptOp {
     ScriptOpKind kind = ScriptOpKind::CROP;
     int block = 0;
@@ -62,7 +61,7 @@ namespace stencil::model {
   };
 
   /* A parsed .stc. Value type: parse once, read as often as you like. A program with any
-   * error must not be executed — the dialog reports instead. */
+   * error must not be executed. */
   class ScriptDoc {
    public:
     static ScriptDoc parse(const QString& text);
@@ -73,18 +72,15 @@ namespace stencil::model {
     const QVector<ScriptOp>& ops() const { return ops_; }
     bool hasErrors() const;
 
-    /* Length tokens -> pixels against the size the caller holds RIGHT NOW.
-     * CROP -> [x, y, w, h]; LINE/RECT -> [x0, y0, …, thickness, pointSize] with a two-point
-     * rect expanded to its four corners; FRAME/UNDO/REDO -> [n]. Empty when the op carries
-     * no geometry, or when a token cannot be resolved against this size. */
+    /* Length tokens -> pixels against the size the caller holds RIGHT NOW. CROP -> [x, y, w, h];
+     * LINE/RECT -> [x0, y0, …, thickness, pointSize], a two-point rect expanded to four corners;
+     * FRAME/UNDO/REDO -> [n]. Empty when the op carries no geometry or a token cannot resolve. */
     static QVector<double> resolve(const ScriptOp& op, QSize imageSize);
 
-    /* The two shapes an adapter needs back in the core's own vocabulary. Declared here so
-     * nothing above the seam has to name a core type: callers take them with `auto`.
-     * `cropRect` is empty-on-failure, which the caller reports as "resolves to nothing". */
+    /* The two shapes an adapter needs back in the core's own vocabulary. `cropRect` is
+     * empty-on-failure, which the caller reports as "resolves to nothing". */
     static core::CropRect cropRect(const ScriptOp& op, QSize imageSize, bool* ok);
     static void appendLine(core::Lines& lines, const ScriptOp& op, QSize imageSize, bool* ok);
-    static core::Lines emptyLines() { return {}; }
 
    private:
     QVector<ScriptToken> tokens_;

@@ -1,7 +1,6 @@
-// The script flyout hosted in the canvas context menu (dialogs/ScriptMenuPanel). Browser
-// twin: browser/tests/ctxScript.test.js — the compact editor must behave like the window
-// it mirrors (nothing reported until a run, the three acting buttons dead while it is
-// empty) and like a code editor (Tab indents, Ctrl/⌘+Enter runs).
+// The script flyout hosted in the canvas context menu (dialogs/ScriptMenuPanel). Browser twin
+// browser/tests/ctxScript.test.js: it behaves like the window it mirrors (nothing reported
+// until a run, the acting buttons dead while empty) and like a code editor (Tab, Ctrl+Enter).
 #include "ScriptMenuPanel.hpp"
 
 #include <QApplication>

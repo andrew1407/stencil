@@ -1,24 +1,18 @@
 #include "ScriptDialog.hpp"
 
-#include <QApplication>
-#include <QClipboard>
+#include "ScriptEditorWidget.hpp"
+#include "scriptFile.hpp"
+
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QMimeData>
-#include <QPlainTextEdit>
-#include <QTextCursor>
 #include <QUrl>
 
-// The script window's file half: open, save, copy, and the .stc drops it accepts while open.
+// The script window's file half: open, save and the .stc drops it accepts while open.
 namespace stencil::gui {
 
   namespace {
-
-    const QString& scriptFilter() {
-      static const QString filter = QStringLiteral("Stencil script (*.stc)");
-      return filter;
-    }
 
     // The one local .stc among a drag's urls, or empty.
     QString droppedScript(const QMimeData* mime) {
@@ -33,17 +27,15 @@ namespace stencil::gui {
   }  // namespace
 
   bool ScriptDialog::readInto(const QString& path) {
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return false;
-    edit_->setPlainText(QString::fromUtf8(file.readAll()));
-    applyLineHeight();   // setPlainText resets the document's block formats
-    edit_->moveCursor(QTextCursor::End);
+    QString text;
+    if (!readScriptFile(path, &text)) return false;
+    editor_->setScript(text);
     return true;
   }
 
   void ScriptDialog::loadFile() {
     const QString path = QFileDialog::getOpenFileName(this, tr("Open script"), QString(),
-                                                      scriptFilter());
+                                                      scriptFileFilter());
     if (!path.isEmpty()) readInto(path);
   }
 
@@ -61,11 +53,9 @@ namespace stencil::gui {
   void ScriptDialog::saveFile() {
     const QString path = QFileDialog::getSaveFileName(this, tr("Save script"),
                                                       QStringLiteral("stencil.stc"),
-                                                      scriptFilter());
+                                                      scriptFileFilter());
     if (path.isEmpty()) return;
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
-    file.write(edit_->toPlainText().toUtf8());
+    writeScriptFile(path, editor_->script());
   }
 
 }  // namespace stencil::gui

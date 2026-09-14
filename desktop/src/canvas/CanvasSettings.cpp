@@ -16,6 +16,13 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::setLines(const core::Lines& lines) {
+    commitLines(lines);
+    history_.reset(lines_);   // a fresh document: the stack starts here
+  }
+
+  // A scripted or planned edit lands here instead: the user's undo stack survives and the
+  // change becomes one step on it, where setLines drops the stack on the floor.
+  void CanvasWidget::commitLines(const core::Lines& lines) {
     resetStrokeFx();
     lines_ = lines;
     clearHoverCache();   // indices are meaningless against the new set
@@ -24,9 +31,8 @@ namespace stencil::gui {
     selectedPoint_ = -1;
     selectedLineIdx_ = -1;
     continueLineIdx_ = continueInsertIdx_ = -1;
-    history_.reset(lines_);
+    commitHistory();   // pushes the snapshot and emits changed()
     update();
-    emit changed();  // setLines must signal a content change
     emit selectionChanged();
   }
 

@@ -1,21 +1,35 @@
 #include "ScriptMenuPanel.hpp"
 
-#include "ScriptDoc.hpp"
-#include "ScriptHighlighter.hpp"
-#include "../support/iconSet.hpp"
+#include "ScriptEditorWidget.hpp"
 #include "../support/modalChrome.hpp"   // makeModalCta — Run is the primary action
 #include "scriptMenuPanelParts.hpp"
 
-#include <QFontDatabase>
-#include <QFrame>
 #include <QHBoxLayout>
-#include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
-#include <QTextCursor>
 #include <QVBoxLayout>
 
 namespace stencil::gui {
+
+  namespace {
+
+    ScriptEditorWidget::Style menuStyle() {
+      ScriptEditorWidget::Style s;
+      s.glowName = QStringLiteral("scriptMenuGlow");
+      s.wrapName = QStringLiteral("scriptMenuWrap");
+      s.editName = QStringLiteral("scriptMenuText");
+      s.diagName = QStringLiteral("scriptMenuDiag");
+      s.fontPx = MENU_SCRIPT_FONT_PX;
+      s.padX = MENU_SCRIPT_PAD_X;
+      s.padY = MENU_SCRIPT_PAD_Y;
+      s.lineHeightPct = MENU_SCRIPT_LINE_HEIGHT_PCT;
+      s.editorMinH = MENU_SCRIPT_EDITOR_MIN;
+      s.indent = MENU_SCRIPT_INDENT;
+      s.codeKeys = true;
+      return s;
+    }
+
+  }  // namespace
 
   ScriptMenuPanel::ScriptMenuPanel(QWidget* parent, Hooks hooks)
       : QWidget(parent), hooks_(std::move(hooks)) {
@@ -24,44 +38,8 @@ namespace stencil::gui {
     col->setContentsMargins(12, 2, 12, 6);
     col->setSpacing(0);
 
-    // The window's two frames at menu scale: the halo carries the hover glow, the wrap the
-    // box, and the editor inside them is bare (ScriptDialog.cpp says why they are separate).
-    glow_ = new QFrame(this);
-    glow_->setObjectName(QStringLiteral("scriptMenuGlow"));
-    auto* glowLayout = new QVBoxLayout(glow_);
-    glowLayout->setContentsMargins(0, 0, 0, 0);
-
-    wrap_ = new QFrame(glow_);
-    wrap_->setObjectName(QStringLiteral("scriptMenuWrap"));
-    auto* wrapLayout = new QVBoxLayout(wrap_);
-    wrapLayout->setContentsMargins(MENU_SCRIPT_PAD_X, MENU_SCRIPT_PAD_Y,
-                                  MENU_SCRIPT_PAD_X, MENU_SCRIPT_PAD_Y);
-    glowLayout->addWidget(wrap_);
-
-    edit_ = new QPlainTextEdit(wrap_);
-    edit_->setObjectName(QStringLiteral("scriptMenuText"));
-    edit_->setPlaceholderText(QStringLiteral("@crop 10%\n@filter bw\n@save"));
-    edit_->setLineWrapMode(QPlainTextEdit::NoWrap);
-    edit_->setFrameShape(QFrame::NoFrame);
-    edit_->setAttribute(Qt::WA_MacShowFocusRect, false);
-    // The desktop twin of the flyout's data-ctx-keep-tab: a code editor owns Tab, so the
-    // menu's Tab-walks-the-controls navigation steps aside for it (stayOpenMenuStops.hpp).
-    edit_->setProperty("keepTab", true);
-    QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    mono.setPixelSize(MENU_SCRIPT_FONT_PX);
-    edit_->setFont(mono);
-    edit_->installEventFilter(this);
-    applyLineHeight();
-    wrapLayout->addWidget(edit_);
-    wrap_->setMinimumHeight(MENU_SCRIPT_EDITOR_MIN);
-    col->addWidget(glow_, 1);   // the editor takes whatever the strip and the row leave
-
-    diag_ = new QLabel(this);
-    diag_->setObjectName(QStringLiteral("scriptMenuDiag"));
-    diag_->setWordWrap(true);
-    col->addWidget(diag_);
-
-    highlighter_ = new dialogs::ScriptHighlighter(edit_->document());
+    edit_ = new ScriptEditorWidget(this, menuStyle());
+    col->addWidget(edit_, 1);   // the editor takes whatever the strip and the row leave
 
     // Copy · Download · Upload · Run, right-aligned, Run primary and last (browser order).
     auto* row = new QHBoxLayout;
@@ -84,33 +62,27 @@ namespace stencil::gui {
     col->addSpacing(8);
     col->addLayout(row);
 
-    connect(copyBtn_, &QPushButton::clicked, this, &ScriptMenuPanel::copyToClipboard);
+    connect(copyBtn_, &QPushButton::clicked, this, [this] {
+      edit_->copyToClipboard();
+      if (hooks_.notice) hooks_.notice(tr("Script copied"));
+    });
     connect(downloadBtn_, &QPushButton::clicked, this,
             [this] { if (hooks_.download) hooks_.download(); });
     connect(uploadBtn_, &QPushButton::clicked, this,
             [this] { if (hooks_.upload) hooks_.upload(); });
     connect(runBtn_, &QPushButton::clicked, this, &ScriptMenuPanel::run);
-    // Synchronous, like the window's: the colours ARE the text as far as the reader is
-    // concerned, and a deferred paint reads as the characters appearing late.
-    connect(edit_, &QPlainTextEdit::textChanged, this, [this] {
-      if (painting_) return;
-      checked_ = false;   // editing clears the last verdict: it was about older text
-      repaint(false);
-    });
+    connect(edit_, &ScriptEditorWidget::runRequested, this, &ScriptMenuPanel::run);
+    connect(edit_, &ScriptEditorWidget::edited, this, &ScriptMenuPanel::gateActions);
 
     setFixedWidth(MENU_SCRIPT_WIDTH);
-    setFixedHeight(menuScriptHeight());
-    repaint(false);
+    setFixedHeight(menuScriptHeight(this));
+    gateActions(edit_->isEmpty());
   }
 
-  QWidget* ScriptMenuPanel::editor() const { return edit_; }
+  QWidget* ScriptMenuPanel::editor() const { return edit_->editor(); }
 
-  QString ScriptMenuPanel::script() const { return edit_->toPlainText(); }
+  QString ScriptMenuPanel::script() const { return edit_->script(); }
 
-  void ScriptMenuPanel::setScript(const QString& text) {
-    edit_->setPlainText(text);
-    applyLineHeight();   // setPlainText resets the document's block formats
-    edit_->moveCursor(QTextCursor::End);
-  }
+  void ScriptMenuPanel::setScript(const QString& text) { edit_->setScript(text); }
 
 }  // namespace stencil::gui

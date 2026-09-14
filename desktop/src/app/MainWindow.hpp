@@ -369,7 +369,7 @@ namespace stencil::gui {
     void openLinks();
     void openDescription();
     void openScript();
-    // Parented to the WINDOW, like the chat panel: the typed script survives the menu closing.
+    // The QWidgetAction owns the panel, so the typed script survives the menu closing.
     void ensureScriptMenuPanel();
     void refreshAfterScript();
     void runScriptFromFile(const QString& path);
@@ -471,7 +471,7 @@ namespace stencil::gui {
     QString promoteIncognitoToLocal(const QString& name = QString());
     bool chatOpenFile(const QString& path, QString* err);
     // Blocks until MediaLoader resolves, so the plan's next action edits the loaded picture.
-    bool chatLoadSource(const QString& src, bool incognito, QString* why);
+    bool chatLoadSource(const QString& src, bool incognito, QString* why, int frame = 0);
     QString chatSaveBaseName(const QString& requested) const;
     QString uniqueLocalProjectName(const QString& wanted) const;
     QString addImageProjectEntry(const QImage& img, const QString& baseName,

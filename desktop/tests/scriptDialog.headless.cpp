@@ -1,8 +1,6 @@
-// The script window (dialogs/ScriptDialog + ScriptHighlighter). Browser twin:
-// browser/tests/scriptModal.test.js — the two windows must behave the same. What is pinned
-// here is the behaviour the user asked for: nothing is REPORTED until the script has been
-// run, the three acting buttons are dead while the editor is empty, and the colouring comes
-// from the core's own token stream.
+// The script window (dialogs/ScriptDialog + ScriptEditorWidget + ScriptHighlighter). Browser
+// twin browser/tests/scriptModal.test.js: nothing is REPORTED until the script has been run,
+// the three acting buttons are dead while it is empty, and the colouring is the core's tokens.
 #include "ScriptDialog.hpp"
 #include "ScriptDoc.hpp"
 #include "ScriptHighlighter.hpp"
@@ -17,7 +15,7 @@
 
 #include "support/check.hpp"
 
-using stencil::dialogs::ScriptHighlighter;
+using stencil::gui::ScriptHighlighter;
 using stencil::gui::ScriptDialog;
 using stencil::model::ScriptDoc;
 
@@ -104,6 +102,22 @@ int main(int argc, char** argv) {
     for (const auto& f : formatsOn(edit, 0))
       if (f.format.underlineStyle() == QTextCharFormat::WaveUnderline) wavy = true;
     check(wavy, "the offending token gained a wavy underline");
+  }
+
+  std::printf("a non-ASCII character does not shift the spans after it:\n");
+  {
+    // The core lexes UTF-8, so an em dash is three BYTES where the editor counts one QChar.
+    ScriptDialog dlg(QStringLiteral("@filter bw \u2014 no\n@save \"Z\u00fcrich\"\n"));
+    auto* edit = find<QPlainTextEdit>(dlg, "scriptText");
+    const auto dashed = formatsOn(edit, 0);
+    const auto quoted = formatsOn(edit, 1);
+    check(!dashed.isEmpty() && !quoted.isEmpty(), "both lines are coloured");
+    if (!dashed.isEmpty() && !quoted.isEmpty()) {
+      check(dashed.back().start == 13 && dashed.back().length == 2,
+            "the token after the em dash is not pushed right by its two extra bytes");
+      check(quoted.back().start == 6 && quoted.back().length == 8,
+            "the quoted name spans its eight QChars, not nine bytes' worth");
+    }
   }
 
   std::printf("the highlighter survives a theme flip:\n");

@@ -361,6 +361,7 @@ set(STENCIL_GUI_SOURCES
   src/dialogs/DescriptionDialog.cpp
   src/dialogs/ScriptDialog.cpp
   src/dialogs/ScriptDialogFile.cpp
+  src/dialogs/ScriptEditorWidget.cpp
   src/dialogs/ScriptHighlighter.cpp
   src/dialogs/ScriptMenuPanel.cpp
   src/dialogs/ScriptMenuPanelState.cpp

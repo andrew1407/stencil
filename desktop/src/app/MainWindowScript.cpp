@@ -4,10 +4,10 @@
 #include "mainWindowHelpers.hpp"   // closeOpenPopupMenus()
 #include "ScriptMenuPanel.hpp"
 #include "Notifications.hpp"
+#include "scriptFile.hpp"
 #include "scriptRun.hpp"
 #include "theme.hpp"
 
-#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QTimer>
@@ -20,15 +20,10 @@ namespace stencil::gui {
 
   namespace {
 
-    const QString& scriptFilter() {
-      static const QString filter = QStringLiteral("Stencil script (*.stc)");
-      return filter;
-    }
-
     // A run's verdict, said the same way wherever it was started from.
     void reportRun(Notifications* notify, const ScriptRunResult& result) {
       if (!notify) return;
-      if (result.ok) {
+      if (result.isOk) {
         notify->success(result.ops == 1 ? QObject::tr("Script ran: 1 op")
                                         : QObject::tr("Script ran: %1 ops").arg(result.ops));
         return;
@@ -48,9 +43,10 @@ namespace stencil::gui {
     // with its diagnostics, not vanish and make them reopen it.
     while (execMaybePopover(dlg, actScript_) == QDialog::Accepted) {
       ChatPlanTarget target(*this);
-      const ScriptRunResult result = runScript(dlg.script(), target);
+      // The dialog's own parse — the one it coloured from — so a Run lexes the text once.
+      const ScriptRunResult result = runScript(dlg.program(), target);
       reportRun(notify_, result);
-      if (result.ok) {
+      if (result.isOk) {
         refreshAfterScript();
         return;
       }
@@ -59,8 +55,8 @@ namespace stencil::gui {
     }
   }
 
-  // Parented to the WINDOW so the per-right-click menu rebuild can re-add it, and so the
-  // typed script outlives the menu (QWidgetAction releases, never deletes, its widget).
+  // The QWidgetAction owns the panel, so the per-right-click menu rebuild can re-add it and
+  // the typed script outlives the menu.
   void MainWindow::ensureScriptMenuPanel() {
     if (scriptMenuAction_) return;
     ScriptMenuPanel::Hooks hooks;
@@ -77,15 +73,16 @@ namespace stencil::gui {
       closeOpenPopupMenus();
       QTimer::singleShot(0, this, [this] {
         const QString path =
-            QFileDialog::getOpenFileName(this, tr("Open script"), QString(), scriptFilter());
+            QFileDialog::getOpenFileName(this, tr("Open script"), QString(), scriptFileFilter());
         if (path.isEmpty()) return;
-        QFile file(path);
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-          notify_->error(tr("Could not read %1").arg(QFileInfo(path).fileName()));
+        QString text;
+        if (!readScriptFile(path, &text)) {
+          if (notify_) notify_->error(tr("Could not read %1").arg(QFileInfo(path).fileName()));
           return;
         }
-        asScriptMenu(scriptMenuPanel_)->setScript(QString::fromUtf8(file.readAll()));
-        notify_->info(tr("Loaded %1 into the script flyout").arg(QFileInfo(path).fileName()));
+        asScriptMenu(scriptMenuPanel_)->setScript(text);
+        if (notify_)
+          notify_->info(tr("Loaded %1 into the script flyout").arg(QFileInfo(path).fileName()));
       });
     };
     hooks.download = [this] {
@@ -94,14 +91,10 @@ namespace stencil::gui {
       QTimer::singleShot(0, this, [this, text] {
         const QString path = QFileDialog::getSaveFileName(this, tr("Save script"),
                                                           QStringLiteral("stencil.stc"),
-                                                          scriptFilter());
+                                                          scriptFileFilter());
         if (path.isEmpty()) return;
-        QFile file(path);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        if (!writeScriptFile(path, text) && notify_)
           notify_->error(tr("Could not write %1").arg(QFileInfo(path).fileName()));
-          return;
-        }
-        file.write(text.toUtf8());
       });
     };
     hooks.notice = [this](QString text) { if (notify_) notify_->success(text); };

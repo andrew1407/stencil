@@ -1,8 +1,8 @@
 #pragma once
 // The script flyout's metrics (browser css/components/ctxScript.css), private to the
 // ScriptMenuPanel*.cpp TUs.
-#include <QGuiApplication>
 #include <QScreen>
+#include <QWidget>
 
 namespace stencil::gui {
 
@@ -20,8 +20,9 @@ namespace stencil::gui {
   inline constexpr int MENU_SCRIPT_ICON = 13;
   inline constexpr int MENU_SCRIPT_INDENT = 2;              // Tab inserts two spaces
 
-  inline int menuScriptHeight() {
-    const QScreen* screen = QGuiApplication::primaryScreen();
+  // The panel's OWN screen, not the primary one: on a second monitor they differ.
+  inline int menuScriptHeight(const QWidget* host) {
+    const QScreen* screen = host ? host->screen() : nullptr;
     const int avail = screen ? screen->availableGeometry().height() : 0;
     return avail > 0 ? qMin(int(avail * MENU_SCRIPT_SCREEN_SHARE), MENU_SCRIPT_MAX_HEIGHT)
                      : MENU_SCRIPT_MAX_HEIGHT;

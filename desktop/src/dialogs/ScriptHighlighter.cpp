@@ -8,7 +8,7 @@
 #include <QTextBlock>
 #include <QTextDocument>
 
-namespace stencil::dialogs {
+namespace stencil::gui {
 
   using model::ScriptTokenKind;
 
@@ -19,8 +19,7 @@ namespace stencil::dialogs {
   void ScriptHighlighter::buildFormats() {
     // Read the live theme the way the other dialogs do: dark is the window's own lightness.
     const bool dark = QGuiApplication::palette().color(QPalette::Window).lightness() < 128;
-    const gui::Palette p = gui::themePalette(dark);
-    formats_.clear();
+    const Palette p = themePalette(dark);
 
     auto set = [&](ScriptTokenKind kind, const QColor& colour, bool italic = false,
                    bool bold = false) {
@@ -28,7 +27,7 @@ namespace stencil::dialogs {
       f.setForeground(colour);
       if (italic) f.setFontItalic(true);
       if (bold) f.setFontWeight(QFont::DemiBold);
-      formats_.insert(static_cast<int>(kind), f);
+      formats_[static_cast<int>(kind)] = f;
     };
 
     set(ScriptTokenKind::DIRECTIVE, p.accent, false, true);
@@ -57,26 +56,31 @@ namespace stencil::dialogs {
 
   void ScriptHighlighter::restyle() {
     buildFormats();
-    rehighlight();
+    rehighlight();   // every format changed, so every block is stale
   }
 
   void ScriptHighlighter::setProgram(const model::ScriptDoc& program, bool withDiagnostics) {
-    byLine_.clear();
+    QVector<QVector<Span>> next;
+    const auto lineAt = [&next](int line) -> QVector<Span>& {
+      if (next.size() < line) next.resize(line);
+      return next[line - 1];
+    };
     for (const model::ScriptToken& t : program.tokens()) {
       Span s;
       s.col = t.col;
       s.len = t.len;
       s.kind = t.kind;
-      byLine_[t.line].push_back(s);
+      lineAt(t.line).push_back(s);
     }
     if (withDiagnostics) {
       for (const model::ScriptDiagnostic& d : program.diagnostics()) {
         const int len = d.len > 0 ? d.len : 1;
-        QVector<Span>& spans = byLine_[d.line];
+        const Mark mark = d.isError ? Mark::ERROR : Mark::WARNING;
+        QVector<Span>& spans = lineAt(d.line);
         bool marked = false;
         for (Span& s : spans) {
           if (s.col >= d.col + len || d.col >= s.col + qMax(1, s.len)) continue;
-          (d.error ? s.error : s.warning) = true;
+          s.mark = mark;
           marked = true;
         }
         if (marked) continue;
@@ -84,31 +88,49 @@ namespace stencil::dialogs {
         s.col = d.col;
         s.len = len;
         s.kind = ScriptTokenKind::ERROR;
-        (d.error ? s.error : s.warning) = true;
+        s.mark = mark;
         spans.push_back(s);
       }
     }
-    rehighlight();
+
+    /* Only the lines whose spans actually moved are repainted: QSyntaxHighlighter has already
+     * re-coloured the edited block from the stale spans, and a full rehighlight() would paint
+     * every other line a second time on every keystroke. */
+    const QVector<QVector<Span>> was = std::move(byLine_);
+    byLine_ = std::move(next);
+    QVector<int> dirty;
+    for (int i = 0, span = qMax(was.size(), byLine_.size()); i < span; ++i)
+      if (!(i < was.size() && i < byLine_.size() && was.at(i) == byLine_.at(i))) dirty.push_back(i);
+
+    QTextDocument* doc = document();
+    // Each rehighlightBlock is its own edit block, so past half the document one pass is cheaper.
+    if (dirty.size() * 2 >= doc->blockCount()) {
+      rehighlight();
+      return;
+    }
+    for (const int i : dirty) {
+      const QTextBlock block = doc->findBlockByNumber(i);
+      if (block.isValid()) rehighlightBlock(block);
+    }
   }
 
   void ScriptHighlighter::highlightBlock(const QString& text) {
-    const auto spans = byLine_.value(currentBlock().blockNumber() + 1);
-    for (const Span& s : spans) {
+    const int line = currentBlock().blockNumber();
+    if (line < 0 || line >= byLine_.size()) return;
+    for (const Span& s : byLine_.at(line)) {
       const int start = s.col - 1;
       if (start < 0 || start >= text.size()) continue;
       const int len = qMin(s.len, text.size() - start);
       if (len <= 0) continue;
 
-      QTextCharFormat f = formats_.value(static_cast<int>(s.kind));
-      if (s.error) {
-        f.setUnderlineStyle(errorFormat_.underlineStyle());
-        f.setUnderlineColor(errorFormat_.underlineColor());
-      } else if (s.warning) {
-        f.setUnderlineStyle(warningFormat_.underlineStyle());
-        f.setUnderlineColor(warningFormat_.underlineColor());
+      QTextCharFormat f = formats_[static_cast<int>(s.kind)];
+      if (s.mark != Mark::NONE) {
+        const QTextCharFormat& mark = s.mark == Mark::ERROR ? errorFormat_ : warningFormat_;
+        f.setUnderlineStyle(mark.underlineStyle());
+        f.setUnderlineColor(mark.underlineColor());
       }
       setFormat(start, len, f);
     }
   }
 
-}  // namespace stencil::dialogs
+}  // namespace stencil::gui

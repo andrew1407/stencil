@@ -31,7 +31,6 @@
 
 namespace stencil::gui {
 
-
   namespace {
     // Parented to the veil, so an interrupted flight takes the fade with it. Only the
     // selection bar uses it: a surface that SLIDES must hand over at the end instead.

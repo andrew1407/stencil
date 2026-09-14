@@ -2,40 +2,105 @@
 
 #include "scriptProgram.hpp"  // core/script — this file is the seam that may include it
 
+#include <QHash>
+#include <QList>
+#include <QStringView>
+
 namespace stencil::model {
 
   namespace {
 
     namespace cs = stencil::core::script;
 
+    // A reorder in core would silently mis-colour or mis-dispatch: the casts below are
+    // ordinal, so pin the ends of every enum this file maps.
+    static_assert(static_cast<int>(cs::TokenKind::COMMENT) ==
+                      static_cast<int>(ScriptTokenKind::COMMENT) &&
+                  static_cast<int>(cs::TokenKind::ERROR) ==
+                      static_cast<int>(ScriptTokenKind::ERROR));
+    static_assert(static_cast<int>(cs::OpKind::OPEN) == static_cast<int>(ScriptOpKind::OPEN) &&
+                  static_cast<int>(cs::OpKind::REDO) == static_cast<int>(ScriptOpKind::REDO));
+    static_assert(static_cast<int>(cs::SourceKind::PROJECT) ==
+                      static_cast<int>(ScriptSourceKind::PROJECT) &&
+                  static_cast<int>(cs::SourceKind::GLOB) ==
+                      static_cast<int>(ScriptSourceKind::GLOB));
+
     QString qstr(const std::string& s) { return QString::fromStdString(s); }
 
-    ScriptToken toToken(const cs::Token& t) {
+    /* Byte columns -> QChar columns, per line. The core lexes UTF-8, so every col and len it
+     * reports counts bytes; QTextDocument counts QChars. An all-ASCII line maps to itself
+     * and is never tabulated, which is the overwhelmingly common case. */
+    class ByteColumns {
+     public:
+      explicit ByteColumns(const QString& text);
+      int col(int line, int byteCol) const;
+      int len(int line, int byteCol, int byteLen) const;
+
+     private:
+      QHash<int, QVector<int>> maps_;   // 1-based line -> byte offset -> QChar offset
+    };
+
+    ByteColumns::ByteColumns(const QString& text) {
+      const QList<QStringView> lines = QStringView(text).split(QLatin1Char('\n'));
+      for (int i = 0; i < lines.size(); ++i) {
+        const QStringView line = lines.at(i);
+        bool wide = false;
+        for (const QChar c : line)
+          if (c.unicode() > 0x7F) { wide = true; break; }
+        if (!wide) continue;
+        QVector<int> map;
+        map.reserve(line.size() * 2 + 1);
+        for (int j = 0; j < line.size();) {
+          const bool pair = line.at(j).isHighSurrogate() && j + 1 < line.size() &&
+                            line.at(j + 1).isLowSurrogate();
+          const char32_t cp = pair ? QChar::surrogateToUcs4(line.at(j), line.at(j + 1))
+                                   : line.at(j).unicode();
+          const int bytes = cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+          for (int b = 0; b < bytes; ++b) map.push_back(j);
+          j += pair ? 2 : 1;
+        }
+        map.push_back(static_cast<int>(line.size()));   // one past the end
+        maps_.insert(i + 1, map);
+      }
+    }
+
+    int ByteColumns::col(int line, int byteCol) const {
+      const auto it = maps_.constFind(line);
+      if (it == maps_.constEnd()) return byteCol;
+      return it->at(qBound(0, byteCol - 1, static_cast<int>(it->size()) - 1)) + 1;
+    }
+
+    int ByteColumns::len(int line, int byteCol, int byteLen) const {
+      if (!maps_.contains(line) || byteLen <= 0) return byteLen;
+      return col(line, byteCol + byteLen) - col(line, byteCol);
+    }
+
+    ScriptToken toToken(const cs::Token& t, const ByteColumns& cols) {
       ScriptToken out;
       out.line = t.line;
-      out.col = t.col;
-      out.len = t.len;
+      out.col = cols.col(t.line, t.col);
+      out.len = cols.len(t.line, t.col, t.len);
       out.kind = static_cast<ScriptTokenKind>(static_cast<int>(t.kind));
       return out;
     }
 
-    ScriptDiagnostic toDiagnostic(const cs::Diagnostic& d) {
+    ScriptDiagnostic toDiagnostic(const cs::Diagnostic& d, const ByteColumns& cols) {
       ScriptDiagnostic out;
-      out.error = d.severity == cs::Severity::ERROR;
+      out.isError = d.severity == cs::Severity::ERROR;
       out.code = qstr(d.code);
       out.line = d.line;
-      out.col = d.col;
-      out.len = d.len;
+      out.col = cols.col(d.line, d.col);
+      out.len = cols.len(d.line, d.col, d.len);
       out.message = qstr(d.message);
       return out;
     }
 
-    ScriptOp toOp(const cs::Op& op) {
+    ScriptOp toOp(const cs::Op& op, const ByteColumns& cols) {
       ScriptOp out;
       out.kind = static_cast<ScriptOpKind>(static_cast<int>(op.kind));
       out.block = op.block;
       out.line = op.line;
-      out.col = op.col;
+      out.col = cols.col(op.line, op.col);
       out.editIndex = op.editIndex;
       for (const std::string& s : op.strs) out.strs.push_back(qstr(s));
       for (const std::string& s : op.toks) out.toks.push_back(qstr(s));
@@ -61,11 +126,12 @@ namespace stencil::model {
   ScriptDoc ScriptDoc::parse(const QString& text) {
     const QByteArray utf8 = text.toUtf8();
     const cs::ScriptProgram p = cs::ScriptProgram::parse(utf8.constData(), utf8.size());
+    const ByteColumns cols(text);
 
     ScriptDoc out;
-    for (const cs::Token& t : p.tokens()) out.tokens_.push_back(toToken(t));
-    for (const cs::Diagnostic& d : p.diagnostics()) out.diagnostics_.push_back(toDiagnostic(d));
-    for (const cs::Op& op : p.ops()) out.ops_.push_back(toOp(op));
+    for (const cs::Token& t : p.tokens()) out.tokens_.push_back(toToken(t, cols));
+    for (const cs::Diagnostic& d : p.diagnostics()) out.diagnostics_.push_back(toDiagnostic(d, cols));
+    for (const cs::Op& op : p.ops()) out.ops_.push_back(toOp(op, cols));
     for (const cs::Block& b : p.blocks()) {
       ScriptBlock block;
       block.source = qstr(b.source);
@@ -80,7 +146,7 @@ namespace stencil::model {
 
   bool ScriptDoc::hasErrors() const {
     for (const ScriptDiagnostic& d : diagnostics_)
-      if (d.error) return true;
+      if (d.isError) return true;
     return false;
   }
 

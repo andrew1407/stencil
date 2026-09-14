@@ -17,6 +17,16 @@ namespace stencil::gui {
 
 namespace stencil::llm {
 
+  /* What a .stc `undo` has to put back (contracts/stc §7). The canvas history holds committed
+   * lines only, so crop and filter ride along in a checkpoint the runner keeps per edit. */
+  struct EditState {
+    bool valid = false;
+    core::CropRect crop;
+    QString filterMode;
+    QString filterTint;
+    core::Lines lines;
+  };
+
   class PlanTarget {
    public:
     virtual ~PlanTarget() = default;
@@ -35,6 +45,13 @@ namespace stencil::llm {
     virtual void rotateQuarter(bool clockwise) = 0;
     virtual void setImageFilter(const QString& mode, const QString& tintHex) = 0;
     virtual void setLayoutLines(const core::Lines& lines) = 0;
+    // Installs `lines` and commits ONE undo step; setLayoutLines replaces AND resets the
+    // history, which a scripted edit must never do to the user's stack.
+    virtual void commitLayoutLines(const core::Lines& lines) { setLayoutLines(lines); }
+    // The checkpoint a .stc `undo` reverts to; false = this surface keeps none.
+    virtual bool captureEdit(EditState& out) const { return false; }
+    // Puts a checkpoint back: crop, filter and lines together.
+    void restoreEdit(const EditState& state);
     // `expr` is already charset- and grammar-checked; "" clears the axis.
     virtual void setFormula(QChar axis, const QString& expr) = 0;
     virtual void setFormulasEnabled(bool on) { Q_UNUSED(on); }
@@ -47,6 +64,9 @@ namespace stencil::llm {
     // Returns steps actually run (< steps when history runs out), -1 = no history here (plan error).
     virtual int stepHistory(bool redo, int steps);
     virtual bool extractFrames(const QVector<int>& indices, QString* err);
+    // Re-opens `spec` at `frame` as the WORKING image — the .stc `@frame` inside a `@source`
+    // block (contracts/stc §10), which is not the chat's "add each frame as a project".
+    virtual bool openSourceFrame(const QString& spec, int frame, QString* err);
 
     // §10 editor-settings ops: empty/0/-1 = field absent, leave alone. Defaults no-op;
     // connect/disconnect default to a typed failure.
@@ -119,6 +139,8 @@ namespace stencil::llm {
     void rotateQuarter(bool clockwise) override;
     void setImageFilter(const QString& mode, const QString& tintHex) override;
     void setLayoutLines(const core::Lines& lines) override;
+    void commitLayoutLines(const core::Lines& lines) override;
+    bool captureEdit(EditState& out) const override;
     void setFormula(QChar axis, const QString& expr) override;
     void setFormulasEnabled(bool on) override { formulasEnabled = on ? 1 : 0; }
     void setPageFormat(const QString& isoName) override;

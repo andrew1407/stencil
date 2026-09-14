@@ -64,7 +64,7 @@
     "desktop/src/support": 9,
     "desktop/tests": 14,
     "desktop/tests/support": 11,
-    "desktop/src/model": 9
+    "desktop/src/model": 8
   },
   "exceptions": {
     "desktop/tests/MainWindow.menus.gui.cpp": "1638 -> 1747 for one case: the Stencil Script row as a flyout — its place under the Assistant, its four actions, typing through the menu's re-dispatch, and a run that edits the canvas with the menu still open. It belongs with the other context-menu cases, and a QtTest binary runs one QObject of slots, so it cannot move without splitting the binary.",
