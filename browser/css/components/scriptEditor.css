@@ -65,6 +65,13 @@
 
 .script-input::placeholder { color: var(--text-muted); }
 .script-input:focus { outline: none; }
+/* The shared field-hover ring (layout/shimmer.css `textarea:hover`) lays a square hairline
+   inside this rounded frame, since the text layer carries no radius of its own. The box is
+   the wrapper's job here, so the editor opts out. Outranks that rule's own `!important`. */
+.script-editor-wrap .script-input:hover:not(:focus) {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
 
 /* Token colours, keyed to the core's TokenKind names. */
 .stk-directive { color: var(--accent); font-weight: 600; }

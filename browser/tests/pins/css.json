@@ -6655,6 +6655,10 @@
     "overflow": "hidden",
     "transition": "box-shadow 0.15s ease, border-color 0.15s ease"
    },
+   "|.script-editor-wrap .script-input:hover:not(:focus)": {
+    "border-color": "transparent !important",
+    "box-shadow": "none !important"
+   },
    "|.script-editor-wrap:focus-within": {
     "box-shadow": "0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)"
    },
@@ -8285,6 +8289,7 @@
    "|.script-input",
    "|.script-input::placeholder",
    "|.script-input:focus",
+   "|.script-editor-wrap .script-input:hover:not(:focus)",
    "|.stk-directive",
    "|.stk-keyword",
    "|.stk-param",
