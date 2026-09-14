@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
-import { runCli, parseWrote, pngSize, cliAvailable } from '../../helpers/cli.js';
+import { runCli, parseWrote, pngSize, cliAvailable, makeBlankInput } from '../../helpers/cli.js';
 import { runConsole } from '../../helpers/consoleCli.js';
 import { stcCase, writeStcCase } from '../../helpers/stcCases.js';
 import { APP_URL } from '../../helpers/config.js';
@@ -13,16 +13,9 @@ import { APP_URL } from '../../helpers/config.js';
 test.describe('cli .stc scripts', () => {
   test.skip(!cliAvailable(), 'build the CLI first: (cd cli && zig build) or set STENCIL_CLI');
 
-  const makeInput = (dir, w, h) => {
-    const p = path.join(dir, 'in.png');
-    const r = runCli(['--blank', String(w), String(h), 'white', p], { cwd: dir });
-    expect(r.code, r.out).toBe(0);
-    return p;
-  };
-
   test('--script runs a sourceless script over -i and saves beside the input', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = makeInput(dir, 20, 10);
+    const input = makeBlankInput(dir, 20, 10);
     const script = writeStcCase('top-level-project', dir);   // @crop 10% · @filter bw · @save
 
     const r = runCli(['-i', input, '--script', script], { cwd: dir });
@@ -60,7 +53,7 @@ test.describe('cli .stc scripts', () => {
 
   test('--script-plan prints the op-plan envelope on stdout and writes nothing', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = makeInput(dir, 20, 10);
+    const input = makeBlankInput(dir, 20, 10);
     const script = writeStcCase('top-level-project', dir);   // @crop 10% · @filter bw · @save
 
     const r = runCli(['-i', input, '--script-plan', script], { cwd: dir });
@@ -116,7 +109,7 @@ test.describe('cli .stc scripts', () => {
 
   test('the console runs a ;-separated one-liner against the loaded image', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    makeInput(dir, 20, 10);
+    makeBlankInput(dir, 20, 10);
     const { script } = stcCase('semicolon-oneliner');   // @crop 25%;@filter bw;@save out.png
 
     const r = await runConsole([

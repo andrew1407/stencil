@@ -6,27 +6,33 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 
 public static partial class CliOutcomeParser
 {
+    private const string _notAScriptPlan = "the stencil CLI did not return a script plan";
+
     // cli/CONTRACT.md §5: `--script-plan` is one of the two modes that write to STDOUT — a single
     // JSON object, one trailing newline, nothing else. The envelope's own `script` label is
     // dropped rather than carried: it is the temp leaf this adapter invented, never a name a chat
     // user wrote.
     public static ScriptPlan ParseScriptPlan(string stdout)
     {
-        JsonElement root;
+        using JsonDocument doc = parseEnvelope(stdout);
+        JsonElement root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw new StencilCliException(_notAScriptPlan);
+        }
+        return new ScriptPlan(readDiagnostics(root), readBlocks(root));
+    }
+
+    private static JsonDocument parseEnvelope(string stdout)
+    {
         try
         {
-            using JsonDocument doc = JsonDocument.Parse(stdout);
-            root = doc.RootElement.Clone();
+            return JsonDocument.Parse(stdout);
         }
         catch (JsonException)
         {
-            throw new StencilCliException("the stencil CLI did not return a script plan");
+            throw new StencilCliException(_notAScriptPlan);
         }
-        if (root.ValueKind != JsonValueKind.Object)
-        {
-            throw new StencilCliException("the stencil CLI did not return a script plan");
-        }
-        return new ScriptPlan(readDiagnostics(root), readBlocks(root));
     }
 
     private static IReadOnlyList<ScriptDiagnostic> readDiagnostics(JsonElement root)
@@ -49,14 +55,6 @@ public static partial class CliOutcomeParser
         List<ScriptBlock> blocks = new();
         foreach (JsonElement b in array(root, "blocks"))
         {
-            List<string> inputs = new();
-            foreach (JsonElement input in array(b, "inputs"))
-            {
-                if (input.ValueKind == JsonValueKind.String)
-                {
-                    inputs.Add(input.GetString()!);
-                }
-            }
             List<string> plans = new();
             foreach (JsonElement plan in array(b, "plans"))
             {
@@ -70,7 +68,6 @@ public static partial class CliOutcomeParser
                 number(b, "index"),
                 text(b, "source", ""),
                 text(b, "sourceKind", ScriptBlock.KIND_PROJECT),
-                inputs,
                 plans));
         }
         return blocks;

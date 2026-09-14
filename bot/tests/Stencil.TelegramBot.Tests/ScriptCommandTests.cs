@@ -47,7 +47,7 @@ public sealed class ScriptCommandTests : IDisposable
 
     private void canned(params string[] actionArrays) =>
         _cli.CannedScriptPlan = new ScriptPlan(
-            [], [new ScriptBlock(0, "", ScriptBlock.KIND_PROJECT, [], actionArrays)]);
+            [], [new ScriptBlock(0, "", ScriptBlock.KIND_PROJECT, actionArrays)]);
 
     [Fact]
     public async Task Should_Answer_A_Bare_Script_With_The_Usage_Line()
@@ -72,7 +72,7 @@ public sealed class ScriptCommandTests : IDisposable
     public async Task Should_Run_A_Sourced_Script_Without_A_Working_Image()
     {
         _cli.CannedScriptPlan = new ScriptPlan([], [
-            new ScriptBlock(0, "http://203.0.113.9/a.png", ScriptBlock.KIND_URL, [],
+            new ScriptBlock(0, "http://203.0.113.9/a.png", ScriptBlock.KIND_URL,
                 ["""[{"op":"openUrl","url":"http://203.0.113.9/a.png"}]"""]),
         ]);
 

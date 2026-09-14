@@ -30,7 +30,7 @@ public sealed partial class CommandHandlers
             return;
         }
         UserSession session = await _store.GetAsync(userId, ct);
-        if (!session.HasImage && !namesASource(text))
+        if (!session.HasImage && !hasSourceBlock(text))
         {
             await _bot.SendMessage(chatId, _scriptNeedsImage, cancellationToken: ct);
             return;
@@ -77,7 +77,7 @@ public sealed partial class CommandHandlers
 
     // A block header can only start a line, so a bare mention inside a comment or a string never
     // counts as "this script brings its own image".
-    private static bool namesASource(string text)
+    private static bool hasSourceBlock(string text)
     {
         foreach (string line in text.Split('\n'))
         {

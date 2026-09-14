@@ -205,7 +205,8 @@ classDiagram
 - **A script turn.** `/script <text>`, or an uploaded `.stc` routed by `DocumentIntake`, reaches
   `CommandHandlers.RunScriptAsync`, which gates on a working image (unless the script opens its own
   with `@source`) and hands the text to `ScriptService`. That writes a temp `script-<guid>.stc` into
-  the user's workspace, renders the current frame so the CLI has a size for `%` lengths, and calls
+  the user's workspace and names the frame the CLI probes for `%` lengths — the base image itself,
+  or a render when `PlanFrameMapper.ForSession` says a crop or rotation resized it — then calls
   `IStencilCli.ScriptPlanAsync`; the CLI's `--script-plan` envelope comes back as a `ScriptPlan`.
   Any error diagnostic ends it there — nothing runs. Otherwise each block's plans go through
   `OpPlanParser` and `PromptService.RunPlanAsync`, the same validator, pre-flight and executor a

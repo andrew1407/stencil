@@ -30,20 +30,21 @@ pub struct Wrote {
 
 /// Find and parse the first `wrote {path} ({w}x{h} …)` line, if present.
 pub fn parse_wrote(stderr: &str) -> Option<Wrote> {
-    parse_all_wrote(stderr).into_iter().next()
+    wrote_lines(stderr).next()
 }
 
 /// Every `wrote …` line, in order — a script run prints one per `@save`.
 pub fn parse_all_wrote(stderr: &str) -> Vec<Wrote> {
-    let mut out = Vec::new();
-    for line in stderr.lines() {
-        let Some((path, tail)) = split_wrote(line) else { continue };
-        let Some(dims) = tail.strip_suffix(')') else { continue };
-        if let Some((width, height)) = parse_dims(first_token(dims)) {
-            out.push(Wrote { path, width, height });
-        }
-    }
-    out
+    wrote_lines(stderr).collect()
+}
+
+/// Lazy so the single-line caller stops at the first match.
+fn wrote_lines(stderr: &str) -> impl Iterator<Item = Wrote> + '_ {
+    stderr.lines().filter_map(|line| {
+        let (path, tail) = split_wrote(line)?;
+        let (width, height) = parse_dims(first_token(tail.strip_suffix(')')?))?;
+        Some(Wrote { path, width, height })
+    })
 }
 
 /// A `wrote …` line's path and the text after its LAST " (" — so a path containing " (" survives.

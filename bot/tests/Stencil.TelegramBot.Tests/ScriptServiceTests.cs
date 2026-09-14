@@ -74,6 +74,24 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
         Assert.NotEqual(Path.GetFileName(session.OriginalImagePath), input);
     }
 
+    /// <summary>
+    /// The CLI only header-probes the frame, so an edit state that leaves the size alone is probed
+    /// on the base image itself — no render is spawned for a size the session already knows.
+    /// </summary>
+    [Fact]
+    public async Task Should_Probe_The_Base_Image_Without_Rendering_When_The_Frame_Keeps_Its_Size()
+    {
+        await Adopt();
+        await _editing.SetFilterAsync(UserId, "bw");
+        int before = _cli.EditCalls;
+
+        await _service.RunAsync(UserId, "@filter bw\n");
+
+        UserSession session = await _store.GetAsync(UserId);
+        Assert.Equal(session.OriginalImagePath, _cli.LastScriptCall!.Value.Input);
+        Assert.Equal(before, _cli.EditCalls);
+    }
+
     [Fact]
     public async Task Should_Probe_Nothing_Without_A_Working_Image()
     {
@@ -106,7 +124,7 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
         await Adopt();
         _cli.CannedScriptPlan = new ScriptPlan(
             [new ScriptDiagnostic("warning", "W_NO_SAVE", 1, 1, "the block never saves")],
-            [new ScriptBlock(0, "", ScriptBlock.KIND_PROJECT, [], ["""[{"op":"filter","mode":"bw"}]"""])]);
+            [new ScriptBlock(0, "", ScriptBlock.KIND_PROJECT, ["""[{"op":"filter","mode":"bw"}]"""])]);
 
         ScriptOutcome outcome = await _service.RunAsync(UserId, "@filter bw\n");
 

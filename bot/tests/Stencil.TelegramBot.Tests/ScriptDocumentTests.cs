@@ -48,7 +48,7 @@ public sealed class ScriptDocumentTests : IDisposable
 
     private void canned() =>
         _cli.CannedScriptPlan = new ScriptPlan([], [
-            new ScriptBlock(0, "", ScriptBlock.KIND_PROJECT, [], ["""[{"op":"filter","mode":"bw"}]"""]),
+            new ScriptBlock(0, "", ScriptBlock.KIND_PROJECT, ["""[{"op":"filter","mode":"bw"}]"""]),
         ]);
 
     private static Message documentFrom(string fileName) =>

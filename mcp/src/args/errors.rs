@@ -13,10 +13,6 @@ pub enum EditError {
     SourceConflict,
     /// Neither `input` nor `blank` (nor `server` + `input`) was given.
     NoSource,
-    /// `output` was empty.
-    EmptyOutput,
-    /// `output` began with `-` and would misparse as a CLI flag.
-    DashOutput(String),
     /// `source_site` (scrape mode) was empty.
     EmptySourceSite,
     /// Both `script_text` and `script_path` were given.
@@ -60,15 +56,9 @@ impl std::fmt::Display for EditError {
             EditError::NoSource => f.write_str(
                 "no source — pass `input` (a path/URL), `blank`, or `server` + `input`",
             ),
-            EditError::EmptyOutput => f.write_str("`output` must not be empty"),
             EditError::EmptySourceSite => {
                 f.write_str("`source_site` must not be empty — pass the http(s) URL of the page to scrape")
             }
-            EditError::DashOutput(output) => write!(
-                f,
-                "`output` must not start with '-' (got \"{output}\") — a dash-leading value \
-                 would be parsed as a CLI flag, not the output path"
-            ),
             EditError::ScriptSourceConflict => f.write_str(
                 "`script_text` and `script_path` are mutually exclusive — pass only one",
             ),
@@ -87,11 +77,18 @@ impl std::fmt::Display for EditError {
                  `.stc` extension"
             ),
             EditError::EmptyValue(field) => write!(f, "`{field}` must not be empty"),
-            EditError::DashValue(field, value) => write!(
-                f,
-                "`{field}` must not start with '-' (got \"{value}\") — a dash-leading value \
-                 would be parsed as a CLI flag"
-            ),
+            EditError::DashValue(field, value) => {
+                // The positional `output` names what a dash-leading value would cost.
+                let tail = match *field {
+                    "output" => ", not the output path",
+                    _ => "",
+                };
+                write!(
+                    f,
+                    "`{field}` must not start with '-' (got \"{value}\") — a dash-leading \
+                     value would be parsed as a CLI flag{tail}"
+                )
+            }
             EditError::ServerWithBlank => f.write_str(
                 "`server` fetches a project as the source — it can't be combined with `blank`",
             ),

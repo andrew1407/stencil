@@ -13,7 +13,7 @@ const CASES = path.resolve(
 // One corpus diagnostic: 'line:col:len: severity: message [CODE]'.
 const DIAG = /^(\d+):(\d+):(\d+): (error|warning): (.*) \[([A-Z_]+)\]$/;
 
-const readCases = () => {
+const parseCases = () => {
   const cases = new Map();
   let current = null;
   let section = '';
@@ -30,9 +30,13 @@ const readCases = () => {
   return cases;
 };
 
+// The corpus is fixed for the run; parse it once and share it with every call.
+let parsed;
+const allCases = () => (parsed ??= parseCases());
+
 /** A case as `{ script, diagnostics: [{ line, col, len, severity, message, code }] }`. */
 export function stcCase(name) {
-  const found = readCases().get(name);
+  const found = allCases().get(name);
   if (!found) throw new Error(`no .stc fixture case named '${name}'`);
   return {
     script: found.script.join('\n').replace(/\n+$/, ''),

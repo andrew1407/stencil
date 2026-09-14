@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Abstractions;
-using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
 
@@ -23,7 +22,7 @@ public sealed partial class PromptService
     {
         if (plan.Actions.Count == 0 && plan.Variants.Count == 0)
         {
-            return new PromptOutcome(plan.Reply, warnings, [], plan.Ask);
+            return new PromptOutcome(plan.Reply, warnings, [], plan.Ask, Applied: true);
         }
         UserSession session = await _store.GetAsync(userId, ct);
         // §13 tooth #2: a forbidden op never executes, even if a registry/parser slip ever let one
@@ -46,7 +45,7 @@ public sealed partial class PromptService
         List<PromptExport> exports = new();
         List<string> allWarnings = new(warnings);
         // §1: plan coordinates are in the snapshot frame the model was shown.
-        ActionContext ctx = new(userId, renders, exports, createMapper(session), allWarnings);
+        ActionContext ctx = new(userId, renders, exports, PlanFrameMapper.ForSession(session), allWarnings);
         foreach (PlanAction action in plan.Actions)
         {
             await applyActionAsync(ctx, action, ct);
@@ -64,7 +63,8 @@ public sealed partial class PromptService
             Mutated: touchedPixels && after.HasImage,
             Exports: exports,
             // §10 clearChat is DEFERRED to the end of the turn, whatever its plan position.
-            ClearChatRequested: plan.Actions.Any(static a => a is ClearChatAction));
+            ClearChatRequested: plan.Actions.Any(static a => a is ClearChatAction),
+            Applied: true);
     }
 
     // §13's executor-level gate over top-level AND variant actions. Null = the plan may run.
@@ -144,24 +144,6 @@ public sealed partial class PromptService
         return null;
     }
 
-    // Seeded with the frame the model saw: stored crop on the original dims, dims swapped on an odd
-    // rotation.
-    private static PlanFrameMapper createMapper(UserSession session)
-    {
-        double w = session.OriginalWidth;
-        double h = session.OriginalHeight;
-        if (session.Edits.CropSpec is string spec
-            && CropSpecResolver.Resolve(spec, w, h, session.Edits.Album) is CropRect rect)
-        {
-            (w, h) = (rect.Width, rect.Height);
-        }
-        if (session.Edits.Rotate % 2 != 0)
-        {
-            (w, h) = (h, w);
-        }
-        return new PlanFrameMapper(w, h);
-    }
-
     private async Task resetMapperAsync(long userId, PlanFrameMapper mapper, CancellationToken ct)
     {
         UserSession fresh = await _store.GetAsync(userId, ct);
@@ -172,7 +154,7 @@ public sealed partial class PromptService
     private async Task reseedMapperAsync(long userId, PlanFrameMapper mapper, CancellationToken ct)
     {
         UserSession fresh = await _store.GetAsync(userId, ct);
-        PlanFrameMapper seeded = createMapper(fresh);
+        PlanFrameMapper seeded = PlanFrameMapper.ForSession(fresh);
         mapper.Reset(seeded.Width, seeded.Height);
     }
 }

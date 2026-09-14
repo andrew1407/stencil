@@ -6,7 +6,7 @@
 // that a reply was printed.
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
-import { cliAvailable, runCli, pngSize } from '../../helpers/cli.js';
+import { cliAvailable, pngSize, makeBlankInput } from '../../helpers/cli.js';
 import { runConsole } from '../../helpers/consoleCli.js';
 import { startLlmStub } from '../../helpers/llm-stub.js';
 
@@ -34,10 +34,7 @@ test.describe('cli /prompt (LLM assistant)', () => {
 
   test('a scripted op-plan executes on the working image', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    // Known non-square input, made by the CLI itself (8x4, as in pipeline.spec.js).
-    const input = path.join(dir, 'in.png');
-    const mk = runCli(['--blank', '8', '4', 'white', input], { cwd: dir });
-    expect(mk.code, mk.out).toBe(0);
+    const input = makeBlankInput(dir);
 
     // The "model" answers with a valid §1 plan: one quarter-turn.
     stub.queue({ version: 1, reply: 'Rotated it a quarter turn.', actions: [{ op: 'rotate', dir: 'right' }] });
@@ -70,9 +67,7 @@ test.describe('cli /prompt (LLM assistant)', () => {
 
   test('a reply with no JSON object is just chat (image untouched)', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = path.join(dir, 'in.png');
-    const mk = runCli(['--blank', '8', '4', 'white', input], { cwd: dir });
-    expect(mk.code, mk.out).toBe(0);
+    const input = makeBlankInput(dir);
 
     stub.queue('Nice picture! Nothing to change.'); // plain text, no op-plan
 

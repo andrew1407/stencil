@@ -58,9 +58,9 @@ public sealed class ScriptSourceTests : ScriptServiceTestBase
     {
         const string second = "http://203.0.113.10/b.png";
         _cli.CannedScriptPlan = new ScriptPlan([], [
-            new ScriptBlock(0, _url, ScriptBlock.KIND_URL, [],
+            new ScriptBlock(0, _url, ScriptBlock.KIND_URL,
                 [$$"""[{"op":"openUrl","url":"{{_url}}"},{"op":"filter","mode":"bw"}]"""]),
-            new ScriptBlock(1, second, ScriptBlock.KIND_URL, [],
+            new ScriptBlock(1, second, ScriptBlock.KIND_URL,
                 [$$"""[{"op":"openUrl","url":"{{second}}"},{"op":"filter","mode":"sepia"}]"""]),
         ]);
 

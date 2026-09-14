@@ -6,7 +6,7 @@
     "bot/src/Stencil.TelegramBot.Application/Llm/OpPlanParser.cs": 149,
     "bot/src/Stencil.TelegramBot.Application/Llm/OpSchema.cs": 157,
     "bot/src/Stencil.TelegramBot.Application/Llm/PromptService.Actions.cs": 112,
-    "bot/src/Stencil.TelegramBot.Application/Llm/PromptService.Execute.cs": 189,
+    "bot/src/Stencil.TelegramBot.Application/Llm/PromptService.Execute.cs": 160,
     "bot/src/Stencil.TelegramBot.Application/Llm/PromptService.cs": 200,
     "bot/src/Stencil.TelegramBot.Application/Servers/ServerService.cs": 162,
     "bot/src/Stencil.TelegramBot.Bot/Telegram/CallbackAction.cs": 214,

@@ -38,7 +38,6 @@ public sealed class CliOutcomeScriptTests
         Assert.Equal(0, block.Index);
         Assert.Equal("url", block.SourceKind);
         Assert.Equal("https://e.example/a.png", block.Source);
-        Assert.Equal(["https://e.example/a.png"], block.Inputs);
         Assert.Contains("\"op\":\"filter\"", Assert.Single(block.Plans).Replace(" ", ""));
         Assert.False(plan.HasErrors);
     }
@@ -77,7 +76,7 @@ public sealed class CliOutcomeScriptTests
         ScriptPlan plan = CliOutcomeParser.ParseScriptPlan(_failed);
 
         Assert.DoesNotContain("9f3c", string.Join("\n", plan.Diagnostics.Select(d => d.ToString())));
-        Assert.StartsWith(ScriptPlan.LABEL + ":2:3:", plan.Errors.First().ToString());
+        Assert.Equal("Line 2:3 — unknown directive '@crp' [E_UNKNOWN_DIRECTIVE]", plan.Errors.First().ToString());
     }
 
     [Theory]

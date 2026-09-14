@@ -102,10 +102,10 @@ test('the hotkey opens the window, Upload fills it and Download writes it back o
   await page.setInputFiles('#script-upload', uploaded);
   await expect(page.locator('#script-editor')).toHaveValue(script);
 
-  const download = await Promise.all([
+  const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.locator('#script-download').click(),
-  ]).then(([d]) => d);
+  ]);
   expect(download.suggestedFilename()).toBe('stencil.stc');
   const saved = testInfo.outputPath('downloaded.stc');
   await download.saveAs(saved);

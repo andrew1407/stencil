@@ -14,8 +14,14 @@ public sealed class ScriptService : IScriptService
     // Far above any hand-written script and far under IBotPolicy.MaxDocumentBytes.
     public const int MAX_SCRIPT_CHARS = 64 * 1024;
 
-    // The reply the lowered plan carries in; anything else coming back is the executor's refusal.
-    private const string _applied = "Script block applied.";
+    // The .stc upload's cap, on the bytes it arrives as: UTF-8 never spends fewer bytes than
+    // characters, so a file inside it is inside MAX_SCRIPT_CHARS once decoded.
+    public const int MAX_SCRIPT_BYTES = MAX_SCRIPT_CHARS;
+
+    // The wrapper plan needs SOME reply: OpPlanParser substitutes one and warns on an empty
+    // string. It is never shown — ScriptOutcome carries the reply and PromptOutcome.Applied the
+    // verdict.
+    private const string _blockReply = "Script block applied.";
 
     private const int _maxReported = 3;
     private const int _maxEchoedChars = 60;
@@ -65,12 +71,20 @@ public sealed class ScriptService : IScriptService
     }
 
     // The frame a script's % lengths resolve against is the one the user is looking at — which is
-    // also the frame PlanFrameMapper maps the resulting coordinates back from.
+    // also the frame PlanFrameMapper maps the resulting coordinates back from. The CLI only
+    // header-probes it, so whenever the edits leave the size alone the base image is that frame
+    // and no render is spawned.
     private async Task<string?> frameAsync(long userId, CancellationToken ct)
     {
-        if (!(await _store.GetAsync(userId, ct)).HasImage)
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (session.OriginalImagePath is not string original)
         {
             return null;
+        }
+        PlanFrameMapper frame = PlanFrameMapper.ForSession(session);
+        if (frame.Width == session.OriginalWidth && frame.Height == session.OriginalHeight)
+        {
+            return original;
         }
         try
         {
@@ -85,7 +99,7 @@ public sealed class ScriptService : IScriptService
     private async Task<ScriptOutcome> applyAsync(
         long userId, string scriptText, ScriptPlan script, CancellationToken ct)
     {
-        List<string> warnings = script.Warnings.Select(describe).ToList();
+        List<string> warnings = script.Warnings.Select(static d => d.ToString()).ToList();
         if (script.HasErrors)
         {
             return new ScriptOutcome(errorReply(script), warnings, []);
@@ -117,7 +131,7 @@ public sealed class ScriptService : IScriptService
                 warnings.AddRange(outcome.Warnings);
                 renders.AddRange(outcome.Renders);
                 blockMutated |= outcome.Mutated;
-                if (!string.Equals(outcome.Reply, _applied, StringComparison.Ordinal))
+                if (!outcome.Applied)
                 {
                     return new ScriptOutcome(outcome.Reply, warnings, renders, (mutated || blockMutated) && !album);
                 }
@@ -135,15 +149,13 @@ public sealed class ScriptService : IScriptService
     }
 
     // The executor never sees the envelope, only a plan object, so the actions array is wrapped in
-    // one — with a reply this service recognises again on the way out.
+    // one.
     private static string planFor(string actionsJson) =>
-        $"{{\"reply\":{JsonSerializer.Serialize(_applied)},\"actions\":{actionsJson}}}";
-
-    private static string describe(ScriptDiagnostic d) => $"Line {d.Line}:{d.Col} — {d.Message} [{d.Code}]";
+        $"{{\"reply\":{JsonSerializer.Serialize(_blockReply)},\"actions\":{actionsJson}}}";
 
     private static string errorReply(ScriptPlan script)
     {
-        string[] reported = script.Errors.Take(_maxReported).Select(describe).ToArray();
+        string[] reported = script.Errors.Take(_maxReported).Select(static d => d.ToString()).ToArray();
         int more = script.Errors.Count() - reported.Length;
         return "The script has errors, so nothing ran:\n" + string.Join("\n", reported)
             + (more > 0 ? $"\n…and {more} more." : "");

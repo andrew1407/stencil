@@ -1,13 +1,11 @@
 namespace Stencil.TelegramBot.Domain.Llm;
 
 // `stencil --script-plan` (cli/CONTRACT.md §5): one .stc lowered to op-plan JSON. The envelope's
-// own label is replaced by LABEL on the way in, so no workspace path can reach a reply.
+// own label is dropped on the way in, so no workspace path can reach a reply.
 public sealed record ScriptPlan(
     IReadOnlyList<ScriptDiagnostic> Diagnostics,
     IReadOnlyList<ScriptBlock> Blocks)
 {
-    public const string LABEL = "script.stc";
-
     public bool HasErrors => Diagnostics.Any(static d => d.IsError);
 
     public IEnumerable<ScriptDiagnostic> Errors => Diagnostics.Where(static d => d.IsError);
@@ -21,8 +19,9 @@ public sealed record ScriptDiagnostic(string Severity, string Code, int Line, in
 
     public bool IsError => string.Equals(Severity, SEVERITY_ERROR, StringComparison.Ordinal);
 
-    // The same one-line grammar `--script-check` prints and the editors parse.
-    public override string ToString() => $"{ScriptPlan.LABEL}:{Line}:{Col}: {Severity}: {Message} [{Code}]";
+    // The one line every reply shows a diagnostic as; it names no file, because the only name the
+    // bot has is the temp leaf it invented.
+    public override string ToString() => $"Line {Line}:{Col} — {Message} [{Code}]";
 }
 
 // One `@source` block, or the sourceless one that edits the working image. Each Plans entry is one
@@ -31,7 +30,6 @@ public sealed record ScriptBlock(
     int Index,
     string Source,
     string SourceKind,
-    IReadOnlyList<string> Inputs,
     IReadOnlyList<string> Plans)
 {
     public const string KIND_PROJECT = "project";

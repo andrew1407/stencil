@@ -21,6 +21,7 @@ struct ScriptPayload<'a> {
 
 /// The tool's whole body: guard the parameters, materialize inline text, run, then report.
 pub async fn run(params: ScriptParams) -> Result<CallToolResult, McpError> {
+    // Refuse before a temp file exists; `build_script_argv` guards the spawn again.
     if let Err(error) = params.validate() {
         return Ok(err_result(error.to_string()));
     }

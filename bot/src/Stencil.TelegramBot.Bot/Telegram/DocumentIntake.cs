@@ -99,7 +99,7 @@ public sealed class DocumentIntake
     private async Task runScriptDocumentAsync(long userId, long chatId, string fileId, CancellationToken ct)
     {
         byte[] bytes = await _media.DownloadDocumentBytesAsync(fileId, ".stc", ct);
-        if (bytes.Length > ScriptService.MAX_SCRIPT_CHARS)
+        if (bytes.Length > ScriptService.MAX_SCRIPT_BYTES)
         {
             await _bot.SendMessage(chatId, "That .stc file is too large to run.", cancellationToken: ct);
             return;
