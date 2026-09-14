@@ -47,9 +47,35 @@ editor and a run cannot disagree.
 ### Colours
 
 Each family takes a standard semantic token type, so an installed theme colours it with no
-setup. There is no colour setting in this extension — VS Code lets only a theme or you set
-one. Run **Stencil: Configure highlight colours** from the palette: it opens `settings.json`
-at the right setting, writing this starter block first if you have none. Change any value.
+setup. To set an exact colour for one kind of word, name its family in `stencil.colors`:
+
+```jsonc
+"stencil.colors": {
+  "filterMode": "#ff8800",   // bw sepia invert contour none
+  "source": "#00b4ff"        // @source
+}
+```
+
+A family left out — or set to `""` — keeps whatever the theme gives it. The value is a hex
+colour (`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`); this paints over the theme for `.stc` only.
+
+| Family | Words |
+|---|---|
+| `source` | `@source` |
+| `template` / `templateName` | `@stencil`, and a template's name wherever it is used |
+| `edit` | `@use` `@crop` `@filter` `@line` `@rect` `@layout` `@frame` |
+| `output` | `@save` `@undo` `@redo` |
+| `parameter` | `@1` `@2` |
+| `filterMode` | `bw` `sepia` `invert` `contour` `none` |
+| `lineStyle` | `solid` `dashed` `dotted` `fill` `point` `combine` `replace` |
+| `cropEdge` | `x1` `x2` `y1` `y2` `aspect` |
+| `colorValue` | `#ff3b30`, `red`, `transparent` |
+| `path` | what `@source`, `@save` and `@layout` name |
+| `number` / `unit` / `comment` | numbers, `px` `cm` `mm` `in` `%`, and `#` comments |
+
+To recolour by theme instead of per family — which also reaches every other language — run
+**Stencil: Configure highlight colours**, which seeds and opens
+`editor.semanticTokenColorCustomizations`. The types it uses are below.
 
 ```jsonc
 "editor.semanticTokenColorCustomizations": {
@@ -130,6 +156,7 @@ run in a terminal called **Stencil**, from the script's own directory — so a r
 | `stencil.highlighting` | `true` | Colour words by the statement they sit in. Off leaves the plain grammar. |
 | `stencil.completion` | `true` | Suggest what is legal at the caret. |
 | `stencil.hover` | `true` | Explain the word under the pointer. |
+| `stencil.colors` | `{}` | An exact colour per family — see [Colours](#colours). Empty leaves every family to the theme. |
 
 With a CLI configured, saving checks the file with `stencil --script-check`. While typing,
 and whenever no CLI is found, the same checks run inside the editor instead. The three
@@ -139,7 +166,7 @@ What this extension deliberately does not own, because VS Code already does:
 
 | Want | Setting |
 |---|---|
-| Different highlight colours | `editor.semanticTokenColorCustomizations` — **Stencil: Configure highlight colours** opens it |
+| The same recolouring across every language | `editor.semanticTokenColorCustomizations` — **Stencil: Configure highlight colours** opens it |
 | Highlighting off for `.stc` only | `"[stencil-script]": { "editor.semanticHighlighting.enabled": false }` |
 | Suggestions to stop appearing unprompted | `editor.quickSuggestions`, `editor.suggestOnTriggerCharacters` |
 | File icons off | `workbench.iconTheme` — a language icon is drawn only by themes that allow one, so the choice belongs to the theme, not to this extension |

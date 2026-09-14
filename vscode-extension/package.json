@@ -125,6 +125,28 @@
           "default": true,
           "markdownDescription": "Suggest the directives, filter modes, stroke styles, crop edges, colour names, units and templates that are legal at the caret."
         },
+        "stencil.colors": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": { "type": "string" },
+          "properties": {
+            "source": { "type": "string", "description": "@source" },
+            "template": { "type": "string", "description": "@stencil" },
+            "templateName": { "type": "string", "description": "a template's name, where defined and where used" },
+            "edit": { "type": "string", "description": "@use @crop @filter @line @rect @layout @frame" },
+            "output": { "type": "string", "description": "@save @undo @redo" },
+            "parameter": { "type": "string", "description": "@1 @2 — template parameters" },
+            "filterMode": { "type": "string", "description": "bw sepia invert contour none" },
+            "lineStyle": { "type": "string", "description": "solid dashed dotted fill point combine replace" },
+            "cropEdge": { "type": "string", "description": "x1 x2 y1 y2 aspect" },
+            "colorValue": { "type": "string", "description": "#ff3b30, red, transparent" },
+            "path": { "type": "string", "description": "what @source, @save and @layout name" },
+            "number": { "type": "string", "description": "numbers" },
+            "unit": { "type": "string", "description": "px cm mm in %" },
+            "comment": { "type": "string", "description": "# comments" }
+          },
+          "markdownDescription": "An exact colour per kind of word, as `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` \u2014 for example `{ \"filterMode\": \"#ff8800\" }`. A family left out, or set to an empty string, keeps whatever the colour theme gives it. This paints over the theme for `.stc` only; to recolour by theme instead, use `#editor.semanticTokenColorCustomizations#`."
+        },
         "stencil.hover": {
           "type": "boolean",
           "default": true,

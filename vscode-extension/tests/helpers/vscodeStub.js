@@ -56,7 +56,8 @@ class Terminal {
 export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' } = {}) => {
   const calls = {
     collections: [], commands: new Map(), completionProviders: [], errors: [], events: {},
-    executed: [], hoverProviders: [], semanticProviders: [], terminals: [], updates: [],
+    decorationTypes: [], editors: [], executed: [], hoverProviders: [], semanticProviders: [],
+    terminals: [], updates: [],
   };
   const on = (name) => (handler) => {
     (calls.events[name] ??= []).push(handler);
@@ -96,7 +97,15 @@ export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' }
     },
     window: {
       activeTextEditor: undefined,
+      visibleTextEditors: calls.editors,
       terminals: calls.terminals,
+      createTextEditorDecorationType(options) {
+        const type = { options, disposed: false, dispose() { this.disposed = true; } };
+        calls.decorationTypes.push(type);
+        return type;
+      },
+      onDidChangeVisibleTextEditors: on('visibleEditors'),
+      onDidChangeActiveTextEditor: on('activeEditor'),
       createTerminal({ name, cwd }) {
         const terminal = new Terminal(name, cwd);
         calls.terminals.push(terminal);
@@ -121,6 +130,7 @@ export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' }
       onDidSaveTextDocument: on('save'),
       onDidCloseTextDocument: on('close'),
       onDidChangeTextDocument: on('change'),
+      onDidChangeConfiguration: on('config'),
     },
   };
   return { vscode, calls };
@@ -144,6 +154,13 @@ export const installVscodeStub = (vscode) => {
 };
 
 export const makeContext = () => ({ subscriptions: [] });
+
+/* A stand-in for a visible editor: it records what was painted, per decoration type. */
+export const makeEditor = (document) => ({
+  document,
+  painted: new Map(),
+  setDecorations(type, ranges) { this.painted.set(type, ranges); },
+});
 
 export const makeDocument = ({
   path = '/tmp/demo.stc', text = '', languageId = 'stencil-script', isDirty = false,

@@ -26,10 +26,12 @@ test('activate registers diagnostics, semantic tokens and the three commands', (
   }
 });
 
-test('the workspace listeners cover open, save, close and change', () => {
+// open/save/close/change are diagnostics'; visibleEditors and config are decorations'.
+test('the listeners are the ones the two live features need, and no others', () => {
   const { calls, host } = boot();
   try {
-    assert.deepEqual(Object.keys(calls.events).sort(), ['change', 'close', 'open', 'save']);
+    assert.deepEqual(Object.keys(calls.events).sort(),
+      ['change', 'close', 'config', 'open', 'save', 'visibleEditors']);
   } finally {
     host.restore();
   }

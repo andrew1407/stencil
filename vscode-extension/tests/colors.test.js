@@ -64,7 +64,11 @@ test('every rule names a type in the legend, and the README block agrees', () =>
       assert.ok(legend.includes(type), `${type} is not in the legend`);
     }
     const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-    const block = readme.match(/```jsonc\n([\s\S]*?)\n```/)[1];
+    // The README has more than one jsonc block; this pin is for the seeded one.
+    const block = [...readme.matchAll(/```jsonc\n([\s\S]*?)\n```/g)]
+      .map(([, body]) => body)
+      .find((body) => body.includes('editor.semanticTokenColorCustomizations'));
+    assert.ok(block, 'the README lost the block this command seeds');
     const documented = Object.fromEntries([...block.matchAll(/"(\w+)":\s*"(#[0-9a-f]{6})"/g)]
       .map(([, type, hex]) => [type, hex]));
     assert.deepEqual(documented, { ...colors.DEFAULT_RULES },
