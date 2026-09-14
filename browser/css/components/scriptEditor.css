@@ -2,9 +2,9 @@
    must share every metric that affects where a glyph lands, or the colours drift off the
    text under them. */
 
-/* Half again as wide as the footer needs: code wants room to read, and the actions sit at
-   the LEFT edge rather than trailing off the right. */
-.script-modal { width: 699px; }
+/* Wider than the footer needs — code wants room to read — with the actions at the LEFT
+   edge rather than trailing off the right. 466px is the row's own fit; this is 15/13 of it. */
+.script-modal { width: 538px; }
 /* Scoped to this window: the shared footer keeps hint-left/buttons-right for every other modal. */
 .script-modal .settings-footer { justify-content: flex-start; }
 /* Projects grows to the shared ceiling because its list is long; an editor has no such

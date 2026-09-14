@@ -6697,7 +6697,7 @@
     "outline": "none"
    },
    "|.script-modal": {
-    "width": "699px"
+    "width": "538px"
    },
    "|.script-modal .settings-body": {
     "display": "flex",
