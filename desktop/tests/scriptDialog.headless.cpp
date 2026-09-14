@@ -4,6 +4,7 @@
 #include "ScriptDialog.hpp"
 #include "ScriptDoc.hpp"
 #include "ScriptHighlighter.hpp"
+#include "theme.hpp"
 
 #include <QApplication>
 #include <QLabel>
@@ -168,6 +169,23 @@ int main(int argc, char** argv) {
     hl.setProgram(ScriptDoc::parse(edit.toPlainText()), false);
     hl.restyle();   // rebuilds every format against the live palette
     check(!formatsOn(&edit, 0).isEmpty(), "the spans are still coloured after a restyle");
+  }
+
+  std::printf("an error mark reddens its text, a warning only squiggles:\n");
+  {
+    QPlainTextEdit edit;
+    ScriptHighlighter hl(edit.document());
+    edit.setPlainText(QStringLiteral("gcghcghgh\n@filter sepia\n"));
+    hl.setProgram(ScriptDoc::parse(edit.toPlainText()), true);   // withDiagnostics
+    // Theme-agnostic: whatever danger resolves to, the text wears the SAME colour as the
+    // squiggle — which is what .stk-error does by setting colour and underline to --danger.
+    bool reddened = false;
+    for (const auto& f : formatsOn(&edit, 0))
+      if (f.format.underlineStyle() == QTextCharFormat::WaveUnderline
+          && f.format.foreground().style() != Qt::NoBrush
+          && f.format.foreground().color() == f.format.underlineColor()) reddened = true;
+    // Browser .stk-error sets BOTH the colour and the squiggle; the desktop only squiggled.
+    check(reddened, "the bad line is danger-coloured, not just underlined");
   }
 
   std::printf("Run asks its host instead of closing the window:\n");

@@ -44,11 +44,12 @@ namespace stencil::gui {
     set(ScriptTokenKind::IDENT, p.textMain);
     set(ScriptTokenKind::ERROR, p.danger);
 
-    // A diagnostic underlines what is already there rather than recolouring it, so the span
-    // keeps its meaning and gains the squiggle.
+    // Browser parity (.stk-error / .stk-warning): an ERROR recolours the text danger AND
+    // squiggles it; a WARNING only squiggles, so the token keeps its own meaning.
     errorFormat_ = QTextCharFormat();
     errorFormat_.setUnderlineStyle(QTextCharFormat::WaveUnderline);
     errorFormat_.setUnderlineColor(p.danger);
+    errorFormat_.setForeground(p.danger);
     warningFormat_ = QTextCharFormat();
     warningFormat_.setUnderlineStyle(QTextCharFormat::WaveUnderline);
     warningFormat_.setUnderlineColor(p.warning);
@@ -133,6 +134,7 @@ namespace stencil::gui {
         const QTextCharFormat& mark = s.mark == Mark::ERROR ? errorFormat_ : warningFormat_;
         f.setUnderlineStyle(mark.underlineStyle());
         f.setUnderlineColor(mark.underlineColor());
+        if (mark.foreground().style() != Qt::NoBrush) f.setForeground(mark.foreground());
       }
       setFormat(start, len, f);
     }
