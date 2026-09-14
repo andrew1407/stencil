@@ -35,16 +35,16 @@ namespace stencil::gui {
       : QWidget(parent), hooks_(std::move(hooks)) {
     setObjectName(QStringLiteral("scriptMenuPanel"));
     auto* col = new QVBoxLayout(this);
-    col->setContentsMargins(12, 2, 12, 6);
+    col->setContentsMargins(MENU_SCRIPT_EDGE, 2, MENU_SCRIPT_EDGE, 6);
     col->setSpacing(0);
 
     edit_ = new ScriptEditorWidget(this, menuStyle());
     col->addWidget(edit_, 1);   // the editor takes whatever the strip and the row leave
 
-    // Copy · Download · Upload · Run, right-aligned, Run primary and last (browser order).
-    // All four are accent-FILLED, like the window's and like a plain <button> in the
-    // browser's shell.css; the shared sheet greys the disabled face.
-    auto* row = new QHBoxLayout;
+    // Copy · Download · Upload · Run · Clear, right-aligned. The four are accent-FILLED like
+    // the window's; Clear wears the shared danger red and sits PAST Run, because it throws
+    // work away and a mis-click on the way to the primary action must not reach it.
+    auto* row = actions_ = new QHBoxLayout;
     row->setSpacing(6);
     row->addStretch(1);
     const auto mk = [this, row](const char* name, const QString& label, const QString& tip) {
@@ -61,6 +61,12 @@ namespace stencil::gui {
     uploadBtn_ = mk("scriptMenuUpload", tr("Upload"), tr("Load a .stc file into the editor"));
     runBtn_ = mk("scriptMenuRun", tr("Run"),
                  tr("Run this script on the open project (Ctrl+Enter)"));
+    clearBtn_ = new QPushButton(tr("Clear"), this);
+    clearBtn_->setObjectName(QStringLiteral("scriptMenuClear"));
+    clearBtn_->setToolTip(tr("Empty the script editor"));
+    clearBtn_->setFocusPolicy(Qt::TabFocus);
+    makeModalDanger(clearBtn_);
+    row->addWidget(clearBtn_);
     col->addSpacing(8);
     col->addLayout(row);
 
@@ -72,11 +78,12 @@ namespace stencil::gui {
             [this] { if (hooks_.download) hooks_.download(); });
     connect(uploadBtn_, &QPushButton::clicked, this,
             [this] { if (hooks_.upload) hooks_.upload(); });
+    connect(clearBtn_, &QPushButton::clicked, this, [this] { edit_->setScript(QString()); });
     connect(runBtn_, &QPushButton::clicked, this, &ScriptMenuPanel::run);
     connect(edit_, &ScriptEditorWidget::runRequested, this, &ScriptMenuPanel::run);
     connect(edit_, &ScriptEditorWidget::edited, this, &ScriptMenuPanel::gateActions);
 
-    setFixedWidth(MENU_SCRIPT_WIDTH);
+    setFixedWidth(MENU_SCRIPT_WIDTH);   // the floor; restyle() re-derives it from the row
     setFixedHeight(menuScriptHeight(this));
     gateActions();
   }

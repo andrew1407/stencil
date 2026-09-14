@@ -326,13 +326,15 @@
       }
       /* Danger button (e.g. the selection panel's Delete Line) — the browser's
          --danger red treatment, tuned per theme. */
-      QPushButton#dangerButton {
+      QPushButton#dangerButton, QPushButton[dangerCta="true"] {
         background: %DANGER%; color: white; border: none;
       }
-      QPushButton#dangerButton:hover { background: %DANGER2%; }
-      /* …and a DEAD one has to look it: the id selector outranks QPushButton:disabled above,
+      QPushButton#dangerButton:hover, QPushButton[dangerCta="true"]:hover {
+        background: %DANGER2%;
+      }
+      /* …and a DEAD one has to look it: these selectors outrank QPushButton:disabled above,
          so a disabled Clear All kept painting solid red and still read as pressable. */
-      QPushButton#dangerButton:disabled {
+      QPushButton#dangerButton:disabled, QPushButton[dangerCta="true"]:disabled {
         background: %DISABLED_BG%; color: %MUTED%; border-color: %BORDER%;
       }
       /* Muted, spaced section caption (selection panel "POINTS"/"MEASUREMENTS", and

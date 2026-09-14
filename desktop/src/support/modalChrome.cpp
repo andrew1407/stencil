@@ -152,5 +152,11 @@ namespace stencil::gui {
     // labelIcon carries the browser's 6px gap to its label.
     if (!iconName.isEmpty()) btn->setIcon(labelIcon(iconName, QColor("#ffffff"), 15));
   }
+
+  void makeModalDanger(QPushButton* btn, const QString& iconName) {
+    if (!btn) return;
+    btn->setProperty("dangerCta", true);   // theme.cpp's #dangerButton face, by property
+    if (!iconName.isEmpty()) btn->setIcon(labelIcon(iconName, QColor("#ffffff"), 15));
+  }
 }  // namespace stencil::gui
 

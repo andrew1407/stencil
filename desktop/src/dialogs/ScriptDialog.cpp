@@ -74,9 +74,18 @@ namespace stencil::gui {
     runBtn_->setAutoDefault(false);
     footer->addWidget(runBtn_);
 
+    // Past Run, in the shared danger red: Clear throws work away, so a mis-click on the way
+    // to the primary action must not land on it.
+    clearBtn_ = new QPushButton(tr("Clear"), this);
+    clearBtn_->setToolTip(tr("Empty the script editor"));
+    makeModalDanger(clearBtn_, QStringLiteral("trash"));
+    clearBtn_->setAutoDefault(false);
+    footer->addWidget(clearBtn_);
+
     connect(copyBtn_, &QPushButton::clicked, editor_, &ScriptEditorWidget::copyToClipboard);
     connect(downloadBtn_, &QPushButton::clicked, this, &ScriptDialog::saveFile);
     connect(uploadBtn, &QPushButton::clicked, this, &ScriptDialog::loadFile);
+    connect(clearBtn_, &QPushButton::clicked, this, [this] { editor_->setScript(QString()); });
     connect(runBtn_, &QPushButton::clicked, this, &QDialog::accept);
     connect(editor_, &ScriptEditorWidget::edited, this, &ScriptDialog::gateActions);
 
@@ -96,12 +105,13 @@ namespace stencil::gui {
 
   void ScriptDialog::showRunDiagnostics() { editor_->showRunDiagnostics(); }
 
-  // Copy and Save need text; Open always has something to do. Run needs something to RUN
-  // (browser js/ui/scriptEditor.js gateActions).
+  // Copy, Save and Clear need text; Open always has something to do. Run needs something to
+  // RUN (browser js/ui/scriptEditor.js gateActions).
   void ScriptDialog::gateActions() {
     const bool blank = editor_->isEmpty();
     copyBtn_->setEnabled(!blank);
     downloadBtn_->setEnabled(!blank);
+    clearBtn_->setEnabled(!blank);
     runBtn_->setEnabled(!blank && !editor_->isIdle());
   }
 

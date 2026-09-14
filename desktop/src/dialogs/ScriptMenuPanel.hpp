@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <functional>
 
+class QHBoxLayout;
 class QPushButton;
 
 namespace stencil::gui {
@@ -18,8 +19,9 @@ namespace stencil::gui {
     Q_OBJECT
 
    public:
-    /* A file dialog cannot open under the menu's popup grab, so `upload` and `download` are
-     * the window's: they dismiss the chain first and hand the text back through setScript(). */
+    /* Qt takes every popup down when a file dialog opens, so `upload` and `download` are the
+     * window's: they dismiss the chain, pick, hand the text back through setScript(), and put
+     * the menu back on the script row. */
     struct Hooks {
       std::function<void(QString)> run;
       std::function<void()> upload;
@@ -42,9 +44,11 @@ namespace stencil::gui {
 
     Hooks hooks_;
     ScriptEditorWidget* edit_ = nullptr;
+    QHBoxLayout* actions_ = nullptr;   // the row the panel's width is re-derived from
     QPushButton* copyBtn_ = nullptr;
     QPushButton* downloadBtn_ = nullptr;
     QPushButton* uploadBtn_ = nullptr;
+    QPushButton* clearBtn_ = nullptr;
     QPushButton* runBtn_ = nullptr;
   };
 

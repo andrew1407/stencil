@@ -41,6 +41,7 @@ namespace stencil::gui {
     ScriptEditorWidget* editor_ = nullptr;
     QPushButton* copyBtn_ = nullptr;
     QPushButton* downloadBtn_ = nullptr;
+    QPushButton* clearBtn_ = nullptr;
     QPushButton* runBtn_ = nullptr;
   };
 

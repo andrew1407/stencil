@@ -7,8 +7,8 @@
 namespace stencil::gui {
 
   // A real editor WINDOW at menu scale: 372px wide — a directive with its arguments on one
-  // line, and the four actions in one row — and min(58vh, 440px) tall, with the editor
-  // flexing into whatever the diagnostics strip and the action row leave over.
+  // line — or whatever the action row needs, whichever is wider, and min(58vh, 440px) tall,
+  // with the editor flexing into whatever the strip and the row leave over.
   inline constexpr int MENU_SCRIPT_WIDTH = 372;
   inline constexpr int MENU_SCRIPT_MAX_HEIGHT = 440;
   inline constexpr double MENU_SCRIPT_SCREEN_SHARE = 0.58;
@@ -19,6 +19,7 @@ namespace stencil::gui {
   inline constexpr int MENU_SCRIPT_PAD_Y = 6;
   inline constexpr int MENU_SCRIPT_ICON = 13;
   inline constexpr int MENU_SCRIPT_INDENT = 2;              // Tab inserts two spaces
+  inline constexpr int MENU_SCRIPT_EDGE = 12;               // the panel's side gutter
 
   // The panel's OWN screen, not the primary one: on a second monitor they differ.
   inline int menuScriptHeight(const QWidget* host) {
