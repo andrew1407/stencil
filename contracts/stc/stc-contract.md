@@ -142,7 +142,9 @@ templates included, and are never renumbered. `@frame` starts a fresh set.
 **Undo is resolved when the script is lowered, not when it runs.** At every `@save` — and at
 the end of each block — the lowerer emits one `undo` of however many steps it takes to reach
 the last point where the applied and surviving edits agree, then replays the survivors. An
-adapter therefore only ever executes ordinary ops; it never computes an undo count.
+adapter therefore only ever executes ordinary ops; it never computes an undo count. A replay
+that would carry the stream to `MAX_OPS` is refused with `E_LIMIT_OPS` instead (§9), so a
+long `@undo`/`@redo` cycle cannot multiply the op stream.
 
 ## §8 Diagnostics
 
@@ -189,29 +191,36 @@ The check line format, which the editors parse, is:
 
 ## §9 Caps
 
-Identical in C++ and in the JS port, so both reject the same input:
+Identical in C++ and in the JS port, so both reject the same input, with the same code:
 
-| Cap | Value |
-|---|---|
-| `MAX_LINES` | 20000 |
-| `MAX_TOKENS` | 200000 |
-| `MAX_OPS` | 5000 |
-| `MAX_BLOCKS` | 256 |
-| `MAX_TEMPLATES` | 256 |
-| `MAX_TEMPLATE_DEPTH` | 16 |
-| `MAX_POINTS_PER_LINE` | 200 |
-| `MAX_SOURCE_CHARS` | 1024 |
+| Cap | Value | Reports |
+|---|---|---|
+| `MAX_LINES` | 20000 | `E_LIMIT_LINES` |
+| `MAX_TOKENS` | 200000 | `E_LIMIT_TOKENS` |
+| `MAX_OPS` | 5000 | `E_LIMIT_OPS` |
+| `MAX_BLOCKS` | 256 | `E_LIMIT_BLOCKS` |
+| `MAX_TEMPLATES` | 256 | `E_LIMIT_TEMPLATES` |
+| `MAX_TEMPLATE_DEPTH` | 16 | `E_TEMPLATE_RECURSION` |
+| `MAX_POINTS_PER_LINE` | 200 | `E_LIMIT_POINTS` |
+| `MAX_SOURCE_CHARS` | 1024 | `E_LIMIT_SOURCE` |
+
+A cap is never silent: reaching `MAX_TOKENS` stops the lexer and says so, rather than dropping
+the rest of the file. `MAX_OPS` bounds three places, each reporting `E_LIMIT_OPS` once — the
+edits a script writes, the statements a nested `@use` fans out before any op exists, and the
+replay §7 emits; a refused replay also stops the lowering there, so its block yields nothing.
 
 ## §10 Per-surface execution
 
 | Surface | Entry | `@source` may name | `@save` writes | Undo |
 |---|---|---|---|---|
-| cli | `--script <file>`, `/script`, `/script-run` | file, url, dir, glob, video | a file, `-stencil` suffixed | the session history |
-| pystencil | `run_script`, `Editor.script` | the same | the same | the editor history |
+| cli, one-shot | `--script <file>` | file, url, dir, glob, video | a file, `-stencil` suffixed | a rewind and replay — there is no session to step, so the runner re-opens the input and re-applies the surviving edits |
+| cli console | `/script`, `/script-run` | nothing: the console owns a session, not files, so a `@source` block is reported and skipped and the ops apply to the loaded image | nothing: a `@save` does not write here, only `/save` does | the console session's history |
+| pystencil, batch | `run_script` | file, url, dir, glob — **no video**: the package is stdlib-only and carries no decoder, so `@frame` is reported | as the cli one-shot | the editor history |
+| pystencil, editor | `Editor.script` | nothing: the editor already holds the image the block header names, so `@open` no-ops | as the cli one-shot | the editor history |
 | browser | the script window, the context menu's editor, a dropped `.stc`, `stencil.execScript(text)` | **url only** | the project | the project history |
-| desktop | the script dialog, a dropped `.stc` | url or local path | the project | the project history |
-| bot | `/script`, a `.stc` upload | url only | a rendered reply | the session history |
-| mcp | `stencil_script` | file or url, confined | inside the sandbox root | not applicable |
+| desktop | the script dialog, a dropped `.stc` | url or local path | the project | the script's own checkpoints, one per §7-numbered edit — the project's line history does not cover a crop or a filter |
+| bot | `/script`, a `.stc` upload | url only | the active **server project**, through the op-plan `save` action; the rendered reply follows any mutation | the session history |
+| mcp | `stencil_script` | file or url — a read is not fenced | inside the sandbox root: `--confine-output` refuses a `@save` that climbs out | not applicable |
 
 A surface that cannot honour a directive reports it rather than skipping it silently.
 
