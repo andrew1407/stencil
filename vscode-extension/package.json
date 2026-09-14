@@ -109,6 +109,21 @@
           "type": "boolean",
           "default": true,
           "description": "Re-check the script while typing, using the in-process parser. On save the CLI checks it."
+        },
+        "stencil.highlighting": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Colour `.stc` words by the statement they sit in. Off leaves the plain TextMate grammar, which still colours directives, numbers, strings and comments. To recolour rather than disable, use `#editor.semanticTokenColorCustomizations#`."
+        },
+        "stencil.completion": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Suggest the directives, filter modes, stroke styles, crop edges, colour names, units and templates that are legal at the caret."
+        },
+        "stencil.hover": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Explain the directive or keyword under the pointer: its meaning, argument grammar and an example."
         }
       }
     },

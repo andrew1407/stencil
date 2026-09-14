@@ -10,8 +10,8 @@ import { installVscodeStub, makeContext, makeDocument, makeVscode } from './help
 const require = createRequire(import.meta.url);
 const { contextFor } = require('../src/lib/completionContext.js');
 
-const withHost = (body) => {
-  const { vscode, calls } = makeVscode();
+const withHost = (body, settings) => {
+  const { vscode, calls } = makeVscode({ settings });
   const host = installVscodeStub(vscode);
   try {
     return body({ calls, completion: host.require('completion.js') });
@@ -92,6 +92,14 @@ test('every item carries the documentation the hover would show', () => {
     const red = items.find((i) => i.label === 'red');
     assert.equal(red.detail, '#ff0000', 'a colour item shows its hex');
   });
+});
+
+test('stencil.completion off returns nothing, without a reload', async () => {
+  await withHost(async ({ completion }) => {
+    const document = makeDocument({ text: '@source a.png:\n    @filter \n' });
+    const items = await completion.provider.provideCompletionItems(document, { line: 1, character: 12 });
+    assert.deepEqual(items, []);
+  }, { 'stencil.completion': false });
 });
 
 test('register hands VS Code the provider for stencil-script, triggered on @', () => {

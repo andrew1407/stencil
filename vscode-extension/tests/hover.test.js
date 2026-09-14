@@ -7,8 +7,8 @@ import { createRequire } from 'node:module';
 import { parseScript } from '../src/parser/index.js';
 import { installVscodeStub, makeContext, makeDocument, makeVscode } from './helpers/vscodeStub.js';
 
-const withHost = (body) => {
-  const { vscode, calls } = makeVscode();
+const withHost = (body, settings) => {
+  const { vscode, calls } = makeVscode({ settings });
   const host = installVscodeStub(vscode);
   try {
     return body({ calls, hover: host.require('hover.js') });
@@ -83,6 +83,13 @@ test('the provider wraps the Markdown, with HTML off', async () => {
     assert.match(result.contents.value, /^\*\*@crop\*\*/);
     assert.equal(result.contents.supportHtml, false, 'the vocabulary is Markdown, not HTML');
   });
+});
+
+test('stencil.hover off returns nothing, without a reload', async () => {
+  await withHost(async ({ hover }) => {
+    const document = makeDocument({ text: '@source a.png:\n    @crop 10%\n' });
+    assert.equal(await hover.provider.provideHover(document, { line: 1, character: 5 }), undefined);
+  }, { 'stencil.hover': false });
 });
 
 test('register hands VS Code the provider for stencil-script', () => {

@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 
 import { installVscodeStub, makeDocument, makeVscode } from './helpers/vscodeStub.js';
 
-const withHost = (body) => {
-  const { vscode, calls } = makeVscode();
+const withHost = (body, settings) => {
+  const { vscode, calls } = makeVscode({ settings });
   const host = installVscodeStub(vscode);
   try {
     return body({
@@ -87,6 +87,14 @@ test('a hex colour is a colour, not a comment', async () => {
     assert.ok(kinds.includes(tokens.TOKEN_TYPES.indexOf('property')), '#ccc is a colour');
     assert.ok(!kinds.includes(tokens.TOKEN_TYPES.indexOf('comment')), 'nothing is a comment');
   });
+});
+
+// Off means "no semantic layer", not "no colour": the TextMate grammar still paints.
+test('stencil.highlighting off returns nothing, without a reload', async () => {
+  await withHost(async ({ tokens }) => {
+    const document = makeDocument({ text: '@source a.png:\n    @crop 10%\n' });
+    assert.equal(await tokens.provider.provideDocumentSemanticTokens(document), undefined);
+  }, { 'stencil.highlighting': false });
 });
 
 test('register hands VS Code the provider and the legend for stencil-script', () => {

@@ -19,8 +19,8 @@ const COMMANDS = Object.freeze({
 });
 
 const SETTINGS = Object.freeze({
-  cliPath: 'cliPath',
-  checkOnType: 'checkOnType',
+  cliPath: 'cliPath', checkOnType: 'checkOnType',
+  highlighting: 'highlighting', completion: 'completion', hover: 'hover',
 });
 
 module.exports = { COMMANDS, CONFIG_SECTION, FILE_EXTENSION, LANGUAGE_ID, PROJECT_FILE_EXTENSION,

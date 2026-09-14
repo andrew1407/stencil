@@ -5,7 +5,7 @@
 
 const vscode = require('vscode');
 
-const { LANGUAGE_ID } = require('./lib/ids.js');
+const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
 const { programFor } = require('./lib/programCache.js');
 const { classify } = require('./lib/tokenClassify.js');
 
@@ -32,6 +32,8 @@ const tokenRows = (tokens) => {
 
 const provider = {
   async provideDocumentSemanticTokens(document) {
+    const enabled = vscode.workspace.getConfiguration(CONFIG_SECTION).get(SETTINGS.highlighting, true);
+    if (!enabled) return undefined;
     const program = await programFor(document);
     const builder = new vscode.SemanticTokensBuilder(LEGEND);
     for (const [line, char, length, type] of tokenRows(program.tokens)) {

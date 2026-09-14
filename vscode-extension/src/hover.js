@@ -4,7 +4,7 @@
 
 const vscode = require('vscode');
 
-const { LANGUAGE_ID } = require('./lib/ids.js');
+const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
 const { programFor } = require('./lib/programCache.js');
 const { explain } = require('./lib/vocabulary.js');
 
@@ -36,6 +36,7 @@ const markdownAt = (tokens, position) => {
 
 const provider = {
   async provideHover(document, position) {
+    if (!vscode.workspace.getConfiguration(CONFIG_SECTION).get(SETTINGS.hover, true)) return undefined;
     const program = await programFor(document);
     const markdown = markdownAt(program.tokens, position);
     if (!markdown) return undefined;

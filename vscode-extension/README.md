@@ -99,9 +99,22 @@ it means on the command line.
 |---|---|---|
 | `stencil.cliPath` | *(empty)* | Path to the `stencil` binary. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`. A relative path is taken from the workspace folder. |
 | `stencil.checkOnType` | `true` | Re-check while typing. Off checks only on save. |
+| `stencil.highlighting` | `true` | Colour words by the statement they sit in. Off leaves the plain grammar. |
+| `stencil.completion` | `true` | Suggest what is legal at the caret. |
+| `stencil.hover` | `true` | Explain the word under the pointer. |
 
 With a CLI configured, saving checks the file with `stencil --script-check`. While typing,
-and whenever no CLI is found, the same checks run inside the editor instead.
+and whenever no CLI is found, the same checks run inside the editor instead. The three
+toggles take effect on the next keystroke; none of them needs a reload.
+
+What this extension deliberately does not own, because VS Code already does:
+
+| Want | Setting |
+|---|---|
+| Different highlight colours | `editor.semanticTokenColorCustomizations`, keyed by the token types in [Colours](#colours) |
+| Highlighting off for `.stc` only | `"[stencil-script]": { "editor.semanticHighlighting.enabled": false }` |
+| Suggestions to stop appearing unprompted | `editor.quickSuggestions`, `editor.suggestOnTriggerCharacters` |
+| File icons off | `workbench.iconTheme` — a language icon is drawn only by themes that allow one, so the choice belongs to the theme, not to this extension |
 
 ## Test
 

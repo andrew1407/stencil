@@ -5,7 +5,7 @@
 const vscode = require('vscode');
 
 const COLOR_NAMES = require('./config/colorNames.json');
-const { LANGUAGE_ID } = require('./lib/ids.js');
+const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
 const { contextFor } = require('./lib/completionContext.js');
 const { programFor } = require('./lib/programCache.js');
 const {
@@ -87,6 +87,7 @@ const itemsFor = (linePrefix, tokens) => {
 
 const provider = {
   async provideCompletionItems(document, position) {
+    if (!vscode.workspace.getConfiguration(CONFIG_SECTION).get(SETTINGS.completion, true)) return [];
     const line = document.getText().split(/\r?\n/)[position.line] ?? '';
     const program = await programFor(document);
     return itemsFor(line.slice(0, position.character), program.tokens);
