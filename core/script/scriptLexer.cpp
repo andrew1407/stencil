@@ -4,6 +4,7 @@
 #include "scriptValues.hpp"
 #include "text.hpp"
 
+#include <algorithm>
 #include <cctype>
 
 namespace stencil::core::script {
@@ -60,6 +61,9 @@ namespace stencil::core::script {
     LexResult out;
     if (!text || len < 0) return out;
     const std::string_view src(text, static_cast<std::size_t>(len));
+    // Four bytes a token is the corpus average; growing from nothing copied every string
+    // already pushed, over and over, on the way to MAX_TOKENS.
+    out.tokens.reserve(std::min<std::size_t>(src.size() / 4 + 1, MAX_TOKENS));
 
     int line = 1, col = 1;
     std::size_t i = 0;

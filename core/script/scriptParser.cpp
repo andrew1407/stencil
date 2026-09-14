@@ -12,6 +12,17 @@ namespace stencil::core::script {
       return t.kind == TokenKind::PUNCT && (t.text == "\n" || t.text == ";");
     }
 
+    // Built once: the suggester wants the words alone, and every unknown directive asked.
+    const std::vector<std::string_view>& directiveWords() {
+      static const std::vector<std::string_view> words = [] {
+        std::vector<std::string_view> out;
+        out.reserve(DIRECTIVE_WORDS.size());
+        for (const DirectiveWord& d : DIRECTIVE_WORDS) out.push_back(d.word);
+        return out;
+      }();
+      return words;
+    }
+
     Directive resolveDirective(const std::string& word) {
       for (const DirectiveWord& d : DIRECTIVE_WORDS)
         if (d.word == word) return d.kind;
@@ -61,9 +72,7 @@ namespace stencil::core::script {
       ++i;
 
       if (st.kind == Directive::NONE) {
-        std::vector<std::string_view> words;
-        for (const DirectiveWord& d : DIRECTIVE_WORDS) words.push_back(d.word);
-        const std::string near = didYouMean(st.directive, words);
+        const std::string near = didYouMean(st.directive, directiveWords());
         out.diagnostics.push_back(
             makeDiag(Severity::ERROR, "E_UNKNOWN_DIRECTIVE", head,
                      "unknown directive '@" + st.directive + "'" +
