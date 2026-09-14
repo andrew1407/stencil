@@ -2,9 +2,9 @@
    must share every metric that affects where a glyph lands, or the colours drift off the
    text under them. */
 
-/* A little wider than the 560px default — code wants some room, but not the whole screen.
-   The height matches the projects window, so the two biggest windows open the same size. */
-.script-modal { width: 587px; }
+/* Sized to its own footer: the five actions plus the footer's 18px gutters, so the row
+   spans the window edge to edge with no dead space beside it. */
+.script-modal { width: 466px; }
 /* Projects grows to the shared ceiling because its list is long; an editor has no such
    content to push it, so take that height outright and give the room to the text. */
 #script-overlay:not(.modal-popover) .app-modal { height: min(82vh, 760px); }

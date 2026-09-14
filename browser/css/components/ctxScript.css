@@ -10,9 +10,9 @@
 .ctx-script-plain .ctx-arrow { display: none; }
 .ctx-script-plain > .ctx-sub { display: none !important; }
 .ctx-script {
-    /* Wide enough for a directive with its arguments on one line, and for the five
-       actions in one row, without the menu itself getting wide. */
-    width: 448px;
+    /* Sized to its own action row: the five buttons plus the 12px gutters, so they span
+       the flyout edge to edge with no dead space beside them. */
+    width: 403px;
     max-width: calc(100vw - 40px);
     box-sizing: border-box;
     padding: 2px 12px 6px;
