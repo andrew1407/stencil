@@ -59,12 +59,7 @@ namespace stencil::gui {
     setStyleSheet(
         QStringLiteral(
             "#chatMenuPanel QScrollArea{background:transparent;border:none;}"
-            "#chatMenuPanel QScrollArea > QWidget > QWidget{background:transparent;}"
-            "#chatMenuInput{background:%1;color:%2;border:1px solid %3;"
-            "border-radius:6px;padding:3px 5px;}"
-            "#chatMenuInput:focus{border:1px solid %4;}")
-            .arg(pal.inputBg.name(), pal.inputText.name(), pal.borderMain.name(),
-                 pal.accent.name())
+            "#chatMenuPanel QScrollArea > QWidget > QWidget{background:transparent;}")
         // …plus the DOCK's bubble sheet, so a mirrored message wears the same
         // colours and hairlines as the one in the dock.
         + chatCardStyleSheet(pal, chatSwapSides_));

@@ -639,6 +639,22 @@
       QWidget#scriptMenuPanel QPushButton {
         font-size: 12px; padding: 4px 9px; min-height: 14px;
       }
+      /* Empty-state prompt chips (browser .chat-suggest, llm/ChatDockChrome.cpp): a quiet
+         pill whose radius is half its height — Qt squares the box off above that. */
+      QPushButton#chatSuggestChip { padding: 4px 12px; border-radius: 14px; }
+      /* …and the assistant flyout wears the browser's .ctx-assist .chat-suggest: menu scale,
+         the same box the script flyout's own buttons take. */
+      QWidget#chatMenuPanel QPushButton#chatSuggestChip {
+        font-size: 12px; padding: 4px 9px; min-height: 14px; border-radius: 12px;
+      }
+      /* The assistant flyout's composer (browser #ctx-assist-input): the chat panel's input
+         at menu scale — two rows tall at rest, and the browser's own box around them. Its
+         height floor is a layout metric (llm/chatMenuPanelParts.hpp). */
+      QPlainTextEdit#chatMenuInput {
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
+        border-radius: 6px; padding: 6px 8px; font-size: 13px;
+      }
+      QPlainTextEdit#chatMenuInput:focus { border: 1px solid %ACCENT%; }
       /* …and the reason a value cannot be saved, under the field (promptModal validate). */
       QLabel#modalPromptReason { color: %DANGER%; font-size: 12px; background: transparent; }
       /* The picker dialog's select (modalChrome.cpp chooseModal — browser

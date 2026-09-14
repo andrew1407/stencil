@@ -43,7 +43,7 @@ namespace stencil::gui {
         onRetry_(std::move(onRetry)) {
     setObjectName(QStringLiteral("chatMenuPanel"));
     auto* col = new QVBoxLayout(this);
-    col->setContentsMargins(10, 2, 10, 6);
+    col->setContentsMargins(MENU_CHAT_PADDING);
     col->setSpacing(4);
 
     // Transcript over the composer in a vertical splitter — the dock's layout.
@@ -66,7 +66,7 @@ namespace stencil::gui {
     rows_->setSpacing(2);
     // Empty-state chips — the DOCK's, built by the shared factory. Clicking
     // prefills the composer; the block hides on the first message.
-    suggest_ = makeSuggestionChips(body_, [this](QString prompt) {
+    suggest_ = makeSuggestionChips(body_, MENU_CHAT_CHIP_GAP, [this](QString prompt) {
       input_->setPlainText(prompt);  // prefill only — never send
       input_->moveCursor(QTextCursor::End);
       input_->setFocus();
@@ -83,12 +83,12 @@ namespace stencil::gui {
     ccol->setContentsMargins(0, 0, 0, 0);
     ccol->setSpacing(4);
     auto* row = new QHBoxLayout;
-    row->setSpacing(5);
+    row->setSpacing(MENU_CHAT_ROW_GAP);
     input_ = new QPlainTextEdit(composer);
     input_->setObjectName(QStringLiteral("chatMenuInput"));
     input_->setPlaceholderText(
         QStringLiteral("Ask the assistant… (Enter sends, Shift+Enter newline)"));
-    input_->setMinimumHeight(38);  // grows with the splitter, never fixed
+    input_->setMinimumHeight(MENU_CHAT_INPUT_MIN_H);  // grows with the splitter, never fixed
     input_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     // ClickFocus, NOT the default WheelFocus: a popup hands focus to its first
     // tab-focusable child, which would route the menu's arrows/Enter into this
@@ -132,7 +132,7 @@ namespace stencil::gui {
     btnCol->setSpacing(0);
     btnCol->addStretch(1);  // pin the row to the bottom of the input
     auto* btnRow = new QHBoxLayout;
-    btnRow->setSpacing(2);
+    btnRow->setSpacing(MENU_CHAT_ACTION_GAP);
     btnRow->addWidget(send_);
     btnRow->addWidget(attach_);
     btnRow->addWidget(gear_);

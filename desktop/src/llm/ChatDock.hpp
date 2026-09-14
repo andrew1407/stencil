@@ -41,7 +41,7 @@ class QWidget;
 namespace stencil::gui {
 
   // `onPick` gets the prompt text — callers prefill the composer, never send.
-  QWidget* makeSuggestionChips(QWidget* parent, std::function<void(QString)> onPick);
+  QWidget* makeSuggestionChips(QWidget* parent, int gap, std::function<void(QString)> onPick);
   void styleSuggestionChips(QWidget* chips, const Palette& pal);
 
   extern const char* const CHAT_STATUS_OK_COLOR;

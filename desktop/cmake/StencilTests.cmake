@@ -205,6 +205,14 @@ stencil_headless_test(stencil_menuhover_headless
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
+# The assistant flyout's boxes (llm/ChatMenuPanel + chatMenuPanelParts.hpp) against the
+# browser sheet they are a port of: the chips and the composer are the chat panel at MENU
+# scale there, and the dock keeps its own, larger, chip.
+stencil_headless_test(stencil_chatmenupanel_headless
+  SOURCES tests/chatMenuPanel.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
 # Appearance pins: the app stylesheet hashed per theme x accent, plus twelve rendered
 # MainWindow / dialog states diffed against tests/pins (per platform; a platform with
 # no baselines skips that half). Registered TWICE — offscreen runs at devicePixelRatio
