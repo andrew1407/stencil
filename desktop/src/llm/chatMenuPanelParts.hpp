@@ -28,12 +28,13 @@ namespace stencil::gui {
   inline constexpr int MENU_CHAT_INPUT_WIDTH = 216;   // …and what the row leaves it there
   inline constexpr int MENU_CHAT_CHIP_GAP = 4;        // .ctx-assist .chat-empty gap
   // A per-row "…" hangs 5px outside its bubble, so the transcript is that much wider than
-  // the browser's. The composer carries THREE buttons where the browser folds attach and
-  // settings into one "…", so the flyout is that much wider again and the input still
-  // measures what it does in the browser.
+  // the browser's. The composer carries the browser's TWO buttons — send and the "…" the
+  // rest folds into — so the input still measures what it does there.
   inline constexpr int MENU_CHAT_ROW_MENU_OVERHANG = 5;
+  inline constexpr int MENU_CHAT_ACTION_COUNT = 2;
   inline constexpr int MENU_CHAT_WIDTH =
-      MENU_CHAT_INPUT_WIDTH + 3 * MENU_CHAT_BUTTON_EDGE + 2 * MENU_CHAT_ACTION_GAP
+      MENU_CHAT_INPUT_WIDTH + MENU_CHAT_ACTION_COUNT * MENU_CHAT_BUTTON_EDGE
+      + (MENU_CHAT_ACTION_COUNT - 1) * MENU_CHAT_ACTION_GAP
       + MENU_CHAT_ROW_GAP + MENU_CHAT_ROW_MENU_OVERHANG + 2 * MENU_CHAT_PADDING.left();
 
   // The transcript takes what the composer leaves inside that window, floored

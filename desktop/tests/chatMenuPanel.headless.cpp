@@ -7,8 +7,11 @@
 #include "chatMenuPanelParts.hpp"
 #include "theme.hpp"
 
+#include <QAction>
 #include <QApplication>
+#include <QLabel>
 #include <QLayout>
+#include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTest>
@@ -105,6 +108,45 @@ int main(int argc, char** argv) {
     if (!dock.isEmpty() && !chips.isEmpty())
       check(chips.first()->height() < dock.first()->height(),
             "…and the flyout's are the shorter of the two, as in the browser");
+  }
+
+  std::printf("the composer is the browser's send + \"…\" pair:\n");
+  {
+    ChatMenuPanel panel(nullptr, {}, {}, {}, {}, {});
+    panel.restyle(pal);
+    panel.resize(panel.minimumWidth(), panel.sizeHint().height());
+    panel.show();
+    QTest::qWait(80);
+
+    auto* send = panel.findChild<QToolButton*>(QStringLiteral("chatMenuSend"));
+    auto* more = panel.findChild<QToolButton*>(QStringLiteral("chatMenuMore"));
+    check(send && more, "send and the \"…\" are both there");
+    check(!panel.findChild<QToolButton*>(QStringLiteral("chatMenuAttach"))
+              && !panel.findChild<QToolButton*>(QStringLiteral("chatMenuGear")),
+          "…and attach and settings are no longer buttons of their own");
+    check(send && more && send->x() < more->x(), "send comes first, as in the browser");
+    auto* dot = panel.findChild<QLabel*>(QStringLiteral("chatMenuStatusDot"));
+    check(dot && dot->parentWidget() == more, "the status dot rides on the \"…\"");
+
+    auto* over = more ? more->findChild<QMenu*>(QStringLiteral("chatMenuMoreMenu")) : nullptr;
+    QStringList items;
+    if (over)
+      for (QAction* a : over->actions()) items << a->text();
+    check(items == QStringList({QStringLiteral("Add image"), QStringLiteral("Settings")}),
+          "the overflow carries the actions the browser folds into it");
+    if (more && over) {
+      more->click();
+      QTest::qWait(40);
+      check(over->isVisible(), "clicking the \"…\" opens it");
+      panel.setBusy(true);
+      check(!over->actions().first()->isVisible(),
+            "Add image hides mid-turn rather than greying out (browser parity)");
+      over->close();
+      panel.setBusy(false);
+    }
+    // The flyout is exactly as wide as those two buttons and the browser's input need.
+    check(MENU_CHAT_ACTION_COUNT == 2 && MENU_CHAT_WIDTH == 313,
+          "…and the flyout is re-derived for two actions, not three");
   }
 
   std::printf("the composer keeps the browser's gaps:\n");

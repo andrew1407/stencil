@@ -329,6 +329,7 @@ set(STENCIL_GUI_SOURCES
   src/llm/chatWidgetsOverlays.cpp
   src/llm/chatCardRenderer.cpp
   src/llm/ChatMenuPanel.cpp
+  src/llm/ChatMenuPanelCompose.cpp
   src/llm/ChatMenuPanelRows.cpp
   src/llm/ChatMenuPanelState.cpp
   src/app/ChatPlanTarget.cpp

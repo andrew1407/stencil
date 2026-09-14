@@ -8,7 +8,9 @@
 
 #include "ChatDock.hpp"  // shared chat-card helpers + ProviderStatus
 
+class QAction;
 class QFrame;
+class QHBoxLayout;
 class QLabel;
 class QPlainTextEdit;
 class QScrollArea;
@@ -72,6 +74,8 @@ namespace stencil::gui {
     void addRetry(QFrame* card, const QString& retryText);
     void addConfigure(QFrame* card);
     ChatCardMenuHooks menuHooks();
+    // Send inline, everything else behind the "…" (browser js/ui/chatComposer.js).
+    void buildComposerActions(QWidget* host, QHBoxLayout* btnRow);
     // A mirrored row's arrival: the shared gatherChatCardIn machinery (chatWidgets.hpp)
     // behind this panel's own veil/settle.
     void gatherRow(QFrame* card);
@@ -90,8 +94,9 @@ namespace stencil::gui {
     QVBoxLayout* rows_ = nullptr;
     QPlainTextEdit* input_ = nullptr;
     QToolButton* send_ = nullptr;
-    QToolButton* attach_ = nullptr;
-    QToolButton* gear_ = nullptr;
+    QToolButton* more_ = nullptr;      // the "…" overflow, and what the status dot rides on
+    QAction* actAttach_ = nullptr;
+    QAction* actSettings_ = nullptr;
     QLabel* statusDot_ = nullptr;
     QList<QFrame*> rowsAdded_;
     QWidget* suggest_ = nullptr;  // empty-state chips

@@ -13,6 +13,7 @@
 #include <QGraphicsOpacityEffect>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QAction>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QPlainTextEdit>
@@ -36,14 +37,14 @@ namespace stencil::gui {
     send_->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, MENU_CHAT_ICON));
     send_->setToolTip(on ? QStringLiteral("Stop the response")
                          : QString());
-    attach_->setEnabled(!on);  // frozen mid-turn, exactly like the dock's
+    if (actAttach_) actAttach_->setVisible(!on);  // hidden mid-turn, like the browser's item
   }
 
   // Provider reachability badge + rich tooltip (the dock's shared gear
   // treatment, driven by the same MainWindow::refreshLlmStatus probe).
   void ChatMenuPanel::setProviderStatus(const QString& richTooltip,
                                         ChatDock::ProviderStatus status) {
-    styleProviderStatusDot(statusDot_, gear_, richTooltip, status, palette());
+    styleProviderStatusDot(statusDot_, more_, richTooltip, status, palette());
   }
 
   // Menu chrome tones: the transcript rows and the composer track the live
@@ -66,8 +67,7 @@ namespace stencil::gui {
     // The accent's own line-art ink on the accent fill — identical to the dock's.
     const QColor onAccent = pal.onAccent;
     send_->setIcon(themedIcon(busy_ ? "stop" : "send", onAccent, MENU_CHAT_ICON));
-    attach_->setIcon(themedIcon("image", onAccent, MENU_CHAT_ICON));
-    gear_->setIcon(themedIcon("gear", onAccent, MENU_CHAT_ICON));
+    more_->setIcon(themedIcon("dots", onAccent, MENU_CHAT_ICON));
     splitter_->setPillColors(pal.borderMain, pal.accent);
     styleSuggestionChips(suggest_, pal);
   }

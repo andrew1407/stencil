@@ -2,6 +2,7 @@
 // peek and the hotkey chips their rows wear.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindow.gui.hpp"
+#include "menuReveal.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -130,11 +131,11 @@ class MainWindowGuiTest : public QObject {
     win.chatDock_->addAttachmentImage(att);
 
     bool styleOpened = false, filterOpened = false, assistantOpened = false;
-    bool tooltipByKey = false, threeButtons = false, dotOnGear = false;
+    bool tooltipByKey = false, twoButtons = false, dotOnMore = false;
     bool assistantBeforeDrawing = false, buttonsMatchDock = false, splitterResized = false;
     bool noSeparatorBelowAssistant = false;
     int separatorsOn = 0;
-    QList<int> splitterSizes;
+    QList<int> splitterSizes, dustClocks;
     bool hintGone = false;
     int pillRest = 0, pillHot = 0, handleWidth = 0;
     bool cursorBefore = true, cursorOnHandle = false, cursorAfter = true;
@@ -142,7 +143,7 @@ class MainWindowGuiTest : public QObject {
     int chipCount = 0;
     bool chipsShownEmpty = false, chipTextsMatchDock = false, chipPrefilled = false;
     bool chipDidNotSend = false, sendGatedEmpty = false, chipsHiddenAfterSend = true;
-    bool attachFrozen = false;
+    QStringList overflowItems;
     int transcriptCap = 0, postedImages = 0;
     bool typedThrough = false, subAliveAfterSend = false, rootAliveAfterSend = false;
     bool sendWasStop = false, stopSeen = false, stoppedRowSeen = false;
@@ -186,23 +187,26 @@ class MainWindowGuiTest : public QObject {
       auto* panel = sub->findChild<QWidget*>("chatMenuPanel");
       auto* input = sub->findChild<QPlainTextEdit*>("chatMenuInput");
       auto* sendBtn = sub->findChild<QToolButton*>("chatMenuSend");
-      auto* attachBtn = sub->findChild<QToolButton*>("chatMenuAttach");
-      auto* gearBtn = sub->findChild<QToolButton*>("chatMenuGear");
-      if (!panel || !input || !sendBtn || !attachBtn || !gearBtn) { menu->close(); return; }
-      // The dock's three composer buttons, same order: send · attach · gear,
-      // with the reachability dot riding on the gear.
-      threeButtons = sendBtn->x() < attachBtn->x() && attachBtn->x() < gearBtn->x();
+      auto* moreBtn = sub->findChild<QToolButton*>("chatMenuMore");
+      if (!panel || !input || !sendBtn || !moreBtn) { menu->close(); return; }
+      dustClocks = {menu->property(stencil::support::DUST_MS_PROP).toInt(),
+                    sub->property(stencil::support::DUST_MS_PROP).toInt()};  // the slower clock
+      // The browser's TWO composer buttons, in order: send · "…", with attach and
+      // settings folded into the overflow the reachability dot now rides on.
+      twoButtons = sendBtn->x() < moreBtn->x() &&
+                   !sub->findChild<QToolButton*>("chatMenuAttach") &&
+                   !sub->findChild<QToolButton*>("chatMenuGear");
+      if (auto* over = moreBtn->findChild<QMenu*>("chatMenuMoreMenu"))
+        for (QAction* a : over->actions()) overflowItems << a->text();
       // …and the DOCK's exact look: same 18 px glyphs, same 26 px box, same
       // accent treatment, so the two composers read identically.
       auto* dockSend = win.chatDock_->findChild<QToolButton*>("chatSend");
       buttonsMatchDock = dockSend && sendBtn->iconSize() == dockSend->iconSize() &&
                          sendBtn->size() == dockSend->size() &&
                          sendBtn->property("chatAccent").toBool() &&
-                         attachBtn->iconSize() == QSize(20, 20) &&
-                         gearBtn->iconSize() == QSize(20, 20) &&
+                         moreBtn->iconSize() == QSize(20, 20) &&
                          sendBtn->width() == sendBtn->height() &&
-                         attachBtn->size() == sendBtn->size() &&
-                         gearBtn->size() == sendBtn->size() &&
+                         moreBtn->size() == sendBtn->size() &&
                          sendBtn->width() >= 30;
       // The explanatory line is gone: an empty transcript stays blank, and no
       // label outside the transcript rows explains the panel.
@@ -227,17 +231,13 @@ class MainWindowGuiTest : public QObject {
           input->clear();
         }
       }
-      // The trio is ONE set: identical box, only the enabled state differs
+      // The pair is ONE set: identical box, only the enabled state differs
       // (send is gated on non-empty input, exactly like the dock's).
-      sendGatedEmpty = !sendBtn->isEnabled() && attachBtn->isEnabled() &&
-                       gearBtn->isEnabled() &&
-                       sendBtn->size() == attachBtn->size() &&
-                       attachBtn->size() == gearBtn->size() &&
-                       sendBtn->iconSize() == attachBtn->iconSize() &&
-                       attachBtn->iconSize() == gearBtn->iconSize() &&
+      sendGatedEmpty = !sendBtn->isEnabled() && moreBtn->isEnabled() &&
+                       sendBtn->size() == moreBtn->size() &&
+                       sendBtn->iconSize() == moreBtn->iconSize() &&
                        sendBtn->property("chatAccent").toBool() &&
-                       attachBtn->property("chatAccent").toBool() &&
-                       gearBtn->property("chatAccent").toBool();
+                       moreBtn->property("chatAccent").toBool();
       // The splitter handle carries the app's pill affordance, theme-coloured,
       // and grows/accents on hover — not Qt's dotted nub.
       if (auto* sp0 = panel->findChild<QSplitter*>("chatMenuSplitter")) {
@@ -316,7 +316,7 @@ class MainWindowGuiTest : public QObject {
         splitterSizes = after;
       }
       auto* dot = sub->findChild<QLabel*>("chatMenuStatusDot");
-      dotOnGear = dot && dot->parentWidget() == gearBtn;
+      dotOnMore = dot && dot->parentWidget() == moreBtn;
       // Room for a reply plus a couple of exchanges without scrolling.
       // The APPLIED height, not the constant: a plain maximumHeight let the
       // scroll area collapse to its content sizeHint (~2 rows).
@@ -353,7 +353,6 @@ class MainWindowGuiTest : public QObject {
       win.chatMirrorBusy(true);
       win.chatMirrorPending(true);
       sendWasStop = sendBtn->toolTip() == QString("Stop the response");
-      attachFrozen = !attachBtn->isEnabled();  // frozen mid-turn, like the dock
       QTest::mouseClick(sub, Qt::LeftButton, {},
                         sendBtn->mapTo(sub, sendBtn->rect().center()));
       stopSeen = win.chatStopRequested_ && sub->isVisible() && menu->isVisible();
@@ -395,7 +394,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(chipDidNotSend, "clicking a chip sent instead of prefilling");
     QVERIFY2(chipsHiddenAfterSend, "the chips survived the first message");
     QVERIFY2(sendGatedEmpty,
-             "the composer trio is not one set (size/box/accent) with send merely disabled");
+             "the composer pair is not one set (size/box/accent) with send merely disabled");
     QVERIFY2(handleWidth >= 6, "the splitter handle lost its grab area");
     // A centred pill at rest that GROWS on hover (44 → 68 px by design).
     QVERIFY2(pillRest >= 30 && pillRest <= 60,
@@ -425,9 +424,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(stopSeen, "clicking STOP in the menu closed it or did not abort");
     QVERIFY2(stoppedRowSeen, "the canceled turn did not render as Stopped.");
     QVERIFY2(escClosedSub, "Escape did not close the assistant submenu");
-    QVERIFY2(threeButtons, "the menu composer lost the send/attach/gear trio");
-    QVERIFY2(dotOnGear, "the provider status dot is not on the menu gear");
-    QVERIFY2(attachFrozen, "attach stayed live during an in-flight turn");
+    QCOMPARE(dustClocks, QList<int>(2, stencil::support::CONTEXT_MENU_DUST_MS));
+    QVERIFY2(twoButtons, "the menu composer is not the browser's send + \"…\" pair");
+    QCOMPARE(overflowItems, QStringList({"Add image", "Settings"}));
+    QVERIFY2(dotOnMore, "the provider status dot is not on the menu's \"…\"");
     QVERIFY2(transcriptCap >= 140,
              qPrintable(QString("the menu transcript renders only %1 px tall")
                             .arg(transcriptCap)));
@@ -1343,7 +1343,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     win.settings_.llmProvider = "ollama";
 
-    bool gearFound = false, menuGoneAfterClick = false, popupGrabGone = false;
+    bool settingsFound = false, menuGoneAfterClick = false, popupGrabGone = false;
     QTimer::singleShot(0, [&] {
       QMenu* menu = nullptr;
       for (int i = 0; i < 200 && !menu; ++i) {
@@ -1359,19 +1359,17 @@ class MainWindowGuiTest : public QObject {
       QTest::keyClick(menu, Qt::Key_Right);
       QMenu* sub = parent->menu();
       settle([&] { return sub->isVisible(); }, 1000);
-      auto* gear = sub->findChild<QToolButton*>("chatMenuGear");
-      gearFound = gear != nullptr;
-      if (!gear) { menu->close(); return; }
-      // Click it through the menu, the real popup path.
-      QTest::mouseClick(sub, Qt::LeftButton, {},
-                        gear->mapTo(sub, gear->rect().center()));
+      auto* settings = sub->findChild<QAction*>("chatMenuSettings");
+      settingsFound = settings != nullptr;
+      if (!settings) { menu->close(); return; }
+      settings->trigger();   // the overflow's Settings row, through the real handler
       menuGoneAfterClick = !menu->isVisible() && !sub->isVisible();
       popupGrabGone = QApplication::activePopupWidget() == nullptr;
     });
     win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
-    QVERIFY2(gearFound, "the assistant submenu has no gear button");
-    QVERIFY2(menuGoneAfterClick, "the gear left the context menu open");
-    QVERIFY2(popupGrabGone, "the popup grab survived the gear click");
+    QVERIFY2(settingsFound, "the assistant overflow has no Settings row");
+    QVERIFY2(menuGoneAfterClick, "Settings left the context menu open");
+    QVERIFY2(popupGrabGone, "the popup grab survived the Settings row");
 
     // The dialog opens on the next turn — poll for it, check it is the
     // assistant-only one and genuinely interactive, then dismiss.
