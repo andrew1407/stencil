@@ -1,6 +1,7 @@
 // Port of core/script/scriptLineStyle.cpp — `@use`: a unit, an order-free line style, or
 // the `@use stencil` call the lowerer expands.
-import { makeDiag, tokenOfStmt } from './scriptDiagnostics.js';
+import { whereOf } from './scriptArgs.js';
+import { makeDiag } from './scriptDiagnostics.js';
 import { isUnitWord } from './scriptTypes.js';
 import { cursorOf, isColorToken, isPunct, readLengthRaw } from './scriptValues.js';
 
@@ -67,36 +68,36 @@ const applyGroup = (group, state, seen, diags) => {
   return true;
 };
 
-// Mutates `state`. Returns { ok, isStencilUse }.
+// Mutates `state`; the lowerer has already expanded every `@use stencil` call.
 export const argsUse = (st, state, diags) => {
-  const where = st.args.length > 0 ? st.args[0] : { ...tokenOfStmt(st), text: '@use' };
+  const where = whereOf(st, '@use');
   if (st.args.length === 0) {
     diags.push(makeDiag('error', 'E_ARG_COUNT', where,
       "@use needs a unit, 'line …' or 'stencil <name>'"));
-    return { ok: false, isStencilUse: false };
+    return false;
   }
 
   const first = st.args[0].text.toLowerCase();
-  if (first === 'stencil') return { ok: true, isStencilUse: true };
+  if (first === 'stencil') return true;
   if (isUnitWord(first) && st.args.length === 1) {
     state.unit = first;
-    return { ok: true, isStencilUse: false };
+    return true;
   }
   if (first !== 'line') {
     diags.push(makeDiag('error', 'E_BAD_TOKEN', st.args[0],
       `'@use ${st.args[0].text}' — expected a unit, 'line' or 'stencil'`));
-    return { ok: false, isStencilUse: false };
+    return false;
   }
 
   let group = [];
   const seen = { color: false };
   for (let i = 1; i < st.args.length; i += 1) {
     if (isPunct(st.args[i], ',')) {
-      if (!applyGroup(group, state, seen, diags)) return { ok: false, isStencilUse: false };
+      if (!applyGroup(group, state, seen, diags)) return false;
       group = [];
       continue;
     }
     group.push(st.args[i]);
   }
-  return { ok: applyGroup(group, state, seen, diags), isStencilUse: false };
+  return applyGroup(group, state, seen, diags);
 };

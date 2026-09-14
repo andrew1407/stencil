@@ -1,5 +1,5 @@
 // The .stc entry point. Port of core/script/scriptProgram.cpp; the wasm build runs the C++
-// and this body is the fallback, which browser/tests/wasm-parity.test.js pins op-for-op.
+// and this body is the fallback, which browser/tests/wasm-parity-script.test.js pins op-for-op.
 import { core } from './stencilCore.js';
 import { resolveAxisPx } from './units.js';
 import { hasErrors } from './scriptDiagnostics.js';
@@ -27,17 +27,22 @@ const parseScriptJS = (text) => {
     diagnostics,
     blocks: lowered.blocks,
     ops: lowered.ops,
-    get errorCount() {
-      return diagnostics.filter((d) => d.severity === 'error').length;
-    },
-    get hasErrors() {
-      return hasErrors(diagnostics);
-    },
+    errorCount: diagnostics.reduce((n, d) => n + (d.severity === 'error' ? 1 : 0), 0),
+    hasErrors: hasErrors(diagnostics),
   };
 };
 
-// wasm when it is loaded, this body otherwise; the two agree fixture for fixture.
-export const parseScript = core.bind('scriptParse', parseScriptJS);
+/* wasm when it is loaded, this body otherwise; the two agree fixture for fixture. The last
+ * result is memoised, because the editors re-parse the same text several times per keystroke:
+ * the program handed back is shared, so read it and never mutate it. */
+let memo = { text: null, impl: null, program: null };
+
+export const parseScript = (text) => {
+  const src = String(text ?? '');
+  const impl = core.op('scriptParse') ?? parseScriptJS;
+  if (memo.impl !== impl || memo.text !== src) memo = { text: src, impl, program: impl(src) };
+  return memo.program;
+};
 
 // The wasm path carries the core's own dump; the fallback formats the same text here.
 export const scriptDump = (program) => program.dump ?? dumpProgram(program);
@@ -46,10 +51,8 @@ export const scriptDiagnostics = (program) => dumpDiagnostics(program);
 const PX_PER_CM = 96 / 2.54;
 
 /* Length tokens -> pixels against the CURRENT image size, because a crop changes it
- * mid-script. Returns null for an op that carries no geometry.
- * LINE/RECT -> { points: [{x,y}…], thickness, pointSize }, a two-point rect expanded to
- * its four corners. CROP keeps its tokens: the browser hands them to `stencil.crop`, which
- * already owns edge resolution (album, aspect) for the whole app. */
+ * mid-script; null for an op with no geometry, a two-point rect expanded to four corners.
+ * CROP keeps its tokens: `stencil.crop` already owns edge resolution for the whole app. */
 export const resolveShape = (op, { width, height, pxPerCm = PX_PER_CM }) => {
   if (op.kind !== 'line' && op.kind !== 'rect') return null;
   const xs = [];

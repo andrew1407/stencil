@@ -7,7 +7,7 @@ export class EditLedger {
   undoIndex(selector: number): { ok: boolean; reason?: string };
   undoByText(text: string): { ok: boolean; ambiguous?: boolean; reason?: string };
   redo(times: number): { ok: boolean; reason?: string };
-  reconcile(out: ScriptOp[], block: number, line: number, col: number): void;
+  reconcile(out: ScriptOp[], block: number, line: number, col: number): boolean;
   reset(): void;
 }
 export const applyHistoryStmt: (

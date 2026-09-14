@@ -1,5 +1,5 @@
 // Port of core/script/scriptTypes.hpp. The caps are the SAME numbers the C++ uses, so wasm
-// and this fallback reject the same input; browser/tests/wasm-parity.test.js proves it.
+// and this fallback reject the same input; browser/tests/wasm-parity-script.test.js proves it.
 
 export const MAX_LINES = 20000;
 export const MAX_TOKENS = 200000;
@@ -11,21 +11,22 @@ export const MAX_POINTS_PER_LINE = 200;
 export const MAX_SOURCE_CHARS = 1024;
 
 // Crossing the ABI as ints: never reorder, only append.
-export const TOKEN_KINDS = [
+// 'keyword' holds its slot for the ABI; no token is lexed as one.
+export const TOKEN_KINDS = Object.freeze([
   'comment', 'directive', 'keyword', 'number', 'unit',
   'color', 'string', 'param', 'punct', 'ident', 'error',
-];
+]);
 
-export const OP_KINDS = [
+export const OP_KINDS = Object.freeze([
   'open', 'frame', 'crop', 'filter', 'line', 'rect', 'layout', 'save', 'undo', 'redo',
-];
+]);
 
-export const SOURCE_KINDS = ['project', 'file', 'url', 'dir', 'glob'];
+export const SOURCE_KINDS = Object.freeze(['project', 'file', 'url', 'dir', 'glob']);
 
-export const DIRECTIVES = [
+export const DIRECTIVES = Object.freeze([
   'source', 'stencil', 'use', 'crop', 'filter', 'line', 'rect', 'layout', 'save', 'frame',
   'undo', 'redo',
-];
+]);
 
 // The style `@use line` accumulates, applied to every @line / @rect after it.
 export const defaultLineStyle = () => ({
@@ -57,3 +58,7 @@ export const isUnitWord = (w) => {
   const u = String(w).toLowerCase();
   return u === 'px' || u === 'cm' || u === 'mm' || u === 'in' || u === '%';
 };
+
+// `@use stencil <name>`: the template call the lowerer expands, not a unit or a line style.
+export const isStencilUse = (st) =>
+  st.args.length > 0 && unquoteWord(st.args[0].text).toLowerCase() === 'stencil';

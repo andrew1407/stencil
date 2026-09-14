@@ -157,6 +157,103 @@ block 0 project ""
   op filter edit=1 "bw" ""
 --- diagnostics
 1:1:6: error: @frame needs a @source block naming a video [E_FRAME_OUTSIDE_SOURCE]
+=== err-limit-replay-ops
+--- script
+@stencil ten:
+    @filter bw
+    @filter bw
+    @filter bw
+    @filter bw
+    @filter bw
+    @filter bw
+    @filter bw
+    @filter bw
+    @filter bw
+    @filter bw
+
+@stencil hundred:
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+
+@stencil thousand:
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+
+@source a.png:
+    @use stencil thousand
+    @use stencil thousand
+    @use stencil thousand
+    @undo 1
+    @save
+--- dump
+--- diagnostics
+37:1:7: error: the script has too many ops [E_LIMIT_OPS]
+=== err-limit-template-fanout
+--- script
+@stencil ten:
+    @use px
+    @use px
+    @use px
+    @use px
+    @use px
+    @use px
+    @use px
+    @use px
+    @use px
+    @use px
+
+@stencil hundred:
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+    @use stencil ten
+
+@stencil thousand:
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+    @use stencil hundred
+
+@source a.png:
+    @use stencil thousand
+    @use stencil thousand
+    @use stencil thousand
+    @use stencil thousand
+    @use stencil thousand
+    @use stencil thousand
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+--- diagnostics
+14:5:4: error: the script has too many ops [E_LIMIT_OPS]
 === err-line-needs-points
 --- script
 @source a.png:
@@ -300,6 +397,22 @@ block 0 file "a.png"
 block 0 file "a.png"
   op open "a.png" 1
   op filter edit=1 "bw" ""
+=== nested-use-mixed-case
+--- script
+@stencil inner:
+    @filter bw
+
+@stencil outer:
+    @use Stencil inner
+    @rect (1,1) (2,2)
+
+@source a.png:
+    @use stencil outer
+--- dump
+block 0 file "a.png"
+  op open "a.png" 1
+  op filter edit=1 "bw" ""
+  op rect edit=2 "#FFFF00" "solid" "transparent" "" [1px 1px 2px 2px] 2 4 1
 === quoted-strings
 --- script
 @stencil "say \"hi\"":

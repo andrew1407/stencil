@@ -4,7 +4,7 @@ import { MAX_LINES, MAX_TOKENS } from './scriptTypes.js';
 
 const isSpace = (c) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f' || c === '\v';
 const isDigit = (c) => c >= '0' && c <= '9';
-const isHexByte = (c) => /[0-9a-fA-F]/.test(c);
+const isHexByte = (c) => isDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 
 const isWordByte = (c) =>
   !isSpace(c) && c !== ',' && c !== ';' && c !== '#' && c !== ':' && c !== '(' && c !== ')' &&
@@ -52,8 +52,22 @@ export const lexScript = (text) => {
   let line = 1;
   let col = 1;
   let i = 0;
+  let capped = false;
+  // Past the cap the rest of the file is dropped, and the first token dropped says so.
   const push = (kind, t, atLine, atCol) => {
-    if (tokens.length >= MAX_TOKENS) return;
+    if (tokens.length >= MAX_TOKENS) {
+      if (capped) return;
+      capped = true;
+      diagnostics.push({
+        severity: 'error',
+        code: 'E_LIMIT_TOKENS',
+        line: atLine,
+        col: atCol,
+        len: 0,
+        message: `script has too many tokens (over ${MAX_TOKENS})`,
+      });
+      return;
+    }
     tokens.push({ line: atLine, col: atCol, len: t.length, kind, text: t });
   };
 
@@ -86,17 +100,20 @@ export const lexScript = (text) => {
     if (c === '"') {
       let val = '"';
       let j = i + 1;
+      let run = j; // start of the plain run since the last escape
       let closed = false;
       while (j < src.length && src[j] !== '\n') {
-        if (src[j] === '\\' && j + 1 < src.length && (src[j + 1] === '"' || src[j + 1] === '\\')) {
-          val += src[j + 1];
+        if (src[j] === '\\' && (src[j + 1] === '"' || src[j + 1] === '\\')) {
+          val += src.slice(run, j) + src[j + 1];
           j += 2;
+          run = j;
           continue;
         }
-        if (src[j] === '"') { closed = true; j += 1; break; }
-        val += src[j];
+        if (src[j] === '"') { closed = true; break; }
         j += 1;
       }
+      val += `${src.slice(run, j)}"`;
+      if (closed) j += 1;
       if (!closed) {
         diagnostics.push({
           severity: 'error',
@@ -107,7 +124,6 @@ export const lexScript = (text) => {
           message: 'unterminated string — add a closing quote',
         });
       }
-      val += '"';
       push('string', val, startLine, startCol);
       col += j - i;
       i = j;
@@ -123,43 +139,36 @@ export const lexScript = (text) => {
 
     // A word runs to whitespace or punctuation. '#' only breaks a word when it is not the
     // word's own first byte, so "#ccc" stays whole and "a#b" splits.
-    let j = i;
-    let word = '';
-    if (c === '#') { word = '#'; j += 1; }
+    let j = c === '#' ? i + 1 : i;
+    let scheme = false;
     while (j < src.length) {
       if (src[j] === ':' && src[j + 1] === '/' && src[j + 2] === '/') {
-        word += '://';
+        scheme = true;
         j += 3;
         continue;
       }
       // So does a port's ':', once the word already carries a scheme — the block's own
       // ':' is never followed by a digit, and "aspect=3:2" carries no scheme.
-      if (src[j] === ':' && isDigit(src[j + 1]) && word.includes('://')) {
-        word += ':';
+      if (src[j] === ':' && isDigit(src[j + 1]) && scheme) {
         j += 1;
         continue;
       }
       if (!isWordByte(src[j])) break;
-      word += src[j];
       j += 1;
     }
+    const word = src.slice(i, j);
 
     if (c === '#' && !isHexColorWord(word)) {
       let k = i;
-      let body = '';
-      while (k < src.length && src[k] !== '\n') { body += src[k]; k += 1; }
-      push('comment', body, startLine, startCol);
+      while (k < src.length && src[k] !== '\n') k += 1;
+      push('comment', src.slice(i, k), startLine, startCol);
       col += k - i;
       i = k;
       continue;
     }
 
     let kind = 'ident';
-    if (word.length === 0) {
-      word = src[i];
-      j = i + 1;
-      kind = 'error';
-    } else if (word[0] === '#') {
+    if (word[0] === '#') {
       kind = 'color';
     } else if (isParamWord(word)) {
       kind = 'param';

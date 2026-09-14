@@ -1,6 +1,9 @@
 // Port of core/script/scriptTemplates.cpp — `@stencil` definitions and their expansion.
 import { didYouMean, makeDiag, tokenOfStmt } from './scriptDiagnostics.js';
-import { MAX_TEMPLATE_DEPTH, unquoteWord } from './scriptTypes.js';
+import { MAX_OPS, MAX_TEMPLATE_DEPTH, isStencilUse, unquoteWord } from './scriptTypes.js';
+
+// Name -> index, built once per script: resolveName walks a prefix at a time.
+export const templateIndex = (templates) => new Map(templates.map((d, i) => [d.name, i]));
 
 // The call's words, in order, with the literal 'stencil' already dropped.
 const callWords = (use) => {
@@ -15,11 +18,16 @@ const callWords = (use) => {
 };
 
 // Longest defined name that is a prefix of the word run.
-const resolveName = (words, templates) => {
-  for (let n = words.length; n >= 1; n -= 1) {
-    const candidate = words.slice(0, n).join(' ');
-    const idx = templates.findIndex((t) => t.name === candidate);
-    if (idx >= 0) return { idx, wordsUsed: n };
+const resolveName = (words, byName) => {
+  const prefixes = [];
+  let name = '';
+  for (const w of words) {
+    name = name ? `${name} ${w}` : w;
+    prefixes.push(name);
+  }
+  for (let n = prefixes.length; n >= 1; n -= 1) {
+    const idx = byName.get(prefixes[n - 1]);
+    if (idx !== undefined) return { idx, wordsUsed: n };
   }
   return { idx: -1, wordsUsed: 0 };
 };
@@ -44,8 +52,9 @@ const substitute = (body, args) => {
 };
 
 /* Expands one `@use stencil <words> [args…]` into the referenced body. Nested uses expand
- * too, capped at MAX_TEMPLATE_DEPTH; a template that reaches itself hits that cap. */
-export const expandStencilUse = (use, templates, depth, out, diags) => {
+ * too, capped at MAX_TEMPLATE_DEPTH; a template that reaches itself hits that cap. The
+ * statement count is capped as well — the fan-out is what an op cap alone cannot bound. */
+export const expandStencilUse = (use, templates, byName, depth, out, diags) => {
   if (depth > MAX_TEMPLATE_DEPTH) {
     diags.push(makeDiag('error', 'E_TEMPLATE_RECURSION', tokenOfStmt(use),
       `templates nest more than ${MAX_TEMPLATE_DEPTH} deep — is one using itself?`));
@@ -58,7 +67,7 @@ export const expandStencilUse = (use, templates, depth, out, diags) => {
     return false;
   }
 
-  const { idx, wordsUsed } = resolveName(words, templates);
+  const { idx, wordsUsed } = resolveName(words, byName);
   if (idx < 0) {
     const whole = words.join(' ');
     const near = didYouMean(whole, templates.map((d) => d.name));
@@ -76,20 +85,21 @@ export const expandStencilUse = (use, templates, depth, out, diags) => {
   }
 
   templates[idx].used = true;
-  // Copy the body before recursing: a nested @use must not see a half-substituted parent.
-  const body = templates[idx].body.slice();
-
-  for (const st of body) {
+  // `substitute` copies each statement, so the body is only ever read here.
+  for (const st of templates[idx].body) {
     const { stmt, bad } = substitute(st, args);
     if (bad) {
       diags.push(makeDiag('error', 'E_TEMPLATE_PARAM_INDEX', bad,
         `'${bad.text}' is outside this template's ${arity} argument(s)`));
       return false;
     }
-    if (stmt.directive === 'use' && stmt.args.length > 0 &&
-        unquoteWord(stmt.args[0].text).toLowerCase() === 'stencil') {
-      if (!expandStencilUse(stmt, templates, depth + 1, out, diags)) return false;
+    if (stmt.directive === 'use' && isStencilUse(stmt)) {
+      if (!expandStencilUse(stmt, templates, byName, depth + 1, out, diags)) return false;
       continue;
+    }
+    if (out.length >= MAX_OPS) {
+      diags.push(makeDiag('error', 'E_LIMIT_OPS', tokenOfStmt(use), 'the script has too many ops'));
+      return false;
     }
     out.push(stmt);
   }

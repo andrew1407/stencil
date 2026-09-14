@@ -4,8 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { parseScript } from '../js/core/script.js';
+import { lexScript } from '../js/core/scriptLexer.js';
 import {
   MAX_BLOCKS, MAX_LINES, MAX_OPS, MAX_POINTS_PER_LINE, MAX_SOURCE_CHARS, MAX_TEMPLATES,
+  MAX_TOKENS,
 } from '../js/core/scriptTypes.js';
 
 // The one error code a capped script reports, or '' when it reports none.
@@ -18,6 +20,12 @@ const onlyErrorCode = (src) => {
 const hasErrors = (src) => parseScript(src).diagnostics.some((d) => d.severity === 'error');
 const numbered = (before, after, times) =>
   Array.from({ length: times }, (_, i) => before + i + after).join('');
+const rep = (line, times) => `${line}\n`.repeat(times);
+
+// A chain of `@stencil` definitions, each body ten calls of the one below it.
+const templateChain = (leaf, names) => names
+  .map((name, i) => `@stencil ${name}:\n${rep(`    ${i === 0 ? leaf : `@use stencil ${names[i - 1]}`}`, 10)}\n`)
+  .join('');
 
 test('a script past MAX_LINES is refused before anything is parsed', () => {
   assert.equal(onlyErrorCode('\n'.repeat(MAX_LINES + 1) + '@filter bw\n'), 'E_LIMIT_LINES');
@@ -45,6 +53,31 @@ test('a line past MAX_POINTS_PER_LINE is an error', () => {
 test('a @source spec past MAX_SOURCE_CHARS is an error', () => {
   const src = `@source ${'a'.repeat(MAX_SOURCE_CHARS + 1)}.png:\n  @filter bw\n`;
   assert.equal(onlyErrorCode(src), 'E_LIMIT_SOURCE');
+});
+
+test('the replay an @undo/@save cycle emits counts against MAX_OPS', () => {
+  // Every edit before the undone one replays at the @save, so the stream doubles.
+  const cycle = `${rep('@filter bw', MAX_OPS / 2 + 100)}@undo 1\n@save\n`;
+  const diags = parseScript(cycle).diagnostics;
+  assert.deepEqual(diags.map((d) => d.code), ['E_LIMIT_OPS']);
+  assert.equal(diags[0].severity, 'error');
+  assert.equal(diags[0].message, 'the script has too many ops');
+  assert.equal(hasErrors(`${rep('@filter bw', 100)}@undo 1\n@save\n`), false);
+});
+
+test('a template fan-out past MAX_OPS statements is an error', () => {
+  // Six thousand statements from forty lines: the cap has to bite before they exist.
+  const src = `${templateChain('@use px', ['ten', 'hundred', 'thousand'])}`
+    + `@source a.png:\n${rep('    @use stencil thousand', 6)}`;
+  assert.equal(onlyErrorCode(src), 'E_LIMIT_OPS');
+});
+
+test('a script past MAX_TOKENS stops lexing and says so', () => {
+  const { tokens, diagnostics } = lexScript('a '.repeat(MAX_TOKENS + 10));
+  assert.equal(tokens.length, MAX_TOKENS);
+  assert.deepEqual(diagnostics.map((d) => [d.severity, d.code, d.message]),
+    [['error', 'E_LIMIT_TOKENS', `script has too many tokens (over ${MAX_TOKENS})`]]);
+  assert.equal(diagnostics[0].len, 0);
 });
 
 test('a script right at each cap is accepted', () => {

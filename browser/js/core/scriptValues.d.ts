@@ -2,6 +2,7 @@
 import type { ScriptDiagnostic, ScriptToken } from './scriptTypes.js';
 export interface ArgCursor { args: ScriptToken[]; i: number }
 export const cursorOf: (args: ScriptToken[]) => ArgCursor;
+export const joinWords: (args: ScriptToken[]) => string;
 export const isPunct: (t: ScriptToken, text: string) => boolean;
 export const skipPunct: (c: ArgCursor, text: string) => void;
 export const isColorToken: (t: ScriptToken) => boolean;

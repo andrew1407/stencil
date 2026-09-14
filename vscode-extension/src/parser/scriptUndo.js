@@ -1,6 +1,7 @@
 // Port of core/script/scriptUndo.cpp + scriptHistory.cpp — the per-block edit ledger and
 // the `@undo` / `@redo` statements that drive it.
 import { makeDiag, tokenOfStmt } from './scriptDiagnostics.js';
+import { MAX_OPS } from './scriptTypes.js';
 
 /* Edits are numbered 1..n as written and never renumbered. Undoing marks an edit dead; the
  * ledger then RE-DERIVES the image state at each @save by emitting one undo{steps} back to
@@ -76,7 +77,9 @@ export class EditLedger {
     return { ok: true };
   }
 
-  // Emits the undo{steps} + replay that makes the applied state equal the live set.
+  /* Emits the undo{steps} + replay that makes the applied state equal the live set. A replay
+   * counts against MAX_OPS like a fresh edit: false when it would not fit, having appended
+   * nothing, and the caller stops the script there. */
   reconcile(out, block, line, col) {
     const live = [];
     for (let i = 0; i < this.#edits.length; i += 1) if (this.#edits[i].live) live.push(i);
@@ -85,11 +88,14 @@ export class EditLedger {
     while (k < this.#applied.length && k < live.length && this.#applied[k] === live[k]) k += 1;
 
     const steps = this.#applied.length - k;
+    const need = (steps > 0 ? 1 : 0) + (live.length - k);
+    if (need > 0 && out.length + need >= MAX_OPS) return false;
     if (steps > 0) {
       out.push({ kind: 'undo', block, line, col, len: 0, editIndex: 0, strs: [], toks: [], nums: [steps] });
     }
     for (let i = k; i < live.length; i += 1) out.push(this.#edits[live[i]].op);
     this.#applied = live;
+    return true;
   }
 
   // A new @frame starts a fresh base: nothing from before is undoable.

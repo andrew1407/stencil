@@ -69,6 +69,7 @@ wtest('the token stream crosses with the spans an editor colours by', () => {
 wtest('the wasm handle is released, so repeated parses do not leak', () => {
   const src = CASES.find((c) => c.name === 'tour-crop').script;
   const first = scriptDump(parseScript(src));
-  for (let i = 0; i < 200; i += 1) parseScript(src);
+  // Alternating texts miss script.js's one-entry memo, so all 200 reach the core.
+  for (let i = 0; i < 200; i += 1) parseScript(i % 2 ? `${src}\n` : src);
   assert.strictEqual(scriptDump(parseScript(src)), first);
 });

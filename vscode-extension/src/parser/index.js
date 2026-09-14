@@ -26,12 +26,8 @@ const parseScriptJS = (text) => {
     diagnostics,
     blocks: lowered.blocks,
     ops: lowered.ops,
-    get errorCount() {
-      return diagnostics.filter((d) => d.severity === 'error').length;
-    },
-    get hasErrors() {
-      return hasErrors(diagnostics);
-    },
+    errorCount: diagnostics.reduce((n, d) => n + (d.severity === 'error' ? 1 : 0), 0),
+    hasErrors: hasErrors(diagnostics),
   };
 };
 

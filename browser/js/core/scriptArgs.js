@@ -1,13 +1,11 @@
 // Port of core/script/scriptArgs.cpp — the per-directive argument grammars, minus crop
 // (scriptCrop.js) and `@use` (scriptLineStyle.js).
 import { makeDiag, tokenOfStmt } from './scriptDiagnostics.js';
-import { SOURCE_KINDS, classifySource, unquoteWord } from './scriptTypes.js';
-import { cursorOf, isColorToken, readPointList } from './scriptValues.js';
+import { SOURCE_KINDS, classifySource } from './scriptTypes.js';
+import { cursorOf, isColorToken, joinWords, readPointList } from './scriptValues.js';
 
-export const joinWords = (args) =>
-  args.filter((t) => t.kind !== 'punct').map((t) => unquoteWord(t.text)).join(' ');
-
-const whereOf = (st, fallbackText) =>
+// Where a whole-statement complaint points: the first argument, or the directive itself.
+export const whereOf = (st, fallbackText) =>
   st.args.length > 0 ? st.args[0] : { ...tokenOfStmt(st), text: fallbackText };
 
 export const argsFilter = (st, op, diags) => {

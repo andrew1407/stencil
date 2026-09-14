@@ -1,15 +1,16 @@
 // Port of core/script/scriptCrop.cpp — the two `@crop` forms, keys and positional insets.
-import { makeDiag, tokenOfStmt } from './scriptDiagnostics.js';
+import { whereOf } from './scriptArgs.js';
+import { makeDiag } from './scriptDiagnostics.js';
 import { cursorOf, isPunct, readLength, skipPunct } from './scriptValues.js';
 
-const CROP_KEYS = ['x1', 'x2', 'y1', 'y2', 'aspect'];
+const CROP_KEYS = Object.freeze(['x1', 'x2', 'y1', 'y2', 'aspect']);
 
 // '-10%' flips to the far edge; an inset is the same distance from either side.
 const mirror = (tok) => (tok.startsWith('-') ? tok.slice(1) : `-${tok}`);
 
 export const argsCrop = (st, state, op, diags) => {
   const c = cursorOf(st.args);
-  const where = st.args.length > 0 ? st.args[0] : { ...tokenOfStmt(st), text: '@crop' };
+  const where = whereOf(st, '@crop');
   const edges = ['', '', '', '']; // x1, x2, y1, y2
   let aspect = '';
   let sawKey = false;

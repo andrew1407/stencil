@@ -1,14 +1,24 @@
 // Port of core/script/scriptLower.cpp — statements to the flat op stream.
-import { argsFilter, argsFrame, argsLayout, argsSave, argsShape, joinWords } from './scriptArgs.js';
+import { argsFilter, argsFrame, argsLayout, argsSave, argsShape } from './scriptArgs.js';
 import { argsCrop } from './scriptCrop.js';
 import { hasErrors, makeDiag, tokenOfStmt } from './scriptDiagnostics.js';
 import { argsUse } from './scriptLineStyle.js';
-import { expandStencilUse, reportUnusedTemplates } from './scriptTemplates.js';
+import { expandStencilUse, reportUnusedTemplates, templateIndex } from './scriptTemplates.js';
 import {
   MAX_OPS, MAX_SOURCE_CHARS, SOURCE_KINDS, classifySource, defaultLineStyle, isEditDirective,
-  unquoteWord,
+  isStencilUse,
 } from './scriptTypes.js';
 import { EditLedger, applyHistoryStmt } from './scriptUndo.js';
+import { joinWords } from './scriptValues.js';
+
+// The edit directives: the op each lowers to, and the grammar that fills it.
+const EDIT_OPS = {
+  crop: { kind: 'crop', read: (st, state, op, diags) => argsCrop(st, state, op, diags) },
+  filter: { kind: 'filter', read: (st, state, op, diags) => argsFilter(st, op, diags) },
+  layout: { kind: 'layout', read: (st, state, op, diags) => argsLayout(st, op, diags) },
+  line: { kind: 'line', read: (st, state, op, diags) => argsShape(st, state, false, op, diags) },
+  rect: { kind: 'rect', read: (st, state, op, diags) => argsShape(st, state, true, op, diags) },
+};
 
 // What `@undo @line …` matches on: the directive plus its argument words.
 const normalizedText = (s) => {
@@ -37,6 +47,8 @@ export const lowerScript = (parsed) => {
   const blocks = [];
   const ops = [];
   const emptyBlocks = [];
+  const byName = templateIndex(parsed.templates);
+  let capped = false; // a replay that would pass MAX_OPS stops the whole script
 
   for (const raw of parsed.blocks) {
     const blockIndex = blocks.length;
@@ -66,11 +78,8 @@ export const lowerScript = (parsed) => {
     // Expand templates first, so edit numbering counts what a template contributed.
     const body = [];
     for (const st of raw.body) {
-      if (st.directive !== 'use') { body.push(st); continue; }
-      const isStencilUse = st.args.length > 0 &&
-        unquoteWord(st.args[0].text).toLowerCase() === 'stencil';
-      if (!isStencilUse) { body.push(st); continue; }
-      expandStencilUse(st, parsed.templates, 1, body, diagnostics);
+      if (st.directive !== 'use' || !isStencilUse(st)) { body.push(st); continue; }
+      expandStencilUse(st, parsed.templates, byName, 1, body, diagnostics);
     }
 
     const state = { unit: 'px', style: defaultLineStyle() };
@@ -78,6 +87,14 @@ export const lowerScript = (parsed) => {
     let sawSave = false;
     let sawEdit = false;
     const frames = [];
+
+    const rewindAndReplay = (line, col) => {
+      if (ledger.reconcile(ops, blockIndex, line, col)) return true;
+      diagnostics.push(makeDiag('error', 'E_LIMIT_OPS',
+        raw.implicit ? null : tokenOfStmt(raw.header), 'the script has too many ops'));
+      capped = true;
+      return false;
+    };
 
     for (const st of body) {
       const d = st.directive;
@@ -102,7 +119,7 @@ export const lowerScript = (parsed) => {
           continue;
         }
         frames.push(idx);
-        ledger.reconcile(ops, blockIndex, st.line, st.col);
+        if (!rewindAndReplay(st.line, st.col)) break;
         ledger.reset();
         ops.push(op);
         continue;
@@ -116,7 +133,7 @@ export const lowerScript = (parsed) => {
       if (d === 'save') {
         const op = blankOp('save', st, blockIndex);
         argsSave(st, op);
-        ledger.reconcile(ops, blockIndex, st.line, st.col);
+        if (!rewindAndReplay(st.line, st.col)) break;
         ops.push(op);
         sawSave = true;
         continue;
@@ -128,23 +145,9 @@ export const lowerScript = (parsed) => {
         continue;
       }
 
-      let op;
-      let ok = false;
-      if (d === 'crop') {
-        op = blankOp('crop', st, blockIndex);
-        ok = argsCrop(st, state, op, diagnostics);
-      } else if (d === 'filter') {
-        op = blankOp('filter', st, blockIndex);
-        ok = argsFilter(st, op, diagnostics);
-      } else if (d === 'layout') {
-        op = blankOp('layout', st, blockIndex);
-        ok = argsLayout(st, op, diagnostics);
-      } else {
-        const locked = d === 'rect';
-        op = blankOp(locked ? 'rect' : 'line', st, blockIndex);
-        ok = argsShape(st, state, locked, op, diagnostics);
-      }
-      if (!ok) continue;
+      const { kind, read } = EDIT_OPS[d];
+      const op = blankOp(kind, st, blockIndex);
+      if (!read(st, state, op, diagnostics)) continue;
       if (ops.length >= MAX_OPS) {
         diagnostics.push(makeDiag('error', 'E_LIMIT_OPS', tokenOfStmt(st),
           'the script has too many ops'));
@@ -157,7 +160,9 @@ export const lowerScript = (parsed) => {
       sawEdit = true;
     }
 
-    ledger.reconcile(ops, blockIndex, block.line, 1);
+    if (!capped) rewindAndReplay(block.line, 1);
+    if (capped) break; // the capped block is not recorded, so nothing of it dumps
+
     if (!raw.implicit && !sawEdit && !sawSave) emptyBlocks.push(raw.header);
 
     block.opCount = ops.length - block.opStart;

@@ -2,7 +2,7 @@
 import type { ScriptDiagnostic, ScriptOp, ScriptToken } from './scriptTypes.js';
 import type { ScriptStmt } from './scriptParser.js';
 import type { EvalState } from './scriptLineStyle.js';
-export const joinWords: (args: ScriptToken[]) => string;
+export const whereOf: (st: ScriptStmt, fallbackText: string) => ScriptToken;
 export const argsFilter: (st: ScriptStmt, op: ScriptOp, diags: ScriptDiagnostic[]) => boolean;
 export const argsShape: (
   st: ScriptStmt, state: EvalState, locked: boolean, op: ScriptOp, diags: ScriptDiagnostic[],

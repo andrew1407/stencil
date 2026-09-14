@@ -2,10 +2,14 @@
 import colorNamesTable from '../config/colorNames.json' with { type: 'json' };
 import { makeDiag } from './scriptDiagnostics.js';
 import { isHexColorWord } from './scriptLexer.js';
-import { MAX_POINTS_PER_LINE, isUnitWord } from './scriptTypes.js';
+import { MAX_POINTS_PER_LINE, isUnitWord, unquoteWord } from './scriptTypes.js';
 
 // A cursor over one statement's argument tokens.
 export const cursorOf = (args) => ({ args, i: 0 });
+
+// An argument run as one string: the words, unquoted, separators dropped.
+export const joinWords = (args) =>
+  args.filter((t) => t.kind !== 'punct').map((t) => unquoteWord(t.text)).join(' ');
 
 export const isPunct = (t, text) => t.kind === 'punct' && t.text === text;
 
@@ -42,9 +46,8 @@ export const readLengthRaw = (c) => {
   return { number: num.text, unit };
 };
 
-/* Reads NUMBER [UNIT] and normalizes it into an absolute length token. A bare number takes
- * `defaultUnit`, so '23' under `@use %` becomes '23%' — which is what makes a leading '-'
- * mean "from the far edge" consistently. */
+// Normalizes NUMBER [UNIT] into an absolute length token. A bare number takes `defaultUnit`,
+// so '23' under `@use %` is '23%' — which is what makes a leading '-' mean "from the far edge".
 export const readLength = (c, defaultUnit) => {
   const raw = readLengthRaw(c);
   return raw ? applyUnit(raw.number, raw.unit, defaultUnit) : null;
@@ -60,9 +63,8 @@ const takePairUnit = (c) => {
   return t.text.toLowerCase();
 };
 
-/* Reads '(x, y) (x, y) …' into flat [x0,y0,x1,y1,…] length tokens. A unit may attach to a
- * component, or to the pair after its ')'. Pushes a diagnostic and returns null on a
- * malformed list. */
+// Reads '(x, y) (x, y) …' into flat [x0,y0,x1,y1,…] length tokens. A unit may attach to a
+// component, or to the pair after its ')'. Returns null on a malformed list, with a diagnostic.
 export const readPointList = (c, defaultUnit, diags) => {
   const out = [];
   let points = 0;

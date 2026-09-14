@@ -4,4 +4,4 @@ import type { ScriptStmt } from './scriptParser.js';
 export interface EvalState { unit: string; style: LineStyle }
 export const argsUse: (
   st: ScriptStmt, state: EvalState, diags: ScriptDiagnostic[],
-) => { ok: boolean; isStencilUse: boolean };
+) => boolean;

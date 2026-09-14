@@ -1,12 +1,12 @@
 // Port of core/script/scriptParser.cpp — tokens to statements, grouped into raw blocks.
 import { didYouMean, makeDiag, tokenOfStmt } from './scriptDiagnostics.js';
-import { DIRECTIVES, MAX_BLOCKS, MAX_TEMPLATES, unquoteWord } from './scriptTypes.js';
+import { DIRECTIVES, MAX_BLOCKS, MAX_TEMPLATES } from './scriptTypes.js';
+import { joinWords } from './scriptValues.js';
 
 const isNewline = (t) => t.kind === 'punct' && (t.text === '\n' || t.text === ';');
 
-// The name is every word before the ':' — 'lines and rect' is one name.
-const joinName = (args) =>
-  args.filter((t) => t.kind !== 'punct').map((t) => unquoteWord(t.text)).join(' ');
+// Every directive word, for the statement pass's membership test.
+const DIRECTIVE_SET = new Set(DIRECTIVES);
 
 const highestParam = (body) => {
   let top = 0;
@@ -45,7 +45,7 @@ export const parseScript = (tokens) => {
     st.len = head.len;
     i += 1;
 
-    if (!DIRECTIVES.includes(st.directive)) {
+    if (!DIRECTIVE_SET.has(st.directive)) {
       const near = didYouMean(st.directive, DIRECTIVES);
       diagnostics.push(makeDiag('error', 'E_UNKNOWN_DIRECTIVE', head,
         `unknown directive '@${st.directive}'${near ? ` — did you mean '@${near}'?` : ''}`));
@@ -100,7 +100,7 @@ export const parseScript = (tokens) => {
           "'@stencil <name>:' needs a trailing ':'"));
         continue;
       }
-      const name = joinName(st.args);
+      const name = joinWords(st.args); // every word before the ':' — 'lines and rect' is one name
       if (!name) {
         diagnostics.push(makeDiag('error', 'E_ARG_COUNT', tokenOfStmt(st),
           "'@stencil' needs a name before the ':'"));
