@@ -5,6 +5,7 @@
 
 #include <QSize>
 #include <QString>
+#include <QStringView>
 #include <QVector>
 
 // The desktop's seam onto core/script: the ONE file here that includes a core script
@@ -65,6 +66,10 @@ namespace stencil::model {
   class ScriptDoc {
    public:
     static ScriptDoc parse(const QString& text);
+
+    /* Is `word` (no '@', any case) one of the core's own directives? The editor's colouring
+     * asks: the lexer tags every @word DIRECTIVE, so only this tells a real one apart. */
+    static bool isDirectiveWord(QStringView word);
 
     const QVector<ScriptToken>& tokens() const { return tokens_; }
     const QVector<ScriptDiagnostic>& diagnostics() const { return diagnostics_; }

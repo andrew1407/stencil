@@ -123,7 +123,12 @@ namespace stencil::gui {
       const int len = qMin(s.len, text.size() - start);
       if (len <= 0) continue;
 
-      QTextCharFormat f = formats_[static_cast<int>(s.kind)];
+      // The lexer tags every @word DIRECTIVE, so the colour would claim a misspelling
+      // exists. Only a word the core knows keeps it; the rest read as plain text.
+      const bool known =
+          s.kind != ScriptTokenKind::DIRECTIVE ||
+          model::ScriptDoc::isDirectiveWord(QStringView(text).mid(start + 1, len - 1));
+      QTextCharFormat f = formats_[static_cast<int>(known ? s.kind : ScriptTokenKind::IDENT)];
       if (s.mark != Mark::NONE) {
         const QTextCharFormat& mark = s.mark == Mark::ERROR ? errorFormat_ : warningFormat_;
         f.setUnderlineStyle(mark.underlineStyle());

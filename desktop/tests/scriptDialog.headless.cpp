@@ -132,6 +132,34 @@ int main(int argc, char** argv) {
     }
   }
 
+  std::printf("only a word the core knows is painted as a directive:\n");
+  {
+    // The lexer tags every @word DIRECTIVE, so the highlighter checks the core's own list.
+    QPlainTextEdit edit;
+    ScriptHighlighter hl(edit.document());
+    edit.setPlainText(QStringLiteral("@crop 10%\n@CROP 10%\n@nonsense 1\n@rect (0,0) (@1,@1)\n"));
+    hl.setProgram(ScriptDoc::parse(edit.toPlainText()), false);
+    const auto lower = formatsOn(&edit, 0);
+    const auto upper = formatsOn(&edit, 1);
+    const auto bogus = formatsOn(&edit, 2);
+    const auto templated = formatsOn(&edit, 3);
+    check(!lower.isEmpty() && !upper.isEmpty() && !bogus.isEmpty() && !templated.isEmpty(),
+          "all four lines are coloured");
+    if (lower.isEmpty() || upper.isEmpty() || bogus.isEmpty() || templated.isEmpty())
+      return failures ? 1 : 0;
+    const QColor ink = lower[0].format.foreground().color();
+    check(lower[0].format.fontWeight() == QFont::DemiBold, "@crop keeps the directive face");
+    check(upper[0].format.foreground().color() == ink, "@CROP is the same directive: case-free");
+    check(bogus[0].format.foreground().color() != ink && !bogus[0].format.fontItalic(),
+          "@nonsense is plain text, not an accented directive");
+    check(templated[0].format.foreground().color() == ink,
+          "a real directive in a template body still highlights");
+    bool param = false;
+    for (const auto& f : templated)
+      if (f.start > 0 && f.length == 2 && f.format.fontItalic()) param = true;
+    check(param, "@1 keeps its own param face");
+  }
+
   std::printf("the highlighter survives a theme flip:\n");
   {
     QPlainTextEdit edit;
