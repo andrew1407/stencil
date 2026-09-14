@@ -7,6 +7,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScreen>
+#include <QShowEvent>
 #include <QTextCursor>
 
 namespace stencil::gui {
@@ -14,8 +15,10 @@ namespace stencil::gui {
   namespace {
 
     // Every metric here is the browser window's (css/components/scriptEditor.css): the two
-    // editors are the same window on two surfaces.
-    constexpr int MODAL_W = 587;
+    // editors are the same window on two surfaces. The width is not among them — it is half
+    // again the footer row's fit, measured on this surface's own fonts.
+    constexpr int FIT_SHARE_NUM = 3;
+    constexpr int FIT_SHARE_DEN = 2;
     constexpr int MODAL_MAX_H = 760;
     constexpr double MODAL_SCREEN_SHARE = 0.82;
     constexpr int EDITOR_MIN_H = 160;
@@ -51,7 +54,7 @@ namespace stencil::gui {
     editor_ = new ScriptEditorWidget(this, windowStyle());
     chrome.body->addWidget(editor_, 1);   // the editor takes whatever height the window has
 
-    QHBoxLayout* footer = addModalFooter(chrome, tr("Write a .stc script and run it here."));
+    QHBoxLayout* footer = addModalFooter(chrome);   // no hint: the editor explains itself
     copyBtn_ = new QPushButton(tr("Copy"), this);
     makeModalCta(copyBtn_, QStringLiteral("clipboard"));
     copyBtn_->setAutoDefault(false);
@@ -81,6 +84,11 @@ namespace stencil::gui {
     makeModalDanger(clearBtn_, QStringLiteral("trash"));
     clearBtn_->setAutoDefault(false);
     footer->addWidget(clearBtn_);
+    // This window alone puts its actions at the LEFT edge and lets the slack fall to their
+    // right (browser .script-modal .settings-footer): the shared footer's own stretch, moved
+    // past the buttons. Every other modal keeps hint-left, buttons-right.
+    delete footer->takeAt(0);
+    footer->addStretch(1);
 
     connect(copyBtn_, &QPushButton::clicked, editor_, &ScriptEditorWidget::copyToClipboard);
     connect(downloadBtn_, &QPushButton::clicked, this, &ScriptDialog::saveFile);
@@ -91,12 +99,21 @@ namespace stencil::gui {
 
     if (!initialText.isEmpty()) editor_->setScript(initialText);
     setAcceptDrops(true);
-    setFixedWidth(MODAL_W);
+    // Provisional: showEvent re-measures it on the fonts the QSS hands the buttons.
+    setFixedWidth(minimumSizeHint().width() * FIT_SHARE_NUM / FIT_SHARE_DEN);
     const int avail = screen() ? screen()->availableGeometry().height() : MODAL_MAX_H;
-    resize(MODAL_W, qMin(int(avail * MODAL_SCREEN_SHARE), MODAL_MAX_H));
+    resize(width(), qMin(int(avail * MODAL_SCREEN_SHARE), MODAL_MAX_H));
     gateActions();
     editor_->editor()->setFocus();
     editor_->editor()->moveCursor(QTextCursor::End);
+  }
+
+  // The window is its widest row, and that row is the footer; half again that fit leaves the
+  // editor room past the left-aligned actions (browser .script-modal). Measured here, because
+  // the QSS font reaches the buttons after the constructor; as a popover the host sizes it.
+  void ScriptDialog::showEvent(QShowEvent* event) {
+    QDialog::showEvent(event);
+    if (isWindow()) setFixedWidth(minimumSizeHint().width() * FIT_SHARE_NUM / FIT_SHARE_DEN);
   }
 
   QString ScriptDialog::script() const { return editor_->script(); }

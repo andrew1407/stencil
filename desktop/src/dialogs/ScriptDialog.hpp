@@ -31,6 +31,8 @@ namespace stencil::gui {
     // A .stc dropped on the OPEN window fills the editor; the browser twin does the same.
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dropEvent(QDropEvent* event) override;
+    // Sizes the window from its footer row, on the fonts the QSS gave the buttons.
+    void showEvent(QShowEvent* event) override;
 
    private:
     void gateActions();

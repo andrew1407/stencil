@@ -132,13 +132,23 @@ int main(int argc, char** argv) {
 
     // The row does not wrap, so anything it cannot fit is CUT, label first.
     bool rowFits = true;
+    int lo = panel.width(), hi = 0;
     for (const char* n : {"scriptMenuCopy", "scriptMenuDownload", "scriptMenuUpload",
                           "scriptMenuRun", "scriptMenuClear"}) {
       QPushButton* b = button(panel, n);
       if (!b || b->x() < 0 || b->x() + b->width() > panel.width()
           || b->width() < b->sizeHint().width()) rowFits = false;
+      if (!b) continue;
+      lo = qMin(lo, b->x());
+      hi = qMax(hi, b->x() + b->width());
     }
     check(rowFits, "every action fits the flyout whole — a sixth button would trip this");
+    // …and FILLS it: the row is right-aligned, so any width the panel has over the row would
+    // all pile up on the left. Equal gutters means there is none.
+    check(lo == panel.width() - hi,
+          qPrintable(QStringLiteral("the flyout is its row, gutter to gutter (%1 left, %2 right)")
+                         .arg(lo)
+                         .arg(panel.width() - hi)));
 
     ScriptDialog dlg{QString()};
     dlg.show();
@@ -148,6 +158,36 @@ int main(int argc, char** argv) {
     check(windowClear && windowRun && windowRun->x() < windowClear->x()
               && windowClear->property("dangerCta").toBool(),
           "the window's footer says the same thing: Clear last, and red");
+
+    bool footerFits = true;
+    int wlo = dlg.width(), whi = 0;
+    for (const QString& label : {QStringLiteral("Copy"), QStringLiteral("Download"),
+                                 QStringLiteral("Upload"), QStringLiteral("Run"),
+                                 QStringLiteral("Clear")}) {
+      QPushButton* b = labelled(dlg, label);
+      if (!b || b->width() < b->sizeHint().width()) footerFits = false;
+      if (!b) continue;
+      const int x = b->mapTo(&dlg, QPoint(0, 0)).x();
+      if (x < 0 || x + b->width() > dlg.width()) footerFits = false;
+      wlo = qMin(wlo, x);
+      whi = qMax(whi, x + b->width());
+    }
+    check(footerFits, "every action fits the window whole");
+    // The window's row sits at the LEFT content edge, with the slack past it: its gutter is
+    // the header's, and the window is half again the width that row alone would need.
+    QPushButton* pill = dlg.findChild<QPushButton*>(QStringLiteral("modalClosePill"));
+    const int gutter = pill ? dlg.width() - (pill->mapTo(&dlg, QPoint(0, 0)).x() + pill->width())
+                            : -1;
+    check(wlo == gutter,
+          qPrintable(QStringLiteral("the window's actions start at the content edge (%1 in, "
+                                    "gutter %2)")
+                         .arg(wlo)
+                         .arg(gutter)));
+    const int fit = (whi - wlo) + 2 * wlo;
+    check(dlg.width() == fit * 3 / 2,
+          qPrintable(QStringLiteral("and the window is half again that row's fit (%1 for %2)")
+                         .arg(dlg.width())
+                         .arg(fit)));
   }
 
   std::printf("nothing about the script is persisted:\n");
