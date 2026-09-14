@@ -53,6 +53,18 @@ int main(int argc, char** argv) {
 
     if (edit) edit->setPlainText(QStringLiteral("   \n"));
     check(run && !run->isEnabled(), "whitespace alone is still empty");
+
+    // Browser twin: gateActions() in js/ui/scriptEditor.js.
+    QPushButton* copy = nullptr;
+    for (QPushButton* b : dlg.findChildren<QPushButton*>())
+      if (b->text() == QStringLiteral("Copy")) copy = b;
+    if (edit) edit->setPlainText(QStringLiteral("# just a comment\n"));
+    check(run && !run->isEnabled(), "a comment-only script lowers to no ops: nothing to run");
+    check(copy && copy->isEnabled(), "but there is text to copy");
+
+    if (edit) edit->setPlainText(QStringLiteral("@nope 1\n"));
+    check(run && run->isEnabled(),
+          "an errored script still runs: the run is how its errors become visible");
   }
 
   std::printf("nothing is reported until the script is run:\n");

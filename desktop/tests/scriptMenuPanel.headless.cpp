@@ -51,6 +51,15 @@ int main(int argc, char** argv) {
 
     panel.setScript(QStringLiteral("   \n"));
     check(run && !run->isEnabled(), "whitespace alone is still empty");
+
+    // Browser twin: gateActions() in js/ui/scriptEditor.js.
+    panel.setScript(QStringLiteral("# just a comment\n"));
+    check(run && !run->isEnabled(), "a comment-only script lowers to no ops: nothing to run");
+    check(copy && copy->isEnabled(), "but there is text to copy");
+
+    panel.setScript(QStringLiteral("@nope 1\n"));
+    check(run && run->isEnabled(),
+          "an errored script still runs: the run is how its errors become visible");
   }
 
   std::printf("nothing is reported until the script is run:\n");
@@ -106,6 +115,10 @@ int main(int argc, char** argv) {
 
     sendKey(edit, Qt::Key_Tab, Qt::NoModifier);
     check(panel.script() == QStringLiteral("  "), "Tab indents by two spaces");
+
+    panel.setScript(QStringLiteral("# nothing to run"));
+    sendKey(edit, Qt::Key_Return, Qt::ControlModifier);
+    check(runs == 0, "Ctrl+Enter obeys the same gate the Run button does");
 
     panel.setScript(QStringLiteral("@filter bw"));
     sendKey(edit, Qt::Key_Return, Qt::ControlModifier);

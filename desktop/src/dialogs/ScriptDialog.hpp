@@ -33,7 +33,7 @@ namespace stencil::gui {
     void dropEvent(QDropEvent* event) override;
 
    private:
-    void gateActions(bool empty);
+    void gateActions();
     void loadFile();
     bool readInto(const QString& path);
     void saveFile();

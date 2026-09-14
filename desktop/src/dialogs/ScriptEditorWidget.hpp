@@ -40,6 +40,10 @@ namespace stencil::gui {
     QString script() const;
     void setScript(const QString& text);
     bool isEmpty() const;   // nothing but whitespace
+    // Nothing to DO: no ops and nothing to report. A comment-only script lowers to no ops,
+    // so running it is a no-op with no feedback; an errored one still runs, because the
+    // strip and the underlines are how its errors become visible.
+    bool isIdle() const;
     void copyToClipboard() const;
 
     // The parse the colours came from, so a Run lexes the text once.
@@ -53,8 +57,8 @@ namespace stencil::gui {
     void restyleFormats();
 
    signals:
-    // Per keystroke, after the recolour: the hosts gate their own buttons on it.
-    void edited(bool empty);
+    // Per keystroke, after the recolour: the hosts re-read isEmpty()/isIdle() and gate on them.
+    void edited();
     void runRequested();
 
    protected:

@@ -37,7 +37,7 @@ namespace stencil::gui {
     void restyle(const Palette& pal);   // a theme flip re-inks the glyphs and the formats
 
    private:
-    void gateActions(bool empty);
+    void gateActions();
     void run();
 
     Hooks hooks_;

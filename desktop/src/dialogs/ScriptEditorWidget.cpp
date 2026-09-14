@@ -76,7 +76,7 @@ namespace stencil::gui {
       if (painting_) return;
       const QString text = edit_->toPlainText();   // QPlainTextEdit reassembles it, so read once
       parseAndPaint(text, false);   // editing also clears the verdict: it was about older text
-      emit edited(text.trimmed().isEmpty());
+      emit edited();
     });
     recolour();
   }
@@ -90,6 +90,10 @@ namespace stencil::gui {
   }
 
   bool ScriptEditorWidget::isEmpty() const { return edit_->toPlainText().trimmed().isEmpty(); }
+
+  bool ScriptEditorWidget::isIdle() const {
+    return program_.ops().isEmpty() && program_.diagnostics().isEmpty();
+  }
 
   void ScriptEditorWidget::copyToClipboard() const {
     QApplication::clipboard()->setText(edit_->toPlainText());

@@ -76,7 +76,7 @@ namespace stencil::gui {
 
     setFixedWidth(MENU_SCRIPT_WIDTH);
     setFixedHeight(menuScriptHeight(this));
-    gateActions(edit_->isEmpty());
+    gateActions();
   }
 
   QWidget* ScriptMenuPanel::editor() const { return edit_->editor(); }

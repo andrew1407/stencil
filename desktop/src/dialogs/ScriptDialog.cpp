@@ -85,7 +85,7 @@ namespace stencil::gui {
     setFixedWidth(MODAL_W);
     const int avail = screen() ? screen()->availableGeometry().height() : MODAL_MAX_H;
     resize(MODAL_W, qMin(int(avail * MODAL_SCREEN_SHARE), MODAL_MAX_H));
-    gateActions(editor_->isEmpty());
+    gateActions();
     editor_->editor()->setFocus();
     editor_->editor()->moveCursor(QTextCursor::End);
   }
@@ -96,11 +96,13 @@ namespace stencil::gui {
 
   void ScriptDialog::showRunDiagnostics() { editor_->showRunDiagnostics(); }
 
-  // Copy, Save and Run need something to act on; Open always does.
-  void ScriptDialog::gateActions(bool empty) {
-    copyBtn_->setEnabled(!empty);
-    downloadBtn_->setEnabled(!empty);
-    runBtn_->setEnabled(!empty);
+  // Copy and Save need text; Open always has something to do. Run needs something to RUN
+  // (browser js/ui/scriptEditor.js gateActions).
+  void ScriptDialog::gateActions() {
+    const bool blank = editor_->isEmpty();
+    copyBtn_->setEnabled(!blank);
+    downloadBtn_->setEnabled(!blank);
+    runBtn_->setEnabled(!blank && !editor_->isIdle());
   }
 
 }  // namespace stencil::gui

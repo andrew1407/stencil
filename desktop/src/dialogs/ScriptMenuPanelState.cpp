@@ -12,17 +12,19 @@ namespace stencil::gui {
 
   void ScriptMenuPanel::showRunDiagnostics() { edit_->showRunDiagnostics(); }
 
-  // Run, Copy and Download need something to act on; Upload always does.
-  void ScriptMenuPanel::gateActions(bool empty) {
-    copyBtn_->setEnabled(!empty);
-    downloadBtn_->setEnabled(!empty);
-    runBtn_->setEnabled(!empty);
+  // Copy and Download need text; Upload always has something to do. Run needs something to
+  // RUN (browser js/ui/scriptEditor.js gateActions).
+  void ScriptMenuPanel::gateActions() {
+    const bool blank = edit_->isEmpty();
+    copyBtn_->setEnabled(!blank);
+    downloadBtn_->setEnabled(!blank);
+    runBtn_->setEnabled(!blank && !edit_->isIdle());
   }
 
   // The menu stays open on both outcomes: a failed run is exactly when you want the text
   // and the underlines still in front of you.
   void ScriptMenuPanel::run() {
-    if (!hooks_.run || edit_->isEmpty()) return;
+    if (!hooks_.run || !runBtn_->isEnabled()) return;   // Ctrl+Enter obeys the button's gate
     hooks_.run(edit_->script());
     showRunDiagnostics();   // from here the strip and the underlines mean this exact text
   }
