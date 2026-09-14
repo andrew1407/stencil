@@ -103,7 +103,8 @@ namespace stencil::gui {
     connect(downloadBtn_, &QPushButton::clicked, this, &ScriptDialog::saveFile);
     connect(uploadBtn, &QPushButton::clicked, this, &ScriptDialog::loadFile);
     connect(clearBtn_, &QPushButton::clicked, this, [this] { editor_->setScript(QString()); });
-    connect(runBtn_, &QPushButton::clicked, this, &QDialog::accept);
+    connect(runBtn_, &QPushButton::clicked, this, &ScriptDialog::runRequested);
+    connect(editor_, &ScriptEditorWidget::runRequested, this, &ScriptDialog::runRequested);
     connect(editor_, &ScriptEditorWidget::edited, this, &ScriptDialog::gateActions);
 
     if (!initialText.isEmpty()) editor_->setScript(initialText);

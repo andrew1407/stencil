@@ -170,6 +170,21 @@ int main(int argc, char** argv) {
     check(!formatsOn(&edit, 0).isEmpty(), "the spans are still coloured after a restyle");
   }
 
+  std::printf("Run asks its host instead of closing the window:\n");
+  {
+    ScriptDialog dlg(QStringLiteral("@crop 10%\n@save\n"));
+    dlg.show();
+    int asked = 0;
+    QObject::connect(&dlg, &ScriptDialog::runRequested, [&asked] { ++asked; });
+    auto* run = dlg.findChild<QPushButton*>(QStringLiteral("scriptRun"));
+    check(run && run->isEnabled(), "Run is live for a script with something to do");
+    if (run) run->click();
+    check(asked == 1, "the click asks the host to run");
+    // The old exec-loop accepted here, which closed the window and re-opened it — a flicker.
+    check(dlg.isVisible(), "and the window is still open afterwards");
+    check(dlg.result() != QDialog::Accepted, "Run never accepts the dialog");
+  }
+
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");
   return failures ? 1 : 0;

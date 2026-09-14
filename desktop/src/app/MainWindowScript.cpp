@@ -25,8 +25,7 @@ namespace stencil::gui {
     void reportRun(Notifications* notify, const ScriptRunResult& result) {
       if (!notify) return;
       if (result.isOk) {
-        notify->success(result.ops == 1 ? QObject::tr("Script ran: 1 op")
-                                        : QObject::tr("Script ran: %1 ops").arg(result.ops));
+        notify->success(QObject::tr("Script executed successfully"));
         return;
       }
       notify->error(result.line > 0 ? QObject::tr("Script failed at line %1 — %2")
@@ -40,20 +39,17 @@ namespace stencil::gui {
   void MainWindow::openScript() {
     ScriptDialog dlg(QString(), this);
 
-    // Keep running while the user presses Run: a failed script should leave the window open
-    // with its diagnostics, not vanish and make them reopen it.
-    while (execMaybePopover(dlg, actScript_) == QDialog::Accepted) {
+    // Run applies the script UNDER the window and leaves it open: closing and re-exec'ing
+    // read as the window flickering away, and a failure's diagnostics belong in front of you.
+    connect(&dlg, &ScriptDialog::runRequested, &dlg, [this, &dlg] {
       ChatPlanTarget target(*this);
       // The dialog's own parse — the one it coloured from — so a Run lexes the text once.
       const ScriptRunResult result = runScript(dlg.program(), target);
       reportRun(notify_, result);
-      if (result.isOk) {
-        refreshAfterScript();
-        return;
-      }
-      dlg.showRunDiagnostics();
-      if (result.ops > 0) refreshAfterScript();   // whatever ran before it still stands
-    }
+      if (!result.isOk) dlg.showRunDiagnostics();
+      if (result.isOk || result.ops > 0) refreshAfterScript();   // part-ran still stands
+    });
+    execMaybePopover(dlg, actScript_);
   }
 
   // The QWidgetAction owns the panel, so the per-right-click menu rebuild can re-add it and

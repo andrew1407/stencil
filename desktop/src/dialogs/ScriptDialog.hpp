@@ -27,6 +27,10 @@ namespace stencil::gui {
     // Shows what a run made of the script: the first error, or nothing when it was clean.
     void showRunDiagnostics();
 
+   signals:
+    // Run never closes the window: the host applies the script and the editor stays put.
+    void runRequested();
+
    protected:
     // A .stc dropped on the OPEN window fills the editor; the browser twin does the same.
     void dragEnterEvent(QDragEnterEvent* event) override;
