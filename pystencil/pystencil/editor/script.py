@@ -11,28 +11,35 @@ earlier crop already changed it. Twin of ``cli/src/console/handlers/script.zig``
 import math
 from dataclasses import dataclass, field
 
-from .._script import Op, Script, ScriptError, parse_script
-from .._types import NoneType
+from .._script import Diagnostics, Op, Pixels, Script, ScriptError, parse_script
 from ..layout import Line, Point
-from ..scriptpaths import guard_target, resolve_target
+from ..scriptpaths import guard_target, read_script, resolve_target, save_format
 
-MAX_SCRIPT_BYTES = 4 << 20
+Paths = list[str]
 
 
 @dataclass
 class ScriptResult:
   """What one script run did: its diagnostics, the edits it recorded, the files written."""
 
-  diagnostics: tuple = tuple()
+  diagnostics: Diagnostics = tuple()
   applied: int = 0
-  saved: list = field(default_factory=list)
+  saved: Paths = field(default_factory=list)
   sources_ignored: bool = False
-  #: Called with (path, width, height) as each @save lands, so a caller reports in order.
-  on_save: object = None
 
   @property
   def has_errors(self) -> bool:
     return any(d.severity == "error" for d in self.diagnostics)
+
+
+@dataclass
+class _OpContext:
+  """What a handler needs beyond the op: where saves collect, and how they are guarded.
+  ``on_save`` is called with (path, width, height) as each ``@save`` lands."""
+
+  result: ScriptResult
+  confine_output: bool = False
+  on_save: object = None
 
 
 def _lround(v: float) -> int:
@@ -40,7 +47,7 @@ def _lround(v: float) -> int:
   return int(math.copysign(math.floor(abs(v) + 0.5), v))
 
 
-def _line_from(op: Op, resolved: list) -> Line:
+def _line_from(op: Op, resolved: Pixels) -> Line:
   """One ``@line``/``@rect`` op plus its resolved pixels -> a drawable :class:`Line`."""
   coords, thickness, point_size = resolved[:-2], resolved[-2], resolved[-1]
   points = [Point(coords[i], coords[i + 1]) for i in range(0, len(coords) - 1, 2)]
@@ -54,6 +61,58 @@ def _line_from(op: Op, resolved: list) -> Line:
     fill_color=op.str_at(2),
     point_color=op.str_at(3),
   )
+
+
+def _op_header(editor, program: Script, op: Op, ctx: _OpContext) -> int:
+  """``@open`` is the block header — the editor already holds what it names."""
+  return 0
+
+
+def _op_frame(editor, program: Script, op: Op, ctx: _OpContext) -> int:
+  """``@frame`` needs a video decoder this surface does not have (the same named
+  deviation the ``frame`` op carries)."""
+  raise ScriptError("line %d: @frame needs a video decoder — use the CLI" % op.line)
+
+
+def _op_crop(editor, program: Script, op: Op, ctx: _OpContext) -> int:
+  width, height = editor.image_size
+  editor.crop_rect(*(_lround(v) for v in program.resolve(op.index, width, height)[:4]))
+  return 1
+
+
+def _op_filter(editor, program: Script, op: Op, ctx: _OpContext) -> int:
+  mode, tint = op.str_at(0), op.str_at(1)
+  editor.apply_filter(tint if mode == "custom" else mode)
+  return 1
+
+
+def _op_shape(editor, program: Script, op: Op, ctx: _OpContext) -> int:
+  width, height = editor.image_size
+  editor.draw([_line_from(op, program.resolve(op.index, width, height))])
+  return 1
+
+
+def _op_layout(editor, program: Script, op: Op, ctx: _OpContext) -> int:
+  editor.draw(op.str_at(0), combine=op.str_at(1) != "replace")
+  return 1
+
+
+def _op_save(editor, program: Script, op: Op, ctx: _OpContext) -> int:
+  ctx.result.saved.append(editor._script_save(op, ctx))
+  return 0
+
+
+def _op_history(editor, program: Script, op: Op, ctx: _OpContext) -> int:
+  step = editor.undo if op.kind == "undo" else editor.redo
+  for _ in range(max(1, int(op.num_at(0, 1.0)))): step()
+  return 0
+
+
+HANDLERS = {
+  "open": _op_header, "frame": _op_frame, "crop": _op_crop, "filter": _op_filter,
+  "line": _op_shape, "rect": _op_shape, "layout": _op_layout, "save": _op_save,
+  "undo": _op_history, "redo": _op_history,
+}
 
 
 class _ScriptApi:
@@ -77,57 +136,22 @@ class _ScriptApi:
   def apply_script_ops(self, program: Script, ops, *, confine_output: bool = False,
              on_save=None) -> ScriptResult:
     """Apply an already-parsed op run to this editor (the block loop's entry point)."""
-    result = ScriptResult(diagnostics=program.diagnostics, on_save=on_save)
+    result = ScriptResult(diagnostics=program.diagnostics)
+    ctx = _OpContext(result, confine_output, on_save)
     self._require_original()
     for op in ops:
-      result.applied += self._apply_script_op(program, op, result, confine_output)
+      result.applied += HANDLERS[op.kind](self, program, op, ctx)
     return result
 
   def script_run(self, path: str, *, confine_output: bool = False) -> ScriptResult:
     """Read a ``.stc`` file and run it against this editor."""
-    with open(path, "r", encoding="utf-8") as handle:
-      text = handle.read(MAX_SCRIPT_BYTES + 1)
-    if len(text) > MAX_SCRIPT_BYTES: raise ScriptError("that script is too large: %s" % path)
-    return self.script(text, confine_output=confine_output)
+    return self.script(read_script(path), confine_output=confine_output)
 
-  def _apply_script_op(
-    self, program: Script, op: Op, result: ScriptResult, confine_output: bool
-  ) -> int:
-    """Apply one lowered op; returns 1 when it recorded an edit, 0 otherwise."""
-    if op.kind in ("open", "frame"): return self._skip_script_op(op)
-    width, height = self.image_size
-    if op.kind == "crop":
-      self.crop_rect(*(_lround(v) for v in program.resolve(op.index, width, height)[:4]))
-    elif op.kind == "filter":
-      mode, tint = op.str_at(0), op.str_at(1)
-      self.apply_filter(tint if mode == "custom" else mode)
-    elif op.kind in ("line", "rect"):
-      self.draw([_line_from(op, program.resolve(op.index, width, height))])
-    elif op.kind == "layout":
-      self.draw(op.str_at(0), combine=op.str_at(1) != "replace")
-    elif op.kind == "save":
-      result.saved.append(self._script_save(op, result, confine_output))
-      return 0
-    elif op.kind in ("undo", "redo"):
-      step = self.undo if op.kind == "undo" else self.redo
-      for _ in range(max(1, int(op.num_at(0, 1.0)))): step()
-      return 0
-    return 1
-
-  @staticmethod
-  def _skip_script_op(op: Op) -> int:
-    """``@open`` is the block header; ``@frame`` needs a video decoder this surface
-    does not have (the same named deviation the ``frame`` op carries)."""
-    if op.kind == "frame":
-      raise ScriptError("line %d: @frame needs a video decoder — use the CLI" % op.line)
-    return 0
-
-  def _script_save(self, op: Op, result: ScriptResult, confine_output: bool) -> str:
+  def _script_save(self, op: Op, ctx: _OpContext) -> str:
     """Write the current view where ``@save`` points, and return the path."""
     source = self._source or ("%s.png" % (self._name or "image"))
-    fmt = self._source_ext if self._source_ext in ("png", "bmp") else "png"
-    path = resolve_target(op.str_at(0), source, None, fmt)
-    guard_target(path, confine_output)
-    img = self.save(path, fmt)
-    if result.on_save is not None: result.on_save(path, img.width, img.height)
+    path = resolve_target(op.str_at(0), source, None, save_format(self._source_ext))
+    guard_target(path, ctx.confine_output)
+    img = self.save(path)
+    if ctx.on_save is not None: ctx.on_save(path, img.width, img.height)
     return path

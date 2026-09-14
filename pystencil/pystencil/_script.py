@@ -2,23 +2,22 @@ from __future__ import annotations
 
 """The ``.stc`` script handle: a ctypes wrapper over the ``stencil_cli_script*`` ABI.
 
-The core parses, lowers and diagnoses; this reads the result out of the handle into
-plain Python values. Every string the ABI returns points into the handle's own memory,
-so each accessor is read eagerly at parse time and the handle keeps only the two calls
-that need it live — :meth:`Script.resolve` and the memoised dump.
+The core parses, lowers and diagnoses; this reads the result out of the handle into the
+plain values of :mod:`pystencil._scripttypes`. Every string the ABI returns points into
+the handle's own memory, so what a runner needs — diagnostics, blocks, ops — is read
+eagerly at parse time, while the colouring tokens, the dump and :meth:`Script.resolve`
+read through the handle and refuse once it is closed.
 """
 
 import ctypes
-from dataclasses import dataclass, field
+import functools
 
+from ._scripttypes import (
+  OP_KINDS, SOURCE_KINDS, TOKEN_KINDS, Block, Blocks, Diagnostic, Diagnostics, Op, Ops,
+  Pixels, Token, Tokens,
+)
 from ._types import NoneType
 from .core import Core, get_core
-
-# Index order is the ABI's; never reorder, only append (scriptTypes.hpp).
-TOKEN_KINDS = tuple(
-  "comment directive keyword number unit color string param punct ident error".split())
-SOURCE_KINDS = tuple("project file url dir glob".split())
-OP_KINDS = tuple("open frame crop filter line rect layout save undo redo".split())
 
 # CSS pixels per cm at 96 dpi — the basis the crop parser and the browser share.
 PX_PER_CM = 96.0 / 2.54
@@ -30,64 +29,6 @@ class ScriptError(ValueError):
   """A script could not be read, parsed without errors, or applied."""
 
 
-@dataclass(frozen=True)
-class Diagnostic:
-  severity: str
-  code: str
-  line: int
-  col: int
-  length: int
-  message: str
-
-  def format(self, label: str) -> str:
-    """``file:line:col: severity: message [CODE]`` — what ``--script-check`` prints."""
-    return "%s:%d:%d: %s" % (label, self.line, self.col, self.__tail())
-
-  def dump_line(self) -> str:
-    """``line:col:len: severity: message [CODE]`` — the fixture corpus spelling."""
-    return "%d:%d:%d: %s" % (self.line, self.col, self.length, self.__tail())
-
-  def __tail(self) -> str:
-    return "%s: %s [%s]" % (self.severity, self.message, self.code)
-
-
-@dataclass(frozen=True)
-class Token:
-  kind: str
-  line: int
-  col: int
-  length: int
-
-
-@dataclass(frozen=True)
-class Block:
-  index: int
-  source: str
-  kind: str
-  frame: int
-  op_start: int
-  op_count: int
-
-
-@dataclass(frozen=True)
-class Op:
-  index: int
-  kind: str
-  block: int
-  edit_index: int
-  line: int
-  col: int
-  strs: tuple = field(default_factory=tuple)
-  toks: tuple = field(default_factory=tuple)
-  nums: tuple = field(default_factory=tuple)
-
-  def str_at(self, k: int) -> str:
-    return self.strs[k] if 0 <= k < len(self.strs) else ""
-
-  def num_at(self, k: int, default: float = 0.0) -> float:
-    return self.nums[k] if 0 <= k < len(self.nums) else default
-
-
 def _text(raw) -> str:
   return raw.decode("utf-8", "replace") if raw else ""
 
@@ -96,14 +37,14 @@ class Script:
   """One parsed ``.stc`` program. Use it as a context manager, or call :meth:`close`."""
 
   def __init__(self, handle: int, core: Core) -> None:
-    self._handle = handle
-    self._core = core
+    self.__handle = handle
+    self.__core = core
+    # One buffer for every resolve: one call per crop/line/rect op adds up.
+    self.__resolve_buf = (ctypes.c_double * _RESOLVE_CAP)()
     lib = core._lib
-    self.diagnostics: tuple = _read_diagnostics(lib, handle)
-    self.tokens: tuple = _read_tokens(lib, handle)
-    self.blocks: tuple = _read_blocks(lib, handle)
-    self.ops: tuple = _read_ops(lib, handle)
-    self.dump: str = _text(lib.stencil_cli_scriptDump(handle))
+    self.diagnostics: Diagnostics = _read_diagnostics(lib, handle)
+    self.blocks: Blocks = _read_blocks(lib, handle)
+    self.ops: Ops = _read_ops(lib, handle)
 
   @classmethod
   def parse(cls, text: str, core: (Core | NoneType) = None) -> "Script":
@@ -114,10 +55,20 @@ class Script:
     if not handle: raise ScriptError("the core refused to parse that script")
     return cls(handle, core)
 
+  @functools.cached_property
+  def tokens(self) -> Tokens:
+    """The editor colouring classes, read on first use — only a highlighter wants them."""
+    return _read_tokens(self.__lib(), self.__handle)
+
+  @functools.cached_property
+  def dump(self) -> str:
+    """The canonical dump the fixture corpus records, serialised on first use."""
+    return _text(self.__lib().stencil_cli_scriptDump(self.__handle))
+
   def close(self) -> None:
-    if self._handle:
-      self._core._lib.stencil_cli_scriptDestroy(self._handle)
-      self._handle = 0
+    if self.__handle:
+      self.__core._lib.stencil_cli_scriptDestroy(self.__handle)
+      self.__handle = 0
 
   def __enter__(self) -> "Script":
     return self
@@ -140,23 +91,27 @@ class Script:
     """The fixture corpus' diagnostics section (empty when there are none)."""
     return "".join(d.dump_line() + "\n" for d in self.diagnostics)
 
-  def block_ops(self, block: Block) -> tuple:
+  def block_ops(self, block: Block) -> Ops:
     """The ops belonging to ``block``, in order."""
     return self.ops[block.op_start:block.op_start + block.op_count]
 
-  def resolve(self, index: int, image_w: float, image_h: float) -> list:
+  def resolve(self, index: int, image_w: float, image_h: float) -> Pixels:
     """One op's length tokens in pixels against the CURRENT image size.
 
     A crop earlier in the block already moved the frame, so pass what you hold now.
     """
-    if not self._handle: raise ScriptError("this script handle is closed")
-    buf = (ctypes.c_double * _RESOLVE_CAP)()
-    n = self._core._lib.stencil_cli_scriptOpResolve(
-      self._handle, index, float(image_w), float(image_h), PX_PER_CM, PX_PER_CM,
+    buf = self.__resolve_buf
+    n = self.__lib().stencil_cli_scriptOpResolve(
+      self.__handle, index, float(image_w), float(image_h), PX_PER_CM, PX_PER_CM,
       buf, _RESOLVE_CAP,
     )
     if n < 0: raise ScriptError("op %d resolves to nothing" % index)
     return [buf[i] for i in range(n)]
+
+  def __lib(self):
+    """The bound library, refused once the handle has been destroyed."""
+    if not self.__handle: raise ScriptError("this script handle is closed")
+    return self.__core._lib
 
 
 def parse_script(text: str, core: (Core | NoneType) = None) -> Script:
@@ -164,7 +119,7 @@ def parse_script(text: str, core: (Core | NoneType) = None) -> Script:
   return Script.parse(text, core)
 
 
-def _read_diagnostics(lib, handle: int) -> tuple:
+def _read_diagnostics(lib, handle: int) -> Diagnostics:
   out = list()
   sev, line, col, length = (ctypes.c_int() for _ in range(4))
   code = ctypes.c_char_p()
@@ -180,7 +135,7 @@ def _read_diagnostics(lib, handle: int) -> tuple:
   return tuple(out)
 
 
-def _read_tokens(lib, handle: int) -> tuple:
+def _read_tokens(lib, handle: int) -> Tokens:
   out = list()
   kind, line, col, length = (ctypes.c_int() for _ in range(4))
   for i in range(max(0, lib.stencil_cli_scriptTokenCount(handle))):
@@ -193,7 +148,7 @@ def _read_tokens(lib, handle: int) -> tuple:
   return tuple(out)
 
 
-def _read_blocks(lib, handle: int) -> tuple:
+def _read_blocks(lib, handle: int) -> Blocks:
   out = list()
   kind, frame, start, count = (ctypes.c_int() for _ in range(4))
   for i in range(max(0, lib.stencil_cli_scriptBlockCount(handle))):
@@ -206,7 +161,7 @@ def _read_blocks(lib, handle: int) -> tuple:
   return tuple(out)
 
 
-def _read_ops(lib, handle: int) -> tuple:
+def _read_ops(lib, handle: int) -> Ops:
   out = list()
   kind, block, edit, line, col, nstr, nnum = (ctypes.c_int() for _ in range(7))
   num = ctypes.c_double()

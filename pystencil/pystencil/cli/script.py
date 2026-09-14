@@ -4,55 +4,72 @@ from __future__ import annotations
 
 ``--script`` edits and writes like the rest of the pipeline (everything human on
 stderr); the other two are written for an editor or an adapter to parse, so they print
-to **stdout**. Twin of ``cli/src/script/{run,check,plan}.zig``.
+to **stdout**. Stdin is a one-shot source only: the console reads the very same stream,
+so a ``-`` never reaches it. Twin of ``cli/src/script/{run,check,plan}.zig``.
 """
 
 import sys
 from typing import TextIO
 
-from .._script import ScriptError, parse_script
+from .._script import Diagnostics, ScriptError, parse_script
 from .._severity import emit_error, emit_note
+from .._types import NoneType
 from ..core import get_core
-from ..script import label_for, read_script, run_script_text
+from ..script import run_program
+from ..scriptpaths import MAX_SCRIPT_BYTES, read_script
 from .scriptplan import lower_to_plan
 
+STDIN = "-"
 
-def _report_diagnostics(program, label: str, err: TextIO) -> None:
+
+def script_source(path: str) -> str:
+  """The script text one flag names: a file, or stdin when ``path`` is ``-``."""
+  if path == STDIN: return sys.stdin.read(MAX_SCRIPT_BYTES)
+  return read_script(path)
+
+
+def label_for(path: str) -> str:
+  """The name a diagnostic carries: the path as given, or ``<stdin>``."""
+  return "<stdin>" if path == STDIN else path
+
+
+def _report_diagnostics(diagnostics: Diagnostics, label: str, err: TextIO) -> None:
   """Every diagnostic on the human channel, errors as ``error:`` and warnings as ``note:``."""
-  for diag in program.diagnostics:
-    line = "%s:%d:%d: %s [%s]" % (label, diag.line, diag.col, diag.message, diag.code)
-    (emit_error if diag.severity == "error" else emit_note)(err, line)
+  for diag in diagnostics:
+    emit = emit_error if diag.severity == "error" else emit_note
+    emit(err, diag.console_line(label))
 
 
-def run_check(path: str, out: (TextIO | None) = None) -> int:
+def run_check(path: str, out: (TextIO | NoneType) = None) -> int:
   """``--script-check``: one parsable line per diagnostic; exit 1 on any error."""
   out = out if out is not None else sys.stdout
   label = label_for(path)
-  with parse_script(read_script(path)) as program:
+  with parse_script(script_source(path)) as program:
     for diag in program.diagnostics: out.write(diag.format(label) + "\n")
     return 1 if program.has_errors else 0
 
 
-def run_plan(path: str, source: (str | None) = None, out: (TextIO | None) = None) -> int:
+def run_plan(path: str, source: (str | NoneType) = None,
+             out: (TextIO | NoneType) = None) -> int:
   """``--script-plan``: the script lowered to op-plan JSON on stdout; exit 1 on any error."""
   out = out if out is not None else sys.stdout
-  with parse_script(read_script(path)) as program:
+  with parse_script(script_source(path)) as program:
     out.write(lower_to_plan(program, label_for(path), source, get_core()) + "\n")
     return 1 if program.has_errors else 0
 
 
-def run_edit(path: str, source: (str | None), confine_output: bool, err: TextIO) -> int:
+def run_edit(path: str, source: (str | NoneType), confine_output: bool,
+             err: TextIO) -> int:
   """``--script``: run the script over its inputs, reporting each file it wrote."""
   label = label_for(path)
-  text = read_script(path)
 
   def wrote(target: str, w: int, h: int) -> None:
     err.write("wrote %s (%dx%d)\n" % (target, w, h))
 
-  with parse_script(text) as program:
-    _report_diagnostics(program, label, err)
+  with parse_script(script_source(path)) as program:
+    _report_diagnostics(program.diagnostics, label, err)
     if program.has_errors: return 1
-  run = run_script_text(text, source=source, confine_output=confine_output, on_save=wrote)
+    run = run_program(program, source=source, confine_output=confine_output, on_save=wrote)
   for spec in run.empty_sources: emit_note(err, "%s: no files matched" % spec)
   if not run.saved: emit_note(err, "the script saved nothing — add a @save")
   return 0

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-"""What a ``@source`` names and where a ``@save`` writes.
+"""Which file a ``.stc`` is read from, what a ``@source`` names, where a ``@save`` writes.
 
 The core classifies a source spec and hands back the save target verbatim; turning
 either into concrete paths is the adapter's job, so directory listing, the one-segment
-glob and the ``-stencil`` naming rule live here. Twin of ``cli/src/script/sources.zig``
-and ``cli/src/script/save.zig``.
+glob, the ``-stencil`` naming rule and the two ``..`` refusals live here. Every door
+that reads a script file goes through :func:`read_script`. Twin of
+``cli/src/script/sources.zig`` and ``cli/src/script/save.zig``.
 """
 
 import fnmatch
@@ -17,7 +18,10 @@ from ._script import ScriptError
 from ._types import NoneType
 
 MAX_INPUTS = 512
+MAX_SCRIPT_BYTES = 4 << 20
 SUFFIX = "-stencil"
+# The codecs this surface can write, so the only extensions a @save may produce.
+SAVE_FORMATS = ("png", "bmp")
 
 
 def is_media(name: str) -> bool:
@@ -26,12 +30,32 @@ def is_media(name: str) -> bool:
   return codecs.format_from_ext(name) is not None
 
 
+def is_url(spec: str) -> bool:
+  """True for the http(s) URLs this package fetches — the only remote scheme."""
+  low = spec.lower()
+  return low.startswith("http://") or low.startswith("https://")
+
+
 def has_foreign_scheme(spec: str) -> bool:
   """True for a scheme that is neither http(s) nor a bare path — refused up front."""
   head = spec.split("/", 1)[0]
   if ":" not in head: return False
   scheme = head.split(":", 1)[0].lower()
   return scheme not in ("http", "https") and len(scheme) > 1
+
+
+def has_traversal(path: str) -> bool:
+  """True when any segment is ``..`` — refused whether reading or writing."""
+  return ".." in path.replace("\\", "/").split("/")
+
+
+def read_script(path: str) -> str:
+  """Read a ``.stc`` file, refusing a path that walks out through ``..``."""
+  if has_traversal(path): raise ScriptError("refusing to read through '..': %s" % path)
+  with open(path, "r", encoding="utf-8") as handle:
+    text = handle.read(MAX_SCRIPT_BYTES + 1)
+  if len(text) > MAX_SCRIPT_BYTES: raise ScriptError("that script is too large: %s" % path)
+  return text
 
 
 def _split_dir(spec: str) -> tuple:
@@ -49,6 +73,7 @@ def expand_source(spec: str, kind: str) -> list:
   if kind == "project": return list()
   directory, leaf = (spec, "*") if kind == "dir" else _split_dir(spec)
   try:
+    # Name-sorted here is path-sorted below: every match shares the one directory prefix.
     entries = sorted(p.name for p in Path(directory or ".").iterdir() if p.is_file())
   except OSError:
     raise ScriptError("no such source: %s" % spec)
@@ -59,7 +84,7 @@ def expand_source(spec: str, kind: str) -> list:
     if len(found) >= MAX_INPUTS:
       raise ScriptError("%s matches more than %d files" % (spec, MAX_INPUTS))
     found.append(os.path.join(directory, name))
-  return sorted(found)
+  return found
 
 
 def _strip_query(path: str) -> str:
@@ -83,6 +108,14 @@ def _stem(name: str) -> str:
   return name if not ext or not root else root
 
 
+def save_format(source_ext: (str | NoneType)) -> str:
+  """The codec a ``@save`` falls back to for a result derived from ``source_ext``: the
+  source's own when this surface can write it, else PNG. One rule, so the name
+  ``--script-plan`` reports and the file ``--script`` writes can never disagree."""
+  ext = (source_ext or "").lower()
+  return ext if ext in SAVE_FORMATS else "png"
+
+
 def resolve_target(target: str, source: str, frame: (int | NoneType), ext: str) -> str:
   """The path a ``@save <target>`` writes, for a result derived from ``source``.
 
@@ -101,8 +134,7 @@ def resolve_target(target: str, source: str, frame: (int | NoneType), ext: str) 
 
 def guard_target(path: str, confine_output: bool) -> None:
   """``..`` is always refused; under confinement so is anything outside the cwd."""
-  parts = path.replace("\\", "/").split("/")
-  if ".." in parts: raise ScriptError("refusing to save through '..': %s" % path)
+  if has_traversal(path): raise ScriptError("refusing to save through '..': %s" % path)
   if not confine_output: return
   cwd = os.path.realpath(os.getcwd())
   full = os.path.realpath(os.path.join(cwd, path))

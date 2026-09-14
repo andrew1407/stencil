@@ -8,7 +8,7 @@ still apply to what is open: that is what the user is looking at. Twin of
 """
 
 from ..._script import ScriptError, parse_script
-from ...script import read_script
+from ...scriptpaths import read_script
 from ..registry import command
 
 USAGE = (
@@ -52,8 +52,8 @@ class _ScriptCommands:
     """Parse, report every diagnostic, then apply the ops to the working image."""
     with parse_script(text) as program:
       for diag in program.diagnostics:
-        line = "%s:%d:%d: %s [%s]" % (label, diag.line, diag.col, diag.message, diag.code)
-        self._err(line) if diag.severity == "error" else self._note(line)
+        report = self._err if diag.severity == "error" else self._note
+        report(diag.console_line(label))
       if program.has_errors: return
       if not self._editor.has_image():
         self._err("no image loaded")

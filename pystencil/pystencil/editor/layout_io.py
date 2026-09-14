@@ -10,6 +10,7 @@ import os
 from .._types import NoneType
 from .. import _net
 from ..layout import Layout, Line
+from ..scriptpaths import is_url
 from ._snapshot import _Snapshot, LayoutLike
 from .source import _SourceApi
 
@@ -148,7 +149,7 @@ class _LayoutApi:
     """
     stripped = src.lstrip()
     if stripped.startswith("{") or stripped.startswith("["): return src
-    if _SourceApi._is_url(src): return _SourceApi._fetch_url(src).decode("utf-8")
+    if is_url(src): return _SourceApi._fetch_url(src).decode("utf-8")
     if os.path.exists(src):
       with open(src, "r", encoding="utf-8") as handle:
         return handle.read()

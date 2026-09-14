@@ -43,7 +43,7 @@ fetch guard every network path goes through. The other `_`-prefixed helpers sit 
 | `build.py` | compiles `core/` + `cliApi.cpp` into the shared lib | its source list mirrors `STENCIL_CORE_SOURCES`; rebuilds when any source **or header** is newer than the artifact |
 | `pystencil/_native.py`, `core.py`, `_rasterops.py`, `_bindings.py`, `_marshal.py` | locate → (lazily) build → load; `class Core` (scalar half) + the pixel-buffer half; the `argtypes`/`restype` table; the C-view marshalling and buffer guards | every ABI function gets an explicit `argtypes`/`restype` row; bytes move as flat RGBA8 buffers and C strings |
 | `pystencil/_net.py`, `_parallel.py` | the one fetch guard (scheme, SSRF, redirects, size cap); the one bounded fan-out | fan-out results land in submission order so output matches a serial run |
-| `pystencil/_script.py`, `scriptpaths.py`, `script.py` | the `.stc` handle over `stencil_cli_script*`; what a `@source` names and where a `@save` writes; the whole-file block loop | the core lowers, the adapter opens — directory listing, the one-segment glob and the `-stencil` rule live outside `core/` |
+| `pystencil/_script.py`, `_scripttypes.py`, `scriptpaths.py`, `script.py` | the `.stc` handle over `stencil_cli_script*`; the handle-free value types it reads out (twin of `core/script/scriptTypes.hpp`); which file a script is read from, what a `@source` names and where a `@save` writes; the whole-file block loop | the core lowers, the adapter opens — directory listing, the one-segment glob, the `-stencil` rule, the two `..` refusals and the png/bmp `save_format` fallback live outside `core/`, each spelled once |
 | `pystencil/_severity.py`, `_types.py` | the `error: ` / `note: ` prefixes (twin of `cli/src/logo.zig`); the 3.9 `NoneType` spelling | |
 | `pystencil/_data/`, `_opschema/` | the embedded copies of `browser/js/config/llm/`; the registry-driven op-plan schema engine | copies are byte-pinned by `tests/test_canonical_drift.py` |
 | `pystencil/image.py`, `layout.py`, `codecs/` | the RGBA8 buffer, the camelCase layout dataclasses (tolerant coercion), pure-Python PNG/BMP | JPEG decoding belongs to the CLI |
@@ -112,9 +112,10 @@ classDiagram
       +str ext
     }
     class Script {
-      +tuple diagnostics
-      +tuple blocks
-      +tuple ops
+      +Diagnostics diagnostics
+      +Blocks blocks
+      +Ops ops
+      +Tokens tokens
       +str dump
     }
     class Repl["_Repl"] {
@@ -149,7 +150,7 @@ classDiagram
 | `ServerConnection` (`server/connection.py`) | One connected server: base URL, session token, credential kind, status, the REST surface | Created by `ConnectionManager.connect`; `close()` flips status | Speaks `server/internal/protocol`; `ProjectRecord` arrives as a dict, the Go server's definition is canonical |
 | `ConnectionManager` (`server/manager.py`) | The session's set of connections keyed by normalised URL, with reconnect and parallel project polling | One per `_Repl` | Port of the browser `ConnectionManager`, REST only |
 | `MediaItem` (`sitesource/format.py`) | One scanned media candidate: URL, kind, measured size, format token, alt text | Produced by `scan_html`, filtered and downloaded by `scan_page` | Twin of the extension's `imageScan.js` record |
-| `Script` (`_script.py`) | One parsed `.stc` program: its diagnostics, colouring tokens, `@source` blocks, lowered ops and canonical dump, plus the lazy `resolve` of length tokens against the live image size | A core handle created by `parse_script`; a context manager, destroyed on `close()`. Every accessor is read out eagerly, so the Python values outlive the handle | Read by `Editor.apply_script_ops`, the `script.py` block loop and `cli/scriptplan.py`; the corpus in `browser/js/config/script/fixtures/` is canonical |
+| `Script` (`_script.py`, types in `_scripttypes.py`) | One parsed `.stc` program: its diagnostics, `@source` blocks and lowered ops, plus the colouring tokens, the canonical dump and the `resolve` of length tokens that read through the live handle | A core handle created by `parse_script`; a context manager, destroyed on `close()`. What a runner needs is read out eagerly and outlives the handle; the three handle-backed reads refuse once it is closed | Read by `Editor.apply_script_ops`, the `script.py` block loop and `cli/scriptplan.py`; the corpus in `browser/js/config/script/fixtures/` is canonical |
 | `_Repl` (`cli/repl.py`) | The interactive console state and its command table, composed from the `commands/` mixins and `_PlanHooks` | One per `--console` run, over stdin and stderr | Mediates `Editor`, `ConnectionManager`, `Chat`, `LlmConfig`, `Console` |
 
 ## Patterns
@@ -157,15 +158,14 @@ classDiagram
 | Pattern | Where | Notes |
 |---|---|---|
 | Facade over core | `Core` (`core.py`, `RasterOps`) and `Editor` (`editor/editor.py`) | `Core` is the narrow ABI surface; `Editor` is the port of `window.stencil`, so console commands, the library API and LLM plans all mutate through the same methods |
-| Mediator | `Script` (`_script.py`) | One parsed `.stc` program: its diagnostics, colouring tokens, `@source` blocks, lowered ops and canonical dump, plus the lazy `resolve` of length tokens against the live image size | A core handle created by `parse_script`; a context manager, destroyed on `close()`. Every accessor is read out eagerly, so the Python values outlive the handle | Read by `Editor.apply_script_ops`, the `script.py` block loop and `cli/scriptplan.py`; the corpus in `browser/js/config/script/fixtures/` is canonical |
-| `_Repl` (`cli/repl.py`) | Owns `_editor`, `_manager`, `_chat`, `_llm`, `_console`; the command mixins reach each other only through it, and `_image_replaced` is the one chokepoint for image-scoped state |
+| Mediator | `_Repl` (`cli/repl.py`) | Owns `_editor`, `_manager`, `_chat`, `_llm`, `_console`; the command mixins reach each other only through it, and `_image_replaced` is the one chokepoint for image-scoped state |
 | Command | `_HistoryApi._push` over the `_Snapshot` stack (`editor/history.py`) | Every mutator pushes a copied snapshot; `undo`/`redo`/`reset` move the cursor and the view re-derives, so apply and revert share one code path |
 | Strategy | `LlmClient._build_request` / `_extract_reply` (`llm/client.py`); `codecs.decode` (`codecs/__init__.py`) | Provider wire shape selected by `config.provider`; codec selected by `sniff` magic bytes |
 | Observer | `_poll_loop` + `diff_projects` (`server/diff.py`) | REST only, so observation is a poll: `watch_projects(on_change)` fires `created`/`updated`/`deleted` events from list diffs |
 | Repository | `_ProjectApi` + `_FileApi` (`server/projects.py`, `server/files.py`); `_ProjectApi.save_project`/`open_project` (`editor/project.py`) | Server projects and the `.stencil` file behind method calls; the version-guarded write and the 409 conflict never leak past `ServerError` |
 | Chain of Responsibility | `_net._fetch` (`_net.py`) | `_is_http` → `_assert_fetchable` → `_NoRedirect` opener → `MAX_FETCH_BYTES` cap; each link refuses on its own |
 | Adapter | `bind` + `_marshal` (`_bindings.py`, `_marshal.py`); `LlmClient` (`llm/client.py`) | ctypes signatures and buffer views turn Python values into the C ABI's pointers and C strings; the client turns internal messages into each provider's JSON |
-| Table-driven registry | `OP_REGISTRY` of `OpSpec` (`llm/registry.py`); `_Repl._TABLE`/`_HELP` from `@command` (`cli/registry.py`) | Validation, execution and the prompt bullets dispatch on one table; the verb table and `/help` come from one declaration |
+| Table-driven registry | `OP_REGISTRY` of `OpSpec` (`llm/registry.py`); `_Repl._TABLE`/`_HELP` from `@command` (`cli/registry.py`); `HANDLERS` (`editor/script.py`) and `ACTIONS` (`cli/scriptplan.py`) keyed by `Op.kind` | Validation, execution and the prompt bullets dispatch on one table; the verb table and `/help` come from one declaration; a lowered script op reaches its editor call or its plan action by lookup, never a kind chain |
 | Mixin composition | `Editor`, `ServerConnection`, `_Repl` | Each facade is a bare class plus `_*Api` / `_*Commands` mixins that share its state and nothing else |
 | Fixture walker / Golden pin | `tests/test_fixture_*.py` over `fixturebase.py`; `tests/test_text_goldens.py` over `tests/goldens/` | The canonical `browser/js/config/llm/fixtures/` corpus is walked verbatim; console and argparse text is byte-pinned |
 
@@ -205,18 +205,20 @@ classDiagram
   `clearChat` is confirmed at the end of the turn; an `AskCard` waits for the next `/prompt`.
 - **A script run.** `parse_script(text)` hands the source to the core, which lexes, expands
   templates, resolves `@undo`/`@redo` statically and lowers everything to one flat op stream;
-  the handle's diagnostics, tokens, blocks, ops and dump are read out eagerly and the handle
-  then only serves `resolve`. Any error means nothing executes. `Editor.script` replays the
-  whole stream against the working image — one op becomes one ordinary mutator
-  (`crop_rect` / `apply_filter` / `draw` / `undo` / `redo` / `save`), with length tokens
-  resolved at each op against the size as it stands, because an earlier crop already moved
-  it; a `@source` block is reported and its ops still apply, the console semantics.
-  `run_script` is the batch door: per block, `scriptpaths.expand_source` turns the spec into
-  concrete inputs (a file, an http(s) URL, a sorted directory listing, a one-segment glob),
-  each gets a fresh `Editor`, and `resolve_target` gives every `@save` its
-  `<stem>-stencil.<ext>` destination beside the source. `cli/scriptplan.py` lowers the same
-  program to the op-plan vocabulary instead of running it, resolving shapes against a
-  header-only size probe.
+  its diagnostics, blocks and ops are read out eagerly while the tokens, the dump and
+  `resolve` read through the handle on demand. Any error means nothing executes.
+  `Editor.script` replays the whole stream against the working image — `HANDLERS[op.kind]`
+  picks one ordinary mutator (`crop_rect` / `apply_filter` / `draw` / `undo` / `redo` /
+  `save`), with length tokens resolved at each op against the size as it stands, because an
+  earlier crop already moved it; a `@source` block is reported and its ops still apply, the
+  console semantics. `run_script` is the batch door and `run_program` its already-parsed
+  half, so a caller that reported the diagnostics itself parses once: per block,
+  `scriptpaths.expand_source` turns the spec into concrete inputs (a file, an http(s) URL, a
+  sorted directory listing, a one-segment glob), each gets a fresh `Editor`, and
+  `resolve_target` over `save_format` gives every `@save` its `<stem>-stencil.<ext>`
+  destination beside the source — the written codec follows that target path, so the plan
+  names the file the run writes. `cli/scriptplan.py` lowers the same program to the op-plan
+  vocabulary instead of running it, resolving shapes against a header-only size probe.
 - **A server session.** `ConnectionManager.connect(spec)` builds a `ServerConnection` and
   runs `connect()`: no token mints one via `POST /auth/token`, a token is probed with
   `GET /projects`, and one that cannot list but can mint becomes `credential_kind = "admin"`;

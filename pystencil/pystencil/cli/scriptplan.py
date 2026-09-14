@@ -9,11 +9,12 @@ header-only size probe of each block's first local input is the only I/O. Twin o
 """
 
 import json
+from dataclasses import dataclass, field
 
 from .. import codecs
 from .._script import Script, ScriptError
-from ..editor.source import _SourceApi
-from ..scriptpaths import expand_source, resolve_target
+from .._types import NoneType
+from ..scriptpaths import expand_source, is_url, resolve_target, save_format
 
 VERSION = 1
 # A copy of the op-plan envelope's limits.MAX_ACTIONS; tests/test_script_cli.py pins them.
@@ -21,9 +22,22 @@ MAX_ACTIONS = 16
 _PROBE_BYTES = 4 << 20
 
 
-def probe_dims(path: str, core) -> (tuple | None):
+@dataclass
+class _PlanContext:
+  """What one block's lowering accumulates: the actions so far, the shapes still waiting
+  to burn into a ``layout``, and the size each ``@crop`` shrinks."""
+
+  out: list = field(default_factory=list)
+  pending: list = field(default_factory=list)
+  dims: (tuple | NoneType) = None
+  first_input: str = ""
+  from_url: bool = False
+  core: object = None
+
+
+def probe_dims(path: str, core) -> (tuple | NoneType):
   """``(w, h)`` from an image header, or ``None`` for a URL, a video or an unreadable file."""
-  if not path or _SourceApi._is_url(path): return None
+  if not path or is_url(path): return None
   try:
     with open(path, "rb") as handle:
       return codecs.image_dimensions(handle.read(_PROBE_BYTES))
@@ -31,8 +45,8 @@ def probe_dims(path: str, core) -> (tuple | None):
     return None
 
 
-def _open_action(target: str, is_url: bool) -> dict:
-  return {"op": "openUrl", "url": target} if is_url else {"op": "openFile", "path": target}
+def _open_action(target: str, from_url: bool) -> dict:
+  return {"op": "openUrl", "url": target} if from_url else {"op": "openFile", "path": target}
 
 
 def _crop_action(op) -> dict:
@@ -59,7 +73,7 @@ def _num(v: float):
   return int(v) if float(v).is_integer() and abs(v) < 1e15 else v
 
 
-def _line_value(op, program: Script, dims: tuple) -> (dict | None):
+def _line_value(op, program: Script, dims: tuple) -> (dict | NoneType):
   """One ``@line``/``@rect`` as a layout line object, its points already in image pixels."""
   try:
     resolved = program.resolve(op.index, dims[0], dims[1])
@@ -96,43 +110,67 @@ def _crop_dims(op, program: Script, cur: tuple) -> tuple:
   return (resolved[2], resolved[3])
 
 
-def build_actions(program: Script, block, first_input: str, dims: (tuple | None),
-                  core=None) -> list:
-  """The actions one block lowers to, in order. Without ``dims`` the shape ops are
-  dropped rather than resolved against a size nobody has."""
-  out: list = list()
-  pending: list = list()
+def _plan_open(program: Script, op, ctx: _PlanContext) -> None:
+  if ctx.first_input: ctx.out.append(_open_action(ctx.first_input, ctx.from_url))
+
+
+def _plan_frame(program: Script, op, ctx: _PlanContext) -> None:
+  ctx.out.append({"op": "frame", "index": int(op.num_at(0))})
+
+
+def _plan_crop(program: Script, op, ctx: _PlanContext) -> None:
+  _flush(ctx.out, ctx.pending)
+  ctx.out.append(_crop_action(op))
+  if ctx.dims: ctx.dims = _crop_dims(op, program, ctx.dims)
+
+
+def _plan_filter(program: Script, op, ctx: _PlanContext) -> None:
+  ctx.out.append(_filter_action(op, ctx.core))
+
+
+def _plan_shape(program: Script, op, ctx: _PlanContext) -> None:
+  """Without dims the shape is dropped rather than resolved against a size nobody has."""
+  value = _line_value(op, program, ctx.dims) if ctx.dims else None
+  if value: ctx.pending.append(value)
+
+
+def _plan_layout(program: Script, op, ctx: _PlanContext) -> None:
+  if op.str_at(1) == "replace": del ctx.pending[:]
+  ctx.out.append(_open_action(op.str_at(0), int(op.num_at(0, 1.0)) == 2))
+
+
+def _plan_save(program: Script, op, ctx: _PlanContext) -> None:
+  _flush(ctx.out, ctx.pending)
+  ctx.out.append({"op": "save", "path": op.str_at(0)} if op.str_at(0) else {"op": "save"})
+
+
+def _plan_history(program: Script, op, ctx: _PlanContext) -> None:
+  ctx.out.append({"op": op.kind, "steps": max(1, int(op.num_at(0, 1.0)))})
+
+
+ACTIONS = {
+  "open": _plan_open, "frame": _plan_frame, "crop": _plan_crop, "filter": _plan_filter,
+  "line": _plan_shape, "rect": _plan_shape, "layout": _plan_layout, "save": _plan_save,
+  "undo": _plan_history, "redo": _plan_history,
+}
+
+
+def build_actions(program: Script, block, first_input: str,
+                  dims: (tuple | NoneType), core=None) -> list:
+  """The actions one block lowers to, in order."""
+  ctx = _PlanContext(dims=dims, first_input=first_input, core=core,
+                     from_url=block.kind == "url")
   for op in program.block_ops(block):
-    if op.kind == "open":
-      if first_input: out.append(_open_action(first_input, block.kind == "url"))
-    elif op.kind == "frame":
-      out.append({"op": "frame", "index": int(op.num_at(0))})
-    elif op.kind == "crop":
-      _flush(out, pending)
-      out.append(_crop_action(op))
-      if dims: dims = _crop_dims(op, program, dims)
-    elif op.kind == "filter":
-      out.append(_filter_action(op, core))
-    elif op.kind in ("line", "rect"):
-      value = _line_value(op, program, dims) if dims else None
-      if value: pending.append(value)
-    elif op.kind == "layout":
-      if op.str_at(1) == "replace": del pending[:]
-      out.append(_open_action(op.str_at(0), int(op.num_at(0, 1.0)) == 2))
-    elif op.kind == "save":
-      _flush(out, pending)
-      out.append({"op": "save", "path": op.str_at(0)} if op.str_at(0) else {"op": "save"})
-    elif op.kind in ("undo", "redo"):
-      out.append({"op": op.kind, "steps": max(1, int(op.num_at(0, 1.0)))})
-  _flush(out, pending)
-  return out
+    ACTIONS[op.kind](program, op, ctx)
+  _flush(ctx.out, ctx.pending)
+  return ctx.out
 
 
 def _saves(program: Script, block, inputs: list) -> list:
   """The concrete files a ``@save`` writes, one entry per input × save op."""
   out = list()
   for path in inputs:
-    ext = codecs.format_from_ext(path) or "png"
+    ext = save_format(codecs.format_from_ext(path))
     frame = block.frame or None
     for op in program.block_ops(block):
       if op.kind == "frame":
@@ -142,7 +180,7 @@ def _saves(program: Script, block, inputs: list) -> list:
   return out
 
 
-def _block_entry(program: Script, block, source: (str | None), core) -> dict:
+def _block_entry(program: Script, block, source: (str | NoneType), core) -> dict:
   inputs = [source] if block.kind == "project" and source else list()
   if block.kind != "project":
     try:
@@ -165,7 +203,7 @@ def _block_entry(program: Script, block, source: (str | None), core) -> dict:
   }
 
 
-def lower_to_plan(program: Script, label: str, source: (str | None) = None,
+def lower_to_plan(program: Script, label: str, source: (str | NoneType) = None,
                   core=None) -> str:
   """The whole envelope as one JSON line. An error lowers to no blocks — nothing in a
   script that does not parse cleanly is safe to act on."""
