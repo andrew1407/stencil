@@ -1,12 +1,11 @@
 // The bridge from this CommonJS extension to the ESM parser copies in ../parser/. One
-// dynamic import, memoized: the module graph is loaded on the first .stc file and shared by
-// diagnostics and semantic tokens for the life of the extension host.
+// dynamic import, memoized — never a rejected one, which would poison every later parse.
 'use strict';
 
 let pending = null;
 
-const loadParser = () => {
-  if (!pending) pending = import('../parser/index.js');
+const loadParser = (importer = () => import('../parser/index.js')) => {
+  pending ??= importer().catch((error) => { pending = null; throw error; });
   return pending;
 };
 

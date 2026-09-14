@@ -1,37 +1,17 @@
 // Squiggles for a .stc buffer. Two sources of the same diagnostics: on save, the CLI's
-// `--script-check` (the compiled core, so an editor never disagrees with a run); while
-// typing, the in-process parser copies. Both land as vscode.Diagnostic.
+// `--script-check` (the compiled core, so an editor never disagrees with a run); while typing,
+// the in-process parser copies. Both land as vscode.Diagnostic.
 'use strict';
 
-const { spawnSync } = require('node:child_process');
-const { dirname } = require('node:path');
 const vscode = require('vscode');
 
 const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { locateCli } = require('./lib/cliLocator.js');
-const { loadParser } = require('./lib/parserHost.js');
+const { cliFor } = require('./lib/cliLocator.js');
+const { forget, programFor } = require('./lib/programCache.js');
+const { CHECK_LINE, fromProgram, parseCheckOutput, runCheck } = require('./lib/scriptCheck.js');
 
-// `{file}:{line}:{col}: {severity}: {message} [{CODE}]` — cli/src/script/load.zig writes it,
-// this reads it. The file field is greedy so a Windows drive letter stays in it.
-const CHECK_LINE = /^(.*):(\d+):(\d+): (error|warning): (.*?)(?: \[([A-Z_]+)\])?$/;
-
-const parseCheckOutput = (text) => {
-  const found = [];
-  for (const raw of String(text ?? '').split('\n')) {
-    const m = CHECK_LINE.exec(raw.trimEnd());
-    if (!m) continue;
-    found.push({
-      line: Number(m[2]), col: Number(m[3]), len: 1,
-      severity: m[4], message: m[5], code: m[6] ?? '',
-    });
-  }
-  return found;
-};
-
-const fromProgram = (program) => program.diagnostics.map((d) => ({
-  line: d.line, col: d.col, len: d.len || 1,
-  severity: d.severity, message: d.message, code: d.code,
-}));
+// Typing must not lex the buffer per character; this is the order of the editor's own idle.
+const DEBOUNCE_MS = 200;
 
 /* One entry as a vscode.Diagnostic. The parser counts lines and columns from 1, the editor
  * from 0, and a zero-length span would draw nothing. */
@@ -48,52 +28,62 @@ const toDiagnostic = (entry) => {
   return diagnostic;
 };
 
-const runCheck = (cli, path) => {
-  const result = spawnSync(cli, ['--script-check', path], {
-    cwd: dirname(path), encoding: 'utf8', shell: false,
-  });
-  if (result.error) return null;
-  return parseCheckOutput(`${result.stdout ?? ''}${result.stderr ?? ''}`);
-};
-
 const settings = () => vscode.workspace.getConfiguration(CONFIG_SECTION);
 
-const cliFor = (document) => locateCli({
-  configured: settings().get(SETTINGS.cliPath, ''),
-  baseDir: vscode.workspace.getWorkspaceFolder?.(document.uri)?.uri?.fsPath ?? '',
-});
-
-/* The diagnostics for one document. `saved` marks the on-disk path as current, which is
- * what lets the CLI read it; an unsaved buffer always goes to the parser copies. */
+/* The diagnostics for one document. `saved` marks the on-disk path as current, which is what
+ * lets the CLI read it; an unsaved buffer, or a CLI that gave no answer, takes the copies. */
 const collect = async (document, { saved }) => {
   if (saved && document.uri.scheme === 'file') {
-    const cli = cliFor(document);
-    const fromCli = cli ? runCheck(cli, document.uri.fsPath) : null;
+    const cli = cliFor(vscode, document);
+    const fromCli = cli ? await runCheck(cli, document.uri.fsPath) : null;
     if (fromCli) return fromCli;
   }
-  const { parseScript } = await loadParser();
-  return fromProgram(parseScript(document.getText()));
+  return fromProgram(await programFor(document));
 };
 
 const register = (context) => {
   const collection = vscode.languages.createDiagnosticCollection(LANGUAGE_ID);
+  const timers = new Map();
   context.subscriptions.push(collection);
 
+  // A collect() is asynchronous, so a result the next keystroke has already outdated is dropped.
   const refresh = async (document, options) => {
     if (!document || document.languageId !== LANGUAGE_ID) return;
-    collection.set(document.uri, (await collect(document, options)).map(toDiagnostic));
+    const { version } = document;
+    const entries = await collect(document, options);
+    if (document.version === version) collection.set(document.uri, entries.map(toDiagnostic));
+  };
+
+  const later = (document) => {
+    const key = String(document.uri);
+    clearTimeout(timers.get(key));
+    const timer = setTimeout(() => {
+      timers.delete(key);
+      refresh(document, { saved: false });
+    }, DEBOUNCE_MS);
+    timer.unref?.();
+    timers.set(key, timer);
+  };
+
+  const close = (document) => {
+    clearTimeout(timers.get(String(document.uri)));
+    timers.delete(String(document.uri));
+    forget(document.uri);
+    collection.delete(document.uri);
   };
 
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument((d) => refresh(d, { saved: true })),
     vscode.workspace.onDidSaveTextDocument((d) => refresh(d, { saved: true })),
-    vscode.workspace.onDidCloseTextDocument((d) => collection.delete(d.uri)),
+    vscode.workspace.onDidCloseTextDocument(close),
     vscode.workspace.onDidChangeTextDocument((e) => {
-      if (settings().get(SETTINGS.checkOnType, true)) refresh(e.document, { saved: false });
+      if (settings().get(SETTINGS.checkOnType, true)) later(e.document);
     }),
   );
   for (const document of vscode.workspace.textDocuments) refresh(document, { saved: true });
   return collection;
 };
 
-module.exports = { CHECK_LINE, collect, fromProgram, parseCheckOutput, register, toDiagnostic };
+module.exports = {
+  CHECK_LINE, DEBOUNCE_MS, collect, fromProgram, parseCheckOutput, register, toDiagnostic,
+};

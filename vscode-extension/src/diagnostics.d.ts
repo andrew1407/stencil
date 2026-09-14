@@ -1,11 +1,10 @@
 // Shape of diagnostics.js — the CLI's check lines and the parser's diagnostics, as squiggles.
-import type { ScriptProgram } from './parser/index.js';
-export interface DiagnosticEntry {
-  line: number; col: number; len: number; severity: string; message: string; code: string;
-}
+import type { DiagnosticEntry } from './lib/scriptCheck.js';
+export type { DiagnosticEntry };
 export declare const CHECK_LINE: RegExp;
+export declare const DEBOUNCE_MS: number;
 export declare const parseCheckOutput: (text: string) => DiagnosticEntry[];
-export declare const fromProgram: (program: ScriptProgram) => DiagnosticEntry[];
+export declare const fromProgram: (program: unknown) => DiagnosticEntry[];
 export declare const toDiagnostic: (entry: Partial<DiagnosticEntry>) => unknown;
 export declare const collect: (
   document: unknown, options: { saved: boolean },

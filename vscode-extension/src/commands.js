@@ -6,8 +6,8 @@
 const { dirname } = require('node:path');
 const vscode = require('vscode');
 
-const { COMMANDS, CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { MISSING_CLI_MESSAGE, locateCli } = require('./lib/cliLocator.js');
+const { COMMANDS, LANGUAGE_ID } = require('./lib/ids.js');
+const { MISSING_CLI_MESSAGE, cliFor } = require('./lib/cliLocator.js');
 const { runInTerminal } = require('./lib/terminal.js');
 
 const activeScript = () => {
@@ -16,25 +16,25 @@ const activeScript = () => {
   return editor.document;
 };
 
-const cliFor = (document) => locateCli({
-  configured: vscode.workspace.getConfiguration(CONFIG_SECTION).get(SETTINGS.cliPath, ''),
-  baseDir: vscode.workspace.getWorkspaceFolder?.(document.uri)?.uri?.fsPath ?? '',
-});
-
 /* Saves first — every mode reads the file from disk — then runs `args(path)`. Returns the
- * terminal, or null when there is no .stc buffer or no CLI. */
+ * terminal, or null when there is no .stc buffer, no CLI, or no file behind the buffer. */
 const spawnFor = async (buildArgs) => {
   const document = activeScript();
   if (!document) {
     vscode.window.showErrorMessage('Open a .stc script first');
     return null;
   }
-  const cli = cliFor(document);
+  const cli = cliFor(vscode, document);
   if (!cli) {
     vscode.window.showErrorMessage(MISSING_CLI_MESSAGE);
     return null;
   }
-  if (document.isDirty) await document.save();
+  // A cancelled save answers false; an untitled buffer's fsPath is a label, not a path.
+  if (document.isDirty && !(await document.save())) return null;
+  if (document.uri.scheme !== 'file') {
+    vscode.window.showErrorMessage('Save the script to a file first');
+    return null;
+  }
   const path = document.uri.fsPath;
   const args = await buildArgs(path);
   if (!args) return null;
@@ -55,11 +55,11 @@ const runScriptOnImage = () => spawnFor(async (path) => {
   return image ? ['-i', image, '--script', path] : null;
 });
 
-const HANDLERS = {
+const HANDLERS = Object.freeze({
   [COMMANDS.runScript]: runScript,
   [COMMANDS.checkScript]: checkScript,
   [COMMANDS.runScriptOnImage]: runScriptOnImage,
-};
+});
 
 const register = (context) => {
   for (const [id, handler] of Object.entries(HANDLERS)) {

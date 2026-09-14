@@ -130,7 +130,7 @@ test('comment share per directory did not rise', () => {
 // Test-count floor: green says nothing about how many tests ran, so the suite re-runs itself
 // once and reads the runner's own total. The floor sits ~3% under today's count — raise it
 // when the suite grows a lot. STENCIL_TEST_COUNT_RUN marks the inner run, so it never nests.
-const TEST_FLOOR = 133;
+const TEST_FLOOR = 178;
 const INNER_RUN = 'STENCIL_TEST_COUNT_RUN';
 
 test('test-count floor: the suite still discovers and runs its whole tree',

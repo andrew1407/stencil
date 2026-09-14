@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { installVscodeStub, makeDocument, makeVscode } from './helpers/vscodeStub.js';
 
@@ -129,3 +130,89 @@ test('a saved buffer with a working CLI takes the CLI\'s answer, verbatim',
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+const fakeCli = (dir, body) => {
+  const cli = join(dir, 'stencil');
+  writeFileSync(cli, `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+  return cli;
+};
+
+const withCli = async (body, run) => {
+  const dir = mkdtempSync(join(tmpdir(), 'stencil-vsce-'));
+  const script = join(dir, 'demo.stc');
+  writeFileSync(script, '@source a.png:\n    @crp 10%\n');
+  try {
+    await withHost({ settings: { 'stencil.cliPath': fakeCli(dir, body) } }, async (booted) => {
+      await run({ ...booted, script });
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
+const POSIX_ONLY = { skip: process.platform === 'win32' ? 'POSIX stub script' : false };
+
+test('a CLI that says nothing parsable falls back to the parser copies', POSIX_ONLY, async () => {
+  // Exit 2 is an argv refusal: the wrong binary, or a version that never heard of the flag.
+  await withCli('echo "stencil: unknown option" >&2; exit 2', async ({ diagnostics, script }) => {
+    const document = makeDocument({ path: script, text: '@source a.png:\n    @crp 10%\n' });
+    const found = await diagnostics.collect(document, { saved: true });
+    assert.equal(found.length, 1, 'the copies answered');
+    assert.equal(found[0].code, 'E_UNKNOWN_DIRECTIVE');
+  });
+});
+
+test('a failing CLI that printed no diagnostic falls back too', POSIX_ONLY, async () => {
+  await withCli('exit 1', async ({ diagnostics, script }) => {
+    const document = makeDocument({ path: script, text: '@source a.png:\n    @crp 10%\n' });
+    const found = await diagnostics.collect(document, { saved: true });
+    assert.equal(found[0].code, 'E_UNKNOWN_DIRECTIVE', 'squiggles are never silently cleared');
+  });
+});
+
+test('a clean exit with no output IS an answer: no diagnostics', POSIX_ONLY, async () => {
+  await withCli('exit 0', async ({ diagnostics, script }) => {
+    const document = makeDocument({ path: script, text: '@source a.png:\n    @crp 10%\n' });
+    assert.deepEqual(await diagnostics.collect(document, { saved: true }), []);
+  });
+});
+
+test('typing is debounced: a burst of changes paints once', async () => {
+  await withHost({ settings: { 'stencil.cliPath': '/nowhere/stencil' } },
+    async ({ calls, diagnostics }) => {
+      diagnostics.register({ subscriptions: [] });
+      const [onChange] = calls.events.change;
+      const document = makeDocument({ text: '@source a.png:\n    @crp 10%\n', version: 1 });
+      for (let i = 0; i < 5; i += 1) onChange({ document });
+      assert.equal(calls.collections[0].entries.size, 0, 'nothing while the burst lasts');
+      await delay(diagnostics.DEBOUNCE_MS * 2);
+      assert.equal(calls.collections[0].entries.get(document.uri.fsPath).length, 1);
+    });
+});
+
+test('a result the next keystroke outdated is dropped, not painted', async () => {
+  await withHost({ settings: { 'stencil.cliPath': '/nowhere/stencil' } },
+    async ({ calls, diagnostics }) => {
+      diagnostics.register({ subscriptions: [] });
+      const [onSave] = calls.events.save;
+      const document = makeDocument({ text: '@source a.png:\n    @crp 10%\n', version: 1 });
+      const painting = onSave(document);
+      document.version = 2;
+      await painting;
+      assert.equal(calls.collections[0].entries.size, 0, 'a stale parse never overwrites');
+    });
+});
+
+test('closing a document drops its squiggles and its pending check', async () => {
+  await withHost({ settings: { 'stencil.cliPath': '/nowhere/stencil' } },
+    async ({ calls, diagnostics }) => {
+      diagnostics.register({ subscriptions: [] });
+      const [onChange] = calls.events.change;
+      const [onClose] = calls.events.close;
+      const document = makeDocument({ text: '@source a.png:\n    @crp 10%\n', version: 1 });
+      onChange({ document });
+      onClose(document);
+      await delay(diagnostics.DEBOUNCE_MS * 2);
+      assert.equal(calls.collections[0].entries.size, 0, 'the debounced check was cancelled');
+    });
+});

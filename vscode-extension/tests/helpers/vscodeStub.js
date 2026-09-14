@@ -41,7 +41,7 @@ class Terminal {
 
 /* One stub instance. `settings` seeds workspace.getConfiguration; `calls` collects what the
  * extension registered or showed, so a test can assert on it. */
-export const makeVscode = ({ settings = {}, openDialog = [] } = {}) => {
+export const makeVscode = ({ settings = {}, openDialog = [], shell = '/bin/sh' } = {}) => {
   const calls = {
     collections: [], commands: new Map(), events: {}, errors: [],
     semanticProviders: [], terminals: [],
@@ -52,6 +52,7 @@ export const makeVscode = ({ settings = {}, openDialog = [] } = {}) => {
   };
   const vscode = {
     Position, Range, Diagnostic, SemanticTokensBuilder,
+    env: { shell },
     DiagnosticSeverity: { Error: 0, Warning: 1, Information: 2, Hint: 3 },
     SemanticTokensLegend: class { constructor(types, mods = []) { this.tokenTypes = types; this.tokenModifiers = mods; } },
     Uri: { file: (path) => ({ scheme: 'file', fsPath: path, toString: () => `file://${path}` }) },
@@ -114,10 +115,14 @@ export const installVscodeStub = (vscode) => {
 
 export const makeContext = () => ({ subscriptions: [] });
 
-export const makeDocument = ({ path = '/tmp/demo.stc', text = '', languageId = 'stencil-script', isDirty = false } = {}) => ({
+export const makeDocument = ({
+  path = '/tmp/demo.stc', text = '', languageId = 'stencil-script', isDirty = false,
+  scheme = 'file', version, save = async () => true,
+} = {}) => ({
   languageId,
   isDirty,
-  uri: { scheme: 'file', fsPath: path },
+  version,
+  uri: { scheme, fsPath: path, toString: () => `${scheme}://${path}` },
   getText: () => text,
-  save: async () => true,
+  save,
 });

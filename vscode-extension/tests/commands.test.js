@@ -130,3 +130,49 @@ test('register hands VS Code exactly the three contributed ids', async () => {
     assert.equal(context.subscriptions.length, 3);
   });
 });
+
+test('a cancelled Save As spawns nothing — Untitled-1 is a label, not a path', async () => {
+  await withHost({}, async ({ calls, commands, vscode }) => {
+    const document = makeDocument({
+      path: 'Untitled-1', scheme: 'untitled', isDirty: true, save: async () => false,
+    });
+    vscode.window.activeTextEditor = { document };
+    await commands.runScript();
+    assert.equal(calls.terminals.length, 0, 'nothing ran against a buffer with no file');
+    assert.deepEqual(calls.errors, [], 'a cancelled save is the user saying no');
+  });
+});
+
+test('a buffer that is not a file on disk is refused with a message', async () => {
+  await withHost({}, async ({ calls, commands, vscode }) => {
+    const document = makeDocument({ path: 'Untitled-1', scheme: 'untitled' });
+    vscode.window.activeTextEditor = { document };
+    await commands.runScript();
+    assert.deepEqual(calls.errors, ['Save the script to a file first']);
+    assert.equal(calls.terminals.length, 0);
+  });
+});
+
+test('a saved buffer runs, and the save answer is only consulted when dirty', async () => {
+  await withHost({}, async ({ calls, commands, dir, vscode }) => {
+    let saves = 0;
+    const path = join(dir, 'demo.stc');
+    writeFileSync(path, '@source a.png:\n');
+    vscode.window.activeTextEditor = {
+      document: makeDocument({ path, save: async () => { saves += 1; return false; } }),
+    };
+    await commands.runScript();
+    assert.equal(saves, 0, 'a clean buffer is not saved');
+    assert.equal(calls.terminals.length, 1);
+  });
+});
+
+test('the handler table and the id table are frozen', async () => {
+  await withHost({}, async ({ commands, host }) => {
+    assert.ok(Object.isFrozen(commands.HANDLERS));
+    const ids = host.require('lib/ids.js');
+    assert.ok(Object.isFrozen(ids.COMMANDS) && Object.isFrozen(ids.SETTINGS));
+    const tokens = host.require('semanticTokens.js');
+    assert.ok(Object.isFrozen(tokens.TOKEN_TYPES) && Object.isFrozen(tokens.KIND_TYPE));
+  });
+});

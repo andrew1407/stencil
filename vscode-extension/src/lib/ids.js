@@ -7,15 +7,15 @@ const SCOPE_NAME = 'source.stc';
 const FILE_EXTENSION = '.stc';
 const CONFIG_SECTION = 'stencil';
 
-const COMMANDS = {
+const COMMANDS = Object.freeze({
   runScript: 'stencil.runScript',
   runScriptOnImage: 'stencil.runScriptOnImage',
   checkScript: 'stencil.checkScript',
-};
+});
 
-const SETTINGS = {
+const SETTINGS = Object.freeze({
   cliPath: 'cliPath',
   checkOnType: 'checkOnType',
-};
+});
 
 module.exports = { COMMANDS, CONFIG_SECTION, FILE_EXTENSION, LANGUAGE_ID, SCOPE_NAME, SETTINGS };
