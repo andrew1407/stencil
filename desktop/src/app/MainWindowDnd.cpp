@@ -140,7 +140,9 @@ namespace stencil::gui {
     const bool dust = canvas_->hasImage() && scroll_ && scroll_->viewport()
         && !canvas_->visibleRegion().boundingRect().isEmpty()
         && DisintegrateOverlay::overRect(canvas_, canvas_->visibleRegion().boundingRect(),
-                                         scroll_->viewport(), DisintegrateOverlay::Sweep::GATHER);
+                                         scroll_->viewport(), DisintegrateOverlay::Sweep::GATHER,
+                                         false, DisintegrateOverlay::DUST_MAX_CELLS,
+                                         CANVAS_DUST_MS);
     auto* fx = new QGraphicsOpacityEffect(canvas_);
     fx->setOpacity(0.0);
     canvas_->setGraphicsEffect(fx);
@@ -151,7 +153,7 @@ namespace stencil::gui {
     };
     if (dust) {
       // The motes already drew it into place; fading it up as well would double the arrival.
-      QTimer::singleShot(DisintegrateOverlay::DUST_MS, canvas_, done);
+      QTimer::singleShot(CANVAS_DUST_MS, canvas_, done);
       return;
     }
     // No dust to play: fall back to the plain fade, not to a hidden canvas.

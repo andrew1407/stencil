@@ -43,6 +43,9 @@ namespace stencil::gui {
   inline constexpr int TOOLTIP_DUST_OUT_MS = 236;
   inline constexpr int TOOLTIP_FADE_MS = 135;
   inline constexpr int TOOLTIP_HAND_OVER_MS = 90;
+  /* The CANVAS image landing and being cleared, a further 1.5x faster than the shared
+   * DUST_MS below: a full-viewport cloud at the list-row pace reads as a wait. */
+  inline constexpr int CANVAS_DUST_MS = 733;
 
   QPoint dockAwayPoint(const QRect& picture, Qt::DockWidgetArea area,
                        double reach = 1.2);
@@ -159,6 +162,7 @@ namespace stencil::gui {
                                             int maxCells = SURFACE_MAX_CELLS,
                                             bool escapeHost = false, bool alwaysEscape = false);
 
+    int durationMs() const { return ms_; }   // the clock this cloud was started on
     // HOST coordinates; the GUI test reads these.
     QPoint surfaceTarget() const { return target_.toPoint(); }
     QRect surfacePicture() const { return picture_; }
