@@ -5,9 +5,11 @@
 const COLOR_NAMES = require('../config/colorNames.json');
 const { CROP_KEYS, MODES, STYLES, groupOf } = require('./vocabulary.js');
 
-// A directive's family → its legend type. Four families, four colours.
+// A directive's family → its legend type. Four families, four colours. The types are picked
+// for what the default themes actually paint them: namespace/type/class are one colour, so
+// a block opener cannot be `namespace` while a template is `class`.
 const GROUP_TYPE = Object.freeze({
-  source: 'namespace', template: 'class', edit: 'keyword', output: 'function',
+  source: 'macro', template: 'class', edit: 'keyword', output: 'function',
 });
 
 // Kinds the lexer already settles; an ident is the only one that needs the statement.
@@ -29,8 +31,8 @@ const identType = (word, state) => {
   if (sub === 'stencil' || directive === 'stencil') return 'type';
   if (directive === 'filter' && MODES.includes(word)) return 'enumMember';
   if (directive === 'crop' && CROP_KEYS.includes(word)) return 'variable';
-  if (directive === 'layout' && STYLES.includes(word)) return 'modifier';
-  if (sub === 'line' && STYLES.includes(word)) return 'modifier';
+  if (directive === 'layout' && STYLES.includes(word)) return 'label';
+  if (sub === 'line' && STYLES.includes(word)) return 'label';
   // The spec, the target, the path: the one argument that names something outside the file.
   if (argIndex === 0 && (directive === 'source' || directive === 'save' || directive === 'layout')) {
     return 'string';

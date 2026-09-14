@@ -11,8 +11,8 @@ const { classify } = require('./lib/tokenClassify.js');
 
 // Standard VS Code token types only: a theme that has never heard of .stc still colours it.
 const TOKEN_TYPES = Object.freeze([
-  'comment', 'namespace', 'class', 'type', 'keyword', 'function', 'parameter',
-  'enumMember', 'modifier', 'property', 'variable', 'string', 'number', 'operator',
+  'comment', 'macro', 'class', 'type', 'keyword', 'function', 'parameter',
+  'enumMember', 'label', 'property', 'variable', 'string', 'number', 'operator',
 ]);
 
 const TYPE_INDEX = Object.freeze(Object.fromEntries(TOKEN_TYPES.map((type, i) => [type, i])));

@@ -20,11 +20,12 @@ const withHost = (body) => {
 
 test('the legend uses only standard VS Code token types', () => {
   withHost(({ tokens }) => {
+    // The types VS Code REGISTERS, which is narrower than the LSP list: `modifier` is in the
+    // spec and in no registry, so a token typed that way is left for the grammar to colour.
     const STANDARD = new Set([
-      'namespace', 'type', 'class', 'enum', 'interface', 'struct', 'typeParameter',
-      'parameter', 'variable', 'property', 'enumMember', 'event', 'function', 'method',
-      'macro', 'keyword', 'modifier', 'comment', 'string', 'number', 'regexp', 'operator',
-      'decorator',
+      'class', 'comment', 'decorator', 'enum', 'enumMember', 'event', 'function', 'interface',
+      'keyword', 'label', 'macro', 'member', 'method', 'namespace', 'number', 'operator',
+      'parameter', 'property', 'regexp', 'string', 'struct', 'type', 'typeParameter', 'variable',
     ]);
     for (const type of tokens.TOKEN_TYPES) assert.ok(STANDARD.has(type), `${type} is standard`);
     assert.equal(new Set(tokens.TOKEN_TYPES).size, tokens.TOKEN_TYPES.length, 'no duplicates');
@@ -65,7 +66,7 @@ test('a real buffer colours the directive, the number, the unit and the comment'
     const built = await tokens.provider.provideDocumentSemanticTokens(document);
     const type = (name) => tokens.TOKEN_TYPES.indexOf(name);
     const kinds = built.rows.map((r) => r[3]);
-    assert.ok(kinds.includes(type('namespace')), '@source opens a block');
+    assert.ok(kinds.includes(type('macro')), '@source opens a block');
     assert.ok(kinds.includes(type('keyword')), '@crop is an edit');
     assert.ok(kinds.includes(type('number')), '10 is a number');
     assert.ok(kinds.includes(type('operator')), '% is a unit');

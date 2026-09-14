@@ -36,6 +36,24 @@ tells the editor what is wrong with it, so the two can never disagree.
 - **File icons** in the explorer: the Stencil badge on a `.stc` script, the bare mark on a
   `.stencil` project — which now opens as the JSON it is, rather than plain text.
 
+### The colours
+
+Each family is given a standard semantic token type, so your theme colours it with no setup.
+Override any row with `editor.semanticTokenColorCustomizations` if you want your own.
+
+| What | Token type | Dark Modern |
+|---|---|---|
+| `@source` | `macro` | blue |
+| `@stencil` and its template name, everywhere it is used | `class` / `type` | teal |
+| `@use` `@crop` `@filter` `@line` `@rect` `@layout` `@frame` | `keyword` | purple |
+| `@save` `@undo` `@redo` | `function` | yellow |
+| `@1` `@2` — template parameters | `parameter` | pale blue |
+| `bw` `sepia` `invert` `contour` `none` | `enumMember` | bright blue |
+| `solid` `dashed` `dotted` `fill` `point` `combine` `replace` | `label` | near-white |
+| `x1` `x2` `y1` `y2` `aspect`, and colours | `variable` / `property` | pale blue |
+| what `@source`, `@save` and `@layout` name | `string` | orange |
+| numbers, then their `px` `cm` `mm` `in` `%` | `number`, `operator` | pale green, grey |
+
 ## What people use it for
 
 **Annotating a screenshot for a bug report.** A red box over the broken control, saved beside
