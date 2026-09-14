@@ -92,6 +92,12 @@ namespace stencil::gui {
         s.mark = mark;
         spans.push_back(s);
       }
+      // A bad line reads as bad WHOLE: the squiggle stays on the token the diagnostic names,
+      // but every span on that line takes the danger ink (browser .stk-line-error).
+      for (const model::ScriptDiagnostic& d : program.diagnostics()) {
+        if (!d.isError) continue;
+        for (Span& s : lineAt(d.line)) s.lineErrored = true;
+      }
     }
 
     /* Only the lines whose spans actually moved are repainted: QSyntaxHighlighter has already
@@ -136,6 +142,7 @@ namespace stencil::gui {
         f.setUnderlineColor(mark.underlineColor());
         if (mark.foreground().style() != Qt::NoBrush) f.setForeground(mark.foreground());
       }
+      if (s.lineErrored) f.setForeground(errorFormat_.foreground());
       setFormat(start, len, f);
     }
   }

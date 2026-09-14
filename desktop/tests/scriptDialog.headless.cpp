@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
   {
     QPlainTextEdit edit;
     ScriptHighlighter hl(edit.document());
-    edit.setPlainText(QStringLiteral("gcghcghgh\n@filter sepia\n"));
+    edit.setPlainText(QStringLiteral("gcghcghgh gf g\n@filter sepia\n"));
     hl.setProgram(ScriptDoc::parse(edit.toPlainText()), true);   // withDiagnostics
     // Theme-agnostic: whatever danger resolves to, the text wears the SAME colour as the
     // squiggle — which is what .stk-error does by setting colour and underline to --danger.
@@ -186,6 +186,20 @@ int main(int argc, char** argv) {
           && f.format.foreground().color() == f.format.underlineColor()) reddened = true;
     // Browser .stk-error sets BOTH the colour and the squiggle; the desktop only squiggled.
     check(reddened, "the bad line is danger-coloured, not just underlined");
+    // The WHOLE line goes red, not only the token the diagnostic names — but the squiggle
+    // stays on that token, so the trailing words are red WITHOUT an underline.
+    QColor danger;   // whatever the live theme resolved it to, read off the squiggled span
+    for (const auto& f : formatsOn(&edit, 0))
+      if (f.format.underlineStyle() == QTextCharFormat::WaveUnderline)
+        danger = f.format.foreground().color();
+    bool tailRed = false, tailPlain = false;
+    for (const auto& f : formatsOn(&edit, 0)) {
+      if (f.start <= 9 || f.format.underlineStyle() == QTextCharFormat::WaveUnderline) continue;
+      if (f.format.foreground().color() == danger) tailRed = true;
+      else tailPlain = true;
+    }
+    check(danger.isValid() && tailRed, "the rest of the errored line is red too");
+    check(!tailPlain, "…every span on it, none left in its own ink");
   }
 
   std::printf("Run asks its host instead of closing the window:\n");

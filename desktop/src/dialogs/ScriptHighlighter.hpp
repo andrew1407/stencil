@@ -36,8 +36,10 @@ namespace stencil::gui {
       int len = 0;
       model::ScriptTokenKind kind = model::ScriptTokenKind::IDENT;
       Mark mark = Mark::NONE;
+      bool lineErrored = false;   // any error on this line reddens every span on it
       bool operator==(const Span& o) const {
-        return col == o.col && len == o.len && kind == o.kind && mark == o.mark;
+        return col == o.col && len == o.len && kind == o.kind && mark == o.mark
+               && lineErrored == o.lineErrored;
       }
     };
     static constexpr int KINDS = static_cast<int>(model::ScriptTokenKind::ERROR) + 1;

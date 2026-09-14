@@ -101,6 +101,9 @@
 .stk-punct     { color: var(--text-muted); }
 .stk-ident     { color: var(--text-main); }
 .stk-error     { color: var(--danger); text-decoration: underline wavy var(--danger); }
+/* The rest of an errored line: the same red ink, no squiggle — that belongs to the token
+   the diagnostic actually names. */
+.stk-line-error { color: var(--danger); }
 .stk-warning   { text-decoration: underline wavy var(--warning); }
 
 .script-diag {

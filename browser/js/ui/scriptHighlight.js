@@ -43,6 +43,14 @@ export const paintInto = (pre, text, withDiagnostics) => {
       while (at > 0 && marks[at - 1].col > d.col) at -= 1;
       marks.splice(at, 0, { col: d.col, len, cls: `stk-${d.severity}` });
     }
+    // A bad line reads as bad WHOLE: the squiggle stays on the token the diagnostic names,
+    // but every token on that line takes the danger ink, not just the offending one.
+    for (const d of program.diagnostics) {
+      if (d.severity !== 'error') continue;
+      for (const m of bucket(d.line)) {
+        if (!m.cls.includes('stk-error')) m.cls += ' stk-line-error';
+      }
+    }
   }
 
   lines.forEach((lineText, i) => {

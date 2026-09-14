@@ -6814,6 +6814,9 @@
    "|.stk-keyword": {
     "color": "var(--text-key)"
    },
+   "|.stk-line-error": {
+    "color": "var(--danger)"
+   },
    "|.stk-number": {
     "color": "var(--text-main)"
    },
@@ -8314,6 +8317,7 @@
    "|.stk-punct",
    "|.stk-ident",
    "|.stk-error",
+   "|.stk-line-error",
    "|.stk-warning",
    "|.script-diag",
    "|.script-diag-error",
