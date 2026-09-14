@@ -512,7 +512,8 @@ stencil_headless_test(stencil_scriptdialog_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/scriptDialog.headless.cpp src/dialogs/ScriptDialog.cpp src/dialogs/ScriptDialogFile.cpp
-    src/dialogs/ScriptEditorWidget.cpp src/dialogs/ScriptHighlighter.cpp src/model/ScriptDoc.cpp
+    src/dialogs/ScriptEditorWidget.cpp src/dialogs/ScriptHighlighter.cpp
+    src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp src/support/modalReveal.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
@@ -524,7 +525,20 @@ stencil_headless_test(stencil_scriptmenupanel_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/scriptMenuPanel.headless.cpp src/dialogs/ScriptMenuPanel.cpp
     src/dialogs/ScriptMenuPanelState.cpp src/dialogs/ScriptEditorWidget.cpp
-    src/dialogs/ScriptHighlighter.cpp src/model/ScriptDoc.cpp
+    src/dialogs/ScriptHighlighter.cpp src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp src/support/modalReveal.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
+# The ONE .stc both hosts edit (model/ScriptBuffer): the window and the flyout share it,
+# closing either keeps it, Clear empties it, and it never reaches settings or disk.
+stencil_headless_test(stencil_scriptbuffer_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/scriptBuffer.headless.cpp src/dialogs/ScriptDialog.cpp src/dialogs/ScriptDialogFile.cpp
+    src/dialogs/ScriptMenuPanel.cpp src/dialogs/ScriptMenuPanelState.cpp
+    src/dialogs/ScriptEditorWidget.cpp src/dialogs/ScriptHighlighter.cpp
+    src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp src/support/modalReveal.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
@@ -540,6 +554,13 @@ stencil_headless_test(stencil_scriptrunner_headless
     src/canvas/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets)
+
+# The canvas image's own dust clock (support/DisintegrateOverlay CANVAS_DUST_MS): the
+# arrival and the clear run 1.5x faster than every other cloud. Motion is left ON.
+stencil_headless_test(stencil_canvasdust_headless
+  SOURCES tests/canvasDust.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
 
 # The two OS-driven .stc entries on the real MainWindow (rule 7's one path): a file handed
 # over by the shell and a file dropped on the window both RUN the script.

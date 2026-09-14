@@ -1,6 +1,7 @@
 #include "ScriptEditorWidget.hpp"
 
 #include "ScriptHighlighter.hpp"
+#include "../model/ScriptBuffer.hpp"
 
 #include <QApplication>
 #include <QClipboard>
@@ -79,6 +80,16 @@ namespace stencil::gui {
       emit edited();
     });
     recolour();
+
+    /* Both hosts edit ONE session-scoped script (model::ScriptBuffer): what is typed in the
+     * window is there when the flyout opens, and the other way round. Nothing is persisted —
+     * a script may be pasted from anywhere, so it dies with the process. */
+    model::ScriptBuffer& shared = model::ScriptBuffer::instance();
+    if (!shared.text().isEmpty()) setScript(shared.text());
+    connect(this, &ScriptEditorWidget::edited, this,
+            [this] { model::ScriptBuffer::instance().setText(script()); });
+    connect(&shared, &model::ScriptBuffer::changed, this,
+            [this](const QString& text) { if (text != script()) setScript(text); });
   }
 
   QString ScriptEditorWidget::script() const { return edit_->toPlainText(); }

@@ -271,6 +271,7 @@ set(STENCIL_GUI_SOURCES
   src/app/MainWindowRefresh.cpp
   src/app/MainWindowScript.cpp
   src/app/scriptRun.cpp
+  src/model/ScriptBuffer.cpp
   src/model/ScriptDoc.cpp
   src/app/MainWindowReplace.cpp
   src/app/MainWindowServerProject.cpp
@@ -310,6 +311,7 @@ set(STENCIL_GUI_SOURCES
   src/llm/ChatDock.cpp
   src/llm/ChatDockChrome.cpp
   src/llm/chatDockShared.cpp
+  src/llm/chatMoreMenu.cpp
   src/llm/ChatDockEvents.cpp
   src/llm/ChatDockDrag.cpp
   src/llm/ChatDockAttach.cpp
