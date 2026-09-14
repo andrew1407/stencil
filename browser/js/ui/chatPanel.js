@@ -598,8 +598,9 @@ export class StencilChatPanel extends StencilElement {
       gestures = wireModalOpenGestures(openBtn, {
         openFull: () => setOpen(!host.classList.contains('chat-open')),
         openPopover: () => openCompact(true),
-// The popover gesture only re-shapes this same panel, so there is no open-and-shut flash to protect against.
-        eagerClick: true,
+// NOT eagerClick: opening on the first click docks the panel, which pushes this very icon
+// ~350px along the toolbar, so the second click of a double-click lands where it no longer is
+// and the compact gesture never arrives. The click waits out DOUBLE_CLICK_MS instead.
 // Hold-to-peek: an Alt+hover-opened compact chat closes on Alt release; the glide only
 // closes what the machine itself opened.
         closePopover: () => setOpen(false),

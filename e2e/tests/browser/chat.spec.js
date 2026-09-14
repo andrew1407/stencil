@@ -586,6 +586,32 @@ test.describe('AI assistant chat panel', () => {
   // clones .controls into #fs-controls-panel), which breaks two things that only a
   // real browser shows: the clone is a snapshot, so it can't follow the panel's
   // open state, and the original #chat-btn it forwards clicks to measures 0×0 —
+  /* A double-click a HUMAN would make: two presses a beat apart, the second carrying the
+   * clickCount that raises `dblclick`. Opening the panel on the FIRST click docked it and
+   * pushed #chat-btn ~350px along the toolbar, so the second press landed on empty chrome
+   * and the compact gesture never reached the icon. Playwright's own dblclick() dispatches
+   * both presses before layout reflows, which is why it never caught this. */
+  test('a paced double-click on the chat icon opens the compact popover', async ({ page }) => {
+    await gotoApp(page);
+    const panel = page.locator('#chat-panel');
+    const btn = page.locator('#chat-btn');
+    const box = await btn.boundingBox();
+    const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+    await page.mouse.move(at.x, at.y);
+    await page.mouse.down({ clickCount: 1 });
+    await page.mouse.up({ clickCount: 1 });
+    await page.waitForTimeout(150);
+    // The icon must still be under the pointer, or the second press cannot reach it.
+    const moved = await btn.boundingBox();
+    expect(Math.round(moved.x)).toBe(Math.round(box.x));
+    await page.mouse.down({ clickCount: 2 });
+    await page.mouse.up({ clickCount: 2 });
+
+    await expect(panel).toHaveClass(/chat-open/);
+    await expect(panel).toHaveClass(/chat-dock-float/);
+  });
+
   // pinning a compact popover to the top-left corner instead of the icon.
   test('fullscreen: the cloned chat toggle tracks the panel, and the panel is not stranded', async ({ page }) => {
     await gotoApp(page);
