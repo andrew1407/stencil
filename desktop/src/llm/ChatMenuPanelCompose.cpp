@@ -38,14 +38,19 @@ namespace stencil::gui {
     more_->setAccessibleName(QStringLiteral("More actions"));
     auto* menu = new QMenu(more_);
     menu->setObjectName(QStringLiteral("chatMenuMoreMenu"));
-    actAttach_ = menu->addAction(QStringLiteral("Add image"));
-    actAttach_->setObjectName(QStringLiteral("chatMenuAddImage"));
-    QObject::connect(actAttach_, &QAction::triggered, this, [this] {
+    // The DOCK's rows, in its order and with its glyphs — Clear history is the dock's alone.
+    moreRows_ = buildChatMoreMenu(*menu, /*withClear=*/false);
+    moreRows_.attach->setObjectName(QStringLiteral("chatMenuAddImage"));
+    moreRows_.settings->setObjectName(QStringLiteral("chatMenuSettings"));
+    QObject::connect(moreRows_.attach, &QAction::triggered, this, [this] {
       if (onAttach_) onAttach_();  // the picker needs the popup chain gone first
     });
-    actSettings_ = menu->addAction(QStringLiteral("Settings"));
-    actSettings_->setObjectName(QStringLiteral("chatMenuSettings"));
-    QObject::connect(actSettings_, &QAction::triggered, this, [this] {
+    // The same preference the dock's row drives; the owner persists it and mirrors it back.
+    QObject::connect(moreRows_.swapSides, &QAction::triggered, this, [this] {
+      setChatSwapSides(!chatSwapSides_);
+      emit chatSwapSidesChanged(chatSwapSides_);
+    });
+    QObject::connect(moreRows_.settings, &QAction::triggered, this, [this] {
       // Captured NOW: the settings dialog opens after this popup closes (a modal
       // fights the popup's own grab), which would hide the trigger first.
       if (onSettings_)
@@ -53,7 +58,7 @@ namespace stencil::gui {
     });
     // An item that cannot act right now HIDES rather than greys out (browser parity).
     QObject::connect(menu, &QMenu::aboutToShow, this, [this, menu] {
-      actAttach_->setVisible(!busy_);
+      moreRows_.attach->setVisible(!busy_);
       fitMenuWidth(*menu);
     });
     compactIconMenu(*menu);

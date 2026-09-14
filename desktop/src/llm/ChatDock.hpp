@@ -8,6 +8,7 @@
 #include <QString>
 #include <QVector>
 
+#include "chatMoreMenu.hpp"   // the shared "…" rows, built once for both composers
 #include "opPlan.hpp"
 #include "PillSplitter.hpp"   // the shared composer resize grip
 #include "../support/theme.hpp"   // Palette, cached for a swap-triggered re-style
@@ -257,7 +258,6 @@ namespace stencil::gui {
     // setChatSwapSides re-issues chatCardStyleSheet against the last palette.
     Palette paletteCache_;
     bool chatSwapSides_ = false;
-    QAction* actSwapSides_ = nullptr;
     void updatePlacementState();
     // The title-drag events are CONSUMED: Qt's own (window-server) move swallows the release.
     bool manualDrag_ = false;
@@ -281,9 +281,7 @@ namespace stencil::gui {
     QToolButton* attach_ = nullptr;
     QToolButton* gear_ = nullptr;
     QToolButton* more_ = nullptr;
-    QAction* actAttach_ = nullptr;
-    QAction* actClear_ = nullptr;
-    QAction* actSettings_ = nullptr;
+    ChatMoreActions moreRows_;   // the "…" overflow's four rows
     QLabel* statusDot_ = nullptr;
     QPointer<QWidget> lastAssistantCard_;
     QWidget* attachTray_ = nullptr;

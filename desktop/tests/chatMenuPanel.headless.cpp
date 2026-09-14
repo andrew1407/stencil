@@ -132,8 +132,15 @@ int main(int argc, char** argv) {
     QStringList items;
     if (over)
       for (QAction* a : over->actions()) items << a->text();
-    check(items == QStringList({QStringLiteral("Add image"), QStringLiteral("Settings")}),
-          "the overflow carries the actions the browser folds into it");
+    check(items == QStringList({QStringLiteral("Add image"),
+                                QStringLiteral("Swap message sides"),
+                                QStringLiteral("Settings")}),
+          "the overflow carries the DOCK's rows, in its order (Clear history is the dock's)");
+    bool allIcons = true;
+    if (over)
+      for (QAction* a : over->actions())
+        if (a->icon().isNull()) allIcons = false;
+    check(over && allIcons, "…and every row carries its glyph, like the dock's");
     if (more && over) {
       more->click();
       QTest::qWait(40);
@@ -144,6 +151,13 @@ int main(int argc, char** argv) {
       over->close();
       panel.setBusy(false);
     }
+    // The row drives the shared preference and says so, for the owner to persist and mirror.
+    int swaps = 0;
+    bool swapped = false;
+    QObject::connect(&panel, &ChatMenuPanel::chatSwapSidesChanged, &panel,
+                     [&](bool on) { ++swaps; swapped = on; });
+    if (over && over->actions().size() > 1) over->actions().at(1)->trigger();
+    check(swaps == 1 && swapped, "Swap message sides toggles and reports the new state");
     // The flyout is exactly as wide as those two buttons and the browser's input need.
     check(MENU_CHAT_ACTION_COUNT == 2 && MENU_CHAT_WIDTH == 313,
           "…and the flyout is re-derived for two actions, not three");

@@ -37,7 +37,7 @@ namespace stencil::gui {
     send_->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, MENU_CHAT_ICON));
     send_->setToolTip(on ? QStringLiteral("Stop the response")
                          : QString());
-    if (actAttach_) actAttach_->setVisible(!on);  // hidden mid-turn, like the browser's item
+    if (moreRows_.attach) moreRows_.attach->setVisible(!on);  // hidden mid-turn, browser parity
   }
 
   // Provider reachability badge + rich tooltip (the dock's shared gear
@@ -68,6 +68,7 @@ namespace stencil::gui {
     const QColor onAccent = pal.onAccent;
     send_->setIcon(themedIcon(busy_ ? "stop" : "send", onAccent, MENU_CHAT_ICON));
     more_->setIcon(themedIcon("dots", onAccent, MENU_CHAT_ICON));
+    restyleChatMoreMenu(moreRows_, pal.textMain);   // the dock's own glyphs on the same rows
     splitter_->setPillColors(pal.borderMain, pal.accent);
     styleSuggestionChips(suggest_, pal);
   }
