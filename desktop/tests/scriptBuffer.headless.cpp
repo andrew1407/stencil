@@ -184,8 +184,8 @@ int main(int argc, char** argv) {
                          .arg(wlo)
                          .arg(gutter)));
     const int fit = (whi - wlo) + 2 * wlo;
-    check(dlg.width() == fit * 3 / 2,
-          qPrintable(QStringLiteral("and the window is half again that row's fit (%1 for %2)")
+    check(dlg.width() == fit * 15 / 13,
+          qPrintable(QStringLiteral("and the window is 15/13 of that row's fit (%1 for %2)")
                          .arg(dlg.width())
                          .arg(fit)));
   }

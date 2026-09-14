@@ -15,10 +15,10 @@ namespace stencil::gui {
   namespace {
 
     // Every metric here is the browser window's (css/components/scriptEditor.css): the two
-    // editors are the same window on two surfaces. The width is not among them — it is half
-    // again the footer row's fit, measured on this surface's own fonts.
-    constexpr int FIT_SHARE_NUM = 3;
-    constexpr int FIT_SHARE_DEN = 2;
+    // editors are the same window on two surfaces. The width is not among them — it is this
+    // share of the footer row's fit, measured on this surface's own fonts.
+    constexpr int FIT_SHARE_NUM = 15;
+    constexpr int FIT_SHARE_DEN = 13;
     constexpr int MODAL_MAX_H = 760;
     constexpr double MODAL_SCREEN_SHARE = 0.82;
     constexpr int EDITOR_MIN_H = 160;
