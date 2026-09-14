@@ -9,6 +9,7 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QFrame>
 #include <QDirIterator>
 #include <QFile>
 #include <QLabel>
@@ -28,7 +29,7 @@ namespace {
     return host.findChild<QPushButton*>(QString::fromLatin1(name));
   }
 
-  // The window's footer buttons carry no object name; they are found by their label.
+  // The window's action-row buttons carry no object name; they are found by their label.
   QPushButton* labelled(const QWidget& host, const QString& text) {
     for (QPushButton* b : host.findChildren<QPushButton*>())
       if (b->text() == text) return b;
@@ -157,22 +158,22 @@ int main(int argc, char** argv) {
     QPushButton* windowRun = dlg.findChild<QPushButton*>(QStringLiteral("scriptRun"));
     check(windowClear && windowRun && windowRun->x() < windowClear->x()
               && windowClear->property("dangerCta").toBool(),
-          "the window's footer says the same thing: Clear last, and red");
+          "the window's action row says the same thing: Clear last, and red");
 
-    bool footerFits = true;
+    bool barFits = true;
     int wlo = dlg.width(), whi = 0;
     for (const QString& label : {QStringLiteral("Copy"), QStringLiteral("Download"),
                                  QStringLiteral("Upload"), QStringLiteral("Run"),
                                  QStringLiteral("Clear")}) {
       QPushButton* b = labelled(dlg, label);
-      if (!b || b->width() < b->sizeHint().width()) footerFits = false;
+      if (!b || b->width() < b->sizeHint().width()) barFits = false;
       if (!b) continue;
       const int x = b->mapTo(&dlg, QPoint(0, 0)).x();
-      if (x < 0 || x + b->width() > dlg.width()) footerFits = false;
+      if (x < 0 || x + b->width() > dlg.width()) barFits = false;
       wlo = qMin(wlo, x);
       whi = qMax(whi, x + b->width());
     }
-    check(footerFits, "every action fits the window whole");
+    check(barFits, "every action fits the window whole");
     // The window's row sits at the LEFT content edge, with the slack past it: its gutter is
     // the header's, and the window is half again the width that row alone would need.
     QPushButton* pill = dlg.findChild<QPushButton*>(QStringLiteral("modalClosePill"));
@@ -188,6 +189,25 @@ int main(int argc, char** argv) {
           qPrintable(QStringLiteral("and the window is 15/13 of that row's fit (%1 for %2)")
                          .arg(dlg.width())
                          .arg(fit)));
+
+    // The row rides ABOVE the editor and the shell's rule reads as its bottom border
+    // (browser .script-actions-bar) — with no orphan left where the footer used to be.
+    auto* winEdit = dlg.findChild<QPlainTextEdit*>(QStringLiteral("scriptText"));
+    const int rowBottom = windowRun->mapTo(&dlg, QPoint(0, 0)).y() + windowRun->height();
+    const int editTop = winEdit ? winEdit->mapTo(&dlg, QPoint(0, 0)).y() : -1;
+    check(winEdit && editTop > rowBottom, "the window's actions sit above its editor");
+    int rules = 0, lastRule = -1;
+    for (QFrame* f : dlg.findChildren<QFrame*>(QStringLiteral("modalDivider"))) {
+      ++rules;
+      lastRule = qMax(lastRule, f->mapTo(&dlg, QPoint(0, 0)).y());
+    }
+    check(rules == 2 && lastRule > rowBottom && lastRule < editTop,
+          "one rule under the header, one under the bar, none below the editor");
+
+    auto* menuEdit = panel.findChild<QPlainTextEdit*>(QStringLiteral("scriptMenuText"));
+    check(menuEdit && run
+              && menuEdit->mapTo(&panel, QPoint(0, 0)).y() > run->y() + run->height(),
+          "the flyout says the same: its actions are above its editor");
   }
 
   std::printf("nothing about the script is persisted:\n");

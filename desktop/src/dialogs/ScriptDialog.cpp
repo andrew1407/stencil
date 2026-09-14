@@ -16,9 +16,11 @@ namespace stencil::gui {
 
     // Every metric here is the browser window's (css/components/scriptEditor.css): the two
     // editors are the same window on two surfaces. The width is not among them — it is this
-    // share of the footer row's fit, measured on this surface's own fonts.
+    // share of the action row's fit, measured on this surface's own fonts.
     constexpr int FIT_SHARE_NUM = 15;
     constexpr int FIT_SHARE_DEN = 13;
+    constexpr int BAR_PAD_X = 18;   // browser .script-actions-bar padding: 12px 18px
+    constexpr int BAR_PAD_Y = 12;
     constexpr int MODAL_MAX_H = 760;
     constexpr double MODAL_SCREEN_SHARE = 0.82;
     constexpr int EDITOR_MIN_H = 160;
@@ -51,31 +53,39 @@ namespace stencil::gui {
     setWindowTitle(tr("Stencil Script"));
     ModalChrome chrome = installModalChrome(this, QStringLiteral("script"), tr("Stencil Script"));
 
+    // The actions ride ABOVE the editor (browser .script-actions-bar), so this window builds
+    // its own row between the header and the body rather than contorting the shared footer:
+    // the shell's rule then reads as the bar's bottom border, and no divider is left orphaned.
+    auto* bar = new QHBoxLayout;
+    bar->setSpacing(8);
+    bar->setContentsMargins(BAR_PAD_X, BAR_PAD_Y, BAR_PAD_X, BAR_PAD_Y);
+    chrome.root->insertLayout(2, bar);
+    chrome.root->insertWidget(3, modalDivider(chrome.root->parentWidget()));
+
     editor_ = new ScriptEditorWidget(this, windowStyle());
     chrome.body->addWidget(editor_, 1);   // the editor takes whatever height the window has
 
-    QHBoxLayout* footer = addModalFooter(chrome);   // no hint: the editor explains itself
     copyBtn_ = new QPushButton(tr("Copy"), this);
     makeModalCta(copyBtn_, QStringLiteral("clipboard"));
     copyBtn_->setAutoDefault(false);
-    footer->addWidget(copyBtn_);
+    bar->addWidget(copyBtn_);
 
     downloadBtn_ = new QPushButton(tr("Download"), this);
     makeModalCta(downloadBtn_, QStringLiteral("file-down"));
     downloadBtn_->setAutoDefault(false);
-    footer->addWidget(downloadBtn_);
+    bar->addWidget(downloadBtn_);
 
     auto* uploadBtn = new QPushButton(tr("Upload"), this);
     makeModalCta(uploadBtn, QStringLiteral("file-up"));
     uploadBtn->setAutoDefault(false);
-    footer->addWidget(uploadBtn);
+    bar->addWidget(uploadBtn);
 
     runBtn_ = new QPushButton(tr("Run"), this);
     runBtn_->setObjectName(QStringLiteral("scriptRun"));
     runBtn_->setToolTip(tr("Run this script on the open project (Ctrl+Enter)"));
     makeModalCta(runBtn_, QStringLiteral("play"));
     runBtn_->setAutoDefault(false);
-    footer->addWidget(runBtn_);
+    bar->addWidget(runBtn_);
 
     // Past Run, in the shared danger red: Clear throws work away, so a mis-click on the way
     // to the primary action must not land on it.
@@ -83,12 +93,10 @@ namespace stencil::gui {
     clearBtn_->setToolTip(tr("Empty the script editor"));
     makeModalDanger(clearBtn_, QStringLiteral("trash"));
     clearBtn_->setAutoDefault(false);
-    footer->addWidget(clearBtn_);
-    // This window alone puts its actions at the LEFT edge and lets the slack fall to their
-    // right (browser .script-modal .settings-footer): the shared footer's own stretch, moved
-    // past the buttons. Every other modal keeps hint-left, buttons-right.
-    delete footer->takeAt(0);
-    footer->addStretch(1);
+    bar->addWidget(clearBtn_);
+    // The row starts at the LEFT content edge and the slack falls past it
+    // (browser .script-actions-bar: justify-content: flex-start).
+    bar->addStretch(1);
 
     connect(copyBtn_, &QPushButton::clicked, editor_, &ScriptEditorWidget::copyToClipboard);
     connect(downloadBtn_, &QPushButton::clicked, this, &ScriptDialog::saveFile);
@@ -108,8 +116,8 @@ namespace stencil::gui {
     editor_->editor()->moveCursor(QTextCursor::End);
   }
 
-  // The window is its widest row, and that row is the footer; half again that fit leaves the
-  // editor room past the left-aligned actions (browser .script-modal). Measured here, because
+  // The window is its widest row, and that row is the actions bar; half again that fit leaves
+  // the editor room past the left-aligned actions (browser .script-modal). Measured here, because
   // the QSS font reaches the buttons after the constructor; as a popover the host sizes it.
   void ScriptDialog::showEvent(QShowEvent* event) {
     QDialog::showEvent(event);

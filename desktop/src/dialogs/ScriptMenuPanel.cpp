@@ -39,11 +39,10 @@ namespace stencil::gui {
     col->setSpacing(0);
 
     edit_ = new ScriptEditorWidget(this, menuStyle());
-    col->addWidget(edit_, 1);   // the editor takes whatever the strip and the row leave
 
-    // Copy · Download · Upload · Run · Clear, right-aligned. The four are accent-FILLED like
-    // the window's; Clear wears the shared danger red and sits PAST Run, because it throws
-    // work away and a mis-click on the way to the primary action must not reach it.
+    // Copy · Download · Upload · Run · Clear, ABOVE the editor like the window's bar. The four
+    // are accent-FILLED like the window's; Clear wears the shared danger red and sits PAST Run,
+    // because it throws work away and a mis-click on the way to Run must not reach it.
     auto* row = actions_ = new QHBoxLayout;
     row->setSpacing(6);
     row->addStretch(1);
@@ -67,8 +66,9 @@ namespace stencil::gui {
     clearBtn_->setFocusPolicy(Qt::TabFocus);
     makeModalDanger(clearBtn_);
     row->addWidget(clearBtn_);
-    col->addSpacing(8);
     col->addLayout(row);
+    col->addSpacing(8);
+    col->addWidget(edit_, 1);   // the editor takes whatever the strip and the row leave
 
     connect(copyBtn_, &QPushButton::clicked, this, [this] {
       edit_->copyToClipboard();
