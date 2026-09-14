@@ -347,6 +347,17 @@ stencil_headless_test(stencil_modalchrome_headless
     src/support/modalReveal.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
+# The modal shell's header drag (support/modalChromeInstall): it moves a dialog that is its
+# own window, and never the same dialog once execMaybePopover has reparented it into the
+# popover overlay as a plain child.
+stencil_headless_test(stencil_modalheaderdrag_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/modalHeaderDrag.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    src/support/iconSet.cpp
+    src/support/modalReveal.cpp resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+
 # The DESCRIPTION & ATTRIBUTES editors (dialogs/descriptionDialog, keywordsDialog):
 # the shell's structure, Enter/Escape, keyword normalisation, and the store write
 # against an isolated state dir.

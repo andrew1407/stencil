@@ -39,8 +39,13 @@ namespace stencil::gui {
       bool eventFilter(QObject* o, QEvent* e) override {
         auto* me = static_cast<QMouseEvent*>(e);
         switch (e->type()) {
+          // The cursor has to tell the truth about a header that will not move.
+          case QEvent::Enter:
+            if (auto* w = qobject_cast<QWidget*>(o))
+              w->setCursor(movable() ? Qt::OpenHandCursor : Qt::ArrowCursor);
+            break;
           case QEvent::MouseButtonPress:
-            if (dlg_ && me->button() == Qt::LeftButton) {
+            if (movable() && me->button() == Qt::LeftButton) {
               grab_ = me->globalPosition().toPoint() - dlg_->frameGeometry().topLeft();
               on_ = true;
             }
@@ -58,6 +63,11 @@ namespace stencil::gui {
       }
 
      private:
+      /* Only a top-level window moves. execMaybePopover reparents this same dialog into the
+       * popover overlay as a plain child, where move() reads the GLOBAL points below as
+       * parent-relative and throws the panel out of the overlay it is anchored to. */
+      bool movable() const { return dlg_ && dlg_->isWindow(); }
+
       QPointer<QDialog> dlg_;
       QPoint grab_;
       bool on_ = false;
