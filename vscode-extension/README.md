@@ -152,15 +152,18 @@ run in a terminal called **Stencil**, from the script's own directory — so a r
 | Setting | Default | Meaning |
 |---|---|---|
 | `stencil.cliPath` | *(empty)* | Path to the `stencil` binary. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`. A relative path is taken from the workspace folder. |
-| `stencil.checkOnType` | `true` | Re-check while typing. Off checks only on save. |
-| `stencil.highlighting` | `true` | Colour words by the statement they sit in. Off leaves the plain grammar. |
+| `stencil.checkOnType` | `true` | Re-check while typing. Off checks only on save — with the CLI where one is found, with the in-process parser where none is. |
+| `stencil.checkOnSave` | `true` | Check the saved file with the CLI, so the editor answers with the engine that runs it. Off spawns nothing and the in-process parser answers on save too. |
+| `stencil.highlighting` | `true` | Colour words by the statement they sit in. Off leaves the plain grammar. Needs `editor.semanticHighlighting.enabled`, which a theme may switch off. |
 | `stencil.completion` | `true` | Suggest what is legal at the caret. |
 | `stencil.hover` | `true` | Explain the word under the pointer. |
-| `stencil.colors` | `{}` | An exact colour per family — see [Colours](#colours). Empty leaves every family to the theme. |
+| `stencil.colors` | `{}` | An exact colour per family — see [Colours](#colours). Empty leaves every family to the theme; a named family is painted on top, so it wins over the theme and applies even with `stencil.highlighting` off. |
 
 With a CLI configured, saving checks the file with `stencil --script-check`. While typing,
-and whenever no CLI is found, the same checks run inside the editor instead. The three
-toggles take effect on the next keystroke; none of them needs a reload.
+whenever no CLI is found, and with `stencil.checkOnSave` off, the same checks run inside the
+editor instead — a script is never left unchecked, only checked by the parser copies rather
+than by the engine. The toggles and the colours take effect on the next keystroke; none of
+them needs a reload.
 
 What this extension deliberately does not own, because VS Code already does:
 

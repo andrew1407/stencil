@@ -91,6 +91,17 @@ test('painting reaches every visible .stc editor and skips the rest', async () =
   }, { filterMode: '#ff8800' });
 });
 
+test('changing the setting rebuilds the types, with no reload', async () => {
+  await withHost(async ({ calls, decorations, vscode }) => {
+    decorations.register(makeContext());
+    assert.deepEqual(calls.decorationTypes.map((t) => t.options.color), ['#ff8800']);
+    await vscode.workspace.getConfiguration().update('stencil.colors', { source: '#00ff00' });
+    calls.events.config[0]({ affectsConfiguration: () => true });
+    assert.ok(calls.decorationTypes[0].disposed, 'the colour it replaced was let go');
+    assert.deepEqual(calls.decorationTypes.map((t) => t.options.color), ['#ff8800', '#00ff00']);
+  }, { filterMode: '#ff8800' });
+});
+
 test('the types are disposed when the context is, so a reload leaks nothing', () => {
   withHost(({ calls, decorations }) => {
     const context = makeContext();

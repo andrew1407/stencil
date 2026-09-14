@@ -92,13 +92,47 @@ test('the run button and the keybinding point at the run command, scoped to .stc
   assert.match(binding.when, new RegExp(`editorLangId == ${ids.LANGUAGE_ID}`));
 });
 
-test('the settings are the two the code reads, under the stencil section', () => {
+test('every setting the code reads is declared, with its default and an explanation', () => {
   const properties = contributes.configuration.properties;
   assert.deepEqual(Object.keys(properties).sort(),
     Object.values(ids.SETTINGS).map((k) => `${ids.CONFIG_SECTION}.${k}`).sort());
-  assert.equal(properties['stencil.cliPath'].type, 'string');
-  assert.equal(properties['stencil.cliPath'].default, '', 'the CLI is found, not assumed');
-  assert.equal(properties['stencil.checkOnType'].type, 'boolean');
+  const defaults = {
+    'stencil.cliPath': '', 'stencil.checkOnType': true, 'stencil.checkOnSave': true,
+    'stencil.highlighting': true, 'stencil.completion': true, 'stencil.colors': {},
+    'stencil.hover': true,
+  };
+  for (const [id, value] of Object.entries(defaults)) {
+    assert.deepEqual(properties[id].default, value, `${id} has the wrong default`);
+    assert.equal(properties[id].type, typeof value, `${id} has the wrong type`);
+    assert.ok(properties[id].markdownDescription ?? properties[id].description,
+      `${id} would sit in the settings UI with nothing said about it`);
+  }
+  assert.equal(properties['stencil.cliPath'].scope, 'machine-overridable',
+    'a binary path belongs to the machine, and a workspace may still override it');
+});
+
+test('stencil.colors names exactly the families, and takes only a hex colour', () => {
+  const { FAMILIES, HEX } = require('../src/lib/colorFamilies.js');
+  const colors = contributes.configuration.properties['stencil.colors'];
+  assert.deepEqual(Object.keys(colors.properties).sort(), [...FAMILIES].sort(),
+    'the settings UI drifted from src/lib/colorFamilies.js');
+  assert.equal(colors.additionalProperties, false, 'a mistyped family is dropped in silence');
+  const [[named, schema]] = Object.entries(colors.patternProperties);
+  const isFamily = new RegExp(named);
+  for (const family of FAMILIES) assert.ok(isFamily.test(family), `${family} is unvalidated`);
+  assert.ok(!isFamily.test('nonsense'), 'the alternation is anchored to the families');
+  const accepted = new RegExp(schema.pattern);
+  for (const value of ['#abc', '#abcd', '#aabbcc', '#aabbccdd', '', 'red', '#ab', '#12345']) {
+    assert.equal(accepted.test(value), value === '' || HEX.test(value),
+      `the schema and colorFamilies.js disagree about ${value || '""'}`);
+  }
+});
+
+test('the README settings table lists exactly the declared settings', () => {
+  const readme = readFileSync(here('../README.md'), 'utf8');
+  const listed = [...readme.matchAll(/^\| `(stencil\.\w+)` \|/gm)].map(([, id]) => id);
+  assert.deepEqual(listed.sort(),
+    Object.keys(contributes.configuration.properties).sort(), 'the README drifted');
 });
 
 test('@vscode/vsce is the only dependency, dev-only and exactly pinned', () => {

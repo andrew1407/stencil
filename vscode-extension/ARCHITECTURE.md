@@ -82,7 +82,7 @@ classDiagram
     class DiagnosticEntry { +number line; +number col; +number len; +string severity; +string message; +string code }
     class CliLocation { +string configured; +string baseDir; +Env env }
     class CommandLine { +string cli; +string[] args; +string cwd }
-    class ExtensionSettings { +string cliPath; +boolean checkOnType }
+    class ExtensionSettings { +string cliPath; +boolean checkOnType; +boolean highlighting; +boolean completion; +boolean hover; +ColorOverrides colors }
 
     ScriptProgram *-- "0..*" ScriptToken : tokens
     ScriptProgram *-- "0..*" ScriptDiagnostic : diagnostics
@@ -102,7 +102,7 @@ classDiagram
 | `CliLocation` (`src/lib/cliLocator.js`) | the inputs to finding the binary: the `stencil.cliPath` setting, the workspace folder, the environment | per call; only the PATH walk under it is memoized, briefly and per `PATH` | `ExtensionSettings`; produces the path a `CommandLine` runs |
 | `CommandLine` (`src/lib/terminal.js`) | one composed, fully quoted shell line and the terminal it is sent to | per command invocation; the `Stencil` terminal outlives it | `ShellRules`, and the CLI process |
 | `ShellRules` (`src/lib/shellQuote.js`) | one shell family's quoting: what needs no quotes, how a quote is escaped, how a directory is changed, what a quoted command word needs in front of it | a frozen table entry, chosen per invocation from `vscode.env.shell` | `CommandLine` |
-| `ExtensionSettings` | `stencil.cliPath` and `stencil.checkOnType`, read through `workspace.getConfiguration` | VS Code's, read on each use so a change needs no reload | `CliLocation`, the on-type check |
+| `ExtensionSettings` | the `stencil.*` settings, read through `workspace.getConfiguration`: `cliPath`, `checkOnType` and `checkOnSave`, a toggle per editing feature (`highlighting`, `completion`, `hover`) and `colors`, a family → hex map reduced by `colorFamilies.js` | VS Code's, read on each use so a change needs no reload | `CliLocation`, the on-type check, the three providers, the decorations |
 
 ## Patterns
 
@@ -116,24 +116,29 @@ classDiagram
 | Lazy singleton | `src/lib/parserHost.js` | One memoized `import()` bridges CommonJS to the ESM copies; both features share the module graph. A rejection is never memoized, so one failure does not outlive itself. |
 | Strategy (table) | `src/lib/shellQuote.js` `SHELLS` | PowerShell, cmd.exe and POSIX each get a row; `vscode.env.shell` picks it. Quoting is never re-derived at a call site. |
 | Cache | `src/lib/programCache.js`; the PATH walk in `src/lib/pathSearch.js` | Keyed on what invalidates it — a document's `version`, and the whole `PATH` — so a keystroke lexes once for both features and a burst of opens walks `PATH` once. |
-| Facade | `src/extension.js` | Three `register(context)` calls; no feature knows another exists. |
+| Facade | `src/extension.js` | One `register(context)` call per feature; no feature knows another exists. |
 
 ## Design
 
 - **Activation.** VS Code loads `src/extension.js` on `onLanguage:stencil-script`. `activate`
-  calls `diagnostics.register`, `semanticTokens.register` and `commands.register`; each pushes
-  its own disposables onto the context and returns. Nothing is loaded eagerly — the parser
-  copies arrive on the first parse, through `parserHost`.
-- **Colour.** Two layers. The TextMate grammar paints as the file loads, line by line, and is
+  calls `register(context)` on each feature in turn — diagnostics, semantic tokens, completion,
+  hover, decorations, the colour command, the CLI commands; each pushes its own disposables onto
+  the context and returns. Nothing is loaded eagerly — the parser copies arrive on the first
+  parse, through `parserHost`.
+- **Colour.** Three layers. The TextMate grammar paints as the file loads, line by line, and is
   what a `.stc` looks like before the extension activates. The semantic-token provider then
   re-paints from a real parse, which is how `#ccc` stays a colour while `# note` is a comment —
-  a decision the lexer makes from the whole word and a regex can only approximate.
-- **A check.** On open and on save, `collect` locates the CLI and runs
-  `execFile(cli, ['--script-check', path])` with no shell, so the extension host is never
-  blocked; each output line is read by `CHECK_LINE` into a `DiagnosticEntry`. A run that did
+  a decision the lexer makes from the whole word and a regex can only approximate; VS Code asks
+  for it only while `stencil.highlighting` and `editor.semanticHighlighting.enabled` are both on.
+  A family named in `stencil.colors` is then painted over the top as a decoration, which is the
+  only way an extension can set an exact colour, and is independent of the other two layers.
+- **A check.** On open and on save — while `stencil.checkOnSave` is on — `collect` locates the
+  CLI and runs `execFile(cli, ['--script-check', path])` with no shell, so the extension host is
+  never blocked; each output line is read by `CHECK_LINE` into a `DiagnosticEntry`. A run that did
   not answer about the script — an exit status other than 0 or 1, or a failure that printed
   nothing parsable — is **no answer at all**, not an empty one, so the copies take over rather
-  than the squiggles silently clearing. While typing (`stencil.checkOnType`, default on) the
+  than the squiggles silently clearing — as they do outright with `stencil.checkOnSave` off, which
+  is the one way to stop the extension spawning anything. While typing (`stencil.checkOnType`, default on) the
   copies answer anyway, debounced per document, and a result whose `version` the next keystroke
   has already outdated is dropped instead of painted. Either way `toDiagnostic` turns 1-based
   spans into 0-based ranges, never zero-width, tagged `source: 'stencil'` and carrying the
