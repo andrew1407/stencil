@@ -4,6 +4,8 @@
 #include "scriptValues.hpp"
 #include "text.hpp"
 
+#include <algorithm>
+
 namespace stencil::core::script {
 
   namespace {
@@ -29,17 +31,31 @@ namespace stencil::core::script {
       return out;
     }
 
-    // Longest defined name that is a prefix of the word run.
+    std::size_t wordCount(const std::string& name) {
+      std::size_t n = 1;
+      for (char c : name)
+        if (c == ' ') ++n;
+      return n;
+    }
+
+    /* Longest defined name that is a prefix of the word run. The walk starts at the longest
+     * name there is, because no longer prefix can match, and shortens the candidate in place:
+     * re-joining every prefix made one call cost the SQUARE of its word count. */
     int resolveName(const std::vector<std::string>& words,
                     const std::vector<TemplateDef>& templates, std::size_t& wordsUsed) {
       wordsUsed = 0;
-      for (std::size_t n = words.size(); n >= 1; --n) {
-        const std::string candidate = joinRange(words, n);
+      std::size_t longest = 0;
+      for (const TemplateDef& d : templates) longest = std::max(longest, wordCount(d.name));
+
+      std::size_t n = std::min(words.size(), longest);
+      std::string candidate = joinRange(words, n);
+      for (; n >= 1; --n) {
         for (std::size_t k = 0; k < templates.size(); ++k)
           if (templates[k].name == candidate) {
             wordsUsed = n;
             return static_cast<int>(k);
           }
+        candidate.resize(candidate.size() - words[n - 1].size() - (n > 1 ? 1 : 0));
       }
       return -1;
     }

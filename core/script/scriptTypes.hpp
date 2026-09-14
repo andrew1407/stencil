@@ -15,7 +15,6 @@ namespace stencil::core::script {
   inline constexpr int MAX_TEMPLATE_DEPTH = 16;
   inline constexpr int MAX_POINTS_PER_LINE = 200;
   inline constexpr int MAX_SOURCE_CHARS = 1024;
-  inline constexpr int MAX_ARGS = 64;
 
   // Editor colouring classes. Crossing the ABI as ints: never reorder, only append.
   enum class TokenKind {

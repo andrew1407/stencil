@@ -17,13 +17,25 @@ const callWords = (use) => {
   return words;
 };
 
-// Longest defined name that is a prefix of the word run.
+const wordCount = (name) => {
+  let n = 1;
+  for (const c of name) if (c === ' ') n += 1;
+  return n;
+};
+
+/* Longest defined name that is a prefix of the word run. Only prefixes up to the longest name
+ * there is are built, because no longer one can match: building every prefix made one call
+ * cost the SQUARE of its word count. */
 const resolveName = (words, byName) => {
+  let longest = 0;
+  for (const name of byName.keys()) longest = Math.max(longest, wordCount(name));
+
+  const limit = Math.min(words.length, longest);
   const prefixes = [];
-  let name = '';
-  for (const w of words) {
-    name = name ? `${name} ${w}` : w;
-    prefixes.push(name);
+  let built = '';
+  for (let i = 0; i < limit; i += 1) {
+    built = built ? `${built} ${words[i]}` : words[i];
+    prefixes.push(built);
   }
   for (let n = prefixes.length; n >= 1; n -= 1) {
     const idx = byName.get(prefixes[n - 1]);
