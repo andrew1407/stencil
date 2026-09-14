@@ -51,8 +51,9 @@ test('the window highlights the script and Run applies it to the open project', 
   await expect(page.locator('#script-highlight span.stk-error')).toHaveCount(0);
 
   await page.locator('#script-run').click();
-  // A clean run closes the window; @rect, @line and the fetched layout leave three marks.
-  await expect(page.locator('#script-overlay')).not.toHaveClass(/modal-open/);
+  // The window STAYS open — the script applies under it; @rect, @line and the fetched
+  // layout leave three marks on the project behind.
+  await expect(page.locator('#script-overlay')).toHaveClass(/modal-open/);
   await expect.poll(() => lineCount(page)).toBe(3);
 });
 

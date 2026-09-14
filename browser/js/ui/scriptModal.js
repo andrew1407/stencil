@@ -53,10 +53,11 @@ export class StencilScriptModal extends StencilElement {
       strip: $('script-diag'),
       ids: EDITOR_IDS,
       app,
+      // Run leaves the window open — the script applies underneath it — so a second run
+      // needs no reopening and a failure keeps its diagnostics in front of you.
       onRun: async (text) => {
         try {
           await runScriptHere(text);
-          shell.close();
         } catch { /* runScript already reported it, and the strip now shows where */ }
       },
       onUpload: (file) => loadScriptFile(file),
