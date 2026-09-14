@@ -29,7 +29,8 @@ A companion **Chrome extension** ([`browser-extension/`](browser-extension/)) fe
 lists, searches and filters every image on any web page and opens a chosen image in the
 Stencil editor, with a quick in-page crop. A **VS Code extension**
 ([`vscode-extension/`](vscode-extension/)) gives `.stc` scripts (below) highlighting,
-squiggles and a Run button. The cross-surface smoke harness lives in [`e2e/`](e2e/).
+squiggles, completions, hovers and a Run button, and gives a saved `.stencil` project its own
+icon. The cross-surface smoke harness lives in [`e2e/`](e2e/).
 
 Every surface also carries an **AI assistant** — describe an edit in words and a model you
 point Stencil at plans it. Setup guide: [AI assistant — setting up a model](#ai-assistant--setting-up-a-model).
@@ -106,7 +107,7 @@ surface, and a script with **any error runs nothing**.
 | [pystencil](pystencil/README.md) | `Editor.script(text)` / `run_script(path)`, the same three one-shot flags, `/script` in the REPL |
 | [bot](bot/README.md) | `/script @crop 10% ; @filter bw`, or upload a `.stc` document |
 | [mcp](mcp/README.md) | the `stencil_script` tool (`script_text` or `script_path`) |
-| [VS Code](vscode-extension/README.md) | open a `.stc`: highlighting, squiggles, and ▶ Run through the CLI |
+| [VS Code](vscode-extension/README.md) | open a `.stc`: highlighting, squiggles, completions, hovers, and ▶ Run through the CLI |
 
 The language is specified in [`contracts/stc/stc-contract.md`](contracts/stc/stc-contract.md),
 with worked examples as the `tour-*` cases in

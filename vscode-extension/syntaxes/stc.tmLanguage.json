@@ -8,8 +8,15 @@
     { "include": "#string" },
     { "include": "#use-stencil" },
     { "include": "#stencil-def" },
+    { "include": "#source-spec" },
+    { "include": "#save-target" },
     { "include": "#param" },
+    { "include": "#directive-source" },
+    { "include": "#directive-output" },
     { "include": "#directive" },
+    { "include": "#filter-mode" },
+    { "include": "#line-style" },
+    { "include": "#crop-key" },
     { "include": "#number" },
     { "include": "#punctuation" }
   ],
@@ -43,17 +50,55 @@
     "stencil-def": {
       "match": "(?i)(@stencil)\\b[ \\t]*([^:#\\n]*[^:#\\n \\t])?",
       "captures": {
-        "1": { "name": "keyword.control.directive.stc" },
+        "1": { "name": "entity.name.type.stc" },
         "2": { "name": "entity.name.function.stc" }
+      }
+    },
+    "source-spec": {
+      "comment": "The spec @source opens: a path, a glob, a directory or a URL, up to its ':'.",
+      "match": "(?i)(@source)\\b[ \\t]*([^:#\\n]*[^:#\\n \\t])?",
+      "captures": {
+        "1": { "name": "keyword.control.source.stc" },
+        "2": { "name": "string.unquoted.source.stc" }
+      }
+    },
+    "save-target": {
+      "match": "(?i)(@save)\\b[ \\t]*([^:#\\n]*[^:#\\n \\t])?",
+      "captures": {
+        "1": { "name": "keyword.control.output.stc" },
+        "2": { "name": "string.unquoted.target.stc" }
       }
     },
     "param": {
       "match": "(?<![A-Za-z0-9_@])@\\d+(?![A-Za-z0-9_])",
       "name": "variable.parameter.stc"
     },
+    "directive-source": {
+      "match": "(?i)@source\\b",
+      "name": "keyword.control.source.stc"
+    },
+    "directive-output": {
+      "comment": "Writing the result out and walking the history: the directives with no edit.",
+      "match": "(?i)@(?:save|undo|redo)\\b",
+      "name": "keyword.control.output.stc"
+    },
     "directive": {
       "match": "(?i)@(?:source|stencil|use|crop|filter|line|rect|layout|save|frame|undo|redo)\\b",
       "name": "keyword.control.directive.stc"
+    },
+    "filter-mode": {
+      "match": "(?i)(?<=@filter)([ \\t]+)(bw|sepia|invert|contour|none)\\b",
+      "captures": {
+        "2": { "name": "constant.language.filter.stc" }
+      }
+    },
+    "line-style": {
+      "match": "(?i)(?<![A-Za-z0-9_@-])(solid|dashed|dotted|fill|point|transparent|combine|replace)(?![A-Za-z0-9_-])",
+      "name": "storage.modifier.style.stc"
+    },
+    "crop-key": {
+      "match": "(?i)(?<![A-Za-z0-9_@-])(x1|x2|y1|y2|aspect)(?=[ \\t]*=)",
+      "name": "variable.other.key.stc"
     },
     "number": {
       "match": "(?i)(?<![A-Za-z0-9_.])(-?\\d+(?:\\.\\d+)?)(px|cm|mm|in|%)?",
