@@ -52,6 +52,7 @@ namespace stencil::gui {
   }
 
   // Entering compact cancels a press that never became a move, so the grab cannot strand.
+  // The cursor stays the open hand either way: a compact popover is draggable too.
   void ChatDock::setCompactPopover(bool on) {
     if (compactPopover_ == on) return;
     compactPopover_ = on;
@@ -59,7 +60,6 @@ namespace stencil::gui {
       manualDrag_ = manualDragging_ = false;
       if (titleBar_) titleBar_->releaseMouse();
     }
-    if (titleBar_) titleBar_->setCursor(on ? Qt::ArrowCursor : Qt::OpenHandCursor);
   }
 
   bool ChatDock::dragPollActive() const { return dragPoll_ && dragPoll_->isActive(); }

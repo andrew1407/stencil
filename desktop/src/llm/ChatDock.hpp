@@ -134,7 +134,7 @@ namespace stencil::gui {
     void setChatSwapSides(bool on);
     bool chatSwapSides() const { return chatSwapSides_; }
     QSize floatingDefaultSize() const;
-    // Pinned beside its icon while compact: the title bar drags nothing.
+    // Compact = pinned beside its icon, but still draggable; only the bar's dblclick is dead.
     void setCompactPopover(bool on);
     void focusInput();
     // Alt-peek release treats un-sent composer text as engagement.

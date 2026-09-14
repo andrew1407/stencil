@@ -750,9 +750,11 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(activeCount(), 1);   // now it's the float button
   }
 
-  // Compact, the dock is pinned beside its icon: no gesture on the title bar may move it,
-  // and — the part that would strand the panel — dragging must work again once it leaves.
-  void chatCompactPopoverRefusesTitleBarDrags() {
+  // Browser parity (ui/chatDock.js): compact, the dock sits beside its icon but its title bar
+  // still DRAGS — and the drag adopts the layout, so what moves is a float the user chose,
+  // never a popover still pinned to an icon. Only the bar's double-click toggle stays dead:
+  // the browser's header has none.
+  void chatCompactPopoverDragsAndAdoptsTheLayout() {
     MainWindow win;
     win.resize(1100, 800);
     win.show();
@@ -785,25 +787,19 @@ class MainWindowGuiTest : public QObject {
       QApplication::sendEvent(title, &up);
     };
 
-    pressTitle(QEvent::MouseButtonPress);
-    moveTitle(QPoint(240, 180));
-    QTest::qWait(40);
-    QVERIFY2(!dock->dragActive(), "a drag on the compact title bar never goes live");
-    QVERIFY2(!dock->dragPollActive(), "and no drag poll either");
-    QCOMPARE(dock->geometry(), before);
-    releaseTitle();
-
+    // The double-click toggle first, while the shape is still compact: it moves nothing.
     pressTitle(QEvent::MouseButtonDblClick);
     QTest::qWait(40);
-    QCOMPARE(dock->geometry(), before);   // double-click floats, docks and moves nothing
-    QVERIFY(win.chatCompactShowing());
+    QCOMPARE(dock->geometry(), before);
+    QVERIFY2(win.chatCompactShowing(), "a dblclick on the bar neither floats nor docks it");
 
-    // Back to the full shape: the very same gesture must move it again.
-    win.setChatCompactPopover(false);
+    // The drag: it goes live from the compact shape, and starting it adopts the layout.
     pressTitle(QEvent::MouseButtonPress);
     moveTitle(QPoint(240, 180));
     QTest::qWait(40);
-    QVERIFY2(dock->dragActive(), "leaving compact hands the title bar back its drag");
+    QVERIFY2(dock->dragActive(), "the compact title bar drags, like the browser's header");
+    QVERIFY2(!win.chatCompactShowing(),
+             "and the drag adopts: what moves is a float the user chose, not a pinned popover");
     releaseTitle();
   }
 

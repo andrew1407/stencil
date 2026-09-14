@@ -33,7 +33,7 @@
     "desktop/tests/MainWindow.canvas.gui.cpp": 1051,
     "desktop/tests/MainWindow.chatCards.gui.cpp": 503,
     "desktop/tests/MainWindow.chatCompact.gui.cpp": 702,
-    "desktop/tests/MainWindow.chatDock.gui.cpp": 921,
+    "desktop/tests/MainWindow.chatDock.gui.cpp": 917,
     "desktop/tests/MainWindow.chatPanel.gui.cpp": 845,
     "desktop/tests/MainWindow.chatTurns.gui.cpp": 2648,
     "desktop/tests/MainWindow.chrome.gui.cpp": 1072,
