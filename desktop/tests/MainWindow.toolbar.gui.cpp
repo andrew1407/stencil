@@ -1042,10 +1042,9 @@ class MainWindowGuiTest : public QObject {
   }
 
   // Fit to window is FILLED like every other acting button (user decision; browser twin:
-  // #zoom-fit) — pressing it acts at once, it reports no state. What stays its own is the
-  // DISABLED face: the browser's faded outline rather than a filled chip, since it ends
-  // the ZOOM row beside a plain field. Asserts both halves.
-  void fitToWindowIsFilledAndFadesWhenDead() {
+  // #zoom-fit) — pressing it acts at once, it reports no state. DISABLED it is the same
+  // grey chip as the − / + steppers beside it, to the pixel. Asserts both halves.
+  void fitToWindowIsFilledAndGreysWhenDead() {
     MainWindow win(nullptr, false);
     win.resize(1400, 700);
     win.show();
@@ -1053,8 +1052,8 @@ class MainWindowGuiTest : public QObject {
     settleLayout(&win, 150);
     QToolButton* btn = win.zoomFitBtn_;
     QVERIFY(btn);
-    QVERIFY2(btn->property("toolGhost").toBool(),
-             "the ghost tag still drives its disabled face");
+    auto* stepper = qobject_cast<QToolButton*>(win.buttonForAction(win.actZoomOut_));
+    QVERIFY(stepper);
     const stencil::gui::Palette pal =
         stencil::gui::themePalette(win.paintedDark_, win.settings_.accentColor);
     const auto near = [](const QColor& a, const QColor& b, int tol) {
@@ -1062,12 +1061,16 @@ class MainWindowGuiTest : public QObject {
              && qAbs(a.blue() - b.blue()) < tol;
     };
     const QColor accent = stencil::gui::accentPrimary(win.settings_.accentColor);
-    // Dead (no image yet): the faded outline, and no accent anywhere in it.
+    // Dead (no image yet): the shared grey chip, the stepper's own face, no accent in it.
     QVERIFY2(!btn->isEnabled(), "the fit button should start disabled, with no image");
+    QVERIFY2(!stepper->isEnabled(), "the − stepper should start disabled too");
     {
       const QImage im = btn->grab().toImage();
-      QVERIFY2(!near(im.pixelColor(im.width() / 2, 3), accent, 50),
-               "a dead fit button is filled with the accent");
+      const QImage other = stepper->grab().toImage();
+      const QColor face = im.pixelColor(im.width() / 2, 3);
+      QVERIFY2(!near(face, accent, 50), "a dead fit button is filled with the accent");
+      QVERIFY2(near(face, other.pixelColor(other.width() / 2, 3), 4),
+               "a dead fit button does not wear the stepper's chip");
     }
     // …and once it can act, the fill every other acting button carries.
     openLoaded(win);
@@ -1311,6 +1314,39 @@ class MainWindowGuiTest : public QObject {
       for (QToolButton* b : section->findChildren<QToolButton*>())
         QVERIFY2(b->isVisible(), qPrintable(at + b->defaultAction()->text() + " is hidden"));
     }
+    beat();
+  }
+
+  // The script window's button opens the DATA section (browser toolbar.js puts #script-btn
+  // first there) and carries the shared registry's chord. Its dialog is exec()'d, so this
+  // checks the wiring, not the window.
+  void scriptButtonOpensTheDataSection() {
+    MainWindow win(nullptr, false);
+    win.resize(1400, 850);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+
+    QWidget* data = nullptr;
+    for (QLabel* l : win.findChildren<QLabel*>("sectionLabel"))
+      if (l->text() == QLatin1String("DATA")) data = l->parentWidget();
+    QVERIFY2(data, "no DATA section on the toolbar");
+    QList<QAction*> got;
+    for (QToolButton* b : data->findChildren<QToolButton*>())
+      if (b->defaultAction()) got << b->defaultAction();
+    QVERIFY2(!got.isEmpty(), "the DATA section has no buttons");
+    QCOMPARE(got.first(), win.actScript_);
+
+    QCOMPARE(win.actScript_->shortcut(), QKeySequence(win.hotkey("openScript", "Alt+Shift+S")));
+    QMenu* dataMenu = nullptr;
+    for (QMenu* m : win.menuBar()->findChildren<QMenu*>())
+      if (m->actions().contains(win.actScript_)) dataMenu = m;
+    QVERIFY2(dataMenu, "the script action is not in any menu");
+
+    // A script can open its OWN source, so the window is live with no image loaded.
+    QVERIFY2(win.actScript_->isEnabled(), "the script window is gated on an image");
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QVERIFY2(win.actScript_->isEnabled(), "the script window went dead once an image loaded");
     beat();
   }
 

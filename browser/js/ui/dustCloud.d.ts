@@ -1,5 +1,5 @@
 // One canvas's worth of animated dust, shared by every element-sized flight in the app.
-// Byte-pinned twin: extension/src/lib/dustCloud.js (extension/tests/portParity.test.js).
+// Byte-pinned twin: browser-extension/src/lib/dustCloud.js (browser-extension/tests/portParity.test.js).
 export interface Flight {
   from: 'home' | 'far'; split: number; leg: (t: number) => number; rest: (t: number) => number;
   alpha: [number, number][];

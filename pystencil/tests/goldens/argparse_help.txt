@@ -1,6 +1,8 @@
 usage: stencil-py [-h] [-i INPUT] [--blank [TOKEN ...]] [-f FRAME] [-c CROP]
                   [--album] [-r ROTATE] [-l LAYOUT] [--filter FILTER]
-                  [--save-layout SAVE_LAYOUT] [--source-site URL]
+                  [--save-layout SAVE_LAYOUT] [--script FILE]
+                  [--script-check FILE] [--script-plan FILE]
+                  [--confine-output] [--source-site URL]
                   [--source-count SOURCE_COUNT] [--group GROUP]
                   [--source-filter SOURCE_FILTER]
                   [--source-format SOURCE_FORMAT] [--source-name SOURCE_NAME]
@@ -34,6 +36,12 @@ options:
                         name/#hex (duotone)
   --save-layout SAVE_LAYOUT
                         export the structured layout JSON here
+  --script FILE         run a .stc script ('-' reads stdin); with no @source
+                        block it edits --input
+  --script-check FILE   print the script's diagnostics and exit 1 on an error
+  --script-plan FILE    print the script lowered to an op plan (JSON, stdout)
+  --confine-output      refuse a @save that lands outside the working
+                        directory
   --source-site URL     scrape a web page's media into the output DIRECTORY
                         (activates scrape mode)
   --source-count SOURCE_COUNT

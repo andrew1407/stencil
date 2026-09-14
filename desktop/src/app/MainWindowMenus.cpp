@@ -59,6 +59,8 @@ namespace stencil::gui {
 
     // Data menu (browser toolbar.js Image/Layout cluster).
     auto* data = menuBar()->addMenu("&Data");
+    data->addAction(actScript_);
+    data->addSeparator();
     data->addAction(actDownloadJson_);
     data->addAction(actUploadJson_);
     data->addSeparator();

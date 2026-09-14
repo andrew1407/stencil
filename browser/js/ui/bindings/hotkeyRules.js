@@ -4,7 +4,7 @@ import { matchHotkey } from '../../utils.js';
 // panel but never close it from inside the box, exactly when the shortcut is wanted.
 export const HOTKEYS_WHILE_TYPING = Object.freeze([
   'toggleChat', 'toggleVoiceChat', 'openHelp', 'openHotkeys', 'openVisuals', 'openProjects', 'openServers', 'openLinks',
-  'openDescription', 'openKeywords', 'openAssistantSettings',
+  'openDescription', 'openKeywords', 'openAssistantSettings', 'openScript',
 ]);
 
 // Which of those a keydown matches while typing, or null for "let the text box have it".

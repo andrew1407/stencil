@@ -8,6 +8,7 @@
 #include "OpenInDialog.hpp"
 #include "CanvasTooltip.hpp"
 #include "CanvasWidget.hpp"
+#include <QScrollArea>
 #include "guiHelpers.hpp"
 #include "SearchCombo.hpp"
 #include "ControlsPill.hpp"
@@ -77,6 +78,13 @@ namespace stencil::gui {
       b->setProperty("fsBar", on);
       b->style()->unpolish(b);
       b->style()->polish(b);
+    }
+    // …and the canvas frame with them: in fullscreen it wears the browser's fullscreen-panel
+    // hairline (app.qss [fsView]).
+    if (scroll_) {
+      scroll_->setProperty("fsView", on);
+      scroll_->style()->unpolish(scroll_);
+      scroll_->style()->polish(scroll_);
     }
   }
 

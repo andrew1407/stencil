@@ -1,0 +1,117 @@
+/* The script window's editor: a transparent textarea over a coloured <pre>. Both layers
+   must share every metric that affects where a glyph lands, or the colours drift off the
+   text under them. */
+
+/* Matched to the desktop window (ScriptDialog's FIT_SHARE): the two editors are one window
+   on two surfaces, so they open at the same width. */
+.script-modal { width: 600px; }
+/* The actions ride ABOVE the editor, so the bar wears a bottom rule instead of the footer's
+   top one, and its row starts at the left edge. */
+.script-actions-bar {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-main);
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+/* Run is the one GO action in both editors, so it wears --success rather than the accent
+   every other primary button uses. Disabled still falls through to the shared grey. */
+.script-actions-bar .primary:not(:disabled),
+.ctx-script .primary:not(:disabled) {
+  background: var(--success);
+  border-color: var(--success);
+}
+/* Projects grows to the shared ceiling because its list is long; an editor has no such
+   content to push it, so take that height outright and give the room to the text. */
+#script-overlay:not(.modal-popover) .app-modal { height: min(82vh, 760px); }
+
+/* The body flexes, so the editor fills whatever height the window has. */
+.script-modal .settings-body { display: flex; flex-direction: column; }
+
+/* The gutter lives on the FRAME, not on the scrolling layers: padding inside a scroller is
+   spent once you scroll past it, which let the text run against the border mid-scroll. */
+.script-editor-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 160px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--input-bg);
+  overflow: hidden;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+/* The box carries the accent at rest and lights a glow under the pointer. Focus widens that
+   glow into the ring the project rows wear — an INSET hairline here would land on top of the
+   accent border and read as a doubled edge. Desktop twin: theme's QFrame#scriptEditorWrap. */
+.script-editor-wrap:hover {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.script-editor-wrap:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.script-highlight,
+.script-input {
+  position: absolute;
+  inset: 8px 10px;
+  margin: 0;
+  padding: 2px 4px 12px;
+  border: 0;
+  font: 12.5px/1.55 var(--font-mono);
+  tab-size: 2;
+  white-space: pre;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.script-highlight {
+  color: var(--text-main);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.script-input {
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text-main);
+  resize: none;
+  outline: none;
+  z-index: 1;
+}
+
+.script-input::placeholder { color: var(--text-muted); }
+.script-input:focus { outline: none; }
+/* The shared field-hover ring (layout/shimmer.css `textarea:hover`) lays a square hairline
+   inside this rounded frame, since the text layer carries no radius of its own. The box is
+   the wrapper's job here, so the editor opts out. Outranks that rule's own `!important`. */
+.script-editor-wrap .script-input:hover:not(:focus) {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Token colours, keyed to the core's TokenKind names. */
+.stk-directive { color: var(--accent); font-weight: 600; }
+.stk-keyword   { color: var(--text-key); }
+.stk-param     { color: var(--text-key); font-style: italic; }
+.stk-number    { color: var(--text-main); }
+.stk-unit      { color: var(--text-muted); }
+.stk-color     { color: var(--text-main); }
+.stk-string    { color: var(--success); }
+.stk-comment   { color: var(--text-muted); font-style: italic; }
+.stk-punct     { color: var(--text-muted); }
+.stk-ident     { color: var(--text-main); }
+.stk-error     { color: var(--danger); text-decoration: underline wavy var(--danger); }
+/* The rest of an errored line: the same red ink, no squiggle — that belongs to the token
+   the diagnostic actually names. */
+.stk-line-error { color: var(--danger); }
+.stk-warning   { text-decoration: underline wavy var(--warning); }
+
+.script-diag {
+  min-height: 1.4em;
+  padding: 6px 15px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.script-diag-error   { color: var(--danger); }
+.script-diag-warning { color: var(--warning); }

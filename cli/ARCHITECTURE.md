@@ -32,7 +32,7 @@ the list in `build.zig`, a mirror of `STENCIL_CORE_SOURCES` in `../core/CMakeLis
 
 ## Layers
 
-`core.zig` → `args.zig` (+ `params/`) → `net.zig` → ops (`pipeline/`, `image.zig`,
+`core.zig` + `scriptCore.zig` → `args.zig` (+ `params/`) → `net.zig` → ops (`pipeline/`, `script/`, `image.zig`,
 `layout.zig`, `page.zig`, `video.zig`) → `llm/` → `console/` → `main.zig`.
 **Only the presentation layer may write to a terminal** — `logo.zig`, `report.zig`, the
 entry points and the two interactive surfaces (`console/`, `line_edit/`). Everything below
@@ -47,6 +47,7 @@ reports through `report.zig` and never spells an ANSI escape; `logo.zig`'s
 | `src/main.zig`, `logo.zig` (+ `logo/`), `report.zig`, `help.txt`, `brand.zig`, `theme.zig`, `messages.zig` | the entry point, the console logo + layer lint, the report sink, the generated `--help` body, the brand colours, the user-facing strings | every user-facing string is a named constant in `messages.zig`, pinned in `tests/pins/` |
 | `src/args.zig` + `params/` | the flag surface: `options.zig` (Options + Mode), `parse.zig` (argv → Options) | the flag surface is `CONTRACT.md`, mirrored by `mcp/src/args/` and the bot's `CliArgvBuilder` |
 | `src/pipeline.zig` + `pipeline/` | orchestration: resolve a source, run the steps, the one-shot run | headless; reports through `report.zig` |
+| `src/script.zig` + `script/` | `.stc` script modes: read, check, lower to an op plan, expand a `@source` into files, run the lowered ops, name the output | the core owns the language; this owns files, pixels and where output lands |
 | `src/core.zig`, `image.zig`, `imageRows.zig`, `stb_*_impl.c`, `mediaTypes.zig`, `page.zig`, `layout.zig`, `video.zig` | the core bridge, codecs, the row-band threading policy, media-type tables, page policy, layout JSON, ffmpeg frame grab | the decoder TU stays narrowed (`STBI_NO_*`, `STBI_MAX_DIMENSIONS`) with UBSan on; the encoder TU builds without it |
 | `src/net.zig`, `host.zig`, `fetchPool.zig` | the **one fetch guard** (http(s) only, SSRF/redirect checks, 64 MiB cap), the authority split, the bounded fan-out | every outbound URL passes `net.zig`; no code path re-derives the checks |
 | `src/confine.zig`, `sanitize.zig`, `child.zig` | output-path guards, the one sanitizer for untrusted prose, child spawning without `STENCIL_LLM_*` | `..` always refused; absolute/`~` refused under `--confine-output` |
@@ -113,7 +114,19 @@ classDiagram
       +Stream stream
       +ArrayList~u8~ rbuf
     }
+    class Edit {
+      <<union>>
+      crop Rect
+      shape LineDraw
+    }
+    class Canvas {
+      +Rgba8 img
+      +Marks marks
+      +ArrayList~u32~ edits
+    }
 
+    Canvas *-- Rgba8 : one input, one block
+    Canvas --> Edit : applyOp
     Options --> Rgba8 : pipeline.run acquires
     Layout --> Rgba8 : drawLayoutDoc
     Session *-- EditState : history
@@ -139,6 +152,8 @@ classDiagram
 | `Project` (`project/shape.zig`) | A parsed `.stencil` document: metadata, encoded original, layout JSON, optional chat block | Its own arena; returned by `loadInto` | The browser's `.stencil` writer is canonical; built by `codec.build` from `BuildOpts` |
 | `Client` (`server/rest.zig`) | One collaboration-server connection: origin, session token, what the credential proved to be; its `Transport` returns bodies, and every other fetch ends in a `net.Response` (status + capped body) | `Session.servers` or a one-shot `pipeline.run` | Mirrors `server/internal/protocol`; `request` re-mints once on a stale session |
 | `EditConn` (`server/edit.zig`) | The read-only NDJSON events subscription over the raw-TCP edit port; yields `Event`s (id, name, version, deleted) | `Session.events`, while a project is synced | `pullAction` decides what a peer's edit means |
+| `Edit` (`script/decode.zig`) | One lowered `.stc` op as a tagged union — crop rect, shape `LineDraw`, filter, layout, save, frame, undo steps — with every length already in pixels | The caller's `ResolveBuf`, until the next decode | The core owns the op stream; the runner, the console and the planner all read it through this |
+| `Canvas` (`script/run.zig`) | One input carried through one block: its pixels, save format, frame, the `Marks` not yet burned, and the edits applied so far with a cursor into them | `runBlockOn`, one input | `@undo` moves the cursor and `rewind` replays the survivors onto a freshly opened input |
 
 ## Patterns
 
@@ -155,6 +170,29 @@ classDiagram
 | Table-driven validator | `opSchema.Schema` over the embedded `opRegistry.json`; `registry/table.zig op_registry` | A comptime check pins one descriptor per `Action` variant; forbidden names fail at build |
 
 ## Design
+
+- **A script run.** `--script` reads the file (or stdin), hands it to the core, and refuses
+  to run anything if a diagnostic is an error. The core returns blocks and a flat op stream;
+  `script/sources.zig` turns a block's spec into concrete inputs (a file, a fetched URL, or
+  every media file in a directory or glob), and the block replays over each one. Lengths
+  resolve per op against the image as it stands, so a `%` after a crop means what it says.
+  `script/decode.zig` reads one op out of the core as a typed edit — every walker of the
+  stream shares it — and `script/apply.zig` turns that edit into pixels; `@line`/`@rect`/
+  `@layout` queue as `Marks` and burn in one pass before a `@crop` or a `@save`.
+  An `@undo N` moves a `Canvas` cursor over the edits it has applied and the image is rebuilt
+  by re-opening the input and replaying the survivors: the lowerer resolves the history, the
+  runner still has to execute the rewind it emitted.
+  `@save` names its file through `script/save.zig`: bare, it writes beside the source with a
+  `-stencil` suffix, which is what makes a whole-directory run safe in place — and into the
+  working directory when the source was a URL.
+
+- **A script plan.** `--script-plan` lowers the same stream for an adapter that drives an
+  editor instead of pixels. `script/planActions.zig` rewrites each block's ops in the
+  op-plan vocabulary of the embedded `opRegistry.json` — the wire names `applyPlanAction`
+  already executes — resolving shape geometry against a header-only size probe of the
+  block's first input and chunking the result at `MAX_ACTIONS`. `script/plan.zig` wraps that
+  in the envelope `CONTRACT.md` §4.3 pins and writes it, and only it, to stdout; a script
+  with an error plans no blocks at all.
 
 - **A one-shot run.** `args.parse` turns argv into `Options`, `modeOf` picks the `Mode`.
   `pipeline.run` acquires an `Rgba8` (`acquireInput`: a local read, `net.fetch` or

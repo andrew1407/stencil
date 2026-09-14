@@ -1,51 +1,18 @@
 //! `tools/call` dispatch: a real MCP call reaches the tool's own body. Every other suite
 //! starts inside a tool; this drives the public `ServerHandler::call_tool`, so the generated
 //! router, the parameter deserialization and the delegation to `server::tools::*` are all on
-//! the path. The router is private, so the context's peer comes from `serve_directly` over a
-//! dead pipe — nothing here ever calls back to a client.
+//! the path.
 
-use rmcp::model::{CallToolRequestParams, CallToolResult, PaginatedRequestParams, RequestId};
-use rmcp::service::{serve_directly, RequestContext, RunningService};
-use rmcp::{ErrorData, RoleServer, ServerHandler};
-use serde_json::{json, Value};
-use stencil_mcp::server::StencilServer;
+mod common;
+use common::dispatch::{text_of, Harness};
 
-/// A server with a live peer, so the request context a handler needs can be built.
-struct Harness {
-    server: StencilServer,
-    running: RunningService<RoleServer, StencilServer>,
-}
+use rmcp::model::PaginatedRequestParams;
+use rmcp::ServerHandler;
+use serde_json::json;
 
-impl Harness {
-    fn new() -> Harness {
-        let server = StencilServer::default();
-        let running = serve_directly(server.clone(), (tokio::io::empty(), tokio::io::sink()), None);
-        Harness { server, running }
-    }
-
-    fn context(&self) -> RequestContext<RoleServer> {
-        RequestContext::new(RequestId::Number(1), self.running.peer().clone())
-    }
-
-    async fn call(&self, name: &str, arguments: Value) -> Result<CallToolResult, ErrorData> {
-        let request: CallToolRequestParams =
-            serde_json::from_value(json!({ "name": name, "arguments": arguments }))
-                .expect("a tools/call params object");
-        self.server.call_tool(request, self.context()).await
-    }
-}
-
-/// The text of a tool result's first content block.
-fn text_of(result: &CallToolResult) -> String {
-    serde_json::to_value(result).unwrap()["content"][0]["text"]
-        .as_str()
-        .expect("a text block")
-        .to_string()
-}
-
-/// The router advertises exactly the four tools `server/mod.rs` declares.
+/// The router advertises exactly the tools `server/mod.rs` declares.
 #[tokio::test]
-async fn tools_list_reports_the_four_tools() {
+async fn tools_list_reports_every_declared_tool() {
     let h = Harness::new();
     let listed = h
         .server
@@ -54,7 +21,10 @@ async fn tools_list_reports_the_four_tools() {
         .expect("the router lists its tools");
     let mut names: Vec<&str> = listed.tools.iter().map(|t| t.name.as_ref()).collect();
     names.sort_unstable();
-    assert_eq!(names, ["source_site", "stencil_edit", "stencil_probe", "stencil_prompt"]);
+    assert_eq!(
+        names,
+        ["source_site", "stencil_edit", "stencil_probe", "stencil_prompt", "stencil_script"]
+    );
 }
 
 /// A `tools/call` for `stencil_edit` runs the real body into `args::build_argv`: the unknown
@@ -88,6 +58,22 @@ async fn a_source_site_call_reaches_the_scrape_argv_builder() {
     assert_eq!(serde_json::to_value(&result).unwrap()["isError"], true);
     let message = text_of(&result);
     assert!(message.contains("`source_site` must not be empty"), "got: {message}");
+}
+
+/// The same for `stencil_script`, whose body starts in the script parameter guards — so a
+/// call with no script at all never writes a temp file and never spawns the CLI.
+#[tokio::test]
+async fn a_stencil_script_call_reaches_the_script_guards() {
+    let h = Harness::new();
+    let result = h
+        .call("stencil_script", json!({ "output_dir": "/tmp/never-made" }))
+        .await
+        .expect("a validation failure is a tool error");
+
+    assert_eq!(serde_json::to_value(&result).unwrap()["isError"], true);
+    let message = text_of(&result);
+    assert!(message.contains("no script"), "got: {message}");
+    assert!(!std::path::Path::new("/tmp/never-made").exists());
 }
 
 /// Arguments that do not match the schema fail in the router, before any body runs.

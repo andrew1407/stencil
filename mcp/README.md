@@ -121,6 +121,7 @@ STENCIL_CLI=/path/to/stencil claude mcp add stencil -- /path/to/stencil-mcp
 | `stencil_probe` | Read an image's pixel size | `input` |
 | `source_site` | Scrape a web page and download its matching media into a **directory** | `source_site`, `output`, `count`, `group`, `filter`, `format`, `min_width`/`max_width`/`min_height`/`max_height` |
 | `stencil_prompt` | Ask a configured LLM to plan edits from natural language and run them (see [LLM assistant](#llm-assistant-stencil_prompt)) | `prompt`, `input`, `output_dir`, `model` override |
+| `stencil_script` | Run a `.stc` script — batch edits over files, directories or globs, confined to one output directory | `script_text` \| `script_path`, `input`, `output_dir` |
 <!-- /generated -->
 
 `stencil_edit` maps directly onto the CLI (`source → crop → rotate → filter → layout →
@@ -173,7 +174,7 @@ video and unmeasured items) plus a `wrote …` / `scraped N file(s) …` text su
 
 #### LLM assistant (`stencil_prompt`)
 
-`stencil_prompt` implements the shared [LLM contract](../llm-contract/llm-contract.md): it
+`stencil_prompt` implements the shared [LLM contract](../contracts/llm/llm-contract.md): it
 sends the `prompt` (and, for vision, a local `input` image ≤ 8 MiB) to the configured
 provider, strictly validates the returned op-plan, and executes it through the same CLI
 pipeline as `stencil_edit`. The plan's base actions are written to `{output_dir}/result.png`
@@ -196,6 +197,37 @@ frames are rejected with an explanation.
 { "name": "stencil_prompt", "arguments": {
     "prompt": "rotate it right and give me a sepia and a b&w variant",
     "input": "photo.jpg", "output_dir": "out" } }
+```
+
+#### Scripts (`stencil_script`)
+
+`stencil_script` runs a Stencil script — a `.stc` file in the batch language documented in
+[`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md). The script names its own
+inputs (`@source <file|url|dir/|glob>:` blocks) and its own outputs (`@save`), so one call can
+edit a whole directory.
+
+| Parameter | Effect |
+|---|---|
+| `script_text` | The `.stc` source inline (up to 256 KiB). Written to a temp file for the run. Mutually exclusive with `script_path`. |
+| `script_path` | An existing `.stc` file to run instead. |
+| `input` | Working image for a script with **no** `@source` block (a path or `http(s)://` URL). |
+| `output_dir` | Directory every `@save` must write inside (created if missing; default: the current directory). |
+
+The run is confined to `output_dir`, so write **relative** `@save` targets — an absolute path
+(and so a bare `@save` beside an absolute source) is refused by the sandbox, and a `@save` into
+a subdirectory needs that directory to already exist. A script with any diagnostic error runs
+nothing; the call fails with the CLI's `file:line:col: error: … [CODE]` lines. Success returns
+every file written with its pixel dimensions, plus the run's notes.
+
+```jsonc
+// tone every PNG in a folder, results named <base>-stencil.png in the run directory
+{ "name": "stencil_script", "arguments": {
+    "script_text": "@source /work/shots/*.png:\n  @filter sepia\n  @save ./\n",
+    "output_dir": "run" } }
+
+// a script with no @source block edits the image the call names
+{ "name": "stencil_script", "arguments": {
+    "script_path": "recipes/thumb.stc", "input": "photo.jpg", "output_dir": "run" } }
 ```
 
 #### Collaboration server

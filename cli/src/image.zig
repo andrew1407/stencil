@@ -110,10 +110,42 @@ pub fn formatFromExt(ext: []const u8) ?Format {
     return null;
 }
 
+/// The extension of the LAST path segment, without the dot, or null when it has none — so a
+/// dot in a directory name is not mistaken for one. `path` is taken literally: a `?query` is
+/// part of the name here, which is what an output path needs.
+pub fn extOf(path: []const u8) ?[]const u8 {
+    const dot = std.mem.lastIndexOfScalar(u8, path, '.') orelse return null;
+    if (std.mem.lastIndexOfAny(u8, path, "/\\")) |s| if (dot < s) return null;
+    if (dot + 1 >= path.len) return null;
+    return path[dot + 1 ..];
+}
+
+/// The format a SOURCE path or URL names, or null. Unlike `extOf` this trims a `?query` /
+/// `#fragment` first, so `a.jpg?v=2` is a jpeg.
+pub fn formatOfPath(path: []const u8) ?Format {
+    var end = path.len;
+    if (std.mem.indexOfAny(u8, path, "?#")) |q| end = q;
+    return formatFromExt(extOf(path[0..end]) orelse return null);
+}
+
 /// Pixel-area cap for a decoded image. `w*h*4` must fit a c_int (the stride/size arguments
 /// handed back to stb when encoding), which caps the area at 2^29; 2^28 keeps a decoded
 /// buffer under 1 GiB. Matches the per-side STBI_MAX_DIMENSIONS 16384 in stb_read_impl.c.
 pub const max_pixels: usize = 16384 * 16384;
+
+/// Header-only size probe: no pixel plane is ever allocated. Null when stb cannot read the
+/// header or the dimensions are past `max_pixels`.
+pub fn dims(bytes: []const u8) ?struct { width: usize, height: usize } {
+    var w: c_int = 0;
+    var h: c_int = 0;
+    var channels: c_int = 0;
+    if (c.stbi_info_from_memory(bytes.ptr, @intCast(bytes.len), &w, &h, &channels) == 0) return null;
+    if (w <= 0 or h <= 0) return null;
+    const width: usize = @intCast(w);
+    const height: usize = @intCast(h);
+    if (width * height > max_pixels) return null;
+    return .{ .width = width, .height = height };
+}
 
 /// Decode encoded image bytes into an owned RGBA8 buffer.
 pub fn decode(allocator: std.mem.Allocator, bytes: []const u8) !Rgba8 {

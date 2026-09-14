@@ -2,6 +2,7 @@
 // MCP server and the Telegram bot depend on: a `wrote {path} ({w}x{h} px · {page})` line
 // on STDERR and exit 0 on success; an `error: …` line on STDERR and a non-zero exit on
 // failure.
+import { expect } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +28,16 @@ export function parseWrote(output) {
   const m = /wrote\s+(.+?)\s+\((\d+)x(\d+)\s+px/.exec(output);
   if (!m) return null;
   return { path: m[1], w: Number(m[2]), h: Number(m[3]) };
+}
+
+// A known non-square input written by the CLI itself (also exercises --blank w h), asserted
+// against the real file. Returns its path.
+export function makeBlankInput(dir, w = 8, h = 4) {
+  const file = path.join(dir, 'in.png');
+  const r = runCli(['--blank', String(w), String(h), 'white', file], { cwd: dir });
+  expect(r.code, r.out).toBe(0);
+  expect(pngSize(file)).toEqual({ width: w, height: h });
+  return file;
 }
 
 // Read a PNG's real pixel dimensions straight from its IHDR (width @16, height @20, BE),

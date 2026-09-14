@@ -1,0 +1,42 @@
+{
+  "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the tree shrinks; never raise one without a note in 'exceptions'.",
+  "maxNewFileLines": 230,
+  "files": {
+    "vscode-extension/src/commands.js": 71,
+    "vscode-extension/src/diagnostics.js": 89,
+    "vscode-extension/src/extension.js": 17,
+    "vscode-extension/src/semanticTokens.js": 62,
+    "vscode-extension/src/lib/cliLocator.js": 33,
+    "vscode-extension/src/lib/ids.js": 21,
+    "vscode-extension/src/lib/parserHost.js": 12,
+    "vscode-extension/src/lib/pathSearch.js": 49,
+    "vscode-extension/src/lib/programCache.js": 34,
+    "vscode-extension/src/lib/scriptCheck.js": 47,
+    "vscode-extension/src/lib/shellQuote.js": 45,
+    "vscode-extension/src/lib/terminal.js": 36,
+    "vscode-extension/src/parser/index.js": 43
+  },
+  "commentPct": {
+    "vscode-extension/src": 9,
+    "vscode-extension/src/lib": 14,
+    "vscode-extension/src/parser": 5,
+    "vscode-extension/tests": 4,
+    "vscode-extension/tests/helpers": 6
+  },
+  "exceptions": {
+    "vscode-extension/src/parser/scriptArgs.js": "byte-equal copy of browser/js/core/scriptArgs.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptCrop.js": "byte-equal copy of browser/js/core/scriptCrop.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptDiagnostics.js": "byte-equal copy of browser/js/core/scriptDiagnostics.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptDump.js": "byte-equal copy of browser/js/core/scriptDump.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptLexer.js": "byte-equal copy of browser/js/core/scriptLexer.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptLineStyle.js": "byte-equal copy of browser/js/core/scriptLineStyle.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptLower.js": "byte-equal copy of browser/js/core/scriptLower.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptParser.js": "byte-equal copy of browser/js/core/scriptParser.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptTemplates.js": "byte-equal copy of browser/js/core/scriptTemplates.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptTypes.js": "byte-equal copy of browser/js/core/scriptTypes.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptUndo.js": "byte-equal copy of browser/js/core/scriptUndo.js (parserParity.test.js) \u2014 split it there first",
+    "vscode-extension/src/parser/scriptValues.js": "byte-equal copy of browser/js/core/scriptValues.js (parserParity.test.js) \u2014 split it there first"
+  },
+  "commentPctNotes": "src/parser/ is copied code: its comment share is browser/js/core's, and only a change there can move it.",
+  "filesNotes": "src/ only. The tests grow as the suite does; the 230-line cap is their ratchet."
+}

@@ -4,6 +4,7 @@
 test {
     _ = @import("src/main.zig"); // inline unit tests (args, core, image, layout, ...)
     _ = @import("tests/pipeline_ops_test.zig");
+    _ = @import("tests/script_test.zig");
     _ = @import("tests/layout_filter_test.zig");
     _ = @import("tests/pipeline_e2e_test.zig");
     _ = @import("tests/net_guard_test.zig");
@@ -14,6 +15,7 @@ test {
     _ = @import("tests/projects_table_test.zig");
     _ = @import("tests/project_cli_test.zig");
     _ = @import("tests/opplan_fixtures_test.zig");
+    _ = @import("tests/script_fixtures_test.zig");
     _ = @import("tests/llm_prompt_core_test.zig");
     _ = @import("tests/llm_prompt_images_test.zig");
     _ = @import("tests/llm_prompt_console_test.zig");

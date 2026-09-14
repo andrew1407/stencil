@@ -42,6 +42,7 @@ namespace stencil::gui {
     // Clipboard hotkeys come from hotkeysConfig.json so a rebind re-applies live; the file export/import are menu-only.
     actDownloadJson_ = newAction("Export Layout JSON…", hotkey("downloadJson", "Ctrl+Shift+J"));
     actUploadJson_ = newAction("Import Layout JSON…", hotkey("uploadJson", "Ctrl+Shift+U"));
+    actScript_ = newAction("Stencil Script…", hotkey("openScript", "Alt+Shift+S"));
     actSaveProjectFile_ = newAction("Save Project As… (.stencil)", hotkey("saveProject", "Ctrl+Shift+S"));
     actOpenProjectFile_ = newAction("Open Project… (.stencil)", hotkey("openProject", "Ctrl+Shift+F"));
     // Both must carry the registry's combos, or the Shortcuts window lists chords that do nothing.
@@ -83,6 +84,7 @@ namespace stencil::gui {
 
     connect(actDownloadJson_, &QAction::triggered, this, [this] { dataExport_->downloadLayout(); });
     connect(actUploadJson_, &QAction::triggered, this, [this] { dataExport_->uploadLayout(); });
+    connect(actScript_, &QAction::triggered, this, [this] { openScript(); });
     connect(actSaveProjectFile_, &QAction::triggered, this, [this] { saveProjectFileAs(); });
     connect(actStencilLiveSync_, &QAction::toggled, this, [this](bool on) { toggleStencilLiveSync(on); });
     connect(actDeleteProjectFile_, &QAction::triggered, this, [this] { deleteProjectFile(); });

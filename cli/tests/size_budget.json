@@ -7,7 +7,7 @@
     "cli/src/console.zig": 73,
     "cli/src/console/ansi.zig": 30,
     "cli/src/console/attachments.zig": 71,
-    "cli/src/console/handlers.zig": 77,
+    "cli/src/console/handlers.zig": 80,
     "cli/src/console/llmPrompt.zig": 18,
     "cli/src/console/logoFx.zig": 14,
     "cli/src/console/remoteEvents.zig": 25,
@@ -47,6 +47,7 @@
   "exceptions": {},
   "_notes": {
     "cli/src/llm commentPct 10 -> 12": "Splitting opSchema.zig into opSchema/ moved 666 comment-sparse lines out of cli/src/llm. The directory's ABSOLUTE comment count FELL from 288 to 254; only the denominator moved. No comment was added.",
-    "cli/src/console commentPct 14 -> 15": "Phase 6 moved ~4,600 lines of comment-sparse implementation out of cli/src/console into console/{handlers,llm,screen,session}/ (each newly pinned at its own measured share). The directory's ABSOLUTE comment count fell from ~1289 to 640; only the denominator moved. No comment was added to the files that stayed."
+    "cli/src/console commentPct 14 -> 15": "Phase 6 moved ~4,600 lines of comment-sparse implementation out of cli/src/console into console/{handlers,llm,screen,session}/ (each newly pinned at its own measured share). The directory's ABSOLUTE comment count fell from ~1289 to 640; only the denominator moved. No comment was added to the files that stayed.",
+    "cli/src/console/handlers.zig 77 -> 80": "handlers.zig is a dispatch surface: one line per handler, no logic. /script and /script-run add two handlers and the import of handlers/script.zig that binds them. Nothing can be traded away without hiding a command from the surface console.zig binds to."
   }
 }

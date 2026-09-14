@@ -32,9 +32,18 @@ internal static class TestHandlers
         LlmOptions? llmOptions = null,
         PromptCancellations? cancellations = null,
         IReadOnlyList<LlmProfile>? profiles = null,
-        ILogger<CommandHandlers>? logger = null)
+        ILogger<CommandHandlers>? logger = null,
+        IScriptService? script = null)
     {
-        editing ??= new EditingService(cli, new UserWorkspace(options), store);
+        UserWorkspace workspace = new(options);
+        editing ??= new EditingService(cli, workspace, store);
+        PromptService prompts = new(
+            llm ?? new MockLlmClient(),
+            editing,
+            store,
+            llmOptions ?? new LlmOptions(),
+            new MockServerClientFactory(),
+            profiles: profiles);
         return new CommandHandlers(
             editing,
             servers ?? new ThrowingServerService(),
@@ -43,13 +52,8 @@ internal static class TestHandlers
             options,
             new SyncRegistry(),
             new LayoutFetcher(options, isBlockedAddress: RemoteImageUrl.IsBlockedAddress),
-            new PromptService(
-                llm ?? new MockLlmClient(),
-                editing,
-                store,
-                llmOptions ?? new LlmOptions(),
-                new MockServerClientFactory(),
-                profiles: profiles),
+            prompts,
+            script ?? new ScriptService(cli, workspace, store, editing, prompts),
             new LlmAttachmentLoader(new MockImageDownscaler()),
             cancellations ?? new PromptCancellations(),
             logger ?? NullLogger<CommandHandlers>.Instance);

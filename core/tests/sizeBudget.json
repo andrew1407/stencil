@@ -5,7 +5,7 @@
     "core/raster/rasterize.cpp": 223
   },
   "commentPct": {
-    "core": 11,
+    "core": 12,
     "core/abi": 10,
     "core/color": 8,
     "core/format": 9,
@@ -13,11 +13,12 @@
     "core/page": 10,
     "core/parse": 9,
     "core/raster": 10,
+    "core/script": 5,
     "core/state": 8,
     "core/tests": 7
   },
   "exceptions": {
-    "core": "the ABI contract prose at the top of cliApi.h is pinned by core/tests/cliApi.test.cpp and stays",
+    "core": "the ABI contract prose at the top of cliApi.h is pinned by core/tests/cliApi.test.cpp and stays; 11 -> 12 for the .stc script ABI, whose handle-owned strings are the one exception to that contract's ownership rule and have to be stated where a caller reads it",
     "core/format": "the Port-of mappings at the top of each header stay (parity contract)",
     "core/geometry": "the Port-of mappings at the top of each header stay (parity contract)",
     "core/raster": "the kMaxCoord/clamp hardening and the pinned-Sobel and two-phase notes stay"

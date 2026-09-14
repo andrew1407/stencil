@@ -143,6 +143,17 @@
       "hotkey": "openIn"
     },
     {
+      "key": "script",
+      "title": "Stencil Script",
+      "aliases": [
+        "script",
+        "stc"
+      ],
+      "overlay": "script-overlay",
+      "opener": "script-btn",
+      "hotkey": "openScript"
+    },
+    {
       "key": "crop",
       "title": "Crop Image",
       "aliases": [

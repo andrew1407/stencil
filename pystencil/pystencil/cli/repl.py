@@ -15,6 +15,7 @@ from .commands.edit import _EditCommands
 from .commands.llm import _LlmCommands
 from .commands.page import _PageCommands
 from .commands.prompt import _PromptCommands
+from .commands.script import _ScriptCommands
 from .commands.server import _ServerCommands
 from .commands.source import _SourceCommands
 from .console import Console
@@ -40,6 +41,7 @@ class _Repl(
   _SourceCommands,
   _PageCommands,
   _EditCommands,
+  _ScriptCommands,
   _ServerCommands,
   _PromptCommands,
   _LlmCommands,

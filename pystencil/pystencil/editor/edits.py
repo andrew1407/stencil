@@ -64,17 +64,22 @@ class _EditApi:
     if rect is None:
       # Bad spec: leave the editor untouched, just like the Zig handler.
       return self
-    rx, ry, rw, rh = rect
-    # The view is rotate(original) cropped to cur.crop; a sub-rect maps back by origin.
+    return self.crop_rect(*rect)
+
+  def crop_rect(self, x: int, y: int, w: int, h: int) -> "Editor":
+    """Crop to an already-resolved sub-rect of the CURRENT view (``session.applyCrop``).
+
+    The view is rotate(original) cropped to the live crop, so a sub-rect maps back to
+    rotated-original space by origin and is clamped there — never against the spec.
+    """
+    self._require_original()
+    cur = self._current()
     base_x = cur.crop[0] if cur.crop is not None else 0
     base_y = cur.crop[1] if cur.crop is not None else 0
     orig = self._original
-    space_w, space_h = core.rotated_dims(orig.width, orig.height, cur.rotation)
-    new_crop = self._clamp_rect(
-      (base_x + rx, base_y + ry, rw, rh), space_w, space_h
-    )
+    space_w, space_h = self._get_core().rotated_dims(orig.width, orig.height, cur.rotation)
     nxt = cur.copy()
-    nxt.crop = new_crop
+    nxt.crop = self._clamp_rect((base_x + x, base_y + y, w, h), space_w, space_h)
     self._push(nxt)
     return self
 

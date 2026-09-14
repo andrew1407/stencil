@@ -24,6 +24,19 @@ const core_sources = [_][]const u8{
     "state/ProjectsStore.cpp",
     "state/zoomPan.cpp",
     "state/holdDraw.cpp",
+    "script/scriptDiagnostics.cpp",
+    "script/scriptLexer.cpp",
+    "script/scriptParser.cpp",
+    "script/scriptValues.cpp",
+    "script/scriptArgs.cpp",
+    "script/scriptCrop.cpp",
+    "script/scriptLineStyle.cpp",
+    "script/scriptTemplates.cpp",
+    "script/scriptUndo.cpp",
+    "script/scriptHistory.cpp",
+    "script/scriptLower.cpp",
+    "script/scriptProgram.cpp",
+    "script/scriptDump.cpp",
     "cliApi.cpp",
 };
 
@@ -32,6 +45,7 @@ const core_sources = [_][]const u8{
 const core_include_dirs = [_][]const u8{
     "../core",
     "../core/abi",
+    "../core/script",
     "../core/geometry",
     "../core/raster",
     "../core/color",

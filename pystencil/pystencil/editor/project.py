@@ -12,8 +12,8 @@ import os
 from .._types import NoneType
 from ..image import Image
 from ..llm import MAX_HISTORY, chat_display_text
+from ..scriptpaths import is_url
 from ._snapshot import _BASE64_PREFIX, _EXT_MIME, _clean_keywords
-from .source import _SourceApi
 
 def _valid_chat_doc(doc) -> (dict | NoneType):
   """Return a §12.1-clean copy of ``doc``, or None when it isn't such a document.
@@ -146,7 +146,7 @@ class _ProjectApi:
     ``"traversal"``, or ``None`` when the path is deletable. Pure (no I/O), so the
     REPL and the LLM ``delete`` op share one guard order with the API below."""
     if not isinstance(path, str) or not path: return "empty"
-    if _SourceApi._is_url(path):
+    if is_url(path):
       return "url"  # URLs aren't local files
     if not path.lower().endswith(".stencil"):
       return "not_stencil"  # scoped to project files, not a general rm

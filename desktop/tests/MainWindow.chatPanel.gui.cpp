@@ -259,7 +259,7 @@ class MainWindowGuiTest : public QObject {
         if (!menu) return;
         QAction* parent = nullptr;
         for (QAction* a : menu->actions())
-          if (a->text() == "Assistant") parent = a;
+          if (a->text().startsWith("Assistant")) parent = a;
         if (!parent || !parent->menu()) { menu->close(); return; }
         menu->setActiveAction(parent);
         QTest::keyClick(menu, Qt::Key_Right);

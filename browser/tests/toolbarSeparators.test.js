@@ -1,95 +1,97 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
 import { installDom, createStubElement } from './helpers/dom.js';
 
-// The toolbar's section hairlines hide when the wrapping row breaks between their two
-// sections (js/ui/toolbar.js syncWrappedSeparators) — and are shown again first, so a
-// second pass at the same geometry lands on the same answer.
-const row = (tops) => {
-  // sections and separators alternate: S sep S sep S …; `tops` are the sections' rows
-  const els = [];
-  tops.forEach((t, i) => {
-    if (i) { const sep = createStubElement('div'); sep.classList.add('ctrl-sep'); els.push(sep); }
-    els.push(createStubElement('div', { getBoundingClientRect: () => ({ top: t, left: 0, right: 0, bottom: t + 40, width: 100, height: 40 }) }));
-  });
-  els.forEach((el, i) => { el.previousElementSibling = els[i - 1] || null; el.nextElementSibling = els[i + 1] || null; });
-  const root = { querySelectorAll: (sel) => (sel === '.ctrl-sep' ? els.filter((e) => e.classList.contains('ctrl-sep')) : []) };
-  return { root, seps: els.filter((e) => e.classList.contains('ctrl-sep')) };
-};
+// The toolbar's hairlines are painted by .ctrl-section::before inside the column gap, so
+// they take no width: a section that begins a wrapped row drops the one in front of it
+// (js/ui/toolbarSeparators.js) and nothing about that choice can move the wrap.
+const GAP = 21;
 
-// …and a REFLOWING row, which is what the toolbar really is: hiding a hairline takes its
-// width out of the row, and the section after it can then come back up beside its
-// neighbour — where its own hairlines are wanted again. Sections are `secW` wide, a shown
-// separator costs `sepW`, and each item that does not fit starts a new row.
-const flowRow = (count, { cap = 350, secW = 100, sepW = 22 } = {}) => {
-  const els = [];
-  const isSep = (el) => el.classList.contains('ctrl-sep');
+// A wrapping row of sections only — the real toolbar's flow. Each section is `secW` wide
+// and items are GAP apart; whatever the marking says, the widths never change.
+const flowRow = (count, { cap = 350, secW = 100 } = {}) => {
   const rows = new Map();
+  const els = [];
   const layout = () => {
     rows.clear();
     let x = 0;
     let row = 0;
     for (const el of els) {
-      const w = isSep(el) ? (el.classList.contains('ctrl-sep-wrapped') ? 0 : sepW) : secW;
-      if (x > 0 && x + w > cap) { row += 1; x = 0; }
+      const need = x === 0 ? secW : GAP + secW;
+      if (x > 0 && x + need > cap) { row += 1; x = secW; } else { x += need; }
       rows.set(el, row);
-      x += w;
     }
   };
   for (let i = 0; i < count; i++) {
-    if (i) {
-      const sep = createStubElement('div');
-      sep.classList.add('ctrl-sep');
-      sep.getBoundingClientRect = () => { layout(); return { top: rows.get(sep) * 60, height: 40 }; };
-      els.push(sep);
-    }
     const sec = createStubElement('div');
+    sec.classList.add('ctrl-section');
     sec.getBoundingClientRect = () => { layout(); return { top: rows.get(sec) * 60, height: 40 }; };
     els.push(sec);
   }
   els.forEach((el, i) => { el.previousElementSibling = els[i - 1] || null; el.nextElementSibling = els[i + 1] || null; });
-  const root = { querySelectorAll: (sel) => (sel === '.ctrl-sep' ? els.filter(isSep) : []) };
-  return { root, els, seps: els.filter(isSep), rowOf: (el) => { layout(); return rows.get(el); } };
+  const root = { querySelectorAll: (sel) => (sel === '.ctrl-section' ? els : []) };
+  return { root, els, rowOf: (el) => { layout(); return rows.get(el); } };
 };
 
-test('the hairlines settle against the layout they themselves produce', async () => {
+// Sections at fixed rows, for the cases a flow model cannot pose exactly.
+const fixedRow = (tops) => {
+  const els = tops.map((t) => {
+    const sec = createStubElement('div', { getBoundingClientRect: () => ({ top: t, height: 40 }) });
+    sec.classList.add('ctrl-section');
+    return sec;
+  });
+  return { els, root: { querySelectorAll: (sel) => (sel === '.ctrl-section' ? els : []) } };
+};
+
+test('every pair of sections sharing a row keeps its hairline', async () => {
   const dom = installDom();
   try {
     const { syncWrappedSeparators, WRAPPED_SEP_CLASS } = await import('../js/ui/toolbar.js');
-    // Six sections over three rows: hiding the hairline that wrapped to the head of row
-    // two pulls that row's own tail back up beside it — and the line between THOSE two is
-    // then wanted again. Measuring once, against the all-shown layout, leaves it hidden:
-    // the reported bug (Zoom | Page | Data on one row with the lines between them gone).
-    const { root, seps, els, rowOf } = flowRow(6, { cap: 350, secW: 100, sepW: 22 });
-    syncWrappedSeparators(root);
-    // Whatever it decided, every answer must describe the layout it ended in: a hidden
-    // hairline straddles two rows, a shown one has both its neighbours on the same row.
-    for (const sep of seps) {
-      const same = rowOf(sep.previousElementSibling) === rowOf(sep.nextElementSibling);
-      assert.equal(sep.classList.contains(WRAPPED_SEP_CLASS), !same,
-        'a hairline is hidden exactly when its two sections are on different rows');
+    // The reported bug: Formula and Data side by side with the line between them gone,
+    // because hiding it was what pulled Data up beside Formula in the first place.
+    for (const cap of [230, 260, 350, 480, 620, 1000]) {
+      const { root, els, rowOf } = flowRow(7, { cap, secW: 100 });
+      syncWrappedSeparators(root);
+      for (let i = 1; i < els.length; i++) {
+        const same = rowOf(els[i]) === rowOf(els[i - 1]);
+        assert.equal(els[i].classList.contains(WRAPPED_SEP_CLASS), !same,
+          `cap ${cap}: a hairline is dropped exactly when the row broke in front of it`);
+      }
+      // Nothing is left in front of a row: the shove this function exists to stop.
+      assert.ok(els[0].classList.contains(WRAPPED_SEP_CLASS), 'the first section heads a row');
     }
-    // Nothing is left in front of a row: the shove this function exists to stop.
-    for (const sep of seps)
-      if (!sep.classList.contains(WRAPPED_SEP_CLASS))
-        assert.equal(rowOf(sep), rowOf(sep.previousElementSibling), 'no hairline heads a row');
-    assert.ok(els.length > 0);
   } finally { dom.restore(); }
 });
 
-test('a separator between two sections on different rows is hidden; on one row it stays', async () => {
+test('one pass is a fixed point: a second call at the same geometry changes nothing', async () => {
   const dom = installDom();
   try {
     const { syncWrappedSeparators, WRAPPED_SEP_CLASS } = await import('../js/ui/toolbar.js');
-    const { root, seps } = row([0, 0, 60, 60, 120]);   // rows: A B | C D | E
+    const { root, els } = fixedRow([0, 0, 60, 60, 120]);   // rows: A B | C D | E
+    const marks = () => els.map((s) => s.classList.contains(WRAPPED_SEP_CLASS));
     syncWrappedSeparators(root);
-    assert.deepStrictEqual(seps.map((s) => s.classList.contains(WRAPPED_SEP_CLASS)), [false, true, false, true]);
-    // Same geometry again: identical answer (every separator is reset before measuring).
+    assert.deepStrictEqual(marks(), [true, false, true, false, true]);
     syncWrappedSeparators(root);
-    assert.deepStrictEqual(seps.map((s) => s.classList.contains(WRAPPED_SEP_CLASS)), [false, true, false, true]);
-    // Wide again: all on one row → nothing hidden.
-    const wide = row([0, 0, 0, 0, 0]);
+    assert.deepStrictEqual(marks(), [true, false, true, false, true]);
+    // Wide again: one row → only the leading section is bare.
+    const wide = fixedRow([0, 0, 0, 0, 0]);
     syncWrappedSeparators(wide.root);
-    assert.ok(wide.seps.every((s) => !s.classList.contains(WRAPPED_SEP_CLASS)));
+    assert.deepStrictEqual(wide.els.map((s) => s.classList.contains(WRAPPED_SEP_CLASS)),
+      [true, false, false, false, false]);
+    // A root with nothing to sync is not an error (the fullscreen clone before it fills).
+    syncWrappedSeparators(null);
+    syncWrappedSeparators({});
   } finally { dom.restore(); }
+});
+
+test('the hairline is painted out of flow, so marking it cannot move the wrap', () => {
+  const css = readFileSync(new URL('../css/layout/controlRows.css', import.meta.url), 'utf8');
+  const toolbar = readFileSync(new URL('../js/ui/toolbar.js', import.meta.url), 'utf8');
+  assert.match(css, /\.ctrl-section \+ \.ctrl-section::before \{[^}]*position: absolute;/);
+  assert.match(css, /\.ctrl-section\.ctrl-sep-wrapped::before \{ content: none; \}/);
+  // No separator ELEMENT anywhere: one between two sections would put its own width back
+  // into the wrap it is deciding, and the answer would oscillate again.
+  assert.ok(!toolbar.includes('ctrl-sep'), 'the toolbar emits no separator element');
+  assert.ok(!/^\.ctrl-sep \{/m.test(css), 'no separator element is styled');
 });

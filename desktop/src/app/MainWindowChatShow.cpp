@@ -58,16 +58,22 @@ namespace stencil::gui {
 
   // Browser chat-panel slide: ~0.34 s in, ~0.26 s out, ease-out. Pin min==max on every frame so QMainWindow's own
   // layout passes can't override the extent; release at the end so the dock stays user-resizable.
+  /* Hands the dock back its own paint. Called the instant the motes are gone — the flight's
+   * clock starts before the slide's, so waiting for the slide left a beat with the overlay
+   * destroyed and the dock still veiled, drawing neither. Idempotent: stopChatAnim repeats it. */
+  void MainWindow::dropChatVeil() {
+    if (!chatVeil_) return;
+    if (chatDock_ && chatDock_->graphicsEffect() == chatVeil_) chatDock_->setGraphicsEffect(nullptr);
+    chatVeil_ = nullptr;
+  }
+
   void MainWindow::stopChatAnim() {
     // An INTERRUPTED slide never runs its completion, so "leaving" is released here too.
     chatClosing_ = false;
     if (chatDock_) chatDock_->setClosing(false);
     // Always released — it must never outlive an interrupted flight.
     if (selPanel_) { selPanel_->setMinimumWidth(PANEL_MIN_WIDTH); selPanel_->setMaximumWidth(QWIDGETSIZE_MAX); }
-    if (chatVeil_) {
-      if (chatDock_ && chatDock_->graphicsEffect() == chatVeil_) chatDock_->setGraphicsEffect(nullptr);
-      chatVeil_ = nullptr;
-    }
+    dropChatVeil();
     if (!chatAnim_) return;
     chatAnim_->stop();
     chatAnim_->deleteLater();
@@ -90,7 +96,7 @@ namespace stencil::gui {
     }
     // A full open re-docks to the area the popover displaced (browser restoreFromCompact parity).
     if (show && chatDock_->isFloating() && chatCompactPopover_) {
-      chatCompactPopover_ = false;
+      setChatCompactPopover(false);
       // Same orientation rule as dockChatTo's place(): top/bottom claim a full-width row.
       if (chatCompactPrevArea_ == Qt::TopDockWidgetArea
           || chatCompactPrevArea_ == Qt::BottomDockWidgetArea)
@@ -133,16 +139,17 @@ namespace stencil::gui {
     // Interrupting a hide: grow from where it actually is.
     const int from = show ? (wasVisible && extent() < full ? extent() : 0) : extent();
     const int to = show ? full : 0;
-    // Snapshot at FULL extent, veil built in chatSurfaceFlight. Same CHAT_SLIDE_OUT_MS both ways (chatPanel.js closeMs).
-    // Shown BEFORE it is measured: a HIDDEN dock contributes no space to the dock layout.
+    // The dust flight and the slide run one clock (chatPanel.js), and leaving is the quicker
+    // of the two. Shown BEFORE it is measured: a HIDDEN dock contributes no space to the layout.
+    const int slideMs = show ? CHAT_SLIDE_IN_MS : CHAT_SLIDE_OUT_MS;
     if (show) chatDock_->show();
     QPointer<gui::DisintegrateOverlay> dustFx =
-        chatSurfaceFlight(area, /*gather=*/show, CHAT_SLIDE_OUT_MS, pin, show ? full : from);
+        chatSurfaceFlight(area, /*gather=*/show, slideMs, pin, show ? full : from);
     if (show) pin(from);
     // A dock mid-slide is already "away" for results: it stays isVisible() for the whole slide.
     if (!show) { chatClosing_ = true; chatDock_->setClosing(true); }
     chatAnim_ = startExtentSlide(this, from, to,
-                                 CHAT_SLIDE_OUT_MS,  // browser: 0.34s both ways, matching the dust flight above
+                                 slideMs,   // the dust flight above runs the same clock
                                  pinAndRaiseDust(pin, dustFx), [this, show] {
                                    stopChatAnim();  // releases the pinned constraints
                                    if (!show) chatDock_->hide();

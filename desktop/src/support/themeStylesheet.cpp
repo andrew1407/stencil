@@ -133,6 +133,8 @@ namespace stencil::gui {
         {"%ACCENT2%", c(accent2)},
         // Browser --danger/--danger-2 (per theme).
         {"%SUCCESS_RING%", rgba(success, 0.55)},
+        {"%SUCCESS%", c(success)},
+        {"%SUCCESS2%", c(dark ? success.lighter(112) : success.darker(108))},
         {"%DANGER2%", dangerHover(dark).name()},
         {"%DANGER%", c(p.danger)},
         // Browser --bg-sel-panel / --border-sel / --text-sel-label. Routed through the
@@ -166,6 +168,7 @@ namespace stencil::gui {
         {"%CARET_DIM%", caretImagePath(caretDim)},
         {"%CARET%", caretImagePath(p.textMuted)},
         {"%MUTED%", c(p.textMuted)},
+        {"%WARNING%", c(p.warning)},
         {"%SECTIONTITLE%", rgba(p.textMain, 0.62)},
         {"%DISABLED_TEXT%", c(p.disabledText)},
         {"%ACCENT%", c(p.accent)},

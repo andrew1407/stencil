@@ -8,6 +8,7 @@ use serde::Serialize;
 pub mod edit;
 pub mod probe;
 pub mod prompt;
+pub mod script;
 pub mod source_site;
 
 /// Wrap a text summary + JSON payload as a successful tool result.

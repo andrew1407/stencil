@@ -51,6 +51,17 @@ namespace stencil::gui {
     paint(floatBtn_, "maximize", isFloating());
   }
 
+  // Entering compact cancels a press that never became a move, so the grab cannot strand.
+  // The cursor stays the open hand either way: a compact popover is draggable too.
+  void ChatDock::setCompactPopover(bool on) {
+    if (compactPopover_ == on) return;
+    compactPopover_ = on;
+    if (on && manualDrag_) {
+      manualDrag_ = manualDragging_ = false;
+      if (titleBar_) titleBar_->releaseMouse();
+    }
+  }
+
   bool ChatDock::dragPollActive() const { return dragPoll_ && dragPoll_->isActive(); }
 
   bool ChatDock::dragActive() const { return manualDragging_ || dragPollActive(); }

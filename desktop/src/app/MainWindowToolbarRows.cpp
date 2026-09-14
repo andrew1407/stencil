@@ -47,7 +47,7 @@ namespace stencil::gui {
     // deferred one double-click interval because exec() blocks.
     pop_.dialogActions = {actOpen_, actOpenAnother_, actOpenIn_, actProjects_, actConnect_, actLinks_,
                              actDescription_, actKeywords_, actChat_, actAssistantSettings_, actShortcuts_,
-                             actSettings_, actInfo_};
+                             actSettings_, actInfo_, actScript_};
     pop_.clickTimer = new QTimer(this);
     pop_.clickTimer->setSingleShot(true);
     pop_.clickTimer->setInterval(250);
@@ -122,10 +122,8 @@ namespace stencil::gui {
     // The editable percent combo replaces the browser's +/- steppers; Fit follows it, as in the
     // browser.
     zoomFitBtn_ = new QToolButton(this);
+    zoomFitBtn_->setProperty("zoomFit", true);
     zoomFitBtn_->setDefaultAction(actFit_);
-    // The property is kept for its disabled face alone (theme.cpp
-    // QToolButton[toolGhost="true"]:disabled).
-    zoomFitBtn_->setProperty("toolGhost", true);
     zoomFitBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     zoomFitBtn_->setAutoRaise(true);
     zoomFitBtn_->setIconSize(QSize(TOOL_ICON, TOOL_ICON));

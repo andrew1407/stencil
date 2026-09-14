@@ -147,7 +147,8 @@ namespace stencil::gui {
       const QRect vis = canvas_->visibleRegion().boundingRect();
       if (!vis.isEmpty())
         DisintegrateOverlay::overRect(canvas_, vis, scroll_->viewport(),
-                                      DisintegrateOverlay::Sweep::FALL);
+                                      DisintegrateOverlay::Sweep::FALL, false,
+                                      DisintegrateOverlay::DUST_MAX_CELLS, CANVAS_DUST_MS);
     }
     canvas_->clearImage();
     updateStatusIdle();   // the last hovered pixel must not outlive the image it named
@@ -155,7 +156,7 @@ namespace stencil::gui {
     // happening twice (browser .canvas-clearing).
     if (!reduced) {
       canvas_->setIdleHintHidden(true);
-      QTimer::singleShot(DisintegrateOverlay::DUST_MS, canvas_,
+      QTimer::singleShot(CANVAS_DUST_MS, canvas_,
                          [this] { if (canvas_) canvas_->setIdleHintHidden(false); });
     }
     refreshActions();

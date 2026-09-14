@@ -12,7 +12,7 @@
 //   "(Alt+O cycles · hold Alt+Shift+O to peek)" → a muted hint, key combos highlighted
 //
 // Pure string in, HTML string out (everything is escaped), so it is testable under
-// `node --test`. extension/src/lib/tipContent.js is a port of this file — keep the two
+// `node --test`. browser-extension/src/lib/tipContent.js is a port of this file — keep the two
 // rule-for-rule; tests/tipContent.test.js runs the same cases on both.
 
 // Modifier and key vocabulary. Case-sensitive on purpose: "Delete every saved project"

@@ -5,6 +5,7 @@
 #include "DropZonesOverlay.hpp"
 #include "ChatDock.hpp"
 #include "ChatMenuPanel.hpp"
+#include "ScriptMenuPanel.hpp"
 #include "iconSet.hpp"
 #include "IncognitoOverlay.hpp"
 #include "LogoHoverFx.hpp"
@@ -128,6 +129,8 @@ namespace stencil::gui {
     if (chatDock_) chatDock_->restyleIcons(themePalette(dark, settings_.accentColor));
     if (chatMenuPanel_)
       asChatMenu(chatMenuPanel_)->restyle(themePalette(dark, settings_.accentColor));
+    if (scriptMenuPanel_)
+      asScriptMenu(scriptMenuPanel_)->restyle(themePalette(dark, settings_.accentColor));
     if (logoBtn_) logoBtn_->setIcon(QIcon(makeLogoPixmap(HEADER_LOGO)));   // frame tracks the accent colour
     if (logoFx_) asLogoFx(logoFx_)->themeChanged();   // mid-hover accent cycle: fx keeps the pixels
     positionOverlayArrows();   // re-tint the Controls-pill chevron + the panel re-open tab

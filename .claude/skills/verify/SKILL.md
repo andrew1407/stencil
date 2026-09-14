@@ -13,7 +13,7 @@ allowed-tools:
 
 # Verify the whole tree
 
-Nine surfaces plus three cross-surface gates. **Run them one at a time, in this order** —
+Ten surfaces plus three cross-surface gates. **Run them one at a time, in this order** —
 cheapest first, so a break surfaces in seconds rather than after the 3-minute desktop build.
 Never run two native builds concurrently and never pass a bare `-j`: this machine locks up
 under a full-width parallel build, which is why the order and the caps below exist.
@@ -26,14 +26,15 @@ is not a pass.
 | # | Surface | Command (from the repo root) | Expected |
 |---|---|---|---|
 | 1 | browser | `cd browser && npm test` | 0 fail, ~3.3k tests (~2 s) |
-| 2 | extension | `cd extension && npm test` | 0 fail, ~1.6k tests (~2 s) |
-| 3 | core | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && nice -n 10 cmake --build core/build -j 4 && ctest --test-dir core/build --output-on-failure` | 1/1 — ~250 cases, **12 skipped** (11 bench + 1 budget) |
-| 4 | cli | `cd cli && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer zig build test --summary all` | 0 fail, ~380 tests (~6 s) |
-| 5 | pystencil | `cd pystencil && python3 -m unittest discover -s tests` | OK, ~650 tests |
-| 6 | server | `cd server && go test ./...` then `go test -race ./internal/hub/...` | 18 pkgs, 16 with tests, all ok |
-| 7 | bot | `cd bot && dotnet test Stencil.TelegramBot.slnx -m:2` | 0 fail, ~2.1k tests |
-| 8 | mcp | `cd mcp && CARGO_BUILD_JOBS=2 cargo test --locked -j 2` | 0 failed, ~600 tests, 3 benches ignored |
-| 9 | desktop | see below | 66/66 |
+| 2 | browser-extension | `cd browser-extension && npm test` | 0 fail, ~1.6k tests (~2 s) |
+| 3 | vscode-extension | `cd vscode-extension && npm test` | 0 fail, ~140 tests (~2 s) |
+| 4 | core | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && nice -n 10 cmake --build core/build -j 4 && ctest --test-dir core/build --output-on-failure` | 1/1 — ~250 cases, **12 skipped** (11 bench + 1 budget) |
+| 5 | cli | `cd cli && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer zig build test --summary all` | 0 fail, ~380 tests (~6 s) |
+| 6 | pystencil | `cd pystencil && python3 -m unittest discover -s tests` | OK, ~650 tests |
+| 7 | server | `cd server && go test ./...` then `go test -race ./internal/hub/...` | 18 pkgs, 16 with tests, all ok |
+| 8 | bot | `cd bot && dotnet test Stencil.TelegramBot.slnx -m:2` | 0 fail, ~2.1k tests |
+| 9 | mcp | `cd mcp && CARGO_BUILD_JOBS=2 cargo test --locked -j 2` | 0 failed, ~600 tests, 3 benches ignored |
+| 10 | desktop | see below | 66/66 |
 
 **Do not treat those magnitudes as pins.** They drift on every commit that adds a test, and a
 table nobody updates teaches you to wave real drops through. The collapse check lives in the
@@ -46,7 +47,13 @@ The size + comment ratchets, the count floors and the UI pins are **inside** the
 headless, the CLI TUI goldens), so a green surface already covers its own lint and pins. There
 is nothing extra to run for them.
 
-## Desktop (chunk 9) — split it
+**Chunk 3 is also the parser-copy gate.** `vscode-extension/tests/parserParity.test.js` holds
+`src/parser/script*.js` byte-equal to `browser/js/core/script*.js` in both directions, so a
+script-engine edit that was not re-copied goes red there rather than in the browser chunk. It
+needs no install — only `npm run package` (the `.vsix`) does, and that is CI's job, not part
+of this matrix.
+
+## Desktop (chunk 10) — split it
 
 The GUI e2e is no longer one binary: it is **15 `stencil_mainwindow_<area>_gui` targets**
 (canvas, chatCards, chatCompact, chatDock, chatPanel, chatTurns, chrome, composition, menuKeys,
@@ -98,7 +105,7 @@ was cached, so the break only shows up once something forces a recompile.
   0 skipped (~3 min)**. Kill a stale static server first (`lsof -nP -iTCP:8188 -sTCP:LISTEN -t
   | xargs -r kill`) or the run may serve another tree's `browser/`.
 - **server integration** — `internal/store` and `internal/redisbus` self-skip without
-  `TEST_DATABASE_URL` / `REDIS_URL`, so chunk 6 green still leaves 21 tests unrun. The e2e
+  `TEST_DATABASE_URL` / `REDIS_URL`, so chunk 7 green still leaves 21 tests unrun. The e2e
   stack already provides both (it stays up; teardown needs `E2E_STACK_DOWN=1`), so right after
   a stack run:
   ```

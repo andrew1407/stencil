@@ -16,7 +16,8 @@ public sealed record PromptRender(string Label, RenderResult Result);
 public sealed record PromptExport(string FileName, byte[] Bytes, string Caption);
 
 // The main result is NOT rendered here: on Mutated the caller sends it through the shared render
-// path.
+// path. Applied is false on every refusal — a plan the executor declined — while Mutated is about
+// pixels, so a save-only plan is applied without mutating.
 public sealed record PromptOutcome(
     string Reply,
     IReadOnlyList<string> Warnings,
@@ -24,7 +25,8 @@ public sealed record PromptOutcome(
     AskCard? Ask = null,
     bool Mutated = false,
     IReadOnlyList<PromptExport>? Exports = null,
-    bool ClearChatRequested = false)
+    bool ClearChatRequested = false,
+    bool Applied = false)
 {
     public IReadOnlyList<PromptExport> Exports { get; init; } = Exports ?? [];
 }

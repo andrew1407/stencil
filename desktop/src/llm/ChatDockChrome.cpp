@@ -172,10 +172,10 @@ namespace stencil::gui {
   // with wrapping (flow layout). Clicking PREFILLS the caller's composer (never
   // sends). SHARED with the context menu's assistant panel — one chip list, one
   // flow layout, one style — so the two empty states can't drift apart.
-  QWidget* makeSuggestionChips(QWidget* parent, std::function<void(QString)> onPick) {
+  QWidget* makeSuggestionChips(QWidget* parent, int gap, std::function<void(QString)> onPick) {
     auto* box = new QWidget(parent);
     box->setObjectName(QStringLiteral("chatSuggest"));
-    auto* flow = new FlowLayout(box, 2, 6, 6);
+    auto* flow = new FlowLayout(box, 2, gap, gap);
     // One string per chip (browser CHAT_SUGGESTIONS parity): what's written on
     // the button is exactly what lands in the input.
     static const char* const CHIPS[] = {
@@ -198,19 +198,17 @@ namespace stencil::gui {
   }
 
   // Quiet solid chips: normal border/card background/text, accent border + a
-  // faint accent fill on hover. Applied to whatever chip block is passed in.
+  // faint accent fill on hover. The boxes are app.qss's; only the palette is live.
   void styleSuggestionChips(QWidget* chips, const Palette& pal) {
     if (!chips) return;
     const QString qss =
-        QStringLiteral("QPushButton{border:1px solid %1;border-radius:%8px;"
-                       "background:%2;color:%3;padding:4px 12px;}"
+        QStringLiteral("QPushButton{border:1px solid %1;background:%2;color:%3;}"
                        "QPushButton:hover{border-color:%4;background:rgba(%5,%6,%7,26);}")
             .arg(pal.borderMain.name(), pal.bgContainer.name(), pal.textMain.name(),
                  pal.accent.name())
             .arg(pal.accent.red())
             .arg(pal.accent.green())
-            .arg(pal.accent.blue())
-            .arg(SUGGEST_CHIP_RADIUS);
+            .arg(pal.accent.blue());
     for (QPushButton* chip : chips->findChildren<QPushButton*>(QStringLiteral("chatSuggestChip")))
       chip->setStyleSheet(qss);
   }
@@ -218,7 +216,7 @@ namespace stencil::gui {
   void ChatDock::buildSuggestions() {
     // The empty state is the prompt chips, nothing more: the composer's own cue
     // (showDropCue) is what says a drop attaches, right where it lands.
-    suggest_ = makeSuggestionChips(transcript_, [this](QString prompt) {
+    suggest_ = makeSuggestionChips(transcript_, 6, [this](QString prompt) {
       input_->setPlainText(prompt);  // prefill only — never send
       input_->moveCursor(QTextCursor::End);
       input_->setFocus();

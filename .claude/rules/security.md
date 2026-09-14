@@ -28,16 +28,23 @@ writes, backed by a `deny` list in `.claude/settings.json`. The intent behind it
 ## Writing the code
 
 **Every fetcher goes through its surface's guard.** Each surface has exactly one; a new code
-path that reaches the network uses it, and does not re-derive the checks.
+path that reaches the network — or, in the editor extension, a shell — uses it, and does not
+re-derive the checks.
 
 | Surface | Guard |
 |---|---|
 | cli | `cli/src/net.zig` |
 | desktop | `desktop/src/net/fetchGuard.{hpp,cpp}` (a port of `net.zig`) |
-| extension | `extension/src/lib/urlGuard.js` |
+| browser-extension | `browser-extension/src/lib/urlGuard.js` |
+| vscode-extension | `vscode-extension/src/lib/{cliLocator,terminal}.js` |
 | pystencil | `pystencil/pystencil/_net.py` |
 | bot | `Editing/RemoteImageUrl.cs` in `bot/src/Stencil.TelegramBot.Application/` |
 | server | `internal/ratelimit` + `internal/auth` on the request path |
+
+The `vscode-extension` pair is the same idea one step out: **the CLI path is explicit user
+configuration** (the `stencil.cliPath` setting, then `STENCIL_CLI`, then `PATH`) and never a
+path read out of the document being edited, and `terminal.js` is the one place a command line
+is composed, so document text never reaches a shell unquoted.
 
 Also:
 

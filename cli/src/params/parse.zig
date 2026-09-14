@@ -78,6 +78,15 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             }
         } else if (eq(arg, "--filter")) {
             opts.filter = try value(&st, "--filter");
+        } else if (eq(arg, "--script")) {
+            if (opts.script_plan != null or opts.script_check != null) return Error.DuplicateSource;
+            opts.script = try value(&st, "--script");
+        } else if (eq(arg, "--script-plan")) {
+            if (opts.script != null or opts.script_check != null) return Error.DuplicateSource;
+            opts.script_plan = try value(&st, "--script-plan");
+        } else if (eq(arg, "--script-check")) {
+            if (opts.script != null or opts.script_plan != null) return Error.DuplicateSource;
+            opts.script_check = try value(&st, "--script-check");
         } else if (eq(arg, "--confine-output")) {
             opts.confine_output = true;
         } else if (eq(arg, "--server")) {

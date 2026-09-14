@@ -5,22 +5,13 @@ import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { runCli, parseWrote, pngSize, cliAvailable } from '../../helpers/cli.js';
+import { runCli, parseWrote, pngSize, cliAvailable, makeBlankInput } from '../../helpers/cli.js';
 
 const FIXTURES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../fixtures');
 const IMG_URL = 'http://127.0.0.1:8188/__e2e__/pixel.png';
 
 test.describe('cli pipeline', () => {
   test.skip(!cliAvailable(), 'build the CLI first: (cd cli && zig build) or set STENCIL_CLI');
-
-  // A known non-square input, created by the CLI itself (also exercises --blank w h).
-  const makeInput = (dir, w = 8, h = 4) => {
-    const p = path.join(dir, 'in.png');
-    const r = runCli(['--blank', String(w), String(h), 'white', p], { cwd: dir });
-    expect(r.code, r.out).toBe(0);
-    expect(pngSize(p)).toEqual({ width: w, height: h });
-    return p;
-  };
 
   test('--blank writes a page of the requested pixel size', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
@@ -45,7 +36,7 @@ test.describe('cli pipeline', () => {
 
   test('-r rotates a quarter turn (dimensions swap)', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = makeInput(dir);          // 8x4
+    const input = makeBlankInput(dir);          // 8x4
     const out = path.join(dir, 'rot.png');
     const r = runCli(['-i', input, '-r', '1', out], { cwd: dir });
     expect(r.code, r.out).toBe(0);
@@ -54,7 +45,7 @@ test.describe('cli pipeline', () => {
 
   test('-c crops by percentage edges', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = makeInput(dir);          // 8x4
+    const input = makeBlankInput(dir);          // 8x4
     const out = path.join(dir, 'crop.png');
     const r = runCli(['-i', input, '-c', 'x1=25% x2=75%', out], { cwd: dir });
     expect(r.code, r.out).toBe(0);
@@ -63,7 +54,7 @@ test.describe('cli pipeline', () => {
 
   test('--filter draws over the image (output changes, dims kept)', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = makeInput(dir);
+    const input = makeBlankInput(dir);
     const plain = path.join(dir, 'plain.png');
     const toned = path.join(dir, 'sepia.png');
     expect(runCli(['-i', input, plain], { cwd: dir }).code).toBe(0);
@@ -75,7 +66,7 @@ test.describe('cli pipeline', () => {
 
   test('--layout draws the layout onto the image', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = makeInput(dir);
+    const input = makeBlankInput(dir);
     const plain = path.join(dir, 'plain.png');
     const drawn = path.join(dir, 'drawn.png');
     expect(runCli(['-i', input, plain], { cwd: dir }).code).toBe(0);
@@ -87,7 +78,7 @@ test.describe('cli pipeline', () => {
 
   test('fills in a missing output extension from the format', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = makeInput(dir);
+    const input = makeBlankInput(dir);
     const r = runCli(['-i', input, '-r', '1', path.join(dir, 'noext')], { cwd: dir });
     expect(r.code, r.out).toBe(0);
     expect(parseWrote(r.out).path).toMatch(/\.png$/);
@@ -124,7 +115,7 @@ test.describe('cli pipeline', () => {
   // "wrote … (project)" line, deliberately without a WxH size token — see cli/CONTRACT.md).
   test('bundles an image into a .stencil project file', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = makeInput(dir); // 8x4
+    const input = makeBlankInput(dir); // 8x4
     const out = path.join(dir, 'bundle.stencil');
     const r = runCli(['-i', input, out], { cwd: dir });
     expect(r.code, r.out).toBe(0);

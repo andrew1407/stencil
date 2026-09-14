@@ -84,6 +84,35 @@ class BuildInputsTests(unittest.TestCase):
     self.assertEqual(build_py.STENCIL_CORE_SOURCES, cmake)
 
 
+class AbiBindingTests(unittest.TestCase):
+  """The ctypes signature table against the header it binds.
+
+  ``_bindings.bind`` is the only place ``argtypes`` is set, and an unset one on a
+  pointer parameter corrupts memory rather than raising, so a script ABI call that
+  never reached the table has to fail here.
+  """
+
+  @staticmethod
+  def _declared():
+    text = (CORE / "cliApi.h").read_text(encoding="utf-8")
+    return set(re.findall(r"\b(stencil_cli_[A-Za-z0-9_]+)\s*\(", text))
+
+  @staticmethod
+  def _bound():
+    text = (_PKG_ROOT / "pystencil" / "_bindings.py").read_text(encoding="utf-8")
+    return set(re.findall(r"lib\.(stencil_cli_[A-Za-z0-9_]+)\.argtypes", text))
+
+  def test_no_binding_names_a_function_the_header_does_not_declare(self):
+    self.assertEqual(sorted(self._bound() - self._declared()), [])
+
+  def test_the_whole_script_family_is_bound(self):
+    # Unlike the row-wise kernels, which this surface deliberately leaves alone, every
+    # stencil_cli_script* call is reached from script.py.
+    declared = {n for n in self._declared() if n.startswith("stencil_cli_script")}
+    self.assertGreaterEqual(len(declared), 15)
+    self.assertEqual(sorted(declared - self._bound()), [])
+
+
 class StalenessTests(unittest.TestCase):
   """``is_stale`` over a temp artifact — mtime comparison, not mere existence."""
 

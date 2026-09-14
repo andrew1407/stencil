@@ -51,6 +51,17 @@ namespace stencil::gui {
   void ChatPlanTarget::setLayoutLines(const core::Lines& lines) {
     w_.canvas_->setLines(lines);
   }
+  void ChatPlanTarget::commitLayoutLines(const core::Lines& lines) {
+    w_.canvas_->commitLines(lines);
+  }
+  bool ChatPlanTarget::captureEdit(llm::EditState& out) const {
+    out.valid = true;
+    out.crop = w_.canvas_->cropRect();
+    out.filterMode = w_.canvas_->imageFilter();
+    out.filterTint = w_.canvas_->filterColor().name();
+    out.lines = w_.canvas_->lines();
+    return true;
+  }
   void ChatPlanTarget::setFormula(QChar axis, const QString& expr) {
     if (!expr.isEmpty() && w_.allowFormulas_ && !w_.allowFormulas_->isChecked())
       w_.allowFormulas_->setChecked(true);  // shows the inputs + persists
@@ -107,6 +118,17 @@ namespace stencil::gui {
   }
   bool ChatPlanTarget::extractFrames(const QVector<int>& indices, QString* err) {
     return w_.chatExtractFrames(indices, err);
+  }
+  // §10 @frame: the block's own source reloaded AT that frame, so it becomes the working image.
+  bool ChatPlanTarget::openSourceFrame(const QString& spec, int frame, QString* err) {
+    if (spec.isEmpty()) {
+      if (err) *err = QStringLiteral("frame: this block names no source");
+      return false;
+    }
+    QString why;
+    if (w_.chatLoadSource(spec, w_.incognito_, &why, frame)) return true;
+    if (err) *err = QStringLiteral("frame: %1").arg(why);
+    return false;
   }
 
   void ChatPlanTarget::setTheme(const QString& mode) {

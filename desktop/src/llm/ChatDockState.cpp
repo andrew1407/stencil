@@ -17,10 +17,10 @@ namespace stencil::gui {
   using namespace chatdock;
   // An item shows only while it can act (browser hides .chat-more-item the same way).
   void ChatDock::syncMoreMenuItems() {
-    if (actAttach_)
-      actAttach_->setVisible(!busyFlag_ && images_.size() < MAX_ATTACHMENTS
-                             && videoPath_.isEmpty());
-    if (actClear_) actClear_->setVisible(!busyFlag_ && transcriptHasCards());
+    if (moreRows_.attach)
+      moreRows_.attach->setVisible(!busyFlag_ && images_.size() < MAX_ATTACHMENTS
+                                   && videoPath_.isEmpty());
+    if (moreRows_.clear) moreRows_.clear->setVisible(!busyFlag_ && transcriptHasCards());
   }
 
   void ChatDock::setBusy(bool on) {
@@ -101,10 +101,7 @@ namespace stencil::gui {
     gear_->setIcon(themedIcon("gear", onAccent, ACCENT_ICON));
     clearBtn_->setIcon(themedIcon("trash", onAccent, ACCENT_ICON));
     if (more_) more_->setIcon(themedIcon("dots", onAccent, ACCENT_ICON));
-    if (actAttach_) actAttach_->setIcon(themedIcon("image", pal.textMain, 14));
-    if (actClear_) actClear_->setIcon(themedIcon("trash", pal.textMain, 14));
-    if (actSwapSides_) actSwapSides_->setIcon(themedIcon("swap", pal.textMain, 14));
-    if (actSettings_) actSettings_->setIcon(themedIcon("gear", pal.textMain, 14));
+    restyleChatMoreMenu(moreRows_, pal.textMain);
     closeBtn_->setIcon(themedIcon("x", pal.textMain, 14));
     updatePlacementState();
     headerIcon_->setPixmap(themedIcon("sparkle", pal.textMain, 16).pixmap(16, 16));

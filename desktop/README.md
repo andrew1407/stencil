@@ -64,6 +64,17 @@ size) work as in the browser app, with the same keyboard shortcuts.
   `Ctrl+Alt+N` renames it.
 - **Autosave** — the in-progress drawing is restored on next launch.
 
+### Scripts (`.stc`)
+
+**Data ▸ Stencil Script…** (`Alt+Shift+S`) opens an editor for a stencil script — crop,
+filter, draw, save and undo written as `@` directives, coloured as you type. **Run** applies
+it to the open project; **Open…** loads a `.stc` from disk, **Save…** writes one, and
+**Copy** puts the text on the clipboard. Mistakes are only reported once you press Run: the
+line is named under the editor and underlined in place, and a script with any error runs
+nothing. Dropping a `.stc` on the window runs it straight away, or fills the editor when the
+script window is already open. The language is the same one the CLI's `--script` takes, and
+is written up in [`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md).
+
 ### Project files (`.stencil`)
 
 **Data ▸ Open Project…** (`Ctrl+Shift+F`) and **Save Project As…** (`Ctrl+Shift+S`) read and
@@ -143,7 +154,8 @@ projects only; set Settings → "Telegram bot" to your bot's username).
 
 ### OS-shell integration
 
-- **Drag-and-drop** an image, video, or layout `*.json` onto the window.
+- **Drag-and-drop** an image, video, layout `*.json`, project `*.stencil` or script `*.stc`
+  onto the window.
 - **File associations / "Open With"** — macOS (Finder, drag-onto-Dock), Linux (`.desktop`
   `MimeType=`), Windows (register in your installer) all launch or signal Stencil with the
   file.

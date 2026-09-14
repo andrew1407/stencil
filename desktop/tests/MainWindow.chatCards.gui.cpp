@@ -302,12 +302,12 @@ class MainWindowGuiTest : public QObject {
     const auto btns = chips->findChildren<QPushButton*>(QStringLiteral("chatSuggestChip"));
     QCOMPARE(btns.size(), 4);
 
+    // The box is the shared sheet's; the DOCK's rule is the first #chatSuggestChip in it.
+    const QRegularExpression re(QStringLiteral("#chatSuggestChip \\{[^}]*radius: (\\d+)px"));
+    const QRegularExpressionMatch m = re.match(qApp->styleSheet());
+    QVERIFY2(m.hasMatch(), "the shared sheet gives the chip no border-radius at all");
+    const int radius = m.captured(1).toInt();
     for (QPushButton* chip : btns) {
-      // The radius the sheet asks for must be one this chip can actually carry.
-      const QRegularExpression re(QStringLiteral("border-radius:(\\d+)px"));
-      const QRegularExpressionMatch m = re.match(chip->styleSheet());
-      QVERIFY2(m.hasMatch(), "the chip carries no border-radius at all");
-      const int radius = m.captured(1).toInt();
       QVERIFY2(radius * 2 <= chip->height(),
                qPrintable(QStringLiteral("radius %1 exceeds half of the chip's %2px height — "
                                          "Qt renders that as a rectangle")
