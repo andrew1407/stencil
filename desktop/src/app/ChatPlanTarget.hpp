@@ -24,6 +24,8 @@ namespace stencil::gui {
     void rotateQuarter(bool clockwise) override;
     void setImageFilter(const QString& mode, const QString& tintHex) override;
     void setLayoutLines(const core::Lines& lines) override;
+    void commitLayoutLines(const core::Lines& lines) override;
+    bool captureEdit(llm::EditState& out) const override;
     void setFormula(QChar axis, const QString& expr) override;
     void setFormulasEnabled(bool on) override;
     void setPageFormat(const QString& isoName) override;
@@ -32,6 +34,7 @@ namespace stencil::gui {
                   double heightCm, QString* err) override;
     int stepHistory(bool redo, int steps) override;
     bool extractFrames(const QVector<int>& indices, QString* err) override;
+    bool openSourceFrame(const QString& spec, int frame, QString* err) override;
 
     // §10 editor-settings ops: the SAME code paths the settings UI drives
     void setTheme(const QString& mode) override;

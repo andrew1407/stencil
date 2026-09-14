@@ -16,6 +16,30 @@ namespace stencil::llm {
     return false;
   }
 
+  bool PlanTarget::openSourceFrame(const QString&, int, QString* err) {
+    if (err) *err = QStringLiteral("frame: video frames are not available here");
+    return false;
+  }
+
+  /* §7 revert: a crop rect is absolute in rotated-original px, so re-applying the earlier one
+   * IS the revert; an empty rect means "was never cropped", i.e. the whole original. */
+  void PlanTarget::restoreEdit(const EditState& state) {
+    if (!state.valid) return;
+    EditState now;
+    const bool known = captureEdit(now);
+    core::CropRect crop = state.crop;
+    if (crop.width <= 0 || crop.height <= 0) {
+      const QSize full = effectiveOriginalSize();
+      crop = {0, 0, static_cast<double>(full.width()), static_cast<double>(full.height())};
+    }
+    if (!known || now.crop.x != crop.x || now.crop.y != crop.y ||
+        now.crop.width != crop.width || now.crop.height != crop.height)
+      applyCropRect(crop);
+    if (!known || now.filterMode != state.filterMode || now.filterTint != state.filterTint)
+      setImageFilter(state.filterMode, state.filterTint);
+    commitLayoutLines(state.lines);
+  }
+
   void PlanTarget::setPageCustom(double, double) {}
   void PlanTarget::setDefaultLineStyle(const Action&) {}
   void PlanTarget::setViewVisibility(int, int) {}

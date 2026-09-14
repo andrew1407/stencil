@@ -3,7 +3,7 @@
 // toggle's 16-grid pair and the accent-tinted favicon. Each piece has a second copy
 // somewhere the browser cannot import from, so each gets pinned here:
 //   favicon  → favicon.svg (the static file the tab loads before JS runs) AND the
-//              extension's pre-paint classic script, extension/src/lib/accent.js.
+//              extension's pre-paint classic script, browser-extension/src/lib/accent.js.
 //   drawMode → icons.json's canonical `line`/`rect`, which this pair is x1.5 smaller.
 
 import { test } from 'node:test';
@@ -52,12 +52,12 @@ test('%1 is the only placeholder, and it is the accent-stroked panel outline', (
 // JSON — so its copy is string concatenation in the source. Compare the drawing, not the
 // source text: what must never drift is the art.
 test('the extension paints the same favicon (src/lib/prefs.js)', () => {
-  const src = read('../extension/src/lib/prefs.js');
+  const src = read('../browser-extension/src/lib/prefs.js');
   const body = src.slice(src.indexOf('const faviconSvg ='), src.indexOf('const applyFavicon'));
   const copy = [...body.matchAll(/'([^']*)'/g)].map((m) => m[1]).join('');
   assert.ok(copy.includes('<svg'), 'failed to read the extension copy');
   assert.deepEqual(elements(copy), elements(ART.favicon.replace('%1', '')),
-    'extension/src/lib/prefs.js faviconSvg drifted from config/svgArt.json');
+    'browser-extension/src/lib/prefs.js faviconSvg drifted from config/svgArt.json');
 });
 
 test('the draw-mode pair is the canonical line/rect pair, x1.5 smaller', () => {

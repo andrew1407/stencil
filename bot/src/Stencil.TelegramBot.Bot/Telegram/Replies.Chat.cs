@@ -15,6 +15,8 @@ public static partial class Replies
 
     public static string PromptWorking() => BotStrings.Reply("promptWorking");
 
+    public static string ScriptWorking() => BotStrings.Reply("scriptWorking");
+
     // Asked for and delivered, so a notice, never an error; ops already applied stay (/undo walks
     // them back).
     public static string PromptStopped() => Tag(Tone.NOTICE, BotStrings.Reply("promptStopped"));

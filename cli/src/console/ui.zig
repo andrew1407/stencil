@@ -23,7 +23,7 @@ pub const completions = [_][]const u8{
     "formula",       "format",        "connect",             "connections", "disconnect",      "reconnect",    "projects",     "rename",
     "project-color", "blank-color",   "project-description", "keywords",    "keywords-search", "keywords-add", "keywords-del", "expire",
     "fetch",         "sync",          "copy",                "status",      "theme",           "mouse",        "reveal-speed", "clear",
-    "drop",          "prompt",        "llm",                 "chat",        "help",            "exit",
+    "drop",          "prompt",        "llm",                 "chat",        "help",            "exit",         "script",       "script-run",
 };
 
 pub fn setInteractive(v: bool) void {

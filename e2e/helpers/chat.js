@@ -1,6 +1,6 @@
 // Shared helpers for the AI-assistant e2e specs — the browser app's chat panel and
 // context-menu flyout (tests/browser/chat.spec.js) and the extension popup's embedded
-// Assistant section (tests/extension/chat.smoke.spec.js). Both drive helpers/llm-stub.js,
+// Assistant section (tests/browser-extension/chat.smoke.spec.js). Both drive helpers/llm-stub.js,
 // so the wire-shape readers below are common; the gestures are the browser app's.
 import { expect } from '@playwright/test';
 

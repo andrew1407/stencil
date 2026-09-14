@@ -4,7 +4,7 @@ namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
 /// The outbound desktop hand-off links. GOLDEN VECTORS — the scheme URL matches the
-/// extension's <c>buildStencilSchemeUrl</c> server case (<c>extension/tests/openIn.test.js</c>)
+/// extension's <c>buildStencilSchemeUrl</c> server case (<c>browser-extension/tests/openIn.test.js</c>)
 /// and the bounce URL the browser's <c>buildDesktopBounceUrl</c>
 /// (<c>browser/tests/deepLink.test.js</c>). Keep them in sync.
 /// </summary>

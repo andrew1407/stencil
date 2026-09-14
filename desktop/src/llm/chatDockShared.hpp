@@ -18,8 +18,6 @@ namespace stencil::gui::chatdock {
   // The context menu's assistant panel mirrors these exact numbers.
   inline constexpr int ACCENT_EDGE = 30;
   inline constexpr int ACCENT_ICON = 20;
-  // Qt draws a SQUARE box when border-radius exceeds half the height; 14 keeps the chip a pill.
-  inline constexpr int SUGGEST_CHIP_RADIUS = 14;
   // browser css/animations.css chatCardLeave, motion.js CHAT_LEAVE_MS
   inline constexpr int CHAT_LEAVE_MS = 260;
   inline constexpr int CHIP_NAME_MAX_PX = 150;

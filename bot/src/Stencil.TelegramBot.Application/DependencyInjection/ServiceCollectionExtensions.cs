@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
         // Singleton on purpose: it owns the per-user in-memory LLM chat history.
         services.AddSingleton<PromptService>();
         services.AddSingleton<LlmAttachmentLoader>();
+        services.AddSingleton<IScriptService, ScriptService>();
         return services;
     }
 }

@@ -83,7 +83,12 @@ namespace stencil::gui {
     chatMenuAction_ = new QWidgetAction(this);
     chatMenuAction_->setDefaultWidget(panel);  // takes ownership of the panel
     panel->restyle(themePalette(resolveDark(settings_.themeMode), settings_.accentColor));
-    panel->setChatSwapSides(settings_.chatSwapSides);   // mirrors the dock's own preference
+    panel->setChatSwapSides(settings_.chatSwapSides);   // the same preference the dock's row drives
+    connect(panel, &ChatMenuPanel::chatSwapSidesChanged, this, [this](bool on) {
+      settings_.chatSwapSides = on;
+      fileStore::saveSettings(settings_);
+      if (chatDock_) chatDock_->setChatSwapSides(on);
+    });
     // Created LAZILY: replay what the dock DISPLAYED — never chatHistory_, which carries the §7 continuation note and interim rounds.
     for (const MirrorRow& r : chatMirrorLog_)
       panel->appendRow(r.role, r.text, r.muted, r.retryText, false, r.notes);

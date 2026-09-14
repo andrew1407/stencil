@@ -42,12 +42,12 @@ same way; a module becomes a directory once it holds more than one job.
 | `Cargo.toml`, `Cargo.lock` | exactly pinned crates (`rmcp`, `tokio`, `serde`, `serde_json`, `schemars`, `tempfile`, `base64`) | the lock is committed; CI builds `--locked`; no `tracing`/`anyhow`/`thiserror` |
 | `toolDescriptions.json` + `toolDescriptions/` | the canonical tool + `get_info` prose, and the generated shards the `#[tool]` attributes `include_str!` | one home for wire descriptions, instructions and the README's Tools table |
 | `src/main.rs`, `lib.rs` | entry (config, stderr logging, stdio serve) and the module surface for integration tests | **stdout is the JSON-RPC channel** — all logging is `eprintln!` |
-| `src/server/` | `StencilServer` + the `#[tool]` methods; `tools/` holds one file per tool body (`prompt/` splits the auto-continuation loop, the round's steps, the response, the merges) | a `#[tool]` delegates its whole body to `tools/` |
+| `src/server/` | `StencilServer` + the `#[tool]` methods; `tools/` holds one file per tool body (`prompt/` splits the auto-continuation loop, the round's steps, the response, the merges); `testwire.rs` reads a result back as the wire JSON | a `#[tool]` delegates its whole body to `tools/` |
 | `src/config/` | defaults ← `.env` ← env ← `--surface` arg; the `Surface` enum | |
-| `src/args/` | the DTOs schemars publishes, the page-format + colour tables, the CLI's option strings (`flags.rs`, single-sourced), `ArgvBuilder`, the scrape params + guard | mirrors `cli/src/args.zig` flag for flag |
+| `src/args/` | the DTOs schemars publishes, the page-format + colour tables, the CLI's option strings (`flags.rs`, single-sourced), `ArgvBuilder`, the scrape params + guard, the script params + guards | mirrors `cli/src/args.zig` flag for flag |
 | `src/pipeline/` | locate → spawn → parse; `runner.rs` holds `CliRunner`, the one place this crate spawns a process | `pipeline::run` is generic over `CliRunner` so tests use a recording runner |
 | `src/deliver/` | per-surface delivery: file, desktop launch, the `#stencil=` browser URL | an unavailable surface is a failed `deliveries[]` note, never a sunk call |
-| `src/locate.rs`, `imagesize.rs`, `layout.rs`, `outcome.rs`, `confine.rs` | binary discovery (`STENCIL_CLI` → checkout → `PATH`), header-only pixel size, inline-layout temp files, stderr parsing, the `--confine-output` spawn rewrite | every run passes `--confine-output` |
+| `src/locate.rs`, `imagesize.rs`, `layout.rs`, `outcome.rs`, `confine.rs` | binary discovery (`STENCIL_CLI` → checkout → `PATH`), header-only pixel size, inline-layout temp files, stderr parsing, the `--confine-output` spawn rewrite | every run passes `--confine-output`; `confine_dir` is the form for a run with no positional output |
 | `src/llmtransport/` | the hand-rolled plain-http HTTP/1.1 client: url, guards, client, response, sanitize | no TLS: `https://` is rejected and credential headers go only to loopback, decided from the resolved peer before the socket opens |
 | `src/llm/`, `registry.rs`, `src/opplan/` | providers (one wire mapping per file behind one trait), the op registry, and the plan surface: parse → registry-driven `schema/` (a port of `browser/js/llm/opSchema.js`) → per-op `actions` → `lower/` (plan → `EditParams` runs, with the run-fusing collapse) → `ask` cards | plans validate before anything spawns; only `model` is overridable per call |
 | `tests/` | pure suites per band (`args_*`, `outcome_*`, `opplan_*`, `llm*`, `guards`), the fake-runner pipeline suites, `dispatch_test` (through the real `tools/call`), the goldens + prose pins, the shared fixture walkers (`common/walk.rs`, one named test per case), the self-skipping `e2e_*` | |
@@ -75,6 +75,16 @@ classDiagram
         +String prompt
         +String output_dir
         +Option~String~ model
+    }
+    class ScriptParams {
+        +Option~String~ script_text
+        +Option~String~ script_path
+        +Option~String~ input
+        +Option~String~ output_dir
+    }
+    class ScriptResult {
+        +Vec~Wrote~ files
+        +Vec~String~ notes
     }
     class Layout {
         +Option~String~ filter
@@ -133,16 +143,19 @@ classDiagram
     EditRequest "1" *-- "1" EditParams : params
     EditParams "1" --> "0..1" EditResult : run_edit
     EditResult "1" --> "1..*" DeliveryNote : deliver
+    ScriptParams "1" --> "1" ScriptResult : run_script
     PromptParams "1" --> "1" ChatMessage : one user message
     LlmConfig "1" --> "0..*" ChatMessage : chat
 ```
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `StencilServer` | the rmcp handler exposing `stencil_edit`, `stencil_probe`, `stencil_prompt`, `source_site` | `main.rs`, one per process, cloned per request | holds `Config`; each `#[tool]` delegates to `server/tools/` |
+| `StencilServer` | the rmcp handler exposing `stencil_edit`, `stencil_probe`, `stencil_prompt`, `stencil_script`, `source_site` | `main.rs`, one per process, cloned per request | holds `Config`; each `#[tool]` delegates to `server/tools/` |
 | `Config` | the resolved operator configuration: default surfaces, desktop binary, browser URL, `LlmEnv` | built once by `Config::load` from defaults, `.env`, env, `--surface` | resolved per prompt call into `LlmConfig` |
 | `EditParams` | one `stencil_edit` request, the DTO schemars publishes; `layout_frame` and `confine_root` are executor-only | per call; built by the client or by `collapse` from a plan | becomes an `Argv` via `build_argv`, then an `EditResult` |
 | `PromptParams` | one `stencil_prompt` request: prompt, working image, `output_dir`, the one `model` override | per call | one `ChatMessage` per round; results land in `output_dir` |
+| `ScriptParams` | one `stencil_script` request: the `.stc` source (inline text or a path), an optional working image, and the directory the run is confined to | per call; inline text lives as a temp `.stc` for the span of the run | becomes an `Argv` via `build_script_argv`, then a `ScriptResult` |
+| `ScriptResult` | a successful script run: one `Wrote` per `@save`, plus the CLI's `note:` lines | per call, from `outcome::parse_all_wrote` + `parse_notes` | summarised into the tool result; a script names its own outputs, so nothing is delivered |
 | `Layout` | the lines drawn onto an image, in image pixels; canonical shape is the browser's layout export, parsed by `cli/src/layout.zig` | per call, materialised to a temp file by `layout::write_temp` | rides `EditParams.layout` as `LayoutArg::Inline` |
 | `OpPlan` | the validated model reply: `reply`, `actions`, `variants`, `warnings`, `chat_only`, `ask`; canonical shape is `browser/js/llm/opPlan.js` over `opRegistry.json` | per round, from `parse_op_plan` | lowered to `EditRequest`s; `AskCard` reported as data |
 | `Action` | one validated op (`Crop`, `Rotate`, `Filter`, `Layout`, `Formula`, `Page`, `Blank`, `Frame`, `Image`, `Save`) | inside an `OpPlan` | found again by `op_name()` in the registry |
@@ -157,7 +170,7 @@ classDiagram
 
 | Pattern | Where | Notes |
 |---|---|---|
-| Adapter | `args::build_argv` + `ArgvBuilder` (`args/argv.rs`), `build_scrape_argv`; `outcome::{parse_wrote, parse_remotes, parse_scraped, extract_errors}` | typed request in, the CLI's documented flags out; stderr lines in, typed results out |
+| Adapter | `args::build_argv` + `ArgvBuilder` (`args/argv.rs`), `build_scrape_argv`, `build_script_argv`; `outcome::{parse_wrote, parse_all_wrote, parse_notes, parse_remotes, parse_scraped, extract_errors}` | typed request in, the CLI's documented flags out; stderr lines in, typed results out |
 | Strategy | `ProviderMapping` with `Ollama`, `OpenaiCompat`, `StencilServer` (`llm/providers/`), chosen by `mapping_for(provider)` | one wire mapping per file; `llm::chat` never branches on the provider |
 | Chain of Responsibility | `parse_http_url` → `validate_request_parts` → `guard_credentials` (`llmtransport/guards.rs`); `run_cli`'s clobber guard → `confine::confine` → spawn | each guard refuses or passes on; a socket opens only after the last one |
 | Table-driven registry | `OpDescriptor` + `opplan::schema::Schema` from `browser/js/config/llm/opRegistry.json`; `registry::descriptor(name).lower` | validation, prompt generation and lowering come off one table |
@@ -201,6 +214,16 @@ classDiagram
   reads a bounded reply (64 KiB headers, 8 MiB body) under `DEFAULT_TIMEOUT` from
   `providers.json`. A non-2xx body is sanitised into `LlmError::Status { status, reason, code }`;
   code `llmDisabled` maps to `ChatError::Disabled`; `extract_reply` returns the text.
+- **A script run.** `tools::script::run` validates `ScriptParams` (exactly one of
+  `script_text` / `script_path`, the byte cap, the `.stc` suffix, no dash-leading value)
+  before anything is written, materialises inline text to a temp `.stc`, and calls
+  `pipeline::run_script`. That builds `--script <file> [-i <input>]` — no positional output,
+  because the script's own `@save` ops name the writes — creates `output_dir`, and hands the
+  argv to `confine::confine_dir`, which makes the script and input paths absolute, appends a
+  bare `--confine-output` and spawns inside the root. The CLI prints one `wrote` line per
+  `@save`, so `outcome::parse_all_wrote` + `parse_notes` are the whole result; each path is
+  rejoined onto the root. A script with any diagnostic error runs nothing and the CLI's
+  `file:line:col: error: … [CODE]` lines come back as the tool error.
 - **Scrape and probe.** `source_site` builds `build_scrape_argv(ScrapeParams)` after
   `validate_surface`, spawns, and `parse_scraped` yields `ScrapeResult { dir, host, files }`.
   `stencil_probe` answers from `imagesize::sniff` on a local header, else renders a throwaway
@@ -213,6 +236,7 @@ classDiagram
 | `stencil_edit` | `{ path, width, height, surfaces[], deliveries[{surface, ok, detail, url}], server[{action: "updated" \| "created", …}] }` |
 | `stencil_probe` | `{ width, height }` |
 | `stencil_prompt` | `{ reply, notes[], results[{label, path, width, height}], ask?: {question, multi, allow_custom, options[]} }` |
+| `stencil_script` | `{ files[{path, width, height}], notes[] }` |
 | `source_site` | `{ dir, host, files[{path, width, height}] }` |
 
 ## Rules
@@ -222,7 +246,8 @@ classDiagram
 2. **stderr in, stdout sacred.** The CLI is run with `NO_COLOR=1`; `wrote {path} ({w}x{h})`
    and `error:` lines are parsed from stderr; nothing but JSON-RPC is written to stdout.
 3. **Model-chosen paths are confined.** `--confine-output` on every run; `confine.rs` spawns
-   inside the sandbox root.
+   inside the sandbox root. A script picks its own output paths, so `--script` is one of
+   confine's path flags and every `@save` is fenced into `output_dir`.
 4. **Provider and endpoint are operator configuration.** A tool call may override `model`,
    never the URL or key.
 5. **One model round per turn**, bounded to a single §7 auto-continuation (a plan that only

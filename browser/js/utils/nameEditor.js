@@ -32,7 +32,7 @@ export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate,
 
 
 // Middle ellipsis: the head is what the user recognises, the tail holds the extension /
-// "-copy" suffix. Ported to extension/src/lib/displayName.js and
+// "-copy" suffix. Ported to browser-extension/src/lib/displayName.js and
 // desktop/src/support/displayName.hpp — same limit, same head/tail split.
 export const NAME_DISPLAY_CHARS = 28;
 export const shortName = (name, limit = NAME_DISPLAY_CHARS) => {

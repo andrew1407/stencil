@@ -80,10 +80,11 @@ Stencil bot — edit images with the same core as the browser/desktop/CLI.
 
 Set the working image by sending a photo, an image file, or just an image link.
 Add a caption command to apply it at once, e.g. a photo captioned /crop … or /filter bw.
-Send a video to grab a frame (caption /frame n to pick one); or a .json file with caption /apply.
+Send a video to grab a frame (caption /frame n to pick one); or a .json file with caption /apply. A .stc file runs as a script.
 
 Image commands:
 /prompt <request> — ask the AI assistant to plan and apply edits (/p for short)
+/script <script> — run a Stencil script (.stc): /script @crop 10% ; @filter bw (upload a .stc file to run it)
 /chat [on|off|clear] — chat mode: keep talking to the assistant without typing /prompt (clear forgets the conversation)
 /chat save [on|off] — store the conversation with the active server project and restore it on /fetch (off by default)
 /blank [format] [w h] [color] — start a blank canvas, e.g. /blank b5 pink
@@ -183,6 +184,9 @@ Rotate by quarter-turns: /rotate <n>
 /rotate 1 — 90° clockwise
 /rotate 2 — 180°
 /rotate -1 — 90° counter-clockwise
+
+== ScriptWorking()
+Running your script…
 
 == SourcesHelp()
 Load a working image from the web — or just send a photo, or paste an image link:

@@ -56,7 +56,7 @@ owns no transport concept (no `ResponseWriter`, no statuses). `auth`, `ratelimit
 | Path | Holds | Rule |
 |---|---|---|
 | `cmd/stencil-server/` | `main.go` (flags + signals), `boot.go` (config → store + migrate → filestore → bus), `serve.go` (HTTP/WS + TCP listeners, CORS, healthz), `sweep.go` (project expiry) | wiring only |
-| `internal/protocol/` | the wire DTOs and the WS message envelope | **the contract**, mirrored by every client (`browser/js/net`, `extension/src/lib/connections`, `desktop/src/net`, `cli/src/server`, `pystencil/pystencil/server`, the bot's server client) |
+| `internal/protocol/` | the wire DTOs and the WS message envelope | **the contract**, mirrored by every client (`browser/js/net`, `browser-extension/src/lib/connections`, `desktop/src/net`, `cli/src/server`, `pystencil/pystencil/server`, the bot's server client) |
 | `internal/config/` | the environment configuration, one file per group (db, redis, llm, parse) | every key appears in `.env.example` and the README table |
 | `internal/auth/`, `internal/ratelimit/` | opaque bearer tokens (sha256-hashed, constant-time compare, expiry) + the HTTP/WS gate; the shared token buckets + `clientip.go` (`X-Forwarded-For` behind `TRUSTED_PROXY_CIDRS`) | a token travels as a header; `?token=` only on an RFC 6455 upgrade |
 | `internal/httpapi/` | the REST handlers, the LLM routes, `assets/` + `goldens/` for the pinned user-facing text | decode · authorize · call a service · encode — nothing else |

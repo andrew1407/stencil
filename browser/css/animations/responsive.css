@@ -44,9 +44,9 @@
     .container { padding: 10px; border-radius: 6px; }
     .controls { gap: 4px 4px; padding: 8px 10px; }
     .ctrl-section { padding: 4px; }
-    .ctrl-sep { margin: 0 2px; }
-    /* Vertical separators read as clutter when controls wrap a lot. */
-    .ctrl-sep { display: none; }
+    /* Vertical separators read as clutter when controls wrap a lot; the gap above drops
+       to 4px with them. */
+    .ctrl-section + .ctrl-section::before { content: none; }
     #settings-modal, .app-modal { max-height: 88vh; }
     .settings-header, .settings-footer { padding: 10px 12px; }
     .settings-body { padding: 10px 12px; }

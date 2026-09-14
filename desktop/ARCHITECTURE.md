@@ -32,8 +32,8 @@ graph TD
 
 ## Layers
 
-the core seam → controllers → `net/`, `io/` → `support/` → `canvas/`, `dialogs/`, `llm/` →
-`app/`. `tests/layerBoundary.headless.cpp` enforces it: nothing below `app/` includes an `app/`
+the core seam (`src/model/` plus the files the lint lists) → controllers → `net/`, `io/` →
+`support/` → `canvas/`, `dialogs/`, `llm/` → `app/`. `tests/layerBoundary.headless.cpp` enforces it: nothing below `app/` includes an `app/`
 header, `dialogs/` never includes `canvas/`, and a `core/` header enters the GUI only through
 the files the lint lists as the core seam. The document state itself lives in `CanvasWidget`
 (`core::Lines` + `core::HistoryStack`); the controllers are the `*Controller` classes and
@@ -45,7 +45,8 @@ the files the lint lists as the core seam. The document state itself lives in `C
 |---|---|---|
 | `src/app/` | `main.cpp`, `launchOptions`, the controllers, and `MainWindow` — one `MainWindow.hpp` (moc runs on the header) with method groups spread over `MainWindow*.cpp` TUs | composition only; no logic a controller could hold; a new method group is a new TU, not a longer one |
 | `src/canvas/` | `CanvasWidget` (QPainter), split into paint / press / hold TUs, plus the tooltip | pixel, geometry and page math come from `core/`, never re-derived |
-| `src/dialogs/` | one dialog per file: settings, projects, blank, crop, connect, links, info, shortcuts, expiration, assistantSettings | every prompt/picker goes through `promptModal` / `chooseModal` — no `QInputDialog` / `QMessageBox` |
+| `src/model/` | Qt-shaped wrappers over a core type the GUI needs whole: `ScriptDoc` over `core/script` (tokens, diagnostics, ops, and the `core::CropRect` / `core::Lines` an op resolves to), plus `ScriptBuffer`, the session-scoped text the two script hosts share | the core seam — `model/` may include `core/` freely, and nothing above it may; nothing here is persisted |
+| `src/dialogs/` | one dialog per file: settings, projects, blank, crop, connect, links, info, shortcuts, expiration, assistantSettings, script — plus `ScriptEditorWidget`, the .stc editor both script surfaces host, and `ScriptMenuPanel`, that script window at menu scale | every prompt/picker goes through `promptModal` / `chooseModal` — no `QInputDialog` / `QMessageBox`; a menu-hosted panel reuses the window's widgets, never a second copy of them |
 | `src/llm/` | chat dock + widgets, `LlmClient`, `QtLlmTransport`, op registry/schema/plan, `planExecutor` | plans validate against the shared registry before execution; the executor calls the same appliers the toolbar uses |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil` (de)serialization), `mediaLoader` (image/video) | QtCore-only serialization; QImage codec work stays in `MainWindow` |
 | `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore` (0600 tokens), `fetchGuard` | `fetchGuard` is the surface's one SSRF guard, a port of `cli/src/net.zig`; tokens never go in `QSettings` |
@@ -90,6 +91,9 @@ classDiagram
       +QJsonObject layout
       +QString themeMode
     }
+    class ScriptBuffer {
+      +QString text_
+    }
     class LaunchOptions {
       +QString project
       +QString src
@@ -129,6 +133,7 @@ classDiagram
       +Lines lines
       +QString path
     }
+    ScriptDoc <.. ScriptBuffer : parsed from
     MainWindow *-- CanvasWidget : canvas_
     MainWindow *-- Settings : settings_
     MainWindow o-- Project : projectList_
@@ -152,13 +157,16 @@ classDiagram
 | `Session` | The autosaved in-progress drawing, the browser's localStorage layout blob twin | Written by `SessionController`'s debounce, read once at boot | `CanvasWidget` state, `activeProjectId` |
 | `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `MainWindow::projectList_`, persisted by `fileStore::saveProjects` | `core::ProjectsStore` for the registry; `ProjectFileData` for export |
 | `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat); canonical definition `browser/js/core/projectFile.js` | Transient, built by `buildStencilBytes` or parsed by `openProjectFile` | `Project`, the linked file watcher |
+| `ScriptDoc` | One parsed `.stc`: its token stream in QChar columns, its diagnostics and the op stream the core lowered it to, plus the resolvers that turn an op into a `core::CropRect` or a `core::Line` | Held by the `ScriptEditorWidget` that parsed it, rebuilt on every keystroke | `ScriptHighlighter` colours from its tokens; `scriptRun` drives `PlanTarget` from its ops |
+| `ScriptBuffer` | The one `.stc` both script hosts edit: a session-scoped `QString` with a `changed` signal, so the window and the flyout never diverge | A process-wide instance, alive for the run; never written to settings, a project or a file | `ScriptEditorWidget` reads it at construction and writes it on every keystroke |
+| `EditState` | One checkpoint of the editable state — crop, filter and committed lines — the `.stc` runner keeps per numbered edit, since the canvas history holds lines alone | Transient, one per applied edit for the length of a run | `PlanTarget::captureEdit` / `restoreEdit`, the `@undo` of `contracts/stc` §7 |
 | `LaunchOptions` | Parsed argv or a `stencil://` link; the desktop twin of the browser deep-link | `main.cpp`, consumed once by `applyLaunchOptions` | `MediaLoader`, `openServerLaunch` |
 | `ConnectionManager` | The set of live `ServerClient`s; its `changed()` persists the `SavedServer` snapshot | `MainWindow`, created lazily by `ensureConnections` | `connectionStore`, `RemoteSession` |
 | `ServerClient` | One REST connection: base, bearer token, credential kind, status | `ConnectionManager::clients_` | `ServerProject`, `LiveFeed` |
 | `ServerProject` | A server project record; mirror of `server/internal/protocol` `ProjectRecord`, which is canonical | Transient reply value stamped with `serverUrl` | `RemoteLink` on open, `ProjectsDialog` rows |
 | `RemoteLink` | The bound server project (address, id, version) of the open editor | `RemoteSession::link_`, bound on open, unbound on close | `RemoteSyncController` pushes and polls it |
 | `ChatMessage` | One chat turn with attached images; replayed in full each call | `MainWindow::chatHistory_`, cleared with the conversation | `LlmClient::chat`, `fileStore::buildChatDoc` |
-| `OpPlan` | A parsed, registry-validated assistant reply; the contract in `llm-contract/llm-contract.md` is canonical | Transient, from `parseOpPlan` to `executePlan` | `Action`, `Variant`, `AskCard`, `ExecResult` |
+| `OpPlan` | A parsed, registry-validated assistant reply; the contract in `contracts/llm/llm-contract.md` is canonical | Transient, from `parseOpPlan` to `executePlan` | `Action`, `Variant`, `AskCard`, `ExecResult` |
 | `Action` | One op of a plan, a tagged union on `OpKind` | Inside `OpPlan` | `PlanTarget` appliers |
 
 ## Patterns
@@ -175,6 +183,8 @@ classDiagram
 | Adapter | `LlmTransport` → `QtLlmTransport` (production) or a test mock; `PlanTarget` → `ChatPlanTarget` (live editor) / `CanvasPlanTarget` (offscreen sandbox) | One seam per boundary so the tests run offline |
 | Debounced write | `SessionController` (`AUTOSAVE_MS`, `VIEW_SAVE_MS`), `RemoteSyncController` push/poll/reload timers, `io/deferredWrite`, `scheduleStencilAutosave` | Gates (`incognito`, `remoteUnsynced`) are checked at fire time |
 | Guarded write loop | `ServerClient::runGuardedWriteAsync`, `RemoteSession::putVersionGuardedAsync` | Version echoed on PUT; a 409 re-reads, merges and retries a bounded number of times |
+| Hosted menu panel | `ChatMenuPanel` behind the Assistant row, `ScriptMenuPanel` behind the Stencil Script row — a `QWidgetAction` in a `StayOpenMenu`, scoped by `setInteractiveArea(panel, keyTarget)` | The `QWidgetAction` owns the panel, so the transcript and the typed script outlive the per-right-click menu rebuild; a control that needs a modal dismisses the popup chain first |
+| Shared editor widget | `ScriptEditorWidget` — the halo, the box, the editor, the diagnostics strip and one `ScriptHighlighter`, hosted by `ScriptDialog` and `ScriptMenuPanel` | The hosts differ only in the `Style` they pass (names, metrics, which keys the editor owns) and in the buttons around it; the behaviour has one home |
 | Golden pin / fixture walker | `tests/uiPins.headless.cpp`; `opPlanFixtures`, `llmWireFixtures`, `storeFixtures`, `deepLinkFixtures` | Pins guard pixels and QSS; walkers prove the shared `browser/js/config` corpora on this surface |
 
 ## Design
@@ -193,8 +203,31 @@ classDiagram
   `MainWindow::onCanvasChanged` refreshes actions, rebuilds the `SelectionPanel` rows from
   core page coordinates, and schedules the session autosave, the remote push and the
   `.stencil` autosave. The repaint reads its pixels from the core filter and crop results.
+- **Running a script.** Two hosts, one editor, one runner. The Data section's script action
+  opens `ScriptDialog` and the context menu's own row a flyout over `ScriptMenuPanel`; both
+  host a `ScriptEditorWidget`, whose every keystroke re-parses the text through `ScriptDoc`
+  and hands the token stream to `ScriptHighlighter`, which repaints only the lines whose spans
+  moved. A re-colour is itself a document change, so the paint is guarded against the
+  `textChanged` it causes. Nothing is REPORTED until Run: only then do the diagnostics reach
+  the strip under the editor and the wavy underlines reach the tokens, and they read the parse
+  the run itself used, so a Run lexes the text once. Run accepts the dialog, and
+  `MainWindow::openScript` drives `scriptRun` over a `ChatPlanTarget` — the same `PlanTarget`
+  an assistant op plan uses, so a scripted edit and a clicked one take one path. A `@line` or
+  `@rect` COMBINES with the layout already there and commits one undo step; `@crop`, `@filter`
+  and the shapes each leave an `EditState` checkpoint, so the `undo N` the lowerer emits
+  (`contracts/stc` §7) puts the editor back where it was instead of unwinding the user's own
+  history; `@frame` re-opens its own block's source at that frame. A script with any error runs
+  nothing; a failure part-way keeps the edits already applied and names the line. A `.stc`
+  dropped on the open window fills the editor; dropped on the window behind it, or opened from
+  the OS, it runs at once. Both hosts edit ONE script: `model::ScriptBuffer` holds it for the
+  life of the process, so what is typed in either is there when the other opens and Clear
+  empties both — and nothing about it is persisted. The flyout runs in place: typing, running
+  and failing all leave the menu open. Its Upload and Download are the window's, because Qt
+  takes every popup down the moment a file dialog opens; they dismiss the chain themselves and
+  put it BACK on the script row afterwards. The editor owns Tab (it indents) and Ctrl+Enter runs.
 - **Open and save `.stencil`.** `openPathFromOS` routes by suffix: `.json` to the layout
-  applier, `.stencil` to `openProjectFile`, anything else to `MediaLoader`. `openProjectFile`
+  applier, `.stencil` to `openProjectFile`, `.stc` to `runScriptFile`, anything else to
+  `MediaLoader`. `openProjectFile`
   reads the bytes, `fileStore::parseProjectFile` yields `ProjectFileData`, the image is decoded,
   `loadImageWithLayout` fills the canvas, a local `Project` is created and `linkStencilFile`
   installs the file watcher. `saveProjectFileAs` builds `ProjectFileData` from the untouched
@@ -241,8 +274,10 @@ classDiagram
    `desktop/.stencil/` in dev, the per-user config dir when packaged
    (`-DSTENCIL_DEV_STATE_DIR=OFF`).
 7. **Every user-facing path is one path.** OS open events, drag-and-drop, file arguments and
-   deep links all route through `openPathFromOS`; the model's `openFile`/`save` ops go
-   through the same, gated to paths the user wrote in the conversation.
+   deep links all route through `openPathFromOS`, which forks on suffix: `.json` a layout,
+   `.stencil` a project, `.stc` a script to RUN, anything else an image or video. The model's
+   `openFile`/`save` ops go through the same, gated to paths the user wrote in the
+   conversation.
 
 ## Tests
 
@@ -250,8 +285,8 @@ classDiagram
 offscreen (`QT_QPA_PLATFORM=offscreen`), with an isolated `STENCIL_STATE_DIR` per test, so
 nothing touches the developer's app state. Headless suites are one per concern
 (`tests/<concern>.headless.cpp`: crop, hold-draw, chain edit, project file, transfer, deep
-link, server auth, co-edit, LLM op plan, executor, settings, fetch guard, motion prefs, and
-the rest), each reporting its own failures. The GUI suites are `MainWindow.<area>.gui.cpp`,
+link, server auth, co-edit, LLM op plan, executor, script runner, script open, script dialog, script flyout, settings,
+fetch guard, motion prefs, and the rest), each reporting its own failures. The GUI suites are `MainWindow.<area>.gui.cpp`,
 one QtTest binary per area (`stencil_mainwindow_<area>_gui`) linked over the single
 `stencil_gui_objs` object library and sharing `MainWindow.gui.hpp`; they drive the real
 `MainWindow` with `STENCIL_NO_ANIM=1`. The fixture walkers (`opPlanFixtures`,

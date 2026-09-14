@@ -1,6 +1,6 @@
 // Shapes for llm/llmClient.js — the §6 wire mappings: one chat() over the three providers,
 // messages in the stencil-server DTO shape. The module is byte-pinned with
-// extension/src/llm/llmClient.js (extension/tests/portParity.test.js); this file is not.
+// browser-extension/src/llm/llmClient.js (browser-extension/tests/portParity.test.js); this file is not.
 import type { LlmProvider, LlmSettings } from './llmSettings.js';
 
 /** One image attachment, already base64 (no data: prefix). */

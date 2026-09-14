@@ -52,8 +52,9 @@ namespace stencil::gui {
     }
 
    private:
-    static constexpr int PAD_X = 11;   // breathing room each side of the group
-    static constexpr int PAD_Y = 5;
+    // The browser's #load-image-btn padding, 12px / 8px (css/layout/icons.css).
+    static constexpr int PAD_X = 12;
+    static constexpr int PAD_Y = 8;
     static constexpr int GAP = 11;    // icon → label (stock reserve was ~4px; +7, as asked)
   };
 

@@ -271,6 +271,7 @@ namespace stencil::gui {
     void altPeekOpen(class QToolButton* btn, QAction* act);
     void startLingerPoll();
     void stopLingerPoll();
+    void dropChatVeil();
     void stopChatAnim();
     void setToolbarsShown(bool show, bool animate);
     void refreshStatusHintVisibility();
@@ -368,6 +369,14 @@ namespace stencil::gui {
     // Browser linksModal.js.
     void openLinks();
     void openDescription();
+    void openScript();
+    // The QWidgetAction owns the panel, so the typed script survives the menu closing.
+    void ensureScriptMenuPanel();
+    /* A file dialog closes every popup Qt has open, so the flyout's Upload and Download put
+     * the chain back afterwards: the menu re-opens where it was, on the script row. */
+    void reopenScriptFlyout();
+    void refreshAfterScript();
+    void runScriptFromFile(const QString& path);
     void openKeywords();
     void loadImageByUrl(const QString& source, const QString& resource, int frame);
 
@@ -466,7 +475,7 @@ namespace stencil::gui {
     QString promoteIncognitoToLocal(const QString& name = QString());
     bool chatOpenFile(const QString& path, QString* err);
     // Blocks until MediaLoader resolves, so the plan's next action edits the loaded picture.
-    bool chatLoadSource(const QString& src, bool incognito, QString* why);
+    bool chatLoadSource(const QString& src, bool incognito, QString* why, int frame = 0);
     QString chatSaveBaseName(const QString& requested) const;
     QString uniqueLocalProjectName(const QString& wanted) const;
     QString addImageProjectEntry(const QImage& img, const QString& baseName,
@@ -691,7 +700,9 @@ namespace stencil::gui {
     QPointer<QGraphicsOpacityEffect> panelVeil_;
     QString chatTextOnlyKey_;
     bool chatClearPending_ = false;
+    // Always through setChatCompactPopover: the dock must hear it too, or it stays undraggable.
     bool chatCompactPopover_ = false;
+    void setChatCompactPopover(bool on);
     bool chatClosing_ = false;
     struct MirrorRow {
       QString role;
@@ -732,6 +743,7 @@ namespace stencil::gui {
     // Browser toolbar.js Image/Layout buttons and the paste listener.
     QAction* actDownloadJson_ = nullptr;
     QAction* actUploadJson_ = nullptr;
+    QAction* actScript_ = nullptr;
     QAction* actSaveProjectFile_ = nullptr;
     QAction* actOpenProjectFile_ = nullptr;
     QAction* actDeleteProjectFile_ = nullptr;
@@ -863,6 +875,11 @@ namespace stencil::gui {
     QWidgetAction* chatMenuAction_ = nullptr;
     QWidget* chatMenuPanel_ = nullptr;
     QWidget* chatMenuInput_ = nullptr;
+    QWidgetAction* scriptMenuAction_ = nullptr;   // the script flyout, same arrangement
+    QWidget* scriptMenuPanel_ = nullptr;
+    QWidget* scriptMenuEditor_ = nullptr;
+    QPoint contextMenuAt_;            // where the last canvas menu was raised
+    bool reopenScriptFlyout_ = false; // …and whether to land on the script row this time
     QWidget* dockZones_ = nullptr;
     bool chatStopRequested_ = false;
     bool chatContinued_ = false;

@@ -25,13 +25,16 @@ Stencil ships as **one shared logic core with a family of front-ends and service
 | **Collaboration server** | [`server/`](server/) | Go, stores/shares projects + live multi-client edit sessions | [server/README.md](server/README.md) |
 | **Telegram bot** | [`bot/`](bot/) | .NET (C#), chat-driven editing over the CLI + server REST | [bot/README.md](bot/README.md) |
 
-A companion **Chrome extension** ([`extension/`](extension/)) feeds the browser editor: it
+A companion **Chrome extension** ([`browser-extension/`](browser-extension/)) feeds the browser editor: it
 lists, searches and filters every image on any web page and opens a chosen image in the
-Stencil editor, with a quick in-page crop. The cross-surface smoke harness lives in
-[`e2e/`](e2e/).
+Stencil editor, with a quick in-page crop. A **VS Code extension**
+([`vscode-extension/`](vscode-extension/)) gives `.stc` scripts (below) highlighting,
+squiggles and a Run button. The cross-surface smoke harness lives in [`e2e/`](e2e/).
 
 Every surface also carries an **AI assistant** — describe an edit in words and a model you
 point Stencil at plans it. Setup guide: [AI assistant — setting up a model](#ai-assistant--setting-up-a-model).
+Edits you want to repeat go in a **`.stc` script** instead:
+[Scripts (`.stc`)](#scripts-stc).
 
 How the pieces fit together — the shared core, the parity contract, the layer model per
 app — is in [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -52,7 +55,8 @@ configure time; the CLI shells out to a system `ffmpeg` for video input only).
 | MCP server | [mcp/README.md](mcp/README.md) | build, test & register the server |
 | Collaboration server | [server/README.md](server/README.md) | build, test & run the Go server |
 | Telegram bot | [bot/README.md](bot/README.md) | build, test & run the bot |
-| Chrome extension | [extension/README.md](extension/README.md) | load unpacked & test |
+| Chrome extension | [browser-extension/README.md](browser-extension/README.md) | load unpacked & test |
+| VS Code extension | [vscode-extension/README.md](vscode-extension/README.md) | package the `.vsix`, install & test |
 | E2E harness | [e2e/README.md](e2e/README.md) | run the cross-surface smoke suite |
 
 **Docker.** Five subprojects ship a multi-stage `Dockerfile`. The first four compile
@@ -74,6 +78,39 @@ wires it together; it also backs the full-stack [`e2e/`](e2e/) suite:
 ```bash
 docker compose up --build server   # collab server on :8090 (REST/WS) + :8091 (TCP), with its db/redis
 ```
+
+## Scripts (`.stc`)
+
+A **stencil script** is a plain-text file of `@` directives that batches the same edits over
+one image, a folder or a glob — the repeatable counterpart to clicking and to asking the
+assistant:
+
+```stc
+@source shots/*.png:          # every PNG in the folder
+    @crop 10% 10% -10% -10%   # insets; a leading '-' measures from the far edge
+    @filter sepia
+    @line (0, 0) (100%, 100%)
+    @save out/                # → out/<name>-stencil.png
+```
+
+Units are `px % cm mm in`, `#` starts a comment (except in a hex colour), `;` separates
+statements on one line, `@stencil` defines a reusable template and `@undo` / `@redo` take
+edits back. The parser lives in the shared core, so a script does the same thing on every
+surface, and a script with **any error runs nothing**.
+
+| Where | How you run one |
+|---|---|
+| [cli](cli/README.md) | `stencil --script edit.stc` (`--script-check` for diagnostics, `--script-plan` for the lowered JSON); `/script` and `/script-run` in `--console` |
+| [browser](browser/README.md) | the script window in the Data toolbar (`Alt+Shift+S`), drag a `.stc` onto the page, or `stencil.execScript('@crop 10%')` |
+| [desktop](desktop/README.md) | **Data ▸ Stencil Script…** (`Alt+Shift+S`), or drop a `.stc` on the window |
+| [pystencil](pystencil/README.md) | `Editor.script(text)` / `run_script(path)`, the same three one-shot flags, `/script` in the REPL |
+| [bot](bot/README.md) | `/script @crop 10% ; @filter bw`, or upload a `.stc` document |
+| [mcp](mcp/README.md) | the `stencil_script` tool (`script_text` or `script_path`) |
+| [VS Code](vscode-extension/README.md) | open a `.stc`: highlighting, squiggles, and ▶ Run through the CLI |
+
+The language is specified in [`contracts/stc/stc-contract.md`](contracts/stc/stc-contract.md),
+with worked examples as the `tour-*` cases in
+[`browser/js/config/script/fixtures/`](browser/js/config/script/fixtures/).
 
 ## AI assistant — setting up a model
 
@@ -101,7 +138,7 @@ Where you set it, per surface:
 |---|---|---|
 | [browser](browser/README.md) | the chat's **…** menu ▸ **Settings** (or `Alt+Shift+G`); scriptable as `stencil.llm` | `localStorage` key `drawingApp_llmSettings` |
 | [desktop](desktop/README.md) | the chat dock's **…** menu ▸ **Settings** (or `Alt+Shift+G`, **View ▸ AI Assistant Settings…**), or **Settings ▸ AI assistant** | settings JSON: `llmProvider`, `llmBaseUrl`, `llmModel`, `llmApiKey`, `llmServerUrl` |
-| [extension](extension/README.md) | **Options → AI assistant** | `chrome.storage.local` key `llmSettings` (+ `serverToken`) |
+| [browser-extension](browser-extension/README.md) | **Options → AI assistant** | `chrome.storage.local` key `llmSettings` (+ `serverToken`) |
 | [cli](cli/README.md) | `STENCIL_LLM_*` env; `/llm provider\|url\|model\|key\|server <value>` in-session (bare `/llm` prints the config). Ask with `/prompt` | env + session state |
 | [pystencil](pystencil/README.md) | same env and console commands; in code, `LlmConfig(provider=…, model=…)` | env / `LlmConfig` args |
 | [bot](bot/README.md) | `STENCIL_LLM_*` (+ `STENCIL_LLM_SERVER_TOKEN`) in `bot/.env`. Ask with `/prompt` or `/chat` mode | env/`.env` |
@@ -124,10 +161,10 @@ in the cli/pystencil consoles, `/chat save on|off` in the bot).
 
 Each surface's own README carries its settings UI and its endpoint keys; the collaboration
 server's proxy keys are in [server/README.md](server/README.md#llm-proxy). The normative spec
-is [`llm-contract.md`](llm-contract/llm-contract.md), with provider wire mappings in
-[`llm-providers.md`](llm-contract/llm-providers.md), per-surface op profiles in
-[`llm-profiles.md`](llm-contract/llm-profiles.md) and chat persistence in
-[`llm-chat.md`](llm-contract/llm-chat.md).
+is [`llm-contract.md`](contracts/llm/llm-contract.md), with provider wire mappings in
+[`llm-providers.md`](contracts/llm/llm-providers.md), per-surface op profiles in
+[`llm-profiles.md`](contracts/llm/llm-profiles.md) and chat persistence in
+[`llm-chat.md`](contracts/llm/llm-chat.md).
 
 ## Claude Code integration
 

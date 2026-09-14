@@ -109,9 +109,12 @@ button {
 button:hover {
     background: var(--accent-2);
 }
+/* Every filled variant is named: a fill like `.chat-settings-actions .primary` outranks a bare
+   `button:disabled`, so a disabled Run kept its accent and read as clickable. */
 button:disabled,
 button.danger:disabled,
-button.active:disabled {
+button.active:disabled,
+button.primary:disabled {
     background: var(--disabled-bg);
     color: var(--disabled-text);
     cursor: not-allowed;

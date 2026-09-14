@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """The scanned-media record and its format-token derivation.
 
-Port of the extension's ``formatOf`` + ``norm`` (``extension/src/lib/imageScan.js``).
+Port of the extension's ``formatOf`` + ``norm`` (``browser-extension/src/lib/imageScan.js``).
 The leaf of the package: nothing here imports a sibling.
 """
 

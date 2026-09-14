@@ -11,6 +11,7 @@ set(STENCIL_GUI_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/dialogs
   ${CMAKE_CURRENT_SOURCE_DIR}/src/io
   ${CMAKE_CURRENT_SOURCE_DIR}/src/llm
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/model
   ${CMAKE_CURRENT_SOURCE_DIR}/src/net
   ${CMAKE_CURRENT_SOURCE_DIR}/src/support)
 
@@ -268,6 +269,10 @@ set(STENCIL_GUI_SOURCES
   src/app/MainWindowProjectLoad.cpp
   src/app/MainWindowProjectName.cpp
   src/app/MainWindowRefresh.cpp
+  src/app/MainWindowScript.cpp
+  src/app/scriptRun.cpp
+  src/model/ScriptBuffer.cpp
+  src/model/ScriptDoc.cpp
   src/app/MainWindowReplace.cpp
   src/app/MainWindowServerProject.cpp
   src/app/MainWindowServerSave.cpp
@@ -306,6 +311,7 @@ set(STENCIL_GUI_SOURCES
   src/llm/ChatDock.cpp
   src/llm/ChatDockChrome.cpp
   src/llm/chatDockShared.cpp
+  src/llm/chatMoreMenu.cpp
   src/llm/ChatDockEvents.cpp
   src/llm/ChatDockDrag.cpp
   src/llm/ChatDockAttach.cpp
@@ -325,6 +331,7 @@ set(STENCIL_GUI_SOURCES
   src/llm/chatWidgetsOverlays.cpp
   src/llm/chatCardRenderer.cpp
   src/llm/ChatMenuPanel.cpp
+  src/llm/ChatMenuPanelCompose.cpp
   src/llm/ChatMenuPanelRows.cpp
   src/llm/ChatMenuPanelState.cpp
   src/app/ChatPlanTarget.cpp
@@ -355,6 +362,12 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_OPENIMAGE_SOURCES}
   ${STENCIL_LINKSDIALOG_SOURCES}
   src/dialogs/DescriptionDialog.cpp
+  src/dialogs/ScriptDialog.cpp
+  src/dialogs/ScriptDialogFile.cpp
+  src/dialogs/ScriptEditorWidget.cpp
+  src/dialogs/ScriptHighlighter.cpp
+  src/dialogs/ScriptMenuPanel.cpp
+  src/dialogs/ScriptMenuPanelState.cpp
   src/dialogs/KeywordsDialog.cpp
   src/dialogs/CropDialog.cpp
   src/dialogs/CropDialogDrag.cpp

@@ -10,6 +10,13 @@
       "menu": "Ask the AI assistant to edit the image"
     },
     {
+      "verb": "script",
+      "menu": "Run a .stc stencil script over the image",
+      "aliases": [
+        "stc"
+      ]
+    },
+    {
       "verb": "chat",
       "menu": "Chat mode on/off (clear forgets; save on|off stores it with the project)"
     },
@@ -272,10 +279,11 @@
     "",
     "Set the working image by sending a photo, an image file, or just an image link.",
     "Add a caption command to apply it at once, e.g. a photo captioned /crop … or /filter bw.",
-    "Send a video to grab a frame (caption /frame n to pick one); or a .json file with caption /apply.",
+    "Send a video to grab a frame (caption /frame n to pick one); or a .json file with caption /apply. A .stc file runs as a script.",
     "",
     "Image commands:",
     "/prompt <request> — ask the AI assistant to plan and apply edits (/p for short)",
+    "/script <script> — run a Stencil script (.stc): /script @crop 10% ; @filter bw (upload a .stc file to run it)",
     "/chat [on|off|clear] — chat mode: keep talking to the assistant without typing /prompt (clear forgets the conversation)",
     "/chat save [on|off] — store the conversation with the active server project and restore it on /fetch (off by default)",
     "/blank [format] [w h] [color] — start a blank canvas, e.g. /blank b5 pink",
@@ -342,7 +350,15 @@
               "p"
             ],
             "command": "`/prompt <request>` (alias `/p`)",
-            "effect": "**Ask the AI assistant** to plan and apply edits — e.g. `/prompt make it sepia and crop 10% off each side`, or `/prompt give me 3 variants: rotated, tinted red, contoured`. The reply's validated op-plan (see [`llm-contract.md`](../llm-contract/llm-contract.md)) executes through the **same** editing service as the slash commands, so `/undo` etc. work on AI edits; the working image rides along as the vision attachment (a photo captioned `/prompt …`, or `/prompt` sent as a reply to a photo, targets that photo). One updated result comes back with the edit menu; variants arrive as a media album. A spinning **◐ Working on your request…** notice goes up the moment the turn starts (a vision plan over a big image can take a minute) and is deleted when the reply — or the error — lands. A turn that never delivered — it failed (timeout, unreachable endpoint, a truncated reply) or you ended it with the notice's **⏹ Stop** button — comes back with a **🔄 Retry** button that re-runs the same request, so recovering costs one tap instead of retyping it on a phone; a *refusal* has no button, since re-sending it verbatim would only repeat it"
+            "effect": "**Ask the AI assistant** to plan and apply edits — e.g. `/prompt make it sepia and crop 10% off each side`, or `/prompt give me 3 variants: rotated, tinted red, contoured`. The reply's validated op-plan (see [`llm-contract.md`](../contracts/llm/llm-contract.md)) executes through the **same** editing service as the slash commands, so `/undo` etc. work on AI edits; the working image rides along as the vision attachment (a photo captioned `/prompt …`, or `/prompt` sent as a reply to a photo, targets that photo). One updated result comes back with the edit menu; variants arrive as a media album. A spinning **◐ Working on your request…** notice goes up the moment the turn starts (a vision plan over a big image can take a minute) and is deleted when the reply — or the error — lands. A turn that never delivered — it failed (timeout, unreachable endpoint, a truncated reply) or you ended it with the notice's **⏹ Stop** button — comes back with a **🔄 Retry** button that re-runs the same request, so recovering costs one tap instead of retyping it on a phone; a *refusal* has no button, since re-sending it verbatim would only repeat it"
+          },
+          {
+            "verbs": [
+              "script",
+              "stc"
+            ],
+            "command": "`/script <script>` (alias `/stc`)",
+            "effect": "**Run a Stencil script** — the `.stc` language (see [`contracts/stc/`](../contracts/stc/)), one-line or multi-line: `/script @crop 10% ; @filter bw ; @line (0,0) (100%,100%)`. The bot hands the script to the CLI's `--script-plan` mode, which lowers it to the same validated op plan `/prompt` produces, and every op then runs through the **same** editing service as the slash commands — so `/undo` walks a script's edits back one at a time. Lengths in `%` resolve against the frame you are looking at. **Uploading a `.stc` file is the file form of this command** — send it as a document and it runs the moment it arrives; there is no separate `/script-run`. A block header `@source <link>:` loads its own http(s) image (several blocks come back as a media album); a `@source` naming a local path, directory or glob is refused, because the bot has no file system of yours to read. `@save` goes to the active server project, the same place `/save` writes. A script with an error runs **nothing** — the reply names the line, column and error code"
           },
           {
             "verbs": [

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Shared-MIME-info definition for Stencil's portable project files (.stencil).
+  Shared-MIME-info definitions for Stencil's own file types: portable projects
+  (.stencil) and stencil scripts (.stc).
   Installed to share/mime/packages/; `update-mime-database` (run by the package
   manager / desktop on install) registers the application/x-stencil type so the
   file manager gives .stencil files the Stencil icon and double-click-to-open
@@ -12,6 +13,12 @@
     <comment>Stencil project</comment>
     <sub-class-of type="application/json"/>
     <glob pattern="*.stencil"/>
+    <icon name="application-x-stencil"/>
+  </mime-type>
+  <mime-type type="text/x-stencil-script">
+    <comment>Stencil script</comment>
+    <sub-class-of type="text/plain"/>
+    <glob pattern="*.stc"/>
     <icon name="application-x-stencil"/>
   </mime-type>
 </mime-info>

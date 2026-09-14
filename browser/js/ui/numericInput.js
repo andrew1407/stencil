@@ -5,7 +5,7 @@
 // clamping; the markup keeps type="number".
 //
 // Operators match core/parse/formulaParser: + - * / ** and parens, ** right-associative,
-// no eval. Mirrored by extension/src/lib/numericInput.js and desktop support/numericInput.cpp.
+// no eval. Mirrored by browser-extension/src/lib/numericInput.js and desktop support/numericInput.cpp.
 
 // ── Evaluator (pure — no DOM, so Node tests import it directly) ──────────────
 

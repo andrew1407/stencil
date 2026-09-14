@@ -140,3 +140,66 @@ def bind(lib: ctypes.CDLL) -> None:
 
   lib.stencil_cli_parseDuration.restype = ctypes.c_int
   lib.stencil_cli_parseDuration.argtypes = [_cstr, ctypes.POINTER(ctypes.c_longlong)]
+
+  _bind_script(lib)
+
+
+def _bind_script(lib: ctypes.CDLL) -> None:
+  """The .stc script family. Every ``_cstr`` restype here points INTO the handle, so
+  ctypes' own bytes copy is what keeps it valid past ``scriptDestroy``."""
+  _i = ctypes.c_int
+  _d = ctypes.c_double
+  _cstrp = ctypes.POINTER(_cstr)
+
+  lib.stencil_cli_scriptParse.restype = _i
+  lib.stencil_cli_scriptParse.argtypes = [_cstr, _i]
+
+  lib.stencil_cli_scriptDestroy.restype = None
+  lib.stencil_cli_scriptDestroy.argtypes = [_i]
+
+  lib.stencil_cli_scriptErrorCount.restype = _i
+  lib.stencil_cli_scriptErrorCount.argtypes = [_i]
+
+  lib.stencil_cli_scriptDiagCount.restype = _i
+  lib.stencil_cli_scriptDiagCount.argtypes = [_i]
+
+  lib.stencil_cli_scriptDiagAt.restype = _cstr
+  lib.stencil_cli_scriptDiagAt.argtypes = [_i, _i, _intp, _intp, _intp, _intp, _cstrp]
+
+  lib.stencil_cli_scriptTokenCount.restype = _i
+  lib.stencil_cli_scriptTokenCount.argtypes = [_i]
+
+  lib.stencil_cli_scriptTokenAt.restype = _i
+  lib.stencil_cli_scriptTokenAt.argtypes = [_i, _i, _intp, _intp, _intp, _intp]
+
+  lib.stencil_cli_scriptBlockCount.restype = _i
+  lib.stencil_cli_scriptBlockCount.argtypes = [_i]
+
+  lib.stencil_cli_scriptBlockAt.restype = _cstr
+  lib.stencil_cli_scriptBlockAt.argtypes = [_i, _i, _intp, _intp, _intp, _intp]
+
+  lib.stencil_cli_scriptOpCount.restype = _i
+  lib.stencil_cli_scriptOpCount.argtypes = [_i]
+
+  lib.stencil_cli_scriptOpAt.restype = _i
+  lib.stencil_cli_scriptOpAt.argtypes = [
+    _i, _i, _intp, _intp, _intp, _intp, _intp, _intp, _intp,
+  ]
+
+  lib.stencil_cli_scriptOpStr.restype = _cstr
+  lib.stencil_cli_scriptOpStr.argtypes = [_i, _i, _i]
+
+  lib.stencil_cli_scriptOpTokCount.restype = _i
+  lib.stencil_cli_scriptOpTokCount.argtypes = [_i, _i]
+
+  lib.stencil_cli_scriptOpTok.restype = _cstr
+  lib.stencil_cli_scriptOpTok.argtypes = [_i, _i, _i]
+
+  lib.stencil_cli_scriptOpNum.restype = _i
+  lib.stencil_cli_scriptOpNum.argtypes = [_i, _i, _i, _dblp]
+
+  lib.stencil_cli_scriptOpResolve.restype = _i
+  lib.stencil_cli_scriptOpResolve.argtypes = [_i, _i, _d, _d, _d, _d, _dblp, _i]
+
+  lib.stencil_cli_scriptDump.restype = _cstr
+  lib.stencil_cli_scriptDump.argtypes = [_i]

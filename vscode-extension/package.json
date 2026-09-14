@@ -1,0 +1,105 @@
+{
+  "name": "stencil-stc",
+  "displayName": "Stencil script (.stc)",
+  "description": "Highlighting, diagnostics and run/check for Stencil .stc scripts, through the Stencil CLI.",
+  "version": "1.0.0",
+  "publisher": "stencil",
+  "license": "Apache-2.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andrew1407/stencil.git",
+    "directory": "vscode-extension"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onLanguage:stencil-script"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "stencil-script",
+        "aliases": [
+          "Stencil script",
+          "stc"
+        ],
+        "extensions": [
+          ".stc"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "stencil-script",
+        "scopeName": "source.stc",
+        "path": "./syntaxes/stc.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "stencil.runScript",
+        "title": "Stencil: Run script",
+        "category": "Stencil",
+        "icon": "$(play)"
+      },
+      {
+        "command": "stencil.runScriptOnImage",
+        "title": "Stencil: Run script on an image…",
+        "category": "Stencil"
+      },
+      {
+        "command": "stencil.checkScript",
+        "title": "Stencil: Check script",
+        "category": "Stencil"
+      }
+    ],
+    "configuration": {
+      "title": "Stencil script",
+      "properties": {
+        "stencil.cliPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Path to the Stencil CLI binary. Empty falls back to `STENCIL_CLI`, then `stencil` on `PATH`."
+        },
+        "stencil.checkOnType": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-check the script while typing, using the in-process parser. On save the CLI checks it."
+        }
+      }
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "stencil.runScript",
+          "when": "resourceLangId == stencil-script",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "stencil.runScript",
+        "key": "ctrl+alt+r",
+        "mac": "cmd+alt+r",
+        "when": "editorTextFocus && editorLangId == stencil-script"
+      }
+    ]
+  },
+  "scripts": {
+    "test": "node --test",
+    "package": "vsce package --out stencil-stc.vsix"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "3.9.2"
+  }
+}

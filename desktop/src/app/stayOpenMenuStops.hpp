@@ -20,6 +20,10 @@ namespace stencil::gui {
     return stops;
   }
 
+  // A hosted code editor owns Tab (it indents), so the menu's Tab walk steps aside for it —
+  // the desktop twin of the script flyout's data-ctx-keep-tab (browser ctxScriptItem.js).
+  inline bool keepsTab(const QWidget* w) { return w && w->property("keepTab").toBool(); }
+
   // A section title row: Qt's keyboard walk treats it as a row and the highlight goes nowhere.
   inline bool isLabelRow(QAction* a) {
     auto* wa = qobject_cast<QWidgetAction*>(a);

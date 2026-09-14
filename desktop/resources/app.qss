@@ -49,6 +49,15 @@
          updateProjectTitle() flips [remoteEditing] for a server-backed project. */
       QScrollArea#canvasViewport { border: 2px solid %BORDER_CANVAS%; }
       QScrollArea#canvasViewport[remoteEditing="true"] { border: 2px solid #d4a017; }
+      /* In fullscreen the frame is the only chrome left on screen, so it takes the browser's
+         fullscreen-panel hairline instead (fullscreen.css #fs-points-panel: 1px --border-main,
+         8px corners). MainWindow::markFullscreenBars flips [fsView]. */
+      QScrollArea#canvasViewport[fsView="true"] {
+        border: 1px solid %BORDER%; border-radius: 8px;
+      }
+      QScrollArea#canvasViewport[fsView="true"][remoteEditing="true"] {
+        border: 1px solid #d4a017; border-radius: 8px;
+      }
 
       /* Live cursor-coord readout, between the canvas and the drop-hint (browser parity:
          layout.css .coord-status — its own --bg-tooltip/--border-tooltip box, not the
@@ -151,6 +160,10 @@
         color: %TEXT%; background: transparent; padding: 5px 7px;
         border: 1px solid transparent; border-radius: 7px;
       }
+      /* A tool button is 19px wider than its glyph, so the odd pixel leaves every icon half a
+         pixel left of centre. It only SHOWS on the one glyph that is a frame, so fit-to-window
+         takes the odd pixel on its left edge and its box lands dead centre. */
+      QToolButton[zoomFit="true"] { padding-left: 8px; }
       QToolButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       QToolButton:pressed { background: %ACCENT_SOFT2%; }
       /* The ✎ / 🎨 beside the project name: the toolbar's own filled squares, so they read
@@ -253,11 +266,9 @@
       QToolButton[drawToggle="idle"]:disabled, QToolButton[drawToggle="on"]:disabled {
         color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
-      /* Fit-to-window is filled like every other ACTING button now (user decision; browser
-         twin: #zoom-fit in css/components.css) — the toolFill rules above own its look.
-         Only its DISABLED face is its own: the browser's fade rather than the filled
-         chip, since it ends the ZOOM row beside a plain field. */
-      QToolButton[toolGhost="true"]:disabled { color: %DISABLED_TEXT%; background: transparent; border-color: %DISABLED_TEXT%; }
+      /* Fit-to-window is filled like every other ACTING button (browser twin: #zoom-fit in
+         css/components/settings.css), and DISABLED it is the same grey chip as the − / +
+         steppers beside it, so the glyph never gains a second frame of its own. */
       /* The Settings cluster's TOGGLES: the browser's bordered ghosts (#fullscreen-toggle,
          #incognito-toggle). Keyed on a property set per button rather than on the section,
          because the cluster's other three OPEN DIALOGS and wear the accent fill like every
@@ -315,13 +326,22 @@
       }
       /* Danger button (e.g. the selection panel's Delete Line) — the browser's
          --danger red treatment, tuned per theme. */
-      QPushButton#dangerButton {
+      /* Run is the one GO action in the script editors, so it wears the browser's --success
+         green rather than the accent every other CTA uses. Dead, it greys like the rest. */
+      QPushButton[successCta="true"] { background: %SUCCESS%; color: white; border: none; }
+      QPushButton[successCta="true"]:hover { background: %SUCCESS2%; }
+      QPushButton[successCta="true"]:disabled {
+        background: %DISABLED_BG%; color: %MUTED%; border-color: %BORDER%;
+      }
+      QPushButton#dangerButton, QPushButton[dangerCta="true"] {
         background: %DANGER%; color: white; border: none;
       }
-      QPushButton#dangerButton:hover { background: %DANGER2%; }
-      /* …and a DEAD one has to look it: the id selector outranks QPushButton:disabled above,
+      QPushButton#dangerButton:hover, QPushButton[dangerCta="true"]:hover {
+        background: %DANGER2%;
+      }
+      /* …and a DEAD one has to look it: these selectors outrank QPushButton:disabled above,
          so a disabled Clear All kept painting solid red and still read as pressable. */
-      QPushButton#dangerButton:disabled {
+      QPushButton#dangerButton:disabled, QPushButton[dangerCta="true"]:disabled {
         background: %DISABLED_BG%; color: %MUTED%; border-color: %BORDER%;
       }
       /* Muted, spaced section caption (selection panel "POINTS"/"MEASUREMENTS", and
@@ -360,9 +380,14 @@
          field a stylesheet of its own (it carries the per-project colour), and a widget's own
          sheet outranks this one for every property it names. Rules here were simply ignored
          (user report). The rest/hover pair lives beside the colour, in that function. */
-      QComboBox:focus, QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
+      QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
         border: 2px solid %ACCENT%; padding: 2px 7px;
       }
+      /* A COMBO keeps keyboard focus after its popup closes, so the solid accent a typed
+         field wears sat on the page selector long after the pick and read as a live state.
+         It takes the hover ring instead — visible when tabbed to, never mistaken for "on".
+         Browser twin: .accent-dd-trigger, which rings on hover and not on focus at all. */
+      QComboBox:focus { border: 2px solid %ACCENT_RING%; padding: 2px 7px; }
       QComboBox::drop-down { border: 0; width: 18px; }
       /* The browser's chevron, as a real image. A CSS border-triangle is a browser trick
          Qt's stylesheet engine does not draw — it came out as a small solid square — and
@@ -509,16 +534,19 @@
       /* A hairline around every cell, header included — the browser draws one on each th
          and td (layout.css .coordinates-table: border 1px solid --border-coord), which is
          what makes its accent header read as five separate cells rather than one bar. */
+      /* One size across the whole panel — cells, header and the Points | Lines strip, so the
+         header and the tabs never fall back to the system font and stack two type scales. */
       QTableWidget#pointsTable {
         gridline-color: %BORDER%;
         selection-background-color: transparent;  /* the delegate strokes an outline instead */
         selection-color: %TEXT%;
-        font-size: 12px;
+        font-size: 13px;
       }
       QTableWidget#pointsTable QHeaderView::section {
         border-right: 1px solid %BORDER%; border-bottom: 1px solid %BORDER%;
-        padding: 6px 5px; font-weight: bold;
+        padding: 6px 5px; font-weight: bold; font-size: 13px;
       }
+      QTabBar#selectionTabBar::tab { font-size: 13px; }
       /* The browser's own cell padding (layout.css .coordinates-table: 6px 5px). */
       QTableWidget#pointsTable::item { padding: 6px 5px; }
       QTableWidget#pointsTable::item:hover { background: %ACCENT_SOFT%; }
@@ -583,6 +611,59 @@
       }
       QPlainTextEdit#modalPromptText:focus, QPlainTextEdit#descriptionText:focus,
       QPlainTextEdit#keywordsText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
+      /* The script window's editor (ScriptDialog) — the browser's .script-editor-wrap plus
+         .script-input as one widget, since Qt colours the text in place. The mono face and
+         the gutter are set in code; only the frame and the inks belong here. */
+      /* The FRAME owns the box (browser .script-editor-wrap): ONE accent hairline, at rest and
+         focused alike — a second one lands on top of the first and reads as a doubled edge.
+         The halo above it is the 3px ring the browser draws as a box-shadow. */
+      /* Both editors wear it: the window's (ScriptDialog) and the context menu's flyout
+         (ScriptMenuPanel) — the browser reuses its script-* classes for the flyout too. */
+      QFrame#scriptEditorGlow, QFrame#scriptMenuGlow {
+        background: transparent; border: 3px solid transparent; border-radius: 11px;
+      }
+      QFrame#scriptEditorGlow[hovered="true"],
+      QFrame#scriptMenuGlow[hovered="true"] { border-color: %ACCENT_SOFT%; }
+      /* Focus firms that ring rather than adding one; last wins, so hovered-and-focused is
+         the focus ring alone (browser :focus-within overriding :hover on the same shadow). */
+      QFrame#scriptEditorGlow[focused="true"],
+      QFrame#scriptMenuGlow[focused="true"] { border-color: %ACCENT_SOFT2%; }
+      QFrame#scriptEditorWrap, QFrame#scriptMenuWrap {
+        background: %INPUT_BG%; border: 1px solid %ACCENT%; border-radius: 8px;
+      }
+      QPlainTextEdit#scriptText, QPlainTextEdit#scriptMenuText {
+        background: transparent; color: %TEXT%; border: 1px solid transparent; padding: 0;
+        selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
+      }
+      /* The strip under it (browser .script-diag): muted until a run reports something. */
+      QLabel#scriptDiag, QLabel#scriptMenuDiag {
+        color: %MUTED%; font-size: 12px; background: transparent;
+      }
+      QLabel#scriptDiag[state="error"], QLabel#scriptMenuDiag[state="error"] { color: %DANGER%; }
+      QLabel#scriptDiag[state="warn"], QLabel#scriptMenuDiag[state="warn"] { color: %WARNING%; }
+      /* The flyout is that editor at MENU scale (browser css/components/ctxScript.css): it
+         sits straight on the menu's own surface, with a tighter strip and smaller actions. */
+      QWidget#scriptMenuPanel { background: transparent; }
+      QLabel#scriptMenuDiag { font-size: 11px; padding: 4px 2px 0; }
+      QWidget#scriptMenuPanel QPushButton {
+        font-size: 12px; padding: 4px 9px; min-height: 14px;
+      }
+      /* Empty-state prompt chips (browser .chat-suggest, llm/ChatDockChrome.cpp): a quiet
+         pill whose radius is half its height — Qt squares the box off above that. */
+      QPushButton#chatSuggestChip { padding: 4px 12px; border-radius: 14px; }
+      /* …and the assistant flyout wears the browser's .ctx-assist .chat-suggest: menu scale,
+         the same box the script flyout's own buttons take. */
+      QWidget#chatMenuPanel QPushButton#chatSuggestChip {
+        font-size: 12px; padding: 4px 9px; min-height: 14px; border-radius: 12px;
+      }
+      /* The assistant flyout's composer (browser #ctx-assist-input): the chat panel's input
+         at menu scale — two rows tall at rest, and the browser's own box around them. Its
+         height floor is a layout metric (llm/chatMenuPanelParts.hpp). */
+      QPlainTextEdit#chatMenuInput {
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
+        border-radius: 6px; padding: 6px 8px; font-size: 13px;
+      }
+      QPlainTextEdit#chatMenuInput:focus { border: 1px solid %ACCENT%; }
       /* …and the reason a value cannot be saved, under the field (promptModal validate). */
       QLabel#modalPromptReason { color: %DANGER%; font-size: 12px; background: transparent; }
       /* The picker dialog's select (modalChrome.cpp chooseModal — browser

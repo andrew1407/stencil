@@ -1,5 +1,6 @@
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
+using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
@@ -80,6 +81,26 @@ public sealed class MockStencilCli : IStencilCli
         ("logo.png", 200, 80),
         ("clip.mp4", null, null),
     };
+
+    /// <summary>The (scriptPath, input) pair the last <see cref="ScriptPlanAsync"/> was given.</summary>
+    public (string Script, string? Input)? LastScriptCall { get; private set; }
+
+    /// <summary>Every script file the mock was handed, in call order — read before it is deleted.</summary>
+    public List<string> ScriptTexts { get; } = new();
+
+    /// <summary>What <see cref="ScriptPlanAsync"/> returns; an empty plan by default.</summary>
+    public ScriptPlan CannedScriptPlan { get; set; } = new([], []);
+
+    /// <summary>When set, <see cref="ScriptPlanAsync"/> throws it instead of returning a plan.</summary>
+    public Exception? ScriptFailure { get; set; }
+
+    /// <summary>Record the call (and the script's bytes) and hand back the canned plan.</summary>
+    public async Task<ScriptPlan> ScriptPlanAsync(string scriptPath, string? input = null, CancellationToken ct = default)
+    {
+        LastScriptCall = (scriptPath, input);
+        ScriptTexts.Add(await File.ReadAllTextAsync(scriptPath, ct));
+        return ScriptFailure is null ? CannedScriptPlan : throw ScriptFailure;
+    }
 
     /// <summary>
     /// Capture the request, write each configured stub into the output directory and return them

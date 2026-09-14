@@ -1,5 +1,5 @@
-//! Byte-exact goldens for the MCP server's user-facing prose: the four `#[tool]`
-//! descriptions and the `ServerHandler::get_info()` instructions. That text is slated to
+//! Byte-exact goldens for the MCP server's user-facing prose: every `#[tool]` description
+//! and the `ServerHandler::get_info()` instructions. That text is slated to
 //! move into JSON assets, so these pin the current bytes to prove the move is verbatim.
 //! Rewrite with `MCP_UPDATE_GOLDENS=1 cargo test`.
 
@@ -72,6 +72,10 @@ fn the_tool_descriptions_match_their_goldens() {
     check(
         "stencil_prompt.txt",
         &description(StencilServer::stencil_prompt_tool_attr()),
+    );
+    check(
+        "stencil_script.txt",
+        &description(StencilServer::stencil_script_tool_attr()),
     );
     check(
         "source_site.txt",

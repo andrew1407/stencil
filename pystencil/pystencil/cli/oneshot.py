@@ -49,6 +49,24 @@ def _build_parser() -> argparse.ArgumentParser:
     help="bw | sepia | invert | contour | none | a colour name/#hex (duotone)",
   )
   p.add_argument("--save-layout", dest="save_layout", help="export the structured layout JSON here")
+  # ── .stc script modes (mutually exclusive with each other) ──
+  p.add_argument(
+    "--script",
+    metavar="FILE",
+    help="run a .stc script ('-' reads stdin); with no @source block it edits --input",
+  )
+  p.add_argument(
+    "--script-check", dest="script_check", metavar="FILE",
+    help="print the script's diagnostics and exit 1 on an error",
+  )
+  p.add_argument(
+    "--script-plan", dest="script_plan", metavar="FILE",
+    help="print the script lowered to an op plan (JSON, stdout)",
+  )
+  p.add_argument(
+    "--confine-output", dest="confine_output", action="store_true",
+    help="refuse a @save that lands outside the working directory",
+  )
   # ── source-site scrape mode (mutually exclusive with --input/--blank) ──
   p.add_argument(
     "--source-site",

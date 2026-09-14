@@ -55,15 +55,15 @@ body.fullscreen-mode stencil-chat-panel { z-index: 9990; }
    design, hence the :not(.fullscreen-mode) guard — :has() would otherwise
    out-specify body.fullscreen-mode's padding:0). The transition matches the
    panel's own open/close slide so the two move together. */
-body { transition: background 0.3s, color 0.3s, padding 0.34s ease; }
+body { transition: background 0.3s, color 0.3s, padding 0.51s ease; }
 /* Phones excluded on purpose: the modal overlays the page, and a 340px band on a
    390px viewport overflows the document sideways — which makes a mobile browser
    widen the LAYOUT VIEWPORT, so the fixed panel then hangs off the screen. */
 @media (min-width: 681px) {
-    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left) { padding-left: calc(var(--chat-size, 340px) + 20px); }
-    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-right) { padding-right: calc(var(--chat-size, 340px) + 20px); }
-    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top) { padding-top: calc(var(--chat-size, 300px) + 20px); }
-    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-bottom) { padding-bottom: calc(var(--chat-size, 300px) + 20px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-left) { padding-left: calc(var(--chat-size, 340px) + 20px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-right) { padding-right: calc(var(--chat-size, 340px) + 20px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-top) { padding-top: calc(var(--chat-size, 300px) + 20px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-bottom) { padding-bottom: calc(var(--chat-size, 300px) + 20px); }
     /* …and the drop overlay gives up the same band, for the same reason: a DOCKED
        panel shares the page rather than being covered by it. The panel wires its own
        drop (drop an image on the chat to attach it — [data-drop-owner]), so leaving
@@ -74,9 +74,9 @@ body { transition: background 0.3s, color 0.3s, padding 0.34s ease; }
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top) #global-drop-overlay { top: var(--chat-size, 300px); }
     body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-bottom) #global-drop-overlay { bottom: var(--chat-size, 300px); }
 }
-/* Closing plays the reverse slide (.chat-closing keeps .chat-open), so the
-   padding releases on the shorter out-duration in step with the panel. */
-body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.26s ease; }
+/* Closing plays the reverse slide (.chat-closing keeps .chat-open), so the padding
+   releases on the out-duration, in step with the panel and starting with it. */
+body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.39s ease; }
 
 body:has(stencil-chat-panel.chat-open.chat-dock-right) #install-host { right: calc(var(--chat-size, 340px) + 18px); }
 body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host { bottom: calc(var(--chat-size, 300px) + 18px); }

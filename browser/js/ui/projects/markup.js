@@ -40,7 +40,7 @@ export function projectsModalInner() {
             <div class="projects-batch-bar" id="projects-batch-bar" style="display:none">
                 <span class="projects-batch-count" id="projects-batch-count" style="display:none">0 selected</span>
                 <span class="projects-batch-actions">
-                    <button id="projects-select-all" class="btn-icon-text" style="display:none" data-title="Select every listed project (the current filter's rows)">${icon('check', { size: 13 })}<span>Select all</span></button>
+                    <button id="projects-select-all" class="btn-icon-text" style="display:none">${icon('check', { size: 13 })}<span>Select all</span></button>
                     <!-- The selection-only actions come and go as ONE group, so the swap is a
                          single flight instead of a button-by-button scramble (updateBatchBar). -->
                     <span class="projects-batch-selected" id="projects-batch-selected" style="display:none">

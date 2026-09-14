@@ -19,7 +19,7 @@ graph TD
       API["js/console/"]
     end
     FB["JS fallback"]
-    EXT["extension/"]
+    EXT["browser-extension/"]
     SRV["server/"]
 
     CORE -->|"wasm"| WASM
@@ -44,9 +44,11 @@ left; `tests/layerBoundary.test.js` enforces it.
 |---|---|---|
 | `index.html` | the single `<script type="module">` entry and the CSS link order | the link order **is** the cascade; the CSP meta is identical to the `nginx.conf` header |
 | `css/` | `theme.css`, then `layout/`, `components/` (+ `chat/`), `animations/` | one file per section; tokens live in `theme.css` and are mirrored in `js/config/themeTokens.json` |
-| `js/config/` | constants, hotkey + help-text registries, and every cross-surface table (`themeTokens`, `mediaTypes`, `uiStrings`, `events`, `motion`, `svgArt`, `llm/`) | **the canonical home of shared data**; the other surfaces embed or drift-test it |
+| `js/config/` | constants, hotkey + help-text registries, and every cross-surface table (`themeTokens`, `mediaTypes`, `uiStrings`, `events`, `motion`, `svgArt`, `llm/`, `script/`) | **the canonical home of shared data**; the other surfaces embed or drift-test it |
+| `js/config/script/fixtures/` | `cases.txt`, the `.stc` corpus: every case as a section of source, canonical dump and expected diagnostics | plain text, never JSON — `core/` has no JSON parser and reads this same file; a case named `err-*` must produce an error |
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
 | `js/core/` | `DrawingApp` and its collaborators: renderer, storage, history, zoom/pan, coord table, formulas, projects store, `deepLink`, `projectFile`, `extensionBridge`, `stencilCore` (the wasm singleton) | **no DOM access** — it runs under `node --test` |
+| `js/core/script*.js` | the `.stc` engine: lex → parse → templates → lower, plus `scriptDump` and the `scriptHandles` marshalling; `script.js` is the entry that binds wasm to the fallback | one file per `core/script/*.cpp`, op-for-op with it; pure — it resolves ops but calls no facade, and `vscode-extension/src/parser/` is a byte-equal copy of it |
 | `js/bus/` | `appBus.js`, the app-wide event channel | channel names come from `config/events.json` |
 | `js/net/` | abortable fetch, the connection store + manager, remote sync | every fetch goes through the one guard here |
 | `js/llm/` | provider client, op-plan parser/executor, chat controller, the one shared chat session | validates every plan against `config/llm/opRegistry.json` before anything runs |
@@ -97,6 +99,8 @@ classDiagram
     class ChatController { +ChatMessage[] history
       +Attachment[] attachments
       +send(text) TurnResult }
+    class ScriptBuffer { +string text
+      +ScriptView[] views }
     DrawingApp "1" *-- "0..*" CodecLine : lines
     DrawingApp "1" *-- "1" HistoryStack : history
     HistoryStack "1" o-- "0..*" CodecLine : snapshots
@@ -125,6 +129,7 @@ classDiagram
 | `ConnectionManager` | The servers one session is connected to plus the expired-credential set; `snapshot()` is what `net/connectionStore.js` persists | Created lazily by the facade, one per app | `ServerConnection` |
 | `Stencil` | The frozen `window.stencil` facade (`console/stencilApi.js`): settings, `Line` / `Point` / `Project` handles, `chat`, `llm` | `createStencil(app)` once at boot | Wraps `DrawingApp`; the executor's only target |
 | `OpPlan` | A validated model reply: `reply`, `actions`, `variants`, `ask`, `warnings`, `chatOnly` (`llm/opPlan.js`); the op set is `config/llm/opRegistry.json`, canonical for every surface | Returned by `parseOpPlan` for one turn | `PlanAction`, `PlanVariant`, `PlanAsk` |
+| `ScriptBuffer` | The one `.stc` the page is editing (`ui/scriptBuffer.js`): the text plus its views, so the script window and the context-menu flyout are two views of it and cannot diverge | Module state for the session; never persisted, so a reload starts empty | `wireScriptEditor` (`ui/scriptEditor.js`) |
 | `ChatController` | The client-side conversation: replayed history, queued `Attachment`s, the send loop (`llm/chatController.js`); its transcript is the `ChatRow` log in `llm/chatSession.js` | One memoized per app via `sharedChatController` | `OpPlan`, `Stencil`, `LlmClient` |
 
 ## Patterns
@@ -141,6 +146,7 @@ classDiagram
 | Adapter | `llm/adapters/{dialog,editor,media,project}.js` (the `ChatCapabilities` bag), `core/extensionBridge.js`, `core/deepLink.js` | Each translates an outside request into the same app methods the toolbar uses |
 | State machine | `HoldDrawController` (`core/holdDraw.js`): idle → armed → drawing → idle, or armed → aborted | The host injects time and coordinates; wasm twin via `coreHandles.js` |
 | Interpreter | `FormulaEngine` (`core/formulaEngine.js`), a recursive-descent evaluator over one variable | Port of `core/parse/formulaParser.cpp`; never `eval` |
+| Interpreter + runner | `core/script*.js` lowers a `.stc` to an op stream; `console/scriptRunner.js` executes it | Port of `core/script/`; the parser never touches the editor and the runner never re-parses, so the language has one implementation and the browser only adds a target. Deliberately outside `llm/`: an op plan's caps guard model output, not the user's own script |
 
 ## Design
 
@@ -165,6 +171,16 @@ classDiagram
   and `executeOpPlan(plan, stencil, capabilities)` maps each op 1:1 onto a facade call.
   Variants and ask previews branch through `planSandbox` capture and restore;
   `runLoggedChatTurn` writes the `ChatRow`s the panel and context-menu chat both render.
+- **A script.** `stencil.execScript(text)` (and the script window, and a dropped `.stc`) calls
+  `runScript` in `js/console/scriptRunner.js`. It parses once through `js/core/script.js` —
+  wasm when loaded, the fallback otherwise — and refuses to run anything at all when a
+  diagnostic is an error. Each lowered op then maps onto one facade call, the same one the
+  toolbar makes: `open`/`frame` → `stencil.load`, `crop` → `stencil.crop`, `filter` →
+  `stencil.apply`, `line`/`rect` → `stencil.setLines` (combine), `layout` → an http(s)-only
+  fetch then `stencil.applyLayout`, `undo`/`redo` → the history, `save` → `stencil.save`.
+  A source the browser cannot open — a local path, since there is no filesystem — is the one
+  op that fails at run time rather than at parse time; a failure part-way leaves the edits
+  already applied and names the line that stopped it.
 - **Project files.** `js/core/projectFile.js` is the pure `.stencil` (de)serializer; IO is
   `ExportService`. It is an adapter-level format, not part of `core/`, so each surface
   serializes it independently and `e2e/` proves they agree on the same bytes. The document:
@@ -201,8 +217,10 @@ classDiagram
    literal in code.
 4. **Ported modules stay byte-identical.** `ui/controlTooltip`, `numericInput`,
    `dropdownMenu`, `tipContent`, `scrollbarHover`, `dustCloud`, `motionIcons` and
-   `llm/llmClient` are copied into `extension/src/lib/` and pinned byte-identical
-   (`extension/tests/portParity.test.js`).
+   `llm/llmClient` are copied into `browser-extension/src/lib/` and pinned byte-identical
+   (`browser-extension/tests/portParity.test.js`); `core/script*.js` is copied into
+   `vscode-extension/src/parser/` and pinned the same way, in both directions
+   (`vscode-extension/tests/parserParity.test.js`). Edit here, then re-copy.
 5. **Typed boundary.** Every public module has a sibling `.d.ts`.
 6. **Motion is decoration.** Every particle cloud is one canvas (`dustCloud.js`); never a
    DOM node per grain. The OS `prefers-reduced-motion` wins over every setting.
@@ -229,6 +247,7 @@ both directions, and `events`, `themeTokens`, `csp` and `opRegistryCanon` the dr
 a config table and its consumer. `cssInventory` pins every declaration `index.html` loads,
 file-blind, and `ui-markup` the static body ids of `layout()`. The fixture walkers run the
 shared corpora through the real modules and are the reference the other surfaces' walkers
-copy. Cross-surface reads live in `tests/helpers/`; the byte-identical port check for the
-copied modules is `extension/tests/portParity.test.js`, and `singleFileBuild` holds without
+copy. Cross-surface reads live in `tests/helpers/`; the byte-identical port checks for the
+copied modules live with their copies (`browser-extension/tests/portParity.test.js`,
+`vscode-extension/tests/parserParity.test.js`), and `singleFileBuild` holds without
 vite by checking the rewrite patterns still match.

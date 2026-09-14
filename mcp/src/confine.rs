@@ -14,7 +14,7 @@ use crate::args::Argv;
 const FLAG_CONFINE_OUTPUT: &str = "--confine-output";
 
 /// Flags whose value is a local path the working-directory change would re-resolve.
-const PATH_FLAGS: [&str; 2] = ["-i", "-l"];
+const PATH_FLAGS: [&str; 3] = ["-i", "-l", "--script"];
 
 /// One run rewritten for a sandbox root: spawn in `dir`, with `argv`.
 pub struct Confined {
@@ -36,18 +36,32 @@ pub fn confine(root: &str, argv: &[Cow<'static, str>]) -> Option<Confined> {
         return None;
     }
 
-    let mut out: Argv = Vec::with_capacity(argv.len() + 1);
+    let mut out = absolutize(head);
+    out.push(Cow::Borrowed(FLAG_CONFINE_OUTPUT));
+    out.push(Cow::Owned(relative.to_string_lossy().into_owned()));
+    Some(Confined { dir, argv: out })
+}
+
+/// Rewrite a run with NO positional output — a script, whose writes are its own `@save`
+/// targets. The sandbox is the spawn directory plus the CLI's bare `--confine-output`.
+pub fn confine_dir(root: &str, argv: &[Cow<'static, str>]) -> Confined {
+    let mut out = absolutize(argv);
+    out.push(Cow::Borrowed(FLAG_CONFINE_OUTPUT));
+    Confined { dir: absolute(Path::new(root)), argv: out }
+}
+
+/// Every `PATH_FLAGS` value made absolute: the cwd change must not re-point a local path.
+fn absolutize(tokens: &[Cow<'static, str>]) -> Argv {
+    let mut out: Argv = Vec::with_capacity(tokens.len() + 2);
     let mut expect_path = false;
-    for token in head {
+    for token in tokens {
         out.push(match expect_path {
             true => Cow::Owned(local_absolute(token)),
             false => token.clone(),
         });
         expect_path = PATH_FLAGS.contains(&token.as_ref());
     }
-    out.push(Cow::Borrowed(FLAG_CONFINE_OUTPUT));
-    out.push(Cow::Owned(relative.to_string_lossy().into_owned()));
-    Some(Confined { dir, argv: out })
+    out
 }
 
 /// A confined run reports its output relative to the sandbox root it ran in; join it back

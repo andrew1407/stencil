@@ -13,12 +13,20 @@ pub enum EditError {
     SourceConflict,
     /// Neither `input` nor `blank` (nor `server` + `input`) was given.
     NoSource,
-    /// `output` was empty.
-    EmptyOutput,
-    /// `output` began with `-` and would misparse as a CLI flag.
-    DashOutput(String),
     /// `source_site` (scrape mode) was empty.
     EmptySourceSite,
+    /// Both `script_text` and `script_path` were given.
+    ScriptSourceConflict,
+    /// Neither `script_text` nor `script_path` carried a script.
+    NoScript,
+    /// `script_text` was larger than `MAX_SCRIPT_BYTES`.
+    ScriptTooLarge(usize),
+    /// `script_path` did not name a `.stc` file.
+    ScriptNotStc(String),
+    /// A named field was empty.
+    EmptyValue(&'static str),
+    /// A named field began with `-` and would misparse as a CLI flag.
+    DashValue(&'static str, String),
     /// `server` was combined with `blank`.
     ServerWithBlank,
     /// `server` was given without an `input` project name.
@@ -48,15 +56,39 @@ impl std::fmt::Display for EditError {
             EditError::NoSource => f.write_str(
                 "no source — pass `input` (a path/URL), `blank`, or `server` + `input`",
             ),
-            EditError::EmptyOutput => f.write_str("`output` must not be empty"),
             EditError::EmptySourceSite => {
                 f.write_str("`source_site` must not be empty — pass the http(s) URL of the page to scrape")
             }
-            EditError::DashOutput(output) => write!(
-                f,
-                "`output` must not start with '-' (got \"{output}\") — a dash-leading value \
-                 would be parsed as a CLI flag, not the output path"
+            EditError::ScriptSourceConflict => f.write_str(
+                "`script_text` and `script_path` are mutually exclusive — pass only one",
             ),
+            EditError::NoScript => f.write_str(
+                "no script — pass `script_text` (the .stc source) or `script_path` (a .stc file)",
+            ),
+            EditError::ScriptTooLarge(bytes) => write!(
+                f,
+                "`script_text` is {bytes} bytes — the limit is {} bytes; \
+                 write it to a .stc file and pass `script_path` instead",
+                crate::args::MAX_SCRIPT_BYTES
+            ),
+            EditError::ScriptNotStc(path) => write!(
+                f,
+                "`script_path` \"{path}\" is not a .stc file — Stencil scripts carry the \
+                 `.stc` extension"
+            ),
+            EditError::EmptyValue(field) => write!(f, "`{field}` must not be empty"),
+            EditError::DashValue(field, value) => {
+                // The positional `output` names what a dash-leading value would cost.
+                let tail = match *field {
+                    "output" => ", not the output path",
+                    _ => "",
+                };
+                write!(
+                    f,
+                    "`{field}` must not start with '-' (got \"{value}\") — a dash-leading \
+                     value would be parsed as a CLI flag{tail}"
+                )
+            }
             EditError::ServerWithBlank => f.write_str(
                 "`server` fetches a project as the source — it can't be combined with `blank`",
             ),

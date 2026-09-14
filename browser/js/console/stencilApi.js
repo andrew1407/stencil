@@ -21,6 +21,7 @@ import { createEditorActions } from './editorActions.js';
 import { createExportActions } from './exportActions.js';
 import { createSessionApi } from './sessionApi.js';
 import { createCropApi } from './cropApi.js';
+import { createScriptApi } from './scriptApi.js';
 
 export { WINDOWS } from './windowsApi.js';
 
@@ -118,12 +119,13 @@ export const createStencil = (app) => {
     createExportActions({ app }),
     createSessionApi({ app, connMgr }),
     createCropApi({ app }),
+    createScriptApi(),
   ];
 
   stencil = {
     // ── Browser extension ──
     // Its editor-page API, installed on window.__stencilExt by the content script — the
-    // extension owns the shape (extension/README.md). null unless installed and enabled.
+    // extension owns the shape (browser-extension/README.md). null unless installed and enabled.
     get extension() { return (typeof window !== 'undefined' && window.__stencilExt) || null; },
 
     // ── Settings / modes ──

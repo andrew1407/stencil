@@ -3,7 +3,7 @@
 // The app never authored tooltip HTML — it composes ONE `title` string per control
 // (utils.js composeControlTitle). These cases pin how that string becomes the desktop
 // app's tooltip shape: heading + keycaps, term/description rows, bullets, hints and the
-// muted disabled-reason note. extension/tests/tipContent.test.js runs the same cases on
+// muted disabled-reason note. browser-extension/tests/tipContent.test.js runs the same cases on
 // the extension's port, so the two can't drift.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

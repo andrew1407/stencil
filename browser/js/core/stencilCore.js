@@ -2,6 +2,7 @@
 // generated (core/WASM.md) and may be absent, so it is imported dynamically inside init(),
 // degrading to the JS fallback; the dynamic-only import keeps Node from ever loading wasm.
 import { buildStateOps, stateExports } from './coreHandles.js';
+import { buildScriptOps, scriptExports } from './scriptHandles.js';
 
 // A named constant: native ESM accepts a variable import() specifier, so no build step needs a literal.
 const WASM_MODULE_PATH = '../wasm/stencilCore.js';
@@ -29,7 +30,8 @@ class StencilCore {
           console.warn(`[stencil] wasm core is stale (missing ${missing.length} export(s), e.g. ${missing[0]}) — rebuild per core/WASM.md; using JS fallback.`);
           return false;
         }
-        this.#installWrappers({ ...this.#buildWrappers(core), ...buildStateOps(core) });
+        const { withCString, ...wrappers } = this.#buildWrappers(core);
+        this.#installWrappers({ ...wrappers, ...buildStateOps(core), ...buildScriptOps(core, { withCString }) });
         return true;
       })
       .catch(err => {
@@ -47,7 +49,7 @@ class StencilCore {
     'stencil_pageDimensions', 'stencil_pageFormats', 'stencil_pixelToPageRaw',
     'stencil_rotatePoints', 'stencil_flipPoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
     'stencil_applyContourRGBA', 'stencil_centeredCrop', 'stencil_resizeCropFromCorner',
-    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter', ...stateExports,
+    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter', ...stateExports, ...scriptExports,
   ];
 
   #missingExports(core) {
@@ -161,7 +163,7 @@ class StencilCore {
       try {
         core.HEAPU8.set(bytes, ptr);
         core.HEAPU8[ptr + bytes.length] = 0;
-        return fn(ptr);
+        return fn(ptr, bytes.length);
       } finally {
         core._free(ptr);
       }
@@ -179,6 +181,8 @@ class StencilCore {
     const FILTER_MODE = { none: 0, bw: 1, sepia: 2, custom: 3, invert: 4, contour: 5 };
 
     return {
+      // Shared with scriptHandles.js: a script is far too long for cwrap's stack marshal.
+      withCString,
       parseHex(hex) {
         const out = core._malloc(3 * I32);
         try {

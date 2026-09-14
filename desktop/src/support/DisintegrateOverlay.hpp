@@ -37,6 +37,16 @@ namespace stencil::gui {
   // browser surfaceForm's invisible hold while motes gather; surfaceLeave's hand-over beat.
   inline constexpr double DUST_HOLD = 0.55;
   inline constexpr int DUST_HAND_OVER_MS = 60;
+  /* A TOOLTIP runs the same clock 1.5x slower — deliberately off the browser's pace. It shows
+   * and hides on every hover, and at the shared speed the arrival reads as a flicker. */
+  inline constexpr int TOOLTIP_DUST_IN_MS = 320;
+  inline constexpr int TOOLTIP_DUST_OUT_MS = 236;
+  inline constexpr int TOOLTIP_FADE_MS = 135;
+  inline constexpr int TOOLTIP_HAND_OVER_MS = 90;
+  /* The CANVAS image landing and being cleared. Faster than the shared DUST_MS below --
+   * a full-viewport cloud at the list-row pace reads as a wait -- and deliberately the SAME
+   * number as the browser's GHOST_MS, not the 1.5x the other dust clocks keep. */
+  inline constexpr int CANVAS_DUST_MS = 760;
 
   QPoint dockAwayPoint(const QRect& picture, Qt::DockWidgetArea area,
                        double reach = 1.2);
@@ -153,6 +163,7 @@ namespace stencil::gui {
                                             int maxCells = SURFACE_MAX_CELLS,
                                             bool escapeHost = false, bool alwaysEscape = false);
 
+    int durationMs() const { return ms_; }   // the clock this cloud was started on
     // HOST coordinates; the GUI test reads these.
     QPoint surfaceTarget() const { return target_.toPoint(); }
     QRect surfacePicture() const { return picture_; }

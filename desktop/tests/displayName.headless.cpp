@@ -1,6 +1,6 @@
 // Headless check of the name display-shortening (src/support/displayName.hpp) — the
 // desktop port of browser/js/utils.js shortName. Mirrors browser/tests/shortName.test.js
-// and extension/tests/displayName.test.js case for case: all three must agree, or the
+// and browser-extension/tests/displayName.test.js case for case: all three must agree, or the
 // same project reads with a different name in each app. Pure QtCore; no display needed.
 #include "displayName.hpp"
 

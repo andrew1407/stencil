@@ -7,8 +7,11 @@
 #include <functional>
 
 #include "ChatDock.hpp"  // shared chat-card helpers + ProviderStatus
+#include "chatMoreMenu.hpp"   // the "…" rows, the dock's own builder
 
+class QAction;
 class QFrame;
+class QHBoxLayout;
 class QLabel;
 class QPlainTextEdit;
 class QScrollArea;
@@ -57,10 +60,13 @@ namespace stencil::gui {
     void setBusy(bool on);
     void setProviderStatus(const QString& richTooltip, ChatDock::ProviderStatus status);
     void restyle(const Palette& pal);
-    // "Swap message sides": this mirror has no "…" menu to toggle from (the dock's is
-    // the one place it is set) but must RENDER the dock's current preference, so a
-    // mirrored turn matches. Re-skins every existing row in place, same as the dock.
+    // "Swap message sides": set from either "…" menu and rendered by both, so a mirrored
+    // turn matches. Re-skins every existing row in place, same as the dock.
     void setChatSwapSides(bool on);
+
+   signals:
+    // This flyout's own toggle; the owner persists it and mirrors it onto the dock.
+    void chatSwapSidesChanged(bool swapped);
 
    protected:
     void resizeEvent(QResizeEvent* e) override;
@@ -72,6 +78,8 @@ namespace stencil::gui {
     void addRetry(QFrame* card, const QString& retryText);
     void addConfigure(QFrame* card);
     ChatCardMenuHooks menuHooks();
+    // Send inline, everything else behind the "…" (browser js/ui/chatComposer.js).
+    void buildComposerActions(QWidget* host, QHBoxLayout* btnRow);
     // A mirrored row's arrival: the shared gatherChatCardIn machinery (chatWidgets.hpp)
     // behind this panel's own veil/settle.
     void gatherRow(QFrame* card);
@@ -90,8 +98,8 @@ namespace stencil::gui {
     QVBoxLayout* rows_ = nullptr;
     QPlainTextEdit* input_ = nullptr;
     QToolButton* send_ = nullptr;
-    QToolButton* attach_ = nullptr;
-    QToolButton* gear_ = nullptr;
+    QToolButton* more_ = nullptr;      // the "…" overflow, and what the status dot rides on
+    ChatMoreActions moreRows_;         // the "…" overflow's rows, minus Clear history
     QLabel* statusDot_ = nullptr;
     QList<QFrame*> rowsAdded_;
     QWidget* suggest_ = nullptr;  // empty-state chips

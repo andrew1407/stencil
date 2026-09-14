@@ -6,6 +6,7 @@
 
 pub(super) const FLAG_SERVER: &str = "--server";
 pub(super) const FLAG_INPUT: &str = "-i";
+pub(super) const FLAG_SCRIPT: &str = "--script";
 pub(super) const FLAG_BLANK: &str = "--blank";
 pub(super) const FLAG_FRAME: &str = "-f";
 pub(super) const FLAG_CROP: &str = "-c";

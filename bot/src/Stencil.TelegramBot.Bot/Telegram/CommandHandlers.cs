@@ -32,6 +32,7 @@ public sealed partial class CommandHandlers
     private readonly SyncRegistry _sync;
     private readonly LayoutFetcher _layoutFetcher;
     private readonly PromptService _prompts;
+    private readonly IScriptService _script;
     private readonly LlmAttachmentLoader _attachments;
     private readonly PromptCancellations _cancellations;
     private readonly ILogger<CommandHandlers> _logger;
@@ -45,6 +46,7 @@ public sealed partial class CommandHandlers
         SyncRegistry sync,
         LayoutFetcher layoutFetcher,
         PromptService prompts,
+        IScriptService script,
         LlmAttachmentLoader attachments,
         PromptCancellations cancellations,
         ILogger<CommandHandlers> logger)
@@ -57,6 +59,7 @@ public sealed partial class CommandHandlers
         _sync = sync;
         _layoutFetcher = layoutFetcher;
         _prompts = prompts;
+        _script = script;
         _attachments = attachments;
         _cancellations = cancellations;
         _logger = logger;

@@ -86,8 +86,7 @@ namespace stencil::gui {
         b->setIcon(labelIcon(icon, QColor("#ffffff"), 13));
         return b;
       };
-      selectAllBtn_ = accentBtn(tr("Select all"), "check",
-                                "Select every project in the current filtered view");
+      selectAllBtn_ = accentBtn(tr("Select all"), "check", "");   // the label says it already
       selectAllBtn_->setObjectName("projectsSelectAll");
       bh->addWidget(selectAllBtn_);
       connect(selectAllBtn_, &QPushButton::clicked, this, &ProjectsDialog::toggleSelectAll);

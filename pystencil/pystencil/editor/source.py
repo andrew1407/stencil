@@ -10,6 +10,7 @@ import urllib.parse
 from .._types import NoneType
 from .. import _net
 from ..image import Image
+from ..scriptpaths import is_url
 from ._snapshot import _A4_FALLBACK, _Snapshot, LoadSource, _sniff_image_ext
 
 
@@ -48,7 +49,7 @@ class _SourceApi:
       src_ext = _sniff_image_ext(src_bytes)
       derived_name = "image"
     elif isinstance(src, str):
-      if self._is_url(src):
+      if is_url(src):
         src_bytes = self._fetch_url(src)
         img = Image.decode(src_bytes)
         src_ext = os.path.splitext(src)[1].lstrip(".").lower() or _sniff_image_ext(src_bytes)
@@ -125,12 +126,6 @@ class _SourceApi:
 
 
   # ── source helpers ─────────────────────────────────────────────────────────
-  @staticmethod
-  def _is_url(src: str) -> bool:
-    """True for http(s) URLs (the only remote scheme load() fetches via urllib)."""
-    low = src.lower()
-    return low.startswith("http://") or low.startswith("https://")
-
   @staticmethod
   def _fetch_url(url: str, timeout: float = 30.0) -> bytes:
     """Fetch raw bytes from an http(s) URL through the shared guard in ``_net``.

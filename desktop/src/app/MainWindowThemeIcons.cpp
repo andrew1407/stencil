@@ -78,6 +78,7 @@ namespace stencil::gui {
     set(actDownloadJson_, "file-down");
     set(actCopyLayout_, "clipboard");
     set(actUploadJson_, "file-up");
+    set(actScript_, "script");
     setDanger(actClearProject_, "trash");
     set(actSettings_, "palette");
     set(actInfo_, "help");
@@ -119,6 +120,7 @@ namespace stencil::gui {
     set(actSaveSession_, "clipboard");
     set(actDownloadJson_, "file-down");
     set(actUploadJson_, "file-up");
+    set(actScript_, "script");
     set(actCopyLayout_, "clipboard");
     set(actPasteLayout_, "paste");
     // Always the "Current" glyph, whichever variant they perform (browser: exportOptionsMenu.js

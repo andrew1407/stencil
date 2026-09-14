@@ -533,7 +533,7 @@ test('no native title attribute anywhere — the custom tooltip is the only tool
     }
     return out;
   };
-  const roots = [new URL('../js', import.meta.url).pathname, new URL('../../extension/src', import.meta.url).pathname];
+  const roots = [new URL('../js', import.meta.url).pathname, new URL('../../browser-extension/src', import.meta.url).pathname];
   const offenders = [];
   for (const file of roots.flatMap((r) => walk(r))) {
     const src = readFileSync(file, 'utf8');

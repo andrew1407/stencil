@@ -16,9 +16,17 @@ from . import codecs
 from .core import Core, get_core
 from .image import Image
 from .layout import Point, Line, Layout
-from .editor import Editor
+from .editor import Editor, ScriptResult
 from .server import ServerConnection, ConnectionManager, diff_projects
 from .sitesource import MediaItem, scan_page, download_media
+from .script import (
+  Script,
+  ScriptError,
+  ScriptRun,
+  parse_script,
+  run_script,
+  run_script_text,
+)
 from .llm import (
   LLM_SYSTEM_PROMPT,
   Chat,
@@ -45,6 +53,13 @@ __all__ = [
   "Layout",
   "Editor",
   "Stencil",
+  "Script",
+  "ScriptError",
+  "ScriptResult",
+  "ScriptRun",
+  "parse_script",
+  "run_script",
+  "run_script_text",
   "ServerConnection",
   "ConnectionManager",
   "diff_projects",

@@ -114,7 +114,7 @@ namespace stencil::gui {
       // The compact popover's own tiny, icon-anchored rect must never become the
       // remembered deliberate-float spot — only a shape the user actually adopted.
       if (!chatCompactShowing()) chatFloatRect_ = chatDock_->geometry();
-      chatCompactPopover_ = false;   // a deliberate dock is never a popover shape
+      setChatCompactPopover(false);   // a deliberate dock is never a popover shape
       support::dismissWindow(*chatDock_, icon);   // hides at once; the ghost/dust flies
       // dockChatTo needs the dock VISIBLE to measure and dust the arrival (setChatShown's
       // own open does the same re-show first) — still floating, so it re-hides behind

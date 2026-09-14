@@ -19,7 +19,10 @@
  * Any `const char*` in is NUL-terminated or NULL (NULL reads as ""); every `const char*`
  * returned is static storage the caller must not free. Out-pointers may be NULL (the
  * value is simply not written) unless a function says otherwise; on a 0/failure return
- * the out-pointers are left untouched. */
+ * the out-pointers are left untouched.
+ * The one exception is the stencil_cli_script* family: its strings point INTO their script
+ * handle and stay valid until scriptDestroy(h) — never free one, never read one after that.
+ * An unknown handle returns NULL / 0 / -1, never a crash. */
 
 #include <stdint.h>
 
@@ -119,6 +122,38 @@ const char* stencil_cli_durationOffAliases(void);
 /* "days 23" / "fortnight" / "off" -> ms in *outMs (0 = keep forever), which the caller
  * adds to "now". 1 on a valid spec, 0 otherwise. */
 int stencil_cli_parseDuration(const char* spec, long long* outMs);
+
+/* .stc scripts: parse once into a handle, then read diagnostics, tokens, blocks and the
+ * lowered ops back out. Normative in contracts/stc/stc-contract.md; strings are handle-owned. */
+int stencil_cli_scriptParse(const char* text, int len);
+void stencil_cli_scriptDestroy(int h);
+int stencil_cli_scriptErrorCount(int h);
+
+int stencil_cli_scriptDiagCount(int h);
+const char* stencil_cli_scriptDiagAt(int h, int i, int* sev, int* line, int* col, int* len,
+                                     const char** code);
+
+int stencil_cli_scriptTokenCount(int h);
+int stencil_cli_scriptTokenAt(int h, int i, int* kind, int* line, int* col, int* len);
+
+int stencil_cli_scriptBlockCount(int h);
+const char* stencil_cli_scriptBlockAt(int h, int i, int* kind, int* frame, int* opStart,
+                                      int* opCount);
+
+int stencil_cli_scriptOpCount(int h);
+int stencil_cli_scriptOpAt(int h, int i, int* kind, int* block, int* editIndex, int* line,
+                           int* col, int* strCount, int* numCount);
+const char* stencil_cli_scriptOpStr(int h, int i, int k);
+int stencil_cli_scriptOpTokCount(int h, int i);
+const char* stencil_cli_scriptOpTok(int h, int i, int k);
+int stencil_cli_scriptOpNum(int h, int i, int k, double* out);
+
+/* Length tokens -> pixels against the CURRENT image size; see abi/scriptShared.inc for the
+ * per-kind layout. Returns the count written, -1 unknown handle/index, -2 when cap is small. */
+int stencil_cli_scriptOpResolve(int h, int i, double imageW, double imageH, double pxPerCmX,
+                                double pxPerCmY, double* out, int cap);
+
+const char* stencil_cli_scriptDump(int h);
 
 #ifdef __cplusplus
 }  /* extern "C" */

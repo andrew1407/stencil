@@ -13,42 +13,62 @@ namespace stencil::gui {
             [this](const QVariant& v) { paint(v.toDouble()); });
     connect(anim_, &QVariantAnimation::finished, this, [this] {
       elapsed_ = anim_->endValue().toDouble();
-      if (elapsed_ <= 0.0 || !spec_->hold) rest();
+      if (elapsed_ <= 0.0 || !spec_->hold) restPaint();
     });
   }
 
 
-  // Hold eases out to the pose, settle plays once.
+  // Hold eases out to the pose; a settle plays once and is spent until the pointer leaves.
   void IconMotionRunner::enter() {
-    if (spec_->hold) run(spec_->totalMs);
-    else { elapsed_ = 0; run(spec_->totalMs); }
+    if (spec_->hold) { run(spec_->totalMs); return; }
+    if (spent_) return;
+    spent_ = true;
+    elapsed_ = 0;
+    run(spec_->totalMs);
   }
 
 
   void ActionIconMotionRunner::enter() {
-    if (spec_->hold) run(spec_->totalMs);
-    else { elapsed_ = 0; run(spec_->totalMs); }
+    if (spec_->hold) { run(spec_->totalMs); return; }
+    if (spent_) return;
+    spent_ = true;
+    elapsed_ = 0;
+    run(spec_->totalMs);
   }
 
-  // A hold eases back on the same curve; a settle is left to finish (its end IS the rest pose).
+  // A hold eases back on the same curve; a settle is CANCELLED, the way the browser's
+  // animation-name reverting off :hover drops its glyph straight back to the base style.
   void IconMotionRunner::leave() {
     if (spec_->hold) run(0);
+    else rest();
   }
 
 
   void ActionIconMotionRunner::leave() {
     if (spec_->hold) run(0);
+    else rest();
   }
 
-  // The cached QIcon, so the next hover can trace it to its glyph again.
+  // The cached QIcon, so the next hover can trace it to its glyph again — and re-armed, so
+  // that hover plays its settle afresh.
   void IconMotionRunner::rest() {
+    spent_ = false;
+    restPaint();
+  }
+
+  void ActionIconMotionRunner::rest() {
+    spent_ = false;
+    restPaint();
+  }
+
+  void IconMotionRunner::restPaint() {
     anim_->stop();
     elapsed_ = 0;
     if (!btn_ || hasTakenOver()) return;   // a theme flip already put a proper glyph there
     btn_->setIcon(themedIcon(req_.name, req_.color, req_.size, req_.dpr, req_.gap));
   }
 
-  void ActionIconMotionRunner::rest() {
+  void ActionIconMotionRunner::restPaint() {
     anim_->stop();
     elapsed_ = 0;
     if (!act_ || hasTakenOver()) return;   // a theme flip already put a proper glyph there
@@ -127,7 +147,7 @@ namespace stencil::gui {
             [this](const QVariant& v) { paint(v.toDouble()); });
     connect(anim_, &QVariantAnimation::finished, this, [this] {
       elapsed_ = anim_->endValue().toDouble();
-      if (elapsed_ <= 0.0 || !spec_->hold) rest();
+      if (elapsed_ <= 0.0 || !spec_->hold) restPaint();
     });
   }
 }  // namespace stencil::gui

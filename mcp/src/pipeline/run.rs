@@ -5,8 +5,8 @@
 use std::borrow::Cow;
 use std::path::Path;
 
-use super::{EditResult, ScrapeResult};
-use crate::args::{self, EditError, EditParams, LayoutArg, ScrapeParams};
+use super::{EditResult, ScrapeResult, ScriptResult};
+use crate::args::{self, EditError, EditParams, LayoutArg, ScrapeParams, ScriptParams};
 use crate::confine;
 use crate::outcome;
 use crate::pipeline::CliRunner;
@@ -112,6 +112,33 @@ pub async fn scrape<R: CliRunner>(
         host: scraped.host,
         files: scraped.files,
     })
+}
+
+/// Run one `.stc` through the CLI's `--script` mode. The script names its own outputs, so
+/// the run is ALWAYS confined: it spawns inside the sandbox root with `--confine-output`,
+/// which refuses every `@save` that would climb out of it.
+pub async fn script<R: CliRunner>(
+    runner: &R,
+    params: &ScriptParams,
+    script_file: &str,
+) -> Result<ScriptResult, EditError> {
+    let argv = args::build_script_argv(params, script_file)?;
+    let root = params.root();
+    std::fs::create_dir_all(root)
+        .map_err(|e| format!("could not create the output directory '{root}': {e}"))?;
+
+    let run = confine::confine_dir(root, &argv);
+    let output = runner.run(&run.argv, Some(&run.dir)).await?;
+    if !output.success {
+        return Err(outcome::extract_errors(&output.stderr).into());
+    }
+
+    // Every path the CLI reported is relative to the root it ran in; hand back absolutes.
+    let files = outcome::parse_all_wrote(&output.stderr)
+        .into_iter()
+        .map(|w| outcome::Wrote { path: confine::rejoin(Some(root), w.path), ..w })
+        .collect();
+    Ok(ScriptResult { files, notes: outcome::parse_notes(&output.stderr) })
 }
 
 /// Run one `stencil_probe`. A local PNG/GIF/BMP/JPEG/WebP answers out of its own header;

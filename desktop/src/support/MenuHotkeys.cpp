@@ -23,9 +23,13 @@ namespace stencil::support {
     }
   }
 
-  // Leaving a row fires no hovered(); reset the re-fire guard so returning reads as fresh.
-  bool MenuHotkeyChips::eventFilter(QObject*, QEvent* e) {
-    if (e->type() == QEvent::Leave || e->type() == QEvent::Hide) current_ = nullptr;
+  // Leaving a row fires no hovered(); the chip settles and the guard resets, so returning
+  // reads as fresh.
+  bool MenuHotkeyChips::eventFilter(QObject* o, QEvent* e) {
+    if (e->type() == QEvent::Leave || e->type() == QEvent::Hide) {
+      stopShake(current_.value(o));
+      current_.remove(o);
+    }
     return false;
   }
 
@@ -88,7 +92,8 @@ namespace stencil::support {
       rows_.push_back(row);
     }
     installPlacer(menu);
-    QObject::connect(menu, &QMenu::hovered, this, [this](QAction* a) { shakeRow(a); });
+    QObject::connect(menu, &QMenu::hovered, this,
+                     [this, menu](QAction* a) { shakeRow(menu, a); });
   }
 
   // actionGeometry() is meaningless before Show. The live poll (browser contextMenu.js
@@ -101,9 +106,10 @@ namespace stencil::support {
       place(menu);
       liveSync->start();
     });
-    QObject::connect(menu, &QMenu::aboutToHide, this, [this, liveSync] {
+    QObject::connect(menu, &QMenu::aboutToHide, this, [this, menu, liveSync] {
       liveSync->stop();
-      current_ = nullptr;
+      stopShake(current_.value(menu));
+      current_.remove(menu);
     });
     place(menu);
   }
@@ -122,10 +128,15 @@ namespace stencil::support {
     }
   }
 
-  void MenuHotkeyChips::shakeRow(QAction* a) {
-    // QMenu::hovered re-fires for the same row on mouse jitter; only a new row restarts.
-    if (a == current_) return;
-    current_ = a;
+  void MenuHotkeyChips::shakeRow(QMenu* menu, QAction* a) {
+    // hovered() re-fires for the row already shaking on every mouse move, and reaches every
+    // menu in the caused stack besides, so a SUBMENU's row arrives here for its parent too.
+    // Only a new row OF THIS LEVEL restarts.
+    if (!menu->actionGeometry(a).isValid()) return;
+    QPointer<QAction>& cur = current_[menu];
+    if (a == cur) return;
+    stopShake(cur);   // the row being left settles rather than shaking on without a pointer
+    cur = a;
     for (auto& row : rows_) {
       if (row.action != a || !row.chip) continue;
       if (!row.shake) {
@@ -142,6 +153,15 @@ namespace stencil::support {
       row.shake->stop();
       row.chip->settle();
       row.shake->start();
+    }
+  }
+
+  void MenuHotkeyChips::stopShake(QAction* a) {
+    if (!a) return;
+    for (auto& row : rows_) {
+      if (row.action != a || !row.chip) continue;
+      if (row.shake) row.shake->stop();
+      row.chip->settle();
     }
   }
 

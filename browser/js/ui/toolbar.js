@@ -82,8 +82,6 @@ export class StencilToolbar extends StencilElement {
                 </div>
             </div>
 
-            <div class="ctrl-sep"></div>
-
             <!-- ── Section: Description & attributes (project meta: description, keywords, links) ──
                  All three attach to a SAVED project's meta, so they are gated together on an
                  active non-incognito project (ui/controlState.js), not on an image. -->
@@ -95,8 +93,6 @@ export class StencilToolbar extends StencilElement {
                     <button id="links-btn" class="btn-icon" data-hk-title="openLinks" data-title="Source &amp; resource links for the current image" data-disabled-reason="Save the project first to add links">${icon('link')}</button>
                 </div>
             </div>
-
-            <div class="ctrl-sep"></div>
 
             <!-- ── Section: Projects ── -->
             <div class="ctrl-section">
@@ -110,8 +106,6 @@ export class StencilToolbar extends StencilElement {
                 </div>
             </div>
 
-            <div class="ctrl-sep"></div>
-
             <!-- ── Section: Connections & chat (servers, AI assistant, voice chat) ── -->
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Connections &amp; chat</div>
@@ -121,8 +115,6 @@ export class StencilToolbar extends StencilElement {
                     <button id="voice-chat-btn" class="btn-icon" data-hk-title="toggleVoiceChat" data-title="Voice chat — talk to the assistant hands-free, even with the chat closed" data-disabled-reason="Voice input is not supported in this browser">${icon('mic')}</button>
                 </div>
             </div>
-
-            <div class="ctrl-sep"></div>
 
             <!-- ── Section: Edit (adjust the current image + undo/redo) ── -->
             <div class="ctrl-section">
@@ -152,8 +144,6 @@ export class StencilToolbar extends StencilElement {
                 </div>
             </div>
 
-            <div class="ctrl-sep"></div>
-
             <!-- ── Section: Line style ──
                  Line and point styling are two independent things the user reaches for at
                  different moments, so they get their own captioned sections rather than one
@@ -176,8 +166,6 @@ export class StencilToolbar extends StencilElement {
                 </div>
             </div>
 
-            <div class="ctrl-sep"></div>
-
             <!-- ── Section: Point style ── -->
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Point</div>
@@ -189,8 +177,6 @@ export class StencilToolbar extends StencilElement {
                 </div>
             </div>
 
-            <div class="ctrl-sep"></div>
-
             <!-- ── Section: Drawing actions ── -->
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Draw</div>
@@ -199,8 +185,6 @@ export class StencilToolbar extends StencilElement {
                     <button id="draw-mode-toggle" class="btn-icon-text btn-draw-fixed" data-title="Drawing mode: Line (click to switch to Rectangle)" data-disabled-reason="Load an image to switch line / rectangle">${DRAW_MODE_ICON.line}<span>Line</span></button>
                 </div>
             </div>
-
-            <div class="ctrl-sep"></div>
 
             <!-- ── Section: View ── -->
             <div class="ctrl-section">
@@ -225,8 +209,6 @@ export class StencilToolbar extends StencilElement {
                 </div>
             </div>
 
-            <div class="ctrl-sep"></div>
-
             <!-- ── Section: Zoom ── -->
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Zoom</div>
@@ -246,8 +228,6 @@ export class StencilToolbar extends StencilElement {
                     </div>
                 </div>
             </div>
-
-            <div class="ctrl-sep"></div>
 
             <!-- ── Section: Page ── -->
             <div class="ctrl-section">
@@ -272,8 +252,6 @@ export class StencilToolbar extends StencilElement {
                 </div>
             </div>
 
-            <div class="ctrl-sep"></div>
-
             <!-- ── Section: Formula ──
                  Its OWN section, not a tail of Page (desktop parity: MainWindowToolbar.cpp
                  builds the same named cluster between PAGE and DATA). The two fields are
@@ -294,12 +272,11 @@ export class StencilToolbar extends StencilElement {
                 </div>
             </div>
 
-            <div class="ctrl-sep"></div>
-
             <!-- ── Section: Data ── -->
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Data</div>
                 <div class="ctrl-section-row">
+                    <button id="script-btn" class="btn-icon" data-hk-title="openScript" data-title="Stencil script (.stc) — write and run a script over this project">${icon('script')}</button>
                     <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy">${icon('clipboard')}</button>
                     <button id="download-json" class="btn-icon" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export">${icon('file-down')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
@@ -307,8 +284,6 @@ export class StencilToolbar extends StencilElement {
                     <button id="clear-storage" class="danger btn-icon" data-hk-title="clearProject" data-title="Remove current project" data-disabled-reason="Open an image first — nothing to remove">${icon('trash')}</button>
                 </div>
             </div>
-
-            <div class="ctrl-sep"></div>
 
             <!-- ── Section: Settings ── -->
             <div class="ctrl-section">

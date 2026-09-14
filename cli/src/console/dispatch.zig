@@ -53,6 +53,12 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
             // Dirty only on a recorded edit; debounced, flushed at the prompt boundary.
             if (handlers.doExec(session, io, cmd.arg)) remoteEvents.markDirty(session);
         },
+        .script => {
+            if (handlers.doScript(session, io, cmd.arg)) remoteEvents.markDirty(session);
+        },
+        .script_run => {
+            if (handlers.doScriptRun(session, io, cmd.arg)) remoteEvents.markDirty(session);
+        },
         .undo => handlers.doStep(session, session.undo(), "undone", "nothing to undo (at the original)"),
         .redo => handlers.doStep(session, session.redo(), "redone", "nothing to redo (at the latest edit)"),
         .reset => handlers.doReset(session),

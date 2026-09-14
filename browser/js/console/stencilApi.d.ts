@@ -217,7 +217,7 @@ export interface ApplyOptions extends Partial<StencilSettings> {
 
 export interface LayoutInstallOptions { mode?: 'replace' | 'combine'; history?: boolean; }
 
-/** The extension's editor-page API; the extension owns the shape (extension/README.md). */
+/** The extension's editor-page API; the extension owns the shape (browser-extension/README.md). */
 export interface ExtensionEditorApi {
   editors(): Promise<unknown[]>;
   focus(tabId: number): Promise<unknown>;
@@ -339,6 +339,11 @@ export interface Stencil extends StencilSettings {
 
   // Crop / coordinates
   crop(spec?: CropSpec): Stencil;
+
+  /** Run a .stc script against the open project (contracts/stc/stc-contract.md). */
+  execScript(text: string): Promise<Stencil>;
+  /** Parse only: the formatted diagnostics an editor would underline. */
+  checkScript(text: string, file?: string): string[];
   px2Page(p: XY): XY;
   page2Px(p: XY): XY;
 }

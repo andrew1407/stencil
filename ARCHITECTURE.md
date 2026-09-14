@@ -3,8 +3,8 @@
 The design of the system: the map, the core parity contract, the shared-data rails, the
 layer model per app and the pattern vocabulary.
 
-One shared C++ core feeds four front-ends; four more subprojects are protocol adapters over
-the CLI or the server. Everything below follows from that shape.
+One shared C++ core feeds four front-ends; the remaining subprojects are adapters over the
+CLI or the server. Everything below follows from that shape.
 
 ---
 
@@ -18,7 +18,8 @@ graph TD
     CLI["cli/ (Zig)"]
     PY["pystencil/ (Python)"]
     FB["JS fallback"]
-    EXT["extension/ (MV3)"]
+    EXT["browser-extension/ (MV3)"]
+    VSC["vscode-extension/ (VS Code)"]
     MCP["mcp/ (Rust)"]
     BOT["bot/ (.NET)"]
     SRV["server/ (Go)"]
@@ -29,6 +30,8 @@ graph TD
     CORE -->|"recompile"| PY
     WEB -.->|"no wasm"| FB
     EXT -->|"images"| WEB
+    WEB -.->|"parser copy"| VSC
+    VSC -->|"spawn"| CLI
     MCP -->|"spawn"| CLI
     BOT -->|"spawn"| CLI
     WEB -.->|"REST + WS"| SRV
@@ -45,17 +48,18 @@ Where things go is its placement table; Design is its flows and the schemas it o
 Per surface: [core](core/ARCHITECTURE.md) ·
 [browser](browser/ARCHITECTURE.md) · [desktop](desktop/ARCHITECTURE.md) ·
 [cli](cli/ARCHITECTURE.md) · [pystencil](pystencil/ARCHITECTURE.md) ·
-[extension](extension/ARCHITECTURE.md) · [mcp](mcp/ARCHITECTURE.md) ·
+[browser-extension](browser-extension/ARCHITECTURE.md) ·
+[vscode-extension](vscode-extension/ARCHITECTURE.md) · [mcp](mcp/ARCHITECTURE.md) ·
 [bot](bot/ARCHITECTURE.md) · [server](server/ARCHITECTURE.md) · [e2e](e2e/ARCHITECTURE.md).
 The `e2e/` harness drives the built artifacts rather than being a runtime component, so it
 is not a node above.
 
-The pure, GUI-free logic — the formula parser, geometry, color, pixel↔page conversion, crop,
-a line rasteriser, history, project storage and expiry — lives in `core/`, STL-only. It is
-compiled to WebAssembly so the browser runs that same C++ at runtime; the wasm module
-(`browser/js/wasm/stencilCore.js`) is a generated artifact built in CI and on demand
-([core/WASM.md](core/WASM.md)), so each JS module keeps a behavior-identical fallback for
-when wasm is absent and for `node --test`. The desktop links the core as a static library;
+The pure, GUI-free logic — the formula parser, the `.stc` script engine, geometry, color,
+pixel↔page conversion, crop, a line rasteriser, history, project storage and expiry — lives
+in `core/`, STL-only. It is compiled to WebAssembly so the browser runs that same C++ at
+runtime; the wasm module (`browser/js/wasm/stencilCore.js`) is a generated artifact built in
+CI and on demand ([core/WASM.md](core/WASM.md)), so each JS module keeps a behavior-identical
+fallback for when wasm is absent and for `node --test`. The desktop links the core as a static library;
 the CLI and pystencil recompile its sources and drive them over the `extern "C"` ABI in
 `core/cliApi.h`, leaving codecs, HTTP, JSON and video to the adapter.
 
@@ -64,6 +68,7 @@ the CLI and pystencil recompile its sources and drive them over the `extern "C"`
 ```
 core/                 # shared, GUI-free C++ logic library
   geometry/ raster/ color/ parse/ page/ format/ state/   # one directory per role
+  script/             # the .stc language: lex · parse · args · templates · lower · dump
   abi/                # marshal · handleTable · linesCodec · shared.inc (shared by both ABIs)
   models.hpp          # shared Point / Line value types (+ rgba.hpp, text.hpp)
   wasm*Api.cpp        # extern "C" ABI compiled to WebAssembly (core/CMakeLists.txt only)
@@ -77,10 +82,13 @@ cli/                  # the Zig tool: build.zig, src/ (params · pipeline · con
 pystencil/            # the Python package: build.py, pystencil/, tests/
 mcp/                  # the Rust MCP server: src/ (server · args · pipeline · opplan · deliver · llm …)
 server/               # the Go collaboration server: cmd/stencil-server/, internal/
-extension/            # the Chrome MV3 extension: manifest.json, src/, tests/
+browser-extension/    # the Chrome MV3 extension: manifest.json, src/, tests/
+vscode-extension/     # the VS Code .stc extension: package.json, syntaxes/, src/ (+ src/parser/ copies)
 bot/                  # the .NET Telegram bot: src/ (Domain · Application · Infrastructure · Bot), tests/
 e2e/                  # the Playwright smoke harness: helpers/, fixtures/, tests/, pins/
-llm-contract/         # the normative LLM contract
+contracts/            # the normative contracts, one directory each
+  llm/                # the LLM contract (llm-contract.md + providers · profiles · chat)
+  stc/                # the .stc script language
 tools/                # moveCheck.mjs and commentOnlyDiff.mjs
 ```
 
@@ -119,9 +127,12 @@ Four invariants:
 Codecs, HTTP, JSON, video, QImage/canvas rendering, persistence and the event loop are the
 **adapters'** job, not `core/`'s.
 
-`mcp/`, `server/`, `bot/` and `e2e/` never link or recompile `core/` — the parity contract
-does not reach them. Their contract is the CLI's argv/stderr shape and the server's wire
-protocol.
+`vscode-extension/`, `mcp/`, `server/`, `bot/` and `e2e/` never link or recompile `core/` —
+the parity contract does not reach them. Their contract is the CLI's argv/stderr shape and
+the server's wire protocol. `vscode-extension/` is the one that still needs core behaviour
+in-process, to underline a `.stc` between keystrokes: it carries a byte-equal copy of the
+browser's JS fallback rather than a second implementation, so the copy inherits parity
+through the file it is pinned to.
 
 ---
 
@@ -129,8 +140,9 @@ protocol.
 
 **`browser/js/config/` is the canonical home for every shared data table.** Nothing else is a
 source of truth. It covers accents, colour names, icons + icon motion, page/app
-constants, hotkeys, help text, layout fields, media types, theme tokens, and the three LLM
-assets under `llm/` (`opRegistry.json`, `systemPrompt.json`, `providers.json`).
+constants, hotkeys, help text, layout fields, media types, theme tokens, the three LLM
+assets under `llm/` (`opRegistry.json`, `systemPrompt.json`, `providers.json`) and the
+`.stc` fixture corpus under `script/fixtures/`.
 
 Five consumption mechanisms, one per surface:
 
@@ -140,12 +152,16 @@ Five consumption mechanisms, one per surface:
 | **`@embedFile`** | cli | `mod.addAnonymousImport("X.json", …)` in `cli/build.zig`, then `@embedFile("X.json")` |
 | **`include_str!`** | mcp | `include_str!("../../browser/js/config/X.json")` |
 | **`<EmbeddedResource Link>`** | bot | `<EmbeddedResource Include="../../../browser/js/config/X.json" Link="Assets/X.json" />` |
-| **checked-in copy + byte-equality drift test** | extension, pystencil | the copy ships with the surface; a test pins it to the canonical file |
+| **checked-in copy + byte-equality drift test** | browser-extension, pystencil, vscode-extension | the copy ships with the surface; a test pins it to the canonical file |
 
-The fifth rail exists only where embedding is impossible: the extension ships self-contained
-(MV3 reads nothing outside its own tree) and pystencil stays relocatable. Every copy on this
-rail carries a byte-equality drift test: `extension/tests/dataParity.test.js` (modes `full` /
-`subset`, with declared `extensionOnly` names) and `pystencil/tests/test_canonical_drift.py`.
+The fifth rail exists only where embedding is impossible: the extensions ship self-contained
+(MV3 reads nothing outside its own tree, and a `.vsix` carries only what it packaged) and
+pystencil stays relocatable. Every copy on this rail carries a byte-equality drift test:
+`browser-extension/tests/dataParity.test.js` (modes `full` / `subset`, with declared
+`extensionOnly` names), `pystencil/tests/test_canonical_drift.py`, and
+`vscode-extension/tests/parserParity.test.js`, which pins both `src/config/colorNames.json`
+and the copied `src/parser/script*.js` to `browser/js/` in **both directions** — no file may
+appear, vanish or change on one side alone.
 
 A value the core can compute is read rather than mirrored: page formats and colour names
 come back out of the core over the C ABI (`pystencil` does this;
@@ -155,6 +171,13 @@ The **op registry table-drives all seven op-plan validators.** Each surface keep
 normalizers, its executors and the few native rules the registry names. Change a key's type,
 range, enum or cap in `opRegistry.json` and every surface changes with it —
 `browser/js/config/llm/opRegistry.README.md` is the spec.
+
+The **`.stc` fixture corpus plays the same role for the script language.**
+`script/fixtures/cases.txt` holds every case as a plain-text section — source, canonical
+dump, expected diagnostics — because `core/` has no JSON parser and must read it directly.
+The C++ engine, the JS fallback and the copy in `vscode-extension/src/parser/` walk that one
+file, so the language has a single implementation in `core/script/` and no surface grows a
+grammar of its own. `contracts/stc/stc-contract.md` is the normative prose.
 
 ---
 
@@ -166,14 +189,15 @@ right. The order per surface, and what enforces it:
 | Surface | Order (left → right) | Enforced by |
 |---|---|---|
 | browser | `config/` + `utils.js` → `core/` (no DOM) → bus → `net/` → `llm/` → `console/` → `ui/` → render | `browser/tests/layerBoundary.test.js` |
-| extension | `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup/`, `options/`, `crop/` | `extension/tests/layerBoundary.test.js` |
+| browser-extension | `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup/`, `options/`, `crop/` | `browser-extension/tests/layerBoundary.test.js` |
+| vscode-extension | `src/config/` + `src/parser/` → `src/lib/` → `src/*.js` → `src/extension.js` | `vscode-extension/tests/layerBoundary.test.js` |
 | desktop | core seam (the `core/` includes the lint allows) → controllers → `net/`, `io/` → `support/` → `canvas/`, `dialogs/`, `llm/` → `app/` | `desktop/tests/layerBoundary.headless.cpp` |
 | cli | `core.zig` → `args.zig` + `params/` → `net.zig` → ops → `llm/` → `console/` → `main.zig` | the layer lint in `logo.zig` |
 | pystencil | `_native` + `core` → `image`, `codecs/`, `layout` → `editor/` → `llm/`, `server/`, `sitesource/` → `cli/` | `pystencil/tests/test_layer_boundary.py` |
 | server | `cmd/` → `httpapi` (transport only) → `service` → `store` + `filestore` → `hub` → `protocol` | convention |
 | bot | `Domain` ← `Application` ← `Infrastructure` ← `Bot` (dependencies point inward) | project references + `LayerBoundaryTests.cs` |
 | mcp | `server/` + tools → `opplan/` → `args/` → `pipeline/` → `llm/` | `mcp/tests/layer_boundary_test.rs` |
-| core | value types → `geometry/`, `color/`, `parse/` → `raster/`, `page/`, `format/`, `state/` → `abi/` → the two ABIs | convention |
+| core | value types → `geometry/`, `color/`, `parse/` → `raster/`, `page/`, `format/`, `state/`, `script/` → `abi/` → the two ABIs | convention |
 
 Two rules cut across every surface: the pure logic ring (browser `core/`, the desktop's core
 seam, `core.zig`, `pystencil.core`) never touches a DOM, a terminal or a socket, which is what makes
@@ -204,3 +228,10 @@ The recurring structures, under the names the repo uses for them.
   each surface's fetch path.
 - **Adapter** — CLI argv builders (`mcp/src/args.rs`, bot's `CliArgvBuilder`) translating a
   typed request into the CLI's documented flags.
+- **Interpreter** — `core/parse/formulaParser` over an `f(x)` expression, and `core/script/`
+  over a `.stc`: lex → parse → expand templates → lower to an op stream. Neither evaluates
+  anything; each surface's runner maps the lowered ops onto the very facade calls its
+  toolbar makes, so a script and a click are one code path.
+- **Port (byte-equal copy)** — a module the consumer cannot import across subprojects, copied
+  and pinned: the `browser/js/ui` + `llm/llmClient` modules into `browser-extension/src/lib/`,
+  `browser/js/core/script*.js` into `vscode-extension/src/parser/`. The pin, not the copy, is the contract.

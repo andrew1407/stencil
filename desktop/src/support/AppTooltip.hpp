@@ -82,13 +82,13 @@ namespace stencil::gui {
 
   class AppTooltip : public QFrame {
    public:
-    static constexpr int FADE_MS = 90;      // browser: #app-tooltip transition (the fallback)
+    static constexpr int FADE_MS = TOOLTIP_FADE_MS;   // the fallback when there is no dust
     static constexpr int MAX_TIP_WIDTH = 380;   // browser: #app-tooltip max-width
     static constexpr int SHAKE_MS = 320;    // browser: keycapShake 0.32s, one per appearance
-    // The tooltip is sand too (browser js/ui/controlTooltip.js), on the shared tip clock.
-    static constexpr int DUST_IN_MS = TIP_DUST_IN_MS;
-    static constexpr int DUST_OUT_MS = TIP_DUST_OUT_MS;
-    static constexpr int DUST_HAND_OVER_MS = gui::DUST_HAND_OVER_MS;
+    // The tooltip is sand too (browser js/ui/controlTooltip.js), on the slowed tip clock.
+    static constexpr int DUST_IN_MS = TOOLTIP_DUST_IN_MS;
+    static constexpr int DUST_OUT_MS = TOOLTIP_DUST_OUT_MS;
+    static constexpr int DUST_HAND_OVER_MS = TOOLTIP_HAND_OVER_MS;
     static constexpr int GAP = 15;         // cursor offset, as Qt's own tooltip uses
     static constexpr const char* OBJECT_NAME = "stencilAppTooltip";
 

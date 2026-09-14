@@ -1,6 +1,7 @@
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Exceptions;
+using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Processes;
 using Stencil.TelegramBot.Infrastructure.Workspace;
@@ -97,6 +98,30 @@ public sealed class ProcessStencilCli : IStencilCli
             [.. scraped.Files.Select(f => f with { Path = Path.Combine(parent, f.Path) })]);
     }
 
+    // Plan mode fetches nothing, decodes nothing and WRITES nothing, so it carries no
+    // --confine-output; the child still runs in the script's own folder with the leaf, keeping the
+    // workspace path out of the envelope it prints.
+    public async Task<ScriptPlan> ScriptPlanAsync(
+        string scriptPath, string? input = null, CancellationToken ct = default)
+    {
+        (string dir, string leaf) = confine(scriptPath);
+        IReadOnlyList<string> argv = CliArgvBuilder.BuildScriptPlanArgv(leaf, beside(dir, input));
+        CliOutput output = await spawnAsync(argv, ct, dir).ConfigureAwait(false);
+        // A script with an error exits 1 but still prints its envelope, so only a missing one fails.
+        if (output.Stdout.Trim().Length == 0)
+        {
+            throw new StencilCliException(CliOutcomeParser.ExtractErrors(output.Stderr));
+        }
+        return CliOutcomeParser.ParseScriptPlan(output.Stdout);
+    }
+
+    // An input already sitting beside the script is passed as its leaf, so no workspace path can
+    // ride into the envelope's save targets.
+    private static string? beside(string dir, string? input) =>
+        input is null || !string.Equals(Path.GetDirectoryName(input), dir, StringComparison.Ordinal)
+            ? input
+            : Path.GetFileName(input);
+
     // A bare name keeps the caller's own working directory.
     private static (string Dir, string Leaf) confine(string destination)
     {
@@ -117,7 +142,7 @@ public sealed class ProcessStencilCli : IStencilCli
                 .ConfigureAwait(false);
             return outcome switch
             {
-                ProcessCompleted completed => new CliOutput(completed.ExitCode == 0, completed.Stderr),
+                ProcessCompleted completed => new CliOutput(completed.ExitCode == 0, completed.Stderr, completed.Stdout),
                 ProcessStartFailed failed => throw StencilCliException.Deployment(
                     StencilCliLocator.UNAVAILABLE_MESSAGE,
                     $"failed to run the stencil CLI ({bin}): {failed.Message}"),
@@ -135,5 +160,5 @@ public sealed class ProcessStencilCli : IStencilCli
     private static readonly IReadOnlyDictionary<string, string> _noColor =
         new Dictionary<string, string> { ["NO_COLOR"] = "1" };
 
-    private readonly record struct CliOutput(bool Success, string Stderr);
+    private readonly record struct CliOutput(bool Success, string Stderr, string Stdout);
 }

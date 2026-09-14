@@ -20,7 +20,8 @@
  * A stub element: classList backed by the exposed `classes` Set, attributes in the
  * exposed `attrs` Map, listeners in the exposed by-type `listeners` object (deduped,
  * fired via `dispatch(type, ev)` with the element as the default `target`), children
- * with parent tracking, a style object that also speaks set/get/removeProperty, and
+ * with parent tracking (append/remove/replace/insertBefore over one flat `children`), a
+ * style object that also speaks set/get/removeProperty, and
  * recorded `focusCalls`. Everything else (innerHTML, textContent, dataset, value…)
  * is a plain writable field.
  * @param {string} tag - Element tag, uppercased into `tagName`.
@@ -76,6 +77,25 @@ export const createStubElement = (tag = 'div', overrides = {}) => {
       return c;
     },
     append(...cs) { cs.forEach((c) => el.appendChild(c)); },
+    // childNodes IS `children` here: appendChild takes a text node as readily as an element,
+    // and the components under test walk one flat stream of both.
+    get childNodes() { return el.children; },
+    get firstChild() { return el.children[0] ?? null; },
+    removeChild(c) {
+      const i = el.children.indexOf(c);
+      if (i >= 0) el.children.splice(i, 1);
+      return c;
+    },
+    replaceChild(next, old) {
+      const i = el.children.indexOf(old);
+      if (i >= 0) el.children.splice(i, 1, next);
+      return old;
+    },
+    insertBefore(next, at) {
+      const i = at === null || at === undefined ? -1 : el.children.indexOf(at);
+      el.children.splice(i < 0 ? el.children.length : i, 0, next);
+      return next;
+    },
     remove() {
       const kids = el.parentNode?.children;
       const i = kids ? kids.indexOf(el) : -1;

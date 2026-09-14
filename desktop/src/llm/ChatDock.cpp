@@ -221,21 +221,18 @@ namespace stencil::gui {
     {
       auto* menu = new QMenu(more_);
       menu->setObjectName("chatMoreMenu");
-      actAttach_ = menu->addAction(QStringLiteral("Add image"));
-      connect(actAttach_, &QAction::triggered, this, &ChatDock::pickMedia);
-      actClear_ = menu->addAction(QStringLiteral("Clear history"));
-      connect(actClear_, &QAction::triggered, this, [this] {
+      moreRows_ = buildChatMoreMenu(*menu, /*withClear=*/true);
+      connect(moreRows_.attach, &QAction::triggered, this, &ChatDock::pickMedia);
+      connect(moreRows_.clear, &QAction::triggered, this, [this] {
         clearConversation();
         emit clearRequested();
       });
       // Re-skins this dock immediately; the owner persists it and propagates to the mirror panel.
-      actSwapSides_ = menu->addAction(QStringLiteral("Swap message sides"));
-      connect(actSwapSides_, &QAction::triggered, this, [this] {
+      connect(moreRows_.swapSides, &QAction::triggered, this, [this] {
         setChatSwapSides(!chatSwapSides_);
         emit chatSwapSidesChanged(chatSwapSides_);
       });
-      actSettings_ = menu->addAction(QStringLiteral("Settings"));
-      connect(actSettings_, &QAction::triggered, this, &ChatDock::settingsRequested);
+      connect(moreRows_.settings, &QAction::triggered, this, &ChatDock::settingsRequested);
       // An item that cannot act right now HIDES rather than greys out (browser parity).
       connect(menu, &QMenu::aboutToShow, this, [this, menu] {
         syncMoreMenuItems();

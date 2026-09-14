@@ -1,5 +1,5 @@
 // One inline-SVG source for every glyph: stroked line-art on a 24×24 grid in `currentColor`.
-// Paths live in config/icons.json; extension/src/lib/icons.js mirrors it — keep in sync.
+// Paths live in config/icons.json; browser-extension/src/lib/icons.js mirrors it — keep in sync.
 // Pure strings: icon() output contains no backtick or "${" (the markup tests assert that).
 import ICONS_DATA from '../config/icons.json' with { type: 'json' };
 import SVG_ART from '../config/svgArt.json' with { type: 'json' };

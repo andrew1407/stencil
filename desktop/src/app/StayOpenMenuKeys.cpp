@@ -119,7 +119,8 @@ namespace stencil::gui {
     }
     // QMenu reads Tab as ↓ and never reaches a control inside a flyout; a menu with no controls
     // keeps the default.
-    if (e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) {
+    if ((e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) &&
+        !keepsTab(QApplication::focusWidget())) {
       const bool back = e->key() == Qt::Key_Backtab || (e->modifiers() & Qt::ShiftModifier);
       if (walkTab(back)) { e->accept(); return; }
     }

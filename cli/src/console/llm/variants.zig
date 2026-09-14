@@ -164,9 +164,7 @@ pub fn renderVariant(session: *Session, io: std.Io, v: llm.Variant, stem: []cons
     defer gpa.free(label);
     const path = std.fmt.allocPrint(gpa, "variant-{s}.png", .{stem}) catch return;
     defer gpa.free(path);
-    pipeline.writeOutputLabeled(gpa, io, out, path, .png, label) catch |e| {
-        logo.err("could not write {s} ({s})\n", .{ path, @errorName(e) });
-    };
+    pipeline.writeOutputLabeled(gpa, io, out, path, .png, label) catch return;
 }
 
 /// The variant's working image, or a printed error when no image exists yet.

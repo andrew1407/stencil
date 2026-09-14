@@ -310,7 +310,7 @@ test('components.css: disabled ghosts, resizable input, phone modal, touch targe
   assert.ok(backdrop.includes('position: fixed') && backdrop.includes('inset: 0'), 'backdrop covers the viewport');
   // A dock band on a phone-width viewport overflows the document and makes the
   // browser widen the layout viewport — so the reflow padding is min-width gated.
-  const reflow = css.slice(css.indexOf('body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left)') - 400);
+  const reflow = css.slice(css.indexOf('body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open:not(.chat-closing).chat-dock-left)') - 400);
   assert.ok(/@media \(min-width: 681px\) \{[\s\S]{0,400}?padding-left: calc\(var\(--chat-size/.test(reflow),
     'dock reflow padding never applies at phone widths');
   // Touch: ≥40px targets + hidden resize handles (installButton.js media convention).

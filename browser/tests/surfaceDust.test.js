@@ -328,7 +328,7 @@ test('the chat panel keeps its dock edge, and a float keeps its icon', () => {
   assert.match(chatPanelJs, /host\.classList\.toggle\('chat-open', on\);[\s\S]{0,160}if \(on\) playDust\(true\);/);
   // Closed BEFORE it leaves the screen, and on the same clock the class swap uses.
   assert.match(chatPanelJs, /playDust\(false\);\s*\/\/ …measured while it is still on screen\s*\n\s*host\.classList\.add\('chat-closing'\);/);
-  assert.match(chatPanelJs, /ms: enter \? 420 : CLOSE_MS/);
+  assert.match(chatPanelJs, /ms: enter \? 630 : CLOSE_MS/);
 });
 
 test('the context menu forms out of the very click it was opened at', () => {

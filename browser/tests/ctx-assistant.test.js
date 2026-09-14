@@ -54,10 +54,10 @@ test('the Assistant entry markup carries each id once, above Start Drawing', () 
   }
   // Same placeholder wording as the panel, and Enter/Shift+Enter documented in it.
   assert.ok(html.includes('placeholder="Ask the assistant… (Enter sends, Shift+Enter newline)"'));
-  // The entry is built by syncAssistant, directly ABOVE Start Drawing (no separator
-  // of its own — the layoutWith test below pins that gating changes nothing else).
+  // Built by syncAssistant directly ABOVE the script entry, itself above Start Drawing.
   const src = contextMenuSource();
-  assert.ok(src.includes("const anchor = document.getElementById('ctx-draw-toggle');"), 'anchored to Start Drawing');
+  assert.ok(src.includes("getElementById('ctx-script') || document.getElementById('ctx-draw-toggle')"),
+            'anchored to the script entry, falling back to Start Drawing');
   assert.ok(src.includes("anchor.insertAdjacentHTML('beforebegin', assistantItemHtml());"), 'inserted immediately above it');
   // Send ships disabled (nothing typed yet) and becomes Stop at runtime.
   assert.ok(html.includes('id="ctx-assist-send" disabled'));
@@ -857,7 +857,7 @@ test('contextMenu.js keeps the menu open while chatting', () => {
   assert.match(src, /const assistantBusy = \(\) => assistSending \|\| Date\.now\(\) < assistBusyUntil;/);
   // The entry is (re)built and re-moded on open and when the provider changes.
   assert.ok(src.includes('subscribe(EVENTS.llmSettingsChanged, syncAssistant)'));
-  assert.ok(src.includes('syncAssistant();\n      menu.style.left'), 'entry settled before the menu is measured');
+  assert.ok(src.includes('syncAssistant();\n      syncScript();\n      menu.style.left'), 'both flyout entries settled before the menu is measured');
   // Typing in the flyout (or a running turn) suppresses the hover-out close, but
   // hovering a SIBLING parent still closes it like any other flyout.
   assert.ok(src.includes("flyout._keepOpen = () => host.sending() || resizing || chatRowMenuOpen() || flyout.contains(document.activeElement);"),

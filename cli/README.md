@@ -133,6 +133,42 @@ stencil --source-site https://example.com --source-filter img --source-min-width
 stencil --source-site https://example.com --source-format png|jpg --source-count 10 out/
 ```
 
+### Running a script
+
+A `.stc` script is a list of `@` directives: one file that opens sources, edits them and
+saves the results. `--script` runs one, `--script-check` only reports what is wrong with it,
+and `--script-plan` prints what it would do without doing any of it.
+
+```stc
+# shots.stc — every PNG in the folder, cropped and toned
+@source shots/:
+    @use line red dashed, 3px, point blue 5px
+    @rect (10, 10) (-10%, -10%)
+    @crop 5%
+    @filter sepia
+    @save out/
+```
+
+```bash
+stencil --script shots.stc              # run it
+stencil --script-check shots.stc        # just the diagnostics, one line each
+stencil --script-plan shots.stc         # what it would do, as JSON on stdout
+stencil -i photo.png --script marks.stc # a script with no @source edits this image
+cat shots.stc | stencil --script -      # '-' reads the script from stdin
+```
+
+A bare `@save` writes beside the source as `<name>-stencil.<ext>`, so a whole-directory run
+is safe in place; when the source is a URL it lands in the working directory under that name.
+A script with any error runs nothing and exits 1.
+
+`--script-plan` writes one JSON object to stdout — the script's blocks, the files each one
+would open, the edits as op-plan actions and the exact paths each `@save` would write — and
+touches nothing. Its shape is pinned in [`CONTRACT.md`](CONTRACT.md) §4.3.
+
+The language — units, colours, templates, undo — is written out in
+[`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md), and the worked examples
+are the `tour-*.stc` files in `browser/js/config/script/fixtures/`.
+
 ## Console mode
 
 `stencil --console` (alias `--repl`) reads `/command <args>` lines from stdin and applies
@@ -192,7 +228,7 @@ monochrome.
 | `/disconnect [url]` · `/reconnect [url]` | Close one connection (or the latest) · re-establish one (or all), re-issuing the token and reviving the live feed. |
 | `/fetch <name> [url]` | Load a server project's image to keep editing. Bare lists what there is to fetch. Alias: `pull`. |
 | `/sync [on\|off]` | Live-editing mode for the active fetched project: your edits auto-upload (debounced) and a peer's saves auto-pull over the server's raw-TCP edit channel (skipped for `https://` servers). Local unsynced edits are never clobbered — you get a note to `/save` or `/fetch`. |
-| `/prompt <text>` | Ask the configured LLM assistant to plan edits ([`llm-contract.md`](../llm-contract/llm-contract.md)): the working image is attached for vision (≤ 8 MiB), the reply is printed, and the validated op-plan runs through the same session operations as the commands above. Variants render as `variant-<label>.png`. Every `/upload` since the last prompt is an attachment of the turn. Alias: `p`. |
+| `/prompt <text>` | Ask the configured LLM assistant to plan edits ([`llm-contract.md`](../contracts/llm/llm-contract.md)): the working image is attached for vision (≤ 8 MiB), the reply is printed, and the validated op-plan runs through the same session operations as the commands above. Variants render as `variant-<label>.png`. Every `/upload` since the last prompt is an attachment of the turn. Alias: `p`. |
 | `/llm [provider\|url\|model\|key\|server <value>]` | Show (bare, secrets masked) or override the session's LLM config: `ollama` \| `openai-compat` \| `stencil-server`. Initial values come from the `STENCIL_LLM_*` env keys. |
 | `/chat [on\|off\|clear]` | Chat persistence (default off): save the conversation with the project. |
 | `/copy` | Copy the current image to the clipboard. Also **Ctrl-Alt-C**. |

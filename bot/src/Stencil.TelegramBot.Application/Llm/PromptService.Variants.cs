@@ -18,7 +18,7 @@ public sealed partial class PromptService
             EditState edits = after.Edits;
             // Variants branch from the post-actions state, so each re-maps through its own
             // crop/rotate steps only.
-            PlanFrameMapper variantMapper = createMapper(after);
+            PlanFrameMapper variantMapper = PlanFrameMapper.ForSession(after);
             foreach (PlanAction action in variant.Actions)
             {
                 edits = fold(edits, action, after, variantMapper);

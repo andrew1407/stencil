@@ -12,6 +12,8 @@ commands:
   /save [path]           write the working image (a .stencil path saves the project)
   /undo /redo /reset     walk the edit history
   /status                show the working image (alias: info)
+  /script <directives>   run a .stc script on this image (';' separates statements)
+  /script-run <file.stc>  run a .stc script file on this image
   /delete <x.stencil>    delete a local .stencil project file (aliases: del, rm)
   /connect <url[ url2]> [token=<tok>]
                          connect to collaboration server(s); token= is required by a

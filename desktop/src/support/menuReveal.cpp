@@ -44,33 +44,32 @@ namespace stencil::support {
              != nullptr;
     }
 
-    // A submenu's parentWidget() is another QMenu (a top-level popup), so plain ->window()
-    // stops there; walk past every QMenu ancestor first.
+    // A submenu's parent is another QMenu (a popup), so ->window() stops there: walk past them.
     QWidget* menuHostWindow(QWidget* w) {
       while (w && qobject_cast<QMenu*>(w)) w = w->parentWidget();
       return w ? w->window() : nullptr;
     }
 
-    bool dustMenuIn(QMenu* m, const QPoint& originGlobal) {
-      return dustPopupIn(m, menuHostWindow(m->parentWidget()), originGlobal, MENU_POPUP_DUST_MS);
+    bool dustMenuIn(QMenu* m, const QPoint& originGlobal, int ms) {
+      return dustPopupIn(m, menuHostWindow(m->parentWidget()), originGlobal, ms);
     }
 
     // No isVisible() gate: QMenu emits aboutToHide from its hideEvent, when the popup is
     // ALREADY hidden; grab() still renders it.
-    bool dustMenuOut(QMenu* m, const QPoint& originGlobal) {
-      return dustPopupOut(m, menuHostWindow(m->parentWidget()), originGlobal, MENU_POPUP_DUST_MS);
+    bool dustMenuOut(QMenu* m, const QPoint& originGlobal, int ms) {
+      return dustPopupOut(m, menuHostWindow(m->parentWidget()), originGlobal, ms);
     }
 
     // Re-arms on Hide: a submenu is the SAME QMenu instance shown many times per session.
     // `origin` is a resolver because a submenu's origin is only known once Show fires.
     class MenuReveal : public QObject {
      public:
-      MenuReveal(QMenu* menu, std::function<QPoint()> origin)
-          : QObject(menu), menu_(menu), origin_(std::move(origin)) {
+      MenuReveal(QMenu* menu, std::function<QPoint()> origin, int ms)
+          : QObject(menu), menu_(menu), origin_(std::move(origin)), ms_(ms) {
         menu->installEventFilter(this);
         // aboutToHide, NOT QEvent::Hide: the popup must still be on screen to photograph.
         QObject::connect(menu, &QMenu::aboutToHide, this, [this] {
-          if (menu_) dustMenuOut(menu_, origin_());
+          if (menu_) dustMenuOut(menu_, origin_(), ms_);
         });
       }
 
@@ -102,7 +101,7 @@ namespace stencil::support {
         target_ = m->geometry();
         if (!target_.isValid()) { m->setWindowOpacity(1.0); return; }
         const QPoint origin = origin_();
-        if (dustMenuIn(m, origin)) { settled_ = true; return; }
+        if (dustMenuIn(m, origin, ms_)) { settled_ = true; return; }
         // ~1/3 size, keeping the click point at the same fractional spot as in the final rect.
         const QPoint a(qBound(target_.left(), origin.x(), target_.right()),
                        qBound(target_.top(), origin.y(), target_.bottom()));
@@ -118,12 +117,12 @@ namespace stencil::support {
         m->setGeometry(start);
 
         auto* geo = new QPropertyAnimation(m, "geometry", this);
-        geo->setDuration(MENU_MS);
+        geo->setDuration(MENU_MS * ms_ / MENU_POPUP_DUST_MS);  // the fallback keeps the ratio
         geo->setStartValue(start);
         geo->setEndValue(target_);
         geo->setEasingCurve(QEasingCurve::OutCubic);
         auto* fade = new QPropertyAnimation(m, "windowOpacity", this);
-        fade->setDuration(MENU_MS);
+        fade->setDuration(MENU_MS * ms_ / MENU_POPUP_DUST_MS);
         fade->setStartValue(0.0);
         fade->setEndValue(1.0);
         fade->setEasingCurve(QEasingCurve::OutCubic);
@@ -149,8 +148,8 @@ namespace stencil::support {
       std::function<QPoint()> origin_;
       QRect target_;
       QSize savedMin_;
-      bool played_ = false;
-      bool settled_ = false;
+      int ms_ = MENU_POPUP_DUST_MS;
+      bool played_ = false, settled_ = false;
     };
 
     // Backstop for Qt's own submenu-closing heuristic, off hovered() rather than native
@@ -274,14 +273,15 @@ namespace stencil::support {
     return dustPopupOut(&popup, anchor->window(), popupOriginGlobal(anchor), ms);
   }
 
-  void revealMenu(QMenu& menu, const QPoint& origin) {
-    // Offscreen has no compositor for windowOpacity.
-    if (!isDustMotionOk()) return;
-    new MenuReveal(&menu, [origin] { return origin; });  // owned by the menu
+  void revealMenu(QMenu& menu, const QPoint& origin, int ms) {
+    menu.setProperty(DUST_MS_PROP, ms);
+    if (!isDustMotionOk()) return;   // offscreen has no compositor for windowOpacity
+    new MenuReveal(&menu, [origin] { return origin; }, ms);  // owned by the menu
   }
 
-  void revealSubmenu(QMenu& sub, QMenu& parent, QAction& parentAction) {
+  void revealSubmenu(QMenu& sub, QMenu& parent, QAction& parentAction, int ms) {
     new SubmenuCloseGuard(&sub, &parent, &parentAction);   // owned by sub
+    sub.setProperty(DUST_MS_PROP, ms);
     if (!isDustMotionOk()) return;
     QPointer<QMenu> parentGuard(&parent);
     QPointer<QAction> actionGuard(&parentAction);
@@ -291,20 +291,20 @@ namespace stencil::support {
       const QRect row = parentGuard->actionGeometry(actionGuard);
       return row.isValid() ? parentGuard->mapToGlobal(QPoint(row.right(), row.center().y()))
                            : QCursor::pos();
-    });
+    }, ms);
   }
 
   void revealMenuBarMenu(QMenu& menu, QMenuBar& bar) {
+    menu.setProperty(DUST_MS_PROP, MENU_POPUP_DUST_MS);
     if (!isDustMotionOk()) return;
-    // Natively drawn (macOS global bar, GNOME appmenu): nothing Qt-rendered to grab.
-    if (bar.isNativeMenuBar()) return;
+    if (bar.isNativeMenuBar()) return;   // natively drawn: nothing Qt-rendered to grab
     QPointer<QMenuBar> barGuard(&bar);
     QPointer<QMenu> menuGuard(&menu);
     new MenuReveal(&menu, [barGuard, menuGuard] {
       if (!barGuard || !menuGuard) return QCursor::pos();
       const QRect cell = barGuard->actionGeometry(menuGuard->menuAction());
       return cell.isValid() ? barGuard->mapToGlobal(cell.center()) : QCursor::pos();
-    });
+    }, MENU_POPUP_DUST_MS);
   }
 
   void revealMenuFrom(QMenu& menu, QWidget* anchor) {

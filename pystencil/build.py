@@ -55,6 +55,19 @@ STENCIL_CORE_SOURCES = [
   "state/ProjectsStore.cpp",
   "state/zoomPan.cpp",
   "state/holdDraw.cpp",
+  "script/scriptDiagnostics.cpp",
+  "script/scriptLexer.cpp",
+  "script/scriptParser.cpp",
+  "script/scriptValues.cpp",
+  "script/scriptArgs.cpp",
+  "script/scriptCrop.cpp",
+  "script/scriptLineStyle.cpp",
+  "script/scriptTemplates.cpp",
+  "script/scriptUndo.cpp",
+  "script/scriptHistory.cpp",
+  "script/scriptLower.cpp",
+  "script/scriptProgram.cpp",
+  "script/scriptDump.cpp",
 ]
 
 # The extern "C" surface we bind via ctypes (caller-owned RGBA8 buffers + C strings).
@@ -62,7 +75,8 @@ ABI_SOURCE = "cliApi.cpp"
 
 # Include dirs mirror STENCIL_CORE_INCLUDE_DIRS: the core root (for models.hpp + the ABI
 # headers) plus each concern group, so headers are included bare regardless of group.
-INCLUDE_DIRS = [".", "abi", "geometry", "raster", "color", "parse", "page", "format", "state"]
+INCLUDE_DIRS = [".", "abi", "geometry", "raster", "color", "parse", "page", "format",
+                "state", "script"]
 
 
 def lib_filename() -> str:

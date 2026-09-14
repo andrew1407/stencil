@@ -80,8 +80,8 @@
 /* #zoom-fit gets the same ghost box for the same reason: it ends the ZOOM row after the %
    input, and an accent-filled square there reads as a third zoom step rather than the "fit
    the whole image" action it is. Its own rule, not #chat-btn's — different row, and only
-   this one is ever disabled. The id selector outranks `button:disabled`'s grey fill, so the
-   disabled look is the fade the other ghost buttons use (#incognito-toggle). */
+   this one is ever disabled. The id selector outranks `button:disabled`'s grey fill, so its
+   disabled face is spelled out again below. */
 #zoom-fit {
     background: var(--accent);
     border: none !important;
@@ -92,7 +92,14 @@
     cursor: pointer;
     transition: background 0.2s, box-shadow 0.2s, color 0.2s;
 }
-#zoom-fit:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Disabled, it is the same grey chip as the zoom steppers beside it (button:disabled).
+   A faded accent square read as an active control behind glass rather than a dead one. */
+#zoom-fit:disabled {
+    background: var(--disabled-bg);
+    box-shadow: none;
+    color: var(--disabled-text);
+    cursor: not-allowed;
+}
 /* Their glyphs stay the plain text ink — an idle control is not a themed one. The accent
    belongs to the HOVER, as a border, exactly as a field's hover ring does (user decision;
    desktop twin: theme.cpp QToolButton:hover). `!important` because the resting border of

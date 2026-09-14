@@ -2,7 +2,8 @@
 description: Which pin to re-record, how to run each surface's size lint, and why a red pin means fix the code
 paths:
   - "browser/tests/**"
-  - "extension/tests/**"
+  - "browser-extension/tests/**"
+  - "vscode-extension/tests/**"
   - "core/tests/**"
   - "desktop/tests/**"
   - "cli/tests/**"
@@ -27,7 +28,7 @@ re-pin is the whole commit, with no code motion in it.
 | You touched | Pin | Re-record with |
 |---|---|---|
 | browser CSS | `browser/tests/pins/css.json` | `cd browser && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
-| extension CSS | `extension/tests/pins/css.json` | `cd extension && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
+| browser-extension CSS | `browser-extension/tests/pins/css.json` | `cd browser-extension && UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js` |
 | browser or extension UI (rendered state) | `e2e/pins/*.json` — computed styles + DOM for 21 states | `cd e2e && UPDATE_PINS=1 npm run test:ui` |
 | desktop QSS or any painted widget | `desktop/tests/pins/stylesheets.txt` (24 hashes) + `desktop/tests/pins/<platform>/*.png` (24 renders, @1x and @2x) | `STENCIL_UPDATE_UI_PINS=1` on the ui-pins target |
 | CLI terminal output | `cli/tests/pins/*.txt` (20 TUI goldens) | `cd cli && STENCIL_UPDATE_PINS=1 zig build test` |
@@ -47,7 +48,8 @@ that is the task.
 | Surface | Command |
 |---|---|
 | browser | `cd browser && node --test tests/sizeBudget.test.js` |
-| extension | `cd extension && node --test tests/sizeBudget.test.js` |
+| browser-extension | `cd browser-extension && node --test tests/sizeBudget.test.js` |
+| vscode-extension | `cd vscode-extension && node --test tests/sizeBudget.test.js` |
 | core | `core/build/stencil_tests -tc="size budget*"` |
 | desktop | `ctest --test-dir desktop/build -R stencil_sizebudget_headless` |
 | cli | `cd cli && zig build test` (`tests/size_budget_test.zig` is part of the suite) |
@@ -88,6 +90,15 @@ surface's tests — it is the cross-language proof that the seven validators agr
 mechanical half is generated: after any `opRegistry.json` edit, run
 `cd browser && npm run gen-fixtures`, or the browser walker fails on a stale bundle.
 Add the hand-written fixture for the interesting case yourself.
+
+The `.stc` corpus is its twin: one plain-text file,
+`browser/js/config/script/fixtures/cases.txt`, walked by `core/tests/scriptFixtures.test.cpp`,
+`browser/tests/scriptFixtures.test.js` (and the wasm-parity script spec),
+`cli/tests/script_fixtures_test.zig`, `pystencil/tests/test_fixture_script.py`,
+`vscode-extension/tests/fixtureWalker.test.js` and the `e2e/` cli + browser script specs. Nothing about it is generated and no walker records
+it: append the section by hand, run a walker, and read the mismatch it prints. A case named
+`err-*` must produce an error and every other case must not, so the name is part of the
+assertion.
 
 `node --test` never loads wasm; it always exercises the JS fallback. The wasm-parity test
 self-skips locally without a built artifact — CI builds wasm fresh to run it for real.

@@ -83,7 +83,7 @@ test('the windows registry is the asset, and every row can actually be opened', 
     for (const id of [w.opener].flat())
       assert.ok(markup.includes(`id="${id}"`), `${w.key}: opener ${id} is composed`);
   }
-  assert.equal(UI_STRINGS.windows.length, 12);
+  assert.equal(UI_STRINGS.windows.length, 13);
 });
 
 test('every §10 dialog button is a window opener, and the module reads the asset', () => {

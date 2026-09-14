@@ -233,7 +233,7 @@ int main(int argc, char** argv) {
         "…and a dark accent keeps the white one");
 
   // 6) Numeric fields take an arithmetic expression (support/numericInput.cpp). The
-  //    cases mirror browser/tests/numericInput.test.js and extension/tests/ —
+  //    cases mirror browser/tests/numericInput.test.js and browser-extension/tests/ —
   //    same operator set as core/parse/formulaParser, so all three agree.
   std::printf("numeric input expressions:\n");
   auto ev = [](const char* text, double current, double* out) {

@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Abstractions;
-using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
 
@@ -10,13 +9,20 @@ namespace Stencil.TelegramBot.Application.Llm;
 
 public sealed partial class PromptService
 {
+    // A plan the user WROTE rather than a model's: `echoSource` is the text its openUrl hosts must
+    // appear in, and it runs through the same pre-flight, executor and mapper as a model plan.
+    internal Task<PromptOutcome> RunPlanAsync(
+        long userId, OpPlan plan, IReadOnlyList<string> warnings, string echoSource, CancellationToken ct) =>
+        executeAsync(userId, plan, warnings, ct, echoSource);
+
     // Pre-flight the whole plan (an invalid plan executes nothing); the main result is NOT rendered
     // here.
-    private async Task<PromptOutcome> executeAsync(long userId, OpPlan plan, IReadOnlyList<string> warnings, CancellationToken ct)
+    private async Task<PromptOutcome> executeAsync(
+        long userId, OpPlan plan, IReadOnlyList<string> warnings, CancellationToken ct, string? echoSource = null)
     {
         if (plan.Actions.Count == 0 && plan.Variants.Count == 0)
         {
-            return new PromptOutcome(plan.Reply, warnings, [], plan.Ask);
+            return new PromptOutcome(plan.Reply, warnings, [], plan.Ask, Applied: true);
         }
         UserSession session = await _store.GetAsync(userId, ct);
         // §13 tooth #2: a forbidden op never executes, even if a registry/parser slip ever let one
@@ -27,7 +33,7 @@ public sealed partial class PromptService
         }
         // §10 user-echo guard: the model may echo the user but can never introduce, complete or
         // rewrite a host.
-        if (openUrlEchoError(userId, plan) is string echoError)
+        if (openUrlEchoError(userId, plan, echoSource) is string echoError)
         {
             return new PromptOutcome($"{echoError} Nothing was changed.", warnings, [], plan.Ask);
         }
@@ -39,7 +45,7 @@ public sealed partial class PromptService
         List<PromptExport> exports = new();
         List<string> allWarnings = new(warnings);
         // §1: plan coordinates are in the snapshot frame the model was shown.
-        ActionContext ctx = new(userId, renders, exports, createMapper(session), allWarnings);
+        ActionContext ctx = new(userId, renders, exports, PlanFrameMapper.ForSession(session), allWarnings);
         foreach (PlanAction action in plan.Actions)
         {
             await applyActionAsync(ctx, action, ct);
@@ -57,7 +63,8 @@ public sealed partial class PromptService
             Mutated: touchedPixels && after.HasImage,
             Exports: exports,
             // §10 clearChat is DEFERRED to the end of the turn, whatever its plan position.
-            ClearChatRequested: plan.Actions.Any(static a => a is ClearChatAction));
+            ClearChatRequested: plan.Actions.Any(static a => a is ClearChatAction),
+            Applied: true);
     }
 
     // §13's executor-level gate over top-level AND variant actions. Null = the plan may run.
@@ -75,11 +82,11 @@ public sealed partial class PromptService
 
     // §10: every openUrl URL must appear VERBATIM in the USER's own messages (the current turn
     // included); assistant text and fetched content never count. Null = the plan may run.
-    private string? openUrlEchoError(long userId, OpPlan plan)
+    private string? openUrlEchoError(long userId, OpPlan plan, string? echoSource)
     {
         foreach (PlanAction action in plan.Actions)
         {
-            if (action is OpenUrlAction open && !urlEchoedByUser(userId, open.Url))
+            if (action is OpenUrlAction open && !echoed(userId, open.Url, echoSource))
             {
                 return $"The plan tried to open a URL you never wrote ({showServer(open.Url)}) — "
                     + "only a link from your own messages may be loaded.";
@@ -87,6 +94,12 @@ public sealed partial class PromptService
         }
         return null;
     }
+
+    // A script is the user's own text, so it stands in for the chat history it never went through.
+    private bool echoed(long userId, string url, string? echoSource) =>
+        echoSource is string source
+            ? source.Contains(url, StringComparison.Ordinal)
+            : urlEchoedByUser(userId, url);
 
     private bool urlEchoedByUser(long userId, string url)
     {
@@ -131,24 +144,6 @@ public sealed partial class PromptService
         return null;
     }
 
-    // Seeded with the frame the model saw: stored crop on the original dims, dims swapped on an odd
-    // rotation.
-    private static PlanFrameMapper createMapper(UserSession session)
-    {
-        double w = session.OriginalWidth;
-        double h = session.OriginalHeight;
-        if (session.Edits.CropSpec is string spec
-            && CropSpecResolver.Resolve(spec, w, h, session.Edits.Album) is CropRect rect)
-        {
-            (w, h) = (rect.Width, rect.Height);
-        }
-        if (session.Edits.Rotate % 2 != 0)
-        {
-            (w, h) = (h, w);
-        }
-        return new PlanFrameMapper(w, h);
-    }
-
     private async Task resetMapperAsync(long userId, PlanFrameMapper mapper, CancellationToken ct)
     {
         UserSession fresh = await _store.GetAsync(userId, ct);
@@ -159,7 +154,7 @@ public sealed partial class PromptService
     private async Task reseedMapperAsync(long userId, PlanFrameMapper mapper, CancellationToken ct)
     {
         UserSession fresh = await _store.GetAsync(userId, ct);
-        PlanFrameMapper seeded = createMapper(fresh);
+        PlanFrameMapper seeded = PlanFrameMapper.ForSession(fresh);
         mapper.Reset(seeded.Width, seeded.Height);
     }
 }

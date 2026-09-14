@@ -34,6 +34,7 @@
     "chatRestoredMany": "💾 Restored {0} saved chat messages — the assistant remembers this project's conversation.",
     "chatSaveFailed": "Couldn't store the conversation with the server project this time — the chat itself continues; the next successful turn will save it again.",
     "promptWorking": "Working on your request… this can take a minute.",
+    "scriptWorking": "Running your script…",
     "promptStopped": "Stopped. That request went unanswered — tap Retry to run it again.",
     "promptStopping": "Stopping…",
     "chatApiNoProfiles": "This bot offers one chat API, set by its operator — there is nothing to switch between.",

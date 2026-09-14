@@ -36,6 +36,7 @@ from .edits import _EditApi
 from .history import _HistoryApi
 from .layout_io import _LayoutApi
 from .project import _ProjectApi
+from .script import _ScriptApi
 from .source import _SourceApi
 
 
@@ -47,6 +48,7 @@ class Editor(
   _LayoutApi,
   _ProjectApi,
   _AssistantApi,
+  _ScriptApi,
 ):
   """Chainable image-annotation editor over the shared Stencil core.
 

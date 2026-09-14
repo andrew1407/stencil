@@ -21,6 +21,14 @@ description: Headless image editing over the shared Stencil core (Python port of
   bw | sepia | invert | contour | none | a colour name/#hex (duotone)
 --save-layout [metavar= default=None]
   export the structured layout JSON here
+--script [metavar=FILE default=None]
+  run a .stc script ('-' reads stdin); with no @source block it edits --input
+--script-check [metavar=FILE default=None]
+  print the script's diagnostics and exit 1 on an error
+--script-plan [metavar=FILE default=None]
+  print the script lowered to an op plan (JSON, stdout)
+--confine-output [metavar= default=False]
+  refuse a @save that lands outside the working directory
 --source-site [metavar=URL default=None]
   scrape a web page's media into the output DIRECTORY (activates scrape mode)
 --source-count [metavar= default=None]

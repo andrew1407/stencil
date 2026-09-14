@@ -8,6 +8,7 @@
 #include <QString>
 #include <QVector>
 
+#include "chatMoreMenu.hpp"   // the shared "…" rows, built once for both composers
 #include "opPlan.hpp"
 #include "PillSplitter.hpp"   // the shared composer resize grip
 #include "../support/theme.hpp"   // Palette, cached for a swap-triggered re-style
@@ -41,7 +42,7 @@ class QWidget;
 namespace stencil::gui {
 
   // `onPick` gets the prompt text — callers prefill the composer, never send.
-  QWidget* makeSuggestionChips(QWidget* parent, std::function<void(QString)> onPick);
+  QWidget* makeSuggestionChips(QWidget* parent, int gap, std::function<void(QString)> onPick);
   void styleSuggestionChips(QWidget* chips, const Palette& pal);
 
   extern const char* const CHAT_STATUS_OK_COLOR;
@@ -133,6 +134,8 @@ namespace stencil::gui {
     void setChatSwapSides(bool on);
     bool chatSwapSides() const { return chatSwapSides_; }
     QSize floatingDefaultSize() const;
+    // Compact = pinned beside its icon, but still draggable; only the bar's dblclick is dead.
+    void setCompactPopover(bool on);
     void focusInput();
     // Alt-peek release treats un-sent composer text as engagement.
     bool hasComposerText() const;
@@ -252,16 +255,13 @@ namespace stencil::gui {
     QToolButton* closeBtn_ = nullptr;
     QList<QToolButton*> dockBtns_;
     QColor accentCache_, textCache_, dangerCache_, mutedCache_;
-    QColor chipCache_;
-    QColor borderCache_;
+    QColor chipCache_, borderCache_;
     // setChatSwapSides re-issues chatCardStyleSheet against the last palette.
     Palette paletteCache_;
     bool chatSwapSides_ = false;
-    QAction* actSwapSides_ = nullptr;
     void updatePlacementState();
     // The title-drag events are CONSUMED: Qt's own (window-server) move swallows the release.
-    bool manualDrag_ = false;
-    bool manualDragging_ = false;
+    bool manualDrag_ = false, manualDragging_ = false, compactPopover_ = false;
     QPoint manualGrabOffset_;
     // ~16 ms poll: the native floating-window drag (macOS) swallows move/release events.
     QTimer* dragPoll_ = nullptr;
@@ -281,9 +281,7 @@ namespace stencil::gui {
     QToolButton* attach_ = nullptr;
     QToolButton* gear_ = nullptr;
     QToolButton* more_ = nullptr;
-    QAction* actAttach_ = nullptr;
-    QAction* actClear_ = nullptr;
-    QAction* actSettings_ = nullptr;
+    ChatMoreActions moreRows_;   // the "…" overflow's four rows
     QLabel* statusDot_ = nullptr;
     QPointer<QWidget> lastAssistantCard_;
     QWidget* attachTray_ = nullptr;

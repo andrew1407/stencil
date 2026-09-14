@@ -58,7 +58,7 @@ test('Tab walks the open flyout\'s own controls, wrapping, and only falls back t
   const src = contextMenuSource();
   // Controls first (a flyout with spinners/inputs/checkboxes), BEFORE the typing-target
   // exemption — Tab must leave the chat input for its buttons, not stay stuck in it.
-  const tab = src.indexOf("if (e.key === 'Tab') {");
+  const tab = src.indexOf("if (e.key === 'Tab' && !ctxKeepsTab(document.activeElement)) {");
   const typing = src.indexOf('if (isTypingTarget(e.target) && menu.contains(e.target)) return;');
   assert.ok(tab > 0 && tab < typing, 'the Tab walk runs before the typing-target exemption');
   assert.ok(src.includes("controls[ctxKeyStep(controls.length, at, e.shiftKey ? -1 : 1)].focus();"), 'wraps via ctxKeyStep');

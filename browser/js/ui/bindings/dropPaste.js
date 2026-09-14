@@ -1,6 +1,7 @@
 import { notify, isTypingTarget, pointInRect } from '../../utils.js';
 import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from '../../core/dragImageUrl.js';
 import { showDropOverlay, hideDropOverlay } from '../dropOverlay.js';
+import { loadScriptFile } from '../scriptModal.js';
 export function wireDropPaste(app) {
   // Document-wide drag-and-drop overlay, split into LEFT (upload + save) and RIGHT
   // (upload incognito) zones. The cursor's half of the window decides which.
@@ -107,12 +108,14 @@ export function wireDropPaste(app) {
     }
     if (file.name.endsWith('.stencil')) {
       app.export.openProjectFile(file, { from });   // a whole .stencil project ignores the save/incognito split
+    } else if (file.name.endsWith('.stc')) {
+      loadScriptFile(file);   // into the script window when it is open, else it runs
     } else if (file.type.startsWith('image/')) {
       handleImageDrop(file, incognito, from);
     } else if (file.name.endsWith('.json') || file.type === 'application/json') {
       app.loadJSONFromFile(file, { from });   // a .json layout ignores the save/incognito split
     } else {
-      notify('Please drop an image, a .json layout, or a .stencil project', 'fail');
+      notify('Please drop an image, a .json layout, a .stencil project, or a .stc script', 'fail');
     }
   });
 

@@ -111,7 +111,7 @@ namespace stencil::gui {
     addWrappedSeparator(row);
     // Copy leads, then the two file moves down, then up (browser twin: toolbar.js Data row).
     addWrapped(row, makeToolSection("Data",
-                                   {actCopyLayout_, actDownloadJson_, actUploadJson_, actClearProject_}));
+                                   {actScript_, actCopyLayout_, actDownloadJson_, actUploadJson_, actClearProject_}));
     addWrappedSeparator(row);
     // The browser's last cluster in order; every button drives the existing QAction. actAccent_ is
     // the logo's own popover, no toolbar icon.

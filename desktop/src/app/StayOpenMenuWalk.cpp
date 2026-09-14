@@ -24,7 +24,8 @@ namespace stencil::gui {
     if (event->type() == QEvent::KeyPress) {
       auto* ke = static_cast<QKeyEvent*>(event);
       // Tab on a focused control is our walk, not QWidget's focus chain (a spinner swallowed it).
-      if (ke->key() == Qt::Key_Tab || ke->key() == Qt::Key_Backtab) {
+      if ((ke->key() == Qt::Key_Tab || ke->key() == Qt::Key_Backtab) &&
+          !keepsTab(qobject_cast<QWidget*>(watched))) {
         const bool back = ke->key() == Qt::Key_Backtab || (ke->modifiers() & Qt::ShiftModifier);
         if (walkTab(back)) return true;
       }

@@ -64,7 +64,8 @@ namespace stencil::gui {
     const core::Lines& lines() const { return lines_; }
     const core::Line& currentLine() const { return currentLine_; }
     core::Lines allLines() const;
-    void setLines(const core::Lines& lines);  // replace all, reset history
+    void setLines(const core::Lines& lines);     // replace all, reset the history
+    void commitLines(const core::Lines& lines);  // replace all, push ONE undo step
 
     void startNewLine();      // commit the in-progress line, begin a fresh one
     void deleteLastPoint();   // remove the last point of the in-progress line
@@ -244,8 +245,7 @@ namespace stencil::gui {
     // must ground them first, or the last one finishes on whatever line inherited its number.
     void resetStrokeFx();
     double fxNow() const;
-    void drawFill(QPainter& p, const core::Line& line,
-                  const class QPolygonF& poly) const;
+    void drawFill(QPainter& p, const core::Line& line, const class QPolygonF& poly) const;
     void drawGlow(QPainter& p, const core::Line& line, const QPolygonF& poly,
                   int lineIdx, bool highlight, const Palette& pal) const;
     void drawStroke(QPainter& p, const core::Line& line, const QPolygonF& poly,

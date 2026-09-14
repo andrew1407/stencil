@@ -114,7 +114,7 @@ test('a real removal keeps the destructive wipe — a filter is not a delete', (
 });
 
 // ONE escaper: base.js and tipContent.js re-export js/ui/escapeHtml.js rather than each
-// keeping a copy (extension/tests/portParity.test.js pins the extension's port of it).
+// keeping a copy (browser-extension/tests/portParity.test.js pins the extension's port of it).
 test('escapeHtml is a single implementation, re-exported', () => {
   assert.strictEqual(escapeHtml, oneEscape);
   assert.strictEqual(tipEscape, oneEscape);

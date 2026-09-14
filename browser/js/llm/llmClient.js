@@ -4,8 +4,8 @@
 // data }] }); the ollama / openai-compat bodies are derived from it. fetch is injected
 // for `node --test`, mirroring connectionManager.js.
 //
-// SHARED with extension/src/llm/llmClient.js: the two copies must stay identical
-// below this header (extension/tests/portParity.test.js pins them); anything
+// SHARED with browser-extension/src/llm/llmClient.js: the two copies must stay identical
+// below this header (browser-extension/tests/portParity.test.js pins them); anything
 // per-surface lives in llmSurface.js.
 import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
 import { ASSISTANT_OFF_TEXT, defaultGetToken } from './llmSurface.js';

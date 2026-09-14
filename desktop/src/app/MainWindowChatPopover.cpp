@@ -50,7 +50,7 @@ namespace stencil::gui {
     // Anything else LEAVES first — a compact float that has to move included; teleporting it read as "the chat vanished".
     if (chatDock_->isVisible()) {
       const int outMs = chatDock_->isFloating() ? WINDOW_DISMISS_MS : CHAT_SLIDE_OUT_MS;
-      chatCompactPopover_ = false;   // it is leaving; the next open re-establishes it
+      setChatCompactPopover(false);   // it is leaving; the next open re-establishes it
       setChatShown(false, /*animate=*/true);
       QPointer<QWidget> pin(anchor);
       QTimer::singleShot(support::motionReduced() ? 0 : outMs, this, [this, pin] {
@@ -102,7 +102,14 @@ namespace stencil::gui {
     chatDock_->raise();
     chatDock_->activateWindow();
     chatDock_->focusInput();
-    chatCompactPopover_ = true;  // after setFloating: adoption hooks fired above
+    setChatCompactPopover(true);  // after setFloating: adoption hooks fired above
+  }
+
+  // One door for the flag: the dock forbids its title-bar drag while this is set, so a
+  // missed clear here would leave the full-shape panel unable to move or re-dock.
+  void MainWindow::setChatCompactPopover(bool on) {
+    chatCompactPopover_ = on;
+    if (chatDock_) chatDock_->setCompactPopover(on);
   }
 
   bool MainWindow::chatCompactShowing() const {
