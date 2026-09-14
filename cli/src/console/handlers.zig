@@ -4,6 +4,7 @@
 //! surface console.zig binds to — the bodies live under handlers/.
 const media = @import("handlers/media.zig");
 const files = @import("handlers/files.zig");
+const script = @import("handlers/script.zig");
 const pageFormula = @import("handlers/pageFormula.zig");
 const connections = @import("handlers/connections.zig");
 const projects = @import("handlers/projects.zig");
@@ -60,7 +61,9 @@ pub const doExpire = lifecycle.doExpire;
 pub const doSync = lifecycle.doSync;
 pub const doChat = lifecycle.doChat;
 
-// transforms (handlers/edit.zig)
+// transforms (handlers/edit.zig, handlers/script.zig)
+pub const doScript = script.doScript;
+pub const doScriptRun = script.doScriptRun;
 pub const applyFilterArg = edit.applyFilterArg;
 pub const doExec = edit.doExec;
 pub const runAction = edit.runAction;
@@ -76,6 +79,7 @@ pub const doMouse = appearance.doMouse;
 pub const doRevealSpeed = appearance.doRevealSpeed;
 
 test {
+    _ = script;
     _ = media;
     _ = files;
     _ = pageFormula;

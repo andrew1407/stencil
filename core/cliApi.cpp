@@ -1,8 +1,10 @@
 #include "cliApi.h"
 
+#include "HandleTable.hpp"
 #include "marshal.hpp"
 
 #include "colorNames.hpp"
+#include "scriptProgram.hpp"
 #include "cropSpec.hpp"
 #include "DurationParser.hpp"
 #include "formulaParser.hpp"
@@ -179,6 +181,7 @@ extern "C" {
   // Five more exports come from abi/shared.inc, verbatim with the wasm ABI.
 #define STENCIL_ABI(wasmName, cliName) stencil_cli_##cliName
 #include "shared.inc"
+#include "scriptShared.inc"
 #undef STENCIL_ABI
 
 }  // extern "C"

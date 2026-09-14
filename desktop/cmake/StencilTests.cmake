@@ -187,7 +187,7 @@ target_link_libraries(stencil_gui_objs PUBLIC stencil_core Qt6::Widgets Qt6::Net
 # window under the test for its first ~200 ms, which is exactly the kind of timing the
 # suite must not depend on.
 foreach(area chatCards chatCompact chatDock chatPanel chatTurns canvas chrome composition
-             menus menuKeys motion projects theme toolbar tooltips)
+             menus menuKeys motion popover projects theme toolbar tooltips)
   string(TOLOWER ${area} _area_lc)
   stencil_headless_test(stencil_mainwindow_${_area_lc}_gui
     SOURCES tests/MainWindow.${area}.gui.cpp
@@ -195,6 +195,23 @@ foreach(area chatCards chatCompact chatDock chatPanel chatTurns canvas chrome co
     ENV STENCIL_NO_ANIM=1)
 endforeach()
 
+
+# Hovering a context-menu row (support/iconMotion + support/MenuHotkeys): the icon play and
+# the keycap shake start once on arrival, never restart while the pointer stays on the row,
+# and are cancelled when it leaves — QMenu::hovered re-fires and climbs the caused stack, so
+# neither can be driven straight off it. Drives a real QMenu, so it links the GUI objects.
+stencil_headless_test(stencil_menuhover_headless
+  SOURCES tests/menuHover.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
+# The assistant flyout's boxes (llm/ChatMenuPanel + chatMenuPanelParts.hpp) against the
+# browser sheet they are a port of: the chips and the composer are the chat panel at MENU
+# scale there, and the dock keeps its own, larger, chip.
+stencil_headless_test(stencil_chatmenupanel_headless
+  SOURCES tests/chatMenuPanel.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
 
 # Appearance pins: the app stylesheet hashed per theme x accent, plus twelve rendered
 # MainWindow / dialog states diffed against tests/pins (per platform; a platform with
@@ -326,6 +343,17 @@ stencil_headless_test(stencil_modalchrome_headless
     tests/modalChrome.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/OpenInDialog.cpp src/io/deepLink.cpp
     ${STENCIL_SERVERCLIENT_SOURCES}      # deepLink's origin normalisation
+    src/support/iconSet.cpp
+    src/support/modalReveal.cpp resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+
+# The modal shell's header drag (support/modalChromeInstall): it moves a dialog that is its
+# own window, and never the same dialog once execMaybePopover has reparented it into the
+# popover overlay as a plain child.
+stencil_headless_test(stencil_modalheaderdrag_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/modalHeaderDrag.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/support/iconSet.cpp
     src/support/modalReveal.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
@@ -488,6 +516,69 @@ stencil_headless_test(stencil_llmexecutor_headless
     src/canvas/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
   LIBS stencil_core Qt6::Widgets)
+
+# The script window (dialogs/ScriptDialog + ScriptHighlighter): the empty-editor gate, the
+# "report nothing until it has been run" rule, and the core-driven colouring.
+stencil_headless_test(stencil_scriptdialog_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/scriptDialog.headless.cpp src/dialogs/ScriptDialog.cpp src/dialogs/ScriptDialogFile.cpp
+    src/dialogs/ScriptEditorWidget.cpp src/dialogs/ScriptHighlighter.cpp
+    src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp src/support/modalReveal.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
+# The script FLYOUT hosted in the canvas context menu (dialogs/ScriptMenuPanel): the same
+# gates as the window, plus the two keys a code editor owns (Tab indents, Ctrl+Enter runs).
+stencil_headless_test(stencil_scriptmenupanel_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/scriptMenuPanel.headless.cpp src/dialogs/ScriptMenuPanel.cpp
+    src/dialogs/ScriptMenuPanelState.cpp src/dialogs/ScriptEditorWidget.cpp
+    src/dialogs/ScriptHighlighter.cpp src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp src/support/modalReveal.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
+# The ONE .stc both hosts edit (model/ScriptBuffer): the window and the flyout share it,
+# closing either keeps it, Clear empties it, and it never reaches settings or disk.
+stencil_headless_test(stencil_scriptbuffer_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/scriptBuffer.headless.cpp src/dialogs/ScriptDialog.cpp src/dialogs/ScriptDialogFile.cpp
+    src/dialogs/ScriptMenuPanel.cpp src/dialogs/ScriptMenuPanelState.cpp
+    src/dialogs/ScriptEditorWidget.cpp src/dialogs/ScriptHighlighter.cpp
+    src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp src/support/modalReveal.cpp
+    ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
+# .stc runner (app/scriptRun.cpp + model/ScriptDoc) — the desktop half of the script
+# contract: which op reaches which PlanTarget call, and that an error runs nothing.
+stencil_headless_test(stencil_scriptrunner_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/scriptRunner.headless.cpp src/app/scriptRun.cpp src/model/ScriptDoc.cpp
+    src/llm/opPlan.cpp src/llm/opRegistry.cpp
+    ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_PLANEXECUTOR_SOURCES} ${STENCIL_CANVAS_SOURCES}
+    src/canvas/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
+  DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
+  LIBS stencil_core Qt6::Widgets)
+
+# The canvas image's own dust clock (support/DisintegrateOverlay CANVAS_DUST_MS): the
+# arrival and the clear run 1.5x faster than every other cloud. Motion is left ON.
+stencil_headless_test(stencil_canvasdust_headless
+  SOURCES tests/canvasDust.headless.cpp
+  LIBS stencil_gui_objs Qt6::Test
+  INCLUDE_TESTS)
+
+# The two OS-driven .stc entries on the real MainWindow (rule 7's one path): a file handed
+# over by the shell and a file dropped on the window both RUN the script.
+stencil_headless_test(stencil_scriptopen_headless
+  SOURCES tests/scriptOpen.headless.cpp
+  LIBS stencil_gui_objs
+  ENV STENCIL_NO_ANIM=1)
 
 # LLM settings defaults + fileStore Settings JSON round-trip of the contract
 # §5 llm* keys (and the windowState dock blob).

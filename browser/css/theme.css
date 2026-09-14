@@ -1,6 +1,6 @@
 :root {
     /* Brand accent — violet, matching the Stencil logo + extension palette
-       (extension/src/lib/theme.css). --accent is primary; --accent-2 is the
+       (browser-extension/src/lib/theme.css). --accent is primary; --accent-2 is the
        hover/active shade derived from it (darker in light, lighter in dark) so
        any chosen accent stays harmonised. Swappable via a data-accent preset
        (see below + js/core/accents.js); default violet. */
@@ -88,6 +88,9 @@
        happened" on hover; --accent-2 for the boldest, about-to-drag state. */
     --sb-thumb-hover:  var(--accent);
     --sb-thumb-active: var(--accent-2);
+    /* The one mono stack: the hotkey chips, the hex and formula fields, and the script
+       editor all read code, and should read it in the same face. */
+    --font-mono: 'Menlo', 'Consolas', monospace;
 }
 
 /* Accent presets — set only --accent; --accent-2, --text-key and every glow derive
@@ -126,7 +129,7 @@
     --bg-coord-table: #1e1e1e;
     --bg-coord-even:  #2a2a2a;
     --bg-coord-hover: #3a3a3a;
-    --bg-coord-th:    var(--accent-2);
+    --bg-coord-th:    var(--accent);
     --bg-tooltip:     #2d2d2d;
     --bg-tt-th:       #3a3a3a;
     --bg-tt-td:       #242424;

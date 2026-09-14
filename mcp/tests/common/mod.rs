@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 pub mod cli;
+pub mod dispatch;
 pub mod e2e;
 pub mod args;
 pub mod llm;

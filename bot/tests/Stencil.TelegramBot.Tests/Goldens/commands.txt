@@ -1,5 +1,6 @@
 /help — Show the commands and menu
 /prompt — Ask the AI assistant to edit the image
+/script — Run a .stc stencil script over the image
 /chat — Chat mode on/off (clear forgets; save on|off stores it with the project)
 /chatapi — Pick which chat API (model/provider) the assistant uses
 /blank — Start a blank canvas: [format] [w h] [color]

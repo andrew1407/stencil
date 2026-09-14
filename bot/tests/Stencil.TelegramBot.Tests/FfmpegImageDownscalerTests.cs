@@ -34,7 +34,7 @@ public sealed class FfmpegImageDownscalerTests
         });
     }
 
-    private static ProcessOutcome Ok => new ProcessCompleted(0, "");
+    private static ProcessOutcome Ok => new ProcessCompleted(0, "", "");
 
     private string Output => _argv[^1];
 
@@ -80,7 +80,7 @@ public sealed class FfmpegImageDownscalerTests
     [InlineData(255)]
     public async Task Should_Yield_Null_And_Leave_No_Temp_File_On_A_Non_Zero_Exit(int exitCode)
     {
-        byte[]? bytes = await makeDownscaler(new ProcessCompleted(exitCode, "boom"), writeOutput: true)
+        byte[]? bytes = await makeDownscaler(new ProcessCompleted(exitCode, "boom", ""), writeOutput: true)
             .DownscaleToPngAsync("/tmp/in.jpg", 1024);
 
         Assert.Null(bytes);

@@ -8,7 +8,6 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 8px;
 }
 /* Small round trigger icon. */
 #install-toggle {
@@ -30,9 +29,14 @@
 #install-toggle:hover  { background: var(--accent-2); }
 #install-toggle:active { transform: translateY(1px); }
 
-/* Hover/focus popup listing the install + download options, above the icon. */
+/* Hover/focus popup listing the install + download options, above the icon. Out of flow:
+   in flow it is the widest child, so the host's box — and its :hover — would stretch the
+   menu's full width down past the icon, holding the menu open over empty space. */
 #install-menu {
     display: none;
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
     flex-direction: column;
     gap: 4px;
     padding: 6px;
@@ -43,6 +47,16 @@
 }
 #install-host:hover #install-menu,
 #install-host:focus-within #install-menu { display: flex; }
+/* The gap belongs to the menu's hit area, so the pointer can cross from icon to menu
+   without :hover dropping in between. */
+#install-menu::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 8px;
+}
 
 /* Touch devices: the desktop download is meaningless, so the button collapses to a
    single "Install app" affordance — it drops out of the fixed corner into the normal

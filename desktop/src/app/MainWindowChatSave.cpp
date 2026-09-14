@@ -139,7 +139,7 @@ namespace stencil::gui {
   }
 
   // BLOCK until MediaLoader resolves — the executor awaits loads so the next action edits the new picture.
-  bool MainWindow::chatLoadSource(const QString& src, bool incognito, QString* why) {
+  bool MainWindow::chatLoadSource(const QString& src, bool incognito, QString* why, int frame) {
     constexpr int SOURCE_WAIT_MS = 20000;  // finite: a stalled load can't hang the plan
     ensureMediaLoader();  // before OUR connects, so the canvas adopts first
     QEventLoop loop;
@@ -156,7 +156,7 @@ namespace stencil::gui {
                                             loop.quit();
                                           });
     QTimer::singleShot(SOURCE_WAIT_MS, &loop, [&loop] { loop.quit(); });
-    openSourceHere(src, 0, incognito);
+    openSourceHere(src, frame, incognito);
     if (!loaded && !failed) loop.exec();  // guards a synchronous outcome
     QObject::disconnect(cLoaded);
     QObject::disconnect(cFailed);

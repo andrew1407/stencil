@@ -94,6 +94,7 @@ namespace stencil::gui {
     setActionTip(actFit_, "Fit to window");
     setActionTip(actDownloadJson_, "Download Layout JSON");
     setActionTip(actUploadJson_, "Upload Layout JSON");
+    setActionTip(actScript_, "Stencil script (.stc) — write and run a script over this project");
     setActionTip(actCopyLayout_, "Copy full Layout JSON (lines + all applied edits)");
     setActionTip(actTheme_, "Toggle dark / light theme");
     setActionTip(actInfo_, "Controls & shortcuts help");

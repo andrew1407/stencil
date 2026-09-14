@@ -3,7 +3,7 @@
 
 // CDNs hand out opaque 60-char slugs; a name interpolated into a QMessageBox sentence
 // (not a list cell, which elides on its own) wrapped across lines and blew out the dialog.
-// Parity: extension/src/lib/displayName.js and desktop/src/support/displayName.hpp are
+// Parity: browser-extension/src/lib/displayName.js and desktop/src/support/displayName.hpp are
 // the third; keep all three behaviourally identical: same limit, same head/tail split.
 // Header-only and pure so the headless test drives it without a window.
 namespace stencil::support {

@@ -12,7 +12,7 @@ mod runner;
 
 pub use runner::{CliOutput, CliRunner, ProcessRunner};
 
-use crate::args::{EditError, EditParams, ScrapeParams};
+use crate::args::{EditError, EditParams, ScrapeParams, ScriptParams};
 use crate::outcome::{self, ScrapedFile};
 
 /// A successful edit: the resolved output path, the final image dimensions, and any
@@ -47,6 +47,14 @@ pub struct ScrapeResult {
     pub files: Vec<ScrapedFile>,
 }
 
+/// A successful script run: every file its `@save` ops wrote, plus the `note:` lines the CLI
+/// printed along the way (an unmatched `@source`, a script that saved nothing).
+#[derive(Debug, Clone)]
+pub struct ScriptResult {
+    pub files: Vec<outcome::Wrote>,
+    pub notes: Vec<String>,
+}
+
 /// Run one `stencil_edit`: validate, draw an inline layout if given, spawn, and parse.
 pub async fn run_edit(params: &EditParams) -> Result<EditResult, EditError> {
     run::edit(&ProcessRunner, params).await
@@ -62,6 +70,15 @@ pub async fn run_project(params: &EditParams) -> Result<String, EditError> {
 /// filters, and downloads the matches), and map its stderr into a structured result.
 pub async fn run_scrape(params: &ScrapeParams) -> Result<ScrapeResult, EditError> {
     run::scrape(&ProcessRunner, params).await
+}
+
+/// Run one `stencil_script`: `stencil --script <file>`, always inside the sandbox root, and
+/// parse each `@save`'s `wrote` line back out of stderr.
+pub async fn run_script(
+    params: &ScriptParams,
+    script_file: &str,
+) -> Result<ScriptResult, EditError> {
+    run::script(&ProcessRunner, params, script_file).await
 }
 
 /// Run one `stencil_probe`. A local PNG/GIF/BMP/JPEG/WebP answers out of its own header;

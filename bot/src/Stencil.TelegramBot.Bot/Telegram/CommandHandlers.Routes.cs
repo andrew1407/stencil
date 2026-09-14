@@ -9,6 +9,7 @@ public sealed partial class CommandHandlers
         ["start"] = (h, u, c, cmd, ct) => h.startAsync(u, c, cmd, ct),
         ["help"] = (h, u, c, cmd, ct) => h.helpAsync(c, ct),
         ["prompt"] = (h, u, c, cmd, ct) => h.promptAsync(u, c, cmd, ct),
+        ["script"] = (h, u, c, cmd, ct) => h.scriptAsync(u, c, cmd, ct),
         ["chat"] = (h, u, c, cmd, ct) => h.chatAsync(u, c, cmd, ct),
         ["chatapi"] = (h, u, c, cmd, ct) => h.chatApiAsync(u, c, cmd, ct),
         ["connect"] = (h, u, c, cmd, ct) => h.connectAsync(u, c, cmd, ct),

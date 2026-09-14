@@ -90,11 +90,11 @@ namespace stencil::gui {
             [restorePanelWidth](Qt::DockWidgetArea) { restorePanelWidth(); });
     // A deliberate layout choice adopts the current shape (browser chatPanel adoptLayout parity).
     connect(chatDock_, &ChatDock::dockRequested, this,
-            [this] { chatCompactPopover_ = false; });
+            [this] { setChatCompactPopover(false); });
     connect(chatDock_, &QDockWidget::dockLocationChanged, this,
-            [this](Qt::DockWidgetArea) { chatCompactPopover_ = false; });
+            [this](Qt::DockWidgetArea) { setChatCompactPopover(false); });
     connect(chatDock_, &ChatDock::titleDragStarted, this,
-            [this] { chatCompactPopover_ = false; });
+            [this] { setChatCompactPopover(false); });
     connect(chatDock_, &ChatDock::dockRequested, this, &MainWindow::dockChatTo);
     connect(chatDock_, &ChatDock::floatToggleRequested, this, &MainWindow::toggleChatFloat);
     connect(chatDock_, &ChatDock::titleDragStarted, this, [this] {

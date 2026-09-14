@@ -1,5 +1,6 @@
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Layout;
+using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
@@ -25,6 +26,24 @@ public sealed class PlanFrameMapper
     {
         Width = width;
         Height = height;
+    }
+
+    // The frame the session currently renders to: the stored crop on the base dims, swapped on an
+    // odd rotation. Nothing else in an EditState resizes the picture.
+    public static PlanFrameMapper ForSession(UserSession session)
+    {
+        double w = session.OriginalWidth;
+        double h = session.OriginalHeight;
+        if (session.Edits.CropSpec is string spec
+            && CropSpecResolver.Resolve(spec, w, h, session.Edits.Album) is CropRect rect)
+        {
+            (w, h) = (rect.Width, rect.Height);
+        }
+        if (session.Edits.Rotate % 2 != 0)
+        {
+            (w, h) = (h, w);
+        }
+        return new PlanFrameMapper(w, h);
     }
 
     public void Reset(double width, double height)

@@ -1,7 +1,8 @@
 """Import-direction lint for the ``pystencil`` package.
 
 ``.claude/rules/architecture.md`` orders the layers ``_native``/``core`` → ``image``/
-``codecs``/``layout`` → ``editor`` → ``llm``/``server``/``sitesource`` → ``cli``; a module
+``codecs``/``layout``/``scriptpaths`` → ``editor`` → ``llm``/``script``/``server``/
+``sitesource`` → ``cli``; a module
 may import from every layer to its left and none to its right. The other ``_``-prefixed
 helpers sit with ``_native`` at the bottom. Today's crossings are a frozen allowance:
 shrink it, never add to it. The package root (``__init__``/``__main__``) is the facade
@@ -21,9 +22,9 @@ PACKAGE = Path(_PKG_ROOT) / "pystencil"
 
 LAYERS = (
   ("_native", "core"),
-  ("image", "codecs", "layout"),
+  ("image", "codecs", "layout", "scriptpaths"),
   ("editor",),
-  ("llm", "server", "sitesource"),
+  ("llm", "script", "server", "sitesource"),
   ("cli",),
 )
 RANK = {name: i for i, names in enumerate(LAYERS) for name in names}

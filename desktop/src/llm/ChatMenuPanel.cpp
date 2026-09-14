@@ -43,7 +43,7 @@ namespace stencil::gui {
         onRetry_(std::move(onRetry)) {
     setObjectName(QStringLiteral("chatMenuPanel"));
     auto* col = new QVBoxLayout(this);
-    col->setContentsMargins(10, 2, 10, 6);
+    col->setContentsMargins(MENU_CHAT_PADDING);
     col->setSpacing(4);
 
     // Transcript over the composer in a vertical splitter — the dock's layout.
@@ -66,7 +66,7 @@ namespace stencil::gui {
     rows_->setSpacing(2);
     // Empty-state chips — the DOCK's, built by the shared factory. Clicking
     // prefills the composer; the block hides on the first message.
-    suggest_ = makeSuggestionChips(body_, [this](QString prompt) {
+    suggest_ = makeSuggestionChips(body_, MENU_CHAT_CHIP_GAP, [this](QString prompt) {
       input_->setPlainText(prompt);  // prefill only — never send
       input_->moveCursor(QTextCursor::End);
       input_->setFocus();
@@ -83,12 +83,12 @@ namespace stencil::gui {
     ccol->setContentsMargins(0, 0, 0, 0);
     ccol->setSpacing(4);
     auto* row = new QHBoxLayout;
-    row->setSpacing(5);
+    row->setSpacing(MENU_CHAT_ROW_GAP);
     input_ = new QPlainTextEdit(composer);
     input_->setObjectName(QStringLiteral("chatMenuInput"));
     input_->setPlaceholderText(
         QStringLiteral("Ask the assistant… (Enter sends, Shift+Enter newline)"));
-    input_->setMinimumHeight(38);  // grows with the splitter, never fixed
+    input_->setMinimumHeight(MENU_CHAT_INPUT_MIN_H);  // grows with the splitter, never fixed
     input_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     // ClickFocus, NOT the default WheelFocus: a popup hands focus to its first
     // tab-focusable child, which would route the menu's arrows/Enter into this
@@ -99,53 +99,16 @@ namespace stencil::gui {
                      [this] { updateSendEnabled(); });
     row->addWidget(input_, 1);
 
-    // The dock's three composer buttons, same order, same factory
-    // (makeChatAccentButton) — the two composers read identical side by side.
-    const auto mkBtn = [this](const char* name, const QString& tip) {
-      QToolButton* b = makeChatAccentButton(this, tip);
-      b->setObjectName(QString::fromLatin1(name));
-      return b;
-    };
-    send_ = mkBtn("chatMenuSend", QString());
-    QObject::connect(send_, &QToolButton::clicked, this, [this] {
-      if (busy_) {
-        if (onStop_) onStop_();
-        return;
-      }
-      submit();
-    });
-    attach_ = mkBtn("chatMenuAttach",
-                    QStringLiteral("Attach an image or video (closes the menu)"));
-    QObject::connect(attach_, &QToolButton::clicked, this, [this] {
-      if (onAttach_) onAttach_();
-    });
-    gear_ = mkBtn("chatMenuGear", QStringLiteral("AI assistant settings"));
-    QObject::connect(gear_, &QToolButton::clicked, this, [this] {
-      // Captured NOW: the settings dialog opens after this popup closes (a
-      // modal fights the popup's own grab), which would hide gear_ first.
-      if (onSettings_)
-        onSettings_(QRect(gear_->mapToGlobal(QPoint(0, 0)), gear_->size()));
-    });
     auto* btnWrap = new QWidget(composer);
     auto* btnCol = new QVBoxLayout(btnWrap);
     btnCol->setContentsMargins(0, 0, 0, 0);
     btnCol->setSpacing(0);
     btnCol->addStretch(1);  // pin the row to the bottom of the input
     auto* btnRow = new QHBoxLayout;
-    btnRow->setSpacing(2);
-    btnRow->addWidget(send_);
-    btnRow->addWidget(attach_);
-    btnRow->addWidget(gear_);
+    btnRow->setSpacing(MENU_CHAT_ACTION_GAP);
+    buildComposerActions(this, btnRow);
     btnCol->addLayout(btnRow);
     row->addWidget(btnWrap, 0, Qt::AlignBottom);
-    // Reachability dot riding on the gear's corner — the dock's badge, same
-    // geometry, fed by the same refreshLlmStatus probe.
-    statusDot_ = new QLabel(gear_);
-    statusDot_->setObjectName(QStringLiteral("chatMenuStatusDot"));
-    statusDot_->setFixedSize(7, 7);
-    statusDot_->setAttribute(Qt::WA_TransparentForMouseEvents);
-    statusDot_->move(MENU_CHAT_BUTTON_EDGE - statusDot_->width() - 1, 1);
-    statusDot_->raise();
     ccol->addLayout(row, 1);
     splitter_->addWidget(composer);
     splitter_->setStretchFactor(0, 1);

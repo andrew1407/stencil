@@ -12,8 +12,8 @@ namespace stencil::gui {
 
   namespace {
     // Fade fallback; the dust flights ride the shared tip clock (DisintegrateOverlay.hpp
-    // TIP_DUST_IN_MS/TIP_DUST_OUT_MS/DUST_HOLD/DUST_HAND_OVER_MS), same as AppTooltip's.
-    constexpr int FADE_MS = 90;
+    // TOOLTIP_DUST_IN_MS/TOOLTIP_DUST_OUT_MS/DUST_HOLD), same as AppTooltip's.
+    constexpr int FADE_MS = TOOLTIP_FADE_MS;
   }
 
   CanvasTooltip::CanvasTooltip(QWidget* parent) : QFrame(parent) {
@@ -63,7 +63,7 @@ namespace stencil::gui {
     // right, so that would just return itself. The real host is the app window above it.
     QWidget* host = parentWidget() ? parentWidget()->window() : nullptr;
     return flyTipDust(this, host, lastCursor_, gather,
-                      gather ? TIP_DUST_IN_MS : TIP_DUST_OUT_MS, /*escapeHost=*/true)
+                      gather ? TOOLTIP_DUST_IN_MS : TOOLTIP_DUST_OUT_MS, /*escapeHost=*/true)
            != nullptr;
   }
 
@@ -94,7 +94,7 @@ namespace stencil::gui {
     if (!wasHidden || support::motionReduced()) return;
 
     if (dust(true)) {
-      holdFadeKeys(fade_, TIP_DUST_IN_MS);
+      holdFadeKeys(fade_, TOOLTIP_DUST_IN_MS);
     } else {
       fade_->setKeyValues({});
       fade_->setDuration(FADE_MS);
@@ -113,7 +113,7 @@ namespace stencil::gui {
     const bool dusted = dust(false);
     closing_ = true;
     fade_->setKeyValues({});
-    fade_->setDuration(dusted ? gui::DUST_HAND_OVER_MS : FADE_MS);
+    fade_->setDuration(dusted ? gui::TOOLTIP_HAND_OVER_MS : FADE_MS);
     fade_->setKeyValueAt(0.0, windowOpacity());
     fade_->setKeyValueAt(1.0, 0.0);
     fade_->start();

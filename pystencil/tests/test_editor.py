@@ -8,7 +8,7 @@ import unittest
 
 from tests.editorcase import EditorCase, _grayscale_pixels
 
-from pystencil import codecs
+from pystencil import codecs, scriptpaths
 from pystencil.editor import Editor
 from pystencil.layout import Layout, Line, Point
 
@@ -28,10 +28,10 @@ class EditorFetchGuardTests(unittest.TestCase):
         Editor._fetch_url(bad)
 
   def test_is_url_only_http(self):
-    self.assertTrue(Editor._is_url("http://example.com/a.png"))
-    self.assertTrue(Editor._is_url("HTTPS://example.com/a.png"))
-    self.assertFalse(Editor._is_url("file:///etc/passwd"))
-    self.assertFalse(Editor._is_url("/local/path.png"))
+    self.assertTrue(scriptpaths.is_url("http://example.com/a.png"))
+    self.assertTrue(scriptpaths.is_url("HTTPS://example.com/a.png"))
+    self.assertFalse(scriptpaths.is_url("file:///etc/passwd"))
+    self.assertFalse(scriptpaths.is_url("/local/path.png"))
 
 
 class EditorPipelineTests(EditorCase):

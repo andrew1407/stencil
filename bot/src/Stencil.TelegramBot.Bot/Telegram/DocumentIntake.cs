@@ -1,4 +1,6 @@
+using System.Text;
 using Stencil.TelegramBot.Application.Editing;
+using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Project;
@@ -8,8 +10,8 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// A .json layout overlays the working image, a .stencil opens as a project, an image/video document
-// is adopted.
+// A .json layout overlays the working image, a .stencil opens as a project, a .stc runs as a
+// script, an image/video document is adopted.
 public sealed class DocumentIntake
 {
     private readonly MediaIntake _media;
@@ -44,6 +46,11 @@ public sealed class DocumentIntake
             await openProjectDocumentAsync(userId, chatId, document.FileId, ct);
             return;
         }
+        if (name.EndsWith(".stc", StringComparison.OrdinalIgnoreCase))
+        {
+            await runScriptDocumentAsync(userId, chatId, document.FileId, ct);
+            return;
+        }
         if (DocumentKinds.IsImage(document))
         {
             string ext = DocumentKinds.ExtensionOf(name, ".png");
@@ -60,7 +67,8 @@ public sealed class DocumentIntake
         }
         await _bot.SendMessage(
             chatId,
-            "Unsupported file. Send an image or video to edit, or a .json layout with caption /apply.",
+            "Unsupported file. Send an image or video to edit, a .stc script to run, a .stencil project "
+            + "to open, or a .json layout with caption /apply.",
             cancellationToken: ct);
     }
 
@@ -85,6 +93,20 @@ public sealed class DocumentIntake
         }
         await _editing.ApplyLayoutAsync(userId, layout, ct: ct);
         await _handlers.RenderAndSendAsync(userId, chatId, ct);
+    }
+
+    // The file form of /script; the download already rides IBotPolicy.MaxDocumentBytes.
+    private async Task runScriptDocumentAsync(long userId, long chatId, string fileId, CancellationToken ct)
+    {
+        byte[] bytes = await _media.DownloadDocumentBytesAsync(fileId, ".stc", ct);
+        if (bytes.Length > ScriptService.MAX_SCRIPT_BYTES)
+        {
+            await _bot.SendMessage(chatId, "That .stc file is too large to run.", cancellationToken: ct);
+            return;
+        }
+        // A BOM would otherwise reach the lexer as a stray token on line 1.
+        string text = new UTF8Encoding(false).GetString(bytes).TrimStart('\uFEFF');
+        await _handlers.RunScriptAsync(userId, chatId, text, ct);
     }
 
     private async Task openProjectDocumentAsync(long userId, long chatId, string fileId, CancellationToken ct)

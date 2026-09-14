@@ -107,6 +107,24 @@ public sealed class BotAssetTests
         Assert.Empty(uncovered);
     }
 
+    /// <summary>
+    /// The <c>/script</c> row says where the file form lives, because a <c>.stc</c> upload is the
+    /// only way to run a long script and there is deliberately no <c>/script-run</c> verb.
+    /// </summary>
+    [Fact]
+    public void Should_Point_The_Script_Row_At_The_Stc_Upload()
+    {
+        string effect = readAsset("botCommands.json").GetProperty("readme").GetProperty("tables")
+            .EnumerateArray()
+            .SelectMany(t => t.GetProperty("rows").EnumerateArray())
+            .Single(r => r.GetProperty("verbs").EnumerateArray().Any(v => v.GetString() == "script"))
+            .GetProperty("effect").GetString()!;
+
+        Assert.Contains(".stc` file is the file form", effect);
+        Assert.Contains("no separate `/script-run`", effect);
+        Assert.DoesNotContain("script-run", BotCommands.All.SelectMany(c => c.Aliases.Append(c.Verb)));
+    }
+
     /// <summary>README.md's command tables are generated from the asset and committed.</summary>
     [Fact]
     public void Should_Match_The_Asset_In_The_Readme_Command_Tables()

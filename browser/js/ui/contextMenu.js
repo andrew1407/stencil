@@ -6,6 +6,7 @@ import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced,
 import { hideExportPreview, clearAltPreviewHover } from './exportPreview.js';
 import { assistantEnabled, assistantItemHtml } from './ctxAssistantItem.js';
 import { wireCtxAssistant } from './ctxAssistant.js';
+import { wireCtxScript } from './ctxScript.js';
 export { assistantEnabled, assistantItemHtml };
 export { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from './ctxKeyboard.js';
 import { wireCtxKeyboard } from './ctxKeyboard.js';
@@ -54,7 +55,9 @@ export class StencilContextMenu extends StencilElement {
     menu.querySelectorAll(':scope > .ctx-item').forEach(item => {
       const sub = item.querySelector(':scope > .ctx-sub');
       if (sub) wireSubmenu(item, sub);
-      else wirePlainItem(item);
+      // #ctx-script's flyout is hung off it later (ctxScript.js) and wires itself as a
+      // submenu; wiring it as a plain item too would shut its own flyout on re-entry.
+      else if (item.id !== 'ctx-script') wirePlainItem(item);
     });
 
     // Live-sync keeps the menu current while open (hotkeys may change state).
@@ -87,6 +90,7 @@ export class StencilContextMenu extends StencilElement {
     let assistSending = false;
     let assistBusyUntil = 0;
     let syncAssistant = () => {};
+    let syncScript = () => {};
     const assistantBusy = () => assistSending || Date.now() < assistBusyUntil;
 
     // Clamped once per open: re-placing the root under a stationary cursor fires mouseleave
@@ -110,8 +114,9 @@ export class StencilContextMenu extends StencilElement {
       // Seeded with the click point, so the idle checks never see a stale position.
       setPointerTracking(true);
       setLastPointer(x, y);
-      // The Assistant entry is re-evaluated per open, before measuring.
+      // The Assistant and Stencil Script entries are re-evaluated per open, before measuring.
       syncAssistant();
+      syncScript();
       menu.style.left = '-9999px'; menu.style.top = '-9999px';
       menu.classList.add('ctx-open');
       placeMenu(x, y);
@@ -160,8 +165,9 @@ export class StencilContextMenu extends StencilElement {
     wireCtxActions(app, { menu, closeMenu, wireSubmenu });
     wireCtxStyleActions(app, { menu, closeMenu });
 
-    // The Assistant entry (a submenu whose flyout is a chat) drives the menu's state through this host.
-    ({ syncAssistant } = wireCtxAssistant(app, {
+    // The two entries whose flyout is a live surface — a chat, an editor — drive the menu's
+    // state through this host rather than closing it the way an .ctx-item does.
+    const flyoutHost = {
       menu,
       menuIsOpen, closeMenu, closeAllSubs, positionSub, wireSubmenu,
       sending: () => assistSending,
@@ -169,7 +175,9 @@ export class StencilContextMenu extends StencilElement {
       bumpBusy: () => { assistBusyUntil = Date.now() + ASSIST_SCROLL_GRACE_MS; },
       setActiveSub,
       setOnMenuClose: (fn) => { onMenuClose = fn; },
-    }));
+    };
+    ({ syncAssistant } = wireCtxAssistant(app, flyoutHost));
+    ({ syncScript } = wireCtxScript(app, flyoutHost));
 
     // Format the data-hk spans now, so macOS shows ⌘/⌥ from the first paint.
     hotkeys.updateCtxHints();

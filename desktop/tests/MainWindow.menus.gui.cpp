@@ -2,6 +2,8 @@
 // peek and the hotkey chips their rows wear.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindow.gui.hpp"
+#include "../src/dialogs/ScriptMenuPanel.hpp"
+#include "menuReveal.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -90,7 +92,7 @@ class MainWindowGuiTest : public QObject {
       QAction* prev = nullptr;
       doubleSeparator = false;
       for (QAction* a : menu->actions()) {
-        if (a->text() == "Assistant") sawAssistantWhenOff = true;
+        if (a->text().startsWith("Assistant")) sawAssistantWhenOff = true;
         if (a->text().contains("Fullscreen")) sawNormalAction = true;
         // Nothing dangling: the entry's trailing separator must go with it.
         if (a->isSeparator() && prev && prev->isSeparator()) doubleSeparator = true;
@@ -130,11 +132,11 @@ class MainWindowGuiTest : public QObject {
     win.chatDock_->addAttachmentImage(att);
 
     bool styleOpened = false, filterOpened = false, assistantOpened = false;
-    bool tooltipByKey = false, threeButtons = false, dotOnGear = false;
+    bool tooltipByKey = false, twoButtons = false, dotOnMore = false;
     bool assistantBeforeDrawing = false, buttonsMatchDock = false, splitterResized = false;
     bool noSeparatorBelowAssistant = false;
     int separatorsOn = 0;
-    QList<int> splitterSizes;
+    QList<int> splitterSizes, dustClocks;
     bool hintGone = false;
     int pillRest = 0, pillHot = 0, handleWidth = 0;
     bool cursorBefore = true, cursorOnHandle = false, cursorAfter = true;
@@ -142,7 +144,7 @@ class MainWindowGuiTest : public QObject {
     int chipCount = 0;
     bool chipsShownEmpty = false, chipTextsMatchDock = false, chipPrefilled = false;
     bool chipDidNotSend = false, sendGatedEmpty = false, chipsHiddenAfterSend = true;
-    bool attachFrozen = false;
+    QStringList overflowItems;
     int transcriptCap = 0, postedImages = 0;
     bool typedThrough = false, subAliveAfterSend = false, rootAliveAfterSend = false;
     bool sendWasStop = false, stopSeen = false, stoppedRowSeen = false;
@@ -164,7 +166,7 @@ class MainWindowGuiTest : public QObject {
       // drawing actions — not tacked on at the bottom.
       int assistantIdx = -1, startDrawIdx = -1, i = 0;
       for (QAction* a : menu->actions()) {
-        if (a->text() == "Assistant") assistantIdx = i;
+        if (a->text().startsWith("Assistant")) assistantIdx = i;
         if (a->text().contains("Start Drawing") || a->text().contains("Stop Drawing"))
           startDrawIdx = i;
         ++i;
@@ -186,23 +188,26 @@ class MainWindowGuiTest : public QObject {
       auto* panel = sub->findChild<QWidget*>("chatMenuPanel");
       auto* input = sub->findChild<QPlainTextEdit*>("chatMenuInput");
       auto* sendBtn = sub->findChild<QToolButton*>("chatMenuSend");
-      auto* attachBtn = sub->findChild<QToolButton*>("chatMenuAttach");
-      auto* gearBtn = sub->findChild<QToolButton*>("chatMenuGear");
-      if (!panel || !input || !sendBtn || !attachBtn || !gearBtn) { menu->close(); return; }
-      // The dock's three composer buttons, same order: send · attach · gear,
-      // with the reachability dot riding on the gear.
-      threeButtons = sendBtn->x() < attachBtn->x() && attachBtn->x() < gearBtn->x();
+      auto* moreBtn = sub->findChild<QToolButton*>("chatMenuMore");
+      if (!panel || !input || !sendBtn || !moreBtn) { menu->close(); return; }
+      dustClocks = {menu->property(stencil::support::DUST_MS_PROP).toInt(),
+                    sub->property(stencil::support::DUST_MS_PROP).toInt()};  // the slower clock
+      // The browser's TWO composer buttons, in order: send · "…", with attach and
+      // settings folded into the overflow the reachability dot now rides on.
+      twoButtons = sendBtn->x() < moreBtn->x() &&
+                   !sub->findChild<QToolButton*>("chatMenuAttach") &&
+                   !sub->findChild<QToolButton*>("chatMenuGear");
+      if (auto* over = moreBtn->findChild<QMenu*>("chatMenuMoreMenu"))
+        for (QAction* a : over->actions()) overflowItems << a->text();
       // …and the DOCK's exact look: same 18 px glyphs, same 26 px box, same
       // accent treatment, so the two composers read identically.
       auto* dockSend = win.chatDock_->findChild<QToolButton*>("chatSend");
       buttonsMatchDock = dockSend && sendBtn->iconSize() == dockSend->iconSize() &&
                          sendBtn->size() == dockSend->size() &&
                          sendBtn->property("chatAccent").toBool() &&
-                         attachBtn->iconSize() == QSize(20, 20) &&
-                         gearBtn->iconSize() == QSize(20, 20) &&
+                         moreBtn->iconSize() == QSize(20, 20) &&
                          sendBtn->width() == sendBtn->height() &&
-                         attachBtn->size() == sendBtn->size() &&
-                         gearBtn->size() == sendBtn->size() &&
+                         moreBtn->size() == sendBtn->size() &&
                          sendBtn->width() >= 30;
       // The explanatory line is gone: an empty transcript stays blank, and no
       // label outside the transcript rows explains the panel.
@@ -227,17 +232,13 @@ class MainWindowGuiTest : public QObject {
           input->clear();
         }
       }
-      // The trio is ONE set: identical box, only the enabled state differs
+      // The pair is ONE set: identical box, only the enabled state differs
       // (send is gated on non-empty input, exactly like the dock's).
-      sendGatedEmpty = !sendBtn->isEnabled() && attachBtn->isEnabled() &&
-                       gearBtn->isEnabled() &&
-                       sendBtn->size() == attachBtn->size() &&
-                       attachBtn->size() == gearBtn->size() &&
-                       sendBtn->iconSize() == attachBtn->iconSize() &&
-                       attachBtn->iconSize() == gearBtn->iconSize() &&
+      sendGatedEmpty = !sendBtn->isEnabled() && moreBtn->isEnabled() &&
+                       sendBtn->size() == moreBtn->size() &&
+                       sendBtn->iconSize() == moreBtn->iconSize() &&
                        sendBtn->property("chatAccent").toBool() &&
-                       attachBtn->property("chatAccent").toBool() &&
-                       gearBtn->property("chatAccent").toBool();
+                       moreBtn->property("chatAccent").toBool();
       // The splitter handle carries the app's pill affordance, theme-coloured,
       // and grows/accents on hover — not Qt's dotted nub.
       if (auto* sp0 = panel->findChild<QSplitter*>("chatMenuSplitter")) {
@@ -316,7 +317,7 @@ class MainWindowGuiTest : public QObject {
         splitterSizes = after;
       }
       auto* dot = sub->findChild<QLabel*>("chatMenuStatusDot");
-      dotOnGear = dot && dot->parentWidget() == gearBtn;
+      dotOnMore = dot && dot->parentWidget() == moreBtn;
       // Room for a reply plus a couple of exchanges without scrolling.
       // The APPLIED height, not the constant: a plain maximumHeight let the
       // scroll area collapse to its content sizeHint (~2 rows).
@@ -353,7 +354,6 @@ class MainWindowGuiTest : public QObject {
       win.chatMirrorBusy(true);
       win.chatMirrorPending(true);
       sendWasStop = sendBtn->toolTip() == QString("Stop the response");
-      attachFrozen = !attachBtn->isEnabled();  // frozen mid-turn, like the dock
       QTest::mouseClick(sub, Qt::LeftButton, {},
                         sendBtn->mapTo(sub, sendBtn->rect().center()));
       stopSeen = win.chatStopRequested_ && sub->isVisible() && menu->isVisible();
@@ -395,7 +395,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(chipDidNotSend, "clicking a chip sent instead of prefilling");
     QVERIFY2(chipsHiddenAfterSend, "the chips survived the first message");
     QVERIFY2(sendGatedEmpty,
-             "the composer trio is not one set (size/box/accent) with send merely disabled");
+             "the composer pair is not one set (size/box/accent) with send merely disabled");
     QVERIFY2(handleWidth >= 6, "the splitter handle lost its grab area");
     // A centred pill at rest that GROWS on hover (44 → 68 px by design).
     QVERIFY2(pillRest >= 30 && pillRest <= 60,
@@ -425,9 +425,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(stopSeen, "clicking STOP in the menu closed it or did not abort");
     QVERIFY2(stoppedRowSeen, "the canceled turn did not render as Stopped.");
     QVERIFY2(escClosedSub, "Escape did not close the assistant submenu");
-    QVERIFY2(threeButtons, "the menu composer lost the send/attach/gear trio");
-    QVERIFY2(dotOnGear, "the provider status dot is not on the menu gear");
-    QVERIFY2(attachFrozen, "attach stayed live during an in-flight turn");
+    QCOMPARE(dustClocks, QList<int>(2, stencil::support::CONTEXT_MENU_DUST_MS));
+    QVERIFY2(twoButtons, "the menu composer is not the browser's send + \"…\" pair");
+    QCOMPARE(overflowItems, QStringList({"Add image", "Swap message sides", "Settings"}));
+    QVERIFY2(dotOnMore, "the provider status dot is not on the menu's \"…\"");
     QVERIFY2(transcriptCap >= 140,
              qPrintable(QString("the menu transcript renders only %1 px tall")
                             .arg(transcriptCap)));
@@ -1289,7 +1290,7 @@ class MainWindowGuiTest : public QObject {
       if (!menu) return;
       QAction* parent = nullptr;
       for (QAction* a : menu->actions())
-        if (a->text() == "Assistant") parent = a;
+        if (a->text().startsWith("Assistant")) parent = a;
       if (!parent || !parent->menu()) { menu->close(); return; }
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
@@ -1343,7 +1344,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     win.settings_.llmProvider = "ollama";
 
-    bool gearFound = false, menuGoneAfterClick = false, popupGrabGone = false;
+    bool settingsFound = false, menuGoneAfterClick = false, popupGrabGone = false;
     QTimer::singleShot(0, [&] {
       QMenu* menu = nullptr;
       for (int i = 0; i < 200 && !menu; ++i) {
@@ -1353,25 +1354,23 @@ class MainWindowGuiTest : public QObject {
       if (!menu) return;
       QAction* parent = nullptr;
       for (QAction* a : menu->actions())
-        if (a->text() == "Assistant") parent = a;
+        if (a->text().startsWith("Assistant")) parent = a;
       if (!parent || !parent->menu()) { menu->close(); return; }
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
       QMenu* sub = parent->menu();
       settle([&] { return sub->isVisible(); }, 1000);
-      auto* gear = sub->findChild<QToolButton*>("chatMenuGear");
-      gearFound = gear != nullptr;
-      if (!gear) { menu->close(); return; }
-      // Click it through the menu, the real popup path.
-      QTest::mouseClick(sub, Qt::LeftButton, {},
-                        gear->mapTo(sub, gear->rect().center()));
+      auto* settings = sub->findChild<QAction*>("chatMenuSettings");
+      settingsFound = settings != nullptr;
+      if (!settings) { menu->close(); return; }
+      settings->trigger();   // the overflow's Settings row, through the real handler
       menuGoneAfterClick = !menu->isVisible() && !sub->isVisible();
       popupGrabGone = QApplication::activePopupWidget() == nullptr;
     });
     win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
-    QVERIFY2(gearFound, "the assistant submenu has no gear button");
-    QVERIFY2(menuGoneAfterClick, "the gear left the context menu open");
-    QVERIFY2(popupGrabGone, "the popup grab survived the gear click");
+    QVERIFY2(settingsFound, "the assistant overflow has no Settings row");
+    QVERIFY2(menuGoneAfterClick, "Settings left the context menu open");
+    QVERIFY2(popupGrabGone, "the popup grab survived the Settings row");
 
     // The dialog opens on the next turn — poll for it, check it is the
     // assistant-only one and genuinely interactive, then dismiss.
@@ -1630,6 +1629,135 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(chippedBeforeSubmenu, "Fit to Window never carried a chip to begin with");
     QVERIFY2(styleOpened, "the Style submenu never opened");
     QVERIFY2(chippedAfterSubmenu, "Fit to Window's chip was hidden by the Style submenu's own live-poll");
+    beat();
+  }
+  // The context menu's "Stencil Script" row is a FLYOUT, not an opener (browser
+  // js/ui/ctxScript.js): a compact twin of the script window, hosted exactly like the
+  // Assistant chat above it. Typing and running leave the menu open, the actions read
+  // Copy · Download · Upload · Run · Clear, and the typed script outlives the menu.
+  void contextMenuScriptFlyout() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(guiTestImage());   // the canvas menu opens for an image, and only then
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    win.settings_.llmProvider = "ollama";   // browser: the row sits right under the Assistant
+    auto* canvas = win.findChild<CanvasWidget*>();
+
+    auto findMenu = []() -> QMenu* {
+      QMenu* menu = nullptr;
+      for (int i = 0; i < 200 && !menu; ++i) {
+        menu = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!menu) QTest::qWait(10);
+      }
+      return menu;
+    };
+    // startsWith, never == : the row carries its Alt+Shift+S hint in the "\t" column.
+    auto scriptRow = [](QMenu* menu) -> QAction* {
+      for (QAction* a : menu->actions())
+        if (a->text().startsWith("Stencil Script")) return a;
+      return nullptr;
+    };
+
+    bool isFlyout = false, keptHint = false, underAssistant = false, opened = false;
+    bool rowInOrder = false, runIsPrimary = false, typedThrough = false, aliveAfterTyping = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* menu = findMenu();
+      if (!menu) return;
+      QAction* row = scriptRow(menu);
+      if (!row) { menu->close(); return; }
+      isFlyout = row->menu() != nullptr;
+      keptHint = row->text().contains(QLatin1Char('\t'));
+      const QList<QAction*> acts = menu->actions();
+      for (int i = 1; i < acts.size(); ++i)
+        if (acts.at(i) == row) underAssistant = acts.at(i - 1)->text().startsWith("Assistant");
+      if (!isFlyout) { menu->close(); return; }
+
+      // The keyboard path: → reveals the flyout, a second → drops the caret in the editor.
+      menu->setActiveAction(row);
+      QTest::keyClick(menu, Qt::Key_Right);
+      QMenu* sub = row->menu();
+      settle([&] { return sub->isVisible(); }, 1000);
+      opened = sub->isVisible();
+      if (!opened) { menu->close(); return; }
+      QTest::keyClick(menu, Qt::Key_Right);
+
+      auto* edit = sub->findChild<QPlainTextEdit*>("scriptMenuText");
+      auto* copy = sub->findChild<QPushButton*>("scriptMenuCopy");
+      auto* download = sub->findChild<QPushButton*>("scriptMenuDownload");
+      auto* upload = sub->findChild<QPushButton*>("scriptMenuUpload");
+      auto* clear = sub->findChild<QPushButton*>("scriptMenuClear");
+      auto* run = sub->findChild<QPushButton*>("scriptMenuRun");
+      if (!edit || !copy || !download || !upload || !clear || !run) { menu->close(); return; }
+      // Run FIRST as the primary action; Clear LAST, clear of the way to it.
+      rowInOrder = run->x() < copy->x() && copy->x() < download->x() &&
+                   download->x() < upload->x() && upload->x() < clear->x();
+      runIsPrimary = run->property("accentCta").toBool();
+
+      // Typed through the menu's own re-dispatch, the way the chat composer is.
+      QTest::keyClicks(sub, "@filter bw");
+      typedThrough = edit->toPlainText() == QLatin1String("@filter bw");
+      aliveAfterTyping = sub->isVisible() && menu->isVisible();
+      menu->close();
+    });
+    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    QVERIFY2(isFlyout, "the Stencil Script row is still a plain opener, not a submenu");
+    QVERIFY2(keptHint, "the Stencil Script row lost its Alt+Shift+S hint");
+    QVERIFY2(underAssistant, "the script flyout is not directly under the Assistant");
+    QVERIFY2(opened, "the script flyout did not open");
+    QVERIFY2(rowInOrder, "the actions are not Run, Copy, Download, Upload, Clear in that order");
+    QVERIFY2(runIsPrimary, "Run is not the primary action");
+    QVERIFY2(typedThrough, "typing never reached the flyout's editor");
+    QVERIFY2(aliveAfterTyping, "typing in the flyout closed the menu");
+
+    // Second open: the panel is the WINDOW's, so the script is still there — and running
+    // it edits the canvas without dismissing anything.
+    const int linesBefore = int(canvas->allLines().size());
+    bool survived = false, ran = false, aliveAfterRun = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* menu = findMenu();
+      if (!menu) return;
+      QAction* row = scriptRow(menu);
+      if (!row || !row->menu()) { menu->close(); return; }
+      menu->setActiveAction(row);
+      QTest::keyClick(menu, Qt::Key_Right);
+      QMenu* sub = row->menu();
+      settle([&] { return sub->isVisible(); }, 1000);
+      auto* edit = sub->findChild<QPlainTextEdit*>("scriptMenuText");
+      auto* run = sub->findChild<QPushButton*>("scriptMenuRun");
+      if (!edit || !run) { menu->close(); return; }
+      survived = edit->toPlainText() == QLatin1String("@filter bw");
+
+      edit->setPlainText(QStringLiteral("@line (1,1) (10,1) (10,8)"));
+      QTest::mouseClick(sub, Qt::LeftButton, {}, run->mapTo(sub, run->rect().center()));
+      settle([&] { return int(canvas->allLines().size()) > linesBefore; }, 1000);
+      ran = int(canvas->allLines().size()) == linesBefore + 1;
+      aliveAfterRun = sub->isVisible() && menu->isVisible();
+      menu->close();
+    });
+    win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
+    QVERIFY2(survived, "the typed script did not survive the menu closing");
+    QVERIFY2(ran, "Run did not apply the script to the canvas");
+    QVERIFY2(aliveAfterRun, "running the script closed the menu");
+
+    // Upload raises a file dialog, and Qt takes every popup down the moment one opens —
+    // native or not. So the hook puts the chain BACK: same place, script row, flyout open.
+    stencil::gui::asScriptMenu(win.scriptMenuPanel_)->setScript(QStringLiteral("@crop 10%"));
+    bool reopened = false, kept = false;
+    QTimer::singleShot(600, [&] {
+      // With the flyout open it IS the active popup; the whole chain goes down either way,
+      // or the menu's own exec would never hand control back.
+      QWidget* top = QApplication::activePopupWidget();
+      auto* edit = top ? top->findChild<QPlainTextEdit*>("scriptMenuText") : nullptr;
+      reopened = edit != nullptr;
+      kept = edit && edit->toPlainText() == QLatin1String("@crop 10%");
+      stencil::gui::closeOpenPopupMenus();
+    });
+    win.reopenScriptFlyout();
+    QTest::qWait(2500);
+    QVERIFY2(reopened, "the picker left the context menu and its script flyout closed");
+    QVERIFY2(kept, "the flyout came back without the script it was holding");
     beat();
   }
 };

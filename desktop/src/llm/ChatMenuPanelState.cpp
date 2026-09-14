@@ -13,6 +13,7 @@
 #include <QGraphicsOpacityEffect>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QAction>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QPlainTextEdit>
@@ -36,14 +37,14 @@ namespace stencil::gui {
     send_->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, MENU_CHAT_ICON));
     send_->setToolTip(on ? QStringLiteral("Stop the response")
                          : QString());
-    attach_->setEnabled(!on);  // frozen mid-turn, exactly like the dock's
+    if (moreRows_.attach) moreRows_.attach->setVisible(!on);  // hidden mid-turn, browser parity
   }
 
   // Provider reachability badge + rich tooltip (the dock's shared gear
   // treatment, driven by the same MainWindow::refreshLlmStatus probe).
   void ChatMenuPanel::setProviderStatus(const QString& richTooltip,
                                         ChatDock::ProviderStatus status) {
-    styleProviderStatusDot(statusDot_, gear_, richTooltip, status, palette());
+    styleProviderStatusDot(statusDot_, more_, richTooltip, status, palette());
   }
 
   // Menu chrome tones: the transcript rows and the composer track the live
@@ -59,20 +60,15 @@ namespace stencil::gui {
     setStyleSheet(
         QStringLiteral(
             "#chatMenuPanel QScrollArea{background:transparent;border:none;}"
-            "#chatMenuPanel QScrollArea > QWidget > QWidget{background:transparent;}"
-            "#chatMenuInput{background:%1;color:%2;border:1px solid %3;"
-            "border-radius:6px;padding:3px 5px;}"
-            "#chatMenuInput:focus{border:1px solid %4;}")
-            .arg(pal.inputBg.name(), pal.inputText.name(), pal.borderMain.name(),
-                 pal.accent.name())
+            "#chatMenuPanel QScrollArea > QWidget > QWidget{background:transparent;}")
         // …plus the DOCK's bubble sheet, so a mirrored message wears the same
         // colours and hairlines as the one in the dock.
         + chatCardStyleSheet(pal, chatSwapSides_));
     // The accent's own line-art ink on the accent fill — identical to the dock's.
     const QColor onAccent = pal.onAccent;
     send_->setIcon(themedIcon(busy_ ? "stop" : "send", onAccent, MENU_CHAT_ICON));
-    attach_->setIcon(themedIcon("image", onAccent, MENU_CHAT_ICON));
-    gear_->setIcon(themedIcon("gear", onAccent, MENU_CHAT_ICON));
+    more_->setIcon(themedIcon("dots", onAccent, MENU_CHAT_ICON));
+    restyleChatMoreMenu(moreRows_, pal.textMain);   // the dock's own glyphs on the same rows
     splitter_->setPillColors(pal.borderMain, pal.accent);
     styleSuggestionChips(suggest_, pal);
   }

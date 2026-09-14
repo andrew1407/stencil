@@ -67,8 +67,8 @@ test('the OTHER active controls keep the green light — the repaint was scoped'
 });
 
 test('disabled still greys out, and the outline costs no width', () => {
-  assert.match(layoutCss, /button\.active:disabled \{[\s\S]*?background: var\(--disabled-bg\)/,
-    'the disabled rule still catches an active button');
+  assert.match(layoutCss, /button\.active:disabled,\s*button\.primary:disabled \{[\s\S]*?background: var\(--disabled-bg\)/,
+    'every filled variant is named, or a fill out-specifies :disabled and reads as clickable');
   // Every accent declaration is gated on :not(:disabled), so a disabled draw toggle falls
   // through to button:disabled instead of out-specifying it with its id.
   for (const b of blocksFor(layoutCss, '#draw-toggle')) {

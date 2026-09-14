@@ -2,6 +2,7 @@
 #include "MainWindow.hpp"
 #include "StayOpenMenu.hpp"
 #include "ChatPlanTarget.hpp"
+#include "ScriptMenuPanel.hpp"
 #include "LogoHoverFx.hpp"
 #include "planExecutor.hpp"
 #include "OpenImageDialog.hpp"
@@ -17,7 +18,10 @@
 #include "RemoteSession.hpp"
 
 #include <QAction>
+#include <QApplication>
+#include <QKeyEvent>
 #include <QKeySequence>
+#include <QTimer>
 #include <QMenu>
 #include <QWidgetAction>
 
@@ -28,6 +32,7 @@ namespace stencil::gui {
   void MainWindow::showContextMenu(const QPoint& globalPos) {
     // No image, no menu — the single gate for all three ways in (contextMenu.js `if (!app.image) return`).
     if (!canvas_ || !canvas_->hasImage()) return;
+    contextMenuAt_ = globalPos;
     syncContextActions();
 
     // Order mirrors contextMenu.js inner() (~5-108). StayOpenMenu keeps a hosted checkbox/radio click from closing it.
@@ -40,7 +45,8 @@ namespace stencil::gui {
       auto* m = new StayOpenMenu(title, &parent);
       QAction* a = parent.addMenu(m);
       a->setIcon(themedIcon(QString::fromLatin1(icon), iconColor_, subIcon));
-      support::revealSubmenu(*m, parent, *a);  // the same particle dust the top menu plays
+      // The same particle dust the top menu plays, on the same slower clock.
+      support::revealSubmenu(*m, parent, *a, support::CONTEXT_MENU_DUST_MS);
       return m;
     };
     auto subMenu = [&](const char* icon, const QString& title) -> StayOpenMenu* {
@@ -93,11 +99,17 @@ namespace stencil::gui {
     if (settings_.llmProvider != QLatin1String("none")) {
       ensureChatMenuPanel();
       refreshLlmStatus();  // fresh provider dot/tooltip on the panel's gear
-      StayOpenMenu* assistant = subMenu("sparkle", "Assistant");
+      StayOpenMenu* assistant = subMenu("sparkle", QStringLiteral("Assistant") + hintTab(actChat_));
       assistant->addAction(chatMenuAction_);
       assistant->setInteractiveArea(chatMenuPanel_, chatMenuInput_);
       // No separator BELOW it, so the disabled case leaves exactly the original separators.
     }
+    // browser: #ctx-script, right under the Assistant — a caret onto the same editor the
+    // script window holds, scoped the same way. The window itself stays on Alt+Shift+S.
+    ensureScriptMenuPanel();
+    StayOpenMenu* script = subMenu("script", QStringLiteral("Stencil Script") + hintTab(actScript_));
+    script->addAction(scriptMenuAction_);
+    script->setInteractiveArea(scriptMenuPanel_, scriptMenuEditor_);
 
     // contextMenu.js:28-31
     menu.addAction(canvas_->isDrawing() ? actStopDraw_ : actStartDraw_);
@@ -153,7 +165,18 @@ namespace stencil::gui {
     // Declared AFTER menu: destroyed before it, which makes restoring the shared actions' text safe (MenuHotkeys.hpp).
     support::MenuHotkeyChips hotkeyChips(&menu);  // bordered keycap chips (.ctx-hotkey)
     support::MenuShimmer shimmer(&menu);          // per-row hover sweep (browser parity: .ctx-item)
-    support::revealMenu(menu, globalPos);  // grow-from-the-cursor pop
+    support::revealMenu(menu, globalPos, support::CONTEXT_MENU_DUST_MS);  // grow-from-the-cursor pop
+    // Coming back from the flyout's file dialog: land on the script row, flyout open, as if
+    // the chain had never been dismissed. The keyboard path, so QMenu keeps its own state.
+    if (reopenScriptFlyout_) {
+      reopenScriptFlyout_ = false;
+      QAction* row = script->menuAction();
+      QTimer::singleShot(0, &menu, [&menu, row] {
+        menu.setActiveAction(row);
+        QKeyEvent right(QEvent::KeyPress, Qt::Key_Right, Qt::NoModifier);
+        QApplication::sendEvent(&menu, &right);
+      });
+    }
     menu.exec(globalPos);
   }
 

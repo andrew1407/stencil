@@ -750,6 +750,59 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(activeCount(), 1);   // now it's the float button
   }
 
+  // Browser parity (ui/chatDock.js): compact, the dock sits beside its icon but its title bar
+  // still DRAGS — and the drag adopts the layout, so what moves is a float the user chose,
+  // never a popover still pinned to an icon. Only the bar's double-click toggle stays dead:
+  // the browser's header has none.
+  void chatCompactPopoverDragsAndAdoptsTheLayout() {
+    MainWindow win;
+    win.resize(1100, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    auto* dock = win.chatDock_;   // the concrete dock: the drag state is ChatDock's own
+    QVERIFY(dock);
+    win.openChatCompact(&win);   // any anchor: the popover only needs a rect to sit beside
+    QTRY_VERIFY(win.chatCompactShowing());
+    QWidget* title = dock->titleBarWidget();
+    QVERIFY(title);
+    settleLayout(&win, 60);
+
+    const QRect before = dock->geometry();
+    const auto pressTitle = [&](QEvent::Type type) {
+      QMouseEvent ev(type, QPointF(8, 8), QPointF(8, 8), QPointF(title->mapToGlobal(QPoint(8, 8))),
+                     Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+      QApplication::sendEvent(title, &ev);
+    };
+    // A press ARMS the drag; only a move past the start distance makes it live, so the
+    // gesture has to be driven all the way through to prove anything either way.
+    const auto moveTitle = [&](const QPoint& to) {
+      QMouseEvent mv(QEvent::MouseMove, QPointF(to), QPointF(to), QPointF(title->mapToGlobal(to)),
+                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+      QApplication::sendEvent(title, &mv);
+    };
+    const auto releaseTitle = [&] {
+      QMouseEvent up(QEvent::MouseButtonRelease, QPointF(8, 8), QPointF(8, 8),
+                     QPointF(title->mapToGlobal(QPoint(8, 8))), Qt::LeftButton,
+                     Qt::NoButton, Qt::NoModifier);
+      QApplication::sendEvent(title, &up);
+    };
+
+    // The double-click toggle first, while the shape is still compact: it moves nothing.
+    pressTitle(QEvent::MouseButtonDblClick);
+    QTest::qWait(40);
+    QCOMPARE(dock->geometry(), before);
+    QVERIFY2(win.chatCompactShowing(), "a dblclick on the bar neither floats nor docks it");
+
+    // The drag: it goes live from the compact shape, and starting it adopts the layout.
+    pressTitle(QEvent::MouseButtonPress);
+    moveTitle(QPoint(240, 180));
+    QTest::qWait(40);
+    QVERIFY2(dock->dragActive(), "the compact title bar drags, like the browser's header");
+    QVERIFY2(!win.chatCompactShowing(),
+             "and the drag adopts: what moves is a float the user chose, not a pinned popover");
+    releaseTitle();
+  }
+
   void chatDockDragZones() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);

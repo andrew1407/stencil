@@ -52,6 +52,19 @@ namespace stencil::llm {
     canvas_->setLines(lines);
   }
 
+  void CanvasPlanTarget::commitLayoutLines(const core::Lines& lines) {
+    canvas_->commitLines(lines);
+  }
+
+  bool CanvasPlanTarget::captureEdit(EditState& out) const {
+    out.valid = true;
+    out.crop = canvas_->cropRect();
+    out.filterMode = canvas_->imageFilter();
+    out.filterTint = canvas_->filterColor().name();
+    out.lines = canvas_->lines();
+    return true;
+  }
+
   void CanvasPlanTarget::setFormula(QChar axis, const QString& expr) {
     (axis == QLatin1Char('x') ? formulaX : formulaY) = expr;
   }

@@ -15,6 +15,8 @@ Commands  (a leading '/' is optional)
   [38;2;124;58;237m/rotate <int>[0m           rotate int*90 degrees (e.g. -1, 2, 3)
   [38;2;124;58;237m/filter <mode>[0m          bw | sepia | invert | contour | none | a colour name/#hex (tint)
   [38;2;124;58;237m/exec <action> ...[0m      run a transform by name (crop | rotate | filter | apply)
+  [38;2;124;58;237m/script <directives>[0m    run a .stc script on this image (';' separates statements)
+  [38;2;124;58;237m/script-run <file.stc>[0m  run a .stc script file on this image
   [38;2;124;58;237m/undo   /redo[0m           step back / forward through edits
   [38;2;124;58;237m/reset[0m                  revert to the original, dropping all edits
 

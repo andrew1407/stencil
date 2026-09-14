@@ -19,9 +19,13 @@ Thumbs.db
 !.claude/hooks/
 !.claude/rules/
 
-# Node (`node --test` plus browser/'s single dev dep, vite; no runtime deps)
+# Node (`node --test` plus the two sanctioned dev deps, browser/'s vite and
+# vscode-extension/'s @vscode/vsce; no runtime deps anywhere)
 node_modules/
 npm-debug.log*
+
+# VS Code extension (vscode-extension/): the packaged artifact, built on demand and in CI.
+vscode-extension/*.vsix
 
 # Single-file browser build (`cd browser && npm run build`): a generated monolith
 # HTML artifact, not committed. A custom name (`npm run build -- foo.html`) is

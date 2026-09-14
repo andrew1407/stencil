@@ -13,6 +13,8 @@ export const CTX_NAV_KEYS = Object.freeze(['ArrowDown', 'ArrowUp', 'ArrowLeft', 
 const CTX_FOCUSABLE = 'input, select, textarea, button, [tabindex]:not([tabindex="-1"])';
 export const ctxFocusables = (level) => [...level.querySelectorAll(CTX_FOCUSABLE)]
   .filter((el) => !el.disabled && el.getClientRects().length > 0);
+// A code editor owns Tab — it indents — so the flyout's Tab walk steps aside for it.
+export const ctxKeepsTab = (el) => el?.dataset?.ctxKeepTab === '1';
 
 export const wireCtxKeyboard = ({ menu, menuIsOpen, chatRowMenuOpen, closeSub, positionSub,
                                  activeSub, setActiveSub }) => {
@@ -86,7 +88,7 @@ export const wireCtxKeyboard = ({ menu, menuIsOpen, chatRowMenuOpen, closeSub, p
     const openSub = (open && open.classList.contains('ctx-sub-visible')) ? open : null;
       // Tab walks the open flyout's own controls, wrapping; a level with no controls treats
       // Tab as the arrows.
-      if (e.key === 'Tab') {
+      if (e.key === 'Tab' && !ctxKeepsTab(document.activeElement)) {
         const controls = ctxFocusables(openSub || menu);
         if (controls.length) {
           e.preventDefault();

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Stencil script",
+  "scopeName": "source.stc",
+  "patterns": [
+    { "include": "#color" },
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#use-stencil" },
+    { "include": "#stencil-def" },
+    { "include": "#param" },
+    { "include": "#directive" },
+    { "include": "#number" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "color": {
+      "comment": "A hex colour is the one '#' word that is not a comment; longest form first.",
+      "match": "#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])",
+      "name": "constant.other.color.stc"
+    },
+    "comment": {
+      "match": "#(?!(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?![0-9a-fA-F])).*$",
+      "name": "comment.line.number-sign.stc"
+    },
+    "string": {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.stc",
+      "patterns": [
+        { "match": "\\\\.", "name": "constant.character.escape.stc" }
+      ]
+    },
+    "use-stencil": {
+      "comment": "@use stencil <name>: the word run after the two keywords names a template.",
+      "match": "(?i)(@use)[ \\t]+(stencil)\\b[ \\t]*([^:#\\n]*[^:#\\n \\t])?",
+      "captures": {
+        "1": { "name": "keyword.control.directive.stc" },
+        "2": { "name": "keyword.control.directive.stc" },
+        "3": { "name": "entity.name.function.stc" }
+      }
+    },
+    "stencil-def": {
+      "match": "(?i)(@stencil)\\b[ \\t]*([^:#\\n]*[^:#\\n \\t])?",
+      "captures": {
+        "1": { "name": "keyword.control.directive.stc" },
+        "2": { "name": "entity.name.function.stc" }
+      }
+    },
+    "param": {
+      "match": "(?<![A-Za-z0-9_@])@\\d+(?![A-Za-z0-9_])",
+      "name": "variable.parameter.stc"
+    },
+    "directive": {
+      "match": "(?i)@(?:source|stencil|use|crop|filter|line|rect|layout|save|frame|undo|redo)\\b",
+      "name": "keyword.control.directive.stc"
+    },
+    "number": {
+      "match": "(?i)(?<![A-Za-z0-9_.])(-?\\d+(?:\\.\\d+)?)(px|cm|mm|in|%)?",
+      "captures": {
+        "1": { "name": "constant.numeric.stc" },
+        "2": { "name": "keyword.other.unit.stc" }
+      }
+    },
+    "punctuation": {
+      "match": "[(),:;=]",
+      "name": "punctuation.separator.stc"
+    }
+  }
+}

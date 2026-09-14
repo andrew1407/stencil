@@ -81,6 +81,7 @@ history (64 states deep, the same cap every surface holds).
 | Source | `load(src, *, frame=, name=, source=, resource=)`, `blank(width=, height=, color="#ffffff", page="A4")` |
 | Edits (chainable) | `rotate(q)`, `rotate_left()`, `rotate_right()`, `crop(spec=None, *, x1=, y1=, x2=, y2=, album=False)`, `set_filter(mode)`, `set_filter_color(color)`, `apply_filter(mode)`, `set_page_format(name, width=, height=)`, `draw(layout)`, `apply_layout(layout)` |
 | History | `undo() -> bool`, `redo() -> bool`, `reset()` |
+| Scripts | `script(text) -> ScriptResult`, `script_run(path) -> ScriptResult` |
 | Render / save | `result() -> Image`, `save(path, fmt=None) -> Image`, `layout() -> Layout`, `save_layout(path=None) -> str`, `save_project(path)`, `open_project(src)` |
 | Introspection | `image_size -> (w, h)`, `name -> str`, `page_format -> str`, `has_image() -> bool` |
 
@@ -191,13 +192,64 @@ python3 -m pystencil --repl
 
 REPL commands mirror the CLI console: `/upload`, `/source-upload` (alias `/scrape`),
 `/blank`, `/format`, `/crop`, `/rotate`, `/filter`, `/apply`, `/undo`, `/redo`, `/reset`,
-`/save`, `/layout`, `/connect`, `/connections`, `/fetch`, `/prompt` (alias `/p`), `/llm`
-and `/chat on|off|clear`. A bare command that needs arguments lists its options. `/layout
-[path]` has the same path semantics as `Editor.save_layout` and the Zig CLI.
+`/save`, `/layout`, `/script`, `/script-run`, `/connect`, `/connections`, `/fetch`,
+`/prompt` (alias `/p`), `/llm` and `/chat on|off|clear`. A bare command that needs
+arguments lists its options. `/layout [path]` has the same path semantics as
+`Editor.save_layout` and the Zig CLI.
+
+## Scripts (`.stc`)
+
+A `.stc` script batches the same edits over one image or a whole folder — the language is
+the [`.stc` contract](../contracts/stc/stc-contract.md), parsed by the shared core, so a
+script runs the same here, in the CLI, the desktop app and the browser.
+
+```stc
+@source shots/:              # every image in the folder
+    @crop 10%                # inset every edge by 10%
+    @filter sepia
+    @use line red, dashed, 3
+    @rect (10%, 10%) (-10%, -10%)
+    @save                    # -> shots/<name>-stencil.png
+```
+
+```bash
+python3 -m pystencil --script edit.stc            # run it ('-' reads stdin)
+python3 -m pystencil --script edit.stc -i a.png   # a script with no @source edits this input
+python3 -m pystencil --script edit.stc --confine-output   # refuse a @save outside the cwd
+python3 -m pystencil --script-check edit.stc      # file:line:col: error|warning: … [CODE]
+python3 -m pystencil --script-plan edit.stc       # the script lowered to op-plan JSON (stdout)
+```
+
+`--script-check` and `--script-plan` print to **stdout** for an editor or an adapter to
+parse; everything else goes to stderr. Both exit `1` when the script has an error, and a
+script with any error runs nothing.
+
+From Python, `Editor.script` runs a script against the image you already hold, and
+`run_script` walks a whole file:
+
+```python
+from pystencil import Editor, parse_script, run_script
+
+ed = Editor().load("photo.png")
+result = ed.script("@crop 25%; @filter bw")        # ';' separates statements
+result.applied, result.saved, result.diagnostics
+
+run = run_script("edit.stc")                        # every @source block, every input
+run.inputs, run.saved, run.has_errors
+
+with parse_script(open("edit.stc").read()) as program:   # parse only
+    for d in program.diagnostics:
+        print(d.format("edit.stc"))
+```
+
+In the REPL, `/script <directives>` and `/script-run <file.stc>` apply to the loaded image;
+a `@source` block is noted and skipped, since the console holds one picture, not a folder.
+Two deviations from the CLI: `@frame` needs a video decoder pystencil does not have, and a
+`@source` folder picks up only the formats `codecs` decodes (PNG/BMP).
 
 ## LLM prompts
 
-`pystencil.llm` implements the shared [LLM contract](../llm-contract/llm-contract.md): the
+`pystencil.llm` implements the shared [LLM contract](../contracts/llm/llm-contract.md): the
 model answers with an op-plan that is strictly validated and executed through the same
 `Editor` methods above. Chat-only replies come back with zero actions; each plan variant
 yields one extra output image.

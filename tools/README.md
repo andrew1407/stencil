@@ -47,9 +47,14 @@ normalized line, then and now. Languages, by extension:
 | `.js` `.mjs` `.cs` `.go` `.rs` `.zig` `.cpp` `.hpp` `.h` `.c` | `//` and `/* */` |
 | `.py` | `#` only — a docstring is a statement, and stays |
 
-Anything else is skipped. The scanner is string-aware in both tools (they share it): a `//`
-inside a string, a template literal, a regex, a Rust raw string, a C# verbatim string or a
-Zig `\\` line is content, not a comment — as the self-tests assert.
+Anything else is skipped — including `.stc` scripts and the fixture corpus they live in.
+A `.stc` is input data, not code: its `#` comments are part of what the lexer is tested on
+(a `#ccc` is a colour, not a comment), so stripping them would change the case rather than
+prove it unchanged. Diff those files normally.
+
+The scanner is string-aware in both tools (they share it): a `//` inside a string, a template
+literal, a regex, a Rust raw string, a C# verbatim string or a Zig `\\` line is content, not a
+comment — as the self-tests assert.
 
 ## `../desktop/tools/cppCommentDiff.sh` — the same, from the compiler
 

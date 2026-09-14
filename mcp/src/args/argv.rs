@@ -77,10 +77,10 @@ impl<'a> TryFrom<&'a EditParams> for Source<'a> {
         // here — it is enforced downstream in the CLI; this builder only guarantees each
         // value rides as one inert argv token (no shell, no splitting).
         if p.output.trim().is_empty() {
-            return Err(EditError::EmptyOutput);
+            return Err(EditError::EmptyValue("output"));
         }
         if p.output.starts_with('-') {
-            return Err(EditError::DashOutput(p.output.clone()));
+            return Err(EditError::DashValue("output", p.output.clone()));
         }
 
         // Collaboration-server invariants, mirroring the CLI's own checks.

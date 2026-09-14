@@ -197,7 +197,8 @@
     "--sb-thumb": {
       "light": "#d4d8de",
       "dark": "#6a6a6a"
-    }
+    },
+    "--font-mono": { "light": "'Menlo', 'Consolas', monospace", "dark": "'Menlo', 'Consolas', monospace" }
   },
   "derived": {
     "--accent-2": {
@@ -210,7 +211,7 @@
     },
     "--bg-coord-th": {
       "light": "var(--accent)",
-      "dark": "var(--accent-2)"
+      "dark": "var(--accent)"
     },
     "--bg-drop-hint": {
       "light": "color-mix(in srgb, var(--accent) 9%, white)",

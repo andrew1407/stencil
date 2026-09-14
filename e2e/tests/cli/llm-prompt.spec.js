@@ -5,9 +5,9 @@
 // asserts the plan EXECUTED — the saved PNG's real dimensions swapped — not just
 // that a reply was printed.
 import { test, expect } from '@playwright/test';
-import { spawn } from 'node:child_process';
 import path from 'node:path';
-import { CLI_BIN, cliAvailable, runCli, pngSize } from '../../helpers/cli.js';
+import { cliAvailable, pngSize, makeBlankInput } from '../../helpers/cli.js';
+import { runConsole } from '../../helpers/consoleCli.js';
 import { startLlmStub } from '../../helpers/llm-stub.js';
 
 test.describe('cli /prompt (LLM assistant)', () => {
@@ -21,44 +21,25 @@ test.describe('cli /prompt (LLM assistant)', () => {
   test.afterAll(async () => { await stub?.close(); });
   test.beforeEach(() => stub.reset());
 
-  // Pipe console commands in (the README's documented scripting mode: piped stdin
-  // uses the plain reader — no raw-mode editor, no /upload confirmation prompt).
-  // Async spawn, NOT spawnSync: the stub LLM lives in THIS process, and a sync
-  // child would block the event loop, so the stub could never answer the CLI.
-  const runConsole = (lines, cwd) => new Promise((resolve) => {
-    const child = spawn(CLI_BIN, ['--console'], {
-      cwd,
-      env: {
-        ...process.env,
-        STENCIL_LLM_PROVIDER: 'openai-compat',
-        STENCIL_LLM_BASE_URL: stub.url,
-        STENCIL_LLM_MODEL: 'e2e-model',
-      },
-    });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (d) => { stdout += d; });
-    child.stderr.on('data', (d) => { stderr += d; });
-    const timer = setTimeout(() => child.kill('SIGKILL'), 30_000);
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      resolve({ code, stdout, stderr, out: stdout + stderr });
-    });
-    child.stdin.write(lines.join('\n') + '\n');
-    child.stdin.end();
+  // The console reads /command lines from piped stdin (helpers/consoleCli.js); the
+  // STENCIL_LLM_* env points it at the stub living in this process.
+  const runScripted = (lines, cwd) => runConsole(lines, {
+    cwd,
+    env: {
+      STENCIL_LLM_PROVIDER: 'openai-compat',
+      STENCIL_LLM_BASE_URL: stub.url,
+      STENCIL_LLM_MODEL: 'e2e-model',
+    },
   });
 
   test('a scripted op-plan executes on the working image', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    // Known non-square input, made by the CLI itself (8x4, as in pipeline.spec.js).
-    const input = path.join(dir, 'in.png');
-    const mk = runCli(['--blank', '8', '4', 'white', input], { cwd: dir });
-    expect(mk.code, mk.out).toBe(0);
+    const input = makeBlankInput(dir);
 
     // The "model" answers with a valid §1 plan: one quarter-turn.
     stub.queue({ version: 1, reply: 'Rotated it a quarter turn.', actions: [{ op: 'rotate', dir: 'right' }] });
 
-    const r = await runConsole([
+    const r = await runScripted([
       `/upload ${input}`,
       '/prompt rotate this image a quarter turn',
       '/save out.png',
@@ -86,13 +67,11 @@ test.describe('cli /prompt (LLM assistant)', () => {
 
   test('a reply with no JSON object is just chat (image untouched)', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
-    const input = path.join(dir, 'in.png');
-    const mk = runCli(['--blank', '8', '4', 'white', input], { cwd: dir });
-    expect(mk.code, mk.out).toBe(0);
+    const input = makeBlankInput(dir);
 
     stub.queue('Nice picture! Nothing to change.'); // plain text, no op-plan
 
-    const r = await runConsole([
+    const r = await runScripted([
       `/upload ${input}`,
       '/prompt what do you think?',
       '/save out.png',

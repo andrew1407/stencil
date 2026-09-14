@@ -1,6 +1,6 @@
 /* ── Assistant "thinking" dots ───────────────────────────────────────────────
    The in-flight turn's placeholder: three dots bouncing in sequence, instead of a
-   static "…". Mirrored in extension/src/popup/popup.css and the desktop dock. */
+   static "…". Mirrored in browser-extension/src/popup/popup.css and the desktop dock. */
 .chat-typing {
     display: inline-flex;
     align-items: center;

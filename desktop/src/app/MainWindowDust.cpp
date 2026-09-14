@@ -32,7 +32,8 @@
 namespace stencil::gui {
 
   namespace {
-    // Parented to the veil, so an interrupted flight (stopChatAnim deletes the effect) takes the fade with it.
+    // Parented to the veil, so an interrupted flight takes the fade with it. Only the
+    // selection bar uses it: a surface that SLIDES must hand over at the end instead.
     QPropertyAnimation* fadeVeilUp(QGraphicsOpacityEffect* veil, int ms) {
       auto* fade = new QPropertyAnimation(veil, "opacity", veil);
       holdFadeKeys(fade, ms);
@@ -54,18 +55,26 @@ namespace stencil::gui {
     QWidget* dustHost = chatDock_->window();
     if (!dustHost || !support::isDustMotionOk()) return nullptr;
     pin(full);
+    // A dock is placed by the WINDOW's layout: without this the picture was measured at the
+    // hidden dock's stale geometry, and the motes assembled a whole chat below where it lands.
+    if (QLayout* l = layout()) l->activate();
     const QPixmap snap = chatDock_->grab();
     const QRect picture(chatDock_->mapTo(dustHost, QPoint(0, 0)), chatDock_->size());
     pin(gather ? 0 : full);   // gather starts empty; a scatter leaves from the settled size
     const QPoint target = dockAwayPoint(picture, area);
     QPointer<gui::DisintegrateOverlay> fx = gui::DisintegrateOverlay::overSurface(
         snap, picture, dustHost, target, gather, ms, chatDock_->palette().color(QPalette::WindowText));
+    /* The dock stays fully veiled for the WHOLE flight, and stopChatAnim hands over in one
+     * beat at the end. It is still sliding while the motes settle at the rest position, so
+     * anything that reveals it early shows the panel's own text twice, one copy off the other. */
     if (fx) {
       auto* veil = new QGraphicsOpacityEffect(chatDock_);
       veil->setOpacity(0.0);
       chatDock_->setGraphicsEffect(veil);
       chatVeil_ = veil;
-      if (gather) fadeVeilUp(veil, ms > 0 ? ms : gui::DisintegrateOverlay::SURFACE_IN_MS);
+      // The hand-over is the overlay's own end, never the slide's: the two clocks start a
+      // beat apart, and that beat drew neither the motes nor the dock.
+      connect(fx, &QObject::destroyed, this, [this] { dropChatVeil(); });
     }
     return fx;
   }

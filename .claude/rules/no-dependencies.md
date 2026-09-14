@@ -10,13 +10,19 @@ always the wrong move here. Match what each subproject already does:
 
 - **browser/** — vanilla ES modules, **no build step to run the app, no bundler in its
   serving path**. Don't add npm runtime deps or a framework. Tests run on **Node's
-  built-in runner** (`node --test`), not Jest/Vitest/Mocha. The one sanctioned exception,
-  agreed with the user: `vite` as a **local dev dependency** powering the optional
-  `npm run build` single-file bundle (`browser/vite.config.js` → `stencil.html`). Its
-  bundling rules are written out inline in that config — **don't add vite plugins** — no
-  lockfile is tracked (`browser/package-lock.json`, installed with `npm ci`), and nothing in
-  the app may come to depend on the build.
-- **extension/** — same: plain MV3, `node --test`, no deps.
+  built-in runner** (`node --test`), not Jest/Vitest/Mocha. The first of the two sanctioned
+  exceptions, agreed with the user: `vite` as a **local dev dependency** powering the
+  optional `npm run build` single-file bundle (`browser/vite.config.js` → `stencil.html`).
+  Its bundling rules are written out inline in that config — **don't add vite plugins** —
+  its lockfile is tracked and installed with `npm ci`, and nothing in the app may come to
+  depend on the build.
+- **browser-extension/** — same: plain MV3, `node --test`, no deps.
+- **vscode-extension/** — plain CommonJS against the `vscode` API the editor provides (never
+  a dependency), `node --test` behind a hand-written stub, and a parser that is a **byte-equal
+  copy** of `browser/js/core/script*.js`, never an npm package. The second sanctioned
+  exception: `@vscode/vsce`, exactly pinned, a **dev dependency** used only by
+  `npm run package` to build the `.vsix`. Its lockfile is tracked; nothing ships at runtime
+  and the packaged extension carries no `node_modules`.
 - **core/** — **STL-only, codec-free, GUI-free** C++17. No Qt, no image codec, no DOM, no
   third-party libs. The one exception is Doctest — a single pinned header fetched at
   configure time (not a package). Codecs/HTTP/JSON belong in the adapters (Zig CLI, GUIs).

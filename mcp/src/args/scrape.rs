@@ -114,10 +114,10 @@ pub fn build_scrape_argv(params: &ScrapeParams) -> Result<Argv, EditError> {
     // positional default. An empty or dash-leading directory is rejected up front.
     let output = params.output.as_deref().unwrap_or(".");
     if output.trim().is_empty() {
-        return Err(EditError::EmptyOutput);
+        return Err(EditError::EmptyValue("output"));
     }
     if output.starts_with('-') {
-        return Err(EditError::DashOutput(output.to_string()));
+        return Err(EditError::DashValue("output", output.to_string()));
     }
 
     let mut b = ArgvBuilder::new();

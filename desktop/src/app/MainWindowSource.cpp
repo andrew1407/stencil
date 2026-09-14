@@ -75,6 +75,10 @@ namespace stencil::gui {
       openProjectFile(path);
       return;
     }
+    if (suffix.compare("stc", Qt::CaseInsensitive) == 0) {
+      runScriptFromFile(path);
+      return;
+    }
     openImageSource(path, frame);
   }
 
