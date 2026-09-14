@@ -10,9 +10,9 @@
 .ctx-script-plain .ctx-arrow { display: none; }
 .ctx-script-plain > .ctx-sub { display: none !important; }
 .ctx-script {
-    /* Wide enough for a directive with its arguments on one line, and for the four
+    /* Wide enough for a directive with its arguments on one line, and for the five
        actions in one row, without the menu itself getting wide. */
-    width: 372px;
+    width: 448px;
     max-width: calc(100vw - 40px);
     box-sizing: border-box;
     padding: 2px 12px 6px;
@@ -39,7 +39,7 @@
    menu's pointer would otherwise inherit down to. */
 #ctx-script-editor { cursor: text; }
 #ctx-script-diag { padding: 6px 2px 0; font-size: 11.5px; }
-/* Copy · Download · Upload · Run, right-aligned like the window's footer and free to
+/* Copy · Download · Upload · Run · Clear, right-aligned like the window's footer and free to
    wrap onto a second line on a narrow viewport. Scoped through .ctx-script so the
    tighter gap outranks the shared .chat-settings-actions row this reuses. */
 .ctx-script-row { display: flex; justify-content: flex-end; padding-top: 8px; }

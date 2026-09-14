@@ -4571,7 +4571,7 @@
     "font-weight": "normal"
    },
    "|.ctx-script": {
-    "width": "372px",
+    "width": "448px",
     "max-width": "calc(100vw - 40px)",
     "box-sizing": "border-box",
     "padding": "2px 12px 6px",
