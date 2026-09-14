@@ -109,7 +109,7 @@ export function wireDropPaste(app) {
     if (file.name.endsWith('.stencil')) {
       app.export.openProjectFile(file, { from });   // a whole .stencil project ignores the save/incognito split
     } else if (file.name.endsWith('.stc')) {
-      loadScriptFile(file, { app });   // into the script window when it is open, else it runs
+      loadScriptFile(file);   // into the script window when it is open, else it runs
     } else if (file.type.startsWith('image/')) {
       handleImageDrop(file, incognito, from);
     } else if (file.name.endsWith('.json') || file.type === 'application/json') {

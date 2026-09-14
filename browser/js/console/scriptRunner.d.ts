@@ -6,7 +6,6 @@ export class ScriptError extends Error {
 }
 export interface RunScriptOptions {
   fetchLayout?: (src: string, op: unknown) => Promise<unknown>;
-  app?: unknown;
 }
 export const runScript: (
   text: string, stencil: Stencil, options?: RunScriptOptions,

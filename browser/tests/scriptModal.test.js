@@ -76,18 +76,21 @@ test('the highlight layer is built from nodes, never from markup', () => {
 });
 
 test('the window and the context-menu flyout paint through the ONE highlighter', () => {
-  // Two copies of a token painter would let the two editors disagree about a line.
+  // Two copies of a token painter — or of the editor wiring around it — would let the two
+  // editors disagree about a line.
+  assert.match(src('../js/ui/scriptEditor.js'),
+    /import \{ paintInto, showDiagnostic \} from '\.\/scriptHighlight\.js'/);
   for (const module of ['scriptModal.js', 'ctxScriptEditor.js']) {
     assert.match(src(`../js/ui/${module}`),
-      /import \{ paintInto, showDiagnostic \} from '\.\/scriptHighlight\.js'/, module);
-    assert.ok(!/const paintInto|function paintInto/.test(src(`../js/ui/${module}`)),
-      `${module} imports the painter instead of keeping its own`);
+      /import \{ wireScriptEditor \} from '\.\/scriptEditor\.js'/, module);
+    assert.ok(!/paintInto|showDiagnostic/.test(src(`../js/ui/${module}`)),
+      `${module} wires the shared editor instead of painting for itself`);
   }
 });
 
 test('a dropped .stc is routed to the one loader, and the overlay says so', () => {
   const drop = src('../js/ui/bindings/dropPaste.js');
   assert.match(drop, /endsWith\('\.stc'\)/);
-  assert.match(drop, /loadScriptFile\(file, \{ app \}\)/);
+  assert.match(drop, /loadScriptFile\(file\)/);
   assert.match(src('../js/ui/dropOverlay.js'), /\.stc script/);
 });

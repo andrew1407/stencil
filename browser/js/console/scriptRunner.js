@@ -3,6 +3,7 @@
 // clicked one are one code path. Deliberately not routed through js/llm/: an op plan is
 // model output and carries anti-abuse caps a user's own script must not inherit.
 import { cropSpecOf, parseScript, resolveShape } from '../core/script.js';
+import { timeoutSignal } from '../net/abortable.js';
 import { notify } from '../utils.js';
 
 export class ScriptError extends Error {
@@ -28,76 +29,74 @@ const sizeOf = (stencil) => {
   return { width: s.width || 0, height: s.height || 0 };
 };
 
-/* Applies one op. `ctx` carries the facade, the host capabilities and the last source, so
- * a later @frame can re-open it. Returns nothing; throws a ScriptError to stop the run. */
+const shapeOp = (op, { stencil }) => {
+  const shape = resolveShape(op, sizeOf(stencil));
+  if (!shape) throw new ScriptError('this shape resolves to nothing', { line: op.line, col: op.col });
+  const [color, style, fillColor, pointColor] = op.strs;
+  stencil.setLines([{
+    points: shape.points,
+    color,
+    style,
+    fillColor,
+    pointColor,
+    thickness: shape.thickness,
+    pointSize: shape.pointSize,
+    locked: op.kind === 'rect',
+  }], { mode: 'combine' });
+};
+
+const stepHistory = (op, step) => {
+  const steps = Math.max(1, Math.round(op.nums[0] ?? 1));
+  for (let i = 0; i < steps; i += 1) step();
+};
+
+/* One entry per op kind: the table IS the dispatch. `ctx` carries the facade, the layout
+ * fetcher and the last source, so a later @frame can re-open it; an entry throws a
+ * ScriptError to stop the run. The lowerer emits `undo` only — the ledger replays survivors. */
+const OP_RUNNERS = Object.freeze({
+  async open(op, ctx) {
+    const [spec] = op.strs;
+    const kind = ctx.program.blocks[op.block]?.kind;
+    if (kind !== 'url') throw needsUrl(op);
+    ctx.lastSource = spec;
+    await ctx.stencil.load(spec, {});
+  },
+  async frame(op, ctx) {
+    if (!ctx.lastSource) {
+      throw new ScriptError('@frame needs a @source first', { line: op.line, col: op.col });
+    }
+    await ctx.stencil.load(ctx.lastSource, { frame: op.nums[0] ?? 0 });
+  },
+  crop(op, { stencil }) {
+    stencil.crop(cropSpecOf(op));
+  },
+  filter(op, { stencil }) {
+    const [mode, tint] = op.strs;
+    if (mode === 'custom') stencil.apply({ filter: 'custom', filterColor: tint });
+    else stencil.apply({ filter: mode });
+  },
+  line: shapeOp,
+  rect: shapeOp,
+  async layout(op, ctx) {
+    const [src, mode] = op.strs;
+    const data = await ctx.fetchLayout(src, op);
+    ctx.stencil.applyLayout(data, { mode: mode === 'replace' ? 'replace' : 'combine' });
+  },
+  undo(op, { stencil }) {
+    stepHistory(op, () => stencil.undo());
+  },
+  redo(op, { stencil }) {
+    stepHistory(op, () => stencil.redo());
+  },
+  async save(op, { stencil }) {
+    const name = op.strs[0];
+    if (name) stencil.project.name = name;
+    await stencil.save();
+  },
+});
+
 const runOp = async (op, ctx) => {
-  const { stencil } = ctx;
-  switch (op.kind) {
-    case 'open': {
-      const [spec] = op.strs;
-      const kind = ctx.program.blocks[op.block]?.kind;
-      if (kind !== 'url') throw needsUrl(op);
-      ctx.lastSource = spec;
-      await stencil.load(spec, {});
-      break;
-    }
-    case 'frame': {
-      if (!ctx.lastSource) {
-        throw new ScriptError('@frame needs a @source first', { line: op.line, col: op.col });
-      }
-      await stencil.load(ctx.lastSource, { frame: op.nums[0] ?? 0 });
-      break;
-    }
-    case 'crop':
-      stencil.crop(cropSpecOf(op));
-      break;
-    case 'filter': {
-      const [mode, tint] = op.strs;
-      if (mode === 'custom') stencil.apply({ filter: 'custom', filterColor: tint });
-      else stencil.apply({ filter: mode });
-      break;
-    }
-    case 'line':
-    case 'rect': {
-      const shape = resolveShape(op, sizeOf(stencil));
-      if (!shape) throw new ScriptError('this shape resolves to nothing', { line: op.line, col: op.col });
-      const [color, style, fillColor, pointColor] = op.strs;
-      stencil.setLines([{
-        points: shape.points,
-        color,
-        style,
-        fillColor,
-        pointColor,
-        thickness: shape.thickness,
-        pointSize: shape.pointSize,
-        locked: op.kind === 'rect',
-      }], { mode: 'combine' });
-      break;
-    }
-    case 'layout': {
-      const [src, mode] = op.strs;
-      const data = await ctx.fetchLayout(src, op);
-      stencil.applyLayout(data, { mode: mode === 'replace' ? 'replace' : 'combine' });
-      break;
-    }
-    case 'undo':
-    case 'redo': {
-      const steps = Math.max(1, Math.round(op.nums[0] ?? 1));
-      for (let i = 0; i < steps; i += 1) {
-        if (op.kind === 'undo') stencil.undo();
-        else stencil.redo();
-      }
-      break;
-    }
-    case 'save': {
-      const name = op.strs[0];
-      if (name) stencil.project.name = name;
-      await stencil.save();
-      break;
-    }
-    default:
-      break;
-  }
+  if (Object.hasOwn(OP_RUNNERS, op.kind)) await OP_RUNNERS[op.kind](op, ctx);
 };
 
 /* Runs `text` against the editor. Nothing executes when the script has an error; a failure
@@ -116,9 +115,11 @@ export const runScript = async (text, stencil, { fetchLayout } = {}) => {
     stencil,
     program,
     lastSource: '',
+    // Through the same timeout every other fetcher uses: a stalled layout URL must not
+    // leave the run — and the flyout it holds open — pending for ever.
     fetchLayout: fetchLayout ?? (async (src, op) => {
       if (!/^https?:\/\//i.test(src)) throw needsUrl({ ...op, strs: [src] });
-      const res = await fetch(src);
+      const res = await fetch(src, { signal: timeoutSignal() });
       if (!res.ok) throw new ScriptError(`could not load the layout '${src}'`, op);
       return res.json();
     }),

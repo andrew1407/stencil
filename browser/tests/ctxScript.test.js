@@ -197,11 +197,12 @@ test('the editor keeps Tab for itself — it indents, it does not leave', () => 
   assert.ok(ctxKeepsTab({ dataset: { ctxKeepTab: '1' } }));
   assert.ok(!ctxKeepsTab({ dataset: {} }), 'every other control lets Tab walk the flyout');
   assert.match(src('ctxKeyboard.js'), /if \(e\.key === 'Tab' && !ctxKeepsTab\(document\.activeElement\)\)/);
-  assert.match(src('ctxScriptEditor.js'), /editor\.selectionStart = a \+ 2;/);
+  assert.match(src('scriptEditor.js'), /editor\.selectionStart = a \+ 2;/);
 });
 
 test('the flyout is a ui/ module: no llm, no facade of its own', () => {
-  for (const name of ['ctxScript.js', 'ctxScriptItem.js', 'ctxScriptEditor.js', 'scriptHighlight.js']) {
+  for (const name of ['ctxScript.js', 'ctxScriptItem.js', 'ctxScriptEditor.js', 'scriptEditor.js',
+    'scriptHighlight.js']) {
     assert.ok(!/from '\.\.\/llm\//.test(src(name)), `${name} may not reach the llm layer`);
     assert.ok(!/window\.stencil/.test(src(name)), `${name} runs scripts through console/scriptRunner.js`);
   }
