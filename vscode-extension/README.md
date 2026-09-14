@@ -47,7 +47,34 @@ editor and a run cannot disagree.
 ### Colours
 
 Each family takes a standard semantic token type, so an installed theme colours it with no
-setup; any row can be overridden with `editor.semanticTokenColorCustomizations`.
+setup. There is no colour setting in this extension — VS Code lets only a theme or you set
+one. To pick your own, put this in `settings.json` (⌘⇧P → *Preferences: Open User Settings
+(JSON)*) and change any value:
+
+```jsonc
+"editor.semanticTokenColorCustomizations": {
+  "[*]": {                      // or name one theme, e.g. "[Dark Modern]"
+    "rules": {
+      "macro":      "#569cd6",  // @source
+      "class":      "#4ec9b0",  // @stencil
+      "type":       "#4ec9b0",  // a template name, where defined and where used
+      "keyword":    "#c586c0",  // @use @crop @filter @line @rect @layout @frame
+      "function":   "#dcdcaa",  // @save @undo @redo
+      "parameter":  "#9cdcfe",  // @1 @2
+      "enumMember": "#4fc1ff",  // bw sepia invert contour none
+      "label":      "#c8c8c8",  // solid dashed dotted fill point combine replace
+      "variable":   "#9cdcfe",  // x1 x2 y1 y2 aspect
+      "property":   "#9cdcfe",  // #ff3b30, red, transparent
+      "string":     "#ce9178",  // what @source, @save and @layout name
+      "number":     "#b5cea8",
+      "operator":   "#d4d4d4"   // px cm mm in %
+    }
+  }
+}
+```
+
+These types are shared with every other language, so scope a rule to `.stc` alone by nesting
+it under `"[stencil-script]"` in `editor.semanticTokenColorCustomizations` instead.
 
 | | Token type |
 |---|---|
