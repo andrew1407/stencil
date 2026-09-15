@@ -1,6 +1,6 @@
 # Stencil for VS Code
 
-![completion while typing a script](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/vscode-extension/img/completion-hints.gif)
+![completion while typing a script](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/completion-hints.gif)
 
 Editor support for the Stencil script language. A `.stc` file is a recipe — crop this, tint
 that, draw a box here, save it there — that [Stencil](https://github.com/andrew1407/stencil)
@@ -14,7 +14,7 @@ editor and a run cannot disagree.
 
 - **Repository** — <https://github.com/andrew1407/stencil>
 - **What it looks like** —
-  [`usecases/vscode-extension/USECASES.md`](https://github.com/andrew1407/stencil/blob/main/usecases/vscode-extension/USECASES.md)
+  [`usecases/docs/vscode-extension/USECASES.md`](https://github.com/andrew1407/stencil/blob/main/usecases/docs/vscode-extension/USECASES.md)
 - **The editor in your browser** — <https://andrew1407.github.io/stencil/>
 - **The language, normatively** —
   [`contracts/stc/`](https://github.com/andrew1407/stencil/tree/main/contracts/stc)

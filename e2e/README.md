@@ -5,7 +5,7 @@ surface and black-boxes the collaboration server. Unlike the per-subproject unit
 these run the **real** artifacts: the browser app in a real Chromium, the unpacked MV3
 extension, the Zig CLI binary, and the actual Go server over its REST/WS/TCP wire protocol.
 How the harness is laid out: [`ARCHITECTURE.md`](ARCHITECTURE.md). The use-case screenshot
-scripts in `usecases/capture/` reuse its helpers and its Playwright install.
+scripts in `usecases/capture-runner/` reuse its helpers and its Playwright install.
 
 ## Running
 

@@ -4,7 +4,7 @@ A small command-line image tool that wraps Stencil's shared C++ core for quick, 
 image manipulation: load an image, video frame, or blank page, crop / rotate it, draw a
 layout, apply a filter, and write the result. For the project overview see the
 [repository README](../README.md); for how the tool is built, [`ARCHITECTURE.md`](ARCHITECTURE.md);
-for what the console looks like, [`usecases/cli/USECASES.md`](../usecases/cli/USECASES.md).
+for what the console looks like, [`usecases/docs/cli/USECASES.md`](../usecases/docs/cli/USECASES.md).
 
 ```bash
 stencil -i photo.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 out.png
