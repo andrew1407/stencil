@@ -141,9 +141,10 @@ const withCli = async (body, run) => {
   const dir = mkdtempSync(join(tmpdir(), 'stencil-vsce-'));
   const script = join(dir, 'demo.stc');
   writeFileSync(script, '@source a.png:\n    @crp 10%\n');
+  const cli = fakeCli(dir, body);
   try {
-    await withHost({ settings: { 'stencil.cliPath': fakeCli(dir, body) } }, async (booted) => {
-      await run({ ...booted, script });
+    await withHost({ settings: { 'stencil.cliPath': cli } }, async (booted) => {
+      await run({ ...booted, cli, script });
     });
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -215,4 +216,12 @@ test('closing a document drops its squiggles and its pending check', async () =>
       await delay(diagnostics.DEBOUNCE_MS * 2);
       assert.equal(calls.collections[0].entries.size, 0, 'the debounced check was cancelled');
     });
+});
+
+test('a CLI that never answers is killed, and the copies take over', POSIX_ONLY, async () => {
+  await withCli('cat', async ({ cli, host, script }) => {
+    const { CHECK_TIMEOUT_MS, runCheck } = host.require('lib/scriptCheck.js');
+    assert.ok(CHECK_TIMEOUT_MS > 0, 'the wait on the child is bounded');
+    assert.equal(await runCheck(cli, script, 150), null, 'a kill is no answer, not an empty one');
+  });
 });
