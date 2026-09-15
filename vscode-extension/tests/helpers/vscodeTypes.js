@@ -45,11 +45,12 @@ export class OutputChannel {
 
 // A seeded answer may be an Error — how a page-side throw arrives.
 export class DebugSession {
-  constructor(name, answers, { silent = false } = {}) {
+  constructor(name, answers, { silent = false, url = '' } = {}) {
     this.name = name;
     this.answers = answers;
     this.requests = [];
     this.silent = silent;
+    this.configuration = { url };   // what a real launch session carries, and which instance
   }
 
   customRequest(command, args) {

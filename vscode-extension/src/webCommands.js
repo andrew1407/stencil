@@ -9,7 +9,7 @@ const { COMMANDS, CONFIG_SECTION, LANGUAGE_ID, PROJECT_LANGUAGE_ID, SETTINGS,
 } = require('./lib/ids.js');
 const { isJsSource } = require('./lib/jsSource.js');
 const { BAD_WEB_URL, webUrlFor } = require('./lib/webTarget.js');
-const { buildLaunchUrl, imageDataUrl, imagePart, localSources, projectLaunch, scriptLaunch,
+const { buildLaunchUrl, imageDataUrl, localSources, projectLaunch, scriptLaunch,
   tooBig } = require('./lib/webLaunch.js');
 const { evaluate, expressionFor, loadExpression, pageSession } = require('./lib/webConsole.js');
 const { programFor } = require('./lib/programCache.js');

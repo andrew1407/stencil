@@ -148,3 +148,24 @@ test('a session someone else started is reused only if it IS the app', async () 
     assert.match(session.name, /page/);
   });
 });
+
+// A page that answers the probe is the wrong page if the setting names another instance.
+test('a live session at another URL is not reused, however well it answers', async () => {
+  await withHost({ debugAnswers: [{ result: "'object'" }] }, async ({ calls, vscode, webConsole }) => {
+    vscode.debug.activeDebugSession = {
+      name: 'Stencil Web',
+      configuration: { url: 'http://localhost:9999/' },
+      customRequest: () => Promise.resolve({ result: "'object'" }),
+    };
+    const { session } = await webConsole.pageSession(vscode, APP, { timeoutMs: 2000 });
+    assert.equal(calls.debugConfigs.length, 1, 'the configured instance is launched instead');
+    assert.match(session.name, /page/);
+  });
+  await withHost({}, ({ webConsole }) => {
+    const at = (url) => ({ configuration: { url } });
+    assert.equal(webConsole.atUrl(at(APP), APP), true);
+    assert.equal(webConsole.atUrl(at(`${APP}#stencil=x`), APP), true, 'the hand-off adds a fragment');
+    assert.equal(webConsole.atUrl(at('http://localhost:9999/'), APP), false);
+    assert.equal(webConsole.atUrl({ name: 'attached' }, APP), true, 'an attach declares no URL');
+  });
+});

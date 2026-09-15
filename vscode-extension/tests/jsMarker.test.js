@@ -54,6 +54,41 @@ test('a word in a line comment pops nothing, and a URL is not a comment', async 
   });
 });
 
+// The list reads a comment the way the hover does: writing about the facade is not calling it.
+test('the member list is not offered inside a comment either', async () => {
+  await withHost({}, ({ hints }) => {
+    const prose = stcjs('// see stencil.\nstencil.');
+    assert.deepEqual(hints.completionProvider.provideCompletionItems(prose, at(0, 15)), []);
+    assert.ok(hints.completionProvider.provideCompletionItems(prose, at(1, 8)).length > 100);
+    const url = stcjs("await stencil.load('https://example.com/');\nstencil.");
+    assert.ok(hints.completionProvider.provideCompletionItems(url, at(1, 8)).length > 100,
+      'a URL on an earlier line is not a comment');
+  });
+});
+
+// Finding a marker that may stand anywhere reads the whole buffer, and every keystroke asks.
+test('the marker is read once per edit, not once per keystroke', async () => {
+  await withHost({}, ({ hints }) => {
+    let reads = 0;
+    const document = {
+      languageId: 'javascript',
+      uri: { toString: () => 'file:///tmp/a.js' },
+      version: 1,
+      getText() { reads += 1; return '// @use stencil\nstencil.'; },
+      lineAt: (line) => ({ text: this?.text ?? 'stencil.' }),
+    };
+    for (let i = 0; i < 5; i += 1) hints.completionProvider.provideCompletionItems(document, at(1, 8));
+    assert.equal(reads, 1, 'the buffer was scanned once for one version');
+    document.version = 2;
+    hints.completionProvider.provideCompletionItems(document, at(1, 8));
+    assert.equal(reads, 2, 'an edit is read again');
+    const unversioned = { ...document, version: undefined };   // nothing would invalidate it
+    hints.completionProvider.provideCompletionItems(unversioned, at(1, 8));
+    hints.completionProvider.provideCompletionItems(unversioned, at(1, 8));
+    assert.equal(reads, 4);
+  });
+});
+
 // Anywhere: under a header, below the code, at the very end, indented inside a function.
 test('the marker is read wherever in the file it stands', async () => {
   await withHost({}, ({ hints }) => {
