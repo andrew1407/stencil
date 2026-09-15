@@ -9,7 +9,7 @@ from typing import Any, Iterable, Union
 from .._types import NoneType
 from .connection import ServerConnection
 from .diff import _poll_loop, diff_projects
-from .urls import normalize_url
+from .urls import normalize_url, split_invite_token
 from .._net import _fetch_all
 
 
