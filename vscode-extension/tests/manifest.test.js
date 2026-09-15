@@ -87,6 +87,7 @@ test('every contributed path exists on disk', () => {
   const paths = [
     ...contributes.languages.map((l) => l.configuration),
     ...contributes.grammars.map((g) => g.path),
+    ...contributes.commands.flatMap((c) => (typeof c.icon === 'object' ? Object.values(c.icon) : [])),
   ];
   for (const path of paths) assert.ok(existsSync(here(`../${path}`)), `${path} is missing`);
 });
@@ -103,6 +104,13 @@ test('the run button and the keybinding point at the run command, scoped to .stc
   const [item] = contributes.menus['editor/title'];
   assert.equal(item.command, ids.COMMANDS.runScript);
   assert.equal(item.when, `resourceLangId == ${ids.LANGUAGE_ID}`);
+  for (const entry of contributes.menus['editor/title']) {
+    const command = contributes.commands.find((c) => c.command === entry.command);
+    assert.ok(command?.icon, `${entry.command} has no title-bar icon`);
+    assert.ok(entry.when?.includes('resourceLangId'), `${entry.command} is not scoped to a language`);
+  }
+  const console = contributes.menus['editor/title'].find((e) => e.command === ids.COMMANDS.runInWebConsole);
+  assert.equal(console.when, `resourceLangId == ${ids.JS_LANGUAGE_ID}`);
   const [binding] = contributes.keybindings;
   assert.equal(binding.command, ids.COMMANDS.runScript);
   assert.equal(binding.key, 'ctrl+alt+r');

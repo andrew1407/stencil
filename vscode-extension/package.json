@@ -137,9 +137,19 @@
         "icon": "$(globe)"
       },
       {
+        "command": "stencil.openInWebIncognito",
+        "title": "Stencil: Open in Stencil Web (incognito)",
+        "category": "Stencil",
+        "icon": {
+          "light": "icons/incognito-light.svg",
+          "dark": "icons/incognito-dark.svg"
+        }
+      },
+      {
         "command": "stencil.runInWebConsole",
         "title": "Stencil: Run in Stencil Web Console",
-        "category": "Stencil"
+        "category": "Stencil",
+        "icon": "$(play-circle)"
       },
       {
         "command": "stencil.runSelectionInWebConsole",
@@ -252,6 +262,16 @@
         {
           "command": "stencil.openInWeb",
           "when": "resourceLangId == stencil-script || resourceLangId == stencil-project",
+          "group": "navigation"
+        },
+        {
+          "command": "stencil.openInWebIncognito",
+          "when": "resourceLangId == stencil-script || resourceLangId == stencil-project",
+          "group": "navigation"
+        },
+        {
+          "command": "stencil.runInWebConsole",
+          "when": "resourceLangId == stencil-js",
           "group": "navigation"
         }
       ]

@@ -184,9 +184,13 @@ CLI:
 
 **Open in Stencil Web** hands the file to your own browser. The script — or a `.stencil`
 project — rides in the URL *fragment*, which no server ever sees, and the app runs it on
-arrival and shows the source in its script window. A script that names no `@source` acts on
-whatever is open, so it asks for a picture to take along. A `@source` that names a local path
-cannot work there: the app has no filesystem, and says so itself, on the line it happened.
+arrival and keeps the source in its script window, for when you open it. A script that names
+no `@source` acts on whatever is open, so it asks for a picture to take along. A `@source`
+that names a local path cannot work there: the app has no filesystem, and says so itself, on
+the line it happened.
+
+**Open in Stencil Web (incognito)** is the same hand-off into the app's incognito session:
+it runs the script and keeps no project afterwards.
 
 **Run in Stencil Web Console** opens the app under VS Code's built-in JavaScript debugger and
 evaluates in the page, so it can run the whole file, just the selection, or one expression you
@@ -209,12 +213,14 @@ Running a script through the CLI needs it on the machine: `cd cli && zig build` 
 | Stencil: Check script | — | `stencil --script-check <file>` |
 | Stencil: Configure highlight colours | — | opens the colour setting — see [Colours](#colours) |
 | Stencil: Open in Stencil Web | — | the browser, on `#stencil=<the script>` |
+| Stencil: Open in Stencil Web (incognito) | — | the same, into a session the app keeps nothing from |
 | Stencil: Run in Stencil Web Console | `Ctrl+Alt+W` / `⌘⌥W` | `stencil.execScript(…)` in the page, or the `.stcjs` itself |
 | Stencil: Run selection in Stencil Web Console… | — | the selection, else an expression you type |
 | Stencil: Open an image in Stencil Web… | — | `stencil.load(<url or the file's bytes>)` |
 | Stencil: Add facade typings to this workspace | — | writes `stencil.d.ts` (+ a `jsconfig.json` if needed) |
 
-There is also a ▶ and a 🌐 in the editor title bar. The three CLI commands save the file first and
+A `.stc` carries a ▶, a 🌐 and its incognito twin in the editor title bar, and a `.stcjs`
+the console-run button — the only route it has. The three CLI commands save the file first and
 run in a terminal called **Stencil**, from the script's own directory — so a relative
 `@source` path means what it means on the command line.
 

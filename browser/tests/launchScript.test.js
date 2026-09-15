@@ -68,6 +68,16 @@ test('a script-only hand-off survives the no-image path (nothing to normalize, s
   assert.equal(notifications.length, 0, 'and a picture-less hand-off is not an error');
 });
 
+test('a script-only hand-off can still ask for incognito', async () => {
+  resetGlobals();
+  globalThis.location.hash = fragmentFor({ script: '@filter sepia\n', incognito: true });
+  const mock = makeMock();
+  await run(mock);
+
+  assert.equal(mock.storage.incognito, true, 'the flag rides a payload that normalizes to nothing');
+  assert.equal(mock.pendingLaunchScript, '@filter sepia\n');
+});
+
 test('a non-string, empty or oversize script is ignored', async () => {
   for (const script of [42, null, { text: '@crop 10%' }, ['@crop 10%'], '', 'x'.repeat(MAX_LAUNCH_SCRIPT + 1)]) {
     resetGlobals();

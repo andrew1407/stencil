@@ -59,8 +59,9 @@ sources resolve.
 ## Send it to the browser
 
 **Stencil: Open in Stencil Web** hands the open script — or a `.stencil` project — to the
-browser app, which runs it on the picture and shows the source in its script window. The
-whole hand-off rides in the URL fragment, so nothing about it reaches a server.
+browser app, which runs it on the picture and keeps the source in its script window. The
+whole hand-off rides in the URL fragment, so nothing about it reaches a server. Its incognito
+twin sends the same thing into a session the app keeps nothing from.
 
 A script that names no `@source` acts on whatever is open, so the command asks for a picture to
 send along with it. In the browser the script has no filesystem to read either: a `@source`
@@ -70,8 +71,8 @@ there must be an `http(s)` URL, and the app says so itself, on the line it happe
 
 ## Drive the browser console
 
-**Stencil: Run in Stencil Web Console** (`Cmd+Alt+W` / `Ctrl+Alt+W`) opens the app under VS
-Code's own JavaScript debugger and runs in the page itself, so the same file can be run again
+**Stencil: Run in Stencil Web Console** (`Cmd+Alt+W` / `Ctrl+Alt+W`, and the ▷ button a
+`.stcjs` carries) opens the app under VS Code's own JavaScript debugger and runs in the page itself, so the same file can be run again
 and again against what is on screen. Its two siblings run just the selection — or one
 expression you type — and open an image by URL or from disk. Answers land in the **Stencil**
 output channel.
