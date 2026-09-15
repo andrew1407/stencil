@@ -2,6 +2,8 @@
 // explains it. No `vscode` here — hover.js and completion.js turn these into editor objects.
 'use strict';
 
+const { makeExplain } = require('./vocabularyEntry.js');
+
 const VOCABULARY = require('../config/stcVocabulary.json');
 
 const DIRECTIVES = VOCABULARY.directives;
@@ -25,28 +27,14 @@ const entryFor = (word) => {
   return DIRECTIVES[key] ?? WORDS[key] ?? UNITS[key];
 };
 
-/* `**@crop** — Cut the picture down…` over a fenced signature, the prose, then a fenced
- * example. Every section is optional, so a one-line word renders as one line. `fence` is the
- * language the two blocks are lit in — apiVocabulary.js renders JavaScript through this. */
-const markdownFor = (label, entry, fence = 'stc') => {
-  if (!entry) return '';
-  const open = `\`\`\`${fence}`;
-  const parts = [`**${label}** — ${entry.summary}`];
-  if (entry.signature) parts.push([open, entry.signature, '```'].join('\n'));
-  if (entry.detail) parts.push(entry.detail);
-  if (entry.example) parts.push([open, entry.example, '```'].join('\n'));
-  return parts.join('\n\n');
-};
-
 // Directives and keywords are case-insensitive, so the heading shows the canonical spelling.
-const explain = (word) => {
-  const bare = String(word).replace(/^@/, '').toLowerCase();
-  const entry = entryFor(bare);
-  if (!entry) return '';
-  return markdownFor(DIRECTIVES[bare] === entry ? `@${bare}` : bare, entry);
-};
+const explain = makeExplain({
+  normalize: (word) => String(word).replace(/^@/, '').toLowerCase(),
+  lookup: entryFor,
+  label: (bare, entry) => (DIRECTIVES[bare] === entry ? `@${bare}` : bare),
+});
 
 module.exports = {
   CROP_KEYS, DIRECTIVES, DIRECTIVE_NAMES, MODES, STYLES, UNITS, UNIT_NAMES, WORDS,
-  entryFor, explain, groupOf, markdownFor,
+  entryFor, explain, groupOf,
 };

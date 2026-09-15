@@ -7,7 +7,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { createRequire } from 'node:module';
+
 import { at, js, span, stcjs, withHost } from './helpers/jsHost.js';
+
+const jsSource = createRequire(import.meta.url)('../src/lib/jsSource.js');
 
 // A comment: the editor's own service never explains one, so this answer is given even where
 // the extension otherwise stands aside.
@@ -51,6 +55,26 @@ test('a word in a line comment pops nothing, and a URL is not a comment', async 
     assert.ok(hints.hoverProvider.provideHover(prose, at(1, 3)), 'the code still answers');
     const url = stcjs("await stencil.load('https://example.com/a.png');");
     assert.ok(hints.hoverProvider.provideHover(url, at(0, 15)), 'a member after a URL still answers');
+  });
+});
+
+// A `//` is only a comment outside a string, so a URL is one case of a general rule and an
+// escaped quote does not end the literal that hides one.
+test('slashes inside a string open no comment, whatever follows them', async () => {
+  await withHost({}, ({ hints }) => {
+    const { commentStart } = jsSource;
+    assert.equal(commentStart('stencil.crop() // then save'), 15);
+    assert.equal(commentStart("const s = 'a//b'; stencil.crop()"), -1);
+    assert.equal(commentStart('const s = "it\\" // not"; stencil.crop()'), -1);
+    assert.equal(commentStart('const t = `a//b`; stencil.crop()'), -1);
+    assert.equal(commentStart('nothing here'), -1);
+    // A line ending inside a quote could not be followed, so the plain reading stands in.
+    assert.equal(commentStart('const re = /[\'"]/; // note'), 19);
+    assert.equal(commentStart('const s = "abc // def'), 15);
+    const hidden = stcjs('const s = "a//b"; stencil.crop()');
+    assert.ok(hints.hoverProvider.provideHover(hidden, at(0, 20)), 'the code after it answers');
+    assert.ok(hints.completionProvider.provideCompletionItems(
+      stcjs('const s = "a//b"; stencil.'), at(0, 26)).length > 100);
   });
 });
 

@@ -7,8 +7,7 @@ const { versionCache } = require('./versionCache.js');
 
 const JS_LANGUAGE = 'javascript';
 
-// The marker itself, explained. Nothing else says what that line does — it is a comment to
-// JavaScript, so the editor has no opinion about it at all.
+// The marker itself: a comment to JavaScript, so no editor has an opinion about it.
 const MARKER_DOC = [
   "**The Stencil marker** — this file drives the browser app's `stencil` facade.",
   ['```js', USE_MARKER, '```'].join('\n'),
@@ -35,8 +34,8 @@ const markerSpan = (lineText) => {
   return { start: text.indexOf('@', start), end: start + USE_MARKER.length };
 };
 
-/* The marker's words under the caret, wherever on the line. An own-line marker also has a
- * `markerSpan`; one with code in front of it does not, and is explained instead. */
+// The marker's words under the caret. An own-line marker also has a `markerSpan`; one with
+// code in front of it does not, and is explained instead.
 const markerWordsAt = (lineText, character) => {
   const text = String(lineText ?? '');
   const start = text.indexOf(USE_MARKER);
@@ -59,11 +58,34 @@ const markerLine = (document) => {
   return -1;
 };
 
+// The first `//` outside a string, taking `https://` at face value — the reading that stands
+// where the quotes could not be followed.
+const PLAIN_SLASHES = /(?:^|[^:])(\/\/)/;
+
+/* Where a line comment opens, or -1. Quotes are tracked, so the `//` of a URL in a string does
+ * not open one, nor does one an escape put there. A line ENDING inside a quote was misread —
+ * a regex literal holding an apostrophe, a string still being typed — so the plain reading
+ * stands in rather than swallowing the rest of the line. */
+const commentStart = (text) => {
+  let quote = '';
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    if (quote) {
+      if (char === '\\') i += 1;
+      else if (char === quote) quote = '';
+    } else if (char === '"' || char === "'" || char === '`') quote = char;
+    else if (char === '/' && text[i + 1] === '/') return i;
+  }
+  const plain = quote ? PLAIN_SLASHES.exec(text) : null;
+  return plain ? plain.index + plain[0].length - 2 : -1;
+};
+
 /* A word inside a line comment is prose, not code: `stencil` written in a sentence should not
- * pop the facade's explanation. `https://` is not a comment, so `//` after a colon does not
- * count. */
-const inLineComment = (lineText, character) =>
-  /(^|[^:])\/\//.test(String(lineText ?? '').slice(0, Number(character) || 0));
+ * pop the facade's explanation. */
+const inLineComment = (lineText, character) => {
+  const start = commentStart(String(lineText ?? ''));
+  return start >= 0 && (Number(character) || 0) >= start + 2;
+};
 
 const marksStencil = (document) => marked.get(document, (buffer) => markerLine(buffer) >= 0);
 
@@ -74,5 +96,5 @@ const isJsDocument = (document) => !!document
 const isJsSource = (document) => !!document && (document.languageId === JS_LANGUAGE_ID
   || (document.languageId === JS_LANGUAGE && marksStencil(document)));
 
-module.exports = { JS_LANGUAGE, MARKER_DOC, MARKER_TRAILING_DOC, inLineComment, isJsDocument,
-  isJsSource, markerLine, markerSpan, markerWordsAt, marksStencil };
+module.exports = { JS_LANGUAGE, MARKER_DOC, MARKER_TRAILING_DOC, commentStart, inLineComment,
+  isJsDocument, isJsSource, markerLine, markerSpan, markerWordsAt, marksStencil };
