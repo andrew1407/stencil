@@ -51,11 +51,11 @@ export const makeVscode = ({
       startDebugging(folder, config) {
         calls.debugConfigs.push({ folder, config });
         if (!startDebugging) return Promise.resolve(false);
-        const launcher = new DebugSession(config.name, debugAnswers, { silent: !launcherAnswers });
+        const launcher = new DebugSession(config.name, debugAnswers, { silent: !launcherAnswers, url: config.url });
         calls.sessions.push(launcher);
         vscode.debug.activeDebugSession = launcher;
         if (launcherAnswers) return Promise.resolve(true);
-        const page = new DebugSession(`${config.name}: page`, debugAnswers);
+        const page = new DebugSession(`${config.name}: page`, debugAnswers, { url: config.url });
         calls.sessions.push(page);
         const announce = () => { for (const h of calls.events.debugSession ?? []) h(page); };
         if (childDelayMs) setTimeout(announce, childDelayMs);

@@ -46,6 +46,13 @@ const evaluate = (session, expression, { timeoutMs = EVAL_TIMEOUT_MS } = {}) => 
     .finally(() => clearTimeout(timer));
 };
 
+// A session launched at another URL is not this instance; one declaring none (an attach) is
+// taken at its word.
+const atUrl = (session, url) => {
+  const configured = session?.configuration?.url;
+  return !configured || String(configured).split('#')[0] === String(url ?? '').split('#')[0];
+};
+
 // True only for a session that IS the page: the launcher answers nothing at all.
 const answersFacade = async (session, { timeoutMs = PROBE_TIMEOUT_MS } = {}) => {
   const opts = { timeoutMs };
@@ -93,7 +100,7 @@ const pageSession = async (vscode, url, { timeoutMs = SESSION_TIMEOUT_MS } = {})
   // A probe can never outlast the whole wait: a silent launcher must not eat the deadline.
   const probe = { timeoutMs: Math.min(PROBE_TIMEOUT_MS, timeoutMs) };
   const live = vscode.debug.activeDebugSession;
-  if (live && await answersFacade(live, probe)) return { session: live };
+  if (live && atUrl(live, url) && await answersFacade(live, probe)) return { session: live };
   const tracked = trackSessions(vscode);
   try {
     if (!(await vscode.debug.startDebugging(undefined, debugConfigFor(vscode, url)))) {
@@ -113,6 +120,6 @@ const pageSession = async (vscode, url, { timeoutMs = SESSION_TIMEOUT_MS } = {})
 
 module.exports = {
   BROWSERS, EVAL_TIMEOUT_MS, NO_FACADE, NO_SESSION, POLL_MS, PROBE_TIMEOUT_MS, SESSION_NAME,
-  SESSION_TIMEOUT_MS, answersFacade, debugConfigFor, evaluate, expressionFor, loadExpression,
-  pageSession,
+  SESSION_TIMEOUT_MS, answersFacade, atUrl, debugConfigFor, evaluate, expressionFor,
+  loadExpression, pageSession,
 };
