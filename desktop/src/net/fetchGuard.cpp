@@ -24,7 +24,7 @@ namespace stencil::net::fetchGuard {
       if (b[0] == 198 && (b[1] == 18 || b[1] == 19)) return true;  // 198.18.0.0/15 benchmarking
       if (b[0] == 198 && b[1] == 51 && b[2] == 100) return true;   // TEST-NET-2
       if (b[0] == 203 && b[1] == 0 && b[2] == 113) return true;    // TEST-NET-3
-      if (b[0] >= 240) return true;                                // 240.0.0.0/4 + broadcast
+      if (b[0] >= 224) return true;                                // 224/4 multicast + 240/4 + broadcast
       return false;
     }
 

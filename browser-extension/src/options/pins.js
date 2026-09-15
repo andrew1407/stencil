@@ -7,6 +7,7 @@ import { setTip } from '../lib/tip.js';
 import { siteSel, pinListEl, pinEmptyEl, pinClearBtn, pinSearchEl, pinSearchModeEl, hostLabel, pinTransition, liftDust } from './pinsDom.js';
 import { renderPinRow } from './pinRow.js';
 import { confirmDialog } from './confirmDialog.js';
+import { escapeHtml } from '../lib/escapeHtml.js';
 
 const storeSel = document.getElementById('pin-store');
 const showServerChk = document.getElementById('pin-show-server');
@@ -43,7 +44,7 @@ export const renderPins = async () => {
   // Keep the chosen site if it still has pins.
   const prevSite = siteSel.value || 'all';
   siteSel.innerHTML = `<option value="all">All sites (${pins.length})</option>` +
-    sites.map((s) => `<option value="${s}">${hostLabel(s)} (${matchPinsForSite(pins, s).length})</option>`).join('');
+    sites.map((s) => `<option value="${escapeHtml(s)}">${escapeHtml(hostLabel(s))} (${matchPinsForSite(pins, s).length})</option>`).join('');
   siteSel.value = (prevSite === 'all' || sites.includes(prevSite)) ? prevSite : 'all';
 
   // The Clear button's label + enabled state track the site filter's scope, so it matches what it removes.
@@ -62,7 +63,7 @@ export const renderPins = async () => {
   if (hasServers) {
     const prevStore = storeSel.value || 'all';
     storeSel.innerHTML = '<option value="all">Any storage</option><option value="local">Local only</option>' +
-      serverPins.hosts.map((u) => `<option value="${u}">On ${hostLabel(u)}</option>`).join('');
+      serverPins.hosts.map((u) => `<option value="${escapeHtml(u)}">On ${escapeHtml(hostLabel(u))}</option>`).join('');
     storeSel.value = [...storeSel.options].some((o) => o.value === prevStore) ? prevStore : 'all';
   }
 

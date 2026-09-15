@@ -5,6 +5,7 @@ import { pollClock } from '../lib/pollClock.js';
 import { state } from './model.js';
 import { previewCache } from './preview.js';
 import { applyFilters } from './filters.js';
+import { escapeHtml } from '../lib/escapeHtml.js';
 
 // A shared-pin record as a row. No `src`: the download is Bearer-authed, so a bare <img>
 // cannot load it; measured:true keeps the size observer off it.
@@ -97,7 +98,7 @@ export const syncServerFilterUI = () => {
     if (has) {
       const prev = sel.value || 'all';
       sel.innerHTML = '<option value="all">Any server</option>'
-        + state.serverHosts.map((u) => `<option value="${u}">${hostLabel(u)}</option>`).join('');
+        + state.serverHosts.map((u) => `<option value="${escapeHtml(u)}">${escapeHtml(hostLabel(u))}</option>`).join('');
       sel.value = [...sel.options].some((o) => o.value === prev) ? prev : 'all';
     }
   }

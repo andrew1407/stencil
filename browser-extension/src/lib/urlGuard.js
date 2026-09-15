@@ -42,14 +42,19 @@ const parseIpv6 = (host) => {
   return out;
 };
 
-const isBlockedV4 = ([a, b], allowLoopback) => {
+const isBlockedV4 = ([a, b, c], allowLoopback) => {
   if (a === 127) return !allowLoopback;               // loopback
   return a === 0 ||                                   // 0.0.0.0/8 unspecified/this-net
     a === 10 ||                                       // private
     (a === 172 && b >= 16 && b <= 31) ||              // private
     (a === 192 && b === 168) ||                       // private
     (a === 169 && b === 254) ||                       // link-local, incl. 169.254.169.254
-    (a === 100 && b >= 64 && b <= 127);               // CGNAT
+    (a === 100 && b >= 64 && b <= 127) ||             // CGNAT
+    (a === 192 && b === 0 && (c === 0 || c === 2)) || // 192.0.0/24, TEST-NET-1
+    (a === 198 && (b === 18 || b === 19)) ||          // 198.18/15 benchmarking
+    (a === 198 && b === 51 && c === 100) ||           // TEST-NET-2
+    (a === 203 && b === 0 && c === 113) ||            // TEST-NET-3
+    a >= 224;                                         // multicast + reserved + broadcast
 };
 
 // The cloud metadata endpoint (and its IPv4-mapped IPv6 form) is never fetchable, even
@@ -69,6 +74,7 @@ const isBlockedV6 = (g, allowLoopback) => {
     if (g[7] === 1) return !allowLoopback;            // ::1 loopback
   }
   return (g[0] & 0xffc0) === 0xfe80 ||                // fe80::/10 link-local
+    (g[0] & 0xffc0) === 0xfec0 ||                     // fec0::/10 site-local (deprecated)
     (g[0] & 0xfe00) === 0xfc00;                       // fc00::/7 ULA
 };
 

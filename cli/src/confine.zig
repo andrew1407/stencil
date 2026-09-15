@@ -27,8 +27,9 @@ pub fn outsideCwd(path: []const u8) bool {
 /// Absolute on either platform: POSIX `/x`, a Windows drive (`C:\x`) or a UNC share.
 fn isAbsolute(path: []const u8) bool {
     if (path[0] == '/' or path[0] == '\\') return true;
-    return path.len >= 3 and std.ascii.isAlphabetic(path[0]) and path[1] == ':' and
-        (path[2] == '/' or path[2] == '\\');
+    // A drive prefix counts with or without the separator: `C:out.png` is drive-RELATIVE, so
+    // Windows resolves it against that drive's own cwd, not ours.
+    return path.len >= 2 and std.ascii.isAlphabetic(path[0]) and path[1] == ':';
 }
 
 const testing = std.testing;
