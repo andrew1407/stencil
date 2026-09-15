@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { parseScript } from '../src/parser/index.js';
 import { installVscodeStub, makeContext, makeDocument, makeEditor, makeVscode } from './helpers/vscodeStub.js';
@@ -157,4 +158,20 @@ test('the types are disposed when the context is, so a reload leaks nothing', ()
     for (const disposable of context.subscriptions) disposable.dispose?.();
     assert.ok(calls.decorationTypes.every((t) => t.disposed), 'every type was disposed');
   }, { source: '#00ff00' });
+});
+
+test('an edit in another language never schedules a repaint', async () => {
+  await withHost(async ({ calls, decorations }) => {
+    decorations.register(makeContext());
+    const editor = makeEditor(makeDocument({ text: '@source a.png:\n', version: 1 }));
+    calls.editors.push(editor);
+    editor.painted.clear();
+    const [onChange] = calls.events.change;
+    onChange({ document: makeDocument({ languageId: 'markdown', text: 'hi' }) });
+    await delay(decorations.DEBOUNCE_MS * 2);
+    assert.equal(editor.painted.size, 0, 'a .md keystroke repainted a .stc editor');
+    onChange({ document: editor.document });
+    await delay(decorations.DEBOUNCE_MS * 2);
+    assert.ok(editor.painted.size > 0, 'a .stc keystroke still repaints');
+  });
 });
