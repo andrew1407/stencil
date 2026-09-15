@@ -7,12 +7,12 @@ const { CONFIG_SECTION, SETTINGS } = require('./ids.js');
 const SESSION_NAME = 'Stencil Web';
 const BROWSERS = Object.freeze({ chrome: 'chrome', edge: 'msedge' });
 
-const SESSION_TIMEOUT_MS = 20000;
+const SESSION_TIMEOUT_MS = 20_000;
 const POLL_MS = 150;
 // js-debug's launcher session never answers `evaluate` — the PAGE is a child it starts a
 // moment later — so a request must be bounded rather than awaited forever. A user's own
 // expression may legitimately take a while; asking which session IS the page may not.
-const EVAL_TIMEOUT_MS = 60000;
+const EVAL_TIMEOUT_MS = 60_000;
 const PROBE_TIMEOUT_MS = 1000;
 
 const NO_SESSION = 'Could not start a browser for Stencil — check that Chrome or Edge is installed';

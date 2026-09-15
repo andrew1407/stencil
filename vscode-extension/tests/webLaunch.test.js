@@ -3,7 +3,7 @@
 // deepLink.js, whose vectors pin that a `script` key rides through untouched.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -111,11 +111,16 @@ test('anything that is not a project with an inline image is not a hand-off', ()
 });
 
 test('the cap is Chrome\'s navigation ceiling, well under the validator\'s 32 MiB', () => {
-  assert.equal(web.MAX_PAYLOAD, 1800000);
-  assert.equal(web.tooBig('x'.repeat(web.MAX_PAYLOAD)), false);
-  assert.equal(web.tooBig('x'.repeat(web.MAX_PAYLOAD + 1)), true);
+  assert.equal(web.MAX_PAYLOAD, 1_800_000);
+  // The Chrome extension writes the same fragment, so it holds the same number.
+  const twin = readFileSync(new URL('../../browser-extension/src/lib/editorLaunch.js', import.meta.url), 'utf8');
+  const declared = /const MAX_PAYLOAD = ([0-9_]+);/.exec(twin);
+  assert.ok(declared, 'editorLaunch.js no longer declares MAX_PAYLOAD');
+  assert.equal(Number(declared[1].replaceAll('_', '')), web.MAX_PAYLOAD);
+  assert.equal(web.isTooBig('x'.repeat(web.MAX_PAYLOAD)), false);
+  assert.equal(web.isTooBig('x'.repeat(web.MAX_PAYLOAD + 1)), true);
   const huge = web.buildLaunchUrl('https://app.example/', { script: '#'.repeat(web.MAX_PAYLOAD) });
-  assert.equal(web.tooBig(huge), true, 'the WHOLE url is what a browser refuses');
+  assert.equal(web.isTooBig(huge), true, 'the WHOLE url is what a browser refuses');
 });
 
 test('the payload survives the receiving codec: a script rides beside a picture', () => {

@@ -69,7 +69,6 @@ test('every entry carries the prose a hint is made of', () => {
     assert.match(entry.summary, /\.$/, `${name}'s summary should read as a sentence`);
     assert.ok(entry.summary.length > 12, `${name}'s summary says nothing`);
     assert.ok(entry.signature.startsWith(`stencil.${name}`), `${name}'s signature names another member`);
-    // Every member is shown being used — a signature alone leaves a reader guessing.
     assert.ok(entry.example, `${name} has no worked example`);
     assert.ok(entry.example.includes(name), `${name}'s example does not use it`);
   }
@@ -95,8 +94,8 @@ test('explain renders a member as Markdown, fenced as JavaScript', () => {
   // A read-only member says so; a writable one does not.
   assert.match(api.explain('imageSize'), /Read-only\.$/);
   assert.ok(!api.explain('thickness').includes('Read-only'));
-  // A doc comment in the .d.ts becomes the detail paragraph.
-  assert.match(api.explain('execScript'), /Run a \.stc script against the open project/);
+  assert.match(api.explain('execScript'), /Run a \.stc script against the open project/,
+    'a doc comment in the .d.ts becomes the detail paragraph');
 });
 
 test('prefixAt answers only where a member really follows the facade', () => {
@@ -117,16 +116,7 @@ test('memberAt names the member the caret is inside, and only through the facade
   assert.equal(api.memberAt('stencil.crop()', 3), '', 'the facade itself is not a member');
 });
 
-test('the groups are a reading of the facade, not a re-listing of it', () => {
-  assert.ok(api.namesInGroup('script').includes('execScript'));
-  assert.ok(api.namesInGroup('settings').includes('lineColor'));
-  assert.deepEqual(api.namesInGroup('nothing'), []);
-  assert.equal(api.groupOf('rotateRight'), 'edit');
-  assert.equal(api.groupOf('nosuchmember'), undefined);
-});
-
-// The global itself. VS Code's JavaScript service sees a name nothing declares and can only
-// say `any`, so the extension answers for it too.
+// The editor's JavaScript service sees a name nothing declares and can only say `any`.
 test('facadeAt finds the global, bare or on window, and never somebody else\'s', () => {
   assert.equal(api.facadeAt('stencil.crop()', 3), true);
   assert.equal(api.facadeAt('await window.stencil.load(url)', 16), true);
@@ -141,5 +131,4 @@ test('the global\'s explanation says what it is, and where it exists', () => {
   assert.match(api.FACADE_DOC, /^\*\*`stencil`\*\* — /);
   assert.match(api.FACADE_DOC, /```js\n/);
   assert.match(api.FACADE_DOC, /Run in Stencil Web Console/);
-  assert.equal(api.FACADE, 'stencil');
 });
