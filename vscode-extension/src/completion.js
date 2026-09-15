@@ -8,8 +8,9 @@ const COLOR_NAMES = require('./config/colorNames.json');
 const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
 const { contextFor } = require('./lib/completionContext.js');
 const { programFor } = require('./lib/programCache.js');
+const { markdownFor } = require('./lib/vocabularyEntry.js');
 const {
-  CROP_KEYS, DIRECTIVE_NAMES, MODES, STYLES, UNITS, UNIT_NAMES, explain, markdownFor,
+  CROP_KEYS, DIRECTIVE_NAMES, MODES, STYLES, UNITS, UNIT_NAMES, explain,
 } = require('./lib/vocabulary.js');
 
 const KIND = () => vscode.CompletionItemKind;

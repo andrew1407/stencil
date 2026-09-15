@@ -2,7 +2,7 @@
 // and the Markdown explaining it. No `vscode` — jsHints.js makes the editor objects.
 'use strict';
 
-const { markdownFor } = require('./vocabulary.js');
+const { makeExplain } = require('./vocabularyEntry.js');
 
 const MEMBERS = Object.freeze(require('../config/stencilApiVocabulary.json').members);
 const MEMBER_NAMES = Object.freeze(Object.keys(MEMBERS));
@@ -58,12 +58,12 @@ const facadeAt = (lineText, character) => {
   return !before.endsWith('.') || WINDOW_BEFORE.test(before);
 };
 
-const explain = (name) => {
-  const entry = entryFor(name);
-  if (!entry) return '';
-  const markdown = markdownFor(`stencil.${name}`, entry, 'js');
-  return entry.readOnly ? `${markdown}\n\nRead-only.` : markdown;
-};
+const explain = makeExplain({
+  lookup: entryFor,
+  label: (name) => `stencil.${name}`,
+  fence: 'js',
+  decorate: (markdown, entry) => (entry.readOnly ? `${markdown}\n\nRead-only.` : markdown),
+});
 
 module.exports = { FACADE_DOC, MEMBER_NAMES, entryFor, explain, facadeAt, memberAt,
   prefixAt };

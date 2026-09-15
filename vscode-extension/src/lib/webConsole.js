@@ -46,8 +46,7 @@ const evaluate = (session, expression, { timeoutMs = EVAL_TIMEOUT_MS } = {}) => 
     .finally(() => clearTimeout(timer));
 };
 
-// A session launched at another URL is not this instance; one declaring none (an attach) is
-// taken at its word.
+// A session launched elsewhere is not this instance; one declaring no URL is taken at its word.
 const atUrl = (session, url) => {
   const configured = session?.configuration?.url;
   return !configured || String(configured).split('#')[0] === String(url ?? '').split('#')[0];
