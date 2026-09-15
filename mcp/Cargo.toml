@@ -3,7 +3,7 @@ name = "stencil-mcp"
 version = "0.1.0"
 edition = "2021"
 description = "Model Context Protocol server exposing Stencil's image/video editing pipeline (wraps the Zig CLI)"
-license = "MIT"
+license = "Apache-2.0"
 
 [[bin]]
 name = "stencil-mcp"
