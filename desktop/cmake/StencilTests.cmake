@@ -195,6 +195,19 @@ foreach(area chatCards chatCompact chatDock chatPanel chatTurns canvas chrome co
     ENV STENCIL_NO_ANIM=1)
 endforeach()
 
+# The use-case screenshot capture behind usecases/desktop/img (usecases/capture/desktop):
+# the same GUI objects and friend seam as the suites above, but an opt-in binary that
+# ctest never runs. Driven by usecases/capture/desktop.mjs.
+if(STENCIL_DOCS_CAPTURE)
+  set(_docs ${CMAKE_CURRENT_SOURCE_DIR}/../usecases/capture/desktop)
+  add_executable(stencil_docs_capture ${_docs}/captureUseCases.cpp ${_docs}/captureStates.cpp)
+  target_include_directories(stencil_docs_capture PRIVATE ${STENCIL_GUI_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests ${_docs})
+  target_compile_definitions(stencil_docs_capture PRIVATE
+    "STENCIL_UI_PINS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/pins\"")
+  target_link_libraries(stencil_docs_capture PRIVATE stencil_gui_objs Qt6::Test)
+endif()
+
 
 # Hovering a context-menu row (support/iconMotion + support/MenuHotkeys): the icon play and
 # the keycap shake start once on arrival, never restart while the pointer stays on the row,

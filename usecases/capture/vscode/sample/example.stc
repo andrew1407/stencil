@@ -1,0 +1,15 @@
+# A single-source script: open an image, edit it, save it next door.
+@source ./icon.png:
+    # Crop by named edges; a leading '-' measures from the far side.
+    @crop x1=8% x2=-8% y1=8% y2=-8%
+    @filter sepia
+
+    # Bare numbers are pixels from here on.
+    @use px
+
+    # Style settings apply to every shape after them, in any order.
+    @use line #1e63c8 3px dashed, fill aqua, point red 4px
+    @rect (10%, 10%) (90%, 90%)
+    @line (20%, 80%) (50%, 30%) (80%, 80%)
+
+    @save out/

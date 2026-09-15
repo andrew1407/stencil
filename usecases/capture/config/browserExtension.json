@@ -1,0 +1,48 @@
+{
+  "theme": {
+    "mode": "dark",
+    "steps": {
+      "crop-page": "light",
+      "side-panel": "light"
+    }
+  },
+  "pairs": [
+    "popup-list"
+  ],
+  "viewports": {
+    "popup": {
+      "width": 380,
+      "height": 720
+    },
+    "site": {
+      "width": 1280,
+      "height": 800
+    },
+    "panel": {
+      "width": 420,
+      "height": 900
+    },
+    "options": {
+      "width": 900,
+      "height": 900
+    },
+    "crop": {
+      "width": 960,
+      "height": 640
+    }
+  },
+  "clips": {
+    "open-here": {
+      "ms": 3600,
+      "everyMs": 100,
+      "fps": 10
+    }
+  },
+  "timeouts": {
+    "scanMs": 15000,
+    "replyMs": 120000,
+    "modalMs": 20000,
+    "editorMs": 30000
+  },
+  "minRows": 3
+}
