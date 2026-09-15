@@ -23,6 +23,11 @@ const lineEnd = async (ctx, text) => {
   await ctx.page.keyboard.press('End');
 };
 const terminalText = () => document.querySelector('.terminal-wrapper.active .xterm-rows')?.innerText ?? '';
+const FILE_ROW = '.explorer-folders-view .monaco-list-row';
+const LABEL_GUTTER = config.get('fileIcons.labelGutterPx');
+// Empty editor space: a pointer resting anywhere else pops that control's tooltip into the
+// next shot — the activity bar's, when the window opens under the real cursor.
+const PARK = config.get('pointerPark');
 
 const STEPS = Object.freeze([
   ...pairNames('highlighting').map((name) => ({ name, run: (ctx) => still(ctx, name) })),
@@ -45,7 +50,7 @@ const STEPS = Object.freeze([
     await waitForStable(ctx.page, () => document.querySelector('.monaco-hover')?.innerText ?? '',
       { idleMs: 400, timeoutMs: TIMEOUTS.widgetMs });
     await still(ctx, 'hover');
-    await ctx.page.mouse.move(10, 400);
+    await ctx.page.mouse.move(PARK.x, PARK.y);
   } },
   { name: 'diagnostics', run: async (ctx) => {
     await lineEnd(ctx, '@use px');
@@ -122,15 +127,25 @@ const STEPS = Object.freeze([
   // about the icons, so it is cropped to the rows that carry them.
   { name: 'file-icons', run: async (ctx) => {
     await ctx.page.keyboard.press('Meta+Shift+E');
-    const rows = ctx.page.locator('.explorer-folders-view .monaco-list-row');
+    const rows = ctx.page.locator(`${FILE_ROW}:not([aria-expanded])`);
     await rows.first().waitFor({ timeout: TIMEOUTS.widgetMs });
+    // Escape is the list's `clear`: the open file's revealed row would otherwise sit in the
+    // shot highlighted, and this one is about the icons, not about what is open.
+    await ctx.page.keyboard.press('Escape');
     await settle(400);
-    const first = await rows.first().boundingBox();
-    const last = await rows.last().boundingBox();
-    const clip = {
-      x: Math.round(first.x), y: Math.round(first.y),
-      width: Math.round(first.width), height: Math.round(last.y + last.height - first.y),
-    };
+    // Folders (aria-expanded) sit above the files — the workspace's own out/ is not the
+    // subject — and the pane is far wider than the names, so the crop follows the labels.
+    const clip = await ctx.page.evaluate(([selector, gutter]) => {
+      const rows = [...document.querySelectorAll(selector)];
+      const box = (node) => node.getBoundingClientRect();
+      const right = Math.max(...rows.map((r) => box(r.querySelector('.label-name') || r).right));
+      const first = box(rows[0]);
+      return {
+        x: Math.round(first.x), y: Math.round(first.y),
+        width: Math.round(right - first.x) + gutter,
+        height: Math.round(box(rows[rows.length - 1]).bottom - first.y),
+      };
+    }, [`${FILE_ROW}:not([aria-expanded])`, LABEL_GUTTER]);
     quantizePng(await runner.shot(ctx.page, 'file-icons', { clip }));
   } },
   { name: 'api-completion', run: async (ctx) => {
@@ -154,7 +169,7 @@ const STEPS = Object.freeze([
     await waitForStable(ctx.page, () => document.querySelector('.monaco-hover')?.innerText ?? '',
       { idleMs: 400, timeoutMs: TIMEOUTS.widgetMs });
     await still(ctx, 'api-hover');
-    await ctx.page.mouse.move(10, 400);
+    await ctx.page.mouse.move(PARK.x, PARK.y);
   } },
   // The palette filtered to this extension: the CLI commands and the four browser ones.
   { name: 'web-commands', run: async (ctx) => {
@@ -228,6 +243,7 @@ for (const theme of ['dark', 'light']) {
   if (!steps.length) continue;
   console.log(`vscode extension, ${theme}`);
   const host = await VsCodeHost.launch(config, theme);
+  await host.page.mouse.move(PARK.x, PARK.y);
   await runner.play(steps, { host, page: host.page });
   await host.stop();
 }
