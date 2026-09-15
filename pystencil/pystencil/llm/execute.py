@@ -17,6 +17,9 @@ from .types import OpPlan
 # 4 already saturates the memory bandwidth one image walk needs.
 MAX_VARIANT_WORKERS = 4
 
+# The ops that transform pixels: with nothing loaded each is a skipped action, like save.
+_NEEDS_IMAGE = ("crop", "rotate", "filter", "layout")
+
 
 def __apply_action(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
         run: ("_PlanRun" | NoneType) = None) -> None:
@@ -29,6 +32,10 @@ def __apply_action(action: dict, editor: Any, frame: (_FrameMap | NoneType) = No
   applier = _ACTION_APPLIERS.get(op)
   if applier is None:  # unreachable after parse_op_plan; guards hand-built plans
     raise LlmExecutionError("unsupported op %r" % op)
+  has_image = getattr(editor, "has_image", None)
+  if op in _NEEDS_IMAGE and has_image is not None and not has_image():
+    if run is not None: run.notes.append("Skipped %s — no working image to edit" % op)
+    return
   applier(action, editor, frame, run)
 
 
