@@ -5,6 +5,9 @@ export interface DiagnosticEntry {
 }
 export declare const ANSWERED: ReadonlySet<number>;
 export declare const CHECK_LINE: RegExp;
+export declare const CHECK_TIMEOUT_MS: number;
 export declare const parseCheckOutput: (text: string) => DiagnosticEntry[];
 export declare const fromProgram: (program: ScriptProgram) => DiagnosticEntry[];
-export declare const runCheck: (cli: string, path: string) => Promise<DiagnosticEntry[] | null>;
+export declare const runCheck: (
+  cli: string, path: string, timeout?: number,
+) => Promise<DiagnosticEntry[] | null>;
