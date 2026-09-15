@@ -175,7 +175,7 @@ const LONG_B64 = 'QUJDREVGR0hJSktMTU5PUA'.repeat(100); // ~2KB base64-looking bl
 
 test('WebFetch: doc lookups allowed, exfil shapes ask, secret-path URLs deny', () => {
   assert.equal(webFetch('https://docs.example.com/guide/formulas').decision, 'allow');
-  assert.equal(webFetch('https://developer.mozilla.org/en-US/docs/Web/API/URL?retiredLocale=de').decision, 'allow');
+  assert.equal(webFetch('https://developer.example.com/en-US/docs/Web/API/URL?retiredLocale=de').decision, 'allow');
   assert.equal(webFetch('http://localhost:8090/projects').decision, 'allow');
   assert.equal(webFetch('http://203.0.113.7/collect').decision, 'ask'); // raw IP
   assert.equal(webFetch(`https://paste.example.com/up?d=${LONG_B64}`).decision, 'ask');

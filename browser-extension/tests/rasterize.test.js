@@ -1,7 +1,7 @@
 // Tests for src/lib/rasterize.js — the decode path every assistant attachment goes
 // through. The bug it exists for: Chrome's createImageBitmap REFUSES an
 // `image/svg+xml` blob ("The source image could not be decoded"), so dragging an SVG
-// row (Wikipedia badges, logos, icons) into the chat failed even though the popup
+// row (badges, logos, icons) into the chat failed even though the popup
 // could show a thumbnail for it. SVG must be rasterised to PNG anyway — contract §7
 // accepts png/jpeg/webp/gif only.
 // Every DOM seam is injected, so this runs under plain `node --test`: no DOM, no
@@ -71,16 +71,16 @@ test('isSvgType / isSvgUrl recognise every SVG spelling', () => {
   assert.equal(isSvgType('IMAGE/SVG'), true);
   assert.equal(isSvgType('image/png'), false);
   assert.equal(isSvgType(''), false);
-  assert.equal(isSvgUrl('https://a.com/logo.svg?v=2'), true);
-  assert.equal(isSvgUrl('https://a.com/logo.svgz'), true);
+  assert.equal(isSvgUrl('https://a.example/logo.svg?v=2'), true);
+  assert.equal(isSvgUrl('https://a.example/logo.svgz'), true);
   assert.equal(isSvgUrl('data:image/svg+xml,<svg/>'), true);
-  assert.equal(isSvgUrl('https://a.com/cat.png'), false);
+  assert.equal(isSvgUrl('https://a.example/cat.png'), false);
 });
 
 test('mediaTypeOf reads a data: URL declaration only', () => {
   assert.equal(mediaTypeOf(SVG_DATA_URL), 'image/svg+xml');
   assert.equal(mediaTypeOf('data:image/svg+xml,<svg/>'), 'image/svg+xml');
-  assert.equal(mediaTypeOf('https://a.com/x.png'), '');
+  assert.equal(mediaTypeOf('https://a.example/x.png'), '');
 });
 
 test('fitSize scales the long edge down, never up', () => {

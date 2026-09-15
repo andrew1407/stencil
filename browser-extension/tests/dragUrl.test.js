@@ -11,13 +11,13 @@ test('uses text/uri-list (first non-comment line) when there is no text/html ima
 });
 
 test('prefers the <img> in text/html over a wrapping link in text/uri-list', () => {
-  // A linked image (Wikipedia thumbnail): uri-list is the LINK, html is the real image.
+  // A linked image (a file page's thumbnail): uri-list is the LINK, html the real image.
   const read = reader({
-    'text/uri-list': 'https://en.wikipedia.org/wiki/File:Cat.jpg',
-    'text/html': '<a href="/wiki/File:Cat.jpg"><img src="https://upload/500px-Cat.jpg"></a>',
-    'text/plain': 'https://en.wikipedia.org/wiki/File:Cat.jpg',
+    'text/uri-list': 'https://github.com/andrew1407/stencil/blob/main/bot/assets/icon.png',
+    'text/html': '<a href="/andrew1407/stencil/blob/main/bot/assets/icon.png"><img src="https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png"></a>',
+    'text/plain': 'https://github.com/andrew1407/stencil/blob/main/bot/assets/icon.png',
   });
-  assert.equal(extractDraggedUrl(read), 'https://upload/500px-Cat.jpg');
+  assert.equal(extractDraggedUrl(read), 'https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png');
 });
 
 test('matches <img>, <source>, and <video> src in text/html', () => {

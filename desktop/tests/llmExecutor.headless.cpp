@@ -446,7 +446,7 @@ int main(int argc, char** argv) {
       }
     };
     const auto parsed = parseOpPlan(
-        R"({"reply":"o","actions":[{"op":"openUrl","url":"https://a.com/cat.jpg","incognito":true}]})");
+        R"({"reply":"o","actions":[{"op":"openUrl","url":"https://a.example/cat.jpg","incognito":true}]})");
     check(parsed.ok, "openUrl plan parses");
     {
       // The user never typed the URL → blocked, the target is never reached.
@@ -459,17 +459,17 @@ int main(int argc, char** argv) {
     {
       // Echoed from the user's own message → the loader runs with the flag.
       UrlTarget target(img, a4);
-      target.typed = "please open https://a.com/cat.jpg in incognito";
+      target.typed = "please open https://a.example/cat.jpg in incognito";
       const ExecResult res = executePlan(parsed.plan, target);
       check(res.ok, "echoed openUrl executes");
-      check(target.opened == QStringList{"https://a.com/cat.jpg#incognito"},
+      check(target.opened == QStringList{"https://a.example/cat.jpg#incognito"},
             "loader got the URL + incognito");
     }
     {
       // The base PlanTarget has no loader — a typed failure, not a crash.
       CanvasPlanTarget target(img, a4);
       const auto p2 = parseOpPlan(
-          R"({"reply":"o","actions":[{"op":"openUrl","url":"https://a.com/cat.jpg"}]})");
+          R"({"reply":"o","actions":[{"op":"openUrl","url":"https://a.example/cat.jpg"}]})");
       const ExecResult res = executePlan(p2.plan, target);
       check(!res.ok, "default target rejects openUrl (guard or loader)");
     }
@@ -519,7 +519,7 @@ int main(int argc, char** argv) {
     check(!parseOpPlan(R"({"reply":"o","actions":[{"op":"openFile","path":"~/Pictures"}]})").ok,
           "a folder is rejected at parse");
     check(!parseOpPlan(
-               R"({"reply":"o","actions":[{"op":"openFile","path":"https://a.com/cat.png"}]})")
+               R"({"reply":"o","actions":[{"op":"openFile","path":"https://a.example/cat.png"}]})")
                .ok,
           "a URL is not a local path");
   }

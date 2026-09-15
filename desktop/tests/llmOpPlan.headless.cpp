@@ -599,23 +599,23 @@ int main(int argc, char** argv) {
     // §10 openUrl: http(s) URL + optional incognito; junk fails; variant-banned.
     const auto r = parseOpPlan(
         "{\"reply\":\"o\",\"actions\":[{\"op\":\"openUrl\","
-        "\"url\":\"https://a.com/cat.jpg\",\"incognito\":true}]}");
+        "\"url\":\"https://a.example/cat.jpg\",\"incognito\":true}]}");
     check(r.ok && r.plan.actions[0].op == OpKind::OPEN_URL &&
-              r.plan.actions[0].url == "https://a.com/cat.jpg" &&
+              r.plan.actions[0].url == "https://a.example/cat.jpg" &&
               r.plan.actions[0].incognito,
           "openUrl parses with incognito");
     check(!parseOpPlan("{\"reply\":\"o\",\"actions\":[{\"op\":\"openUrl\"}]}").ok,
           "openUrl without url fails");
     check(!parseOpPlan("{\"reply\":\"o\",\"actions\":[{\"op\":\"openUrl\","
-                       "\"url\":\"ftp://a.com/x\"}]}")
+                       "\"url\":\"ftp://a.example/x\"}]}")
                .ok,
           "non-http(s) openUrl fails");
     check(!parseOpPlan("{\"reply\":\"o\",\"actions\":[{\"op\":\"openUrl\","
-                       "\"url\":\"https://a.com/x\",\"tab\":1}]}")
+                       "\"url\":\"https://a.example/x\",\"tab\":1}]}")
                .ok,
           "unknown openUrl field fails");
     check(variantDropped("{\"reply\":\"o\",\"variants\":[{\"label\":\"v\",\"actions\":["
-                         "{\"op\":\"openUrl\",\"url\":\"https://a.com/x\"}]}]}"),
+                         "{\"op\":\"openUrl\",\"url\":\"https://a.example/x\"}]}]}"),
           "openUrl inside a variant drops the variant");
   }
   // §10 copy — fieldless like clear; the working-image gate is the executor's.
@@ -903,7 +903,7 @@ int main(int argc, char** argv) {
     // openUrl gets a steer, not just a drop: top-level, or the extension.
     const auto r = parseOpPlan(
         "{\"reply\":\"v\",\"variants\":[{\"actions\":["
-        "{\"op\":\"openUrl\",\"url\":\"https://a.com/x.jpg\"}]}]}");
+        "{\"op\":\"openUrl\",\"url\":\"https://a.example/x.jpg\"}]}]}");
     check(r.ok && r.plan.variants.isEmpty() && r.plan.warnings.size() == 1 &&
               r.plan.warnings[0].contains("top-level action") &&
               r.plan.warnings[0].contains("extension assistant"),

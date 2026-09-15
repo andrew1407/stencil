@@ -26,18 +26,18 @@ test('isVideoFile: guards against null/undefined', () => {
 });
 
 test('isVideoUrl: detects a video by its path extension (open-image URL tab)', () => {
-  assert.equal(isVideoUrl('https://ex.com/clip.mp4'), true);
-  assert.equal(isVideoUrl('https://ex.com/a.webm'), true);
-  assert.equal(isVideoUrl('https://ex.com/b.MOV'), true);
-  assert.equal(isVideoUrl('https://ex.com/photo.jpg'), false);
-  assert.equal(isVideoUrl('https://ex.com/no-ext'), false);
+  assert.equal(isVideoUrl('https://ex.example/clip.mp4'), true);
+  assert.equal(isVideoUrl('https://ex.example/a.webm'), true);
+  assert.equal(isVideoUrl('https://ex.example/b.MOV'), true);
+  assert.equal(isVideoUrl('https://ex.example/photo.jpg'), false);
+  assert.equal(isVideoUrl('https://ex.example/no-ext'), false);
 });
 
 test('isVideoUrl: tolerates a trailing ?query / #hash after the extension', () => {
-  assert.equal(isVideoUrl('https://ex.com/clip.mp4?token=abc'), true);
-  assert.equal(isVideoUrl('https://ex.com/clip.mkv#t=10'), true);
-  assert.equal(isVideoUrl('  https://ex.com/clip.m4v  '), true); // trimmed
-  assert.equal(isVideoUrl('https://ex.com/mp4-in-path/pic.png'), false);
+  assert.equal(isVideoUrl('https://ex.example/clip.mp4?token=abc'), true);
+  assert.equal(isVideoUrl('https://ex.example/clip.mkv#t=10'), true);
+  assert.equal(isVideoUrl('  https://ex.example/clip.m4v  '), true); // trimmed
+  assert.equal(isVideoUrl('https://ex.example/mp4-in-path/pic.png'), false);
 });
 
 test('isVideoUrl: guards against non-strings', () => {

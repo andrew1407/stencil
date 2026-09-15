@@ -25,10 +25,10 @@ test('listingKind maps scan records onto the §8 categories', () => {
 
 test('buildListing lines carry index, kind, dims, format, basename, alt', () => {
   const items = [
-    { kind: 'img', src: 'https://a.com/photos/cat.png', w: 800, h: 600, alt: 'A cat' },
-    { kind: 'bg', src: 'https://a.com/tiles/bg.jpg', w: 0, h: 0, alt: '' },
-    { kind: 'video', src: 'data:image/jpeg;base64,FRAME', videoUrl: 'https://a.com/v/clip.mp4', w: 1920, h: 1080, alt: 'video' },
-    { kind: 'img', src: 'https://a.com/favicon.ico', w: 0, h: 0, alt: 'icon', meta: true },
+    { kind: 'img', src: 'https://a.example/photos/cat.png', w: 800, h: 600, alt: 'A cat' },
+    { kind: 'bg', src: 'https://a.example/tiles/bg.jpg', w: 0, h: 0, alt: '' },
+    { kind: 'video', src: 'data:image/jpeg;base64,FRAME', videoUrl: 'https://a.example/v/clip.mp4', w: 1920, h: 1080, alt: 'video' },
+    { kind: 'img', src: 'https://a.example/favicon.ico', w: 0, h: 0, alt: 'icon', meta: true },
   ];
   const lines = buildListing(items, { formatOfItem }).split('\n');
   assert.equal(lines[0], '0: img 800x600 png "cat.png" alt "A cat"');
@@ -38,7 +38,7 @@ test('buildListing lines carry index, kind, dims, format, basename, alt', () => 
 });
 
 test('buildListing truncates to 100 entries and notes the overflow', () => {
-  const items = Array.from({ length: 105 }, (_, i) => ({ kind: 'img', src: `https://a.com/i${i}.png`, w: 0, h: 0 }));
+  const items = Array.from({ length: 105 }, (_, i) => ({ kind: 'img', src: `https://a.example/i${i}.png`, w: 0, h: 0 }));
   const lines = buildListing(items, { formatOfItem }).split('\n');
   assert.equal(lines.length, LISTING_LIMIT + 1);
   assert.equal(lines[99], '99: img png "i99.png"');
@@ -49,7 +49,7 @@ test('buildListing truncates long names and alt text', () => {
   const longName = 'x'.repeat(90) + '.png';
   const longAlt = 'y'.repeat(200);
   const [line] = buildListing(
-    [{ kind: 'img', src: `https://a.com/${longName}`, w: 0, h: 0, alt: longAlt }],
+    [{ kind: 'img', src: `https://a.example/${longName}`, w: 0, h: 0, alt: longAlt }],
     { formatOfItem },
   ).split('\n');
   const name = /"([^"]*)" alt "([^"]*)"$/.exec(line);
@@ -165,9 +165,9 @@ test('splitDataUrl parses the LlmImage wire shape', () => {
 // ── Controller: execution + bounded auto-continuation ──
 
 const LISTING = [
-  { kind: 'img', src: 'https://a.com/one.png', w: 10, h: 10, alt: '', name: 'one.png' },
-  { kind: 'img', src: 'https://a.com/two.png', w: 20, h: 20, alt: 'second', name: 'two.png' },
-  { kind: 'img', src: 'https://a.com/three.png', w: 30, h: 30, alt: '', name: 'three.png' },
+  { kind: 'img', src: 'https://a.example/one.png', w: 10, h: 10, alt: '', name: 'one.png' },
+  { kind: 'img', src: 'https://a.example/two.png', w: 20, h: 20, alt: 'second', name: 'two.png' },
+  { kind: 'img', src: 'https://a.example/three.png', w: 30, h: 30, alt: '', name: 'three.png' },
 ];
 
 // A scripted client: replies from the queue (last reply repeats), records calls.
@@ -189,7 +189,7 @@ const makeController = (responses, overrides = {}) => {
     getClient: () => client,
     getListing: () => LISTING,
     formatOfItem,
-    pageUrl: () => 'https://a.com/page',
+    pageUrl: () => 'https://a.example/page',
     focusImage: async (i) => { log.focused.push(i); return true; },
     openImage: async (a) => { log.opened.push(a); return []; },
     attachImage: async (i) => { log.attached.push(i); return { mediaType: 'image/png', data: `IMG${i}` }; },
@@ -204,7 +204,7 @@ test('system = verbatim prompt + page + listing suffix (never prepended)', async
   const { controller, calls } = makeController(['just chatting']);
   await controller.send('hi');
   assert.ok(calls[0].system.startsWith(LLM_SYSTEM_PROMPT));
-  assert.match(calls[0].system, /Current page: https:\/\/a\.com\/page/);
+  assert.match(calls[0].system, /Current page: https:\/\/a\.example\/page/);
   assert.match(calls[0].system, /Images scanned from the current page/);
   assert.match(calls[0].system, /0: img 10x10 png "one\.png"/);
 });
@@ -354,18 +354,18 @@ test('plan warnings (dropped top-level core ops) ride the result', async () => {
 
 test('matchListingIndex matches a dropped URL to its scan entry (fragment-insensitive)', () => {
   const items = [
-    { kind: 'img', src: 'https://a.com/one.png' },
-    { kind: 'video', src: 'data:image/jpeg;base64,FRAME', videoUrl: 'https://a.com/clip.mp4' },
-    { kind: 'bg', src: 'https://a.com/tile.jpg' },
+    { kind: 'img', src: 'https://a.example/one.png' },
+    { kind: 'video', src: 'data:image/jpeg;base64,FRAME', videoUrl: 'https://a.example/clip.mp4' },
+    { kind: 'bg', src: 'https://a.example/tile.jpg' },
   ];
-  assert.equal(matchListingIndex(items, 'https://a.com/one.png'), 0);
-  assert.equal(matchListingIndex(items, 'https://a.com/one.png#frag'), 0);       // dropped URL carries a hash
-  assert.equal(matchListingIndex(items, 'https://a.com/clip.mp4'), 1);           // videos match their media URL…
+  assert.equal(matchListingIndex(items, 'https://a.example/one.png'), 0);
+  assert.equal(matchListingIndex(items, 'https://a.example/one.png#frag'), 0);       // dropped URL carries a hash
+  assert.equal(matchListingIndex(items, 'https://a.example/clip.mp4'), 1);           // videos match their media URL…
   assert.equal(matchListingIndex(items, 'data:image/jpeg;base64,FRAME'), -1);    // …never their opaque still
-  assert.equal(matchListingIndex(items, 'https://a.com/tile.jpg'), 2);
-  assert.equal(matchListingIndex(items, 'https://a.com/other.png'), -1);
+  assert.equal(matchListingIndex(items, 'https://a.example/tile.jpg'), 2);
+  assert.equal(matchListingIndex(items, 'https://a.example/other.png'), -1);
   assert.equal(matchListingIndex(items, ''), -1);
-  assert.equal(matchListingIndex(null, 'https://a.com/one.png'), -1);
+  assert.equal(matchListingIndex(null, 'https://a.example/one.png'), -1);
 });
 
 test('attachmentNote describes listing-matched and plain attachments', () => {
@@ -416,13 +416,13 @@ test('chat-only replies pass through untouched', async () => {
 import { buildTabsListing, TABS_LIMIT, TAB_TITLE_CHARS } from '../src/llm/chatController.js';
 
 const TABS = [
-  { tabId: 11, title: 'Domestic rabbit - Wikipedia', url: 'https://en.wikipedia.org/wiki/Domestic_rabbit' },
+  { tabId: 11, title: 'stencil/bot/assets at main', url: 'https://github.com/andrew1407/stencil/tree/main/bot/assets' },
   { tabId: 12, title: 'News', url: 'https://news.example.com/' },
 ];
 
 test('buildTabsListing: index, truncated title, url; capped with an overflow note', () => {
   const lines = buildTabsListing(TABS).split('\n');
-  assert.equal(lines[0], '0: "Domestic rabbit - Wikipedia" — https://en.wikipedia.org/wiki/Domestic_rabbit');
+  assert.equal(lines[0], '0: "stencil/bot/assets at main" — https://github.com/andrew1407/stencil/tree/main/bot/assets');
   assert.equal(lines[1], '1: "News" — https://news.example.com/');
   const many = Array.from({ length: TABS_LIMIT + 3 }, (_, i) => ({ title: `t${i}`, url: `https://x/${i}` }));
   const capped = buildTabsListing(many).split('\n');
@@ -451,19 +451,19 @@ test('system suffix carries the tabs listing when getTabs answers', async () => 
   const { controller, calls } = makeController(['chat'], { getTabs: async () => TABS });
   await controller.send('hi');
   assert.match(calls[0].system, /Other open browser tabs — scan one with \{"op":"scanTab","tab":N\}/);
-  assert.match(calls[0].system, /0: "Domestic rabbit - Wikipedia"/);
+  assert.match(calls[0].system, /0: "stencil\/bot\/assets at main"/);
 });
 
 test('no tabs → no tabs block, and a scanTab plan is a plan error', async () => {
   const { controller, calls } = makeController([
     JSON.stringify({ version: 1, reply: 'sure', actions: [{ op: 'scanTab', tab: 0 }], variants: [] }),
   ]);
-  await assert.rejects(() => controller.send('scan the rabbits tab'), /no other open tabs/);
+  await assert.rejects(() => controller.send('scan the assets tab'), /no other open tabs/);
   assert.doesNotMatch(calls[0].system, /Other open browser tabs/);
 });
 
 test('scanTab-only plan: swaps the listing, notes it in history, auto-continues once', async () => {
-  const SWAPPED = [{ kind: 'img', src: 'https://en.wikipedia.org/rabbit1.jpg', w: 20, h: 20 }];
+  const SWAPPED = [{ kind: 'img', src: 'https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/description.jpg', w: 20, h: 20 }];
   let working = null;
   const { controller, calls } = makeController([
     JSON.stringify({ version: 1, reply: 'Scanning that tab.', actions: [{ op: 'scanTab', tab: 0 }], variants: [] }),
@@ -478,11 +478,11 @@ test('scanTab-only plan: swaps the listing, notes it in history, auto-continues 
       return { ok: true, count: SWAPPED.length, title: tab.title };
     },
   });
-  const result = await controller.send('look at the rabbits tab');
+  const result = await controller.send('look at the assets tab');
   assert.equal(calls.length, 2);   // exactly one continuation
-  assert.deepEqual(result.cards, [{ kind: 'scanTab', index: 0, title: 'Domestic rabbit - Wikipedia', count: 1, ok: true }]);
+  assert.deepEqual(result.cards, [{ kind: 'scanTab', index: 0, title: 'stencil/bot/assets at main', count: 1, ok: true }]);
   // The continuation round saw the SWAPPED listing in its suffix…
-  assert.match(calls[1].system, /rabbit1\.jpg/);
+  assert.match(calls[1].system, /description\.jpg/);
   // …and the history explains the switch as a user-side note.
   const note = controller.history.find((m) => /Scanned open tab 0/.test(m.text || ''));
   assert.ok(note && note.role === 'user');
@@ -505,7 +505,7 @@ test('a failed scanTab keeps the turn alive: warning + failure card, no continua
 // ── §8 panel-op widening: rescan / unpin / accent ──
 
 test('rescan-only plan: refreshes the listing, notes it in history, auto-continues once', async () => {
-  const FRESH = [...LISTING, { kind: 'img', src: 'https://a.com/late.png', w: 40, h: 40 }];
+  const FRESH = [...LISTING, { kind: 'img', src: 'https://a.example/late.png', w: 40, h: 40 }];
   let working = null;
   const { controller, calls } = makeController([
     JSON.stringify({ version: 1, reply: 'Rescanning.', actions: [{ op: 'rescan' }], variants: [] }),
@@ -623,7 +623,7 @@ test('a pin failure warns per index and keeps the successes', async () => {
 });
 
 test('openUrl runs only for a URL the user typed; others warn and never fetch', async () => {
-  const URL_OK = 'https://a.com/cat.jpg';
+  const URL_OK = 'https://a.example/cat.jpg';
   const opened = [];
   const mk = (responses) => makeController(responses, { openUrlImage: async (a) => opened.push(a.url) });
 

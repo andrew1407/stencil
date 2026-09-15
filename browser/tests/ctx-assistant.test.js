@@ -576,9 +576,9 @@ test('a fetched data: URL gets a readable filename, not its base64 payload', () 
   // …but an opaque id longer than a filename is not one.
   assert.strictEqual(fileNameForUrl(`http://h/${'a'.repeat(120)}`, 'image/png'), 'image.png');
   // An extensionless segment with a KNOWN MIME is an endpoint, not a filename —
-  // gstatic's /images?q=… named every chip "images".
+  // a thumbnail CDN's /images?q=… named every chip "images".
   assert.strictEqual(
-    fileNameForUrl('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT&s=10', 'image/jpeg'),
+    fileNameForUrl('https://thumbs.example.com/images?q=tbn:ANd9GcT&s=10', 'image/jpeg'),
     'image.jpg');
 });
 
