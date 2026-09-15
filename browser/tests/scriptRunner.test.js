@@ -16,7 +16,9 @@ const fakeStencil = (over = {}) => {
   const self = {
     calls,
     imageSize: { width: 200, height: 100 },
-    project: { set name(v) { calls.push(['rename', v]); } },
+    // The real facade's Project handle: `current`, null on a blank editor.
+    current: { incognito: false, name: 'shot', set name(v) { calls.push(['rename', v]); } },
+    getProjectByName() { return null; },
     crop(spec) { calls.push(['crop', spec]); return self; },
     apply(opts) { calls.push(['apply', opts]); return self; },
     setLines(lines, opts) { calls.push(['setLines', lines, opts]); return self; },
@@ -77,6 +79,20 @@ test('a named save renames the project first', async () => {
   const s = fakeStencil();
   await runScript('@save my-shot', s);
   assert.deepEqual(names(s), ['rename', 'save']);
+});
+
+test('a named save on a taken name saves beside it, and an incognito one just saves', async () => {
+  const taken = fakeStencil({ getProjectByName: (n) => (n === 'my-shot' ? {} : null) });
+  await runScript('@save my-shot', taken);
+  assert.deepEqual(taken.calls[0], ['rename', 'my-shot 2']);
+
+  const hidden = fakeStencil({ current: { incognito: true, name: 'Incognito (unsaved)' } });
+  await runScript('@save my-shot', hidden);
+  assert.deepEqual(names(hidden), ['save'], 'an incognito editor has no name to take');
+
+  const blank = fakeStencil({ current: null });
+  await runScript('@save my-shot', blank);
+  assert.deepEqual(names(blank), ['save'], 'nothing to rename before a project exists');
 });
 
 test('a layout op fetches through the injected loader and applies it', async () => {
