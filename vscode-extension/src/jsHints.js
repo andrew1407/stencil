@@ -16,7 +16,7 @@ const { FACADE_DOC, MEMBER_NAMES, entryFor, explain, facadeAt, memberAt,
 // plain .js into a Stencil one needs no reload.
 const SELECTOR = Object.freeze([{ language: JS_LANGUAGE_ID }, { language: JS_LANGUAGE }]);
 
-const enabled = (setting) =>
+const isEnabled = (setting) =>
   vscode.workspace.getConfiguration(CONFIG_SECTION).get(setting, true);
 
 /* Where the workspace holds the facade's types, the editor's own JavaScript service already
@@ -27,12 +27,12 @@ const typescriptAnswers = (document) => document.languageId === JS_LANGUAGE
   && installedIn(vscode.workspace.getWorkspaceFolder?.(document.uri)?.uri?.fsPath);
 
 const answerFor = (document, setting) =>
-  isJsSource(document) && enabled(setting) && !typescriptAnswers(document);
+  isJsSource(document) && isEnabled(setting) && !typescriptAnswers(document);
 
-const callable = (name) => entryFor(name)?.signature?.includes('(') ?? false;
+const isCallable = (name) => entryFor(name)?.signature?.includes('(') ?? false;
 
-const item = (name) => {
-  const kind = callable(name) ? vscode.CompletionItemKind.Function : vscode.CompletionItemKind.Property;
+const makeItem = (name) => {
+  const kind = isCallable(name) ? vscode.CompletionItemKind.Function : vscode.CompletionItemKind.Property;
   const entry = new vscode.CompletionItem(name, kind);
   entry.insertText = name;
   entry.detail = entryFor(name)?.summary;
@@ -40,7 +40,7 @@ const item = (name) => {
   return entry;
 };
 
-const itemsFor = (linePrefix) => (prefixAt(linePrefix) === null ? [] : MEMBER_NAMES.map(item));
+const itemsFor = (linePrefix) => (prefixAt(linePrefix) === null ? [] : MEMBER_NAMES.map(makeItem));
 
 const completionProvider = {
   provideCompletionItems(document, position) {
@@ -53,7 +53,7 @@ const completionProvider = {
 
 // `range` is what the editor underlines while the tooltip is up; without one it picks the
 // word under the pointer, which splits a two-word marker in half.
-const hover = (markdown, range) => {
+const makeHover = (markdown, range) => {
   const contents = new vscode.MarkdownString(markdown);
   contents.supportHtml = false;
   return new vscode.Hover(contents, range);
@@ -61,14 +61,14 @@ const hover = (markdown, range) => {
 
 const hoverProvider = {
   provideHover(document, position) {
-    if (!isJsDocument(document) || !enabled(SETTINGS.hover)) return undefined;
+    if (!isJsDocument(document) || !isEnabled(SETTINGS.hover)) return undefined;
     const line = document.lineAt(position.line).text;
     /* Answered for in ANY JavaScript buffer, opted in or not, and even where the types are
      * installed: it is a comment, which no language service explains, and one written where it
      * cannot be read is precisely the case that needs saying out loud. */
     const marker = markerWordsAt(line, position.character);
     if (marker) {
-      return hover(markerSpan(line) ? MARKER_DOC : MARKER_TRAILING_DOC,
+      return makeHover(markerSpan(line) ? MARKER_DOC : MARKER_TRAILING_DOC,
         new vscode.Range(position.line, marker.start, position.line, marker.end));
     }
     if (!isJsSource(document)) return undefined;
@@ -76,7 +76,7 @@ const hoverProvider = {
     // The member, else the global itself.
     const markdown = explain(memberAt(line, position.character))
       || (facadeAt(line, position.character) ? FACADE_DOC : '');
-    return markdown ? hover(markdown) : undefined;
+    return markdown ? makeHover(markdown) : undefined;
   },
 };
 

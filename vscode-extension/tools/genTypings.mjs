@@ -17,8 +17,9 @@ export const CONTRACT_URL = 'https://github.com/andrew1407/stencil/blob/main/con
 
 // The types stencilApi.d.ts imports from the app. A hover needs their NAMES, not their
 // bodies, so each becomes an opaque alias rather than dragging in eight more modules.
-const OPAQUE = ['DrawingApp', 'CodecLine', 'LayoutPayload', 'WireCropRect', 'RefreshPeriod',
-  'ConnectSpec', 'TaggedRemoteProject', 'RemoteProjectMeta', 'LlmSettings', 'VariantResult'];
+const OPAQUE = Object.freeze(['DrawingApp', 'CodecLine', 'LayoutPayload', 'WireCropRect',
+  'RefreshPeriod', 'ConnectSpec', 'TaggedRemoteProject', 'RemoteProjectMeta', 'LlmSettings',
+  'VariantResult']);
 
 const MEMBER = /^(?:readonly\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\??\s*[(:]/;
 const DOC_LINE = /^\/\*\*.*\*\/$/;

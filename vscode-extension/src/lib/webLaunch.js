@@ -6,7 +6,8 @@ const { readFileSync } = require('node:fs');
 const { basename, extname } = require('node:path');
 
 // Past this, Chrome drops the navigation — the real ceiling, under the validator's 32 MiB.
-const MAX_PAYLOAD = 1800000;
+// The same number browser-extension/src/lib/editorLaunch.js writes; the tests pin the pair.
+const MAX_PAYLOAD = 1_800_000;
 
 const IMAGE_TYPES = Object.freeze({
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
@@ -70,9 +71,9 @@ const projectLaunch = (text) => {
   return doc.layout ? { dataUrl, name, layout: doc.layout } : { dataUrl, name };
 };
 
-const tooBig = (url) => String(url ?? '').length > MAX_PAYLOAD;
+const isTooBig = (url) => String(url ?? '').length > MAX_PAYLOAD;
 
 module.exports = {
   IMAGE_TYPES, MAX_PAYLOAD, buildLaunchUrl, imageDataUrl, imagePart, isRemote,
-  localSources, projectLaunch, scriptLaunch, tooBig,
+  isTooBig, localSources, projectLaunch, scriptLaunch,
 };

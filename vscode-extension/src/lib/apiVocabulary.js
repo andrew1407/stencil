@@ -4,7 +4,7 @@
 
 const { markdownFor } = require('./vocabulary.js');
 
-const MEMBERS = require('../config/stencilApiVocabulary.json').members;
+const MEMBERS = Object.freeze(require('../config/stencilApiVocabulary.json').members);
 const MEMBER_NAMES = Object.freeze(Object.keys(MEMBERS));
 
 // Anchored on a non-identifier, so `myStencil.` is somebody else's object.
@@ -37,10 +37,6 @@ const wordAt = (lineText, character) => {
 
 const entryFor = (name) => MEMBERS[String(name)];
 
-const groupOf = (name) => entryFor(name)?.group;
-
-const namesInGroup = (group) => MEMBER_NAMES.filter((name) => MEMBERS[name].group === group);
-
 // The part-word after a `stencil.`, else null — how a `.` elsewhere offers nothing.
 const prefixAt = (linePrefix) => {
   const match = MEMBER_PREFIX.exec(String(linePrefix ?? ''));
@@ -69,5 +65,5 @@ const explain = (name) => {
   return entry.readOnly ? `${markdown}\n\nRead-only.` : markdown;
 };
 
-module.exports = { FACADE, FACADE_DOC, MEMBERS, MEMBER_NAMES, entryFor, explain, facadeAt,
-  groupOf, memberAt, namesInGroup, prefixAt };
+module.exports = { FACADE_DOC, MEMBER_NAMES, entryFor, explain, facadeAt, memberAt,
+  prefixAt };
