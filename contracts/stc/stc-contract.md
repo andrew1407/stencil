@@ -79,7 +79,9 @@ a **file**. Resolving them — fetching, listing, globbing — is the adapter's 
 **`@save` targets.** Bare, the CLI writes `<source-dir>/<base>-stencil.<ext>`; a directory
 gets `<dir>/<base>-stencil.<ext>`; a bare name gets `<name>.<ext>` with the extension inferred
 from the source; a full path is taken verbatim. A video frame's base is `<base>-frame-<n>`.
-On the editors a bare `@save` saves the open project and `@save <name>` renames it first.
+On the editors a bare `@save` saves the open project and `@save <name>` renames it first —
+names are unique there, so a taken one is numbered (`out 2`) rather than refused, and an
+incognito session, which keeps nothing, is saved without a rename.
 
 ## §4 Units and lengths
 

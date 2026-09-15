@@ -177,7 +177,8 @@ classDiagram
   diagnostic is an error. Each lowered op then maps onto one facade call, the same one the
   toolbar makes: `open`/`frame` → `stencil.load`, `crop` → `stencil.crop`, `filter` →
   `stencil.apply`, `line`/`rect` → `stencil.setLines` (combine), `layout` → an http(s)-only
-  fetch then `stencil.applyLayout`, `undo`/`redo` → the history, `save` → `stencil.save`.
+  fetch then `stencil.applyLayout`, `undo`/`redo` → the history, `save` → `stencil.save`,
+  renaming `stencil.current` first when the `@save` named a target.
   A source the browser cannot open — a local path, since there is no filesystem — is the one
   op that fails at run time rather than at parse time; a failure part-way leaves the edits
   already applied and names the line that stopped it.
@@ -199,8 +200,11 @@ classDiagram
   text only); the browser keeps chats in IndexedDB and on the server's `chat` file instead.
 - **Deep links.** `js/core/deepLink.js` normalizes the inbound `#stencil=` fragment
   (`server` / `dataUrl` / `src` / `layout`) and builds the outbound `stencil://` and Telegram
-  `?start=` links. `js/core/extensionBridge.js` answers the extension's state/import/switch
-  requests through the same core methods.
+  `?start=` links. A `.stc` rides the same fragment for a hand-off that carries no picture:
+  `index.js` runs the script once the launch settles, and leaves it in the script buffer
+  rather than opening the window on someone else's script.
+  `js/core/extensionBridge.js` answers the extension's state/import/switch requests through
+  the same core methods.
 - **Single-file build.** `vite.config.js` carries its rules inline (no plugins);
   `tools/assertSelfContained.js` re-reads the output, and `tests/singleFileBuild.test.js`
   fails `npm test` if a loader outruns `tools/singleFilePatterns.js`.

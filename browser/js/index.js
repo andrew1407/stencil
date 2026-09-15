@@ -23,17 +23,14 @@ import { publishReady } from './bus/appBus.js';
 // fails, the core installs no-ops and consumers use their JS fallback.
 // A handed-over script (launchController's pendingLaunchScript) runs HERE because the layer
 // order forbids core/ importing console/. The text lands in the one shared script buffer
-// first, so a failure opens the window already showing the source its strip underlines.
+// first, so the window opens on it whenever the user asks — but never by itself: the script
+// was written elsewhere, and runScript's toast already names the line that stopped it.
 const runLaunchScript = async (app) => {
   const text = app.pendingLaunchScript;
   if (!text) return;
   app.pendingLaunchScript = '';
   setScriptText(text);
-  try {
-    await runScriptHere(text);
-  } catch {
-    document.getElementById('script-btn')?.click();   // runScript already said what failed
-  }
+  await runScriptHere(text).catch(() => {});
 };
 
 window.onload = async () => {

@@ -45,6 +45,17 @@ const shapeOp = (op, { stencil }) => {
   }], { mode: 'combine' });
 };
 
+// Project names are unique, so a script run twice lands beside its first result instead of
+// failing on the name it took — the desktop's uniqueLocalProjectName does the same.
+const freeName = (stencil, wanted) => {
+  if (!stencil.getProjectByName(wanted)) return wanted;
+  for (let n = 2; n < 1000; n += 1) {
+    const candidate = `${wanted} ${n}`;
+    if (!stencil.getProjectByName(candidate)) return candidate;
+  }
+  return wanted;
+};
+
 const stepHistory = (op, step) => {
   const steps = Math.max(1, Math.round(op.nums[0] ?? 1));
   for (let i = 0; i < steps; i += 1) step();
@@ -88,9 +99,14 @@ const OP_RUNNERS = Object.freeze({
   redo(op, { stencil }) {
     stepHistory(op, () => stencil.redo());
   },
+// §3: a named @save renames the open project first. An incognito editor has no name to
+// take and never persists, and a blank one has no project yet — both just save.
   async save(op, { stencil }) {
-    const name = op.strs[0];
-    if (name) stencil.project.name = name;
+    const [name] = op.strs;
+    const project = stencil.current;
+    if (name && project && !project.incognito && project.name !== name) {
+      project.name = freeName(stencil, name);
+    }
     await stencil.save();
   },
 });
