@@ -193,7 +193,7 @@ fn isBlockedV4(b: [4]u8, strict: bool) bool {
     if (b[0] == 198 and (b[1] == 18 or b[1] == 19)) return true; // 198.18.0.0/15 benchmarking
     if (b[0] == 198 and b[1] == 51 and b[2] == 100) return true; // TEST-NET-2
     if (b[0] == 203 and b[1] == 0 and b[2] == 113) return true; // TEST-NET-3
-    if (b[0] >= 240) return true; // 240.0.0.0/4 reserved + 255.255.255.255 broadcast
+    if (b[0] >= 224) return true; // 224.0.0.0/4 multicast + 240.0.0.0/4 reserved + broadcast
     return false;
 }
 
@@ -265,6 +265,7 @@ test "isBlockedFetchHost blocks internal targets" {
     try testing.expect(isBlockedFetchHost("192.168.1.1", false));
     try testing.expect(isBlockedFetchHost("100.64.0.1", false)); // CGNAT
     try testing.expect(isBlockedFetchHost("0.0.0.0", false)); // unspecified
+    try testing.expect(isBlockedFetchHost("224.0.0.1", false)); // multicast
     try testing.expect(isBlockedFetchHost("fe80::1", false)); // link-local
     try testing.expect(isBlockedFetchHost("fc00::1", false)); // ULA
     try testing.expect(isBlockedFetchHost("::", false)); // IPv6 unspecified

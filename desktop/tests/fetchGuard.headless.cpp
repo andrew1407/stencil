@@ -42,6 +42,7 @@ namespace {
       {"198.19.255.1", true, true, "…and its second half"},
       {"198.51.100.4", true, true, "TEST-NET-2"},
       {"203.0.113.9", true, true, "TEST-NET-3"},
+      {"224.0.0.1", true, true, "224/4 multicast"},
       {"240.0.0.1", true, true, "240/4 reserved"},
       {"255.255.255.255", true, true, "the broadcast address"},
       {"::", true, true, "the IPv6 unspecified address"},

@@ -7,6 +7,7 @@ import { state } from './model.js';
 import { applyFilters } from './filters.js';
 import { loadShared } from './sharedPins.js';
 import { setPinnedState } from './pinActions.js';
+import { escapeHtml } from '../lib/escapeHtml.js';
 
 const storeOnServer = async (image, serverUrl) => {
   const conn = serverUrl ? connectionByUrl(state.connections, serverUrl) : null;
@@ -39,7 +40,7 @@ const promptPinTarget = (anchor) => openPanelDialog({
     const sel = document.createElement('select');
     sel.className = 'dialog-select';
     sel.innerHTML = '<option value="">Pin locally only</option>'
-      + state.connections.map((c) => `<option value="${c.url}">Pin & store on ${hostLabel(c.url)}</option>`).join('');
+      + state.connections.map((c) => `<option value="${escapeHtml(c.url)}">Pin &amp; store on ${escapeHtml(hostLabel(c.url))}</option>`).join('');
     // Built after the page's own enhanceSelect pass, so it asks for its custom list itself.
     queueMicrotask(() => enhanceSelect(sel));
 

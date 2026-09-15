@@ -49,7 +49,10 @@ export const filenameFromUrl = (url, fallback = 'image') => {
       return `${fallback}.${ext}`;
     }
     const u = new URL(url);
-    const base = decodeURIComponent(u.pathname.split('/').filter(Boolean).pop() || '');
+    // Decoded, so a %2e%2e%2f segment becomes real separators: strip them and any control
+    // byte before this reaches chrome.downloads.download as a filename.
+    const base = decodeURIComponent(u.pathname.split('/').filter(Boolean).pop() || '')
+      .replace(/[\\/\x00-\x1f]/g, '_');
     if (base && /\.[a-z0-9]{2,4}$/i.test(base)) return base;
     return `${base || fallback}.png`;
   } catch {
