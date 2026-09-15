@@ -7,7 +7,7 @@ self-contained HTML file; the app itself never depends on it.)
 
 For the project overview see the [repository README](../README.md); for how this app is put
 together, [`ARCHITECTURE.md`](ARCHITECTURE.md). Screenshots and clips, scenario by
-scenario: [`usecases/browser/USECASES.md`](../usecases/browser/USECASES.md).
+scenario: [`usecases/docs/browser/USECASES.md`](../usecases/docs/browser/USECASES.md).
 
 ## Running
 

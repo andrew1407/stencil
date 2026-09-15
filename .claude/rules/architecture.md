@@ -12,8 +12,8 @@ Every subproject has one (`browser/ARCHITECTURE.md`, `cli/ARCHITECTURE.md`, …)
 before editing that tree and keep the change inside its layers, "Where things go" table and
 rules. It is an independent document of that surface's design and stays current with the
 tree; the `README.md` beside it is user-facing only (build, run, use) and never carries
-architecture. `usecases/<app>/USECASES.md` is the illustrated companion: scenarios and
-steps only, its images generated under `usecases/<app>/img/` by `usecases/capture/`
+architecture. `usecases/docs/<app>/USECASES.md` is the illustrated companion: scenarios and
+steps only, its images generated under `usecases/docs/<app>/img/` by `usecases/capture-runner/`
 (a visual change is followed by a re-run, never by editing a picture), no architecture,
 no feature inventory, no counts.
 
