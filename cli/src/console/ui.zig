@@ -70,11 +70,9 @@ pub fn status(session: *Session) void {
     var cbuf: [20]u8 = undefined;
     const seq = nameColorSeq(session, &cbuf);
     const rst = if (seq.len != 0) logo.resetSeq() else "";
-    if (n > 1) {
-        logo.print("image: {s}{s}{s} ({d}x{d} px · {s}){s}  [{d}/{d}]\n", .{ seq, session.label.?, rst, img.width, img.height, fmt_s, tag, session.cursor + 1, n });
-    } else {
-        logo.print("image: {s}{s}{s} ({d}x{d} px · {s}){s}\n", .{ seq, session.label.?, rst, img.width, img.height, fmt_s, tag });
-    }
+    var pos: [24]u8 = undefined;
+    const at = if (n > 1) std.fmt.bufPrint(&pos, "  [{d}/{d}]", .{ session.cursor + 1, n }) catch "" else "";
+    logo.print("image: {s}{s}{s} ({d}x{d} px · {s}){s}{s}\n", .{ seq, session.label.?, rst, img.width, img.height, fmt_s, tag, at });
 }
 
 /// The SGR escape painting a FETCHED project's name in its custom colour (or neutral grey);
@@ -91,11 +89,9 @@ pub fn ack(session: *Session, verb: []const u8) void {
     const fmt = session.pageFormatLabel() catch null;
     defer if (fmt) |f| session.gpa.free(f);
     const fmt_s = if (fmt) |f| f else "";
-    if (n > 1) {
-        logo.print("{s} -> {d}x{d} px · {s}  [{d}/{d}]\n", .{ verb, img.width, img.height, fmt_s, session.cursor + 1, n });
-    } else {
-        logo.print("{s} -> {d}x{d} px · {s}\n", .{ verb, img.width, img.height, fmt_s });
-    }
+    var pos: [24]u8 = undefined;
+    const at = if (n > 1) std.fmt.bufPrint(&pos, "  [{d}/{d}]", .{ session.cursor + 1, n }) catch "" else "";
+    logo.print("{s} -> {d}x{d} px · {s}{s}\n", .{ verb, img.width, img.height, fmt_s, at });
 }
 
 // Clear the screen (interactive only) and reprint the logo + header — the "image on top".
@@ -123,13 +119,13 @@ pub fn listThemes() void {
     for (theme.accents()) |a| {
         const mark: []const u8 = if (std.ascii.eqlIgnoreCase(a.key, current_accent)) "*" else " ";
         const tag: []const u8 = if (std.ascii.eqlIgnoreCase(a.key, theme.default_key)) " (default)" else "";
-        if (on) {
-            var fbuf: [20]u8 = undefined;
-            const seq = std.fmt.bufPrint(&fbuf, "\x1b[38;2;{d};{d};{d}m", .{ a.rgb[0], a.rgb[1], a.rgb[2] }) catch "";
-            logo.print(" {s} {s}{s}{s}{s}\n", .{ mark, seq, a.key, logo.resetSeq(), tag });
-        } else {
+        if (!on) {
             logo.print(" {s} {s}{s}\n", .{ mark, a.key, tag });
+            continue;
         }
+        var fbuf: [20]u8 = undefined;
+        const seq = std.fmt.bufPrint(&fbuf, "\x1b[38;2;{d};{d};{d}m", .{ a.rgb[0], a.rgb[1], a.rgb[2] }) catch "";
+        logo.print(" {s} {s}{s}{s}{s}\n", .{ mark, seq, a.key, logo.resetSeq(), tag });
     }
 }
 
@@ -181,8 +177,8 @@ fn block(comptime name: []const u8) []const u8 {
     return rest[0..end];
 }
 
-/// Print a block line by line: a '§' line is a section heading, a TAB splits a command from
-/// its description (laid out in a 24-column gutter), anything else is literal.
+/// Print a block line by line: '§' heads a section, '¶' colours a line's first word, a TAB
+/// splits a command from its description (24-column gutter), anything else is literal.
 fn emit(text: []const u8) void {
     const a = logo.accentSeq();
     const r = logo.resetSeq();
@@ -190,6 +186,9 @@ fn emit(text: []const u8) void {
     while (it.next()) |line| {
         if (std.mem.startsWith(u8, line, "\u{a7}")) {
             logo.print("{s}{s}{s}\n", .{ a, line[2..], r });
+        } else if (std.mem.startsWith(u8, line, "\u{b6}")) {
+            const cut = 2 + (std.mem.indexOfScalar(u8, line[2..], ' ') orelse line.len - 2);
+            logo.print("{s}{s}{s}{s}\n", .{ a, line[2..cut], r, line[cut..] });
         } else if (std.mem.indexOfScalar(u8, line, '\t')) |tab| {
             const cmd = line[0..tab];
             const width = 24; // command column; descriptions line up after it
