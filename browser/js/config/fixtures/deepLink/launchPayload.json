@@ -457,6 +457,27 @@
     }
   },
   {
+    "name": "script-key-ignored-by-the-normalizer",
+    "payload": {
+      "src": "https://cdn.example/i.png",
+      "script": "@crop 10%\n"
+    },
+    "expect": "ok",
+    "normalized": {
+      "kind": "src",
+      "src": "https://cdn.example/i.png",
+      "name": null,
+      "crop": null,
+      "noCrop": false,
+      "page": null,
+      "source": null,
+      "resource": null,
+      "open": null,
+      "incognito": false,
+      "layout": null
+    }
+  },
+  {
     "name": "dataurl-exactly-at-cap-accepted",
     "payload": {
       "dataUrl": {

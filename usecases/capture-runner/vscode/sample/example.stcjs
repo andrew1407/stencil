@@ -1,0 +1,19 @@
+// The browser app's console API, written in the editor: every member of window.stencil is
+// completed after `stencil.` and explained where it stands.
+await stencil.load('https://picsum.photos/id/1015/1200/800');
+
+stencil.rotateRight();
+stencil.crop({ x1: '8%', x2: '-8%', y1: '8%', y2: '-8%' });
+
+stencil.apply({
+  filter: 'sepia',
+  lineColor: '#1e63c8',
+  thickness: 3,
+  lineStyle: 'dashed',
+});
+
+stencil.setLines([
+  { points: [{ x: 120, y: 640 }, { x: 400, y: 240 }, { x: 680, y: 640 }] },
+], { mode: 'combine' });
+
+await stencil.saveProjectFile();

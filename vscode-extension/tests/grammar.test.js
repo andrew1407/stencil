@@ -132,3 +132,28 @@ test('every language-configuration regex compiles under the JS engine VS Code us
   assert.match('@SOURCE b.png:', new RegExp(langConfig.indentationRules.decreaseIndentPattern));
   assert.match('@crop', new RegExp(langConfig.wordPattern), 'a directive is one word');
 });
+
+/* The marker is a comment to JavaScript and a directive to a reader, so it is coloured by an
+ * INJECTION: `// @use stencil` lights up inside a line comment, in a .stcjs and in the plain
+ * .js that opted in, without this tree re-spelling one rule of JavaScript. */
+test('the `@use stencil` marker is injected into JavaScript line comments', () => {
+  const contributed = manifest.contributes.grammars.find((g) => g.injectTo);
+  assert.ok(contributed, 'no injection grammar is contributed');
+  assert.deepEqual(contributed.injectTo, ['source.js', 'source.stcjs']);
+  assert.equal(contributed.language, undefined, 'an injection belongs to no language of its own');
+
+  const rules = read(`../${contributed.path}`);
+  assert.equal(rules.scopeName, contributed.scopeName);
+  assert.match(rules.injectionSelector, /comment\.line/);
+  assert.equal(rules.patterns.length, 1);
+
+  const [rule] = rules.patterns;
+  const match = new RegExp(rule.match);
+  assert.ok(match.test('// @use stencil'), 'the marker itself');
+  assert.ok(match.test('  // @use stencil — and a sentence after it'));
+  assert.ok(!match.test('// @use stencils'), 'a longer word is a different word');
+  assert.ok(!match.test('// use stencil'), 'the directive is part of the marker');
+  // ONE scope a theme already knows, so the marker reads as a single declaration.
+  assert.equal(rule.captures['1'].name, rule.captures['2'].name);
+  assert.match(rule.captures['1'].name, /^keyword\.control\..*\.stc$/);
+});

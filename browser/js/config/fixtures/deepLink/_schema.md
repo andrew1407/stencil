@@ -13,6 +13,11 @@ literal: any `{ "$repeat": { "prefix", "char", "length" } }` value expands to
 `prefix + char.repeat(length - prefix.length)` (total = `length` chars) before use —
 `length` values are relative to `LAUNCH_DATA_URL_MAX` (32 MiB), asserted by the walker.
 
+A `#stencil=` fragment may also carry a top-level `script` (a `.stc` the VS Code extension
+hands over). It is deliberately OUTSIDE the normalized shape — the browser reads it off the
+raw payload and every other surface ignores it, exactly as the unknown-key vectors pin — so
+adding it moved no codec.
+
 Vectors may carry an optional informational `divergences` map
 (`{ "<surface>": "one-line summary" }`) inventorying measured surface differences; it is
 never asserted — walkers ignore it (none recorded for this family so far; surface-specific

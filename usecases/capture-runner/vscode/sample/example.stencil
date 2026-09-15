@@ -1,0 +1,19 @@
+{
+  "format": "stencil-project",
+  "version": 1,
+  "name": "example",
+  "keywords": [
+    "sample"
+  ],
+  "image": {
+    "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "ext": "png",
+    "w": 1,
+    "h": 1
+  },
+  "layout": {
+    "imageWidth": 1,
+    "imageHeight": 1,
+    "lines": []
+  }
+}

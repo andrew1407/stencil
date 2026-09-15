@@ -13,6 +13,7 @@ export declare class VsCodeHost {
   static freePort(port: number, dir: string): Promise<void>;
   static launch(config: CaptureConfig, theme: ThemeName, opts?: { open?: string | null }): Promise<VsCodeHost>;
   waitUntilReady(hasEditor: boolean): Promise<void>;
+  openFile(name: string): Promise<void>;
   runCommand(command: string): Promise<void>;
   stop(): Promise<void>;
 }

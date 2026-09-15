@@ -53,4 +53,5 @@ export interface LoadPlan {
   remoteLayout: RemoteLayout | null;
 }
 
+export declare const waitForImage: (app: DrawingApp, opts?: { timeoutMs?: number; previous?: unknown }) => Promise<void>;
 export declare const loadImageFromFile: (app: DrawingApp, file: File, opts?: LoadImageOptions) => void;
