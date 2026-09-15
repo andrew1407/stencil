@@ -137,8 +137,9 @@ classDiagram
 - **A check.** On open and on save — while `stencil.checkOnSave` is on — `collect` locates the
   CLI and runs `execFile(cli, ['--script-check', path])` with no shell, so the extension host is
   never blocked; each output line is read by `CHECK_LINE` into a `DiagnosticEntry`. A run that did
-  not answer about the script — an exit status other than 0 or 1, or a failure that printed
-  nothing parsable — is **no answer at all**, not an empty one, so the copies take over rather
+  not answer about the script — an exit status other than 0 or 1, a failure that printed
+  nothing parsable, or a binary that stopped answering at all and was killed once the wait ran
+  out — is **no answer at all**, not an empty one, so the copies take over rather
   than the squiggles silently clearing — as they do outright with `stencil.checkOnSave` off, which
   is the one way to stop the extension spawning anything. While typing (`stencil.checkOnType`, default on) the
   copies answer anyway, debounced per document, and a result whose `version` the next keystroke
