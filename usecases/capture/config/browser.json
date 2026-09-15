@@ -1,0 +1,108 @@
+{
+  "theme": {
+    "mode": "dark",
+    "steps": {
+      "open-image-modal": "light",
+      "crop-modal": "light"
+    }
+  },
+  "pairs": [
+    "editor-empty",
+    "lines-selection",
+    "launch-page"
+  ],
+  "viewports": {
+    "app": {
+      "width": 1280,
+      "height": 800
+    },
+    "launch": {
+      "width": 1000,
+      "height": 640
+    }
+  },
+  "modals": [
+    {
+      "name": "connect-modal",
+      "key": "servers",
+      "overlay": "connect-modal-overlay"
+    },
+    {
+      "name": "open-image-modal",
+      "key": "open-image",
+      "overlay": "open-image-modal-overlay"
+    },
+    {
+      "name": "help-modal",
+      "key": "help",
+      "overlay": "info-modal-overlay"
+    },
+    {
+      "name": "assistant-settings-modal",
+      "key": "assistant-settings",
+      "overlay": "chat-settings-overlay"
+    },
+    {
+      "name": "crop-modal",
+      "key": "crop",
+      "overlay": "crop-modal-overlay",
+      "trigger": "#crop-image",
+      "ready": "#crop-image-el",
+      "image": "botIcon"
+    },
+    {
+      "name": "links-modal",
+      "key": "links",
+      "overlay": "links-modal-overlay"
+    },
+    {
+      "name": "description-modal",
+      "key": "description",
+      "overlay": "description-overlay"
+    },
+    {
+      "name": "keywords-modal",
+      "key": "keywords",
+      "overlay": "keywords-overlay"
+    }
+  ],
+  "clips": {
+    "theme-swap": {
+      "startTheme": "light",
+      "holdMs": 2200
+    },
+    "create-blank": {
+      "stepMs": 400,
+      "holdMs": 700,
+      "points": [
+        [
+          0.2,
+          0.25
+        ],
+        [
+          0.55,
+          0.6
+        ],
+        [
+          0.8,
+          0.3
+        ]
+      ],
+      "fps": 8,
+      "width": 900
+    },
+    "assistant-turn": {
+      "typeDelayMs": 28,
+      "holdMs": 1800
+    },
+    "script-run": {
+      "typeDelayMs": 18,
+      "holdMs": 1600
+    }
+  },
+  "timeouts": {
+    "stubReplyMs": 20000,
+    "realReplyMs": 120000,
+    "loadMs": 15000
+  }
+}

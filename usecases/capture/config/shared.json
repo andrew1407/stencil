@@ -1,0 +1,199 @@
+{
+  "urls": {
+    "raw": "https://raw.githubusercontent.com/andrew1407/stencil/main/",
+    "favicon": "browser/favicon.svg",
+    "botIcon": "bot/assets/icon.png",
+    "localBotIcon": "bot/assets/icon.png"
+  },
+  "server": {
+    "url": "http://127.0.0.1:8090",
+    "tokenFile": "session.token"
+  },
+  "budget": {
+    "pngMaxBytes": 512000,
+    "gifMaxBytes": 4000000
+  },
+  "gif": {
+    "fps": 10,
+    "width": 1000,
+    "colors": 256,
+    "scale": "lanczos"
+  },
+  "theme": {
+    "modes": [
+      "dark",
+      "light",
+      "system",
+      "random"
+    ],
+    "mode": "dark",
+    "systemPrefers": "dark",
+    "randomSeed": 20260915
+  },
+  "prompts": {
+    "real": "Frame the S with a dashed red rectangle and warm the picture up with sepia",
+    "stub": "Warm it up with sepia, outline the centre and show me two more takes",
+    "extension": "What pictures are on this page, and which one is the largest?",
+    "botChat": "Make it black and white and put a red rectangle around the arrow"
+  },
+  "canvas": {
+    "blankSize": {
+      "width": 960,
+      "height": 640
+    },
+    "lines": [
+      {
+        "points": [
+          {
+            "x": 120,
+            "y": 110
+          },
+          {
+            "x": 520,
+            "y": 260
+          },
+          {
+            "x": 300,
+            "y": 520
+          }
+        ],
+        "color": "#c81e1e",
+        "thickness": 4,
+        "style": "solid"
+      },
+      {
+        "points": [
+          {
+            "x": 620,
+            "y": 140
+          },
+          {
+            "x": 840,
+            "y": 560
+          }
+        ],
+        "color": "#1e63c8",
+        "thickness": 3,
+        "style": "dashed"
+      }
+    ],
+    "script": [
+      "# Frame the page and warm it up",
+      "@crop 8% 8% -8% -8%",
+      "@filter sepia",
+      "@use line #1e63c8, 3px, dashed",
+      "@rect (10%, 10%) (90%, 90%)"
+    ]
+  },
+  "stub": {
+    "sepiaOutline": {
+      "version": 1,
+      "reply": "Applied a sepia tint and framed the centre with a dashed outline. Two variants: one rotated a quarter turn, one in black and white.",
+      "actions": [
+        {
+          "op": "filter",
+          "mode": "sepia"
+        },
+        {
+          "op": "layout",
+          "lines": [
+            {
+              "points": [
+                {
+                  "x": 96,
+                  "y": 64
+                },
+                {
+                  "x": 864,
+                  "y": 64
+                },
+                {
+                  "x": 864,
+                  "y": 576
+                },
+                {
+                  "x": 96,
+                  "y": 576
+                },
+                {
+                  "x": 96,
+                  "y": 64
+                }
+              ],
+              "color": "#1e63c8",
+              "thickness": 3,
+              "pointSize": 4,
+              "style": "dashed",
+              "locked": false,
+              "fillColor": "transparent"
+            }
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "label": "rotated",
+          "actions": [
+            {
+              "op": "rotate",
+              "dir": "right"
+            }
+          ]
+        },
+        {
+          "label": "black & white",
+          "actions": [
+            {
+              "op": "filter",
+              "mode": "bw"
+            }
+          ]
+        }
+      ]
+    },
+    "pageSurvey": "This page has eight pictures plus the CSS hero banner. The largest is Plate 2, a 640\u00d7360 JPEG; the rest are icons and SVG marks. Say the word and I will open Plate 2 in the editor."
+  },
+  "vscode": {
+    "binaries": {
+      "darwin": "/Applications/Visual Studio Code.app/Contents/MacOS/Code",
+      "win32": "%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\Code.exe",
+      "linux": "/usr/share/code/code"
+    },
+    "themes": {
+      "dark": "Default Dark Modern",
+      "light": "Default Light Modern"
+    },
+    "debugPort": 9333,
+    "window": {
+      "width": 1440,
+      "height": 900
+    },
+    "settleMs": 2500,
+    "roots": {
+      "darwin": "/tmp/stencil-capture",
+      "linux": "/tmp/stencil-capture",
+      "win32": "C:\\\\Temp\\\\stencil-capture"
+    },
+    "shells": {
+      "darwin": {
+        "path": "/bin/bash",
+        "args": [
+          "--norc",
+          "--noprofile"
+        ]
+      },
+      "linux": {
+        "path": "/bin/bash",
+        "args": [
+          "--norc",
+          "--noprofile"
+        ]
+      },
+      "win32": {
+        "path": "cmd.exe",
+        "args": []
+      }
+    }
+  },
+  "sitePort": 8199
+}

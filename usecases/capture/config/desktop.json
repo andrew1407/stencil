@@ -1,0 +1,48 @@
+{
+  "theme": {
+    "mode": "dark",
+    "steps": {
+      "open-image-dialog": "light",
+      "crop-dialog": "light"
+    }
+  },
+  "pairs": [
+    "editor-empty",
+    "lines-selection",
+    "assistant-docked",
+    "settings-dialog",
+    "projects-dialog"
+  ],
+  "stills": [
+    "blank-white",
+    "blank-black",
+    "open-from-url",
+    "context-menu",
+    "assistant-floating",
+    "open-image-dialog",
+    "crop-dialog",
+    "connect-dialog",
+    "shortcuts-dialog",
+    "script-dialog",
+    "assistant-settings-dialog",
+    "help-dialog",
+    "description-dialog",
+    "keywords-dialog",
+    "links-dialog",
+    "open-in-dialog",
+    "accent-picker"
+  ],
+  "window": {
+    "width": 1280,
+    "height": 860
+  },
+  "scaleFactor": 2,
+  "clip": {
+    "name": "theme-swap",
+    "startTheme": "light",
+    "ms": 1100,
+    "everyMs": 33,
+    "inFps": 30,
+    "fps": 15
+  }
+}

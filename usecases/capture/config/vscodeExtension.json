@@ -1,0 +1,34 @@
+{
+  "theme": {
+    "mode": "dark",
+    "steps": {
+      "hover": "light"
+    }
+  },
+  "pairs": [
+    "highlighting"
+  ],
+  "clips": {
+    "edit-and-check": {
+      "ms": 5200,
+      "everyMs": 100,
+      "typeDelayMs": 70,
+      "holdMs": 1400
+    },
+    "completion-hints": {
+      "ms": 8200,
+      "everyMs": 100,
+      "typeDelayMs": 90,
+      "leadMs": 400,
+      "holdMs": 700,
+      "clipHeight": 420,
+      "clipFrom": ".monaco-breadcrumbs",
+      "clipTrimRight": 20
+    }
+  },
+  "timeouts": {
+    "widgetMs": 8000,
+    "terminalMs": 10000
+  },
+  "typeDelayMs": 60
+}

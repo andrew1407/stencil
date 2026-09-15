@@ -1,0 +1,11 @@
+export const HERE: string;
+export const CAPTURE: string;
+export const DOCS: string;
+export const REPO: string;
+export const CONFIG_DIR: string;
+export const SCRATCH: string;
+export function expandHome(p: string): string;
+export function repoPath(...parts: string[]): string;
+export function outDir(app: string): string;
+export function scratchDir(name: string): string;
+export function scratchPath(...parts: string[]): string;
