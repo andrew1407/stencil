@@ -27,37 +27,37 @@ test('siteOf returns the origin, or "" when unparseable', () => {
 });
 
 test('pinKey + isPinnedIn key on (site, source) together', () => {
-  const entries = [pin('https://a.com', 'https://cdn/x.png')];
-  assert.equal(pinKey('https://a.com', 'https://cdn/x.png'), 'https://a.com\nhttps://cdn/x.png');
-  assert.equal(isPinnedIn(entries, 'https://a.com', 'https://cdn/x.png'), true);
+  const entries = [pin('https://a.example', 'https://cdn/x.png')];
+  assert.equal(pinKey('https://a.example', 'https://cdn/x.png'), 'https://a.example\nhttps://cdn/x.png');
+  assert.equal(isPinnedIn(entries, 'https://a.example', 'https://cdn/x.png'), true);
   // Same image, different site → not pinned there.
-  assert.equal(isPinnedIn(entries, 'https://b.com', 'https://cdn/x.png'), false);
+  assert.equal(isPinnedIn(entries, 'https://b.example', 'https://cdn/x.png'), false);
   // Same site, different image → not pinned.
-  assert.equal(isPinnedIn(entries, 'https://a.com', 'https://cdn/y.png'), false);
-  assert.equal(isPinnedIn([], 'https://a.com', 'https://cdn/x.png'), false);
+  assert.equal(isPinnedIn(entries, 'https://a.example', 'https://cdn/y.png'), false);
+  assert.equal(isPinnedIn([], 'https://a.example', 'https://cdn/x.png'), false);
 });
 
 test('addPinEntry prepends, dedupes on (site, source), and refreshes the timestamp', () => {
   let list = [];
-  list = addPinEntry(list, pin('https://a.com', 'https://cdn/x.png', { t: 1 }));
-  list = addPinEntry(list, pin('https://a.com', 'https://cdn/y.png', { t: 2 }));
+  list = addPinEntry(list, pin('https://a.example', 'https://cdn/x.png', { t: 1 }));
+  list = addPinEntry(list, pin('https://a.example', 'https://cdn/y.png', { t: 2 }));
   assert.deepEqual(list.map((e) => e.source), ['https://cdn/y.png', 'https://cdn/x.png']); // newest-first
 
   // Re-pin x → one entry, floated to the front, timestamp refreshed.
-  list = addPinEntry(list, pin('https://a.com', 'https://cdn/x.png', { t: 9 }));
+  list = addPinEntry(list, pin('https://a.example', 'https://cdn/x.png', { t: 9 }));
   assert.equal(list.length, 2);
   assert.deepEqual(list.map((e) => e.source), ['https://cdn/x.png', 'https://cdn/y.png']);
   assert.equal(list[0].t, 9);
 
   // Same source on a different site is a distinct pin.
-  list = addPinEntry(list, pin('https://b.com', 'https://cdn/x.png', { t: 3 }));
+  list = addPinEntry(list, pin('https://b.example', 'https://cdn/x.png', { t: 3 }));
   assert.equal(list.length, 3);
 });
 
 test('addPinEntry normalizes fields and defaults kind/timestamp', () => {
-  const [e] = addPinEntry([], { source: '  https://cdn/x.png  ', site: ' https://a.com ', resource: '', name: ' x ' });
+  const [e] = addPinEntry([], { source: '  https://cdn/x.png  ', site: ' https://a.example ', resource: '', name: ' x ' });
   assert.equal(e.source, 'https://cdn/x.png');
-  assert.equal(e.site, 'https://a.com');
+  assert.equal(e.site, 'https://a.example');
   assert.equal(e.name, 'x');
   assert.equal(e.kind, 'image');           // defaulted
   assert.equal(typeof e.t, 'number');      // stamped
@@ -72,7 +72,7 @@ test('addPinEntry carries color only for kind "project"', () => {
   const [bare] = addPinEntry([], { source: 'srv/p2', site: 'http://s', name: 'Bare', kind: 'project' });
   assert.equal(bare.color, '');
   // A plain image pin never carries a color field (the popup leaves it theme-coloured).
-  const [img] = addPinEntry([], pin('http://a.com', 'https://cdn/x.png', { color: '#ff0066' }));
+  const [img] = addPinEntry([], pin('http://a.example', 'https://cdn/x.png', { color: '#ff0066' }));
   assert.equal('color' in img, false);
 });
 
@@ -135,28 +135,28 @@ test('projectNameColor returns the custom hex, or the neutral-grey fallback when
 
 test('addPinEntry caps the list at 500 (newest kept)', () => {
   let list = [];
-  for (let i = 0; i < 520; i++) list = addPinEntry(list, pin('https://a.com', `https://cdn/${i}.png`, { t: i }));
+  for (let i = 0; i < 520; i++) list = addPinEntry(list, pin('https://a.example', `https://cdn/${i}.png`, { t: i }));
   assert.equal(list.length, 500);
   assert.equal(list[0].source, 'https://cdn/519.png');     // newest at front
   assert.equal(list.at(-1).source, 'https://cdn/20.png');  // oldest 20 dropped
 });
 
 test('removePinEntry drops only the matching (site, source), returning the same ref when nothing matched', () => {
-  const list = [pin('https://a.com', 'https://cdn/x.png'), pin('https://a.com', 'https://cdn/y.png')];
-  const after = removePinEntry(list, 'https://a.com', 'https://cdn/x.png');
+  const list = [pin('https://a.example', 'https://cdn/x.png'), pin('https://a.example', 'https://cdn/y.png')];
+  const after = removePinEntry(list, 'https://a.example', 'https://cdn/x.png');
   assert.deepEqual(after.map((e) => e.source), ['https://cdn/y.png']);
   // No match → identical reference (lets callers skip a needless write).
-  assert.equal(removePinEntry(list, 'https://a.com', 'https://cdn/none.png'), list);
+  assert.equal(removePinEntry(list, 'https://a.example', 'https://cdn/none.png'), list);
 });
 
 test('removeSiteEntries drops every pin for one site, returning the same ref when nothing matched', () => {
   const list = [
-    pin('https://a.com', 'https://cdn/1.png'),
-    pin('https://b.com', 'https://cdn/2.png'),
-    pin('https://a.com', 'https://cdn/3.png'),
+    pin('https://a.example', 'https://cdn/1.png'),
+    pin('https://b.example', 'https://cdn/2.png'),
+    pin('https://a.example', 'https://cdn/3.png'),
   ];
-  const after = removeSiteEntries(list, 'https://a.com');
-  assert.deepEqual(after.map((e) => e.source), ['https://cdn/2.png']);   // only b.com survives
+  const after = removeSiteEntries(list, 'https://a.example');
+  assert.deepEqual(after.map((e) => e.source), ['https://cdn/2.png']);   // only b.example survives
   // No pin for that site → identical reference (callers skip a needless write).
   assert.equal(removeSiteEntries(list, 'https://none.com'), list);
 });
@@ -164,12 +164,12 @@ test('removeSiteEntries drops every pin for one site, returning the same ref whe
 test('clearPins("all") wipes every pin; a site scope wipes only that site', async () => {
   const mock = installStorageMock();
   mock.reset();
-  const a = 'https://a.com', b = 'https://b.com';
+  const a = 'https://a.example', b = 'https://b.example';
   await setPinned({ source: 'https://cdn/1.png', site: a, pinned: true });
   await setPinned({ source: 'https://cdn/2.png', site: b, pinned: true });
   await setPinned({ source: 'https://cdn/3.png', site: a, pinned: true });
 
-  // Scoped clear: only a.com's pins go; b.com's remain.
+  // Scoped clear: only a.example's pins go; b.example's remain.
   await clearPins(a);
   assert.deepEqual((await loadPins()).map((e) => e.source), ['https://cdn/2.png']);
 
@@ -181,7 +181,7 @@ test('clearPins("all") wipes every pin; a site scope wipes only that site', asyn
 test('clearPins serializes against a concurrent setPinned', async () => {
   const mock = installStorageMock();
   mock.reset();
-  const site = 'https://a.com';
+  const site = 'https://a.example';
   await setPinned({ source: 'https://cdn/1.png', site, pinned: true });
   // Clear-all racing a new pin: the write queue orders them, so exactly the later pin
   // survives (clear runs first, then the pin) — never a lost-update to an empty snapshot.
@@ -194,19 +194,19 @@ test('clearPins serializes against a concurrent setPinned', async () => {
 
 test('matchPinsForSite + sitesOf group by site, preserving newest-first order', () => {
   const list = [
-    pin('https://b.com', 'https://cdn/3.png'),
-    pin('https://a.com', 'https://cdn/2.png'),
-    pin('https://a.com', 'https://cdn/1.png'),
+    pin('https://b.example', 'https://cdn/3.png'),
+    pin('https://a.example', 'https://cdn/2.png'),
+    pin('https://a.example', 'https://cdn/1.png'),
   ];
-  assert.deepEqual(matchPinsForSite(list, 'https://a.com').map((e) => e.source), ['https://cdn/2.png', 'https://cdn/1.png']);
-  assert.deepEqual(matchPinsForSite(list, 'https://b.com').map((e) => e.source), ['https://cdn/3.png']);
-  assert.deepEqual(sitesOf(list), ['https://b.com', 'https://a.com']);   // distinct, first-seen order
+  assert.deepEqual(matchPinsForSite(list, 'https://a.example').map((e) => e.source), ['https://cdn/2.png', 'https://cdn/1.png']);
+  assert.deepEqual(matchPinsForSite(list, 'https://b.example').map((e) => e.source), ['https://cdn/3.png']);
+  assert.deepEqual(sitesOf(list), ['https://b.example', 'https://a.example']);   // distinct, first-seen order
   assert.deepEqual(sitesOf([]), []);
 });
 
 test('setPinned serializes concurrent pins so none clobber each other', async () => {
   installStorageMock();
-  const site = 'https://en.wikipedia.org';
+  const site = 'https://github.com';
   // Fire 10 pins concurrently (the `stencil.pin([...])` batch shape). Without the write
   // queue every call reads the same empty `before` and the last set() wins → 1 survives.
   await Promise.all(
@@ -221,7 +221,7 @@ test('setPinned serializes concurrent pins so none clobber each other', async ()
 test('setPinned interleaves concurrent pin + unpin deterministically', async () => {
   const mock = installStorageMock();
   mock.reset();
-  const site = 'https://a.com';
+  const site = 'https://a.example';
   // Pin three, then concurrently unpin one while pinning a fourth — the unpin must see
   // the earlier pins (serialized), not an empty stale snapshot.
   await Promise.all([

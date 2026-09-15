@@ -63,5 +63,5 @@ class SsrfGuardTests(unittest.TestCase):
     self.assertFalse(_sub_strict("http://127.0.0.1:8080/a.png", "127.0.0.1"))
     self.assertFalse(_sub_strict("http://cdn.example.com/x.png", "cdn.example.com"))
     # Different host → strict (the SSRF pivot).
-    self.assertTrue(_sub_strict("http://127.0.0.1/admin", "evil.com"))
-    self.assertTrue(_sub_strict("http://169.254.169.254/meta", "site.com"))
+    self.assertTrue(_sub_strict("http://127.0.0.1/admin", "evil.example"))
+    self.assertTrue(_sub_strict("http://169.254.169.254/meta", "site.example"))

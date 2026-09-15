@@ -47,24 +47,22 @@ test('tolerates a read() that throws for a type', () => {
 
 // ── Relative and protocol-relative sources ──────────────────────────────────
 // A dragged URL only works if it addresses the origin it came FROM. Real pages
-// (Wikipedia among them) still emit protocol-relative srcs, and a bare fetch of one
+// still emit protocol-relative srcs, and a bare fetch of one
 // resolves against OUR scheme — on an http:// dev server that is a plain-http
 // request to an https-only host, which fails and used to be reported as the remote
 // site blocking cross-origin downloads.
 test('protocol-relative sources are pinned to https, not to our scheme', () => {
-  const url = '//upload.wikimedia.org/wikipedia/commons/1/12/A.jpg';
-  assert.equal(extractDraggedImageUrl(reader({ 'text/uri-list': url })),
-    'https://upload.wikimedia.org/wikipedia/commons/1/12/A.jpg');
-  assert.equal(extractDraggedImageUrl(reader({ 'text/html': `<img src="${url}">` })),
-    'https://upload.wikimedia.org/wikipedia/commons/1/12/A.jpg');
+  const url = '//raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png';
+  assert.equal(extractDraggedImageUrl(reader({ 'text/uri-list': url })), `https:${url}`);
+  assert.equal(extractDraggedImageUrl(reader({ 'text/html': `<img src="${url}">` })), `https:${url}`);
 });
 
 test('root-relative sources are refused — they carry no origin to fetch from', () => {
   // Left alone these resolve against the Stencil app itself and 404 there, which
   // reads as "the remote site refused us" when nothing of the sort happened.
-  assert.equal(extractDraggedImageUrl(reader({ 'text/html': '<img src="/commons/1/12/A.jpg">' })), '');
-  assert.equal(extractDraggedImageUrl(reader({ 'text/uri-list': '/commons/1/12/A.jpg' })), '');
-  assert.equal(extractDraggedImageUrl(reader({ 'text/html': '<img src="thumb/A.jpg">' })), '');
+  assert.equal(extractDraggedImageUrl(reader({ 'text/html': '<img src="/raw/main/icon.png">' })), '');
+  assert.equal(extractDraggedImageUrl(reader({ 'text/uri-list': '/raw/main/icon.png' })), '');
+  assert.equal(extractDraggedImageUrl(reader({ 'text/html': '<img src="thumb/icon.png">' })), '');
 });
 
 test('an unusable html src still lets text/plain win', () => {
@@ -80,15 +78,15 @@ test('data: and blob: sources pass through untouched', () => {
   assert.equal(extractDraggedImageUrl(reader({ 'text/html': '<img src="blob:https://x.test/abc">' })), 'blob:https://x.test/abc');
 });
 
-// ── A LINKED image: the payload that actually broke Wikipedia drags ─────────
-// Wikipedia (and most galleries) wrap every article image in an <a> to its file
-// page. Chrome then puts the LINK TARGET in text/uri-list and the real image only
+// ── A LINKED image: the payload that actually broke gallery drags ──────────
+// Galleries and file browsers wrap every image in an <a> to its own page. Chrome
+// then puts the LINK TARGET in text/uri-list and the real image only
 // in text/html's <img src>. Preferring uri-list by position fetched the article
 // page — HTML, from a host that sends no CORS headers — so the drop failed and
 // reported the site as blocking cross-origin downloads.
 test('a linked image picks the <img src>, not the link target', () => {
-  const page = 'https://en.wikipedia.org/wiki/Angelina_Jolie';
-  const img = 'https://upload.wikimedia.org/wikipedia/commons/1/12/Angelina_Jolie.jpg';
+  const page = 'https://github.com/andrew1407/stencil/tree/main/bot/assets';
+  const img = 'https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png';
   assert.equal(
     extractDraggedImageUrl(reader({ 'text/uri-list': page, 'text/html': `<a href="${page}"><img src="${img}"></a>`, 'text/plain': page })),
     img);
@@ -114,6 +112,6 @@ test('looksLikeImageUrl: extensions, query strings, data and blob', () => {
   assert.ok(looksLikeImageUrl('https://x.test/a.webp#frag'));
   assert.ok(looksLikeImageUrl('data:image/png;base64,AAA'));
   assert.ok(looksLikeImageUrl('blob:https://x.test/abc'));
-  assert.ok(!looksLikeImageUrl('https://en.wikipedia.org/wiki/Angelina_Jolie'));
+  assert.ok(!looksLikeImageUrl('https://github.com/andrew1407/stencil/tree/main/bot/assets'));
   assert.ok(!looksLikeImageUrl('https://x.test/a.jpg.html'));
 });

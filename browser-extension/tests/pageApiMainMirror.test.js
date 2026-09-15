@@ -59,10 +59,10 @@ const assertAgree = (label, truthFn, mainFn, cases) => {
 
 test('bgImageUrl: inline MAIN-world copy matches the pageImages.js source of truth', () => {
   assertAgree('bgImageUrl', truth.bgImageUrl, mainBgImageUrl, [
-    ['url("https://a.com/x.png")'],
-    ["url('https://a.com/y.jpg')"],
-    ['url(https://a.com/z.gif)'],
-    ['url(  https://a.com/spaced.png  )'],
+    ['url("https://a.example/x.png")'],
+    ["url('https://a.example/y.jpg')"],
+    ['url(https://a.example/z.gif)'],
+    ['url(  https://a.example/spaced.png  )'],
     ['url("data:image/png;base64,AAAA")'],
     ['url(data:image/svg+xml;base64,AAAA)'],
     ["url('data:image/svg+xml;utf8,<svg/>')"],
@@ -72,16 +72,16 @@ test('bgImageUrl: inline MAIN-world copy matches the pageImages.js source of tru
     [null],
     [undefined],
     [0],
-    ['URL("https://a.com/UPPER.png")'],
+    ['URL("https://a.example/UPPER.png")'],
   ]);
 });
 
 test('cssImageUrls: inline MAIN-world copy matches the pageImages.js source of truth', () => {
   assertAgree('cssImageUrls', truth.cssImageUrls, mainCssImageUrls, [
-    ['url("https://a.com/x.png")'],
+    ['url("https://a.example/x.png")'],
     ['url(a.png), url(b.png)'],
     ['image-set(url("x.png") 1x, url("y.png") 2x)'],
-    ['url(  https://a.com/spaced.png  )'],
+    ['url(  https://a.example/spaced.png  )'],
     ['url(#clip)'],
     ['url("#mask")'],
     ['url(data:image/svg+xml;base64,AAAA)'],
@@ -111,13 +111,13 @@ test('srcsetUrls: inline MAIN-world copy matches the pageImages.js source of tru
 
 test('nameFromUrl: inline MAIN-world copy matches the pageImages.js source of truth', () => {
   assertAgree('nameFromUrl', truth.nameFromUrl, mainNameFromUrl, [
-    ['https://a.com/pics/cat.png?v=2'],
-    ['https://a.com/pics/cat.png?v=2', 'video'],
-    ['https://a.com/no-ext'],
-    ['https://a.com/no-ext', 'video'],
-    ['https://a.com/'],
-    ['https://a.com/deep/path/to/photo.JPEG#frag'],
-    ['https://a.com/name%20with%20spaces.png'],
+    ['https://a.example/pics/cat.png?v=2'],
+    ['https://a.example/pics/cat.png?v=2', 'video'],
+    ['https://a.example/no-ext'],
+    ['https://a.example/no-ext', 'video'],
+    ['https://a.example/'],
+    ['https://a.example/deep/path/to/photo.JPEG#frag'],
+    ['https://a.example/name%20with%20spaces.png'],
     ['data:image/jpeg;base64,AAAA'],
     ['data:image/jpeg;base64,AAAA', 'video'],
     ['data:image/svg+xml;base64,AAAA'],

@@ -193,7 +193,7 @@ Load a working image from the web — or just send a photo, or paste an image li
 /url <link> — load a single image from a direct link
 /sourcesite <link> [count] [filter=img|video|…] [format=…] [name=<regex>] [group=N] — scrape a page's media into the chat
 /sourceupload <link> [index] [format=jpg|png|…] [name=<regex>] — scrape a page and load one image to edit
-e.g. /sourceupload https://en.wikipedia.org/wiki/Cat 0 format=jpg
+e.g. /sourceupload https://example.com/gallery 0 format=jpg
 
 == ChatHistoryCleared(false)
 🧹 Conversation cleared — the assistant has forgotten the previous turns.

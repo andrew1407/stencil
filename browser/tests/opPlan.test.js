@@ -1351,18 +1351,18 @@ test('renderAskPreviews: no ask, no exporter, no options → nothing, and no thr
 
 // ── §10 openUrl: user-echoed URLs only ──
 test('openUrl: http(s) url + optional incognito; junk fails', () => {
-  assert.deepStrictEqual(ok({ op: 'openUrl', url: 'https://a.com/cat.jpg' }), { op: 'openUrl', url: 'https://a.com/cat.jpg' });
-  assert.deepStrictEqual(ok({ op: 'openUrl', url: 'http://a.com/x.png', incognito: true }),
-    { op: 'openUrl', url: 'http://a.com/x.png', incognito: true });
+  assert.deepStrictEqual(ok({ op: 'openUrl', url: 'https://a.example/cat.jpg' }), { op: 'openUrl', url: 'https://a.example/cat.jpg' });
+  assert.deepStrictEqual(ok({ op: 'openUrl', url: 'http://a.example/x.png', incognito: true }),
+    { op: 'openUrl', url: 'http://a.example/x.png', incognito: true });
   bad({ op: 'openUrl' });
-  bad({ op: 'openUrl', url: 'ftp://a.com/x' });
+  bad({ op: 'openUrl', url: 'ftp://a.example/x' });
   bad({ op: 'openUrl', url: 'not a url' });
-  bad({ op: 'openUrl', url: 'https://a.com/x', incognito: 'yes' });
-  bad({ op: 'openUrl', url: 'https://a.com/x', extra: 1 });
+  bad({ op: 'openUrl', url: 'https://a.example/x', incognito: 'yes' });
+  bad({ op: 'openUrl', url: 'https://a.example/x', extra: 1 });
 });
 
 test('openUrl executes ONLY a URL the user typed; incognito rides the injected launcher', async () => {
-  const URL_OK = 'https://a.com/cat.jpg';
+  const URL_OK = 'https://a.example/cat.jpg';
   const p = parseOpPlan(plan({ actions: [{ op: 'openUrl', url: URL_OK }] }));
 
   // Not in the user's own words → the whole plan fails with the guard's message.
@@ -1391,7 +1391,7 @@ test('openUrl executes ONLY a URL the user typed; incognito rides the injected l
 // The bug this fixes: incognito used to hand off to a new tab, so everything after it
 // ran here on an EMPTY editor — `crop` threw "No image loaded", killing the turn.
 test('the actions after an incognito openUrl act on the picture it just loaded', async () => {
-  const URL_OK = 'https://a.com/cat.jpg';
+  const URL_OK = 'https://a.example/cat.jpg';
   const p = parseOpPlan(plan({
     actions: [
       { op: 'openUrl', url: URL_OK, incognito: true },
@@ -1422,7 +1422,7 @@ test('the actions after an incognito openUrl act on the picture it just loaded',
 
 test('openUrl is editor-scope: its variant is dropped — with the hint in the warning', () => {
   const p = dropsWithWarning(plan({
-    variants: [{ label: 'v', actions: [{ op: 'openUrl', url: 'https://a.com/x.jpg' }] }],
+    variants: [{ label: 'v', actions: [{ op: 'openUrl', url: 'https://a.example/x.jpg' }] }],
   }), /Dropped variant 1 \("v"\).*top-level action.*extension assistant/);
   assert.strictEqual(p.variants.length, 0);
 });

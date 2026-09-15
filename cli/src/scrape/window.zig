@@ -56,11 +56,11 @@ test "subStrict: loopback tolerated only for same-host sub-resources" {
     try testing.expect(!subStrict("http://localhost/img.png", "localhost"));
     try testing.expect(!subStrict("http://cdn.example.com/x.png", "cdn.example.com"));
     // Different host → strict (the SSRF pivot: a public page pointing at loopback/internal).
-    try testing.expect(subStrict("http://127.0.0.1/admin", "evil.com"));
-    try testing.expect(subStrict("http://169.254.169.254/meta", "site.com"));
-    try testing.expect(subStrict("http://other.com/x.png", "site.com"));
+    try testing.expect(subStrict("http://127.0.0.1/admin", "evil.example"));
+    try testing.expect(subStrict("http://169.254.169.254/meta", "site.example"));
+    try testing.expect(subStrict("http://other.example/x.png", "site.example"));
     // Unparseable media host errs safe (strict).
-    try testing.expect(subStrict("http:///only-path", "site.com"));
+    try testing.expect(subStrict("http:///only-path", "site.example"));
 }
 
 test "effectiveCount: default 5, 0 = all, N passthrough" {
