@@ -69,7 +69,7 @@ const LAUNCH_FOR = Object.freeze({
 
 const launchFor = (document) => LAUNCH_FOR[document.languageId]?.(document) ?? null;
 
-const openInWeb = async () => {
+const handOff = async (incognito) => {
   const document = activeDocument();
   if (!document) return vscode.window.showErrorMessage(OPEN_A_FILE);
   if (isJsSource(document)) return vscode.window.showErrorMessage(STCJS_IS_CONSOLE_ONLY);
@@ -77,10 +77,16 @@ const openInWeb = async () => {
   if (!url) return undefined;
   const payload = await launchFor(document);
   if (!payload) return vscode.window.showErrorMessage(OPEN_A_FILE);
+  // The app's own throwaway session: it keeps no project, so nothing the run makes survives.
+  if (incognito) payload.incognito = true;
   const launch = buildLaunchUrl(url, payload);
   if (isTooBig(launch)) return vscode.window.showErrorMessage(TOO_BIG);
   return vscode.env.openExternal(vscode.Uri.parse(launch));
 };
+
+// Two buttons, one hand-off: a menu click passes the resource, so neither takes an argument.
+const openInWeb = () => handOff(false);
+const openInWebIncognito = () => handOff(true);
 
 // ── Route B: the console ─────────────────────────────────────────────────────
 /* One live session, reused; the first call also waits for the page to finish booting so the
@@ -155,6 +161,7 @@ const openImageInWeb = async () => {
 
 const HANDLERS = Object.freeze({
   [COMMANDS.openInWeb]: openInWeb,
+  [COMMANDS.openInWebIncognito]: openInWebIncognito,
   [COMMANDS.runInWebConsole]: runInWebConsole,
   [COMMANDS.runSelectionInWebConsole]: runSelectionInWebConsole,
   [COMMANDS.openImageInWeb]: openImageInWeb,
@@ -172,5 +179,6 @@ const register = (context) => {
 
 module.exports = {
   HANDLERS, OPEN_A_FILE, OUTPUT_NAME, STCJS_IS_CONSOLE_ONLY, TOO_BIG, openImageInWeb,
-  openInWeb, register, runExpression, runInWebConsole, runSelectionInWebConsole,
+  openInWeb, openInWebIncognito, register, runExpression, runInWebConsole,
+  runSelectionInWebConsole,
 };

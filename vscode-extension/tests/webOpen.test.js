@@ -21,6 +21,18 @@ test('open-in-web hands the script to the configured instance, in the fragment',
   });
 });
 
+test('the incognito button hands the same payload over, flagged so nothing is kept', async () => {
+  await withHost({}, async ({ calls, vscode, web }) => {
+    open(vscode, { text: '@source https://cdn.example/i.png:\n  @crop 10%\n' });
+    await web.openInWebIncognito();
+    assert.deepEqual(openedPayload(calls), {
+      script: '@source https://cdn.example/i.png:\n  @crop 10%\n', incognito: true,
+    });
+    await web.openInWeb();
+    assert.equal(openedPayload(calls).incognito, undefined, 'the plain button opens a project');
+  });
+});
+
 test('a local @source is sent anyway, with a warning — the app reports it itself', async () => {
   await withHost({}, async ({ calls, vscode, web }) => {
     open(vscode, { text: '@source ./cat.png:\n  @crop 10%\n' });

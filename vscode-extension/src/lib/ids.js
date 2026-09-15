@@ -25,8 +25,8 @@ const PROJECT_FILE_EXTENSION = '.stencil';
 const COMMANDS = Object.freeze({
   runScript: 'stencil.runScript', runScriptOnImage: 'stencil.runScriptOnImage',
   checkScript: 'stencil.checkScript', configureColors: 'stencil.configureColors',
-  openInWeb: 'stencil.openInWeb', runInWebConsole: 'stencil.runInWebConsole',
-  runSelectionInWebConsole: 'stencil.runSelectionInWebConsole',
+  openInWeb: 'stencil.openInWeb', openInWebIncognito: 'stencil.openInWebIncognito',
+  runInWebConsole: 'stencil.runInWebConsole', runSelectionInWebConsole: 'stencil.runSelectionInWebConsole',
   openImageInWeb: 'stencil.openImageInWeb', addTypings: 'stencil.addTypings',
 });
 

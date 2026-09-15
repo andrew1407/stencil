@@ -47,6 +47,12 @@ export const importInlineImage = (app, launch, { mode = 'new' } = {}) => {
 // The engine's MAX_TOKENS is the next wall; this only keeps a hostile hash out of the parser.
 export const MAX_LAUNCH_SCRIPT = 200000;
 
+const enterIncognito = (app) => {
+  if (app.storage.incognito) return;
+  app.storage.incognito = true;
+  app.updateIncognitoUI();
+};
+
 const launchScript = (payload) => {
   const text = (payload && typeof payload === 'object' && typeof payload.script === 'string')
     ? payload.script : '';
@@ -76,19 +82,16 @@ export const applyExternalLaunch = (app) => {
     notify('Stencil: could not read the shared image', 'fail');
     return Promise.resolve();
   }
-// Read before the image check: a script-only hand-off carries no picture at all.
+// Read before the image check: a script-only hand-off carries no picture at all, so it
+// normalizes to nothing — and its incognito flag would go with it.
   app.pendingLaunchScript = launchScript(payload);
+  if (payload && payload.incognito) enterIncognito(app);
 
   const launch = normalizeLaunchPayload(payload);
   if (!launch) return Promise.resolve();
 
 // Page size BEFORE the load: the crop aspect and pixel↔page conversion must match the sender's.
   if (launch.page) setExternalPage(app, launch.page);
-
-  if (launch.incognito) {
-    app.storage.incognito = true;
-    app.updateIncognitoUI();
-  }
 
   if (launch.kind === 'server') {
     return applyServerLaunch(app, launch)

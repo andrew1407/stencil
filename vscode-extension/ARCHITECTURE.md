@@ -84,7 +84,7 @@ the only root file that may import a sibling root file. Enforced by
 | `src/decorations.js` | one `TextEditorDecorationType` per family the extension or `stencil.colors` colours, painted over the themed tokens | a theme decides what a token type looks like, so an EXACT colour can only be drawn on top; the eight families whose type means something else to a theme carry a built-in colour, every other family is the theme's until named, and an empty string hands one back |
 | `src/colors.js` | the one command that is not a CLI invocation: it seeds and opens VS Code's token-colour setting | an extension may not set token colours, so this hands the user the setting rather than owning one; the seeded rules are pinned to the README block (`tests/colors.test.js`) |
 | `src/commands.js` | run, run-on-image, check | one CLI invocation each, in the reused `Stencil` terminal, `cwd` = the script's directory |
-| `src/webCommands.js` | the four browser commands: the hand-off, and the three that evaluate in the page | it composes no shell line and reads no target out of the document — the instance comes from `lib/webTarget.js` alone |
+| `src/webCommands.js` | the browser commands: the hand-off (plain and incognito), and the three that evaluate in the page | it composes no shell line and reads no target out of the document — the instance comes from `lib/webTarget.js` alone |
 | `src/jsHints.js` | the facade's completions and hovers, for `.stcjs` and for an opted-in `.js` | additive to the editor's own JavaScript service, which cannot know a facade a page installs at runtime; both flavours are offered to VS Code and `lib/jsSource.js` decides per request — except where the workspace holds the typings and the service can answer for itself |
 | `src/typings.js` over `src/lib/typingsFile.js` | the one command that writes the facade's types into a workspace | it writes `stencil.d.ts`, and a `jsconfig.json` only where the project has none — one it already has is the user's |
 | `typings/stencil.d.ts` + `tools/genTypings.mjs` | the facade as ONE ambient script: the app's types flattened, every member carrying its summary, its example and a link to the docs | generated, never hand-edited (`tests/typings.test.js` regenerates and compares); a top-level `export` would make it a module and its declarations would stop being global |
@@ -129,7 +129,7 @@ classDiagram
 | `CliLocation` (`src/lib/cliLocator.js`) | the inputs to finding the binary: the `stencil.cliPath` setting, the workspace folder, the environment | per call; only the PATH walk under it is memoized, briefly and per `PATH` | `ExtensionSettings`; produces the path a `CommandLine` runs |
 | `CommandLine` (`src/lib/terminal.js`) | one composed, fully quoted shell line and the terminal it is sent to | per command invocation; the `Stencil` terminal outlives it | `ShellRules`, and the CLI process |
 | `ShellRules` (`src/lib/shellQuote.js`) | one shell family's quoting: what needs no quotes, how a quote is escaped, how a directory is changed, what a quoted command word needs in front of it | a frozen table entry, chosen per invocation from `vscode.env.shell` | `CommandLine` |
-| `LaunchPayload` (`src/lib/webLaunch.js`) | what rides the `#stencil=` fragment: the script, and a picture as inlined bytes or as a URL; a `.stencil` arrives already split into the two | per invocation of the hand-off; consumed once by the app and stripped from its URL | `ScriptProgram` (whose blocks say what the browser cannot open), the receiving `normalizeLaunchPayload` |
+| `LaunchPayload` (`src/lib/webLaunch.js`) | what rides the `#stencil=` fragment: the script, a picture as inlined bytes or as a URL, and the incognito flag; a `.stencil` arrives already split into the two | per invocation of the hand-off; consumed once by the app and stripped from its URL | `ScriptProgram` (whose blocks say what the browser cannot open), the receiving `normalizeLaunchPayload` |
 | `WebSession` (`src/lib/webConsole.js`) | the js-debug session driving the browser, addressed by one `evaluate` custom request | VS Code's, one per browser window; reused across runs while it lives | `ExtensionSettings.webBrowser`, the page's `window.stencil` |
 | `ApiEntry` (`src/config/stencilApiVocabulary.json`) | one `window.stencil` member as a reader meets it: its group, its signature, what it does | a frozen table entry, read through `lib/apiVocabulary.js` | `interface Stencil` in `browser/js/console/stencilApi.d.ts`, which is its list |
 | `ExtensionSettings` | the `stencil.*` settings, read through `workspace.getConfiguration`: `cliPath`, `checkOnType` and `checkOnSave`, a toggle per editing feature (`highlighting`, `completion`, `hover`) and `colors`, a family → hex map laid over `colorFamilies.js`'s built-in palette, and the three browser settings (`webUrl`, `webBrowser`, `webInlineImages`) | VS Code's, read on each use so a change needs no reload | `CliLocation`, the on-type check, the three providers, the decorations, both browser routes |
@@ -191,10 +191,11 @@ classDiagram
   builds the `#stencil=` fragment the app already boots on — the one the Chrome extension writes and
   `browser/js/core/deepLink.js` validates — and hands it to `env.openExternal`. The script rides as a
   top-level `script` key that codec deliberately ignores, so no other surface's vectors moved; the app
-  reads it off the raw payload, runs it once the picture lands, and shows the source in its script
-  window. A script that names no `@source` acts on whatever is open, so the command asks for a picture
-  to send with it — the hand-off's twin of the CLI's run-on-image. A cancelled pick still sends the
-  script: what the app cannot do, it reports. A `.stencil` arrives already split into the image and
+  reads it off the raw payload, runs it once the picture lands, and keeps the source in its script
+  window without opening it. A script that names no `@source` acts on whatever is open, so the command
+  asks for a picture to send with it — the hand-off's twin of the CLI's run-on-image. A cancelled pick
+  still sends the script: what the app cannot do, it reports. `stencil.openInWebIncognito` is the same
+  payload with `incognito` set, so the app opens a session it keeps nothing from. A `.stencil` arrives already split into the image and
   the layout the loader adopts. Local
   bytes travel in the fragment, which no server sees, under Chrome's ~1.8 MB navigation ceiling rather
   than the validator's 32 MiB. `stencil.runInWebConsole` and its two siblings take the other route:
