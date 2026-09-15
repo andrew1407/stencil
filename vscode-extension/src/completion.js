@@ -31,7 +31,7 @@ const templateNames = (tokens) => {
   return names;
 };
 
-const item = (label, kind, markdown, { insert = label, sortAs } = {}) => {
+const makeItem = (label, kind, markdown, { insert = label, sortAs } = {}) => {
   const entry = new vscode.CompletionItem(label, kind);
   entry.insertText = insert;
   if (markdown) entry.documentation = new vscode.MarkdownString(markdown);
@@ -40,21 +40,21 @@ const item = (label, kind, markdown, { insert = label, sortAs } = {}) => {
 };
 
 const wordItems = (words, kind) =>
-  words.map((word) => item(word, kind, explain(word)));
+  words.map((word) => makeItem(word, kind, explain(word)));
 
 // `@crop` inserts as `@crop`; the leading `@` the user already typed is replaced by VS Code,
 // which treats it as part of the word.
 const directiveItems = () => DIRECTIVE_NAMES.map((name) =>
-  item(`@${name}`, KIND().Keyword, explain(name)));
+  makeItem(`@${name}`, KIND().Keyword, explain(name)));
 
-const unitItems = (stem) => UNIT_NAMES.map((unit) => item(
+const unitItems = (stem) => UNIT_NAMES.map((unit) => makeItem(
   stem === null ? unit : `${stem}${unit}`,
   KIND().Unit,
   markdownFor(unit, UNITS[unit]),
 ));
 
 const colorItems = () => COLOR_WORDS.map((name) => {
-  const entry = item(name, KIND().Color, explain(name));
+  const entry = makeItem(name, KIND().Color, explain(name));
   entry.detail = COLOR_NAMES[name] ?? 'no colour at all';
   // Colour names are a long tail; they sort under the words that carry meaning here.
   entry.sortText = `z${name}`;
@@ -67,7 +67,7 @@ const GROUP_ITEMS = Object.freeze({
   style: () => wordItems(STYLES, KIND().Property),
   key: () => wordItems(CROP_KEYS, KIND().Field),
   layoutMode: () => wordItems(LAYOUT_MODES, KIND().EnumMember),
-  useSub: () => USE_SUBS.map((word) => item(word, KIND().Keyword,
+  useSub: () => USE_SUBS.map((word) => makeItem(word, KIND().Keyword,
     explain(word) || `**${word}** — see \`@use\`.`)),
   color: colorItems,
 });
@@ -78,7 +78,7 @@ const itemsFor = (linePrefix, tokens) => {
   return groups.flatMap((group) => {
     if (group === 'unit') return unitItems(numberStem);
     if (group === 'template') {
-      return templateNames(tokens).map((name) => item(name, KIND().Function,
+      return templateNames(tokens).map((name) => makeItem(name, KIND().Function,
         `**${name}** — a template defined in this file.`));
     }
     return GROUP_ITEMS[group]?.() ?? [];

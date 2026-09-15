@@ -9,8 +9,8 @@ const { COMMANDS, CONFIG_SECTION, LANGUAGE_ID, PROJECT_LANGUAGE_ID, SETTINGS,
 } = require('./lib/ids.js');
 const { isJsSource } = require('./lib/jsSource.js');
 const { BAD_WEB_URL, webUrlFor } = require('./lib/webTarget.js');
-const { buildLaunchUrl, imageDataUrl, localSources, projectLaunch, scriptLaunch,
-  tooBig } = require('./lib/webLaunch.js');
+const { buildLaunchUrl, imageDataUrl, isTooBig, localSources, projectLaunch,
+  scriptLaunch } = require('./lib/webLaunch.js');
 const { evaluate, expressionFor, loadExpression, pageSession } = require('./lib/webConsole.js');
 const { programFor } = require('./lib/programCache.js');
 
@@ -21,10 +21,7 @@ const STCJS_IS_CONSOLE_ONLY = 'A .stcjs is JavaScript — run it with "Stencil: 
 const TOO_BIG = 'Too much to put in a URL — open the picture in the app and run the script there';
 
 let channel = null;
-const output = () => {
-  if (!channel) channel = vscode.window.createOutputChannel(OUTPUT_NAME);
-  return channel;
-};
+const output = () => (channel ??= vscode.window.createOutputChannel(OUTPUT_NAME));
 const report = (line) => { output().appendLine(line); };
 
 const activeDocument = () => vscode.window.activeTextEditor?.document ?? null;
@@ -49,9 +46,7 @@ const pickFile = async () => {
 /* A script that names no source acts on whatever is open — and a fresh tab holds nothing, so
  * it brings a picture with it. A cancelled pick still hands the script over: the app reports
  * what it could not do, which is the answer the user asked for. */
-const launchFor = async (document) => {
-  if (document.languageId === PROJECT_LANGUAGE_ID) return projectLaunch(document.getText());
-  if (document.languageId !== LANGUAGE_ID) return null;
+const scriptLaunchFor = async (document) => {
   const script = document.getText();
   const { blocks } = await programFor(document);
   const local = localSources(blocks);
@@ -66,6 +61,14 @@ const launchFor = async (document) => {
   return image ? scriptLaunch(script, image, { inline: inlineImages() }) : scriptLaunch(script);
 };
 
+// What each file type becomes in the fragment; anything else is not a hand-off at all.
+const LAUNCH_FOR = Object.freeze({
+  [LANGUAGE_ID]: scriptLaunchFor,
+  [PROJECT_LANGUAGE_ID]: (document) => projectLaunch(document.getText()),
+});
+
+const launchFor = (document) => LAUNCH_FOR[document.languageId]?.(document) ?? null;
+
 const openInWeb = async () => {
   const document = activeDocument();
   if (!document) return vscode.window.showErrorMessage(OPEN_A_FILE);
@@ -75,7 +78,7 @@ const openInWeb = async () => {
   const payload = await launchFor(document);
   if (!payload) return vscode.window.showErrorMessage(OPEN_A_FILE);
   const launch = buildLaunchUrl(url, payload);
-  if (tooBig(launch)) return vscode.window.showErrorMessage(TOO_BIG);
+  if (isTooBig(launch)) return vscode.window.showErrorMessage(TOO_BIG);
   return vscode.env.openExternal(vscode.Uri.parse(launch));
 };
 
@@ -158,6 +161,7 @@ const HANDLERS = Object.freeze({
 });
 
 const register = (context) => {
+  channel?.dispose();
   channel = null;
   for (const [id, handler] of Object.entries(HANDLERS)) {
     context.subscriptions.push(vscode.commands.registerCommand(id, handler));
