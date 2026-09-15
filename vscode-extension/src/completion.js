@@ -88,7 +88,8 @@ const itemsFor = (linePrefix, tokens) => {
 const provider = {
   async provideCompletionItems(document, position) {
     if (!vscode.workspace.getConfiguration(CONFIG_SECTION).get(SETTINGS.completion, true)) return [];
-    const line = document.getText().split(/\r?\n/)[position.line] ?? '';
+    // lineAt, not a split of the whole buffer: this runs on every keystroke that triggers.
+    const line = document.lineAt(position.line).text;
     const program = await programFor(document);
     return itemsFor(line.slice(0, position.character), program.tokens);
   },

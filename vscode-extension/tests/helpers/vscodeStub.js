@@ -174,5 +174,14 @@ export const makeDocument = ({
   version,
   uri: { scheme, fsPath: path, toString: () => `${scheme}://${path}` },
   getText: () => text,
+  // The real lineAt throws on an out-of-range line rather than answering '', so a provider
+  // that asked for one would fail here too.
+  lineAt: (line) => {
+    const lines = text.split(/\r?\n/);
+    if (!Number.isInteger(line) || line < 0 || line >= lines.length) {
+      throw new RangeError(`Illegal value for line: ${line}`);
+    }
+    return { text: lines[line], lineNumber: line };
+  },
   save,
 });

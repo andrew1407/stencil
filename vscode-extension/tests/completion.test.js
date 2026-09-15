@@ -120,3 +120,18 @@ test('the provider reads the caret line out of the document', async () => {
     assert.deepEqual(items.slice(0, 5).map((i) => i.label), ['bw', 'sepia', 'invert', 'contour', 'none']);
   });
 });
+
+test('the caret line is read through lineAt, at every legal position in the buffer', async () => {
+  await withHost(async ({ completion }) => {
+    const text = '@source a.png:\r\n    @filter bw\n\n@save out.png\n';
+    const document = makeDocument({ text });
+    // Every line the document has, including the empty one and the trailing one.
+    for (let line = 0; line < text.split(/\r?\n/).length; line += 1) {
+      const items = await completion.provider.provideCompletionItems(document, { line, character: 0 });
+      assert.ok(Array.isArray(items), `line ${line} threw or answered nothing`);
+    }
+    await assert.rejects(
+      () => completion.provider.provideCompletionItems(document, { line: 99, character: 0 }),
+      RangeError, 'the stub is faithful: an out-of-range line is an error, not an empty string');
+  });
+});
