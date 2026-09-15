@@ -145,7 +145,7 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
         await pages.seedLlm(page, `${stub.url}/v1`);
         stub.queue(config.stubPlan('sepiaOutline'));
       }
-      await page.evaluate(() => window.stencil.chat.open().chat.dock('right'));
+      await page.evaluate(() => window.stencil.chat.open());
       await pages.send(page, config.prompt(token ? 'real' : 'stub'));
       if (token) {
         await page.waitForFunction(() => !window.stencil.chat.isSending

@@ -49,7 +49,7 @@ export function makeClipSteps({ config, runner, browser, pages }) {
       await pages.seedLlm(page, `${pages.stubUrl}/v1`);
       await pages.blank(page);
       pages.queuePlan(config.stubPlan('sepiaOutline'));
-      await page.evaluate(() => window.stencil.chat.open().chat.dock('right'));
+      await page.evaluate(() => window.stencil.chat.open());
       await page.locator('#chat-input').waitFor();
       mark();
       await page.locator('#chat-input').click();
