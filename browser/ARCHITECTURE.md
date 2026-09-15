@@ -200,9 +200,9 @@ classDiagram
   text only); the browser keeps chats in IndexedDB and on the server's `chat` file instead.
 - **Deep links.** `js/core/deepLink.js` normalizes the inbound `#stencil=` fragment
   (`server` / `dataUrl` / `src` / `layout`) and builds the outbound `stencil://` and Telegram
-  `?start=` links. A `.stc` rides the same fragment for a hand-off that carries no picture:
-  `index.js` runs the script once the launch settles, and leaves it in the script buffer
-  rather than opening the window on someone else's script.
+  `?start=` links. A `.stc` and the incognito flag ride the same fragment for a hand-off that
+  carries no picture: `index.js` runs the script once the launch settles, and leaves it in the
+  script buffer rather than opening the window on someone else's script.
   `js/core/extensionBridge.js` answers the extension's state/import/switch requests through
   the same core methods.
 - **Single-file build.** `vite.config.js` carries its rules inline (no plugins);

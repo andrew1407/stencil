@@ -140,7 +140,7 @@ test('an image opens by URL, or by the bytes of a picked file', async () => {
   }
 });
 
-test('register contributes exactly the four browser commands, and disposes its channel', async () => {
+test('register contributes exactly the browser commands, and disposes its channel', async () => {
   await withHost({}, async ({ calls, vscode, web }) => {
     const context = { subscriptions: [] };
     web.register(context);
@@ -148,8 +148,8 @@ test('register contributes exactly the four browser commands, and disposes its c
     await web.runInWebConsole();
     for (const disposable of context.subscriptions) disposable.dispose?.();
     assert.deepEqual([...calls.commands.keys()].filter((id) => id.includes('Web')).sort(),
-      ['stencil.openImageInWeb', 'stencil.openInWeb', 'stencil.runInWebConsole',
-        'stencil.runSelectionInWebConsole'].sort());
+      ['stencil.openImageInWeb', 'stencil.openInWeb', 'stencil.openInWebIncognito',
+        'stencil.runInWebConsole', 'stencil.runSelectionInWebConsole'].sort());
     assert.equal(calls.channels.at(-1).disposed, true);
   });
 });
