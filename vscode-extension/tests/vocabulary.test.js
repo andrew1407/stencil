@@ -55,3 +55,13 @@ test('groupOf names the colour family, and nothing for an unknown word', () => {
   assert.equal(vocabulary.groupOf('rect'), 'edit');
   assert.equal(vocabulary.groupOf('nope'), undefined);
 });
+
+// The heading already reads `**fill** — `; a second dash makes the tooltip say it twice.
+test('a summary states the meaning, and leaves the heading its dash', () => {
+  const entries = { ...vocabulary.DIRECTIVES, ...vocabulary.WORDS, ...vocabulary.UNITS };
+  for (const [word, entry] of Object.entries(entries)) {
+    assert.ok(!entry.summary.includes('—'),
+      `${word}: its summary carries a dash, so the tooltip reads "${word} — ${entry.summary}"`);
+    assert.match(entry.summary, /^[A-Z@`]/, `${word}: a summary reads as a sentence`);
+  }
+});

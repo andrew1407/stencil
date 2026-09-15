@@ -243,6 +243,7 @@ export declare class DrawingApp {
   remoteLink: RemoteLink | null;
   pendingRemoteAddress: string | null;
   pendingOpenProjectId: string | null;
+  pendingLaunchScript: string;
   hasExternalLaunch: boolean;
   openInConfig: { desktopScheme: string; telegramBotUsername: string };
 
@@ -260,7 +261,7 @@ export declare class DrawingApp {
   initEventListeners(): void;
   restoreFromLocalStorage(): void;
   applyProjectDeepLink(): boolean;
-  applyExternalLaunch(): void;
+  applyExternalLaunch(): Promise<void>;
   importExternalImage(payload: LaunchPayload & Record<string, unknown>, opts?: { mode?: 'new' | 'replace' | 'replace-keep' }): Promise<void>;
   openInDesktopAvailable(): boolean;
   openInTelegramAvailable(): boolean;

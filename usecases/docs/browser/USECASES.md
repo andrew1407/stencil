@@ -103,6 +103,12 @@ error by line, and runs it with `Ctrl+Enter`. Drop a `.stc` file on the page to 
 
 ![the script window](img/script-modal.png)
 
+A script can also arrive from somewhere else — the VS Code extension hands one over in the
+page's URL fragment. It runs on the picture as the page opens, and the window shows the
+source that acted.
+
+![a script handed over from VS Code](img/script-handoff.png)
+
 ## Projects and servers
 
 Every editor auto-saves into a local project; **Projects** (`Ctrl+Shift+P`) lists, renames,
