@@ -58,7 +58,7 @@ Commands  (a leading '/' is optional)
   [38;2;124;58;237m/drop[0m                   forget the working image entirely
   [38;2;124;58;237m/help   /exit[0m           show this list / leave (Ctrl-D, or Ctrl-C twice)
 
-Shortcuts  Ctrl-V paste the clipboard — an image attaches to the line (3 on a /prompt,
+[38;2;124;58;237mShortcuts[0m  Ctrl-V paste the clipboard — an image attaches to the line (3 on a /prompt,
            1 on an /upload; Backspace removes it), text is typed straight in
            Ctrl-C copy the selection (nothing selected: press twice to exit) · Ctrl-S also copies
            Ctrl-Z un-attach/un-paste · Ctrl-Alt-C copy the image to the clipboard
