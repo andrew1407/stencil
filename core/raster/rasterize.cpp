@@ -167,21 +167,21 @@ namespace stencil::core {
         fillPolygonRows(buf, w, h, line.points, *fill, 0, h);
     }
 
-    if (const auto stroke = parseColor(line.color); stroke && stroke->a > 0) {
+    const auto stroke = parseColor(line.color);
+    const bool strokeOn = stroke && stroke->a > 0;
+    if (strokeOn)
       strokePolyline(buf, w, h, line.points, line.locked, line.thickness, line.style,
                      *stroke);
-
-      // Points: a filled disc with a thin dark outline (the editor's yellow-on-black
-      // handles). An unparseable point colour falls back to the stroke, not to no points.
-      if (line.pointSize > 0.0) {
-        const auto pointFill = parseColor(pointColorOr(line));
-        const Rgba fill = (pointFill && pointFill->a > 0) ? *pointFill : *stroke;
-        const Rgba outline{0, 0, 0, 255};
-        for (const Point& p : line.points) {
-          stampDisc(buf, w, h, p.x, p.y, line.pointSize, fill);
-          stampRing(buf, w, h, p.x, p.y, line.pointSize, 1.0, outline);
-        }
-      }
+    // Markers (a disc under the editor's dark handle ring) do not ride on the stroke, as
+    // canvas/Qt draw them either way; an unset point colour inherits `color`, though.
+    if (line.pointSize <= 0.0) return;
+    const auto own = parseColor(pointColorOr(line));
+    const Rgba fill = (own && own->a > 0) ? *own : (strokeOn ? *stroke : Rgba{0, 0, 0, 0});
+    if (fill.a == 0) return;
+    const Rgba outline{0, 0, 0, 255};
+    for (const Point& p : line.points) {
+      stampDisc(buf, w, h, p.x, p.y, line.pointSize, fill);
+      stampRing(buf, w, h, p.x, p.y, line.pointSize, 1.0, outline);
     }
   }
 
