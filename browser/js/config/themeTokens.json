@@ -178,6 +178,10 @@
       "light": "#2e9e4f",
       "dark": "#4cc471"
     },
+    "--success-cta": {
+      "light": "#26883f",
+      "dark": "#2b9150"
+    },
     "--warning": {
       "light": "#c98a00",
       "dark": "#e6b53c"

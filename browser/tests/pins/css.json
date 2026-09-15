@@ -4589,8 +4589,8 @@
     "padding": "4px 9px"
    },
    "|.ctx-script .primary:not(:disabled), .script-actions-bar .primary:not(:disabled)": {
-    "background": "var(--success)",
-    "border-color": "var(--success)"
+    "background": "var(--success-cta)",
+    "border-color": "var(--success-cta)"
    },
    "|.ctx-script-plain .ctx-arrow": {
     "display": "none"
@@ -7162,6 +7162,7 @@
     "--danger": "#d6293e",
     "--danger-2": "#b71d30",
     "--success": "#2e9e4f",
+    "--success-cta": "#26883f",
     "--warning": "#c98a00",
     "--disabled-bg": "#e4e6ea",
     "--disabled-text": "#9aa0a8",
@@ -7281,6 +7282,7 @@
     "--danger": "#f0697a",
     "--danger-2": "#e8455a",
     "--success": "#4cc471",
+    "--success-cta": "#2b9150",
     "--warning": "#e6b53c",
     "--disabled-bg": "#3a3a3a",
     "--disabled-text": "#777777",

@@ -110,8 +110,10 @@ namespace stencil::gui {
     const QColor borderTooltip = themeToken("--border-tooltip", dark);
     // Browser --bg-info.
     const QColor bgInfo = infoBackground(dark);
-    // Browser --success, lifted toward the light on dark like the reds are.
+    // Browser --success, lifted toward the light on dark like the reds are; --success-cta is
+    // the deeper green the one filled GO button wears, so white ink reads on it.
     const QColor success = themeToken("--success", dark);
+    const QColor successCta = themeToken("--success-cta", dark);
 
     // Tracks browser/css. The sheet is resources/app.qss; only its %TOKEN% values are
     // computed here and filled in ONE pass — previewAccent() rebuilds it per hovered accent row.
@@ -133,8 +135,8 @@ namespace stencil::gui {
         {"%ACCENT2%", c(accent2)},
         // Browser --danger/--danger-2 (per theme).
         {"%SUCCESS_RING%", rgba(success, 0.55)},
-        {"%SUCCESS%", c(success)},
-        {"%SUCCESS2%", c(dark ? success.lighter(112) : success.darker(108))},
+        {"%SUCCESS_CTA%", c(successCta)},
+        {"%SUCCESS_CTA2%", c(dark ? successCta.lighter(112) : successCta.darker(108))},
         {"%DANGER2%", dangerHover(dark).name()},
         {"%DANGER%", c(p.danger)},
         // Browser --bg-sel-panel / --border-sel / --text-sel-label. Routed through the

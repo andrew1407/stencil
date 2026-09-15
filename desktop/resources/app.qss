@@ -326,10 +326,11 @@
       }
       /* Danger button (e.g. the selection panel's Delete Line) — the browser's
          --danger red treatment, tuned per theme. */
-      /* Run is the one GO action in the script editors, so it wears the browser's --success
-         green rather than the accent every other CTA uses. Dead, it greys like the rest. */
-      QPushButton[successCta="true"] { background: %SUCCESS%; color: white; border: none; }
-      QPushButton[successCta="true"]:hover { background: %SUCCESS2%; }
+      /* Run is the one GO action in the script editors, so it wears the browser's
+         --success-cta green rather than the accent every other CTA uses — deeper than
+         --success, so white ink reads on it. Dead, it greys like the rest. */
+      QPushButton[successCta="true"] { background: %SUCCESS_CTA%; color: white; border: none; }
+      QPushButton[successCta="true"]:hover { background: %SUCCESS_CTA2%; }
       QPushButton[successCta="true"]:disabled {
         background: %DISABLED_BG%; color: %MUTED%; border-color: %BORDER%;
       }
