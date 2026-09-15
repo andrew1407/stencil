@@ -118,6 +118,16 @@ TEST_CASE("rasterizeLine draws points") {
   line.pointSize = 4;
   rasterizeLine(buf.data(), w, h, line);
   CHECK(at(buf, w, 10, 10, 3) > 0);  // a point disc was stamped
+
+  // An invisible stroke still marks points that carry their own colour, none without.
+  line.color = "transparent";
+  auto bare = blank(w, h);
+  rasterizeLine(bare.data(), w, h, line);
+  CHECK(at(bare, w, 10, 10, 3) == 0);
+  line.pointColor = "blue";
+  auto marked = blank(w, h);
+  rasterizeLine(marked.data(), w, h, line);
+  CHECK(at(marked, w, 10, 10, 2) > 150);
 }
 
 // Security/robustness: layout coords/sizes are untrusted. Non-finite or absurd
