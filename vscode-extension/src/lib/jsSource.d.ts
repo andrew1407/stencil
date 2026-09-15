@@ -3,6 +3,7 @@ export interface MarkerSpan { start: number; end: number }
 export declare const JS_LANGUAGE: string;
 export declare const MARKER_DOC: string;
 export declare const MARKER_TRAILING_DOC: string;
+export declare const commentStart: (text: string) => number;
 export declare const inLineComment: (lineText: string, character: number) => boolean;
 export declare const isJsDocument: (document: unknown) => boolean;
 export declare const isJsSource: (document: unknown) => boolean;
