@@ -27,8 +27,26 @@ test('the language is contributed under the id the code uses', () => {
   const [language] = contributes.languages;
   assert.equal(language.id, ids.LANGUAGE_ID);
   assert.deepEqual(language.extensions, [ids.FILE_EXTENSION]);
-  assert.deepEqual(manifest.activationEvents, [`onLanguage:${ids.LANGUAGE_ID}`]);
+  // .stc stays FIRST: this file and grammar.test.js both read index 0 as the script's own.
+  assert.deepEqual(manifest.activationEvents, [
+    `onLanguage:${ids.LANGUAGE_ID}`, `onLanguage:${ids.JS_LANGUAGE_ID}`, 'onLanguage:javascript',
+  ]);
   assert.equal(contributes.grammars[0].scopeName, ids.SCOPE_NAME);
+});
+
+// .stcjs is JavaScript that drives window.stencil. The editor's own JS service owns the
+// language; this tree adds an icon, the facade's words, and a grammar that defers.
+test('the JavaScript flavour is a third language that defers to source.js', () => {
+  const js = contributes.languages.find((l) => l.id === ids.JS_LANGUAGE_ID);
+  assert.ok(js, `no ${ids.JS_LANGUAGE_ID} language`);
+  assert.deepEqual(js.extensions, [ids.JS_FILE_EXTENSION]);
+  const grammar = contributes.grammars.find((g) => g.language === ids.JS_LANGUAGE_ID);
+  assert.equal(grammar.scopeName, ids.JS_SCOPE_NAME);
+  const rules = JSON.parse(readFileSync(here(`../${grammar.path}`), 'utf8'));
+  assert.equal(rules.scopeName, ids.JS_SCOPE_NAME);
+  assert.deepEqual(rules.patterns, [{ include: 'source.js' }]);
+  // A plain .js opts in per buffer, so the host must wake for javascript too.
+  assert.ok(manifest.activationEvents.includes('onLanguage:javascript'));
 });
 
 // .stencil is contributed for its icon and to open as JSON. It must not pull the extension

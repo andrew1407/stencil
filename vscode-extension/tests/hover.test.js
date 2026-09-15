@@ -37,7 +37,8 @@ test('a directive explains itself, with its signature and an example', () => {
 test('a value word explains itself too', () => {
   assert.match(hoverOver('@source a.png:\n    @filter sepia\n', 'sepia'), /^\*\*sepia\*\* — Warm brown/);
   assert.match(hoverOver('@use line dashed\n', 'dashed'), /^\*\*dashed\*\* — A dashed stroke\./);
-  assert.match(hoverOver('@source a.png:\n    @crop aspect=3:2\n', 'aspect'), /crop to a ratio/);
+  assert.match(hoverOver('@source a.png:\n    @crop aspect=3:2\n', 'aspect'),
+    /^\*\*aspect\*\* — Crop to a ratio\./);
 });
 
 test('a unit explains the unit, not the number it hangs off', () => {

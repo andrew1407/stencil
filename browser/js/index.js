@@ -5,6 +5,8 @@ import { core } from './core/stencilCore.js';
 import { hotkeys } from './core/hotkeys.js';
 import { registerServiceWorker } from './pwa.js';
 import { createStencil } from './console/stencilApi.js';
+import { runScriptHere } from './console/scriptRunner.js';
+import { setScriptText } from './ui/scriptBuffer.js';
 import { initTooltips } from './ui/controlTooltip.js';
 import { wireChatPersistence } from './llm/chatPersistence.js';
 import { initProjectsBackend } from './core/projectsBackend.js';
@@ -19,6 +21,21 @@ import { publishReady } from './bus/appBus.js';
 // shared C++ core (wasm), mount component hosts, construct the app, then dispatch
 // `stencil:ready` so components wire — preserving DOM → app → wire order. If wasm
 // fails, the core installs no-ops and consumers use their JS fallback.
+// A handed-over script (launchController's pendingLaunchScript) runs HERE because the layer
+// order forbids core/ importing console/. The text lands in the one shared script buffer
+// first, so a failure opens the window already showing the source its strip underlines.
+const runLaunchScript = async (app) => {
+  const text = app.pendingLaunchScript;
+  if (!text) return;
+  app.pendingLaunchScript = '';
+  setScriptText(text);
+  try {
+    await runScriptHere(text);
+  } catch {
+    document.getElementById('script-btn')?.click();   // runScript already said what failed
+  }
+};
+
 window.onload = async () => {
   // When framed in the extension's in-page editor modal, signal liveness before
   // the heavy boot so the host keeps the modal up instead of timing out to a tab.
@@ -84,9 +101,10 @@ window.onload = async () => {
   hotkeys.updateHotkeyTitles();
   // Instant tooltips everywhere (the native `title` has a ~1s delay and skips disabled controls).
   initTooltips();
-  // If the Stencil browser extension launched us with an image (URL fragment),
-  // import it now that every component is wired. No-op for normal sessions.
-  app.applyExternalLaunch();
+  // If the Stencil browser extension or the VS Code extension launched us with an image
+  // and/or a .stc (URL fragment), import it now that every component is wired, then run the
+  // script against the picture it just brought. No-op for normal sessions.
+  app.applyExternalLaunch().then(() => runLaunchScript(app));
   // If launched via the projects modal's "open in new tab" action (?open=<id>),
   // load that project now. No-op for normal sessions.
   app.applyProjectDeepLink();

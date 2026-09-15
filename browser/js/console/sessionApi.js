@@ -3,23 +3,12 @@
 // validates the connection BEFORE it resets or fetches anything.
 import { requireConnection } from '../net/remoteSync.js';
 import { videoFrameDataUrl } from '../core/videoFrame.js';
+import { waitForImage as waitForImageOn } from '../core/imageLoadFlow.js';
 
 export const createSessionApi = ({ app, connMgr }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
 
-  // loadImageFromFile decodes async with no promise; poll until the image is in place.
-  // `previous` = the image loaded BEFORE the call, so a REPLACE waits for the swap — not
-  // for "some image exists", which would run chained ops against the old picture.
-  const waitForImage = (timeoutMs = 8000, previous = null) => new Promise((resolve) => {
-    const start = Date.now();
-    const again = typeof requestAnimationFrame === 'function'
-      ? requestAnimationFrame : (fn) => setTimeout(fn, 16);   // node --test has no rAF
-    const tick = () => {
-      if ((app.image && app.image !== previous) || Date.now() - start > timeoutMs) resolve();
-      else again(tick);
-    };
-    tick();
-  });
+  const waitForImage = (timeoutMs = 8000, previous = null) => waitForImageOn(app, { timeoutMs, previous });
 
   const api = {
     // Start a fresh blank (unsaved) editor — the toolbar's clear/new. `opts.address` also

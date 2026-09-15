@@ -30,6 +30,7 @@ graph TD
     CORE -->|"recompile"| PY
     WEB -.->|"no wasm"| FB
     EXT -->|"images"| WEB
+    VSC -->|"scripts, pictures"| WEB
     WEB -.->|"parser copy"| VSC
     VSC -->|"spawn"| CLI
     MCP -->|"spawn"| CLI
@@ -83,7 +84,7 @@ pystencil/            # the Python package: build.py, pystencil/, tests/
 mcp/                  # the Rust MCP server: src/ (server · args · pipeline · opplan · deliver · llm …)
 server/               # the Go collaboration server: cmd/stencil-server/, internal/
 browser-extension/    # the Chrome MV3 extension: manifest.json, src/, tests/
-vscode-extension/     # the VS Code .stc extension: package.json, syntaxes/, icons/, src/ (+ src/parser/ copies)
+vscode-extension/     # the VS Code .stc/.stcjs extension: package.json, syntaxes/, icons/, src/ (+ src/parser/ copies)
 bot/                  # the .NET Telegram bot: src/ (Domain · Application · Infrastructure · Bot), tests/
 e2e/                  # the Playwright smoke harness: helpers/, fixtures/, tests/, pins/
 contracts/            # the normative contracts, one directory each
@@ -153,6 +154,11 @@ Five consumption mechanisms, one per surface:
 | **`include_str!`** | mcp | `include_str!("../../browser/js/config/X.json")` |
 | **`<EmbeddedResource Link>`** | bot | `<EmbeddedResource Include="../../../browser/js/config/X.json" Link="Assets/X.json" />` |
 | **checked-in copy + byte-equality drift test** | browser-extension, pystencil, vscode-extension | the copy ships with the surface; a test pins it to the canonical file |
+
+A table a surface writes in its own words is held to the canonical list the same way, without
+being a copy of it: `vscode-extension/src/config/stencilApiVocabulary.json` explains every
+`window.stencil` member, and `tests/apiVocabulary.test.js` asserts its keys and signatures
+against `interface Stencil` in `browser/js/console/stencilApi.d.ts`, both directions.
 
 The fifth rail exists only where embedding is impossible: the extensions ship self-contained
 (MV3 reads nothing outside its own tree, and a `.vsix` carries only what it packaged) and

@@ -32,7 +32,9 @@
   },
   "main": "./src/extension.js",
   "activationEvents": [
-    "onLanguage:stencil-script"
+    "onLanguage:stencil-script",
+    "onLanguage:stencil-js",
+    "onLanguage:javascript"
   ],
   "contributes": {
     "languages": [
@@ -64,6 +66,21 @@
           "light": "./icons/stencil-light.svg",
           "dark": "./icons/stencil-dark.svg"
         }
+      },
+      {
+        "id": "stencil-js",
+        "aliases": [
+          "Stencil JavaScript",
+          "stcjs"
+        ],
+        "extensions": [
+          ".stcjs"
+        ],
+        "configuration": "./language-configuration.stcjs.json",
+        "icon": {
+          "light": "./icons/stcjs.svg",
+          "dark": "./icons/stcjs.svg"
+        }
       }
     ],
     "grammars": [
@@ -76,6 +93,19 @@
         "language": "stencil-project",
         "scopeName": "source.stencil-project",
         "path": "./syntaxes/stencilProject.tmLanguage.json"
+      },
+      {
+        "language": "stencil-js",
+        "scopeName": "source.stcjs",
+        "path": "./syntaxes/stcjs.tmLanguage.json"
+      },
+      {
+        "scopeName": "stencil.marker.stc",
+        "path": "./syntaxes/stencilMarker.tmLanguage.json",
+        "injectTo": [
+          "source.js",
+          "source.stcjs"
+        ]
       }
     ],
     "commands": [
@@ -98,6 +128,32 @@
       {
         "command": "stencil.configureColors",
         "title": "Stencil: Configure highlight colours",
+        "category": "Stencil"
+      },
+      {
+        "command": "stencil.openInWeb",
+        "title": "Stencil: Open in Stencil Web",
+        "category": "Stencil",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "stencil.runInWebConsole",
+        "title": "Stencil: Run in Stencil Web Console",
+        "category": "Stencil"
+      },
+      {
+        "command": "stencil.runSelectionInWebConsole",
+        "title": "Stencil: Run selection in Stencil Web Console\u2026",
+        "category": "Stencil"
+      },
+      {
+        "command": "stencil.openImageInWeb",
+        "title": "Stencil: Open an image in Stencil Web\u2026",
+        "category": "Stencil"
+      },
+      {
+        "command": "stencil.addTypings",
+        "title": "Stencil: Add facade typings to this workspace",
         "category": "Stencil"
       }
     ],
@@ -163,6 +219,26 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Explain the directive or keyword under the pointer: its meaning, argument grammar and an example. Needs `#editor.hover.enabled#`."
+        },
+        "stencil.webUrl": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "The Stencil web app the browser commands open. Empty uses the published instance, `https://andrew1407.github.io/stencil/`; point it at your own \u2014 `http://localhost:8080/` for a served checkout. It must be an `http(s)` URL, and it is never read out of the file being edited."
+        },
+        "stencil.webBrowser": {
+          "type": "string",
+          "default": "chrome",
+          "enum": [
+            "chrome",
+            "edge"
+          ],
+          "markdownDescription": "Which browser **Stencil: Run in Stencil Web Console** opens, through VS Code\u2019s built-in JavaScript debugger. It runs in a throwaway profile, never your everyday one."
+        },
+        "stencil.webInlineImages": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Let a picked local image ride into the browser as a `data:` URL \u2014 the bytes travel in the URL fragment, which no server ever sees. Off, only `http(s)` images can be opened."
         }
       }
     },
@@ -171,6 +247,11 @@
         {
           "command": "stencil.runScript",
           "when": "resourceLangId == stencil-script",
+          "group": "navigation"
+        },
+        {
+          "command": "stencil.openInWeb",
+          "when": "resourceLangId == stencil-script || resourceLangId == stencil-project",
           "group": "navigation"
         }
       ]
@@ -181,6 +262,12 @@
         "key": "ctrl+alt+r",
         "mac": "cmd+alt+r",
         "when": "editorTextFocus && editorLangId == stencil-script"
+      },
+      {
+        "command": "stencil.runInWebConsole",
+        "key": "ctrl+alt+w",
+        "mac": "cmd+alt+w",
+        "when": "editorTextFocus && (editorLangId == stencil-script || editorLangId == stencil-js)"
       }
     ]
   },

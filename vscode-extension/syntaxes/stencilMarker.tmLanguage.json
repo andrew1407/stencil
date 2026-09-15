@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Stencil marker",
+  "scopeName": "stencil.marker.stc",
+  "injectionSelector": "L:comment.line.double-slash",
+  "patterns": [
+    {
+      "match": "(@use)[ \\t]+(stencil)\\b",
+      "captures": {
+        "1": { "name": "keyword.control.directive.stc" },
+        "2": { "name": "keyword.control.directive.stc" }
+      }
+    }
+  ]
+}

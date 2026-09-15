@@ -1,6 +1,20 @@
 # Stencil for VS Code
 
-![completion while typing a script](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/completion-hints.gif)
+Writing a `.stc`: the suggestions offer what is legal where the caret is, each with what it
+means, and the file is checked by the real engine as you type.
+
+![completing a .stc as you type](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/completion-hints.gif)
+
+Where a `.stc` completes from the language's own vocabulary — directives, then whatever is
+legal inside the statement you are in (above) — a `.stcjs` completes from the facade, every
+member with what it does beside it:
+
+![completing the window.stencil API in a .stcjs](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/api-hints.gif)
+
+Each file type is marked in the explorer — a script, its JavaScript flavour, and a saved
+project:
+
+![the three file types in the explorer](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/file-icons.png)
 
 Editor support for the Stencil script language. A `.stc` file is a recipe — crop this, tint
 that, draw a box here, save it there — that [Stencil](https://github.com/andrew1407/stencil)
@@ -44,7 +58,20 @@ editor and a run cannot disagree.
 - **Diagnostics** appear while typing and again on save, each carrying its code
   (`E_UNKNOWN_DIRECTIVE`, `W_EMPTY_BLOCK`, …) into the Problems panel. A script with any
   error runs nothing.
-- **File icons** mark both file types, and a `.stencil` project opens as the JSON it is.
+- **File icons** mark all three file types, and a `.stencil` project opens as the JSON it is.
+- **`.stcjs`** is JavaScript that drives the web app's `window.stencil` facade: it gets the
+  same treatment for the facade that `.stc` gets for the language — every member completed
+  after `stencil.`, and hovered with its signature, what it hands back and a worked example.
+  Hovering `stencil` itself explains the facade, which the editor's own JavaScript service can
+  only call `any`. A plain `.js` joins in by saying `// @use stencil` on its first line, and
+  that marker is coloured where it stands rather than reading as one more comment — and
+  hovering it says what it does. It may stand **anywhere** in the file, on a comment line of
+  its own; the words with code in front of them are not the marker, and say so when hovered.
+- **Typings** — run **Stencil: Add facade typings to this workspace** and the editor's own
+  JavaScript service types `stencil` for you: one tooltip reading `var stencil: Stencil`,
+  with the prose, the example and links back to these docs, instead of `any`. The extension
+  then stands aside in a `.js`, so nothing is said twice. It writes `stencil.d.ts` beside your
+  code, and a `jsconfig.json` only if the project has none.
 
 ### Colours
 
@@ -145,10 +172,35 @@ and click **Trust Publisher**. To work on the extension instead, open this folde
 **F5** — the Extension Development Host loads it from source, with no packaging or trust
 prompt.
 
+## In the browser
+
+The same script can run in the [browser app](https://andrew1407.github.io/stencil/), against a
+real picture, without leaving the editor. Two ways, because they answer different questions.
+
+Every browser command sits in the palette under **Stencil:**, beside the ones that spawn the
+CLI:
+
+![the palette, filtered to Stencil](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/web-commands.png)
+
+**Open in Stencil Web** hands the file to your own browser. The script — or a `.stencil`
+project — rides in the URL *fragment*, which no server ever sees, and the app runs it on
+arrival and shows the source in its script window. A script that names no `@source` acts on
+whatever is open, so it asks for a picture to take along. A `@source` that names a local path
+cannot work there: the app has no filesystem, and says so itself, on the line it happened.
+
+**Run in Stencil Web Console** opens the app under VS Code's built-in JavaScript debugger and
+evaluates in the page, so it can run the whole file, just the selection, or one expression you
+type — and a `.stcjs` runs verbatim, which is the only way it runs at all. Results and errors
+go to the **Stencil** output channel. The browser is launched in a throwaway profile, never
+your everyday one.
+
+Point `stencil.webUrl` at your own instance — `http://localhost:8080/` for a served checkout —
+or leave it empty for the published one.
+
 ## Commands
 
-Running a script needs the Stencil CLI on the machine: `cd cli && zig build` puts it at
-`cli/zig-out/bin/stencil`.
+Running a script through the CLI needs it on the machine: `cd cli && zig build` puts it at
+`cli/zig-out/bin/stencil`. The browser commands need no CLI at all.
 
 | Palette entry | Shortcut | Runs |
 |---|---|---|
@@ -156,8 +208,13 @@ Running a script needs the Stencil CLI on the machine: `cd cli && zig build` put
 | Stencil: Run script on an image… | — | `stencil -i <image> --script <file>` |
 | Stencil: Check script | — | `stencil --script-check <file>` |
 | Stencil: Configure highlight colours | — | opens the colour setting — see [Colours](#colours) |
+| Stencil: Open in Stencil Web | — | the browser, on `#stencil=<the script>` |
+| Stencil: Run in Stencil Web Console | `Ctrl+Alt+W` / `⌘⌥W` | `stencil.execScript(…)` in the page, or the `.stcjs` itself |
+| Stencil: Run selection in Stencil Web Console… | — | the selection, else an expression you type |
+| Stencil: Open an image in Stencil Web… | — | `stencil.load(<url or the file's bytes>)` |
+| Stencil: Add facade typings to this workspace | — | writes `stencil.d.ts` (+ a `jsconfig.json` if needed) |
 
-There is also a ▶ in the editor title bar. The three script commands save the file first and
+There is also a ▶ and a 🌐 in the editor title bar. The three CLI commands save the file first and
 run in a terminal called **Stencil**, from the script's own directory — so a relative
 `@source` path means what it means on the command line.
 
@@ -172,6 +229,9 @@ run in a terminal called **Stencil**, from the script's own directory — so a r
 | `stencil.completion` | `true` | Suggest what is legal at the caret. |
 | `stencil.hover` | `true` | Explain the word under the pointer. |
 | `stencil.colors` | `{}` | An exact colour per family, over the eight the extension already paints — see [Colours](#colours). A named family wins over the theme and applies even with `stencil.highlighting` off. |
+| `stencil.webUrl` | *(empty)* | The instance the browser commands open. Empty uses `https://andrew1407.github.io/stencil/`. Must be an `http(s)` URL, and it is never read out of the file being edited. |
+| `stencil.webBrowser` | `chrome` | Which browser the console command launches — `chrome` or `edge`. |
+| `stencil.webInlineImages` | `true` | Let a picked local image travel into the browser as a `data:` URL. Off, only `http(s)` images can be opened. |
 
 With a CLI configured, saving checks the file with `stencil --script-check`. While typing,
 whenever no CLI is found, and with `stencil.checkOnSave` off, the same checks run inside the

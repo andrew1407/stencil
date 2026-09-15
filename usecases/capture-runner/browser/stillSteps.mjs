@@ -3,10 +3,12 @@
 // config/browser.json.
 import { pairNames } from '../lib/themeSelector.mjs';
 import { canvasSize, waitForAnimations, waitForCanvasChange } from '../lib/waits.mjs';
+import { applyAppTheme } from '../lib/pageTheme.mjs';
 
 export function makeStillSteps({ config, runner, pages, stub, appUrl, browser }) {
   const { fresh, shared, blank, drawLines, openModal, closeModal, chatReplied,
-    expectModalOpen, settleModalAnimations } = pages;
+    gotoApp, expectModalOpen, settleModalAnimations } = pages;
+
   const timeouts = config.get('timeouts');
   const pairStep = (base, run) => pairNames(base).map((name) => ({ name, run }));
   // A blank page carrying one of the repo's own pictures: what the image-shaped modals show.
@@ -180,6 +182,20 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
         await runner.shot(page, 'open-in-modal');
         await closeModal(page, 'open-in-modal-overlay');
       } catch (err) { console.warn(`  open-in-modal skipped: ${err.message.split('\n')[0]}`); }
+    } },
+    // A script handed over by the VS Code extension: the same `#stencil=` fragment the Chrome
+    // extension writes, carrying a `.stc` beside the picture. The app runs it on arrival and
+    // keeps the source in its script window — which is what this shot is of.
+    { name: 'script-handoff', run: async (ctx, theme) => {
+      const script = `@source ${config.url('botIcon')}:\n    @filter sepia\n    @use line #1e63c8 3px dashed\n    @rect (15%, 15%) (85%, 85%)\n`;
+      const hash = `#stencil=${encodeURIComponent(JSON.stringify({ script }))}`;
+      const page = await browser.newPage({ viewport: config.get('viewports.app') });
+      await gotoApp(page, { hash, motion: 'none' });
+      await applyAppTheme(page, theme);
+      await page.waitForFunction(() => window.stencil.lines.length > 0, null, { timeout: timeouts.loadMs });
+      await waitForAnimations(page);
+      await runner.shot(page, 'script-handoff');
+      await page.close();
     } },
     // The desktop-app bounce page: what a chat link to the desktop app lands on. It
     // forwards to the stencil:// scheme at once, which never "loads" here.

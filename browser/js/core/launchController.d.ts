@@ -31,7 +31,8 @@ export declare const stripExt: (name: string | null | undefined) => string;
 /** Fetches the launch's bytes and loads them; rejects on a failed fetch. */
 export declare const importInlineImage: (app: DrawingApp, launch: NormalizedLaunch, opts?: { mode?: ImportMode }) => Promise<void>;
 /** Consumes the fragment once (stripped from the URL) and routes it through the loaders. */
-export declare const applyExternalLaunch: (app: DrawingApp) => void;
+export declare const MAX_LAUNCH_SCRIPT: number;
+export declare const applyExternalLaunch: (app: DrawingApp) => Promise<void>;
 /** The extension bridge's entry point: 'new' resets to a blank editor first. */
 export declare const importExternalImage: (app: DrawingApp, launch: NormalizedLaunch, opts?: { mode?: ImportMode }) => Promise<void>;
 /** Switches to an existing project for this image; true when it switched. */

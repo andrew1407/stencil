@@ -5,7 +5,7 @@
 const FEATURES = [
   require('./diagnostics.js'), require('./semanticTokens.js'), require('./completion.js'),
   require('./hover.js'), require('./decorations.js'), require('./colors.js'),
-  require('./commands.js'),
+  require('./commands.js'), require('./jsHints.js'), require('./webCommands.js'), require('./typings.js'),
 ];
 
 const activate = (context) => { for (const feature of FEATURES) feature.register(context); };

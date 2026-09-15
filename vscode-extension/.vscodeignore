@@ -6,5 +6,7 @@ tests/**
 node_modules/**
 package-lock.json
 **/*.d.ts
+!typings/stencil.d.ts
+tools/**
 **/.DS_Store
 *.vsix

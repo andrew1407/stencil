@@ -19,7 +19,8 @@ export const WORKSPACE = (config) => path.join(root(config), 'ws');
 export const CLI_BIN = (config) => path.join(root(config), 'bin', 'stencil');
 
 const SOURCE = path.join(CAPTURE, 'vscode');
-const SAMPLE = 'example.stc';
+const SAMPLES = ['example.stc', 'example.stcjs', 'example.stencil'];
+const SAMPLE = SAMPLES[0];
 const LANGUAGE_NAME = 'Stencil script';
 const WORKBENCH = '.monaco-workbench';
 
@@ -45,7 +46,7 @@ export class VsCodeHost {
     const dir = root(config);
     fs.rmSync(dir, { recursive: true, force: true });
     for (const sub of ['user/User', 'ext', 'ws/out', 'bin']) fs.mkdirSync(path.join(dir, sub), { recursive: true });
-    fs.copyFileSync(path.join(SOURCE, 'sample', SAMPLE), path.join(WORKSPACE(config), SAMPLE));
+    for (const name of SAMPLES) fs.copyFileSync(path.join(SOURCE, 'sample', name), path.join(WORKSPACE(config), name));
     fs.copyFileSync(path.join(REPO, config.shared.urls.localBotIcon), path.join(WORKSPACE(config), 'icon.png'));
     fs.copyFileSync(path.join(REPO, 'cli', 'zig-out', 'bin', 'stencil'), CLI_BIN(config));
     fs.chmodSync(CLI_BIN(config), 0o755);
@@ -108,6 +109,19 @@ export class VsCodeHost {
       return;
     }
     await this.#page.locator('.statusbar', { hasText: LANGUAGE_NAME }).first().waitFor({ timeout: 30_000 });
+    await waitForStable(this.#page, () => document.querySelector('.view-lines')?.innerHTML?.length ?? 0,
+      { idleMs: 600, timeoutMs: 20_000 });
+  }
+
+  // Quick Open by name, so a step can move between the workspace's files without a dialog.
+  async openFile(name) {
+    await this.#page.keyboard.press('F1');
+    const input = this.#page.locator('.quick-input-widget input');
+    await input.waitFor({ timeout: 10_000 });
+    await input.fill(name);
+    await this.#page.locator('.quick-input-list .monaco-list-row').first().waitFor({ timeout: 10_000 });
+    await this.#page.keyboard.press('Enter');
+    await this.#page.locator('.quick-input-widget').waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
     await waitForStable(this.#page, () => document.querySelector('.view-lines')?.innerHTML?.length ?? 0,
       { idleMs: 600, timeoutMs: 20_000 });
   }

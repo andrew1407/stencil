@@ -1,0 +1,840 @@
+{
+  "_doc": "The window.stencil facade, as an editor explains it. Prose is this surface’s own; the MEMBER LIST is not — tests/apiVocabulary.test.js holds it to interface Stencil in browser/js/console/stencilApi.d.ts, both ways, so a new facade member is unexplained until it is written down here. Signatures are that file’s, verbatim.",
+  "members": {
+    "allowFormulas": {
+      "group": "settings",
+      "signature": "stencil.allowFormulas: boolean",
+      "summary": "Whether a coordinate may be typed as a formula.",
+      "example": "stencil.allowFormulas = true;"
+    },
+    "apply": {
+      "group": "edit",
+      "signature": "stencil.apply(opts?: ApplyOptions): Stencil",
+      "summary": "Apply a batch of settings in one go.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.apply({ filter: 'bw', lineColor: '#ff3b30', thickness: 4 });"
+    },
+    "applyLayout": {
+      "group": "export",
+      "signature": "stencil.applyLayout(data: LayoutPayload | string, opts?: LayoutInstallOptions): Stencil",
+      "summary": "Install a layout, combining with or replacing what is there.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.applyLayout(layout, { mode: 'replace' });"
+    },
+    "archivedProjects": {
+      "group": "projects",
+      "signature": "stencil.archivedProjects: Project[]",
+      "summary": "The projects put away but not deleted.",
+      "readOnly": true,
+      "example": "console.log(stencil.archivedProjects.length);"
+    },
+    "blank": {
+      "group": "session",
+      "signature": "stencil.blank(color?: ColorInput, opts?: { size?: Partial<Size>; address?: string }): Promise<Stencil>",
+      "summary": "Make a blank page of a colour and a size.",
+      "detail": "Resolves to the facade, so calls chain with `await`.",
+      "example": "await stencil.blank('#ffffff', { size: { width: 1200, height: 800 } });"
+    },
+    "changeShortcut": {
+      "group": "state",
+      "signature": "stencil.changeShortcut(oldRef: string, newCombo: string): Stencil",
+      "summary": "Give an action a different key combination.",
+      "detail": "`oldRef` is an action id or its current combo. Hands the facade back, so calls chain.",
+      "example": "stencil.changeShortcut('undo', 'Alt+Z');"
+    },
+    "chat": {
+      "group": "assistant",
+      "signature": "stencil.chat: ChatFacade",
+      "summary": "The chat panel: its history, its dock, its turns.",
+      "readOnly": true,
+      "example": "stencil.chat.dock('right');"
+    },
+    "checkScript": {
+      "group": "script",
+      "signature": "stencil.checkScript(text: string, file?: string): string[]",
+      "summary": "Check a .stc without running it, and hand back its diagnostics.",
+      "detail": "Parse only: the formatted diagnostics an editor would underline.",
+      "example": "const problems = stencil.checkScript('@filtre bw\\n');"
+    },
+    "clearLines": {
+      "group": "edit",
+      "signature": "stencil.clearLines(): Stencil",
+      "summary": "Take every line off the picture.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.clearLines();"
+    },
+    "closeWindow": {
+      "group": "windows",
+      "signature": "stencil.closeWindow(): Stencil",
+      "summary": "Close whichever window is open.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.closeWindow();"
+    },
+    "compareMode": {
+      "group": "settings",
+      "signature": "stencil.compareMode: CompareMode",
+      "summary": "How the original is shown beside the edit.",
+      "example": "stencil.compareMode = 'vertical';   // none | original | vertical | horizontal"
+    },
+    "compareSplit": {
+      "group": "settings",
+      "signature": "stencil.compareSplit: number",
+      "summary": "Where the comparison divider sits.",
+      "detail": "Divider position 0..1 for the split modes.",
+      "example": "stencil.compareSplit = 0.35;   // 0..1"
+    },
+    "connect": {
+      "group": "servers",
+      "signature": "stencil.connect(urlOrUrls: ConnectSpec | ConnectSpec[]): Promise<Stencil>",
+      "summary": "Connect to a collaboration server.",
+      "detail": "Resolves to the facade, so calls chain with `await`.",
+      "example": "await stencil.connect('https://stencil.example');"
+    },
+    "connections": {
+      "group": "servers",
+      "signature": "stencil.connections: string[]",
+      "summary": "The servers this editor is talking to.",
+      "readOnly": true,
+      "example": "console.log(stencil.connections);"
+    },
+    "copyImage": {
+      "group": "export",
+      "signature": "stencil.copyImage(variant?: ExportVariant): Stencil",
+      "summary": "Copy the picture.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.copyImage();"
+    },
+    "copyImageToClipboard": {
+      "group": "export",
+      "signature": "stencil.copyImageToClipboard(variant?: ExportVariant): Stencil",
+      "summary": "Put the picture on the clipboard.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.copyImageToClipboard('original');"
+    },
+    "copyLayout": {
+      "group": "export",
+      "signature": "stencil.copyLayout(): Stencil",
+      "summary": "Put the layout on the clipboard.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.copyLayout();"
+    },
+    "copyServerProjectToIncognito": {
+      "group": "servers",
+      "signature": "stencil.copyServerProjectToIncognito(meta: RemoteProjectMeta, opts?: { newTab?: boolean }): Promise<unknown>",
+      "summary": "Copy a server project into an unlinked incognito editor.",
+      "example": "await stencil.copyServerProjectToIncognito(remote[0], { newTab: true });"
+    },
+    "copyServerProjectToLocal": {
+      "group": "servers",
+      "signature": "stencil.copyServerProjectToLocal(meta: RemoteProjectMeta, opts?: { name?: string }): Promise<string>",
+      "summary": "Copy a server project into this browser.",
+      "example": "await stencil.copyServerProjectToLocal(remote[0], { name: 'a copy' });"
+    },
+    "crop": {
+      "group": "edit",
+      "signature": "stencil.crop(spec?: CropSpec): Stencil",
+      "summary": "Cut the picture down.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.crop({ x1: '10%', x2: '-10%', aspect: '3:2' });"
+    },
+    "cropRect": {
+      "group": "state",
+      "signature": "stencil.cropRect: (Required<WireCropRect>) | null",
+      "summary": "The crop rectangle in the rotated original’s pixels.",
+      "readOnly": true,
+      "detail": "Rotated-original px, {x,y,w,h} plus width/height aliases; null before an image loads.",
+      "example": "const { x, y, w, h } = stencil.cropRect ?? {};"
+    },
+    "current": {
+      "group": "projects",
+      "signature": "stencil.current: Project | null",
+      "summary": "The project on screen, or null in a blank editor.",
+      "readOnly": true,
+      "example": "console.log(stencil.current?.name);"
+    },
+    "darkTheme": {
+      "group": "settings",
+      "signature": "stencil.darkTheme: boolean",
+      "summary": "Whether the editor wears its dark theme.",
+      "example": "stencil.darkTheme = true;"
+    },
+    "deleteProjectFile": {
+      "group": "export",
+      "signature": "stencil.deleteProjectFile(): Promise<Stencil>",
+      "summary": "Delete the linked file and unlink the project.",
+      "detail": "Resolves to the facade, so calls chain with `await`.",
+      "example": "await stencil.deleteProjectFile();"
+    },
+    "description": {
+      "group": "settings",
+      "signature": "stencil.description: string",
+      "summary": "The open project’s description.",
+      "example": "stencil.description = 'Roof survey, north face.';"
+    },
+    "disconnect": {
+      "group": "servers",
+      "signature": "stencil.disconnect(url?: string): Stencil",
+      "summary": "Drop one connection, or all of them.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.disconnect('https://stencil.example');   // no argument drops them all"
+    },
+    "downloadImage": {
+      "group": "export",
+      "signature": "stencil.downloadImage(variant?: ExportVariant): Stencil",
+      "summary": "Save the picture as a file.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.downloadImage('split');   // current | original | tint | split"
+    },
+    "downloadLayout": {
+      "group": "export",
+      "signature": "stencil.downloadLayout(): Stencil",
+      "summary": "Save the layout as a file.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.downloadLayout();"
+    },
+    "drawMode": {
+      "group": "settings",
+      "signature": "stencil.drawMode: DrawMode",
+      "summary": "Whether a drag draws a line or a rectangle.",
+      "example": "stencil.drawMode = 'rect';   // line | rect"
+    },
+    "drawing": {
+      "group": "edit",
+      "signature": "stencil.drawing: boolean",
+      "summary": "Whether a line is being drawn right now.",
+      "example": "stencil.drawing = true;"
+    },
+    "drawingAnimations": {
+      "group": "settings",
+      "signature": "stencil.drawingAnimations: boolean",
+      "summary": "Whether a stroke animates as it is drawn.",
+      "example": "stencil.drawingAnimations = false;"
+    },
+    "execScript": {
+      "group": "script",
+      "signature": "stencil.execScript(text: string): Promise<Stencil>",
+      "summary": "Run a .stc script against the open project.",
+      "detail": "Run a .stc script against the open project (contracts/stc/stc-contract.md). Resolves to the facade, so calls chain with `await`.",
+      "example": "await stencil.execScript('@crop 10%\\n@filter sepia\\n');"
+    },
+    "expire": {
+      "group": "projects",
+      "signature": "stencil.expire(spec?: string): Project | string",
+      "summary": "Read or set how long a project lives before it is cleared.",
+      "example": "stencil.expire('days 30');   // no argument returns the help text"
+    },
+    "extension": {
+      "group": "state",
+      "signature": "stencil.extension: ExtensionEditorApi | null",
+      "summary": "The browser extension’s editor hooks, or null when none is there.",
+      "readOnly": true,
+      "example": "if (stencil.extension) await stencil.extension.crop();"
+    },
+    "fillColor": {
+      "group": "settings",
+      "signature": "stencil.fillColor: ColorInput",
+      "summary": "The fill inside a closed shape.",
+      "example": "stencil.fillColor = 'aqua';"
+    },
+    "filter": {
+      "group": "settings",
+      "signature": "stencil.filter: ImageFilter",
+      "summary": "The tint over the picture.",
+      "example": "stencil.filter = 'sepia';   // none | bw | sepia | invert | contour | custom"
+    },
+    "filterColor": {
+      "group": "settings",
+      "signature": "stencil.filterColor: ColorInput",
+      "summary": "The tint colour a custom filter uses.",
+      "example": "stencil.apply({ filter: 'custom', filterColor: '#1e63c8' });"
+    },
+    "flipH": {
+      "group": "edit",
+      "signature": "stencil.flipH(): Stencil",
+      "summary": "Mirror the picture left to right.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.flipH();"
+    },
+    "flipV": {
+      "group": "edit",
+      "signature": "stencil.flipV(): Stencil",
+      "summary": "Mirror the picture top to bottom.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.flipV();"
+    },
+    "focusRing": {
+      "group": "settings",
+      "signature": "stencil.focusRing: ColorInput",
+      "summary": "The ring drawn around the focused control.",
+      "example": "stencil.focusRing = '#1e63c8';"
+    },
+    "formulaX": {
+      "group": "settings",
+      "signature": "stencil.formulaX: string",
+      "summary": "The formula the x coordinate is computed from.",
+      "example": "stencil.formulaX = 'x * 2';"
+    },
+    "formulaY": {
+      "group": "settings",
+      "signature": "stencil.formulaY: string",
+      "summary": "The formula the y coordinate is computed from.",
+      "example": "stencil.formulaY = 'y + 10';"
+    },
+    "fullscreen": {
+      "group": "state",
+      "signature": "stencil.fullscreen: boolean",
+      "summary": "Whether the editor fills the screen.",
+      "example": "stencil.fullscreen = true;"
+    },
+    "getProjectByName": {
+      "group": "projects",
+      "signature": "stencil.getProjectByName(name: string): Project | null",
+      "summary": "One project by its name, or null.",
+      "example": "const p = stencil.getProjectByName('roof-survey');"
+    },
+    "getProjects": {
+      "group": "projects",
+      "signature": "stencil.getProjects(opts?: { archived?: boolean; incognito?: boolean }): Project[]",
+      "summary": "The projects, narrowed to the kind you ask for.",
+      "example": "const archived = stencil.getProjects({ archived: true });"
+    },
+    "getProjectsByKeyword": {
+      "group": "projects",
+      "signature": "stencil.getProjectsByKeyword(...keywords: (string | string[])[]): Project[]",
+      "summary": "Every project tagged with any of these keywords.",
+      "example": "stencil.getProjectsByKeyword('roof', 'survey');"
+    },
+    "holdDrawDelay": {
+      "group": "settings",
+      "signature": "stencil.holdDrawDelay: number",
+      "summary": "How long a press must be held before it starts drawing.",
+      "detail": "ms, clamped 100–3000.",
+      "example": "stencil.holdDrawDelay = 400;   // ms, 100..3000"
+    },
+    "hoverRing": {
+      "group": "settings",
+      "signature": "stencil.hoverRing: ColorInput",
+      "summary": "The ring drawn around a hovered point.",
+      "example": "stencil.hoverRing = '#7c3aed';"
+    },
+    "imageSize": {
+      "group": "state",
+      "signature": "stencil.imageSize: Size | undefined",
+      "summary": "The loaded picture’s size, or undefined before one is.",
+      "readOnly": true,
+      "example": "const { width, height } = stencil.imageSize ?? {};"
+    },
+    "incognito": {
+      "group": "state",
+      "signature": "stencil.incognito: boolean",
+      "summary": "Whether this session is kept out of the store.",
+      "detail": "Turning on needs a blank editor; turning off with work on screen promotes it to a project.",
+      "example": "stencil.incognito = true;   // needs a blank editor"
+    },
+    "incognitoProjects": {
+      "group": "projects",
+      "signature": "stencil.incognitoProjects: Project[]",
+      "summary": "The projects this incognito session holds.",
+      "readOnly": true,
+      "example": "console.log(stencil.incognitoProjects.map((p) => p.name));"
+    },
+    "keywords": {
+      "group": "settings",
+      "signature": "stencil.keywords: string[] | string",
+      "summary": "The open project’s keywords, which the project search reads.",
+      "detail": "Read: string[]. Write: an array or a comma/space-separated string.",
+      "example": "stencil.keywords = 'roof, survey';   // read back as an array"
+    },
+    "layout": {
+      "group": "export",
+      "signature": "stencil.layout: LayoutPayload | string | undefined",
+      "summary": "Read the layout on the picture, or paste one over it.",
+      "detail": "Read: the current layout. Write: the paste path (prompts over an existing layout).",
+      "example": "const layout = stencil.layout;\nstencil.layout = layout;   // paste it back"
+    },
+    "lineColor": {
+      "group": "settings",
+      "signature": "stencil.lineColor: ColorInput",
+      "summary": "The colour new strokes are drawn in.",
+      "example": "stencil.lineColor = '#ff3b30';"
+    },
+    "lineStyle": {
+      "group": "settings",
+      "signature": "stencil.lineStyle: LineStyle",
+      "summary": "Solid, dashed or dotted strokes.",
+      "example": "stencil.lineStyle = 'dashed';   // solid | dashed | dotted"
+    },
+    "lines": {
+      "group": "state",
+      "signature": "stencil.lines: Line[]",
+      "summary": "Every line on the picture.",
+      "readOnly": true,
+      "example": "console.log(stencil.lines.length, \"lines\");"
+    },
+    "linkedFile": {
+      "group": "export",
+      "signature": "stencil.linkedFile: string | null",
+      "summary": "The file this project is synced with, or null.",
+      "readOnly": true,
+      "example": "console.log(stencil.linkedFile);"
+    },
+    "liveSync": {
+      "group": "export",
+      "signature": "stencil.liveSync: boolean",
+      "summary": "Whether edits are written back to the linked file as they happen.",
+      "example": "stencil.liveSync = true;"
+    },
+    "llm": {
+      "group": "assistant",
+      "signature": "stencil.llm: LlmFacade",
+      "summary": "The assistant’s settings — provider, model, key.",
+      "readOnly": true,
+      "example": "stencil.llm.model = 'claude-sonnet-5';"
+    },
+    "load": {
+      "group": "session",
+      "signature": "stencil.load(url: string, opts?: LoadOptions): Promise<Stencil>",
+      "summary": "Load a picture, or a video frame, from a URL.",
+      "detail": "Resolves to the facade, so calls chain with `await`.",
+      "example": "await stencil.load('https://example.com/roof.png');\nawait stencil.load(videoUrl, { frame: 3 });"
+    },
+    "mainTheme": {
+      "group": "settings",
+      "signature": "stencil.mainTheme: string",
+      "summary": "The accent the whole editor takes.",
+      "detail": "A preset key persists + syncs; a hex is a custom accent for THIS page only.",
+      "example": "stencil.mainTheme = '#7c3aed';   // a preset key, or any hex"
+    },
+    "mainThemes": {
+      "group": "settings",
+      "signature": "stencil.mainThemes: string[]",
+      "summary": "Every accent preset there is to choose from.",
+      "readOnly": true,
+      "example": "stencil.mainTheme = stencil.mainThemes[0];"
+    },
+    "motionMode": {
+      "group": "settings",
+      "signature": "stencil.motionMode: MotionMode",
+      "summary": "Which motion the interface uses.",
+      "example": "stencil.motionMode = 'water';   // particles | water | fire | slide | none"
+    },
+    "motionModes": {
+      "group": "settings",
+      "signature": "stencil.motionModes: MotionMode[]",
+      "summary": "Every motion mode there is to choose from.",
+      "readOnly": true,
+      "example": "stencil.motionMode = stencil.motionModes.at(-1);"
+    },
+    "move": {
+      "group": "edit",
+      "signature": "stencil.move(delta?: { x?: number; y?: number }): Stencil",
+      "summary": "Pan the picture under the viewport.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.move({ x: -40, y: 0 });"
+    },
+    "moveServerProjectToLocal": {
+      "group": "servers",
+      "signature": "stencil.moveServerProjectToLocal(meta: RemoteProjectMeta): Promise<string>",
+      "summary": "Take a server project and keep it here instead.",
+      "example": "const id = await stencil.moveServerProjectToLocal(remote[0]);"
+    },
+    "newEditor": {
+      "group": "session",
+      "signature": "stencil.newEditor(opts?: { address?: string }): Stencil | Promise<Stencil>",
+      "summary": "Start a blank editor.",
+      "example": "stencil.newEditor();   // { address } also links it to a server"
+    },
+    "openAssistantSettingsWindow": {
+      "group": "windows",
+      "signature": "stencil.openAssistantSettingsWindow(): Stencil",
+      "summary": "Open the assistant’s settings.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openAssistantSettingsWindow();"
+    },
+    "openConnectionsWindow": {
+      "group": "windows",
+      "signature": "stencil.openConnectionsWindow(): Stencil",
+      "summary": "Open the connections window.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openConnectionsWindow();"
+    },
+    "openCropWindow": {
+      "group": "windows",
+      "signature": "stencil.openCropWindow(): Stencil",
+      "summary": "Open the crop window.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openCropWindow();"
+    },
+    "openDescriptionWindow": {
+      "group": "windows",
+      "signature": "stencil.openDescriptionWindow(): Stencil",
+      "summary": "Open the project description window.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openDescriptionWindow();"
+    },
+    "openHelpWindow": {
+      "group": "windows",
+      "signature": "stencil.openHelpWindow(): Stencil",
+      "summary": "Open the help window.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openHelpWindow();"
+    },
+    "openImageWindow": {
+      "group": "windows",
+      "signature": "stencil.openImageWindow(): Stencil",
+      "summary": "Open the image chooser.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openImageWindow();"
+    },
+    "openIn": {
+      "group": "export",
+      "signature": "stencil.openIn(): Stencil",
+      "summary": "Open this project in another Stencil front-end.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openIn();"
+    },
+    "openKeywordsWindow": {
+      "group": "windows",
+      "signature": "stencil.openKeywordsWindow(): Stencil",
+      "summary": "Open the project keywords window.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openKeywordsWindow();"
+    },
+    "openLinksWindow": {
+      "group": "windows",
+      "signature": "stencil.openLinksWindow(): Stencil",
+      "summary": "Open the links window.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openLinksWindow();"
+    },
+    "openProjectFile": {
+      "group": "export",
+      "signature": "stencil.openProjectFile(fileOrText?: File | string): Promise<Stencil>",
+      "summary": "Open a .stencil project.",
+      "detail": "A File, the raw JSON text, or nothing for a picker. Resolves to the facade, so calls chain with `await`.",
+      "example": "await stencil.openProjectFile();   // no argument opens a picker"
+    },
+    "openProjectsWindow": {
+      "group": "windows",
+      "signature": "stencil.openProjectsWindow(): Stencil",
+      "summary": "Open the projects list.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openProjectsWindow();"
+    },
+    "openServersWindow": {
+      "group": "windows",
+      "signature": "stencil.openServersWindow(): Stencil",
+      "summary": "Open the server projects window.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openServersWindow();"
+    },
+    "openShortcutsWindow": {
+      "group": "windows",
+      "signature": "stencil.openShortcutsWindow(): Stencil",
+      "summary": "Open the keyboard shortcuts window.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openShortcutsWindow();"
+    },
+    "openVisualsWindow": {
+      "group": "windows",
+      "signature": "stencil.openVisualsWindow(): Stencil",
+      "summary": "Open the visuals window.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.openVisualsWindow();"
+    },
+    "openWindow": {
+      "group": "windows",
+      "signature": "stencil.openWindow(title: string): Stencil",
+      "summary": "Open a window by its title.",
+      "detail": "By title, case/punctuation-free; a hotkey id works too. Already open ⇒ no-op. Hands the facade back, so calls chain.",
+      "example": "stencil.openWindow('crop');   // by title, case and punctuation free"
+    },
+    "openedProjects": {
+      "group": "projects",
+      "signature": "stencil.openedProjects: Project[]",
+      "summary": "The projects open in this browser.",
+      "readOnly": true,
+      "example": "for (const p of stencil.openedProjects) console.log(p.name);"
+    },
+    "openedWindow": {
+      "group": "windows",
+      "signature": "stencil.openedWindow: string | null",
+      "summary": "The open window’s title, or null.",
+      "readOnly": true,
+      "example": "if (stencil.openedWindow === 'Crop') stencil.closeWindow();"
+    },
+    "page2Px": {
+      "group": "geometry",
+      "signature": "stencil.page2Px(p: XY): XY",
+      "summary": "Turn page coordinates into image pixels.",
+      "example": "const inPixels = stencil.page2Px({ x: 5, y: 7 });"
+    },
+    "pageHeight": {
+      "group": "settings",
+      "signature": "stencil.pageHeight: number",
+      "summary": "Custom page height, in centimetres.",
+      "example": "stencil.pageHeight = 29.7;   // cm"
+    },
+    "pageSize": {
+      "group": "settings",
+      "signature": "stencil.pageSize: string",
+      "summary": "The page format the picture is measured against.",
+      "detail": "Case-insensitive ISO name ('a3', 'B5', 'c10') or 'custom'.",
+      "example": "stencil.pageSize = 'A4';   // or 'custom', with pageWidth/pageHeight"
+    },
+    "pageWidth": {
+      "group": "settings",
+      "signature": "stencil.pageWidth: number",
+      "summary": "Custom page width, in centimetres.",
+      "detail": "cm; applies when pageSize === 'custom'.",
+      "example": "stencil.pageSize = 'custom';\nstencil.pageWidth = 21;     // cm"
+    },
+    "pointColor": {
+      "group": "settings",
+      "signature": "stencil.pointColor: ColorInput",
+      "summary": "The colour of the points on a line.",
+      "detail": "'' = points follow lineColor.",
+      "example": "stencil.pointColor = 'yellow';   // '' follows lineColor"
+    },
+    "pointSize": {
+      "group": "settings",
+      "signature": "stencil.pointSize: number",
+      "summary": "Point radius, in pixels.",
+      "example": "stencil.pointSize = 6;"
+    },
+    "pointStyle": {
+      "group": "settings",
+      "signature": "stencil.pointStyle: boolean",
+      "summary": "Whether points are drawn — the alias of showPoints.",
+      "detail": "Alias of showPoints.",
+      "example": "stencil.pointStyle = false;   // the alias of showPoints"
+    },
+    "points": {
+      "group": "state",
+      "signature": "stencil.points: Point[]",
+      "summary": "The points of the line the editor is working on.",
+      "readOnly": true,
+      "detail": "The current line's points: in-progress, else coord-table line, else last line.",
+      "example": "const [first] = stencil.points;"
+    },
+    "projectColor": {
+      "group": "settings",
+      "signature": "stencil.projectColor: string",
+      "summary": "The open project's own accent colour.",
+      "detail": "Active project's accent colour; '' = neutral. Throws without an active project.",
+      "example": "stencil.projectColor = '#4ec9b0';   // '' is neutral"
+    },
+    "promoteIncognito": {
+      "group": "state",
+      "signature": "stencil.promoteIncognito(): string | null",
+      "summary": "Turn the incognito session into a saved project.",
+      "example": "const id = stencil.promoteIncognito();   // null if there was nothing to keep"
+    },
+    "prompt": {
+      "group": "assistant",
+      "signature": "stencil.prompt(text: string, opts?: { images?: string | string[] }): Promise<ChatTurnResult>",
+      "summary": "Ask the assistant for an edit, and let it act.",
+      "example": "const { reply } = await stencil.prompt('make it sepia and crop 10%');"
+    },
+    "publishIncognito": {
+      "group": "servers",
+      "signature": "stencil.publishIncognito(address: string): Promise<unknown>",
+      "summary": "Put the incognito project on a server.",
+      "example": "await stencil.publishIncognito('https://stencil.example');"
+    },
+    "px2Page": {
+      "group": "geometry",
+      "signature": "stencil.px2Page(p: XY): XY",
+      "summary": "Turn image pixels into page coordinates.",
+      "example": "const onPage = stencil.px2Page({ x: 120, y: 240 });"
+    },
+    "reconnect": {
+      "group": "servers",
+      "signature": "stencil.reconnect(): Promise<Stencil>",
+      "summary": "Open every saved connection again.",
+      "detail": "Resolves to the facade, so calls chain with `await`.",
+      "example": "await stencil.reconnect();"
+    },
+    "redo": {
+      "group": "edit",
+      "signature": "stencil.redo(): Stencil",
+      "summary": "Put back an edit that was taken away.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.redo();"
+    },
+    "rotateLeft": {
+      "group": "edit",
+      "signature": "stencil.rotateLeft(): Stencil",
+      "summary": "Turn the picture a quarter-turn anticlockwise.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.rotateLeft();"
+    },
+    "rotateRight": {
+      "group": "edit",
+      "signature": "stencil.rotateRight(): Stencil",
+      "summary": "Turn the picture a quarter-turn clockwise.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.rotateRight().apply({ filter: 'sepia' });"
+    },
+    "save": {
+      "group": "session",
+      "signature": "stencil.save(): Stencil | Promise<Stencil>",
+      "summary": "Save the project as it stands.",
+      "example": "await stencil.save();"
+    },
+    "saveProjectFile": {
+      "group": "export",
+      "signature": "stencil.saveProjectFile(opts?: { includeTheme?: boolean }): Promise<Stencil>",
+      "summary": "Write the project out as a .stencil file.",
+      "detail": "Resolves to the facade, so calls chain with `await`.",
+      "example": "await stencil.saveProjectFile({ includeTheme: true });"
+    },
+    "selectionGlow": {
+      "group": "settings",
+      "signature": "stencil.selectionGlow: ColorInput",
+      "summary": "The glow around a selected line.",
+      "example": "stencil.selectionGlow = '#ffd54a';"
+    },
+    "serverProjects": {
+      "group": "servers",
+      "signature": "stencil.serverProjects(): Promise<TaggedRemoteProject[]>",
+      "summary": "Every project the connected servers hold.",
+      "example": "const remote = await stencil.serverProjects();"
+    },
+    "setLines": {
+      "group": "export",
+      "signature": "stencil.setLines(lines: readonly Partial<CodecLine>[], opts?: LayoutInstallOptions): Stencil",
+      "summary": "Put lines on the picture directly.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.setLines([{ points: [{ x: 10, y: 10 }, { x: 90, y: 90 }] }], { mode: 'combine' });"
+    },
+    "settings": {
+      "group": "state",
+      "signature": "stencil.settings: StencilSettings",
+      "summary": "Every toolbar control at once, as one object.",
+      "readOnly": true,
+      "example": "const { filter, thickness } = stencil.settings;"
+    },
+    "shareImage": {
+      "group": "export",
+      "signature": "stencil.shareImage(): Stencil",
+      "summary": "Share the picture the way the browser offers.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.shareImage();"
+    },
+    "shortcuts": {
+      "group": "state",
+      "signature": "stencil.shortcuts: Record<string, string>",
+      "summary": "Every action and the key combination that fires it.",
+      "readOnly": true,
+      "example": "console.log(stencil.shortcuts.undo);"
+    },
+    "showLines": {
+      "group": "settings",
+      "signature": "stencil.showLines: boolean",
+      "summary": "Whether the strokes themselves are drawn.",
+      "example": "stencil.showLines = false;   // points alone"
+    },
+    "showPoints": {
+      "group": "settings",
+      "signature": "stencil.showPoints: boolean",
+      "summary": "Whether points are drawn on top of the lines.",
+      "example": "stencil.showPoints = true;"
+    },
+    "startDrawing": {
+      "group": "edit",
+      "signature": "stencil.startDrawing(): Stencil",
+      "summary": "Begin a line.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.startDrawing();"
+    },
+    "stopDrawing": {
+      "group": "edit",
+      "signature": "stencil.stopDrawing(): Stencil",
+      "summary": "Finish the line being drawn.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.stopDrawing();"
+    },
+    "syncNow": {
+      "group": "export",
+      "signature": "stencil.syncNow(): Promise<Stencil>",
+      "summary": "Write the project to its linked file now.",
+      "detail": "Resolves to the facade, so calls chain with `await`.",
+      "example": "await stencil.syncNow();"
+    },
+    "thickness": {
+      "group": "settings",
+      "signature": "stencil.thickness: number",
+      "summary": "Stroke width, in pixels.",
+      "example": "stencil.thickness = 4;"
+    },
+    "tooltip": {
+      "group": "state",
+      "signature": "stencil.tooltip: TooltipSections",
+      "summary": "Which sections the coordinate tooltip shows.",
+      "readOnly": true,
+      "example": "if (stencil.tooltip.coords) console.log(\"coordinates are shown\");"
+    },
+    "undo": {
+      "group": "edit",
+      "signature": "stencil.undo(): Stencil",
+      "summary": "Take back the last edit.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.undo();"
+    },
+    "unit": {
+      "group": "settings",
+      "signature": "stencil.unit: Unit",
+      "summary": "The unit lengths are typed and read in.",
+      "example": "stencil.unit = 'cm';   // cm | mm | in"
+    },
+    "voiceChat": {
+      "group": "edit",
+      "signature": "stencil.voiceChat: boolean",
+      "summary": "Whether the assistant is listening.",
+      "detail": "Hands-free voice chat; throws where the browser has no speech recognition.",
+      "example": "stencil.voiceChat = true;   // throws where the browser cannot listen"
+    },
+    "voiceInputLanguage": {
+      "group": "settings",
+      "signature": "stencil.voiceInputLanguage: string",
+      "summary": "The language voice input is recognised in.",
+      "detail": "'default' (English) or a BCP-47 tag.",
+      "example": "stencil.voiceInputLanguage = 'uk-UA';   // or 'default'"
+    },
+    "voiceSilenceMs": {
+      "group": "settings",
+      "signature": "stencil.voiceSilenceMs: number",
+      "summary": "How much silence ends a spoken turn.",
+      "detail": "ms, clamped 500–10000.",
+      "example": "stencil.voiceSilenceMs = 1500;   // ms, 500..10000"
+    },
+    "windows": {
+      "group": "windows",
+      "signature": "stencil.windows: string[]",
+      "summary": "Every window that can be opened by title.",
+      "readOnly": true,
+      "example": "console.log(stencil.windows);"
+    },
+    "zoom": {
+      "group": "edit",
+      "signature": "stencil.zoom(amount: number, point?: Partial<XY>): Stencil",
+      "summary": "Zoom by a step, about a point that stays put.",
+      "detail": "A relative step; `point` (image px) stays fixed on screen. Hands the facade back, so calls chain.",
+      "example": "stencil.zoom(0.25, { x: 200, y: 150 });   // the point stays put"
+    },
+    "zoomFit": {
+      "group": "edit",
+      "signature": "stencil.zoomFit(): Stencil",
+      "summary": "Fit the whole picture in the viewport.",
+      "detail": "Hands the facade back, so calls chain.",
+      "example": "stencil.zoomFit();"
+    },
+    "zoomLevel": {
+      "group": "edit",
+      "signature": "stencil.zoomLevel: number",
+      "summary": "The zoom factor, read or set outright.",
+      "example": "stencil.zoomLevel = 1;   // 100%"
+    }
+  }
+}

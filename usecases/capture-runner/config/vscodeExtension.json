@@ -2,7 +2,8 @@
   "theme": {
     "mode": "dark",
     "steps": {
-      "hover": "light"
+      "hover": "light",
+      "api-hover": "light"
     }
   },
   "pairs": [
@@ -19,6 +20,16 @@
       "ms": 8200,
       "everyMs": 100,
       "typeDelayMs": 90,
+      "leadMs": 400,
+      "holdMs": 700,
+      "clipHeight": 420,
+      "clipFrom": ".monaco-breadcrumbs",
+      "clipTrimRight": 20
+    },
+    "api-hints": {
+      "ms": 8200,
+      "everyMs": 100,
+      "typeDelayMs": 70,
       "leadMs": 400,
       "holdMs": 700,
       "clipHeight": 420,

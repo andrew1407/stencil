@@ -95,8 +95,10 @@
     "solid": { "group": "style", "summary": "An unbroken stroke.", "detail": "The default style." },
     "dashed": { "group": "style", "summary": "A dashed stroke." },
     "dotted": { "group": "style", "summary": "A dotted stroke." },
-    "fill": { "group": "style", "summary": "fill <colour> — the inside of closed shapes.", "detail": "Only a `@rect`, or any closed shape, is filled. Use `transparent` to clear one." },
-    "point": { "group": "style", "summary": "point <colour> <size> — the marker drawn at each point.", "detail": "Both parts are optional." },
+    "fill": { "group": "style", "signature": "fill <colour>",
+      "summary": "The inside of closed shapes.", "detail": "Only a `@rect`, or any closed shape, is filled. Use `transparent` to clear one." },
+    "point": { "group": "style", "signature": "point <colour> <size>",
+      "summary": "The marker drawn at each point.", "detail": "Both parts are optional." },
     "transparent": { "group": "style", "summary": "No colour at all.", "detail": "Accepted anywhere a colour is." },
     "combine": { "group": "style", "summary": "Keep the marks already on the picture.", "detail": "`@layout`'s default." },
     "replace": { "group": "style", "summary": "Drop the existing marks first.", "detail": "For `@layout`." },
@@ -104,7 +106,8 @@
     "x2": { "group": "key", "summary": "The right crop edge.", "detail": "A leading `-` measures from the right." },
     "y1": { "group": "key", "summary": "The top crop edge." },
     "y2": { "group": "key", "summary": "The bottom crop edge.", "detail": "A leading `-` measures from the bottom." },
-    "aspect": { "group": "key", "summary": "aspect=W:H — crop to a ratio.", "detail": "Combines with any edges you give; the rest are worked out." }
+    "aspect": { "group": "key", "signature": "aspect=W:H",
+      "summary": "Crop to a ratio.", "detail": "Combines with any edges you give; the rest are worked out." }
   },
   "units": {
     "px": { "summary": "Pixels of the source image." },

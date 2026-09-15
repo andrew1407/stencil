@@ -117,6 +117,92 @@ const STEPS = Object.freeze([
     console.log('  completion-hints.gif');
     await ctx.host.runCommand('File: Revert File');
   } },
+  // ── the .stcjs flavour and the browser commands ──
+  // The explorer's file list alone — one file per type, and no editor around it: the shot is
+  // about the icons, so it is cropped to the rows that carry them.
+  { name: 'file-icons', run: async (ctx) => {
+    await ctx.page.keyboard.press('Meta+Shift+E');
+    const rows = ctx.page.locator('.explorer-folders-view .monaco-list-row');
+    await rows.first().waitFor({ timeout: TIMEOUTS.widgetMs });
+    await settle(400);
+    const first = await rows.first().boundingBox();
+    const last = await rows.last().boundingBox();
+    const clip = {
+      x: Math.round(first.x), y: Math.round(first.y),
+      width: Math.round(first.width), height: Math.round(last.y + last.height - first.y),
+    };
+    quantizePng(await runner.shot(ctx.page, 'file-icons', { clip }));
+  } },
+  { name: 'api-completion', run: async (ctx) => {
+    await ctx.host.openFile('example.stcjs');
+    await lineEnd(ctx, 'stencil.rotateRight()');
+    await ctx.page.keyboard.press('Enter');
+    await ctx.page.keyboard.type('stencil.', { delay: TYPE_DELAY });
+    await ctx.page.locator('.suggest-widget.visible').waitFor({ timeout: 5000 })
+      .catch(() => ctx.page.keyboard.press('Control+Space'));
+    await ctx.page.locator('.suggest-widget.visible .monaco-list-row').first().waitFor({ timeout: TIMEOUTS.widgetMs });
+    await settle(500);
+    await still(ctx, 'api-completion');
+    await ctx.page.keyboard.press('Escape');
+    await ctx.host.runCommand('File: Revert File');
+  } },
+  { name: 'api-hover', run: async (ctx) => {
+    await ctx.host.openFile('example.stcjs');
+    await ctx.page.locator('.view-line span', { hasText: /^setLines$/ }).first().click();
+    await ctx.host.runCommand('Show or Focus Hover');
+    await ctx.page.locator('.monaco-hover:not(.hidden)').first().waitFor({ timeout: TIMEOUTS.widgetMs });
+    await waitForStable(ctx.page, () => document.querySelector('.monaco-hover')?.innerText ?? '',
+      { idleMs: 400, timeoutMs: TIMEOUTS.widgetMs });
+    await still(ctx, 'api-hover');
+    await ctx.page.mouse.move(10, 400);
+  } },
+  // The palette filtered to this extension: the CLI commands and the four browser ones.
+  { name: 'web-commands', run: async (ctx) => {
+    await ctx.page.keyboard.press('F1');
+    const input = ctx.page.locator('.quick-input-widget input');
+    await input.waitFor({ timeout: TIMEOUTS.widgetMs });
+    await input.fill('>Stencil: ');
+    await ctx.page.locator('.quick-input-list .monaco-list-row').first().waitFor({ timeout: TIMEOUTS.widgetMs });
+    await settle(400);
+    await still(ctx, 'web-commands');
+    await ctx.page.keyboard.press('Escape');
+  } },
+  // Typing a facade call: the member list opening, narrowing, a pick accepted with its
+  // explanation beside it — the .stcjs section's moving picture.
+  { name: 'api-hints', run: async (ctx) => {
+    const clip = config.get('clips.api-hints');
+    const frames = scratchDir('vs-api');
+    const suggestions = ctx.page.locator('.suggest-widget.visible');
+    const offer = async (typed) => {
+      await ctx.page.keyboard.type(typed, { delay: clip.typeDelayMs });
+      await suggestions.waitFor({ timeout: 2500 }).catch(() => ctx.page.keyboard.press('Control+Space'));
+      await settle(clip.holdMs);
+    };
+    await ctx.host.openFile('example.stcjs');
+    await lineEnd(ctx, 'stencil.rotateRight()');
+    await ctx.page.keyboard.press('Enter');
+    const editor = await ctx.page.locator('.part.editor').first().boundingBox();
+    const from = await ctx.page.locator(clip.clipFrom).first().boundingBox();
+    const region = { clip: {
+      x: editor.x, y: from.y, width: editor.width - clip.clipTrimRight, height: clip.clipHeight,
+    } };
+    const filming = film(ctx.page, frames, clip.ms, clip.everyMs, region);
+    await settle(clip.leadMs);
+    await offer('stencil.');
+    await offer('zoomF');                                     // the list narrows to zoomFit
+    await ctx.page.keyboard.press('Enter');
+    await ctx.page.keyboard.type('();', { delay: clip.typeDelayMs });
+    await settle(clip.holdMs);
+    await ctx.page.keyboard.press('Enter');
+    await offer('stencil.download');                          // and the next call offers its own
+    await ctx.page.keyboard.press('Escape');
+    const shot = await filming;
+    framesToGif(frames, path.join(runner.out, 'api-hints.gif'),
+      { ...config.gifLook, inFps: shot.fps });
+    console.log('  api-hints.gif');
+    await ctx.host.runCommand('File: Revert File');
+    await ctx.host.openFile('example.stc');
+  } },
   { name: 'edit-and-check', run: async (ctx) => {
     const clip = config.get('clips.edit-and-check');
     const frames = scratchDir('vs-frames');

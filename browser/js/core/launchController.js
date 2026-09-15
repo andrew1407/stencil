@@ -2,6 +2,7 @@
 // Schema/precedence live in deepLink.js (normalizeLaunchPayload).
 import { notify, shortName } from '../utils.js';
 import { normalizeLaunchPayload, LAUNCH_DATA_URL_MAX } from './deepLink.js';
+import { waitForImage } from './imageLoadFlow.js';
 import { normalizePageSize } from './units.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { loadSavedServers } from '../net/connectionStore.js';
@@ -41,11 +42,24 @@ export const importInlineImage = (app, launch, { mode = 'new' } = {}) => {
     });
 };
 
+// A .stc rides the fragment as a top-level `script`, OUTSIDE the normalized shape: the shared
+// codec ignores unknown keys (pinned cross-surface), so desktop and bot stay untouched.
+// The engine's MAX_TOKENS is the next wall; this only keeps a hostile hash out of the parser.
+export const MAX_LAUNCH_SCRIPT = 200000;
+
+const launchScript = (payload) => {
+  const text = (payload && typeof payload === 'object' && typeof payload.script === 'string')
+    ? payload.script : '';
+  return text.length > 0 && text.length <= MAX_LAUNCH_SCRIPT ? text : '';
+};
+
 // Fragment (not query) keeps the payload off servers/logs; consumed once, then stripped.
+// Resolves once the import it started has settled, so the caller can run a handed-over
+// script against the picture rather than ahead of it.
 export const applyExternalLaunch = (app) => {
   const hash = location.hash || '';
   const prefix = '#stencil=';
-  if (!hash.startsWith(prefix)) return;
+  if (!hash.startsWith(prefix)) return Promise.resolve();
 // Stripped at once so a reload does not re-import.
   history.replaceState(null, '', location.pathname + location.search);
 
@@ -54,16 +68,19 @@ export const applyExternalLaunch = (app) => {
 // before decode/parse (the cap normalizeLaunchPayload applies to the decoded dataUrl).
   if (hash.length > LAUNCH_DATA_URL_MAX) {
     notify('Stencil: could not read the shared image', 'fail');
-    return;
+    return Promise.resolve();
   }
   try {
     payload = JSON.parse(decodeURIComponent(hash.slice(prefix.length)));
   } catch {
     notify('Stencil: could not read the shared image', 'fail');
-    return;
+    return Promise.resolve();
   }
+// Read before the image check: a script-only hand-off carries no picture at all.
+  app.pendingLaunchScript = launchScript(payload);
+
   const launch = normalizeLaunchPayload(payload);
-  if (!launch) return;
+  if (!launch) return Promise.resolve();
 
 // Page size BEFORE the load: the crop aspect and pixel↔page conversion must match the sender's.
   if (launch.page) setExternalPage(app, launch.page);
@@ -74,9 +91,8 @@ export const applyExternalLaunch = (app) => {
   }
 
   if (launch.kind === 'server') {
-    applyServerLaunch(app, launch)
+    return applyServerLaunch(app, launch)
       .catch(err => notify(`Could not open the server project — ${err.message}`, 'fail'));
-    return;
   }
 
   const name = launch.name || 'image.png';
@@ -85,10 +101,12 @@ export const applyExternalLaunch = (app) => {
 // Resume: several matches open the projects list to pick; none falls through to an import.
   if (launch.open === 'resume' && !app.storage.incognito && (source || name)
       && resumeBySource(app, source, name)) {
-    return;
+    return Promise.resolve();
   }
 
-  importInlineImage(app, launch)
+  return importInlineImage(app, launch)
+// The decode is asynchronous: a script sent with a picture must not run against the page behind it.
+    .then(() => (app.pendingLaunchScript ? waitForImage(app) : undefined))
     .catch(() => notify('Stencil: failed to load the shared image', 'fail'));
 };
 

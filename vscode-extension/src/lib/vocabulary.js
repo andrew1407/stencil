@@ -26,13 +26,15 @@ const entryFor = (word) => {
 };
 
 /* `**@crop** — Cut the picture down…` over a fenced signature, the prose, then a fenced
- * example. Every section is optional, so a one-line word renders as one line. */
-const markdownFor = (label, entry) => {
+ * example. Every section is optional, so a one-line word renders as one line. `fence` is the
+ * language the two blocks are lit in — apiVocabulary.js renders JavaScript through this. */
+const markdownFor = (label, entry, fence = 'stc') => {
   if (!entry) return '';
+  const open = `\`\`\`${fence}`;
   const parts = [`**${label}** — ${entry.summary}`];
-  if (entry.signature) parts.push(['```stc', entry.signature, '```'].join('\n'));
+  if (entry.signature) parts.push([open, entry.signature, '```'].join('\n'));
   if (entry.detail) parts.push(entry.detail);
-  if (entry.example) parts.push(['```stc', entry.example, '```'].join('\n'));
+  if (entry.example) parts.push([open, entry.example, '```'].join('\n'));
   return parts.join('\n\n');
 };
 
