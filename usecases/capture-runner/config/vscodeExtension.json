@@ -41,5 +41,7 @@
     "widgetMs": 8000,
     "terminalMs": 10000
   },
-  "typeDelayMs": 60
+  "typeDelayMs": 60,
+  "pointerPark": { "x": 1000, "y": 800 },
+  "fileIcons": { "labelGutterPx": 12 }
 }
