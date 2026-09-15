@@ -1,0 +1,60 @@
+{
+  "theme": {
+    "mode": "dark"
+  },
+  "goldens": {
+    "help": {
+      "pin": "usage.color.txt",
+      "cols": 100,
+      "title": "stencil --help"
+    },
+    "console-help": {
+      "pin": "help.color.txt",
+      "cols": 100,
+      "title": "stencil --console  \u203a  /help"
+    },
+    "themes": {
+      "pin": "themes.color.txt",
+      "cols": 100,
+      "title": "stencil --console  \u203a  /theme"
+    },
+    "formats": {
+      "pin": "formats.color.txt",
+      "cols": 100,
+      "title": "stencil --console  \u203a  /format"
+    },
+    "projects": {
+      "pin": "projects-multi.color.txt",
+      "cols": 100,
+      "title": "stencil --console  \u203a  /projects"
+    }
+  },
+  "page": {
+    "width": 1400,
+    "height": 1000,
+    "scaleFactor": 2
+  },
+  "terminal": {
+    "logoCell": {
+      "row": 2,
+      "col": 6
+    },
+    "idleMs": 700,
+    "maxWaitMs": 20000
+  },
+  "clips": {
+    "term-theme-cycle": {
+      "ms": 3600,
+      "everyMs": 100,
+      "gapMs": 1600
+    },
+    "term-reveal": {
+      "ms": 3600,
+      "everyMs": 100
+    }
+  },
+  "timeouts": {
+    "uploadMs": 20000,
+    "promptMs": 150000
+  }
+}

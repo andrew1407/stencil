@@ -4,7 +4,8 @@ A Manifest V3 Chrome/Edge extension that lists, searches and filters every image
 current page and lets you download it, open it in a tab, or send it to the
 [Stencil browser editor](../browser/) — as an in-page modal by default — including a quick
 page-aspect crop. Vanilla JS, no build step. How it is put together:
-[`ARCHITECTURE.md`](ARCHITECTURE.md).
+[`ARCHITECTURE.md`](ARCHITECTURE.md); what it looks like on a page:
+[`usecases/browser-extension/USECASES.md`](../usecases/browser-extension/USECASES.md).
 
 ## Install (unpacked)
 

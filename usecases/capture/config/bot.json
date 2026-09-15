@@ -1,0 +1,19 @@
+{
+  "theme": {
+    "mode": "dark"
+  },
+  "bot": "stencil_editor_bot",
+  "profileDir": "~/.stencil-docs-telegram",
+  "viewport": {
+    "width": 1280,
+    "height": 940
+  },
+  "waits": {
+    "loginPollMs": 5000,
+    "loginMaxMs": 1200000,
+    "replyMs": 40000,
+    "promptMs": 150000,
+    "settleMs": 1500,
+    "menuMs": 20000
+  }
+}

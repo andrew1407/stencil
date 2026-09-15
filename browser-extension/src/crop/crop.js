@@ -46,7 +46,7 @@ const aspect = () => {
   return cropAspect(d.width, d.height, state.album);
 };
 
-const { imgEl, overlay, fitToWindow, resetCrop, layoutOverlay } = stage;
+const { imgEl, overlay, fitToWindow, resetCrop, layoutOverlay } = createCropStage({ state, aspect });
 const { syncPageControls, syncOrientationButtons, onCustom } = createCropControls({ state, resetCrop });
 
 const init = async () => {

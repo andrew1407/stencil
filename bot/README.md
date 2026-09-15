@@ -5,7 +5,8 @@ blank canvas), crop / rotate / filter / draw a layout onto it, and download the 
 or its layout JSON — and connect to a Stencil [collaboration server](../server/README.md) to
 list, fetch, create and save shared projects. It shells out to the Zig CLI for every pixel
 transform, so results match the other editors. For the project overview see the
-[repository README](../README.md); for how the bot is built, [`ARCHITECTURE.md`](ARCHITECTURE.md).
+[repository README](../README.md); for how the bot is built, [`ARCHITECTURE.md`](ARCHITECTURE.md);
+for the chat with its buttons, [`usecases/bot/USECASES.md`](../usecases/bot/USECASES.md).
 
 Live instance: [@stencil_editor_bot](https://t.me/stencil_editor_bot).
 
