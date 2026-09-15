@@ -68,7 +68,9 @@ const register = (context) => {
     { dispose() { for (const type of types.values()) type.dispose(); } },
     vscode.window.onDidChangeVisibleTextEditors(paintAll),
     vscode.window.onDidChangeActiveColorTheme(() => { rebuild(); paintAll(); }),
-    vscode.workspace.onDidChangeTextDocument(later),
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      if (e.document?.languageId === LANGUAGE_ID) later();
+    }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (!e.affectsConfiguration || e.affectsConfiguration(`${CONFIG_SECTION}.${SETTINGS.colors}`)) {
         rebuild();
