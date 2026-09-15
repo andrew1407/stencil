@@ -10,7 +10,7 @@
     "vscode-extension/src/lib/ids.js": 41,
     "vscode-extension/src/lib/parserHost.js": 12,
     "vscode-extension/src/lib/pathSearch.js": 49,
-    "vscode-extension/src/lib/programCache.js": 34,
+    "vscode-extension/src/lib/programCache.js": 17,
     "vscode-extension/src/lib/scriptCheck.js": 49,
     "vscode-extension/src/lib/shellQuote.js": 45,
     "vscode-extension/src/lib/terminal.js": 36,

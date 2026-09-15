@@ -30,10 +30,19 @@ const imageDataUrl = (path) => {
   }
 };
 
+// Null for a spec that starts like a URL and is not one, as an unreadable file is null.
+const remotePart = (image) => {
+  try {
+    return { src: image, name: basename(new URL(image).pathname) || 'image.png' };
+  } catch {
+    return null;
+  }
+};
+
 // A local path inlined, an http(s) one named; `inline` off keeps local bytes out.
 const imagePart = (image, { inline = true } = {}) => {
   if (!image) return null;
-  if (isRemote(image)) return { src: image, name: basename(new URL(image).pathname) || 'image.png' };
+  if (isRemote(image)) return remotePart(image);
   return inline ? imageDataUrl(image) : null;
 };
 

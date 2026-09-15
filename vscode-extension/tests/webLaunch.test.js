@@ -70,6 +70,13 @@ test('a file that is not an image, or is not there at all, inlines as nothing', 
   });
 });
 
+test('a remote spec that will not parse names nothing, rather than throwing', () => {
+  assert.equal(web.imagePart('https://'), null);
+  assert.equal(web.imagePart('http://[oops'), null);
+  assert.deepEqual(web.scriptLaunch('@crop 10%\n', 'https://'), { script: '@crop 10%\n' });
+  assert.equal(web.imagePart('https://cdn.example/').name, 'image.png', 'a URL with no file part');
+});
+
 test('localSources names what the browser cannot open, and nothing it can', () => {
   const blocks = [
     { source: 'https://cdn.example/i.png', kind: 'url' },

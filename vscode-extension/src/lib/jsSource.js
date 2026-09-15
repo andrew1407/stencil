@@ -3,6 +3,7 @@
 'use strict';
 
 const { JS_LANGUAGE_ID, USE_MARKER } = require('./ids.js');
+const { versionCache } = require('./versionCache.js');
 
 const JS_LANGUAGE = 'javascript';
 
@@ -46,7 +47,10 @@ const markerWordsAt = (lineText, character) => {
   return at >= from && at <= to ? { start: from, end: to } : null;
 };
 
-// The first line carrying it, ANYWHERE — a whole-text scan, which is what "anywhere" costs.
+// The first line carrying it, ANYWHERE — a whole-text scan, which is what "anywhere" costs,
+// so one scan stands for one edit.
+const marked = versionCache();
+
 const markerLine = (document) => {
   const lines = String(document?.getText?.() ?? '').split(/\r?\n/);
   for (let i = 0; i < lines.length; i += 1) {
@@ -61,8 +65,7 @@ const markerLine = (document) => {
 const inLineComment = (lineText, character) =>
   /(^|[^:])\/\//.test(String(lineText ?? '').slice(0, Number(character) || 0));
 
-// lineAt, not a split of the whole buffer: this is asked on every completion and hover.
-const marksStencil = (document) => markerLine(document) >= 0;
+const marksStencil = (document) => marked.get(document, (buffer) => markerLine(buffer) >= 0);
 
 // Any buffer the editor calls JavaScript, opted in or not: the marker is explained in all.
 const isJsDocument = (document) => !!document

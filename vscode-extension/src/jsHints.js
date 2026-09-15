@@ -46,6 +46,7 @@ const completionProvider = {
   provideCompletionItems(document, position) {
     if (!answerFor(document, SETTINGS.completion)) return [];
     const line = document.lineAt(position.line).text;
+    if (inLineComment(line, position.character)) return [];   // prose, as the hover reads it
     return itemsFor(line.slice(0, position.character));
   },
 };
