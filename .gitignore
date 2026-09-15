@@ -137,5 +137,6 @@ bot/.env
 bot/packages/
 
 
-# Use-case capture intermediates (usecases/capture/*); the images under usecases/<app>/img are committed.
-usecases/capture/.out/
+# Use-case capture intermediates (usecases/capture-runner/*); the images under
+# usecases/docs/<app>/img are committed.
+usecases/capture-runner/.out/

@@ -4,7 +4,7 @@ The desktop front-end of Stencil: a C++17 + Qt 6 app that shares its logic with 
 browser app through the C++ [`core/`](../core/). For the project overview see the
 [repository README](../README.md); for how the app is structured,
 [`ARCHITECTURE.md`](ARCHITECTURE.md). Screenshots and clips, scenario by scenario:
-[`usecases/desktop/USECASES.md`](../usecases/desktop/USECASES.md).
+[`usecases/docs/desktop/USECASES.md`](../usecases/docs/desktop/USECASES.md).
 
 ## Build
 
@@ -41,7 +41,7 @@ lints, the UI pins, and `stencil_mainwindow_<area>_gui`
 — QtTest end-to-end binaries that drive the real `MainWindow` (the desktop's e2e; the repo's
 Playwright `e2e/` harness does not cover it). The core's own Doctest suite is built and run
 from `core/`. `-DSTENCIL_DOCS_CAPTURE=ON` adds `stencil_docs_capture`, the opt-in binary
-behind the screenshots in `usecases/desktop/` (run through `usecases/capture/desktop.mjs`).
+behind the screenshots in `usecases/docs/desktop/` (run through `usecases/capture-runner/desktop.mjs`).
 
 ## Using the app
 
