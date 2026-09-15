@@ -14,12 +14,13 @@
   justify-content: flex-start;
   align-items: center;
 }
-/* Run is the one GO action in both editors, so it wears --success rather than the accent
-   every other primary button uses. Disabled still falls through to the shared grey. */
+/* Run is the one GO action in both editors, so it wears the go green rather than the accent
+   every other primary button uses — --success-cta, deep enough to carry white ink and its
+   icon. Disabled still falls through to the shared grey. */
 .script-actions-bar .primary:not(:disabled),
 .ctx-script .primary:not(:disabled) {
-  background: var(--success);
-  border-color: var(--success);
+  background: var(--success-cta);
+  border-color: var(--success-cta);
 }
 /* Projects grows to the shared ceiling because its list is long; an editor has no such
    content to push it, so take that height outright and give the room to the text. */
