@@ -79,6 +79,9 @@
     --danger:         #d6293e;
     --danger-2:       #b71d30;
     --success:        #2e9e4f;
+    /* The FILLED go button (script Run) only: white ink needs a deeper green than the
+       --success text and rings read best in. */
+    --success-cta:    #26883f;
     --warning:        #c98a00;
     --disabled-bg:    #e4e6ea;
     --disabled-text:  #9aa0a8;
@@ -166,6 +169,7 @@
     --danger:         #f0697a;
     --danger-2:       #e8455a;
     --success:        #4cc471;
+    --success-cta:    #2b9150;
     --warning:        #e6b53c;
     --disabled-bg:    #3a3a3a;
     --disabled-text:  #777777;
