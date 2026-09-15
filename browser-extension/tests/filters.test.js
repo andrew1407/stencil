@@ -3,22 +3,22 @@ import assert from 'node:assert/strict';
 import { formatOf, formatOfItem, distinctFormats, extractCssUrls, passesFilters, matchesSearch, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../src/lib/filters.js';
 
 test('formatOf: extensions, query strings, data URIs, normalisation', () => {
-  assert.equal(formatOf('https://a.com/x/cat.PNG'), 'png');
-  assert.equal(formatOf('https://a.com/x/cat.jpg?v=2'), 'jpg');
-  assert.equal(formatOf('https://a.com/x/cat.jpeg'), 'jpg');
+  assert.equal(formatOf('https://a.example/x/cat.PNG'), 'png');
+  assert.equal(formatOf('https://a.example/x/cat.jpg?v=2'), 'jpg');
+  assert.equal(formatOf('https://a.example/x/cat.jpeg'), 'jpg');
   assert.equal(formatOf('data:image/webp;base64,ZZ'), 'webp');
   assert.equal(formatOf('data:image/svg+xml,<svg/>'), 'svg');
-  assert.equal(formatOf('https://a.com/no-extension'), '');
+  assert.equal(formatOf('https://a.example/no-extension'), '');
   // Video formats: by extension and by video/* data URI (quicktime → mov).
-  assert.equal(formatOf('https://a.com/clip.MP4?t=3'), 'mp4');
-  assert.equal(formatOf('https://a.com/clip.webm'), 'webm');
+  assert.equal(formatOf('https://a.example/clip.MP4?t=3'), 'mp4');
+  assert.equal(formatOf('https://a.example/clip.webm'), 'webm');
   assert.equal(formatOf('data:video/quicktime;base64,ZZ'), 'mov');
 });
 
 test('formatOfItem: video keys on the media URL, others on the src', () => {
-  const vid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', videoUrl: 'https://x.com/reel.mp4' };
+  const vid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', videoUrl: 'https://x.example/reel.mp4' };
   assert.equal(formatOfItem(vid), 'mp4');                       // not 'jpg' from the still
-  const blobVid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', videoUrl: 'blob:https://x.com/abc' };
+  const blobVid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', videoUrl: 'blob:https://x.example/abc' };
   assert.equal(formatOfItem(blobVid), '');                      // opaque blob → unknown
   assert.equal(formatOfItem({ kind: 'img', src: 'a.png' }), 'png');
   assert.ok(VIDEO_FORMATS.includes('mp4') && VIDEO_FORMATS.includes('avi'));
@@ -70,7 +70,7 @@ test('passesFilters: icon/metadata toggle is independent of the img toggle', () 
 });
 
 test('passesFilters: video toggle + per-format video filtering', () => {
-  const vid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', name: 'clip.mp4', videoUrl: 'https://x.com/clip.mp4', w: 1280, h: 720 };
+  const vid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', name: 'clip.mp4', videoUrl: 'https://x.example/clip.mp4', w: 1280, h: 720 };
   // The dedicated 'video' toggle hides/shows videos regardless of format.
   assert.equal(passesFilters(vid, { includeVideo: false }), false);
   assert.equal(passesFilters(vid, { includeVideo: true }), true);
@@ -79,7 +79,7 @@ test('passesFilters: video toggle + per-format video filtering', () => {
   assert.equal(passesFilters(vid, { formats: ['mp4'] }), true);    // mp4 selected
   assert.equal(passesFilters(vid, { formats: [] }), false);        // nothing selected
   // A blob video with no detectable format buckets as 'etc'.
-  const blobVid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', name: 'video', videoUrl: 'blob:https://x.com/abc', w: 0, h: 0 };
+  const blobVid = { kind: 'video', src: 'data:image/jpeg;base64,ZZ', name: 'video', videoUrl: 'blob:https://x.example/abc', w: 0, h: 0 };
   assert.equal(passesFilters(blobVid, { formats: ['mp4'] }), false);
   assert.equal(passesFilters(blobVid, { formats: [UNKNOWN_FORMAT] }), true);
   // No formats key → no format filtering (videos still pass).
@@ -92,8 +92,8 @@ test('passesFilters: video toggle + per-format video filtering', () => {
 test('distinctFormats: includes video media formats', () => {
   const items = [
     { kind: 'img', src: 'a.png' },
-    { kind: 'video', src: 'data:image/jpeg;base64,ZZ', videoUrl: 'https://x.com/c.mp4' },
-    { kind: 'video', src: 'data:image/jpeg;base64,ZZ', videoUrl: 'https://x.com/d.webm' }
+    { kind: 'video', src: 'data:image/jpeg;base64,ZZ', videoUrl: 'https://x.example/c.mp4' },
+    { kind: 'video', src: 'data:image/jpeg;base64,ZZ', videoUrl: 'https://x.example/d.webm' }
   ];
   assert.deepEqual(distinctFormats(items), ['mp4', 'png', 'webm']);
 });
@@ -106,15 +106,15 @@ test('passesFilters: search matches a video media URL too', () => {
 });
 
 test('passesFilters: search matches name or URL', () => {
-  const it = { kind: 'img', src: 'https://x.com/hero-banner.png', name: 'hero-banner.png', w: 10, h: 10 };
+  const it = { kind: 'img', src: 'https://x.example/hero-banner.png', name: 'hero-banner.png', w: 10, h: 10 };
   assert.equal(passesFilters(it, { search: 'banner' }), true);
-  assert.equal(passesFilters(it, { search: 'x.com' }), true);
+  assert.equal(passesFilters(it, { search: 'x.example' }), true);
   assert.equal(passesFilters(it, { search: 'nope' }), false);
 });
 
 test('passesFilters: regex search treats the query as a case-insensitive RegExp', () => {
-  const cat = { kind: 'img', src: 'https://x.com/250px-Cat_August.jpg', name: '250px-Cat_August.jpg', w: 10, h: 10 };
-  const dog = { kind: 'img', src: 'https://x.com/dog.png', name: 'dog.png', w: 10, h: 10 };
+  const cat = { kind: 'img', src: 'https://x.example/250px-Cat_August.jpg', name: '250px-Cat_August.jpg', w: 10, h: 10 };
+  const dog = { kind: 'img', src: 'https://x.example/dog.png', name: 'dog.png', w: 10, h: 10 };
   // Anchored / metacharacter patterns only work in regex mode.
   assert.equal(passesFilters(cat, { search: '\\.jpg$', regex: true }), true);
   assert.equal(passesFilters(dog, { search: '\\.jpg$', regex: true }), false);
@@ -124,7 +124,7 @@ test('passesFilters: regex search treats the query as a case-insensitive RegExp'
 });
 
 test('matchesSearch: invalid regex matches nothing; substring still works', () => {
-  const it = { kind: 'img', src: 'https://x.com/a.png', name: 'a.png', videoUrl: '' };
+  const it = { kind: 'img', src: 'https://x.example/a.png', name: 'a.png', videoUrl: '' };
   assert.equal(matchesSearch(it, { search: 'a(', regex: true }), false); // unbalanced → no match
   assert.equal(matchesSearch(it, { search: 'a(', regex: false }), false); // literal, absent
   assert.equal(matchesSearch(it, { search: 'a.png', regex: false }), true);

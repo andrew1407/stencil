@@ -20,8 +20,8 @@ test('buildLaunchUrl: strips any existing fragment first', () => {
 });
 
 test('filenameFromUrl: paths, query strings, no-extension, data URIs', () => {
-  assert.equal(filenameFromUrl('https://a.com/p/cat.jpg?x=1'), 'cat.jpg');
-  assert.equal(filenameFromUrl('https://a.com/img'), 'img.png');
+  assert.equal(filenameFromUrl('https://a.example/p/cat.jpg?x=1'), 'cat.jpg');
+  assert.equal(filenameFromUrl('https://a.example/img'), 'img.png');
   assert.equal(filenameFromUrl('data:image/webp;base64,ZZ'), 'image.webp');
 });
 

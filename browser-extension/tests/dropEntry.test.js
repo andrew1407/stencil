@@ -18,20 +18,20 @@ const objectUrl = () => 'blob:chrome-extension://ext/abc';
 // ── sameSource ──
 
 test('sameSource ignores only the #fragment', () => {
-  assert.equal(sameSource('https://a.com/c.png', 'https://a.com/c.png'), true);
-  assert.equal(sameSource('https://a.com/c.png#x', 'https://a.com/c.png'), true);
-  assert.equal(sameSource('https://a.com/c.png?v=2', 'https://a.com/c.png'), false);
+  assert.equal(sameSource('https://a.example/c.png', 'https://a.example/c.png'), true);
+  assert.equal(sameSource('https://a.example/c.png#x', 'https://a.example/c.png'), true);
+  assert.equal(sameSource('https://a.example/c.png?v=2', 'https://a.example/c.png'), false);
   assert.equal(sameSource('data:image/png;base64,AA', 'data:image/png;base64,AA'), true);
-  assert.equal(sameSource('', 'https://a.com/c.png'), false);
+  assert.equal(sameSource('', 'https://a.example/c.png'), false);
   assert.equal(sameSource(undefined, undefined), false);
 });
 
 // ── entryFromUrl: kind + name derivation ──
 
 test('an image URL becomes an img row named from its path', () => {
-  const e = entryFromUrl('https://a.com/photos/cat.png?v=3');
+  const e = entryFromUrl('https://a.example/photos/cat.png?v=3');
   assert.equal(e.kind, 'img');
-  assert.equal(e.src, 'https://a.com/photos/cat.png?v=3');
+  assert.equal(e.src, 'https://a.example/photos/cat.png?v=3');
   assert.equal(e.name, 'cat.png');
   assert.deepEqual([e.w, e.h], [0, 0]);
   assert.equal(e.measured, false);           // dims unknown → measured lazily
@@ -40,9 +40,9 @@ test('an image URL becomes an img row named from its path', () => {
 });
 
 test('a video URL becomes a frameless video row keyed on its media URL', () => {
-  const e = entryFromUrl('https://a.com/v/clip.mp4');
+  const e = entryFromUrl('https://a.example/v/clip.mp4');
   assert.equal(e.kind, 'video');
-  assert.equal(e.videoUrl, 'https://a.com/v/clip.mp4');
+  assert.equal(e.videoUrl, 'https://a.example/v/clip.mp4');
   assert.equal(e.src, '', 'no captured still — exactly how the scanner lists one');
   assert.equal(e.name, 'clip.mp4');
   assert.equal(e.measured, true, 'nothing to measure');
@@ -52,7 +52,7 @@ test('data: and blob: sources still get a usable name and kind', () => {
   const svg = entryFromUrl('data:image/svg+xml;base64,PHN2Zy8+');
   assert.equal(svg.kind, 'img');
   assert.equal(svg.name, 'image.svg');       // data: URLs name from their media type
-  const blob = entryFromUrl('blob:https://a.com/9f2c-1234');
+  const blob = entryFromUrl('blob:https://a.example/9f2c-1234');
   assert.equal(blob.kind, 'img');
   assert.ok(blob.name.endsWith('.png'));     // no extension to read → a sane default
   assert.equal(entryFromUrl(''), null);
@@ -70,24 +70,24 @@ test('an explicit kind/name (a dropped File knows both) wins over the URL guess'
 
 test('a dropped URL that matches a SCANNED row reuses that richer row', () => {
   const scanned = {
-    kind: 'img', src: 'https://a.com/cat.png', name: 'cat.png',
+    kind: 'img', src: 'https://a.example/cat.png', name: 'cat.png',
     w: 800, h: 600, measured: true, opened: [{ count: 2 }], pinned: true,
   };
-  const items = [{ kind: 'img', src: 'https://a.com/other.png' }, scanned];
-  const e = entryFromDrop({ kind: 'url', url: 'https://a.com/cat.png#frag' }, { items });
+  const items = [{ kind: 'img', src: 'https://a.example/other.png' }, scanned];
+  const e = entryFromDrop({ kind: 'url', url: 'https://a.example/cat.png#frag' }, { items });
   assert.equal(e, scanned, 'the same object — dims, opened badge and pin state come along');
 });
 
 test('a video row is matched on its media URL, not its still', () => {
-  const scanned = { kind: 'video', src: 'data:image/jpeg;base64,FRAME', videoUrl: 'https://a.com/clip.mp4', name: 'clip.mp4' };
-  const e = entryFromDrop({ kind: 'url', url: 'https://a.com/clip.mp4' }, { items: [scanned] });
+  const scanned = { kind: 'video', src: 'data:image/jpeg;base64,FRAME', videoUrl: 'https://a.example/clip.mp4', name: 'clip.mp4' };
+  const e = entryFromDrop({ kind: 'url', url: 'https://a.example/clip.mp4' }, { items: [scanned] });
   assert.equal(e, scanned);
 });
 
 test('a URL that is not in the scan becomes a fresh entry', () => {
-  const e = entryFromDrop({ kind: 'url', url: 'https://b.com/logo.svg' }, { items: [{ kind: 'img', src: 'https://a.com/x.png' }] });
+  const e = entryFromDrop({ kind: 'url', url: 'https://b.example/logo.svg' }, { items: [{ kind: 'img', src: 'https://a.example/x.png' }] });
   assert.equal(e.kind, 'img');
-  assert.equal(e.src, 'https://b.com/logo.svg');
+  assert.equal(e.src, 'https://b.example/logo.svg');
   assert.equal(e.name, 'logo.svg');
 });
 
@@ -130,11 +130,11 @@ test('the drag menu is exactly four flat actions, in order', () => {
 });
 
 test('an UNKNOWN-dimension image drag keeps all four actions', () => {
-  assert.deepEqual(ids(entryFromUrl('https://a.com/cat.png')), ['editor', 'newtab', 'incognito', 'crop']);
+  assert.deepEqual(ids(entryFromUrl('https://a.example/cat.png')), ['editor', 'newtab', 'incognito', 'crop']);
 });
 
 test('a frameless video drag keeps only "open in new tab"', () => {
-  const video = entryFromUrl('https://a.com/clip.mp4');
+  const video = entryFromUrl('https://a.example/clip.mp4');
   assert.deepEqual(ids(video), ['newtab']);
   assert.equal(dragActionAllowed(video, 'newtab'), true);
   assert.equal(dragActionAllowed(video, 'editor'), false, 'no still to open in the editor');
@@ -143,7 +143,7 @@ test('a frameless video drag keeps only "open in new tab"', () => {
 });
 
 test('a video WITH a captured still gets the pixel actions back', () => {
-  const framed = { kind: 'video', src: 'data:image/jpeg;base64,FRAME', videoUrl: 'https://a.com/clip.mp4' };
+  const framed = { kind: 'video', src: 'data:image/jpeg;base64,FRAME', videoUrl: 'https://a.example/clip.mp4' };
   assert.deepEqual(ids(framed), ['editor', 'newtab', 'incognito', 'crop']);
 });
 

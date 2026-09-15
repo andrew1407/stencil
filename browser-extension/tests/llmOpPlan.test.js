@@ -630,12 +630,12 @@ test('panel-settings ops ACT — they never gather context for a continuation', 
 
 // ── §8 openUrl (user-echoed URLs only; the executor guards the echo) ──
 test('openUrl: http(s) url + optional incognito; junk fails', () => {
-  assert.deepEqual(parse(plan([{ op: 'openUrl', url: 'https://a.com/cat.jpg' }])).actions,
-    [{ op: 'openUrl', url: 'https://a.com/cat.jpg' }]);
-  assert.deepEqual(parse(plan([{ op: 'openUrl', url: 'http://a.com/x.png', incognito: true }])).actions,
-    [{ op: 'openUrl', url: 'http://a.com/x.png', incognito: true }]);
+  assert.deepEqual(parse(plan([{ op: 'openUrl', url: 'https://a.example/cat.jpg' }])).actions,
+    [{ op: 'openUrl', url: 'https://a.example/cat.jpg' }]);
+  assert.deepEqual(parse(plan([{ op: 'openUrl', url: 'http://a.example/x.png', incognito: true }])).actions,
+    [{ op: 'openUrl', url: 'http://a.example/x.png', incognito: true }]);
   assert.throws(() => parse(plan([{ op: 'openUrl' }])), /is required/);
-  assert.throws(() => parse(plan([{ op: 'openUrl', url: 'ftp://a.com/x' }])), /http\(s\) URL/);
-  assert.throws(() => parse(plan([{ op: 'openUrl', url: 'https://a.com/x', incognito: 'yes' }])), /boolean/);
-  assert.throws(() => parse(plan([{ op: 'openUrl', url: 'https://a.com/x', tab: 1 }])), /unknown field/);
+  assert.throws(() => parse(plan([{ op: 'openUrl', url: 'ftp://a.example/x' }])), /http\(s\) URL/);
+  assert.throws(() => parse(plan([{ op: 'openUrl', url: 'https://a.example/x', incognito: 'yes' }])), /boolean/);
+  assert.throws(() => parse(plan([{ op: 'openUrl', url: 'https://a.example/x', tab: 1 }])), /unknown field/);
 });

@@ -73,16 +73,16 @@ test('classifyDrop: local files win over any text payload', () => {
 });
 
 test('classifyDrop reuses extractDraggedUrl: the <img> in text/html beats the link in text/uri-list', () => {
-  // The dragUrl.js Wikipedia case: an image wrapped in a link puts the LINK in
+  // The dragUrl.js linked-image case: an image wrapped in a link puts the LINK in
   // text/uri-list but the real image src in text/html — we must take the image.
   const dt = stubDataTransfer({
     types: ['text/uri-list', 'text/html'],
     data: {
-      'text/uri-list': 'https://en.wikipedia.org/wiki/File:Cat.jpg',
-      'text/html': '<a href="/wiki/File:Cat.jpg"><img src="https://upload.wikimedia.org/500px-Cat.jpg"></a>',
+      'text/uri-list': 'https://github.com/andrew1407/stencil/blob/main/bot/assets/icon.png',
+      'text/html': '<a href="/andrew1407/stencil/blob/main/bot/assets/icon.png"><img src="https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png"></a>',
     },
   });
-  assert.deepEqual(classifyDrop(dt), { kind: 'url', url: 'https://upload.wikimedia.org/500px-Cat.jpg' });
+  assert.deepEqual(classifyDrop(dt), { kind: 'url', url: 'https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png' });
 });
 
 test('classifyDrop falls through uri-list → plain text, and rejects junk', () => {

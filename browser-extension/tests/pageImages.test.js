@@ -4,9 +4,9 @@ import { bgImageUrl, cssImageUrls, srcsetUrls, manifestIconUrls, nameFromUrl, vi
 import { mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../src/lib/imageScan.js';
 
 test('bgImageUrl: extracts url(...) in any quoting; rejects svg data URLs', () => {
-  assert.equal(bgImageUrl('url("https://a.com/x.png")'), 'https://a.com/x.png');
-  assert.equal(bgImageUrl("url('https://a.com/y.jpg')"), 'https://a.com/y.jpg');
-  assert.equal(bgImageUrl('url(https://a.com/z.gif)'), 'https://a.com/z.gif');
+  assert.equal(bgImageUrl('url("https://a.example/x.png")'), 'https://a.example/x.png');
+  assert.equal(bgImageUrl("url('https://a.example/y.jpg')"), 'https://a.example/y.jpg');
+  assert.equal(bgImageUrl('url(https://a.example/z.gif)'), 'https://a.example/z.gif');
   assert.equal(bgImageUrl('none'), '');
   // Inline-SVG data URIs ARE listed now (rasterize.js renders them for attach/hand-off).
   assert.equal(bgImageUrl('url(data:image/svg+xml;base64,AAAA)'), 'data:image/svg+xml;base64,AAAA');
@@ -14,7 +14,7 @@ test('bgImageUrl: extracts url(...) in any quoting; rejects svg data URLs', () =
 });
 
 test('cssImageUrls: every url() in a CSS value; drops svg-data + #fragment refs', () => {
-  assert.deepEqual(cssImageUrls('url("https://a.com/x.png")'), ['https://a.com/x.png']);
+  assert.deepEqual(cssImageUrls('url("https://a.example/x.png")'), ['https://a.example/x.png']);
   // Multiple backgrounds / image-set() nest several url() tokens — take them all, in order.
   assert.deepEqual(cssImageUrls('url(top.png), url(bottom.png)'), ['top.png', 'bottom.png']);
   assert.deepEqual(cssImageUrls('image-set(url("a.png") 1x, url("a@2x.png") 2x)'), ['a.png', 'a@2x.png']);
@@ -38,16 +38,16 @@ test('srcsetUrls: candidate URLs, descriptors dropped', () => {
 test('manifestIconUrls: icon srcs resolved against the manifest URL', () => {
   const manifest = { icons: [{ src: 'icon-192.png' }, { src: '/abs/icon-512.png' }, { notSrc: 1 }] };
   assert.deepEqual(
-    manifestIconUrls(manifest, 'https://a.com/app/site.webmanifest'),
-    ['https://a.com/app/icon-192.png', 'https://a.com/abs/icon-512.png'],
+    manifestIconUrls(manifest, 'https://a.example/app/site.webmanifest'),
+    ['https://a.example/app/icon-192.png', 'https://a.example/abs/icon-512.png'],
   );
-  assert.deepEqual(manifestIconUrls({}, 'https://a.com/m.json'), []);
-  assert.deepEqual(manifestIconUrls(null, 'https://a.com/m.json'), []);
+  assert.deepEqual(manifestIconUrls({}, 'https://a.example/m.json'), []);
+  assert.deepEqual(manifestIconUrls(null, 'https://a.example/m.json'), []);
 });
 
 test('nameFromUrl: filename from path, query-stripped, data URL ext', () => {
-  assert.equal(nameFromUrl('https://a.com/pics/cat.png?v=2'), 'cat.png');
-  assert.equal(nameFromUrl('https://a.com/no-ext'), 'no-ext.png');
+  assert.equal(nameFromUrl('https://a.example/pics/cat.png?v=2'), 'cat.png');
+  assert.equal(nameFromUrl('https://a.example/no-ext'), 'no-ext.png');
   assert.equal(nameFromUrl('data:image/jpeg;base64,AAAA'), 'image.jpeg');
   assert.equal(nameFromUrl('data:image/jpeg;base64,AAAA', 'video'), 'video.jpeg');
   assert.equal(nameFromUrl('not a url'), 'image.png');

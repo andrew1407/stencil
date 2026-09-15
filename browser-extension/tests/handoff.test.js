@@ -8,23 +8,23 @@ import assert from 'node:assert/strict';
 import { buildHandoff } from '../src/lib/stencil.js';
 
 test('page image (non-shared): derives source via sourceOf, resource from the caller', () => {
-  const image = { name: 'cat.png', kind: 'img', src: 'https://a.com/cat.png' };
-  const payload = buildHandoff(image, { dataUrl: 'data:image/png;base64,AAA', page: 'A3', resource: 'https://a.com/page', incognito: false });
+  const image = { name: 'cat.png', kind: 'img', src: 'https://a.example/cat.png' };
+  const payload = buildHandoff(image, { dataUrl: 'data:image/png;base64,AAA', page: 'A3', resource: 'https://a.example/page', incognito: false });
   assert.deepEqual(payload, {
     dataUrl: 'data:image/png;base64,AAA',
     name: 'cat.png',
     page: { size: 'A3' },
-    source: 'https://a.com/cat.png',
-    resource: 'https://a.com/page',
+    source: 'https://a.example/cat.png',
+    resource: 'https://a.example/page',
     incognito: false,
   });
 });
 
 test('video (non-shared): sourceOf uses the media URL, not the frame data URL', () => {
-  const image = { name: 'clip.mp4', kind: 'video', videoUrl: 'https://a.com/clip.mp4', src: 'data:image/jpeg;base64,FRAME' };
-  const payload = buildHandoff(image, { dataUrl: 'data:image/jpeg;base64,FRAME', page: 'A4', resource: 'https://a.com/watch', incognito: true });
-  assert.equal(payload.source, 'https://a.com/clip.mp4');
-  assert.equal(payload.resource, 'https://a.com/watch');
+  const image = { name: 'clip.mp4', kind: 'video', videoUrl: 'https://a.example/clip.mp4', src: 'data:image/jpeg;base64,FRAME' };
+  const payload = buildHandoff(image, { dataUrl: 'data:image/jpeg;base64,FRAME', page: 'A4', resource: 'https://a.example/watch', incognito: true });
+  assert.equal(payload.source, 'https://a.example/clip.mp4');
+  assert.equal(payload.resource, 'https://a.example/watch');
   assert.equal(payload.incognito, true);
 });
 
@@ -38,9 +38,9 @@ test('shared (server) row: keeps its own source AND resource, ignores the caller
 test('pre-resolved descriptor (background relay): explicit source is used verbatim', () => {
   // Background passes a plain { name, source } — no .shared, no .src — so buildHandoff
   // must take image.source directly rather than routing through sourceOf (which would '').
-  const image = { name: 'image.png', source: 'https://a.com/bg.png' };
-  const payload = buildHandoff(image, { dataUrl: 'data:x', page: 'A3', resource: 'https://a.com/p', incognito: false });
-  assert.equal(payload.source, 'https://a.com/bg.png');
+  const image = { name: 'image.png', source: 'https://a.example/bg.png' };
+  const payload = buildHandoff(image, { dataUrl: 'data:x', page: 'A3', resource: 'https://a.example/p', incognito: false });
+  assert.equal(payload.source, 'https://a.example/bg.png');
 });
 
 test('empty pre-resolved source stays empty (not re-derived to sourceOf)', () => {

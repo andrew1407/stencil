@@ -12,9 +12,9 @@ test('sourceOf: video → its media URL; image → its src; missing → empty', 
 });
 
 test('posterImage: builds an img row from a video poster with a derived name', () => {
-  const p = posterImage({ posterUrl: 'https://a.com/pics/cover.jpg?v=2' });
+  const p = posterImage({ posterUrl: 'https://a.example/pics/cover.jpg?v=2' });
   assert.equal(p.kind, 'img');
-  assert.equal(p.src, 'https://a.com/pics/cover.jpg?v=2');
+  assert.equal(p.src, 'https://a.example/pics/cover.jpg?v=2');
   assert.equal(p.poster, true);
   assert.equal(p.name, 'cover.jpg');   // filenameFromUrl strips the query
 });

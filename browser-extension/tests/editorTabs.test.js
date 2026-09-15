@@ -152,11 +152,11 @@ test('sourceTabChoices: with editorTabIds, only those tabs are excluded — a sa
 
 test('matchSourceTabs: filters by URL, substring by default', () => {
   const choices = [
-    { tabId: 1, url: 'https://en.wikipedia.org/wiki/Cat' },
-    { tabId: 2, url: 'https://en.wikipedia.org/wiki/Rabbit' },
+    { tabId: 1, url: 'https://github.com/andrew1407/stencil/blob/main/cat.png' },
+    { tabId: 2, url: 'https://github.com/andrew1407/stencil/blob/main/rabbit.png' },
     { tabId: 3, url: 'https://news.example.com/cats-are-great' },
   ];
-  assert.deepEqual(matchSourceTabs(choices, 'wikipedia').map(c => c.tabId), [1, 2]);
+  assert.deepEqual(matchSourceTabs(choices, 'github').map(c => c.tabId), [1, 2]);
   assert.deepEqual(matchSourceTabs(choices, 'CAT').map(c => c.tabId), [1, 3]);   // case-insensitive
   assert.deepEqual(matchSourceTabs(choices, '').map(c => c.tabId), [1, 2, 3]);   // empty = everything
   assert.deepEqual(matchSourceTabs(choices, '   ').map(c => c.tabId), [1, 2, 3]);
@@ -165,11 +165,11 @@ test('matchSourceTabs: filters by URL, substring by default', () => {
 
 test('matchSourceTabs: regex mode, and an invalid pattern matches nothing', () => {
   const choices = [
-    { tabId: 1, url: 'https://en.wikipedia.org/wiki/Cat' },
-    { tabId: 2, url: 'https://en.wikipedia.org/wiki/Rabbit' },
+    { tabId: 1, url: 'https://github.com/andrew1407/stencil/blob/main/cat.png' },
+    { tabId: 2, url: 'https://github.com/andrew1407/stencil/blob/main/rabbit.png' },
     { tabId: 3, url: 'https://news.example.com/cats' },
   ];
-  assert.deepEqual(matchSourceTabs(choices, 'wiki/(Cat|Rabbit)$', { regex: true }).map(c => c.tabId), [1, 2]);
+  assert.deepEqual(matchSourceTabs(choices, 'main/(cat|rabbit)\\.png$', { regex: true }).map(c => c.tabId), [1, 2]);
   assert.deepEqual(matchSourceTabs(choices, '^https://news', { regex: true }).map(c => c.tabId), [3]);
   // A half-typed pattern must not throw out of the picker's keystroke handler.
   assert.deepEqual(matchSourceTabs(choices, '([unclosed', { regex: true }), []);
