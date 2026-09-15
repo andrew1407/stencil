@@ -95,12 +95,22 @@ export const shrinkWrapWidth = (lineWidths) => {
   return max > 0 ? Math.ceil(max) : null;
 };
 
+// A bubble's own horizontal padding + border, the part a border-box width must carry.
+const frameWidth = (el, doc) => {
+  const cs = doc?.defaultView?.getComputedStyle?.(el);
+  if (!cs) return 0;
+  const px = (v) => parseFloat(v) || 0;
+  return Math.ceil(px(cs.paddingLeft) + px(cs.paddingRight) + px(cs.borderLeftWidth) + px(cs.borderRightWidth));
+};
+
 // Measured from `el`'s FIRST child only (its text node); element children floor the pin.
 export const applyShrinkWrap = (el, doc = globalThis.document) => {
   if (!el?.style || !doc?.createRange) return;
   el.style.maxWidth = '';   // drop any earlier pin before re-measuring the natural wrap
   const textNode = el.firstChild;
-  if (!textNode) return;
+  // Only a TEXT first child measures as lines: the typing row's dots would pin the
+  // bubble to one dot, leaving the other two outside it.
+  if (!textNode || textNode.nodeType !== 3) return;
   const range = doc.createRange();
   range.selectNodeContents(textNode);
   let width = shrinkWrapWidth([...range.getClientRects()].map((r) => r.width));
@@ -109,7 +119,9 @@ export const applyShrinkWrap = (el, doc = globalThis.document) => {
     const w = child.getBoundingClientRect?.().width;
     if (w > width) width = Math.ceil(w);
   }
-  el.style.maxWidth = `${width}px`;
+  // A border-box pin (theme/controls.css) must carry the bubble's own frame, else the
+  // text re-wraps narrower than the line it was measured from.
+  el.style.maxWidth = `${width + frameWidth(el, doc)}px`;
 };
 
 // A bubble rendered while collapsed measures zero rects and skips its pin; re-measure
