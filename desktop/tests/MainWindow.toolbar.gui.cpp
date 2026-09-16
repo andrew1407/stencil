@@ -1442,10 +1442,16 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(dlg);
       QCOMPARE(dlg->objectName(), QStringLiteral("stencilDescriptionDialog"));
       auto* area = dlg->findChild<QPlainTextEdit*>("descriptionText");
+      // Dismiss whatever happens: an early return leaves exec() spinning until the
+      // QtTest watchdog aborts the binary, which reads as a crash, not as this failure.
+      if (area) {
+        QCOMPARE(area->toPlainText(), QStringLiteral("Before"));
+        area->setPlainText("After");
+      }
+      QPushButton* save = dlg->findChild<QPushButton*>("descriptionSave");
+      if (save) save->click(); else dlg->reject();
       QVERIFY(area);
-      QCOMPARE(area->toPlainText(), QStringLiteral("Before"));
-      area->setPlainText("After");
-      dlg->findChild<QPushButton*>("descriptionSave")->click();
+      QVERIFY(save);
     });
     win.actDescription_->trigger();
     QTRY_COMPARE(QString::fromStdString(win.findProject("meta-gui")->meta.description),
@@ -1458,14 +1464,25 @@ class MainWindowGuiTest : public QObject {
       }
       QVERIFY(dlg);
       QCOMPARE(dlg->objectName(), QStringLiteral("stencilKeywordsDialog"));
-      auto* area = dlg->findChild<QPlainTextEdit*>("keywordsText");
-      QVERIFY(area);
-      area->setPlainText("Plan, kitchen plan");
-      QTest::keyClick(area, Qt::Key_Return);   // Enter saves the list
+      // The field is chips now: type a keyword, Enter ADDS it, Save writes the list.
+      // Whatever a branch does, the modal must be dismissed — an early return here hangs
+      // exec() until the QtTest watchdog aborts the whole binary.
+      auto* input = dlg->findChild<QLineEdit*>("keywordsInput");
+      if (input) {
+        input->setText("Kitchen Plan");
+        QTest::keyClick(input, Qt::Key_Return);
+        input->setText("plan");
+        QTest::keyClick(input, Qt::Key_Return);
+      }
+      QPushButton* save = dlg->findChild<QPushButton*>("keywordsSave");
+      if (save) save->click(); else dlg->reject();
+      QVERIFY(input);
+      QVERIFY(save);
     });
     win.actKeywords_->trigger();
+    // "Kitchen Plan" is ONE keyword, not two; the later "plan" is its own, listed first.
     QTRY_COMPARE(win.findProject("meta-gui")->meta.keywords,
-                 std::vector<std::string>({"plan", "kitchen"}));
+                 std::vector<std::string>({"plan", "kitchen plan"}));
     // …and leave no trace in the store for the next run.
     win.projectList_.erase(std::remove_if(win.projectList_.begin(), win.projectList_.end(),
                                           [](const stencil::gui::Project& p) { return p.meta.id == "meta-gui"; }),

@@ -378,7 +378,27 @@ stencil_headless_test(stencil_projectmeta_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/projectMetaDialogs.headless.cpp src/dialogs/DescriptionDialog.cpp
-    src/dialogs/KeywordsDialog.cpp ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp
+    src/dialogs/KeywordsDialog.cpp src/dialogs/KeywordChips.cpp
+    src/dialogs/KeywordChipsMotion.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp
+    src/support/modalReveal.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+    resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
+# The window backdrop (support/ModalBackdrop): the browser's scrim + blur, on its switch.
+stencil_headless_test(stencil_modalbackdrop_headless
+  SOURCES tests/modalBackdrop.headless.cpp
+  LIBS stencil_core Qt6::Widgets)
+
+# The keywords FIELD (dialogs/KeywordChips): add / move-to-front / ✕ / Clear all, and the
+# parse+addTo cases its browser twin (browser/tests/keywordChips.test.js) pins.
+stencil_headless_test(stencil_keywordchips_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/keywordChips.headless.cpp
+    src/dialogs/KeywordsDialog.cpp src/dialogs/KeywordChips.cpp
+    src/dialogs/KeywordChipsMotion.cpp
+    ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp
     src/support/modalReveal.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)

@@ -74,6 +74,10 @@
       "light": "#fff8e1",
       "dark": "#2e2a17"
     },
+    "--bg-keywords": {
+      "light": "#f2f2f2",
+      "dark": "#202020"
+    },
     "--border-main": {
       "light": "#ddd",
       "dark": "#444"

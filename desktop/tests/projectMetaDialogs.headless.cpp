@@ -1,10 +1,10 @@
-// Headless checks for the DESCRIPTION & ATTRIBUTES editors (dialogs/descriptionDialog,
-// dialogs/keywordsDialog) — the browser's description/keywords modals on the shared shell:
+// Headless checks for the DESCRIPTION editor and both editors' store write
+// (dialogs/descriptionDialog, dialogs/keywordsDialog); the keywords FIELD itself is
+// keywordChips.headless.cpp. The browser's description modal on the shared shell:
 //   - structure: glyph + title header with the Close pill, the one text area with its
 //     placeholder, the footer hint, and the Cancel / Save CTAs;
 //   - the field is pre-filled with the current value; Save returns the trimmed text,
 //     Cancel / Escape reject;
-//   - keywords: Enter saves, and the words come back lowercase, unique, in order;
 //   - apply(): the store write the Projects window's row menu makes, against a temp
 //     state dir — the value round-trips through fileStore::loadProjects.
 // Offscreen; the modals are driven from a 0-timer inside their own exec() loop.
@@ -85,9 +85,9 @@ int main(int argc, char** argv) {
     check(area && area->placeholderText() == QString::fromUtf8("Describe this project…"),
           "description: the browser's placeholder");
     check(area && area->toPlainText() == "An old note", "description: pre-filled with the current value");
-    QLabel* hint = dlg.findChild<QLabel*>("modalFooterHint");
-    check(hint && hint->text() == "Shown in the projects list and its tooltip.",
-          "description: the footer hint");
+    // No footer caption: an empty hint means addModalFooter builds no label at all.
+    check(!dlg.findChild<QLabel*>("modalFooterHint"),
+          "description: no footer caption — the field says what it is");
     QPushButton* save = btnByText(&dlg, "Save");
     QPushButton* cancel = btnByText(&dlg, "Cancel");
     check(save && cancel, "description: Cancel + Save CTAs in the footer");
@@ -127,37 +127,6 @@ int main(int argc, char** argv) {
     const int r = execWith(dlg, [&] { btnByText(&dlg, "Cancel")->click(); });
     check(r == QDialog::Rejected, "description: Cancel rejects");
   }
-
-  // ── KeywordsDialog: structure + Enter + normalisation ──
-  {
-    KeywordsDialog dlg({"alpha", "beta"}, &host);
-    QLabel* title = dlg.findChild<QLabel*>("modalTitle");
-    check(title && title->text() == "Project keywords", "keywords: the shell's title");
-    check(headerHasGlyph(&dlg), "keywords: the header wears a glyph");
-    auto* area = dlg.findChild<QPlainTextEdit*>("keywordsText");
-    check(area != nullptr, "keywords: one text area in the body");
-    check(area && area->placeholderText() == QString::fromUtf8("keyword, another keyword…"),
-          "keywords: the browser's placeholder");
-    check(area && area->toPlainText() == "alpha, beta", "keywords: pre-filled, comma separated");
-    QLabel* hint = dlg.findChild<QLabel*>("modalFooterHint");
-    check(hint && hint->text() == QString::fromUtf8("Comma or space separated · used by the projects search."),
-          "keywords: the footer hint");
-    check(btnByText(&dlg, "Save") && btnByText(&dlg, "Cancel"), "keywords: Cancel + Save CTAs");
-    const int r = execWith(dlg, [&] {
-      area->setPlainText("Kitchen, plan  remodel,KITCHEN\nfloor");
-      pressKey(area, Qt::Key_Return);
-    });
-    check(r == QDialog::Accepted, "keywords: Enter in the field saves");
-    check(dlg.keywords() == QStringList({"kitchen", "plan", "remodel", "floor"}),
-          "keywords: lowercase, unique, in order, split on commas/spaces/newlines");
-  }
-  {
-    KeywordsDialog dlg({}, &host);
-    const int r = execWith(dlg, [&] { pressKey(&dlg, Qt::Key_Escape); });
-    check(r == QDialog::Rejected, "keywords: Escape cancels");
-  }
-  check(KeywordsDialog::parse("  ") .isEmpty(), "parse: blanks give no keywords");
-  check(KeywordsDialog::parse("A,a, b") == QStringList({"a", "b"}), "parse: case-folded duplicates collapse");
 
   // ── apply(): the store write, round-tripped through the file store ──
   {

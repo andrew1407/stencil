@@ -28,6 +28,9 @@ export const visualsModalInner = () => `
                 <div class="vs-row"><label>Drawing animation</label>
                     <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-draw-anim"></span>
                 </div>
+                <div class="vs-row"><label>Dim and blur behind windows</label>
+                    <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-modal-backdrop"></span>
+                </div>
                 <div class="vs-row"><label>Interface animation</label>
                     <span class="vs-ctrl"><select id="vs-motion-mode" data-cs-skip>
                         ${MOTION_MODE_LABELS.map(([v, label]) => `<option value="${v}">${label}</option>`).join('')}

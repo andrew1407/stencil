@@ -412,11 +412,17 @@ test('stencil.description / stencil.keywords read the active meta and route to t
   assert.deepEqual(lastCall(app, 'setProjectDescription'), ['setProjectDescription', 1, 'North wing']);
   stencil.description = null;   // clears
   assert.deepEqual(lastCall(app, 'setProjectDescription'), ['setProjectDescription', 1, '']);
-  // Keywords: an array passes through; a string splits on commas/whitespace like the row menu.
+  // Keywords: ONE per array entry; a string splits on commas and newlines, never on a
+  // space — the coerce.js splitter stencil.current.keywords comes through too.
   stencil.keywords = ['a', 'b'];
   assert.deepEqual(lastCall(app, 'setProjectKeywords'), ['setProjectKeywords', 1, ['a', 'b']]);
   stencil.keywords = 'one, two three';
-  assert.deepEqual(lastCall(app, 'setProjectKeywords'), ['setProjectKeywords', 1, ['one', 'two', 'three']]);
+  assert.deepEqual(lastCall(app, 'setProjectKeywords'), ['setProjectKeywords', 1, ['one', 'two three']]);
+  stencil.keywords = ['kitchen  remodel', '', ' floor plan '];
+  assert.deepEqual(lastCall(app, 'setProjectKeywords'), ['setProjectKeywords', 1, ['kitchen remodel', 'floor plan']]);
+  // …and the project wrapper's own setter is the same rule, not a second one.
+  stencil.current.keywords = 'one, two three';
+  assert.deepEqual(lastCall(app, 'setProjectKeywords'), ['setProjectKeywords', 1, ['one', 'two three']]);
 });
 
 test('stencil.description / stencil.keywords throw with no active project', () => {

@@ -57,6 +57,7 @@ namespace stencil::gui {
     int holdDrawDelay = 500;
     // Motion (browser js/ui/motionPrefs.js; support/modalReveal.hpp drives them).
     bool drawingAnimations = true;
+    bool modalBackdrop = true;
     // "particles" | "water" | "fire" | "slide" | "none"; unknown reads as "particles".
     QString motionMode = "particles";
     // Desktop-only "Open in…" targets; the browser keeps its own in js/config/openInConfig.json.
