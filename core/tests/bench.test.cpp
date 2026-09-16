@@ -157,7 +157,7 @@ TEST_SUITE("bench") {
     }
 
     HistoryStack hs;
-    hs.reset(snap);  // non-empty base -> retained as history[0], so size == base + pushes
+    hs.reset(snap);  // non-empty base -> retained as history[0]
 
     const double firstHalf = time_ms([&] {
       for (int i = 0; i < pushes / 2; ++i) hs.push(snap);
@@ -166,8 +166,8 @@ TEST_SUITE("bench") {
       for (int i = 0; i < pushes / 2; ++i) hs.push(snap);
     });
 
-    // Deterministic invariant: every push retained (base + `pushes` snapshots).
-    CHECK(hs.size() == static_cast<std::size_t>(pushes) + 1);
+    // Deterministic invariant: the stack saturates at the depth cap, it does not grow.
+    CHECK(hs.size() == std::min(static_cast<std::size_t>(pushes) + 1, HistoryStack::MAX_STEPS));
 
     MESSAGE("history push x" << pushes << "  firstHalf=" << firstHalf << "ms  secondHalf="
                             << secondHalf << "ms  slowdown=" << secondHalf / firstHalf
