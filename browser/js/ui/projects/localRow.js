@@ -32,6 +32,7 @@ export const createLocalRow = ({
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'project-select';
+      cb.setAttribute('aria-label', `Select ${meta.name || 'project'}`);   // the row's only name is its text
       cb.checked = selected.has(key);
       if (cb.checked) row.classList.add('project-selected');
       selectables.set(key, { kind: 'local', id: meta.id, serverUrl: meta.address || null, isServer: isServerMeta(meta), meta });
