@@ -8,6 +8,7 @@ import { createStencil } from './console/stencilApi.js';
 import { runScriptHere } from './console/scriptRunner.js';
 import { setScriptText } from './ui/scriptBuffer.js';
 import { initTooltips } from './ui/controlTooltip.js';
+import { watchControlLabels } from './ui/ariaLabels.js';
 import { wireChatPersistence } from './llm/chatPersistence.js';
 import { initProjectsBackend } from './core/projectsBackend.js';
 import { watchNumericInputs } from './ui/numericInput.js';
@@ -98,6 +99,9 @@ window.onload = async () => {
   hotkeys.updateHotkeyTitles();
   // Instant tooltips everywhere (the native `title` has a ~1s delay and skips disabled controls).
   initTooltips();
+  // …and the same text as the accessible name of every icon-only control, here and in
+  // whatever a modal renders later (ui/ariaLabels.js).
+  watchControlLabels();
   // If the Stencil browser extension or the VS Code extension launched us with an image
   // and/or a .stc (URL fragment), import it now that every component is wired, then run the
   // script against the picture it just brought. No-op for normal sessions.
