@@ -124,7 +124,7 @@ test('every language-configuration regex compiles under the JS engine VS Code us
     langConfig.indentationRules.decreaseIndentPattern,
   ];
   for (const pattern of patterns) assert.doesNotThrow(() => new RegExp(pattern), pattern);
-  assert.equal(langConfig.comments.lineComment, '#');
+  assert.deepEqual(langConfig.comments.lineComment, { comment: '#', noIndent: false });
   const increase = new RegExp(langConfig.indentationRules.increaseIndentPattern);
   assert.match('@source a.png:', increase, 'a block header opens an indent');
   assert.match('@stencil box:   # note', increase, 'a trailing comment does not hide the colon');

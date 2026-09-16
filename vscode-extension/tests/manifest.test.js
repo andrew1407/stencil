@@ -20,7 +20,7 @@ test('the extension is CommonJS, and its entry point exists', () => {
   assert.ok(existsSync(here(`../${manifest.main}`)));
   assert.equal(manifest.name, 'stencil-stc');
   assert.equal(manifest.displayName, 'Stencil', 'the name the Extensions view shows');
-  assert.equal(manifest.engines.vscode, '^1.90.0');
+  assert.equal(manifest.engines.vscode, '^1.110.0', 'the release that added the object lineComment form');
 });
 
 test('the language is contributed under the id the code uses', () => {
