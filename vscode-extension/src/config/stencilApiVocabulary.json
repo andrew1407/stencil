@@ -342,8 +342,8 @@
       "group": "settings",
       "signature": "stencil.keywords: string[] | string",
       "summary": "The open project’s keywords, which the project search reads.",
-      "detail": "Read: string[]. Write: an array or a comma/space-separated string.",
-      "example": "stencil.keywords = 'roof, survey';   // read back as an array"
+      "detail": "Read: string[]. Write one keyword per array entry (a keyword may be several words), or a comma/newline separated string.",
+      "example": "stencil.keywords = 'roof survey, north face';   // two keywords"
     },
     "layout": {
       "group": "export",

@@ -5,8 +5,8 @@ import { DEFAULT_ACCENT } from '../core/accents.js';
 import { buildAccentPicker } from './accentPicker.js';
 import { motionModeIcon } from './motionIcons.js';
 import { enhanceSelect } from './customSelect.js';
-import { motionPrefs, MOTION_EVENT,
-         DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS } from './motionPrefs.js';
+import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE,
+         DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP } from './motionPrefs.js';
 import { subscribe, EVENTS } from '../bus/appBus.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
@@ -91,21 +91,21 @@ export class StencilVisualsModal extends StencilElement {
     // The toolbar toggle (or another tab) can move it while this dialog is open.
     subscribe(EVENTS.themeChanged, syncAppearance);
 
-    // ── Motion: the canvas stroke animation, and how the interface itself moves ──
-    // Both are app-wide (ui/motionPrefs.js), not part of the project — like the theme
-    // above — and both route through the shared setter the console facade uses.
-    const drawAnim = document.getElementById('vs-draw-anim');
+    // ── Motion: the stroke animation, the window backdrop, and how the interface moves ──
+    // All app-wide (ui/motionPrefs.js), not the project's, and all routed through the
+    // shared setter the console facade uses.
     const motionMode = document.getElementById('vs-motion-mode');
     // Enhanced HERE, with each mode's glyph (animated on hover), not by the app-wide pass
     // — data-cs-skip on the <select> keeps that pass off it, or its plain rows would win.
     enhanceSelect(motionMode, { icons: motionModeIcon });
+    const checks = [['vs-draw-anim', 'drawing'], ['vs-modal-backdrop', 'backdrop']].map(([id, k]) => [document.getElementById(id), k]);
     const syncMotion = () => {
       const m = motionPrefs();
-      drawAnim.checked = m.drawing;
+      for (const [box, key] of checks) box.checked = m[key];
       motionMode.value = m.mode;
     };
     syncMotion();
-    drawAnim.addEventListener('change', () => app.settings.setMotion('drawing', drawAnim.checked));
+    for (const [box, key] of checks) box.addEventListener('change', () => app.settings.setMotion(key, box.checked));
     motionMode.addEventListener('change', () => app.settings.setMotion('mode', motionMode.value));
     // Moved from the console (or another dialog) while this one is open.
     subscribe(MOTION_EVENT, syncMotion);
@@ -185,8 +185,8 @@ export class StencilVisualsModal extends StencilElement {
     resetBtn.addEventListener('click', () => {
       Object.assign(app, VIS_DEFAULTS);
       app.setAccent(DEFAULT_ACCENT);
-      app.settings.setMotion('drawing', DEFAULT_DRAWING_ANIMATIONS);
-      app.settings.setMotion('mode', DEFAULT_MOTION_MODE);
+      const motionDefaults = [['drawing', DEFAULT_DRAWING_ANIMATIONS], ['backdrop', DEFAULT_MODAL_BACKDROP], ['mode', DEFAULT_MOTION_MODE]];
+      for (const [k, v] of motionDefaults) app.settings.setMotion(k, v);
       setVal('line-color', app.color);
       setVal('line-thickness', app.thickness);
       setVal('point-size', app.pointSize);

@@ -6,7 +6,7 @@ import { PERIOD_ORDER, DEFAULT_PERIOD } from '../core/projectsStore.js';
 import { parseDuration } from '../core/durationParser.js';
 import { normalizeHex } from '../core/accents.js';
 import { publish, EVENTS } from '../bus/appBus.js';
-import { str } from './coerce.js';
+import { splitKeywords, str } from './coerce.js';
 
 export const DURATION_HELP = [
   'stencil.expire(spec) — set when the active project expires, from a duration:',
@@ -100,13 +100,19 @@ export const createProjectWrapper = ({ app, guard, openedIds }) => {
         if (s && !normalizeHex(s)) throw new Error(`Invalid project color "${v}" — use a hex like #ff5623, or '' to clear`);
         if (app.setProjectColor(id, s) == null) throw new Error(`Could not set color on project ${id}`);
       },
-      // Search keywords (string[]). Assign an array or a comma/space-separated string to
-      // replace them; addKeywords / removeKeywords adjust the set. Mirrors the CLI /keywords.
+      // The project's description, as the Description window edits it. '' clears it.
+      get description() { return incognito ? '' : (meta()?.description ?? ''); },
+      set description(v) {
+        if (incognito) throw new Error('Cannot describe an incognito editor');
+        if (app.setProjectDescription(id, str(v)) == null) throw new Error(`Could not set description on project ${id}`);
+      },
+      // Search keywords (string[]). Assign an array — one keyword per entry, a keyword may
+      // be several words — or a comma/newline separated string. Duplicates collapse (case
+      // insensitively) and order is kept; addKeywords / removeKeywords adjust the set.
       get keywords() { return incognito ? [] : (meta()?.keywords ?? []).slice(); },
       set keywords(v) {
         if (incognito) throw new Error('Cannot set keywords on an incognito editor');
-        const list = Array.isArray(v) ? v : str(v).split(/[\s,]+/);
-        if (app.setProjectKeywords(id, list) == null) throw new Error(`Could not set keywords on project ${id}`);
+        if (app.setProjectKeywords(id, splitKeywords(v)) == null) throw new Error(`Could not set keywords on project ${id}`);
       },
       // Whether this is a blank-image project (solid-colour background). Read-only.
       get blank() { return incognito ? false : !!meta()?.blank; },
@@ -126,13 +132,12 @@ export const createProjectWrapper = ({ app, guard, openedIds }) => {
       },
       addKeywords(...kw) {
         if (incognito) throw new Error('Cannot set keywords on an incognito editor');
-        const add = kw.flatMap((k) => (Array.isArray(k) ? k : str(k).split(/[\s,]+/))).filter(Boolean);
-        if (app.setProjectKeywords(id, [...(meta()?.keywords ?? []), ...add]) == null) throw new Error(`Could not add keywords on project ${id}`);
+        if (app.setProjectKeywords(id, [...(meta()?.keywords ?? []), ...splitKeywords(kw)]) == null) throw new Error(`Could not add keywords on project ${id}`);
         return project;
       },
       removeKeywords(...kw) {
         if (incognito) throw new Error('Cannot set keywords on an incognito editor');
-        const drop = new Set(kw.flatMap((k) => (Array.isArray(k) ? k : str(k).split(/[\s,]+/))).map((s) => str(s).trim().toLowerCase()).filter(Boolean));
+        const drop = new Set(splitKeywords(kw).map((k) => k.toLowerCase()));
         const cur = (meta()?.keywords ?? []).filter((k) => !drop.has(str(k).toLowerCase()));
         if (app.setProjectKeywords(id, cur) == null) throw new Error(`Could not remove keywords on project ${id}`);
         return project;

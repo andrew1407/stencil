@@ -4,11 +4,23 @@
     position: fixed;
     inset: 0;
     z-index: 100001;
-    background: rgba(0,0,0,0.5);
+    background: transparent;
     align-items: center;
     justify-content: center;
 }
 .app-modal-overlay.modal-open { display: flex; }
+/* The darkening half of the backdrop, on the Visuals switch (motionPrefs modalBackdrop);
+   its blur half is in animations/overlays.css. Never the popover: dimming the page for a
+   small panel beside its opener reads wrong. */
+:root[data-modal-backdrop] .app-modal-overlay:not(.modal-popover) {
+    background: rgba(0,0,0,0.5);
+}
+/* The header is the window's grab handle (ui/modalDrag.js). The popover places itself
+   with inline left/top, so it is not draggable. */
+.app-modal-overlay:not(.modal-popover) .settings-header { cursor: grab; }
+.app-modal.modal-dragging .settings-header { cursor: grabbing; }
+/* No transition while dragging, or the box lags the pointer by the flight's easing. */
+.app-modal.modal-dragging { transition: none !important; }
 /* `modal-closing` keeps the overlay on screen just for the shrink-back animation;
    ui/base.js drops `modal-open` immediately, so the modal counts as closed at once. */
 .app-modal-overlay.modal-closing { display: flex; }

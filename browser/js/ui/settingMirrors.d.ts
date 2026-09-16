@@ -21,3 +21,6 @@ export function readControl(id: string): string;
 
 /** Run `fn` over each of these controls that is actually mounted. */
 export function forEachControl(ids: string[], fn: (el: HTMLElement) => void): void;
+
+/** Ticks the Visuals "Dim and blur behind windows" box from the store. */
+export declare function paintMotionBackdrop(on: boolean): void;

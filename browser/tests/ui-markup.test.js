@@ -80,11 +80,11 @@ const IDS = [
     'chat-server-select', 'chat-server-status-row', 'chat-server-status', 'chat-cors-note',
     // Project description / keywords modals (stencil-description-modal, stencil-keywords-modal).
     'description-overlay', 'description-close', 'description-text', 'description-cancel', 'description-save',
-    'keywords-overlay', 'keywords-close', 'keywords-text', 'keywords-cancel', 'keywords-save'
+    'keywords-overlay', 'keywords-close', 'keywords-input', 'keywords-add', 'keywords-chips', 'keywords-clear', 'keywords-cancel', 'keywords-save'
 ];
 
-test('fixture has exactly 258 IDs', () => {
-    assert.strictEqual(IDS.length, 258);   // -1: the custom page boxes' unit suffix is gone
+test('fixture has exactly 261 IDs', () => {
+    assert.strictEqual(IDS.length, 261);   // +3: keywords-text became input + add + chips + clear
 });
 
 test('every static body ID is present exactly once', () => {

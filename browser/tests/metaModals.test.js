@@ -1,7 +1,8 @@
 // The toolbar's "Description & attributes" section (js/ui/toolbar.js) and its two windows
 // (descriptionModal.js, keywordsModal.js). Pins: the section sits between Image and Projects
 // and holds description → keywords → links (links-btn moved out of Image); the modals share
-// the app-modal shell (header + × Close, body textarea, hint-left / Cancel + Save footer);
+// the app-modal shell (header + × Close, hint-left / Cancel + Save footer) around their own
+// field — a text area for description, keywordChips.js's input + chip well for keywords;
 // and all three buttons gate together on a SAVED, non-incognito project (controlState.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -49,7 +50,7 @@ test('the three buttons agree on the project rule in their disabled reasons + to
 test('description and keywords modals share the app-modal shell', () => {
   for (const [name, ids] of [
     ['description', ['description-overlay', 'description-close', 'description-text', 'description-cancel', 'description-save']],
-    ['keywords', ['keywords-overlay', 'keywords-close', 'keywords-text', 'keywords-cancel', 'keywords-save']],
+    ['keywords', ['keywords-overlay', 'keywords-close', 'keywords-input', 'keywords-add', 'keywords-chips', 'keywords-clear', 'keywords-cancel', 'keywords-save']],
   ]) {
     for (const id of ids) assert.equal(count(`id="${id}"`), 1, `${id} appears once`);
     const start = markup.indexOf(`id="${name}-overlay"`);
@@ -58,14 +59,29 @@ test('description and keywords modals share the app-modal shell', () => {
     assert.ok(m.startsWith(`id="${name}-overlay" class="app-modal-overlay"`), 'the shared overlay host');
     assert.ok(m.includes('<div class="app-modal">'));
     assert.match(m, new RegExp(`<div class="settings-header">\\s*<h2>.*?</h2>\\s*<button class="app-modal-close btn-icon-text" id="${name}-close">.*?<span>Close</span></button>`, 's'));
-    assert.match(m, new RegExp(`<div class="settings-body">\\s*<textarea id="${name}-text" class="confirm-prompt-input" rows="\\d+" placeholder="[^"]+"></textarea>`));
-    // Footer: hint left, then Cancel + accent Save right (llmSettingsModal's shape).
-    assert.match(m, new RegExp(`<div class="settings-footer">\\s*<span class="footer-hint">[^<]+</span>\\s*<span class="chat-settings-actions">\\s*<button id="${name}-cancel" class="btn-icon-text">.*?<span>Cancel</span></button>\\s*<button id="${name}-save" class="btn-icon-text primary">.*?<span>Save</span></button>`, 's'));
+    // The field owns the body, so the window's every extra pixel goes to it.
+    assert.ok(m.includes('<div class="settings-body meta-body">'), `${name}: the field fills the body`);
+    // Footer: hint left (keywords carries none), then the field's own verb (if any) +
+    // Cancel + accent Save right.
+    assert.match(m, new RegExp(`<div class="settings-footer">\\s*<span class="footer-hint">[^<]*</span>\\s*<span class="chat-settings-actions">\\s*(<button id="${name}-clear".*?</button>\\s*)?<button id="${name}-cancel" class="btn-icon-text">.*?<span>Cancel</span></button>\\s*<button id="${name}-save" class="btn-icon-text primary">.*?<span>Save</span></button>`, 's'));
   }
-  assert.ok(markup.includes('placeholder="Describe this project…"'));
-  assert.ok(markup.includes('Shown in the projects list and its tooltip.'));
-  assert.ok(markup.includes('placeholder="keyword, another keyword…"'));
-  assert.ok(markup.includes('Comma or space separated · used by the projects search.'));
+  // Description: one text area filling the body.
+  assert.match(markup, /<div class="settings-body meta-body"><textarea id="description-text" class="confirm-prompt-input meta-text" rows="\d+" placeholder="Describe this project…"><\/textarea><\/div>/);
+  // Neither window carries a footer caption — the field says what it is.
+  assert.match(markup, /id="description-overlay"[\s\S]*?<span class="footer-hint"><\/span>/);
+  // Keywords: the word being proposed, over the well the chips are rendered into.
+  assert.match(markup, /<input type="text" id="keywords-input" class="confirm-prompt-input" placeholder="Add a keyword…"/);
+  // No tooltip on Add: the placeholder beside it already says what it does.
+  assert.match(markup, /<button id="keywords-add" class="btn-icon-text primary">.*?<span>Add<\/span><\/button>/s);
+  assert.match(markup, /<div class="kw-chips" id="keywords-chips" role="list"><\/div>/);
+  // Clear all is a footer verb beside Cancel, never a button over the well.
+  // No tooltip on either verb: their labels say it.
+  assert.match(markup, /id="keywords-clear" class="btn-icon-text danger">[\s\S]*?<span>Clear all<\/span><\/button>\s*<button id="keywords-cancel"/);
+  assert.equal(count('id="description-clear"'), 0, 'only keywords carries Clear all');
+  // The keywords window carries no footer caption — the field says it all.
+  assert.match(markup, /id="keywords-overlay"[\s\S]*?<span class="footer-hint"><\/span>/);
+  // The old free-text field is gone from the keywords window.
+  assert.equal(count('id="keywords-text"'), 0);
 });
 
 // ── controlState: the project gate ───────────────────────────────────────────

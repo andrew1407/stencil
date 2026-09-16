@@ -1,4 +1,5 @@
 import { popoverPosition, wireModalOpenGestures } from './popover.js';
+import { wireModalDrag } from './modalDrag.js';
 import { sweepDust } from './motion.js';
 import { isTypingTarget } from '../utils.js';
 import { modalShells, wireEscapeOnce, closeOpenModal } from './modalRegistry.js';
@@ -15,6 +16,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   // A caller can pass another origin (the idle canvas's "＋ Blank image" card opens the
   // same dialog and grows out of itself).
   const flight = createModalFlight(overlay, boxOf);
+  const drag = wireModalDrag(overlay, boxOf);
   const { reducedMotion, finishClose, playDust } = flight;
   let originEl = openBtn;
   // Where the close flies back to when a context-menu row is gone by then: the "⋯" that
@@ -51,6 +53,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     stackedNow = stackThisOpen;
     if (!stackedNow) closeOpenModal(api);
     finishClose();
+    drag.reset();   // a window opens where its flight puts it, never where it was dragged
     onOpen?.();
     overlay.classList.add('modal-open');
     // The box has no size while display:none.
@@ -86,6 +89,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // Unless the anchor is hidden (a gear inside the menu that just closed).
     const ar = anchorEl?.getBoundingClientRect?.();
     originEl = (ar && ar.width > 0 && ar.height > 0) ? anchorEl : defaultOrigin();
+    drag.reset();
     overlay.classList.add('modal-open', 'modal-popover');
     const box = boxOf();
     if (box && anchorEl?.getBoundingClientRect) {

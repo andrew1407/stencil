@@ -1,5 +1,6 @@
 export type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
-export interface MotionPrefs { mode: MotionMode; drawing: boolean; }
+export interface MotionPrefs { mode: MotionMode; drawing: boolean;
+  backdrop: boolean; }
 
 export declare const MOTION_STORAGE_KEY: string;
 /** Fired after every change (bus/appBus.js EVENTS.motionChanged). */
@@ -18,6 +19,9 @@ export declare const normalizeMotionMode: (v: unknown) => MotionMode;
 export declare const motionPrefs: () => MotionPrefs;
 export declare const motionMode: () => MotionMode;
 export declare const drawingAnimations: () => boolean;
+/** Whether an open window dims and blurs what it covers. Desktop twin: motionPrefs.hpp. */
+export declare const modalBackdrop: () => boolean;
+export declare const DEFAULT_MODAL_BACKDROP: boolean;
 /** Reads prefers-reduced-motion live, at call time. */
 export declare const prefersReducedMotion: () => boolean;
 /** True when mode is 'none' or the OS prefers reduced motion. */

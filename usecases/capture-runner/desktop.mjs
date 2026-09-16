@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadCaptureConfig } from './lib/captureConfig.mjs';
-import { outDir, repoPath, scratchDir } from './lib/paths.mjs';
+import { outDir, repoPath, scratchDir, scratchPath } from './lib/paths.mjs';
 import { makeShotRunner } from './lib/shotRunner.mjs';
 import { pairNames } from './lib/themeSelector.mjs';
 import { framesToGif, quantizePng } from './lib/gifTools.mjs';
@@ -22,10 +22,24 @@ console.log('desktop build');
 run('cmake', ['-S', repoPath('desktop'), '-B', BUILD, '-DSTENCIL_DOCS_CAPTURE=ON']);
 run('cmake', ['--build', BUILD, '--target', 'stencil_docs_capture', '-j']);
 
+// The offscreen platform's own screen is 800x800, and the tall dialogs take their height
+// from availableGeometry (modalChrome sizeModalTall: 82% of it, capped at 760), so they
+// photographed hundreds of pixels shorter than the app opens them on a real display. The
+// plugin gets a screen the size of one instead — in DEVICE pixels, which QT_SCALE_FACTOR
+// then divides, so the figure is scaled up to leave 1920x1200 of logical room.
+const SCREEN_PX = { w: 1920, h: 1200 };
+const SCREEN_FILE = scratchPath('desktop-screen.json');
+fs.writeFileSync(SCREEN_FILE, JSON.stringify({
+  screens: [{ name: 'docs', x: 0, y: 0,
+              width: SCREEN_PX.w * config.get('scaleFactor'),
+              height: SCREEN_PX.h * config.get('scaleFactor'),
+              logicalDpi: 96, logicalBaseDpi: 96, dpr: 1 }],
+}));
+
 // What config/shared.json says, handed to the Qt binary: it holds no URLs of its own.
 const token = config.serverToken();
 const env = {
-  QT_QPA_PLATFORM: 'offscreen',
+  QT_QPA_PLATFORM: `offscreen:configfile=${SCREEN_FILE}`,
   STENCIL_DOCS_OUT: runner.out,
   STENCIL_DOCS_FRAMES: FRAMES,
   STENCIL_DOCS_FAVICON_URL: config.url('favicon'),

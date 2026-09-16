@@ -81,6 +81,7 @@ namespace stencil::gui {
     // own closing flight included.
     support::setMotionMode(support::motionModeFromKey(s.motionMode));
     support::setDrawingAnimations(s.drawingAnimations);
+    support::setModalBackdrop(s.modalBackdrop);
     canvas_->setDefaults(s.defaultColor, s.defaultThickness, s.defaultPointSize,
                          s.defaultStyle, s.defaultPointColor);
     canvas_->setHoldDrawDelay(s.holdDrawDelay);

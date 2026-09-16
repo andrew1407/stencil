@@ -156,6 +156,10 @@ namespace stencil::gui {
           "Off: every point goes straight down.");
     row(tr("Drawing animation"), drawAnim_, /*column=*/false);
 
+    check(modalBackdrop_, current.modalBackdrop,
+          "On: an open window dims and blurs what it covers.\nOff: it sits on a sharp page.");
+    row(tr("Dim and blur behind windows"), modalBackdrop_, /*column=*/false);
+
     motionMode_ = combo(QString());   // no tooltip — the browser's dropdown has none (the glyphs say it)
     motionMode_->setObjectName(QStringLiteral("motionModeCombo"));
     // The browser's MOTION_MODE_LABELS, in its order (ui/motionPrefs.js).

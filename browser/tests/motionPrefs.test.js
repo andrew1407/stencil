@@ -37,14 +37,14 @@ test('the defaults are "everything moves, made of particles"', () => {
   assert.deepEqual(MOTION_MODES, ['particles', 'water', 'fire', 'slide', 'none']);
   assert.deepEqual(PARTICLE_MODES, ['particles', 'water', 'fire']);
   assert.equal(DEFAULT_MOTION_MODE, 'particles');
-  assert.deepEqual(motionPrefs(), { mode: 'particles', drawing: true });
+  assert.deepEqual(motionPrefs(), { mode: 'particles', drawing: true, backdrop: true });
   // The dropdown offers every mode, in this order, and nothing else.
   assert.deepEqual(MOTION_MODE_LABELS.map(([k]) => k), MOTION_MODES);
 });
 
 // Water and fire are particles too: the same gate, a different style on the grains.
 test('water and fire fly particles like dust, each wearing its own style', () => {
-  setMotionPrefs({ mode: 'particles', drawing: true });
+  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true });
   assert.equal(particleStyle(), 'dust');
   setMotionPrefs({ mode: 'water' });
   assert.equal(dustEnabled(), true, 'water: the clouds still fly');
@@ -54,7 +54,7 @@ test('water and fire fly particles like dust, each wearing its own style', () =>
   setMotionPrefs({ mode: 'fire' });
   assert.equal(dustEnabled(), true);
   assert.equal(particleStyle(), 'fire');
-  assert.deepEqual(reloadMotionPrefs(), { mode: 'fire', drawing: true }, 'persists like any mode');
+  assert.deepEqual(reloadMotionPrefs(), { mode: 'fire', drawing: true, backdrop: true }, 'persists like any mode');
   setMotionPrefs({ mode: 'slide' });
   assert.equal(particleStyle(), null, 'no particles, no style');
   setMotionPrefs({ mode: 'particles' });
@@ -69,9 +69,9 @@ test('an unknown, missing or junk mode reads as the default — never as "off"',
   assert.equal(normalizeMotionMode('sparkles'), 'particles');
   assert.equal(normalizeMotionMode(undefined), 'particles');
   store.set(MOTION_STORAGE_KEY, '{ not json');
-  assert.deepEqual(reloadMotionPrefs(), { mode: 'particles', drawing: true });
+  assert.deepEqual(reloadMotionPrefs(), { mode: 'particles', drawing: true, backdrop: true });
   store.set(MOTION_STORAGE_KEY, JSON.stringify({ mode: 'nope', drawing: 0 }));
-  assert.deepEqual(reloadMotionPrefs(), { mode: 'particles', drawing: false });
+  assert.deepEqual(reloadMotionPrefs(), { mode: 'particles', drawing: false, backdrop: true });
   store.delete(MOTION_STORAGE_KEY);
   reloadMotionPrefs();
 });
@@ -80,20 +80,20 @@ test('a change persists, restamps <html data-motion> and announces itself', () =
   events.length = 0;
   setMotionPrefs({ mode: 'slide' });
   assert.equal(motionMode(), 'slide');
-  assert.deepEqual(JSON.parse(store.get(MOTION_STORAGE_KEY)), { mode: 'slide', drawing: true });
+  assert.deepEqual(JSON.parse(store.get(MOTION_STORAGE_KEY)), { mode: 'slide', drawing: true, backdrop: true });
   assert.equal(doc.documentElement.attrs.get('data-motion'), 'slide');
   assert.equal(events.at(-1).type, MOTION_EVENT);
-  assert.deepEqual(events.at(-1).detail, { mode: 'slide', drawing: true });
+  assert.deepEqual(events.at(-1).detail, { mode: 'slide', drawing: true, backdrop: true });
   // A patch touches only what it names.
   setMotionPrefs({ drawing: false });
-  assert.deepEqual(motionPrefs(), { mode: 'slide', drawing: false });
+  assert.deepEqual(motionPrefs(), { mode: 'slide', drawing: false, backdrop: true });
   // …and a fresh load reads back exactly what was written.
-  assert.deepEqual(reloadMotionPrefs(), { mode: 'slide', drawing: false });
+  assert.deepEqual(reloadMotionPrefs(), { mode: 'slide', drawing: false, backdrop: true });
 });
 
 // The truth table every helper in the app leans on.
 test('particles / slide / none each answer the two gates differently', () => {
-  setMotionPrefs({ mode: 'particles', drawing: true });
+  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true });
   assert.equal(motionReduced(), false);
   assert.equal(dustEnabled(), true, 'particles: dust flies');
   assert.equal(drawMotionEnabled(), true);
@@ -110,7 +110,7 @@ test('particles / slide / none each answer the two gates differently', () => {
 });
 
 test('the drawing switch is independent of the interface mode', () => {
-  setMotionPrefs({ mode: 'particles', drawing: false });
+  setMotionPrefs({ mode: 'particles', drawing: false, backdrop: true });
   assert.equal(drawingAnimations(), false);
   assert.equal(drawMotionEnabled(), false, 'the canvas is still');
   assert.equal(dustEnabled(), true, 'while the windows still form out of dust');
@@ -118,7 +118,7 @@ test('the drawing switch is independent of the interface mode', () => {
 
 // The OS preference is never overridden by ours: reduce means reduce, whatever is stored.
 test('prefers-reduced-motion wins over any stored mode', () => {
-  setMotionPrefs({ mode: 'particles', drawing: true });
+  setMotionPrefs({ mode: 'particles', drawing: true, backdrop: true });
   reduced = true;
   assert.equal(motionReduced(), true);
   assert.equal(dustEnabled(), false);
@@ -165,18 +165,25 @@ test('the mode reaches the CSS before first paint, and stops what CSS alone driv
   assert.match(css, /\.chat-slide-in \{ animation: chatRiseIn/);
 });
 
-test('both switches are in the Visuals modal and on the console facade', () => {
+test('every switch is in the Visuals modal and on the console facade', () => {
   const markup = read('../js/ui/visualsMarkup.js');
   assert.match(markup, /<div class="vs-section">Motion<\/div>/);
   assert.match(markup, /id="vs-draw-anim"/);
+  assert.match(markup, /id="vs-modal-backdrop"/);
   assert.match(markup, /id="vs-motion-mode"/);
   const modal = read('../js/ui/visualsModal.js');
-  assert.match(modal, /app\.settings\.setMotion\('drawing', drawAnim\.checked\)/);
+  // The checkboxes are one table — id ↔ motionPrefs key — read on sync, written on change.
+  assert.match(modal, /\['vs-draw-anim', 'drawing'\], \['vs-modal-backdrop', 'backdrop'\]/);
+  assert.match(modal, /setMotion\(key, box\.checked\)/);
   assert.match(modal, /app\.settings\.setMotion\('mode', motionMode\.value\)/);
-  // Reset All restores them along with the colours.
-  assert.match(modal, /setMotion\('mode', DEFAULT_MOTION_MODE\)/);
+  // Reset All restores every one of them along with the colours, from the same table.
+  assert.match(modal, /\['drawing', DEFAULT_DRAWING_ANIMATIONS\]/);
+  assert.match(modal, /\['backdrop', DEFAULT_MODAL_BACKDROP\]/);
+  assert.match(modal, /\['mode', DEFAULT_MOTION_MODE\]/);
+  assert.match(modal, /for \(const \[k, v\] of motionDefaults\) app\.settings\.setMotion\(k, v\)/);
   const api = read('../js/console/settingsFacade.js');   // the facade's settings namespace
   assert.match(api, /get drawingAnimations\(\) \{ return motionPrefs\(\)\.drawing; \}/);
+  assert.match(api, /set modalBackdrop\(v\) \{ app\.settings\.setMotion\('backdrop', !!v\); \}/);
   assert.match(api, /set motionMode\(v\) \{ app\.settings\.setMotion\('mode', v\); \}/);
   // Both surfaces come through the ONE setter, which is also what rejects a bad mode.
   const controller = read('../js/core/settingsController.js');

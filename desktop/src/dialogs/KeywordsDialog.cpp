@@ -1,47 +1,24 @@
 #include "KeywordsDialog.hpp"
+#include "KeywordChips.hpp"
 #include "projectMetaDialog.hpp"
 
-#include <QKeyEvent>
-#include <QPlainTextEdit>
-#include <QRegularExpression>
+#include <QLineEdit>
 
 namespace stencil::gui {
 
   KeywordsDialog::KeywordsDialog(const QStringList& current, QWidget* parent)
       : QDialog(parent) {
-    edit_ = buildProjectMetaDialog(this,
-                                   {QStringLiteral("keywords"), QStringLiteral("keywords"),
-                                    tr("Project keywords"), tr("keyword, another keyword…"),
-                                    tr("Comma or space separated · used by the projects search."),
-                                    tr("Cancel"), tr("Save"), 3},
-                                   current.join(QLatin1String(", ")));
-    edit_->installEventFilter(this);
+    const ProjectMetaDialogSpec spec{
+        QStringLiteral("keywords"), QStringLiteral("keywords"), tr("Project keywords"),
+        QString(), QString(), tr("Cancel"), tr("Save"), 5};
+    ModalChrome chrome = startProjectMetaDialog(this, spec);
+    chips_ = new KeywordChips(current, this);
+    chrome.body->addWidget(chips_, 1);
+    finishProjectMetaDialog(this, chrome, spec, chips_->clearButton(), chips_->input());
+    chips_->input()->setFocus();
   }
 
-  // A keyword list is one line: Enter saves it (browser parity), Shift+Enter still
-  // types a newline for anyone pasting a column of words.
-  bool KeywordsDialog::eventFilter(QObject* obj, QEvent* event) {
-    if (obj == edit_ && event->type() == QEvent::KeyPress) {
-      auto* ke = static_cast<QKeyEvent*>(event);
-      if ((ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter)
-          && !(ke->modifiers() & Qt::ShiftModifier)) {
-        accept();
-        return true;
-      }
-    }
-    return QDialog::eventFilter(obj, event);
-  }
-
-  QStringList KeywordsDialog::keywords() const { return parse(edit_->toPlainText()); }
-
-  QStringList KeywordsDialog::parse(const QString& raw) {
-    QStringList out;
-    for (const QString& word : raw.split(QRegularExpression("[\\s,]+"), Qt::SkipEmptyParts)) {
-      const QString k = word.toLower();
-      if (!out.contains(k)) out << k;
-    }
-    return out;
-  }
+  QStringList KeywordsDialog::keywords() const { return chips_->keywords(); }
 
   bool KeywordsDialog::apply(std::vector<Project>& projects, const QString& id,
                              const QStringList& keywords, long long now) {

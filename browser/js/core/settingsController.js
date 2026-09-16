@@ -4,6 +4,7 @@ import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../ui/motionPrefs.js'
 import {
   applyMirror, paintFormulaToggle, paintFormulaError,
   readControl, forEachControl, paintTooltipOption, paintMotionMode, paintMotionDrawing,
+  paintMotionBackdrop,
 } from '../ui/settingMirrors.js';
 import { SETTINGS } from './settingsRegistry.js';
 
@@ -168,9 +169,9 @@ export class SettingsController {
     try { app.tooltipMgr?.refresh?.(); } catch { /* tooltip not mounted */ }
   }
 
-  // key ∈ 'mode' (particles | water | fire | slide | none) | 'drawing'. App-wide, not part of
-  // the project — the shared store, but still the ONE funnel the visuals modal and the
-  // console facade both come through.
+  // key ∈ 'mode' (particles | water | fire | slide | none) | 'drawing' | 'backdrop'. App-wide,
+  // not part of the project — the shared store, but still the ONE funnel the visuals modal and
+  // the console facade both come through.
   setMotion(key, value) {
     if (key === 'mode') {
       const m = String(value).trim().toLowerCase();
@@ -181,8 +182,11 @@ export class SettingsController {
     } else if (key === 'drawing') {
       setMotionPrefs({ drawing: !!value });
       paintMotionDrawing(value);
+    } else if (key === 'backdrop') {
+      setMotionPrefs({ backdrop: !!value });
+      paintMotionBackdrop(value);
     } else {
-      throw new Error(`Unknown motion setting: ${key} (use mode | drawing)`);
+      throw new Error(`Unknown motion setting: ${key} (use mode | drawing | backdrop)`);
     }
     return motionPrefs();
   }

@@ -6,7 +6,7 @@ import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/accents.js'
 import { motionPrefs, MOTION_MODES } from '../ui/motionPrefs.js';
 import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
 import { validateHexColor } from '../core/validation.js';
-import { str } from './coerce.js';
+import { splitKeywords, str } from './coerce.js';
 
 export const createSettingsFacade = ({ app, guard }) => {
   // ── Settings namespace (fresh object per access; setters close over app) ──
@@ -59,7 +59,7 @@ export const createSettingsFacade = ({ app, guard }) => {
     },
     // Active project's free-text description ('' when unset) and search keywords (string[]).
     // Both need an active project to write to (same rule as projectColor); the keywords
-    // setter also takes a comma/space-separated string, and the store normalizes the list.
+    // setter takes the same shapes stencil.current.keywords does (coerce.js splitKeywords).
     get description() {
       const id = app.activeProjectId;
       return id != null ? (app.storage.store.getMeta(id)?.description || '') : '';
@@ -76,8 +76,7 @@ export const createSettingsFacade = ({ app, guard }) => {
     set keywords(v) {
       const id = app.activeProjectId;
       if (id == null) throw new Error('No active project to tag');
-      const list = Array.isArray(v) ? v : str(v).split(/[\s,]+/);
-      if (app.setProjectKeywords(id, list) == null) throw new Error(`Could not set keywords on project ${id}`);
+      if (app.setProjectKeywords(id, splitKeywords(v)) == null) throw new Error(`Could not set keywords on project ${id}`);
     },
     get drawMode() { return app.drawMode; }, set drawMode(v) { app.setDrawMode(String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
     // Hold-to-draw hold/dwell delay in milliseconds (clamped 100–3000). See holdDraw.js.
@@ -96,6 +95,10 @@ export const createSettingsFacade = ({ app, guard }) => {
     get motionMode() { return motionPrefs().mode; },
     set motionMode(v) { app.settings.setMotion('mode', v); },
     get motionModes() { return MOTION_MODES.slice(); },
+    // Whether an open window dims and blurs what it covers. Desktop twin: the same row in
+    // its Visuals dialog (support/motionPrefs.hpp modalBackdrop).
+    get modalBackdrop() { return motionPrefs().backdrop; },
+    set modalBackdrop(v) { app.settings.setMotion('backdrop', !!v); },
     get fillColor() { return app.defaultFillColor; }, set fillColor(v) { app.settings.setVisualColor('fill', toHexColor(v)); },
     get selectionGlow() { return app.selGlowColor; }, set selectionGlow(v) { app.settings.setVisualColor('selGlow', toHexColor(v)); },
     get hoverRing() { return app.hoverRingColor; }, set hoverRing(v) { app.settings.setVisualColor('hoverRing', toHexColor(v)); },

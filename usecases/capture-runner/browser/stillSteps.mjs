@@ -25,6 +25,17 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
     run: async (ctx, theme) => {
       const page = await shared(ctx, theme);
       if (image) await withImage(page, image);
+      // The keywords window photographs its CONTENT — empty chips say nothing about what it
+      // holds — through the console facade, the same setter the app itself uses. The
+      // description window keeps an EMPTY field, which shows the prompt instead.
+      if (key === 'keywords') {
+        await page.evaluate(() => {
+          // The setter, not addKeywords: the page is shared across steps, so the list must
+          // be what this shot asks for rather than whatever accumulated before it.
+          const p = window.stencil.current;
+          if (p) p.keywords = ['kitchen', 'floor plan', 'survey', 'draft', 'north wall'];
+        });
+      }
       if (trigger) {
         await page.locator(trigger).click();
         await expectModalOpen(page, overlay);

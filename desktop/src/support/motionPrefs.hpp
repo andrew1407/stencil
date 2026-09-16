@@ -26,6 +26,10 @@ namespace stencil::support {
       static bool on = true;
       return on;
     }
+    inline bool& modalBackdropState() {
+      static bool on = true;   // browser motionPrefs.js DEFAULT_MODAL_BACKDROP
+      return on;
+    }
     // Pushed by MainWindow::applyTheme; violet and its shade until then.
     inline QColor& particleAccentState() {
       static QColor c(0x7c, 0x3a, 0xed);
@@ -76,6 +80,11 @@ namespace stencil::support {
   // The canvas stroke motion (canvas/strokeGrowth.hpp), switchable on its own.
   inline bool drawingAnimations() { return detail::drawingAnimationsState(); }
   inline void setDrawingAnimations(bool on) { detail::drawingAnimationsState() = on; }
+
+  // Whether an open window dims and blurs what is behind it (support/ModalBackdrop).
+  // Browser twin: motionPrefs.js modalBackdrop().
+  inline bool modalBackdrop() { return detail::modalBackdropState(); }
+  inline void setModalBackdrop(bool on) { detail::modalBackdropState() = on; }
 
   // Qt has no portable reduce-motion hint; this env var is the opt-out that overrides the mode.
   inline bool motionReduced() {

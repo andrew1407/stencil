@@ -10,8 +10,11 @@ export const MOTION_STORAGE_KEY = 'drawingApp_motion';
 // Fired after every change, so an open dialog can restate its controls.
 export const MOTION_EVENT = EVENTS.motionChanged;
 const MOTION_ATTR = 'data-motion';
+const BACKDROP_ATTR = 'data-modal-backdrop';
 
 const MOTION_PARTICLES = 'particles';
+// On by default: a window that dims what it covers is the shape both surfaces ship with.
+export const DEFAULT_MODAL_BACKDROP = true;
 const MOTION_WATER = 'water';
 const MOTION_FIRE = 'fire';
 const MOTION_SLIDE = 'slide';
@@ -42,6 +45,7 @@ export const normalizeMotionMode = (v) => {
 
 const defaultMotionPrefs = () => ({
   mode: DEFAULT_MOTION_MODE, drawing: DEFAULT_DRAWING_ANIMATIONS,
+  backdrop: DEFAULT_MODAL_BACKDROP,
 });
 
 // Bad/missing data degrades to defaults.
@@ -54,6 +58,7 @@ const readMotionPrefs = () => {
     if (saved && typeof saved === 'object') {
       out.mode = normalizeMotionMode(saved.mode);
       if (saved.drawing !== undefined) out.drawing = !!saved.drawing;
+      if (saved.backdrop !== undefined) out.backdrop = !!saved.backdrop;
     }
   } catch { /* storage blocked or the blob is junk — the defaults stand */ }
   return out;
@@ -64,6 +69,9 @@ let prefs = readMotionPrefs();
 export const motionPrefs = () => ({ ...prefs });
 export const motionMode = () => prefs.mode;
 export const drawingAnimations = () => prefs.drawing;
+// Whether an open window blurs and darkens what is behind it. Desktop twin:
+// support/motionPrefs.hpp modalBackdrop().
+export const modalBackdrop = () => prefs.backdrop;
 
 // Asked at call time so a mid-session change is followed.
 export const prefersReducedMotion = () =>
@@ -84,6 +92,8 @@ export const drawMotionEnabled = () => prefs.drawing && !motionReduced();
 // Mirrors what prePaintTheme.js writes before first paint.
 export const applyMotionAttr = (root = typeof document !== 'undefined' ? document.documentElement : null) => {
   root?.setAttribute?.(MOTION_ATTR, prefs.mode);
+  // A plain attribute, so the blur is a CSS rule rather than a per-overlay inline style.
+  root?.toggleAttribute?.(BACKDROP_ATTR, prefs.backdrop);
 };
 
 // Persist, restamp <html>, announce. An unknown mode falls back to the default (the console
@@ -92,6 +102,7 @@ export const setMotionPrefs = (patch = {}) => {
   const next = { ...prefs };
   if (patch.mode !== undefined) next.mode = normalizeMotionMode(patch.mode);
   if (patch.drawing !== undefined) next.drawing = !!patch.drawing;
+  if (patch.backdrop !== undefined) next.backdrop = !!patch.backdrop;
   prefs = next;
   try { ls()?.setItem(MOTION_STORAGE_KEY, JSON.stringify(prefs)); } catch { /* storage blocked — this session still honours it */ }
   applyMotionAttr();

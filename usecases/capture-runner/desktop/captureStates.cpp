@@ -14,6 +14,7 @@
 #include <QPlainTextEdit>
 #include <QScrollArea>
 #include <QToolButton>
+#include <algorithm>
 #include <QtTest/QTest>
 
 using namespace stencil::gui;
@@ -182,6 +183,31 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
     win.actChat_->setChecked(false);
     pumpFor(100);
   }
+
+  // The meta windows are gated on a SAVED project, so give them one — with keywords, which
+  // say what that window holds, and no description, which photographs better as its prompt.
+  // The lines stay on the canvas too: every window now dims and blurs what it covers
+  // (support/ModalBackdrop), and a flat white blank behind the glass reads as a bug.
+  canvas->setLines({line({{140, 150}, {520, 260}, {330, 520}}, "#c81e1e", 4, "solid"),
+                    line({{610, 170}, {860, 540}}, "#1e63c8", 3, "dashed"),
+                    line({{200, 560}, {780, 600}}, "#2e9e4f", 3, "dotted")});
+  {
+    win.projectList_.erase(std::remove_if(win.projectList_.begin(), win.projectList_.end(),
+                                          [](const stencil::gui::Project& p) {
+                                            return p.meta.id == "usecases-doc";
+                                          }),
+                           win.projectList_.end());
+    stencil::gui::Project pr;
+    pr.meta.id = "usecases-doc";
+    pr.meta.name = "Kitchen plan";
+    // Keywords, but NO description: the description window is photographed empty, showing
+    // the prompt that says what to type there.
+    pr.meta.keywords = {"kitchen", "floor plan", "survey", "draft", "north wall"};
+    win.projectList_.push_back(pr);
+    win.activeProjectId_ = "usecases-doc";
+    win.refreshActions();
+  }
+  fit();
 
   const struct { const char* action; QString name; } dialogs[] = {
     {"Visuals & Settings…", suffixed("settings-dialog", theme)},

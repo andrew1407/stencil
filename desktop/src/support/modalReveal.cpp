@@ -1,4 +1,5 @@
 #include "modalReveal.hpp"
+#include "ModalBackdrop.hpp"
 #include "DisintegrateOverlay.hpp"
 #include <QEvent>
 
@@ -309,13 +310,11 @@ namespace stencil::support {
     w.hide();
   }
 
-  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect) {
-    revealDialog(dlg, anchor, anchorRect, QRect());
-  }
-
-  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
-                    const QRect& closeRect) {
+  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect) { revealDialog(dlg, anchor, anchorRect, QRect()); }
+  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect, const QRect& closeRect) {
     dlg.setProperty(REVEALED_PROPERTY, true);
+    // A WINDOW dims and blurs what it covers; the popover flies itself and stays undimmed.
+    ModalBackdrop::behind(&dlg, dlg.parentWidget() ? dlg.parentWidget()->window() : nullptr);
     flyDialog(dlg, anchor, anchorRect, closeRect);
   }
 
