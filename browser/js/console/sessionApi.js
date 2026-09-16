@@ -26,10 +26,11 @@ export const createSessionApi = ({ app, connMgr }) => {
       const size = opts.size || {};
       const address = opts.address || null;
       if (address) requireConnection(connMgr, address);   // validate before replacing
+      const previous = app.image;   // a blank over a blank: wait for the SWAP, not for "an image exists"
       const blankOpts = { color, width: size.width, height: size.height };
       if (address) blankOpts.address = address;
-      await app.createBlankImage(blankOpts);   // awaited: the swap is already done
-      await waitForImage();
+      await app.createBlankImage(blankOpts);
+      await waitForImage(8000, previous);
       return stencil;
     },
     // Save the session: a server-linked project writes back to its origin server

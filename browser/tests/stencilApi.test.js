@@ -909,6 +909,21 @@ test('blank() creates a solid image via the app and resolves to the facade', asy
   assert.deepEqual(stencil.imageSize, { width: 800, height: 600 });
 });
 
+// The real createBlankImage hands its blob to the async decode path, so the new picture lands
+// some frames after the promise settles. Waiting for "an image exists" would hand a chained
+// crop/apply the OUTGOING one — imageLoadFlow.waitForImage takes `previous` for exactly this.
+test('blank() over an existing image waits for the swap, not for "an image exists"', async () => {
+  const app = makeApp({ image: { width: 111, height: 222 } });
+  app.createBlankImage = (opts) => {
+    setTimeout(() => { app.image = { width: opts.width, height: opts.height }; }, 30);
+    return Promise.resolve();
+  };
+  const stencil = createStencil(app);
+
+  await stencil.blank('red', { size: { width: 800, height: 600 } });
+  assert.deepEqual(stencil.imageSize, { width: 800, height: 600 });
+});
+
 // ── Project collections ───────────────────────────────────────────────────────────
 test('project collections: opened / archived / getProjects honour the open set', () => {
   const app = withProjects();   // active id 1; metas Alpha(1), Beta(2)
@@ -973,7 +988,7 @@ test('point x/y setters write absolute coords; pt.remove drops the point (and em
 
 // ── Prototype-pollution lock-in ─────────────────────────────────────────────────────
 // Security regression guards: the facade must never let a caller-supplied object walk into
-// Object.prototype. `apply()` iterates a FIXED key allowlist (never Object.keys(opts)), and
+// Object.prototype. `apply()` iterates stencil.settings' OWN keys (never Object.keys(opts)), and
 // the layout setter routes to applyPastedLayout → validateLayout, whose sanitizeLines rebuilds
 // each line from a whitelist onto a fresh plain object (dropping __proto__/constructor/…).
 test('apply() ignores a polluting __proto__ payload and never touches Object.prototype', () => {
@@ -981,19 +996,37 @@ test('apply() ignores a polluting __proto__ payload and never touches Object.pro
   const stencil = createStencil(app);
 
   // Object-literal form: `__proto__` is the object's prototype, not an own key — apply()
-  // still only reads its allowlisted keys, so nothing reaches Object.prototype.
+  // still only reads the settings namespace's keys, so nothing reaches Object.prototype.
   stencil.apply({ __proto__: { polluted: 1 }, thickness: 3 });
   assert.equal(({}).polluted, undefined);
   assert.equal(Object.prototype.polluted, undefined);
   assert.deepEqual(lastCall(app, 'setThickness'), ['setThickness', 3]);   // legit key still routed
 
   // JSON-parsed form: here `__proto__` IS an own enumerable key. apply() never iterates it
-  // (it walks a fixed allowlist), so it can't be re-assigned onto anything shared.
+  // (it walks its own key list), so it can't be re-assigned onto anything shared.
   const evil = JSON.parse('{"__proto__":{"polluted":2},"thickness":5}');
   stencil.apply(evil);
   assert.equal(({}).polluted, undefined);
   assert.equal(Object.prototype.polluted, undefined);
   assert.deepEqual(lastCall(app, 'setThickness'), ['setThickness', 5]);
+});
+
+// ApplyOptions extends Partial<StencilSettings> (stencilApi.d.ts), so a subset would make the
+// type lie: a key it skipped would be dropped in silence rather than rejected.
+test('apply() routes EVERY writable settings key, and never a read-only one', () => {
+  const app = makeApp();
+  const stencil = createStencil(app);
+
+  stencil.apply({ thickness: 4, darkTheme: false, mainTheme: 'aqua', holdDrawDelay: 900,
+                  pageSize: 'custom', pageWidth: 12, mainThemes: ['nope'] });
+  assert.deepEqual(lastCall(app, 'setThickness'), ['setThickness', 4]);
+  assert.deepEqual(lastCall(app, 'setTheme'), ['setTheme', 'light']);
+  assert.deepEqual(lastCall(app, 'setAccent'), ['setAccent', 'aqua']);
+  assert.deepEqual(lastCall(app, 'setHoldDrawDelay'), ['setHoldDrawDelay', 900]);
+  // 'custom' is chosen before the dimensions it applies to.
+  assert.deepEqual(lastCall(app, 'setPageSize'), ['setPageSize', 'custom']);
+  assert.deepEqual(lastCall(app, 'setCustomPageWidth'), ['setCustomPageWidth', 12]);
+  assert.deepEqual(stencil.mainThemes.includes('nope'), false, 'a getter-only member is skipped');
 });
 
 test('layout setter routes to applyPastedLayout → validateLayout without polluting Object.prototype', () => {

@@ -55,16 +55,14 @@ export const createEditorActions = ({ app }) => {
     // Fit the image to the window (the toolbar's "fit" button).
     zoomFit() { app.zoomPan.fitToWindow(); return stencil; },
 
-    // Bulk-apply from one object, then return the facade. Any settings key routes through
-    // stencil.settings; plus showTooltip, fullscreen, incognito, zoom, crop, move, layout.
+    // Bulk-apply from one object, then return the facade. Every WRITABLE stencil.settings key
+    // routes through it (read-only ones like mainThemes are skipped, and the key list is the
+    // namespace's own — never Object.keys(opts), which would walk a __proto__ payload in);
+    // plus showTooltip, fullscreen, incognito, zoom, crop, move, layout.
     apply(opts = {}) {
       const set = stencil.settings;
-      for (const k of [
-        'unit', 'lineColor', 'pointColor', 'pointSize', 'thickness', 'lineStyle',
-        'pointStyle', 'showPoints', 'showLines', 'filter', 'filterColor', 'pageSize', 'drawMode',
-        'allowFormulas', 'formulaX', 'formulaY', 'fillColor', 'selectionGlow', 'hoverRing', 'focusRing',
-      ]) {
-        if (opts[k] != null) set[k] = opts[k];
+      for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(set))) {
+        if (typeof d.set === 'function' && opts[k] != null) set[k] = opts[k];
       }
       if (opts.page != null) set.pageSize = opts.page;            // `page` alias for pageSize
       if (opts.showTooltip != null) app.settings.setTooltipOption('enabled', opts.showTooltip);
