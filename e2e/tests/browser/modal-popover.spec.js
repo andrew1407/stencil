@@ -5,7 +5,7 @@
 // browser/tests/popover.test.js — this spec pins the real-DOM contract: the classes, the
 // anchored placement, the transparent backdrop, and both close routes.
 import { test, expect } from '@playwright/test';
-import { settleModalAnimations } from '../../helpers/boot.js';
+import { gotoApp, settleModalAnimations } from '../../helpers/boot.js';
 
 const overlayState = (page, id) => page.evaluate((oid) => {
   const overlay = document.getElementById(oid);
@@ -22,8 +22,7 @@ const overlayState = (page, id) => page.evaluate((oid) => {
 
 test.describe('modal popovers', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForFunction(() => !!window.stencil);
+    await gotoApp(page);
   });
 
   test('dblclick on the icon opens the compact popover next to it; Escape closes it', async ({ page }) => {

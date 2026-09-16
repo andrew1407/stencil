@@ -234,6 +234,10 @@ classDiagram
 8. **Nothing local goes outward.** The `#stencil=` fragment never reaches a server
    (`e2e/tests/browser/fragment-privacy`); deep links carry `{url, id, version}`, never a
    token.
+9. **Every control is named, once.** An icon-only control's accessible name is its tooltip
+   heading and a field's is the label beside it; `ui/ariaLabels.js` points the a11y tree at
+   both, for the markup on the page and for whatever a modal renders later. Only a control
+   whose name is nowhere on the page — a row's select box — writes its own `aria-label`.
 
 ## Tests
 

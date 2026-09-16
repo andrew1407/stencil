@@ -58,6 +58,10 @@ change, re-record with `UPDATE_PINS=1 npm run test:ui`.
   in `xvfb-run`; locally a browser window opens briefly.
 - **No wasm build needed.** The app runs its JS fallback when `js/wasm/` is absent (the built
   artifact is used if present).
+- **Smoke a deployed site.** `APP_URL=https://<host>/<path>/ npx playwright test
+  --project=browser-app` runs the app specs against a published build instead of the local
+  tree. Only that project: the extension and stack suites reach for the bundled server and
+  its fixtures, which a deployed site does not serve.
 - **State isolation.** `boot.js` clears `localStorage` per navigation and the config blocks
   the app service worker, so runs don't leak projects/servers between tests.
 - **Server auth.** Token issuance is always admin-gated; the harness starts compose with

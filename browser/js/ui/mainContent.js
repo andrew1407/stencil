@@ -77,7 +77,7 @@ export class StencilMainContent extends StencilElement {
             </div>
     `;
   }
-  static template() { return hostTag('stencil-main-content', 'class="main-content"', StencilMainContent.inner()); }
+  static template() { return hostTag('stencil-main-content', 'class="main-content" role="main"', StencilMainContent.inner()); }
 
   wire(app) {
     // The sticky incognito frame needs the viewport's visible size in px: a percentage

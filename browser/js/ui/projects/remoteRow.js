@@ -53,6 +53,7 @@ export function createRemoteRow(deps) {
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.className = 'project-select';
+        cb.setAttribute('aria-label', `Select ${meta.name || 'project'}`);
         cb.checked = selected.has(key);
         if (cb.checked) row.classList.add('project-selected');
         selectables.set(key, { kind: 'remote', id: meta.id, serverUrl: meta.serverUrl, isServer: true, meta });

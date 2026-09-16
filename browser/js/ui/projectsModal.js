@@ -496,10 +496,14 @@ export class StencilProjectsModal extends StencilElement {
 
     // On-open chooser: only tab AND saved projects exist. Skipped when launched to open a
     // specific project (?open=) or image (extension #stencil=) — the user already chose.
+    // The count is the one the page OPENED with: the handshake below settles up to its
+    // timeout later, and a project saved in between is work in progress to cover, not an
+    // arrival to choose from.
+    const openedWithSaved = store.list().length > 0;
     app.tabs.whenReady().then(({ youAreOnly }) => {
       // open(null): this one appears because the page opened, not the toolbar icon, so it
       // drops in from above.
-      if (youAreOnly && store.list().length && !app.pendingOpenProjectId && !app.hasExternalLaunch) open(null);
+      if (youAreOnly && openedWithSaved && !app.pendingOpenProjectId && !app.hasExternalLaunch) open(null);
     });
   }
 }
