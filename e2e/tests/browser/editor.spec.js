@@ -100,3 +100,30 @@ test('save → reload persists the project to storage', async ({ page }) => {
   const found = await page.evaluate((nm) => !!window.stencil.getProjectByName(nm), name);
   expect(found, 'the saved project should survive a reload').toBeTruthy();
 });
+
+// stencil.openCropWindow() opens the shell directly, with no click to run the button's
+// handler — the preview and the crop box hang off the shell so BOTH routes land painted.
+test('the crop window opens painted from the console, exactly as from the toolbar', async ({ page }) => {
+  await gotoApp(page);
+  await page.evaluate(async () => { await window.stencil.blank('#ffffff', { size: { width: 400, height: 300 } }); });
+
+  const painted = async () => {
+    await expect(page.locator('#crop-box')).toBeVisible();
+    return page.evaluate(() => ({
+      src: document.getElementById('crop-image-el').naturalWidth,
+      dims: document.getElementById('crop-dims').textContent,
+      box: document.getElementById('crop-box').style.width,
+    }));
+  };
+
+  await page.evaluate(() => window.stencil.openCropWindow());
+  const viaConsole = await painted();
+  await page.evaluate(() => window.stencil.closeWindow());
+
+  await page.locator('#crop-image').click();
+  const viaToolbar = await painted();
+  await page.evaluate(() => window.stencil.closeWindow());
+
+  expect(viaConsole.src).toBeGreaterThan(0);
+  expect(viaConsole).toEqual(viaToolbar);
+});

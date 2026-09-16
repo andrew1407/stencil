@@ -73,7 +73,7 @@
     "browser/tests/projectTransferController.test.js": 231,
     "browser/tests/projectsStore.test.js": 414,
     "browser/tests/settingsController.test.js": 399,
-    "browser/tests/stencilApi.test.js": 1243,
+    "browser/tests/stencilApi.test.js": 1276,
     "browser/tests/strokeGrowth.test.js": 311,
     "browser/tests/surfaceDust.test.js": 506,
     "browser/tests/tooltipMotion.test.js": 261,
@@ -102,7 +102,8 @@
   },
   "exceptions": {
     "browser/js/ui/dustCloud.js": "Byte-pinned twin of browser-extension/src/lib/dustCloud.js (browser-extension/tests/portParity.test.js) \u2014 it can only change in lockstep with the port, so it cannot be split here alone.",
-    "browser/js/console/stencilApi.js": "208 -> 210: the facade is a composition list, one line per part. execScript adds the scriptApi import and its entry in `parts`; neither can be traded away without dropping the member from window.stencil."
+    "browser/js/console/stencilApi.js": "208 -> 210: the facade is a composition list, one line per part. execScript adds the scriptApi import and its entry in `parts`; neither can be traded away without dropping the member from window.stencil.",
+    "browser/tests/stencilApi.test.js": "1243 -> 1276: two behavioural guards the facade had no cover for \u2014 blank() must wait for the image SWAP (imageLoadFlow's `previous`), and apply() must route every writable stencil.settings key, which its ApplyOptions type already promised. Both need a mock app, so they live beside the rest of the facade's tests."
   },
   "_commentPctNote": "browser/js holds only the boot shims now (index.js, prePaintTheme.js, pwa.js) plus the utils barrel \u2014 utils.js's ~480 lines of code moved to browser/js/utils/, so the same prose is a bigger share of a much smaller directory. Comment VOLUME did not rise.",
   "_behaviouralPinNote": "strokeGrowth.test.js 298 \u2192 311: the renderer's flown-geometry pin was five readFileSync regexes; it now drives drawLine over a recording context (tests/helpers/recordingCtx.js) so renderer.js can be split. A behavioural pin costs lines a source regex does not.",

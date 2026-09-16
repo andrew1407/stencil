@@ -93,7 +93,27 @@ export class StencilCropModal extends StencilElement {
       renderBox();
     };
 
+    const paint = () => { computeScale(); renderBox(); };
+
+    // Seeding hangs off the shell, not the click: the window is also opened without one
+    // (stencil.openCropWindow), and a src that is already decoded fires no load event.
+    const seedPreview = () => {
+      if (!app.originalImage || !app.imageDataUrl) return;
+      // The rotated original, so the crop rect (in rotated pixel space) lines up.
+      const orig = app.imageModel.effectiveOriginalDims();
+      iw = orig.w;
+      ih = orig.h;
+      rect = app.cropRect ? { ...app.cropRect } : centeredCrop(iw, ih, cropAspect(pageDims().width, pageDims().height, isAlbumOrientation(iw, ih)));
+      album = isAlbumOrientation(rect.width, rect.height);
+      aspect = cropAspect(pageDims().width, pageDims().height, album);
+      img.onload = paint;
+      img.src = app.imageModel.effectiveOriginalDataUrl();
+      // A decoded src paints once the box has a laid-out size — display:none measures 0.
+      if (img.complete && img.naturalWidth) requestAnimationFrame(paint);
+    };
+
     const { open, close } = wireModalShell(overlay, null, document.getElementById('crop-close'), {
+      onOpen: seedPreview,
       onClose: () => { box.style.display = 'none'; }
     });
 
@@ -102,17 +122,8 @@ export class StencilCropModal extends StencilElement {
         notify('Open an image first', 'fail');
         return;
       }
-      // The rotated original, so the crop rect (in rotated pixel space) lines up.
-      const dims = app.imageModel.effectiveOriginalDims();
-      iw = dims.w;
-      ih = dims.h;
-      rect = app.cropRect ? { ...app.cropRect } : centeredCrop(iw, ih, cropAspect(pageDims().width, pageDims().height, isAlbumOrientation(iw, ih)));
-      album = isAlbumOrientation(rect.width, rect.height);
-      aspect = cropAspect(pageDims().width, pageDims().height, album);
       open();
-      img.onload = () => { computeScale(); renderBox(); };
-      img.src = app.imageModel.effectiveOriginalDataUrl();
-      if (img.complete && img.naturalWidth) { computeScale(); renderBox(); }
+      if (img.complete && img.naturalWidth) paint();
     };
     document.getElementById('crop-image').addEventListener('click', openCrop);
 
