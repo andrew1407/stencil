@@ -24,13 +24,12 @@ test('the extension is CommonJS, and its entry point exists', () => {
 });
 
 test('the language is contributed under the id the code uses', () => {
+  // .stc stays FIRST: this file and grammar.test.js both read index 0 as the script's own.
   const [language] = contributes.languages;
   assert.equal(language.id, ids.LANGUAGE_ID);
   assert.deepEqual(language.extensions, [ids.FILE_EXTENSION]);
-  // .stc stays FIRST: this file and grammar.test.js both read index 0 as the script's own.
-  assert.deepEqual(manifest.activationEvents, [
-    `onLanguage:${ids.LANGUAGE_ID}`, `onLanguage:${ids.JS_LANGUAGE_ID}`, 'onLanguage:javascript',
-  ]);
+  // A contributed language wakes the host by itself; `javascript` is the one that is not ours.
+  assert.deepEqual(manifest.activationEvents, ['onLanguage:javascript']);
   assert.equal(contributes.grammars[0].scopeName, ids.SCOPE_NAME);
 });
 
@@ -49,14 +48,14 @@ test('the JavaScript flavour is a third language that defers to source.js', () =
   assert.ok(manifest.activationEvents.includes('onLanguage:javascript'));
 });
 
-// .stencil is contributed for its icon and to open as JSON. It must not pull the extension
-// host awake, and its grammar must defer rather than re-spell the JSON rules.
+// .stencil is contributed for its icon and to open as JSON, and its grammar must defer rather
+// than re-spell the JSON rules. Contributing it already wakes the host, so it is not spelled out.
 test('the project file is a second language that defers to source.json', () => {
   const project = contributes.languages.find((l) => l.id === ids.PROJECT_LANGUAGE_ID);
   assert.ok(project, `no ${ids.PROJECT_LANGUAGE_ID} language`);
   assert.deepEqual(project.extensions, [ids.PROJECT_FILE_EXTENSION]);
   assert.ok(!manifest.activationEvents.some((e) => e.includes(ids.PROJECT_LANGUAGE_ID)),
-    'the project file contributes data only — activating on it would spawn the host for nothing');
+    'a contributed language activates the host on its own — spelling it out is redundant');
   const grammar = contributes.grammars.find((g) => g.language === ids.PROJECT_LANGUAGE_ID);
   assert.equal(grammar.scopeName, ids.PROJECT_SCOPE_NAME);
   const rules = JSON.parse(readFileSync(here(`../${grammar.path}`), 'utf8'));
