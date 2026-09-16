@@ -32,8 +32,6 @@
   },
   "main": "./src/extension.js",
   "activationEvents": [
-    "onLanguage:stencil-script",
-    "onLanguage:stencil-js",
     "onLanguage:javascript"
   ],
   "contributes": {
