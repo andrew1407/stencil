@@ -56,9 +56,10 @@ export const buildLayoutState = (app) => {
 export const buildProjectMeta = (app, { prev = {}, id, layout, thumbnail = makeThumbnail(app) }) => ({
   id,
   name: prev.name || app.imageBaseName || 'Untitled',
-  // Preserved across saves (each set only via its own setter); "" = none.
+  // Preserved across saves (each set only via its own setter); "" / [] = none.
   color: prev.color || '',
   description: prev.description || '',
+  keywords: Array.isArray(prev.keywords) ? [...prev.keywords] : [],
   // Non-empty colour ⇔ blank project.
   blank: !!app.blankColor,
   blankColor: app.blankColor || '',
