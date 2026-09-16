@@ -83,8 +83,7 @@ jobs:
       # ── The site tree ──
       # Everything the app loads at runtime, and nothing else: no tests, no dev tooling,
       # no build config, no node_modules. The manifest's start_url/scope are relative, so
-      # the PWA works under the /<repo>/ subpath Pages serves from. openInConfig.json is
-      # operator config, gitignored, and so never present to copy.
+      # the PWA works under the /<repo>/ subpath Pages serves from.
       - name: Assemble _site
         run: |
           mkdir -p _site
@@ -92,6 +91,10 @@ jobs:
                 browser/manifest.webmanifest browser/favicon.svg browser/icon-maskable.svg \
                 browser/css browser/js _site/
           cp browser/stencil.html _site/stencil.html
+          # No operator has a gitignored openInConfig.json here, and the app's runtime fetch
+          # of it would log a 404 on every load. The example IS the defaults it falls back
+          # to, so serving that copy changes nothing but the console.
+          cp browser/js/config/openInConfig.example.json _site/js/config/openInConfig.json
           find _site -name '.DS_Store' -delete
           du -sh _site && ls _site
 
