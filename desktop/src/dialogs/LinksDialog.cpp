@@ -34,6 +34,12 @@
 namespace stencil::gui {
 
 
+  // Browser modalShell.css: `stencil-links-modal { --vs-label-w: 118px }`.
+  static constexpr int LINKS_LABEL_W = 118;
+  // A label column AND two chips beside the field, so these rows ask for the popover cap
+  // (MainWindow::execMaybePopover): at the compact 420 the field clipped its placeholder.
+  static constexpr int LINKS_FIELD_MIN_W = 470 - 2 * 18;   // modalChromeShared PAD_X
+
   LinksDialog::LinksDialog(const QString& source, const QString& resource,
                            bool hasImage, const QString& pageSeed,
                            const QString& units, QWidget* parent)
@@ -45,26 +51,21 @@ namespace stencil::gui {
     const QString mutedCss =
         QString("color: %1;").arg(palette().color(QPalette::PlaceholderText).name());
 
-    // Browser linksModal.js parity: the shared modal shell + LINKS / ADD IMAGE BY URL
-    // sections instead of framed group boxes.
+    // Browser linksModal.js parity: the shared modal shell, not framed group boxes.
     ModalChrome chrome = installModalChrome(this, "link", tr("Image links"));
     QVBoxLayout* layout = chrome.body;
 
-    // Current project + links: edit / open / remove (only with an image loaded)
+    // Only the links live here (browser linksModal parity); the project's name is edited in
+    // the projects list. Each row is modalRow, the browser .vs-row — so spacing 0, the
+    // hairline under each row doing the separating.
     auto* linksBox = new QWidget(this);
+    linksBox->setMinimumWidth(LINKS_FIELD_MIN_W);   // or the compact shape clips the field
     auto* linksCol = new QVBoxLayout(linksBox);
     linksCol->setContentsMargins(0, 0, 0, 0);
-    linksCol->setSpacing(8);
-    // Only the links live here (browser linksModal parity): the project's name is edited
-    // in the projects list / the title, so no PROJECT section and no "Links" caption.
-    auto* linksForm = new QFormLayout;
-    linksForm->setContentsMargins(0, 0, 0, 0);
-    alignModalForm(linksForm, /*growFields=*/true);   // labels left, fields span the row
-    linksCol->addLayout(linksForm);
+    linksCol->setSpacing(0);
 
-    // One editable link row (Source / Resource): the field plus a compact open-in-
-    // browser chip (browser .btn-icon size) and a solid danger clear ✕
-    // (browser .links-clear.danger).
+    // One editable link row (Source / Resource): the field plus a compact open-in-browser
+    // chip (browser .btn-icon) and a solid danger clear ✕ (browser .links-clear.danger).
     const auto addLinkRow = [&](QLineEdit* edit, const QString& label, const QString& labelTip,
                                 const QString& openTip, const QString& clearTip) {
       const auto miniBtn = [](QPushButton* b) {
@@ -83,23 +84,24 @@ namespace stencil::gui {
       clear->setToolTip(clearTip);
       connect(open, &QPushButton::clicked, this, [this, edit] { openInBrowser(edit); });
       connect(clear, &QPushButton::clicked, edit, &QLineEdit::clear);
-      auto* lbl = new QLabel(label, this);
-      lbl->setToolTip(labelTip);
-      linksForm->addRow(lbl, linkRow(edit, open, clear));
+      QWidget* row = modalRow(linksBox, label, linkRow(edit, open, clear), LINKS_LABEL_W);
+      row->setToolTip(labelTip);
+      linksCol->addWidget(row);
     };
     sourceEdit_ = new QLineEdit(source, this);
     sourceEdit_->setPlaceholderText("(empty — local upload)");
-    addLinkRow(sourceEdit_, tr("Source:"), tr("The image/video’s own URL"),
+    addLinkRow(sourceEdit_, tr("Source"), tr("The image/video’s own URL"),
                "Open source in the default browser", "Remove source link");
 
     resourceEdit_ = new QLineEdit(resource, this);
     resourceEdit_->setPlaceholderText("(empty)");
-    addLinkRow(resourceEdit_, tr("Resource:"), tr("The web page the image was found on"),
+    addLinkRow(resourceEdit_, tr("Resource"), tr("The web page the image was found on"),
                "Open resource page in the default browser", "Remove resource link");
     layout->addWidget(linksBox);
 
     // Add image by URL: preview first, then load the previewed pixels
     auto* addBox = new QWidget(this);
+    addBox->setMinimumWidth(LINKS_FIELD_MIN_W);
     auto* addCol = new QVBoxLayout(addBox);
     addCol->setContentsMargins(0, 0, 0, 0);
     addCol->setSpacing(8);
@@ -280,14 +282,12 @@ namespace stencil::gui {
     addBox->setVisible(!hasImage);
     layout->addStretch(1);
 
-    // Footer (browser settings-footer): the hint alone, in both modes — like the
-    // browser, there is no Cancel/Save pair; edits apply when the dialog closes (the
-    // caller reads the fields whatever way it was dismissed). Add-by-URL's CTA is
-    // "Load into editor" up in the body, so its hint says what the loader can reach.
-    addModalFooter(chrome, hasImage
-                               ? tr("Editing the current image’s links.")
-                               : tr("Downloads bypass page CORS, so any reachable "
-                                    "image/video URL works."));
+    // Footer (browser settings-footer): add-by-URL alone gets one, saying what its "Load
+    // into editor" CTA can reach. Neither mode has a Cancel/Save pair — edits apply when
+    // the dialog closes, however it was dismissed (browser linksModal parity).
+    if (!hasImage)
+      addModalFooter(chrome, tr("Downloads bypass page CORS, so any reachable "
+                                "image/video URL works."));
   }
 }
 

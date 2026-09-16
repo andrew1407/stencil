@@ -1,0 +1,98 @@
+/* The two project-meta windows (description, keywords): the field owns the body, so every
+   pixel the window gains goes to it. Desktop twin: dialogs/projectMetaDialog.hpp. */
+#description-overlay:not(.modal-popover) .app-modal,
+#keywords-overlay:not(.modal-popover) .app-modal { min-height: min(54vh, 478px); }
+.meta-body { display: flex; flex-direction: column; gap: 10px; }
+/* The WINDOW owns the height, so the field has no drag handle of its own and overflowing
+   text scrolls. The floor is the keywords well's, so both windows open the same in the
+   compact popover, which hands a body only what it asks for. */
+textarea.meta-text {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 334px;   /* the desktop twin's DescriptionDialog FIELD_FLOOR_PX */
+    resize: none;
+    overflow: auto;
+}
+
+/* Keywords: the word being proposed, above the words already held. */
+.kw-add { display: flex; align-items: stretch; gap: 6px; flex: 0 0 auto; }
+.kw-add input { flex: 1 1 auto; min-width: 0; }
+/* `stretch` above, and no min-height of its own: the CTA is exactly as tall as the field
+   it sits beside, at any font size. Its own padding left it 2px short. */
+.kw-add button { flex: 0 0 auto; min-height: 0; }
+.kw-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 6px;
+    flex: 1 1 auto;
+    /* The window's height less this window's chrome. Twin: KeywordChips.cpp scroll_. */
+    min-height: 285px;
+    overflow-y: auto;
+    padding: 8px;
+    /* The field's own accent frame, at the treatment the input above it wears: a thin
+       opaque contour inside a softer one. The FILL stays neutral (--bg-keywords). */
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+    /* The gap a leaving chip's final negative margin has to swallow (chipLeave). */
+    --chip-gap: 6px;
+    border-radius: 8px;
+    background-color: var(--bg-keywords);
+}
+/* The oval the word wears (.chat-attach-chip's shape, without the thumbnail). */
+.kw-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+    padding: 0 4px 0 10px;
+    border: 1px solid var(--border-main);
+    border-radius: 13px;
+    background-color: var(--input-bg);   /* raised off the well, never level with it */
+    font-size: 13px;
+}
+.kw-chip-name { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kw-chip-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.kw-chip-x:hover { background: var(--danger); color: #ffffff; }
+/* The chip's own 1.5x beat (keywordChips.js CHIP_ENTER_MS), not the shared row one. */
+.kw-chip.filter-entering { animation-duration: 0.51s; }
+/* A keyword scatters, then collapses its own width so the chips behind it slide over
+   instead of jumping. Its OWN keyframes, not the shared chipLeave: every geometry property
+   is pinned at the hold, so nothing moves until the grains have read. */
+.kw-chip.leaving {
+    animation: kwChipLeave 0.63s cubic-bezier(0.33, 0, 0.2, 1) both;   /* keywordChips.js CHIP_LEAVE_MS */
+    will-change: opacity, transform;
+}
+@keyframes kwChipLeave {
+    from {
+        opacity: 1; transform: none; max-width: var(--leave-w, 240px);
+        padding-left: 10px; padding-right: 4px;
+        border-left-width: 1px; border-right-width: 1px; margin-right: 0;
+    }
+    /* Gone at once into its grains — the gap must not wait on a long fade. */
+    14% { opacity: 0; transform: translateY(-8px) scale(0.95); }
+    /* The slot is held only while that fade runs (KeywordChipsMotion LEAVE_HOLD). */
+    15% {
+        opacity: 0; transform: translateY(-8px) scale(0.95); max-width: var(--leave-w, 240px);
+        padding-left: 10px; padding-right: 4px;
+        border-left-width: 1px; border-right-width: 1px; margin-right: 0;
+    }
+    to {
+        opacity: 0; transform: translateY(-8px) scale(0.95); max-width: 0;
+        padding-left: 0; padding-right: 0;
+        border-left-width: 0; border-right-width: 0;
+        margin-right: calc(0px - var(--chip-gap, 6px));
+    }
+}

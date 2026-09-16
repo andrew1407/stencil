@@ -572,6 +572,40 @@
    "@keyframes keycapShake|84%": {
     "transform": "translateX(2px) rotate(1.5deg)"
    },
+   "@keyframes kwChipLeave|14%": {
+    "opacity": "0",
+    "transform": "translateY(-8px) scale(0.95)"
+   },
+   "@keyframes kwChipLeave|15%": {
+    "opacity": "0",
+    "transform": "translateY(-8px) scale(0.95)",
+    "max-width": "var(--leave-w, 240px)",
+    "padding-left": "10px",
+    "padding-right": "4px",
+    "border-left-width": "1px",
+    "border-right-width": "1px",
+    "margin-right": "0"
+   },
+   "@keyframes kwChipLeave|from": {
+    "opacity": "1",
+    "transform": "none",
+    "max-width": "var(--leave-w, 240px)",
+    "padding-left": "10px",
+    "padding-right": "4px",
+    "border-left-width": "1px",
+    "border-right-width": "1px",
+    "margin-right": "0"
+   },
+   "@keyframes kwChipLeave|to": {
+    "opacity": "0",
+    "transform": "translateY(-8px) scale(0.95)",
+    "max-width": "0",
+    "padding-left": "0",
+    "padding-right": "0",
+    "border-left-width": "0",
+    "border-right-width": "0",
+    "margin-right": "calc(0px - var(--chip-gap, 6px))"
+   },
    "@keyframes logoPulse|0%, 100%": {
     "transform": "translateY(0) scale(1)",
     "filter": "drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 25%, transparent))"
@@ -1515,7 +1549,7 @@
    "|#connect-list": {
     "min-height": "170px"
    },
-   "|#connect-modal-overlay:not(.modal-popover) .app-modal, #info-modal-overlay:not(.modal-popover) .app-modal, #links-modal-overlay:not(.modal-popover) .app-modal, #settings-modal-overlay:not(.modal-popover) #settings-modal, #visuals-modal-overlay:not(.modal-popover) .app-modal": {
+   "|#connect-modal-overlay:not(.modal-popover) .app-modal, #info-modal-overlay:not(.modal-popover) .app-modal, #settings-modal-overlay:not(.modal-popover) #settings-modal, #visuals-modal-overlay:not(.modal-popover) .app-modal": {
     "min-height": "min(82vh, 760px)"
    },
    "|#controls-body": {
@@ -1642,6 +1676,9 @@
    },
    "|#ctx-tint-row.ctx-tint-visible": {
     "display": "flex"
+   },
+   "|#description-overlay:not(.modal-popover) .app-modal, #keywords-overlay:not(.modal-popover) .app-modal": {
+    "min-height": "min(54vh, 478px)"
    },
    "|#draw-toggle": {
     "border": "1px solid transparent"
@@ -2108,8 +2145,6 @@
    },
    "|#settings-modal-overlay.modal-closing, .app-modal-overlay.modal-closing": {
     "animation": "overlayFadeOut 0.34s ease both",
-    "backdrop-filter": "blur(3px)",
-    "-webkit-backdrop-filter": "blur(3px)",
     "pointer-events": "none"
    },
    "|#settings-modal-overlay.modal-closing.modal-popover, .app-modal-overlay.modal-closing.modal-popover": {
@@ -2128,9 +2163,7 @@
     "will-change": "transform, opacity"
    },
    "|#settings-modal-overlay.modal-open, .app-modal-overlay.modal-open": {
-    "animation": "overlayFadeIn 0.22s ease both",
-    "backdrop-filter": "blur(3px)",
-    "-webkit-backdrop-filter": "blur(3px)"
+    "animation": "overlayFadeIn 0.22s ease both"
    },
    "|#settings-modal-overlay.modal-open.modal-popover, .app-modal-overlay.modal-open.modal-popover": {
     "animation": "none",
@@ -2613,7 +2646,7 @@
     "position": "fixed",
     "inset": "0",
     "z-index": "100001",
-    "background": "rgba(0,0,0,0.5)",
+    "background": "transparent",
     "align-items": "center",
     "justify-content": "center"
    },
@@ -2622,6 +2655,15 @@
    },
    "|.app-modal-overlay.modal-open": {
     "display": "flex"
+   },
+   "|.app-modal-overlay:not(.modal-popover) .settings-header": {
+    "cursor": "grab"
+   },
+   "|.app-modal.modal-dragging": {
+    "transition": "none !important"
+   },
+   "|.app-modal.modal-dragging .settings-header": {
+    "cursor": "grabbing"
    },
    "|.bar-held": {
     "height": "var(--bar-h)",
@@ -5715,6 +5757,76 @@
    "|.is-loading .ic, .is-loading .ic *, .swapping > svg, .swapping > svg *": {
     "transition": "none"
    },
+   "|.kw-add": {
+    "display": "flex",
+    "align-items": "stretch",
+    "gap": "6px",
+    "flex": "0 0 auto"
+   },
+   "|.kw-add button": {
+    "flex": "0 0 auto",
+    "min-height": "0"
+   },
+   "|.kw-add input": {
+    "flex": "1 1 auto",
+    "min-width": "0"
+   },
+   "|.kw-chip": {
+    "display": "inline-flex",
+    "align-items": "center",
+    "gap": "4px",
+    "height": "26px",
+    "padding": "0 4px 0 10px",
+    "border": "1px solid var(--border-main)",
+    "border-radius": "13px",
+    "background-color": "var(--input-bg)",
+    "font-size": "13px"
+   },
+   "|.kw-chip-name": {
+    "max-width": "200px",
+    "overflow": "hidden",
+    "text-overflow": "ellipsis",
+    "white-space": "nowrap"
+   },
+   "|.kw-chip-x": {
+    "display": "inline-flex",
+    "align-items": "center",
+    "justify-content": "center",
+    "width": "18px",
+    "height": "18px",
+    "padding": "0",
+    "border": "none",
+    "border-radius": "50%",
+    "background": "transparent",
+    "color": "var(--text-muted)",
+    "cursor": "pointer"
+   },
+   "|.kw-chip-x:hover": {
+    "background": "var(--danger)",
+    "color": "#ffffff"
+   },
+   "|.kw-chip.filter-entering": {
+    "animation-duration": "0.51s"
+   },
+   "|.kw-chip.leaving": {
+    "animation": "kwChipLeave 0.63s cubic-bezier(0.33, 0, 0.2, 1) both",
+    "will-change": "opacity, transform"
+   },
+   "|.kw-chips": {
+    "display": "flex",
+    "flex-wrap": "wrap",
+    "align-content": "flex-start",
+    "gap": "6px",
+    "flex": "1 1 auto",
+    "min-height": "285px",
+    "overflow-y": "auto",
+    "padding": "8px",
+    "border": "1px solid var(--accent)",
+    "box-shadow": "0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)",
+    "--chip-gap": "6px",
+    "border-radius": "8px",
+    "background-color": "var(--bg-keywords)"
+   },
    "|.leaving": {
     "pointer-events": "none",
     "overflow": "hidden",
@@ -5911,6 +6023,11 @@
    },
    "|.materializing.materialize-veil": {
     "animation-name": "rowMaterializeBox"
+   },
+   "|.meta-body": {
+    "display": "flex",
+    "flex-direction": "column",
+    "gap": "10px"
    },
    "|.mm-flame": {
     "transform-box": "fill-box",
@@ -7132,6 +7249,7 @@
     "--bg-tt-td": "#ffffff",
     "--bg-sel-panel": "#fff8e1",
     "--bg-drop-hint": "color-mix(in srgb, var(--accent) 9%, white)",
+    "--bg-keywords": "#f2f2f2",
     "--border-main": "#ddd",
     "--border-canvas": "#ddd",
     "--border-coord": "#ddd",
@@ -7219,6 +7337,17 @@
    "|:root[data-accent=\"yellow\"]": {
     "--accent": "#eab308"
    },
+   "|:root[data-modal-backdrop] #settings-modal-overlay.modal-closing, :root[data-modal-backdrop] .app-modal-overlay.modal-closing": {
+    "backdrop-filter": "blur(3px)",
+    "-webkit-backdrop-filter": "blur(3px)"
+   },
+   "|:root[data-modal-backdrop] #settings-modal-overlay.modal-open, :root[data-modal-backdrop] .app-modal-overlay.modal-open": {
+    "backdrop-filter": "blur(3px)",
+    "-webkit-backdrop-filter": "blur(3px)"
+   },
+   "|:root[data-modal-backdrop] .app-modal-overlay:not(.modal-popover)": {
+    "background": "rgba(0,0,0,0.5)"
+   },
    "|:root[data-motion=\"none\"] *, :root[data-motion=\"none\"] *::after, :root[data-motion=\"none\"] *::before": {
     "animation-duration": "0.01ms !important",
     "animation-delay": "0s !important",
@@ -7254,6 +7383,7 @@
     "--bg-tt-td": "#242424",
     "--bg-sel-panel": "#2e2a17",
     "--bg-drop-hint": "color-mix(in srgb, var(--accent) 16%, var(--bg-page))",
+    "--bg-keywords": "#202020",
     "--border-main": "#444",
     "--border-canvas": "#555",
     "--border-coord": "#444",
@@ -7816,6 +7946,13 @@
     "outline": "none",
     "border-color": "var(--accent)",
     "box-shadow": "0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent)"
+   },
+   "|textarea.meta-text": {
+    "flex": "1 1 auto",
+    "max-height": "none",
+    "min-height": "334px",
+    "resize": "none",
+    "overflow": "auto"
    }
   },
   "order": [
@@ -8216,7 +8353,7 @@
    "|#settings-close:hover",
    "|.settings-body",
    "|#settings-modal .settings-body",
-   "|#connect-modal-overlay:not(.modal-popover) .app-modal, #info-modal-overlay:not(.modal-popover) .app-modal, #links-modal-overlay:not(.modal-popover) .app-modal, #settings-modal-overlay:not(.modal-popover) #settings-modal, #visuals-modal-overlay:not(.modal-popover) .app-modal",
+   "|#connect-modal-overlay:not(.modal-popover) .app-modal, #info-modal-overlay:not(.modal-popover) .app-modal, #settings-modal-overlay:not(.modal-popover) #settings-modal, #visuals-modal-overlay:not(.modal-popover) .app-modal",
    "|.modal-search-bar",
    "|.modal-search",
    "|.settings-footer",
@@ -8259,6 +8396,10 @@
    "|.ctx-sub .ctx-item.ctx-sub-item",
    "|.app-modal-overlay",
    "|.app-modal-overlay.modal-open",
+   "|:root[data-modal-backdrop] .app-modal-overlay:not(.modal-popover)",
+   "|.app-modal-overlay:not(.modal-popover) .settings-header",
+   "|.app-modal.modal-dragging .settings-header",
+   "|.app-modal.modal-dragging",
    "|.app-modal-overlay.modal-closing",
    "|#confirm-modal-overlay.modal-open",
    "|#confirm-modal-overlay.modal-closing",
@@ -8510,6 +8651,23 @@
    "|.confirm-prompt-reason",
    "|textarea.confirm-prompt-input",
    "|textarea.confirm-prompt-input:focus",
+   "|#description-overlay:not(.modal-popover) .app-modal, #keywords-overlay:not(.modal-popover) .app-modal",
+   "|.meta-body",
+   "|textarea.meta-text",
+   "|.kw-add",
+   "|.kw-add input",
+   "|.kw-add button",
+   "|.kw-chips",
+   "|.kw-chip",
+   "|.kw-chip-name",
+   "|.kw-chip-x",
+   "|.kw-chip-x:hover",
+   "|.kw-chip.filter-entering",
+   "|.kw-chip.leaving",
+   "@keyframes kwChipLeave|from",
+   "@keyframes kwChipLeave|14%",
+   "@keyframes kwChipLeave|15%",
+   "@keyframes kwChipLeave|to",
    "|#connect-list",
    "|.connect-row",
    "|.connect-row:hover",
@@ -9141,10 +9299,12 @@
    "@media (prefers-reduced-motion: reduce)|#voice-chat-btn.active .ic, .chat-abtn.chat-voice-listening .ic, .ctx-assist-abtn.chat-voice-listening .ic",
    "@media (prefers-reduced-motion: reduce)|#voice-chat-btn.active::after, .btn-icon.chat-abtn.chat-voice-on.chat-voice-listening::after, .btn-icon.ctx-assist-abtn.chat-voice-on.chat-voice-listening::after",
    "|#settings-modal-overlay.modal-open, .app-modal-overlay.modal-open",
+   "|:root[data-modal-backdrop] #settings-modal-overlay.modal-open, :root[data-modal-backdrop] .app-modal-overlay.modal-open",
    "|#settings-modal-overlay.modal-open.modal-popover, .app-modal-overlay.modal-open.modal-popover",
    "|#settings-modal-overlay.modal-open #settings-modal, .app-modal-overlay.modal-open .app-modal",
    "|#settings-modal-overlay.modal-measuring #settings-modal, .app-modal-overlay.modal-measuring .app-modal",
    "|#settings-modal-overlay.modal-closing, .app-modal-overlay.modal-closing",
+   "|:root[data-modal-backdrop] #settings-modal-overlay.modal-closing, :root[data-modal-backdrop] .app-modal-overlay.modal-closing",
    "|#settings-modal-overlay.modal-closing.modal-popover, .app-modal-overlay.modal-closing.modal-popover",
    "|#settings-modal-overlay.modal-closing #settings-modal, .app-modal-overlay.modal-closing .app-modal",
    "@keyframes menuPop|from",

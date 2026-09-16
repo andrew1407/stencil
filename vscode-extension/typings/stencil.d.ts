@@ -260,13 +260,15 @@ interface StencilSettings {
    * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
    */
   description: string;
+  /** Read: string[]. Write one keyword per array entry, or a comma/newline separated
+   *  string — the same shapes Project.keywords takes. */
   /**
    * The open project’s keywords, which the project search reads.
    *
-   * Read: string[]. Write: an array or a comma/space-separated string.
+   * Read: string[]. Write one keyword per array entry (a keyword may be several words), or a comma/newline separated string.
    *
    * ```js
-   * stencil.keywords = 'roof, survey';   // read back as an array
+   * stencil.keywords = 'roof survey, north face';   // two keywords
    * ```
    *
    * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
@@ -470,6 +472,10 @@ interface Project {
   readonly size: { image: Size | null };
   name: string | null;
   color: string;
+  /** The project's description, as the Description window edits it; '' clears it. */
+  description: string;
+  /** One keyword per array entry (a keyword may be several words); a string splits on
+   *  commas and newlines. Duplicates collapse case-insensitively, order is kept. */
   keywords: string[] | string;
   readonly blank: boolean;
   readonly fromFile: boolean;

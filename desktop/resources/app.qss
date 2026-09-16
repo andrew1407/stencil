@@ -601,17 +601,23 @@
          .confirm-prompt-input and its multi-line twin: the input fill, a hairline
          that turns accent on focus, 8px radius. The line-edit half already gets
          that from the shared QLineEdit rule; only the text area needs its own. */
-      QPlainTextEdit#modalPromptText, QPlainTextEdit#descriptionText, QPlainTextEdit#keywordsText {
+      QPlainTextEdit#modalPromptText, QPlainTextEdit#descriptionText {
         background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
         border-radius: 8px; padding: 5px 7px;
         selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
       }
-      QPlainTextEdit#modalPromptText:hover:enabled, QPlainTextEdit#descriptionText:hover:enabled,
-      QPlainTextEdit#keywordsText:hover:enabled {
+      QPlainTextEdit#modalPromptText:hover:enabled, QPlainTextEdit#descriptionText:hover:enabled {
         border: 2px solid %ACCENT_RING%; padding: 4px 6px;
       }
-      QPlainTextEdit#modalPromptText:focus, QPlainTextEdit#descriptionText:focus,
-      QPlainTextEdit#keywordsText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
+      QPlainTextEdit#modalPromptText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
+      /* The browser's focus ring: a THIN opaque accent contour inside a thicker translucent
+         one, which is a box-shadow there and so a wrapper frame here (projectMetaDialog
+         fieldRing). Always 3px wide, so nothing shifts when it lights up. */
+      QFrame#metaFieldRing { border: 3px solid transparent; border-radius: 11px; background: transparent; }
+      QFrame#metaFieldRing[ringOn="true"] { border: 3px solid %ACCENT_RING%; }
+      /* The thin half, on the fields the ring wraps. */
+      QPlainTextEdit#descriptionText:focus { border: 1px solid %ACCENT%; padding: 5px 7px; }
+      QLineEdit#keywordsInput:focus { border: 1px solid %ACCENT%; padding: 3px 8px; }
       /* The script window's editor (ScriptDialog) — the browser's .script-editor-wrap plus
          .script-input as one widget, since Qt colours the text in place. The mono face and
          the gutter are set in code; only the frame and the inks belong here. */
@@ -815,6 +821,22 @@
       }
       QPushButton[modalDangerGhost="true"]:hover { background: %DANGER2%; }
       QPushButton[modalDangerGhost="true"]:pressed { background: %DANGER2%; }
+      /* Keyword chips (browser .kw-chips/.kw-chip): the words held, each an oval with a
+         ✕, inside one framed well that scrolls when it fills. The well never takes focus,
+         so it wears metaFieldRing permanently lit. */
+      QScrollArea#keywordsChips {
+        border: 1px solid %ACCENT%; border-radius: 8px; background: %BG_KEYWORDS%;
+      }
+      QWidget#keywordsChipArea { background: transparent; }
+      QFrame[kwChip="true"] {
+        border: 1px solid %BORDER%; border-radius: 13px; background: %INPUT_BG%;
+        min-height: 26px; max-height: 26px;
+      }
+      QPushButton[kwChipX="true"] {
+        background: transparent; border: none; border-radius: 9px; padding: 0px;
+        min-width: 18px; min-height: 18px;
+      }
+      QPushButton[kwChipX="true"]:hover { background: %DANGER%; }
       QGroupBox {
         border: 1px solid %BORDER%; border-radius: 8px; margin-top: 8px; padding-top: 6px;
       }

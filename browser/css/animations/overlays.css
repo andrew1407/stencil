@@ -2,6 +2,10 @@
 #settings-modal-overlay.modal-open,
 .app-modal-overlay.modal-open {
     animation: overlayFadeIn 0.22s ease both;
+}
+/* The blur half of the backdrop; its scrim half is in components/modalShell.css. */
+:root[data-modal-backdrop] #settings-modal-overlay.modal-open,
+:root[data-modal-backdrop] .app-modal-overlay.modal-open {
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
 }
@@ -32,9 +36,13 @@
 #settings-modal-overlay.modal-closing,
 .app-modal-overlay.modal-closing {
     animation: overlayFadeOut 0.34s ease both;
+    pointer-events: none;
+}
+/* …and it holds through the shrink-back, or the page would snap into focus mid-flight. */
+:root[data-modal-backdrop] #settings-modal-overlay.modal-closing,
+:root[data-modal-backdrop] .app-modal-overlay.modal-closing {
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
-    pointer-events: none;
 }
 #settings-modal-overlay.modal-closing.modal-popover,
 .app-modal-overlay.modal-closing.modal-popover {

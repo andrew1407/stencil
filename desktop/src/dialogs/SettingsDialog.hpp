@@ -66,6 +66,7 @@ namespace stencil::gui {
     QDoubleSpinBox* customH_ = nullptr;
     QSpinBox* holdDelay_ = nullptr;
     QCheckBox* drawAnim_ = nullptr;         // canvas stroke motion (browser vs-draw-anim)
+    QCheckBox* modalBackdrop_ = nullptr;    // dim+blur behind windows (browser vs-modal-backdrop)
     QComboBox* motionMode_ = nullptr;       // particles | water | fire | slide | none (browser vs-motion-mode)
     QPushButton* selGlow_ = nullptr;        // selection highlight glow
     QPushButton* hoverRing_ = nullptr;      // point hover ring

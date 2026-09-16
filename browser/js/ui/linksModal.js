@@ -33,9 +33,6 @@ export class StencilLinksModal extends StencilElement {
                     </div>
                 </div>
             </div>
-            <div class="settings-footer">
-                <span class="footer-hint" id="links-foot-hint"></span>
-            </div>
         </div>
     `;
   }
@@ -46,7 +43,6 @@ export class StencilLinksModal extends StencilElement {
     const overlay = $('links-modal-overlay');
     const sourceEl = $('links-source');
     const resourceEl = $('links-resource');
-    const footHint = $('links-foot-hint');
 
 // Also refreshes live while open (the console's stencil.current.source = … path).
     const syncLinkFields = () => {
@@ -56,10 +52,7 @@ export class StencilLinksModal extends StencilElement {
 
     wireModalShell(overlay, $('links-btn'), $('links-close'), {
 // The 🔗 button is disabled without an image (drawingApp refreshActions).
-      onOpen: () => {
-        footHint.textContent = 'Editing the current image’s links.';
-        syncLinkFields();
-      },
+      onOpen: syncLinkFields,
     });
 
 // The window event fires for THIS tab too (onProjectsChanged only fires for other tabs).

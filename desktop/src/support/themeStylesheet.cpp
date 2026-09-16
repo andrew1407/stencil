@@ -104,6 +104,8 @@ namespace stencil::gui {
     // Browser --bg-drop-hint/--border-hint. NB: CSS color-mix(accent P%, base) == mixSrgb(base, accent, P).
     const QColor dropHintBg = dark ? mixSrgb(p.bgPage, p.accent, 0.16)
                                     : mixSrgb(QColor(Qt::white), p.accent, 0.09);
+    // Browser --bg-keywords: the keywords well's NEUTRAL fill; the accent is its border.
+    const QString keywordsBg = themeToken("--bg-keywords", dark).name();
     const QColor dropHintBorder = dark ? mixSrgb(QColor("#2a2a2a"), p.accent, 0.50)
                                         : mixSrgb(QColor(Qt::white), p.accent, 0.35);
     // Browser --border-tooltip.
@@ -161,6 +163,7 @@ namespace stencil::gui {
         {"%TEXT_INFO%", c(dark ? themeToken("--text-info", dark) : p.textMain)},
         {"%BG_INFO%", c(bgInfo)},
         {"%BG_DROP_HINT%", c(dropHintBg)},
+        {"%BG_KEYWORDS%", keywordsBg},
         {"%BORDER_HINT%", c(dropHintBorder)},
         {"%BORDER_TOOLTIP%", c(borderTooltip)},
         {"%BORDER_CANVAS%", c(p.borderCanvas)},

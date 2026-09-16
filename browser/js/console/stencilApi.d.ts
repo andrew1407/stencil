@@ -58,7 +58,8 @@ export interface StencilSettings {
   /** Active project's accent colour; '' = neutral. Throws without an active project. */
   projectColor: string;
   description: string;
-  /** Read: string[]. Write: an array or a comma/space-separated string. */
+  /** Read: string[]. Write one keyword per array entry, or a comma/newline separated
+   *  string — the same shapes Project.keywords takes. */
   keywords: string[] | string;
   drawMode: DrawMode;
   /** ms, clamped 100–3000. */
@@ -129,6 +130,10 @@ export interface Project {
   readonly size: { image: Size | null };
   name: string | null;
   color: string;
+  /** The project's description, as the Description window edits it; '' clears it. */
+  description: string;
+  /** One keyword per array entry (a keyword may be several words); a string splits on
+   *  commas and newlines. Duplicates collapse case-insensitively, order is kept. */
   keywords: string[] | string;
   readonly blank: boolean;
   readonly fromFile: boolean;

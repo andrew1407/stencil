@@ -32,6 +32,8 @@
     --bg-sel-panel:   #fff8e1;
     /* Drop-hint bg/border tint with the chosen accent (was fixed violet). */
     --bg-drop-hint:   color-mix(in srgb, var(--accent) 9%, white);
+    /* The keywords well: a NEUTRAL surface: the accent lives in its border, not here. */
+    --bg-keywords:    #f2f2f2;
     --border-main:    #ddd;
     --border-canvas:  #ddd;
     --border-coord:   #ddd;
@@ -138,6 +140,8 @@
     --bg-tt-td:       #242424;
     --bg-sel-panel:   #2e2a17;
     --bg-drop-hint:   color-mix(in srgb, var(--accent) 16%, var(--bg-page));
+    /* Dark grey, lifted off black but under the modal behind it. */
+    --bg-keywords:    #202020;
     --border-main:    #444;
     --border-canvas:  #555;
     --border-coord:   #444;

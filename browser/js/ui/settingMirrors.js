@@ -75,3 +75,4 @@ export const paintTooltipOption = (id, on) => {
 
 export const paintMotionMode = (mode) => setVal('vs-motion-mode', mode);
 export const paintMotionDrawing = (on) => setChecked(el('vs-draw-anim'), !!on);
+export const paintMotionBackdrop = (on) => setChecked(el('vs-modal-backdrop'), !!on);

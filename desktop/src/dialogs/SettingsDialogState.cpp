@@ -66,6 +66,7 @@ namespace stencil::gui {
     s.customPageHeight = customH_->value();
     s.holdDrawDelay = holdDelay_->value();
     s.drawingAnimations = drawAnim_->isChecked();
+    s.modalBackdrop = modalBackdrop_->isChecked();
     s.motionMode = motionMode_->currentData().toString();
     s.browserBaseUrl = browserUrl_->text().trimmed();
     s.telegramBotUsername = botUsername_->text().trimmed().remove(QLatin1Char('@'));

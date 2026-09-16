@@ -4,7 +4,8 @@ import assert from 'node:assert';
 // layout() transitively imports every ui component, including the links modal.
 // The links modal now only EDITS the current image's provenance; adding an image by
 // URL moved to the unified Open dialog (openImageModal), so the old add-by-URL ids
-// (links-url, links-preview*, links-load, quick-crop) are gone.
+// (links-url, links-preview*, links-load, quick-crop) are gone — and two fields need no
+// footer caption either.
 import { layout } from '../js/ui/layout.js';
 
 const markup = layout();
@@ -15,7 +16,6 @@ const EDIT_IDS = [
   'links-edit-section',
   'links-source', 'links-source-open', 'links-source-clear',
   'links-resource', 'links-resource-open', 'links-resource-clear',
-  'links-foot-hint',
 ];
 
 test('each links-modal id appears exactly once', () => {
@@ -24,8 +24,9 @@ test('each links-modal id appears exactly once', () => {
   }
 });
 
-test('the retired add-by-URL controls are gone from the links modal', () => {
-  for (const id of ['links-add-section', 'links-url', 'links-preview', 'links-load', 'links-crop-pagesize']) {
+test('the retired controls are gone from the links modal', () => {
+  for (const id of ['links-add-section', 'links-url', 'links-preview', 'links-load',
+                    'links-crop-pagesize', 'links-foot-hint']) {
     assert.strictEqual(count(`id="${id}"`), 0, `id="${id}" should be removed`);
   }
 });
