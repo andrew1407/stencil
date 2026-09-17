@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"stencil/server/internal/auth"
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
 	"stencil/server/internal/transport"
@@ -29,7 +29,7 @@ func newTestHub(t *testing.T) *Hub {
 	if _, err := st.CreateSession(ctx, auth.HashToken(goodToken), "test", 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	return New(ctx, st, bus.NewInProc(), st)
+	return New(ctx, st, eventbus.NewInProc(), st)
 }
 
 // startTCP runs a hub TCP listener and returns its address.

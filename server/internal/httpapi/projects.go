@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"stencil/server/internal/auth"
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/service"
 	"stencil/server/internal/store"
@@ -126,7 +126,7 @@ func (a *API) handleUpdateProject(rw http.ResponseWriter, req *http.Request) {
 		writeInternalError(rw, msgUpdateProject)
 		return
 	}
-	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventUpdated, rec)
+	eventbus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventUpdated, rec)
 	writeJSON(rw, http.StatusOK, rec)
 }
 

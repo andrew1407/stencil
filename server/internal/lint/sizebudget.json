@@ -26,7 +26,7 @@
   "commentPct": {
     "server/cmd/stencil-server": 12,
     "server/internal/auth": 11,
-    "server/internal/bus": 11,
+    "server/internal/eventbus": 11,
     "server/internal/clock": 35,
     "server/internal/config": 9,
     "server/internal/filestore": 11,

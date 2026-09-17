@@ -49,7 +49,7 @@ import { requireConnection, createRemoteProject, saveRemoteProject } from '../ne
 import { getSyncToServer } from '../net/connectionStore.js';
 import { wireViewportSync } from './viewportSync.js';
 import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../config/openInConfig.js';
-import { publish, EVENTS } from '../bus/appBus.js';
+import { publish, EVENTS } from '../eventBus/appBus.js';
 
 // DrawingApp: the orchestrator owning state + DOM wiring; the pure decision helpers live
 // in ./layout.js so they unit-test without a DOM.

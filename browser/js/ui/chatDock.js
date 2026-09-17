@@ -1,5 +1,5 @@
 import { icon } from './icons.js';
-import { publish, EVENTS } from '../bus/appBus.js';
+import { publish, EVENTS } from '../eventBus/appBus.js';
 import { trackPointer } from './chatView.js';
 import {
   DOCKS, FLOAT_DEFAULT, DRAG_THRESHOLD_PX, DOCK_MIN_SIZE, DOCK_MAX_FRACTION,

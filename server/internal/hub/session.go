@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/store"
 )
@@ -39,12 +39,12 @@ type session struct {
 	loadInFlight   bool
 	loadedRec      protocol.ProjectRecord // cached snapshot, kept current with our own saves
 	pendingWelcome []*member              // members awaiting the initial load before their welcome
-	busCh          <-chan bus.Envelope
+	busCh          <-chan eventbus.Envelope
 	busStop        func()
 }
 
 func newSession(h *Hub, id string) *session {
-	ch, stop := h.bus.Subscribe(bus.ProjectChannel(id))
+	ch, stop := h.bus.Subscribe(eventbus.ProjectChannel(id))
 	s := &session{
 		hub:        h,
 		id:         id,

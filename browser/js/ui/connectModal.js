@@ -10,7 +10,7 @@ import { leaveThenRemove, materialize, createListHold, emptyStateVisible,
   createFilterAnimator, revealControls, revealBar, CONN_DUST_MS, rowDustGrid, rowLeaveDust,
   wipeDurationMs } from './motion.js';
 import { canRefreshList } from '../core/projectOpenGesture.js';
-import { subscribe, EVENTS } from '../bus/appBus.js';
+import { subscribe, EVENTS } from '../eventBus/appBus.js';
 
 // all | admin | non-admin; an admin credential is one that can mint session tokens.
 export const matchesConnFilter = (conn, mode) => {

@@ -110,7 +110,7 @@ was cached, so the break only shows up once something forces a recompile.
   a stack run:
   ```
   cd server && TEST_DATABASE_URL='postgres://stencil:stencil@127.0.0.1:5432/stencil?sslmode=disable' \
-    REDIS_URL='redis://127.0.0.1:6379' go test -count=1 ./internal/store/... ./internal/redisbus/... ./internal/bus/...
+    REDIS_URL='redis://127.0.0.1:6379' go test -count=1 ./internal/store/... ./internal/redisbus/... ./internal/eventbus/...
   ```
   21 pass, 0 skipped. The setup truncates, so it refuses `DATABASE_URL` — never point it at a
   live database.

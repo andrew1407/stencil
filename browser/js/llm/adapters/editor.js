@@ -2,7 +2,7 @@
 // A save promotes to a FRESH project id, so a multi-image plan leaves one project
 // per image instead of overwriting one.
 import { CHAT_ATTACHMENTS_EVENT } from '../chatController.js';
-import { publish } from '../../bus/appBus.js';
+import { publish } from '../../eventBus/appBus.js';
 import { uniqueProjectName } from '../projectNames.js';
 export const editorAdapters = (app) => ({
   // Send drained the queued attachments — repaint every composer's chips.

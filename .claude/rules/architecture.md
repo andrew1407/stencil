@@ -39,7 +39,7 @@ the next commit and are not design.
 
 A layer may use everything to its left, nothing to its right.
 
-- **browser** — `config/` + `utils.js` → `core/` (**no DOM**) → bus (`core/emitter.js`) →
+- **browser** — `config/` + `utils.js` → `core/` (**no DOM**) → `eventBus/` (`core/emitter.js`) →
   `net/` → `llm/` → console facade (`console/stencilApi.js`) → `ui/` → render.
 - **browser-extension** — `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup`,
   `options`, `crop`.
