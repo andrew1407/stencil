@@ -181,7 +181,7 @@ jobs:
         working-directory: vscode-extension
         run: npm run package
       - name: Upload the .vsix
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: stencil-stc-vsix
           path: vscode-extension/stencil-stc.vsix
@@ -205,7 +205,7 @@ jobs:
       # Restored by prefix, so a push recompiles only what it changed. Ninja honours the
       # CMake compiler launchers below (the Visual Studio generator would not).
       - name: Restore the compiler cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-ci-core-${{ github.sha }}
@@ -237,7 +237,7 @@ jobs:
       # The heaviest job in this workflow: the app plus 66 test binaries over the core.
       # A bigger cache than the core job's, since it holds all of that.
       - name: Restore the compiler cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.ccache
           key: ccache-ci-desktop-${{ github.sha }}
@@ -266,7 +266,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Cache emsdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: emsdk
           key: emsdk-${{ env.EMSDK_VERSION }}
@@ -455,7 +455,7 @@ jobs:
           E2E_STACK: '1'
       - name: Upload Playwright report on failure
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report
           path: e2e/playwright-report
@@ -475,7 +475,7 @@ jobs:
           dotnet-version: '10.0.x'
       # bot/nuget.config restores into a repo-local bot/packages/ folder; cache it per lockfile.
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: bot/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('bot/**/packages.lock.json') }}
