@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"stencil/server/internal/auth"
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/store"
 	"stencil/server/internal/transport"
@@ -36,7 +36,7 @@ var helloTimeout = 10 * time.Second
 // Hub owns the set of live sessions.
 type Hub struct {
 	store    Store
-	bus      bus.Bus
+	bus      eventbus.Bus
 	resolver auth.SessionResolver
 	ctx      context.Context
 	hello    helloGuard // per-IP throttle on failed handshakes (hellolimit.go)
@@ -57,7 +57,7 @@ type connReg struct {
 
 // New constructs a hub. ctx bounds background publishes/persists; opts carry the
 // tunables (WithHelloLimit).
-func New(ctx context.Context, store Store, b bus.Bus, resolver auth.SessionResolver, opts ...Option) *Hub {
+func New(ctx context.Context, store Store, b eventbus.Bus, resolver auth.SessionResolver, opts ...Option) *Hub {
 	h := &Hub{
 		store:    store,
 		bus:      b,

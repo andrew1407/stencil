@@ -1,9 +1,9 @@
-// Package bus is the publish/subscribe abstraction the hub uses to fan edit and
+// Package eventbus is the publish/subscribe abstraction the hub uses to fan edit and
 // project events out to every connection — across server instances when backed
 // by Redis, or within one process via the in-memory implementation here. The
 // hub depends only on the Bus interface, so the transport (WS or TCP) and the
 // backend (Redis or in-proc) are both swappable.
-package bus
+package eventbus
 
 import (
 	"context"

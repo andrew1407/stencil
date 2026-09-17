@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"sync"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/transport"
 )
@@ -143,7 +143,7 @@ func (h *Hub) serveEvents(ctx context.Context, conn transport.Conn) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ch, unsub := h.bus.Subscribe(bus.ChannelEvents)
+	ch, unsub := h.bus.Subscribe(eventbus.ChannelEvents)
 	defer unsub()
 
 	// Detect client disconnect by reading; any read error cancels the loop.

@@ -4,7 +4,7 @@ import { ATTACH_SETTLE_STEP_MS, ATTACH_SETTLE_TRIES, chipLeave } from './chatLea
 import { CHAT_ATTACHMENTS_EVENT } from '../llm/chatController.js';
 import { LEAVING_CLASS, wipeDurationMs } from './motion.js';
 import { icon } from './icons.js';
-import { publish } from '../bus/appBus.js';
+import { publish } from '../eventBus/appBus.js';
 import { wireThumbPreview } from './chatThumbPreview.js';
 
 export { CHAT_ATTACHMENTS_EVENT };

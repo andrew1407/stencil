@@ -9,7 +9,7 @@ import { hotkeys } from '../core/hotkeys.js';
 import { ConnectionManager } from '../net/connectionManager.js';
 import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
 import { notify } from '../utils.js';
-import { publish, EVENTS } from '../bus/appBus.js';
+import { publish, EVENTS } from '../eventBus/appBus.js';
 import { createLineWrappers } from './lineAndPoint.js';
 import { createProjectWrapper } from './project.js';
 import { createSettingsFacade } from './settingsFacade.js';

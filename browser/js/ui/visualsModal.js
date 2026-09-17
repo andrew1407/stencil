@@ -7,7 +7,7 @@ import { motionModeIcon } from './motionIcons.js';
 import { enhanceSelect } from './customSelect.js';
 import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE,
          DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP } from './motionPrefs.js';
-import { subscribe, EVENTS } from '../bus/appBus.js';
+import { subscribe, EVENTS } from '../eventBus/appBus.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
   static inner() { return visualsModalInner(); }

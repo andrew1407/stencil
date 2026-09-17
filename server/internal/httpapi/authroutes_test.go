@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
@@ -50,7 +50,7 @@ func TestOpenAuthIssuance(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := testutil.NewMemStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(),
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: eventbus.NewInProc(),
 		AdminToken: testAdmin, AuthOpen: true})
 
 	// No bearer at all -> 200 with a real session token.
@@ -84,7 +84,7 @@ func TestOpenAuthStillRateLimited(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := testutil.NewMemStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(),
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: eventbus.NewInProc(),
 		AuthOpen: true, AuthRatePerMin: 2})
 
 	issue := func() *httptest.ResponseRecorder {
@@ -113,7 +113,7 @@ func TestEmptyAdminTokenClosesIssuance(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := testutil.NewMemStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc()})
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: eventbus.NewInProc()})
 	rec := do(t, api, http.MethodPost, "/auth/token", "", nil)
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("issuance with no admin token configured should 401, got %d", rec.Code)

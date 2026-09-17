@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 )
 
@@ -16,7 +16,7 @@ import (
 // are not echoed to their originator; lifecycle/ack frames go to everyone. The
 // envelope carries the two fields routing needs, so the frame is never parsed
 // here — at 10 peers relaying cursors that was 300 wasted unmarshals a second.
-func (s *session) fanout(env bus.Envelope) {
+func (s *session) fanout(env eventbus.Envelope) {
 	for id, m := range s.members {
 		if echoSuppressed(env.Type) && id == env.From {
 			continue
@@ -34,7 +34,7 @@ func echoSuppressed(t string) bool {
 // single delivery path to local members.
 func (s *session) publish(msg protocol.WSMessage) {
 	if data, err := json.Marshal(msg); err == nil {
-		if err := s.hub.bus.Publish(s.hub.ctx, bus.ProjectChannel(s.id), bus.EnvelopeOf(msg, data)); err != nil {
+		if err := s.hub.bus.Publish(s.hub.ctx, eventbus.ProjectChannel(s.id), eventbus.EnvelopeOf(msg, data)); err != nil {
 			log.Printf("hub: publish to project %s failed: %v", s.id, err)
 		}
 	}
@@ -43,7 +43,7 @@ func (s *session) publish(msg protocol.WSMessage) {
 // publishGlobal posts to the global events channel.
 func (s *session) publishGlobal(msg protocol.WSMessage) {
 	if data, err := json.Marshal(msg); err == nil {
-		if err := s.hub.bus.Publish(s.hub.ctx, bus.ChannelEvents, bus.EnvelopeOf(msg, data)); err != nil {
+		if err := s.hub.bus.Publish(s.hub.ctx, eventbus.ChannelEvents, eventbus.EnvelopeOf(msg, data)); err != nil {
 			log.Printf("hub: publish to global events failed: %v", err)
 		}
 	}

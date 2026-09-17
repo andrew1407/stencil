@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"stencil/server/internal/bus"
 	"stencil/server/internal/config"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/httpapi"
 	"stencil/server/internal/hub"
@@ -22,7 +22,7 @@ import (
 
 // apiDeps assembles the REST handler's dependency set and logs the auth posture
 // it implies — the one thing an operator must read before traffic arrives.
-func apiDeps(cfg config.Config, st *store.Store, fs *filestore.Store, h *hub.Hub, b bus.Bus) httpapi.Deps {
+func apiDeps(cfg config.Config, st *store.Store, fs *filestore.Store, h *hub.Hub, b eventbus.Bus) httpapi.Deps {
 	deps := httpapi.Deps{
 		Projects:        st,
 		Sessions:        st,
@@ -105,9 +105,9 @@ func filestoreWarning(root string) string {
 
 // openBus returns a Redis-backed bus when REDIS_URL is set, else an in-process
 // bus (single-instance deployments).
-func openBus(ctx context.Context, cfg config.Config) (bus.Bus, error) {
+func openBus(ctx context.Context, cfg config.Config) (eventbus.Bus, error) {
 	if cfg.RedisURL == "" {
-		return bus.NewInProc(), nil
+		return eventbus.NewInProc(), nil
 	}
 	return redisbus.NewWithOptions(ctx, cfg.RedisURL, redisbus.Options{PoolSize: cfg.Redis.PoolSize,
 		DialTimeout: cfg.Redis.DialTimeout, IOTimeout: cfg.Redis.IOTimeout})

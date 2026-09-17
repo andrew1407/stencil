@@ -12,7 +12,7 @@ import (
 	"context"
 	"errors"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/store"
 )
@@ -29,8 +29,8 @@ var (
 )
 
 // announce publishes a project-lifecycle event on the global feed.
-func announce(ctx context.Context, b bus.Bus, event string, rec protocol.ProjectRecord) {
-	bus.PublishProjectEvent(ctx, b, event, rec)
+func announce(ctx context.Context, b eventbus.Bus, event string, rec protocol.ProjectRecord) {
+	eventbus.PublishProjectEvent(ctx, b, event, rec)
 }
 
 // isMissing reports whether err says the project is gone.

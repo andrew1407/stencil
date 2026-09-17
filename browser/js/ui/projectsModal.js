@@ -9,7 +9,7 @@ import {
   SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, markIn, markOut,
 } from './motion.js';
 import { normalizeHex } from '../core/accents.js';
-import { subscribe, EVENTS } from '../bus/appBus.js';
+import { subscribe, EVENTS } from '../eventBus/appBus.js';
 
 import { DOUBLE_CLICK_MS, DRAG_SLOP_PX, rowOpenIntent, createOpenGesture, canRefreshList } from '../core/projectOpenGesture.js';
 import { createRemoteListing, showsRemoteSkeletons } from '../core/remoteListing.js';

@@ -7,8 +7,8 @@ import (
 	"context"
 	"time"
 
-	"stencil/server/internal/bus"
 	"stencil/server/internal/clock"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 )
 
@@ -17,12 +17,12 @@ type ProjectService struct {
 	Projects ProjectStore
 	Files    ProjectFiles   // optional: nil skips the byte drop
 	Live     SessionCounter // optional: nil means no live session anywhere
-	Bus      bus.Bus
+	Bus      eventbus.Bus
 	TTL      time.Duration // default project lifetime; 0 = no expiry (off)
 }
 
 // NewProjects builds the service. Files and live may be nil.
-func NewProjects(projects ProjectStore, files ProjectFiles, live SessionCounter, b bus.Bus, ttl time.Duration) *ProjectService {
+func NewProjects(projects ProjectStore, files ProjectFiles, live SessionCounter, b eventbus.Bus, ttl time.Duration) *ProjectService {
 	return &ProjectService{Projects: projects, Files: files, Live: live, Bus: b, TTL: ttl}
 }
 

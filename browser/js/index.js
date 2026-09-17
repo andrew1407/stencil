@@ -16,7 +16,7 @@ import { installControlSwap } from './ui/controlSwap.js';
 import { installVoiceModes } from './llm/voiceModes.js';
 import { applyMotionAttr } from './ui/motionPrefs.js';
 import EVENTS from './config/events.json' with { type: 'json' };
-import { publishReady } from './bus/appBus.js';
+import { publishReady } from './eventBus/appBus.js';
 // ── Application entrypoint ──────────────────────────────────────
 // Loaded LAST (importing layout registers every custom element). On load: init the
 // shared C++ core (wasm), mount component hosts, construct the app, then dispatch

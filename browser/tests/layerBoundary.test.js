@@ -1,5 +1,5 @@
 // Import-direction lint for browser/js. The layer order (ARCHITECTURE.md,
-// .claude/rules/architecture.md) is config/ + utils → core (no DOM) → bus → net → llm →
+// .claude/rules/architecture.md) is config/ + utils → core (no DOM) → eventBus → net → llm →
 // console → ui → render; a layer may use everything to its left and nothing to its right.
 // Text only, three rules: (1) js/core touches no `document`/`window`; (2) js/core, js/llm
 // and js/net import nothing from js/ui; (3) `window.stencil` is the console facade's

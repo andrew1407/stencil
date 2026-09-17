@@ -1,4 +1,4 @@
-import { onReady } from '../bus/appBus.js';
+import { onReady } from '../eventBus/appBus.js';
 // Light-DOM custom elements: each region owns its markup (static inner()) and behaviour
 // (wire(app), after the one-shot `stencil:ready`). Off-browser this is a plain base and a
 // no-op define(), so the Node runner can import markup.

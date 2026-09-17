@@ -3,7 +3,7 @@
 // and which language the recognizer listens for. Persisted under their own key so the §5
 // blob keeps the contract's shape; every localStorage access is guarded for Node.
 import { clamp } from '../utils/math.js';
-import { publish, EVENTS } from '../bus/appBus.js';
+import { publish, EVENTS } from '../eventBus/appBus.js';
 
 const VOICE_SETTINGS_KEY = 'drawingApp_voiceSettings';
 export const VOICE_SETTINGS_EVENT = EVENTS.voiceSettingsChanged;

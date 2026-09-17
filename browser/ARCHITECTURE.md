@@ -34,7 +34,7 @@ graph TD
 
 ## Layers
 
-`config/` + `utils.js` → `core/` (**no DOM**) → bus (`core/emitter.js`) → `net/` → `llm/` →
+`config/` + `utils.js` → `core/` (**no DOM**) → `eventBus/` (`core/emitter.js`) → `net/` → `llm/` →
 console facade (`console/stencilApi.js`) → `ui/` → render. A layer imports only from its
 left; `tests/layerBoundary.test.js` enforces it.
 
@@ -49,7 +49,7 @@ left; `tests/layerBoundary.test.js` enforces it.
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
 | `js/core/` | `DrawingApp` and its collaborators: renderer, storage, history, zoom/pan, coord table, formulas, projects store, `deepLink`, `projectFile`, `extensionBridge`, `stencilCore` (the wasm singleton) | **no DOM access** — it runs under `node --test` |
 | `js/core/script*.js` | the `.stc` engine: lex → parse → templates → lower, plus `scriptDump` and the `scriptHandles` marshalling; `script.js` is the entry that binds wasm to the fallback | one file per `core/script/*.cpp`, op-for-op with it; pure — it resolves ops but calls no facade, and `vscode-extension/src/parser/` is a byte-equal copy of it |
-| `js/bus/` | `appBus.js`, the app-wide event channel | channel names come from `config/events.json` |
+| `js/eventBus/` | `appBus.js`, the app-wide event channel | channel names come from `config/events.json` |
 | `js/net/` | abortable fetch, the connection store + manager, remote sync | every fetch goes through the one guard here |
 | `js/llm/` | provider client, op-plan parser/executor, chat controller, the one shared chat session | validates every plan against `config/llm/opRegistry.json` before anything runs |
 | `js/console/` | the `window.stencil` facade, one module per concern | frozen; every mutation routes through the same core methods the toolbar uses |
@@ -140,7 +140,7 @@ classDiagram
 | Mediator | `DrawingApp` (`core/drawingApp.js`) | `HistoryStack`, `Renderer`, `Storage`, `RemoteSyncController`, `ProjectTransferController`, `InputController`, `ZoomPan` each take the app and reach back through it; they do not know one another |
 | Command | `HistoryStack.push` / `undo` / `redo` behind `DrawingApp.saveHistory()` | Every undoable edit is a line snapshot, applied and reverted by one code path; wasm twin via `coreHandles.js` |
 | Strategy | The provider `wire` in `llm/llmClient.js`, keyed by `config/llm/providers.json`; `FilterMode` in `core.applyFilterRGBA` | Selected by table lookup |
-| Observer | `Emitter` (`core/emitter.js`) behind `TabsCoordinator` channels and `ServerConnection.onEvent`; `publish` / `subscribe` in `bus/appBus.js` over the `config/events.json` window events | The `stencil:*` window events are the contract the extension's content scripts read |
+| Observer | `Emitter` (`core/emitter.js`) behind `TabsCoordinator` channels and `ServerConnection.onEvent`; `publish` / `subscribe` in `eventBus/appBus.js` over the `config/events.json` window events | The `stencil:*` window events are the contract the extension's content scripts read |
 | Repository | `ProjectsStore` over a `StorageBackend`; `projectsBackend.js` moves payload keys to IndexedDB; `connectionStore.js` for saved servers; `chatStore.js` for chat documents | Callers see a synchronous `localStorage`-shaped contract |
 | Chain of Responsibility | Every `ServerConnection` request: `normalizeUrl` → `isInsecureRemote` → `timeoutSignal()` → `isAuthStatus` / `isExpiredSession` (`net/urlRules.js`, `net/abortable.js`) | The one browser fetch guard; a refused credential lands in the `expired` status, not `error` |
 | Adapter | `llm/adapters/{dialog,editor,media,project}.js` (the `ChatCapabilities` bag), `core/extensionBridge.js`, `core/deepLink.js` | Each translates an outside request into the same app methods the toolbar uses |

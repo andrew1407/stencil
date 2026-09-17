@@ -2,7 +2,7 @@ import { isTypingTarget } from '../utils.js';
 import { fillAccentMenu, markSelected } from './accentPicker.js';
 import { createModalOpenGesture } from './popover.js';
 import { surfaceIn, surfaceOut, rectCenter, motionReduced, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
-import { subscribe, EVENTS } from '../bus/appBus.js';
+import { subscribe, EVENTS } from '../eventBus/appBus.js';
 // The logo's accent preset menu (right-click / Alt-hover): the Visuals dialog's rows on the
 // shared popup motion.
 export function wireLogoAccentMenu(logo, wrap, app) {

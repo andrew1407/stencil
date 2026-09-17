@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 )
 
@@ -17,11 +17,11 @@ import (
 type FileService struct {
 	Projects ProjectStore
 	Files    UploadFiles
-	Bus      bus.Bus
+	Bus      eventbus.Bus
 }
 
 // NewFiles builds the service.
-func NewFiles(projects ProjectStore, files UploadFiles, b bus.Bus) *FileService {
+func NewFiles(projects ProjectStore, files UploadFiles, b eventbus.Bus) *FileService {
 	return &FileService{Projects: projects, Files: files, Bus: b}
 }
 

@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 )
 
 // requireRedis returns a live bus or skips the test when REDIS_URL is unset or
 // unreachable, mirroring the self-skipping e2e convention used by mcp/.
-func requireRedis(t *testing.T) bus.Bus {
+func requireRedis(t *testing.T) eventbus.Bus {
 	t.Helper()
 	url := os.Getenv("REDIS_URL")
 	if url == "" {
@@ -34,7 +34,7 @@ func TestRedisPubSubRoundTrip(t *testing.T) {
 	defer cancel()
 	time.Sleep(100 * time.Millisecond) // let the subscription register
 
-	env := bus.Envelope{Type: protocol.WSEdit, From: "c_1", Data: []byte(`{"type":"edit"}`)}
+	env := eventbus.Envelope{Type: protocol.WSEdit, From: "c_1", Data: []byte(`{"type":"edit"}`)}
 	if err := b.Publish(ctx, "test:proj:1", env); err != nil {
 		t.Fatal(err)
 	}

@@ -11,7 +11,7 @@ import { VOICE_STATE_EVENT } from '../llm/voiceModes.js';
 import { attachVoiceDust } from './voiceDust.js';
 import { pageFormatOptions } from '../core/units.js';
 import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
-import { subscribe, EVENTS } from '../bus/appBus.js';
+import { subscribe, EVENTS } from '../eventBus/appBus.js';
 import { syncWrappedSeparators } from './toolbarSeparators.js';
 import { wireVoiceChatToggle } from './voiceToggle.js';
 import { wireLogoColorPicker } from './logoAccent.js';

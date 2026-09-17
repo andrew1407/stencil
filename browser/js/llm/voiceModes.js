@@ -10,7 +10,7 @@ import { loadVoiceSettings, recognitionLang, VOICE_SETTINGS_EVENT } from './voic
 import { loadLlmSettings } from './llmSettings.js';
 import { sharedChatController, runLoggedChatTurn, closedTurnToast, spokenEcho } from './chatSession.js';
 import { notify as appNotify } from '../utils.js';
-import { publish, subscribe, EVENTS } from '../bus/appBus.js';
+import { publish, subscribe, EVENTS } from '../eventBus/appBus.js';
 
 export const VOICE_STATE_EVENT = EVENTS.voiceStateChanged;
 export const VOICE_ACTIVE_LEVEL = 0.2;   // speech reads 0.4–1.0, room noise stays under 0.1

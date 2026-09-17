@@ -1,7 +1,7 @@
 // The context menu's Assistant entry: gating + wiring (the flyout's chat is ctxAssistantChat.js).
 import { isTouchLike, onWindowResize } from '../utils.js';
 import { loadLlmSettings } from '../llm/llmSettings.js';
-import { subscribe, EVENTS } from '../bus/appBus.js';
+import { subscribe, EVENTS } from '../eventBus/appBus.js';
 import { assistantEnabled, assistantItemHtml } from './ctxAssistantItem.js';
 import { wireCtxAssistantChat } from './ctxAssistantChat.js';
 

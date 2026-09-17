@@ -4,7 +4,7 @@
 // entrance), 'none'. prefers-reduced-motion: reduce reads as 'none' whatever is stored.
 // App-wide under its own localStorage key; mirrored onto <html data-motion> (animations/motionModes.css).
 
-import { publish, EVENTS } from '../bus/appBus.js';
+import { publish, EVENTS } from '../eventBus/appBus.js';
 
 export const MOTION_STORAGE_KEY = 'drawingApp_motion';
 // Fired after every change, so an open dialog can restate its controls.

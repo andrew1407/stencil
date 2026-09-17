@@ -3,7 +3,7 @@ import { UNSUPPORTED_TEXT, VOICE_STATE_EVENT } from '../llm/voiceModes.js';
 import { icon } from './icons.js';
 import { notify } from '../utils.js';
 import { swapContent } from './motion.js';
-import { subscribe } from '../bus/appBus.js';
+import { subscribe } from '../eventBus/appBus.js';
 
 // Two layers of state: the FACE (`on`, flipped by the "…" item, a double-click or a hold)
 // and LISTENING (the coordinator's, with this surface's target). Dictation lands after

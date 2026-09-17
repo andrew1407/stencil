@@ -15,7 +15,7 @@ import {
   wireChatSideToggle, syncComposerControls, wireChatComposer, wireComposerVoice,
   notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, chatRowMenuOpen,
 } from './chatView.js';
-import { subscribe } from '../bus/appBus.js';
+import { subscribe } from '../eventBus/appBus.js';
 
 export const wireCtxAssistantChat = (app, host, openChatPanel) => {
   const item = document.getElementById('ctx-assist-menu');

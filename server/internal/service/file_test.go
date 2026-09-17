@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/store"
 	"stencil/server/internal/testutil"
@@ -18,7 +18,7 @@ import (
 func fileSvc(t *testing.T) (*FileService, *testutil.MemStore, *fakeFiles) {
 	t.Helper()
 	st, files := testutil.NewMemStore(), &fakeFiles{}
-	return NewFiles(st, files, bus.NewInProc()), st, files
+	return NewFiles(st, files, eventbus.NewInProc()), st, files
 }
 
 func put(kind string) FilePut { return FilePut{ID: "p_1", Kind: kind, Ext: "png", W: 4, H: 2} }

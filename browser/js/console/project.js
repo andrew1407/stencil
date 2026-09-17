@@ -5,7 +5,7 @@ import { PROJECT_ACTION } from '../worker/messages.js';
 import { PERIOD_ORDER, DEFAULT_PERIOD } from '../core/projectsStore.js';
 import { parseDuration } from '../core/durationParser.js';
 import { normalizeHex } from '../core/accents.js';
-import { publish, EVENTS } from '../bus/appBus.js';
+import { publish, EVENTS } from '../eventBus/appBus.js';
 import { splitKeywords, str } from './coerce.js';
 
 export const DURATION_HELP = [

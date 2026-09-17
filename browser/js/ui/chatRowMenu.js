@@ -3,7 +3,7 @@ import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, menuPopOrigin, surfaceIn, surf
 import { chatRowMenuItems, copyChatText, selectionCoversRow } from './chatRowMenuModel.js';
 import { icon } from './icons.js';
 import { notify } from '../utils.js';
-import { publish, EVENTS } from '../bus/appBus.js';
+import { publish, EVENTS } from '../eventBus/appBus.js';
 
 // One open menu app-wide: opening from the other surface or another row replaces it.
 let rowMenuEl = null;
