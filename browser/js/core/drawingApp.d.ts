@@ -285,7 +285,7 @@ export declare class DrawingApp {
   replaceProjectImage(file: File, opts?: { rename?: boolean; keepAnnotations?: boolean; crop?: CropRect | null }): void;
   createBlankImage(opts?: { color?: string; width?: number; height?: number; address?: string }): Promise<PageDims>;
   activeIsBlank(): boolean;
-  setBlankColor(color: string): unknown;
+  setBlankColor(color: string): void;
   projectFileState(opts?: { includeTheme?: boolean }): ProjectFileState;
   applyProjectFile(project: Record<string, unknown>): Promise<string>;
   applyProjectFileInPlace(project: Record<string, unknown>, opts?: Record<string, unknown>): void;
