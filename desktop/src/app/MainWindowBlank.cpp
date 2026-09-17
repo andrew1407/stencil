@@ -79,14 +79,18 @@ namespace stencil::gui {
   void MainWindow::createBlankImage(const QColor& color, int w, int h) {
     // A blank's colour IS the page: a leftover filter would repaint the fill, so start clean.
     if (settings_.imageFilter != QLatin1String("none")) applyImageFilter("none");
-    QImage img(w, h, QImage::Format_RGB32);
+    const core::PageSize page = naturalPageCm(pageSizeValue(),
+                                              settings_.customPageWidth,
+                                              settings_.customPageHeight);
+    canvas_->setPageCm(page.width, page.height);
+    // loadFromImage crops to the page aspect, so shape the fill that way here: the toast
+    // then states the size the blank keeps, and no pixel is filled to be cropped off.
+    const core::CropRect fit = core::centeredCrop(
+        w, h, core::cropAspect(page.width, page.height, core::isAlbumOrientation(w, h)));
+    const int fw = qMax(1, qRound(fit.width));
+    const int fh = qMax(1, qRound(fit.height));
+    QImage img(fw, fh, QImage::Format_RGB32);
     img.fill(color);
-    {
-      const core::PageSize page = naturalPageCm(pageSizeValue(),
-                                                settings_.customPageWidth,
-                                                settings_.customPageHeight);
-      canvas_->setPageCm(page.width, page.height);
-    }
     activeProjectId_.clear();  // a new blank is a fresh editor, not the old project
     canvas_->loadFromImage(img);
     setSourceBytes({}, {});  // synthetic blank → re-encode from pixels on bundle
@@ -96,7 +100,7 @@ namespace stencil::gui {
     canvas_->setBlankPage(true); // compare views keep a blank's fill + tint
     refreshActions();
     playImageArrival();   // a blank is an image appearing, so it assembles like any other
-    notify_->success(QString("Blank %1×%2 image created").arg(w).arg(h));
+    notify_->success(QString("Blank %1×%2 image created").arg(fw).arg(fh));
     adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)
   }
 

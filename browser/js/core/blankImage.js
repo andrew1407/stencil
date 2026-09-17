@@ -3,6 +3,7 @@
 import { notify } from '../utils.js';
 import { normalizeHex } from './accents.js';
 import { defaultBlankSizePx } from './layout.js';
+import { cropAspect, centeredCrop, isAlbumOrientation } from './cropGeometry.js';
 import { requireConnection } from '../net/remoteSync.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import constants from '../config/constants.json' with { type: 'json' };
@@ -24,13 +25,17 @@ const blankFillBlob = (w, h, color) => {
 export const createBlankImage = (app, { color = '#ffffff', width, height, address } = {}) => {
   if (app.storage.incognito) address = undefined;   // incognito never creates on a server
   if (address) requireConnection(app.connections, address);
-  const dims = (width != null && height != null)
-    ? { width, height }
-    : defaultBlankSizePx(app.pageSize === 'custom'
-      ? { width: app.customPageWidth, height: app.customPageHeight }
-      : (PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4));
-  const w = Math.max(1, Math.min(8192, Math.round(dims.width)));
-  const h = Math.max(1, Math.min(8192, Math.round(dims.height)));
+  const page = app.pageSize === 'custom'
+    ? { width: app.customPageWidth, height: app.customPageHeight }
+    : (PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
+  const dims = (width != null && height != null) ? { width, height } : defaultBlankSizePx(page);
+  const rw = Math.max(1, Math.min(8192, Math.round(dims.width)));
+  const rh = Math.max(1, Math.min(8192, Math.round(dims.height)));
+// The load path crops every image to the page aspect, so shape the raster that way here:
+// the name then states the size the blank keeps, and no pixel is filled to be cropped off.
+  const fit = centeredCrop(rw, rh, cropAspect(page.width, page.height, isAlbumOrientation(rw, rh)));
+  const w = Math.max(1, Math.round(fit.width));
+  const h = Math.max(1, Math.round(fit.height));
   const fill = normalizeHex(color) || '#ffffff';
 // A filter left over from the previous image would repaint the fill, so start clean.
   if (app.imageFilter !== 'none') app.settings.setImageFilter('none');
@@ -46,9 +51,9 @@ export const activeIsBlank = (app) => !!app.blankColor;
 
 // Recolour the active blank in place, keeping every drawn line; no-op unless a blank.
 export const setBlankColor = (app, color) => {
-  if (!activeIsBlank(app) || !app.image) return this;
+  if (!activeIsBlank(app) || !app.image) return;
   const next = normalizeHex(color);
-  if (!next || next === app.blankColor) return this;
+  if (!next || next === app.blankColor) return;
   const w = app.canvas.width, h = app.canvas.height;
   blankFillBlob(w, h, next).then(blob => {
     app.loadImageFromFile(new File([blob], `blank-${w}x${h}.png`, { type: 'image/png' }),
@@ -60,6 +65,5 @@ export const setBlankColor = (app, color) => {
     }
     app.updateButtons();
   }).catch(() => notify('Could not recolor the blank image', 'fail'));
-  return this;
 };
 
