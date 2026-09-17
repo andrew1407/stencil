@@ -1,10 +1,10 @@
 // The Alt-drag gesture engine (point / segment / whole line) over the app's shared drag
 // state, plus the ring helpers behind chaining: a click-closed shape repeats its first
 // point at the end, and "the ring" is always the points minus that duplicate.
+import type { Point } from './geometry.js';
 import type { DrawingApp } from './drawingApp.js';
 import type { CodecLine } from './linesCodec.js';
 
-export interface Point { x: number; y: number; }
 type Line = Pick<CodecLine, 'points' | 'locked' | 'fillColor'>;
 
 /** A grabbed vertex, or a grabbed segment body (its two endpoint indices). */

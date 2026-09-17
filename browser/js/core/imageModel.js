@@ -23,7 +23,7 @@ export class ImageModel {
 // Page aspect in the orientation matching the image; `albumOverride` forces album (true) /
 // portrait (false). Public so storage can default-crop legacy projects.
   defaultCropRect(albumOverride) {
-    const { w: iw, h: ih } = this.rotatedOriginalDims();
+    const { width: iw, height: ih } = this.rotatedOriginalDims();
     const isAlbum = (albumOverride == null) ? isAlbumOrientation(iw, ih) : !!albumOverride;
     const dims = this.#pageCmDims();
     const aspect = cropAspect(dims.width, dims.height, isAlbum);
@@ -34,7 +34,7 @@ export class ImageModel {
   rotatedOriginalDims() {
     const img = this.app.originalImage;
     const w = img.width, h = img.height;
-    return (this.app.rotationQuarters % 2) ? { w: h, h: w } : { w, h };
+    return (this.app.rotationQuarters % 2) ? { width: h, height: w } : { width: w, height: h };
   }
 
 // The untouched bitmap for no rotation, otherwise a freshly-rotated canvas.
@@ -61,7 +61,7 @@ export class ImageModel {
   }
 
 // Integer pixels, clamped inside the rotated original.
-  roundRect(r, iw = this.rotatedOriginalDims().w, ih = this.rotatedOriginalDims().h) {
+  roundRect(r, iw = this.rotatedOriginalDims().width, ih = this.rotatedOriginalDims().height) {
 // Canonical {w,h} wins over legacy {width,height}.
     const w = Math.max(1, Math.min(Math.round(r.w ?? r.width), iw));
     const h = Math.max(1, Math.min(Math.round(r.h ?? r.height), ih));
@@ -114,7 +114,7 @@ export class ImageModel {
     const dims = this.rotatedOriginalDims();
 // Points rotate inside the OLD crop box.
     rotateLinePointsQuarter(app.lines, app.cropRect.width, app.cropRect.height, clockwise);
-    const rotated = rotateCropRectQuarter(app.cropRect, dims.w, dims.h, clockwise);
+    const rotated = rotateCropRectQuarter(app.cropRect, dims.width, dims.height, clockwise);
     app.rotationQuarters = (((app.rotationQuarters + (clockwise ? 1 : -1)) % 4) + 4) % 4;
     app.cropRect = this.roundRect(rotated);
     this.rebuildCroppedImage();

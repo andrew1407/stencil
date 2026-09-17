@@ -1,8 +1,7 @@
 // Pure point-list geometry: bbox centre, rotate, mirror, close-shape test. Each is the
 // shared C++ core (wasm) op with the JS body as reference + fallback — a wasm-parity
 // surface, kept op-for-op identical.
-
-export interface Point { x: number; y: number; }
+import type { Point } from './geometry.js';
 
 export declare const bboxCenterOf: (pts: readonly Point[]) => Point;
 /** Rotates in place about (cx, cy) by `angle` radians. */

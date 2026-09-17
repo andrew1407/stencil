@@ -1,5 +1,5 @@
+import type { Point } from '../core/geometry.js';
 export declare const DUST_CURSOR_PX: number;
-export interface Point { x: number; y: number; }
 export declare const dustOrigin: (centre: Point | null, cursor: Point | null, maxPx?: number) => Point | null;
 
 export interface Combo { mods: Set<string>; key: string; }

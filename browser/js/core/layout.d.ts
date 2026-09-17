@@ -1,6 +1,7 @@
 // Pure layout helpers: serialisation through the LAYOUT_FIELDS table, cropRect wire
 // spellings, the co-edit union merge, hardening of untrusted `lines`, and the small
 // geometry-edit decisions. Never touches DOM or app state.
+import type { CropRect } from './geometry.js';
 import type { CodecLine } from './linesCodec.js';
 
 /** One row of config/layoutFields.json; array order IS the session payload's byte order. */
@@ -14,8 +15,6 @@ export interface LayoutField {
 
 /** The canonical wire spelling; readers also accept the legacy {width,height}. */
 export interface WireCropRect { x: number; y: number; w?: number; h?: number; width?: number; height?: number; }
-/** The app's internal spelling. */
-export interface CropRect { x: number; y: number; width: number; height: number; }
 
 /** A layout as it crosses a wire: the export subset of LAYOUT_FIELDS plus `lines`. */
 export interface LayoutPayload {

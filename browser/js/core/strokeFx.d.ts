@@ -1,10 +1,10 @@
 // The vertices currently in flight: one record per point just added, flying from where it
 // came from to where it was put (maths in ui/motion.js). A record holds the point OBJECT,
 // not its index — a later insert shifts every index after it.
+import type { Point } from './geometry.js';
 import type { DrawingApp } from './drawingApp.js';
 import type { CodecLine } from './linesCodec.js';
 
-export interface Point { x: number; y: number; }
 export type FxLine = Pick<CodecLine, 'points'> & Partial<CodecLine>;
 export interface FlightRecord {
   line: FxLine; pt: Point; from: Point; to: Point;

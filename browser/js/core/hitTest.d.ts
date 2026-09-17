@@ -1,9 +1,9 @@
 // Pure hit-testing over the editor's line model, allocation-free with a bbox early reject
 // (twin: core/geometry/hitTest.cpp). Results are topmost-first; thresholds are in image
 // pixels, so callers divide a screen radius by the zoom.
+import type { Point } from './geometry.js';
 import type { CodecLine } from './linesCodec.js';
 
-export interface Point { x: number; y: number; }
 type Lines = readonly Pick<CodecLine, 'points'>[];
 
 /** Index of the topmost line within `threshold` (points padded +4), or -1. */

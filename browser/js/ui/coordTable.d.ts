@@ -1,4 +1,5 @@
-import type { DrawingApp, Point } from '../core/drawingApp.js';
+import type { DrawingApp } from '../core/drawingApp.js';
+import type { Point } from '../core/geometry.js';
 
 /** The points-table DOM + per-row interactions. */
 export declare class CoordTable {

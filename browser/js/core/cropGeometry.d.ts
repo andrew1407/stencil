@@ -1,9 +1,9 @@
 // Crop-window geometry, a port of core/cropGeometry.{hpp,cpp}. A crop is an axis-aligned
 // rect in ORIGINAL-image pixels; the public names route to the wasm core when loaded and
 // to the *JS references otherwise (the parity tests drive both).
+import type { CropRect } from './geometry.js';
 import type { CodecLine } from './linesCodec.js';
 
-export interface CropRect { x: number; y: number; width: number; height: number; }
 /** Corners: 0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left. */
 export type CropCorner = 0 | 1 | 2 | 3;
 export interface CropChange { orientationChanged: boolean; scale: number; }

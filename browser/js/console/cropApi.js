@@ -16,13 +16,13 @@ export const createCropApi = ({ app }) => {
     // wheel/pinch) — mutually exclusive with the edge tokens.
     crop(spec = {}) {
       if (!app.originalImage) throw new Error('No image loaded to crop');
-      const dims = app.imageModel.effectiveOriginalDims();   // { w, h } in rotated-original pixels
+      const dims = app.imageModel.effectiveOriginalDims();   // { width, height } in rotated-original pixels
       const r = app.cropRect || app.imageModel.defaultCropRect();
       if (spec.scale != null) {
         const factor = Number(spec.scale);
         if (!(factor > 0)) throw new Error('crop scale must be a positive number');
         const aspect = r.height > 0 ? r.width / r.height : 1;
-        const next = scaleCropCentered(r, factor, aspect, dims.w, dims.h);
+        const next = scaleCropCentered(r, factor, aspect, dims.width, dims.height);
         app.imageModel.applyCrop({ x: next.x, y: next.y, width: next.width, height: next.height }, { recalc: true });
         return stencil;
       }
@@ -30,10 +30,10 @@ export const createCropApi = ({ app }) => {
       const pxPerCmX = app.canvas.width / ps.width, pxPerCmY = app.canvas.height / ps.height;
       const edge = (tok, cur, lengthPx, pxPerCm) =>
         tok == null ? cur : resolveAxisPx(tok, { lengthPx, pxPerCm, currentPx: cur });
-      let x1 = edge(spec.x1, r.x, dims.w, pxPerCmX);
-      let x2 = edge(spec.x2, r.x + r.width, dims.w, pxPerCmX);
-      let y1 = edge(spec.y1, r.y, dims.h, pxPerCmY);
-      let y2 = edge(spec.y2, r.y + r.height, dims.h, pxPerCmY);
+      let x1 = edge(spec.x1, r.x, dims.width, pxPerCmX);
+      let x2 = edge(spec.x2, r.x + r.width, dims.width, pxPerCmX);
+      let y1 = edge(spec.y1, r.y, dims.height, pxPerCmY);
+      let y2 = edge(spec.y2, r.y + r.height, dims.height, pxPerCmY);
 
       const xGiven = spec.x1 != null || spec.x2 != null;
       const yGiven = spec.y1 != null || spec.y2 != null;
