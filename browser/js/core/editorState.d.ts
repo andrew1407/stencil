@@ -1,9 +1,8 @@
 // The editor's plain-data defaults: every DrawingApp field that is a value, not a
 // collaborator or a DOM node. A fresh object per call — nothing is shared between editors.
+import type { Point, CropRect } from './geometry.js';
 import type { CodecLine } from './linesCodec.js';
 
-export interface Point { x: number; y: number; }
-export interface CropRect { x: number; y: number; width: number; height: number; }
 /** A drag anchor in both image and CSS pixels. */
 export interface DualPoint { imgX: number; imgY: number; cssX: number; cssY: number; }
 export type ImageFilter = 'none' | 'bw' | 'sepia' | 'invert' | 'contour' | 'custom';

@@ -1,7 +1,7 @@
 // The shared C++ core singleton: owns the wasm build and typed wrappers over its raw
 // extern "C" exports. The artifact is generated and may be absent, so init() imports it
 // dynamically and degrades to the JS fallbacks; Node never loads wasm.
-import type { CropRect } from './layout.js';
+import type { CropRect } from './geometry.js';
 import type { HoldDrawOptions, WasmHoldDrawController, WasmHistoryStack } from './coreHandles.js';
 
 export interface XY { x: number; y: number; }

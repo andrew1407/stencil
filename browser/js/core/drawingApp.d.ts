@@ -2,6 +2,7 @@
 // the app and reaches back through it; the plain-value fields come from editorState.js, the
 // behaviour behind each delegator from the module its section names. Nothing here is a
 // second implementation — the window.stencil facade and the toolbar call these same names.
+import type { Point, CropRect } from './geometry.js';
 import type { CodecLine } from './linesCodec.js';
 import type { Storage } from './storage.js';
 import type { Renderer } from './renderer.js';
@@ -21,10 +22,7 @@ import type { InputController } from './inputController.js';
 import type { PointerController } from './pointerController.js';
 import type { ZoomPan } from './zoomPan.js';
 
-export type Point = { x: number; y: number };
 export type Line = CodecLine;
-/** A crop in rotated-original pixels — the canonical spelling ImageModel.roundRect emits. */
-export interface CropRect { x: number; y: number; width: number; height: number; }
 export type CompareMode = 'none' | 'original' | 'vertical' | 'horizontal';
 export type ImageFilter = 'none' | 'bw' | 'sepia' | 'invert' | 'contour' | 'custom';
 export type DrawModeKind = 'line' | 'rect';

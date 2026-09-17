@@ -575,7 +575,7 @@ test('crop throws without an image, and otherwise commits a rect via applyCrop',
   const app2 = makeApp({
     originalImage: {},
     cropRect: { x: 0, y: 0, width: 100, height: 100 },
-    effectiveOriginalDims: () => ({ w: 200, h: 200 }),
+    effectiveOriginalDims: () => ({ width: 200, height: 200 }),
     getPageDimensions: () => ({ width: 21, height: 29.7 }),
     canvas: { width: 200, height: 200 },
     defaultCropRect: () => ({ x: 0, y: 0, width: 200, height: 200 }),
@@ -592,7 +592,7 @@ test('crop derives the missing axis from the page proportion when only one axis 
   const makeCropApp = () => makeApp({
     originalImage: {},
     cropRect: { x: 5, y: 7, width: 100, height: 100 },
-    effectiveOriginalDims: () => ({ w: 2000, h: 2000 }),
+    effectiveOriginalDims: () => ({ width: 2000, height: 2000 }),
     getPageDimensions: () => ({ width: 21, height: 29.7 }),   // A4 proportions
     canvas: { width: 200, height: 200 },
     defaultCropRect: () => ({ x: 0, y: 0, width: 200, height: 200 }),
@@ -633,7 +633,7 @@ test('crop({ scale }) scales the rect about its centre via applyCrop; rejects no
   const makeScaleApp = () => makeApp({
     originalImage: {},
     cropRect: { x: 60, y: 60, width: 80, height: 80 },   // centre (100,100) in a 200x200 image
-    effectiveOriginalDims: () => ({ w: 200, h: 200 }),
+    effectiveOriginalDims: () => ({ width: 200, height: 200 }),
     applyCrop: function (rect, o) { this.calls.push(['applyCrop', rect, o]); },
   });
 
@@ -664,7 +664,7 @@ test('crop({ scale }) scales the rect about its centre via applyCrop; rejects no
 const makeAspectApp = (cropRect) => makeApp({
   originalImage: {},
   cropRect,
-  effectiveOriginalDims: () => ({ w: 4000, h: 4000 }),
+  effectiveOriginalDims: () => ({ width: 4000, height: 4000 }),
   getPageDimensions: () => ({ width: 21, height: 29.7 }),
   canvas: { width: 200, height: 200 },
   defaultCropRect: () => ({ x: 0, y: 0, width: 4000, height: 4000 }),

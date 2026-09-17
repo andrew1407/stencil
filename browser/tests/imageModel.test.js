@@ -71,14 +71,14 @@ test('roundRect: adopts canonical {w,h} and legacy {width,height} rects identica
     { x: 0, y: 0, width: 30, height: 30 });
 });
 
-test('rotatedOriginalDims: swaps w/h on odd quarter-turns only', () => {
+test('rotatedOriginalDims: swaps width/height on odd quarter-turns only', () => {
   const app = makeApp();
   const m = new ImageModel(app);
-  assert.deepEqual(m.rotatedOriginalDims(), { w: 200, h: 100 });
+  assert.deepEqual(m.rotatedOriginalDims(), { width: 200, height: 100 });
   app.rotationQuarters = 1;
-  assert.deepEqual(m.rotatedOriginalDims(), { w: 100, h: 200 });
+  assert.deepEqual(m.rotatedOriginalDims(), { width: 100, height: 200 });
   app.rotationQuarters = 2;
-  assert.deepEqual(m.rotatedOriginalDims(), { w: 200, h: 100 });
+  assert.deepEqual(m.rotatedOriginalDims(), { width: 200, height: 100 });
 });
 
 test('defaultCropRect: returns an integer rect within the image bounds', () => {

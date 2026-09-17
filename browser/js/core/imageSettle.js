@@ -76,7 +76,7 @@ export const settleLoadedImage = async (app, file, opts, plan) => {
   } else if (opts.crop) {
     app.cropRect = app.imageModel.roundRect(opts.crop);
   } else if (opts.noCrop) {
-    const { w: iw, h: ih } = app.imageModel.rotatedOriginalDims();
+    const { width: iw, height: ih } = app.imageModel.rotatedOriginalDims();
     app.cropRect = app.imageModel.roundRect({ x: 0, y: 0, width: iw, height: ih }, iw, ih);
   } else {
     app.cropRect = app.imageModel.defaultCropRect(opts.album);
