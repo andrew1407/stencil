@@ -91,7 +91,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Restore the compiler cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/.compilercache
           key: ccache-desktop-${{ matrix.os }}-${{ github.sha }}
@@ -124,7 +124,7 @@ jobs:
         run: cpack --config build/CPackConfig.cmake -B build/dist
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: stencil-${{ matrix.name }}
           path: desktop/build/dist/stencil-*.${{ matrix.ext }}
