@@ -309,12 +309,12 @@ test('canRefreshList: open + idle only — never mid-drag, never mid-removal', (
 
 test('every out-of-band trigger routes through the shared gate, held while a wipe plays', () => {
   const src = projectsModalSource();
-  // beginRemoval opens the hold; the settle render releases it BEFORE re-rendering.
+  // beginRemoval opens the hold; the settle renders at once, releasing it after the arrival.
   assert.match(src, /let removalsInFlight = 0;/, 'the hold is a counter (batch + single overlap)');
   assert.match(src, /removalsInFlight\+\+;\n\s+const held = list\.getBoundingClientRect\(\)\.height;/,
     'beginRemoval takes the hold with the height');
-  assert.match(src, /removalsInFlight = Math\.max\(0, removalsInFlight - 1\);\n\s+render\(\);/,
-    'the settle render releases it first, so it is never blocked by its own hold');
+  assert.match(src, /await new Promise\(\(r\) => setTimeout\(r, Math\.max\(0, wipeDurationMs\(\) - ROW_ARRIVE_DELAY_MS\)\)\);\n\s+removalsInFlight = Math\.max\(0, removalsInFlight - 1\);/,
+    'the hold outlives the wipe: released sooner, an out-of-band render replaced the arriving row mid-flight');
   // The four live triggers + the remote-listing settle ask mayRefresh (modal-open/dragActive/
   // removalsInFlight) rather than rendering outright; the fetch's arms share one gated `done`.
   const gated = (src.match(/if \(mayRefresh\(\)\) render\(\);/g) || []).length;

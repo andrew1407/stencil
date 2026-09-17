@@ -94,13 +94,25 @@ test('what a removal REVEALS arrives, it does not simply appear', () => {
   // the pinned "Temporary (unsaved)" row in. A row that is genuinely NEW to the list
   // materializes — veiled behind its own motes until they land, the removal played
   // backwards — which is the arrival the connections list already uses, and the twin of
-  // the desktop's ListFilterFade::dustRowIn. Only the rows the settle ADDED.
+  // the desktop's ListFilterFade::dustRowIn. Only the rows the settle ADDED, and on the
+  // desktop's own ROW_ARRIVE_MS rather than the slower filter clock.
   assert.match(projectsSrc, /const before = \[\.\.\.shownKeys\];/,
     'the settle remembers what the list showed before the removal');
-  assert.match(projectsSrc, /const \{ entering \} = filterDelta\(before, shownKeys\);[\s\S]{0,400}materialize\(el, rowDustGrid\(entering\.length, i\)\)/,
-    'and materializes the keys it ADDED — the shared delta, on the shared list-row grain');
+  assert.match(projectsSrc, /const \{ entering \} = filterDelta\(before, shownKeys\);[\s\S]{0,400}materialize\(el, \{ \.\.\.rowDustGrid\(entering\.length, i\), dustMs: ROW_ARRIVE_MS \}\)/,
+    'and materializes the keys it ADDED — the shared delta and grain, on the arrival clock');
   assert.match(projectsSrc, /import \{[^}]*materialize[^}]*\} from '\.\/motion\.js'/,
     'through the shared helper, not an animation of its own');
+});
+
+test('the row and its arrival land together, once the ash has thinned', () => {
+  // Rendering the moment the collapse ends dropped the arrival inside a full-strength
+  // scatter, where its own motes are invisible — and showed the row plain before veiling
+  // it again. So the settle waits the falling leg out, THEN renders and materializes in
+  // one turn; the rest of the wipe is only the hold and the held height.
+  assert.match(projectsSrc, /await new Promise\(\(r\) => setTimeout\(r, ROW_ARRIVE_DELAY_MS\)\);\n\s+render\(\);/,
+    'the ash thins first, then the rebuild');
+  assert.match(projectsSrc, /materialize\(el[\s\S]{0,400}await new Promise\(\(r\) => setTimeout\(r, Math\.max\(0, wipeDurationMs\(\) - ROW_ARRIVE_DELAY_MS\)\)\);/,
+    'and only the remainder of the wipe trails the arrival');
 });
 
 test('a real removal keeps the destructive wipe — a filter is not a delete', () => {
