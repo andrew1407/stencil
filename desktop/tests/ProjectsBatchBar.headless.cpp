@@ -209,12 +209,12 @@ int main(int argc, char** argv) {
     auto* list = dlg.findChild<QListWidget*>("projectsList");
     check(list && list->count() == int(locals.size()), "opens on the saved rows alone");
     if (!list) return 1;
-    // Exactly what a removal hands the still-open dialog: the new list and the window's
-    // session state in ONE repaint.
+    // A removal's own handover: new list + session in ONE repaint, arrival a beat later.
     dlg.setProjects(locals, /*temporary=*/true, /*incognito=*/false);
     QListWidgetItem* top = list->item(0);
     check(top && top->data(Qt::UserRole + 11).toBool(), "the pinned row is in the list at once");
     if (!top) return 1;
+    pumpUntil([&] { return dlg.findChild<QWidget*>(QString::fromLatin1(FILTER_DUST_OBJECT_NAME)) != nullptr; });
     check(top->data(FILTER_DUST_ROLE).toDouble() == 0.0,
           "…veiled while its motes gather — the sand IS the row arriving");
     check(dlg.findChild<QWidget*>(QString::fromLatin1(FILTER_DUST_OBJECT_NAME)) != nullptr,
