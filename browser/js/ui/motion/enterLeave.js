@@ -2,7 +2,7 @@ import { dustEnabled, motionReduced } from '../motionPrefs.js';
 import { disintegrate } from './disintegrate.js';
 import { flipFrom } from './flip.js';
 import { speckPainter } from './painters.js';
-import { DISINTEGRATE_MS, MOTE_PX, scatterGridFor } from './tiles.js';
+import { DISINTEGRATE_MS, MOTE_PX, TILE_GATHER_SHARE, scatterGridFor } from './tiles.js';
 import { TUNE } from './tune.js';
 // Dropped content plays in out of the drop point; with no point it keeps the plain landing.
 const ARRIVE_MS = TUNE.ARRIVE_MS;
@@ -96,6 +96,13 @@ const FILTER_MAX_ANIMATED = TUNE.FILTER_MAX_ANIMATED;
 export const FILTER_ENTERING_CLASS = 'filter-entering';
 // A shorter, non-destructive throw, never mistakable for a deletion's scatter.
 export const FILTER_DUST_MS = TUNE.FILTER_DUST_MS;
+// A row the list GAINS forms half again as briskly as a filter's — the desktop's arrival
+// clock, shared (support/filterFade.hpp ROW_ARRIVE_MS).
+export const ROW_ARRIVE_MS = Math.round(FILTER_DUST_MS / 1.5);
+// …once the removal's ash has thinned. Played inside a full-strength scatter the arrival's
+// own motes are simply lost in it, so it waits out the falling leg (the share by which the
+// leaving motes have mostly travelled) — far short of the whole DISINTEGRATE_MS wipe.
+export const ROW_ARRIVE_DELAY_MS = Math.round(DISINTEGRATE_MS * TILE_GATHER_SHARE);
 export const FILTER_DUST_DRIFT = TUNE.FILTER_DUST_DRIFT;
 // `index`/`count` share one mesh budget across the rows (scatterGridFor); `box` is an
 // optional pre-measured rect so a burst is measured in one read pass.

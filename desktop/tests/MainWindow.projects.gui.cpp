@@ -732,7 +732,7 @@ class MainWindowGuiTest : public QObject {
       const auto pinned = [&] {
         return list->count() == 1 && list->item(0)->data(Qt::UserRole + 11).toBool();
       };
-      settle([&] { return pinned(); }, 3000);
+      settle([&] { return pinned() && !dlg->findChildren<QWidget*>("stencilFilterDust").isEmpty(); }, 3000);
       tempPinned = pinned() && list->item(0)->text() == QStringLiteral("Temporary (unsaved)");
       for (int i = 0; i < list->count(); ++i)
         if (list->item(i)->text() == QStringLiteral("No projects yet")) noPlaceholder = false;

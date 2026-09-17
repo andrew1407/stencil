@@ -32,8 +32,13 @@ namespace stencil::gui {
   inline constexpr int FILTER_DUST_MAX_ROWS = 8;
   inline constexpr int FILTER_DUST_CELLS = 2400;
   inline constexpr int FILTER_DUST_MS = 253;   // browser FILTER_DUST_MS
-  // A row the list GAINS forms on the browser's arrival clock (motion.js materialize 560) / 1.5.
+  // A row the list GAINS forms on the arrival clock both surfaces share (browser
+  // motion/enterLeave.js ROW_ARRIVE_MS, the same number)…
   inline constexpr int ROW_ARRIVE_MS = 373;
+  // …one beat after the rebuild that added it, so the leaving ash has the screen to itself
+  // first. Deliberately NOT the browser's ROW_ARRIVE_DELAY_MS: its scatter runs half again
+  // as long as DisintegrateOverlay's, so its arrival has to wait proportionally longer.
+  inline constexpr int ROW_ARRIVE_DELAY_MS = 220;
   // Named apart from DisintegrateOverlay::OBJECT_NAME: tests counting removals must not
   // mistake an arrival for one.
   inline constexpr const char* FILTER_DUST_OBJECT_NAME = "stencilFilterDust";

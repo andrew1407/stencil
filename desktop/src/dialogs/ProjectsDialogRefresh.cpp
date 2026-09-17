@@ -9,6 +9,7 @@
 #include <QListWidget>
 #include <QPalette>
 #include <QSet>
+#include <QTimer>
 #include <limits>
 #include "../support/filterFade.hpp"
 namespace stencil::gui {
@@ -79,14 +80,26 @@ namespace stencil::gui {
     building_ = false;
     updateBatchBar();
     // Rows this rebuild ADDED form out of sand on the ARRIVAL clock (browser materialize), last, so
-    // dustRowIn writes its role under the same beforeFrame/afterFrame guard the filter uses.
-    if (wasBuilt)
+    // dustRowIn writes its role under the same beforeFrame/afterFrame guard the filter uses — and
+    // one beat later, so a removal's ash has the screen to itself first (browser beginRemoval).
+    if (wasBuilt) {
+      QSet<QString> arriving;
       for (int i = 0; i < list_->count(); ++i) {
         QListWidgetItem* it = list_->item(i);
         const QString k = rebuildKeyOf(it);
         if (k.isEmpty() || it->isHidden() || keysBefore.contains(k)) continue;
-        if (auto* fade = filterFade()) fade->dustRowIn(it, window(), ROW_ARRIVE_MS);
+        arriving.insert(k);
       }
+      if (!arriving.isEmpty())
+        // Re-found by key: another rebuild may have replaced the items in the meantime.
+        QTimer::singleShot(ROW_ARRIVE_DELAY_MS, this, [this, arriving] {
+          for (int i = 0; i < list_->count(); ++i) {
+            QListWidgetItem* it = list_->item(i);
+            if (it->isHidden() || !arriving.contains(rebuildKeyOf(it))) continue;
+            if (auto* fade = filterFade()) fade->dustRowIn(it, window(), ROW_ARRIVE_MS);
+          }
+        });
+    }
   }
 
   // Local + server interleaved by the active sort mode (browser js/ui/projectSort.js); the pinned

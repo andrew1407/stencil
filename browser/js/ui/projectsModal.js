@@ -4,7 +4,7 @@ import { icon, setSelectAllFace } from './icons.js';
 import { SORT_MODES, sortProjectItems } from './projectSort.js';
 import {
   observeReveal, leaveThenRemove, wipeDurationMs, createFilterAnimator,
-  materialize, filterDelta, rowDustGrid,
+  materialize, filterDelta, rowDustGrid, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS,
   ITEM_DUST_MS, rowLeaveDust, revealControls, revealBar,
   SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, markIn, markOut,
 } from './motion.js';
@@ -134,9 +134,11 @@ export class StencilProjectsModal extends StencilElement {
     // A delete plays the row out before the rebuild.
     const rowById = (id) => (id == null ? null : list.querySelector(`[data-id="${id}"]`));
 
-    // Call BEFORE a removal; await what it returns after. leaveThenRemove resolves on the
-    // short collapse while the ash falls longer, so the list height, the re-render and
-    // out-of-band refreshes (canRefreshList) are all held until wipeDurationMs.
+    // Call BEFORE a removal; await what it returns after. The caller has already awaited
+    // leaveThenRemove's short collapse, and the motes fly in their own fixed layer, so the
+    // list answers NOW rather than a whole ash-fall later — only the held height and
+    // out-of-band refreshes (canRefreshList) wait out wipeDurationMs. Desktop twin:
+    // ProjectsDialog::retireRow blanks the row at once while its slot outlives the dust.
     let removalsInFlight = 0;
     const beginRemoval = () => {
       removalsInFlight++;
@@ -144,18 +146,23 @@ export class StencilProjectsModal extends StencilElement {
       if (held) list.style.minHeight = `${held}px`;
       const before = [...shownKeys];
       return async () => {
-        await new Promise((r) => setTimeout(r, wipeDurationMs()));
-        removalsInFlight = Math.max(0, removalsInFlight - 1);
+        // Let the leaving ash thin first: the row and its arrival land together, so it is
+        // never seen plain and then veiled again, and its motes are not lost in the scatter.
+        await new Promise((r) => setTimeout(r, ROW_ARRIVE_DELAY_MS));
         render();
-        list.style.minHeight = '';
         // What the removal revealed (the pinned "Temporary (unsaved)" row) materializes
         // behind its own motes — only rows the settle ADDED. Desktop twin:
-        // ListFilterFade::dustRowIn over a ProjectsDialog::refresh rebuild.
+        // ListFilterFade::dustRowIn over a ProjectsDialog::refresh rebuild, same clock.
         const { entering } = filterDelta(before, shownKeys);
         entering.forEach((key, i) => {
           const el = rowByFilterKey(key);
-          if (el) materialize(el, rowDustGrid(entering.length, i));
+          if (el) materialize(el, { ...rowDustGrid(entering.length, i), dustMs: ROW_ARRIVE_MS });
         });
+        // The hold outlives the arrival: an out-of-band refresh landing mid-flight would
+        // re-render the row out from under its own motes. The held height goes with it.
+        await new Promise((r) => setTimeout(r, Math.max(0, wipeDurationMs() - ROW_ARRIVE_DELAY_MS)));
+        removalsInFlight = Math.max(0, removalsInFlight - 1);
+        list.style.minHeight = '';
       };
     };
 
