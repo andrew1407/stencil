@@ -1,5 +1,5 @@
 import { onWindowResize } from '../utils.js';
-import { subscribe, EVENTS } from '../bus/appBus.js';
+import { subscribe, EVENTS } from '../eventBus/appBus.js';
 
 // Keeps the canvas viewport (and the coordinates panel) sized to the available height on
 // every geometry change.

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/store"
 )
@@ -65,7 +65,7 @@ func TestApplySaveResultAdoptsTheCommittedVersion(t *testing.T) {
 	s := &session{id: "p_t_a", members: map[string]*member{}, version: 3}
 	m := newMember("c1", "A", nil)
 	s.members["c1"] = m
-	s.hub = &Hub{ctx: context.Background(), bus: bus.NewInProc()}
+	s.hub = &Hub{ctx: context.Background(), bus: eventbus.NewInProc()}
 
 	s.applySaveResult(persistResult{kind: persistSave, member: m,
 		rec: protocol.ProjectRecord{ID: "p_t_a", Version: 9, ResultPath: "p/result.png"}})

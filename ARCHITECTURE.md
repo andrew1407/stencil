@@ -194,7 +194,7 @@ right. The order per surface, and what enforces it:
 
 | Surface | Order (left → right) | Enforced by |
 |---|---|---|
-| browser | `config/` + `utils.js` → `core/` (no DOM) → bus → `net/` → `llm/` → `console/` → `ui/` → render | `browser/tests/layerBoundary.test.js` |
+| browser | `config/` + `utils.js` → `core/` (no DOM) → `eventBus/` → `net/` → `llm/` → `console/` → `ui/` → render | `browser/tests/layerBoundary.test.js` |
 | browser-extension | `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup/`, `options/`, `crop/` | `browser-extension/tests/layerBoundary.test.js` |
 | vscode-extension | `src/config/` + `src/parser/` → `src/lib/` → `src/*.js` → `src/extension.js` | `vscode-extension/tests/layerBoundary.test.js` |
 | desktop | core seam (the `core/` includes the lint allows) → controllers → `net/`, `io/` → `support/` → `canvas/`, `dialogs/`, `llm/` → `app/` | `desktop/tests/layerBoundary.headless.cpp` |
@@ -227,7 +227,7 @@ The recurring structures, under the names the repo uses for them.
   applied and reverted by the same code path.
 - **Strategy** — LLM providers (one `wire` per provider) and image filters; selected by table
   lookup, never by a growing `if` chain.
-- **Observer** — the event bus (`core/emitter.js`, Qt signals, the server's `internal/bus`).
+- **Observer** — the event bus (`core/emitter.js`, Qt signals, the server's `internal/eventbus`).
 - **Repository** — `projectsStore` / `internal/store` / `filestore`: persistence behind an
   interface the caller cannot see through.
 - **Chain of Responsibility** — request middleware on the server, and the guard chains on

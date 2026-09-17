@@ -7,7 +7,7 @@ import { loadSavedServers } from '../net/connectionStore.js';
 import { visibleChatMoreBtn } from './chatView.js';
 import { enhanceSelect } from './customSelect.js';
 import { loadVoiceSettings, saveVoiceSettings } from '../llm/voiceSettings.js';
-import { publish, EVENTS } from '../bus/appBus.js';
+import { publish, EVENTS } from '../eventBus/appBus.js';
 
 // Provider + endpoint configuration (llm-contract.md §5), persisted as drawingApp_llmSettings.
 // Endpoints come only from here — never from fetched or scanned content.

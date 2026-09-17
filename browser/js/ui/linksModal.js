@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
-import { subscribe, EVENTS } from '../bus/appBus.js';
+import { subscribe, EVENTS } from '../eventBus/appBus.js';
 
 // View/edit the current image's provenance (source URL, resource page); each field commits
 // on change. Adding a new image by URL lives in openImageModal.

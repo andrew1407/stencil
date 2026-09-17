@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/service"
 )
@@ -56,12 +56,12 @@ func (f *fakeSweepStore) has(id string) bool {
 	return ok
 }
 
-// sweepDrops builds the service tail the sweep drives, over an in-proc bus.
+// sweepDrops builds the service tail the sweep drives, over an in-proc eventbus.
 func sweepDrops(fs service.ProjectFiles) *service.ProjectService {
-	return sweepDropsOn(fs, bus.NewInProc())
+	return sweepDropsOn(fs, eventbus.NewInProc())
 }
 
-func sweepDropsOn(fs service.ProjectFiles, b bus.Bus) *service.ProjectService {
+func sweepDropsOn(fs service.ProjectFiles, b eventbus.Bus) *service.ProjectService {
 	return service.NewProjects(nil, fs, nil, b, 0)
 }
 
@@ -125,8 +125,8 @@ func TestSweepRemovesOnlyExpiredProjects(t *testing.T) {
 		"p_none_a": 0, // no expiry set → never swept
 	}}
 	fs := &fakeRemover{}
-	b := bus.NewInProc()
-	events, unsub := b.Subscribe(bus.ChannelEvents)
+	b := eventbus.NewInProc()
+	events, unsub := b.Subscribe(eventbus.ChannelEvents)
 	defer unsub()
 
 	ctx, cancel := context.WithCancel(context.Background())

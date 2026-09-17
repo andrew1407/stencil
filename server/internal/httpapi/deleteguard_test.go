@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
@@ -27,7 +27,7 @@ func deleteGuardAPI(t *testing.T, connections int) (*API, *testutil.MemStore) {
 		t.Fatal(err)
 	}
 	st := testutil.NewMemStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), LiveSessions: mockCounter{connections}, AdminToken: testAdmin})
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: eventbus.NewInProc(), LiveSessions: mockCounter{connections}, AdminToken: testAdmin})
 	return api, st
 }
 

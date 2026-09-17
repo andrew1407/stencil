@@ -1,4 +1,4 @@
-package bus
+package eventbus
 
 // Both backends drop rather than stall when a subscriber is behind, and a silent
 // drop reads like a lost edit. Report it — rate-limited, since the drop storm

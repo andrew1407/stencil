@@ -13,7 +13,7 @@ import {
 import { rowsToMessages } from '../llm/chatStore.js';
 import { MAX_ATTACHMENTS } from '../llm/chatController.js';
 import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../core/dragImageUrl.js';
-import { publish, subscribe, EVENTS } from '../bus/appBus.js';
+import { publish, subscribe, EVENTS } from '../eventBus/appBus.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from './motion.js';
 import {

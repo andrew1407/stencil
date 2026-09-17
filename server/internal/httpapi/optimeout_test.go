@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/store"
@@ -43,7 +43,7 @@ func stalledAPI(t *testing.T, timeout time.Duration) (*API, string) {
 	}
 	mem := testutil.NewMemStore()
 	api := New(Deps{Projects: &stalledStore{MemStore: mem}, Sessions: mem, Files: fs,
-		Bus: bus.NewInProc(), AdminToken: testAdmin, OpTimeout: timeout})
+		Bus: eventbus.NewInProc(), AdminToken: testAdmin, OpTimeout: timeout})
 	return api, issueToken(t, api, "")
 }
 

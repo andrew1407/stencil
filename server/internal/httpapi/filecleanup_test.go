@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
@@ -38,7 +38,7 @@ func TestUploadOnSweptProjectCleansUpBytes(t *testing.T) {
 				t.Fatal(err)
 			}
 			st := testutil.NewMemStore()
-			api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), AdminToken: testAdmin})
+			api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: eventbus.NewInProc(), AdminToken: testAdmin})
 			tok := issueToken(t, api, "")
 
 			rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"doomed","hasImage":true}`))
@@ -66,7 +66,7 @@ func TestFileUploadCleanupLeavesSiblingKindsAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := testutil.NewMemStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), AdminToken: testAdmin})
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: eventbus.NewInProc(), AdminToken: testAdmin})
 	tok := issueToken(t, api, "")
 
 	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"busy","hasImage":true}`))

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
@@ -20,7 +20,7 @@ func llmAPI(t *testing.T, l LLM) *API {
 		t.Fatal(err)
 	}
 	st := testutil.NewMemStore()
-	return New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), LLM: l, AdminToken: testAdmin})
+	return New(Deps{Projects: st, Sessions: st, Files: fs, Bus: eventbus.NewInProc(), LLM: l, AdminToken: testAdmin})
 }
 
 func TestLLMRoutesRequireAuth(t *testing.T) {

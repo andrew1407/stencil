@@ -2,7 +2,7 @@ import { replayWaves } from './motion.js';
 import { notify } from '../utils.js';
 import { VOICE_STATE_EVENT } from '../llm/voiceModes.js';
 import { attachVoiceDust } from './voiceDust.js';
-import { subscribe } from '../bus/appBus.js';
+import { subscribe } from '../eventBus/appBus.js';
 // The hands-free voice chat toggle (js/llm/voiceModes.js): `--voice-level` on <html>
 // carries the live loudness (css/animations/voice.css sizes the mics' shine from it), and
 // .active marks this button while voice chat is on — mirrored onto the fullscreen

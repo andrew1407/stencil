@@ -7,7 +7,7 @@ import { createLlmClient, LlmError, PROVIDER_LABELS } from './llmClient.js';
 import { loadLlmSettings, serverBearerToken } from './llmSettings.js';
 import { isAuthStatus } from '../net/connectionManager.js';
 import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
-import { publish } from '../bus/appBus.js';
+import { publish } from '../eventBus/appBus.js';
 import { mediaAdapters } from './adapters/media.js';
 import { projectAdapters } from './adapters/project.js';
 import { dialogAdapters } from './adapters/dialog.js';

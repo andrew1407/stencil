@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"stencil/server/internal/bus"
 	"stencil/server/internal/clock"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
@@ -100,7 +100,7 @@ func TestCreateProjectDefaultTTLHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := testutil.NewMemStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), ProjectTTL: time.Hour, AdminToken: testAdmin})
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: eventbus.NewInProc(), ProjectTTL: time.Hour, AdminToken: testAdmin})
 	tok := issueToken(t, api, "")
 
 	// No expiry in the body → stamped now + 1h (a large positive value).

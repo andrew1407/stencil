@@ -1,7 +1,7 @@
 // Package httpapi is the REST surface of the server: token issuance, project
 // CRUD, and file upload/download. It is built on net/http's method+pattern
 // ServeMux (no router dependency). Handlers depend on narrow interfaces
-// (ProjectStore, SessionStore, FileStore, bus.Bus) so they can be unit-tested
+// (ProjectStore, SessionStore, FileStore, eventbus.Bus) so they can be unit-tested
 // without a live database.
 package httpapi
 
@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"stencil/server/internal/auth"
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/ratelimit"
 	"stencil/server/internal/service"
@@ -26,7 +26,7 @@ type Deps struct {
 	Files        FileStore
 	LiveSessions SessionCounter // optional: live edit-session connection counts (the hub)
 	LLM          LLM            // optional: Anthropic proxy; nil = LLM routes disabled
-	Bus          bus.Bus
+	Bus          eventbus.Bus
 	TokenTTL     time.Duration
 	ProjectTTL   time.Duration // default project lifetime; 0 = no expiry (off)
 	MaxBodyBytes int64

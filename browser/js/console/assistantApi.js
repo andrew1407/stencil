@@ -5,7 +5,7 @@ import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider, URL_KEYS, is
 import {
   chatSide, setChatSide, applyChatSide, CHAT_SIDE_SWAPPED,
 } from '../ui/chatLayoutPrefs.js';
-import { publish, EVENTS } from '../bus/appBus.js';
+import { publish, EVENTS } from '../eventBus/appBus.js';
 import { str } from './coerce.js';
 
 export const createAssistantApi = ({ app, guard }) => {

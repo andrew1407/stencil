@@ -13,7 +13,7 @@ import (
 	"sync"
 	"testing"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
@@ -28,7 +28,7 @@ func limitAPI(t *testing.T, d Deps) *API {
 		t.Fatal(err)
 	}
 	st := testutil.NewMemStore()
-	d.Projects, d.Sessions, d.Files, d.Bus = st, st, fs, bus.NewInProc()
+	d.Projects, d.Sessions, d.Files, d.Bus = st, st, fs, eventbus.NewInProc()
 	if d.AdminToken == "" {
 		d.AdminToken = testAdmin
 	}

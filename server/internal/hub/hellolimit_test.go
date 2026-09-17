@@ -21,7 +21,7 @@ import (
 	"github.com/coder/websocket"
 
 	"stencil/server/internal/auth"
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
 )
@@ -47,7 +47,7 @@ func limitedHub(t *testing.T, perMin int, trusted []netip.Prefix) (*Hub, *counti
 	if _, err := res.CreateSession(ctx, auth.HashToken(goodToken), "test", 0, 0); err != nil {
 		t.Fatal(err)
 	}
-	return New(ctx, res, bus.NewInProc(), res, WithHelloLimit(perMin, trusted)), res
+	return New(ctx, res, eventbus.NewInProc(), res, WithHelloLimit(perMin, trusted)), res
 }
 
 // helloOnce dials, sends one hello, and returns the error code it got back.

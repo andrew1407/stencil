@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
@@ -20,7 +20,7 @@ import (
 // gated now (empty AdminToken = closed, not open), so the helpers default to it.
 const testAdmin = "test-admin-token"
 
-// testAPI wires the API with shared fakes plus a real filestore + in-proc bus.
+// testAPI wires the API with shared fakes plus a real filestore + in-proc eventbus.
 // An empty adminToken means "the shared testAdmin", not open issuance.
 func testAPI(t *testing.T, adminToken string) (*API, *testutil.MemStore) {
 	t.Helper()
@@ -33,7 +33,7 @@ func testAPI(t *testing.T, adminToken string) (*API, *testutil.MemStore) {
 	}
 	st := testutil.NewMemStore()
 	api := New(Deps{
-		Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(),
+		Projects: st, Sessions: st, Files: fs, Bus: eventbus.NewInProc(),
 		AdminToken: adminToken,
 	})
 	return api, st

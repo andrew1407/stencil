@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"stencil/server/internal/bus"
 	"stencil/server/internal/clock"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
 )
@@ -19,7 +19,7 @@ import (
 func projectSvc(t *testing.T, live SessionCounter, ttl time.Duration) (*ProjectService, *testutil.MemStore, *fakeFiles) {
 	t.Helper()
 	st, files := testutil.NewMemStore(), &fakeFiles{}
-	return NewProjects(st, files, live, bus.NewInProc(), ttl), st, files
+	return NewProjects(st, files, live, eventbus.NewInProc(), ttl), st, files
 }
 
 // A Stencil project is created FROM an image; bare metadata is refused before

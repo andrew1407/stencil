@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"stencil/server/internal/bus"
+	"stencil/server/internal/eventbus"
 	"stencil/server/internal/protocol"
 )
 
@@ -44,7 +44,7 @@ func BenchmarkSessionFanout(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	env := bus.EnvelopeOf(msg, data)
+	env := eventbus.EnvelopeOf(msg, data)
 	for _, peers := range []int{1, 10, 50} {
 		b.Run(fmt.Sprintf("peers=%d", peers), func(b *testing.B) {
 			s, stop := benchSession(b, peers)
