@@ -101,8 +101,8 @@ export class StencilCropModal extends StencilElement {
       if (!app.originalImage || !app.imageDataUrl) return;
       // The rotated original, so the crop rect (in rotated pixel space) lines up.
       const orig = app.imageModel.effectiveOriginalDims();
-      iw = orig.w;
-      ih = orig.h;
+      iw = orig.width;
+      ih = orig.height;
       rect = app.cropRect ? { ...app.cropRect } : centeredCrop(iw, ih, cropAspect(pageDims().width, pageDims().height, isAlbumOrientation(iw, ih)));
       album = isAlbumOrientation(rect.width, rect.height);
       aspect = cropAspect(pageDims().width, pageDims().height, album);
