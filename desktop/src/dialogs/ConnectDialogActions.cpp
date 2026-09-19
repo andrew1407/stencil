@@ -65,9 +65,8 @@ namespace stencil::gui {
     QPointer<ConnectDialog> self(this);
     manager_->connectToAsync(url, tokenEdit_->text().trimmed(), [this, self, url](bool ok, QString err) {
       if (!self) return;
-      // A refused CREDENTIAL still leaves a row behind (kept at Status::EXPIRED with a Reconnect), so
-      // the fields that put it there are done — leaving them typed invites adding the server twice.
-      // An attempt that left NOTHING keeps its text, so a typo can be corrected where it was made.
+      // A refused CREDENTIAL still leaves a row (EXPIRED + Reconnect), so its fields are cleared -
+      // leaving them typed invites adding the server twice. An attempt that left NOTHING keeps its text.
       if (!ok) emit toast(tr("Could not connect — %1").arg(err), true);
       if (ok || manager_->find(url)) {
         urlEdit_->clear();
@@ -164,9 +163,8 @@ namespace stencil::gui {
     }
   }
 
-  // Return connects from wherever the focus is (browser twin: connectModal.js wires keydown on both
-  // fields). Handled HERE because removing a row can leave the dialog with no focus widget at all,
-  // and QDialog's default-button path needs a button that autoDefault juggling has not disarmed.
+  // Return connects from wherever the focus is (browser twin: connectModal.js keydown on both
+  // fields). Handled HERE because removing a row can leave the dialog with no focus widget at all.
   void ConnectDialog::keyPressEvent(QKeyEvent* e) {
     if ((e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) &&
         !(e->modifiers() & ~Qt::KeypadModifier)) {

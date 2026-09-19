@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The chat dock's resize edge (browser .chat-resizer). The strip is QMainWindow chrome
-  // with no widget of its own, so a mouse-transparent band is painted over it, in whichever
-  // area the dock sits and only where Qt would actually start the resize.
+  // The chat dock's resize edge (browser .chat-resizer): the strip is QMainWindow chrome with no
+  // widget of its own, so a mouse-through band is painted where Qt would start the resize.
   void chatResizeEdgeFollowsTheDockInEveryArea() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -51,12 +50,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!edge->isVisible());
   }
 
-  // The chat dock is session-transient (browser full-reset-on-reload parity): a
-  // saved window layout must NOT resurrect it — every launch starts hidden at
-  // the default left placement. The selection panel DOES restore, and its
-  // toggle action must track the restored visibility so the header chevron
-  // ("Hide panel", Alt+X) still works after a restart (regression: the pre-show
-  // isVisible() sync left the action unchecked, so the chevron no-opped).
+  // The chat dock is session-transient (browser full-reset-on-reload parity): a saved layout must
+  // NOT resurrect it. The selection panel DOES restore, and its toggle tracks that visibility.
   void chatDockSessionTransientAndPanelToggleAfterRestore() {
     {
       stencil::gui::Settings s = stencil::gui::fileStore::loadSettings();
@@ -116,13 +111,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The chat dock SLIDES in and out (browser chat-panel parity) instead of
-  // popping: docked left, its WIDTH animates 0 → natural on open and back to 0
-  // on close (then it hides). Sampled like fullscreenRevealAnimatesSmoothly.
-  // Afterwards the size constraints must be released again (the min==max
-  // pinning is animation-only) so the dock stays user-resizable, and a reopen
-  // returns to the extent it had before the dismissal. Floating docks are their
-  // own windows, so they just show/hide.
+  // The chat dock SLIDES: docked left, its WIDTH animates 0 → natural and back. Afterwards the
+  // min==max pinning is released so the dock stays resizable and a reopen keeps its extent.
   void chatDockSlideAnimation() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);

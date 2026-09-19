@@ -26,9 +26,8 @@ namespace stencil::gui {
     // Sending always lands the view at the very bottom, wherever it was.
     scrollToBottom();
     if (images.isEmpty()) return;
-    // The attached images ARE part of what the user said, so they sit in the user's
-    // own bubble as thumbnails — above the text, right-aligned with the bubble.
-    // Previously only the count was appended as "[N image(s) attached]".
+    // The attached images ARE part of what the user said, so they sit in the user's own bubble as
+    // thumbnails - above the text, right-aligned with the bubble.
     QWidget* card = lay->parentWidget();
     auto* row = new QHBoxLayout;
     row->setSpacing(6);
@@ -38,9 +37,8 @@ namespace stencil::gui {
       auto* thumb = new QLabel(card);
       thumb->setPixmap(QPixmap::fromImage(
           img.scaled(THUMB_EDGE, THUMB_EDGE, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
-      // No tooltip: the bubble thumbnail is already big, and "Attached image (500×750)"
-      // told you nothing the picture doesn't. The hover preview declines to open for a
-      // thumbnail this size, so hovering here does nothing at all — which is right.
+      // No tooltip: the bubble thumbnail is already big. The hover preview declines to open for a
+      // thumbnail this size, so hovering here does nothing at all - which is right.
       new HoverPreview(thumb, img, QString());
       row->addWidget(thumb);
     }
@@ -136,8 +134,7 @@ namespace stencil::gui {
 
     auto* submit = new QPushButton(QStringLiteral("Submit"), card);
     // The affirmative action of the card, so it wears the app's accent CTA face (theme.cpp
-    // QPushButton[accentCta="true"]) and the same hover sweep every other button carries — the
-    // browser's twin is a plain <button>, which gets both for free from its shared rules.
+    // QPushButton[accentCta="true"]) and the hover sweep; the browser's <button> gets both for free.
     submit->setProperty("accentCta", true);
     installHoverShimmer(submit);
     submit->setEnabled(false);

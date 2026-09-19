@@ -71,9 +71,8 @@ namespace serverauth {
       check(fullH > 0 && lw->item(plainRow)->sizeHint().height() == fullH,
             "a settled row occupies its whole slot");
 
-      // ── A filter is a QUESTION re-answered, not a removal: the row it excludes was
-      // never disconnected, so there is no exit to watch — it is out of the view the
-      // moment the answer changes, and the surviving row keeps the slot it had.
+      // A filter is a QUESTION re-answered, not a removal: the row it excludes was never disconnected, so
+      // there is no exit to watch — it leaves the view at once and the surviving row keeps the slot it had.
       filter->setCurrentIndex(filter->findData(QStringLiteral("admin")));
       check(lw->item(plainRow)->isHidden() && lw->item(plainRow)->sizeHint().height() == 0,
             "an excluded row is gone at once, slot closed");

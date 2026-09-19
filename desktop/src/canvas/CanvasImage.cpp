@@ -40,9 +40,8 @@ namespace stencil::gui {
     if (heightCm > 0) pageHeightCm_ = heightCm;
   }
 
-  // The original with the current rotation baked in (clockwise quarter-turns).
-  // Qt's QTransform::rotate(+90) is clockwise in the default y-down space, so the
-  // quarter count maps straight through. Returns the original untouched at 0.
+  // Qt's QTransform::rotate(+90) is clockwise in the default y-down space, so the quarter count
+  // maps straight through. Returns the original untouched at 0.
   QImage CanvasWidget::effectiveOriginalImage() const {
     const int q = ((rotationQuarters_ % 4) + 4) % 4;
     if (q == 0 || originalImage_.isNull()) return originalImage_;

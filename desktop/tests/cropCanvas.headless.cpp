@@ -1,9 +1,7 @@
-// Headless functional check of the desktop crop integration (CanvasWidget +
-// cropGeometry), run offscreen so it needs no display. Exercises the SAME built
-// code the GUI uses: default centered crop on load, crop-local point rescale on
-// a same-orientation resize, and line clearing on an orientation flip. Returns
-// non-zero on any failed expectation. Not part of stencil_tests (that target is
-// Qt-free); built only when Qt is present (see CMakeLists).
+// Headless functional check of the desktop crop integration (CanvasWidget + cropGeometry), run
+// offscreen. Exercises the SAME built code the GUI uses: default centered crop on load, crop-local
+// point rescale on a same-orientation resize, and line clearing on an orientation flip.
+// Built only when Qt is present; not part of the Qt-free stencil_tests.
 #include "CanvasWidget.hpp"
 #include <QApplication>
 #include <QImage>

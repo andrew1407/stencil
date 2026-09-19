@@ -19,9 +19,8 @@ int main(int argc, char** argv) {
   check(!cssColor(QStringLiteral("#zzzzzzzz")).isValid(), "garbage is invalid, not silently black");
   check(!cssName(QColor()).size(), "an invalid colour names nothing");
 
-  // The screen must read a colour exactly as rasterize.cpp's export does. QColor's own
-  // table has neither of these, so parsing with it drew nothing where the export drew
-  // a colour (core/color/colorNames.cpp is the shared vocabulary).
+  // The screen must read a colour exactly as rasterize.cpp's export does, and QColor's own table has
+  // neither of these names (core/color/colorNames.cpp is the shared vocabulary).
   const QColor rebecca = cssColor(QStringLiteral("rebeccapurple"));
   check(rebecca.isValid() && rebecca.red() == 102 && rebecca.green() == 51 &&
         rebecca.blue() == 153, "the CSS Level 4 name QColor lacks resolves like the export");

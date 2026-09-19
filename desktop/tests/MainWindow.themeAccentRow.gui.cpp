@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The ✓ in an OPEN accent popover follows the accent wherever it moved from — the
-  // logo's click-cycle (applySettings), not only the popover's own row picks (user
-  // report). The browser's logo menu re-marks off stencil:accent-changed the same way.
+  // The ✓ in an OPEN accent popover follows the accent wherever it moved from — the logo's
+  // click-cycle (applySettings), not only the popover's own row picks (user report).
   void accentPopoverTickFollowsAnOutsideAccentChange() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
@@ -59,9 +58,8 @@ class MainWindowGuiTest : public QObject {
     win.applySettings(restore, true);
   }
 
-  // Alt held with the cursor resting ON the open popover must not glide onto an icon the
-  // box is COVERING: the glide's cursor-rect fallback is pure geometry, so it read that as
-  // hovering the buttons under the box and opened their window beneath it.
+  // Alt held with the cursor resting ON the open popover must not glide onto an icon the box is
+  // COVERING: the glide's cursor-rect fallback is pure geometry and read that as hovering them.
   void altGlideIgnoresIconsUnderTheOpenPopover() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
@@ -114,9 +112,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!armed, "resting on the box armed a covered icon's peek");
   }
 
-  // A row under the pointer eases a couple of pixels RIGHT — the browser's
-  // `.accent-dd-opt:hover { transform: translateX(2px) }` — and SURVIVES the preview's own
-  // flood, which re-polishes every stylesheet and re-lays the popover out.
+  // A row under the pointer eases a couple of pixels RIGHT (browser `.accent-dd-opt:hover`) and
+  // SURVIVES the preview's flood, which re-polishes every stylesheet and re-lays the popover out.
   void accentRowSlidesUnderThePointer() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);

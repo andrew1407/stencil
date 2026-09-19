@@ -16,8 +16,7 @@ class QWidget;
 namespace stencil::gui {
 
   // Modal popovers (support/popover.hpp): dblclick / right-click opens the dialog as a compact
-  // popover; a plain click is deferred one double-click interval so exec() cannot swallow the
-  // second click.
+  // popover; a plain click is deferred one double-click interval so exec() cannot swallow it.
   class PopoverHost {
    public:
     QSet<QAction*> dialogActions;         // the actions whose buttons get the gestures

@@ -19,9 +19,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // ⌥⌫ in the chat box deleted the selected LINE (the canvas's deleteLine shortcut claimed the
-  // chord app-wide) instead of the word behind the cursor. A focused text box owns the standard
-  // editing chords; the action keeps working everywhere else.
+  // A focused text box owns the standard editing chords: ⌥⌫ in the chat box deletes the word
+  // behind the cursor, not the selected line, while the canvas action works everywhere else.
   void wordDeleteInTheChatBoxDeletesAWordNotALine() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -47,11 +46,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Browser .chat-msg-user::before/::after parity: every settled bubble grows a
-  // painted tail at the corner facing the panel centre — user right, assistant/
-  // error left — and "Swap message sides" (the "…" menu item between Clear
-  // history and Settings) flips BOTH the alignment and the tail side of every
-  // card ALREADY on screen, not just future ones, and persists.
+  // Browser .chat-msg-user::before/::after parity: a settled bubble grows a tail at the corner
+  // facing the panel centre, and "Swap message sides" flips every card already on screen.
   void chatSwapSidesReskinsRetroactively() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -68,10 +64,8 @@ class MainWindowGuiTest : public QObject {
     // The entrance holds each card's opacity effect and drops the claim when it lands
     // (ENTERING_PROPERTY), so that IS the slide's own completion flag.
     QTRY_VERIFY(noneEntering(win.chatDock_));
-    // A short bubble's width can still settle over a couple of extra layout
-    // passes after the wait above (viewport/scrollbar interplay in
-    // applyChatBubbleWidths) — one more explicit re-sync makes the geometry
-    // checks below deterministic instead of racing the last pixel or two of it.
+    // A short bubble's width can settle over a couple more layout passes (viewport/scrollbar
+    // interplay in applyChatBubbleWidths), so one explicit re-sync makes the geometry checks firm.
     win.chatDock_->applyBubbleWidths();
 
     QFrame* userCard = nullptr;
@@ -81,9 +75,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(userCard && asstCard);
     auto* transcriptLayout = qobject_cast<QVBoxLayout*>(userCard->parentWidget()->layout());
     QVERIFY(transcriptLayout);
-    // QBoxLayout carries a widget's alignment on the LayoutItem, not as a
-    // queryable per-widget property — find it by index (setAlignment(widget,…)
-    // is the only setter Qt offers, so this is the matching getter path).
+    // QBoxLayout carries a widget's alignment on the LayoutItem, not as a queryable property, so
+    // find it by index — setAlignment(widget,…) is the only setter Qt offers.
     const auto alignmentOf = [](QVBoxLayout* lay, QWidget* w) {
       return lay->itemAt(lay->indexOf(w))->alignment();
     };
@@ -99,10 +92,8 @@ class MainWindowGuiTest : public QObject {
     auto* asstTail = tailOf(asstCard);
     QVERIFY2(userTail && userTail->isVisible(), "the user bubble has no tail");
     QVERIFY2(asstTail && asstTail->isVisible(), "the assistant bubble has no tail");
-    // The tail hangs from the bubble's BOTTOM edge, flush with it, and pokes out
-    // past the corner facing the panel centre — checked as an invariant (pokes
-    // out on the right side, sits near the bottom), not exact pixel offsets,
-    // which are the placement formula's own implementation detail.
+    // The tail hangs flush from the bubble's BOTTOM edge and pokes past the corner facing the panel
+    // centre — pinned as that invariant, not as the placement formula's exact pixel offsets.
     QVERIFY2(userTail->geometry().right() > userCard->geometry().right(),
              "the user bubble's tail must poke out past its RIGHT edge");
     QVERIFY2(qAbs(userTail->geometry().bottom() - userCard->geometry().bottom()) <= 2,

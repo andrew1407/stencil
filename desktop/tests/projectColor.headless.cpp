@@ -1,9 +1,7 @@
-// Headless round-trip check for the per-project accent `color` field
-// (fileStore::projectToJson <-> projectFromJson). Verifies the desktop emits and
-// reads back the SAME "color" the browser/CLI/server carry, and that it is omitted
-// from the JSON when empty (so a plain project's bytes are unchanged). Mirrors the
-// browser's projectsStore color persistence and the server ProjectRecord.Color.
-// Not part of stencil_tests (that target is Qt-free); built only when Qt is present.
+// Headless round-trip check for the per-project accent `color` field (fileStore::projectToJson <->
+// projectFromJson): the desktop emits and reads back the SAME "color" the browser/CLI/server carry, and
+// omits it from the JSON when empty so a plain project's bytes are unchanged. Mirrors the browser's
+// projectsStore color persistence and the server ProjectRecord.Color. Built only when Qt is present.
 #include "fileStore.hpp"
 #include <QCoreApplication>
 #include <QJsonObject>

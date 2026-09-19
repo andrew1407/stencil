@@ -65,9 +65,8 @@ namespace stencil::gui {
                           .arg(shown.width()).arg(shown.height()));
   }
 
-  // Reveal the quick-crop row for a previewed image/frame, defaulting the album
-  // toggle to the media's orientation (wider-than-tall ⇒ album) and the page size
-  // to the app's current page (mirrors the browser's showQuickcrop).
+  // Reveal the quick-crop row, defaulting the album toggle to the media's orientation
+  // (wider-than-tall => album) and the page to the app's current one (browser showQuickcrop).
   void LinksDialog::showQuickcrop(int w, int h) {
     cropPage_->setChecked(true);
     cropAlbum_->setChecked((w >= h) && (w > 0));

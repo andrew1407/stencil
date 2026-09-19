@@ -9,19 +9,11 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Opening a project from the list is gesture-mapped (browser parity):
-  //   single click          → confirm, then open in the CURRENT window
-  //   double click          → open immediately, NO confirmation
-  //   Ctrl/⌘ + single click → confirm, then open in a NEW window
-  //   Ctrl/⌘ + double click → new window immediately, NO confirmation
-  // The crux is that the single-click open is deferred by doubleClickInterval()
-  // and cancelled by the double click, so the confirmation never flashes.
+  // Opening a project from the list is gesture-mapped (browser parity): a click confirms then opens
+  // here, a double-click opens at once, ⌘ opens a NEW window. The deferred click never flashes it.
   void projectsListOpenGestures() {
-    // Offscreen only (which is how ctest runs this suite). Driving a MODAL
-    // dialog with synthetic clicks needs the window server to have activated
-    // it; on a real desktop the clicks go nowhere and the flow deadlocks on the
-    // still-open modal. Same class of limitation as the fullscreen edge-hover
-    // test, which is likewise offscreen-only.
+    // Offscreen only: driving a MODAL dialog with synthetic clicks needs the window server to have
+    // activated it, and on a real desktop the clicks go nowhere and the flow deadlocks.
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog gestures need the offscreen platform");
     MainWindow win(nullptr, false);
@@ -40,9 +32,8 @@ class MainWindowGuiTest : public QObject {
         if (qobject_cast<MainWindow*>(w) && w->isVisible()) ++n;
       return n;
     };
-    // Watches for the styled in-dialog open-confirm (modalChrome confirmModal —
-    // it sits OVER the still-open projects dialog now) and answers it. Matched by
-    // objectName: the projects dialog itself is a modal QDialog too.
+    // Watches for the styled in-dialog open-confirm (modalChrome confirmModal), which sits OVER the
+    // still-open projects dialog. Matched by objectName: that dialog is a modal QDialog too.
     struct BoxWatch {
       bool seen = false;
       bool accept = true;
@@ -90,9 +81,8 @@ class MainWindowGuiTest : public QObject {
         const QRect r = list->visualItemRect(item);
         const QPoint hit(r.left() + r.width() / 2, r.center().y());
         if (doubleClick) {
-          // Synthesised directly rather than via QTest::mouseDClick: that helper
-          // waits internally between the events, and the dialog accepting
-          // mid-sequence leaves it stuck.
+          // Synthesised directly rather than via QTest::mouseDClick: that helper waits internally between the
+          // events, and the dialog accepting mid-sequence leaves it stuck.
           QWidget* vp = list->viewport();
           const QPointF gp = vp->mapToGlobal(hit);
           const auto send = [&](QEvent::Type t) {

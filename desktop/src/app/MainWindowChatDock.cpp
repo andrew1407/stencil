@@ -29,15 +29,13 @@
 
 namespace stencil::gui {
 
-  // Pin the chat to a side (placement buttons, a dock-zone drop, or toggleChatFloat's wasFloating
-  // leg). The selection panel owns the right area, so docking there must SPLIT side-by-side —
-  // plain addDockWidget stacks them into two squashed half-height columns.
+  // The selection panel owns the right area, so docking there must SPLIT side-by-side - plain
+  // addDockWidget stacks them into two squashed half-height columns.
   void MainWindow::dockChatTo(Qt::DockWidgetArea area) {
     if (!chatDock_) return;
     const auto place = [this, area] {
-      // pinPanelWhileSharing (run first by every call site) already fixed the panel's width, so the
-      // split lands on that, not Qt's even one. Top/bottom need Qt::Vertical for a FULL-WIDTH row:
-      // the default horizontal placement parked the chat beside the top area's own dock.
+      // pinPanelWhileSharing has already fixed the panel's width, so the split lands on that, not
+      // Qt's even one. Top/bottom need Qt::Vertical for a FULL-WIDTH row.
       if (area == Qt::TopDockWidgetArea || area == Qt::BottomDockWidgetArea)
         addDockWidget(area, chatDock_, Qt::Vertical);
       else
@@ -45,9 +43,8 @@ namespace stencil::gui {
       chatDock_->setFloating(false);
       ensurePanelChatSplit();
     };
-    // Moving between sides slides out of the old edge and in at the new one — the icon's own extent
-    // slide, so a placement change reads as travel, and it dusts through chatSurfaceFlight.
-    // Skipped when there is nothing on screen to move.
+    // A placement change reads as travel: out of the old edge, in at the new, dusting through
+    // chatSurfaceFlight. Skipped when there is nothing on screen to move.
     const bool wasFloating = chatDock_->isFloating();
     // Leaving a deliberate float — remember where it sat so the next one returns there.
     // Never the compact popover's tiny icon-anchored rect (toggleChatFloat guards alike).
@@ -94,9 +91,8 @@ namespace stencil::gui {
     });
   }
 
-  // The title bar's Float button: QDockWidget::setFloating teleports, with no animation of its own.
-  // Docked → float leaves through chatSurfaceFlight's dust then flies out of the icon (revealWindow);
-  // float → docked dismisses, re-docks at the last area, and dockChatTo's wasFloating branch dusts it.
+  // QDockWidget::setFloating teleports with no animation of its own, so the flight is driven
+  // here: chatSurfaceFlight's dust out of / into the icon, then dockChatTo's wasFloating leg.
   void MainWindow::toggleChatFloat() {
     if (!chatDock_ || tearingDown_ || !chatDock_->isVisible()) return;
     stopChatAnim();
@@ -107,9 +103,8 @@ namespace stencil::gui {
       if (!chatCompactShowing()) chatFloatRect_ = chatDock_->geometry();
       setChatCompactPopover(false);   // a deliberate dock is never a popover shape
       support::dismissWindow(*chatDock_, icon);   // hides at once; the ghost/dust flies
-      // dockChatTo needs the dock VISIBLE to measure and dust the arrival (setChatShown's
-      // own open does the same re-show first) — still floating, so it re-hides behind
-      // the veil at once and this never actually flashes the old floating shape back.
+      // dockChatTo needs the dock VISIBLE to measure and dust the arrival; still floating, so it
+      // re-hides behind the veil at once and never flashes the old floating shape back.
       chatDock_->show();
       dockChatTo(chatCompactPrevArea_);
       return;
@@ -126,9 +121,8 @@ namespace stencil::gui {
     const auto finishToFloat = [this, icon] {
       stopChatAnim();
       chatDock_->setFloating(true);
-      // setFloating() alone derives the top-level placement from the just-collapsed
-      // 0-width docked geometry, which lands off-screen — pin position AND size.
-      // Remembered for the session once the user moves it (browser chatPanel.js parity).
+      // setFloating() alone derives the top-level placement from the collapsed 0-width docked
+      // geometry, which lands off-screen - pin position AND size (browser chatPanel.js parity).
       chatDock_->setGeometry(chatFloatRect_.isValid() ? chatFloatRect_ : defaultChatFloatRect());
       support::revealWindow(*chatDock_, icon);
     };
@@ -136,8 +130,7 @@ namespace stencil::gui {
     chatAnim_ = startExtentSlide(this, full, 0, 200, pinAndRaiseDust(pin, outFx), finishToFloat);
   }
 
-  // Show slides the dock to full width; hide slides it to 0, hides it and reveals the right-edge
-  // re-open chevron. QMainWindow overrides a dock's maximumWidth during layout, so pin min==max
+  // QMainWindow overrides a dock's maximumWidth during layout, so pin min == max
   // (setFixedWidth) each frame and release the constraint at the end.
   void MainWindow::setPanelShown(bool show, bool animate) {
     if (!selPanel_) return;
@@ -146,9 +139,8 @@ namespace stencil::gui {
     const int full = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : PANEL_DEFAULT_WIDTH;
     if (!show && selPanel_->isVisible() && selPanel_->width() > 120)
       panelRestoreWidth_ = selPanel_->width();
-    // The two chevrons are different buttons but read as one toggle: whichever is on screen turns
-    // half a revolution with the slide and lands on the other's glyph. Driven here so Alt+X and the
-    // View menu turn it too, not only a click on the chevron.
+    // The two chevrons are different buttons but read as one toggle. Driven here so Alt+X and
+    // the View menu turn it too, not only a click on the chevron.
     const int spinMs = animate ? (show ? FOLD_MS : FOLD_OUT_MS) : 0;
     if (show) spinIcon(panelReopenBtn_, "chevron-left", palette().color(QPalette::WindowText),
                        PANEL_TOGGLE_GLYPH, 0, 180, spinMs);
@@ -168,9 +160,8 @@ namespace stencil::gui {
       // The chat may already be docked at this side from while the panel was hidden,
       // stacked rather than split — re-establish the split now the panel is back.
       ensurePanelChatSplit();
-      // The flight is photographed at the OPEN width (it leaves the panel pinned there);
-      // 1px, not 0, is what the slide then starts from: at exactly zero Qt treats the
-      // split's anchor pane as vacated and drops the panel out of the layout tree.
+      // Photographed at the OPEN width; the slide starts from 1px, not 0 - at exactly zero Qt treats
+      // the split's anchor pane as vacated and drops the panel out of the layout tree.
       if (animate) dustFx = panelSurfaceFlight(/*gather=*/true, FOLD_DUST_IN_MS, full);
       selPanel_->setFixedWidth(1);
       from = 1; to = full;

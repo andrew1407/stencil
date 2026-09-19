@@ -71,9 +71,8 @@ namespace serverauth {
     dlg.resize(520, 420);
     dlg.show();
     pumpFor(60);
-    // No separate note any more: the browser says it with the amber card and the amber
-    // dot, and the desktop says it the same way. The sentence lives on the dot's and
-    // the URL's tooltips.
+    // No separate note: the browser says it with the amber card and the amber dot, and the desktop says it
+    // the same way. The sentence lives on the dot's and the URL's tooltips.
     check(dlg.findChild<QLabel*>(QStringLiteral("expiredNote")) == nullptr,
           "the expired row carries no note of its own (the browser has none)");
     bool saysExpired = false;
@@ -116,10 +115,8 @@ namespace serverauth {
           "…and the expired note leaves with it");
   }
 
-  // ── A pasted token signs the EXPIRED row in ──────────────────────────────────
-  // The refused client keeps its place in the list on purpose, so the sign-in cannot go
-  // through connectToAsync() — that answers "already connected" and leaves the session
-  // expired however good the token is. reauthenticateAsync() reuses the listed client.
+  // A pasted token signs the EXPIRED row in. The refused client keeps its place in the list on purpose, so
+  // connectToAsync() would answer "already connected"; reauthenticateAsync() reuses the listed client.
   std::printf("expired row: signing in with a pasted token:\n");
   {
     mock.projectsStatus = 401;

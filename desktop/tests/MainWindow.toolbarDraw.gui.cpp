@@ -70,10 +70,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(mode->width(), modeWidth);
     beat();
   }
-  // The two Draw toggles are pinned so a label swap can't resize them and shove the row —
-  // but the pin must be a MEASUREMENT of the widest label, never a generous guess, or the
-  // short face ("Start", "Line") sits in a pool of dead space. Font/locale-independent:
-  // the check re-measures rather than naming a number.
+  // The two Draw toggles are pinned so a label swap cannot resize them and shove the row, but the pin
+  // must be a MEASUREMENT of the widest label, so the check re-measures rather than naming a number.
   void drawTogglesAreNoWiderThanTheirWidestLabel() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -108,12 +106,8 @@ class MainWindowGuiTest : public QObject {
     }
     beat();
   }
-  // Both Draw toggles cross over through the ONE shared swap (support/faceSwap.hpp): the
-  // glyph turns and the word fades out, they are exchanged at the invisible pivot, and the
-  // new pair turns back in. What must hold whatever the user does: the button never
-  // resizes, a burst of toggles always lands on the REAL state, and reduced motion goes
-  // straight to the end state. (The suite runs with STENCIL_NO_ANIM=1, so this case takes
-  // it off for the animated half and puts it back for the last one.)
+  // Both Draw toggles cross over through the ONE shared swap (support/faceSwap.hpp): the button never
+  // resizes, a burst of toggles always lands on the REAL state, and reduced motion goes to the end.
   void drawTogglesSwapTheirFaceAndConverge() {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
@@ -142,10 +136,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(btn->property("drawToggle").toString(), QString("on"));
     QVERIFY2(btn->styleSheet().isEmpty(), "the swap's colour override outlived it");
 
-    // ── Line ↔ Rect: the same swap, the same pinned box, and — unlike Start/Stop — a
-    // PERMANENT accent fill (it has no idle/on pair of its own, and no QAction for
-    // styleDangerToolButtons' pass to reach, so it carries the property itself). The
-    // browser's #draw-mode-toggle is a bare <button>, filled at rest for the same reason.
+    // Line ↔ Rect: the same swap and the same pinned box, but — unlike Start/Stop — a PERMANENT accent
+    // fill it carries itself, having no idle/on pair and no QAction for styleDangerToolButtons to reach.
     QCOMPARE(mode->property("toolFill").toString(), QString("accent"));
     QCOMPARE(mode->text(), QString("Line"));
     mode->click();

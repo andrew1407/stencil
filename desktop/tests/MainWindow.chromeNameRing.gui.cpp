@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The project name at the top is a TITLE at rest — no box — that RINGS in the accent
-  // under the pointer, as the browser's read-only #project-name-input does. The ring has
-  // to live in that field's OWN stylesheet (applyProjectNameStyle): a per-widget sheet
-  // outranks the themed one for every property it names, so the rule in theme.cpp was
-  // simply ignored and the title stayed inert. Watched in
-  // PIXELS for that reason — a stylesheet that exists is not a ring that paints.
+  // The project name is a TITLE at rest — no box — that RINGS in the accent under the pointer. The
+  // ring must live in that field's OWN sheet (applyProjectNameStyle), so it is watched in PIXELS.
   void projectNameTitleRingsOnHoverOnly() {
     MainWindow win(nullptr, false);
     win.resize(1400, 860);
@@ -48,9 +44,8 @@ class MainWindowGuiTest : public QObject {
     };
     const QColor accent = stencil::gui::accentPrimary(win.settings_.accentColor);
     const QColor rest = edge();
-    // The ring is the accent at the shared 45% (the browser's two stacked layers come to
-    // the same on screen), so the edge lands between the ground and the accent — never the
-    // flat accent, which read far brighter than the browser's.
+    // The ring is the accent at the shared 45% (the browser's two stacked layers come to the same on
+    // screen), so the edge lands between the ground and the accent, never the flat accent.
     const auto near = [](const QColor& a, const QColor& b, int tol) {
       return qAbs(a.red() - b.red()) + qAbs(a.green() - b.green()) + qAbs(a.blue() - b.blue()) < tol;
     };
@@ -72,9 +67,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The rename ✓/✗ slide their slots open by animating maximumWidth, so the layout's own
-  // cap is parked while that runs (controlReveal parkMaxWidth). Read back off the live
-  // value instead, it ratcheted down on every interrupted swap until the pair was slivers.
+  // The rename ✓/✗ slide their slots open by animating maximumWidth, so the layout's own cap is
+  // parked while that runs (controlReveal parkMaxWidth); read off the live value it ratchets down.
   void nameChipsSurviveRenamesCutShortMidSlide() {
     MainWindow win(nullptr, false);
     win.resize(1400, 900);
@@ -98,11 +92,8 @@ class MainWindowGuiTest : public QObject {
     win.cancelProjectName();
   }
 
-  // A select popup's rows hover like every other item in the app: the glass sweep, and the
-  // 2px ease right the browser's `.accent-dd-opt:hover { transform: translateX(2px) }`
-  // plays. The desktop's popups had NEITHER — a page-size row lit up and that was all
-  //. The slide WRAPS whatever delegate the popup already has, so a list with
-  // its own painter (the motion modes' animated glyphs) keeps it.
+  // A select popup's rows hover like every other item in the app: the glass sweep plus the browser's
+  // 2px ease right. The slide WRAPS the popup's existing delegate, so a custom painter keeps it.
   void selectPopupRowsSweepAndSlideOnHover() {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("popup gestures need the offscreen platform");
@@ -148,9 +139,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Toasts stack, so a repeated action (flipping the theme a few times) used to build a
-  // column of identical messages up the side of the canvas. The stack is capped: a new
-  // arrival retires the oldest instead of piling on.
+  // Toasts stack, so the stack is capped: a new arrival retires the oldest instead of piling a column
+  // of identical messages up the side of the canvas.
   void toastStackIsCappedAtThree() {
     QWidget host;
     host.resize(600, 420);
@@ -158,9 +148,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&host));
     stencil::gui::Notifications toasts(&host);
 
-    // Read the stack TOP-DOWN by geometry. findChildren order is not creation order here:
-    // reflow() raise()s each toast, and raise() moves a widget to the end of its parent's
-    // child list — the very trap the cap itself had to be written around.
+    // Read the stack TOP-DOWN by geometry: findChildren order is not creation order here, because
+    // reflow() raise()s each toast and raise() moves a widget to the end of its parent's child list.
     const auto stackTopDown = [&host] {
       QList<QLabel*> live = host.findChildren<QLabel*>("toast", Qt::FindDirectChildrenOnly);
       std::sort(live.begin(), live.end(),

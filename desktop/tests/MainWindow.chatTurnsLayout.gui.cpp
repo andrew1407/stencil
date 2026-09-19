@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Transcript follow (chat stickiness): a send scrolls fully down to the
-  // pending "…"; a reply follows only while the view already sits at the
-  // bottom — never yanking a user who scrolled up to read history.
+  // Transcript follow (chat stickiness): a send scrolls fully down to the pending "…"; a reply
+  // follows only while the view already sits at the bottom, never yanking a reader upward.
   void chatTranscriptFollowsSendsAndPinnedReplies() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -50,10 +49,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §3.0: a turn ends when its plan has executed and its reply is shown — one model
-  // round, nothing after it. This used to fan out one re-trace request PER LINE plus
-  // up to three whole-layout self-check rounds, so a 17-line trace spent minutes
-  // working (and failing) under a reply that was already on screen.
+  // §3.0: a turn ends when its plan has executed and its reply is shown — one model round, nothing
+  // after it; no re-trace request per line and no whole-layout self-checks.
   void chatLayoutTurnIssuesExactlyOneRound() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);

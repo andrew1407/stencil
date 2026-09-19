@@ -41,12 +41,12 @@ namespace stencil::gui {
       refresh();
     };
     reList->onDragStart = [this] {
-      rowDragging_ = true;
-      if (clickTimer_) clickTimer_->stop();
+      press_.rowDragging = true;
+      if (press_.clickTimer) press_.clickTimer->stop();
       if (dragZones_) dragZones_->begin(frameGeometry());
     };
     reList->onDragEnd = [this] {
-      rowDragging_ = false;
+      press_.rowDragging = false;
       if (dragZones_) dragZones_->end();
     };
     // New-window + Remove are LOCAL-only (mirrors the ⋯ menu).
@@ -92,18 +92,18 @@ namespace stencil::gui {
     connect(list_, &QListWidget::itemClicked, this, &ProjectsDialog::scheduleRowOpen);
     connect(list_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* it) {
       // The pending single-click open must die before it can raise the confirmation.
-      if (clickTimer_) clickTimer_->stop();
-      if (pressOnCheck_) return;
+      if (press_.clickTimer) press_.clickTimer->stop();
+      if (press_.pressOnCheck) return;
       // Browser parity: the name's dblclick renames inline (local rows) and never opens.
       if (it && !it->data(Qt::UserRole).isNull() &&
           it->data(Qt::UserRole + 1).toString().isEmpty()) {
         auto* del = static_cast<ProjectRowDelegate*>(list_->itemDelegate());
-        if (del && del->nameRectFor(list_->row(it)).adjusted(-4, -3, 4, 3).contains(pressPos_)) {
+        if (del && del->nameRectFor(list_->row(it)).adjusted(-4, -3, 4, 3).contains(press_.pressPos)) {
           beginInlineRename(it);
           return;
         }
       }
-      openRow(it, isNewWindowMod(pressMods_), /*confirm=*/false);
+      openRow(it, isNewWindowMod(press_.pressMods), /*confirm=*/false);
     });
     // Consumed so it cannot also trigger the dialog's default button.
     list_->installEventFilter(this);

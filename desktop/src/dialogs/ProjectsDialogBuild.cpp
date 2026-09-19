@@ -73,10 +73,10 @@ namespace stencil::gui {
     // Shown whenever the filtered view has selectable rows (it hosts Select all); direction buttons show by
     // selection homogeneity. WRAPS (browser .projects-batch-bar flex-wrap, gap 10).
     {
-      batchBar_ = new QWidget(this);
-      auto* bh = new FlowLayout(batchBar_, 0, 10, 6);
-      batchCount_ = new QLabel("0 selected", this);
-      bh->addWidget(batchCount_);
+      batch_.batchBar = new QWidget(this);
+      auto* bh = new FlowLayout(batch_.batchBar, 0, 10, 6);
+      batch_.batchCount = new QLabel("0 selected", this);
+      bh->addWidget(batch_.batchCount);
       // The accent rides the shared accentCta property (theme.cpp), leaving objectNames free for the tests.
       const auto accentBtn = [this](const QString& label, const QString& icon,
                                     const QString& tip) {
@@ -90,48 +90,48 @@ namespace stencil::gui {
       selectAllBtn_->setObjectName("projectsSelectAll");
       bh->addWidget(selectAllBtn_);
       connect(selectAllBtn_, &QPushButton::clicked, this, &ProjectsDialog::toggleSelectAll);
-      batchToServer_ = accentBtn(tr("Move to server"), "server",
+      batch_.batchToServer = accentBtn(tr("Move to server"), "server",
                                  "Move the checked local projects to a server");
-      batchCopyServer_ = accentBtn(tr("Copy to server"), "copy",
+      batch_.batchCopyServer = accentBtn(tr("Copy to server"), "copy",
                                    "Copy the checked local projects to a server");
-      batchToLocal_ = accentBtn(tr("Move to local"), "download",
+      batch_.batchToLocal = accentBtn(tr("Move to local"), "download",
                                 "Move the checked server projects to local storage");
-      batchCopyLocal_ = accentBtn(tr("Copy to local"), "copy",
+      batch_.batchCopyLocal = accentBtn(tr("Copy to local"), "copy",
                                   "Copy the checked server projects to local storage");
-      batchRemove_ = new QPushButton("Remove selected", this);
-      batchRemove_->setToolTip("Remove the checked projects");
-      batchRemove_->setObjectName("dangerButton");
-      batchRemove_->setIcon(labelIcon("trash", QColor("#ffffff"), 13));
-      batchClear_ = accentBtn("Clear", "x", "Clear the current checkbox selection");
+      batch_.batchRemove = new QPushButton("Remove selected", this);
+      batch_.batchRemove->setToolTip("Remove the checked projects");
+      batch_.batchRemove->setObjectName("dangerButton");
+      batch_.batchRemove->setIcon(labelIcon("trash", QColor("#ffffff"), 13));
+      batch_.batchClear = accentBtn("Clear", "x", "Clear the current checkbox selection");
       // ONE group so the bar's swap is a single flight: a control's dust is photographed where it sits, and
       // siblings revealed in the same turn are still animating their width. Browser: .projects-batch-selected.
-      batchSelectedGroup_ = new QWidget(batchBar_);
-      auto* gh = new FlowLayout(batchSelectedGroup_, 0, 6, 6);
+      batch_.batchSelectedGroup = new QWidget(batch_.batchBar);
+      auto* gh = new FlowLayout(batch_.batchSelectedGroup, 0, 6, 6);
       gh->setLineSizeHint(true);
       gh->setHoldsLineWhileCapped(true);
-      gh->addWidget(batchToServer_);
-      gh->addWidget(batchCopyServer_);
-      gh->addWidget(batchToLocal_);
-      gh->addWidget(batchCopyLocal_);
-      gh->addWidget(batchClear_);
-      gh->addWidget(batchRemove_);
-      batchSelectedGroup_->setVisible(false);
-      bh->addWidget(batchSelectedGroup_);
-      batchBar_->setVisible(false);
+      gh->addWidget(batch_.batchToServer);
+      gh->addWidget(batch_.batchCopyServer);
+      gh->addWidget(batch_.batchToLocal);
+      gh->addWidget(batch_.batchCopyLocal);
+      gh->addWidget(batch_.batchClear);
+      gh->addWidget(batch_.batchRemove);
+      batch_.batchSelectedGroup->setVisible(false);
+      bh->addWidget(batch_.batchSelectedGroup);
+      batch_.batchBar->setVisible(false);
       // The bar and the list share ONE zero-spacing slot; the gap under the bar is the bar's OWN bottom
       // margin, so a closing strip slides its whole footprint away (controlReveal closeBarSlot). 10px above, 10px below.
       bh->setContentsMargins(0, 0, 0, BODY_SPACING);
       barSlot_ = new QVBoxLayout;
       barSlot_->setContentsMargins(0, 0, 0, 0);
       barSlot_->setSpacing(0);
-      barSlot_->addWidget(batchBar_);
+      barSlot_->addWidget(batch_.batchBar);
       layout->addLayout(barSlot_, 1);
-      connect(batchToServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_MOVE_TO_SERVER); });
-      connect(batchCopyServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_COPY_TO_SERVER); });
-      connect(batchToLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_MOVE_TO_LOCAL); });
-      connect(batchCopyLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_COPY_TO_LOCAL); });
-      connect(batchRemove_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_REMOVE); });
-      connect(batchClear_, &QPushButton::clicked, this, [this] { checked_.clear(); refresh(); });
+      connect(batch_.batchToServer, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_MOVE_TO_SERVER); });
+      connect(batch_.batchCopyServer, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_COPY_TO_SERVER); });
+      connect(batch_.batchToLocal, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_MOVE_TO_LOCAL); });
+      connect(batch_.batchCopyLocal, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_COPY_TO_LOCAL); });
+      connect(batch_.batchRemove, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_REMOVE); });
+      connect(batch_.batchClear, &QPushButton::clicked, this, [this] { batch_.checked.clear(); refresh(); });
     }
   }
 

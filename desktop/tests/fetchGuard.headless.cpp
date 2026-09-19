@@ -1,9 +1,8 @@
-// Headless check for the untrusted-fetch SSRF guard (net/fetchGuard) — the desktop port
-// of cli/src/net.zig, so these cases mirror its own tests: every internal class is
-// refused for an IP literal AND for the alternate numeric encodings a resolver accepts,
-// loopback flips with `strict`, IPv4-mapped IPv6 is classified by its embedded IPv4, a
-// normal public host is allowed, and the request the guard hands out carries the house
-// timeout and follows no redirect. Pure QtNetwork — nothing is fetched.
+// Headless check for the untrusted-fetch SSRF guard (net/fetchGuard) — the desktop port of
+// cli/src/net.zig, so these cases mirror its own tests: every internal class refused for an IP literal
+// AND for the alternate numeric encodings a resolver accepts, loopback flipping with `strict`,
+// IPv4-mapped IPv6 classified by its embedded IPv4, a public host allowed, and the request the guard
+// hands out carrying the house timeout and following no redirect. Pure QtNetwork — nothing is fetched.
 #include "fetchGuard.hpp"
 
 #include <QCoreApplication>

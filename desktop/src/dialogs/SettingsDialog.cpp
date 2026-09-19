@@ -132,9 +132,8 @@ namespace stencil::gui {
     addSection(r, tr("App appearance"));
 
     accent_ = addCombo(r, "Accent color used for highlights across the app");
-    // Brand-accent presets (theme.hpp) — violet first/default. Same choices as
-    // the browser/extension main-theme dropdowns. Each item carries a rounded
-    // colour swatch icon so the actual colour shows next to the name.
+    // Brand-accent presets (theme.hpp) - violet first/default, the same choices as the browser and
+    // extension dropdowns. Each item carries a rounded colour swatch icon.
     const auto swatch = [](const QColor& c) {
       QPixmap pm(16, 16);
       pm.fill(Qt::transparent);
@@ -153,9 +152,8 @@ namespace stencil::gui {
       if (idx >= 0) {
         accent_->setCurrentIndex(idx);
       } else if (current.accentColor.startsWith('#') && QColor(current.accentColor).isValid()) {
-        // A custom (non-preset) accent — set ONLY from the header logo (double-click), never chosen
-        // here. Add a "Custom" entry so the COLLAPSED combo reflects it, but HIDE that row in the
-        // popup so it isn't offered as a choice in the list.
+        // A custom (non-preset) accent is set ONLY from the header logo, never here: add a "Custom" entry
+        // so the COLLAPSED combo reflects it, but HIDE that row in the popup.
         accent_->addItem(swatch(QColor(current.accentColor)), "Custom", current.accentColor);
         const int customIdx = accent_->count() - 1;
         accent_->setCurrentIndex(customIdx);

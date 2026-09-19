@@ -8,15 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // REGRESSION (two of them, one fixture — both need a transcript long enough that every
-  // further append really scrolls). A card's cloud was photographed before the scroll landed,
-  // so the motes flew at the card's pre-scroll box and rained over the composer; the entrance
-  // now waits a frame for scrollToBottom() and refuses to fly for a card not wholly inside
-  // the viewport. And a card's dust is a SNAPSHOT placed once while the transcript keeps
-  // moving under it — appending the next card scrolls the view, a wrapped label re-reserves
-  // its height, the dock is resized. Left where it launched, that snapshot was drawn over a
-  // NEIGHBOURING bubble, which reads as one message overlapping the one below it (reported).
-  // The overlay now follows its own card, and is dropped the moment the card moves or resizes.
+  // Both cases need a transcript long enough that every append really scrolls: the cloud is
+  // photographed after the scroll lands, and its snapshot never covers a neighbouring bubble.
   void chatCardDustStaysWithItsCardInAScrolledTranscript() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -39,9 +32,8 @@ class MainWindowGuiTest : public QObject {
 
     // ── 1. no mote may reach the composer ──
     win.chatDock_->appendUser(QStringLiteral("one more, which has to scroll into view"), {});
-    // The cloud that belongs to THIS card. The fill above can still have arrivals in
-    // flight (gatherChatCardIn waits the layout out in hops), and grabbing whichever
-    // overlay happened to exist measured one card's cloud against another's box.
+    // The cloud that belongs to THIS card: the fill above can still have arrivals in flight
+    // (gatherChatCardIn waits the layout out in hops), so whichever overlay exists will not do.
     QFrame* card = nullptr;
     stencil::gui::DisintegrateOverlay* fx = nullptr;
     QTRY_VERIFY_WITH_TIMEOUT(([&] {
@@ -65,29 +57,23 @@ class MainWindowGuiTest : public QObject {
     // bubble's own furniture (the "…" trigger) deliberately hangs outside it sideways.
     QVERIFY2(cardGlobal.top() >= viewGlobal.top() && cardGlobal.bottom() <= viewGlobal.bottom(),
              "the dusted card is not wholly in the viewport");
-    // An arrival is a surface cloud, so the layer is the whole window and carries the
-    // card's box inside it; what matters is where it may PAINT. The clip is the
-    // transcript's viewport, so no mote reaches the composer however far it flies.
+    // An arrival is a surface cloud, so the layer is the whole window; what matters is where it
+    // may PAINT. The clip is the transcript's viewport, so no mote reaches the composer.
     QCOMPARE(fx->paintClip(),
              QRect(scroll->viewport()->mapTo(&win, QPoint(0, 0)), scroll->viewport()->size()));
     QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr,
                              stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
     if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
       QTRY_COMPARE(fx->opacity(), 1.0);
-    // ── 2. the cloud follows its own card, never stranding between two ──
-    // A turn's two cards land back to back — the second one's append is what scrolls the
-    // first one's snapshot off its subject.
+    // 2. the cloud follows its own card, never stranding between two: a turn's two cards land
+    // back to back, and the second append is what scrolls the first one's snapshot off it.
     win.chatDock_->appendUser(QStringLiteral("Give me 3 variants: rotated, tinted, cropped"), {});
     QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) != nullptr, 3000);
     win.chatDock_->appendError(QStringLiteral("not connected to http://localhost:8090 (no token)"),
                                QStringLiteral("retry me"));
 
-    // Watch the whole flight: every live cloud must sit on a card, never between two. The
-    // WIDGET covers the whole host and follows its card by retargeting what it draws
-    // (chatWidgets.cpp trackChatCardDust), so the PICTURE is what has to line up. Its timer
-    // ticks at 16ms, so a few samples out of step are lag — under load it can miss several
-    // in a row — and only a cloud that STAYS off its card strands. A real one never returns:
-    // stop the tracker and this counts hundreds, not a handful.
+    // Every live cloud must sit on a card. The widget follows its card by retargeting what it
+    // draws, so with its 16ms timer only a cloud that STAYS off its card strands.
     QHash<QWidget*, int> misses;
     int strandedFrames = 0, sampled = 0;
     for (int f = 0; f < 90; ++f) {
@@ -119,11 +105,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(sampled > 0, "no overlay was ever sampled — the check would be vacuous");
     QCOMPARE(strandedFrames, 0);
 
-    // …and when the tracker DOES drop a stale snapshot, the card it was standing in for
-    // takes over in that same moment. The veil is otherwise lifted only at the end of the
-    // full flight, so a cancel that just killed the motes left the message invisible with
-    // nothing in its place (the browser twin had exactly this, found by resizing a live
-    // entry mid-flight). Resizing the dock changes every card's width — the drop path.
+    // When the tracker drops a stale snapshot, the card it stood in for takes over in that same
+    // moment, or a cancelled flight leaves the message invisible. Resizing the dock drops it.
     QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
                              stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     win.chatDock_->appendUser(QStringLiteral("resized mid-flight"), {});
@@ -149,11 +132,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // REGRESSION: the empty-state chips rendered as sharp RECTANGLES (reported). Qt draws a
-  // square box — silently — when border-radius exceeds half the widget's height, and these
-  // chips settle at 28px while the sheet asked for the browser's 16. Reading the height at
-  // style time does not save it either: the flow layout compresses the chip from 32 to 28
-  // afterwards, so the radius has to be pinned to the floor the app-wide sheet guarantees.
+  // Qt draws a square box when border-radius exceeds half the widget's height, and these chips
+  // settle at 28px against the browser's 16, so the pin is on the floor, after style time.
   void suggestionChipsAreRoundedPills() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
@@ -180,9 +160,8 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(radius >= 8, "…and it still has to read as a pill, not a soft rectangle");
     }
 
-    // …and it really PAINTS rounded: rendered onto white, the corners must show white
-    // through. grab() alone cannot tell — outside a rounded corner it leaves transparent
-    // pixels, which over this dark theme look exactly like the chip's own fill.
+    // …and it really PAINTS rounded: rendered onto white, the corners show white through. grab()
+    // alone leaves transparent pixels outside a corner, which read as the chip's own fill.
     QPushButton* chip = btns.first();
     QPixmap shot(chip->size());
     shot.fill(Qt::white);

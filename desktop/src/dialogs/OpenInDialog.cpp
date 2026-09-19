@@ -57,9 +57,8 @@ namespace stencil::gui {
     rows->addWidget(incognito_, 3, 1);
     chrome.body->addLayout(rows);
 
-    // Fallback row (browser #open-in-fallback-row): shown when a Telegram start
-    // payload can't fit in 64 chars — the two bot commands as selectable code, and a
-    // copy chip beside them. Hidden until then.
+    // Fallback row (browser #open-in-fallback-row): shown when a Telegram start payload cannot fit
+    // in 64 chars - the two bot commands as selectable code, and a copy chip. Hidden until then.
     fallbackRow_ = new QWidget(this);
     {
       auto* wrap = new QVBoxLayout(fallbackRow_);
@@ -109,9 +108,8 @@ namespace stencil::gui {
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     btnRow->addWidget(cancel);
 
-    // Each button is added only when its target is available (HIDDEN, not greyed,
-    // when not — matching the browser modal); the caller only opens the dialog when
-    // at least one is available, so the footer is never empty.
+    // Each button is added only when its target is available (HIDDEN, not greyed, matching the browser
+    // modal); the caller only opens the dialog when at least one is, so the footer is never empty.
     if (browserAvailable) {
       browser_ = new QPushButton(tr("Browser app"), this);
       makeModalCta(browser_, "external");

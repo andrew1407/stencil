@@ -8,12 +8,13 @@
 #include <QString>
 #include <QVector>
 
+#include "chatCards.hpp"
+#include "chatDockState.hpp"
 #include "chatMoreMenu.hpp"   // the shared "…" rows, built once for both composers
 #include "opPlan.hpp"
 #include "PillSplitter.hpp"   // the shared composer resize grip
 #include "../support/theme.hpp"   // Palette, cached for a swap-triggered re-style
 #include <functional>
-
 class QAction;
 class QFrame;
 class QCloseEvent;
@@ -40,61 +41,6 @@ class QWidget;
 // Assistant chat panel (llm-contract.md); browser twin: browser/js/ui/chatPanel.js. Pure UI:
 // MainWindow owns the history, the LlmClient, plan execution and the reachability probes.
 namespace stencil::gui {
-
-  // `onPick` gets the prompt text — callers prefill the composer, never send.
-  QWidget* makeSuggestionChips(QWidget* parent, int gap, std::function<void(QString)> onPick);
-  void styleSuggestionChips(QWidget* chips, const Palette& pal);
-
-  extern const char* const CHAT_STATUS_OK_COLOR;
-  extern const char* const CHAT_STATUS_BAD_COLOR;
-
-  QToolButton* makeChatAccentButton(QWidget* parent, const QString& tooltip);
-
-  enum class ChatCardKind { BUBBLE, ERROR, MUTED };
-  QLabel* fillChatCard(QFrame* card, QVBoxLayout* lay, const QString& role,
-                       const QString& text, ChatCardKind kind, const QColor& danger);
-  // Pure: `swapped` flips the side, `user` alone decides it at rest.
-  inline bool isChatBubbleOnRight(bool user, bool swapped) { return swapped ? !user : user; }
-  // OPAQUE, flattened over `pageBg` (the surface the cards sit ON, not `chip`); false ⇒ no tail.
-  bool chatBubbleColorsFor(const QString& objectName, const QColor& accent, const QColor& chip,
-                           const QColor& border, const QColor& danger, const QColor& pageBg,
-                           QColor& fillOut, QColor& borderOut);
-  void applyChatBubbleSide(QFrame* card, QLayout* layout, bool right, const QColor& accent,
-                           const QColor& chip, const QColor& border, const QColor& danger,
-                           const QColor& pageBg);
-  void applyChatSwapToCards(QWidget* transcript, QLayout* layout, bool swapped,
-                            const QColor& accent, const QColor& chip, const QColor& border,
-                            const QColor& danger, const QColor& pageBg);
-  // Browser chatView.js chatRowMenuItems; only these hooks differ per surface.
-  struct ChatCardMenuHooks {
-    QWidget* owner = nullptr;
-    QScrollArea* scroll = nullptr;
-    std::function<void(const QString&)> insertIntoPrompt;
-    std::function<void(QFrame*, const QString&)> resend;
-    std::function<bool()> busy;
-    // A dock mid-close is still visible for its slide; a menu opened then has nowhere to live.
-    std::function<bool()> leaving;
-    std::function<void()> moreMoved;
-    // Global-coords furniture the "…" must not sit under; re-asked on every placement.
-    std::function<QRect()> avoidRect;
-    QColor text, chip, border, accent, muted;
-  };
-  void installChatCardMenu(QFrame* card, const ChatCardMenuHooks& hooks);
-  // The default arg lives on the one declaration in chatWidgets.hpp — repeating it is a redefinition.
-  void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
-                         const QRect& avoidGlobal);
-  QWidget* makeChatTypingDots(QWidget* parent);
-  QToolButton* addChatRetryButton(QVBoxLayout* lay, const QColor& glyph,
-                                  std::function<void()> onClick);
-  QPushButton* addChatConfigureCta(QVBoxLayout* lay, const QColor& accent,
-                                   std::function<void(QPushButton*)> onClick);
-  // One bubble per turn, notes inside it, never extra rows.
-  QLabel* addChatCardNote(QVBoxLayout* lay, const QString& text);
-
-  // A word-wrapped QLabel clips its own last line unless its real height is reserved.
-  void applyChatBubbleWidths(QWidget* transcript, QScrollArea* scroll);
-  // Keyed on the whole sheet: a card's own local QSS shifts its wrapped label's height.
-  QString chatCardStyleSheet(const Palette& pal, bool swapped);
 
   class ChatDock : public QDockWidget {
     Q_OBJECT
@@ -148,9 +94,9 @@ namespace stencil::gui {
     void setProviderStatus(const QString& richTooltip, ProviderStatus status);
     void restyleIcons(const Palette& pal);
 
-    const QList<QImage>& attachedImages() const { return images_; }
-    const QStringList& attachedImageNames() const { return imageNames_; }
-    QString attachedVideoPath() const { return videoPath_; }
+    const QList<QImage>& attachedImages() const { return cmp_.images; }
+    const QStringList& attachedImageNames() const { return cmp_.imageNames; }
+    QString attachedVideoPath() const { return cmp_.videoPath; }
     bool useCurrentImage() const { return true; }
     void addAttachmentImage(const QImage& img, const QString& name = QString());
     void clearAttachments();
@@ -162,7 +108,7 @@ namespace stencil::gui {
     void appendAsk(const stencil::llm::AskCard& ask, const QVector<QImage>& previews);
 
     // Hidden with the dock, so a window raised from the menu falls from above (modalReveal's rule).
-    QToolButton* moreButton() const { return more_; }
+    QToolButton* moreButton() const { return cmp_.more; }
 
    signals:
     void sendRequested(const QString& text);
@@ -204,6 +150,7 @@ namespace stencil::gui {
     void submit();
     void onSendClicked();
     void buildTitleBar();
+    void buildComposer();   // its own TU: ChatDockComposer.cpp
     void startDragPoll();
     void pollDrag();
     void cancelDragPoll();
@@ -240,22 +187,13 @@ namespace stencil::gui {
     void updateSendEnabled();
     void scrollToBottom();
 
-    PillSplitter* splitter_ = nullptr;
+    // Furniture in chatDockState.hpp; input_ and scroll_ stay named (the GUI e2e reads them).
+    ChatTranscriptParts log_;
+    ChatTitleBarParts chrome_;
+    ChatComposerParts cmp_;
     QScrollArea* scroll_ = nullptr;
-    QToolButton* jumpTop_ = nullptr;
-    QToolButton* jumpBottom_ = nullptr;
     class ScrollReveal* reveal_ = nullptr;
-    QWidget* transcript_ = nullptr;
-    QVBoxLayout* transcriptLayout_ = nullptr;
-    QWidget* titleBar_ = nullptr;
-    QLabel* headerIcon_ = nullptr;
-    QLabel* headerTitle_ = nullptr;
-    QToolButton* clearBtn_ = nullptr;
-    QToolButton* floatBtn_ = nullptr;
-    QToolButton* closeBtn_ = nullptr;
-    QList<QToolButton*> dockBtns_;
-    QColor accentCache_, textCache_, dangerCache_, mutedCache_;
-    QColor chipCache_, borderCache_;
+    QColor accentCache_, textCache_, dangerCache_, mutedCache_, chipCache_, borderCache_;
     // setChatSwapSides re-issues chatCardStyleSheet against the last palette.
     Palette paletteCache_;
     bool chatSwapSides_ = false;
@@ -270,30 +208,13 @@ namespace stencil::gui {
     bool dragActive_ = false;
     std::function<QPoint()> dragPosProbe_;
     std::function<bool()> dragDownProbe_;
-    QWidget* inputArea_ = nullptr;
-    QWidget* dropCue_ = nullptr;
-    QLabel* dropCueIcon_ = nullptr;
-    QLabel* dropCueText_ = nullptr;
-    QVariantAnimation* dropCueAnim_ = nullptr;
-    QWidget* suggest_ = nullptr;
     QPlainTextEdit* input_ = nullptr;
-    QToolButton* send_ = nullptr;
-    QToolButton* attach_ = nullptr;
-    QToolButton* gear_ = nullptr;
-    QToolButton* more_ = nullptr;
     ChatMoreActions moreRows_;   // the "…" overflow's four rows
-    QLabel* statusDot_ = nullptr;
     QPointer<QWidget> lastAssistantCard_;
-    QWidget* attachTray_ = nullptr;
-    QProgressBar* busy_ = nullptr;
-    // Not derived from busy_'s visibility: turns run while the dock is hidden (context-menu chat).
-    bool busyFlag_ = false;
+    // Not derived from cmp_.busy's visibility: turns run while the dock is hidden (context-menu chat).
 
-    QList<QImage> images_;
 
     QElapsedTimer capToastAt_;
-    QStringList imageNames_;
-    QString videoPath_;
     bool stickToBottom_ = true;
     QWidget* pendingCard_ = nullptr;
     QLabel* pendingRole_ = nullptr;

@@ -57,9 +57,8 @@ namespace stencil::gui {
     }
     QPainter p(this);
     p.setClipRect(clip_);   // clipped by the edit field, the way the word itself is
-    // Sequential: the outgoing word is most of the way out before the incoming starts.
-    // Each cloud is composed on its own layer, or the second word's cut-outs would take
-    // the first word's flying grains with them.
+    // Sequential: the outgoing word is most of the way out before the incoming starts. Each cloud is
+    // composed on its own layer, or the second word's cut-outs would take the first word's grains.
     renderCloud(&layerOut_, out_, &cellsOut_,
                 std::clamp(t_ / VALUE_SWAP_OUT_SHARE, 0.0, 1.0), false);
     renderCloud(&layerIn_, in_, &cellsIn_,

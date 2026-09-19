@@ -44,9 +44,8 @@ namespace stencil::gui {
 
   void MainWindow::applyTheme() {
     const bool dark = resolveDark(settings_.themeMode);
-    // A real palette change gets the browser's flood-from-the-centre wipe: snapshot, restyle, erase
-    // with a growing circle. Never under reduced motion, and never while one is in flight — stacking
-    // a fresh snapshot over a running wipe tore the window. The palette still restyles.
+    // A real palette change gets the browser's flood-from-the-centre wipe. Never under reduced
+    // motion, and never while one is in flight - stacking snapshots tore the window.
     const bool paletteMoved = dark != paintedDark_ || settings_.accentColor != paintedAccent_;
     const bool swapping = themePainted_ && !support::motionReduced() && !themeSwapping() && paletteMoved;
     // Start the wipe at the icon that owns the change, as the browser blooms from its toggle; the
@@ -142,9 +141,8 @@ namespace stencil::gui {
     scroll_->viewport()->setAutoFillBackground(true);
     scroll_->viewport()->setPalette(vp);
 
-    // The drop-hint's lightbulb is a rasterised glyph an inline <img> cannot recolour, so it is
-    // re-tinted here — and its keycaps are painted pictures carrying literal colours, so the
-    // whole line is rebuilt rather than restyled.
+    // The drop-hint's lightbulb is a rasterised glyph an inline <img> cannot recolour, and its
+    // keycaps are painted pictures carrying literal colours, so the whole line is rebuilt.
     if (dropHintIcon_)
       dropHintIcon_->setPixmap(themedIcon("lightbulb", themePalette(dark, settings_.accentColor).textMuted, 14)
                                     .pixmap(14, 14));
@@ -153,16 +151,14 @@ namespace stencil::gui {
     if (wipe) wipe->start();
   }
 
-  // The paste combo as KEYCAPS in this platform's glyphs — ⌘V on a Mac, where Qt binds a configured
-  // "Ctrl" to Command. Browser twin: mainContent.js pasteKeys(). The caps are painted pictures
-  // holding literal colours, so this runs again on every theme change rather than being styled.
+  // The paste combo as KEYCAPS in this platform's glyphs (browser twin: mainContent.js pasteKeys).
+  // The caps are painted pictures holding literal colours, so this re-runs on every theme change.
   void MainWindow::refreshDropHint() {
     if (!dropHintText_) return;
     const QString combo =
         QKeySequence(hotkey("paste", "Ctrl+V")).toString(QKeySequence::NativeText);
-    // A keycap is taller than the type beside it and an inline image inflates the line box downwards,
-    // which left the sentence riding high. One middle-aligned table row centres prose and caps against
-    // each other instead, the way a rich tooltip's own row does (tipContent.cpp renderTip).
+    // A keycap is taller than the type beside it and an inline image inflates the line box downwards.
+    // One middle-aligned table row centres prose and caps, as a rich tooltip's row does (tipContent).
     dropHintText_->setText(
         QString("<table cellspacing=\"0\" cellpadding=\"0\"><tr>"
                 "<td style=\"vertical-align: middle;\">Drag &amp; drop an <b>image</b> or "

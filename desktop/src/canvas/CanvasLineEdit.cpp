@@ -14,9 +14,8 @@ namespace stencil::gui {
     core::Line* line = selectedLine();
     if (!line) return;
     set(*line);
-    // A live preview (a colour still being dragged around the picker) rides the same
-    // debounce the wheel edits use: the picture follows every change, but the whole
-    // gesture collapses into ONE undo step once it goes quiet.
+    // A live preview rides the same debounce the wheel edits use, so the whole gesture collapses
+    // into ONE undo step once it goes quiet.
     if (commit) commitHistory();
     else scheduleEditCommit();
     update();
@@ -53,9 +52,8 @@ namespace stencil::gui {
     mutateSelectedLine([&](core::Line& line) { line.fillColor = fillColor.toStdString(); }, !preview);
   }
 
-  // Deletes the WHOLE selection (browser parity: removeSelectedLines): erase from
-  // the highest index down so lower indices stay valid, and commit ONE history
-  // entry so a single undo restores the batch.
+  // Deletes the WHOLE selection (browser parity: removeSelectedLines): erase from the highest
+  // index down so lower indices stay valid, and commit ONE history entry.
   void CanvasWidget::deleteSelectedLine() {
     if (compareReadOnly()) return;   // read-only compare view
     std::vector<int> sel = selectedIndices();
@@ -78,9 +76,8 @@ namespace stencil::gui {
 
   // interactive editing helpers (port of drawingApp.js)
 
-  // Refresh the hovered point under the cursor; returns true when it changed (so
-  // the caller repaints). Checks the in-progress line first (lineIdx -1), then
-  // committed lines. Port of #findNearestPointWithIdx + the hoverPt bookkeeping.
+  // True when the hovered point changed, so the caller repaints. In-progress line first
+  // (lineIdx -1), then committed. Port of #findNearestPointWithIdx + the hoverPt bookkeeping.
   bool CanvasWidget::updateHover(double imageX, double imageY) {
     int li = -1;
     int pi = -1;

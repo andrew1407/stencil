@@ -1,9 +1,8 @@
 // Headless round-trip check for the server-layout page format + x/y formulas
-// (fileStore::buildLayoutJson <-> parseLayoutMeta). Verifies the desktop emits and reads back
-// the SAME pageSize/customPage*/allowFormulas/formula* the browser + CLI carry, and that those
-// fields are omitted when at their defaults (so plain file exports stay byte-stable). Mirrors
-// the browser tests/layout.test.js and the CLI server.zig "round-trips page format" test.
-// Not part of stencil_tests (that target is Qt-free); built only when Qt is present.
+// (fileStore::buildLayoutJson <-> parseLayoutMeta): the desktop emits and reads back the SAME
+// pageSize/customPage*/allowFormulas/formula* the browser and CLI carry, and omits those fields at
+// their defaults so plain file exports stay byte-stable. Mirrors browser tests/layout.test.js and the
+// CLI server.zig round-trip test. Built only when Qt is present.
 #include "fileStore.hpp"
 #include <QCoreApplication>
 #include <QJsonObject>

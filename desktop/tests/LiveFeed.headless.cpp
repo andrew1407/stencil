@@ -1,13 +1,7 @@
-// Headless check for the live push feed (net/liveFeed). Drives a real LiveFeed against a
-// mock QTcpServer that speaks the server's NDJSON project-events protocol, asserting it:
-//   - sends a well-formed global-feed hello (type=hello, empty projectId, a token),
-//   - emits projectUpdated only for "project-event" frames (welcome/garbage ignored),
-//   - reassembles a frame split across two TCP writes,
-//   - flags a "deleted" event,
-//   - declines an https base (the plaintext feed can't ride TLS), and clears on unsubscribe.
-// This guards the parse/socket path that the desktop's co-edit latency now depends on,
-// without needing a running Go server. Built only when Qt is present (Qt-coupled, like the
-// other *.headless tests); not part of the Qt-free core stencil_tests.
+// Headless check for the live push feed (net/liveFeed), driving a real LiveFeed against
+// a mock QTcpServer that speaks the server's NDJSON project-events protocol: the hello
+// frame, projectUpdated filtering, frame reassembly across two TCP writes, the "deleted"
+// flag, and that an https base is declined. Built only when Qt is present.
 #include "LiveFeed.hpp"
 #include "ServerClient.hpp"
 

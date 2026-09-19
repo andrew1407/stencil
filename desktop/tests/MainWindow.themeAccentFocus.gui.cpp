@@ -25,20 +25,16 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.canvas_->hasImage());
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
     const QPoint c = logo->rect().center();
-    // A toolbar icon that is not the logo — and NOT one the open popover's box covers: a
-    // press on a covered icon is a press ON the window (the app's own onOpenBox rule), so
-    // it is not the "outside press" this case is about. The SETTINGS cluster's ℹ sits at
-    // the far end of the last row, clear of a box anchored to the logo.
+    // A toolbar icon that is not the logo, and NOT one the open popover's box covers: a press on a
+    // covered icon is a press ON the window (onOpenBox). The SETTINGS cluster's ℹ sits clear of it.
     QToolButton* other = nullptr;
     for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it)
       if (it.value() == win.actInfo_ && static_cast<QWidget*>(it.key())->isVisible())
         other = static_cast<QToolButton*>(it.key());
     QVERIFY2(other, "no visible Help button to press outside on");
 
-    // Losing the KEYBOARD closes it too — the path that survives when the window system
-    // The popover lives in this window, so an app-focus loss is what ends it (a click
-    // elsewhere in the window is the press rule's job). The exemption: a NESTED dialog
-    // the popover opened took that focus for us.
+    // Losing the KEYBOARD closes a sticky popover too: it lives in this window, so an app-focus loss is
+    // what ends it — unless a NESTED dialog the popover itself opened took that focus.
     bool deactClosedSticky = false, deactKeptWithNested = false;
     QTimer::singleShot(120, &win, [&] {
       QDialog* pop = win.pop_.active.data();
@@ -66,17 +62,15 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(deactClosedSticky, "losing focus must close even a STICKY popover");
     QVERIFY(!win.pop_.active);
 
-    // One open, one close, both animated, nothing re-shown. The popover is a CHILD
-    // widget of the main window, so its grow/shrink are ordinary in-window animations.
-    // (Animations are off for the suite; this case needs them.)
+    // One open, one close, both animated, nothing re-shown: the popover is a CHILD widget of the main
+    // window, so its grow/shrink are ordinary in-window animations. This case needs motion on.
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] {
       if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim);
     });
-    // The lifecycle as it happens, in order: the popover's own show/hide, the particle
-    // dust flights execMaybePopover plays over the hosting overlay, and any ghost the
-    // reveal machinery might fly instead — there must be none.
+    // The lifecycle in order: the popover's own show/hide, the dust flights execMaybePopover plays over
+    // the hosting overlay, and any ghost the reveal machinery might fly instead — there must be none.
     struct Trace : QObject {
       QStringList seq;
       QSet<QObject*> dialogs;

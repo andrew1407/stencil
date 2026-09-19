@@ -39,11 +39,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The checkbox particle toggle and the combo value exchange are installed ONCE, on the
-  // application (support/controlSwap.hpp) — no dialog wires its own. What the real window
-  // has to prove is that the hook is actually on, that the real toolbar controls got it
-  // without a call site, and that both effects converge on the true state and leave the
-  // toolbar's geometry exactly where it was.
+  // The checkbox particle toggle and the combo value exchange are installed ONCE, on the application
+  // (support/controlSwap.hpp): the real toolbar controls get them with no call site, and nothing moves.
   void controlSwapsAreInstalledAppWide() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 800);
@@ -137,12 +134,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(fx->geometry(), win.rect());
   }
 
-  // ── A motion mode changed WHILE a window is up governs how that window LEAVES ──
-  // The Visuals & Settings dialog live-applies its own Motion rows (support/motionPrefs.hpp),
-  // so switching to "None" in it and closing it must not leave that very window still flying
-  // back into its icon — and switching motion back ON must give it the closing flight its
-  // open never installed. The close flight therefore asks the mode when it PLAYS, not when
-  // it was hung on the dialog (support/modalReveal.cpp CloseFlight::fly).
+  // A motion mode changed WHILE a window is up governs how that window LEAVES: the close flight asks
+  // the mode when it PLAYS, not when it was hung on the dialog (modalReveal.cpp CloseFlight::fly).
   void dialogCloseAsksTheMotionModeAgainOnItsWayOut() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);

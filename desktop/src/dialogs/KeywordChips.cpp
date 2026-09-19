@@ -106,9 +106,8 @@ namespace stencil::gui {
         chipFor_.insert(word, chip);
         arrived << chip;
       }
-    // Re-adding MOVES an item to the end, so only do it when the ORDER really changed (an
-    // add, or a re-add moving a word to the front). On a plain removal the survivors keep
-    // their places; restacking would shove the leaving chip to the front of the row.
+    // Re-adding MOVES an item to the end, so only do it when the ORDER really changed. On a plain
+    // removal the survivors keep their places; restacking would shove the leaving chip to the front.
     if (!arrived.isEmpty() || orderChanged()) {
       for (const QString& word : words_) {
         QFrame* chip = chipFor_.value(word);

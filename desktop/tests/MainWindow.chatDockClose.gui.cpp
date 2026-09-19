@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The title-bar X leaves the SAME way the toolbar toggle does — a docked chat
-  // slides into whichever edge it is docked to, a float flies into the icon —
-  // for all four dock areas plus floating. It used to call QWidget::close() and
-  // simply blink out. Reopening afterwards still works, with the transcript kept.
+  // The title-bar X leaves the SAME way the toolbar toggle does — a docked chat slides into its
+  // edge, a float flies into the icon — from all four areas plus floating, transcript kept.
   void chatCloseButtonAnimatesFromEveryDockArea() {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
@@ -101,9 +99,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The REAL input path (no probes): the floating dock's title bar consumes
-  // press/move/release itself, so a drag works even where Qt hands the window to the
-  // window server (macOS) and never delivers the release.
+  // The REAL input path (no probes): the floating dock's title bar consumes press/move/release
+  // itself, so a drag works where the window server never delivers the release (macOS).
   void chatDockDragViaMouseEvents() {
     MainWindow win;
     win.resize(1100, 800);
@@ -161,9 +158,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(title);
     const QList<QToolButton*> btns = title->findChildren<QToolButton*>();
     QVERIFY(btns.size() >= 6);   // 4 placements + float + close
-    // Docked LEFT by default: exactly one placement button wears the active chip. (It is
-    // marked by its stylesheet, not by being disabled — a disabled button would be
-    // repainted by QToolButton:disabled as a dead bordered square.)
+    // Docked LEFT by default: exactly one placement button wears the active chip, marked by its
+    // stylesheet, not by being disabled (QToolButton:disabled paints a dead bordered square).
     const auto activeCount = [&] {
       int n = 0;
       for (QToolButton* b : btns)

@@ -24,15 +24,13 @@ namespace stencil::gui {
     holdClock_.start();
     holdTimer_.setInterval(40);
     connect(&holdTimer_, &QTimer::timeout, this, [this] { handleHoldTick(); });
-    // Vertices in flight: repaint at ~60fps while any point added just now is still
-    // travelling to where it was put, and stop the moment the last one has landed
-    // (browser strokeFx.js drives the same loop off requestAnimationFrame).
+    // Repaint at ~60fps while any just-added point is still travelling, and stop the moment the last
+    // one lands (browser strokeFx.js drives the same loop off requestAnimationFrame).
     fxClock_.start();
     fxTimer_.setInterval(16);
     connect(&fxTimer_, &QTimer::timeout, this, [this] {
-      // Only what is moving: a full-widget repaint at 60 Hz redraws the whole zoomed page
-      // for a handful of travelling vertices. Union the frame before and after the step so
-      // the one that just landed is cleared too.
+      // Only what is moving: a full-widget 60 Hz repaint redraws the whole zoomed page. Union the
+      // frame before and after the step so the one that just landed is cleared too.
       const QRect before = strokeFxRect();
       if (!strokeFx_.step(fxNow())) fxTimer_.stop();
       update(before.united(strokeFxRect()));

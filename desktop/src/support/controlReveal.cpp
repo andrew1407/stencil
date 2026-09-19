@@ -83,9 +83,8 @@ namespace stencil::gui {
   }
 
 
-  // Anonymous SPECKS in the control's own colours (browser motion.js speckPainter /
-  // markPaint): tiles cut from a glyph are nearly all transparent. Background lifted
-  // towards the ink (MOTE_INK 42%), a stronger rim on the border cells (MOTE_RIM_INK 66%).
+  // Anonymous SPECKS in the control's own colours (browser motion.js speckPainter / markPaint):
+  // tiles cut from a glyph are nearly all transparent. MOTE_INK 42%, MOTE_RIM_INK 66% on the rim.
   QPixmap ctl::markSpecks(const QSize& size, int cols, int rows, qreal dpr, const QColor& bg,
                           const QColor& ink) {
     QPixmap sheet(qMax(1, qRound(size.width() * dpr)), qMax(1, qRound(size.height() * dpr)));

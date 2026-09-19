@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A bare Delete/Backspace inside the selection panel's lists removes the current row —
-  // the points table already did this; the Lines list is the parity addition (the browser's
-  // focused .lines-row / coordinates row take the same key). Scoped by widget focus, so the
-  // global Alt+Delete on the canvas selection is untouched.
+  // A bare Delete/Backspace inside the selection panel's lists removes the current row, scoped
+  // by widget focus, so the global Alt+Delete on the canvas selection is untouched.
   void deleteKeyRemovesRowInSelectionLists() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -63,9 +61,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Alt+Shift dragging a line must move EVERY point — including when Shift lifts a beat
-  // before the mouse button, which is how the gesture naturally ends. The regression left
-  // all but the grabbed segment's endpoints snapped back to their pre-drag spots.
+  // Alt+Shift dragging a line must move EVERY point — including when Shift lifts a beat before
+  // the mouse button, which is how the gesture naturally ends.
   void wholeLineDragMovesEveryPoint() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -103,9 +100,8 @@ class MainWindowGuiTest : public QObject {
     }
   }
 
-  // Alt+Delete routes by selection: a focused POINT narrows it to that point (the line
-  // survives); with no focused point it deletes the selected line — and the shared
-  // hotkeysConfig label says so.
+  // Alt+Delete routes by selection: a focused POINT narrows it to that point and the line
+  // survives; with no focused point it deletes the selected line, as the hotkeys label says.
   void altDeleteRoutesBySelection() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -132,9 +128,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(static_cast<int>(canvas->lines().size()), 0);
   }
 
-  // Hover cross-highlight plumbing: moving the mouse over a point emits
-  // canvasHoverChanged (panel row tints), and the panel-driven setListHover* calls are
-  // safe to drive directly (canvas ring/glow — the reverse direction).
+  // Hover cross-highlight plumbing: moving over a point emits canvasHoverChanged (panel rows
+  // tint), and the panel-driven setListHover* calls drive the reverse direction.
   void hoverCrossHighlightSignals() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);

@@ -9,9 +9,8 @@ namespace stencil::gui {
   struct Project;
   class KeywordChips;
 
-  // The project-keywords editor (browser keywordsModal parity): the shared modal shell
-  // around a KeywordChips field — a line edit over the words already held, each an oval
-  // with a ✕.
+  // The project-keywords editor (browser keywordsModal parity): the shared modal shell around a
+  // KeywordChips field.
   class KeywordsDialog : public QDialog {
     Q_OBJECT
    public:

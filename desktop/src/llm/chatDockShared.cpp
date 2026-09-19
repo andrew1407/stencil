@@ -16,18 +16,15 @@
 
 namespace stencil::gui::chatdock {
 
-  // Sink + dissolve `w` in place, then delete it. The snapshot the scatter is made
-  // of was taken already, so the two play together exactly as they do in the
-  // browser: the bubble melts into its own dust rather than vanishing first.
+  // Sink + dissolve `w` in place, then delete it. The snapshot was taken already, so the two play
+  // together as they do in the browser: the bubble melts into its own dust rather than vanishing.
   void fadeOutAndDelete(QWidget* w) {
     if (!w) return;
-    // CLAIM the card's effect for the length of the fade. ScrollReveal installs its own DissolveEffect
-    // on a card near a viewport edge and setGraphicsEffect DELETES the one already there, so a card that
-    // scrolled while it faded crashed in setOpacity. animateCardIn claims it the same way.
+    // CLAIM the card's effect for the length of the fade: ScrollReveal installs its own DissolveEffect
+    // near a viewport edge and setGraphicsEffect DELETES the one already there. animateCardIn too.
     w->setProperty(ScrollReveal::ENTERING_PROPERTY, true);
-    // A card removed mid-entrance still has its appear animation running, writing to the effect it
-    // installed. setGraphicsEffect() DELETES the old one, so installing a fresh effect left the entrance
-    // holding a dangling pointer. Stop the card's own animations first and REUSE what is there.
+    // A card removed mid-entrance still has its appear animation writing to the effect it installed,
+    // and setGraphicsEffect() DELETES that one - so stop the card's animations first and REUSE it.
     for (QVariantAnimation* a : w->findChildren<QVariantAnimation*>()) a->stop();
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(w->graphicsEffect());
     if (!fx) {
@@ -62,8 +59,7 @@ namespace stencil::gui::chatdock {
     b->setToolTip(tooltip);
     b->setCursor(Qt::PointingHandCursor);
     // The browser shimmers every <button>, chat controls included (layout.css ui-shimmer); this is the
-    // one factory behind ALL of them — title-bar ghosts, the composer's send/attach/gear, the cards'
-    // Resend — so the sweep lands on each exactly once. Mouse-through, so click targets are unchanged.
+    // one factory behind ALL of them, so the sweep lands on each exactly once. Mouse-through.
     installHoverShimmer(b);
     return b;
   }

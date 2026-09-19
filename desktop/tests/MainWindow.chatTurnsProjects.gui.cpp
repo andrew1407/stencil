@@ -48,10 +48,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §10 project management from chat: a removeProject plan runs the projects
-  // dialog's Delete flow — confirm included (auto-accepted here) — removing
-  // exactly the named project; a DECLINED clearProjects confirm lands as a
-  // "clear canceled" note with every project still in place.
+  // §10 project management from chat: a removeProject plan runs the projects dialog's Delete flow,
+  // confirm included, on exactly the named project; a DECLINED clearProjects notes "clear canceled".
   void chatRemoveProjectConfirmsAndClearDeclineNotes() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
@@ -98,11 +96,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §10 removeProject{current:true} with NOTHING saved but an image open (the
-  // unsaved / incognito editor the user was looking at): answering "no saved
-  // project is open" is a refusal on a technicality, so it falls back to the
-  // `clear` flow behind the SAME confirm. Declined keeps the picture; accepted
-  // takes the image and its lines. With a saved project open, the old path runs.
+  // §10 removeProject{current:true} with nothing saved but an image open falls back to the `clear`
+  // flow behind the SAME confirm: declined keeps the picture, accepted takes the image and lines.
   void chatRemoveCurrentFallsBackToClearWhenNothingIsSaved() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);

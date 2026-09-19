@@ -1,11 +1,8 @@
-// Headless checks for the KEYWORDS field (dialogs/KeywordChips — the browser's
-// ui/keywordChips.js twin), through the dialog that hosts it:
-//   - structure: a line edit + Add over a chip well, each chip an oval with a bare ✕;
-//   - Enter ADDS rather than saves; a word already held moves to the front, never doubles;
-//   - the ✕ drops one word, Clear all drops them all (and the pending input with them);
-//   - a typed phrase is ONE keyword: "kitchen remodel" is never split on its space;
-//   - normalize/parse/addTo: the browser twin's own cases, case-folded and de-duplicated.
-// Offscreen; the dialog is driven from a 0-timer inside its own exec() loop.
+// Headless checks for the KEYWORDS field (dialogs/KeywordChips — the browser's ui/keywordChips.js
+// twin), through the dialog that hosts it: a line edit + Add over a chip well of ovals with a bare ✕;
+// Enter ADDS rather than saves and a word already held moves to the front; the ✕ drops one word and
+// Clear all drops them all; a typed phrase is ONE keyword, never split on its space; and
+// normalize/parse/addTo against the browser twin's own cases. Offscreen, driven from a 0-timer.
 #include "KeywordChips.hpp"
 #include "KeywordsDialog.hpp"
 #include "modalChrome.hpp"

@@ -65,9 +65,8 @@ namespace stencil::gui {
     return true;
   }
 
-  // Lifetime: every REST reply is bound to `c`'s network-access-manager, owned by the
-  // ConnectionManager under the MainWindow that owns this controller, so a reply never fires after
-  // `this` dies. Same for every method below.
+  // Lifetime: every REST reply is bound to `c`'s network-access-manager, which outlives this
+  // controller, so a reply never fires after `this` dies. Same for every method below.
   void ProjectTransferController::createServerFromLocal(
       stencil::net::ServerClient* c, const Project& pr, const QString& name, const QByteArray& bytes,
       const QString& ext, int w, int h,

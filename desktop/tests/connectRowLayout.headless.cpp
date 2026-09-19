@@ -19,10 +19,8 @@ namespace connectrow {
   check(urlLabel != nullptr, "URL label carries the full url on its tooltip");
   check(urlLabel && urlLabel->text() != longUrl, "long URL is not shown verbatim");
   check(urlLabel && urlLabel->text().contains(QChar(0x2026)), "long URL is elided (…)");
-  // ── Row metrics, measured against the browser's .connect-row: a 43-tall card at
-  // padding 8px 10px / gap 12 / radius 8, action buttons 31x25, every child on one centre
-  // line. Qt reaches those only with `border: none` (a 1px one adds 2px to both axes),
-  // and the labelled expired button is pinned to the same box as the trash beside it.
+  // Row metrics against the browser's .connect-row: a 43-tall card at padding 8px 10px / gap 12 /
+  // radius 8, action buttons 31x25, every child on one centre line — Qt needs `border: none` for it.
   check(row->height() == 43, "the row card is the browser's own height");
   {
     int centre = -1;
@@ -39,9 +37,8 @@ namespace connectrow {
   }
   for (QPushButton* b : row->findChildren<QPushButton*>())
     check(b->size() == QSize(31, 25), "each row action is the browser's 31x25 button");
-  // The row shimmers as one card on hover (browser .connect-row:hover::after), and so
-  // does every control in it — installed per row, since rows are rebuilt on every change
-  // and the dialog-wide pass only ever saw the batch that existed at open.
+  // The row shimmers as one card on hover (browser .connect-row:hover::after), and so does every control
+  // in it — installed per row, since rows are rebuilt on every change.
   {
     bool cardSweep = false;
     for (QWidget* w : row->findChildren<QWidget*>(QStringLiteral("shimmerOverlay")))
@@ -55,9 +52,8 @@ namespace connectrow {
     check(right <= vpw, "action button sits fully inside the viewport");
   }
 
-  // ── The row is a CARD whose outline is never clipped. QListView insets every item
-  // by the list's spacing on BOTH sides, so a viewport-wide slot overhung the right
-  // edge — which is where the gold admin outline was lost.
+  // The row is a CARD whose outline is never clipped: QListView insets every item by the list's spacing
+  // on BOTH sides, so a viewport-wide slot overhangs the right edge.
   check(list->item(0)->sizeHint().width() + 2 * list->spacing() <= vpw,
         "the row slot leaves the list's spacing on both sides");
   check(row && row->mapTo(list->viewport(), QPoint(row->width(), 0)).x() <= vpw - list->spacing(),

@@ -36,9 +36,8 @@ namespace stencil::llm {
   // How much of a provider's own prose an error may quote (server upstream.go parity).
   inline constexpr int MAX_PROVIDER_DETAIL = 200;
 
-  // Provider prose is untrusted: control characters out, URLs and token-shaped runs
-  // redacted, whitespace collapsed, hard-truncated. Port of the browser client's
-  // sanitizeProviderText — an error body never reaches the chat as itself.
+  // Provider prose is untrusted: control characters out, URLs and token-shaped runs redacted,
+  // whitespace collapsed, hard-truncated. Port of the browser client's sanitizeProviderText.
   inline QString sanitizeProviderText(QString text) {
     text.truncate(4 * MAX_PROVIDER_DETAIL);
     for (QChar& c : text)
@@ -57,9 +56,8 @@ namespace stencil::llm {
     return text;
   }
 
-  // Shared HTTP outcome triage: transport error / non-2xx (with the server's JSON "message"/"error"
-  // surfaced when present), phrased like the browser's unreachableText. Returns true when the caller
-  // should stop. `serverHost` non-empty ⇒ stencil-server, whose 401/403 means OUR SESSION expired.
+  // Shared HTTP outcome triage: transport error / non-2xx (surfacing the server's JSON
+  // "message"), phrased like the browser's unreachableText. `serverHost` => a 401/403 is OUR session.
   inline bool httpFailed(const QString& endpoint, int status, const QByteArray& body,
                   const QString& err, std::function<void(LlmReply)>& done,
                   const QString& serverHost = QString()) {
@@ -88,9 +86,8 @@ namespace stencil::llm {
       // The reason is said ONCE (contract §6.3): the endpoint labels the provider's
       // own message, and nothing restates it — no status, no second sentence.
       const QString why = clean.isEmpty() ? QStringLiteral("HTTP %1").arg(status) : clean;
-      // The server's 503 llmDisabled is a typed Disabled (browser kind parity) — a configure hint, not a
-      // broken transport. Its message IS the sentence: browser describeChatError's "notice" text is the
-      // raw err.message, never run through the "<provider> at <host>:" wrapper below.
+      // The server's 503 llmDisabled is a typed Disabled (browser kind parity) - a configure hint, not a
+      // broken transport. Its message IS the sentence, never run through the "<provider> at <host>:" wrapper.
       const bool disabled = o.value("code").toString() == QLatin1String("llmDisabled");
       done(failReply(disabled ? LlmFailure::DISABLED : LlmFailure::HTTP,
                      disabled ? why : QStringLiteral("%1: %2").arg(endpoint, why)));

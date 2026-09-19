@@ -70,9 +70,8 @@ namespace stencil::gui {
   }
 
   namespace {
-    // §12.1 machinery filter (browser chatStore.js isInternalChatText parity):
-    // the §7 continuation note (exact or bracketed variant, any role) and
-    // assistant turns that are raw op-/ask-plans never enter the transcript.
+    // §12.1 machinery filter (browser chatStore.js isInternalChatText parity): the §7 continuation
+    // note (any role) and assistant turns that are raw op-/ask-plans never enter the transcript.
     bool isInternalChatText(const QString& role, const QString& text) {
       const QString t = text.trimmed();
       if (t.isEmpty()) return false;
@@ -87,9 +86,8 @@ namespace stencil::gui {
              t.contains(versionKey) && t.contains(planKey);
     }
 
-    // Shared §12.1 whitelist for chat documents: rebuild each message so only a
-    // valid role + string text survives (no images, no machinery text), then
-    // bound the count. Saving (buildChatDoc) additionally drops empty texts.
+    // Shared §12.1 whitelist for chat documents: rebuild each message so only a valid role + string
+    // text survives, then bound the count. Saving (buildChatDoc) additionally drops empty texts.
     QJsonArray sanitizeChatMessages(const QJsonArray& messages, bool dropEmpty) {
       QJsonArray clean;
       for (const auto& v : messages) {

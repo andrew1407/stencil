@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // DESCRIPTION & ATTRIBUTES (browser parity): the cluster sits between IMAGE and
-  // PROJECTS with Description · Keywords · Links in that order, and all three follow ONE
-  // rule — a saved, non-incognito project — with the reason on the tooltip otherwise.
-  // Links used to live in IMAGE and gate on an image; it moved with the browser's.
+  // DESCRIPTION & ATTRIBUTES (browser parity): the cluster sits between IMAGE and PROJECTS with
+  // Description · Keywords · Links, all three gated on a saved non-incognito project, reason on the tip.
   void descriptionSectionFollowsImageAndGatesOnASavedProject() {
     MainWindow win(nullptr, false);
     win.resize(1400, 800);
@@ -67,9 +65,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.actLinks_->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
              QStringLiteral("Save the project first to add links"));
 
-    // A saved project: all three live, the reason gone.
-    // Idempotent against the persisted test store: a copy left by an earlier run (the
-    // dialog writes through fileStore) would be found first and carry the "After".
+    // A saved project: all three live, the reason gone. Idempotent against the persisted test store,
+    // where a copy left by an earlier run (the dialog writes through fileStore) would be found first.
     win.projectList_.erase(std::remove_if(win.projectList_.begin(), win.projectList_.end(),
                                           [](const stencil::gui::Project& p) { return p.meta.id == "meta-gui"; }),
                            win.projectList_.end());
@@ -122,9 +119,8 @@ class MainWindowGuiTest : public QObject {
       }
       QVERIFY(dlg);
       QCOMPARE(dlg->objectName(), QStringLiteral("stencilKeywordsDialog"));
-      // The field is chips now: type a keyword, Enter ADDS it, Save writes the list.
-      // Whatever a branch does, the modal must be dismissed — an early return here hangs
-      // exec() until the QtTest watchdog aborts the whole binary.
+      // The field is chips: type a keyword, Enter ADDS it, Save writes the list. Whatever a branch does the
+      // modal must be dismissed — an early return hangs exec() until the watchdog aborts the binary.
       auto* input = dlg->findChild<QLineEdit*>("keywordsInput");
       if (input) {
         input->setText("Kitchen Plan");

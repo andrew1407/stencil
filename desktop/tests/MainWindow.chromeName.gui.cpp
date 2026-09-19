@@ -49,9 +49,8 @@ class MainWindowGuiTest : public QObject {
           d->objectName() != QLatin1String("imageInfoDock") && d->titleBarWidget())
         bar = d->titleBarWidget();
     QVERIFY2(bar, "no selection-panel title bar");
-    // By NAME, not "every QToolButton in the header": the header also carries the
-    // Points | Lines strip, and a QTabBar owns two internal scroll arrows that are
-    // QToolButtons of its own sizing.
+    // By NAME, not "every QToolButton in the header": the header also carries the Points | Lines strip,
+    // and a QTabBar owns two internal scroll arrows that are QToolButtons of its own sizing.
     const auto chevrons = bar->findChildren<QToolButton*>(QStringLiteral("panelCollapseBtn"));
     QVERIFY2(!chevrons.isEmpty(), "the panel header has no collapse chevron");
     for (QToolButton* b : chevrons) {
@@ -60,9 +59,8 @@ class MainWindowGuiTest : public QObject {
     }
   }
 
-  // The ✎/🎨 are hover-revealed over the name group, and a pointer that lands anywhere else
-  // has left it — even when the group's own Leave never arrives (crossing straight onto
-  // another row's icon left the pair lit three clusters away).
+  // The ✎/🎨 are hover-revealed over the name group, and a pointer that lands anywhere else has left
+  // it — even when the group's own Leave never arrives.
   void nameAffordancesGoWhenThePointerLeavesTheGroup() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -94,10 +92,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Edit mode SWAPS the name affordances in place: ✎/🎨 out, ✓/✗ in, and back again. The
-  // pair returning while the marks were still flying out put all four in the row at once —
-  // it widened, and the ✎/🎨 appeared BESIDE the leaving marks instead of in their place
-  //. Never more than two hold a slot at any moment.
+  // Edit mode SWAPS the name affordances in place: ✎/🎨 out, ✓/✗ in, and back again. Never more than
+  // two hold a slot at any moment — all four in the row at once widens it.
   void nameChipsSwapInPlaceWithoutWideningTheRow() {
     const auto motion = withMotion();   // the flights below ARE the thing under test
     MainWindow win(nullptr, false);

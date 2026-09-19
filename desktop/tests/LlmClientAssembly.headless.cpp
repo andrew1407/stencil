@@ -3,11 +3,8 @@
 
 namespace llmclient {
 
-// §13 byte-stability transition proof: the pre-registry hand-embedded op
-// BULLETS, kept HERE (test-only) so assembly order/joins are proven against an
-// independent copy. The §4 prose head/tail load from the SAME qrc canon
-// opRegistry reads (:/config/llm/systemPrompt.json) — no second prompt-prose
-// literal exists anywhere.
+// §13 byte-stability proof: the pre-registry hand-embedded op BULLETS, kept test-only so
+// assembly order and joins are proven against a copy independent of the qrc prose canon.
 static const char LEGACY_CORE_OPS_BLOCK[] =
     R"__(- {"op":"crop","spec":{"x1":"10%","x2":"-10%","aspect":"3:4"}} — move edges inward;
   tokens are numbers with optional unit % / px / cm / in; a leading "-" measures from the
@@ -126,9 +123,8 @@ static const char LEGACY_EDITOR_OPS_BLOCK[] =
   // ── §13 byte-stability: assembly reproduces the pre-registry constants ──
   std::printf("assembly byte-stability:\n");
   {
-    // The old hand-embedded path: qrc prose head + core bullets + the §10
-    // block spliced after the frame bullet + qrc prose tail. Head/tail come
-    // from the canon asset; the bullet copies above stay independent.
+    // The old hand-embedded path: qrc prose head + core bullets + the §10 block spliced after
+    // the frame bullet + qrc prose tail; the bullet copies above stay independent.
     QFile pf(QStringLiteral(":/config/llm/systemPrompt.json"));
     check(pf.open(QIODevice::ReadOnly), "prompt canon qrc alias resolves");
     const QJsonObject prose = QJsonDocument::fromJson(pf.readAll()).object();

@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Under Fusion a chipped row's icon-to-label gap blows out unless the action's real
-  // shortcut() is silenced for the life of the chip: with already-tabbed text AND a live
-  // shortcut, QMenuPrivate reserves the shortcut column twice.
+  // Under Fusion a chipped row's icon-to-label gap blows out unless the action's real shortcut() is
+  // silenced for the life of the chip: QMenuPrivate reserves the shortcut column twice otherwise.
   void hotkeyChipDoesNotWidenTheIconGapUnderFusion() {
     QApplication::setStyle(QStyleFactory::create("Fusion"));
     MainWindow win(nullptr, false);
@@ -20,10 +19,8 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
-    // actCopyImageOriginal_, not actCopyImage_: the latter is no longer a row in this
-    // popup at all (actCopyImageCurrentRow_ is, and it carries no real shortcut of its
-    // own by design — see MainWindow.hpp), but Original's Ctrl+Shift+C is exactly as
-    // real and exactly as much MenuHotkeyChips' job to silence while chipped.
+    // actCopyImageOriginal_, not actCopyImage_: the latter is no longer a row in this popup, and
+    // Original's Ctrl+Shift+C is exactly as real and as much MenuHotkeyChips' job to silence.
     const QKeySequence realShortcut = win.actCopyImageOriginal_->shortcut();
     QVERIFY2(!realShortcut.isEmpty(), "actCopyImageOriginal_ should carry a real shortcut to chip");
 
@@ -34,11 +31,8 @@ class MainWindowGuiTest : public QObject {
     QApplication::sendEvent(copyBtn, &ctx);
     QMenu* menu = win.copyImageOptionsMenu_;
     const bool opened = menu && menu->isVisible();
-    // Captured into locals and the menu closed BEFORE any assertion — an early
-    // QVERIFY2 return must never leave the menu open, or it outlives `win` and
-    // crashes on teardown (exportOptionsPopupIsNotWiderThanItsContent's own comment
-    // has the full story — this test used to assert first, and the FALSE this
-    // regression exposed took the whole process down with it, SIGSEGV, reported).
+    // Captured into locals and the menu closed BEFORE any assertion: an early QVERIFY2 return must never
+    // leave the menu open, or it outlives `win` and crashes on teardown (reported SIGSEGV).
     bool silencedWhileChipped = false;
     QString cachedCombo;
     if (opened) {
@@ -55,17 +49,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(cachedCombo, realShortcut.toString(QKeySequence::NativeText));
     QCOMPARE(win.actCopyImageOriginal_->shortcut(), realShortcut);   // restored once the chip is torn down
   }
-  // A chipped row's keycaps shake once on hover (browser: .ctx-item:hover .tip-key /
-  // keycapShake) — verified via capOffset(), "what the tests watch" per its own comment
-  // (AppTooltip.hpp), and driven with setActiveAction() rather than QTest::mouseMove: the
-  // latter does not reliably reach a shown popup's own hover tracking (confirmed — it left
-  // QMenu::hovered's own spy at 0 — so it isn't a usable probe for this or any other
-  // hover-driven popup behaviour), exactly the limitation contextMenuRowShimmersOnHover
-  // already worked around for the sibling shimmer sweep. The guard around the shake
-  // advances only on a genuinely NEW row: QMenu::hovered(QAction*) re-fires for the row
-  // already hovered (setActiveAction re-emits it exactly as mouse jitter does) and a mouse
-  // leaving a row without landing on another never fires it again, so it resets on
-  // QEvent::Leave, like MenuShimmer.hpp's RowOverlay.
+  // A chipped row's keycaps shake once on hover (browser .ctx-item:hover .tip-key), read through
+  // capOffset() and driven with setActiveAction(); the guard advances only on a genuinely NEW row.
   void hotkeyChipShakeFollowsTheHoveredRow() {
     enum Case { SHAKES, REPLAYS_AFTER_LEAVE, NO_RESTART_ON_RE_FIRE };
     for (const Case which : {SHAKES, REPLAYS_AFTER_LEAVE, NO_RESTART_ON_RE_FIRE}) {
@@ -98,26 +83,22 @@ class MainWindowGuiTest : public QObject {
 
       QAction* row = win.actCopyImageCurrentRow_;
       QAction* other = nullptr;
-      // Skip invisible rows too (actCopyImageSplit_ leads this same menu but stays hidden
-      // outside compare mode) — setActiveAction on a row with no real geometry wouldn't
-      // make the later move onto `row` a genuine transition.
+      // Skip invisible rows too (actCopyImageSplit_ stays hidden outside compare mode): setActiveAction on
+      // a row with no real geometry would not make the later move onto `row` a genuine transition.
       for (QAction* a : menu->actions())
         if (a != row && !a->isSeparator() && a->isVisible()) { other = a; break; }
       QVERIFY2(other, name);
       const QRect r = menu->actionGeometry(row);
 
-      // NOT c->isHidden(): an action that's currently invisible (e.g. "Filter Only" with no
-      // filter applied) still has its OWN chip widget parked wherever it was last valid —
-      // geometry().intersects() alone can't tell a genuinely-showing chip from a hidden one
-      // sitting in the same spot (MenuHotkeys.hpp's place() hides, never destroys them).
+      // NOT c->isHidden(): an invisible action still has its OWN chip widget parked where it was last
+      // valid (place() hides, never destroys), so geometry().intersects() alone cannot tell them apart.
       stencil::gui::TipBody* chip = nullptr;
       for (QLabel* l : menu->findChildren<QLabel*>())
         if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
           if (!c->isHidden() && c->geometry().intersects(r)) chip = c;
       QVERIFY2(chip, "no chip found for the Current row");
-      // NOT chip->capCount() here — calling it is what LAZILY hunts the keycap regions, so
-      // the test would prime the state MenuHotkeys.hpp's wire() must prime ITSELF. The rest
-      // snapshot is taken first, grab()ing the chip exactly as wire() left it.
+      // NOT chip->capCount(): calling it LAZILY hunts the keycap regions, which is the state wire() must
+      // prime itself. The rest snapshot is grabbed with the chip exactly as wire() left it.
       const QImage rest = chip->grab().toImage();
 
       if (which == SHAKES) {
@@ -142,9 +123,8 @@ class MainWindowGuiTest : public QObject {
       if (which == REPLAYS_AFTER_LEAVE) {
         menu->setActiveAction(row);   // first hover: starts the shake
         QTRY_VERIFY2(chip->capOffset() != 0, "the shake should have started");
-        // A plain wait long past the cycle's own length, not QTRY on ==0: the curve crosses
-        // zero mid-cycle (see the re-fire case below), so QTRY would happily accept a
-        // passing zero-crossing as "settled" while the shake is still running underneath.
+        // A plain wait past the cycle's own length, not QTRY on ==0: the curve crosses zero mid-cycle, so
+        // QTRY would accept a passing zero-crossing as "settled" while the shake is still running.
         QTest::qWait(stencil::gui::AppTooltip::SHAKE_MS + 300);
         QCOMPARE(chip->capOffset(), 0);
         // The mouse leaves the row WITHOUT ever landing on another one — no second
@@ -157,10 +137,8 @@ class MainWindowGuiTest : public QObject {
         continue;
       }
 
-      // The shake curve crosses zero mid-cycle (it's a wiggle, not a one-way ramp), so a
-      // single fixed-instant sample can land on a crossing and misread a live shake as
-      // settled. QTRY catches it on the way up, and the re-fire and settle checkpoints are
-      // timed off a real clock rather than guessed delays.
+      // The shake curve crosses zero mid-cycle, so a single fixed-instant sample can misread a live shake
+      // as settled: QTRY catches it on the way up, and the checkpoints are timed off a real clock.
       QElapsedTimer timer;
       menu->setActiveAction(other);
       timer.start();
@@ -168,15 +146,12 @@ class MainWindowGuiTest : public QObject {
       QTRY_VERIFY2(chip->capOffset() != 0, "the shake should have started");
       while (timer.elapsed() < 120) QTest::qWait(10);   // well clear of the start
       menu->setActiveAction(row);   // the re-fire — must NOT restart it
-      // Wait to (a hair past) the ORIGINAL shake's own finish line, measured from when it
-      // actually started. A wrongly-restarted shake would still be running here (its own
-      // clock reset at the re-fire, well under SHAKE_MS old by this checkpoint); the
-      // correctly-unbothered one has already settled back to rest.
+      // Wait to just past the ORIGINAL shake's finish line, measured from when it started: a wrongly
+      // restarted shake would still be running here, while the correctly unbothered one has settled.
       const int remaining = int(stencil::gui::AppTooltip::SHAKE_MS + 60 - timer.elapsed());
       if (remaining > 0) QTest::qWait(remaining);
-      // Read the chip BEFORE closing: menu->close() tears down MenuHotkeyChips, which
-      // deletes the chip widgets outright — reading through the pointer after that is a
-      // use-after-free (previously the source of this test's own flakiness).
+      // Read the chip BEFORE closing: menu->close() tears down MenuHotkeyChips, which deletes the chip
+      // widgets outright, so reading through the pointer afterwards is a use-after-free.
       const int settledOffset = chip->capOffset();
       menu->close();
       QCOMPARE(settledOffset, 0);

@@ -43,15 +43,13 @@ namespace stencil::gui {
                                   QStringLiteral("Send this message again"));
     retry->setObjectName("chatRetry");
     // Sized up from makeGhostButton's header-ghost default (HEADER_ICON/BUTTON_EDGE): a lone icon-only
-    // action at the foot of an error card — often the ONLY thing on it, since a plain failure has no
-    // Configure CTA beside it — reads as an afterthought at that size.
+    // action at the foot of an error card - often the only thing on it - reads as an afterthought.
     static constexpr int RETRY_ICON = 18;
     static constexpr int RETRY_EDGE = 30;
     retry->setIconSize(QSize(RETRY_ICON, RETRY_ICON));
     retry->setFixedSize(RETRY_EDGE, RETRY_EDGE);
-    // Neutral glyph on EVERY card, error ones included: the browser's retry is a .chat-hbtn, which sets
-    // its own `color: var(--text-muted)` and never inherits the bubble's --danger. Painted red it sat
-    // red-on-red in the danger wash; the red belongs to the card's ground, not the way out.
+    // Neutral glyph on EVERY card, error ones included: the browser's retry is a .chat-hbtn, which
+    // sets its own --text-muted and never inherits --danger. The red belongs to the card's ground.
     retry->setIcon(labelIcon("refresh", glyph, RETRY_ICON));
     QObject::connect(retry, &QToolButton::clicked, retry,
                      [onClick] { if (onClick) onClick(); });
@@ -60,8 +58,7 @@ namespace stencil::gui {
   }
 
   // The unreachable-card "Configure provider" CTA (browser chatConfigureButton), shared by the dock
-  // and the menu panel: accent-filled, white gear glyph, haloed on a light accent. `onClick` gets the
-  // button, still on screen, as the settings reveal's anchor; the objectName stays free for the tests.
+  // and the menu panel. `onClick` gets the button, still on screen, as the settings reveal's anchor.
   QPushButton* addChatConfigureCta(QVBoxLayout* lay, const QColor& accent,
                                    std::function<void(QPushButton*)> onClick) {
     if (!lay) return nullptr;
@@ -92,15 +89,13 @@ namespace stencil::gui {
     };
     h.resend = [this](QFrame* card, const QString& text) {
       // Requeue the turn's own images as fresh tray attachments (the browser's
-      // requeueLastTurnAttachments), then send the same text through the normal
-      // path — one bubble, one wire payload, tray drained by the send.
+      // requeueLastTurnAttachments), then send the same text through the normal path.
       for (const QVariant& v : card->property("chatImages").toList())
         addAttachmentImage(v.value<QImage>());
       emit sendRequested(text);
     };
-    // No h.moreMoved: the relationship inverted (the pills win and the trigger gets out of THEIR way),
-    // so a moved trigger has nothing to tell them. Wiring it back to updateJumpButtons would also be
-    // reentrant — that now moves triggers itself, which would fire this same hook.
+    // No h.moreMoved: the pills win and the trigger gets out of THEIR way, so a moved trigger has
+    // nothing to tell them - and wiring it back to updateJumpButtons would be reentrant.
     h.avoidRect = [this] { return jumpPillsGlobalRect(); };
     h.leaving = [this] { return closing_; };
     h.text = textCache_.isValid() ? textCache_ : palette().color(QPalette::Text);

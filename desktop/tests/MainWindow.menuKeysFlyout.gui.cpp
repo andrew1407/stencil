@@ -8,14 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A repeat of the same message (e.g. pan/zoom's debounced "Saved") landing while the LAST
-  // one is still mid-exit used to coexist with it instead of coalescing — liveToasts() only
-  // coalesces into a STANDING toast, so the fresh arrival's opaque label buried the leaving
-  // one's still-playing dust. Only one "toast" label should ever exist for a given message.
-
-  // The Assistant flyout's own version of the rule above: the first → reveals the chat,
-  // the second → lands in its text box (user decision — the chat's input, not its
-  // first button), so a reply can be typed without touching the mouse.
+  // The Assistant flyout's own version of the rule above: the first → reveals the chat, the second
+  // → lands in its text box (user decision), so a reply can be typed without touching the mouse.
   void ctxAssistantFlyoutSecondRightFocusesItsInput() {
     MainWindow win(nullptr, false);
     win.settings_.llmProvider = "ollama";
@@ -58,10 +52,8 @@ class MainWindowGuiTest : public QObject {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
-  // Radio-style flyouts pick as the keys move (browser parity: arrowing a radio group
-  // applies the option at once, menu still open). Image Filter hosts real QRadioButtons:
-  // the second → lands on the checked one, ↓/↑ move to the neighbour AND pick it. Style's
-  // Solid / Dashed / Dotted are exclusive checkable rows: walking onto one applies it.
+  // Radio-style flyouts pick as the keys move (browser parity): in Image Filter the second → lands
+  // on the checked radio and ↓/↑ pick the neighbour; Style's Solid/Dashed/Dotted rows do the same.
   void ctxRadioFlyoutsPickAsTheKeysMove() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -127,9 +119,8 @@ class MainWindowGuiTest : public QObject {
       QTest::keyClick(QApplication::focusWidget(), Qt::Key_Left);
       settle([&] { return !(filter->isVisible()); }, 1000);
 
-      // The other route: a flyout opened the way a HOVER opens it leaves the keyboard
-      // with the root. Its keys must still reach the focused radio (StayOpenMenu.cpp
-      // forwards them), so → enters and ↓ picks exactly as above.
+      // The other route: a flyout opened the way a HOVER opens it leaves the keyboard with the root, so
+      // its keys must still reach the focused radio (StayOpenMenu.cpp forwards them).
       root->setActiveAction(filterAct);
       settle([&] { return filter->isVisible(); }, 1000);
       QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
@@ -144,9 +135,8 @@ class MainWindowGuiTest : public QObject {
       settle([&] { return !(filter->isVisible()); }, 1000);
       rootRouteFolded = !filter->isVisible() && root->isVisible();
 
-      // Style: reveal it, enter it (the point-size spinner), Tab past both spinners
-      // onto its first plain row, then walk the rows — landing on Dashed applies it.
-      // Keys go where the platform sends them: the popup's focus widget if it has one.
+      // Style: reveal it, enter it (the point-size spinner), Tab past both spinners onto its first plain
+      // row, then walk. Keys go where the platform sends them: the popup's focus widget if it has one.
       auto keyTo = [](Qt::Key k) {
         QWidget* popup = QApplication::activePopupWidget();
         QWidget* receiver = popup && popup->focusWidget() ? popup->focusWidget() : popup;

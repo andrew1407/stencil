@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A popover must close on a click OUTSIDE it — canvas, toolbar, anywhere — from BOTH
-  // routes that open the accent picker (right-click sticky, hold-Alt peek), and whether
-  // Qt delivers that press or not: exec() is application-modal, so the platform DROPS
-  // presses aimed at the blocked main window and the app-wide filter never sees them.
+  // A popover must close on a click OUTSIDE it, from BOTH routes that open the accent picker, and
+  // whether Qt delivers that press or not: exec() is app-modal, so the platform drops some presses.
   void accentPopoverClosesOnOutsidePress() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
@@ -27,10 +25,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.canvas_->hasImage());
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
     const QPoint c = logo->rect().center();
-    // A toolbar icon that is not the logo — and NOT one the open popover's box covers: a
-    // press on a covered icon is a press ON the window (the app's own onOpenBox rule), so
-    // it is not the "outside press" this case is about. The SETTINGS cluster's ℹ sits at
-    // the far end of the last row, clear of a box anchored to the logo.
+    // A toolbar icon that is not the logo, and NOT one the open popover's box covers: a press on a
+    // covered icon is a press ON the window (onOpenBox). The SETTINGS cluster's ℹ sits clear of it.
     QToolButton* other = nullptr;
     for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it)
       if (it.value() == win.actInfo_ && static_cast<QWidget*>(it.key())->isVisible())
@@ -46,10 +42,8 @@ class MainWindowGuiTest : public QObject {
         opened = win.pop_.active &&
                  win.pop_.active->objectName() == QLatin1String("accentPopover") &&
                  win.pop_.active->isVisible();
-        // THE mechanism: the popover must not be MODAL. An application-modal dialog
-        // marks this window blockedByModalWindow, and Qt then drops every press aimed
-        // at it before any filter runs — which is exactly why the outside click did
-        // nothing on the user's machine. No modal widget ⇒ the press is delivered.
+        // THE mechanism: the popover must not be MODAL. An application-modal dialog marks this window
+        // blockedByModalWindow, and Qt then drops every press aimed at it before any filter runs.
         notModal = !QApplication::activeModalWidget() && win.pop_.active &&
                    !win.pop_.active->isModal() && win.isEnabled();
         const QPoint local = target->rect().center();

@@ -100,9 +100,8 @@ class MainWindowGuiTest : public QObject {
                        moreBtn->property("chatAccent").toBool();
       auto* dot = sub->findChild<QLabel*>("chatMenuStatusDot");
       dotOnMore = dot && dot->parentWidget() == moreBtn;
-      // Room for a reply plus a couple of exchanges without scrolling.
-      // The APPLIED height, not the constant: a plain maximumHeight let the
-      // scroll area collapse to its content sizeHint (~2 rows).
+      // Room for a reply plus a couple of exchanges without scrolling — the APPLIED height, not the
+      // constant: a plain maximumHeight let the scroll area collapse to its ~2-row content sizeHint.
       if (auto* scrollArea = panel->findChild<QScrollArea*>("chatMenuTranscript"))
         transcriptCap = scrollArea->height();
       QCOMPARE(input->placeholderText(),

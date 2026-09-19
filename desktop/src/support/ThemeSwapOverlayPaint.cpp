@@ -33,9 +33,8 @@ namespace stencil::gui {
     tick->setInterval(support::frameIntervalMs(this));
     connect(tick, &QTimer::timeout, this, [this, tick, total] {
       timeMs_ = std::min(double(total), clock_.nsecsElapsed() / 1e6);
-      // The WHOLE overlay repaints each frame: widgets UNDERNEATH repaint after the restyle
-      // and would surface through a ring-only repaint. A clipped pixmap blit is cheap;
-      // a PATH clip rasterising a subtracted circle per frame is not.
+      // The WHOLE overlay repaints each frame: widgets UNDERNEATH repaint after the restyle and would
+      // surface through a ring-only repaint. A clipped pixmap blit is cheap; a per-frame PATH clip is not.
       update();
       if (timeMs_ >= total) {
         tick->stop();

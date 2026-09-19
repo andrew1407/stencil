@@ -147,10 +147,8 @@ class MainWindowGuiTest : public QObject {
   }
 
 
-  // A tab switch is silent, even for the crop rows it tears down along the way: leaving a
-  // tab that had Crop on used to rebuild the stage (resetPreviewState -> syncCropStage)
-  // BEFORE the quiet flag was armed, playing the outgoing rows' own falling-away flourish
-  // on every ordinary switch (user report: closing particles over the Incognito row).
+  // A tab switch is silent, even for the crop rows it tears down: leaving a tab with Crop on rebuilt the
+  // stage before the quiet flag was armed (user report: closing particles over the Incognito row).
   void switchingAwayFromACroppedTabPlaysNoClosingCloud() {
     const auto motion = withMotion();
     int clouds = 999;

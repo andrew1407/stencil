@@ -15,10 +15,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 640);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    // A pixel test owns its palette: this suite shares the real settings file, and on the
-    // LIGHT theme the card's dashed border is paler than its accent fill, so the
-    // brightest-pixel search below locks onto the border and never sees the band move.
-    // Not persisted (applySettings' `persist` is false) — the app's own theme is left be.
+    // A pixel test owns its palette: on the LIGHT theme the card's dashed border is paler than
+    // its accent fill, so the brightest-pixel search locks onto the border. Not persisted.
     {
       Settings s = win.settings_;
       s.themeMode = QStringLiteral("dark");
@@ -70,10 +68,8 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("the sweep does not travel: %1 then %2").arg(first).arg(second)));
   }
 
-  // "＋ Blank image" is a BUTTON, not the whole empty page. A left-click anywhere on the
-  // empty canvas used to create a blank image — the card was only the drawing that
-  // advertised it, and the hand cursor covered the whole area too. Only
-  // the card's own rect clicks, and only over it is the cursor a hand.
+  // "＋ Blank image" is a BUTTON, not the whole empty page: only the card's own rect clicks,
+  // and only over it is the cursor a hand.
   void blankImageCardIsTheOnlyClickTarget() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1100, 760);

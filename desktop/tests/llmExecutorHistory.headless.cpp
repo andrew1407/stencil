@@ -93,9 +93,8 @@ namespace llmexec {
     check(res.ok && target.zoomFit, "zoom fit:true reaches the fit path");
   }
   {
-    // Vertical, then a follow-up "none": the split view clears. (An echoed
-    // "split" beside "none" is a parse failure since the registry's onlyWith rule —
-    // fixture 160 — so the follow-up carries the mode alone.)
+    // Vertical, then a follow-up "none": the split view clears. An echoed "split" beside "none" is a parse
+    // failure under the registry's onlyWith rule (fixture 160), so the follow-up carries the mode alone.
     CanvasPlanTarget target(img, a4);
     const ExecResult on = executePlan(
         parseOpPlan(R"({"reply":"v","actions":[

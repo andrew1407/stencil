@@ -40,9 +40,8 @@ namespace stencil::gui {
     QString script() const;
     void setScript(const QString& text);
     bool isEmpty() const;   // nothing but whitespace
-    // Nothing to DO: no ops and nothing to report. A comment-only script lowers to no ops,
-    // so running it is a no-op with no feedback; an errored one still runs, because the
-    // strip and the underlines are how its errors become visible.
+    // A comment-only script lowers to no ops, so running it is a no-op with no feedback; an errored
+    // one still runs, because the strip and the underlines are how its errors become visible.
     bool isIdle() const;
     void copyToClipboard() const;
 

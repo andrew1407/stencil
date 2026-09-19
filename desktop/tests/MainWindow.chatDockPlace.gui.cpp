@@ -58,12 +58,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY2(dock->width() > settled / 2, "it never grew in from the float");
   }
 
-  // Docking the chat onto the SAME side as the points panel used to let the two fight
-  // over width: the panel would balloon or collapse mid-slide (Qt's dock layout freely
-  // redistributing space between two flexible siblings), and that bad width then got
-  // captured as the "restore" size, reappearing very wide on the next reopen. Browser
-  // parity (layout.css .main-content flex row): the chat overlay only ever eats into the
-  // canvas column — the fixed-width panel beside it never moves. Regression for that bug.
+  // Browser parity (.main-content flex row): docked on the SAME side as the points panel, the
+  // chat only ever eats into the canvas column; the fixed-width panel beside it never moves.
   void chatSharingPanelSideKeepsPanelWidthStable() {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
@@ -76,9 +72,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.dockWidgetArea(win.selPanel_) == Qt::RightDockWidgetArea);
     QTRY_VERIFY(!win.selPanel_->isHidden());
 
-    // Chat starts docked LEFT by default — open it (an UNRELATED area, so this alone
-    // settles QMainWindow's dock layout onto the panel's real natural width, not
-    // whatever incidental size it had straight out of construction) and let it settle.
+    // Chat starts docked LEFT by default — opening it in an UNRELATED area settles QMainWindow's
+    // dock layout onto the panel's real natural width, not its incidental construction size.
     win.actChat_->setChecked(true);
     QTRY_VERIFY(win.chatDock_->isVisible() && !win.chatDock_->isFloating());
     awaitAnim(win.chatAnim_);
@@ -121,9 +116,8 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("panel stayed narrow after chat closed: %1 (was %2)")
                             .arg(win.selPanel_->width()).arg(panelBefore)));
 
-    // ...and reopening the chat (sharing again) must not have baked a bad "restore"
-    // width into the panel from the earlier fight — it settles back near its own size,
-    // never "very wide".
+    // …and reopening the chat must not have baked a bad "restore" width into the panel: it settles
+    // back near its own size, never "very wide".
     win.actChat_->setChecked(true);
     QTRY_VERIFY(win.chatDock_->isVisible());
     awaitAnim(win.chatAnim_);
@@ -132,12 +126,8 @@ class MainWindowGuiTest : public QObject {
                             .arg(win.selPanel_->width()).arg(panelBefore)));
   }
 
-  // The points panel can be HIDDEN (no image loaded, or collapsed by the user) at the
-  // moment the chat gets placed onto its side — dockChatTo used to gate its split on the
-  // panel being visible right then, so the two were left plain-stacked (Qt's unsplit
-  // addDockWidget default: one squashed row above the other). Showing the panel again
-  // later never re-split them — it just reappeared squashed under the chat. Regression
-  // for that; ensurePanelChatSplit must repair it wherever either dock's visibility flips.
+  // The points panel can be HIDDEN when the chat is placed onto its side, so ensurePanelChatSplit
+  // must repair the split wherever either dock's visibility flips, not only when both show.
   void chatPlacedWhilePanelHiddenStillSplitsSideBySide() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -167,9 +157,8 @@ class MainWindowGuiTest : public QObject {
                               win.chatDock_->mapTo(&win, QPoint(0, 0)).y(), 1000);
     QVERIFY2(win.chatDock_->mapTo(&win, QPoint(0, 0)).x() > win.selPanel_->mapTo(&win, QPoint(0, 0)).x(),
              "the panel reappeared stacked under the chat instead of beside it");
-    // Squashed means SHARING a vertical row with the chat — not "shorter than half
-    // the window": the stacked toolbars and the top info dock can leave the whole
-    // dock row well under half of it. Side by side, both fill that row.
+    // Squashed means SHARING a vertical row with the chat, not "shorter than half the window": the
+    // stacked toolbars and the top info dock can leave the whole dock row well under half of it.
     QCOMPARE(win.selPanel_->height(), win.chatDock_->height());
     QVERIFY(win.centralWidget());
     QVERIFY2(win.selPanel_->height() == win.centralWidget()->height(),

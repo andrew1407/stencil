@@ -88,9 +88,8 @@ namespace stencil::gui {
       : QDialog(parent), projects_(projects), now_(now),
         connections_(connections), thumbs_(thumbs),
         activeProjectId_(activeProjectId) {
-    // `accentColor` is unused now: the delegate reads the installed palette's
-    // Highlight/Link (theme.cpp publishes accent + accent-2 there). Kept in the
-    // signature so callers stay untouched.
+    // `accentColor` is unused: the delegate reads the installed palette's Highlight/Link (theme.cpp
+    // publishes accent + accent-2 there). Kept in the signature so callers stay untouched.
     Q_UNUSED(accentColor);
     setWindowTitle("Projects");
     // The browser modal's footprint (app-modal width, min-height min(560px, 82vh))

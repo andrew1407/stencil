@@ -76,9 +76,8 @@ namespace stencil::gui {
   }
 
 
-  // A SURFACE grain — browser motion.js surfaceMotion + tileGatherSurface/tileScatterSurface.
-  // The delay rides the DISTANCE to the target, halved for a scatter (surfaceMotion
-  // delayScale: a long 0% hold on a tall panel read as nothing moving). false = the picture.
+  // A SURFACE grain - browser motion.js surfaceMotion + tileGatherSurface/tileScatterSurface. The
+  // delay rides the DISTANCE to the target, halved for a scatter. false = the picture.
   bool DisintegrateOverlay::surfaceMote(const QRectF& box, int cx, int cy, double cw, double ch,
                                         Mote* out) const {
     const double n = cellNoise(cx, cy);

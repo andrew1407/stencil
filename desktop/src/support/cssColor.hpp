@@ -1,10 +1,8 @@
 #pragma once
-// CSS colours, with alpha. Colours are stored as CSS because the browser writes them
-// straight into a canvas context; core::parseColor (the 148-name CSS Level 4 table +
-// #rgb/#rgba/#rrggbb/#rrggbbaa) resolves them on screen the same way rasterize.cpp does
-// on export. QColor is the fallback only for forms core declines (`#rrrgggbbb`).
-// Desktop twin: desktop/src/support/cssColor.hpp (+ its headless test).
-// Header-only, Q_OBJECT-free.
+// CSS colours, with alpha. Colours are stored as CSS because the browser writes them straight into
+// a canvas context; core::parseColor (the 148-name CSS Level 4 table + #rgb/#rgba/#rrggbb/
+// #rrggbbaa) resolves them on screen the same way rasterize.cpp does on export. QColor is the
+// fallback only for forms core declines (`#rrrgggbbb`). Header-only, Q_OBJECT-free.
 #include "colorNames.hpp"
 
 #include <QColor>

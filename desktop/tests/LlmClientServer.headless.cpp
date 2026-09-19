@@ -77,10 +77,8 @@ namespace llmclient {
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
     check(!got.ok && got.failure == LlmFailure::DISABLED,
           "503 llmDisabled -> typed Disabled failure");
-    // The server's message IS the sentence (browser describeChatError "notice" parity):
-    // raw, never wrapped in "<provider> at <host>:" — that wrapper is for actual
-    // transport/HTTP failures, not "the provider is configured but its own operator
-    // hasn't turned the LLM on".
+    // The server's message IS the sentence (browser describeChatError "notice" parity): raw,
+    // never wrapped in "<provider> at <host>:" — that wrapper is for transport/HTTP failures.
     check(got.error == "no ANTHROPIC_API_KEY",
           "llmDisabled surfaced as the server's own message, unwrapped");
   }

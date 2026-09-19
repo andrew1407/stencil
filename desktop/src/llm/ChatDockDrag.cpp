@@ -24,7 +24,7 @@ namespace stencil::gui {
   // The button for the CURRENT placement is accent-filled and inert (browser
   // .chat-dock-btn-active) — you can't dock where you already are.
   void ChatDock::updatePlacementState() {
-    if (dockBtns_.size() < 4 || !floatBtn_ || !accentCache_.isValid()) return;
+    if (chrome_.dockBtns.size() < 4 || !chrome_.floatBtn || !accentCache_.isValid()) return;
     static const char* GLYPHS[] = {"chevron-left", "chevron-up", "chevron-down",
                                     "chevron-right"};
     static const Qt::DockWidgetArea AREAS[] = {
@@ -41,14 +41,13 @@ namespace stencil::gui {
       // The float button's `maximize` glyph has a second motion for the ALREADY-floating
       // state: its corners retract instead of extending (iconMotion.json variants.active).
       b->setProperty(ICON_STATE_PROPERTY, active ? "active" : "");
-      // Left ENABLED: docking where you already are is a no-op anyway, and disabling it
-      // handed the button to QToolButton:disabled — a bordered grey chip with a dimmed
-      // glyph, which is what made the row look dark and unclear.
+      // Left ENABLED: docking where you already are is a no-op anyway, and disabling it handed the
+      // button to QToolButton:disabled - a bordered grey chip with a dimmed glyph.
       b->setEnabled(true);
     };
     for (int i = 0; i < 4; ++i)
-      paint(dockBtns_[i], GLYPHS[i], !isFloating() && current == AREAS[i]);
-    paint(floatBtn_, "maximize", isFloating());
+      paint(chrome_.dockBtns[i], GLYPHS[i], !isFloating() && current == AREAS[i]);
+    paint(chrome_.floatBtn, "maximize", isFloating());
   }
 
   // Entering compact cancels a press that never became a move, so the grab cannot strand.
@@ -58,7 +57,7 @@ namespace stencil::gui {
     compactPopover_ = on;
     if (on && manualDrag_) {
       manualDrag_ = manualDragging_ = false;
-      if (titleBar_) titleBar_->releaseMouse();
+      if (chrome_.titleBar) chrome_.titleBar->releaseMouse();
     }
   }
 
@@ -73,9 +72,8 @@ namespace stencil::gui {
   }
 
   void ChatDock::setNativeDockingSuppressed(bool on) {
-    // With no allowed areas Qt can never show its drop placeholder or
-    // hover-dock natively mid-drag — the zone overlay is the ONLY mechanism.
-    // (addDockWidget on release happens AFTER the restore.)
+    // With no allowed areas Qt can never show its drop placeholder or hover-dock natively mid-drag -
+    // the zone overlay is the ONLY mechanism. (addDockWidget on release happens AFTER the restore.)
     setAllowedAreas(on ? Qt::NoDockWidgetArea : Qt::AllDockWidgetAreas);
   }
 
@@ -101,9 +99,8 @@ namespace stencil::gui {
     if (!dragMoved_ && (pos - dragStartCursor_).manhattanLength() >= 4)
       dragMoved_ = true;
     if (down) {
-      // Past the platform drag threshold the dock is OURS: force (and keep)
-      // it floating, so a tear-off from a docked side flows straight into the
-      // zone flow and a native mid-drag dock can never stick (item 27).
+      // Past the platform drag threshold the dock is OURS: force (and keep) it floating, so a tear-off
+      // flows straight into the zone flow and a native mid-drag dock can never stick.
       if (dragMoved_ && !isFloating() &&
           (pos - dragStartCursor_).manhattanLength() >=
               QApplication::startDragDistance())
@@ -149,9 +146,8 @@ namespace stencil::gui {
   }
 
   void ChatDock::closeEvent(QCloseEvent* event) {
-    // Hand the close to the owner (it animates, then hides us). With nobody
-    // listening — or once the window is going away — fall back to Qt's own close,
-    // so the dock can never become unclosable.
+    // Hand the close to the owner (it animates, then hides us). With nobody listening - or once the
+    // window is going away - fall back to Qt's own close, so the dock can never become unclosable.
     if (receivers(SIGNAL(closeRequested())) > 0 && isVisible() && window() &&
         window()->isVisible()) {
       event->ignore();
@@ -163,9 +159,8 @@ namespace stencil::gui {
 
   void ChatDock::hideEvent(QHideEvent* event) {
     QDockWidget::hideEvent(event);
-    // The float/dock transition re-parents the dock (a transient hide+show) —
-    // cancel the drag poll only for a REAL hide (still hidden a tick later),
-    // so a tear-off mid-drag keeps its poll; a closed dock never leaks it.
+    // The float/dock transition re-parents the dock (a transient hide+show), so cancel the drag poll
+    // only for a REAL hide (still hidden a tick later); a closed dock never leaks it.
     QTimer::singleShot(0, this, [this] {
       if (!isVisible()) cancelDragPoll();
     });

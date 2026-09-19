@@ -4,11 +4,8 @@
 namespace connectrow {
 
   void checkConnectGestures(QTcpServer& server, quint16 port, QListWidget* list, QWidget* row) {
-  // ── Return in the URL field connects ONCE ────────────────────────────────────
-  // A QLineEdit emits returnPressed and then lets the key reach the dialog's DEFAULT
-  // button, so wiring both fired doConnect twice: the first call connected and cleared
-  // the field, the second found it empty and toasted "Enter a server URL" over the
-  // connection that had just been made.
+  // Return in the URL field connects ONCE: a QLineEdit emits returnPressed and then lets the key reach
+  // the dialog's DEFAULT button, so wiring both fired doConnect twice.
   {
     ConnectionManager fresh;
     ConnectDialog d(&fresh);
@@ -58,10 +55,8 @@ namespace connectrow {
     }
   }
 
-  // ── A refused credential clears the fields; an unreachable host does not ─────
-  // The refused one still leaves a row (Status::EXPIRED, URL intact, Reconnect on it), so
-  // the fields that put it there are done — leaving them typed in invited adding the same
-  // server twice. Nothing left behind keeps its text, to be corrected.
+  // A refused credential clears the fields; an unreachable host does not. The refused one still leaves
+  // a row (Status::EXPIRED, URL intact, Reconnect on it), so the fields that put it there are done.
   {
     ConnectionManager fresh;
     ConnectDialog d(&fresh);
@@ -86,10 +81,8 @@ namespace connectrow {
       QKeyEvent ret(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier, QStringLiteral("\r"));
       QCoreApplication::sendEvent(&d, &ret);
       pumpFor(400);
-      // The rule, whichever way this surface treats an unreachable host (it keeps a
-      // client for one, so a row DOES appear and the fields do clear — the browser drops
-      // it instead and keeps the text): the fields clear exactly when the URL ended up
-      // in the list, never on a "connection added but the text still sitting there".
+      // The rule, whichever way this surface treats an unreachable host: the fields clear exactly when the
+      // URL ended up in the list, never on a "connection added but the text still sitting there".
       const bool leftRow = fresh.find(QStringLiteral("http://127.0.0.1:%1").arg(dead)) != nullptr;
       check(urlField->text().isEmpty() == leftRow,
             "the fields clear exactly when the attempt left a row behind");
@@ -104,10 +97,8 @@ namespace connectrow {
     }
   }
 
-  // ── Return connects even with NO focus widget ────────────────────────────────
-  // Removing a row destroys the trash button that had the focus, leaving the dialog with
-  // none at all — and a Return handler that lives on the fields never sees the key then
-  // (after removing a connection, Enter stopped adding one).
+  // Return connects even with NO focus widget: removing a row destroys the trash button that had the
+  // focus, and a Return handler living on the fields never sees the key then.
   {
     ConnectionManager fresh;
     ConnectDialog d(&fresh);

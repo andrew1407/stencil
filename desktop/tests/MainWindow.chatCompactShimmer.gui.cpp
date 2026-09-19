@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The chat's icon controls shimmer on hover like every other button in the app
-  // (browser layout.css shimmers every <button>, chat ones included): the sweep
-  // starts on Enter, stops on Leave, and never runs on a disabled control.
-  // Checked on the dock's composer + title bar, the per-message "…", and the
-  // context-menu panel's composer.
+  // The chat's icon controls shimmer on hover like every button in the app: the sweep starts on
+  // Enter, stops on Leave, never runs disabled — both composers, the title bar, the row "…".
   void chatIconButtonsShimmerOnHover() {
     const auto motion = withMotion();   // the sweep honours motionReduced(), which is on here
     MainWindow win(nullptr, false);
@@ -37,9 +34,8 @@ class MainWindowGuiTest : public QObject {
       QEnterEvent e(QPointF(4, 4), QPointF(4, 4), w->mapToGlobal(QPoint(4, 4)));
       QApplication::sendEvent(w, &e);
     };
-    // Every chat icon control carries the overlay, mouse-through and exactly the
-    // size of the button, and a hover starts a sweep that a leave cancels.
-    // The overlay is there, sized to the button and mouse-through.
+    // Every chat icon control carries the overlay, mouse-through and exactly the size of the
+    // button, and a hover starts a sweep that a leave cancels.
     const auto wired = [&](QWidget* b, const char* what) {
       QWidget* fx = overlayOf(b);
       QVERIFY2(fx, qPrintable(QString("%1: no shimmer overlay").arg(what)));
@@ -74,8 +70,7 @@ class MainWindowGuiTest : public QObject {
     auto* more = qobject_cast<QToolButton*>(card->property("chatMoreBtn").value<QObject*>());
     QVERIFY2(more, "the card has no \"…\"");
     more->show();   // normally revealed by the card's own hover
-    // Presence only: the "…" LIFTS itself 1px on hover, and offscreen QPA (which
-    // has no real cursor to keep inside the moved button) answers that move with
+    // Presence only: the "…" LIFTS itself 1px on hover, and offscreen QPA answers that move with
     // a synthetic Leave that cancels the sweep. A real pointer stays inside it.
     wired(more, "row-menu \"…\"");
 

@@ -14,9 +14,8 @@ namespace stencil::gui {
 
   namespace {
 
-    // Every metric here is the browser window's (css/components/scriptEditor.css): the two
-    // editors are the same window on two surfaces. The width is not among them — it is this
-    // share of the action row's fit, measured on this surface's own fonts.
+    // Every metric here is the browser window's (css/components/scriptEditor.css) - one editor on two
+    // surfaces. The width is not: it is a share of the action row's fit on this surface's own fonts.
     constexpr int FIT_SHARE_NUM = 15;
     constexpr int FIT_SHARE_DEN = 13;
     constexpr int BAR_PAD_X = 18;   // browser .script-actions-bar padding: 12px 18px
@@ -53,9 +52,8 @@ namespace stencil::gui {
     setWindowTitle(tr("Stencil Script"));
     ModalChrome chrome = installModalChrome(this, QStringLiteral("script"), tr("Stencil Script"));
 
-    // The actions ride ABOVE the editor (browser .script-actions-bar), so this window builds
-    // its own row between the header and the body rather than contorting the shared footer:
-    // the shell's rule then reads as the bar's bottom border, and no divider is left orphaned.
+    // The actions ride ABOVE the editor (browser .script-actions-bar), so this window builds its own
+    // row between header and body: the shell's rule then reads as the bar's bottom border.
     auto* bar = new QHBoxLayout;
     bar->setSpacing(8);
     bar->setContentsMargins(BAR_PAD_X, BAR_PAD_Y, BAR_PAD_X, BAR_PAD_Y);
@@ -118,9 +116,8 @@ namespace stencil::gui {
     editor_->editor()->moveCursor(QTextCursor::End);
   }
 
-  // The window is its widest row, and that row is the actions bar; half again that fit leaves
-  // the editor room past the left-aligned actions (browser .script-modal). Measured here, because
-  // the QSS font reaches the buttons after the constructor; as a popover the host sizes it.
+  // The window is its widest row, the actions bar; half again that fit leaves the editor room
+  // (browser .script-modal). Measured here: the QSS font reaches the buttons post-constructor.
   void ScriptDialog::showEvent(QShowEvent* event) {
     QDialog::showEvent(event);
     if (isWindow()) setFixedWidth(minimumSizeHint().width() * FIT_SHARE_NUM / FIT_SHARE_DEN);

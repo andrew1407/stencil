@@ -8,21 +8,11 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Holding Alt over an export-variant row peeks its live preview instead of closing the
-  // menu: the preview's dust must not span an ESCAPING top-level window while the menu
-  // holds the platform grab (menuReveal.cpp's dustMenuIn/dustMenuOut solved the same for a
-  // menu's own dust). Three routes reach such a row — the toolbar button's single-level
-  // options popup, and the canvas menu's doubly-nested Image/Layout ▸ Copy Image ▸ … chain,
-  // where a hover-opened submenu never grabs the keyboard, so a bare Alt lands on the
-  // chain's ROOT (AltPreviewFilter used to watch only the leaf and threw it away) — once
-  // plainly, and once with the cursor resting on the toolbar button the flyout paints over,
-  // where MainWindowEvents.cpp's qApp-wide Alt filter would pop ITS popover and steal the grab.
+  // Holding Alt over an export-variant row peeks its live preview instead of closing the menu, from
+  // all three routes — including the nested chain, where a bare Alt lands on the chain's ROOT.
   void altHoldOverAnExportRowNeverClosesTheMenu() {
-    // The offscreen QPA plugin doesn't honor Qt::ToolTip's real-platform contract of
-    // coexisting with an open popup's grab, so exportPreview.cpp's preview tooltip closes
-    // the menu there regardless of the fix (verified: reverting it reproduces the same
-    // failure for real, and the quirk persists with the fix in place and with the tooltip's
-    // own dust removed). Nothing to check here without a real windowing platform.
+    // The offscreen QPA plugin does not honour Qt::ToolTip's coexistence with an open popup's grab, so
+    // the preview tooltip closes the menu there regardless: nothing to check without a real platform.
     if (QGuiApplication::platformName() == QLatin1String("offscreen"))
       QSKIP("Alt-hover's preview tooltip needs a real platform's popup-grab handling");
     enum Route { TOOLBAR_POPUP, NESTED_ROOT, NESTED_OVER_TOOLBAR_BUTTON };
@@ -34,9 +24,8 @@ class MainWindowGuiTest : public QObject {
       win.resize(1000, 760);
       win.show();
       QVERIFY2(QTest::qWaitForWindowExposed(&win), name);
-      // Away from every icon before Alt is touched at all: QCursor::pos() is one
-      // process-wide value outliving any window, and a stray pop_.buttons match opens a
-      // modal that blocks forever in execMaybePopover's event loop (it hung the suite once).
+      // Away from every icon before Alt is touched: QCursor::pos() is one process-wide value, and a stray
+      // pop_.buttons match opens a modal that blocks forever in execMaybePopover's event loop.
       QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
       win.openPathFromOS(guiTestImage());
       QTRY_VERIFY2(win.findChild<CanvasWidget*>()->hasImage(), name);
@@ -56,10 +45,8 @@ class MainWindowGuiTest : public QObject {
         QApplication::sendEvent(copyBtn, &ctx);
         QMenu* menu = win.copyImageOptionsMenu_;
         QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
-        // Hover the first row (QMenu::hovered is what wireExportPreviewHover listens on) so
-        // AltPreviewFilter has an activeAction() to render a preview for. A synthetic
-        // mouseMove doesn't reliably drive QMenu's own hover tracking on a real platform
-        // popup, so set it directly — exactly what QMenu does internally on a real hover.
+        // Hover the first row (QMenu::hovered is what wireExportPreviewHover listens on) so AltPreviewFilter
+        // has an activeAction(); set it directly, as QMenu does internally, since mouseMove is unreliable.
         menu->setActiveAction(win.actCopyImageCurrentRow_);
         QCOMPARE(menu->activeAction(), win.actCopyImageCurrentRow_);
         QTest::keyPress(menu, Qt::Key_Alt);
@@ -97,15 +84,12 @@ class MainWindowGuiTest : public QObject {
         QMenu* copyMenu = copyAct->menu();
         settle([&] { return copyMenu->isVisible(); }, 1000);
         if (!copyMenu->isVisible()) { root->close(); return; }
-        // actCopyImageOriginal_, not actCopyImage_ itself: the latter is no longer a row in
-        // this submenu at all (actCopyImageCurrentRow_ is — hidden with nothing drawn),
-        // while Original is always there, and this route's point is Alt-key ROUTING rather
-        // than which specific row it lands on.
+        // actCopyImageOriginal_, not actCopyImage_: the latter is no longer a row in this submenu, while
+        // Original always is, and this route's point is Alt-key ROUTING, not which row it lands on.
         copyMenu->setActiveAction(win.actCopyImageOriginal_);
         reached = true;
-        // underMouse() backs up the cursor-position check in MainWindowEvents.cpp (same
-        // answer a real resting pointer leaves) and is what an offscreen-adjacent test can
-        // mock — a real QCursor::setPos warp is not guaranteed to land in time.
+        // underMouse() backs up the cursor-position check in MainWindowEvents.cpp and is what an
+        // offscreen-adjacent test can mock — a real QCursor::setPos warp may not land in time.
         if (overButton) copyBtn->setAttribute(Qt::WA_UnderMouse, true);
         QTest::keyPress(root, Qt::Key_Alt);
         if (overButton) {

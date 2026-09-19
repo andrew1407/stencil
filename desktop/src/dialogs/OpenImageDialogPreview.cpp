@@ -90,9 +90,8 @@ namespace stencil::gui {
     frameRow_->setVisible(false);
   }
 
-  // The typed source has moved on: keep the picture (still what was asked for), drop what
-  // was derived from it. The Crop CHOICE stays — it belongs to what will be opened, and
-  // opening re-resolves the typed url; only its stage goes, with the pixels.
+  // The typed source has moved on: keep the picture, drop what was derived from it. The Crop CHOICE
+  // stays - it belongs to what will be opened - and only its stage goes, with the pixels.
   void OpenImageDialog::stalePreview() {
     dropDerived();
     syncCropStage();
@@ -139,9 +138,8 @@ namespace stencil::gui {
     }
     // source() names the tab's own file/URL — must not replay the arrival on a switch.
     const QString key = source();
-    // A departure ALWAYS has an arrival: if the old picture blew away, this one flies in
-    // even when the source has been seen before — the pair was asymmetric otherwise, the
-    // old one dusting out and the new one simply appearing.
+    // A departure ALWAYS has an arrival: if the old picture blew away, this one flies in even when
+    // the source has been seen before.
     const bool isNew = !key.isEmpty() && (motion_.arrivalDue || !motion_.animatedSources.contains(key));
     const QSize box = previewFitBox();
     const QPixmap shot = QPixmap::fromImage(img).scaled(

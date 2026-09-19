@@ -20,9 +20,8 @@ namespace stencil::gui::stroke {
                                            static_cast<int>(std::lround(y))) - 0.5) * 2.0;
   }
 
-  // The envelope every mid-flight flourish rides: nothing at either end, everything at the
-  // half-way mark. A parabola, not a sine, because it is exactly zero at both ends —
-  // sin(pi) is not (browser motion.js strokeArc).
+  // The envelope every mid-flight flourish rides. A parabola, not a sine, because it is exactly
+  // zero at both ends - sin(pi) is not (browser motion.js strokeArc).
   double arc(double t) {
     const double k = std::clamp(t, 0.0, 1.0);
     return 4.0 * k * (1.0 - k);
@@ -81,9 +80,8 @@ namespace stencil::gui::stroke {
     return ph.fly < 1.0 ? flyRadius(ph.fly) : popScale(ph.land);
   }
 
-  // Where a vertex INSERTED into a segment comes from: its own foot on the straight line
-  // it split, clamped to the segment, so the bend is pulled out of the stroke instead of
-  // appearing beside it (browser motion.js strokeFoot).
+  // An INSERTED vertex comes from its own foot on the line it split, clamped to the segment, so the
+  // bend is pulled out of the stroke instead of appearing beside it (browser motion.js strokeFoot).
   QPointF foot(const core::Point& a, const core::Point& b, double x, double y) {
     const double dx = b.x - a.x;
     const double dy = b.y - a.y;
@@ -117,9 +115,8 @@ namespace stencil::gui::stroke {
     flights_.push_back(f);
   }
 
-  // Several points at once (a rect's corners): each leaves the one before it and waits
-  // for it to land, so the shape draws itself edge by edge. A range starting at the head
-  // has nothing before it, so that first vertex only pops.
+  // Several points at once (a rect's corners): each leaves the one before it and waits for it to
+  // land. A range starting at the head has nothing before it, so that first vertex only pops.
   void Fx::flyInRange(int lineIdx, const core::Line& line, int startIdx, int count, double now) {
     double delay = 0.0;
     for (int i = 0; i < count; ++i) {

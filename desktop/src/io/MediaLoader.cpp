@@ -31,9 +31,8 @@ namespace stencil::gui {
     durationMs_ = 0;
     seekIssued_ = false;
 
-    // Resolve to a URL: an existing local file wins (so relative paths and odd
-    // names aren't misread as URLs); otherwise fromUserInput turns a bare
-    // "example.com/x.png" into a proper http URL.
+    // Resolve to a URL: an existing local file wins (so relative paths and odd names are not misread
+    // as URLs); otherwise fromUserInput turns a bare "example.com/x.png" into a proper http URL.
     const QFileInfo fi(src);
     if (fi.exists()) {
       localPath_ = fi.absoluteFilePath();
@@ -51,9 +50,8 @@ namespace stencil::gui {
       done({}, QString());
       return;
     }
-    // Sequential driver over load(): one loaded()/failed() per call, so chain
-    // the next seek from the completion. Connections are severed on finish so a
-    // later plain load() doesn't re-enter this collector.
+    // Sequential driver over load(): one loaded()/failed() per call, so chain the next seek from the
+    // completion. Connections are severed on finish so a later plain load() cannot re-enter this.
     struct St {
       QString src;
       QList<int> indices;

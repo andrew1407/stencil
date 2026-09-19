@@ -8,15 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A repeat of the same message (e.g. pan/zoom's debounced "Saved") landing while the LAST
-  // one is still mid-exit used to coexist with it instead of coalescing — liveToasts() only
-  // coalesces into a STANDING toast, so the fresh arrival's opaque label buried the leaving
-  // one's still-playing dust. Only one "toast" label should ever exist for a given message.
-
-  // REGRESSION: Right on a submenu row opened the flyout and it vanished ~220ms later
-  // (or never got past its reveal). Opening from the keyboard makes Qt re-emit hovered()
-  // on the parent for a row the pointer never touched, and SubmenuCloseGuard
-  // (menuReveal.cpp) armed its close on that. Only pointer-made hovers may arm it.
+  // Opening a submenu from the keyboard makes Qt re-emit hovered() on the parent for a row the
+  // pointer never touched, so only pointer-made hovers may arm SubmenuCloseGuard's close.
   void ctxSubmenuOpenedByKeyboardStaysOpen() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -53,9 +46,8 @@ class MainWindowGuiTest : public QObject {
       opened = layoutMenu->isVisible();
       QTest::qWait(900);   // well past the guard's 220/480ms grace
       stillOpen = layoutMenu->isVisible();
-      // The rest of the walk: a second Right lands on the flyout's first REAL row (not
-      // its "IMAGE" title), Down moves on past the title rows, Left closes it back
-      // onto the parent row with the root still up, Right reopens it.
+      // The rest of the walk: a second Right lands on the flyout's first REAL row (not its "IMAGE"
+      // title), Down moves past the title rows, Left closes it back onto the parent, Right reopens it.
       if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);
       QTest::qWait(30);
       enteredRow = layoutMenu->activeAction() && layoutMenu->activeAction()->text().startsWith("Copy Image");
@@ -122,9 +114,8 @@ class MainWindowGuiTest : public QObject {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
-  // Tab inside a flyout that hosts real controls (Style's spinners here) walks those
-  // controls, wrapping, instead of QMenu's default "Tab is ↓" that never reached them
-  //. The keyboard-opened submenu is the active popup, so keys go to it.
+  // Tab inside a flyout that hosts real controls (Style's spinners) walks those controls, wrapping,
+  // instead of QMenu's default "Tab is ↓". The keyboard-opened submenu is the active popup.
   void ctxFlyoutTabWalksItsControls() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);

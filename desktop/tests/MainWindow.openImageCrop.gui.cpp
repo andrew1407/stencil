@@ -23,10 +23,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A STILL's crop draws a rect on the picture already on screen — nothing arrives, so
-  // nothing plays and nothing is ever veiled. (A video's stage IS a new canvas below the
-  // player; that one is veiled before its first paint so it cannot blink in. Qt Multimedia
-  // will not decode here, so only the still half is reachable.)
+  // A STILL's crop draws a rect on the picture already on screen, so nothing arrives, plays or is ever
+  // veiled. A video's stage is a new canvas, but Qt Multimedia will not decode here.
   void croppingAStillNeverVeilsThePictureItAlreadyShows() {
     const auto motion = withMotion();   // the blink only exists when the dust plays
     MainWindow win(nullptr, false);
@@ -155,10 +153,8 @@ class MainWindowGuiTest : public QObject {
 
 
 
-  // The VIDEO branch, which Qt Multimedia will not reach here (no decoder under the
-  // offscreen platform): the dialog is handed a frame through the test seam instead. A
-  // video's crop is the same one stage — its frame takes the picture's place, the scrub bar
-  // keeps the STAGE's painted width, and the read-out appears with it.
+  // The VIDEO branch, unreachable through Qt Multimedia here, is handed a frame through the test seam:
+  // a video's crop is the same one stage, the scrub bar keeps the STAGE's width, the readout appears.
   void aVideosCropIsTheSameOneStageWithTheBarUnderIt() {
     MainWindow win(nullptr, false);
     win.resize(1250, 980);
@@ -200,10 +196,8 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("the scrub bar is %1px under a %2px picture").arg(barW).arg(stageW)));
   }
 
-  // "Open in new window" must carry the box the user DRAGGED, not re-centre one: the handoff
-  // travels as LaunchOptions, so a rect dropped there is a rect the new window never sees
-  // (browser twin: openOpts()'s crop rides openImageNewTab). Driven through the same
-  // LaunchOptions the dialog fills, since the real path spawns a second window.
+  // "Open in new window" must carry the box the user DRAGGED: the handoff travels as LaunchOptions
+  // (browser twin: openOpts()'s crop rides openImageNewTab), which is what this drives it through.
   void aDraggedCropRectSurvivesTheNewWindowHandoff() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);

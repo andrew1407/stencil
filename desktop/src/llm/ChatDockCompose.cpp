@@ -40,14 +40,14 @@ namespace stencil::gui {
         "Videos (*.mp4 *.m4v *.mov *.webm *.mkv *.avi *.mpg *.mpeg *.ogv)");
     for (const QString& p : paths) {
       if (isVideoFileName(p)) {
-        videoPath_ = p;
+        cmp_.videoPath = p;
         emit videoAttached(p);
       } else {
-        if (images_.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7: three per message
+        if (cmp_.images.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7: three per message
         const QImage img = readImageFile(p);
         if (!img.isNull()) {
-          images_.append(img);
-          imageNames_.append(QFileInfo(p).fileName());
+          cmp_.images.append(img);
+          cmp_.imageNames.append(QFileInfo(p).fileName());
         }
       }
     }
@@ -55,9 +55,8 @@ namespace stencil::gui {
     if (overCap) warnAttachmentCap();
   }
 
-  // Browser parity: a queue past the §7 cap is SAID, not silently swallowed — as an
-  // accent toast on the owner's stack, not a transcript card. Once per batch: a drop
-  // of five pictures arrives one image at a time, which would otherwise post it four times.
+  // Browser parity: a queue past the §7 cap is SAID, as an accent toast on the owner's stack, not a
+  // transcript card. Once per batch: a drop of five pictures arrives one image at a time.
   void ChatDock::warnAttachmentCap() {
     if (capToastAt_.isValid() && capToastAt_.elapsed() < 1500) return;
     capToastAt_.start();
@@ -68,19 +67,18 @@ namespace stencil::gui {
 
   void ChatDock::addAttachmentImage(const QImage& img, const QString& name) {
     if (img.isNull()) return;
-    if (images_.size() >= MAX_ATTACHMENTS) { warnAttachmentCap(); return; }
-    images_.append(img);
-    // Kept in lockstep with images_ so a chip can say WHICH picture it holds. Empty
-    // where there is nothing to say (a clipboard bitmap has no filename) — the chip
-    // falls back to the dimensions there, as it always did.
-    imageNames_.append(name);
+    if (cmp_.images.size() >= MAX_ATTACHMENTS) { warnAttachmentCap(); return; }
+    cmp_.images.append(img);
+    // Kept in lockstep with cmp_.images so a chip can say WHICH picture it holds. Empty where there is
+    // nothing to say (a clipboard bitmap has no filename) - the chip falls back to the dimensions.
+    cmp_.imageNames.append(name);
     refreshAttachmentTray();
   }
 
   void ChatDock::clearAttachments() {
-    images_.clear();
-    imageNames_.clear();
-    videoPath_.clear();
+    cmp_.images.clear();
+    cmp_.imageNames.clear();
+    cmp_.videoPath.clear();
     refreshAttachmentTray();
   }
 }  // namespace stencil::gui

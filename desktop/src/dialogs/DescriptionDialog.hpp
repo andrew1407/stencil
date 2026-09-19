@@ -20,9 +20,8 @@ namespace stencil::gui {
     QString text() const;
     static constexpr int MAX_CHARS = 2000;
 
-    // Write `text` onto project `id` and persist the list — the SAME store write the
-    // Projects window's row-menu "Add description" makes (commitRowEdit's local branch).
-    // False when no project carries that id; an empty text clears.
+    // The SAME store write the Projects row-menu "Add description" makes (commitRowEdit's local
+    // branch). False when no project carries that id; an empty text clears.
     static bool apply(std::vector<Project>& projects, const QString& id, const QString& text,
                       long long now);
 

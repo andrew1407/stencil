@@ -1,9 +1,7 @@
-// Headless round-trip check for the per-project `keywords` field
-// (fileStore::projectToJson <-> projectFromJson). Verifies the desktop emits and reads back
-// the SAME keyword list the browser/CLI/server carry, that it is omitted from the JSON when
-// empty (byte-stable with old files), and that blanks are dropped on read. Mirrors the browser's
-// projectsStore keywords persistence and the server ProjectRecord.Keywords.
-// Not part of stencil_tests (that target is Qt-free); built only when Qt is present.
+// Headless round-trip check for the per-project `keywords` field (fileStore::projectToJson <->
+// projectFromJson): the desktop emits and reads back the SAME list the browser/CLI/server carry, omits
+// it when empty (byte-stable with old files), and drops blanks on read. Mirrors the browser's
+// projectsStore keywords persistence and the server ProjectRecord.Keywords. Needs Qt.
 #include "fileStore.hpp"
 #include <QCoreApplication>
 #include <QJsonArray>

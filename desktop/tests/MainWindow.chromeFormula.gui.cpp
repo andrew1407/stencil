@@ -12,10 +12,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The f(x,y) pair is as wide as the browser's (#formula-x / #formula-y, 180px inline) —
-  // they were pinned to a 72px stub, which fits no real formula — and keep that width on a
-  // narrow window, where the tool run WRAPS (support/WrapRow.hpp) rather than squeezing its
-  // fields or hiding them behind QToolBar's "»".
+  // The f(x,y) pair is as wide as the browser's (#formula-x / #formula-y, 180px inline) and keeps
+  // that width on a narrow window, where the tool run WRAPS (support/WrapRow.hpp) instead.
   void formulaFieldsTakeTheBrowsersWidth() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 800);
@@ -53,9 +51,8 @@ class MainWindowGuiTest : public QObject {
     for (auto* e : win.findChildren<QLineEdit*>())
       if (e->placeholderText().startsWith("x(x)")) fx = e;
     QVERIFY(fx);
-    // The pill starts wherever the LAST run left it (settings.json persists
-    // allowFormulas), and its reveal/hide is animated — so every wait here is a
-    // QTRY: a fixed one passed only when the pill happened to start unchecked.
+    // The pill starts wherever the LAST run left it (settings.json persists allowFormulas) and its
+    // reveal/hide is animated, so every wait here is a QTRY.
     if (pill->isChecked()) pill->setChecked(false);
     QTRY_VERIFY(!fx->isVisible());
     QTest::mouseClick(pill, Qt::LeftButton, Qt::NoModifier, pill->rect().center());
@@ -68,10 +65,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(fx->isVisible(), "formula inputs should survive window resizes");
   }
 
-  // Regression: the f(x,y) pair commits when typing SETTLES, not per keystroke. A formula
-  // is typed one character at a time, so an expression still being written must not be
-  // judged (no "⚠ invalid" flashing mid-word) nor applied — it is only flagged once the
-  // user stops. Mirrors browser settingsController.wireFormulaInputs.
+  // The f(x,y) pair commits when typing SETTLES, not per keystroke: an expression still being
+  // written is neither judged nor applied. Mirrors browser settingsController.wireFormulaInputs.
   void formulaCommitsOnIdlePauseNotPerKeystroke() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     // Wide enough that the inline formula inputs stay on the row rather than folding

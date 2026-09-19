@@ -50,9 +50,8 @@ class MainWindowGuiTest : public QObject {
     win.actChat_->setChecked(false);
     awaitAnim(win.chatAnim_);
 
-    // COMPARE: the canvas is read-only there, but the readout is information,
-    // not editing — it must keep following the cursor (it used to stop dead,
-    // which is exactly what "the app is frozen" looked like).
+    // COMPARE: the canvas is read-only there, but the readout is information, not editing —
+    // it must keep following the cursor.
     for (const char* mode : {"vertical", "horizontal"}) {
       win.setCompareModeUi(QString::fromLatin1(mode));
       QTRY_VERIFY2(win.canvas_->compareReadOnly(), "compare did not engage");
@@ -62,9 +61,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The way back OUT of a closed area. "Unchain" sits in the bar's area-only group, so it
-  // is offered exactly when a line is an area, and clicking it puts the line back to an
-  // open polyline (canvas/chainEdit.hpp; Alt+Ctrl+drag is the gesture route).
+  // "Unchain" sits in the bar's area-only group, so it is offered exactly when a line is an
+  // area, and clicking it puts the line back to an open polyline (canvas/chainEdit.hpp).
   void unchainButtonIsOfferedOnlyForAreas() {
     MainWindow win(nullptr, false);
     win.resize(1200, 850);
@@ -86,9 +84,8 @@ class MainWindowGuiTest : public QObject {
     // rather than on the same tick — wait it out instead of reading it mid-flight.
     QTRY_VERIFY2(!unchain->isVisible(), "an open line was offered Unchain");
 
-    // REGRESSION: the fill swatch showed a washed-out salmon for a translucent green — a
-    // CSS `#rrggbbaa` handed to QColor, whose 8-digit form is #AARRGGBB, alpha first. It
-    // must go through cssColor(), like every other stored colour.
+    // The fill swatch must go through cssColor() like every other stored colour: a CSS
+    // `#rrggbbaa` handed to QColor reads as #AARRGGBB, alpha first, and washes out.
     {
       stencil::core::Line tinted;
       tinted.points = {{10, 10}, {90, 10}, {90, 70}, {10, 70}};
@@ -103,42 +100,37 @@ class MainWindowGuiTest : public QObject {
       // so read it there: its channels must be the CSS ones, alpha included.
       const QImage chip = swatch->icon().pixmap(32, 16).toImage();
       const QColor mid = chip.pixelColor(chip.width() / 2, chip.height() / 2);
-      // ±2 per channel: the chip is drawn into a premultiplied pixmap, so the readback
-      // rounds by a unit. What matters is that it is THIS green at THIS alpha, and not
-      // the washed-out salmon a #AARRGGBB misread produced (170, 68, 64).
+      // ±2 per channel: the chip is drawn into a premultiplied pixmap, so the readback rounds by a
+      // unit. What matters is THIS green at THIS alpha, not a #AARRGGBB misread's (170, 68, 64).
       const auto near8 = [](int got, int want) { return std::abs(got - want) <= 2; };
       QVERIFY2(near8(mid.red(), 0) && near8(mid.green(), 170) && near8(mid.blue(), 68) &&
                    near8(mid.alpha(), 64),
                qPrintable("fill chip reads " + mid.name(QColor::HexArgb)));
 
-      // REGRESSION: the bar's colours must be the browser's own hex, painted flat.
-      // Encoding into Display P3 on macOS was a second conversion on an already
-      // colour-managed surface and made the whole app read duller.
+      // The bar's colours must be the browser's own hex, painted flat: encoding into Display P3 on
+      // macOS is a second conversion on an already colour-managed surface.
       win.resize(1900, 900);
       settleLayout(&win, 300);
       const QImage bar = win.selectedLineBar_->grab().toImage();
       auto* ds = win.selectedLineBar_->findChild<QWidget*>("selectedLineDeselect");
       QVERIFY(ds);
       const QColor got = bar.pixelColor(ds->mapTo(win.selectedLineBar_, QPoint(5, ds->height() / 2)));
-      // Deselect wears the bar's own amber, the same token its siblings use — one
-      // palette, no orange outlier (browser .deselect-btn -> var(--bg-sel-btn)). For the
-      // theme the window is actually in: another case may have left the app in light.
+      // Deselect wears the bar's own amber, the token its siblings use (browser .deselect-btn ->
+      // var(--bg-sel-btn)), for the theme the window is actually in.
       const stencil::gui::Palette live = stencil::gui::themePalette(
           stencil::gui::resolveDark(win.settings_.themeMode), win.settings_.accentColor);
       QCOMPARE(got.name(), live.bgSelBtn.name());
       QCOMPARE(stencil::gui::themePalette(true, "violet").danger.name(), QStringLiteral("#f0697a"));
     }
 
-    // The two glyphs in this group are sized like the browser's: the clear-fill cross is
-    // small (11px box, not the style's 16 scaling an 11px pixmap up), and Unchain carries
-    // the same icon-plus-label pairing #sel-unchain has.
+    // The two glyphs in this group are sized like the browser's: an 11px clear-fill cross (not
+    // the style's 16 scaling it up), and Unchain's icon-plus-label pairing from #sel-unchain.
     {
       auto* clear = win.selectedLineBar_->findChild<QPushButton*>("selectedLineFillClear");
       QVERIFY2(clear, "no clear-fill button");
 
-      // …and the same boxes the browser's controls have: a 23x19 cross, 28px-tall buttons
-      // and 46x34 colour wells beside 34px fields. Clear-fill is a full-height control,
-      // not a small cross sitting low in the row.
+      // …and the browser's own boxes: a 23x19 cross, 28px-tall buttons and 46x34 colour wells
+      // beside 34px fields. Clear-fill is a full-height control, not a small low cross.
       QVERIFY2(clear->height() >= 26, qPrintable(QString("clear is %1px tall").arg(clear->height())));
       QCOMPARE(clear->iconSize(), QSize(13, 13));
       // ONE colour well everywhere: 46x24, the size the browser and extension now use too.
@@ -147,19 +139,16 @@ class MainWindowGuiTest : public QObject {
       QCOMPARE(swatch2->size(), QSize(46, 26));
       QVERIFY2(!swatch2->icon().isNull(),
                "the well should draw a colour CHIP inside its frame, like the toolbar's");
-      // …in the theme's own input chrome, exactly as the toolbar's wells are. Read from
-      // the widget's palette instead, the frame resolved to the LIGHT theme's #dddddd and
-      // the wells sat in the dark bar ringed in near-white.
+      // …in the theme's own input chrome, as the toolbar's wells are. The widget's own palette
+      // resolves to the LIGHT theme's #dddddd and rings the wells in near-white.
       const stencil::gui::Palette chrome = stencil::gui::themePalette(
           stencil::gui::resolveDark(win.settings_.themeMode), win.settings_.accentColor);
       QVERIFY2(swatch2->styleSheet().contains(chrome.borderMain.name()),
                qPrintable("well frame reads: " + swatch2->styleSheet()));
       QVERIFY2(swatch2->styleSheet().contains(chrome.inputBg.name()),
                "the well should sit on the theme's input ground");
-      // …and four hairlines part the bar, as the browser's do: header | colours |
-      // geometry | fill | actions. The fill's own comes and goes WITH the group, or
-      // unchaining leaves two side by side with nothing between. Measured while the group
-      // is still there, at a width narrow enough that it costs a second row.
+      // Four hairlines part the bar as the browser's do: header | colours | geometry | fill |
+      // actions. The fill's own comes and goes WITH the group; measured at a two-row width.
       win.resize(1100, 900);
       settleLayout(&win, 300);
       const int barHeightWithFill = win.selectedLineBar_->height();
@@ -174,9 +163,8 @@ class MainWindowGuiTest : public QObject {
       beat();
       QTRY_COMPARE(visibleSeps(), 3);
       QTRY_VERIFY2(!swatch2->isVisible(), "the fill group should be gone with it");
-      // …and the bar SHRINKS with it. Losing the fill group can cost the flow layout a
-      // whole row, and nothing re-asked for the height. refitHeight() runs on every
-      // content change now.
+      // …and the bar SHRINKS with it: losing the fill group can cost the flow layout a whole row,
+      // so refitHeight() runs on every content change.
       const int tallWithFill = barHeightWithFill;
       QTRY_VERIFY2(win.selectedLineBar_->height() < tallWithFill,
                    qPrintable(QString("bar stayed %1px tall after the fill group left (was %2)")
@@ -201,9 +189,8 @@ class MainWindowGuiTest : public QObject {
     beat();
     QTRY_VERIFY2(unchain->isVisible(), "an area was not offered Unchain");
 
-    // …and pressing it opens the area, keeping every corner. click() rather than a
-    // synthetic press at coordinates: the group is mid-slide when it first becomes visible
-    // (controlReveal), so a positional click can land beside a still-growing button.
+    // …and pressing it opens the area, keeping every corner. click() rather than a positional
+    // press: the group is mid-slide when it first becomes visible (controlReveal).
     unchain->click();
     beat();
     QVERIFY2(!canvas->lines()[0].locked, "the click did not unchain the area");

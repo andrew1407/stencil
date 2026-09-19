@@ -109,9 +109,8 @@ namespace stencil::gui {
   void OpenImageDialog::applyMode() {
     cancelPreviewDust();   // the outgoing tab's flourish does not play over the arriving one
     size_.previewCapH = 0;      // the arriving tab's picture is fitted afresh
-    // The OUTGOING tab's stage goes NOW: left standing, showPreview() would call setOriginal() on it
-    // for the differently-shaped arriving picture and persist a rect from the OLD stage's stale aspect.
-    // syncQuickcropEnabled() rebuilds a correct one once the new picture has landed.
+    // The OUTGOING tab's stage goes NOW: left standing, showPreview() would setOriginal() on it for
+    // the arriving picture and persist a rect from the OLD stage's stale aspect.
     if (cropStage_) {
       cropStage_->hide();
       cropStage_->deleteLater();
@@ -132,9 +131,8 @@ namespace stencil::gui {
       const QSignalBlocker block(cropPage_);
       cropPage_->setChecked(tabCrop_[tab]);
     }
-    // Quiet from here: resetPreviewState()/stalePreview() below rebuild the crop stage on
-    // their own, ahead of schedule — ungated, that pass played the outgoing rows' closing
-    // flourish on every ordinary switch (a tab switch is not a toggle).
+    // Quiet from here: resetPreviewState()/stalePreview() rebuild the crop stage themselves, and
+    // ungated that pass played the outgoing rows' closing flourish on every ordinary switch.
     motion_.quietCrop = true;
     const QString src = source();
     if (blank) {
@@ -147,9 +145,8 @@ namespace stencil::gui {
       if (cache.valid && cache.source == src) {
         restoreTabPreview(cache);
       } else if (tab == TabUrl && cache.valid && restoreTabPreview(cache)) {
-        // The typed URL moved on while this tab was away: coming back still shows what it
-        // was showing — losing the picture to a half-typed address is not a tab switch's
-        // doing. Preview is what replaces it, exactly as stalePreview leaves it.
+        // The typed URL moved on while this tab was away: coming back still shows what it was showing.
+        // Preview is what replaces it, exactly as stalePreview leaves it.
         stalePreview();
       } else {
         resetPreviewState();
@@ -197,9 +194,8 @@ namespace stencil::gui {
     refreshOpenEnabled();
   }
 
-  // Gate the open buttons. A source is enough to open (an un-previewed source falls
-  // back to the async resolve in MainWindow); with a preview taken, opening adopts the
-  // exact previewed pixels. Tooltips explain the state.
+  // Gate the open buttons. A source alone is enough to open (MainWindow's async resolve backs it);
+  // with a preview taken, opening adopts the exact previewed pixels.
   void OpenImageDialog::refreshOpenEnabled() {
     const bool has = !source().isEmpty();
     act_.here->setEnabled(has);

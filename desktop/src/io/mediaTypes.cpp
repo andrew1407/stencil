@@ -12,9 +12,8 @@ static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 namespace stencil::gui {
 
   namespace {
-    // browser/js/config/mediaTypes.json `surfaces.desktop` — what THIS app recognises today.
-    // Deliberately not the wider `video.extensions` contract set: pointing the app at that would accept
-    // more files, which is its own stated change (the asset's `drift` note). Parsed once per list.
+    // browser/js/config/mediaTypes.json `surfaces.desktop`. Deliberately not the wider
+    // `video.extensions` contract set - that would accept more files (the asset's `drift` note).
     QStringList canonExtensions(const QString& kind) {
       ensureAppResources();
       QFile f(QStringLiteral(":/config/mediaTypes.json"));

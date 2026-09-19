@@ -10,9 +10,8 @@ class QWidget;
 // browser js/ui/exportPreview.js. One window shared by every export menu.
 namespace stencil::support {
 
-  // `ownerRect` is the row in the menu's own coordinates (QMenu::actionGeometry), the
-  // dust's origin (browser js/ui/motion.js surfaceIn); `dustFromGlobal` overrides it
-  // for a KEY-triggered appearance (Alt pressed forms from the cursor).
+  // `ownerRect` is the row in the menu's own coordinates (QMenu::actionGeometry), the dust's origin
+  // (browser js/ui/motion.js surfaceIn); `dustFromGlobal` overrides it for a KEY-triggered appearance.
   void showExportPreview(const QImage& image, QWidget* owner = nullptr,
                          const QRect& ownerRect = QRect(),
                          const QPoint& dustFromGlobal = QPoint());

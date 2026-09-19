@@ -1,11 +1,8 @@
-// Headless check for the Servers dialog's connection rows (dialogs/connectDialog):
-// a long URL elides inside the viewport, each row is a projects-style card whose
-// outline is never clipped (and hovers as one), a row the viewport cuts dissolves at
-// the edge, removal retires-then-finalizes, and a new row gathers in. The kind
-// filter is a question re-answered: what it excludes is gone at once with nothing to
-// watch, the rows that are LEFT arrive, none of the removal's dust is spent, and reduced
-// motion skips to the end. A mock
-// QTcpServer stands in for the collaboration server, so no Go server is needed.
+// Headless check for the Servers dialog's connection rows (dialogs/connectDialog): a long URL elides,
+// each row is a projects-style card whose outline is never clipped, a row the viewport cuts dissolves
+// at the edge, removal retires-then-finalizes, and a new row gathers in. The kind filter is a question
+// re-answered: what it excludes goes at once, the rows LEFT arrive, no removal dust is spent, and
+// reduced motion skips to the end. A mock QTcpServer stands in for the collaboration server.
 #include "connectRowParts.hpp"
 
 int main(int argc, char** argv) {
@@ -14,8 +11,7 @@ int main(int argc, char** argv) {
   QCoreApplication::setOrganizationName("StencilTest");
   QCoreApplication::setApplicationName("connectRowHeadless");
   // The APP's stylesheet, as main() sets it — without it these metrics are not the app's:
-  // `QListWidget::item { padding: 4px }` takes 8px out of every slot, which is the squeeze
-  // that pushed the row's buttons off their line.
+  // `QListWidget::item { padding: 4px }` takes 8px out of every slot.
   app.setStyleSheet(stencil::gui::buildStylesheet(true, "violet"));
   app.setPalette(stencil::gui::buildQPalette(true, "violet"));
 

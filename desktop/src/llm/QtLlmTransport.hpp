@@ -6,11 +6,10 @@
 class QNetworkAccessManager;
 class QNetworkReply;
 
-// Production LlmTransport over QNetworkAccessManager, following the
-// net/serverClient request pattern (async reply bound to the manager so a
-// callback never runs on a destroyed transport; every request carries a
-// transfer timeout so a hung provider can't wedge the app). The timeout is
-// generous — local models routinely take a minute-plus — and matches the
+// Production LlmTransport over QNetworkAccessManager, following the net/serverClient request
+// pattern: the async reply is bound to the manager so a callback never runs on a destroyed
+// transport, and every request carries a transfer timeout so a hung provider cannot wedge the app.
+// The timeout is generous - local models routinely take a minute-plus - and matches the
 // collaboration server's LLM_TIMEOUT_SECONDS default (contract §6.3).
 namespace stencil::llm {
 

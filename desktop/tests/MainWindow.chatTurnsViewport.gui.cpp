@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A row the transcript is CLIPPING still has a reachable "…": the button is
-  // parked against the intersection of the card and the viewport, not against the
-  // card's own bottom (which is off screen for a half-shown row — the reported
-  // bug: a reply cut off mid-sentence with no menu anywhere). Checked for a row
-  // clipped at the TOP and one clipped at the BOTTOM, in the docked shape, the
-  // floating one, and the context-menu panel.
+  // A row the transcript is CLIPPING still has a reachable "…": parked at the intersection of card
+  // and viewport, not the card's own bottom. Clipped both ways, docked, floating and in the panel.
   void chatRowMenuStaysInsideTheViewport() {
     MainWindow win(nullptr, false);
     win.resize(1100, 700);
@@ -23,11 +19,8 @@ class MainWindowGuiTest : public QObject {
     win.settings_.llmBaseUrl = "http://localhost:11434";
     win.actChat_->setChecked(true);
     QTRY_VERIFY(win.chatDock_->isVisible());
-    // Enough long messages that the transcript really scrolls. Bubbles now
-    // stretch to the full cap width once they need to wrap (browser
-    // shrink-to-fit parity, applyChatBubbleWidths) rather than Qt's narrower
-    // "balanced" wrap, so each one is shorter than it used to be — more
-    // turns are needed to still leave a row clipped past the viewport edge.
+    // Enough long messages that the transcript really scrolls: bubbles stretch to the full cap width
+    // once they wrap (applyChatBubbleWidths), so more turns are needed to leave a row clipped.
     for (int i = 0; i < 14; ++i) {
       win.chatDock_->appendUser(
           QStringLiteral("Loading the image into incognito, converting to black & white "
@@ -51,10 +44,8 @@ class MainWindowGuiTest : public QObject {
       QEvent enter(QEvent::Enter);
       QApplication::sendEvent(card, &enter);
     };
-    // The jump pills' current box. A row whose "…" would land under them hides it
-    // instead (placeChatCardMore's shift-else-hide — the pills are the higher-priority
-    // control, checked by chatJumpPillsYieldToTheRowMenu), so the checks below that
-    // want a SHOWN "…" must not pick a row sitting in that corner.
+    // The jump pills' current box: a row whose "…" would land under them hides it instead
+    // (placeChatCardMore's shift-else-hide), so checks wanting a SHOWN "…" must skip that corner.
     const auto pillsBox = [&] {
       return static_cast<stencil::gui::ChatDock*>(win.chatDock_)->jumpPillsGlobalRect();
     };
@@ -76,9 +67,8 @@ class MainWindowGuiTest : public QObject {
       // A slice tall enough to CARRY the pill (a shorter one deliberately hides
       // it — that rule has its own checks below).
       const int room = 21 + 8;
-      // Bubbles that all wrap to the same line count land in exact lockstep, so a card
-      // pitch that divides the viewport evenly can leave no row both clipped and clear of
-      // the jump pills. Walk out from the middle until BOTH clipped rows show their "…".
+      // Bubbles that wrap to the same line count land in lockstep, so a card pitch dividing the viewport
+      // evenly can leave no row both clipped and clear of the pills; walk out from the middle.
       for (int v = bar->maximum() / 2; v <= bar->maximum(); v += 12) {
         bar->setValue(v);
         QTest::qWait(30);
@@ -127,12 +117,8 @@ class MainWindowGuiTest : public QObject {
     // (it hangs OUTSIDE the bubble) was landing half over the boundary.
     const auto checkNarrow = [&](QWidget* host, QScrollArea* scroll, const char* what) {
       QScrollBar* bar = scroll->verticalScrollBar();
-      // This test is about the HORIZONTAL edge (a narrow column's pill hanging off
-      // the bubble's side), not vertical clipping — so the row must be FULLY on
-      // screen AND clear of the jump pills, each of which legitimately hides the
-      // "…" under its own rule, checked elsewhere. A narrow column fits about one
-      // row at a time, so each kind is hunted — and checked — at its own scroll
-      // position rather than whichever rows happen to share the current one.
+      // This is the HORIZONTAL edge (a narrow column's pill hanging off the bubble's side), so the row
+      // must be fully on screen AND clear of the jump pills; each kind is hunted at its own scroll.
       for (const char* kind : {"chatCardUser",         // its "…" hangs off the LEFT
                                "chatCardAssistant"}) { // …and this one's off the RIGHT
         QFrame* card = nullptr;
@@ -177,9 +163,8 @@ class MainWindowGuiTest : public QObject {
       }
     };
 
-    // A row whose visible SLICE is too short to hold the pill does not show one:
-    // the clamp would park it across the neighbouring card, which reads as a bug.
-    // A fully visible row clear of the jump pills always shows it.
+    // A row whose visible SLICE is too short to hold the pill shows none: the clamp would park it
+    // across the neighbouring card. A fully visible row clear of the jump pills always shows it.
     const auto checkSliver = [&](QWidget* host, QScrollArea* scroll, const char* what) {
       QScrollBar* bar = scroll->verticalScrollBar();
       const QRect vp = globalRect(scroll->viewport());

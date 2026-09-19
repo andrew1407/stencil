@@ -76,9 +76,8 @@ namespace stencil::gui {
   void ChatMenuPanel::setChatSwapSides(bool on) {
     if (chatSwapSides_ == on) return;
     chatSwapSides_ = on;
-    // The flattened tail corner rides the SHARED stylesheet (chatCardStyleSheet),
-    // keyed off chatSwapSides_ — re-issue it so every card's corner flips too,
-    // not just its alignment and tail.
+    // The flattened tail corner rides the SHARED stylesheet (chatCardStyleSheet), keyed off
+    // chatSwapSides_ - re-issue it so every card's corner flips too, not just its alignment and tail.
     restyle(paletteCache_);
     applyChatSwapToCards(body_, rows_, chatSwapSides_, accent_, chip_, border_, danger_, chip_);
     applyChatBubbleWidths(body_, scroll_);
@@ -91,16 +90,14 @@ namespace stencil::gui {
 
   void ChatMenuPanel::showEvent(QShowEvent* e) {
     QWidget::showEvent(e);
-    // The panel is built LAZILY and lives hidden inside a QWidgetAction, so
-    // rows mirrored before its first appearance were measured against the
-    // default 100px viewport. Re-measure on the way in, once the real width exists.
+    // The panel is built LAZILY and lives hidden inside a QWidgetAction, so rows mirrored before its
+    // first appearance were measured against the default 100px viewport. Re-measure on the way in.
     QTimer::singleShot(0, this, [this] { applyChatBubbleWidths(body_, scroll_); });
   }
 
   bool ChatMenuPanel::eventFilter(QObject* obj, QEvent* event) {
-    // Same composer convention as the dock: Enter sends, Shift+Enter is a
-    // newline. Enter must never fall through to the menu (which would activate
-    // the highlighted action and close it).
+    // Same composer convention as the dock: Enter sends, Shift+Enter is a newline. Enter must never
+    // fall through to the menu (which would activate the highlighted action and close it).
     if (obj == input_ && event->type() == QEvent::KeyPress) {
       auto* ke = static_cast<QKeyEvent*>(event);
       if ((ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter) &&

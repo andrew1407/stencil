@@ -26,7 +26,7 @@ namespace stencil::gui {
     pendingDots_ = new TypingDots(pendingCard_);
     lay->addWidget(pendingDots_);
     lay->addWidget(pendingBody_);
-    transcriptLayout_->setAlignment(pendingCard_, Qt::AlignLeft);
+    log_.transcriptLayout->setAlignment(pendingCard_, Qt::AlignLeft);
     applyBubbleWidths();
     // The "…" card is the send's tail end — bring it fully into view.
     scrollToBottom();
@@ -49,19 +49,16 @@ namespace stencil::gui {
     pendingBody_->setProperty("chatBody", QStringLiteral("Stopped."));
     pendingCard_->setObjectName(QStringLiteral("chatCardError"));
     // A stylesheet is matched when the widget is POLISHED, so renaming it afterwards changes nothing
-    // until the style is re-run — which is why the stopped card kept the assistant bubble's frame and
-    // text while only its programmatically tinted retry glyph turned red.
+    // until the style is re-run.
     repolish(pendingCard_);
     for (QLabel* l : pendingCard_->findChildren<QLabel*>()) repolish(l);
-    // The browser renders a stopped turn with .chat-msg-error and the extension with
-    // .msg.error — both in --danger. Muted text here was the odd one out: on this
-    // surface alone a stop looked like an ordinary note.
+    // The browser renders a stopped turn with .chat-msg-error and the extension with .msg.error, both
+    // in --danger; muted text made a stop look like an ordinary note on this surface alone.
     applyDangerText(pendingBody_, dangerCache_.isValid() ? dangerCache_ : QColor("#d6293e"));
     // Stopping is a change of mind, not a dead end: the card keeps the prompt.
     addRetryButton(qobject_cast<QVBoxLayout*>(pendingCard_->layout()), stoppedText);
-    // …and now that it is a SETTLED row it gets the row menu, like every other
-    // one (browser chatRowMenuItems excludes only pending rows). Built here
-    // rather than in showPending so an in-flight "…" never offers one.
+    // A SETTLED row gets the row menu, like every other one (browser chatRowMenuItems excludes only
+    // pending rows). Built here rather than in showPending so an in-flight "..." never offers one.
     installCardMenu(qobject_cast<QFrame*>(pendingCard_));
     pendingCard_ = nullptr;
     pendingRole_ = nullptr;

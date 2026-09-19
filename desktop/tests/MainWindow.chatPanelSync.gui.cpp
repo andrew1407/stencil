@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // One conversation, two views: the dock and the context-menu panel must show
-  // the SAME rows in the SAME order however the turns were sent — no
-  // duplicates, nothing missing, in either direction. Covers the awkward
-  // cases: chatting with the dock CLOSED (it must still have every card when
-  // opened later) and the menu panel being created LATE (it renders the
-  // existing history instead of starting blank).
+  // One conversation, two views: the dock and the context-menu panel show the SAME rows in the
+  // SAME order however the turns were sent — including with the dock closed or the panel late.
   void chatSurfacesStayInSync() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -35,9 +31,8 @@ class MainWindowGuiTest : public QObject {
       QList<QPair<QString, QString>> rows;
       auto* scrollArea = win.chatDock_->findChild<QScrollArea*>();
       if (!scrollArea || !scrollArea->widget()) return rows;
-      // Read the row's IDENTITY from the widget properties, not from the card's
-      // visual structure: the bubbles carry the role as colour + side (browser
-      // parity), so there is no role caption label to read.
+      // Read the row's IDENTITY from the widget properties: the bubbles carry the role as colour and
+      // side (browser parity), so there is no role caption label to read.
       for (QFrame* card : scrollArea->widget()->findChildren<QFrame*>(
                QString(), Qt::FindDirectChildrenOnly)) {
         for (QLabel* l : card->findChildren<QLabel*>()) {

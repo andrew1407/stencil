@@ -25,20 +25,19 @@ namespace stencil::gui {
 
   using namespace chatdock;
   void ChatDock::refreshAttachmentTray() {
-    auto* row = qobject_cast<QHBoxLayout*>(attachTray_->layout());
+    auto* row = qobject_cast<QHBoxLayout*>(cmp_.attachTray->layout());
     if (!row) return;
     // Drop the previous chips (the trailing stretch is re-added last).
     while (QLayoutItem* item = row->takeAt(0)) {
       if (QWidget* w = item->widget()) w->deleteLater();
       delete item;
     }
-    // One chip per queued attachment: thumbnail + label + remove ×. `index` is
-    // captured by value, and every removal rebuilds the whole row, so the
-    // handlers can never act on a stale position.
+    // One chip per queued attachment. `index` is captured by value, and every removal rebuilds the
+    // whole row, so the handlers can never act on a stale position.
     const auto addChip = [this, row](const QPixmap& thumb, const QString& label,
                                      const QString& tip, std::function<void()> remove,
                                      const QImage& full = QImage()) {
-      auto* chip = new QFrame(attachTray_);
+      auto* chip = new QFrame(cmp_.attachTray);
       chip->setObjectName("chatAttachChip");
       auto* lay = new QHBoxLayout(chip);
       lay->setContentsMargins(4, 2, 4, 2);
@@ -56,9 +55,8 @@ namespace stencil::gui {
       // both auto-grew the panel and blocked shrinking it) — elide, tooltip has it all.
       const QFontMetrics chipFm(text->font());
       text->setText(chipFm.elidedText(label, Qt::ElideMiddle, CHIP_NAME_MAX_PX));
-      // The full name/size live here, on the LABEL. The thumbnail deliberately carries
-      // no tooltip: it opens the hover preview, and a Qt tooltip on top of that put two
-      // popups on screen at once, the tooltip covering the picture it described.
+      // The full name/size live on the LABEL. The thumbnail deliberately carries no tooltip: it opens
+      // the hover preview, and a Qt tooltip over that covered the picture it described.
       text->setToolTip(tip);
       lay->addWidget(text);
       auto* rm = new QToolButton(chip);
@@ -66,9 +64,8 @@ namespace stencil::gui {
       rm->setText(QStringLiteral("×"));
       rm->setAccessibleName(QStringLiteral("Remove attachment"));  // no tooltip — the × says it
       rm->setCursor(Qt::PointingHandCursor);
-      // The chip scatters AND fades, and the tray only rebuilds once it has gone — rebuilding at once
-      // snapped the composer to its new height mid-flight and the input jumped under the cursor. The
-      // neighbours' slide is held back and eased in, or the next chip snaps over the dust (user feedback).
+      // The chip scatters AND fades, and the tray only rebuilds once it has gone - rebuilding at once
+      // snapped the composer mid-flight. The neighbours' slide is eased in (user feedback).
       connect(rm, &QToolButton::clicked, this, [this, remove, chip] {
         if (chip->property("chatChipLeaving").toBool()) return;   // one click is enough
         chip->setProperty("chatChipLeaving", true);
@@ -110,34 +107,34 @@ namespace stencil::gui {
       row->addWidget(chip);
     };
 
-    for (int i = 0; i < images_.size(); ++i) {
-      const QImage& img = images_.at(i);
+    for (int i = 0; i < cmp_.images.size(); ++i) {
+      const QImage& img = cmp_.images.at(i);
       const QPixmap thumb = QPixmap::fromImage(
           img.scaled(QSize(28, 28), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-      const QString name = i < imageNames_.size() ? imageNames_.at(i) : QString();
+      const QString name = i < cmp_.imageNames.size() ? cmp_.imageNames.at(i) : QString();
       const QString dims = QStringLiteral("%1×%2").arg(img.width()).arg(img.height());
       addChip(thumb, name.isEmpty() ? dims : name,
               name.isEmpty() ? QStringLiteral("Queued image (%1)").arg(dims)
                              : QStringLiteral("%1 (%2)").arg(name, dims),
               [this, i] {
-                if (i < images_.size()) {
-                  images_.removeAt(i);
-                  if (i < imageNames_.size()) imageNames_.removeAt(i);
+                if (i < cmp_.images.size()) {
+                  cmp_.images.removeAt(i);
+                  if (i < cmp_.imageNames.size()) cmp_.imageNames.removeAt(i);
                 }
                 refreshAttachmentTray();
               },
               img);
     }
-    if (!videoPath_.isEmpty()) {
-      addChip(QPixmap(), QFileInfo(videoPath_).fileName(),
-              QStringLiteral("Queued video — frames are sent, never the video (%1)").arg(videoPath_),
+    if (!cmp_.videoPath.isEmpty()) {
+      addChip(QPixmap(), QFileInfo(cmp_.videoPath).fileName(),
+              QStringLiteral("Queued video — frames are sent, never the video (%1)").arg(cmp_.videoPath),
               [this] {
-                videoPath_.clear();
+                cmp_.videoPath.clear();
                 refreshAttachmentTray();
                 emit videoDetached();
               });
     }
     row->addStretch(1);
-    attachTray_->setVisible(!images_.isEmpty() || !videoPath_.isEmpty());
+    cmp_.attachTray->setVisible(!cmp_.images.isEmpty() || !cmp_.videoPath.isEmpty());
   }
 }  // namespace stencil::gui

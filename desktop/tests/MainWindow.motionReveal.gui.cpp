@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // pickColorAnimated is the getColor drop-in behind every colour swatch: same modal
-  // contract (picked colour on OK, invalid QColor on cancel) plus the revealDialog
-  // flight out of the anchor icon. The suite runs with STENCIL_NO_ANIM=1, so the
-  // animation is re-enabled for the origin assertion, like the reveal tests above.
+  // pickColorAnimated is the getColor drop-in behind every colour swatch: the same modal contract plus
+  // the revealDialog flight out of the anchor icon, with the animation re-enabled for the origin.
   void pickColorAnimatedMatchesGetColorAndFliesFromItsAnchor() {
     MainWindow win;
     win.resize(1400, 700);
@@ -25,18 +23,16 @@ class MainWindowGuiTest : public QObject {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
-    // exec() blocks, so a 0-timer drives the modal: the watcher catches the flight's
-    // origin the instant it starts (QColorDialog is comfortably past the dust size
-    // ceiling, so this is the ghost — reading it late would already be mid-tween).
+    // exec() blocks, so a 0-timer drives the modal: the watcher catches the flight's origin the instant
+    // it starts (QColorDialog is past the dust size ceiling, so this is the ghost).
     RevealOriginWatcher watcher;
     qApp->installEventFilter(&watcher);
     const auto removeWatcher = qScopeGuard([&] { qApp->removeEventFilter(&watcher); });
     QTimer::singleShot(0, [&] {
       for (int i = 0; i < 200; ++i) {
         if (auto* dlg = qobject_cast<QColorDialog*>(QApplication::activeModalWidget())) {
-          // revealDialog's own 0-timer (registered after this one) needs a turn to
-          // fire and start the OPEN flight before accept() closes the dialog and
-          // starts the close flight instead — same watcher, same object name.
+          // revealDialog's own 0-timer (registered after this one) needs a turn to fire and start the OPEN
+          // flight before accept() closes the dialog and starts the close flight instead.
           QTest::qWait(50);
           dlg->setCurrentColor(QColor("#12ab34"));
           dlg->accept();
@@ -88,9 +84,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.pop_.dialogAnchor.data(), b1);
     second->trigger();
     QCOMPARE(win.pop_.dialogAnchor.data(), b2);
-    // An action with no toolbar icon of its own clears the anchor instead of inheriting
-    // the last icon — this is the "it flew out of the wrong button" case.
-    // A bare action with no toolbar icon (and no slot of its own, so nothing opens).
+    // An action with no toolbar icon of its own clears the anchor instead of inheriting the last icon —
+    // the "it flew out of the wrong button" case. It has no slot either, so nothing opens.
     auto* iconless = new QAction("Menu-only command", &win);
     win.addAction(iconless);
     win.bindRevealAnchors();     // idempotent — binds whatever is not bound yet
@@ -99,9 +94,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!win.pop_.dialogAnchor, "an icon-less action left the previous icon as the origin");
   }
 
-  // End-to-end: open a dialog the way a user does and read where its flight STARTS.
-  // Covers both origins — an icon-backed command flies out of its icon, and a menu-only
-  // one (no icon at all) flies out of the menu row that was clicked.
+  // End-to-end: open a dialog the way a user does and read where its flight STARTS — an icon-backed
+  // command flies out of its icon, a menu-only one out of the menu row that was clicked.
   void openingADialogFliesFromWhatWasClicked() {
     MainWindow win;
     win.resize(1400, 700);
@@ -112,10 +106,8 @@ class MainWindowGuiTest : public QObject {
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
 
-    // The watcher catches the flight's origin the instant it starts, whichever
-    // mechanism plays it — a ghost's geometry is what a QPropertyAnimation is
-    // actively tweening, so reading it any time after Show would already be
-    // mid-flight, not the origin.
+    // The watcher catches the flight's origin the instant it starts, whichever mechanism plays it: a
+    // ghost's geometry is what a QPropertyAnimation is tweening, so reading it after Show is mid-flight.
     RevealOriginWatcher watcher;
     qApp->installEventFilter(&watcher);
     const auto removeWatcher = qScopeGuard([&] { qApp->removeEventFilter(&watcher); });
@@ -140,12 +132,8 @@ class MainWindowGuiTest : public QObject {
                               .arg(QDebug::toString(watcher.origin), QDebug::toString(want))));
     }
 
-    // ── a menu-only dialog: no icon, so the clicked ROW is the origin ──
-    // Synthetic action: every dialog-opening action now has a toolbar icon
-    // (actShortcuts_ used to be the exception this borrowed — fixed to carry the
-    // browser's gear icon like its siblings), so nothing icon-less is left to
-    // borrow. Built the same way a real one would be: bound, then wired to open
-    // a plain dialog through the same execMaybePopover path.
+    // A menu-only dialog: no icon, so the clicked ROW is the origin. Every real dialog action carries a
+    // toolbar icon now, so this synthetic one is bound and wired through the same execMaybePopover path.
     QMenu* help = nullptr;
     for (QMenu* m : win.menuBar()->findChildren<QMenu*>())
       if (m->actions().contains(win.actInfo_)) { help = m; break; }

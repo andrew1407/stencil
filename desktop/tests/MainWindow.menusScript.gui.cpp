@@ -9,10 +9,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The context menu's "Stencil Script" row is a FLYOUT, not an opener (browser
-  // js/ui/ctxScript.js): a compact twin of the script window, hosted exactly like the
-  // Assistant chat above it. Typing and running leave the menu open, the actions read
-  // Copy · Download · Upload · Run · Clear, and the typed script outlives the menu.
+  // The context menu's "Stencil Script" row is a FLYOUT, not an opener (browser js/ui/ctxScript.js):
+  // typing and running leave the menu open, and the typed script outlives the menu.
   void contextMenuScriptFlyout() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -130,10 +128,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(kept, "the flyout came back without the script it was holding");
     beat();
   }
-  // MenuHotkeyChips shares ONE rows_ list across the whole recursive wire() tree while
-  // each level's placer calls place() with THAT level's `menu`, so every row must be
-  // checked against that menu — otherwise opening any submenu asks it for a root-level
-  // row's geometry, gets an invalid rect, and hides the root menu's own chips.
+  // MenuHotkeyChips shares ONE rows_ list across the recursive wire() tree while each level's placer
+  // passes THAT level's `menu`, so every row must be checked against the menu it belongs to.
   void openingASubmenuDoesNotHideTheRootMenusOwnChips() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);

@@ -35,9 +35,8 @@ namespace stencil::gui {
   // A row the list GAINS forms on the arrival clock both surfaces share (browser
   // motion/enterLeave.js ROW_ARRIVE_MS, the same number)…
   inline constexpr int ROW_ARRIVE_MS = 373;
-  // …one beat after the rebuild that added it, so the leaving ash has the screen to itself
-  // first. Deliberately NOT the browser's ROW_ARRIVE_DELAY_MS: its scatter runs half again
-  // as long as DisintegrateOverlay's, so its arrival has to wait proportionally longer.
+  // One beat after the rebuild that added it, so the leaving ash has the screen to itself first.
+  // NOT the browser's ROW_ARRIVE_DELAY_MS: its scatter runs half again as long as this one's.
   inline constexpr int ROW_ARRIVE_DELAY_MS = 220;
   // Named apart from DisintegrateOverlay::OBJECT_NAME: tests counting removals must not
   // mistake an arrival for one.

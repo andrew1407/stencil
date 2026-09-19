@@ -1,21 +1,8 @@
-// Pins the desktop consumption of the shared config canon embedded via
-// resources/app.qrc (browser/js/config/*.json). A broken alias parses to an empty
-// table, so every block fails fast:
-//   • accents.json  → theme.cpp accentPresets() (count + spot-checks)
-//   • icons.json    → iconSet.cpp iconTable() (every canon glyph resolves, and the
-//     desktop-only extras, and the whole set rasterizes with the motion hooks in it)
-//   • constants.json PAGE_SIZES → core's pageMetrics table, names and cm both ways.
-//     The browser only pins that JSON against the WASM build, so this and the CLI's
-//     twin are the native core's only drift guards.
-//   • layoutFields.json → the EXPORT subset must equal the key set
-//     fileStore::buildLayoutJson emits (it emits THROUGH the canon, so a mismatch
-//     here means the writer has no value for a canon field, or one the canon lost).
-//   • llm/systemPrompt.json → opRegistry's §4 prose canon (byte-length pins + the
-//     head/tail assembly seams).
-//   • llm/opRegistry.json → opSchema's table-driven validator (alias + schema
-//     version + the desktop's profile/forbidden list).
-//   • llm/providers.json → llmSettings' §5 provider defaults / display names + the
-//     chat transfer timeout.
+// Pins the desktop consumption of the shared config canon embedded via resources/app.qrc
+// (browser/js/config/*.json): accents.json → theme.cpp accentPresets(); icons.json → iconSet.cpp;
+// constants.json PAGE_SIZES → core's pageMetrics, both ways; layoutFields.json → fileStore's export
+// key set; llm/systemPrompt.json → opRegistry's §4 prose; llm/opRegistry.json → opSchema's validator;
+// llm/providers.json → llmSettings' §5 defaults. A broken alias parses empty, so each block fails fast.
 #include "fileStore.hpp"
 #include "iconSet.hpp"
 #include "llmSettings.hpp"
@@ -87,9 +74,8 @@ int main(int argc, char** argv) {
     const QIcon crop = themedIcon("crop", QColor("#7c3aed"), 24, 1.0);
     check(!crop.isNull() && !crop.pixmap(24, 24).isNull(),
           "crop glyph rasterizes (spot-check)");
-    // The canon's class="ic-…" motion hooks (browser js/config/iconMotion.json) are
-    // inert to QSvgRenderer — but only if it draws the same picture anyway, so this
-    // rasterizes the WHOLE set and looks for actual ink.
+    // The canon's class="ic-…" motion hooks (js/config/iconMotion.json) are inert to QSvgRenderer, but
+    // only if it draws the same picture anyway, so this rasterizes the WHOLE set and looks for ink.
     bool drawn = true;
     for (auto it = canon.begin(); it != canon.end(); ++it) {
       const QImage img = themedIcon(it.key(), QColor("#7c3aed"), 24, 1.0)

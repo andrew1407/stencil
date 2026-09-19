@@ -26,8 +26,7 @@ namespace stencil::gui {
       setCursor(overTarget ? Qt::SizeAllCursor : Qt::OpenHandCursor);
     } else if (!isDrawing_) {
       // Crosshair says "click to place a point" (browser parity: layout.css's unconditional
-      // `cursor: crosshair` whenever the canvas is drawable) — a plain arrow gave no such
-      // affordance. A line still gets its own pointing-hand hint.
+      // `cursor: crosshair` whenever the canvas is drawable). A line still gets its pointing hand.
       setCursor(core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0)) != -1
                     ? Qt::PointingHandCursor
                     : Qt::CrossCursor);
@@ -36,9 +35,8 @@ namespace stencil::gui {
     }
   }
 
-  // App-wide filter: on a modifier key press/release with the cursor over the
-  // canvas, re-apply hover so tooltip + cursor update without a mouse move
-  // (browser parity: the same handlers run on keydown/keyup).
+  // App-wide filter: on a modifier press/release with the cursor over the canvas, re-apply hover
+  // so tooltip + cursor update without a mouse move (browser parity: same keydown/keyup handlers).
   bool CanvasWidget::eventFilter(QObject* watched, QEvent* event) {
     const QEvent::Type t = event->type();
     if (t == QEvent::KeyPress || t == QEvent::KeyRelease) {
@@ -104,9 +102,8 @@ namespace stencil::gui {
     idleCardAnim_->setEndValue(on ? 1.0 : 0.0);
     idleCardAnim_->start();
 
-    // …the glyph's own settle (iconMotion.json "image"): the ridge draws itself on and the sun drops
-    // in. Restarted from 0 on every enter and LEFT TO FINISH on leave — a settle ends at the rest pose,
-    // so there is nothing to ease back (iconMotion.hpp IconMotionRunner::enter / leave).
+    // The glyph's own settle (iconMotion.json "image"). Restarted from 0 on every enter and LEFT TO
+    // FINISH on leave - a settle ends at the rest pose (iconMotion.hpp IconMotionRunner).
     if (on && !support::motionReduced()) {
       if (!idleGlyphAnim_) {
         idleGlyphAnim_ = new QVariantAnimation(this);

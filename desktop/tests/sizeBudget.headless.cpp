@@ -25,9 +25,8 @@ namespace {
 
   bool identChar(QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_'); }
 
-  // Total lines plus the ones that ARE a comment: a line whose first non-blank chars
-  // open // or /*, and every line inside an open block comment. String, char and raw
-  // literals are skipped, so a // or /* inside one never counts.
+  // Total lines plus the ones that ARE a comment: a line whose first non-blank chars open // or /*, and
+  // every line inside an open block comment. String, char and raw literals are skipped.
   Counts scanSource(const QString& text) {
     QStringList lines = text.split(QLatin1Char('\n'));
     if (!lines.isEmpty() && lines.last().isEmpty()) lines.removeLast();
@@ -204,9 +203,8 @@ int main(int argc, char** argv) {
   }
   check(overShare == 0, "no directory raised its comment share");
 
-  // Test-count floor, read from ctest's own generated registry: a target that stopped
-  // being registered (the GUI areas share one object library) is invisible to
-  // pass/fail — raise it as the suite grows.
+  // Test-count floor, read from ctest's own generated registry: a target that stopped being registered
+  // (the GUI areas share one object library) is invisible to pass/fail — raise it as the suite grows.
   const int minTargets = 64;
   QFile ctestFile(QStringLiteral(STENCIL_CTEST_FILE));
   check(ctestFile.open(QIODevice::ReadOnly), "the generated CTestTestfile.cmake opens");

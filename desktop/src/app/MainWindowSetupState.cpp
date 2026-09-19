@@ -71,9 +71,8 @@ namespace stencil::gui {
     settings_.filterColor = Settings{}.filterColor;
     applySettings(settings_, false);
     if (restoreLast) restoreSession();  // skipped for a blank incognito editor
-    // Toolbar collapse is session-transient. isHidden(), not isVisible(): the window is not shown yet,
-    // so isVisible() is false for every child. The panel reopens at the browser's default width (Qt's
-    // hint-derived one elided the coordinate digits); deferred, since resizeDocks needs the layout run.
+    // isHidden(), not isVisible(): the window is not shown yet, so isVisible() is false for every
+    // child. The panel reopens at the browser's default width, deferred - resizeDocks needs layout.
     {
       const QPointer<QDockWidget> panel(selPanel_);
       QTimer::singleShot(0, this, [this, panel] {

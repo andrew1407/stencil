@@ -70,9 +70,8 @@ namespace stencil::gui {
     buildConnectionPrefs(root);
     buildConnectBatchBar(root);
     buildConnectionList(root);
-    // Footer (browser settings-footer): the saved-connections hint under a hairline.
-    // The browser footer's exact sentence (connectModal.js .footer-hint) — the longer
-    // invite-token clause made the desktop hint wrap to a second line.
+    // Footer (browser settings-footer): the browser's exact sentence (connectModal.js .footer-hint) -
+    // the longer invite-token clause made the desktop hint wrap to a second line.
     addModalFooter(chrome,
                    tr("Connections are saved and (optionally) restored on open · "
                       "server projects show a golden outline."));
@@ -81,9 +80,8 @@ namespace stencil::gui {
       if (manager_) manager_->reconnectAllAsync();  // changed() → rebuildList() as each resolves
       rebuildList();
     });
-    // Return belongs to the DEFAULT button (connectBtn), from either field or anywhere
-    // else. Deliberately no returnPressed wiring beside it: a QLineEdit emits that AND
-    // lets the key travel on to the default button, firing doConnect twice.
+    // Return belongs to the DEFAULT button, from either field. Deliberately no returnPressed beside
+    // it: a QLineEdit emits that AND lets the key reach the default button, firing doConnect twice.
     QObject::connect(connectBtn, &QPushButton::clicked, this, &ConnectDialog::doConnect);
     if (manager_)
       QObject::connect(manager_, &stencil::net::ConnectionManager::changed, this,
@@ -118,9 +116,8 @@ namespace stencil::gui {
     // Accent CTA with a white glyph (browser default-button treatment).
     makeModalCta(connectBtn, "plus-circle");
     actions->addWidget(connectBtn);
-    // AFTER the layout has parented it, never before: setDefault() registers the button
-    // with its QDialog by walking up its parents, so on a parentless one it only sets a
-    // flag, and Qt's autoDefault juggling then cleared it with no main default to restore.
+    // AFTER the layout has parented it: setDefault() registers with its QDialog by walking up its
+    // parents, so on a parentless button it only sets a flag that autoDefault juggling then cleared.
     connectBtn->setDefault(true);
     actions->addStretch(1);
     auto* reconnectAllBtn = new QPushButton(tr("Reconnect all"));
@@ -178,9 +175,8 @@ namespace stencil::gui {
           QWidget* w = it ? list_->itemWidget(it) : nullptr;
           if (!w) continue;
           if (!w->isVisible()) w->show();   // the view may not have polished it yet
-          // On the CONTROL clock, not the row's: Select all arrives in the same turn (the
-          // bar opens with the first row), and a row still forming after the button had
-          // landed read as the two appearing one after the other.
+          // On the CONTROL clock, not the row's: Select all arrives in the same turn, and a row still
+          // forming after the button had landed read as the two appearing one after the other.
           if (DisintegrateOverlay::over(w, this, DisintegrateOverlay::Sweep::GATHER, 0, 0,
                                         CONN_ARRIVE_MS)) {
             w->setVisible(false);   // the slot stays; the motes are what the eye follows

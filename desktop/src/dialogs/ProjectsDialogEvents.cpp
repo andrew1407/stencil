@@ -25,7 +25,7 @@ namespace stencil::gui {
   void ProjectsDialog::filterHoverPreview(QObject* obj, QEvent* ev) {
     // A ToolTip window: switching window/app delivers the list no Leave. Verified against the CURSOR —
     // the preview materializing under a stationary pointer makes the platform emit spurious Leave/deactivate.
-    if (hoverPreview_ && obj == this &&
+    if (hover_.hoverPreview && obj == this &&
         (ev->type() == QEvent::WindowDeactivate || ev->type() == QEvent::ApplicationDeactivate) &&
         !(QGuiApplication::applicationState() == Qt::ApplicationActive &&
           pointerOverPreviewedIcon())) {
@@ -33,18 +33,18 @@ namespace stencil::gui {
     }
     // Alt while the preview is up re-scales it from the source pixmap it carries (held = 2x) and
     // replays its gather — the size change is a real appearance.
-    if (hoverPreview_ && hoverPreview_->isVisible() && hoverItem_ &&
+    if (hover_.hoverPreview && hover_.hoverPreview->isVisible() && hover_.hoverItem &&
         (ev->type() == QEvent::KeyPress || ev->type() == QEvent::KeyRelease) &&
         static_cast<QKeyEvent*>(ev)->key() == Qt::Key_Alt &&
         !static_cast<QKeyEvent*>(ev)->isAutoRepeat()) {
-      const QPixmap src = hoverPreview_->property("srcPixmap").value<QPixmap>();
+      const QPixmap src = hover_.hoverPreview->property("srcPixmap").value<QPixmap>();
       if (!src.isNull()) {
         const int edge = (ev->type() == QEvent::KeyPress) ? HOVER_PREVIEW_ALT_PX : HOVER_PREVIEW_PX;
-        hoverPreview_->setPixmap(
+        hover_.hoverPreview->setPixmap(
             src.scaled(edge, edge, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        hoverPreview_->adjustSize();
+        hover_.hoverPreview->adjustSize();
         placeHoverPreview(QCursor::pos());
-        revealHoverPreview(hoverItem_);
+        revealHoverPreview(hover_.hoverItem);
       }
     }
   }
@@ -54,7 +54,7 @@ namespace stencil::gui {
     if (list_ && obj == list_ && ev->type() == QEvent::KeyPress) {
       auto* ke = static_cast<QKeyEvent*>(ev);
       if (ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter) {
-        if (clickTimer_) clickTimer_->stop();
+        if (press_.clickTimer) press_.clickTimer->stop();
         openRow(list_->currentItem(), isNewWindowMod(ke->modifiers()), /*confirm=*/true);
         return true;
       }

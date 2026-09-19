@@ -22,9 +22,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The scrub bar is a PLAYER's line (browser .oi-scrub): tapping it seeks THERE, and the
-  // APP STYLESHEET is what paints it — a per-widget QStyle silently drops that sheet, which
-  // leaves Qt's own chunky square handle behind (#oiFrameScrub draws a 13px round one).
+  // The scrub bar is a PLAYER's line (browser .oi-scrub): tapping it seeks THERE, and the APP
+  // STYLESHEET paints it — a per-widget QStyle drops that sheet and leaves Qt's square handle.
   void scrubBarSeeksWhereItIsTappedAndKeepsItsSheet() {
     QSlider bar(Qt::Horizontal);
     stencil::gui::makeScrubBar(&bar);
@@ -40,10 +39,8 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("a tap at three quarters must seek there, got %1").arg(bar.value())));
   }
 
-  // The swap glyph the Album / Portrait buttons wear (Open Image + the crop editor)
-  // answers a CLICK with one clockwise turn — iconMotion.json `extras.swap-click-turn`,
-  // whose browser twin is css/animations/iconClick.css. Pinned on the shared helper: the
-  // buttons themselves also re-tint when checked, which masks the turn.
+  // The swap glyph the Album / Portrait buttons wear answers a CLICK with one clockwise turn
+  // (iconMotion.json `extras.swap-click-turn`), pinned on the shared helper: the re-tint masks it.
   void swapGlyphTurnsOnceOnClickAndComesBack() {
     const auto motion = withMotion();
     QPushButton b;
@@ -89,9 +86,8 @@ class MainWindowGuiTest : public QObject {
       settle([&] { return previewBtn->isEnabled(); }, 1000);
       previewBtn->click();
       settle([&] { return !dlg->previewedImage().isNull(); }, 3000);
-      // The dialog sizes ITSELF from the scroll body's content (refitWindowHeight) and EASES
-      // there, so the grown height is only itself once the flight has landed — sampled
-      // mid-climb, "shrink below this" is a bar the shrink can never clear.
+      // The dialog sizes ITSELF from the scroll body's content (refitWindowHeight) and EASES there, so a
+      // height sampled mid-climb is a bar the shrink can never clear.
       settle([] { return false; }, 500);
       wantTall = dlg->height();
       tabs->setCurrentIndex(0);  // Local file — nothing chosen, should shrink back down
@@ -112,10 +108,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(chooseFocused, "…and Local to its Choose button (its path field is read-only)");
   }
 
-  // A wider window fits a bigger preview (user report: it stayed pinned at its historical
-  // 440x300 floor). The box must also SETTLE, not keep climbing on its own — sizing it from
-  // size_.bodyContent's own width fed the box's effect on that width back in as the next frame's
-  // input (measured: 558 -> 756px with no further user input at all).
+  // A wider window fits a bigger preview (user report: it stayed pinned at its 440x300 floor), and the
+  // box must SETTLE: sizing it from size_.bodyContent's own width fed its effect on that width back in.
   void resizingTheWindowGrowsThePreviewAndSettles() {
     MainWindow win(nullptr, false);
     win.resize(1250, 980);

@@ -15,9 +15,8 @@
 
 namespace stencil::gui {
 
-  // The Album/Portrait button materializes and falls INLINE beside the always-shown checkbox, so
-  // unlike the rows above it has no height to slide — just the chip cloud. Both directions FOLLOW
-  // size_.anim, or a cloud raised at the button's start position is stranded over the stage.
+  // The button falls INLINE beside the always-shown checkbox, so it has no height to slide - just
+  // the chip cloud. Both directions FOLLOW size_.anim, or the cloud is stranded over the stage.
   void OpenImageDialog::cropAlbumDust(bool arriving) {
     if (arriving == motion_.albumShown) return;
     motion_.albumShown = arriving;
@@ -29,9 +28,8 @@ namespace stencil::gui {
     QPointer<QPushButton> btn(cropAlbum_);
     const int gen = motion_.gen;
     if (!arriving) {
-      // SYNCHRONOUS, like cropDims_'s own pin(0): syncCropStage() measures the window's wanted height in
-      // THIS SAME call. A button still occupying the row's width (deferred hiding at opacity 0) read as
-      // "still here", so the window settled a wrapped caption LINE taller and never came back down.
+      // SYNCHRONOUS, like cropDims_'s own pin(0): syncCropStage() measures the wanted height in THIS
+      // SAME call, and a button still occupying the row's width read as "still here".
       const QPixmap shot = cropAlbum_->grab();   // before it goes
       cropAlbum_->setVisible(false);
       if (!shot.isNull()) {

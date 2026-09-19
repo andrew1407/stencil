@@ -2,9 +2,8 @@
 
 namespace stencil::support {
 
-  // `compact` is for a FLAT list of hotkey rows, never one with submenu-opener rows.
-  // Never setFixedWidth: QMenuPrivate::calcActionRects() sizes the shortcut column from
-  // sizeHint regardless of the frame, so the chip would spill past a clipped edge.
+  // `compact` is for a FLAT list of hotkey rows, never one with submenu-opener rows. Never
+  // setFixedWidth: calcActionRects() sizes the shortcut column from sizeHint, so the chip spills.
   MenuHotkeyChips::MenuHotkeyChips(QMenu* root, bool compact) : compact_(compact) {
     if (compact_ && root) root->setStyleSheet(gui::compactMenuQss());
     wire(root, gui::currentPalette());
@@ -33,9 +32,8 @@ namespace stencil::support {
     return false;
   }
 
-  // An action shared by several menus may already be chipped by a live MenuHotkeyChips
-  // (its text is the padded "\t   " stand-in) — read the cached combo then, else the live
-  // shortcut(): syncSplitCopyDownloadSlot moves shortcuts between actions at runtime.
+  // An action shared by several menus may already be chipped by a live MenuHotkeyChips (its text is
+  // the padded stand-in) - read the cached combo then, else the live shortcut().
   QString MenuHotkeyChips::comboOf(QAction* a) {
     const QString t = a->text();
     const int tab = t.indexOf('\t');
@@ -129,9 +127,8 @@ namespace stencil::support {
   }
 
   void MenuHotkeyChips::shakeRow(QMenu* menu, QAction* a) {
-    // hovered() re-fires for the row already shaking on every mouse move, and reaches every
-    // menu in the caused stack besides, so a SUBMENU's row arrives here for its parent too.
-    // Only a new row OF THIS LEVEL restarts.
+    // hovered() re-fires for the row already shaking on every mouse move, and reaches every menu in
+    // the caused stack, so a SUBMENU's row arrives here for its parent too. Only this level restarts.
     if (!menu->actionGeometry(a).isValid()) return;
     QPointer<QAction>& cur = current_[menu];
     if (a == cur) return;

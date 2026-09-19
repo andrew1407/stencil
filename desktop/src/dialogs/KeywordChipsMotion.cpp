@@ -73,9 +73,8 @@ namespace stencil::gui {
                                             1.0);   // spread: a list row's own throw
   }
 
-  // The browser's kwChipLeave, in Qt: the chips scatter, their slots are HELD while that
-  // reads, and only then do their widths collapse — which is what slides the chips behind
-  // them. Removing the widget outright made the survivors jump over the falling grains.
+  // The browser's kwChipLeave, in Qt: the chips scatter, their slots are HELD, and only then do
+  // their widths collapse. Removing the widget outright made survivors jump over the grains.
   void KeywordChips::playLeave(const QList<QPointer<QFrame>>& going) {
     if (going.isEmpty()) return;
     const bool quiet = !support::isDustAllowed();
@@ -139,9 +138,8 @@ namespace stencil::gui {
       fly->setEndValue(chip->geometry());
       fly->start(QAbstractAnimation::DeleteWhenStopped);
     }
-    // A new chip gathers out of its own dust and only THEN fades up: holdFadeKeys is the app's
-    // "stay invisible behind the cloud" curve, the one a revealed dialog uses. GATHER, not SURFACE_IN:
-    // the surface sweeps fly from a target point, so a chip gathered in from the window's corner.
+    // A new chip gathers out of its own dust and only THEN fades up (holdFadeKeys). GATHER, not
+    // SURFACE_IN: the surface sweeps fly from a target point, so a chip gathered in from the corner.
     for (QFrame* chip : arrived) {
       chipDust(chip, chipArea_, DisintegrateOverlay::Sweep::GATHER, ENTER_MS, arrived.size());
       auto* fade = new QGraphicsOpacityEffect(chip);

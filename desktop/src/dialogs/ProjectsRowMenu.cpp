@@ -33,9 +33,8 @@ namespace stencil::gui {
     const bool haveServers = connections_ && !connections_->urls().isEmpty();
     QMenu menu(this);
 
-    // Where a window raised from this menu flies back to: it grows out of the picked row,
-    // but the menu is gone by close time, so the motes pour into the row's "⋯" chip.
-    // Browser twin: projectsModal.js passes `menuBtn` the same way.
+    // Where a window raised from this menu flies back to: the menu is gone by close time, so the
+    // motes pour into the row's "..." chip. Browser twin: projectsModal.js passes `menuBtn`.
     const QRect kebabGlobal = [this, it]() -> QRect {
       auto* del = static_cast<ProjectRowDelegate*>(list_->itemDelegate());
       if (!del) return {};
@@ -130,9 +129,8 @@ namespace stencil::gui {
           [next](stencil::net::ServerProject& sp) { sp.keywords = next; });
     };
 
-    // "Set expiration" — the browser-styled expiration editor, opened OVER this window
-    // (browser parity: ui/base.js `stacked`). Closing the list to edit one of its rows
-    // lost the user their place, so the owner is signalled and calls setProjects().
+    // "Set expiration" opens the expiration editor OVER this window (browser parity: ui/base.js
+    // `stacked`), so the owner is signalled and calls setProjects() rather than closing the list.
     auto editExpiration = [this, it, kebabGlobal] {
       if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;   // local only
       const QString id = it->data(Qt::UserRole).toString();
@@ -148,9 +146,8 @@ namespace stencil::gui {
       emit expirationRequested(id, exp.expiresAtMs(), exp.refreshPeriod(), exp.autoRefresh());
     };
 
-    // "Clear color" only when the row HAS a custom colour (browser modal parity): with
-    // none set there is nothing to clear, and "Set color" already clicks straight into
-    // the picker.
+    // "Clear color" only when the row HAS a custom colour (browser modal parity): with none set
+    // there is nothing to clear, and "Set color" already clicks straight into the picker.
     const bool hasColor = !rowColor(it).isEmpty();
     QAction* removeAct = nullptr;   // marked as the danger row once the sheet is on (below)
     QColor dangerColor;
@@ -204,8 +201,7 @@ namespace stencil::gui {
                        &ProjectsDialog::copyToServerSelected);
       }
       // Destructive: the browser's "Remove" row colours both halves in --danger
-      // (.project-menu-item.is-danger), so the glyph takes the theme's red and
-      // support/menuDangerRow.hpp inks the label to match.
+      // (.project-menu-item.is-danger), so support/menuDangerRow.hpp inks the label to match.
       dangerColor = themePalette(palette().color(QPalette::Window).lightness() < 128).danger;
       removeAct = menu.addAction(themedIcon("trash", dangerColor, 16), "Remove", this,
                                  &ProjectsDialog::deleteSelected);
@@ -213,18 +209,17 @@ namespace stencil::gui {
     // The same glass shimmer every other ctx row's hover sweeps (browser
     // .project-menu-item parity; mainWindow's canvas context menu already plays it).
     support::MenuShimmer shimmer(&menu);
-    // …and the rest of the treatment every other menu gets (browser projectsModal.js
-    // showMenu): a compact icon+label popup fitted to its own longest label rather than
-    // carrying the menu bar's wide paddings, growing out of the click and pouring back.
+    // The treatment every other menu gets (browser projectsModal.js showMenu): a compact icon+label
+    // popup fitted to its own longest label, growing out of the click and pouring back.
     gui::compactIconMenu(menu);
     // After compactIconMenu — it replaces the menu's stylesheet, and this appends to it.
     support::markDangerRow(menu, removeAct, dangerColor);
     support::revealMenu(menu, globalPos);   // grow-from-the-cursor pop
     // Visible to the slots this menu fires (deleteSelected, the open confirm) for exactly
     // as long as the popup lives — they capture it and fly their answer back into the chip.
-    menuKebabRect_ = kebabGlobal;
+    hover_.menuKebabRect = kebabGlobal;
     menu.exec(globalPos);
-    menuKebabRect_ = QRect();
+    hover_.menuKebabRect = QRect();
   }
 
 }  // namespace stencil::gui

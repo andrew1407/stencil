@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A checkable toolbar toggle is NOT accent-filled at rest — the accent is what "on"
-  // looks like (browser #chat-btn: ghost, .active fills). It went permanently filled when
-  // every section button was given a fill.
+  // A checkable toolbar toggle is NOT accent-filled at rest — the accent is what "on" looks like
+  // (browser #chat-btn: ghost, .active fills).
   void checkableToggleFillsOnlyWhenOn() {
     MainWindow win;
     win.resize(1400, 700);
@@ -43,9 +42,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(isAccent(ground()), "the toggle does not fill when on");
     chat->setChecked(false);
   }
-  // Every accent-BACKED control wears the ink the ACCENT picked (theme.hpp onAccentInk).
-  // The bug this locks down: a fixed white glyph, which a yellow or sky accent all but
-  // swallowed. Browser twin: --on-accent.
+  // Every accent-BACKED control wears the ink the ACCENT picked (theme.hpp onAccentInk), not a fixed
+  // white glyph a yellow or sky accent would swallow. Browser twin: --on-accent.
   void filledControlsWearTheAccentsOwnInk() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -88,9 +86,8 @@ class MainWindowGuiTest : public QObject {
                    qPrintable("Open Image's own painter has no on-accent ink" + why));
     }
   }
-  // Fit to window is FILLED like every other acting button (user decision; browser twin:
-  // #zoom-fit) — pressing it acts at once, it reports no state. DISABLED it is the same
-  // grey chip as the − / + steppers beside it, to the pixel. Asserts both halves.
+  // Fit to window is FILLED like every other acting button (user decision; browser #zoom-fit) — it acts
+  // at once and reports no state — and DISABLED it is the grey chip the ± steppers are, to the pixel.
   void fitToWindowIsFilledAndGreysWhenDead() {
     MainWindow win(nullptr, false);
     win.resize(1400, 700);
@@ -124,9 +121,8 @@ class MainWindowGuiTest : public QObject {
              "an enabled fit button is not accent-filled");
     Q_UNUSED(pal);
   }
-  // Clickable toolbar controls carry the hand cursor, and dead ones the "no entry" —
-  // the browser's `button { cursor: pointer }` / `button:disabled { cursor: not-allowed }`.
-  // Text fields and combos are left alone: the browser shows the I-beam and arrow there too.
+  // Clickable toolbar controls carry the hand cursor and dead ones the "no entry" (the browser's
+  // `cursor: pointer` / `not-allowed`). Text fields and combos keep the I-beam and the arrow.
   void toolbarControlsCarryTheHandCursor() {
     MainWindow win;
     win.resize(1400, 700);

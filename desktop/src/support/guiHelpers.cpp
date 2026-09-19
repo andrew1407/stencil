@@ -161,9 +161,8 @@ namespace stencil::gui {
       const QString name = combo->itemData(i).toString();
       if (name == QLatin1String("custom")) continue;  // label stays "Custom"
       const core::PageSize ps = core::namedPageSize(name.toStdString());
-      // No trailing unit word: this combo always sits beside its own unit combo, which
-      // already says "cm"/"in" once for the whole row (user report; browser twin:
-      // units.js's pageFormatLabel).
+      // No trailing unit word: this combo always sits beside its own unit combo, which already says
+      // "cm"/"in" once for the whole row (user report; browser twin: units.js pageFormatLabel).
       combo->setItemText(i, QString("%1 (%2 × %3)")
                                 .arg(name, num(ps.width * factor), num(ps.height * factor)));
     }

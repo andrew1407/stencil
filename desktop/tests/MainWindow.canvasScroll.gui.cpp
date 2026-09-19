@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Canvas scrollbars are invisible at rest, revealed only by an actual pan or zoom — never
-  // just from hovering the canvas — and fade back out once the view settles. Direct opacity
-  // checks: a real fade plays only off the offscreen platform, but the opacity value itself
-  // is plain state either way.
+  // Canvas scrollbars are invisible at rest, revealed only by a pan or zoom — never by hover —
+  // and fade out once the view settles; the opacity is plain state under offscreen QPA too.
   void canvasScrollbarsHideUntilPanOrZoom() {
     MainWindow win;
     win.resize(600, 500);
@@ -37,9 +35,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.scroll_->viewport()->geometry().contains(hbar->geometry()));
     QCOMPARE(win.scroll_->viewport()->geometry(), win.scroll_->contentsRect());
     QVERIFY(!vbar->testAttribute(Qt::WA_TransparentForMouseEvents));
-    // The thumb is a painted pill in the browser's thumb grey (support/PillScrollBars.hpp,
-    // like every bar in the app; QSS cannot round a handle on macOS): its top edge's
-    // midpoint carries the thumb colour while the slot's corner beside it does not.
+    // The thumb is a painted pill in the browser's thumb grey (support/PillScrollBars.hpp; QSS
+    // cannot round a handle on macOS): its top-edge midpoint carries it, the slot corner not.
     {
       QStyleOptionSlider opt;
       opt.initFrom(vbar);
@@ -60,9 +57,8 @@ class MainWindowGuiTest : public QObject {
       const QColor corner = shot.pixelColor(QPoint(slider.left(), slider.top()) * dpr);
       QVERIFY2(near(mid, thumb), qPrintable("the thumb's top-edge midpoint is not the thumb grey: " + mid.name()));
       QVERIFY2(!near(corner, thumb), "the thumb's corner is filled — the thumb is not rounded");
-      // Thin at rest, a little thicker under the pointer (browser parity). FOUR px off
-      // the centre line, not three: the pill is centred on the slot's half-pixel centre,
-      // so centre−3 is an antialiased blend and centre−4 the first column truly outside.
+      // Thin at rest, a little thicker under the pointer (browser parity). FOUR px off the centre
+      // line: the pill is centred on the slot's half-pixel centre, so centre−3 is antialiased.
       const QPoint side(slider.center().x() - 4, slider.top() + 6);
       const QColor slot = corner;
       QVERIFY2(near(shot.pixelColor(side * dpr), slot), "the resting thumb is already wide");
@@ -110,10 +106,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.scroll_->verticalScrollBar()->value(), 120);
     win.scroll_->verticalScrollBar()->setValue(60);
     QCOMPARE(vbar->value(), 60);
-    // Once an axis fits, its bar goes away entirely rather than lingering as a gutter, and
-    // the survivor then runs the viewport's full length. The zoom is read off the LIVE
-    // viewport: the image is five times as tall as it is wide, so a width that just fits
-    // leaves the height overflowing whatever size the layout gave the canvas.
+    // Once an axis fits, its bar goes away entirely rather than lingering as a gutter, and the
+    // survivor runs the viewport's full length. The zoom is read off the LIVE viewport.
     win.setZoom(double(win.scroll_->viewport()->width() - 40) / 800.0);
     QTRY_VERIFY(!hbar->isVisible());
     QVERIFY(vbar->isVisible());

@@ -93,9 +93,8 @@ namespace stencil::gui {
     return QWidget::event(e);
   }
 
-  // The browser's crop modal on the shared shell (modalChrome): crop glyph + "Crop
-  // Image" over the hairline, the preview and its size line centred in the body, and
-  // a footer of hint · Album/Portrait · Cancel · Apply Crop, every button an accent CTA.
+  // The browser's crop modal on the shared shell (modalChrome): crop glyph + "Crop Image", the
+  // preview and its size line centred, footer of hint / Album-Portrait / Cancel / Apply Crop.
   CropDialog::CropDialog(const QImage& original, double pageWidthCm,
                          double pageHeightCm, bool album,
                          const core::CropRect& initial, QWidget* parent)
@@ -151,15 +150,13 @@ namespace stencil::gui {
     fitToScreen(chrome, footer);
   }
 
-  // The browser shell is `width:auto` here: the preview sets the width and the footer its floor (one
-  // line, so the hint sits beside the buttons). Never under MIN_DIALOG_W, never narrower than the
-  // preview, never past the screen — the chrome is measured and the preview re-fitted to what is left.
+  // The browser shell is `width:auto` here: the preview sets the width and the footer its floor.
+  // Never under MIN_DIALOG_W, never narrower than the preview, never past the screen.
   void CropDialog::fitToScreen(const ModalChrome& chrome, const QHBoxLayout* footer) {
     const QRect avail = screenAvail(this);
     const QSize box = previewFitBox(avail);
-    // A hidden widget's size change never reaches the layouts' caches (updateGeometry
-    // stops at a hidden widget), and the shell's layout tree is a widget away from the
-    // dialog's own, so every measurement below refreshes the lot by hand.
+    // A hidden widget's size change never reaches the layouts' caches (updateGeometry stops at a
+    // hidden widget), and the shell's layout tree is a widget away, so measurements refresh by hand.
     const auto measure = [this] {
       for (QWidget* w : findChildren<QWidget*>()) w->updateGeometry();   // the items' caches
       for (QLayout* l : findChildren<QLayout*>()) l->invalidate();        // the boxes'

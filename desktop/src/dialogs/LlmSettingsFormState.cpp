@@ -64,9 +64,8 @@ namespace stencil::gui {
     if (direct &&
         (text.isEmpty() || text == stencil::llm::defaultLlmBaseUrl(prevProvider)))
       baseUrl_->setText(stencil::llm::defaultLlmBaseUrl(provider));
-    // The host dialog grows and shrinks with the visible rows, EASING there rather than
-    // snapping (browser twin: easeBoxHeight on this same modal) — but only once shown: a
-    // resize during construction freezes a too-small size that stacks the rows.
+    // The host dialog EASES to its new height rather than snapping (browser twin: easeBoxHeight on
+    // this same modal) - but only once shown: a resize during construction freezes a too-small size.
     if (mode_ == RowMode::HIDE_ROWS && window()->isVisible()) {
       if (QLayout* l = window()->layout()) { l->invalidate(); l->activate(); }
       support::easeWindowHeight(window(), window()->sizeHint().height(), hostH0);

@@ -30,15 +30,11 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // A tail's WIDGET geometry can look perfectly flush (chatSwapSidesReskinsRetroactively
-  // checks that) while the pixels underneath still show a gap, so this samples the
-  // rendered PIXEL at the card's corner: a broken flattened-corner radius in
-  // chatCardStyleSheet() fails here rather than only on a user's eyeball.
+  // Samples the rendered PIXEL at the card's corner: the tail's widget geometry can look flush
+  // while a broken flattened-corner radius in chatCardStyleSheet() still shows a gap.
   void chatBubbleTailRendersFlushNoGap() {
-    // This case PAINTS: it samples the bubble's own corner. With motion on, the card is
-    // hidden behind its arrival dust for the whole flight, so the grab caught motes and
-    // the corner came back a different blend every run (and a longer chat clock made it
-    // reproducible). Pin motion off for it — the flight has its own cases.
+    // This case PAINTS the bubble's own corner, and with motion on the card hides behind its
+    // arrival dust for the whole flight, so motion is pinned off here.
     const auto still = withoutMotion();
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -56,12 +52,8 @@ class MainWindowGuiTest : public QObject {
     for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) userCard = f;
     QVERIFY(errCard && userCard);
     QImage shot = win.chatDock_->grab().toImage();
-    // A pixel just inside the card's own flattened corner (well within the
-    // round notch a 10px radius would otherwise leave unfilled there) —
-    // sampled against a reference pixel a few px further in, which is
-    // unambiguously plain bubble fill either way. Equal ⇒ the corner reads as
-    // one continuous fill, same as the reference; a regressed (still rounded)
-    // corner would instead sample the transcript's own, different background.
+    // A pixel just inside the card's flattened corner, against a reference pixel further in that
+    // is unambiguously fill. Equal ⇒ one continuous fill; a rounded corner samples the transcript.
     const auto sampleFlushCorner = [&](QFrame* card, bool right, const char* what) {
       const QPoint corner = card->mapTo(win.chatDock_,
           right ? card->rect().bottomRight() : card->rect().bottomLeft());
@@ -83,10 +75,8 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.chatDock_->show();
-    // Fill the transcript until it scrolls FIRST: appending into an already
-    // scrollable transcript triggers no scrollbar toggle, so no healing
-    // viewport-resize re-measure follows — exactly the intermittent case users
-    // hit, where the first (wrong-width) reservation was the one that stuck.
+    // Fill the transcript until it scrolls FIRST: appending into an already scrollable transcript
+    // toggles no scrollbar, so no healing viewport-resize re-measure follows.
     QScrollArea* scroll = openTranscript(win);
     fillUntilScrollable(win, scroll);
     QVERIFY(scroll->verticalScrollBar()->maximum() > 0);
@@ -136,10 +126,8 @@ class MainWindowGuiTest : public QObject {
     const auto jumps =
         win.chatDock_->findChildren<QToolButton*>(QStringLiteral("chatJumpBtn"));
     QCOMPARE(jumps.size(), 2);
-    // The pills rest at 0.7 — the shared figure across the three surfaces (the browser's
-    // .chat-jump-btn and every row "…" trigger); hover restores full opacity and
-    // brightens the glyph from --text-muted to --text-main.
-    // …in whichever theme this window actually resolved to.
+    // The pills rest at 0.7, the shared figure across the three surfaces (browser .chat-jump-btn);
+    // hover restores full opacity and lifts the glyph from --text-muted to --text-main.
     const bool dark = stencil::gui::resolveDark(win.settings_.themeMode);
     const QColor muted = stencil::gui::themePalette(dark, win.settings_.accentColor).textMuted;
     const QColor main = stencil::gui::themePalette(dark, win.settings_.accentColor).textMain;

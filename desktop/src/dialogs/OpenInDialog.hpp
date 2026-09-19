@@ -7,12 +7,11 @@ class QLabel;
 class QPushButton;
 class QWidget;
 
-// "Open in…" dialog. Mirrors browser/js/ui/openInModal.js: mirror the CURRENT
-// session into another Stencil front-end — the browser app or the Telegram bot.
-// Unusable targets are HIDDEN, not greyed (the caller only opens the dialog when at
-// least one is available). exec(); on QDialog::Accepted read outcome()/incognito().
-// A Telegram link that cannot fit the 64-char start payload keeps the dialog open
-// and shows the browser's fallback row (the two bot commands + copy) instead.
+// "Open in..." dialog. Mirrors browser/js/ui/openInModal.js: mirror the CURRENT session into
+// another Stencil front-end - the browser app or the Telegram bot. Unusable targets are HIDDEN,
+// not greyed. exec(); on QDialog::Accepted read outcome()/incognito().
+// A Telegram link that cannot fit the 64-char start payload keeps the dialog open and shows the
+// browser's fallback row (the two bot commands + copy) instead.
 namespace stencil::gui {
 
   class OpenInDialog : public QDialog {
@@ -20,9 +19,8 @@ namespace stencil::gui {
    public:
     enum class Outcome { BROWSER, TELEGRAM };
 
-    // serverProject: the session is linked to a server project on `serverUrl` (shown in the status
-    // line); `serverId` is its id, for the Telegram payload check. browserAvailable /
-    // telegramAvailable gate each button's visibility; startIncognito seeds the incognito checkbox.
+    // serverProject: the session is linked to a server project on `serverUrl`; `serverId` is its id,
+    // for the Telegram payload check. browserAvailable / telegramAvailable gate button visibility.
     OpenInDialog(QWidget* parent, bool serverProject, const QString& serverUrl,
                  bool browserAvailable, bool telegramAvailable, bool startIncognito,
                  const QString& serverId = QString());

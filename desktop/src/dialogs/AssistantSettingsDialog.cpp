@@ -13,9 +13,8 @@ namespace stencil::gui {
     setObjectName("assistantSettingsDialog");
     setWindowTitle("Assistant");
 
-    // The browser modal's shell: sparkle + "Assistant" + the ✕ Close pill over a
-    // hairline, the form as the body, and the footer hint + Cancel/Save CTAs
-    // under a second hairline (llmSettingsModal.js structure).
+    // The browser modal's shell: sparkle + "Assistant" + the Close pill over a hairline, the form as
+    // the body, footer hint + Cancel/Save under a second hairline (llmSettingsModal.js structure).
     ModalChrome chrome = installModalChrome(this, "sparkle", tr("Assistant"));
     form_ = new LlmSettingsForm(current, LlmSettingsForm::RowMode::HIDE_ROWS, this);
     chrome.body->addWidget(form_);
@@ -34,9 +33,8 @@ namespace stencil::gui {
     connect(save, &QPushButton::clicked, this, &QDialog::accept);
     footer->addWidget(save);
 
-    // The browser .app-modal width, PINNED (confirmModal does the same): under a SetMinimumSize layout
-    // constraint the dialog kept shrinking to its content — the constraint rewrites the minimum every
-    // pass, clobbering even setFixedWidth — so it is gone. The height still follows the visible rows.
+    // The browser .app-modal width, PINNED: under a SetMinimumSize layout constraint the dialog kept
+    // shrinking to its content (the constraint rewrites the minimum every pass), so it is gone.
     setFixedWidth(MODAL_WIDTH);
     form_->focusProvider();
   }

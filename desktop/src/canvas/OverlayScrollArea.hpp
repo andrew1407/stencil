@@ -1,13 +1,9 @@
 #pragma once
-// True overlay scrollbars for the canvas viewport.
-// Browser parity: js/ui/canvasScrollbars.js draws the same two overlay bars over
-// the canvas viewport with zero reserved layout space. Qt's native transient mode
-// matches that, but theme.cpp's QScrollBar stylesheet turns it off app-wide,
-// and QAbstractScrollArea then shrinks the viewport to make room for its bars
-// every time it re-lays itself out (range change, resize, show). So the base
-// class's own bars are switched off for good — they stay the scroll MODEL that
-// wheel/keyboard/setValue drive — and two plain QScrollBars owned here mirror
-// them and float over the full viewport.
+// True overlay scrollbars for the canvas viewport; browser parity: js/ui/canvasScrollbars.js.
+// theme.cpp's QScrollBar stylesheet turns off Qt's native transient mode app-wide, and
+// QAbstractScrollArea then shrinks the viewport to make room on every re-layout. So the base
+// class's own bars are switched off for good - they stay the scroll MODEL that wheel/keyboard/
+// setValue drive - and two plain QScrollBars owned here mirror them over the full viewport.
 #include "PillScrollBars.hpp"  // ScrollBarPill: the painted thumb
 
 #include <QEvent>

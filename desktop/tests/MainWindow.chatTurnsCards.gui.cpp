@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A 401 from the SERVER provider is an expired session, not a broken assistant:
-  // the card says which server and carries a labelled "Reconnect to <host>" that
-  // opens Connections. A local provider's 401 stays an ordinary error card.
+  // A 401 from the SERVER provider is an expired session: the card says which server and carries a
+  // "Reconnect to <host>" that opens Connections. A local provider's 401 stays an error card.
   void chatExpiredSessionCardOffersReconnect() {
     MainWindow win(nullptr, false);
     win.resize(1200, 820);
@@ -92,9 +91,8 @@ class MainWindowGuiTest : public QObject {
     const QJsonObject plan{
         {"version", 1},
         {"reply", reply},
-        // Nothing to run: asking INSTEAD of acting is the §11 case, and the
-        // chat-only path must still render the card. Options carry no "actions"
-        // either, so it needs no loaded image for previews.
+        // Nothing to run: asking INSTEAD of acting is the §11 case, and the chat-only path must still
+        // render the card. Options carry no "actions", so it needs no loaded image for previews.
         {"actions", QJsonArray{}},
         {"ask", QJsonObject{{"question", question},
                             {"mode", "single"},
@@ -136,9 +134,8 @@ class MainWindowGuiTest : public QObject {
     }
     QVERIFY2(bodies >= 4, "expected the user + assistant row on each of the two surfaces");
 
-    // The assistant row shows the tags themselves. Interpreted markup would
-    // leave text() holding the source while the SCREEN showed "done" in bold —
-    // so assert the format above AND the round-trip here.
+    // The assistant row shows the tags themselves; interpreted markup would leave text() holding the
+    // source while the SCREEN showed bold, so both the format and the round-trip are asserted.
     bool sawReply = false, sawQuestion = false, sawOption = false;
     for (QLabel* l : win.chatDock_->findChildren<QLabel*>()) {
       if (l->text() == reply) { sawReply = true; QCOMPARE(l->textFormat(), Qt::PlainText); }

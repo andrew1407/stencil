@@ -1,9 +1,7 @@
-// Headless check of app/PopoverHost.hpp — what a mouse press means while a compact
-// popover is open. The widget lookups behind the facts (is the point inside the popover,
-// does a nested dialog own it, did it land on the logo) need a live window, but the
-// verdict they feed does not, and that verdict is the fiddly part: the logo's accent
-// popover answers presses differently from every other popover, and a dismissal has to
-// mark the click so the icon it lands on does not re-open what it just closed.
+// Headless check of app/PopoverHost.hpp — what a mouse press means while a compact popover is open.
+// The widget lookups behind the facts need a live window; the verdict they feed does not, and that
+// verdict is the fiddly part: the logo's accent popover answers presses differently from every other
+// one, and a dismissal marks the click so the icon it lands on does not re-open what it just closed.
 #include "PopoverHost.hpp"
 
 #include <QCoreApplication>

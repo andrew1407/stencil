@@ -17,9 +17,8 @@ namespace stencil::gui {
 
   class FlowLayout;
 
-  // One keyword list, edited as chips (browser ui/keywordChips.js twin): a line edit over
-  // the words already held, each an oval with a ✕. The list is the value; the input only
-  // proposes words.
+  // One keyword list, edited as chips (browser ui/keywordChips.js twin). The list is the value;
+  // the input only proposes words.
   class KeywordChips : public QWidget {
     Q_OBJECT
    public:
@@ -47,9 +46,8 @@ namespace stencil::gui {
     // The chips whose word survived glide from `was` to the slot the flow just gave them.
     // Browser twin: keywordChips.js render().
     void playMotion(const QHash<QString, QRect>& was, const QList<QFrame*>& arrived);
-    // A chip leaves the way the browser's does (css kwChipLeave): the slot is HELD while
-    // its grains read, then its width collapses — and that collapse is what slides the
-    // chips behind it. The guards outlive the batch's own animation.
+    // A chip leaves the way the browser's does (css kwChipLeave): the slot is HELD while its grains
+    // read, then its width collapses - and that collapse is what slides the chips behind it.
     void playLeave(const QList<QPointer<QFrame>>& going);
     QFrame* makeChip(const QString& word, const QColor& muted);
 

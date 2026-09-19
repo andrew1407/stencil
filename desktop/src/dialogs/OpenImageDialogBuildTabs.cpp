@@ -30,9 +30,8 @@ namespace stencil::gui {
     auto* fileV = new QVBoxLayout(fileTab);
     fileV->setContentsMargins(0, 14, 0, 0);   // browser .oi-tabs margin-bottom: 14px
     fileV->setSpacing(0);
-    // ONE control, not a button beside a field: the accent CTA on the left butted straight
-    // against the path readout, both inside a single outlined box — the browser's .oi-file
-    // (css/components/openImage.css). The box carries the outline, so the halves carry none.
+    // ONE control, not a button beside a field: the accent CTA butted against the path readout inside
+    // a single outlined box - the browser's .oi-file. The box carries the outline, the halves none.
     auto* fileBox = new QFrame(this);
     fileBox->setObjectName(QStringLiteral("oiFileBox"));
     auto* fileRow = new QHBoxLayout(fileBox);
@@ -55,9 +54,8 @@ namespace stencil::gui {
     fileV->addWidget(vsRow(fileTab, tr("Choose"), fileBox));
     tabs_->addTab(fileTab, "Local file");
 
-    // Tab: URL link (browser: one .vs-row "URL" with the field AND the Preview button
-    // inline — never on a row of its own). Resolved via MediaLoader (CORS-free fetch +
-    // video-frame grab); preview is explicit so a half-typed URL never spins a fetch.
+    // Tab: URL link (browser: one .vs-row "URL" with the field AND the Preview button inline).
+    // Resolved via MediaLoader; preview is explicit so a half-typed URL never spins a fetch.
     auto* urlTab = new QWidget(this);
     auto* urlV = new QVBoxLayout(urlTab);
     urlV->setContentsMargins(0, 14, 0, 0);

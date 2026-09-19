@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The transcript's jump pills float in the bottom-right corner — exactly where a
-  // clipped row's "…" lands, and two round controls stacked are unclickable. The pills
-  // are the higher-priority control: they stay, and the row trigger shifts clear, or
-  // hides when a bubble too short leaves nowhere to shift it to (browser parity).
+  // The jump pills float in the bottom-right corner, where a clipped row's "…" also lands. The pills
+  // win: the row trigger shifts clear, or hides when the bubble leaves nowhere to shift to.
   void chatJumpPillsYieldToTheRowMenu() {
     MainWindow win(nullptr, false);
     win.resize(1100, 700);
@@ -36,9 +34,8 @@ class MainWindowGuiTest : public QObject {
     settleLayout(win.chatDock_, 200);
     const auto jumps = win.chatDock_->findChildren<QToolButton*>(QStringLiteral("chatJumpBtn"));
     QCOMPARE(jumps.size(), 2);
-    // Precondition: no row menu on screen, so the pills' own rule lets them show
-    // (a scroll can leave one from an earlier hover, and they yield to it). The
-    // clear + nudge is re-run each poll, since only a scroll re-evaluates it.
+    // Precondition: no row menu on screen, so the pills' own rule lets them show. The clear + nudge is
+    // re-run each poll, since only a scroll re-evaluates it.
     const auto pillsUp = [&] {
       for (QToolButton* m : win.chatDock_->findChildren<QToolButton*>("chatCardMore"))
         m->hide();
@@ -74,16 +71,14 @@ class MainWindowGuiTest : public QObject {
              "the pills should still be up before the button reaches them");
     QVERIFY2(jumps[0]->isVisible() && jumps[1]->isVisible(),
              "the jump pills must stay up — the row's trigger yields, not them");
-    // The trigger itself either shifted clear of the pills, or — nowhere left in
-    // this row's own visible slice to shift it to — hid instead. Either way it
-    // must never simply sit ON them (unclickable, two round controls stacked).
+    // The trigger either shifted clear of the pills or, with nowhere left in this row's visible slice,
+    // hid instead. It must never sit ON them: two round controls stacked are unclickable.
     if (more->isVisible()) {
       QVERIFY2(!QRect(more->mapToGlobal(QPoint(0, 0)), more->size()).intersects(pillsRect()),
                "the trigger sat under the pills instead of shifting clear of them");
     }
-    // …and forcing it directly onto the pills (bypassing the real placement path,
-    // the way a stale position from before a resize might) is corrected on the next
-    // real placement pass, never by the pills hiding.
+    // …and forcing it directly onto the pills (as a stale position from before a resize might) is
+    // corrected on the next real placement pass, never by the pills hiding.
     if (more->isVisible()) {
       more->move(more->parentWidget()->mapFromGlobal(pillsRect().topLeft()));
       win.chatDock_->revalidateMoreButtons();
@@ -95,10 +90,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Error and stopped cards are settled rows, so they carry the SAME affordances
-  // the browser gives them: the hover "…", the right-click menu (Copy message /
-  // Insert into prompt) and the neutral Resend control. Desktop
-  // offered none of it — the stopped card was built outside appendCard entirely.
+  // Error and stopped cards are settled rows, so they carry the SAME affordances the browser gives
+  // them: the hover "…", the right-click menu (Copy / Insert into prompt) and the neutral Resend.
   void chatErrorCardsCarryTheRowMenu() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
@@ -165,9 +158,8 @@ class MainWindowGuiTest : public QObject {
                qPrintable(what + ": the error card has no Resend control"));
     }
 
-    // The mirrored panel gets the same treatment (the browser's flyout does).
-    // The panel's cards are only on screen while its menu is open — show it, or
-    // the row menu rightly refuses to pop into an invisible surface.
+    // The mirrored panel gets the same treatment. Its cards are only on screen while its menu is open
+    // — show it, or the row menu rightly refuses to pop into an invisible surface.
     win.chatMenuPanel_->setGeometry(20, 20, 340, 620);
     win.chatMenuPanel_->show();
     settleLayout(win.chatMenuPanel_, 150);

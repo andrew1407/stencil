@@ -1,11 +1,8 @@
-// Headless check of the LLM plan executor (src/llm/planExecutor) against the
-// real CanvasWidget, seeded with the committed PNG fixture (16x12 solid
-// #3366cc) — the llm-contract.md §1-2 execution semantics: top-level
-// actions mutate the working image in order; each variant branches from the
-// state AFTER those actions and yields one separate image; `frame` is a
-// plan-level error off-video; layout coordinates are model-frame and get
-// re-mapped through earlier crop/rotate + clamped (§1 coordinate re-mapping).
-// Runs offscreen (QT_QPA_PLATFORM=offscreen).
+// Headless check of the LLM plan executor (src/llm/planExecutor) against the real CanvasWidget, seeded
+// with the committed PNG fixture (16x12 solid #3366cc): the llm-contract.md §1-2 execution semantics —
+// top-level actions mutate the working image in order, each variant branches from the state AFTER them
+// and yields one separate image, `frame` is a plan-level error off-video, and layout coordinates are
+// model-frame, re-mapped through earlier crop/rotate and clamped. Runs offscreen.
 #include "llmExecutorParts.hpp"
 
 #include <QApplication>

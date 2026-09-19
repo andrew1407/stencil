@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The card menu pops from a NESTED event loop, so the transcript can change
-  // under it: a turn can land and repaint rows, the chat can be mid-close, and
-  // the card itself can be deleted while the menu is up. Each of those crashed
-  // (SIGSEGV inside QMenu::exec → QCocoaWindow::setVisible) or would use freed
-  // memory after exec() returned.
+  // The card menu pops from a NESTED event loop, so the transcript can change under it: a turn can
+  // land and repaint rows, the chat can be mid-close, and the card itself can be deleted.
   void chatCardMenuSurvivesTranscriptChurn() {
     MainWindow win(nullptr, false);
     win.resize(1150, 800);
@@ -122,9 +119,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Hovering a bubble reveals the ghost "⋯" in its bottom corner — LEFT on the
-  // right-aligned user bubbles, RIGHT on assistant cards — and clicking it opens
-  // the same menu as a right-click. Leave hides it again.
+  // Hovering a bubble reveals the ghost "⋯" in its bottom corner — LEFT on the right-aligned user
+  // bubbles, RIGHT on assistant cards — and clicking it opens the right-click menu; Leave hides it.
   void chatCardHoverMenuButton() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);

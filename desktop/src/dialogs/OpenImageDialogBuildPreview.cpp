@@ -30,15 +30,13 @@ namespace stencil::gui {
     frameSlider_->setVisible(false);
     auto* previewCol = new QVBoxLayout;
     previewCol->setContentsMargins(0, 0, 0, 0);
-    // No layout spacing: each row carries the gap BELOW it as its own margin, so the
-    // read-out arriving or leaving changes the column by exactly its own height — a
-    // layout gap would pop in whole while the line was still sliding.
+    // No layout spacing: each row carries the gap BELOW it as its own margin, so a row arriving or
+    // leaving changes the column by exactly its own height - a layout gap would pop in whole.
     previewCol->setSpacing(0);
     previewLabel_->setContentsMargins(0, PREVIEW_COL_GAP, 0, PREVIEW_COL_GAP);
     previewCol->addWidget(previewLabel_, 0, Qt::AlignHCenter);
-    // The crop stage TAKES THE PICTURE'S PLACE while Crop is on (syncCropStage), a video's
-    // frame included — the rect is drawn on the picture already there, never on a second
-    // copy below it. The scrub bar stays under whichever of the two is up.
+    // The crop stage TAKES THE PICTURE'S PLACE while Crop is on (syncCropStage), a video's frame
+    // included - never a second copy below it. The scrub bar stays under whichever of the two is up.
     cropStageHost_ = new QWidget(this);
     auto* stageBox = new QVBoxLayout(cropStageHost_);
     stageBox->setContentsMargins(0, 0, 0, 0);

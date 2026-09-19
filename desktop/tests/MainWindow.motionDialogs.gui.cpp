@@ -48,12 +48,8 @@ class MainWindowGuiTest : public QObject {
                                               .arg(QDebug::toString(closeEnd), QDebug::toString(want))));
   }
 
-  // The hover shimmer must genuinely ANIMATE: after a hover-enter, the
-  // overlay's sweep progress ADVANCES between two samples inside the 325 ms
-  // window and clears (-1) on completion — not a band that pops in at a fixed
-  // position and sits there, on text-entry fields too. Exercised on a
-  // shimmered text-entry control (toolbar spinbox) when visible, else any
-  // shimmered toolbutton.
+  // The hover shimmer must genuinely ANIMATE: after a hover-enter the overlay's sweep progress
+  // ADVANCES between two samples inside the 325 ms window and clears (-1) on completion.
   void hoverShimmerAnimates() {
     const auto motion = withMotion();   // the sweep honours motionReduced(), which is on here
     MainWindow win(nullptr, false);
@@ -108,10 +104,7 @@ class MainWindowGuiTest : public QObject {
   }
 
   // Every icon button mimes its OWN action on hover (support/iconMotion.hpp, the port of
-  // browser/js/config/iconMotion.json): the trash lid lifts, plus grows, minus shrinks.
-  // Driven here on a REAL toolbar button, for the three things the app-wide contract is
-  // made of — reduced motion wins, the glyph really is repainted, and NOTHING reflows
-  // (only the icon's own pixels change, so a hovered control cannot shove the row).
+  // iconMotion.json): reduced motion wins, the glyph really is repainted, and NOTHING reflows.
   void iconMotionRunsOnToolbarButtonsWithoutReflow() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);

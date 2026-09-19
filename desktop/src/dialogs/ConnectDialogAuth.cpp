@@ -68,12 +68,10 @@ namespace stencil::gui {
     if (!batchBar_) return;
     const int n = selected_.size();
     // The bar hosts Select all too, so it shows whenever the view has rows; only the selection-only
-    // controls inside come and go with the checked set (connectModal.js updateBatchBar). A bar that
-    // never opens has nothing beneath it to jump, and the swap inside it is support/controlReveal.
+    // controls inside come and go with the checked set (connectModal.js updateBatchBar).
     const QStringList shown = shownUrls();
-    // Opens at once, closes only once its contents have flown (support/controlReveal). The browser
-    // animates the bar's OWN slot as well, which a Qt item view will not tolerate: an animating bar
-    // re-lays out the list every frame and re-shows a row meant to be hidden under its gather motes.
+    // Opens at once, closes only once its contents have flown (support/controlReveal). NOT the
+    // browser's animated bar slot: an animating bar re-lays out the list every frame.
     revealBar(batchBar_, [this] { return !selected_.isEmpty() || !shownUrls().isEmpty(); });
     // Text first, so the count is already right when its slot opens.
     if (batchCount_) {
@@ -92,9 +90,8 @@ namespace stencil::gui {
     }
   }
 
-  // The expired row's way back in (browser parity): ask the SERVER for a fresh session first — an
-  // open server just signs you in — and only if it refuses ask for a token. A session token or the
-  // server's ADMIN token both work: the connect path already mints a session from an admin token.
+  // The expired row's way back in (browser parity): ask the SERVER for a fresh session first, and
+  // only if it refuses ask for a token. A session token or the server's ADMIN token both work.
   void ConnectDialog::reauthenticate(const QString& url) {
     QPointer<ConnectDialog> self(this);
     manager_->reconnectAsync(url, [this, self, url](bool ok, QString err) {
@@ -112,9 +109,8 @@ namespace stencil::gui {
                          .arg(url);
       spec.confirmLabel = tr("Reconnect");
       spec.confirmIcon = QStringLiteral("link");
-      // Shown, not echoed as dots: the Token field above is plain text too, and a pasted token you
-      // cannot read is one you cannot check. Empty is refused outright — the button would otherwise be
-      // a dead click (browser parity: the same `validate` on app.prompt).
+      // Shown, not echoed as dots: a pasted token you cannot read is one you cannot check. Empty is
+      // refused outright (browser parity: the same `validate` on app.prompt).
       spec.validate = [](const QString& t) {
         return t.isEmpty() ? tr("Paste a token to reconnect") : QString();
       };

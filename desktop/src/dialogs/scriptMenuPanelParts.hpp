@@ -6,9 +6,8 @@
 
 namespace stencil::gui {
 
-  // A real editor WINDOW at menu scale: exactly as wide as its action row, so the five
-  // buttons span it edge to edge, and min(58vh, 440px) tall, with the editor flexing into
-  // whatever the strip and the row leave over.
+  // A real editor WINDOW at menu scale: exactly as wide as its action row, and min(58vh, 440px)
+  // tall, with the editor flexing into whatever the strip and the row leave over.
   inline constexpr int MENU_SCRIPT_MAX_HEIGHT = 440;
   inline constexpr double MENU_SCRIPT_SCREEN_SHARE = 0.58;
   inline constexpr int MENU_SCRIPT_EDITOR_MIN = 150;

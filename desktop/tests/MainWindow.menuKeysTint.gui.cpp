@@ -8,14 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A repeat of the same message (e.g. pan/zoom's debounced "Saved") landing while the LAST
-  // one is still mid-exit used to coexist with it instead of coalescing — liveToasts() only
-  // coalesces into a STANDING toast, so the fresh arrival's opaque label buried the leaving
-  // one's still-playing dust. Only one "toast" label should ever exist for a given message.
-
-  // The Custom Tint pick shows the "Tint Color…" row at once, and moving off it hides
-  // the row again — while the flyout is open (browser parity: .ctx-tint-visible follows
-  // the radio change), not only on the next open.
+  // The Custom Tint pick shows the "Tint Color…" row at once and moving off it hides the row again,
+  // while the flyout is open (browser parity: .ctx-tint-visible follows the radio change).
   void ctxCustomTintRowFollowsTheFilterPick() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -108,10 +102,8 @@ class MainWindowGuiTest : public QObject {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
-  // A flyout the first → only revealed still belongs to the parent's walk: ↓ moves the
-  // ROOT highlight and folds the flyout (browser parity), and only after the second →
-  // do ↑/↓ work inside it. Before, Qt walked the revealed flyout's rows, which for the
-  // radio flyout read as "the keys only move the radio focus".
+  // A flyout the first → only revealed still belongs to the parent's walk: ↓ moves the ROOT highlight
+  // and folds the flyout (browser parity); only after the second → do ↑/↓ work inside it.
   void ctxRevealedFlyoutArrowsWalkTheParent() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -139,9 +131,8 @@ class MainWindowGuiTest : public QObject {
         if (a->text().startsWith("Transformation")) transformAct = a;
       }
       if (!filterAct || !filterAct->menu() || !transformAct) { root->close(); return; }
-      // keyClick derefs its receiver (QTEST_ASSERT is compiled out in Release), so a chain
-      // that has already closed segfaults the whole binary and takes every later case with
-      // it. Bail out instead and let the QVERIFY2s below report the miss.
+      // keyClick derefs its receiver (QTEST_ASSERT is compiled out in Release), so a chain that has
+      // already closed would segfault the binary; bail out and let the QVERIFY2s below report the miss.
       auto toPopup = [](Qt::Key k) {
         QWidget* p = QApplication::activePopupWidget();
         if (p) QTest::keyClick(p, k);

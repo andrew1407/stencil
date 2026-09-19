@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Regression: enabling the f(x,y) pill must reveal the x/y formula inputs, and they must
-  // stay visible across an image load and window resizes (the state the user drives).
-  // Hovering the project name REVEALS its ✎/🎨 affordances. At their natural size
-  // (51×47 — QToolButton padding plus a default-sized icon) they were far taller than the
-  // 28px name field, so the header grew the moment the cursor arrived and the whole window
-  // jumped under it. Every control in that group is sized to the row instead.
+  // Enabling the f(x,y) pill reveals the x/y inputs, which stay visible across an image load and
+  // resizes. Hovering the project name reveals ✎/🎨, sized to the row so the header cannot grow.
   void nameHoverDoesNotResizeTheHeader() {
     MainWindow win(nullptr, false);
     win.resize(1400, 900);
@@ -36,11 +32,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(hdr->height(), before);
   }
 
-  // Every selector opens the app's OWN popup, never the platform one: macOS draws a
-  // native combo popup itself, so a toolbar of themed controls answered a click with a
-  // system menu. The browser makes the same swap (js/ui/customSelect.js).
-  // The ONE exception on both sides is zoom: a number field with a preset list attached,
-  // which works as it is.
+  // Every selector opens the app's OWN popup, never the platform one (macOS draws a native combo
+  // popup itself); the browser makes the same swap (js/ui/customSelect.js). Zoom is the exception.
   void everySelectorUsesTheAppsOwnPopup() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 900);
@@ -83,9 +76,8 @@ class MainWindowGuiTest : public QObject {
     win.units_.pageSize->hidePopup();
   }
 
-  // The window opens at the size it asked for. The wrapping tool run (support/WrapRow.hpp)
-  // hints its WRAPPED height from the very first pass — hinting the STACKED one gave
-  // QToolBarLayout a minimum that opened the window 1145px tall whatever it asked for.
+  // The window opens at the size it asked for: the wrapping tool run (support/WrapRow.hpp) hints its
+  // WRAPPED height from the first pass, since a STACKED hint becomes QToolBarLayout's minimum.
   void theWindowOpensAtTheHeightItAsksFor() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 500);

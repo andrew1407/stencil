@@ -72,9 +72,8 @@ namespace stencil::gui {
     return true;
   }
 
-  // Always visible, mirroring the browser's #image-info bar.
-  // The incognito half is the toolbar's own glyph (an emoji took the font's colour); divider and
-  // tag are one unit, so no dangling separator.
+  // Mirrors the browser's #image-info bar. The incognito half is the toolbar's own glyph (an emoji
+  // took the font's colour); divider and tag are one unit, so no dangling separator.
   QString MainWindow::incognitoTagHtml() const {
     const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
     const int glyphPx = std::max(12, QFontMetrics(imageSizeInfo_->font()).height() - 2);

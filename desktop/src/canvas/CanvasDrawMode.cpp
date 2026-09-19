@@ -12,9 +12,8 @@ namespace stencil::gui {
     if (image_.isNull() || isDrawing_) return;
     isDrawing_ = true;
 
-    // Continuation: a committed line is selected -> extend it. New points connect
-    // to its tail, or to the focused point if one is selected. Port of
-    // drawingApp.js startDrawingMode continuation branch (~1079).
+    // Continuation: a committed line is selected -> extend it, from its tail or the focused point.
+    // Port of drawingApp.js startDrawingMode continuation branch.
     if (selectedLineIdx_ >= 0 &&
         selectedLineIdx_ < static_cast<int>(lines_.size())) {
       continueLineIdx_ = selectedLineIdx_;

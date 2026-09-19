@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The clear button lives in the COMPOSER row (browser #chat-clear parity), and a drag onto
-  // that row attaches — the cue showing while it hovers, and what was attached shown in the
-  // user's own bubble.
+  // The clear button lives in the COMPOSER row (browser #chat-clear parity), and a drag onto that
+  // row attaches — the cue showing while it hovers, what was attached shown in the user's bubble.
   void chatClearButtonAndAttachmentCue() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -58,9 +57,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(dock->attachedImages().size(), 1);
 
 
-    // A drag onto the COMPOSER attaches; the cue shows while it hovers and goes on
-    // drop. Driven through the composer's own event filter, which is where the whole
-    // gesture now lives (the dock itself declines drops).
+    // A drag onto the COMPOSER attaches; the cue shows while it hovers and goes on drop. Driven
+    // through the composer's own event filter, where the whole gesture lives.
     {
       auto* inputArea = dock->findChild<QWidget*>("chatInputArea");
       auto* cue = dock->findChild<QWidget*>("chatDropCue");
@@ -104,10 +102,8 @@ class MainWindowGuiTest : public QObject {
       for (QLabel* pic : tray->findChildren<QLabel*>())
         if (!pic->pixmap().isNull() && !pic->findChildren<QObject*>().isEmpty()) previewed = true;
       QVERIFY2(previewed, "no hover preview installed on the attachment chip");
-      // A NAMED attachment says its name; only an unnamed one (a dropped bitmap, as
-      // above) falls back to the dimensions. And the thumbnail carries no tooltip —
-      // it opens the hover preview, and a tooltip on top of that put two popups on
-      // screen at once, the tooltip covering the picture it was describing.
+      // A NAMED attachment says its name; only an unnamed one falls back to the dimensions. The
+      // thumbnail carries no tooltip — it opens the hover preview, and the two would overlap.
       dock->clearAttachments();
       dock->addAttachmentImage(dragged, QStringLiteral("cat.png"));
       QStringList chipTexts;
@@ -123,9 +119,8 @@ class MainWindowGuiTest : public QObject {
       dock->addAttachmentImage(att);
     }
 
-    // What the user attached is SHOWN, inside the user's own bubble: the card
-    // carries a pixmap label (it used to say "[1 image(s) attached]" and nothing
-    // more). The browser/extension render the same strip.
+    // What the user attached is SHOWN, inside the user's own bubble: the card carries a pixmap
+    // label. The browser and extension render the same strip.
     {
       const auto before =
           transcript->findChildren<QFrame*>(QString(), Qt::FindDirectChildrenOnly);

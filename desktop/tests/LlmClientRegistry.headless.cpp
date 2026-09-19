@@ -24,9 +24,8 @@ namespace llmclient {
     check(names == expected, "registry op-name set == the contract's desktop surface");
     check(opRegistry().size() == 35, "one registry entry per OpKind (35)");
 
-    // The registry names agree with the opPlan parser: a KNOWN op with an
-    // unknown field fails the plan (an UNKNOWN op would only be skipped with
-    // a warning), so every registered name must be known to the parser.
+    // A KNOWN op with an unknown field fails the plan while an UNKNOWN op is only skipped with
+    // a warning, so every registered name must be known to the opPlan parser.
     bool allKnown = true;
     for (const OpDescriptor& e : opRegistry()) {
       const QString plan = QStringLiteral(

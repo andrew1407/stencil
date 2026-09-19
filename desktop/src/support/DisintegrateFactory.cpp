@@ -2,9 +2,8 @@
 
 namespace stencil::gui {
 
-  // `host` must outlive the play. nullptr = nothing worth animating, just remove it.
-  // 0 cols/rows/ms keep the defaults; `ink` lifts the grains towards the victim's text
-  // colour (a picture passes none — its grains are its own pixels).
+  // `host` must outlive the play. nullptr = nothing worth animating, just remove it. 0 cols/rows/ms
+  // keep the defaults; `ink` lifts the grains towards the victim's text colour.
   DisintegrateOverlay* DisintegrateOverlay::over(QWidget* victim, QWidget* host, Sweep sweep,
                                                  int cols, int rows, int ms, const QColor& ink) {
     if (!support::isDustAllowed()) return nullptr;
@@ -30,9 +29,8 @@ namespace stencil::gui {
   }
 
 
-  // For a delegate-painted row with no widget of its own; `rect` in `source` coordinates.
-  // A mass removal divides `dustCells` between its overlays — their per-frame cost is the
-  // SUM (browser motion.js scatterGridFor). `shot` lets a caller photograph before hiding.
+  // For a delegate-painted row with no widget of its own; `rect` in `source` coordinates. A mass
+  // removal divides `dustCells` between its overlays - the per-frame cost is the SUM (scatterGridFor).
   DisintegrateOverlay* DisintegrateOverlay::overRect(QWidget* source, const QRect& rect,
                                                      QWidget* host, Sweep sweep, bool dust,
                                                      int dustCells, int ms, const QColor& ink,
@@ -56,9 +54,8 @@ namespace stencil::gui {
   }
 
 
-  // For a style-painted glyph (a checkbox indicator): `particles` comes and goes, `base`
-  // is painted opaque underneath. `at` in host coordinates; `pad` widens the layer without
-  // moving the picture — a 16px control's motes leave its box at once.
+  // For a style-painted glyph (a checkbox indicator): `particles` comes and goes, `base` is painted
+  // opaque underneath. `at` in host coordinates; `pad` widens the layer without moving the picture.
   DisintegrateOverlay* DisintegrateOverlay::overPixmaps(const QPixmap& particles,
                                                         const QPixmap& base, const QRect& at,
                                                         QWidget* host, Sweep sweep, int cols,
@@ -92,9 +89,8 @@ namespace stencil::gui {
   }
 
 
-  // `picture`/`target` in HOST coordinates. `escapeHost`: a top-level surface's cloud may
-  // leave the host (placeForSurface); the docked chat and toasts want cropping instead.
-  // `alwaysEscape`: a window floating ABOVE the host would hide a child layer's motes.
+  // `picture`/`target` in HOST coordinates. `escapeHost`: a top-level surface's cloud may leave the
+  // host; `alwaysEscape`: a window floating ABOVE the host would hide a child layer's motes.
   DisintegrateOverlay* DisintegrateOverlay::overSurface(const QPixmap& snap,
                                                         const QRect& picture, QWidget* host,
                                                         const QPoint& target, bool gather,

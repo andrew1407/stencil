@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The chat composer's "…" was the last popup in the app that still hard-cut on both
-  // edges, and the Assistant window it raises grew out of nothing — its Settings item is
-  // gone by the time the window opens, so the anchor measured 0x0. Both now belong to the
-  // "…" TRIGGER, which is also what makes the window fall from above when the dock is
-  // shut: a hidden anchor is no anchor (modalReveal originRect).
+  // Both the composer's "…" popup and the Assistant window it raises fly to the "…" TRIGGER:
+  // its Settings item is gone by the time the window opens, so a hidden anchor is no anchor.
   void chatOverflowAndItsWindowFlyToTheDotsTrigger() {
     MainWindow win;
     win.resize(1400, 800);
@@ -33,18 +30,14 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(menu);
     const QPoint want = flightPointOf(moreBtn, &win);
 
-    // The menu's own dust is skipped offscreen by design (menuReveal revealPopup — the
-    // gui suite picks items the instant the popup lands), so what is checkable here is
-    // that BOTH edges are wired, and wired to the trigger. It is a repeat-show menu, so
-    // the one-shot MenuReveal would have been wrong; revealMenuFrom is what it gets.
+    // The menu's own dust is skipped offscreen by design (menuReveal revealPopup), so what is
+    // checkable is that BOTH edges are wired to the trigger, via repeat-show revealMenuFrom.
     auto* flight = menu->findChild<QObject*>(QStringLiteral("stencilMenuFlight"),
                                              Qt::FindDirectChildrenOnly);
     QVERIFY2(flight, "the … menu has no flight wired at all");
 
-    // It is four short labelled icons, NOT a menu-bar menu: the theme's gutters (24px
-    // left check reserve + 26px right shortcut slack) plus the shortcut column Qt
-    // reserves anyway left a visible gap after each glyph and a band of dead space down
-    // the right edge. compactIconMenu hugs the longest label instead.
+    // Four short labelled icons, NOT a menu-bar menu: the theme's 24px left check reserve and
+    // 26px right shortcut slack leave dead space, so compactIconMenu hugs the longest label.
     menu->popup(moreBtn->mapToGlobal(moreBtn->rect().bottomLeft()));
     QVERIFY(QTest::qWaitForWindowExposed(menu));
     settleLayout(menu, 30);
@@ -116,9 +109,8 @@ class MainWindowGuiTest : public QObject {
     QWidget* icon = win.buttonForAction(win.actChat_);
     QVERIFY2(icon && icon->isVisible(), "no chat icon to fly from");
     const QPoint iconPoint = flightPointOf(icon, &win);
-    // The flight is a cloud of the dock's own pixels inside the MAIN window, aimed at
-    // that icon: gathering out of it on the way in, scattering back into it on the way
-    // out. Both are the icon — the DIRECTION is what tells the two apart.
+    // The flight is a cloud of the dock's own pixels inside the MAIN window, aimed at that icon:
+    // gathering out of it going in, scattering back into it going out — direction tells them apart.
     win.actChat_->setChecked(false);          // close: the window comes apart into the icon
     QTRY_VERIFY(surfaceFlight(&win));
     auto* closing = surfaceFlight(&win);

@@ -33,9 +33,8 @@ namespace stencil::support {
   void revealWindow(QWidget& win, QWidget* anchor);
   void dismissWindow(QWidget& win, QWidget* anchor);
 
-  // Non-native picker centred on `parent`; Cancel → invalid QColor(). `preview` is called
-  // with every colour landed on, once more with `initial` on Cancel. `withAlpha` is
-  // opt-in: only CSS-stored colours (#rrggbbaa) can carry one; a tint or accent drops the byte.
+  // Non-native picker centred on `parent`; Cancel -> invalid QColor(). `preview` is called with every
+  // colour landed on. `withAlpha` is opt-in: only CSS-stored colours (#rrggbbaa) can carry one.
   QColor pickColorAnimated(const QColor& initial, QWidget* parent, const QString& title,
                            QWidget* anchor, const QRect& anchorRect = QRect(),
                            const std::function<void(const QColor&)>& preview = {},

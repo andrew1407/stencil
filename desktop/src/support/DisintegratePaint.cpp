@@ -2,9 +2,8 @@
 
 namespace stencil::gui {
 
-  // Colour comes from the palette by mix and hash, never the cell's own — the cell only
-  // said how much paint there was (`alpha`). Styles size by what is LEFT to `dest`
-  // (browser moteFrame).
+  // Colour comes from the palette by mix and hash, never the cell's own - the cell only said how
+  // much paint there was (`alpha`). Styles size by what is LEFT to `dest` (browser moteFrame).
   void DisintegrateOverlay::finishGrain(Mote* out, double alpha, bool glint, double w, int tint,
                                         double p, double away, double tx, double ty,
                                         bool fromFar, const QPointF& dest) const {

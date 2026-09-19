@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // §12.2: the save-chats toggle has to say who can READ a saved chat, right where it is
-  // offered. A server project's chat file carries the project's own access, so everyone
-  // the project is shared with can read a transcript of what the user asked for in their
-  // own words — which is not what "Save chats with projects" sounds like it promises.
-  // LlmSettingsForm is the single host of the toggle (both the full Settings sheet and
-  // the assistant-only dialog embed it), so checking the form covers both places.
+  // §12.2: the save-chats toggle has to say who can READ a saved chat, right where it is offered;
+  // a server project's chat file carries the project's own access. LlmSettingsForm is the host.
   void chatSaveDisclosureSitsAtTheToggle() {
     const stencil::gui::Settings defaults;
     stencil::gui::LlmSettingsForm form(defaults,
@@ -36,10 +32,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(tip.contains("shared with"), qPrintable("tooltip omits the sharing rule: " + tip));
     QVERIFY2(tip.contains("Local projects"), qPrintable("tooltip omits the local case: " + tip));
 
-    // …and the box it sits in reads as the NEXT row, not a hole in the form: the note used
-    // to hang off the outer column with no spacing of its own, well below the divider
-    // already under the checkbox (user report; browser has no such gap between its own
-    // .vs-checks row and .chat-cors-note).
+    // …and the box it sits in reads as the NEXT row, not a hole in the form (user report; the
+    // browser has no such gap between .vs-checks and .chat-cors-note).
     form.resize(420, form.sizeHint().height());
     form.show();
     QVERIFY(QTest::qWaitForWindowExposed(&form));
@@ -51,10 +45,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The chat header reads as chrome, not an accent badge: the "Assistant" label and its
-  // mark take the theme text colour, and the CURRENT placement button is an accent glyph on
-  // a container chip — the browser's .chat-dock-btn-active { color: accent; background:
-  // var(--bg-container) }, not a filled accent square.
+  // The chat header reads as chrome, not an accent badge: the "Assistant" label and its mark take
+  // the theme text colour, and the current placement button is the browser's .chat-dock-btn-active.
   void chatHeaderMatchesTheBrowserChrome() {
     MainWindow win;
     win.resize(1400, 800);
@@ -85,9 +77,8 @@ class MainWindowGuiTest : public QObject {
                qPrintable("the active placement button is still accent-filled: " + qss));
     }
     QVERIFY2(sawActive, "no placement button is marked active");
-    // The glyph must actually FILL its chip. The app-wide QToolButton rule pads 5x7 and
-    // reserves a border, which inside a fixed 23px button squeezed the 13px mark down to
-    // ~4px — half the browser's, and the reason the row read as murky.
+    // The glyph must actually FILL its chip: the app-wide QToolButton rule pads 5x7 and reserves a
+    // border, which inside a fixed 23px button squeezed the 13px mark down to ~4px.
     {
       QWidget* bar = dock->findChild<QWidget*>("chatTitleBar");
       QVERIFY(bar);
@@ -128,10 +119,8 @@ class MainWindowGuiTest : public QObject {
     }
   }
 
-  // §10 chatPanel: the assistant panel's OWN placement, driven by a plan — "put the
-  // chat on the right and open it" is a thing users ask for out loud, hands-free
-  // (browser opPlan.js chatPanel parity). The plan runs through the real parser and
-  // executor, so this pins the whole path, not the target method alone.
+  // §10 chatPanel: the assistant panel's own placement, driven by a plan (browser opPlan.js
+  // chatPanel parity), run through the real parser and executor, not the target method alone.
   void chatPanelOpDocksAndOpensThePanel() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);

@@ -1,12 +1,8 @@
-// Server-connected headless check for ProjectTransferController (src/app/projectTransferController).
-// Drives the REAL extracted controller against a running Stencil collaboration server: it builds a
-// local project (a tiny on-disk PNG), then exercises copyLocalProjectToServer + moveLocalProjectToServer
-// and asserts, over the server's REST list, that the project actually landed on the server — and that
-// COPY leaves the local project in place while MOVE removes it. Cleans up the server projects + temp file.
-//
-// SELF-SKIPS (exit 0) when no server is reachable, like the gated store/bus tests: point it at one with
-// STENCIL_TEST_SERVER (default http://localhost:8090). Built only when Qt is present (Qt-coupled, like the
-// other *.headless tests); not part of the Qt-free core stencil_tests.
+// Server-connected headless check for ProjectTransferController (src/app/projectTransferController): it
+// builds a local project, exercises copyLocalProjectToServer + moveLocalProjectToServer against a
+// running Stencil server, and asserts over the REST list that the project landed — COPY leaving the
+// local one in place, MOVE removing it. SELF-SKIPS (exit 0) with no server; point it at one with
+// STENCIL_TEST_SERVER (default http://localhost:8090). Built only when Qt is present.
 #include "ProjectTransferController.hpp"
 #include "ServerClient.hpp"
 #include "CanvasWidget.hpp"
@@ -103,9 +99,8 @@ int main(int argc, char** argv) {
 
   QVector<QString> createdServerIds;  // for cleanup
 
-  // The controller is now fully async, so the test drives the event loop. `listServer` issues an
-  // async list and pumps until it resolves; `waitFor` retries a predicate (re-listing each pass)
-  // until true or a timeout, giving the async transfer chain time to land on the server.
+  // The controller is fully async, so the test drives the event loop: `listServer` issues an async list
+  // and pumps until it resolves; `waitFor` re-lists each pass until its predicate holds or it times out.
   auto listServer = [&]() {
     auto ready = std::make_shared<bool>(false);
     auto out = std::make_shared<QVector<stencil::net::ServerProject>>();

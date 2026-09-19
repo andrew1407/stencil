@@ -28,10 +28,9 @@ namespace stencil::gui {
       applyBubbleWidths();
       positionJumpButtons();
     }
-    // (The per-card "⋯" hover/placement lives in the shared ChatCardMore watcher
-    // now — installChatCardMenu attaches one per card, on both surfaces.)
-    // Jump pills: translucent at rest, full opacity under the cursor.
-    if ((obj == jumpTop_ || obj == jumpBottom_) &&
+    // The per-card "..." hover/placement lives in the shared ChatCardMore watcher, one per card on
+    // both surfaces. Jump pills: translucent at rest, full opacity under the cursor.
+    if ((obj == log_.jumpTop || obj == log_.jumpBottom) &&
         (event->type() == QEvent::Enter || event->type() == QEvent::Leave)) {
       auto* pill = static_cast<QToolButton*>(obj);
       auto* fx = qobject_cast<QGraphicsOpacityEffect*>(pill->graphicsEffect());
@@ -41,16 +40,15 @@ namespace stencil::gui {
       const QColor glyph = event->type() == QEvent::Enter
           ? (textCache_.isValid() ? textCache_ : palette().color(QPalette::Text))
           : (mutedCache_.isValid() ? mutedCache_ : palette().color(QPalette::PlaceholderText));
-      pill->setIcon(themedIcon(pill == jumpTop_ ? "chevron-up" : "chevron-down", glyph, 14));
+      pill->setIcon(themedIcon(pill == log_.jumpTop ? "chevron-up" : "chevron-down", glyph, 14));
     }
     // The composer IS the drop target (the dock itself declines drops)
-    if (obj == inputArea_) {
-      // The cue and the attach belong to the INPUT BOX only (browser parity): a
-      // drag over the composer's buttons or chips neither lights the cue nor
-      // attaches — that drop falls through to the dock, which swallows it.
+    if (obj == log_.inputArea) {
+      // The cue and the attach belong to the INPUT BOX only (browser parity): a drag over the composer's
+      // buttons or chips neither lights the cue nor attaches - that drop falls through to the dock.
       const auto overInput = [this](const QPointF& p) {
         if (!input_ || !input_->isVisible()) return true;
-        return QRect(input_->mapTo(inputArea_, QPoint(0, 0)), input_->size())
+        return QRect(input_->mapTo(log_.inputArea, QPoint(0, 0)), input_->size())
             .contains(p.toPoint());
       };
       switch (event->type()) {
@@ -81,16 +79,15 @@ namespace stencil::gui {
         }
         case QEvent::Resize:
           // The cue tracks the input's box as the composer resizes (never consumed).
-          if (dropCue_ && dropCue_->isVisible()) showDropCue(true);
+          if (cmp_.dropCue && cmp_.dropCue->isVisible()) showDropCue(true);
           break;
         default:
           break;
       }
     }
-    // Title-bar press starts the drag POLL (never consumed — Qt's own dock
-    // drag runs on the same press). Tracking is poll-based because the native
-    // floating-window drag swallows the subsequent move/release events.
-    if (obj == titleBar_) {
+    // Title-bar press starts the drag POLL (never consumed - Qt's own dock drag runs on the same
+    // press). Poll-based because the native floating-window drag swallows the move/release events.
+    if (obj == chrome_.titleBar) {
       /* Browser parity (ui/chatDock.js): the compact popover's bar DRAGS like any other, and
        * the drag adopts the layout — titleDragStarted clears the compact flag, so what moves
        * is a float the user chose, not a popover still pinned to its icon. Only the
@@ -103,21 +100,19 @@ namespace stencil::gui {
           startDragPoll();
         return QDockWidget::eventFilter(obj, event);
       }
-      // Real input: drive the drag ourselves and CONSUME the events so Qt never starts its own move.
-      // Qt's floating-dock drag becomes a window-server move on macOS, which swallows the release — the
-      // drop then never resolves and nothing docks.
+      // Drive the drag ourselves and CONSUME the events so Qt never starts its own move: Qt's
+      // floating-dock drag becomes a window-server move on macOS, which swallows the release.
       switch (event->type()) {
         case QEvent::MouseButtonPress: {
           auto* me = static_cast<QMouseEvent*>(event);
           if (me->button() != Qt::LeftButton) break;
           manualDrag_ = true;
           manualDragging_ = false;
-          titleBar_->setCursor(Qt::OpenHandCursor);   // drag ended — back to "grab me"
+          chrome_.titleBar->setCursor(Qt::OpenHandCursor);   // drag ended — back to "grab me"
           dragStartCursor_ = me->globalPosition().toPoint();
-          // Explicit grab: once the cursor leaves the bar the moves would
-          // otherwise be delivered to whatever is underneath, and the drag
-          // (and its zones) would never start.
-          titleBar_->grabMouse();
+          // Explicit grab: once the cursor leaves the bar the moves would be delivered to whatever is
+          // underneath, and the drag (and its zones) would never start.
+          chrome_.titleBar->grabMouse();
           return true;
         }
         case QEvent::MouseMove: {
@@ -127,7 +122,7 @@ namespace stencil::gui {
             if ((g - dragStartCursor_).manhattanLength() < QApplication::startDragDistance())
               return true;
             manualDragging_ = true;
-            titleBar_->setCursor(Qt::ClosedHandCursor);
+            chrome_.titleBar->setCursor(Qt::ClosedHandCursor);
             setNativeDockingSuppressed(true);
             if (!isFloating()) {
               // Tear off under the cursor, at the compact float default —
@@ -150,8 +145,8 @@ namespace stencil::gui {
           const QPoint g = static_cast<QMouseEvent*>(event)->globalPosition().toPoint();
           const bool dragged = manualDragging_;
           manualDrag_ = manualDragging_ = false;
-          titleBar_->setCursor(Qt::OpenHandCursor);   // drag ended — back to "grab me"
-          titleBar_->releaseMouse();
+          chrome_.titleBar->setCursor(Qt::OpenHandCursor);   // drag ended — back to "grab me"
+          chrome_.titleBar->releaseMouse();
           setNativeDockingSuppressed(false);   // dock AFTER the restore
           if (dragged) {
             dragActive_ = false;
@@ -172,9 +167,8 @@ namespace stencil::gui {
         if (attachFromMimeData(QGuiApplication::clipboard()->mimeData())) return true;
         return QDockWidget::eventFilter(obj, event);
       }
-      // Word delete, spelled out rather than left to the platform's standard-key table: ⌥⌫ is
-      // what people press here, and Qt's mapping for it varies by platform (on this one it
-      // arrived as a plain Backspace and ate a single character). ⌥⌦ deletes forward.
+      // Word delete, spelled out rather than left to the platform's standard-key table: Qt's mapping
+      // for it varies by platform (here it arrived as a plain Backspace and ate one character).
       if ((ke->key() == Qt::Key_Backspace || ke->key() == Qt::Key_Delete) &&
           (ke->modifiers() & (Qt::AltModifier | Qt::ControlModifier))) {
         const auto toward = ke->key() == Qt::Key_Backspace ? QTextCursor::PreviousWord

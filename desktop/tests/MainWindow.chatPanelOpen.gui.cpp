@@ -8,14 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The two chat surfaces render the SAME transcript across a §7 continuation, warnings, an
-  // error card, a late note — and a §12 restore of the saved conversation. The panel replays
-  // what the DOCK displayed, never chatHistory_: that is the model's view, carrying the
-  // continuation note ("[The working image is now …]") and the interim reply the dock
-  // deliberately never showed, so restoring it verbatim put internal text on screen (and
-  // only on the surface that replayed it, once the two were fed from different places).
-  // Run once with both surfaces up from the start, the way the report had them, and once
-  // with the panel created LATE — the lazy replay is where the two used to diverge.
+  // The two chat surfaces render the SAME transcript across a §7 continuation, warnings, an error
+  // card, a late note and a §12 restore: the panel replays the DOCK's view, never chatHistory_.
   void chatPanelAndDockAgreeHoweverThePanelOpens() {
     for (const bool panelOpensLate : {false, true}) {
       MainWindow win(nullptr, false);
@@ -43,9 +37,8 @@ class MainWindowGuiTest : public QObject {
       };
       if (!panelOpensLate) showPanel();
 
-      // Every CARD, in order: its kind plus every text it shows (body + the notes
-      // riding inside it). Comparing this catches a missing row, an extra row, a
-      // note rendered as its own card, and a differing body — all at once.
+      // Every CARD in order: its kind plus every text it shows (body + the notes riding inside it), so
+      // one comparison catches a missing row, an extra row, a note as its own card, and a wrong body.
       const auto cardsOf = [](QWidget* surface) {
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         QStringList out;
@@ -143,9 +136,8 @@ class MainWindowGuiTest : public QObject {
       win.chatLateNote(QStringLiteral("The layout self-check kept the lines."));
       win.chatNote(QStringLiteral("This model is text-only — the image was not sent."));
       same("late notes");
-      // …while the attachment cap is a TOAST (browser parity: notify(…, 'info')), not a
-      // transcript card: neither surface grows a row, the window's stack shows the line in
-      // the accent (never the danger red), and a batch's repeated hits fold into one toast.
+      // …while the attachment cap is a TOAST (browser parity: notify(…, 'info')), not a transcript
+      // card: no row on either surface, the line in the accent, and a batch folds into one toast.
       const int dockRows = cardsOf(win.chatDock_).size();
       win.chatDock_->warnAttachmentCap();
       win.chatDock_->warnAttachmentCap();

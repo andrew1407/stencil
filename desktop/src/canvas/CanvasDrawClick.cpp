@@ -6,9 +6,8 @@
 
 namespace stencil::gui {
 
-  // Would a point placed at `ip` close the stroke being drawn? If so, close it into a
-  // locked area and report it. The one close route: the click path and hold-to-draw both
-  // come here. Browser twin: drawingApp.js tryCloseShapeAt.
+  // The one close route: the click path and hold-to-draw both come here.
+  // Browser twin: drawingApp.js tryCloseShapeAt.
   bool CanvasWidget::tryCloseShapeAt(const core::Point& ip) {
     if (!isDrawing_) return false;
     if (continueLineIdx_ >= 0 && continueLineIdx_ < static_cast<int>(lines_.size())) {
@@ -21,9 +20,8 @@ namespace stencil::gui {
     if (!core::shouldCloseShape(currentLine_.points, ip, closeGrabSize(currentLine_))) return false;
     currentLine_.points.push_back(currentLine_.points.front());
     currentLine_.locked = true;
-    // Finishing a shape ends exactly like finishing an ordinary line: the stroke is
-    // committed and NOTHING is selected — no selected-line bar pops up over the picture
-    // you just drew (browser drawingApp.js #closeShape).
+    // Finishing a shape ends like finishing an ordinary line: committed, NOTHING selected
+    // (browser drawingApp.js #closeShape).
     stopDrawingMode();
     emit changed();
     return true;
@@ -32,9 +30,8 @@ namespace stencil::gui {
   void CanvasWidget::handleDrawingClick(const core::Point& ip,
                                         Qt::KeyboardModifiers mods,
                                         const QPoint& widgetPos) {
-    // rect-draw press (browser pointerController.js startPan). Picking the rect tool is
-    // the intent, so the press turns drawing on itself — it has no hold-to-draw flow to
-    // fall back on (that one refuses in rect mode).
+    // rect-draw press (browser pointerController.js startPan). Picking the rect tool is the intent,
+    // so the press turns drawing on itself - it has no hold-to-draw flow to fall back on.
     if (drawMode_ == DrawMode::RECT && mods == Qt::NoModifier) {
       if (!isDrawing_) startDrawingMode();
       if (!isDrawing_) return;   // declined (no image / read-only) — nothing to sweep
@@ -55,9 +52,8 @@ namespace stencil::gui {
     // (browser drawingApp.js ~1182).
     if (drawMode_ == DrawMode::RECT) return;
 
-    // Continuation drawing: extend the line being continued (drawingApp.js canvasClick
-    // continuation branch ~1201). A click on the stroke's first point closes it into a
-    // locked area — whichever stroke is being drawn, continued or fresh.
+    // Continuation drawing (drawingApp.js canvasClick continuation branch): a click on the stroke's
+    // first point closes it into a locked area, whichever stroke is being drawn.
     if (tryCloseShapeAt(ip)) return;
 
     if (continueLineIdx_ >= 0 &&

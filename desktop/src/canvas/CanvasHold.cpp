@@ -38,9 +38,8 @@ namespace stencil::gui {
     else if (ev.action == core::HoldAction::DROP) holdDrop(ev.x, ev.y);
   }
 
-  // Hold completed → auto-enter drawing and seed the stroke. The target under the
-  // press decides: existing point → continue that line; line body → insert a point
-  // there then continue; empty → fresh line.
+  // The target under the press decides: existing point -> continue that line; line body -> insert
+  // a point there then continue; empty -> fresh line.
   void CanvasWidget::holdStart(double widgetX, double widgetY) {
     const core::Point ip{widgetX / scale_, widgetY / scale_};
     const core::HoldTarget t = core::holdDrawTarget(lines_, ip.x, ip.y);
@@ -84,9 +83,8 @@ namespace stencil::gui {
   // Dwell completed → drop a point (extends the in-progress / continued line).
   void CanvasWidget::holdDrop(double widgetX, double widgetY) {
     const core::Point ip{widgetX / scale_, widgetY / scale_};
-    // Resting on the stroke's FIRST point closes it, exactly as clicking there does. The
-    // shape is committed, so the gesture is over: end it rather than dropping more points
-    // into a stroke that no longer exists.
+    // Resting on the stroke's FIRST point closes it, as clicking there does. The shape is committed,
+    // so the gesture is over: end it rather than dropping more points into a dead stroke.
     if (tryCloseShapeAt(ip)) {
       stopHold();
       emit selectionChanged();

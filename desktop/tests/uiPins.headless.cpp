@@ -1,14 +1,8 @@
-// Appearance pins for the desktop app — a regression net for refactors that must not
-// change a single rendered pixel. Two independent pins:
-//   1. the app stylesheet (theme.cpp buildStylesheet) hashed for every dark × accent
-//      combination into tests/pins/stylesheets.txt — proof that moving the QSS out to a
-//      .qss resource kept it byte-exact;
-//   2. twelve rendered states — eight off one real MainWindow, four standalone dialogs —
-//      grabbed at devicePixelRatio 1 AND 2 and diffed against tests/pins/<platform>/*.png,
-//      with a small tolerance for antialiasing noise.
-// Baselines are per platform (fonts and native metrics differ) — a platform with none
-// SKIPS the image half rather than failing. Rewrite them with STENCIL_UPDATE_UI_PINS=1.
-// Offscreen; STENCIL_NO_ANIM=1 keeps every reveal off so the grabs are settled.
+// Appearance pins for the desktop app — a regression net for refactors that must not change a rendered
+// pixel: the app stylesheet (theme.cpp buildStylesheet) hashed for every dark × accent combination into
+// tests/pins/stylesheets.txt, and twelve rendered states grabbed at devicePixelRatio 1 AND 2 and diffed
+// against tests/pins/<platform>/*.png with a small tolerance for antialiasing noise. Baselines are per
+// platform, and one with none SKIPS the image half. Rewrite them with STENCIL_UPDATE_UI_PINS=1.
 #include "fileStore.hpp"
 #include "theme.hpp"
 #include "uiPins.states.hpp"

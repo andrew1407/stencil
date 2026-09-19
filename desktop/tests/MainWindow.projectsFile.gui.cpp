@@ -50,9 +50,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Live sync: a project linked to a .stencil with live-sync ON auto-saves edits back to the
-  // file (debounced). Drives openProjectFile linking → the "Live Sync with File" toggle →
-  // an edit → onCanvasChanged → scheduleStencilAutosave → flushStencilAutosave writing the file.
+  // Live sync: a project linked to a .stencil with live-sync ON auto-saves edits back to the file,
+  // debounced — openProjectFile linking → the toggle → an edit → scheduleStencilAutosave → flush.
   void liveSyncAutosavesEditsToFile() {
     QByteArray png;
     { QFile f(guiTestImage()); QVERIFY(f.open(QIODevice::ReadOnly)); png = f.readAll(); }
@@ -102,9 +101,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Deleting the linked .stencil file removes it from disk and unlinks the project (the live-sync
-  // + delete actions disable), while the project stays open in the canvas. Drives openProjectFile
-  // linking → the "Delete Project File (.stencil)" action → the confirm (auto-clicked "Delete").
+  // Deleting the linked .stencil removes it from disk and unlinks the project (the live-sync and
+  // delete actions disable), while the project stays open in the canvas.
   void deletesLinkedProjectFile() {
     QByteArray png;
     { QFile f(guiTestImage()); QVERIFY(f.open(QIODevice::ReadOnly)); png = f.readAll(); }

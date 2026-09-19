@@ -22,9 +22,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The dialog OPENS at the browser's own floor (openImage.css min-height 430) and centred
-  // on its parent: the three tabs' own hints come to barely 280px, and Qt centres a window
-  // at the size it had before the first-show measurement grew it.
+  // The dialog OPENS at the browser's own floor (openImage.css min-height 430) and centred on its
+  // parent: the three tabs' hints come to barely 280px, and Qt centres at the pre-measurement size.
   void openImageOpensAtTheBrowsersFloorAndCentred() {
     MainWindow win(nullptr, false);
     win.resize(1250, 900);
@@ -48,9 +47,8 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("off its parent's centre by (%1,%2)").arg(dx).arg(dy)));
   }
 
-  // Each source tab owns its OWN crop choice and its own picture: ticking Crop on the URL
-  // tab must not leave that tab's cropped image standing on the Local tab, which has no
-  // source at all (browser twin: tabCrop + resetPreviewState dropping the stage).
+  // Each source tab owns its OWN crop choice and its own picture: ticking Crop on the URL tab must not
+  // leave that tab's cropped image on the Local tab (browser twin: tabCrop + resetPreviewState).
   void cropAndItsStageBelongToTheTabThatMadeThem() {
     MainWindow win(nullptr, false);
     win.resize(1250, 980);
@@ -96,11 +94,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(cropRestored, "…and coming back must restore that tab's own choice");
   }
 
-  // ONE control, not a button beside a field: the accent CTA butted straight against the
-  // path readout inside a single outlined box (browser twin: .oi-file). Both halves must
-  // sit in that box, in that order, with no seam — a gap, or the readout leading, is the
-  // two-control shape this replaced. The read-only half still opens the chooser, so it has
-  // to read as live rather than as a field that ignores the pointer.
+  // ONE control, not a button beside a field: the accent CTA butted against the path readout inside a
+  // single outlined box (browser .oi-file), in that order, no seam — and the readout still opens it.
   void chooseAndItsPathReadoutAreOneOutlinedControl() {
     MainWindow win(nullptr, false);
     win.resize(1250, 900);

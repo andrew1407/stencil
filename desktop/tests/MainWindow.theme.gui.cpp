@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The logo's hover fx (browser animations.css logoPulse / logoRaysSpin parity):
-  // hovering the mark shows a window-level overlay that owns the pixels (the button
-  // icon blanks so the pulsing copy never doubles a static one), the loop genuinely
-  // ADVANCES, and leaving stops every animation (no idle timers) and hands the icon
-  // back. The overlay is larger than the button — glow + rays paint in a margin
-  // around it, never by resizing the toolbar row.
+  // The logo's hover fx (browser logoPulse / logoRaysSpin parity): a window-level overlay owns the
+  // pixels, the loop genuinely ADVANCES, and leaving stops every animation and hands the icon back.
   void logoHoverFxPulsesWhileHoveredOnly() {
     const auto motion = withMotion();   // the loop honours motionReduced(), which is on here
     MainWindow win(nullptr, /*restoreLast=*/false);
@@ -32,9 +28,8 @@ class MainWindowGuiTest : public QObject {
           if (qAlpha(im.pixel(x, y)) != 0) return false;
       return true;
     };
-    // The overlay now paints the mark at ALL times (a QToolButton draws its icon half
-    // size on Retina), so at rest it is VISIBLE but NOT animating, and the button icon is
-    // blanked — the overlay owns the pixels. Only the pulse/rays are hover-gated.
+    // The overlay paints the mark at ALL times (a QToolButton draws its icon half size on Retina), so at
+    // rest it is VISIBLE but not animating and the button icon is blank. Only pulse/rays are hover-gated.
     QVERIFY2(fx->isVisible(), "the fx paints the resting mark");
     QVERIFY(!fx->property("fxActive").toBool());
     QVERIFY2(iconBlank(), "the overlay owns the mark at rest (button icon blanked)");
@@ -63,10 +58,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(iconBlank(), "the overlay keeps the mark after leave (button icon stays blanked)");
   }
 
-  // Browser parity: the accent popover the logo opens is part of the logo's hover —
-  // the shine holds while the cursor crosses the anchor gap onto it and while it rests
-  // there, starts from a hover that begins on the popover, and stops only once the
-  // cursor has left both.
+  // Browser parity: the accent popover the logo opens is part of the logo's hover — the shine holds
+  // across the anchor gap and while the cursor rests there, and stops only once it has left both.
   void logoHoverFxHoldsOverAccentPopover() {
     const auto motion = withMotion();
     MainWindow win(nullptr, /*restoreLast=*/false);

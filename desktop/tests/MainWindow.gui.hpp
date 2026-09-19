@@ -136,9 +136,8 @@ namespace stencil::guitest {
     if (ok && ms > 0) QTest::qWait(ms);
   }
 
-  // Arm BEFORE triggering an action that blocks on a confirmation (QMessageBox or the
-  // chrome-styled confirmModal): it polls until a modal CARRYING that button appears — an
-  // unrelated modal it may sit over is skipped, not clicked — and answers it.
+  // Arm BEFORE triggering an action that blocks on a confirmation: it polls until a modal CARRYING
+  // that button appears — an unrelated modal it may sit over is skipped, not clicked — and answers it.
   inline void dismissModal(const QString& buttonText) {
     QTimer::singleShot(0, [buttonText]() {
       for (int i = 0; i < 200; ++i) {
@@ -165,9 +164,8 @@ namespace stencil::guitest {
   // from ending the shared QApplication with it.
   inline void prepareGuiTestCase() {
     qApp->setQuitOnLastWindowClosed(false);
-    // Write the defaults out before any case runs: a state dir that has never been
-    // written leaves every unset key at whatever the loader defaults to THIS run, so a
-    // first run and a second run of the same binary were not the same UI.
+    // Write the defaults out before any case runs: a state dir that has never been written leaves every
+    // unset key at whatever the loader defaults to THIS run, so two runs of the binary differ.
     stencil::gui::fileStore::saveSettings(stencil::gui::fileStore::loadSettings());
     QImage img(240, 160, QImage::Format_RGB32);
     img.fill(Qt::white);
@@ -175,9 +173,8 @@ namespace stencil::guitest {
     QVERIFY(img.save(guiTestImage(), "PNG"));
   }
 
-  // The suite runs with STENCIL_NO_ANIM=1, and a case that moves that pin either way must
-  // put back what it found — otherwise the next case's waits race a flight that should not
-  // be playing. One guard for both directions, so a case can pin it from a loop variable.
+  // The suite runs with STENCIL_NO_ANIM=1, and a case that moves that pin either way must put back
+  // what it found, or the next case's waits race a flight. One guard for both directions.
   inline auto motionPinned(bool on) {
     const QByteArray had = qgetenv("STENCIL_NO_ANIM");
     if (on) qunsetenv("STENCIL_NO_ANIM"); else qputenv("STENCIL_NO_ANIM", "1");

@@ -70,9 +70,8 @@ namespace stencil::gui {
     return {};
   }
 
-  // Download a server project's preview without blocking: rendered `result` →
-  // `original` → the `source` web URL. Downloads bind to the connection's network
-  // manager (which outlives this dialog), so a QPointer guards every callback.
+  // Preview fallback order: rendered `result` -> `original` -> the `source` web URL. Downloads bind
+  // to the connection's network manager, which outlives this dialog, so a QPointer guards callbacks.
   void ProjectsDialog::fetchServerThumbAsync(const QString& key,
                                              const stencil::net::ServerProject& sp) {
     if (thumbInFlight_.contains(key)) return;  // already downloading this version
@@ -122,9 +121,8 @@ namespace stencil::gui {
     thumbInFlight_.insert(key);
     const QString id = sp.id;
     const QString serverUrl = sp.serverUrl;
-    // This URL rides in on a SHARED project record, so it is untrusted: the STRICT guard,
-    // a capped body and no redirect. `this` as context, so nothing fires into a dead
-    // dialog; a refusal caches like any other miss, and is never retried.
+    // This URL rides in on a SHARED project record, so it is untrusted: the STRICT guard, a capped
+    // body, no redirect. A refusal caches like any other miss, and is never retried.
     fetchGuard::get(this, u, /*strict=*/true,
                     [this, key, id, serverUrl](const QByteArray& bytes, const QString&) {
                       thumbInFlight_.remove(key);

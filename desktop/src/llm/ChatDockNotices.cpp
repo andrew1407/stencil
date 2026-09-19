@@ -13,9 +13,8 @@
 namespace stencil::gui {
 
   using namespace chatdock;
-  // A one-click Retry inside a card: re-sends exactly `retryText` through the owner's
-  // normal send path (never auto-retried; the owner ignores it mid-turn). Icon-only —
-  // a labelled button inside the bubble reads as part of the message.
+  // A one-click Retry inside a card: re-sends exactly `retryText` through the owner's normal send
+  // path (never auto-retried). Icon-only - a labelled button reads as part of the message.
   void ChatDock::appendError(const QString& text, const QString& retryText) {
     addRetryButton(appendCard("Error", text, CardKind::ERROR), retryText);
   }
@@ -64,9 +63,8 @@ namespace stencil::gui {
   }
 
   void ChatDock::appendLateNote(const QString& text) {
-    // Anything the turn has to say about its own reply reports INTO that reply's
-    // bubble (a separate card read as a second assistant message); falls back to
-    // a plain note with no bubble.
+    // Anything the turn has to say about its own reply reports INTO that reply's bubble (a separate
+    // card read as a second assistant message); falls back to a plain note with no bubble.
     if (lastAssistantCard_) {
       if (auto* lay = qobject_cast<QVBoxLayout*>(lastAssistantCard_->layout())) {
         auto* note = makePlainLabel(text, lastAssistantCard_);

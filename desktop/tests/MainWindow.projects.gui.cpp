@@ -9,11 +9,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Two project actions the shared hotkeysConfig.json now carries: the trash reads
-  // "Remove" and answers Ctrl+Alt+R, and Ctrl+Alt+N opens the toolbar name field for
-  // inline editing — the keyboard route to the ✎ the browser grew at the same time.
-  // (shareImage is in that config too, and this app answers it wherever the OS shares —
-  // see shareButtonOnlyWhereTheOsShares.)
+  // Two project actions the shared hotkeysConfig.json carries: the trash reads "Remove" and answers
+  // Ctrl+Alt+R, and Ctrl+Alt+N opens the toolbar name field for inline editing.
   void projectRemoveAndRenameShortcuts() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1200, 800);
@@ -44,10 +41,8 @@ class MainWindowGuiTest : public QObject {
     win.cancelProjectName();
   }
 
-  // An incognito session could be published to a SERVER but never kept locally, so the
-  // assistant's `save` — and "make this a normal project" — dead-ended in "incognito mode —
-  // saving is disabled", stranding the picture in a session that could not be saved at all.
-  // Incognito stops the app writing BY ITSELF; an explicit save is the user, not the app.
+  // Incognito stops the app writing BY ITSELF; an explicit save is the user, not the app — so `save`
+  // promotes the session to a local project instead of dead-ending in "saving is disabled".
   void incognitoPromotesToALocalProjectInsteadOfRefusing() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -107,9 +102,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The trash "Clear Project" action (mirrors the browser #clear-storage button) is
-  // visible for a local editor, confirms, and — on Yes — resets to the empty
-  // "Open an image" canvas. The confirm reuses the modal-dismiss helper.
+  // The trash "Clear Project" action (mirrors the browser #clear-storage button) is visible for a
+  // local editor, confirms, and on Yes resets to the empty "Open an image" canvas.
   void clearProjectResetsToBlankEditor() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -126,10 +120,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Regression: Remove used to CLOSE the projects dialog before its confirm (the box was
-  // shown by MainWindow after exec() returned) and left it closed — the user lost their
-  // place. Now the ⋯-menu Remove confirms in-dialog (deferred a turn, drag-release safe):
-  // No keeps the row and the dialog; Yes removes the project while the dialog stays open.
+  // The ⋯-menu Remove confirms IN-DIALOG (deferred a turn, drag-release safe) and the dialog stays
+  // open: No keeps the row, Yes removes the project — the user never loses their place.
   void projectsRemoveConfirmsInDialogAndStaysOpen() {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog gestures need the offscreen platform");

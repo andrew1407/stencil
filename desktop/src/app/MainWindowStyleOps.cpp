@@ -47,8 +47,7 @@ namespace stencil::gui {
   }
 
   // One apply path for toolbar + context-menu twins. Setting an exclusive QAction's checked state
-  // emits toggled(), not triggered(), so no re-entry.
-  // Transient view state, not persisted.
+  // emits toggled(), not triggered(), so no re-entry. Transient view state, not persisted.
   void MainWindow::setCompareModeUi(const QString& mode) {
     canvas_->setCompareMode(mode);
     if (compareCombo_) {

@@ -86,9 +86,8 @@ namespace stencil::gui {
           return a.isValid() ? a : QColor("#7c3aed");
         });
     headerToolbar_->addWidget(logoBtn_);
-    // Routes through actToolbars_ so the View entry + Alt+C stay in sync.
-    // ControlsPill paints its own chevron + label: a stock icon+text QToolButton reserves ~36px
-    // for the icon slot.
+    // Routes through actToolbars_ so the View entry + Alt+C stay in sync. ControlsPill paints its
+    // own chevron + label: a stock icon+text QToolButton reserves ~36px for the icon slot.
     controlsPill_ = new ControlsPill(this);
     controlsPill_->setObjectName("controlsPill");   // outlined pill, styled in theme.cpp
     // The chevron's angle is state, not hover feedback — the browser's `[id^="toggle-"]` icon-

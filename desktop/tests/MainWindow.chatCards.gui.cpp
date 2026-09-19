@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A chat card arrives the way a toast does: its dust gathers into place out of a point off
-  // the side it sits against, while the bubble is held back behind the motes (which side is
-  // chatCardDustArrivesFromTheCardsOwnSide's job — this is that it flies at all). Browser
-  // twin: motion.js chatIn. The context menu's assistant panel is the third chat surface on
-  // this front-end and mirrors the dock's transcript, so a row arriving there is an arrival
-  // too (ChatMenuPanel::gatherRow, the dock's animateCardIn in miniature).
+  // A chat card arrives the way a toast does: its dust gathers out of a point off the side it
+  // sits against, the bubble held behind the motes (browser twin: motion.js chatIn).
   void chatCardsArriveOutOfDustOnEverySurface() {
     const auto motion = withMotion();   // the suite runs with STENCIL_NO_ANIM on
     const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
@@ -32,9 +28,8 @@ class MainWindowGuiTest : public QObject {
         win.actChat_->setChecked(true);
         QTRY_VERIFY(win.chatDock_->isVisible());
       }
-      // A dock card's cloud is a SURFACE flight parented to the window; the panel gathers
-      // its rows inside itself. A row counts as a card on either surface: the dock's carry a
-      // "chatCard…" object name, the panel's mirrored rows the "chatMoreBtn" property.
+      // A dock card's cloud is a SURFACE flight parented to the window; the panel gathers its rows
+      // inside itself. Dock rows carry a "chatCard…" name, panel rows the "chatMoreBtn" property.
       const auto dust = [&win, panel, DUST] {
         return panel ? win.chatMenuPanel_->findChild<QWidget*>(DUST)
                      : win.findChild<QWidget*>(DUST);
@@ -50,9 +45,8 @@ class MainWindowGuiTest : public QObject {
       };
       QTRY_VERIFY_WITH_TIMEOUT(!dust(), stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
 
-      // The message you send, the "…" holding the turn, the reply, and a failure — every one
-      // of them is a card appearing, so every one of them gathers. The panel is fed the same
-      // turn through the mirror instead, which is the only way a row reaches it.
+      // Every card appearing gathers: the sent message, the "…" holding the turn, the reply and a
+      // failure. The panel is fed the same turn through the mirror, its only route for a row.
       QVector<std::function<void()>> appends;
       if (panel) {
         appends = {[&win] {
@@ -71,15 +65,13 @@ class MainWindowGuiTest : public QObject {
       }
       for (const auto& append : appends) {
         append();
-        // The grab is deferred (appendTranscriptCard hands the caller an EMPTY card — the
-        // dust has to be a photograph of the FINISHED bubble, laid out at its real width),
-        // so the cloud shows up a beat later, not in this tick.
+        // The grab is deferred — the dust must be a photograph of the FINISHED bubble at its real
+        // width — so the cloud shows up a beat later, not in this tick.
         QTRY_VERIFY_WITH_TIMEOUT(dust() != nullptr, 3000);
         QFrame* card = rows().isEmpty() ? nullptr : rows().last();
         QVERIFY(card);
-        // Held FULLY hidden while the motes fly — they ARE the bubble forming. Fading it up
-        // underneath them drew the finished card first and played the animation over the top
-        // of it, which is the one thing an arrival must not do (the reported bug).
+        // Held FULLY hidden while the motes fly: they ARE the bubble forming. Fading it up underneath
+        // them would draw the finished card and play the arrival over the top of it.
         auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
         QVERIFY2(fx && fx->opacity() == 0.0, "the card is invisible until its motes land");
         QTRY_VERIFY_WITH_TIMEOUT(!dust(), stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
@@ -101,10 +93,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // REGRESSION: on a transcript long enough to scroll, the cloud was photographed before
-  // the scroll landed, so the motes flew at the card's pre-scroll box and rained over the
-  // composer. The entrance now waits a frame for scrollToBottom() and refuses to fly for a
-  // card not wholly inside the viewport.
+  // On a transcript long enough to scroll, the entrance waits a frame for scrollToBottom() and
+  // refuses to fly for a card not wholly in the viewport.
   void chatCardDustArrivesFromTheCardsOwnSide() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);

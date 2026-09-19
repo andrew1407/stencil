@@ -1,10 +1,8 @@
 // The window backdrop (support/ModalBackdrop): the browser's `.app-modal-overlay` scrim +
-// `backdrop-filter: blur()`, which Qt has no equivalent for, so the page behind is
-// photographed once and blurred.
-//   - the Visuals switch gates it: off means nothing is created at all;
-//   - blurred() really softens the picture, and keeps its size and device pixel ratio;
-//   - it covers the host, paints under a scrim, and takes no clicks;
-//   - it goes when the dialog that asked for it closes, however it was dismissed.
+// `backdrop-filter: blur()`, which Qt has no equivalent for, so the page behind is photographed once
+// and blurred. The Visuals switch gates it (off creates nothing), blurred() really softens the picture
+// and keeps its size and device pixel ratio, it covers the host under a scrim and takes no clicks, and
+// it goes when the dialog that asked for it closes, however that dialog was dismissed.
 #include "ModalBackdrop.hpp"
 #include "motionPrefs.hpp"
 

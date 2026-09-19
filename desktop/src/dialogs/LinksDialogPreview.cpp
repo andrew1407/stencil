@@ -81,9 +81,8 @@ namespace stencil::gui {
     loadBtn_->setEnabled(false);
   }
 
-  // Mirror a chosen frame to BOTH the slider and the spin box, validated against
-  // the range, then schedule a debounced seek (QSignalBlocker keeps the set from
-  // echoing back, so both land on the same final value).
+  // Mirror a chosen frame to BOTH the slider and the spin box, then schedule a debounced seek
+  // (QSignalBlocker keeps the set from echoing back, so both land on the same final value).
   void LinksDialog::setFrame(int n) {
     n = std::clamp(n, frame_->minimum(), frame_->maximum());
     {

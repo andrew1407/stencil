@@ -1,4 +1,5 @@
 #pragma once
+#include "projectsDialogState.hpp"
 #include "fileStore.hpp"
 #include "LruCache.hpp"
 #include "ServerClient.hpp"
@@ -74,7 +75,7 @@ namespace stencil::gui {
     QString selectedServerUrl() const { return selectedServerUrl_; }
     QString newName() const { return newName_; }
     QString selectedColor() const { return selectedColor_; }
-    const QVector<QPair<QString, QString>>& batchItems() const { return batchItems_; }
+    const QVector<QPair<QString, QString>>& batchItems() const { return batch_.batchItems; }
 
     // Called after acting on a signalled request, so the dialog STAYS OPEN; the overload carries
     // the session state in the SAME repaint.
@@ -181,9 +182,10 @@ namespace stencil::gui {
     void createNew();
     void createBlank();
 
-    QWidget* batchSelectedGroup_ = nullptr;
+    ProjectsBatchParts batch_;   // furniture in projectsDialogState.hpp
+    ProjectsHoverParts hover_;
+    ProjectsPressParts press_;
     // The open menu's "⋯" chip in global coords — where a window raised from that menu flies back to.
-    QRect menuKebabRect_;
     bool openInLocalOk_ = false;
     bool openInServerOk_ = false;
     std::vector<Project> projects_;
@@ -199,15 +201,7 @@ namespace stencil::gui {
     LruCache<QString, QPixmap> remoteThumbs_{128};
     QVector<stencil::net::ServerProject> remote_;
     QSet<QString> thumbInFlight_;
-    QLabel* hoverPreview_ = nullptr;
-    QListWidgetItem* hoverItem_ = nullptr;
-    QVariantAnimation* hoverFade_ = nullptr;
-    bool hoverClosing_ = false;
-    bool hoverZoomCursor_ = false;
     // -1 = none. Only its OWN hover styles the chip.
-    int kebabHoverRow_ = -1;
-    class ShimmerOverlay* kebabSweep_ = nullptr;
-    QString tipRowText_;
     void setKebabHover(int row);
     QTimer* remoteTimer_ = nullptr;
     bool remoteBusy_ = false;
@@ -222,26 +216,9 @@ namespace stencil::gui {
     QLineEdit* search_ = nullptr;
     QPushButton* selectAllBtn_ = nullptr;
     QStringList knownServerUrls_;
-    QSet<QString> checked_;
-    QWidget* batchBar_ = nullptr;
-    QLabel* batchCount_ = nullptr;
-    QPushButton* batchToServer_ = nullptr;
-    QPushButton* batchCopyServer_ = nullptr;
-    QPushButton* batchToLocal_ = nullptr;
-    QPushButton* batchCopyLocal_ = nullptr;
-    QPushButton* batchRemove_ = nullptr;
-    QPushButton* batchClear_ = nullptr;
     bool building_ = false;
-    QTimer* clickTimer_ = nullptr;
-    int pendingRow_ = -1;
-    bool pendingNewWindow_ = false;
-    Qt::KeyboardModifiers pressMods_;
-    QPoint pressPos_;
-    bool pressOnCheck_ = false;
     QWidget* renameBox_ = nullptr;
     bool confirmOpen_ = true;
-    bool rowDragging_ = false;
-    QVector<QPair<QString, QString>> batchItems_;
     Action action_ = Action::NONE;
     QString selectedId_;
     QString selectedServerUrl_;

@@ -1,16 +1,8 @@
-// Import-direction lint for desktop/src. The layer order (ARCHITECTURE.md,
-// .claude/rules/architecture.md) is: model → controllers → net/, io/ → support/ →
-// canvas/, dialogs/, llm/ → app/. A layer may use everything to its left and nothing to
-// its right, so this reads every #include in the tree and fails on the directions that
-// cross back. Text only; it compiles no app source and needs no display.
-//
-// Three rules, from the Phase 6 plan:
-//   1. nothing below app/ may include an app/ header (app/ is the top of the order);
-//   2. dialogs/ may not include a canvas/ header (they are siblings, not a stack);
-//   3. a core/ header may only be included from model/ — the seam Wave 3's DocumentModel
-//      will own, which the .stc engine opened (model/ScriptDoc). Everything still above
-//      the seam is a frozen allowance list below: the lint refuses NEW ones, and each
-//      entry is deleted as the wave moves that call site behind the model.
+// Import-direction lint for desktop/src. The layer order (ARCHITECTURE.md) is model → controllers →
+// net/, io/ → support/ → canvas/, dialogs/, llm/ → app/, so this reads every #include in the tree and
+// fails on the directions that cross back: nothing below app/ includes an app/ header, dialogs/ may
+// not include canvas/, and a core/ header may only be reached from model/ — everything still above
+// that seam is a frozen allowance list the lint refuses to grow. Text only; it compiles no source.
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QDir>
@@ -38,7 +30,7 @@ namespace {
   // Source files that may include a core/ header until Wave 3 introduces model/. Paths
   // are relative to desktop/src. Shrink this list; never add to it.
   const char* CORE_INCLUDE_ALLOWANCE[] = {
-      "app/ChatPlanTarget.cpp",         "app/MainWindow.cpp",
+      "app/ChatPlanTarget.cpp",         "app/mainWindowShellParts.hpp",
       "app/SelectedLineBar.hpp",        "app/SelectionPanel.hpp",
       "canvas/chainEdit.hpp",           "canvas/strokeGrowth.hpp",
       "llm/opPlan.hpp",
@@ -56,14 +48,13 @@ namespace {
       "dialogs/OpenImageDialogCropStage.cpp",
       "dialogs/ProjectsDialog.cpp",     "dialogs/ProjectsDialog.hpp",
       "dialogs/projectsRowChrome.hpp",  "io/fileStore.cpp",
-      "io/fileStore.hpp",               "llm/opPlan.cpp",
-      "llm/planExecutor.cpp",           "llm/planExecutor.hpp",
+      "io/fileStore.hpp",               "llm/opPlanFields.cpp",
+      "llm/planExecutorParts.hpp",           "llm/planExecutor.hpp",
       "support/cssColor.hpp",           "support/guiHelpers.cpp",
   };
 
-  // One app/ header a sibling still reaches for: the shared name-chip metrics
-  // (NAME_CHIP_BOX / NAME_CHIP_GLYPH) that the projects list draws its rows with. They
-  // belong in support/; moving them is its own commit.
+  // One app/ header a sibling still reaches for: the shared name-chip metrics (NAME_CHIP_BOX /
+  // NAME_CHIP_GLYPH) that the projects list draws its rows with. They belong in support/.
   const char* APP_INCLUDE_ALLOWANCE[] = {
       "dialogs/ProjectsDialog.cpp:mainWindowHelpers.hpp",
   };

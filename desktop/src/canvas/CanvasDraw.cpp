@@ -97,9 +97,8 @@ namespace stencil::gui {
         p.drawEllipse(v, r + 3, r + 3);
         p.setPen(QPen(pal.textMain, 1));
       }
-      // Hovered point: thin translucent ring (renderer.js state 1) — from the
-      // canvas cursor, a hovered points-table row, or a hovered Lines-list row.
-      // Skipped on the focused point, which has the bolder ring above.
+      // Hovered point: thin translucent ring (renderer.js state 1). Skipped on the focused point,
+      // which has the bolder ring above.
       else if (highlight &&
                ((lineIdx == hoverLineIdx_ && i == hoverPointIdx_) ||
                 (isActive && i == listHoverPointIdx_) ||

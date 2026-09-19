@@ -47,17 +47,15 @@ namespace serverauth {
       check(true, "an unreachable host is not an expired session");
       check(true, "…and offers no re-auth");
     }
-    // …and the toast reads like the browser's. A request that never reached the server
-    // has no status, so the browser's fetch rejection carries the TRANSPORT's message —
-    // "Could not connect — token request failed (HTTP 0)" was the desktop's own invention.
+    // …and the toast reads like the browser's: a request that never reached the server has no status, so it
+    // carries the TRANSPORT's message rather than a desktop-invented "HTTP 0".
     check(!err.contains(QLatin1String("HTTP 0")), "a dead host never reports \"HTTP 0\"");
     check(!err.isEmpty() && !err.contains(QLatin1String("HTTP")),
           "…it reports what the transport said instead");
   }
 
-  // ── a REST failure reads exactly as the browser words it ──────────────────
-  // browser connectionManager.js _req: "<METHOD> <path>: HTTP <status>" (or the server's
-  // own JSON `message`), which the connect toast then wraps in "Could not connect — …".
+  // A REST failure reads exactly as the browser words it (connectionManager.js _req): "<METHOD> <path>:
+  // HTTP <status>", or the server's own JSON `message`, which the connect toast then wraps.
   {
     ConnectionManager mgr;
     QString err;

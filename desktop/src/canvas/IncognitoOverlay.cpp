@@ -95,9 +95,8 @@ namespace stencil::gui {
     p.setRenderHint(QPainter::Antialiasing, true);
     const QColor accent = themePalette(dark_, accentKey_).accent;
 
-    // Browser: outline 3px dashed, outline-offset -3px puts the OUTER edge on the box. Qt strokes
-    // centred, so the only inset is PEN_PX/2 — more leaves bare canvas outside the dashes.
-    // The dash pattern rides ON the partial path, so dashes are REVEALED in order, not stretched.
+    // Browser: 3px dashed outline, outline-offset -3px. Qt strokes centred, so the only inset is
+    // PEN_PX/2. The dash pattern rides ON the partial path, so dashes are REVEALED, not stretched.
     QPen pen(accent);
     pen.setStyle(Qt::DashLine);
     pen.setWidth(PEN_PX);
