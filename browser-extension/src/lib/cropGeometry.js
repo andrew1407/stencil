@@ -51,7 +51,7 @@ export const pageSizeLabel = (name) => {
 
 // <option> markup for every named format (canonical order, labelled via
 // pageSizeLabel) — shared by the options page and the crop dialog; callers
-// prepend extras such as the crop dialog's Custom… entry.
+// prepend extras such as the crop dialog's Custom entry.
 export const pageSizeOptions = () =>
   Object.keys(PAGE_SIZES).map((n) => `<option value="${n}">${pageSizeLabel(n)}</option>`).join('');
 
