@@ -276,7 +276,7 @@ namespace stencil::gui {
     row(tr("Show lines"), showLines_, /*column=*/false);
 
     page_ = new SearchComboBox(host);
-    // Same options as the toolbar combo: Custom… + the full ISO A/B/C
+    // Same options as the toolbar combo: Custom + the full ISO A/B/C
     // series, labels with physical sizes in the user's display unit, item data
     // = the canonical name (read back via currentData in result()).
     fillPageSizeCombo(page_, /*includeCustom=*/true, current.units);

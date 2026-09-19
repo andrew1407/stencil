@@ -86,7 +86,7 @@ export const pageFormatLabel = (name, unit = 'cm') => {
   return `${name} (${fmt(ps.width)} × ${fmt(ps.height)})`;
 };
 
-// <option> markup for every named format, in PAGE_SIZES order; callers prepend extras such as Custom….
+// <option> markup for every named format, in PAGE_SIZES order; callers prepend extras such as Custom.
 export const pageFormatOptions = (unit = 'cm') =>
   Object.keys(PAGE_SIZES)
     .map((n) => `<option value="${n}">${pageFormatLabel(n, unit)}</option>`)
