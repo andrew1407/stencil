@@ -28,12 +28,8 @@ CORE_DIR = _REPO_ROOT / "core"
 NATIVE_DIR = _HERE / "pystencil" / "_native"
 
 
-# ──────────────────────────────────────────────────────────────────────────────
 # SYNC: keep this list identical to STENCIL_CORE_SOURCES in core/CMakeLists.txt and
-# cli/build.zig. Adding/removing/renaming a core .cpp means editing all three places.
-# (cliApi.cpp is appended below — it is the extern "C" ABI this binding wraps, the same
-# role wasmApi.cpp plays for the browser. CMake lists it separately for the test exe.)
-# ──────────────────────────────────────────────────────────────────────────────
+# cli/build.zig. cliApi.cpp is appended below — the extern "C" ABI this binding wraps.
 STENCIL_CORE_SOURCES = [
   "geometry/pointMath.cpp",
   "geometry/hitTest.cpp",
@@ -144,9 +140,7 @@ def build(force: bool = False, verbose: bool = False) -> Path:
 
   sources = STENCIL_CORE_SOURCES + [ABI_SOURCE]
 
-  # Single-shot compile+link of all translation units into one PIC shared object, run
-  # from core/ so the relative source/include paths resolve. This is the exact command
-  # verified to work on this machine (clang 21 -> ~132KB dylib).
+  # Run from core/ so the relative source/include paths resolve.
   cmd = [__compiler(), "-std=c++17", "-O2", "-fPIC", "-shared"]
   for inc in INCLUDE_DIRS:
     cmd.append("-I" + inc)

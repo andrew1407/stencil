@@ -110,8 +110,7 @@ class TestProviderWireFixtures(unittest.TestCase):
             self.assertEqual(kind, "http")
             self.assertIsNone(e.stop_reason)
           self.assertEqual(e.status, err.get("status"))
-          # Message: the schema lets a walker substitute its own
-          # sanitizer/extraction output; pystencil only reads the
+          # The schema lets a walker substitute its own sanitizer output; pystencil only reads the
           # server-shaped {code,message} error body.
           if "errorResponse" in case:
             body = case["errorResponse"]["body"]

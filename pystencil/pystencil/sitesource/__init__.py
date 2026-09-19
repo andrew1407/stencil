@@ -78,10 +78,8 @@ def scan_page(
   if tokens is not None: items = [it for it in items if (it.ext or "etc") in tokens]
 
   if name:
-    # Regex matched against each media URL — parity with the CLI's --source-name. Python re
-    # is a superset of POSIX ERE; the common metacharacter subset (. * + ? [] ^ $ | ())
-    # behaves identically across Python re / the CLI's regex.h / the extension's RegExp.
-    # An invalid pattern raises re.error, which the one-shot entry (_run_scrape) reports.
+    # Regex matched against each media URL — parity with the CLI's --source-name. The common
+    # metacharacter subset behaves identically across Python re, the CLI's regex.h and RegExp.
     rx = re.compile(name, re.IGNORECASE)
     items = [it for it in items if rx.search(it.url)]
 

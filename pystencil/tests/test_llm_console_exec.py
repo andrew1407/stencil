@@ -90,9 +90,8 @@ class ConsoleOpExecutionTest(unittest.TestCase):
     self.assertEqual(plan.warnings, [])
 
   def test_clear_chat_reaches_the_hook_and_needs_a_console(self):
-    # With a console the hook is only a RECORDER (the REPL defers the confirm
-    # to the end of the turn); without one the op is a skip note — a one-shot
-    # Editor.prompt has no conversation to clear.
+    # With a console the hook is only a RECORDER (the REPL defers the confirm to end of turn);
+    # without one the op is a skip note — a one-shot Editor.prompt has nothing to clear.
     console = _StubConsole()
     plan = parse_op_plan(_plan_json(actions=[{"op": "clearChat"}]))
     execute_op_plan(plan, self.editor, console=console)

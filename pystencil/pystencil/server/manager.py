@@ -87,9 +87,7 @@ class ConnectionManager:
     return [p for got in _fetch_all(self._conns.values(), listing) for p in got]
 
   # ── aggregate project-change tracking (poll-based) ──
-  # The session-wide analogue of ServerConnection.watch_projects: polls every connected
-  # server and reports name/color/version changes across all of them, the way the
-  # extension popup tracks its pinned projects as a set rather than one active project.
+  # The session-wide analogue of ServerConnection.watch_projects, across every connection.
   def poll_project_changes(self, previous: (list | NoneType) = None) -> tuple:
     """One-shot poll across every connection. Returns ``(current_list, changes)``
     (see diff_projects). Pass the prior list back to detect what moved."""

@@ -28,10 +28,8 @@ class ReplChatModeTest(_ReplCase):
     self.assertEqual(text.splitlines()[-1], "chat off (0 message(s))")
 
   def test_chat_on_says_who_can_read_a_saved_chat(self) -> None:
-    # §12.2: a transcript records what the user asked for in their own words, and on
-    # a server project it carries the PROJECT's access — which is not what "save
-    # chats with the project" sounds like it promises. So the console has to say it
-    # at the toggle, on the turn that enables saving, before anything is written.
+    # §12.2: on a server project a transcript carries the PROJECT's access, so the console has
+    # to say so at the toggle, on the turn that enables saving, before anything is written.
     repl, out = self._repl(_MockLlmClient("words"))
     repl.run(io.StringIO("/chat on\n"))
     after_toggle = out.getvalue().split("chat on", 1)[1]
@@ -101,9 +99,8 @@ class ReplChatModeTest(_ReplCase):
     self.assertIn("chat cleared", out.getvalue())
 
   def test_image_swap_detaches_the_previous_remote_project(self) -> None:
-    # Replacing the working image (/drop here) must reset the remote scope
-    # and the conversation, so a later /chat clear can never delete the
-    # PREVIOUS project's server-side chat file.
+    # Replacing the working image must reset the remote scope and the conversation, so a later
+    # /chat clear can never delete the PREVIOUS project's server-side chat file.
     conn = self._RecordingConn()
     repl, out = self._repl(_MockLlmClient("words"))
     repl._remote = (conn, "p1")  # as recorded by /fetch

@@ -24,10 +24,8 @@ ACCEPTED_MEDIA_TYPES = ("image/png", "image/jpeg", "image/webp", "image/gif")
 # Every LLM call is bounded by pystencil.server's _LLM_TIMEOUT (the asset's
 # timeouts.chatSeconds) so a hostile/slow/hung provider can't block the caller.
 
-# Providers + their pre-filled default base URLs (contract §5), from the checked-in
-# copy of the canonical providers asset (browser/js/config/llm/providers.json;
-# tests/test_canonical_drift.py byte-pins the copy). stencil-server's null default
-# drops out of DEFAULT_BASE_URLS — it uses server_url + the existing bearer token.
+# Providers + their default base URLs (§5) from the checked-in copy of the canonical asset
+# (tests/test_canonical_drift.py byte-pins it). stencil-server's null default drops out.
 _PROVIDERS_ASSET = json.loads(
   importlib.resources.files("pystencil")
   .joinpath("_data/providers.json")

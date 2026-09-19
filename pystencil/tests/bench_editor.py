@@ -109,9 +109,8 @@ class ResultBench(BenchCase):
     twice_lines = self.micros("result + 20 strokes of 2 points", 40, render(many))
     longer_us = self.micros("result + 10 strokes of 8 points", 40, render(longer))
 
-    # One core rasterize_line call per stroke, each walking its own segments: twice the
-    # strokes is at most twice the work, and 7 segments cost under 7 one-segment calls
-    # (the per-call marshalling is paid once).
+    # One core rasterize_line call per stroke: twice the strokes is at most twice the work, and
+    # 7 segments cost under 7 one-segment calls (the marshalling is paid once).
     self.ratio("twice the strokes", twice_lines, base, ceiling=3.0)
     self.ratio("7 segments vs 1", longer_us, base, ceiling=7.0)
 

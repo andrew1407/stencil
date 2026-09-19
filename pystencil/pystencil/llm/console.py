@@ -47,9 +47,8 @@ def _apply_console_op(action: dict, editor: Any, frame: (_FrameMap | NoneType) =
   note = getattr(console, _CONSOLE_HOOKS[op])(action)
   if note and run is not None:
     run.notes.append(note)
-  # A load/clear that actually replaced the working picture starts a fresh frame,
-  # and no earlier attachment names an unnamed save any more (a miss — note
-  # returned — changed nothing, so the running transform still applies).
+  # A load/clear that actually replaced the working picture starts a fresh frame; a miss
+  # (note returned) changed nothing, so the running transform still applies.
   if op in ("openUrl", "clear") and not note:
     if frame is not None:
       frame.reset()

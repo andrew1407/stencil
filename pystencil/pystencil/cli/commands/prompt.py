@@ -52,20 +52,15 @@ class _PromptCommands:
     if not arg:
       self._err("/prompt needs text to send")
       return
-    # Answering the last `ask` card by number (contract §11.4). "2" or "1,3" becomes the
-    # option LABELS, so what reaches the model is the same text every other surface sends;
-    # anything else is an ordinary prompt and simply retires the card, since an
-    # unanswered question must never block the conversation.
+    # Answering the last `ask` card by number (§11.4): "2" or "1,3" becomes the option LABELS.
+    # Anything else is an ordinary prompt and simply retires the card.
     answer = ask_answer_text(self._ask, arg)
     if self._ask is not None: self._ask = None
     if answer is not None:
       self._say("→ %s" % answer)
       arg = answer
-    # §7 auto-continuation: a plan that made a picture and drew no layout cannot
-    # have finished the looking-work — the attachment rode along before it existed. The
-    # turn is re-sent ONCE with the new image, restating the request (with /chat off
-    # there is no history to carry it). Whatever happens, this turn owns the /upload
-    # set: the next /upload starts a new one (§2.1).
+    # §7 auto-continuation: a plan that made a picture and drew no layout re-sends the turn
+    # ONCE with the new image. Whatever happens, this turn owns the /upload set (§2.1).
     try:
       text = arg
       for round_no in range(2):
@@ -85,9 +80,8 @@ class _PromptCommands:
     re-send once with it attached; anything else = the turn is finished."""
     images: Attachments = list()
     transient: Attachments = list()
-    # The system prompt is §4 + the console settings-op block; its dynamic suffix
-    # carries the console context always, plus the §7 edge-map sentence when the
-    # edge map actually rides (the cli console's suffix order).
+    # The system prompt is §4 + the console settings-op block; the dynamic suffix carries the
+    # console context, plus the §7 edge-map sentence when the edge map rides.
     suffix_parts: list[str] = [self._console_context()]
     if self._editor.has_image():
       # Attach the current image for vision, unless it encodes too large.
@@ -106,19 +100,16 @@ class _PromptCommands:
         if len(edge) <= _PROMPT_IMAGE_LIMIT:
           transient.append(("image/png", edge))
           suffix_parts.append(EDGE_MAP_SUFFIX)
-    # §2.1: when this turn /upload-ed SEVERAL images they all ride along after the
-    # working snapshot (and its edge map), in upload order — that order is what an
-    # `image` op indexes (the snapshot itself does not count). They ride transient
-    # in chat mode, like the cli console's text-only history: never replayed.
+    # §2.1: several /upload-ed images ride after the working snapshot in upload order — that
+    # order is what an `image` op indexes. They ride transient: never replayed.
     if len(self._attachments) > 1:
       transient.extend((mt, data) for mt, data, _label in self._attachments)
     system = "%s\n\n%s" % (CONSOLE_SYSTEM_PROMPT, "\n\n".join(suffix_parts))
     try:
       client = self._llm_client()
       if self._chat_on:
-        # /chat on: turns accumulate in a session Chat, whose bounded history
-        # is replayed on every call. The client is refreshed each turn so
-        # in-session /llm changes keep applying.
+        # /chat on: turns accumulate in a session Chat whose bounded history is replayed. The
+        # client is refreshed each turn so in-session /llm changes keep applying.
         if self._chat is None:
           self._chat = Chat(client)
         else:
@@ -132,9 +123,8 @@ class _PromptCommands:
           system,
         )
         plan = parse_op_plan(raw)
-      # §10 openUrl guard: the model may only ECHO the user — a URL absent from
-      # the user's own messages this conversation fails the whole plan, nothing
-      # executes (history counts user turns only; with /chat off there are none).
+      # §10 openUrl guard: the model may only ECHO the user — a URL absent from the user's own
+      # messages this conversation fails the whole plan, nothing executes.
       history = self._chat.history if self._chat_on and self._chat is not None else []
       blocked = blocked_open_url(plan, history, arg)
       if blocked is not None:

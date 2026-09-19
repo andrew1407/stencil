@@ -53,9 +53,8 @@ class ChatTest(unittest.TestCase):
     # Turn 3: no current images; only b1 (most recent prior) is replayed.
     wire3 = client.sent[2]
     self.assertEqual([m["images"] for m in wire3], [[], [], [b1], [], []])
-    # Memory: once turn 2's image was on the wire, turn 1's attachments can
-    # never be replayed again, so history no longer retains them; the newest
-    # image-bearing turn keeps its own (b1 may still replay later).
+    # Memory: once turn 2's image was on the wire, turn 1's attachments can never be replayed,
+    # so history no longer retains them; the newest image-bearing turn keeps its own.
     self.assertEqual(chat.history[0]["images"], [])
     self.assertEqual(chat.history[2]["images"], [b1])
 

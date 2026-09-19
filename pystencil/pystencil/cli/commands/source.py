@@ -23,10 +23,8 @@ class _SourceCommands:
       self._err("/upload needs a path or URL")
       return
     if arg.lower().endswith(".stencil"):
-      # A whole .stencil project loads its image + layout + metadata at once
-      # (Zig-console parity). A saved `chat` block restores the conversation
-      # only while /chat is on (contract §12); otherwise it just stays on the
-      # editor for a later re-save.
+      # A whole .stencil loads image + layout + metadata at once. A saved `chat` block restores
+      # the conversation only while /chat is on (contract §12).
       self._editor.open_project(arg)
       self._image_replaced()
       if self._chat_on and self._editor.chat_doc:
@@ -35,9 +33,8 @@ class _SourceCommands:
     else:
       self._editor.load(arg)
       self._image_replaced()
-      # §2.1: the uploads of one turn are its attachments — a later /prompt
-      # sends them all and an `image` op indexes them. Registered as the wire's
-      # PNG re-encode (the same normalization the cli console applies).
+      # §2.1: the uploads of one turn are its attachments, indexed by an `image` op. Registered
+      # as the wire's PNG re-encode.
       self._add_attachment(arg)
     w, h = self._editor.image_size
     self._say('loaded "%s" (%dx%d)' % (self._editor.name, w, h))

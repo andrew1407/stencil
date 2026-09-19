@@ -37,9 +37,8 @@ class TestSanitizerFixtures(unittest.TestCase):
         if name in overrides:
           want = overrides[name]["expect"]
         elif "pystencil" in self._divergent_surfaces(name):
-          # Recompute locally: Python counts code points, not UTF-16
-          # units. Only the length cap may diverge, so require that no
-          # redaction/control step applies, then re-derive the cut.
+          # Recompute locally: Python counts code points, not UTF-16 units. Only the length cap may
+          # diverge, so require that no redaction step applies, then re-derive the cut.
           inp = case["input"]
           self.assertLessEqual(len(inp), 800)
           self.assertIsNone(_URL_RE.search(inp))

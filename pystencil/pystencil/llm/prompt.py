@@ -14,14 +14,8 @@ import re
 
 from .registry import OP_REGISTRY, OpSpec
 
-# ── canonical system prompt (contract §4 + §13) ───────────────────────────────
-# The prompt has two parts with different sync rules (§4): the PROSE CORE comes from
-# the checked-in copy of the canonical asset (browser/js/config/llm/systemPrompt.json;
-# tests/test_canonical_drift.py byte-pins the copy), while the "Available ops" list is
-# GENERATED from OP_REGISTRY (defined after the validators/appliers it references) —
-# the same table that validation and execution dispatch on, so the prompt can never
-# promise an op this surface cannot run. LLM_SYSTEM_PROMPT / CONSOLE_SETTINGS_PROMPT /
-# CONSOLE_SYSTEM_PROMPT are assembled right after the registry.
+# ── canonical system prompt (contract §4 + §13) ──
+# The prose core is the checked-in canonical asset; "Available ops" is generated from OP_REGISTRY.
 _PROMPT_ASSET = json.loads(
   importlib.resources.files("pystencil")
   .joinpath("_data/systemPrompt.json")
@@ -30,9 +24,8 @@ _PROMPT_ASSET = json.loads(
 
 _PROMPT_CORE_HEAD = _PROMPT_ASSET["head"]
 
-# This text console deliberately diverges from the canonical tail's "ask" paragraph
-# (no previews, no image options — labels must stand alone); the shared prose from
-# "Outlining" on is the asset's, verbatim.
+# This text console diverges from the canonical tail's "ask" paragraph (no previews, no
+# image options); the shared prose from "Outlining" on is the asset's, verbatim.
 _CONSOLE_ASK = """When a choice is genuinely the user's to make — which tint, which of several images —
 add an "ask" object instead of guessing:
 {"ask":{"question":"Which tint?","mode":"single"|"multi","allowCustom":true,
@@ -48,12 +41,8 @@ if _shared_at < 0:  # pragma: no cover - guards asset rewording
 _PROMPT_CORE_TAIL = _CONSOLE_ASK + _PROMPT_ASSET["tail"][_shared_at:]
 
 
-# ── the console settings-op profile (the §10 cli-console analog) ──────────────
-# The pystencil console carries the SAME profile as the cli console (contract §10)
-# minus accent/reconnect (no theme, no reconnect command) and copy (no clipboard) —
-# those capabilities are not wired here, so per §13 they simply have no OP_REGISTRY
-# entries and their bullets are never generated. The console bullets live on their
-# registry entries (scope "console"); only the block's closing sentence is prose.
+# ── the console settings-op profile (the §10 cli-console analog) ──
+# The cli console's profile minus accent/reconnect and copy — capabilities not wired here.
 _CONSOLE_BLOCK_TAIL = (
   'These console ops are not image edits and cannot appear inside "variants".'
 )
@@ -71,16 +60,12 @@ EDGE_MAP_SUFFIX = (
 )
 
 
-# ── prompt generation (contract §13) ──────────────────────────────────────────
-# The capabilities actually wired on this surface. pystencil has no clipboard and
-# no theme store, so nothing optional is wired — accent/copy hold no registry
-# entries at all; the tag exists so a capability-carrying entry is EXCLUDED from
-# generation (falling to §1's unknown-op skip) when its capability is not wired.
+# The capabilities actually wired here. Nothing optional is, so a capability-carrying entry
+# would be EXCLUDED from generation, falling to §1's unknown-op skip.
 _SURFACE_CAPABILITIES: frozenset[str] = frozenset()
 
-# §13 prompt censor: the generator refuses to emit any bullet matching sensitive
-# patterns (api keys, bearer tokens, endpoint-setting instructions) — a registry
-# mistake fails loudly at import instead of leaking into the prompt.
+# §13 prompt censor: the generator refuses any bullet matching api keys, bearer tokens or
+# endpoint-setting instructions — a registry mistake fails loudly at import.
 _PROMPT_CENSOR_PATTERNS = tuple(
   re.compile(p, re.IGNORECASE)
   for p in (

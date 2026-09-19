@@ -33,14 +33,11 @@ class ServerConnection(_ProjectApi, _FileApi):
     # What the user supplied — outlives a server restart (_request re-mints
     # with it when the stored session token goes stale). "" = none supplied.
     self.credential = token or ""
-    # What that credential turned out to BE (browser connectionManager parity):
-    # "admin" once it has PROVEN it can mint a session token (at connect or on a
-    # mid-session re-mint), "session" once it passed the GET /projects probe
-    # directly, "none" when nothing was supplied. "" until connect() classifies it.
+    # What that credential turned out to BE (browser connectionManager parity): "admin" once it
+    # has minted a session token, "session" once it passed GET /projects, "none" if absent.
     self.credential_kind = "" if self.credential else "none"
-    # 'disconnected' until connect() validates/acquires a token, then
-    # 'connected', or 'error' if the handshake fails (mirrors the browser
-    # UI-dot status, minus the live 'connecting' transition we don't model).
+    # 'disconnected' until connect() validates/acquires a token, then 'connected', or 'error'
+    # (mirrors the browser UI dot, minus the live 'connecting' transition).
     self.status = "disconnected"
     # A stable client id, namespaced like the browser's c_<rand>. Derived
     # from object identity so it's deterministic per instance without RNG.
@@ -113,9 +110,8 @@ class ServerConnection(_ProjectApi, _FileApi):
     try:
       return self._open(req, raw=raw)
     except ServerError as err:
-      # A stored session token dies with a server restart — when we still
-      # hold the original credential, re-mint once and retry in place
-      # (port of extension connections.js req()).
+      # A stored session token dies with a server restart — while we still hold the original
+      # credential, re-mint once and retry in place (port of extension connections.js req()).
       if (_retried or path == "/auth/token" or not self.credential
           or err.status not in (401, 403)):
         raise
@@ -150,10 +146,8 @@ class ServerConnection(_ProjectApi, _FileApi):
           # said "admin" already) means an ordinary session token.
           if self.credential_kind != "admin": self.credential_kind = "session"
         except ServerError as err:
-          # Browser/desktop parity: the value may be the server's
-          # ADMIN token — it can't list projects, but it can MINT.
-          # Only an auth failure (or a status-less error) means that;
-          # a 500 etc. propagates as-is.
+          # Browser/desktop parity: the value may be the server's ADMIN token — it cannot list
+          # projects but it can MINT. Only an auth failure means that; a 500 propagates as-is.
           if err.status is not None and err.status not in (401, 403): raise
           r = self._request("POST", "/auth/token", body={})
           self.token = (r or {}).get("token", "")

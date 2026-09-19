@@ -108,9 +108,8 @@ class ChatPersistenceTest(unittest.TestCase):
             ["outline the face", "outline the face"])
 
   def test_from_doc_sanitizes_an_older_dirty_document(self) -> None:
-    # A document written by another surface (or an older build) may carry §7
-    # machinery; restoring must never replay it as the user's words or show a raw
-    # plan as an assistant reply. A user's OWN pasted JSON still survives.
+    # A document written by another surface may carry §7 machinery; restoring must never replay
+    # it as the user's words or show a raw plan as a reply. A user's own JSON survives.
     chat = Chat.from_doc(
       {
         "version": 1,

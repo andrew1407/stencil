@@ -80,9 +80,8 @@ class ProjectFileChatTests(ProjectFileCase):
       self.assertEqual(doc["chat"]["messages"], [{"role": "user", "text": "hello"}])
 
   def test_dirty_chat_block_does_not_round_trip(self):
-    # §12.1: the block is shared across surfaces, so §7's continuation note and a raw
-    # op-plan assistant turn are refused both when a file is opened and when one is
-    # written — an older build's dirty chat never comes back out of save_project.
+    # §12.1: the block is shared across surfaces, so §7's continuation note and a raw op-plan
+    # assistant turn are refused both when a file is opened and when one is written.
     from pystencil.llm import CONTINUATION_NOTE
 
     dirty = {

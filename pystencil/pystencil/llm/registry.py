@@ -32,9 +32,8 @@ from .ops import (
 )
 
 
-# ── per-op normalizers: the typed struct filling the generic deep-pick can't express ──
-# Each runs on the registry-normalized action — {op, declared keys present, defaults,
-# `trim` keys trimmed} — AFTER the table-driven check passed; nothing here validates.
+# ── per-op normalizers: the typed struct the generic deep-pick can't express ──
+# Each runs on the registry-normalized action AFTER the check passed; nothing here validates.
 def __normalize_crop(out: dict) -> dict:
   """The console-only ``"album": false`` means "no derivation" — dropped from the spec."""
   if out["spec"].get("album") is False:
@@ -117,14 +116,8 @@ def __make_validator(
   return validate
 
 
-# What this surface adds to each registry entry: (applier, normalizer, bullet scope).
-# The bullet prose itself comes from the shared opRegistry.json entry, so a canonical
-# reword lands here untouched. Table order is prompt order: the §2 core ops as §4 lists
-# them, then the §10 console-profile ops as the console block splices them (reset last —
-# a §2 core op whose bullet rides the console block). The pystencil console carries the
-# cli console's profile minus accent/reconnect (no theme, no reconnect command) and copy
-# (no clipboard) — the registry restricts those entries to the cli, so they are never
-# registered or promised here.
+# What this surface adds to each registry entry: (applier, normalizer, bullet scope). Table
+# order is prompt order: the §2 core ops as §4 lists them, then the §10 console ops.
 _SURFACE_OPS: dict[str, tuple] = {
   "crop": (_apply_crop, __normalize_crop, "core"),
   "rotate": (_apply_rotate, None, "core"),
@@ -161,9 +154,8 @@ for _name, (_applier, _normalizer, _scope) in _SURFACE_OPS.items():
     # A bullet shared by two ops (undo/redo, connect/disconnect) sits on the
     # first entry; the partner's asset bullet is null and emits nothing.
     frozenset({"op", *_entry["keys"]}), _entry["bullet"] or "", scope=_scope,
-    # §2/§2.1 top-level-only ops drop the variant they appear in; the §10
-    # settings ops do the same (with their own message) and run through the
-    # console hooks.
+    # §2/§2.1 top-level-only ops drop the variant they appear in; the §10 settings ops do the
+    # same (with their own message) and run through the console hooks.
     top_level_only=bool(_flags.get("topLevelOnly")),
     console_settings=bool(_flags.get("editorSetting") or _flags.get("consoleSetting")),
   )
@@ -175,12 +167,8 @@ if _unbound:  # pragma: no cover - guards registry edits
   )
 
 
-# §13 forbidden ops — the §10 "never model-drivable" boundary, as NAMES (the
-# registry's forbidden.perSurface.pystencil): the assistant's own configuration
-# (self-configuration is the exfiltration primitive), clipboard READS, hotkey
-# rebinding, ending the session, chat persistence/consent toggles, and server-side
-# destruction beyond §10's grants. Two teeth: the import-time registry check
-# below (parse skips an unregistered name as unknown), and _apply_action's reject.
+# §13 forbidden ops — the §10 "never model-drivable" boundary, as names. Two teeth: the
+# import-time registry check below, and _apply_action's reject.
 FORBIDDEN_OPS = tuple(SCHEMA.registry["forbidden"]["perSurface"]["pystencil"])
 
 _forbidden_registered = sorted(set(OP_REGISTRY) & set(FORBIDDEN_OPS))

@@ -24,10 +24,7 @@ class _ProjectApi:
     return (r or {}).get("projects", []) or []
 
   # ── project-change tracking (poll-based) ──
-  # This client stays REST-only (no /ws feed), so "listening" for a peer's name/color
-  # change is modelled as polling, exactly like the desktop's QTimer poll. Two flavours:
-  # poll_project_changes() is one-shot (the caller owns the loop), watch_projects() is a
-  # ready-made blocking loop. Use get_project(id)'s version to confirm a single project.
+  # REST-only (no /ws feed), so "listening" is polling, exactly like the desktop's QTimer.
   def poll_project_changes(self, previous: (list | NoneType) = None) -> tuple:
     """One-shot poll: fetch the current project list and diff it against `previous`.
 

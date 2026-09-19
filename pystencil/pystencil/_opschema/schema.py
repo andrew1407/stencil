@@ -32,9 +32,6 @@ class Schema(ValueChecks):
       if name not in ("describe", "note")
     }
     order = registry["profiles"][profile]["ops"]
-    # This surface's entries: the profile's ops in prompt order, minus entries
-    # restricted to other surfaces, each resolved for this surface (surfaceKeys /
-    # bulletVariants / surfaceFlags).
     self.entries: list[dict] = sorted(
       (
         self.__resolve(e)

@@ -37,9 +37,8 @@ def _is_http(url: str) -> bool:
   return low.startswith("http://") or low.startswith("https://")
 
 
-# Hard cap on the bytes read from a single fetch — bounds memory against a hostile host that
-# streams an endless/huge body (parity with the Zig CLI's net.MAX_FETCH_BYTES). Scrape fetches
-# many URLs harvested from untrusted page content, so this matters most there.
+# Bounds memory against a hostile host streaming an endless body (parity with the Zig
+# CLI's net.MAX_FETCH_BYTES).
 MAX_FETCH_BYTES = 64 * 1024 * 1024  # 64 MiB
 
 
@@ -132,9 +131,8 @@ def _fetch(url: str, *, strict: bool = True, timeout: float = 30.0) -> bytes:
   return data
 
 
-# Upper bound on concurrent fetches in one batch. These jobs are I/O-bound (the GIL is free
-# while a socket waits), so a small pool turns N serial round-trips into roughly one — but a
-# bounded one, so a scrape never opens an antisocial number of sockets against a host.
+# Bounded pool: these jobs are I/O-bound, but a scrape must never open an antisocial
+# number of sockets against one host.
 MAX_FETCH_WORKERS = 8
 
 

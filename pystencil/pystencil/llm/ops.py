@@ -30,9 +30,8 @@ def _apply_crop(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
     "%s=%s" % (k, spec[k]) for k in ("x1", "y1", "x2", "y2", "aspect") if k in spec
   )
   if frame is not None:
-    # Resolve exactly as Editor.crop is about to (the same core resolveCrop
-    # path) to learn the kept rect's origin; a bad spec (None) is the same
-    # no-op crop() performs, so the transform stays unchanged.
+    # Resolve exactly as Editor.crop is about to (the same core resolveCrop path); a bad spec
+    # is the same no-op crop() performs, so the transform stays unchanged.
     resolve = getattr(editor, "resolve_crop_rect", None)
     rect = None
     if callable(resolve):
@@ -73,9 +72,8 @@ def _apply_layout(action: dict, editor: Any, frame: (_FrameMap | NoneType) = Non
 
 def _apply_formula(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None,
         run: (_PlanRun | NoneType) = None) -> None:
-  # §2: `enabled` alone toggles formulas (false restores identity, keeping the
-  # expressions); otherwise set_formula validates via the shared parser and turns
-  # allow_formulas on for a non-empty expression (an empty expr clears that axis).
+  # §2: `enabled` alone toggles formulas (false restores identity, keeping the expressions);
+  # otherwise set_formula validates via the shared parser.
   if "enabled" in action:
     editor.set_allow_formulas(action["enabled"])
   else:
@@ -182,8 +180,5 @@ def _apply_reset(action: dict, editor: Any, frame: (_FrameMap | NoneType) = None
   editor.reset()
 
 
-# The console-settings ops' executor hook methods (§10 console profile): the REPL
-# passes itself as `console` and these methods run the SAME paths its /connect,
-# /disconnect, /delete, /upload <url>, /drop and /chat clear commands use.
-# Execution misses are notes per §1, never failed plans. clearChat's hook only
-# RECORDS the request — the confirm + clear are deferred to the end of the turn.
+# The console-settings ops' executor hooks (§10 console profile): the REPL passes itself as
+# `console`. Misses are notes per §1; clearChat's hook only RECORDS the request.

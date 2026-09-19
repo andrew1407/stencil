@@ -30,18 +30,13 @@ class _PageCommands:
         custom_w, custom_h = prev_w, prev_h
         width, height = core.default_blank_size_px(custom_w, custom_h)
       else:
-        # An unknown adopted name — or "custom" without both cm dims — maps to
-        # None → the default A4 blank, exactly like the console's fall-through
-        # (canonicalPageFormat -> null) in doBlank.
+        # An unknown adopted name — or "custom" without both cm dims — maps to None → the default
+        # A4 blank, like the console's canonicalPageFormat fall-through.
         page = prev_page
     self._editor.blank(width, height, color, page=page or "A4")
     self._image_replaced()
-    # Keep the page the blank was actually created on as the session's picked
-    # format, so it drives the next bare /blank and the exported layout's pageSize
-    # (mirror of the Zig console's doBlank -> session.setPageSize). Explicit dims
-    # size the blank but keep the previous /format pick, matching the console and
-    # the Telegram bot; only an unusable pick (unknown name / dimension-less
-    # custom) ends up cleared.
+    # The page a blank was created on becomes the session's picked format (the Zig console's
+    # doBlank → session.setPageSize); explicit dims keep the previous /format pick.
     if page is not None:
       self._editor.set_page_format(page)
     elif custom_w > 0 and custom_h > 0:
@@ -74,9 +69,8 @@ class _PageCommands:
            % ("*" if current == "custom" else " "))
       return
     if parts[0].lower() == "custom":
-      # One error path for unparsable, NaN/inf and out-of-range dims, mirroring
-      # the Zig console's parseCmDim (0.1–500 cm; float() accepts "nan"/"inf",
-      # so set_page_format's range check must also gate the REPL input).
+      # One error path for unparsable, NaN/inf and out-of-range dims (0.1–500 cm): float()
+      # accepts "nan"/"inf", so the range check must gate the REPL input too.
       try:
         wcm, hcm = float(parts[1]), float(parts[2])
         self._editor.set_page_format("custom", wcm, hcm)

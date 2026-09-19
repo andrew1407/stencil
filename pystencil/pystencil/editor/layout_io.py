@@ -86,10 +86,8 @@ class _LayoutApi:
     if snap.crop is not None:
       cx, cy, cw, ch = snap.crop
     else:
-      # No explicit crop means the WHOLE rotated original — state that instead of
-      # omitting the field. The GUIs auto-crop a fresh image to the page aspect and
-      # only skip it when the layout names a cropRect, so an omitted one makes them
-      # shrink the image on open and strand lines drawn outside the page rect.
+      # No explicit crop means the WHOLE rotated original — the GUIs auto-crop a fresh image to
+      # the page aspect unless the layout names a cropRect.
       cx, cy = 0, 0
       cw, ch = self._get_core().rotated_dims(orig.width, orig.height, snap.rotation)
     # Canonical browser keys ({w,h}) since Phase 6.

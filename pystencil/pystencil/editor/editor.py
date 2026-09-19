@@ -89,9 +89,8 @@ class Editor(
     self._allow_formulas: bool = False
     self._formula_x: str = ""
     self._formula_y: str = ""
-    # §12 chat persistence (opt-in, default OFF everywhere): save_project writes the
-    # attached persisted-chat document under the top-level "chat" key only while
-    # save_chats is on; open_project restores a valid block into chat_doc.
+    # §12 chat persistence (opt-in, default OFF everywhere): the attached chat document is
+    # written under the top-level "chat" key only while save_chats is on.
     self.save_chats: bool = False
     self.chat_doc: (dict | NoneType) = None
     # Page format (project-level; rides the layout like the CLI session's page_size).
