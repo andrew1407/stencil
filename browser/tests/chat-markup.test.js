@@ -454,9 +454,7 @@ test('assistant settings modal has Cancel/Save and only Save writes storage', ()
   assert.strictEqual(src.split('persist();').length - 1, 1, 'a single persist() call site');
   assert.match(src, /chat-settings-save'\)\.addEventListener\('click'[\s\S]{0,400}persist\(\);/);
   assert.ok(src.includes("$('chat-settings-cancel').addEventListener('click', () => shell.close());"));
-  // Reopening reloads from storage — that is what makes a close a discard.
-  assert.ok(src.includes('onOpen: () => { settings = loadLlmSettings(); voice = loadVoiceSettings(); render(); }'));
-  // The voice settings ride the same commit: written only from the Save handler.
-  assert.strictEqual(src.split('saveVoiceSettings(').length - 1, 1, 'a single saveVoiceSettings() call site');
-  assert.match(src, /chat-settings-save'\)\.addEventListener\('click'[\s\S]{0,600}saveVoiceSettings\(/);
+  // Reopening reloads from storage — that is what makes a close a discard. Matched on the
+  // two statements rather than one line of source: onOpen also starts the height ease.
+  assert.match(src, /onOpen: \(\) => \{[\s\S]{0,200}settings = loadLlmSettings\(\);\s*render\(\);/);
 });

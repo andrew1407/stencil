@@ -1,4 +1,12 @@
 * { box-sizing: border-box; }
+/* Every focus ring is the BRAND accent — without this the platform's own blue ring turned
+   up on whatever no rule styled. Bare `:focus-visible`, so a control with its own ring
+   (fields.css, select.css) still outranks it, and only focus-visible, so a pointer click
+   never draws one. Browser twin: css/layout/shell.css. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 /* Checkboxes & radios: a transparent box outlined in the brand accent, filled
    with the accent (+ a white check / dot) when on — matching the editor + the
    desktop Qt indicator. appearance:none so the look is ours, not the OS default. */

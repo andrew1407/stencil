@@ -2,7 +2,9 @@
 // and nothing else, so it must stay self-contained (no imports). If the frame never posts
 // 'ready' (CSP/mixed content), the modal drops and a tab opens instead.
 // The palette arrives as DATA (`theme` from lib/shellTheme.js), never prefers-color-scheme:
-// that would frame a dark crop page in white when the Appearance choice disagrees with the OS.
+// that would frame a dark crop page in white when the Appearance choice disagrees with the
+// OS — and a HOST PAGE can answer the query differently from the extension's own documents,
+// which is why 'system' arrives already resolved (`theme.resolved`).
 export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const ID = 'stencil-ext-modal';
   const existing = document.getElementById(ID);
@@ -18,8 +20,14 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     try { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
     catch (e) { return false; }
   };
-  // Mirror of lib/shellTheme.js resolveShellMode — an injected fn can't import.
-  const resolveMode = (mode) => (mode === 'dark' || mode === 'light' ? mode : (prefersDark() ? 'dark' : 'light'));
+  // Mirror of lib/shellTheme.js injectedScheme + resolveShellMode — an injected fn can't
+  // import. The page's own media query is the last resort, for a profile that has not
+  // opened an extension page yet.
+  const resolveMode = (mode) => {
+    if (mode === 'dark' || mode === 'light') return mode;
+    if (t.resolved === 'dark' || t.resolved === 'light') return t.resolved;
+    return prefersDark() ? 'dark' : 'light';
+  };
   const FALLBACK = {
     dark: { bg: '#21242d', panel: '#2b2f3a', panel2: '#343948', line: '#3d4354', text: '#e8eaf0', muted: '#9aa0b0' },
     light: { bg: '#f4f5f7', panel: '#ffffff', panel2: '#eceef3', line: '#d4d8e2', text: '#1d2230', muted: '#6b7180' },
@@ -157,8 +165,9 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   // modal re-themes live. Literal key strings: an injected fn cannot import lib/shellTheme.js.
   const onStore = (changes, area) => {
     if (area !== 'local') return;
-    if (!changes.stencil_theme && !changes.stencil_accent) return;
+    if (!changes.stencil_theme && !changes.stencil_theme_resolved && !changes.stencil_accent) return;
     const mode = changes.stencil_theme ? changes.stencil_theme.newValue : t.mode;
+    if (changes.stencil_theme_resolved) t.resolved = changes.stencil_theme_resolved.newValue;
     const key = changes.stencil_accent ? changes.stencil_accent.newValue : '';
     const accent = (key && (t.accents || {})[key]) || t.accent;
     t.mode = mode;

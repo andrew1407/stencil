@@ -46,8 +46,10 @@ namespace stencil::llm {
   }
 
   struct LlmSettings {
-    QString provider = "ollama";
-    QString baseUrl = defaultLlmBaseUrl(QStringLiteral("ollama"));
+    // First-run default: the assistant ships OFF (contract §5) until the user picks
+    // a provider — browser/js/llm/llmSettings.js defaultSettings() parity.
+    QString provider = "none";
+    QString baseUrl = defaultLlmBaseUrl(QStringLiteral("none"));
     // Empty = provider default.
     QString model;
     // openai-compat only; optional (LM Studio needs none).

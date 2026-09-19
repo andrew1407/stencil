@@ -1,7 +1,7 @@
 // Length tokens for the console API: a bare number is a pixel DELTA; a unit string ('3cm',
 // '-4in', '50%') is absolute, where a leading '-' means "measured from the axis END", NOT
 // a negative length.
-import { CM_PER_INCH, cmToUnit, unitLabel } from '../utils.js';
+import { CM_PER_INCH, cmToUnit } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
 
@@ -75,12 +75,15 @@ export const layoutLineLengthCm = (layout) => {
   return total;
 };
 
-// "A4 (21 × 29.7 cm)" / "A4 (8.27 × 11.69 in)"; unknown names (incl. 'custom') echo back unchanged.
+// "A4 (21 × 29.7)" / "A4 (8.27 × 11.69)"; unknown names (incl. 'custom') echo back unchanged.
+// No trailing unit word: this label always sits beside its own unit dropdown (#unit-select),
+// which already says "cm"/"in" once for the whole row — repeating it per option said nothing
+// new (user report).
 export const pageFormatLabel = (name, unit = 'cm') => {
   const ps = PAGE_SIZES[name];
   if (!ps) return name;
   const fmt = (cm) => +cmToUnit(cm, unit).toFixed(2);
-  return `${name} (${fmt(ps.width)} × ${fmt(ps.height)} ${unitLabel(unit)})`;
+  return `${name} (${fmt(ps.width)} × ${fmt(ps.height)})`;
 };
 
 // <option> markup for every named format, in PAGE_SIZES order; callers prepend extras such as Custom….

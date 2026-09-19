@@ -6,7 +6,7 @@
     "dark": "The value declared in `[data-theme=\"dark\"]`, or the light value when that block omits the token — that is what the cascade gives.",
     "tokens": "Literal values only: a hex, an rgba(), a keyword, a shadow, or a url(). Safe to embed verbatim on any surface.",
     "derived": "COMPUTED tokens — the value names another token (`var(...)`) or mixes one (`color-mix(...)`), so it has no fixed hex. The EXPRESSION is recorded, never a resolved colour; a non-CSS surface must evaluate it against the accent in play (desktop theme.cpp accentShade(), cli setAccent()). Recording a resolved hex here would freeze the violet default and silently break every other accent.",
-    "accents": "The 12 accent presets are NOT here — they live in accents.json, which every surface already reads.",
+    "accents": "The accent presets are NOT here — they live in accents.json, which every surface already reads.",
     "brand": "Theme-INDEPENDENT art colours (favicon.svg + the cli logo). Not CSS custom properties, so not pinned against theme.css; the favicon ones are pinned against favicon.svg."
   },
   "tokens": {

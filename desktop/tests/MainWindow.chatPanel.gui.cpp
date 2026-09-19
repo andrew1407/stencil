@@ -194,6 +194,19 @@ class MainWindowGuiTest : public QObject {
     const QString tip = cb->toolTip();
     QVERIFY2(tip.contains("shared with"), qPrintable("tooltip omits the sharing rule: " + tip));
     QVERIFY2(tip.contains("Local projects"), qPrintable("tooltip omits the local case: " + tip));
+
+    // …and the box it sits in reads as the NEXT row, not a hole in the form: the note used
+    // to hang off the outer column with no spacing of its own, well below the divider
+    // already under the checkbox (user report; browser has no such gap between its own
+    // .vs-checks row and .chat-cors-note).
+    form.resize(420, form.sizeHint().height());
+    form.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&form));
+    auto* noteBox = form.findChild<QFrame*>("llmNoteBox");
+    QVERIFY2(noteBox, "the disclosure note has no box to sit in");
+    const int gap = noteBox->mapTo(&form, QPoint(0, 0)).y() - (cb->mapTo(&form, QPoint(0, 0)).y() + cb->height());
+    QVERIFY2(gap >= 0 && gap < 40,
+             qPrintable(QStringLiteral("checkbox-to-note gap is %1px").arg(gap)));
     beat();
   }
 

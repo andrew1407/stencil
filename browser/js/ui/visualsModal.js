@@ -5,9 +5,9 @@ import { DEFAULT_ACCENT } from '../core/accents.js';
 import { buildAccentPicker } from './accentPicker.js';
 import { motionModeIcon } from './motionIcons.js';
 import { enhanceSelect } from './customSelect.js';
-import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE,
-         DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP } from './motionPrefs.js';
+import { motionPrefs, MOTION_EVENT, DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS, DEFAULT_MODAL_BACKDROP } from './motionPrefs.js';
 import { subscribe, EVENTS } from '../eventBus/appBus.js';
+import { wireVoiceSilenceRow } from './visualsVoiceRow.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
   static inner() { return visualsModalInner(); }
@@ -50,6 +50,7 @@ export class StencilVisualsModal extends StencilElement {
       defaultFillColor: '#ffffff', selGlowColor: '#ffc800',
       hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed', holdDrawDelay: 500
     };
+    const voiceRow = wireVoiceSilenceRow();
 
     // Main theme — a custom colour-swatch dropdown (./accentPicker.js).
     const accentMount = document.getElementById('vs-accent');
@@ -70,14 +71,12 @@ export class StencilVisualsModal extends StencilElement {
         off: () => app.endAccentPreview?.(accentMount.querySelector('.accent-dd-trigger') || accentMount),
       },
     });
-    // The accent moved elsewhere (logo click-cycle or menu, another tab) — keep this picker's
-    // swatch in sync. Custom hex first, so the trigger never shows a stale preset name.
+    // The accent moved elsewhere (another tab) — keep this picker in sync; custom hex first.
     subscribe(EVENTS.accentChanged,
       (e) => accentPicker.set(typeof e.detail === 'string' ? e.detail : (app.customAccent || app.accent)));
 
-    // Appearance — light, dark, or SYSTEM (follow the OS; the toolbar moon/sun is the
-    // quick flip). Mirrors the extension's options page and the desktop's themeMode.
-    // The select is the swap origin, so the palette floods out of the touched control.
+    // Appearance — light, dark, or SYSTEM (the toolbar moon/sun is the quick flip); the
+    // select is the swap origin, so the palette floods out of the touched control.
     const appearance = document.getElementById('vs-appearance');
     // Our own list, not the OS's — a native <select> popup is drawn by the platform and
     // ignores the app's theme entirely (ui/customSelect.js).
@@ -91,9 +90,8 @@ export class StencilVisualsModal extends StencilElement {
     // The toolbar toggle (or another tab) can move it while this dialog is open.
     subscribe(EVENTS.themeChanged, syncAppearance);
 
-    // ── Motion: the stroke animation, the window backdrop, and how the interface moves ──
-    // All app-wide (ui/motionPrefs.js), not the project's, and all routed through the
-    // shared setter the console facade uses.
+    // ── Motion: the stroke animation, the window backdrop, and the interface, all
+    // app-wide (ui/motionPrefs.js), routed through the shared setter the console uses. ──
     const motionMode = document.getElementById('vs-motion-mode');
     // Enhanced HERE, with each mode's glyph (animated on hover), not by the app-wide pass
     // — data-cs-skip on the <select> keeps that pass off it, or its plain rows would win.
@@ -141,6 +139,7 @@ export class StencilVisualsModal extends StencilElement {
       els.point.value = app.pointSize;
       els.style.value = app.style;
       els.holdDelay.value = app.holdDrawDelay ?? VIS_DEFAULTS.holdDrawDelay;
+      voiceRow.populate();
       els.fill.value = app.defaultFillColor || VIS_DEFAULTS.defaultFillColor;
       els.selGlow.value = app.selGlowColor   || VIS_DEFAULTS.selGlowColor;
       els.hoverRing.value = app.hoverRingColor || VIS_DEFAULTS.hoverRingColor;
@@ -187,6 +186,7 @@ export class StencilVisualsModal extends StencilElement {
       app.setAccent(DEFAULT_ACCENT);
       const motionDefaults = [['drawing', DEFAULT_DRAWING_ANIMATIONS], ['backdrop', DEFAULT_MODAL_BACKDROP], ['mode', DEFAULT_MOTION_MODE]];
       for (const [k, v] of motionDefaults) app.settings.setMotion(k, v);
+      voiceRow.reset();
       setVal('line-color', app.color);
       setVal('line-thickness', app.thickness);
       setVal('point-size', app.pointSize);

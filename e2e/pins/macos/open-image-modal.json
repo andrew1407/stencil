@@ -358,7 +358,7 @@
         "font-family": "Arial, sans-serif",
         "margin": "0px 0px 2px",
         "width": "522px",
-        "height": "55px"
+        "height": "49px"
       }
     },
     {
@@ -375,7 +375,7 @@
         "padding": "7px 4px",
         "gap": "12px",
         "width": "522px",
-        "height": "55px",
+        "height": "49px",
         "justify-content": "flex-start",
         "align-items": "center"
       }
@@ -396,46 +396,115 @@
       "text": "Choose"
     },
     {
-      "path": ":root/div[1]/div[2]/div[2]/div[1]/input[1]",
-      "tag": "input",
-      "classes": "",
+      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]",
+      "tag": "span",
+      "classes": "oi-file",
       "style": {
-        "display": "block",
+        "display": "flex",
         "color": "rgb(0, 0, 0)",
-        "background-color": "rgb(255, 255, 255)",
         "border-color": "color(srgb 0 0 0 / 0.25)",
         "border-width": "1px",
         "border-radius": "4px",
-        "font-size": "14px",
-        "font-family": "Arial",
-        "padding": "8px 12px",
+        "font-size": "13px",
+        "font-family": "Arial, sans-serif",
         "width": "414px",
-        "height": "40px",
-        "align-items": "baseline",
-        "overflow": "clip"
+        "height": "34px",
+        "align-items": "stretch",
+        "overflow": "hidden"
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[8]",
+      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]/button[1]",
+      "tag": "button",
+      "classes": "btn-icon-text oi-file-btn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "padding": "8px 12px",
+        "gap": "6px",
+        "width": "118.7px",
+        "height": "32px",
+        "text-align": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-folder",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "14px",
+        "height": "14px",
+        "transform": "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.0166667, 0, 0, 0, 1)",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "74.7px",
+        "height": "16px",
+        "text-align": "center"
+      },
+      "text": "Choose File"
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]/span[1]",
+      "tag": "span",
+      "classes": "is-empty oi-file-name",
+      "style": {
+        "display": "flex",
+        "color": "rgb(136, 136, 136)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "14px",
+        "font-family": "Arial, sans-serif",
+        "padding": "0px 12px",
+        "width": "293.3px",
+        "height": "32px",
+        "align-items": "center",
+        "overflow": "hidden"
+      },
+      "text": "No file chosen"
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[10]",
       "tag": "div",
       "classes": "vs-row",
       "style": {
         "display": "flex",
         "color": "rgb(0, 0, 0)",
-        "border-color": "rgb(0, 0, 0) rgb(0, 0, 0) rgb(221, 221, 221)",
-        "border-width": "0px 0px 1px",
+        "border-color": "rgb(0, 0, 0)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
         "padding": "7px 4px",
         "gap": "12px",
         "width": "522px",
-        "height": "31.1px",
+        "height": "30px",
         "justify-content": "flex-start",
         "align-items": "center"
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[8]/label[1]",
+      "path": ":root/div[1]/div[2]/div[10]/label[1]",
       "tag": "label",
       "classes": "",
       "style": {
@@ -450,25 +519,27 @@
       "text": "Incognito"
     },
     {
-      "path": ":root/div[1]/div[2]/div[8]/span[1]",
+      "path": ":root/div[1]/div[2]/div[10]/span[1]",
       "tag": "span",
       "classes": "oi-incognito",
       "style": {
-        "display": "block",
+        "display": "flex",
         "color": "rgb(0, 0, 0)",
         "border-color": "rgb(0, 0, 0)",
         "font-size": "13px",
         "font-family": "Arial, sans-serif",
-        "width": "360.4px",
-        "height": "16.1px"
+        "gap": "10px",
+        "width": "393.1px",
+        "height": "16px",
+        "align-items": "center"
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[8]/span[1]/input[1]",
+      "path": ":root/div[1]/div[2]/div[10]/span[1]/input[1]",
       "tag": "input",
       "classes": "",
       "style": {
-        "display": "inline-block",
+        "display": "block",
         "color": "rgb(0, 0, 0)",
         "border-color": "rgb(124, 58, 237)",
         "border-width": "1px",
@@ -480,15 +551,17 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[8]/span[1]/span[1]",
-      "tag": "span",
+      "path": ":root/div[1]/div[2]/div[10]/span[1]/label[1]",
+      "tag": "label",
       "classes": "footer-hint",
       "style": {
-        "display": "inline",
+        "display": "block",
         "color": "rgb(0, 0, 0)",
         "border-color": "rgb(0, 0, 0)",
-        "font-size": "13px",
-        "font-family": "Arial, sans-serif"
+        "font-size": "14px",
+        "font-family": "Arial, sans-serif",
+        "width": "368.1px",
+        "height": "16px"
       },
       "text": "Edit without saving — the image is never written to storage."
     },

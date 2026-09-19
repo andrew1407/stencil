@@ -13,6 +13,9 @@
   line-height: 1.75;
   color: var(--text);
   background: var(--panel-2);
+  /* A row's tooltip heading is its URL, which has no space to break at — see the note in
+     browser/css/components/tooltip.css. */
+  overflow-wrap: anywhere;
   /* Accent outline, like the desktop's QToolTip — see browser components/tooltip.css. */
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
   border-radius: 6px;
@@ -91,7 +94,8 @@
               --dissolve 220ms ease;
 }
 .tip-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
-.tip-title { font-weight: 600; }
+/* min-width:0: a flex item will not shrink below its longest word — a whole URL. */
+.tip-title { font-weight: 600; min-width: 0; }
 .tip-keys { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 /* Half again the prose size — see the note in browser/css/components/tooltip.css. */
 .tip-key {

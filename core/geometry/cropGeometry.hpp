@@ -38,6 +38,12 @@ namespace stencil::core {
   CropRect scaleCropCentered(const CropRect& cur, double factor, double aspectWoverH,
                              double imageW, double imageH, double minSize = 16.0);
 
+  // The Album/Portrait press: a width/height swap about the same centre already lands on
+  // `aspectWoverH` (one page's two aspects are exact reciprocals) — the user's own framing
+  // carries over instead of resetting. No rect yet falls back to centeredCrop.
+  CropRect swapCropOrientation(const CropRect& cur, double aspectWoverH,
+                               double imageW, double imageH);
+
   // Uniform factor mapping crop-local points across a width change; 1.0 if oldWidth <= 0.
   double cropResizeScale(double oldWidth, double newWidth);
 

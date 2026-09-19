@@ -8,3 +8,6 @@ export declare function icon(name: string, opts?: { size?: number; cls?: string;
 
 /** Flip a Select all/Deselect all button's label and glyph to match `all`. */
 export declare const setSelectAllFace: (btn: Element | null, all: boolean) => void;
+
+/** Turn a control's glyph one revolution clockwise, once, in answer to a click. */
+export declare const spinIconOnce: (btn: Element | null) => void;

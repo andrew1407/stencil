@@ -20,9 +20,9 @@ import { THEME_STORAGE_KEY, THEME_MODES } from '../src/lib/shellTheme.js';
 
 // ── The accent list ──
 
-test('publishes the twelve presets, each with a key, label and #rrggbb hex', () => {
+test('publishes the sixteen presets, each with a key, label and #rrggbb hex', () => {
   const { accent } = loadAccent();
-  assert.equal(accent.list.length, 12);
+  assert.equal(accent.list.length, 16);
   const keys = new Set();
   for (const a of accent.list) {
     assert.match(a.key, /^[a-z]+$/, `bad key ${a.key}`);
@@ -481,7 +481,7 @@ test('the browser palette (config/accents.json) carries the same keys and hexes'
     'utf8',
   ));
   const browserAccents = Object.fromEntries(rows.map((a) => [a.key, a.hex.toLowerCase()]));
-  assert.equal(Object.keys(browserAccents).length, 12, 'failed to parse browser accents.json');
+  assert.equal(Object.keys(browserAccents).length, 16, 'failed to parse browser accents.json');
 
   const fromAccentJs = Object.fromEntries(accent.list.map((a) => [a.key, a.hex.toLowerCase()]));
   assert.deepEqual(
@@ -515,8 +515,8 @@ test('data-accent-light is stamped only for the light presets', () => {
     accent.set(a.key);
     if (isAccentLight()) light.push(a.key);
   }
-  // The seven presets black reads better on than white does.
-  assert.deepEqual(light, ['pink', 'yellow', 'orange', 'aqua', 'sky', 'grass', 'brown']);
+  // The presets black reads better on than white does.
+  assert.deepEqual(light, ['pink', 'orange', 'brown', 'yellow', 'grass', 'turquoise', 'aqua', 'sky', 'bluegray']);
 });
 
 test('inkOn hands a swatch the ink for its own colour', () => {

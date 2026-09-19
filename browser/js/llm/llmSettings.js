@@ -36,12 +36,13 @@ export const withProvider = (settings, provider) => {
   };
 };
 
-// First-run defaults: ollama on its standard local port, model empty (the user picks),
-// serverUrl pre-filled with the FIRST saved Stencil server connection (empty when none).
-// saveChats is the §12 chat-persistence opt-in — OFF by default, everywhere.
+// First-run defaults: the assistant ships OFF (contract §5) until the user picks a
+// provider; serverUrl pre-fills the FIRST saved Stencil server connection anyway, so
+// switching to "Stencil server" has something to select. saveChats is the §12
+// chat-persistence opt-in — OFF by default, everywhere.
 export const defaultSettings = () => ({
-  provider: 'ollama',
-  baseUrl: PROVIDER_BASE_URLS.ollama,
+  provider: 'none',
+  baseUrl: '',
   model: '',
   apiKey: '',
   serverUrl: loadSavedServers()[0]?.url || '',
@@ -65,7 +66,7 @@ export const loadLlmSettings = () => {
   } catch {
     /* storage blocked / corrupt — fall back to the defaults */
   }
-  if (!PROVIDERS.includes(out.provider)) out.provider = 'ollama';
+  if (!PROVIDERS.includes(out.provider)) out.provider = 'none';
   return out;
 };
 

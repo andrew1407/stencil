@@ -1,6 +1,8 @@
 #include "../support/SearchCombo.hpp"
 #include "openImageDialogParts.hpp"
 #include "OpenImageDialog.hpp"
+#include "../support/iconSpin.hpp"
+#include <QScrollArea>
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "../support/modalChrome.hpp"
@@ -15,6 +17,7 @@
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -43,49 +46,62 @@ namespace stencil::gui {
 
   OpenImageDialog::OpenImageDialog(QWidget* parent, bool canReplace,
                                    int blankW, int blankH, bool startBlank,
-                                   const QString& pageSeed, const QString& units)
-      : QDialog(parent), pageSeed_(pageSeed), units_(units), canReplace_(canReplace) {
+                                   const QString& pageSeed)
+      : QDialog(parent), pageSeed_(pageSeed), canReplace_(canReplace) {
     setWindowTitle("Open Image");
-    // The browser's shared modal width. The four-button footer a replaceable project
-    // adds (Cancel / Replace image / Open here / Open in new window) paints tighter
-    // than the layout's minimum reports, so that shape gets a little more room.
+    // The browser's shared modal width; the four-button footer a replaceable project
+    // adds paints tighter than the layout's minimum reports, so it gets more room.
     setMinimumWidth(canReplace ? 610 : MODAL_WIDTH);
     const QString mutedCss = "color: gray; font-size: 11px;";
 
     // Browser openImageModal.js parity: the shared modal shell around the tabbed body.
     ModalChrome chrome = installModalChrome(this, "image", tr("Open Image"));
-    QVBoxLayout* layout = chrome.body;
+    // A crop stage over a tall picture outgrows the screen, so the body SCROLLS rather
+    // than the window running off the bottom (the browser's .app-modal does the same).
+    ModalScrollBody body = makeModalScrollBody(chrome, /*topPad=*/0);
+    bodyScroll_ = body.scroll;
+    bodyContent_ = body.content;   // a QScrollArea's own sizeHint is a fixed default, so
+    QVBoxLayout* layout = body.layout;
 
     // Source tabs: Local file / URL link / Blank — the browser .oi-tab strip
-    // (UnderlineTabBar.hpp): animated hover, sliding accent underline, and the
-    // selected tab's GLYPH tinted accent along with its label.
+    // (UnderlineTabBar.hpp): hover, sliding underline, and an accent-tinted glyph.
     tabs_ = new OiTabWidget(this);
-    // No pane box (browser .oi-tabs: an underlined tab strip over plain rows — the
-    // .vs-rows carry their own hairlines, so the generic rounded pane doubled up).
-    // The pane keeps only the strip's own full-width hairline (theme.cpp).
+    // No pane box: the .vs-rows carry their own hairlines, so a rounded pane doubled
+    // up — only the strip's own full-width hairline remains (theme.cpp).
     tabs_->setObjectName("oiTabs");
     // Hug the tab page. QTabWidget expands by default, so the pane stretched into a tall
     // empty box under a two-field form (the browser's tab panel is content-height).
     tabs_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
-    // Tab: Local file (browser: one .vs-row "Choose" + the file input). A read-only
-    // field showing the chosen path + a Choose File button (images AND videos); the
-    // chosen file auto-previews, so this tab carries no Preview button of its own.
+    // Tab: Local file (browser: one .vs-row "Choose" + the file input) — a read-only
+    // path field + Choose (images AND videos). It auto-previews, so it needs no button.
     auto* fileTab = new QWidget(this);
     auto* fileV = new QVBoxLayout(fileTab);
     fileV->setContentsMargins(0, 14, 0, 0);   // browser .oi-tabs margin-bottom: 14px
     fileV->setSpacing(0);
-    auto* fileRow = new QHBoxLayout;
+    // ONE control, not a button beside a field: the accent CTA on the left butted straight
+    // against the path readout, both inside a single outlined box — the browser's .oi-file
+    // (css/components/openImage.css). The box carries the outline, so the halves carry none.
+    auto* fileBox = new QFrame(this);
+    fileBox->setObjectName(QStringLiteral("oiFileBox"));
+    auto* fileRow = new QHBoxLayout(fileBox);
     fileRow->setContentsMargins(0, 0, 0, 0);
+    fileRow->setSpacing(0);
     path_ = new QLineEdit(this);
     path_->setReadOnly(true);
+    path_->setObjectName(QStringLiteral("oiPathField"));
     path_->setPlaceholderText("No file chosen");
     auto* browse = new QPushButton("Choose File…", this);
+    browse->setObjectName(QStringLiteral("oiChooseBtn"));
     makeModalCta(browse, "folder");
     connect(browse, &QPushButton::clicked, this, &OpenImageDialog::browse);
-    fileRow->addWidget(path_, 1);
+    // The whole box opens the chooser, not just the button — the browser's is one control
+    // end to end, and a read-only field that ignores a click reads as broken.
+    support::clickActivates(path_, browse);
+    path_->setToolTip(tr("Click to choose an image or video"));
     fileRow->addWidget(browse);
-    fileV->addWidget(vsRow(fileTab, tr("Choose"), fileRow));
+    fileRow->addWidget(path_, 1);
+    fileV->addWidget(vsRow(fileTab, tr("Choose"), fileBox));
     tabs_->addTab(fileTab, "Local file");
 
     // Tab: URL link (browser: one .vs-row "URL" with the field AND the Preview button
@@ -108,9 +124,8 @@ namespace stencil::gui {
     urlV->addWidget(vsRow(urlTab, tr("URL"), urlRow));
     tabs_->addTab(urlTab, "URL link");
 
-    // Tab: Blank (browser: FILL COLOR / SIZE (PX) sections of .vs-rows — the White and
-    // Black presets are swatch BUTTONS that pick the fill, the custom swatch beside
-    // them; plain px number fields, no radios and no unit suffix).
+    // Tab: Blank (browser FILL COLOR / SIZE (PX)): White and Black are swatch BUTTONS
+    // with the custom swatch beside them, then plain px fields — no radios, no suffix.
     auto* blankTab = new QWidget(this);
     auto* blankV = new QVBoxLayout(blankTab);
     blankV->setContentsMargins(0, 14, 0, 0);
@@ -129,15 +144,17 @@ namespace stencil::gui {
     blackBtn->setObjectName("biPresetBlack");
     blackBtn->setToolTip("Fill with black");
     customSwatch_ = new QToolButton(this);
-    setColorSwatch(customSwatch_, customColor_);
+    // A QToolButton is icon-ONLY by default, which would drop the hex setColorSwatch writes.
+    customSwatch_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    setColorSwatch(customSwatch_, customColor_, SWATCH_SIZE, /*withHex=*/true);
     connect(customSwatch_, &QToolButton::clicked, this, &OpenImageDialog::pickCustomColor);
     connect(whiteBtn, &QPushButton::clicked, this, [this] {
       customColor_ = QColor(Qt::white);
-      setColorSwatch(customSwatch_, customColor_);
+      setColorSwatch(customSwatch_, customColor_, SWATCH_SIZE, /*withHex=*/true);
     });
     connect(blackBtn, &QPushButton::clicked, this, [this] {
       customColor_ = QColor(Qt::black);
-      setColorSwatch(customSwatch_, customColor_);
+      setColorSwatch(customSwatch_, customColor_, SWATCH_SIZE, /*withHex=*/true);
     });
     presetRow->addWidget(whiteBtn);
     presetRow->addWidget(blackBtn);
@@ -167,45 +184,57 @@ namespace stencil::gui {
     // Rendered preview image / frame.
     previewLabel_ = new QLabel(this);
     previewLabel_->setAlignment(Qt::AlignCenter);
-    previewLabel_->setMaximumSize(PREVIEW_MAX_W, PREVIEW_MAX_H);
+    previewLabel_->setMaximumSize(previewFitBox());
     previewLabel_->setFrameShape(QFrame::StyledPanel);
     // Hidden until a preview lands (the browser shows no preview area until there is one).
     previewLabel_->setVisible(false);
+    // The scrub bar rides UNDER the picture at its exact width, the way a player's
+    // progress bar does (browser parity) — whatever is above it sizes it.
+    frameSlider_ = new QSlider(Qt::Horizontal, this);
+    makeScrubBar(frameSlider_);
+    frameSlider_->setRange(0, 0);
+    frameSlider_->setContentsMargins(0, 0, 0, PREVIEW_COL_GAP);
+    frameSlider_->setVisible(false);
+    auto* previewCol = new QVBoxLayout;
+    previewCol->setContentsMargins(0, 0, 0, 0);
+    // No layout spacing: each row carries the gap BELOW it as its own margin, so the
+    // read-out arriving or leaving changes the column by exactly its own height — a
+    // layout gap would pop in whole while the line was still sliding.
+    previewCol->setSpacing(0);
+    previewLabel_->setContentsMargins(0, PREVIEW_COL_GAP, 0, PREVIEW_COL_GAP);
+    previewCol->addWidget(previewLabel_, 0, Qt::AlignHCenter);
+    // The crop stage TAKES THE PICTURE'S PLACE while Crop is on (syncCropStage), a video's
+    // frame included — the rect is drawn on the picture already there, never on a second
+    // copy below it. The scrub bar stays under whichever of the two is up.
+    cropStageHost_ = new QWidget(this);
+    auto* stageBox = new QVBoxLayout(cropStageHost_);
+    stageBox->setContentsMargins(0, 0, 0, 0);
+    stageBox->setSpacing(6);
+    cropStageHost_->setContentsMargins(0, PREVIEW_COL_GAP, 0, PREVIEW_COL_GAP);
+    cropStageHost_->setVisible(false);
+    previewCol->addWidget(cropStageHost_, 0, Qt::AlignHCenter);
+    previewCol->addWidget(frameSlider_, 0, Qt::AlignHCenter);
+    cropDims_ = new QLabel(this);
+    cropDims_->setStyleSheet(mutedCss);
+    cropDims_->setVisible(false);
+    previewCol->addWidget(cropDims_, 0, Qt::AlignHCenter);
     auto* previewCenter = new QHBoxLayout;
     previewCenter->addStretch(1);
-    previewCenter->addWidget(previewLabel_);
+    previewCenter->addLayout(previewCol);
     previewCenter->addStretch(1);
     layout->addLayout(previewCenter);
 
-    // "Video frame" controls (mirrors LinksDialog) as the browser's Frame .vs-row: the
-    // slider scrubs; the spin box shows/edits the exact frame; both stay mirrored and
-    // seek the persistent scrub player. A checkbox under them can switch to the
-    // container's embedded preview image instead.
+    // The frame the scrub lands on, typed or stepped; the slider above is its twin.
     frame_ = new QSpinBox(this);
     frame_->setRange(0, 0);
-    frameSlider_ = new QSlider(Qt::Horizontal, this);
-    frameSlider_->setRange(0, 0);
-    frameTotal_ = new QLabel(this);
-    frameTotal_->setStyleSheet(mutedCss);
-    auto* frameV = new QVBoxLayout;
-    frameV->setContentsMargins(0, 0, 0, 0);
-    frameV->setSpacing(7);
-    auto* frameH = new QHBoxLayout;
-    frameH->setContentsMargins(0, 0, 0, 0);
-    frameH->addWidget(frameSlider_, 1);
-    frameH->addWidget(frame_);
-    frameH->addWidget(frameTotal_);
-    frameV->addLayout(frameH);
-    usePreview_ = new QCheckBox("Use the video's preview image instead of a frame", this);
-    usePreview_->setEnabled(false);
-    frameV->addWidget(usePreview_);
-    frameRow_ = vsRow(this, tr("Frame"), frameV);
+    frameRow_ = vsRow(this, tr("Frame"), frame_);
     frameRow_->setVisible(false);  // shown only for videos
     layout->addWidget(frameRow_);
 
     previewHint_ = new QLabel(this);
     previewHint_->setStyleSheet(mutedCss);
     previewHint_->setWordWrap(true);
+    previewHint_->setContentsMargins(4, 10, 0, 0);   // browser .oi-status margin: 10px 0 0 4px
     previewHint_->setVisible(false);   // an empty hint keeps no line of its own
     layout->addWidget(previewHint_);
 
@@ -214,40 +243,113 @@ namespace stencil::gui {
     // cropping — the Album/Portrait toggle and the page the aspect comes from. Crop is
     // OFF by default; shown only once a preview resolves an image/frame.
     {
-      auto* qc = new QHBoxLayout;
-      qc->setContentsMargins(0, 0, 0, 0);
-      qc->setSpacing(8);
-      cropPage_ = new QCheckBox(this);
+      // No tooltip on the box (browser parity): the caption beside it says what it does.
+      auto* qc = checkCaptionRow(this, cropPage_,
+                                 tr("Trim to the page aspect before opening."));
       cropPage_->setChecked(false);  // UNCHECKED by default → open the whole image
-      cropPage_->setToolTip("Crop the image to the page aspect before opening");
-      auto* cropHint = new QLabel(tr("Trim to the page aspect before opening."), this);
-      cropHint->setObjectName(QStringLiteral("modalFooterHint"));   // browser .footer-hint
       cropAlbum_ = new QPushButton(this);
+      cropAlbum_->setObjectName(QStringLiteral("cropAlbumBtn"));   // app.qss: left, not centred
       cropAlbum_->setCheckable(true);
       makeModalCta(cropAlbum_, "swap");
       cropAlbum_->setToolTip("Swap album / portrait — flips the crop orientation");
       cropAlbum_->setAutoDefault(false);
-      cropPageSize_ = new SearchComboBox(this);
-      // Every named ISO format (labels with sizes, data = the canonical name). No
-      // "custom" here — the crop needs a fixed page aspect.
-      fillPageSizeCombo(cropPageSize_, /*includeCustom=*/false, units_);
-      qc->addWidget(cropPage_);
-      qc->addWidget(cropHint, 1);
+      // Fixed to its longer face: an auto-width button jumped on every press, since
+      // "Album" and "Portrait" measure differently (browser twin: openImage.css
+      // #open-image-crop-orientation).
+      cropAlbum_->setText(tr("Portrait"));
+      const int portraitW = cropAlbum_->sizeHint().width();
+      cropAlbum_->setText(tr("Album"));
+      cropAlbum_->setFixedWidth(std::max(portraitW, cropAlbum_->sizeHint().width()));
+      // Explicit, matching cropDims_'s own: cropAlbumDust's guard skips the FIRST call
+      // when arriving already equals cropAlbumShown_'s false default, so the widget must
+      // already be hidden going in, not rely on that call to make it so.
+      cropAlbum_->setVisible(false);
+      qc->addSpacing(8);
       qc->addWidget(cropAlbum_);
-      qc->addWidget(cropPageSize_);
       quickcropRow_ = vsRow(this, tr("Crop"), qc);
+      quickcropRow_->setObjectName(QStringLiteral("oiNoDivider"));
     }
     quickcropRow_->setVisible(false);  // shown once a preview succeeds
     layout->addWidget(quickcropRow_);
-    // Album / page only matter when cropping to page; shown only then (browser parity).
-    connect(cropPage_, &QCheckBox::toggled, this, &OpenImageDialog::syncQuickcropEnabled);
-    connect(cropAlbum_, &QPushButton::toggled, this, &OpenImageDialog::syncQuickcropEnabled);
 
-    // Incognito: a .vs-row with the browser's full caption (openImageModal.js).
+    // The crop's own ASPECT RATIO — its own row (browser twin: #open-image-crop-size-row),
+    // shown/hidden with the same particle sweep as the read-out below the stage, only while
+    // cropping. A handful of plain ratios beside the project's own page: every named ISO
+    // page (A/B/C) shares one ratio, so listing the whole series here said nothing a
+    // single "Page" entry doesn't already say.
+    {
+      auto* sc = new QHBoxLayout;
+      sc->setContentsMargins(0, 0, 0, 0);
+      sc->setSpacing(8);
+      cropPageSize_ = new SearchComboBox(this, /*searchable=*/false);   // four entries: nothing to search
+      cropPageSize_->addItem(tr("Page — Default"), QStringLiteral("page"));
+      cropPageSize_->addItem(tr("1:1 (Square)"), QStringLiteral("1:1"));
+      cropPageSize_->addItem(tr("2:3"), QStringLiteral("2:3"));
+      cropPageSize_->addItem(tr("Custom…"), QStringLiteral("custom"));
+      cropPageSize_->setCurrentIndex(0);   // starts on the project's own page
+      cropPageSize_->setToolTip("The crop's own aspect ratio");
+      sc->addWidget(cropPageSize_);   // its own content width (browser twin: .oi-crop-size, never stretched)
+      // The W/H pair takes the row's slack, out to the Album/Portrait button's own edge above.
+      cropSizeCustomGroup_ = new QWidget(this);
+      {
+        auto* cg = new QHBoxLayout(cropSizeCustomGroup_);
+        cg->setContentsMargins(0, 0, 0, 0);
+        cg->setSpacing(6);
+        cropSizeW_ = new QDoubleSpinBox(cropSizeCustomGroup_);
+        cropSizeW_->setRange(0.1, 500.0);
+        cropSizeW_->setSingleStep(0.1);
+        cropSizeW_->setDecimals(1);
+        cropSizeW_->setValue(21.0);   // SettingsDialog's own Custom default (page_/customW_)
+        cropSizeH_ = new QDoubleSpinBox(cropSizeCustomGroup_);
+        cropSizeH_->setRange(0.1, 500.0);
+        cropSizeH_->setSingleStep(0.1);
+        cropSizeH_->setDecimals(1);
+        cropSizeH_->setValue(29.7);
+        // W/H beside their own field (browser twin: openImageMarkup.js's
+        // .oi-crop-size-field) — a plain RATIO pair, so no unit label rides along either
+        // (user report).
+        cg->addWidget(new QLabel(QStringLiteral("W"), cropSizeCustomGroup_));
+        cg->addWidget(cropSizeW_, 1);
+        cg->addWidget(new QLabel(QStringLiteral("H"), cropSizeCustomGroup_));
+        cg->addWidget(cropSizeH_, 1);
+      }
+      cropSizeCustomGroup_->setVisible(false);
+      sc->addWidget(cropSizeCustomGroup_, 1);
+      sc->addStretch(0);   // with the pair hidden the room stays blank, never poured into the combo
+      cropSizeRow_ = vsRow(this, tr("Aspect ratio"), sc);
+      cropSizeRow_->setObjectName(QStringLiteral("oiNoDivider"));
+    }
+    cropSizeRow_->setVisible(false);
+    layout->addWidget(cropSizeRow_);
+    connect(cropPageSize_, &QComboBox::currentIndexChanged, this, [this] {
+      cropSizeCustomDust(cropPageSize_->currentData().toString() == QLatin1String("custom"));
+      syncCropPageChoice();
+      refitWindowHeight();   // the W/H pair is taller than the combo: unrefitted, it overflowed into a scrollbar
+    });
+    connect(cropSizeW_, &QDoubleSpinBox::valueChanged, this, [this] {
+      if (cropPageSize_->currentData().toString() == QLatin1String("custom")) syncCropPageChoice();
+    });
+    connect(cropSizeH_, &QDoubleSpinBox::valueChanged, this, [this] {
+      if (cropPageSize_->currentData().toString() == QLatin1String("custom")) syncCropPageChoice();
+    });
+
+    // The page + its read-out only matter while cropping; shown only then (browser parity).
+    connect(cropPage_, &QCheckBox::toggled, this, &OpenImageDialog::syncQuickcropEnabled);
+    // A user press FLIPS the stage already up — never syncQuickcropEnabled's full rebuild,
+    // which starts a fresh stage from the PICTURE's own default orientation and would
+    // silently overwrite the very checked state this signal just set (button "did nothing").
+    connect(cropAlbum_, &QPushButton::toggled, this, [this] {
+      cropAlbum_->setText(cropAlbum_->isChecked() ? tr("Album") : tr("Portrait"));
+      if (cropStage_) cropStage_->setAlbum(cropAlbum_->isChecked());
+      support::spinIconOnce(cropAlbum_);   // the press turns the glyph it flips
+    });
+
     // Applies to a file/URL open; hidden on the Blank tab (never honored there).
-    incognito_ = new QCheckBox(
-        "Edit without saving — the image is never written to storage.", this);
-    incogRow_ = vsRow(this, tr("Incognito"), incognito_, /*stretch=*/0);
+    incogRow_ = vsRow(this, tr("Incognito"),
+                      checkCaptionRow(this, incognito_,
+                                      tr("Edit without saving — the image is never "
+                                         "written to storage.")));
+    incogRow_->setObjectName(QStringLiteral("oiNoDivider"));
     layout->addWidget(incogRow_);
     // Incognito never offers a server target (browser: fillTargetSelect(!incog)).
     connect(incognito_, &QCheckBox::toggled, this, &OpenImageDialog::refreshTargetRow);
@@ -317,13 +419,8 @@ namespace stencil::gui {
               previewIsVideo_ = preview_->isVideoSource();
               if (previewIsVideo_) {
                 frameImage_ = img;
-                thumbImage_ = preview_->embeddedThumbnail();
                 scrubFps_ = preview_->frameRate() > 0 ? preview_->frameRate() : 30.0;
                 scrubDurationMs_ = preview_->durationMs();
-                const bool hasThumb = !thumbImage_.isNull();
-                usePreview_->setEnabled(hasThumb);
-                if (!hasThumb && usePreview_->isChecked())
-                  usePreview_->setChecked(false);  // (re-renders via toggled)
                 frameRow_->setVisible(true);
                 applyFrameBounds();  // size the slider / spin box to this video
                 updateVideoPreview();
@@ -334,9 +431,8 @@ namespace stencil::gui {
               } else {
                 teardownScrubPlayer();
                 frameImage_ = QImage();
-                thumbImage_ = QImage();
                 frameRow_->setVisible(false);
-                showPreview(img, QString("Image %1×%2").arg(img.width()).arg(img.height()));
+                showPreview(img, QString());   // no size line; the browser has none
                 showQuickcrop(img.width(), img.height());
               }
             });
@@ -344,12 +440,10 @@ namespace stencil::gui {
       teardownScrubPlayer();
       previewImage_ = QImage();
       frameImage_ = QImage();
-      thumbImage_ = QImage();
       previewIsVideo_ = false;
       clearPreviewImage();
       frameRow_->setVisible(false);
       quickcropRow_->setVisible(false);
-      usePreview_->setEnabled(false);
       setHint("Could not load that source — " + msg);
     });
 
@@ -358,7 +452,7 @@ namespace stencil::gui {
     fetchTimer_->setSingleShot(true);
     fetchTimer_->setInterval(80);
     connect(fetchTimer_, &QTimer::timeout, this, [this] {
-      if (previewIsVideo_ && !usePreview_->isChecked()) seekScrub(frame_->value());
+      if (previewIsVideo_) seekScrub(frame_->value());
     });
     // Slider ↔ spin box stay mirrored; either changing schedules a debounced seek.
     connect(frameSlider_, &QSlider::valueChanged, this, [this](int v) { setFrame(v); });
@@ -366,13 +460,8 @@ namespace stencil::gui {
             [this](int v) { setFrame(v); });
     connect(frameSlider_, &QSlider::sliderReleased, this, [this] {
       fetchTimer_->stop();
-      if (previewIsVideo_ && !usePreview_->isChecked()) seekScrub(frame_->value());
+      if (previewIsVideo_) seekScrub(frame_->value());
     });
-    // Toggling "use preview image" swaps between the cached frame and embedded image.
-    connect(usePreview_, &QCheckBox::toggled, this, [this] {
-      if (previewIsVideo_) updateVideoPreview();
-    });
-
     // A URL edit keeps the picture on screen while the text is corrected — it only
     // stops counting as THIS url's preview (the frame/crop controls it sized go with
     // it), and opening re-resolves the typed url. Enter previews it again.

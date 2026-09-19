@@ -26,7 +26,9 @@ namespace stencil::gui {
     constexpr const char* STATUS_OK_COLOR = "#28a745";
     constexpr const char* STATUS_ERROR_COLOR = "#dc3545";
     constexpr const char* STATUS_CONNECTING_COLOR = "#e0a800";
-
+    // Wider than SettingsDialog's CTRL_W 180, where a base URL, a model name, a key or a
+    // server URL clips (browser modalShell.css stencil-llm-settings-modal --vs-ctrl-w twin).
+    constexpr int CTRL_W = 320;
   }
 
   LlmSettingsForm::LlmSettingsForm(const Settings& current, RowMode mode,
@@ -35,9 +37,9 @@ namespace stencil::gui {
     auto* col = new QVBoxLayout(this);
     col->setContentsMargins(0, 0, 0, 0);
     form_ = new QFormLayout;
-    // Browser .vs-row/.vs-field geometry: labels flush left and the fields
-    // spanning the rest of the row (the modal's inputs run the full width).
-    alignModalForm(form_, /*growFields=*/mode_ == RowMode::HIDE_ROWS);
+    // Visuals & Settings parity: labels flush left, every field one fixed width flush
+    // right — a plain QFormLayout stretch let Model/Base URL outrun Provider/Server.
+    alignModalForm(form_, /*growFields=*/false);
     // The browser rows breathe: a .vs-row is 7px padding + control + 7px + its
     // hairline (~49px pitch, measured live). The default form spacing packs the
     // same rows into ~37px, leaving the dialog visibly shorter than the modal.
@@ -45,7 +47,7 @@ namespace stencil::gui {
     col->addLayout(form_);
 
     buildProviderRows(current);
-    buildChatHistoryRows(current, col);
+    buildChatHistoryRows(current);
     wireProviderFields();
   }
 
@@ -59,11 +61,10 @@ namespace stencil::gui {
     return d;
   }
 
-  // The modal's SELECTS hug their content on the row's right edge (the .accent-dd
-  // trigger) while text fields span. Maximum policy keeps them out of the grow set, and
-  // the item alignment pins them right.
+  // ONE control column, flush right (components.css --vs-ctrl-w): every field the same
+  // width whatever its type, so Provider/Model/Server read as a table, not ragged.
   void LlmSettingsForm::hugRight(QWidget* w) {
-    w->setSizePolicy(QSizePolicy::Maximum, w->sizePolicy().verticalPolicy());
+    w->setFixedWidth(CTRL_W);
     int row = -1;
     QFormLayout::ItemRole role;
     form_->getWidgetPosition(w, &row, &role);
@@ -121,29 +122,37 @@ namespace stencil::gui {
   void LlmSettingsForm::refreshStatus() {
     const QString provider = provider_->currentData().toString();
     // "none" is local-only (contract §5): nothing is probed or sent anywhere.
+    // Text matches the browser's llmSettingsModal.js renderStatus() verbatim.
     if (provider == QLatin1String("none")) {
       ++probeGen_;  // invalidate any probe still in flight
       setStatus(STATUS_ERROR_COLOR,
-                QStringLiteral("Assistant turned off — nothing is sent anywhere"));
+                QStringLiteral("Assistant turned off — nothing is sent anywhere."));
+      return;
+    }
+    const QString serverUrl = server_->currentData().toString();
+    if (provider == QLatin1String("stencil-server") && serverUrl.isEmpty()) {
+      ++probeGen_;
+      setStatus(STATUS_ERROR_COLOR,
+                QStringLiteral("No collaboration server configured — assistant turned off."));
       return;
     }
     stencil::llm::LlmSettings cfg;
     cfg.provider = provider;
     cfg.baseUrl = baseUrl_->text().trimmed();
     cfg.apiKey = apiKey_->text().trimmed();
-    cfg.serverUrl = server_->currentData().toString();
+    cfg.serverUrl = serverUrl;
     setStatus(STATUS_CONNECTING_COLOR, QStringLiteral("Checking the configured LLM…"));
     const int gen = ++probeGen_;
     QPointer<LlmSettingsForm> self(this);
-    client_->probe(cfg, [self, gen](stencil::llm::LlmProbeResult r) {
+    client_->probe(cfg, [self, gen, provider, serverUrl](stencil::llm::LlmProbeResult r) {
       if (!self || gen != self->probeGen_) return;  // superseded by a newer edit
       if (r.ok) {
-        QString text = r.detail.isEmpty()
-                           ? QStringLiteral("Connected")
-                           : QStringLiteral("Connected — %1").arg(r.detail);
-        // stencil-server /llm/info reports the server-side model — show it, so
-        // "server default" stops being a mystery.
-        if (!r.model.isEmpty()) text += QStringLiteral(" · %1").arg(r.model);
+        // stencil-server: the browser's "Connected — via {url} ({model})" verbatim.
+        QString text = provider == QLatin1String("stencil-server")
+            ? QStringLiteral("Connected — via %1 (%2)")
+                  .arg(serverUrl, r.model.isEmpty() ? QStringLiteral("server default") : r.model)
+            : r.detail.isEmpty() ? QStringLiteral("Connected")
+                                  : QStringLiteral("Connected — %1").arg(r.detail);
         self->setStatus(STATUS_OK_COLOR, text);
       } else {
         self->setStatus(STATUS_ERROR_COLOR,

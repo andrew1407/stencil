@@ -7,8 +7,10 @@ export const quadrantAt = (x, y, w, h) => {
   return top ? (left ? 'here' : 'incognito') : (left ? 'newtab' : 'crop');
 };
 
-// `mode` is the Appearance choice UNRESOLVED: only the target page can answer what the OS
-// prefers. Never a bare `@media (prefers-color-scheme)` — that follows the PAGE's scheme.
+// `mode` is the Appearance choice, already RESOLVED to 'light'/'dark' by the panel that
+// armed this (lib/shellTheme.js injectedScheme) — the page's own media query answers only
+// when nothing has been mirrored yet, since a host page can answer it differently from the
+// extension's own documents. Never a bare `@media (prefers-color-scheme)`.
 export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'system') => {
   if (window.__stencilDropZones) return;
   window.__stencilDropZones = true;

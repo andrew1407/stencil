@@ -53,6 +53,7 @@ namespace {
       "canvas/CanvasSelection.cpp",     "canvas/CanvasSettings.cpp",
       "canvas/CanvasTransform.cpp",     "canvas/CanvasWidget.hpp",
       "dialogs/CropDialog.hpp",         "dialogs/ExpirationDialog.cpp",
+      "dialogs/OpenImageDialogResult.cpp",
       "dialogs/ProjectsDialog.cpp",     "dialogs/ProjectsDialog.hpp",
       "dialogs/projectsRowChrome.hpp",  "io/fileStore.cpp",
       "io/fileStore.hpp",               "llm/opPlan.cpp",

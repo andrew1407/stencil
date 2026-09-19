@@ -8,6 +8,8 @@ export declare function isVideoFile(file: { type?: string; name?: string } | nul
 export declare function isVideoUrl(url: unknown): boolean;
 /** Revokes `srcUrl` when done; rejects on load/seek/taint/timeout. */
 export declare function videoFrameDataUrl(srcUrl: string, timeSec: number): Promise<string>;
+// Frames are counted at this rate: the browser cannot read a video's true one.
+export declare const FRAME_INDEX_FPS: number;
 /** A JPEG File reusing the video's base name; `timeSec` selects the frame. */
 export declare function videoFileToImageFile(file: File, timeSec?: number): Promise<File>;
 /** `count` evenly-spaced frames (first frame included). */

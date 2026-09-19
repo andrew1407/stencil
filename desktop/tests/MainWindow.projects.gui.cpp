@@ -2,6 +2,7 @@
 // live sync and what a session restores.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindow.gui.hpp"
+#include "../src/support/filterFade.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -629,7 +630,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!win.addImageProjectEntry(img, "one").isEmpty());
     QVERIFY(!win.addImageProjectEntry(img, "two").isEmpty());
 
-    bool sawPinned = false, barWasUp = false;
+    bool sawPinned = false, barWasUp = false, dustedOnOpen = false;
     int biggestStep = 0, travelled = 0;
     QTimer::singleShot(0, [&] {
       const auto bailOut = [] {
@@ -657,6 +658,10 @@ class MainWindowGuiTest : public QObject {
         return -1;
       };
       sawPinned = pinnedTop() >= 0;
+      // OPENING is not an arrival: the dialog rebuilds more than once on its way up.
+      settle([] { return false; }, stencil::gui::ROW_ARRIVE_DELAY_MS + 120);
+      dustedOnOpen = !dlg->findChildren<QWidget*>(
+          QString::fromLatin1(stencil::gui::FILTER_DUST_OBJECT_NAME)).isEmpty();
       barWasUp = bar->isVisible() && bar->height() > 0;
       if (!sawPinned || !barWasUp) { bailOut(); return; }
       const int from = pinnedTop();
@@ -675,6 +680,7 @@ class MainWindowGuiTest : public QObject {
     });
     win.openProjects();
     QVERIFY2(sawPinned, "the pinned row was not listed with the saved projects");
+    QVERIFY2(!dustedOnOpen, "no row may form out of particles just because the dialog opened");
     QVERIFY2(barWasUp, "the batch bar was not up over the selectable rows");
     QVERIFY2(travelled > 20, QString("the rows never moved up (%1px)").arg(travelled).toLatin1());
     QVERIFY2(biggestStep <= 20,

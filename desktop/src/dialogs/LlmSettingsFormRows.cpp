@@ -32,9 +32,9 @@ namespace stencil::gui {
     for (const char* id : {"ollama", "openai-compat", "stencil-server"})
       provider_->addItem(stencil::llm::llmProviderDisplayName(id), id);
     {
-      // Unknown values fall back to ollama (the contract default), not to "None".
+      // Unknown values fall back to "None" (the contract default — llmSettings.hpp).
       const int idx = provider_->findData(current.llmProvider);
-      provider_->setCurrentIndex(idx >= 0 ? idx : provider_->findData("ollama"));
+      provider_->setCurrentIndex(idx >= 0 ? idx : provider_->findData("none"));
     }
     provider_->setToolTip(
         "Where the chat assistant runs: a local Ollama, any OpenAI-compatible "
@@ -52,6 +52,7 @@ namespace stencil::gui {
             .arg(stencil::llm::defaultLlmBaseUrl("ollama"),
                  stencil::llm::defaultLlmBaseUrl("openai-compat")));
     form_->addRow("Base URL", baseUrl_);
+    hugRight(baseUrl_);
     baseUrlDiv_ = rowDivider();
 
     // Suggestions arrive asynchronously (refreshModels); free-typed text always wins (NoInsert).
@@ -66,6 +67,7 @@ namespace stencil::gui {
     model_->setCurrentIndex(-1);
     model_->setEditText(current.llmModel);
     form_->addRow("Model", model_);
+    hugRight(model_);
     modelDiv_ = rowDivider();
 
     apiKey_ = new QLineEdit(current.llmApiKey, this);
@@ -77,6 +79,7 @@ namespace stencil::gui {
         "Local servers (LM Studio, llama.cpp) need none; hosted OpenAI-compatible\n"
         "services issue keys in their dashboards.");
     form_->addRow("API key", apiKey_);
+    hugRight(apiKey_);
     apiKeyDiv_ = rowDivider();
 
     server_ = new SearchComboBox(this, /*searchable=*/false);
@@ -117,7 +120,7 @@ namespace stencil::gui {
     rowDivider();
   }
 
-  void LlmSettingsForm::buildChatHistoryRows(const Settings& current, QVBoxLayout* col) {
+  void LlmSettingsForm::buildChatHistoryRows(const Settings& current) {
 
     if (mode_ == RowMode::HIDE_ROWS)
       form_->addRow(modalSectionLabel(QStringLiteral("Chat history"), this));
@@ -141,6 +144,7 @@ namespace stencil::gui {
         this);
     saveChatsHint->setObjectName("llmSaveChatsHint");
     saveChatsHint->setWordWrap(true);
+    saveChatsHint_ = saveChatsHint;   // resizeEvent pins its height to its real width
     // heightForWidth, or the layout budgets the label's height from a narrower width than it renders at.
     {
       QSizePolicy sp = saveChatsHint->sizePolicy();
@@ -174,7 +178,12 @@ namespace stencil::gui {
         note_->setSizePolicy(sp);
       }
       noteLay->addWidget(note_);
-      col->addWidget(noteBox_);
+      // A FORM row, so its own top rides the SAME explicit 9px verticalSpacing every other
+      // row shares — style-dependent otherwise: a widget on the outer QVBoxLayout instead
+      // inherits whatever spacing the active QStyle's own metric happens to default to,
+      // which measured a real ~70px gap under this platform's native style, though offscreen
+      // (ctest) hides it behind a smaller default (user report; browser has no such gap).
+      form_->addRow(noteBox_);
     } else {
       saveChatsHint->setStyleSheet("color: palette(mid);");
       form_->addRow(saveChatsHint);

@@ -14,6 +14,9 @@
     line-height: 1.75;
     color: var(--text-main);
     background: var(--bg-info);
+    /* A tooltip often carries a URL or a file name, which has no space to break at: without
+       this it runs past max-width and the mask clips it mid-token. */
+    overflow-wrap: anywhere;
     /* Outlined in the ACCENT, like the desktop's QToolTip (support/theme.cpp %ACCENT_RING%):
        it is what tells a tooltip apart from the panel behind it, and it keeps the three
        surfaces looking like one app. */
@@ -100,7 +103,9 @@
     gap: 10px;
     justify-content: space-between;
 }
-.tip-title { font-weight: 600; }
+/* min-width:0 — a flex item refuses to shrink below its longest word, which for a URL
+   heading is the whole string. */
+.tip-title { font-weight: 600; min-width: 0; }
 .tip-keys { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 /* Keycaps — the same idea as the desktop tooltip's, sized down to tooltip type. */
 /* Bigger than the prose around it — a keycap is the part of a tooltip people scan for —

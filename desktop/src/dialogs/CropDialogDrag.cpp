@@ -1,4 +1,5 @@
 #include "CropDialog.hpp"
+#include "../support/iconSpin.hpp"
 #include "cropDialogParts.hpp"
 #include "../support/modalChrome.hpp"
 #include <QGuiApplication>
@@ -18,6 +19,7 @@ namespace stencil::gui {
 
   void CropPreview::mousePressEvent(QMouseEvent* e) {
     if (e->button() != Qt::LeftButton) return;
+    settleRect();   // a grab mid-flight takes the box where it is headed
     const int corner = cornerAt(e->pos());
     dragStartImg_ = toImage(e->pos());
     dragStartRect_ = rect_;
@@ -63,6 +65,7 @@ namespace stencil::gui {
     const double dy = e->angleDelta().y();
     const QPoint pos = e->position().toPoint();
     if (iw_ <= 0 || dy == 0.0 || !displayRect().contains(pos)) { e->ignore(); return; }
+    settleRect();
     rect_ = core::scaleCropCentered(rect_, std::pow(1.0015, dy), aspect_, iw_, ih_);
     // Re-anchor an in-progress move/resize drag so the next mouse-move doesn't snap the size back.
     if (drag_ != Drag::NONE) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
@@ -78,6 +81,7 @@ namespace stencil::gui {
       if (g->gestureType() == Qt::ZoomNativeGesture && iw_ > 0) {
         const QPoint pos = g->position().toPoint();
         if (displayRect().contains(pos)) {
+          settleRect();
           rect_ = core::scaleCropCentered(rect_, 1.0 + g->value(), aspect_, iw_, ih_);
           if (drag_ != Drag::NONE) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
           update();
@@ -139,8 +143,10 @@ namespace stencil::gui {
       orientationBtn_->setText(preview_->album() ? tr("Album") : tr("Portrait"));
     };
     connect(preview_, &CropPreview::cropChanged, this, refresh);
-    connect(orientationBtn_, &QPushButton::clicked, this,
-            [this] { preview_->setAlbum(!preview_->album()); });
+    connect(orientationBtn_, &QPushButton::clicked, this, [this] {
+      preview_->setAlbum(!preview_->album());
+      support::spinIconOnce(orientationBtn_);   // the press turns the glyph it flips
+    });
     refresh();
     fitToScreen(chrome, footer);
   }

@@ -1,0 +1,23 @@
+/* ── Icon CLICK: the one motion here that answers a press, not a hover ──
+   iconMotion.json `extras.swap-click-turn`. A swap glyph turns one full revolution
+   clockwise as the orientation it toggles flips, so the press is acknowledged by the
+   thing that changed. The keyframes and the timing are rotate-cw's, so every spin in
+   the app reads the same. The class is stripped on animationend (js/ui/icons.js
+   spinIconOnce), which is what lets a second click replay it. */
+/* --ic-play is set HERE, on the icon itself, not just read: it is registered non-inheriting
+   (iconHover.css `@property --ic-play`), so a value set on the button ancestor never reaches
+   this child at all. Declaring it directly means the hover rule's OWN higher-specificity
+   `var(--ic-play, none)` (it matches :hover on the button ancestor, six classes deep) reads
+   this SAME value back rather than falling to its "no hover play of my own" default — it no
+   longer matters which of the two rules wins, both land on the turn. Undeclared here, the
+   hover rule's fallback silently cancelled the turn on exactly the case that always holds
+   right after a click: the pointer still resting on the button. */
+.icm-spun :is(.ic, .draw-mode-icon) {
+    --ic-play: icmTurnCw;
+    --ic-ms: 0.413s;
+    --ic-ease: cubic-bezier(0.33, 1, 0.68, 1);
+    animation-name: var(--ic-play);
+}
+@media (prefers-reduced-motion: reduce) {
+    .icm-spun :is(.ic, .draw-mode-icon) { animation-name: none; }
+}

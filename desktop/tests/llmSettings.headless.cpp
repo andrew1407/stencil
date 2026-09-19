@@ -26,8 +26,8 @@ int main(int argc, char** argv) {
   std::printf("defaults:\n");
   {
     const LlmSettings cfg;
-    check(cfg.provider == "ollama", "default provider is ollama");
-    check(cfg.baseUrl == "http://localhost:11434", "default base URL is the ollama port");
+    check(cfg.provider == "none", "default provider is none (assistant ships off)");
+    check(cfg.baseUrl.isEmpty(), "none has no default base URL");
     check(cfg.model.isEmpty() && cfg.apiKey.isEmpty() && cfg.serverUrl.isEmpty(),
           "model/apiKey/serverUrl start empty");
   }
@@ -46,9 +46,8 @@ int main(int argc, char** argv) {
   std::printf("fileStore first run:\n");
   {
     const Settings s;
-    check(s.llmProvider == "ollama", "Settings default llmProvider = ollama");
-    check(s.llmBaseUrl == "http://localhost:11434",
-          "Settings default llmBaseUrl = http://localhost:11434");
+    check(s.llmProvider == "none", "Settings default llmProvider = none");
+    check(s.llmBaseUrl.isEmpty(), "Settings default llmBaseUrl is empty (none has no URL)");
     check(s.llmModel.isEmpty() && s.llmApiKey.isEmpty() && s.llmServerUrl.isEmpty(),
           "llm model/apiKey/serverUrl default empty (serverUrl -> first connection)");
     check(s.windowState.isEmpty(), "no saved dock state on first run");
@@ -89,7 +88,7 @@ int main(int argc, char** argv) {
     legacy.insert("autosave", false);
     const Settings s = fileStore::settingsFromJson(legacy);
     check(s.themeMode == "dark" && !s.autosave, "legacy keys still parsed");
-    check(s.llmProvider == "ollama" && s.llmBaseUrl == "http://localhost:11434",
+    check(s.llmProvider == "none" && s.llmBaseUrl.isEmpty(),
           "absent llm keys -> contract defaults");
     check(s.llmServerUrl.isEmpty() && s.windowState.isEmpty(),
           "absent serverUrl/windowState -> empty");

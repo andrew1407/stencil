@@ -1,13 +1,17 @@
 Themes (current: violet) — '/theme <name | #hex | default>' to switch:
  * [38;2;124;58;237mviolet[0m (default)
+   [38;2;102;0;51mburgundy[0m
    [38;2;236;72;153mpink[0m
-   [38;2;234;179;8myellow[0m
-   [38;2;234;88;12morange[0m
    [38;2;190;18;60mcrimson[0m
-   [38;2;8;145;178maqua[0m
-   [38;2;14;165;233msky[0m
-   [38;2;37;99;235mblue[0m
+   [38;2;85;0;0mmaroon[0m
+   [38;2;234;88;12morange[0m
+   [38;2;168;124;80mbrown[0m
+   [38;2;234;179;8myellow[0m
    [38;2;22;163;74mgrass[0m
    [38;2;4;120;87mgreen[0m
-   [38;2;168;124;80mbrown[0m
+   [38;2;64;224;208mturquoise[0m
+   [38;2;8;145;178maqua[0m
+   [38;2;14;165;233msky[0m
+   [38;2;115;148;179mbluegray[0m
    [38;2;100;116;139mgrey[0m
+   [38;2;37;99;235mblue[0m

@@ -63,10 +63,10 @@ namespace stencil::gui {
     // Desktop-only "Open in…" targets; the browser keeps its own in js/config/openInConfig.json.
     QString browserBaseUrl = "http://localhost:8080";
     QString telegramBotUsername;
-    // AI assistant (llm-contract.md §5). An empty llmServerUrl resolves at use time to the first
-    // saved connection (net/connectionStore).
-    QString llmProvider = "ollama";     // "ollama" | "openai-compat" | "stencil-server"
-    QString llmBaseUrl = stencil::llm::defaultLlmBaseUrl(QStringLiteral("ollama"));
+    // AI assistant (llm-contract.md §5): ships OFF until the user picks a provider. An
+    // empty llmServerUrl resolves at use time to the first saved connection (net/connectionStore).
+    QString llmProvider = "none";       // "none" | "ollama" | "openai-compat" | "stencil-server"
+    QString llmBaseUrl = stencil::llm::defaultLlmBaseUrl(QStringLiteral("none"));
     QString llmModel;
     QString llmApiKey;                  // openai-compat only (Bearer)
     QString llmServerUrl;               // stencil-server only ("" = first saved connection)

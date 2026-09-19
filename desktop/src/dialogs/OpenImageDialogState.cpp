@@ -12,6 +12,7 @@
 #include <QGraphicsOpacityEffect>
 #include <QPointer>
 #include <QPropertyAnimation>
+#include <QVariantAnimation>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
@@ -40,13 +41,12 @@
 
 namespace stencil::gui {
 
-  // One dialog height across the source tabs, sized for the tallest (browser parity).
-  // Measured on FIRST SHOW: updateGeometry() is a no-op on a hidden widget, so pre-show
-  // every tab reports the same stale sizeHint. No explicit minimum is pinned — that would
-  // override the layout's own and let the content squeeze.
+  // One dialog height across the tabs, sized for the tallest, measured on FIRST SHOW —
+  // pre-show every tab reports the same stale sizeHint.
   void OpenImageDialog::showEvent(QShowEvent* event) {
     QDialog::showEvent(event);
-    if (measured_) return;
+    // A popover owns neither its size nor its place: the overlay caps it, its body scrolls.
+    if (measured_ || !isWindow()) return;
     measured_ = true;
     measuring_ = true;   // silent switches — no cross-tab fade for a measurement
     const int keep = tabs_->currentIndex();
@@ -54,37 +54,23 @@ namespace stencil::gui {
     for (int i = 0; i < tabs_->count(); ++i) {
       tabs_->setCurrentIndex(i);
       if (QLayout* l = layout()) l->activate();
-      tallest = std::max(tallest, sizeHint().height());
+      tallest = std::max(tallest, wantedHeight());
     }
     tabs_->setCurrentIndex(keep);
     measuring_ = false;
-    if (QLayout* l = layout()) l->activate();
-    if (tallest > height()) resize(width(), tallest);
-  }
-
-  // The arriving tab page eases in (the strip's underline slides in step — see
-  // UnderlineTabBar.hpp), so switching Local file / URL link / Blank is not a hard
-  // cut. The veil is dropped when the play ends, so nothing is ever left dimmed.
-  void OpenImageDialog::fadeInCurrentPage() {
-    if (!constructed_ || measuring_ || !isVisible() || support::motionReduced()) return;
-    QWidget* page = tabs_->currentWidget();
-    if (!page) return;
-    auto* veil = new QGraphicsOpacityEffect(page);
-    veil->setOpacity(0.0);
-    page->setGraphicsEffect(veil);
-    auto* fade = new QPropertyAnimation(veil, "opacity", veil);
-    fade->setDuration(180);
-    fade->setStartValue(0.0);
-    fade->setEndValue(1.0);
-    fade->setEasingCurve(QEasingCurve::OutCubic);
-    QPointer<QWidget> guard(page);
-    QPointer<QGraphicsOpacityEffect> veilGuard(veil);
-    connect(fade, &QPropertyAnimation::finished, page, [guard, veilGuard] {
-      // however it ended, never left dimmed — but only OUR veil is removed
-      if (guard && veilGuard && guard->graphicsEffect() == veilGuard)
-        guard->setGraphicsEffect(nullptr);
-    });
-    fade->start(QAbstractAnimation::DeleteWhenStopped);
+    if (QLayout* l = layout()) { l->invalidate(); l->activate(); }
+    // The floor is the browser's OI_MIN_H, not what the emptiest tab measured (barely
+    // 280px) — never dropped under afterwards either.
+    const int want = std::max({tallest, OI_MIN_H, height()});
+    // An ease armed by the last pre-show refit would land after this and overwrite it.
+    if (heightAnim_) heightAnim_->stop();
+    if (want != height()) resize(width(), want);
+    floorH_ = shownH_ = want;
+    // …re-centred for that height: Qt centred it at its pre-measurement size, so growing
+    // this much left it sitting low.
+    if (QWidget* p = parentWidget())
+      move(p->geometry().center().x() - width() / 2, p->geometry().center().y() - want / 2);
+    clampToScreen();
   }
 
   bool OpenImageDialog::eventFilter(QObject* obj, QEvent* event) {
@@ -104,6 +90,7 @@ namespace stencil::gui {
         "Images and video (*.png *.jpg *.jpeg *.bmp *.gif *.webp *.mp4 *.mov *.webm "
         "*.mkv *.avi *.m4v *.mpg *.mpeg);;All files (*)");
     if (p.isEmpty()) return;
+    if (p != previewedSource_) scatterPreviewDust();
     path_->setText(p);
     resetPreviewState();
     refreshButtons();
@@ -116,25 +103,22 @@ namespace stencil::gui {
         support::pickColorAnimated(customColor_, this, "Fill color", customSwatch_);
     if (!c.isValid()) return;
     customColor_ = c;
-    setColorSwatch(customSwatch_, customColor_);
-  }
-
-  // A QTabWidget's pane is as tall as its TALLEST page, so the one-row File/URL
-  // tabs would carry the Blank tab's empty rows under them — give only the page on
-  // show its height (the browser's tab panel is content-height too).
-  void OpenImageDialog::fitTabsToCurrentPage() {
-    QWidget* page = tabs_->currentWidget();
-    if (!page) return;
-    int tallest = 0;   // QTabWidget::sizeHint() asks every page, not just the one on show
-    for (int i = 0; i < tabs_->count(); i++)
-      tallest = std::max(tallest, tabs_->widget(i)->sizeHint().height());
-    const int chrome = tabs_->sizeHint().height() - tallest;   // tab bar + pane frame
-    tabs_->setFixedHeight(chrome + page->sizeHint().height());
+    setColorSwatch(customSwatch_, customColor_, SWATCH_SIZE, /*withHex=*/true);
   }
 
   void OpenImageDialog::applyMode() {
+    cancelPreviewDust();   // the outgoing tab's flourish does not play over the arriving one
+    previewCapH_ = 0;      // the arriving tab's picture is fitted afresh
+    // The OUTGOING tab's stage goes NOW: left standing, showPreview() below would call
+    // setOriginal() on it for the ARRIVING (differently shaped) picture, recomputing —
+    // and persisting — a rect from the OLD stage's stale aspect. syncQuickcropEnabled()
+    // rebuilds a correct one once the new picture has actually landed.
+    if (cropStage_) {
+      cropStage_->hide();
+      cropStage_->deleteLater();
+      cropStage_ = nullptr;
+    }
     const bool blank = tabs_->currentIndex() == TabBlank;
-    fitTabsToCurrentPage();
     incogRow_->setVisible(!blank);  // incognito has no effect on a blank
     here_->setVisible(!blank);
     newWindow_->setVisible(!blank);
@@ -142,12 +126,58 @@ namespace stencil::gui {
     replaceRow_->setVisible(!blank && canReplace_ && tabs_->currentIndex() == TabFile);
     createBlank_->setVisible(blank);
     refreshTargetRow();
-    if (blank) clearPreviewImage();   // the blank tab has no source to preview
-    // Switching source tabs invalidates any preview built for the other tab.
-    resetPreviewState();
-    if (!blank) refreshButtons();
-    else frameRow_->setVisible(false);
+    // File and URL each keep their own chosen source AND their own crop choice: ticking
+    // Crop on the URL tab says nothing about the local file (browser twin: tabCrop).
+    const int tab = tabs_->currentIndex();
+    if (tab == TabFile || tab == TabUrl) {
+      const QSignalBlocker block(cropPage_);
+      cropPage_->setChecked(tabCrop_[tab]);
+    }
+    // Quiet from here: resetPreviewState()/stalePreview() below rebuild the crop stage on
+    // their own, ahead of schedule — ungated, that pass played the outgoing rows' closing
+    // flourish on every ordinary switch (a tab switch is not a toggle).
+    quietCrop_ = true;
+    const QString src = source();
+    if (blank) {
+      clearPreviewImage();
+      resetPreviewState();
+    } else if (src.isEmpty()) {
+      resetPreviewState();
+    } else if (src != previewedSource_) {
+      TabPreviewCache& cache = tabCache_[tab];
+      if (cache.valid && cache.source == src) {
+        restoreTabPreview(cache);
+      } else if (tab == TabUrl && cache.valid && restoreTabPreview(cache)) {
+        // The typed URL moved on while this tab was away: coming back still shows what it
+        // was showing — losing the picture to a half-typed address is not a tab switch's
+        // doing. Preview is what replaces it, exactly as stalePreview leaves it.
+        stalePreview();
+      } else {
+        resetPreviewState();
+        doPreview();
+      }
+    }
+    // The Crop choice came back signals-blocked, so its stage did not: rebuild it here,
+    // still quietly.
+    if (!blank) {
+      syncQuickcropEnabled();
+      quietCrop_ = false;
+      refreshButtons();
+    } else {
+      quietCrop_ = false;
+      frameRow_->setVisible(false);
+    }
+    fitTabsToCurrentPage();  // after the preview settles — not the tab it's leaving
     fadeInCurrentPage();
+    // The tab's own control takes the keyboard (browser setTab) — Local its Choose button,
+    // its path field being read-only. Never mid-measurement: that walks every tab.
+    if (measuring_) return;
+    if (tabs_->currentIndex() == TabUrl) {
+      url_->setFocus(Qt::TabFocusReason);
+    } else if (tabs_->currentIndex() == TabFile) {
+      if (QWidget* page = tabs_->currentWidget())
+        if (auto* choose = page->findChild<QPushButton*>()) choose->setFocus(Qt::TabFocusReason);
+    }
   }
 
   // Action buttons stay disabled until a source (file or URL) is chosen; Replace is
@@ -182,25 +212,5 @@ namespace stencil::gui {
                                : reason);
   }
 
-  // Reveal the quick-crop row for a previewed image/frame, defaulting the album toggle
-  // to the media's orientation (wider-than-tall ⇒ album) and the page size to the app's
-  // current page (mirrors LinksDialog's showQuickcrop). Crop itself stays OFF.
-  void OpenImageDialog::showQuickcrop(int w, int h) {
-    cropAlbum_->setChecked((w >= h) && (w > 0));
-    const int idx = cropPageSize_->findData(pageSeed_);
-    cropPageSize_->setCurrentIndex(idx < 0 ? cropPageSize_->findData("A3") : idx);
-    syncQuickcropEnabled();
-    quickcropRow_->setVisible(true);
-    refreshOpenEnabled();
-  }
-
-  // Album / page size are only meaningful while cropping to page — shown only then, the
-  // toggle wearing the orientation it holds (browser #open-image-crop-orientation).
-  void OpenImageDialog::syncQuickcropEnabled() {
-    const bool on = cropPage_->isChecked();
-    cropAlbum_->setText(cropAlbum_->isChecked() ? tr("Album") : tr("Portrait"));
-    cropAlbum_->setVisible(on);
-    cropPageSize_->setVisible(on);
-  }
 }
 

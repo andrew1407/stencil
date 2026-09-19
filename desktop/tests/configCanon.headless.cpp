@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     const QJsonArray canon = readConfig(":/config/accents.json").array();
     const auto& presets = accentPresets();
     check(!canon.isEmpty(), "accents.json qrc alias resolves and parses");
-    check(canon.size() == 12, "accents canon carries the 12 presets");
+    check(canon.size() == 16, "accents canon carries the 16 presets");
     check(int(presets.size()) == canon.size(), "accentPresets() count matches the canon");
     check(!presets.empty() && presets.front().key == "violet"
               && presets.front().hex == "#7c3aed",

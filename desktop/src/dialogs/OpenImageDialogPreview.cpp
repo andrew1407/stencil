@@ -27,6 +27,8 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QResizeEvent>
+#include <QScreen>
 #include <QSignalBlocker>
 #include <QSlider>
 #include <QSpinBox>
@@ -40,6 +42,30 @@
 
 namespace stencil::gui {
 
+  // The arriving tab page eases in (the strip's underline slides in step, see
+  // UnderlineTabBar.hpp). The veil drops when the play ends, so nothing stays dimmed.
+  void OpenImageDialog::fadeInCurrentPage() {
+    if (!constructed_ || measuring_ || !isVisible() || support::motionReduced()) return;
+    QWidget* page = tabs_->currentWidget();
+    if (!page) return;
+    auto* veil = new QGraphicsOpacityEffect(page);
+    veil->setOpacity(0.0);
+    page->setGraphicsEffect(veil);
+    auto* fade = new QPropertyAnimation(veil, "opacity", veil);
+    fade->setDuration(180);
+    fade->setStartValue(0.0);
+    fade->setEndValue(1.0);
+    fade->setEasingCurve(QEasingCurve::OutCubic);
+    QPointer<QWidget> guard(page);
+    QPointer<QGraphicsOpacityEffect> veilGuard(veil);
+    connect(fade, &QPropertyAnimation::finished, page, [guard, veilGuard] {
+      // however it ended, never left dimmed — but only OUR veil is removed
+      if (guard && veilGuard && guard->graphicsEffect() == veilGuard)
+        guard->setGraphicsEffect(nullptr);
+    });
+    fade->start(QAbstractAnimation::DeleteWhenStopped);
+  }
+
   // Decode the current source (image, or the chosen video frame) into the preview.
   void OpenImageDialog::doPreview() {
     const QString src = source();
@@ -47,139 +73,48 @@ namespace stencil::gui {
       setHint("Choose a file or paste a URL first.");
       return;
     }
+    if (src != previewedSource_) scatterPreviewDust();   // out with the old picture
     setHint("Loading…");
     previewedSource_ = src;
     preview_->load(src, frame_->value());
   }
 
-  // The typed source has moved on from the one that was previewed: keep the picture up (it
-  // is still what the user asked to see) but drop everything derived from it, so nothing
-  // downstream mistakes it for a preview of the CURRENT source.
-  void OpenImageDialog::stalePreview() {
+  // Everything DERIVED from a source: the fetch in flight, the decoded pixels, the video
+  // it was read as, and the frame row that sized itself to it.
+  void OpenImageDialog::dropDerived() {
     if (fetchTimer_) fetchTimer_->stop();
     teardownScrubPlayer();
     previewImage_ = QImage();
     frameImage_ = QImage();
-    thumbImage_ = QImage();
     previewIsVideo_ = false;
     frameRow_->setVisible(false);
-    quickcropRow_->setVisible(false);
-    usePreview_->setEnabled(false);
+  }
+
+  // The typed source has moved on: keep the picture (still what was asked for), drop what
+  // was derived from it. The Crop CHOICE stays — it belongs to what will be opened, and
+  // opening re-resolves the typed url; only its stage goes, with the pixels.
+  void OpenImageDialog::stalePreview() {
+    dropDerived();
+    syncCropStage();
     if (previewLabel_->isVisible()) setHint("Preview of the previous URL — press Preview to load this one.");
   }
 
   void OpenImageDialog::resetPreviewState() {
     previewedSource_.clear();
-    if (fetchTimer_) fetchTimer_->stop();
-    teardownScrubPlayer();
-    previewImage_ = QImage();
-    frameImage_ = QImage();
-    thumbImage_ = QImage();
-    previewIsVideo_ = false;
+    previewCapH_ = 0;   // a new picture starts from the full box
+    dropDerived();
     clearPreviewImage();
     setHint({});
-    frameRow_->setVisible(false);
     quickcropRow_->setVisible(false);
-    usePreview_->setEnabled(false);
+    // The STAGE goes with the picture it was cut from: left standing, a tab with no source
+    // of its own still showed the other tab's cropped image.
+    syncCropStage();
     frame_->setEnabled(true);
-    frameTotal_->clear();
   }
 
-  // Mirror a chosen frame to BOTH the slider and the spin box, validated against the
-  // range, then schedule a debounced seek (QSignalBlocker prevents the set echoing).
-  void OpenImageDialog::setFrame(int n) {
-    n = std::clamp(n, frame_->minimum(), frame_->maximum());
-    {
-      const QSignalBlocker bs(frameSlider_);
-      frameSlider_->setValue(n);
-    }
-    {
-      const QSignalBlocker bf(frame_);
-      frame_->setValue(n);
-    }
-    if (previewIsVideo_ && !usePreview_->isChecked()) fetchTimer_->start();
-  }
 
-  // Bound the slider + spin box to the video's frame count (best-effort: a stream
-  // with no known duration leaves a generous open range so any frame can be typed).
-  void OpenImageDialog::applyFrameBounds() {
-    const int count = preview_->frameCount();
-    const int maxFrame = count > 0 ? count - 1 : 1'000'000;
-    const QSignalBlocker bs(frameSlider_);
-    const QSignalBlocker bf(frame_);
-    frameSlider_->setMaximum(maxFrame);
-    frame_->setMaximum(maxFrame);
-    const int cur = std::min(frame_->value(), maxFrame);
-    frameSlider_->setValue(cur);
-    frame_->setValue(cur);
-    frameTotal_->setText(count > 0 ? QString("/ %1").arg(maxFrame) : QString());
-  }
 
-  // Load the video once into a persistent player + sink so scrubbing seeks a ready
-  // stream (fast + accurate) instead of re-streaming a fresh player each time.
-  void OpenImageDialog::setupScrubPlayer(const QUrl& url) {
-    teardownScrubPlayer();
-    if (url.isEmpty()) return;
-    scrubPlayer_ = new QMediaPlayer(this);
-    scrubAudio_ = new QAudioOutput(this);
-    scrubAudio_->setMuted(true);
-    scrubPlayer_->setAudioOutput(scrubAudio_);
-    scrubSink_ = new QVideoSink(this);
-    scrubPlayer_->setVideoSink(scrubSink_);
-    connect(scrubSink_, &QVideoSink::videoFrameChanged, this, &OpenImageDialog::onScrubFrame);
-    connect(scrubPlayer_, &QMediaPlayer::mediaStatusChanged, this,
-            [this](QMediaPlayer::MediaStatus s) {
-              if (s == QMediaPlayer::LoadedMedia || s == QMediaPlayer::BufferedMedia)
-                seekScrub(frame_->value());  // render the current frame once ready
-            });
-    scrubPlayer_->setSource(url);
-  }
 
-  void OpenImageDialog::teardownScrubPlayer() {
-    scrubPending_ = false;
-    if (scrubPlayer_) {
-      scrubPlayer_->stop();
-      scrubPlayer_->setVideoSink(nullptr);
-      scrubPlayer_->deleteLater();
-      scrubPlayer_ = nullptr;
-    }
-    if (scrubSink_) {
-      scrubSink_->deleteLater();
-      scrubSink_ = nullptr;
-    }
-    if (scrubAudio_) {
-      scrubAudio_->deleteLater();
-      scrubAudio_ = nullptr;
-    }
-  }
-
-  // Seek the persistent player to a frame. Playback is briefly required for the sink
-  // to emit a frame at the new position; onScrubFrame() grabs it and pauses.
-  void OpenImageDialog::seekScrub(int frame) {
-    if (!scrubPlayer_) return;
-    const double fps = scrubFps_ > 0 ? scrubFps_ : 30.0;
-    scrubTargetMs_ = static_cast<qint64>(frame / fps * 1000.0 + 0.5);
-    if (scrubDurationMs_ > 0)
-      scrubTargetMs_ = std::min(scrubTargetMs_, std::max<qint64>(0, scrubDurationMs_ - 1));
-    scrubPending_ = true;
-    scrubPlayer_->setPosition(scrubTargetMs_);
-    scrubPlayer_->play();
-  }
-
-  // A frame rendered by the scrub player: once playback reaches the seek target, grab
-  // it, pause, and show it (unless the embedded preview image is the chosen source).
-  void OpenImageDialog::onScrubFrame(const QVideoFrame& frame) {
-    if (!scrubPending_ || !frame.isValid()) return;
-    if (scrubTargetMs_ > 0 && scrubPlayer_ &&
-        scrubPlayer_->position() + 60 < scrubTargetMs_)
-      return;  // still streaming up to the seek point — wait for the target frame
-    const QImage img = frame.toImage();
-    if (img.isNull()) return;
-    scrubPending_ = false;
-    if (scrubPlayer_) scrubPlayer_->pause();
-    frameImage_ = img.copy();
-    if (previewIsVideo_ && !usePreview_->isChecked()) updateVideoPreview();
-  }
 
   // The muted status line under the preview: shown only when it has something to
   // say, so an untouched dialog keeps no blank line for it.
@@ -188,10 +123,12 @@ namespace stencil::gui {
     previewHint_->setVisible(!text.isEmpty());
   }
 
-  // Drop the rendered preview AND its box — an empty bordered panel is not a preview.
+  // Drop the preview pixmap and its box, and re-fit (a visibility change stales sizeHint).
   void OpenImageDialog::clearPreviewImage() {
     previewLabel_->clear();
     previewLabel_->setVisible(false);
+    frameSlider_->setVisible(false);
+    fitTabsToCurrentPage();
   }
 
   void OpenImageDialog::showPreview(const QImage& img, const QString& hint) {
@@ -200,25 +137,37 @@ namespace stencil::gui {
       clearPreviewImage();
       return;
     }
-    previewLabel_->setPixmap(QPixmap::fromImage(img).scaled(
-        PREVIEW_MAX_W, PREVIEW_MAX_H, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    previewLabel_->setVisible(true);
+    // source() names the tab's own file/URL — must not replay the arrival on a switch.
+    const QString key = source();
+    // A departure ALWAYS has an arrival: if the old picture blew away, this one flies in
+    // even when the source has been seen before — the pair was asymmetric otherwise, the
+    // old one dusting out and the new one simply appearing.
+    const bool isNew = !key.isEmpty() && (arrivalDue_ || !animatedSources_.contains(key));
+    const QSize box = previewFitBox();
+    const QPixmap shot = QPixmap::fromImage(img).scaled(
+        box.width(), box.height(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    previewLabel_->setPixmap(shot);
+    // While cropping, the STAGE is the picture — showing the label too would show it twice.
+    previewLabel_->setVisible(!cropStage_);
+    frameSlider_->setVisible(previewIsVideo_);   // a player's bar, exactly as wide as the frame
+    if (previewIsVideo_)
+      frameSlider_->setFixedWidth(cropStage_ ? cropStage_->paintedRect().width() : shot.width());
     setHint(hint);
+    if (isNew) {
+      animatedSources_.insert(key);
+      arrivalDue_ = false;
+      gatherPreviewDust(shot);
+    }
+    // A scrubbed frame must reach the crop stage too, or it keeps cropping the old one.
+    if (cropStage_) cropStage_->setOriginal(previewImage_);
+    if (!restoring_) cacheTabPreview(key, hint);   // a restore must not re-key the cache
+    fitTabsToCurrentPage();
   }
 
-  // For a video, show either the embedded preview image (when chosen + available) or
-  // the seeked frame. The frame spinbox is irrelevant while the preview is used.
+  // The seeked frame IS the preview for a video — there is no second source to pick.
   void OpenImageDialog::updateVideoPreview() {
-    const bool usePrev = usePreview_->isChecked() && !thumbImage_.isNull();
-    frame_->setEnabled(!usePrev);
-    frameSlider_->setEnabled(!usePrev);
-    const QImage& shown = usePrev ? thumbImage_ : frameImage_;
-    showPreview(shown,
-                usePrev
-                    ? QString("Using the video's embedded preview image (%1×%2).")
-                          .arg(shown.width()).arg(shown.height())
-                    : QString("Video %1×%2 — drag the slider or type a frame, then open.")
-                          .arg(shown.width()).arg(shown.height()));
+    showPreview(frameImage_, QString());   // no size line here; the browser has none
   }
+
 }
 

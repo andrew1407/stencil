@@ -82,7 +82,9 @@ namespace stencil::gui {
     // Rows this rebuild ADDED form out of sand on the ARRIVAL clock (browser materialize), last, so
     // dustRowIn writes its role under the same beforeFrame/afterFrame guard the filter uses — and
     // one beat later, so a removal's ash has the screen to itself first (browser beginRemoval).
-    if (wasBuilt) {
+    // …and only while ON SCREEN: opening rebuilds more than once (the pinned row joins on
+    // the second pass), and a row nobody has seen yet is part of what opens, not an arrival.
+    if (wasBuilt && isVisible()) {
       QSet<QString> arriving;
       for (int i = 0; i < list_->count(); ++i) {
         QListWidgetItem* it = list_->item(i);

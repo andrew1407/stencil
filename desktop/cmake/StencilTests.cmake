@@ -49,6 +49,12 @@ stencil_headless_test(stencil_themeswapease_headless
     tests/themeSwapEase.headless.cpp
   LIBS Qt6::Widgets)
 
+# The shared window-height ease (support/easeWindowHeight.hpp): the Assistant settings
+# form rides it on a provider swap. Header-only, so the test IS its only compile unit.
+stencil_headless_test(stencil_easewindowheight_headless
+  SOURCES tests/easeWindowHeight.headless.cpp
+  LIBS Qt6::Widgets)
+
 # Rich control tooltips (support/tipContent.cpp) — the desktop port of the browser's
 # tipContent.js, carrying that suite's parse/render cases. Needs theme.cpp for the palette.
 stencil_headless_test(stencil_tipcontent_headless
@@ -187,13 +193,17 @@ target_link_libraries(stencil_gui_objs PUBLIC stencil_core Qt6::Widgets Qt6::Net
 # window under the test for its first ~200 ms, which is exactly the kind of timing the
 # suite must not depend on.
 foreach(area chatCards chatCompact chatDock chatPanel chatTurns canvas chrome composition
-             menus menuKeys motion popover projects theme toolbar tooltips)
+             menus menuKeys motion openImage openImageCrop openImageCropEdit openImageCropOrient openImageCropState openImageDust openImageReadout popover projects theme toolbar tooltips)
   string(TOLOWER ${area} _area_lc)
   stencil_headless_test(stencil_mainwindow_${_area_lc}_gui
     SOURCES tests/MainWindow.${area}.gui.cpp
     LIBS stencil_gui_objs Qt6::Test
     ENV STENCIL_NO_ANIM=1)
 endforeach()
+
+stencil_headless_test(stencil_cropfit_headless
+  SOURCES tests/cropPreviewFitBox.headless.cpp
+  LIBS stencil_gui_objs Qt6::Widgets)
 
 # The use-case screenshot capture behind usecases/docs/desktop/img (usecases/capture-runner/desktop):
 # the same GUI objects and friend seam as the suites above, but an opt-in binary that

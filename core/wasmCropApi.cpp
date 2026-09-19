@@ -55,6 +55,14 @@ extern "C" {
     writeRect(r, out);
   }
 
+  void stencil_swapCropOrientation(double x, double y, double w, double h,
+                                   double aspectWoverH, double imageW,
+                                   double imageH, double* out) {
+    const CropRect r = swapCropOrientation(CropRect{x, y, w, h}, aspectWoverH,
+                                           imageW, imageH);
+    writeRect(r, out);
+  }
+
   double stencil_cropResizeScale(double oldWidth, double newWidth) {
     return cropResizeScale(oldWidth, newWidth);
   }

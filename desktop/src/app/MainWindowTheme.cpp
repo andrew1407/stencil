@@ -145,12 +145,34 @@ namespace stencil::gui {
     scroll_->viewport()->setPalette(vp);
 
     // The drop-hint's lightbulb is a rasterised glyph an inline <img> cannot recolour, so it is
-    // re-tinted here.
+    // re-tinted here — and its keycaps are painted pictures carrying literal colours, so the
+    // whole line is rebuilt rather than restyled.
     if (dropHintIcon_)
       dropHintIcon_->setPixmap(themedIcon("lightbulb", themePalette(dark, settings_.accentColor).textMuted, 14)
                                     .pixmap(14, 14));
+    refreshDropHint();
 
     if (wipe) wipe->start();
+  }
+
+  // The paste combo as KEYCAPS in this platform's own glyphs — ⌘V on a Mac, where Qt binds
+  // a configured "Ctrl" to Command, so the caps must say Command too. Browser twin:
+  // mainContent.js pasteKeys(). The caps are painted pictures holding literal colours, so
+  // this runs again on every theme change rather than being styled.
+  void MainWindow::refreshDropHint() {
+    if (!dropHintText_) return;
+    const QString combo =
+        QKeySequence(hotkey("paste", "Ctrl+V")).toString(QKeySequence::NativeText);
+    // A keycap is taller than the type beside it, and an inline image inflates the line
+    // box downwards — which left the sentence riding a couple of pixels high. One
+    // middle-aligned table row centres prose and caps against each other instead, the
+    // way a rich tooltip's own row does (tipContent.cpp renderTip).
+    dropHintText_->setText(
+        QString("<table cellspacing=\"0\" cellpadding=\"0\"><tr>"
+                "<td style=\"vertical-align: middle;\">Drag &amp; drop an <b>image</b> or "
+                "<b>.json</b> anywhere on the window — or paste an image with&nbsp;</td>"
+                "<td style=\"vertical-align: middle;\">%1</td></tr></table>")
+            .arg(comboKeycapsHtml(combo, currentPalette())));
   }
 
   // theme.cpp's QSS draws a wider indicator than Qt's default, and applying it re-polishes the

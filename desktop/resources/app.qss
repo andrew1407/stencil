@@ -141,8 +141,10 @@
          beside Unchain and Deselect now, not the small cross that sat low in the row. */
       QWidget#selectedLineCard QPushButton#selectedLineFillClear:hover,
       QWidget#selectedLineCard QPushButton#selectedLineUnchain:hover { background: %SEL_BTN_HOV%; }
+      /* The accent, not the panel's own selection yellow: a focus ring means the same
+         thing everywhere in the app, so it wears the one brand colour. */
       QWidget#selectedLineCard QComboBox:focus,
-      QWidget#selectedLineCard QSpinBox:focus { border-color: %SEL_BORDER%; }
+      QWidget#selectedLineCard QSpinBox:focus { border-color: %ACCENT%; }
       /* Controls collapse pill: an outlined pill, not bare text — the browser's
          #toggle-controls (1px border, 16px radius, 12px label). */
       QToolButton#controlsPill {
@@ -226,15 +228,13 @@
       QToolButton#drawFaceBtn { font-size: 12px; padding: 5px 6px; }
       /* Chat-dock action buttons (send / attach / gear): the standard FILLED
          accent icon-button treatment (browser chat-panel parity); disabled =
-         the shared muted chip. The explicit :disabled rule must follow the
-         base rule — same specificity class, last-one-wins. */
+         the shared muted chip (button:disabled parity — browser/css/layout/shell.css).
+         The explicit :disabled rule must follow the base rule — same specificity
+         class, last-one-wins. */
       QToolButton[chatAccent="true"] { background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%; }
       QToolButton[chatAccent="true"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; }
       QToolButton[chatAccent="true"]:pressed { background: %ACCENT2%; }
-      /* Disabled accent button: a DIMMED member of the accent set, not the generic
-         grey chip. The composer's send sits between attach and the gear; the grey
-         treatment made it read as broken rather than merely unavailable. */
-      QToolButton[chatAccent="true"]:disabled { color: %ON_ACCENT%; background: %ACCENT_DIM%; border-color: %ACCENT_DIM%; }
+      QToolButton[chatAccent="true"]:disabled { color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%; }
       /* Toolbar-section buttons carry a SOLID fill, as in the browser: accent for an
          ordinary action, danger for a destructive one, the shared muted chip when
          disabled. Only the Settings cluster stays a bordered ghost (no toolFill). */
@@ -319,6 +319,24 @@
       }
       QPushButton[accentCta="true"]:hover {
         background: %ACCENT2%;
+      }
+      /* Fixed-width Album/Portrait swap (OpenImageDialog): a plain fixed-width QPushButton
+         centres its icon+text as one block, so the icon drifts a little with every toggle
+         between the two different-length words — left keeps the icon at one fixed inset
+         instead (user report; browser twin: openImage.css's own left, not centred). */
+      QPushButton#cropAlbumBtn { text-align: left; }
+      /* The Open-Image file chooser is ONE control (browser twin: .oi-file): the BOX holds
+         the outline and the rounding, and the two halves inside it are square and
+         border-free, so the accent button butts against the path readout with no seam. */
+      QFrame#oiFileBox {
+        border: 1px solid %UI_OUTLINE%; border-radius: 7px; background: %INPUT_BG%;
+      }
+      QPushButton#oiChooseBtn {
+        border: none; border-top-left-radius: 6px; border-bottom-left-radius: 6px;
+        border-top-right-radius: 0; border-bottom-right-radius: 0; padding: 6px 14px;
+      }
+      QLineEdit#oiPathField {
+        border: none; border-radius: 0; background: transparent; padding: 6px 12px;
       }
       /* The accent variant repeated: its selector ties QPushButton:disabled, so the disabled face needs its own rule. */
       QPushButton:disabled, QPushButton[accentCta="true"]:disabled {
@@ -410,7 +428,25 @@
       }
       QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 16px; border: 0; background: transparent; }
 
+      /* The Open-Image video scrub bar: the played side and the handle wear the brand
+         accent, outlined in %UI_OUTLINE% so an accent close to the surface behind it still
+         reads. The pointing-hand cursor is set in code — QSS carries no `cursor`. */
+      QSlider#oiFrameScrub::groove:horizontal {
+        height: 5px; border-radius: 4px; background: %BORDER%; border: 1px solid %UI_OUTLINE%;
+      }
+      QSlider#oiFrameScrub::groove:horizontal:hover { background: %MUTED%; }
+      QSlider#oiFrameScrub::sub-page:horizontal { background: %ACCENT%; border-radius: 4px; }
+      QSlider#oiFrameScrub::handle:horizontal {
+        width: 11px; height: 11px; margin: -4px 0; border-radius: 6px;
+        background: %ACCENT%; border: 1px solid %UI_OUTLINE%;
+      }
+
       QCheckBox { color: %TEXT%; spacing: 7px; }
+      /* A box whose caption is a separate label beside it — openImageDialogParts'
+         checkCaptionRow, SettingsDialog's rows, a chat ask-row's picks. No text of its
+         own, so the 7px gap reserves room for nothing, and the :focus wash below then
+         painted a chip of that empty room. */
+      QCheckBox#captionCheck, QRadioButton#captionCheck { spacing: 0px; }
       QRadioButton { color: %TEXT%; spacing: 7px; }
       /* Checkboxes/radios follow the brand accent (matches the browser
          accent-color: var(--accent)): an empty themed box, filled with the
@@ -766,6 +802,9 @@
       /* Browser .vs-row form rows (open-image dialog): a hairline under each row and a
          plain-weight 13px label column (components.css .vs-row / its label). */
       QWidget[vsRow="true"] { background: transparent; border-bottom: 1px solid %BORDER%; }
+      /* The two Open Image rows with nothing else beneath them (Crop, Incognito, no page
+         picker or replace options in this build) carry no hairline of their own. */
+      QWidget#oiNoDivider[vsRow="true"] { border-bottom: none; }
       QLabel[vsLabel="true"] { background: transparent; font-size: 13px; }
       /* ── The list-shaped modals (info, shortcuts, settings — modalChrome.hpp):
          the browser's .modal-search box, .settings-body scroller and .info-empty line. ── */

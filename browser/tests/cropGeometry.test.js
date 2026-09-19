@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   isAlbumOrientationJS, cropAspectJS, centeredCropJS, resizeCropFromCornerJS,
-  moveCropClampedJS, scaleCropCenteredJS, cropResizeScaleJS, cropChangeJS, scaleLinePoints,
-  rotateCropRectQuarterJS, rotateLinePointsQuarter
+  moveCropClampedJS, scaleCropCenteredJS, swapCropOrientationJS, cropResizeScaleJS, cropChangeJS,
+  scaleLinePoints, rotateCropRectQuarterJS, rotateLinePointsQuarter
 } from '../js/core/cropGeometry.js';
 
 // A3 page in cm (aspect ≈ √2), matching desktop/tests/cropGeometry.test.cpp.
@@ -176,4 +176,25 @@ test('scaleCropCentered: grows/shrinks about the centre, keeps aspect, clamps to
   // Floor at minSize (default 16): can't shrink below it.
   const tiny = scaleCropCenteredJS(cur, 0.0001, 1, 200, 200);
   approx(tiny.width, 16); approx(tiny.height, 16);
+});
+
+test('swapCropOrientation: carries the user\'s own framing across the flip', () => {
+  // A rect that fits either way around just swaps its dimensions in place.
+  const cur = { x: 100, y: 40, width: 80, height: 160 };   // centre (140,120), 400x400 image
+  const swapped = swapCropOrientationJS(cur, 2.0, 400, 400);   // 2:1, was 0.5:1
+  approx(swapped.width, 160); approx(swapped.height, 80);
+  approx(swapped.x + swapped.width / 2, 140); approx(swapped.y + swapped.height / 2, 120);
+
+  // A swap that would spill past an edge shrinks about the same centre — same landing
+  // spot as a fresh centeredCrop at the new aspect (the full-image case is exact).
+  const full = centeredCropJS(2880, 2037, 42.0 / 29.7);
+  const flipped = swapCropOrientationJS(full, 29.7 / 42.0, 2880, 2037);
+  const want = centeredCropJS(2880, 2037, 29.7 / 42.0);
+  approx(flipped.width, want.width); approx(flipped.height, want.height);
+  approx(flipped.x, want.x); approx(flipped.y, want.y);
+
+  // No rect yet falls back to a fresh centeredCrop.
+  const fresh = swapCropOrientationJS({ x: 0, y: 0, width: 0, height: 0 }, 1, 200, 100);
+  const freshWant = centeredCropJS(200, 100, 1);
+  approx(fresh.width, freshWant.width); approx(fresh.height, freshWant.height);
 });

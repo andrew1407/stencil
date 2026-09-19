@@ -609,7 +609,7 @@ test('stencil.llm: settings round-trip through the shared store; validation thro
   const { app } = facadeApp(makeClient(chatOnlyReply));
   const stencil = createStencil(app);
 
-  assert.strictEqual(stencil.llm.provider, 'ollama');                       // contract default
+  assert.strictEqual(stencil.llm.provider, 'none');                         // contract default
   stencil.llm.setup({ provider: 'openai-compat', model: 'qwen-vl', apiKey: 'sk-1' });
   assert.strictEqual(stencil.llm.provider, 'openai-compat');
   assert.strictEqual(stencil.llm.baseUrl, 'http://localhost:1234/v1');      // default refilled on switch

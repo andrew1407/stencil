@@ -14,6 +14,7 @@ import { rowsToMessages } from '../llm/chatStore.js';
 import { MAX_ATTACHMENTS } from '../llm/chatController.js';
 import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../core/dragImageUrl.js';
 import { publish, subscribe, EVENTS } from '../eventBus/appBus.js';
+import { modalShells } from './modalRegistry.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from './motion.js';
 import {
@@ -620,8 +621,11 @@ export class StencilChatPanel extends StencilElement {
 // The compact shape follows the mini-window contract of every toolbar popover
 // (wireModalShell): outside press closes and is swallowed, Escape closes, an Alt glide closes.
     const compactShowing = () => chatDock.isCompact() && panelIsOpen();
+// A window opened FROM the panel (assistant settings) stacks over it and owns both
+// gestures — closing the panel underneath would dismiss the wrong one first.
+    const modalUp = () => [...modalShells].some((s) => s.isOpen());
     document.addEventListener('pointerdown', (e) => {
-      if (!compactShowing() || host.contains(e.target)) return;
+      if (!compactShowing() || host.contains(e.target) || modalUp()) return;
 // The chat icon keeps its own gestures: swallowing its press would turn the toggle into a reopen.
       if (openBtn && openBtn.contains(e.target)) return;
 // The row menu floats on the body — pressing it is chat use.
@@ -639,7 +643,7 @@ export class StencilChatPanel extends StencilElement {
       setOpen(false);
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || modalUp()) return;
       if (compactShowing() || (phoneModal() && panelIsOpen())) setOpen(false);
     });
     $('chat-close').addEventListener('click', () => setOpen(false));

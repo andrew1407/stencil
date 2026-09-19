@@ -49,7 +49,8 @@ class StencilCore {
     'stencil_pageDimensions', 'stencil_pageFormats', 'stencil_pixelToPageRaw',
     'stencil_rotatePoints', 'stencil_flipPoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
     'stencil_applyContourRGBA', 'stencil_centeredCrop', 'stencil_resizeCropFromCorner',
-    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter', ...stateExports, ...scriptExports,
+    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_swapCropOrientation',
+    'stencil_cropChange', 'stencil_rotateCropRectQuarter', ...stateExports, ...scriptExports,
   ];
 
   #missingExports(core) {
@@ -74,7 +75,7 @@ class StencilCore {
       'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'flipPoints', 'boundingBoxCenter',
       'clampScale', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
-      'moveCropClamped', 'scaleCropCentered', 'cropResizeScale', 'cropChange', 'HoldDrawController', 'HistoryStack',
+      'moveCropClamped', 'scaleCropCentered', 'swapCropOrientation', 'cropResizeScale', 'cropChange', 'HoldDrawController', 'HistoryStack',
       'projectPeriodMs', 'projectAddPeriod', 'projectShouldPersist', 'projectIsExpired', 'projectIsExpiringSoon',
     ];
   }
@@ -124,6 +125,8 @@ class StencilCore {
       core.ccall('stencil_moveCropClamped', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, dx, dy, iw, ih, out]);
     const cScaleCrop  = (x, y, w, h, factor, aspect, iw, ih, out) =>
       core.ccall('stencil_scaleCropCentered', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, factor, aspect, iw, ih, out]);
+    const cSwapCrop   = (x, y, w, h, aspect, iw, ih, out) =>
+      core.ccall('stencil_swapCropOrientation', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, aspect, iw, ih, out]);
     const cCropChange = (ox, oy, ow, oh, nx, ny, nw, nh, out) =>
       core.ccall('stencil_cropChange', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [ox, oy, ow, oh, nx, ny, nw, nh, out]);
     const cRotateCrop = (x, y, w, h, iw, ih, cw, out) =>
@@ -338,6 +341,10 @@ class StencilCore {
 
       scaleCropCentered(cur, factor, aspectWoverH, imageW, imageH) {
         return withRectOut(out => cScaleCrop(cur.x, cur.y, cur.width, cur.height, factor, aspectWoverH, imageW, imageH, out));
+      },
+
+      swapCropOrientation(cur, aspectWoverH, imageW, imageH) {
+        return withRectOut(out => cSwapCrop(cur.x, cur.y, cur.width, cur.height, aspectWoverH, imageW, imageH, out));
       },
 
       cropResizeScale(oldWidth, newWidth) {

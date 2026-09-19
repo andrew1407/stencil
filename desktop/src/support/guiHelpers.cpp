@@ -144,7 +144,6 @@ namespace stencil::gui {
     if (!combo) return;
     const bool inches = (units == QLatin1String("in"));
     const double factor = inches ? 1.0 / 2.54 : 1.0;
-    const QString unitLabel = inches ? QStringLiteral("in") : QStringLiteral("cm");
     // ≤2 decimals, trailing zeros trimmed — the option-label contract with the browser dropdown.
     const auto num = [](double v) {
       return QString::number(std::round(v * 100.0) / 100.0);
@@ -162,9 +161,11 @@ namespace stencil::gui {
       const QString name = combo->itemData(i).toString();
       if (name == QLatin1String("custom")) continue;  // label stays "Custom…"
       const core::PageSize ps = core::namedPageSize(name.toStdString());
-      combo->setItemText(i, QString("%1 (%2 × %3 %4)")
-                                .arg(name, num(ps.width * factor),
-                                     num(ps.height * factor), unitLabel));
+      // No trailing unit word: this combo always sits beside its own unit combo, which
+      // already says "cm"/"in" once for the whole row (user report; browser twin:
+      // units.js's pageFormatLabel).
+      combo->setItemText(i, QString("%1 (%2 × %3)")
+                                .arg(name, num(ps.width * factor), num(ps.height * factor)));
     }
   }
 }

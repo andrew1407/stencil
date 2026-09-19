@@ -108,6 +108,7 @@ const DOCUMENTED = [
   'lib/popover.d.ts',
   'lib/prefs.d.ts',
   'lib/rasterize.d.ts',
+  'lib/rectTween.d.ts',
   'lib/rowModel.d.ts',
   'lib/scrollbarHover.d.ts',
   'lib/sectionPeek.d.ts',
@@ -175,7 +176,6 @@ const DOCUMENTED = [
 test('the documented set is exactly the pinned list', () => {
   assert.deepEqual(FILES.map(rel), DOCUMENTED);
 });
-
 // `export declare const|function|class X` — the names a .d.ts claims the module exports.
 const declaredValues = (src) =>
   [...src.matchAll(/^export declare (?:const|function|class) (\w+)/gm)].map((m) => m[1]);

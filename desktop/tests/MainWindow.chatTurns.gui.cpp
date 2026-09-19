@@ -1154,7 +1154,8 @@ class MainWindowGuiTest : public QObject {
       QScrollBar* bar = scroll->verticalScrollBar();
       QVERIFY2(bar->maximum() > 0, qPrintable(QString("%1: the transcript does not scroll")
                                                   .arg(what)));
-      const QRect vp = globalRect(scroll->viewport());
+      // Read LIVE: the transcript's width settles over the first scroll steps (301 -> 334).
+      const auto vpNow = [&] { return globalRect(scroll->viewport()); };
       QFrame* clippedTop = nullptr;
       QFrame* clippedBottom = nullptr;
       // A slice tall enough to CARRY the pill (a shorter one deliberately hides
@@ -1170,10 +1171,9 @@ class MainWindowGuiTest : public QObject {
         for (QFrame* card : host->findChildren<QFrame*>()) {
           if (!card->property("chatMoreBtn").isValid()) continue;
           const QRect g = globalRect(card);
-          const QRect vis = g.intersected(vp);
-          if (vis.height() < room) continue;
-          if (g.top() < vp.top()) clippedTop = card;
-          if (g.bottom() > vp.bottom()) clippedBottom = card;
+          if (g.intersected(vpNow()).height() < room) continue;
+          if (g.top() < vpNow().top()) clippedTop = card;
+          if (g.bottom() > vpNow().bottom()) clippedBottom = card;
         }
         if (!clippedTop || !clippedBottom) continue;
         bool bothShow = true;
@@ -1192,11 +1192,11 @@ class MainWindowGuiTest : public QObject {
         QVERIFY2(more, qPrintable(QString("%1: a clipped row has no \"…\"").arg(what)));
         QVERIFY2(more->isVisible(),
                  qPrintable(QString("%1: the clipped row's \"…\" never showed").arg(what)));
-        QVERIFY2(vp.contains(globalRect(more)),
+        QVERIFY2(vpNow().contains(globalRect(more)),
                  qPrintable(QString("%1: the \"…\" sits outside the viewport (%2 vs %3)")
                                 .arg(what)
                                 .arg(QDebug::toString(globalRect(more)))
-                                .arg(QDebug::toString(vp))));
+                                .arg(QDebug::toString(vpNow()))));
       }
       // …and it tracks the view: scrolling must not leave it behind.
       hover(clippedBottom);

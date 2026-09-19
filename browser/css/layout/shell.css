@@ -3,6 +3,21 @@
     padding: 0;
     box-sizing: border-box;
 }
+/* Selected text wears the accent, inked with the contrast colour a light accent needs —
+   the desktop's selection-background-color/selection-color (app.qss text inputs). */
+::selection {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+/* Every focus ring the app shows is the BRAND accent. Without this the platform's own
+   blue ring turned up on whatever no component styled — a colour belonging to no theme.
+   Bare `:focus-visible`, so a component with its own ring still outranks it, and only
+   focus-visible, so a pointer click never draws one. Twins: the extension's
+   lib/theme/controls.css, the desktop's %ACCENT% focus borders (app.qss). */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
 body {
     font-family: Arial, sans-serif;
     /* Half the side frame (user decision) — the panel sits closer to the window edges. */

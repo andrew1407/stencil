@@ -3,18 +3,22 @@
 // ACCENTS is a checked-in copy of browser/js/config/accents.json, pinned by tests/dataParity.test.js.
 (function () {
   const ACCENTS = [
-    { key: 'violet',  label: 'Violet',      hex: '#7c3aed' },
-    { key: 'pink',    label: 'Pink',        hex: '#ec4899' },
-    { key: 'yellow',  label: 'Yellow',      hex: '#eab308' },
-    { key: 'orange',  label: 'Orange',      hex: '#ea580c' },
-    { key: 'crimson', label: 'Crimson',     hex: '#be123c' },
-    { key: 'aqua',    label: 'Aqua',        hex: '#0891b2' },
-    { key: 'sky',     label: 'Sky blue',    hex: '#0ea5e9' },
-    { key: 'blue',    label: 'Blue',        hex: '#2563eb' },
-    { key: 'grass',   label: 'Grass green', hex: '#16a34a' },
-    { key: 'green',   label: 'Green',       hex: '#047857' },
-    { key: 'brown',   label: 'Brown',       hex: '#a87c50' },
-    { key: 'grey',    label: 'Gray',        hex: '#64748b' },
+    { key: 'violet',    label: 'Violet',      hex: '#7c3aed' },
+    { key: 'burgundy',  label: 'Burgundy',    hex: '#660033' },
+    { key: 'pink',      label: 'Pink',        hex: '#ec4899' },
+    { key: 'crimson',   label: 'Crimson',     hex: '#be123c' },
+    { key: 'maroon',    label: 'Maroon',      hex: '#550000' },
+    { key: 'orange',    label: 'Orange',      hex: '#ea580c' },
+    { key: 'brown',     label: 'Brown',       hex: '#a87c50' },
+    { key: 'yellow',    label: 'Yellow',      hex: '#eab308' },
+    { key: 'grass',     label: 'Grass green', hex: '#16a34a' },
+    { key: 'green',     label: 'Green',       hex: '#047857' },
+    { key: 'turquoise', label: 'Turquoise',   hex: '#40e0d0' },
+    { key: 'aqua',      label: 'Aqua',        hex: '#0891b2' },
+    { key: 'sky',       label: 'Sky blue',    hex: '#0ea5e9' },
+    { key: 'bluegray',  label: 'Blue gray',   hex: '#7394b3' },
+    { key: 'grey',      label: 'Gray',        hex: '#64748b' },
+    { key: 'blue',      label: 'Blue',        hex: '#2563eb' },
   ];
   const KEY = 'stencil_accent';
   const DEFAULT = 'violet';

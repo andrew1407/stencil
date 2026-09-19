@@ -101,6 +101,28 @@ namespace stencil::core {
     return CropRect{x, y, w, h};
   }
 
+  CropRect swapCropOrientation(const CropRect& cur, double aspectWoverH,
+                               double imageW, double imageH) {
+    if (cur.width <= 0.0 || cur.height <= 0.0 || aspectWoverH <= 0.0)
+      return centeredCrop(imageW, imageH, aspectWoverH);
+    const double cx = cur.x + cur.width * 0.5;
+    const double cy = cur.y + cur.height * 0.5;
+    double w = cur.height;
+    double h = cur.width;
+    // scaleCropCentered's own clamp: the swap can still spill an edge.
+    const double maxHalfW = std::min(cx, imageW - cx);
+    const double maxHalfH = std::min(cy, imageH - cy);
+    const double wMax = std::min(2.0 * maxHalfW, 2.0 * maxHalfH * aspectWoverH);
+    if (wMax > 0.0 && w > wMax) { w = wMax; h = w / aspectWoverH; }
+    double x = cx - w * 0.5;
+    double y = cy - h * 0.5;
+    if (x < 0.0) x = 0.0;
+    if (y < 0.0) y = 0.0;
+    if (x + w > imageW) x = imageW - w;
+    if (y + h > imageH) y = imageH - h;
+    return CropRect{x, y, w, h};
+  }
+
   double cropResizeScale(double oldWidth, double newWidth) {
     return oldWidth > 0.0 ? newWidth / oldWidth : 1.0;
   }

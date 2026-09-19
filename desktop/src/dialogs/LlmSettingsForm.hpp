@@ -33,12 +33,18 @@ namespace stencil::gui {
     void applyTo(Settings& s) const;
     void focusProvider();
 
+   protected:
+    // A wrapped label's sizeHint is measured at a GUESSED width, and the layout budgets that
+    // instead of re-asking heightForWidth — pin each note line to the height its real width needs.
+    void resizeEvent(QResizeEvent* event) override;
+
    private:
+    void pinNoteHeights();   // each wrapped note line to the height its real width needs
     // Construction order is observable; a conditional row hands its divider back so syncRows can hide the pair.
     QFrame* rowDivider();
     void hugRight(QWidget* w);
     void buildProviderRows(const Settings& current);
-    void buildChatHistoryRows(const Settings& current, QVBoxLayout* col);
+    void buildChatHistoryRows(const Settings& current);
     void wireProviderFields();
     // On a provider switch the base URL re-fills unless the user edited it (it no longer equals the
     // PREVIOUS provider's default).
@@ -57,6 +63,7 @@ namespace stencil::gui {
     QComboBox* server_ = nullptr;
     QCheckBox* saveChats_ = nullptr;
     QLabel* note_ = nullptr;
+    QLabel* saveChatsHint_ = nullptr;
     QFrame* baseUrlDiv_ = nullptr;
     QFrame* modelDiv_ = nullptr;
     QFrame* apiKeyDiv_ = nullptr;

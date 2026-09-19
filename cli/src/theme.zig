@@ -158,11 +158,11 @@ test "theme: default project-name colour is a parseable neutral grey, not an acc
     }
 }
 
-test "theme: embedded accents.json parses to the canonical 12 presets" {
+test "theme: embedded accents.json parses to the canonical 16 presets" {
     const all = accents();
-    try testing.expectEqual(@as(usize, 12), all.len);
+    try testing.expectEqual(@as(usize, 16), all.len);
     try testing.expectEqualStrings("violet", all[0].key); // default stays first
-    const gray = all[11];
+    const gray = all[14];
     try testing.expectEqualStrings("grey", gray.key);
     try testing.expectEqualStrings("Gray", gray.label); // canonical spelling, not "Grey"
     try testing.expectEqualStrings("#64748b", gray.hex);

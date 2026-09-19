@@ -128,7 +128,6 @@ namespace stencil::gui {
         {"%ON_ACCENT%", c(p.onAccent)},
         {"%TICK_IMG%", darkGlyph ? ":/icons/check-dark.png" : ":/icons/check.png"},
         {"%RADIO_IMG%", darkGlyph ? ":/icons/radio-dot-dark.png" : ":/icons/radio-dot.png"},
-        {"%ACCENT_DIM%", rgba(p.accent, dark ? 0.38 : 0.30)},
         {"%ACCENT_SOFT2%", rgba(p.accent, dark ? 0.30 : 0.20)},
         {"%ACCENT_SOFT%", rgba(p.accent, dark ? 0.18 : 0.11)},
         {"%ACCENT_RING%", rgba(p.accent, 0.45)},

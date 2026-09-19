@@ -279,6 +279,8 @@ namespace stencil::gui {
     void scrollTo(int x, int y);
     void setZoomAnchored(double newScale, const QPoint& cursorInViewport);
     void applyTheme();
+    // The drop hint's keycaps are painted pictures, so a theme change rebuilds the line.
+    void refreshDropHint();
     void styleActionIcons(bool dark, const QColor& iconColor);
     void styleDangerToolButtons();
     bool sectionButtonVisible(QAction* act, QToolButton* btn) const;
@@ -347,14 +349,17 @@ namespace stencil::gui {
     void openImageHere(const QString& path, bool incognito);
     void openImageInNewWindow(const QString& path, bool incognito);
     void openSourceHere(const QString& src, int frame, bool incognito);
+    // `cropRect` is what the Open-Image stage was left on; empty ⇒ the new window centres it.
     void openSourceInNewWindow(const QString& src, int frame, bool incognito,
                                bool hasPreview = false, bool cropToPage = false,
                                bool cropAlbum = false,
-                               const QString& cropPage = QString());
+                               const QString& cropPage = QString(),
+                               const core::CropRect& cropRect = {});
     void openPreviewedImageHere(const QImage& image, const QString& localPath,
                                 const QString& provSource, bool incognito,
                                 bool cropToPage, bool cropAlbum,
-                                const QString& cropPage);
+                                const QString& cropPage,
+                                const core::CropRect& cropRect = {});
     bool canReplaceActive() const;
     void replaceProjectImage(const QString& path, bool rename, bool keepAnnotations);
     void replaceServerOriginal(std::function<void()> done = {});
@@ -844,6 +849,9 @@ namespace stencil::gui {
       Mode mode = Mode::AUTO;
       bool album = false;
       QString page;
+      // The rect the Open-Image crop stage was left on, in original-image pixels. Width 0
+      // means none was dragged, and the page-aspect crop is centred as it always was.
+      core::CropRect rect;
     };
     QuickCropOpts pendingCrop_;
     bool incognito_ = false;

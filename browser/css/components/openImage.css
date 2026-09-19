@@ -22,9 +22,48 @@
 #open-image-modal-overlay:not(.modal-popover) .app-modal { min-height: min(430px, 82vh); }
 /* Open Image dialog: live preview + inline crop editor. The media is centered in a
    column; the crop-options row keeps the toggle, hint, and orientation button in one line. */
-.oi-preview { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 10px 0 4px; }
-.oi-crop-opt { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.oi-crop-opt .btn-icon-text { padding: 3px 8px; }
+/* position: the arrival dust canvas is absolute inside this box, and a video's stage hangs
+   here rather than on the crop stage an image gets — static would anchor it to the modal. */
+.oi-preview { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 10px 0 4px; }
+.oi-crop-opt, .oi-incognito { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* The caption takes the row's slack, so the Album/Portrait button sits at the row's far
+   edge — where the desktop's stretch caption puts its own (checkCaptionRow) — and the
+   Custom W/H fields under it (.oi-crop-size-custom) fill out to that same edge. */
+.oi-crop-opt { flex: 1 1 auto; min-width: 0; }
+.oi-crop-opt > label.footer-hint { flex: 1 1 auto; min-width: 0; }
+/* No hairline of its own (desktop twin: QSS #oiNoDivider) — the size row sits directly
+   under Crop, itself hidden/shown by the row's own particle sweep, never a static line. */
+#open-image-crop-row, #open-image-crop-size-row, #open-image-incognito-row { border-bottom: none; }
+/* The caption IS the checkbox's <label for>: the pointer affordance says so too. */
+.oi-crop-opt > label.footer-hint, .oi-incognito > label.footer-hint { cursor: pointer; }
+/* Fixed to fit its longer face ("Portrait"): an auto-width button resized on every press,
+   since "Album" and "Portrait" are different lengths — a visible jump on a toggle that
+   changes no layout otherwise (user report; desktop twin: OpenImageDialog's cropAlbum_
+   fixed width). left, not centered — centered redistributes the box's slack on BOTH
+   sides of the icon+text group, so the icon itself drifts a little with every toggle
+   instead of sitting at one fixed inset (user report). */
+/* Width itself is pinned in JS (openImageModal.js pinWidestFace, both faces' real metrics),
+   not guessed here — only the left alignment is CSS's (icon stays put; flex-start, not
+   centred, so it never drifts as the two words swap in). */
+#open-image-crop-orientation { justify-content: flex-start; }
+/* Same gap as .oi-crop-opt (the Crop row just above): the two columns read as one table.
+   The span fills the row so the Custom W/H pair can reach the far edge; the selector
+   itself keeps its content width. */
+.oi-crop-size { display: inline-flex; align-items: stretch; gap: 10px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; }
+/* Basis 0, not its content: the two fields' own default widths would wrap the pair under
+   the selector instead of beside it. Stretched, so the W/H fields stand as tall as the
+   selector beside them (desktop twin: the spin boxes match the combo). */
+.oi-crop-size-custom { display: inline-flex; align-items: stretch; gap: 6px; flex: 1 1 0; min-width: 0; }
+/* W/H beside their own field, not stacked above it (user report) — a plain RATIO pair,
+   so no unit label rides along either (user report: the unit is already the row above).
+   Two equal fields splitting the room out to the Album/Portrait button's edge above. */
+.oi-crop-size-field { display: flex; align-items: stretch; gap: 4px; flex: 1 1 0; min-width: 0; }
+.oi-crop-size-field label { font-size: 11px; color: var(--text-muted); align-self: center; }
+/* Not [type="number"]: js/ui/numericInput.js flips every enhanced field to type="text"
+   at runtime (arithmetic input) — the attribute selector stopped matching the moment
+   that ran, and the field fell back to a ~150px default, wrapping W/H onto their own
+   row below the ratio selector instead of sitting beside it (user report). */
+.oi-crop-size-custom input { width: auto; flex: 1 1 0; min-width: 0; }
 /* ── Open-another-image + Open-in modals: a fixed label column with the controls
    left-aligned against it. The default .vs-row space-between (right for the
    settings toggles) scatters these mixed-width controls — the file input lands at
@@ -33,7 +72,57 @@ stencil-open-image-modal .vs-row,
 stencil-open-in-modal .vs-row { justify-content: flex-start; }
 stencil-open-image-modal .vs-row > label,
 stencil-open-in-modal .vs-row > label { flex: 0 0 auto; min-width: 88px; }
-stencil-open-image-modal .vs-row > input[type="file"] { flex: 1 1 auto; min-width: 0; }
+/* The same column for a .vs-field row (URL): its own rule out-specifies the one above,
+   and reads this — without it the URL input starts left of every other control. */
+stencil-open-image-modal, stencil-open-in-modal { --vs-label-w: 88px; }
+/* The file chooser reads as ONE control: the accent button butted straight against the
+   path readout inside a single box, no seam between them. Desktop twin: the Choose File…
+   CTA and its path field share a row with no spacing (OpenImageDialog). */
+.oi-file {
+    display: inline-flex;
+    align-items: stretch;
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid var(--ui-outline);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.oi-file-btn {
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 0;
+    padding: 8px 12px;
+    font-size: 14px;
+}
+/* The chosen file's name, or the empty-state prompt — the field half of the pair, and a
+   second way into the picker, so the whole control is one target. */
+.oi-file-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0 12px;
+    font-size: 14px;
+    color: var(--input-text);
+    background: var(--input-bg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.oi-file-name:empty::before,
+.oi-file-name.is-empty { color: var(--text-muted); }
+/* One control, so ONE focus ring — around the whole box. The button's own ring drew a
+   bright line down the seam instead: overflow:hidden clipped everything but its inner
+   edge (user report, with a picture). */
+.oi-file-btn:focus-visible { outline: none; }
+.oi-file:has(.oi-file-btn:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+/* "Loading…" while a source decodes, and load failures — desktop's preview hint. */
+.oi-status:empty { display: none; }
+.oi-status { color: var(--text-muted); font-size: 12px; margin: 10px 0 0 4px; }   /* .vs-row's own 4px */
 /* Open-in modal: the "Project" description and the "Incognito" control+description
    sit in a shared 3-column grid — label · fixed checkbox slot · text — so the two
    description texts share one left edge (a lone checkbox would otherwise push the
@@ -50,3 +139,76 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
 .oi-fallback { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .links-quickcrop-controls select { width: auto; min-width: 64px; }
 .links-inline-check input:disabled + *, .links-quickcrop-controls select:disabled { opacity: .5; }
+/* The frame scrub rides UNDER the picture at its exact width, the way a player's progress
+   bar does — the video itself carries no native controls on either surface. The played side
+   and the thumb wear the brand accent, outlined in --ui-outline so an accent close to the
+   surface behind it still reads. Desktop twin: QSlider#oiFrameScrub (app.qss). */
+.oi-scrub {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 13px;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+}
+.oi-scrub::-webkit-slider-runnable-track {
+    height: 7px;
+    box-sizing: border-box;
+    border: 1px solid var(--ui-outline);
+    border-radius: 4px;
+    background: linear-gradient(to right, var(--accent) 0 var(--scrub-fill, 0%),
+                                          var(--border-main) var(--scrub-fill, 0%) 100%);
+}
+.oi-scrub:hover::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, var(--accent) 0 var(--scrub-fill, 0%),
+                                          var(--text-muted) var(--scrub-fill, 0%) 100%);
+}
+.oi-scrub::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    margin-top: -3px;
+    box-sizing: border-box;
+    border: 1px solid var(--ui-outline);
+    border-radius: 7px;
+    background: var(--accent);
+}
+.oi-scrub::-moz-range-track {
+    height: 7px; box-sizing: border-box; border: 1px solid var(--ui-outline);
+    border-radius: 4px; background: var(--border-main);
+}
+.oi-scrub:hover::-moz-range-track { background: var(--text-muted); }
+.oi-scrub::-moz-range-progress { height: 7px; border-radius: 4px; background: var(--accent); }
+.oi-scrub::-moz-range-thumb {
+    width: 13px; height: 13px; box-sizing: border-box; border: 1px solid var(--ui-outline);
+    border-radius: 7px; background: var(--accent);
+}
+
+/* The blank tab's custom fill is a WELL, not a bare picker: the chip with its hex beside it,
+   the way the desktop swatch reads (setColorSwatch withHex, 140x30). Same treatment as the
+   Visuals colour rows, sized for this dialog. */
+.oi-color {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 10px;
+    background: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Menlo','Consolas',monospace;
+    font-size: 12px;
+}
+.oi-color:hover { border-color: var(--accent); }
+.oi-color input[type="color"] {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+.oi-hex { letter-spacing: 0.02em; }

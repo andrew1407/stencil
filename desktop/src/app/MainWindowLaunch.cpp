@@ -58,9 +58,11 @@ namespace stencil::gui {
       pendingLaunchLayoutJson_ = opts.layoutJson;
       // Quick-crop override from the "Open in new window" handoff; consumed by applyQuickCrop().
       if (opts.hasCropOverride)
-        pendingCrop_ = opts.cropToPage
-                           ? QuickCropOpts{QuickCropOpts::Mode::PAGE, opts.cropAlbum, opts.cropPage}
-                           : QuickCropOpts{QuickCropOpts::Mode::NONE, false, QString()};
+        pendingCrop_ =
+            opts.cropToPage
+                ? QuickCropOpts{QuickCropOpts::Mode::PAGE, opts.cropAlbum, opts.cropPage,
+                                {opts.cropX, opts.cropY, opts.cropW, opts.cropH}}
+                : QuickCropOpts{QuickCropOpts::Mode::NONE, false, QString()};
       openImageSource(opts.src, opts.frame);
     } else if (!opts.file.isEmpty()) {
       pendingLaunchLayout_ = opts.layout;

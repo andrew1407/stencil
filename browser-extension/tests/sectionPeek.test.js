@@ -25,6 +25,18 @@ test('peekPosition: flips above when the bottom would overflow', () => {
   assert.equal(p.top, 500 - 6 - 300);
 });
 
+// The same case the browser suite carries: a short box low in the panel still "fits"
+// below by the viewport's own measure, but above is where it stops covering the rows
+// under it. This module used to keep its own copy of the older overflow-only rule.
+test('peekPosition: flips above when above has more room, even without overflowing below', () => {
+  const p = peekPosition({
+    anchor: { left: 12, top: 400, bottom: 420 },
+    box: { width: 340, height: 120 },
+    viewport: { width: 400, height: 600 },
+  });
+  assert.equal(p.top, 400 - 6 - 120);
+});
+
 test('peekPosition: clamps into the viewport when neither side fits, and at the right edge', () => {
   const tall = peekPosition({
     anchor: { left: 12, top: 300, bottom: 320 },

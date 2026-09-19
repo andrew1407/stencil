@@ -113,8 +113,8 @@ test('context-menu data-hk attributes are present', () => {
     for (const hk of hks) {
         assert.ok(markup.includes(`data-hk="${hk}"`), `data-hk="${hk}" present`);
     }
-    // 'paste' appears twice (paste image + paste layout)
-    assert.strictEqual(count('data-hk="paste"'), 2, 'data-hk="paste" appears twice');
+    // The menu's own two paste rows; the drop hint carries a third data-hk elsewhere.
+    assert.strictEqual(count('class="ctx-hotkey" data-hk="paste"'), 2, 'two paste rows');
 });
 
 test('Copy Image / Download Image opener rows carry no hotkey chip of their own', () => {
@@ -241,11 +241,11 @@ test('page-size select: Custom… first, then the ISO formats labelled with size
     const custom = sel.indexOf('<option value="custom">Custom…</option>');
     assert.ok(custom !== -1, 'Custom… option present');
     assert.ok(custom < sel.indexOf('<option value="A0">'), 'Custom… before the named formats');
-    // Spot-check the "<name> (<w> × <h> cm)" labels across the three series
-    // (trailing zeros trimmed; values from PAGE_SIZES in constants.json).
-    assert.ok(markup.includes('<option value="A4">A4 (21 × 29.7 cm)</option>'), 'A4 label');
-    assert.ok(markup.includes('<option value="B5">B5 (17.6 × 25 cm)</option>'), 'B5 label');
-    assert.ok(markup.includes('<option value="C10">C10 (2.8 × 4 cm)</option>'), 'C10 label');
+    // Spot-check the "<name> (<w> × <h>)" labels (no unit word — #unit-select says it once
+    // for the row; trailing zeros trimmed; values from PAGE_SIZES in constants.json).
+    assert.ok(markup.includes('<option value="A4">A4 (21 × 29.7)</option>'), 'A4 label');
+    assert.ok(markup.includes('<option value="B5">B5 (17.6 × 25)</option>'), 'B5 label');
+    assert.ok(markup.includes('<option value="C10">C10 (2.8 × 4)</option>'), 'C10 label');
 });
 
 test('HTML entities preserved (not decoded)', () => {

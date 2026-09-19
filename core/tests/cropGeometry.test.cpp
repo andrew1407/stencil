@@ -200,3 +200,30 @@ TEST_CASE("scaleCropCentered grows/shrinks about the centre, keeps aspect, clamp
     CHECK(r.height == doctest::Approx(16));
   }
 }
+
+TEST_CASE("swapCropOrientation carries the user's own framing across the flip") {
+  SUBCASE("a rect that fits either way around just swaps its dimensions in place") {
+    const CropRect cur{100, 40, 80, 160};  // centre (140,120) in a 400x400 image
+    const CropRect r = swapCropOrientation(cur, 2.0, 400, 400);  // 2:1, was 0.5:1
+    CHECK(r.width == doctest::Approx(160));
+    CHECK(r.height == doctest::Approx(80));
+    CHECK(r.x + r.width / 2 == doctest::Approx(140));
+    CHECK(r.y + r.height / 2 == doctest::Approx(120));
+  }
+  SUBCASE("a swap that would spill past an edge shrinks about the same centre") {
+    // The full image at 1.4142:1 (A3 album), flipped to portrait (1:1.4142).
+    const CropRect cur = centeredCrop(2880, 2037, 42.0 / 29.7);
+    const CropRect r = swapCropOrientation(cur, 29.7 / 42.0, 2880, 2037);
+    const CropRect want = centeredCrop(2880, 2037, 29.7 / 42.0);
+    CHECK(r.width == doctest::Approx(want.width));
+    CHECK(r.height == doctest::Approx(want.height));
+    CHECK(r.x == doctest::Approx(want.x));
+    CHECK(r.y == doctest::Approx(want.y));
+  }
+  SUBCASE("no rect yet falls back to a fresh centeredCrop") {
+    const CropRect r = swapCropOrientation(CropRect{}, 1.0, 200, 100);
+    const CropRect want = centeredCrop(200, 100, 1.0);
+    CHECK(r.width == doctest::Approx(want.width));
+    CHECK(r.height == doctest::Approx(want.height));
+  }
+}

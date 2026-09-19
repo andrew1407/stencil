@@ -2064,6 +2064,21 @@
           ]
         }
       ]
+    },
+    "swap-click-turn": {
+      "action": "flip album / portrait",
+      "trigger": "CLICK, not hover — the one motion in this table that answers a press",
+      "mode": "settle",
+      "note": "the swap glyph turns one full revolution CLOCKWISE as the orientation it toggles flips, so the press is acknowledged by the thing that changed. Reuses `icmTurnCw` and rotate-cw's timing: one spin feel across the app.",
+      "durationMs": 413,
+      "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+      "rotate": 360,
+      "wornBy": [
+        "browser #crop-orientation",
+        "browser #open-image-crop-orientation",
+        "desktop CropDialog orientation button",
+        "desktop OpenImageDialog Album / Portrait"
+      ]
     }
   }
 }

@@ -1,13 +1,17 @@
 Themes (current: violet) — '/theme <name | #hex | default>' to switch:
  * violet (default)
+   burgundy
    pink
-   yellow
-   orange
    crimson
-   aqua
-   sky
-   blue
+   maroon
+   orange
+   brown
+   yellow
    grass
    green
-   brown
+   turquoise
+   aqua
+   sky
+   bluegray
    grey
+   blue

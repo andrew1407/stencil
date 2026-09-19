@@ -51,3 +51,14 @@ test('every selector opens the app dropdown, and hovers as a pointer', async ({ 
     .click({ force: true });
   await expect(page.locator('.accent-dd-menu:visible')).toHaveCount(0);
 });
+
+// A disabled trigger must read as dead under the pointer too — its own hover rule used to
+// outrank the generic `button:disabled` fill on hover, so it lit up in the accent as if it
+// were live (user report: Compare, with no image loaded).
+test('hovering a disabled selector never lights it up in the accent', async ({ page }) => {
+  await gotoApp(page);
+  const trigger = page.locator('#compare-mode').locator('xpath=..').locator('.accent-dd-trigger');
+  await expect(trigger).toBeDisabled();
+  await trigger.hover({ force: true });
+  await expect(trigger).not.toHaveCSS('border-color', 'rgb(124, 58, 237)');
+});

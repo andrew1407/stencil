@@ -61,7 +61,7 @@ namespace stencil::gui {
   void MainWindow::openImageDialog(bool startBlank) {
     const auto px = core::defaultBlankSizePx(currentPageDimensions());
     OpenImageDialog dlg(this, canReplaceActive(), px.width, px.height, startBlank,
-                        settings_.pageSize, settings_.units);
+                        settings_.pageSize);
     if (connections_ && !incognito_) dlg.setServerTargets(connections_->urls());
     pendingServerTarget_.clear();
     if (execMaybePopover(dlg) != QDialog::Accepted) return;
@@ -85,12 +85,14 @@ namespace stencil::gui {
       if (outcome == OpenImageDialog::Outcome::NEW_WINDOW) {
         // The fresh window re-resolves the same source and applies the same page-aspect crop.
         openSourceInNewWindow(src, dlg.frame(), dlg.incognito(), /*hasPreview=*/true,
-                              dlg.cropToPage(), dlg.cropAlbum(), dlg.cropPageSize());
+                              dlg.cropToPage(), dlg.cropAlbum(), dlg.cropPageSize(),
+                              dlg.cropRect());
         return;
       }
       openPreviewedImageHere(previewed, localFile ? src : QString(),
                              dlg.isUrl() ? src : QString(), dlg.incognito(),
-                             dlg.cropToPage(), dlg.cropAlbum(), dlg.cropPageSize());
+                             dlg.cropToPage(), dlg.cropAlbum(), dlg.cropPageSize(),
+                             dlg.cropRect());
       return;
     }
 
@@ -132,7 +134,8 @@ namespace stencil::gui {
   // MediaLoader validates + reports in that window.
   void MainWindow::openSourceInNewWindow(const QString& src, int frame, bool incognito,
                                          bool hasPreview, bool cropToPage,
-                                         bool cropAlbum, const QString& cropPage) {
+                                         bool cropAlbum, const QString& cropPage,
+                                         const core::CropRect& cropRect) {
     auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();
@@ -146,6 +149,12 @@ namespace stencil::gui {
       opts.cropToPage = cropToPage;
       opts.cropAlbum = cropAlbum;
       opts.cropPage = cropPage;
+      // What the user DRAGGED rides along, so the new window shows the same box rather
+      // than re-centring one (browser twin: openOpts()'s crop reaches openImageNewTab).
+      opts.cropX = cropRect.x;
+      opts.cropY = cropRect.y;
+      opts.cropW = cropRect.width;
+      opts.cropH = cropRect.height;
     }
     win->applyLaunchOptions(opts);
   }
@@ -154,7 +163,8 @@ namespace stencil::gui {
   void MainWindow::openPreviewedImageHere(const QImage& image, const QString& localPath,
                                           const QString& provSource, bool incognito,
                                           bool cropToPage, bool cropAlbum,
-                                          const QString& cropPage) {
+                                          const QString& cropPage,
+                                          const core::CropRect& cropRect) {
     if (!incognito_) {
       if (!activeProjectId_.isEmpty()) saveToActiveProject();
       else saveSessionNow();
@@ -170,7 +180,7 @@ namespace stencil::gui {
     }
     // Never the default page-aspect auto-crop: what was previewed is what opens.
     if (cropToPage)
-      pendingCrop_ = {QuickCropOpts::Mode::PAGE, cropAlbum, cropPage};
+      pendingCrop_ = {QuickCropOpts::Mode::PAGE, cropAlbum, cropPage, cropRect};
     else
       pendingCrop_ = {QuickCropOpts::Mode::NONE, false, QString()};
     pendingProvSource_ = provSource;

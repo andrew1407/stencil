@@ -220,8 +220,9 @@ classDiagram
 3. **`js/config/` is canonical.** A value another surface needs is a table here, never a
    literal in code.
 4. **Ported modules stay byte-identical.** `ui/controlTooltip`, `numericInput`,
-   `dropdownMenu`, `tipContent`, `scrollbarHover`, `dustCloud`, `motionIcons` and
-   `llm/llmClient` are copied into `browser-extension/src/lib/` and pinned byte-identical
+   `dropdownMenu`, `tipContent`, `scrollbarHover`, `dustCloud`, `motionIcons`,
+   `motion/rectTween` and `llm/llmClient` are copied into `browser-extension/src/lib/` and
+   pinned byte-identical
    (`browser-extension/tests/portParity.test.js`); `core/script*.js` is copied into
    `vscode-extension/src/parser/` and pinned the same way, in both directions
    (`vscode-extension/tests/parserParity.test.js`). Edit here, then re-copy.

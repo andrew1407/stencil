@@ -15,7 +15,7 @@ if (!window.__stencilPageBridge) {
   const LEDGER_KEY = 'stencil-opened';  // must match lib/ledger.js
   const ACCENT_KEY = 'stencil_accent';  // must match lib/accent.js mirror
   // mirror of lib/highlightColor.js ACCENT_HEX — keep in sync.
-  const ACCENT_HEX = { violet: '#7c3aed', pink: '#ec4899', yellow: '#eab308', orange: '#ea580c', crimson: '#be123c', aqua: '#0891b2', sky: '#0ea5e9', blue: '#2563eb', grass: '#16a34a', green: '#047857', brown: '#a87c50', grey: '#64748b' };
+  const ACCENT_HEX = { violet: '#7c3aed', burgundy: '#660033', pink: '#ec4899', crimson: '#be123c', maroon: '#550000', orange: '#ea580c', brown: '#a87c50', yellow: '#eab308', grass: '#16a34a', green: '#047857', turquoise: '#40e0d0', aqua: '#0891b2', sky: '#0ea5e9', bluegray: '#7394b3', grey: '#64748b', blue: '#2563eb' };
   const resolveHl = (setting, accentKey) => (!setting || setting === 'theme') ? (ACCENT_HEX[accentKey] || ACCENT_HEX.violet) : setting;
 
   // This page's origin — the "site" pins are grouped under (matches lib/pins.js siteOf).

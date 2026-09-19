@@ -26,7 +26,7 @@
 #selection-panel .control-group label { color: var(--text-sel-label); }
 #selection-panel input[type="checkbox"] { accent-color: var(--border-sel); }
 #selection-panel input:focus-visible,
-#selection-panel select:focus-visible { outline: 2px solid var(--border-sel); outline-offset: 1px; }
+#selection-panel select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #sel-fill-clear, #sel-unchain {
     background: var(--bg-sel-btn);
     color: var(--text-sel-btn);

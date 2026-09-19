@@ -19,6 +19,9 @@ export declare const cropResizeScaleJS: (oldWidth: number, newWidth: number) => 
 /** Scale the crop about its centre by `factor`: aspect kept, capped, floored at minSize. */
 export declare const scaleCropCenteredJS: (cur: CropRect, factor: number, aspectWoverH: number,
   imageW: number, imageH: number, minSize?: number) => CropRect;
+/** Album/Portrait press: swap width/height about the same centre, clamped to the image. */
+export declare const swapCropOrientationJS: (cur: CropRect, aspectWoverH: number,
+  imageW: number, imageH: number) => CropRect;
 export declare const cropChangeJS: (oldRect: CropRect, newRect: CropRect) => CropChange;
 /** Multiply every point of every line by `scale` in place. */
 export declare const scaleLinePoints: (lines: Lines, scale: number) => void;
@@ -33,6 +36,7 @@ export declare const centeredCrop: typeof centeredCropJS;
 export declare const resizeCropFromCorner: typeof resizeCropFromCornerJS;
 export declare const moveCropClamped: typeof moveCropClampedJS;
 export declare const scaleCropCentered: typeof scaleCropCenteredJS;
+export declare const swapCropOrientation: typeof swapCropOrientationJS;
 export declare const cropResizeScale: typeof cropResizeScaleJS;
 export declare const cropChange: typeof cropChangeJS;
 export declare const rotateCropRectQuarter: typeof rotateCropRectQuarterJS;

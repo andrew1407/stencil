@@ -1,7 +1,10 @@
 #include "CropDialog.hpp"
 #include "cropDialogParts.hpp"
 #include "../support/modalChrome.hpp"
+#include "../support/motionPrefs.hpp"
+#include <QEasingCurve>
 #include <QGuiApplication>
+#include <QVariantAnimation>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
@@ -19,7 +22,7 @@ namespace stencil::gui {
 
   CropPreview::CropPreview(const QImage& original, double pageWidthCm,
                            double pageHeightCm, const core::CropRect& initial,
-                           QWidget* parent)
+                           QWidget* parent, bool autoFitScreen)
       : QWidget(parent),
         original_(original),
         pageWidthCm_(pageWidthCm),
@@ -32,13 +35,37 @@ namespace stencil::gui {
     aspect_ = core::cropAspect(pageWidthCm_, pageHeightCm_, album_);
     rect_ = initial.width > 0 ? initial : core::centeredCrop(iw_, ih_, aspect_);
 
-    setFitBox(previewFitBox(screenAvail(parent)));
+    if (autoFitScreen) setFitBox(previewFitBox(screenAvail(parent)));
     setMouseTracking(true);
+  }
+
+  void CropPreview::setOriginal(const QImage& original) {
+    if (original.isNull()) return;
+    const bool sameSize = original.width() == iw_ && original.height() == ih_;
+    original_ = original;
+    iw_ = original_.width();
+    ih_ = original_.height();
+    if (!sameSize) {
+      settleRect();
+      rect_ = core::centeredCrop(iw_, ih_, aspect_);
+      // The box last FIT INTO, not scale_ * the new pixels: scale_ is this image's own
+      // ratio, stale from whatever the previous one measured — a portrait swapped for a
+      // landscape (or a video for a differently-sized image on a tab switch) landed the
+      // widget far outside PREVIEW_MAX_W/H, an empty box with the handles at its corners.
+      setFitBox(fitBox_);
+      emit cropChanged();
+    }
+    update();
   }
 
   // Fit the original into the box (allow modest upscaling of small images so the
   // handles are usable); the widget takes exactly the scaled image plus the handle inset.
+  // An invalid/degenerate box (fitBox_ read back before anyone ever set it, still QSize()'s
+  // default -1x-1) must NEVER fall back to scale 1.0 — that is the image's own NATIVE
+  // pixels, and for a real photo or video frame that dwarfs the dialog around it.
   void CropPreview::setFitBox(const QSize& box) {
+    if (box.width() <= 0 || box.height() <= 0) return;   // keep the last good fit
+    fitBox_ = box;
     const double s = std::min(static_cast<double>(box.width()) / std::max(1, iw_),
                               static_cast<double>(box.height()) / std::max(1, ih_));
     scale_ = s > 0 ? s : 1.0;
@@ -46,11 +73,61 @@ namespace stencil::gui {
     update();
   }
 
+  // swapCropOrientation carries the user's own framing across the flip (a fresh
+  // centeredCrop with no rect yet, same as before). Browser twin: openImageModal.js
+  // recenterCrop / cropModal.js recenter.
   void CropPreview::setAlbum(bool album) {
+    // A same-value call (the constructor's own bootstrap, forcing the CALLER's requested
+    // orientation over the ctor's image-natural guess) must stay idempotent — swapping an
+    // already-correct rect would put it at the WRONG, reciprocal aspect.
+    if (album == album_) { update(); emit cropChanged(); return; }
+    const core::CropRect from = rect_;
     album_ = album;
     aspect_ = core::cropAspect(pageWidthCm_, pageHeightCm_, album_);
-    rect_ = core::centeredCrop(iw_, ih_, aspect_);
+    rect_ = core::swapCropOrientation(rect_, aspect_, iw_, ih_);
+    flyRectFrom(from);
+    emit cropChanged();
+  }
+
+  // The flip's own flight: the painted box eases from its old shape while rect_ (what the
+  // read-out, a drag and the result read) is already the new one. Browser twin:
+  // rectTween.js. A widget not yet shown — the constructor's bootstrap — lands at once.
+  void CropPreview::flyRectFrom(const core::CropRect& from) {
+    if (!isVisible() || support::motionReduced() || from.width <= 0) { settleRect(); return; }
+    if (!rectAnim_) {
+      rectAnim_ = new QVariantAnimation(this);
+      rectAnim_->setDuration(CROP_TWEEN_MS);
+      rectAnim_->setEasingCurve(QEasingCurve::OutCubic);
+      connect(rectAnim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+        const QRectF r = v.toRectF();
+        shownRect_ = {r.x(), r.y(), r.width(), r.height()};
+        update();
+      });
+      connect(rectAnim_, &QVariantAnimation::finished, this, &CropPreview::settleRect);
+    }
+    rectAnim_->stop();
+    flying_ = true;
+    shownRect_ = from;
+    rectAnim_->setStartValue(QRectF(from.x, from.y, from.width, from.height));
+    rectAnim_->setEndValue(QRectF(rect_.x, rect_.y, rect_.width, rect_.height));
+    rectAnim_->start();
+  }
+
+  void CropPreview::settleRect() {
+    flying_ = false;
+    if (rectAnim_ && rectAnim_->state() != QAbstractAnimation::Stopped) rectAnim_->stop();
     update();
+  }
+
+  // A DIFFERENT page picked: no reciprocal to carry the old box across (that's only true
+  // between one page's own two orientations), so this resets to a fresh default at the
+  // new aspect — same as a first Crop tick. Browser twin: openImageModal.js applyCropPageChange.
+  void CropPreview::setPageSize(double pageWidthCm, double pageHeightCm) {
+    pageWidthCm_ = pageWidthCm;
+    pageHeightCm_ = pageHeightCm;
+    aspect_ = core::cropAspect(pageWidthCm_, pageHeightCm_, album_);
+    rect_ = core::centeredCrop(iw_, ih_, aspect_);
+    settleRect();
     emit cropChanged();
   }
 
@@ -63,8 +140,8 @@ namespace stencil::gui {
   }
 
   QRectF CropPreview::displayRect() const {
-    return QRectF(INSET + rect_.x * scale_, INSET + rect_.y * scale_,
-                  rect_.width * scale_, rect_.height * scale_);
+    const core::CropRect& r = flying_ ? shownRect_ : rect_;
+    return QRectF(INSET + r.x * scale_, INSET + r.y * scale_, r.width * scale_, r.height * scale_);
   }
 
   int CropPreview::cornerAt(const QPoint& wp) const {
@@ -93,14 +170,15 @@ namespace stencil::gui {
     p.fillPath(outside, QColor(0, 0, 0, SHADE_ALPHA));
 
     // The browser's 2px border sits INSIDE the crop box (border-box), so inset by 1.
-    QPen pen(CROP_ACCENT);
+    const QColor accent = cropAccent(this);
+    QPen pen(accent);
     pen.setWidth(2);
     p.setPen(pen);
     p.setBrush(Qt::NoBrush);
     p.drawRect(d.adjusted(1, 1, -1, -1));
 
     p.setRenderHint(QPainter::Antialiasing, true);
-    p.setBrush(CROP_ACCENT);
+    p.setBrush(accent);
     p.setPen(QPen(Qt::white, 2));
     const QPointF corners[4] = {d.topLeft(), d.topRight(), d.bottomRight(),
                                 d.bottomLeft()};

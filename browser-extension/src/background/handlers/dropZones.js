@@ -4,7 +4,7 @@ import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, laun
 import { mountDropZones, unmountDropZones } from '../../lib/dropZones.js';
 import { mountDropChoice } from '../../lib/dropChoice.js';
 import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../../lib/highlightColor.js';
-import { THEME_STORAGE_KEY, THEME_MODES } from '../../lib/shellTheme.js';
+import { THEME_STORAGE_KEY, RESOLVED_STORAGE_KEY, THEME_MODES, injectedScheme } from '../../lib/shellTheme.js';
 import { recordOpened } from '../../lib/ledger.js';
 import { MSG } from '../../lib/messages.js';
 import { askEditorTab } from '../editorRelay.js';
@@ -15,12 +15,14 @@ export const dropZoneHandlers = {
     if (msg.tabId == null) return;
     (async () => {
       let accent = DEFAULT_HL;
-      // 'system' rides along UNRESOLVED: only the landing page can answer it.
+      // 'system' resolved by the extension's own pages, not by the landing page: the two
+      // can disagree, and the overlay must match the panel the drag started in.
       let mode = 'system';
       try {
-        const l = await chrome.storage.local.get([ACCENT_STORAGE_KEY, THEME_STORAGE_KEY]);
+        const l = await chrome.storage.local.get([ACCENT_STORAGE_KEY, THEME_STORAGE_KEY, RESOLVED_STORAGE_KEY]);
         accent = ACCENT_HEX[l[ACCENT_STORAGE_KEY]] || DEFAULT_HL;
         if (THEME_MODES.includes(l[THEME_STORAGE_KEY])) mode = l[THEME_STORAGE_KEY];
+        mode = injectedScheme(mode, l[RESOLVED_STORAGE_KEY]);
       } catch { /* defaults */ }
       const probe = await askEditorTab(msg.tabId, { type: MSG.EDITOR_STATE, thumbnail: false });
       chrome.scripting.executeScript({ target: { tabId: msg.tabId }, world: 'ISOLATED', func: mountDropZones, args: [accent, !!probe.ok, mode] })
@@ -51,9 +53,15 @@ export const dropZoneHandlers = {
           // Incognito never persists, so it needs no replace chooser.
           if (action !== 'incognito' && probe.state?.hasImage) {
             let accent = DEFAULT_HL;
-            try { const l = await chrome.storage.local.get(ACCENT_STORAGE_KEY); accent = ACCENT_HEX[l[ACCENT_STORAGE_KEY]] || DEFAULT_HL; } catch { /* default */ }
+            let scheme = 'system';
+            try {
+              const l = await chrome.storage.local.get([ACCENT_STORAGE_KEY, THEME_STORAGE_KEY, RESOLVED_STORAGE_KEY]);
+              accent = ACCENT_HEX[l[ACCENT_STORAGE_KEY]] || DEFAULT_HL;
+              scheme = injectedScheme(THEME_MODES.includes(l[THEME_STORAGE_KEY]) ? l[THEME_STORAGE_KEY] : 'system',
+                                      l[RESOLVED_STORAGE_KEY]);
+            } catch { /* defaults */ }
             const [res] = await chrome.scripting.executeScript({
-              target: { tabId }, world: 'ISOLATED', func: mountDropChoice, args: [accent],
+              target: { tabId }, world: 'ISOLATED', func: mountDropChoice, args: [accent, scheme],
             }).catch(() => [null]);
             const choice = res?.result || 'cancel';
             if (choice === 'cancel') return;

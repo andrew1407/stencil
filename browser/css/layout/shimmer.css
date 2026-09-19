@@ -4,11 +4,12 @@
    prefers-reduced-motion. ── */
 button, .btn-icon, .btn-icon-text, .coord-tab, .pill-toggle, .idle-create-btn,
 .accent-dd-trigger, .name-edit-btn, .project-row, .connect-row, .accent-dd-opt,
-.project-menu-item, .lines-list-row, .ctx-item, .shimmer { position: relative; overflow: hidden; }
+.project-menu-item, .lines-list-row, .ctx-item, .vs-color, .oi-color,
+.shimmer { position: relative; overflow: hidden; }
 button::after, .btn-icon::after, .btn-icon-text::after, .coord-tab::after, .pill-toggle::after,
 .idle-create-btn::after, .accent-dd-trigger::after, .name-edit-btn::after, .project-row::after,
 .connect-row::after, .accent-dd-opt::after, .project-menu-item::after, .lines-list-row::after,
-.ctx-item::after, .shimmer::after {
+.ctx-item::after, .vs-color::after, .oi-color::after, .shimmer::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -24,7 +25,8 @@ button:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after,
 .btn-icon-text:hover:not(:disabled)::after, .coord-tab:hover::after, .pill-toggle:hover::after,
 .idle-create-btn:hover::after, .accent-dd-trigger:hover::after, .name-edit-btn:hover:not(:disabled)::after,
 .project-row:hover::after, .connect-row:hover::after, .accent-dd-opt:hover::after,
-.project-menu-item:hover::after, .lines-list-row:hover::after, .ctx-item:hover::after, .shimmer:hover::after {
+.project-menu-item:hover::after, .lines-list-row:hover::after, .ctx-item:hover::after,
+.vs-color:hover::after, .oi-color:hover::after, .shimmer:hover::after {
     animation: ui-shimmer 0.75s ease;
 }
 @keyframes ui-shimmer {

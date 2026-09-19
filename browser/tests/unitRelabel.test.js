@@ -19,13 +19,15 @@ const { pageFormatLabel } = await import('../js/core/units.js');
 const constants = (await import('../js/config/constants.json', { with: { type: 'json' } })).default;
 const { PAGE_SIZES } = constants;
 
+// No trailing unit word (user report): the label sits beside #unit-select, which already
+// says "cm"/"in" once for the whole row.
 test('pageFormatLabel renders the requested unit, ≤2 decimals, zeros trimmed', () => {
-  assert.equal(pageFormatLabel('A4'), 'A4 (21 × 29.7 cm)');            // default unit is cm
-  assert.equal(pageFormatLabel('A4', 'cm'), 'A4 (21 × 29.7 cm)');
-  assert.equal(pageFormatLabel('A4', 'in'), 'A4 (8.27 × 11.69 in)');
-  assert.equal(pageFormatLabel('B5', 'in'), 'B5 (6.93 × 9.84 in)');
-  assert.equal(pageFormatLabel('B1', 'cm'), 'B1 (70.7 × 100 cm)');     // trailing zeros trimmed
-  assert.equal(pageFormatLabel('custom', 'in'), 'custom');             // unknown names echo back
+  assert.equal(pageFormatLabel('A4'), 'A4 (21 × 29.7)');            // default unit is cm
+  assert.equal(pageFormatLabel('A4', 'cm'), 'A4 (21 × 29.7)');
+  assert.equal(pageFormatLabel('A4', 'in'), 'A4 (8.27 × 11.69)');
+  assert.equal(pageFormatLabel('B5', 'in'), 'B5 (6.93 × 9.84)');
+  assert.equal(pageFormatLabel('B1', 'cm'), 'B1 (70.7 × 100)');     // trailing zeros trimmed
+  assert.equal(pageFormatLabel('custom', 'in'), 'custom');           // unknown names echo back
 });
 
 // A stub <select> with the same options the static template renders (cm labels).
