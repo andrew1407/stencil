@@ -8,11 +8,7 @@ using static Stencil.TelegramBot.Tests.ServerWireRig;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The REST calls of <see cref="HttpStencilServerClient"/>: the bearer header, listing,
-/// octet-stream file upload/delete and the structured <c>{code, message}</c> error mapping.
-/// Ports <c>pystencil</c>'s <c>ServerConnection</c> tests.
-/// </summary>
+/// <summary>The REST calls of <see cref="HttpStencilServerClient"/>: the bearer header, listing, octet-stream file upload/delete and the structured <c>{code, message}</c> error mapping. Ports <c>pystencil</c>'s <c>ServerConnection</c> tests.</summary>
 public sealed class HttpStencilServerClientTests
 {
     [Fact]

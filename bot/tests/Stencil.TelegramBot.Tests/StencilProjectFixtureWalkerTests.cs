@@ -4,13 +4,7 @@ using Stencil.TelegramBot.Domain.Project;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared <c>.stencil</c> vectors through <see cref="StencilProjectFile.Parse"/> at
-/// verdict level, one test per vector — the schema's project shape and error text are the
-/// browser's wording, so other surfaces match the case, not the text. Two ok-vectors the bot
-/// rejects are pinned in <c>FixtureOverrides.json</c>; the rejection escapes as an
-/// InvalidOperationException, not a null (see the last test).
-/// </summary>
+/// <summary>The shared <c>.stencil</c> vectors through <see cref="StencilProjectFile.Parse"/> at verdict level (the schema's error text is the browser's wording, so other surfaces match the case, not the text). Two ok-vectors the bot rejects are pinned in <c>FixtureOverrides.json</c>.</summary>
 public sealed class StencilProjectFixtureWalkerTests
 {
     private static readonly string[] _files = ["valid.json", "invalid.json"];

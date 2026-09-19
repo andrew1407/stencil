@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared envelope limits (16 actions / 8 variants) and the exactly-one-form rules for
-/// <c>page</c>, <c>blank</c> and <c>formula</c>.
-/// </summary>
+/// <summary>The shared envelope limits (16 actions / 8 variants) and the exactly-one-form rules for <c>page</c>, <c>blank</c> and <c>formula</c>.</summary>
 public sealed class OpPlanLimitsAndFormsTests
 {
     [Fact]

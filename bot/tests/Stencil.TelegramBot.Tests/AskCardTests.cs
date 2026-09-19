@@ -3,13 +3,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The §11 interactive-reply card as the bot sees it: strict parsing (a card nobody can answer
-/// is a plan error; an image reference is validated like everywhere else — exactly one of
-/// url / projectId / scanIndex, http(s) urls only), the bot's own preview rule (it resolves no
-/// option picture at all — a render spec, a project id, a page-scan index and a URL alike keep
-/// the option and lose the picture), and the answer text a tap composes for the next turn.
-/// </summary>
+/// <summary>The §11 interactive-reply card: strict parsing, the image reference rule (exactly one of url / projectId / scanIndex, http(s) only), the bot's resolve-no-preview rule, and the answer text a tap composes.</summary>
 public sealed class AskCardTests
 {
     private static OpPlan parse(string json)

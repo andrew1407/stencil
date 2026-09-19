@@ -10,14 +10,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The bot's global fail-closed allowlist (<c>STENCIL_BOT_ALLOWED_USERS</c>), driven through the
-/// real <see cref="UpdateRouter"/>. Every command, upload and button spends the operator's
-/// resources — a CLI process, disk, an outbound fetch, the LLM key — so an unlisted user gets
-/// <c>/start</c> and <c>/help</c> and nothing else, and an empty list turns the bot off for
-/// everyone. The refusal the user reads is one plain sentence; the env var, the procedure and the
-/// caller's id are operator detail and go to the log.
-/// </summary>
+/// <summary>The fail-closed <c>STENCIL_BOT_ALLOWED_USERS</c> allowlist through the real <see cref="UpdateRouter"/>: an unlisted user gets <c>/start</c> and <c>/help</c> and nothing else, and an empty list turns the bot off for everyone.</summary>
 public sealed class AllowlistTests : IDisposable
 {
     private const long _allowed = 55;

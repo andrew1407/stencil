@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// One temp workspace per prompt-test class. The rig itself is cheap; the data directory is
-/// not, so it is created and deleted once per class instead of once per <c>[Fact]</c>.
-/// </summary>
+/// <summary>One temp workspace per prompt-test class: the rig is cheap, the data directory is not, so it is created and deleted once per class rather than per <c>[Fact]</c>.</summary>
 public sealed class PromptServiceFixture : IDisposable
 {
     public string DataDir { get; } =
@@ -25,11 +22,7 @@ public sealed class PromptServiceFixture : IDisposable
     }
 }
 
-/// <summary>
-/// The prompt engine's shared rig: the real <see cref="EditingService"/> with the LLM and CLI
-/// mocked. Every test still gets its OWN store, mocks and service — only the temp directory is
-/// shared — so the bands stay independent of each other's order.
-/// </summary>
+/// <summary>The prompt engine's shared rig: the real <see cref="EditingService"/> with the LLM and CLI mocked. Every test gets its OWN store, mocks and service — only the temp directory is shared — so the bands stay order-independent.</summary>
 public abstract class PromptServiceTestBase : IClassFixture<PromptServiceFixture>
 {
     protected const long UserId = 7;

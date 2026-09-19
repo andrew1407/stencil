@@ -2,10 +2,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// An <see cref="ILogger{T}"/> that keeps every formatted entry in memory, so tests can assert
-/// on what the operator would read in the server log (nothing is written anywhere).
-/// </summary>
+/// <summary>Keeps every formatted entry in memory so tests can assert what the operator would read in the server log; nothing is written anywhere.</summary>
 public sealed class MockLogger<T> : ILogger<T>
 {
     /// <summary>Every entry logged, in order.</summary>

@@ -3,10 +3,8 @@ using Stencil.TelegramBot.Infrastructure.Server;
 
 namespace Stencil.TelegramBot.Infrastructure.Links;
 
-// The Telegram ?start= payload for "Open in…": "1" + base64url("host[:port]|projectId"), padding
-// stripped, capped at Telegram's 64 chars. The scheme is kept only when it is NOT what
-// UrlNormalizer would infer. The identical codec lives in browser/js/core/deepLink.js and
-// desktop/src/app/deepLink.cpp — keep all three in sync.
+// The Telegram ?start= payload: "1" + base64url("host[:port]|projectId"), unpadded, capped at 64 chars.
+// The identical codec lives in browser/js/core/deepLink.js and desktop/src/app/deepLink.cpp.
 public static class DeepLinkCodec
 {
     // Telegram's cap, charset [A-Za-z0-9_-].

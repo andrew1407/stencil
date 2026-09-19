@@ -3,10 +3,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The bounded update pump: queuing never waits on the handler (the Stop-tap freeze it exists to
-/// prevent), a throwing handler is logged and does not kill its worker, and disposing drains.
-/// </summary>
+/// <summary>The bounded update pump: queuing never waits on the handler (the Stop-tap freeze it exists to prevent), a throwing handler is logged and does not kill its worker, and disposing drains.</summary>
 public sealed class UpdatePumpTests
 {
     private readonly MockLogger<UpdatePumpTests> _logger = new();

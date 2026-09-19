@@ -4,11 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The <c>--script-plan</c> envelope (cli/CONTRACT.md §5): one JSON object on stdout, diagnostics
-/// always, blocks only when the script is clean. The envelope's own <c>script</c> label is the
-/// temp leaf this adapter invented, so nothing user-facing may carry it.
-/// </summary>
+/// <summary>The <c>--script-plan</c> envelope (cli/CONTRACT.md §5): one JSON object on stdout, diagnostics always, blocks only when the script is clean. Its <c>script</c> label is this adapter's temp leaf, so nothing user-facing may carry it.</summary>
 public sealed class CliOutcomeScriptTests
 {
     private const string _envelope = """

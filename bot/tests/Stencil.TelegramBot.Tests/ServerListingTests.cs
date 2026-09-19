@@ -3,10 +3,7 @@ using Stencil.TelegramBot.Domain.Projects;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <see cref="ServerService.ListProjectsAsync"/>: the multi-server fan-out — every connection
-/// asked at once, unreachable ones skipped, the result in connection order.
-/// </summary>
+/// <summary><see cref="ServerService.ListProjectsAsync"/>'s multi-server fan-out: every connection asked at once, unreachable ones skipped, the result in connection order.</summary>
 public sealed class ServerListingTests : ServerServiceTestBase
 {
     [Fact]

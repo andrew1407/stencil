@@ -9,11 +9,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared rig for the <see cref="ServerService"/> suites: a
-/// <see cref="MockServerClientFactory"/> (in-memory servers) and a real
-/// <see cref="EditingService"/>/<see cref="MockStencilCli"/> over one session store.
-/// </summary>
+/// <summary>The shared rig for the <see cref="ServerService"/> suites: a <see cref="MockServerClientFactory"/> of in-memory servers and a real <see cref="EditingService"/> over one session store.</summary>
 public abstract class ServerServiceTestBase : IDisposable
 {
     protected const long UserId = 555;

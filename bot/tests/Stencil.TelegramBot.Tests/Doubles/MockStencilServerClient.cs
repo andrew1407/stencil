@@ -6,11 +6,7 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// An in-memory <see cref="IStencilServerClient"/>: keeps a dictionary of projects + layouts,
-/// mints a token on a tokenless connect, version-guards updates (stale ⇒ a
-/// <see cref="ServerException"/> conflict) and records the file uploads it received. No HTTP.
-/// </summary>
+/// <summary>An in-memory server: projects + layouts in a dictionary, a token minted on a tokenless connect, version-guarded updates (stale ⇒ a <see cref="ServerException"/> conflict) and recorded uploads. No HTTP.</summary>
 public sealed class MockStencilServerClient : IStencilServerClient
 {
     private readonly Dictionary<string, ProjectRecord> _projects = new();
@@ -198,8 +194,7 @@ public sealed class MockStencilServerClient : IStencilServerClient
         }
         Puts.Add((id, kind, data, ext, w, h));
         Files[(id, kind)] = data;
-        // The real server's SetFile bumps version/updated_at (store.go) but the response carries
-        // no version — model that so clients that don't re-read the version afterwards are caught.
+        // The real server's SetFile bumps version/updated_at (store.go) but the response carries no version.
         // Filestore-only kinds (chat/video/variantN) never bump it (httpapi/files.go, contract §9).
         if (kind is ProjectFileKind.ORIGINAL or ProjectFileKind.RESULT
             && _projects.TryGetValue(id, out ProjectRecord? existing))

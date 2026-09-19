@@ -7,9 +7,8 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// The REST-only analogue of the CLI's /sync auto-pull: polls each sync-enabled user's active
-// project version and, when a peer bumped it, pulls the new layout+image and pushes the refreshed
-// result into the chat.
+// The REST-only analogue of the CLI's /sync auto-pull: polls each sync-enabled user's active project
+// version and, when a peer bumped it, pulls the new layout+image into the chat.
 public sealed class SyncWatcher : BackgroundService
 {
     private static readonly TimeSpan _interval = TimeSpan.FromSeconds(6);

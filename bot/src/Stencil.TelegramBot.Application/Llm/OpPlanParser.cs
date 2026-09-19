@@ -6,9 +6,8 @@ namespace Stencil.TelegramBot.Application.Llm;
 // A reply with no JSON object at all is a valid chat-only plan; an Error means nothing executes.
 public sealed record OpPlanParseResult(OpPlan? Plan, IReadOnlyList<string> Warnings, string? Error);
 
-// §1–3 exactly: fences stripped, the first balanced {…} taken (none ⇒ chat-only); an unknown op
-// drops with a warning, a known op with invalid params fails the WHOLE plan — except §1's
-// variant/preview leniency.
+// §1–3 exactly: fences stripped, the first balanced {…} taken (none ⇒ chat-only); an unknown op drops
+// with a warning, a known op with invalid params fails the WHOLE plan — except §1's variant leniency.
 public static partial class OpPlanParser
 {
     private static readonly OpSchema _schema = OpSchema.Bot;
@@ -71,9 +70,8 @@ public static partial class OpPlanParser
         {
             throw new PlanException("the plan is not a JSON object");
         }
-        // A version other than 1 is accepted but ignored (§1). Models routinely omit the reply
-        // while planning valid actions — substitute rather than lose the plan to a missing
-        // pleasantry.
+        // A version other than 1 is accepted but ignored (§1). A missing reply is substituted rather than
+        // losing the plan over a missing pleasantry.
         bool replyOmitted = !root.TryGetProperty("reply", out JsonElement replyElement)
             || replyElement.ValueKind != JsonValueKind.String
             || replyElement.GetString() is not string replyText

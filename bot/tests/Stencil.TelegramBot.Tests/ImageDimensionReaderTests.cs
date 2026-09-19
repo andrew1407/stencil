@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Application.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Header parsing for the contract's accepted attachment formats (§7) against tiny
-/// handcrafted byte arrays: PNG IHDR, GIF logical screen, JPEG SOFn, and the three WebP
-/// flavours — plus refusal on truncated or foreign bytes.
-/// </summary>
+/// <summary>Header parsing for the contract's accepted attachment formats (§7) against tiny handcrafted byte arrays — PNG IHDR, GIF logical screen, JPEG SOFn, the three WebP flavours — plus refusal on truncated or foreign bytes.</summary>
 public sealed class ImageDimensionReaderTests
 {
     internal static byte[] Png(int width, int height)

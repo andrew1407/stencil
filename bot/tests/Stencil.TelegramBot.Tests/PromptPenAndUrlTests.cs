@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §10 <c>lineStyle</c> and <c>openUrl</c>: pen defaults that touch no pixels, and the user-echo
-/// guard that decides which link may be loaded.
-/// </summary>
+/// <summary>§10 <c>lineStyle</c> and <c>openUrl</c>: pen defaults that touch no pixels, and the user-echo guard that decides which link may be loaded.</summary>
 public sealed class PromptPenAndUrlTests : PromptServiceTestBase
 {
     public PromptPenAndUrlTests(PromptServiceFixture fixture) : base(fixture) { }

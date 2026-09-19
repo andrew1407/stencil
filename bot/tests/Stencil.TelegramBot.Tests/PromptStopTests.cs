@@ -12,12 +12,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The ⏹ Stop button on the assistant's working notice, through the real
-/// <see cref="UpdateRouter"/> so the gate bypass is exercised: a running turn holds the user's
-/// <see cref="UserGate"/>, so a stop tap routed the normal way would queue behind the very turn
-/// it cancels.
-/// </summary>
+/// <summary>The ⏹ Stop button through the real <see cref="UpdateRouter"/>, so the gate bypass is exercised: a running turn holds the user's <see cref="UserGate"/>, so a stop tap routed the normal way would queue behind the very turn it cancels.</summary>
 public sealed class PromptStopTests : IDisposable
 {
     private const long _userId = 77;

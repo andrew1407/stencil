@@ -18,12 +18,7 @@ internal sealed record OpPlanFixture(
     public bool AppliesToBot => Profiles.Any(p => p is "bot" or "all");
 }
 
-/// <summary>
-/// The shared op-plan conformance corpus (<c>browser/js/config/llm/fixtures/opPlan/</c>),
-/// read once: the hand-written bundle (each case carrying its stable <c>file</c> label) plus
-/// the registry-generated one (<c>browser/tools/genOpPlanFixtures.mjs</c>), whose cases walk
-/// as <c>&lt;name&gt;.json</c>. Keyed by label so <c>[MemberData]</c> carries one short string.
-/// </summary>
+/// <summary>The shared op-plan conformance corpus (<c>browser/js/config/llm/fixtures/opPlan/</c>), read once: the hand-written bundle plus the registry-generated one (<c>browser/tools/genOpPlanFixtures.mjs</c>), keyed by label so <c>[MemberData]</c> carries one short string.</summary>
 internal static class OpPlanCorpus
 {
     private static readonly Lazy<IReadOnlyList<OpPlanFixture>> _loaded = new(load);

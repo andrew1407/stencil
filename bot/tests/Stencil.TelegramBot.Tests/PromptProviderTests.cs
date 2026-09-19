@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Plans that need no image, and the §6.3 stencil-server provider resolving which server (and
-/// whose token) a turn is proxied through.
-/// </summary>
+/// <summary>Plans that need no image, and the §6.3 stencil-server provider resolving which server (and whose token) a turn is proxied through.</summary>
 public sealed class PromptProviderTests : PromptServiceTestBase
 {
     public PromptProviderTests(PromptServiceFixture fixture) : base(fixture) { }

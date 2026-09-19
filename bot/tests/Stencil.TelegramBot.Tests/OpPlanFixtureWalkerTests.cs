@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Application.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared op-plan corpus (<c>browser/js/config/llm/fixtures/opPlan/</c>) against the real
-/// <see cref="OpPlanParser"/> — the bot's port of <c>browser/tests/opPlanFixtures.test.js</c>.
-/// Profiles <c>bot</c>/<c>all</c> run; verdict = override ?? knownDivergence.bot ?? expect.
-/// One test per fixture, with only the file name in <c>[MemberData]</c>.
-/// </summary>
+/// <summary>The shared op-plan corpus against the real <see cref="OpPlanParser"/> — the bot's port of <c>browser/tests/opPlanFixtures.test.js</c>. Profiles <c>bot</c>/<c>all</c> run; verdict = override ?? knownDivergence.bot ?? expect.</summary>
 public sealed class OpPlanFixtureWalkerTests
 {
     private static readonly string[] _profiles = ["editor", "console", "bot", "mcp", "extension", "all"];

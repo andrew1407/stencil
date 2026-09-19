@@ -3,10 +3,7 @@ using Xunit.Abstractions;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The bot's size + comment ratchet, budgeted by <c>SizeBudget.json</c>: no new oversized file,
-/// no listed file grows, no directory gets comment-heavier. Paths are repo-relative.
-/// </summary>
+/// <summary>The bot's size + comment ratchet, budgeted by <c>SizeBudget.json</c>: no new oversized file, no listed file grows, no directory gets comment-heavier. Paths are repo-relative.</summary>
 public sealed class SizeBudgetTests
 {
     private readonly ITestOutputHelper _output;
@@ -123,10 +120,7 @@ public sealed class SizeBudgetTests
         return [.. measured.OrderBy(m => m.Path, StringComparer.Ordinal)];
     }
 
-    /// <summary>
-    /// Lines opening with <c>//</c> or <c>/*</c>, plus lines inside a block comment. String,
-    /// verbatim, raw-string and char literals are tracked so a <c>//</c> inside one never counts.
-    /// </summary>
+    /// <summary>Lines opening with <c>//</c> or <c>/*</c>, plus lines inside a block comment. String, verbatim, raw-string and char literals are tracked so a <c>//</c> inside one never counts.</summary>
     private static int countCommentLines(string[] lines)
     {
         bool inBlock = false, inVerbatim = false;

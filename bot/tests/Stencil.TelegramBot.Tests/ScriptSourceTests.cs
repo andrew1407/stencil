@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// What a script's <c>@source</c> may name. The bot has no file system of the user's, so only a
-/// sourceless block and an http(s) one run — and that link still faces the §10 echo guard, with the
-/// script itself standing in for the chat history it never went through.
-/// </summary>
+/// <summary>What a script's <c>@source</c> may name: the bot has no file system of the user's, so only a sourceless block and an http(s) one run — and that link still faces the §10 echo guard, with the script standing in for the chat history it never went through.</summary>
 public sealed class ScriptSourceTests : ScriptServiceTestBase
 {
     private const string _url = "http://203.0.113.9/a.png";

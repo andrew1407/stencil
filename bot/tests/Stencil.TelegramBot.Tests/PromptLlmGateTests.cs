@@ -8,12 +8,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The process-wide LLM gate around <see cref="PromptService.PromptAsync"/>: full ⇒ the turn
-/// answers busy immediately (an <see cref="LlmException"/>, the same path provider errors
-/// take) without ever reaching the model; a freed slot admits the next turn; 0 = unlimited
-/// lets turns run concurrently. All timing is TCS/semaphore-driven — no sleeps.
-/// </summary>
+/// <summary>The process-wide LLM gate: full ⇒ the turn answers busy immediately (an <see cref="LlmException"/>, the path provider errors take) without reaching the model, a freed slot admits the next turn, 0 = unlimited. All timing is TCS/semaphore-driven — no sleeps.</summary>
 public sealed class PromptLlmGateTests : IDisposable
 {
     private const long _userId = 7;

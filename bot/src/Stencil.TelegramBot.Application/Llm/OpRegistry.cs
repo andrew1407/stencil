@@ -14,9 +14,8 @@ public sealed record OpDescriptor(
     string? Capability = null,
     OpHandler? Handler = null);
 
-// The §13 registry: the prompt sections are ASSEMBLED from these entries and the executor
-// dispatches through HandlerFor, so the prompt cannot promise an op nothing executes, and nothing
-// executes an unlisted op.
+// The §13 registry: the prompt sections are ASSEMBLED from these entries and the executor dispatches
+// through HandlerFor, so nothing executes an unlisted op.
 public static partial class OpRegistry
 {
     // Prompt order: the §2 core ops, then the §10 profile block.

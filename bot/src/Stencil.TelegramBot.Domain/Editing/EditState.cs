@@ -2,9 +2,8 @@ using Stencil.TelegramBot.Domain.Layout;
 
 namespace Stencil.TelegramBot.Domain.Editing;
 
-// Editing intent, not pixels: one base image on disk, the result re-derived through the CLI
-// pipeline. Crop/rotate are the latest spec, never a baked snapshot, so a render stays
-// reproducible.
+// Editing intent, not pixels: one base image on disk, the result re-derived through the CLI pipeline.
+// Crop/rotate are the latest spec, never a baked snapshot, so a render stays reproducible.
 public sealed record EditState
 {
     public string? CropSpec { get; init; }

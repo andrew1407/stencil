@@ -21,9 +21,8 @@ public sealed partial class HttpStencilServerClient
         return JsonDocument.Parse(body);
     }
 
-    // A stored session token dies with a server DB wipe: on 401/403, when this client carries its
-    // credential, re-mint once and retry in place (extension connections.js req parity);
-    // /auth/token itself never retries.
+    // A stored session token dies with a server DB wipe: on 401/403, when this client carries its credential,
+    // re-mint once and retry in place (extension connections.js req parity); /auth/token never retries.
     private async Task<HttpResponseMessage> sendAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
     {
         HttpResponseMessage response = await sendOnceAsync(method, path, content, _token, ct).ConfigureAwait(false);

@@ -7,10 +7,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <see cref="ServerService"/>'s connect path (credential kinds, invite fragments),
-/// cross-server listing and fetch with layout-filter seeding.
-/// </summary>
+/// <summary><see cref="ServerService"/>'s connect path (credential kinds, invite fragments), cross-server listing and fetch with layout-filter seeding.</summary>
 public sealed class ServerServiceTests : ServerServiceTestBase
 {
     [Fact]

@@ -5,15 +5,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Replay the shared, language-neutral golden fixtures for the CLI stderr OUTPUT grammar
-/// through <see cref="CliOutcomeParser"/>. The <b>same</b> file
-/// (<c>cli/testdata/outcome_fixtures.json</c>) is replayed by the Rust MCP server's
-/// <c>fixtures_test.rs</c>, so if the two parsers ever disagree on a case, one of the suites
-/// goes red — that is the drift this catches. Per-parser unit cases still live in
-/// <see cref="CliOutcomeParserTests"/>; this asserts conformance to the canonical contract
-/// (<c>cli/CONTRACT.md</c>). One test per fixture, over a corpus read once.
-/// </summary>
+/// <summary>The shared, language-neutral goldens for the CLI stderr grammar (<c>cli/testdata/outcome_fixtures.json</c>) through <see cref="CliOutcomeParser"/>. The same file is replayed by the Rust MCP server's <c>fixtures_test.rs</c>, so a disagreement between the two parsers reddens one of the suites.</summary>
 public sealed class SharedOutcomeFixturesTests
 {
     /// <summary>Locate the shared fixture file relative to THIS test source (compile-time

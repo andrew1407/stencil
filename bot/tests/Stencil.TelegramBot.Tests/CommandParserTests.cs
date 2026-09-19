@@ -2,10 +2,7 @@ using Stencil.TelegramBot.Bot.Telegram;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The pure slash-command tokeniser <see cref="CommandParser"/>: strips the leading <c>/name</c>
-/// (and a trailing <c>@botname</c>), lowercases the verb, and preserves the argument text + tokens.
-/// </summary>
+/// <summary>The pure slash-command tokeniser: strips the leading <c>/name</c> (and a trailing <c>@botname</c>), lowercases the verb, and preserves the argument text + tokens.</summary>
 public sealed class CommandParserTests
 {
     [Fact]

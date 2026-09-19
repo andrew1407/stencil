@@ -2,10 +2,8 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Domain.Editing;
 
-// Whether the CLI's parseColor (core/color/colorNames.cpp) accepts a colour: transparent, #hex
-// (3/4/6/8) or a CSS Color Level 4 keyword — a port of mcp's is_color over the embedded canonical
-// colorNames.json. The CLI silently SKIPS an unparseable colour, so a forwarded colour must be
-// rejected before argv.
+// Whether the CLI's parseColor (core/color/colorNames.cpp) accepts a colour — a port of mcp's is_color
+// over the embedded colorNames.json. The CLI silently SKIPS a bad colour, so reject before argv.
 public static class ColorSpec
 {
     private const string _resourceName = "Stencil.TelegramBot.Domain.Assets.colorNames.json";

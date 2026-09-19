@@ -15,9 +15,8 @@ public sealed record PromptRender(string Label, RenderResult Result);
 // The same bytes/name/caption /json and /project send; one document per action.
 public sealed record PromptExport(string FileName, byte[] Bytes, string Caption);
 
-// The main result is NOT rendered here: on Mutated the caller sends it through the shared render
-// path. Applied is false on every refusal — a plan the executor declined — while Mutated is about
-// pixels, so a save-only plan is applied without mutating.
+// Applied is false on every refusal; Mutated is about pixels, so a save-only plan is applied without
+// mutating. On Mutated the caller renders the result, not this record.
 public sealed record PromptOutcome(
     string Reply,
     IReadOnlyList<string> Warnings,
@@ -31,9 +30,8 @@ public sealed record PromptOutcome(
     public IReadOnlyList<PromptExport> Exports { get; init; } = Exports ?? [];
 }
 
-// The /prompt engine: builds each turn per llm-contract.md and folds every action onto the SAME
-// IEditingService methods the slash commands use. History holds base64 images, which is why it
-// stays out of the session JSON.
+// The /prompt engine: builds each turn per llm-contract.md and folds every action onto the same
+// IEditingService methods the slash commands use. History holds base64 images, so it stays out of the session JSON.
 public sealed partial class PromptService
 {
     // The contract's §7 history bound.
@@ -120,9 +118,8 @@ public sealed partial class PromptService
     private async Task<PromptOutcome> gatedPromptAsync(long userId, string text, LlmImage? image, CancellationToken ct)
     {
         (PromptOutcome outcome, OpPlan? plan) = await roundAsync(userId, text, image, ct);
-        // §7 auto-continuation: a plan that LOADED a picture planned blind, so re-send ONCE with
-        // the fresh image, restating the request. A plan that drew a layout committed to its
-        // coordinates and is not continued.
+        // §7 auto-continuation: a plan that LOADED a picture planned blind, so re-send ONCE with the fresh
+        // image. A plan that drew a layout committed to its coordinates and is not continued.
         if (plan is null || !continuablePlan(plan)) return outcome;
         LlmImage? fresh = await renderForVisionAsync(userId, ct);
         if (fresh is null) return outcome;

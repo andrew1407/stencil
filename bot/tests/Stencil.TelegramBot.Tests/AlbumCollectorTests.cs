@@ -2,11 +2,7 @@ using Stencil.TelegramBot.Bot.Telegram;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <see cref="AlbumCollector"/>'s settle-window timing on its own (<see cref="AlbumTests"/>
-/// covers the router path). A test-held gate replaces the clock, so "a late member restarts
-/// the wait" is asserted exactly rather than raced against a sleep.
-/// </summary>
+/// <summary><see cref="AlbumCollector"/>'s settle-window timing on its own (<see cref="AlbumTests"/> covers the router path), driven by a test-held gate rather than a sleep.</summary>
 public sealed class AlbumCollectorTests
 {
     private const long _userId = 7;

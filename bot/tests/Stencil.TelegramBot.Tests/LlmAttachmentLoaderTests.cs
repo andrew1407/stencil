@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The §7 attachment pipeline decision logic, with the ffmpeg seam mocked: images already
-/// ≤ 1568 px on the long edge attach their original bytes without a downscale; oversized (or
-/// header-unreadable) ones go through <c>DownscaleToPngAsync</c> and become <c>image/png</c>;
-/// a failed downscale (no ffmpeg) degrades to the original bytes; non-image paths yield null.
-/// </summary>
+/// <summary>The §7 attachment decisions with the ffmpeg seam mocked: images already ≤ 1568 px on the long edge attach their original bytes, oversized or header-unreadable ones become <c>image/png</c>, a failed downscale degrades to the original, and a non-image path yields null.</summary>
 public sealed class LlmAttachmentLoaderTests : IDisposable
 {
     private readonly string _dir;

@@ -6,9 +6,8 @@ namespace Stencil.TelegramBot.Application.Llm;
 
 public sealed partial class PromptService
 {
-    // Dispatch through the OpRegistry entry that carries the op's bullet, so nothing executes an op
-    // the prompt never listed. §2.1/§10 misses are per-ACTION notes, never plan failures; an
-    // unregistered op is a no-op.
+    // Dispatch through the OpRegistry entry carrying the op's bullet, so nothing executes an op the prompt
+    // never listed. §2.1/§10 misses are per-ACTION notes, never plan failures.
     private Task applyActionAsync(ActionContext ctx, PlanAction action, CancellationToken ct) =>
         OpRegistry.HandlerFor(action.Op) is OpHandler handler
             ? handler(this, action, ctx, ct)

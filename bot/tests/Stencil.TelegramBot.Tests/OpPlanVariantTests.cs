@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §2.1 variants: a misplaced op costs its own variant and nothing more, a dropped variant takes
-/// its warnings with it, and a huge invalid value is never echoed back.
-/// </summary>
+/// <summary>§2.1 variants: a misplaced op costs its own variant and nothing more, a dropped variant takes its warnings with it, and a huge invalid value is never echoed back.</summary>
 public sealed class OpPlanVariantTests
 {
     [Theory]

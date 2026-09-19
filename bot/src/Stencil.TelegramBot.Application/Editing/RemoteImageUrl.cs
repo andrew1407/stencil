@@ -3,10 +3,8 @@ using System.Net.Sockets;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
-// The trust boundary for a user-supplied /url source: the bot is reachable by any Telegram user, so
-// only http(s) URLs whose hosts resolve to publicly routable addresses reach the CLI (SSRF /
-// local-file read). The CLI re-resolves in its own process, so DNS rebinding is left to its scheme
-// guard and ffmpeg allow-list.
+// The trust boundary for a user-supplied /url: only http(s) URLs whose hosts resolve to publicly
+// routable addresses reach the CLI (SSRF / local-file read); the CLI re-resolves in its own process.
 public static class RemoteImageUrl
 {
     private static readonly TimeSpan _defaultResolveTimeout = TimeSpan.FromSeconds(5);
@@ -44,10 +42,8 @@ public static class RemoteImageUrl
         }
     }
 
-    // The /connect guard deliberately ALLOWS loopback and private-LAN servers and blocks only the
-    // ranges with no legitimate server use: link-local (169.254.0.0/16 holds the cloud-metadata
-    // endpoint; fe80::/10), unspecified and multicast. A bare host is treated as http://, matching
-    // connection normalisation.
+    // /connect deliberately ALLOWS loopback and private-LAN servers; it blocks only link-local
+    // (169.254.0.0/16 holds cloud metadata; fe80::/10), unspecified and multicast. A bare host is http://.
     public static async Task ValidateServerUrlAsync(string raw, CancellationToken ct = default, TimeSpan? resolveTimeout = null)
     {
         string s = (raw ?? "").Trim();

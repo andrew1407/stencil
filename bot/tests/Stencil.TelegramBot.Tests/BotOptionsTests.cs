@@ -2,10 +2,7 @@ using Stencil.TelegramBot.Infrastructure.Configuration;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <see cref="BotOptions"/> configuration reading — focused on the CLI concurrency cap, which
-/// defaults to the CPU count and clamps non-positive/garbage values back to that default.
-/// </summary>
+/// <summary><see cref="BotOptions"/> reading, focused on the CLI concurrency cap: it defaults to the CPU count and clamps non-positive or garbage values back to that default.</summary>
 public sealed class BotOptionsTests
 {
     private const string _maxConcurrentCliVar = "STENCIL_BOT_MAX_CONCURRENT_CLI";

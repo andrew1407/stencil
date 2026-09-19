@@ -4,9 +4,8 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// Re-maps plan layout coordinates from the snapshot frame the model saw into the frame after the
-// plan's earlier crop/rotate steps (§1): subtract crop origins, turn through quarter rotations,
-// clamp.
+// Re-maps plan layout coordinates from the snapshot frame the model saw into the frame after the plan's
+// earlier crop/rotate steps (§1): subtract crop origins, turn through quarter rotations, clamp.
 public sealed class PlanFrameMapper
 {
     private abstract record Step;

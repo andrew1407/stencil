@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// CLI discovery for <see cref="StencilCliLocator"/> — a port of <c>mcp/src/locate.rs</c>'s
-/// override/missing behaviour. Only the env/override branches are exercised so the suite stays
-/// independent of whether a built CLI happens to exist in the checkout.
-/// </summary>
+/// <summary>CLI discovery, a port of <c>mcp/src/locate.rs</c>'s override/missing behaviour. Only the env/override branches are exercised, so the suite stays independent of whether a built CLI exists in the checkout.</summary>
 public sealed class StencilCliLocatorTests
 {
     [Fact]

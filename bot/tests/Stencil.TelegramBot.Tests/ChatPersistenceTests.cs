@@ -10,10 +10,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Opt-in per-project chat persistence (§12): the <c>/chat save</c> toggle and its 💾 button,
-/// the after-turn push of the §12.1 document, and the delete that rides <c>/chat clear</c>.
-/// </summary>
+/// <summary>Opt-in per-project chat persistence (§12): the <c>/chat save</c> toggle and its 💾 button, the after-turn push of the §12.1 document, and the delete that rides <c>/chat clear</c>.</summary>
 public sealed class ChatPersistenceTests : ChatPersistenceTestBase
 {
     [Fact]
@@ -35,14 +32,7 @@ public sealed class ChatPersistenceTests : ChatPersistenceTestBase
         Assert.Contains("Chat saving off", Messages.Last().Text);
     }
 
-    /// <summary>
-    /// §12.2 requires the sharing consequence to be stated wherever the toggle is offered
-    /// — not only on the confirmation once it is already on. A transcript records what the
-    /// user asked for in their own words, and the bot's only store IS the server project,
-    /// so it inherits that project's access. The two affordances the confirmation test does
-    /// not reach: the status a user reads BEFORE opting in (the moment the disclosure has
-    /// to land), and the 💾 button, which must not be a quieter path to the same decision.
-    /// </summary>
+    /// <summary>§12.2: the sharing consequence must be stated wherever the toggle is offered — the status a user reads BEFORE opting in, and the 💾 button — not only on the confirmation once it is on.</summary>
     [Fact]
     public async Task Should_Say_Who_Can_Read_The_Transcript_In_Every_Chat_Save_Affordance()
     {

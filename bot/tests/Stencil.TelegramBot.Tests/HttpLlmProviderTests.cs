@@ -7,10 +7,7 @@ using static Stencil.TelegramBot.Tests.LlmWireRig;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The two direct provider mappings of <c>llm-contract.md</c> §6 — ollama's native chat (§6.1)
-/// and the openai-compatible completions (§6.2): URL, headers, body shape and stop reasons.
-/// </summary>
+/// <summary>The two direct provider mappings of <c>llm-contract.md</c> §6 — ollama's native chat (§6.1) and the openai-compatible completions (§6.2): URL, headers, body shape and stop reasons.</summary>
 public sealed class HttpLlmProviderTests
 {
     [Fact]

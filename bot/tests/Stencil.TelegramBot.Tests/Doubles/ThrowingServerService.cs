@@ -4,11 +4,7 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// An <see cref="IServerService"/> that throws on every call — for handler tests whose command
-/// (e.g. <c>/sourcesite</c>) never touches the collaboration server. If the handler under test
-/// unexpectedly reaches the server surface, the test fails loudly instead of silently no-op'ing.
-/// </summary>
+/// <summary>Throws on every call, for handler tests whose command never touches the collaboration server: reaching the server surface fails the test loudly instead of silently no-op'ing.</summary>
 public sealed class ThrowingServerService : IServerService
 {
     private static T fail<T>() => throw new NotSupportedException("the server service must not be called in this test");

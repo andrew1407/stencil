@@ -5,9 +5,8 @@ using Stencil.TelegramBot.Infrastructure.Workspace;
 
 namespace Stencil.TelegramBot.Infrastructure.Media;
 
-// One ffmpeg invocation with a shrink-only scale filter (force_original_aspect_ratio=decrease)
-// resizes and re-encodes to PNG; every failure returns null so the caller keeps the original — like
-// /frame, ffmpeg is optional.
+// One ffmpeg call with a shrink-only scale filter (force_original_aspect_ratio=decrease), re-encoded to
+// PNG; every failure returns null so the caller keeps the original — like /frame, ffmpeg is optional.
 public sealed class FfmpegImageDownscaler : IImageDownscaler
 {
     private readonly BotOptions _options;

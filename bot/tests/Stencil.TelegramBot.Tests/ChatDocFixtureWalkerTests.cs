@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared §12.1 chat-document vectors through <see cref="ChatDocument"/>, one test per
-/// vector: roundtrip.json pins parse→serialize→parse as the identity, tolerance.json the
-/// lenient reads. Object-form cases are serialized first (the bot parses strings only); two
-/// measured divergences are pinned in <c>FixtureOverrides.json</c>.
-/// </summary>
+/// <summary>The shared §12.1 chat-document vectors, one test per vector: roundtrip.json pins parse→serialize→parse as the identity, tolerance.json the lenient reads; two measured divergences live in <c>FixtureOverrides.json</c>.</summary>
 public sealed class ChatDocFixtureWalkerTests
 {
     private static string Roundtrip => Path.Combine(SharedFixtures.LlmFixtureDir("chatDoc"), "roundtrip.json");

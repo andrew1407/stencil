@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The rest of the §10 bot profile: pen fields, http(s)-only <c>openUrl</c>, the bounded
-/// name/description, the two colours and <c>export</c>'s two values.
-/// </summary>
+/// <summary>The rest of the §10 bot profile: pen fields, http(s)-only <c>openUrl</c>, the bounded name/description, the two colours and <c>export</c>'s two values.</summary>
 public sealed class OpPlanProfileTests
 {
     [Fact]

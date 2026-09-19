@@ -6,10 +6,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// What a turn leaves behind: the 🔄 Retry button (absent on a refusal), the working notice's
-/// lifetime, exported documents, and a plan that sends no photo at all.
-/// </summary>
+/// <summary>What a turn leaves behind: the 🔄 Retry button (absent on a refusal), the working notice's lifetime, exported documents, and a plan that sends no photo at all.</summary>
 public sealed class PromptTurnChromeTests : PromptHandlerTestBase
 {
     [Fact]

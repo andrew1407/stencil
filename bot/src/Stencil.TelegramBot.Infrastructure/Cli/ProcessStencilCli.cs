@@ -8,9 +8,8 @@ using Stencil.TelegramBot.Infrastructure.Workspace;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-// A port of mcp/src/pipeline.rs: spawns the Zig CLI with NO_COLOR=1 and maps exit status + stderr
-// into a result or a StencilCliException. A process-wide semaphore (BotOptions.MaxConcurrentCli)
-// caps concurrent spawns; this adapter is a DI singleton, so the gate is shared across all users.
+// A port of mcp/src/pipeline.rs: spawns the Zig CLI with NO_COLOR=1. A process-wide semaphore
+// (BotOptions.MaxConcurrentCli) caps concurrent spawns; this adapter is a DI singleton.
 public sealed class ProcessStencilCli : IStencilCli
 {
     private readonly BotOptions _options;
@@ -31,9 +30,8 @@ public sealed class ProcessStencilCli : IStencilCli
                 $"output '{request.Output}' already exists; pass overwrite=true to replace it");
         }
 
-        // --confine-output refuses an ABSOLUTE destination, so the child runs in the output's own
-        // folder and is given only the leaf; paths in its output come back relative and are
-        // re-rooted below.
+        // --confine-output refuses an ABSOLUTE destination, so the child runs in the output's own folder with
+        // only the leaf; paths in its output come back relative and are re-rooted below.
         (string dir, string leaf) = confine(request.Output);
         IReadOnlyList<string> argv = CliArgvBuilder.BuildArgv(request with { Output = leaf });
         CliOutput output = await spawnAsync(argv, ct, dir).ConfigureAwait(false);
@@ -98,9 +96,8 @@ public sealed class ProcessStencilCli : IStencilCli
             [.. scraped.Files.Select(f => f with { Path = Path.Combine(parent, f.Path) })]);
     }
 
-    // Plan mode fetches nothing, decodes nothing and WRITES nothing, so it carries no
-    // --confine-output; the child still runs in the script's own folder with the leaf, keeping the
-    // workspace path out of the envelope it prints.
+    // Plan mode fetches, decodes and writes nothing, so it carries no --confine-output; the child still runs
+    // in the script's own folder with the leaf, keeping the workspace path out of the envelope.
     public async Task<ScriptPlan> ScriptPlanAsync(
         string scriptPath, string? input = null, CancellationToken ct = default)
     {

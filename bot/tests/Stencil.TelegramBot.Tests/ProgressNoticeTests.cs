@@ -5,10 +5,7 @@ using Telegram.Bot.Types.Enums;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The spinning "still working" notice: what it posts, what it removes, and that neither a
-/// second stop nor a Telegram that never returned a message can make it misbehave.
-/// </summary>
+/// <summary>The spinning "still working" notice: what it posts, what it removes, and that neither a second stop nor a Telegram that never returned a message can make it misbehave.</summary>
 public sealed class ProgressNoticeTests
 {
     private const long _chatId = 42;

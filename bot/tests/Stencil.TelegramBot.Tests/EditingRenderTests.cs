@@ -6,10 +6,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// What <see cref="EditingService"/> hands the CLI and how the working state walks: the render
-/// request, drawn lines, undo/redo, video frames, the URL guard and the JSON export.
-/// </summary>
+/// <summary>What <see cref="EditingService"/> hands the CLI and how the working state walks: the render request, drawn lines, undo/redo, video frames, the URL guard and the JSON export.</summary>
 public sealed class EditingRenderTests : EditingServiceTestBase
 {
     [Fact]

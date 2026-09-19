@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Processes;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The ffmpeg downscaler's argv and failure contract, with the process runner replaced by a
-/// recording stub — ffmpeg is never spawned. One shrink-only invocation resizes and re-encodes;
-/// every failure returns null so the caller falls back to the original bytes, and the temp
-/// output never survives the call.
-/// </summary>
+/// <summary>The ffmpeg downscaler's argv and failure contract with the process runner stubbed — ffmpeg is never spawned: one shrink-only invocation, every failure returns null so the caller keeps the original bytes, and the temp output never survives the call.</summary>
 public sealed class FfmpegImageDownscalerTests
 {
     private readonly BotOptions _options = new() { CliTimeout = TimeSpan.FromSeconds(9) };

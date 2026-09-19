@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Server;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared <c>?start=</c> vectors through <see cref="DeepLinkCodec"/>, one test per vector:
-/// the same six <see cref="DeepLinkCodecTests"/> pin as literals, read from the corpus instead.
-/// Encode must match byte-for-byte (null on overflow) and each payload round-trips back to
-/// (normalized origin, id). launchPayload.json targets a browser-only helper — not walked.
-/// </summary>
+/// <summary>The shared <c>?start=</c> vectors through <see cref="DeepLinkCodec"/>, one test per vector: encode must match byte-for-byte (null on overflow) and each payload round-trips back to (normalized origin, id).</summary>
 public sealed class DeepLinkFixtureWalkerTests
 {
     private static string Corpus =>

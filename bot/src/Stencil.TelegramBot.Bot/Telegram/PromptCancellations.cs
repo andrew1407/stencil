@@ -2,10 +2,8 @@ using System.Collections.Concurrent;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// The in-flight assistant turns, one per user, so the ⏹ Stop button can cancel the turn it
-// decorates. A turn holds the user's UserGate for minutes, so UpdateRouter handles the stop token
-// BEFORE the gate; cancelling is a flag flip, never a session read-modify-write. At most one live
-// entry per user, removed on Dispose.
+// The in-flight assistant turns, one per user, so ⏹ Stop can cancel its turn. A turn holds the user's
+// UserGate for minutes, so UpdateRouter handles the stop token BEFORE the gate.
 public sealed class PromptCancellations
 {
     private readonly ConcurrentDictionary<long, CancellationTokenSource> _running = new();

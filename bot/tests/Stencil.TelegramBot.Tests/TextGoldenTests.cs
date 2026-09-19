@@ -6,13 +6,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Byte-exact goldens for the bot's user-facing text: the <see cref="Replies"/> fixed strings,
-/// every inline-keyboard label + callback token in <see cref="Keyboards"/>, and the
-/// <see cref="BotCommandList"/> menu. The literals are slated to move into JSON assets, so
-/// these pin the current bytes to prove the move is verbatim. Rewrite with
-/// <c>BOT_UPDATE_GOLDENS=1 dotnet test</c>.
-/// </summary>
+/// <summary>Byte-exact goldens for the bot's user-facing text: the <see cref="Replies"/> fixed strings, every inline-keyboard label + callback token in <see cref="Keyboards"/>, and the <see cref="BotCommandList"/> menu. Rewrite with <c>BOT_UPDATE_GOLDENS=1 dotnet test</c>.</summary>
 public sealed class TextGoldenTests
 {
     [Fact]
@@ -27,11 +21,7 @@ public sealed class TextGoldenTests
     public void Should_Match_The_Golden_For_The_Bot_Command_Menu() =>
         TextGolden.Check("commands.txt", buildCommands());
 
-    /// <summary>
-    /// Every no-argument public string builder on <see cref="Replies"/>, enumerated by
-    /// reflection so a new one shows up here instead of going unpinned, plus the handful whose
-    /// only argument is a flag.
-    /// </summary>
+    /// <summary>Every no-argument public string builder on <see cref="Replies"/>, enumerated by reflection so a new one shows up here instead of going unpinned, plus the handful whose only argument is a flag.</summary>
     private static string buildReplies()
     {
         StringBuilder sb = new();
@@ -131,11 +121,7 @@ public sealed class TextGoldenTests
     }
 }
 
-/// <summary>
-/// Byte-exact golden files under <c>bot/tests/Stencil.TelegramBot.Tests/Goldens/</c>, located
-/// off the repo root like <see cref="SharedFixtures"/> does. <c>BOT_UPDATE_GOLDENS=1</c>
-/// rewrites them instead of asserting.
-/// </summary>
+/// <summary>Byte-exact golden files under <c>bot/tests/Stencil.TelegramBot.Tests/Goldens/</c>, located off the repo root as <see cref="SharedFixtures"/> does. <c>BOT_UPDATE_GOLDENS=1</c> rewrites them instead of asserting.</summary>
 internal static class TextGolden
 {
     public static void Check(string name, string actual)

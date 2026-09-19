@@ -2,11 +2,7 @@ using Stencil.TelegramBot.Bot.Telegram;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <see cref="DurationParser"/> — the pure <c>/expire</c> duration parsing: unit words (singular,
-/// plural, short forms), a count that may lead or trail, fortnight = 2 weeks, the "clear" keywords,
-/// and rejection of junk. Calendar resolution (months, weeks) is checked against a fixed base.
-/// </summary>
+/// <summary>The pure <c>/expire</c> duration parsing: unit words (singular, plural, short), a count that may lead or trail, fortnight = 2 weeks, the "clear" keywords, and junk. Calendar resolution is checked against a fixed base.</summary>
 public sealed class DurationParserTests
 {
     [Theory]

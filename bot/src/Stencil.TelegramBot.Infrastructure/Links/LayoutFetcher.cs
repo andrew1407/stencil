@@ -4,9 +4,8 @@ using Stencil.TelegramBot.Infrastructure.Configuration;
 
 namespace Stencil.TelegramBot.Infrastructure.Links;
 
-// Guarded GET for /layout <url>, bounded by the Telegram download cap. Callers SSRF-vet the URL
-// first (RemoteImageUrl.ValidateAsync); the resolved address is re-checked at connect time against
-// DNS rebinding.
+// Guarded GET for /layout <url>, bounded by the Telegram download cap. Callers SSRF-vet the URL first
+// (RemoteImageUrl.ValidateAsync); the resolved address is re-checked at connect time against rebinding.
 public sealed class LayoutFetcher : IDisposable
 {
     private readonly HttpClient _http;
@@ -24,9 +23,8 @@ public sealed class LayoutFetcher : IDisposable
         _maxBytes = options.MaxDownloadBytes;
     }
 
-    // Resolves the host itself and dials that exact IP, so nothing can rebind between the pre-check
-    // and the connect; redirects are refused so a vetted public host cannot bounce us to an
-    // internal one.
+    // Resolves the host itself and dials that exact IP, so nothing can rebind between the pre-check and the
+    // connect; redirects are refused so a vetted public host cannot bounce us to an internal one.
     private static SocketsHttpHandler buildGuardedHandler(Func<IPAddress, bool>? isBlockedAddress)
     {
         SocketsHttpHandler handler = new() { AllowAutoRedirect = false };

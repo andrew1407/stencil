@@ -6,10 +6,7 @@ using static Stencil.TelegramBot.Tests.LlmWireRig;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The error mapping <see cref="HttpLlmClient"/> shares across every provider: what reaches the
-/// user, what stays in the operator detail, and the sanitizer that keeps a key or URL out of it.
-/// </summary>
+/// <summary>The error mapping <see cref="HttpLlmClient"/> shares across every provider: what reaches the user, what stays in the operator detail, and the sanitizer that keeps a key or URL out of it.</summary>
 public sealed class HttpLlmClientTests
 {
     [Fact]

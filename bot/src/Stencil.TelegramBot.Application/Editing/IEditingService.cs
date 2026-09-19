@@ -5,9 +5,8 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
-// One base image on disk plus a re-applicable EditState; RenderAsync replays the original through
-// the CLI to a fresh file. Edits stay the latest spec, never a baked snapshot, so a render is
-// reproducible.
+// One base image on disk plus a re-applicable EditState; RenderAsync replays the original through the
+// CLI. Edits stay the latest spec, never a baked snapshot, so a render is reproducible.
 public interface IEditingService
 {
     // Copies into the workspace, probes, resets edits and clears any active project.

@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §2.1 <c>image</c> and <c>save</c>: the attachment index, the bounded name, and the §10 path
-/// that is trimmed, bounded and never a URL.
-/// </summary>
+/// <summary>§2.1 <c>image</c> and <c>save</c>: the attachment index, the bounded name, and the §10 path that is trimmed, bounded and never a URL.</summary>
 public sealed class OpPlanSaveTests
 {
     [Fact]

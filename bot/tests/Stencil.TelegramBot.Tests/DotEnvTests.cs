@@ -2,10 +2,7 @@ using Stencil.TelegramBot.Infrastructure.Configuration;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The dev-time <c>.env</c> loader <see cref="DotEnv"/>: pure parsing of comments/blanks/quotes/
-/// <c>export</c>, and the "real environment always wins" rule on <see cref="DotEnv.Load"/>.
-/// </summary>
+/// <summary>The dev-time <c>.env</c> loader: parsing of comments/blanks/quotes/<c>export</c>, and the "real environment always wins" rule on <see cref="DotEnv.Load"/>.</summary>
 public sealed class DotEnvTests
 {
     [Fact]

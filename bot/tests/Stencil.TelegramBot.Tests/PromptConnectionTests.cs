@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §10 <c>connect</c>/<c>disconnect</c>: a plan may only re-run a connection the USER saved, and
-/// never introduces a host or carries a token.
-/// </summary>
+/// <summary>§10 <c>connect</c>/<c>disconnect</c>: a plan may only re-run a connection the USER saved, and never introduces a host or carries a token.</summary>
 public sealed class PromptConnectionTests : PromptServiceTestBase
 {
     public PromptConnectionTests(PromptServiceFixture fixture) : base(fixture) { }

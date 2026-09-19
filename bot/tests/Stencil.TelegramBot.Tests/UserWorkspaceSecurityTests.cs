@@ -4,13 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Workspace;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// SECURITY regressions for <see cref="UserWorkspace"/> path derivation: a hostile
-/// Telegram-supplied <c>document.FileName</c> (e.g. <c>../../evil.png</c>) must never escape
-/// the per-user workspace directory. The bot only ever derives a *file extension* from an
-/// uploaded name (via <c>Path.GetExtension</c>, as <c>UpdateRouter.ExtensionOf</c> does) and
-/// gives the file a fresh GUID name, so the attacker never controls a path component.
-/// </summary>
+/// <summary>SECURITY regressions for path derivation: a hostile Telegram-supplied <c>document.FileName</c> must never escape the per-user workspace. The bot derives only a file EXTENSION from an uploaded name (<c>Path.GetExtension</c>) and gives the file a fresh GUID name, so no path component is attacker-controlled.</summary>
 public sealed class UserWorkspaceSecurityTests : IDisposable
 {
     private const long _userId = 7;
@@ -70,9 +64,8 @@ public sealed class UserWorkspaceSecurityTests : IDisposable
     [InlineData(".png/../../escape")]
     public void Should_Never_Yield_A_Path_Separator_From_Extension_Derivation(string hostileFileName)
     {
-        // The linchpin of the safety argument: Path.GetExtension (what the router uses) returns
-        // the suffix after the last dot of the LAST path component, so it can hold no separator
-        // and no `..` — and a GUID basename plus that cannot climb out of the user directory.
+        // Path.GetExtension (what the router uses) returns the suffix after the last dot of the LAST component,
+        // so it can hold no separator and no `..`; a GUID basename plus that cannot climb out.
         string extension = Path.GetExtension(hostileFileName);
 
         Assert.DoesNotContain('/', extension);

@@ -6,12 +6,7 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The layout round trip, read end and write end in one place: <see cref="StencilLayoutParser"/>
-/// takes the bytes an upload or /layout hands in, and <see cref="StencilJson"/> is the shared
-/// camelCase serializer every Stencil front-end keys off (<c>imageWidth</c>, <c>pointSize</c>,
-/// <c>fillColor</c>, <c>imageW</c>, <c>createdAt</c>, <c>version</c>).
-/// </summary>
+/// <summary>The layout round trip in one place: <see cref="StencilLayoutParser"/> takes the bytes an upload or /layout hands in, and <see cref="StencilJson"/> is the shared camelCase serializer every Stencil front-end keys off.</summary>
 public sealed class LayoutSerializationTests
 {
     [Fact]

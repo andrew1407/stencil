@@ -13,12 +13,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The one place handler fixtures build their <see cref="CommandHandlers"/>: the full
-/// construction (a real <see cref="EditingService"/> + <see cref="PromptService"/> over the
-/// mocks) with optional overrides, so adding a dependency means touching this factory instead
-/// of every fixture.
-/// </summary>
+/// <summary>The one place handler fixtures build their <see cref="CommandHandlers"/> — the full construction over the mocks, with optional overrides — so adding a dependency means touching this factory instead of every fixture.</summary>
 internal static class TestHandlers
 {
     public static CommandHandlers Create(

@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Domain.Layout;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The snapshot-frame mapper (<c>llm-contract.md</c> §1): crop steps subtract the resolved
-/// origin, rotate steps turn points with the CW quarter mapping (x,y) → (h-y,x), and every
-/// mapped point clamps into the final tracked bounds.
-/// </summary>
+/// <summary>The snapshot-frame mapper (<c>llm-contract.md</c> §1): crop steps subtract the resolved origin, rotate steps turn points with the CW quarter mapping (x,y) → (h-y,x), and every mapped point clamps into the final tracked bounds.</summary>
 public sealed class PlanFrameMapperTests
 {
     [Fact]

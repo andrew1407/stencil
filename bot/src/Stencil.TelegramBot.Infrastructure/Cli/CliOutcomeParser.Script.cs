@@ -8,10 +8,8 @@ public static partial class CliOutcomeParser
 {
     private const string _notAScriptPlan = "the stencil CLI did not return a script plan";
 
-    // cli/CONTRACT.md §5: `--script-plan` is one of the two modes that write to STDOUT — a single
-    // JSON object, one trailing newline, nothing else. The envelope's own `script` label is
-    // dropped rather than carried: it is the temp leaf this adapter invented, never a name a chat
-    // user wrote.
+    // cli/CONTRACT.md §5: `--script-plan` prints one JSON object to STDOUT, one trailing newline, nothing
+    // else. The envelope's `script` label is dropped: it is this adapter's temp leaf, not a user's name.
     public static ScriptPlan ParseScriptPlan(string stdout)
     {
         using JsonDocument doc = parseEnvelope(stdout);

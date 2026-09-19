@@ -10,10 +10,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared rig for the chat-mode suites: the real <see cref="UpdateRouter"/> +
-/// <see cref="CommandHandlers"/> + <see cref="PromptService"/> over mocked LLM, CLI and Telegram.
-/// </summary>
+/// <summary>The shared rig for the chat-mode suites: the real <see cref="UpdateRouter"/> + <see cref="CommandHandlers"/> + <see cref="PromptService"/> over mocked LLM, CLI and Telegram.</summary>
 public abstract class ChatModeTestBase : IDisposable
 {
     protected const long UserId = 91;

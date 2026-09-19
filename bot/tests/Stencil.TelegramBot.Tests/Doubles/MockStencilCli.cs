@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// An in-process <see cref="IStencilCli"/> stand-in: it records the last
-/// <see cref="EditRequest"/> it was handed, writes a stub byte to the requested output path
-/// (so callers that read the rendered file work), and returns a canned
-/// <see cref="RenderResult"/> / <see cref="ImageSize"/>. No real CLI binary is involved.
-/// </summary>
+/// <summary>Records the last <see cref="EditRequest"/>, writes a stub byte to the requested output path (so callers that read the rendered file work), and returns a canned result. No real CLI binary is involved.</summary>
 public sealed class MockStencilCli : IStencilCli
 {
     // Variant renders run in parallel, so the recorded calls are guarded.
@@ -70,12 +65,7 @@ public sealed class MockStencilCli : IStencilCli
     /// <summary>How many times <see cref="ScrapeAsync"/> ran.</summary>
     public int ScrapeCalls { get; private set; }
 
-    /// <summary>
-    /// The stub files a scrape materialises: each becomes a real file under the request's output
-    /// directory, carrying the given (optional) dimensions. A null width/height stands in for a
-    /// video / unmeasured item. Defaults to one image plus one video so a caller that only wants
-    /// "some files" works out of the box.
-    /// </summary>
+    /// <summary>The stub files a scrape materialises under the request's output directory; a null width/height stands in for a video or unmeasured item, and the default is one image plus one video.</summary>
     public List<(string Name, int? Width, int? Height)> ScrapeStubs { get; } = new()
     {
         ("logo.png", 200, 80),
@@ -102,19 +92,13 @@ public sealed class MockStencilCli : IStencilCli
         return ScriptFailure is null ? CannedScriptPlan : throw ScriptFailure;
     }
 
-    /// <summary>
-    /// Capture the request, write each configured stub into the output directory and return them
-    /// as a <see cref="ScrapeResult"/> — no real CLI/network. Mirrors the CLI's directory output.
-    /// </summary>
     public async Task<ScrapeResult> ScrapeAsync(ScrapeRequest request, CancellationToken ct = default)
     {
         LastScrapeRequest = request;
         ScrapeCalls++;
         Directory.CreateDirectory(request.OutputDir);
-        // Mirror the CLI's paging window: a set count selects filtered[Group*Count : +Count]
-        // (an absent group means page 0); an absent count takes every stub. This lets a
-        // Count=1/Group=index scrape (as /sourceupload builds) materialise exactly the one stub
-        // at that index — or none, when the index is past the end.
+        // Mirrors the CLI's paging window: a set count selects filtered[Group*Count : +Count] (no group ⇒ page 0),
+        // an absent count takes every stub.
         IEnumerable<(string Name, int? Width, int? Height)> selected = ScrapeStubs;
         if (request.Count is int count)
         {

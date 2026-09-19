@@ -2,11 +2,7 @@ using Stencil.TelegramBot.Bot.Telegram;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The per-user serialization gate: same-user work runs one at a time, different users run
-/// concurrently, disposing the handle (once, or redundantly) releases exactly one permit, and a
-/// user's semaphore is forgotten once nobody holds it.
-/// </summary>
+/// <summary>The per-user serialization gate: same-user work runs one at a time, different users concurrently, disposing the handle (once or redundantly) releases exactly one permit, and a user's semaphore is forgotten once nobody holds it.</summary>
 public sealed class UserGateTests
 {
     [Fact]

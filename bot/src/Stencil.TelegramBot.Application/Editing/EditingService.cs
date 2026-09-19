@@ -63,9 +63,8 @@ public sealed partial class EditingService : IEditingService
     public async Task<UserSession> BlankAsync(long userId, BlankSpec spec, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
-        // A stored /format is the default page when the spec names neither; --blank only takes
-        // named tokens, so a stored "custom" rides as pixel dims from the stored cm, as the CLI
-        // console's defaultBlankSizePx.
+        // A stored /format is the default page when the spec names neither; --blank takes only named tokens,
+        // so a stored "custom" rides as pixel dims, as the CLI console's defaultBlankSizePx.
         var customConverted = false;
         if (spec.Page is null && spec.Width is null && spec.Height is null
             && session.Edits.PageFormat is string stored)

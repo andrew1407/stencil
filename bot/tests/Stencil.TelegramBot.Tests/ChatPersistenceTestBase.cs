@@ -13,10 +13,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared rig for the §12 chat-persistence suites: the real router, handlers, prompt and
-/// server services over in-memory mocks, plus a seeded-and-opened server project.
-/// </summary>
+/// <summary>The shared rig for the §12 chat-persistence suites: the real router, handlers, prompt and server services over in-memory mocks, plus a seeded-and-opened server project.</summary>
 public abstract class ChatPersistenceTestBase : IDisposable
 {
     protected const long UserId = 95;

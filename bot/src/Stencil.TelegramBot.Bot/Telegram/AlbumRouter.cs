@@ -41,9 +41,8 @@ public sealed class AlbumRouter
             await processAsync(userId, chatId, photos, ct);
         }, ct);
 
-    // With a caption: adopt + run it once per photo in album order, buffered so the batch replies
-    // as ONE media group. With no caption only the last photo is adopted — captionless members are
-    // never individually echoed.
+    // With a caption: adopt + run it once per photo in album order, buffered so the batch replies as ONE
+    // media group. With no caption only the last photo is adopted.
     private async Task processAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct)
     {
         List<AlbumPhoto> ordered = photos.OrderBy(p => p.MessageId).ToList();

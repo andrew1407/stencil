@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared sanitizer vectors through <see cref="HttpLlmClient.SanitizeProviderText"/>, one
-/// test per vector. The bot slices UTF-16 code units exactly like the browser, so every vector
-/// — the two <c>DIVERGENCE(...)</c> cases included — is asserted against the browser's literal
-/// expect; those two also re-check the invariants (no URL, no token run, ≤ 200 units).
-/// </summary>
+/// <summary>The shared sanitizer vectors through <see cref="HttpLlmClient.SanitizeProviderText"/>, one test per vector. The bot slices UTF-16 code units exactly like the browser, so every vector — the two <c>DIVERGENCE(...)</c> cases included — is asserted against the browser's literal expect.</summary>
 public sealed class SanitizerFixtureWalkerTests
 {
     private static readonly Regex _urlish = new(@"[a-z][a-z0-9+.-]*://\S+", RegexOptions.IgnoreCase);
@@ -49,10 +44,7 @@ public sealed class SanitizerFixtureWalkerTests
         Assert.False(_bareTokenRun.IsMatch(unredacted), "a token-shaped run survived sanitization");
     }
 
-    /// <summary>
-    /// GetString refuses a lone surrogate escape, which one DIVERGENCE expect ends in; fall
-    /// back to unescaping the raw JSON text code-unit by code-unit.
-    /// </summary>
+    /// <summary>GetString refuses a lone surrogate escape, which one DIVERGENCE expect ends in, so fall back to unescaping the raw JSON text code-unit by code-unit.</summary>
     private static string lenientString(JsonElement element)
     {
         try

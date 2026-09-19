@@ -4,9 +4,8 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 
 public static partial class CliOutcomeParser
 {
-    // Source-site contract §3: each `wrote …` line is one file (dims null when the leading token
-    // isn't WxH), the trailing `scraped … into {dir}` line the destination. Pinned by
-    // cli/testdata/scrape_fixtures.json, like mcp's parse_scraped.
+    // Source-site contract §3: each `wrote …` line is one file (dims null when the leading token isn't WxH),
+    // the trailing `scraped … into {dir}` line the destination. Pinned by cli/testdata/scrape_fixtures.json.
     public static ScrapeResult ParseScraped(string stderr)
     {
         List<ScrapedFile> files = new();

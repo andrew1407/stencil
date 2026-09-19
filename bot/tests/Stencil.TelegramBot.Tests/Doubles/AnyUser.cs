@@ -2,11 +2,7 @@ using System.Collections;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// A set of Telegram user ids containing every id — how fixtures testing the handlers (rather
-/// than the allowlist) open <c>BotOptions.AllowedUsers</c> without threading their own id
-/// through. Test-only: production keeps a finite set, so "on for everyone" is unreachable.
-/// </summary>
+/// <summary>A set of Telegram user ids containing every id, so fixtures testing the handlers open <c>BotOptions.AllowedUsers</c> without threading their own id through. Test-only: production keeps a finite set, so "on for everyone" is unreachable.</summary>
 internal sealed class AnyUser : IReadOnlySet<long>
 {
     public static readonly AnyUser Instance = new();

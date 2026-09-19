@@ -7,11 +7,7 @@ using Xunit.Abstractions;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Timing tripwires for the bot's hot paths. Every assertion is RELATIVE — a ratio between two
-/// measurements, or how one scales as its input doubles — never a wall-clock ceiling, so it
-/// means the same on CI and on a loaded laptop. The µs/op are printed, not asserted.
-/// </summary>
+/// <summary>Timing tripwires for the bot's hot paths. Every assertion is RELATIVE — a ratio, or how one measurement scales as its input doubles — never a wall-clock ceiling.</summary>
 [Trait("Category", "Bench")]
 public sealed class BenchTests
 {

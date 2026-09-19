@@ -7,12 +7,7 @@ using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The <c>/project-name</c> handler's local branch: with no active server project it just relabels
-/// the working image (the name <c>/create</c> will save under) and never touches the collaboration
-/// server. Runs the real <see cref="CommandHandlers"/> with a <see cref="ThrowingServerService"/>,
-/// so any accidental server call fails the test loudly.
-/// </summary>
+/// <summary>The <c>/project-name</c> handler's local branch: with no active server project it just relabels the working image (the name <c>/create</c> will save under), and a <see cref="ThrowingServerService"/> fails the test loudly on any server call.</summary>
 public sealed class ProjectNameHandlerTests : IDisposable
 {
     private const long _userId = 77;

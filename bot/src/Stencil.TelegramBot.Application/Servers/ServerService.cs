@@ -93,9 +93,8 @@ public sealed partial class ServerService : IServerService
         }
     }
 
-    // The read-then-PUT isn't atomic: a peer — or our own preceding upload — advancing the version
-    // would 409 and drop the change, so re-read and retry, as pystencil's _update_field_with_retry
-    // does.
+    // The read-then-PUT isn't atomic: a peer advancing the version would 409 and drop the change, so
+    // re-read and retry, as pystencil's _update_field_with_retry does.
     private static async Task<ProjectRecord> updateFieldWithRetryAsync(
         IStencilServerClient client, string id, Func<long, UpdateProjectRequest> build, string conflictMessage, CancellationToken ct)
     {

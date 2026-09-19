@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Workspace;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The workspace janitor's filesystem half: enumerating on-disk users, and pruning stale orphan
-/// files while always keeping the session-referenced ones regardless of age.
-/// </summary>
+/// <summary>The workspace janitor's filesystem half: enumerating on-disk users, and pruning stale orphan files while always keeping the session-referenced ones regardless of age.</summary>
 public sealed class UserWorkspacePruneTests : IDisposable
 {
     private readonly string _root;
