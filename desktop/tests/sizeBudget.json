@@ -24,7 +24,6 @@
     "desktop/tests/iconMotion.headless.cpp": 511,
     "desktop/tests/imageFixture.headless.cpp": 265,
     "desktop/tests/LlmClient.headless.cpp": 944,
-    "desktop/tests/llmOpPlan.headless.cpp": 1180,
     "desktop/tests/llmWireFixtures.headless.cpp": 262,
     "desktop/tests/MainWindow.canvas.gui.cpp": 1051,
     "desktop/tests/MainWindow.chatCards.gui.cpp": 503,

@@ -496,7 +496,12 @@ stencil_headless_test(stencil_coedit_headless
 # LLM op-plan parser check (src/llm/opPlan) — the llm-contract.md §1-2
 # parse matrix (extraction tolerance, strict per-op validation, limits).
 stencil_headless_test(stencil_llmopplan_headless
-  SOURCES tests/llmOpPlan.headless.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
+  SOURCES tests/llmOpPlan.headless.cpp tests/llmOpPlanExtract.headless.cpp
+    tests/llmOpPlanCrop.headless.cpp tests/llmOpPlanShapes.headless.cpp
+    tests/llmOpPlanPage.headless.cpp tests/llmOpPlanSettings.headless.cpp
+    tests/llmOpPlanProjects.headless.cpp tests/llmOpPlanRows.headless.cpp
+    tests/llmOpPlanImages.headless.cpp tests/llmOpPlanAsk.headless.cpp
+    src/llm/opPlan.cpp src/llm/opRegistry.cpp
     ${STENCIL_OPSCHEMA_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Core)
 
