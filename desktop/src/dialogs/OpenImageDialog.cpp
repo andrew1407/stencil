@@ -285,7 +285,7 @@ namespace stencil::gui {
       cropPageSize_->addItem(tr("Page — Default"), QStringLiteral("page"));
       cropPageSize_->addItem(tr("1:1 (Square)"), QStringLiteral("1:1"));
       cropPageSize_->addItem(tr("2:3"), QStringLiteral("2:3"));
-      cropPageSize_->addItem(tr("Custom…"), QStringLiteral("custom"));
+      cropPageSize_->addItem(tr("Custom"), QStringLiteral("custom"));
       cropPageSize_->setCurrentIndex(0);   // starts on the project's own page
       cropPageSize_->setToolTip("The crop's own aspect ratio");
       sc->addWidget(cropPageSize_);   // its own content width (browser twin: .oi-crop-size, never stretched)

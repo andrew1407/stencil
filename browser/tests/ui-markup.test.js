@@ -236,11 +236,11 @@ test('filter selects offer every mode (toolbar options + ctx-menu radios)', () =
     assert.ok(markup.includes('value="contour"> Contour'), 'Contour radio label');
 });
 
-test('page-size select: Custom… first, then the ISO formats labelled with sizes', () => {
+test('page-size select: Custom first, then the ISO formats labelled with sizes', () => {
     const sel = markup.slice(markup.indexOf('id="page-size"'));
-    const custom = sel.indexOf('<option value="custom">Custom…</option>');
-    assert.ok(custom !== -1, 'Custom… option present');
-    assert.ok(custom < sel.indexOf('<option value="A0">'), 'Custom… before the named formats');
+    const custom = sel.indexOf('<option value="custom">Custom</option>');
+    assert.ok(custom !== -1, 'Custom option present');
+    assert.ok(custom < sel.indexOf('<option value="A0">'), 'Custom before the named formats');
     // Spot-check the "<name> (<w> × <h>)" labels (no unit word — #unit-select says it once
     // for the row; trailing zeros trimmed; values from PAGE_SIZES in constants.json).
     assert.ok(markup.includes('<option value="A4">A4 (21 × 29.7)</option>'), 'A4 label');

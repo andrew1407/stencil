@@ -233,10 +233,10 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Page</div>
                 <div class="ctrl-section-row">
-                    <!-- Custom… first, then every named ISO format from PAGE_SIZES with its
+                    <!-- Custom first, then every named ISO format from PAGE_SIZES with its
                          physical size (re-rendered in the active unit by applyUnitToUI). -->
                     <select id="page-size" data-title="Page size">
-                        <option value="custom">Custom…</option>
+                        <option value="custom">Custom</option>
                         ${pageFormatOptions()}
                     </select>
                     <select id="unit-select" data-title="Display units (cm / inches)">

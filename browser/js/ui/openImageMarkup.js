@@ -111,7 +111,7 @@ export const openImageModalInner = () => `
                             <option value="page">Page — Default</option>
                             <option value="1:1">1:1 (Square)</option>
                             <option value="2:3">2:3</option>
-                            <option value="custom">Custom…</option>
+                            <option value="custom">Custom</option>
                         </select>
                         <span class="oi-crop-size-custom" id="open-image-crop-size-custom" style="display:none">
                             <span class="oi-crop-size-field">

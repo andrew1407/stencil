@@ -35,7 +35,7 @@ const stubSelect = (values, unit = 'cm') => ({
   value: values[0],
   options: values.map((v) => ({
     value: v,
-    textContent: v === 'custom' ? 'Custom…' : pageFormatLabel(v, unit),
+    textContent: v === 'custom' ? 'Custom' : pageFormatLabel(v, unit),
   })),
 });
 
@@ -47,12 +47,12 @@ const runApplyUnitToUI = (unit) =>
 
 test('applyUnitToUI relabels the toolbar page-size selector in the active unit', () => {
   const names = Object.keys(PAGE_SIZES);
-  const psSel = stubSelect(['custom', ...names]);       // toolbar: Custom… first
+  const psSel = stubSelect(['custom', ...names]);       // toolbar: Custom first
   elements.clear();
   elements.set('page-size', psSel);
 
   runApplyUnitToUI('in');
-  assert.equal(psSel.options[0].textContent, 'Custom…', 'Custom… label untouched');
+  assert.equal(psSel.options[0].textContent, 'Custom', 'Custom label untouched');
   for (const opt of psSel.options.slice(1))
     assert.equal(opt.textContent, pageFormatLabel(opt.value, 'in'), `toolbar ${opt.value} in inches`);
   assert.equal(psSel.value, 'A4', 'toolbar select re-asserts the model page size');

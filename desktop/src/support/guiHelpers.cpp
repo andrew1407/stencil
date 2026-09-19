@@ -152,14 +152,14 @@ namespace stencil::gui {
     const QSignalBlocker block(combo);
     if (combo->count() == 0) {  // first fill: items in canonical order
       if (includeCustom)
-        combo->addItem(QStringLiteral("Custom…"), QStringLiteral("custom"));
+        combo->addItem(QStringLiteral("Custom"), QStringLiteral("custom"));
       const QStringList names = QString::fromLatin1(core::pageFormatNames())
                                     .split(' ', Qt::SkipEmptyParts);
       for (const QString& n : names) combo->addItem(n, n);
     }
     for (int i = 0; i < combo->count(); ++i) {
       const QString name = combo->itemData(i).toString();
-      if (name == QLatin1String("custom")) continue;  // label stays "Custom…"
+      if (name == QLatin1String("custom")) continue;  // label stays "Custom"
       const core::PageSize ps = core::namedPageSize(name.toStdString());
       // No trailing unit word: this combo always sits beside its own unit combo, which
       // already says "cm"/"in" once for the whole row (user report; browser twin:

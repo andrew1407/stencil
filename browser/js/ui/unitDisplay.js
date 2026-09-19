@@ -38,7 +38,7 @@ export const applyUnitToUI = (app) => {
   // Named page-size option labels ("A4 (21 × 29.7 cm)") re-render in the active unit.
   // Re-asserting the model value routes through enhanceSelect's wrapped setter, which
   // refreshes the visible dropdown trigger to the relabelled option (and, at boot,
-  // moves the select off its markup default — Custom… is the FIRST option — onto the
+  // moves the select off its markup default — Custom is the FIRST option — onto the
   // app's default page).
   const psSel = document.getElementById('page-size');
   if (psSel) {
