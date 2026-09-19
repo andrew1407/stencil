@@ -11,6 +11,7 @@ import { VsCodeHost } from './lib/vscodeHost.mjs';
 import { film } from './lib/shots.mjs';
 import { framesToGif, quantizePng } from './lib/gifTools.mjs';
 import { settle, waitForStable } from './lib/waits.mjs';
+import { makeActionSteps } from './vscode/actionSteps.mjs';
 
 const config = loadCaptureConfig('vscodeExtension');
 const runner = makeShotRunner({ config, out: outDir('vscode-extension') });
@@ -169,6 +170,7 @@ const STEPS = Object.freeze([
     await still(ctx, 'api-hover');
     await ctx.page.mouse.move(PARK.x, PARK.y);
   } },
+  ...makeActionSteps({ config, runner, still }),
   // The palette filtered to this extension: the CLI commands and the four browser ones.
   { name: 'web-commands', run: async (ctx) => {
     await ctx.page.keyboard.press('F1');

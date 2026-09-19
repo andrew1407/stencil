@@ -14,7 +14,8 @@
     "lines-selection",
     "assistant-docked",
     "settings-dialog",
-    "projects-dialog"
+    "projects-dialog",
+    "projects-dropzones"
   ],
   "stills": [
     "blank-white",

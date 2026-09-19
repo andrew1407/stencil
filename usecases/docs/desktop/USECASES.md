@@ -105,6 +105,13 @@ servers; **Project ▸ Servers…** (`Ctrl+Shift+K`) connects to a collaboration
 |---|---|---|
 | ![projects](img/projects-dialog-light.png) | ![projects, dark](img/projects-dialog-dark.png) | ![servers](img/connect-dialog.png) |
 
+Drag a project row out of the list and the window behind it offers **Open here**, **Open in a new
+window** and **Remove**; the zone under the pointer lights up and the drop decides which one runs.
+
+| Drop zones, light | Drop zones, dark |
+|---|---|
+| ![dragging a project row out over the drop zones](img/projects-dropzones-light.png) | ![dragging a project row out, dark](img/projects-dropzones-dark.png) |
+
 ## Describe the project, hand it on
 
 **Project ▸ Description…**, **Keywords…** and **Image Links…** keep the project's metadata;

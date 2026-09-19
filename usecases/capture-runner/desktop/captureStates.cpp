@@ -5,6 +5,7 @@
 #include "CanvasWidget.hpp"
 #include "ChatDock.hpp"
 #include "OpenImageDialog.hpp"
+#include "ProjectDragZones.hpp"
 #include "../../../desktop/src/llm/LlmClient.hpp"
 
 #include <QCheckBox>
@@ -271,6 +272,40 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
   };
   for (const auto& dialog : dialogs)
     if (shots.has(dialog.name)) grabModal(win, actionNamed(win, QString::fromUtf8(dialog.action)), dialog.name);
+
+  // The drag-out zones (dialogs/ProjectDragZones.hpp): the overlay the WINDOW paints while a
+  // project row is dragged out of the list. They live only for the drag, and the dialog's own
+  // blocking loop delivers no drag-move events — the widget polls QCursor::pos() at 16ms — so the
+  // pointer is parked in a zone and the poll given ticks to read it.
+  const QString zonesShot = suffixed("projects-dropzones", theme);
+  if (shots.has(zonesShot)) {
+    QAction* act = actionNamed(win, QStringLiteral("Projects…"));
+    if (!act) std::printf("  %s SKIPPED (no action)\n", qPrintable(zonesShot));
+    else {
+      bool done = false;
+      QTimer::singleShot(0, [&] {
+        QWidget* dlg = nullptr;
+        waitUntil([&] { dlg = QApplication::activeModalWidget(); return dlg && dlg->isVisible(); }, 4000);
+        if (!dlg || !win.projectZones_) return;
+        pumpFor(400);
+        win.projectZones_->begin(dlg->frameGeometry());
+        // Top-left quadrant of the canvas, clear of the centred dialog: the "Open here" zone.
+        const QRect canvas = win.scroll_->viewport()->rect();
+        const QPoint here = win.scroll_->viewport()->mapToGlobal(
+            QPoint(canvas.width() / 6, canvas.height() / 5));
+        QCursor::setPos(here);
+        pumpFor(120);   // ~7 poll ticks, so hover_ has read the parked cursor
+        saveDragOver(zonesShot, &win, win.projectZones_, dlg);
+        win.projectZones_->end();
+        done = true;
+        if (auto* d = qobject_cast<QDialog*>(dlg)) d->reject(); else dlg->close();
+      });
+      QTimer::singleShot(8000, [] { if (QWidget* stuck = QApplication::activeModalWidget()) stuck->close(); });
+      act->trigger();
+      waitUntil([&] { return done; }, 9000);
+      pumpFor(200);
+    }
+  }
   // The clip off disk, the clip from a link, and the crop box over the player.
   const QStringList videoShots = {"open-video-local", "open-video-url", "crop-video"};
   if (shots.hasAny(videoShots) && CLIP_FILE.isEmpty())

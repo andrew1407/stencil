@@ -49,6 +49,12 @@ that saves nothing.
 |---|---|
 | ![the editor tab](img/editor-tab.png) | ![the incognito editor tab](img/editor-tab-incognito.png) |
 
+Or drag the row straight onto the page: the panel paints four drop targets over it — **Open in
+editor here**, **Open incognito**, **Open image in new tab** and **Crop** — and the quarter under
+the pointer lights up. Dropping there does that, and `Esc` takes the overlay away.
+
+![dragging a row out over the page's four drop zones](img/site-dropzones.png)
+
 **Pin** keeps an image on the list across pages, locally or on a connected server; the
 options page lists every pin.
 

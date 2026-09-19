@@ -10,6 +10,7 @@ import { startLlmStub } from './lib/llmStub.mjs';
 import { makeShotRunner } from './lib/shotRunner.mjs';
 import { makeBrowserPages } from './browser/pageTools.mjs';
 import { makeStillSteps } from './browser/stillSteps.mjs';
+import { makeDragSteps } from './browser/dragSteps.mjs';
 import { makeClipSteps } from './browser/clipSteps.mjs';
 import { makeVideoSteps } from './browser/videoSteps.mjs';
 import { sampleVideo } from './lib/sampleMedia.mjs';
@@ -33,6 +34,11 @@ const videoCtx = await runner.play(makeVideoSteps({
   config, runner, pages, clipPath: clip.file, clipUrl: media.url(clip.name),
 }), {});
 await videoCtx.page?.close();
+
+// Its own pass: a drag is held open across the shot, so it must not share a page with a still.
+console.log('browser drag');
+const dragCtx = await runner.play(makeDragSteps({ config, runner, pages }), {});
+await dragCtx.page?.close();
 
 console.log('browser clips');
 await runner.play(makeClipSteps({

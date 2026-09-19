@@ -56,6 +56,15 @@ sources resolve.
 
 ![the run terminal](img/run-terminal.png)
 
+## The buttons on the editor itself
+
+An open `.stc` carries the three commands in its own title bar: **▷** runs it, **globe** opens it
+in Stencil Web, and the incognito mark opens it in a session the app keeps nothing from. A
+`.stcjs` shows **▷ Run in Stencil Web Console** instead, and a `.stencil` project the two Open
+buttons — each file only offers what applies to it.
+
+![the Stencil buttons in the editor title bar](img/title-actions.png)
+
 ## Send it to the browser
 
 **Stencil: Open in Stencil Web** hands the open script — or a `.stencil` project — to the
@@ -78,6 +87,11 @@ expression you type — and open an image by URL or from disk. Answers land in t
 output channel.
 
 ![the palette, filtered to Stencil](img/web-commands.png)
+
+Select a few lines and **Run selection in Stencil Web Console** sends only those. With nothing
+selected it asks for the expression instead, so a one-off never needs a file at all.
+
+![the box asking for an expression to run](img/run-selection.png)
 
 ## Write a `.stcjs`
 

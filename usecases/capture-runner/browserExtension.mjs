@@ -14,6 +14,7 @@ import { applyAppTheme, applyShellTheme } from './lib/pageTheme.mjs';
 import { film } from './lib/shots.mjs';
 import { framesToGif } from './lib/gifTools.mjs';
 import { waitForAnimations } from './lib/waits.mjs';
+import { makeDropZoneSteps } from './extension/dropZoneSteps.mjs';
 
 const config = loadCaptureConfig('browserExtension');
 const runner = makeShotRunner({ config, out: outDir('browser-extension') });
@@ -103,6 +104,7 @@ const openInTab = async (ctx, theme, label, name) => {
 
 const STEPS = Object.freeze([
   { name: 'site', run: () => runner.shot(host, 'site') },
+  ...makeDropZoneSteps({ config, runner, host, applyShellTheme, timeouts: TIMEOUTS }),
   ...pairNames('popup-list').map((name) => ({
     name,
     run: async (ctx, theme) => {
