@@ -34,15 +34,27 @@ inline void save(const QString& name, QWidget* w) {
   save(name, w->grab().toImage());
 }
 
-// A dialog over its window: the window dimmed, the dialog centred on it.
+// A dialog over its window: the window dimmed, the dialog centred on it, then CROPPED back to the
+// dialog and a dimmed margin. The rest of the window is toolbar the shot is not about, and at full
+// size a small dialog reads as a speck.
+inline constexpr int MODAL_MARGIN_PX = 64;
+
 inline void saveOver(const QString& name, QWidget* win, QWidget* dlg) {
   QImage base = win->grab().toImage();
   const QPixmap top = dlg->grab();
+  const QPoint at((win->width() - dlg->width()) / 2, (win->height() - dlg->height()) / 2);
   QPainter p(&base);
   p.fillRect(QRect(QPoint(), win->size()), QColor(0, 0, 0, 80));
-  p.drawPixmap((win->width() - dlg->width()) / 2, (win->height() - dlg->height()) / 2, top);
+  p.drawPixmap(at, top);
   p.end();
-  save(name, base);
+  QRect box(at - QPoint(MODAL_MARGIN_PX, MODAL_MARGIN_PX),
+            dlg->size() + QSize(MODAL_MARGIN_PX * 2, MODAL_MARGIN_PX * 2));
+  box &= QRect(QPoint(), win->size());
+  // grab() hands back a device-pixel image with its ratio set; copy() counts device pixels.
+  const qreal dpr = base.devicePixelRatio();
+  QImage out = base.copy(QRect(box.topLeft() * dpr, box.size() * dpr));
+  out.setDevicePixelRatio(dpr);
+  save(name, out);
 }
 
 // The window, an overlay it is painting, then the dialog: for a drag shot the modal dim of
