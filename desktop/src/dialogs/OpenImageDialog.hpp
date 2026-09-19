@@ -17,6 +17,7 @@ class QSpinBox;
 class QDoubleSpinBox;
 class QSlider;
 class QTabWidget;
+class QVariantAnimation;
 class QVBoxLayout;
 class QWidget;
 class QTimer;
@@ -137,13 +138,12 @@ namespace stencil::gui {
     void cacheTabPreview(const QString& src, const QString& hint);  // stash it for a tab switch back
     bool restoreTabPreview(const TabPreviewCache& cache);  // …and bring it back, no re-fetch
     void gatherPreviewDust(const QPixmap& shot);   // the preview's own arrival flourish
+    // One row forming and falling on its own slide clock (chipDust.hpp).
+    void rowChipDust(QWidget* row, QVariantAnimation*& slide, bool arriving);
     void cropDimsDust(bool arriving);   // the read-out forms / falls with the crop
-    void slideCropDims(bool show);      // …its line easing into that place, and out
     void cropSizeRowDust(bool arriving);   // the page-size row forms / falls with the crop
-    void slideCropSizeRow(bool show);      // …its own line easing into place, and out
     void cropAlbumDust(bool arriving);     // the Album/Portrait button's own materialize
     void cropSizeCustomDust(bool arriving);   // the Custom W×H group's own materialize
-    void slideCropSizeCustom(bool show);      // …its own line easing into place, and out
     void scatterPreviewDust();          // the picture blows away, making room
     void cancelPreviewDust();           // …and every cloud stops, veils lifted
     void setFrame(int n);         // sync slider + spin box to a frame, then debounce a seek

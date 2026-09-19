@@ -118,6 +118,8 @@ set(STENCIL_OPENIMAGE_SOURCES
   src/dialogs/OpenImageDialogScrub.cpp
   src/dialogs/OpenImageDialogDust.cpp
   src/dialogs/OpenImageDialogSizeDust.cpp
+  src/dialogs/OpenImageDialogAlbumDust.cpp
+  src/dialogs/chipDust.cpp
   src/dialogs/OpenImageDialogCache.cpp
   src/dialogs/OpenImageDialogState.cpp
   src/dialogs/OpenImageDialogCropStage.cpp
