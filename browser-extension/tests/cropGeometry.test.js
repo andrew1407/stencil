@@ -36,15 +36,15 @@ test('PAGE_SIZES: the full ISO A/B/C table in canonical order', () => {
     assert.ok(width > 0 && width < height);
 });
 
-test('pageSizeLabel: name + cm dims; unknown names pass through', () => {
-  assert.equal(pageSizeLabel('A4'), 'A4 (21 × 29.7 cm)');
-  assert.equal(pageSizeLabel('B5'), 'B5 (17.6 × 25 cm)');
+test('pageSizeLabel: name + bare dims, no unit word; unknown names pass through', () => {
+  assert.equal(pageSizeLabel('A4'), 'A4 (21 × 29.7)');
+  assert.equal(pageSizeLabel('B5'), 'B5 (17.6 × 25)');
   assert.equal(pageSizeLabel('nope'), 'nope');
 });
 
 test('pageSizeOptions: one labelled <option> per named format, canonical order', () => {
   const html = pageSizeOptions();
-  assert.ok(html.startsWith('<option value="A0">A0 (84.1 × 118.9 cm)</option>'));
-  assert.ok(html.includes('<option value="A4">A4 (21 × 29.7 cm)</option>'));
+  assert.ok(html.startsWith('<option value="A0">A0 (84.1 × 118.9)</option>'));
+  assert.ok(html.includes('<option value="A4">A4 (21 × 29.7)</option>'));
   assert.equal((html.match(/<option /g) || []).length, Object.keys(PAGE_SIZES).length);
 });
