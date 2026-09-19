@@ -9,11 +9,9 @@
 
 namespace stencil::support {
 
-  // The browser's `.app-modal-overlay` scrim plus its `backdrop-filter: blur()`, which Qt
-  // has no equivalent for: the window behind is photographed once as the dialog opens,
-  // blurred and painted under the scrim. Both halves are the one Visuals switch.
-  // Header-only and Q_OBJECT-free on purpose: modalReveal.cpp is listed by a dozen test
-  // targets, which would each need a new source otherwise.
+  // The browser's `.app-modal-overlay` scrim plus its `backdrop-filter: blur()`, which Qt has no
+  // equivalent for: the window behind is photographed once as the dialog opens, blurred and painted
+  // under the scrim. Header-only and Q_OBJECT-free on purpose — a dozen test targets list modalReveal.
   class ModalBackdrop : public QWidget {
    public:
     // The blur the snapshot gets (browser blur(3px)) and the scrim over it (rgba(0,0,0,0.5)).

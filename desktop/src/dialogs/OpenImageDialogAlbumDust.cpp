@@ -15,15 +15,9 @@
 
 namespace stencil::gui {
 
-  // The Album/Portrait button's own materialize/fall — INLINE beside the always-shown
-  // checkbox+caption, so unlike the two rows above it has no height of its own to slide:
-  // just the same chip cloud. Browser twin: openImageModal.js's dust-only toggle.
-  //
-  // Both directions FOLLOW size_.anim: the button's own row (quickcropRow_) moves as the
-  // window eases around the stage growing/shrinking above it, and a cloud raised once at
-  // the button's STARTING position — the row's own row above it never moves this one —
-  // was left behind mid-flight, stranded wherever the row happened to be at that instant
-  // (measured: floating over the STAGE, well above the row it was meant to read as).
+  // The Album/Portrait button materializes and falls INLINE beside the always-shown checkbox, so
+  // unlike the rows above it has no height to slide — just the chip cloud. Both directions FOLLOW
+  // size_.anim, or a cloud raised at the button's start position is stranded over the stage.
   void OpenImageDialog::cropAlbumDust(bool arriving) {
     if (arriving == motion_.albumShown) return;
     motion_.albumShown = arriving;
@@ -35,11 +29,9 @@ namespace stencil::gui {
     QPointer<QPushButton> btn(cropAlbum_);
     const int gen = motion_.gen;
     if (!arriving) {
-      // SYNCHRONOUS, like cropDims_'s own pin(0): syncCropStage() measures the window's
-      // wanted height in THIS SAME call, right after this returns — a button still
-      // occupying the row's width (deferred hiding, held at opacity 0 instead) read as
-      // "still here" to that measure, so the window settled a whole wrapped caption LINE
-      // taller than it should have and never came back down once the button actually left.
+      // SYNCHRONOUS, like cropDims_'s own pin(0): syncCropStage() measures the window's wanted height in
+      // THIS SAME call. A button still occupying the row's width (deferred hiding at opacity 0) read as
+      // "still here", so the window settled a wrapped caption LINE taller and never came back down.
       const QPixmap shot = cropAlbum_->grab();   // before it goes
       cropAlbum_->setVisible(false);
       if (!shot.isNull()) {

@@ -29,19 +29,15 @@
 
 namespace stencil::gui {
 
-  // Pin the chat to a side (title bar placement buttons, a drag dropped on a dock
-  // zone, or the wasFloating leg of toggleChatFloat). The selection panel already
-  // owns the right area, so docking there must SPLIT side-by-side — plain
-  // addDockWidget stacks the two vertically, giving each a squashed half-height column.
+  // Pin the chat to a side (placement buttons, a dock-zone drop, or toggleChatFloat's wasFloating
+  // leg). The selection panel owns the right area, so docking there must SPLIT side-by-side —
+  // plain addDockWidget stacks them into two squashed half-height columns.
   void MainWindow::dockChatTo(Qt::DockWidgetArea area) {
     if (!chatDock_) return;
     const auto place = [this, area] {
-      // pinPanelWhileSharing (every call site below runs it first) already fixed the
-      // panel's width, so the split lands on that instead of Qt's default even split.
-      // Top/bottom must claim their own FULL-WIDTH row (Qt::Vertical): the top area
-      // already holds the (usually hidden) selected-line dock, and the area's default
-      // horizontal placement parked the chat beside its slot — a narrow, right-aligned
-      // column instead of the browser's full-width band.
+      // pinPanelWhileSharing (run first by every call site) already fixed the panel's width, so the
+      // split lands on that, not Qt's even one. Top/bottom need Qt::Vertical for a FULL-WIDTH row:
+      // the default horizontal placement parked the chat beside the top area's own dock.
       if (area == Qt::TopDockWidgetArea || area == Qt::BottomDockWidgetArea)
         addDockWidget(area, chatDock_, Qt::Vertical);
       else
@@ -49,10 +45,9 @@ namespace stencil::gui {
       chatDock_->setFloating(false);
       ensurePanelChatSplit();
     };
-    // Moving between sides slides out of the old edge and back in at the new one —
-    // the same extent slide the icon's open/close uses, so a placement change reads
-    // as travel rather than a jump (and, via chatSurfaceFlight, dusts like every other
-    // surface). Skipped when there is nothing on screen to move.
+    // Moving between sides slides out of the old edge and in at the new one — the icon's own extent
+    // slide, so a placement change reads as travel, and it dusts through chatSurfaceFlight.
+    // Skipped when there is nothing on screen to move.
     const bool wasFloating = chatDock_->isFloating();
     // Leaving a deliberate float — remember where it sat so the next one returns there.
     // Never the compact popover's tiny icon-anchored rect (toggleChatFloat guards alike).
@@ -99,13 +94,9 @@ namespace stencil::gui {
     });
   }
 
-  // The title bar's Float button (browser chat-float-btn parity): QDockWidget's own
-  // setFloating() just teleports the panel, with no animation of its own. Docked → float
-  // leaves through the same dust a side switch does
-  // (chatSurfaceFlight), then the floating shape flies out of the icon
-  // (support::revealWindow — the very flight a torn-off/compact chat already uses).
-  // Float → docked leaves through dismissWindow, then re-docks at the last area it
-  // held; dockChatTo's own wasFloating branch plays that arrival's dust.
+  // The title bar's Float button: QDockWidget::setFloating teleports, with no animation of its own.
+  // Docked → float leaves through chatSurfaceFlight's dust then flies out of the icon (revealWindow);
+  // float → docked dismisses, re-docks at the last area, and dockChatTo's wasFloating branch dusts it.
   void MainWindow::toggleChatFloat() {
     if (!chatDock_ || tearingDown_ || !chatDock_->isVisible()) return;
     stopChatAnim();
@@ -145,10 +136,9 @@ namespace stencil::gui {
     chatAnim_ = startExtentSlide(this, full, 0, 200, pinAndRaiseDust(pin, outFx), finishToFloat);
   }
 
-  // Show = slide the dock open to full width; hide = slide it to 0 then fully hide it (the canvas
-  // fills the freed space) and reveal the floating right-edge re-open chevron. QMainWindow overrides
-  // a dock's maximumWidth during its own layout passes, so we pin min==max (setFixedWidth) each frame
-  // to force the width, then release the constraint at the end.
+  // Show slides the dock to full width; hide slides it to 0, hides it and reveals the right-edge
+  // re-open chevron. QMainWindow overrides a dock's maximumWidth during layout, so pin min==max
+  // (setFixedWidth) each frame and release the constraint at the end.
   void MainWindow::setPanelShown(bool show, bool animate) {
     if (!selPanel_) return;
     if (panelAnim_) { panelAnim_->stop(); panelAnim_->deleteLater(); panelAnim_ = nullptr; }
@@ -156,10 +146,9 @@ namespace stencil::gui {
     const int full = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : PANEL_DEFAULT_WIDTH;
     if (!show && selPanel_->isVisible() && selPanel_->width() > 120)
       panelRestoreWidth_ = selPanel_->width();
-    // The two chevrons are different buttons in different places, but they read as one
-    // toggle: whichever is on screen turns half a revolution with the slide and lands on
-    // the glyph the other one takes over with. Driven here, so Alt+X and the View menu
-    // turn it too — not just a click on the chevron itself.
+    // The two chevrons are different buttons but read as one toggle: whichever is on screen turns
+    // half a revolution with the slide and lands on the other's glyph. Driven here so Alt+X and the
+    // View menu turn it too, not only a click on the chevron.
     const int spinMs = animate ? (show ? FOLD_MS : FOLD_OUT_MS) : 0;
     if (show) spinIcon(panelReopenBtn_, "chevron-left", palette().color(QPalette::WindowText),
                        PANEL_TOGGLE_GLYPH, 0, 180, spinMs);

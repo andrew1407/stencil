@@ -15,10 +15,9 @@
 namespace stencil::gui {
 
   void OpenImageDialog::buildCropRows(QVBoxLayout* layout) {
-    // Quick pre-load crop (mirrors LinksDialog quick-crop) as the browser's Crop
-    // .vs-row (#open-image-crop-row): the toggle, its caption, then — only while
-    // cropping — the Album/Portrait toggle and the page the aspect comes from. Crop is
-    // OFF by default; shown only once a preview resolves an image/frame.
+    // Quick pre-load crop (mirrors LinksDialog quick-crop) as the browser's Crop .vs-row
+    // (#open-image-crop-row): the toggle, its caption, then — only while cropping — the Album/Portrait
+    // toggle and the page the aspect comes from. OFF by default; shown once a preview resolves.
     {
       // No tooltip on the box (browser parity): the caption beside it says what it does.
       auto* qc = checkCaptionRow(this, cropPage_,
@@ -49,11 +48,9 @@ namespace stencil::gui {
     quickcropRow_->setVisible(false);  // shown once a preview succeeds
     layout->addWidget(quickcropRow_);
 
-    // The crop's own ASPECT RATIO — its own row (browser twin: #open-image-crop-size-row),
-    // shown/hidden with the same particle sweep as the read-out below the stage, only while
-    // cropping. A handful of plain ratios beside the project's own page: every named ISO
-    // page (A/B/C) shares one ratio, so listing the whole series here said nothing a
-    // single "Page" entry doesn't already say.
+    // The crop's own ASPECT RATIO on its own row (browser #open-image-crop-size-row), swept in and out
+    // with the read-out below the stage, only while cropping. Plain ratios beside the project's page:
+    // every named ISO page shares one ratio, so the whole series said nothing "Page" does not.
     {
       auto* sc = new QHBoxLayout;
       sc->setContentsMargins(0, 0, 0, 0);

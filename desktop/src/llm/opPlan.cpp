@@ -23,10 +23,9 @@ namespace stencil::llm {
       return text.remove(fence);
     }
 
-    // First balanced { … } substring that parses as a JSON OBJECT (brace
-    // counting skips string literals, so braces inside "reply" don't confuse
-    // it). Chat text containing incidental balanced braces that aren't JSON is
-    // skipped over rather than failing the turn.
+    // First balanced { … } substring that parses as a JSON OBJECT (brace counting skips string literals,
+    // so braces inside "reply" do not confuse it). Chat text holding incidental balanced braces that
+    // are not JSON is skipped over rather than failing the turn.
     bool extractFirstObject(const QString& text, QJsonObject& out) {
       const int n = text.size();
       for (int start = text.indexOf(QLatin1Char('{')); start >= 0;
@@ -277,12 +276,9 @@ namespace stencil::llm {
       return true;
     }
 
-    // One action list (top-level or a variant's). Unknown op ⇒ skip + warning
-    // (a §13 forbidden name lands here too — the executor refuses it); known op
-    // with bad params ⇒ fail (the caller fails the whole plan); a top-level-only
-    // op inside a variant/preview ⇒ *scopeDrop = why, and the CALLER drops that
-    // variant (or that option's preview) with a warning instead of failing the
-    // plan (§1's one exception).
+    // One action list (top-level or a variant's). Unknown op ⇒ skip + warning (a §13 forbidden name lands
+    // here too); known op with bad params ⇒ fail the whole plan; a top-level-only op inside a
+    // variant/preview ⇒ *scopeDrop = why and the CALLER drops just that one (§1's one exception).
     bool parseActions(const QJsonValue& v, QVector<Action>& out, QStringList& warnings,
                       bool inVariant, QString* e, QString* scopeDrop = nullptr) {
       if (v.isUndefined() || v.isNull()) return true;  // absent = empty
@@ -329,10 +325,9 @@ namespace stencil::llm {
       return true;
     }
 
-    // §11 interactive replies (`ask`)
-    // The card's structure (keys, caps, 2..5 options, the image reference's exactly-one-of
-    // url / projectId / scanIndex, http(s)-only urls) is the registry's ask schema; a card
-    // nobody can answer fails the whole plan. Only the preview actions need this module.
+    // §11 interactive replies (`ask`). The card's structure — keys, caps, 2..5 options, the image
+    // reference's exactly-one-of url / projectId / scanIndex, http(s)-only urls — is the registry's ask
+    // schema, and a card nobody can answer fails the plan. Only the preview actions need this module.
     bool parseAsk(const QJsonValue& value, AskCard& out, QStringList& warnings, QString* e) {
       if (value.isUndefined() || value.isNull()) return true;   // no card is the norm
       const OpSchema& schema = OpSchema::desktop();
@@ -350,10 +345,9 @@ namespace stencil::llm {
         AskOption opt;
         opt.label = oo.value("label").toString();
         if (present(oo, "actions")) {
-          // Preview actions are rendered, never executed — editor-settings ops make no sense
-          // here, so they are parsed under the same rule that bans them inside variants.
-          // §1/§11.2: a misplaced one costs the PREVIEW, not the plan — the option stays,
-          // pictureless, and the preview's own warnings go with the render it never gets.
+          // Preview actions are rendered, never executed, so editor-settings ops are banned here under the same
+          // rule as inside variants. §1/§11.2: a misplaced one costs the PREVIEW, not the plan — the option
+          // stays, pictureless, and the preview's warnings go with the render it never gets.
           QStringList previewWarnings;
           QString scopeDrop;
           if (!parseActions(oo.value("actions"), opt.actions, previewWarnings,

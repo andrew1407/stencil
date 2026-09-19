@@ -65,10 +65,9 @@ namespace stencil::gui {
     QPointer<ConnectDialog> self(this);
     manager_->connectToAsync(url, tokenEdit_->text().trimmed(), [this, self, url](bool ok, QString err) {
       if (!self) return;
-      // A refused CREDENTIAL still leaves a row behind (the client is kept at
-      // Status::EXPIRED, with a Reconnect on it), so the fields that put it there are done
-      // — leaving them typed in invites adding the same server twice. An attempt that left
-      // NOTHING keeps its text, so a typo can be corrected where it was made.
+      // A refused CREDENTIAL still leaves a row behind (kept at Status::EXPIRED with a Reconnect), so
+      // the fields that put it there are done — leaving them typed invites adding the server twice.
+      // An attempt that left NOTHING keeps its text, so a typo can be corrected where it was made.
       if (!ok) emit toast(tr("Could not connect — %1").arg(err), true);
       if (ok || manager_->find(url)) {
         urlEdit_->clear();
@@ -165,12 +164,9 @@ namespace stencil::gui {
     }
   }
 
-  // Return connects, from wherever the focus is (browser twin: connectModal.js wires
-  // keydown on both fields). Handled HERE rather than on the fields: removing a row can
-  // leave the dialog with no focus widget at all (the trash button that had it died with
-  // its row), and QDialog's own default-button path needs a button still carrying the
-  // default flag, which autoDefault juggling takes away. Anything that genuinely wants
-  // Return accepts it first, so reaching here means nothing else claimed it.
+  // Return connects from wherever the focus is (browser twin: connectModal.js wires keydown on both
+  // fields). Handled HERE because removing a row can leave the dialog with no focus widget at all,
+  // and QDialog's default-button path needs a button that autoDefault juggling has not disarmed.
   void ConnectDialog::keyPressEvent(QKeyEvent* e) {
     if ((e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) &&
         !(e->modifiers() & ~Qt::KeypadModifier)) {

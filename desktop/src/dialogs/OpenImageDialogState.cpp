@@ -109,10 +109,9 @@ namespace stencil::gui {
   void OpenImageDialog::applyMode() {
     cancelPreviewDust();   // the outgoing tab's flourish does not play over the arriving one
     size_.previewCapH = 0;      // the arriving tab's picture is fitted afresh
-    // The OUTGOING tab's stage goes NOW: left standing, showPreview() below would call
-    // setOriginal() on it for the ARRIVING (differently shaped) picture, recomputing —
-    // and persisting — a rect from the OLD stage's stale aspect. syncQuickcropEnabled()
-    // rebuilds a correct one once the new picture has actually landed.
+    // The OUTGOING tab's stage goes NOW: left standing, showPreview() would call setOriginal() on it
+    // for the differently-shaped arriving picture and persist a rect from the OLD stage's stale aspect.
+    // syncQuickcropEnabled() rebuilds a correct one once the new picture has landed.
     if (cropStage_) {
       cropStage_->hide();
       cropStage_->deleteLater();

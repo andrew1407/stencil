@@ -16,10 +16,9 @@ namespace stencil::llm {
 
   namespace {
 
-    // Resolve a crop action's edge tokens to a pixel rect in rotated-original
-    // space — the same core cropSpec path the CLI's --crop drives
-    // (core/cliApi.cpp stencil_cli_resolveCrop), with the CLI's px-per-cm
-    // derivation (image dims over the page) and clamping.
+    // Resolve a crop action's edge tokens to a pixel rect in rotated-original space — the same core
+    // cropSpec path the CLI's --crop drives (core/cliApi.cpp stencil_cli_resolveCrop), with the CLI's
+    // px-per-cm derivation (image dims over the page) and clamping.
     bool resolveCrop(const Action& a, const QSize& imageSize, const core::PageSize& page,
                      core::CropRect& out, QString* err) {
       core::CropSpec spec;
@@ -60,13 +59,9 @@ namespace stencil::llm {
       return true;
     }
 
-    // Running model-frame → current-frame map (contract §1 coordinate
-    // re-mapping): plan coordinates are in the frame of the image the model was
-    // shown; earlier crop/rotate actions change that frame, so layout points go
-    // through this affine before drawing. Crop composes a translation by minus
-    // the resolved rect origin; rotate composes the app's own quarter-turn point
-    // mapping (core::rotateLinePointsQuarter). Ops that REBUILD the image
-    // (blank/frame/clear/openUrl) reset it — their result is a fresh frame.
+    // Running model-frame → current-frame map (contract §1): plan coordinates are in the frame of the
+    // image the model saw, and earlier crop/rotate actions change that frame. Crop composes a translation
+    // by minus the rect origin, rotate the quarter-turn map; blank/frame/clear/openUrl reset it.
     struct FrameMap {
       double a = 1, b = 0, c = 0, d = 1, tx = 0, ty = 0;
 

@@ -21,10 +21,9 @@ namespace stencil::gui {
   class CropPreview : public QWidget {
     Q_OBJECT
    public:
-    // `autoFitScreen`: the constructor's own screen-relative first fit (previewFitBox) —
-    // on for the standalone crop editor, which relies on it before its own resize logic
-    // runs; off for a caller that fits its own small box immediately after (OpenImageDialog's
-    // inline stage), so that box is the ONLY size this widget is ever asked to be.
+    // `autoFitScreen`: the constructor's own screen-relative first fit (previewFitBox) — on for the
+    // standalone crop editor, which relies on it; off for a caller that fits its own small box right
+    // after (OpenImageDialog's inline stage), so that box is the only size this widget is asked to be.
     CropPreview(const QImage& original, double pageWidthCm, double pageHeightCm,
                 const core::CropRect& initial, QWidget* parent = nullptr,
                 bool autoFitScreen = true);

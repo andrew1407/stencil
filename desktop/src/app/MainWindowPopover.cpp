@@ -91,9 +91,8 @@ namespace stencil::gui {
   void MainWindow::stopLingerPoll() { if (pop_.lingerPoll) pop_.lingerPoll->stop(); }
 
   // exec() a dialog centred, or as a compact popover when a gesture armed pop_.anchor; a nested
-  // dialog is not "outside".
-  // Fade the window out, then reject: the shrink-into-icon ghost shows only after unmap, so this
-  // avoids a blink. pop_.active drops first (re-entrancy).
+  // dialog is not "outside". Fade out before reject — the shrink-into-icon ghost shows only after
+  // unmap, so this avoids a blink. pop_.active drops first (re-entrancy).
   void MainWindow::dismissPopover() {
     if (!pop_.active) return;
     // The linger poll would otherwise spend the closing animation watching the floating chat dock.

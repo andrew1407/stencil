@@ -34,11 +34,9 @@ namespace stencil::gui {
     connect(save, &QPushButton::clicked, this, &QDialog::accept);
     footer->addWidget(save);
 
-    // The browser .app-modal width, PINNED (confirmModal does the same): under a
-    // SetMinimumSize layout constraint the dialog kept shrinking to its content —
-    // the constraint rewrites the widget's minimum every pass, clobbering even a
-    // setFixedWidth — so the constraint is gone and the width holds; the height
-    // still follows the visible rows (LlmSettingsForm::syncRows adjustSize()).
+    // The browser .app-modal width, PINNED (confirmModal does the same): under a SetMinimumSize layout
+    // constraint the dialog kept shrinking to its content — the constraint rewrites the minimum every
+    // pass, clobbering even setFixedWidth — so it is gone. The height still follows the visible rows.
     setFixedWidth(MODAL_WIDTH);
     form_->focusProvider();
   }

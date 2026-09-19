@@ -143,11 +143,9 @@ namespace stencil::gui {
     update();
   }
 
-  // Rebuild filteredImage_ from image_ per the active filter, spread over the thread
-  // pool by row. The pixel math itself lives once in core (shared with the WebAssembly
-  // browser build); the row split is the adapter's — core owns no threading policy.
-  // Format_RGBA8888 is the interleaved byte order core reads; it is also tightly
-  // packed at 4 bytes a pixel, so a row starts exactly at y * width * 4.
+  // Rebuild filteredImage_ from image_ per the active filter, spread over the thread pool by row.
+  // The pixel math lives once in core (shared with the wasm build); the row split is the adapter's.
+  // Format_RGBA8888 is core's byte order and is tightly packed, so a row starts at y * width * 4.
   void CanvasWidget::rebuildFilteredImage() {
     filterDirty_ = false;
     if (image_.isNull() || imageFilter_ == "none") {

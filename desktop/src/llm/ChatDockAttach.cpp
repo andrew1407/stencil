@@ -97,10 +97,9 @@ namespace stencil::gui {
       const QImage img = qvariant_cast<QImage>(mime->imageData());
       if (!img.isNull()) {
         images_.append(img);
-        // A web-drag delivers the bitmap plus its source URL: name the chip from
-        // the URL when its last segment is a real filename ("cat.jpg") — an
-        // endpoint segment ("…/images?q=…") stays unnamed and the chip shows the
-        // dimensions instead (browser fileNameForUrl parity).
+        // A web-drag delivers the bitmap plus its source URL: name the chip from the URL when its last
+        // segment is a real filename ("cat.jpg"). An endpoint segment ("…/images?q=…") stays unnamed and
+        // the chip shows the dimensions instead (browser fileNameForUrl parity).
         QString name;
         for (const QUrl& u : mime->urls()) {
           if (u.isLocalFile()) continue;

@@ -90,19 +90,15 @@ namespace stencil::gui {
     const core::PageSize page = cropPageDims();
     const double pw = page.width;
     const double ph = page.height;
-    // The tab's OWN last-dragged rect, if this is the same decode it was dragged on — a
-    // fresh centeredCrop() otherwise threw the drag away on every tab switch, even a round
-    // trip back to the exact same picture. Its own shape says Album or Portrait; the
-    // checkbox follows THAT, not the other way around, or restoring it would be overwritten
-    // by whatever the LAST tab happened to leave the toggle on.
+    // The tab's OWN last-dragged rect, if this is the same decode it was dragged on — a fresh
+    // centeredCrop() otherwise threw the drag away on every tab switch. Its own shape says Album or
+    // Portrait and the checkbox follows THAT, or a restore is overwritten by the last tab's toggle.
     const int tab = tabs_->currentIndex();
     const TabPreviewCache* cache = (tab == TabFile || tab == TabUrl) ? &tabCache_[tab] : nullptr;
     const bool hasSaved = cache && cache->cropRectValid && cache->previewImage.size() == previewImage_.size();
-    // The FIRST crop on this decode starts from ITS OWN orientation (showQuickcrop's own
-    // w>=h rule) — never cropAlbum_'s current state, which is a SINGLE checkbox shared by
-    // every tab and is whatever the LAST tab happened to leave it at. A restore reaching
-    // here via applyMode()'s quiet resync — not the fresh-load path that calls
-    // showQuickcrop — never gets that recompute otherwise.
+    // The FIRST crop on this decode starts from ITS OWN orientation (showQuickcrop's w>=h rule), never
+    // cropAlbum_'s current state — one checkbox shared by every tab. A restore arriving through
+    // applyMode()'s quiet resync, not the fresh-load path, never gets that recompute otherwise.
     const int iw = previewImage_.width(), ih = previewImage_.height();
     const bool defaultAlbum = (iw >= ih) && (iw > 0);
     const core::CropRect initial = hasSaved

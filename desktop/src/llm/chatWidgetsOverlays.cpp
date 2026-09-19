@@ -2,10 +2,9 @@
 
 namespace stencil::gui {
 
-  // Parented to the thumbnail: the filter dies with the row it belongs to.
-  // `minGain` — the preview only opens when it would be meaningfully BIGGER than
-  // the thumbnail you are already looking at. A 160px bubble thumbnail next to a
-  // 220px popup is just a second copy of the same picture.
+  // Parented to the thumbnail: the filter dies with the row it belongs to. `minGain` — the preview only
+  // opens when it would be meaningfully BIGGER than the thumbnail you are already looking at; a 160px
+  // bubble thumbnail next to a 220px popup is just a second copy of the same picture.
   HoverPreview::HoverPreview(QLabel* thumb, QImage full,
                              QString caption) : QObject(thumb), thumb_(thumb), full_(std::move(full)), caption_(std::move(caption)) {
     thumb->setAttribute(Qt::WA_Hover, true);
@@ -13,10 +12,9 @@ namespace stencil::gui {
   }
 
   bool HoverPreview::eventFilter(QObject* obj, QEvent* event) {
-    // While the popup is up the whole app is watched (installed in show):
-    // switching window or app never delivers the thumb a Leave, and a ToolTip
-    // window otherwise outlives the window it belongs to — still floating over
-    // OTHER apps after a Cmd-Tab.
+    // While the popup is up the whole app is watched (installed in show): switching window or app never
+    // delivers the thumb a Leave, and a ToolTip window otherwise outlives the window it belongs to —
+    // still floating over OTHER apps after a Cmd-Tab.
     if (popup_) {
       const QEvent::Type t = event->type();
       if (t == QEvent::WindowDeactivate || t == QEvent::ApplicationDeactivate ||
@@ -84,10 +82,9 @@ namespace stencil::gui {
       col->addWidget(cap);
     }
     popup_->adjustSize();
-    // BESIDE THE CURSOR, not anchored to the thumbnail: with the dock docked left,
-    // a preview placed off the thumbnail's own corner landed way across the window,
-    // nowhere near the pointer that asked for it. Flipped whenever the obvious side
-    // would run off the screen.
+    // BESIDE THE CURSOR, not anchored to the thumbnail: with the dock docked left, a preview placed off
+    // the thumbnail's own corner landed across the window, nowhere near the pointer that asked for it.
+    // Flipped whenever the obvious side would run off the screen.
     const QPoint cursor = QCursor::pos();
     const QRect screen = thumb_->screen() ? thumb_->screen()->availableGeometry()
                                           : QRect(cursor - QPoint(400, 300), QSize(800, 600));
@@ -154,10 +151,9 @@ namespace stencil::gui {
     if (obj == card_) {
       switch (event->type()) {
         case QEvent::Enter:
-          // show FIRST, then place: placement is the authority on whether the
-          // button may appear at all (it hides one that would be clipped out
-          // of view or land across a neighbouring row), so showing after it
-          // would override its own refusal.
+          // show FIRST, then place: placement is the authority on whether the button may appear at all (it
+          // hides one that would be clipped out of view or land across a neighbouring row), so showing after
+          // it would override its own refusal.
           more_->show();
           place();
           break;

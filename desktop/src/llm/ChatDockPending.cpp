@@ -48,10 +48,9 @@ namespace stencil::gui {
     pendingBody_->setText(QStringLiteral("Stopped."));
     pendingBody_->setProperty("chatBody", QStringLiteral("Stopped."));
     pendingCard_->setObjectName(QStringLiteral("chatCardError"));
-    // A stylesheet is matched when the widget is POLISHED, so renaming it afterwards
-    // changes nothing until the style is re-run — which is why the stopped card kept
-    // the assistant bubble's frame and text while only its (programmatically tinted)
-    // retry glyph turned red.
+    // A stylesheet is matched when the widget is POLISHED, so renaming it afterwards changes nothing
+    // until the style is re-run — which is why the stopped card kept the assistant bubble's frame and
+    // text while only its programmatically tinted retry glyph turned red.
     repolish(pendingCard_);
     for (QLabel* l : pendingCard_->findChildren<QLabel*>()) repolish(l);
     // The browser renders a stopped turn with .chat-msg-error and the extension with

@@ -135,10 +135,9 @@ namespace stencil::gui {
     }
 
     auto* submit = new QPushButton(QStringLiteral("Submit"), card);
-    // The affirmative action of the card, so it wears the app's accent CTA face
-    // (theme.cpp QPushButton[accentCta="true"]) and the same hover sweep every other
-    // button in the app carries — the browser's twin is a plain <button>, which gets both
-    // for free from its shared rules (css/layout.css, .chat-ask-submit).
+    // The affirmative action of the card, so it wears the app's accent CTA face (theme.cpp
+    // QPushButton[accentCta="true"]) and the same hover sweep every other button carries — the
+    // browser's twin is a plain <button>, which gets both for free from its shared rules.
     submit->setProperty("accentCta", true);
     installHoverShimmer(submit);
     submit->setEnabled(false);

@@ -66,12 +66,9 @@ namespace stencil::gui {
       rm->setText(QStringLiteral("×"));
       rm->setAccessibleName(QStringLiteral("Remove attachment"));  // no tooltip — the × says it
       rm->setCursor(Qt::PointingHandCursor);
-      // The chip scatters AND fades, and the tray only rebuilds once it has gone —
-      // rebuilding immediately snapped the composer to its new height while the
-      // particles were still in the air, so the input jumped under the cursor.
-      // The neighbours' slide is HELD back briefly and eased in: fadeOutAndDelete's
-      // hide() released the layout slot the instant the fade ended, so the next chip
-      // snapped over while the dust was still flying (user feedback: too fast).
+      // The chip scatters AND fades, and the tray only rebuilds once it has gone — rebuilding at once
+      // snapped the composer to its new height mid-flight and the input jumped under the cursor. The
+      // neighbours' slide is held back and eased in, or the next chip snaps over the dust (user feedback).
       connect(rm, &QToolButton::clicked, this, [this, remove, chip] {
         if (chip->property("chatChipLeaving").toBool()) return;   // one click is enough
         chip->setProperty("chatChipLeaving", true);

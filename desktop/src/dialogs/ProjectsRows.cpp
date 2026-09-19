@@ -56,10 +56,9 @@ namespace stencil::gui {
                                     list_->palette().color(QPalette::Text));
     for (QListWidgetItem* it : doomed)
       retireRow(it);   // blank the real row at once; its slot outlives the dust
-    // …and the bar answers NOW, beside the rows' dust, not after it: retireRow has already
-    // dropped these rows from the checked set and taken their flags, so the count, the
-    // buttons and Select all come apart in the SAME turn the rows do, not a flight later.
-    // Connections dialog parity.
+    // …and the bar answers NOW, beside the rows' dust, not after it: retireRow has already dropped these
+    // rows from the checked set, so the count, the buttons and Select all come apart in the SAME turn
+    // the rows do, not a flight later. Connections dialog parity.
     updateBatchBar();
   }
 

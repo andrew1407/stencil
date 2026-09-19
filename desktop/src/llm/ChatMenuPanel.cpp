@@ -164,10 +164,9 @@ namespace stencil::gui {
     while (rowsAdded_.size() > CHAT_HISTORY_BOUND) dissolveRow(rowsAdded_.takeFirst());
     applyChatBubbleWidths(body_, scroll_);   // the dock's wrap/measure pass
     scrollToBottom();
-    // …and only THEN it arrives out of its own dust, the leave played backwards (the
-    // dock's animateCardIn / browser motion.js chatIn). Measured widths AND the scroll
-    // first: the gather is a photograph, and a row measured before either has landed is
-    // either the wrong size or in the wrong place.
+    // …and only THEN it arrives out of its own dust, the leave played backwards (the dock's
+    // animateCardIn / browser motion.js chatIn). Measured widths AND the scroll first: the gather is a
+    // photograph, and a row measured before either has landed is the wrong size or in the wrong place.
     gatherRow(card);
   }
 
@@ -204,10 +203,9 @@ namespace stencil::gui {
     addChatRetryButton(lay, muted_, cb);
   }
 
-  // The shared unreachable-card CTA (ChatDock.cpp addChatConfigureCta). Opening the
-  // dialog closes this popup first (a modal fights the popup's own grab) — so the
-  // CTA's global rect is captured HERE, while it is still on screen, and rides
-  // through onSettings_ as the reveal's fallback anchor.
+  // The shared unreachable-card CTA (ChatDock.cpp addChatConfigureCta). Opening the dialog closes this
+  // popup first (a modal fights the popup's grab), so the CTA's global rect is captured HERE while it
+  // is still on screen and rides through onSettings_ as the reveal's fallback anchor.
   void ChatMenuPanel::addConfigure(QFrame* card) {
     auto* lay = qobject_cast<QVBoxLayout*>(card->layout());
     if (!lay) return;

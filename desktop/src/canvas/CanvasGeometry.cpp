@@ -68,11 +68,9 @@ namespace stencil::gui {
                                     bool highlight, bool live) const {
     if (line.points.empty()) return;
 
-    // A vertex added a moment ago is drawn where it is RIGHT NOW; everything below —
-    // fill, glows, stroke, points — reads this polygon, so the segments hanging off a
-    // moving vertex follow it for free.
-    // One buffer for every line in the frame: QPolygonF keeps its capacity, so a repaint
-    // of fifty lines no longer allocates fifty vectors.
+    // A vertex added a moment ago is drawn where it is RIGHT NOW; fill, glows, stroke and points all
+    // read this polygon, so segments hanging off a moving vertex follow it for free. One buffer per
+    // frame: QPolygonF keeps its capacity, so fifty lines no longer allocate fifty vectors.
     static thread_local QPolygonF polyBuf;
     flownPolygon(line, lineIdx, scale, live, polyBuf);
     const QPolygonF& poly = polyBuf;
