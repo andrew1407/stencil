@@ -14,7 +14,7 @@
     "vscode-extension/src/lib/scriptCheck.js": 49,
     "vscode-extension/src/lib/shellQuote.js": 45,
     "vscode-extension/src/lib/terminal.js": 36,
-    "vscode-extension/src/parser/index.js": 43
+    "vscode-extension/src/parser/index.js": 39
   },
   "commentPct": {
     "vscode-extension/src": 9,

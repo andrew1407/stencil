@@ -13,7 +13,7 @@
     "cli/src/console/remoteEvents.zig": 25,
     "cli/src/console/screen.zig": 213,
     "cli/src/console/session.zig": 196,
-    "cli/src/console/ui.zig": 209,
+    "cli/src/console/ui.zig": 208,
     "cli/src/line_edit.zig": 207,
     "cli/src/llm/opSchema.zig": 183,
     "cli/src/llm/opplan.zig": 39,
