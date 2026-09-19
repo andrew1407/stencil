@@ -40,9 +40,8 @@ pub const extractReply = reply.extractReply;
 const testing = std.testing;
 
 test "buildRequest: the canonical system prompt, its §7 suffix, and empty-history equivalence" {
-    // The §6 mappings (url, auth, body shape, history and image order) are walked from the
-    // shared corpus by tests/provider_wire_fixtures_test.zig; only what no corpus case can
-    // reach is asserted here.
+    // The §6 mappings (url, auth, body shape, history and image order) are walked from the shared corpus
+    // by tests/provider_wire_fixtures_test.zig; only what no corpus case can reach is asserted here.
     const a = testing.allocator;
     var cfg = try Config.init(a, .{ .model = "llava" });
     defer cfg.deinit(a);

@@ -28,9 +28,8 @@ pub const max_image_bytes: usize = 8 * 1024 * 1024;
 pub const Dir = enum { left, right };
 pub const FilterMode = enum { none, bw, sepia, invert, contour, custom };
 
-/// The crop edges as the contract's cropSpec token strings (arena-owned). `aspect` is
-/// the strict `W:H` token; `album` is the console-only §10 spec key (derive the missing
-/// axis from the page, landscape — the `/crop … album` modifier).
+/// The crop edges as the contract's cropSpec token strings (arena-owned). `aspect` is the strict
+/// `W:H` token; `album` is the console-only §10 key (derive the missing axis from the page, landscape).
 pub const CropEdges = struct {
     x1: ?[]const u8 = null,
     x2: ?[]const u8 = null,
@@ -40,9 +39,8 @@ pub const CropEdges = struct {
     album: bool = false,
 };
 
-/// One validated action (§2), already cleaned: `frame` normalizes index/indices to one
-/// list; `layout` keeps its validated lines re-serialized as a JSON array string (the
-/// shape `/apply` consumes). All slices arena-owned by the Plan.
+/// One validated action (§2), already cleaned: `frame` normalizes index/indices to one list, `layout`
+/// keeps its lines re-serialized as a JSON array string. All slices arena-owned by the Plan.
 pub const Action = union(enum) {
     crop: CropEdges,
     rotate: struct { dir: Dir, times: u8 },
@@ -61,14 +59,12 @@ pub const Action = union(enum) {
     undo: struct { steps: u8 },
     redo: struct { steps: u8 },
     reset,
-    // §2.1 multi-image ops (top-level only): switch to the turn's Nth attachment /
-    // persist the current image + layout. `name` is "" when the model left it out —
-    // the executor then derives one from the active attachment.
+    // §2.1 multi-image ops (top-level only): switch to the turn's Nth attachment / persist the current
+    // image + layout. `name` is "" when the model left it out, and the executor derives one.
     image: struct { index: u32 },
     save: struct { name: []const u8, path: []const u8 },
-    // Console-settings ops (the §10-analog profile above): they adjust the CONSOLE, not
-    // the image. `server`/`path` are the model's raw strings — the executor resolves
-    // them against the user's own connections / the /delete guards, warnings not errors.
+    // Console-settings ops (the §10-analog profile) adjust the CONSOLE, not the image. `server`/`path`
+    // are the model's raw strings — the executor resolves them, warnings rather than errors.
     accent: struct { color: []const u8, preset: []const u8 }, // exactly one non-empty (§10)
     connect: struct { server: []const u8 },
     disconnect: struct { server: []const u8 },
@@ -108,9 +104,8 @@ pub const Variant = struct {
     actions: []Action,
 };
 
-/// One choice on an `ask` card (§11). A console cannot show a picture, so an option's
-/// preview is dropped at parse time and only the label survives (§11.4); the option
-/// itself is NEVER dropped.
+/// One choice on an `ask` card (§11). A console cannot show a picture, so an option's preview is
+/// dropped at parse time and only the label survives (§11.4); the option itself is NEVER dropped.
 pub const AskOption = struct {
     label: []const u8,
 };
@@ -150,10 +145,8 @@ pub const Plan = struct {
         return false;
     }
 
-    /// §7 auto-continuation: true when the plan LOADED a picture the model has not seen
-    /// (`blank`/`openUrl` — `frame` is a plan error here) and drew NO layout: outlining
-    /// needs pixels, and a plan that placed lines committed to them (the browser's
-    /// planLoadsWithoutTracing).
+    /// §7 auto-continuation: true when the plan LOADED a picture the model has not seen (`blank`/
+    /// `openUrl`) and drew NO layout — the browser's planLoadsWithoutTracing.
     pub fn loadsWithoutTracing(self: *const Plan) bool {
         var loads = false;
         for (self.actions) |a| switch (a) {
@@ -165,9 +158,8 @@ pub const Plan = struct {
     }
 };
 
-/// Resolve what the user typed at an `ask` card (§11.3/§11.4: a console answers by
-/// NUMBER — "2", or "1,3" when multi-select) into the joined labels, gpa-owned. Null =
-/// not a selection, which is no error: the reply goes to the model as typed.
+/// Resolve what the user typed at an `ask` card (§11.3/§11.4: a console answers by NUMBER — "2", or
+/// "1,3" when multi-select) into the joined labels. Null = not a selection, which is no error.
 pub fn resolveAskAnswer(
     gpa: std.mem.Allocator,
     options: [][]u8,
@@ -200,9 +192,8 @@ pub fn resolveAskAnswer(
     return try out.toOwnedSlice(gpa);
 }
 
-// registry.zig's table is NOT a copy of opRegistry.json: it adds the `Action` tag, the
-// verbatim §4 bullets and the capability, none of which the JSON carries. Only the op
-// NAMES overlap, and nothing comptime can pin them (the schema is parsed at runtime).
+// registry.zig's table is NOT a copy of opRegistry.json: it adds the `Action` tag, the verbatim §4
+// bullets and the capability. Only the op NAMES overlap, and the schema is parsed at runtime.
 test "every op name has both a schema entry and an executor descriptor" {
     for (opSchema.get().entries) |e| try testing.expect(findOp(e.name) != null);
     for (op_registry) |d| try testing.expect(opSchema.get().find(d.name) != null);

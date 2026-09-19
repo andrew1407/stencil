@@ -18,16 +18,8 @@ pub const PageMeta = struct {
     formula_y: []const u8 = "",
 };
 
-/// Build a browser-compatible layout JSON envelope:
-/// {imageWidth,imageHeight,lines[,imageFilter][,filterColor][,cropRect][,rotationQuarters]
-///  [,pageSize][,customPageWidth][,customPageHeight][,allowFormulas][,formulaX][,formulaY]}.
-/// `lines_json` is a ready JSON array string ("[]" when empty), written raw. The optional
-/// fields are omitted when empty/zero, matching browser layout.js buildLayoutPayload.
-/// std.json.Stringify owns the escaping, so no field value can break out of its string.
-/// Pure; caller owns the result.
-/// One request body, serialized from a struct. std.json owns the escaping, so a project
-/// name (or keyword, or description) holding a quote or a control byte can never break out
-/// of its field. Caller owns the result.
+/// One request body, serialized from a struct. std.json owns the escaping, so a project name, keyword
+/// or description holding a quote or a control byte can never break out of its field. Caller owns it.
 pub fn body(gpa: std.mem.Allocator, value: anytype) ![]u8 {
     return std.json.Stringify.valueAlloc(gpa, value, .{});
 }

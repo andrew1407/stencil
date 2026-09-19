@@ -99,9 +99,8 @@ test "spliceAccent: the wipe seam lands on a visible column, each side in its ow
     const new_a = "\x1b[38;2;1;1;1m";
     const old_a = "\x1b[38;2;9;9;9m";
 
-    // A scrollback line (same rendering both sides): the sentinel before the seam expands to the
-    // new accent, the one after it to the old — that is the colour "covering" the previous one.
-    // (the old side replays the escapes it skipped over, so its span starts in the right state)
+    // The sentinel before the seam expands to the new accent, the one after it to the old — the colour
+    // "covering" the previous one; the old side replays the escapes it skipped over.
     const line = "\x01ab\x01cd";
     try testing.expectEqualStrings(
         new_a ++ "ab" ++ old_a ++ old_a ++ "cd" ++ "\x1b[0m",
@@ -127,10 +126,8 @@ test "spliceSpans: each stretch lands on visible columns, in its own accent" {
     const new_a = "\x1b[38;2;1;1;1m";
     const old_a = "\x1b[38;2;9;9;9m";
 
-    // A scrollback line (same rendering both sides): the sentinel inside the swept stretch
-    // expands to the new accent, the one after it to the old — that is the colour "covering"
-    // the previous one. (the old side replays the escapes it skipped over, so its stretch
-    // starts in the right state)
+    // The sentinel inside the swept stretch expands to the new accent, the one after it to the old;
+    // the old side replays the escapes it skipped, so its stretch starts in the right state.
     const line = "\x01ab\x01cd";
     try testing.expectEqualStrings(
         new_a ++ "ab" ++ old_a ++ old_a ++ "cd" ++ "\x1b[0m",

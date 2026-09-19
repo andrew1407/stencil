@@ -1,9 +1,8 @@
-//! Golden pins for every rendered terminal surface: `--help`, the logo art, and the console
-//! listings (intro, /help, /theme, /filter, /format, /projects). Each render is captured
-//! through logo.zig's sink seam — the same one the full-screen console installs — and
-//! compared byte-for-byte with tests/pins/<name>.<variant>.txt, SGR escapes included: they
-//! are user-visible output, so the console layer can only be split apart if not one
-//! character moves. `STENCIL_UPDATE_PINS=1 zig build test` rewrites the goldens.
+//! Golden pins for every rendered terminal surface: `--help`, the logo art, and the console listings
+//! (intro, /help, /theme, /filter, /format, /projects). Each render is captured through logo.zig's sink
+//! seam — the same one the full-screen console installs — and compared byte-for-byte with
+//! tests/pins/<name>.<variant>.txt, SGR escapes included: they are user-visible output.
+//! `STENCIL_UPDATE_PINS=1 zig build test` rewrites the goldens.
 const std = @import("std");
 const logo = @import("../src/logo.zig");
 const theme = @import("../src/theme.zig");
@@ -14,9 +13,8 @@ const Session = @import("../src/console/session.zig").Session;
 const testing = std.testing;
 
 const pins_dir = "tests/pins"; // `zig build test` runs with cwd = cli/
-// The terminal the pins are rendered at. Nothing captured here wraps to the width today
-// (only screen.zig's viewport consults the real one), so this fixes it explicitly: a
-// renderer that starts wrapping shows up as a diff instead of as a machine-dependent pin.
+// The terminal width the pins are rendered at. Nothing captured here wraps today, so fixing it
+// explicitly makes a renderer that starts wrapping show up as a diff, not a machine-dependent pin.
 const pin_cols = 100;
 
 // Collects logo.print output through the sink seam the full-screen console installs.
@@ -188,9 +186,8 @@ fn addRow(
     });
 }
 
-// One local server's projects: a plain row, a name long enough to widen the NAME column
-// next to a description long enough to be ellipsized, an expiring one, an expired one,
-// and a coloured project with no stored size.
+// One local server's projects: a plain row, a name long enough to widen the NAME column beside an
+// ellipsized description, an expiring one, an expired one, and a coloured project with no stored size.
 fn renderProjects(a: std.mem.Allocator) anyerror!void {
     var rows: std.ArrayList(projectsTable.ProjectRow) = .empty;
     defer projectsTable.freeRows(a, &rows);

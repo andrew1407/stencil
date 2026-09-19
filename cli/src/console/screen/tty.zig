@@ -46,9 +46,6 @@ pub fn pushChunk(gpa: std.mem.Allocator, dst: *std.ArrayList([]u8), pending: *st
     }
 }
 
-/// Parse a `/reveal-speed` value: a number on the 0.01 … 1 scale, where 1 means "instantly" and
-/// smaller is slower. Null for anything unparseable or out of range — 0 included, since a
-/// speed of zero is an animation that never ends; 0.01 is as slow as the scale goes.
 const testing = std.testing;
 
 test "pushChunk: splits on newline, drops CR, buffers partials" {

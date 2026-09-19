@@ -43,9 +43,8 @@ pub fn perCallUs(io: std.Io, label: []const u8, rounds: usize, ctx: anytype, com
     return us;
 }
 
-/// The tally behind the only assertions a bench run makes. A ratio between two sizes of the
-/// SAME call catches an algorithmic regression; a wall-clock threshold would just catch a
-/// busy machine. Failures are counted, not thrown, so one regression still prints the rest.
+/// The tally behind the only assertions a bench run makes: a ratio between two sizes of the SAME
+/// call catches an algorithmic regression where a wall-clock threshold would catch a busy machine.
 pub const Ratios = struct {
     failures: usize = 0,
 

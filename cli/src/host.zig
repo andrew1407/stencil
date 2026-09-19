@@ -47,9 +47,8 @@ pub fn hostOf(url: []const u8) ?[]const u8 {
     return if (a.host.len == 0) null else a.host;
 }
 
-/// True for a loopback host — `localhost` / `*.localhost`, `127.0.0.0/8` (in any numeric
-/// form) or `::1`, with or without IPv6 brackets. The ONE textual loopback classifier:
-/// the fetch guard's strict mode and serverClient's cleartext check share it.
+/// True for a loopback host — `localhost`/`*.localhost`, `127.0.0.0/8` in any numeric form, or `::1`.
+/// The ONE textual loopback classifier: the fetch guard's strict mode and serverClient share it.
 pub fn isLoopbackHost(raw: []const u8) bool {
     const host = if (raw.len >= 2 and raw[0] == '[' and raw[raw.len - 1] == ']') raw[1 .. raw.len - 1] else raw;
     if (std.ascii.eqlIgnoreCase(host, "localhost")) return true;
@@ -72,16 +71,8 @@ fn isLoopbackV6(b: [16]u8) bool {
     return std.mem.eql(u8, &b, &[_]u8{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }); // ::1
 }
 
-/// True when `host` names a private / link-local / cloud-metadata / reserved target that a
-/// fetch of untrusted image/layout URLs must never reach (SSRF guard). Blocks IP literals —
-/// metadata, link-local, RFC1918, CGNAT, ULA, reserved — including the alternate numeric
-/// encodings (decimal/hex/octal/short-dotted) a resolver would accept.
-/// `strict` ALSO blocks loopback (`127.0.0.0/8`, `::1`, `localhost`): pass it for sub-resource
-/// URLs harvested from untrusted scanned content, which must never reach a host they named.
-/// A URL the user typed may reach loopback — the CLI's own trust domain (dev/fixture servers).
-/// This is the literal check; `request` also resolves DNS names (`hostResolvesToBlocked`). The
-/// server-connect path is intentionally exempt (users name their own servers) — see
-/// `RequestOptions.allow_named_host`.
+/// SSRF literal check — private / link-local / metadata / reserved hosts, including the alternate
+/// numeric encodings a resolver accepts; `strict` adds loopback. DNS: `hostResolvesToBlocked`.
 pub fn isBlockedFetchHost(host: []const u8, strict: bool) bool {
     if (host.len == 0) return true;
     // IP literal (dotted-quad / IPv6)? Classify it.
@@ -91,10 +82,8 @@ pub fn isBlockedFetchHost(host: []const u8, strict: bool) bool {
             .ip6 => |v6| isBlockedV6(v6.bytes, strict),
         };
     } else |_| {}
-    // Alternate numeric IPv4 encodings that IpAddress.parse rejects but a libc/getaddrinfo
-    // resolver would accept — a plain decimal (`2852039166`), hex (`0xA9FEA9FE`), octal, or
-    // short-dotted (`10.0`, `0x7f.1`) form of an internal address. Canonicalize + classify
-    // so these can't smuggle 169.254.169.254 et al. past the guard.
+    // Alternate numeric IPv4 encodings IpAddress.parse rejects but a libc resolver accepts — decimal,
+    // hex, octal, short-dotted. Canonicalized and classified so they cannot smuggle 169.254.169.254.
     if (parseInetAtonV4(host)) |v4| return isBlockedV4(v4, strict);
     // The loopback NAMES (strict only — names, so IpAddress.parse missed them).
     if (strict and isLoopbackHost(host)) return true;
@@ -102,9 +91,8 @@ pub fn isBlockedFetchHost(host: []const u8, strict: bool) bool {
     return false;
 }
 
-/// True when `host` is any IP form (literal or an alternate numeric encoding) rather than a
-/// DNS name — used to skip the resolution check for something `isBlockedFetchHost` already
-/// classified directly.
+/// True when `host` is any IP form (literal or an alternate numeric encoding) rather than a DNS
+/// name — used to skip the resolution check for what `isBlockedFetchHost` already classified.
 pub fn isNumericHost(host: []const u8) bool {
     if (std.Io.net.IpAddress.parse(host, 0)) |_| return true else |_| {}
     return parseInetAtonV4(host) != null;
@@ -120,9 +108,8 @@ fn parseAtonPart(s: []const u8) ?u64 {
     return std.fmt.parseInt(u64, s, 10) catch null;
 }
 
-/// Emulate `inet_aton` for 1–4 numeric parts (each decimal/hex/octal), returning the packed
-/// IPv4 bytes, or null when `host` isn't a numeric IPv4 form. Covers the encodings resolvers
-/// accept but `IpAddress.parse` (dotted-decimal only) rejects.
+/// Emulate `inet_aton` for 1–4 numeric parts (each decimal/hex/octal) into packed IPv4 bytes, else
+/// null: the encodings resolvers accept but `IpAddress.parse` (dotted-decimal only) rejects.
 fn parseInetAtonV4(host: []const u8) ?[4]u8 {
     if (host.len == 0 or !std.ascii.isDigit(host[0])) return null; // must start with a digit
     var parts: [4]u64 = undefined;
@@ -158,11 +145,8 @@ fn parseInetAtonV4(host: []const u8) ?[4]u8 {
     };
 }
 
-/// Resolve `host` via DNS and return true if ANY resolved address is an internal/blocked
-/// target. This closes the "hostname with an internal A/AAAA record" SSRF vector that the
-/// literal check can't see. (A residual remains: an attacker who flips the record between
-/// this lookup and the client's own connect — active DNS rebinding — since std.http.Client
-/// re-resolves the URL itself; the redirect refusal below still blocks the 30x variant.)
+/// Resolve `host` and return true if ANY resolved address is blocked — the "hostname with an internal
+/// A/AAAA record" vector. Active DNS rebinding remains: std.http.Client re-resolves the URL itself.
 pub fn hostResolvesToBlocked(io: std.Io, host: []const u8, strict: bool) bool {
     const hn = std.Io.net.HostName.init(host) catch return false;
     var buf: [32]std.Io.net.HostName.LookupResult = undefined;

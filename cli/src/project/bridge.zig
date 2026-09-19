@@ -16,11 +16,8 @@ const parse = codec.parse;
 const build = codec.build;
 const isStencilPath = codec.isStencilPath;
 
-/// Load a `.stencil` at `path` (local file or http(s) URL) into `session`: read its bytes, parse,
-/// decode the embedded ORIGINAL image, hand it to the session (retaining the encoded source bytes
-/// for lossless re-bundling), then adopt its layout. Returns the parsed Project so callers can
-/// read its metadata — the caller owns it and must call deinit(). On any failure a message is
-/// printed and the error is returned.
+/// Load a `.stencil` at `path` (local file or http(s) URL) into `session`, retaining the encoded source
+/// bytes for lossless re-bundling, then adopt its layout. Caller owns the returned Project (deinit).
 pub fn loadInto(session: *Session, io: std.Io, path: []const u8) !Project {
     const bytes = try pipeline.loadLayoutBytes(session.gpa, io, path); // prints its own error
     defer session.gpa.free(bytes);
@@ -67,10 +64,8 @@ pub const SaveMeta = struct {
     blank_color: []const u8 = "",
 };
 
-/// Bundle the session's current ORIGINAL image + layout + `meta` into a `.stencil` at `path`.
-/// Embeds the untouched source bytes verbatim when present (lossless), else re-encodes from
-/// pixels for a synthetic original (blank/clipboard/peer). Prints the `wrote … (project)` line on
-/// success (or an error) and returns any error. Assumes `session.original != null` (guard first).
+/// Bundle the session's ORIGINAL image + layout + `meta` into a `.stencil` at `path`: the untouched
+/// source bytes verbatim when present, else re-encoded from pixels. Assumes `session.original != null`.
 pub fn saveInto(session: *Session, io: std.Io, path: []const u8, meta: SaveMeta) !void {
     if (pipeline.hasParentTraversal(path)) {
         report.err("refusing to write to a path that escapes the working directory: '{s}'\n", .{path});

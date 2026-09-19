@@ -6,9 +6,8 @@ const logo = @import("../logo.zig");
 const theme = @import("../theme.zig");
 const project = @import("../project.zig");
 
-/// One rendered project row; all fields owned so rows outlive the per-server lists they came
-/// from. `color` is the project's custom name colour ("" = none → paint in the theme accent);
-/// `description` is the free-text caption ("" = none → shown as a trailing dimmed note).
+/// One rendered project row, all fields owned so rows outlive the per-server lists they came from.
+/// `color` "" = none (paint in the theme accent); `description` "" = none (else a dimmed note).
 pub const ProjectRow = struct { name: []u8, size: []u8, created: []u8, expires: []u8, changed: []u8, color: []u8, description: []u8, server: []const u8 };
 
 pub fn freeRows(gpa: std.mem.Allocator, rows: *std.ArrayList(ProjectRow)) void {
@@ -78,8 +77,7 @@ pub fn renderTable(gpa: std.mem.Allocator, rows: []const ProjectRow, multi: bool
 }
 
 /// Print one table row, padding each non-final column to its width. `name_seq` colours the NAME
-/// column ("" = plain); a non-empty `desc` is appended as a trailing dimmed note (truncated).
-/// Best-effort.
+/// column ("" = plain); a non-empty `desc` is appended as a trailing dimmed note. Best-effort.
 fn printRow(gpa: std.mem.Allocator, name: []const u8, name_seq: []const u8, nw: usize, size: []const u8, sw: usize, created: []const u8, crw: usize, expires: []const u8, erw: usize, changed: []const u8, cw: usize, srv: ?[]const u8, desc: []const u8) void {
     var line: std.ArrayList(u8) = .empty;
     defer line.deinit(gpa);
@@ -125,9 +123,8 @@ fn appendCol(gpa: std.mem.Allocator, line: *std.ArrayList(u8), text: []const u8,
     while (i < width + 2) : (i += 1) line.append(gpa, ' ') catch return;
 }
 
-/// Like appendCol for the NAME column, wrapping the (visible) name in `seq`…reset when a colour
-/// is given. Padding is computed from the VISIBLE name length — the SGR escapes have zero
-/// display width — so the columns stay aligned. Best-effort.
+/// Like appendCol for the NAME column, wrapping the name in `seq`…reset when a colour is given.
+/// Padding counts the VISIBLE name length — SGR escapes have zero display width — so columns align.
 fn appendName(gpa: std.mem.Allocator, line: *std.ArrayList(u8), name: []const u8, seq: []const u8, width: usize) void {
     const on = seq.len != 0;
     if (on) line.appendSlice(gpa, seq) catch {};

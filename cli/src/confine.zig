@@ -1,9 +1,6 @@
-//! Output-path guards shared by the one-shot pipeline and the scraper.
-//!
-//! `..` traversal is refused always. `--confine-output` adds the rest — an absolute path
-//! or a `~` home reference — for the mcp and bot adapters, which shell out to this CLI and
-//! forward LLM-chosen paths. It is OFF by default: a human at a terminal writes wherever
-//! they name.
+//! Output-path guards shared by the one-shot pipeline and the scraper. `..` traversal is refused
+//! always; `--confine-output` adds the rest (an absolute path, a `~` home reference) for the mcp
+//! and bot adapters, which forward LLM-chosen paths. OFF by default: a human writes where they name.
 const std = @import("std");
 
 /// True when `path` has a ".." component (on either separator) that could climb

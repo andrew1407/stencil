@@ -23,10 +23,8 @@ pub fn readImage(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     };
 }
 
-// macOS: NSPasteboard through JXA (`osascript -l JavaScript`), which every macOS ships. The
-// script writes a PNG to OUT and echoes "ok"; the three sources it tries, in order, are the
-// board's PNG data, its TIFF data (re-encoded — 4 is NSPNGFileType), and an image file copied
-// in Finder (public.file-url).
+// macOS: NSPasteboard through JXA (`osascript -l JavaScript`). The script writes a PNG to OUT and
+// echoes "ok"; its sources, in order, are board PNG, board TIFF (4 = NSPNGFileType), file URL.
 const mac_js_head =
     \\ObjC.import('AppKit');
     \\var OUT = '
@@ -134,9 +132,8 @@ fn readWindows(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     return dir.readFileAlloc(io, path, gpa, .limited(MAX_IMAGE)) catch return Error.NoImage;
 }
 
-/// Read the clipboard's TEXT as owned bytes (caller frees) — what Ctrl-V falls back to when
-/// the board holds no picture. Empty (or no tool) reads as `NoImage`, the "nothing to take"
-/// case, so the caller can say one thing about an empty clipboard.
+/// Read the clipboard's TEXT as owned bytes — what Ctrl-V falls back to when the board holds no
+/// picture. Empty (or no tool) reads as `NoImage`, the "nothing to take" case.
 pub fn readText(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     const argv: []const []const u8 = switch (builtin.os.tag) {
         .macos => &.{"pbpaste"},

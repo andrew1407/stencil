@@ -111,9 +111,8 @@ fn writeRoleContent(js: *std.json.Stringify, role: []const u8, content: []const 
     try js.endObject();
 }
 
-/// The shared §6.1/§6.2 chat-body prologue: model/stream/messages + system + history +
-/// the user message opened up to its `content` value (where the two mappings differ).
-/// Balanced by `closeChatBody`.
+/// The shared §6.1/§6.2 chat-body prologue: model/stream/messages + system + history + the user
+/// message opened up to its `content` value (where the two mappings differ). Balanced by `closeChatBody`.
 fn openChatBody(js: *std.json.Stringify, cfg: *const Config, system: []const u8, history: []const Turn) std.json.Stringify.Error!void {
     try js.beginObject();
     try js.objectField("model");

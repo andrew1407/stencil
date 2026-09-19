@@ -23,10 +23,8 @@ pub fn helloFrame(gpa: std.mem.Allocator, token: []const u8, project_id: []const
     );
 }
 
-/// A parsed project-update event from the global feed. Caller owns id + name.
-/// `version` is the server's monotonic edit counter (used internally as the pull guard,
-/// never shown to the user); `updated_at` is the change's epoch-ms timestamp (0 when the
-/// frame omits it); `deleted` is true for a "deleted" event rather than an edit.
+/// A parsed project-update event from the global feed (caller owns id + name). `version` is the server's
+/// monotonic edit counter, used as the pull guard and never shown; `deleted` marks a delete event.
 pub const Event = struct {
     id: []u8,
     name: []u8,
@@ -80,15 +78,13 @@ pub const EditConn = struct {
     /// Connect to the edit port, authenticate with a hello (empty projectId = global
     /// feed), and bound reads with a short receive timeout so draining never stalls.
     pub fn open(gpa: std.mem.Allocator, io: std.Io, base: []const u8, token: []const u8, client_id: []const u8) !EditConn {
-        // The events feed is a plaintext TCP socket; it can't speak TLS, so when the
-        // server is reached over https (its edit channel is TLS-wrapped too) we skip
-        // the live feed rather than dial the wrong port. REST/sync still work over TLS.
+        // The events feed is a plaintext TCP socket and cannot speak TLS, so over https we skip the live feed
+        // rather than dial the wrong port. REST and sync still work over TLS.
         if (std.ascii.startsWithIgnoreCase(base, "https://")) return Error.TlsNotSupported;
         const hp = hostAndPort(base);
         const port = editPort(hp.port);
-        // IpAddress.resolve only parses IP LITERALS (it ParseFails on a hostname like
-        // "localhost"), so fall back to a DNS lookup via HostName for names. Without this the
-        // events feed silently never opened for the common localhost server.
+        // IpAddress.resolve only parses IP LITERALS (it ParseFails on "localhost"), so names fall back to a DNS
+        // lookup via HostName. Without it the events feed never opened for the common localhost server.
         var stream = if (std.Io.net.IpAddress.resolve(io, hp.host, port)) |lit| s: {
             var addr = lit;
             break :s try addr.connect(io, .{ .mode = .stream });
@@ -115,9 +111,8 @@ pub const EditConn = struct {
         self.rbuf.deinit(self.gpa);
     }
 
-    /// Best-effort drain: read whatever is pending (bounded by the receive timeout), then
-    /// pop and return the next complete project-update event, or null when none remain.
-    /// Repeated calls drain the buffer one event at a time.
+    /// Best-effort drain: read whatever is pending (bounded by the receive timeout), then pop the next
+    /// complete project-update event, or null. Repeated calls drain the buffer one event at a time.
     pub fn poll(self: *EditConn) !?Event {
         if (self.closed) return null;
         if (std.mem.indexOfScalar(u8, self.rbuf.items, '\n') == null) {
@@ -143,9 +138,8 @@ pub const EditConn = struct {
         try self.rbuf.appendSlice(self.gpa, data);
     }
 
-    /// Pop and parse complete NDJSON frames from the buffer, returning the next project
-    /// update event (skipping welcome/synced/other frames), or null when none remain.
-    /// Pure buffer work — no socket — so the partial/multi-frame handling is unit-tested.
+    /// Pop and parse complete NDJSON frames from the buffer, returning the next project-update event
+    /// (skipping welcome/synced frames) or null. Pure buffer work — no socket — so it is unit-tested.
     fn nextEvent(self: *EditConn) !?Event {
         while (std.mem.indexOfScalar(u8, self.rbuf.items, '\n')) |nl| {
             const line = try self.gpa.dupe(u8, self.rbuf.items[0..nl]);

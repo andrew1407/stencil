@@ -12,9 +12,8 @@ pub const SUFFIX = "-stencil";
 
 const Split = struct { dir: []const u8, base: []const u8 };
 
-/// A source split at its last separator, with any `?query` / `#fragment` trimmed first. `dir`
-/// keeps its trailing slash, and is EMPTY for a URL: a bare `@save` writes beside a local
-/// source, but into the working directory for a fetched one — never back at the host.
+/// A source split at its last separator, any `?query`/`#fragment` trimmed first. `dir` keeps its trailing
+/// slash and is EMPTY for a URL: a bare `@save` writes into the working directory, never at the host.
 fn splitPath(path: []const u8) Split {
     var end = path.len;
     if (std.mem.indexOfAny(u8, path, "?#")) |q| end = q;
@@ -34,12 +33,8 @@ pub fn frameOf(frame: u32) ?u32 {
     return if (frame > 0) frame else null;
 }
 
-/// The path a `@save <target>` writes, for a result derived from `source`.
-/// - ""            -> <source dir>/<stem>-stencil.<ext>
-/// - "dir/"        -> dir/<stem>-stencil.<ext>
-/// - "name"        -> name.<ext>            (the user named it; no suffix)
-/// - "path/x.png"  -> verbatim
-/// `frame` is non-null for a video grab, which names itself <stem>-frame-<n>.
+/// The path a `@save <target>` writes: "" → <source dir>/<stem>-stencil.<ext>, "dir/" → inside dir,
+/// "name" → name.<ext> (no suffix), a full path verbatim. `frame` names a video grab <stem>-frame-<n>.
 pub fn resolveTarget(
     gpa: std.mem.Allocator,
     target: []const u8,

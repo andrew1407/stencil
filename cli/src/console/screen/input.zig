@@ -31,9 +31,8 @@ pub fn querySize(self: *Screen) Error!void {
     self.cols = ws.col;
 }
 
-/// Re-measure the terminal; on a change, recompute geometry and repaint. Returns true
-/// when it repainted (the caller then redraws the prompt). Called from the idle tick, so
-/// a resize is picked up within the poll interval without a SIGWINCH handler.
+/// Re-measure the terminal; on a change, recompute geometry and repaint. True when it repainted.
+/// Called from the idle tick, so a resize is picked up without a SIGWINCH handler.
 pub fn tick(self: *Screen) bool {
     const or_rows = self.rows;
     const or_cols = self.cols;
@@ -69,9 +68,8 @@ pub fn mousePreference() ?bool {
     return null;
 }
 
-/// The user's standing answer to "how fast should text appear?" —
-/// STENCIL_CONSOLE_REVEAL_SPEED=<0.01…1>, or the words `off` (= 1, instantly) and `on`
-/// (= the default). Null = unset or unparseable, so the default stands.
+/// The user's standing answer to "how fast should text appear?" — STENCIL_CONSOLE_REVEAL_SPEED=
+/// <0.01…1>, or the words `off` (= 1) and `on` (= the default). Null = unset or unparseable.
 pub fn revealSpeedPreference() ?f64 {
     const raw = std.c.getenv("STENCIL_CONSOLE_REVEAL_SPEED") orelse return null;
     const v = std.mem.span(raw);
@@ -95,9 +93,8 @@ pub fn setRevealSpeed(self: *Screen, speed: f64) void {
     self.reveal_burst_ns = 0;
 }
 
-/// Let the next appended output land at once, without sweeping in. Armed for the echo of a
-/// typed command: those characters were already on screen as they were typed, so animating
-/// them adds nothing and — at a slow speed — delays the command's real output for seconds.
+/// Let the next appended output land at once. Armed for the echo of a typed command: those
+/// characters were already on screen, so animating them only delays the command's real output.
 pub fn skipRevealOnce(self: *Screen) void {
     self.skip_reveal_once = true;
 }

@@ -12,10 +12,8 @@ pub const Blank = struct {
     color: []const u8 = "white",
 };
 
-/// Which frame --layout coordinates are in (llm-contract.md §1): `current` (default) is
-/// the already cropped/rotated image — plain CLI behavior; `source` is the SOURCE image,
-/// so the pipeline re-maps the layout's points through its resolved crop/rotation and
-/// clamps them into the output bounds before drawing.
+/// Which frame --layout coordinates are in (llm-contract.md §1): `current` (default) is the already
+/// cropped/rotated image; `source` re-maps the layout's points through the resolved crop/rotation.
 pub const LayoutFrame = enum { current, source };
 
 pub const Options = struct {
@@ -34,16 +32,13 @@ pub const Options = struct {
     output: ?[]const u8 = null,
     confine_output: bool = false, // --confine-output: output + scrape dir stay inside the cwd
 
-    /// `--script <file>` runs a .stc; `--script-plan` prints its lowered op plan and
-    /// `--script-check` its diagnostics. "-" reads the script from stdin. These two
-    /// reporting modes are the only ones that write to stdout.
+    /// `--script <file>` runs a .stc; `--script-plan` prints its lowered op plan, `--script-check` its
+    /// diagnostics; "-" reads from stdin. These two reporting modes are the only ones writing to stdout.
     script: ?[]const u8 = null,
     script_plan: ?[]const u8 = null,
     script_check: ?[]const u8 = null,
-    // Server (collaboration server) options
-    // --server <url>: -i names a server project, fetched + edited; --remote-update writes the
-    // result back. --remote <url> + --remote-name <name>: upload the result as a NEW project
-    // (default name = input image name). --token <tok>: session or admin access token.
+    // Server options: `--server <url>` + -i names a project to fetch and edit (`--remote-update` writes
+    // back); `--remote` + `--remote-name` upload the result as a NEW project; `--token` authenticates.
     server: ?[]const u8 = null,
     remote: ?[]const u8 = null,
     remote_name: ?[]const u8 = null,
@@ -66,9 +61,8 @@ pub const Options = struct {
 /// Which of the three `.stc` entry points `--script*` selected.
 pub const ScriptMode = enum { run, plan, check };
 
-/// Which command mode a parsed Options selected. The modes are mutually exclusive and read
-/// DIFFERENT blocks of the struct, so deciding once here keeps main.zig from re-deriving the
-/// exclusions (and keeps `--source-site` from silently sharing the editing flags).
+/// Which command mode a parsed Options selected. The modes are exclusive and read DIFFERENT blocks of
+/// the struct, so deciding once here keeps main.zig from re-deriving the exclusions.
 pub const Mode = union(enum) {
     /// `--help`, or no arguments at all: banner + usage.
     usage,

@@ -11,9 +11,8 @@ pub fn usage() void {
     emitMarked(help_text, c(Ansi.bold), c(Ansi.reset));
 }
 
-// The `--help` prose lives in help.txt (embedded), not in this file: one list of flags for
-// people, cross-checked against args.zig's flag table by tests/help_flags_test.zig. `{b}` /
-// `{r}` are the only markers — bold on, bold off — and both are "" when colour is off.
+// The `--help` prose lives in the embedded help.txt, cross-checked against args.zig's flag table by
+// tests/help_flags_test.zig. `{b}`/`{r}` are the only markers — bold on, bold off.
 const help_text = @embedFile("../help.txt");
 
 /// Print `text`, expanding the `{b}`/`{r}` markers; any other `{` is literal.

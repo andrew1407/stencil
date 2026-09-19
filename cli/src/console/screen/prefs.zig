@@ -19,9 +19,8 @@ pub const speed_min = reveal_speed_min;
 pub const speed_max = reveal_speed_max;
 pub const speed_default = reveal_speed_default;
 
-/// The next accent key when the logo is single-clicked: advance through the preset list
-/// (wrapping), or reset to the default when a custom colour (`current` is a '#hex') is active
-/// — exactly what the browser does. `current` is the active accent key.
+/// The next accent key when the logo is single-clicked: advance through the preset list (wrapping),
+/// or reset to the default when a custom colour (`cur` is a '#hex') is active — as the browser does.
 pub fn nextAccentKey(cur: []const u8) []const u8 {
     if (cur.len != 0 and cur[0] == '#') return theme.default_key;
     var idx: usize = 0;

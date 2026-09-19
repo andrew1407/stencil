@@ -21,10 +21,8 @@ const NestedError = validate.NestedError;
 const droppedVariantWarning = validate.droppedVariantWarning;
 
 
-/// Validate one actions list: unknown ops drop with a warning (forward compatibility);
-/// a known op with invalid params fails the whole plan. With `misplaced` set (inside a
-/// variant or preview) a top-level-only/settings op names itself there and returns
-/// `error.Misplaced` — the caller drops that holder, never the plan (§1).
+/// Validate one actions list: unknown ops drop with a warning (forward compatibility), a known op
+/// with invalid params fails the plan, and with `misplaced` set a top-level-only op errors (§1).
 pub fn validateActions(
     a: std.mem.Allocator,
     value: ?std.json.Value,

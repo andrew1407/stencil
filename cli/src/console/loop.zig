@@ -94,9 +94,8 @@ pub fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed:
                     s.skipRevealOnce(); // the echo is what you just typed, not output arriving
                     logo.print("{s}{s}{s}{s}\n", .{ logo.accentSeq(), ui.promptStr(session), logo.resetSeq(), buf[0..n] });
                 };
-                // Images pasted into the line ride it as `[Image #N …]` markers: lift them off
-                // before the command is parsed — and before it is remembered, since a recalled
-                // marker would name a picture that is long gone.
+                // Images pasted into the line ride it as `[Image #N …]` markers: lift them off before the command
+                // is parsed — and before it is remembered, since a recalled marker would name a picture long gone.
                 var sbuf: [line_edit.max_line]u8 = undefined;
                 const line = line_edit.stripMarkers(&sbuf, buf[0..n]);
                 hist.add(line);
@@ -111,9 +110,8 @@ pub fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed:
 /// The session's cancel hook: the editor's tty watch, behind an opaque pointer so session.zig
 /// keeps knowing nothing about the line editor.
 
-// On a TTY, `/upload <src>` (and `/source-upload <url>`) ask for a yes/no confirmation before
-// replacing the working image. Returns true to proceed (always, for every other command);
-// false when the user declines. Tests drive `handle` directly and so skip this prompt.
+// On a TTY, `/upload <src>` asks a yes/no confirmation before replacing the working image. True to
+// proceed (always, for every other command); tests drive `handle` directly and skip the prompt.
 fn confirmUpload(ed: *line_edit.Editor, session: *Session, line: []const u8) bool {
     const cmd = commands.parseCommand(line);
     if (cmd.arg.len == 0) return true;
@@ -144,9 +142,8 @@ fn editorConfirm(ctx: ?*anyopaque, question: []const u8) bool {
     return ed.confirm(question);
 }
 
-/// Piped mode's clearChat confirm: print the question and read ONE line from the SAME
-/// buffered stdin reader the command loop uses (so a scripted "y" right after the
-/// /prompt line is seen). EOF — or anything but y/yes — declines.
+/// Piped mode's clearChat confirm: read ONE line from the SAME buffered stdin reader the command
+/// loop uses, so a scripted "y" after the /prompt line is seen. EOF — or anything but y/yes — declines.
 pub const PipedConfirm = struct {
     r: *std.Io.Reader,
 

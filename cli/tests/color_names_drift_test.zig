@@ -1,9 +1,7 @@
-//! Cross-language drift guard: the canonical CSS colour-name table
-//! (browser/js/config/colorNames.json, embedded at build time) and the linked C++
-//! core's own table (core/color/colorNames.cpp) must hold the SAME names with the
-//! same hexes. The core exports its table through cliApi.h (colorNameCount /
-//! colorNameAt), so the check runs in both directions: a name known only to the
-//! core, or only to the JSON, fails here.
+//! Cross-language drift guard: the canonical CSS colour-name table (browser/js/config/colorNames.json,
+//! embedded at build time) and the linked C++ core's own table (core/color/colorNames.cpp) must hold
+//! the SAME names with the same hexes. The core exports its table through cliApi.h (colorNameCount /
+//! colorNameAt), so the check runs both ways: a name known only to the core, or only to the JSON, fails.
 const std = @import("std");
 const core = @import("../src/core.zig");
 

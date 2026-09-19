@@ -13,9 +13,8 @@ const project = @import("../../project.zig");
 const Session = @import("../session.zig").Session;
 const handlers = @import("../handlers.zig");
 
-/// A plan `connect`: resolve ONLY against servers this session already connected to (§10 —
-/// the model can never introduce a host). A live match is a note, a known disconnected one
-/// reconnects through doConnect, anything else points at '/connect'.
+/// A plan `connect`: resolve ONLY against servers this session already connected to (§10 — the model
+/// can never introduce a host). A known disconnected one reconnects through doConnect.
 pub fn planConnect(session: *Session, io: std.Io, want: []const u8) void {
     switch (llm.resolveServer(session.known_servers.items, want)) {
         .index => |i| {
@@ -50,9 +49,8 @@ pub fn planDisconnect(session: *Session, want: []const u8) void {
     }
 }
 
-/// A plan `reconnect`: connect's resolution (§10 — exact URL, else unique host, over the
-/// servers the user /connect-ed THIS session), then the same path the /reconnect command
-/// takes — which itself notes a match that is not currently live. Misses are notes.
+/// A plan `reconnect`: connect's §10 resolution (exact URL, else unique host, over the servers the
+/// user /connect-ed THIS session), then the path the /reconnect command takes. Misses are notes.
 pub fn planReconnect(session: *Session, io: std.Io, want: []const u8) void {
     switch (llm.resolveServer(session.known_servers.items, want)) {
         .index => |i| handlers.doReconnect(session, io, session.known_servers.items[i]) catch {},
@@ -61,9 +59,8 @@ pub fn planReconnect(session: *Session, io: std.Io, want: []const u8) void {
     }
 }
 
-/// A plan §2 undo/redo: step the session's edit history up to `steps` HISTORY entries
-/// through the same acknowledgement path the /undo and /redo commands use. Steps running
-/// out mid-way is a note (contract §2), never a failed plan.
+/// A plan §2 undo/redo: step the edit history up to `steps` HISTORY entries through the /undo and
+/// /redo acknowledgement path. Steps running out mid-way is a note (§2), never a failed plan.
 pub fn planStep(session: *Session, comptime redo: bool, steps: u8) void {
     var moved: u8 = 0;
     if (session.hasImage()) {
@@ -82,9 +79,8 @@ pub fn planStep(session: *Session, comptime redo: bool, steps: u8) void {
         logo.note("only {d} of {d} {s} step(s) were available\n", .{ moved, steps, if (redo) "redo" else "undo" });
 }
 
-/// Where a §2.1 `save` writes: `<name>.stencil` in the cwd — name from the action, else
-/// the ACTIVE attachment, else the working image's label — suffixed " 2"/" 3"… on
-/// collision. Caller owns the path; null (with a note) when nothing survives sanitizing.
+/// Where a §2.1 `save` writes: `<name>.stencil` in the cwd — name from the action, else the ACTIVE
+/// attachment, else the working image's label — suffixed " 2"/" 3"… on collision. Caller owns it.
 pub fn planSavePath(session: *Session, io: std.Io, name: []const u8, active: ?usize, dest: []const u8) ?[]u8 {
     const gpa = session.gpa;
     // A destination the user named (runPlan already checked they wrote it): a file path is
@@ -109,9 +105,8 @@ pub fn planSavePath(session: *Session, io: std.Io, name: []const u8, active: ?us
     return path;
 }
 
-/// The project stem an unnamed (or oddly named) plan save falls back to: the op's own name,
-/// else the adopted attachment's label, else the session label. Directory and extension are
-/// dropped, so a model-supplied "../x.png" can never steer the write.
+/// The project stem an unnamed plan save falls back to: the op's name, else the adopted attachment's
+/// label, else the session label. Directory and extension drop, so "../x.png" cannot steer the write.
 fn saveStem(session: *Session, name: []const u8, active: ?usize) ?[]const u8 {
     const from_attachment = if (active) |i| session.attachments.items[i - 1].label else "";
     const raw = if (name.len != 0) name else if (from_attachment.len != 0) from_attachment else (session.label orelse "project");
@@ -142,16 +137,14 @@ pub fn filterArg(f: anytype) []const u8 {
     return if (f.mode == .custom) f.tint else @tagName(f.mode);
 }
 
-/// The page a plan blank op lands on: its explicit format, else the session's picked page
-/// — the same fallback a bare '/blank <color>' uses. The canonical name is core-owned
-/// (static), so it survives a load's format reset.
+/// The page a plan blank op lands on: its explicit format, else the session's picked page — the
+/// fallback a bare '/blank <color>' uses. The canonical name is core-owned, so it survives a load.
 fn blankPage(session: *const Session, format: ?[]const u8) ?[]const u8 {
     return core.canonicalPageFormat(format orelse session.page_size);
 }
 
-/// Resolve a plan crop op against a view size: edges serialized to the `/crop` spec
-/// grammar and routed through the same pipeline resolver ("album" rides as the same
-/// modifier flag, §10). Null when invalid (resolver prints). Shared with variants.
+/// Resolve a plan crop op against a view size: edges serialized to the `/crop` spec grammar and
+/// routed through the same pipeline resolver ("album" rides as the same modifier flag, §10).
 pub fn resolvePlanCrop(gpa: std.mem.Allocator, w: usize, h: usize, c: llm.CropEdges) ?core.Rect {
     const spec = llm.cropSpecString(gpa, c) catch return null;
     defer gpa.free(spec);
@@ -160,9 +153,8 @@ pub fn resolvePlanCrop(gpa: std.mem.Allocator, w: usize, h: usize, c: llm.CropEd
 
 pub const PlanBlank = struct { img: image.Rgba8, page: ?[]const u8, custom_w: f64 = 0, custom_h: f64 = 0 };
 
-/// Validate a plan blank op's colour and acquire its page image + canonical page name (the
-/// '/blank <color>' fallback); §2 cm dims override the format and come back as custom_w/h.
-/// `variant` names the variant for errors (null = top-level). Null on failure; caller owns `img`.
+/// Validate a plan blank op's colour and acquire its page image + canonical page name; §2 cm dims
+/// override the format and come back as custom_w/h. Null on failure; caller owns `img`.
 pub fn acquirePlanBlank(session: *const Session, b: anytype, variant: ?[]const u8) ?PlanBlank {
     const gpa = session.gpa;
     if (core.parseColor(core.zstr(b.color) orelse "") == null) {

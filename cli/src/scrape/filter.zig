@@ -10,13 +10,8 @@ const sniff = @import("sniff.zig");
 const Sniff = sniff.Sniff;
 const indexOfPosCI = text.indexOfPosCI;
 
-// --source-name matcher (POSIX regex.h; substring fallback off-POSIX)
-//
-// The scrape name filter is a regex on the media URL. POSIX targets use the platform libc's
-// regex.h via a small C shim (src/regex_shim.c — no new dependency; it owns the `regex_t`,
-// which Zig 0.16's translate-c renders opaque). Windows/WASI have no regex.h and fall back to
-// a case-insensitive substring test; the `extern`s sit under the comptime guard, so they
-// don't link there.
+// The --source-name filter is a regex on the media URL: POSIX targets use the platform libc's regex.h
+// through src/regex_shim.c (no new dependency); Windows/WASI fall back to a substring test.
 pub const has_posix_regex = builtin.os.tag != .windows and builtin.os.tag != .wasi;
 extern fn stencil_regex_compile(pattern: [*:0]const u8) ?*anyopaque;
 extern fn stencil_regex_match(handle: ?*anyopaque, text: [*:0]const u8) c_int;
@@ -123,9 +118,8 @@ pub fn formatOf(buf: []u8, url: []const u8) []const u8 {
     return norm(buf, ext);
 }
 
-/// Lowercase `ext` into `buf`, then apply mediaTypes.json's SUBSTRING normalizations, in its
-/// order — matching the extension's chained `String.replace` and the pystencil port (a `data:`
-/// subtype `x-jpeg` normalizes to `x-jpg`). Every replacement shrinks, so it fits.
+/// Lowercase `ext` into `buf`, then apply mediaTypes.json's SUBSTRING normalizations in its order —
+/// matching the extension's chained `String.replace` and the pystencil port. Every replacement shrinks.
 fn norm(buf: []u8, ext: []const u8) []const u8 {
     const n = @min(ext.len, buf.len);
     _ = std.ascii.lowerString(buf[0..n], ext[0..n]);
@@ -186,9 +180,8 @@ pub fn formatPass(m: Media, formats: []const u8) bool {
     return tokenSelected(formats, formatTokenOf(&buf, m));
 }
 
-/// Inclusive width/height bound check (port of filters.js:81-88). Each bound applies only
-/// when set; an unmeasured item (dims null) passes unconditionally; a measured axis is
-/// rejected only when `< min` or `> max`.
+/// Inclusive width/height bound check (port of filters.js:81-88): each bound applies only when set, an
+/// unmeasured item passes unconditionally, and a measured axis fails only when `< min` or `> max`.
 pub fn dimensionPass(dims: ?Sniff, min_w: ?u32, max_w: ?u32, min_h: ?u32, max_h: ?u32) bool {
     const d = dims orelse return true;
     if (d.width > 0) {

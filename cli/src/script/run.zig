@@ -25,9 +25,8 @@ const Canvas = struct {
     source: []const u8,
     frame: u32 = 0, // 0 = however the source opens; a @frame names one explicitly
     marks: apply.Marks,
-    /// The edit ops applied so far and how many of them the pixels hold right now. There is
-    /// no history stack here, so an `@undo` moves the cursor and `rewind` rebuilds from the
-    /// input by replaying the survivors — what stc-contract §7 asks of an adapter.
+    /// The edit ops applied so far and how many of them the pixels hold right now. There is no history
+    /// stack, so an `@undo` moves the cursor and `rewind` replays the survivors — stc-contract §7.
     edits: std.ArrayList(u32) = .empty,
     cursor: usize = 0,
 

@@ -1,9 +1,8 @@
-// Walks the shared provider-error sanitizer corpus (llm/fixtures/sanitizer/cases.json)
-// against the cli's real sanitizer (llm.sanitizeDetail — the one errorDetail/finish use).
-// Expectations in the corpus are the BROWSER's output; per the schema, DIVERGENCE(...)
-// cases (and any measured cli drift, pinned in fixture_overrides.json) are recomputed
-// locally: the walker then enforces the invariants instead — no URL, no 24+ token run,
-// output within the cli's byte-counted cap (200 bytes + ellipsis).
+// Walks the shared provider-error sanitizer corpus (llm/fixtures/sanitizer/cases.json) against the
+// cli's real sanitizer (llm.sanitizeDetail — the one errorDetail/finish use). Corpus expectations are
+// the BROWSER's output, so DIVERGENCE(...) cases (and measured cli drift pinned in
+// fixture_overrides.json) are recomputed locally: the walker enforces the invariants instead — no URL,
+// no 24+ token run, output within the cli's byte-counted cap (200 bytes + ellipsis).
 const std = @import("std");
 const llm = @import("../src/llm.zig");
 const fx = @import("fixture_corpus.zig");
@@ -43,9 +42,8 @@ test "sanitizer corpus: cases.json against the cli sanitizer (byte-counted caps)
         const got = llm.sanitizeDetail(input_v.string, &buf);
         try checkInvariants(got);
 
-        // DIVERGENCE(...) cases: the browser literal doesn't bind non-browser walkers —
-        // the invariants above are the contract; the exact cli text is pinned via the
-        // override when one is recorded.
+        // DIVERGENCE(...) cases: the browser literal does not bind non-browser walkers — the invariants above
+        // are the contract, and the exact cli text is pinned via the override when one is recorded.
         const divergence = std.mem.startsWith(u8, name, "DIVERGENCE(");
         var want: ?[]const u8 = if (divergence) null else fx.memberStr(case, "expect").?;
         if (w.override("sanitizer", name)) |ov| {

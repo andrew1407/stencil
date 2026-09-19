@@ -6,10 +6,8 @@ const core = @import("../../core.zig");
 
 pub const max_states = 64; // pristine + up to 63 undoable edits; older edits drop off the front
 
-/// One editing snapshot, mirroring the browser layout: a rotation (0..3 clockwise quarters,
-/// applied to the original FIRST), a crop rect in rotated-original pixels, an image filter
-/// (mode "none"|"bw"|"sepia"|"custom" + custom hex color), and the drawn lines as a JSON array
-/// string (browser line schema). All owned. Empty `lines_json` means "[]".
+/// One editing snapshot mirroring the browser layout: rotation (0..3 clockwise quarters, applied to
+/// the original first), a crop rect in rotated-original pixels, a filter, and the lines as JSON.
 pub const EditState = struct {
     rotation: i32 = 0,
     crop: ?core.Rect = null,
@@ -38,10 +36,8 @@ pub const EditState = struct {
     }
 };
 
-/// One image the user brought into the turn with `/upload` (contract §2.1/§7): its
-/// label (the path/URL it came from), the raw ENCODED bytes — kept instead of pixels so
-/// a whole turn of attachments costs kilobytes, and so a `save` embeds the untouched
-/// original — plus how to re-encode it. All owned by the session.
+/// One image brought into the turn with `/upload` (§2.1/§7): its label plus the raw ENCODED bytes —
+/// kept instead of pixels, so a turn costs kilobytes and a `save` embeds the untouched original.
 pub const Attachment = struct {
     label: []u8,
     bytes: []u8,

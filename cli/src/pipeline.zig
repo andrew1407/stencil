@@ -1,14 +1,8 @@
-//! End-to-end pipeline: acquire a source image (decode a file/URL, grab a video frame,
-//! or synthesise a blank), then crop → rotate → filter → draw the layout, and encode the
-//! result. The C++ core does every pixel/geometry transform; Zig owns I/O and codecs.
-//!
-//! The filter runs BEFORE the layout: it belongs to the picture, while the drawn lines are
-//! an overlay that keeps its own colours — the same layering the console session, the
-//! `project` mode, pystencil and both GUIs render.
-//!
-//! The steps are `pub` building blocks (steps.zig) so the interactive console mode can
-//! drive the same transforms one command at a time; `run` (oneshot.zig) is the one-shot
-//! composition over them.
+//! End-to-end pipeline: acquire a source image (decode a file/URL, grab a video frame, or synthesise a
+//! blank), then crop → rotate → filter → draw the layout, and encode the result. The C++ core does
+//! every pixel/geometry transform; Zig owns I/O and codecs. The filter runs BEFORE the layout — it
+//! belongs to the picture, the lines are an overlay — the layering the console, pystencil and the GUIs
+//! share. The steps are `pub` building blocks (steps.zig); `run` (oneshot.zig) composes the one-shot.
 const std = @import("std");
 const confine = @import("confine.zig");
 const page_mod = @import("page.zig");

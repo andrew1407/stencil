@@ -26,9 +26,8 @@ pub fn requireActiveProject(session: *Session) ?ActiveProject {
     return .{ .client = client, .id = session.remote_id.? };
 }
 
-/// `/project-color [#hex | name | clear]` — show or set the active server project's custom
-/// name colour (empty = theme accent; `/projects` paints the name in it). A '#hex'/CSS-name
-/// is validated by the core parser, normalised, and PUT; 'clear'/'none'/'default' resets.
+/// `/project-color [#hex | name | clear]` — the active project's custom name colour (empty = theme
+/// accent). A hex/CSS name is validated by the core parser, normalised and PUT; 'clear' resets.
 pub fn doProjectColor(session: *Session, arg: []const u8) !void {
     const active = requireActiveProject(session) orelse return;
     const client = active.client;
@@ -67,9 +66,8 @@ pub fn doProjectColor(session: *Session, arg: []const u8) !void {
     ui.status(session); // reprint "image: <name> …" with the name in its new colour
 }
 
-/// `/blank-color [<#rrggbb>|<name>]` — get/set the active project's blank fill colour. Only a
-/// blank-image project has one; setting recolours its stored blank metadata (the front-end that
-/// owns the canvas regenerates the raster). No clear form — a blank always has a fill.
+/// `/blank-color [<#rrggbb>|<name>]` — get/set a blank-image project's fill colour, recolouring its
+/// stored blank metadata. No clear form: a blank always has a fill.
 pub fn doProjectBlankColor(session: *Session, arg: []const u8) !void {
     const active = requireActiveProject(session) orelse return;
     const client = active.client;
@@ -133,9 +131,8 @@ fn isClearWord(s: []const u8) bool {
 
 pub const ProjectField = enum { color, name, blank_color, description };
 
-/// Version-guarded PUT of one project metadata field with a 409 re-read-and-retry (a peer
-/// saved first), mirroring pushLayout; advances the LWW guard so our own echo isn't taken
-/// for a peer edit. Returns success; prints on a hard failure.
+/// Version-guarded PUT of one project metadata field with a 409 re-read-and-retry, mirroring
+/// pushLayout; advances the LWW guard so our own echo is not taken for a peer edit.
 pub fn putProjectField(session: *Session, client: *server.Client, id: []const u8, value: []const u8, field: ProjectField) bool {
     var tries: u8 = 0;
     while (tries < 4) : (tries += 1) {

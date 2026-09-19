@@ -225,9 +225,8 @@ test "plan reconnect resolves like connect and takes the /reconnect path (§10)"
     defer threaded.deinit();
     const io = threaded.io();
 
-    // The pool a plan reconnect resolves against is the servers /connect-ed this
-    // session; one OTHER live connection keeps /reconnect from its no-connections
-    // early-out without any network involved.
+    // The pool a plan reconnect resolves against is the servers /connect-ed this session; one OTHER live
+    // connection keeps /reconnect from its no-connections early-out without any network involved.
     try session.rememberServer("http://a.example:1");
     try session.rememberServer("http://a.example:2");
     try session.rememberServer("http://b.example:9");

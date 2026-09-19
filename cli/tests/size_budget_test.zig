@@ -1,9 +1,8 @@
-//! Size + comment ratchet for the cli surface: walks the .zig under cli/src and
-//! cli/tests and holds every file to the counts pinned in size_budget.json. Zig's
-//! inline `test { }` blocks are idiomatic and not penalised, so the budget records
-//! PRODUCTION lines (everything before the first column-0 `test "` / `test {`).
-//! Paths are repo-relative (root = the dir holding CLAUDE.md) so the numbers read
-//! the same from anywhere. std.fs + std.json only; vendored .c/.h are out of scope.
+//! Size + comment ratchet for the cli surface: walks the .zig under cli/src and cli/tests and holds
+//! every file to the counts pinned in size_budget.json. Zig's inline `test { }` blocks are idiomatic and
+//! not penalised, so the budget records PRODUCTION lines (everything before the first column-0 `test "`
+//! / `test {`). Paths are repo-relative (root = the dir holding CLAUDE.md), so the numbers read the same
+//! from anywhere. std.fs + std.json only; vendored .c/.h are out of scope.
 const std = @import("std");
 const testing = std.testing;
 
@@ -13,9 +12,8 @@ const scopes = [_][]const u8{ "cli/src", "cli/tests" };
 const Counts = struct { total: usize, comment: usize, prod: usize, tests: usize };
 const Entry = struct { path: []const u8, counts: Counts };
 
-/// Total lines, comment lines and production lines. A comment line's first
-/// non-whitespace is `//` — Zig has no block comments, and a multiline string's
-/// lines start with `\\`, so a `//` inside a literal never counts.
+/// Total lines, comment lines and production lines. A comment line's first non-whitespace is `//`; Zig
+/// has no block comments, and a multiline string's lines start with backslashes, so a literal never counts.
 fn count(bytes: []const u8) Counts {
     var c = Counts{ .total = 0, .comment = 0, .prod = 0, .tests = 0 };
     var body = bytes;
@@ -141,9 +139,8 @@ test "size budget: every cli .zig stays within its pinned production line count"
 /// Raise it when the suite grows a lot; additions must never trip it, a collapse must.
 const test_floor = 365;
 
-// Zig's runner has no introspection from inside a test, so the count is a static scan of every
-// column-0 `test "…"` / `test { }` under cli/src + cli/tests: it catches deleted or unbuilt
-// test files, not a test that is built but never executed.
+// Zig's runner has no introspection from inside a test, so the count is a static scan of every column-0
+// `test` declaration: it catches deleted or unbuilt test files, not a built test that never ran.
 test "test floor: the cli suite still declares at least its floor of tests" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();

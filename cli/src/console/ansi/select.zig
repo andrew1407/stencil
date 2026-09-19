@@ -10,14 +10,12 @@ const appendBytes = scan.appendBytes;
 const utf8Len = scan.utf8Len;
 const csiLen = scan.csiLen;
 
-// Selection wash opacity: the accent is applied at this fraction over the (dark) terminal
-// background, so the highlight reads as a translucent tint of the theme colour rather than a solid
-// fill. Lower = more transparent.
+// Selection wash opacity: the accent over the (dark) terminal background at this fraction, so the
+// highlight reads as a translucent tint of the theme colour rather than a solid fill.
 const sel_alpha_pct = 55;
 
-/// A background SGR that washes the current accent over the terminal background at `sel_alpha_pct`%
-/// — the translucent theme-colour selection highlight. There is no grey floor, so a low accent
-/// stays genuinely faint. Falls back to reverse video when colour is off. Written into `buf`.
+/// A background SGR washing the current accent over the terminal background at `sel_alpha_pct`%.
+/// No grey floor, so a low accent stays faint; falls back to reverse video when colour is off.
 fn selHighlightSeq(buf: []u8) []const u8 {
     if (!logo.colorEnabled()) return "\x1b[7m";
     const a = logo.accentRgb();
@@ -33,9 +31,8 @@ fn selHighlightOff() []const u8 {
     return if (logo.colorEnabled()) "\x1b[49m" else "\x1b[27m"; // reset bg, or leave reverse video
 }
 
-/// Render `line` clipped to `cols`, tinting visible columns `[c0,c1)` with the translucent
-/// accent wash (text-selection highlight). Keeps the row's own foreground colours — the wash
-/// is re-asserted after every escape so internal SGR resets don't cancel it.
+/// Render `line` clipped to `cols`, tinting visible columns [c0,c1) with the accent wash. The wash
+/// is re-asserted after every escape, so the row's own SGR resets do not cancel it.
 pub fn clipHighlight(line: []const u8, cols: u16, c0: u16, c1: u16, out: []u8) []const u8 {
     var hbuf: [24]u8 = undefined;
     const on = selHighlightSeq(&hbuf);

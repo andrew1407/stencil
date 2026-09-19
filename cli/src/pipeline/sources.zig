@@ -15,9 +15,8 @@ const BLANK_MIN = 1;
 const BLANK_MAX = 8192;
 
 pub fn loadSource(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32) ![]u8 {
-    // Only http(s) URLs and local paths are accepted. Reject any other scheme up front so a
-    // `.mp4`-looking `ftp://`/`file://`/`rtmp://` string can never be handed to ffmpeg, whose
-    // protocol surface is far wider than our in-process fetcher.
+    // Only http(s) URLs and local paths are accepted: reject any other scheme up front so an `.mp4`-looking
+    // `ftp://`/`file://` string can never reach ffmpeg, whose protocol surface is far wider than ours.
     if (net.hasForeignScheme(input)) {
         report.err("unsupported URL scheme in '{s}' — pass an http(s) URL or a local path\n", .{input});
         return error.UnsupportedScheme;
@@ -51,10 +50,8 @@ pub fn readLocal(gpa: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
     };
 }
 
-/// Expand a leading `~` (bare, or `~/…`) to $HOME. The shell does this for a one-shot argv,
-/// but a path typed INSIDE the console (or quoted on the command line) reaches us literally,
-/// and `~/Downloads/x.png` then means a directory actually named "~". Everything else — and a
-/// `~` with no $HOME to expand — is returned unchanged. Owned by the caller either way.
+/// Expand a leading `~` (bare, or `~/…`) to $HOME: the shell does this for argv, but a path typed INSIDE
+/// the console arrives literally, where `~/Downloads/x.png` would mean a directory named "~".
 pub fn expandHome(gpa: std.mem.Allocator, path: []const u8) ![]u8 {
     if (!(std.mem.eql(u8, path, "~") or std.mem.startsWith(u8, path, "~/"))) {
         return gpa.dupe(u8, path);

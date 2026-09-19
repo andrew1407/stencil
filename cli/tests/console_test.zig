@@ -263,9 +263,8 @@ test "console: /format picks the page format that drives the layout and /blank" 
     try testing.expectEqual(@as(f64, 10), session.custom_page_w);
     try testing.expectEqual(@as(f64, 15), session.custom_page_h);
 
-    // A bare /blank on a custom pick uses the custom dims (10×15cm @ 96dpi -> 378x567 px),
-    // keeps the pick, and the page label (header + /save wrote line) reflects the custom
-    // page actually used — not an A4 fallback.
+    // A bare /blank on a custom pick uses the custom dims (10×15cm @ 96dpi → 378x567 px), keeps the pick,
+    // and the page label reflects the custom page actually used — not an A4 fallback.
     _ = try console.handle(&session, io, "/blank");
     try testing.expectEqual(@as(usize, 378), cur(&session).width);
     try testing.expectEqual(@as(usize, 567), cur(&session).height);
@@ -296,9 +295,8 @@ test "console: only a real /format //formula /transform edit marks the session d
     var session = console.Session{ .gpa = a };
     defer session.deinit();
 
-    // Pretend a fetched server project is active with sync on — markDirty is gated on both —
-    // without touching the network: the flag only queues the debounced upload, and nothing
-    // here flushes it.
+    // Pretend a fetched server project is active with sync on — markDirty is gated on both — without
+    // touching the network: the flag only queues the debounced upload, and nothing here flushes it.
     session.sync = true;
     try session.setRemote("http://127.0.0.1:9", "proj-1");
 
@@ -521,10 +519,8 @@ test "console: /chat on says who can read a saved chat" {
     cap.install();
     defer logo.clearSink();
 
-    // §12.2: a transcript records what the user asked for in their own words, and on a
-    // server project the chat file carries the PROJECT's access — which is not what
-    // "save chats with the project" sounds like it promises. The console has to say so
-    // at the toggle, on the turn that switches saving ON, before anything is written.
+    // §12.2: on a server project the chat file carries the PROJECT's access, which is not what "save chats
+    // with the project" promises — so the console says so on the turn that switches saving ON.
     _ = try console.handle(&session, io, "/chat on");
     try testing.expect(std.mem.indexOf(u8, cap.text(), "shared with") != null);
     try testing.expect(std.mem.indexOf(u8, cap.text(), "readable by everyone") != null);
@@ -570,9 +566,8 @@ test "console: /llm resolves the session config from the env and applies every s
     try testing.expectEqual(@as(usize, 0), session.stateCount());
 }
 
-// An uncropped image must still name its cropRect in the layout. The GUIs auto-crop a
-// freshly loaded image to the page aspect unless the layout names one, so omitting it
-// (the old behaviour) made them shrink the image and strand lines outside the page rect.
+// An uncropped image must still name its cropRect in the layout: the GUIs auto-crop a freshly loaded
+// image to the page aspect unless the layout names one, stranding lines outside the page rect.
 test "console: layout always carries a cropRect, full-frame when nothing is cropped" {
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});

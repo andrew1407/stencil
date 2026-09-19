@@ -17,9 +17,8 @@ const planConnect = planOps.planConnect;
 const planDisconnect = planOps.planDisconnect;
 const planReconnect = planOps.planReconnect;
 
-/// The console-settings half of one op-plan action (the §10-analog profile): history
-/// steps, the server pool, the theme, local files and the clipboard. None of them edits
-/// the picture, and every miss is a printed note rather than a failed plan.
+/// The console-settings half of one op-plan action (the §10-analog profile): history steps, the
+/// server pool, the theme, local files and the clipboard. None of them edits the picture.
 pub fn apply(
     session: *Session,
     io: std.Io,
@@ -30,18 +29,13 @@ pub fn apply(
 ) bool {
     const gpa = session.gpa;
     switch (a) {
-        // §2 undo/redo/reset (top-level only): the console's OWN history, through the
-        // same /undo, /redo and /reset paths — steps running out is a note, never a
-        // failed plan (contract §2). Like the commands, they queue no sync of their own.
+        // §2 undo/redo/reset (top-level only): the console's OWN history, through the /undo, /redo and
+        // /reset paths — steps running out is a note (§2), never a failed plan. They queue no sync.
         .undo => |u| planStep(session, false, u.steps),
         .redo => |r| planStep(session, true, r.steps),
         .reset => handlers.doReset(session), // "no image loaded" is its own note
-        // Console-settings ops (the §10-analog profile): they run the SAME handlers
-        // the /theme, /connect, /disconnect, /reconnect, /delete and /drop commands use,
-        // and every miss is a printed note, never a failed plan. None of them edits the
-        // image.
-        // A preset rides the same /theme path as a hex — its name table resolves it,
-        // and an unknown name is /theme's own note + skip (§10).
+        // Console-settings ops (the §10-analog profile) run the SAME handlers the /theme, /connect,
+        // /disconnect, /reconnect, /delete and /drop commands use; every miss is a note, never a failure.
         .accent => |c| handlers.doTheme(session, if (c.preset.len != 0) c.preset else c.color),
         .connect => |c| planConnect(session, io, c.server),
         .disconnect => |c| planDisconnect(session, c.server),
@@ -53,9 +47,8 @@ pub fn apply(
         // §10 clearChat: only ARM the deferred clear — the confirm and the actual
         // /chat-clear run once the WHOLE /prompt turn settles (finishChatClear).
         .clear_chat => session.pending_chat_clear = true,
-        // §10 openFile (user-echo pre-checked by runPlan): the same load /upload performs —
-        // .stencil restores a project, .json draws its layout, anything else is a picture
-        // (or a video's first frame).
+        // §10 openFile (user-echo pre-checked by runPlan): the load /upload performs — .stencil restores a
+        // project, .json draws its layout, anything else is a picture (or a video's first frame).
         .open_file => |f| {
             const path = pipeline.expandHome(gpa, f.path) catch return false;
             defer gpa.free(path);
@@ -78,9 +71,8 @@ pub fn apply(
             active.* = null;
             ui.redraw(session);
         },
-        // §10 openUrl (user-echo pre-checked by runPlan): the same load /upload <url>
-        // performs, synchronous — later actions see the fetched picture, and an unnamed
-        // save derives its name from the URL label, like an upload's.
+        // §10 openUrl (user-echo pre-checked by runPlan): the load /upload <url> performs, synchronous —
+        // later actions see the fetched picture, and an unnamed save derives its name from the URL label.
         .open_url => |o| {
             if (o.incognito) logo.note("incognito is not a console concept — loading normally\n", .{});
             const src = pipeline.acquireInput(gpa, io, o.url, 0) catch return false; // message printed

@@ -47,9 +47,8 @@ pub fn main(init: std.process.Init) !void {
         // Scrape mode: --source-site fetches a page, extracts + filters media, and downloads
         // the matches into <output> (a directory). scrape.run prints its own reason.
         .scrape => return scrape.run(gpa, io, opts) catch std.process.exit(1),
-        // Script mode: a .stc drives the edits. `check` and `plan` report on stdout and
-        // change nothing; `run` does the work. Each prints its own reason and exits 1. Only
-        // this layer opens a terminal, so the two stdout modes are handed the writer.
+        // Script mode: a .stc drives the edits. `check` and `plan` report on stdout and change nothing, `run`
+        // does the work. Only this layer opens a terminal, so the two stdout modes are handed the writer.
         .script => |sc| {
             var buf: [4096]u8 = undefined;
             var stdout = std.Io.File.stdout().writerStreaming(io, &buf);

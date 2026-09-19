@@ -1,11 +1,8 @@
-//! Layout JSON parsing. The schema mirrors the browser's exported layout
-//! (browser/js/core/layout.js → buildLayoutPayload): { imageWidth, imageHeight, lines }
-//! where each line matches core models.hpp (points, color, thickness, pointSize,
-//! style, locked, fillColor). An optional top-level filter ("imageFilter", the
-//! canonical browser key; legacy "filter" is still read, canonical wins) is honoured
-//! unless the CLI's --filter overrides it; an optional "pageSize" (+ custom cm dims) is surfaced
-//! so the wrote line can report the page the layout targets. Everything is owned by
-//! an internal arena.
+//! Layout JSON parsing. The schema mirrors the browser's exported layout (browser/js/core/layout.js →
+//! buildLayoutPayload): { imageWidth, imageHeight, lines }, each line matching core models.hpp
+//! (points, color, thickness, pointSize, style, locked, fillColor). An optional "imageFilter" (legacy
+//! "filter" is still read, canonical wins) is honoured unless --filter overrides it; an optional
+//! "pageSize" is surfaced so the wrote line can report the page. Owned by an internal arena.
 const std = @import("std");
 const core = @import("core.zig");
 
@@ -110,10 +107,8 @@ pub fn parse(gpa: std.mem.Allocator, bytes: []const u8) !Layout {
     return layout;
 }
 
-// Source→current frame mapping (llm-contract.md §1)
-// Op-plan coordinates are written in the frame of the snapshot the model saw; when a
-// crop/rotate runs before a layout, the executor re-maps the layout's points through
-// those edits with exact arithmetic and clamps them into the working image's bounds.
+// Source→current frame mapping (llm-contract.md §1): op-plan coordinates are in the frame of the
+// snapshot the model saw, so a preceding crop/rotate re-maps and clamps the layout's points.
 
 /// One frame-changing edit, in application order: a crop subtracts its RESOLVED origin;
 /// a rotate applies clockwise quarter-turns of the pre-rotate `w`×`h` frame.
@@ -124,9 +119,8 @@ pub const FrameStep = union(enum) {
 
 pub const Point = struct { x: f64, y: f64 };
 
-/// Map a point through the steps in order. One clockwise quarter-turn of a `w`×`h`
-/// frame sends (x, y) to (h − y, x) — the continuous twin of core rotateImageRGBA's
-/// pixel mapping (h−1−y, x), so a mapped point lands on the same image content.
+/// Map a point through the steps in order. One clockwise quarter-turn of a `w`×`h` frame sends (x, y)
+/// to (h − y, x) — the continuous twin of core rotateImageRGBA's pixel mapping (h−1−y, x).
 pub fn mapPoint(steps: []const FrameStep, p: Point) Point {
     var out = p;
     for (steps) |s| switch (s) {
@@ -172,9 +166,8 @@ pub fn remapPoints(pts: []f64, steps: []const FrameStep, w: usize, h: usize) voi
     }
 }
 
-/// Re-map every `points` entry of a JSON lines ARRAY string through `steps` and clamp
-/// into `w`×`h` (identity steps still clamp). Non-array/malformed input is returned as
-/// an owned copy unchanged. Caller owns the result.
+/// Re-map every `points` entry of a JSON lines ARRAY string through `steps` and clamp into `w`×`h`
+/// (identity steps still clamp). Malformed input comes back as an owned copy unchanged.
 pub fn remapLinesArrayAlloc(gpa: std.mem.Allocator, lines_json: []const u8, steps: []const FrameStep, w: usize, h: usize) error{OutOfMemory}![]u8 {
     var parsed = std.json.parseFromSlice(std.json.Value, gpa, lines_json, .{}) catch return gpa.dupe(u8, lines_json);
     defer parsed.deinit();

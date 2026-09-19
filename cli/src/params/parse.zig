@@ -132,11 +132,8 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
     return opts;
 }
 
-// --blank consumes an optional page-format name ("a4", "B5", …; case-insensitive, stored
-// canonical), or an optional `width height` pair (both must be integers; omit both for the
-// default page size), followed by an optional colour. Tokens are only consumed when they
-// match, so `--blank out.png`, `--blank b5 out.png` and `--blank 800 600 red out` all
-// parse without swallowing the output path.
+// --blank takes an optional page-format name (case-insensitive, stored canonical) or a `width height`
+// pair, then an optional colour. Tokens are consumed only when they match, never the output path.
 fn parseBlank(st: *ParseState) Error!Blank {
     var b = Blank{};
     if (st.i < st.argv.len) {

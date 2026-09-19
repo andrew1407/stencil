@@ -12,9 +12,8 @@ const decode = @import("decode.zig");
 
 pub const Error = error{ScriptOpFailed};
 
-/// The marks a block has placed but not yet burned into the pixels, in the order the editors
-/// would stack them. One arena per canvas: a mark's points and colours live until the next
-/// flush and no longer, so nothing here outlives the layout document it came from.
+/// The marks a block has placed but not yet burned into the pixels, in the order the editors would
+/// stack them. One arena per canvas: a mark's points and colours live until the next flush, no longer.
 pub const Marks = struct {
     arena: std.heap.ArenaAllocator,
     items: std.ArrayList(core.LineDraw) = .empty,

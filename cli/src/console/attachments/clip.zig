@@ -30,9 +30,8 @@ pub fn doPaste(session: *Session, io: std.Io) !void {
     _ = try clipboardToImage(session, io, false);
 }
 
-/// Load the clipboard's image as the working image AND a turn attachment, exactly as an
-/// `/upload` does. `quiet` swallows the "there was nothing to take" outcomes so a bare
-/// `/upload` can fall back to its usage line; a real failure always prints.
+/// Load the clipboard's image as the working image AND a turn attachment, as an `/upload` does.
+/// `quiet` swallows the "nothing to take" outcomes for a bare `/upload`; a real failure prints.
 pub fn clipboardToImage(session: *Session, io: std.Io, quiet: bool) !bool {
     const bytes = clipboard.readImage(session.gpa, io) catch |e| {
         if (!quiet or !isEmptyClipboard(e)) clipError("paste", e);
@@ -43,9 +42,8 @@ pub fn clipboardToImage(session: *Session, io: std.Io, quiet: bool) !bool {
         logo.err("the clipboard image could not be decoded ({s})\n", .{@errorName(e)});
         return false;
     };
-    // §2.1: a paste joins the turn's attachments exactly like an /upload, so several pasted
-    // pictures all ride the next /prompt (and `/unpaste` has something to take back).
-    // Best-effort: a copy we can't afford just isn't one.
+    // §2.1: a paste joins the turn's attachments exactly like an /upload, so several pasted pictures
+    // all ride the next /prompt. Best-effort: a copy we cannot afford just is not one.
     const att_bytes: ?[]u8 = session.gpa.dupe(u8, bytes) catch null;
     errdefer if (att_bytes) |b| session.gpa.free(b);
     try session.loadImage(img, "clipboard", true, .png, null);
@@ -68,9 +66,8 @@ fn isEmptyClipboard(e: anyerror) bool {
     return e == clipboard.Error.NoImage or e == clipboard.Error.Unsupported or e == clipboard.Error.ToolMissing;
 }
 
-/// `/unpaste` (Ctrl-Alt-Z) — take back the last image added this turn: the newest
-/// attachment goes and the one before it becomes the working image again; with none left
-/// it drops the working image.
+/// `/unpaste` (Ctrl-Alt-Z) — take back the last image added this turn: the newest attachment goes
+/// and the one before it becomes the working image; with none left the working image drops.
 pub fn doUnpaste(session: *Session, arg: []const u8) void {
     // `/unpaste 2` takes back a SPECIFIC one (the numbering `/images` prints); bare takes the
     // newest, which is what the Ctrl-Z chord sends.

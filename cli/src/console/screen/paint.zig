@@ -33,9 +33,8 @@ pub fn paintHeader(self: *Screen) void {
     }
 }
 
-/// Repaint everything a highlight can cover: the output body and the input block. The
-/// editor owns the input rows normally, so they are only redrawn here while a selection is
-/// on them — its next refresh (any keystroke) takes them back.
+/// Repaint everything a highlight can cover: the output body and the input block. The editor owns
+/// the input rows normally, so they are redrawn here only while a selection is on them.
 pub fn repaintSelection(self: *Screen) void {
     self.paintBody();
     self.paintPromptSelection();

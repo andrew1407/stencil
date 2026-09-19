@@ -35,9 +35,8 @@ pub fn clearPromptLine(done: *bool) void {
     done.* = true;
 }
 
-/// Drain pending project events and act on ones touching the active project: auto-pull a
-/// peer's newer edit, reflect name/colour changes, or warn instead of clobbering unsynced
-/// local edits. Prompt-boundary, best-effort, never blocks. True if it printed anything.
+/// Drain pending project events and act on ones touching the active project: auto-pull a peer's
+/// newer edit, reflect name/colour changes, or warn rather than clobber unsynced local edits.
 pub fn pollEvents(session: *Session, io: std.Io) bool {
     if (session.events == null) return false;
     const now = std.Io.Clock.real.now(io).toMilliseconds();
@@ -80,9 +79,8 @@ pub fn pollEvents(session: *Session, io: std.Io) bool {
     return printed;
 }
 
-/// Refresh the active project's displayed name + colour from a peer's metadata change. `name` is
-/// the event's (canonical) name; the colour is re-read from the server. Returns true when either
-/// actually changed (so the caller only reprints on a real change). Cheap — no image download.
+/// Refresh the active project's displayed name + colour from a peer's metadata change; the colour is
+/// re-read from the server. True when either actually changed, so the caller only then reprints.
 pub fn applyMetaUpdate(session: *Session, name: []const u8) bool {
     var changed = false;
     if (name.len != 0 and (session.label == null or !std.mem.eql(u8, session.label.?, name))) {
@@ -101,9 +99,8 @@ pub fn applyMetaUpdate(session: *Session, name: []const u8) bool {
     return changed;
 }
 
-/// Replace the working image with the active project's latest server image (a peer's edit).
-/// Resets the undo history to the pulled image and clears the dirty flag — the session now
-/// matches the server. Keeps the active-remote/events binding intact.
+/// Replace the working image with the active project's latest server image (a peer's edit). Resets
+/// the undo history to it and clears the dirty flag — the session now matches the server.
 pub fn pullActive(session: *Session, e: *const server.Event, now: i64) void {
     const client = session.findServer(session.remote_url.?) orelse return;
     // Pull the ORIGINAL + the layout and rebuild the view from them (rotate/crop/filter/lines),

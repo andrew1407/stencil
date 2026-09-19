@@ -20,9 +20,8 @@ pub const Transport = *const fn (
     headers: []const std.http.Header,
 ) TransportError![]u8;
 
-// Zig errors carry no payload, so the most recent non-2xx response's status and
-// server-sent message are kept here for connect()'s callers to report. Thread-local: this
-// is "the last rejection THIS thread saw", so a fan-out never overwrites the caller's.
+// Zig errors carry no payload, so the last non-2xx status + server message are kept here for
+// connect()'s callers. Thread-local, so a fan-out never overwrites the caller's rejection.
 threadlocal var reject_status: u32 = 0;
 threadlocal var reject_buf: [256]u8 = undefined;
 threadlocal var reject_len: usize = 0;
@@ -59,8 +58,6 @@ pub fn recordReject(gpa: std.mem.Allocator, status: u32, body: []const u8) void 
     @memcpy(reject_buf[0..reject_len], src[0..reject_len]);
 }
 
-/// Print why a connect failed: the server's own rejection (status + message) when the
-/// net.request: response capped, redirect refused, host block skipped (the user's own server).
 /// One-shot HTTP request with explicit headers; returns owned response body bytes. Runs over
 /// net.request: response capped, redirect refused, host block skipped (the user's own server).
 pub fn rawRequest(

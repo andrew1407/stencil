@@ -18,9 +18,8 @@ pub const usage = help.usage;
 
 var use_color: std.atomic.Value(bool) = .init(true);
 
-// Atomic: a worker thread prints through here (scrape fans its fetches out) and init is the
-// sole writer. Severity colour is gated separately — only a real terminal gets it, so piped
-// output and every sink-capturing test keep `error: `/`note: ` plain for grep and CI logs.
+// Atomic: a worker thread prints through here (scrape fans its fetches out) and init is the sole
+// writer. Severity colour is gated separately, so piped output and test sinks stay plain for grep.
 var severity_color: std.atomic.Value(bool) = .init(false);
 
 // Whether stderr is a terminal at all (init's `tty`), for output that redraws a row in place.
@@ -39,9 +38,8 @@ fn refreshAccent() void {
         "";
 }
 
-/// Enable colour unless NO_COLOR is set (the caller checks the environment); `tty` is
-/// whether the human channel (stderr) is a terminal, which additionally gates the
-/// severity prefixes.
+/// Enable colour unless NO_COLOR is set (the caller checks the environment); `tty` is whether stderr
+/// is a terminal, which additionally gates the severity prefixes.
 pub fn init(no_color: bool, tty: bool) void {
     use_color.store(!no_color, .monotonic);
     severity_color.store(!no_color and tty, .monotonic);
@@ -61,20 +59,16 @@ pub fn setAccent(rgb: [3]u8) void {
     refreshAccent();
 }
 
-// When set (by the full-screen console), accentSeq() returns a one-byte SENTINEL (0x01) instead
-// of the literal escape, so accent-coloured output stored in the scrollback is re-tinted to the
-// *current* accent every repaint (screen.clip expands 0x01 → accentReal()). This is what lets a
-// theme change recolour already-printed help/echoes. Direct-to-terminal writers (the prompt) use
-// accentReal() so they never emit the raw sentinel.
+// When set (by the full-screen console) accentSeq() returns a one-byte SENTINEL (0x01) instead of the
+// escape, so stored output re-tints on every repaint (screen.clip expands 0x01 → accentReal()).
 var accent_sentinel_on: std.atomic.Value(bool) = .init(false);
 pub const accent_sentinel = "\x01";
 pub fn setAccentSentinel(on: bool) void {
     accent_sentinel_on.store(on, .monotonic);
 }
 
-/// SGR escape for the current accent, and the reset; both "" when colour is off. Used by
-/// the line editor to colour the prompt and the typed command. In sentinel mode this returns
-/// the 0x01 placeholder instead (see setAccentSentinel).
+/// SGR escape for the current accent, and the reset; both "" when colour is off. In sentinel mode this
+/// returns the 0x01 placeholder instead (see setAccentSentinel).
 pub fn accentSeq() []const u8 {
     return if (accent_sentinel_on.load(.monotonic)) accent_sentinel else accent_slice;
 }
@@ -102,11 +96,8 @@ pub fn colorSeq(comptime code: []const u8) []const u8 {
 }
 const c = colorSeq;
 
-// Optional output sink. When set (by the full-screen console in screen.zig), every `print`
-// is routed here instead of straight to stderr, so human output can be captured into the
-// scrollback buffer and redrawn inside the pinned-header viewport. It's also reused to
-// capture `banner()` into the fixed header. Unset (the default) = plain stderr, so one-shot
-// mode, piped console input and CI are completely unaffected.
+// Optional output sink. When set (by screen.zig) every `print` is routed here instead of stderr, so
+// output can be captured into the scrollback. Unset = plain stderr, so one-shot mode is unaffected.
 var sink_fn: ?*const fn (*anyopaque, []const u8) void = null;
 var sink_ctx: *anyopaque = undefined;
 
@@ -121,10 +112,8 @@ pub fn clearSink() void {
     sink_fn = null;
 }
 
-// A one-shot hook fired just BEFORE the next print, then disarmed. The line editor arms it
-// around a slow call (reading an image off the clipboard) so the prompt row is erased at the
-// instant a message actually arrives — erasing it up front left the input blank for as long
-// as the read took, which reads as a blink.
+// A one-shot hook fired just BEFORE the next print, then disarmed. The line editor arms it around a
+// slow clipboard read, so the prompt row is erased when a message arrives rather than up front.
 var pre_print_fn: ?*const fn (*anyopaque) void = null;
 var pre_print_ctx: *anyopaque = undefined;
 
@@ -158,28 +147,20 @@ pub fn print(comptime fmt: []const u8, args: anytype) void {
     std.debug.print(fmt, args);
 }
 
-// The CLI's whole severity vocabulary: `error: ` (the command did not do what was asked)
-// and `note: ` (it went ahead, with something worth saying). Word prefixes, never emoji —
-// they are the Unix convention that grep, CI logs and the mcp/bot adapters parse. Go
-// through err()/note() rather than writing the literal, so the wording and the colouring
-// have exactly one definition. A listing/query answering "there are none" is a truthful
-// answer, not a refusal: it stays plain (`/connections` with no servers), while a command
-// that tried to act and could not is an `error:` (`/disconnect` with no servers).
+// The CLI's whole severity vocabulary: `error: ` and `note: `, word prefixes rather than emoji — the
+// convention grep, CI logs and the mcp/bot adapters parse. Go through err()/note(), never a literal.
 
 /// The `error: ` prefix — bold red on a colour terminal, plain elsewhere.
 pub fn errPrefix() []const u8 {
     return if (severity_color.load(.monotonic)) Ansi.red ++ "error: " ++ Ansi.reset else "error: ";
 }
 
-/// The `note: ` prefix — the live THEME accent on a colour terminal, plain elsewhere. It uses
-/// accentSeq() (not accentReal()), so in the full-screen console a note already in the
-/// scrollback is re-tinted when the theme changes, like every other accent-coloured line.
-/// `error:` stays red: severity that means "this did not happen" should not move with the theme.
+/// The `note: ` prefix — the live THEME accent on a colour terminal, via accentSeq() so a note in the
+/// scrollback re-tints. `error:` stays red: "this did not happen" should not move with the theme.
 pub fn notePrefix() []const u8 {
     if (!severity_color.load(.monotonic)) return "note: ";
-    // Bold FIRST, then the accent: `error:` is bold red, so the two severities carry the same
-    // weight and differ only in hue. In sentinel mode the accent is one byte the screen expands
-    // on every repaint, and the bold in front of it survives that expansion untouched.
+    // Bold FIRST, then the accent: `error:` is bold red, so the two severities carry the same weight and
+    // differ only in hue. In sentinel mode the bold in front survives the accent's expansion.
     const accent = accentSeq();
     const reset = c(Ansi.reset);
     const parts = [_][]const u8{ Ansi.bold, accent, "note: ", reset };
@@ -270,12 +251,8 @@ test "err/note colour only the prefix on a terminal, and NO_COLOR turns it off" 
     try testing.expectEqualStrings("error: boom\n", cap.buf.items);
 }
 
-// Only the PRESENTATION layer talks to a terminal. Everything below it — pipeline, net,
-// project, scrape, serverClient, llm/, the codecs — reports through report.zig, so the same
-// code runs headlessly behind another sink. Both rules are linted over the sources: the
-// severity prefixes have one definition (err()/note(), never a literal), and no file below
-// the line reaches for logo or an ANSI escape. The lint WALKS src/ rather than reading an
-// embedded list, so a new file below the line is caught the day it lands.
+// Only the PRESENTATION layer talks to a terminal; everything below it reports through report.zig.
+// The lint WALKS src/ rather than an embedded list, so a new file below the line is caught at once.
 
 /// Files that may paint a terminal: this module, the sink in front of it, the entry points,
 /// and the two interactive surfaces (see presentation_dirs for their packages).

@@ -1,17 +1,8 @@
-// Walks the shared layout conformance vectors (browser/js/config/fixtures/layout/)
-// against the cli's real tolerant reader (layout.parse — the path /apply and --layout
-// use). The cli consumes exported payloads, so sparse.json is walked to expectFilled
-// (the tolerant-parser contract) and payload.json through the parse side.
-//
-// Measured cli drift, pinned via fixture_overrides.json (`cliLines` replaces the
-// corpus expectation where the cli's tolerant reader disagrees):
-//  · a line whose points read as EMPTY is skipped entirely (the browser keeps it);
-//  · every point OBJECT is kept, each missing/mis-typed coordinate defaulting to 0
-//    (the browser drops junk points and coerces numeric strings);
-//  · a numeric-string field ("3.5") falls back to the default (browser coerces);
-//  · non-bool locked falls back to false (browser applies truthiness).
-// The top-level filter reads BOTH keys since Phase 6: canonical "imageFilter"
-// (the corpus/browser export key) wins over the legacy "filter" spelling.
+// Walks the shared layout conformance vectors (browser/js/config/fixtures/layout/) against the cli's
+// real tolerant reader (layout.parse — the path /apply and --layout use): sparse.json to expectFilled,
+// payload.json through the parse side. Measured cli drift is pinned via fixture_overrides.json
+// (`cliLines`): an empty-points line is skipped, every point OBJECT kept with missing coordinates 0, a
+// numeric-string field falls back, non-bool locked is false. Canonical "imageFilter" beats "filter".
 const std = @import("std");
 const layout = @import("../src/layout.zig");
 const core = @import("../src/core.zig");

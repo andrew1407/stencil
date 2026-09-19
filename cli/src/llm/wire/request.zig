@@ -28,9 +28,8 @@ pub const Request = struct {
     }
 };
 
-/// Build the provider request for one user turn (§6). `images` are the attached base64
-/// PNGs in order. For `stencil-server` the endpoint + bearer come from
-/// `server_url`/`server_token` (caller-resolved); both are ignored elsewhere.
+/// Build the provider request for one user turn (§6); `images` are the attached base64 PNGs in order.
+/// For `stencil-server` the endpoint + bearer come from `server_url`/`server_token`.
 pub fn buildRequest(
     gpa: std.mem.Allocator,
     cfg: *const Config,
@@ -42,9 +41,8 @@ pub fn buildRequest(
     return buildRequestWithHistory(gpa, cfg, prompt, images, server_url, server_token, &.{}, "");
 }
 
-/// buildRequest with a replayed conversation and an optional system-prompt suffix:
-/// `history` (text-only, most recent 32, §7/§12) rides BEFORE the current turn, the suffix
-/// after a blank line (§4). Empty history + suffix = byte-for-byte buildRequest.
+/// buildRequest with a replayed conversation and an optional system-prompt suffix: `history`
+/// (text-only, most recent 32, §7/§12) rides BEFORE the current turn, the suffix after a blank line.
 pub fn buildRequestWithHistory(
     gpa: std.mem.Allocator,
     cfg: *const Config,
@@ -59,8 +57,7 @@ pub fn buildRequestWithHistory(
 }
 
 /// buildRequestWithHistory over an explicit system-prompt base: the console passes
-/// `consoleSystemPrompt()` (the settings block spliced into §4's op list); everything
-/// else — wire shape, history replay, suffix joining — is identical.
+/// `consoleSystemPrompt()`; wire shape, history replay and suffix joining are identical.
 pub fn buildRequestWithSystem(
     gpa: std.mem.Allocator,
     cfg: *const Config,

@@ -10,9 +10,8 @@ const filter = @import("filter.zig");
 const pathnameOf = filter.pathnameOf;
 const decodeEntities = text.decodeEntities;
 
-/// Resolve `raw` against absolute `base`, returning an owned absolute URL (or null when
-/// empty / a same-document fragment). Handles scheme-absolute, protocol-relative (`//host`),
-/// root-relative (`/path`), query-only (`?q`) and path-relative forms.
+/// Resolve `raw` against absolute `base`, returning an owned absolute URL (null when empty or a
+/// same-document fragment). Handles scheme-absolute, `//host`, `/path`, `?q` and path-relative forms.
 pub fn resolveUrl(alloc: std.mem.Allocator, base: []const u8, raw: []const u8) !?[]const u8 {
     const decoded = try decodeEntities(alloc, std.mem.trim(u8, raw, " \t\r\n"));
     const r = decoded;
@@ -36,10 +35,8 @@ pub fn resolveUrl(alloc: std.mem.Allocator, base: []const u8, raw: []const u8) !
     return try std.fmt.allocPrint(alloc, "{s}{s}{s}", .{ dir, sep, r });
 }
 
-/// True when `raw`, RESOLVED against `base`, is an http(s) URL. Gates `<video src>` and
-/// in-`<video>` `<source src>`: a relative src is resolved FIRST (the extension reads the
-/// DOM-resolved absolute), then scheme-checked — matching pystencil. The scratch is arena
-/// garbage; the caller keeps the raw src, re-resolved by the dedupe phase.
+/// True when `raw`, RESOLVED against `base`, is an http(s) URL — the gate on `<video src>` and in-
+/// `<video>` `<source src>`: resolve FIRST, then scheme-check, as pystencil and the DOM read do.
 pub fn resolvesHttp(alloc: std.mem.Allocator, base: []const u8, raw: []const u8) !bool {
     if (raw.len == 0) return false;
     const abs = (try resolveUrl(alloc, base, raw)) orelse return false;

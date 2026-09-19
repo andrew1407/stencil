@@ -29,9 +29,8 @@ pub const Provider = enum {
         };
     }
 
-    /// The contract's per-provider default `baseUrl` (§5), from the shared providers.json
-    /// asset. `stencil-server` has none — its endpoint is the separately configured
-    /// server URL (the asset says `null`).
+    /// The contract's per-provider default `baseUrl` (§5), from the shared providers.json asset.
+    /// `stencil-server` has none — its endpoint is the separately configured server URL.
     pub fn defaultBaseUrl(self: Provider) []const u8 {
         if (default_urls.ollama.len == 0) parseProviderDefaults();
         return switch (self) {
@@ -42,9 +41,8 @@ pub const Provider = enum {
     }
 };
 
-// Canonical provider defaults (browser/js/config/llm/providers.json, embedded at build
-// time). Parsed lazily on first use, like theme.zig: std.json needs an allocator.
-// The strings slice into the embedded JSON (static lifetime); the CLI is single-threaded.
+// Canonical provider defaults (browser/js/config/llm/providers.json, embedded at build time),
+// parsed lazily like theme.zig. The strings slice into the embedded JSON, so they are static.
 const providers_asset_json = @embedFile("providers.json");
 
 var default_urls = struct {
@@ -70,9 +68,8 @@ fn parseProviderDefaults() void {
     default_urls.openai_compat = doc.providers.@"openai-compat".defaultBaseUrl;
 }
 
-/// The raw `STENCIL_LLM_*` environment values (slices borrowed from the process environ,
-/// stable for the process lifetime). Kept as a plain struct so the resolution into a
-/// `Config` is pure and unit-testable without touching the real environment.
+/// The raw `STENCIL_LLM_*` values, borrowed from the process environ (stable for its lifetime). A
+/// plain struct, so resolution into a `Config` is pure and testable without the real environment.
 pub const Env = struct {
     provider: ?[]const u8 = null, // STENCIL_LLM_PROVIDER
     base_url: ?[]const u8 = null, // STENCIL_LLM_BASE_URL
@@ -113,9 +110,8 @@ pub const Config = struct {
         self.* = .{};
     }
 
-    /// Resolve the environment into a config: provider defaults to "ollama", baseUrl per
-    /// provider; empty env values count as unset. Env URLs are initial values, NOT session
-    /// overrides — a provider change re-fills its default unless `/llm url` was used.
+    /// Resolve the environment into a config: provider defaults to "ollama", baseUrl per provider, empty
+    /// values count as unset. Env URLs are initial values, NOT session overrides (see `/llm url`).
     pub fn init(gpa: std.mem.Allocator, env: Env) !Config {
         var cfg = Config{};
         errdefer cfg.deinit(gpa);

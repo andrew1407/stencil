@@ -33,9 +33,8 @@ pub const ConsoleOpts = struct {
 /// format to save it back as. Caller loads it into the session and frees `url`.
 pub const Loaded = struct { img: image.Rgba8, url: []u8, fmt: image.Format };
 
-/// Scrape `o.url`, filter to image-category items (img / bg / poster) by format + dimension,
-/// pick the item at 0-based `o.index` from the ordered filtered list, download + decode it.
-/// Prints on failure and returns an error; the caller leaves the session unchanged then.
+/// Scrape `o.url`, filter to image-category items (img / bg / poster) by format + dimension, pick the
+/// item at 0-based `o.index` of the ordered list, download and decode it. Prints on failure.
 pub fn scrapeOne(gpa: std.mem.Allocator, io: std.Io, o: ConsoleOpts) !Loaded {
     var arena_state = std.heap.ArenaAllocator.init(gpa);
     defer arena_state.deinit();
@@ -48,10 +47,8 @@ pub fn scrapeOne(gpa: std.mem.Allocator, io: std.Io, o: ConsoleOpts) !Loaded {
 
     const dim_active = o.min_width != null or o.max_width != null or o.min_height != null or o.max_height != null;
 
-    // Walk the ordered image-category (img / background / poster — never video), format-passing
-    // candidates. Only a dimension filter forces a per-candidate fetch (to measure each and
-    // apply the size bound, mirroring pystencil's scan_page); without one the category+format
-    // list already fixes the pick, so we index straight in and fetch ONLY the chosen item.
+    // Only a dimension filter forces a per-candidate fetch (to measure each, mirroring pystencil's
+    // scan_page); without one the category+format list fixes the pick, so ONLY the chosen item is fetched.
     var matches: usize = 0;
     for (medias) |m| {
         const cat = m.category();

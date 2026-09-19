@@ -1,9 +1,8 @@
-//! The console's derived view, cached. A view is rotate → crop → filter over the untouched
-//! original, and only then the drawn lines; every edit, undo and redo rebuilds it. Drawing a
-//! line, undoing one, or rendering an LLM variant leaves the rotate/crop/filter triple alone,
-//! so `Base` keeps the last one it built and hands out copies until that triple changes —
-//! which is what stops a `/line` on a contoured image re-running the convolution.
-//! Costs one image of memory on top of the original and the current view.
+//! The console's derived view, cached. A view is rotate → crop → filter over the untouched original,
+//! and only then the drawn lines; every edit, undo and redo rebuilds it. Drawing a line, undoing
+//! one or rendering an LLM variant leaves the triple alone, so `Base` keeps the last one it built
+//! and hands out copies — which is what stops a `/line` re-running a contour convolution. Costs one
+//! image of memory on top of the original and the current view.
 const std = @import("std");
 const image = @import("../image.zig");
 const core = @import("../core.zig");

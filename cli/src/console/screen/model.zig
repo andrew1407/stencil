@@ -15,9 +15,8 @@ pub fn bodyRows(self: *Screen) u16 {
     return if (self.rows > used) self.rows - used else 0;
 }
 
-/// How many rows the input block occupies. The line editor sets this as a typed line wraps,
-/// so the output above simply gets shorter instead of being written over. Repaints when the
-/// height actually changes; capped so a very long paste can never swallow the window.
+/// How many rows the input block occupies; the line editor sets this as a typed line wraps, so the
+/// output above shortens instead of being written over. Capped, so a long paste cannot swallow it.
 pub fn setPromptRows(self: *Screen, want: u16) void {
     const max: u16 = @max(@as(u16, 1), @min(@as(u16, 8), self.rows / 2));
     const n = @max(@as(u16, 1), @min(want, max));

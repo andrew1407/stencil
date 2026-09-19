@@ -41,10 +41,8 @@ pub fn readPaste(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos:
         pos.* += 1;
         len.* += 1;
     }
-    // A paste that delivered NOTHING is what a terminal does when the clipboard holds only
-    // an image: its paste event carries text, and there is none. Take the picture off the
-    // clipboard ourselves — pressing ⌘V/Ctrl-Shift-V with an image copied means exactly
-    // what Ctrl-V means here.
+    // A paste that delivered NOTHING is what a terminal does when the clipboard holds only an image:
+    // take the picture off the clipboard ourselves, as Ctrl-V would.
     if (pos.* == start and self.pending != null) {
         _ = self.attachClipboard(prompt, buf, len, pos);
         return;
@@ -54,10 +52,8 @@ pub fn readPaste(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos:
     self.refresh(prompt, buf[0..len.*], pos.*);
 }
 
-// A ⌘V that pasted nothing but the path of an image FILE becomes a marker instead of the
-// raw text: the terminal cannot hand over the picture itself, only its name. The host
-// decides (it knows the command being typed, and whether the file is really an image) —
-// when it declines, the pasted text simply stays.
+// A ⌘V that pasted nothing but an image FILE's path becomes a marker instead of raw text: the
+// terminal can only hand over the name. The host decides; when it declines, the text stays.
 pub fn attachPastedPath(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, start: usize) void {
     const p = self.pending orelse return;
     if (pos.* <= start) return;
@@ -74,16 +70,14 @@ pub fn attachPastedPath(self: *Editor, prompt: []const u8, buf: []u8, len: *usiz
     self.insertMarker(prompt, buf, len, pos, p.count(p.ctx), lb[0..n]);
 }
 
-// Ctrl-V: hand the clipboard to the host, which holds the picture and gives back the
-// short name its marker shows. True when the chord was handled here — with no hooks
-// wired the caller falls back to returning `.paste`.
+// Ctrl-V: hand the clipboard to the host, which holds the picture and gives back the short name its
+// marker shows. True when handled here — with no hooks wired the caller returns `.paste`.
 pub fn attachClipboard(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) bool {
     const p = self.pending orelse return false;
     var lb: [max_marker_label]u8 = undefined;
     var tb: [max_line]u8 = undefined;
-    // Reading the clipboard shells out and takes a moment: leave the line ON SCREEN for
-    // it and erase the row only if the hook actually says something (logo's one-shot
-    // pre-print hook). Blanking it up front is what made the input blink on every paste.
+    // Reading the clipboard shells out and takes a moment: leave the line ON SCREEN for it and erase
+    // the row only if the hook says something. Blanking it up front made the input blink on every paste.
     self.armLineClear();
     const what = p.paste(p.ctx, buf[0..len.*], &lb, &tb);
     logo.disarmPrePrint();
@@ -145,9 +139,8 @@ pub fn abortPending(self: *Editor) void {
     if (p.count(p.ctx) != 0) p.keep(p.ctx, &.{});
 }
 
-// Reconcile the host's images with the markers the line actually still holds: the
-// surviving ones are kept in the order they now read (and renumbered in place, so the
-// first marker is always #1); the rest are dropped. Cheap, and a no-op with none pending.
+// Reconcile the host's images with the markers the line still holds: survivors keep the order they
+// now read and are renumbered in place (first marker is always #1); the rest are dropped.
 pub fn syncPending(self: *Editor, line: []u8) void {
     const p = self.pending orelse return;
     if (p.count(p.ctx) == 0) return;
@@ -170,11 +163,8 @@ pub fn syncPending(self: *Editor, line: []u8) void {
     p.keep(p.ctx, kept[0..n]);
 }
 
-// Handle an SGR mouse report (`ESC [ <` already consumed): read up to the final 'M'/'m',
-// parse it, and act — wheel scrolls the scrollback; a left-click on the pinned logo ARMS a
-// deferred single-click (cycle, fired by readLine after the double-click window), and a
-// *second* click within that window supersedes it as a double-click (random custom colour).
-// Deferring avoids the first click's animation blocking the double-click detection. Else ignored.
+// An SGR mouse report (`ESC [ <` already consumed): wheel scrolls; a left-click on the pinned logo
+// ARMS a deferred single-click, so a second click inside the window supersedes it as a double-click.
 pub fn handleMouse(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, click_pending: *bool, click_at: *i64) void {
     var mb: [32]u8 = undefined;
     var mi: usize = 0;

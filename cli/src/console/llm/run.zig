@@ -30,9 +30,8 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
     // §10 clearChat is deferred to the END of the turn: a defer runs on every exit, after
     // the continuation round has settled.
     defer finishChatClear(session);
-    // Contract §11.4: "2" or "1,3" answers the last ask card by number, expanded to the
-    // option LABELS every other surface sends. Anything else is an ordinary prompt and
-    // simply drops the card — the conversation is never blocked.
+    // Contract §11.4: "2" or "1,3" answers the last ask card by number, expanded to the option LABELS
+    // every other surface sends. Anything else is an ordinary prompt and simply drops the card.
     var answer_buf: ?[]u8 = null;
     defer if (answer_buf) |b| gpa.free(b);
     const text = blk: {
@@ -58,9 +57,8 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
         server_token = auth.token;
     }
 
-    // §7 auto-continuation: a plan that LOADED a picture but drew no layout could not have
-    // traced it (the attachment rode along before it existed) — re-send the turn ONCE with
-    // the new image in hand.
+    // §7 auto-continuation: a plan that LOADED a picture but drew no layout could not have traced it
+    // (the attachment rode along before it existed) — re-send the turn ONCE with the new image in hand.
     var turn_text: []const u8 = text;
     // The continuation round RESTATES the request: with /chat off there is no history at
     // all, so a bare "continue" note would leave the model with no idea what was asked.
@@ -76,9 +74,8 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
         // Attach the working image for vision (all three providers take images per the
         // contract); over the cap it is skipped with a note, never downscaled.
         const b64: ?[]const u8 = if (session.hasImage()) try promptImageB64(session) else null;
-        // §7 edge map: the working snapshot run through the core contour filter rides as a
-        // SECOND image, current turn only. Dropped with the snapshot, or alone when only it
-        // is over the cap — and the suffix sentence rides exactly when it does.
+        // §7 edge map: the working snapshot through the core contour filter rides as a SECOND image,
+        // current turn only. Dropped with the snapshot, or alone when only it is over the cap.
         var edge_b64: ?[]u8 = null;
         defer if (edge_b64) |e| gpa.free(e);
         if (b64 != null) edge_b64 = try edgeMapB64(session, llm.max_image_bytes);
@@ -87,9 +84,8 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
         defer imgs.deinit(gpa);
         if (b64) |w| try imgs.append(gpa, w);
         if (edge_b64) |e| try imgs.append(gpa, e);
-        // §2.1: this turn's uploads ride after the working snapshot in upload order — what
-        // an `image` op indexes. One that cannot attach drops the whole set rather than
-        // shifting the numbering the model plans against.
+        // §2.1: this turn's uploads ride after the working snapshot in upload order — what an `image` op
+        // indexes. One that cannot attach drops the whole set rather than shifting that numbering.
         var att_b64: std.ArrayList([]u8) = .empty;
         defer {
             for (att_b64.items) |x| gpa.free(x);
@@ -118,10 +114,8 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
             try gpa.dupe(u8, console_ctx);
         defer gpa.free(suffix);
 
-        // What is happening, in the user's terms — not the wire's. The endpoint is operator
-        // detail (it is one `/llm` away); what matters while the screen sits still is that the
-        // assistant is thinking, roughly how long that can take, and that Ctrl-C ends it. The
-        // glyph spins on the wait beat and the line goes when the reply (or the error) lands.
+        // What is happening in the user's terms, not the wire's: the assistant is thinking, roughly how
+        // long that takes, and that Ctrl-C ends it. The line goes when the reply or the error lands.
         var spin = spinner.Spinner{};
         spin.start(if (session.cancel_poll != null)
             "thinking… this can take a minute (Ctrl-C to cancel)"
@@ -129,9 +123,8 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
             "thinking… this can take a minute");
         defer spin.stop(); // every exit: the pre-print hook must not outlive this frame
 
-        // With /chat on the saved conversation is replayed (text-only, §7/§12) before the
-        // current turn; off, the request is byte-for-byte the plain single-turn one.
-        // The system prompt is §4 + the console settings-op block (llm.consoleSystemPrompt()).
+        // With /chat on the saved conversation is replayed (text-only, §7/§12) before the current turn;
+        // off, the request is byte-for-byte the plain single-turn one. The system prompt is §4 + settings.
         const history: []const llm.Turn = if (session.chat_on) session.chat_history.items else &.{};
         var req = try llm.buildRequestWithSystem(gpa, cfg, llm.consoleSystemPrompt(), turn_text, imgs.items, server_url, server_token, history, suffix);
         defer req.deinit(gpa);
@@ -165,9 +158,8 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
     }
 }
 
-/// The §10 clearChat deferral, run once the WHOLE turn (continuation included) settled:
-/// confirm in-app, then take the exact /chat clear path (history + best-effort server
-/// chat-file delete). Declining is a "clear canceled" note, never a failed plan.
+/// The §10 clearChat deferral, run once the WHOLE turn (continuation included) settled: confirm,
+/// then take the /chat clear path. Declining is a "clear canceled" note, never a failed plan.
 pub fn finishChatClear(session: *Session) void {
     if (!session.pending_chat_clear) return;
     session.pending_chat_clear = false;
@@ -181,10 +173,6 @@ pub fn finishChatClear(session: *Session) void {
     }
     handlers.doChat(session, "clear");
 }
-
-/// The working image as a base64 PNG, borrowed from a session cache keyed by a pixel
-/// digest so a no-edit follow-up re-sends without re-encoding. Null (with a note) when
-/// over the cap or failing to encode — those stay uncached so the note reprints per turn.
 
 fn promptWaiter(session: *Session, spin: *spinner.Spinner) llm.Waiter {
     if (session.cancel_poll == null or session.cancel_ctx == null) return .{};

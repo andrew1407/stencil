@@ -26,9 +26,8 @@ pub fn doRename(session: *Session, arg: []const u8) !void {
     ui.status(session); // reprint "image: <name> …" with the new name
 }
 
-/// `/expire [<duration>]` — set the active server project's expiry from a core-parsed
-/// duration ("days 23", "month", "off"); bare prints the accepted formats. A valid spec is
-/// resolved to now+duration and PUT version-guarded; "off"/"never" clears (0 = keep forever).
+/// `/expire [<duration>]` — the active project's expiry from a core-parsed duration ("days 23",
+/// "month", "off"), resolved to now+duration and PUT version-guarded; "off" clears (0 = forever).
 pub fn doExpire(session: *Session, io: std.Io, arg: []const u8) !void {
     const spec = std.mem.trim(u8, arg, " \t");
     if (spec.len == 0) {
@@ -110,9 +109,8 @@ pub fn doSync(session: *Session, arg: []const u8) void {
     }
 }
 
-/// `/chat [show|on|off|clear]` — opt-in per-project chat persistence (contract §12). Bare
-/// shows; on/off sets whether the /prompt conversation is saved/restored with the project;
-/// clear drops the turns and (§12.2) best-effort deletes the server chat file.
+/// `/chat [show|on|off|clear]` — opt-in per-project chat persistence (contract §12). on/off sets
+/// whether the /prompt conversation rides the project; clear drops the turns and (§12.2) its file.
 pub fn doChat(session: *Session, arg: []const u8) void {
     const a = std.mem.trim(u8, arg, " \t");
     const eq = std.ascii.eqlIgnoreCase;

@@ -67,8 +67,7 @@ pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void 
     }
 
     // Extra flag edits ON TOP of the source, in pipeline order (crop → rotate → layout → filter).
-    // --layout-frame source records the crop/rotate as frame steps so the layout doc's
-    // SOURCE-frame points are re-mapped + clamped before drawing (llm-contract.md §1).
+    // --layout-frame source records crop/rotate as frame steps for the re-map (llm-contract.md §1).
     var steps_buf: [2]layout_mod.FrameStep = undefined;
     var n_steps: usize = 0;
     if (opts.crop) |spec| {

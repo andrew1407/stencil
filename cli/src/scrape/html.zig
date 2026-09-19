@@ -22,9 +22,8 @@ const resolvesHttp = urls.resolvesHttp;
 const RawImg = struct { url: []const u8, alt: []const u8 };
 const RawVideo = struct { url: []const u8, poster: []const u8, alt: []const u8 };
 
-/// Parse `html`, extracting media URLs resolved absolute against `base_url` (honoring a
-/// `<base href>`), deduped first-wins, in the scan order: <img>, <svg><image>, <video>
-/// (+ poster), <picture><source>, then CSS `url(...)` backgrounds. Owned by `alloc`; http(s) only.
+/// Parse `html` for media URLs resolved absolute against `base_url` (honoring a `<base href>`), deduped
+/// first-wins, in scan order: <img>, <svg><image>, <video> (+ poster), <picture><source>, CSS url().
 pub fn parseMedia(alloc: std.mem.Allocator, html: []const u8, base_url: []const u8) ![]Media {
     var imgs: std.ArrayList(RawImg) = .empty;
     defer imgs.deinit(alloc);
@@ -155,9 +154,8 @@ pub fn parseMedia(alloc: std.mem.Allocator, html: []const u8, base_url: []const 
     return out.toOwnedSlice(alloc);
 }
 
-/// Resolve `raw` against `base`, keep only http(s), decode HTML entities in the alt text,
-/// and append — deduping on the absolute URL (first wins). A duplicate that arrives tagged
-/// `is_poster` just promotes the already-collected item to the poster category.
+/// Resolve `raw` against `base`, keep only http(s), decode HTML entities in the alt text and append,
+/// deduping on the absolute URL. A duplicate tagged `is_poster` promotes the collected item.
 fn addMedia(
     alloc: std.mem.Allocator,
     out: *std.ArrayList(Media),

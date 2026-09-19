@@ -34,9 +34,8 @@ pub fn current() ?*Screen {
 pub const max_lines = 5000; // scrollback cap; oldest lines drop past this
 pub const wheel_step = 3; // rows per wheel notch
 pub const header_pad = 1; // blank rows between the logo header and the output
-// `/reveal-speed <speed>`, 0.01 … 1: 1 = instant, smaller = slower (0 would never finish).
-// The constants above are the pace at the default 0.5; each scales by (1-speed)/speed,
-// which is 1× there. The quiet/burst windows scale too.
+// `/reveal-speed <speed>`, 0.01 … 1: 1 = instant, smaller = slower (0 would never finish). The
+// constants above are the pace at the default 0.5; each scales by (1-speed)/speed, which is 1 there.
 pub const reveal_speed_min = 0.01;
 pub const reveal_speed_max = 1.0;
 pub const reveal_speed_default = 0.5;
@@ -61,13 +60,11 @@ pub const Screen = struct {
     // Where a banner capture lands when it is NOT the pinned header — the shrunken logo the
     // click animation flashes. Set only for the duration of that capture.
     alt_capture: ?*std.ArrayList([]u8) = null,
-    // The accent the screen is currently painted in. `logo`'s accent has already moved on by
-    // the time onThemeChanged runs, so the outgoing colour has to be remembered here for the
-    // sweep to paint the not-yet-covered side of the screen in it.
+    // The accent the screen is currently painted in. `logo`'s accent has already moved on by the time
+    // onThemeChanged runs, so the outgoing colour is remembered here for the sweep's uncovered side.
     painted_accent: [3]u8 = .{ 124, 58, 237 },
-    // How far right the accent reaches on screen, measured when a recolour starts. The seam
-    // travels this far, the rule scales its own faster progress against it, and the icon's
-    // clock hand takes the whole turn over the same distance.
+    // How far right the accent reaches on screen, measured when a recolour starts: the seam travels
+    // this far, the rule scales its faster progress against it, and the icon's hand turns over it.
     wipe_reach: u16 = 0,
     lines: std.ArrayList([]u8) = .empty, // scrollback (owned)
     pending: std.ArrayList(u8) = .empty, // partial line being accumulated
@@ -93,9 +90,8 @@ pub const Screen = struct {
 
     pub const Error = error{ TerminalTooSmall, SizeUnavailable };
 
-    /// Enter full-screen mode; on any failure tears down cleanly and errors so the caller
-    /// falls back to the plain editor. `self` must have a stable address for the session
-    /// (its pointer is handed to the sink and to `g_screen`).
+    /// Enter full-screen mode; on any failure tears down cleanly and errors so the caller falls back to
+    /// the plain editor. `self` must have a stable address (its pointer reaches the sink and `g_screen`).
     pub fn start(self: *Screen) Error!void {
         try self.querySize();
         self.queryHighlight();

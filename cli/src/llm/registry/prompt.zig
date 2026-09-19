@@ -16,9 +16,8 @@ fn opIncluded(comptime d: OpDescriptor, comptime caps: OpCaps) bool {
     return d.capability == null or caps.contains(d.capability.?);
 }
 
-/// Assemble §4's "Available ops" section from the registry (§13): each included op's
-/// bullet, table order, each preceded by the newline that separates it from the
-/// header / previous bullet. Excluded capabilities simply drop their bullets.
+/// Assemble §4's "Available ops" section from the registry (§13): each included op's bullet in table
+/// order, preceded by its separating newline. Excluded capabilities simply drop their bullets.
 pub fn opsSection(comptime caps: OpCaps) []const u8 {
     comptime {
         @setEvalBranchQuota(1_000_000);
@@ -50,9 +49,8 @@ pub fn consoleBlock(comptime caps: OpCaps) []const u8 {
 
 const console_footer = "These console ops are not image edits and cannot appear inside \"variants\".";
 
-// §4's prose core comes VERBATIM from the embedded shared asset (systemPrompt.json);
-// the ops list is generated (§13), and the `ask` paragraph is this surface's ONE tail
-// divergence (numbered, no previews). Parsed lazily — std.json needs an allocator.
+// §4's prose core comes VERBATIM from the embedded shared asset (systemPrompt.json); the ops list is
+// generated (§13), and the `ask` paragraph is this surface's ONE tail divergence.
 const prompt_asset_json = @embedFile("systemPrompt.json");
 
 // The console's own `ask` paragraph (replaces the asset tail's up to the shared anchor).
@@ -99,9 +97,8 @@ fn assemblePrompts() void {
         w += part.len;
     }
     const system = prompt_storage[0..w];
-    // Splice the console block at the end of §4's op list (the browser's
-    // SETTINGS_SPLICE_ANCHOR); a §4 rewording fails loudly here rather than
-    // silently shipping a prompt without the block.
+    // Splice the console block at the end of §4's op list (the browser's SETTINGS_SPLICE_ANCHOR); a §4
+    // rewording fails loudly here rather than silently shipping a prompt without the block.
     const i = std.mem.indexOf(u8, system, console_splice_anchor) orelse
         @panic("system prompt no longer contains the console-settings splice anchor");
     const start = w;
@@ -121,17 +118,15 @@ pub fn systemPrompt() []const u8 {
     return assembled_system;
 }
 
-/// The CONSOLE settings-op block: ops driving the console's OWN controls, the way the
-/// GUI editors' §10 block drives theirs. Assembled from the registry's console bullets
-/// (§13); nothing here invents capability.
+/// The CONSOLE settings-op block: ops driving the console's OWN controls, as the GUI editors' §10
+/// block drives theirs. Assembled from the registry's console bullets; nothing here invents capability.
 pub const console_settings_prompt: []const u8 = consoleBlock(full_capabilities);
 
 // The op list's end = the `ask` paragraph's start (the browser's SETTINGS_SPLICE_ANCHOR).
 const console_splice_anchor = "\n\nWhen a choice is genuinely";
 
-/// §4 + the console block at the end of its op list — the same splice the browser's
-/// EDITOR_SYSTEM_PROMPT performs (see assemblePrompts); `systemPrompt()` itself stays
-/// byte-identical to the contract.
+/// §4 plus the console block at the end of its op list — the same splice the browser's
+/// EDITOR_SYSTEM_PROMPT performs; `systemPrompt()` itself stays byte-identical to the contract.
 pub fn consoleSystemPrompt() []const u8 {
     if (assembled_console.len == 0) assemblePrompts();
     return assembled_console;

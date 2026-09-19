@@ -71,9 +71,8 @@ fn isMedia(name: []const u8) bool {
     return image.formatFromExt(ext) != null;
 }
 
-/// Every input `spec` names, sorted so a directory or glob runs in a stable order. The
-/// caller owns the list and each path in it. Every refusal says why: main.zig only exits 1,
-/// and the adapters parse the `error:` line.
+/// Every input `spec` names, sorted so a directory or glob runs in a stable order; the caller owns the
+/// list and each path. Every refusal says why: main.zig only exits 1, and the adapters parse `error:`.
 pub fn expand(gpa: std.mem.Allocator, io: std.Io, spec: []const u8, kind: scriptCore.SourceKind) ![][]u8 {
     var out: std.ArrayList([]u8) = .empty;
     errdefer {

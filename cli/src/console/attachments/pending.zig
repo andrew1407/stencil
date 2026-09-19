@@ -19,16 +19,14 @@ const clip = @import("clip.zig");
 const clipboardToImage = clip.clipboardToImage;
 const clipError = clip.clipError;
 
-// The editor owns the `[Image #N <label>]` markers in the line; the session owns the bytes
-// behind them. Nothing is loaded until the line is submitted (drainPending) — deleting a
-// marker, Ctrl-C or Ctrl-U simply drops what it stood for.
+// The editor owns the `[Image #N <label>]` markers in the line, the session the bytes behind them.
+// Nothing is loaded until the line is submitted (drainPending).
 
 pub const max_paste_path = 1024; // longest pasted path we consider (well past PATH_MAX in practice)
 pub const max_paste_bytes = 64 << 20; // 64 MiB cap on a pasted image file, matching the clipboard's
 
-/// Ctrl-V while typing: hold the clipboard's picture against the line being edited. Writes
-/// the marker's short label into `out` and returns its length; null when there was nothing
-/// to take (the reason is printed).
+/// Ctrl-V while typing: hold the clipboard's picture against the line being edited. Writes the
+/// marker's short label into `out` and returns its length; null when there was nothing to take.
 pub fn pasteAtPrompt(session: *Session, io: std.Io, before: []const u8, label: []u8, text: []u8) line_edit.PasteResult {
     const gpa = session.gpa;
     // A picture first — that is the whole point of the chord.
@@ -58,9 +56,8 @@ pub fn pasteAtPrompt(session: *Session, io: std.Io, before: []const u8, label: [
     return .{ .text = n };
 }
 
-/// How many images the line being typed may carry, with a printed reason when full:
-/// `/upload` takes exactly ONE, a `/prompt` (or a line with no command word yet) up to
-/// three. The verbs live here — the editor knows nothing about commands.
+/// How many images the line being typed may carry, with a printed reason when full: `/upload` takes
+/// one, a `/prompt` (or no command word yet) three. The editor knows nothing about commands.
 pub fn roomForPending(session: *Session, before: []const u8) bool {
     const held = session.pending.items.len;
     const cmd = commands.parseCommand(before);
@@ -75,9 +72,8 @@ pub fn roomForPending(session: *Session, before: []const u8) bool {
     return false;
 }
 
-/// A ⌘V paste that is nothing but the path of an image FILE (how a terminal pastes a picture
-/// dragged out of a file manager — the bytes themselves never reach us). Silent about
-/// everything it does not accept: the paste is then ordinary text, which is what it meant.
+/// A ⌘V paste that is nothing but an image FILE's path (how a terminal pastes a dragged picture).
+/// Silent about what it does not accept: the paste is then ordinary text, which is what it meant.
 pub fn capturePendingPath(session: *Session, io: std.Io, text: []const u8, before: []const u8, out: []u8) ?usize {
     if (!pathPasteAllowed(before)) return null;
     if (session.pending.items.len >= pathPasteLimit(before)) return null; // full: the paste stays text
@@ -91,9 +87,8 @@ pub fn capturePendingPath(session: *Session, io: std.Io, text: []const u8, befor
     return holdPending(session, bytes, path, fmt, false, out);
 }
 
-/// Turn the images pasted into a SUBMITTED line into real uploads, each adopted the way
-/// `/paste` adopts one (§2.1), in marker order. True when the paste WAS the whole command
-/// (a line of only images, or a bare `/upload`), so the caller runs nothing after it.
+/// Turn the images pasted into a SUBMITTED line into real uploads (§2.1), in marker order. True
+/// when the paste WAS the whole command, so the caller runs nothing after it.
 pub fn drainPending(session: *Session, line: []const u8) bool {
     var taken: [Session.max_pending]Attachment = undefined;
     const n = session.takePending(&taken);
@@ -128,9 +123,8 @@ pub fn adoptPending(session: *Session, at: Attachment) void {
     gpa.free(owned.label);
 }
 
-/// Decode-check a pasted picture and hold it against the line (taking ownership of `bytes`),
-/// reporting what landed. Only the ENCODED bytes are kept — the pixels are re-decoded if the
-/// line is actually submitted, so an abandoned paste costs no more than the file it came from.
+/// Decode-check a pasted picture and hold it against the line, taking ownership of `bytes`. Only
+/// the ENCODED bytes are kept, so an abandoned paste costs no more than the file it came from.
 pub fn holdPending(session: *Session, bytes: []u8, label: []const u8, fmt: image.Format, temp: bool, out: []u8) ?usize {
     const gpa = session.gpa;
     var img = image.decode(gpa, bytes) catch |e| {
@@ -148,9 +142,8 @@ pub fn holdPending(session: *Session, bytes: []u8, label: []const u8, fmt: image
     return short.len;
 }
 
-/// The name the line's marker shows: the last path component, middle-elided to fit `out`
-/// (the editor sizes it) with the extension kept, and stripped of anything that would break
-/// the marker's own `[…]` shape.
+/// The name the line's marker shows: the last path component, middle-elided to fit `out` with the
+/// extension kept, stripped of anything that would break the marker's own `[…]` shape.
 pub fn shortLabel(out: []u8, label: []const u8) []const u8 {
     const base = std.fs.path.basename(label);
     var n: usize = 0;
@@ -172,9 +165,8 @@ pub fn shortLabel(out: []u8, label: []const u8) []const u8 {
     return out[0..n];
 }
 
-/// Whether a pasted path may become an image attachment: only while no command word has
-/// settled yet, or under the two verbs that take pictures. Pasted into `/save …` a path is
-/// still a path.
+/// Whether a pasted path may become an image attachment: only while no command word has settled,
+/// or under the two verbs that take pictures. Pasted into `/save …` a path is still a path.
 pub fn pathPasteAllowed(before: []const u8) bool {
     const cmd = commands.parseCommand(before);
     if (cmd.word.len == 0) return true;
@@ -190,9 +182,8 @@ pub fn pathPasteLimit(before: []const u8) usize {
     return if (verb != null and verb.? == .upload) 1 else line_edit.max_pending_images;
 }
 
-/// The single file path a paste carries, or null when it is ordinary text: outer quotes are
-/// dropped and shell-style `\ ` escapes resolved (how a file manager's path arrives), while
-/// an unescaped space — or a control byte — means prose.
+/// The single file path a paste carries, else null: outer quotes dropped and shell-style escaped
+/// spaces resolved; an unescaped space — or a control byte — means prose.
 pub fn unquotePath(out: []u8, text: []const u8) ?[]const u8 {
     var s = std.mem.trim(u8, text, " \t\r\n");
     if (s.len < 2 or s.len > out.len) return null;

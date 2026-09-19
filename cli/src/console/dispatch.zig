@@ -40,9 +40,8 @@ pub fn handle(session: *Session, io: std.Io, line: []const u8) !bool {
         .save => try handlers.doSave(session, io, cmd.arg),
         .delete => try handlers.doDelete(io, cmd.arg),
         .layout => try handlers.doLayout(session, io, cmd.arg),
-        // Formulas / the page format ride the layout, so a real change syncs to the server —
-        // but the bare listing and rejected-argument paths mutate nothing and stay clean
-        // (marking them dirty would upload an unchanged project and ping every peer).
+        // Formulas / the page format ride the layout, so a real change syncs; the bare listing and
+        // rejected-argument paths mutate nothing (marking them dirty would ping every peer).
         .formula => {
             if (handlers.doFormula(session, cmd.arg)) remoteEvents.markDirty(session);
         },

@@ -32,9 +32,8 @@ pub fn printKeywords(name: []const u8, keywords: []const []const u8) void {
     logo.print("\n", .{});
 }
 
-/// Split `<project | ["a","b"]> <keyword...>` into the target spec and keyword remainder (both
-/// slices into `arg`). A leading '[' captures up to the matching ']'; a leading '"' a quoted
-/// name; else the first whitespace token.
+/// Split `<project | ["a","b"]> <keyword...>` into target spec and remainder, both slices into `arg`:
+/// a leading '[' captures up to the matching ']', a leading '"' a quoted name, else one token.
 pub fn splitTargetSpec(arg: []const u8) struct { target: []const u8, rest: []const u8 } {
     const a = std.mem.trim(u8, arg, " \t");
     if (a.len == 0) return .{ .target = "", .rest = "" };

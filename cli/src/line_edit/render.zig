@@ -17,12 +17,8 @@ pub fn writeAll(self: *Editor, bytes: []const u8) void {
     }
 }
 
-// Redraw the line in place: carriage-return, then the accent-coloured prompt and (only
-// when the line is a "/command") its leading token — arguments and plain text stay
-// default. Clear to end of line, then park the cursor at the visible column.
-/// The input block's wrap geometry: how many columns the FIRST row leaves for the line
-/// (the prompt eats into it) and how wide each continuation row is. Null outside screen
-/// mode, where the terminal's own autowrap runs the show and no width is tracked.
+/// The input block's wrap geometry: how many columns the FIRST row leaves for the line (the prompt
+/// eats into it) and how wide each continuation row is. Null outside screen mode.
 pub fn wrapGeom(self: *Editor, prompt: []const u8) ?struct { first: usize, cols: usize } {
     const s = self.screen orelse return null;
     const cols: usize = @max(@as(usize, 8), s.cols);
@@ -37,9 +33,8 @@ pub fn refresh(self: *Editor, prompt: []const u8, line: []const u8, pos: usize) 
         0;
     const s = self.screen orelse return self.refreshFlat(prompt, line, pos, cmd_end);
 
-    // Full-screen: the input WRAPS onto as many rows as it needs (the block grows upward
-    // into the output, like Claude Code's), instead of scrolling a one-row window sideways
-    // — a long prompt you cannot read back is a prompt you cannot check before sending.
+    // Full-screen: the input WRAPS onto as many rows as it needs (the block grows upward into the
+    // output) instead of scrolling a one-row window sideways, so a long prompt can be read back.
     const g = self.wrapGeom(prompt) orelse return;
     const cols = g.cols;
     const first_avail = g.first;
@@ -80,9 +75,8 @@ pub fn refresh(self: *Editor, prompt: []const u8, line: []const u8, pos: usize) 
         self.writeAll("\x1b[K");
     }
     s.setPromptText(shown_rows[0..shown_n]);
-    // We just overwrote whatever the screen had painted on these rows — including a live
-    // selection wash. Put it back, or a drag over the input would flash and vanish on the
-    // very next event (every mouse event ends in a refresh).
+    // These rows just overwrote whatever the screen had painted, including a live selection wash: put it
+    // back, or a drag over the input would flash and vanish on the next event.
     if (s.hasHighlight()) s.paintPromptSelection();
     // Park the cursor where the next keystroke lands.
     const col = if (cur_row == 0) prompt.len + pos else (pos - first_avail) % cols;
@@ -127,10 +121,8 @@ pub fn gotoLineStart(self: *Editor) void {
     }
 }
 
-// End the current input line. In screen mode the prompt is a fixed bottom row, so a real
-// newline would line-feed and scroll the whole alt-screen (eating the pinned header) — so
-// instead just clear the prompt row in place; the command is echoed into the scrollback by
-// the caller. In the plain editor, emit the usual CR+LF to advance to the next line.
+// End the current input line. In screen mode the prompt is a fixed bottom row, so a real newline
+// would scroll the alt-screen and eat the pinned header — clear the row in place instead.
 pub fn endPromptLine(self: *Editor) void {
     if (self.screen) |s| {
         self.clearPromptBlock();
@@ -142,9 +134,8 @@ pub fn endPromptLine(self: *Editor) void {
     }
 }
 
-/// Erase EVERY row the input block owns. Clearing only `promptRow()` leaves the
-/// continuation rows of a wrapped line on screen: they sit below the output body, so
-/// nothing repaints them until the block next changes height.
+/// Erase EVERY row the input block owns: clearing only `promptRow()` leaves a wrapped line's
+/// continuation rows on screen, and nothing repaints them until the block changes height.
 pub fn clearPromptBlock(self: *Editor) void {
     const s = self.screen orelse return;
     const top = s.promptRow();

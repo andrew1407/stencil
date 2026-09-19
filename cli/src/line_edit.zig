@@ -1,12 +1,8 @@
-//! A minimal raw-mode line editor for the interactive console: left/right cursor motion,
-//! backspace/delete, Home/End, Tab to complete the command word, and Up/Down to walk an
-//! in-session command history. Ctrl-V attaches a clipboard image to the line being typed,
-//! shown inline as an `[Image #N <name>]` marker — the editor owns the markers, the host
-//! (console.zig) owns the pictures behind them, through the PendingImages hooks. Echoing
-//! is done by hand (ECHO is off) so the prompt and the leading command token render in the
-//! brand accent (logo.accentSeq()). It assumes a single visible line — no wrap handling — which is
-//! plenty for one-line commands. Only used when stdin is a TTY; piped input keeps the plain
-//! buffered reader in console.zig, so this never runs in CI.
+//! A minimal raw-mode line editor for the interactive console: cursor motion, backspace/delete,
+//! Home/End, Tab to complete the command word, Up/Down over an in-session history. Ctrl-V attaches a
+//! clipboard image to the line as an `[Image #N <name>]` marker — the editor owns the markers, the
+//! host (console.zig) owns the pictures, through the PendingImages hooks. Echoing is by hand (ECHO is
+//! off) so the prompt renders in the brand accent. TTY only; piped input keeps the plain reader.
 const std = @import("std");
 const logo = @import("logo.zig");
 const screen_mod = @import("console/screen.zig");
@@ -36,9 +32,8 @@ pub const copyInto = words.copyInto;
 
 pub const max_line = 4096; // editing buffer size; commands (URLs, crop specs) fit easily
 
-// What a readLine() call resolved to. A submitted line carries its length in `buf`; the
-// other variants are key chords the caller acts on (clipboard I/O, exit) so line_edit stays
-// free of session/image knowledge.
+// What a readLine() call resolved to: a submitted line carries its length in `buf`, the other
+// variants are key chords the caller acts on, so line_edit stays free of session/image knowledge.
 pub const Input = union(enum) {
     line: usize, // a command line of this many bytes now sits in `buf`
     eof, // Ctrl-D or a closed tty — leave the console immediately
@@ -48,11 +43,8 @@ pub const Input = union(enum) {
     unpaste, // Ctrl-Z (or Ctrl-Alt-Z) — caller takes back the last image added this turn
 };
 
-/// How the images pasted INTO the line being typed are reached: the editor owns the
-/// `[Image #N …]` markers in the text, the host owns the picture behind each one. With no
-/// hooks wired (piped input, tests) Ctrl-V falls back to returning `.paste`.
-/// What a Ctrl-V found on the clipboard: a picture (label length), plain text (byte length),
-/// or nothing at all.
+/// What a Ctrl-V found on the clipboard: a picture (label length), plain text (byte length), or
+/// nothing at all.
 pub const PasteResult = union(enum) { image: usize, text: usize, none };
 
 // the editor (raw terminal mode, restored on deinit)
@@ -61,20 +53,16 @@ pub const Editor = struct {
     fd_in: std.posix.fd_t,
     fd_out: std.posix.fd_t,
     orig: std.posix.termios,
-    // The byte this tty sends for a plain Backspace (termios VERASE — 0x7f nearly everywhere,
-    // 0x08 on the few that use it). Whichever it is NOT, the other means Ctrl-Backspace, which
-    // every desktop expects to delete a WORD. Defaults to DEL so a hand-built editor (tests)
-    // reads 0x08 as the word chord.
+    // The byte this tty sends for a plain Backspace (termios VERASE — 0x7f nearly everywhere, 0x08 on a
+    // few). Whichever it is NOT means Ctrl-Backspace, which every desktop expects to delete a WORD.
     erase: u8 = 127,
-    // Optional idle hook: invoked when the input read times out (no key for ~idle_ms) so the REPL
-    // can poll the live events feed and surface a peer's change while the user sits at the prompt.
-    // readLine clears the prompt line before the call and redraws it after.
+    // Optional idle hook, invoked when the input read times out (no key for ~idle_ms) so the REPL can
+    // poll the live events feed. readLine clears the prompt line before the call and redraws it after.
     idle_cb: ?*const fn (*anyopaque) bool = null, // returns true if it printed → repaint the prompt
     idle_ctx: ?*anyopaque = null,
 
-    // Full-screen ("screen mode") wiring, all null in the plain line-oriented mode. When
-    // `screen` is set the prompt is drawn at its fixed bottom row (rather than in place with a
-    // bare '\r') and mouse wheel / logo clicks drive the screen directly.
+    // Full-screen ("screen mode") wiring, all null in the plain line-oriented mode. With `screen` set the
+    // prompt is drawn at its fixed bottom row and mouse wheel / logo clicks drive the screen directly.
     screen: ?*screen_mod.Screen = null,
     io: ?std.Io = null, // for double-click timing (monotonic clock)
     // Single-click on the logo runs `logo_cycle_cb` (advance the accent); a second click within
@@ -92,11 +80,8 @@ pub const Editor = struct {
     prompt_row_buf: [max_prompt_rows][max_line]u8 = undefined,
 
     pub const ByteResult = union(enum) { byte: u8, idle, closed };
-    // Two logo clicks within this window = double-click, and a SINGLE click is deferred this
-    // long before it cycles the accent. That wait — plus the press frame held before it
-    // (screen.zig press_ms) — is the whole lag between the click and the colour moving, and
-    // both were halved to cut it in two. 250ms is also the interval the browser app's own
-    // deferred click uses (ui/popover.js DOUBLE_CLICK_MS), so a double-click stays comfortable.
+    // Two logo clicks within this window = double-click, and a SINGLE click is deferred this long before
+    // it cycles the accent. 250ms is the browser app's own DOUBLE_CLICK_MS (ui/popover.js).
     pub const double_click_ms: i64 = 250;
 
     /// Put `tty_fd` into raw mode (no canonical line editing, no echo, no signal keys).
@@ -135,10 +120,8 @@ pub const Editor = struct {
     pub const readByte = @import("line_edit/keys.zig").readByte;
     pub const pollByte = @import("line_edit/keys.zig").pollByte;
 
-    /// Watch the tty for up to `timeout_ms` while a long command runs (an LLM turn): true when
-    /// the user pressed Ctrl-C. Everything else readable is DROPPED — type-ahead during a call
-    /// has no line to land in, and a queued Ctrl-C would otherwise arm the exit afterwards, so
-    /// a press that arrives mid-call means "cancel this", never "quit later".
+    /// Watch the tty for up to `timeout_ms` while a long command runs: true when Ctrl-C was pressed.
+    /// Everything else readable is DROPPED, so a press mid-call means "cancel this", never "quit later".
     pub fn pollInterrupt(self: *Editor, timeout_ms: i32) bool {
         var seen = false;
         var budget: u8 = 64; // bound the drain: a paste can leave a lot behind
@@ -349,9 +332,8 @@ test "a fourth image is refused rather than silently dropped" {
 }
 
 test "word-delete chords: every encoding a terminal sends for a modified Backspace" {
-    // 0x08 (Ctrl-Backspace on VS Code/Windows/Linux), ESC DEL (Alt-Backspace), the CSI-u form
-    // modern terminals report modified keys with, and plain Ctrl-W all kill the word; plain
-    // Backspace and a BARE CSI-u still take one character.
+    // 0x08 (Ctrl-Backspace on VS Code/Windows/Linux), ESC DEL (Alt-Backspace), the CSI-u modified form
+    // and plain Ctrl-W all kill the word; plain Backspace and a BARE CSI-u still take one character.
     const cases = [_]struct { keys: []const u8, want: []const u8 }{
         .{ .keys = "\x7f", .want = "/crop one two thre" },
         .{ .keys = "\x08", .want = "/crop one two " },
@@ -488,9 +470,8 @@ test "Ctrl-C copies a live selection; with none it still confirms the exit" {
 }
 
 test "plain Ctrl-V / Ctrl-Z resolve to the paste / un-paste actions" {
-    // Driven over a pipe rather than a tty: readLine only reads bytes, and the actions under
-    // test need no screen. (Ctrl-V is the binding Claude Code's CLI uses for the same job —
-    // terminals deliver it untouched, unlike the Option/Meta chords.)
+    // Driven over a pipe rather than a tty: readLine only reads bytes, and the actions under test need
+    // no screen. Ctrl-V is delivered untouched by terminals, unlike the Option/Meta chords.
     const in = try std.Io.Threaded.pipe2(.{});
     defer _ = std.c.close(in[0]);
     const out = try std.Io.Threaded.pipe2(.{});

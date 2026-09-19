@@ -13,9 +13,8 @@ pub fn pageSizeOrA4(name: []const u8) core.Page {
     return core.namedPageSize(z) orelse core.namedPageSize("A4") orelse .{ .w = 21.0, .h = 29.7 };
 }
 
-/// A blank's default pixel size: explicit cm dims win, else the named page's (A4 when
-/// unnamed/unknown), always at BLANK_DPI. The ONE blank-sizing derivation — the one-shot
-/// --blank, the console's /blank and the LLM plan's blank op all come through here.
+/// A blank's default pixel size: explicit cm dims win, else the named page's (A4 when unnamed), always
+/// at BLANK_DPI. The ONE blank-sizing derivation — --blank, /blank and the LLM blank op share it.
 pub fn blankSizeFor(page: ?[]const u8, cm_w: f64, cm_h: f64) core.Size {
     const p = if (cm_w > 0 and cm_h > 0) core.Page{ .w = cm_w, .h = cm_h } else pageSizeOrA4(page orelse "A4");
     return core.defaultBlankSizePx(p.w, p.h, BLANK_DPI);
@@ -40,10 +39,8 @@ pub fn effectivePageName(layout_page: ?[]const u8, blank_page: ?[]const u8) []co
     return layout_page orelse (blank_page orelse "");
 }
 
-/// The page label printed next to the px size ("<name> <w>×<h>cm"): a named pick oriented
-/// to the image, "custom <w>×<h>cm" for explicit cm dims, or the A4-derived default when
-/// nothing is picked (empty name). The ONE derivation shared by the one-shot wrote line and
-/// the console's header/save label (Session.pageFormatLabel). Caller owns the result.
+/// The page label beside the px size ("<name> <w>×<h>cm", "custom <w>×<h>cm", or the A4 default). The
+/// ONE derivation shared by the one-shot wrote line and Session.pageFormatLabel; caller owns it.
 pub fn pageLabelAlloc(gpa: std.mem.Allocator, page_size: []const u8, custom_w: f64, custom_h: f64, w: usize, h: usize) ![]u8 {
     var name: []const u8 = "A4";
     var dims = pageForImage(w, h);

@@ -11,18 +11,16 @@ const Span = ansi.Span;
 // at 24, so the press frame repaints exactly this much and leaves the wordmark alone.
 pub const icon_cols = 21;
 
-// The S icon recolours as a clock instead of taking the seam: a hand pivots on its middle,
-// one full clockwise turn over the seam's travel. Rows count `cell_aspect` times as far as
-// columns, or the hand would trace an ellipse.
+// The S icon recolours as a clock instead of taking the seam: a hand pivots on its middle, one full
+// clockwise turn over the seam's travel. Rows count `cell_aspect` times as far as columns.
 const wipe_degrees = 360.0;
 const cell_aspect = 2.0;
 // The hand turns a shade faster than the seam (1.25×), so the icon is home at 12 o'clock
 // a little before the text finishes.
 const icon_speed = 1.25;
 
-/// The angle of a cell from the pivot, degrees clockwise from 12 o'clock (up = 0, right =
-/// 90). Rows count `cell_aspect` times as far as columns (a cell is that much taller); the
-/// pivot itself answers 0, so it is swept by the first frame.
+/// The angle of a cell from the pivot, degrees clockwise from 12 o'clock (up = 0, right = 90). Rows
+/// count `cell_aspect` times as far as columns; the pivot answers 0, so the first frame sweeps it.
 pub fn cellAngle(row: f64, col: f64, cy: f64, cx: f64) f64 {
     const dx = col - cx;
     const dy = (cy - row) * cell_aspect; // up is positive, like a clock face
@@ -31,9 +29,8 @@ pub fn cellAngle(row: f64, col: f64, cy: f64, cx: f64) f64 {
     return if (deg < 0) deg + 360 else deg;
 }
 
-/// The stretches of one row that a hand `deg` into its clockwise turn has passed, written into
-/// `out`. Returns how many (0, 1 or 2): two when the swept sector has come far enough round to
-/// wrap back over 12 o'clock, which leaves a row above the pivot lit at both ends.
+/// The stretches of one row a hand `deg` into its clockwise turn has passed, written into `out`.
+/// Returns 0, 1 or 2 — two when the swept sector has wrapped back over 12 o'clock.
 pub fn sweptSpansAt(row: u16, cols: u16, cy: f64, cx: f64, deg: f64, out: *[2]Span) usize {
     if (deg <= 0 or cols == 0) return 0;
     if (deg >= wipe_degrees) { // a full turn — the whole row, in one span
@@ -93,9 +90,8 @@ pub fn iconSpans(self: *Screen, row: u16, deg: f64, x: u16, out: *[3]Span) usize
 const testing = std.testing;
 
 test "cellAngle: a clock face — up is 0, then right, down, left" {
-    // Pivot at row 10, col 10 on a 19x19 field. Rows count double (cell_aspect), so a cell
-    // one row up is as far as two columns across — that is what keeps the hand's angle
-    // looking like the angle it is.
+    // Pivot at row 10, col 10 on a 19x19 field. Rows count double (cell_aspect), so a cell one row up
+    // is as far as two columns across.
     try testing.expectApproxEqAbs(@as(f64, 0), cellAngle(9, 10, 10, 10), 0.001); // straight up
     try testing.expectApproxEqAbs(@as(f64, 90), cellAngle(10, 11, 10, 10), 0.001); // right
     try testing.expectApproxEqAbs(@as(f64, 180), cellAngle(11, 10, 10, 10), 0.001); // down
@@ -127,9 +123,8 @@ test "sweptSpansAt: the hand covers a row a quadrant at a time, and wraps at the
     try testing.expectEqual(@as(usize, 1), n);
     try testing.expect(sp[0].c0 >= 5 and sp[0].c1 == 11);
 
-    // On the last quarter the sector wraps back over 12 o'clock: a row ABOVE the pivot is lit
-    // at both ends (right side swept long ago, far left just now) and dark in between. How far
-    // round that takes depends on the row — the nearer the pivot, the wider its cells' angles.
+    // On the last quarter the sector wraps back over 12 o'clock: a row ABOVE the pivot is lit at both
+    // ends and dark between. How far round that takes depends on the row.
     n = sweptSpansAt(3, 11, 5, 6, 330, &sp);
     try testing.expectEqual(@as(usize, 2), n);
     try testing.expectEqual(@as(u16, 0), sp[0].c0); // the far left, just passed
@@ -151,9 +146,8 @@ test "iconSpans: the clock turns inside the icon, the seam owns everything past 
     var sp: [3]Span = undefined;
     // Nothing has moved yet: no clock, no seam.
     try testing.expectEqual(@as(usize, 0), iconSpans(&s, 1, 0, 0, &sp));
-    // Mid-animation the seam is past the icon, so a header row carries the icon's own swept
-    // stretch AND the seam's stretch — and the seam's never starts before the icon's columns
-    // end, which is what leaves the wordmark beside the icon behaving exactly as before.
+    // Mid-animation the seam is past the icon, so a header row carries the icon's swept stretch AND
+    // the seam's — and the seam's never starts before the icon's columns end.
     const n = iconSpans(&s, 5, 90.0, 30, &sp);
     try testing.expect(n >= 1);
     const seam = sp[n - 1];

@@ -26,9 +26,8 @@ pub fn state(self: *Session) EditState {
     return self.history.items[self.cursor];
 }
 
-/// Push `next` as the new current state (dropping any redo states), then rebuild the view.
-/// Takes ownership of `next` only on a successful append; on append failure the caller's
-/// errdefer frees it. A rebuild failure is non-fatal (the old view simply remains).
+/// Push `next` as the new current state (dropping any redo states), then rebuild the view. Takes
+/// ownership of `next` only on a successful append; a rebuild failure leaves the old view standing.
 pub fn pushState(self: *Session, next: EditState) !void {
     self.dropAfterCursor();
     try self.history.append(self.gpa, next); // append fails BEFORE ownership → caller frees
@@ -89,11 +88,8 @@ pub fn clearAll(self: *Session) void {
     self.clearFormat();
 }
 
-/// Replace the whole session with a freshly loaded source: a pristine (un-rotated,
-/// un-cropped, un-filtered) state over `img` as the new original.
-/// `source_bytes` (optional, ownership transferred) are the raw encoded bytes of `img` in
-/// `fmt`; kept so a .stencil bundle embeds the untouched original. Pass null when none exist
-/// (blank / clipboard / a decoded peer image) and the bundle re-encodes from pixels.
+/// Replace the whole session with a freshly loaded source: a pristine state over `img` as the new
+/// original. `source_bytes` (ownership transferred) let a .stencil bundle embed the untouched original.
 pub fn loadImage(self: *Session, img: image.Rgba8, label: []const u8, temp: bool, fmt: image.Format, source_bytes: ?[]u8) !void {
     const dup = self.gpa.dupe(u8, label) catch |e| {
         if (source_bytes) |b| self.gpa.free(b);
@@ -125,10 +121,8 @@ pub fn rebuild(self: *Session) !void {
     self.working = img;
 }
 
-/// The current view derived WITHOUT the drawn lines (rotate → crop → filter only) —
-/// the base `rebuild` rasterizes onto, and the base a variant render starts from so its
-/// own filter never recolours the lines. Caller owns the result; needs a loaded image.
-/// Served from `base`, so redrawing lines never re-runs the transforms (derivedView.zig).
+/// The current view derived WITHOUT the drawn lines (rotate → crop → filter only) — what `rebuild`
+/// rasterizes onto, and what a variant render starts from. Served from `base` (derivedView.zig).
 pub fn viewWithoutLines(self: *Session) !image.Rgba8 {
     const st = self.history.items[self.cursor];
     return self.base.view(self.gpa, self.original.?, .{

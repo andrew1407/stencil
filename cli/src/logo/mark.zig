@@ -12,17 +12,8 @@ const accentSeq = logo.accentSeq;
 const accentReal = logo.accentReal;
 const resetSeq = logo.resetSeq;
 
-// A larger text rendering of browser/favicon.svg, laid out to read square in a
-// terminal (cells are ~2:1 tall, so the panel spans about twice as many columns as
-// rows). It reproduces the icon's pieces: a purple rounded panel (the curved corners
-// echo the SVG's rx="13"), the dark app panel (frame_bg) forming a margin around the
-// lighter inner image frame (field_bg), and the signature yellow annotation polyline
-// with a round point (●) at each vertex.
-//
-// FRAME_W/FRAME_H is the lighter inner frame; the polyline is rasterised at runtime
-// from the favicon's S-mark vertices, mapped into the frame.
-// Mh/Mv is the dark app-panel margin around it; the rounded purple border is drawn
-// outside that.
+// A larger text rendering of browser/favicon.svg, laid out to read square in a terminal (cells are
+// ~2:1 tall). FRAME_W/H is the lighter inner frame; Mh/Mv the dark app-panel margin around it.
 const FRAME_W = 14; // lighter inner frame width, in cells
 const FRAME_H = 6; // lighter inner frame height, in rows
 const Mh = 1; // horizontal dark app-panel margin (cells)
@@ -31,9 +22,8 @@ const PANEL_W = FRAME_W + Mh * 2; // inner width between the side borders
 const BODY_H = FRAME_H + Mv * 2; // inner height between the top/bottom borders
 
 const Pt = struct { col: usize, row: usize };
-// Favicon vertices mapped into the FRAME_W×FRAME_H cell grid. Cells are ~2:1 tall, so the
-// S is snapped to the grid rather than scaled from the SVG: the bars land ON a row (drawn
-// with ─) and the joins step one row at a time, which is what keeps it legible at 14×6.
+// Favicon vertices mapped into the FRAME_W×FRAME_H cell grid. Cells are ~2:1 tall, so the S is
+// snapped to the grid rather than scaled: the bars land ON a row and the joins step one row at a time.
 const verts = [_]Pt{
     .{ .col = 11, .row = 0 }, // top-right end
     .{ .col = 3, .row = 0 }, // top bar, running left
@@ -45,9 +35,8 @@ const verts = [_]Pt{
     .{ .col = 2, .row = 5 }, // bottom bar, running left
 };
 
-// The SMALL mark: the same S snapped into a 10×5 grid, for the pressed-logo frame (the whole
-// icon shrinks — panel, dark margin and artwork together — so the click reads as a button
-// going down, not as a border losing a ring).
+// The SMALL mark: the same S snapped into a 10×5 grid, for the pressed-logo frame — panel, dark
+// margin and artwork shrink together, so the click reads as a button going down.
 const FRAME_W_S = 10;
 const FRAME_H_S = 5;
 const verts_small = [_]Pt{
@@ -78,18 +67,15 @@ fn glyph(code: u8) []const u8 {
     };
 }
 
-// Rasterise a polyline into a W×H grid: straight strokes between vertices (slope picks ╱ or
-// ╲), with a ● dropped on each vertex. Both sizes of the mark go through here — the small one
-// is its own hand-snapped vertex set, not a scaled copy, because rounding a 14×6 S into 10×5
-// collapses its bars onto their joins.
+// Rasterise a polyline into a W×H grid: straight strokes between vertices (slope picks ╱ or ╲), a ● on
+// each vertex. The small mark is hand-snapped, not scaled: 14×6 → 10×5 collapses bars onto joins.
 fn rasterise(comptime W: usize, comptime H: usize, comptime vs: []const Pt) [H][W]u8 {
     var g = std.mem.zeroes([H][W]u8);
     for (0..vs.len - 1) |s| {
         const a = vs[s];
         const z = vs[s + 1];
-        // The glyph must follow the segment's real slope, which needs BOTH deltas: the S
-        // runs right→left across its bars, so a down-LEFT join is ╱, not ╲. A level run
-        // gets its own glyph.
+        // The glyph must follow the segment's real slope, which needs BOTH deltas: the S runs right→left
+        // across its bars, so a down-LEFT join is ╱, not ╲. A level run gets its own glyph.
         const down_right = (z.row > a.row) == (z.col > a.col);
         const stroke: u8 = if (z.row == a.row) G_FLAT else if (down_right) G_DOWN else G_UP;
         const dc = @as(i32, @intCast(z.col)) - @as(i32, @intCast(a.col));
@@ -123,11 +109,8 @@ pub fn banner() void {
     emitBanner(false);
 }
 
-/// The logo at its pressed size: the whole icon — rounded panel, dark margin and the S mark
-/// inside it — redrawn about two cells smaller on each side (18×10 → 14×7 cells) around the
-/// smaller mark. The full-screen console flashes this frame for a moment when the logo is
-/// clicked, which reads as a button going down. The wordmark is NOT part of it: the press moves
-/// the icon only, and the screen paints this over the icon's columns alone.
+/// The logo at its pressed size: the whole icon redrawn about two cells smaller on each side (18×10 →
+/// 14×7) around the smaller mark. The wordmark is not part of it — the press moves the icon only.
 pub fn bannerCompact() void {
     emitBanner(true);
 }
@@ -140,9 +123,8 @@ fn emitBanner(comptime compact: bool) void {
     const fbg = c(Ansi.frame_bg);
     const ibg = c(Ansi.field_bg);
 
-    // Both sizes are the same drawing at two scales; only the frame constants change. The
-    // pressed one is indented further so the smaller icon stays centred on the space the full
-    // one occupies, and it drops the curved caps (there is no room for them at 7 rows).
+    // Both sizes are the same drawing at two scales; only the frame constants change. The pressed one is
+    // indented further to stay centred, and drops the curved caps (no room for them at 7 rows).
     const fw = if (compact) FRAME_W_S else FRAME_W;
     const fh = if (compact) FRAME_H_S else FRAME_H;
     const grid = rasterise(fw, fh, if (compact) &verts_small else &verts);

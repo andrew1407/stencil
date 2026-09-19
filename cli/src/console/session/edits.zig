@@ -131,10 +131,8 @@ pub fn pageMeta(self: *Session) server.PageMeta {
 pub fn currentLayoutJson(self: *Session) ![]u8 {
     const st = self.state();
     const img = self.current();
-    // No explicit crop means the WHOLE rotated original — state that instead of omitting
-    // the field. The GUIs auto-crop a fresh image to the page aspect and only skip it when
-    // the layout names a cropRect, so an omitted one makes them shrink the image on open
-    // and strand lines drawn outside the page rect.
+    // No explicit crop means the WHOLE rotated original — stated rather than omitted: the GUIs auto-crop
+    // to the page aspect unless the layout names a cropRect, stranding lines drawn outside the page.
     const crop: ?server.CropRect = if (st.crop) |c|
         .{ .x = c.x, .y = c.y, .w = c.w, .h = c.h }
     else
@@ -142,9 +140,8 @@ pub fn currentLayoutJson(self: *Session) ![]u8 {
     return server.buildLayout(self.gpa, @intCast(img.width), @intCast(img.height), st.lines(), st.filter_mode, st.filter_color, crop, st.rotation, self.pageMeta());
 }
 
-/// Page-format label shown next to the px size, e.g. "A4 21×29.7cm" (picked size oriented
-/// to the image, or "custom <w>×<h>cm"). Shares the one derivation with the one-shot
-/// pipeline's wrote line (page.pageLabelAlloc). Owned by the caller.
+/// Page-format label beside the px size, e.g. "A4 21×29.7cm" (or "custom <w>×<h>cm"). Shares the one
+/// derivation with the one-shot pipeline's wrote line (page.pageLabelAlloc); caller owns it.
 pub fn pageFormatLabel(self: *Session) ![]u8 {
     const img = self.current();
     return pipeline.pageLabelAlloc(self.gpa, self.page_size, self.custom_page_w, self.custom_page_h, img.width, img.height);

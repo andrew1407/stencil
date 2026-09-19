@@ -16,9 +16,8 @@ const cli_profiles = [_][]const u8{ "console", "all" };
 
 const Entry = struct { file: []const u8, value: std.json.Value };
 
-// The hand-written bundle (each case carrying its stable "file" label) plus the
-// registry-generated one (generated/cases.json, browser/tools/genOpPlanFixtures.mjs),
-// whose cases walk as "<name>.json".
+// The hand-written bundle (each case carrying its stable "file" label) plus the registry-generated one
+// (generated/cases.json, browser/tools/genOpPlanFixtures.mjs), whose cases walk as "<name>.json".
 fn loadCorpus(w: *fx.Walk) ![]Entry {
     const a = w.alloc();
     const io = w.io();

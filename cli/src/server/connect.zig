@@ -22,9 +22,8 @@ const normalizeBase = urls.normalizeBase;
 const isInsecureRemote = urls.isInsecureRemote;
 const parseToken = parse.parseToken;
 
-/// Connect to a server: normalize the URL, then either validate the supplied token
-/// (a rejected one is retried as the ADMIN credential, minting a session with it —
-/// mirrors the desktop's Token field) or issue a fresh one (POST /auth/token).
+/// Connect to a server: normalize the URL, then either validate the supplied token (a rejected one is
+/// retried as the ADMIN credential, minting a session) or issue a fresh one (POST /auth/token).
 pub fn connect(gpa: std.mem.Allocator, io: std.Io, url: []const u8, token_opt: ?[]const u8) !Client {
     // Invite links carry the token as a `#token=` fragment; an explicit token wins.
     const invite = splitInviteToken(url, token_opt);
@@ -54,10 +53,8 @@ pub fn connect(gpa: std.mem.Allocator, io: std.Io, url: []const u8, token_opt: ?
 /// credential proved to be. Caller owns `token`.
 pub const Resolved = struct { token: []u8, kind: CredentialKind };
 
-/// The session token a connection runs on: a supplied token is validated with a GET
-/// /projects probe — one the server rejects is retried as an ADMIN credential (mint a
-/// session with it as bearer) — and no token issues a fresh session unauthenticated.
-/// `transport` is the HTTP seam (rawRequest in production, a fake in tests).
+/// The session token a connection runs on: a supplied token is validated with a GET /projects probe
+/// (rejected → retried as an admin credential), no token issues a fresh one. `transport` is the seam.
 pub fn resolveToken(
     gpa: std.mem.Allocator,
     io: std.Io,
@@ -76,9 +73,8 @@ pub fn resolveToken(
             return .{ .token = try gpa.dupe(u8, t), .kind = .session };
         } else |e| {
             if (e != Error.Unauthorized) return e;
-            // Not a session token — but it may be the server's ADMIN token: try minting
-            // a session with it. If that fails too, report the probe's rejection (the
-            // mint's "admin token required" would misname a plain wrong token).
+            // Not a session token — but it may be the server's ADMIN token, so try minting with it. On failure
+            // report the probe's rejection: the mint's "admin token required" would misname a plain wrong token.
             const probe_reject = saveReject();
             const body = issueToken(gpa, io, base, auth, transport) catch |e2| {
                 if (e2 == Error.Unauthorized) restoreReject(probe_reject);

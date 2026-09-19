@@ -20,9 +20,8 @@ var ext_max: usize = 0;
 var image_prefix: []const u8 = "";
 var video_prefix: []const u8 = "";
 
-/// The video extensions THIS surface recognises — `surfaces.cli.video`, rewritten with the
-/// leading dot looksLikeVideo matches on. Deliberately NOT `video.extensions`: no two
-/// surfaces recognise the same set, and converging them is a behaviour change (asset `drift`).
+/// The video extensions THIS surface recognises — `surfaces.cli.video`, rewritten with the leading dot
+/// looksLikeVideo matches. NOT `video.extensions`: converging the surfaces is a behaviour change.
 pub fn videoExts() []const []const u8 {
     load();
     return video_list;

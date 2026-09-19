@@ -6,10 +6,8 @@ const net = @import("../net.zig");
 const report = @import("../report.zig");
 
 
-/// Injectable I/O seam so `runImpl`'s orchestration (fetch → filter → window → write → the
-/// §3 stderr lines) is unit-testable with no network and no disk. `run` wires the real
-/// net.fetch / report.print / cwd filesystem; the test wires in-memory mocks. Everything the
-/// scrape loop touches outside the pure helpers goes through here.
+/// Injectable I/O seam so `runImpl`'s orchestration (fetch → filter → window → write → the §3 stderr
+/// lines) is testable with no network and no disk. `run` wires the real net.fetch/report.print/cwd.
 pub const Deps = struct {
     ctx: *anyopaque,
     fetchFn: *const fn (*anyopaque, std.mem.Allocator, std.Io, []const u8, bool) anyerror![]u8,

@@ -29,9 +29,8 @@ pub fn renderVariants(session: *Session, io: std.Io, plan: *const llm.Plan, base
     }
 }
 
-/// A unique `[a-z0-9-]` file stem for a variant: the sanitized label, falling back to the
-/// variant's 1-based position, with a numeric suffix on a collision ("Rotated!" vs
-/// "rotated"). Appended to `used`, which owns it.
+/// A unique `[a-z0-9-]` file stem for a variant: the sanitized label, falling back to the variant's
+/// 1-based position, with a numeric suffix on a collision. Appended to `used`, which owns it.
 fn variantStem(gpa: std.mem.Allocator, used: *std.ArrayList([]u8), label: []const u8, i: usize) ![]const u8 {
     var stem = try llm.sanitizeLabel(gpa, label);
     errdefer gpa.free(stem); // frees whatever stem currently holds on any later failure
@@ -59,18 +58,12 @@ fn stemTaken(used: []const []u8, stem: []const u8) bool {
     return false;
 }
 
-/// The §6 transport waiter for a console turn: the session's Ctrl-C watch plus its clock, so
-/// a slow call can be cancelled by the user or abandoned at the deadline, with the spinner
-/// advancing on each beat. A session with no watch installed (one-shot CLI, tests) yields
-/// the plain blocking call — and a spinner that never turns.
-
 const PendingLines = struct { json: []const u8, steps_start: usize };
 
 pub fn renderVariant(session: *Session, io: std.Io, v: llm.Variant, stem: []const u8, base_steps: []const layout_mod.FrameStep) void {
     const gpa = session.gpa;
-    // Start from the current view WITHOUT its drawn lines: a variant filter recolours the
-    // picture, never the annotations, so every line goes on at the end (the session's own
-    // layering). A sessionless variant can still begin with a blank op.
+    // Start from the current view WITHOUT its drawn lines: a variant filter recolours the picture,
+    // never the annotations, so every line goes on at the end (the session's own layering).
     var img: ?image.Rgba8 = null;
     defer if (img) |*m| m.deinit(gpa);
     var pending: std.ArrayList(PendingLines) = .empty;
@@ -174,9 +167,8 @@ fn variantImage(img: *?image.Rgba8, stem: []const u8) ?*image.Rgba8 {
     return null;
 }
 
-/// Rasterize a JSON lines ARRAY onto a variant image — the variant-side twin of the
-/// session's own line rendering (both go through layout.zig + core.rasterizeLine). The
-/// snapshot-frame points are re-mapped through `steps` and clamped first (§1).
+/// Rasterize a JSON lines ARRAY onto a variant image — the variant-side twin of the session's own
+/// line rendering. The snapshot-frame points are re-mapped through `steps` and clamped first (§1).
 fn rasterizeVariantLines(gpa: std.mem.Allocator, img: *image.Rgba8, lines_json: []const u8, steps: []const layout_mod.FrameStep) void {
     // No steps to follow ⇒ nothing to re-map: draw the points as given, the way the session's
     // own rebuild does. (Re-mapping through an identity chain would still clamp them inward.)

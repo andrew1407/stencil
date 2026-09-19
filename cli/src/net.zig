@@ -16,10 +16,8 @@ pub const isBlockedFetchHost = host_guard.isBlockedFetchHost;
 
 pub const Error = error{ HttpFailed, BlockedHost };
 
-/// Hard cap on the bytes read from a single fetch. Bounds memory against a hostile host that
-/// streams an endless/huge body — important for scrape, which fetches many URLs harvested
-/// from untrusted page content into one arena. The scratch is page-allocated (lazily
-/// committed), so a small response still costs only its own size in RSS.
+/// Hard cap on the bytes read from a single fetch: bounds memory against a host streaming an endless
+/// body, which matters for scrape's many untrusted URLs. Page-allocated, so a small response pays less.
 pub const MAX_FETCH_BYTES = 64 << 20; // 64 MiB
 
 pub fn isUrl(s: []const u8) bool {
@@ -27,10 +25,8 @@ pub fn isUrl(s: []const u8) bool {
         std.ascii.startsWithIgnoreCase(s, "https://");
 }
 
-/// True when `s` carries a URL scheme (`scheme://…`) OTHER than http/https — e.g.
-/// `ftp://`, `file://`, `rtmp://`. These must never reach ffmpeg (whose protocol surface is
-/// far wider than this in-process http(s) client), so the pipeline rejects them up front.
-/// A bare local path (no scheme) or an http(s) URL returns false.
+/// True when `s` carries a URL scheme OTHER than http/https (`ftp://`, `file://`, `rtmp://`). These must
+/// never reach ffmpeg, whose protocol surface is far wider, so the pipeline rejects them up front.
 pub fn hasForeignScheme(s: []const u8) bool {
     if (isUrl(s)) return false;
     const sep = std.mem.indexOf(u8, s, "://") orelse return false;
@@ -80,20 +76,16 @@ fn guardHost(io: std.Io, url: []const u8, strict: bool) Error!void {
     }
 }
 
-/// Send one HTTP request through the full SSRF guard and return the status + owned body
-/// (capped at `MAX_FETCH_BYTES`; the caller judges non-2xx). Every outbound http(s) request
-/// the CLI makes to a non-server host goes through here so the guard is uniform: the literal
-/// host check, the DNS-resolution check (a hostname must not resolve to an internal
-/// address), and the redirect refusal. Failures print a human-readable reason.
+/// Send one HTTP request through the full SSRF guard — literal host check, DNS-resolution check,
+/// redirect refusal — returning status + owned body capped at `MAX_FETCH_BYTES`. Every fetch uses it.
 pub fn request(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: RequestOptions) (Error || error{OutOfMemory})!Response {
     if (!opts.allow_named_host) try guardHost(io, url, opts.strict);
 
     var client: std.http.Client = .{ .allocator = gpa, .io = io };
     defer client.deinit();
 
-    // Bounded scratch: a fixed writer returns error.WriteFailed once the body exceeds the
-    // cap, aborting the stream instead of growing memory without limit. Page-allocated so a
-    // small response only commits its own pages.
+    // Bounded scratch: a fixed writer returns error.WriteFailed once the body exceeds the cap, aborting
+    // the stream instead of growing memory. Page-allocated, so a small response commits its own pages.
     const scratch = fetchPool.bodyScratch(MAX_FETCH_BYTES) orelse return Error.HttpFailed;
     var body: std.Io.Writer = .fixed(scratch);
 
@@ -121,9 +113,8 @@ pub fn request(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: Reques
     };
 }
 
-/// GET `url`, returning the owned response body bytes (capped at `MAX_FETCH_BYTES`).
-/// `strict` blocks loopback in addition to the always-blocked internal ranges — pass it for
-/// sub-resource URLs harvested from untrusted scanned content, false for a URL the user named.
+/// GET `url`, returning the owned response body (capped at `MAX_FETCH_BYTES`). `strict` also blocks
+/// loopback — pass it for sub-resources harvested from scanned content, false for a user-named URL.
 pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8, strict: bool) ![]u8 {
     const res = try request(gpa, io, url, .{ .strict = strict });
     if (res.status < 200 or res.status >= 300) {

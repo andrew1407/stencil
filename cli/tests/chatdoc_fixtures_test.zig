@@ -1,9 +1,8 @@
-// Walks the shared §12.1 persisted-chat corpus (llm/fixtures/chatDoc/) against the
-// cli's real reader/writer (llm.parseChatDoc / llm.chatDocAlloc — the pair the console's
-// /chat persistence and .stencil chat blocks use). The cli parser is string-only, so
-// object-form cases are serialized first (per the schema). parseChatDoc surfaces TURNS
-// only — savedAt is not read back (the writer stamps the session clock), so roundtrips
-// re-serialize with the doc's own savedAt and tolerance cases compare messages.
+// Walks the shared §12.1 persisted-chat corpus (llm/fixtures/chatDoc/) against the cli's real
+// reader/writer (llm.parseChatDoc / llm.chatDocAlloc — the pair /chat persistence and .stencil chat
+// blocks use). The cli parser is string-only, so object-form cases are serialized first. parseChatDoc
+// surfaces TURNS only: the writer stamps the session clock, so roundtrips re-serialize with the doc's
+// own savedAt and the tolerance cases compare messages.
 const std = @import("std");
 const llm = @import("../src/llm.zig");
 const fx = @import("fixture_corpus.zig");
@@ -72,9 +71,8 @@ test "chatDoc corpus: tolerance.json — the lenient-read pins" {
             // never an error (parseChatDoc is total).
             try testing.expectEqual(@as(usize, 0), turns.len);
         } else {
-            // The cli surfaces messages only; the savedAt pins (numeric-string
-            // coercion, garbage→0) have no cli-observable seam — the writer stamps
-            // the session clock instead of restoring the stored value.
+            // The cli surfaces messages only; the savedAt pins have no cli-observable seam — the writer stamps the
+            // session clock instead of restoring the stored value.
             try expectTurns(turns, fx.member(expected, "messages").?);
         }
     }
