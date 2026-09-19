@@ -103,10 +103,9 @@ namespace stencil::gui {
           startDragPoll();
         return QDockWidget::eventFilter(obj, event);
       }
-      // Real input: drive the drag ourselves and CONSUME the events, so Qt
-      // never starts its own move. Qt's floating-dock drag becomes a
-      // window-server move on macOS, which swallows the release — the drop
-      // then never resolves and nothing docks.
+      // Real input: drive the drag ourselves and CONSUME the events so Qt never starts its own move.
+      // Qt's floating-dock drag becomes a window-server move on macOS, which swallows the release — the
+      // drop then never resolves and nothing docks.
       switch (event->type()) {
         case QEvent::MouseButtonPress: {
           auto* me = static_cast<QMouseEvent*>(event);

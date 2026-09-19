@@ -133,10 +133,9 @@ namespace stencil::gui {
                                   l->palette().color(QPalette::WindowText))
         != nullptr;
     rows_->removeWidget(l);
-    // Out of the layout, but painted while it fades under its own dust. Reuse
-    // any effect already on the row and stop its animations first —
-    // setGraphicsEffect() deletes the old effect, and anything still driving it
-    // would be left dangling (ChatDock.cpp fadeOutAndDelete).
+    // Out of the layout, but painted while it fades under its own dust. Reuse any effect already on the
+    // row and stop its animations first — setGraphicsEffect() deletes the old effect, and anything still
+    // driving it would be left dangling (ChatDock.cpp fadeOutAndDelete).
     for (QVariantAnimation* a : l->findChildren<QVariantAnimation*>()) a->stop();
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(l->graphicsEffect());
     if (!fx) {

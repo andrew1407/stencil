@@ -27,28 +27,24 @@ namespace stencil::gui {
   // mirrored transcript rows. Shared with MainWindow's chatHistory_/mirror log.
   inline constexpr int CHAT_HISTORY_BOUND = 32;
 
-  // Assistant chat hosted INSIDE the canvas context menu (browser .ctx-assist
-  // parity): a tall scrolling transcript over a composer. NOT a second chat
-  // implementation — MainWindow drives the same onChatSend/onChatReply pipeline
-  // the dock uses and mirrors each line here through its chatMirror* helpers,
-  // rendered by the dock's own fillChatCard/chatCardStyleSheet.
+  // Assistant chat hosted INSIDE the canvas context menu (browser .ctx-assist): a tall scrolling
+  // transcript over a composer. NOT a second chat — MainWindow drives the same onChatSend/onChatReply
+  // pipeline the dock uses and mirrors each line here, rendered by the dock's own fillChatCard.
   class ChatMenuPanel : public QWidget {
     Q_OBJECT
    public:
     ChatMenuPanel(QWidget* parent, std::function<void(QString)> onSend,
                   std::function<void()> onStop, std::function<void()> onAttach,
-                  // `onSettings` receives the clicked control's GLOBAL rect, captured
-                  // before this panel's own popup starts closing (which would hide it
-                  // by the time the settings dialog opens) — the caller uses it as the
+                  // `onSettings` receives the clicked control's GLOBAL rect, captured before this panel's popup starts
+                  // closing (which would hide it by the time the settings dialog opens) — the caller uses it as the
                   // reveal's fallback anchor so the dialog still flies from the click.
                   std::function<void(QRect)> onSettings, std::function<void(QString)> onRetry);
 
     QWidget* input() const;
 
-    // transcript (MainWindow mirrors the dock's lines here)
-    // `configure` adds a "Configure provider" action beside Retry (browser
-    // unreachable-card parity) — it re-uses the panel's own settings callback,
-    // the same one the gear already opens through.
+    // transcript (MainWindow mirrors the dock's lines here). `configure` adds a "Configure provider"
+    // action beside Retry (browser unreachable-card parity); it re-uses the panel's own settings
+    // callback, the same one the gear already opens through.
     void appendRow(const QString& role, const QString& text, bool muted,
                    const QString& retryText = QString(), bool pending = false,
                    const QStringList& notes = {}, bool configure = false);

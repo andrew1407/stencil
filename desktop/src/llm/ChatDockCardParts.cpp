@@ -42,19 +42,16 @@ namespace stencil::gui {
     auto* retry = makeGhostButton(lay->parentWidget(),
                                   QStringLiteral("Send this message again"));
     retry->setObjectName("chatRetry");
-    // Sized up from makeGhostButton's header-ghost default (HEADER_ICON/BUTTON_EDGE):
-    // a lone icon-only action at the foot of an error card — often the ONLY thing on
-    // it (a plain failure has no Configure CTA beside it) — reads as an afterthought
-    // at that size.
+    // Sized up from makeGhostButton's header-ghost default (HEADER_ICON/BUTTON_EDGE): a lone icon-only
+    // action at the foot of an error card — often the ONLY thing on it, since a plain failure has no
+    // Configure CTA beside it — reads as an afterthought at that size.
     static constexpr int RETRY_ICON = 18;
     static constexpr int RETRY_EDGE = 30;
     retry->setIconSize(QSize(RETRY_ICON, RETRY_ICON));
     retry->setFixedSize(RETRY_EDGE, RETRY_EDGE);
-    // Neutral glyph on EVERY card, error ones included: the browser's retry is a
-    // .chat-hbtn, which sets `color: var(--text-muted)` of its own and never
-    // inherits the bubble's --danger. Painted red it sat red-on-red in the error
-    // card's danger wash and barely read; the red belongs to the card's ground
-    // and border, not to the control offering the way out.
+    // Neutral glyph on EVERY card, error ones included: the browser's retry is a .chat-hbtn, which sets
+    // its own `color: var(--text-muted)` and never inherits the bubble's --danger. Painted red it sat
+    // red-on-red in the danger wash; the red belongs to the card's ground, not the way out.
     retry->setIcon(labelIcon("refresh", glyph, RETRY_ICON));
     QObject::connect(retry, &QToolButton::clicked, retry,
                      [onClick] { if (onClick) onClick(); });
@@ -62,12 +59,9 @@ namespace stencil::gui {
     return retry;
   }
 
-  // The unreachable-card "Configure provider" CTA (browser chatConfigureButton),
-  // shared by the dock and the menu panel: accent-filled, white gear glyph (haloed
-  // on a light accent — the glyph inherits the canonical gear hover motion for
-  // free). `onClick` gets the button, still on screen, as the settings reveal's
-  // anchor. Accent look via the accentCta property (theme.cpp); the objectName
-  // stays free for the GUI tests.
+  // The unreachable-card "Configure provider" CTA (browser chatConfigureButton), shared by the dock
+  // and the menu panel: accent-filled, white gear glyph, haloed on a light accent. `onClick` gets the
+  // button, still on screen, as the settings reveal's anchor; the objectName stays free for the tests.
   QPushButton* addChatConfigureCta(QVBoxLayout* lay, const QColor& accent,
                                    std::function<void(QPushButton*)> onClick) {
     if (!lay) return nullptr;
@@ -104,10 +98,9 @@ namespace stencil::gui {
         addAttachmentImage(v.value<QImage>());
       emit sendRequested(text);
     };
-    // No h.moreMoved: the relationship inverted (the pills win, the trigger gets out
-    // of THEIR way — jumpPillsGlobalRect/revalidateMoreButtons), so a moved trigger no
-    // longer has anything to tell the pills. Wiring it back to updateJumpButtons would
-    // also be reentrant: it now moves triggers itself, which would fire this same hook.
+    // No h.moreMoved: the relationship inverted (the pills win and the trigger gets out of THEIR way),
+    // so a moved trigger has nothing to tell them. Wiring it back to updateJumpButtons would also be
+    // reentrant — that now moves triggers itself, which would fire this same hook.
     h.avoidRect = [this] { return jumpPillsGlobalRect(); };
     h.leaving = [this] { return closing_; };
     h.text = textCache_.isValid() ? textCache_ : palette().color(QPalette::Text);

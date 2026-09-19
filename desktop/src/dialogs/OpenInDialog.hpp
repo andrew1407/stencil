@@ -20,11 +20,9 @@ namespace stencil::gui {
    public:
     enum class Outcome { BROWSER, TELEGRAM };
 
-    // serverProject: the session is linked to a server project on `serverUrl` (shown
-    // in the status line); `serverId` is its id, for the Telegram payload check.
-    // browserAvailable / telegramAvailable gate each button's visibility (already
-    // folded in the config + server-project checks by the caller). startIncognito
-    // seeds the incognito checkbox.
+    // serverProject: the session is linked to a server project on `serverUrl` (shown in the status
+    // line); `serverId` is its id, for the Telegram payload check. browserAvailable /
+    // telegramAvailable gate each button's visibility; startIncognito seeds the incognito checkbox.
     OpenInDialog(QWidget* parent, bool serverProject, const QString& serverUrl,
                  bool browserAvailable, bool telegramAvailable, bool startIncognito,
                  const QString& serverId = QString());

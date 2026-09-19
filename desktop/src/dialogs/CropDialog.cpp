@@ -48,21 +48,18 @@ namespace stencil::gui {
     if (!sameSize) {
       settleRect();
       rect_ = core::centeredCrop(iw_, ih_, aspect_);
-      // The box last FIT INTO, not scale_ * the new pixels: scale_ is this image's own
-      // ratio, stale from whatever the previous one measured — a portrait swapped for a
-      // landscape (or a video for a differently-sized image on a tab switch) landed the
-      // widget far outside PREVIEW_MAX_W/H, an empty box with the handles at its corners.
+      // The box last FIT INTO, not scale_ * the new pixels: scale_ is the previous image's ratio, so a
+      // portrait swapped for a landscape (or a video for a differently-sized image) landed the widget
+      // far outside PREVIEW_MAX_W/H — an empty box with the handles at its corners.
       setFitBox(fitBox_);
       emit cropChanged();
     }
     update();
   }
 
-  // Fit the original into the box (allow modest upscaling of small images so the
-  // handles are usable); the widget takes exactly the scaled image plus the handle inset.
-  // An invalid/degenerate box (fitBox_ read back before anyone ever set it, still QSize()'s
-  // default -1x-1) must NEVER fall back to scale 1.0 — that is the image's own NATIVE
-  // pixels, and for a real photo or video frame that dwarfs the dialog around it.
+  // Fit the original into the box (modest upscaling keeps small images' handles usable); the widget
+  // takes the scaled image plus the handle inset. A degenerate box (fitBox_ read back before anyone
+  // set it) must NEVER fall back to scale 1.0 — that is NATIVE pixels, which dwarf the dialog.
   void CropPreview::setFitBox(const QSize& box) {
     if (box.width() <= 0 || box.height() <= 0) return;   // keep the last good fit
     fitBox_ = box;

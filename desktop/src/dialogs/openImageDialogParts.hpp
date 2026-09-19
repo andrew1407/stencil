@@ -34,10 +34,9 @@ namespace stencil::gui {
   inline constexpr int PREVIEW_MAX_H = 300;  // keeping aspect ratio (browser parity).
   inline constexpr int PREVIEW_MIN_H = 120;  // the picture never gives up room below this
 
-  // A checkbox whose CAPTION is its own wrapping label. A QCheckBox cannot wrap, so a box
-  // carrying a whole sentence makes that sentence the row's minimum width — which the
-  // compact popover shape then clips. Browser twin: the .footer-hint span beside the input.
-  // Zero spacing: the bare box already carries the QSS label gap.
+  // A checkbox whose CAPTION is its own wrapping label. A QCheckBox cannot wrap, so a box carrying a
+  // whole sentence makes that sentence the row's minimum width, which the compact popover then clips.
+  // Browser twin: the .footer-hint span. Zero spacing — the bare box already carries the QSS gap.
   inline QHBoxLayout* checkCaptionRow(QWidget* parent, QCheckBox*& box, const QString& text) {
     auto* row = new QHBoxLayout;
     row->setContentsMargins(0, 0, 0, 0);

@@ -21,18 +21,13 @@ namespace stencil::gui::chatdock {
   // browser: the bubble melts into its own dust rather than vanishing first.
   void fadeOutAndDelete(QWidget* w) {
     if (!w) return;
-    // CLAIM the card's effect for the length of the fade. ScrollReveal installs its
-    // own DissolveEffect on any card near a viewport edge, and setGraphicsEffect
-    // DELETES the one already there — so a card that scrolled while it faded had the
-    // effect this animation writes to freed under it, and the next frame crashed in
-    // QGraphicsOpacityEffect::setOpacity. The entrance animation claims it the same
-    // way (animateCardIn), which is why ScrollReveal skips those.
+    // CLAIM the card's effect for the length of the fade. ScrollReveal installs its own DissolveEffect
+    // on a card near a viewport edge and setGraphicsEffect DELETES the one already there, so a card that
+    // scrolled while it faded crashed in setOpacity. animateCardIn claims it the same way.
     w->setProperty(ScrollReveal::ENTERING_PROPERTY, true);
-    // A card removed mid-entrance still has its appear animation running, and that
-    // animation writes to the effect it installed. setGraphicsEffect() DELETES the
-    // old effect, so installing a fresh one left the entrance holding a dangling
-    // pointer — a use-after-free that crashed on the very next frame. Stop the
-    // card's own animations first and REUSE whatever effect is already there.
+    // A card removed mid-entrance still has its appear animation running, writing to the effect it
+    // installed. setGraphicsEffect() DELETES the old one, so installing a fresh effect left the entrance
+    // holding a dangling pointer. Stop the card's own animations first and REUSE what is there.
     for (QVariantAnimation* a : w->findChildren<QVariantAnimation*>()) a->stop();
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(w->graphicsEffect());
     if (!fx) {
@@ -66,11 +61,9 @@ namespace stencil::gui::chatdock {
     b->setFixedSize(BUTTON_EDGE, BUTTON_EDGE);
     b->setToolTip(tooltip);
     b->setCursor(Qt::PointingHandCursor);
-    // The browser shimmers every <button>, chat controls included (layout.css
-    // ui-shimmer); this is the one factory behind ALL of them — title-bar
-    // ghosts, the composer's send/attach/gear, the cards' Resend — so the
-    // sweep lands on each exactly once. Mouse-through, so nothing about the
-    // click target or the disabled styling changes.
+    // The browser shimmers every <button>, chat controls included (layout.css ui-shimmer); this is the
+    // one factory behind ALL of them — title-bar ghosts, the composer's send/attach/gear, the cards'
+    // Resend — so the sweep lands on each exactly once. Mouse-through, so click targets are unchanged.
     installHoverShimmer(b);
     return b;
   }

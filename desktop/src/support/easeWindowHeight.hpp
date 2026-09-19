@@ -15,10 +15,9 @@ namespace stencil::support {
 
   inline constexpr int WINDOW_RESIZE_MS = 380;   // openImageDialogParts.hpp OI_RESIZE_MS
 
-  // One animation per window, restarted — a run of changes chases the latest height rather
-  // than queueing behind the first. `from` is the height BEFORE the change that prompted
-  // this: Qt grows a window whose layout no longer fits at once, so without it the flight
-  // would start from a height already arrived at and play nothing.
+  // One animation per window, restarted, so a run of changes chases the latest height rather than
+  // queueing behind the first. `from` is the height BEFORE the change that prompted this: Qt grows a
+  // window whose layout no longer fits at once, so without it the flight plays nothing.
   inline void easeWindowHeight(QWidget* w, int to, int from = -1,
                                int ms = WINDOW_RESIZE_MS) {
     if (!w || to <= 0) return;
@@ -29,12 +28,9 @@ namespace stencil::support {
     }
     const int start = from > 0 ? from : w->height();
     if (start == to) return;
-    // A window cannot be resized under its layout's own minimum, and the rows that just
-    // appeared raised it — so the constraint stands down for the flight and is restored when
-    // it lands. Mid-flight the rows are clipped by the shrinking window, which IS the reveal
-    // (the browser's box clips the same way: .app-modal is overflow: hidden).
-    // …and the minimum ALREADY propagated to the window with it: resize() is clamped by
-    // both, so Qt had already jumped the window to its new layout minimum before we got here.
+    // A window cannot be resized under its layout's own minimum, and the rows that just appeared raised
+    // it — and Qt has ALREADY jumped the window to that new minimum — so both stand down for the flight.
+    // Mid-flight the rows are clipped by the shrinking window, which IS the reveal (.app-modal clips too).
     if (QLayout* l = w->layout()) l->setSizeConstraint(QLayout::SetNoConstraint);
     w->setMinimumHeight(0);
     if (start != w->height()) w->resize(w->width(), start);

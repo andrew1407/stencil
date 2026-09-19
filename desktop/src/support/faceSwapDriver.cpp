@@ -23,10 +23,9 @@ namespace stencil::gui {
     if (!painted.label.isNull()) btn->setText(painted.label);
   }
 
-  // `applyState` is the caller's flip (accent fill, repolish), run ONCE at the pivot,
-  // hidden behind the invisible frame. It must SET the state absolutely, never toggle:
-  // a superseded swap's applyState is what the button ends on, which is how holding a
-  // shortcut converges on the real state. Reduced motion (or first paint) goes to `to`.
+  // `applyState` is the caller's flip (accent fill, repolish), run ONCE at the pivot, hidden behind the
+  // invisible frame. It must SET the state absolutely, never toggle: a superseded swap's applyState is
+  // what the button ends on, which is how holding a shortcut converges. Reduced motion goes to `to`.
   void swapFace(QAbstractButton* btn, const FaceSpec& to,
                 const std::function<void()>& applyState, int ms) {
     if (!btn || to.glyph.isEmpty()) return;

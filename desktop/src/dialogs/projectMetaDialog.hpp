@@ -56,10 +56,9 @@ namespace stencil::gui {
     }
   };
 
-  // Wraps `field` in the browser's focus ring — a thin opaque accent contour (the field's
-  // own :focus border) inside a thicker translucent one, which QSS cannot paint as a
-  // box-shadow. It lights with the field's focus, or always for a field that never takes
-  // any (the keywords well).
+  // Wraps `field` in the browser's focus ring — a thin opaque accent contour (the field's own :focus
+  // border) inside a thicker translucent one, which QSS cannot paint as a box-shadow. It lights with
+  // the field's focus, or always for a field that never takes any (the keywords well).
   inline QFrame* fieldRing(QWidget* field, QWidget* parent, bool alwaysOn = false) {
     auto* ring = new QFrame(parent);
     ring->setObjectName(QStringLiteral("metaFieldRing"));
@@ -80,10 +79,9 @@ namespace stencil::gui {
     return installModalChrome(dlg, spec.glyph, spec.title);
   }
 
-  // The Cancel / Save footer, then the window's size: a fixed width, opening 54% of the
-  // screen tall (at most 478px). The body's field takes every pixel the window gains,
-  // so a resize grows what is being edited (browser #description-overlay min-height).
-  // `extra` is the field's own verb (keywords' Clear all), seated before Cancel.
+  // The Cancel / Save footer, then the window's size: a fixed width, opening 54% of the screen tall
+  // (at most 478px). The body's field takes every pixel the window gains, so a resize grows what is
+  // being edited. `extra` is the field's own verb (keywords' Clear all), seated before Cancel.
   inline void finishProjectMetaDialog(QDialog* dlg, ModalChrome& chrome,
                                       const ProjectMetaDialogSpec& spec,
                                       QWidget* extra = nullptr, QWidget* focusTarget = nullptr) {

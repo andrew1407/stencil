@@ -104,10 +104,9 @@ namespace stencil::gui {
     idleCardAnim_->setEndValue(on ? 1.0 : 0.0);
     idleCardAnim_->start();
 
-    // …the glyph's own settle (iconMotion.json "image"): the ridge draws itself on and
-    // the sun drops in. Restarted from 0 on every enter and LEFT TO FINISH on leave —
-    // a settle ends at the rest pose, so there is nothing to ease back
-    // (support/iconMotion.hpp IconMotionRunner::enter / leave).
+    // …the glyph's own settle (iconMotion.json "image"): the ridge draws itself on and the sun drops
+    // in. Restarted from 0 on every enter and LEFT TO FINISH on leave — a settle ends at the rest pose,
+    // so there is nothing to ease back (iconMotion.hpp IconMotionRunner::enter / leave).
     if (on && !support::motionReduced()) {
       if (!idleGlyphAnim_) {
         idleGlyphAnim_ = new QVariantAnimation(this);

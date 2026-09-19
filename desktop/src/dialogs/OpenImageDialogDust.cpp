@@ -50,10 +50,9 @@ namespace stencil::gui {
     });
   }
 
-  // The one thing a crop toggle adds to, or takes from, the column, so it arrives and leaves
-  // on the KEYWORD-CHIP recipe (KeywordChipsMotion; the browser read-out flies the same).
-  // Photographed before the veil (a veiled widget grabs to nothing) and once shown, since
-  // only then does it have a size.
+  // The one thing a crop toggle adds to, or takes from, the column, so it arrives and leaves on the
+  // KEYWORD-CHIP recipe (KeywordChipsMotion; the browser read-out flies the same). Photographed
+  // before the veil (a veiled widget grabs to nothing) and once shown, since only then has it a size.
   void OpenImageDialog::cropDimsDust(bool arriving) {
     QWidget* host = cropDims_->parentWidget();
     // isVisible() cannot answer this any more: the line stays shown while it slides away.
@@ -83,15 +82,9 @@ namespace stencil::gui {
     cropDims_->setGraphicsEffect(veil);
     QPointer<QLabel> label(cropDims_);
     const int gen = motion_.gen;
-    // AFTER the window's height ease has landed: raised before it, the cloud is pinned where
-    // the line USED to be and the growing column slides the line out from under it (measured
-    // 19px off). The veil then lifts once most of the motes are home — not at the very end —
-    // so the words are not missing for the whole flight.
-    // ONE turn later, not synchronously: the resize syncCropStage just asked for lands when
-    // this turn ends, so a cloud raised now is pinned where the line USED to be and the
-    // column slides it out from under (measured 19px off). One turn is imperceptible — the
-    // old wait was the whole height ease. The veil then lifts once most motes are home, so
-    // the words are not missing for the entire play.
+    // ONE turn later, not synchronously: the resize syncCropStage just asked for lands when this turn
+    // ends, so a cloud raised now is pinned where the line USED to be and the column slides it out from
+    // under (measured 19px off). The veil lifts once most motes are home, not at the very end.
     QTimer::singleShot(0, label, [this, label, veil, shot, gen, host] {
       const auto lift = [label, veil] {
         if (label && label->graphicsEffect() == veil) label->setGraphicsEffect(nullptr);
@@ -117,12 +110,9 @@ namespace stencil::gui {
     });
   }
 
-  // The line SLIDES into its place and back out of it, on the window's own clock, so the
-  // rows under it are never snapped up or down by its height (browser twin: syncCropDims'
-  // height flight). The END state goes into the layout FIRST: the window's refit runs next
-  // and must measure the shape this lands on, not the one it starts from.
-  // A DIFFERENT source replacing the picture on screen: the old blows away first so the
-  // two never cross-fade. The new one's arrival is its own play, once its decode lands.
+  // The line SLIDES in and out on the window's own clock, so the rows under it are never snapped by
+  // its height (browser twin: syncCropDims). The END state goes into the layout FIRST: the refit runs
+  // next and must measure the shape this lands on. A replaced picture blows away first, never crossfades.
   void OpenImageDialog::scatterPreviewDust() {
     QWidget* host = previewLabel_->parentWidget();
     if (!previewLabel_->isVisible() || previewLabel_->pixmap().isNull()) return;

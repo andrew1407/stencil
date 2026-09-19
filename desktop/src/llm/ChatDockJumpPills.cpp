@@ -10,11 +10,9 @@
 namespace stencil::gui {
 
   using namespace chatdock;
-  // Jump pills (browser chatPanel syncJumps parity): ⌃ while the view is off the
-  // beginning, ⌄ while it is off the latest message, both mid-log, neither fits.
-  // The pills' own global box, whichever are visible right now — a null QRect while
-  // neither is. Recomputed from the live geometry (never a cached flag), so a row's
-  // "…" always reads where the pills ACTUALLY are, this instant.
+  // Jump pills (browser chatPanel syncJumps): ⌃ while the view is off the beginning, ⌄ while it is off
+  // the latest, both mid-log, neither fits. Returns their global box, null while neither shows.
+  // Recomputed from live geometry, never a cached flag, so a row's "…" reads where they ACTUALLY are.
   QRect ChatDock::jumpPillsGlobalRect() const {
     if (!jumpBottom_) return QRect();
     const auto globalOf = [](QWidget* w) {
@@ -29,10 +27,9 @@ namespace stencil::gui {
     return pills;
   }
 
-  // The pills just moved, appeared or vanished — any row "…" already on screen must
-  // reconsider whether it still clears them (shift further, settle back, or hide).
-  // placeChatCardMore is idempotent, so re-running it on a row that needed no change
-  // is a no-op.
+  // The pills just moved, appeared or vanished — any row "…" already on screen must reconsider whether
+  // it still clears them (shift further, settle back, or hide). placeChatCardMore is idempotent, so
+  // re-running it on a row that needed no change is a no-op.
   void ChatDock::revalidateMoreButtons() {
     if (!transcript_ || !scroll_) return;
     const QRect avoid = jumpPillsGlobalRect();

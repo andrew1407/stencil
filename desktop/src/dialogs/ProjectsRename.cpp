@@ -31,10 +31,9 @@
 
 namespace stencil::gui {
 
-  // Inline rename over the row's painted name (browser projectsModal beginRename
-  // parity): a live-validated input with ✓/✗, Enter saves, Esc / click-away discards.
-  // Commit emits renameRequested — the dialog STAYS OPEN and the owner repaints it
-  // via setProjects(), like the remove/clear-all flows.
+  // Inline rename over the row's painted name (browser projectsModal beginRename): a live-validated
+  // input with ✓/✗, Enter saves, Esc or click-away discards. Commit emits renameRequested — the
+  // dialog STAYS OPEN and the owner repaints it via setProjects(), like the remove/clear-all flows.
   void ProjectsDialog::beginInlineRename(QListWidgetItem* it) {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local rows only
@@ -66,10 +65,9 @@ namespace stencil::gui {
     edit->setToolTip(tr("Project name"));
     edit->setFixedHeight(RENAME_BOX);   // …the chips' own height: one control, three parts
     lay->addWidget(edit, 1);
-    // ✓/✗ are the browser's .name-edit-btn chips: accent-filled with a WHITE glyph (a
-    // green tick and a red cross read as a warning, not as two halves of one edit). The
-    // shared objectName carries their QSS and themedIcon feeds the iconMotion filter, so
-    // hover draws the check / strikes the cross. Sized by mainWindowHelpers NAME_CHIP_*.
+    // ✓/✗ are the browser's .name-edit-btn chips: accent-filled with a WHITE glyph (a green tick and a
+    // red cross read as a warning, not two halves of one edit). The shared objectName carries their QSS
+    // and themedIcon feeds the iconMotion filter. Sized by mainWindowHelpers NAME_CHIP_*.
     auto* okBtn = new QToolButton(renameBox_);
     okBtn->setObjectName("projectsRenameBtn");
     okBtn->setIcon(themedIcon("check", QColor("#ffffff"), RENAME_GLYPH));
@@ -93,10 +91,9 @@ namespace stencil::gui {
     cancelBtn->setCursor(Qt::PointingHandCursor);
     lay->addWidget(cancelBtn);
 
-    // Span from the name's left edge to just short of the "⋯" strip. The box has to HOLD
-    // its ✓/✗ — at the name line's own height they were cut off on the right and along the
-    // bottom — so it is at least a chip plus its air, and
-    // wide enough for the field and both chips side by side.
+    // Span from the name's left edge to just short of the "⋯" strip. The box has to HOLD its ✓/✗ — at
+    // the name line's own height they were cut off right and bottom — so it is at least a chip plus its
+    // air, and wide enough for the field and both chips side by side.
     const int left = nr.left() - 4;
     const int chips = 2 * RENAME_BOX + 3 * lay->spacing();
     const int width = std::max(160 + chips, kebabZone(vr).left() - 8 - left);

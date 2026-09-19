@@ -139,10 +139,9 @@ namespace stencil::gui {
       fly->setEndValue(chip->geometry());
       fly->start(QAbstractAnimation::DeleteWhenStopped);
     }
-    // A new chip gathers out of its own dust and only THEN fades up: holdFadeKeys is the
-    // app's "stay invisible behind the cloud" curve, the one a revealed dialog uses.
-    // GATHER, not SURFACE_IN: the surface sweeps fly from a target point, so a chip
-    // gathered in from the window's corner. GATHER is FALL rewound.
+    // A new chip gathers out of its own dust and only THEN fades up: holdFadeKeys is the app's
+    // "stay invisible behind the cloud" curve, the one a revealed dialog uses. GATHER, not SURFACE_IN:
+    // the surface sweeps fly from a target point, so a chip gathered in from the window's corner.
     for (QFrame* chip : arrived) {
       chipDust(chip, chipArea_, DisintegrateOverlay::Sweep::GATHER, ENTER_MS, arrived.size());
       auto* fade = new QGraphicsOpacityEffect(chip);

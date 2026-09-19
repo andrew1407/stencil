@@ -33,16 +33,13 @@ namespace stencil::gui {
   // window is sized from the CONTENT, swapped in for the viewport's height.
   int OpenImageDialog::wantedHeight() const {
     if (!size_.bodyScroll || !size_.bodyContent) return sizeHint().height();
-    // sizeHint() alone asks a height-for-width child (a wrapping caption, nested two
-    // QHBoxLayouts deep under checkCaptionRow) for its height at whatever width IT would
-    // prefer, not the one it actually gets here — a pessimistic, too-tall guess (measured
-    // 12px, a whole row's worth of blank space at the bottom). heightForWidth(), asked at
-    // the REAL width, is the number the layout actually settles at.
+    // sizeHint() alone asks a height-for-width child (a wrapping caption two QHBoxLayouts deep) for its
+    // height at the width IT would prefer, not the one it gets — a too-tall guess, measured 12px of
+    // blank. heightForWidth() at the REAL width is the number the layout settles at.
     QLayout* cl = size_.bodyContent->layout();
-    // Before the dialog's REAL width is ever established (showEvent's own first-show
-    // measurement runs before that), size_.bodyContent can still report a tiny transient
-    // width — heightForWidth() at THAT width wraps every caption to several lines and
-    // wildly overshoots, poisoning size_.floorH for the dialog's whole lifetime.
+    // Before the dialog's REAL width is established (showEvent's first-show measurement runs before
+    // that), size_.bodyContent can report a tiny transient width — heightForWidth() there wraps every
+    // caption to several lines and poisons size_.floorH for the dialog's whole lifetime.
     const int contentH = cl && cl->hasHeightForWidth() && size_.bodyContent->width() >= PREVIEW_MAX_W
         ? cl->totalHeightForWidth(size_.bodyContent->width())
         : size_.bodyContent->sizeHint().height();
@@ -59,11 +56,9 @@ namespace stencil::gui {
       tallest = std::max(tallest, tabs_->widget(i)->sizeHint().height());
     const int chrome = tabs_->sizeHint().height() - tallest;   // tab bar + pane frame
     tabs_->setFixedHeight(chrome + page->sizeHint().height());
-    // The WINDOW tracks the page too: a shorter tab or a cleared preview shrinks it back,
-    // the first-show height being only a floor. Skipped before that pass (stale sizeHint).
-    // `measured_` is the WINDOW's first-show pass; a popover never runs it (showEvent
-    // returns early for a child), so gating on it alone left the compact shape never
-    // refitting — a tab switched away from and back came back clipped.
+    // The WINDOW tracks the page too: a shorter tab or a cleared preview shrinks it back, the
+    // first-show height being only a floor. Skipped before that pass (stale sizeHint). A popover never
+    // runs it, so gating on `measured_` alone left the compact shape never refitting — tabs came back clipped.
     if ((measured_ || !isWindow()) && !measuring_) refitWindowHeight();
   }
 
@@ -116,12 +111,9 @@ namespace stencil::gui {
     animateHeightTo(want);   // eased, like the window's: a flat resize read as a jump
   }
 
-  // The window EASES to its new height; snapping reads as a jump. One animation,
-  // restarted, so a run of changes chases the latest height instead of queueing.
-  // The flight starts from the height last SHOWN, not the current one: the rows that just
-  // appeared raised the layout's minimum, and Qt has ALREADY grown the window to it by the
-  // time we are asked — starting from height() played nothing at all (browser twin:
-  // easeBoxHeight's pinned `shown`; support/easeWindowHeight.hpp carries the same note).
+  // The window EASES to its new height; snapping reads as a jump. One animation, restarted, so a run
+  // of changes chases the latest height. The flight starts from the height last SHOWN, not the current
+  // one — Qt has already grown the window to the new minimum, so height() played nothing at all.
   void OpenImageDialog::animateHeightTo(int h) {
     const bool flying = size_.anim && size_.anim->state() == QAbstractAnimation::Running;
     const int start = flying || size_.shownH <= 0 ? height() : size_.shownH;
@@ -130,13 +122,9 @@ namespace stencil::gui {
       setHeightNow(h);
       return;
     }
-    // …and a resize is clamped by that minimum AND by the one already propagated to the
-    // window, so both stand down for the flight. Mid-flight the rows are clipped by the
-    // shorter window, which IS the reveal (the browser's .app-modal clips the same way —
-    // via overflow: hidden, never a scrollbar). size_.bodyContent's LAYOUT, though, reflows to
-    // its new natural height at once, a whole animation ahead of the window catching up —
-    // for that stretch size_.bodyScroll genuinely holds more than its own (still small) viewport,
-    // and AsNeeded's bar popping in, then out, is its own width-jump on top of the ease.
+    // …and a resize is clamped by that minimum AND the one already propagated to the window, so both
+    // stand down for the flight. Mid-flight the rows are clipped by the shorter window, which IS the
+    // reveal. Scrollbars stay off: bodyContent reflows an animation ahead, so AsNeeded would flicker.
     if (QLayout* l = layout()) l->setSizeConstraint(QLayout::SetNoConstraint);
     setMinimumHeight(0);
     if (size_.bodyScroll) size_.bodyScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

@@ -86,10 +86,9 @@ namespace stencil::gui {
 
   void MediaLoader::onVideoFrame(const QVideoFrame& frame) {
     if (done_ || !seekIssued_ || !frame.isValid()) return;
-    // For a non-first frame, the decoder may stream frames from the start before
-    // the seek lands — wait until playback has reached the requested position so
-    // we grab the intended frame, not frame 0. (60 ms tolerance ≈ a couple of
-    // frames; the timeout backstops a seek that never arrives.)
+    // For a non-first frame the decoder may stream frames from the start before the seek lands, so wait
+    // until playback has reached the requested position and we grab the intended frame, not frame 0.
+    // 60 ms tolerance ≈ a couple of frames; the timeout backstops a seek that never arrives.
     if (targetMs_ > 0 && player_ && player_->position() + 60 < targetMs_) return;
     const QImage img = frame.toImage();
     if (img.isNull()) return;  // wait for the next, decodable frame

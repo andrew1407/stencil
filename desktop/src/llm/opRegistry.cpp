@@ -15,19 +15,14 @@
 // the generated init function.
 static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 
-// The desktop op registry (llm-contract.md §13): the shared opRegistry.json
-// (opSchema) supplies every bullet, "also accepts" line, flag and forbidden
-// name; this table adds the OpKind and the desktop capability each op needs.
-// The prose core loads from the shared canon asset and the ops section is
-// assembled from the table, so the prompt can never promise an op this
-// surface cannot run and adding/removing an op is one row here.
+// The desktop op registry (llm-contract §13): the shared opRegistry.json supplies every bullet, "also
+// accepts" line, flag and forbidden name; this table adds the OpKind and the desktop capability each
+// op needs. So the prompt can never promise an op this surface cannot run; a new op is one row here.
 namespace stencil::llm {
 
-  // Any string field of the §4 prompt canon, parsed once from the qrc asset. "head"
-  // carries its trailing newline and "tail" its leading blank line, so assembly is plain
-  // head + bullets + tail; the contextSuffix* templates keep their Qt %1/%2 placeholders.
-  // Empty on a broken alias — the configCanon pins and the llmClient byte-stability test
-  // fail fast on that.
+  // Any string field of the §4 prompt canon, parsed once from the qrc asset. "head" carries its trailing
+  // newline and "tail" its leading blank line, so assembly is plain head + bullets + tail. Empty on a
+  // broken alias — the configCanon pins and the llmClient byte-stability test fail fast on that.
   QString promptText(const QString& key) {
     static const QJsonObject canon = [] {
       ensureAppResources();

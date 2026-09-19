@@ -13,10 +13,9 @@
 
 namespace stencil::gui {
 
-  // A player's bar seeks WHERE YOU TAP; a plain QSlider steps one page towards the click.
-  // QStyle's SH_Slider_AbsoluteSetButtons says so properly, but a per-widget QStyle drops
-  // the app stylesheet that paints this bar (Qt does not support QSS with a custom style),
-  // so the press is mapped to a value here and then travels on to start the drag.
+  // A player's bar seeks WHERE YOU TAP; a plain QSlider steps one page towards the click. QStyle's
+  // SH_Slider_AbsoluteSetButtons says so properly, but a per-widget QStyle drops the app stylesheet
+  // that paints this bar, so the press is mapped to a value here and then travels on to start the drag.
   class ScrubClick : public QObject {
    public:
     using QObject::QObject;

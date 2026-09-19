@@ -74,11 +74,9 @@ namespace stencil::gui {
                it->data(Qt::UserRole + 3).toString());
   }
 
-  // The open-confirm sits OVER the still-open dialog (browser parity: the projects
-  // modal stays under the question, Cancel returns to the list, so a cancelled open is
-  // never orphaned). Deferred a turn so a drag
-  // release / menu click in the same turn can't dismiss the question (the
-  // deleteSelected pattern). A double click (confirmOpen_ false) skips it.
+  // The open-confirm sits OVER the still-open dialog (browser parity), so a cancelled open returns to
+  // the list instead of being orphaned. Deferred a turn so a drag release or menu click in the same
+  // turn cannot dismiss the question (the deleteSelected pattern). A double click skips it.
   void ProjectsDialog::finishOpen(Action act, bool newWindow, const QString& name) {
     if (!confirmOpen_) {
       action_ = act;

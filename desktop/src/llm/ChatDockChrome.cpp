@@ -94,11 +94,9 @@ namespace stencil::gui {
     dot->setToolTip(richTooltip);
   }
 
-  // Branded title bar (browser header-row parity): sparkle + accent
-  // "Assistant" + right-aligned float/close. QDockWidget keeps its native
-  // title drag through a custom title-bar widget (the buttons consume only
-  // their own clicks); an event filter OBSERVES press/move/release to drive
-  // the drag dock zones without disturbing Qt's drag.
+  // Branded title bar (browser header-row parity): sparkle + accent "Assistant" + right-aligned
+  // float/close. QDockWidget keeps its native title drag through a custom title-bar widget; an event
+  // filter OBSERVES press/move/release to drive the dock zones without disturbing Qt's drag.
   void ChatDock::buildTitleBar() {
     titleBar_ = new QWidget(this);
     titleBar_->setObjectName("chatTitleBar");
@@ -156,20 +154,18 @@ namespace stencil::gui {
     connect(floatBtn_, &QToolButton::clicked, this, [this] { emit floatToggleRequested(); });
     row->addWidget(floatBtn_);
     closeBtn_ = makeGhostButton(titleBar_, "Close assistant");
-    // NOT QWidget::close(): that hides the dock on the spot, and a side-docked
-    // chat blinked out instead of sliding into its edge. The owner runs the same
-    // animated path the toolbar toggle uses (closeEvent below routes every OTHER
-    // close the same way).
+    // NOT QWidget::close(): that hides the dock on the spot, and a side-docked chat blinked out instead
+    // of sliding into its edge. The owner runs the same animated path the toolbar toggle uses
+    // (closeEvent below routes every OTHER close the same way).
     connect(closeBtn_, &QToolButton::clicked, this, [this] { emit closeRequested(); });
     row->addWidget(closeBtn_);
     setTitleBarWidget(titleBar_);
     titleBar_->installEventFilter(this);  // drag observation (drag dock zones)
   }
 
-  // Empty-state suggestions (browser parity): clickable pills laid out INLINE
-  // with wrapping (flow layout). Clicking PREFILLS the caller's composer (never
-  // sends). SHARED with the context menu's assistant panel — one chip list, one
-  // flow layout, one style — so the two empty states can't drift apart.
+  // Empty-state suggestions (browser parity): clickable pills laid out INLINE with wrapping. Clicking
+  // PREFILLS the caller's composer, never sends. SHARED with the context menu's assistant panel — one
+  // chip list, one flow layout, one style — so the two empty states cannot drift apart.
   QWidget* makeSuggestionChips(QWidget* parent, int gap, std::function<void(QString)> onPick) {
     auto* box = new QWidget(parent);
     box->setObjectName(QStringLiteral("chatSuggest"));

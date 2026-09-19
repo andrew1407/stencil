@@ -15,10 +15,9 @@
 // height when the whole dialog would otherwise run past the screen.
 namespace stencil::gui {
 
-  // Floored at PREVIEW_MAX_W/H, grown with a wider window, never past the screen — and
-  // capped by size_.previewCapH once the picture has had to give up room (shrinkPreviewToFit).
-  // From width(), the WINDOW's own: size_.bodyContent's width is laid out FROM the stage this
-  // box fits, so measuring it fed the last box back in as the next one (a runaway climb).
+  // Floored at PREVIEW_MAX_W/H, grown with a wider window, never past the screen, and capped by
+  // size_.previewCapH once the picture has given up room. From width(), the WINDOW's own:
+  // bodyContent's width is laid out FROM the stage this box fits, so measuring it ran away.
   QSize OpenImageDialog::previewFitBox() const {
     int w = std::max(PREVIEW_MAX_W, width() - 2 * PREVIEW_COL_GAP - 40);
     int h = std::max(PREVIEW_MAX_H, w * PREVIEW_MAX_H / PREVIEW_MAX_W);
@@ -41,10 +40,9 @@ namespace stencil::gui {
     }
   }
 
-  // The dialog wants `over` px more than the screen allows: the PICTURE gives them up, not
-  // the body its bottom edge — a few px of overflow raised a scrollbar over nothing (user
-  // report; browser twin: the preview's max-height 38vh). Returns the re-measured height.
-  // Under PREVIEW_MIN_H the picture is left alone and the body scrolls after all.
+  // The dialog wants `over` px more than the screen allows: the PICTURE gives them up, not the body
+  // its bottom edge — a few px of overflow raised a scrollbar over nothing (user report; browser
+  // max-height 38vh). Returns the re-measured height. Under PREVIEW_MIN_H the body scrolls instead.
   int OpenImageDialog::shrinkPreviewToFit(int over) {
     const int picH = cropStage_ ? cropStage_->paintedRect().height()
                                 : (previewLabel_->isVisible() ? previewLabel_->pixmap().height() : 0);

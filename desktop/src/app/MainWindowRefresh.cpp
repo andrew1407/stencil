@@ -117,10 +117,9 @@ namespace stencil::gui {
     actSaveProjectFile_->setEnabled(hasImg);
     actPasteLayout_->setEnabled(hasImg);
     syncExportActions();
-    // Empty state (browser #load-image-btn ↔ #image-actions): the buttons are toggled, never the
-    // actions, which also back menu entries.
-    // Half sand (browser controlState.js parity): the leaving side goes at once, only the arriving
-    // side slides open under motes.
+    // Empty state (browser #load-image-btn ↔ #image-actions): the BUTTONS are toggled, never the
+    // actions, which also back menu entries. Half sand (controlState.js parity): the leaving side
+    // goes at once, only the arriving side slides open under motes.
     const auto swapShown = [](QWidget* w, bool show) {
       revealControls(w, show, /*dust=*/show);   // arrivals ride the sand; leaving is instant
     };
