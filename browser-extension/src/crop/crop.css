@@ -49,6 +49,9 @@ main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
   border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 16px; }
 .group { display: flex; flex-direction: column; gap: 8px; }
 .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+/* A label that also carries its group's unit: the name left, the unit right, on one line. */
+.lbl-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.lbl-row .unit { text-transform: none; letter-spacing: 0; font-size: 12px; }
 
 .seg { display: flex; gap: 6px; }
 .seg button { flex: 1; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
@@ -67,7 +70,6 @@ main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
 .num { width: 84px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 8px; font-size: 13px; }
 .custom-dims .times { color: var(--muted); }
-.custom-dims .unit { color: var(--muted); font-size: 12px; }
 
 .preview-frame { background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
   display: flex; align-items: center; justify-content: center; padding: 6px; min-height: 80px; }

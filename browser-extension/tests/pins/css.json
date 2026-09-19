@@ -917,10 +917,6 @@
    "|.custom-dims .times": {
     "color": "var(--muted)"
    },
-   "|.custom-dims .unit": {
-    "color": "var(--muted)",
-    "font-size": "12px"
-   },
    "|.custom-dims[hidden]": {
     "display": "none"
    },
@@ -1198,6 +1194,17 @@
     "text-transform": "uppercase",
     "letter-spacing": ".05em",
     "color": "var(--muted)"
+   },
+   "|.lbl-row": {
+    "display": "flex",
+    "align-items": "baseline",
+    "justify-content": "space-between",
+    "gap": "8px"
+   },
+   "|.lbl-row .unit": {
+    "text-transform": "none",
+    "letter-spacing": "0",
+    "font-size": "12px"
    },
    "|.leaving": {
     "pointer-events": "none",
@@ -1913,6 +1920,8 @@
    "|.panel",
    "|.group",
    "|.lbl",
+   "|.lbl-row",
+   "|.lbl-row .unit",
    "|.seg",
    "|.seg button",
    "|.seg button.active",
@@ -1924,7 +1933,6 @@
    "|.custom-dims[hidden]",
    "|.num",
    "|.custom-dims .times",
-   "|.custom-dims .unit",
    "|.preview-frame",
    "|#preview",
    "|.crop-info",
