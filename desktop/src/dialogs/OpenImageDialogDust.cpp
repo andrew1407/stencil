@@ -2,6 +2,7 @@
 #include "../support/filterFade.hpp"
 #include "../support/motionPrefs.hpp"
 #include "OpenImageDialog.hpp"
+#include "chipDust.hpp"
 #include "openImageDialogParts.hpp"
 #include <algorithm>
 #include <QDateTime>
@@ -18,15 +19,6 @@
 namespace stencil::gui {
 
   // The keyword chip's mesh and clock (KeywordChipsMotion.cpp; browser motion/tiles.js).
-  namespace {
-    constexpr int CHIP_DUST_MS = 630;
-    // The browser's CHIP_DUST_DRIFT. `spread` here IS that drift: both sides throw a mote
-    // by (m-0.5)*66*k across and (26 + progress*30 + n*44)*k down (DisintegrateMotes.cpp /
-    // motion/tiles.js tileMotion), so the same number is the same motion.
-    constexpr double CHIP_DUST_DRIFT = 0.15;
-    // KeywordChipsMotion.cpp CHIP_CELL_PX — the desktop's speck (browser CHIP_MOTE_PX 1.5).
-    constexpr int CHIP_CELL_PX = 2;
-  }
 
   // The preview's own ARRIVAL (browser ghostIn parity): the label stays veiled while an
   // overlay assembles it in its OWN colours — never a decoration over an already-visible
@@ -77,22 +69,13 @@ namespace stencil::gui {
     // The mesh comes from the BOX, as the keyword chip's and the browser's do (dustGrid is
     // motion/tiles.js reshapeGrid): a fixed 64x22 budget over a 13px line made cells
     // 3.1 x 0.59, so the read-out flew as horizontal slices of itself instead of specks.
-    const auto chipCloud = [host](QWidget* w, const QPixmap& shot,
-                                  DisintegrateOverlay::Sweep sweep) {
-      int cols = 0, rows = 0;
-      DisintegrateOverlay::dustGrid(w->size(), CHIP_CELL_PX,
-                                    DisintegrateOverlay::SURFACE_MAX_CELLS, &cols, &rows);
-      return DisintegrateOverlay::overPixmaps(shot, QPixmap(),
-                                              QRect(w->mapTo(host, QPoint()), w->size()), host,
-                                              sweep, cols, rows, CHIP_DUST_MS, CHIP_DUST_DRIFT);
-    };
     if (!arriving) {
       const QPixmap shot = cropDims_->grab();   // before it goes: see below
-      if (!shot.isNull()) chipCloud(cropDims_, shot, DisintegrateOverlay::Sweep::FALL);
-      slideCropDims(false);
+      if (!shot.isNull()) chipCloud(host, cropDims_, shot, DisintegrateOverlay::Sweep::FALL);
+      slideRowHeight(this, cropDims_, motion_.dimsAnim, false);
       return;
     }
-    slideCropDims(true);
+    slideRowHeight(this, cropDims_, motion_.dimsAnim, true);
     if (QLayout* l = host->layout()) l->activate();
     const QPixmap shot = cropDims_->grab();
     auto* veil = new QGraphicsOpacityEffect(cropDims_);
@@ -109,14 +92,14 @@ namespace stencil::gui {
     // column slides it out from under (measured 19px off). One turn is imperceptible — the
     // old wait was the whole height ease. The veil then lifts once most motes are home, so
     // the words are not missing for the entire play.
-    QTimer::singleShot(0, label, [this, label, veil, shot, chipCloud, gen] {
+    QTimer::singleShot(0, label, [this, label, veil, shot, gen, host] {
       const auto lift = [label, veil] {
         if (label && label->graphicsEffect() == veil) label->setGraphicsEffect(nullptr);
       };
       if (!label) return;
       if (gen != motion_.gen) { lift(); return; }
       DisintegrateOverlay* fx = shot.isNull()
-          ? nullptr : chipCloud(label, shot, DisintegrateOverlay::Sweep::GATHER);
+          ? nullptr : chipCloud(host, label, shot, DisintegrateOverlay::Sweep::GATHER);
       if (!fx) {
         lift();
         return;
@@ -138,43 +121,6 @@ namespace stencil::gui {
   // rows under it are never snapped up or down by its height (browser twin: syncCropDims'
   // height flight). The END state goes into the layout FIRST: the window's refit runs next
   // and must measure the shape this lands on, not the one it starts from.
-  void OpenImageDialog::slideCropDims(bool show) {
-    const int full = cropDims_->sizeHint().height();
-    const int from = cropDims_->isVisible() && cropDims_->maximumHeight() < QWIDGETSIZE_MAX
-                         ? cropDims_->maximumHeight()
-                         : (show ? 0 : full);
-    cropDims_->setVisible(true);
-    const auto pin = [this](int h) {
-      cropDims_->setMinimumHeight(h);   // a layout hands it its hint otherwise
-      cropDims_->setMaximumHeight(h);
-    };
-    if (!motion_.dimsAnim) {
-      motion_.dimsAnim = new QVariantAnimation(this);
-      motion_.dimsAnim->setDuration(OI_RESIZE_MS);
-      motion_.dimsAnim->setEasingCurve(QEasingCurve::OutCubic);
-      connect(motion_.dimsAnim, &QVariantAnimation::valueChanged, this,
-              [this, pin](const QVariant& v) { pin(v.toInt()); });
-      connect(motion_.dimsAnim, &QVariantAnimation::finished, this, [this] {
-        const bool shown = motion_.dimsAnim->endValue().toInt() > 0;
-        cropDims_->setMinimumHeight(0);
-        cropDims_->setMaximumHeight(shown ? QWIDGETSIZE_MAX : 0);
-        cropDims_->setVisible(shown);
-      });
-    }
-    motion_.dimsAnim->stop();
-    motion_.dimsAnim->setStartValue(from);
-    motion_.dimsAnim->setEndValue(show ? full : 0);
-    // The END state into the layout LAST: setStartValue emits its value straight away, so
-    // pinning before it left the line's old height in the layout for the refit to measure.
-    pin(show ? full : 0);
-    // Started ONE TURN LATER: start() emits its first value at once, which would put the
-    // line's old height back into the layout before the caller's refit measures it — and
-    // the window then settled a line short of its own content, both ways.
-    QTimer::singleShot(0, motion_.dimsAnim, [this] {
-      if (motion_.dimsAnim && motion_.dimsAnim->state() != QAbstractAnimation::Running) motion_.dimsAnim->start();
-    });
-  }
-
   // A DIFFERENT source replacing the picture on screen: the old blows away first so the
   // two never cross-fade. The new one's arrival is its own play, once its decode lands.
   void OpenImageDialog::scatterPreviewDust() {
