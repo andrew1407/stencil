@@ -7,9 +7,8 @@ use stencil_mcp::llmtransport::{error_code, error_reason, LlmError, LlmTransport
 
 pub fn load_array(path: &str) -> Vec<Value> {
     let raw = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
-    // One browser `expect` deliberately ends in a lone high surrogate (`\ud83d`), which
-    // serde_json refuses. Neutralize the escape — that case's expectation is recomputed
-    // for mcp via an override, so the browser literal is never compared here.
+    // One browser `expect` ends in a lone high surrogate (`\ud83d`), which serde_json refuses;
+    // that case's expectation is recomputed for mcp via an override.
     let raw = raw.replace("\\ud83d", "\\ufffd");
     serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{path} is not a JSON array: {e}"))
 }

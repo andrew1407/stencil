@@ -1,9 +1,8 @@
-//! What mcp ACCEPTS as layout JSON: the hand-written documents the CLI and the browser
-//! also parse, then the shared corpus (`browser/js/config/fixtures/layout/`) walked through
-//! the real types. mcp has no `buildLayoutPayload`/`sanitizeLines` — its analog is the serde
-//! round-trip the `--layout` temp file goes through — so this PINS what that round-trip
-//! does: which corpus fields survive, which are invisible, and which inputs the strict
-//! parser rejects. Disagreements live in `tests/fixture_overrides.json` (family `layout`).
+//! What mcp ACCEPTS as layout JSON: hand-written documents, then the shared corpus
+//! (`browser/js/config/fixtures/layout/`) walked through the real types.
+//!
+//! mcp's analog of `sanitizeLines` is the serde round-trip the `--layout` temp file goes
+//! through. Disagreements live in `tests/fixture_overrides.json` (family `layout`).
 
 use std::sync::LazyLock;
 
@@ -16,9 +15,8 @@ use common::walk::Walk;
 const FIXTURES_DIR: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/fixtures/layout");
 
-/// Top-level corpus keys mcp's `Layout` can represent at all. Everything else in a vector's
-/// `layout` is silently dropped by serde on round-trip (no deny_unknown_fields).
-/// `imageFilter` is the canonical wire key since Phase 6 (legacy `filter` is read-only).
+/// Top-level corpus keys mcp's `Layout` can represent at all; serde silently drops the rest
+/// on round-trip. `imageFilter` is the canonical wire key (legacy `filter` is read-only).
 const MCP_VISIBLE_KEYS: [&str; 4] = ["imageWidth", "imageHeight", "imageFilter", "lines"];
 
 static PAYLOAD: LazyLock<Vec<Value>> = LazyLock::new(|| load("payload.json"));
@@ -33,8 +31,7 @@ fn load(file: &str) -> Vec<Value> {
 }
 
 /// `payload.json` replayed as a `Layout` round-trip. Override `verdict: "reject"` pins a
-/// vector serde refuses; override `payload` pins a round-trip that differs from the
-/// browser's `expectPayload` by exactly the keys mcp cannot see, plus `lines`.
+/// vector serde refuses; `payload` pins a round-trip differing by the invisible keys.
 fn check_payload(vector: &Value) {
     let name = vector["name"].as_str().expect("vector name");
     let ov = &common::overrides("layout")[name];
@@ -50,9 +47,8 @@ fn check_payload(vector: &Value) {
         structurally_equal(&got, want),
         "[{name}] round-trip payload\n got: {got}\nwant: {want}"
     );
-    // Everything mcp emits comes from its four visible keys; the real `--layout` temp
-    // file serializes the struct directly, so top-level key order is the struct order
-    // (Value round-trips sort keys — check order on the raw serialization instead).
+    // `Value` round-trips sort keys, so top-level key order is checked on the raw
+    // serialization instead.
     for key in got.as_object().unwrap().keys() {
         assert!(MCP_VISIBLE_KEYS.contains(&key.as_str()), "[{name}] unexpected key {key}");
     }
@@ -99,9 +95,8 @@ fn structurally_equal(a: &Value, b: &Value) -> bool {
     }
 }
 
-/// `sparse.json`: tolerant-parser vectors. mcp's serde `Vec<Line>` is deliberately strict,
-/// so vectors relying on coercion/skip tolerance are pinned as rejected via overrides;
-/// vectors that parse must fill to the cross-surface `expectFilled` defaults.
+/// `sparse.json`: tolerant-parser vectors. mcp's serde `Vec<Line>` is strict, so vectors
+/// relying on coercion are pinned as rejected; the rest fill to `expectFilled`.
 fn check_sparse(vector: &Value) {
     let name = vector["name"].as_str().expect("vector name");
     let ov = &common::overrides("layout")[name];

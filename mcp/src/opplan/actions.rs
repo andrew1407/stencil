@@ -10,9 +10,8 @@ use crate::registry;
 use super::schema::{schema, JsonObject};
 use super::{Action, Axis, Dir, FilterMode, FormulaOp, OpPlanError, PageSize};
 
-/// The first top-level-only op named in a raw actions list (§2.1), if any. Callers use it
-/// to drop the offending variant / ask preview per §1 — misplaced ops never reach the
-/// validation below.
+/// The first top-level-only op named in a raw actions list (§2.1), if any — callers drop
+/// the offending variant / ask preview per §1.
 pub(super) fn misplaced_top_level_op(value: Option<&Value>) -> Option<String> {
     let Some(Value::Array(list)) = value else {
         return None;
@@ -23,9 +22,8 @@ pub(super) fn misplaced_top_level_op(value: Option<&Value>) -> Option<String> {
         .map(str::to_string)
 }
 
-/// Validate one actions list: unknown ops drop with a warning (forward compatibility);
-/// a known op with invalid params fails the whole plan. `where_` names the list in
-/// messages (`actions`, `variant 2 actions`, `ask option 1 actions`).
+/// Validate one actions list: an unknown op drops with a warning, a known op with invalid
+/// params fails the plan. `where_` names the list in messages.
 pub(super) fn validate_actions(
     value: Option<&Value>,
     warnings: &mut Vec<String>,

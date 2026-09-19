@@ -87,9 +87,8 @@ async fn refuses_to_clobber_without_overwrite() {
     assert!(err.contains("already exists"), "got: {err}");
 }
 
-/// The §2 widened forms end-to-end through the real CLI: blank cm dims and a page
-/// custom-cm-dims + blank plan render at the core's 96 dpi pixel sizes, and the formula
-/// clear/disable forms are accepted-but-noted (zero CLI runs).
+/// The §2 widened forms through the real CLI: blank cm dims and page custom-cm-dims render
+/// at the core's 96 dpi sizes, and the formula clear/disable forms are accepted-but-noted.
 #[tokio::test]
 async fn widened_blank_and_page_cm_dims_run_and_formula_clear_is_noted() {
     if !cli_present() {
@@ -127,9 +126,8 @@ async fn widened_blank_and_page_cm_dims_run_and_formula_clear_is_noted() {
     assert!(notes.iter().any(|n| n.contains("formula")), "{notes:?}");
 }
 
-/// A §10 save `path` end-to-end through the real CLI: the destination is honored
-/// relative to output_dir (folder form), the parent is created the way `run_prompt`
-/// does, and the CLI bundles a real `.stencil` project there.
+/// A §10 save `path` through the real CLI: the destination is honored relative to
+/// output_dir (folder form) and the CLI bundles a real `.stencil` project there.
 #[tokio::test]
 async fn a_save_path_writes_the_project_inside_output_dir_via_the_real_cli() {
     if !cli_present() {

@@ -9,8 +9,7 @@ use crate::opplan;
 use crate::server::tools::ok_result;
 
 /// One written result of a `stencil_prompt` plan: the base result (`label` null), a variant
-/// (its sanitized label), or a §2.1 `save`'s `.stencil` project — a document, so it reports
-/// no pixel dimensions.
+/// (its sanitized label), or a §2.1 `save`'s `.stencil` — a document, so no dimensions.
 #[derive(Serialize)]
 pub(super) struct PromptResult {
     pub(super) label: Option<String>,
@@ -19,9 +18,8 @@ pub(super) struct PromptResult {
     pub(super) height: Option<u32>,
 }
 
-/// The `stencil_prompt` structured payload: the LLM's chat reply, any non-fatal notes
-/// (skipped unknown ops, attachment fallbacks), and the written results (empty for a
-/// chat-only turn).
+/// The `stencil_prompt` structured payload: the chat reply, any non-fatal notes, and the
+/// written results (empty for a chat-only turn).
 #[derive(Serialize)]
 struct PromptPayload<'a> {
     reply: &'a str,
@@ -53,9 +51,8 @@ fn prompt_ask(card: &opplan::AskCard) -> PromptAsk<'_> {
     }
 }
 
-/// The single success exit of `stencil_prompt`: the chat reply, any notes, one `wrote`
-/// line per written result (none on a chat-only turn), and — since a plan may both edit
-/// and ask (§11.3) — the ask card riding out last.
+/// The single success exit of `stencil_prompt`: the reply, any notes, one `wrote` line per
+/// result, and — since a plan may both edit and ask (§11.3) — the ask card last.
 pub(super) fn prompt_response(
     plan: &opplan::OpPlan,
     notes: &[String],
@@ -91,9 +88,8 @@ pub(super) fn prompt_response(
 
 #[cfg(test)]
 mod tests {
-    //! The `stencil_prompt` result surface (pure). These payload types ARE the contract
-    //! with a calling agent; assertions run against the real serialized wire shape via
-    //! the shared [`crate::server::testwire`] helpers.
+    //! The `stencil_prompt` result surface (pure). These payload types ARE the contract with a
+    //! calling agent; assertions run against the real serialized wire shape.
 
     use super::*;
     use crate::opplan::{AskCard, AskOption, OpPlan};

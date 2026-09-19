@@ -6,9 +6,8 @@ use stencil_mcp::opplan::{Action, Dir};
 use stencil_mcp::registry::{descriptor, op_registry};
 
 
-/// An op is promised, validated and RUN off one entry: if `descriptor` knows an op, that
-/// entry carries the fold that executes it, and a fold that rejects nothing accepts the
-/// action its entry validated. Converges with pystencil's `OpSpec` (validator + applier).
+/// An op is promised, validated and RUN off one entry: a known op's entry carries the fold
+/// that executes it. Converges with pystencil's `OpSpec` (validator + applier).
 #[test]
 fn every_registered_op_carries_its_own_lowering() {
     let mut fold = fold::Fold::default();

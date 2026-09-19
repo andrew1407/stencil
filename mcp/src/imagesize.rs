@@ -1,10 +1,8 @@
 //! Pixel dimensions straight out of an image file's header — a port of the CLI's own
 //! sniffer (`cli/src/scrape.zig`, `sniff`) and of the bot's `ImageDimensionReader`.
 //!
-//! `stencil_probe` only needs two integers, and the CLI has no read-only metadata mode: it
-//! decodes and re-encodes a whole PNG to report them. The header carries the answer for
-//! PNG / GIF / BMP / JPEG / WebP, so read it directly and leave the CLI as the fallback for
-//! everything else (video frames, URLs, exotic formats).
+//! The header carries the answer for PNG / GIF / BMP / JPEG / WebP; everything else
+//! (video frames, URLs, exotic formats) falls back to a whole CLI render.
 
 /// How much of the file the sniff reads. A JPEG's frame header sits past whatever EXIF and
 /// thumbnail data precede it, so this is generous; the other formats need < 32 bytes.

@@ -10,8 +10,7 @@ use super::{guard_credentials, parse_http_url, validate_request_parts};
 use super::{LlmError, LlmTransport, DEFAULT_TIMEOUT};
 
 /// The plain-http transport: TCP connect with a timeout, one `HTTP/1.1` request with
-/// `Connection: close`, and a response reader that handles both `Content-Length` and
-/// `chunked` bodies (falling back to read-to-EOF when neither is declared).
+/// `Connection: close`, and a reader for `Content-Length`, `chunked` or read-to-EOF bodies.
 pub struct PlainHttpTransport {
     timeout: Duration,
 }

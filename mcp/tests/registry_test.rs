@@ -7,9 +7,8 @@ use stencil_mcp::opplan::schema::{matches, schema};
 use stencil_mcp::opplan::{parse_op_plan, OpPlanError, MAX_ASK_OPTIONS};
 use stencil_mcp::registry::{descriptor, forbidden_ops, is_forbidden, op_registry};
 
-/// The contract's mcp surface: core §2 + §2.1 in §2 order, minus `undo`/`redo`/`reset` —
-/// a one-shot headless tool has no edit history to step (they fall to §1's unknown-op
-/// skip, like clipboard/theme ops).
+/// The contract's mcp surface: core §2 + §2.1 in §2 order, minus `undo`/`redo`/`reset` — a
+/// one-shot headless tool has no edit history to step.
 const MCP_SURFACE: [&str; 10] = [
     "crop", "rotate", "filter", "layout", "formula", "page", "blank", "frame", "image", "save",
 ];

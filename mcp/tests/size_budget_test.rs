@@ -1,10 +1,8 @@
 //! The size + comment ratchet for this crate's Rust sources.
 //!
 //! `size_budget.json` records the lines each listed file may keep and the comment share each
-//! directory may keep: nothing may grow, a NEW file over `maxNewFileLines` fails until it is
-//! split or recorded, and a file that shrank prints a note so its number can be lowered.
-//! Rust sources carry inline `#[cfg(test)] mod tests` blocks, so an entry records both the
-//! whole file (`lines`) and the part before that module (`prod`); the limit applies to `prod`.
+//! directory may keep. Rust sources carry inline `#[cfg(test)] mod tests`, so an entry
+//! records the whole file (`lines`) and the part before it (`prod`); `prod` is the limit.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

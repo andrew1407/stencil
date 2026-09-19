@@ -13,9 +13,8 @@ fn cm_to_blank_px(cm: f64) -> u32 {
     ((cm / 2.54 * 96.0 + 0.5) as u32).max(1)
 }
 
-/// Collapse one action list into a single `EditParams`. Each action is folded by the
-/// lowering its §13 registry entry carries, so the ops this stage executes are exactly the
-/// ops the validator accepted. Ops it cannot express in one run are rejected.
+/// Collapse one action list into a single `EditParams`, each action folded by its §13
+/// registry entry. Ops it cannot express in one run are rejected.
 pub fn collapse<'a>(
     actions: impl IntoIterator<Item = &'a Action>,
     input: Option<&str>,
@@ -32,10 +31,8 @@ pub fn collapse<'a>(
     }
     let Fold { crop, quarters, filter, lines, blank, page, frame } = fold;
 
-    // Source: a blank action replaces the input; a page action needs a blank to land on
-    // (the CLI applies page sizing only when creating a blank page). The blank's own
-    // size (dims beat format) wins over a `page` action's; cm dims become the CLI's
-    // pixel dims via the core's defaultBlankSizePx conversion.
+    // A blank action replaces the input; a `page` action needs a blank to land on. The blank's
+    // own size (dims beat format) wins over a `page` action's.
     let (params_input, params_blank) = match blank {
         Some((color, own)) => {
             let (page_format, width, height) = match own.or(page) {

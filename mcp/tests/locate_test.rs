@@ -1,13 +1,8 @@
 //! Discovering the CLI binary the server shells out to.
 //!
-//! `find_cli` has a documented precedence — STENCIL_CLI, then the repo checkout, then PATH —
-//! and the first step must be authoritative: an operator who points STENCIL_CLI at the wrong
-//! path should get a clear error, never a silent fall-through to some other `stencil` that
-//! happens to be on PATH.
-//!
-//! These tests mutate process-wide environment variables, so they serialize on a lock. They
-//! live in their own test binary (one binary per `tests/*.rs`), so the lock covers every
-//! test that can observe the change.
+//! `find_cli`'s first step must be authoritative: a wrong `STENCIL_CLI` gets a clear error,
+//! never a silent fall-through to some other `stencil` on PATH. These tests mutate
+//! process-wide environment variables, so they serialize on a lock.
 
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, OnceLock};
@@ -97,10 +92,8 @@ fn a_directory_is_rejected_as_the_stencil_cli_path() {
     );
 }
 
-/// With no override, resolution falls back to the repo checkout / PATH. The test process
-/// runs from inside the checkout, so the repo root is discoverable and — since CI builds the
-/// CLI before running these tests — resolution succeeds. When it does not (a fresh clone
-/// with no `zig build` and no `stencil` on PATH), the error must be the actionable one.
+/// With no override, resolution falls back to the repo checkout / PATH. When it cannot
+/// resolve (fresh clone, no `zig build`, nothing on PATH), the error must be actionable.
 #[test]
 fn without_an_override_it_finds_the_repo_build_or_explains_itself() {
     let _env = StencilCliEnv::set(None);

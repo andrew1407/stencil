@@ -8,8 +8,7 @@ use stencil_mcp::opplan::{
 
 use common::plan_of;
 // ── §11 interactive replies (`ask`) ──
-// This server is a TOOL, not a chat: the card is validated exactly like every other client,
-// then surfaced to the CALLING agent as text + structured data. Previews are never shown.
+// The card is validated like every other client, then surfaced as text + structured data.
 
 fn ask_plan(ask: &str) -> OpPlan {
     parse_op_plan(&format!(r#"{{"version":1,"reply":"pick","ask":{ask}}}"#)).unwrap()
@@ -72,9 +71,8 @@ fn previews_are_dropped_with_one_note_never_the_option() {
 
 #[test]
 fn ask_option_action_previews_and_all_image_reference_forms_are_accepted() {
-    // §11.1: options may carry `actions` (a render spec) or `image` — one of
-    // url / projectId / scanIndex. This server shows no pictures, so every form
-    // is accepted and only the label survives (§11.4) — never a rejection.
+    // §11.1: an option may carry `actions` or `image`. This server shows no pictures, so every
+    // form is accepted and only the label survives (§11.4).
     let plan = ask_plan(
         r#"{"question":"Which?","options":[
             {"label":"Crop","actions":[{"op":"crop","spec":{"x1":"10%"}}]},

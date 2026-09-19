@@ -49,10 +49,7 @@ impl ArgvBuilder {
 }
 
 /// The validated, normalized source of an edit: exactly one of a plain input, a blank
-/// canvas, or a named project fetched from a collaboration server. `TryFrom<&EditParams>`
-/// is the single normalization boundary — it runs the source/output/server/remote guards
-/// once, in the CLI's own order, so the flat public `EditParams` (and its JSON schema) stay
-/// untouched while `build_argv` consumes a shape that can't be inconsistent.
+/// canvas, or a named server project. `TryFrom<&EditParams>` is the one guard boundary.
 enum Source<'a> {
     Input(&'a str),
     Blank(&'a Blank),
@@ -70,12 +67,8 @@ impl<'a> TryFrom<&'a EditParams> for Source<'a> {
             return Err(EditError::NoSource);
         }
 
-        // Flag-injection guard on the positional `output`: the CLI has *no* `--`
-        // end-of-options terminator, so a dash-leading `output` would parse as a flag (`-l`
-        // would even swallow the next token). Mirrors the CLI's own `arg[0] == '-'` test.
-        // Scheme/host SSRF filtering for `input`/`server`/`remote` is deliberately NOT done
-        // here — it is enforced downstream in the CLI; this builder only guarantees each
-        // value rides as one inert argv token (no shell, no splitting).
+        // The CLI has no `--` end-of-options terminator, so a dash-leading `output` would parse
+        // as a flag. Scheme/host filtering for input/server/remote is the CLI's job, not ours.
         if p.output.trim().is_empty() {
             return Err(EditError::EmptyValue("output"));
         }
@@ -115,8 +108,7 @@ impl<'a> TryFrom<&'a EditParams> for Source<'a> {
 
 impl Source<'_> {
     /// Emit the source's leading argv: `--server <url> -i <name>`, `-i <input>`, or the
-    /// `--blank …` series. `--server <url>` conceptually precedes `-i` (it changes what
-    /// `-i` means), though the CLI parses order-independently.
+    /// `--blank …` series.
     fn push_argv(&self, b: &mut ArgvBuilder) -> Result<(), EditError> {
         match self {
             Source::Input(input) => b.opt(FLAG_INPUT, input.to_string()),
@@ -131,9 +123,8 @@ impl Source<'_> {
 }
 
 impl Blank {
-    /// Emit `--blank [page] [w h] [color]`, validating the traps the CLI would otherwise
-    /// swallow silently (an unknown page token or unparseable colour is skipped by the
-    /// CLI's `--blank` parser, so it must be rejected here instead of yielding a default).
+    /// Emit `--blank [page] [w h] [color]`, rejecting the unknown page token or unparseable
+    /// colour the CLI's own `--blank` parser would silently skip.
     fn push_argv(&self, b: &mut ArgvBuilder) -> Result<(), EditError> {
         b.switch(FLAG_BLANK);
         if let Some(page) = &self.page {
@@ -164,10 +155,8 @@ impl Blank {
     }
 }
 
-/// Build the `stencil` argv from edit parameters. `layout_path` is the already-resolved
-/// path passed to `-l` (a temp file for an inline layout, or the user's path/URL); pass
-/// `None` to omit `--layout`. All validation happens in `Source::try_from`, so the body is a
-/// flat, order-fixed mapping of the remaining flags.
+/// Build the `stencil` argv from edit parameters. `layout_path` is the resolved `-l` path;
+/// `None` omits `--layout`. All validation happens in `Source::try_from`.
 pub fn build_argv(
     params: &EditParams,
     layout_path: Option<&str>,

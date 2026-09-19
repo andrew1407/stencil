@@ -1,10 +1,8 @@
-//! Folding one action into the single CLI run its plan collapses to — the second half of
-//! a §13 registry entry. [`crate::registry::OpDescriptor`] pairs each fold with the key
-//! schema that validated the action, so validation and dispatch come off one table (the
-//! shape pystencil's `OpSpec` carries as `validator` + `applier`).
+//! Folding one action into the single CLI run its plan collapses to — the second half of a
+//! §13 registry entry. [`crate::registry::OpDescriptor`] pairs each fold with the key
+//! schema that validated the action (pystencil's `OpSpec` = `validator` + `applier`).
 //!
-//! Every fold takes the action it was registered for; handed anything else it does
-//! nothing, so the table is the only thing that has to be right.
+//! Handed an action it was not registered for, a fold does nothing.
 
 use crate::layout::Line;
 

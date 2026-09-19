@@ -5,9 +5,8 @@ use std::path::Path;
 
 use super::super::MAX_LABEL_CHARS;
 
-/// Sanitize a variant label into a `[a-z0-9-]` file stem (runs of other characters become
-/// single dashes; capped at 40 chars). May come out empty — callers fall back to a
-/// positional `variant-N` name.
+/// Sanitize a variant label into a `[a-z0-9-]` file stem (other runs become one dash,
+/// capped at 40 chars). May come out empty — callers fall back to `variant-N`.
 pub fn sanitize_label(label: &str) -> String {
     let mut out = String::new();
     for c in label.chars() {
@@ -39,10 +38,8 @@ pub fn dedupe(stem: String, taken: &mut HashSet<String>) -> String {
     format!("{stem}-{n}")
 }
 
-/// Map a §10 save destination into the run's `output_dir`: a relative `.stencil` file
-/// name is used as-is; any other relative path is a folder holding `{stem}.stencil`
-/// (the CLI's folder-or-file rule). Absolute paths, `..` segments and `~` would escape
-/// the sandbox — `None`, and the caller notes + saves to the usual place.
+/// Map a §10 save destination into `output_dir`: a relative `.stencil` name as-is, any
+/// other relative path as a folder. Absolute, `..` or `~` paths escape it — `None`.
 pub fn honored_save_path(path: &str, output_dir: &str, stem: &str) -> Option<String> {
     use std::path::Component;
     let p = Path::new(path);

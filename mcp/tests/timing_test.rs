@@ -74,9 +74,8 @@ fn validate_action_scales_linearly_in_plan_size() {
     assert!(grew < 16.0, "8x the points cost {grew:.2}x — validation is no longer linear");
 }
 
-/// The sanitizer runs on every transport error, on text of unbounded length — but it only
-/// ever scans the first 800 characters. So a 20x longer message must cost barely more than
-/// a short one; if it scales with the input, the scan window regressed.
+/// The sanitizer only ever scans the first 800 characters, so a 20x longer message must
+/// cost barely more than a short one; scaling with the input means the window regressed.
 #[test]
 #[ignore = "bench: run with --ignored"]
 fn sanitize_detail_is_bounded_by_its_scan_window() {

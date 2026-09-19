@@ -1,10 +1,7 @@
 //! Errors.
 //!
-//! A hand-written error type (no `thiserror`) whose `Display` reproduces the exact
-//! user-facing message for each failure, so the MCP error responses and the test suites are
-//! byte-for-byte unchanged. Validation cases carry structured data; runtime failures threaded
-//! up from the pipeline (clobber guard, layout temp write, CLI locate/spawn, CLI-reported
-//! `error:` lines, missing `wrote` line) ride the `Runtime` variant with a ready-made message.
+//! A hand-written error type whose `Display` is the exact user-facing message. Runtime
+//! failures threaded up from the pipeline ride the `Runtime` variant with a ready message.
 
 /// Everything `stencil_edit` can fail with, from parameter validation through the CLI run.
 #[derive(Debug)]

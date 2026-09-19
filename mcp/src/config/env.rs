@@ -12,8 +12,7 @@ pub(super) fn env_nonempty(key: &str) -> Option<String> {
 }
 
 /// Per-invocation deadline for one CLI run (`STENCIL_CLI_TIMEOUT_SECONDS`, default 120s —
-/// the bot's `STENCIL_BOT_CLI_TIMEOUT_SECONDS` default): a hung CLI must never pin an MCP
-/// tool call forever. Read per spawn; a blank/zero/unparseable value falls back to 120s.
+/// the bot's default): a hung CLI must never pin an MCP tool call forever.
 pub fn cli_timeout() -> Duration {
     let secs = env_nonempty("STENCIL_CLI_TIMEOUT_SECONDS").and_then(|v| v.parse::<u64>().ok());
     Duration::from_secs(secs.filter(|s| *s > 0).unwrap_or(120))

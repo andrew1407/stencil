@@ -115,8 +115,7 @@ pub async fn scrape<R: CliRunner>(
 }
 
 /// Run one `.stc` through the CLI's `--script` mode. The script names its own outputs, so
-/// the run is ALWAYS confined: it spawns inside the sandbox root with `--confine-output`,
-/// which refuses every `@save` that would climb out of it.
+/// the run is ALWAYS confined: it spawns inside the sandbox root with `--confine-output`.
 pub async fn script<R: CliRunner>(
     runner: &R,
     params: &ScriptParams,

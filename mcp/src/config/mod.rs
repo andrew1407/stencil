@@ -1,9 +1,8 @@
 //! Server configuration: which delivery surface(s) a `stencil_edit` result goes to, plus
 //! the paths/URLs those surfaces need.
 //!
-//! Resolution order, lowest precedence first: built-in defaults < the dotenv file < process
-//! env (incl. the mcpServers "env") < the `--surface` CLI arg; a per-call `surface` parameter
-//! overrides it for one call. The hand-rolled dotenv loader never overrides the process env.
+//! Precedence, lowest first: defaults < the dotenv file < process env < `--surface`; a
+//! per-call `surface` parameter overrides it for one call.
 mod env;
 mod surface;
 

@@ -60,9 +60,8 @@ async fn a_load_only_plan_continues_once_with_the_loaded_image_attached() {
     assert!(summary.contains("wrote "), "{summary}");
 }
 
-/// §3.0: a layout-drawing turn is ONE model round — the plan executes, the reply is shown,
-/// and nothing runs after it. The queue holds a single body, so any post-plan round would
-/// hit the connect error and fail the call.
+/// §3.0: a layout-drawing turn is ONE model round. The queue holds a single body, so any
+/// post-plan round would hit the connect error and fail the call.
 #[tokio::test]
 async fn a_layout_turn_is_exactly_one_model_round() {
     if locate::find_cli().is_err() {

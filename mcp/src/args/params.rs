@@ -23,10 +23,8 @@ pub struct EditParams {
     #[serde(default)]
     pub frame: Option<u32>,
 
-    /// Crop, as either a raw spec string (`"x1=10% x2=90% y1=10% y2=90%"`) or an object of
-    /// edges. Each edge is a length token: `px`, `cm`, `mm`, `in`, `%`, or a bare pixel
-    /// delta; a leading `-` measures from the far edge. Omit an edge to keep the image
-    /// bound.
+    /// Crop, as a raw spec string (`"x1=10% x2=90%"`) or an object of edges. Each edge is a
+    /// length token — `px`, `cm`, `mm`, `in`, `%`, bare pixels; a leading `-` is the far edge.
     #[serde(default)]
     pub crop: Option<Crop>,
 
@@ -43,11 +41,8 @@ pub struct EditParams {
     #[serde(default)]
     pub layout: Option<LayoutArg>,
 
-    /// Which frame the layout's coordinates are in (CLI `--layout-frame`): `"current"`
-    /// (the CLI default — the already cropped/rotated image) or `"source"` (the source
-    /// image; the CLI re-maps the points through its resolved crop/rotate and clamps
-    /// them). Not part of the tool schema — set internally by the op-plan executor,
-    /// whose plan coordinates are snapshot-frame per `llm-contract.md` §1.
+    /// Which frame the layout's coordinates are in (CLI `--layout-frame`): `"current"` or
+    /// `"source"`. Set by the op-plan executor; plan coordinates are snapshot-frame (§1).
     #[serde(skip)]
     pub layout_frame: Option<String>,
 
@@ -70,21 +65,15 @@ pub struct EditParams {
     #[serde(default)]
     pub overwrite: bool,
 
-    /// Override the default delivery surface(s) for this call — where the result is
-    /// presented. A single value (`"browser"`) or a list (`["cli", "desktop"]`). Known
-    /// surfaces: `cli` (write the file), `desktop` (launch the Qt app), `browser` (editor
-    /// launch URL), `browser-live` / `extension` (delegated to the stencil-operator agent).
-    /// When omitted, the server's configured default is used.
+    /// Delivery surface(s) for this call — `cli`, `desktop`, `browser`, `browser-live` /
+    /// `extension` — one value or a list. Omitted, the configured default is used.
     #[serde(default)]
     pub surface: Option<SurfaceArg>,
 
     // ── Collaboration server (server/) ──
-    // These drive the CLI's server client: connect over REST, fetch/create projects, and
-    // upload result bytes. See ../server/README.md for the wire protocol.
+
     /// Connect to a collaboration server at this `http(s)://` URL and treat `input` as the
-    /// **name of a project on that server**: the project's image is fetched and edited
-    /// instead of a local file. Requires `input` (the project name); incompatible with
-    /// `blank`. Pair with `remote_update` to write the result back into that project.
+    /// name of a project on it. Requires `input`; incompatible with `blank`.
     #[serde(default)]
     pub server: Option<String>,
 
@@ -93,9 +82,8 @@ pub struct EditParams {
     #[serde(default)]
     pub remote_update: Option<bool>,
 
-    /// Upload the result as a **new** project on the collaboration server at this
-    /// `http(s)://` URL. Works with any source — a local/web `input`, a `blank`, or a
-    /// `server`-fetched project. A web `input`'s URL is recorded as the project's source.
+    /// Upload the result as a NEW project on the collaboration server at this `http(s)://`
+    /// URL. Works with any source; a web `input`'s URL is recorded as the project's source.
     #[serde(default)]
     pub remote: Option<String>,
 
@@ -192,17 +180,15 @@ pub struct ProbeParams {
 }
 
 /// Parameters for the `stencil_prompt` tool — hand a natural-language request to the
-/// configured LLM (see `llm-contract.md`) and execute the op-plan it returns with the
-/// same pipeline `stencil_edit` uses.
+/// configured LLM (`llm-contract.md`) and execute the op-plan it returns.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PromptParams {
     /// The user's instruction or question, e.g. "rotate it right and give me a sepia and
     /// a b&w variant".
     pub prompt: String,
 
-    /// Working image: a local path or an `http(s)://` URL. A local image file is also
-    /// attached to the LLM for vision (≤ 8 MiB; png/jpg/webp/gif). Omit for chat-only
-    /// questions or plans that create blank pages.
+    /// Working image: a local path or an `http(s)://` URL. A local file is also attached to
+    /// the LLM for vision (≤ 8 MiB; png/jpg/webp/gif). Omit for chat-only questions.
     #[serde(default)]
     pub input: Option<String>,
 

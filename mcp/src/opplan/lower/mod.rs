@@ -16,10 +16,8 @@ use collapse::collapse;
 pub use names::sanitize_label;
 use names::{dedupe, default_save_name, honored_save_path};
 
-/// One CLI run derived from the plan: the base result (`label` = `None`,
-/// `{output_dir}/result.png`), a variant (`label` = its sanitized name,
-/// `{output_dir}/{label}.png`), or a §2.1 `save` (`project` = true, writing
-/// `{output_dir}/{name}.stencil` — or a §10 `path` destination inside `output_dir`).
+/// One CLI run derived from the plan: the base result (`label` `None`), a variant (its
+/// sanitized name), or a §2.1 `save` writing `{output_dir}/{name}.stencil`.
 #[derive(Debug)]
 pub struct EditRequest {
     pub label: Option<String>,
@@ -28,16 +26,8 @@ pub struct EditRequest {
     pub params: EditParams,
 }
 
-/// Map a validated plan onto CLI runs: one for the base result when the plan's final
-/// working image carries actions, one `.stencil` write per §2.1 `save`, plus one per
-/// variant (which replays the base actions first — §1: variants branch from the state
-/// *after* them). Plan coordinates are snapshot-frame, so drawing runs ride
-/// `--layout-frame source`.
-///
-/// §2.1 multi-image plans: `stencil_prompt` carries a single `input`, so `image` index 1
-/// restarts the working image from it and any higher index is an attachment this turn
-/// cannot satisfy — that ACTION is skipped with a `notes` warning, never the whole plan.
-/// Saving with no working image warns the same way.
+/// Map a validated plan onto CLI runs: the base result, one `.stencil` per §2.1 `save`, one
+/// per variant (replaying the base actions first — §1). Drawing runs ride `--layout-frame source`.
 pub fn to_edit_requests(
     plan: &OpPlan,
     input: Option<&str>,
@@ -57,9 +47,8 @@ pub fn to_edit_requests(
             .into_owned()
     };
 
-    // §2 widening: the formula clear/disable forms are valid but INERT here — a headless
-    // CLI run starts with no formulas, so there is nothing to clear or switch off. One
-    // note for the whole plan; the actions themselves are skipped below (and in collapse).
+    // §2 widening: the formula clear/disable forms are valid but inert — a headless run starts
+    // with no formulas, so the actions are skipped with one note for the plan.
     if plan
         .actions
         .iter()

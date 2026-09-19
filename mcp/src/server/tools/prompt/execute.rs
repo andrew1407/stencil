@@ -83,8 +83,7 @@ pub(super) async fn prepare_outputs(
     output_dir: &str,
     notes: &mut Vec<String>,
 ) -> Result<Vec<opplan::EditRequest>, String> {
-    // Execute: one CLI run for the base result, one per variant. Plan coordinates
-    // are snapshot-frame (contract §1), so layout-drawing runs pass the CLI
+    // Plan coordinates are snapshot-frame (§1), so layout-drawing runs pass the CLI
     // `--layout-frame source` to re-map them through the run's crop/rotate.
     let requests = opplan::to_edit_requests(plan, round_input, output_dir, notes)
         .map_err(|error| error.to_string())?;
@@ -116,10 +115,8 @@ async fn make_output_dirs(dir: String, requests: &[opplan::EditRequest]) -> Resu
     made.unwrap_or_else(|join_error| Err(format!("could not create output_dir: {join_error}")))
 }
 
-/// Run every request, joined before the reply. The runs are independent — each variant
-/// replays the base actions from the original input onto its own deduped path — so they run
-/// concurrently; results keep request order, and the failure reported is the first in that
-/// order.
+/// Run every request, joined before the reply. The runs are independent, so they run
+/// concurrently; results keep request order and the first failure in it is reported.
 pub(super) async fn execute_concurrently(
     requests: Vec<opplan::EditRequest>,
 ) -> Result<Vec<PromptResult>, String> {

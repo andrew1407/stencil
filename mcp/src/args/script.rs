@@ -11,9 +11,8 @@ use super::flags::{FLAG_INPUT, FLAG_SCRIPT};
 /// sit far above it; this bounds what crosses the JSON-RPC channel before a file is written.
 pub const MAX_SCRIPT_BYTES: usize = 256 * 1024;
 
-/// Parameters for the `stencil_script` tool — run one `.stc` script through the CLI's
-/// `--script` mode (`cli/CONTRACT.md` §4), which drives the shared core's parser and
-/// evaluator. The script is the program; this adapter only names the file and the sandbox.
+/// Parameters for the `stencil_script` tool — run one `.stc` through the CLI's `--script`
+/// mode (`cli/CONTRACT.md` §4). This adapter only names the file and the sandbox.
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 pub struct ScriptParams {
     /// The script itself, as `.stc` source text. Written to a temporary `.stc` file for the
@@ -47,8 +46,7 @@ impl ScriptParams {
     }
 
     /// Every guard that can fail before a file is written or a process spawned: exactly one
-    /// script source, a bounded inline script, a `.stc` path, and no dash-leading value (the
-    /// CLI has no `--` end-of-options terminator, so one would parse as a flag).
+    /// script source, a bounded inline script, a `.stc` path, and no dash-leading value.
     pub fn validate(&self) -> Result<(), EditError> {
         match (&self.script_text, &self.script_path) {
             (Some(_), Some(_)) => return Err(EditError::ScriptSourceConflict),
@@ -97,10 +95,8 @@ fn dash_free(field: &'static str, value: &str) -> Result<(), EditError> {
     }
 }
 
-/// Build the `stencil --script <file> [-i <input>]` argv. `script_file` is the already
-/// resolved path — the caller's temp file for inline text, or `script_path`. There is no
-/// positional output: a script's writes are its own `@save` targets, which
-/// `confine::confine_dir` fences into the sandbox root.
+/// Build the `stencil --script <file> [-i <input>]` argv. A script's writes are its own
+/// `@save` targets, which `confine::confine_dir` fences into the sandbox root.
 pub fn build_script_argv(params: &ScriptParams, script_file: &str) -> Result<Argv, EditError> {
     params.validate()?;
 

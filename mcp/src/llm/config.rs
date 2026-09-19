@@ -44,9 +44,8 @@ impl Provider {
         }
     }
 
-    /// The contract's per-provider default `baseUrl` (§5), from the embedded canonical
-    /// providers.json. `stencil-server` carries `null` there — its endpoint is the
-    /// separately-configured server URL.
+    /// The contract's per-provider default `baseUrl` (§5), from the embedded providers.json.
+    /// `stencil-server` carries `null` — its endpoint is the configured server URL.
     pub fn default_base_url(self) -> Option<&'static str> {
         PROVIDERS[self.as_str()]["defaultBaseUrl"].as_str()
     }
@@ -70,9 +69,8 @@ pub struct LlmConfig {
 }
 
 impl LlmConfig {
-    /// Resolve the provider config from the environment, filling the provider defaults.
-    /// `model` is the ONLY per-call override: the key travels with the endpoint, so a
-    /// caller-chosen host would exfiltrate it. Errors are ready-made user-facing messages.
+    /// Resolve the provider config from the environment. `model` is the ONLY per-call override:
+    /// the key travels with the endpoint, so a caller-chosen host would exfiltrate it.
     pub fn resolve(env: &LlmEnv, model: Option<&str>) -> Result<LlmConfig, String> {
         let token = env.provider.as_deref().unwrap_or("ollama");
         let provider = Provider::parse(token)?;

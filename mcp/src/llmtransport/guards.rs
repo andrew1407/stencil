@@ -30,9 +30,8 @@ pub fn validate_request_parts(target: &HttpTarget, headers: &[(String, String)])
     Ok(())
 }
 
-/// Refuse to put a credential on the wire off-loopback: this transport has no TLS, so an
-/// off-box endpoint would receive the key in cleartext. `peer_is_loopback` comes from the
-/// address actually connected to, not the spelling of the host.
+/// Refuse to put a credential on the wire off-loopback: this transport has no TLS.
+/// `peer_is_loopback` comes from the address connected to, not the spelling of the host.
 pub fn guard_credentials(
     headers: &[(String, String)],
     host: &str,

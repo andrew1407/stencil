@@ -1,11 +1,8 @@
 //! Orchestration: turn typed parameters into a CLI run and a structured result.
 //!
-//! Mirrors the role of `cli/src/pipeline.zig` on the wrapper side — it locates the binary,
-//! materializes an inline layout, spawns the CLI (with `NO_COLOR=1`), and maps the exit
-//! status + stderr into a result or an error. All pixel work happens in the CLI/core.
-//!
-//! The spawn itself sits behind [`CliRunner`] in [`runner`], and the orchestration around
-//! it in [`run`] — so a test can drive the whole flow without a Zig toolchain.
+//! Mirrors `cli/src/pipeline.zig` on the wrapper side — locate the binary, materialize an
+//! inline layout, spawn the CLI with `NO_COLOR=1`, map exit status + stderr to a result.
+//! The spawn sits behind [`CliRunner`] in [`runner`], the orchestration in [`run`].
 
 pub mod run;
 mod runner;
@@ -82,8 +79,7 @@ pub async fn run_script(
 }
 
 /// Run one `stencil_probe`. A local PNG/GIF/BMP/JPEG/WebP answers out of its own header;
-/// anything else (a URL, a video, an unreadable header) is rendered to a throwaway PNG,
-/// since the CLI has no read-only metadata mode.
+/// anything else is rendered to a throwaway PNG — the CLI has no metadata mode.
 pub async fn run_probe(input: &str) -> Result<(u32, u32), String> {
     run::probe(&ProcessRunner, input).await
 }

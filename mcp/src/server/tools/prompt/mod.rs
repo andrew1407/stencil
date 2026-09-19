@@ -29,13 +29,8 @@ pub async fn run(config: &Config, params: PromptParams) -> Result<CallToolResult
     .await
 }
 
-/// The whole `stencil_prompt` flow: one LLM turn, its validated op-plan executed through
-/// the CLI pipeline — wrapped in the contract-§7 auto-continuation loop: a plan that only
-/// LOADED a picture (`opplan::loads_without_tracing`) is applied and the turn re-sent
-/// exactly once with the freshly rendered result attached (plus its edge map), the
-/// follow-up plan executed normally, whatever it contains — round 2 never continues
-/// again, so a second load-only answer cannot loop. Public with the transport injected so
-/// tests drive the flow over a mock.
+/// The whole `stencil_prompt` flow: one LLM turn, its validated op-plan executed, wrapped
+/// in the §7 auto-continuation — a load-only plan re-sends the turn once, never twice.
 pub async fn run_prompt(
     config: &Config,
     transport: std::sync::Arc<dyn LlmTransport>,
@@ -48,9 +43,8 @@ pub async fn run_prompt(
         model,
     } = params;
 
-    // Resolve the provider config: the STENCIL_LLM_* env, with `model` as the only
-    // per-call override. The endpoint stays operator-configured on purpose — a
-    // caller-supplied base URL would redirect STENCIL_LLM_API_KEY to any host.
+    // The endpoint stays operator-configured on purpose: a caller-supplied base URL would
+    // redirect STENCIL_LLM_API_KEY to any host. `model` is the only per-call override.
     let settings = match llm::LlmConfig::resolve(&config.llm, model.as_deref()) {
         Ok(settings) => settings,
         Err(message) => return Ok(err_result(message)),
@@ -106,9 +100,8 @@ pub async fn run_prompt(
             Err(detail) => return kept_or_error(first, notes, detail),
         };
 
-        // §7 auto-continuation: a plan that only loaded a picture cannot have finished
-        // the looking-work — the snapshot rode along before it existed. Re-send the turn
-        // once over the rendered base result; round 2 answers here whatever it planned.
+        // §7 auto-continuation: a plan that only loaded a picture cannot have finished the
+        // looking-work — re-send the turn once over the rendered base result.
         if round == 0 && opplan::loads_without_tracing(&plan) {
             if let Some(base) = results.iter().find(|r| r.label.is_none() && r.width.is_some()) {
                 round_input = Some(base.path.clone());

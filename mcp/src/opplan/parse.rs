@@ -66,9 +66,8 @@ fn variant_name(index: usize, label: &str) -> String {
     format!("variant {} (\"{clipped}\")", index + 1)
 }
 
-/// Parse the raw LLM reply into a validated plan. Text with no JSON object — or braces
-/// that aren't actually JSON — is a chat-only turn (raw text = `reply`, zero actions, not
-/// an error). A found JSON object is validated strictly and invalid plans error out.
+/// Parse the raw LLM reply into a validated plan. Text with no JSON object is a chat-only
+/// turn (raw text = `reply`, zero actions, not an error); a found object is strict.
 pub fn parse_op_plan(text: &str) -> Result<OpPlan, OpPlanError> {
     let chat_only = || OpPlan {
         reply: text.trim().to_string(),
@@ -92,9 +91,8 @@ pub fn parse_op_plan(text: &str) -> Result<OpPlan, OpPlanError> {
 
     // `version` other than 1 (or absent) is accepted but ignored (contract §1).
     let mut warnings = Vec::new();
-    // §1 reply tolerance: models routinely omit the reply while planning valid
-    // actions — substitute rather than lose the plan to a missing pleasantry.
-    // The substitute itself is chosen below, once the plan's contents are known.
+    // §1 reply tolerance: models routinely omit the reply while planning valid actions —
+    // substitute rather than lose the plan to a missing pleasantry.
     let reply = match object.get("reply") {
         Some(Value::String(s)) if !s.trim().is_empty() => Some(s.clone()),
         _ => None,

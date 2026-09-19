@@ -1,9 +1,8 @@
 //! The wrapper half of the CLI's `--confine-output` (`cli/src/confine.zig`).
 //!
 //! The CLI resolves that flag against its OWN working directory, so a confined run is
-//! spawned inside the sandbox root and its output rides as a path relative to it. Every
-//! other local path in the argv is made absolute first — the working-directory change must
-//! not silently re-point an input or a layout file.
+//! spawned inside the sandbox root with its output relative to it; every other local path
+//! in the argv is made absolute first.
 
 use std::borrow::Cow;
 use std::path::{Component, Path, PathBuf};
@@ -23,8 +22,7 @@ pub struct Confined {
 }
 
 /// Rewrite `argv` (whose LAST token is the output path) to run inside `root`. `None` when
-/// the output does not sit under `root` — the caller's own sandbox has failed and the run
-/// must not happen at all.
+/// the output does not sit under `root` — the run must not happen at all.
 pub fn confine(root: &str, argv: &[Cow<'static, str>]) -> Option<Confined> {
     let dir = absolute(Path::new(root));
     let (output, head) = argv.split_last()?;

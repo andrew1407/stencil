@@ -1,9 +1,8 @@
 //! The drift test for `toolDescriptions.json`, this surface's one home for user-facing prose.
 //!
-//! Two consumers are generated from it and committed: the `toolDescriptions/*.txt` shards the
-//! `#[tool]` descriptions `include_str!` (rmcp's macro takes a literal, not an expression) and
-//! README.md's Tools table. Both are byte-compared here; `MCP_UPDATE_PROSE=1 cargo test`
-//! rewrites them. `text_golden_test.rs` then pins what the wire actually carries.
+//! Two generated, committed consumers are byte-compared here: the `toolDescriptions/*.txt`
+//! shards the `#[tool]` descriptions `include_str!`, and README.md's Tools table.
+//! `MCP_UPDATE_PROSE=1 cargo test` rewrites them.
 
 use serde_json::Value;
 
