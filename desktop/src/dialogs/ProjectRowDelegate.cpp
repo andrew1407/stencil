@@ -119,9 +119,8 @@ namespace stencil::gui {
     const double dissolve = revealDissolveForItem(av ? av->viewport() : nullptr, opt.rect);
     if (dissolve <= 0.001) { paintRow(p, opt, idx); return; }
     if (dissolve >= 0.999) return;   // fully out — nothing to draw
-    // A painted row has no widget to hang a QGraphicsEffect on, so it is rendered
-    // into a scratch pixmap and masked by hand — the same grain + bottom-to-top
-    // wipe DissolveEffect applies to the transcript's cards.
+    // A painted row has no widget to hang a QGraphicsEffect on, so it is rendered into a scratch
+    // pixmap and masked by hand - the same grain + bottom-to-top wipe DissolveEffect applies.
     const qreal dpr = p->device()->devicePixelRatioF();
     QPixmap buf(opt.rect.size() * dpr);
     buf.setDevicePixelRatio(dpr);

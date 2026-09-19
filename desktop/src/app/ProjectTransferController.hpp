@@ -17,9 +17,8 @@ namespace stencil::gui {
   class CanvasWidget;
   class Notifications;
 
-  // Local ↔ server transfer service, no MainWindow back-pointer: session/UI reach through Hooks.
-  // Mirrors the browser's move/copyProjectToServer and
-  // moveProjectToLocal/copyServerProjectToLocal.
+  // Local <-> server transfer service, no MainWindow back-pointer: session/UI reach through Hooks.
+  // Mirrors the browser's move/copyProjectToServer and moveProjectToLocal/copyServerProjectToLocal.
   class ProjectTransferController {
    public:
     struct Hooks {

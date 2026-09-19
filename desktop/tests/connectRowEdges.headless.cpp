@@ -41,10 +41,8 @@ namespace connectrow {
       }
     }
 
-    // ── The FILTER's own transition, over the same eight rows. What it excludes is gone
-    // at once (support/filterFade) — a filtered-out row was never disconnected, so there
-    // is no exit to play — and the rows that are LEFT arrive. Deliberately not the
-    // disconnect's dust either way: excluded is not forgotten.
+    // The FILTER's own transition, over the same eight rows: what it excludes is gone at once
+    // (support/filterFade) since nothing was disconnected, and the rows that are LEFT arrive.
     auto* kind = tall.findChild<QComboBox*>(QStringLiteral("connKindFilter"));
     check(kind != nullptr, "the tall list carries the kind filter");
     if (tl && kind && tl->count() == 8) {

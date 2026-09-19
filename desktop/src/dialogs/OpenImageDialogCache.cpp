@@ -33,13 +33,11 @@ namespace stencil::gui {
   // window is sized from the CONTENT, swapped in for the viewport's height.
   int OpenImageDialog::wantedHeight() const {
     if (!size_.bodyScroll || !size_.bodyContent) return sizeHint().height();
-    // sizeHint() alone asks a height-for-width child (a wrapping caption two QHBoxLayouts deep) for its
-    // height at the width IT would prefer, not the one it gets — a too-tall guess, measured 12px of
-    // blank. heightForWidth() at the REAL width is the number the layout settles at.
+    // sizeHint() asks a height-for-width child for its height at the width IT would prefer, not the
+    // one it gets; heightForWidth() at the REAL width is the number the layout settles at.
     QLayout* cl = size_.bodyContent->layout();
-    // Before the dialog's REAL width is established (showEvent's first-show measurement runs before
-    // that), size_.bodyContent can report a tiny transient width — heightForWidth() there wraps every
-    // caption to several lines and poisons size_.floorH for the dialog's whole lifetime.
+    // Before the dialog's REAL width is established, size_.bodyContent can report a tiny transient
+    // width - heightForWidth() there wraps every caption and poisons size_.floorH for good.
     const int contentH = cl && cl->hasHeightForWidth() && size_.bodyContent->width() >= PREVIEW_MAX_W
         ? cl->totalHeightForWidth(size_.bodyContent->width())
         : size_.bodyContent->sizeHint().height();
@@ -57,8 +55,7 @@ namespace stencil::gui {
     const int chrome = tabs_->sizeHint().height() - tallest;   // tab bar + pane frame
     tabs_->setFixedHeight(chrome + page->sizeHint().height());
     // The WINDOW tracks the page too: a shorter tab or a cleared preview shrinks it back, the
-    // first-show height being only a floor. Skipped before that pass (stale sizeHint). A popover never
-    // runs it, so gating on `measured_` alone left the compact shape never refitting — tabs came back clipped.
+    // first-show height being only a floor. A popover never runs that pass, so `measured_` cannot gate it.
     if ((measured_ || !isWindow()) && !measuring_) refitWindowHeight();
   }
 
@@ -66,16 +63,14 @@ namespace stencil::gui {
   void OpenImageDialog::refitWindowHeight() {
     QLayout* l = layout();
     if (!l) return;
-    // As a POPOVER this is a child of a capped overlay, so it cannot resize itself as a
-    // window — but it must still grow with its content, or a preview simply gets clipped
-    // (the browser's .modal-popover grows to its own max-height). The overlay grows with it.
+    // As a POPOVER this is a child of a capped overlay, so it cannot resize itself as a window - but
+    // it must still grow with its content (the browser's .modal-popover). The overlay grows with it.
     if (!isWindow()) {
       growPopoverToContent();
       return;
     }
-    // A QScrollArea holds its content through the viewport, NOT as an item of the dialog's
-    // layout — so the walk below never reaches it, and the stale hints of the one subtree
-    // the window is actually measured from are the ones left uncleared.
+    // A QScrollArea holds its content through the viewport, NOT as an item of the dialog's layout, so
+    // the walk below never reaches the one subtree the window is actually measured from.
     if (size_.bodyContent) {
       invalidateTree(size_.bodyContent->layout());
       size_.bodyContent->updateGeometry();
@@ -111,9 +106,8 @@ namespace stencil::gui {
     animateHeightTo(want);   // eased, like the window's: a flat resize read as a jump
   }
 
-  // The window EASES to its new height; snapping reads as a jump. One animation, restarted, so a run
-  // of changes chases the latest height. The flight starts from the height last SHOWN, not the current
-  // one — Qt has already grown the window to the new minimum, so height() played nothing at all.
+  // One animation, restarted, so a run of changes chases the latest height. The flight starts from
+  // the height last SHOWN: Qt has already grown the window to the new minimum.
   void OpenImageDialog::animateHeightTo(int h) {
     const bool flying = size_.anim && size_.anim->state() == QAbstractAnimation::Running;
     const int start = flying || size_.shownH <= 0 ? height() : size_.shownH;
@@ -122,9 +116,8 @@ namespace stencil::gui {
       setHeightNow(h);
       return;
     }
-    // …and a resize is clamped by that minimum AND the one already propagated to the window, so both
-    // stand down for the flight. Mid-flight the rows are clipped by the shorter window, which IS the
-    // reveal. Scrollbars stay off: bodyContent reflows an animation ahead, so AsNeeded would flicker.
+    // A resize is clamped by the layout minimum and the one already propagated to the window, so both
+    // stand down for the flight. Scrollbars stay off: bodyContent reflows an animation ahead.
     if (QLayout* l = layout()) l->setSizeConstraint(QLayout::SetNoConstraint);
     setMinimumHeight(0);
     if (size_.bodyScroll) size_.bodyScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -187,9 +180,8 @@ namespace stencil::gui {
     c.resolvedUrl = preview_->resolvedUrl();
   }
 
-  // Re-adopts a cached decode instantly — no network/disk fetch, no "Loading…". The
-  // scrub player alone re-inits in the background (setupScrubPlayer), since a paused
-  // static frame is what the user actually left the tab looking at.
+  // Re-adopts a cached decode instantly - no fetch, no "Loading...". The scrub player alone re-inits
+  // in the background, since a paused static frame is what the user left the tab looking at.
   bool OpenImageDialog::restoreTabPreview(const TabPreviewCache& cache) {
     if (!cache.valid) return false;
     motion_.restoring = true;
@@ -204,9 +196,8 @@ namespace stencil::gui {
       updateVideoPreview();
       setupScrubPlayer(cache.resolvedUrl);
     } else {
-      // The OTHER tab may have left this visible (a video's own Frame field) — an image
-      // tab has none, and restoring one must not keep it, or the Frame row from a video
-      // read as belonging to the picture now on screen.
+      // The OTHER tab may have left this visible (a video's own Frame field) - an image tab has none,
+      // and restoring one must not keep it.
       frameRow_->setVisible(false);
       showPreview(cache.previewImage, cache.hint);
     }

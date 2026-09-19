@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The KEYCAPS shake as their tooltip appears — a brief, non-repeating flick that says
-  // "and here is the shortcut" while you read the tip (browser/extension:
-  // .tip-key.key-shake). No key press is involved: showing the tooltip is the trigger, only
-  // a tooltip that actually draws caps reacts, and the PANEL never moves — the caps painted
-  // inside it do, and they settle back on exactly the picture they started from.
+  // The KEYCAPS shake as their tooltip appears, a brief non-repeating flick (browser .tip-key.key-shake):
+  // showing the tip is the trigger, the PANEL never moves, and the caps settle back where they started.
   void showingATooltipShakesItsKeycaps() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -26,11 +23,8 @@ class MainWindowGuiTest : public QObject {
     stencil::gui::AppTooltip* tip = stencil::gui::appTooltip();
     QVERIFY(tip);
 
-    // Park the pointer ON the control so the anti-stranding heartbeat leaves it up. The
-    // offscreen screen is smaller than this window, so a control out past its edge can
-    // never take the cursor at all: walk the WINDOW towards wherever the cursor actually
-    // landed until the two agree. It matters more than it used to — the keycap shake now
-    // waits out the tip's own arrival, well past the heartbeat's first look.
+    // Park the pointer ON the control so the anti-stranding heartbeat leaves it up: the offscreen screen is
+    // smaller than this window, so walk the WINDOW until the cursor's landing spot and the control agree.
     const auto onControl = [&] {
       return btn->rect().contains(btn->mapFromGlobal(QCursor::pos()));
     };
@@ -42,10 +36,8 @@ class MainWindowGuiTest : public QObject {
     }
     sendToolTipTo(btn);
     QVERIFY2(tip->isVisible(), "the tooltip did not appear");
-    // The caps HOLD STILL while the tip is still assembling out of its own motes — a
-    // nudge nobody can see is the one thing this must never be — and are queued for the
-    // moment it lands. Without dust (an unmeasurable host) there is nothing to wait for
-    // and the shake is immediate instead.
+    // The caps HOLD STILL while the tip is still assembling out of its own motes, and are queued for the
+    // moment it lands; without dust there is nothing to wait for and the shake is immediate instead.
     QVERIFY2(tip->shaking() || tip->shakePending(),
              "the keycaps were neither shaken nor queued to shake");
     if (tip->shakePending())
@@ -55,10 +47,8 @@ class MainWindowGuiTest : public QObject {
     QLabel* body = tip->findChild<QLabel*>();
     QVERIFY(body);
     const QPoint home = tip->pos();
-    // The CAPS really move — pixels, not a counter — while the panel around them holds
-    // still, and it is one pass: they settle back on the picture they started from.
-    // (No "starts at 0" check here any more: the wait above is what lets the queued
-    // shake begin, so by this line it is already a frame or two in.)
+    // The CAPS really move — pixels, not a counter — while the panel around them holds still, and it is
+    // one pass: they settle back on the picture they started from.
     QImage midShake;
     for (int i = 0; i < 40 && midShake.isNull(); ++i) {
       QTest::qWait(8);

@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A dead icon says so under the pointer — the browser's `cursor: not-allowed` on a
-  // disabled control. Qt applies no cursor to a DISABLED widget (it gets no mouse events),
-  // so the row it sits in carries one for it; without that the toolbar answered a dead
-  // Save/live-sync icon with the plain arrow, as if it were clickable.
+  // A dead icon says so under the pointer (the browser's `cursor: not-allowed`). Qt applies no cursor to
+  // a DISABLED widget, which gets no mouse events, so the row it sits in carries one for it.
   void disabledToolIconShowsTheBlockedCursor() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 900);
@@ -33,10 +31,8 @@ class MainWindowGuiTest : public QObject {
     QWidget* row = dead->parentWidget();
     QVERIFY(row->hasMouseTracking());
 
-    // The move Qt actually delivers: a disabled widget gets no mouse events, so the one
-    // over a dead icon reaches the application filters with the BUTTON as its object and is
-    // then thrown away. That is the path the cursor has to hang off — and what it sets is
-    // an OVERRIDE cursor, the only one Qt applies without waiting to re-enter a widget.
+    // The move Qt actually delivers reaches the application filters with the BUTTON as its object and is
+    // then thrown away; what hangs off it is an OVERRIDE cursor, the only kind Qt applies at once.
     auto blocked = [] {
       const QCursor* c = QApplication::overrideCursor();
       return c && c->shape() == Qt::ForbiddenCursor;
@@ -69,10 +65,8 @@ class MainWindowGuiTest : public QObject {
     if (live) QCOMPARE(live->cursor().shape(), Qt::PointingHandCursor);
   }
 
-  // COMPARE + hover tooltip: hovering a point (or a line) still labels its coordinates
-  // while comparing — but ONLY over the half showing the EDITED image, the only place
-  // the layout is drawn. Behind the "before" half, or in "original" (no layout at all),
-  // there is nothing on screen to point at, so no tooltip.
+  // COMPARE + hover tooltip: hovering a point still labels its coordinates while comparing, but ONLY
+  // over the half showing the EDITED image — elsewhere there is nothing on screen to point at.
   void compareTooltipOnlyOverTheEditedHalf() {
     MainWindow win(nullptr, false);
     win.resize(1200, 850);
@@ -91,9 +85,8 @@ class MainWindowGuiTest : public QObject {
     QLabel* body = win.tooltip_->findChild<QLabel*>();
     QVERIFY(body);
 
-    // Hover an image-space spot; report what the tooltip says (empty = hidden). The
-    // reveal now waits out the same delay as the toolbar tooltip (MainWindow.cpp
-    // scheduleHoverShow, 200 ms) before it actually shows, so this outwaits it.
+    // Hover an image-space spot and report what the tooltip says (empty = hidden). The reveal waits out
+    // the toolbar tooltip's own 200 ms delay (scheduleHoverShow), so this outwaits it.
     const auto hoverText = [&](double ix, double iy) {
       const QPoint p(qRound(ix * s), qRound(iy * s));
       QMouseEvent move(QEvent::MouseMove, QPointF(p), canvas->mapToGlobal(p), Qt::NoButton,

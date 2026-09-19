@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // An executor note about SUCCESSFUL work ("Opened X in the editor first…") rides
-  // INSIDE the assistant's reply bubble as muted text — one assistant card per turn,
-  // never a second card in the red error treatment (browser parity: the note merges
-  // into the reply's warnings). Standalone notes (appendNote/appendNotice) render on
-  // the muted card style with the reply bubble's paddings; danger stays reserved for
-  // actual turn errors.
+  // An executor note about SUCCESSFUL work rides INSIDE the assistant's reply bubble as muted text,
+  // one card per turn; standalone notes take the muted card style, danger only for turn errors.
   void chatExecutorNoteRidesWithReply() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -72,9 +68,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(note->objectName(), QStringLiteral("chatNoteLabel"));
     QVERIFY(dock->styleSheet().contains("QLabel#chatNoteLabel{color:"));
 
-    // Standalone notes (text-only retry, outline-refine) keep their own card, on
-    // the MUTED style — and with exactly the reply bubble's vertical paddings, so
-    // the same text renders at the same card height.
+    // Standalone notes (text-only retry, outline-refine) keep their own card on the MUTED style, with
+    // exactly the reply bubble's vertical paddings, so the same text renders at the same height.
     const QString sample =
         QStringLiteral("A note long enough to wrap over a couple of lines in the dock.");
     dock->appendNote(sample);
@@ -102,10 +97,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §10 new editor rows end-to-end: one mock-transport plan drives the compare
-  // view (mode + split), the zoom, and a rename of the active saved project —
-  // through the SAME setters the toolbar uses, so the combo/canvas/registry all
-  // agree afterwards.
+  // §10 new editor rows end-to-end: one plan drives the compare view (mode + split), the zoom and a
+  // rename, through the SAME setters the toolbar uses, so combo, canvas and registry all agree.
   void chatComparZoomRenamePlanDrivesEditor() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -183,9 +176,8 @@ class MainWindowGuiTest : public QObject {
                  {"message", QJsonObject{{"content", QString::fromUtf8(json)}}}})
           .toJson(QJsonDocument::Compact);
     };
-    // Turn 1 mirrors the reported flow: a red blank + a rectangle + the split
-    // view in ONE plan (the layout makes the correction/refinement rounds run;
-    // their empty responses are harmless keeps).
+    // Turn 1: a red blank + a rectangle + the split view in ONE plan; the layout makes the correction
+    // and refinement rounds run, whose empty responses are harmless keeps.
     mock.queue.append(plan(
         "{\"version\":1,\"reply\":\"split\",\"actions\":["
         "{\"op\":\"blank\",\"color\":\"red\",\"format\":\"a4\"},"

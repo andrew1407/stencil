@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Right-click on a transcript bubble → Copy message / Insert into prompt on
-  // every card (user, assistant, note), plus Resend on user bubbles —
-  // the same turn again, original attachments included. Also pins that a mouse
-  // selection inside a bubble can be copied with the Copy shortcut.
+  // Right-click on a bubble → Copy message / Insert into prompt on every card, plus Resend on user
+  // bubbles with the original attachments; a mouse selection inside one copies with the shortcut.
   void chatBubbleContextMenu() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
@@ -133,9 +131,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Escape closes the chat card menu natively: exec() returns no action, the
-  // popup grab is released, nothing runs — guarded so the menu reveal
-  // animation can never break it.
+  // Escape closes the chat card menu natively: exec() returns no action, the popup grab is
+  // released, nothing runs — guarded so the menu reveal animation can never break it.
   void chatCardMenuEscapeCloses() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);

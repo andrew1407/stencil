@@ -9,9 +9,7 @@ class MainWindowGuiTest : public QObject {
   void initTestCase() { prepareGuiTestCase(); }
 
   // Browser parity (ui/chatDock.js): compact, the dock sits beside its icon but its title bar
-  // still DRAGS — and the drag adopts the layout, so what moves is a float the user chose,
-  // never a popover still pinned to an icon. Only the bar's double-click toggle stays dead:
-  // the browser's header has none.
+  // still DRAGS and adopts the layout. Only the bar's double-click toggle stays dead.
   void chatCompactPopoverDragsAndAdoptsTheLayout() {
     MainWindow win;
     win.resize(1100, 800);
@@ -79,9 +77,8 @@ class MainWindowGuiTest : public QObject {
     settleLayout(&win, 60);   // let the layout reclaim the floated dock's slot
     const QRect central(win.centralWidget()->mapTo(&win, QPoint(0, 0)),
                         win.centralWidget()->size());
-    // Offscreen has no movable cursor / synthetic global button state, so the
-    // poll reads STUBBED probes — exactly the delivery-free situation of a
-    // native macOS drag, where moves/releases never reach the widget.
+    // Offscreen has no movable cursor or synthetic global button state, so the poll reads STUBBED
+    // probes — the delivery-free situation of a native macOS drag.
     QPoint stubCursor = win.mapToGlobal(central.topLeft());  // ≠ the first drag target
     bool stubDown = false;
     win.chatDock_->setDragProbesForTest([&stubCursor] { return stubCursor; },
@@ -103,9 +100,8 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(40);
     };
 
-    // The overlay appears for the whole drag and spans the DOCK REGION: full
-    // window width, below the toolbars, above the status bar — NOT the central
-    // widget (which shrinks by whatever is docked, drifting the bands inward).
+    // The overlay appears for the whole drag and spans the DOCK REGION: full window width, below
+    // the toolbars, above the status bar — not the central widget, which shrinks as docks appear.
     dragTo(win.mapToGlobal(central.center()));
     QTRY_VERIFY(win.findChild<QWidget*>("chatDockZones"));
     auto* zones = win.findChild<QWidget*>("chatDockZones");
@@ -127,9 +123,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(win.dockWidgetArea(dock), Qt::LeftDockWidgetArea);
     QCOMPARE(dock->allowedAreas(), Qt::AllDockWidgetAreas);
 
-    // Tear-off-from-DOCKED: the drag starts docked, the poll forces the float
-    // past the drag threshold (native docking suppressed throughout), the
-    // zones appear, and the RIGHT release band decides.
+    // Tear-off-from-DOCKED: the drag starts docked, the poll forces the float past the threshold
+    // (native docking suppressed throughout), the zones appear, and the RIGHT band decides.
     QVERIFY(!dock->isFloating());
     dragTo(win.mapToGlobal(central.center()));  // press on the DOCKED title
     QTRY_VERIFY(dock->isFloating());            // forced into the zone flow

@@ -178,9 +178,8 @@ namespace stencil::gui {
         note_->setSizePolicy(sp);
       }
       noteLay->addWidget(note_);
-      // A FORM row, so its top rides the SAME explicit 9px verticalSpacing every other row shares. On
-      // the outer QVBoxLayout it would inherit the active QStyle's own metric instead — a real ~70px gap
-      // under this platform's native style, hidden offscreen by a smaller default (user report).
+      // A FORM row, so its top rides the SAME explicit 9px verticalSpacing every other row shares; on
+      // the outer QVBoxLayout it inherits the QStyle's own metric, a real ~70px gap (user report).
       form_->addRow(noteBox_);
     } else {
       saveChatsHint->setStyleSheet("color: palette(mid);");

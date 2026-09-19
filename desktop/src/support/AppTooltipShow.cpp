@@ -38,9 +38,8 @@ namespace stencil::gui {
   }
 
 
-  // Qt breaks a rich-text line at spaces only, so a URL or a long file name runs past
-  // MAX_TIP_WIDTH and the body clips it. Zero-width spaces give the layout somewhere to
-  // break; the browser gets the same from `overflow-wrap: anywhere` (components/tooltip.css).
+  // Qt breaks a rich-text line at spaces only, so a URL or long file name runs past MAX_TIP_WIDTH.
+  // Zero-width spaces give the layout somewhere to break (browser: overflow-wrap: anywhere).
   static QString softBreakLongRuns(const QString& rich) {
     constexpr int RUN = 18;   // characters one unbroken token may hold before an opportunity
     QString out;

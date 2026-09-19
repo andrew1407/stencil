@@ -97,9 +97,8 @@ namespace stencil::gui {
     pending_ = nullptr;
   }
 
-  // A mirrored row ARRIVES the way a dock card does — the SHARED gatherChatCardIn
-  // machinery (chatWidgets.hpp), deferred a frame: scrollToBottom() is itself a
-  // singleShot(0), so a 0ms hop would measure the row's box before the scroll landed.
+  // A mirrored row ARRIVES the way a dock card does - the SHARED gatherChatCardIn (chatWidgets.hpp),
+  // deferred a frame: scrollToBottom() is itself a singleShot(0), so a 0ms hop measures too early.
   void ChatMenuPanel::gatherRow(QFrame* card) {
     if (!card || support::motionReduced()) return;
     // Veiled from the first frame — the row keeps its height (so the panel grows and
@@ -121,9 +120,8 @@ namespace stencil::gui {
     });
   }
 
-  // A mirrored row leaves the way a dock card does: it scatters, then goes.
-  // Returns whether anything is actually playing — over() declines when the
-  // panel is off screen, and then there is nothing for the empty state to wait for.
+  // A mirrored row leaves the way a dock card does: it scatters, then goes. Returns whether anything
+  // is actually playing - over() declines when the panel is off screen.
   bool ChatMenuPanel::dissolveRow(QFrame* l) {
     if (!l) return false;
     // The same finer grid the dock's cards use (chatWidgets.hpp CHAT_SCATTER_*).
@@ -133,9 +131,8 @@ namespace stencil::gui {
                                   l->palette().color(QPalette::WindowText))
         != nullptr;
     rows_->removeWidget(l);
-    // Out of the layout, but painted while it fades under its own dust. Reuse any effect already on the
-    // row and stop its animations first — setGraphicsEffect() deletes the old effect, and anything still
-    // driving it would be left dangling (ChatDock.cpp fadeOutAndDelete).
+    // Out of the layout, but painted while it fades under its own dust. Reuse any effect already on
+    // the row and stop its animations first - setGraphicsEffect() deletes the old effect.
     for (QVariantAnimation* a : l->findChildren<QVariantAnimation*>()) a->stop();
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(l->graphicsEffect());
     if (!fx) {

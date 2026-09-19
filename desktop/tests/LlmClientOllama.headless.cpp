@@ -40,10 +40,8 @@ namespace llmclient {
     check(!sys.contains("remembered template of the thing") && !sys.contains("up to 40") &&
               !sys.contains("landmark mask") && !sys.contains("an ear hidden under hair"),
           "old s4 wording is gone");
-    // §13: the ops section is assembled from the op registry; here only the
-    // splice STRUCTURE is pinned (editor block after frame, before image, the
-    // widenings closing it) — names/flags/key-phrases are pinned per-entry in
-    // the registry section below, not as block bytes.
+    // §13: only the splice STRUCTURE is pinned here (editor block after frame, before image).
+    // Names, flags and key phrases are pinned per-entry in the registry section below.
     check(sys.indexOf("only valid when the current input is a video.") <
                   sys.indexOf("{\"op\":\"theme\"") &&
               sys.indexOf("{\"op\":\"connect\"") <
@@ -115,10 +113,8 @@ namespace llmclient {
     check(t.header("Authorization").isEmpty(), "no auth header without an apiKey");
   }
 
-  // ── an EXPIRED session on the stencil-server provider ──
-  // A 401 from that provider means OUR session lapsed, not that the assistant
-  // broke: it gets its own failure kind, names the host, and the chat offers a
-  // reconnect. A local provider's 401 stays an ordinary HTTP failure.
+  // A 401 from the stencil-server provider means OUR session lapsed: its own failure kind,
+  // naming the host, offering a reconnect. A local 401 stays plain HTTP.
   std::printf("expired session (server provider):\n");
   {
     MockTransport t;

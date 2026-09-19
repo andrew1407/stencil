@@ -1,9 +1,8 @@
-// The shared window-height ease (src/support/easeWindowHeight.hpp) — what the Assistant
-// settings form rides when a provider swap adds or drops rows, and the twin of the
-// browser's js/ui/motion/easeBoxHeight.js. Two Qt facts make this harder than a resize():
-// a window cannot go under its layout's minimum, and Qt has ALREADY grown the window to
-// that new minimum by the time the caller asks — so the flight has to be told where it
-// started, and the constraint has to stand down for its duration.
+// The shared window-height ease (src/support/easeWindowHeight.hpp) — what the Assistant settings form
+// rides when a provider swap adds or drops rows, and the twin of js/ui/motion/easeBoxHeight.js. Two Qt
+// facts make this harder than a resize(): a window cannot go under its layout's minimum, and Qt has
+// ALREADY grown it to that new minimum by the time the caller asks — so the flight is told where it
+// started, and the constraint stands down for its duration.
 #include "easeWindowHeight.hpp"
 
 #include <QApplication>

@@ -20,9 +20,8 @@ namespace stencil::gui {
 
   // The keyword chip's mesh and clock (KeywordChipsMotion.cpp; browser motion/tiles.js).
 
-  // The preview's own ARRIVAL (browser ghostIn parity): the label stays veiled while an
-  // overlay assembles it in its OWN colours — never a decoration over an already-visible
-  // picture. With motion off the overlay no-ops, so veiling would just hide the picture.
+  // The preview's own ARRIVAL (browser ghostIn parity): the label stays veiled while an overlay
+  // assembles it. With motion off the overlay no-ops, so veiling would just hide the picture.
   void OpenImageDialog::gatherPreviewDust(const QPixmap& shot) {
     QWidget* host = previewLabel_->parentWidget();
     if (!host || shot.isNull() || support::motionReduced()) return;
@@ -50,9 +49,8 @@ namespace stencil::gui {
     });
   }
 
-  // The one thing a crop toggle adds to, or takes from, the column, so it arrives and leaves on the
-  // KEYWORD-CHIP recipe (KeywordChipsMotion; the browser read-out flies the same). Photographed
-  // before the veil (a veiled widget grabs to nothing) and once shown, since only then has it a size.
+  // Arrives and leaves on the KEYWORD-CHIP recipe (KeywordChipsMotion; the browser read-out flies
+  // the same). Photographed before the veil (a veiled widget grabs to nothing) and once shown.
   void OpenImageDialog::cropDimsDust(bool arriving) {
     QWidget* host = cropDims_->parentWidget();
     // isVisible() cannot answer this any more: the line stays shown while it slides away.
@@ -66,8 +64,7 @@ namespace stencil::gui {
       return;
     }
     // The mesh comes from the BOX, as the keyword chip's and the browser's do (dustGrid is
-    // motion/tiles.js reshapeGrid): a fixed 64x22 budget over a 13px line made cells
-    // 3.1 x 0.59, so the read-out flew as horizontal slices of itself instead of specks.
+    // motion/tiles.js reshapeGrid): a fixed 64x22 budget over a 13px line flew as horizontal slices.
     if (!arriving) {
       const QPixmap shot = cropDims_->grab();   // before it goes: see below
       if (!shot.isNull()) chipCloud(host, cropDims_, shot, DisintegrateOverlay::Sweep::FALL);
@@ -83,8 +80,7 @@ namespace stencil::gui {
     QPointer<QLabel> label(cropDims_);
     const int gen = motion_.gen;
     // ONE turn later, not synchronously: the resize syncCropStage just asked for lands when this turn
-    // ends, so a cloud raised now is pinned where the line USED to be and the column slides it out from
-    // under (measured 19px off). The veil lifts once most motes are home, not at the very end.
+    // ends, so a cloud raised now is pinned where the line USED to be. The veil lifts early.
     QTimer::singleShot(0, label, [this, label, veil, shot, gen, host] {
       const auto lift = [label, veil] {
         if (label && label->graphicsEffect() == veil) label->setGraphicsEffect(nullptr);
@@ -97,9 +93,8 @@ namespace stencil::gui {
         lift();
         return;
       }
-      // The line it is assembling is still MOVING: the column slides it down as the window
-      // eases, and the stage's first cropChanged re-words the read-out, which re-centres a
-      // label of a different width. The layer follows it (browser twin: retargetDust).
+      // The line it is assembling is still MOVING - the column slides it and the first cropChanged
+      // re-words it - so the layer follows it (browser twin: retargetDust).
       QWidget* under = label->parentWidget();
       const auto follow = [fx, label, under] {
         if (label && under) fx->move(label->mapTo(under, QPoint()));
@@ -110,9 +105,8 @@ namespace stencil::gui {
     });
   }
 
-  // The line SLIDES in and out on the window's own clock, so the rows under it are never snapped by
-  // its height (browser twin: syncCropDims). The END state goes into the layout FIRST: the refit runs
-  // next and must measure the shape this lands on. A replaced picture blows away first, never crossfades.
+  // The line SLIDES in and out on the window's own clock (browser twin: syncCropDims). The END state
+  // goes into the layout FIRST: the refit runs next and must measure the shape this lands on.
   void OpenImageDialog::scatterPreviewDust() {
     QWidget* host = previewLabel_->parentWidget();
     if (!previewLabel_->isVisible() || previewLabel_->pixmap().isNull()) return;
@@ -130,9 +124,8 @@ namespace stencil::gui {
     clearPreviewImage();
   }
 
-  // A cloud is a child of the column, not of the picture it came from, so switching tab or
-  // dismissing the popover left the motes playing over whatever arrived next. Every veil a
-  // cloud was standing in for lifts with it, or the widget it covers stays invisible.
+  // A cloud is a child of the column, not of the picture it came from, so a tab switch left motes
+  // playing over whatever arrived next. Every veil a cloud stood in for lifts with it.
   void OpenImageDialog::cancelPreviewDust() {
     if (!previewLabel_) return;
     ++motion_.gen;   // a raise still queued behind a timer is now stale

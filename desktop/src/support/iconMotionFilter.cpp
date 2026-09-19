@@ -111,9 +111,8 @@ namespace stencil::gui {
 
 
   void IconMotionFilter::hoverMenuAction(QMenu* menu, QAction* a) {
-    // hovered() is emitted along the whole caused stack, so a SUBMENU's row arrives here for
-    // its parent too. Each level owns only its own rows: the parent's opener stays hovered
-    // while the flyout is up, and the row inside it is entered once, not once per level.
+    // hovered() is emitted along the whole caused stack, so a SUBMENU's row arrives here for its
+    // parent too. Each level owns only its own rows, so a row is entered once, not once per level.
     if (a && !menu->actionGeometry(a).isValid()) return;
     QPointer<QAction>& cur = menuHover_[menu];
     if (cur == a) return;

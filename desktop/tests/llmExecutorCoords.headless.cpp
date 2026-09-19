@@ -40,9 +40,8 @@ namespace llmexec {
     check(c.red() > 200 && c.green() < 100, "re-mapped line draws inside the crop");
   }
   {
-    // Crop with the §2 aspect key: the executor forwards it into the core
-    // CropSpec, and resolveCropRect shrinks the wider dimension symmetrically
-    // about the centre — 16x12 at "1:1" lands on the centred 12x12 square.
+    // Crop with the §2 aspect key: the executor forwards it into the core CropSpec, and resolveCropRect
+    // shrinks the wider dimension symmetrically about the centre — 16x12 at "1:1" is the centred 12x12.
     const auto parsed = parseOpPlan(R"({
       "reply": "square",
       "actions": [{"op": "crop", "spec": {"aspect": "1:1"}}]
@@ -56,10 +55,8 @@ namespace llmexec {
           "aspect crop reached core resolveCropRect (16x12 -> centred 12x12)");
   }
   {
-    // rotate-then-layout, direction validated against core's rotate: mark the
-    // pixel (3,2), rotate right; core rotateImageRGBA (quarters=1, clockwise)
-    // moves the mark to (h-1-y, x) = (9,3) — the app's rotate and the
-    // executor's point mapping must land the same place.
+    // rotate-then-layout, validated against core's rotate: rotateImageRGBA (quarters=1, clockwise) moves
+    // a mark at (3,2) to (h-1-y, x) = (9,3), and the executor's point mapping must land the same place.
     std::vector<std::uint8_t> src(16 * 12 * 4, 0), dst(16 * 12 * 4, 0);
     src[(2 * 16 + 3) * 4] = 255;  // mark (3,2)
     stencil::core::rotateImageRGBA(src.data(), 16, 12, 1, dst.data());

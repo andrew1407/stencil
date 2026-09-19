@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The Share button exists only where the OS has a share sheet of its own — hidden on
-  // Linux, where none does. Browser parity: supportsShareFiles() (utils.js) keeps
-  // #share-image display:none on every browser that turns files down, rather than
-  // offering a button that can only apologise.
+  // The Share button exists only where the OS has a share sheet of its own — hidden on Linux. Browser
+  // parity: supportsShareFiles() keeps #share-image display:none rather than offering an apology.
   void shareButtonOnlyWhereTheOsShares() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1200, 800);
@@ -39,9 +37,8 @@ class MainWindowGuiTest : public QObject {
     win.actShareImage_->setEnabled(true);
     QVERIFY2(!win.actShareImage_->isEnabled(), "an invisible Share action took enabling");
   }
-  // The script window's button opens the DATA section (browser toolbar.js puts #script-btn
-  // first there) and carries the shared registry's chord. Its dialog is exec()'d, so this
-  // checks the wiring, not the window.
+  // The script window's button opens the DATA section (browser toolbar.js puts #script-btn first
+  // there) and carries the shared registry's chord. Its dialog is exec()'d, so this checks the wiring.
   void scriptButtonOpensTheDataSection() {
     MainWindow win(nullptr, false);
     win.resize(1400, 850);
@@ -71,12 +68,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.actScript_->isEnabled(), "the script window went dead once an image loaded");
     beat();
   }
-  // ── The toolbar's clusters, in the browser's order ──────────────────────────
-  // One sequence across both surfaces (browser js/ui/toolbar.js, pinned there by
-  // ui-markup.test.js): Image · Description & attributes · Projects · Connections & chat ·
-  // Edit / Line · Point / Draw · View / Zoom · Page · Formula · Data · Settings. The rows
-  // are where this app's non-wrapping toolbars break that one sequence, so the check is
-  // the concatenation of the rows top to bottom.
+  // One cluster sequence across both surfaces (browser js/ui/toolbar.js): Image · Description ·
+  // Projects · Connections · Edit/Line · Point/Draw · View/Zoom · Page · Formula · Data · Settings.
   void toolbarSectionsFollowTheBrowsersOrder() {
     MainWindow win(nullptr, false);
     win.resize(1600, 950);
@@ -95,10 +88,8 @@ class MainWindowGuiTest : public QObject {
                            "CONNECTIONS & CHAT", "EDIT", "LINE", "POINT", "DRAW", "VIEW",
                            "ZOOM", "PAGE", "FORMULA", "DATA", "SETTINGS"};
     QCOMPARE(sections, want);
-    // Where the rows BREAK that sequence is a packing decision — the browser re-wraps the
-    // same run with the window and a QToolBar cannot — so every row has to survive a narrow
-    // window on its own. With the formula fields showing and the widest page state chosen,
-    // none of them may fall back on QToolBar's "»", which is how SETTINGS once vanished.
+    // Where the rows BREAK that sequence is a packing decision, so every row has to survive a narrow
+    // window on its own: none may fall back on QToolBar's "»", which is how SETTINGS once vanished.
     win.allowFormulas_->setChecked(true);
     const int custom = win.units_.pageSize->findData(QStringLiteral("custom"));
     QVERIFY(custom >= 0);

@@ -29,9 +29,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Editing the URL mid-crop must clear the STAGE (its rect belongs to the old pixels,
-  // which are about to be replaced) instantly, without waiting for a new decode — while
-  // the plain picture stays up, per stalePreview's own contract.
+  // Editing the URL mid-crop clears the STAGE instantly — its rect belongs to the old pixels — without
+  // waiting for a new decode, while the plain picture stays up per stalePreview's own contract.
   void editingTheUrlMidCropClearsTheStageInstantly() {
     bool stagedBefore = false, stagedAfter = true, pictureVisible = false, stillChecked = false;
     MainWindow win(nullptr, false);
@@ -69,9 +68,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(stillChecked, "the choice itself is untouched — only the stale rect goes");
   }
 
-  // A cached IMAGE tab must not keep a VIDEO tab's Frame row — nothing hides it but the
-  // restore itself. Both tabs are pre-cached and reached by a REAL tab click, exactly as
-  // applyMode()'s cache-restore branch runs for a user.
+  // A cached IMAGE tab must not keep a VIDEO tab's Frame row: nothing hides it but the restore itself,
+  // so both tabs are pre-cached and reached by a REAL tab click, as applyMode()'s cache branch runs.
   void restoringAnImageTabHidesTheOtherTabsFrameRow() {
     bool frameShownAfterVideo = false, frameShownAfterImage = true;
     MainWindow win(nullptr, false);

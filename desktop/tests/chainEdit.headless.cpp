@@ -36,11 +36,8 @@ static core::Line closedShape() {
   l.locked = true;
   return l;
 }
-// The same shape drawn roomy: no two vertices within one hit radius of each other. A
-// press on the widget takes the FIRST point inside that radius (core findNearestPoint,
-// the browser's rule), so on the 10-unit shape above every grab answers point 0 — the
-// seam would land there whatever the user pointed at, and the gesture below would be
-// testing nothing.
+// The same shape drawn roomy: no two vertices within one hit radius, or every grab answers point 0
+// (core findNearestPoint) and the seam lands there whatever the user pointed at.
 static core::Line roomyShape() {
   core::Line l;
   l.points = {{0, 0}, {60, 0}, {60, 60}, {0, 0}};

@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Clicking a CHECKABLE row in the canvas context menu must not recurse: StayOpenMenu
-  // re-dispatches mouse events into the hosted chat panel and QApplication::notify walks
-  // an unaccepted press back up into the menu. Checked with the assistant on AND off,
-  // since only the enabled case has an interactive area at all.
+  // Clicking a CHECKABLE row must not recurse: StayOpenMenu re-dispatches mouse events into the hosted
+  // chat panel and QApplication::notify walks an unaccepted press back up into the menu.
   void contextMenuCheckableClickDoesNotRecurse() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -51,9 +49,8 @@ class MainWindowGuiTest : public QObject {
       showPoints->setChecked(before);              // restore for the next pass
     }
 
-    // The other half of the same hazard, and the one that actually recursed:
-    // a click on a TRANSCRIPT ROW inside the chat panel. A QLabel ignores mouse
-    // presses, so the re-dispatched event propagated back up to the menu.
+    // The other half of the same hazard: a click on a TRANSCRIPT ROW inside the chat panel. A QLabel
+    // ignores mouse presses, so the re-dispatched event propagated back up to the menu.
     win.settings_.llmProvider = "ollama";
     win.ensureChatMenuPanel();
     win.chatMirror("You", "hello there", false);
@@ -84,9 +81,8 @@ class MainWindowGuiTest : public QObject {
       rowClicked = true;
       subAlive = sub->isVisible() && menu->isVisible();
 
-      // Dragging the composer splitter goes through the SAME re-dispatch (plus
-      // the move forwarding a drag needs) — it must not recurse either, and it
-      // must actually resize.
+      // Dragging the composer splitter goes through the SAME re-dispatch, plus the move forwarding a drag
+      // needs: it must not recurse either, and it must actually resize.
       auto* sp = panel->findChild<QSplitter*>("chatMenuSplitter");
       if (sp && sp->count() > 1) {
         QWidget* handle = sp->handle(1);
@@ -107,10 +103,8 @@ class MainWindowGuiTest : public QObject {
              "dragging the composer splitter inside the popup did not resize it");
     beat();
   }
-  // The assistant submenu's gear opens the assistant-only settings dialog —
-  // and closes the context menu FIRST. A modal dialog must never come up under
-  // a menu that still holds the popup grab (it would be unfocused and behind
-  // it), so the handler dismisses the menu chain and defers the dialog a turn.
+  // The assistant submenu's gear opens the assistant-only dialog and closes the context menu FIRST: a
+  // modal must never come up under a menu that still holds the popup grab, so the dialog is deferred.
   void contextMenuAssistantGearOpensSettings() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);

@@ -25,8 +25,7 @@ namespace stencil::gui {
   using namespace chatdock;
   namespace {
     // Browser chatView.js chatRowMenuItems. Popping a menu is a NESTED EVENT LOOP: the card or its
-    // window can be gone after exec(), so every widget is a QPointer and the menu refuses to pop
-    // without a live, mapped window (a QMenu against a destroyed window crashed in QCocoaWindow).
+    // window can be gone after exec(), so every widget is a QPointer and a dead window refuses to pop.
     void showChatCardMenu(QPointer<QFrame> card, const QPoint& globalPos,
                                  const ChatCardMenuHooks& hooks) {
       if (!card) return;

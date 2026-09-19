@@ -4,10 +4,8 @@
 namespace connectrow {
 
   void checkToastAndHint(QTcpServer& server, quint16 port, QWidget* row) {
-  // ── The row's Reconnect toast NAMES the server ───────────────────────────────
-  // A bare "Reconnected" never said which one signed back in — with more than one saved
-  // connection the toast was useless. Browser twin:
-  // connectModal.js `Reconnected to ${url}`.
+  // The row's Reconnect toast NAMES the server: with more than one saved connection a bare
+  // "Reconnected" says nothing. Browser twin: connectModal.js `Reconnected to ${url}`.
   {
     ConnectionManager fresh;
     QString rerr;
@@ -30,13 +28,8 @@ namespace connectrow {
     }
   }
 
-  // ── FlowLayout's own hint is what it needs ──────────────────────────────────
-  // The bar hands `actions` exactly its sizeHint, so a hint one pixel under what the
-  // layout really needs makes it wrap EVERY item onto its own line — the connections
-  // batch bar's three buttons in a column. Two off-by-ones
-  // caused it, in the same direction: `QSize size;` is (-1,-1), so the width sum started
-  // short, and the wrap test read `x + w > right()` when an item that ENDS on right()
-  // still fits. Pinned together, because either alone still misses by one.
+  // FlowLayout's own hint must be what it needs: the bar hands `actions` exactly its sizeHint, so a hint
+  // one pixel short wraps every item onto its own line (`QSize size;` is (-1,-1); an item ON right() fits).
   {
     QWidget host;
     auto* fl = new stencil::gui::FlowLayout(&host, 0, 6, 6);

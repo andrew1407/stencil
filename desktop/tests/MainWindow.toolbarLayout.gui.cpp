@@ -8,13 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Browser parity: both colour swatches are present and captioned. defaultPointColor was
-  // persisted but had no swatch, so it was only settable by editing settings.json — and two
-  // identical swatches need captions to tell apart. Since the style rows became NAMED
-  // sections (makeToolSection, like the main row and like the browser's LINE / POINT
-  // clusters), the naming is two-level: an uppercase section header plus an inline field
-  // label. Both halves are pinned — a swatch under a bare "Color" with no group header is
-  // exactly as ambiguous as the unlabelled swatch this test was written for.
+  // Browser parity: both colour swatches are present and captioned at two levels — an uppercase section
+  // header (makeToolSection) plus an inline field label, since two identical swatches need telling apart.
   void toolbarExposesCaptionedLineAndPointColourSwatches() {
     MainWindow win(nullptr, false);
 
@@ -46,18 +41,16 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(pointSwatch, "the toolbar must offer a default point-colour swatch");
     QVERIFY2(!pointSwatch->icon().isNull(), "the swatch paints its current colour");
   }
-  // Every control in a toolbar section sits on ONE centre line. The QVBoxLayout used to
-  // hand a short section's spare height to its caption, pushing combos/inputs below the
-  // icon rows they sit beside (browser parity: one flex row, centred).
+  // Every control in a toolbar section sits on ONE centre line: the QVBoxLayout used to hand a short
+  // section's spare height to its caption (browser parity: one flex row, centred).
   void toolbarSectionControlsShareOneCentreLine() {
     MainWindow win;
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 200);
-    // A section row is the widget whose sibling is the "sectionLabel" caption. The tool
-    // run WRAPS (support/WrapRow.hpp), so the baseline is shared per LINE — sections are
-    // grouped by where the flow put them, not by which toolbar they belong to.
+    // A section row is the widget whose sibling is the "sectionLabel" caption. The tool run WRAPS
+    // (support/WrapRow.hpp), so the baseline is shared per LINE, grouped by where the flow put them.
     QHash<int, QList<QPair<QString, int>>> byRow;
     for (QWidget* rowWidget : win.findChildren<QWidget*>()) {
       QWidget* section = rowWidget->parentWidget();
@@ -87,10 +80,8 @@ class MainWindowGuiTest : public QObject {
     }
     QVERIFY2(rowsChecked >= 2, "expected at least two populated toolbar rows");
   }
-  // The labelled Open Image button centres its icon+text. Qt left-aligns a
-  // text-beside-icon label inside a hint that reserves more room on the right, so it sat
-  // visibly off-centre; the fix redistributes the button's padding and this measures the
-  // result, since it is tuned to the style's own slack.
+  // The labelled Open Image button centres its icon+text: Qt left-aligns a text-beside-icon label inside
+  // a hint that reserves more room on the right, so the fix redistributes the padding and this measures it.
   void openImageButtonLabelIsCentred() {
     MainWindow win;
     win.resize(1400, 700);
@@ -118,9 +109,8 @@ class MainWindowGuiTest : public QObject {
     // …and the label is the browser's 14px, not the smaller platform default.
     QCOMPARE(win.openImageBtn_->font().pixelSize(), 14);
   }
-  // Nothing to zoom without an image, so the whole ZOOM cluster is dead until one is
-  // loaded — the browser gates zoom-in / zoom-out / zoom-fit / zoom-input on exactly that
-  // (drawingApp.updateButtons), and the desktop row used to stay live and no-op.
+  // Nothing to zoom without an image, so the whole ZOOM cluster is dead until one is loaded — the
+  // browser gates zoom-in / zoom-out / zoom-fit / zoom-input on exactly that (updateButtons).
   void zoomClusterNeedsAnImage() {
     MainWindow win(nullptr, false);
     win.resize(1400, 700);

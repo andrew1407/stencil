@@ -23,18 +23,18 @@ namespace stencil::gui {
       // Rows re-clamp + re-elide to the new viewport width.
       if (ev->type() == QEvent::Resize) list_->doItemsLayout();
       // The kebab click is consumed so it does not also start a drag/selection.
-      if (ev->type() == QEvent::ToolTip && hoverPreview_ && hoverPreview_->isVisible())
+      if (ev->type() == QEvent::ToolTip && hover_.hoverPreview && hover_.hoverPreview->isVisible())
         return true;
       if (ev->type() == QEvent::MouseButtonPress) {
         auto* me = static_cast<QMouseEvent*>(ev);
         // itemClicked/itemDoubleClicked carry no modifiers — remember the press's (and where it landed).
-        pressMods_ = me->modifiers();
+        press_.pressMods = me->modifiers();
         const QPoint vpos = me->position().toPoint();
-        pressPos_ = vpos;
+        press_.pressPos = vpos;
         QListWidgetItem* it = list_->itemAt(vpos);
         // A press on the checkbox strip only toggles the box: no row-open, no confirm.
         const QRect vr = it ? list_->visualItemRect(it) : QRect();
-        pressOnCheck_ = me->button() == Qt::LeftButton && it &&
+        press_.pressOnCheck = me->button() == Qt::LeftButton && it &&
                         QRect(vr.left(), vr.top(), 34, vr.height()).contains(vpos);
         if (me->button() == Qt::LeftButton && it &&
             !it->data(Qt::UserRole).isNull() &&
@@ -55,7 +55,7 @@ namespace stencil::gui {
                                 : (onKebab ? KEBAB_TIP : it->toolTip());
         if (tip.isEmpty()) { gui::appTooltip()->hideTip(); return true; }
         // …forming out of the CURSOR, where the browser's tooltip flies from (ui/tooltip.js dust).
-        tipRowText_ = tip;
+        hover_.tipRowText = tip;
         gui::appTooltip()->showFor(list_->viewport(), tip, he->globalPos(),
                                    QRect(he->globalPos(), QSize(1, 1)));
         return true;
@@ -69,7 +69,7 @@ namespace stencil::gui {
         // While up, the tip SLIDES with the pointer: showFor per move re-ran its appearance and stuttered.
         if (auto* tip = gui::appTooltip(); tip->isVisible() && tip->owner() == list_->viewport()) {
           const QString text = !it ? QString() : (onKebab ? KEBAB_TIP : it->toolTip());
-          if (text.isEmpty() || text != tipRowText_) tip->hideTip();
+          if (text.isEmpty() || text != hover_.tipRowText) tip->hideTip();
           else tip->moveTo(static_cast<QMouseEvent*>(ev)->globalPosition().toPoint());
         }
         const QPixmap src = it ? it->data(Qt::UserRole + 2).value<QPixmap>() : QPixmap();
@@ -80,28 +80,28 @@ namespace stencil::gui {
           const QRect dec = del ? del->iconRectFor(list_->row(it)) : QRect();
           overIcon = dec.isValid() && dec.adjusted(-2, -2, 2, 2).contains(vpos);
         }
-        if (overIcon != hoverZoomCursor_) {
+        if (overIcon != hover_.hoverZoomCursor) {
           if (overIcon) list_->viewport()->setCursor(zoomInCursor());
           else list_->viewport()->unsetCursor();
-          hoverZoomCursor_ = overIcon;
+          hover_.hoverZoomCursor = overIcon;
         }
         if (overIcon) {
           // An APPEARANCE forms out of the row; a move on the same thumb keeps the dust alone but
           // carries the box along (browser positionZoom).
           const QPoint cur = static_cast<QMouseEvent*>(ev)->globalPosition().toPoint();
-          const bool appearing = !hoverPreview_ || !hoverPreview_->isVisible() ||
-                                 hoverClosing_ || hoverItem_ != it;
+          const bool appearing = !hover_.hoverPreview || !hover_.hoverPreview->isVisible() ||
+                                 hover_.hoverClosing || hover_.hoverItem != it;
           if (appearing) {
             // Dust a different row's preview back into ITS row first (browser surfaceOut before the new surfaceIn).
-            if (hoverPreview_ && hoverPreview_->isVisible() && hoverItem_ && hoverItem_ != it)
+            if (hover_.hoverPreview && hover_.hoverPreview->isVisible() && hover_.hoverItem && hover_.hoverItem != it)
               hideHoverPreview();
-            if (!hoverPreview_) {
+            if (!hover_.hoverPreview) {
               // Input-transparent (browser pointer-events:none): a glance under the pointer would churn Leave/Enter.
-              hoverPreview_ = new QLabel(this, Qt::ToolTip | Qt::FramelessWindowHint |
+              hover_.hoverPreview = new QLabel(this, Qt::ToolTip | Qt::FramelessWindowHint |
                                                    Qt::WindowTransparentForInput |
                                                    Qt::WindowDoesNotAcceptFocus);
-              hoverPreview_->setAttribute(Qt::WA_ShowWithoutActivating, true);
-              hoverPreview_->setStyleSheet(
+              hover_.hoverPreview->setAttribute(Qt::WA_ShowWithoutActivating, true);
+              hover_.hoverPreview->setStyleSheet(
                   "QLabel{background:#1e1e1e;border:2px solid #d4a017;"
                   "border-radius:8px;padding:4px;}");
             }
@@ -110,20 +110,20 @@ namespace stencil::gui {
                 (QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier)
                     ? HOVER_PREVIEW_ALT_PX
                     : HOVER_PREVIEW_PX;
-            hoverPreview_->setProperty("srcPixmap", src);
-            hoverPreview_->setPixmap(
+            hover_.hoverPreview->setProperty("srcPixmap", src);
+            hover_.hoverPreview->setPixmap(
                 src.scaled(edge, edge, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-            hoverPreview_->adjustSize();
+            hover_.hoverPreview->adjustSize();
             placeHoverPreview(cur);
             // Held invisible behind its gathering motes; reduced motion shows the end state at once.
-            hoverPreview_->setWindowOpacity(support::motionReduced() ? 1.0 : 0.0);
-            hoverPreview_->show();
-            hoverItem_ = it;
+            hover_.hoverPreview->setWindowOpacity(support::motionReduced() ? 1.0 : 0.0);
+            hover_.hoverPreview->show();
+            hover_.hoverItem = it;
             revealHoverPreview(it);
           } else {
             placeHoverPreview(cur);
           }
-        } else if (hoverPreview_) {
+        } else if (hover_.hoverPreview) {
           hideHoverPreview();
         }
       } else if (ev->type() == QEvent::Leave) {
@@ -131,10 +131,10 @@ namespace stencil::gui {
         if (auto* tip = gui::appTooltip(); tip->owner() == list_->viewport()) tip->hideTip();
         // A Leave fired by our own preview window sliding under the pointer must not hide what is still hovered.
         if (!pointerOverPreviewedIcon()) {
-          if (hoverPreview_) hideHoverPreview();
-          if (hoverZoomCursor_) {
+          if (hover_.hoverPreview) hideHoverPreview();
+          if (hover_.hoverZoomCursor) {
             list_->viewport()->unsetCursor();
-            hoverZoomCursor_ = false;
+            hover_.hoverZoomCursor = false;
           }
         }
       }

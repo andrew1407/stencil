@@ -146,8 +146,7 @@ namespace stencil::gui {
     flow->addWidget(deselectBtn_);
 
     // Each lambda early-returns while showLine repopulates (updating_), the browser's selectedLineIdx
-    // guard. The line follows the picker as it is dragged; Cancel hands the original back through
-    // pickColorAnimated.
+    // guard. Cancel hands the original back through pickColorAnimated.
     const auto wireColorWell = [this](QPushButton* well, QColor& current, const char* title,
                                       std::function<void(const QString&, bool)> send) {
       connect(well, &QPushButton::clicked, this, [this, well, &current, title, send] {

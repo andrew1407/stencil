@@ -136,9 +136,8 @@ namespace modalchrome {
   }
 
   {
-    // The hover sweep is clipped to the control's own rounded shape: rendered on black
-    // mid-sweep, the pill's corners stay untouched while its middle lights up. A plain
-    // fillRect spilled the band across them.
+    // The hover sweep is clipped to the control's own rounded shape: rendered on black mid-sweep, the
+    // pill's corners stay untouched while its middle lights up — a plain fillRect spills across them.
     std::printf("the hover shimmer's rounded clip:\n");
     QDialog dlg;
     ModalChrome c = installModalChrome(&dlg, QString(), "Shimmer");

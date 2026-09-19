@@ -68,8 +68,7 @@ namespace stencil::gui {
         continue;
       }
       // No fill for a checkable toggle, where the accent means "on" (browser #chat-btn .active);
-      // everything that acts on press takes the fill.
-      // Fullscreen is filled in both states (browser #fullscreen-toggle).
+      // everything that acts on press takes the fill. Fullscreen is filled in both states.
       const bool alwaysFilled = (a == actFullscreen_);
       const QString fill = (a->isCheckable() && !alwaysFilled)
                                ? QString()

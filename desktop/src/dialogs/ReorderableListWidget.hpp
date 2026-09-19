@@ -1,10 +1,9 @@
 #pragma once
-// A QListWidget whose rows can be drag-REORDERED and dragged OUT — the desktop analogue
-// of the browser modals' HTML5-draggable rows. Rows host itemWidgets, so Qt never moves
-// items itself: an in-list drop reports (from,to) for the caller to permute and rebuild,
-// a drop outside invokes onDragOut(row). Header-only and deliberately Q_OBJECT-free
-// (std::function callbacks, no MOC). Drags start from a DragGrip handle in each row,
-// which itemWidgets would otherwise swallow.
+// A QListWidget whose rows can be drag-REORDERED and dragged OUT - the desktop analogue of the
+// browser modals' HTML5-draggable rows. Rows host itemWidgets, so Qt never moves items itself:
+// an in-list drop reports (from,to) for the caller to permute and rebuild, a drop outside invokes
+// onDragOut(row). Header-only and deliberately Q_OBJECT-free (std::function callbacks, no MOC).
+// Drags start from a DragGrip handle in each row, which itemWidgets would otherwise swallow.
 #include <QAbstractItemView>
 #include <QByteArray>
 #include <QCursor>
@@ -148,9 +147,8 @@ namespace stencil::gui {
       return 0;
     }
 
-    // View-initiated drag (used when setDragEnabled(true) and rows are delegate-painted, i.e.
-    // no DragGrip): route through the same beginRowDrag path as the grip. Lists that drive
-    // drags from a grip leave dragEnabled false, so this never fires for them.
+    // View-initiated drag (setDragEnabled(true) with delegate-painted rows, i.e. no DragGrip): route
+    // through the same beginRowDrag path as the grip. Grip-driven lists leave dragEnabled false.
     void startDrag(Qt::DropActions) override { beginRowDrag(currentRow()); }
     void dragEnterEvent(QDragEnterEvent* e) override {
       if (e->mimeData()->hasFormat(reorderRowMime())) { e->setDropAction(Qt::MoveAction); e->accept(); }

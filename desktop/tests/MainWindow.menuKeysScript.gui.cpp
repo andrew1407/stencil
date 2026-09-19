@@ -8,14 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A repeat of the same message (e.g. pan/zoom's debounced "Saved") landing while the LAST
-  // one is still mid-exit used to coexist with it instead of coalescing — liveToasts() only
-  // coalesces into a STANDING toast, so the fresh arrival's opaque label buried the leaving
-  // one's still-playing dust. Only one "toast" label should ever exist for a given message.
-
-  // The script flyout's keys. Same two-step → as the Assistant (reveal, then the caret),
-  // but the editor then OWNS Tab: it indents by two rather than walking the flyout's four
-  // actions (browser ctxScriptItem.js data-ctx-keep-tab), and Ctrl+Enter runs.
+  // The script flyout: the same two-step → as the Assistant, but the editor then OWNS Tab — it
+  // indents by two rather than walking the four actions (browser ctxScriptItem.js), Ctrl+Enter runs.
   void ctxScriptFlyoutOwnsTabAndCtrlEnter() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);

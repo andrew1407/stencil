@@ -49,17 +49,15 @@ namespace stencil::gui {
       settleRect();
       rect_ = core::centeredCrop(iw_, ih_, aspect_);
       // The box last FIT INTO, not scale_ * the new pixels: scale_ is the previous image's ratio, so a
-      // portrait swapped for a landscape (or a video for a differently-sized image) landed the widget
-      // far outside PREVIEW_MAX_W/H — an empty box with the handles at its corners.
+      // portrait swapped for a landscape landed the widget far outside PREVIEW_MAX_W/H.
       setFitBox(fitBox_);
       emit cropChanged();
     }
     update();
   }
 
-  // Fit the original into the box (modest upscaling keeps small images' handles usable); the widget
-  // takes the scaled image plus the handle inset. A degenerate box (fitBox_ read back before anyone
-  // set it) must NEVER fall back to scale 1.0 — that is NATIVE pixels, which dwarf the dialog.
+  // Fit the original into the box (modest upscaling keeps small images' handles usable). A degenerate
+  // box must NEVER fall back to scale 1.0 - that is NATIVE pixels, which dwarf the dialog.
   void CropPreview::setFitBox(const QSize& box) {
     if (box.width() <= 0 || box.height() <= 0) return;   // keep the last good fit
     fitBox_ = box;
@@ -70,12 +68,10 @@ namespace stencil::gui {
     update();
   }
 
-  // swapCropOrientation carries the user's own framing across the flip (a fresh
-  // centeredCrop with no rect yet, same as before). Browser twin: openImageModal.js
-  // recenterCrop / cropModal.js recenter.
+  // swapCropOrientation carries the user's own framing across the flip. Browser twin:
+  // openImageModal.js recenterCrop / cropModal.js recenter.
   void CropPreview::setAlbum(bool album) {
-    // A same-value call (the constructor's own bootstrap, forcing the CALLER's requested
-    // orientation over the ctor's image-natural guess) must stay idempotent — swapping an
+    // A same-value call (the constructor's own bootstrap) must stay idempotent - swapping an
     // already-correct rect would put it at the WRONG, reciprocal aspect.
     if (album == album_) { update(); emit cropChanged(); return; }
     const core::CropRect from = rect_;
@@ -86,9 +82,8 @@ namespace stencil::gui {
     emit cropChanged();
   }
 
-  // The flip's own flight: the painted box eases from its old shape while rect_ (what the
-  // read-out, a drag and the result read) is already the new one. Browser twin:
-  // rectTween.js. A widget not yet shown — the constructor's bootstrap — lands at once.
+  // The flip's own flight: the painted box eases from its old shape while rect_ is already the new
+  // one (browser twin: rectTween.js). A widget not yet shown lands at once.
   void CropPreview::flyRectFrom(const core::CropRect& from) {
     if (!isVisible() || support::motionReduced() || from.width <= 0) { settleRect(); return; }
     if (!rectAnim_) {
@@ -116,9 +111,8 @@ namespace stencil::gui {
     update();
   }
 
-  // A DIFFERENT page picked: no reciprocal to carry the old box across (that's only true
-  // between one page's own two orientations), so this resets to a fresh default at the
-  // new aspect — same as a first Crop tick. Browser twin: openImageModal.js applyCropPageChange.
+  // A DIFFERENT page has no reciprocal to carry the old box across, so this resets to a fresh
+  // default at the new aspect. Browser twin: openImageModal.js applyCropPageChange.
   void CropPreview::setPageSize(double pageWidthCm, double pageHeightCm) {
     pageWidthCm_ = pageWidthCm;
     pageHeightCm_ = pageHeightCm;

@@ -1,10 +1,6 @@
-// Headless check for toast coalescing (support/notifications). A repeated action used
-// to STACK identical toasts (and, past the 3-cap, churn retire+add — read as flicker).
-// Pins the fix:
-//   - the same text requested twice quickly → ONE visible toast, the SAME widget
-//     (no entrance replay), with its lifetime extended past the first timer's expiry;
-//   - distinct texts still stack as separate toasts;
-//   - the coalesced toast still auto-dismisses once its (extended) lifetime runs out.
+// Headless check for toast coalescing (support/notifications): the same text requested twice quickly
+// is ONE visible toast — the SAME widget, no entrance replay, its lifetime extended past the first
+// timer's expiry — distinct texts still stack, and the coalesced toast still auto-dismisses.
 #include "Notifications.hpp"
 
 #include <QApplication>

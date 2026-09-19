@@ -78,9 +78,8 @@ namespace stencil::llm {
     return isFiniteNum(v) && std::floor(v.toDouble()) == v.toDouble();
   }
 
-  // native cross-field rules an entry may name in `rules`
-  // §3.2 tolerance: "aspect" beside "spec" folds into the spec when it lacks one; a
-  // conflicting duplicate fails. The folded copy is what gets validated + normalized.
+  // §3.2 tolerance: "aspect" beside "spec" folds into the spec when it lacks one; a conflicting
+  // duplicate fails. The folded copy is what gets validated + normalized.
   inline bool cropAspectFold(QJsonObject& a, QString* err) {
     if (!present(a, "aspect") || !a.value("spec").isObject()) return true;
     QJsonObject spec = a.value("spec").toObject();

@@ -8,25 +8,21 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Hover text is a shared contract: a control that exists in BOTH apps says the same
-  // thing on hover, so the browser's toolbar.js is the source of truth for it (data-title,
-  // or plain title where a control carries no rich tooltip). Menu LABELS are free to
-  // differ — a menu row and a tooltip are different jobs — and so are desktop-only
-  // affordances (Cycle Filter/Compare, the page/unit fields, the Settings dialog).
-  // This is what drifted: the live-sync button described itself in its own words and,
-  // having been built with no shortcut, showed no keycap at all.
+  // Hover text is a shared contract: a control that exists in BOTH apps says the same thing, so the
+  // browser's toolbar.js is its source of truth. Menu LABELS and desktop-only affordances may differ.
   void toolbarTooltipsMatchTheBrowser() {
     // The browser's toolbar markup + the shared copy canon it interpolates from.
     stencil::test::BrowserMarkup browser;
-    QVERIFY2(browser.load("browser/js/ui/toolbar.js"), "cannot read the browser's toolbar");
+    for (const char* part : {"browser/js/ui/toolbar.js", "browser/js/ui/toolbarTopbar.js",
+                             "browser/js/ui/toolbarSections.js", "browser/js/ui/toolbarPageSections.js"})
+      QVERIFY2(browser.load(QString::fromLatin1(part)), part);
     const auto browserTag = [&browser](const QString& id) { return browser.tag(id); };
     const auto attrOf = [&browser](const QString& t, const QString& a) {
       return browser.attr(t, a);
     };
     const auto browserTip = [&browser](const QString& id) { return browser.tip(id); };
-    // A desktop tooltip is "<text> (<shortcut>)" plus a "— reason" line while the control
-    // is disabled (browser composeControlTitle) — the shortcut is drawn as a keycap and the
-    // reason is checked on its own below, so only the text takes part in the comparison.
+    // A desktop tooltip is "<text> (<shortcut>)" plus a "— reason" line while the control is disabled
+    // (browser composeControlTitle); the shortcut is drawn as a keycap, so only the text is compared.
     auto textOf = [](QString tip) {
       tip.remove(QRegularExpression("\\n\u2014 [^\\n]*$"));
       const QRegularExpressionMatch m = QRegularExpression("\\s*\\(([^()]*)\\)\\s*$").match(tip);
@@ -87,9 +83,8 @@ class MainWindowGuiTest : public QObject {
         {nullptr, win.nameBar_.cancel, "project-name-cancel"},
     };
     for (const Pair& p : pairs) {
-      // Both sides go through textOf: the browser writes its key into the data-title
-      // ("Save name (Enter)"), the desktop hands the same key to the rich tooltip as a
-      // keycap — the WORDS are what has to match.
+      // Both sides go through textOf: the browser writes its key into the data-title, the desktop hands the
+      // same key to the rich tooltip as a keycap — the WORDS are what has to match.
       const QString want = textOf(browserTip(QString::fromLatin1(p.browserId)));
       QVERIFY2(!want.isEmpty(), qPrintable(QString("no browser control #%1").arg(p.browserId)));
       QVERIFY2(p.act || p.widget, p.browserId);

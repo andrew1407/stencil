@@ -15,13 +15,8 @@
 #include <QtTest>
 
 namespace stencil::guitest {
-  // ── Reading a surface flight ────────────────────────────────────────────────
-  // A window, a popup menu and the tooltip form from motes streaming out of the control
-  // that owns them and come apart into motes pouring back in (support/modalReveal.cpp,
-  // menuReveal.cpp, AppTooltip.hpp — the browser's js/ui/motion.js surfaceIn/surfaceOut).
-  // The flight is a DisintegrateOverlay child of the window, and it carries the point it
-  // is aimed at: that point IS "where the window comes out of", which is what these tests
-  // are about. Q_OBJECT-free, so it is found by object name and cast statically.
+  // A surface flight is a DisintegrateOverlay child of the window carrying the point it is aimed at —
+  // "where the window comes out of". Q_OBJECT-free, so it is found by object name and cast statically.
   inline stencil::gui::DisintegrateOverlay* surfaceFlight(const QWidget* host) {
     stencil::gui::DisintegrateOverlay* found = nullptr;
     for (QWidget* w : host->findChildren<QWidget*>(
@@ -39,10 +34,8 @@ namespace stencil::guitest {
     return fx ? fx->surfaceTarget() : QPoint(-1, -1);
   }
 
-  // The GHOST twin of the above: the fallback for whatever the dust engine declines
-  // outright (an unmeasurable box, a snapshot that failed to grab) — every dialog,
-  // including the big `.app-modal` ones, dusts first (support/modalReveal.cpp
-  // DIALOG_DUST_MAX_CELLS). Found the same way, by its own object name (makeGhost).
+  // The GHOST twin: the fallback for whatever the dust engine declines (an unmeasurable box, a failed
+  // grab). Every dialog dusts first (modalReveal.cpp DIALOG_DUST_MAX_CELLS). Found by name (makeGhost).
   inline QLabel* modalGhost(const QWidget* host) {
     QLabel* found = nullptr;
     for (QLabel* g : host->findChildren<QLabel*>(QStringLiteral("stencilModalGhost")))
@@ -50,10 +43,8 @@ namespace stencil::guitest {
     return found;
   }
 
-  // Where either flight mechanism (dust or ghost) STARTS, caught on its QEvent::Show
-  // rather than polled later — a ghost's geometry is an active tween, so reading it even
-  // 50ms in is already off. Only the FIRST match sticks, so an immediate accept/close's
-  // CLOSE flight (same object name, starts at the dialog box, not the icon) can't clobber it.
+  // Where either flight mechanism (dust or ghost) STARTS, caught on its QEvent::Show rather than polled:
+  // a ghost's geometry is an active tween. Only the FIRST match sticks, so a close flight cannot clobber.
   struct RevealOriginWatcher : QObject {
     QPoint origin{-1, -1};
     bool captured = false;
@@ -78,10 +69,8 @@ namespace stencil::guitest {
     return control->mapTo(host, control->rect().center());
   }
 
-  // ── Waiting a motion out ───────────────────────────────────────────────────
-  // Wait for the animation held in `slot` on its OWN finished(), which a state that
-  // predates the action cannot satisfy — and for any that replaces it, since a
-  // placement change leaves one edge and then arrives at the next. Empty slot = over.
+  // Wait for the animation held in `slot` on its OWN finished(), which a state that predates the action
+  // cannot satisfy — and for any that replaces it. An empty slot means it is over.
   template <class Anim>
   bool awaitAnim(Anim*& slot, int capMs = 3000) {
     QElapsedTimer t;
@@ -101,9 +90,8 @@ namespace stencil::guitest {
     return fired.wait(capMs);
   }
 
-  // The dust has no such signal: DisintegrateOverlay is Q_OBJECT-free and ticks a plain
-  // QTimer at the screen's refresh rate, retiring itself with deleteLater. Its absence
-  // is the only completion there is, so this one polls — and flushes the deletes.
+  // The dust has no such signal: DisintegrateOverlay is Q_OBJECT-free and retires itself with
+  // deleteLater, so its absence is the only completion there is — this polls, and flushes the deletes.
   inline bool awaitFlights(QWidget* host, int capMs = 3000) {
     return QTest::qWaitFor([host] {
       QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
@@ -111,9 +99,8 @@ namespace stencil::guitest {
     }, capMs);
   }
 
-  // Walk a popup's highlight with `key` until `done` holds. QMenu moves the highlight
-  // inside its own key handler, so a step that lands needs no wait at all; one that does
-  // not still gets `stepMs` to catch up.
+  // Walk a popup's highlight with `key` until `done` holds. QMenu moves the highlight inside its own key
+  // handler, so a step that lands needs no wait at all; one that does not gets `stepMs` to catch up.
   template <class F>
   bool walkMenu(QWidget* popup, Qt::Key key, F done, int steps = 40, int stepMs = 20) {
     for (int i = 0; i < steps && !done(); ++i) {

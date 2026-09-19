@@ -1,9 +1,7 @@
-// Headless check of app/UnitsController.hpp — the display-unit and px→cm arithmetic
-// every length readout in the window shares (the status bar, the hover tooltip, the
-// custom page inputs, the project-list "Line:" row). The browser twin is
-// browser/js/core/units.js layoutLineLengthCm, so the rule pinned here is the one that
-// has to match it: measure off the RAW per-axis page scale, never the formula path.
-// Pure arithmetic; no widgets, no display.
+// Headless check of app/UnitsController.hpp — the display-unit and px→cm arithmetic every length
+// readout in the window shares. The browser twin is js/core/units.js layoutLineLengthCm, so the rule
+// pinned here is the one that has to match it: measure off the RAW per-axis page scale, never the
+// formula path. Pure arithmetic; no widgets, no display.
 #include "UnitsController.hpp"
 
 #include <QCoreApplication>

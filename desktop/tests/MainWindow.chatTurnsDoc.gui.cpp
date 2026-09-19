@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // §12.1 WRITE side: the persisted document is the DISPLAYED transcript, never
-  // chatHistory_ — that is the model's view, carrying the §7 continuation note
-  // and the held round-1 reply the dock never showed. The doc rides the .stencil
-  // file and the server "chat" kind to the browser, the bot and the consoles, so
-  // internal text written here can no longer be filtered out anywhere.
+  // §12.1 WRITE side: the persisted document is the DISPLAYED transcript, never chatHistory_, which
+  // carries the §7 continuation note and the held round-1 reply the dock never showed.
   void chatDocSavesOnlyTheDisplayedTranscript() {
     using stencil::gui::fileStore::parseChatDoc;
     MainWindow win(nullptr, false);
@@ -102,10 +99,8 @@ class MainWindowGuiTest : public QObject {
     // …and re-saving the restored conversation is a fixed point.
     QCOMPARE(parseChatDoc(win.buildActiveChatDoc()), saved);
 
-    // ── 3. defence in depth: an OLD-style doc (written before the machinery
-    // filter) is laundered on read — the §7 note never resurfaces on screen or
-    // in the replay history; the interim reply is indistinguishable from
-    // conversation and survives (browser sanitizeChatMessages parity) ──
+    // 3. defence in depth: an OLD-style doc is laundered on read — the §7 note never resurfaces on
+    // screen or in the replay history, the interim reply survives (browser sanitizeChatMessages).
     QJsonArray old;
     const auto row = [](const char* role, const QString& text) {
       return QJsonObject{{"role", QString::fromLatin1(role)}, {"text", text}};
@@ -159,10 +154,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The error card's Resend glyph is NEUTRAL in both themes, never the card's own
-  // red: the browser's retry is a .chat-hbtn, which sets `color: var(--text-muted)`
-  // itself and does not inherit the bubble's --danger. Painted red it sat red-on-red
-  // in the danger wash and barely read.
+  // The error card's Resend glyph is NEUTRAL in both themes, never the card's own red: the browser's
+  // retry is a .chat-hbtn, which sets `color: var(--text-muted)` and does not inherit --danger.
   void chatErrorRetryGlyphIsNeutral() {
     for (const QString mode : {QStringLiteral("light"), QStringLiteral("dark")}) {
       MainWindow win(nullptr, false);

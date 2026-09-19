@@ -71,9 +71,8 @@ class MainWindowGuiTest : public QObject {
     QTimer::singleShot(0, [&] {
       QMenu* menu = findMenu();
       if (!menu) return;
-      // The classic submenus keep working with the Assistant entry present:
-      // hover-open for two of them, plus the keyboard path (arrows/Right) which
-      // must still drive the menu while nothing has focused the chat input.
+      // The classic submenus keep working with the Assistant entry present: hover-open for two of them,
+      // plus the keyboard path, which must drive the menu while nothing has focused the chat input.
       styleOpened = openSub(menu, "Style") != nullptr;
       filterOpened = openSub(menu, "Image Filter") != nullptr;
 

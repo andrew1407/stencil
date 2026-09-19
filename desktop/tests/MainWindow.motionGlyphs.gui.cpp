@@ -54,19 +54,15 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(hasGlyph.value("Combine", false), "Combine must show a glyph, not a bare word");
     QVERIFY2(hasGlyph.value("Replace", false), "Replace must show a glyph");
     QVERIFY2(hasGlyph.value("Cancel", false), "Cancel must show a glyph");
-    // The glyph names themselves must resolve — a renamed one degrades to a null QIcon,
-    // which is exactly the "button has no icon" the assertions above would then catch,
-    // but this says WHICH name broke.
+    // The glyph names themselves must resolve: a renamed one degrades to a null QIcon, so this says
+    // WHICH name broke rather than leaving the assertions above to report a missing icon.
     QVERIFY2(stencil::gui::hasIcon("layers"), "Combine's glyph");
     QVERIFY2(stencil::gui::hasIcon("swap"), "Replace's glyph");
     beat();
   }
 
-  // Every way a picture lands on the canvas ASSEMBLES out of dust (Sweep::GATHER) instead of
-  // appearing all at once, with the real canvas held back until the motes land: a fresh open
-  // (the OS-open / drop path — a hand-built QDropEvent never routes through Qt's drag
-  // session), a created BLANK (it used to pop into place while a dropped one animated), and
-  // a REOPEN of a saved project, the everyday route that once had no arrival at all.
+  // Every way a picture lands on the canvas ASSEMBLES out of dust (Sweep::GATHER), the real canvas held
+  // back until the motes land: a fresh open, a created BLANK, and a REOPEN of a saved project.
   void imageArrivalAssemblesOnEveryRoute() {
     const auto motion = withMotion();
     const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
@@ -114,10 +110,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // …and the two shapes that must NOT flourish. A REBIND is not an arrival: the same
-  // picture is already on screen (a move-to-local relinks the open editor). Under reduced
-  // motion the image is simply THERE — the bug pinned there is not the missing dust but the
-  // opacity effect, which used to stay on at 0 and leave the canvas blank for 900 ms.
+  // …and the two shapes that must NOT flourish. A REBIND is not an arrival: the picture is already on
+  // screen. Under reduced motion the image is simply THERE, with no opacity effect left at 0.
   void arrivalIsSkippedWhenNothingIsArriving() {
     const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
     for (const bool reduced : {false, true}) {

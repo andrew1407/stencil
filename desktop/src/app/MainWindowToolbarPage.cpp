@@ -97,9 +97,8 @@ namespace stencil::gui {
     // Content-sized: a stretchable pill swallowed the row's leftover width while its click rect
     // stayed at the left.
     allowFormulas_->setSizePolicy(QSizePolicy::Fixed, allowFormulas_->sizePolicy().verticalPolicy());
-    // f(x,y) sits between PAGE and DATA as its own fenced section (the browser writes a .ctrl-sep).
-    // The x/y inputs belong to the pill's section: makeToolSection gives every control one height and
-    // Qt::AlignVCenter, like the browser's flex row.
+    // f(x,y) is its own fenced section (the browser writes a .ctrl-sep). makeToolSection gives every
+    // control one height and Qt::AlignVCenter, like the browser's flex row.
     buildFormulaFields();
     addWrappedSeparator(row);
     // Content-sized, no expanding tail: the browser packs sections left and leaves the slack at

@@ -19,9 +19,8 @@ namespace stencil::gui {
       return;
     }
 
-    // Finish a hold-to-draw gesture. Releasing after a stroke commits the line and
-    // exits drawing; releasing a quick/aborted hold just tears down (selection
-    // already happened on press in handleDrawingClick).
+    // Releasing after a stroke commits the line and exits drawing; a quick/aborted hold just tears
+    // down (selection already happened on press in handleDrawingClick).
     if (holdTimer_.isActive() || hold_.engaged()) {
       holdTimer_.stop();
       const core::HoldEvent ev = hold_.pointerUp(holdNowMs());
@@ -34,9 +33,8 @@ namespace stencil::gui {
       return;
     }
 
-    // Finish an Alt-drag gesture (drawingApp.js mouseup ~925-949). Commit one
-    // undo step only when a committed line actually moved; an in-progress-line
-    // point edit just refreshes the panel.
+    // Finish an Alt-drag (drawingApp.js mouseup). Commit one undo step only when a committed line
+    // actually moved; an in-progress-line point edit just refreshes the panel.
     if (dragKind_ != DragKind::NONE) {
       const bool moved = dragMoved_;
       const bool committed = moved && dragLineIdx_ >= 0;
@@ -143,9 +141,8 @@ namespace stencil::gui {
       return;
     }
 
-    // Ctrl+Shift+wheel with a selected line: rotate it about its center (or the
-    // focused point) by 3 deg/tick (drawingApp.js wheel ~666). With no selection
-    // it falls through to a fast (Shift) zoom.
+    // Ctrl+Shift+wheel with a selected line rotates it about its centre (or the focused point) by
+    // 3 deg/tick (drawingApp.js wheel). With no selection it falls through to a fast (Shift) zoom.
     if ((mods & Qt::ControlModifier) && (mods & Qt::ShiftModifier) &&
         selectionCount() >= 1) {
       rotateSelectedLine((delta > 0 ? 1.0 : -1.0) * (M_PI / 60.0));
@@ -165,9 +162,8 @@ namespace stencil::gui {
     event->ignore();
   }
 
-  // Trackpad pinch (macOS/Wayland) arrives as QEvent::NativeGesture — QWidget has
-  // no dedicated virtual for it. value() is the incremental scale delta per event;
-  // multiply the current scale by (1 + delta), anchored at the cursor.
+  // Trackpad pinch arrives as QEvent::NativeGesture - QWidget has no virtual for it. value() is
+  // the incremental scale delta, so scale *= (1 + delta), anchored at the cursor.
   bool CanvasWidget::event(QEvent* e) {
     if (e->type() == QEvent::NativeGesture) {
       auto* g = static_cast<QNativeGestureEvent*>(e);

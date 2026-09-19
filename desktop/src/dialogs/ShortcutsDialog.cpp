@@ -180,8 +180,7 @@ namespace stencil::gui {
   }
 
   // Pad the pinned head by the vertical scrollbar's slot so its columns line up with the scrolling
-  // rows. SYNCHRONOUSLY off the bar's own extent: the viewport-vs-scrollarea delta lags mid-layout,
-  // and the open flight photographs the dialog before any 0-timer would run.
+  // rows. SYNCHRONOUSLY off the bar's own extent: the viewport-vs-scrollarea delta lags mid-layout.
   void ShortcutsDialog::reserveHeadGutter() {
     QScrollBar* vbar = scroll_->verticalScrollBar();
     const bool needed = vbar->maximum() > vbar->minimum();

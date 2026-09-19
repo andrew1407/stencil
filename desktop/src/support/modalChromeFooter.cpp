@@ -171,9 +171,8 @@ namespace stencil::gui {
     stack->addLayout(footer);
     chrome.root->addLayout(stack);
     auto* wrap = dlg ? new FooterWrap(dlg, stack, footer, h) : nullptr;   // `dlg` = the shell
-    // An explicit setMinimumSize stops SetDefaultConstraint from raising the minimum to
-    // what the layout needs, so a wider system font drew the hint under the first button.
-    // Only ever upwards.
+    // An explicit setMinimumSize stops SetDefaultConstraint from raising the minimum to what the
+    // layout needs, so a wider system font drew the hint under the first button. Only ever upwards.
     if (dlg) {
       QWidget* owner = dlg->parentWidget();   // the dialog the shell fills
       QTimer::singleShot(0, dlg, [dlg, owner, footer, h, wrap] {

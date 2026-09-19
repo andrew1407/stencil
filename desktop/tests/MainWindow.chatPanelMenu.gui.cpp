@@ -47,11 +47,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The panel is built LAZILY and lives hidden inside a QWidgetAction, so rows
-  // mirrored before it is first shown were measured against the default 100px
-  // viewport and stayed collapsed to about a tenth of the panel. It re-measures
-  // on the way in. Its in-flight row also animates the dock's bouncing dots
-  // rather than sitting as a static "…".
+  // The panel is built LAZILY inside a hidden QWidgetAction, so it re-measures rows on the way in
+  // rather than leaving them at the default 100px viewport; its pending row bounces the dots.
   void chatMenuPanelSizesBubblesAndAnimatesPending() {
     MainWindow win(nullptr, false);
     win.resize(1200, 850);
@@ -107,9 +104,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The context-menu Assistant panel renders the DOCK's transcript, not a second
-  // ad-hoc one: same message texts, in FULL (the old panel elided them to
-  // one-line stubs), whichever surface sent them — and a clear empties both.
+  // The context-menu Assistant panel renders the DOCK's transcript, not a second ad-hoc one: the
+  // same message texts in FULL, whichever surface sent them, and a clear empties both.
   void chatMenuPanelMirrorsTheDockTranscript() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);

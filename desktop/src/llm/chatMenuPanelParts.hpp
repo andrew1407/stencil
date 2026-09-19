@@ -27,9 +27,8 @@ namespace stencil::gui {
   inline constexpr int MENU_CHAT_INPUT_MIN_H = 44;    // #ctx-assist-input: two rows
   inline constexpr int MENU_CHAT_INPUT_WIDTH = 216;   // …and what the row leaves it there
   inline constexpr int MENU_CHAT_CHIP_GAP = 4;        // .ctx-assist .chat-empty gap
-  // A per-row "…" hangs 5px outside its bubble, so the transcript is that much wider than
-  // the browser's. The composer carries the browser's TWO buttons — send and the "…" the
-  // rest folds into — so the input still measures what it does there.
+  // A per-row "..." hangs 5px outside its bubble, so the transcript is that much wider than the
+  // browser's. The composer carries the browser's TWO buttons, so the input measures the same.
   inline constexpr int MENU_CHAT_ROW_MENU_OVERHANG = 5;
   inline constexpr int MENU_CHAT_ACTION_COUNT = 2;
   inline constexpr int MENU_CHAT_WIDTH =
@@ -37,9 +36,8 @@ namespace stencil::gui {
       + (MENU_CHAT_ACTION_COUNT - 1) * MENU_CHAT_ACTION_GAP
       + MENU_CHAT_ROW_GAP + MENU_CHAT_ROW_MENU_OVERHANG + 2 * MENU_CHAT_PADDING.left();
 
-  // The transcript takes what the composer leaves inside that window, floored
-  // and capped as above — always bounded by the screen so the flyout can never
-  // overflow a short display.
+  // The transcript takes what the composer leaves inside that window, floored and capped as above -
+  // always bounded by the screen so the flyout can never overflow a short display.
   inline int menuChatTranscriptHeight() {
     const QScreen* screen = QGuiApplication::primaryScreen();
     const int avail = screen ? screen->availableGeometry().height() : 0;

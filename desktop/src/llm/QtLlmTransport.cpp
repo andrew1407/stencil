@@ -28,9 +28,8 @@ namespace stencil::llm {
   void QtLlmTransport::dispatch(
       QNetworkReply* reply,
       std::function<void(int status, QByteArray body, QString error)> cb) {
-    // Context object is nam_ (owned by this transport): if the transport dies the
-    // connection is severed and the lambda never runs on a dangling reply — the
-    // same lifetime pattern as ServerClient::requestAsync.
+    // Context object is nam_ (owned by this transport): if the transport dies the connection is
+    // severed and the lambda never runs on a dangling reply - as in ServerClient::requestAsync.
     QObject::connect(reply, &QNetworkReply::finished, nam_,
                      [reply, cb = std::move(cb)]() {
                        const int status =

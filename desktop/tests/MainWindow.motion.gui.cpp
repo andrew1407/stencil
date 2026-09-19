@@ -8,8 +8,7 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The open flight photographs the dialog before its scroll area has decided its
-  // scrollbar, so the picture that flew was a scrollbar too wide.
+  // The open flight photographs the dialog before its scroll area has decided its scrollbar, so
   // settleLayout brings the scrollbar in before the shot.
   void revealSnapshotWaitsForTheScrollbar() {
     MainWindow win(nullptr, /*restoreLast=*/false);
@@ -32,10 +31,8 @@ class MainWindowGuiTest : public QObject {
     dlg.reject();
   }
 
-  // A press outside a modal dismisses it, like a press on the browser's modal overlay
-  // (ui/base.js). This covers the decision only: QTest hands the widget a QMouseEvent,
-  // while a real press on a window a modal blocks never becomes one — that half is
-  // modalDismissMac.mm reading the NSEvent, which no offscreen test can reach.
+  // A press outside a modal dismisses it, like a press on the browser's modal overlay (ui/base.js).
+  // This covers the decision only; the platform half is modalDismissMac.mm reading the NSEvent.
   void clickOutsideAModalDismissesIt() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(900, 700);
@@ -62,9 +59,8 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(40);
     QVERIFY2(dlg.isVisible(), "a press in the dialog's own popup closed it");
 
-    // A press on the blocked main window dismisses it — posted the way the PLATFORM does,
-    // not with QTest::mouseClick: that hands the widget a QMouseEvent directly and skips
-    // the window-system layer, which is exactly where Qt drops a blocked window's clicks.
+    // A press on the blocked main window dismisses it — posted the way the PLATFORM does, since
+    // QTest::mouseClick skips the window-system layer where Qt drops a blocked window's clicks.
     QTest::mouseClick(&win, Qt::LeftButton, {}, QPoint(60, 400));
     QTRY_VERIFY_WITH_TIMEOUT(!dlg.isVisible(), 1500);
     QCOMPARE(dlg.result(), int(QDialog::Rejected));
@@ -136,9 +132,8 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(gaps == 0, qPrintable(QStringLiteral("row %1: two glyphs (%2)").arg(r).arg(cols)));
       QVERIFY2(widest <= 20, qPrintable(QStringLiteral("row %1: glyph ink %2px wide — more than one icon (%3)").arg(r).arg(widest).arg(cols)));
     }
-    // …and a pick from the popup reports itself as a user pick — activated(), the signal
-    // the dialog applies live from — BEFORE the list leaves. setCurrentIndex alone never
-    // emits it, which is why a popup pick used to apply only on OK.
+    // …and a pick from the popup reports itself as a user pick — activated(), the signal the dialog
+    // applies live from — BEFORE the list leaves; setCurrentIndex alone never emits it.
     QSignalSpy picked(combo, &QComboBox::activated);
     list->setCurrentIndex(list->model()->index(2, 0));   // Fire
     emit list->clicked(list->currentIndex());
@@ -149,9 +144,8 @@ class MainWindowGuiTest : public QObject {
     combo->hidePopup();
   }
 
-  // The dialog reveal must START at the icon that opened it: support::revealDialog dusts
-  // a snapshot of the dialog across the window, every mote streaming out of that icon, so
-  // the flight's target point IS the origin the user sees the window come out of.
+  // The dialog reveal must START at the icon that opened it: support::revealDialog dusts a snapshot
+  // across the window with every mote streaming out of that icon, so that point IS the origin.
   void dialogRevealStartsAtTheIconThatOpenedIt() {
     MainWindow win;
     win.resize(1400, 700);

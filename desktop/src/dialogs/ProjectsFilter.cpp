@@ -32,9 +32,8 @@ namespace stencil::gui {
     filter_->blockSignals(false);
   }
 
-  // The filter/sort/search transition: an excluded row fades and collapses its slot,
-  // an included one plays that backwards (support/filterFade). Deliberately lighter and
-  // quicker than the removal scatter — filtered out is not deleted.
+  // The filter/sort/search transition (support/filterFade): an excluded row fades and collapses its
+  // slot, an included one plays that backwards. Lighter than the scatter - filtered is not deleted.
   ListFilterFade* ProjectsDialog::filterFade() {
     if (filterFade_ || !list_) return filterFade_;
     filterFade_ = new ListFilterFade(list_);
@@ -81,20 +80,19 @@ namespace stencil::gui {
     updateBatchBar();   // the filtered view IS the select-all pool (and the bar's reason to show)
   }
 
-  // Point the delegate at the row whose "⋯" is under the cursor, and sweep the app's own
-  // glass shimmer across the chip as the pointer arrives — the same 325ms InOutSine band
-  // every other control plays (support/ShimmerOverlay.hpp), once per entry.
+  // Point the delegate at the row whose "..." is under the cursor and sweep the app's own glass
+  // shimmer across the chip (support/ShimmerOverlay.hpp, 325ms InOutSine), once per entry.
   void ProjectsDialog::setKebabHover(int row) {
-    if (row == kebabHoverRow_) return;
-    kebabHoverRow_ = row;
+    if (row == hover_.kebabHoverRow) return;
+    hover_.kebabHoverRow = row;
     auto* del = static_cast<ProjectRowDelegate*>(list_->itemDelegate());
     if (del) del->setKebabHover(row);
     list_->viewport()->update();
-    if (row < 0) { if (kebabSweep_) kebabSweep_->cancel(); return; }
-    if (!kebabSweep_)
-      kebabSweep_ = new gui::ShimmerOverlay(nullptr, list_, /*externalBands=*/true);
+    if (row < 0) { if (hover_.kebabSweep) hover_.kebabSweep->cancel(); return; }
+    if (!hover_.kebabSweep)
+      hover_.kebabSweep = new gui::ShimmerOverlay(nullptr, list_, /*externalBands=*/true);
     if (QListWidgetItem* it = list_->item(row))
-      kebabSweep_->sweepBand(del ? del->kebabChipFor(list_->visualItemRect(it)) : QRect());
+      hover_.kebabSweep->sweepBand(del ? del->kebabChipFor(list_->visualItemRect(it)) : QRect());
   }
 
 }  // namespace stencil::gui

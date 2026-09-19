@@ -97,10 +97,12 @@ set(STENCIL_CONNECTDIALOG_SOURCES
   src/dialogs/ConnectDialogActions.cpp
   src/dialogs/ConnectDialogAuth.cpp)
 
-# The links dialog (dialogs/LinksDialog.hpp) is three TUs behind a private parts header:
-# the build, the preview/scrub player and the show path.
+# The links dialog (dialogs/LinksDialog.hpp) is a TU family: the shell, two constructor build
+# stages, the preview/scrub player and the show path.
 set(STENCIL_LINKSDIALOG_SOURCES
   src/dialogs/LinksDialog.cpp
+  src/dialogs/LinksDialogQuickCrop.cpp
+  src/dialogs/LinksDialogPreviewWiring.cpp
   src/dialogs/LinksDialogPreview.cpp
   src/dialogs/LinksDialogShow.cpp)
 
@@ -145,8 +147,20 @@ set(STENCIL_SERVERCLIENT_SOURCES
 
 # The plan executor (llm/planExecutor.hpp) is three TUs: the action dispatch, the
 # MainWindow plan target and the canvas plan target.
+set(STENCIL_OPPLAN_SOURCES
+  src/llm/opPlan.cpp                    # fences, the first JSON object, the plan
+  src/llm/opPlanFields.cpp              # the per-op field filling
+  src/llm/opPlanParse.cpp)              # the actions array and the ask card
+
+set(STENCIL_OPREGISTRY_SOURCES
+  src/llm/opRegistry.cpp                # the table, the canon and the op names
+  src/llm/opRegistryBullets.cpp)        # the "Available ops" prompt section
+
 set(STENCIL_PLANEXECUTOR_SOURCES
   src/llm/planExecutor.cpp
+  src/llm/planExecutorImage.cpp          # crop / rotate / filter / layout / page / blank
+  src/llm/planExecutorEdit.cpp           # history, frames, opens, image refs, save
+  src/llm/planExecutorState.cpp          # the editor-settings ops
   src/llm/planExecutorOps.cpp
   src/llm/planExecutorCanvas.cpp)
 
@@ -159,6 +173,12 @@ set(STENCIL_OPSCHEMA_SOURCES
 
 # The theme (support/theme.hpp) is three TUs: the accent resolution, the palette and the
 # stylesheet build.
+set(STENCIL_TIPCONTENT_SOURCES
+  src/support/tipContent.cpp          # parse: a composed title -> Tip
+  src/support/tipContentKeys.cpp      # the key vocabulary and the painted caps
+  src/support/tipContentRender.cpp    # Tip -> the HTML Qt draws, and its palette
+  src/support/tipContentWiring.cpp)   # keeping a control's tooltip composed
+
 set(STENCIL_THEME_SOURCES
   src/support/theme.cpp
   src/support/themePalette.cpp
@@ -213,6 +233,10 @@ set(STENCIL_FACESWAP_SOURCES
 
 set(STENCIL_GUI_SOURCES
   src/app/MainWindow.cpp
+  src/app/MainWindowWireSignals.cpp
+  src/app/MainWindowExecPopover.cpp
+  src/app/MainWindowOpenDialogs.cpp
+  src/app/MainWindowOpenProjects.cpp
   src/app/MainWindowActions.cpp
   src/app/MainWindowActionsData.cpp
   src/app/MainWindowActionsTips.cpp
@@ -322,6 +346,7 @@ set(STENCIL_GUI_SOURCES
   src/app/SelectedLineBar.cpp
   src/app/SelectedLineBarRow.cpp
   src/llm/ChatDock.cpp
+  src/llm/ChatDockComposer.cpp
   src/llm/ChatDockChrome.cpp
   src/llm/chatDockShared.cpp
   src/llm/chatMoreMenu.cpp
@@ -341,6 +366,7 @@ set(STENCIL_GUI_SOURCES
   src/llm/ChatDockVariants.cpp
   src/llm/ChatDockState.cpp
   src/llm/chatWidgets.cpp
+  src/llm/chatBubbleTail.cpp
   src/llm/chatWidgetsOverlays.cpp
   src/llm/chatCardRenderer.cpp
   src/llm/ChatMenuPanel.cpp
@@ -350,15 +376,15 @@ set(STENCIL_GUI_SOURCES
   src/app/ChatPlanTarget.cpp
   src/app/ChatPlanTargetServer.cpp
   src/app/ChatPlanTargetProjects.cpp
-  src/llm/opPlan.cpp
-  src/llm/opRegistry.cpp
+  ${STENCIL_OPPLAN_SOURCES}
+  ${STENCIL_OPREGISTRY_SOURCES}
   ${STENCIL_OPSCHEMA_SOURCES}
   src/llm/LlmClient.cpp
   src/llm/LlmClientProbe.cpp
   src/llm/LlmClientChat.cpp
   ${STENCIL_PLANEXECUTOR_SOURCES}
   src/llm/QtLlmTransport.cpp
-  src/support/tipContent.cpp
+  ${STENCIL_TIPCONTENT_SOURCES}
   ${STENCIL_CANVAS_SOURCES}
   src/canvas/IdleCard.cpp
   src/canvas/CanvasTooltip.cpp

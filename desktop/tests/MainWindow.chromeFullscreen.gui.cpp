@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Fullscreen edge-hover: prove the top toolbars and the right points panel REVEAL WITH AN
-  // ANIMATION (they pass through intermediate sizes, not an instant pop) and do so MONOTONICALLY
-  // (no size oscillation = no flicker), then hide + fully restore on exit with no lingering effect.
+  // Fullscreen edge-hover: the top toolbars and the right points panel reveal WITH AN ANIMATION and
+  // do so MONOTONICALLY (no oscillation = no flicker), then hide and fully restore on exit.
   void fullscreenRevealAnimatesSmoothly() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 760);
@@ -91,12 +90,8 @@ class MainWindowGuiTest : public QObject {
     for (QToolBar* b : win.findChildren<QToolBar*>()) QVERIFY(b->graphicsEffect() == nullptr);
   }
 
-  // Entering/leaving fullscreen plays the canvas STRETCHING out of (and minimising
-  // back into) its old viewport box — MainWindow::beginFullscreenZoom, the desktop
-  // twin of the FLIP in browser/js/ui/motion.js. The contract that must hold whatever
-  // the window manager does with the geometry is that the ramp only ever ENDS on the
-  // zoom the user picked: the motion is decoration, never a zoom change. Offscreen the
-  // resize may not land at all, in which case it correctly plays nothing.
+  // Entering and leaving fullscreen stretches the canvas out of its old viewport box — the desktop
+  // twin of the FLIP in browser motion.js. The ramp only ever ENDS on the zoom the user picked.
   void fullscreenStretchPreservesZoom() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 760);
@@ -121,10 +116,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(canvas->scale(), chosen);  // …and neither did leaving
   }
 
-  // Fullscreen pulls every toolbar out from under whatever they had in the air, and takes
-  // the logo's own overlay with it: a cloud started by a toolbar control was left flying
-  // over the bare canvas, and the logo's resting mark sat on over the label that took its
-  // place.
+  // Fullscreen pulls every toolbar out from under whatever they had in the air, and takes the logo's
+  // own overlay with it: nothing may be left flying over the bare canvas.
   void fullscreenLeavesNothingBehindIt() {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("fullscreen gestures need the offscreen platform");

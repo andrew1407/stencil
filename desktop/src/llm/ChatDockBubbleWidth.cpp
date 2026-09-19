@@ -80,5 +80,5 @@ namespace stencil::gui {
     repositionChatBubbleTails(transcript);
   }
 
-  void ChatDock::applyBubbleWidths() { applyChatBubbleWidths(transcript_, scroll_); }
+  void ChatDock::applyBubbleWidths() { applyChatBubbleWidths(log_.transcript, scroll_); }
 }  // namespace stencil::gui

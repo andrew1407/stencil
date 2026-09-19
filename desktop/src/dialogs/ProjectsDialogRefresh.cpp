@@ -54,15 +54,15 @@ namespace stencil::gui {
       it->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
     }
 
-    // Drop LOCAL keys whose project is GONE (the bar reads checked_.size()); a remote key is left
+    // Drop LOCAL keys whose project is GONE (the bar reads batch_.checked.size()); a remote key is left
     // alone — a listing that has not answered is not proof it is gone.
-    if (!checked_.isEmpty()) {
+    if (!batch_.checked.isEmpty()) {
       QSet<QString> liveIds;
       liveIds.reserve(projects_.size());
       for (const Project& p : projects_) liveIds.insert(QString::fromStdString(p.meta.id));
-      for (auto it = checked_.begin(); it != checked_.end();) {
+      for (auto it = batch_.checked.begin(); it != batch_.checked.end();) {
         if (it->startsWith(QLatin1Char('|')) && !liveIds.contains(it->mid(1)))
-          it = checked_.erase(it);
+          it = batch_.checked.erase(it);
         else
           ++it;
       }
@@ -80,8 +80,7 @@ namespace stencil::gui {
     building_ = false;
     updateBatchBar();
     // Rows this rebuild ADDED form out of sand on the ARRIVAL clock, last and one beat later, so a
-    // removal's ash has the screen to itself first (browser beginRemoval). Only while ON SCREEN:
-    // opening rebuilds more than once, and a row nobody has seen is part of what opens, not an arrival.
+    // removal's ash has the screen to itself first (browser beginRemoval). Only while ON SCREEN.
     if (wasBuilt && isVisible()) {
       QSet<QString> arriving;
       for (int i = 0; i < list_->count(); ++i) {

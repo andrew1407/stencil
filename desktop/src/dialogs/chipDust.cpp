@@ -50,9 +50,8 @@ namespace stencil::gui {
     // The END state into the layout LAST: setStartValue emits its value straight away, so
     // pinning before it left the line's old height in the layout for the refit to measure.
     pin(show ? full : 0);
-    // Started ONE TURN LATER: start() emits its first value at once, which would put the
-    // line's old height back into the layout before the caller's refit measures it — and
-    // the window then settled a line short of its own content, both ways.
+    // Started ONE TURN LATER: start() emits its first value at once, which would put the line's old
+    // height back into the layout before the caller's refit measures it.
     QVariantAnimation* a = anim;
     QTimer::singleShot(0, a, [a] {
       if (a->state() != QAbstractAnimation::Running) a->start();

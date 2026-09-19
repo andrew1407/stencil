@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A palette change gets the flood-from-the-centre wipe (support/ThemeSwapOverlay.hpp,
-  // the desktop twin of themeSwap in browser/js/ui/motion.js). The contract worth pinning
-  // is WHEN it plays: on a real theme/accent change, never on the boot pass or on the many
-  // re-applies that resolve to the same palette — and it must always clean itself up.
+  // A palette change gets the flood-from-the-centre wipe (support/ThemeSwapOverlay.hpp, the twin of
+  // themeSwap in motion.js): it plays on a real change only, never on boot or a same-palette re-apply.
   void themeSwapWipesOnlyOnRealChanges() {
     const auto motion = withMotion();   // the wipe is motion: reduced motion just restyles
     MainWindow win(nullptr, /*restoreLast=*/false);
@@ -49,11 +47,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.settings_.accentColor, accented.accentColor);
   }
 
-  // …but ONE flip at a time. A second press while the wipe plays would restyle the window
-  // under an overlay still holding the PREVIOUS snapshot, and the two palettes tear across
-  // each other — hammering the toolbar button was visibly breaking the window. The browser
-  // gets this free (a new view transition supersedes the one in flight); here the press is
-  // dropped until the wipe has finished.
+  // …but ONE flip at a time: a second press mid-wipe would restyle the window under an overlay still
+  // holding the PREVIOUS snapshot, so the press is dropped until the wipe has finished.
   void themeToggleIsIgnoredMidWipe() {
     const auto motion = withMotion();
     MainWindow win(nullptr, /*restoreLast=*/false);
@@ -87,11 +82,8 @@ class MainWindowGuiTest : public QObject {
     win.applySettings(restore, true);
   }
 
-  // Nothing the restyle touched may show its new colours before the circle gets there.
-  // The colour chips (updateColorSwatch) carry a palette-coloured frame, and applySettings
-  // used to re-issue them BEFORE applyTheme() grabbed its snapshot — so the pickers were
-  // baked into the snapshot already light while the window around them was still dark, and
-  // stayed that way until the wipe finally reached them.
+  // Nothing the restyle touched may show its new colours before the circle gets there: applySettings
+  // must not re-issue the palette-coloured chips before applyTheme() has grabbed its snapshot.
   void themeSwapSnapshotStillWearsTheOldPalette() {
     const auto motion = withMotion();
     MainWindow win(nullptr, /*restoreLast=*/false);

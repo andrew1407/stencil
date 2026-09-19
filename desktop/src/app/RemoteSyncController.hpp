@@ -14,9 +14,8 @@ namespace stencil::gui {
 
   class RemoteSession;
 
-  // Live co-edit engine: the three sync timers + the LiveFeed subscription, mirroring the
-  // browser's remoteSyncController.js. Composes RemoteSession directly; the canvas-driving actions
-  // stay on MainWindow as hooks.
+  // Live co-edit engine: the three sync timers + the LiveFeed subscription, mirroring the browser's
+  // remoteSyncController.js. The canvas-driving actions stay on MainWindow as hooks.
   class RemoteSyncController : public QObject {
     Q_OBJECT
    public:

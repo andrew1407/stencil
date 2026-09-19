@@ -5,9 +5,8 @@
 
 namespace stencil::guitest {
 
-  // A shown, enabled, tooltip-carrying TOOLBAR button. Searched per toolbar, not over the
-  // whole window: a panel chevron retires itself moments after the window opens, and a
-  // tooltip whose control went away is retired by the panel's anti-stranding heartbeat.
+  // A shown, enabled, tooltip-carrying TOOLBAR button, searched per toolbar: a panel chevron retires
+  // itself moments after the window opens, and the panel's anti-stranding heartbeat retires its tooltip.
   inline QToolButton* tipCarrier(MainWindow& win) {
     for (QToolBar* bar : win.findChildren<QToolBar*>())
       for (QToolButton* b : bar->findChildren<QToolButton*>())

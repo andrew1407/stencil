@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The copy/download-image toolbar buttons open a small variant-options popup on
-  // right-click instead of re-running the plain action (browser parity:
-  // js/ui/exportOptionsMenu.js) — verifies wireExportOptionsPopups(). The copy button's
-  // plain click is also exercised (safe: no blocking dialog, unlike Save's file picker).
+  // The copy/download-image toolbar buttons open a variant-options popup on right-click instead of
+  // re-running the plain action (browser js/ui/exportOptionsMenu.js): wireExportOptionsPopups().
   void toolbarImageButtonsOpenExportOptionsOnRightClick() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -61,21 +59,15 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(copyTriggers, 1);
     beat();
   }
-  // Alt+hover over the copy/download-image toolbar buttons themselves opens their
-  // export-options popup, the SAME hold-to-peek gesture every other popover icon
-  // gets (MainWindowEvents.cpp's pop_.peekExportMenu) — not just right-click/dblclick.
-  // Releasing Alt closes it again unless the cursor moved inside it first (engaged).
+  // Alt+hover over the copy/download-image buttons opens their export-options popup — the same
+  // hold-to-peek every popover icon gets — and releasing Alt closes it unless the cursor engaged it.
   void altHoldOverExportButtonOpensItsOptionsPopup() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    // QCursor::pos() is one process-wide value that outlives any one test/window —
-    // a stray Alt keypress otherwise risks landing on WHATEVER popover button a
-    // PRIOR test last left the (fake, offscreen) cursor sitting over, opening a
-    // modal dialog that then blocks forever in execMaybePopover's QEventLoop::exec()
-    // with nothing left to close it (regression: hung the whole suite, 300s
-    // watchdog abort). Away from every icon before this test touches Alt at all.
+    // QCursor::pos() is one process-wide value outliving any window, and a stray Alt over a popover
+    // button opens a modal that blocks forever in execMaybePopover: park it away from every icon.
     QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
@@ -111,10 +103,8 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(260);   // let the row-preview's own dust settle before `win` dies (see above)
     QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));   // leave it parked for whatever runs next
   }
-  // The variant popups take MenuHotkeyChips' `compact` mode — a tighter local stylesheet
-  // plus a "\t"+spaces run sized to the chip's own width — rather than theme.cpp's generic
-  // QMenu::item padding, which is sized for the menu bar's wider rows. This bounds the
-  // SLACK only; per-chip fit is downloadPopupChipsAreNotClipped.
+  // The variant popups take MenuHotkeyChips' `compact` mode rather than theme.cpp's generic QMenu::item
+  // padding, which is sized for the menu bar's wider rows. This bounds the SLACK only.
   void exportOptionsPopupIsNotWiderThanItsContent() {
     QApplication::setStyle(QStyleFactory::create("Fusion"));   // main.cpp forces this app-wide
     MainWindow win(nullptr, false);
@@ -139,32 +129,25 @@ class MainWindowGuiTest : public QObject {
       widestLabel = std::max(widestLabel, menu->fontMetrics().horizontalAdvance(label));
     }
     int widestChip = 0;
-    // Skip HIDDEN chips ("Filter Only" with no filter applied, "With Compare" outside
-    // compare) — MenuHotkeys.hpp's place() hides rather than destroys them, so one can
-    // still be sitting there with a nonzero width that never actually shows on screen.
+    // Skip HIDDEN chips ("Filter Only" with no filter, "With Compare" outside compare): place() hides
+    // rather than destroys them, so one can sit there with a width that never shows on screen.
     for (QLabel* l : menu->findChildren<QLabel*>())
       if (auto* chip = dynamic_cast<stencil::gui::TipBody*>(l))
         if (!chip->isHidden()) widestChip = std::max(widestChip, chip->width());
     QVERIFY2(widestChip > 0, "no hotkey chips found on the copy-image popup");
 
-    // Icon + paddings + the gap between label and chip + the menu's own frame. A
-    // generous ceiling (not an exact match) — it only has to catch the row coming out
-    // FAR wider than its content, the actual regression.
+    // Icon + paddings + the gap between label and chip + the menu's own frame: a generous ceiling, not
+    // an exact match, since it only has to catch a row coming out FAR wider than its content.
     const int slack = menu->width() - (widestLabel + widestChip);
-    // Closed BEFORE asserting, not after — an early QVERIFY2 return must never leave the
-    // menu open, or it outlives `win` and crashes on teardown (downloadPopupChipsAreNotClipped's
-    // own comment has the full story; this test used to assert first, so a failing slack
-    // check here left the popup open and took the whole process down with it — SIGSEGV,
-    // reported).
+    // Closed BEFORE asserting: an early QVERIFY2 return must never leave the menu open, or it outlives
+    // `win` and crashes on teardown (reported SIGSEGV).
     menu->close();
     QVERIFY2(slack > 0 && slack <= 80,
              qPrintable(QString("menu is %1 wide for a %2px label + %3px chip — %4px of slack")
                             .arg(menu->width()).arg(widestLabel).arg(widestChip).arg(slack)));
   }
-  // Per-chip "does it actually fit inside the menu", not just the aggregate slack the
-  // case above bounds: setFixedWidth clips only the outer widget frame, never
-  // QMenuPrivate's own sizeHint-driven row layout. The menu is closed BEFORE asserting —
-  // a QMenu outliving `win` crashes on teardown.
+  // Per-chip "does it actually fit inside the menu", not the aggregate slack above: setFixedWidth clips
+  // the outer frame only, never QMenuPrivate's sizeHint-driven row layout. Closed before asserting.
   void downloadPopupChipsAreNotClipped() {
     QApplication::setStyle(QStyleFactory::create("Fusion"));
     MainWindow win(nullptr, false);

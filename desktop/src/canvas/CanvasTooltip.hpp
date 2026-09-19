@@ -30,9 +30,8 @@ namespace stencil::gui {
    private:
     // Fade/dust out then hide (idempotent). The way back in lives in showAt().
     void hideTip();
-    // Fly the tip's own motes out of / back into the point it appeared at — the cursor, its only real
-    // anchor. Measured in the top-level window's coords so escapeHost can carry the cloud past it.
-    // Returns whether the dust actually played (a decline falls back to a plain fade).
+    // Fly the tip's own motes out of / back into the point it appeared at. Measured in the top-level
+    // window's coords so escapeHost can carry the cloud past it. False -> the caller plain-fades.
     bool dust(bool gather);
 
     QLabel* body_ = nullptr;

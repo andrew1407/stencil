@@ -6,9 +6,8 @@
 
 namespace stencil::gui {
 
-  // Both meta windows open at META_WINDOW_PX in EVERY shape, the compact popover included. This
-  // window's body is one text area, so its floor is that height less this window's own chrome; the
-  // keywords one subtracts more, for the input row above its chip well.
+  // Both meta windows open at META_WINDOW_PX in EVERY shape. This body is one text area, so its
+  // floor is that height less this window's own chrome; the keywords one subtracts more.
   static constexpr int FIELD_FLOOR_PX = 334;
 
   DescriptionDialog::DescriptionDialog(const QString& current, QWidget* parent)

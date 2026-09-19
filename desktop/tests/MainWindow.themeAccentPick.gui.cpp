@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Logo accent-preset picker as a first-class popover: right-click opens it sticky,
-  // hold-Alt peeks it, Alt-glide swaps popovers one at a time, a mid-peek right-press
-  // promotes the peek to sticky, plain click still cycles. The popovers are modal (exec),
-  // so every mid-open interaction runs from timers scheduled before the blocking call.
+  // Logo accent-preset picker as a first-class popover: right-click opens it sticky, hold-Alt peeks,
+  // Alt-glide swaps one at a time, a mid-peek right-press promotes to sticky, plain click cycles.
   void logoAccentPopoverPicksDirectly() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
@@ -51,9 +49,8 @@ class MainWindowGuiTest : public QObject {
       QTest::keyPress(&win, Qt::Key_Alt);
       QTest::keyRelease(&win, Qt::Key_Alt);
       stickySurvivedAlt = win.pop_.active && !win.pop_.active->isHidden();
-      // Picking a colour APPLIES it and CLOSES the popover (user decision — hovering
-      // already previews live, so a click is a commit). Browser twin: the logo menu
-      // closes on a pick.
+      // Picking a colour APPLIES it and CLOSES the popover (user decision — hovering already previews
+      // live, so a click is a commit). Browser twin: the logo menu closes on a pick.
       if (pop) {
         const QString key = presets[size_t(pick)].key;
         auto* row = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + key);
@@ -84,9 +81,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!win.pop_.active, "Alt+click must not open a popover");
     QVERIFY2(!win.logoClickTimer_->isActive(), "Alt+click must not arm the click-cycle timer");
 
-    // ── PEEK: plain Alt hold over the logo opens promptly; Alt release closes ──
-    // (hover simulated via WA_UnderMouse — the state a real Enter leaves behind; the
-    // Alt KeyPress loop and glide poll accept it alongside the cursor check).
+    // PEEK: plain Alt hold over the logo opens promptly and Alt release closes. Hover is simulated via
+    // WA_UnderMouse, the state a real Enter leaves behind.
     logo->setAttribute(Qt::WA_UnderMouse, true);
     bool peekOpened = false, releaseClosed = false;
     QTimer::singleShot(120, &win, [&] {

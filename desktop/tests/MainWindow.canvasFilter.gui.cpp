@@ -13,10 +13,8 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
 
-    // The context-menu filter options are hosted QRadioButtons (an exclusive QButtonGroup) so
-    // picking one keeps the menu open; find them by their "filterValue" property and drive them.
-    // The radios live inside QWidgetActions' default widgets (setDefaultWidget reparents them out
-    // of the window until a menu shows them), so reach them via the actions, not win's children.
+    // The menu's filter options are hosted QRadioButtons in an exclusive QButtonGroup, so
+    // picking one keeps the menu open; reach them through the QWidgetActions, by "filterValue".
     auto filterRadio = [&](const QString& value) -> QRadioButton* {
       for (QWidgetAction* a : win.findChildren<QWidgetAction*>())
         if (QWidget* dw = a->defaultWidget())
@@ -25,9 +23,8 @@ class MainWindowGuiTest : public QObject {
       return nullptr;
     };
 
-    // Normalize to a known baseline via the real "None" radio: applyImageFilter PERSISTS the
-    // chosen mode to settings, so a prior run/test can start this canvas non-"none". Drive it
-    // rather than assuming the default (order-safe).
+    // Normalize via the real "None" radio: applyImageFilter PERSISTS the chosen mode to
+    // settings, so a prior run can start this canvas non-"none" (order-safe).
     QRadioButton* none = filterRadio("none");
     QVERIFY(none);
     none->setChecked(true);
@@ -72,9 +69,8 @@ class MainWindowGuiTest : public QObject {
     newLine->trigger();
     QCOMPARE(static_cast<int>(canvas->lines().size()), 1);
 
-    // The destructive "Clear All Lines" action (canvas context menu + Edit menu
-    // reuse it) asks first — the browser's styled confirm (drawingApp.js
-    // clearAllLines) — and on Confirm wipes every committed and in-progress point.
+    // "Clear All Lines" (canvas context menu + Edit menu) asks first — the browser's styled
+    // confirm (drawingApp.js clearAllLines) — and on Confirm wipes committed and in-progress.
     QAction* clear = actionByText(&win, "Clear All Lines");
     QVERIFY(clear && clear->isEnabled());
     dismissModal("OK");
@@ -84,10 +80,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // A filter left over from the previous image/session must not repaint a FRESH
-  // blank: "make a red page" under a riding 'bw' filter rendered flat gray
-  // (Rec. 709 luma of pure red = 54) with no red anywhere. Creation resets the
-  // filter to none; a filter applied AFTER creation still works (test above).
+  // A filter left over from the previous image must not repaint a FRESH blank; creation resets
+  // the filter to none, and a filter applied AFTER creation still works (test above).
   void blankCreationResetsRidingFilter() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -104,10 +98,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The bug this locks down: recoloring a blank project's background regenerates the
-  // SAME dimensions in place (applyBlankColor → loadFromImage(img, keepZoom=true)) —
-  // there is nothing to refit, so the zoom the user had set must survive it (browser
-  // parity: drawingApp.js loadImageFromFile's opts.keepZoom / drawingApp-launch tests).
+  // Recoloring a blank regenerates the SAME dimensions in place (applyBlankColor →
+  // loadFromImage(keepZoom=true)), so the zoom the user set must survive.
   void recoloringABlankKeepsTheZoom() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);

@@ -20,10 +20,10 @@ namespace stencil::test {
     QString js;
     QJsonObject strings;
 
-    // jsPath is repo-relative, e.g. "browser/js/ui/toolbar.js".
+    // jsPath is repo-relative; calls APPEND, since a surface's markup spans sibling modules.
     bool load(const QString& jsPath) {
       QFile f(repoRoot() + '/' + jsPath);
-      if (f.open(QIODevice::ReadOnly)) js = QString::fromUtf8(f.readAll());
+      if (f.open(QIODevice::ReadOnly)) js += QString::fromUtf8(f.readAll());
       QFile s(repoRoot() + "/browser/js/config/uiStrings.json");
       if (s.open(QIODevice::ReadOnly))
         strings = QJsonDocument::fromJson(s.readAll()).object();

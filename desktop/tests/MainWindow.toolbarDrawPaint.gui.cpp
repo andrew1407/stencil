@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The Start/Stop toggle is an ACCENT toggle, not a status light (browser #draw-toggle):
-  // OUTLINED while idle — accent ring, accent glyph, neutral face — and accent-FILLED with
-  // the on-accent ink while a session is live. The bug this locks down: it carried the
-  // sections' permanent toolFill, so both states were the same filled accent chip and the
-  // button said nothing about which one you were in. The accent is the USER's, so every
-  // assertion is made again after switching it — a hard-coded colour cannot pass twice.
+  // The Start/Stop toggle is an ACCENT toggle, not a status light (browser #draw-toggle): OUTLINED while
+  // idle, accent-FILLED while live. The accent is the USER's, so every assertion runs again after a swap.
   void drawToggleWearsTheThemeAccentPerState() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -57,9 +53,8 @@ class MainWindowGuiTest : public QObject {
       const QColor ink = stencil::gui::themePalette(win.paintedDark_, accentKey).textMain;
       QTRY_VERIFY_WITH_TIMEOUT(nearColor(glyph(), ink, 40), 3000);
 
-      // ── Idle: the plain UI outline and the theme's own ink, with NO accent anywhere on
-      // it (user decision) — the accent is what the RUNNING state says, and saying it in
-      // both states said nothing about which one you were in.
+      // Idle: the plain UI outline and the theme's own ink, with NO accent anywhere on it (user decision) —
+      // the accent is what the RUNNING state says.
       QVERIFY(!canvas->isDrawing());
       QCOMPARE(btn->property("drawToggle").toString(), QString("idle"));
       QVERIFY2(!nearColor(outline(), accent, 40), qPrintable("idle wears the accent ring" + why));
@@ -73,9 +68,8 @@ class MainWindowGuiTest : public QObject {
       start->trigger();
       QTRY_VERIFY(canvas->isDrawing());
       QTRY_COMPARE(btn->property("drawToggle").toString(), QString("on"));
-      // The property flips at the face swap's PIVOT, with the glyph still turning in —
-      // so every pixel sample below waits for the face to land rather than reading the
-      // frame that happens to be up.
+      // The property flips at the face swap's PIVOT, with the glyph still turning in, so every pixel sample
+      // below waits for the face to land rather than reading whatever frame is up.
       QTRY_VERIFY2_WITH_TIMEOUT(nearColor(ground(), accent, 50),
                                 qPrintable("drawing is not accent-filled" + why), 3000);
       QTRY_VERIFY2_WITH_TIMEOUT(nearColor(glyph(), stencil::gui::onAccentInk(accent), 40),
@@ -103,9 +97,8 @@ class MainWindowGuiTest : public QObject {
              "a disabled draw toggle keeps its accent ring");
     beat();
   }
-  // The Line/Rect toggle's two faces must read as SIBLINGS — one drawing vocabulary, not a
-  // stroked PENCIL (an edit verb, and the rename affordance's own glyph) beside a solid
-  // slab. Both are now outlines of the same weight on the same grid.
+  // The Line/Rect toggle's two faces must read as SIBLINGS — one drawing vocabulary, not a stroked
+  // PENCIL beside a solid slab: both are outlines of the same weight on the same grid.
   void drawModeGlyphsAreSiblings() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -122,9 +115,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(mode->text(), QString("Line"));
     QTRY_COMPARE(mode->property(GLYPH).toString(), QString("line"));
 
-    // …and they really are the same KIND of picture. An OUTLINE is hollow where a filled
-    // slab is solid, and the two faces carry a comparable amount of ink — which is what
-    // "siblings" means here, and what a pencil-beside-a-slab pair failed.
+    // …and they really are the same KIND of picture: an OUTLINE is hollow where a filled slab is solid,
+    // and the two faces carry a comparable amount of ink, which is what "siblings" means here.
     const auto glyph = [](const QString& name) {
       return stencil::gui::themedIcon(name, QColor(Qt::black), 32, 1.0)
           .pixmap(32, 32).toImage().convertToFormat(QImage::Format_ARGB32);
@@ -149,11 +141,8 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("the pair is lopsided: line %1 vs rect %2").arg(li).arg(ri)));
     beat();
   }
-  // The Start/Stop and Line/Rect faces read as WORDS: a size up from the toolbar's dense
-  // default, with the glyph+label pair CENTRED in the button. Qt anchors a text-beside-icon
-  // label at the left of the content rect and keeps its own slack on the right, so equal
-  // padding drew the pair off-centre in its box — the theme
-  // moves that slack to the left. Pins both halves.
+  // The Start/Stop and Line/Rect faces read as WORDS: a size up from the toolbar's dense default, with
+  // the glyph+label pair CENTRED — Qt keeps its own slack on the right, so the theme moves it left.
   void drawFaceButtonsAreCentredAndReadable() {
     MainWindow win(nullptr, false);
     win.resize(1500, 900);
@@ -167,9 +156,8 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(b->font().pixelSize() >= 12,
                qPrintable(who + " kept the toolbar's small font: "
                           + QString::number(b->font().pixelSize())));
-      // Where the face's ink sits inside the box, ignoring the 1px border.
-      // Photographed through the WINDOW, not the button: a QSS-styled child grabs empty
-      // under the offscreen platform until it has painted once in its own right.
+      // Where the face's ink sits inside the box, ignoring the 1px border. Photographed through the WINDOW:
+      // a QSS-styled child grabs empty offscreen until it has painted once in its own right.
       const QImage im = win.grab(QRect(b->mapTo(&win, QPoint(0, 0)), b->size())).toImage();
       // Sampled INSIDE the box, clear of its 1px outline (which is ink of its own).
       const QRgb bg = im.pixel(5, im.height() / 2);

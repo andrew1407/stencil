@@ -15,14 +15,12 @@
 // the generated init function.
 static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 
-// The desktop op registry (llm-contract §13): the shared opRegistry.json supplies every bullet, "also
-// accepts" line, flag and forbidden name; this table adds the OpKind and the desktop capability each
-// op needs. So the prompt can never promise an op this surface cannot run; a new op is one row here.
+// The desktop op registry (llm-contract §13): the shared opRegistry.json supplies every bullet,
+// "also accepts" line, flag and forbidden name; this table adds the OpKind and the capability.
 namespace stencil::llm {
 
-  // Any string field of the §4 prompt canon, parsed once from the qrc asset. "head" carries its trailing
-  // newline and "tail" its leading blank line, so assembly is plain head + bullets + tail. Empty on a
-  // broken alias — the configCanon pins and the llmClient byte-stability test fail fast on that.
+  // Any string field of the §4 prompt canon, parsed once from the qrc asset. "head" carries its
+  // trailing newline and "tail" its leading blank line, so assembly is head + bullets + tail.
   QString promptText(const QString& key) {
     static const QJsonObject canon = [] {
       ensureAppResources();
@@ -99,9 +97,8 @@ namespace stencil::llm {
     return table;
   }
 
-  // §10 "also accepts" widenings — the registry's `also` lines in alsoOrder,
-  // closing the editor block; each dropped with its op when the op's capability
-  // is missing.
+  // §10 "also accepts" widenings - the registry's `also` lines in alsoOrder, closing the editor
+  // block; each dropped with its op when the op's capability is missing.
   const QVector<OpAddendum>& opAddenda() {
     static const QVector<OpAddendum> addenda = [] {
       QVector<QPair<int, OpAddendum>> ordered;
@@ -151,94 +148,6 @@ namespace stencil::llm {
     if (!isForbiddenOpName(name)) return false;
     if (err) *err = QStringLiteral("%1: this operation is not model-drivable").arg(name);
     return true;
-  }
-
-  bool bulletLeaksSecrets(const QString& bullet) {
-    // §13 censor patterns: api keys, bearer tokens, endpoint-setting
-    // instructions. A match fails assembly loudly — never leaks into the prompt.
-    static const QVector<QRegularExpression> patterns = {
-        QRegularExpression("api[\\s_-]?key", QRegularExpression::CaseInsensitiveOption),
-        QRegularExpression("\\bbearer\\b", QRegularExpression::CaseInsensitiveOption),
-        QRegularExpression("access[\\s_-]?token", QRegularExpression::CaseInsensitiveOption),
-        QRegularExpression("auth(orization)?[\\s_-]?token", QRegularExpression::CaseInsensitiveOption),
-        QRegularExpression("\\bendpoint\\b", QRegularExpression::CaseInsensitiveOption),
-        QRegularExpression("base[\\s_-]?url", QRegularExpression::CaseInsensitiveOption),
-        QRegularExpression("\\bsecret\\b", QRegularExpression::CaseInsensitiveOption),
-        QRegularExpression("\\bpassword\\b", QRegularExpression::CaseInsensitiveOption),
-    };
-    for (const auto& re : patterns)
-      if (re.match(bullet).hasMatch()) return true;
-    return false;
-  }
-
-  QString assembleOpsBullets(const QVector<OpDescriptor>& entries,
-                             const QVector<OpAddendum>& addenda, unsigned caps,
-                             QString* censorError) {
-    QStringList bullets;
-    QStringList emitted;   // shared-bullet dedupe (undo/redo, connect/disconnect)
-    QVector<OpKind> included;
-    int lastEditorAt = -1;
-    auto push = [&](const QString& b) -> bool {
-      if (bulletLeaksSecrets(b)) {
-        // §13 censor: fail loudly at assembly, drop the bullet.
-        if (censorError && censorError->isEmpty())
-          *censorError = QStringLiteral("op registry bullet matches a sensitive pattern");
-        Q_ASSERT(censorError != nullptr);  // production callers must observe the failure
-        return false;
-      }
-      bullets.append(b);
-      return true;
-    };
-    for (const OpDescriptor& e : entries) {
-      if ((caps & e.capability) != e.capability) continue;  // §13 capability truth
-      included.append(e.kind);
-      if (emitted.contains(e.bullet)) continue;
-      emitted.append(e.bullet);
-      if (push(e.bullet) && e.editorSettings) lastEditorAt = bullets.size() - 1;
-    }
-    // Addenda close the editor block (right after its last bullet).
-    QStringList extra;
-    for (const OpAddendum& ad : addenda) {
-      if (!included.contains(ad.kind)) continue;
-      const QString& b = ad.bullet;
-      if (bulletLeaksSecrets(b)) {
-        if (censorError && censorError->isEmpty())
-          *censorError = QStringLiteral("op registry bullet matches a sensitive pattern");
-        Q_ASSERT(censorError != nullptr);
-        continue;
-      }
-      extra.append(b);
-    }
-    if (!extra.isEmpty() && lastEditorAt >= 0)
-      for (int i = 0; i < extra.size(); ++i) bullets.insert(lastEditorAt + 1 + i, extra.at(i));
-    return bullets.join(QLatin1Char('\n'));
-  }
-
-  QString assembleOpsSection(unsigned caps) {
-    QString censor;
-    const QString s = assembleOpsBullets(opRegistry(), opAddenda(), caps, &censor);
-    Q_ASSERT(censor.isEmpty());
-    return s;
-  }
-
-  QString assembleEditorOpsBlock(unsigned caps) {
-    QVector<OpDescriptor> editor;
-    for (const OpDescriptor& e : opRegistry())
-      if (e.editorSettings) editor.append(e);
-    QString censor;
-    const QString s = assembleOpsBullets(editor, opAddenda(), caps, &censor);
-    Q_ASSERT(censor.isEmpty());
-    return s;
-  }
-
-  QString assembleSystemPrompt(unsigned caps) {
-    return promptText(QStringLiteral("head")) + assembleOpsSection(caps)
-           + promptText(QStringLiteral("tail"));
-  }
-
-  const QString& assembledSystemPrompt() {
-    static const QString prompt = assembleSystemPrompt(CAP_ALL_DESKTOP);
-    return prompt;
   }
 
 }  // namespace stencil::llm

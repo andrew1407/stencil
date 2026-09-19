@@ -5,9 +5,8 @@
 namespace stencil::llm { class PlanTarget; }
 namespace stencil::model { class ScriptDoc; }
 
-// Running a .stc against the editor. The core lowers the language to an op stream; this maps
-// each op onto the SAME PlanTarget the assistant's op plans drive, so a scripted edit and a
-// clicked one take one path. The language is normative in contracts/stc/stc-contract.md.
+// Maps each lowered .stc op onto the SAME PlanTarget the assistant's op plans drive, so a
+// scripted edit and a clicked one take one path. Normative: contracts/stc/stc-contract.md.
 namespace stencil::gui {
 
   struct ScriptRunResult {

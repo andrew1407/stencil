@@ -27,24 +27,21 @@ namespace stencil::gui {
   // mirrored transcript rows. Shared with MainWindow's chatHistory_/mirror log.
   inline constexpr int CHAT_HISTORY_BOUND = 32;
 
-  // Assistant chat hosted INSIDE the canvas context menu (browser .ctx-assist): a tall scrolling
-  // transcript over a composer. NOT a second chat — MainWindow drives the same onChatSend/onChatReply
-  // pipeline the dock uses and mirrors each line here, rendered by the dock's own fillChatCard.
+  // Assistant chat hosted INSIDE the canvas context menu (browser .ctx-assist). NOT a second chat -
+  // MainWindow drives the same onChatSend/onChatReply pipeline the dock uses and mirrors each line.
   class ChatMenuPanel : public QWidget {
     Q_OBJECT
    public:
     ChatMenuPanel(QWidget* parent, std::function<void(QString)> onSend,
                   std::function<void()> onStop, std::function<void()> onAttach,
-                  // `onSettings` receives the clicked control's GLOBAL rect, captured before this panel's popup starts
-                  // closing (which would hide it by the time the settings dialog opens) — the caller uses it as the
-                  // reveal's fallback anchor so the dialog still flies from the click.
+                  // `onSettings` receives the clicked control's GLOBAL rect, captured before this panel's popup
+                  // starts closing, so the settings dialog still flies from the click.
                   std::function<void(QRect)> onSettings, std::function<void(QString)> onRetry);
 
     QWidget* input() const;
 
-    // transcript (MainWindow mirrors the dock's lines here). `configure` adds a "Configure provider"
-    // action beside Retry (browser unreachable-card parity); it re-uses the panel's own settings
-    // callback, the same one the gear already opens through.
+    // `configure` adds a "Configure provider" action beside Retry (browser unreachable-card parity);
+    // it re-uses the panel's own settings callback, the one the gear already opens through.
     void appendRow(const QString& role, const QString& text, bool muted,
                    const QString& retryText = QString(), bool pending = false,
                    const QStringList& notes = {}, bool configure = false);
@@ -105,9 +102,8 @@ namespace stencil::gui {
     // …and the tones the shared row menu / "⋯" are built from.
     QColor text_, chip_, border_, accent_, muted_;
     bool chatSwapSides_ = false;   // mirrors ChatDock::chatSwapSides_ (MainWindow keeps them in step)
-    // The last Palette restyle() ran with — setChatSwapSides re-issues the
-    // shared card stylesheet (chatCardStyleSheet) against it, since the
-    // flattened tail corner is keyed off chatSwapSides_ too.
+    // The last Palette restyle() ran with - setChatSwapSides re-issues the shared card stylesheet
+    // (chatCardStyleSheet) against it, since the flattened tail corner is keyed off chatSwapSides_ too.
     Palette paletteCache_;
     std::function<void(QString)> onRetry_;   // resend a failed/stopped turn
   };

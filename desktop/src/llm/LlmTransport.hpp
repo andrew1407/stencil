@@ -14,16 +14,14 @@
 namespace stencil::llm {
 
   struct LlmTransport {
-    // POST `body` (application/json) to `url` with the extra raw `headers`.
-    // `cb(status, body, error)`: status is the HTTP code (0 on a transport
-    // failure, with `error` describing it); `body` is the raw response bytes.
+    // POST `body` (application/json) to `url` with the extra raw `headers`. `cb(status, body, error)`:
+    // status is the HTTP code (0 on a transport failure, with `error` describing it).
     virtual void postJson(const QUrl& url,
                           const QList<QPair<QByteArray, QByteArray>>& headers,
                           const QByteArray& body,
                           std::function<void(int status, QByteArray body, QString error)> cb) = 0;
-    // Abort the in-flight chat POST, if any: its callback then completes with
-    // a canceled transport error (status 0). Default no-op for mocks that
-    // answer synchronously.
+    // Abort the in-flight chat POST, if any: its callback then completes with a canceled transport
+    // error (status 0). Default no-op for mocks that answer synchronously.
     virtual void abortActive() {}
     // GET `url` — the cheap reachability probes (ollama /api/version,
     // openai-compat /models, stencil-server /llm/info). Same callback contract.

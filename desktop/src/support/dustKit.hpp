@@ -90,9 +90,8 @@ namespace stencil::support {
   double headingOf(double dx, double dy, bool fromFar);
   QPolygonF shapePolygon(GrainShape s, const QPointF& at, double r, double a);
 
-  // drawEllipse rasterises every grain from scratch (~9ms for 4000 at 2x); a blit is
-  // ~18x cheaper (measured), so a grain is drawn once per (colour, radius, half-pixel
-  // phase, heading) and copied. Positions land on half device pixels.
+  // drawEllipse rasterises every grain from scratch (~9ms for 4000 at 2x); a blit is ~18x cheaper
+  // (measured), so a grain is drawn once per (colour, radius, half-pixel phase, heading) and copied.
   class MoteSprites {
    public:
     static constexpr double RADIUS_STEP = 0.25;   // logical px between cached radii

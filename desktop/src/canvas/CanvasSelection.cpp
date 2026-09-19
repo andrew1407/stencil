@@ -6,9 +6,8 @@
 
 namespace stencil::gui {
 
-  // The line the selection panel shows: an explicitly selected committed line
-  // wins, else the in-progress line while drawing, else the last committed one.
-  // Mutable forwarder: const_cast the const overload's result; never recurse.
+  // Precedence: an explicitly selected committed line, else the in-progress line while drawing,
+  // else the last committed one. The mutable forwarder const_casts; never recurse.
   core::Line* CanvasWidget::mutablePanelLine() {
     return const_cast<core::Line*>(
         static_cast<const CanvasWidget*>(this)->panelLine());
@@ -82,9 +81,8 @@ namespace stencil::gui {
     emit drawModeChanged(drawMode_);
   }
 
-  // Hit-test committed lines, topmost match wins (drawingApp.js ~1251): a point
-  // hit selects its line AND focuses that point (the rotation pivot); a segment
-  // hit selects with no focused point; empty space clears the selection.
+  // Hit-test committed lines, topmost wins (drawingApp.js): a point hit selects its line AND
+  // focuses that point (the rotation pivot); a segment hit selects with no focused point.
   int CanvasWidget::selectLineAt(double x, double y) {
     selectedLines_.clear();   // a plain click leaves multi-select mode
     if (auto pt = core::findNearestPoint(lines_, x, y, hitRadius(12.0))) {

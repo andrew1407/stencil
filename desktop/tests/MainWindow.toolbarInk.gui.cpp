@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Destructive toolbar buttons wear the browser's `.danger.btn-icon` face: a SOLID red
-  // fill with a glyph that is not itself red (a red glyph on a red fill is an empty
-  // button). A QToolButton re-copies its action's icon on every QEvent::ActionChanged.
+  // Destructive toolbar buttons wear the browser's `.danger.btn-icon` face: a SOLID red fill with a
+  // glyph that is not itself red. A QToolButton re-copies its action's icon on every ActionChanged.
   void dangerToolButtonsAreFilledRed() {
     MainWindow win;
     win.show();
@@ -50,10 +49,8 @@ class MainWindowGuiTest : public QObject {
       win.refreshActions();
       QVERIFY2(glyphIsWhite(b), qPrintable(QString("%1: the action's red glyph came back after a refresh")
                                                .arg(a->text())));
-      // …while the ACTION — what the menus and the canvas context menu render —
-      // keeps the NEUTRAL glyph: the browser paints every menu icon in
-      // --text-muted and reserves the red for this filled button (a red mark on a
-      // plain menu row was a desktop-only invention, and unreadable in dark).
+      // …while the ACTION — what the menus and the canvas context menu render — keeps the NEUTRAL glyph:
+      // the browser paints every menu icon in --text-muted and reserves the red for this filled button.
       const QImage menu = a->icon().pixmap(18, 18).toImage();
       bool menuRed = false;
       for (int y = 0; y < menu.height() && !menuRed; ++y)
@@ -70,10 +67,8 @@ class MainWindowGuiTest : public QObject {
                qPrintable(QString("%1: the menu entry is still painted danger red").arg(a->text())));
     }
   }
-  // A disabled toolbar icon must READ as disabled: `color: MUTED` never reaches a
-  // rasterised pixmap (the browser's `.ic` gets it from currentColor), so themedIcon
-  // carries a faded QIcon::Disabled variant. Checked at 1x AND 2x — a dpr-tagged pixmap
-  // paints at LOGICAL size into a device-sized target.
+  // A disabled toolbar icon must READ as disabled: `color: MUTED` never reaches a rasterised pixmap, so
+  // themedIcon carries a faded QIcon::Disabled variant. Checked at 1x AND 2x.
   void disabledIconsTakeTheMutedInk() {
     const auto inkBox = [](const QImage& im) {
       int minx = im.width(), miny = im.height(), maxx = -1, maxy = -1;
@@ -101,9 +96,8 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(inkBox(off) == inkBox(on),
                qPrintable(QString("disabled glyph moved/resized%1: %2 vs %3")
                               .arg(at, QDebug::toString(inkBox(off)), QDebug::toString(inkBox(on)))));
-      // …and at FULL strength, re-inked rather than faded: the browser's disabled button
-      // paints its .ic in --disabled-text at opacity 1, and a faded dark glyph was a ghost
-      // on the light theme's pale disabled chip.
+      // …and at FULL strength, re-inked rather than faded: the browser's disabled button paints its .ic in
+      // --disabled-text at opacity 1, and a faded dark glyph is a ghost on the light theme's pale chip.
       const double a = meanAlpha(on), b = meanAlpha(off);
       QVERIFY2(b > 0.0, qPrintable("a disabled glyph must still be visible" + at));
       QVERIFY2(b > a * 0.9, qPrintable(QString("faded, not re-inked%1: %2 vs %3").arg(at).arg(a).arg(b)));
@@ -127,10 +121,8 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(got != QColor("#e0e0e0"), qPrintable("still the enabled colour" + at));
     }
   }
-  // A dead combo has to LOOK dead (browser: button:disabled drops the .accent-dd-trigger to
-  // --disabled-bg/--disabled-text). The Qt stylesheet painted every QComboBox in the live
-  // input colours, so the image-filter picker with no image loaded was pixel-identical to a
-  // working one — nothing showed it was unavailable.
+  // A dead combo has to LOOK dead (browser: button:disabled drops to --disabled-bg/--disabled-text). The
+  // Qt sheet painted every QComboBox in the live input colours, so a dead picker looked identical.
   void disabledSelectReadsAsDisabled() {
     MainWindow win(nullptr, false);
     win.resize(1400, 700);

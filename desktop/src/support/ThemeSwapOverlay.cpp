@@ -3,9 +3,8 @@
 namespace stencil::gui {
 
 
-  // NOT a plain ease-out: the wipe is a CIRCLE, so area grows as r² and OutCubic read as
-  // a snap. Same shape as the browser's cubic-bezier(0.4, 0.25, 0.95, 1) (the note over
-  // ::view-transition-new(root) in browser/css/animations.css records the measurements).
+  // NOT a plain ease-out: the wipe is a CIRCLE, so area grows as r^2 and OutCubic read as a snap.
+  // Same shape as the browser's cubic-bezier(0.4, 0.25, 0.95, 1) (browser/css/animations.css).
   double ThemeSwapOverlay::bezierY(double t, double x1, double y1, double x2, double y2) {
     return support::bezierY(t, x1, y1, x2, y2);
   }

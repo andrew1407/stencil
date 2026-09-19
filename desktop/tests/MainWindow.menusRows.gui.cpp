@@ -9,10 +9,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Menu-bar coverage: every browser toolbar section must be reachable from the menu bar
-  // — Draw (start/stop plus the instant line and rect), the line-style set and the image
-  // filter. Walking the real menu bar also proves the shared plain QActions were not
-  // moved OUT of the context menu, which reusing a QWidgetAction would do.
+  // Menu-bar coverage: every browser toolbar section is reachable from the menu bar. Walking the real
+  // menu bar also proves the shared plain QActions were not moved OUT of the context menu.
   void menuBarExposesTheDrawAndStyleControls() {
     MainWindow win(nullptr, /*restoreLast=*/false);
 
@@ -41,19 +39,15 @@ class MainWindowGuiTest : public QObject {
     // Image filter (browser toolbar's View section).
     QVERIFY(titles.contains("Cycle Image Filter"));
   }
-  // The bug this locks down: a context-menu row whose action isn't available (no
-  // image, no lines) used to show up greyed out with nothing to explain why — now it
-  // is simply not in the menu, the desktop's version of the browser's hide-not-disable
-  // (contextMenu.js syncState). The persistent menu bar keeps the conventional greyed
-  // rows instead (menuBarExposesTheDrawAndStyleControls covers that one).
+  // A context-menu row whose action is unavailable is not in the menu at all, the desktop's version of
+  // the browser's hide-not-disable (contextMenu.js syncState). The menu bar keeps its greyed rows.
   void contextMenuHidesUnavailableActionsInsteadOfGreyingThem() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    // An image but NO lines — the menu needs an image to open at all, so the
-    // line-dependent rows are what "unavailable" means here. Real right-click on the
-    // scroll area's viewport (contextMenuOpensOnEmptyCanvasArea's own way in).
+    // An image but NO lines: the menu needs an image to open at all, so the line-dependent rows are what
+    // "unavailable" means here. A real right-click on the scroll area's viewport.
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     QWidget* viewport = win.findChild<QScrollArea*>()->viewport();
@@ -78,9 +72,8 @@ class MainWindowGuiTest : public QObject {
     QTest::mouseClick(viewport, Qt::RightButton, {}, QPoint(6, 6));
     QTest::qWait(50);
 
-    // A row with a shortcut carries it appended as "\t<combo>" (native-rendered, so a
-    // literal platform-specific suffix isn't reliable to match) — startsWith throughout,
-    // exactly like openSubByKey above.
+    // A row with a shortcut carries it appended as "\t<combo>", rendered natively, so a literal
+    // platform-specific suffix is not reliable to match: startsWith throughout, as openSubByKey does.
     auto has = [](const QSet<QString>& set, const QString& prefix) {
       for (const QString& t : set) if (t.startsWith(prefix)) return true;
       return false;
@@ -93,11 +86,8 @@ class MainWindowGuiTest : public QObject {
     // Line-dependent rows are the ones missing here — nothing is drawn yet.
     QVERIFY2(!has(layoutTitles, "Copy Layout JSON"), "Copy Layout showed with no lines to copy");
     QVERIFY2(!has(layoutTitles, "Export Layout JSON"), "Download Layout showed with no lines to download");
-    // "Copy Image"/"Download Image" are the SUBMENU-OPENER titles (subMenuIn's own
-    // arg) — a different, always-enabled QAction than actCopyImage_/actSaveImage_
-    // itself, whose OWN text is the "Current (Tint + Lines/Points)" row nested
-    // inside (contextMenuOpensOnEmptyCanvasArea's comment explains the same split).
-    // They ride on the image, which this menu proves is there by existing at all.
+    // "Copy Image"/"Download Image" are the SUBMENU-OPENER titles — a different, always-enabled QAction
+    // than actCopyImage_/actSaveImage_, whose own text is the "Current" row nested inside.
     QVERIFY2(has(layoutTitles, "Copy Image"), "Copy Image hid with an image loaded");
     QVERIFY2(has(layoutTitles, "Download Image"), "Download Image hid with an image loaded");
     QVERIFY2(has(layoutTitles, "Paste Layout JSON"), "Paste Layout hid with an image loaded");
@@ -106,9 +96,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(has(layoutTitles, "Import Layout JSON"), "Upload Layout needs no existing lines");
     beat();
   }
-  // Browser parity: css/layout.css's ui-shimmer now covers .ctx-item too (support/
-  // MenuShimmer.hpp is the desktop port) — the same left→right sweep every other
-  // shimmered control gets (hoverShimmerAnimates), played on a context-menu ROW.
+  // Browser parity: css/layout.css's ui-shimmer covers .ctx-item too (support/MenuShimmer.hpp is the
+  // port) — the same left→right sweep every shimmered control gets, played on a context-menu ROW.
   void contextMenuRowShimmersOnHover() {
     const auto motion = withMotion();   // the sweep honours motionReduced(), which is on here
     MainWindow win(nullptr, false);
@@ -142,16 +131,13 @@ class MainWindowGuiTest : public QObject {
         else if (!other) other = a;
       }
       if (!fit || !other) { menu->close(); return; }
-      // A freshly-opened QMenu can already be hovering its first row on its own —
-      // land on a KNOWN different row first, so the move onto "fit" is a genuine
-      // transition (sweep()'s own re-fire guard would no-op a same-row "hover").
+      // A freshly opened QMenu can already be hovering its first row, so land on a KNOWN different row
+      // first: sweep()'s own re-fire guard would no-op a same-row "hover".
       menu->setActiveAction(other);
       menu->setActiveAction(fit);
       p1 = overlay->property("sweepProgress").toReal();
-      // Poll rather than a single timed sample: a QVariantAnimation ticks off
-      // QMenu::exec()'s own event loop, which paces timers coarser than a normal
-      // window's, so the SAME 325ms sweep can take a good deal longer, wall-clock,
-      // to visibly move here than it does outside a popup (hoverShimmerAnimates).
+      // Poll rather than a single timed sample: a QVariantAnimation ticks off QMenu::exec()'s own event
+      // loop, which paces timers coarser, so the same 325ms sweep takes longer wall-clock here.
       for (int i = 0; i < 400 && !advanced; ++i) {
         QTest::qWait(15);
         p2 = overlay->property("sweepProgress").toReal();

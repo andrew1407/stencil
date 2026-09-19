@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The AI-Assistant chat dock: the checkable toolbar/View action opens and closes it;
-  // unlike the deliberately pinned selection panel it is dockable on all four sides and
-  // floatable/closable, defaults LEFT on a fresh run, hosts the transcript/input in a
-  // user-resizable splitter, gates Send on input/busy state, and turns clipboard-pasted
-  // images into attachments (plain text pastes normally).
+  // The AI-Assistant chat dock: the checkable toolbar/View action opens and closes it; it docks
+  // on all four sides, floats, defaults LEFT, splits transcript from input, takes pasted images.
   void chatDockToggles() {
     // A saved dock layout would restore whatever area the last run used; clear it so
     // this asserts the FIRST-RUN default (left, matching the browser).
@@ -32,10 +29,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dock->features().testFlag(QDockWidget::DockWidgetFloatable));
     QVERIFY(dock->features().testFlag(QDockWidget::DockWidgetClosable));
     QCOMPARE(win.dockWidgetArea(dock), Qt::LeftDockWidgetArea);  // first-run default
-    // The COMPOSER acts on a drop; the DOCK swallows the ones that miss it, so a
-    // gesture aimed at the chat can never reach the window and offer to open the
-    // image as a project (browser chatPanel.js parity). The composer's QPlainTextEdit
-    // declines drops too, or it would swallow one and paste the path as text.
+    // The COMPOSER acts on a drop; the DOCK swallows the ones that miss it, so a gesture aimed at
+    // the chat never reaches the window (browser chatPanel.js parity). Its editor declines drops.
     QVERIFY(dock->acceptDrops());
     auto* inputArea = dock->findChild<QWidget*>("chatInputArea");
     QVERIFY(inputArea);
@@ -46,9 +41,8 @@ class MainWindowGuiTest : public QObject {
     auto* cue = dock->findChild<QWidget*>("chatDropCue");
     QVERIFY(cue && cue->isHidden());
 
-    // The composer's resize grip is the SHARED pill (PillSplitter.hpp), not a
-    // stylesheet handle: the stylesheet one could only be narrowed by a symmetric
-    // margin, so it stretched with the panel into a fat accent band across the dock.
+    // The composer's resize grip is the SHARED pill (PillSplitter.hpp), not a stylesheet handle:
+    // that one could only be narrowed symmetrically, so it stretched into a fat accent band.
     auto* chatSplitter = dock->findChild<QSplitter*>("chatSplitter");
     QVERIFY(chatSplitter);
     QVERIFY2(dynamic_cast<stencil::gui::PillSplitterHandle*>(chatSplitter->handle(1)) != nullptr,
@@ -89,9 +83,8 @@ class MainWindowGuiTest : public QObject {
     chatBtn->click();
     QTRY_VERIFY(dock->isVisible());
 
-    // Right-side docking must work even though the fixed-width selection panel owns
-    // that area — nesting provides the drop slots (regression: the chat dock could
-    // not be pinned to the right at all).
+    // Right-side docking must work even though the fixed-width selection panel owns that area —
+    // nesting provides the drop slots.
     QVERIFY(win.isDockNestingEnabled());
     auto* selPanel = win.findChild<QDockWidget*>("selectionPanelDock");
     QVERIFY(selPanel && win.dockWidgetArea(selPanel) == Qt::RightDockWidgetArea);
@@ -117,9 +110,8 @@ class MainWindowGuiTest : public QObject {
     auto* gearBtn = dock->findChild<QToolButton*>("chatGear");  // settings target
     auto* moreBtn = dock->findChild<QToolButton*>("chatMore");   // the … overflow
     QVERIFY(gearBtn && moreBtn);
-    // The status dot is a BADGE on the … TRIGGER (browser .conn-status parity):
-    // child of the button, no layout slot of its own. The gear itself now lives
-    // in the menu, so it is hidden — the dot has to ride what stays visible.
+    // The status dot is a BADGE on the … TRIGGER (browser .conn-status parity): a child of the
+    // button with no layout slot. The gear lives in the menu now, so the dot rides what stays.
     auto* dot = dock->findChild<QLabel*>("chatStatusDot");
     QVERIFY(dot && dot->parentWidget() == moreBtn);
     // Composer = send + …, in that order, both the filled-accent buttons.
@@ -140,17 +132,14 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dock->titleBarWidget());
     QVERIFY(dock->titleBarWidget()->findChild<QLabel*>("chatHeaderTitle"));
 
-    // Card container: the dock content renders on the controls-panel colour —
-    // DISTINCT from the canvas backdrop behind it — with the themed 1px
-    // border styling applied to the whole card.
+    // Card container: the dock content renders on the controls-panel colour, DISTINCT from the
+    // canvas backdrop behind it, with the themed 1px border on the whole card.
     {
       const QImage bodyImg = dock->widget()->grab().toImage();
       const QColor cardBg = bodyImg.pixelColor(bodyImg.width() / 2, 4);
       const QImage centralImg = win.centralWidget()->grab().toImage();
-      // Near the BOTTOM, not the exact vertical center: the top bars (toolbars,
-      // image-info strip) are a few rows tall and grow/shrink with theme/content
-      // changes — a center sample can drift onto one of them by coincidence. The
-      // bottom stays safely inside the canvas/page area regardless.
+      // Near the BOTTOM, not the exact vertical centre: the top bars grow with theme or content, so
+      // a centre sample can drift onto one; the bottom stays inside the canvas area.
       const QColor canvasBg =
           centralImg.pixelColor(centralImg.width() / 2, centralImg.height() - 10);
       QVERIFY(cardBg != canvasBg);
@@ -181,9 +170,8 @@ class MainWindowGuiTest : public QObject {
     chatDock->clearAttachments();
     input->clear();
 
-    // Cohesive-column chrome (browser parity): in-content header title and a
-    // BORDERLESS transcript (browser .chat-transcript parity — the card look
-    // comes from the dock's own panel background + border, not an inner frame).
+    // Cohesive-column chrome (browser parity): an in-content header title and a BORDERLESS
+    // transcript — the card look is the dock's own background and border, not an inner frame.
     QVERIFY(dock->findChild<QLabel*>("chatHeaderTitle"));
     auto* scrollArea = dock->findChild<QScrollArea*>();
     QVERIFY(scrollArea && scrollArea->frameShape() == QFrame::NoFrame);

@@ -231,10 +231,8 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
     pumpFor(100);
   }
 
-  // The meta windows are gated on a SAVED project, so give them one — with keywords, which
-  // say what that window holds, and no description, which photographs better as its prompt.
-  // The lines stay on the canvas too: every window now dims and blurs what it covers
-  // (support/ModalBackdrop), and a flat white blank behind the glass reads as a bug.
+  // The meta windows are gated on a SAVED project: give it keywords and no description, and keep
+  // the lines on the canvas — every window dims and blurs what it covers (support/ModalBackdrop).
   canvas->setLines({line({{140, 150}, {520, 260}, {330, 520}}, "#c81e1e", 4, "solid"),
                     line({{610, 170}, {860, 540}}, "#1e63c8", 3, "dashed"),
                     line({{200, 560}, {780, 600}}, "#2e9e4f", 3, "dotted")});
@@ -292,9 +290,8 @@ void MainWindowGuiTest::windowStates(const QString& theme, const ShotSet& shots)
       dlg->previewBtn_->click();
     };
     if (shots.has("open-video-local")) grabVideoDialog(win, "open-video-local", fromFile, false);
-    // A URL clip goes straight to QMediaPlayer::setSource (MediaLoaderVideo.cpp), which
-    // streams it through the platform media stack — that refuses the capture's own little
-    // server, so this one skips here and wants a real web server to photograph.
+    // A URL clip goes straight to QMediaPlayer::setSource, whose platform media stack refuses the
+    // capture's own little server — this shot wants a real web server.
     if (shots.has("open-video-url") && !CLIP_URL.isEmpty())
       grabVideoDialog(win, "open-video-url", fromUrl, false);
     if (shots.has("crop-video")) grabVideoDialog(win, "crop-video", fromFile, true);

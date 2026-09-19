@@ -18,6 +18,7 @@
 #include <QWidget>
 #include <cstdio>
 #include <cstdlib>
+void accentInkAndNumericInput();
 
 // Count pixels close to `target` (per-channel tolerance) — used to detect the
 // accent-violet incognito frame/badge in a grabbed widget render.
@@ -79,10 +80,8 @@ int main(int argc, char** argv) {
         "bw filter greyscaled the pixel (r==g==b)");
   check(qAlpha(after) == 255, "bw filter preserved alpha");
 
-  // 3b) Contour through the real canvas cache path (rebuildFilteredImage →
-  //     core::applyContourRGBA on an RGBA8888 copy). A uniform image has no
-  //     edges, so every Sobel magnitude is 0 and the output is pure white with
-  //     alpha preserved — exactly what the core yields on the same pixels.
+  // Contour through the real canvas cache path (rebuildFilteredImage → core::applyContourRGBA): a
+  // uniform image has no edges, so every Sobel magnitude is 0 and the output is white, alpha preserved.
   std::printf("contour filter:\n");
   canvas.setImageFilter("contour", QColor("#7c3aed"));
   const QImage contour = canvas.renderToImage(/*withOverlay=*/false);
@@ -105,12 +104,8 @@ int main(int argc, char** argv) {
         "core applyContourRGBA agrees (uniform → white)");
   canvas.setImageFilter("none", QColor("#7c3aed"));  // reset for later sections
 
-  // 4) IncognitoOverlay: the viewport-pinned dashed accent frame (port of the
-  //    browser's body.incognito-mode outline; the "not saved" wording lives on the
-  //    toolbar "?" hint, never over the picture). It must paint the accent frame
-  //    FLUSH with the viewport edge AND be transparent everywhere else, so the
-  //    canvas shows through — just like the browser, where the indicator never
-  //    becomes image content.
+  // IncognitoOverlay: the viewport-pinned dashed accent frame (port of body.incognito-mode) must paint
+  // FLUSH with the viewport edge and be transparent everywhere else, never becoming image content.
   std::printf("incognito overlay:\n");
   const QColor accent = stencil::gui::themePalette(false, "violet").accent;
   const QColor host_bg(0x22, 0x22, 0x22);  // stands in for the dark canvas backdrop
@@ -127,9 +122,8 @@ int main(int argc, char** argv) {
   check(offAccent == 0, "overlay paints nothing while inactive");
 
   overlay->setActive(true);
-  // The frame DRAWS ON clockwise over DRAW_MS rather than blinking into place, so the
-  // first frame is legitimately empty — pump the loop until it has closed before
-  // measuring. (That it starts empty is itself the point of the animation.)
+  // The frame DRAWS ON clockwise over DRAW_MS rather than blinking into place, so the first frame is
+  // legitimately empty — pump the loop until it has closed before measuring.
   check(countNear(host.grab().toImage(), accent, 24) == 0,
         "the frame starts empty and draws on, rather than appearing all at once");
   {
@@ -146,9 +140,8 @@ int main(int argc, char** argv) {
   // The solid 3px dashed frame contributes the clean-accent pixels; jumping clear
   // of zero proves the frame paints. Font-independent.
   check(onAccent > 40, "active overlay paints the dashed accent frame");
-  // Flush, not inset: the 3px stroke sits ON the edge, so the OUTERMOST row and
-  // column carry dashes. An inset frame leaves bare canvas outside them — the
-  // gap the user saw.
+  // Flush, not inset: the 3px stroke sits ON the edge, so the OUTERMOST row and column carry dashes;
+  // an inset frame leaves bare canvas outside them.
   {
     const auto rowHasAccent = [&](int y) {
       for (int x = 0; x < shot.width(); ++x)
@@ -203,61 +196,7 @@ int main(int argc, char** argv) {
   // transparent (the canvas underneath would otherwise be hidden).
   check(bgShown > 320 * 200 / 2,
         "overlay is transparent — the canvas shows through everywhere but the frame");
-
-  // 5) On-accent ink: the accent picks the ink its own labels and line-art wear —
-  //    whichever of white / near-black contrasts more (WCAG). Same rule as the browser
-  //    (accents.js needsDarkGlyph) and the extension (lib/accent.js).
-  std::printf("on-accent ink:\n");
-  using stencil::gui::accentNeedsDarkGlyph;
-  using stencil::gui::onAccentInk;
-  check(!accentNeedsDarkGlyph(QColor("#7c3aed")), "violet default keeps white (5.70 vs 3.69)");
-  check(accentNeedsDarkGlyph(QColor("#eab308")), "yellow flips to the dark ink (1.92 vs 10.95)");
-  check(accentNeedsDarkGlyph(QColor("#0ea5e9")), "so does sky (2.77 vs 7.58)");
-  check(accentNeedsDarkGlyph(QColor("#00ffff")), "and a light custom accent");
-  check(!accentNeedsDarkGlyph(QColor("#000000")), "black keeps white (21:1)");
-  check(!accentNeedsDarkGlyph(QColor()), "an invalid colour keeps the white default");
-  check(onAccentInk(QColor("#eab308")) == QColor("#1a1a1a"), "the dark ink is the page ink");
-  check(onAccentInk(QColor("#7c3aed")) == QColor(Qt::white), "…and the light one is white");
-  QString flagged;
-  for (const auto& a : stencil::gui::accentPresets())
-    if (accentNeedsDarkGlyph(QColor(a.hex))) flagged += a.key + QLatin1String(" ");
-  check(flagged == "pink orange brown yellow grass turquoise aqua sky bluegray ",
-        "exactly the light presets flip, in palette order (browser/extension parity)");
-
-  // The palette hands the ink out with the theme, tick image included.
-  check(stencil::gui::themePalette(false, "yellow").onAccent == QColor("#1a1a1a"),
-        "themePalette carries the accent's ink");
-  check(stencil::gui::buildStylesheet(false, "yellow").contains(":/icons/check-dark.png"),
-        "a light accent's checkbox takes the dark tick");
-  check(stencil::gui::buildStylesheet(false, "violet").contains(":/icons/check.png"),
-        "…and a dark accent keeps the white one");
-
-  // 6) Numeric fields take an arithmetic expression (support/numericInput.cpp). The
-  //    cases mirror browser/tests/numericInput.test.js and browser-extension/tests/ —
-  //    same operator set as core/parse/formulaParser, so all three agree.
-  std::printf("numeric input expressions:\n");
-  auto ev = [](const char* text, double current, double* out) {
-    bool ok = false;
-    const double v = stencil::gui::evalNumericExpression(QString::fromUtf8(text), current, &ok);
-    if (out) *out = v;
-    return ok;
-  };
-  double v = 0;
-  check(ev("54", 0, &v) && v == 54, "a plain number passes through");
-  check(ev("45 + 9", 0, &v) && v == 54, "\"45 + 9\" evaluates to 54");
-  check(ev("45+9", 0, &v) && v == 54, "…with or without spaces");
-  check(ev("* 9", 3, &v) && v == 27, "a leading * continues from the current value");
-  check(ev("/2", 10, &v) && v == 5, "…and so does a leading /");
-  check(ev("-5", 10, &v) && v == -5, "a leading - stays a SIGN, not a subtraction");
-  check(ev("2 + 3 * 4", 0, &v) && v == 14, "* binds tighter than +");
-  check(ev("(2 + 3) * 4", 0, &v) && v == 20, "parentheses group");
-  check(ev("2 ** 3 ** 2", 0, &v) && v == 512, "** is right-associative");
-  check(ev("-2 ** 2", 0, &v) && v == -4, "unary sign applies outside ** (core parity)");
-  check(!ev("", 0, nullptr), "empty text is not a value");
-  check(!ev("abc", 0, nullptr), "letters are not a value");
-  check(!ev("45 +", 0, nullptr), "a dangling operator is not a value");
-  check(!ev("1/0", 0, nullptr), "division by zero is rejected, not infinite");
-  check(!ev("1 2", 0, nullptr), "trailing junk is rejected");
+  accentInkAndNumericInput();
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,
               failures == 1 ? "" : "s");

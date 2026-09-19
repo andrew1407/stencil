@@ -40,9 +40,8 @@ namespace stencil::gui {
 
     edit_ = new ScriptEditorWidget(this, menuStyle());
 
-    // Run · Copy · Download · Upload · Clear, ABOVE the editor like the window's bar. The four
-    // are accent-FILLED like the window's; Clear wears the shared danger red at the far END,
-    // because it throws work away and must sit clear of the way to Run.
+    // Run / Copy / Download / Upload / Clear, ABOVE the editor like the window's bar. Clear wears the
+    // shared danger red at the far END, because it throws work away and must sit clear of Run.
     auto* row = actions_ = new QHBoxLayout;
     row->setSpacing(6);
     row->addStretch(1);
@@ -89,9 +88,8 @@ namespace stencil::gui {
     gateActions();
   }
 
-  // The flyout IS its action row: the five buttons plus the panel's own side gutters. A
-  // layout caches its size hint, so it is invalidated first — restyle() asks again once the
-  // glyphs and the QSS font have changed what the buttons need.
+  // The flyout IS its action row: the five buttons plus the panel's gutters. A layout caches its
+  // size hint, so it is invalidated first - restyle() asks again once the glyphs and QSS font land.
   int ScriptMenuPanel::rowWidth() const {
     actions_->invalidate();
     return actions_->sizeHint().width() + 2 * MENU_SCRIPT_EDGE;

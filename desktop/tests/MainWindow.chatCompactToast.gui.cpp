@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Assistant completions landing while the chat dock is HIDDEN surface as a
-  // clickable bottom-left toast (browser closedToast parity): success/failure
-  // text truncated to ~90 chars, auto-anchored bottom-left, click = open the
-  // dock + dismiss; an open dock shows no toast.
+  // Completions landing while the chat dock is HIDDEN surface as a clickable bottom-left toast
+  // (browser closedToast parity): text truncated to ~90 chars; an open dock shows no toast.
   void chatToastWhenDockHidden() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -67,10 +65,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The chat dock's gear opens the DEDICATED assistant dialog (browser
-  // llmSettingsModal parity) — provider / base URL / model / API key / server
-  // only, none of the full Settings sheet's unrelated controls — and saving it
-  // round-trips the provider through the normal persistence path.
+  // The chat dock's gear opens the DEDICATED assistant dialog (browser llmSettingsModal parity)
+  // — provider / base URL / model / key / server only — and saving round-trips the provider.
   void chatGearOpensAssistantOnlySettings() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -103,10 +99,8 @@ class MainWindowGuiTest : public QObject {
       dialogName = dlg->objectName();
       auto* provider = dlg->findChild<QComboBox*>("llmProvider");
       sawProvider = provider != nullptr;
-      // Assistant-only: none of the full Settings dialog's controls (autosave /
-      // visibility checkboxes, thickness & page-size spin boxes, the page-size
-      // combo) may be here. The one checkbox that DOES belong is the §12
-      // save-chats opt-in (llmSaveChats) — an assistant setting.
+      // Assistant-only: none of the full Settings dialog's controls belong here. The one checkbox
+      // that does is the §12 save-chats opt-in (llmSaveChats).
       wrongControls = !dlg->findChildren<QDoubleSpinBox*>().isEmpty() ||
                       !dlg->findChildren<QSpinBox*>().isEmpty();
       for (QCheckBox* cb : dlg->findChildren<QCheckBox*>())

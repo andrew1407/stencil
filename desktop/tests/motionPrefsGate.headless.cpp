@@ -97,9 +97,8 @@ namespace motionprefs {
       check(inkOf(mode, 1e9) > 20, "every mode paints a glyph at rest");
       check(!support::motionModeIcon(mode, QColor(Qt::red)).isNull(), "…and yields an icon");
     }
-    // The hover plays IN: nothing (or less) at 0ms, the whole glyph at its own duration
-    // (support::motionIconMs — the browser's, the drop / flame / specks 1.5x slower).
-    // Measured at each mode's OWN end, so the speed-up above can never leave these stale.
+    // The hover plays IN: nothing at 0ms, the whole glyph at its own duration (support::motionIconMs — the
+    // drop / flame / specks 1.5x slower). Measured at each mode's OWN end, so a speed-up cannot stale it.
     const auto endMs = [](const char* m) { return support::motionIconMs(m); };
     check(inkOf("water", 0.0) < inkOf("water", endMs("water")) / 4, "the drop starts faded out");
     check(inkOf("fire", 0.0) < inkOf("fire", endMs("fire")) / 4, "the flame starts unlit");

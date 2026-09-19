@@ -23,15 +23,13 @@ namespace stencil::gui {
 
   void ProjectsDialog::scatterRows(const QSet<QString>& keys) {
     if (!list_) return;
-    // A copy: retireRow prunes checked_ below, and the batch removal hands checked_ in as
-    // `keys` — iterating a set the loop is emptying is a trap not worth leaving. (Implicit
-    // sharing makes this free until one of them is written to.)
+    // A copy: retireRow prunes batch_.checked below and the batch removal hands batch_.checked in as `keys`, so
+    // this must not iterate a set the loop is emptying. (Implicit sharing keeps it free.)
     const QSet<QString> want = keys;
     QList<QListWidgetItem*> doomed;
     QList<QRect> rects;   // the on-screen slice of each doomed row (scrolled-out rows: none)
-    // Clip each row's rect to the viewport: a checked row scrolled out of view must not
-    // drop its overlay onto the dialog chrome, nor spend the shared mote budget on
-    // pixels nobody can see — only the visible slices animate.
+    // Clip each row's rect to the viewport: a checked row scrolled out of view must not drop its
+    // overlay onto the dialog chrome, nor spend the shared mote budget on pixels nobody can see.
     const QRect view = list_->viewport()->rect();
     for (int i = 0; i < list_->count(); ++i) {
       const QString key = rowKeyAt(i);
@@ -43,9 +41,8 @@ namespace stencil::gui {
       if (r.width() >= 8 && r.height() >= 8) rects.append(r);
     }
     if (doomed.isEmpty()) return;
-    // Every row scatters at once and all repaint each frame, so the mote budget is
-    // SHARED — one row keeps the fine grain, a mass removal coarsens each (browser:
-    // scatterGridFor). Only rows that actually animate share it.
+    // Every row scatters at once and all repaint each frame, so the mote budget is SHARED - a mass
+    // removal coarsens each (browser: scatterGridFor). Only rows that actually animate share it.
     const int budget =
         std::max<int>(1, DisintegrateOverlay::DUST_MAX_CELLS / std::max(1, int(rects.size())));
     // Overlays FIRST (they snapshot the still-painted rows), then retire the lot.
@@ -56,15 +53,13 @@ namespace stencil::gui {
                                     list_->palette().color(QPalette::Text));
     for (QListWidgetItem* it : doomed)
       retireRow(it);   // blank the real row at once; its slot outlives the dust
-    // …and the bar answers NOW, beside the rows' dust, not after it: retireRow has already dropped these
-    // rows from the checked set, so the count, the buttons and Select all come apart in the SAME turn
-    // the rows do, not a flight later. Connections dialog parity.
+    // The bar answers NOW, beside the rows' dust: retireRow has already dropped these rows from the
+    // checked set, so count, buttons and Select all come apart in the SAME turn. Connections parity.
     updateBatchBar();
   }
 
-  // Closing mid-scatter: the close flight re-photographs the dialog as it hides
-  // (modalReveal), so doomed rows leave NOW and their overlays stop — otherwise the
-  // motes redraw the removed rows in the shrinking ghost.
+  // Closing mid-scatter: the close flight re-photographs the dialog as it hides (modalReveal), so
+  // doomed rows must leave NOW or the motes redraw them in the shrinking ghost.
   void ProjectsDialog::done(int result) {
     // A filter fade settles NOW too — nothing half-faded survives into the close flight.
     if (filterFade_) filterFade_->finishNow();
@@ -76,21 +71,20 @@ namespace stencil::gui {
     QDialog::done(result);
   }
 
-  // The scatter animates a SNAPSHOT — blank the real row the moment it starts,
-  // hold the empty slot while the dust falls, then let the item go (browser
-  // parity: leaveThenRemove + beginRemoval in projectsModal.js).
+  // The scatter animates a SNAPSHOT - blank the real row as it starts, hold the empty slot while
+  // the dust falls, then let the item go (browser parity: leaveThenRemove + beginRemoval).
   void ProjectsDialog::retireRow(QListWidgetItem* it) {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     const QString key = rowKeyAt(list_->row(it));
     it->setData(DOOMED_ROLE, true);   // the delegate paints nothing for it
     it->setFlags(Qt::NoItemFlags);    // no select/check mid-flight
-    checked_.remove(key);             // …and it stops counting towards the selection bar
+    batch_.checked.remove(key);             // …and it stops counting towards the selection bar
     QTimer::singleShot(DisintegrateOverlay::ITEM_MS, this, [this, key] {
       // Re-found by key: a re-list may have rebuilt the rows (fresh ones aren't doomed).
       for (int i = 0; i < list_->count(); ++i)
         if (rowKeyAt(i) == key && list_->item(i)->data(DOOMED_ROLE).toBool()) {
           // The hover preview may still be pointing at the very row about to go.
-          if (list_->item(i) == hoverItem_) hideHoverPreview();
+          if (list_->item(i) == hover_.hoverItem) hideHoverPreview();
           delete list_->takeItem(i);
           break;
         }
@@ -135,15 +129,14 @@ namespace stencil::gui {
     const QString cur = currentRowColor();
     const QColor seed = (!cur.isEmpty() && QColor(cur).isValid()) ? QColor(cur)
                                                                   : QColor("#7c3aed");
-    // Raised from the row's ⋯ menu, so it flies like every other window that menu opens:
-    // out of the pressed menu row, back into the ⋯ chip. Rows are delegate-painted, so
-    // both ends are global rects; off the menu it falls back to the row's own strip.
+    // Raised from the row's menu, so it flies like every other window that menu opens: out of the
+    // pressed row, back into the chip. Rows are delegate-painted, so both ends are global rects.
     const QRect rowRect(list_->viewport()->mapToGlobal(list_->visualItemRect(it).topLeft()),
                         list_->visualItemRect(it).size());
-    const QRect from = menuKebabRect_.isValid() ? support::gestureAnchorRect() : rowRect;
+    const QRect from = hover_.menuKebabRect.isValid() ? support::gestureAnchorRect() : rowRect;
     const QColor picked =
         support::pickColorAnimated(seed, this, "Project name color", nullptr, from,
-                                   {}, false, menuKebabRect_);
+                                   {}, false, hover_.menuKebabRect);
     if (!picked.isValid()) return;   // cancelled
     emitSetColor(it, picked.name());
   }

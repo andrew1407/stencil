@@ -18,9 +18,8 @@ namespace stencil::gui {
   }
 
 
-  // A child layer is clipped by the host, so a flight that needs more room becomes a
-  // frameless input-transparent top-level; `host` stays the QObject parent and
-  // picture_/target_ stay in HOST coords via `shift_`.
+  // A child layer is clipped by the host, so a flight that needs more room becomes a frameless
+  // input-transparent top-level; `host` stays the QObject parent, coords stay HOST via `shift_`.
   void DisintegrateOverlay::placeForSurface(QWidget* host, const QRect& picture,
                                             const QPoint& target, bool escapeHost,
                                             bool alwaysEscape) {

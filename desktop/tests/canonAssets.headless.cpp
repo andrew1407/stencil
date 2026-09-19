@@ -1,13 +1,8 @@
-// Drift guards for the data the desktop now READS instead of embedding:
-//   • themeTokens.json  → theme.cpp's Palette and its free-standing token helpers,
-//     looked up by CSS custom-property name, in both themes;
-//   • resources/app.qss → buildStylesheet's token map: every %TOKEN% the sheet spends
-//     is one the map fills, so a sheet edit cannot outrun the C++;
-//   • mediaTypes.json `surfaces.desktop` → mediaTypes.cpp's two suffix sniffers;
-//   • llm/systemPrompt.json contextSuffix* → the chat's per-turn context line;
-//   • the committed "Open in…" config template → the deep-link scheme the desktop
-//     answers to (an operator's own copy is gitignored, so the template is the canon).
-// A broken app.qrc alias parses to nothing, so every block fails fast.
+// Drift guards for the data the desktop READS instead of embedding: themeTokens.json → theme.cpp's
+// Palette and its token helpers, in both themes; resources/app.qss → buildStylesheet's token map;
+// mediaTypes.json `surfaces.desktop` → mediaTypes.cpp's two suffix sniffers; llm/systemPrompt.json
+// contextSuffix* → the chat's per-turn context line; and the committed "Open in…" template → the
+// deep-link scheme. A broken app.qrc alias parses to nothing, so every block fails fast.
 #include "fileStore.hpp"
 #include "launchOptions.hpp"
 #include "MediaLoader.hpp"

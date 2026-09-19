@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Retry resends the failed turn WITH its attachments: the tray drained on the
-  // first send, so the retry handler re-queues them — thumbnails on the resent
-  // bubble, images back in the wire payload.
+  // Retry resends the failed turn WITH its attachments: the tray drained on the first send, so the
+  // retry handler re-queues them — thumbnails on the bubble, images back in the wire payload.
   void chatRetryResendsAttachments() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
@@ -53,9 +52,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // A follow-up turn with NO new attachments (an ask-card answer) keeps the prior
-  // turn's attachments: the editing plan it triggers still adopts that image on an
-  // empty canvas (browser parity — turnAttachments only resets when new ones queue).
+  // A follow-up turn with NO new attachments keeps the prior turn's, so its editing plan still
+  // adopts that image on an empty canvas (turnAttachments resets only when new ones queue).
   void chatFollowUpAdoptsPriorAttachment() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
@@ -93,10 +91,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §2.1 multi-image plans: one turn edits SEVERAL attached images — each
-  // `image` op switches the working image to that attachment, and each `save`
-  // persists the result as its own LOCAL project (fresh id per save, named
-  // after the image it was working on, suffixed when the name is taken).
+  // §2.1 multi-image plans: each `image` op switches the working image to that attachment, and
+  // each `save` files its own LOCAL project — fresh id, named after the image, suffixed if taken.
   void chatMultiImagePlanSavesOneProjectPerImage() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
@@ -168,9 +164,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §3.0: a multi-image plan that also draws is still ONE round — and it must not
-  // apologise for a pass that no longer exists (this used to append a "layout
-  // correction skipped" note).
+  // §3.0: a multi-image plan that also draws is still ONE round, and must not apologise for a
+  // pass that no longer exists.
   void chatMultiImageLayoutStillOneRound() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);

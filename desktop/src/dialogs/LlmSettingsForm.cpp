@@ -20,9 +20,8 @@
 namespace stencil::gui {
 
   namespace {
-    // Status-row state colours — the browser .chat-status-tip states
-    // (ok | error | connecting), same values as the dock gear tooltip's
-    // (MainWindow.cpp TIP_*_COLOR).
+    // Status-row state colours - the browser .chat-status-tip states (ok | error | connecting),
+    // same values as the dock gear tooltip's (MainWindow.cpp TIP_*_COLOR).
     constexpr const char* STATUS_OK_COLOR = "#28a745";
     constexpr const char* STATUS_ERROR_COLOR = "#dc3545";
     constexpr const char* STATUS_CONNECTING_COLOR = "#e0a800";
@@ -40,9 +39,8 @@ namespace stencil::gui {
     // Visuals & Settings parity: labels flush left, every field one fixed width flush
     // right — a plain QFormLayout stretch let Model/Base URL outrun Provider/Server.
     alignModalForm(form_, /*growFields=*/false);
-    // The browser rows breathe: a .vs-row is 7px padding + control + 7px + its
-    // hairline (~49px pitch, measured live). The default form spacing packs the
-    // same rows into ~37px, leaving the dialog visibly shorter than the modal.
+    // A browser .vs-row is 7px padding + control + 7px + its hairline (~49px pitch, measured live);
+    // the default form spacing packs the same rows into ~37px.
     if (mode_ == RowMode::HIDE_ROWS) form_->setVerticalSpacing(9);
     col->addLayout(form_);
 
@@ -51,9 +49,8 @@ namespace stencil::gui {
     wireProviderFields();
   }
 
-  // Browser assistant-modal parity (HideRows hosts only): every row wears the .vs-row
-  // hairline under it. A conditional row hands its divider back, so syncRows hides the
-  // pair together.
+  // Browser assistant-modal parity (HideRows hosts only): every row wears the .vs-row hairline
+  // under it. A conditional row hands its divider back, so syncRows hides the pair together.
   QFrame* LlmSettingsForm::rowDivider() {
     if (mode_ != RowMode::HIDE_ROWS) return nullptr;
     auto* d = modalDivider(this);

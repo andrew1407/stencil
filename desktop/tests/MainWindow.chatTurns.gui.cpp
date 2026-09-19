@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // While an assistant turn is in flight, the send button becomes STOP
-  // (enabled, "Stop the response"), Enter is a no-op (single-turn guard), and
-  // clicking STOP turns the pending "…" card into a muted "Stopped." without
-  // an assistant history push or a toast; the composer then returns to normal.
+  // While a turn is in flight the send button becomes STOP and Enter is a no-op (single-turn
+  // guard); STOP turns the pending "…" into a muted "Stopped." with no history push and no toast.
   void chatStopWhileBusy() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -70,12 +68,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Chat persistence (llm-contract.md §12): with the opt-in ON a settled
-  // conversation is filed on the active LOCAL project's record, reopening the
-  // project replays it into the history + dock cards, the trash also deletes
-  // the persisted copy, and with the opt-in OFF (the default) nothing is
-  // written. Uses the friend seam to drive the persist/restore pipeline
-  // directly (no mock LLM needed — the seam sits after the reply parsing).
+  // Chat persistence (llm-contract §12): with the opt-in ON a settled conversation is filed on the
+  // active LOCAL project and replays on reopen, the trash deletes it, and with it OFF nothing is.
   void chatPersistsWithProject() {
     using stencil::gui::fileStore::parseChatDoc;
     using stencil::gui::Project;

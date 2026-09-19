@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A context submenu hover-opens, SubmenuCloseGuard closes it again on a hover-away, and
-  // on a real display it dusts on every open — including the second open of the same QMenu
-  // instance, which is what MenuReveal's re-arming fixed. The dust half cannot run here:
-  // isDustMotionOk() refuses on the `offscreen` platform, which nothing can lift, so only the
-  // open/close half is asserted and the case reports itself SKIPPED.
+  // A context submenu hover-opens and SubmenuCloseGuard closes it on a hover-away; on a real display it
+  // also dusts on every open. isDustMotionOk() refuses offscreen, so that half reports SKIPPED.
   void ctxSubmenuDustReplayProbe() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -96,9 +93,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(dustOnClose, "no dust while our own guard closed the submenu");
     QVERIFY2(dustOnSecondOpen, "no dust replayed on the second open of the same submenu");
   }
-  // Shift+F10 (shared hotkeysConfig contextMenu) opens the canvas context menu from the
-  // keyboard: under the pointer while it rests over the canvas viewport, else at the
-  // viewport's centre — the browser's placement for the same chord.
+  // Shift+F10 (shared hotkeysConfig contextMenu) opens the canvas context menu from the keyboard: under
+  // the pointer while it rests over the viewport, else at the viewport's centre, as the browser does.
   void contextMenuOpensOnShiftF10() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     CanvasWidget* canvas = openLoaded(win);
@@ -154,9 +150,8 @@ class MainWindowGuiTest : public QObject {
     armCloser(opened2, at2, vpAt2);
     win.actContextMenu_->trigger();
     QTRY_VERIFY2_WITH_TIMEOUT(opened2, "the context-menu action did not open the menu", 4000);
-    // Against the viewport as it was AT THAT INSTANT: the panel settles into its width
-    // after the window opens, so a rect read before the trigger is a different centre.
-    // x lands on the centre exactly; y may be pulled up to keep the menu on screen.
+    // Against the viewport as it was AT THAT INSTANT: the panel settles into its width after the window
+    // opens. x lands on the centre exactly; y may be pulled up to keep the menu on screen.
     QCOMPARE(at2.x(), vpAt2.center().x());
     QVERIFY(at2.y() <= vpAt2.center().y());
     QTRY_VERIFY(!QApplication::activePopupWidget());

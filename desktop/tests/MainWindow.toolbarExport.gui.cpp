@@ -38,10 +38,8 @@ class MainWindowGuiTest : public QObject {
       }
     QVERIFY2(sawLine, "expected the drawn red line in the copied image");
   }
-  // FEATURE: Cmd+C / the toolbar Copy button's plain click default to
-  // the CURRENT image (tint + lines/points) — same as the browser, same as download,
-  // always has (an earlier desktop-only "Ctrl+C defaults to tint" swap was reverted).
-  // actCopyImageTint_ ("Filter Only", Ctrl+Alt+C) stays its own separate, fixed variant.
+  // Cmd+C and the toolbar Copy button's plain click default to the CURRENT image (tint + lines/points),
+  // as in the browser. actCopyImageTint_ ("Filter Only", Ctrl+Alt+C) stays its own fixed variant.
   void copyDefaultIsCurrentImage() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -74,9 +72,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(tinted, win.canvas_->renderToImage(QStringLiteral("tint")));
     QVERIFY2(current != tinted, "current and tint must actually render differently here");
   }
-  // FEATURE: "Filter Only" would render byte-identical to "Original" with
-  // no filter applied, so it's hidden (not just greyed) until one actually is — live as
-  // the filter is toggled, not just on the next unrelated refresh.
+  // "Filter Only" would render byte-identical to "Original" with no filter applied, so it is hidden, not
+  // greyed, until one is — live as the filter is toggled, not on the next unrelated refresh.
   void filterOnlyHiddenWithNoFilterApplied() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -97,13 +94,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!win.actCopyImageTint_->isVisible(), "Filter Only should hide again once the filter clears");
     QVERIFY2(!win.actSaveImageTint_->isVisible(), "Filter Only should hide again once the filter clears");
   }
-  // FEATURE: "Current"'s OWN row (actCopyImageCurrentRow_/
-  // actSaveImageCurrentRow_) would render byte-identical to Original/Filter Only with
-  // nothing drawn — hidden until there's something to overlay, same reasoning as Filter
-  // Only. A SEPARATE action from actCopyImage_/actSaveImage_ (the toolbar buttons' own,
-  // which stay visible/enabled throughout — a QToolButton mirrors its action's
-  // visibility, so hiding THOSE would take the toolbar icon down with them) but firing
-  // the identical operation.
+  // "Current"'s OWN row is hidden until there is something to overlay, the same reasoning as Filter
+  // Only — a SEPARATE action from the toolbar buttons', which stay visible as a QToolButton mirrors it.
   void currentRowHiddenWithNoLinesButToolbarButtonStays() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -140,11 +132,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!win.actSaveImageCurrentRow_->isVisible(), "Current's row should hide again once lines are cleared");
     QVERIFY2(win.actCopyImage_->isVisible(), "the toolbar's own Copy action is still untouched");
   }
-  // REGRESSION: MenuHotkeyChips only ever placed/hid a row's
-  // chip on the menu's OWN aboutToShow — an action going invisible out from under an
-  // ALREADY-OPEN menu (e.g. turning the filter off while its download-options popup is
-  // still up) left that chip floating at its last valid position, overlapping whatever
-  // row now sits there instead. Needs the live poll (MenuHotkeys.hpp installPlacer).
+  // An action going invisible out from under an ALREADY-OPEN menu must take its chip with it, or it
+  // floats at its last position over whatever row now sits there. Needs the live poll (installPlacer).
   void filterOnlyChipHidesLiveWhileItsMenuStaysOpen() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -170,9 +159,8 @@ class MainWindowGuiTest : public QObject {
           if (!c->isHidden() && c->geometry().intersects(r)) return c;
       return nullptr;
     };
-    // Captured into locals and the menu closed BEFORE any assertion — an early QVERIFY2
-    // return must never leave the menu open, or it outlives `win` and crashes on teardown
-    // (exportOptionsPopupIsNotWiderThanItsContent's own comment has the full story).
+    // Captured into locals and the menu closed BEFORE any assertion: an early QVERIFY2 return must never
+    // leave the menu open, or it outlives `win` and crashes on teardown.
     bool chippedWhileActive = false, stillChippedAfter = true;
     if (opened) {
       chippedWhileActive = chipOver(win.actSaveImageTint_) != nullptr;

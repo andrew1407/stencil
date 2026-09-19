@@ -1,10 +1,8 @@
-// Headless check of the shared toggle FACE swap (src/support/faceSwap.hpp) — the one
-// exchange behind Draw's Start▶/Stop■ and its Line/Rect neighbour. Two halves are pinned
-// here: the curve (both ends at rest, an invisible pivot, the turn reversing across it),
-// and the driver on a live QToolButton — that a swap converges on the face asked for, that
-// the caller's state flip runs exactly once, that reduced motion lands on the end state
-// without animating, that rapid supersession always ends on the LAST face asked for, and
-// that nothing of the exchange (a widget stylesheet, an oversized icon) survives it.
+// Headless check of the shared toggle FACE swap (src/support/faceSwap.hpp) — the one exchange behind
+// Draw's Start▶/Stop■ and its Line/Rect neighbour: the curve (both ends at rest, an invisible pivot,
+// the turn reversing across it), and the driver on a live QToolButton — a swap converges on the face
+// asked for, the caller's state flip runs exactly once, reduced motion lands on the end state, rapid
+// supersession ends on the LAST face asked for, and nothing of the exchange survives it.
 #include "faceSwap.hpp"
 
 #include <QApplication>
@@ -129,10 +127,8 @@ int main(int argc, char** argv) {
         "nothing of the fade survives: the button gets its own stylesheet back");
   check(applied == 2, "the state flip ran exactly once for the swap");
 
-  // The WORD fades with the glyph, and it has to fade for REAL — a widget stylesheet Qt
-  // never matched (a property selector wants a re-polish) would leave the label at full
-  // strength under a turning glyph. Read as the darkest pixel in the label half of the
-  // button: a dark word at rest, one faded into the background at the pivot.
+  // The WORD fades with the glyph, and it has to fade for REAL: a widget stylesheet Qt never matched (a
+  // property selector wants a re-polish) would leave the label at full strength under a turning glyph.
   const auto labelDarkest = [btn] {
     const QImage im = btn->grab().toImage();
     int lo = 255;

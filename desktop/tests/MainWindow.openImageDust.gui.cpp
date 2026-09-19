@@ -30,9 +30,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Swapping the source blows the OLD picture away first (browser twin: loadPreviewMedia's
-  // scatter). The cloud has to be raised while the label is still shown — overRect refuses an
-  // invisible source — so hiding it first made the picture simply vanish.
+  // Swapping the source blows the OLD picture away first (browser twin: loadPreviewMedia's scatter).
+  // The cloud must be raised while the label is still shown — overRect refuses an invisible source.
   void replacingThePreviewScattersTheOldPicture() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -62,9 +61,8 @@ class MainWindowGuiTest : public QObject {
       QTest::keyClicks(url, other);
       settle([&] { return pv->isEnabled(); }, 1000);
       pv->click();
-      // A SHORT window on purpose: the departure is raised the moment Preview is pressed,
-      // while the new picture's arrival cannot land before its decode plus OI_RESIZE_MS — so
-      // a cloud this early is the old picture leaving, not the new one coming.
+      // A SHORT window on purpose: the departure is raised the moment Preview is pressed, while the new
+      // picture cannot land before its decode plus OI_RESIZE_MS, so a cloud this early is the old one.
       const auto clouds = [dlg] {
         return dlg->findChildren<QWidget*>(
                      QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME)).size();
@@ -77,9 +75,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(cloudsOnSwap > 0, "the replaced picture must blow away, not just disappear");
   }
 
-  // A cloud belongs to the moment that raised it: leaving the tab, or dismissing the dialog,
-  // takes it along. Left alone it played on over whatever arrived next — and the veil it was
-  // standing in for never lifted, so the picture underneath stayed invisible.
+  // A cloud belongs to the moment that raised it: leaving the tab, or dismissing the dialog, takes it
+  // along and lifts the veil it was standing in for.
   void leavingTakesTheCloudAlongAndLiftsItsVeil() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -133,10 +130,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(onClose, 0);
   }
 
-  // The Album/Portrait button's cloud used to be raised once at its STARTING position and
-  // never repositioned — the window's own height-ease (the stage growing above it) moved
-  // the row out from under it mid-flight, stranding the cloud wherever the row started
-  // (measured: floating over the picture, well above the actual Crop row).
+  // The Album/Portrait button's cloud follows its row: the window's own height-ease (the stage growing
+  // above it) moves the row out from under a cloud raised once at its starting position.
   void albumButtonDustFollowsTheRowAsTheWindowEases() {
     const auto motion = withMotion();
     bool followed = true, sawAny = false;
@@ -176,9 +171,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(sawAny && followed, "the button's cloud tracks the row through the whole height ease");
   }
 
-  // Picking Custom (or leaving it) used to be a plain setVisible — no cloud of its own,
-  // unlike every other arrival/departure in this dialog (user report; browser twin:
-  // openImageModal.js's syncCropSizeCustom).
+  // Picking Custom (or leaving it) forms and falls with its own cloud, like every other arrival and
+  // departure in this dialog (user report; browser twin: openImageModal.js's syncCropSizeCustom).
   void pickingCustomFormsAndFallsWithItsOwnCloud() {
     const auto motion = withMotion();
     bool sawArrive = false, sawLeave = false;

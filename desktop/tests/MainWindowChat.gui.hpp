@@ -17,9 +17,8 @@
 namespace stencil::guitest {
   using stencil::gui::ChatDock;
 
-  // Injected LLM transport (the seam LlmClient.headless.cpp uses): captures the
-  // POST and answers synchronously with a canned response, so a chat send in
-  // the GUI test never touches the network.
+  // Injected LLM transport (the seam LlmClient.headless.cpp uses): captures the POST and answers
+  // synchronously with a canned response, so a chat send in the GUI test never touches the network.
   struct MockChatTransport : stencil::llm::LlmTransport {
     QJsonObject body;             // last POSTed payload
     QList<QJsonObject> allBodies; // every POSTed payload, in order
@@ -40,10 +39,8 @@ namespace stencil::guitest {
     }
   };
 
-  // Asynchronous LLM transport: every POST is PARKED with its callback so the test
-  // decides when answers land. MockChatTransport answers inline, which makes every
-  // fan-out look like one request at a time — the only way to see how many requests
-  // are really in flight at once is to hold them.
+  // Asynchronous LLM transport: every POST is PARKED with its callback so the test decides when answers
+  // land — the only way to see how many requests are really in flight at once.
   struct DeferredChatTransport : stencil::llm::LlmTransport {
     struct Call {
       QJsonObject body;
@@ -101,9 +98,8 @@ namespace stencil::guitest {
     return all;
   }
 
-  // Does any card in the chat transcript carry this text? Cards keep their
-  // rendered text on the body label's "chatBody" property (notes riding inside
-  // an assistant bubble use "chatNote").
+  // Does any card in the chat transcript carry this text? Cards keep their rendered text on the body
+  // label's "chatBody" property (notes riding inside an assistant bubble use "chatNote").
   inline bool chatTranscriptHas(const stencil::gui::ChatDock* dock, const QString& needle) {
     for (const QLabel* l : dock->findChildren<QLabel*>())
       if (l->property("chatBody").toString().contains(needle) ||
@@ -112,9 +108,8 @@ namespace stencil::guitest {
     return false;
   }
 
-  // The texts of the assistant reply bubbles in the transcript, in order. The
-  // pending "…" card (body "…") and cards already handed to deleteLater are
-  // excluded by flushing deferred deletes first.
+  // The texts of the assistant reply bubbles in the transcript, in order. The pending "…" card and
+  // cards already handed to deleteLater are excluded by flushing deferred deletes first.
   inline QStringList assistantBubbleTexts(const stencil::gui::ChatDock* dock) {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     QStringList out;
@@ -128,18 +123,16 @@ namespace stencil::guitest {
     return out;
   }
 
-  // No card under `transcript` is still mid-entrance: animateCardIn claims the card's
-  // opacity effect for the whole arrival and drops the claim when it settles, so this is
-  // the arrival's own completion flag — the entrance animation itself is card-owned.
+  // No card under `transcript` is still mid-entrance: animateCardIn claims the card's opacity effect for
+  // the whole arrival and drops the claim when it settles, so that claim is the completion flag.
   inline bool noneEntering(const QWidget* transcript) {
     for (const QFrame* c : transcript->findChildren<QFrame*>())
       if (c->property(stencil::gui::ScrollReveal::ENTERING_PROPERTY).toBool()) return false;
     return true;
   }
 
-  // The chat dock slides open, so isVisible() is true while it is still a zero-width
-  // sliver, and anything appended into that lays out at the wrong width. Wait for the
-  // transcript's real width, and hand back the scroll area every chat test drives.
+  // The chat dock slides open, so isVisible() is true while it is still a zero-width sliver and anything
+  // appended into it lays out at the wrong width: wait for the transcript's real width.
   inline QScrollArea* openTranscript(stencil::gui::MainWindow& win) {
     QScrollArea* scroll = nullptr;
     ChatDock* dock = win.findChild<ChatDock*>();

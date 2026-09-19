@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // §10 clearChat from chat: DEFERRED (the plan's other action runs first even
-  // when clearChat is listed first) and always confirmed. Declined: a "clear
-  // canceled" note, everything kept. Accepted: dock transcript, chatHistory_,
-  // the §12 persisted copy AND the §7 text-only latch all clear.
+  // §10 clearChat from chat: DEFERRED (the plan's other action runs first) and always confirmed.
+  // Declined leaves everything; accepted clears the dock, chatHistory_, the §12 copy and the latch.
   void chatClearChatDefersConfirmsAndClears() {
     using stencil::gui::Project;
     MainWindow win(nullptr, false);
@@ -77,11 +75,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §7 edge map: a turn that carries the working snapshot carries a SECOND
-  // image — the contour render — directly after it, with the exact suffix
-  // sentence riding along, and the edge map is never replayed on later turns.
-  // §3.0: a layout answer ends the turn, so ONE request goes out — the edge map
-  // belongs to the main turn and to nothing else.
+  // §7 edge map: a turn carrying the working snapshot carries the contour render directly after it
+  // with the exact suffix sentence, never replayed later. §3.0: a layout answer ends the turn.
   void chatEdgeMapRidesAlong() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -89,10 +84,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.canvas_->hasImage());
-    // The fixture is a flat white image; a perfectly uniform snapshot's contour render
-    // can coincide with the plain snapshot bit-for-bit (applyContourRGBA maps ANY
-    // uniform image to solid white). One line breaks the uniformity so the edge map
-    // and the plain snapshot are guaranteed to differ, regardless of that overlap.
+    // The fixture is flat white, and applyContourRGBA maps ANY uniform image to solid white, so one
+    // line breaks the uniformity and guarantees the two renders differ.
     stencil::core::Line line;
     line.color = "#000000";
     line.thickness = 4;
@@ -145,9 +138,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §7 auto-continuation: the re-sent round carries the NEW working snapshot
-  // plus its edge map (browser parity), with the exact suffix sentence — while
-  // the imageless first round carried neither image nor sentence.
+  // §7 auto-continuation: the re-sent round carries the NEW working snapshot plus its edge map
+  // (browser parity) with the exact suffix sentence; the imageless first round carried neither.
   void chatEdgeMapOnContinuation() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -157,9 +149,8 @@ class MainWindowGuiTest : public QObject {
     win.settings_.llmProvider = "ollama";
     win.settings_.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
-    // A load-only plan (blank) triggers the single §7 continuation round. A
-    // COLOURED blank: the edge map contours to flat white, so a white blank's
-    // snapshot would coincide with it byte-for-byte and void the ≠ check below.
+    // A load-only plan (blank) triggers the single §7 continuation round; a COLOURED blank, since the
+    // edge map contours a white blank to flat white and would coincide with its own snapshot.
     mock.response = QJsonDocument(QJsonObject{
         {"message",
          QJsonObject{{"content",

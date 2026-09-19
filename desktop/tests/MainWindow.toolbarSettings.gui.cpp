@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The toolbar closes with a SETTINGS cluster, mirroring the browser's last
-  // group: theme · fullscreen · incognito · gear · palette · info. Every button
-  // drives the EXISTING QAction, so the toolbar and the menu bar stay in step in
-  // both directions — the incognito one lights up like the browser's whichever
-  // side toggles it.
+  // The toolbar closes with a SETTINGS cluster mirroring the browser's last group: theme · fullscreen ·
+  // incognito · gear · palette · info. Every button drives the EXISTING QAction, so both stay in step.
   void toolbarHasTheBrowsersSettingsSection() {
     MainWindow win(nullptr, false);
     win.resize(1400, 800);
@@ -24,10 +21,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(caption, "the section has no caption");
     QCOMPARE(caption->text(), QStringLiteral("SETTINGS"));   // same styling as its siblings
 
-    // The six controls, in the browser's order: the two state TOGGLES first (incognito ·
-    // fullscreen), then the theme switch, then the three that open dialogs — gear
-    // (Shortcuts) · palette (Visuals) · info (Help). actAccent_ is NOT here — it's the
-    // logo's own popover, with no toolbar icon of its own in the browser.
+    // The six controls, in the browser's order: the state TOGGLES first (incognito · fullscreen), then the
+    // theme switch, then gear · palette · info. actAccent_ is the logo's popover, with no toolbar icon.
     QList<QAction*> got;
     for (QToolButton* b : section->findChildren<QToolButton*>())
       if (b->defaultAction()) got << b->defaultAction();
@@ -68,13 +63,8 @@ class MainWindowGuiTest : public QObject {
     // The palette button opens the SAME accent popover the logo does.
     QCOMPARE(win.actAccent_->objectName(), QStringLiteral("actAccent"));
 
-    // …and it must actually be ON SCREEN. Asserting only that the actions exist
-    // passed happily while the user could not see the section at all: the row
-    // overflowed and QToolBar's "»" swallowed it, leaving a separator after DATA
-    // and nothing after that. So: visible, non-empty, and fully inside the
-    // toolbar's own rect — at laptop widths, and with the custom-page cm inputs
-    // showing (that is the state the report came from), which is what made the
-    // row too wide.
+    // …and it must actually be ON SCREEN: visible, non-empty and fully inside the toolbar's own rect, at
+    // laptop widths with the custom-page cm inputs showing, or QToolBar's "»" swallows the section.
     QToolBar* row = win.findChild<QToolBar*>("mainToolbar");   // the one wrapping run
     QVERIFY(row);
     const int custom = win.units_.pageSize->findData(QStringLiteral("custom"));

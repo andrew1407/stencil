@@ -119,7 +119,7 @@ namespace stencil::gui {
                                            : ChatCardKind::BUBBLE,
                  dangerCache_);
     // pageBg is the transcript's REAL backdrop (bgControls), not chipCache_ — else the tail is a shade off.
-    applyChatBubbleSide(card, transcriptLayout_, isChatBubbleOnRight(user, chatSwapSides_),
+    applyChatBubbleSide(card, log_.transcriptLayout, isChatBubbleOnRight(user, chatSwapSides_),
                         accentCache_, chipCache_, borderCache_, dangerCache_,
                         paletteCache_.bgControls);
     installCardMenu(card);
@@ -132,7 +132,7 @@ namespace stencil::gui {
     chatSwapSides_ = on;
     // The flattened tail corner rides the SHARED stylesheet, keyed off chatSwapSides_.
     restyleIcons(paletteCache_);
-    applyChatSwapToCards(transcript_, transcriptLayout_, chatSwapSides_, accentCache_,
+    applyChatSwapToCards(log_.transcript, log_.transcriptLayout, chatSwapSides_, accentCache_,
                          chipCache_, borderCache_, dangerCache_, paletteCache_.bgControls);
     applyBubbleWidths();
   }

@@ -34,9 +34,8 @@ namespace stencil::gui {
   inline constexpr int PREVIEW_MAX_H = 300;  // keeping aspect ratio (browser parity).
   inline constexpr int PREVIEW_MIN_H = 120;  // the picture never gives up room below this
 
-  // A checkbox whose CAPTION is its own wrapping label. A QCheckBox cannot wrap, so a box carrying a
-  // whole sentence makes that sentence the row's minimum width, which the compact popover then clips.
-  // Browser twin: the .footer-hint span. Zero spacing — the bare box already carries the QSS gap.
+  // A checkbox whose CAPTION is its own wrapping label: a QCheckBox cannot wrap, so a sentence in
+  // the box becomes the row's minimum width. Browser twin: the .footer-hint span. Zero spacing.
   inline QHBoxLayout* checkCaptionRow(QWidget* parent, QCheckBox*& box, const QString& text) {
     auto* row = new QHBoxLayout;
     row->setContentsMargins(0, 0, 0, 0);
@@ -45,18 +44,16 @@ namespace stencil::gui {
     box->setObjectName(QStringLiteral("captionCheck"));   // app.qss: no spacing, no gap chip
     auto* hint = new QLabel(text, parent);
     hint->setWordWrap(true);
-    // Centred against the row's own height, exactly what the browser's align-items:
-    // center gives a one-liner — and, for a caption that wraps in a narrow popover,
-    // what it gives there too: the box centred on the whole block, not pinned to line 1.
+    // Centred against the row's own height, what the browser's align-items: center gives - and, for a
+    // caption that wraps in a narrow popover, the box centred on the block, not pinned to line 1.
     support::captionToggles(hint, box);   // the words are the box's label
     row->addWidget(box, 0, Qt::AlignVCenter);
     row->addWidget(hint, 1, Qt::AlignVCenter);
     return row;
   }
 
-  // One browser .vs-row (components.css): a hairline-underlined form row with a
-  // fixed label column (stencil-open-image-modal label min-width: 88px, row
-  // padding 7px 4px). The QSS half ([vsRow]/[vsLabel]) lives in theme.cpp.
+  // One browser .vs-row (components.css): a hairline-underlined form row with a fixed label column
+  // (label min-width: 88px, row padding 7px 4px). The QSS half ([vsRow]/[vsLabel]) is in theme.cpp.
   inline QWidget* vsRow(QWidget* parent, const QString& label, QLayout* content) {
     return modalRow(parent, label, content, /*labelMinW=*/88);
   }

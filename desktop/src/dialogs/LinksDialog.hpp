@@ -8,6 +8,7 @@ class QLineEdit;
 class QSpinBox;
 class QLabel;
 class QWidget;
+class QFormLayout;
 class QPushButton;
 class QCheckBox;
 class QComboBox;
@@ -57,6 +58,10 @@ namespace stencil::gui {
     bool eventFilter(QObject* obj, QEvent* event) override;
 
    private:
+    // Constructor build stages, each its own TU (LinksDialogQuickCrop / LinksDialogPreviewWiring).
+    void buildQuickCrop(QFormLayout* addForm, const QString& units);
+    void wirePreview(QPushButton* previewBtn);
+
     void openInBrowser(const QLineEdit* field) const;
     void requestLoad();
     void doPreview();

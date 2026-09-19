@@ -7,9 +7,8 @@
 
 namespace stencil::gui {
 
-  // port of browser drawingApp.js createRect ~1393 (standalone branch). Build
-  // a locked 4-corner rectangle (drawPolygon closes the loop, so no 5th point),
-  // push it, select it, and commit history.
+  // Port of browser drawingApp.js createRect (standalone branch): a locked 4-corner rectangle
+  // (drawPolygon closes the loop, so no 5th point).
   void CanvasWidget::createRect(double x1, double y1, double x2, double y2) {
     const double xa = std::min(x1, x2);
     const double xb = std::max(x1, x2);
@@ -60,17 +59,15 @@ namespace stencil::gui {
     return {widgetX / scale_, widgetY / scale_};
   }
 
-  // Port of the line drawing in browser/js/core/renderer.js: locked-area fill
-  // beneath the stroke, dash patterns per style, then points. Scale-parameterized
-  // so renderToImage draws at native resolution while the live view passes scale_.
+  // Port of the line drawing in browser/js/core/renderer.js. Scale-parameterized so renderToImage
+  // draws at native resolution while the live view passes scale_.
   void CanvasWidget::drawLineScaled(QPainter& p, const core::Line& line,
                                     int lineIdx, double scale,
                                     bool highlight, bool live) const {
     if (line.points.empty()) return;
 
-    // A vertex added a moment ago is drawn where it is RIGHT NOW; fill, glows, stroke and points all
-    // read this polygon, so segments hanging off a moving vertex follow it for free. One buffer per
-    // frame: QPolygonF keeps its capacity, so fifty lines no longer allocate fifty vectors.
+    // A vertex added a moment ago is drawn where it is RIGHT NOW, so segments hanging off a moving
+    // vertex follow it for free. One buffer per frame: QPolygonF keeps its capacity.
     static thread_local QPolygonF polyBuf;
     flownPolygon(line, lineIdx, scale, live, polyBuf);
     const QPolygonF& poly = polyBuf;
@@ -78,9 +75,8 @@ namespace stencil::gui {
     const QColor stroke = paintColor(line.color);
     const Palette& pal = paintPalette(dark_, accentKey_, selGlow_, hoverRing_);
 
-    // Points take the line's own point colour, which core::pointColorOr resolves to the
-    // stroke colour when unset — so a line without one paints exactly as it always did.
-    // An unparseable colour falls back to the stroke rather than painting points black.
+    // core::pointColorOr resolves an unset point colour to the stroke colour, so a line without one
+    // paints as it always did; an unparseable colour falls back there too, never to black.
     const QColor pointParsed = paintColor(core::pointColorOr(line));
     const QColor pointFill = pointParsed.isValid() ? pointParsed : stroke;
 

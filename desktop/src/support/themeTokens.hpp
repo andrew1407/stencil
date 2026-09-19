@@ -13,9 +13,8 @@ namespace stencil::gui {
 
   void ensureThemeResources();
 
-  // The SAME sRGB hex the browser paints — encoding into Display P3 on macOS was a second
-  // conversion (Qt's surface is colour-managed too). The one seam to change if a platform
-  // ever hands over an unmanaged surface.
+  // The SAME sRGB hex the browser paints - encoding into Display P3 on macOS was a second conversion
+  // (Qt's surface is colour-managed too). The one seam to change for an unmanaged surface.
   inline QColor displayColor(const QColor& c) { return c; }
 
   // browser/js/config/themeTokens.json via app.qrc, keyed by CSS custom-property NAME —

@@ -7,15 +7,11 @@
 #include <QStringList>
 #include <QVector>
 
-// Registry-driven op-plan validation (llm-contract.md §1–§2, §11, §13) — the desktop
-// port of browser/js/llm/opSchema.js, table-driven from the shared
-// browser/js/config/llm/opRegistry.json (qrc alias llm/opRegistry.json). Profile
-// membership, unknown-field rejection, required keys, types, enums, ranges, string
-// caps, token grammars and the cross-field presence rules (forms / together /
-// exclusive / minFields / onlyWith / requiredWith) all come from the registry;
-// opPlan.cpp keeps only its struct filling, the native rule cropAspectFold and the
-// desktop's recorded extras. Rules are ported op-for-op; only the error wording is
-// this surface's (the corpus is verdict-only).
+// Registry-driven op-plan validation (llm-contract.md §1-§2, §11, §13) - the desktop port of
+// browser/js/llm/opSchema.js, table-driven from the shared browser/js/config/llm/opRegistry.json
+// (qrc alias llm/opRegistry.json): profile membership, unknown-field rejection, required keys,
+// types, enums, ranges, string caps, token grammars and the cross-field presence rules all come
+// from the registry. Ported op-for-op; only the error wording is this surface's.
 namespace stencil::llm {
 
   // One registry entry resolved for this surface: its key schema (surfaceKeys wins),
@@ -52,9 +48,8 @@ namespace stencil::llm {
     int limit(const QString& name) const;
     QString defaultCustomLabel() const;
 
-    // Validate one action against its entry (native rules first). *validated is the
-    // action as validated (post-fold) — feed it to normalize(). Errors carry the
-    // "Invalid <op> action: " prefix.
+    // Validate one action against its entry (native rules first). *validated is the action as
+    // validated (post-fold) - feed it to normalize(). Errors carry the "Invalid <op> action: " prefix.
     bool validateAction(const QJsonObject& action, const OpEntry& entry,
                         QJsonObject* validated, QString* err) const;
     // The declared keys present (deep-picked, trims honoured) plus defaults.

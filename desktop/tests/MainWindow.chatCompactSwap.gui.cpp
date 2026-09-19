@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A result that lands with no chat surface to show it must still reach the
-  // user: a toast, plus an unread mark on the chat icon. The three gaps this
-  // pins — a turn finishing DURING the close slide (the dock stays isVisible()
-  // for 260ms), a turn owned by the context-menu panel, and the §3.2/§3.1 chain
-  // finishing after the reply was announced — were all silent.
+  // A result landing with no chat surface must still reach the user: a toast plus an unread mark
+  // on the chat icon — through the close slide, from the panel, and after a §3.2/§3.1 chain.
   void chatToastAndUnreadCoverEveryClosedState() {
     MainWindow win(nullptr, false);
     win.resize(1200, 820);
@@ -68,11 +65,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Opening the COMPACT chat while one is already on screen is a popover swap: the
-  // outgoing shape animates out FIRST — a docked panel slides back into its edge, a
-  // floating one flies into the icon — and only then does the compact float reveal.
-  // Every route has to do it (right-click on the icon, Alt-hover peek, the toolbar
-  // action), from BOTH shapes: the float route used to skip it entirely.
+  // Opening the COMPACT chat over one already on screen is a popover swap: the outgoing shape
+  // animates out first (a dock into its edge, a float into the icon), then the float reveals.
   void compactChatSwapAnimatesFromEveryRoute() {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
@@ -147,9 +141,8 @@ class MainWindowGuiTest : public QObject {
         expectSwap(floating, mark, qPrintable(shape + " + alt-peek"));
       }
     }
-    // …and the shape the user actually had: a float that IS the compact popover,
-    // MOVED away from its anchor. Re-opening it used to teleport the window with
-    // no motion at either end — the reported "the chat just vanished".
+    // …and the shape the user actually had: a float that IS the compact popover, MOVED away from
+    // its anchor. Re-opening it must not teleport the window with no motion at either end.
     {
       QVERIFY(win.chatCompactShowing());
       win.chatDock_->appendUser(QStringLiteral("moved compact"));

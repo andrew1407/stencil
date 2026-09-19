@@ -34,17 +34,15 @@
 
 namespace stencil::gui {
 
-  // The row's own controls: reconnect, the admin row's invite, and disconnect. Every glyph
-  // is white on its filled button (browser `button { color: white }`); an expired row's
-  // amber fill takes a dark one instead.
+  // Every glyph is white on its filled button (browser `button { color: white }`); an expired
+  // row's amber fill takes a dark one instead.
   void ConnectDialog::addConnectionRowActions(QHBoxLayout* h, const QString& url,
                                              stencil::net::ServerClient* cl, bool expired,
                                              bool admin) {
     const QColor rowTxt("#ffffff");
     const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::ERROR;
     // One reconnect control per row, the SAME icon-only square in every state (browser
-    // .connect-reconnect-one): an expired row says so with its amber fill and tooltip, not a word its
-    // neighbours lack. On an expired session it runs reauthenticate(): session first, token if refused.
+    // .connect-reconnect-one). On an expired session it runs reauthenticate(): session, then token.
     auto* recon = makeRowActionButton(themedIcon("refresh", expired ? QColor("#1f1f1f") : rowTxt, 15),
                             expired ? tr("Sign in to this server again")
                                     : tr("Reconnect this server"));
@@ -54,9 +52,8 @@ namespace stencil::gui {
     auto* disc = makeRowActionButton(themedIcon("trash", rowTxt, 15),
                            tr("Disconnect (and forget) this server"));
     disc->setObjectName(QStringLiteral("rowDisconnect"));
-    // Invite: mint a fresh session with the row's credential and put "<url>#token=<tok>" on the
-    // clipboard. ADMIN rows only — a session-token credential cannot mint (the server 401s it), and
-    // an anonymous session holds no credential at all.
+    // Invite: mint a fresh session and put "<url>#token=<tok>" on the clipboard. ADMIN rows only -
+    // a session-token credential cannot mint (the server 401s it), and an anonymous one has none.
     if (cl && st == stencil::net::ServerClient::Status::CONNECTED && admin) {
       auto* invite = makeRowActionButton(themedIcon("link", rowTxt, 15),
                                tr("Copy an invite link (mints a fresh session token)"));

@@ -58,9 +58,8 @@ namespace stencil::gui {
     cropStage_->setPageSize(page.width, page.height);
   }
 
-  // The stage TAKES THE PICTURE'S PLACE while Crop is on — a draggable box over the image,
-  // its size read out underneath (the browser's cropStage); a VIDEO's frame is no different,
-  // so nothing arrives or leaves. Rebuilt per image: the rect lives in that image's pixels.
+  // The stage TAKES THE PICTURE'S PLACE while Crop is on (the browser's cropStage); a VIDEO's frame
+  // is no different. Rebuilt per image: the rect lives in that image's pixels.
   void OpenImageDialog::syncCropStage() {
     const bool on = cropPage_->isChecked() && !previewImage_.isNull();
     if (cropStage_) {
@@ -90,24 +89,21 @@ namespace stencil::gui {
     const core::PageSize page = cropPageDims();
     const double pw = page.width;
     const double ph = page.height;
-    // The tab's OWN last-dragged rect, if this is the same decode it was dragged on — a fresh
-    // centeredCrop() otherwise threw the drag away on every tab switch. Its own shape says Album or
-    // Portrait and the checkbox follows THAT, or a restore is overwritten by the last tab's toggle.
+    // The tab's OWN last-dragged rect, if this is the same decode - a fresh centeredCrop() threw the
+    // drag away on every tab switch. Its own shape says Album or Portrait and the checkbox follows THAT.
     const int tab = tabs_->currentIndex();
     const TabPreviewCache* cache = (tab == TabFile || tab == TabUrl) ? &tabCache_[tab] : nullptr;
     const bool hasSaved = cache && cache->cropRectValid && cache->previewImage.size() == previewImage_.size();
     // The FIRST crop on this decode starts from ITS OWN orientation (showQuickcrop's w>=h rule), never
-    // cropAlbum_'s current state — one checkbox shared by every tab. A restore arriving through
-    // applyMode()'s quiet resync, not the fresh-load path, never gets that recompute otherwise.
+    // cropAlbum_'s current state - one checkbox is shared by every tab.
     const int iw = previewImage_.width(), ih = previewImage_.height();
     const bool defaultAlbum = (iw >= ih) && (iw > 0);
     const core::CropRect initial = hasSaved
         ? cache->cropRect
         : core::centeredCrop(previewImage_.width(), previewImage_.height(),
                              core::cropAspect(pw, ph, defaultAlbum));
-    // autoFitScreen=false: CropPreview's OWN screen-relative sizing is for the standalone
-    // Crop tool, not this stage — this one's box comes from previewFitBox() alone (grows
-    // with the window, resizeEvent), never a fraction of the screen, even transiently.
+    // autoFitScreen=false: CropPreview's OWN screen-relative sizing is for the standalone Crop tool;
+    // this stage's box comes from previewFitBox() alone (grows with the window, resizeEvent).
     cropStage_ = new CropPreview(previewImage_, pw, ph, initial, cropStageHost_,
                                  /*autoFitScreen=*/false);
     // The constructor already derived album_ from `initial`'s own shape — no second,
@@ -131,8 +127,7 @@ namespace stencil::gui {
     refitWindowHeight();   // …so the window is measured against the shape this lands on
   }
 
-  // The tab's own copy of the drag, so a switch away and back restores it instead of a
-  // fresh centeredCrop(). Keyed to the decode's own size — a later, differently-sized
+  // The tab's own copy of the drag, keyed to the decode's own size - a later, differently-sized
   // picture on the same tab must never reuse a rect fitted to the one before it.
   void OpenImageDialog::persistCropRect() {
     const int tab = tabs_->currentIndex();

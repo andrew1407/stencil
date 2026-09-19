@@ -94,9 +94,8 @@ class MainWindowGuiTest : public QObject {
       QTest::mouseClick(canvas, Qt::LeftButton, Qt::NoModifier, p);
       beat();
     }
-    // Each left-click press adds exactly one point: the canvas widget is fixed to
-    // the scaled-image size with a zero-offset widget→image mapping, so all three
-    // clicks land inside the image (no letterboxing to miss) and none are deduped.
+    // Each left-click press adds exactly one point: the canvas is fixed to the scaled-image
+    // size with a zero-offset widget→image mapping, so all three clicks land inside it.
     QCOMPARE(totalPoints(canvas), 3);
 
     // Commit the line via the "New Line" action — this is what pushes an undo snapshot.

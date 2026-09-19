@@ -19,9 +19,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The read-out's cloud lands ON the read-out, and the column EASES into its new height.
-  // Raised before that ease, the cloud is pinned where the line used to be and the growing
-  // column slides the line out from under it (measured 19px off).
+  // The read-out's cloud lands ON the read-out while the column EASES into its new height: raised
+  // before that ease, it is pinned where the line used to be (measured 19px off).
   void theReadOutsCloudLandsOnItWhileTheColumnEases() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -71,9 +70,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(steps >= 3, qPrintable(QString("the column jumped in %1 step(s), not eased").arg(steps)));
   }
 
-  // The read-out's cloud is a mesh of SPECKS, sized from the box — the keyword chip's
-  // recipe and the browser's reshapeGrid. A fixed budget shaped 3:1 instead gave a 13px
-  // line cells of 3.1 x 0.59, and it flew as horizontal slices of its own text.
+  // The read-out's cloud is a mesh of SPECKS sized from the box — the keyword chip's recipe and the
+  // browser's reshapeGrid. A fixed budget shaped 3:1 gave a 13px line cells of 3.1 x 0.59.
   void theReadOutsCloudIsSpeckSizedForItsBox() {
     const auto motion = withMotion();
     // A LARGE picture, as the user's is: the read-out line is wide, so a fixed grid's cells

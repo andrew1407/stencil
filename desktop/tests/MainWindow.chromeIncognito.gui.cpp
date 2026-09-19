@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The incognito frame DRAWS ON clockwise from the top-left rather than blinking into
-  // place, and retracts the same way — the desktop half of the browser's four staggered
-  // .ig-edge elements. framePath is pure, so the order is checkable without a display.
+  // The incognito frame DRAWS ON clockwise from the top-left and retracts the same way — the desktop
+  // half of the browser's four staggered .ig-edge elements. framePath is pure, so no display.
   void incognitoFrameDrawsClockwiseFromTheTopLeft() {
     using stencil::gui::IncognitoOverlay;
     const QRectF box(0, 0, 200, 100);
@@ -43,11 +42,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(IncognitoOverlay::framePath(QRectF(), 1.0).isEmpty(), "an empty viewport draws nothing");
   }
 
-  // Incognito shows INLINE on the image-size line (browser parity: an accent, bold
-  // "<icon> Incognito — not saved" tag beside the size, behind a muted "|" divider),
-  // in both the loaded and the empty state, and only while incognito is on. The glyph
-  // is the app's own themed incognito icon, never an emoji. The "?" hint keeps its own
-  // bubble — this is an addition, not a replacement.
+  // Incognito shows INLINE on the image-size line (browser parity: an accent bold tag behind a muted
+  // "|"), in both states and only while on. The glyph is the app's themed icon, never an emoji.
   void incognitoTagRidesTheImageSizeLine() {
     MainWindow win(nullptr, false);
     win.resize(1200, 820);
@@ -120,9 +116,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.statusHint_->toolTip().contains(tag));
     win.actIncognito_->setChecked(false);
 
-    // The glyph is rasterised for the SCREEN it will be shown on: at dpr 2 the same
-    // 16 px element carries a 32 px PNG (offscreen runs at 1x, so pass the ratio in —
-    // the Retina path would otherwise never be exercised here).
+    // The glyph is rasterised for the SCREEN it will be shown on: at dpr 2 the same 16px element
+    // carries a 32px PNG. Offscreen runs at 1x, so the ratio is passed in.
     for (const qreal dpr : {qreal(1), qreal(2)}) {
       const QString html =
           stencil::gui::inlineIconHtml(QStringLiteral("incognito"), accent, 16, QString(), dpr);

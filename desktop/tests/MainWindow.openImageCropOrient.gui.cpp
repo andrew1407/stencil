@@ -30,10 +30,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // A tab's crop must start from ITS OWN orientation, never the other tab's — the outgoing
-  // stage used to survive into the arriving tab's showPreview() just long enough for its
-  // OWN setOriginal() to recompute a rect from the wrong aspect and persist it as if it
-  // were the new tab's own custom crop.
+  // A tab's crop must start from ITS OWN orientation: the outgoing stage used to survive into the
+  // arriving tab's showPreview() and persist a rect recomputed from the wrong aspect.
   void aTabsFirstCropStartsFromItsOwnOrientationNotTheOtherTabs() {
     bool localAlbum = false, urlAlbum = true;
     MainWindow win(nullptr, false);
@@ -82,9 +80,8 @@ class MainWindowGuiTest : public QObject {
   }
 
 
-  // Pressing the Album/Portrait button must flip the stage on screen — syncQuickcropEnabled's
-  // full rebuild used to run on every toggle and re-derive the picture's OWN default
-  // orientation, overwriting the very press that triggered it (the button "did nothing").
+  // Pressing the Album/Portrait button must flip the stage on screen: syncQuickcropEnabled's full
+  // rebuild re-derived the picture's own default orientation and overwrote the press.
   void pressingTheOrientationButtonFlipsTheStage() {
     bool albumBefore = false, albumAfter = true, rectChanged = false;
     MainWindow win(nullptr, false);
@@ -122,9 +119,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(rectChanged, "a flip re-centres the rect to the new aspect, not the old one");
   }
 
-  // Picking a page size is never a flip: every ISO A/B/C size shares one ratio (so picking
-  // another leaves the shape alone), and Custom's own genuinely different aspect resets to
-  // a fresh default — there is no reciprocal to carry the old box across, unlike Album/Portrait.
+  // Picking a page size is never a flip: every ISO A/B/C size shares one ratio, and Custom's genuinely
+  // different aspect resets to a fresh default — there is no reciprocal to carry the old box across.
   void pickingARatioReshapesTheStageToTheNewAspect() {
     bool ratio11 = false, ratio23Distinct = false, customReshaped = false, projectPageUntouched = true;
     MainWindow win(nullptr, false);

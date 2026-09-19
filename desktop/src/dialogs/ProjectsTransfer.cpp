@@ -26,7 +26,7 @@ namespace stencil::gui {
     const QString nm = support::shortName(it->data(Qt::UserRole + 3).toString());
     // Confirm on the NEXT turn, over the still-open dialog: the drag-out Remove zone
     // lands here from a drag release, which dismisses a box shown in the same turn.
-    QTimer::singleShot(0, this, [this, id, nm, closeTo = menuKebabRect_] {
+    QTimer::singleShot(0, this, [this, id, nm, closeTo = hover_.menuKebabRect] {
       ConfirmSpec spec;
       spec.flight.closeRect = closeTo;
       spec.title = tr("Remove project");
@@ -43,9 +43,8 @@ namespace stencil::gui {
           row = c;
       }
       if (row) {
-        // The row scatters in place — a painted row has no widget of its own, so its
-        // RECT is what comes apart (support/DisintegrateOverlay.hpp). Clipped to the
-        // viewport so a part-scrolled row can't overlay the dialog chrome.
+        // A painted row has no widget of its own, so its RECT is what comes apart
+        // (support/DisintegrateOverlay.hpp). Clipped to the viewport.
         DisintegrateOverlay::overRect(
             list_->viewport(),
             list_->visualItemRect(row).intersected(list_->viewport()->rect()),

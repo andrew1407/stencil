@@ -15,9 +15,8 @@ static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 
 namespace stencil::llm {
 
-  // One object against a key map + its holder's presence rules. `skip` names keys that
-  // are neither declared nor unknown (the action's own "op"). Keys are visited in
-  // QJsonObject's sorted order, not declaration order — verdicts are unaffected.
+  // One object against a key map + its holder's presence rules. `skip` names keys that are neither
+  // declared nor unknown. Keys are visited in QJsonObject's sorted order; verdicts are unaffected.
   bool OpSchema::checkFields(const QJsonObject& obj, const QJsonObject& fields,
                              const QJsonObject& holder, const Path& path,
                              const QStringList& skip, QString* err) const {

@@ -1,23 +1,8 @@
-// Server-connected headless SMOKE test for the async co-edit round-trip that
-// MainWindow::openServerProject + saveToServer implement. Those two methods are
-// private and canvas/UI-entangled, so this test drives the SAME async ServerClient
-// primitives they are built on, with TWO independent connections standing in for two
-// editors sharing one project:
-//
-//   • the open/load path  — getProjectAsync + downloadFileAsync (what openServerProject
-//     does to pull a peer's project onto the canvas), incl. decoding the original bytes;
-//   • the save path        — runGuardedWriteAsync with a line-union merge resolve (exactly
-//     what saveToServer uses: PUT the layout guarded by the version, and on a 409 re-read
-//     the peer's latest, union the lines, and retry until it converges);
-//   • co-edit convergence  — an edit saved by editor A becomes visible to editor B, and a
-//     concurrent save from a STALE editor B merges (both editors' lines survive) instead
-//     of clobbering A's — the property live co-editing depends on.
-//
-// It does NOT exercise MainWindow's canvas adoption itself (that stays UI-coupled).
-//
-// SELF-SKIPS (exit 0) when no server is reachable, like the transfer/store integration
-// tests: point it at one with STENCIL_TEST_SERVER (default http://localhost:8090). Built
-// only when Qt is present; not part of the Qt-free core stencil_tests.
+// Server-connected headless SMOKE test for the async co-edit round-trip behind openServerProject and
+// saveToServer: the open/load path (getProjectAsync + downloadFileAsync), the save path
+// (runGuardedWriteAsync with a line-union merge resolve), and convergence — a stale editor's
+// concurrent save merges instead of clobbering. MainWindow's canvas adoption stays UI-coupled.
+// SELF-SKIPS (exit 0) with no server; point it at one with STENCIL_TEST_SERVER. Needs Qt.
 #include "ServerClient.hpp"
 
 #include <QBuffer>
@@ -95,9 +80,8 @@ int main(int argc, char** argv) {
     return false;
   };
 
-  // A guarded save mirroring saveToServer: PUT {lines: *myLines} guarded by `startVer`; on a
-  // 409 the resolve re-reads the peer's latest, unions their lines into *myLines, and retries.
-  // Reports (committed, winningVersion).
+  // A guarded save mirroring saveToServer: PUT {lines: *myLines} guarded by `startVer`; on a 409 the
+  // resolve re-reads the peer's latest, unions their lines in and retries. Reports (committed, version).
   auto guardedSave = [&](ServerClient* cli, const QString& id, qint64 startVer,
                          const std::shared_ptr<QJsonArray>& myLines,
                          const std::function<void(bool committed, qint64 newVer)>& done) {
@@ -226,9 +210,8 @@ int main(int argc, char** argv) {
     pump(ready);
   }
 
-  // ── Editor B: concurrent save from a STALE version [B1] → 409 → merge → converge ──
-  // B still holds v0 (bVersion), so its first PUT conflicts; the guarded-write resolve must
-  // union A's [A1] with B's [B1] and retry, so BOTH survive (co-edit, not clobber).
+  // Editor B: a concurrent save from a STALE version conflicts, so the guarded-write resolve must union
+  // A's [A1] with B's [B1] and retry, leaving BOTH — co-edit, not clobber.
   qint64 vB = 0;
   {
     auto ready = std::make_shared<bool>(false);

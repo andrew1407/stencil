@@ -8,9 +8,8 @@
 namespace stencil::gui {
 
 
-  // Native-resolution render of an export variant — see the header doc for what each
-  // variant means. Mirrors the browser's exportService.js renderExportCanvas /
-  // renderSplitExportCanvas op-for-op.
+  // Native-resolution render of an export variant. Mirrors the browser's exportService.js
+  // renderExportCanvas / renderSplitExportCanvas op-for-op.
   QImage CanvasWidget::renderToImage(const QString& variant, bool withDivider) const {
     if (image_.isNull()) return QImage();
 
@@ -38,9 +37,8 @@ namespace stencil::gui {
     QImage out = base.convertToFormat(QImage::Format_ARGB32);
     if (variant == "tint") return out;  // filtered, no annotations
 
-    // "current" and "split" both draw the visible lines/points at native scale — no
-    // hover/selection rings baked in (highlight = false) — honoring the show flags
-    // (drawLineScaled checks showLines_/showPoints_ itself).
+    // "current" and "split" draw the visible lines/points at native scale - no hover/selection rings
+    // (highlight = false) - honouring the show flags (drawLineScaled checks them itself).
     {
       QPainter p(&out);
       p.setRenderHint(QPainter::Antialiasing, true);
@@ -99,9 +97,8 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
-  // Adopt an in-memory image WITH a known geometry (a reopened server project).
-  // Rotation is set before the crop is applied (the crop rect lives in rotated-
-  // original space); a zero-width crop falls back to the default centered crop.
+  // Rotation is set before the crop is applied (the crop rect lives in rotated-original space);
+  // a zero-width crop falls back to the default centered crop.
   void CanvasWidget::loadFromImage(const QImage& img, const core::CropRect& cropRect,
                                    int rotationQuarters) {
     if (img.isNull()) return;
@@ -157,9 +154,8 @@ namespace stencil::gui {
     scale_ = 1.0;
     filterDirty_ = true;
     history_.reset(lines_);
-    // Release the image-locked fixed size AND actually shrink back: the host scroll
-    // area is not widgetResizable, so relaxing the constraints alone keeps the old
-    // image's size and the idle hint paints centred in a huge off-screen rect.
+    // Release the image-locked fixed size AND actually shrink back: the host scroll area is not
+    // widgetResizable, so relaxing the constraints alone keeps the old image's size.
     setMinimumSize(320, 240);
     setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
     resize(minimumSize());

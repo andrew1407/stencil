@@ -17,17 +17,15 @@
 
 namespace stencil::gui {
 
-  // The temporary row's tile — the browser's .project-thumb: a 56px rounded box (soft
-  // fill inside a hairline) holding the 24px pencil, or the incognito mask, in the muted
-  // text colour. The box is what puts the glyph where the browser's sits.
+  // The temporary row's tile - the browser's .project-thumb: a 56px rounded box holding the 24px
+  // pencil, or the incognito mask. The box is what puts the glyph where the browser's sits.
   QPixmap ProjectsDialog::temporaryIcon(bool incognito) const {
     QPixmap pm(56, 56);
     pm.fill(Qt::transparent);
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
-    // Mid = --text-muted, the browser's .project-thumb-placeholder colour. NOT the
-    // Disabled group (--disabled-text): that is dimmer, and the pen read darker here
-    // than in the browser.
+    // Mid = --text-muted, the browser's .project-thumb-placeholder colour. NOT the Disabled group
+    // (--disabled-text): that is dimmer, and the pen read darker here than in the browser.
     const QColor muted = palette().color(QPalette::Mid);
     p.setBrush(palette().color(QPalette::AlternateBase));      // --bg-info
     p.setPen(QPen(palette().color(QPalette::Dark), 1));         // --border-main

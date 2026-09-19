@@ -20,8 +20,8 @@ namespace stencil::gui {
     if (building_ || !it || it->data(Qt::UserRole).isNull()) return;
     const QString key = QString("%1|%2").arg(it->data(Qt::UserRole + 1).toString(),
                                              it->data(Qt::UserRole).toString());
-    if (it->checkState() == Qt::Checked) checked_.insert(key);
-    else checked_.remove(key);
+    if (it->checkState() == Qt::Checked) batch_.checked.insert(key);
+    else batch_.checked.remove(key);
     updateBatchBar();
   }
 
@@ -34,12 +34,12 @@ namespace stencil::gui {
 
   // Inapplicable directions are HIDDEN, not greyed (browser projectsModal.js updateBatchBar).
   void ProjectsDialog::updateBatchBar() {
-    if (!batchBar_) return;
+    if (!batch_.batchBar) return;
     int locals = 0, remotes = 0;
-    for (const QString& k : checked_) {
+    for (const QString& k : batch_.checked) {
       if (k.startsWith('|')) ++locals; else ++remotes;
     }
-    const int n = checked_.size();
+    const int n = batch_.checked.size();
     // The bar hosts Select all, so it shows whenever the filtered view HAS selectable rows.
     const auto anySelectableNow = [this] {
       for (int i = 0; i < list_->count(); ++i) {
@@ -51,26 +51,26 @@ namespace stencil::gui {
       return false;
     };
     // Closes only once its contents have flown (support/controlReveal) — the connections dialog's twin.
-    revealBar(batchBar_, [this, anySelectableNow] {
-      return !checked_.isEmpty() || anySelectableNow();
+    revealBar(batch_.batchBar, [this, anySelectableNow] {
+      return !batch_.checked.isEmpty() || anySelectableNow();
     });
     // A hard show/hide on the FIRST thing in the row shoved everything after it sideways in one frame.
-    if (batchCount_) {
-      batchCount_->setText(tr("%1 selected").arg(n));
-      revealControls(batchCount_, n > 0);
+    if (batch_.batchCount) {
+      batch_.batchCount->setText(tr("%1 selected").arg(n));
+      revealControls(batch_.batchCount, n > 0);
     }
     const bool haveServers = connections_ && !connections_->urls().isEmpty();
     const auto dir = batchDirectionsFor(locals, remotes, haveServers);
     // The GROUP flies; these visibility flips never carry a cloud of their own.
-    if (batchToServer_) batchToServer_->setVisible(dir.toServer);
-    if (batchCopyServer_) batchCopyServer_->setVisible(dir.toServer);
-    if (batchToLocal_) batchToLocal_->setVisible(dir.toLocal);
-    if (batchCopyLocal_) batchCopyLocal_->setVisible(dir.toLocal);
+    if (batch_.batchToServer) batch_.batchToServer->setVisible(dir.toServer);
+    if (batch_.batchCopyServer) batch_.batchCopyServer->setVisible(dir.toServer);
+    if (batch_.batchToLocal) batch_.batchToLocal->setVisible(dir.toLocal);
+    if (batch_.batchCopyLocal) batch_.batchCopyLocal->setVisible(dir.toLocal);
     // Browser motion.js revealControls. Laid out first: the flips above have only QUEUED the re-flow,
     // and the swap photographs the group as it stands.
-    if (batchSelectedGroup_) {
-      if (QLayout* gl = batchSelectedGroup_->layout()) gl->activate();
-      revealControls(batchSelectedGroup_, n > 0);
+    if (batch_.batchSelectedGroup) {
+      if (QLayout* gl = batch_.batchSelectedGroup->layout()) gl->activate();
+      revealControls(batch_.batchSelectedGroup, n > 0);
     }
     updateSelectAll();
   }
@@ -82,7 +82,7 @@ namespace stencil::gui {
       if (!filteredIn(it) || it->data(Qt::UserRole).isNull() ||
           !(it->flags() & Qt::ItemIsUserCheckable))
         continue;
-      if (!checked_.contains(rowKeyAt(i))) return false;
+      if (!batch_.checked.contains(rowKeyAt(i))) return false;
       any = true;
     }
     return any;
@@ -107,7 +107,7 @@ namespace stencil::gui {
   // Over the CURRENT filtered view; deselect clears the WHOLE selection.
   void ProjectsDialog::toggleSelectAll() {
     if (allFilteredChecked()) {
-      checked_.clear();
+      batch_.checked.clear();
       refresh();
       return;
     }
@@ -121,12 +121,12 @@ namespace stencil::gui {
   }
 
   void ProjectsDialog::runBatch(Action act) {
-    batchItems_.clear();
-    for (const QString& k : checked_) {
+    batch_.batchItems.clear();
+    for (const QString& k : batch_.checked) {
       const int bar = k.indexOf('|');
-      batchItems_.append({ k.mid(bar + 1), k.left(bar) });
+      batch_.batchItems.append({ k.mid(bar + 1), k.left(bar) });
     }
-    if (batchItems_.isEmpty()) return;
+    if (batch_.batchItems.isEmpty()) return;
     if (act == Action::BATCH_MOVE_TO_SERVER || act == Action::BATCH_COPY_TO_SERVER) {
       if (!connections_ || connections_->urls().isEmpty()) return;
       const QString target = pickServer(
@@ -142,15 +142,15 @@ namespace stencil::gui {
       spec.title = tr("Remove projects");
       spec.message = tr("Remove %1 selected project(s)? Server projects are deleted from "
                         "the server.")
-                         .arg(batchItems_.size());
+                         .arg(batch_.batchItems.size());
       spec.confirmIcon = QStringLiteral("trash");
       spec.danger = true;
       if (!confirmModal(this, spec)) return;
-      scatterRows(checked_);
-      // A checked row the filter HIDES has no dust to leave with; batchItems_ is already captured.
-      checked_.clear();
+      scatterRows(batch_.checked);
+      // A checked row the filter HIDES has no dust to leave with; batch_.batchItems is already captured.
+      batch_.checked.clear();
       updateBatchBar();
-      emit removeRequested(batchItems_);
+      emit removeRequested(batch_.batchItems);
       return;
     }
     action_ = act;

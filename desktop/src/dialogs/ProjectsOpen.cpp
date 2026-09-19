@@ -20,23 +20,23 @@
 namespace stencil::gui {
 
   void ProjectsDialog::scheduleRowOpen(QListWidgetItem* it) {
-    if (rowDragging_ || pressOnCheck_ || !it || it->data(Qt::UserRole).isNull()) return;
-    pendingRow_ = list_->row(it);
-    pendingNewWindow_ = isNewWindowMod(pressMods_);
-    if (!clickTimer_) {
-      clickTimer_ = new QTimer(this);
-      clickTimer_->setSingleShot(true);
-      connect(clickTimer_, &QTimer::timeout, this, &ProjectsDialog::fireRowOpen);
+    if (press_.rowDragging || press_.pressOnCheck || !it || it->data(Qt::UserRole).isNull()) return;
+    press_.pendingRow = list_->row(it);
+    press_.pendingNewWindow = isNewWindowMod(press_.pressMods);
+    if (!press_.clickTimer) {
+      press_.clickTimer = new QTimer(this);
+      press_.clickTimer->setSingleShot(true);
+      connect(press_.clickTimer, &QTimer::timeout, this, &ProjectsDialog::fireRowOpen);
     }
     // Wait out the platform's double-click window before acting.
-    clickTimer_->start(QApplication::doubleClickInterval());
+    press_.clickTimer->start(QApplication::doubleClickInterval());
   }
 
   void ProjectsDialog::fireRowOpen() {
     // The double click that cancelled us may already have accepted the dialog
     // (the second release re-emits itemClicked, re-arming this timer).
     if (!isVisible()) return;
-    openRow(list_->item(pendingRow_), pendingNewWindow_, /*confirm=*/true);
+    openRow(list_->item(press_.pendingRow), press_.pendingNewWindow, /*confirm=*/true);
   }
 
   void ProjectsDialog::openRow(QListWidgetItem* it, bool newWindow, bool confirm) {
@@ -74,9 +74,8 @@ namespace stencil::gui {
                it->data(Qt::UserRole + 3).toString());
   }
 
-  // The open-confirm sits OVER the still-open dialog (browser parity), so a cancelled open returns to
-  // the list instead of being orphaned. Deferred a turn so a drag release or menu click in the same
-  // turn cannot dismiss the question (the deleteSelected pattern). A double click skips it.
+  // The open-confirm sits OVER the still-open dialog (browser parity). Deferred a turn so a drag
+  // release or menu click in the same turn cannot dismiss the question. A double click skips it.
   void ProjectsDialog::finishOpen(Action act, bool newWindow, const QString& name) {
     if (!confirmOpen_) {
       action_ = act;
@@ -85,7 +84,7 @@ namespace stencil::gui {
     }
     const QString nm = support::shortName(name.isEmpty() ? tr("Untitled") : name);
     QPointer<ProjectsDialog> self(this);
-    QTimer::singleShot(0, this, [this, self, act, newWindow, nm, closeTo = menuKebabRect_] {
+    QTimer::singleShot(0, this, [this, self, act, newWindow, nm, closeTo = hover_.menuKebabRect] {
       if (!self) return;
       ConfirmSpec spec;
       spec.flight.closeRect = closeTo;

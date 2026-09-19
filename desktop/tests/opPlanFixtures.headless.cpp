@@ -1,12 +1,8 @@
-// Walks the shared op-plan conformance corpus (browser/js/config/llm/fixtures/
-// opPlan/) against the REAL desktop validator (src/llm/opPlan.cpp) — the
-// desktop port of the reference walker browser/tests/opPlanFixtures.test.js.
-//
-// Verdict semantics: "valid" = parseOpPlan succeeds (a chat-only fallback
-// counts), "invalid" = it fails. Object `input` is serialized compact and fed
-// as a model reply would arrive; string `input` is fed verbatim. The desktop
-// profile is "editor"; a fixture's knownDivergence.desktop — or a local
-// tests/fixtureOverrides.json entry, which wins — replaces `expect`.
+// Walks the shared op-plan conformance corpus (browser/js/config/llm/fixtures/opPlan/) against the REAL
+// desktop validator (src/llm/opPlan.cpp) — the port of browser/tests/opPlanFixtures.test.js. Verdict
+// semantics: "valid" = parseOpPlan succeeds (a chat-only fallback counts), "invalid" = it fails. Object
+// `input` is serialized compact, string `input` fed verbatim. The desktop profile is "editor", and a
+// knownDivergence.desktop — or a local tests/fixtureOverrides.json entry, which wins — replaces expect.
 #include "opPlan.hpp"
 
 #include <QCoreApplication>
@@ -28,9 +24,8 @@ int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
 
   const QString dir = corpusPath("llm/fixtures/opPlan");
-  // The hand-written bundle (each case carrying its stable "file" label) plus the
-  // registry-generated one (generated/cases.json, browser/tools/genOpPlanFixtures.mjs),
-  // whose cases walk as "<name>.json".
+  // The hand-written bundle (each case carrying its stable "file" label) plus the registry-generated one
+  // (generated/cases.json, browser/tools/genOpPlanFixtures.mjs), whose cases walk as "<name>.json".
   const QJsonArray hand = readJsonFile(dir + "/cases.json").object().value("cases").toArray();
   const QJsonArray generated =
       readJsonFile(dir + "/generated/cases.json").object().value("cases").toArray();

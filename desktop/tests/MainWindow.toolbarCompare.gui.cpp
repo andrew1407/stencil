@@ -8,13 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // FEATURE: "With Compare" is a SEPARATE action (actCopyImageSplit_/
-  // actSaveImageSplit_), not a relabeling of "Current" — actCopyImage_/actSaveImage_
-  // always read/perform "Current", comparing or not. The split action is only VISIBLE
-  // while a split compare view is active, and only then does it borrow the real
-  // Ctrl+C/Ctrl+Shift+D shortcut from its "Current" sibling (syncSplitCopyDownloadSlot()) —
-  // giving the shortcut back the moment compare turns off. The literal "Filter Only" row
-  // (actCopyImageTint_) is unaffected either way — it never follows compare state.
+  // "With Compare" is a SEPARATE action (actCopyImageSplit_/actSaveImageSplit_), visible only while a
+  // split compare is active, and only then does it borrow Ctrl+C/Ctrl+Shift+D from its sibling.
   void copyDownloadSplitTakesThePrimaryGesture() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -23,8 +18,7 @@ class MainWindowGuiTest : public QObject {
     QImage img(40, 40, QImage::Format_RGB32);
     img.fill(Qt::white);
     win.loadImageWithLayout(img, QJsonObject());
-    // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
-    // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays. This test's own
+    // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is drawn, and the
     // regression block below needs it visible to find its chip.
     {
       stencil::core::Line line;
@@ -42,10 +36,8 @@ class MainWindowGuiTest : public QObject {
     const QKeySequence saveShortcut = win.actSaveImage_->shortcut();
     QVERIFY2(!copyShortcut.isEmpty(), "Current should carry the real Ctrl+C outside compare");
 
-    // Prime MenuHotkeyChips' per-action combo cache with "Current"'s Ctrl+C BEFORE
-    // compare mode ever turns on — the ordinary way a user would have already opened
-    // this popup at some point. The real regression only shows up on a SECOND open,
-    // once the shortcut has since moved elsewhere (below).
+    // Prime MenuHotkeyChips' per-action combo cache with "Current"'s Ctrl+C BEFORE compare mode turns
+    // on: the regression only shows on a SECOND open, once the shortcut has moved elsewhere.
     {
       QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
       QVERIFY(copyBtn);
@@ -76,13 +68,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.copyImageOptionsMenu_->actions().first(), win.actCopyImageSplit_);  // leads
     QCOMPARE(win.saveImageOptionsMenu_->actions().first(), win.actSaveImageSplit_);  // leads
 
-    // REGRESSION: MenuHotkeyChips never deleted a row's chip widget on
-    // teardown (MenuHotkeys.hpp's destructor only restored the action's text/shortcut) —
-    // it just sat there, orphaned but still parented (and visible) on the persistent
-    // menu. Reopening the SAME popup here, now with a 4th row ahead of it shifting every
-    // later row down one slot, lands the leftover chip from the earlier "priming" open
-    // squarely on top of whatever row now occupies its old screen position — visually a
-    // hotkey combo "still showing" on a row that has none any more.
+    // A row's chip widget must be deleted on teardown, not left orphaned but parented and visible: on a
+    // reopen with a 4th row ahead of it, a leftover chip lands on a row that has no hotkey at all.
     {
       QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
       QVERIFY(copyBtn);
@@ -91,10 +78,8 @@ class MainWindowGuiTest : public QObject {
       QApplication::sendEvent(copyBtn, &ctx);
       QMenu* menu = win.copyImageOptionsMenu_;
       const bool opened = menu && menu->isVisible();
-      // Captured into locals and the menu closed BEFORE any assertion — an early
-      // QVERIFY2 return must never leave the menu open, or it outlives `win` and
-      // crashes on teardown (exportOptionsPopupIsNotWiderThanItsContent's own comment
-      // has the full story).
+      // Captured into locals and the menu closed BEFORE any assertion: an early QVERIFY2 return must never
+      // leave the menu open, or it outlives `win` and crashes on teardown.
       bool currentChipped = false, splitChipped = false;
       if (opened) {
         const QRect currentRect = menu->actionGeometry(win.actCopyImageCurrentRow_);

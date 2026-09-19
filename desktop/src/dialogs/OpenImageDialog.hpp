@@ -26,12 +26,11 @@ class QVideoFrame;
 // The GUI e2e drives the VIDEO branch through this seam (no decoder offscreen).
 class MainWindowGuiTest;
 
-// Unified "Open Image" dialog (browser/js/ui/openImageModal.js): the single way into the
-// editor — a local FILE, a web URL/reference, or a NEW BLANK canvas — with a live preview
-// (video frames seek-able) and an optional page-aspect crop, opening here or in a new
-// window. exec(); on Accepted read outcome() and the matching getters.
-// Preview, scrub and quick-crop mirror LinksDialog's add-by-URL section, accessor names
-// included, so MainWindow consumes the two dialogs identically.
+// Unified "Open Image" dialog (browser/js/ui/openImageModal.js): the single way into the editor -
+// a local FILE, a web URL/reference, or a NEW BLANK canvas - with a live preview (video frames
+// seek-able) and an optional page-aspect crop. exec(); on Accepted read outcome() + the getters.
+// Preview, scrub and quick-crop mirror LinksDialog's add-by-URL section, accessor names included,
+// so MainWindow consumes the two dialogs identically.
 namespace stencil::core { struct PageSize; }
 
 namespace stencil::gui {
@@ -45,9 +44,8 @@ namespace stencil::gui {
    public:
     enum class Outcome { HERE, NEW_WINDOW, REPLACE, BLANK };
 
-    // `canReplace` adds the "Replace image" outcome + its rename/keep options (a saved
-    // project only); blankW/blankH seed the new-blank size; startBlank opens in blank mode;
-    // `pageSeed` ("A3") preselects the crop page.
+    // `canReplace` adds the "Replace image" outcome + its rename/keep options (a saved project only);
+    // blankW/blankH seed the new-blank size; startBlank opens in blank mode; `pageSeed` preselects.
     explicit OpenImageDialog(QWidget* parent, bool canReplace,
                              int blankW, int blankH, bool startBlank = false,
                              const QString& pageSeed = QStringLiteral("A3"));

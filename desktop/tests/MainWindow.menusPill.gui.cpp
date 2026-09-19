@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The handle wears the app's pill, centred on the INPUT column it resizes (not the panel),
-  // grows and accents on hover, and the resize cursor is fully restored when the pointer leaves.
-  // The size the drag lands on outlives the menu.
+  // The handle wears the app's pill, centred on the INPUT column it resizes (not the panel), grows and
+  // accents on hover, restores the cursor on leave, and the size the drag lands on outlives the menu.
   void assistantComposerSplitterWearsThePill() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -74,10 +73,8 @@ class MainWindowGuiTest : public QObject {
             return qRound(best / img.devicePixelRatio());
           };
           pillRest = pillWidth(rest);
-          // Centring, pinned by MEASUREMENT: the pill's painted centre must sit
-          // on the INPUT column the drag resizes — not on the handle's full
-          // span, which also covers the send/attach/gear cluster (that was the
-          // off-centre bug: 187 px vs the input's 138 px).
+          // Centring, pinned by MEASUREMENT: the pill's painted centre must sit on the INPUT column the drag
+          // resizes, not on the handle's full span, which also covers the send/attach/gear cluster.
           {
             const QRgb bg = rest.pixel(0, 0);
             int lo = INT_MAX, hi = -1;
@@ -92,13 +89,11 @@ class MainWindowGuiTest : public QObject {
               panelCenterX = panel->width() / 2.0;
             }
           }
-          // Hover it the way a user does — a real move over the menu. The popup
-          // grab suppresses the handle's own enter/leave, so the menu has to
-          // synthesise them; this asserts that plumbing as well as the pill.
+          // Hover it the way a user does, with a real move over the menu: the popup grab suppresses the
+          // handle's own enter/leave, so the menu synthesises them and this asserts that plumbing too.
           const QPoint over = h->mapTo(sub, h->rect().center());
-          // Real MouseMove events sent to the menu — QTest::mouseMove never
-          // reaches a NATIVE popup, so this is the form that exercises the
-          // grab path both offscreen and headed.
+          // Real MouseMove events sent to the menu: QTest::mouseMove never reaches a NATIVE popup, so this
+          // is the form that exercises the grab path both offscreen and headed.
           const auto moveTo = [sub](const QPoint& p) {
             QMouseEvent e(QEvent::MouseMove, QPointF(p), QPointF(sub->mapToGlobal(p)),
                           Qt::NoButton, Qt::NoButton, Qt::NoModifier);

@@ -33,9 +33,8 @@
 
 namespace stencil::gui {
 
-  // The keycaps are inline PNGs in one rich-text label, so they are LOCATED by rendering
-  // twice (as is, and with the faces blanked) and diffing; each is blitted back offset.
-  // At rest the paint is QLabel's own.
+  // The keycaps are inline PNGs in one rich-text label, so they are LOCATED by rendering twice (as
+  // is, and with the faces blanked) and diffing; each is blitted back offset.
   class TipBody : public QLabel {
    public:
     // browser: @keyframes keycapShake (css/components.css) — one damped left/right flick.

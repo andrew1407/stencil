@@ -107,9 +107,8 @@ namespace stencil::gui {
     // split the URL row from the Incognito row with a band of empty space.
     layout->addStretch(1);
 
-    // Footer actions (browser settings-footer: every enabled button accent-filled,
-    // Cancel included; a disabled one drops to the grey chip) — file/URL: Cancel /
-    // Replace? / Open here / Open in new window. blank: Cancel / Create blank.
+    // Footer actions (browser settings-footer: every enabled button accent-filled, Cancel included;
+    // a disabled one drops to the grey chip). blank mode: Cancel / Create blank.
     QHBoxLayout* btnRow = addModalFooter(chrome);
     auto* cancel = new QPushButton("Cancel", this);
     makeModalCta(cancel, "x");
@@ -185,9 +184,8 @@ namespace stencil::gui {
       fetchTimer_->stop();
       if (previewIsVideo_) seekScrub(frame_->value());
     });
-    // A URL edit keeps the picture on screen while the text is corrected — it only
-    // stops counting as THIS url's preview (the frame/crop controls it sized go with
-    // it), and opening re-resolves the typed url. Enter previews it again.
+    // A URL edit keeps the picture on screen while the text is corrected - it only stops counting as
+    // THIS url's preview, and opening re-resolves the typed url. Enter previews it again.
     connect(url_, &QLineEdit::textEdited, this, [this] {
       if (source() != previewedSource_) stalePreview();
       refreshButtons();

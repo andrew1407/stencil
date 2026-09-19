@@ -9,13 +9,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Removing project rows plays the scatter over an EMPTY slot. The overlay animates a
-  // SNAPSHOT, and the list kept painting the ORIGINAL row underneath it — so the removal
-  // was never actually seen. Pins the fixed sequence: the real row blanks the instant the
-  // removal starts, its slot stays open while the dust falls, and the item leaves the
-  // list only once the scatter has played (browser parity: leaveThenRemove +
-  // beginRemoval in projectsModal.js). Driven through Clear All — the removal path that
-  // keeps the dialog open while the animation runs.
+  // Removing a project row plays the scatter over an EMPTY slot: the real row blanks the instant the
+  // removal starts, its slot stays open while the dust falls, and the item leaves only afterwards.
   void projectRemovalBlanksTheRowAndHoldsItsSlot() {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog gestures need the offscreen platform");
@@ -56,9 +51,8 @@ class MainWindowGuiTest : public QObject {
       for (QPushButton* b : dlg->findChildren<QPushButton*>())
         if (b->text().startsWith("Clear All")) clearBtn = b;
       if (!clearBtn) { bailOut(); return; }
-      // click() is synchronous (like trigger()): dismissModal's 0-timer must first fire
-      // INSIDE the confirm's nested loop, not during a QTest::mouseClick event pump —
-      // there its qWait poll gets buried under the confirm's loop and deadlocks.
+      // click() is synchronous (like trigger()): dismissModal's 0-timer must fire INSIDE the confirm's
+      // nested loop — under a QTest::mouseClick event pump its qWait poll deadlocks.
       dismissModal("OK");   // the in-dialog styled confirm
       clearBtn->click();
 
@@ -90,13 +84,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Nothing open here, so the pinned "Temporary (unsaved)" row is listed above the saved
-  // projects — and the batch bar (it hosts Select all) is up because there are rows to
-  // select. Removing every project takes both away, and the row underneath must GLIDE up
-  // into the space, not be dropped into it: the strip used to lose its height the frame
-  // its last control was hidden, and the layout's own spacing went in one more frame
-  // after that ("it should smoothly move"). Pins the whole close as a
-  // continuous slide: no single frame moves the row more than a few pixels.
+  // Removing every project takes the saved rows and the batch bar away, and the row underneath must
+  // GLIDE up into the space: no single frame of that close moves it more than a few pixels.
   void closingTheBatchBarGlidesTheRowsUp() {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog gestures need the offscreen platform");

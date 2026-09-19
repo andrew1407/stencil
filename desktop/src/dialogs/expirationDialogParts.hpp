@@ -14,9 +14,8 @@
 namespace stencil::gui {
 
   inline constexpr long long DAY_MS = 24LL * 60 * 60 * 1000;
-  // The browser modal is narrower than the shared 560px shell (.exp-modal: 400px):
-  // the widest thing in it is the calendar, and at full width it sat in a band of
-  // dead space either side.
+  // The browser modal is narrower than the shared 560px shell (.exp-modal: 400px): the widest thing
+  // in it is the calendar, and at full width it sat in a band of dead space either side.
   inline constexpr int EXP_WIDTH = 400;
   inline constexpr int CELL_MIN_H = 26;   // .exp-cal-cell min-height
 

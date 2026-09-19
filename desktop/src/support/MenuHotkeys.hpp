@@ -1,10 +1,9 @@
 #pragma once
-// Keycap chips for a context menu's shortcut hints (browser .ctx-hotkey .tip-key): the
-// row's native "\tCtrl+C" is replaced by a blank run of the SAME width and a click-through
-// gui::TipBody is painted over it. Q_OBJECT-free. Construct ONCE as a STACK-local declared
-// right AFTER the menu, never heap-allocated or parented to it: a QAction::setText()
-// during the menu's own deleteChildren() reenters a findChildren() over the half-destroyed
-// tree (crashed via styleDangerToolButtons' changed() handler).
+// Keycap chips for a context menu's shortcut hints (browser .ctx-hotkey .tip-key): the row's native
+// "\tCtrl+C" is replaced by a blank run of the SAME width and a click-through gui::TipBody is
+// painted over it. Q_OBJECT-free. Construct ONCE as a STACK-local declared right AFTER the menu,
+// never heap-allocated or parented to it: a QAction::setText() during the menu's own
+// deleteChildren() reenters a findChildren() over the half-destroyed tree.
 #include "AppTooltip.hpp"   // gui::TipBody
 #include "theme.hpp"        // gui::MENU_ITEM_RIGHT_PAD_PX
 #include "tipContent.hpp"   // comboKeycapsHtml, currentPalette

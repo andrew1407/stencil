@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The drop hint's keycaps are PAINTED pictures holding literal colours, so unlike every
-  // styled label they cannot follow a theme change — the line is rebuilt instead. And the
-  // combo is the platform's own: Qt binds a configured "Ctrl" to Command on a Mac, so the
-  // cap must say Command too (browser twin: mainContent.js pasteKeys).
+  // The drop hint's keycaps are PAINTED pictures holding literal colours, so the line is rebuilt on a
+  // theme change; and Qt binds a configured "Ctrl" to Command on a Mac, so the cap must say Command.
   void dropHintKeycapsFollowTheThemeAndThePlatform() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1100, 720);
@@ -33,9 +31,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.dropHintText_->text() != dark,
              "the caps carry their colours in the picture — a theme change must repaint them");
 
-    // …and the SENTENCE sits centred beside them. A keycap is taller than the type, and an
-    // inline image inflates the line box downwards, which rode the prose a couple of pixels
-    // high until the line became one middle-aligned table row.
+    // …and the SENTENCE sits centred beside them: a keycap is taller than the type and an inline image
+    // inflates the line box downwards, so the line is one middle-aligned table row.
     QLabel* hint = win.dropHintText_;
     QImage ink(hint->size() * 2, QImage::Format_ARGB32_Premultiplied);
     ink.setDevicePixelRatio(2);
@@ -51,15 +48,11 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("the prose sits %1 device px off centre").arg(off)));
   }
 
-  // macOS reads our raw pixels as if they were already in the display's space, so an sRGB
-  // hex paints over-saturated on a P3 Mac while the browser — which colour-manages — shows
-  // the same token quieter. theme.cpp encodes into the display space; this pins the result
-  // to the value Chrome actually puts on screen for --accent (#7c3aed → #743ee4, measured).
+  // macOS reads our raw pixels as already in the display's space, so theme.cpp encodes into it; this
+  // pins the result to what Chrome puts on screen for --accent (#7c3aed → #743ee4, measured).
   void accentMatchesTheBrowsersRenderedColour() {
-    // The palette IS the browser's, byte for byte, on every platform: encoding into
-    // Display P3 on macOS was a second conversion on an already colour-managed surface and
-    // made the whole app read duller. The values below are exactly the ones in
-    // browser/css/theme.css and js/config/constants.json.
+    // The palette IS the browser's, byte for byte, on every platform: encoding into Display P3 on macOS
+    // was a second conversion. The values below are those in theme.css and js/config/constants.json.
     QCOMPARE(stencil::gui::accentPrimary("violet").name(), QStringLiteral("#7c3aed"));
     QCOMPARE(stencil::gui::themePalette(true).bgPage.name(), QStringLiteral("#1a1a1a"));
     QCOMPARE(stencil::gui::themePalette(false).bgPage.name(), QStringLiteral("#f0f0f0"));

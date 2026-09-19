@@ -143,9 +143,8 @@ namespace stencil::gui {
     update();
   }
 
-  // Rebuild filteredImage_ from image_ per the active filter, spread over the thread pool by row.
   // The pixel math lives once in core (shared with the wasm build); the row split is the adapter's.
-  // Format_RGBA8888 is core's byte order and is tightly packed, so a row starts at y * width * 4.
+  // Format_RGBA8888 is core's byte order and tightly packed, so a row starts at y * width * 4.
   void CanvasWidget::rebuildFilteredImage() {
     filterDirty_ = false;
     if (image_.isNull() || imageFilter_ == "none") {
@@ -161,9 +160,8 @@ namespace stencil::gui {
     // Enough rows that a slice outweighs handing it to another thread.
     constexpr int MIN_ROWS_PER_SLICE = 64;
     if (mode == core::FilterMode::CONTOUR) {
-      // Sobel reads one row OUTSIDE its range on each side, so every luma row must
-      // exist before any sobel slice runs: two separate phases, never interleaved
-      // per tile (core/raster/imageFilter.hpp).
+      // Sobel reads one row OUTSIDE its range each side, so every luma row must exist before any
+      // sobel slice runs: two phases, never interleaved per tile (core/raster/imageFilter.hpp).
       std::vector<std::uint8_t> luma(static_cast<std::size_t>(w) * h);
       support::forEachSlice(h, MIN_ROWS_PER_SLICE, [&](int y0, int y1) {
         core::buildLumaRows(bits, w, h, y0, y1, luma.data());

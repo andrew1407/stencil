@@ -1,10 +1,8 @@
-// Headless check of the LLM provider settings (src/llm/llmSettings + the
-// io/fileStore Settings extension): the llm-contract.md §5 defaults table
-// (first run shows ollama at http://localhost:11434; openai-compat pre-fills
-// http://localhost:1234/v1; stencil-server resolves to a configured
-// connection) and the JSON round-trip of the persisted llmProvider/llmBaseUrl/
-// llmModel/llmApiKey/llmServerUrl keys (+ the windowState dock blob), via the
-// promoted settingsToJson/settingsFromJson pair — no disk involved.
+// Headless check of the LLM provider settings (src/llm/llmSettings + the io/fileStore Settings
+// extension): the llm-contract.md §5 defaults table (first run shows ollama at localhost:11434;
+// openai-compat pre-fills localhost:1234/v1; stencil-server resolves to a configured connection) and
+// the JSON round-trip of the persisted llmProvider/llmBaseUrl/llmModel/llmApiKey/llmServerUrl keys
+// (+ the windowState dock blob), through settingsToJson/settingsFromJson — no disk involved.
 #include "fileStore.hpp"
 #include "llmSettings.hpp"
 
@@ -169,10 +167,8 @@ int main(int argc, char** argv) {
     check(trimmed.first().toObject().value("text") == "t8", "the most recent 32 survive");
   }
 
-  // ── settings.json holds llmApiKey in the clear, so it must not be group/world
-  // readable. Round-trips the real file unchanged (load → save the same struct);
-  // the only effect is tightening the mode, which is what we assert. POSIX-only:
-  // Qt maps QFile::permissions() onto ACLs on Windows.
+  // settings.json holds llmApiKey in the clear, so it must not be group/world readable. POSIX-only: Qt
+  // maps QFile::permissions() onto ACLs on Windows.
 #ifdef Q_OS_UNIX
   std::printf("settings file permissions:\n");
   {

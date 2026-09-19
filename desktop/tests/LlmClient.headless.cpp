@@ -1,13 +1,8 @@
-// Headless check of the LLM chat client (src/llm/llmClient) — the three wire
-// mappings of llm-contract.md §6 driven through a MockTransport that
-// captures url/headers/body and answers with canned responses (no network),
-// plus the error paths: HTTP/transport failures, llmDisabled, and the
-// stopReason max_tokens / refusal outcomes that must surface as typed errors
-// and never be parsed as plans — and the §13 op-registry pins: the registered
-// op-name set against the contract's desktop surface, per-entry flags against
-// the opPlan helpers, one key phrase per bullet, capability exclusion, the
-// forbidden-ops list, the prompt censor, and the byte-stability of the
-// assembled prompt against the qrc prose canon + hand-embedded bullet copies.
+// Headless check of the LLM chat client (src/llm/llmClient): the three wire mappings of
+// llm-contract.md §6 through a MockTransport (no network), the error paths — HTTP/transport
+// failure, llmDisabled, stopReason max_tokens and refusal — as typed errors that are never
+// parsed as plans, and the §13 op-registry pins: names, flags, bullets, capability
+// exclusion, forbidden ops, the prompt censor and prompt byte-stability.
 #include "llmClientParts.hpp"
 
 #include <QCoreApplication>

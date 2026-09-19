@@ -55,9 +55,8 @@ namespace stencil::gui {
     ModalChrome chrome = installModalChrome(this, "link", tr("Image links"));
     QVBoxLayout* layout = chrome.body;
 
-    // Only the links live here (browser linksModal parity); the project's name is edited in
-    // the projects list. Each row is modalRow, the browser .vs-row — so spacing 0, the
-    // hairline under each row doing the separating.
+    // Only the links live here (browser linksModal parity). Each row is modalRow, the browser .vs-row
+    // - so spacing 0, the hairline under each row doing the separating.
     auto* linksBox = new QWidget(this);
     linksBox->setMinimumWidth(LINKS_FIELD_MIN_W);   // or the compact shape clips the field
     auto* linksCol = new QVBoxLayout(linksBox);
@@ -136,9 +135,8 @@ namespace stencil::gui {
     previewLabel_->setVisible(false);
     addForm->addRow(previewLabel_);
 
-    // "Video frame" controls, UNDER the preview like a player's scrubber; hidden
-    // until a preview resolves the URL as a video. Slider scrubs, spin box edits the
-    // exact frame; both stay mirrored and seek the persistent scrub player.
+    // "Video frame" controls, UNDER the preview like a player's scrubber; hidden until a preview
+    // resolves the URL as a video. Slider and spin box stay mirrored on the persistent scrub player.
     frameRow_ = new QWidget(this);
     auto* frameV = new QVBoxLayout(frameRow_);
     frameV->setContentsMargins(0, 0, 0, 0);
@@ -165,116 +163,10 @@ namespace stencil::gui {
     previewHint_->setWordWrap(true);
     addForm->addRow(previewHint_);
 
-    // Quick pre-load edits (mirrors browser linksModal quick-crop): open the
-    // editor already cropped to a page aspect/orientation, or uncropped. Shown only
-    // once a preview resolves an image/frame.
-    quickcropRow_ = new QWidget(this);
-    {
-      auto* qc = new QHBoxLayout(quickcropRow_);
-      qc->setContentsMargins(0, 0, 0, 0);
-      qc->addWidget(new QLabel("Quick edits:", quickcropRow_));
-      cropPage_ = new QCheckBox("Crop to page", quickcropRow_);
-      cropPage_->setChecked(true);
-      cropPage_->setToolTip("Crop the image to the page aspect on load");
-      cropAlbum_ = new QCheckBox("Album", quickcropRow_);
-      cropAlbum_->setToolTip("Landscape orientation (off = portrait)");
-      cropPageSize_ = new SearchComboBox(quickcropRow_);
-      // Every named ISO format (labels with sizes, data = the canonical name).
-      // No "custom" here — the quick crop needs a fixed page aspect.
-      fillPageSizeCombo(cropPageSize_, /*includeCustom=*/false, units);
-      qc->addWidget(cropPage_);
-      qc->addWidget(cropAlbum_);
-      qc->addWidget(cropPageSize_);
-      qc->addStretch(1);
-    }
-    quickcropRow_->setVisible(false);  // shown once a preview succeeds
-    addForm->addRow(quickcropRow_);
-    // Album / page only matter when cropping to page; grey them out otherwise.
-    connect(cropPage_, &QCheckBox::toggled, this, &LinksDialog::syncQuickcropEnabled);
-
-    loadBtn_ = new QPushButton("Load into editor", this);
-    // The real call-to-action in add-by-URL mode → accent CTA (white glyph on the
-    // accent fill, like the Connect dialog's Connect button).
-    makeModalCta(loadBtn_, "download");
-    loadBtn_->setEnabled(false);  // enabled once a preview succeeds
-    loadBtn_->setToolTip("Preview an image or video URL first");
-    connect(loadBtn_, &QPushButton::clicked, this, &LinksDialog::requestLoad);
-    addForm->addRow(QString(), loadBtn_);
+    buildQuickCrop(addForm, units);
     layout->addWidget(addBox);
 
-    preview_ = new MediaLoader(this);
-    connect(preview_, &MediaLoader::loaded, this,
-            [this](const QImage& img, const QString&) {
-              previewIsVideo_ = preview_->isVideoSource();
-              if (previewIsVideo_) {
-                frameImage_ = img;
-                thumbImage_ = preview_->embeddedThumbnail();
-                scrubFps_ = preview_->frameRate() > 0 ? preview_->frameRate() : 30.0;
-                scrubDurationMs_ = preview_->durationMs();
-                const bool hasThumb = !thumbImage_.isNull();
-                usePreview_->setEnabled(hasThumb);
-                if (!hasThumb && usePreview_->isChecked())
-                  usePreview_->setChecked(false);  // (re-renders via toggled)
-                frameRow_->setVisible(true);
-                applyFrameBounds();  // size the slider / spin box to this video
-                updateVideoPreview();
-                showQuickcrop(frameImage_.width(), frameImage_.height());
-                // Load the video ONCE into a persistent player for live scrubbing
-                // (re-streaming per frame, as the detector does, never seeks reliably).
-                setupScrubPlayer(preview_->resolvedUrl());
-              } else {
-                teardownScrubPlayer();
-                frameImage_ = QImage();
-                thumbImage_ = QImage();
-                frameRow_->setVisible(false);
-                showPreview(img, QString("Image %1×%2").arg(img.width()).arg(img.height()));
-                showQuickcrop(img.width(), img.height());
-              }
-            });
-    connect(preview_, &MediaLoader::failed, this, [this](const QString& msg) {
-      teardownScrubPlayer();
-      previewImage_ = QImage();
-      frameImage_ = QImage();
-      thumbImage_ = QImage();
-      previewIsVideo_ = false;
-      previewLabel_->clear();
-      previewLabel_->setVisible(false);
-      frameRow_->setVisible(false);
-      quickcropRow_->setVisible(false);
-      usePreview_->setEnabled(false);
-      previewHint_->setText("Could not load that URL — " + msg);
-      loadBtn_->setEnabled(false);
-    });
-    connect(previewBtn, &QPushButton::clicked, this, &LinksDialog::doPreview);
-    // Enter in the URL fields triggers Preview rather than closing the dialog.
-    urlEdit_->installEventFilter(this);
-    urlResourceEdit_->installEventFilter(this);
-    // Editing the URL invalidates the current preview (and any video frame state).
-    connect(urlEdit_, &QLineEdit::textEdited, this,
-            [this] { resetPreviewState(); });
-    // Toggling "use preview image" swaps between the cached frame and embedded image
-    // (no re-fetch needed — both are already in hand).
-    connect(usePreview_, &QCheckBox::toggled, this, [this] {
-      if (previewIsVideo_) updateVideoPreview();
-    });
-    // Debounce seeks lightly so a fast drag coalesces into the latest position
-    // rather than firing a seek per pixel (the player is already loaded, so seeks
-    // are cheap — just smoother).
-    fetchTimer_ = new QTimer(this);
-    fetchTimer_->setSingleShot(true);
-    fetchTimer_->setInterval(80);
-    connect(fetchTimer_, &QTimer::timeout, this, [this] {
-      if (previewIsVideo_ && !usePreview_->isChecked()) seekScrub(frame_->value());
-    });
-    // Slider ↔ spin box stay mirrored (syncing_ guards the echo); either one
-    // changing schedules a debounced seek. Releasing the slider seeks at once.
-    connect(frameSlider_, &QSlider::valueChanged, this, [this](int v) { setFrame(v); });
-    connect(frame_, QOverload<int>::of(&QSpinBox::valueChanged), this,
-            [this](int v) { setFrame(v); });
-    connect(frameSlider_, &QSlider::sliderReleased, this, [this] {
-      fetchTimer_->stop();
-      if (previewIsVideo_ && !usePreview_->isChecked()) seekScrub(frame_->value());
-    });
+    wirePreview(previewBtn);
 
     // With an image loaded, only its links can be edited; with no image, only the
     // add-by-URL loader is offered. Mirrors the browser modal's two modes.
@@ -282,12 +174,10 @@ namespace stencil::gui {
     addBox->setVisible(!hasImage);
     layout->addStretch(1);
 
-    // Footer (browser settings-footer): add-by-URL alone gets one, saying what its "Load
-    // into editor" CTA can reach. Neither mode has a Cancel/Save pair — edits apply when
-    // the dialog closes, however it was dismissed (browser linksModal parity).
+    // Footer (browser settings-footer): add-by-URL alone gets one. Neither mode has a Cancel/Save
+    // pair - edits apply when the dialog closes, however dismissed (browser linksModal parity).
     if (!hasImage)
       addModalFooter(chrome, tr("Downloads bypass page CORS, so any reachable "
                                 "image/video URL works."));
   }
 }
-

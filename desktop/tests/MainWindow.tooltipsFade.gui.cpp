@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Tooltips FADE in and out (browser #app-tooltip: 90 ms) instead of snapping. Qt's own
-  // QTipLabel cannot be animated, so QEvent::ToolTip is taken over — and the wake-up delay,
-  // the content and the placement all have to survive that swap.
+  // Tooltips FADE in and out (browser #app-tooltip: 90 ms) instead of snapping: QTipLabel cannot be
+  // animated, so QEvent::ToolTip is taken over — delay, content and placement must survive the swap.
   void tooltipFadesInAndOut() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -58,9 +57,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // A fast pointer sweep must never STRAND a tooltip: whatever happened to the control it
-  // described — hidden, disabled, or simply left behind without a Leave we saw — the panel
-  // goes on its own.
+  // A fast pointer sweep must never STRAND a tooltip: whatever became of the control it described —
+  // hidden, disabled, or simply left behind without a Leave — the panel goes on its own.
   void fastPointerSweepStrandsNoTooltip() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -86,9 +84,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The tooltip must not show — or stay stuck showing — while the mouse is down doing
-  // something else (Alt-dragging a point, drag-creating a rect/zoom box, panning);
-  // hoverLeft() retracts one already up when the drag starts.
+  // The tooltip must not show, or stay stuck showing, while the mouse is down doing something else
+  // (Alt-dragging a point, drag-creating a rect or zoom box, panning); hoverLeft() retracts one up.
   void noTooltipWhileTheMouseIsDownDrawingOrDragging() {
     MainWindow win(nullptr, false);
     win.resize(1200, 850);
@@ -118,10 +115,8 @@ class MainWindowGuiTest : public QObject {
     moveTo(40, 40);
     QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
 
-    // Alt-press ON that same point starts a point drag without moving first — the
-    // stranding case: the very next move must retract the tooltip that was already up,
-    // not just skip showing a new one. (The drag itself relocates the point to wherever
-    // it's released — setLines() below puts it back for the next section.)
+    // Alt-press ON that same point starts a point drag without moving first — the stranding case: the very
+    // next move must retract a tooltip already up, not merely skip showing a new one.
     sendMouse(QEvent::MouseButtonPress, QPointF(40 * s, 40 * s), Qt::LeftButton,
              Qt::LeftButton, Qt::AltModifier);
     sendMouse(QEvent::MouseMove, QPointF(70 * s, 60 * s), Qt::NoButton, Qt::LeftButton,

@@ -16,8 +16,7 @@ namespace stencil::gui {
 
   void OpenImageDialog::buildCropRows(QVBoxLayout* layout) {
     // Quick pre-load crop (mirrors LinksDialog quick-crop) as the browser's Crop .vs-row
-    // (#open-image-crop-row): the toggle, its caption, then — only while cropping — the Album/Portrait
-    // toggle and the page the aspect comes from. OFF by default; shown once a preview resolves.
+    // (#open-image-crop-row). OFF by default; shown once a preview resolves.
     {
       // No tooltip on the box (browser parity): the caption beside it says what it does.
       auto* qc = checkCaptionRow(this, cropPage_,
@@ -29,16 +28,14 @@ namespace stencil::gui {
       makeModalCta(cropAlbum_, "swap");
       cropAlbum_->setToolTip("Swap album / portrait — flips the crop orientation");
       cropAlbum_->setAutoDefault(false);
-      // Fixed to its longer face: an auto-width button jumped on every press, since
-      // "Album" and "Portrait" measure differently (browser twin: openImage.css
-      // #open-image-crop-orientation).
+      // Fixed to its longer face: an auto-width button jumped on every press, since "Album" and
+      // "Portrait" measure differently (browser twin: openImage.css #open-image-crop-orientation).
       cropAlbum_->setText(tr("Portrait"));
       const int portraitW = cropAlbum_->sizeHint().width();
       cropAlbum_->setText(tr("Album"));
       cropAlbum_->setFixedWidth(std::max(portraitW, cropAlbum_->sizeHint().width()));
-      // Explicit, matching cropDims_'s own: cropAlbumDust's guard skips the FIRST call
-      // when arriving already equals motion_.albumShown's false default, so the widget must
-      // already be hidden going in, not rely on that call to make it so.
+      // Explicit, matching cropDims_'s own: cropAlbumDust's guard skips the FIRST call, so the widget
+      // must already be hidden going in, not rely on that call to make it so.
       cropAlbum_->setVisible(false);
       qc->addSpacing(8);
       qc->addWidget(cropAlbum_);
@@ -48,9 +45,8 @@ namespace stencil::gui {
     quickcropRow_->setVisible(false);  // shown once a preview succeeds
     layout->addWidget(quickcropRow_);
 
-    // The crop's own ASPECT RATIO on its own row (browser #open-image-crop-size-row), swept in and out
-    // with the read-out below the stage, only while cropping. Plain ratios beside the project's page:
-    // every named ISO page shares one ratio, so the whole series said nothing "Page" does not.
+    // The crop's own ASPECT RATIO on its own row (browser #open-image-crop-size-row). Plain ratios
+    // beside the project's page: every named ISO page shares one ratio, so the series said nothing.
     {
       auto* sc = new QHBoxLayout;
       sc->setContentsMargins(0, 0, 0, 0);
@@ -79,9 +75,8 @@ namespace stencil::gui {
         cropSizeH_->setSingleStep(0.1);
         cropSizeH_->setDecimals(1);
         cropSizeH_->setValue(29.7);
-        // W/H beside their own field (browser twin: openImageMarkup.js's
-        // .oi-crop-size-field) — a plain RATIO pair, so no unit label rides along either
-        // (user report).
+        // W/H beside their own field (browser twin: openImageMarkup.js .oi-crop-size-field) - a plain
+        // RATIO pair, so no unit label rides along either (user report).
         cg->addWidget(new QLabel(QStringLiteral("W"), cropSizeCustomGroup_));
         cg->addWidget(cropSizeW_, 1);
         cg->addWidget(new QLabel(QStringLiteral("H"), cropSizeCustomGroup_));
@@ -109,9 +104,8 @@ namespace stencil::gui {
 
     // The page + its read-out only matter while cropping; shown only then (browser parity).
     connect(cropPage_, &QCheckBox::toggled, this, &OpenImageDialog::syncQuickcropEnabled);
-    // A user press FLIPS the stage already up — never syncQuickcropEnabled's full rebuild,
-    // which starts a fresh stage from the PICTURE's own default orientation and would
-    // silently overwrite the very checked state this signal just set (button "did nothing").
+    // A user press FLIPS the stage already up - never syncQuickcropEnabled's full rebuild, which
+    // starts from the PICTURE's own default orientation and would overwrite this signal's state.
     connect(cropAlbum_, &QPushButton::toggled, this, [this] {
       cropAlbum_->setText(cropAlbum_->isChecked() ? tr("Album") : tr("Portrait"));
       if (cropStage_) cropStage_->setAlbum(cropAlbum_->isChecked());

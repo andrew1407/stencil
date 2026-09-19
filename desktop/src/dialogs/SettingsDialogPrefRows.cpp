@@ -29,9 +29,8 @@ namespace stencil::gui {
     addCheck(r, autosave_, current.autosave, "Automatically save the session as you edit");
     addRow(r, tr("Autosave"), autosave_, /*column=*/false);
 
-    // Note: "Auto-connect to servers on open" and "Sync changes to server" both live
-    // in the Servers dialog now (connection preferences, as in the browser's modal);
-    // syncToServer rides through result() untouched from base_.
+    // "Auto-connect to servers on open" and "Sync changes to server" live in the Servers dialog (as
+    // in the browser's modal); syncToServer rides through result() untouched from base_.
 
     addCheck(r, showPoints_, current.showPoints, "Show points on lines by default");
     addRow(r, tr("Show points"), showPoints_, /*column=*/false);
@@ -39,9 +38,8 @@ namespace stencil::gui {
     addRow(r, tr("Show lines"), showLines_, /*column=*/false);
 
     page_ = new SearchComboBox(r.host);
-    // Same options as the toolbar combo: Custom + the full ISO A/B/C
-    // series, labels with physical sizes in the user's display unit, item data
-    // = the canonical name (read back via currentData in result()).
+    // Same options as the toolbar combo: Custom + the full ISO A/B/C series, labels with physical
+    // sizes in the user's display unit, item data = the canonical name (read back in result()).
     fillPageSizeCombo(page_, /*includeCustom=*/true, current.units);
     {
       const int idx = page_->findData(current.pageSize);

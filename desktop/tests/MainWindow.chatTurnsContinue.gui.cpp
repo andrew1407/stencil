@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // §10 openUrl awaits the load + amended §7: a plan [openUrl, filter] must land
-  // the filter on the fetched picture (no "no working image" race with the async
-  // MediaLoader), then continue ONCE — it contains a load op and drew no layout.
+  // §10 openUrl awaits the load + amended §7: a plan [openUrl, filter] lands the filter on the
+  // fetched picture (no "no working image" race with the async MediaLoader), then continues ONCE.
   void chatOpenUrlAwaitsLoadThenContinues() {
     // A tiny local HTTP server serving one PNG, so MediaLoader has a real
     // download to await — fully offline.
@@ -86,9 +85,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §7 one-reply companion: a load-shaped plan HOLDS its bubble, but when the
-  // continuation cannot launch (here: a text-only model, nothing to continue
-  // WITH) the held reply posts right then — one bubble, nothing lost, no round 2.
+  // §7 one-reply companion: a load-shaped plan HOLDS its bubble, but when the continuation cannot
+  // launch (here a text-only model) the held reply posts right then — one bubble, no round 2.
   void chatHeldReplyPostsWhenContinuationSkipped() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -118,10 +116,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §7 regression: a ZERO-line layout op validates but draws nothing, so a
-  // [blank, layout{lines:[]}] plan must still continue — counting it as "drew"
-  // suppressed the very round meant to draw ("blank page — drawing now" ended
-  // as an empty page and a promise).
+  // §7: a ZERO-line layout op validates but draws nothing, so a [blank, layout{lines:[]}] plan must
+  // still continue — counting it as "drew" suppressed the very round meant to draw.
   void chatEmptyLayoutOpStillContinues() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -157,9 +153,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // §7 companion: a layout op with REAL lines committed to its coordinates —
-  // the same [blank, layout] shape must NOT continue, and (§3.0) must not send
-  // anything else either: one round, done.
+  // §7 companion: a layout op with REAL lines committed to its coordinates must NOT continue, and
+  // (§3.0) must not send anything else either: one round, done.
   void chatDrawnLayoutSuppressesContinuation() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);

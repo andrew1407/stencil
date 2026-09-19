@@ -61,12 +61,8 @@ class MainWindowGuiTest : public QObject {
     const QString providerBefore = win.currentLlmSettings().provider;
     QTest::mouseClick(clearBtn, Qt::LeftButton);
     QTRY_COMPARE(cardCount(), 0);   // cards go through deleteLater
-    // The empty state is held back for the length of the scatter: showing it in the
-    // same tick put the chips under particles that were still falling, and the clear
-    // read as happening twice (browser chatView.js restoreEmptyState parity). The wait
-    // is keyed off rows being REMOVED, not off the scatter animating — offscreen (and
-    // on a hidden dock) there are no particles, and the empty state must still not
-    // beat the wipe.
+    // The empty state is held back for the length of the scatter, or the chips sit under falling
+    // particles. The wait is keyed off rows being REMOVED: offscreen there are no particles.
     QVERIFY2(!suggest->isVisible(), "the chips came back before the wipe finished");
     QTRY_VERIFY_WITH_TIMEOUT(suggest->isVisible(),
                              stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
@@ -79,11 +75,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.chatImageEncoded_.data.isEmpty());
     QCOMPARE(win.currentLlmSettings().provider, providerBefore);
 
-    // Appear: a fresh card is claimed by its own opacity effect and ends fully visible.
-    // Overlapping appends each own their animation, so all of them land at 1.0 and at
-    // their resting margins. This suite runs REDUCED (STENCIL_NO_ANIM), where the card is
-    // simply THERE — the arrival's veil-then-dust is chatCardsArriveOutOfDust's business,
-    // and a card left hidden here is what reducedMotionChatCardArrivesAtOnce pins.
+    // Appear: a fresh card is claimed by its own opacity effect and ends fully visible, overlapping
+    // appends each owning their animation. This suite runs REDUCED, where the card is simply there.
     dock->appendUser("again");
     dock->appendAssistant("sure");
     dock->appendError("nope");
@@ -102,11 +95,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(cardCount(), 0);
     QTest::qWait(200);  // let any surviving animation tick would-be-dangling
 
-    // A card that SCROLLS while it fades must not crash. ScrollReveal installs its own
-    // DissolveEffect on cards near a viewport edge, and setGraphicsEffect deletes the
-    // effect already there — so the fade's animation was left writing to freed memory
-    // and the app died in QGraphicsOpacityEffect::setOpacity one frame later. The fade
-    // now claims the card (ENTERING_PROPERTY) exactly as the entrance animation does.
+    // A card that SCROLLS while it fades must not crash: ScrollReveal's setGraphicsEffect deletes the
+    // effect already there, so the fade claims the card (ENTERING_PROPERTY) as the entrance does.
     {
       for (int i = 0; i < 6; i++) {
         dock->appendUser(QStringLiteral("question %1").arg(i));
@@ -116,13 +106,8 @@ class MainWindowGuiTest : public QObject {
       // the assertion below passes for the wrong reason.
       QTRY_VERIFY(noneEntering(transcript));
       dock->clearConversation();          // every card starts fading…
-      // …and the INVARIANT holds from the first frame: every leaving card claims its
-      // graphics effect, which is the flag ScrollReveal::apply() skips on. Without the
-      // claim ScrollReveal calls setGraphicsEffect on a fading card, Qt deletes the
-      // effect the fade's animation writes to, and the next frame is a use-after-free
-      // (the crash the app died of). The crash itself cannot be reproduced offscreen:
-      // the transcript never becomes scrollable there, so ScrollReveal returns before
-      // installing anything — hence the invariant, not the symptom.
+      // …and the INVARIANT holds from the first frame: every leaving card claims its graphics effect,
+      // the flag ScrollReveal::apply() skips on. The crash cannot be reproduced offscreen.
       int claimed = 0, fading = 0;
       for (QFrame* card : transcript->findChildren<QFrame*>(QString(), Qt::FindDirectChildrenOnly)) {
         if (!card->graphicsEffect()) continue;
@@ -139,10 +124,8 @@ class MainWindowGuiTest : public QObject {
                                stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     }
 
-    // A LONG wrapped reply must not be cut off by its own bubble: the label's wrapped
-    // height is RESERVED (applyBubbleWidths), because heightForWidth is only a hint and
-    // the transcript's layout does not re-ask once it has sized a card. The reply used
-    // to end mid-sentence at the card's bottom edge.
+    // A LONG wrapped reply must not be cut off by its own bubble: the label's wrapped height is
+    // RESERVED (applyBubbleWidths), since heightForWidth is a hint the layout never re-asks.
     {
       const QString essay =
           QStringLiteral("The layout is drawn on a 794x1123 px page, so the rectangle sits at "

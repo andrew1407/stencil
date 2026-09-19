@@ -60,9 +60,8 @@ namespace stencil::gui {
       if (notify_) notify_->info(text);
     });
     connect(chatDock_, &ChatDock::lateNotePosted, this, &MainWindow::chatMirrorLateNote);
-    // Edge drop bands over the central dock region for the whole title-bar drag; the release position
-    // decides (browser parity). Without this the panel absorbs the whole freed column when the chat
-    // leaves. QPointer-guarded: these also fire during teardown, when the docks may be gone.
+    // Edge drop bands over the central dock region for the whole title-bar drag; the release
+    // position decides (browser parity). QPointer-guarded: these also fire during teardown.
     const QPointer<QDockWidget> panelGuard(selPanel_);
     const QPointer<QDockWidget> chatGuard(chatDock_);
     const auto restorePanelWidth = [this, panelGuard, chatGuard] {

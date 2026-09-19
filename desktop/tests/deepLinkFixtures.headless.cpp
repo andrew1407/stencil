@@ -1,12 +1,7 @@
-// Walks the shared deep-link conformance vectors (browser/js/config/fixtures/
-// deepLink) against the desktop codec (src/io/deepLink.cpp).
-//
-// Desktop's module is BUILDERS only, so only telegramStart.json applies:
-// encodeTelegramStartPayload against the golden vectors (expectPayload null =
-// overflow → empty string here). launchPayload.json pins the RECEIVER-side
-// normalizeLaunchPayload, which desktop does not implement — skipped, and said
-// so. The historical golden literals in tests/deepLink.headless.cpp stay; this
-// walker reads the same vectors from the corpus instead of duplicating them.
+// Walks the shared deep-link conformance vectors (browser/js/config/fixtures/deepLink) against the
+// desktop codec (src/io/deepLink.cpp). Desktop's module is BUILDERS only, so only telegramStart.json
+// applies: encodeTelegramStartPayload against the golden vectors (expectPayload null = overflow → an
+// empty string). launchPayload.json pins the receiver side, which desktop does not implement.
 #include "deepLink.hpp"
 
 #include <QCoreApplication>

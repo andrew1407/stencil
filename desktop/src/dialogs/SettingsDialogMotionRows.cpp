@@ -10,9 +10,8 @@
 namespace stencil::gui {
 
   void SettingsDialog::buildMotionRows(Rows& r, const Settings& current) {
-    // Motion (browser visualsModal.js "Motion", same two rows in the same order)
-    // Live-applied like everything else here, so the dialog's OWN closing flight is
-    // already the mode you just picked.
+    // Motion (browser visualsModal.js "Motion", the same two rows in the same order). Live-applied,
+    // so the dialog's own closing flight is already the mode you just picked.
     addSection(r, tr("Motion"));
 
     addCheck(r, drawAnim_, current.drawingAnimations,

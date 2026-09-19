@@ -1,10 +1,8 @@
-// Headless check of the scroll-reveal curve (src/support/scrollReveal.hpp) — the desktop
-// port of the browser's .reveal-item / .reveal-in rules (browser/css/animations.css,
-// driven by browser/js/ui/motion.js). The widget/delegate plumbing needs a live view,
-// but the curve that decides how dim a row is does not, so that is what is pinned here:
-// full opacity clear of both bands, a ramp inside them, the rest state off-screen, and
-// the deliberate asymmetry that keeps a transcript's newest (bottom-flush) row readable.
-// Pure QtCore geometry; no display needed.
+// Headless check of the scroll-reveal curve (src/support/scrollReveal.hpp) — the desktop port of the
+// browser's .reveal-item / .reveal-in rules, driven by js/ui/motion.js. The widget plumbing needs a
+// live view, but the curve that decides how dim a row is does not: full opacity clear of both bands, a
+// ramp inside them, the rest state off-screen, and the asymmetry that keeps a transcript's newest
+// (bottom-flush) row readable. Pure QtCore geometry; no display needed.
 #include "scrollReveal.hpp"
 
 #include <QCoreApplication>
@@ -42,9 +40,8 @@ int main(int argc, char** argv) {
   check(near(revealOpacity(0, 56, viewH), REVEAL_MIN_OPACITY),
         "an item flush with the top edge is at the rest state");
 
-  // ── The asymmetry that matters: the chat transcript pins its NEWEST card flush to
-  // the bottom edge, and that card must stay readable. A 40px row there keeps most of
-  // its opacity, while the same row flush to the TOP is fully dimmed.
+  // The asymmetry that matters: the chat transcript pins its NEWEST card flush to the bottom edge, so a
+  // 40px row there keeps most of its opacity while the same row flush to the TOP is fully dimmed.
   const double newestCard = revealOpacity(viewH - 40, viewH, viewH);
   check(newestCard > 0.6, "a bottom-flush row (the newest chat card) stays readable");
   check(newestCard > revealOpacity(0, 40, viewH), "the bottom band is gentler than the top band");
@@ -58,9 +55,8 @@ int main(int argc, char** argv) {
   check(near(revealOpacityForItem(nullptr, QRect(0, 0, 100, 40)), 1.0),
         "a delegate with no viewport paints at full opacity");
 
-  // ── The dissolve mapping (support/DissolveEffect.hpp is driven by this) ──
-  // The reveal ramp bottoms out at REVEAL_MIN_OPACITY, not 0, so it has to be RESCALED:
-  // an out-of-view row must reach a FULL dissolve, not stop 18% short of one.
+  // The dissolve mapping (support/DissolveEffect.hpp is driven by this): the reveal ramp bottoms out at
+  // REVEAL_MIN_OPACITY, not 0, so it has to be RESCALED — an out-of-view row must fully dissolve.
   using stencil::gui::ScrollReveal;
   check(near(ScrollReveal::dissolveFor(1.0), 0.0), "a fully revealed row is not dissolved at all");
   check(near(ScrollReveal::dissolveFor(REVEAL_MIN_OPACITY), 1.0), "an out-of-view row dissolves completely");
@@ -74,19 +70,15 @@ int main(int argc, char** argv) {
   check(ScrollReveal::dissolveFor(0.9) < ScrollReveal::dissolveFor(0.5),
         "dissolve falls as the row reveals");
 
-  // ── Dissolve tracks ONLY the clipped share ──
-  // Not a "band" inside the visible area: dissolving what you can still read turns a
-  // message into an unreadable dot screen, because the grain is finer than a glyph's
-  // strokes. Decoration must never cost legibility.
+  // Dissolve tracks ONLY the clipped share, not a band inside the visible area: the grain is finer than a
+  // glyph's strokes, so dissolving what you can still read turns a message into an unreadable dot screen.
   using stencil::gui::revealDissolve;
   check(near(revealDissolve(0, 60, 495), 0.0), "a row flush with the top edge is untouched");
   check(near(revealDissolve(200, 240, 495), 0.0), "a row mid-scroller is untouched");
   check(near(revealDissolve(445, 495, 495), 0.0), "a row flush with the bottom edge is untouched");
   check(near(revealDissolve(-50, 50, 495), 0.5), "half cut off the top = half dissolved");
 
-  // GRAIN vs the clipped share: a card TALLER than the viewport is clipped by
-  // definition, so measuring the clipped share left it permanently speckled — grain
-  // bands sat across a tall variant card's picture however you scrolled. The grain
+  // GRAIN vs the clipped share: a card TALLER than the viewport is clipped by definition, so the grain
   // measures against what the viewport can hold instead (browser motion.js revealGrain).
   using stencil::gui::revealGrain;
   check(near(revealGrain(-100, 100, 400), 0.5), "half off the top is half grainy either way");

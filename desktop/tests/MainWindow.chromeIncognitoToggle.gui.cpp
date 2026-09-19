@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The incognito indicator is DECOR: toggling it must not move, resize or reflow a
-  // single other widget. It did — the inline glyph made the info line's box 2 px taller,
-  // the info toolbar follows its only widget, and everything below it (canvas viewport,
-  // points panel, the rows under them) dropped by those 2 px on every toggle (user
-  // report: "the points panel jumps down a little", and the canvas with it).
+  // The incognito indicator is DECOR: toggling it must not move, resize or reflow a single other
+  // widget (user report: "the points panel jumps down a little", and the canvas with it).
   void incognitoToggleMovesNothing() {
     for (const QString& mode : {QStringLiteral("light"), QStringLiteral("dark")}) {
       MainWindow win(nullptr, false);
@@ -82,9 +79,8 @@ class MainWindowGuiTest : public QObject {
           win.updateImageSizeInfo();
         }
         const QString state = QStringLiteral("%1/%2").arg(mode, loaded ? "loaded" : "empty");
-        // Baseline after ONE round: the info bar reserves the tallest box it has ever
-        // needed, so the first tag it is ever shown can still grow that reserve by a
-        // pixel. What must never move is every toggle after that.
+        // Baseline after ONE round: the info bar reserves the tallest box it has ever needed, so the first
+        // tag it shows can still grow that reserve by a pixel. Every toggle after that must not move.
         win.actIncognito_->setChecked(true);
         settleLayout(&win, 150);
         win.actIncognito_->setChecked(false);

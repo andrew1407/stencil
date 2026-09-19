@@ -25,19 +25,16 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.canvas_->hasImage());
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
     const QPoint c = logo->rect().center();
-    // A toolbar icon that is not the logo — and NOT one the open popover's box covers: a
-    // press on a covered icon is a press ON the window (the app's own onOpenBox rule), so
-    // it is not the "outside press" this case is about. The SETTINGS cluster's ℹ sits at
-    // the far end of the last row, clear of a box anchored to the logo.
+    // A toolbar icon that is not the logo, and NOT one the open popover's box covers: a press on a
+    // covered icon is a press ON the window (onOpenBox). The SETTINGS cluster's ℹ sits clear of it.
     QToolButton* other = nullptr;
     for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it)
       if (it.value() == win.actInfo_ && static_cast<QWidget*>(it.key())->isVisible())
         other = static_cast<QToolButton*>(it.key());
     QVERIFY2(other, "no visible Help button to press outside on");
 
-    // The logo itself is NOT outside: a left click on it with a STICKY popover up keeps
-    // the list open and cycles the accent under it, the ✓ following (browser parity; user
-    // report). The peek's own no-op rule is checked in logoAccentPopoverPicksDirectly.
+    // The logo itself is NOT outside: a left click on it with a STICKY popover up keeps the list open
+    // and cycles the accent under it, the ✓ following (browser parity; user report).
     {
       const QString accentBefore = win.settings_.accentColor;
       const auto& presets = stencil::gui::accentPresets();
@@ -78,9 +75,8 @@ class MainWindowGuiTest : public QObject {
       win.applySettings(restore, true);
     }
 
-    // …and the other half of the rule: a press INSIDE the popover, or in a NESTED dialog
-    // the popover opened (a confirm, a colour picker), leaves it alone — and Escape
-    // still closes it.
+    // …and the other half of the rule: a press INSIDE the popover, or in a NESTED dialog the popover
+    // opened (a confirm, a colour picker), leaves it alone — and Escape still closes it.
     bool insideKept = false, nestedKept = false, escapeClosed = false;
     QTimer::singleShot(120, &win, [&] {
       QDialog* pop = win.pop_.active.data();

@@ -68,9 +68,8 @@ namespace connectrow {
     check(fresh && fresh->isVisible(), "row materializes once the gather completes");
   }
 
-  // ── Compact POPOVER shape (mainWindow execMaybePopover): the dialog-level minimumWidth
-  // is dropped and the box shrinks to sizeHint. The row's fixed controls used to eat that
-  // budget, leaving the URL ~70px; the list's own minimum keeps the mini form wide enough.
+  // Compact POPOVER shape (execMaybePopover): the dialog-level minimumWidth is dropped and the box
+  // shrinks to sizeHint, so the list's own minimum is what keeps the mini form's URL field wide.
   {
     ConnectDialog mini(&mgr);
     mini.setWindowFlags(mini.windowFlags() | Qt::FramelessWindowHint);

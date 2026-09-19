@@ -8,9 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The assistant's settings (the chat's … ▸ Settings) have a chord of their own, from the
-  // shared registry: it opens the assistant-only dialog with no chat surface up at all, and
-  // pressed again inside that dialog it closes it — the toolbar windows' toggle rule.
+  // The assistant's settings have a chord of their own from the shared registry: it opens the
+  // assistant-only dialog with no chat surface up, and pressed inside it closes it.
   void assistantSettingsShortcutOpensAndClosesTheDialog() {
     MainWindow win(nullptr, false);
     openLoaded(win);
@@ -43,10 +42,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The chat toolbar icon answers the same popover gestures as every dialog icon
-  // (browser chatPanel.js openCompact): a double-click opens a COMPACT FLOATING chat
-  // pinned by the icon, and re-pins it when already open. A plain click still toggles,
-  // deferred one double-click interval (whose trailing-release swallow this exercises).
+  // The chat toolbar icon answers every dialog icon's popover gestures (browser chatPanel.js
+  // openCompact): a double-click opens the compact float and re-pins it; a click toggles.
   void chatIconPopoverGesture() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -64,9 +61,8 @@ class MainWindowGuiTest : public QObject {
       if (b->defaultAction() == chat) { btn = b; break; }
     QVERIFY(btn);
 
-    // A real double-click is press, release, dblclick, release — all four must go
-    // through the gesture filter (QTest::mouseDClick waits internally, which the
-    // deferred-click timer turns into a plain click first).
+    // A real double-click is press, release, dblclick, release — all four must go through the
+    // gesture filter (QTest::mouseDClick's internal wait becomes a plain click first).
     const QPoint hit = btn->rect().center();
     const auto send = [btn, hit](QEvent::Type t) {
       QMouseEvent e(t, QPointF(hit), btn->mapToGlobal(hit), Qt::LeftButton,
@@ -81,12 +77,8 @@ class MainWindowGuiTest : public QObject {
       send(QEvent::MouseButtonRelease);
     };
 
-    // While a text control has FOCUS, Alt belongs to the typing: with the cursor
-    // resting on the icon, pressing Alt must NOT open the peek. Checked FIRST —
-    // before any floating-dock activation, which the offscreen platform cannot
-    // hand back (no raise()), leaves setFocus without an active window. The zoom
-    // combo's inner line edit is the focusable text control used for it — which
-    // needs an image, since the ZOOM cluster is dead without one.
+    // While a text control has FOCUS, Alt belongs to the typing: over the icon it must NOT peek.
+    // Checked FIRST — floating-dock activation, which offscreen QPA cannot give, unsets focus.
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.zoom_->isEnabled());
     QCursor::setPos(btn->mapToGlobal(hit));
@@ -131,9 +123,8 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(!dock->isVisible(), QApplication::doubleClickInterval() + 2000);
     QVERIFY(!chat->isChecked());
 
-    // Alt while hovering (the peek route, browser altHover parity): rest the
-    // cursor on the icon and press Alt — the compact float opens with no click —
-    // and it is HOLD-to-peek: releasing Alt closes it again.
+    // Alt while hovering (the peek route, browser altHover parity): the compact float opens with
+    // no click, and it is HOLD-to-peek — releasing Alt closes it again.
     QCursor::setPos(btn->mapToGlobal(hit));
     QTest::qWait(20);
     QTest::keyPress(&win, Qt::Key_Alt);

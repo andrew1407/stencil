@@ -9,10 +9,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Pan/zoom persistence (browser parity: storage.js's own debounced scroll/zoom save +
-  // "Saved" toast). A zoom change and a scrollbar drag each debounce into ONE save, the
-  // active project's record picks up the new view, and reopening that project restores it
-  // instead of the plain fit-to-window.
+  // Pan/zoom persistence (browser parity: storage.js's debounced scroll/zoom save + "Saved" toast): a
+  // zoom change and a scrollbar drag each debounce into ONE save, and reopening restores that view.
   void panZoomPersistsPerProjectWithSavedToast() {
     using stencil::gui::Project;
     MainWindow win(nullptr, false);
@@ -22,9 +20,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!win.activeProjectId_.isEmpty());
     const QString projectId = win.activeProjectId_;
 
-    // Zoom in past the viewport so the canvas actually grows a scrollable range —
-    // otherwise the scrollbars have nowhere to move and the pan half of this test proves
-    // nothing.
+    // Zoom in past the viewport so the canvas grows a scrollable range: otherwise the scrollbars have
+    // nowhere to move and the pan half of this test proves nothing.
     win.setZoom(5.0);
     win.scroll_->horizontalScrollBar()->setValue(30);
     win.scroll_->verticalScrollBar()->setValue(20);
@@ -45,9 +42,8 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(sawSaved, "no \"Saved\" toast after the debounced pan/zoom save");
     }
 
-    // Knock the live canvas to a different zoom WITHOUT going through setZoom (which would
-    // reschedule — and overwrite — the very save just verified above), simulating "the
-    // editor is sitting somewhere else" right before this project reopens.
+    // Knock the live canvas to a different zoom WITHOUT setZoom (which would reschedule and overwrite
+    // the save just verified), simulating an editor sitting elsewhere as this project reopens.
     canvas->setScale(1.0);
     QVERIFY(win.loadProjectIntoCanvas(projectId, /*animate=*/false));
     QCOMPARE(canvas->scale(), 5.0);
@@ -82,9 +78,8 @@ class MainWindowGuiTest : public QObject {
     win.activeProjectId_.clear();
     win.refreshActions();
     QVERIFY2(!clear->isEnabled(), "Clear Project stays live on an empty editor");
-    // The ACTION's glyph is the ordinary menu tone, never danger red: menus paint
-    // icons muted (browser .ctx-icon) and the red belongs to the filled toolbar
-    // button, which dangerToolButtonsAreFilledRed covers.
+    // The ACTION's glyph is the ordinary menu tone, never danger red: menus paint icons muted (browser
+    // .ctx-icon), and the red belongs to the filled toolbar button.
     const QImage glyph = clear->icon().pixmap(16, 16).toImage();
     QVERIFY(!glyph.isNull());
     const QColor danger = stencil::gui::themePalette(false).danger;
@@ -103,12 +98,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!tinted, "the Clear Project trash is still painted in the danger colour");
   }
 
-  // §2.1: an image index the turn cannot satisfy costs that ACTION a warning,
-  // never the rest of the plan; a save with nothing on the canvas is skipped
-  // the same way instead of failing the turn.
-  // A restored session must keep its PROJECT identity: without the binding, a
-  // relaunch showed the project's pixels while activeProjectId_ was empty, so
-  // deleting that project later left its image orphaned on the canvas.
+  // A restored session must keep its PROJECT identity: without the binding a relaunch showed the
+  // project's pixels while activeProjectId_ was empty, orphaning the image when it was deleted.
   void sessionRoundTripsTheActiveProjectBinding() {
     MainWindow win(nullptr, false);
     win.resize(1200, 700);
@@ -128,10 +119,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win2.activeProjectId_, win.activeProjectId_);
   }
 
-  // Deliberate NON-round-trip: the image filter/tint (and the compare split view,
-  // which was never persisted to begin with) must NOT carry over into a freshly
-  // reopened desktop app — unlike everything else a session restores
-  // (image, lines, page size, scale, crop, rotation, draw mode), which still does.
+  // Deliberate NON-round-trip: the image filter/tint and the compare split view must NOT carry into a
+  // freshly reopened app, unlike everything else a session restores.
   void sessionRestoreDoesNotCarryOverTheFilterOrTint() {
     MainWindow win(nullptr, false);
     win.resize(1200, 700);

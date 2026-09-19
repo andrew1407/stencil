@@ -9,12 +9,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Removing the OPEN project empties the list — and what stands there then is the pinned
-  // "Temporary (unsaved)" row, never "No projects yet": the removal reset this window to a
-  // blank unsaved editor (eraseLocalProject → resetToBlankEditor), exactly the state the
-  // browser's list pins that row for. The window was asked once, at open time, so the row
-  // never came and the emptied list read "No projects yet". Driven through
-  // Clear All, the removal path that keeps the dialog up.
+  // Removing the OPEN project resets this window to a blank unsaved editor, so the emptied list shows
+  // the pinned "Temporary (unsaved)" row, never "No projects yet". Driven through Clear All.
   void removingTheOpenProjectPinsTheTemporaryRow() {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog gestures need the offscreen platform");
@@ -62,19 +58,16 @@ class MainWindowGuiTest : public QObject {
       tempPinned = pinned() && list->item(0)->text() == QStringLiteral("Temporary (unsaved)");
       for (int i = 0; i < list->count(); ++i)
         if (list->item(i)->text() == QStringLiteral("No projects yet")) noPlaceholder = false;
-      // …and it ARRIVES: veiled behind its own motes with the filter's light cloud in
-      // flight, never the removal's scatter. The rebuild answering a removal finds the
-      // list EMPTY, and reading that as the opening build skipped the arrival outright.
+      // …and it ARRIVES: veiled behind its own motes with the filter's light cloud in flight, never the
+      // removal's scatter — the rebuild answering a removal finds the list EMPTY, like an opening build.
       arrivedVeiled = list->item(0)->data(Qt::UserRole + 43).toDouble() == 0.0;
       cloudInFlight = !dlg->findChildren<QWidget*>("stencilFilterDust").isEmpty();
       for (int i = 0; i < 200 && list->item(0)->data(Qt::UserRole + 43).toDouble() < 1.0; ++i)
         QTest::qWait(10);
       landedWhole = list->item(0)->data(Qt::UserRole + 43).toDouble() >= 1.0;
 
-      // …and it arrives WHERE IT BELONGS. The list's own top moves with the batch bar
-      // above it, and answering the removal in two repaints showed that bar again for the
-      // stale row: the pinned row appeared a bar's height too low and jumped up a beat
-      // later. Its screen position at arrival must be its final one.
+      // …and it arrives WHERE IT BELONGS: the list's own top moves with the batch bar above it, so the
+      // pinned row's screen position at arrival must already be its final one.
       if (tempPinned) {
         const auto rowTop = [&] {
           return list->viewport()->mapToGlobal(list->visualItemRect(list->item(0)).topLeft()).y();
@@ -96,11 +89,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Closing the dialog mid-scatter must not bring removed rows back: the close flight
-  // photographs the dialog as it hides, and it used to fly the OPEN-time snapshot —
-  // rows just cleared reappeared in the shrinking ghost. Pins the fix: on done() the
-  // doomed rows are finalized (gone from the list at once, scatters stopped), and the
-  // ghost's pixmap shows the row's slot as empty background, not the row.
+  // Closing the dialog mid-scatter must not bring removed rows back: on done() the doomed rows are
+  // finalized, and the close flight's ghost shows their slots as empty background.
   void closingProjectsDialogFinalizesRetiredRows() {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("modal-dialog gestures need the offscreen platform");
@@ -164,9 +154,8 @@ class MainWindowGuiTest : public QObject {
       for (int i = 0; i < list->count(); ++i)
         if (list->item(i)->data(Qt::UserRole).toString() == id) finalized = false;
 
-      // The close flight's SNAPSHOT must show the slot as bare background — the stale
-      // open-time picture (or a barely-started scatter) would still paint the row.
-      // Checked either way (dust or ghost), same as the reveal tests.
+      // The close flight's SNAPSHOT must show the slot as bare background: a stale open-time picture, or a
+      // barely started scatter, would still paint the row. Checked either way, dust or ghost.
       QPixmap shot;
       if (auto* fx = surfaceFlight(&win)) { ghostSeen = true; shot = fx->snapshot(); }
       else if (auto* g = modalGhost(&win)) { ghostSeen = true; shot = g->pixmap(); }

@@ -8,12 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The "?" beside the project name is the ONLY readout left once the tool rows
-  // are collapsed, so it must survive that collapse — and its bubble carries the
-  // A window shortcut pressed while that window is up CLOSES it (it used to re-open the same
-  // dialog, so nothing appeared to happen), and another window's shortcut SWAPS to it rather
-  // than stacking a second window on top. The dialog carries its own copies of those chords
-  // because a modal event loop never lets the main window's actions fire.
+  // A window shortcut pressed while that window is up CLOSES it, and another window's shortcut SWAPS
+  // to it. The dialog carries its own copies: a modal loop never lets the window's actions fire.
   void windowShortcutsToggleAndSwap() {
     MainWindow win(nullptr, false);
     openLoaded(win);
@@ -80,10 +76,8 @@ class MainWindowGuiTest : public QObject {
     // line hidden alongside the rows, its bubble is the only place these facts are left.
     win.actToolbars_->setChecked(false);
     QTRY_VERIFY(!win.actToolbars_->isChecked());
-    // The invariant is that exactly ONE of the two readouts is up — polled for, not timed:
-    // the size line only reads as gone once the fold's finish step hides the rows
-    // (QToolBarLayout re-shows its action widgets on every relayout, and the slide is one
-    // per frame), and the fold's duration is not this test's business.
+    // Exactly ONE of the two readouts is up — polled for, not timed: the size line reads as gone only
+    // once the fold's finish step hides the rows, and the fold's duration is not this test's business.
     QTRY_VERIFY_WITH_TIMEOUT(hint->isVisible() && !win.imageSizeInfo_->isVisible(), 3000);
     QVERIFY2(hint->toolTip().contains(size), "…still carrying the size");
 
@@ -129,9 +123,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(src.contains("Image cropped"), "Image cropped has a browser twin and must stay");
   }
 
-  // Closing is IMMEDIATE on every path — no "Quit Stencil?" confirmation
-  // modal for close() (the ✕ / ⌘Q / app-menu / Dock-Quit / Alt+F4
-  // equivalents); the window simply closes.
+  // Closing is IMMEDIATE on every path — no "Quit Stencil?" confirmation for close() (the ✕, ⌘Q,
+  // app-menu, Dock-Quit and Alt+F4 equivalents); the window simply closes.
   void closeHasNoConfirmation() {
     MainWindow win(nullptr, false);
     win.show();

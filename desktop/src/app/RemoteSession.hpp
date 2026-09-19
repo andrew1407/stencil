@@ -51,8 +51,7 @@ namespace stencil::gui {
         const QString& url, const QString& msg = QStringLiteral("Not connected to that server"));
 
     // Async guarded PUT, re-reading `id`'s version before each attempt, up to 4 retries on a 409.
-    // Loop state is heap-managed: a reply after `c` dies is a no-op; callers guard `done`'s
-    // captures.
+    // Loop state is heap-managed: a reply after `c` dies is a no-op; callers guard `done`'s captures.
     void putVersionGuardedAsync(
         stencil::net::ServerClient* c, const QString& id,
         std::function<void(qint64 version,

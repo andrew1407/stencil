@@ -1,13 +1,8 @@
-// Headless checks for the DESCRIPTION editor and both editors' store write
-// (dialogs/descriptionDialog, dialogs/keywordsDialog); the keywords FIELD itself is
-// keywordChips.headless.cpp. The browser's description modal on the shared shell:
-//   - structure: glyph + title header with the Close pill, the one text area with its
-//     placeholder, the footer hint, and the Cancel / Save CTAs;
-//   - the field is pre-filled with the current value; Save returns the trimmed text,
-//     Cancel / Escape reject;
-//   - apply(): the store write the Projects window's row menu makes, against a temp
-//     state dir — the value round-trips through fileStore::loadProjects.
-// Offscreen; the modals are driven from a 0-timer inside their own exec() loop.
+// Headless checks for the DESCRIPTION editor and both editors' store write (dialogs/descriptionDialog,
+// dialogs/keywordsDialog); the keywords FIELD itself is keywordChips.headless.cpp. The browser's
+// description modal on the shared shell: its structure, a field pre-filled with the current value where
+// Save returns the trimmed text and Cancel/Escape reject, and apply()'s store write against a temp state
+// dir, round-tripped through fileStore::loadProjects. Offscreen, driven from a 0-timer inside exec().
 #include "DescriptionDialog.hpp"
 #include "KeywordsDialog.hpp"
 #include "fileStore.hpp"

@@ -7,9 +7,8 @@
 
 namespace stencil::gui {
 
-  // Alt+wheel: bump the thickness of the line under the cursor by ±1 (clamped
-  // 1–20). Prefers the hovered point's line, else the segment under the cursor.
-  // Port of drawingApp.js #adjustThicknessAtCursor (~1810).
+  // Alt+wheel: bump the thickness of the line under the cursor by +-1 (clamped 1-20).
+  // Port of drawingApp.js #adjustThicknessAtCursor.
   void CanvasWidget::adjustThicknessAtCursor(double imageX, double imageY,
                                              int dir) {
     int lineIdx = -1;
@@ -29,9 +28,8 @@ namespace stencil::gui {
     scheduleEditCommit();
   }
 
-  // Apply `op` (rotate/flip) to the selection about its pivot: ≥2 selected → the
-  // combined bbox centre; 1 → the focused point, else that line's bbox centre.
-  // Shared scaffold so rotate and flip can't drift (no new core op).
+  // Apply `op` about the pivot: >=2 selected -> combined bbox centre; 1 -> the focused point, else
+  // that line's bbox centre. Shared scaffold so rotate and flip cannot drift (no new core op).
   void CanvasWidget::transformSelection(
       const std::function<void(std::vector<core::Point>&, double, double)>& op) {
     if (compareReadOnly()) return;   // read-only compare view
@@ -80,9 +78,8 @@ namespace stencil::gui {
     });
   }
 
-  // Translate every selected line by (dx, dy) image-space px — the arrow-key nudge (mirror of
-  // the browser drawingApp.js nudgeSelected). Debounced commit, like the wheel rotate, so a
-  // burst of key-repeats collapses into one undo step.
+  // Arrow-key nudge in image-space px (mirror of browser drawingApp.js nudgeSelected). Debounced
+  // commit, like the wheel rotate, so a burst of key-repeats collapses into one undo step.
   void CanvasWidget::nudgeSelected(double dx, double dy) {
     if (compareReadOnly()) return;   // read-only compare view
     if (dx == 0.0 && dy == 0.0) return;
@@ -101,9 +98,8 @@ namespace stencil::gui {
   // step. The single-shot timer fires commitHistory() once the wheel goes quiet.
   void CanvasWidget::scheduleEditCommit() { editCommitTimer_.start(); }
 
-  // Insert a new point into an existing line between two of its points, select
-  // that line and focus the new point. Port of drawingApp.js #insertPointOnSegment
-  // (~1335).
+  // Insert a point into an existing line between two of its points, select that line and focus
+  // the new point. Port of drawingApp.js #insertPointOnSegment.
   void CanvasWidget::insertPointOnSegment(int lineIdx, int insertIdx, double x,
                                           double y) {
     if (lineIdx < 0 || lineIdx >= static_cast<int>(lines_.size())) return;
@@ -126,9 +122,8 @@ namespace stencil::gui {
     emit selectionChanged();
   }
 
-  // Add a point connected to the current selection (after the focused point, else
-  // at the line's tail), or start a new single-point line when nothing is
-  // selected. Port of drawingApp.js #addConnectedPoint (~1352).
+  // Add a point after the focused point (else at the line's tail), or start a new single-point
+  // line when nothing is selected. Port of drawingApp.js #addConnectedPoint.
   void CanvasWidget::addConnectedPoint(double x, double y) {
     if (selectedLineIdx_ >= 0 &&
         selectedLineIdx_ < static_cast<int>(lines_.size())) {

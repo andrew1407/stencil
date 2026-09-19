@@ -1,8 +1,6 @@
-// MainWindow GUI e2e — the compact "mini window" a dialog icon opens (MainWindow::
-// execMaybePopover). It is the SAME QDialog the menus open as a window, reparented into the
-// popover overlay as a plain Qt::Widget child — so the modal shell's header drag, which moves
-// a real window, must not move this one: its move() would read the drag's global points as
-// parent-relative and throw the panel out of the overlay it is anchored to.
+// MainWindow GUI e2e — the compact "mini window" a dialog icon opens (MainWindow::execMaybePopover):
+// the SAME QDialog the menus open as a window, reparented into the popover overlay as a plain
+// Qt::Widget child, so the modal shell's header drag must not move it out of that overlay.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindow.gui.hpp"
 
@@ -76,9 +74,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(after, before);
   }
 
-  // The same trap one step further in: a dialog that sizes itself to its content and clamps
-  // itself to the screen (OpenImageDialog) must do neither as a popover, or it resizes past
-  // the overlay's cap and moves by screen coordinates that mean nothing to a child.
+  // The same trap one step further in: a dialog that sizes itself to its content and clamps itself to
+  // the screen (OpenImageDialog) must do neither as a popover, or it resizes past the overlay's cap.
   void aSelfSizingDialogStaysInsideItsPopoverOverlay() {
     MainWindow win(nullptr, false);
     win.resize(1100, 760);
@@ -130,14 +127,12 @@ class MainWindowGuiTest : public QObject {
              "the popover dialog must not grow wider than the overlay framing it");
     QVERIFY2(dlgRect.height() <= overlayRect.height(),
              "the popover dialog must not grow taller than the overlay framing it");
-    // …and its CONTENT has to fit that width. A row that cannot compress — a QCheckBox
-    // carrying a whole sentence, a field asking for 17 characters next to a button — is laid
-    // out wider than the box and loses its tail; the browser's popover reflows instead.
+    // …and its CONTENT has to fit that width: a row that cannot compress is laid out wider than the box
+    // and loses its tail, where the browser's popover reflows instead.
     QVERIFY2(clipped.isEmpty(), qPrintable("clipped by the popover: " + clipped));
   }
-  // A PREVIEW must grow the popover, within its cap: the compact shape cannot resize itself
-  // as a window, so left alone it clipped the picture instead (the browser's .modal-popover
-  // grows to its own max-height). Qt Multimedia cannot decode here, so a still stands in.
+  // A PREVIEW must grow the popover, within its cap (the browser's .modal-popover grows to its own
+  // max-height): the compact shape cannot resize itself as a window. A still stands in for a video.
   void aPreviewGrowsTheCompactPopoverInsteadOfBeingClipped() {
     const auto motion = withMotion();   // the height change is EASED; see steps below
     MainWindow win(nullptr, false);

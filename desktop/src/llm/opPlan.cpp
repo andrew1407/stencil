@@ -1,21 +1,18 @@
-#include "opPlan.hpp"
-
-#include "colorNames.hpp"
-#include "opRegistry.hpp"
-#include "OpSchema.hpp"
+// The model's reply to an executable plan (llm-contract §1): strip the code fences, find the first
+// JSON object in the prose, then hand it to the field fillers. Split across opPlan*.cpp.
+#include "opPlanParts.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QJsonValue>
 #include <QRegularExpression>
 
 #include <cmath>
 
 namespace stencil::llm {
 
+  using namespace opdetail;
+
   namespace {
-
-
     // Remove Markdown code-fence points (``` with an optional language tag) so
     // a fenced JSON block parses like bare JSON.
     QString stripFences(QString text) {
@@ -23,9 +20,8 @@ namespace stencil::llm {
       return text.remove(fence);
     }
 
-    // First balanced { … } substring that parses as a JSON OBJECT (brace counting skips string literals,
-    // so braces inside "reply" do not confuse it). Chat text holding incidental balanced braces that
-    // are not JSON is skipped over rather than failing the turn.
+    // First balanced { ... } substring that parses as a JSON OBJECT (brace counting skips string
+    // literals). Chat text holding incidental balanced braces is skipped over, not failed.
     bool extractFirstObject(const QString& text, QJsonObject& out) {
       const int n = text.size();
       for (int start = text.indexOf(QLatin1Char('{')); start >= 0;
@@ -59,326 +55,6 @@ namespace stencil::llm {
       }
       return false;
     }
-
-    bool err(QString* out, const QString& msg) {
-      if (out) *out = msg;
-      return false;
-    }
-
-    bool present(const QJsonObject& o, const char* key) {
-      const QJsonValue v = o.value(QLatin1String(key));
-      return !v.isUndefined() && !v.isNull();
-    }
-
-    // desktop extras: checks the registry does not carry (see each op's
-    //    `divergence`), run AFTER the generic check
-
-    // A colour NAME must be one the core recognizes (fixture 137
-    // knownDivergence.desktop); "#rrggbb" already passed the grammar.
-    bool isKnownColor(const QString& t) {
-      return t.startsWith(QLatin1Char('#')) || core::parseColor(t.toStdString()).has_value();
-    }
-
-    // The read scope: only the formats this app itself opens, decided by extension so the
-    // model can never hand us an arbitrary file to slurp (a recorded desktop+cli
-    // divergence; never a directory). Mirrors the cli's understoodPath.
-    bool isOpenableFile(const QString& path) {
-      static const QStringList EXTS = {
-          QStringLiteral("png"),  QStringLiteral("jpg"),  QStringLiteral("jpeg"),
-          QStringLiteral("bmp"),  QStringLiteral("tga"),  QStringLiteral("gif"),
-          QStringLiteral("webp"), QStringLiteral("mp4"),  QStringLiteral("mov"),
-          QStringLiteral("m4v"),  QStringLiteral("avi"),  QStringLiteral("mkv"),
-          QStringLiteral("webm"), QStringLiteral("json"), QStringLiteral("stencil")};
-      const int dot = path.lastIndexOf(QLatin1Char('.'));
-      if (dot < 0) return false;
-      const int slash = std::max(path.lastIndexOf(QLatin1Char('/')), path.lastIndexOf(QLatin1Char('\\')));
-      if (dot < slash) return false;  // the dot is in a directory name
-      return EXTS.contains(path.mid(dot + 1).toLower());
-    }
-
-    // The validated + normalized action (declared keys, registry defaults, trims) →
-    // the typed Action. Types, enums, ranges, grammars and presence rules are the
-    // generic check's; only the desktop extras above can still fail here.
-    bool fillLayout(const QJsonObject& n, Action& a, QString* e) {
-      for (const QJsonValue& lv : n.value("lines").toArray()) {
-        const QJsonObject o = lv.toObject();
-        core::Line line;
-        for (const QJsonValue& pv : o.value("points").toArray()) {
-          const QJsonObject po = pv.toObject();
-          line.points.push_back({po.value("x").toDouble(), po.value("y").toDouble()});
-        }
-        if (line.points.empty())
-          return err(e, QStringLiteral("Invalid layout action: a line needs a non-empty \"points\" array"));
-        if (present(o, "color")) line.color = o.value("color").toString().toStdString();
-        if (present(o, "thickness")) line.thickness = o.value("thickness").toDouble();
-        if (present(o, "pointSize")) line.pointSize = o.value("pointSize").toDouble();
-        if (present(o, "style")) line.style = o.value("style").toString().toStdString();
-        if (present(o, "locked")) line.locked = o.value("locked").toBool();
-        if (present(o, "fillColor")) line.fillColor = o.value("fillColor").toString().toStdString();
-        a.lines.push_back(std::move(line));
-      }
-      return true;
-    }
-
-    bool fillAction(const QString& op, const QJsonObject& n, Action& a, QString* e) {
-      if (!opKindFor(op, &a.op))
-        return err(e, QStringLiteral("Invalid %1 action: no desktop executor").arg(op));
-      const auto str = [&](const char* k) { return n.value(QLatin1String(k)).toString(); };
-      const auto num = [&](const char* k) { return n.value(QLatin1String(k)).toDouble(); };
-      const auto integer = [&](const char* k) { return n.value(QLatin1String(k)).toInt(); };
-      const auto flag = [&](const char* k) { return n.value(QLatin1String(k)).toBool(); };
-      switch (a.op) {
-        case OpKind::CROP: {
-          const QJsonObject spec = n.value("spec").toObject();
-          a.x1 = spec.value("x1").toString();
-          a.x2 = spec.value("x2").toString();
-          a.y1 = spec.value("y1").toString();
-          a.y2 = spec.value("y2").toString();
-          a.aspect = spec.value("aspect").toString();
-          break;
-        }
-        case OpKind::ROTATE:
-          a.rotateLeft = str("dir") == QLatin1String("left");
-          a.times = integer("times");
-          break;
-        case OpKind::FILTER:
-          a.mode = str("mode");
-          a.tint = str("tint");
-          break;
-        case OpKind::LAYOUT:
-          return fillLayout(n, a, e);
-        case OpKind::FORMULA:
-          if (present(n, "enabled")) {
-            a.formulaEnabled = flag("enabled") ? 1 : 0;
-          } else {
-            a.axis = str("axis").at(0);
-            a.expr = str("expr").trimmed();   // blank = clear that axis
-          }
-          break;
-        case OpKind::PAGE:
-          a.format = str("format");
-          a.widthCm = num("width");
-          a.heightCm = num("height");
-          break;
-        case OpKind::BLANK:
-          a.color = str("color");
-          if (!isKnownColor(a.color))
-            return err(e, QStringLiteral("Invalid blank action: \"color\" must be #rrggbb or a CSS colour name"));
-          a.format = str("format");
-          a.widthCm = num("width");
-          a.heightCm = num("height");
-          break;
-        case OpKind::UNDO:
-        case OpKind::REDO:
-          a.steps = integer("steps");
-          break;
-        case OpKind::FRAME:
-          if (present(n, "index")) a.indices.push_back(integer("index"));
-          for (const QJsonValue& v : n.value("indices").toArray()) a.indices.push_back(v.toInt());
-          break;
-        case OpKind::THEME:
-          a.mode = str("mode");
-          break;
-        case OpKind::ACCENT:
-          a.color = str("color");
-          a.preset = str("preset");
-          break;
-        case OpKind::LINE_STYLE:
-          a.color = str("color");
-          a.thickness = integer("thickness");
-          a.pointSize = integer("pointSize");
-          a.style = str("style");
-          // "" = follow the stroke — meaningful, so a presence flag rides along.
-          a.pointColorSet = present(n, "pointColor");
-          a.pointColor = str("pointColor");
-          a.drawMode = str("drawMode");
-          a.fillColor = str("fillColor");
-          break;
-        case OpKind::UNITS:
-          a.value = str("value");
-          break;
-        case OpKind::VIEW:
-          if (present(n, "points")) a.viewPoints = flag("points") ? 1 : 0;
-          if (present(n, "lines")) a.viewLines = flag("lines") ? 1 : 0;
-          break;
-        case OpKind::CLEAR:
-        case OpKind::CLEAR_CHAT:
-          break;
-        case OpKind::COPY:
-          a.what = str("what");
-          break;
-        case OpKind::OPEN_URL:
-          a.url = str("url");
-          a.incognito = flag("incognito");
-          break;
-        case OpKind::OPEN_FILE:
-          // A LOCAL file (the registry rejects URL schemes) in a format this app
-          // opens; whether the USER wrote it is the executor's echo guard.
-          a.path = str("path");
-          if (!isOpenableFile(a.path))
-            return err(e, QStringLiteral("Invalid openFile action: \"%1\" is not an image, video, "
-                                         ".json layout or .stencil project")
-                              .arg(a.path));
-          break;
-        case OpKind::CONNECT:
-        case OpKind::DISCONNECT:
-          a.server = str("server").trimmed();
-          break;
-        case OpKind::REMOVE_PROJECT:
-          a.name = str("name");
-          a.current = flag("current");
-          break;
-        case OpKind::CLEAR_PROJECTS:
-          a.current = flag("keepCurrent");   // the shared "the open one" presence flag
-          break;
-        case OpKind::COMPARE:
-          a.mode = str("mode");
-          a.split = num("split");
-          break;
-        case OpKind::ZOOM:
-          a.fit = flag("fit");
-          a.percent = static_cast<int>(std::lround(num("percent")));
-          break;
-        case OpKind::RENAME_PROJECT:
-          a.name = str("name");
-          break;
-        case OpKind::PROJECT_COLOR:
-          a.color = str("color");   // "" = the explicit clear
-          break;
-        case OpKind::BLANK_COLOR:
-          a.color = str("color");
-          if (!isKnownColor(a.color))
-            return err(e, QStringLiteral("Invalid blankColor action: \"color\" must be #rrggbb or a CSS colour name"));
-          break;
-        case OpKind::OPEN_PROJECT:
-          a.name = str("name");
-          a.current = flag("last");   // "the latest one" rides removeProject's flag
-          break;
-        case OpKind::INCOGNITO:
-          a.incognito = flag("on");
-          break;
-        case OpKind::CHAT_PANEL:
-          if (present(n, "open")) a.chatOpen = flag("open") ? 1 : 0;
-          a.dock = str("dock");
-          break;
-        case OpKind::DIALOG:
-          a.dialog = str("name");
-          a.current = flag("close");   // "close what is open" rides the shared flag
-          break;
-        case OpKind::IMAGE:
-          a.index = integer("index");
-          break;
-        case OpKind::SAVE:
-          a.name = str("name");
-          a.path = str("path");   // trimmed by the registry; "" = no destination
-          break;
-      }
-      return true;
-    }
-
-    // One action list (top-level or a variant's). Unknown op ⇒ skip + warning (a §13 forbidden name lands
-    // here too); known op with bad params ⇒ fail the whole plan; a top-level-only op inside a
-    // variant/preview ⇒ *scopeDrop = why and the CALLER drops just that one (§1's one exception).
-    bool parseActions(const QJsonValue& v, QVector<Action>& out, QStringList& warnings,
-                      bool inVariant, QString* e, QString* scopeDrop = nullptr) {
-      if (v.isUndefined() || v.isNull()) return true;  // absent = empty
-      const OpSchema& schema = OpSchema::desktop();
-      if (!schema.checkEnvelope(v, QStringLiteral("actions"), e)) return false;
-      for (const QJsonValue& av : v.toArray()) {
-        const QJsonObject o = av.toObject();
-        if (!o.value("op").isString())
-          return err(e, QStringLiteral("Invalid plan: action has no \"op\""));
-        const QString op = o.value("op").toString();
-        const OpEntry* entry = schema.entry(op);
-        if (!entry) {
-          // Forward compatibility: an unknown op is dropped with a warning.
-          warnings << QStringLiteral("Skipped unknown op \"%1\".").arg(op);
-          continue;
-        }
-        QJsonObject validated;
-        if (!schema.validateAction(o, *entry, &validated, e)) return false;
-        Action a;
-        if (!fillAction(op, schema.normalize(validated, *entry), a, e)) return false;
-        if (inVariant && isTopLevelOnlyOp(a.op)) {
-          QString why;
-          if (isHistoryOp(a.op)) {
-            // §2 undo/redo: their own wording — a sandboxed variant/preview
-            // render writes history-invisible state.
-            why = QStringLiteral(
-                      "\"%1\" is a top-level action only — a sandboxed variant/preview "
-                      "has no edit history")
-                      .arg(op);
-          } else if (!isEditorSettingsOp(a.op)) {   // §2.1 image/save
-            why = QStringLiteral("\"%1\" is a top-level action only (§2.1)").arg(op);
-          } else {
-            why = QStringLiteral("\"%1\" is an editor-settings op, not an image edit").arg(op);
-            if (a.op == OpKind::OPEN_URL)
-              why += QStringLiteral(" — open the URL as a top-level action; picking images "
-                                    "off a web page is the browser extension assistant's job");
-          }
-          // §1: costs this variant/preview its place, never the whole plan.
-          if (scopeDrop) { *scopeDrop = why; return false; }
-          return err(e, why);
-        }
-        out.push_back(std::move(a));
-      }
-      return true;
-    }
-
-    // §11 interactive replies (`ask`). The card's structure — keys, caps, 2..5 options, the image
-    // reference's exactly-one-of url / projectId / scanIndex, http(s)-only urls — is the registry's ask
-    // schema, and a card nobody can answer fails the plan. Only the preview actions need this module.
-    bool parseAsk(const QJsonValue& value, AskCard& out, QStringList& warnings, QString* e) {
-      if (value.isUndefined() || value.isNull()) return true;   // no card is the norm
-      const OpSchema& schema = OpSchema::desktop();
-      if (!schema.validateAsk(value, e)) return false;
-      const QJsonObject ask = schema.normalizeAsk(value.toObject());
-      out.question = ask.value("question").toString();
-      out.multi = ask.value("mode").toString() == QLatin1String("multi");
-      out.allowCustom = ask.value("allowCustom").toBool();
-      out.customLabel = ask.value("customLabel").toString();
-      if (out.customLabel.isEmpty()) out.customLabel = schema.defaultCustomLabel();
-      int index = 0;
-      for (const QJsonValue& ov : ask.value("options").toArray()) {
-        ++index;
-        const QJsonObject oo = ov.toObject();
-        AskOption opt;
-        opt.label = oo.value("label").toString();
-        if (present(oo, "actions")) {
-          // Preview actions are rendered, never executed, so editor-settings ops are banned here under the same
-          // rule as inside variants. §1/§11.2: a misplaced one costs the PREVIEW, not the plan — the option
-          // stays, pictureless, and the preview's warnings go with the render it never gets.
-          QStringList previewWarnings;
-          QString scopeDrop;
-          if (!parseActions(oo.value("actions"), opt.actions, previewWarnings,
-                            /*inVariant=*/true, e, &scopeDrop)) {
-            if (scopeDrop.isEmpty()) return false;
-            opt.actions.clear();
-            warnings << QStringLiteral(
-                            "Dropped the preview for option %1 \"%2\" — %3; put it in the "
-                            "plan's top-level actions. The option is still offered.")
-                            .arg(index)
-                            .arg(opt.label, scopeDrop);
-          } else {
-            warnings += previewWarnings;
-          }
-        }
-        if (present(oo, "image")) {
-          const QJsonObject img = oo.value("image").toObject();
-          if (present(img, "scanIndex")) {
-            // The extension's reference (§8): meaningless in the editor, so the option stays pictureless.
-            warnings << QStringLiteral("option %1 names a page-scan image, which this editor cannot show").arg(index);
-          } else if (present(img, "projectId")) {
-            opt.projectId = img.value("projectId").toString();
-          } else {
-            opt.imageUrl = img.value("url").toString();
-          }
-        }
-        out.options.push_back(std::move(opt));
-      }
-      return true;
-    }
-
   }  // namespace
 
   OpPlanResult parseOpPlan(const QString& text) {
@@ -445,9 +121,8 @@ namespace stencil::llm {
       r.error = e;
       return r;
     }
-    // The substitute must not overstate what happened: "Done." only when the
-    // plan actually carries work — an empty plan says so, since a bare "Done."
-    // there reads as a success that never occurred.
+    // The substitute must not overstate what happened: "Done." only when the plan actually carries
+    // work - an empty plan says so, since a bare "Done." there reads as a success that never occurred.
     if (replyOmitted) {
       if (!r.plan.actions.isEmpty() || !r.plan.variants.isEmpty() ||
           !r.plan.ask.options.isEmpty()) {

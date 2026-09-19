@@ -38,7 +38,7 @@ namespace stencil::gui {
       it->setData(META_ROLE, metaBits.join(QStringLiteral(" · ")));
     }
     it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
-    it->setCheckState(checked_.contains("|" + QString::fromStdString(pr.meta.id))
+    it->setCheckState(batch_.checked.contains("|" + QString::fromStdString(pr.meta.id))
                           ? Qt::Checked : Qt::Unchecked);
     // Absent for pathless (in-memory) sources — a uniform placeholder tile keeps the row height.
     const auto thumb = thumbs_.constFind(QString::fromStdString(pr.meta.id));
@@ -94,7 +94,7 @@ namespace stencil::gui {
     }
     it->setData(Qt::UserRole + 3, sp.name.isEmpty() ? QStringLiteral("Untitled") : sp.name);
     it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
-    it->setCheckState(checked_.contains(sp.serverUrl + "|" + sp.id) ? Qt::Checked : Qt::Unchecked);
+    it->setCheckState(batch_.checked.contains(sp.serverUrl + "|" + sp.id) ? Qt::Checked : Qt::Unchecked);
     // UserRole+4 — the name only, so the "— <url>" suffix stays the default colour. The gold outline
     // marks server rows, so the grey matches local rows (browser default — not gold).
     const QColor custom(sp.color);

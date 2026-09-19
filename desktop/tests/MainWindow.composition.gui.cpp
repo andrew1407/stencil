@@ -120,9 +120,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(bars.join(u' '),
              QStringLiteral("QToolBar#headerToolbar@4 QToolBar#mainToolbar@4"));
 
-    // Docks, in creation order, with the area each was added to and its boot visibility
-    // (2 = Right, 4 = Top, 1 = Left). The chat dock is session-transient: always hidden
-    // at its default left placement, whatever a saved layout said.
+    // Docks, in creation order, with the area each was added to and its boot visibility (2 = Right,
+    // 4 = Top, 1 = Left). The chat dock is session-transient: hidden at its default left placement.
     QStringList docks;
     for (QDockWidget* d : win.findChildren<QDockWidget*>())
       docks << tag(d) + "@" + QString::number(int(win.dockWidgetArea(d))) +
@@ -143,10 +142,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.windowTitle(), QStringLiteral("Stencil"));
   }
 
-  // eventFilter is a chain of concern-sized handlers run top to bottom, and most of them
-  // deliberately do NOT consume: the verdict per (object, event) and the fall-through are the
-  // contract. These cases pin both — a handler that starts consuming, or one moved ahead of
-  // another, fails here rather than in a gesture nobody re-tests.
+  // eventFilter is a chain of concern-sized handlers run top to bottom, most deliberately NOT
+  // consuming: the verdict per (object, event) and the fall-through are the contract pinned here.
   void eventFilterVerdictsArePinned() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);

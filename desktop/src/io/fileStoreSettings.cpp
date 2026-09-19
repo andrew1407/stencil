@@ -28,9 +28,8 @@ namespace stencil::gui {
 
   Settings fileStore::loadSettings() {
     Settings s;
-    // Seed the locale-based default before reading the file, so a brand-new
-    // user (no settings yet) or an older config without a "units" key still
-    // gets a sensible default; a stored "units" value below overrides it.
+    // Seed the locale-based default before reading the file, so a brand-new user or an older config
+    // without a "units" key still gets one; a stored "units" value below overrides it.
     s.units = localeDefaultUnit();
     const QJsonObject o = readJson(settingsPath()).object();
     if (o.isEmpty()) return s;

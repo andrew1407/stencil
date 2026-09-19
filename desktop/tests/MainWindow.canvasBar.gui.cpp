@@ -8,10 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The "Selected Line:" bar appears/disappears through dustSelectedLineBarIn/Out
-  // (MainWindow.cpp) rather than a plain instant show/hide. Like the other docked
-  // surface flights, it declines under the offscreen QPA platform this suite runs
-  // under, so this asserts the end state rather than a live flight.
+  // The "Selected Line:" bar goes through dustSelectedLineBarIn/Out, not a plain show/hide.
+  // The flight declines under the offscreen QPA platform, so this asserts the end state.
   void selectedLineBarAppearsAndDisappearsWithDust() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -77,9 +75,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Clearing the image scatters it as dust — and the empty-canvas invitation must NOT
-  // appear underneath the falling particles, which reads as the clear happening twice.
-  // It is held back for the length of the animation, and cannot be clicked while hidden.
+  // Clearing the image scatters it as dust; the empty-canvas invitation must not appear under
+  // the falling particles — it is held back for the animation and cannot be clicked.
   void clearHoldsTheIdleHintUntilTheDustLands() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -99,18 +96,16 @@ class MainWindowGuiTest : public QObject {
     QTest::mouseClick(canvas, Qt::LeftButton, Qt::NoModifier, canvas->rect().center());
     QCOMPARE(asked.count(), 0);   // nothing visible to click, so nothing opens
 
-    // …and it comes back once the animation is over, so the affordance is reachable again.
-    // NOT clicked here: accepting it opens the blank-image creator, whose modal loop would
-    // hold this test until it timed out (which is exactly what it did).
+    // …and it comes back once the animation is over. NOT clicked here: accepting it opens the
+    // blank-image creator, whose modal loop would hold this test until it timed out.
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->idleHintHidden(),
                              stencil::gui::DisintegrateOverlay::DUST_MS + 1500);
     QCOMPARE(asked.count(), 0);
     beat();
   }
 
-  // A REAL click through the compare combo's own themed popup, not setCompareModeUi():
-  // the connect() has to live in buildDrawViewToolbar, after compareCombo_ is built —
-  // wired from buildStyleToolbar it was a connect() on a null sender, silently dropped.
+  // A REAL click through the compare combo's own themed popup, not setCompareModeUi(): the
+  // connect() has to live in buildDrawViewToolbar, after compareCombo_ is built.
   void compareComboClickActuallyChangesTheCanvas() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -138,9 +133,8 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.canvas_->compareMode(), QStringLiteral("vertical"));
   }
 
-  // A split compare of a BLANK page shows the blank's own fill on BOTH halves:
-  // the original side is the untouched red page, the edit side the red page
-  // with the lines — never a gray/neutral placeholder.
+  // A split compare of a BLANK page shows the blank's own fill on BOTH halves: the untouched
+  // red page against the red page with the lines, never a gray placeholder.
   void compareSplitOfBlankKeepsItsFill() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -178,10 +172,8 @@ class MainWindowGuiTest : public QObject {
                                           .arg(right.name())));
     QVERIFY2(isRed(left), qPrintable(QStringLiteral("original half is %1, not the blank fill")
                                          .arg(left.name())));
-    // With a filter riding (how a model often colours a page: blank + tint/filter),
-    // a BLANK's compare still shows the SAME page colour on both halves — its
-    // colour IS the page, so only the lines may differ. Before the fix the
-    // original half dropped the filter and went red-vs-gray.
+    // With a filter riding, a BLANK's compare still shows the SAME page colour on both halves —
+    // its colour IS the page, so only the lines may differ.
     win.applyImageFilter("bw");
     QTest::qWait(30);
     const QImage shotF = win.canvas_->grab().toImage();

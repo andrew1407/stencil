@@ -1,9 +1,7 @@
-// CropPreview::setFitBox (dialogs/CropDialog.cpp) — an invalid or degenerate box must
-// never fall back to scale 1.0 (the image's own NATIVE pixels): for a real photo or video
-// frame that dwarfs the dialog around it, exactly the "crop covers the whole window" bug.
-// OpenImageDialog's inline stage skips the constructor's screen-relative first fit
-// (autoFitScreen=false) for the same reason — that box is the only one it is ever asked
-// to be, never a screen-sized one, even transiently.
+// CropPreview::setFitBox (dialogs/CropDialog.cpp) — an invalid or degenerate box must never fall back
+// to scale 1.0 (the image's own NATIVE pixels): for a photo or video frame that dwarfs the dialog,
+// that is the "crop covers the whole window" bug. OpenImageDialog's inline stage skips the
+// constructor's screen-relative first fit (autoFitScreen=false) for the same reason.
 #include "CropDialog.hpp"
 #include "cropGeometry.hpp"
 
@@ -59,9 +57,8 @@ int main(int argc, char** argv) {
           "the flip keeps the SAME centre — the user's own framing, not a reset");
   }
   {
-    // A same-value setAlbum (CropDialog's own ctor bootstrap, forcing the caller's
-    // requested orientation over the ctor's image-natural guess) must stay a no-op —
-    // swapping an already-correct rect would land it at the wrong, reciprocal aspect.
+    // A same-value setAlbum (CropDialog's own ctor bootstrap, forcing the caller's requested orientation
+    // over the image-natural guess) must stay a no-op: swapping a correct rect lands the wrong aspect.
     QImage wide(2880, 2037, QImage::Format_RGB32);
     stencil::core::CropRect empty;
     CropPreview p(wide, 21.0, 29.7, empty, nullptr, /*autoFitScreen=*/false);

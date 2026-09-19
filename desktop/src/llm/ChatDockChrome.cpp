@@ -94,37 +94,35 @@ namespace stencil::gui {
     dot->setToolTip(richTooltip);
   }
 
-  // Branded title bar (browser header-row parity): sparkle + accent "Assistant" + right-aligned
-  // float/close. QDockWidget keeps its native title drag through a custom title-bar widget; an event
-  // filter OBSERVES press/move/release to drive the dock zones without disturbing Qt's drag.
+  // Branded title bar (browser header-row parity). QDockWidget keeps its native title drag through
+  // a custom title-bar widget; an event filter OBSERVES press/move/release without disturbing it.
   void ChatDock::buildTitleBar() {
-    titleBar_ = new QWidget(this);
-    titleBar_->setObjectName("chatTitleBar");
-    titleBar_->setAttribute(Qt::WA_StyledBackground);  // part of the card
+    chrome_.titleBar = new QWidget(this);
+    chrome_.titleBar->setObjectName("chatTitleBar");
+    chrome_.titleBar->setAttribute(Qt::WA_StyledBackground);  // part of the card
     // The header IS the drag handle (browser .chat-header): say so with the
     // cursor, and switch to the closed hand while a drag is actually running.
-    titleBar_->setCursor(Qt::OpenHandCursor);
-    auto* row = new QHBoxLayout(titleBar_);
+    chrome_.titleBar->setCursor(Qt::OpenHandCursor);
+    auto* row = new QHBoxLayout(chrome_.titleBar);
     row->setContentsMargins(8, 5, 8, 5);   // .chat-header padding: 5px 8px
     row->setSpacing(3);     // .chat-header gap: 3px (the placement chips tighten to 1 below)
-    headerIcon_ = new QLabel(titleBar_);
+    chrome_.headerIcon = new QLabel(chrome_.titleBar);
     // Optical vertical centering: the bubble glyph's tail row is mostly empty, so a
     // box-centered 16px icon reads ~2px high next to the title's cap height.
-    headerIcon_->setFixedSize(16, 18);
-    headerIcon_->setContentsMargins(0, 2, 0, 0);
-    row->addWidget(headerIcon_);
-    headerTitle_ = new QLabel("Assistant", titleBar_);
-    headerTitle_->setObjectName("chatHeaderTitle");
+    chrome_.headerIcon->setFixedSize(16, 18);
+    chrome_.headerIcon->setContentsMargins(0, 2, 0, 0);
+    row->addWidget(chrome_.headerIcon);
+    chrome_.headerTitle = new QLabel("Assistant", chrome_.titleBar);
+    chrome_.headerTitle->setObjectName("chatHeaderTitle");
     {
-      QFont f = headerTitle_->font();
+      QFont f = chrome_.headerTitle->font();
       f.setBold(true);
-      headerTitle_->setFont(f);
+      chrome_.headerTitle->setFont(f);
     }
-    row->addWidget(headerTitle_);
+    row->addWidget(chrome_.headerTitle);
     row->addStretch(1);
-    // Placement buttons, browser header parity: dock left / top / bottom /
-    // right, then float. Clicking pins the dock to that side directly (the
-    // reliable path — dragging to a zone does the same thing).
+    // Placement buttons, browser header parity: dock left / top / bottom / right, then float.
+    // Clicking pins the dock to that side directly (dragging to a zone does the same thing).
     struct Place {
       Qt::DockWidgetArea area;
       const char* tip;
@@ -135,7 +133,7 @@ namespace stencil::gui {
         {Qt::BottomDockWidgetArea, "Dock bottom — or drag the header to an edge"},
         {Qt::RightDockWidgetArea, "Dock right — or drag the header to an edge"},
     };
-    auto* dockGroup = new QWidget(titleBar_);
+    auto* dockGroup = new QWidget(chrome_.titleBar);
     auto* dockRow = new QHBoxLayout(dockGroup);
     dockRow->setContentsMargins(0, 0, 0, 0);
     dockRow->setSpacing(1);   // .chat-dock-btns gap: 1px
@@ -144,28 +142,25 @@ namespace stencil::gui {
       const Qt::DockWidgetArea area = p.area;
       connect(b, &QToolButton::clicked, this, [this, area] { emit dockRequested(area); });
       dockRow->addWidget(b);
-      dockBtns_.append(b);
+      chrome_.dockBtns.append(b);
     }
     row->addWidget(dockGroup);
-    floatBtn_ = makeGhostButton(titleBar_, "Float — drag the header to move");
-    // NOT a raw setFloating() here: that just teleports the panel with no animation
-    // at all. The owner answers with the same dust flight a side switch plays,
-    // ending in setFloating (or a re-dock) itself.
-    connect(floatBtn_, &QToolButton::clicked, this, [this] { emit floatToggleRequested(); });
-    row->addWidget(floatBtn_);
-    closeBtn_ = makeGhostButton(titleBar_, "Close assistant");
-    // NOT QWidget::close(): that hides the dock on the spot, and a side-docked chat blinked out instead
-    // of sliding into its edge. The owner runs the same animated path the toolbar toggle uses
-    // (closeEvent below routes every OTHER close the same way).
-    connect(closeBtn_, &QToolButton::clicked, this, [this] { emit closeRequested(); });
-    row->addWidget(closeBtn_);
-    setTitleBarWidget(titleBar_);
-    titleBar_->installEventFilter(this);  // drag observation (drag dock zones)
+    chrome_.floatBtn = makeGhostButton(chrome_.titleBar, "Float — drag the header to move");
+    // NOT a raw setFloating() here: that teleports the panel with no animation. The owner answers with
+    // the same dust flight a side switch plays, ending in setFloating (or a re-dock) itself.
+    connect(chrome_.floatBtn, &QToolButton::clicked, this, [this] { emit floatToggleRequested(); });
+    row->addWidget(chrome_.floatBtn);
+    chrome_.closeBtn = makeGhostButton(chrome_.titleBar, "Close assistant");
+    // NOT QWidget::close(): that hides the dock on the spot. The owner runs the same animated path
+    // the toolbar toggle uses (closeEvent below routes every OTHER close the same way).
+    connect(chrome_.closeBtn, &QToolButton::clicked, this, [this] { emit closeRequested(); });
+    row->addWidget(chrome_.closeBtn);
+    setTitleBarWidget(chrome_.titleBar);
+    chrome_.titleBar->installEventFilter(this);  // drag observation (drag dock zones)
   }
 
-  // Empty-state suggestions (browser parity): clickable pills laid out INLINE with wrapping. Clicking
-  // PREFILLS the caller's composer, never sends. SHARED with the context menu's assistant panel — one
-  // chip list, one flow layout, one style — so the two empty states cannot drift apart.
+  // Empty-state suggestions (browser parity): clicking PREFILLS the caller's composer, never sends.
+  // SHARED with the context menu's assistant panel, so the two empty states cannot drift apart.
   QWidget* makeSuggestionChips(QWidget* parent, int gap, std::function<void(QString)> onPick) {
     auto* box = new QWidget(parent);
     box->setObjectName(QStringLiteral("chatSuggest"));
@@ -210,12 +205,12 @@ namespace stencil::gui {
   void ChatDock::buildSuggestions() {
     // The empty state is the prompt chips, nothing more: the composer's own cue
     // (showDropCue) is what says a drop attaches, right where it lands.
-    suggest_ = makeSuggestionChips(transcript_, 6, [this](QString prompt) {
+    cmp_.suggest = makeSuggestionChips(log_.transcript, 6, [this](QString prompt) {
       input_->setPlainText(prompt);  // prefill only — never send
       input_->moveCursor(QTextCursor::End);
       input_->setFocus();
     });
-    transcriptLayout_->addWidget(suggest_);
+    log_.transcriptLayout->addWidget(cmp_.suggest);
   }
 }  // namespace stencil::gui
 

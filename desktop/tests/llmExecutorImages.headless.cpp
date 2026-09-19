@@ -78,9 +78,8 @@ namespace llmexec {
       check(target.saved.isEmpty(), "and nothing was saved");
     }
     {
-      // A crop moves the origin; the attachment after it is a FRESH frame, so
-      // the layout that follows lands on the points as written (§1 re-mapping
-      // resets).
+      // A crop moves the origin; the attachment after it is a FRESH frame, so the layout that follows lands
+      // on the points as written (§1 re-mapping resets).
       const auto parsed = parseOpPlan(R"({
         "reply": "fresh frame", "actions": [
           {"op": "crop", "spec": {"x1": "2px", "y1": "2px"}},

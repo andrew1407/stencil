@@ -8,11 +8,8 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // The context menu must open anywhere on the canvas SURFACE, not only on the
-  // image. The canvas widget is sized to the image, so the backdrop around a
-  // zoomed-out image belongs to the scroll area's viewport — which had no menu at
-  // all. With NO image there is no menu anywhere: every entry acts on an image
-  // (browser contextMenu.js parity).
+  // The context menu opens anywhere on the canvas SURFACE, not only on the image (the backdrop around
+  // a zoomed-out image is the scroll viewport). With NO image there is no menu: every entry needs one.
   void contextMenuOpensOnEmptyCanvasArea() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -32,11 +29,8 @@ class MainWindowGuiTest : public QObject {
         }
         if (!menu) return;
         *opened = true;
-        // The "Current" copy-image variant action — syncContextActions has just
-        // run for this popup. actCopyImage_ is a fixed pointer (not text-matched):
-        // its own text no longer starts with "Copy Image" now that it is nested
-        // under a "Copy Image ▸" submenu parent (which is a DIFFERENT, always-
-        // enabled QAction — the submenu opener, not the image-dependent copy itself).
+        // The "Current" copy-image variant action, a fixed pointer rather than text-matched: its own text no
+        // longer starts with "Copy Image" now that it nests under an always-enabled submenu opener.
         *copyFound = win.actCopyImage_ != nullptr;
         *copyEnabled = win.actCopyImage_ && win.actCopyImage_->isEnabled();
         menu->close();
@@ -46,9 +40,8 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(50);
     };
 
-    // ── no image at all: NO menu — a popup of dead rows is worse than none. Clicked
-    // directly (not through rightClickCorner): its poll would spin for two seconds
-    // waiting for a menu that never comes, and still be running for the next case.
+    // No image at all: NO menu — a popup of dead rows is worse than none. Clicked directly, since
+    // rightClickCorner's poll would spin for two seconds waiting for a menu that never comes.
     QVERIFY(!win.findChild<CanvasWidget*>()->hasImage());
     QTest::mouseClick(viewport, Qt::RightButton, {}, QPoint(6, 6));
     QTest::qWait(50);
@@ -93,9 +86,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.pop_.menuRowAction == act, "the hovered row was not recorded");
     const QRect rowGlobal(owner->mapToGlobal(row.topLeft()), row.size());
     QCOMPARE(win.pop_.menuRowRect, rowGlobal);
-    // Qt hides the menu and THEN activates the action, in the same pass of the event loop.
-    // The record has to still be there at that point — this is exactly what reading
-    // QApplication::activePopupWidget() inside triggered() got wrong.
+    // Qt hides the menu and THEN activates the action, in the same pass of the event loop, so the record
+    // must still be there — which reading QApplication::activePopupWidget() in triggered() got wrong.
     owner->close();
     QVERIFY2(win.pop_.menuRowAction == act, "the row was forgotten before the action fired");
     // The dialog itself blocks in exec(), so drive only the handler that stamps the anchor.

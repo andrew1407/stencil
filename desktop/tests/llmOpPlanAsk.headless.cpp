@@ -97,8 +97,7 @@ namespace llmopplan {
           "answer capped at the registry's ask.answer limit");
   }
 
-  // ── planTouchesTheImage: what makes an attachment worth adopting ──
-  // An EDITING plan arriving with an empty canvas takes the attached picture as the
+  // planTouchesTheImage: an EDITING plan arriving with an empty canvas takes the attached picture as the
   // working image; a question about it, or a settings change, leaves the canvas alone.
   {
     using stencil::llm::planTouchesTheImage;

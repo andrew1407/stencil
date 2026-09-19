@@ -127,8 +127,7 @@ namespace stencil::gui {
     nameLay->addWidget(nameBar_.cancel);
     tbName->addWidget(nameBar_.group);
     { auto* sp = new QWidget(this); sp->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred); tbName->addWidget(sp); }
-    // The per-project colour control lives in the Project menu (actProjectColor_); the name field
-    // is painted in it.
+    // The per-project colour control lives in the Project menu (actProjectColor_).
     // textEdited fires only on user edits, so updateProjectTitle() never re-triggers validation.
     connect(nameBar_.field, &QLineEdit::textEdited, this,
             [this](const QString&) { refreshProjectNameButtons(); });
