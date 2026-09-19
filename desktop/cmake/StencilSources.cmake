@@ -359,6 +359,9 @@ set(STENCIL_GUI_SOURCES
   src/canvas/CanvasTooltip.cpp
   src/canvas/IncognitoOverlay.cpp
   src/dialogs/SettingsDialog.cpp
+  src/dialogs/SettingsDialogMotionRows.cpp
+  src/dialogs/SettingsDialogDrawRows.cpp
+  src/dialogs/SettingsDialogPrefRows.cpp
   src/dialogs/SettingsDialogState.cpp
   src/dialogs/AssistantSettingsDialog.cpp
   src/dialogs/LlmSettingsForm.cpp
