@@ -91,7 +91,7 @@ namespace stencil::gui {
     path_->setReadOnly(true);
     path_->setObjectName(QStringLiteral("oiPathField"));
     path_->setPlaceholderText("No file chosen");
-    auto* browse = new QPushButton("Choose File…", this);
+    auto* browse = new QPushButton("Choose File", this);
     browse->setObjectName(QStringLiteral("oiChooseBtn"));
     makeModalCta(browse, "folder");
     connect(browse, &QPushButton::clicked, this, &OpenImageDialog::browse);
