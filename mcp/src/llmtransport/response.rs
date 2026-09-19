@@ -70,9 +70,8 @@ pub(super) fn read_response(stream: &mut TcpStream) -> Result<(u16, String), Llm
     Ok((status, String::from_utf8_lossy(&body).into_owned()))
 }
 
-/// Decode a `Transfer-Encoding: chunked` body: hex-size line, chunk bytes, CRLF, repeated
-/// until the `0` chunk (trailers are ignored). `buf` starts with whatever body bytes were
-/// read alongside the headers; more is pulled from `stream` on demand.
+/// Decode a `Transfer-Encoding: chunked` body: hex-size line, chunk bytes, CRLF, until the
+/// `0` chunk. `buf` starts with the body bytes read alongside the headers.
 fn read_chunked(mut buf: Vec<u8>, stream: &mut TcpStream) -> Result<Vec<u8>, LlmError> {
     let mut body: Vec<u8> = Vec::new();
     let mut pos = 0usize;

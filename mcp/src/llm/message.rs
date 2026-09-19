@@ -24,9 +24,8 @@ pub struct ImageAttachment {
     pub data: String,
 }
 
-/// One chat message. History (when a caller keeps any) is replayed in full per contract §7;
-/// the `stencil_prompt` tool keeps none, so every round sends exactly one user message
-/// (the §7 auto-continuation re-sends the turn once, still as a single message).
+/// One chat message. History is replayed in full per contract §7; `stencil_prompt` keeps
+/// none, so every round sends exactly one user message.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChatMessage {
     pub role: Role,

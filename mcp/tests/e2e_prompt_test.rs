@@ -34,10 +34,8 @@ async fn edge_map_render_failure_is_a_silent_none() {
     assert!(pipeline::render_edge_map("/nonexistent/input.png").await.is_none());
 }
 
-/// The full `stencil_prompt` flow against the real CLI and a canned local "ollama": chat
-/// over the plain-http transport → parse the op-plan → map to CLI runs → execute. The
-/// canned LLM is a one-shot TcpListener this test starts itself; the test still self-skips
-/// without the CLI binary.
+/// The full `stencil_prompt` flow against the real CLI and a canned local "ollama" the test
+/// starts itself. It self-skips without the CLI binary.
 #[tokio::test]
 async fn prompt_flow_against_a_canned_llm_and_the_real_cli() {
     if !cli_present() {

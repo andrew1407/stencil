@@ -1,13 +1,8 @@
 //! Registry-driven op-plan schema engine — a rule-for-rule port of the reference
-//! `browser/js/llm/opSchema.js` for this surface (opRegistry.README.md documents the
-//! key-spec language and the check order). The registry is embedded at compile time and
-//! parsed once; there is no regex crate, so each named grammar in `regexes` is a
-//! hand-written matcher ([`matches`]).
+//! `browser/js/llm/opSchema.js` (opRegistry.README.md documents the key-spec language).
 //!
-//! The engine sits in submodules: [`json`] value helpers, [`path`] message locations,
-//! [`grammars`] the matchers, [`load`] registry → [`Entry`], [`checks`] one value,
-//! [`fields`] one object, [`rules`] the native + presence rules. This file holds the
-//! types and the public surface.
+//! The registry is embedded and parsed once; with no regex crate, each named grammar in
+//! `regexes` is a hand-written matcher ([`matches`]).
 
 use std::sync::OnceLock;
 

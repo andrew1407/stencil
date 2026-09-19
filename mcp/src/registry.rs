@@ -1,17 +1,8 @@
 //! The §13 op registry — the single source of the ops this server can plan and execute.
 //!
-//! Port of `llm-contract.md` §4 (two-part prompt rule) + §13: every op the `stencil_prompt`
-//! pipeline executes has exactly ONE entry here carrying its prompt bullet and flags, the
-//! §4 "Available ops" section is GENERATED from these entries (never hand-embedded), and
-//! `opplan`'s validator consults the same entries for known-ness — so the prompt can never
-//! promise an op this surface cannot run.
-//!
-//! The entries and the forbidden list are this surface's view of the shared
-//! `browser/js/config/llm/opRegistry.json` (profile `mcp`, in prompt order; bullets are
-//! the entry's bullet or its `bulletVariants.mcp`), built once from `opplan::schema`.
-//! Ops that need a runtime capability this server does not wire (clipboard, theme store,
-//! …) simply have no entries; [`WIRED_CAPABILITIES`] exists so a future entry CAN declare
-//! a capability and be excluded automatically until it is wired.
+//! Every op the `stencil_prompt` pipeline runs has exactly ONE entry carrying its prompt
+//! bullet and flags; §4's "Available ops" section is generated from them and the validator
+//! consults the same entries, so the prompt can never promise an op this surface lacks.
 
 use std::sync::OnceLock;
 
@@ -31,15 +22,11 @@ pub struct OpDescriptor {
     pub top_level_only: bool,
     /// Valid only when the working input is a video.
     pub video_only: bool,
-    /// The runtime capability the op needs, or `None` for always-available ops. An entry
-    /// whose capability is not in [`WIRED_CAPABILITIES`] is EXCLUDED from prompt
-    /// generation and validation — the op falls to §1's unknown-op skip, and the model
-    /// was never promised it (§13 capability truth).
+    /// The runtime capability the op needs, or `None`. An entry whose capability is not in
+    /// [`WIRED_CAPABILITIES`] is excluded from prompt generation and validation (§13).
     pub capability: Option<&'static str>,
-    /// How a validated action of this op folds into a CLI run. Carrying it HERE is what
-    /// makes validation and dispatch one table — the same pairing pystencil's `OpSpec`
-    /// keeps as `validator` + `applier`. An entry with no lowering is excluded exactly
-    /// like an unwired capability: never promised, never validated, never run.
+    /// How a validated action of this op folds into a CLI run — carried HERE so validation and
+    /// dispatch come off one table. An entry with no lowering is excluded like an unwired one.
     pub lower: Lower,
 }
 
@@ -60,9 +47,8 @@ fn lowering(name: &str) -> Option<Lower> {
     })
 }
 
-/// The runtime capabilities wired on THIS surface. A headless MCP tool has none of the
-/// optional ones (no clipboard, no theme store, no edit history), so the list is empty —
-/// every registered op below is capability-free.
+/// The runtime capabilities wired on THIS surface. A headless tool has none of the optional
+/// ones, so every registered op below is capability-free.
 pub const WIRED_CAPABILITIES: &[&str] = &[];
 
 fn leak(s: &str) -> &'static str {
@@ -95,12 +81,8 @@ pub fn op_registry() -> &'static [OpDescriptor] {
     })
 }
 
-/// §13's never-model-drivable boundary, as op names — the registry's
-/// `forbidden.perSurface.mcp`: llm/provider self-configuration, clipboard READS, hotkey
-/// rebinding, session/window end, chat persistence/consent toggles, and server-side
-/// destruction beyond what §10 grants. Two teeth: no registry entry may use one of these
-/// names (tested + rejected at assembly), and the plan validator hard-fails any plan
-/// naming one instead of skipping it as unknown.
+/// §13's never-model-drivable boundary, as op names (`forbidden.perSurface.mcp`). Two
+/// teeth: no entry may use one, and the validator hard-fails a plan naming one.
 pub fn forbidden_ops() -> &'static [&'static str] {
     static OPS: OnceLock<Vec<&'static str>> = OnceLock::new();
     OPS.get_or_init(|| schema().forbidden.iter().map(|s| leak(s)).collect())
@@ -111,9 +93,8 @@ pub fn is_forbidden(name: &str) -> bool {
     schema().is_forbidden(name)
 }
 
-/// Lowercase substrings no prompt bullet may match (§13 prompt censor): api keys, bearer
-/// tokens, endpoint-setting instructions. Deliberately NOT the bare word "token" — crop's
-/// bullet legitimately speaks of cropSpec tokens.
+/// Lowercase substrings no prompt bullet may match (§13 prompt censor). Deliberately NOT
+/// the bare word "token" — crop's bullet legitimately speaks of cropSpec tokens.
 pub const CENSOR_PATTERNS: &[&str] = &[
     "api key",
     "api-key",
@@ -143,18 +124,16 @@ fn capability_wired(capability: Option<&str>, wired: &[&str]) -> bool {
     capability.is_none_or(|c| wired.contains(&c))
 }
 
-/// Look up an ACTIVE op by name: registered, capability wired, not forbidden. This is the
-/// validator's single known-ness gate — an op with no active entry falls to §1's
-/// unknown-op skip, exactly matching what the generated prompt promised.
+/// Look up an ACTIVE op: registered, capability wired, not forbidden. An op with no active
+/// entry falls to §1's unknown-op skip, matching what the generated prompt promised.
 pub fn descriptor(name: &str) -> Option<&'static OpDescriptor> {
     op_registry().iter().find(|d| {
         d.name == name && capability_wired(d.capability, WIRED_CAPABILITIES) && !is_forbidden(d.name)
     })
 }
 
-/// Assemble the §4 "Available ops" bullets from a registry: entries whose capability is
-/// not wired are excluded (§13 capability truth); a forbidden name or a censor-matching
-/// bullet is a registry mistake and errors instead of leaking into the prompt.
+/// Assemble the §4 "Available ops" bullets: unwired capabilities are excluded, and a
+/// forbidden name or censor-matching bullet errors instead of leaking into the prompt.
 pub fn assemble_ops_section(ops: &[OpDescriptor], wired: &[&str]) -> Result<String, String> {
     let mut bullets = Vec::with_capacity(ops.len());
     for op in ops {

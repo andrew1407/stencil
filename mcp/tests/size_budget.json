@@ -3,32 +3,32 @@
   "maxNewFileLines": 230,
   "files": {
     "mcp/src/server/mod.rs": {
-      "lines": 122,
-      "prod": 120
+      "lines": 120,
+      "prod": 118
     },
     "mcp/src/server/tools/prompt/response.rs": {
-      "lines": 286,
-      "prod": 91
+      "lines": 282,
+      "prod": 88
     },
-    "mcp/tests/layout_test.rs": 181,
-    "mcp/tests/registry_test.rs": 197,
-    "mcp/tests/test_floor_test.rs": 122
+    "mcp/tests/layout_test.rs": 176,
+    "mcp/tests/registry_test.rs": 196,
+    "mcp/tests/test_floor_test.rs": 121
   },
   "commentPct": {
-    "mcp/src": 23,
-    "mcp/src/args": 23,
-    "mcp/src/config": 15,
+    "mcp/src": 19,
+    "mcp/src/args": 19,
+    "mcp/src/config": 14,
     "mcp/src/deliver": 12,
-    "mcp/src/llm": 21,
+    "mcp/src/llm": 16,
     "mcp/src/llm/providers": 8,
-    "mcp/src/llmtransport": 15,
-    "mcp/src/opplan": 17,
-    "mcp/src/opplan/lower": 16,
-    "mcp/src/opplan/schema": 6,
-    "mcp/src/pipeline": 17,
-    "mcp/src/server": 11,
+    "mcp/src/llmtransport": 13,
+    "mcp/src/opplan": 13,
+    "mcp/src/opplan/lower": 12,
+    "mcp/src/opplan/schema": 5,
+    "mcp/src/pipeline": 15,
+    "mcp/src/server": 10,
     "mcp/src/server/tools": 8,
-    "mcp/src/server/tools/prompt": 11,
+    "mcp/src/server/tools/prompt": 9,
     "mcp/tests": 8,
     "mcp/tests/common": 7
   },

@@ -1,8 +1,7 @@
 //! Header-sniffed pixel dimensions (`stencil_probe`'s fast path).
 //!
-//! The sniff stands in for a whole CLI render, so it must agree with what the CLI would
-//! have reported — and, just as important, must decline anything it cannot measure so the
-//! caller falls back instead of answering with a guess. The CLI's own sniffer
+//! The sniff stands in for a whole CLI render, so it must agree with what the CLI reports
+//! and must decline whatever it cannot measure. The CLI's own sniffer
 //! (`cli/src/scrape.zig`) is the reference these headers are written against.
 
 use stencil_mcp::imagesize::{read_dimensions, sniff};

@@ -17,9 +17,7 @@ use crate::args::{EditParams, ProbeParams, PromptParams, ScrapeParams, ScriptPar
 use crate::config::Config;
 
 /// This surface's user-facing prose, embedded from the committed canonical asset. rmcp's
-/// `#[tool]` takes a literal, so the descriptions ride in on `#[doc = include_str!]`
-/// from its generated `toolDescriptions/*.txt` shards; `tests/tool_prose_test.rs` pins
-/// those and README.md's Tools table against this file.
+/// `#[tool]` takes a literal, so descriptions ride in via `#[doc = include_str!]` shards.
 static PROSE: std::sync::LazyLock<serde_json::Value> = std::sync::LazyLock::new(|| {
     serde_json::from_str(include_str!("../../toolDescriptions.json"))
         .expect("mcp/toolDescriptions.json is not valid JSON")

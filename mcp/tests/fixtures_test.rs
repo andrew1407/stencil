@@ -1,9 +1,8 @@
-//! Replay the shared, language-neutral golden fixtures for the CLI stderr OUTPUT grammar
-//! through `outcome.rs`'s parsers, one reported case per fixture. The SAME file
-//! (`cli/testdata/outcome_fixtures.json`) is replayed by the .NET bot's
-//! `SharedOutcomeFixturesTests`, so if the two parsers ever disagree on a case, one of the
-//! suites goes red — that is the drift this catches. The per-parser unit cases still live in
-//! `outcome_test.rs`; this asserts conformance to the canonical contract (`cli/CONTRACT.md`).
+//! Replay the shared golden fixtures for the CLI stderr output grammar
+//! (`cli/testdata/outcome_fixtures.json`) through `outcome.rs`'s parsers.
+//!
+//! The .NET bot's `SharedOutcomeFixturesTests` replays the same file, so a disagreement
+//! between the two parsers reddens one of the suites.
 
 use std::sync::LazyLock;
 

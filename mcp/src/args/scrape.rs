@@ -8,10 +8,8 @@ use super::errors::EditError;
 use super::params::SurfaceArg;
 use crate::config::{parse_surfaces, Surface};
 
-/// Parameters for the `source_site` tool — scrape a web page, download the media that
-/// matches the category/format/dimension filters into a directory. Mirrors the CLI's
-/// `--source-site` scrape mode (`cli/src/scrape.zig`); the CLI (not the server) fetches the
-/// page and parses its HTML.
+/// Parameters for the `source_site` tool — scrape a web page and download the media that
+/// matches the filters. Mirrors the CLI's `--source-site` mode (`cli/src/scrape.zig`).
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ScrapeParams {
     /// The page to scrape: an `http(s)://` URL. Its HTML is fetched and scanned for
@@ -69,9 +67,8 @@ pub struct ScrapeParams {
 }
 
 impl ScrapeParams {
-    /// Scraping writes a **directory** of downloaded files — the only delivery it supports is
-    /// the local `cli` file write. Accept an explicit `cli` (or nothing) and reject any other
-    /// surface up front, before the CLI runs.
+    /// Scraping writes a directory of files, so the only delivery it supports is the local
+    /// `cli` write: accept an explicit `cli` (or nothing) and reject any other surface.
     pub fn validate_surface(&self) -> Result<(), String> {
         let surfaces = match &self.surface {
             None => return Ok(()),
@@ -101,10 +98,8 @@ const FLAG_SOURCE_MAX_WIDTH: &str = "--source-max-width";
 const FLAG_SOURCE_MIN_HEIGHT: &str = "--source-min-height";
 const FLAG_SOURCE_MAX_HEIGHT: &str = "--source-max-height";
 
-/// Build the `stencil --source-site …` scrape argv. The flag layout mirrors §1 of the design
-/// contract (and `cli/src/args.zig`); the CLI parses flags order-independently. The positional
-/// `output` directory rides last and is guarded against a leading dash for the same
-/// flag-injection reason as `build_argv` (the CLI has no `--` terminator).
+/// Build the `stencil --source-site …` scrape argv. The positional `output` directory is
+/// guarded against a leading dash — the CLI has no `--` terminator.
 pub fn build_scrape_argv(params: &ScrapeParams) -> Result<Argv, EditError> {
     if params.source_site.trim().is_empty() {
         return Err(EditError::EmptySourceSite);

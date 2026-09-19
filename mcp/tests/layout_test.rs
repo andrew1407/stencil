@@ -1,11 +1,8 @@
 //! What mcp WRITES as layout JSON (pure).
 //!
 //! `layout.rs` is one end of a cross-surface agreement: the browser exports this document
-//! (`browser/js/core/layout.js` → buildLayoutPayload), the Zig CLI parses it
-//! (`cli/src/layout.zig`), and this server writes it to a temp file for `--layout`. Nothing
-//! type-checks the three against each other, so a renamed key or a stray `null` would only
-//! show up as a silently mis-drawn image. These tests pin the bytes that leave here; what
-//! mcp ACCEPTS — hand-written documents and the shared corpus — is `layout_fixtures_test.rs`.
+//! (`browser/js/core/layout.js`), the Zig CLI parses it (`cli/src/layout.zig`), and this
+//! server writes it for `--layout`. Nothing type-checks the three against each other.
 
 use stencil_mcp::layout::{write_temp, Layout, Line, Point};
 
@@ -26,9 +23,8 @@ fn bare_line() -> Line {
     }
 }
 
-/// Omitted per-line fields must be ABSENT, not null. The CLI applies its own defaults with
-/// `if (lo.get("thickness"))`-style lookups, so a serialized `null` would be found and
-/// coerced to 0 rather than falling back to the documented default.
+/// Omitted per-line fields must be ABSENT, not null: the CLI's `if (lo.get("thickness"))`
+/// lookups would find a `null` and coerce it to 0 instead of its documented default.
 #[test]
 fn omitted_line_fields_are_absent_not_null() {
     let json = to_json(&Layout {
@@ -145,9 +141,8 @@ fn round_trips_through_json() {
     assert_eq!(layout, back);
 }
 
-/// `write_temp` is what turns an inline layout into something `--layout` can open. The
-/// handle must keep the file alive (the pipeline holds it across the CLI spawn), the
-/// suffix must be `.json`, and the bytes must parse back to the same layout.
+/// `write_temp` turns an inline layout into something `--layout` can open: the handle keeps
+/// the file alive across the CLI spawn, the suffix is `.json`, the bytes parse back.
 #[test]
 fn write_temp_produces_a_readable_json_file() {
     let layout = Layout {

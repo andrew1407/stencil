@@ -43,9 +43,8 @@ impl Surface {
     }
 }
 
-/// Parse a comma/space-separated surface list, de-duplicated, order preserved. Always keeps
-/// `Cli` present (the file write is the basis every other surface builds on), and tolerates a
-/// JSON-array-looking string so the env var accepts the `surface` parameter's shape too.
+/// Parse a comma/space-separated surface list, de-duplicated, order preserved. `Cli` is
+/// always kept — the file write is the basis every other surface builds on.
 pub fn parse_surfaces(spec: &str) -> Result<Vec<Surface>, String> {
     let spec = spec.trim().trim_start_matches('[').trim_end_matches(']');
     let mut out: Vec<Surface> = Vec::new();
@@ -65,9 +64,8 @@ pub fn parse_surfaces(spec: &str) -> Result<Vec<Surface>, String> {
     Ok(out)
 }
 
-/// The raw `STENCIL_LLM_*` settings (contract §5 — the env names pystencil and the bot use,
-/// plus `STENCIL_LLM_SERVER_TOKEN` since mcp has no connection store). Validated and
-/// defaulted per call in `llm::LlmConfig::resolve`, which `stencil_prompt` may override.
+/// The raw `STENCIL_LLM_*` settings (contract §5), validated and defaulted per call in
+/// `llm::LlmConfig::resolve`.
 
 #[cfg(test)]
 mod tests {

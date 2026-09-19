@@ -1,11 +1,8 @@
 //! The layout JSON the CLI's `--layout` flag draws onto an image.
 //!
 //! These types mirror the schema the browser exports and the CLI parses
-//! (`cli/src/layout.zig` ← `core/raster`). Coordinates are **image pixels**. A line is a
-//! polyline through its `points`; repeat the first point and set a non-`transparent`
-//! `fillColor` to close and fill a shape. Per-line defaults (applied by the CLI when a
-//! field is omitted): color `#FFFF00`, thickness `2`, pointSize `4`, style `solid`,
-//! fillColor `transparent`.
+//! (`cli/src/layout.zig` ← `core/raster`). Coordinates are image pixels; a line is a
+//! polyline through its `points`, closed and filled by repeating the first point.
 
 use std::io::Write;
 
@@ -21,9 +18,8 @@ pub struct Layout {
     /// Source image height in pixels (advisory).
     #[serde(rename = "imageHeight", skip_serializing_if = "Option::is_none")]
     pub image_height: Option<f64>,
-    /// Filter baked into the layout (`bw`/`sepia`/`invert`/`contour`/a color). A top-level
-    /// `filter` argument to `stencil_edit` overrides this. Canonical wire key is
-    /// `imageFilter` (the browser's); the legacy `filter` spelling is still read.
+    /// Filter baked into the layout (`bw`/`sepia`/`invert`/`contour`/a color); a top-level
+    /// `filter` argument overrides it. Canonical wire key is `imageFilter`.
     #[serde(rename = "imageFilter", alias = "filter", skip_serializing_if = "Option::is_none")]
     pub filter: Option<String>,
     /// The polylines to burn into the image.
@@ -54,9 +50,8 @@ pub struct Line {
     /// Fill color for a closed shape, or `transparent`. Default `transparent`.
     #[serde(rename = "fillColor", skip_serializing_if = "Option::is_none")]
     pub fill_color: Option<String>,
-    /// Vertex point color, set independently of `color`. Omitted / empty means the
-    /// points inherit `color`, which is how every layout written before this field
-    /// existed behaves (core `Line::pointColor`).
+    /// Vertex point color, independent of `color`. Omitted / empty means the points inherit
+    /// `color` (core `Line::pointColor`).
     #[serde(rename = "pointColor", skip_serializing_if = "Option::is_none")]
     pub point_color: Option<String>,
 }

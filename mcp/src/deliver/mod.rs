@@ -1,9 +1,8 @@
 //! Deliver a finished edit to the selected surface(s).
 //!
-//! The CLI has already done the pixel work and written the output file; this module just
-//! presents that result somewhere: the desktop app, a browser-editor launch URL, or a
-//! hand-off note for the live/scan surfaces. Each surface yields a `DeliveryNote` rather
-//! than failing the call, so one unavailable surface never sinks the others.
+//! The CLI has already written the output file; this module only presents the result: the
+//! desktop app, a browser-editor launch URL, or a hand-off note. Each surface yields a
+//! `DeliveryNote` rather than failing, so one unavailable surface never sinks the others.
 
 mod launch;
 

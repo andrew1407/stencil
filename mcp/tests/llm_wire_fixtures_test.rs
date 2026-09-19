@@ -1,14 +1,8 @@
-//! Walk the shared LLM wire fixtures through mcp's real client, one reported case per
-//! fixture:
+//! Walk the shared LLM wire fixtures (`browser/js/config/llm/fixtures/providerWire/`)
+//! through mcp's real client against a capturing mock transport, one case per fixture.
 //!
-//! - `browser/js/config/llm/fixtures/providerWire/` — build each request via `llm::chat`
-//!   against a capturing mock transport, deep-compare the JSON body (absence is contract),
-//!   then feed the canned response/error and check the extracted reply / typed error.
-//!   mcp hard-codes its own §4 canonical system prompt (the fixtures carry the browser's
-//!   short stand-in), so the walker first asserts mcp sent exactly `llm_system_prompt()`
-//!   and then substitutes the fixture's system text before the deep compare.
-//!
-//! This phase PINS current behavior — overrides record drift, production is not touched.
+//! mcp sends its own §4 canonical prompt, so the walker asserts that first and then
+//! substitutes the fixture's system text before the deep compare.
 use std::sync::{LazyLock, Mutex};
 
 use serde_json::Value;

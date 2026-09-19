@@ -7,10 +7,8 @@ use super::actions::{misplaced_top_level_op, validate_actions};
 use super::schema::schema;
 use super::{AskCard, AskOption, OpPlanError};
 
-/// Validate the optional `ask` object (contract §11) → the card, or `None` when absent.
-/// The card's structure (keys, caps, the image reference's exactly-one-of url /
-/// projectId / scanIndex, http(s)-only urls) is the registry's ask schema; a card nobody
-/// can answer rejects the whole plan rather than reaching the caller as a broken prompt.
+/// Validate the optional `ask` object (contract §11) → the card, or `None` when absent. A
+/// card nobody can answer rejects the whole plan rather than reaching the caller.
 pub(super) fn validate_ask(
     value: Option<&Value>,
     warnings: &mut Vec<String>,
@@ -31,9 +29,8 @@ pub(super) fn validate_ask(
         let label = option["label"].as_str().unwrap_or_default().to_string();
         let has_actions = !option["actions"].is_null();
         let has_image = !option["image"].is_null();
-        // Preview actions are ordinary §2 actions. §2.1 (registry flag): a preview may
-        // not switch images or save; §1 leniency: the misplacement drops the PREVIEW with
-        // a warning (the option keeps its place), it never fails the plan.
+        // §2.1: a preview may not switch images or save; §1 leniency drops the PREVIEW with a
+        // warning rather than failing the plan.
         if has_actions {
             if let Some(op) = misplaced_top_level_op(option.get("actions")) {
                 warnings.push(format!(

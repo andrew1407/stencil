@@ -1,19 +1,8 @@
 //! A hand-rolled, dependency-free HTTP/1.1 POST transport for the LLM providers.
 //!
-//! Per the design rules in `llm-contract.md`, every Stencil client talks to its LLM
-//! endpoint with the platform's built-in networking and **no new dependency** — for this
-//! crate that means a small hand-written HTTP/1.1 client over `std::net::TcpStream`,
-//! deliberately limited to plain `http://` (local providers like Ollama / LM Studio, or an
-//! `http://` collaboration server). TLS is out of scope; an `https://` URL is rejected with
-//! a clear message instead of half-working.
-//!
-//! The trait is synchronous on purpose: the async tool in `server/` calls it through
-//! `tokio::task::spawn_blocking`, which keeps `std::net` + OS socket timeouts (simple,
-//! deterministic) and avoids widening the tokio feature list in `Cargo.toml`.
-//!
-//! The pieces sit in submodules: [`url`] parses the endpoint, [`guards`] vets the request
-//! before a socket opens, [`client`] writes it, [`response`] reads the reply, and
-//! [`sanitize`] decides what a non-2xx body is allowed to say.
+//! Per `llm-contract.md` every client uses its platform's built-in networking and no new
+//! dependency; here that is `std::net::TcpStream`, plain `http://` only — an `https://`
+//! URL is rejected. The trait is synchronous: async callers use `spawn_blocking`.
 
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -62,9 +51,8 @@ pub enum LlmError {
     Io(String),
     /// The endpoint answered with something that isn't parseable HTTP.
     BadResponse(String),
-    /// The endpoint answered HTTP, but with a non-2xx status. `reason` is the provider's
-    /// own message (sanitized, bounded), empty when the body carried none; `code` is the
-    /// body's machine `code` ("llmDisabled", "llmUpstream", …), empty when absent.
+    /// The endpoint answered HTTP with a non-2xx status. `reason` is the provider's own
+    /// message (sanitized, bounded); `code` is the body's machine `code`, empty when absent.
     Status { status: u16, reason: String, code: String },
     /// A header name/value or the path carried CR, LF or NUL.
     UnsafeHeader(String),

@@ -8,10 +8,7 @@ use stencil_mcp::opplan::{
 
 use common::plan_of;
 // ── §2.1 multi-image ops: `image` switches to a turn attachment, `save` persists ──
-// `stencil_prompt` carries a single `input`, so index 1 IS the working image and any
-// higher index is an attachment this turn cannot satisfy: a per-action note, never a
-// failed plan. A `save` writes `{output_dir}/{name}.stencil` through the CLI's own
-// project bundling.
+// `stencil_prompt` carries one `input`, so index 1 IS it and a higher index is a note.
 
 #[test]
 fn image_and_save_validate_their_shapes_and_are_top_level_only() {

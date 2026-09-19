@@ -20,16 +20,13 @@ static PAGE_FORMATS: LazyLock<Vec<String>> = LazyLock::new(|| {
 });
 
 /// Whether `name` is a known page-format token (case-insensitive). The CLI's `--blank`
-/// parser silently SKIPS an unrecognized token (the blank would come out A4 with no
-/// error), so the server must reject unknown names before they reach argv.
+/// parser silently SKIPS an unrecognized token, so reject one before it reaches argv.
 pub(super) fn is_page_format(name: &str) -> bool {
     PAGE_FORMATS.iter().any(|f| f.eq_ignore_ascii_case(name))
 }
 
-/// The CSS Color Module Level 4 extended colour keywords the CLI's core recognizes
-/// (`parseColor` consults them after trying `transparent` and `#hex`). Only the names
-/// matter here, loaded from the canonical name→hex table in
-/// `browser/js/config/colorNames.json`, embedded at compile time.
+/// The CSS Color Level 4 keywords the core's `parseColor` recognizes, loaded from the
+/// canonical `browser/js/config/colorNames.json` at compile time.
 static COLOR_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let table: std::collections::HashMap<String, String> =
         serde_json::from_str(include_str!("../../../browser/js/config/colorNames.json"))
@@ -37,10 +34,8 @@ static COLOR_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
     table.into_keys().collect()
 });
 
-/// Whether `spec` is a colour the CLI's `parseColor` accepts (`core/color/colorNames.cpp`):
-/// after trimming and ASCII-lowercasing, `transparent`, `#` + 3/4/6/8 hex digits, or a CSS
-/// named colour. Like an unknown page token, the CLI's `--blank` parser silently skips an
-/// unparseable colour, so the server must reject it before argv.
+/// Whether `spec` is a colour `parseColor` accepts (`core/color/colorNames.cpp`):
+/// `transparent`, `#` + 3/4/6/8 hex digits, or a CSS named colour.
 pub(super) fn is_color(spec: &str) -> bool {
     let s = spec.trim().to_ascii_lowercase();
     if s.is_empty() {

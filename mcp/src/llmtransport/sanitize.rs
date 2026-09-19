@@ -11,10 +11,8 @@ pub(crate) const SNIPPET_LEN: usize = 400;
 /// How much of a provider's own prose an error may quote (contract §6.3).
 const DETAIL_LEN: usize = 200;
 
-/// The provider's own message out of a non-2xx body — `{message}` (stencil-server),
-/// `{"error":"…"}` (ollama) or `{"error":{"message":"…"}}` (openai-compat), the §6 shapes
-/// every client parses — sanitized by [`sanitize_detail`]. Empty when the body carries
-/// nothing usable: the raw body is NEVER shown to the user.
+/// The provider's own message out of a non-2xx body — the §6 shapes every client parses —
+/// sanitized by [`sanitize_detail`]. The raw body is NEVER shown to the user.
 pub fn error_reason(body: &str) -> String {
     let Ok(value) = serde_json::from_str::<serde_json::Value>(body) else {
         return String::new();
@@ -39,9 +37,8 @@ pub fn error_code(body: &str) -> String {
         .unwrap_or_default()
 }
 
-/// Untrusted provider prose made safe to quote: control characters out (a message must
-/// not forge extra lines), URL- and token-shaped words redacted (an endpoint may echo the
-/// key back), whitespace collapsed, cut at `DETAIL_LEN` on a word boundary.
+/// Untrusted provider prose made safe to quote: control characters out, URL- and
+/// token-shaped words redacted, whitespace collapsed, cut at `DETAIL_LEN` on a word.
 pub fn sanitize_detail(text: &str) -> String {
     let head: String = text.chars().take(4 * DETAIL_LEN).collect();
     let words: Vec<&str> = head

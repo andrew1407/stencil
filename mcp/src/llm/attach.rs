@@ -2,13 +2,8 @@
 
 use super::{ImageAttachment, MAX_IMAGE_BYTES};
 
-/// Try to read a local image file into a vision attachment (contract §7 media types).
-/// Returns `(attachment, note)`:
-/// - a URL / non-existent path / directory → `(None, None)` — it's a CLI-side source
-///   (web URL or server project name), silently sent text-only;
-/// - an existing file with an unsupported extension, over the 8 MiB cap, or unreadable →
-///   `(None, Some(note))` — sent text-only with a human-readable note;
-/// - otherwise `(Some(attachment), None)`.
+/// Try to read a local image file into a vision attachment (contract §7 media types). A
+/// URL / missing path yields no note; an unsupported, oversized or unreadable file does.
 pub fn attach_local_image(input: &str) -> (Option<ImageAttachment>, Option<String>) {
     let path = std::path::Path::new(input);
     if !path.is_file() {

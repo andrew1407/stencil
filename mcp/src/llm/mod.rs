@@ -1,18 +1,8 @@
 //! The LLM client: provider configuration, the canonical system prompt, and the three
-//! provider wire mappings from `llm-contract.md` (the authoritative contract this
-//! module ports — §4 prompt, §5 configuration, §6 wire mappings).
+//! provider wire mappings of `llm-contract.md` (§4 prompt, §5 config, §6 wire).
 //!
-//! Providers: `ollama` (native `/api/chat`), `openai-compat` (LM Studio & friends,
-//! `/chat/completions`), and `stencil-server` (a Stencil collaboration server proxying
-//! Anthropic at `/llm/chat`). All requests go through the [`crate::llmtransport`] trait so
-//! tests can substitute a recording mock; the real transport is plain-http only.
-//!
-//! Like the other clients, this module never touches pixels: it returns the model's raw
-//! reply text, which `opplan` parses into a strictly validated plan.
-//!
-//! The pieces sit in submodules: [`config`] resolves the provider (§5), [`message`] is the
-//! canonical message shape, [`error`] the failures, [`attach`] the §7 vision attachments,
-//! and [`providers`] the three §6 wire mappings behind one trait.
+//! Providers: `ollama`, `openai-compat` and `stencil-server`. Requests go through the
+//! [`crate::llmtransport`] trait; this module never touches pixels.
 
 use serde_json::Value;
 
@@ -46,9 +36,7 @@ pub fn prompt_field(key: &str) -> &'static str {
 }
 
 /// The canonical system prompt — contract §4: the verbatim prose core around an ops
-/// section GENERATED from the op registry (§13), assembled once at first use. A registry
-/// mistake (forbidden name, censor-matching bullet) panics here — loudly, at assembly —
-/// rather than leaking into the prompt.
+/// section generated from the op registry (§13), assembled once at first use.
 pub fn llm_system_prompt() -> &'static str {
     static PROMPT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     PROMPT.get_or_init(|| {
@@ -74,9 +62,7 @@ pub fn edge_map_suffix() -> &'static str {
 // ── Chat ──
 
 /// Send one chat completion: build the provider request (§6), POST it through `transport`,
-/// and extract the reply text. stencil-server stop reasons map to typed errors.
-/// `system_suffix` is the §4 dynamic suffix, appended after the canonical prompt (empty =
-/// the prompt rides alone).
+/// and extract the reply text. `system_suffix` is the §4 dynamic suffix.
 pub fn chat(
     transport: &dyn LlmTransport,
     config: &LlmConfig,

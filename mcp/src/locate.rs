@@ -1,16 +1,8 @@
 //! Discover the Stencil CLI binary the server shells out to.
 //!
-//! Resolution order (first hit wins):
-//!   1. `STENCIL_CLI` env var — an explicit path override.
-//!   2. The repo checkout — walk up from the CWD *and* the running executable for the
-//!      nearest ancestor containing `cli/build.zig`, then `cli/zig-out/bin/stencil`.
-//!   3. `stencil` on `PATH`.
-//!
-//! Steps 2-3 walk the filesystem, so a resolved path is cached process-wide; the override
-//! is re-read every call and stays authoritative.
-//!
-//! The server never builds the CLI itself — it stays side-effect-free and reports a
-//! clear, actionable error when the binary is missing.
+//! Resolution order: `STENCIL_CLI`, then the nearest ancestor of the CWD or the running
+//! executable holding `cli/build.zig`, then `stencil` on `PATH`. A resolved path is cached
+//! process-wide; the override is re-read every call. The server never builds the CLI.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -43,9 +35,8 @@ pub fn find_cli() -> Result<PathBuf, String> {
         ));
     }
 
-    // The walk stats every ancestor of the CWD and of the executable, and one prompt turn
-    // spawns the CLI once per variant — so remember a hit. Only a hit: a miss stays live, so
-    // a CLI built while the server runs still resolves.
+    // Only a HIT is remembered: a miss stays live, so a CLI built while the server runs
+    // still resolves.
     static RESOLVED: OnceLock<PathBuf> = OnceLock::new();
     if let Some(found) = RESOLVED.get() {
         return Ok(found.clone());

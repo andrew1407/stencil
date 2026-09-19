@@ -44,18 +44,15 @@ pub struct OpPlan {
     pub ask: Option<AskCard>,
 }
 
-/// One choice on an [`AskCard`] (contract §11). This server is a TOOL, not a chat: it
-/// cannot show a picture, so an option's preview — a render spec or an image reference —
-/// is dropped at parse time and only the label survives (§11.4). The option itself is
-/// never dropped.
+/// One choice on an [`AskCard`] (contract §11). This server cannot show a picture, so an
+/// option's preview is dropped at parse time and only the label survives (§11.4).
 #[derive(Debug, Clone, PartialEq)]
 pub struct AskOption {
     pub label: String,
 }
 
-/// A question the model puts back to the user (contract §11). There is no interactive
-/// surface here, so the card is surfaced to the CALLING agent — as text on the reply and
-/// as structured data — and answered by calling the tool again with the choice.
+/// A question the model puts back to the user (contract §11). With no interactive surface
+/// the card is surfaced to the CALLING agent and answered by calling the tool again.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AskCard {
     pub question: String,

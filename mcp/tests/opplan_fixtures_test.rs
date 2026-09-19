@@ -1,9 +1,8 @@
 //! Walk the shared op-plan conformance corpus (`browser/js/config/llm/fixtures/opPlan/`)
-//! through the REAL mcp validator (`opplan::parse_op_plan`), one reported case per fixture.
-//! Port of the reference walker
-//! `browser/tests/opPlanFixtures.test.js` for the `mcp` profile — this PINS current
-//! behavior; measured disagreements live in `tests/fixture_overrides.json`, never as
-//! edits to the shared fixtures or to production code.
+//! through the real `opplan::parse_op_plan`, one reported case per fixture.
+//!
+//! Port of `browser/tests/opPlanFixtures.test.js` for the `mcp` profile; measured
+//! disagreements live in `tests/fixture_overrides.json`.
 
 use std::sync::LazyLock;
 

@@ -5,18 +5,13 @@ use common::args::params;
 use serde_json::json;
 use stencil_mcp::args::build_argv;
 
-// ── argv-hardening / SECURITY regressions ─────────────────────────────────────
-//
-// argv is built as an array and handed to the CLI without a shell, so token *splitting* is
-// impossible by construction. The one remaining vector is flag injection through the
-// positional `output` operand (the CLI has no `--` terminator), which `build_argv` now
-// rejects. These tests pin both invariants so a future edit can't quietly regress them.
+// ── argv-hardening / SECURITY regressions ──
+// argv is an array, never a shell line: the one vector left is flag injection via `output`.
 
 #[test]
 fn dash_leading_output_is_rejected_no_flag_injection() {
-    // Without the guard these outputs would ride the positional slot and the CLI would parse
-    // them as flags — `--album` flips album on, `-l` would even swallow the next token as a
-    // layout path. They must be rejected, never emitted into argv.
+    // Without the guard these would ride the positional slot as flags — `-l` would even
+    // swallow the next token as a layout path.
     for bad in ["--album", "-l", "-r", "--filter", "-i", "--server", "-", "--"] {
         let p = params(json!({ "input": "a.png", "output": bad }));
         let err = build_argv(&p, None).unwrap_err().to_string();
@@ -40,10 +35,8 @@ fn ordinary_output_paths_are_accepted() {
 
 #[test]
 fn non_http_input_passes_through_as_single_inert_token() {
-    // `build_argv` does NOT do scheme/host SSRF validation — that is enforced downstream in
-    // the CLI (recently hardened). Here we pin the CURRENT behavior: a `file://` (or any
-    // other non-http) `input` is passed through verbatim as one argv token after `-i`, never
-    // interpreted or split. SSRF/scheme filtering is the CLI's job.
+    // `build_argv` does no scheme/host SSRF validation — the CLI enforces that. Here a
+    // non-http `input` rides through verbatim as one argv token.
     for input in [
         "file:///etc/passwd",
         "ftp://host/x",
@@ -74,9 +67,8 @@ fn non_http_server_and_remote_pass_through_as_single_inert_tokens() {
 
 #[test]
 fn hostile_input_with_shell_metacharacters_stays_one_argv_token() {
-    // No shell is ever involved (the CLI is exec'd with an argv array), so metacharacters are
-    // inert. Assert each hostile input is exactly one argv element — never split, never a
-    // second token — for `input`, `crop`, `filter`, and the layout path alike.
+    // No shell is involved (the CLI is exec'd with an argv array), so metacharacters are
+    // inert: each hostile value must stay exactly one argv element.
     for hostile in [
         "a.png; rm -rf /",
         "$(rm -rf /)",

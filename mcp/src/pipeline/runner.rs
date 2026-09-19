@@ -12,9 +12,7 @@ pub struct CliOutput {
 }
 
 /// One CLI invocation: argv in, exit status + stderr out. [`ProcessRunner`] spawns the real
-/// binary; a test substitutes its own runner, so everything the pipeline does AROUND the
-/// spawn — the clobber guard, the inline-layout temp file, argv, the outcome parsing — is
-/// exercised without a Zig toolchain.
+/// binary; a test substitutes its own runner and needs no Zig toolchain.
 pub trait CliRunner: Sync {
     fn run(
         &self,
@@ -36,10 +34,8 @@ impl CliRunner for ProcessRunner {
     }
 }
 
-/// Locate the CLI and run it with the given argv, capturing stderr — under the
-/// `config::cli_timeout()` deadline (the bot's `ProcessRunner` rule), so a hung CLI can
-/// never pin an MCP tool call forever. Its stdin is `/dev/null`: our own stdin is the
-/// JSON-RPC channel and the CLI must never read from it.
+/// Locate the CLI and run it with the given argv under the `config::cli_timeout()`
+/// deadline. Its stdin is `/dev/null`: ours is the JSON-RPC channel.
 async fn spawn(argv: &[Cow<'static, str>], dir: Option<&Path>) -> Result<CliOutput, String> {
     let bin = locate::find_cli()?;
     let deadline = crate::config::cli_timeout();

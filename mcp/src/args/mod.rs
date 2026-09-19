@@ -1,13 +1,8 @@
 //! Typed tool parameters and their translation into the CLI's argv.
 //!
-//! This mirrors the role of `cli/src/args.zig`: it owns the mapping between a request and
-//! the exact `stencil [options] <output>` command line. The CLI fixes the pipeline order
-//! and parses flags order-independently, so argv order here is only cosmetic.
-//!
-//! [`params`] holds the tool DTOs, [`tables`] the canonical page/colour names they are
-//! checked against, [`flags`] the CLI's option strings, [`errors`] the failures, [`argv`]
-//! the edit command line, [`scrape`] the `source_site` tool and [`script`] the
-//! `stencil_script` tool, each end to end.
+//! Mirrors `cli/src/args.zig`: it owns the mapping between a request and the exact
+//! `stencil [options] <output>` command line. The CLI parses flags order-independently,
+//! so argv order here is only cosmetic.
 
 mod argv;
 mod errors;

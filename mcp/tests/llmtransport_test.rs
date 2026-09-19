@@ -7,9 +7,8 @@ use std::time::Duration;
 
 use stencil_mcp::llmtransport::{LlmError, LlmTransport, PlainHttpTransport};
 
-/// Spawn a one-shot HTTP server: accept one connection, read the full request (headers +
-/// `Content-Length` body), send `response` verbatim, close. The raw request bytes arrive
-/// on the returned channel.
+/// Spawn a one-shot HTTP server: accept one connection, read the full request, send
+/// `response` verbatim, close. The raw request bytes arrive on the returned channel.
 fn canned_server(response: &'static str) -> (String, mpsc::Receiver<Vec<u8>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind an ephemeral port");
     let addr = listener.local_addr().unwrap();
