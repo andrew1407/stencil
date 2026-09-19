@@ -536,7 +536,10 @@ stencil_headless_test(stencil_llmwirefixtures_headless
 # LLM client check (src/llm/llmClient) — the contract §6 wire mappings driven
 # through a mock transport (canned responses; no network).
 stencil_headless_test(stencil_llmclient_headless
-  SOURCES tests/LlmClient.headless.cpp src/llm/LlmClient.cpp src/llm/LlmClientProbe.cpp
+  SOURCES tests/LlmClient.headless.cpp tests/LlmClientOllama.headless.cpp
+    tests/LlmClientServer.headless.cpp tests/LlmClientProbe.headless.cpp
+    tests/LlmClientModels.headless.cpp tests/LlmClientRegistry.headless.cpp
+    tests/LlmClientAssembly.headless.cpp tests/LlmClientPrompt.headless.cpp src/llm/LlmClient.cpp src/llm/LlmClientProbe.cpp
     src/llm/LlmClientChat.cpp src/llm/opPlan.cpp
     src/llm/opRegistry.cpp ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES}
     src/net/connectionStore.cpp
