@@ -36,8 +36,6 @@
     "desktop/tests/MainWindow.projects.gui.cpp": 1019,
     "desktop/tests/MainWindow.theme.gui.cpp": 978,
     "desktop/tests/MainWindow.tooltips.gui.cpp": 632,
-    "desktop/tests/modalChrome.headless.cpp": 354,
-    "desktop/tests/motionPrefs.headless.cpp": 288,
     "desktop/tests/ProjectsBatchBar.headless.cpp": 617,
     "desktop/tests/storeFixtures.headless.cpp": 262,
     "desktop/tests/strokeGrowth.headless.cpp": 241,

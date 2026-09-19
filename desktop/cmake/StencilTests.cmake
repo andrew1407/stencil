@@ -371,7 +371,8 @@ stencil_headless_test(stencil_connectrow_headless
 stencil_headless_test(stencil_modalchrome_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/modalChrome.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    tests/modalChrome.headless.cpp tests/modalChromePrompt.headless.cpp
+    tests/modalChromeFooter.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/OpenInDialog.cpp src/io/deepLink.cpp
     ${STENCIL_SERVERCLIENT_SOURCES}      # deepLink's origin normalisation
     src/support/iconSet.cpp
@@ -660,7 +661,8 @@ stencil_headless_test(stencil_motionprefs_headless
   SOURCES src/support/motionIcons.cpp
     ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/motionPrefs.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+    tests/motionPrefs.headless.cpp tests/motionPrefsStyle.headless.cpp
+    tests/motionPrefsGate.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
