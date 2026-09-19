@@ -134,6 +134,13 @@ server, after which projects can be shared by link and edited live with others.
 |---|---|
 | ![the projects window](img/projects-modal.png) | ![the servers window](img/connect-modal.png) |
 
+Drag a row **out of the list** and the window behind it turns into three drop targets: **Open
+here** on the left, **Open in a new tab** on the right, and **Remove** across the bottom. The one
+under the pointer lights up, the row rides along under the cursor, and the drop decides the
+action — dropping back on the list reorders instead.
+
+![a project row dragged out over the drop zones](img/projects-dropzones.png)
+
 ## Describe the project
 
 The **Description & attributes** section keeps a project's description, its keywords (what

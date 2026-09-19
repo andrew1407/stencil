@@ -45,6 +45,19 @@ inline void saveOver(const QString& name, QWidget* win, QWidget* dlg) {
   save(name, base);
 }
 
+// The window, an overlay it is painting, then the dialog: for a drag shot the modal dim of
+// saveOver() would grey out the very thing being shown, and the overlay is drawn in explicitly
+// because a child of the scroll VIEWPORT does not come through the top-level widget's grab().
+inline void saveDragOver(const QString& name, QWidget* win, QWidget* overlay, QWidget* dlg) {
+  QImage base = win->grab().toImage();
+  QPainter p(&base);
+  if (overlay) p.drawPixmap(overlay->mapTo(win, QPoint()), overlay->grab());
+  const QPixmap top = dlg->grab();
+  p.drawPixmap((win->width() - dlg->width()) / 2, (win->height() - dlg->height()) / 2, top);
+  p.end();
+  save(name, base);
+}
+
 // Trigger an action that exec()s a dialog, grab the dialog from inside its own loop, close it.
 inline void grabModal(stencil::gui::MainWindow& win, QAction* act, const QString& name) {
   if (!act) {

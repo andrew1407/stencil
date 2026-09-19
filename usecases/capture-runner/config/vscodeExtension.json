@@ -42,6 +42,14 @@
     "terminalMs": 10000
   },
   "typeDelayMs": 60,
-  "pointerPark": { "x": 1000, "y": 800 },
-  "fileIcons": { "labelGutterPx": 12 }
+  "pointerPark": {
+    "x": 1000,
+    "y": 800
+  },
+  "fileIcons": {
+    "labelGutterPx": 12
+  },
+  "titleActions": {
+    "padPx": 10
+  }
 }

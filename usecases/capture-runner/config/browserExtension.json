@@ -44,5 +44,8 @@
     "modalMs": 20000,
     "editorMs": 30000
   },
-  "minRows": 3
+  "minRows": 3,
+  "dropZones": {
+    "accent": "#7c3aed"
+  }
 }
