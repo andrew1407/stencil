@@ -18,7 +18,6 @@
     "desktop/src/support/modalReveal.cpp": 423,
     "desktop/src/support/tipContent.cpp": 518,
     "desktop/tests/coEdit.headless.cpp": 268,
-    "desktop/tests/connectRow.headless.cpp": 601,
     "desktop/tests/controlSwap.headless.cpp": 442,
     "desktop/tests/holdDrawCanvas.headless.cpp": 251,
     "desktop/tests/iconMotion.headless.cpp": 511,

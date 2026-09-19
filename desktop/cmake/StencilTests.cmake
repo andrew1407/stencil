@@ -351,7 +351,9 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/connectRow.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    tests/connectRow.headless.cpp tests/connectRowLayout.headless.cpp
+    tests/connectRowMotion.headless.cpp tests/connectRowEdges.headless.cpp
+    tests/connectRowConnect.headless.cpp tests/connectRowToast.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     ${STENCIL_CONNECTDIALOG_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
