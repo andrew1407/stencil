@@ -42,11 +42,13 @@ export const PAGE_SIZES = Object.freeze({
 });
 export const DEFAULT_PAGE = 'A3';
 
-// Selector label for a named format, e.g. "A4 (21 × 29.7 cm)" (extension UI copy
-// of the shared label shape; the table values need no rounding/trimming).
+// Selector label for a named format, e.g. "A4 (21 × 29.7)" — no trailing unit word: the
+// page in cm is stated once beside the Custom W/H fields, and repeating it per option said
+// nothing new (browser/desktop twin: units.js pageFormatLabel, guiHelpers fillPageSizeCombo).
+// The table values need no rounding/trimming.
 export const pageSizeLabel = (name) => {
   const d = PAGE_SIZES[name];
-  return d ? `${name} (${d.width} × ${d.height} cm)` : name;
+  return d ? `${name} (${d.width} × ${d.height})` : name;
 };
 
 // <option> markup for every named format (canonical order, labelled via
