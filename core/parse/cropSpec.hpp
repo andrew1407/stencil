@@ -31,10 +31,8 @@ namespace stencil::core {
     double pageHeight = 0.0;
   };
 
-  // A missing edge defaults to the full image; with exactly one axis given the other
-  // follows the page proportion (album = landscape). `aspect` then SHRINKS one dimension
-  // about the centre (never grows; at least 1px). nullopt if any present token is
-  // unparseable. The rect is normalized but NOT clamped — the caller clamps to the image.
+  // A missing edge defaults to the full image; with one axis given the other follows the page
+  // proportion. `aspect` SHRINKS about the centre (min 1px). Normalized, NOT clamped.
   std::optional<CropRect> resolveCropRect(const CropSpec& spec,
                                           const CropResolveParams& params,
                                           bool album);

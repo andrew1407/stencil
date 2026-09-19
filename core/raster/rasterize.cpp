@@ -11,9 +11,8 @@ namespace stencil::core {
 
   namespace {
 
-    // Largest coordinate / size a layout line may carry: real images are a few thousand
-    // px, and unbounded untrusted input would overflow the int casts and spin the
-    // scan/step loops. Lines beyond it are skipped as inert.
+    // Largest coordinate / size a layout line may carry: unbounded untrusted input would overflow
+    // the int casts and spin the scan/step loops. Lines beyond it are skipped as inert.
     constexpr double MAX_COORD = 1e6;
 
     // `!(v >= lo)` also catches NaN. Clamping scan bounds is output-preserving (blendPixel
@@ -206,9 +205,8 @@ namespace stencil::core {
       }
       std::sort(xs.begin(), xs.end());
       for (std::size_t i = 0; i + 1 < xs.size(); i += 2) {
-        // Asymmetric clamp, NOT clampToInt: every x in [xa, xb] is blended unguarded, so
-        // a span wholly off-canvas must stay EMPTY (xa > xb) — clampToInt would collapse
-        // both ends onto one edge pixel and paint a border stripe. xs are finite here.
+        // Asymmetric clamp, NOT clampToInt: every x in [xa, xb] is blended unguarded, so a span wholly
+        // off-canvas must stay EMPTY (xa > xb) - a symmetric clamp would paint a border stripe.
         const int xa = std::max(0, static_cast<int>(std::ceil(xs[i] - 0.5)));
         const int xb = std::min(w - 1, static_cast<int>(std::floor(xs[i + 1] - 0.5)));
         for (int x = xa; x <= xb; ++x) blendPixel(buf, w, h, x, y, c, 1.0);

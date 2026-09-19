@@ -166,12 +166,8 @@ TEST_SUITE("imageFilter") {
   }
 
   TEST_CASE("applyContourRGBA marks a hard vertical edge (hand-computed Sobel)") {
-    // 4x1: black, black, white, white. Luma L = [0, 0, 255, 255]; with the row
-    // clamped vertically, gy = 0 and gx = 4 * (l(x+1) - l(x-1)):
-    //   x=0: 4*(  0 -   0) =    0 -> 255 - 0   = 255
-    //   x=1: 4*(255 -   0) = 1020 -> mag clamps to 255 -> 0
-    //   x=2: 4*(255 -   0) = 1020 -> 0
-    //   x=3: 4*(255 - 255) =    0 -> 255  (x+1 clamps to the last column)
+    // 4x1 black, black, white, white: L = [0, 0, 255, 255], gy = 0 and gx = 4*(l(x+1) - l(x-1))
+    // over clamped columns, so the row comes out 255, 0, 0, 255.
     std::vector<std::uint8_t> buf = {0,   0,   0,   10,  0,   0,   0,   20,
                                      255, 255, 255, 30,  255, 255, 255, 40};
     applyContourRGBA(buf.data(), 4, 1);
@@ -182,11 +178,8 @@ TEST_SUITE("imageFilter") {
   }
 
   TEST_CASE("applyContourRGBA computes exact non-saturating magnitudes") {
-    // 3x1 gray ramp 0, 10, 20: L equals the gray value, gy = 0,
-    // gx = 4 * (l(x+1) - l(x-1)) with clamped columns:
-    //   x=0: 4*(10 -  0) = 40 -> 215
-    //   x=1: 4*(20 -  0) = 80 -> 175
-    //   x=2: 4*(20 - 10) = 40 -> 215
+    // 3x1 gray ramp 0, 10, 20: L = the gray value, gy = 0, gx = 4*(l(x+1) - l(x-1)) over clamped
+    // columns, so the row comes out 215, 175, 215.
     std::vector<std::uint8_t> buf = {0,  0,  0,  1,  10, 10, 10, 2,
                                      20, 20, 20, 3};
     applyContourRGBA(buf.data(), 3, 1);

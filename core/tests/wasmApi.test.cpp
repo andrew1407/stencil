@@ -1,9 +1,7 @@
-// Native coverage for the WebAssembly ABI surface (desktop/core/wasmApi.cpp).
-// These extern "C" wrappers are what the browser app calls through ccall/cwrap;
-// emcc is not installed in this environment, so we compile the same translation
-// unit natively (see CMakeLists) and exercise every export here. The wrappers
-// are thin, so this guards the marshalling (flat arrays, output pointers, enum
-// codes, char-code var names) rather than the already-tested core math.
+// Native coverage for the WebAssembly ABI surface (desktop/core/wasmApi.cpp) - the extern "C"
+// wrappers the browser calls through ccall/cwrap. emcc is absent here, so the same translation
+// unit is compiled natively (see CMakeLists). Guards the marshalling (flat arrays, output
+// pointers, enum codes, char-code var names) rather than the already-tested core math.
 #include "doctest.h"
 #include <cstdint>
 #include <string>

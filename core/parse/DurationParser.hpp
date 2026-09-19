@@ -1,17 +1,11 @@
 #pragma once
 #include <string>
 
-// Human-duration parser behind the `expire` command; the twin kept identical is
-// browser/js/core/durationParser.js. Clock-free: the caller adds the ms to "now".
-// Grammar (whitespace-tokenized, case-insensitive; 1 or 2 tokens):
-//
+// Human-duration parser behind `expire`; twin browser/js/core/durationParser.js. Clock-free.
 //   spec  := off | unit | count unit | unit count
-//   off   := 'off' | 'never' | 'none'                     -> 0 ("keep forever")
-//   unit  := 'day' | 'week' | 'fortnight' | 'month' | 'year'  (trailing 's' ok)
-//   count := a positive base-10 integer
-//
-// A bare unit means one of it. Fixed durations (month=30d, year=365d) so the two
-// ports agree with no calendar library — the PERIOD_MS presets of projectsStore.
+//   off   := 'off' | 'never' | 'none' -> 0 ("keep forever")
+//   unit  := day | week | fortnight | month | year (trailing 's' ok); a bare unit means one
+// Fixed durations (month=30d, year=365d) so the ports agree - projectsStore's PERIOD_MS.
 namespace stencil::core {
 
   class DurationParser {

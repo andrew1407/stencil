@@ -50,10 +50,8 @@ TEST_CASE("rasterizeLine fills a locked polygon") {
 
 TEST_CASE("rasterizeLine: an off-canvas fill span leaves no spurious edge stripe") {
   const int w = 20, h = 20;
-  // A locked, filled rectangle whose interior lies entirely to the RIGHT of the
-  // canvas. Its fill spans are off-canvas at every scanline, so nothing is drawn —
-  // in particular the right border column (x = w-1) must stay untouched. (A symmetric
-  // clamp of both span ends would collapse them onto x = w-1 and paint a stripe.)
+  // A locked filled rect whose interior is entirely right of the canvas: nothing is drawn, and
+  // the right border column (x = w-1) must stay untouched (a symmetric clamp would stripe it).
   {
     auto buf = blank(w, h);
     Line area;
@@ -130,9 +128,8 @@ TEST_CASE("rasterizeLine draws points") {
   CHECK(at(marked, w, 10, 10, 2) > 150);
 }
 
-// Security/robustness: layout coords/sizes are untrusted. Non-finite or absurd
-// values must not cast to an out-of-range int (UB) or spin a near-infinite scan/
-// step loop (DoS) — the line is skipped, the buffer left untouched, promptly.
+// Layout coords/sizes are untrusted: non-finite or absurd values must not cast out of int
+// range (UB) or spin a near-infinite scan/step loop (DoS) - the line is skipped, promptly.
 TEST_CASE("rasterizeLine is inert on non-finite and astronomically large inputs") {
   const int w = 16, h = 16;
   const double inf = std::numeric_limits<double>::infinity();
@@ -166,10 +163,8 @@ TEST_CASE("rasterizeLine is inert on non-finite and astronomically large inputs"
   }
 }
 
-// ── Independent point colour (Line::pointColor) ───────────────────────
-// Port of browser/tests/rasterizePointColor.test.js. Points used to be stamped in the
-// stroke colour, so a yellow line on a light subject drew invisible handles with no way
-// to recolour just the points. An EMPTY pointColor must keep the old behaviour exactly.
+// -- Independent point colour (Line::pointColor) ----------------------
+// Port of browser/tests/rasterizePointColor.test.js. An EMPTY pointColor keeps the old behaviour.
 
 TEST_CASE("points default to the stroke colour when pointColor is unset") {
   const int w = 20, h = 20;
