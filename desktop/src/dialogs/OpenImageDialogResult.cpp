@@ -43,11 +43,11 @@ namespace stencil::gui {
   bool OpenImageDialog::rename() const { return rename_ && rename_->isChecked(); }
   bool OpenImageDialog::keepAnnotations() const { return !keep_ || keep_->isChecked(); }
 
-  // The White/Black presets and the picker all write customColor_ (browser parity:
+  // The White/Black presets and the picker all write blank_.color (browser parity:
   // the presets set the same fill the custom swatch holds).
-  QColor OpenImageDialog::blankColor() const { return customColor_; }
-  int OpenImageDialog::blankWidth() const { return blankWidth_->value(); }
-  int OpenImageDialog::blankHeight() const { return blankHeight_->value(); }
+  QColor OpenImageDialog::blankColor() const { return blank_.color; }
+  int OpenImageDialog::blankWidth() const { return blank_.width->value(); }
+  int OpenImageDialog::blankHeight() const { return blank_.height->value(); }
 
   bool OpenImageDialog::cropToPage() const { return cropPage_ && cropPage_->isChecked(); }
   bool OpenImageDialog::cropAlbum() const { return cropAlbum_ && cropAlbum_->isChecked(); }

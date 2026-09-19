@@ -229,7 +229,7 @@ class MainWindowGuiTest : public QObject {
 
   // A wider window fits a bigger preview (user report: it stayed pinned at its historical
   // 440x300 floor). The box must also SETTLE, not keep climbing on its own — sizing it from
-  // bodyContent_'s own width fed the box's effect on that width back in as the next frame's
+  // size_.bodyContent's own width fed the box's effect on that width back in as the next frame's
   // input (measured: 558 -> 756px with no further user input at all).
   void resizingTheWindowGrowsThePreviewAndSettles() {
     MainWindow win(nullptr, false);

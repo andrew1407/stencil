@@ -101,7 +101,7 @@ namespace stencil::gui {
 
   void OpenImageDialog::resetPreviewState() {
     previewedSource_.clear();
-    previewCapH_ = 0;   // a new picture starts from the full box
+    size_.previewCapH = 0;   // a new picture starts from the full box
     dropDerived();
     clearPreviewImage();
     setHint({});
@@ -142,7 +142,7 @@ namespace stencil::gui {
     // A departure ALWAYS has an arrival: if the old picture blew away, this one flies in
     // even when the source has been seen before — the pair was asymmetric otherwise, the
     // old one dusting out and the new one simply appearing.
-    const bool isNew = !key.isEmpty() && (arrivalDue_ || !animatedSources_.contains(key));
+    const bool isNew = !key.isEmpty() && (motion_.arrivalDue || !motion_.animatedSources.contains(key));
     const QSize box = previewFitBox();
     const QPixmap shot = QPixmap::fromImage(img).scaled(
         box.width(), box.height(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
@@ -154,13 +154,13 @@ namespace stencil::gui {
       frameSlider_->setFixedWidth(cropStage_ ? cropStage_->paintedRect().width() : shot.width());
     setHint(hint);
     if (isNew) {
-      animatedSources_.insert(key);
-      arrivalDue_ = false;
+      motion_.animatedSources.insert(key);
+      motion_.arrivalDue = false;
       gatherPreviewDust(shot);
     }
     // A scrubbed frame must reach the crop stage too, or it keeps cropping the old one.
     if (cropStage_) cropStage_->setOriginal(previewImage_);
-    if (!restoring_) cacheTabPreview(key, hint);   // a restore must not re-key the cache
+    if (!motion_.restoring) cacheTabPreview(key, hint);   // a restore must not re-key the cache
     fitTabsToCurrentPage();
   }
 

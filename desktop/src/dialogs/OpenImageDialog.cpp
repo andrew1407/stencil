@@ -59,8 +59,8 @@ namespace stencil::gui {
     // A crop stage over a tall picture outgrows the screen, so the body SCROLLS rather
     // than the window running off the bottom (the browser's .app-modal does the same).
     ModalScrollBody body = makeModalScrollBody(chrome, /*topPad=*/0);
-    bodyScroll_ = body.scroll;
-    bodyContent_ = body.content;   // a QScrollArea's own sizeHint is a fixed default, so
+    size_.bodyScroll = body.scroll;
+    size_.bodyContent = body.content;   // a QScrollArea's own sizeHint is a fixed default, so
     QVBoxLayout* layout = body.layout;
 
     // Source tabs: Local file / URL link / Blank — the browser .oi-tab strip
@@ -143,35 +143,35 @@ namespace stencil::gui {
     auto* blackBtn = new QPushButton(tr("Black"), this);
     blackBtn->setObjectName("biPresetBlack");
     blackBtn->setToolTip("Fill with black");
-    customSwatch_ = new QToolButton(this);
+    blank_.swatch = new QToolButton(this);
     // A QToolButton is icon-ONLY by default, which would drop the hex setColorSwatch writes.
-    customSwatch_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    setColorSwatch(customSwatch_, customColor_, SWATCH_SIZE, /*withHex=*/true);
-    connect(customSwatch_, &QToolButton::clicked, this, &OpenImageDialog::pickCustomColor);
+    blank_.swatch->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    setColorSwatch(blank_.swatch, blank_.color, SWATCH_SIZE, /*withHex=*/true);
+    connect(blank_.swatch, &QToolButton::clicked, this, &OpenImageDialog::pickCustomColor);
     connect(whiteBtn, &QPushButton::clicked, this, [this] {
-      customColor_ = QColor(Qt::white);
-      setColorSwatch(customSwatch_, customColor_, SWATCH_SIZE, /*withHex=*/true);
+      blank_.color = QColor(Qt::white);
+      setColorSwatch(blank_.swatch, blank_.color, SWATCH_SIZE, /*withHex=*/true);
     });
     connect(blackBtn, &QPushButton::clicked, this, [this] {
-      customColor_ = QColor(Qt::black);
-      setColorSwatch(customSwatch_, customColor_, SWATCH_SIZE, /*withHex=*/true);
+      blank_.color = QColor(Qt::black);
+      setColorSwatch(blank_.swatch, blank_.color, SWATCH_SIZE, /*withHex=*/true);
     });
     presetRow->addWidget(whiteBtn);
     presetRow->addWidget(blackBtn);
     presetRow->addStretch(1);
     blankV->addWidget(vsRow(blankTab, tr("Presets"), presetRow));
-    blankV->addWidget(vsRow(blankTab, tr("Custom color"), customSwatch_, /*stretch=*/0));
+    blankV->addWidget(vsRow(blankTab, tr("Custom color"), blank_.swatch, /*stretch=*/0));
     auto* sizeSection = modalSectionLabel(tr("Size (px)"), blankTab);
     sizeSection->setContentsMargins(0, 14, 0, 6);
     blankV->addWidget(sizeSection);
-    blankWidth_ = new QSpinBox(this);
-    blankWidth_->setRange(1, 8192);
-    blankWidth_->setValue(blankW);
-    blankHeight_ = new QSpinBox(this);
-    blankHeight_->setRange(1, 8192);
-    blankHeight_->setValue(blankH);
-    blankV->addWidget(vsRow(blankTab, tr("Width"), blankWidth_));
-    blankV->addWidget(vsRow(blankTab, tr("Height"), blankHeight_));
+    blank_.width = new QSpinBox(this);
+    blank_.width->setRange(1, 8192);
+    blank_.width->setValue(blankW);
+    blank_.height = new QSpinBox(this);
+    blank_.height->setRange(1, 8192);
+    blank_.height->setValue(blankH);
+    blankV->addWidget(vsRow(blankTab, tr("Width"), blank_.width));
+    blankV->addWidget(vsRow(blankTab, tr("Height"), blank_.height));
     tabs_->addTab(blankTab, "Blank");
     // Browser tab glyphs, named so the strip re-tints them per state (muted / hover /
     // accent-selected) instead of a fixed-colour QIcon.
@@ -261,7 +261,7 @@ namespace stencil::gui {
       cropAlbum_->setText(tr("Album"));
       cropAlbum_->setFixedWidth(std::max(portraitW, cropAlbum_->sizeHint().width()));
       // Explicit, matching cropDims_'s own: cropAlbumDust's guard skips the FIRST call
-      // when arriving already equals cropAlbumShown_'s false default, so the widget must
+      // when arriving already equals motion_.albumShown's false default, so the widget must
       // already be hidden going in, not rely on that call to make it so.
       cropAlbum_->setVisible(false);
       qc->addSpacing(8);
@@ -365,7 +365,7 @@ namespace stencil::gui {
 
     // Replace options: only shown on the Local file tab over a replaceable project.
     // The two checks stack (browser .oi-replace wraps them onto their own lines).
-    replaceRow_ = new QWidget(this);
+    act_.replaceRow = new QWidget(this);
     if (canReplace_) {
       rename_ = new QCheckBox("Rename project to the new image", this);
       keep_ = new QCheckBox("Keep existing annotations", this);
@@ -375,11 +375,11 @@ namespace stencil::gui {
       checks->setSpacing(7);
       checks->addWidget(rename_);
       checks->addWidget(keep_);
-      auto* wrap = new QVBoxLayout(replaceRow_);
+      auto* wrap = new QVBoxLayout(act_.replaceRow);
       wrap->setContentsMargins(0, 0, 0, 0);
-      wrap->addWidget(vsRow(replaceRow_, tr("Replace"), checks));
+      wrap->addWidget(vsRow(act_.replaceRow, tr("Replace"), checks));
     }
-    layout->addWidget(replaceRow_);
+    layout->addWidget(act_.replaceRow);
     // Slack at the BOTTOM (browser: rows stack at the top of the body) — mid-body it
     // split the URL row from the Incognito row with a band of empty space.
     layout->addStretch(1);
@@ -392,25 +392,25 @@ namespace stencil::gui {
     makeModalCta(cancel, "x");
     cancel->setToolTip("Close without opening an image");
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
-    here_ = new QPushButton("Open here", this);
-    makeModalCta(here_, "image");
-    connect(here_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::HERE; accept(); });
-    newWindow_ = new QPushButton("Open in new window", this);
-    makeModalCta(newWindow_, "external");
-    connect(newWindow_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::NEW_WINDOW; accept(); });
-    createBlank_ = new QPushButton("Create blank", this);
-    makeModalCta(createBlank_, "image");   // browser #blank-image-create
-    connect(createBlank_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::BLANK; accept(); });
+    act_.here = new QPushButton("Open here", this);
+    makeModalCta(act_.here, "image");
+    connect(act_.here, &QPushButton::clicked, this, [this] { outcome_ = Outcome::HERE; accept(); });
+    act_.newWindow = new QPushButton("Open in new window", this);
+    makeModalCta(act_.newWindow, "external");
+    connect(act_.newWindow, &QPushButton::clicked, this, [this] { outcome_ = Outcome::NEW_WINDOW; accept(); });
+    act_.createBlank = new QPushButton("Create blank", this);
+    makeModalCta(act_.createBlank, "image");   // browser #blank-image-create
+    connect(act_.createBlank, &QPushButton::clicked, this, [this] { outcome_ = Outcome::BLANK; accept(); });
     btnRow->addWidget(cancel);
     if (canReplace_) {
-      replace_ = new QPushButton("Replace image", this);
-      makeModalCta(replace_, "refresh");
-      connect(replace_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::REPLACE; accept(); });
-      btnRow->addWidget(replace_);
+      act_.replace = new QPushButton("Replace image", this);
+      makeModalCta(act_.replace, "refresh");
+      connect(act_.replace, &QPushButton::clicked, this, [this] { outcome_ = Outcome::REPLACE; accept(); });
+      btnRow->addWidget(act_.replace);
     }
-    btnRow->addWidget(here_);
-    btnRow->addWidget(newWindow_);
-    btnRow->addWidget(createBlank_);
+    btnRow->addWidget(act_.here);
+    btnRow->addWidget(act_.newWindow);
+    btnRow->addWidget(act_.createBlank);
 
     // Preview wiring (mirrors LinksDialog)
     preview_ = new MediaLoader(this);
@@ -419,8 +419,8 @@ namespace stencil::gui {
               previewIsVideo_ = preview_->isVideoSource();
               if (previewIsVideo_) {
                 frameImage_ = img;
-                scrubFps_ = preview_->frameRate() > 0 ? preview_->frameRate() : 30.0;
-                scrubDurationMs_ = preview_->durationMs();
+                scrub_.fps = preview_->frameRate() > 0 ? preview_->frameRate() : 30.0;
+                scrub_.durationMs = preview_->durationMs();
                 frameRow_->setVisible(true);
                 applyFrameBounds();  // size the slider / spin box to this video
                 updateVideoPreview();

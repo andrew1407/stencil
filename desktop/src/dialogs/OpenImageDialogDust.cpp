@@ -38,13 +38,13 @@ namespace stencil::gui {
     veil->setOpacity(0.0);
     previewLabel_->setGraphicsEffect(veil);
     QPointer<QLabel> label(previewLabel_);
-    const int gen = dustGen_;
+    const int gen = motion_.gen;
     // After the height ease has LANDED — a cloud pinned mid-resize flies to where the label
     // was passing through — and after any departing picture has fallen: two clouds read as noise.
-    const qint64 left = scatterEnds_ - QDateTime::currentMSecsSinceEpoch();
+    const qint64 left = motion_.scatterEnds - QDateTime::currentMSecsSinceEpoch();
     QTimer::singleShot(std::max<qint64>(OI_RESIZE_MS, left), label,
                        [this, label, shot, veil, gen] {
-      if (!label || gen != dustGen_) return;   // the tab moved on while this waited
+      if (!label || gen != motion_.gen) return;   // the tab moved on while this waited
       if (QLayout* l = label->parentWidget()->layout()) l->activate();
       auto* cloud = DisintegrateOverlay::overRect(label, label->rect(), label->parentWidget(),
                                                   DisintegrateOverlay::Sweep::GATHER, false,
@@ -65,10 +65,10 @@ namespace stencil::gui {
   void OpenImageDialog::cropDimsDust(bool arriving) {
     QWidget* host = cropDims_->parentWidget();
     // isVisible() cannot answer this any more: the line stays shown while it slides away.
-    if (arriving == dimsShown_) return;   // a re-sync is not a state change
-    dimsShown_ = arriving;
-    if (!host || support::motionReduced() || quietCrop_) {
-      if (dimsAnim_) dimsAnim_->stop();
+    if (arriving == motion_.dimsShown) return;   // a re-sync is not a state change
+    motion_.dimsShown = arriving;
+    if (!host || support::motionReduced() || motion_.quietCrop) {
+      if (motion_.dimsAnim) motion_.dimsAnim->stop();
       cropDims_->setMinimumHeight(0);
       cropDims_->setMaximumHeight(QWIDGETSIZE_MAX);
       cropDims_->setVisible(arriving);
@@ -99,7 +99,7 @@ namespace stencil::gui {
     veil->setOpacity(0.0);
     cropDims_->setGraphicsEffect(veil);
     QPointer<QLabel> label(cropDims_);
-    const int gen = dustGen_;
+    const int gen = motion_.gen;
     // AFTER the window's height ease has landed: raised before it, the cloud is pinned where
     // the line USED to be and the growing column slides the line out from under it (measured
     // 19px off). The veil then lifts once most of the motes are home — not at the very end —
@@ -114,7 +114,7 @@ namespace stencil::gui {
         if (label && label->graphicsEffect() == veil) label->setGraphicsEffect(nullptr);
       };
       if (!label) return;
-      if (gen != dustGen_) { lift(); return; }
+      if (gen != motion_.gen) { lift(); return; }
       DisintegrateOverlay* fx = shot.isNull()
           ? nullptr : chipCloud(label, shot, DisintegrateOverlay::Sweep::GATHER);
       if (!fx) {
@@ -128,8 +128,8 @@ namespace stencil::gui {
       const auto follow = [fx, label, under] {
         if (label && under) fx->move(label->mapTo(under, QPoint()));
       };
-      if (dimsAnim_) connect(dimsAnim_, &QVariantAnimation::valueChanged, fx, follow);
-      if (heightAnim_) connect(heightAnim_, &QVariantAnimation::valueChanged, fx, follow);
+      if (motion_.dimsAnim) connect(motion_.dimsAnim, &QVariantAnimation::valueChanged, fx, follow);
+      if (size_.anim) connect(size_.anim, &QVariantAnimation::valueChanged, fx, follow);
       QTimer::singleShot(int(CHIP_DUST_MS * FILTER_DUST_VEIL_STOP), label, lift);
     });
   }
@@ -148,30 +148,30 @@ namespace stencil::gui {
       cropDims_->setMinimumHeight(h);   // a layout hands it its hint otherwise
       cropDims_->setMaximumHeight(h);
     };
-    if (!dimsAnim_) {
-      dimsAnim_ = new QVariantAnimation(this);
-      dimsAnim_->setDuration(OI_RESIZE_MS);
-      dimsAnim_->setEasingCurve(QEasingCurve::OutCubic);
-      connect(dimsAnim_, &QVariantAnimation::valueChanged, this,
+    if (!motion_.dimsAnim) {
+      motion_.dimsAnim = new QVariantAnimation(this);
+      motion_.dimsAnim->setDuration(OI_RESIZE_MS);
+      motion_.dimsAnim->setEasingCurve(QEasingCurve::OutCubic);
+      connect(motion_.dimsAnim, &QVariantAnimation::valueChanged, this,
               [this, pin](const QVariant& v) { pin(v.toInt()); });
-      connect(dimsAnim_, &QVariantAnimation::finished, this, [this] {
-        const bool shown = dimsAnim_->endValue().toInt() > 0;
+      connect(motion_.dimsAnim, &QVariantAnimation::finished, this, [this] {
+        const bool shown = motion_.dimsAnim->endValue().toInt() > 0;
         cropDims_->setMinimumHeight(0);
         cropDims_->setMaximumHeight(shown ? QWIDGETSIZE_MAX : 0);
         cropDims_->setVisible(shown);
       });
     }
-    dimsAnim_->stop();
-    dimsAnim_->setStartValue(from);
-    dimsAnim_->setEndValue(show ? full : 0);
+    motion_.dimsAnim->stop();
+    motion_.dimsAnim->setStartValue(from);
+    motion_.dimsAnim->setEndValue(show ? full : 0);
     // The END state into the layout LAST: setStartValue emits its value straight away, so
     // pinning before it left the line's old height in the layout for the refit to measure.
     pin(show ? full : 0);
     // Started ONE TURN LATER: start() emits its first value at once, which would put the
     // line's old height back into the layout before the caller's refit measures it — and
     // the window then settled a line short of its own content, both ways.
-    QTimer::singleShot(0, dimsAnim_, [this] {
-      if (dimsAnim_ && dimsAnim_->state() != QAbstractAnimation::Running) dimsAnim_->start();
+    QTimer::singleShot(0, motion_.dimsAnim, [this] {
+      if (motion_.dimsAnim && motion_.dimsAnim->state() != QAbstractAnimation::Running) motion_.dimsAnim->start();
     });
   }
 
@@ -185,8 +185,8 @@ namespace stencil::gui {
     // Raised while the label is STILL SHOWN (overRect refuses an invisible source); the room
     // it took goes straight after, the cloud carrying the picture on.
     if (host && !shot.isNull() && !support::motionReduced()) {
-      scatterEnds_ = QDateTime::currentMSecsSinceEpoch() + CANVAS_DUST_MS;
-      arrivalDue_ = true;   // whatever lands next flies in, seen before or not
+      motion_.scatterEnds = QDateTime::currentMSecsSinceEpoch() + CANVAS_DUST_MS;
+      motion_.arrivalDue = true;   // whatever lands next flies in, seen before or not
       DisintegrateOverlay::overRect(previewLabel_, box, host, DisintegrateOverlay::Sweep::FALL,
                                     false, DisintegrateOverlay::DUST_MAX_CELLS, CANVAS_DUST_MS,
                                     QColor(), shot);
@@ -199,7 +199,7 @@ namespace stencil::gui {
   // cloud was standing in for lifts with it, or the widget it covers stays invisible.
   void OpenImageDialog::cancelPreviewDust() {
     if (!previewLabel_) return;
-    ++dustGen_;   // a raise still queued behind a timer is now stale
+    ++motion_.gen;   // a raise still queued behind a timer is now stale
     for (QWidget* w : findChildren<QWidget*>(
              QString::fromLatin1(DisintegrateOverlay::OBJECT_NAME)))
       delete w;
@@ -208,7 +208,7 @@ namespace stencil::gui {
     if (cropSizeRow_) cropSizeRow_->setGraphicsEffect(nullptr);
     if (cropAlbum_) cropAlbum_->setGraphicsEffect(nullptr);
     if (cropSizeCustomGroup_) cropSizeCustomGroup_->setGraphicsEffect(nullptr);
-    scatterEnds_ = 0;
+    motion_.scatterEnds = 0;
   }
 
   // reject() hides the dialog while the popover's own collapse still runs, so an

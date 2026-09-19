@@ -1,5 +1,6 @@
 #pragma once
 #include "CropDialog.hpp"   // CropPreview: the SAME crop stage the editor uses
+#include "openImageDialogState.hpp"
 #include <QColor>
 #include <QDialog>
 #include <QImage>
@@ -127,20 +128,10 @@ namespace stencil::gui {
     QSize previewFitBox() const;   // the preview/crop stage's box (OpenImageDialogFit.cpp)
     void applyPreviewFit();        // re-fit the picture and the stage into it
     int shrinkPreviewToFit(int over);   // …smaller by `over` px, so the body needn't scroll
-    int previewCapH_ = 0;          // the box height the picture gave up to (0 = none)
-    int previewFitWidth_ = 0;      // last width previewFitBox() was computed for (resizeEvent guard)
-    bool previewFitRefitPending_ = false;   // one coalesced refitWindowHeight() per settle
+    HeightEase size_;     // the window-height ease and what it measures
     void animateHeightTo(int h);        // ease the window there instead of jumping
     void setHeightNow(int h);           // …and the popover's frame moves with it
-    int floorH_ = 0, shownH_ = 0;       // first-show floor; the height a flight starts from
-    QVariantAnimation* dimsAnim_ = nullptr;   // the read-out's slide
-    bool dimsShown_ = false, quietCrop_ = false;   // where it is headed; a silent restore
-    QVariantAnimation* cropSizeRowAnim_ = nullptr;   // the page-size row's own slide
-    bool cropSizeRowShown_ = false;
-    bool cropAlbumShown_ = false;   // the Album/Portrait button's own particle-shown state
-    QVariantAnimation* cropSizeCustomAnim_ = nullptr;   // the Custom W×H group's own slide
-    bool cropSizeCustomShown_ = false;
-    bool restoring_ = false;            // a cached re-show, which must not re-key the cache
+    RowMotion motion_;    // one clock per row that forms and falls
     void dropDerived();                 // the fetch, pixels, video read and frame row
     void stalePreview();                // …dropped, the picture kept (the url moved on)
     void setHint(const QString& text);   // muted status line, hidden when empty
@@ -187,7 +178,6 @@ namespace stencil::gui {
     QWidget* incogRow_ = nullptr;  // the Incognito .vs-row (hidden on the Blank tab)
     QCheckBox* rename_ = nullptr;
     QCheckBox* keep_ = nullptr;
-    QWidget* replaceRow_ = nullptr;
     QComboBox* target_ = nullptr;     // "Save to": local or a connected server
     QWidget* targetRow_ = nullptr;
     QStringList serverUrls_;
@@ -201,9 +191,6 @@ namespace stencil::gui {
     QLabel* cropDims_ = nullptr;         // the read-out, centred UNDER the stage
     CropPreview* cropStage_ = nullptr;   // the draggable crop box over the preview
     QWidget* cropStageHost_ = nullptr;   // its slot in the preview column
-    QVariantAnimation* heightAnim_ = nullptr;   // the one running height ease
-    QScrollArea* bodyScroll_ = nullptr;  // the body scrolls once the window hits the screen
-    QWidget* bodyContent_ = nullptr;     // …and THIS is what the window is sized from
     QPushButton* cropAlbum_ = nullptr;   // the Album / Portrait toggle (checked = album)
     // The CROP's own page choice — starts from pageSeed_, but picking a different one (Custom
     // included) here affects only this preview's aspect, never the project's own page.
@@ -214,34 +201,16 @@ namespace stencil::gui {
     QDoubleSpinBox* cropSizeH_ = nullptr;
     QString pageSeed_ = "A3";  // canonical format name (findData miss ⇒ A3)
 
-    // Blank controls: the White/Black presets and the picker write customColor_.
-    QToolButton* customSwatch_ = nullptr;
-    QSpinBox* blankWidth_ = nullptr;
-    QSpinBox* blankHeight_ = nullptr;
-    QColor customColor_{Qt::white};
+    BlankControls blank_;  // the blank tab's fill and size
 
-    QPushButton* here_ = nullptr;
-    QPushButton* newWindow_ = nullptr;
-    QPushButton* replace_ = nullptr;
-    QPushButton* createBlank_ = nullptr;
+    OpenActions act_;     // the footer outcomes + the replace options
 
     MediaLoader* preview_ = nullptr;    // detects image vs video, grabs the first frame
     QTimer* fetchTimer_ = nullptr;      // debounce seeks while scrubbing
-    QMediaPlayer* scrubPlayer_ = nullptr;
-    QAudioOutput* scrubAudio_ = nullptr;
-    QVideoSink* scrubSink_ = nullptr;
-    double scrubFps_ = 30.0;
-    qint64 scrubDurationMs_ = 0;
-    qint64 scrubTargetMs_ = 0;
-    bool scrubPending_ = false;         // awaiting a rendered frame at the seek target
+    ScrubPlayer scrub_;   // the persistent player a video is scrubbed with
     QImage previewImage_;       // pixels the open will adopt (frame or preview)
     QString previewedSource_;   // the source the shown preview was fetched for
-    // Every source EVER dusted — a set, not one "last", or file->url->file replayed it.
-    QSet<QString> animatedSources_;
     QImage frameImage_;                 // last grabbed video frame
-    int dustGen_ = 0;                   // bumps on a cancel; a queued raise checks it
-    qint64 scatterEnds_ = 0;            // when the departing picture's cloud lands (ms epoch)
-    bool arrivalDue_ = true;            // a picture blew away; the next one must fly in
     bool previewIsVideo_ = false;       // last preview resolved as a video
 
     TabPreviewCache tabCache_[2];
