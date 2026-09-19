@@ -94,9 +94,8 @@ class _EditCommands:
       self._err("/save needs a path here (server push is not supported in the Python REPL)")
       return
     if arg.lower().endswith(".stencil"):
-      # A `.stencil` path saves the whole project (image + layout + metadata),
-      # like the Zig console. The conversation rides along under the `chat`
-      # key only while /chat is on (contract §12, opt-in).
+      # A `.stencil` path saves the whole project. The conversation rides under the `chat` key
+      # only while /chat is on (contract §12, opt-in).
       ed = self._editor
       ed.save_chats = self._chat_on
       if self._chat_on and self._chat is not None and self._chat.history: ed.attach_chat(self._chat)

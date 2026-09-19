@@ -93,9 +93,8 @@ class CoreTest(unittest.TestCase):
       self.assertEqual(list(buf[i * 4 : i * 4 + 4]), [255, 255, 255, 40 + i])
 
   def test_apply_contour_hard_edge(self) -> None:
-    # 4x1: black, black, white, white — the hand-computed Sobel fixture from
-    # core/tests/imageFilter.test.cpp (gy = 0; gx = 4 * (l(x+1) - l(x-1)) with
-    # clamped columns), so the outputs are 255, 0, 0, 255 with alphas kept.
+    # 4x1 black, black, white, white — the hand-computed Sobel fixture from
+    # core/tests/imageFilter.test.cpp (gy = 0; gx = 4 * (l(x+1) - l(x-1)), columns clamped).
     buf = bytearray(
       (0, 0, 0, 10, 0, 0, 0, 20, 255, 255, 255, 30, 255, 255, 255, 40)
     )

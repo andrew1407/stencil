@@ -11,10 +11,8 @@ import time
 from .._types import NoneType
 
 
-# Project-metadata fields a watcher reports on. version is the server's monotonic
-# edit counter (any save bumps it); name/color are the user-visible metadata. A change
-# in any of these marks a project "updated" — the same fields the browser/desktop pick
-# up when they reload a peer's change.
+# Project-metadata fields a watcher reports on. `version` is the server's monotonic edit
+# counter (any save bumps it); name/color/description are the user-visible metadata.
 _WATCHED_FIELDS = ("version", "name", "color", "description")
 _FIELD_DEFAULT = {"version": 0, "name": "", "color": "", "description": ""}
 

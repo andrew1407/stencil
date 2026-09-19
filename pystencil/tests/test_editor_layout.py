@@ -20,9 +20,8 @@ class EditorLayoutTests(EditorCase):
     self.assertEqual(lay.rotation_quarters, 1)
 
   def test_layout_always_names_a_croprect(self):
-    # The GUIs auto-crop a freshly loaded image to the page aspect unless the layout
-    # names a cropRect, so omitting it (the old behaviour) made them shrink the image
-    # on open and strand lines drawn outside the page rect.
+    # The GUIs auto-crop a freshly loaded image to the page aspect unless the layout names a
+    # cropRect, so omitting it shrinks the image and strands lines outside the page rect.
     ed = self._blank()  # 32x48, nothing cropped
     self.assertEqual(
       ed.layout().to_dict()["cropRect"],

@@ -20,10 +20,8 @@ from .._types import NoneType
 # indefinitely (seconds).
 _REQUEST_TIMEOUT = 30.0
 
-# LLM calls get their own, much longer bound: a vision op-plan routinely runs a
-# minute or two, so the REST figure would time out mid-answer. The figure is the
-# canonical timeouts.chatSeconds from the checked-in providers asset (byte-pinned
-# by tests/test_canonical_drift.py) — the same 120 s every other client allows.
+# LLM calls get a much longer bound: a vision op-plan routinely runs a minute or two. The
+# figure is timeouts.chatSeconds from the checked-in providers asset (byte-pinned).
 _LLM_TIMEOUT = float(
   json.loads(
     importlib.resources.files("pystencil")

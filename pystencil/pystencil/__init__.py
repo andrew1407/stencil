@@ -9,9 +9,7 @@ from __future__ import annotations
 
 __version__ = "0.1.0"
 
-# Public surface: the ctypes core binding, the value types (Image / layout dataclasses),
-# the chainable Editor facade (aliased as Stencil), the collaboration-server clients, and
-# the pure-Python codecs module. All stdlib-only, no third-party deps.
+# Public surface. All stdlib-only, no third-party deps.
 from . import codecs
 from .core import Core, get_core
 from .image import Image

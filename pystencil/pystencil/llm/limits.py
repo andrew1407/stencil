@@ -9,10 +9,8 @@ import re
 from .._types import NoneType
 from .._opschema import schema
 
-# ── contract limits (§1/§7/§11 — the same numbers in every client) ────────────
-# Read from the checked-in copy of the canonical op registry
-# (browser/js/config/llm/opRegistry.json; tests/test_canonical_drift.py byte-pins the
-# copy) through the table-driven schema engine every op validator runs on.
+# ── contract limits (§1/§7/§11 — the same numbers in every client) ──
+# From the checked-in copy of browser/js/config/llm/opRegistry.json, byte-pinned by tests.
 SCHEMA = schema("pystencil")
 _LIMITS = SCHEMA.limits
 MAX_ACTIONS = _LIMITS["MAX_ACTIONS"]              # per plan: top-level and per variant
@@ -33,9 +31,8 @@ MAX_HISTORY = 32        # chat messages replayed per call
 # §12 chat persistence — the persisted-chat document version Chat.to_doc writes and
 # Chat.from_doc accepts (any other version is treated as "no saved chat").
 CHAT_DOC_VERSION = 1
-# §7's auto-continuation note: the internal sentence the console appends to the RESTATED
-# request after a plan made a new picture. It lives beside the §12 rules so the one place
-# that writes it (cli.py) and the one that must never persist it agree by construction.
+# §7's auto-continuation note: the sentence the console appends to the RESTATED request.
+# It sits beside the §12 rules so the one place that writes it and the one that must not agree.
 CONTINUATION_NOTE = (
   "[The working image is now the picture that action just made — "
   "continue with it, using its real pixel size.]"
@@ -67,7 +64,5 @@ def chat_display_text(role: str, text: str) -> (str | NoneType):
     return None
   return t
 
-# How many images ONE message may carry (contract §7; the browser/extension
-# MAX_ATTACHMENTS and the desktop's kMaxAttachments). The working image rides along on
-# top of this and does not count against it. This cap binds the attachment-QUEUE
-# surfaces (Chat.send's user images); the console's /upload set below has the cli's own.
+# How many images ONE message may carry (§7; the browser's MAX_ATTACHMENTS and the
+# desktop's kMaxAttachments). The working image rides on top and does not count.

@@ -67,8 +67,7 @@ class CoordinateRemapTest(NativeCase):
     self.assertEqual(self._drawn_points(editor), [(5.0, 30.0)])
 
   def test_quarter_turn_direction_matches_core_raster(self):
-    # Validate the mapping's direction against the core's own pixel rotate:
-    # mark one pixel, rotate the buffer clockwise, and check the mark sits
+    # Validate the mapping's direction against the core's own pixel rotate: the mark must sit
     # where the continuous mapping (x, y) → (h − y, x) says its centre goes.
     from pystencil.core import get_core
 

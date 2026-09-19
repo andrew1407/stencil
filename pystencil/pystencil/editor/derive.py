@@ -42,9 +42,8 @@ class _DeriveApi:
       cx, cy, cw, ch = self._clamp_rect(snap.crop, img.width, img.height)
       data = core.crop_image_rgba(img.data, img.width, img.height, cx, cy, cw, ch)
       img = Image(cw, ch, data)
-    # 3. filter in place — steps 1-2 hand back fresh buffers, so copy only if neither
-    #    ran (custom uses the hex colour as the duotone arg, else the mode; contour is
-    #    dimensioned Sobel edge detection, so it takes its own entry point)
+    # 3. filter in place — steps 1-2 hand back fresh buffers, so copy only if neither ran
+    #    (contour is dimensioned Sobel edge detection, so it takes its own entry point)
     if img is orig: img = orig.copy()
     if snap.filter_mode and snap.filter_mode.lower() != "none":
       if snap.filter_mode.lower() == "contour":
@@ -93,9 +92,8 @@ class _DeriveApi:
     if spec.lower() == "custom":
       w = float(width or 0.0)
       h = float(height or 0.0)
-      # Pinned custom-page range (port of the console's parseCmDim): 0.1–500 cm.
-      # The inclusive comparisons are False for NaN, so NaN/inf never get stored
-      # (json.dumps would otherwise emit non-RFC-8259 `NaN` in the layout).
+      # Pinned custom-page range (port of the console's parseCmDim): 0.1–500 cm. The inclusive
+      # comparisons are False for NaN, so json.dumps can never emit non-RFC-8259 `NaN`.
       if not (0.1 <= w <= 500.0 and 0.1 <= h <= 500.0):
         raise ValueError(
           "custom page format needs width + height in cm within 0.1-500"

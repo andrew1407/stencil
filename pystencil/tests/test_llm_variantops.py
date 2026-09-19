@@ -89,9 +89,8 @@ class MisplacedVariantOpTest(unittest.TestCase):
       parse_op_plan(_plan_json(actions=[{"op": "clear", "hard": True}]))
 
   def test_ask_option_preview_never_fails_the_plan(self):
-    # A console has nowhere to show previews: an option's actions are validated
-    # (§11) but never rendered — a misplaced op costs nothing but the preview,
-    # which was going to be dropped anyway, so ONE card-level note results.
+    # A console has nowhere to show previews: an option's actions are validated (§11) but never
+    # rendered, so a misplaced op costs only the preview — ONE card-level note.
     plan = parse_op_plan(
       _plan_json(
         ask={

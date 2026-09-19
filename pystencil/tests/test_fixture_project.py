@@ -65,10 +65,8 @@ def _fill_line(sparse: dict) -> dict:
 class TestStencilProjectFixtures(unittest.TestCase):
   def test_valid(self):
     require_core()  # this walk decodes the embedded PNG bytes
-    # pystencil's reader decodes pixels (unlike the browser's format-only
-    # parser), so the stub payload is swapped for a real 1x1 PNG; the file's
-    # format-level content is untouched. Input is fed as bytes so a JSON
-    # string is never mistaken for a path.
+    # pystencil's reader decodes pixels, so the stub payload is swapped for a real 1x1 PNG.
+    # Input is fed as bytes so a JSON string is never mistaken for a path.
     overrides = _OVERRIDES["stencilProject"]
     for case in _VALID:
       with self.subTest(case=case["name"]):

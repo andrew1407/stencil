@@ -87,9 +87,8 @@ class DecodePngBench(BenchCase):
     sub_us = self.micros("decode_png filter 1 (Sub)", 20, lambda: decode_png(sub))
     paeth_us = self.micros("decode_png filter 4 (Paeth)", 5, lambda: decode_png(paeth))
 
-    # Up is a fixed handful of whole-row C passes (two int.from_bytes, the SWAR add,
-    # one to_bytes); Sub repeats that add log2(stride/bpp) times. Both stay inside a
-    # small multiple of no unfilter at all — a per-byte loop is hundreds of x (below).
+    # Up is a fixed handful of whole-row C passes; Sub repeats its add log2(stride/bpp) times.
+    # Both must stay inside a small multiple of no unfilter at all.
     self.ratio("Up vs none", up_us, flat, ceiling=16.0)
     self.ratio("Sub vs none", sub_us, flat, ceiling=50.0)
     # Paeth is per-byte BY DESIGN: every byte needs the reconstructed byte to its

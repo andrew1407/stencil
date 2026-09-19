@@ -38,9 +38,8 @@ class OpRegistryTest(unittest.TestCase):
   (the assembled blocks stay byte-identical to the pre-registry strings, but only
   the splice-anchor/prose assertions pin text)."""
 
-  # The contract's pystencil profile: the §4/§2 core ops, plus the §10 cli-console
-  # profile minus accent/reconnect (no theme, no reconnect command) and copy (no
-  # clipboard) — reset is a §2 core op whose bullet rides the console block.
+  # The contract's pystencil profile: the §4/§2 core ops plus the §10 cli-console profile
+  # minus accent/reconnect and copy; reset's bullet rides the console block.
   CORE_OPS = {"crop", "rotate", "filter", "layout", "formula", "page", "blank",
         "undo", "redo", "frame", "image", "save"}
   CONSOLE_BULLET_OPS = {"connect", "disconnect", "delete", "openUrl", "clear",
@@ -128,9 +127,8 @@ class OpRegistryTest(unittest.TestCase):
         self.assertNotIn(spec.bullet, LLM_SYSTEM_PROMPT, name)
 
   def test_capability_exclusion_mechanism(self):
-    # pystencil's real registry tags nothing, so the mechanism is exercised
-    # with a stub registry: an entry whose capability is not wired is EXCLUDED from
-    # generation (the op falls to §1's unknown-op skip, never promised).
+    # pystencil's real registry tags nothing, so the mechanism is exercised with a stub: an
+    # entry whose capability is not wired is EXCLUDED from generation.
     stubs = {
       "plain": _stub_spec('- {"op":"plain"} — always wired.'),
       "copy": _stub_spec(
@@ -145,9 +143,8 @@ class OpRegistryTest(unittest.TestCase):
     self.assertIn("copy the image to the clipboard", wired)
 
   def test_forbidden_ops_pin_the_contract_families(self):
-    # §13's name list: llm/provider configuration, clipboard reads, hotkey
-    # rebinding, session/window end, chat persistence/consent toggles, and
-    # server-side destruction beyond §10's grants.
+    # §13's name list: llm/provider configuration, clipboard reads, hotkey rebinding,
+    # session/window end, chat toggles, and server-side destruction beyond §10's grants.
     for name in ("llm", "provider", "apiKey", "paste", "hotkey", "quit",
           "chat", "shareTabs", "deleteRemote"):
       self.assertIn(name, FORBIDDEN_OPS)

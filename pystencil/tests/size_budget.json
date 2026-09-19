@@ -3,23 +3,23 @@
   "maxNewFileLines": 230,
   "files": {
     "pystencil/pystencil/core.py": 146,
-    "pystencil/pystencil/layout.py": 194,
+    "pystencil/pystencil/layout.py": 193,
     "pystencil/tests/test_editor.py": 143,
     "pystencil/tests/test_image.py": 144,
-    "pystencil/tests/test_projectfile.py": 133
+    "pystencil/tests/test_projectfile.py": 132
   },
   "commentPct": {
-    "pystencil": 8,
-    "pystencil/pystencil": 3,
-    "pystencil/pystencil/_opschema": 2,
-    "pystencil/pystencil/cli": 6,
-    "pystencil/pystencil/cli/commands": 9,
+    "pystencil": 4,
+    "pystencil/pystencil": 2,
+    "pystencil/pystencil/_opschema": 1,
+    "pystencil/pystencil/cli": 4,
+    "pystencil/pystencil/cli/commands": 6,
     "pystencil/pystencil/codecs": 5,
-    "pystencil/pystencil/editor": 6,
-    "pystencil/pystencil/llm": 6,
-    "pystencil/pystencil/server": 7,
+    "pystencil/pystencil/editor": 5,
+    "pystencil/pystencil/llm": 4,
+    "pystencil/pystencil/server": 5,
     "pystencil/pystencil/sitesource": 3,
-    "pystencil/tests": 5
+    "pystencil/tests": 4
   },
   "exceptions": {}
 }

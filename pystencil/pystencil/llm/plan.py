@@ -21,13 +21,11 @@ from .limits import (
 from .types import OpPlan, Variant
 from .validate import _MisplacedOp, _plan_check, _validate_actions, _validate_ask
 
-# ── op-plan parsing (contract §1/§2/§3) ───────────────────────────────────────
-# Field schemas, token grammars and the cross-field rules are the registry's
-# (SCHEMA); only the per-op normalizers below are this surface's own.
+# ── op-plan parsing (contract §1/§2/§3) ──
+# Field schemas, token grammars and the cross-field rules are the registry's (SCHEMA).
 
 # _ACTION_FIELDS / _ACTION_VALIDATORS / _ACTION_APPLIERS / _TOP_LEVEL_ONLY_OPS /
-# _CONSOLE_SETTINGS_OPS are all DERIVED from OP_REGISTRY (contract §13) — defined
-# after the appliers below, which the registry entries reference.
+# _CONSOLE_SETTINGS_OPS are DERIVED from OP_REGISTRY (§13), defined after the appliers.
 
 
 def __strip_fences(text: str) -> str:
@@ -96,9 +94,8 @@ def parse_op_plan(text: str) -> OpPlan:
   if obj is None: return OpPlan(reply=raw.strip())
   reply = obj.get("reply")
   warnings: list[str] = list()
-  # §1 reply tolerance: models routinely omit the reply while planning valid
-  # actions — substitute rather than lose the plan to a missing pleasantry.
-  # The substitute itself is decided below, once the plan's contents are known.
+  # §1 reply tolerance: models routinely omit the reply while planning valid actions —
+  # substitute rather than lose the plan to a missing pleasantry.
   reply_omitted = not isinstance(reply, str) or not reply.strip()
   actions = _validate_actions(obj.get("actions"), warnings, "actions")
   variants: list[Variant] = list()

@@ -176,14 +176,12 @@ def _run_scrape(args: argparse.Namespace, err: TextIO) -> int:
   url = args.source_site
   out_dir = args.output or "."
   host = urllib.parse.urlparse(url).hostname or ""
-  # Apply the user-facing --source-count default here at the entry layer (parity with the
-  # Zig CLI's scrape.effectiveCount): absent = 5, 0 = all (None), N = N. scan_page's own
-  # count=None primitive still means "all".
+  # The user-facing --source-count default (parity with the Zig CLI's scrape.effectiveCount):
+  # absent = 5, 0 = all (None), N = N.
   sc = args.source_count
   count = 5 if sc is None else (None if sc == 0 else sc)
-  # Announce the scrape before the page fetch + downloads (which can take a while) rather than
-  # sitting silent until the first `wrote`. Mirrors the Zig CLI's scrape.run leading line; it
-  # carries none of the parsed prefixes, so the mcp/bot adapters ignore it.
+  # Mirrors the Zig CLI's scrape.run leading line; it carries none of the parsed prefixes,
+  # so the mcp/bot adapters ignore it.
   err.write("scraping %s…\n" % url)
   try:
     items = scan_page(

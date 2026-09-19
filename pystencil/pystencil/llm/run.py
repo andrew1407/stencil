@@ -94,8 +94,5 @@ def _clamp_point(x: float, y: float, w: float, h: float) -> tuple[float, float]:
   return (min(max(x, 0.0), float(w)), min(max(y, 0.0), float(h)))
 
 
-# One applier per op, mapping the validated action onto the Editor method it
-# stands for (contract §2). Each applier rides the op's OP_REGISTRY entry beside
-# its validator, so dispatch is table-driven on both the parse and execute sides.
-# ``frame`` is the plan's running §1 re-mapping transform (None for direct
-# hand-built calls).
+# One applier per op, mapping the validated action onto the Editor method it stands for
+# (§2), riding its OP_REGISTRY entry beside its validator. `frame` is the §1 transform.

@@ -1,19 +1,10 @@
 from __future__ import annotations
 
-# ── Stencil collaboration-server client (REST over urllib) ───────────────────
-# A faithful Python port of the browser net layer
-# (browser/js/net/connectionManager.js + remoteSync.js) speaking the same REST
-# contract declared in server/internal/protocol/protocol.go. Unlike the browser
-# client this one is REST-only: it does NOT open the /ws live-events feed (the
-# Python package is a headless editing/automation surface, not a live co-editor),
-# so a "connection" here is just a validated token + base URL.
-#
-# Memory/format note mirrored from the browser: the server is codec-free, so
-# every file upload passes the pixel dimensions (w/h) and an extension hint
-# explicitly via the ?ext&w&h query — the bytes are sent as octet-stream.
-#
-# Split across http/urls/diff/projects/files/connection/manager; this module is the
-# façade that re-exports the surface callers bind to.
+# ── Stencil collaboration-server client (REST over urllib) ──
+# A port of the browser net layer (browser/js/net/connectionManager.js + remoteSync.js)
+# over the REST contract in server/internal/protocol/protocol.go. REST-only: it never
+# opens the /ws feed, so a "connection" here is a validated token + base URL.
+# The server is codec-free, so every upload passes w/h and an ext hint on the query.
 
 from .connection import ServerConnection
 from .diff import (

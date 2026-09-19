@@ -56,10 +56,8 @@ class _ServerCommands:
       "server that has ADMIN_TOKEN set (it won't issue one)",
   )
   def _cmd_connect(self, arg: str) -> None:
-    # A trailing `token=<tok>` (the console's name=/key= convention) supplies the
-    # bearer, like the desktop's Connect dialog. A server with ADMIN_TOKEN set
-    # refuses to mint one, so an existing token is the only way onto it — and the
-    # LLM proxy requires that setting.
+    # A trailing `token=<tok>` supplies the bearer. A server with ADMIN_TOKEN set refuses to
+    # mint one, so an existing token is the only way onto it — and the LLM proxy needs it.
     urls, token = [], ""
     for word in arg.split():
       if word.startswith("token="):

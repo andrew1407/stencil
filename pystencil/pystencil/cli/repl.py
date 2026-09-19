@@ -66,20 +66,16 @@ class _Repl(
     # /prompt attachment memo: (editor, its revision, png bytes) — reused while the
     # edit state is unchanged so repeated prompts don't re-encode (contract §7).
     self._png_cache: (tuple[Editor, int, bytes] | NoneType) = None
-    # §2.1: this turn's /upload set — (media_type, png bytes, label) in upload
-    # order, what a plan's `image` op indexes (the cli console's attachment
-    # registry: capped at MAX_UPLOAD_ATTACHMENTS with the oldest falling off; a
-    # /prompt marks the set used, so the next /upload starts a fresh one).
+    # §2.1: this turn's /upload set — (media_type, png bytes, label) in upload order, what a
+    # plan's `image` op indexes. Capped at MAX_UPLOAD_ATTACHMENTS, the oldest falling off.
     self._attachments: list[tuple[str, bytes, str]] = list()
     self._attachments_used: bool = False
     # §12 chat persistence: /chat on|off (session-scoped, default OFF — /prompt
     # stays single-turn) and the multi-turn Chat used while it is on.
     self._chat_on: bool = False
     self._chat: (Chat | NoneType) = None
-    # The active remote project — (ServerConnection, project id) recorded by
-    # /fetch — so /chat clear can also drop the server-side `chat` file.
-    # Cleared (with the conversation) whenever the working image is
-    # replaced: see _image_replaced().
+    # The active remote project recorded by /fetch, so /chat clear can also drop the
+    # server-side `chat` file. Cleared whenever the working image is replaced.
     self._remote: (tuple | NoneType) = None
     # §10 clearChat: set by the plan_clear_chat hook during execution and
     # consumed by the end-of-turn confirm in _cmd_prompt.

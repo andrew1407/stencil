@@ -91,9 +91,8 @@ class SeverityPrefixTest(unittest.TestCase):
     )
 
   def test_console_sources_use_the_helper_not_the_literal(self) -> None:
-    # Single-sourcing guard: a new call site must go through _severity, not re-type
-    # the prefix (which would silently opt out of the colouring). Both consoles are
-    # packages now, so scan every module in them, not just the __init__.
+    # Single-sourcing guard: a new call site must go through _severity, not re-type the prefix
+    # (which would silently opt out of the colouring).
     for mod in (cli, sitesource):
       for path in sorted(Path(mod.__file__).parent.rglob("*.py")):
         src = path.read_text(encoding="utf-8")

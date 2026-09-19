@@ -36,9 +36,8 @@ class Chat:
 
   def __init__(self, client: (LlmClient | NoneType) = None) -> None:
     self.client = client if client is not None else LlmClient()
-    # Retained history: dicts {"role", "text", "images"} (newest last). Images
-    # that the replay rule can never send again are blanked by send() — see its
-    # memory note — so only replayable attachments are held.
+    # Retained history: dicts {"role", "text", "images"} (newest last). Images the replay rule
+    # can never send again are blanked by send().
     self.history: Messages = list()
 
   @staticmethod

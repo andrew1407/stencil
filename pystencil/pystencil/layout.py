@@ -60,9 +60,8 @@ class Line:
   style: str = DEFAULT_STYLE
   locked: bool = DEFAULT_LOCKED
   fill_color: str = DEFAULT_FILL_COLOR
-  #: Point colour, independent of ``color``. Empty means the points inherit
-  #: ``color`` — the behaviour of every layout written before this field existed
-  #: (core ``Line::pointColor``).
+  #: Point colour, independent of ``color``. Empty means the points inherit ``color`` — how
+  #: every layout written before this field existed behaves (core ``Line::pointColor``).
   point_color: str = ""
 
   def to_dict(self) -> dict:

@@ -71,9 +71,8 @@ class ProjectFileTests(ProjectFileCase):
       self.assertEqual(Editor().open_project(path).keywords, [])
 
   def test_preserves_foreign_keywords_on_reopen(self):
-    # A .stencil authored by another surface (browser/server) carries keywords pystencil
-    # never set; opening then re-saving must not drop them. This is the interop regression
-    # the fix guards — before it, save_project/open_project ignored keywords entirely.
+    # A .stencil authored by another surface carries keywords pystencil never set; opening then
+    # re-saving must not drop them.
     ed = self._authored()
     with tempfile.TemporaryDirectory() as d:
       src = os.path.join(d, "src.stencil")

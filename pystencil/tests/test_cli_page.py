@@ -37,9 +37,8 @@ class ReplPageFormatTest(_PipelineCase):
     self.assertIn("type '/format' to list formats", out.getvalue())
 
   def test_repl_blank_format_token_adopts_session_format(self) -> None:
-    # '/blank b5' makes B5 the session page format (mirror of the Zig console's
-    # doBlank -> session.setPageSize): the next bare /blank is B5 again and the
-    # exported layout carries pageSize "B5".
+    # '/blank b5' makes B5 the session page format (the Zig console's doBlank →
+    # session.setPageSize): the next bare /blank is B5 and the layout carries pageSize "B5".
     from pystencil.core import get_core
 
     lay = self._path("blank-b5.json")
@@ -52,9 +51,8 @@ class ReplPageFormatTest(_PipelineCase):
       self.assertEqual(json.load(f)["pageSize"], "B5")
 
   def test_repl_blank_explicit_dims_keep_session_format(self) -> None:
-    # PINNED (Zig console "blank with explicit dims keeps the /format pick"):
-    # a dims-only blank sizes the page but preserves the picked format, so the
-    # exported layout still carries pageSize "B5".
+    # PINNED (Zig console "blank with explicit dims keeps the /format pick"): a dims-only blank
+    # sizes the page but the exported layout still carries pageSize "B5".
     lay = self._path("blank-dims.json")
     out = io.StringIO()
     repl = cli._Repl(out)
@@ -97,9 +95,8 @@ class ReplPageFormatTest(_PipelineCase):
     self.assertEqual(repl._editor.custom_page_height, 15.0)
 
   def test_repl_bare_blank_custom_without_dims_falls_back_to_a4(self) -> None:
-    # A layout can adopt pageSize "custom" with no (or only one) cm dimension
-    # (adoptLayoutMeta keeps it raw); a bare /blank must fall through to the
-    # default A4 blank like the Zig console — not error or blank a 1px page.
+    # A layout can adopt pageSize "custom" with no (or only one) cm dimension; a bare /blank
+    # must fall through to the default A4 blank like the Zig console.
     from pystencil.core import get_core
 
     a4_w, a4_h = get_core().default_blank_size_px(21.0, 29.7)
@@ -116,9 +113,8 @@ class ReplPageFormatTest(_PipelineCase):
       self.assertEqual(repl._editor.page_format, "", meta)
 
   def test_repl_bare_blank_with_unknown_adopted_format_falls_back_to_a4(self) -> None:
-    # A layout can carry an unknown pageSize (adopted raw, like adoptLayoutMeta);
-    # a bare /blank then quietly creates the default A4 blank instead of erroring
-    # (the Zig console maps it through canonicalPageFormat -> null).
+    # A layout can carry an unknown pageSize (adopted raw); a bare /blank then quietly creates
+    # the default A4 blank instead of erroring (canonicalPageFormat → null).
     from pystencil.core import get_core
 
     out = io.StringIO()

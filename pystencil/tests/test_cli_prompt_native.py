@@ -98,9 +98,8 @@ class ReplPromptNativeTest(_NativeReplCase):
     self.assertEqual(points, [(50.0, 50.0), (60.0, 60.0)])
 
   def test_multi_image_plan_saves_a_project(self) -> None:
-    # §2.1: `save` writes <name>.stencil beside the output. The console attaches
-    # no images of its own, so the switch itself is skipped with a per-action
-    # note — the rest of the plan still runs, in the turn's ONE model round.
+    # §2.1: `save` writes <name>.stencil beside the output. The console attaches no images, so
+    # the switch itself is skipped with a per-action note in the turn's ONE model round.
     plan = (
       '{"version":1,"reply":"kept it",'
       '"actions":[{"op":"image","index":1},'
