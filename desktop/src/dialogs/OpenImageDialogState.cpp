@@ -63,9 +63,9 @@ namespace stencil::gui {
     // 280px) — never dropped under afterwards either.
     const int want = std::max({tallest, OI_MIN_H, height()});
     // An ease armed by the last pre-show refit would land after this and overwrite it.
-    if (heightAnim_) heightAnim_->stop();
+    if (size_.anim) size_.anim->stop();
     if (want != height()) resize(width(), want);
-    floorH_ = shownH_ = want;
+    size_.floorH = size_.shownH = want;
     // …re-centred for that height: Qt centred it at its pre-measurement size, so growing
     // this much left it sitting low.
     if (QWidget* p = parentWidget())
@@ -100,15 +100,15 @@ namespace stencil::gui {
   void OpenImageDialog::pickCustomColor() {
     // Anchored on the custom-fill swatch that was clicked.
     const QColor c =
-        support::pickColorAnimated(customColor_, this, "Fill color", customSwatch_);
+        support::pickColorAnimated(blank_.color, this, "Fill color", blank_.swatch);
     if (!c.isValid()) return;
-    customColor_ = c;
-    setColorSwatch(customSwatch_, customColor_, SWATCH_SIZE, /*withHex=*/true);
+    blank_.color = c;
+    setColorSwatch(blank_.swatch, blank_.color, SWATCH_SIZE, /*withHex=*/true);
   }
 
   void OpenImageDialog::applyMode() {
     cancelPreviewDust();   // the outgoing tab's flourish does not play over the arriving one
-    previewCapH_ = 0;      // the arriving tab's picture is fitted afresh
+    size_.previewCapH = 0;      // the arriving tab's picture is fitted afresh
     // The OUTGOING tab's stage goes NOW: left standing, showPreview() below would call
     // setOriginal() on it for the ARRIVING (differently shaped) picture, recomputing —
     // and persisting — a rect from the OLD stage's stale aspect. syncQuickcropEnabled()
@@ -120,11 +120,11 @@ namespace stencil::gui {
     }
     const bool blank = tabs_->currentIndex() == TabBlank;
     incogRow_->setVisible(!blank);  // incognito has no effect on a blank
-    here_->setVisible(!blank);
-    newWindow_->setVisible(!blank);
-    if (replace_) replace_->setVisible(!blank && tabs_->currentIndex() == TabFile);
-    replaceRow_->setVisible(!blank && canReplace_ && tabs_->currentIndex() == TabFile);
-    createBlank_->setVisible(blank);
+    act_.here->setVisible(!blank);
+    act_.newWindow->setVisible(!blank);
+    if (act_.replace) act_.replace->setVisible(!blank && tabs_->currentIndex() == TabFile);
+    act_.replaceRow->setVisible(!blank && canReplace_ && tabs_->currentIndex() == TabFile);
+    act_.createBlank->setVisible(blank);
     refreshTargetRow();
     // File and URL each keep their own chosen source AND their own crop choice: ticking
     // Crop on the URL tab says nothing about the local file (browser twin: tabCrop).
@@ -136,7 +136,7 @@ namespace stencil::gui {
     // Quiet from here: resetPreviewState()/stalePreview() below rebuild the crop stage on
     // their own, ahead of schedule — ungated, that pass played the outgoing rows' closing
     // flourish on every ordinary switch (a tab switch is not a toggle).
-    quietCrop_ = true;
+    motion_.quietCrop = true;
     const QString src = source();
     if (blank) {
       clearPreviewImage();
@@ -161,10 +161,10 @@ namespace stencil::gui {
     // still quietly.
     if (!blank) {
       syncQuickcropEnabled();
-      quietCrop_ = false;
+      motion_.quietCrop = false;
       refreshButtons();
     } else {
-      quietCrop_ = false;
+      motion_.quietCrop = false;
       frameRow_->setVisible(false);
     }
     fitTabsToCurrentPage();  // after the preview settles — not the tab it's leaving
@@ -186,10 +186,10 @@ namespace stencil::gui {
     const bool has = !source().isEmpty();
     const bool video = looksLikeVideo(source());
     previewBtn_->setEnabled(has);
-    if (replace_) {
+    if (act_.replace) {
       const bool canReplaceNow = has && !isUrl() && !video;
-      replace_->setEnabled(canReplaceNow);
-      replace_->setToolTip(
+      act_.replace->setEnabled(canReplaceNow);
+      act_.replace->setToolTip(
           !has ? "Choose an image file first"
                : (isUrl() || video
                       ? "A URL or video opens as a new project (no in-place replace)"
@@ -203,12 +203,12 @@ namespace stencil::gui {
   // exact previewed pixels. Tooltips explain the state.
   void OpenImageDialog::refreshOpenEnabled() {
     const bool has = !source().isEmpty();
-    here_->setEnabled(has);
-    newWindow_->setEnabled(has);
+    act_.here->setEnabled(has);
+    act_.newWindow->setEnabled(has);
     const QString reason = "Choose an image/video file or paste a URL first";
-    here_->setToolTip(has ? "Open the chosen source in this editor (makes a new project)"
+    act_.here->setToolTip(has ? "Open the chosen source in this editor (makes a new project)"
                           : reason);
-    newWindow_->setToolTip(has ? "Open the chosen source in a new window (this editor stays)"
+    act_.newWindow->setToolTip(has ? "Open the chosen source in a new window (this editor stays)"
                                : reason);
   }
 

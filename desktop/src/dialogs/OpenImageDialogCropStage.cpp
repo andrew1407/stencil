@@ -82,7 +82,7 @@ namespace stencil::gui {
       cropAlbumDust(false);
       cropSizeCustomDust(false);
       // The rows' room comes back to the picture, if the stage had to give any up.
-      if (previewCapH_ > 0) { previewCapH_ = 0; applyPreviewFit(); }
+      if (size_.previewCapH > 0) { size_.previewCapH = 0; applyPreviewFit(); }
       if (previewIsVideo_) frameSlider_->setFixedWidth(previewLabel_->pixmap().width());
       refitWindowHeight();
       return;

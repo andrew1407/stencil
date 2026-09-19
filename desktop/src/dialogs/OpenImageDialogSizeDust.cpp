@@ -27,10 +27,10 @@ namespace stencil::gui {
   // widget on its own clock (dust + slide can be mid-flight on both rows at once).
   void OpenImageDialog::cropSizeRowDust(bool arriving) {
     QWidget* host = cropSizeRow_->parentWidget();
-    if (arriving == cropSizeRowShown_) return;
-    cropSizeRowShown_ = arriving;
-    if (!host || support::motionReduced() || quietCrop_) {
-      if (cropSizeRowAnim_) cropSizeRowAnim_->stop();
+    if (arriving == motion_.sizeRowShown) return;
+    motion_.sizeRowShown = arriving;
+    if (!host || support::motionReduced() || motion_.quietCrop) {
+      if (motion_.sizeRowAnim) motion_.sizeRowAnim->stop();
       cropSizeRow_->setMinimumHeight(0);
       cropSizeRow_->setMaximumHeight(QWIDGETSIZE_MAX);
       cropSizeRow_->setVisible(arriving);
@@ -58,13 +58,13 @@ namespace stencil::gui {
     veil->setOpacity(0.0);
     cropSizeRow_->setGraphicsEffect(veil);
     QPointer<QWidget> row(cropSizeRow_);
-    const int gen = dustGen_;
+    const int gen = motion_.gen;
     QTimer::singleShot(0, row, [this, row, veil, shot, chipCloud, gen] {
       const auto lift = [row, veil] {
         if (row && row->graphicsEffect() == veil) row->setGraphicsEffect(nullptr);
       };
       if (!row) return;
-      if (gen != dustGen_) { lift(); return; }
+      if (gen != motion_.gen) { lift(); return; }
       DisintegrateOverlay* fx = shot.isNull()
           ? nullptr : chipCloud(row, shot, DisintegrateOverlay::Sweep::GATHER);
       if (!fx) { lift(); return; }
@@ -72,8 +72,8 @@ namespace stencil::gui {
       const auto follow = [fx, row, under] {
         if (row && under) fx->move(row->mapTo(under, QPoint()));
       };
-      if (cropSizeRowAnim_) connect(cropSizeRowAnim_, &QVariantAnimation::valueChanged, fx, follow);
-      if (heightAnim_) connect(heightAnim_, &QVariantAnimation::valueChanged, fx, follow);
+      if (motion_.sizeRowAnim) connect(motion_.sizeRowAnim, &QVariantAnimation::valueChanged, fx, follow);
+      if (size_.anim) connect(size_.anim, &QVariantAnimation::valueChanged, fx, follow);
       QTimer::singleShot(int(CHIP_DUST_MS * FILTER_DUST_VEIL_STOP), row, lift);
     });
   }
@@ -90,26 +90,26 @@ namespace stencil::gui {
       cropSizeRow_->setMinimumHeight(h);
       cropSizeRow_->setMaximumHeight(h);
     };
-    if (!cropSizeRowAnim_) {
-      cropSizeRowAnim_ = new QVariantAnimation(this);
-      cropSizeRowAnim_->setDuration(OI_RESIZE_MS);
-      cropSizeRowAnim_->setEasingCurve(QEasingCurve::OutCubic);
-      connect(cropSizeRowAnim_, &QVariantAnimation::valueChanged, this,
+    if (!motion_.sizeRowAnim) {
+      motion_.sizeRowAnim = new QVariantAnimation(this);
+      motion_.sizeRowAnim->setDuration(OI_RESIZE_MS);
+      motion_.sizeRowAnim->setEasingCurve(QEasingCurve::OutCubic);
+      connect(motion_.sizeRowAnim, &QVariantAnimation::valueChanged, this,
               [pin](const QVariant& v) { pin(v.toInt()); });
-      connect(cropSizeRowAnim_, &QVariantAnimation::finished, this, [this] {
-        const bool shown = cropSizeRowAnim_->endValue().toInt() > 0;
+      connect(motion_.sizeRowAnim, &QVariantAnimation::finished, this, [this] {
+        const bool shown = motion_.sizeRowAnim->endValue().toInt() > 0;
         cropSizeRow_->setMinimumHeight(0);
         cropSizeRow_->setMaximumHeight(shown ? QWIDGETSIZE_MAX : 0);
         cropSizeRow_->setVisible(shown);
       });
     }
-    cropSizeRowAnim_->stop();
-    cropSizeRowAnim_->setStartValue(from);
-    cropSizeRowAnim_->setEndValue(show ? full : 0);
+    motion_.sizeRowAnim->stop();
+    motion_.sizeRowAnim->setStartValue(from);
+    motion_.sizeRowAnim->setEndValue(show ? full : 0);
     pin(show ? full : 0);
-    QTimer::singleShot(0, cropSizeRowAnim_, [this] {
-      if (cropSizeRowAnim_ && cropSizeRowAnim_->state() != QAbstractAnimation::Running)
-        cropSizeRowAnim_->start();
+    QTimer::singleShot(0, motion_.sizeRowAnim, [this] {
+      if (motion_.sizeRowAnim && motion_.sizeRowAnim->state() != QAbstractAnimation::Running)
+        motion_.sizeRowAnim->start();
     });
   }
 
@@ -117,16 +117,16 @@ namespace stencil::gui {
   // checkbox+caption, so unlike the two rows above it has no height of its own to slide:
   // just the same chip cloud. Browser twin: openImageModal.js's dust-only toggle.
   //
-  // Both directions FOLLOW heightAnim_: the button's own row (quickcropRow_) moves as the
+  // Both directions FOLLOW size_.anim: the button's own row (quickcropRow_) moves as the
   // window eases around the stage growing/shrinking above it, and a cloud raised once at
   // the button's STARTING position — the row's own row above it never moves this one —
   // was left behind mid-flight, stranded wherever the row happened to be at that instant
   // (measured: floating over the STAGE, well above the row it was meant to read as).
   void OpenImageDialog::cropAlbumDust(bool arriving) {
-    if (arriving == cropAlbumShown_) return;
-    cropAlbumShown_ = arriving;
+    if (arriving == motion_.albumShown) return;
+    motion_.albumShown = arriving;
     QWidget* host = cropAlbum_->parentWidget();
-    if (!host || support::motionReduced() || quietCrop_) {
+    if (!host || support::motionReduced() || motion_.quietCrop) {
       cropAlbum_->setVisible(arriving);
       return;
     }
@@ -140,7 +140,7 @@ namespace stencil::gui {
                                               sweep, cols, rows, CHIP_DUST_MS, CHIP_DUST_DRIFT);
     };
     QPointer<QPushButton> btn(cropAlbum_);
-    const int gen = dustGen_;
+    const int gen = motion_.gen;
     if (!arriving) {
       // SYNCHRONOUS, like cropDims_'s own pin(0): syncCropStage() measures the window's
       // wanted height in THIS SAME call, right after this returns — a button still
@@ -151,9 +151,9 @@ namespace stencil::gui {
       cropAlbum_->setVisible(false);
       if (!shot.isNull()) {
         DisintegrateOverlay* fx = chipCloud(cropAlbum_, shot, DisintegrateOverlay::Sweep::FALL);
-        if (fx && heightAnim_) {
+        if (fx && size_.anim) {
           const auto follow = [fx, btn, host] { if (btn && host) fx->move(btn->mapTo(host, QPoint())); };
-          connect(heightAnim_, &QVariantAnimation::valueChanged, fx, follow);
+          connect(size_.anim, &QVariantAnimation::valueChanged, fx, follow);
         }
       }
       return;
@@ -169,11 +169,11 @@ namespace stencil::gui {
         if (btn && btn->graphicsEffect() == veil) btn->setGraphicsEffect(nullptr);
       };
       if (!btn) return;
-      if (gen != dustGen_ || shot.isNull()) { lift(); return; }
+      if (gen != motion_.gen || shot.isNull()) { lift(); return; }
       DisintegrateOverlay* fx = chipCloud(btn, shot, DisintegrateOverlay::Sweep::GATHER);
       if (!fx) { lift(); return; }
       const auto follow = [fx, btn, host] { if (btn && host) fx->move(btn->mapTo(host, QPoint())); };
-      if (heightAnim_) connect(heightAnim_, &QVariantAnimation::valueChanged, fx, follow);
+      if (size_.anim) connect(size_.anim, &QVariantAnimation::valueChanged, fx, follow);
       QTimer::singleShot(int(CHIP_DUST_MS * FILTER_DUST_VEIL_STOP), btn, lift);
     });
   }
@@ -183,10 +183,10 @@ namespace stencil::gui {
   // Browser twin: openImageModal.js's syncCropSizeCustom.
   void OpenImageDialog::cropSizeCustomDust(bool arriving) {
     QWidget* host = cropSizeCustomGroup_->parentWidget();
-    if (arriving == cropSizeCustomShown_) return;
-    cropSizeCustomShown_ = arriving;
-    if (!host || support::motionReduced() || quietCrop_) {
-      if (cropSizeCustomAnim_) cropSizeCustomAnim_->stop();
+    if (arriving == motion_.sizeCustomShown) return;
+    motion_.sizeCustomShown = arriving;
+    if (!host || support::motionReduced() || motion_.quietCrop) {
+      if (motion_.sizeCustomAnim) motion_.sizeCustomAnim->stop();
       cropSizeCustomGroup_->setMinimumHeight(0);
       cropSizeCustomGroup_->setMaximumHeight(QWIDGETSIZE_MAX);
       cropSizeCustomGroup_->setVisible(arriving);
@@ -214,13 +214,13 @@ namespace stencil::gui {
     veil->setOpacity(0.0);
     cropSizeCustomGroup_->setGraphicsEffect(veil);
     QPointer<QWidget> row(cropSizeCustomGroup_);
-    const int gen = dustGen_;
+    const int gen = motion_.gen;
     QTimer::singleShot(0, row, [this, row, veil, shot, chipCloud, gen] {
       const auto lift = [row, veil] {
         if (row && row->graphicsEffect() == veil) row->setGraphicsEffect(nullptr);
       };
       if (!row) return;
-      if (gen != dustGen_) { lift(); return; }
+      if (gen != motion_.gen) { lift(); return; }
       DisintegrateOverlay* fx = shot.isNull()
           ? nullptr : chipCloud(row, shot, DisintegrateOverlay::Sweep::GATHER);
       if (!fx) { lift(); return; }
@@ -228,8 +228,8 @@ namespace stencil::gui {
       const auto follow = [fx, row, under] {
         if (row && under) fx->move(row->mapTo(under, QPoint()));
       };
-      if (cropSizeCustomAnim_) connect(cropSizeCustomAnim_, &QVariantAnimation::valueChanged, fx, follow);
-      if (heightAnim_) connect(heightAnim_, &QVariantAnimation::valueChanged, fx, follow);
+      if (motion_.sizeCustomAnim) connect(motion_.sizeCustomAnim, &QVariantAnimation::valueChanged, fx, follow);
+      if (size_.anim) connect(size_.anim, &QVariantAnimation::valueChanged, fx, follow);
       QTimer::singleShot(int(CHIP_DUST_MS * FILTER_DUST_VEIL_STOP), row, lift);
     });
   }
@@ -246,26 +246,26 @@ namespace stencil::gui {
       cropSizeCustomGroup_->setMinimumHeight(h);
       cropSizeCustomGroup_->setMaximumHeight(h);
     };
-    if (!cropSizeCustomAnim_) {
-      cropSizeCustomAnim_ = new QVariantAnimation(this);
-      cropSizeCustomAnim_->setDuration(OI_RESIZE_MS);
-      cropSizeCustomAnim_->setEasingCurve(QEasingCurve::OutCubic);
-      connect(cropSizeCustomAnim_, &QVariantAnimation::valueChanged, this,
+    if (!motion_.sizeCustomAnim) {
+      motion_.sizeCustomAnim = new QVariantAnimation(this);
+      motion_.sizeCustomAnim->setDuration(OI_RESIZE_MS);
+      motion_.sizeCustomAnim->setEasingCurve(QEasingCurve::OutCubic);
+      connect(motion_.sizeCustomAnim, &QVariantAnimation::valueChanged, this,
               [pin](const QVariant& v) { pin(v.toInt()); });
-      connect(cropSizeCustomAnim_, &QVariantAnimation::finished, this, [this] {
-        const bool shown = cropSizeCustomAnim_->endValue().toInt() > 0;
+      connect(motion_.sizeCustomAnim, &QVariantAnimation::finished, this, [this] {
+        const bool shown = motion_.sizeCustomAnim->endValue().toInt() > 0;
         cropSizeCustomGroup_->setMinimumHeight(0);
         cropSizeCustomGroup_->setMaximumHeight(shown ? QWIDGETSIZE_MAX : 0);
         cropSizeCustomGroup_->setVisible(shown);
       });
     }
-    cropSizeCustomAnim_->stop();
-    cropSizeCustomAnim_->setStartValue(from);
-    cropSizeCustomAnim_->setEndValue(show ? full : 0);
+    motion_.sizeCustomAnim->stop();
+    motion_.sizeCustomAnim->setStartValue(from);
+    motion_.sizeCustomAnim->setEndValue(show ? full : 0);
     pin(show ? full : 0);
-    QTimer::singleShot(0, cropSizeCustomAnim_, [this] {
-      if (cropSizeCustomAnim_ && cropSizeCustomAnim_->state() != QAbstractAnimation::Running)
-        cropSizeCustomAnim_->start();
+    QTimer::singleShot(0, motion_.sizeCustomAnim, [this] {
+      if (motion_.sizeCustomAnim && motion_.sizeCustomAnim->state() != QAbstractAnimation::Running)
+        motion_.sizeCustomAnim->start();
     });
   }
 

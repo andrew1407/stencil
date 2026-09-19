@@ -54,63 +54,63 @@ namespace stencil::gui {
   void OpenImageDialog::setupScrubPlayer(const QUrl& url) {
     teardownScrubPlayer();
     if (url.isEmpty()) return;
-    scrubPlayer_ = new QMediaPlayer(this);
-    scrubAudio_ = new QAudioOutput(this);
-    scrubAudio_->setMuted(true);
-    scrubPlayer_->setAudioOutput(scrubAudio_);
-    scrubSink_ = new QVideoSink(this);
-    scrubPlayer_->setVideoSink(scrubSink_);
-    connect(scrubSink_, &QVideoSink::videoFrameChanged, this, &OpenImageDialog::onScrubFrame);
-    connect(scrubPlayer_, &QMediaPlayer::mediaStatusChanged, this,
+    scrub_.player = new QMediaPlayer(this);
+    scrub_.audio = new QAudioOutput(this);
+    scrub_.audio->setMuted(true);
+    scrub_.player->setAudioOutput(scrub_.audio);
+    scrub_.sink = new QVideoSink(this);
+    scrub_.player->setVideoSink(scrub_.sink);
+    connect(scrub_.sink, &QVideoSink::videoFrameChanged, this, &OpenImageDialog::onScrubFrame);
+    connect(scrub_.player, &QMediaPlayer::mediaStatusChanged, this,
             [this](QMediaPlayer::MediaStatus s) {
               if (s == QMediaPlayer::LoadedMedia || s == QMediaPlayer::BufferedMedia)
                 seekScrub(frame_->value());  // render the current frame once ready
             });
-    scrubPlayer_->setSource(url);
+    scrub_.player->setSource(url);
   }
 
   void OpenImageDialog::teardownScrubPlayer() {
-    scrubPending_ = false;
-    if (scrubPlayer_) {
-      scrubPlayer_->stop();
-      scrubPlayer_->setVideoSink(nullptr);
-      scrubPlayer_->deleteLater();
-      scrubPlayer_ = nullptr;
+    scrub_.pending = false;
+    if (scrub_.player) {
+      scrub_.player->stop();
+      scrub_.player->setVideoSink(nullptr);
+      scrub_.player->deleteLater();
+      scrub_.player = nullptr;
     }
-    if (scrubSink_) {
-      scrubSink_->deleteLater();
-      scrubSink_ = nullptr;
+    if (scrub_.sink) {
+      scrub_.sink->deleteLater();
+      scrub_.sink = nullptr;
     }
-    if (scrubAudio_) {
-      scrubAudio_->deleteLater();
-      scrubAudio_ = nullptr;
+    if (scrub_.audio) {
+      scrub_.audio->deleteLater();
+      scrub_.audio = nullptr;
     }
   }
 
   // Seek the persistent player to a frame. Playback is briefly required for the sink
   // to emit a frame at the new position; onScrubFrame() grabs it and pauses.
   void OpenImageDialog::seekScrub(int frame) {
-    if (!scrubPlayer_) return;
-    const double fps = scrubFps_ > 0 ? scrubFps_ : 30.0;
-    scrubTargetMs_ = static_cast<qint64>(frame / fps * 1000.0 + 0.5);
-    if (scrubDurationMs_ > 0)
-      scrubTargetMs_ = std::min(scrubTargetMs_, std::max<qint64>(0, scrubDurationMs_ - 1));
-    scrubPending_ = true;
-    scrubPlayer_->setPosition(scrubTargetMs_);
-    scrubPlayer_->play();
+    if (!scrub_.player) return;
+    const double fps = scrub_.fps > 0 ? scrub_.fps : 30.0;
+    scrub_.targetMs = static_cast<qint64>(frame / fps * 1000.0 + 0.5);
+    if (scrub_.durationMs > 0)
+      scrub_.targetMs = std::min(scrub_.targetMs, std::max<qint64>(0, scrub_.durationMs - 1));
+    scrub_.pending = true;
+    scrub_.player->setPosition(scrub_.targetMs);
+    scrub_.player->play();
   }
 
   // A frame rendered by the scrub player: once playback reaches the seek target, grab
   // it, pause, and show it (unless the embedded preview image is the chosen source).
   void OpenImageDialog::onScrubFrame(const QVideoFrame& frame) {
-    if (!scrubPending_ || !frame.isValid()) return;
-    if (scrubTargetMs_ > 0 && scrubPlayer_ &&
-        scrubPlayer_->position() + 60 < scrubTargetMs_)
+    if (!scrub_.pending || !frame.isValid()) return;
+    if (scrub_.targetMs > 0 && scrub_.player &&
+        scrub_.player->position() + 60 < scrub_.targetMs)
       return;  // still streaming up to the seek point — wait for the target frame
     const QImage img = frame.toImage();
     if (img.isNull()) return;
-    scrubPending_ = false;
-    if (scrubPlayer_) scrubPlayer_->pause();
+    scrub_.pending = false;
+    if (scrub_.player) scrub_.player->pause();
     frameImage_ = img.copy();
     if (previewIsVideo_) updateVideoPreview();
   }

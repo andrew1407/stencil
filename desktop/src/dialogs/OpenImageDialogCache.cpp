@@ -32,21 +32,21 @@ namespace stencil::gui {
   // A QScrollArea's sizeHint is a fixed default saying nothing about what it holds, so the
   // window is sized from the CONTENT, swapped in for the viewport's height.
   int OpenImageDialog::wantedHeight() const {
-    if (!bodyScroll_ || !bodyContent_) return sizeHint().height();
+    if (!size_.bodyScroll || !size_.bodyContent) return sizeHint().height();
     // sizeHint() alone asks a height-for-width child (a wrapping caption, nested two
     // QHBoxLayouts deep under checkCaptionRow) for its height at whatever width IT would
     // prefer, not the one it actually gets here — a pessimistic, too-tall guess (measured
     // 12px, a whole row's worth of blank space at the bottom). heightForWidth(), asked at
     // the REAL width, is the number the layout actually settles at.
-    QLayout* cl = bodyContent_->layout();
+    QLayout* cl = size_.bodyContent->layout();
     // Before the dialog's REAL width is ever established (showEvent's own first-show
-    // measurement runs before that), bodyContent_ can still report a tiny transient
+    // measurement runs before that), size_.bodyContent can still report a tiny transient
     // width — heightForWidth() at THAT width wraps every caption to several lines and
-    // wildly overshoots, poisoning floorH_ for the dialog's whole lifetime.
-    const int contentH = cl && cl->hasHeightForWidth() && bodyContent_->width() >= PREVIEW_MAX_W
-        ? cl->totalHeightForWidth(bodyContent_->width())
-        : bodyContent_->sizeHint().height();
-    return height() - bodyScroll_->height() + contentH;
+    // wildly overshoots, poisoning size_.floorH for the dialog's whole lifetime.
+    const int contentH = cl && cl->hasHeightForWidth() && size_.bodyContent->width() >= PREVIEW_MAX_W
+        ? cl->totalHeightForWidth(size_.bodyContent->width())
+        : size_.bodyContent->sizeHint().height();
+    return height() - size_.bodyScroll->height() + contentH;
   }
 
   // A QTabWidget's pane is as tall as its TALLEST page, so the one-row File/URL tabs
@@ -81,14 +81,14 @@ namespace stencil::gui {
     // A QScrollArea holds its content through the viewport, NOT as an item of the dialog's
     // layout — so the walk below never reaches it, and the stale hints of the one subtree
     // the window is actually measured from are the ones left uncleared.
-    if (bodyContent_) {
-      invalidateTree(bodyContent_->layout());
-      bodyContent_->updateGeometry();
-      if (QLayout* cl = bodyContent_->layout()) cl->activate();
+    if (size_.bodyContent) {
+      invalidateTree(size_.bodyContent->layout());
+      size_.bodyContent->updateGeometry();
+      if (QLayout* cl = size_.bodyContent->layout()) cl->activate();
     }
     invalidateTree(l);
     l->activate();
-    int h = std::max(wantedHeight(), floorH_);
+    int h = std::max(wantedHeight(), size_.floorH);
     // Never taller than the screen: past it the picture gives up the excess first
     // (shrinkPreviewToFit), and only a picture already at its floor leaves the body scrolling.
     if (QScreen* scr = screen()) {
@@ -103,11 +103,11 @@ namespace stencil::gui {
   // execMaybePopover set, and never past the bottom of the window they sit in.
   void OpenImageDialog::growPopoverToContent() {
     QWidget* overlay = parentWidget();
-    if (!overlay || !bodyScroll_ || !bodyContent_) return;
+    if (!overlay || !size_.bodyScroll || !size_.bodyContent) return;
     // The content's own hint, re-measured: stale, the popover never gives a picture's room
     // back when the tab that showed it is left.
-    if (QLayout* cl = bodyContent_->layout()) { cl->invalidate(); cl->activate(); }
-    bodyContent_->updateGeometry();
+    if (QLayout* cl = size_.bodyContent->layout()) { cl->invalidate(); cl->activate(); }
+    size_.bodyContent->updateGeometry();
     const int cap = maximumHeight();
     int want = std::min(wantedHeight(), cap);
     if (QWidget* host = overlay->parentWidget())
@@ -123,8 +123,8 @@ namespace stencil::gui {
   // time we are asked — starting from height() played nothing at all (browser twin:
   // easeBoxHeight's pinned `shown`; support/easeWindowHeight.hpp carries the same note).
   void OpenImageDialog::animateHeightTo(int h) {
-    const bool flying = heightAnim_ && heightAnim_->state() == QAbstractAnimation::Running;
-    const int start = flying || shownH_ <= 0 ? height() : shownH_;
+    const bool flying = size_.anim && size_.anim->state() == QAbstractAnimation::Running;
+    const int start = flying || size_.shownH <= 0 ? height() : size_.shownH;
     if (start == h && height() == h) return;
     if (support::motionReduced() || !isVisible()) {
       setHeightNow(h);
@@ -133,30 +133,30 @@ namespace stencil::gui {
     // …and a resize is clamped by that minimum AND by the one already propagated to the
     // window, so both stand down for the flight. Mid-flight the rows are clipped by the
     // shorter window, which IS the reveal (the browser's .app-modal clips the same way —
-    // via overflow: hidden, never a scrollbar). bodyContent_'s LAYOUT, though, reflows to
+    // via overflow: hidden, never a scrollbar). size_.bodyContent's LAYOUT, though, reflows to
     // its new natural height at once, a whole animation ahead of the window catching up —
-    // for that stretch bodyScroll_ genuinely holds more than its own (still small) viewport,
+    // for that stretch size_.bodyScroll genuinely holds more than its own (still small) viewport,
     // and AsNeeded's bar popping in, then out, is its own width-jump on top of the ease.
     if (QLayout* l = layout()) l->setSizeConstraint(QLayout::SetNoConstraint);
     setMinimumHeight(0);
-    if (bodyScroll_) bodyScroll_->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    if (size_.bodyScroll) size_.bodyScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     if (height() != start) setHeightNow(start);
-    if (!heightAnim_) {
-      heightAnim_ = new QVariantAnimation(this);
-      heightAnim_->setDuration(OI_RESIZE_MS);
-      heightAnim_->setEasingCurve(QEasingCurve::OutCubic);
-      connect(heightAnim_, &QVariantAnimation::valueChanged, this,
+    if (!size_.anim) {
+      size_.anim = new QVariantAnimation(this);
+      size_.anim->setDuration(OI_RESIZE_MS);
+      size_.anim->setEasingCurve(QEasingCurve::OutCubic);
+      connect(size_.anim, &QVariantAnimation::valueChanged, this,
               [this](const QVariant& v) { setHeightNow(v.toInt()); });
-      connect(heightAnim_, &QVariantAnimation::finished, this, [this] {
+      connect(size_.anim, &QVariantAnimation::finished, this, [this] {
         if (QLayout* l = layout()) l->setSizeConstraint(QLayout::SetDefaultConstraint);
         // Back on: a picture tall enough to run the dialog past the screen still needs it.
-        if (bodyScroll_) bodyScroll_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        if (size_.bodyScroll) size_.bodyScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
       });
     }
-    heightAnim_->stop();
-    heightAnim_->setStartValue(start);
-    heightAnim_->setEndValue(h);
-    heightAnim_->start();
+    size_.anim->stop();
+    size_.anim->setStartValue(start);
+    size_.anim->setEndValue(h);
+    size_.anim->start();
   }
 
   // As a popover the panel is framed by an overlay of the same height: the two move as one,
@@ -165,7 +165,7 @@ namespace stencil::gui {
     if (!isWindow())
       if (QWidget* overlay = parentWidget()) overlay->resize(overlay->width(), h);
     resize(width(), h);
-    shownH_ = h;   // where the next flight starts from
+    size_.shownH = h;   // where the next flight starts from
     clampToScreen();
   }
 
@@ -194,8 +194,8 @@ namespace stencil::gui {
     c.previewImage = previewImage_;
     c.frameImage = frameImage_;
     c.hint = hint;
-    c.scrubFps = scrubFps_;
-    c.scrubDurationMs = scrubDurationMs_;
+    c.scrubFps = scrub_.fps;
+    c.scrubDurationMs = scrub_.durationMs;
     c.resolvedUrl = preview_->resolvedUrl();
   }
 
@@ -204,12 +204,12 @@ namespace stencil::gui {
   // static frame is what the user actually left the tab looking at.
   bool OpenImageDialog::restoreTabPreview(const TabPreviewCache& cache) {
     if (!cache.valid) return false;
-    restoring_ = true;
+    motion_.restoring = true;
     previewedSource_ = cache.source;
     previewIsVideo_ = cache.isVideo;
     frameImage_ = cache.frameImage;
-    scrubFps_ = cache.scrubFps;
-    scrubDurationMs_ = cache.scrubDurationMs;
+    scrub_.fps = cache.scrubFps;
+    scrub_.durationMs = cache.scrubDurationMs;
     quickcropRow_->setVisible(true);   // before the refit below, as showQuickcrop does
     if (previewIsVideo_) {
       frameRow_->setVisible(true);
@@ -222,7 +222,7 @@ namespace stencil::gui {
       frameRow_->setVisible(false);
       showPreview(cache.previewImage, cache.hint);
     }
-    restoring_ = false;
+    motion_.restoring = false;
     refreshOpenEnabled();
     return true;
   }
