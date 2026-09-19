@@ -91,8 +91,7 @@ func TestProjectExpiryHTTP(t *testing.T) {
 	}
 }
 
-// TestCreateProjectDefaultTTLHTTP checks that when the operator sets a default
-// PROJECT_TTL, a create with no explicit expiry is stamped now+TTL, while a create
+// With a default PROJECT_TTL set, a create with no explicit expiry is stamped now+TTL while a create
 // that names its own expiry keeps it.
 func TestCreateProjectDefaultTTLHTTP(t *testing.T) {
 	fs, err := filestore.New(t.TempDir())
@@ -120,9 +119,8 @@ func TestCreateProjectDefaultTTLHTTP(t *testing.T) {
 	}
 }
 
-// TestProjectColorHTTP round-trips the per-project color over REST without a
-// database (the mockStore mirrors the COALESCE semantics): create with a color,
-// update it, and clear it with an explicit empty string.
+// Round-trips the per-project color over REST without a database (the mockStore mirrors the COALESCE
+// semantics): create with a color, update it, and clear it with an explicit empty string.
 func TestProjectColorHTTP(t *testing.T) {
 	api, _ := testAPI(t, "")
 	tok := issueToken(t, api, "")
@@ -188,9 +186,8 @@ func TestAnyClientCanReadEditList(t *testing.T) {
 	}
 }
 
-// TestCreateRejectsImagelessProject pins the domain rule: a project is created FROM an
-// image, so a create request that doesn't declare one (HasImage=false) is refused (400)
-// and no project row comes into being. A create that declares an image succeeds.
+// A project is created FROM an image, so a create that doesn't declare one (HasImage=false) is refused
+// with 400 and no project row comes into being.
 func TestCreateRejectsImagelessProject(t *testing.T) {
 	api, _ := testAPI(t, "")
 	tok := issueToken(t, api, "")

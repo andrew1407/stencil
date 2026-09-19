@@ -15,9 +15,8 @@ type ProjectStore interface {
 	DeleteProject(ctx context.Context, id string) error
 }
 
-// ProjectFiles is the byte side of a project's whole lifetime; UploadFiles the
-// byte side of one upload. Split so a caller with only one of the two jobs (the
-// expiry sweep) need not fake the other. *filestore.Store satisfies both.
+// ProjectFiles is the byte side of a project's whole lifetime, UploadFiles the byte side of one upload:
+// split so a caller with only one of the two jobs (the expiry sweep) need not fake the other.
 type ProjectFiles interface {
 	Remove(id string) error
 }

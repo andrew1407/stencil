@@ -12,10 +12,8 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// fanout delivers a bus message to local members. Edit/cursor/presence frames
-// are not echoed to their originator; lifecycle/ack frames go to everyone. The
-// envelope carries the two fields routing needs, so the frame is never parsed
-// here — at 10 peers relaying cursors that was 300 wasted unmarshals a second.
+// fanout delivers a bus message to local members: edit/cursor/presence are not echoed to their originator,
+// lifecycle/ack go to everyone. The envelope carries the routing fields, so no frame is parsed here.
 func (s *session) fanout(env eventbus.Envelope) {
 	for id, m := range s.members {
 		if echoSuppressed(env.Type) && id == env.From {
@@ -29,9 +27,8 @@ func echoSuppressed(t string) bool {
 	return t == protocol.WSEdit || t == protocol.WSCursor || t == protocol.WSPresence
 }
 
-// publish marshals msg and posts it to this project's bus channel; the
-// subscription loops it back to fanout (including this instance), which is the
-// single delivery path to local members.
+// publish marshals msg and posts it to this project's bus channel; the subscription loops it back to
+// fanout (including this instance), the single delivery path to local members.
 func (s *session) publish(msg protocol.WSMessage) {
 	if data, err := json.Marshal(msg); err == nil {
 		if err := s.hub.bus.Publish(s.hub.ctx, eventbus.ProjectChannel(s.id), eventbus.EnvelopeOf(msg, data)); err != nil {

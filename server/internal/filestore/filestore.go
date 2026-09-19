@@ -87,10 +87,8 @@ func (s *Store) GetByRelPath(rel string) ([]byte, error) {
 	return data, err
 }
 
-// FindByKind returns the store-relative path of the file held for (id, kind),
-// whatever its extension. It owns the "<kind>.<ext>" naming invariant together
-// with Put (whose stale-extension cleanup guarantees at most one file per
-// kind). Missing files yield ErrNotFound.
+// FindByKind returns the store-relative path held for (id, kind), whatever its extension; it owns the
+// "<kind>.<ext>" naming invariant together with Put. Missing files yield ErrNotFound.
 func (s *Store) FindByKind(id, kind string) (string, error) {
 	dir, err := s.projectDir(id)
 	if err != nil {
@@ -117,9 +115,8 @@ func (s *Store) FindByKind(id, kind string) (string, error) {
 	return "", ErrNotFound
 }
 
-// OpenByRelPath opens the file at a previously recorded store-relative path for
-// streaming reads (e.g. http.ServeContent). The path is re-confined before
-// opening; the caller owns (and must close) the returned file.
+// OpenByRelPath opens a recorded store-relative path for streaming reads (http.ServeContent). The path
+// is re-confined before opening; the caller owns and must close the returned file.
 func (s *Store) OpenByRelPath(rel string) (*os.File, error) {
 	full, err := s.confine(filepath.FromSlash(rel))
 	if err != nil {
@@ -135,9 +132,8 @@ func (s *Store) OpenByRelPath(rel string) (*os.File, error) {
 	return f, err
 }
 
-// RemoveKind deletes the single file held for (id, kind), whatever its
-// extension. Removing a kind with no stored bytes is not an error (the delete
-// is idempotent, per llm-contract.md §9).
+// RemoveKind deletes the single file held for (id, kind), whatever its extension. Removing a kind with
+// no stored bytes is not an error (idempotent, per llm-contract.md §9).
 func (s *Store) RemoveKind(id, kind string) error {
 	rel, err := s.FindByKind(id, kind)
 	if errors.Is(err, ErrNotFound) {
@@ -206,9 +202,8 @@ func (s *Store) List(id string) ([]string, error) {
 	return out, nil
 }
 
-// guardSymlinkEscape ensures that, if any existing ancestor of full is a
-// symlink, the resolved real path still lies within the store root. This closes
-// the symlink-swap traversal gap that a pure string prefix check would miss.
+// guardSymlinkEscape ensures that if any existing ancestor of full is a symlink, the resolved real path
+// still lies within the store root — the symlink-swap gap a string prefix check would miss.
 func (s *Store) guardSymlinkEscape(full string) error {
 	dir := filepath.Dir(full)
 	resolved, err := filepath.EvalSymlinks(dir)

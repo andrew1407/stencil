@@ -12,9 +12,8 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// Migrate applies every embedded migration in lexical order. Each migration is
-// written to be idempotent (CREATE TABLE IF NOT EXISTS), so re-running at every
-// boot is safe and no migration-version table is required for this small schema.
+// Migrate applies every embedded migration in lexical order. Each is idempotent (CREATE TABLE IF NOT
+// EXISTS), so re-running at every boot is safe and this small schema needs no version table.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	entries, err := migrationsFS.ReadDir("migrations")
 	if err != nil {

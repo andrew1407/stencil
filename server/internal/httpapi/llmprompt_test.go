@@ -10,10 +10,8 @@ import (
 	"testing"
 )
 
-// Drift check: the embedded copy must stay byte-identical to the canonical
-// asset browser/js/config/llm/systemPrompt.json, and the heads cut from it must
-// stay exact byte prefixes of it. go:embed can't cross the module boundary, so
-// the canonical file is read at test time (pystencil does the same).
+// Drift check against canonical browser/js/config/llm/systemPrompt.json: the embedded copy must stay
+// byte-identical and the heads exact prefixes. go:embed can't cross the module boundary, so it is read here.
 func TestPromptHeadsPinCanonicalAsset(t *testing.T) {
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {

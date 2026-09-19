@@ -16,13 +16,8 @@ import (
 	"stencil/server/internal/store"
 )
 
-// handleGetFile streams a project file's bytes. For original/result the stored
-// path (and thus the extension) is read from the project record; video/variant
-// kinds are filestore-only in v1 (llm-contract.md §9), so their path is
-// resolved by the filestore's own kind lookup. No client-supplied filename is
-// ever involved. Bytes are served via http.ServeContent over the confined
-// *os.File, so large files (video) stream instead of being read fully into
-// memory per request, and Range requests work for free.
+// handleGetFile streams a project file: original/result take their path from the project record, the
+// filestore-only kinds (§9) from the filestore's own kind lookup. ServeContent gives Range for free.
 func (a *API) handleGetFile(rw http.ResponseWriter, req *http.Request) {
 	id := req.PathValue("id")
 	kind := req.PathValue("kind")
@@ -85,10 +80,8 @@ type fileLookup struct {
 	relErr error
 }
 
-// lookupFile reads the project row and, for a filestore-only kind, the stored
-// path — concurrently, because only original/result take their path from the row.
-// The row is still read for every kind: a missing project must answer 404 even
-// when its bytes are on disk, so recErr outranks relErr at the call site.
+// lookupFile reads the project row and, for a filestore-only kind, the stored path concurrently. The row
+// is read for every kind: a missing project must answer 404, so recErr outranks relErr at the call site.
 func (a *API) lookupFile(ctx context.Context, id, kind string) fileLookup {
 	var (
 		out fileLookup
@@ -110,11 +103,8 @@ func (a *API) lookupFile(ctx context.Context, id, kind string) fileLookup {
 	return out
 }
 
-// handlePutFile stores raw image bytes for a project. The extension and (for
-// originals) the pixel dimensions are passed as query params, since the server
-// is codec-free and never decodes images — clients render and measure. The
-// three-step, two-store write itself (and the compensating deletes that undo a
-// half-done one) is the service's saga.
+// handlePutFile stores raw image bytes; the extension and (for originals) the pixel dimensions arrive as
+// query params, since the server is codec-free and never decodes images — clients render and measure.
 func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
 	id := req.PathValue("id")
 	kind := req.PathValue("kind")
@@ -144,11 +134,8 @@ func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
 	writeJSON(rw, http.StatusCreated, resp)
 }
 
-// handleDeleteFile removes the stored bytes for a filestore-only kind
-// (video/variantN/chat — llm-contract.md §9). original/result are part of
-// the project record and are only removed with the project, so deleting them
-// here is rejected. Deleting a kind with no stored bytes still answers 204
-// (idempotent), and a file delete never bumps the project version.
+// handleDeleteFile removes the bytes of a filestore-only kind (video/variantN/chat — §9); original/result
+// belong to the project record and are rejected. An absent kind still answers 204, and no version bumps.
 func (a *API) handleDeleteFile(rw http.ResponseWriter, req *http.Request) {
 	id := req.PathValue("id")
 	kind := req.PathValue("kind")

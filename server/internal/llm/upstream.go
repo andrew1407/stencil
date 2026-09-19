@@ -34,9 +34,8 @@ const maxUpstreamDetail = 200
 // all — the body cap is 8 MiB and none of it is trusted.
 const scanUpstreamDetail = 4 * maxUpstreamDetail
 
-// reasons are the per-kind phrasings, in the terms the user thinks in. For a
-// recognised kind the reason is the WHOLE client message (contract §6.3, "Say the
-// reason once"), so each one is a single clause that reads on its own.
+// reasons are the per-kind phrasings. For a recognised kind the reason is the WHOLE client message
+// (contract §6.3, "Say the reason once"), so each is a single clause that reads on its own.
 var reasons = map[UpstreamKind]string{
 	KindCredits:    "the LLM provider is out of credits or has no active billing",
 	KindAuth:       "the LLM provider rejected the API key",
@@ -80,12 +79,8 @@ func (e *UpstreamError) Error() string {
 
 func (e *UpstreamError) Unwrap() error { return e.Err }
 
-// ClientMessage is the sanitized, actionable reason clients render. A recognised
-// condition is said ONCE — the bare reason, no status and none of the upstream's
-// prose, which only restates it at four times the length. Only an unrecognised
-// failure carries the upstream's own short text plus its status, since there the
-// provider's words are the only information there is; that text is bounded,
-// control-character free and secret-free.
+// ClientMessage is the sanitized, actionable reason clients render: a recognised condition is said ONCE,
+// the bare reason. Only an unrecognised failure carries the upstream's own bounded text plus its status.
 func (e *UpstreamError) ClientMessage() string {
 	if msg, ok := reasons[e.Kind]; ok && e.Kind != KindUnknown {
 		return msg
@@ -103,10 +98,8 @@ func (e *UpstreamError) ClientMessage() string {
 	return msg
 }
 
-// classifyUpstream maps an upstream reply onto a kind. The provider's own error
-// type/code field and the HTTP status are checked before any string matching, so
-// this is not Anthropic-specific: Anthropic sends {error:{type}}, OpenAI-compat
-// sends {error:{type,code}}, Ollama sends only {"error":"…"} plus a status.
+// classifyUpstream maps an upstream reply onto a kind. The provider's own error type/code and the HTTP
+// status are checked before any string matching, so this is not Anthropic-specific.
 func classifyUpstream(status int, errType, message string) UpstreamKind {
 	t := strings.ToLower(errType)
 	m := strings.ToLower(message)

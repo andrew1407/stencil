@@ -159,9 +159,8 @@ func TestChatNonJSONErrorBody(t *testing.T) {
 	}
 }
 
-// TestChatOversizedResponseRejected pins the response-body cap: a broken or
-// hostile upstream (LLM_BASE_URL is configurable) must not be able to make the
-// client buffer unbounded bytes.
+// The response-body cap: a broken or hostile upstream (LLM_BASE_URL is configurable) must not be able to
+// make the client buffer unbounded bytes.
 func TestChatOversizedResponseRejected(t *testing.T) {
 	d := &mockDoer{status: 200, resp: `{"content":[{"type":"text","text":"` +
 		strings.Repeat("x", maxResponseBytes) + `"}]}`}

@@ -18,10 +18,8 @@ import (
 	"stencil/server/internal/hub"
 )
 
-// newTLSConfig loads the certificate securing BOTH the HTTP/WS port and the raw-TCP
-// edit channel, so the live-edit transport is encryptable too — not just
-// REST/WS. TLS is opt-in via TLS_CERT/TLS_KEY; without them the server runs
-// plaintext (intended only behind a trusted proxy or on localhost).
+// newTLSConfig loads the certificate securing BOTH the HTTP/WS port and the raw-TCP edit channel. TLS is
+// opt-in via TLS_CERT/TLS_KEY; without them the server runs plaintext (trusted proxy or localhost only).
 func newTLSConfig(cfg config.Config) (*tls.Config, error) {
 	if cfg.TLSCert == "" || cfg.TLSKey == "" {
 		return nil, nil
@@ -46,9 +44,8 @@ func newHTTPServer(cfg config.Config, api *httpapi.API, h *hub.Hub, tlsConf *tls
 		Addr:              cfg.ListenAddr,
 		Handler:           httpapi.CORS(cfg.CORSOrigins)(mux),
 		ReadHeaderTimeout: 10 * time.Second,
-		// 5m fits a 32 MiB upload on a slow link and an LLM proxy call
-		// (LLM_TIMEOUT_SECONDS, default 120s). WS conns are hijacked on upgrade
-		// (deadlines cleared), so live edit sessions are unaffected.
+		// 5m fits a 32 MiB upload on a slow link and an LLM proxy call (LLM_TIMEOUT_SECONDS, default 120s).
+		// WS conns are hijacked on upgrade, so live edit sessions are unaffected.
 		ReadTimeout:  5 * time.Minute,
 		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  2 * time.Minute,
@@ -96,10 +93,8 @@ func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub
 	stop()            // cancel rootCtx so the expiry-sweep goroutine winds down
 	sweepWG.Wait()    // join it before run()'s deferred st.Close()/b.Close() fire
 	_ = tcpLn.Close() // stop accepting new TCP editors; ServeListener now drains
-	// Cancel every live edit connection so their handlers unwind: TCP Reads (now
-	// ctx-aware) return and ServeListener's wg.Wait() completes, and hijacked
-	// WebSocket editors (which Shutdown cannot close) release so Shutdown can
-	// finish instead of blocking until the timeout.
+	// Cancel every live edit connection so their handlers unwind: ctx-aware TCP Reads return and hijacked
+	// WebSocket editors (which Shutdown cannot close) release, so Shutdown finishes instead of timing out.
 	h.CloseAll()
 	return srv.Shutdown(shutdownCtx)
 }

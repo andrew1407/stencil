@@ -8,9 +8,8 @@ import (
 	"stencil/server/internal/transport"
 )
 
-// Live edits are relayed, never persisted, so a restart mid-session loses
-// everything since the last save. Shutdown must say so before hanging up —
-// silence is indistinguishable from a network blip.
+// Live edits are relayed, never persisted, so a restart mid-session loses everything since the last save.
+// Shutdown must say so before hanging up — silence is indistinguishable from a network blip.
 func TestShutdownNotifiesLiveConnections(t *testing.T) {
 	h := newTestHub(t)
 	addr := startTCP(t, h)

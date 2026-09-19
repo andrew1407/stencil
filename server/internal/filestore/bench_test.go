@@ -11,9 +11,8 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// BenchmarkPut measures one atomic store: temp file, fsync, quota reserve,
-// rename, directory sync. The fsync dominates, so this tracks the disk as much
-// as the code — compare runs on one machine only.
+// BenchmarkPut measures one atomic store: temp file, fsync, quota reserve, rename, directory sync. The
+// fsync dominates, so compare runs on one machine only.
 func BenchmarkPut(b *testing.B) {
 	for _, size := range []int{4 << 10, 256 << 10, 4 << 20} {
 		b.Run(fmt.Sprintf("size=%dKiB", size>>10), func(b *testing.B) {

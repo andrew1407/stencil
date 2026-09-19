@@ -116,9 +116,8 @@ func countFile(t *testing.T, path string) counts {
 // scanState carries string/comment context across line breaks.
 type scanState struct{ inBlock, inRaw bool }
 
-// scanLine reports whether the line opens with a comment (or sits inside a block
-// comment) and returns the state for the next line. It steps over string, rune and
-// raw-string literals so a // inside one is not mistaken for a comment.
+// scanLine reports whether the line opens with a comment (or sits inside a block comment) and returns the
+// state for the next line. It steps over string, rune and raw-string literals.
 func scanLine(line string, st scanState) (bool, scanState) {
 	comment := st.inBlock
 	i := 0

@@ -34,9 +34,8 @@ func (h *Hub) WSHandler() http.Handler {
 	})
 }
 
-// ServeListener accepts TCP connections and handles each as an edit connection
-// (NDJSON framing). It blocks until the listener is closed, then waits for
-// in-flight connections to drain.
+// ServeListener accepts TCP connections and handles each as an edit connection (NDJSON framing). It
+// blocks until the listener is closed, then waits for in-flight connections to drain.
 func (h *Hub) ServeListener(ln net.Listener) error {
 	var wg sync.WaitGroup
 	for {
@@ -124,10 +123,8 @@ readLoop:
 		}
 	}
 	_ = conn.Close(transport.CloseNormal, "bye")
-	// Unregister BEFORE waiting on the writer: the run-loop's unregister handler is
-	// what closes m.out, which is what lets writeLoop (and thus writerDone) finish.
-	// Waiting first would deadlock a member whose out channel is idle at disconnect.
-	// If the session is already tearing down (s.done), run() closes m.out itself.
+	// Unregister BEFORE waiting on the writer: the run-loop's unregister handler closes m.out, which is what
+	// lets writeLoop finish. Waiting first would deadlock a member whose out channel is idle.
 	select {
 	case s.unregister <- m:
 	case <-s.done:
@@ -136,9 +133,8 @@ readLoop:
 	return nil
 }
 
-// serveEvents subscribes the connection to the global project-lifecycle feed so
-// the client can live-update its projects list. It reads (to detect close) and
-// forwards every event until the peer disconnects.
+// serveEvents subscribes the connection to the global project-lifecycle feed so the client can
+// live-update its projects list, forwarding every event until the peer disconnects.
 func (h *Hub) serveEvents(ctx context.Context, conn transport.Conn) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

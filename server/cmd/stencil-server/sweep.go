@@ -35,12 +35,8 @@ func dropEach(ctx context.Context, drops projectDropper, ids []string) {
 	wg.Wait()
 }
 
-// startExpirySweep runs one expired-project sweep immediately, then repeats every
-// interval until ctx is cancelled. Each pass removes every project whose expiry
-// has passed from Postgres (the source of truth), drops its filestore bytes, and
-// publishes a deleted event so connected clients refresh their lists. A zero (or
-// negative) interval disables the sweep entirely — expired projects then linger
-// in the store (there is no lazy per-request expiry check) until it is re-enabled.
+// startExpirySweep sweeps expired projects once, then every interval until ctx is cancelled, dropping
+// filestore bytes and publishing a deleted event. A zero or negative interval disables it (no lazy expiry).
 func startExpirySweep(ctx context.Context, wg *sync.WaitGroup, st expiredProjectDeleter, drops projectDropper, interval time.Duration) {
 	if interval <= 0 {
 		log.Printf("expiry sweep disabled (EXPIRY_SWEEP_MINUTES=0)")

@@ -12,10 +12,8 @@ import (
 	"stencil/server/internal/testutil"
 )
 
-// Byte-exact goldens for the server's pinned LLM text surface: the two system-prompt
-// heads and the GET /llm/info body. Both are slated to move into JSON assets, so these
-// pin the current bytes to prove the move is verbatim. Rewrite with
-// SERVER_UPDATE_GOLDENS=1 go test ./internal/httpapi/...
+// Byte-exact goldens for the server's pinned LLM text surface: the two system-prompt heads and the GET
+// /llm/info body. Rewrite with SERVER_UPDATE_GOLDENS=1 go test ./internal/httpapi/...
 
 // goldenPath resolves tests/goldens beside this file, the way llmprompt_test.go finds
 // the canonical asset.

@@ -153,12 +153,8 @@ func (s *Store) DeleteProject(ctx context.Context, id string) error {
 	return err
 }
 
-// DeleteExpiredProjects removes up to limit projects whose expiry has passed
-// (expires_at in (0, now]) and returns their ids, so the caller can also drop
-// their filestore bytes and notify connected clients. A zero expires_at
-// ("keep forever") is never swept. Drives the server's startup + periodic sweep,
-// which loops until a pass comes back short (an unbounded DELETE would hold a long
-// write transaction and materialise every id at once).
+// DeleteExpiredProjects removes up to limit projects whose expiry has passed (expires_at in (0, now]) and
+// returns their ids; a zero expires_at is never swept. The caller loops until a pass comes back short.
 func (s *Store) DeleteExpiredProjects(ctx context.Context, now int64, limit int) ([]string, error) {
 	if limit <= 0 || limit > defaultSweepLimit {
 		limit = defaultSweepLimit

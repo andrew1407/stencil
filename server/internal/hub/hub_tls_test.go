@@ -43,10 +43,8 @@ func selfSignedTLS(t *testing.T) *tls.Config {
 	return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
 }
 
-// TestTCPTransportOverTLS proves the raw-TCP edit channel still completes the
-// hello -> subscribe -> welcome handshake when the listener is wrapped in TLS
-// (as main.go does when TLS_CERT/TLS_KEY are set). This is the evidence that the
-// live-edit channel is encryptable, not just REST/WS.
+// The raw-TCP edit channel still completes the hello → subscribe → welcome handshake when the listener
+// is wrapped in TLS (as main.go does with TLS_CERT/TLS_KEY) — the live-edit channel is encryptable.
 func TestTCPTransportOverTLS(t *testing.T) {
 	h := newTestHub(t)
 

@@ -41,9 +41,8 @@ var llmImageMediaTypes = map[string]bool{
 	"image/gif":  true,
 }
 
-// LLMChat checks a chat request before it reaches the provider. Returns "" when
-// valid, else a client-facing message. systemOK recognizes Stencil's own system
-// prompts; the pinned heads live with the embedded asset that defines them.
+// LLMChat checks a chat request before it reaches the provider: "" when valid, else a client-facing
+// message. systemOK recognizes Stencil's own system prompts, whose pinned heads live with the asset.
 func LLMChat(req protocol.LlmChatRequest, systemOK func(string) bool) string {
 	if len(req.Messages) == 0 {
 		return "at least one message is required"

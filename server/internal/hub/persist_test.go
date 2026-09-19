@@ -29,11 +29,8 @@ func (g *gatedStore) UpdateProject(_ context.Context, _ string, _ store.ProjectP
 	return protocol.ProjectRecord{ID: "p_t_a", Version: expected + 1}, nil
 }
 
-// A session's ONE snapshot worker is the version-ordering invariant: results
-// come back in dispatch order, so a quick save cannot overtake the first load —
-// whose result would then re-adopt the pre-save version (applyResult sets
-// s.version from a load while s.loaded is false). A second worker needs a
-// monotonic version guard first; this test is what fails without one.
+// A session's ONE snapshot worker is the version-ordering invariant: a quick save must not overtake the
+// first load, whose result would re-adopt the pre-save version. A second worker needs a version guard.
 func TestSnapshotWorkerCompletesJobsInDispatchOrder(t *testing.T) {
 	g := &gatedStore{entered: make(chan struct{}, 1), release: make(chan struct{}), saving: make(chan struct{}, 1)}
 	done := make(chan struct{})

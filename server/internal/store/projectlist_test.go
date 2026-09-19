@@ -9,9 +9,8 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// The list query must not select the two payload columns: GET /projects used to
-// pull every project's full base64 image and layout only to blank them in Go.
-// This runs without a database — it reads the SQL the list path is built from.
+// The list query must not select the two payload columns. It runs without a database — it reads the SQL
+// the list path is built from.
 func TestProjectListColsCarryNoPayload(t *testing.T) {
 	for _, col := range []string{"original_content", "layout"} {
 		if strings.Contains(projectListCols, col) {

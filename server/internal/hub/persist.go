@@ -31,9 +31,8 @@ type persistJob struct {
 	version int64           // save expected version (LWW guard)
 }
 
-// persistResult is the outcome of a persistJob, posted back to the run-loop so
-// state mutations (version/snapshot) stay single-owner. It is applied on the
-// run-loop, never by the worker.
+// persistResult is the outcome of a persistJob, posted back to the run-loop so state mutations
+// (version/snapshot) stay single-owner — applied on the run-loop, never by the worker.
 type persistResult struct {
 	kind   persistKind
 	member *member
@@ -41,9 +40,8 @@ type persistResult struct {
 	err    error
 }
 
-// snapshotWorker is the only part of a session that touches the store, and so
-// the only part that needs a per-op deadline. It owns no session state: it
-// drains jobs, runs the blocking store call, and posts the outcome back.
+// snapshotWorker is the only part of a session that touches the store, so the only part needing a per-op
+// deadline. It owns no session state: it drains jobs, runs the store call, and posts the outcome back.
 type snapshotWorker struct {
 	ctx       context.Context // bounds every store call (the hub's lifetime)
 	store     Store
@@ -64,9 +62,8 @@ func newSnapshotWorker(ctx context.Context, st Store, projectID string, timeout 
 	}
 }
 
-// run is the worker goroutine. Exactly one runs per session, and that is the
-// version-ordering guarantee: jobs complete in dispatch order, so a save cannot
-// overtake the first load (pinned in persist_test.go). It exits on teardown.
+// run is the worker goroutine. Exactly one runs per session, and that is the version-ordering guarantee:
+// jobs complete in dispatch order, so a save cannot overtake the first load.
 func (w *snapshotWorker) run() {
 	for {
 		select {
@@ -123,9 +120,8 @@ func (s *session) applyResult(res persistResult) {
 	case persistLoad:
 		s.loadInFlight = false
 		if res.err != nil {
-			// Load failed; leave loaded=false so a later join retries (never per
-			// edit). Pending welcomes still get a reply below, with an empty
-			// record + version 0.
+			// Load failed; leave loaded=false so a later join retries (never per edit). Pending welcomes still get a
+			// reply below, with an empty record + version 0.
 			log.Printf("hub: load project %s failed: %v", s.id, res.err)
 		} else {
 			s.loadedRec = res.rec

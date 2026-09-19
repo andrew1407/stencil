@@ -30,9 +30,8 @@ func IsFileKind(kind string) bool {
 		kind == KindVideo || kind == KindChat || IsVariantKind(kind)
 }
 
-// IsFilestoreOnlyKind reports whether kind lives in the filestore only (no
-// project-record columns): these are the kinds the per-file DELETE route may
-// remove (llm-contract.md §9); original/result are removed with the project.
+// IsFilestoreOnlyKind reports whether kind lives in the filestore only (no project-record columns): the
+// kinds the per-file DELETE route may remove (llm-contract.md §9). original/result go with the project.
 func IsFilestoreOnlyKind(kind string) bool {
 	return kind == KindVideo || kind == KindChat || IsVariantKind(kind)
 }

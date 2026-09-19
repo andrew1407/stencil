@@ -86,8 +86,7 @@ func TestBearerTokenExtraction(t *testing.T) {
 	}
 }
 
-// A REST route behind the middleware must reject a query-only token; a WS
-// upgrade handshake may still authenticate with one (browser WebSocket
+// A REST route must reject a query-only token; a WS upgrade may authenticate with one (browser WebSocket
 // clients cannot set an Authorization header).
 func TestMiddlewareQueryTokenOnlyOnWebSocketUpgrade(t *testing.T) {
 	token, hash, _ := GenerateToken()

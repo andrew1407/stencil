@@ -9,9 +9,8 @@ import (
 	"stencil/server/internal/transport"
 )
 
-// DialTCP opens an NDJSON edit connection to addr. It and DialWS are the Go
-// client halves of the live-edit transports; nothing in the server dials itself
-// (the real clients are JS, C++ and Zig), so they live here, not in transport.
+// DialTCP opens an NDJSON edit connection to addr. It and DialWS are the Go client halves of the live-edit
+// transports; nothing in the server dials itself, so they live here, not in transport.
 func DialTCP(addr string) (transport.Conn, error) {
 	c, err := net.Dial("tcp", addr)
 	if err != nil {

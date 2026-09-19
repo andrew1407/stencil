@@ -42,11 +42,8 @@ type Config struct {
 	// limiter keys on the client IP. Empty (default) ignores the header.
 	TrustedProxies []netip.Prefix
 
-	// LLM proxy (llm-contract.md §6). LLMProvider picks the upstream
-	// mapping — anthropic (default) | ollama | openai-compat. The key never
-	// leaves this process. Two key vars, deliberately NOT merged here: the
-	// caller decides which applies, so a key named for Anthropic can't be
-	// handed to some other host by a provider switch (see main.go).
+	// LLM proxy (llm-contract.md §6); the key never leaves this process. The two key vars are deliberately NOT
+	// merged: a key named for Anthropic must not reach another host through a provider switch (see main.go).
 	LLMProvider    string        // upstream mapping (§6.1/§6.2/§6.3)
 	LLMAPIKey      string        // LLM_API_KEY — any provider
 	AnthropicKey   string        // ANTHROPIC_API_KEY — legacy, Anthropic only
@@ -72,9 +69,8 @@ const (
 	// carrying a full set of traced outlines per image runs well past 8k.
 	defaultLLMMaxTokens = 32768
 	defaultLLMTimeout   = 120 * time.Second
-	// Every accepted turn spends the operator's upstream, so both caps are ON by
-	// default; 0 opts out explicitly. 30/min is far above human chat pace and
-	// still bounds a runaway client.
+	// Both caps are ON by default — every accepted turn spends the operator's upstream; 0 opts out. 30/min is
+	// far above human chat pace and still bounds a runaway client.
 	defaultLLMRatePerMin  = 30
 	defaultLLMMaxInFlight = 8
 	// Abuse guards: 10 issuance attempts/min per IP is far above any legitimate

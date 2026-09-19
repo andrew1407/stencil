@@ -8,9 +8,8 @@ type expiredProjectDeleter interface {
 	DeleteExpiredProjects(ctx context.Context, now int64, limit int) ([]string, error)
 }
 
-// projectDropper is the tail of service.ProjectService.Delete: drop a removed
-// project's bytes and announce it. Shared rather than re-implemented, so the
-// sweep and DELETE /projects/{id} cannot drift apart.
+// projectDropper is the tail of service.ProjectService.Delete: drop a removed project's bytes and announce
+// it. Shared so the sweep and DELETE /projects/{id} cannot drift apart.
 type projectDropper interface {
 	Dropped(ctx context.Context, id string)
 }

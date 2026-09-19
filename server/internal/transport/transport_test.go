@@ -7,11 +7,8 @@ import (
 	"time"
 )
 
-// The hub is written against Conn, so both adapters must behave identically:
-// one message per Read/Write, a hard size cap, and a Read that unblocks on
-// context cancellation. The TCP adapter carries the extra weight — it hand-rolls
-// NDJSON framing so the Zig CLI and Qt desktop need no WebSocket library — and
-// that framing is what these tests mostly pin down.
+// The hub is written against Conn, so both adapters must behave identically: one message per Read/Write,
+// a hard size cap, and a Read that unblocks on context cancellation. The TCP framing is what these pin.
 
 // tcpPair returns two ends of a live TCP connection, both wrapped as Conn.
 func tcpPair(t *testing.T) (client, server Conn) {

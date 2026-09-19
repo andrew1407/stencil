@@ -49,9 +49,8 @@ func TestUpdateProjectColor(t *testing.T) {
 	}
 }
 
-// TestUpdateProjectKeywords exercises the COALESCE keywords path: create carries keywords,
-// a non-nil slice sets them (normalized/deduped), nil leaves them untouched, and an empty
-// slice clears them.
+// The COALESCE keywords path: create carries keywords, a non-nil slice sets them (normalized/deduped),
+// nil leaves them untouched, and an empty slice clears them.
 func TestUpdateProjectKeywords(t *testing.T) {
 	s := requireStore(t)
 	ctx := context.Background()
@@ -92,9 +91,8 @@ func TestUpdateProjectKeywords(t *testing.T) {
 	}
 }
 
-// TestUpdateProjectBlankColor exercises the COALESCE blank_color path: create carries the fill,
-// Blank is derived (non-empty ⇔ true), a non-nil pointer sets it, nil leaves it untouched, and
-// "" clears it (→ not a blank).
+// The COALESCE blank_color path: create carries the fill, Blank is derived (non-empty ⇔ true), a non-nil
+// pointer sets it, nil leaves it untouched, and "" clears it.
 func TestUpdateProjectBlankColor(t *testing.T) {
 	s := requireStore(t)
 	ctx := context.Background()

@@ -1,11 +1,8 @@
-// Package service holds the server's application policy: the rules that must
-// hold however a project is reached, and the multi-store sequences no transport
-// should re-implement. The REST handlers and the expiry sweep both drive these,
-// so a rule cannot be enforced on one path and missed on another.
+// Package service holds the server's application policy: the rules that must hold however a project is
+// reached, and the multi-store sequences no transport should re-implement. The REST handlers and the
+// expiry sweep both drive these.
 //
-// It owns no transport concepts: no ResponseWriter, no status codes. Failures
-// come back as the sentinels below (plus the store's own ErrNotFound), and each
-// caller maps them onto its own wire.
+// It owns no transport concepts: failures come back as the sentinels below (plus the store's ErrNotFound).
 package service
 
 import (

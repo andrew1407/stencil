@@ -13,9 +13,8 @@ func newLLMGate(n int) *llmGate {
 	return &llmGate{slots: make(chan struct{}, n)}
 }
 
-// enter takes a slot without blocking, returning a release func and whether one
-// was free. Non-blocking on purpose: queueing behind a full gate would hold the
-// client for the whole upstream timeout and answer late anyway.
+// enter takes a slot without blocking, returning a release func and whether one was free. Non-blocking
+// on purpose: queueing behind a full gate would hold the client for the whole upstream timeout.
 func (g *llmGate) enter() (func(), bool) {
 	if g == nil || g.slots == nil {
 		return func() {}, true

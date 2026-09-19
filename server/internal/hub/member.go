@@ -7,15 +7,12 @@ import (
 	"stencil/server/internal/transport"
 )
 
-// outBudgetBytes bounds one member's queued backlog. Counting messages is not a
-// memory bound: a frame may be transport.MaxMessageBytes (16 MiB), so the old
-// 256-message queue was worth 4 GiB per slow peer. A message still always fits
-// on an empty queue, so nothing is dropped for size alone.
+// outBudgetBytes bounds one member's queued backlog in bytes, not messages: a frame may be
+// transport.MaxMessageBytes (16 MiB). A message still always fits on an empty queue.
 const outBudgetBytes = 8 << 20
 
-// member is one connected client within a session. The run-loop pushes outbound
-// frames onto out; a per-member writeLoop drains it to the connection so a slow
-// peer never blocks the run-loop.
+// member is one connected client within a session. The run-loop pushes outbound frames onto out; a
+// per-member writeLoop drains it to the connection so a slow peer never blocks the run-loop.
 type member struct {
 	clientID string
 	name     string
@@ -30,9 +27,8 @@ func newMember(clientID, name string, conn transport.Conn) *member {
 	return &member{clientID: clientID, name: name, conn: conn, out: make(chan []byte, outBuffer)}
 }
 
-// enqueue hands data to the member's writer without blocking the run-loop. It
-// drops when the member is already behind by more than the byte budget (or the
-// message-count buffer); clients reconcile by version on resubscribe.
+// enqueue hands data to the member's writer without blocking the run-loop. It drops when the member is
+// behind by more than the byte budget; clients reconcile by version on resubscribe.
 func (m *member) enqueue(data []byte) bool {
 	m.mu.Lock()
 	if m.queued > 0 && m.queued+len(data) > outBudgetBytes {

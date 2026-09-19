@@ -13,9 +13,8 @@ import (
 	"stencil/server/internal/ratelimit"
 )
 
-// clientIP is the key a per-IP limiter spends against: the peer, or the
-// forwarded client when the peer is in TRUSTED_PROXY_CIDRS — without which
-// every request behind a TLS-terminating proxy shares the proxy's one bucket.
+// clientIP is the key a per-IP limiter spends against: the peer, or the forwarded client when the peer
+// is in TRUSTED_PROXY_CIDRS — without which everything behind one proxy shares the proxy's bucket.
 func (a *API) clientIP(req *http.Request) string {
 	return ratelimit.ClientIP(req.RemoteAddr, req.Header.Get("X-Forwarded-For"), a.deps.TrustedProxies)
 }

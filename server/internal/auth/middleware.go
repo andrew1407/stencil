@@ -14,9 +14,8 @@ type ctxKey int
 
 const sessionKey ctxKey = 0
 
-// Middleware gates a handler behind bearer-token auth. On success the resolved
-// Session is attached to the request context (see SessionFromContext). On
-// failure it writes a 401 JSON error and does not call next.
+// Middleware gates a handler behind bearer-token auth: on success the resolved Session is attached to the
+// request context, on failure it writes a 401 JSON error and does not call next.
 func Middleware(resolver SessionResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
@@ -32,10 +31,8 @@ func Middleware(resolver SessionResolver) func(http.Handler) http.Handler {
 	}
 }
 
-// BearerToken extracts the token from the Authorization header, tolerating a
-// "Bearer " prefix in any case. Only WebSocket upgrade requests may fall back
-// to a `token` query param (the browser WebSocket API cannot set headers);
-// on plain REST a URL token is ignored — it would leak via logs and referrers.
+// BearerToken extracts the token from Authorization, tolerating any case of "Bearer ". Only WS upgrades
+// may fall back to a `token` query param; on REST a URL token is ignored — it would leak via logs.
 func BearerToken(req *http.Request) string {
 	h := req.Header.Get("Authorization")
 	if h != "" {

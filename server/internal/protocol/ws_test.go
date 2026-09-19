@@ -74,10 +74,8 @@ func TestWSMessageWelcomeShape(t *testing.T) {
 	}
 }
 
-// Cursor coordinates are the one place omitempty bites: 0 is a legal position at
-// the image origin, and it is dropped from the wire. Clients therefore must
-// default a missing x/y to 0 — this test documents that so the behaviour is a
-// decision rather than a surprise.
+// Cursor coordinates are the one place omitempty bites: 0 is a legal position at the image origin and is
+// dropped from the wire, so clients must default a missing x/y to 0.
 func TestWSMessageCursorOriginIsOmittedAndDecodesBackToZero(t *testing.T) {
 	got := keys(t, WSMessage{Type: WSCursor, X: 0, Y: 0})
 	if got["x"] || got["y"] {

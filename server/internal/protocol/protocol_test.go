@@ -7,12 +7,8 @@ import (
 	"testing"
 )
 
-// This package is the single source of truth the browser/desktop/CLI/extension
-// clients re-declare by hand. Nothing here exercises server logic — these tests
-// pin the two things a client can silently disagree with us about: the accepted
-// file-kind allowlist, and the JSON on the wire (field names, and which fields
-// vanish when empty). A rename or a dropped/added omitempty is a breaking change
-// for four front-ends, so it should fail here first.
+// These tests pin the two things a client re-declaring these shapes can silently disagree with us about:
+// the accepted file-kind allowlist, and the JSON on the wire (field names, and what vanishes when empty).
 
 // keys returns the top-level JSON object keys v marshals to.
 func keys(t *testing.T, v any) map[string]bool {
@@ -32,9 +28,8 @@ func keys(t *testing.T, v any) map[string]bool {
 	return out
 }
 
-// A zero-value ProjectRecord must still carry the fields clients read
-// unconditionally, and must omit every optional one. Adding omitempty to (say)
-// hasImage would turn a present-but-false into an absent key for four clients.
+// A zero-value ProjectRecord must carry the fields clients read unconditionally and omit every optional
+// one: adding omitempty to hasImage would turn present-but-false into an absent key for four clients.
 func TestProjectRecordZeroValueEmitsExactlyTheRequiredFields(t *testing.T) {
 	got := keys(t, ProjectRecord{})
 	want := map[string]bool{
@@ -97,9 +92,8 @@ func TestProjectRecordRoundTrip(t *testing.T) {
 	}
 }
 
-// UpdateProjectRequest's pointer fields are tri-state: absent = unchanged,
-// present-and-empty = clear. Collapsing the two would make "clear the
-// description" indistinguishable from "leave it alone".
+// UpdateProjectRequest's pointer fields are tri-state: absent = unchanged, present-and-empty = clear.
+// Collapsing them would make "clear the description" indistinguishable from "leave it alone".
 func TestUpdateProjectRequestDistinguishesAbsentFromCleared(t *testing.T) {
 	var absent UpdateProjectRequest
 	if err := json.Unmarshal([]byte(`{"version":4}`), &absent); err != nil {
@@ -160,10 +154,8 @@ func TestErrorResponseShape(t *testing.T) {
 	}
 }
 
-// GET /projects always returns a projects array. A nil slice marshals to null,
-// which a client doing `for (const p of body.projects)` would throw on. Store
-// .ListProjects deliberately starts from `make([]protocol.ProjectRecord, 0)` for that
-// reason; this pins the DTO behaviour that makes the precaution necessary.
+// GET /projects always returns a projects array: a nil slice marshals to null, which a client iterating
+// body.projects would throw on — hence ListProjects starting from a zero-length slice.
 func TestProjectListResponseNilSliceIsNull(t *testing.T) {
 	raw, err := json.Marshal(ProjectListResponse{})
 	if err != nil {

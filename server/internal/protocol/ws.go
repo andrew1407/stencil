@@ -57,9 +57,8 @@ type Peer struct {
 type WSMessage struct {
 	Type string `json:"type"`
 
-	// auth / identity (hello). ProjectID routes a hello frame to a project
-	// session; an empty ProjectID selects the global /events feed. It carries
-	// the route over transports (TCP) that have no request path.
+	// auth / identity (hello). ProjectID routes a hello frame to a project session; empty selects the global
+	// /events feed, carrying the route over transports (TCP) that have no request path.
 	Token     string `json:"token,omitempty"`
 	ClientID  string `json:"clientId,omitempty"`
 	Name      string `json:"name,omitempty"`

@@ -27,13 +27,8 @@ func TestDialWSFailsAgainstANonWebSocketEndpoint(t *testing.T) {
 	}
 }
 
-// Origin checking is deliberately off (InsecureSkipVerify): a Stencil client is
-// authenticated by the in-band hello token, not by the browser origin, so an
-// extension page or a file:// document may connect and simply fails auth without
-// a valid token. A cross-origin handshake must therefore upgrade cleanly.
-//
-// dialWS is no use here — the Go dialer sends no Origin header at all — so this
-// drives the library directly to put a foreign Origin on the wire.
+// Origin checking is deliberately off (InsecureSkipVerify): a client is authenticated by the in-band hello
+// token, so a cross-origin handshake must upgrade cleanly. The Go dialer sends no Origin, hence the library.
 func TestAcceptWSUpgradesFromAForeignOrigin(t *testing.T) {
 	accepted := make(chan error, 1)
 	release := make(chan struct{})
@@ -64,10 +59,8 @@ func TestAcceptWSUpgradesFromAForeignOrigin(t *testing.T) {
 	}
 }
 
-// A WS peer that goes silent (never reads, so never pongs) must be reaped
-// within the keepalive window — WS conns are hijacked, so nothing else bounds
-// a half-open peer. The production cadence is generous; the vars exist so the
-// test can shorten it (set BEFORE the pair is created — the pinger reads once).
+// A silent WS peer (never reads, so never pongs) must be reaped within the keepalive window — WS conns are
+// hijacked, so nothing else bounds a half-open peer. Shorten the vars BEFORE the pair is created.
 func TestWSKeepaliveReapsASilentPeer(t *testing.T) {
 	prevI, prevT := wsPingInterval, wsPongTimeout
 	wsPingInterval, wsPongTimeout = 50*time.Millisecond, 100*time.Millisecond
@@ -89,9 +82,8 @@ func TestWSKeepaliveReapsASilentPeer(t *testing.T) {
 	}
 }
 
-// An active peer must NOT be reaped: while both ends keep a Read pending (as
-// the hub does), pings are answered and pongs consumed, and traffic still
-// flows after several keepalive rounds have elapsed.
+// An active peer must NOT be reaped: while both ends keep a Read pending (as the hub does), pings are
+// answered and pongs consumed, and traffic still flows after several keepalive rounds.
 func TestWSKeepaliveSparesAnActivePeer(t *testing.T) {
 	prevI, prevT := wsPingInterval, wsPongTimeout
 	wsPingInterval, wsPongTimeout = 50*time.Millisecond, 200*time.Millisecond

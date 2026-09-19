@@ -1,9 +1,7 @@
-// Package llm is the server-side Anthropic Messages API client behind the
-// /llm/* proxy routes. Per llm-contract.md, the API key lives only in this
-// server's environment: clients speak protocol.LlmChatRequest/Response and
-// never see Anthropic's wire format or the key. Stdlib net/http only,
-// non-streaming (v1). Error strings and logs never carry the key or image
-// payloads.
+// Package llm is the server-side Anthropic Messages API client behind the /llm/* proxy routes. Per
+// llm-contract.md the API key lives only in this server's environment: clients speak
+// protocol.LlmChatRequest/Response and never see the provider's wire format or the key. Stdlib
+// net/http only, non-streaming (v1); error strings and logs never carry the key or image payloads.
 package llm
 
 import (
@@ -18,10 +16,8 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// maxResponseBytes caps how much of an upstream response body is read.
-// LLM_BASE_URL is configurable, so a broken/hostile upstream must not be able to
-// grow the heap per in-flight request for the full timeout window; legitimate
-// chat responses are well under 1 MiB.
+// maxResponseBytes caps how much of an upstream response body is read: LLM_BASE_URL is configurable, so a
+// hostile upstream must not grow the heap per in-flight request. Legitimate replies are well under 1 MiB.
 const maxResponseBytes = 8 << 20 // 8 MiB
 
 // Client proxies chat turns to the configured upstream (Anthropic, Ollama or
@@ -49,9 +45,8 @@ func New(provider, base, key, model string, maxTokens int, timeout time.Duration
 		maxTokens: maxTokens,
 		http: &http.Client{
 			Timeout: timeout,
-			// net/http strips Authorization on a cross-host redirect but not a custom
-			// x-api-key, so a redirecting LLM_BASE_URL would leak the key. Don't follow:
-			// the 30x surfaces as a non-2xx like any other upstream failure.
+			// net/http strips Authorization on a cross-host redirect but not a custom x-api-key, so a redirecting
+			// LLM_BASE_URL would leak the key. Don't follow: the 30x surfaces as a non-2xx like any other failure.
 			CheckRedirect: func(*http.Request, []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
@@ -64,9 +59,8 @@ func (c *Client) Model() string { return c.model }
 
 func (c *Client) Provider() string { return c.provider }
 
-// Chat runs one turn against the configured provider. The canonical
-// request/response is the same for all three — only the wire shape differs, so
-// this dispatches to the provider's mapping (providers.go) rather than switching.
+// Chat runs one turn against the configured provider. The canonical request/response is the same for all
+// three — only the wire shape differs — so this dispatches to the provider's mapping (providers.go).
 func (c *Client) Chat(ctx context.Context, req protocol.LlmChatRequest) (protocol.LlmChatResponse, error) {
 	model := req.Model
 	if model == "" {
@@ -75,9 +69,8 @@ func (c *Client) Chat(ctx context.Context, req protocol.LlmChatRequest) (protoco
 	return mappingFor(c.provider).chat(ctx, c, req, model)
 }
 
-// readBounded reads at most maxResponseBytes of an upstream body: LLM_BASE_URL
-// is configurable, so a broken/hostile upstream must not grow the heap per
-// in-flight request. Shared by every provider mapping.
+// readBounded reads at most maxResponseBytes of an upstream body, so a hostile LLM_BASE_URL cannot grow
+// the heap per in-flight request. Shared by every provider mapping.
 func readBounded(resp *http.Response) ([]byte, error) {
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes+1))
 	if err != nil {
@@ -89,9 +82,8 @@ func readBounded(resp *http.Response) ([]byte, error) {
 	return raw, nil
 }
 
-// postJSON encodes body, POSTs it with the given extra headers, and returns the
-// (bounded) response bytes and status. Shared by every provider mapping so the
-// response cap and redirect policy can't drift between them.
+// postJSON encodes body, POSTs it with the given extra headers, and returns the bounded response bytes
+// and status. Shared by every provider mapping so the cap and redirect policy cannot drift.
 func (c *Client) postJSON(ctx context.Context, url string, body any, headers map[string]string) ([]byte, int, error) {
 	payload, err := json.Marshal(body)
 	if err != nil {

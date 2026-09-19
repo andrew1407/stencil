@@ -6,9 +6,8 @@ import (
 	"time"
 )
 
-// The Phase-1 hardening keys: the failed-hello rate, the per-operation store
-// deadline, and the trusted-proxy list that decides whether X-Forwarded-For is
-// believed at all.
+// The hardening keys: the failed-hello rate, the per-operation store deadline, and the trusted-proxy
+// list that decides whether X-Forwarded-For is believed at all.
 func TestHardeningDefaults(t *testing.T) {
 	chdirTemp(t)
 	clearEnv(t)

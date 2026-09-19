@@ -9,10 +9,8 @@ import (
 	"github.com/coder/websocket"
 )
 
-// Keepalive cadence for accepted (server-side) connections: a peer that stops
-// answering pings within wsPongTimeout is torn down, so a dead peer is
-// detected within interval+timeout (~40s). Vars so tests can shorten them;
-// this mirrors tcp.go's idle reaping for the WS transport.
+// Keepalive cadence for accepted connections: a peer that stops answering pings within wsPongTimeout is
+// torn down, so a dead peer is detected within interval+timeout (~40s). Vars so tests can shorten them.
 var (
 	wsPingInterval = 30 * time.Second
 	wsPongTimeout  = 10 * time.Second
@@ -26,10 +24,8 @@ type wsConn struct {
 	once   sync.Once
 }
 
-// AcceptWS upgrades an HTTP request to a WebSocket Conn. Origin checking is
-// disabled because authentication is performed by the in-band hello frame
-// (a bearer token), not by the browser origin — any origin may attempt to
-// connect but cannot join a session without a valid token.
+// AcceptWS upgrades an HTTP request to a WebSocket Conn. Origin checking is off because the in-band hello
+// frame's bearer token is the auth: any origin may connect, none can join a session without a valid token.
 func AcceptWS(rw http.ResponseWriter, req *http.Request) (Conn, error) {
 	c, err := websocket.Accept(rw, req, &websocket.AcceptOptions{InsecureSkipVerify: true})
 	if err != nil {
@@ -41,9 +37,8 @@ func AcceptWS(rw http.ResponseWriter, req *http.Request) (Conn, error) {
 	return x, nil
 }
 
-// keepalive pings the peer on a timer; the pong is read by whatever Read the
-// hub has pending. A missed pong hard-closes the conn, which unblocks that
-// Read so the half-open peer is reaped instead of lingering forever.
+// keepalive pings the peer on a timer; the pong is read by whatever Read the hub has pending. A missed
+// pong hard-closes the conn, which unblocks that Read so the half-open peer is reaped.
 func (x *wsConn) keepalive() {
 	interval, timeout := wsPingInterval, wsPongTimeout // read once: test seams
 	t := time.NewTicker(interval)
