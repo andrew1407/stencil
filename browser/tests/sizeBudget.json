@@ -37,7 +37,7 @@
     "browser/js/ui/llmSettingsModal.js": 170,
     "browser/js/ui/motion.js": 32,
     "browser/js/ui/numericInput.js": 258,
-    "browser/js/ui/openImageModal.js": 628,
+    "browser/js/ui/openImageModal.js": 728,
     "browser/js/ui/projectsModal.js": 555,
     "browser/js/ui/tipContent.js": 266,
     "browser/js/ui/toolbar.js": 394,
@@ -105,7 +105,7 @@
     "browser/js/ui/dustCloud.js": "Byte-pinned twin of browser-extension/src/lib/dustCloud.js (browser-extension/tests/portParity.test.js) — it can only change in lockstep with the port, so it cannot be split here alone.",
     "browser/js/console/stencilApi.js": "208 -> 210: the facade is a composition list, one line per part. execScript adds the scriptApi import and its entry in `parts`; neither can be traded away without dropping the member from window.stencil.",
     "browser/tests/stencilApi.test.js": "1243 -> 1276: two behavioural guards the facade had no cover for — blank() must wait for the image SWAP (imageLoadFlow's `previous`), and apply() must route every writable stencil.settings key, which its ApplyOptions type already promised. Both need a mock app, so they live beside the rest of the facade's tests.",
-    "browser/js/ui/openImageModal.js": "455 -> 628 across this dialog's rework: the preview waits for the media to DECODE before it shows (an undecoded <video> reports 300x150 and jumped the modal twice), the Frame field counts frames and drives a scrub bar of our own, a URL video is fetched once and scrubbed locally, the crop rect is drawn on whichever media is up (one stage, no second canvas), each tab keeps its own source and crop choice, the box eases between content heights, and the arrival cloud is cancelled when the tab or the window leaves (a canvas stage the modal shell's sweepDust cannot reach). DEBT: the crop-overlay geometry and the media/tab state both want splitting out of here — a ~28-site state refactor, deliberately not done inside these fixes."
+    "browser/js/ui/openImageModal.js": "455 -> 728 across this dialog's rework: the preview waits for the media to DECODE before it shows (an undecoded <video> reports 300x150 and jumped the modal twice), the Frame field counts frames and drives a scrub bar of our own, a URL video is fetched once and scrubbed locally, the crop rect is drawn on whichever media is up (one stage, no second canvas), each tab keeps its own source and crop choice, the box eases between content heights, and the arrival cloud is cancelled when the tab or the window leaves (a canvas stage the modal shell's sweepDust cannot reach). The crop-overlay geometry and the chip-dust rows have since been split out to js/ui/openImageCrop.js and js/ui/motion/dustRow.js; what is left is the tabs, the media pairs and their decode/preview state, which the DEBT note now names as the one thing still worth extracting from here."
   },
   "_commentPctNote": "browser/js holds only the boot shims now (index.js, prePaintTheme.js, pwa.js) plus the utils barrel — utils.js's ~480 lines of code moved to browser/js/utils/, so the same prose is a bigger share of a much smaller directory. Comment VOLUME did not rise.",
   "_behaviouralPinNote": "strokeGrowth.test.js 298 → 311: the renderer's flown-geometry pin was five readFileSync regexes; it now drives drawLine over a recording context (tests/helpers/recordingCtx.js) so renderer.js can be split. A behavioural pin costs lines a source regex does not.",

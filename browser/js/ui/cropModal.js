@@ -86,13 +86,21 @@ export class StencilCropModal extends StencilElement {
       shade.style.width = box.style.width;
       shade.style.height = box.style.height;
     };
+    // Only when the face actually changes: renderBox runs per drag frame, and rewriting the
+    // glyph there rebuilds the SVG sixty times a second and drops any turn spinIconOnce started.
+    let shownAlbum = null;
+    const renderOrientFace = () => {
+      if (shownAlbum === album) return;
+      shownAlbum = album;
+      orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${album ? 'Album' : 'Portrait'}</span>`;
+    };
     const renderBox = () => {
       settle();
       box.style.display = 'block';
       shade.style.display = 'block';
       paintBox(rect);
       dims.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)} px · ${album ? 'Album (landscape)' : 'Portrait'}`;
-      orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${album ? 'Album' : 'Portrait'}</span>`;
+      renderOrientFace();
     };
 
     // The orient press's own recompute: swapCropOrientation carries the drag across the
