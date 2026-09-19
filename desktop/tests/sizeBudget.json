@@ -35,7 +35,6 @@
     "desktop/tests/MainWindow.chatTurns.gui.cpp": 2648,
     "desktop/tests/MainWindow.chrome.gui.cpp": 1072,
     "desktop/tests/MainWindow.menuKeys.gui.cpp": 619,
-    "desktop/tests/MainWindow.menus.gui.cpp": 468,
     "desktop/tests/MainWindow.openImage.gui.cpp":      268,
     "desktop/tests/MainWindow.motion.gui.cpp": 846,
     "desktop/tests/MainWindow.projects.gui.cpp": 1019,
