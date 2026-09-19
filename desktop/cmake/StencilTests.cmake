@@ -427,7 +427,9 @@ stencil_headless_test(stencil_serverauth_headless
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/serverAuth.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    tests/serverAuth.headless.cpp tests/serverAuthClassify.headless.cpp
+    tests/serverAuthKind.headless.cpp tests/serverAuthRemint.headless.cpp
+    tests/serverAuthInvite.headless.cpp tests/serverAuthAdmin.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     ${STENCIL_CONNECTDIALOG_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
