@@ -18,6 +18,7 @@
 #include <QString>
 #include <QTimer>
 #include <cstdio>
+#include <functional>
 
 inline QString outDir() { return qEnvironmentVariable("STENCIL_DOCS_OUT"); }
 inline QString framesDir() { return qEnvironmentVariable("STENCIL_DOCS_FRAMES"); }
@@ -108,9 +109,17 @@ class ShotSet {
   QSet<QString> names_;
 };
 
-// The capture driver; the name is the friend MainWindow.hpp / ChatDock.hpp declare.
+namespace stencil::gui { class OpenImageDialog; }
+
+// The capture driver; the name is the friend MainWindow.hpp / ChatDock.hpp / OpenImageDialog.hpp
+// declare — so only ITS members may reach their privates, never a free helper.
 class MainWindowGuiTest {
  public:
   static void windowStates(const QString& theme, const ShotSet& shots);
   static void themeClip();
+  // `load` puts a clip on a tab the way that tab's own control does; `crop` also ticks the
+  // quick-crop box, so the rect lands over the player.
+  static void grabVideoDialog(stencil::gui::MainWindow& win, const QString& name,
+                              const std::function<void(stencil::gui::OpenImageDialog*)>& load,
+                              bool crop);
 };

@@ -5,16 +5,20 @@
 import { chromium } from './lib/playwright.mjs';
 import { loadCaptureConfig } from './lib/captureConfig.mjs';
 import { outDir } from './lib/paths.mjs';
-import { startAppServer } from './lib/servers.mjs';
+import { startAppServer, startMediaServer } from './lib/servers.mjs';
 import { startLlmStub } from './lib/llmStub.mjs';
 import { makeShotRunner } from './lib/shotRunner.mjs';
 import { makeBrowserPages } from './browser/pageTools.mjs';
 import { makeStillSteps } from './browser/stillSteps.mjs';
 import { makeClipSteps } from './browser/clipSteps.mjs';
+import { makeVideoSteps } from './browser/videoSteps.mjs';
+import { sampleVideo } from './lib/sampleMedia.mjs';
 
 const config = loadCaptureConfig('browser');
 const runner = makeShotRunner({ config, out: outDir('browser') });
 const server = await startAppServer();
+const clip = sampleVideo();
+const media = await startMediaServer(clip.dir, config.get('mediaPort'));
 const stub = await startLlmStub();
 const browser = await chromium.launch();
 const pages = makeBrowserPages({ config, browser });
@@ -23,6 +27,13 @@ console.log('browser stills');
 const ctx = await runner.play(makeStillSteps({ config, runner, pages, stub, appUrl: server.url, browser }), {});
 await ctx.page?.close();
 
+// Its own page: a clip left in the shared one would sit under every later shot.
+console.log('browser video');
+const videoCtx = await runner.play(makeVideoSteps({
+  config, runner, pages, clipPath: clip.file, clipUrl: media.url(clip.name),
+}), {});
+await videoCtx.page?.close();
+
 console.log('browser clips');
 await runner.play(makeClipSteps({
   config, runner, browser, pages: { ...pages, stubUrl: stub.url, queuePlan: (plan) => stub.queue(plan) },
@@ -30,5 +41,6 @@ await runner.play(makeClipSteps({
 
 await browser.close();
 await stub.close();
+media.stop();
 server.stop();
 runner.finish();

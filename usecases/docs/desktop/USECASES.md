@@ -25,6 +25,18 @@ and size. `stencil --src <path|url>` and `stencil --blank` do the same from a sh
 |---|---|---|
 | ![white blank](img/blank-white.png) | ![black blank](img/blank-black.png) | ![the logo from the repository](img/open-from-url.png) |
 
+## Open a frame from a video
+
+Choose a video instead and the dialog turns into a small player. Drag the bar under the
+picture, or type a **Frame** number, to choose the frame the canvas opens:
+
+![a local video, scrubbed to a frame](img/open-video-local.png)
+
+Tick **Crop** and the box is drawn over the player itself, so the frame that lands on the
+canvas is the one framed here — the Album / Portrait button flips the orientation:
+
+![cropping a video frame before opening it](img/crop-video.png)
+
 ## Draw, select and edit points
 
 **Edit ▸ Start Drawing** (`Alt+A`) places points on click; the selected line's style sits

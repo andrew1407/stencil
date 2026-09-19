@@ -3,7 +3,10 @@
     "mode": "dark",
     "steps": {
       "open-image-dialog": "light",
-      "crop-dialog": "light"
+      "crop-dialog": "light",
+      "open-video-local": "light",
+      "open-video-url": "light",
+      "crop-video": "light"
     }
   },
   "pairs": [
@@ -30,7 +33,10 @@
     "keywords-dialog",
     "links-dialog",
     "open-in-dialog",
-    "accent-picker"
+    "accent-picker",
+    "open-video-local",
+    "open-video-url",
+    "crop-video"
   ],
   "window": {
     "width": 1280,
@@ -44,5 +50,10 @@
     "everyMs": 33,
     "inFps": 30,
     "fps": 15
-  }
+  },
+  "videoShots": [
+    "open-video-local",
+    "open-video-url",
+    "crop-video"
+  ]
 }

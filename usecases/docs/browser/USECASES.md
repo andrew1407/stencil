@@ -36,6 +36,21 @@ repository:
 
 ![an image opened from a URL](img/open-from-url.png)
 
+## Open a frame from a video
+
+Pick a video the same way — a local file or a link — and the window turns into a small
+player. Drag the bar under the picture, or type a **Frame** number, to choose the frame the
+canvas opens:
+
+![a local video, scrubbed to a frame](img/open-video-local.png)
+
+![the same clip opened from a link](img/open-video-url.png)
+
+Tick **Crop** and the box is drawn over the player itself, so the frame that lands on the
+canvas is the one framed here. The Album / Portrait button flips the orientation:
+
+![cropping a video frame before opening it](img/crop-video.png)
+
 ## Draw, select and edit points
 
 Lines are polylines or rectangles. Selecting a line in the **Lines** tab raises the

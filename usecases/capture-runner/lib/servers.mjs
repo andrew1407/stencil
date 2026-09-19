@@ -31,6 +31,32 @@ export async function startAppServer() {
   throw new Error(`the static server never answered on ${APP_URL} (is the port held by another tree?)`);
 }
 
+// One scratch directory over http, for the "open from a link" video shots. CORS is open
+// because the app FETCHES the clip to scrub it locally, and a tainted canvas could not be
+// read back; Range is answered because a <video> asks for one. The port is FIXED
+// (shared.json mediaPort) so the URL in the shot is the same on every re-run.
+export function startMediaServer(dir, port) {
+  const server = http.createServer((req, res) => {
+    const abs = path.join(dir, decodeURIComponent((req.url || '/').split('?')[0]));
+    if (!abs.startsWith(dir + path.sep) || !fs.existsSync(abs)) { res.writeHead(404).end(); return; }
+    const body = fs.readFileSync(abs);
+    const head = { 'Content-Type': 'video/mp4', 'Access-Control-Allow-Origin': '*',
+                   'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
+    // The desktop STREAMS a URL through the platform media stack, which probes with HEAD
+    // before it will touch the body — answer it, or the clip never starts.
+    if (req.method === 'HEAD') { res.writeHead(200, { ...head, 'Content-Length': body.length }).end(); return; }
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (!range) { res.writeHead(200, { ...head, 'Content-Length': body.length }).end(body); return; }
+    const start = range[1] ? Number(range[1]) : 0;
+    const end = range[2] ? Number(range[2]) : body.length - 1;
+    res.writeHead(206, { ...head, 'Content-Length': end - start + 1,
+                         'Content-Range': `bytes ${start}-${end}/${body.length}` });
+    res.end(body.subarray(start, end + 1));
+  });
+  return new Promise((resolve) => server.listen(port, '127.0.0.1',
+    () => resolve({ url: (name) => `http://127.0.0.1:${port}/${name}`, stop: () => server.close() })));
+}
+
 export const siteUrl = (port) => `http://127.0.0.1:${port}/usecases/capture-runner/site/index.html`;
 
 export function startSiteServer(port) {
