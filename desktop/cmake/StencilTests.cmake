@@ -192,14 +192,16 @@ target_link_libraries(stencil_gui_objs PUBLIC stencil_core Qt6::Widgets Qt6::Net
 # grow-from-the-icon flight (support/modalReveal) is off here — it would resize the
 # window under the test for its first ~200 ms, which is exactly the kind of timing the
 # suite must not depend on.
-foreach(area chatCards chatCompact chatDock chatPanel chatTurns canvas chrome composition
-             menus menusAltHold menusAssistantRows menusCanvas menusChips menusComposer
-             menusConverse menusExport menusPill
-             menusOpening menusRows menusScript menuKeys motion openImage openImageCrop
-             openImageCropEdit openImageCropOrient openImageCropState openImageDust
+foreach(area canvas chatCards chatCardsScroll chatCardsShape chatCompact chatDock chatPanel
+             chatTurns chrome composition menuKeys menuKeysFlyout menuKeysScript
+             menuKeysTint menus menusAltHold menusAssistantRows menusCanvas menusChips
+             menusComposer menusConverse menusExport menusOpening menusPill menusRows
+             menusScript motion openImage openImageCrop openImageCropEdit
+             openImageCropOrient openImageCropState openImageDust openImageFit
              openImageReadout popover projects theme toolbar toolbarCompare
              toolbarDescription toolbarDraw toolbarDrawPaint toolbarExport toolbarFill
-             toolbarInk toolbarLayout toolbarSettings tooltips)
+             toolbarInk toolbarLayout toolbarSettings tooltips tooltipsCursor tooltipsFade
+             tooltipsKeycaps)
   string(TOLOWER ${area} _area_lc)
   stencil_headless_test(stencil_mainwindow_${_area_lc}_gui
     SOURCES tests/MainWindow.${area}.gui.cpp
