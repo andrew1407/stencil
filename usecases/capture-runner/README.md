@@ -71,6 +71,13 @@ screenshots the chat column. The bot is never started from here and its env is n
   256-colour palette; a clip that would not fit gets its own `width`/`fps` in its config.
 - Canvases use the apps' own blank pages; "open from a link" flows load the repository's own
   files from `raw.githubusercontent.com`.
+- The video shots open a clip `lib/sampleMedia.mjs` makes with ffmpeg, written under the
+  neutral root (the desktop dialog shows a chosen file's full path) and served for the URL
+  tab on `shared.json` `mediaPort`. Nothing binary is committed. Two things constrain them:
+  Qt Multimedia returns no frame under the offscreen platform, so `config/desktop.json`
+  `videoShots` take their own pass on the real one; and the desktop hands a URL straight to
+  `QMediaPlayer` (`MediaLoaderVideo.cpp`), which streams it through the platform media stack
+  and refuses that little server — so `open-video-url` is browser-only and self-skips there.
 - The assistant shots use a real model when a collaboration server with an LLM proxy is
   reachable: set `STENCIL_DOCS_SERVER_URL` (default `http://127.0.0.1:8090`) and either
   `STENCIL_DOCS_SERVER_TOKEN` or a session token in `.out/session.token` (mint one with

@@ -10,12 +10,18 @@ import { outDir, repoPath, scratchDir, scratchPath } from './lib/paths.mjs';
 import { makeShotRunner } from './lib/shotRunner.mjs';
 import { pairNames } from './lib/themeSelector.mjs';
 import { framesToGif, quantizePng } from './lib/gifTools.mjs';
+import { sampleVideo } from './lib/sampleMedia.mjs';
+import { startMediaServer } from './lib/servers.mjs';
 
 const config = loadCaptureConfig('desktop');
 const runner = makeShotRunner({ config, out: outDir('desktop') });
 const FRAMES = scratchDir('desktop-frames');
 const BUILD = process.env.STENCIL_DESKTOP_BUILD || repoPath('desktop', 'build');
 const CLIP = config.get('clip');
+// The video shots open a real clip: made with ffmpeg into the scratch dir and served
+// over http for the URL tab, so nothing binary is committed.
+const clip = sampleVideo();
+const media = await startMediaServer(clip.dir, config.get('mediaPort'));
 const run = (cmd, args, env = {}) => execFileSync(cmd, args, { stdio: 'inherit', env: { ...process.env, ...env } });
 
 console.log('desktop build');
@@ -44,6 +50,8 @@ const env = {
   STENCIL_DOCS_FRAMES: FRAMES,
   STENCIL_DOCS_FAVICON_URL: config.url('favicon'),
   STENCIL_DOCS_ICON_URL: config.url('botIcon'),
+  STENCIL_DOCS_CLIP: clip.file,
+  STENCIL_DOCS_CLIP_URL: media.url(clip.name),
   STENCIL_DOCS_PROMPT: config.prompt('stub'),
   STENCIL_DOCS_REAL_PROMPT: config.prompt('real'),
   STENCIL_DOCS_PLAN: JSON.stringify(config.stubPlan('sepiaOutline')),
@@ -58,18 +66,28 @@ const wantedNames = [
 ].filter((name) => runner.wanted(name));
 const themes = ['dark', 'light'].filter((theme) => wantedNames.some((name) => runner.themeOf(name) === theme));
 
+// Qt Multimedia hands back no frame under the offscreen platform, so the clip shots take
+// their own pass on the real one — the only shots here that want a window on the screen.
+const VIDEO_SHOTS = config.get('videoShots');
+
 const taken = [];
 for (const theme of themes) {
-  const shots = wantedNames.filter((name) => runner.themeOf(name) === theme);
-  console.log(`desktop stills, ${theme} (${config.get('scaleFactor')}x, motion off)`);
-  run(binary, [], {
-    ...env,
-    STENCIL_DOCS_THEME: theme,
-    STENCIL_DOCS_SHOTS: shots.join(','),
-    QT_SCALE_FACTOR: String(config.get('scaleFactor')),
-    STENCIL_NO_ANIM: '1',
-  });
-  taken.push(...shots);
+  const all = wantedNames.filter((name) => runner.themeOf(name) === theme);
+  for (const onScreen of [false, true]) {
+    const shots = all.filter((name) => VIDEO_SHOTS.includes(name) === onScreen);
+    if (!shots.length) continue;
+    const where = onScreen ? 'on screen — a clip decodes nowhere else' : 'offscreen';
+    console.log(`desktop stills, ${theme} (${config.get('scaleFactor')}x, motion off, ${where})`);
+    const { QT_QPA_PLATFORM, ...rest } = env;
+    run(binary, [], {
+      ...(onScreen ? rest : env),
+      STENCIL_DOCS_THEME: theme,
+      STENCIL_DOCS_SHOTS: shots.join(','),
+      QT_SCALE_FACTOR: String(config.get('scaleFactor')),
+      STENCIL_NO_ANIM: '1',
+    });
+    taken.push(...shots);
+  }
 }
 for (const name of taken) {
   const file = path.join(runner.out, `${name}.png`);
@@ -84,4 +102,5 @@ if (runner.wanted(CLIP.name)) {
     { ...config.gifLook, inFps: CLIP.inFps, fps: CLIP.fps });
   console.log(`  ${CLIP.name}.gif`);
 }
+media.stop();
 runner.finish();

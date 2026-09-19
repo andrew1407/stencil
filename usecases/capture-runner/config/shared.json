@@ -151,7 +151,7 @@
         }
       ]
     },
-    "pageSurvey": "This page has eight pictures plus the CSS hero banner. The largest is Plate 2, a 640\u00d7360 JPEG; the rest are icons and SVG marks. Say the word and I will open Plate 2 in the editor."
+    "pageSurvey": "This page has eight pictures plus the CSS hero banner. The largest is Plate 2, a 640×360 JPEG; the rest are icons and SVG marks. Say the word and I will open Plate 2 in the editor."
   },
   "vscode": {
     "binaries": {
@@ -195,5 +195,6 @@
       }
     }
   },
-  "sitePort": 8199
+  "sitePort": 8199,
+  "mediaPort": 8201
 }

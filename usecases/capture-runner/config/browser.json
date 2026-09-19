@@ -3,7 +3,10 @@
     "mode": "dark",
     "steps": {
       "open-image-modal": "light",
-      "crop-modal": "light"
+      "crop-modal": "light",
+      "open-video-local": "light",
+      "open-video-url": "light",
+      "crop-video": "light"
     }
   },
   "pairs": [
