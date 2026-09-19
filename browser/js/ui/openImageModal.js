@@ -3,19 +3,18 @@ import { wireModalOpenGestures } from './popover.js';
 import { notify } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
 import { defaultBlankSizePx } from '../core/layout.js';
-import { icon, spinIconOnce } from './icons.js';
+import { spinIconOnce } from './icons.js';
 import { isVideoFile, isVideoUrl, FRAME_INDEX_FPS } from '../core/videoFrame.js';
 import { loadMediaCors, retryWithoutCors, canReadPixels } from './mediaCors.js';
 import { fetchUrlToFile, toFrameIfVideo as frameIfVideo } from '../core/imageSourceLoader.js';
-import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, isAlbumOrientation, swapCropOrientation } from '../core/cropGeometry.js';
+import { isAlbumOrientation } from '../core/cropGeometry.js';
+import { createCropOverlay, freshCropState, hasCropRect } from './openImageCrop.js';
 import { makeDustStage } from './motion/canvasDustStage.js';
 import { runDust } from './motion/canvasDustDraw.js';
 import { GHOST_MS } from './motion/canvasDustGrid.js';
-import { dustEnabled, motionReduced } from './motionPrefs.js';
-import { modalBoxEase, BOX_RESIZE_MS } from './motion/easeBoxHeight.js';
-import { tweenRect } from './motion/rectTween.js';
-import { CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, chipGrid } from './motion/tiles.js';
-import { disintegrate, speckPainter, pinWidestFace } from './motion.js';
+import { dustEnabled } from './motionPrefs.js';
+import { modalBoxEase } from './motion/easeBoxHeight.js';
+import { makeDustRow, makeDustToggle } from './motion/dustRow.js';
 import { openImageModalInner } from './openImageMarkup.js';
 const { PAGE_SIZES } = constants;
 // Desktop twin: OpenImageDialog's fetchTimer_ interval — one seek per settled drag.
@@ -136,47 +135,15 @@ export class StencilOpenImageModal extends StencilElement {
     // A local file previews as soon as it's chosen; a URL only after Preview is pressed.
     const previewReady = () => (activeTab === 'file' ? !!chosenFile() : activeTab === 'url' && urlPreviewLoaded);
 
-    // All rect math in original-image pixels (the natural pixels of the imported still).
-    let cropRect = { x: 0, y: 0, width: 0, height: 0 };
-    let cropAlbum = false;
-    let cropAspectV = 1;
-    let cropScale = 1;
-    let cropIw = 0, cropIh = 0;
+    // The crop rect and everything that draws it (openImageCrop.js); this file keeps the
+    // tabs and the media the rect is drawn ON.
+    const cropState = freshCropState();
     // Whether the preview is live for the typed URL (a URL never previews on keystroke).
     let urlPreviewLoaded = false;
     // …and whether a URL preview is on screen at all: it stays up while the URL is corrected.
     let urlPreviewShown = false, mediaReady = false;   // decoded, so the box has its REAL size
 
     const revokeObjectUrl = (st) => { if (st.objectUrl) { URL.revokeObjectURL(st.objectUrl); st.objectUrl = null; } };
-
-    // The orientation flip's own rect flight; any plain render settles it (rectTween.js).
-    let cropFlight = null;
-    const settleCrop = () => { if (cropFlight) { cropFlight(); cropFlight = null; } };
-    const paintCropBox = (r) => {
-      cropBox.style.left = (r.x * cropScale) + 'px';
-      cropBox.style.top = (r.y * cropScale) + 'px';
-      cropBox.style.width = (r.width * cropScale) + 'px';
-      cropBox.style.height = (r.height * cropScale) + 'px';
-      cropShade.style.left = cropBox.style.left;
-      cropShade.style.top = cropBox.style.top;
-      cropShade.style.width = cropBox.style.width;
-      cropShade.style.height = cropBox.style.height;
-    };
-    const renderCropBox = () => {
-      settleCrop();
-      cropBox.style.display = 'block';
-      cropShade.style.display = 'block';
-      paintCropBox(cropRect);
-      cropDims.textContent = `${Math.round(cropRect.width)} × ${Math.round(cropRect.height)} px · ${cropAlbum ? 'Album (landscape)' : 'Portrait'}`;
-      // Pinned to the wider of its two own faces (desktop twin: OpenImageDialog measures
-      // both sizeHints and takes the max) — a bare CSS width guessed at neither face's
-      // real metrics, reading comfortable for one word and cramped for the other.
-      pinWidestFace(orientBtn, [
-        icon('swap', { size: 14 }) + '<span>Album</span>',
-        icon('swap', { size: 14 }) + '<span>Portrait</span>',
-      ]);
-      orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${cropAlbum ? 'Album' : 'Portrait'}</span>`;
-    };
 
     // The crop rides whichever media is on show — for a video that is the PLAYER, so the
     // rect is drawn on the picture already there instead of on a second copy of it.
@@ -185,53 +152,42 @@ export class StencilOpenImageModal extends StencilElement {
       ? { width: previewVideo.videoWidth, height: previewVideo.videoHeight }
       : { width: previewImg.naturalWidth, height: previewImg.naturalHeight });
 
-    const computeCropScale = () => {
-      const r = cropMedia().getBoundingClientRect();
-      cropScale = cropIw > 0 && r.width > 0 ? r.width / cropIw : 1;
-    };
-
-    // Also the Album/Portrait press's own recompute: swapCropOrientation carries the user's
-    // own framing across the flip (no rect yet falls back to centeredCrop, same as before).
-    // `fly`: the press eases the box from its old shape to the new one (desktop twin:
-    // CropPreview::setAlbum); a first fit has no old shape and lands at once.
-    const recenterCrop = (fly = false) => {
-      const from = { ...cropRect };
-      cropAspectV = cropAspect(pageDims().width, pageDims().height, cropAlbum);
-      cropRect = swapCropOrientation(cropRect, cropAspectV, cropIw, cropIh);
-      renderCropBox();
-      if (fly && from.width >= 1) cropFlight = tweenRect(from, cropRect, paintCropBox);
-    };
+    const crop = createCropOverlay({
+      state: cropState,
+      els: { box: cropBox, shade: cropShade, dims: cropDims, orient: orientBtn },
+      pageDims, media: cropMedia, onDrag: () => persistCropRect(),
+    });
 
     // Whatever just decoded becomes the crop's ground: its own pixels, its own rect.
-    // cropRect/cropAlbum are GLOBAL (one crop box, whichever tab owns it right now) — any
-    // OTHER tab's own decode overwrites them for ITS pixels. Called whenever the box needs
-    // to agree with the CURRENT tab's picture: this tab's own saved rect if it was dragged
-    // on this exact decode (desktop twin: TabPreviewCache::cropRect), else a fresh default.
+    // cropState is GLOBAL (one crop box, whichever tab owns it right now) — any OTHER tab's
+    // own decode overwrites it for ITS pixels. Called whenever the box needs to agree with
+    // the CURRENT tab's picture: this tab's own saved rect if it was dragged on this exact
+    // decode (desktop twin: TabPreviewCache::cropRect), else a fresh default.
     const restoreCropFor = (width, height) => {
-      cropIw = width; cropIh = height;
+      cropState.iw = width; cropState.ih = height;
       const saved = (activeTab === 'file' || activeTab === 'url') && tabCropRect[activeTab];
       if (saved && saved.iw === width && saved.ih === height) {
-        cropRect = { ...saved.rect };
-        cropAlbum = isAlbumOrientation(cropRect.width, cropRect.height);
+        cropState.rect = { ...saved.rect };
+        cropState.album = isAlbumOrientation(cropState.rect.width, cropState.rect.height);
       } else {
-        cropAlbum = isAlbumOrientation(width, height);
-        cropRect = { x: 0, y: 0, width: 0, height: 0 };
+        cropState.album = isAlbumOrientation(width, height);
+        cropState.rect = { x: 0, y: 0, width: 0, height: 0 };
       }
     };
 
     const mediaDecoded = (el, { width, height }) => {
       if (!width || !height) return;
-      if (width !== cropIw || height !== cropIh) restoreCropFor(width, height);
+      if (width !== cropState.iw || height !== cropState.ih) restoreCropFor(width, height);
       mediaReady = true; tabSeen[activeTab] = tabSt().loading;
       tabReady[activeTab] = true;
       // Cropping reads the frame back, so it needs pixels the host actually let us read.
       tabSt().pixelsReadable = canReadPixels(el);
       syncPreview(); refresh();
-      computeCropScale();
+      crop.computeScale();
       gatherPreviewDust();
       if (!cropToggle.checked) return;
-      if (cropRect.width < 1) recenterCrop();
-      else renderCropBox();
+      if (cropState.rect.width < 1) crop.recenter();
+      else crop.render();
     };
     // Each pair's own events. Only the ACTIVE tab's decode lands now; one arriving while
     // its tab is away waits (pending) and lands when the tab is shown again.
@@ -265,96 +221,12 @@ export class StencilOpenImageModal extends StencilElement {
 
     const cropEnabled = () => cropToggle.checked && previewReady();
 
-    const hideCropOverlay = () => {
-      settleCrop();
-      cropBox.style.display = 'none';
-      cropShade.style.display = 'none';
-    };
     // Every crop-only row (the size read-out, the page-size picker) flies on the KEYWORD-
-    // CHIP recipe (motion/tiles.js CHIP_*) so it reads like one on both surfaces — the
-    // desktop twin plays the same numbers. The play belongs to the CHECKBOX alone: a tab
-    // switch that merely restores the other tab's crop choice swaps it silently, or every
-    // switch replays an arrival. One factory, one flight per row, so two rows can be mid-
-    // flight together without fighting each other's state.
+    // CHIP recipe (motion/dustRow.js) so it reads like one on both surfaces — the desktop
+    // twin plays the same numbers. The play belongs to the CHECKBOX alone: a tab switch
+    // that merely restores the other tab's crop choice swaps it silently, or every switch
+    // replays an arrival.
     let cropByUser = false;
-    const CHIP_DUST = { ms: CHIP_DUST_MS, drift: CHIP_DUST_DRIFT, px: CHIP_MOTE_PX,
-                        ...chipGrid(1) };
-    // A cloud is raised where its control IS, but the box eases around the rows that just
-    // arrived (and re-centres), so the control moves out from under it — the cloud rides
-    // along, per frame, for its whole life (desktop twin: the `follow` on heightAnim_).
-    const followCloud = (el) => {
-      const host = el.__dustHost;
-      if (!host) return true;
-      const r0 = el.getBoundingClientRect();
-      const left0 = parseFloat(host.style.left) || 0, top0 = parseFloat(host.style.top) || 0;
-      const tick = () => {
-        if (el.__dustHost !== host) return;
-        const r = el.getBoundingClientRect();
-        host.style.left = `${left0 + r.left - r0.left}px`;
-        host.style.top = `${top0 + r.top - r0.top}px`;
-        requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-      return true;
-    };
-    // `dustEl`: the cloud's own extent, when it must be SMALLER than the row that slides —
-    // a row is however wide its container is (a browser `<div>` fills it), so a label-and-
-    // control row scattered across its own trailing empty space too, reading as a much
-    // bigger cloud than the one control that actually changed (user report; desktop's
-    // equivalent row never grows past its own content, so it never showed this). A
-    // function, read at flight time: the control that changed depends on the row's state.
-    const makeDustRow = (el, display = 'block', dustEl = () => el) => {
-      let shown = false, flight = null;
-      // The row SLIDES into its place and out of it instead of appearing: display: none is
-      // a snap of everything under it, and a `.vs-row`'s own padding must collapse too, or
-      // its box still shows once "hidden". Desktop twin: OpenImageDialog::slideCropDims.
-      const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
-      const padBottom = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-      const slide = (show) => {
-        // Only a COLUMN's row gap is folded away with the row: on a horizontal line (the
-        // Custom W/H group in its own row) a negative top margin just lifts the group.
-        const ps = getComputedStyle(el.parentElement);
-        const gap = ps.flexDirection === 'column' ? (parseFloat(ps.rowGap) || 0) : 0;
-        const done = () => {
-          for (const k of ['height', 'marginTop', 'overflow', 'paddingTop', 'paddingBottom'])
-            el.style.removeProperty(k);
-          if (!show) el.style.display = 'none';
-        };
-        if (!el.animate || motionReduced()) { el.style.display = show ? display : 'none'; return; }
-        flight?.cancel();
-        el.style.display = display;
-        el.style.overflow = 'hidden';
-        const full = el.scrollHeight;
-        const box = (h, t) => ({ height: `${h}px`, marginTop: `${h ? 0 : -gap}px`,
-                                 paddingTop: `${t ? padTop : 0}px`, paddingBottom: `${t ? padBottom : 0}px` });
-        const f = el.animate([box(show ? 0 : full, show ? 0 : 1), box(show ? full : 0, show ? 1 : 0)],
-                             { duration: BOX_RESIZE_MS, easing: 'cubic-bezier(0.22,0.61,0.36,1)', fill: 'both' });
-        flight = f;
-        f.finished.then(() => { if (flight === f) { flight = null; f.cancel(); done(); } }, () => {});
-      };
-      return (show, animate = false) => {
-        if (show === shown) return;
-        shown = show;
-        if (!animate) { el.style.display = show ? display : 'none'; return; }
-        // ONE motion, always: the particles carry the line and the BOX eases into its space
-        // once (easeBoxHeight). Materialize / leaveThenRemove as two steps left a plateau.
-        const cloud = (gather) => disintegrate(el, {
-          ...CHIP_DUST, gather, toBody: true,
-          hostClass: gather ? 'dust-forming' : 'dust-falling',
-          paintTile: speckPainter(dustEl()),
-          box: dustEl() === el ? null : dustEl().getBoundingClientRect(),
-        }) && (!gather || followCloud(el));   // a fall stays where the row stood
-        if (show) {
-          el.style.display = display;
-          el.style.opacity = '0';   // while they fly, the motes ARE the line
-          if (cloud(true)) setTimeout(() => { el.style.opacity = ''; }, CHIP_DUST_MS);
-          else el.style.opacity = '';
-        } else {
-          cloud(false);
-        }
-        slide(show);
-      };
-    };
     const syncCropDims = makeDustRow(cropDims);
     // Its own flight, separate from the row's: the row's OWN cloud (below) must stay
     // small and single-line, not the whole two-line block, or disabling Crop while
@@ -370,43 +242,7 @@ export class StencilOpenImageModal extends StencilElement {
     const syncCropSizeRow = makeDustRow(cropSizeRow, 'flex',
       () => (cropPageKey === 'custom' ? cropSizeRow.querySelector('.oi-crop-size') : cropSizeSel));
     // orientBtn sits INLINE beside the checkbox/caption in a row those two already keep
-    // open — no height of its own to collapse, just the same materialize/disintegrate
-    // cloud without the row-slide (that's for a row that makes/gives back vertical room).
-    // `display` stays on PERMANENTLY (disintegrate needs the real, laid-out rect to know
-    // where to scatter) — `visibility` carries the show/hide instead of `display:none`, or
-    // the row's own wrap wonders where the SPACE for an invisible-but-not-yet-there button
-    // came from a whole frame before any mote appears (a "jump" with no visible cause).
-    // On hide the button must fade WITH the cloud, not sit fully opaque under it for the
-    // whole flight — display:none used to be the only thing removing it, at the very end.
-    const makeDustToggle = (el, display = 'inline-flex') => {
-      let shown = false;
-      el.style.display = display;
-      el.style.visibility = 'hidden';
-      return (show, animate = false) => {
-        if (show === shown) return;
-        shown = show;
-        if (!animate) {
-          el.style.visibility = show ? 'visible' : 'hidden';
-          el.style.opacity = show ? '' : '0';
-          return;
-        }
-        const cloud = (gather) => disintegrate(el, {
-          ...CHIP_DUST, gather, toBody: true,
-          hostClass: gather ? 'dust-forming' : 'dust-falling',
-          paintTile: speckPainter(el),
-        }) && followCloud(el);
-        if (show) {
-          el.style.visibility = 'visible';
-          el.style.opacity = '0';
-          if (cloud(true)) setTimeout(() => { el.style.opacity = ''; }, CHIP_DUST_MS);
-          else el.style.opacity = '';
-        } else {
-          cloud(false);
-          el.style.opacity = '0';
-          setTimeout(() => { el.style.visibility = 'hidden'; el.style.opacity = ''; }, CHIP_DUST_MS);
-        }
-      };
-    };
+    // open — no height of its own to collapse, so the toggle's cloud without the row-slide.
     const syncOrientBtn = makeDustToggle(orientBtn);
 
     // ghostIn IDENTICAL (motion/canvasFx.js): media hidden while an overlay canvas assembles
@@ -467,7 +303,7 @@ export class StencilOpenImageModal extends StencilElement {
     const tabCropRect = { file: null, url: null };
     const persistCropRect = () => {
       if (activeTab !== 'file' && activeTab !== 'url') return;
-      tabCropRect[activeTab] = { rect: { ...cropRect }, iw: cropIw, ih: cropIh };
+      tabCropRect[activeTab] = { rect: { ...cropState.rect }, iw: cropState.iw, ih: cropState.ih };
     };
     // Each tab remembers that IT had a decoded picture: the other tab's load clears the
     // shared `mediaReady`, and coming back must not read that as "nothing to show".
@@ -503,17 +339,19 @@ export class StencilOpenImageModal extends StencilElement {
         previewImg.style.display = video ? 'none' : 'block';
         cropStage.style.display = '';
       }
-      if (!show) { hideCropOverlay(); syncCropDims(false, false); return; }
+      if (!show) { crop.hide(); syncCropDims(false, false); return; }
       const cropping = cropToggle.checked;
       scrubEl.style.display = video ? 'block' : 'none';
       if (video) syncScrub();
       if (!cropping) {
-        hideCropOverlay();
-      } else if (cropIw && cropIh) {
+        crop.hide();
+      } else if (cropState.iw && cropState.ih) {
         // Loaded before Crop was ticked (no rect fitted yet): fit one now.
-        computeCropScale();
-        if (cropRect.width < 1) { cropAlbum = isAlbumOrientation(cropIw, cropIh); recenterCrop(); }
-        else renderCropBox();
+        crop.computeScale();
+        if (cropState.rect.width < 1) {
+          cropState.album = isAlbumOrientation(cropState.iw, cropState.ih);
+          crop.recenter();
+        } else crop.render();
       }
       syncCropDims(cropping, cropByUser);
       cropByUser = false;
@@ -534,7 +372,7 @@ export class StencilOpenImageModal extends StencilElement {
         // The OLD crop rect belongs to the OLD pixels: left up, it hovers over a vanished
         // picture and then jumps to the new one's box once that lands — a visible "reset".
         // Cleared instantly (no particle flight of its own) the moment the picture goes.
-        hideCropOverlay();
+        crop.hide();
         syncCropDims(false, false);
         syncOrientBtn(false, false);
         syncCropSizeCustom(false, false);
@@ -551,9 +389,9 @@ export class StencilOpenImageModal extends StencilElement {
       // The pair already holds this very source: nothing to fetch, nothing to re-decode.
       if (st.loading === key && tabSeen[activeTab] === key) { syncPreview(); return; }
       revokeObjectUrl(st);
-      cropIw = cropIh = 0;
+      cropState.iw = cropState.ih = 0;
       mediaReady = false;
-      hideCropOverlay();
+      crop.hide();
       syncCropDims(false, false);
       syncOrientBtn(false, false);
       syncCropSizeCustom(false, false);
@@ -590,12 +428,12 @@ export class StencilOpenImageModal extends StencilElement {
       }
       syncPreview();
     };
-    // cropIw/cropIh/cropRect/cropAlbum are ONE crop box, whichever tab owns it: a tab
-    // re-shown without a fresh decode must first bring them back to its own picture, or
-    // the other tab's rect is drawn mis-scaled over this one.
+    // cropState is ONE crop box, whichever tab owns it: a tab re-shown without a fresh
+    // decode must first bring it back to its own picture, or the other tab's rect is
+    // drawn mis-scaled over this one.
     const reconcileCropWithLiveMedia = () => {
       const px = mediaPixels();
-      if (px.width && px.height && (px.width !== cropIw || px.height !== cropIh)) {
+      if (px.width && px.height && (px.width !== cropState.iw || px.height !== cropState.ih)) {
         restoreCropFor(px.width, px.height);
       }
     };
@@ -640,8 +478,8 @@ export class StencilOpenImageModal extends StencilElement {
 
     // Crop on + measured → the chosen rect, else `noCrop`; a URL carries its own URL too.
     const openOpts = () => {
-      const o = (cropEnabled() && cropRect.width >= 1 && cropRect.height >= 1)
-        ? { crop: { ...cropRect } } : { noCrop: true };
+      const o = (cropEnabled() && hasCropRect(cropState))
+        ? { crop: { ...cropState.rect } } : { noCrop: true };
       if (activeTab === 'url') o.source = urlVal();
       return o;
     };
@@ -700,8 +538,7 @@ export class StencilOpenImageModal extends StencilElement {
           media[t].video.removeAttribute('src');
         }
         cropToggle.checked = false;
-        cropIw = cropIh = 0;
-        cropRect = { x: 0, y: 0, width: 0, height: 0 };
+        Object.assign(cropState, freshCropState());
         // Starts on "Page" — the read below (defaultBlankSizePx) still wants the project's
         // own page, not whatever ratio the crop selector was left on from a prior open.
         cropPageKey = 'page';
@@ -782,21 +619,16 @@ export class StencilOpenImageModal extends StencilElement {
       cropByUser = true;   // THIS is the change the read-out's play belongs to
       syncPreview();
     });
-    // spun AFTER the repaint: recenterCrop() rewrites the glyph, dropping a running turn.
+    // spun AFTER the repaint: crop.recenter() rewrites the glyph, dropping a running turn.
     orientBtn.addEventListener('click', () => {
-      cropAlbum = !cropAlbum; recenterCrop(true); persistCropRect(); spinIconOnce(orientBtn);
+      cropState.album = !cropState.album;
+      crop.recenter(true); persistCropRect(); spinIconOnce(orientBtn);
     });
 
     // A different page picked for the crop: unlike the orientation flip, an arbitrary new
     // aspect has no reciprocal to carry the old box across — same fresh default a first
     // Crop tick gets (browser twin of desktop's own page-size change).
-    const applyCropPageChange = () => {
-      if (!cropIw || !cropIh) return;
-      cropAspectV = cropAspect(pageDims().width, pageDims().height, cropAlbum);
-      cropRect = centeredCrop(cropIw, cropIh, cropAspectV);
-      renderCropBox();
-      persistCropRect();
-    };
+    const applyCropPageChange = () => { if (crop.fitToPage()) persistCropRect(); };
     cropSizeSel.addEventListener('change', () => {
       cropPageKey = cropSizeSel.value;
       syncCropSizeCustom(cropPageKey === 'custom', true);
@@ -828,39 +660,6 @@ export class StencilOpenImageModal extends StencilElement {
     };
     frameEl.addEventListener('input', () => seekToFrame(Number(frameEl.value) || 0));
     scrubEl.addEventListener('input', () => seekToFrame(Number(scrubEl.value) || 0));
-
-    // Move / corner-resize over the preview (mirrors cropModal).
-    const toImage = (clientX, clientY) => {
-      const r = cropMedia().getBoundingClientRect();
-      return { x: (clientX - r.left) / cropScale, y: (clientY - r.top) / cropScale };
-    };
-    let drag = null; // { kind: 'move'|'resize', corner, startImg, startRect }
-    const onDown = (e, kind, corner) => {
-      e.preventDefault();
-      e.stopPropagation();
-      drag = { kind, corner, startImg: toImage(e.clientX, e.clientY), startRect: { ...cropRect } };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    };
-    const onMove = e => {
-      if (!drag) return;
-      const cur = toImage(e.clientX, e.clientY);
-      if (drag.kind === 'move') {
-        cropRect = moveCropClamped(drag.startRect, cur.x - drag.startImg.x, cur.y - drag.startImg.y, cropIw, cropIh);
-      } else {
-        cropRect = resizeCropFromCorner(drag.startRect, drag.corner, cur.x, cur.y, cropAspectV, cropIw, cropIh);
-      }
-      persistCropRect();
-      renderCropBox();
-    };
-    const onUp = () => {
-      drag = null;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    cropBox.addEventListener('mousedown', e => onDown(e, 'move'));
-    cropBox.querySelectorAll('.crop-handle').forEach(h =>
-      h.addEventListener('mousedown', e => onDown(e, 'resize', parseInt(h.dataset.corner, 10))));
 
     // Every route that writes the fill writes the hex with it: the presets set the SAME
     // value the picker holds (desktop parity — both land on customColor_).

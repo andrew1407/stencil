@@ -158,7 +158,7 @@ test.describe('Open Image crop rect persistence', () => {
 
 test.describe('Open Image video crop through an empty tab', () => {
   test('a URL video crop area survives a visit to an empty Local tab', async ({ page }) => {
-    // cropIw/cropIh are module-level, zeroed by loadPreviewMedia's own first line on ANY
+    // cropState.iw/ih are shared by both tabs, zeroed by loadPreviewMedia's first line on ANY
     // tab visit — even an empty Local one with nothing chosen — and the "already ready"
     // fast path back to a URL tab used to skip the decode that would set them again,
     // leaving the crop box's own render branch with nothing to draw against.
