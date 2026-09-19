@@ -3,12 +3,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The §13 registry gates: the registered op-name sets and flags pinned against the
-/// contract's bot surface (§2 core + §10 bot profile), one key semantic phrase per bullet,
-/// the parser dispatch cross-check, the capability-exclusion and prompt-censor assembly
-/// rules, and the forbidden-ops boundary (registry test + executor reject).
-/// </summary>
+/// <summary>The §13 registry gates: op-name sets and flags pinned against the contract's bot surface (§2 core + §10 bot profile), the parser dispatch cross-check, the prompt-assembly rules, and the forbidden-ops boundary.</summary>
 public sealed class OpRegistryTests
 {
     /// <summary>The §2 core ops of the bot's §4 "Available ops" list, per the contract.</summary>
@@ -35,9 +30,8 @@ public sealed class OpRegistryTests
     [Fact]
     public void Should_Match_The_Contract_For_Op_Flags()
     {
-        // §13 pin (b): §2/§2.1's top-level-only ops, and the §10 settings scope. `reset` and
-        // `clearChat` ride the profile BLOCK (§4's canonical list omits them) but are policed
-        // as top-level-only, not as settings ops.
+        // §13 pin (b): `reset` and `clearChat` ride the profile BLOCK (§4's canonical list omits them) but are
+        // policed as top-level-only, not as settings ops.
         Assert.Equal((string[])["clearChat", "image", "redo", "reset", "save", "undo"],
             OpRegistry.TopLevelOnlyNames.Order().ToArray());
         Assert.Equal(_contractBotProfileOps.Where(o => o is not ("reset" or "clearChat")).Order(),

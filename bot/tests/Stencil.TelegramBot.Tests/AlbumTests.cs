@@ -12,12 +12,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Telegram media-group (album) handling through the real <see cref="UpdateRouter"/>: members
-/// buffer in the <see cref="AlbumCollector"/> until the settle window (driven by a test-held
-/// completion source — no sleeping), then the caption runs once per photo in album order and
-/// the results come back as ONE media group. Captionless members are never echoed one by one.
-/// </summary>
+/// <summary>Telegram media-group handling through the real <see cref="UpdateRouter"/>: members buffer until the settle window, then the caption runs once per photo in album order and the results come back as ONE media group.</summary>
 public sealed class AlbumTests : IDisposable
 {
     private const long _userId = 71;

@@ -11,10 +11,7 @@ using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <c>/script</c>: the usage line, the "send a photo first" gate, and the result going out through
-/// the SAME render-and-send path every slash command uses.
-/// </summary>
+/// <summary><c>/script</c>: the usage line, the "send a photo first" gate, and the result going out through the SAME render-and-send path every slash command uses.</summary>
 public sealed class ScriptCommandTests : IDisposable
 {
     private const long _userId = 55;

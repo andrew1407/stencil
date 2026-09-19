@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <c>BuildScrapeArgv</c>'s flag set and ordering (DESIGN source-site contract §1), including
-/// the "0 = unset" / "count absent = all" semantics and the output-dir guard.
-/// </summary>
+/// <summary><c>BuildScrapeArgv</c>'s flag set and ordering (source-site contract §1), including the "0 = unset" / "count absent = all" semantics and the output-dir guard.</summary>
 public sealed class CliArgvScrapeTests
 {
     [Fact]

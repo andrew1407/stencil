@@ -3,10 +3,7 @@ using Stencil.TelegramBot.Application.Editing;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// SSRF guard for user-supplied <c>/url</c> image links: only public http(s) URLs are allowed.
-/// All cases here are offline — IP-literal hosts and scheme/shape checks need no DNS.
-/// </summary>
+/// <summary>SSRF guard for user-supplied <c>/url</c> image links: only public http(s) URLs are allowed. Every case here is offline — IP-literal hosts and scheme/shape checks need no DNS.</summary>
 public sealed class RemoteImageUrlTests
 {
     [Theory]
@@ -77,9 +74,8 @@ public sealed class RemoteImageUrlTests
     [Fact]
     public async Task Should_Reject_An_Unresolvable_Host_Without_Hanging_On_Validate()
     {
-        // A guaranteed-non-resolvable host (.invalid, RFC 2606) with a near-zero resolve budget:
-        // whether it times out or fails to resolve, it must surface as InvalidOperationException
-        // rather than stall the caller.
+        // .invalid is guaranteed non-resolvable (RFC 2606); a timeout and a resolve failure must both surface as
+        // InvalidOperationException rather than stall the caller.
         string url = $"https://does-not-exist-{Guid.NewGuid():N}.invalid/a.png";
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => RemoteImageUrl.ValidateAsync(url, resolveTimeout: TimeSpan.FromMilliseconds(1)));

@@ -5,9 +5,8 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Application.Servers;
 
-// Translates a server project's stored layout (the browser's buildLayoutPayload shape) into an
-// EditState. The browser rotates then crops in rotated space; the CLI crops then rotates. ReadCrop
-// un-rotates cropRect back into original-image space so the CLI yields the same pixels.
+// Translates a server project's stored layout (the browser's buildLayoutPayload shape) into an EditState.
+// The browser rotates then crops; the CLI crops then rotates, so ReadCrop un-rotates cropRect.
 public static class ProjectLayoutMapper
 {
     public static EditState ToEditState(JsonElement layout, int originalWidth, int originalHeight)

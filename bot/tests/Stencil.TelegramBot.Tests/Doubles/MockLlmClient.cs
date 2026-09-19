@@ -2,11 +2,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// An in-process <see cref="ILlmClient"/> stand-in: it records every <see cref="LlmChatRequest"/>
-/// it is handed and returns queued canned replies (falling back to a chat-only default), or
-/// throws a configured exception. No provider/network is ever touched.
-/// </summary>
+/// <summary>Records every <see cref="LlmChatRequest"/> and returns queued canned replies (falling back to a chat-only default), or throws a configured exception. No provider or network is touched.</summary>
 public sealed class MockLlmClient : ILlmClient
 {
     /// <summary>Every request passed to <see cref="ChatAsync"/>, in order.</summary>
@@ -22,10 +18,7 @@ public sealed class MockLlmClient : ILlmClient
     /// <summary>When set, every call throws this instead of replying.</summary>
     public Exception? Throw { get; set; }
 
-    /// <summary>
-    /// When set, a call never answers — it waits on its token, standing in for a slow model so a
-    /// test can stop the turn mid-flight. Signalled once the call is actually in progress.
-    /// </summary>
+    /// <summary>Stands in for a slow model so a test can stop the turn mid-flight: the call waits on its token, and is signalled once it is actually in progress.</summary>
     public bool BlockUntilCancelled { get; set; }
 
     /// <summary>Set once a <see cref="BlockUntilCancelled"/> call is in flight.</summary>

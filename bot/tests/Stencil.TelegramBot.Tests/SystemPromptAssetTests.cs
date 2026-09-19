@@ -3,12 +3,7 @@ using Stencil.TelegramBot.Application.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <see cref="SystemPromptAsset"/> — the canonical §4 prose parsed from
-/// <c>browser/js/config/llm/systemPrompt.json</c>, embedded at build time: byte-drift
-/// against the repo's canonical copy, the pinned head/tail shape, and the assembly
-/// <see cref="PromptService"/> runs.
-/// </summary>
+/// <summary>The canonical §4 prose parsed from <c>browser/js/config/llm/systemPrompt.json</c>, embedded at build time: byte-drift against the repo's canonical copy, the pinned head/tail shape, and the assembly <see cref="PromptService"/> runs.</summary>
 public sealed class SystemPromptAssetTests
 {
     [Fact]

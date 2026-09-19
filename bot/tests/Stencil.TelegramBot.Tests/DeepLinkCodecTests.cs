@@ -3,11 +3,7 @@ using Xunit;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The Telegram start-payload codec.
-/// GOLDEN VECTORS — duplicated verbatim in browser/tests/deepLink.test.js and
-/// desktop/tests/deepLink.headless.cpp. Keep the three in sync.
-/// </summary>
+/// <summary>The Telegram start-payload codec. GOLDEN VECTORS — duplicated verbatim in browser/tests/deepLink.test.js and desktop/tests/deepLink.headless.cpp; keep the three in sync.</summary>
 public class DeepLinkCodecTests
 {
     public static TheoryData<string, string, string> GoldenVectors() => new()

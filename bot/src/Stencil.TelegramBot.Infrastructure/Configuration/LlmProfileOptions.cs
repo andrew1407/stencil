@@ -21,9 +21,8 @@ internal static class LlmProfileOptions
         };
     }
 
-    // STENCIL_LLM_PROFILES names the profiles; each STENCIL_LLM_PROFILE_<NAME>_* group (LABEL,
-    // PROVIDER, BASE_URL, MODEL, API_KEY, SERVER_URL, SERVER_TOKEN) falls back per key to the plain
-    // STENCIL_LLM_* value.
+    // STENCIL_LLM_PROFILES names the profiles; each STENCIL_LLM_PROFILE_<NAME>_* key (LABEL, PROVIDER,
+    // BASE_URL, MODEL, API_KEY, SERVER_URL, SERVER_TOKEN) falls back to the plain STENCIL_LLM_* value.
     public static IReadOnlyList<LlmProfile> ProfilesFromEnvironment()
     {
         string? names = EnvRead.Var("STENCIL_LLM_PROFILES");

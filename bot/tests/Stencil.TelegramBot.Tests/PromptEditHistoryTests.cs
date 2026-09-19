@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §2/§10 history ops: undo, redo, reset, clear (image and edits only) and the deferred
-/// clearChat confirm.
-/// </summary>
+/// <summary>§2/§10 history ops: undo, redo, reset, clear (image and edits only) and the deferred clearChat confirm.</summary>
 public sealed class PromptEditHistoryTests : PromptServiceTestBase
 {
     public PromptEditHistoryTests(PromptServiceFixture fixture) : base(fixture) { }

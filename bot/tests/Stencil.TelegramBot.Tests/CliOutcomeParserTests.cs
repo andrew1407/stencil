@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Parsing the CLI's stderr into structured results — a port of <c>mcp/tests/outcome_test.rs</c>,
-/// covering <c>ParseWrote</c>, <c>ParseRemotes</c> (the collaboration-server delivery lines),
-/// and <c>ExtractErrors</c> per <c>cli/CONTRACT.md</c> §2.
-/// </summary>
+/// <summary>Parsing the CLI's stderr into structured results — a port of <c>mcp/tests/outcome_test.rs</c> over <c>cli/CONTRACT.md</c> §2, including the collaboration-server delivery lines.</summary>
 public sealed class CliOutcomeParserTests
 {
     [Fact]

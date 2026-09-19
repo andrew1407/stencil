@@ -5,9 +5,8 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// The global, fail-closed allowlist (STENCIL_BOT_ALLOWED_USERS): an unlisted user gets only /start
-// and /help, and an empty list turns the bot off for everyone. The operator detail goes to the log,
-// once per id.
+// The global, fail-closed allowlist (STENCIL_BOT_ALLOWED_USERS): an unlisted user gets only /start and
+// /help, and an empty list turns the bot off for everyone.
 public sealed class AccessGate
 {
     private readonly IBotPolicy _options;

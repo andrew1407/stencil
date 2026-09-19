@@ -2,12 +2,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <c>CliOutcomeParser.ParseWroteProject</c> against the CLI's own grammar for a
-/// <c>.stencil</c> bundle write — <c>wrote {path} (project)</c> — the .NET peer of
-/// <c>parse_wrote_project</c> in <c>mcp/src/outcome.rs</c>. A project is a document, not pixels,
-/// so the line carries no dimensions and <see cref="CliOutcomeParser.ParseWrote"/> must skip it.
-/// </summary>
+/// <summary><c>ParseWroteProject</c> against the CLI's <c>wrote {path} (project)</c> grammar, the .NET peer of <c>parse_wrote_project</c> in <c>mcp/src/outcome.rs</c>: a project carries no dimensions, so <see cref="CliOutcomeParser.ParseWrote"/> must skip it.</summary>
 public sealed class CliOutcomeProjectTests
 {
     [Fact]

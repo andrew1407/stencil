@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §1 extraction and the accept/reject line: fence stripping, first-balanced-object extraction,
-/// the chat-only fallback, the unknown-op skip-with-warning, and strict validation of a known op.
-/// </summary>
+/// <summary>§1 extraction and the accept/reject line: fence stripping, first-balanced-object extraction, the chat-only fallback, the unknown-op skip-with-warning, and strict validation of a known op.</summary>
 public sealed class OpPlanParseTests
 {
     [Fact]

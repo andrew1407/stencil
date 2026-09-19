@@ -9,9 +9,8 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Infrastructure.Server;
 
-// A port of pystencil's ServerConnection: REST only, every non-2xx a ServerException with the
-// server's {code, message}. The HttpClient is the caller's (the factory wires TLS); all JSON goes
-// through StencilJson.
+// A port of pystencil's ServerConnection: REST only, every non-2xx a ServerException with the server's
+// {code, message}. The HttpClient is the caller's (the factory wires TLS); all JSON goes through StencilJson.
 public sealed partial class HttpStencilServerClient : IStencilServerClient
 {
     private readonly HttpClient _http;
@@ -31,9 +30,8 @@ public sealed partial class HttpStencilServerClient : IStencilServerClient
 
     public string BaseUrl { get; }
 
-    // Handshake (pystencil connect / browser handshake() parity): no token mints one, a token is
-    // validated by listing projects, and a 401/403 there may be the ADMIN token — SendAsync
-    // re-mints and the session token is adopted.
+    // Handshake (pystencil connect / browser handshake() parity): no token mints one, a token is validated by
+    // listing projects, and a 401/403 there may be the ADMIN token — SendAsync re-mints.
     public async Task<ServerHandshake> ConnectAsync(string? token, CancellationToken ct = default)
     {
         if (token is not null)

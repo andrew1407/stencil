@@ -5,10 +5,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <c>ParseScraped</c> over a source-site run's multi-file stderr (DESIGN source-site contract
-/// §3), pinned against the shared <c>cli/testdata/scrape_fixtures.json</c> corpus.
-/// </summary>
+/// <summary><c>ParseScraped</c> over a source-site run's multi-file stderr (source-site contract §3), pinned against the shared <c>cli/testdata/scrape_fixtures.json</c> corpus.</summary>
 public sealed class CliScrapeOutcomeTests
 {
     [Fact]
@@ -58,11 +55,7 @@ public sealed class CliScrapeOutcomeTests
         Assert.Equal("error: no media matched at https://example.com/", CliOutcomeParser.ExtractErrors(stderr));
     }
 
-    /// <summary>
-    /// Replay the shared golden fixtures (<c>cli/testdata/scrape_fixtures.json</c>) through
-    /// <see cref="CliOutcomeParser.ParseScraped"/>. The CLI must reproduce these exact line shapes
-    /// and this parser (like mcp's) must recover the files/dirs, so a drift on either side goes red.
-    /// </summary>
+    /// <summary>The shared <c>cli/testdata/scrape_fixtures.json</c> goldens: the CLI must emit these exact line shapes and this parser must recover the files/dirs, so a drift on either side goes red.</summary>
     [Fact]
     public void Should_Match_The_Scrape_Golden_Fixtures()
     {

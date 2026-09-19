@@ -6,9 +6,8 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Application.Servers;
 
-// The counterpart of ProjectLayoutMapper: starts from the project's existing layout so fields the
-// bot doesn't model (cropRect, formulas) survive, and overwrites lines, imageFilter/filterColor,
-// rotationQuarters, the working dimensions and — only after a /format pick — pageSize.
+// The counterpart of ProjectLayoutMapper: starts from the project's existing layout so fields the bot
+// doesn't model (cropRect, formulas) survive; pageSize is overwritten only after a /format pick.
 public static class ProjectLayoutWriter
 {
     // resultWidth/Height are the rendered result dimensions (the working-image size the browser

@@ -3,9 +3,8 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// The ISO 216/269 table, parsed once from the canonical PAGE_SIZES in
-// browser/js/config/constants.json (embedded; the bot never links core/). Canonical casing is
-// B5-style; canonical order is the JSON's own.
+// The ISO 216/269 table, parsed once from the canonical PAGE_SIZES in browser/js/config/constants.json
+// (embedded; the bot never links core/). Canonical casing is B5-style; order is the JSON's own.
 public static class PageFormats
 {
     private const string _resourceName = "Stencil.TelegramBot.Bot.Assets.constants.json";

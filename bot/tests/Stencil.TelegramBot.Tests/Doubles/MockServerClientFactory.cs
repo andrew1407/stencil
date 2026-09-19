@@ -4,11 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Server;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// An <see cref="IStencilServerClientFactory"/> over in-memory <see cref="MockStencilServerClient"/>s,
-/// keyed by normalised origin. Reuses the real <see cref="UrlNormalizer"/> so dedupe/keying
-/// matches production; records every <see cref="Create"/> for assertions.
-/// </summary>
+/// <summary>In-memory <see cref="MockStencilServerClient"/>s keyed by normalised origin, reusing the real <see cref="UrlNormalizer"/> so dedupe and keying match production; records every <see cref="Create"/>.</summary>
 public sealed class MockServerClientFactory : IStencilServerClientFactory
 {
     private readonly Dictionary<string, MockStencilServerClient> _clients = new();

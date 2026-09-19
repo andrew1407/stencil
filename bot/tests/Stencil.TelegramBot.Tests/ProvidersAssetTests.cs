@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Infrastructure.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <see cref="ProvidersAsset"/> — the canonical provider constants parsed from
-/// <c>browser/js/config/llm/providers.json</c>, embedded at build time: byte-drift
-/// against the repo's canonical copy, and the pinned parsed values.
-/// </summary>
+/// <summary>The canonical provider constants parsed from <c>browser/js/config/llm/providers.json</c>, embedded at build time: byte-drift against the repo's canonical copy, plus the pinned parsed values.</summary>
 public sealed class ProvidersAssetTests
 {
     [Fact]

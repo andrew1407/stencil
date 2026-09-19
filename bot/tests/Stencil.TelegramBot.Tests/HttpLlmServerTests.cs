@@ -7,10 +7,7 @@ using static Stencil.TelegramBot.Tests.LlmWireRig;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The §6.3 stencil-server provider: the protocol shapes it posts under the session bearer, the
-/// stop reasons that never yield a plan, and the disabled/unresolved-URL refusals.
-/// </summary>
+/// <summary>The §6.3 stencil-server provider: the protocol shapes it posts under the session bearer, the stop reasons that never yield a plan, and the disabled/unresolved-URL refusals.</summary>
 public sealed class HttpLlmServerTests
 {
     [Fact]

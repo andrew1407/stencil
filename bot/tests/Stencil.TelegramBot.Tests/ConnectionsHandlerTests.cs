@@ -7,11 +7,7 @@ using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The <c>/connections</c> handler: the bare listing, the <c>admin</c>/<c>session</c> credential
-/// filters, and the usage reply for anything else. Runs the real <see cref="CommandHandlers"/>
-/// over a <see cref="RecordingServerService"/> holding the remembered connections.
-/// </summary>
+/// <summary>The <c>/connections</c> handler — bare listing, <c>admin</c>/<c>session</c> credential filters, usage reply — over the real <see cref="CommandHandlers"/> and a <see cref="RecordingServerService"/>.</summary>
 public sealed class ConnectionsHandlerTests : IDisposable
 {
     private const long _userId = 91;

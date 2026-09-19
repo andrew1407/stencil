@@ -4,10 +4,8 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// §7 attachments: accepted media types only; anything over LlmImage.MAX_LONG_EDGE_PIXELS is downscaled
-// (shrink-only PNG) via IImageDownscaler, and a failed downscale degrades to the original up to
-// MaxOriginalBytes. Attachments are memoised per path on (mtime, length): chat mode re-attaches the
-// same image every turn.
+// §7 attachments: accepted media types only; over LlmImage.MAX_LONG_EDGE_PIXELS is downscaled
+// (shrink-only PNG), a failed downscale degrades to the original. Memoised per path on (mtime, length).
 public sealed class LlmAttachmentLoader
 {
     private static readonly Dictionary<string, string> _mediaTypes = new(StringComparer.OrdinalIgnoreCase)

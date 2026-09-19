@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// An <see cref="IServerService"/> that records the active-project save/rename calls the §2.1
-/// <c>save</c> op makes plus the §10 connect/disconnect calls, and fails loudly on anything
-/// else, so a test can assert exactly which server path a prompt took. Set
-/// <see cref="FailWith"/> to make the save throw, <see cref="ConnectFailWith"/> the connect.
-/// </summary>
+/// <summary>Records the active-project save/rename calls the §2.1 <c>save</c> op makes plus the §10 connect/disconnect calls and fails loudly on anything else, so a test can assert which server path a prompt took.</summary>
 public sealed class RecordingServerService : IServerService
 {
     public List<string> Saves { get; } = new();
@@ -121,10 +116,7 @@ public sealed class RecordingServerService : IServerService
     public Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default) => fail<Task<string>>();
     public Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default) => fail<Task<long>>();
     public Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default) => fail<Task<string>>();
-    /// <summary>
-    /// The version SyncWatcher polls. Never assigned = this double is not standing in for the
-    /// poll path and the call fails loudly; assigned null = the server was unreachable.
-    /// </summary>
+    /// <summary>The version SyncWatcher polls: never assigned = this double is not standing in for the poll path and the call fails loudly; assigned null = the server was unreachable.</summary>
     public long? ActiveVersion
     {
         get => _activeVersion;

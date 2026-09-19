@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Sessions;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The process-local <see cref="InMemorySessionStore"/>: fresh session for an unknown user,
-/// save/get round-trip, and reset clears.
-/// </summary>
+/// <summary>The process-local session store: a fresh session for an unknown user, the save/get round-trip, and reset clearing.</summary>
 public sealed class InMemorySessionStoreTests
 {
     [Fact]

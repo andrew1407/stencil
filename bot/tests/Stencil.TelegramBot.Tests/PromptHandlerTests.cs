@@ -4,10 +4,7 @@ using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The <c>/prompt</c> (and <c>/p</c>) main path: both verbs, the usage hint, reply + photo,
-/// the media group for variants, warning surfacing, and LLM failures as chat text.
-/// </summary>
+/// <summary>The <c>/prompt</c> (and <c>/p</c>) main path: both verbs, the usage hint, reply + photo, the media group for variants, warning surfacing, and LLM failures as chat text.</summary>
 public sealed class PromptHandlerTests : PromptHandlerTestBase
 {
     [Fact]

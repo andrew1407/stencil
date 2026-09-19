@@ -4,11 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Variant rendering: every variant is an independent CLI run folded from the same post-actions
-/// state, so they run together rather than end to end — and the renders still come back in plan
-/// order, whichever finishes first.
-/// </summary>
+/// <summary>Variant rendering: every variant is an independent CLI run folded from the same post-actions state, so they run together rather than end to end — and the renders still come back in plan order.</summary>
 public sealed class PromptVariantsTests(PromptServiceFixture fixture) : PromptServiceTestBase(fixture)
 {
     private const string _threeVariants =

@@ -4,9 +4,8 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// A domain error is surfaced to the chat verbatim, a deployment fault tells the chat a sentence and
-// the operator the whole story, an unexpected one is logged and apologised for. Shutdown unwinds
-// quietly.
+// A domain error is surfaced to the chat verbatim, a deployment fault tells the chat one sentence and
+// the operator the whole story; shutdown unwinds quietly.
 public sealed class ErrorGuard
 {
     private readonly ITelegramBotClient _bot;

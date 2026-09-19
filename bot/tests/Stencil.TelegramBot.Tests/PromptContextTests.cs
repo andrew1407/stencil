@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The context suffix the turn carries: connections and the active project, never a token — plus
-/// the multi-image and URL-normalisation cases that read it.
-/// </summary>
+/// <summary>The context suffix the turn carries: connections and the active project, never a token — plus the multi-image and URL-normalisation cases that read it.</summary>
 public sealed class PromptContextTests : PromptServiceTestBase
 {
     public PromptContextTests(PromptServiceFixture fixture) : base(fixture) { }

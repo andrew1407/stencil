@@ -6,11 +6,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared rig for the <see cref="EditingService"/> suites: a
-/// <see cref="MockStencilCli"/>, a real <see cref="InMemorySessionStore"/> and a real
-/// <see cref="UserWorkspace"/> rooted at a temp directory.
-/// </summary>
+/// <summary>The shared rig for the <see cref="EditingService"/> suites: a <see cref="MockStencilCli"/>, a real <see cref="InMemorySessionStore"/> and a real <see cref="UserWorkspace"/> rooted at a temp directory.</summary>
 public abstract class EditingServiceTestBase : IDisposable
 {
     protected const long UserId = 1234;

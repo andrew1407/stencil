@@ -10,12 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Colour validation, the bot's half of the port of <c>is_color</c> in <c>mcp/src/args.rs</c>:
-/// the canonical <c>browser/js/config/colorNames.json</c> is embedded here too, and an
-/// unparseable colour is refused before it reaches argv or the layout. Without this the CLI
-/// silently SKIPS the colour — a <c>/blank</c> comes out white, a pen stroke stays default.
-/// </summary>
+/// <summary>Colour validation, the bot's half of the port of <c>is_color</c> in <c>mcp/src/args.rs</c> over the embedded canonical <c>colorNames.json</c>: the CLI silently SKIPS an unparseable colour, so it is refused before argv.</summary>
 public sealed class ColorSpecTests : IDisposable
 {
     private const long _userId = 31;

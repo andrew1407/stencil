@@ -2,10 +2,7 @@ using Stencil.TelegramBot.Bot.Telegram;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The download cap: writes up to the limit pass through to the inner stream, and the first write
-/// that would exceed it throws before any of the offending bytes land.
-/// </summary>
+/// <summary>The download cap: writes up to the limit pass through to the inner stream, and the first write that would exceed it throws before any of the offending bytes land.</summary>
 public sealed class CappingWriteStreamTests
 {
     [Fact]

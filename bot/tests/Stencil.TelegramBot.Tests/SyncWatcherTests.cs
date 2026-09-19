@@ -12,12 +12,7 @@ using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The live-sync poller: per registry entry it compares the server's project version with what
-/// the session last saw, pulls and re-renders only when a peer moved ahead, and drops stale
-/// entries. Driven through <see cref="IHostedService"/> with the server, CLI and Telegram
-/// mocked — the first tick runs immediately, so no test waits out the 6-second cadence.
-/// </summary>
+/// <summary>The live-sync poller: per registry entry it compares the server's project version with what the session last saw, pulls and re-renders only when a peer moved ahead, and drops stale entries. The first tick runs immediately, so no test waits out the 6-second cadence.</summary>
 public sealed class SyncWatcherTests : IDisposable
 {
     private const long _userId = 71;

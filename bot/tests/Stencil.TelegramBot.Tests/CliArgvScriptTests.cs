@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <c>--script-plan</c> argv (cli/CONTRACT.md §5). Plan mode fetches nothing, decodes nothing and
-/// writes nothing, so — unlike every other spawn this adapter makes — it carries no
-/// <c>--confine-output</c>; there is no output to confine.
-/// </summary>
+/// <summary><c>--script-plan</c> argv (cli/CONTRACT.md §5): plan mode fetches, decodes and writes nothing, so — alone among this adapter's spawns — it carries no <c>--confine-output</c>.</summary>
 public sealed class CliArgvScriptTests
 {
     [Fact]

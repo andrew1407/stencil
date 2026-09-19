@@ -8,9 +8,8 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Infrastructure.Llm;
 
-// The transport every §6 provider shares — POST, bearer, status/JSON handling; the wire shapes live
-// one per IProviderMapping. Non-2xx, unreachable and unparseable become LlmExceptions;
-// truncation/refusal are typed.
+// The transport every §6 provider shares — POST, bearer, status/JSON handling; the wire shapes live one
+// per IProviderMapping. Non-2xx, unreachable and unparseable become LlmExceptions.
 public sealed class HttpLlmClient : ILlmClient
 {
     // LLM calls are slow: the canonical providers.json timeouts.chatSeconds.
@@ -129,9 +128,8 @@ public sealed class HttpLlmClient : ILlmClient
         + @"|[A-Za-z0-9_-]{24,}",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    // Control characters out, URLs and token-shaped runs redacted (an endpoint may echo the key);
-    // port of the server's sanitizeUpstreamText.
-    /// </summary>
+    // Port of the server's sanitizeUpstreamText: control characters out, URLs and token-shaped runs
+    // redacted (an endpoint may echo the key).
     public static string SanitizeProviderText(string text)
     {
         if (text.Length == 0)

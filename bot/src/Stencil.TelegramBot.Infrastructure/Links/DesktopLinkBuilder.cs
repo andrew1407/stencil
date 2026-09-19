@@ -4,10 +4,8 @@ using Stencil.TelegramBot.Infrastructure.Server;
 
 namespace Stencil.TelegramBot.Infrastructure.Links;
 
-// Telegram only linkifies http(s), so the stencil://open?… scheme URL rides inside the browser
-// app's launch.html bounce page. Port of deepLink.js buildDesktopBounceUrl plus the server branch
-// of openIn.js buildStencilSchemeUrl; golden vectors in browser/tests/deepLink.test.js and
-// browser-extension/tests/openIn.test.js.
+// Telegram only linkifies http(s), so the stencil://open?… URL rides inside the browser's launch.html.
+// Port of deepLink.js buildDesktopBounceUrl plus openIn.js buildStencilSchemeUrl's server branch.
 public static class DesktopLinkBuilder
 {
     // The browser's desktopScheme.

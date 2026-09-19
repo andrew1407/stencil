@@ -7,10 +7,7 @@ using static Stencil.TelegramBot.Tests.ServerWireRig;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The token handshake of <see cref="HttpStencilServerClient"/>: how a token is classified,
-/// when an admin credential mints a session token, and which probe rejections propagate.
-/// </summary>
+/// <summary>The token handshake of <see cref="HttpStencilServerClient"/>: how a token is classified, when an admin credential mints a session token, and which probe rejections propagate.</summary>
 public sealed class ServerConnectWireTests
 {
     [Fact]

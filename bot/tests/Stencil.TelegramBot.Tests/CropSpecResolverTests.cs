@@ -2,11 +2,7 @@ using Stencil.TelegramBot.Domain.Editing;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The C# port of the core's crop-spec resolution (<c>core/parse/cropSpec.cpp</c> +
-/// <c>lengthTokens.cpp</c>, rounded/clamped like <c>cliApi.cpp stencil_cli_resolveCrop</c>),
-/// with page metrics as A4 oriented to the image like the CLI pipeline derives them.
-/// </summary>
+/// <summary>The C# port of the core's crop-spec resolution (<c>core/parse/cropSpec.cpp</c> + <c>lengthTokens.cpp</c>, rounded/clamped like <c>stencil_cli_resolveCrop</c>), with page metrics as A4 oriented to the image.</summary>
 public sealed class CropSpecResolverTests
 {
     [Fact]

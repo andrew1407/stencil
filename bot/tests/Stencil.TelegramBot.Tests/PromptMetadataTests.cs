@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §10 project metadata: rename, describe, the two colours, and the <c>export</c> documents the
-/// caller sends into the chat.
-/// </summary>
+/// <summary>§10 project metadata: rename, describe, the two colours, and the <c>export</c> documents the caller sends into the chat.</summary>
 public sealed class PromptMetadataTests : PromptServiceTestBase
 {
     public PromptMetadataTests(PromptServiceFixture fixture) : base(fixture) { }

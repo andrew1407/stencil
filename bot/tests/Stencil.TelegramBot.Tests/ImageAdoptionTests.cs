@@ -8,11 +8,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Adopting a working image needs its pixel dimensions, and a CLI probe pays a whole process
-/// (decode + re-encode to a throwaway PNG) for two integers. A readable header answers it here;
-/// anything else still falls back to the probe.
-/// </summary>
+/// <summary>Adopting a working image needs its pixel dimensions, and a CLI probe pays a whole process (decode + re-encode to a throwaway PNG) for two integers. A readable header answers it here; anything else still falls back to the probe.</summary>
 public sealed class ImageAdoptionTests : IDisposable
 {
     private const long _userId = 5;

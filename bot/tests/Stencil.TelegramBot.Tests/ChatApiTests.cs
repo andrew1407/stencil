@@ -9,10 +9,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The <c>/chatapi</c> picker: listing the operator's configured chat APIs, selecting one per
-/// user (by command or button), and that the selection is what the next turn actually calls.
-/// </summary>
+/// <summary>The <c>/chatapi</c> picker: listing the operator's configured chat APIs, selecting one per user (by command or button), and that the selection is what the next turn calls.</summary>
 public sealed class ChatApiTests : IDisposable
 {
     private const long _userId = 91;

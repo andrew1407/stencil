@@ -5,12 +5,7 @@ using Stencil.TelegramBot.Domain.Projects;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The rig-free half of <see cref="Replies"/>: the tone glyphs, the colour dot, and the
-/// bare-command variant/usage lists (a command that needs arguments, sent bare, replies with
-/// its possible values instead of failing — SPEC feature 3). Pure string in, string out.
-/// The tones seen through the real handlers live in <see cref="ReplyTonesTests"/>.
-/// </summary>
+/// <summary>The rig-free half of <see cref="Replies"/>: tone glyphs, the colour dot, and the bare-command variant/usage lists (a command needing arguments, sent bare, replies with its possible values). The tones seen through the real handlers live in <see cref="ReplyTonesTests"/>.</summary>
 public sealed class RepliesTests
 {
     // ── tones ──

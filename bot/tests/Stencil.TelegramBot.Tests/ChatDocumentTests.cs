@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The contract's §12.1 persisted-chat document: <see cref="ChatDocument.Build"/> (text-only,
-/// role-filtered, trimmed to the most recent 32) and the tolerant <see cref="ChatDocument.TryParse"/>
-/// (wrong version/shape ⇒ null — "no chat", never an error; stray images ignored).
-/// </summary>
+/// <summary>The contract's §12.1 persisted-chat document: <see cref="ChatDocument.Build"/> (text-only, role-filtered, trimmed to the most recent 32) and the tolerant TryParse, where a wrong version or shape is "no chat" rather than an error.</summary>
 public sealed class ChatDocumentTests
 {
     [Fact]
@@ -138,9 +134,8 @@ public sealed class ChatDocumentTests
     [Fact]
     public void Should_Keep_Section_7_Machinery_Out_Of_The_Document_On_Build()
     {
-        // The §7 continuation round restates the request with the internal note appended;
-        // the shared document carries the user's own words, and never a raw op-plan as the
-        // assistant's turn (§12.1) — though a user pasting JSON still sees their own text.
+        // The shared document carries the user's own words, never the §7 internal note nor a raw op-plan as the
+        // assistant's turn (§12.1).
         ChatDocument doc = ChatDocument.Build(
             [
                 new LlmMessage(LlmMessage.ROLE_USER, "blank a4, then crop it"),
@@ -165,9 +160,6 @@ public sealed class ChatDocumentTests
     [Fact]
     public void Should_Sanitize_A_Document_Written_By_Another_Surface_Or_An_Older_Build_On_Try_Parse()
     {
-        // The document is shared: a note-only turn goes, an appended one is stripped back to
-        // the request, and a raw op-plan assistant turn is refused — none of it may be shown
-        // or replayed as if the user wrote or saw it.
         string json = $$"""
             {
               "version": 1,

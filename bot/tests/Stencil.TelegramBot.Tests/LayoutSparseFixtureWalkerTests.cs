@@ -4,13 +4,7 @@ using Stencil.TelegramBot.Domain.Layout;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared sparse-layout vectors through <see cref="StencilLayoutParser"/>, one test per
-/// vector: sparse lines in, cross-surface per-line defaults filled. The bot's typed binding is
-/// stricter than the reference sanitizer (no numeric-string coercion, no junk skipping), so
-/// those vectors are pinned as rejects in <c>FixtureOverrides.json</c>. payload.json targets a
-/// browser-only builder and is not walked.
-/// </summary>
+/// <summary>The shared sparse-layout vectors through <see cref="StencilLayoutParser"/>, one test per vector. The bot's typed binding is stricter than the reference sanitizer (no numeric-string coercion, no junk skipping), so those vectors are pinned as rejects in <c>FixtureOverrides.json</c>.</summary>
 public sealed class LayoutSparseFixtureWalkerTests
 {
     private static string Corpus => Path.Combine(SharedFixtures.ConfigFixtureDir("layout"), "sparse.json");

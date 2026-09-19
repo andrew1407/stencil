@@ -2,10 +2,7 @@ using Stencil.TelegramBot.Infrastructure.Server;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Origin normalisation for <see cref="UrlNormalizer"/> — a port of <c>pystencil</c>'s
-/// <c>normalize_url</c> tests (itself a port of the browser <c>normalizeUrl</c>).
-/// </summary>
+/// <summary>Origin normalisation — a port of <c>pystencil</c>'s <c>normalize_url</c> tests, itself a port of the browser's <c>normalizeUrl</c>.</summary>
 public sealed class UrlNormalizerTests
 {
     [Fact]

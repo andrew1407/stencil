@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// A plan's shape: chat-only turns, top-level actions folding into the session, variants rendered
-/// from state copies, and the per-action warnings a bad plan collects instead of failing.
-/// </summary>
+/// <summary>A plan's shape: chat-only turns, top-level actions folding into the session, variants rendered from state copies, and the per-action warnings a bad plan collects instead of failing.</summary>
 public sealed class PromptPlanTests : PromptServiceTestBase
 {
     public PromptPlanTests(PromptServiceFixture fixture) : base(fixture) { }

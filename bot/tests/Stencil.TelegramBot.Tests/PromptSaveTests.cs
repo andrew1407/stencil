@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §2.1 <c>image</c> and <c>save</c>: switching the working image, and persisting through the
-/// active server project — every miss a warning, never a failed plan.
-/// </summary>
+/// <summary>§2.1 <c>image</c> and <c>save</c>: switching the working image, and persisting through the active server project — every miss a warning, never a failed plan.</summary>
 public sealed class PromptSaveTests : PromptServiceTestBase
 {
     public PromptSaveTests(PromptServiceFixture fixture) : base(fixture) { }

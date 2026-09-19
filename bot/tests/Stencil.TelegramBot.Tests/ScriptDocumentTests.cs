@@ -13,10 +13,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// A <c>.stc</c> upload is the file form of <c>/script</c>: it lands beside <c>.stencil</c> and
-/// <c>.json</c> in <see cref="DocumentIntake"/> and runs the moment it arrives.
-/// </summary>
+/// <summary>A <c>.stc</c> upload is the file form of <c>/script</c>: it lands beside <c>.stencil</c> and <c>.json</c> in <see cref="DocumentIntake"/> and runs the moment it arrives.</summary>
 public sealed class ScriptDocumentTests : IDisposable
 {
     private const long _userId = 55;

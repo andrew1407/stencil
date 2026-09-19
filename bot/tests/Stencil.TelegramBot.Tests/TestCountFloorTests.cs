@@ -3,11 +3,7 @@ using Xunit.Sdk;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// A floor under the number of xunit cases this assembly runs. A suite can report no failures
-/// while executing a fraction of itself — a dropped project reference, a filter typo, a lost
-/// directory — and pass/fail cannot see that. Counted by reflection, the way the runner sees it.
-/// </summary>
+/// <summary>A floor under the number of xunit cases this assembly runs: a suite can report no failures while executing a fraction of itself (a dropped project reference, a filter typo), and pass/fail cannot see that. Counted by reflection, the way the runner sees it.</summary>
 public sealed class TestCountFloorTests
 {
     // A floor, not a pin: raise it when the suite grows a lot. Additions never trip it.

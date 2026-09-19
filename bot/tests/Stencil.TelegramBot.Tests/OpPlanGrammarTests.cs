@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The per-op value grammars of §2: filter tints, layout lines and their defaults, formula
-/// charsets, ISO page names, blank colours and the frame index/indices pair.
-/// </summary>
+/// <summary>The per-op value grammars of §2: filter tints, layout lines and their defaults, formula charsets, ISO page names, blank colours and the frame index/indices pair.</summary>
 public sealed class OpPlanGrammarTests
 {
     [Fact]

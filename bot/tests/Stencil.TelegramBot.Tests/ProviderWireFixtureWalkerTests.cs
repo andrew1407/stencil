@@ -8,13 +8,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared wire-mapping vectors through the real <see cref="HttpLlmClient"/> over a
-/// capturing <see cref="CannedHttpMessageHandler"/> — zero network, one test per vector. URL,
-/// Authorization (absence included) and the exact body are deep-compared; the canned response
-/// then drives reply extraction / typed errors. Wording divergences are pinned in
-/// <c>FixtureOverrides.json</c>; expectError.status is untestable (LlmException carries none).
-/// </summary>
+/// <summary>The shared wire-mapping vectors through the real <see cref="HttpLlmClient"/> over a capturing <see cref="CannedHttpMessageHandler"/> — zero network, one test per vector: URL, Authorization (absence included) and the exact body are deep-compared. Wording divergences live in <c>FixtureOverrides.json</c>.</summary>
 public sealed class ProviderWireFixtureWalkerTests
 {
     private static readonly string[] _files = ["ollama.json", "openai.json", "server.json", "httpErrors.json"];
@@ -154,8 +148,7 @@ public sealed class ProviderWireFixtureWalkerTests
             failures.Add($"{name}: expected an error, got a reply");
             return;
         }
-        // Kind mapping: truncated/refusal/disabled are typed; "http" and "badReply" are
-        // the bot's plain Error (its bad replies carry the shared message, no own kind).
+        // Kind mapping: truncated/refusal/disabled are typed; "http" and "badReply" are the bot's plain Error.
         // An unknown kind still demands an override so a new gap is recorded, not absorbed.
         string kindName = expect.GetProperty("kind").GetString()!;
         LlmFailure? want = kindName switch

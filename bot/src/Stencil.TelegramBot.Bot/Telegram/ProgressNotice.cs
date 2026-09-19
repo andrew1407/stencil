@@ -6,9 +6,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 namespace Stencil.TelegramBot.Bot.Telegram;
 
 // One message whose leading glyph spins every Tick, with the chat action re-armed on the same beat
-// (Telegram's own fades after ~5 s); StopAsync deletes it and is idempotent. Every Telegram call
-// here is best-effort and swallowed: the notice is cosmetic and must never fail the turn it
-// decorates.
+// (Telegram's own fades after ~5 s). Every Telegram call here is best-effort and swallowed.
 public sealed class ProgressNotice
 {
     public static readonly string[] Frames = ["◐", "◓", "◑", "◒"];

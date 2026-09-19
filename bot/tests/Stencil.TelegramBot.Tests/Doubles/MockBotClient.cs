@@ -6,12 +6,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// An in-process <see cref="ITelegramBotClient"/> stand-in that records every outbound request
-/// object (the <c>Send*</c> extension methods all build an <see cref="IRequest{TResponse}"/> and
-/// call <see cref="SendRequest{TResponse}"/>). Tests inspect <see cref="Requests"/> to assert what
-/// the handler sent — no Telegram network is ever touched.
-/// </summary>
+/// <summary>Records every outbound request object — the <c>Send*</c> extension methods all build an <see cref="IRequest{TResponse}"/> and call <see cref="SendRequest{TResponse}"/> — so tests inspect <see cref="Requests"/> and no Telegram network is touched.</summary>
 public class MockBotClient : ITelegramBotClient
 {
     /// <summary>Every request the bot handed to <see cref="SendRequest{TResponse}"/>, in order.</summary>

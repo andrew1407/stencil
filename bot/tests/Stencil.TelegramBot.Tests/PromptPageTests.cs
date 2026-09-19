@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §2 <c>formula</c>, <c>page</c> and <c>blank</c> dimensions, plus the context suffix lines the
-/// pen defaults and project listings contribute.
-/// </summary>
+/// <summary>§2 <c>formula</c>, <c>page</c> and <c>blank</c> dimensions, plus the context suffix lines the pen defaults and project listings contribute.</summary>
 public sealed class PromptPageTests : PromptServiceTestBase
 {
     public PromptPageTests(PromptServiceFixture fixture) : base(fixture) { }

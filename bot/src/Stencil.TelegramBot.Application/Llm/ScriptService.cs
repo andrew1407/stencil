@@ -7,8 +7,7 @@ using Stencil.TelegramBot.Domain.Sessions;
 namespace Stencil.TelegramBot.Application.Llm;
 
 // `/script` and the `.stc` upload: the CLI lowers the script to op-plan JSON and every action runs
-// through the SAME validator, pre-flight and executor a model plan does. A script is user text, not
-// a second execution path.
+// through the SAME validator, pre-flight and executor a model plan does.
 public sealed class ScriptService : IScriptService
 {
     // Far above any hand-written script and far under IBotPolicy.MaxDocumentBytes.
@@ -18,9 +17,7 @@ public sealed class ScriptService : IScriptService
     // characters, so a file inside it is inside MAX_SCRIPT_CHARS once decoded.
     public const int MAX_SCRIPT_BYTES = MAX_SCRIPT_CHARS;
 
-    // The wrapper plan needs SOME reply: OpPlanParser substitutes one and warns on an empty
-    // string. It is never shown — ScriptOutcome carries the reply and PromptOutcome.Applied the
-    // verdict.
+    // OpPlanParser substitutes a reply and warns on an empty string; this one is never shown.
     private const string _blockReply = "Script block applied.";
 
     private const int _maxReported = 3;
@@ -70,10 +67,8 @@ public sealed class ScriptService : IScriptService
         }
     }
 
-    // The frame a script's % lengths resolve against is the one the user is looking at — which is
-    // also the frame PlanFrameMapper maps the resulting coordinates back from. The CLI only
-    // header-probes it, so whenever the edits leave the size alone the base image is that frame
-    // and no render is spawned.
+    // A script's % lengths resolve against the frame the user sees — the frame PlanFrameMapper maps back
+    // from. The CLI only header-probes it, so an unchanged size means no render is spawned.
     private async Task<string?> frameAsync(long userId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);

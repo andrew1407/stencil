@@ -3,9 +3,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Stencil.TelegramBot.Bot;
 
-// Telegram.Bot awaits each handler before the next update, and an assistant turn runs for minutes,
-// so a bounded worker pool detaches each update; per-user ordering is UserGate's job, not this
-// queue's.
+// Telegram.Bot awaits each handler before the next update and an assistant turn runs for minutes, so a
+// bounded worker pool detaches each update; per-user ordering is UserGate's job.
 public sealed class UpdatePump : IAsyncDisposable
 {
     // Enough workers that a few minutes-long turns can't starve a Stop tap.

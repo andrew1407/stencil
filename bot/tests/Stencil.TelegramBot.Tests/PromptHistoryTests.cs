@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The conversation the model sees: the §7 32-message bound, the image-replay rule, idle-user
-/// eviction, and the system prompt assembled from the op registry.
-/// </summary>
+/// <summary>The conversation the model sees: the §7 32-message bound, the image-replay rule, idle-user eviction, and the system prompt assembled from the op registry.</summary>
 public sealed class PromptHistoryTests : PromptServiceTestBase
 {
     public PromptHistoryTests(PromptServiceFixture fixture) : base(fixture) { }
@@ -96,9 +93,8 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
     [Fact]
     public void Should_Assemble_The_Prompts_From_The_Op_Registry()
     {
-        // §13: no hand-maintained ops block — §4's op list and the §10 profile block are the
-        // registry's generated sections verbatim (name/flag/phrase pins live in
-        // OpRegistryTests; the prose core around the ops is the embedded canonical asset).
+        // §13: no hand-maintained ops block — §4's op list and the §10 profile block are the registry's generated
+        // sections verbatim; the prose core around them is the embedded canonical asset.
         Assert.Contains("\n" + OpRegistry.CoreOpsSection + "\n", PromptService.SystemPrompt);
         Assert.StartsWith(OpRegistry.ProfileOpsSection, PromptService.BotOpsPrompt);
         Assert.EndsWith("These ops are not image edits and cannot appear inside \"variants\".",

@@ -3,11 +3,7 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Locates the shared fixture corpus under <c>browser/js/config/</c> (walking up to the repo
-/// root) and this suite's <c>FixtureOverrides.json</c> — the pinned cases where the bot's
-/// measured behavior diverges from the corpus expectation.
-/// </summary>
+/// <summary>Locates the shared fixture corpus under <c>browser/js/config/</c> (walking up to the repo root) and this suite's <c>FixtureOverrides.json</c> — the pinned cases where the bot's measured behavior diverges from the corpus expectation.</summary>
 internal static class SharedFixtures
 {
     private static readonly Lazy<string> _root = new(findRepoRoot);
@@ -51,10 +47,7 @@ internal static class SharedFixtures
         public JsonDocument Parse() => JsonDocument.Parse(Json);
     }
 
-    /// <summary>
-    /// Every case in a JSON-array fixture file, read once and cached. Walkers pass only the
-    /// name through <c>[MemberData]</c>, so discovery never serializes a fixture.
-    /// </summary>
+    /// <summary>Every case in a JSON-array fixture file, read once and cached. Walkers pass only the name through <c>[MemberData]</c>, so discovery never serializes a fixture.</summary>
     public static IEnumerable<string> CaseNames(string path) =>
         Cases(path).Select(c => c.Name);
 
@@ -85,10 +78,7 @@ internal static class SharedFixtures
         JsonDocument.Parse(File.ReadAllText(PathOf(
             "bot", "tests", "Stencil.TelegramBot.Tests", "FixtureOverrides.json"))));
 
-    /// <summary>
-    /// The local override for a fixture, or null when the bot agrees with the corpus. Keyed
-    /// family → case name; fields are family-specific, plus a mandatory human note.
-    /// </summary>
+    /// <summary>The local override for a fixture, or null when the bot agrees with the corpus. Keyed family → case name; fields are family-specific, plus a mandatory human note.</summary>
     public static JsonElement? OverrideFor(string family, string name)
     {
         if (_overrides.Value.RootElement.TryGetProperty(family, out JsonElement section)

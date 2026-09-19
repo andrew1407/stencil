@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §3.2 <c>crop</c>: the spec grammar, the aspect key inside and beside the spec, and the fold
-/// that tolerates the duplicate but refuses a conflict.
-/// </summary>
+/// <summary>§3.2 <c>crop</c>: the spec grammar, the aspect key inside and beside the spec, and the fold that tolerates the duplicate but refuses a conflict.</summary>
 public sealed class OpPlanCropTests
 {
     [Theory]

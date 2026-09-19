@@ -4,10 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §10 <c>connect</c>/<c>disconnect</c> and the no-field ops (<c>reset</c>, <c>clear</c>,
-/// <c>clearChat</c>): a non-empty server and nothing else.
-/// </summary>
+/// <summary>§10 <c>connect</c>/<c>disconnect</c> and the no-field ops (<c>reset</c>, <c>clear</c>, <c>clearChat</c>): a non-empty server and nothing else.</summary>
 public sealed class OpPlanConnectionTests
 {
     [Fact]

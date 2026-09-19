@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// §3.0 layout turns: one model round per turn, and the §1 frame mapping that carries traced
-/// points through the plan's own crop/rotate steps.
-/// </summary>
+/// <summary>§3.0 layout turns: one model round per turn, and the §1 frame mapping that carries traced points through the plan's own crop/rotate steps.</summary>
 public sealed class PromptLayoutTests : PromptServiceTestBase
 {
     public PromptLayoutTests(PromptServiceFixture fixture) : base(fixture) { }
@@ -24,9 +21,8 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
           {"points":[{"x":1,"y":2},{"x":3,"y":4},{"x":1,"y":2}],"color":"#112233","thickness":5}]}]}
         """;
 
-    // ── §3.0: one model round per turn ──
-    // The withdrawn §3.2 correction pass is gone: a layout-drawing turn spends exactly ONE
-    // model call, the traced lines are the result, and no self-check note reaches the reply.
+    // §3.0: the withdrawn §3.2 correction pass is gone, so a layout-drawing turn spends exactly ONE model
+    // call and no self-check note reaches the reply.
 
     [Fact]
     public async Task Should_Issue_Exactly_One_Model_Round_For_A_Layout_Turn()

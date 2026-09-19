@@ -9,11 +9,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared rig for the <see cref="ScriptService"/> suites: a real workspace, editing service
-/// and <see cref="PromptService"/> over the mock CLI, so a lowered plan takes the same route a
-/// model plan does.
-/// </summary>
+/// <summary>The shared rig for the <see cref="ScriptService"/> suites: a real workspace, editing service and <see cref="PromptService"/> over the mock CLI, so a lowered plan takes the same route a model plan does.</summary>
 public abstract class ScriptServiceTestBase : IDisposable
 {
     protected const long UserId = 7;

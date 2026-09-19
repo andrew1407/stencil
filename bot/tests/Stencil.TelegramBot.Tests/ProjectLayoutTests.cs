@@ -5,12 +5,7 @@ using Stencil.TelegramBot.Domain.Layout;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The project-layout round trip, pinned as one because read and write are each other's
-/// inverse: <see cref="ProjectLayoutMapper"/> rebuilds the edit state from a fetched layout
-/// (lines · filter · rotation · rotated-space crop → CLI crop in original pixels) and
-/// <see cref="ProjectLayoutWriter"/> saves it back, keeping the fields the bot doesn't model.
-/// </summary>
+/// <summary>The project-layout round trip, pinned as one because read and write are each other's inverse: <see cref="ProjectLayoutMapper"/> rebuilds the edit state from a fetched layout (rotated-space crop → CLI crop in original pixels) and <see cref="ProjectLayoutWriter"/> saves it back.</summary>
 public sealed class ProjectLayoutTests
 {
     // The actual "cat" project: original 500x330, rotated one quarter, cropped in that

@@ -3,13 +3,7 @@ using Stencil.TelegramBot.Application.Editing;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// SSRF guard for the user-supplied <c>/connect</c> server URL. Unlike the <c>/url</c> image
-/// guard, loopback and private-LAN targets are intentionally ALLOWED (connecting to a local or
-/// LAN collaboration server is a supported feature); only the link-local / cloud-metadata range
-/// (and unspecified/multicast) is blocked. All cases here are offline — IP literals and
-/// <c>localhost</c> need no network DNS.
-/// </summary>
+/// <summary>SSRF guard for the user-supplied <c>/connect</c> URL: unlike the <c>/url</c> image guard, loopback and private-LAN targets are intentionally ALLOWED (a local or LAN collaboration server is supported) and only link-local / cloud-metadata, unspecified and multicast are blocked.</summary>
 public sealed class ServerUrlGuardTests
 {
     [Theory]
@@ -77,9 +71,8 @@ public sealed class ServerUrlGuardTests
     [Fact]
     public async Task Should_Allow_An_Unresolvable_Host_Without_Blocking_On_Validate_Server_Url()
     {
-        // Unlike the /url guard, a host that won't resolve is not treated as an SSRF target: it
-        // can't be reached, so the connection is allowed to proceed and fail on its own. A
-        // near-zero resolve budget makes this fast even offline.
+        // Unlike the /url guard, a host that won't resolve is not an SSRF target: it can't be reached, so the
+        // connection proceeds and fails on its own.
         string url = $"http://does-not-exist-{Guid.NewGuid():N}.invalid:8090";
         await RemoteImageUrl.ValidateServerUrlAsync(url, resolveTimeout: TimeSpan.FromMilliseconds(1)); // no throw
     }

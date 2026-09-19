@@ -5,11 +5,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The <c>.stc</c> path inside the Application ring: the script reaches the CLI as a temp file,
-/// the lowered actions run through the SAME op-plan validator and executor a model plan does, and
-/// the temp file never outlives the call.
-/// </summary>
+/// <summary>The <c>.stc</c> path inside the Application ring: the script reaches the CLI as a temp file, the lowered actions run through the SAME op-plan validator and executor a model plan does, and the temp file never outlives the call.</summary>
 public sealed class ScriptServiceTests : ScriptServiceTestBase
 {
     [Fact]
@@ -56,10 +52,7 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
         Assert.False(File.Exists(_cli.LastScriptCall!.Value.Script));
     }
 
-    /// <summary>
-    /// % lengths resolve against the frame the user is looking at — which is the frame
-    /// PlanFrameMapper maps the resulting coordinates back from — so the CLI probes a fresh render.
-    /// </summary>
+    /// <summary>% lengths resolve against the frame the user is looking at — the frame PlanFrameMapper maps the resulting coordinates back from — so the CLI probes a fresh render.</summary>
     [Fact]
     public async Task Should_Probe_The_Rendered_Frame_Not_The_Original()
     {
@@ -74,10 +67,7 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
         Assert.NotEqual(Path.GetFileName(session.OriginalImagePath), input);
     }
 
-    /// <summary>
-    /// The CLI only header-probes the frame, so an edit state that leaves the size alone is probed
-    /// on the base image itself — no render is spawned for a size the session already knows.
-    /// </summary>
+    /// <summary>The CLI only header-probes the frame, so an edit state that leaves the size alone is probed on the base image itself — no render is spawned for a size the session already knows.</summary>
     [Fact]
     public async Task Should_Probe_The_Base_Image_Without_Rendering_When_The_Frame_Keeps_Its_Size()
     {
@@ -152,10 +142,7 @@ public sealed class ScriptServiceTests : ScriptServiceTestBase
         Assert.Null(_cli.LastScriptCall);
     }
 
-    /// <summary>
-    /// Verbatim stdout from `stencil -i sample.png --script-plan`: the envelope the bot actually
-    /// receives, parsed and executed, so an upstream shape change fails here rather than in a chat.
-    /// </summary>
+    /// <summary>Verbatim stdout from `stencil -i sample.png --script-plan`, parsed and executed, so an upstream envelope change fails here rather than in a chat.</summary>
     [Fact]
     public async Task Should_Run_A_Real_Cli_Envelope()
     {

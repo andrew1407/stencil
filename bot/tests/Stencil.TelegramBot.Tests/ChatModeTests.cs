@@ -7,11 +7,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Chat mode's toggle and routing: the session flag on/off through <c>/chat</c> and the 💬
-/// buttons, plain text taking the same prompt path (variants included), and commands never
-/// swallowed by it.
-/// </summary>
+/// <summary>Chat mode's toggle and routing: the session flag through <c>/chat</c> and the 💬 buttons, plain text taking the same prompt path (variants included), and commands never swallowed by it.</summary>
 public sealed class ChatModeTests : ChatModeTestBase
 {
     [Fact]

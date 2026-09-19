@@ -6,11 +6,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The shared rig for the <c>/prompt</c> suites: the real <see cref="CommandHandlers"/> +
-/// <see cref="PromptService"/> + <see cref="EditingService"/> with the LLM, CLI and Telegram
-/// mocked, plus a tap that rides the same callback path the buttons do.
-/// </summary>
+/// <summary>The shared rig for the <c>/prompt</c> suites: the real <see cref="CommandHandlers"/> + <see cref="PromptService"/> + <see cref="EditingService"/> with the LLM, CLI and Telegram mocked, plus a tap that rides the same callback path the buttons do.</summary>
 public abstract class PromptHandlerTestBase : IDisposable
 {
     protected const long UserId = 55;

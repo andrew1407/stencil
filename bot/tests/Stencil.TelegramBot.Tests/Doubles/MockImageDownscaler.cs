@@ -2,11 +2,7 @@ using Stencil.TelegramBot.Domain.Abstractions;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// An in-process <see cref="IImageDownscaler"/> stand-in: it records every call and returns a
-/// configurable result. The default (null) mimics a machine without ffmpeg, so callers exercise
-/// the fall-back-to-original-bytes path.
-/// </summary>
+/// <summary>Records every call and returns a configurable result; the default (null) mimics a machine without ffmpeg, so callers exercise the fall-back-to-original-bytes path.</summary>
 public sealed class MockImageDownscaler : IImageDownscaler
 {
     /// <summary>Every (path, maxLongEdge) this mock was asked to downscale, in order.</summary>

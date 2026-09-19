@@ -9,11 +9,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The non-image download cap. A layout <c>.json</c> and a <c>.stencil</c> project are parsed
-/// whole, so they stream to disk under <see cref="BotOptions.MaxDocumentBytes"/> instead of
-/// riding the 50 MB photo limit into a <c>byte[]</c>. A photo keeps the larger cap.
-/// </summary>
+/// <summary>The non-image download cap: a layout <c>.json</c> and a <c>.stencil</c> project are parsed whole, so they stream to disk under <see cref="BotOptions.MaxDocumentBytes"/> rather than riding the 50 MB photo limit into a <c>byte[]</c>.</summary>
 public sealed class DocumentDownloadTests : IDisposable
 {
     private const long _userId = 55;

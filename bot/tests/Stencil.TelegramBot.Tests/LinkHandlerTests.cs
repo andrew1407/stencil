@@ -7,11 +7,7 @@ using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The <c>/link</c> handler: the desktop hand-off link for the active server project. It reads
-/// the session and the operator's browser-app base only — a <see cref="ThrowingServerService"/>
-/// fails the test loudly if it ever calls the server for a link.
-/// </summary>
+/// <summary>The <c>/link</c> handler builds the desktop hand-off link from the session and the operator's browser-app base only — a <see cref="ThrowingServerService"/> fails the test loudly if it calls the server.</summary>
 public sealed class LinkHandlerTests : IDisposable
 {
     private const long _userId = 91;

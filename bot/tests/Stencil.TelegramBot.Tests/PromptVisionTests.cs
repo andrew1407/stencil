@@ -10,10 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// What the model is shown: the §7 edge map attached beside the working image, and the single
-/// auto-continuation round a load-only plan earns.
-/// </summary>
+/// <summary>What the model is shown: the §7 edge map attached beside the working image, and the single auto-continuation round a load-only plan earns.</summary>
 public sealed class PromptVisionTests : PromptServiceTestBase
 {
     public PromptVisionTests(PromptServiceFixture fixture) : base(fixture) { }
@@ -91,9 +88,8 @@ public sealed class PromptVisionTests : PromptServiceTestBase
         Assert.Equal("AAAA", Assert.Single(last.Messages[0].Images).Base64Data);
     }
 
-    // ── §7 auto-continuation ──
-    // A plan whose actions CONTAIN a load op (blank/frame — the bot has no openUrl) and drew
-    // NO layout planned blind; the turn is re-sent ONCE with the fresh working image attached.
+    // §7 auto-continuation: a plan whose actions contain a load op (blank/frame) and drew NO layout planned
+    // blind, so the turn is re-sent ONCE with the fresh working image attached.
 
     [Fact]
     public async Task Should_Continue_Once_With_The_Fresh_Image_For_A_Mixed_Load_Plan_Without_A_Layout()

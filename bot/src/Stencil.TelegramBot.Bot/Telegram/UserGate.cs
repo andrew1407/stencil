@@ -1,9 +1,7 @@
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// A one-at-a-time async lock per Telegram user: session mutations are read-modify-write, so two
-// updates from one user racing lose an edit. UpdateRouter and SyncWatcher both take it. Each
-// semaphore is reference-counted and dropped with its last holder. Single-instance: horizontal
-// scaling would need a distributed lock.
+// A one-at-a-time async lock per Telegram user: session mutations are read-modify-write, so two updates
+// from one user racing lose an edit. Single-instance: scaling would need a distributed lock.
 public sealed class UserGate
 {
     private readonly Dictionary<long, Gate> _gates = [];

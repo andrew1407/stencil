@@ -4,11 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The collaboration-server flags of <see cref="CliArgvBuilder"/> —
-/// <c>--server</c>/<c>--remote-update</c>/<c>--remote</c>/<c>--remote-name</c> per
-/// <c>cli/CONTRACT.md</c> §1 — and the combinations the builder refuses.
-/// </summary>
+/// <summary>The collaboration-server flags of <see cref="CliArgvBuilder"/> (<c>--server</c>/<c>--remote-update</c>/<c>--remote</c>/<c>--remote-name</c>, <c>cli/CONTRACT.md</c> §1) and the combinations it refuses.</summary>
 public sealed class CliArgvServerTests
 {
     [Fact]

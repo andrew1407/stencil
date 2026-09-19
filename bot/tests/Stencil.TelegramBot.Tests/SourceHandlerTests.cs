@@ -9,12 +9,7 @@ using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The two scrape commands end-to-end through the real <see cref="CommandHandlers"/> +
-/// <see cref="EditingService"/> over one shared rig, CLI and Telegram mocked: <c>/sourcesite</c>
-/// sends every scraped file plus a summary, <c>/sourceupload</c> isolates one still and makes it
-/// the working image. Offline — the URL is a public IP literal, so the SSRF check needs no DNS.
-/// </summary>
+/// <summary>The two scrape commands end-to-end over one rig with CLI and Telegram mocked: <c>/sourcesite</c> sends every scraped file plus a summary, <c>/sourceupload</c> isolates one still and makes it the working image. Offline — the URL is a public IP literal.</summary>
 public sealed class SourceHandlerTests : IDisposable
 {
     private const long _userId = 42;

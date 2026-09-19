@@ -8,10 +8,7 @@ using static Stencil.TelegramBot.Tests.ServerWireRig;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The mid-session re-mint: a stale session token is re-minted once from the stored credential
-/// and the call retried — never looped, and never without a credential to mint from.
-/// </summary>
+/// <summary>The mid-session re-mint: a stale session token is re-minted once from the stored credential and the call retried — never looped, and never without a credential to mint from.</summary>
 public sealed class ServerRemintWireTests
 {
     [Fact]

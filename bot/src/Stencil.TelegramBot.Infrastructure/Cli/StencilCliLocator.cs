@@ -2,9 +2,8 @@ using Stencil.TelegramBot.Domain.Exceptions;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-// A port of mcp/src/locate.rs. Order: an explicit override / STENCIL_CLI (must exist), then the
-// nearest ancestor of the CWD or the executable holding cli/build.zig → cli/zig-out/bin/stencil,
-// then PATH.
+// A port of mcp/src/locate.rs. Order: an explicit override / STENCIL_CLI (must exist), then the nearest
+// ancestor holding cli/build.zig → cli/zig-out/bin/stencil, then PATH.
 public static class StencilCliLocator
 {
     private const string _binaryName = "stencil";

@@ -5,10 +5,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// What an edit accumulates on the session: blank, crop/rotate/filter, the page-format rules
-/// and layout application (replace vs combine).
-/// </summary>
+/// <summary>What an edit accumulates on the session: blank, crop/rotate/filter, the page-format rules and layout application (replace vs combine).</summary>
 public sealed class EditingServiceTests : EditingServiceTestBase
 {
     [Fact]

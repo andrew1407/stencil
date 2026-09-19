@@ -4,12 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Cli;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Parameter → argv mapping and validation guards for <see cref="CliArgvBuilder"/>. A port of
-/// <c>mcp/tests/args_test.rs</c>, including the collaboration-server flags
-/// (<c>--server</c>/<c>--remote-update</c>/<c>--remote</c>/<c>--remote-name</c>) per
-/// <c>cli/CONTRACT.md</c> §1; only mcp's surface-override cases are out of scope.
-/// </summary>
+/// <summary>Parameter → argv mapping and validation for <see cref="CliArgvBuilder"/>, a port of <c>mcp/tests/args_test.rs</c> including the collaboration-server flags per <c>cli/CONTRACT.md</c> §1.</summary>
 public sealed class CliArgvBuilderTests
 {
     [Fact]

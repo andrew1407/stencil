@@ -4,13 +4,7 @@ using Stencil.TelegramBot.Bot.Telegram;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// Drift tests for the bot's two copy assets. <c>botCommands.json</c> is the single source for
-/// four lists that used to be hand-synced — the dispatch table, the Telegram "/" menu,
-/// <c>/help</c> and README.md's command tables — so these assert the code and the doc still
-/// agree with it; <c>botStrings.json</c> holds the reply/button copy the goldens pin.
-/// The README block is generated-but-committed: <c>BOT_UPDATE_PROSE=1 dotnet test</c> rewrites it.
-/// </summary>
+/// <summary>Drift tests for the two copy assets: <c>botCommands.json</c> is the single source for the dispatch table, the Telegram menu, <c>/help</c> and README's tables (<c>BOT_UPDATE_PROSE=1</c> rewrites those rows); <c>botStrings.json</c> holds the pinned copy.</summary>
 public sealed class BotAssetTests
 {
     private const string _readmeOpen = "<!-- generated from src/Stencil.TelegramBot.Bot/Assets/botCommands.json";
@@ -46,10 +40,7 @@ public sealed class BotAssetTests
         Assert.Equal("", BotCommands.Canonical("nosuchcommand"));
     }
 
-    /// <summary>
-    /// The "/" menu is exactly the asset's <c>menu</c> commands, in asset order, and each name is
-    /// legal for Telegram (lowercase, ≤32 chars, letters/digits/underscore only).
-    /// </summary>
+    /// <summary>Telegram's rules are lowercase, ≤32 chars and letters/digits/underscore only, over exactly the asset's <c>menu</c> commands in asset order.</summary>
     [Fact]
     public void Should_Match_The_Asset_And_Telegrams_Rules_In_The_Slash_Menu()
     {
@@ -79,10 +70,6 @@ public sealed class BotAssetTests
         }
     }
 
-    /// <summary>
-    /// A command is either documented by a README row or listed as deliberately undocumented —
-    /// so a new one forces the choice instead of quietly missing from the docs.
-    /// </summary>
     [Fact]
     public void Should_Document_Every_Command_Or_List_It_As_Undocumented()
     {
@@ -107,10 +94,7 @@ public sealed class BotAssetTests
         Assert.Empty(uncovered);
     }
 
-    /// <summary>
-    /// The <c>/script</c> row says where the file form lives, because a <c>.stc</c> upload is the
-    /// only way to run a long script and there is deliberately no <c>/script-run</c> verb.
-    /// </summary>
+    /// <summary>A <c>.stc</c> upload is the only way to run a long script — there is deliberately no <c>/script-run</c> verb.</summary>
     [Fact]
     public void Should_Point_The_Script_Row_At_The_Stc_Upload()
     {

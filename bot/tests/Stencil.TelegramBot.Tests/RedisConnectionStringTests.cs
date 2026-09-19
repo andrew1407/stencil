@@ -4,10 +4,7 @@ using StackExchange.Redis;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <c>REDIS_URL</c> parsing: the <c>redis://</c> URL form <c>bot/.env.example</c> documents (and
-/// hosted Redis hands out) alongside StackExchange's native configuration string.
-/// </summary>
+/// <summary><c>REDIS_URL</c> parsing: the <c>redis://</c> URL form <c>bot/.env.example</c> documents (and hosted Redis hands out) alongside StackExchange's native configuration string.</summary>
 public sealed class RedisConnectionStringTests
 {
     private static DnsEndPoint endpointOf(ConfigurationOptions options) =>

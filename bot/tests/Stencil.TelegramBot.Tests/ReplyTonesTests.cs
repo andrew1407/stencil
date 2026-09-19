@@ -12,11 +12,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The reply-tone convention (<see cref="Replies.Tag"/>) as the user meets it: one
-/// representative reply per category, driven through the real handlers. The glyph mapping
-/// itself needs no rig and lives in <see cref="RepliesTests"/>.
-/// </summary>
+/// <summary>The reply-tone convention (<see cref="Replies.Tag"/>) as the user meets it: one representative reply per category, driven through the real handlers. The glyph mapping itself lives in <see cref="RepliesTests"/>.</summary>
 public sealed class ReplyTonesTests : IDisposable
 {
     private const long _userId = 71;

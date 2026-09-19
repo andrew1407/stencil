@@ -3,11 +3,7 @@ using System.Text;
 
 namespace Stencil.TelegramBot.Tests.Doubles;
 
-/// <summary>
-/// A test <see cref="HttpMessageHandler"/> that captures the outgoing request (method, URI,
-/// headers and fully-buffered body) and returns a canned response produced by a responder
-/// delegate. Lets <c>HttpStencilServerClient</c> be exercised with zero network.
-/// </summary>
+/// <summary>Captures the outgoing request (method, URI, headers and fully-buffered body) and returns a canned response from a responder delegate, so <c>HttpStencilServerClient</c> runs with zero network.</summary>
 public sealed class CannedHttpMessageHandler : HttpMessageHandler
 {
     private readonly Func<HttpRequestMessage, byte[], HttpResponseMessage> _responder;

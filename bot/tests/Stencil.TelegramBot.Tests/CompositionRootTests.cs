@@ -18,12 +18,7 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The DI wiring Program.cs relies on (<see cref="BotComposition.AddStencilBot"/> over the
-/// Application + Infrastructure registrations). A missing registration otherwise surfaces only
-/// on a real start, so every registered service is resolved here — no token dialed, no Redis,
-/// no hosted loop started.
-/// </summary>
+/// <summary>The DI wiring Program.cs relies on: a missing registration otherwise surfaces only on a real start, so every registered service is resolved here — no token dialed, no Redis, no hosted loop.</summary>
 public sealed class CompositionRootTests : IDisposable
 {
     // Well-formed but fake: TelegramBotClient parses "<id>:<hash>" and talks to nobody until used.

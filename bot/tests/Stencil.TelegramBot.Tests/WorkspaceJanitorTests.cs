@@ -10,12 +10,7 @@ using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The hosted sweeper around <c>UserWorkspace.PruneStale</c> (whose rules
-/// <see cref="UserWorkspacePruneTests"/> pin): it visits every on-disk user, keeps what that
-/// user's session references, and survives a store that throws. Driven through
-/// <see cref="IHostedService"/>, as the host starts and stops it.
-/// </summary>
+/// <summary>The hosted sweeper around <c>UserWorkspace.PruneStale</c> (whose rules <see cref="UserWorkspacePruneTests"/> pin): it visits every on-disk user, keeps what that user's session references, and survives a store that throws.</summary>
 public sealed class WorkspaceJanitorTests : IDisposable
 {
     private readonly string _root =

@@ -9,10 +9,7 @@ using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// The other half of §12: history seeded back from a fetched project's document, the
-/// default-off guarantee, and the once-only warning a failed push earns.
-/// </summary>
+/// <summary>The other half of §12: history seeded back from a fetched project's document, the default-off guarantee, and the once-only warning a failed push earns.</summary>
 public sealed class ChatRestoreTests : ChatPersistenceTestBase
 {
     [Fact]

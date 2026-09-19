@@ -4,9 +4,8 @@ namespace Stencil.TelegramBot.Domain.Editing;
 
 public sealed record CropRect(int X, int Y, int Width, int Height);
 
-// Port of core/parse/cropSpec.cpp + lengthTokens.cpp, finished with stencil_cli_resolveCrop's
-// integer rounding/clamping — the bot has no core/ access, so like mcp it ports the contract. Page
-// metrics are A4 oriented to the image, mirroring the CLI's pipeline.namedPageForImage.
+// Port of core/parse/cropSpec.cpp + lengthTokens.cpp, finished with stencil_cli_resolveCrop's integer
+// rounding/clamping. Page metrics are A4 oriented to the image, as the CLI's pipeline.namedPageForImage.
 public static partial class CropSpecResolver
 {
     private const double _cmPerInch = 2.54;

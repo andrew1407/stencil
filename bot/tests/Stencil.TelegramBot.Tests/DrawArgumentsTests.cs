@@ -3,10 +3,7 @@ using Stencil.TelegramBot.Domain.Layout;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>
-/// <see cref="DrawArguments"/> — the pure <c>/draw</c> point parsing: pixel and percentage
-/// coordinates, rectangle expansion, and rejection of malformed tokens.
-/// </summary>
+/// <summary>The pure <c>/draw</c> point parsing: pixel and percentage coordinates, rectangle expansion, and rejection of malformed tokens.</summary>
 public sealed class DrawArgumentsTests
 {
     [Fact]

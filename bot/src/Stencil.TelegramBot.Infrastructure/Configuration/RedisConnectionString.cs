@@ -3,10 +3,8 @@ using StackExchange.Redis;
 
 namespace Stencil.TelegramBot.Infrastructure.Configuration;
 
-// Accepts the redis://[user:password@]host[:port][/db] URL that .env.example documents and
-// StackExchange's own host:port,option=value string; only the second is native, so the URL is
-// translated here. Parts are set on the options object, not spliced into a string, so a password
-// holding , or = survives; userinfo is percent-decoded.
+// Accepts the redis://[user:password@]host[:port][/db] URL of .env.example plus StackExchange's native
+// host:port,option=value; parts are set on the options object, so a password holding , or = survives.
 public static class RedisConnectionString
 {
     public const int DEFAULT_PORT = 6379;
