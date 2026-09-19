@@ -2,9 +2,9 @@
 import { pageSizeOptions } from '../lib/cropGeometry.js';
 
 export const createCropControls = ({ state, resetCrop, swapCrop = resetCrop }) => {
-  // Custom… first, then every ISO A/B/C format from the shared table (canonical order).
+  // Custom first, then every ISO A/B/C format from the shared table (canonical order).
   const pageSel = document.getElementById('page-select');
-  pageSel.innerHTML = '<option value="custom">Custom…</option>' + pageSizeOptions();
+  pageSel.innerHTML = '<option value="custom">Custom</option>' + pageSizeOptions();
 
   const syncPageControls = () => {
     pageSel.value = state.page;
