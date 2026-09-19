@@ -23,12 +23,12 @@
     "desktop/tests/iconMotion.headless.cpp": 511,
     "desktop/tests/imageFixture.headless.cpp": 265,
     "desktop/tests/llmWireFixtures.headless.cpp": 262,
-    "desktop/tests/MainWindow.chatTurns.gui.cpp": 2648,
     "desktop/tests/ProjectsBatchBar.headless.cpp": 617,
     "desktop/tests/storeFixtures.headless.cpp": 262,
     "desktop/tests/strokeGrowth.headless.cpp": 241,
     "desktop/tests/themeSwapEase.headless.cpp": 265,
-    "desktop/tests/tipContent.headless.cpp": 317
+    "desktop/tests/tipContent.headless.cpp": 317,
+    "desktop/tests/MainWindow.chatTurnsViewport.gui.cpp": 272
   },
   "commentPct": {
     "desktop/src/app": 9,
@@ -38,7 +38,7 @@
     "desktop/src/llm": 12,
     "desktop/src/net": 6,
     "desktop/src/support": 9,
-    "desktop/tests": 14,
+    "desktop/tests": 13,
     "desktop/tests/support": 11,
     "desktop/src/model": 8
   },
@@ -48,5 +48,8 @@
     "desktop/tests": "the MainWindow GUI e2e is one QtTest binary per feature area (MainWindow.<area>.gui.cpp). Each area is still far over 230 lines: a QtTest binary runs one QObject of slots, so an area cannot be split further without splitting the binary again. The chat is four binaries for that reason — chatCards, chatCompact, chatDock and chatPanel/chatTurns — since one chat binary was longer than the whole rest of the suite run in parallel. The budget numbers above are the ratchet — drive them down as cases merge.",
     "desktop/src/app/MainWindow.hpp": "885 -> 890 for the script window: one QAction and three slots (open, the refresh a script shares with the toolbar, and the entry a dropped .stc uses). moc runs on this header, so a MainWindow member has nowhere else to be declared; the dialog, the core seam and the runner all live outside it. Back to 889 once the session draft went: the window opens empty. 889 -> 894 for the script FLYOUT: the panel action, the panel and its editor, plus ensureScriptMenuPanel — the context menu hosts the panel the way it hosts the chat one, and a MainWindow member has nowhere else to be declared. 894 -> 910: refreshDropHint(), since the canvas drop hint's keycaps are painted pictures a theme change must rebuild, and the Open-Image crop rect carried into the open path — a `cropRect` parameter on both openImage overloads and the pending-open struct's own `rect`. Same rule: moc runs here.",
     "desktop/src/dialogs": "comment share 10 -> 11 with comments ADDED, not code removed: this run of Open-Image fixes each turned on a Qt behaviour that cost real debugging and is invisible in the code — deleteLater leaves a live child past the next measure, a child born into a shown parent stays hidden and drops out of the layout's hint, resize() is clamped by the layout minimum AND the minimum already propagated to the window, overRect refuses an invisible source, and a QCheckBox cannot wrap so its label becomes the row's minimum width. Roughly fifteen other comment lines in this directory were tightened to hold 10 before this; the remaining ones are the invariants. Ratchet it back as these TUs split."
+  },
+  "_notes": {
+    "desktop/tests/MainWindow.chatTurnsViewport.gui.cpp": "272 and structurally capped: chatRowMenuStaysInsideTheViewport is ONE case whose three checker lambdas (checkSurface / checkNarrow / checkSliver, ~160 lines) are called against four chat surfaces, so no group of calls can leave them behind. They close over win.chatDock_ and win.chatMenuPanel_, which are private, so they cannot move to a shared test header either — MainWindow befriends the MainWindowGuiTest class alone. Listed in `files`, NOT in `exceptions`, so the ratchet still refuses growth."
   }
 }
