@@ -34,7 +34,7 @@ is not a pass.
 | 7 | server | `cd server && go test ./...` then `go test -race ./internal/hub/...` | 18 pkgs, 16 with tests, all ok |
 | 8 | bot | `cd bot && dotnet test Stencil.TelegramBot.slnx -m:2` | 0 fail, ~2.1k tests |
 | 9 | mcp | `cd mcp && CARGO_BUILD_JOBS=2 cargo test --locked -j 2` | 0 failed, ~600 tests, 3 benches ignored |
-| 10 | desktop | see below | 66/66 |
+| 10 | desktop | see below | all targets pass |
 
 **Do not treat those magnitudes as pins.** They drift on every commit that adds a test, and a
 table nobody updates teaches you to wave real drops through. The collapse check lives in the
@@ -70,8 +70,9 @@ nice -n 10 ctest --test-dir build -j1 -E 'mainwindow_.*_gui' --output-on-failure
 nice -n 10 ctest --test-dir build -j1 -R 'mainwindow_.*_gui' --output-on-failure  # the GUI areas
 ```
 
-Whole suite at `-j1` is ~178 s; at **`-j 16` it is ~14 s** and that is safe here (the GUI
-targets are short now), so prefer `ctest --test-dir build -j 16` when the machine is quiet.
+Whole suite at `-j1` is minutes; at **`-j 4` it is ~60 s** and that is the reliable setting.
+`-j 16` is faster still but throws one spurious GUI failure per run unless the machine is
+completely idle — prefer `-j 4` right after a build.
 
 **Known flake:** a handful of GUI cases flip under CPU load — `chatdock` and `chrome` most
 often. If exactly one GUI case fails, re-run that target alone on a quiet machine before
