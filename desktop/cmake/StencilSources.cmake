@@ -106,8 +106,8 @@ set(STENCIL_LINKSDIALOG_SOURCES
 
 # The open dialog (dialogs/OpenImageDialog.hpp) is several TUs behind a private parts
 # header: the build, the preview, the video scrub player, the preview's dust flourish, its
-# per-tab cache (a switch re-shows a decode instead of re-fetching it), the tab state and
-# the read-out.
+# per-tab cache (a switch re-shows a decode instead of re-fetching it), the tab state, the
+# crop stage and the read-out.
 set(STENCIL_OPENIMAGE_SOURCES
   src/dialogs/OpenImageDialog.cpp
   src/dialogs/OpenImageDialogPreview.cpp
@@ -117,6 +117,7 @@ set(STENCIL_OPENIMAGE_SOURCES
   src/dialogs/OpenImageDialogSizeDust.cpp
   src/dialogs/OpenImageDialogCache.cpp
   src/dialogs/OpenImageDialogState.cpp
+  src/dialogs/OpenImageDialogCropStage.cpp
   src/dialogs/OpenImageDialogResult.cpp)
 
 # Local persistence (io/fileStore.hpp) is four TUs behind a private io header: the layout
