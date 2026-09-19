@@ -4,7 +4,6 @@
 #include <QColor>
 #include <QDialog>
 #include <QImage>
-#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
@@ -14,20 +13,13 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QPushButton;
-class QRadioButton;
-class QToolButton;
 class QSpinBox;
 class QDoubleSpinBox;
 class QSlider;
 class QTabWidget;
-class QScrollArea;
-class QVariantAnimation;
-class QFormLayout;
+class QVBoxLayout;
 class QWidget;
 class QTimer;
-class QMediaPlayer;
-class QAudioOutput;
-class QVideoSink;
 class QVideoFrame;
 
 // The GUI e2e drives the VIDEO branch through this seam (no decoder offscreen).
@@ -110,6 +102,11 @@ namespace stencil::gui {
       core::CropRect cropRect;   // the dragged rect, in THIS decode's own pixels
       bool cropRectValid = false;
     };
+
+    // The ctor's three build steps, one TU each; all three fill the scroll body's column.
+    void buildTabs(QVBoxLayout* layout, int blankW, int blankH);
+    void buildPreviewColumn(QVBoxLayout* layout);
+    void buildCropRows(QVBoxLayout* layout);
 
     void browse();
     void pickCustomColor();

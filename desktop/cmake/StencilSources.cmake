@@ -110,6 +110,9 @@ set(STENCIL_LINKSDIALOG_SOURCES
 # crop stage and the read-out.
 set(STENCIL_OPENIMAGE_SOURCES
   src/dialogs/OpenImageDialog.cpp
+  src/dialogs/OpenImageDialogBuildTabs.cpp
+  src/dialogs/OpenImageDialogBuildPreview.cpp
+  src/dialogs/OpenImageDialogBuildCrop.cpp
   src/dialogs/OpenImageDialogPreview.cpp
   src/dialogs/OpenImageDialogFit.cpp
   src/dialogs/OpenImageDialogScrub.cpp
