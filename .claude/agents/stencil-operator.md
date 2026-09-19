@@ -193,6 +193,23 @@ script window; desktop **Data ▸ Stencil Script…** or a `.stc` drop; pystenci
 / `run_script`; mcp `stencil_script`; bot `/script` or a `.stc` upload. A script the user is
 editing in VS Code gets highlighting and squiggles from `vscode-extension/`.
 
+## 7) VS Code extension (only when it is already installed)
+
+`code --list-extensions | grep stencil.stencil-stc` says whether the user has it. Absent, it
+is not part of the picture — never install or package it to serve a request. Present, it is
+still **not a way to get work done**: its commands only wrap what you already drive directly,
+so `stencil.runScript` / `checkScript` → the CLI's `--script` / `--script-check`,
+`openInWeb` / `openImageInWeb` → the `#stencil=` fragment (§3), `runInWebConsole` →
+`evaluate_script` on `window.stencil` (§2). The extension exports no API and VS Code's CLI
+runs no command, so the only way in is the command palette over a debug port —
+`usecases/capture-runner/lib/vscodeHost.mjs` — worth it only when the user asks for the
+editor itself.
+
+What it is good for is diagnosing the user's editor: a failing **Run** is almost always
+`stencil.cliPath` (then `STENCIL_CLI`, then `PATH`), a wrong browser is `stencil.webUrl` /
+`webBrowser`, and squiggles with no CLI come from the in-process parser copy in
+`src/parser/`. `vscode-extension/README.md` has the commands and settings in full.
+
 ## Workflow & guardrails
 
 1. **Clarify only if blocked** — if no input is found or you can't tell output from action,
