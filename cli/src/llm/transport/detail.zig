@@ -13,9 +13,8 @@ pub const detail_limit = sanitize.detail_limit;
 pub const DetailBuf = sanitize.DetailBuf;
 pub const sanitizeDetail = sanitize.sanitizeDetail;
 
-/// The provider's own message from a non-2xx body (the three §6 error shapes), sanitized
-/// by `sanitizeDetail`; empty when the body carries nothing usable. The raw body is
-/// NEVER printed.
+/// The provider's own message from a non-2xx body (the three §6 error shapes), sanitized by
+/// `sanitizeDetail`; empty when the body carries nothing usable. The raw body is NEVER printed.
 pub fn errorDetail(gpa: std.mem.Allocator, body: []const u8, out: *DetailBuf) []const u8 {
     var parsed = std.json.parseFromSlice(std.json.Value, gpa, body, .{}) catch return "";
     defer parsed.deinit();

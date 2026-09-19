@@ -6,13 +6,11 @@ const logo = @import("../../logo.zig");
 const llm = @import("../../llm.zig");
 const Session = @import("../session.zig").Session;
 
-// The wire/parse half lives in llm.zig (the CLI's port of llm-contract.md); this is the
-// executor half: validated op-plan actions run through the SAME session operations the
-// console commands use, variants through the same pipeline blocks the view rebuild uses.
+// The wire/parse half lives in llm.zig (the CLI's port of llm-contract.md); this is the executor
+// half — validated actions run through the SAME session operations the console commands use.
 
-/// `/llm [provider|url|model|key|server <value>]` — show (bare) or override the session's
-/// LLM config, seeded from `STENCIL_LLM_*`; secrets are masked. A provider change re-fills
-/// its default baseUrl unless the URL was overridden this session via '/llm url'.
+/// `/llm [provider|url|model|key|server <value>]` — show or override the session's LLM config,
+/// seeded from `STENCIL_LLM_*`. A provider change re-fills its default baseUrl unless '/llm url' did.
 pub fn doLlm(session: *Session, arg: []const u8) !void {
     const cfg = try session.llmConfig();
     switch (llm.parseCmd(arg)) {
@@ -67,9 +65,8 @@ fn showLlm(session: *Session, cfg: *const llm.Config) void {
 /// caller; `token` borrows from the live connection or the config.
 pub const ServerAuth = struct { url: []u8, token: []const u8 };
 
-/// Contract §5 (cli row): when /connect-ed to the configured serverUrl (or, when empty,
-/// the first connection) reuse the live session token; else fall back to
-/// STENCIL_LLM_SERVER_TOKEN. Null (with a message) when there is no server to talk to.
+/// Contract §5 (cli row): when /connect-ed to the configured serverUrl (or, when empty, the first
+/// connection) reuse the live session token; else fall back to STENCIL_LLM_SERVER_TOKEN.
 pub fn resolveServerAuth(session: *Session, cfg: *const llm.Config) !?ServerAuth {
     const gpa = session.gpa;
     if (cfg.server_url.len == 0) {
@@ -85,9 +82,8 @@ pub fn resolveServerAuth(session: *Session, cfg: *const llm.Config) !?ServerAuth
     return .{ .url = base, .token = cfg.server_token };
 }
 
-/// Build the console-context system-prompt suffix over `arena` (freed by the caller): one
-/// llm.ConsoleServer per live connection — base URL plus, when `with_projects`, best-effort
-/// project names. Tokens have no field to ride in; only c.base ever leaves here.
+/// Build the console-context system-prompt suffix over `arena` (caller frees): one llm.ConsoleServer
+/// per live connection. Tokens have no field to ride in; only the base URL ever leaves here.
 pub fn consoleContext(session: *Session, arena: std.mem.Allocator, with_projects: bool) error{OutOfMemory}![]u8 {
     const servers = try arena.alloc(llm.ConsoleServer, session.servers.items.len);
     for (session.servers.items, 0..) |*c, i| {

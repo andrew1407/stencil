@@ -47,9 +47,8 @@ pub fn runPlan(session: *Session, io: std.Io, raw: []const u8, user_text: []cons
                     logo.err("openUrl blocked: \"{s}\" is not a URL you gave in this conversation\n", .{o.url});
                     return false;
                 },
-                // The same rule for local files: the assistant may read and write only where
-                // the user themselves pointed it, so a plan can never go looking through the
-                // disk or drop results somewhere the user never named.
+                // The assistant may read and write only where the user themselves pointed it, so a plan can never
+                // go looking through the disk or drop results somewhere the user never named.
                 .open_file => |f| if (!llm.pathEchoedByUser(user_turns, user_text, f.path)) {
                     logo.err("openFile blocked: \"{s}\" is not a path you gave in this conversation\n", .{f.path});
                     return false;
@@ -61,9 +60,8 @@ pub fn runPlan(session: *Session, io: std.Io, raw: []const u8, user_text: []cons
                 else => {},
             };
             var edited = false;
-            // Plan coordinates are written in the frame of the §7 snapshot (llm-contract §1),
-            // so the crop/rotate actions that execute are accumulated as frame steps and a
-            // later layout's points are re-mapped through them (and clamped) before drawing.
+            // Plan coordinates are in the frame of the §7 snapshot (llm-contract §1), so executed crop/rotate
+            // actions accumulate as frame steps and a later layout's points re-map through them.
             var frame_steps: std.ArrayList(layout_mod.FrameStep) = .empty;
             defer frame_steps.deinit(gpa);
             // §2.1: which `/upload`ed attachment the last `image` op adopted (1-based) —
@@ -82,9 +80,8 @@ pub fn runPlan(session: *Session, io: std.Io, raw: []const u8, user_text: []cons
     return false;
 }
 
-/// Print an `ask` card as a numbered list (contract §11.4: no previews in a console — the
-/// options keep their labels) and remember the labels so the next /prompt can answer by
-/// number. A card replaces any earlier one: only the latest question is answerable.
+/// Print an `ask` card as a numbered list (§11.4: no previews in a console) and remember the labels
+/// so the next /prompt can answer by number. A card replaces any earlier one.
 fn showAsk(session: *Session, ask: llm.Ask) !void {
     const gpa = session.gpa;
     session.clearAsk();
@@ -111,13 +108,8 @@ fn showAsk(session: *Session, ask: llm.Ask) !void {
     session.ask_multi = ask.multi;
 }
 
-/// Apply one top-level plan action through the SAME session operations the console
-/// commands use. False = the action failed (execution stops); `edited` set on an undoable/
-/// layout change. Crop/rotate append to `frame_steps`; a layout re-maps through them (§1).
-
-/// Run one validated op-plan action, editing state the caller carries across the plan.
-/// The image-transforming ops need a working image, like their console commands; past that
-/// guard the two halves of the op set live in edits.zig and settings.zig.
+/// Run one validated op-plan action, editing state the caller carries across the plan. False = the
+/// action failed; the image-transforming ops need a working image, as their console commands do.
 pub fn applyPlanAction(
     session: *Session,
     io: std.Io,

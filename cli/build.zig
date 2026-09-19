@@ -1,8 +1,7 @@
 const std = @import("std");
 
-// Source list for the shared C++ core (cli recompiles it directly rather than linking
-// the CMake static library, so the CLI stays a self-contained `zig build`). KEEP IN
-// SYNC with STENCIL_CORE_SOURCES in ../core/CMakeLists.txt.
+// Source list for the shared C++ core — the CLI recompiles it rather than linking core's CMake
+// static library. KEEP IN SYNC with STENCIL_CORE_SOURCES in ../core/CMakeLists.txt.
 const core_sources = [_][]const u8{
     "geometry/pointMath.cpp",
     "geometry/hitTest.cpp",
@@ -86,9 +85,8 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
         .files = &.{ "stb_read_impl.c", "regex_shim.c" },
         .flags = &.{"-std=c11"},
     });
-    // stb's JPEG ENCODER relies on signed-shift wraparound that is technically UB; it's
-    // benign in C but Zig instruments C with UBSan in Debug and would trap. Its own TU so
-    // the exemption never reaches the decoder.
+    // stb's JPEG encoder relies on signed-shift wraparound; Zig instruments C with UBSan in Debug
+    // and would trap on it. Its own TU so the exemption never reaches the decoder.
     mod.addCSourceFiles(.{
         .root = b.path("src"),
         .files = &.{"stb_write_impl.c"},
@@ -122,9 +120,8 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the stencil CLI");
     run_step.dependOn(&run_cmd.step);
 
-    // test_root.zig (at cli/ root) pulls in both the inline unit tests (via
-    // src/main.zig) and the integration tests under tests/ (which use tests/fixtures/).
-    // Rooting at cli/ lets the tests/ files import the src/ modules.
+    // test_root.zig pulls in the inline unit tests (via src/main.zig) and the ones under tests/;
+    // rooting at cli/ lets the tests/ files import the src/ modules.
     const test_mod = b.createModule(.{
         .root_source_file = b.path("test_root.zig"),
         .target = target,
@@ -137,10 +134,8 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run the stencil CLI unit + integration tests");
     test_step.dependOn(&run_tests.step);
 
-    // Opt-in perf benchmark (`zig build bench`) — times the pipeline stages on a large
-    // synthetic image. Deliberately NOT wired into `test`/CI: it prints timings, it does
-    // not assert them. Built ReleaseFast regardless of the top-level optimize choice so
-    // the numbers reflect a shipped build. See src/bench.zig.
+    // `zig build bench` prints timings, it does not assert them, so it is deliberately out of `test`.
+    // ReleaseFast whatever the top-level optimize choice, so the numbers reflect a shipped build.
     const bench_mod = b.createModule(.{
         .root_source_file = b.path("src/bench.zig"),
         .target = target,

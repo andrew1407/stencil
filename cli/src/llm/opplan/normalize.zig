@@ -18,9 +18,8 @@ const findOp = model.findOp;
 const guards = @import("guards.zig");
 const understoodPath = guards.understoodPath;
 
-// typed normalization: the validated + normalized map → `Action`
-// The generic check already proved every field's type, so these only READ. Strings are
-// arena-owned slices of the parsed reply (trims applied by the registry's `trim`).
+// Typed normalization, the validated map → `Action`: the generic check already proved every field's
+// type, so these only READ. Strings are arena-owned slices of the parsed reply.
 
 pub fn strOpt(n: ObjectMap, key: []const u8) ?[]const u8 {
     const v = n.get(key) orelse return null;
@@ -125,10 +124,8 @@ pub fn fill(a: std.mem.Allocator, entry: *const Entry, n: ObjectMap, diag: *Diag
         // no URLs, no escaping the working directory).
         .delete => return .{ .delete = .{ .path = std.mem.trim(u8, strOpt(n, "path").?, " \t") } },
         .open_file => {
-            // cli extras: a LOCAL path (never a URL — openUrl owns those), bounded, in a
-            // format this app itself opens (the read scope: the model never gets to hand
-            // us an arbitrary file to slurp). Whether the USER wrote it is checked at
-            // execution, like openUrl's guard.
+            // cli extras: a LOCAL path (never a URL — openUrl owns those), bounded, in a format this app opens,
+            // so the model cannot hand us an arbitrary file. Whether the USER wrote it is checked at execution.
             const path = std.mem.trim(u8, strOpt(n, "path").?, " \t");
             const max_path: usize = @intFromFloat(opSchema.get().limitNamed("MAX_PATH_CHARS"));
             if (path.len == 0 or path.len > max_path or opSchema.matches(.URL_SCHEME, path))

@@ -13,9 +13,8 @@ pub fn printFormula(session: *Session) void {
     logo.print(msg.formulas_state, .{ if (session.allow_formulas) "on" else "off", fx, fy });
 }
 
-/// `/formula [x|y <expr> | on | off | clear]` — the coordinate-transform formulas riding
-/// the saved layout (validated with the shared parser). Bare shows the state. Returns true
-/// only when the formula state changed, so the caller only queues a sync on a real edit.
+/// `/formula [x|y <expr> | on | off | clear]` — the coordinate-transform formulas riding the saved
+/// layout, validated with the shared parser. True only when the state changed, so only then a sync.
 pub fn doFormula(session: *Session, arg: []const u8) bool {
     const trimmed = std.mem.trim(u8, arg, " \t");
     if (trimmed.len == 0) {
@@ -55,9 +54,8 @@ pub fn doFormula(session: *Session, arg: []const u8) bool {
     return true;
 }
 
-/// `/format [name | custom <w> <h>]` — show or set the session's page format (bare lists,
-/// a name picks, custom sets cm dims). Drives the header label, the saved `pageSize`, and
-/// the `/blank` default. Returns true only when the pick changed (a listing never syncs).
+/// `/format [name | custom <w> <h>]` — show or set the session's page format (custom takes cm dims).
+/// Drives the header label, the saved `pageSize` and the `/blank` default. True only on a change.
 pub fn doFormat(session: *Session, arg: []const u8) bool {
     const trimmed = std.mem.trim(u8, arg, " \t");
     if (trimmed.len == 0) {

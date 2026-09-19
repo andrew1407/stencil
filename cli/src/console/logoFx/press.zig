@@ -23,18 +23,16 @@ const flourish_step_ms = 115; // per-letter pace of the theme-change wordmark wa
 // How long the logo stays shrunk after a click — the first half of the press-to-recolour
 // lag, kept just long enough to read as a button going down.
 const press_ms = 95;
-// The recolour sweep jumps the new colour across the screen left to right. Measured in
-// JUMPS, not columns, so the animation lasts the same ~2s at any width — `wipe_step_ms`
-// is the pause the eye reads between jumps.
+// The recolour sweep jumps the new colour left to right, measured in JUMPS rather than columns so
+// the animation lasts the same ~2s at any width; `wipe_step_ms` is the pause between jumps.
 const wipe_step_ms = 61;
 const wipe_jumps = 14;
 // How much faster the separator line turns over than the seam itself, in percent (400 = 4×) —
 // a percentage rather than a whole multiple so it can be tuned by fractions.
 const rule_wipe_pct = 178;
 
-/// Flash the logo one cell smaller and back — the pressed state of a button, for a click on
-/// the pinned logo. Plays before the accent changes, so a click reads as "pressed, then
-/// recoloured". Silent when the header was never captured.
+/// Flash the logo one cell smaller and back — the pressed state of a button, for a click on the
+/// pinned logo. Plays before the accent changes; silent when the header was never captured.
 pub fn pressLogo(self: *Screen) void {
     const logo_rows = self.headerRows() -| screen_mod.header_pad;
     if (logo_rows == 0) return;
@@ -51,9 +49,8 @@ pub fn pressLogo(self: *Screen) void {
     self.trimBlankEnds(&small);
     if (small.items.len == 0 or small.items.len > logo_rows) return;
 
-    // Centre the shorter block in the full logo's rows so the icon shrinks towards its
-    // middle; every row is padded to exactly the icon's width and NEVER erased to EOL —
-    // the press is the icon's animation alone, the wordmark to its right stays untouched.
+    // Centre the shorter block in the full logo's rows so the icon shrinks towards its middle; every
+    // row is padded to the icon's width and NEVER erased to EOL, so the wordmark stays untouched.
     const top: u16 = @intCast((logo_rows - small.items.len) / 2);
     const w = @min(icon_cols, self.cols);
     var rb: [8192]u8 = undefined;
@@ -82,19 +79,16 @@ fn accentReach(self: *Screen) u16 {
     return @min(reach, self.cols);
 }
 
-// Repaint header + body + rule in the new accent by OVERWRITING in place, as a WIPE
-// travelling left to right (no all-at-once flip, no clear-then-draw flicker); the S icon
-// turns like a clock instead (`iconSpans`). `old_header` is the outgoing rendering — the
-// header carries literal accent escapes, so both renderings are needed to splice a row.
+// Repaint header + body + rule in the new accent by OVERWRITING in place, as a wipe travelling
+// left to right; `old_header` is the outgoing rendering, needed to splice a row's accent escapes.
 pub fn wipeRecolor(self: *Screen, old_header: []const []u8) void {
     var old_buf: [20]u8 = undefined;
     const old_accent = ansi.accentSgr(self.painted_accent, &old_buf);
     const new_accent = logo.accentReal();
     const wash = logo.colorEnabled() and !std.mem.eql(u8, old_accent, new_accent);
 
-    // Both animations run off ONE clock (wash jumps + wordmark letters interleaved by
-    // due time); a queued click/keystroke supersedes the whole thing. The seam stops at
-    // the accent's reach — past it nothing on screen changes.
+    // Both animations run off ONE clock (wash jumps + wordmark letters interleaved by due time); a
+    // queued click or keystroke supersedes the whole thing. The seam stops at the accent's reach.
     const reach: u16 = @max(icon_cols, accentReach(self));
     self.wipe_reach = reach;
     const per_jump: u16 = @max(1, (reach + wipe_jumps - 1) / wipe_jumps); // columns per jump
@@ -135,9 +129,8 @@ pub fn wipeRecolor(self: *Screen, old_header: []const []u8) void {
     drawWordmark(self, null); // …and the wordmark back to plain, however the loop ended
 }
 
-// One frame of the wipe: every accent-carrying row drawn with its first `x` visible columns
-// in `new_accent` and the rest in `old_accent` — except inside the S icon, which turns like
-// a clock (`iconSpans`) instead of being crossed by the seam.
+// One frame of the wipe: every accent-carrying row's first `x` visible columns in `new_accent` and
+// the rest in `old_accent` — except inside the S icon, which turns like a clock (`iconSpans`).
 fn paintRecolored(self: *Screen, old_header: []const []u8, x: u16, old_accent: []const u8, new_accent: []const u8, accent_rows_only: bool) void {
     var rb: [8192]u8 = undefined;
     var spans: [3]Span = undefined;

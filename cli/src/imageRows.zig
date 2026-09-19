@@ -119,9 +119,8 @@ const Sobel = struct {
     }
 };
 
-/// core.applyContour, band-parallel in the two phases the ABI requires: the Sobel pass
-/// reads a row outside its band, so every luma row is built before any of it runs.
-/// Falls back to the whole-image call when there is no scratch for the luma plane.
+/// core.applyContour, band-parallel in the two phases the ABI requires: the Sobel pass reads a row
+/// outside its band, so every luma row is built first. Falls back to the whole-image call.
 pub fn contour(gpa: std.mem.Allocator, data: []u8, w: i32, h: i32) void {
     const pixels: usize = @intCast(@as(i64, w) * @as(i64, h));
     const n = bandCount(h, pixels);

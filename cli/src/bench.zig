@@ -1,10 +1,7 @@
-//! Whole-pipeline performance benchmark — the adapter-level counterpart to
-//! core/tests/bench.test.cpp, which times the same transforms in isolation. `bench/raster.zig`
-//! times the stages pipeline.run composes AS the CLI drives them plus the codec encode the
-//! core never sees; `bench/adapters.zig` times the paths off the raster road and asserts how
-//! each SCALES between two input sizes — never a wall-clock threshold, so a loaded machine
-//! cannot fail a run. Opt-in and hermetic (no files, no network) — NOT in `zig build test`.
-//!     zig build bench                     # default 4000x3000, 3000 lines
+//! Whole-pipeline performance benchmark — the adapter-level counterpart to core/tests/bench.test.cpp.
+//! `bench/raster.zig` times the stages pipeline.run composes plus the codec encode the core never
+//! sees; `bench/adapters.zig` asserts how each path SCALES between two input sizes, never a
+//! wall-clock threshold. Opt-in and hermetic, NOT in `zig build test`:
 //!     zig build bench -- 6000 4000 8000   # width height line-count
 const std = @import("std");
 const adapters = @import("bench/adapters.zig");

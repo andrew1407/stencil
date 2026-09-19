@@ -8,9 +8,8 @@ const project = @import("../../project.zig");
 const msg = @import("../../messages.zig");
 const Session = @import("../session.zig").Session;
 
-/// `/connect <url [token][ url2 ...]>` — open one or more server connections for the
-/// session; a token word after a URL authenticates against a gated server (session or
-/// admin token — an admin one mints a session).
+/// `/connect <url [token][ url2 ...]>` — open one or more server connections; a token word after a
+/// URL authenticates against a gated server (an admin token mints a session).
 pub fn doConnect(session: *Session, io: std.Io, arg: []const u8) !void {
     if (arg.len == 0) {
         logo.err(msg.connect_needs_url, .{});
@@ -124,9 +123,8 @@ pub fn connFilterMatches(f: ConnFilter, kind: server.CredentialKind) bool {
     };
 }
 
-/// `/connections [admin|session]` — list the connected servers, each with a live
-/// reachability status (a quick GET probe per server), an `[admin]` tag when the
-/// credential is an admin token, and a badge for the active project's server.
+/// `/connections [admin|session]` — list the connected servers with a live reachability probe, an
+/// `[admin]` tag where the credential is an admin token, and a badge for the active project's server.
 pub fn doConnections(session: *Session, arg: []const u8) void {
     const filter = parseConnFilter(arg) orelse {
         logo.err(msg.connections_usage, .{});

@@ -7,9 +7,8 @@ const std = @import("std");
 pub const detail_limit = 200;
 pub const DetailBuf = [detail_limit + "…".len]u8;
 
-/// Untrusted provider prose made safe to print: control chars/newlines out (no forged
-/// console lines), URL- and token-shaped words redacted (an endpoint may echo the key
-/// back), whitespace collapsed, cut at `detail_limit` on a word boundary.
+/// Untrusted provider prose made safe to print: control chars and newlines out (no forged console
+/// lines), URL- and token-shaped words redacted, whitespace collapsed, cut at `detail_limit`.
 pub fn sanitizeDetail(text: []const u8, out: *DetailBuf) []const u8 {
     const src = text[0..@min(text.len, 4 * detail_limit)];
     var n: usize = 0;
@@ -75,9 +74,8 @@ fn tokenRun(word: []const u8) usize {
     return word.len;
 }
 
-/// True for a word that must not be echoed: an absolute URL (an internal endpoint is
-/// not the user's business), a long opaque run, or a credential pair — one of the
-/// browser's key heads (`sk|pk|api[-_]?key|key|token|secret`) + `-_=:` + a 6+ token run.
+/// True for a word that must not be echoed: an absolute URL, a long opaque run, or a credential pair —
+/// one of the browser's key heads (`sk|pk|api[-_]?key|key|token|secret`) + `-_=:` + a 6+ token run.
 fn secretish(word: []const u8) bool {
     if (std.mem.indexOf(u8, word, "://") != null) return true;
     if (word.len >= 24 and isTokenChars(word)) return true;

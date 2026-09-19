@@ -6,9 +6,8 @@ const std = @import("std");
 
 pub const corpus_root = "../browser/js/config/";
 
-/// Local walker overrides for measured cli-vs-corpus disagreements, keyed
-/// family → fixture/case name. The shared fixtures are NEVER edited; this file
-/// pins where the cli's current behavior diverges from the corpus expectation.
+/// Local walker overrides for measured cli-vs-corpus disagreements, keyed family → fixture/case name.
+/// The shared fixtures are NEVER edited; this pins where the cli's behavior diverges from the corpus.
 pub const overrides_json = @embedFile("fixture_overrides.json");
 
 pub fn parseOverrides(a: std.mem.Allocator) !std.json.Value {
@@ -20,10 +19,8 @@ pub fn overrideFor(overrides: std.json.Value, family: []const u8, name: []const 
     return member(fam, name);
 }
 
-/// The per-walk state every *_fixtures_test.zig needs: an arena + an io for the corpus
-/// loaders, the parsed local overrides, and a failure tally. Start it as
-/// `var w = fx.Walk.start(); defer w.stop();` — `alloc`/`io` hold self-pointers, so take
-/// them from the settled value, never from the returned temporary.
+/// The per-walk state every *_fixtures_test.zig needs: arena, io, the parsed overrides and a failure
+/// tally. `alloc`/`io` hold self-pointers, so take them from the settled value, never the temporary.
 pub const Walk = struct {
     arena: std.heap.ArenaAllocator,
     threaded: std.Io.Threaded,
@@ -88,10 +85,8 @@ pub fn readAlloc(a: std.mem.Allocator, io: std.Io, sub: []const u8) ![]u8 {
 pub fn loadJson(a: std.mem.Allocator, io: std.Io, sub: []const u8) !std.json.Value {
     const bytes = try readAlloc(a, io, sub);
     return std.json.parseFromSliceLeaky(std.json.Value, a, bytes, .{}) catch
-        // One corpus file deliberately stores a LONE surrogate escape (the browser's
-        // UTF-16 length-cap divergence pin); std.json rejects it, so neutralize
-        // unpaired surrogates to U+FFFD and reparse. The affected expectation belongs
-        // to a DIVERGENCE case the cli walker recomputes locally anyway.
+        // One corpus file deliberately stores a LONE surrogate escape (the browser's UTF-16 length-cap pin);
+        // std.json rejects it, so unpaired surrogates are neutralized to U+FFFD and reparsed.
         std.json.parseFromSliceLeaky(std.json.Value, a, try fixLoneSurrogates(a, bytes), .{});
 }
 

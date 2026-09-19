@@ -14,11 +14,8 @@ pub fn boundOpt(v: u32) ?u32 {
     return if (v == 0) null else v;
 }
 
-/// Whether a media sub-resource fetch must run in strict mode (loopback blocked). Loopback is
-/// tolerated ONLY for a media URL on the SAME host the user named — scraping your own
-/// `localhost` gallery works, while a page smuggling `<img src="http://127.0.0.1/…">` (a
-/// DIFFERENT internal host) is refused. An unparseable host errs safe (strict); private /
-/// link-local / metadata stay blocked either way. `page_host` is the page URL's bare host.
+/// Whether a media sub-resource fetch must run strict (loopback blocked): loopback is tolerated ONLY on
+/// the SAME host the user named, so a page smuggling another internal host is refused. Unparseable = strict.
 pub fn subStrict(media_url: []const u8, page_host: []const u8) bool {
     const mh = net.hostOf(media_url) orelse return true;
     return !std.ascii.eqlIgnoreCase(mh, page_host);
@@ -32,9 +29,8 @@ pub fn formatFor(buf: []u8, m: Media, dims: ?Sniff) []const u8 {
     return "";
 }
 
-/// Map the user-facing `--source-count` to the low-level `window` count: absent (null) picks
-/// the default of 5; an explicit `0` means "all" (null); any N passes through unchanged. Only
-/// the CLI entry layer applies this — `window` itself keeps null = all.
+/// Map the user-facing `--source-count` to the low-level `window` count: absent picks the default 5, an
+/// explicit `0` means "all" (null), any N passes through. `window` itself keeps null = all.
 pub fn effectiveCount(opt: ?u32) ?u32 {
     const n = opt orelse return 5;
     return if (n == 0) null else n;

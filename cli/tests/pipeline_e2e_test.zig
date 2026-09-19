@@ -105,9 +105,8 @@ test "pipeline: the filter runs under the layout — drawn lines keep their own 
     const io = threaded.io();
     const dir = std.Io.Dir.cwd();
 
-    // A green dot on a red blank, greyscaled. The filter belongs to the picture, so the
-    // background turns grey while the annotation stays green (the layering every other
-    // surface renders: browser/desktop overlay, console + pystencil rebuild).
+    // A green dot on a red blank, greyscaled: the filter belongs to the picture, so the background turns
+    // grey while the annotation stays green — the layering every other surface renders.
     const lay = "stencil_fo_layout.json";
     const out_flag = "stencil_fo_flag.png";
     const out_doc = "stencil_fo_doc.png";

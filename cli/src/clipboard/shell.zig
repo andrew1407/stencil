@@ -9,10 +9,8 @@ pub const Error = error{ Unsupported, ToolMissing, NoImage, Failed };
 
 pub const MAX_IMAGE = 64 << 20; // 64 MiB cap on a clipboard image
 
-// The per-user temp directory ($TMPDIR, as macOS sets it), any trailing slash trimmed; falls
-// back to /tmp. Preferred over a hardcoded /tmp so the scratch file isn't a predictable name in
-// a world-writable dir. Scratch filenames also carry the PID, so concurrent CLI instances never
-// collide on the same temp file.
+// $TMPDIR with any trailing slash trimmed, else /tmp — not a predictable name in a world-writable
+// dir. Scratch filenames carry the PID, so concurrent CLI instances never collide.
 pub fn tmpDir() []const u8 {
     if (builtin.os.tag == .windows) {
         const t = std.c.getenv("TEMP") orelse std.c.getenv("TMP") orelse return ".";

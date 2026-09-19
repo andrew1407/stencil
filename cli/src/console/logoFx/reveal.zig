@@ -16,9 +16,8 @@ const Frame = timing.Frame;
 // quicker — it plays on EVERY line, so the total stays ~0.1s and queued keystrokes skip it.
 const reveal_step_ms = 13;
 const reveal_jumps = 8;
-// A BURST — output arriving with under `reveal_quiet_ms` of silence since the last sweep —
-// gets the short form (a couple of jumps per line, a cascade); past `reveal_burst_max_ms`
-// of continuous output the sweep gives up and the rest lands at once.
+// A BURST — output arriving with under `reveal_quiet_ms` of silence — gets the short form; past
+// `reveal_burst_max_ms` of continuous output the sweep gives up and the rest lands at once.
 const reveal_burst_jumps = 2;
 const reveal_quiet_ms = 250;
 const reveal_burst_max_ms = 900;
@@ -26,16 +25,14 @@ const reveal_burst_max_ms = 900;
 // However slow the speed, no burst animates for longer than this — output still has to arrive.
 const reveal_burst_ceiling_ms = 5000;
 
-// Whether new output should be swept in rather than printed at once: the user has not
-// turned it off (speed 1 = no waiting at all), and there is a real terminal to animate on
-// (tests drive a Screen with no fd, and must not sit through an animation nobody can see).
+// Whether new output should be swept in rather than printed at once: not turned off (speed 1 = no
+// waiting) and there is a real terminal to animate on (tests drive a Screen with no fd).
 pub fn revealing(self: *Screen) bool {
     return self.reveal_speed < screen_mod.speed_max and self.fd >= 0;
 }
 
-// The pace one sweep runs at, in ms. All three windows scale together off the speed, so
-// the shape of the animation (jump, cascade, give up) is the same at every setting and
-// only its tempo changes. `factor` is 1 at the default speed of 0.5.
+// The pace one sweep runs at, in ms. All three windows scale together off the speed, so only the
+// tempo changes with the setting; `factor` is 1 at the default speed of 0.5.
 const Pace = struct { step_ms: i64, quiet_ms: i64, burst_max_ms: i64 };
 
 fn pace(self: *Screen) Pace {

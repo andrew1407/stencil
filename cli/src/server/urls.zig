@@ -7,10 +7,8 @@ const testing = std.testing;
 
 // pure helpers (no network; unit-tested)
 
-/// Normalize a server URL to a clean origin: add http:// if no scheme, drop any
-/// path/trailing slash. Caller owns the returned slice.
-/// True for a loopback host, where plaintext http is safe because the bytes never leave
-/// the machine. The one classifier, shared with the fetch guard's strict mode.
+/// True for a loopback host, where plaintext http is safe because the bytes never leave the machine.
+/// The one classifier, shared with the fetch guard's strict mode.
 pub const isLoopbackHost = net.isLoopbackHost;
 
 /// True when `base` would send the bearer token + image bytes in CLEARTEXT to a remote
@@ -20,9 +18,8 @@ pub fn isInsecureRemote(base: []const u8) bool {
     return !isLoopbackHost(hostAndPort(base).host);
 }
 
-/// Split an invite link's `#token=<value>` fragment off a connect URL and pick the
-/// effective supplied token — an explicitly-passed token wins over the fragment.
-/// Both returned slices alias the inputs.
+/// Split an invite link's `#token=<value>` fragment off a connect URL and pick the effective supplied
+/// token — an explicitly-passed token wins over the fragment. Both returned slices alias the inputs.
 pub fn splitInviteToken(url: []const u8, token_opt: ?[]const u8) struct { url: []const u8, token: ?[]const u8 } {
     if (std.mem.indexOf(u8, url, "#token=")) |i| {
         const frag = std.mem.trim(u8, url[i + "#token=".len ..], " \t\r\n");
@@ -37,9 +34,8 @@ pub fn normalizeBase(gpa: std.mem.Allocator, url: []const u8) ![]u8 {
     var buf: []u8 = undefined;
     var owned = false;
     if (!std.ascii.startsWithIgnoreCase(s, "http://") and !std.ascii.startsWithIgnoreCase(s, "https://")) {
-        // Secure by default: a bare REMOTE host gets https; loopback keeps plaintext http
-        // (localhost dev servers, traffic never leaves the machine). An explicit scheme is
-        // preserved, so "http://<remote>" still works — the user opts into cleartext.
+        // Secure by default: a bare REMOTE host gets https, loopback keeps plaintext http (traffic never leaves
+        // the machine). An explicit scheme is preserved, so the user can opt into cleartext.
         const scheme = if (isLoopbackHost(net.hostOf(s) orelse "")) "http://" else "https://";
         buf = try std.fmt.allocPrint(gpa, "{s}{s}", .{ scheme, s });
         owned = true;
@@ -55,12 +51,8 @@ pub fn normalizeBase(gpa: std.mem.Allocator, url: []const u8) ![]u8 {
     return result;
 }
 
-// live edit/events transport (raw TCP, NDJSON)
-//
-// The CLI edits a single raster image, so it does NOT push collaborative edit/save
-// frames (that would clobber other clients' layouts). It only subscribes read-only to
-// the global events feed (a `hello` with empty projectId) to learn when a project it is
-// editing was saved elsewhere. Best-effort: socket errors silently disable live events.
+// The CLI edits a single raster image, so it does NOT push collaborative edit/save frames (that would
+// clobber peers' layouts): it only subscribes read-only to the global events feed. Best-effort.
 
 /// The raw-TCP edit port pairs with the REST port: the server ships HTTP on :8090 and
 /// the TCP edit channel on :8091, so the edit port is the REST port + 1.

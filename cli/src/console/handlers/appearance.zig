@@ -67,9 +67,8 @@ pub fn cycleTheme(session: *Session) void {
     applyAccent(session, a.rgb, a.key, a.hex, false);
 }
 
-/// Set a random vivid custom colour (outside the preset list) — the double-click-on-logo
-/// behaviour, the terminal stand-in for the browser logo's colour picker. Silent. `seed` varies
-/// per click (the caller passes the click time) so each double-click yields a different hue.
+/// Set a random vivid custom colour — the double-click-on-logo behaviour, the terminal stand-in for
+/// the browser logo's colour picker. `seed` is the click time, so each double-click shifts the hue.
 pub fn randomCustomTheme(session: *Session, seed: u64) void {
     var prng = std.Random.DefaultPrng.init(seed);
     const h = @as(f64, @floatFromInt(prng.random().intRangeLessThan(u16, 0, 360)));
@@ -79,9 +78,8 @@ pub fn randomCustomTheme(session: *Session, seed: u64) void {
     applyAccent(session, rgb, hex, hex, false);
 }
 
-/// `/mouse [on|off]` (bare toggles) — mouse reporting in full-screen mode: OFF hands the
-/// mouse back for native select/copy, ON re-enables logo clicks + wheel + drag-selection.
-/// No-op (with a note) outside full-screen.
+/// `/mouse [on|off]` (bare toggles) — mouse reporting in full-screen mode: OFF hands the mouse back
+/// for native select/copy, ON re-enables logo clicks + wheel + drag-selection.
 pub fn doMouse(session: *Session, arg: []const u8) void {
     _ = session;
     const s = screen.current() orelse {
@@ -105,9 +103,8 @@ pub fn doMouse(session: *Session, arg: []const u8) void {
         logo.print(msg.mouse_off, .{});
 }
 
-/// `/reveal-speed [speed]` — how fast new output reveals, 0.01 … 1 (bare shows; 1 =
-/// instant; `off`/`on` name the two ends; STENCIL_CONSOLE_REVEAL_SPEED is the per-session
-/// default). No-op with a note outside full-screen, the only mode painting its own output.
+/// `/reveal-speed [speed]` — how fast new output reveals, 0.01 … 1 (1 = instant; `off`/`on` name
+/// the two ends; STENCIL_CONSOLE_REVEAL_SPEED is the per-session default). Full-screen only.
 pub fn doRevealSpeed(session: *Session, arg: []const u8) void {
     _ = session;
     const s = screen.current() orelse {

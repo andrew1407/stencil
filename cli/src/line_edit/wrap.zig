@@ -29,11 +29,8 @@ fn rowStart(idx: usize, first: usize, cols: usize) usize {
     return if (idx == 0) 0 else first + (idx - 1) * cols;
 }
 
-/// Where the cursor lands after moving one wrapped row up (`up`) or down, keeping the SCREEN
-/// column — row 0 is indented by the prompt, the rest start at column 1. Null when there is no
-/// row that way, which is the caller's signal to fall back to history recall: on a line that
-/// fits one row (the common case) Up/Down keep meaning "previous/next command". Pure, so the
-/// geometry unit-tests without a terminal.
+/// Where the cursor lands after moving one wrapped row up (`up`) or down, keeping the SCREEN column —
+/// row 0 is indented by the prompt. Null when there is no such row, so Up/Down fall back to history.
 pub fn rowMove(len: usize, pos: usize, prompt_len: usize, first: usize, cols: usize, up: bool) ?usize {
     const rows = wrappedRows(len, first, cols);
     if (rows == 1) return null;

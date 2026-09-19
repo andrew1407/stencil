@@ -16,9 +16,8 @@ const screen = @import("screen.zig");
 
 const Session = session_mod.Session;
 
-// Idle hook: while the user sits at the prompt, poll the live events feed (so a peer's
-// name/colour change surfaces without a keystroke) and, in screen mode, re-measure the
-// terminal so a resize repaints — no SIGWINCH handler needed.
+// Idle hook: at the prompt, poll the live events feed (so a peer's name/colour change surfaces
+// without a keystroke) and, in screen mode, re-measure the terminal — no SIGWINCH handler needed.
 pub const IdleCtx = struct { session: *Session, io: std.Io, screen: ?*screen.Screen = null };
 pub fn idleTick(raw: *anyopaque) bool {
     const c: *IdleCtx = @ptrCast(@alignCast(raw));
@@ -41,10 +40,8 @@ pub fn logoCustom(raw: *anyopaque) void {
     handlers.randomCustomTheme(c.session, seed);
 }
 
-// The line editor's pending-image hooks (line_edit.PendingImages): Ctrl-V — and a ⌘V that
-// pastes an image file's path — holds a picture against the line being typed, shown there as
-// an `[Image #N …]` marker. Submitting the line turns them into uploads; deleting a marker,
-// or abandoning the line, drops what it stood for.
+// The line editor's pending-image hooks: Ctrl-V (or a ⌘V pasting an image file's path) holds a
+// picture against the line as an `[Image #N …]` marker; abandoning the line drops what it stood for.
 pub fn pendingPaste(raw: *anyopaque, before: []const u8, label: []u8, text: []u8) line_edit.PasteResult {
     const c: *IdleCtx = @ptrCast(@alignCast(raw));
     return attachments.pasteAtPrompt(c.session, c.io, before, label, text);

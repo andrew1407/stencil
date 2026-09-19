@@ -82,9 +82,8 @@ test "console prompt: the settings block splices after the op list; §4 stays ca
 }
 
 test "§13 registry: op name set matches the contract's cli-console profile" {
-    // Core §2 ops (incl. §2.1 image/save and the history ops) + the cli-console
-    // profile — table order IS prompt order (the registry's console order), nothing
-    // more, nothing less, and never a forbidden name.
+    // Core §2 ops (incl. §2.1 image/save and the history ops) plus the cli-console profile — table order
+    // IS prompt order, nothing more, nothing less, and never a forbidden name.
     const expected = [_][]const u8{
         "crop",    "rotate",     "filter",    "layout", "formula",  "page",    "blank",
         "undo",    "redo",       "reset",     "frame",  "image",    "save",    "accent",

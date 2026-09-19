@@ -23,12 +23,8 @@ const markers = @import("markers.zig");
 const words = @import("words.zig");
 const wrap = @import("wrap.zig");
 
-/// Read one edited line into `buf`. Returns a submitted `.line` (its length), or a key
-/// chord the caller handles — `.eof` (Ctrl-D / closed tty), `.interrupt` (Ctrl-C, exit),
-/// `.copy` (Ctrl-Alt-C) or `.paste` (Ctrl-Alt-V). The Alt-modified chords arrive as an
-/// ESC prefix (the Meta convention) followed by the Ctrl byte. `armed` carries the
-/// two-Ctrl-C exit guard across calls: any key but Ctrl-C disarms it, so the caller can
-/// require two presses to leave. `completions` are command names for Tab-complete.
+/// Read one edited line into `buf`: a submitted `.line`, or a chord the caller handles (`.eof`,
+/// `.interrupt`, `.copy`, `.paste`). `armed` carries the two-Ctrl-C exit guard across calls.
 pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, completions: []const []const u8, armed: *bool, preset: []const u8) Input {
     var len: usize = @min(preset.len, buf.len);
     if (len != 0) @memcpy(buf[0..len], preset[0..len]); // start with any prefilled text
@@ -36,9 +32,8 @@ pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, co
     var hidx: usize = hist.items.items.len; // == items.len means "the fresh line"
     var stash: [max_line]u8 = undefined; // the in-progress line, parked while browsing
     var stash_len: usize = 0;
-    // Logo click debounce: a single click is deferred by `double_click_ms` so a second click
-    // can supersede it as a double-click. `click_pending` is armed on the first click and
-    // fired (cycle the accent) once the window lapses with no second click.
+    // Logo click debounce: a single click is deferred by `double_click_ms` so a second can supersede it
+    // as a double-click; `click_pending` fires (cycle the accent) once the window lapses.
     var click_pending = false;
     var click_at: i64 = 0;
     self.refresh(prompt, buf[0..len], pos);
@@ -100,9 +95,8 @@ pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, co
                 return .eof;
             },
             22 => { // Ctrl-V: attach the clipboard's image to the line being typed
-                // Plain Ctrl-V, not just the Meta chord: a terminal that keeps Option for
-                // itself (VS Code's, by default) never delivers ESC-Ctrl-V, and ⌘V belongs
-                // to the terminal — it pastes TEXT and can't hand an image to us at all.
+                // Plain Ctrl-V, not just the Meta chord: a terminal that keeps Option for itself (VS Code's) never
+                // delivers ESC-Ctrl-V, and ⌘V belongs to the terminal — it pastes TEXT and cannot hand us an image.
                 if (self.attachClipboard(prompt, buf, &len, &pos)) continue;
                 self.endPromptLine();
                 return .paste;
@@ -121,9 +115,8 @@ pub fn readLine(self: *Editor, prompt: []const u8, buf: []u8, hist: *History, co
                 self.refresh(prompt, buf[0..0], 0);
             },
             19 => if (self.screen != null) { // Ctrl-S: copy the selection — or the typed line
-                // The prompt row is outside the selectable body (drag-selection covers the
-                // scrollback), so with nothing highlighted this copies what you are typing:
-                // the one piece of text the mouse cannot reach.
+                // The prompt row is outside the selectable body, so with nothing highlighted this copies what you
+                // are typing: the one piece of text the mouse cannot reach.
                 if (!self.copySelection() and len != 0) {
                     if (self.copy_text_cb) |cb| cb(self.logo_ctx.?, buf[0..len]);
                 }

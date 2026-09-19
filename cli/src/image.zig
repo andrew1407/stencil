@@ -25,11 +25,8 @@ pub const Rgba8 = struct {
     }
 };
 
-// stb decodes through these hooks so `decode` can hand the finished pixel plane over
-// instead of copying it out of malloc, which would peak at twice the image. Blocks are
-// over-aligned (stb puts structs in them) and tracked per thread so free/realloc can
-// rebuild the Zig slice; anything the table cannot hold falls back to libc, which decode
-// then copies.
+// stb decodes through these hooks so `decode` hands the finished pixel plane over instead of copying
+// it out of malloc, which would peak at twice the image. Blocks are over-aligned, tracked per thread.
 const pixel_align = 16;
 const Block = struct { addr: usize, mem: []align(pixel_align) u8, owner: std.mem.Allocator };
 threadlocal var stb_owner: ?std.mem.Allocator = null;
@@ -110,9 +107,8 @@ pub fn formatFromExt(ext: []const u8) ?Format {
     return null;
 }
 
-/// The extension of the LAST path segment, without the dot, or null when it has none — so a
-/// dot in a directory name is not mistaken for one. `path` is taken literally: a `?query` is
-/// part of the name here, which is what an output path needs.
+/// The extension of the LAST path segment without the dot, else null, so a dot in a directory name is
+/// not mistaken for one. `path` is literal: a `?query` is part of the name, as an output path needs.
 pub fn extOf(path: []const u8) ?[]const u8 {
     const dot = std.mem.lastIndexOfScalar(u8, path, '.') orelse return null;
     if (std.mem.lastIndexOfAny(u8, path, "/\\")) |s| if (dot < s) return null;
@@ -128,9 +124,8 @@ pub fn formatOfPath(path: []const u8) ?Format {
     return formatFromExt(extOf(path[0..end]) orelse return null);
 }
 
-/// Pixel-area cap for a decoded image. `w*h*4` must fit a c_int (the stride/size arguments
-/// handed back to stb when encoding), which caps the area at 2^29; 2^28 keeps a decoded
-/// buffer under 1 GiB. Matches the per-side STBI_MAX_DIMENSIONS 16384 in stb_read_impl.c.
+/// Pixel-area cap for a decoded image: `w*h*4` must fit a c_int (stb's stride/size arguments), which
+/// caps the area at 2^29; 2^28 keeps a buffer under 1 GiB. Matches STBI_MAX_DIMENSIONS 16384.
 pub const max_pixels: usize = 16384 * 16384;
 
 /// Header-only size probe: no pixel plane is ever allocated. Null when stb cannot read the

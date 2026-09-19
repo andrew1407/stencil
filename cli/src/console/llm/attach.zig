@@ -35,9 +35,8 @@ pub fn promptImageB64(session: *Session) error{OutOfMemory}!?[]const u8 {
     return out;
 }
 
-/// One §2.1 turn attachment as a base64 PNG for the wire (the wire mapping sends
-/// `image/png` only, so a JPEG/WebP upload is re-encoded). Null — never fatal — when it
-/// cannot be decoded/encoded or lands over `cap`. Caller owns the result.
+/// One §2.1 turn attachment as a base64 PNG (the wire mapping sends `image/png` only, so a
+/// JPEG/WebP upload is re-encoded). Null — never fatal — when it fails or lands over `cap`.
 pub fn attachmentB64(gpa: std.mem.Allocator, at: Attachment, cap: usize) error{OutOfMemory}!?[]u8 {
     var img = image.decode(gpa, at.bytes) catch return null;
     defer img.deinit(gpa);
@@ -49,9 +48,8 @@ pub fn attachmentB64(gpa: std.mem.Allocator, at: Attachment, cap: usize) error{O
     return out;
 }
 
-/// The §7 edge map: the working image through the core contour filter (the `filter` op's
-/// "contour" Sobel pass), as base64 PNG. Null (dropping just the edge map) when over `cap`
-/// or failing to encode. Current-turn only, never cached. Caller owns the result.
+/// The §7 edge map: the working image through the core contour filter, as base64 PNG. Null when
+/// over `cap` or failing to encode. Current-turn only, never cached; caller owns the result.
 pub fn edgeMapB64(session: *Session, cap: usize) error{OutOfMemory}!?[]u8 {
     return contourB64(session.gpa, session.current().*, cap);
 }

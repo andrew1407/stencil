@@ -36,9 +36,8 @@ pub fn flushSync(session: *Session, input_pending: bool) void {
     pushResult(session);
 }
 
-/// Push the current edit state to the active project: the structured LAYOUT (so CLI edits
-/// show live in open GUI editors, which render original + layout), then the rendered
-/// `result` raster (the projects-list thumbnail). Shared by the `/sync` flush and `/save`.
+/// Push the current edit state to the active project: the structured LAYOUT (so CLI edits show live
+/// in GUI editors), then the rendered `result` raster (the projects-list thumbnail).
 pub fn pushResult(session: *Session) void {
     if (!session.hasImage() or !session.hasRemote()) return;
     const client = session.findServer(session.remote_url.?) orelse return;
@@ -60,9 +59,8 @@ pub fn pushResult(session: *Session) void {
     logo.print("synced to {s}\n", .{client.base});
 }
 
-/// PUT the current structured layout (version-guarded). On a 409 (a peer saved first) re-read
-/// the version and retry — last-writer-wins for the CLI's edits (a fetched project already
-/// carries the server's lines/geometry, so a normal push preserves them).
+/// PUT the current structured layout, version-guarded. On a 409 (a peer saved first) re-read the
+/// version and retry — last-writer-wins for the CLI's edits.
 fn pushLayout(session: *Session, client: *server.Client, id: []const u8) void {
     var tries: u8 = 0;
     while (tries < 4) : (tries += 1) {
@@ -85,9 +83,8 @@ fn pushLayout(session: *Session, client: *server.Client, id: []const u8) void {
     }
 }
 
-/// With /chat on, fetch the project's persisted chat (§9 `chat` file kind) and adopt it as
-/// the session history (§12: restoring seeds the replay history, never triggers a model
-/// call). Best-effort: a missing or malformed document restores nothing, silently.
+/// With /chat on, fetch the project's persisted chat (§9 `chat` file kind) and adopt it as the
+/// session history (§12: restoring seeds the replay history, never triggers a model call).
 pub fn restoreServerChat(session: *Session, client: *server.Client, id: []const u8) void {
     if (!session.chat_on) return;
     const bytes = client.downloadFile(id, "chat") catch return;

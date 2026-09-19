@@ -12,14 +12,11 @@ const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 const Action = @import("../commands.zig").Action;
 
-// transforms (crop / rotate / filter / layout, all undoable)
-//
-// Each transform updates the session's STRUCTURED edit state and rebuilds the derived view,
-// so the exact edit serializes to a browser-compatible layout and shows live in GUI editors.
+// Transforms (crop / rotate / filter / layout, all undoable) update the session's STRUCTURED edit
+// state, so the exact edit serializes to a browser-compatible layout and shows live in GUI editors.
 
-/// Map a /filter argument ("bw"|"sepia"|"invert"|"contour"|"none"|<colour>) onto the layout
-/// filter and apply it. The named modes are checked before the colour fallback. Returns
-/// false for an unrecognized argument (the caller reports the error).
+/// Map a /filter argument ("bw"|"sepia"|"invert"|"contour"|"none"|<colour>) onto the layout filter
+/// and apply it; the named modes are checked before the colour fallback. False for an unknown one.
 pub fn applyFilterArg(session: *Session, arg: []const u8) bool {
     if (std.ascii.eqlIgnoreCase(arg, "bw")) {
         session.setFilter("bw", "") catch {};
@@ -51,9 +48,8 @@ pub fn doExec(session: *Session, io: std.Io, arg: []const u8) bool {
     return runAction(session, io, commands.parseAction(arg));
 }
 
-/// Run one transform. Returns true only when a new edit state was actually recorded — the
-/// usage/listing, no-image, bad-argument and full-turn paths mutate nothing, so the caller
-/// never queues a sync upload for them.
+/// Run one transform. True only when a new edit state was actually recorded — the usage, no-image,
+/// bad-argument and full-turn paths mutate nothing, so the caller queues no sync upload for them.
 pub fn runAction(session: *Session, io: std.Io, action: Action) bool {
     // A bare transform lists its variants / usage instead of acting (no image needed) — so
     // `/crop` never silently records a full-image crop and `/filter` shows what it takes.

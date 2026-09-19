@@ -1,9 +1,7 @@
-//! Interactive console ("stream") mode, activated by `--console` / `--repl`: read
-//! `/command <args>` lines from stdin and apply them to a single in-memory working image,
-//! reusing pipeline.zig's transforms. This file is just the input loop and the verb/action
-//! dispatch; the pieces live in console/ — `session` (undo/redo state), `commands` (grammar),
-//! `ui` (presentation) and `handlers` (the command implementations). On a TTY, line_edit.zig
-//! adds raw-mode line editing; piped input uses a plain reader.
+//! Interactive console ("stream") mode, `--console` / `--repl`: read `/command <args>` lines from
+//! stdin and apply them to one in-memory working image through pipeline.zig's transforms. This file
+//! is the input loop and the verb dispatch; the pieces live in console/ — `session` (undo/redo),
+//! `commands` (grammar), `ui` (presentation), `handlers`. On a TTY, line_edit.zig adds raw mode.
 const std = @import("std");
 const logo = @import("logo.zig");
 const llm = @import("llm.zig");
@@ -43,10 +41,8 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, full_screen: bool, llm_env: llm.E
         ui.setInteractive(true);
         defer ed.deinit();
         defer ui.setInteractive(false);
-        // Full-screen mode (pinned logo header + scrollback + mouse) is opt-in via
-        // --console-full-screen. If the terminal is too small or its size can't be read it
-        // falls back to the plain banner + line editor. The logo banner is only printed inline
-        // in the fallback — in screen mode it IS the header.
+        // Full-screen mode (pinned logo header + scrollback + mouse) is opt-in via --console-full-screen,
+        // falling back to the plain banner + line editor when the terminal is too small or unmeasurable.
         var scr = screen.Screen{ .gpa = gpa, .io = io };
         scr.in_fd = stdin_file.handle; // start() reads the terminal's colour answer on it
         const started = full_screen and (if (scr.start()) |_| true else |_| false);

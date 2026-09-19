@@ -1,16 +1,8 @@
-// Walks the shared provider-wire corpus (llm/fixtures/providerWire/) against the cli's
-// real request builder + reply extraction (llm.buildRequestWithSystem / llm.extractReply
-// / llm.errorDetail — the exact seams /prompt drives). The request body is compared to
-// expectBody STRUCTURALLY with deep equality, so field ABSENCE is part of the contract.
-//
-// cli-shape notes (pinned via fixture_overrides.json where a case diverges):
-//  · history turns are text-only (§7/§12) — the cli cannot put images on a replayed turn;
-//  · every attachment is sent as image/png (the console's attachments are PNG snapshots);
-//  · a 2xx body outside the documented shape is a typed `bad_reply` — the corpus's
-//    `badReply` kind; its detail is the clipped raw body, not the browser's message;
-//  · a non-2xx prints errorDetail's output ("the LLM endpoint answered HTTP <status>"
-//    as the empty-detail fallback) and types as HttpFailed — except the server's 503
-//    llmDisabled, which finish() types as the dedicated LlmDisabled error.
+// Walks the shared provider-wire corpus (llm/fixtures/providerWire/) against the cli's real request
+// builder + reply extraction (llm.buildRequestWithSystem / llm.extractReply / llm.errorDetail). The
+// request body is compared to expectBody STRUCTURALLY, so field ABSENCE is part of the contract. cli
+// shape, pinned via fixture_overrides.json: history turns are text-only (§7/§12), every attachment is
+// sent as image/png, an off-shape 2xx is a typed `bad_reply`, and a 503 llmDisabled types its own.
 const std = @import("std");
 const llm = @import("../src/llm.zig");
 const fx = @import("fixture_corpus.zig");
@@ -150,11 +142,8 @@ test "providerWire corpus: request building + reply extraction against the cli c
                     w.fail("providerWire '{s}': extraction mismatch (want {s}, got {s})\n", .{ name, want_kind, @tagName(ex) });
             }
 
-            // Non-2xx: the printed reason is errorDetail's output. expectError.message
-            // is post-browser-sanitizer text; the cli sanitizer agreeing is asserted
-            // here (override `detail` would pin a divergent cli text). A message of
-            // exactly "HTTP <status>" is the browser's empty-detail fallback — the
-            // cli's analog is errorDetail == "" (it then prints its own HTTP line).
+            // Non-2xx: the printed reason is errorDetail's output, and expectError.message is post-browser-sanitizer
+            // text. A message of exactly "HTTP <status>" is the browser's empty-detail fallback (cli: detail == "").
             if (fx.member(case, "errorResponse")) |er| {
                 const expect_err = fx.member(case, "expectError").?;
                 const status = fx.member(er, "status").?.integer;
@@ -169,9 +158,8 @@ test "providerWire corpus: request building + reply extraction against the cli c
                 if (std.mem.eql(u8, want, fallback)) want = "";
                 if (!std.mem.eql(u8, got, want))
                     w.fail("providerWire '{s}': error detail mismatch\n  want: {s}\n  cli:  {s}\n", .{ name, want, got });
-                // expectError.status always matches the transport status the cli's
-                // finish() branches on. The kind: llmDisabled types as the dedicated
-                // LlmDisabled error (finish() keys on isLlmDisabled), all else HttpFailed.
+                // expectError.status always matches the transport status finish() branches on; kind llmDisabled types
+                // as the dedicated LlmDisabled error (finish() keys on isLlmDisabled), everything else HttpFailed.
                 try testing.expectEqual(status, fx.member(expect_err, "status").?.integer);
                 const want_disabled = std.mem.eql(u8, fx.memberStr(expect_err, "kind").?, "disabled");
                 try testing.expectEqual(want_disabled, llm.isLlmDisabled(a, body_bytes));

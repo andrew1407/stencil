@@ -63,9 +63,8 @@ pub fn writeDiagnostics(out: *std.Io.Writer, script: scriptCore.Script, label: [
     }
 }
 
-/// Prints every diagnostic to stderr, the way the rest of the CLI reports. Returns true
-/// when the script has an error and therefore must not run. logo.zig writes the severity
-/// prefix here, so this is the one shape that does not spell the word itself.
+/// Prints every diagnostic to stderr, the way the rest of the CLI reports; true when the script has an
+/// error and therefore must not run. logo.zig writes the severity prefix, so this never spells it.
 pub fn reportDiagnostics(script: scriptCore.Script, label: []const u8) bool {
     var i: u32 = 0;
     while (i < script.diagnosticCount()) : (i += 1) {

@@ -1,9 +1,8 @@
 //! Drift guard between the CLI's two hand-kept flag lists: the `eq(arg, "--x")` arms of
-//! src/params/parse.zig's parser and the `--help` prose in src/help.txt. Neither generates the
-//! other (the parser's arms carry per-flag rules, the prose carries wording), so this test
-//! is what makes them agree: a documented flag the parser does not accept, or a newly
-//! parsed flag nobody documented, fails here. `undocumented` is the explicit exception
-//! list — flags that exist but are deliberately absent from --help.
+//! src/params/parse.zig's parser and the `--help` prose in src/help.txt. Neither generates the other
+//! (the arms carry per-flag rules, the prose carries wording), so this test is what makes them agree: a
+//! documented flag the parser does not accept, or a newly parsed flag nobody documented, fails here.
+//! `undocumented` is the explicit exception list — flags deliberately absent from --help.
 const std = @import("std");
 const testing = std.testing;
 

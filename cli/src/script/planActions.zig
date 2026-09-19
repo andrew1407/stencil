@@ -26,9 +26,8 @@ fn opObject(a: std.mem.Allocator, name: []const u8) !ObjectMap {
     return m;
 }
 
-/// A tint as the registry's HEX grammar wants it; the raw token when it is not a colour the
-/// core knows (the validator then rejects it, which is the honest answer). Line colours are
-/// NOT folded this way — "transparent" and the CSS names are what the layout schema carries.
+/// A tint as the registry's HEX grammar wants it; the raw token when the core does not know the colour,
+/// so the validator rejects it. Line colours are NOT folded — the layout schema carries the CSS names.
 fn hex(a: std.mem.Allocator, token: []const u8) []const u8 {
     const z = core.zstr(token) orelse return token;
     const c = core.parseColor(z) orelse return token;

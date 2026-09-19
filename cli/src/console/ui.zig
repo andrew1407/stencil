@@ -161,9 +161,8 @@ pub fn intro() void {
     emit(block("intro"));
 }
 
-// The console's prose — intro, filter list, command list — lives in uiText.txt, embedded;
-// tests/repl_text_test.zig checks the command list against commands.zig. Headings and command
-// names print in the accent (accentSeq()/resetSeq() are "" with colour off).
+// The console's prose — intro, filter list, command list — lives in the embedded uiText.txt;
+// tests/repl_text_test.zig checks the command list against commands.zig.
 const ui_text = @embedFile("uiText.txt");
 const help_spaces = " " ** 32;
 

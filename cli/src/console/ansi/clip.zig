@@ -18,9 +18,8 @@ pub fn clip(line: []const u8, cols: u16, out: []u8) []const u8 {
     return out[0..oi];
 }
 
-/// The first `x` visible columns of `line` (clipped to `cols`), with the accent sentinel
-/// expanded — one frame's worth of a line being swept in. Escapes before the cut are emitted
-/// even where their columns are skipped, so the colours are exactly the full draw's.
+/// The first `x` visible columns of `line` (clipped to `cols`), accent sentinel expanded. Escapes
+/// before the cut are emitted even where their columns are skipped, so the colours match a full draw.
 pub fn clipPrefix(line: []const u8, cols: u16, x: u16, out: []u8) []const u8 {
     var oi: usize = 0;
     clipRange(line, 0, @min(x, cols), logo.accentReal(), out, &oi);

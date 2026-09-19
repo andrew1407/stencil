@@ -23,10 +23,8 @@ const validateActions = actions.validateActions;
 const nonNullField = actions.nonNullField;
 
 
-/// Validate the optional `ask` object (contract §11) → the card, or null when absent.
-/// The card's STRUCTURE (keys, caps, the image reference's exactly-one-of url /
-/// projectId / scanIndex, http(s)-only urls) is the registry's ask schema; the preview
-/// actions are validated as nested actions and then dropped — a console shows none.
+/// Validate the optional `ask` object (§11) → the card, else null. Its STRUCTURE is the registry's ask
+/// schema; preview actions are validated as nested actions and then dropped — a console shows none.
 pub fn validateAsk(
     a: std.mem.Allocator,
     value: ?std.json.Value,
@@ -44,9 +42,8 @@ pub fn validateAsk(
     for (v.object.get("options").?.array.items, card.get("options").?.array.items, 0..) |raw_o, norm_o, i| {
         const oo = raw_o.object;
         if (nonNullField(oo, "actions") != null or nonNullField(oo, "image") != null) dropped_preview = true;
-        // Preview actions are ordinary §2 actions "inside variants or previews": bad
-        // params fail the plan; a misplaced op only costs the preview (§1/§11.2), which
-        // this console never shows anyway.
+        // Preview actions are ordinary §2 actions "inside variants or previews": bad params fail the plan,
+        // a misplaced op only costs the preview (§1/§11.2), which this console never shows anyway.
         if (nonNullField(oo, "actions")) |acts| {
             var where_buf: [24]u8 = undefined;
             const where = std.fmt.bufPrint(&where_buf, "ask option {d}", .{i + 1}) catch "ask option";

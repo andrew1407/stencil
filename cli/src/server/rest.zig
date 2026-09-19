@@ -46,9 +46,8 @@ pub const Client = struct {
         self.gpa.free(self.credential);
     }
 
-    /// GET/POST/etc. with the bearer header; returns owned response body bytes.
-    /// A stored session dies with a server restart/DB wipe — when connect() was given a
-    /// credential, re-mint one session and retry once in place (mirrors the extension).
+    /// GET/POST/etc. with the bearer header; returns owned response body bytes. A stored session dies with a
+    /// server restart, so when connect() was given a credential, re-mint one and retry once in place.
     pub fn request(
         self: *Client,
         method: std.http.Method,
@@ -161,10 +160,8 @@ pub const Client = struct {
         return parseProjectId(self.gpa, body);
     }
 
-    /// PUT a layout for `id`, version-guarded (a stale version yields Error.Conflict). The
-    /// name is left untouched (omitted from the body). Mirrors the browser/desktop layout
-    /// save — the structured `{lines, imageFilter, filterColor, cropRect, rotationQuarters}`
-    /// is what open GUI editors render, so this is how CLI edits show up live for peers.
+    /// PUT a layout for `id`, version-guarded (stale → Error.Conflict); the name is left untouched. The
+    /// structured payload is what open GUI editors render, so this is how CLI edits show up live for peers.
     pub fn updateProject(self: *Client, id: []const u8, layout_json: []const u8, version: i64) !void {
         const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}", .{id});
         defer self.gpa.free(path);
@@ -199,9 +196,8 @@ pub const Client = struct {
         self.gpa.free(body);
     }
 
-    /// DELETE a project's stored file kind (valid for the filestore-only kinds —
-    /// video/variantN/chat). Idempotent on the server: a kind with no stored bytes still
-    /// answers 204, so a repeat delete is not an error.
+    /// DELETE a project's stored file kind (the filestore-only kinds — video/variantN/chat). Idempotent on
+    /// the server: a kind with no stored bytes still answers 204, so a repeat delete is not an error.
     pub fn deleteFile(self: *Client, id: []const u8, kind: []const u8) !void {
         const path = try std.fmt.allocPrint(self.gpa, "/projects/{s}/files/{s}", .{ id, kind });
         defer self.gpa.free(path);

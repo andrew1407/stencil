@@ -81,9 +81,8 @@ pub fn selNorm(self: *Screen) SelRange {
     return .{ .sr = sr, .sc = sc, .er = er, .ec = ec };
 }
 
-// The highlighted visible-column half-open range [c0,c1) (0-based) for screen `row`, or null
-// when the row is outside the selection. Start row runs from its column to the line's end;
-// the end row from the line start to its column; middle rows are full width.
+// The highlighted visible-column half-open range [c0,c1) for screen `row`, null when outside the
+// selection. The start row runs to the line's end, the end row from its start, middles full width.
 pub fn selRowCols(self: *Screen, row: u16) ?struct { c0: u16, c1: u16 } {
     if (!self.has_sel) return null;
     const s = self.selNorm();
@@ -93,9 +92,8 @@ pub fn selRowCols(self: *Screen, row: u16) ?struct { c0: u16, c1: u16 } {
     return .{ .c0 = c0, .c1 = c1 };
 }
 
-// Gather the selected text into sel_buf: for each selected screen row, the buffer line's
-// visible characters within the row's column range, joined with newlines (trailing blanks
-// trimmed). Runs against the currently-visible window (a drag doesn't scroll).
+// Gather the selected text into sel_buf: each selected row's visible characters within its column
+// range, joined with newlines, trailing blanks trimmed. Visible window only — a drag does not scroll.
 pub fn extractSelection(self: *Screen) void {
     self.sel_buf.clearRetainingCapacity();
     if (self.bodyRows() == 0) return;
@@ -130,9 +128,8 @@ pub fn hasHighlight(self: *Screen) bool {
     return self.has_sel;
 }
 
-/// Ask the TERMINAL to paint its own selection in the live accent (OSC 17 sets the
-/// highlight background; OSC 117 puts it back). Terminals without OSC 17 ignore it,
-/// so it is safe to send anywhere.
+/// Ask the TERMINAL to paint its own selection in the live accent (OSC 17 sets the highlight
+/// background, OSC 117 puts it back). Terminals without OSC 17 ignore it, so it is safe anywhere.
 pub fn setSelectionTint(self: *Screen, on: bool) void {
     if (!logo.colorEnabled()) return;
     if (!on) {

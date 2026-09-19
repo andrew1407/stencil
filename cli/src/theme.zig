@@ -17,15 +17,12 @@ pub const Accent = struct {
 
 pub const default_key = "violet";
 
-/// Neutral grey for a project name with no custom colour — one fixed mid-grey, readable on
-/// both light and dark terminals. Mirrors the browser's --project-name-fg and the desktop
-/// default, so a default project reads as "unset" rather than wearing the brand accent.
+/// Neutral grey for a project name with no custom colour — mirrors the browser's --project-name-fg and
+/// the desktop default, so a default project reads as "unset" rather than wearing the brand accent.
 pub const name_default_hex = "#80868f";
 
-// Parsed lazily on first use: std.json needs an allocator, which comptime can't provide.
-// The strings slice into the embedded JSON (static lifetime). A worker thread can reach
-// this now that scrape fans its fetches out, so the one-shot parse is published through
-// `parse_state`: the first caller fills the scratch, any other waits for it.
+// Parsed lazily on first use: std.json needs an allocator, and the strings slice into the embedded
+// JSON. A worker thread can reach this, so the one-shot parse is published through `parse_state`.
 const unparsed = 0;
 const parsing = 1;
 const ready = 2;
@@ -83,8 +80,7 @@ pub fn rgbOf(key: []const u8) [3]u8 {
     return (find(key) orelse accents()[0]).rgb;
 }
 
-/// Build a 24-bit truecolor SGR escape ("\x1b[38;2;r;g;bm") for a normalized "#rrggbb" hex
-/// into `buf`, or null when the hex is malformed. Pure; the caller gates on colour being on.
+/// Build a 24-bit truecolor SGR escape for a normalized "#rrggbb" into `buf`, null when malformed.
 /// `buf` needs room for the longest sequence ("\x1b[38;2;255;255;255m" = 19 bytes).
 pub fn sgrForHex(hex: []const u8, buf: []u8) ?[]const u8 {
     if (hex.len != 7 or hex[0] != '#') return null;
@@ -94,9 +90,8 @@ pub fn sgrForHex(hex: []const u8, buf: []u8) ?[]const u8 {
     return std.fmt.bufPrint(buf, "\x1b[38;2;{d};{d};{d}m", .{ r, g, b }) catch null;
 }
 
-/// SGR escape painting a project name in its custom `color` ("#rrggbb") when set and parseable,
-/// else the neutral default grey. "" when colour output is off (the name prints plain). The escape
-/// is written into the caller's `buf`.
+/// SGR escape painting a project name in its custom `color` ("#rrggbb") when set and parseable, else the
+/// neutral default grey. "" when colour output is off, so the name prints plain.
 pub fn nameSeq(color: []const u8, buf: []u8) []const u8 {
     if (!logo.colorEnabled()) return "";
     if (color.len != 0) {

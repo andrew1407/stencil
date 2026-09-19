@@ -14,9 +14,8 @@ pub const Rect = struct { x: i32, y: i32, w: i32, h: i32 };
 pub const Size = struct { w: i32, h: i32 };
 pub const Page = struct { w: f64, h: f64 };
 
-/// A NUL-terminated copy of `s` in this thread's scratch, for a caller whose string came
-/// from a console line or a model plan (argv and literals already carry the NUL). Valid
-/// until this thread's next call. null when it does not fit: no spec that long is valid.
+/// A NUL-terminated copy of `s` in this thread's scratch, for a caller whose string came from a
+/// console line or a model plan. Valid until this thread's next call; null when it does not fit.
 pub fn zstr(s: []const u8) ?[:0]const u8 {
     const S = struct {
         threadlocal var buf: [4096]u8 = undefined; // a console line is at most this
@@ -47,9 +46,8 @@ pub fn pageFormats() []const u8 {
     return std.mem.span(c.stencil_cli_pageFormats());
 }
 
-/// Resolve a page-format name case-insensitively to its canonical spelling ("b5" -> "B5").
-/// null when the name is not a known format ("custom" included — it is not a named size).
-/// The result slices into the core's static name list, so it never dangles.
+/// Resolve a page-format name case-insensitively to its canonical spelling ("b5" -> "B5"); null when
+/// unknown ("custom" included). The result slices into the core's static list, so it never dangles.
 pub fn canonicalPageFormat(name: []const u8) ?[]const u8 {
     // The list is a C pointer, so it cannot be a comptime map; the length test skips the
     // case-insensitive compare for all but the two or three names of the right width.
@@ -161,9 +159,8 @@ pub fn applyFormula(expr: [:0]const u8, var_name: u8, value: f64, allow: bool) f
     return c.stencil_cli_applyFormula(expr.ptr, @as(c_int, var_name), value, @intFromBool(allow));
 }
 
-/// Parse a human duration ("days 23", "fortnight", "month", "off") into milliseconds.
-/// Returns the duration in ms (0 for off/never), or null when the spec is invalid.
-/// The caller adds this to "now" to get an expiry timestamp.
+/// Parse a human duration ("days 23", "fortnight", "month", "off") into ms (0 for off/never), else
+/// null. The caller adds it to "now" to get an expiry timestamp.
 pub fn parseDuration(spec: [:0]const u8) ?i64 {
     var ms: c_longlong = 0;
     if (c.stencil_cli_parseDuration(spec.ptr, &ms) == 0) return null;
@@ -183,9 +180,8 @@ pub fn colorNameAt(index: usize) ?struct { name: [:0]const u8, rgb: u32 } {
     return .{ .name = std.mem.span(p), .rgb = @intCast(rgb) };
 }
 
-/// The `/expire` unit words and keep-forever aliases the core parser accepts, joined
-/// as help text ("day | week | …"). Backed by a call-local static buffer: the console
-/// prints the slice straight away, and both lists are short and fixed.
+/// The `/expire` unit words and keep-forever aliases the core parser accepts, joined as help text.
+/// Backed by a call-local static buffer: both lists are short and fixed, and the console prints at once.
 pub fn durationUnitsHelp() []const u8 {
     const S = struct {
         var buf: [96]u8 = undefined;

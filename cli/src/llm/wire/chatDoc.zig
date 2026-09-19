@@ -24,17 +24,15 @@ pub fn boundedHistory(history: []const Turn) []const Turn {
     return history;
 }
 
-/// §7's auto-continuation note: the internal sentence /prompt appends to the RESTATED request
-/// after a plan loaded a picture. It lives here, beside the §12 rules, so the one place that
-/// writes it and the one place that must never persist it agree by construction.
+/// §7's auto-continuation note, the sentence /prompt appends to the RESTATED request. It lives beside
+/// the §12 rules so the place that writes it and the place that must never persist it agree.
 pub const continuation_note = "[The working image is now the picture those actions loaded — " ++
     "continue with it, using its real pixel size.]";
 
 const continuation_note_open = "[The working image is now";
 
-/// §12.1: the shared document must read as a conversation, so machinery never enters it —
-/// §7's continuation note is stripped (a bracketed variant standing alone drops the turn)
-/// and a raw-op-plan ASSISTANT turn drops. Applied on both write and read sides.
+/// §12.1: the shared document must read as a conversation, so §7's continuation note is stripped and
+/// a raw-op-plan ASSISTANT turn drops. Applied on both the write and the read side.
 pub fn chatDisplayText(role: ChatRole, text: []const u8) ?[]const u8 {
     const ws = " \t\r\n";
     var t = std.mem.trim(u8, text, ws);
@@ -67,9 +65,8 @@ fn hasJsonKey(t: []const u8, comptime key: []const u8) bool {
     return false;
 }
 
-/// Serialize a history to the §12.1 persisted-chat JSON document
-/// (`{"version":1,"savedAt":<ms>,"messages":[{"role","text"},…]}`) — text-only, images are
-/// never persisted, trimmed to the most recent 32 turns. Caller owns the result.
+/// Serialize a history to the §12.1 persisted-chat JSON document — text-only, images are never
+/// persisted, trimmed to the most recent 32 turns. Caller owns the result.
 pub fn chatDocAlloc(gpa: std.mem.Allocator, history: []const Turn, saved_at: i64) error{OutOfMemory}![]u8 {
     // The §12.1 gate runs BEFORE the bound, so the 32 kept are the most recent persistable
     // turns. Texts are borrowed from `history` — the document is written straight away.
@@ -106,9 +103,8 @@ fn writeChatDoc(js: *std.json.Stringify, history: []const Turn, saved_at: i64) s
     try js.endObject();
 }
 
-/// Parse a §12.1 chat document into turns (free with freeTurns). Tolerant: an off-shape
-/// document reads as empty, unknown roles / text-less messages drop, "images" is ignored,
-/// only the most recent 32 survive; the §12.1 gate (chatDisplayText) runs here too.
+/// Parse a §12.1 chat document into turns (free with freeTurns). Tolerant: an off-shape document
+/// reads as empty, unknown roles drop, only the most recent 32 survive; the §12.1 gate runs here too.
 pub fn parseChatDoc(gpa: std.mem.Allocator, bytes: []const u8) error{OutOfMemory}![]Turn {
     var out: std.ArrayList(Turn) = .empty;
     errdefer {

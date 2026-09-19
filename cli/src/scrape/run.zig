@@ -42,9 +42,8 @@ const window = windowing.window;
 
 const MAX_HTML = 32 << 20; // sanity cap on a scraped page (fetch itself is unbounded)
 
-/// Scrape `opts.source_site`, filter, download the matching window into `opts.output`, and
-/// print the §3 stderr lines. Per-item fetch failures are non-fatal; zero files written is a
-/// hard error (exit 1).
+/// Scrape `opts.source_site`, filter, download the matching window into `opts.output`, and print the §3
+/// stderr lines. Per-item fetch failures are non-fatal; zero files written is a hard error (exit 1).
 pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     var unused: u8 = 0;
     const deps = Deps{
@@ -86,9 +85,8 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
     };
     defer name_matcher.deinit();
 
-    // Announce the scrape up front: the page fetch and the downloads take a while, so don't sit
-    // silent until the first `wrote`. It carries none of the parsed prefixes (`wrote `/`scraped
-    // `/`error:`), so the mcp and bot adapters ignore it; pystencil's _run_scrape mirrors it.
+    // Announce the scrape up front: the page fetch and the downloads take a while. It carries none of the
+    // parsed prefixes (`wrote `/`scraped `/`error:`), so the mcp and bot adapters ignore it.
     deps.emit(arena, "scraping {s}…\n", .{site});
 
     const html = try deps.fetch(arena, io, site, false); // net prints its own error on failure
@@ -115,18 +113,14 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
             try candidates.append(arena, m);
     }
 
-    // A candidate ready to write. `bytes == null` means measurement couldn't fetch it: it still
-    // occupies its window slot (unknown size passes the dimension filter, matching pystencil),
-    // and the write loop re-fetches it — reporting the non-fatal per-item error if that fails
-    // too, exactly as pystencil's separate download pass does.
+    // A candidate ready to write. `bytes == null` means measurement could not fetch it: it still occupies
+    // its window slot (unknown size passes the filter, as in pystencil) and the write loop re-fetches it.
     const Ready = struct { media: Media, bytes: ?[]const u8, dims: ?Sniff };
     var ready: std.ArrayList(Ready) = .empty;
     defer ready.deinit(arena);
 
-    // A dimension filter has to measure every candidate before the window can be cut; without
-    // one only the window is fetched. These URLs came from the page's content, so loopback is
-    // allowed only on the host the user named (subStrict). The batch downloads them
-    // concurrently, hands the results back in candidate order, and owns the bytes.
+    // A dimension filter must measure every candidate before the window can be cut; without one only the
+    // window is fetched. These URLs came from page content, so loopback is allowed only on the named host.
     const count = effectiveCount(opts.source_count);
     const to_fetch = if (dim_active) candidates.items else window(Media, candidates.items, opts.group, count);
     const jobs = try arena.alloc(fetchPool.Job, to_fetch.len);
@@ -138,9 +132,8 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
     defer passed.deinit(arena);
     for (to_fetch, batch.results) |m, got| {
         const bytes = got.bytes orelse {
-            // A measurement failure is silent (parity with pystencil's best-effort
-            // _measure_item): the item keeps its window slot as unknown-size and the write loop
-            // re-fetches it. Unmeasured, there is no second pass, so it reports now.
+            // A measurement failure is silent (parity with pystencil's best-effort _measure_item): the item keeps
+            // its window slot as unknown-size and the write loop re-fetches. Unmeasured, there is no second pass.
             if (dim_active) try passed.append(arena, .{ .media = m, .bytes = null, .dims = null }) //
             else deps.err(arena, "could not fetch {s} ({s})\n", .{ m.url, @errorName(got.err.?) });
             continue;
@@ -449,12 +442,8 @@ test "run: --source-name invalid regex is a hard error (POSIX)" {
 }
 
 
-// run() orchestration tests (in-memory fetch + capture; no network, no disk)
-//
-// These lock the glue the pure helpers don't cover: filter → window → create dir → write
-// files → emit the §3 stderr grammar (`wrote … (WxH px · source host)` / `(source host)` /
-// `scraped N file(s) …` / `no media matched`). A `Deps` seam swaps net.fetch/report.print/cwd
-// for in-memory mocks, so this needs no server and touches no files.
+// run() orchestration tests: filter → window → create dir → write files → the §3 stderr grammar. A
+// `Deps` seam swaps net.fetch/report.print/cwd for in-memory mocks, so this needs no server or disk.
 
 /// A 24-byte PNG header (signature + IHDR) carrying `w`×`h` (both < 256) so `sniff` measures it.
 fn mkPng(a: std.mem.Allocator, w: u8, h: u8) []const u8 {

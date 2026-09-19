@@ -28,9 +28,8 @@ pub fn cropSpecString(gpa: std.mem.Allocator, edges: CropEdges) error{OutOfMemor
 /// caller's warning — never a plan failure on the console).
 pub const ServerMatch = union(enum) { index: usize, none, ambiguous };
 
-/// §10's connect/disconnect stance, over the console's own URL lists: exact URL match,
-/// else a UNIQUE host (or host:port) match, case-insensitive on the host. The model can
-/// never introduce a new address — an unmatched name is the user's to /connect.
+/// §10's connect/disconnect stance over the console's own URL lists: exact URL match, else a UNIQUE
+/// host (or host:port) match. The model can never introduce an address the user did not /connect.
 pub fn resolveServer(urls: []const []const u8, want_raw: []const u8) ServerMatch {
     const want = std.mem.trim(u8, want_raw, " \t");
     if (want.len == 0) return .none;
@@ -61,9 +60,8 @@ pub const ConsoleServer = struct {
 /// How many project names one server contributes to the context suffix.
 pub const max_context_projects = 20;
 
-/// The console's dynamic system-prompt suffix (§4 allows one): the connection list (URLs
-/// only), the active project, and each server's project names, so connect/disconnect ops
-/// resolve against addresses the user already owns. Caller owns the result.
+/// The console's dynamic system-prompt suffix (§4 allows one): the connection list (URLs only), the
+/// active project and each server's project names, so connect ops resolve against the user's own.
 pub fn consoleContextAlloc(
     gpa: std.mem.Allocator,
     servers: []const ConsoleServer,
@@ -113,9 +111,8 @@ fn appendFmt(gpa: std.mem.Allocator, out: *std.ArrayList(u8), comptime fmt: []co
     try out.appendSlice(gpa, s);
 }
 
-/// Sanitize a variant label into a `[a-z0-9-]` file stem (runs of other characters become
-/// single dashes; capped at 40 chars; dangling dashes trimmed). May come out empty —
-/// callers fall back to the variant's 1-based position. Caller owns the result.
+/// Sanitize a variant label into a `[a-z0-9-]` file stem (runs of other characters become single
+/// dashes, capped at 40, dangling dashes trimmed). May come out empty; caller owns the result.
 pub fn sanitizeLabel(gpa: std.mem.Allocator, label: []const u8) error{OutOfMemory}![]u8 {
     var out: std.ArrayList(u8) = .empty;
     errdefer out.deinit(gpa);

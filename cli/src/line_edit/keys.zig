@@ -39,11 +39,8 @@ pub fn waitReadable(self: *Editor, timeout_ms: i32) bool {
     return ready > 0;
 }
 
-// A physical click emits a press report (…M) and then a release report (…m). When a double-click
-// fires the custom-colour callback — which animates the logo — the second click's release is
-// still queued; left there it counts as "pending input" and aborts the flourish the instant it
-// starts (screen.sleepOrAbort). Swallow that one release first. A press is always followed by its
-// own release before any later click's press, so consuming a single report can never drop a click.
+// A click emits a press report then a release. The double-click callback animates the logo, and the
+// second click's release left queued counts as pending input and aborts it — swallow that one first.
 pub fn drainMouseRelease(self: *Editor) void {
     if (!self.waitReadable(20)) return; // release not here yet (or none coming) — nothing to drain
     const b = self.readByte() orelse return;
@@ -81,18 +78,16 @@ pub fn collectCsi2(self: *Editor, first: u8, out: []u8) CsiResult {
     return .{ .np = np, .final = bb };
 }
 
-// Act on a collected CSI nav sequence (`ESC [ params final`, mouse excluded). A modifier param
-// > 1 or a Meta ESC prefix (`force_word`) turns a plain arrow into a word jump. Application-
-// cursor keys (`ESC O <final>`) arrive with empty params.
+// Act on a collected CSI nav sequence (`ESC [ params final`, mouse excluded). A modifier param > 1
+// or a Meta ESC prefix (`force_word`) turns a plain arrow into a word jump.
 pub fn csi(self: *Editor, params: []const u8, final: u8, force_word: bool, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, hist: *History, hidx: *usize, stash: []u8, stash_len: *usize) void {
     var it = std.mem.splitScalar(u8, params, ';');
     const code: u32 = std.fmt.parseInt(u32, it.next() orelse "", 10) catch 0;
     const mod: u32 = std.fmt.parseInt(u32, it.next() orelse "", 10) catch 0;
     const word = force_word or mod > 1; // any modifier on an arrow = move by word
     switch (final) {
-        // Up/Down first move BETWEEN the rows of a wrapped line — a two-row prompt you
-        // cannot walk back into is a prompt you cannot fix. Only from the top row (Up) or
-        // the bottom one (Down) do they mean the usual previous/next command.
+        // Up/Down first move BETWEEN the rows of a wrapped line; only from the top row (Up) or the bottom
+        // one (Down) do they mean the usual previous/next command.
         'A', 'B' => {
             const up = final == 'A';
             if (self.rowStep(prompt, buf[0..len.*], pos, up)) {
@@ -117,9 +112,8 @@ pub fn csi(self: *Editor, params: []const u8, final: u8, force_word: bool, promp
             pos.* = len.*;
             self.refresh(prompt, buf[0..len.*], pos.*);
         },
-        // ESC [ <code> ; <mods> u — how xterm's modifyOtherKeys and the kitty protocol
-        // report a MODIFIED key. Backspace (127, or 8 where that is the erase byte) with
-        // any modifier is the "delete the word" chord; bare, it is one character.
+        // ESC [ <code> ; <mods> u — how xterm's modifyOtherKeys and kitty report a MODIFIED key. Backspace
+        // (127, or 8 where that is the erase byte) with any modifier is the delete-the-word chord.
         'u' => if (code == 127 or code == 8) {
             if (word) self.deleteWordBack(prompt, buf, len, pos) else self.backspace(prompt, buf, len, pos);
         },

@@ -43,9 +43,8 @@ pub fn applyCropSpec(gpa: std.mem.Allocator, img: *image.Rgba8, spec: []const u8
     try cropInPlace(gpa, img, rect);
 }
 
-/// Resolve a crop spec to a pixel rect within a `w`×`h` image (page metrics derived from the
-/// dims), without cropping — for the console's structured model, which records the rect rather
-/// than baking. Prints + returns null on a bad spec.
+/// Resolve a crop spec to a pixel rect within a `w`×`h` image (page metrics derived from the dims)
+/// WITHOUT cropping — for the console's structured model, which records the rect rather than baking it.
 pub fn resolveCropSpec(w: usize, h: usize, spec: []const u8, album: bool) ?core.Rect {
     const page = page_mod.pageForImage(w, h);
     const px_per_cm_x = @as(f64, @floatFromInt(w)) / page.w;
@@ -75,18 +74,16 @@ pub fn applyRotateBy(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !vo
     try rotateInPlace(gpa, img, rotate);
 }
 
-/// Load and parse a layout (file path or URL) WITHOUT drawing it, so a caller can read the
-/// optional filter + page pick it carries — and apply that filter to the bare picture —
-/// before the lines go on. The returned doc owns its own arena; the caller deinits it.
+/// Load and parse a layout (file path or URL) WITHOUT drawing it, so a caller can read the optional
+/// filter + page pick it carries first. The returned doc owns its arena; the caller deinits it.
 pub fn loadLayoutDoc(gpa: std.mem.Allocator, io: std.Io, src: []const u8) !layout_mod.Layout {
     const bytes = try loadText(gpa, io, src);
     defer gpa.free(bytes);
     return layout_mod.parse(gpa, bytes);
 }
 
-/// Rasterize a parsed layout's lines onto the image. `source_steps` non-null = the doc's
-/// points are in the SOURCE frame (--layout-frame source): each line is re-mapped through
-/// the steps and clamped into the image bounds before rasterizing.
+/// Rasterize a parsed layout's lines onto the image. `source_steps` non-null = the points are in the
+/// SOURCE frame (--layout-frame source), re-mapped through the steps and clamped into the bounds.
 pub fn drawLayoutDoc(
     gpa: std.mem.Allocator,
     img: *image.Rgba8,
@@ -121,9 +118,8 @@ pub fn applyFilterMode(gpa: std.mem.Allocator, img: *image.Rgba8, mode: []const 
     imageRows.filter(z, img.pixels, w, h, core.parseColor(z) orelse black);
 }
 
-/// Encode the image, write it to `out` (extension filled from `default_fmt` if absent), and
-/// print the canonical `wrote {path} ({w}x{h} px · {page})` line with the given page label
-/// (built via pageLabelAlloc, or the console's session label — both share that derivation).
+/// Encode the image, write it to `out` (extension filled from `default_fmt` if absent), and print the
+/// canonical `wrote {path} ({w}x{h} px · {page})` line with the given page label.
 pub fn writeOutputLabeled(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, out: []const u8, default_fmt: image.Format, page_label: []const u8) !void {
     const dir = std.Io.Dir.cwd();
     const resolved = try resolveOutput(gpa, out, default_fmt);
@@ -171,9 +167,8 @@ fn resolveOutput(gpa: std.mem.Allocator, out_raw: []const u8, fallback: image.Fo
     // A typed "~/Downloads/x.png" means the home directory, not one named "~".
     const out = try expandHome(gpa, out_raw);
     errdefer gpa.free(out);
-    // Refuse an output path that climbs above the working directory. Direct users
-    // still write anywhere they name (absolute paths, subdirs); this only blocks the
-    // ".." traversal that a caller/adapter forwarding an untrusted name shouldn't do.
+    // Refuse an output path that climbs above the working directory. Direct users still write anywhere they
+    // name; this only blocks the ".." traversal an adapter forwarding an untrusted name should not do.
     if (hasParentTraversal(out)) {
         report.err("refusing to write to a path that escapes the working directory: '{s}'\n", .{out});
         return error.UnsafeOutputPath; // the errdefer above frees `out`

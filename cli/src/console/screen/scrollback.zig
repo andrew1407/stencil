@@ -37,9 +37,8 @@ pub fn append(self: *Screen, bytes: []const u8) void {
     }
 }
 
-/// Re-split lines just added that are wider than the window, so long output wraps onto as
-/// many rows as it needs. One scrollback line stays one screen row (keeps scrolling and
-/// selection simple); already-wrapped lines keep their wrap width on resize.
+/// Re-split lines just added that are wider than the window. One scrollback line stays one screen row
+/// (keeping scrolling and selection simple); already-wrapped lines keep their wrap width on resize.
 pub fn wrapNewLines(self: *Screen, from: usize) void {
     if (self.cols == 0) return;
     var i = from;
@@ -64,9 +63,8 @@ pub fn wrapNewLines(self: *Screen, from: usize) void {
     }
 }
 
-/// Swap scrollback line `idx` for `bytes` in place — a transient notice advancing a
-/// frame. Only while that line still reads `expect`: output since then may have moved
-/// or wrapped it, and then nothing happens. True when it was swapped.
+/// Swap scrollback line `idx` for `bytes` in place — a transient notice advancing a frame. Only
+/// while that line still reads `expect`: output since then may have moved or wrapped it.
 pub fn replaceLine(self: *Screen, idx: usize, expect: []const u8, bytes: []const u8) bool {
     if (!self.lineIs(idx, expect)) return false;
     const copy = self.gpa.dupe(u8, bytes) catch return false;

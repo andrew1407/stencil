@@ -15,11 +15,8 @@ pub const max_pending_images = 3;
 
 pub const PendingImages = struct {
     ctx: *anyopaque,
-    /// What Ctrl-V does with the clipboard, for the line `before` — which also says how many
-    /// images that line may carry (`/upload` loads one picture, a `/prompt` up to three; the
-    /// host knows the verbs). A picture is held and its marker label written into `label`; with
-    /// no picture the clipboard's TEXT is written into `text` and simply typed into the line.
-    /// `.none` means there was nothing to take (the hook said why).
+    /// What Ctrl-V does with the clipboard for the line `before`, which also says how many images that
+    /// line may carry. A picture's marker label goes into `label`, else the clipboard TEXT into `text`.
     paste: *const fn (ctx: *anyopaque, before: []const u8, label: []u8, text: []u8) PasteResult,
     /// Consider a bracketed paste — `text`, typed after `before` — as an image file's path;
     /// same contract, and silent when it declines (the paste is then ordinary text).
@@ -29,9 +26,8 @@ pub const PendingImages = struct {
     count: *const fn (ctx: *anyopaque) usize,
 };
 
-/// The end offset (exclusive) of the `[Image #N …]` marker starting at `i`, or null when no
-/// marker starts there. The index is one digit, so a marker is always removed and renumbered
-/// as a whole.
+/// The end offset (exclusive) of the `[Image #N …]` marker starting at `i`, else null. The index is
+/// one digit, so a marker is always removed and renumbered as a whole.
 pub fn markerEnd(line: []const u8, i: usize) ?usize {
     if (i + marker_open.len + 2 > line.len) return null;
     if (!std.mem.eql(u8, line[i..][0..marker_open.len], marker_open)) return null;
@@ -57,9 +53,8 @@ pub fn markerBefore(line: []const u8, pos: usize) ?usize {
     }
 }
 
-/// `line` with every image marker taken out (and the gap it left closed), written into `out`
-/// — the command the console actually dispatches once the pictures have been lifted off it.
-/// Returns `line` itself, untouched, when it carries no markers.
+/// `line` with every image marker taken out and the gap closed, written into `out` — the command the
+/// console dispatches once the pictures are lifted off. Returns `line` itself when it has none.
 pub fn stripMarkers(out: []u8, line: []const u8) []const u8 {
     if (std.mem.indexOf(u8, line, marker_open) == null) return line;
     var n: usize = 0;

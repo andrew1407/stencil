@@ -121,10 +121,8 @@ fn eqIgnoreCase(a: []const u8, b: []const u8) bool {
     return std.ascii.eqlIgnoreCase(a, b);
 }
 
-// `blank: [format] [w h] [color]` — an optional page-format name (case-insensitive, stored
-// canonical), or an optional integer pair, followed by an optional colour. A format token
-// and explicit dims are mutually exclusive. Returns null only when the tokens are present
-// but malformed (e.g. one dimension, format + dims, or junk).
+// `blank: [format] [w h] [color]` — a page-format name or an integer pair, never both, then an
+// optional colour. Null only when the tokens are present but malformed.
 pub fn parseBlank(arg: []const u8) ?args.Blank {
     var b = args.Blank{};
     var it = std.mem.tokenizeAny(u8, arg, " \t");
@@ -168,10 +166,8 @@ pub fn looksLikeServerUrl(word: []const u8) bool {
     return eqIgnoreCase(word, "localhost");
 }
 
-// Split `/connect` arguments into url/token pairs: each URL-looking word starts a
-// connection and a following token word attaches to it (one each; anything after that
-// starts a new URL, preserving the plain multi-URL form). Slices into `arg`; caller
-// owns the returned slice. The first word is always taken as a URL.
+// Split `/connect` arguments into url/token pairs: each URL-looking word starts a connection and
+// one following token word attaches to it. Slices into `arg`; caller owns the returned slice.
 pub fn parseConnectArgs(gpa: std.mem.Allocator, arg: []const u8) ![]ConnectArg {
     var out: std.ArrayList(ConnectArg) = .empty;
     errdefer out.deinit(gpa);
@@ -214,10 +210,8 @@ pub fn projectBaseName(label: []const u8) []const u8 {
     return name;
 }
 
-// Resolve where `/layout [arg]` writes its JSON (caller owns the returned path):
-//   - arg ends with ".json" (case-insensitive) → exactly that path.
-//   - arg non-empty without ".json"            → "<arg>/<name>.json" (no doubled '/').
-//   - arg empty                                → "<name>.json" in the cwd.
+// Where `/layout [arg]` writes its JSON (caller owns the path): an `arg` ending ".json" is taken
+// as-is, a non-empty one as "<arg>/<name>.json", an empty one as "<name>.json" in the cwd.
 pub fn layoutTarget(gpa: std.mem.Allocator, arg: []const u8, name: []const u8) ![]u8 {
     const a = std.mem.trim(u8, arg, " \t");
     if (a.len == 0) return std.fmt.allocPrint(gpa, "{s}.json", .{name});

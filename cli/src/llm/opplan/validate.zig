@@ -29,9 +29,8 @@ pub const ParseOutcome = union(enum) {
     invalid: []u8,
 };
 
-/// Parse the raw LLM reply into a validated plan (§1): strip fences, take the first
-/// balanced `{…}` object (none → chat-only turn); unknown ops drop with a warning, a
-/// known op with bad params rejects the plan, a misplaced-op variant is dropped.
+/// Parse the raw LLM reply into a validated plan (§1): strip fences, take the first balanced `{…}`
+/// object (none → chat-only turn); unknown ops drop, bad params reject, a misplaced variant drops.
 pub fn parsePlan(gpa: std.mem.Allocator, raw: []const u8) error{OutOfMemory}!ParseOutcome {
     var plan = Plan{ .arena = std.heap.ArenaAllocator.init(gpa) };
     errdefer plan.arena.deinit();
@@ -115,9 +114,8 @@ pub fn validateInto(plan: *Plan, a: std.mem.Allocator, obj: ObjectMap, diag: *Di
     }
     plan.variants = try variants.toOwnedSlice(a);
     plan.ask = try validateAsk(a, obj.get("ask"), &warnings, diag);
-    // The substitute must not overstate what happened: "Done." only when the
-    // plan actually carries work — an empty plan says so, since a bare "Done."
-    // there reads as a success that never occurred (contract §1).
+    // The substitute must not overstate what happened: "Done." only when the plan carries work, since a
+    // bare "Done." on an empty plan reads as a success that never occurred (§1).
     if (reply_omitted) {
         if (plan.actions.len > 0 or plan.variants.len > 0 or plan.ask != null) {
             plan.reply = try a.dupe(u8, "Done.");
@@ -593,9 +591,8 @@ test "parsePlan: a misplaced op costs its variant, not the plan (contract §1)" 
         only.warnings[0],
     );
 
-    // The other strictness is untouched: a known op with bad params inside a variant
-    // still fails the plan, an unknown one is still just skipped, and a forbidden name
-    // is still rejected outright (§13).
+    // The other strictness is untouched: inside a variant a known op with bad params still fails the
+    // plan, an unknown one is still skipped, and a forbidden name is still rejected outright (§13).
     try rejectInVariant("{\"op\":\"rotate\",\"dir\":\"up\"}", "invalid rotate action: \"dir\" must be one of \"left\", \"right\"");
     try rejectInVariant("{\"op\":\"chatPersist\",\"on\":true}", "invalid plan: the \"chatPersist\" op is never model-drivable");
     var unknown = try planInVariant("{\"op\":\"resize\",\"w\":2},{\"op\":\"filter\",\"mode\":\"bw\"}");

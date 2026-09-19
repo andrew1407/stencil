@@ -1,13 +1,8 @@
-// Walks the shared `.stencil` project-file vectors (fixtures/stencilProject/) against
-// the cli's real parser (project.parse — the loadInto/one-shot path). Verdicts match on
-// the error CASE, not the browser's message text (per the schema). The fixture `project`
-// is the BROWSER-normalized shape; the cli-observable fields (name/color/source/
-// resource/blank/blankColor/ext/w/h + the decoded image bytes) are compared, with the
-// cli's own value pinned via fixture_overrides.json `cli` where the two disagree
-// (the cli keeps metadata verbatim — no trim/lowercase/hex-normalization — and its
-// typed JSON reader neither coerces numeric strings nor truthy non-bools).
-// The embedded layout is NOT compared here: the cli re-stringifies it raw at parse and
-// sanitizes only later through layout.zig (walked by the layout family).
+// Walks the shared `.stencil` project-file vectors (fixtures/stencilProject/) against the cli's real
+// parser (project.parse — the loadInto/one-shot path); verdicts match on the error CASE, not the
+// browser's message text. The fixture `project` is the BROWSER-normalized shape, so the cli-observable
+// fields are compared with the cli's own value pinned via fixture_overrides.json `cli` (the cli keeps
+// metadata verbatim). The embedded layout is walked by the layout family, not compared here.
 const std = @import("std");
 const project = @import("../src/project.zig");
 const fx = @import("fixture_corpus.zig");

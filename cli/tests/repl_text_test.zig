@@ -13,9 +13,8 @@ const ui_text = @embedFile("../src/console/uiText.txt");
 // placeholders that happen to start with '/'.
 const not_commands = [_][]const u8{ "/prompt,", "/save;" };
 
-// A command with no `/help` row, left as found because tests/pins/help.*.txt are byte
-// goldens and rewording the prose is a separate change. Give /project-description a row
-// and delete this entry.
+// A command with no `/help` row, left as found because tests/pins/help.*.txt are byte goldens and
+// rewording the prose is a separate change.
 const undocumented = [_][]const u8{"project_description"};
 
 /// The lines of the '@name' block, without its trailing newline (ui.zig's own reader).

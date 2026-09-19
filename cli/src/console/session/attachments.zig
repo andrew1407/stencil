@@ -6,11 +6,8 @@ const image = @import("../../image.zig");
 const llm = @import("../../llm.zig");
 const Attachment = @import("../session.zig").Attachment;
 
-// §2.1 turn attachments
-/// Remember an uploaded image as an attachment of the current turn (taking ownership
-/// of `label_src`'s copy and `bytes`). A previous turn's list is dropped first, so
-/// `/upload a` `/upload b` `/prompt …` attaches exactly a and b; past
-/// `max_attachments` the oldest falls off, keeping the newest §7-many.
+/// Remember an uploaded image as an attachment of the current turn, taking ownership of `bytes`. A
+/// previous turn's list is dropped first; past `max_attachments` the oldest falls off (§2.1).
 pub fn addAttachment(self: *Session, label_src: []const u8, bytes: []u8, fmt: image.Format, temp: bool) !void {
     if (self.attachments_used) self.clearAttachments();
     const label = self.gpa.dupe(u8, label_src) catch |e| {
@@ -28,9 +25,8 @@ pub fn addAttachment(self: *Session, label_src: []const u8, bytes: []u8, fmt: im
     }
 }
 
-/// Take back the newest attachment of the CURRENT turn, handing it to the caller (who
-/// deinits it). Null when the turn has none — including when a `/prompt` already spent
-/// them: that turn is over, so there is nothing left to take back.
+/// Take back the newest attachment of the CURRENT turn, handing it to the caller (who deinits it).
+/// Null when the turn has none — a `/prompt` already spent them, so there is nothing to take back.
 pub fn popAttachment(self: *Session) ?Attachment {
     if (self.attachments_used or self.attachments.items.len == 0) return null;
     return self.attachments.pop();

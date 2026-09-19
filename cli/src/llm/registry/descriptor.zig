@@ -6,22 +6,19 @@ const opSchema = @import("../opSchema.zig");
 
 const Action = opplan.Action;
 
-/// §13 capability tags: an op whose runtime capability is not wired into a build is
-/// excluded from prompt assembly, so it falls to §1's unknown-op skip and was never
-/// promised. The shipped console wires all of them (`full_capabilities`).
+/// §13 capability tags: an op whose runtime capability is not wired into a build is excluded from
+/// prompt assembly, so it falls to §1's unknown-op skip. The shipped console wires all of them.
 pub const OpCapability = enum { theme, network, filesystem, clipboard };
 pub const OpCaps = std.EnumSet(OpCapability);
 pub const full_capabilities = OpCaps.initFull();
 
-/// One §13 descriptor: an op's wire name, its `Action` tag, its prompt bullet(s)
-/// VERBATIM and its capability tag. Its key schema and variant-gate flags live in
-/// opRegistry.json (opSchema.zig). A comptime check pins the table 1:1 onto `Action`.
+/// One §13 descriptor: an op's wire name, its `Action` tag, its prompt bullet(s) VERBATIM and its
+/// capability. Key schema and variant gates live in opRegistry.json; a comptime check pins it to `Action`.
 pub const OpDescriptor = struct {
     name: []const u8,
     tag: std.meta.Tag(Action),
-    /// The §4 "Available ops" bullet. Null when a sibling's bullet already covers
-    /// the op (`redo` rides `undo`'s) or the op is parsed for §2 compatibility but
-    /// never advertised (`reset`).
+    /// The §4 "Available ops" bullet. Null when a sibling's bullet covers the op (`redo` rides `undo`'s)
+    /// or the op is parsed for §2 compatibility but never advertised (`reset`).
     bullet: ?[]const u8 = null,
     /// The console settings-block bullet (the CLI's §10-analog profile).
     console_bullet: ?[]const u8 = null,
@@ -31,16 +28,14 @@ pub const OpDescriptor = struct {
     capability: ?OpCapability = null,
 };
 
-/// §13 forbidden ops — the "never model-drivable" boundary, the registry's
-/// `forbidden.perSurface.cli`. Two teeth: no descriptor may use one of these names
-/// (tested below) and the validator's outright reject in `validateActions`.
+/// §13 forbidden ops — the "never model-drivable" boundary, the registry's `forbidden.perSurface.cli`.
+/// Two teeth: no descriptor may use one of these names, and `validateActions` rejects outright.
 pub fn isForbiddenOp(op: []const u8) bool {
     return opSchema.get().isForbidden(op);
 }
 
-/// §13 prompt censor: patterns no generated bullet may match — a registry mistake fails
-/// at assembly (`checkCensor`'s @compileError). Deliberately NOT a bare "token": the crop
-/// bullet's spec "tokens" are innocent; these patterns name credentials.
+/// §13 prompt censor: patterns no generated bullet may match (`checkCensor`'s @compileError).
+/// Deliberately NOT a bare "token" — the crop bullet's spec "tokens" are innocent.
 pub const sensitive_patterns = [_][]const u8{
     "api key",  "api-key",       "apikey",  "api_key",
     "bearer",   "authorization", "secret",  "endpoint",

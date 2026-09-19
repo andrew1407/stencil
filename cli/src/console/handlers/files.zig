@@ -16,9 +16,8 @@ const remoteEvents = @import("../remoteEvents.zig");
 /// Where a `/save` should write. Pure so the routing is unit-tested without I/O.
 pub const SaveTarget = enum { local, server, none };
 
-/// `/save <path>` writes locally; a bare `/save` pushes the result to the active server
-/// project (the manual counterpart to `/sync`, usable when sync is off); a bare `/save`
-/// with no active project is an error (nothing to write to).
+/// `/save <path>` writes locally; a bare `/save` pushes the result to the active server project (the
+/// manual counterpart to `/sync`), and is an error when there is no active project.
 pub fn saveTarget(arg_len: usize, has_remote: bool) SaveTarget {
     if (arg_len != 0) return .local;
     if (has_remote) return .server;

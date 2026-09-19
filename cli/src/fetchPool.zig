@@ -5,16 +5,12 @@
 //! state — a worker's only outputs are the bytes in its own arena and its `Fetched` row.
 const std = @import("std");
 
-/// Upper bound on concurrent fetches in one batch. These jobs are I/O-bound (a socket
-/// wait), so a small pool turns N serial round-trips into roughly one — but a bounded one,
-/// so a scrape never opens an antisocial number of sockets against a host. Same count as
-/// pystencil's MAX_FETCH_WORKERS.
+/// Upper bound on concurrent fetches in one batch: the jobs are I/O-bound, so a small pool turns N
+/// serial round-trips into roughly one without antisocial socket counts. = pystencil MAX_FETCH_WORKERS.
 pub const max_workers = 8;
 
-// One reusable body scratch per THREAD rather than one mapping per request: eight
-// concurrent fetches would otherwise map eight 64 MiB buffers at once. The pages are
-// lazily committed, so a thread only pays for the bodies it actually read, and `Batch.run`
-// hands the calling thread's back when the batch ends.
+// One reusable body scratch per THREAD rather than one per request: eight concurrent fetches would
+// otherwise map eight 64 MiB buffers. Pages commit lazily, so a thread pays for what it read.
 threadlocal var scratch: ?[]u8 = null;
 
 /// A page-allocated buffer of at least `min_len` bytes, cached for this thread; null on OOM.
@@ -41,10 +37,8 @@ pub const Job = struct { url: []const u8, strict: bool };
 /// What one job produced: the bytes, or the error to report. Never both.
 pub const Fetched = struct { bytes: ?[]const u8 = null, err: ?anyerror = null };
 
-/// A run of fetches and the arenas holding what they downloaded. An ArenaAllocator is not
-/// shareable, so every job gets its own; they are allocated once (never moved, since the
-/// allocator interface captures the arena's address) and live until `deinit`, which is what
-/// lets the caller keep using the bytes after the batch is over.
+/// A run of fetches and the arenas holding what they downloaded. An ArenaAllocator is not shareable,
+/// so every job gets its own, allocated once (the allocator captures its address) and kept to `deinit`.
 pub const Batch = struct {
     gpa: std.mem.Allocator,
     arenas: []std.heap.ArenaAllocator,
@@ -68,10 +62,8 @@ pub const Batch = struct {
         self.gpa.free(self.results);
     }
 
-    /// Fetch every job, filling `results[i]` from `jobs[i]`. Stays serial when there is nothing
-    /// to overlap and wherever the Io cannot spawn. Callers must own their output: this runs on
-    /// the one-shot path, never under the full-screen console, whose sink repaints from the
-    /// thread that owns the terminal.
+    /// Fetch every job, filling `results[i]` from `jobs[i]`; serial where the Io cannot spawn. One-shot
+    /// path only — never under the full-screen console, whose sink repaints from the terminal's thread.
     pub fn run(self: *Batch, io: std.Io, ctx: *anyopaque, f: FetchFn, jobs: []const Job) void {
         std.debug.assert(jobs.len == self.results.len);
         defer releaseScratch();

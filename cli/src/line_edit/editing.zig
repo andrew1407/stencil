@@ -55,9 +55,8 @@ pub fn deleteWordFwd(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, 
     self.refresh(prompt, buf[0..len.*], pos.*);
 }
 
-// Up (older) / Down (newer) through history, stashing the fresh line on first Up.
-/// Move the cursor one wrapped row up/down inside a multi-row input. False when there is
-/// no such row (or no screen geometry at all), leaving Up/Down to history recall.
+/// Move the cursor one wrapped row up/down inside a multi-row input. False when there is no such
+/// row (or no screen geometry at all), leaving Up/Down to history recall.
 pub fn rowStep(self: *Editor, prompt: []const u8, line: []const u8, pos: *usize, up: bool) bool {
     const g = self.wrapGeom(prompt) orelse return false;
     const to = rowMove(line.len, pos.*, prompt.len, g.first, g.cols, up) orelse return false;
@@ -91,10 +90,8 @@ pub fn recall(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *u
     self.refresh(prompt, buf[0..len.*], pos.*);
 }
 
-// Tab-complete the command word against `completions`. Only fires while still typing the
-// command (no whitespace yet, cursor at the end). A unique match fills it in with a
-// trailing space; several matches extend to their common prefix, or list them if that
-// adds nothing. A leading '/' is preserved. Names are matched case-insensitively.
+// Tab-complete the command word against `completions`, only while still typing it (no whitespace yet,
+// cursor at the end). A unique match fills in with a trailing space; several extend the common prefix.
 pub fn complete(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, completions: []const []const u8) void {
     const line = buf[0..len.*];
     if (pos.* != len.* or std.mem.indexOfAny(u8, line, " \t") != null) return;

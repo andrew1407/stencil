@@ -1,9 +1,7 @@
-//! The CLI's brand art colours, read from the canonical shared JSON
-//! (browser/js/config/themeTokens.json `brand`, embedded at build time) — the same hexes
-//! favicon.svg paints, so no colour is retyped here. logo.zig needs them as COMPILE-TIME
-//! constants (the `error: ` prefix concatenates its escape into one string), which rules out
-//! theme.zig's runtime std.json parse; this is a comptime scan of the same bytes instead, and
-//! tests/theme_tokens_drift_test.zig re-reads the file with std.json to pin every triple.
+//! The CLI's brand art colours, read from the canonical shared JSON (browser/js/config/
+//! themeTokens.json `brand`, embedded at build time) — no hex is retyped here. logo.zig needs them
+//! as COMPILE-TIME constants, which rules out theme.zig's runtime std.json parse, so this is a
+//! comptime scan of the same bytes; tests/theme_tokens_drift_test.zig pins every triple.
 const std = @import("std");
 
 const theme_tokens_json = @embedFile("themeTokens.json");

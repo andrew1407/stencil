@@ -33,9 +33,8 @@ pub fn findIdByName(gpa: std.mem.Allocator, body: []const u8, name: []const u8) 
     return null;
 }
 
-/// A project reference resolved from a list: its id plus the current server version.
-/// The version seeds the console's last-writer-wins guard so it knows which incoming
-/// edit events are genuinely newer than what it already holds. Caller owns `id`.
+/// A project reference resolved from a list: its id plus the current server version, which seeds the
+/// console's last-writer-wins guard so it knows which incoming events are newer. Caller owns `id`.
 pub const ProjectRef = struct { id: []u8, version: i64 };
 
 /// Like findIdByName, but also captures the project's monotonic edit version.
@@ -60,9 +59,8 @@ pub fn parseProjectVersion(gpa: std.mem.Allocator, body: []const u8) !i64 {
     return p.value.project.version;
 }
 
-/// One project as shown by `/projects`: name + image size + last-change timestamp, plus the
-/// project's custom name colour ("" = none, paint the name in the theme accent) and free-text
-/// description ("" = none). Owns `name`, `color`, and `description`.
+/// One project as shown by `/projects`: name + image size + last-change timestamp, plus its custom name
+/// colour ("" = paint in the theme accent) and free-text description ("" = none). Owns all three.
 pub const ProjectInfo = struct { name: []u8, created_at: i64, updated_at: i64, expires_at: i64, w: i64, h: i64, color: []u8, description: []u8, keywords: [][]u8 };
 
 /// Free a slice of owned strings (each string, then the slice). Used for keyword lists.
@@ -134,9 +132,8 @@ pub fn parseProjectKeywords(gpa: std.mem.Allocator, body: []const u8) ![][]u8 {
     return dupeStrList(gpa, p.value.project.keywords);
 }
 
-/// Parse one string field out of a single-project body ({ "project": { <key>: "…" } }) —
-/// "color", "blankColor" ("" = not a blank project), "description". "" when the key is
-/// absent/empty or holds a non-string. Caller owns the returned slice.
+/// Parse one string field out of a single-project body — "color", "blankColor" ("" = not a blank
+/// project), "description". "" when absent, empty or non-string. Caller owns the returned slice.
 pub fn parseProjectStringField(gpa: std.mem.Allocator, body: []const u8, key: []const u8) ![]u8 {
     var p = std.json.parseFromSlice(std.json.Value, gpa, body, .{}) catch return Error.BadResponse;
     defer p.deinit();

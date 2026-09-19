@@ -65,9 +65,8 @@ pub fn doSourceUpload(session: *Session, io: std.Io, arg: []const u8) !void {
     ui.redraw(session);
 }
 
-/// Parse the `/source-upload` positional grammar; null on a malformed token. `-1` min/max
-/// bounds become unset (null); a bare `all` format means any. An optional `name=<label>`
-/// key token may appear anywhere after the URL and sets a custom label for the loaded image.
+/// Parse the `/source-upload` positional grammar; null on a malformed token. `-1` min/max bounds
+/// become unset, a bare `all` format means any, and `name=<label>` may appear anywhere after the URL.
 fn parseSourceUpload(arg: []const u8) ?scrape.ConsoleOpts {
     var it = std.mem.tokenizeAny(u8, arg, " \t");
     const url = it.next() orelse return null;

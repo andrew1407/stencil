@@ -14,16 +14,14 @@ pub const frame_ms: i64 = 150;
 const max_line = 256;
 
 /// The line at frame `i` — the glyph in the theme accent, then the text. accentSeq() (not
-/// accentReal()) so that in the full-screen console the stored line carries the sentinel and
-/// re-tints with a `/theme` change, like the `note:` prefix.
+/// accentReal()) so the stored line carries the sentinel and re-tints with a `/theme` change.
 pub fn frameLine(buf: []u8, i: usize, text: []const u8) []const u8 {
     return std.fmt.bufPrint(buf, "{s}{s}{s} {s}", .{ logo.accentSeq(), frames[i % frames.len], logo.resetSeq(), text }) catch buf[0..0];
 }
 
 pub const Spinner = struct {
-    // `still`: no terminal to redraw on (piped input, a test sink) — the line is printed once
-    // and stays, like any other output. `screen`: the line lives in the full-screen scrollback
-    // and is swapped in place. `tty`: the plain editor — the row is rewritten with a CR.
+    // `still`: no terminal to redraw on (piped input, a test sink), so the line is printed once.
+    // `screen`: it lives in the full-screen scrollback and is swapped in place. `tty`: rewritten with CR.
     const Mode = enum { still, screen, tty };
 
     text: []const u8 = "",

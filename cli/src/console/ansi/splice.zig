@@ -44,10 +44,8 @@ pub fn clipRange(line: []const u8, c0: u16, c1: u16, accent: []const u8, out: []
 /// already passed on this frame.
 pub const Span = struct { c0: u16, c1: u16 };
 
-/// One row of a recolour wipe: the first `x` visible columns from `next` (the new-accent
-/// rendering), the rest from `prev` (the old one), clipped to `cols`. The renderings carry
-/// identical text, so the seam lands exactly on column `x`; sentinel rows pass the same line
-/// as both, tinted per side.
+/// One row of a recolour wipe: the first `x` visible columns from `next` (new accent), the rest from
+/// `prev` (old), clipped to `cols`. Both carry identical text, so the seam lands exactly on `x`.
 pub fn spliceAccent(next: []const u8, prev: []const u8, cols: u16, x: u16, new_accent: []const u8, old_accent: []const u8, out: []u8) []const u8 {
     var oi: usize = 0;
     const cut = @min(x, cols);
@@ -57,9 +55,8 @@ pub fn spliceAccent(next: []const u8, prev: []const u8, cols: u16, x: u16, new_a
     return out[0..oi];
 }
 
-/// One row of a recolour sweep: the columns the hand has passed (`spans`) taken from `next`
-/// (the new-accent rendering) and everything else from `prev` (the old one), clipped to
-/// `cols`. A boundary lands exactly on its column; sentinel rows pass the same line as both.
+/// One row of a recolour sweep: the columns the hand has passed (`spans`) from `next`, everything
+/// else from `prev`, clipped to `cols`. A boundary lands exactly on its column.
 pub fn spliceSpans(next: []const u8, prev: []const u8, cols: u16, spans: []const Span, new_accent: []const u8, old_accent: []const u8, out: []u8) []const u8 {
     var oi: usize = 0;
     var at: u16 = 0;
@@ -75,9 +72,8 @@ pub fn spliceSpans(next: []const u8, prev: []const u8, cols: u16, spans: []const
     return out[0..oi];
 }
 
-/// The byte offset just past the first `cols` VISIBLE columns of `line` — escapes and the
-/// accent sentinel carry no width, so they travel with the piece they sit in. `line.len` when
-/// the whole line fits. The width walk `clip` performs, without the copying.
+/// The byte offset just past the first `cols` VISIBLE columns — escapes and the accent sentinel
+/// carry no width, so they travel with the piece they sit in. `line.len` when the whole line fits.
 pub fn splitAt(line: []const u8, cols: u16) usize {
     var vis: u16 = 0;
     var i: usize = 0;

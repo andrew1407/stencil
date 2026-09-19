@@ -20,9 +20,8 @@ const linesDoc = planOps.linesDoc;
 const acquirePlanBlank = planOps.acquirePlanBlank;
 const planSavePath = planOps.planSavePath;
 
-/// The image-editing half of one op-plan action (§1–§2): crop, rotate, filter, layout,
-/// formula, page, blank, image and save. plan.zig has already refused the transforms that
-/// need a picture; every other op is settings.zig's.
+/// The image-editing half of one op-plan action (§1–§2): crop, rotate, filter, layout, formula,
+/// page, blank, image and save. Every other op is settings.zig's.
 pub fn apply(
     session: *Session,
     io: std.Io,

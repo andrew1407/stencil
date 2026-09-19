@@ -52,9 +52,8 @@ test "runPlan: a layout turn ends at its plan — one model round, nothing after
     // False = no §7 continuation, so doPrompt's round loop stops: the turn cost ONE request.
     try testing.expect(!try runPlan(&session, threaded.io(), raw, "outline the shapes"));
 
-    // The whole transcript is the reply plus the draw acknowledgement. Every request this
-    // module makes announces itself or its failure through this same sink, so the exact
-    // match IS the round count — nothing ran after the plan.
+    // The whole transcript is the reply plus the draw acknowledgement: every request this module makes
+    // announces itself or its failure through the same sink, so the exact match IS the round count.
     try testing.expectEqualStrings("traced it\ndrawn -> 4x4 px · A4 21×29.7cm  [2/2]\n", cap.text());
     inline for (.{ "correction", "self-check", "keeping the lines as planned", "sharpen" }) |phrase| {
         try testing.expect(std.mem.indexOf(u8, cap.text(), phrase) == null);

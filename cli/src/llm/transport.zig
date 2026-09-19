@@ -10,19 +10,16 @@ const sanitize = @import("../sanitize.zig");
 const member = wire.member;
 const memberStr = wire.memberStr;
 
-/// `LlmDisabled` = the server's 503 llmDisabled (no LLM key configured) — typed so a
-/// caller can tell "configure the server" apart from a broken transport (browser
-/// `disabled` kind parity). Every other non-2xx is `HttpFailed`.
+/// `LlmDisabled` = the server's 503 llmDisabled (no LLM key configured) — typed so a caller can tell
+/// "configure the server" from a broken transport. Every other non-2xx is `HttpFailed`.
 pub const PostError = error{ BlockedHost, HttpFailed, LlmDisabled, OutOfMemory, Cancelled, TimedOut };
 
-/// How long one LLM call may run before it is abandoned (a vision plan over a big image is
-/// slow, but a provider that never answers must not wedge the console forever). 600s is the
-/// cli's documented outlier in providers.json (timeouts.perSurface.cli), kept deliberately.
+/// How long one LLM call may run before it is abandoned: a vision plan over a big image is slow, but
+/// a silent provider must not wedge the console. 600s is providers.json timeouts.perSurface.cli.
 pub const request_timeout_ms: i64 = 10 * 60 * 1000;
 
-/// How a caller waiting on a slow call watches for a Ctrl-C. `poll` waits up to its
-/// `timeout_ms` and returns true when the user asked to cancel; null = nothing to watch (the
-/// one-shot CLI, tests), and then the call simply runs to completion on this thread.
+/// How a caller waiting on a slow call watches for a Ctrl-C: `poll` waits up to its `timeout_ms` and
+/// returns true to cancel. Null = nothing to watch, and the call runs to completion on this thread.
 pub const Waiter = struct {
     ctx: ?*anyopaque = null,
     poll: ?*const fn (ctx: *anyopaque, timeout_ms: i32) bool = null,
@@ -36,9 +33,8 @@ pub const Waiter = struct {
     }
 };
 
-/// One in-flight POST handed to a worker thread. The state word is the ownership handoff:
-/// whoever moves it out of `.running` owns the response — the worker frees it when the
-/// caller has already given up, the caller collects it otherwise.
+/// One in-flight POST handed to a worker thread. The state word is the ownership handoff: whoever
+/// moves it out of `.running` owns the response and frees it.
 pub const Job = struct {
     const State = enum(u8) { running, finished, cancelled };
 
@@ -102,9 +98,8 @@ pub const Job = struct {
     }
 };
 
-/// Wait for `job` while watching for a Ctrl-C and the deadline. Returns the response when the
-/// worker landed first; `Cancelled`/`TimedOut` when this side won the handoff (the worker then
-/// owns and frees the job, so it must not be touched again).
+/// Wait for `job` while watching for a Ctrl-C and the deadline. `Cancelled`/`TimedOut` mean this side
+/// won the handoff — the worker then owns and frees the job, so it must not be touched again.
 pub fn waitForJob(job: *Job, io: std.Io, waiter: Waiter) PostError!net.Response {
     const started = std.Io.Clock.now(.awake, io).toMilliseconds();
     while (job.state.load(.acquire) == @intFromEnum(Job.State.running)) {
@@ -131,9 +126,8 @@ pub fn waitForJob(job: *Job, io: std.Io, waiter: Waiter) PostError!net.Response 
     return job.res.?;
 }
 
-/// POST a JSON body and return the owned response bytes, over net.request's guarded path
-/// (SSRF checks, redirect refusal, size cap) in NON-strict mode: LLM endpoints are
-/// user-named, so loopback is allowed while private/metadata ranges stay blocked.
+/// POST a JSON body over net.request's guarded path (SSRF checks, redirect refusal, size cap) in
+/// NON-strict mode: LLM endpoints are user-named, so loopback is allowed, private ranges are not.
 pub fn postJson(
     gpa: std.mem.Allocator,
     io: std.Io,

@@ -1,9 +1,8 @@
-//! Console working-image state. Structured (browser-compatible) model: an untouched
-//! ORIGINAL image plus a stack of `EditState` snapshots (rotation + crop + filter + lines).
-//! The current view is DERIVED on demand — rotate → crop → filter → rasterize lines — so the
-//! exact same state can be serialized as a layout the browser/desktop editors render, making
-//! every CLI edit (crop/rotate/filter/draw) sync to peers, not just baked into a `result`.
-//! `/undo`, `/redo`, `/reset` move a cursor over the snapshots and rebuild the view.
+//! Console working-image state. Structured (browser-compatible) model: an untouched ORIGINAL image
+//! plus a stack of `EditState` snapshots (rotation + crop + filter + lines). The current view is
+//! DERIVED on demand — rotate → crop → filter → rasterize lines — so the same state serializes as a
+//! layout the browser/desktop editors render, making every CLI edit sync to peers rather than baked
+//! into a `result`. `/undo`, `/redo`, `/reset` move a cursor over the snapshots and rebuild the view.
 const std = @import("std");
 const image = @import("../image.zig");
 const server = @import("../serverClient.zig");
@@ -47,9 +46,8 @@ pub const Session = struct {
 
     // Server connections (collaboration)
     servers: std.ArrayList(server.Client) = .empty, // connected servers (REST clients)
-    // Every base URL this session successfully /connect-ed to (owned; survives a
-    // /disconnect). The ONLY pool a plan `connect` op may resolve against — the
-    // assistant can reconnect a server the user named, never introduce one.
+    // Every base URL this session successfully /connect-ed to (owned; survives a /disconnect). The ONLY
+    // pool a plan `connect` op may resolve against — the assistant can never introduce a server.
     known_servers: std.ArrayList([]const u8) = .empty,
     sync: bool = false, // when on, edits auto-upload the layout + result to the active remote
     dirty: bool = false, // a pending sync upload coalesced from a burst of edits (see remoteEvents.flushSync)
@@ -63,25 +61,20 @@ pub const Session = struct {
     // LLM assistant (/prompt, /llm)
     llm_env: llm.Env = .{}, // the raw STENCIL_LLM_* values captured at startup
     llm_cfg: ?llm.Config = null, // resolved lazily on first /prompt or /llm (in-session overrides)
-    // The option labels of the LAST `ask` card the assistant printed (contract §11), owned.
-    // They let the NEXT /prompt be answered by number ("2", "1,3") instead of retyping a
-    // label; cleared once used, or when a later turn asks something else.
+    // The option labels of the LAST `ask` card the assistant printed (§11), owned: they let the next
+    // /prompt answer by number ("2", "1,3"). Cleared once used, or when a later turn asks something else.
     ask_options: [][]u8 = &.{},
     ask_multi: bool = false,
-    // /prompt attachment cache: the base64 PNG of the working image, keyed by a digest of
-    // its pixels (owned) — a no-edit follow-up turn (e.g. answering an ask card) re-sends
-    // the same image without paying a full PNG + base64 re-encode.
+    // /prompt attachment cache: the base64 PNG of the working image keyed by a digest of its pixels,
+    // so a no-edit follow-up turn re-sends without paying a full PNG + base64 re-encode.
     prompt_b64: ?[]u8 = null,
     prompt_digest: u64 = 0,
-    // §2.1 multi-image plans: the images `/upload`ed for the CURRENT turn, in upload
-    // order — what an `image` op indexes (1-based) and what the next /prompt attaches
-    // when there is more than one. A /prompt consumes the list: the next /upload after
-    // it starts a fresh turn rather than piling onto the answered one.
+    // §2.1 multi-image plans: the images `/upload`ed for the CURRENT turn, in upload order — what an
+    // `image` op indexes (1-based). A /prompt consumes the list, so the next upload starts a fresh turn.
     attachments: std.ArrayList(Attachment) = .empty,
     attachments_used: bool = false,
-    // Images pasted into the LINE being typed (Ctrl-V, or a pasted image-file path): held
-    // against the `[Image #N …]` markers the editor shows in the prompt until Enter turns
-    // them into real uploads (attachments.drainPending). An abandoned line drops them.
+    // Images pasted into the LINE being typed (Ctrl-V, or a pasted image-file path), held against the
+    // `[Image #N …]` markers until Enter turns them into real uploads. An abandoned line drops them.
     pending: std.ArrayList(Attachment) = .empty,
     // /chat: opt-in per-project chat persistence (contract §12)
     chat_on: bool = false, // default OFF — replaying/persisting chat is an explicit opt-in
@@ -92,9 +85,8 @@ pub const Session = struct {
     // editor's keypress confirm (or a piped-stdin line read); null declines, like an EOF.
     confirm_fn: ?*const fn (ctx: ?*anyopaque, question: []const u8) bool = null,
     confirm_ctx: ?*anyopaque = null,
-    // Ctrl-C during a long call (an LLM turn): the console installs its tty watch here so a
-    // waiting call can be cancelled. Null in the one-shot CLI and in tests — nothing to poll,
-    // so calls simply run to completion.
+    // Ctrl-C during a long call: the console installs its tty watch here so a waiting call can be
+    // cancelled. Null in the one-shot CLI and in tests, where calls simply run to completion.
     cancel_ctx: ?*anyopaque = null,
     cancel_poll: ?*const fn (ctx: *anyopaque, timeout_ms: i32) bool = null,
 

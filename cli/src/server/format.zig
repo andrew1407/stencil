@@ -3,9 +3,8 @@
 const std = @import("std");
 const testing = std.testing;
 
-/// Render an epoch-ms timestamp as a short human "… ago" string relative to `now_ms`,
-/// writing into `buf` and returning the used slice (or a static fallback). A zero/missing
-/// or future timestamp reads as "just now". Pure — unit-tested.
+/// Render an epoch-ms timestamp as a short human "… ago" string relative to `now_ms`, into `buf`. A
+/// zero/missing or future timestamp reads as "just now". Pure — unit-tested.
 pub fn formatAgo(buf: []u8, now_ms: i64, then_ms: i64) []const u8 {
     if (then_ms <= 0) return "just now";
     const delta = if (now_ms > then_ms) now_ms - then_ms else 0;
@@ -19,10 +18,8 @@ pub fn formatAgo(buf: []u8, now_ms: i64, then_ms: i64) []const u8 {
     return std.fmt.bufPrint(buf, "{d}d ago", .{@divTrunc(hours, 24)}) catch "a while ago";
 }
 
-/// Render an expiry timestamp (epoch ms) as a short "in …" / "expired" / "never" string
-/// relative to `now_ms`, writing into `buf`. A zero/missing timestamp is "never" (keep
-/// forever); an at-or-past one is "expired". Pure — unit-tested. The twin of formatAgo,
-/// but forward-looking (expiry reads better as time-until than time-ago).
+/// Render an expiry timestamp as a short "in …" / "expired" / "never" string relative to `now_ms`: zero
+/// is "never" (keep forever), at-or-past is "expired". The forward-looking twin of formatAgo.
 pub fn formatUntil(buf: []u8, now_ms: i64, then_ms: i64) []const u8 {
     if (then_ms <= 0) return "never";
     if (then_ms <= now_ms) return "expired";

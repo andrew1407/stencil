@@ -30,9 +30,8 @@ pub const understood_exts = [_][]const u8{
     "stencil",
 };
 
-/// §10 openUrl guard: the model may only ECHO the user — true when `url` appears
-/// verbatim in the current turn's text or a replayed USER turn (assistant text and
-/// fetched/attached content never count).
+/// §10 openUrl guard: the model may only ECHO the user — true when `url` appears verbatim in the
+/// current turn's text or a replayed USER turn (assistant text and fetched content never count).
 pub fn urlEchoedByUser(history: []const Turn, current_text: []const u8, url: []const u8) bool {
     if (std.mem.indexOf(u8, current_text, url) != null) return true;
     for (history) |t| {
@@ -41,9 +40,8 @@ pub fn urlEchoedByUser(history: []const Turn, current_text: []const u8, url: []c
     return false;
 }
 
-/// The same guard for a LOCAL path (`openFile`, a `save` destination): the model may only
-/// touch a place the user named — the path itself or a FOLDER it sits in ("save it to
-/// ~/Downloads"); a `..` anywhere voids the grant.
+/// The same guard for a LOCAL path (`openFile`, a `save` destination): the path itself or a FOLDER it
+/// sits in ("save it to ~/Downloads"); a `..` anywhere voids the grant.
 pub fn pathEchoedByUser(history: []const Turn, current_text: []const u8, path: []const u8) bool {
     if (urlEchoedByUser(history, current_text, path)) return true;
     if (std.mem.indexOf(u8, path, "..") != null) return false;
@@ -56,9 +54,8 @@ pub fn pathEchoedByUser(history: []const Turn, current_text: []const u8, path: [
     return false;
 }
 
-/// True when the user wrote `dir` as a path of its OWN — not merely as the head of a longer
-/// one. Without that distinction, naming a single file ("open ~/Pictures/cat.png") would hand
-/// the model the whole folder it sits in.
+/// True when the user wrote `dir` as a path of its OWN, not merely as the head of a longer one:
+/// without that, naming one file would hand the model the whole folder it sits in.
 pub fn folderNamedByUser(history: []const Turn, current_text: []const u8, dir: []const u8) bool {
     if (namedAsPathIn(current_text, dir)) return true;
     for (history) |t| {
