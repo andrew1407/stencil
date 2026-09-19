@@ -18,7 +18,31 @@ const runner = makeShotRunner({ config, out: outDir('vscode-extension') });
 const TIMEOUTS = config.get('timeouts');
 const TYPE_DELAY = config.get('typeDelayMs');
 
-const still = async (ctx, name) => quantizePng(await runner.shot(ctx.page, name));
+// A VS Code window is mostly chrome the feature has nothing to do with, so every shot crops to
+// the parts that carry it: the union box of the selectors it is handed, plus a small margin.
+const clipOf = async (page, ...selectors) => page.evaluate(([sels, pad]) => {
+  const boxes = sels.flatMap((sel) => [...document.querySelectorAll(sel)]
+    .map((node) => node.getBoundingClientRect())
+    .filter((b) => b.width > 1 && b.height > 1));
+  const x = Math.max(0, Math.min(...boxes.map((b) => b.x)) - pad);
+  const y = Math.max(0, Math.min(...boxes.map((b) => b.y)) - pad);
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(Math.min(window.innerWidth, Math.max(...boxes.map((b) => b.right)) + pad) - x),
+    height: Math.round(Math.min(window.innerHeight, Math.max(...boxes.map((b) => b.bottom)) + pad) - y),
+  };
+}, [selectors, config.get('cropPadPx')]);
+
+// The editor group without the activity bar, the side bar, the window title or the status bar —
+// and bounded by the RENDERED lines rather than the pane, so a short file leaves no empty half.
+const EDITOR = ['.tabs-container', '.view-line'];
+const PANEL = '.part.panel';
+const PALETTE = '.quick-input-widget';
+
+const still = async (ctx, name, ...selectors) => quantizePng(
+  await runner.shot(ctx.page, name,
+    selectors.length ? { clip: await clipOf(ctx.page, ...selectors) } : undefined));
 const lineEnd = async (ctx, text) => {
   await ctx.page.locator('.view-line', { hasText: text }).first().click();
   await ctx.page.keyboard.press('End');
@@ -31,7 +55,7 @@ const LABEL_GUTTER = config.get('fileIcons.labelGutterPx');
 const PARK = config.get('pointerPark');
 
 const STEPS = Object.freeze([
-  ...pairNames('highlighting').map((name) => ({ name, run: (ctx) => still(ctx, name) })),
+  ...pairNames('highlighting').map((name) => ({ name, run: (ctx) => still(ctx, name, ...EDITOR) })),
   { name: 'completion', run: async (ctx) => {
     await lineEnd(ctx, '@filter sepia');
     await ctx.page.keyboard.press('Enter');
@@ -39,7 +63,7 @@ const STEPS = Object.freeze([
     await ctx.page.locator('.suggest-widget.visible').waitFor({ timeout: 5000 })
       .catch(() => ctx.page.keyboard.press('Control+Space'));
     await ctx.page.locator('.suggest-widget.visible .monaco-list-row').first().waitFor({ timeout: TIMEOUTS.widgetMs });
-    await still(ctx, 'completion');
+    await still(ctx, 'completion', ...EDITOR);
     await ctx.page.keyboard.press('Escape');
     await ctx.host.runCommand('File: Revert File');
   } },
@@ -50,7 +74,7 @@ const STEPS = Object.freeze([
     await ctx.page.locator('.monaco-hover:not(.hidden)').first().waitFor({ timeout: TIMEOUTS.widgetMs });
     await waitForStable(ctx.page, () => document.querySelector('.monaco-hover')?.innerText ?? '',
       { idleMs: 400, timeoutMs: TIMEOUTS.widgetMs });
-    await still(ctx, 'hover');
+    await still(ctx, 'hover', ...EDITOR);
     await ctx.page.mouse.move(PARK.x, PARK.y);
   } },
   { name: 'diagnostics', run: async (ctx) => {
@@ -60,7 +84,7 @@ const STEPS = Object.freeze([
     await ctx.page.locator('.squiggly-error').first().waitFor({ timeout: TIMEOUTS.widgetMs });
     await ctx.page.keyboard.press('Meta+Shift+M');
     await ctx.page.locator('.markers-panel .monaco-list-row').first().waitFor({ timeout: TIMEOUTS.widgetMs });
-    await still(ctx, 'diagnostics');
+    await still(ctx, 'diagnostics', ...EDITOR, PANEL);
     await ctx.page.keyboard.press('Meta+J');
     await ctx.host.runCommand('File: Revert File');
   } },
@@ -83,7 +107,7 @@ const STEPS = Object.freeze([
     await trigger();
     await ran();
     await waitForStable(ctx.page, terminalText, { idleMs: 500, timeoutMs: 20_000 });
-    await still(ctx, 'run-terminal');
+    await still(ctx, 'run-terminal', ...EDITOR, PANEL);
     await ctx.page.keyboard.press('Meta+J');
   } },
   // Typing into the file, the suggestion list opening and narrowing, a pick accepted, and
@@ -156,7 +180,7 @@ const STEPS = Object.freeze([
       .catch(() => ctx.page.keyboard.press('Control+Space'));
     await ctx.page.locator('.suggest-widget.visible .monaco-list-row').first().waitFor({ timeout: TIMEOUTS.widgetMs });
     await settle(500);
-    await still(ctx, 'api-completion');
+    await still(ctx, 'api-completion', ...EDITOR);
     await ctx.page.keyboard.press('Escape');
     await ctx.host.runCommand('File: Revert File');
   } },
@@ -167,7 +191,7 @@ const STEPS = Object.freeze([
     await ctx.page.locator('.monaco-hover:not(.hidden)').first().waitFor({ timeout: TIMEOUTS.widgetMs });
     await waitForStable(ctx.page, () => document.querySelector('.monaco-hover')?.innerText ?? '',
       { idleMs: 400, timeoutMs: TIMEOUTS.widgetMs });
-    await still(ctx, 'api-hover');
+    await still(ctx, 'api-hover', ...EDITOR);
     await ctx.page.mouse.move(PARK.x, PARK.y);
   } },
   ...makeActionSteps({ config, runner, still }),
@@ -179,7 +203,7 @@ const STEPS = Object.freeze([
     await input.fill('>Stencil: ');
     await ctx.page.locator('.quick-input-list .monaco-list-row').first().waitFor({ timeout: TIMEOUTS.widgetMs });
     await settle(400);
-    await still(ctx, 'web-commands');
+    await still(ctx, 'web-commands', PALETTE, ...EDITOR);
     await ctx.page.keyboard.press('Escape');
   } },
   // Typing a facade call: the member list opening, narrowing, a pick accepted with its
@@ -223,7 +247,8 @@ const STEPS = Object.freeze([
     const frames = scratchDir('vs-frames');
     await lineEnd(ctx, '@use px');
     await ctx.page.keyboard.press('Enter');
-    const filming = film(ctx.page, frames, clip.ms, clip.everyMs);
+    const filming = film(ctx.page, frames, clip.ms, clip.everyMs,
+      { clip: await clipOf(ctx.page, ...EDITOR) });
     await ctx.page.keyboard.type('@filtre invert', { delay: clip.typeDelayMs });
     await ctx.page.locator('.squiggly-error').first().waitFor({ timeout: TIMEOUTS.widgetMs }).catch(() => {});
     await settle(clip.holdMs);

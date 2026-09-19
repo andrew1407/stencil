@@ -18,15 +18,14 @@ export function makeActionSteps({ config, runner, still }) {
         await ctx.page.locator('.editor-actions .action-item').first()
           .waitFor({ timeout: timeouts.widgetMs });
         await settle(600);
-        // The tab strip only: its own band, from the first tab to the last action.
+        // The icon row alone: a strip spanning the tab bar would be almost all empty gap.
         const clip = await ctx.page.evaluate((gutter) => {
           const row = document.querySelector('.editor-actions').getBoundingClientRect();
-          const tabs = document.querySelector('.tabs-container').getBoundingClientRect();
           return {
-            x: Math.round(tabs.x),
-            y: Math.round(tabs.y),
-            width: Math.round(row.right - tabs.x) + gutter,
-            height: Math.round(tabs.height),
+            x: Math.round(row.x) - gutter,
+            y: Math.round(row.y) - gutter,
+            width: Math.round(row.width) + gutter * 2,
+            height: Math.round(row.height) + gutter * 2,
           };
         }, pad);
         quantizePng(await runner.shot(ctx.page, 'title-actions', { clip }));
@@ -42,7 +41,7 @@ export function makeActionSteps({ config, runner, still }) {
         await ctx.host.runCommand('Stencil: Run selection in Stencil Web Console');
         await ctx.page.locator('.quick-input-widget input').waitFor({ timeout: timeouts.widgetMs });
         await settle(400);
-        await still(ctx, 'run-selection');
+        await still(ctx, 'run-selection', '.quick-input-widget', '.tabs-container', '.view-line');
         await ctx.page.keyboard.press('Escape');
       },
     },
