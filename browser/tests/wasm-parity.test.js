@@ -19,7 +19,7 @@ import { applyContourRGBA } from '../js/core/contourFilter.js';
 import constants from '../js/config/constants.json' with { type: 'json' };
 import {
   cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS, scaleCropCenteredJS,
-  cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS
+  swapCropOrientationJS, cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS
 } from '../js/core/cropGeometry.js';
 
 // js/wasm/stencilCore.js is a generated artifact (gitignored) — present only after
@@ -197,13 +197,10 @@ wtest('flipPoints: wasm matches JS reflection about the bbox centre (int flag ma
 });
 
 wtest('crop geometry: wasm matches JS reference (CropRect out-pointer marshalling)', () => {
-  const isAlbum = core.op('isAlbumOrientation');
-  const cropAspect = core.op('cropAspect');
-  const centeredCrop = core.op('centeredCrop');
-  const resizeCorner = core.op('resizeCropFromCorner');
-  const moveCrop = core.op('moveCropClamped');
-  const resizeScale = core.op('cropResizeScale');
-  const cropChange = core.op('cropChange');
+  const [isAlbum, cropAspect, centeredCrop, resizeCorner, moveCrop, resizeScale, cropChange,
+         scaleCrop, swapCrop, rotateCrop] = ['isAlbumOrientation', 'cropAspect', 'centeredCrop',
+    'resizeCropFromCorner', 'moveCropClamped', 'cropResizeScale', 'cropChange',
+    'scaleCropCentered', 'swapCropOrientation', 'rotateCropRectQuarter'].map((n) => core.op(n));
   const A3W = 29.7, A3H = 42.0;
   const rectClose = (a, b) => ['x', 'y', 'width', 'height'].forEach(k =>
     assert.ok(Math.abs(a[k] - b[k]) < 1e-9, `${k}: ${a[k]} ≈ ${b[k]}`));
@@ -217,17 +214,20 @@ wtest('crop geometry: wasm matches JS reference (CropRect out-pointer marshallin
   rectClose(resizeCorner(cur, 2, 5000, 5000, aspect, 200, 200, 16), resizeCropFromCornerJS(cur, 2, 5000, 5000, aspect, 200, 200, 16));
   rectClose(moveCrop(cur, 9999, 0, 500, 500), moveCropClampedJS(cur, 9999, 0, 500, 500));
   assert.ok(Math.abs(resizeScale(100, 250) - cropResizeScaleJS(100, 250)) < 1e-9);
-  const scaleCrop = core.op('scaleCropCentered');
   const centred = { x: 60, y: 60, width: 80, height: 80 };
   rectClose(scaleCrop(centred, 1.5, 1, 200, 200), scaleCropCenteredJS(centred, 1.5, 1, 200, 200));   // grow, clamps at nearer edge
   rectClose(scaleCrop(centred, 0.5, 1, 200, 200), scaleCropCenteredJS(centred, 0.5, 1, 200, 200));   // shrink from centre
   rectClose(scaleCrop(centred, 100, 1, 200, 200), scaleCropCenteredJS(centred, 100, 1, 200, 200));   // over-grow → capped
+  const framed = { x: 100, y: 40, width: 80, height: 160 }, none = { x: 0, y: 0, width: 0, height: 0 };
+  const wide = centeredCropJS(2880, 2037, A3H / A3W);
+  rectClose(swapCrop(framed, 2, 400, 400), swapCropOrientationJS(framed, 2, 400, 400));   // fits either way — a plain swap
+  rectClose(swapCrop(wide, A3W / A3H, 2880, 2037), swapCropOrientationJS(wide, A3W / A3H, 2880, 2037));   // spills → shrinks about the centre
+  rectClose(swapCrop(none, 1, 200, 100), swapCropOrientationJS(none, 1, 200, 100));   // no rect yet → centeredCrop
 
   const portrait = { x: 0, y: 0, width: 100, height: 141 };
   const album = { x: 0, y: 0, width: 141, height: 100 };
   assert.deepStrictEqual(cropChange(portrait, album), cropChangeJS(portrait, album));
 
-  const rotateCrop = core.op('rotateCropRectQuarter');
   const r = { x: 10, y: 20, width: 80, height: 40 };
   rectClose(rotateCrop(r, 200, 100, true), rotateCropRectQuarterJS(r, 200, 100, true));
   rectClose(rotateCrop(r, 200, 100, false), rotateCropRectQuarterJS(r, 200, 100, false));
