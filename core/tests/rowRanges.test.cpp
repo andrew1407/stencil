@@ -26,9 +26,8 @@ namespace {
     return b;
   }
 
-  // Row splits to test: one tile, per-row tiles, and uneven tiles that do not divide h.
-  // `overWide` adds a range past the far edge — only for the ops that know the height
-  // and can clamp it (applyFilterRows is not told one, so its y1 must be real).
+  // Row splits: one tile, per-row tiles, uneven tiles that do not divide h. `overWide` adds a
+  // range past the far edge - only for ops told the height (applyFilterRows is not, so y1 is real).
   std::vector<std::vector<std::pair<int, int>>> splits(int h, bool overWide = true) {
     std::vector<std::vector<std::pair<int, int>>> out;
     out.push_back({{0, h}});

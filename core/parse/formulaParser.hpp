@@ -2,15 +2,10 @@
 #include <optional>
 #include <string>
 
-// Recursive-descent arithmetic parser, the twin of browser/js/core/formulaEngine.js
-// (no eval on either side). Grammar, single variable `x` or `y`:
-//
-//   expr    := term   (('+' | '-') term)*
-//   term    := unary  (('*' | '/') unary)*
-//   unary   := ('+' | '-') unary | power
-//   power   := primary ('**' unary)?          // right-associative
-//   primary := number | var | '(' expr ')'
-//
+// Recursive-descent arithmetic parser, twin of browser/js/core/formulaEngine.js (no eval).
+//   expr  := term (('+' | '-') term)*        term  := unary (('*' | '/') unary)*
+//   unary := ('+' | '-') unary | power       power := primary ('**' unary)?  // right-assoc
+//   primary := number | var ('x' or 'y') | '(' expr ')'
 // Any other identifier is a parse error; a non-finite result is invalid.
 namespace stencil::core {
 

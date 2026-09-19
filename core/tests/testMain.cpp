@@ -5,9 +5,8 @@
 
 #include <cstddef>
 
-// Test-count floor: a suite reports "0 failed" just as happily when a .test.cpp has
-// dropped out of the target's source list. Only this TU compiles doctest's
-// implementation, so only here is the registry readable. Raise it as the suite grows.
+// Test-count floor: a suite reports "0 failed" when a .test.cpp drops out of the source list.
+// Only this TU compiles doctest's implementation, so only here is the registry readable.
 static constexpr std::size_t kMinRegisteredCases = 240;
 
 TEST_CASE("suite floor: the core doctest registry has not collapsed") {

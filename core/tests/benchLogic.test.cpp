@@ -50,10 +50,8 @@ namespace {
 
 TEST_SUITE("bench") {
 
-  // ── Deeply nested formulas ─────────────────────────────────────────────────
-  // MAX_DEPTH = 256 bounds recursion, not its COST — and formulas arrive from untrusted
-  // layout JSON, the console and --formula. Against a flat expression of the same token
-  // count, depth must cost only a constant factor over width.
+  // -- Deeply nested formulas -------------------------------------------------
+  // MAX_DEPTH = 256 bounds recursion, not its COST: depth must cost a constant factor over width.
   TEST_CASE("bench: formulaParser deep nesting stays bounded" * doctest::skip()) {
     const int deepest = 127;                     // last accepted nesting
     const std::string ok = nested(deepest);      // 255 guards deep
@@ -85,10 +83,8 @@ TEST_SUITE("bench") {
     CHECK(tOver < tDeep * 20.0);  // the cap must ABORT, not walk the whole input
   }
 
-  // ── Projects registry at scale ─────────────────────────────────────────────
-  // list() deep-copies every field of every project, on each projects-dialog refresh
-  // plus a periodic re-list timer; listRefs() is the no-copy twin, so the ratio is the
-  // price of the copy. sweepExpired is the same walk plus one remove() per expired id.
+  // -- Projects registry at scale ---------------------------------------------
+  // list() deep-copies every field; listRefs() is the no-copy twin, so the ratio is the copy's price.
   TEST_CASE("bench: projectsStore list / sweepExpired at N projects" * doctest::skip()) {
     const long long now = 1'700'000'000'000LL;
     const int n = 2000;
@@ -121,11 +117,8 @@ TEST_SUITE("bench") {
     CHECK(tRefs < t1 * 1.5);       // the no-copy path must never cost more than the copy
   }
 
-  // ── Colour resolution per line per frame ───────────────────────────────────
-  // rasterizeLine calls parseColor up to three times per line (stroke, fill, points)
-  // and the desktop repeats that per line on every PAINT, each call building a
-  // std::string key. Hex is a nibble decode, a keyword a table lookup — the ratio says
-  // whether a resolved-colour cache would be worth its invalidation cost.
+  // -- Colour resolution per line per frame -----------------------------------
+  // rasterizeLine calls parseColor up to three times per line, and the desktop repeats that per PAINT.
   TEST_CASE("bench: colorNames parseColor hex vs keyword" * doctest::skip()) {
     const std::vector<std::string> hex = {"#3366ff", "#abc", "#11223344", "#FFFF00"};
     const std::vector<std::string> words = {"red", "cornflowerblue", "transparent", "rebeccapurple"};
@@ -152,10 +145,8 @@ TEST_SUITE("bench") {
     CHECK(tWord < tHex * 25.0);  // a linear scan of the table would be far worse
   }
 
-  // ── The two luma formulas ──────────────────────────────────────────────────
-  // luma.hpp keeps a float form (filters) and an integer form (contour Sobel) that must
-  // never be merged. These numbers settle any attempt to unify them: the cost of each,
-  // and how rarely they disagree — 835 of all 16.7M RGB triples (0.005%), never by > 1.
+  // -- The two luma formulas --------------------------------------------------
+  // luma.hpp's float form (filters) and integer form (contour Sobel) must never be merged.
   TEST_CASE("bench: luma float vs integer Rec.709" * doctest::skip()) {
     const auto px = gradient(1400, 1400);  // ~2 M pixels of RGBA
     const std::size_t n = px.size() / 4;

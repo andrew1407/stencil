@@ -2,20 +2,20 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
-    "core/raster/rasterize.cpp": 223
+    "core/raster/rasterize.cpp": 221
   },
   "commentPct": {
     "core": 12,
-    "core/abi": 10,
+    "core/abi": 9,
     "core/color": 8,
     "core/format": 9,
     "core/geometry": 10,
     "core/page": 10,
-    "core/parse": 9,
-    "core/raster": 10,
+    "core/parse": 7,
+    "core/raster": 9,
     "core/script": 5,
     "core/state": 8,
-    "core/tests": 7
+    "core/tests": 5
   },
   "exceptions": {
     "core": "the ABI contract prose at the top of cliApi.h is pinned by core/tests/cliApi.test.cpp and stays; 11 -> 12 for the .stc script ABI, whose handle-owned strings are the one exception to that contract's ownership rule and have to be stated where a caller reads it",

@@ -3,13 +3,11 @@
 #include <cstdint>
 #include <string>
 
-// Flat encoding of a Lines snapshot for the extern "C" ABIs, in two caller-owned
-// buffers so nothing needs a packed struct on one side and a DataView on the other:
+// Flat encoding of a Lines snapshot for the extern "C" ABIs, in two caller-owned buffers.
 //   nums: [lineCount, then per line: pointCount, thickness, pointSize, locked,
-//          byte lengths of color/style/fillColor/pointColor, then x0,y0,x1,y1,…]
+//          byte lengths of color/style/fillColor/pointColor, then x0,y0,x1,y1,...]
 //   text: those four strings per line, concatenated UTF-8, in that field order.
-// The twin is browser/js/core/linesCodec.js; the halves are proved symmetric by the
-// round trip in browser/tests/wasm-parity-history.test.js.
+// Twin: browser/js/core/linesCodec.js.
 namespace stencil::core::abi {
 
   // Buffer lengths (in doubles / bytes) that encodeLines needs for `lines`.

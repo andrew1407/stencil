@@ -111,9 +111,8 @@ namespace stencil::core {
               tintG, tintB);
   }
 
-  // The pinned integer Sobel: browser/js/core/contourFilter.js reimplements exactly this,
-  // so any change here is mirrored there byte-for-byte. The luma weights sum to 10000, so
-  // a plane of uint8_t holds it; the Sobel sums below still run in int.
+  // The pinned integer Sobel; browser/js/core/contourFilter.js reimplements exactly this.
+  // The luma weights sum to 10000, so a uint8_t plane holds it; the Sobel sums run in int.
   void buildLumaRows(const std::uint8_t* data, int width, int height, int y0, int y1,
                      std::uint8_t* luma) {
     if (data == nullptr || luma == nullptr || width <= 0 || height <= 0) return;

@@ -42,11 +42,8 @@ namespace {
 
 TEST_SUITE("bench") {
 
-  // ── Stroke cost: length x thickness^2 ──────────────────────────────────────
-  // strokePolyline stamps an AA disc every 0.5 px over a (thickness+2)^2 box, so one
-  // line costs O(length * thickness^2). bench.test.cpp holds both constant, hiding a
-  // regression in either — and the disc-px/s here is the number that decides whether a
-  // span-based stroke rewrite pays.
+  // -- Stroke cost: length x thickness^2 --------------------------------------
+  // strokePolyline stamps an AA disc every 0.5 px over a (thickness+2)^2 box.
   TEST_CASE("bench: rasterize stroke scales with length and thickness^2" * doctest::skip()) {
     const int w = 4000, h = 4000;
     std::vector<std::uint8_t> buf(static_cast<std::size_t>(w) * h * 4, 0);
@@ -75,10 +72,8 @@ TEST_SUITE("bench") {
     CHECK(thick4 < base * 40.0);  // ~16x expected; 40x catches a cubic regression
   }
 
-  // ── Scanline fill ──────────────────────────────────────────────────────────
-  // fillPolygonRows re-walks EVERY edge on EVERY scanline (no active-edge table):
-  // O(rows * edges) on top of the span blending. A fat ellipse (few edges) gives the
-  // blend throughput; a tall narrow one (many rows, ~6 px spans) isolates the walk.
+  // -- Scanline fill ----------------------------------------------------------
+  // fillPolygonRows re-walks EVERY edge on EVERY scanline (no active-edge table): O(rows*edges).
   TEST_CASE("bench: fillPolygon edge walk and span blending" * doctest::skip()) {
     const int w = 2000, h = 2000;
     std::vector<std::uint8_t> buf(static_cast<std::size_t>(w) * h * 4, 0);
@@ -106,11 +101,8 @@ TEST_SUITE("bench") {
     CHECK(tE2 < tE1 * 3.0);  // linear in edges; > 3x means the per-scanline walk got worse
   }
 
-  // ── Hit tests on every mouse-move ──────────────────────────────────────────
-  // The desktop calls findLineAt + findNearestSegment 2-3x per mouse-move over all
-  // lines x all points. The probe lattice mostly misses and sometimes hits — the real
-  // mix, and the one a bbox early reject speeds up. Public API only, so it measures
-  // whatever the implementation is; the assertion is scaling in line count.
+  // -- Hit tests on every mouse-move ------------------------------------------
+  // The desktop calls findLineAt + findNearestSegment 2-3x per mouse-move over all lines x points.
   TEST_CASE("bench: findLineAt / findNearestSegment over a big layout" * doctest::skip()) {
     auto layout = [](int n) {
       Lines lines;

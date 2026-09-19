@@ -48,9 +48,8 @@ TEST_CASE("cropImageRGBA copies a sub-rect and zero-pads out of bounds") {
   CHECK(oob[3] == 0);
 }
 
-// A negative-origin crop that straddles the source edge: the overlapping region is
-// copied, the negative/overflow rim is zero-padded. Every front-end feeds rx/ry from
-// user drags, so this mixed in/out-of-bounds path must be exact.
+// A negative-origin crop straddling the source edge: the overlap is copied, the rim
+// zero-padded. Every front-end feeds rx/ry from user drags, so this path must be exact.
 TEST_CASE("cropImageRGBA zero-pads the rim of a negative-origin partial overlap") {
   auto src = ramp(2, 2);  // R: (0,0)=0 (1,0)=1 (0,1)=2 (1,1)=3, alpha 255
   std::vector<std::uint8_t> dst(3 * 3 * 4, 9);

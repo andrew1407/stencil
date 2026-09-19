@@ -1,13 +1,8 @@
-// Size + comment ratchet for core/. Guards the refactor: no new oversized file, no
-// listed file growing, no directory getting more comment-heavy.
-//
-// The budget lives in tests/sizeBudget.json and is read at RUNTIME. Core is codec-free
-// and adds no JSON parser, so this file carries a minimal fixed-shape reader of its own
-// (CMake's string(JSON) needs 3.19 — the project pins 3.16). Paths resolve from the repo
-// root, found by walking up from the working directory (ctest runs this from core/build).
-//
-// Print the tree's current numbers to re-ratchet the JSON:
-//     core/build/stencil_tests -tc="*budget: measured*" --no-skip
+// Size + comment ratchet for core/: no new oversized file, no listed file growing, no directory
+// getting more comment-heavy. The budget is tests/sizeBudget.json, read at RUNTIME.
+// Core is codec-free, so this carries a minimal fixed-shape JSON reader of its own (CMake's
+// string(JSON) needs 3.19 - the project pins 3.16). Paths resolve from the repo root.
+// Print the tree's numbers: core/build/stencil_tests -tc="*budget: measured*" --no-skip
 #include "doctest.h"
 
 #include <algorithm>
