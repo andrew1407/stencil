@@ -1,17 +1,13 @@
-// Load the extension's pre-paint CLASSIC <script> set — not ES modules — into a fabricated
-// page scope so its behaviour can be asserted from Node.
-//
-// The files can't be imported: MV3 forbids inline page scripts, so they are loaded as plain
-// <script>s in each extension page's <head> and publish themselves on `window`. They also
-// run their work at load time (that is the point — the accent must be on <html> before first
-// paint), so "load them" and "exercise them" are the same act. This module builds just enough
-// of a page — documentElement, a <link rel="icon">, localStorage, chrome.storage, matchMedia
-// and the storage event — to run them honestly, and hands back the levers a test needs.
-// The order below is the one every host page's <head> uses (see src/lib/accent.js).
+// Loads the extension's pre-paint CLASSIC <script> set — not ES modules — into a fabricated page
+// scope so its behaviour can be asserted from Node. They cannot be imported: MV3 forbids inline
+// page scripts, so they are plain <script>s that publish themselves on `window` and do their
+// work at load time. This builds just enough of a page — documentElement, a <link rel="icon">,
+// localStorage, chrome.storage, matchMedia, the storage event — in each host page's <head> order.
 
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { makePage } from './accentDom.js';
 
 const SRC = ['prefs.js', 'swapGeometry.js', 'dustGrains.js', 'dustWake.js', 'themeSwap.js',
   'accent.js', 'shellPrefs.js']
@@ -68,96 +64,8 @@ export const loadAccent = ({
     },
   };
 
-  // ── A minimal <html> + <head> ──
-  const attributes = new Map();
-  // Only the wipe touches these two; a page without view transitions never reaches them.
-  const props = new Map();
-  const classes = new Set();
-  const documentElement = {
-    getAttribute: (k) => (attributes.has(k) ? attributes.get(k) : null),
-    setAttribute: (k, v) => attributes.set(k, v),
-    // data-accent-light is a bare presence flag (the on-accent ink switch).
-    hasAttribute: (k) => attributes.has(k),
-    removeAttribute: (k) => attributes.delete(k),
-  };
-  // Always present: apply()/setCustom()/previewAccent() read and clear inline --accent.
-  documentElement.style = {
-    setProperty: (k, v) => props.set(k, v),
-    removeProperty: (k) => props.delete(k),
-    getPropertyValue: (k) => (props.has(k) ? props.get(k) : ''),
-  };
-  if (withViewTransitions || deferViewTransitions) {
-    documentElement.classList = { add: (c) => classes.add(c), remove: (c) => classes.delete(c) };
-  }
-
-  // Elements the fabricated page owns, in document order — what querySelectorAll answers.
-  const elements = controls.map(({ id, rect, visible = true }) => ({
-    id,
-    getBoundingClientRect: () => rect,
-    checkVisibility: () => visible,
-  }));
-  const headChildren = [];
-  const bodyChildren = [];
-  const pointerListeners = [];
-  // Rich enough for BOTH creations accent.js does: the favicon <link> (bare property
-  // writes) and the swap-dust stage — a canvas whose 2d context records what was painted,
-  // so a test can read back the colour, alpha and grain count of every fill.
-  const makeElement = (tag) => {
-    const style = { setProperty: (k, v) => { style[k] = v; } };
-    const children = [];
-    const el = {
-      tagName: tag.toUpperCase(),
-      className: '',
-      style,
-      children,
-      appendChild: (c) => children.push(c),
-      remove: () => {
-        el.removed = true;
-        const i = bodyChildren.indexOf(el);
-        if (i >= 0) bodyChildren.splice(i, 1);
-      },
-    };
-    if (tag === 'canvas') {
-      let arcs = 0;
-      el.fills = [];
-      const ctx = {
-        fillStyle: '#000', globalAlpha: 1,
-        scale() {}, clearRect() {}, beginPath() { arcs = 0; },
-        moveTo() {}, arc() { arcs++; }, ellipse() { arcs++; }, lineTo() {}, closePath() { arcs++; },
-        fill() { el.fills.push({ colour: ctx.fillStyle, alpha: ctx.globalAlpha, arcs }); },
-      };
-      el.getContext = () => ctx;
-    }
-    return el;
-  };
-  const document = {
-    documentElement,
-    head: { appendChild: (el) => headChildren.push(el) },
-    body: { appendChild: (el) => bodyChildren.push(el) },
-    createElement: makeElement,
-    // accent.js asks only for link[rel="icon"]; once it has created one, the next apply
-    // must find that same element and update it in place rather than appending another.
-    querySelector: (sel) =>
-      sel === 'link[rel="icon"]'
-        ? headChildren.find((el) => el.tagName === 'LINK' && el.rel === 'icon') || null
-        : null,
-    // The swap origin lookup: every element carrying the id, not just the first.
-    querySelectorAll: (sel) => {
-      const m = /^\[id="(.*)"\]$/.exec(sel);
-      return m ? elements.filter((el) => el.id === m[1]) : [];
-    },
-    addEventListener: (type, fn) => { if (type === 'pointerdown') pointerListeners.push(fn); },
-  };
-  // The REAL API runs the callback a beat later, and code runs in that gap (a menu
-  // closing over its own pick): `deferViewTransitions` queues them until runSwaps().
-  const queuedSwaps = [];
-  if (withViewTransitions || deferViewTransitions) {
-    // `ready` resolves like the real API's: the wake (swap dust) spawns off it.
-    document.startViewTransition = (cb) => {
-      if (deferViewTransitions) queuedSwaps.push(cb); else cb();
-      return { ready: Promise.resolve(), finished: Promise.resolve() };
-    };
-  }
+  const { document, documentElement, props, headChildren, bodyChildren, pointerListeners, queuedSwaps } =
+    makePage({ controls, withViewTransitions, deferViewTransitions });
 
   // ── chrome.storage.local mirror ──
   const mirrored = [];

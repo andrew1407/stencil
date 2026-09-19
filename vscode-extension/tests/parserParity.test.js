@@ -69,9 +69,8 @@ for (const [name, browserPath, copyPath] of DATA) {
   });
 }
 
-// ── The one re-composed file ────────────────────────────────────────────────
-// src/parser/index.js is not a copy: it drops the wasm binding browser/js/core/script.js
-// carries. Each declaration it keeps must still match that file's, line for line.
+// ── The one re-composed file: src/parser/index.js drops the wasm binding ──
+// Each declaration it keeps must still match browser/js/core/script.js's, line for line.
 const declaration = (src, name) => {
   const lines = src.split('\n');
   const start = lines.findIndex((l) => new RegExp(`^(?:export )?(?:const|function) ${name}\\b`).test(l));

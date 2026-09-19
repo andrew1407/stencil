@@ -18,9 +18,8 @@ export const createJumpPills = (transcriptEl) => {
     btn?.style.removeProperty('--menu-lift');
     btn?.classList.remove('msg-menu-btn-yield');
   };
-  // The pills are anchored OUTSIDE the scroller, so scrolling can't move them: their
-  // rects are cached, dropped when their visibility flips (syncJumps), the window
-  // resizes, or the section re-opens — not re-read on every scroll tick.
+  // The pills are anchored OUTSIDE the scroller, so their rects are cached — dropped on a
+  // visibility flip, a resize or a re-open, never re-read per scroll tick.
   let pillRects = null;
   const livePillRects = () => (pillRects ||= [jumpTopBtn, jumpBottomBtn]
     .map((b) => b?.getBoundingClientRect?.()).filter((r) => r && r.width > 0));
@@ -56,9 +55,8 @@ export const createJumpPills = (transcriptEl) => {
   // hovering a pill can never hide it (browser chatPanel.js parity).
   transcriptEl.addEventListener('mouseover', (e) => {
     const row = e.target?.closest?.('.msg');
-    // A lifted trigger sits OUTSIDE its bubble's box, so reaching it crosses bare
-    // background — a mouseover with no `.msg`. Only an actual different bubble (or
-    // mouseleave, truly leaving) changes the hover, else the lift clears mid-reach.
+    // A lifted trigger sits OUTSIDE its bubble's box, so reaching it crosses bare background; only
+    // a different bubble (or mouseleave) may change the hover, else the lift clears mid-reach.
     if (!row || !transcriptEl.contains(row) || row === hoverMsgEl) return;
     if (hoverMsgEl) clearMenuLift(hoverMsgEl);
     hoverMsgEl = row;

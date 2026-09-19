@@ -12,9 +12,8 @@ export const uniqueProjectName = (app, wanted) => {
   return wanted;
 };
 
-// §10 name resolution, shared by removeProject/openProject: exact name match among
-// the SAVED local projects, else a unique case-insensitive prefix. Returns the meta
-// record, or a note string explaining why nothing resolved.
+// §10 name resolution, shared by removeProject/openProject: exact match among the SAVED local
+// projects, else a unique case-insensitive prefix.
 export const resolveProjectByName = (app, name) => {
   const list = app.storage.store.list();
   const exact = list.filter((m) => (m.name || '') === name);

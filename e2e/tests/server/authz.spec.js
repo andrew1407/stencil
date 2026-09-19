@@ -1,10 +1,8 @@
-// Server access model (black-boxing the running binary): a project is a SHARED
-// workspace — any valid token may list, read, and edit any project. The one guarded
-// op is deletion: it is refused (409 CodeConflict) while two or more clients are in
-// the project's live edit session, so a peer can't delete it out from under others;
-// with at most one live client it succeeds. Unauthenticated callers are rejected at
-// the door (401). Mirrors server/internal/httpapi/projects.go (delete guard via the
-// hub's ConnectionCount) and hub_test.go.
+// Server access model, black-boxing the running binary: a project is a SHARED workspace — any
+// valid token may list, read and edit any project. The one guarded op is deletion, refused (409
+// CodeConflict) while two or more clients are in the project's live edit session and allowed
+// with at most one; unauthenticated callers are rejected at the door (401).
+// Mirrors server/internal/httpapi/projects.go and hub_test.go.
 import { test, expect } from '@playwright/test';
 import { issueToken, createProject, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
 import { dialWS, join, T } from '../../helpers/wire.js';

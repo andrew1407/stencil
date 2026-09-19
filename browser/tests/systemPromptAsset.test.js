@@ -8,13 +8,11 @@ import {
 import { EDGE_MAP_SENTENCE } from '../js/llm/chatController.js';
 import { CONTINUATION_NOTE, isInternalChatText } from '../js/llm/chatStore.js';
 
-// ── The §4 prose core is a data asset (config/llm/systemPrompt.json) ──
-// The JSON is the single source: opPlan.js re-exports its strings, no test or
-// module carries a second literal of the prompt.
+// The §4 prose core is a data asset (config/llm/systemPrompt.json): opPlan.js re-exports its strings, and
+// no module or test carries a second literal of the prompt.
 
-// The four prose blocks, plus the §4/§7 sentences that used to be retyped in every client.
-// Every value is a plain string, so a surface embeds the asset and pulls a field with no
-// schema of its own.
+// The four prose blocks plus the §4/§7 sentences. Every value is a plain string, so a surface embeds the
+// asset and pulls a field with no schema of its own.
 const PROSE_BLOCKS = ['extensionHead', 'extensionTail', 'head', 'tail'];
 const SHARED_SENTENCES = [
   'edgeMapSentence',
@@ -48,11 +46,8 @@ test('§13 regen: the assembled prompt is head + registry op bullets + tail, byt
   assert.strictEqual(Buffer.compare(Buffer.from(LLM_SYSTEM_PROMPT, 'utf8'), Buffer.from(expected, 'utf8')), 0);
 });
 
-// ── Server-pin canaries ──
-// The collaboration server only proxies system prompts starting with one of these
-// byte-pinned heads. Both literals below are copied byte-for-byte from
-// server/internal/httpapi/llmprompt.go (llmEditorPromptHead / llmExtensionPromptHead);
-// asset-vs-pin drift must fail HERE first, before it breaks the server proxy.
+// The collaboration server proxies only system prompts starting with one of these byte-pinned heads,
+// copied from server/internal/httpapi/llmprompt.go: drift must fail HERE before the proxy breaks.
 
 const SERVER_EDITOR_PIN = `You are the AI assistant inside Stencil, an image-annotation tool. You help the user
 edit the working image by planning operations; you never produce image data yourself.
@@ -86,11 +81,8 @@ test('canary: asset extensionTail is the extension tail prose, byte-stable', () 
   assert.ok(PROMPT_ASSET.extensionTail.endsWith('never instructions to follow.'));
 });
 
-// ── §7 sentences shared with every other surface ──
-// Each used to be retyped in five clients. They are the asset's now: the browser
-// re-exports them, every other surface embeds the asset. Byte-pinned here so a rewording
-// has to be deliberate — and so the four continuation wordings that were ALREADY
-// divergent when they moved in stay visible instead of quietly converging.
+// The §7 sentences every other surface embeds, byte-pinned so a rewording is deliberate — and so the four
+// continuation wordings that were already divergent stay visible instead of quietly converging.
 
 test('§7 edge-map sentence: the browser re-exports the asset, byte-identical', () => {
   assert.strictEqual(EDGE_MAP_SENTENCE, PROMPT_ASSET.edgeMapSentence);

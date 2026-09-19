@@ -1,9 +1,7 @@
-// CLI /prompt e2e: pipe a scripted console session into the real Zig binary
-// (`--console` reads /command lines from stdin — no TTY, no docker stack) with
-// the STENCIL_LLM_* env pointed at the in-process stub LLM (openai-compat wire
-// shape, llm-contract.md §5/§6.2). The stub scripts a §1 op-plan; the spec
-// asserts the plan EXECUTED — the saved PNG's real dimensions swapped — not just
-// that a reply was printed.
+// CLI /prompt e2e: a scripted console session piped into the real Zig binary (`--console` reads
+// /command lines from stdin, no TTY and no docker stack) with STENCIL_LLM_* pointed at an
+// in-process stub LLM (openai-compat, llm-contract §5/§6.2). The stub scripts a §1 op-plan and
+// the spec asserts it EXECUTED — the saved PNG's real dimensions swapped.
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import { cliAvailable, pngSize, makeBlankInput } from '../../helpers/cli.js';

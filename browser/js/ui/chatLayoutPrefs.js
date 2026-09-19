@@ -1,19 +1,14 @@
 // ── Chat message side placement ("Swap message sides") ──────────────────────
-// A UI-only display preference — which side user/assistant/error bubbles draw on,
-// and which corner their tail points from. Independent of the LLM provider config
-// (llmSettings.js) and of any one conversation. Deliberately NOT persisted (user
-// report: it should never carry over a reload or a reopened tab) — it lives in a
-// plain module-level variable, so a fresh page load always starts at the default
-// and the setting is scoped to that one tab's own session. Still adjustable at
-// runtime through window.stencil.chat.swapSides (stencilApi.js).
-// Default ('normal'): user right, assistant/error left — exactly today's layout.
+// A UI-only preference: which side user/assistant/error bubbles draw on and which corner their
+// tail points from. Deliberately NOT persisted (user report: it must not carry over a reload), so
+// it is a module-level variable scoped to one tab's session; adjustable through
+// window.stencil.chat.swapSides. Default 'normal': user right, assistant/error left.
 let side = 'normal';
 
 export const CHAT_SIDE_NORMAL = 'normal';
 export const CHAT_SIDE_SWAPPED = 'swapped';
 // The class the swap rules key off (.chat-swapped, on a transcript container):
-// css/components/chat/tails.css here, popup.css in the extension — both surfaces stamp it
-// on their own transcript element from the one shared preference below.
+// css/components/chat/tails.css here, popup.css in the extension.
 export const CHAT_SWAPPED_CLASS = 'chat-swapped';
 
 export const chatSide = () => side;
@@ -29,9 +24,8 @@ export const toggleChatSide = () => {
   return next;
 };
 
-// Stamps (or clears) the class a transcript element needs for the CSS swap rules.
-// `side` defaults to whatever is currently set, so a caller can just call this on
-// mount with no argument.
+// Stamps (or clears) the class the CSS swap rules need. `side` defaults to whatever is set, so a
+// caller can call this on mount with no argument.
 export const applyChatSide = (transcriptEl, side = chatSide()) => {
   transcriptEl?.classList?.toggle(CHAT_SWAPPED_CLASS, side === CHAT_SIDE_SWAPPED);
 };

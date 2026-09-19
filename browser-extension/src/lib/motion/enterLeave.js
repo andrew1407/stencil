@@ -29,19 +29,15 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
   return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, ms));
 }
 
-// How long a wipe REALLY lasts on screen (browser motion.js twin): leaveThenRemove
-// resolves on the short collapse while particles fall for DISINTEGRATE_MS, so a caller
-// swapping in a placeholder must wait for the longer one.
+// Browser motion.js twin: leaveThenRemove resolves on the short collapse while particles fall
+// for DISINTEGRATE_MS, so a caller swapping in a placeholder must wait for the longer one.
 export const wipeDurationMs = () => {
   if (motionReduced()) return 0;
   return dustEnabled() ? Math.max(LEAVE_MS, DISINTEGRATE_MS) : LEAVE_MS;
 };
 
-// ── List hold: wipes in flight (browser motion.js twin) ─────────────────────
-// begin() opens one hold per playing leave/materialize and returns a settle fn: await it
-// AFTER the removal — it waits out the REAL wipe (wipeDurationMs) and runs `settle` once.
-// While a hold is pending an out-of-band re-render must wait; its rebuild cuts the leave
-// short. finalizeAll() settles everything NOW, for a view closing mid-animation.
+// begin() opens one hold per playing leave/materialize and returns a settle fn: await it AFTER
+// the removal. finalizeAll() settles everything NOW, for a view closing mid-animation.
 export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTimer = setTimeout } = {}) => {
   const pending = new Set();
   const begin = () => {
@@ -62,12 +58,10 @@ export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTi
   };
 };
 
-// May a list's "nothing here" placeholder show RIGHT NOW? Only when it is truly empty
-// AND no wipe is still playing — under a hold the empty state would land beneath the
-// falling ash and read as appearing before the removal finished. Pure — unit-tested.
+// Under a hold the empty state would land beneath the falling ash and read as appearing before
+// the removal finished. Pure — unit-tested.
 export const emptyStateVisible = (count, holding = false) => count === 0 && !holding;
 
-// ── Filtering a list, in and out ────────────────────────────────────────────
 // A row the FILTER stopped admitting is not a row that was DELETED: no particles, and a
 // lighter collapse — narrowing a list must never read as destroying part of it.
 export const FILTER_LEAVE_MS = 150;
@@ -82,9 +76,7 @@ export const diffListKeys = (prev = [], next = []) => {
   return { entered: next.filter((k) => !had.has(k)), left: prev.filter((k) => !has.has(k)) };
 };
 
-// Play ONE row out as a filter exclusion (no particles, the light collapse), then run
-// `done` — which ALWAYS runs, as in leaveThenRemove. For a whole re-render use
-// createFilterTransition below.
+// `done` ALWAYS runs, as in leaveThenRemove. For a whole re-render use createFilterTransition.
 export function filterLeave(el, done = () => {}, { ms = FILTER_LEAVE_MS,
                                                    reduced = prefersReducedMotion, setTimer = setTimeout } = {}) {
   const finish = () => { try { done(); } catch { /* the caller owns its own errors */ } };
@@ -97,12 +89,8 @@ export function filterLeave(el, done = () => {}, { ms = FILTER_LEAVE_MS,
   return new Promise((resolve) => setTimer(() => { finish(); resolve(); }, ms));
 }
 
-// Wrap a list that re-renders WHOLESALE (`innerHTML = ''` + rebuild) so a filter change
-// animates both ways: begin() before the wipe, end() after the rebuild. New keys ramp in;
-// gone keys are put back where they stood purely to play their exit ("ghosts"). Matched by
-// `el.dataset[keyAttr]`; anything without one (an empty-state row) is ignored.
-// Correctness outranks the decoration: begin() kills every ghost first, so a burst of
-// filter changes can neither stack animations nor strand a row.
+// begin() before the wipe, end() after the rebuild; keys are read off `el.dataset[keyAttr]`.
+// begin() kills every ghost first, so a burst of changes can neither stack nor strand a row.
 export const createFilterTransition = ({
   list, keyAttr = 'key', ms = FILTER_LEAVE_MS, enterMs = FILTER_ENTER_MS,
   reduced = prefersReducedMotion, setTimer = setTimeout, clearTimer = clearTimeout,

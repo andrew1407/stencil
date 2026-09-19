@@ -26,10 +26,6 @@ export function wireProjectColorButton(app) {
         colorInput.click();
       }
     };
-    // With a custom colour set, click opens a small menu so resetting to the neutral default is
-    // a visible choice — not a hidden right-click: "Choose colour…" opens the native picker,
-    // "Default (no colour)" clears it. With none set there is nothing to clear, so the click
-    // goes straight into the picker. (Right-click still clears as a shortcut.)
     colorBtn.addEventListener('click', e => {
       if (app.activeProjectId == null || app.storage.incognito) return;
       e.stopPropagation();

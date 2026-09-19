@@ -59,9 +59,6 @@ export function attachRowActions(deps) {
     revive();
   };
 
-  // Opening the row per the gesture's intent (rowOpenIntent): `here` switches this
-  // tab, `newtab` spawns one, `confirm` gates behind the shared modal. Clicking the
-  // already-active project just closes the modal.
   const openWithIntent = async ({ confirm = true, target = 'here', closeAnchor = null } = {}) => {
     if (target === 'newtab') {
       if (confirm && !(await confirmOpen(meta.name, true, closeAnchor))) return;
@@ -106,9 +103,8 @@ export function attachRowActions(deps) {
   const menuItems = () => [
     isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
     { icon: 'external', label: 'Open in new tab', onClick: async () => { if (await confirmOpen(meta.name, true, menuBtn)) app.openProjectInNewTab(meta.id); } },
-    // The toolbar's Open-in hand-off, per row — same modal, aimed at THIS project
-    // instead of the open one. Hidden when no target is configured, exactly as the
-    // toolbar button hides (ui/controlState.js), so it never offers a dead action.
+    // Hidden when no target is configured, exactly as the toolbar button hides
+    // (ui/controlState.js), so it never offers a dead action.
     app.openInAvailable?.() ? { icon: 'monitor', label: 'Open in another app', onClick: (at) => document.querySelector('stencil-open-in-modal')?.openFor(meta.id, { from: at, backTo: menuBtn }) } : null,
     { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
     { icon: 'palette', label: 'Set color', onClick: pickColor },

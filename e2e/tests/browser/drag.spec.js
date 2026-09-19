@@ -1,15 +1,8 @@
-// The projects modal's drag surfaces, driven through the REAL browser with real drag
-// input on both paths:
-//   • reorder + the drag-out zones (Open here / Remove) — projectsModal.js attachRowDrag
-//     / performZoneAction end-to-end, no server;
-//   • the translucent copy of the row that follows the pointer (ui/dragGhost.js).
-//
-// The ghost used to be the browser's own drag image, rasterized from a cloned element by
-// `setDragImage`. On a HiDPI display Chrome rendered that snapshot at the device scale
-// while applying the grab offset in the other one, so the ghost came out oversized and
-// trailing far to the right of the cursor — and none of it was reachable from the DOM to
-// test. It is now an element we position ourselves, which is what these assert: right
-// size, right place, gone afterwards, and the same on mouse and finger.
+// The projects modal's drag surfaces, driven with real drag input: reorder plus the drag-out
+// zones (projectsModal.js attachRowDrag / performZoneAction), and the translucent copy of the row
+// that follows the pointer (ui/dragGhost.js). The ghost is an element the app positions itself,
+// not the browser's `setDragImage` snapshot — which rasterized at the device scale on HiDPI and
+// was unreachable from the DOM. Right size, right place, gone afterwards, on mouse and finger.
 import { test, expect } from '@playwright/test';
 import { gotoApp, seedProjectsAndOpenList } from '../../helpers/boot.js';
 import { finger, ghostBox, spyOnDragImage } from '../../helpers/drag.js';
@@ -85,8 +78,7 @@ test.describe('drag ghost: mouse', () => {
 
     const g = await ghostBox(page);
     expect(g, 'a ghost of our own is drawn').not.toBeNull();
-    // Same size as the row it copies (bar the 1.02 lift), NOT a rescaled snapshot: the old
-    // native drag image came out at the DEVICE scale — 2× on a Retina screen. The bounds are
+    // Same size as the row it copies (bar the 1.02 lift), not a rescaled snapshot. The bounds are
     // loose because row heights settle by a pixel or two as thumbnails decode.
     for (const axis of ['width', 'height']) {
       const ratio = g[axis] / g.row[axis];
@@ -101,9 +93,8 @@ test.describe('drag ghost: mouse', () => {
     expect(imgs[0].w, 'a 1×1 image — the browser draws nothing').toBe(1);
     expect(imgs[0].h).toBe(1);
 
-    // …and it follows. The anchor is read off the ghost itself (the list can settle by a
-    // pixel between measurements); what must hold is that it does not DRIFT as the drag
-    // goes on — the old ghost slid further from the cursor the further you dragged.
+    // The anchor is read off the ghost itself (the list settles by a pixel between measurements);
+    // what must hold is that the offset does not DRIFT as the drag goes on.
     const anchorX = gx + 30 - g.left, anchorY = gy - 10 - g.top;
     for (const [dx, dy] of [[80, -20], [200, 40], [340, 90]]) {
       await page.mouse.move(gx + dx, gy + dy);

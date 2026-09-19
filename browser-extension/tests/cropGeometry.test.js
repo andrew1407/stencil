@@ -1,9 +1,7 @@
-// The extension's crop geometry (src/lib/cropGeometry.js). The six functions it ports
-// from browser/js/core/cropGeometry.js are pinned to that original line-for-line by
-// portParity.test.js, and their behavioural cases are the browser suite's
-// (browser/tests/cropGeometry.test.js) — so none of those run twice here.
-//
-// What remains is the extension's own half: the page-format table (a checked-in copy
+// The extension's crop geometry (src/lib/cropGeometry.js).
+// The six functions ported from browser/js/core/cropGeometry.js are pinned to that original by
+// portParity.test.js and behaviourally by the browser suite, so none of those run twice here.
+// What remains is the extension's own half: the page-format table (a checked-in copy that
 // dataParity.test.js pins to config/constants.json) and the three helpers built on it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

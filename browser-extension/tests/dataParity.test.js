@@ -1,14 +1,8 @@
-// ── Data-copy drift guard ────────────────────────────────────────────────────
-// The extension ships self-contained (MV3): it never reads ../browser at runtime, so the
-// canonical data tables in browser/js/config/*.json live here as CHECKED-IN copies — JS
-// literals, because lib/accent.js is a pre-paint classic script with no module graph, and
-// lib/icons.js / lib/cropGeometry.js carry deliberate subsets of larger canonical files.
-// Nothing at runtime enforces the sync; this manifest does, the way portParity.test.js
-// pins the ported modules. Two modes:
+// Data-copy drift guard. The extension ships self-contained (MV3) and never reads ../browser at
+// runtime, so the canonical tables in browser/js/config/*.json live here as checked-in copies.
+// Nothing at runtime enforces the sync; this manifest does. Two modes:
 //   full   — the extension copy equals the canonical table entry-for-entry, in order.
-//   subset — every extension entry byte-matches its canonical entry; extra names must be
-//            declared extensionOnly, and an extensionOnly name must NOT exist canonically
-//            (so the browser later adding a same-named entry cannot drift silently).
+//   subset — every extension entry byte-matches its canonical one; extras declare extensionOnly.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -118,8 +112,7 @@ test('DEFAULT_PAGE matches the canonical default format', () => {
     canonical('../../browser/js/config/constants.json').DEFAULT_PAGE.size);
 });
 
-// ── Literal copies: pinned by scanning the source ───────────────────────────
-// These live inside modules that ship as classic scripts or big content scripts, so they
+// These copies live in modules that ship as classic scripts or big content scripts, so they
 // cannot be imported here; the drift guard reads the file instead.
 const source = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 

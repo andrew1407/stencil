@@ -1,7 +1,7 @@
-import { icon } from './icons.js';
-import { rowMatches, escapeHtml } from './base.js';
+import { rowMatches } from './base.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
-import { markSwap, pinWidestFace } from './motion.js';
+import { markSwap } from './motion.js';
+import { buildSelectFace } from './customSelectFace.js';
 
 // Custom dropdown overlaying a native <select> (kept as source of truth) — macOS cannot
 // style the native popup, so the toolbar's compact selects looked misplaced there.
@@ -16,43 +16,10 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     return opt ? opt.textContent : '';
   };
 
-  const wrap = document.createElement('span');
-  wrap.className = 'accent-dd cs-dd';
-  selectEl.parentNode.insertBefore(wrap, selectEl);
-  wrap.appendChild(selectEl);
-  selectEl.classList.add('cs-native');
+  const { wrap, trigger, menu, cur, curIcon, syncDisabled, fitToWidestOption } = buildSelectFace(selectEl);
 
-  const trigger = document.createElement('button');
-  trigger.type = 'button';
-  trigger.className = 'accent-dd-trigger';
-  trigger.setAttribute('aria-haspopup', 'listbox');
-  trigger.setAttribute('aria-expanded', 'false');
-  // The trigger IS the control now, so it inherits the native select's hover-tooltip
-  // attributes, or an enhanced control would go silent.
-  if (selectEl.dataset.title) trigger.dataset.title = selectEl.dataset.title;
-  for (const k of ['title', 'disabledReason', 'hkTitle'])
-    if (selectEl.dataset[k] != null) trigger.dataset[k] = selectEl.dataset[k];
-  // …and its enabled state, or a disabled <select> stays invisible here.
-  const syncDisabled = () => {
-    trigger.disabled = selectEl.disabled;
-    trigger.classList.toggle('cs-disabled', selectEl.disabled);
-  };
-  syncDisabled();
-  trigger.innerHTML =
-    '<span class="cs-cur-icon" aria-hidden="true"></span>' +
-    '<span class="accent-dd-name cs-cur"></span>' +
-    `<span class="accent-dd-caret" aria-hidden="true">${icon('chevron-down', { size: 13 })}</span>`;
-  const menu = document.createElement('ul');
-  menu.className = 'accent-dd-menu';
-  menu.setAttribute('role', 'listbox');
-  menu.hidden = true;
-  wrap.append(trigger, menu);
-  const cur = trigger.querySelector('.cs-cur');
-  const curIcon = trigger.querySelector('.cs-cur-icon');
-
-  // Hover-preview bookkeeping: the committed value returns once the pointer leaves the
-  // list or the menu closes without a pick; the preview waits for the pointer to settle,
-  // so skimming the rows repaints nothing.
+  // The committed value returns once the pointer leaves the list or the menu closes without a
+  // pick; the preview waits for the pointer to settle, so skimming repaints nothing.
   const PREVIEW_HOVER_MS = 280;
   let previewActive = false;
   let hoverTimer = null;
@@ -130,25 +97,11 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     }
   };
 
-  // The chosen word is a mark (motion.js markSwap): only a REAL change flies, not the
-  // first paint, a re-sync on open, or a no-op set. `settled` flips after the first frame,
-  // so BOOT's restore-then-wire sequence (applyUnitToUI) also counts as that first paint.
+  // Only a REAL change flies (motion.js markSwap), not a first paint or a no-op set. `settled`
+  // flips after the first frame, so boot's restore-then-wire counts as that first paint.
   let settled = false;
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => { settled = true; });
   else settled = true;
-  // The box floors at the WIDEST option's width (not the shown one) so a row of selects
-  // doesn't reshuffle as you use them — a FLOOR, not a pin, so a later longer option can
-  // still grow it. Capped so one long server URL can't overrun its row.
-  const MAX_FIT_PX = 240;
-  let fittedCount = -1;
-  const fitToWidestOption = () => {
-    if (fittedCount === selectEl.options.length || !selectEl.options.length) return;
-    const faces = [...selectEl.options].map((o) => escapeHtml(o.textContent));
-    // Only a measurement that MEANT something counts as done: a select enhanced inside a
-    // window that is still display:none measures zero, and must fit again once it is up.
-    if (pinWidestFace(cur, faces, { force: true, prop: 'minWidth', max: MAX_FIT_PX }) > 0)
-      fittedCount = selectEl.options.length;
-  };
 
   let shown = null;
   const sync = () => {
@@ -211,9 +164,8 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
-  // Closing hands to the dust: hideMenu flies the list into the trigger (dropdownMenu.js
-  // surfaceOut) with no exit animation to wait on; `.dd-closing` only guards a reopen
-  // mid-flight.
+  // hideMenu flies the list into the trigger (dropdownMenu.js surfaceOut) with no exit animation
+  // to wait on; `.dd-closing` only guards a reopen mid-flight.
   let closeTimer = null;
   let closeDone = null;
   const close = () => {

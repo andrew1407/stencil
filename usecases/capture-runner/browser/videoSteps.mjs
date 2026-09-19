@@ -5,10 +5,8 @@ import { waitForAnimations } from '../lib/waits.mjs';
 
 const OVERLAY = 'open-image-modal-overlay';
 
-// Predicates run in the page and are passed as FUNCTIONS, never as source strings: the app
-// ships a CSP without 'unsafe-eval', which rejects a string predicate outright.
-// Each tab owns its own img/video pair (openImageModal.js clones them onto the stage), so
-// the live player is the DISPLAYED one — not whichever element still carries the id.
+// Predicates are passed as FUNCTIONS, never source strings: the app's CSP has no 'unsafe-eval'.
+// Each tab owns its own img/video pair, so the live player is the DISPLAYED one.
 
 // Ready = the player holds a frame AND the scrub bar has a range to travel, which is what
 // tells a reader this is a clip and not a still.

@@ -1,6 +1,7 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { surfaceIn, surfaceOut, settleSurface, TIP_SHOW_DELAY_MS } from './motion.js';
 import { cmToUnit, unitLabel } from '../utils.js';
+import { decideHover, refreshHover, scheduleReveal } from './tooltipHover.js';
 // ── Component: hover/coordinate tooltip ─────────────────────────
 // Owns its dynamically-filled DOM and the show/hide/position logic.
 export class StencilTooltip extends StencilElement {
@@ -24,86 +25,13 @@ export class StencilTooltip extends StencilElement {
     if (this.parentElement !== document.body) document.body.appendChild(this);
   }
 
-  // Shared tooltip decision — used by mousemove and by Shift/Ctrl key-refresh
-  // so the tooltip updates the instant a modifier is pressed (no need to re-hover).
-  // `immediate` skips the reveal delay: refresh() passes it, because a modifier changing
-  // what's shown for the SAME hover is a live update, not a fresh hover to wait out.
   applyHover(clientX, clientY, x, y, mods, immediate = false) {
-    if (mods.altKey) {
-      this.hide();
-      return;
-    }
-    // In a comparison view only what the EDITED half actually shows may be labelled —
-    // and each branch is judged by the coordinates it is about to display, not by where
-    // the cursor happens to be (drawingApp.compareShowsPoint). Outside a comparison the
-    // gate is always open, so this costs nothing in the normal case.
-    const visible = (px, py) => this.app.compareShowsPoint(px, py);
-    // Ctrl held → show the live cursor-position coordinates
-    if ((mods.ctrlKey || mods.metaKey) && !mods.shiftKey) {
-      if (visible(x, y)) this.scheduleShow('coords', () => this.show(clientX, clientY, x, y), immediate);
-      else this.hide();
-      return;
-    }
-    const point = this.app.findNearestPoint(x, y);
-    if (point) {
-      // The POINT's own coordinates decide: one just across the divider from the
-      // pointer is not visible, however close the cursor is to it.
-      if (visible(point.x, point.y)) {
-        this.scheduleShow(`point:${point.x}:${point.y}`,
-          () => this.show(clientX, clientY, point.x, point.y), immediate);
-      } else this.hide();
-      return;
-    }
-    const lineIdx = this.app.findLineAt(x, y);
-    // A line is hit-tested AT the cursor, so the cursor is the part of it being pointed
-    // at — a line straddling the divider answers for its visible half only.
-    if (lineIdx !== -1 && visible(x, y)) {
-      this.scheduleShow(`line:${lineIdx}:${mods.shiftKey}`,
-        () => this.showLine(clientX, clientY, this.app.lines[lineIdx], mods.shiftKey), immediate);
-    } else this.hide();
+    decideHover(this, clientX, clientY, x, y, mods, immediate);
   }
 
-  // Re-run the tooltip logic at the last known cursor position with given modifiers.
-  // Lets Shift (full points) / Ctrl (cursor coords) tooltips appear immediately on keypress.
-  refresh(mods) {
-    if (!this.app.mouseOverCanvas || !this.app.image) return;
-    if (this.app.isPanning || this.app.isDraggingPoint || this.app.isDraggingSegment ||
-        this.app.isDraggingLine || this.app.isZoomRectDragging || this.app.isRectDrawDragging ||
-        this.app.input.holdEngaged) return;
-    const { x, y } = this.app.canvasCoords(this.app.lastMouseClientX, this.app.lastMouseClientY);
-    this.applyHover(this.app.lastMouseClientX, this.app.lastMouseClientY, x, y, mods, /* immediate */ true);
-  }
+  refresh(mods) { refreshHover(this, mods); }
 
-  // Debounces the reveal by the target hovered, not by the mouse event: a target change
-  // re-arms the delay, but the SAME target just feeds fresher content/position.
-  // `immediate` (keyboard refresh) skips the wait outright.
-  scheduleShow(key, revealFn, immediate) {
-    if (immediate) {
-      clearTimeout(this.showTimer);
-      this.showTimer = null;
-      this.pendingKey = null;
-      this.pendingReveal = null;
-      this.shownKey = key;
-      revealFn();
-      return;
-    }
-    if (this.shownKey === key) { revealFn(); return; }
-    if (this.pendingKey === key) { this.pendingReveal = revealFn; return; }
-    // A different target: if one is actually ON SCREEN, take it down (dust and all) —
-    // otherwise nothing has appeared yet, so there's only a timer to drop, not a hide.
-    if (this.shownKey != null) this.hide();
-    else { clearTimeout(this.showTimer); this.showTimer = null; }
-    this.pendingKey = key;
-    this.pendingReveal = revealFn;
-    this.showTimer = setTimeout(() => {
-      this.showTimer = null;
-      this.shownKey = this.pendingKey;
-      this.pendingKey = null;
-      const fn = this.pendingReveal;
-      this.pendingReveal = null;
-      fn?.();
-    }, StencilTooltip.SHOW_DELAY_MS);
-  }
+  scheduleShow(key, revealFn, immediate) { scheduleReveal(this, key, revealFn, immediate); }
 
   show(clientX, clientY, x, y) {
     if (!this.app.tooltipEnabled) {
@@ -160,9 +88,6 @@ export class StencilTooltip extends StencilElement {
     this.reveal(clientX, clientY);
   }
 
-  // Show a tooltip describing the hovered line:
-  //   • default: just start + end points
-  //   • Shift held: full points list
   showLine(clientX, clientY, line, showAll) {
     if (!this.app.tooltipEnabled) {
       this.hide();
@@ -202,11 +127,8 @@ export class StencilTooltip extends StencilElement {
     this.reveal(clientX, clientY);
   }
 
-  // ── The readout is sand too ─────────────────────────────────────────────
-  // Same flight as every other overlay (js/ui/motion.js surfaceIn/surfaceOut), out of —
-  // and back into — the cursor it belongs to. Only on the none↔block edge: this tooltip
-  // is re-rendered on every mousemove while it is up, and a burst per frame would be
-  // both a mess and a cost. Short, because the cursor is already moving.
+  // Only on the none↔block edge: this tooltip is re-rendered on every mousemove while it is up,
+  // and a burst per frame would be both a mess and a cost.
   static IN_MS = 240;
   static OUT_MS = 170;
   dust(clientX, clientY, enter) {

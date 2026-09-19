@@ -12,9 +12,8 @@ export const clampPanelWidth = (w, winW, maxFactor = 0.7) =>
 export const wirePanelResizer = (resizer, panel, { maxFactor = 0.7, onStart, onEnd, restore = false } = {}) => {
   const clamp = (w) => clampPanelWidth(w, window.innerWidth, maxFactor);
   const setWidth = (w) => document.documentElement.style.setProperty('--coord-panel-width', clamp(w) + 'px');
-// Re-clamped against the live window on restore and resize, keeping the preference. A
-// panel the user never dragged has NO preference and stays on the CSS default: below the
-// stacking breakpoint it spans the window, and measuring it fed that width back as one.
+// Re-clamped against the live window on restore and resize, keeping the preference. A panel
+// never dragged has NO preference and stays on the CSS default, which may span the window.
   const applyStored = () => {
     let saved = NaN;
     try { saved = parseInt(sessionStorage.getItem(COORD_PANEL_WIDTH_KEY), 10); } catch { /* storage blocked */ }

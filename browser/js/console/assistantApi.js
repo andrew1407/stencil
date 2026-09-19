@@ -20,8 +20,7 @@ export const createAssistantApi = ({ app, guard }) => {
       const p = str(opts.provider).trim();
       if (!PROVIDERS.includes(p)) throw new Error(`Unknown LLM provider "${opts.provider}" — one of ${PROVIDERS.join(', ')}`);
       // Switching providers refills the default base URL unless the user overrode it
-      // (withProvider — literally the settings modal's rule); an explicit baseUrl
-      // below still wins.
+      // (withProvider — the settings modal's rule); an explicit baseUrl still wins.
       if (p !== cur.provider) next = withProvider(next, p);
     }
     for (const k of URL_KEYS) {
@@ -54,10 +53,8 @@ export const createAssistantApi = ({ app, guard }) => {
   };
 
   const api = {
-    // ── AI assistant (LLM) ──
-    // Settings mirror the gear dialog (llm-contract.md §5) and share its store, so UI and
-    // scripting stay in sync. apiKey reads back as-is — the trust stance server tokens take.
-    //   stencil.llm.setup({ provider: 'ollama', model: 'llama3.2-vision' })
+    // Assistant settings mirror the gear dialog (llm-contract.md §5) and share its store,
+    // so UI and scripting stay in sync.
     get llm() {
       return guard({
         get provider() { return loadLlmSettings().provider; },
@@ -74,9 +71,6 @@ export const createAssistantApi = ({ app, guard }) => {
         setup(opts = {}) { applyLlmSetup(opts); return stencil; },
       });
     },
-    // One assistant turn through the panel's pipeline — shared history, rendered in its
-    // transcript. `images` attaches base64 data: URLs. Resolves { reply, warnings,
-    // results:[{ label, dataUrl }] }; typed LlmErrors (truncated/refusal/…) reject.
     prompt(text, { images = [] } = {}) {
       return chatPanel().prompt(str(text), Array.isArray(images) ? images : [images]);
     },
@@ -97,9 +91,8 @@ export const createAssistantApi = ({ app, guard }) => {
         // attachments, transcript, and the §12 persisted copy). Throws mid-turn.
         clear() { chatPanel().clear(); return stencil; },
         get isSending() { return !!app.chat && app.chat.isSending; },
-        // Which side user/assistant/error bubbles draw on. Scoped to THIS tab's
-        // session: never persisted (chatLayoutPrefs.js), and this is the one way to
-        // adjust it outside the panel's own menu item.
+        // Which side chat bubbles draw on. Scoped to THIS tab's session — never persisted
+        // (chatLayoutPrefs.js).
         get swapSides() { return chatSide() === CHAT_SIDE_SWAPPED; },
         set swapSides(v) {
           setChatSide(v ? CHAT_SIDE_SWAPPED : 'normal');

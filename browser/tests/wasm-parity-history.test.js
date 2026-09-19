@@ -1,9 +1,8 @@
-// Parity coverage for the line-snapshot history (core/state/HistoryStack.cpp via the
-// handle ABI in core/wasmStateApi.cpp) against its JS twin, js/core/historyStack.js.
-// Snapshots cross as the flat (nums, text) pair, so this pins two things at once: the
-// cursor semantics — push truncation, canUndo/canRedo, the "step 0 → empty, step -1"
-// undo — and the codec halves (js/core/linesCodec.js ↔ core/abi/linesCodec.hpp), whose
-// symmetry is proved by pushing a line in and reading the same line back out.
+// Parity coverage for the line-snapshot history (core/state/HistoryStack.cpp via the handle ABI in
+// core/wasmStateApi.cpp) against its JS twin, js/core/historyStack.js. Snapshots cross as the flat
+// (nums, text) pair, so two things are pinned at once: the cursor semantics — push truncation,
+// canUndo/canRedo, the "step 0 → empty, step -1" undo — and the codec halves (js/core/linesCodec.js ↔
+// core/abi/linesCodec.hpp), whose symmetry is proved by pushing a line in and reading it back out.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
 import { existsSync } from 'node:fs';
@@ -31,9 +30,8 @@ const line = (over = {}) => ({
   ...over,
 });
 
-// The round trip proves the two codec halves are inverses, but a relabeling applied to
-// BOTH halves of the JS codec would cancel out inside it, so pin the layout itself —
-// this is the byte contract core/abi/linesCodec.hpp reads. Runs without wasm.
+// A relabeling applied to BOTH halves of the JS codec would cancel out inside the round trip, so the layout
+// itself is pinned: this is the byte contract core/abi/linesCodec.hpp reads. Runs without wasm.
 test('linesCodec: the encoded layout is exactly what the C++ decoder expects', () => {
   const { nums, text } = encodeLines([{
     points: [{ x: 1, y: 2 }], color: '#ab', thickness: 3, pointSize: 4,
@@ -152,9 +150,8 @@ wtest('history: snapshots are deep copies — mutating the live lines never edit
   }
 });
 
-// A line missing fields is completed from the core's defaults (core/models.hpp) on the
-// way through the ABI — the one place the wasm twin is not byte-identical to the JS one,
-// pinned here so it stays deliberate.
+// A line missing fields is completed from the core's defaults (core/models.hpp) on the way through the ABI —
+// the one place the wasm twin is not byte-identical to the JS one.
 wtest('history: a sparse line decodes complete, from the core defaults', () => {
   const wasm = new (core.op('HistoryStack'))();
   try {

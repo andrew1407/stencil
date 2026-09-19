@@ -100,9 +100,8 @@ test('mic face: paused vs listening titles and classes; Stop wins while a turn r
   assert.strictEqual(r.attachBtn.disabled, true);
 });
 
-// A double-click / hold / the "…" item only SWITCHES the composer to voice input: the mic
-// face shows paused and a click on it starts listening. It used to start dictating the
-// moment the switch landed, catching people who only meant to switch (user report).
+// A double-click, a hold or the "…" item only SWITCHES the composer to voice input: the mic face shows
+// paused, and a click on it starts listening (user report).
 test('switching to voice input lands on a paused mic face — nothing starts listening', async () => {
   const { readFileSync } = await import('node:fs');
   const src = chatViewSource();
@@ -114,19 +113,16 @@ test('switching to voice input lands on a paused mic face — nothing starts lis
   assert.match(SEND_TITLE, /Double-click or hold for voice input/);
 });
 
-// The composer's mic face survives the END of an utterance, whatever ended it: another
-// mode taking the mic, this surface's own pause, a silence timeout, a spoken "send".
-// Each of those used to flip the button back to Send under the user's finger. Only a
-// FATAL error returns the send plane — there is no mic left to resume.
+// The composer's mic face survives the END of an utterance however it ended — another mode taking the mic,
+// its own pause, a silence timeout, a spoken "send"; only a FATAL error returns the send plane.
 test('the composer keeps its mic face whenever listening ends', async () => {
   const { readFileSync } = await import('node:fs');
   const src = chatViewSource();
   assert.ok(src.includes("onStop: (reason) => { if (reason === 'error') setFace(false); else sync(); }"));
 });
 
-// …and the toolbar's hands-free voice chat leaves this composer's FACE alone: the mic
-// face here is the user's own choice (the "…" item, a double-click, a hold). Turning the
-// toolbar mic on used to swap the Send button they were about to click for a mic.
+// …and the toolbar's hands-free voice chat leaves this composer's FACE alone: the mic face here is the
+// user's own choice (the "…" item, a double-click, a hold).
 test('the toolbar voice chat never turns the composer to the mic face by itself', async () => {
   const { readFileSync } = await import('node:fs');
   const src = chatViewSource();

@@ -1,9 +1,6 @@
-// app.prompt's live validation (ui/confirmModal.js) — the desktop's PromptSpec::validate.
-//
-// The bug: the expired-session prompt offered "Reconnect" with the token box empty, and
-// the caller then ignored the empty answer — a dead click that closed the dialog and did
-// nothing (user report, with a picture). A reason now disables Confirm and Enter, and
-// says why under the field.
+// app.prompt's live validation (ui/confirmModal.js) — the desktop's PromptSpec::validate. A reason disables
+// Confirm and Enter and says why under the field, so a prompt can never offer an action its caller will then
+// ignore for an empty answer (user report).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement, installDom } from './helpers/dom.js';

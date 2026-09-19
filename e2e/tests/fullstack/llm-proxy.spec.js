@@ -1,13 +1,8 @@
-// Full-stack LLM proxy e2e: the real browser app chats through the real Go server's
-// Anthropic proxy (POST /llm/chat behind the existing bearer auth), which forwards to
-// the harness's STUB LLM server (helpers/llm-stub.js) — never the real Anthropic API.
-//
-// The server's LLM env (ANTHROPIC_API_KEY=e2e-test, LLM_MODEL=claude-e2e,
-// LLM_BASE_URL=http://host.docker.internal:<stub port>) is injected by the compose
-// OVERRIDE helpers/compose.llm.yml, which helpers/compose.js applies on every
-// harness-managed `docker compose up` — the same path the harness already uses to
-// start the stack, locally and in CI. With E2E_SKIP_COMPOSE=1 (out-of-band server)
-// the override isn't applied, and this spec self-skips off GET /llm/info.
+// Full-stack LLM proxy e2e: the real browser app chats through the real Go server's Anthropic
+// proxy (POST /llm/chat behind bearer auth), which forwards to the harness's stub LLM server —
+// never the real Anthropic API. The server's LLM env is injected by the compose override
+// helpers/compose.llm.yml on every harness-managed `up`; with E2E_SKIP_COMPOSE=1 the override
+// is not applied and this spec self-skips off GET /llm/info.
 import { test, expect } from '@playwright/test';
 import { gotoApp } from '../../helpers/boot.js';
 import { issueToken, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
@@ -54,9 +49,8 @@ test.describe('LLM proxy (stencil-server provider)', () => {
 
     await gotoApp(page);
 
-    // Connect to the collaboration server (the suite's standard connect flow), then
-    // point the chat provider at that SAME connection URL so the panel reuses its
-    // bearer token (contract §5 stencil-server).
+    // Point the chat provider at the SAME connection URL so the panel reuses its bearer token
+    // (contract §5 stencil-server).
     const serverHost = new URL(SERVER_URL).host; // stencil.connect normalizes to an origin, so the host survives
     const connUrl = await page.evaluate(async ({ url, token, host }) => {
       await window.stencil.connect({ url, token });

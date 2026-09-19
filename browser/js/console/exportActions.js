@@ -30,16 +30,10 @@ export const createExportActions = ({ app }) => {
     // Accepts a layout OBJECT or a raw JSON string. Routes through the clipboard-paste
     // path, so an existing layout raises the Combine / Replace / Cancel prompt.
     set layout(data) { app.export.applyPastedLayout(toLayoutObject(data)); },
-    // Apply a layout with no prompt or toast. `data` is an object or JSON string;
-    // `mode:'combine'` adds on top of the current lines; `history:false` skips undo.
-    //   stencil.applyLayout('{"lines":[…]}', { mode: 'combine' })
     applyLayout(data, opts = {}) {
       app.export.installLayout(toLayoutObject(data), opts);
       return stencil;
     },
-    // Install lines directly — unlike `stencil.layout = …` (the paste path) this raises
-    // no "Replace layout?" prompt and no toast. `history:false` keeps it out of undo.
-    //   stencil.setLines([{ points: [{x:0,y:0},{x:10,y:10}], color: '#f00' }])
     setLines(lines, opts = {}) {
       const size = stencil.imageSize;
       const list = Array.isArray(lines) ? lines : [];

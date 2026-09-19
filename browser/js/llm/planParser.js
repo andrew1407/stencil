@@ -20,9 +20,8 @@ export class MisplacedOpError extends Error {
   }
 }
 
-// Validate one actions list: unknown ops drop with a warning (forward compatibility);
-// a known op with invalid params throws — nothing executes (contract §1). `scope`
-// (non-null = inside a variant/preview) names where the op landed, for the message.
+// Unknown ops drop with a warning (forward compatibility); a known op with invalid params throws
+// and nothing executes (contract §1). `scope` non-null names the variant/preview it landed in.
 const validateActions = (list, warnings, where, scope = null) => {
   if (list == null) return [];
   if (!Array.isArray(list)) throw new Error(`Invalid plan: ${where} must be an array`);
@@ -65,14 +64,8 @@ const firstJsonObject = (text) => {
   return null;
 };
 
-// ── §11 interactive replies (`ask`) ─────────────────────────────────────────
-// A question put back to the user as a choice card. Validated as strictly as an action:
-// a card nobody can answer (too few/many options, an option that is both a render AND a
-// reference) is a plan error, not something to paper over.
-// Validate the optional `ask` object → the normalised card, or null when absent. The
-// card's STRUCTURE (keys, caps, the image reference's exactly-one-of url / projectId /
-// scanIndex, http(s)-only urls) is the registry's ask schema; only the preview actions
-// need this module, since they are ordinary §2 actions.
+// §11 `ask`: validated as strictly as an action, since a card nobody can answer is a plan error.
+// Its STRUCTURE is the registry's ask schema; only the preview actions need this module.
 export const validateAsk = (ask, warnings) => {
   if (ask == null) return null;
   SCHEMA.validateAsk(ask);
@@ -85,9 +78,8 @@ export const validateAsk = (ask, warnings) => {
     options: ask.options.map((opt, i) => {
       const where = `ask option ${i + 1}`;
       const out = { label: card.options[i].label };
-      // Preview actions are RENDERED never executed, so editor-settings ops are treated as
-      // "inside a variant" (rejected). §1 leniency: a misplaced op costs this option its
-      // PICTURE, not the plan — §11.2 already renders pictureless options.
+      // Preview actions are RENDERED never executed, so editor-settings ops are rejected as if inside a
+      // variant. §1 leniency: a misplaced op costs this option its PICTURE, not the plan.
       if (opt.actions != null) {
         try {
           out.actions = validateActions(opt.actions, warnings, where, 'variants or previews');
@@ -114,9 +106,8 @@ export const askAnswerText = (ask, { picked = [], custom = '' } = {}) => {
   return labels.join(', ').slice(0, ASK_LIMITS.answer);
 };
 
-// Raw LLM reply → validated plan { reply, actions, variants, warnings, chatOnly }.
-// §1 extraction tolerance: fences stripped, first balanced JSON object wins; no JSON
-// object at all = a chat-only turn (raw text = reply — not an error). Invalid plans THROW.
+// §1 extraction tolerance: fences stripped, first balanced JSON object wins; no JSON object at
+// all is a chat-only turn (raw text = reply, not an error). Invalid plans THROW.
 export const parseOpPlan = (text) => {
   const raw = String(text == null ? '' : text);
   const chatOnly = () => ({ reply: raw.trim(), actions: [], variants: [], ask: null, warnings: [], chatOnly: true });
@@ -150,9 +141,8 @@ export const parseOpPlan = (text) => {
     }
   });
   const ask = validateAsk(obj.ask, warnings);
-  // The substitute must not overstate what happened: "Done." only when the plan
-  // actually carries work — an empty plan says so, since a bare "Done." there
-  // reads as a success that never occurred.
+  // The substitute must not overstate what happened: "Done." only when the plan carries work, or
+  // it reads as a success that never occurred.
   if (replyOmitted) {
     if (actions.length || variants.length || ask) {
       reply = 'Done.';

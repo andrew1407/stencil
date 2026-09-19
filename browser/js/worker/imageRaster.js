@@ -8,10 +8,8 @@ export const fitSize = (width, height, maxEdge) => {
   return { width: Math.max(1, Math.round(width * k)), height: Math.max(1, Math.round(height * k)) };
 };
 
-// Draw `source` (sw×sh) onto a fresh width×height canvas. `halve` steps down by 2× until
-// within 2× of the target with high-quality smoothing — one draw from 2657px to 480 is
-// a ~5x reduction the bilinear filter cannot sample, so it aliases; halving keeps every
-// source pixel contributing. Off, it is the single plain draw of a chat attachment.
+// `halve` steps down by 2× until within 2× of the target: one draw from 2657px to 480 is a ~5x
+// reduction the bilinear filter cannot sample, so it aliases.
 export const paintScaled = (makeCanvas, source, sw, sh, { width, height, halve = false }) => {
   let cur = source, cw = sw, ch = sh;
   const smooth = (ctx) => { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; };

@@ -120,9 +120,6 @@ export const touchMenuGesture = (onOpen, {
   };
 };
 
-// Right-click, the hover "…" trigger and the touch gestures open the same menu.
-// onInsert(text) appends into this surface's composer; onResend(text, attachments)
-// re-sends a user turn with its original attachments.
 export const wireChatRowMenu = (transcript, hooks = {}) => {
   transcript.addEventListener('contextmenu', (e) => {
     const rowEl = e.target?.closest?.('.chat-msg');

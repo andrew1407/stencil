@@ -13,9 +13,8 @@ export const mediaAdapters = (app) => ({
   prepareAttachment: (file) => downscaleImageToDataUrl(file),
   extractFrames: (file, n) => videoFrameSamples(file, n),
   frameAt: (file, i) => videoFrameByIndex(file, i),
-  // §10 openUrl with incognito: adopt incognito IN PLACE (desktop's openSourceHere),
-  // NOT a new tab — the rest of the plan and the §7 continuation that has to LOOK at
-  // the picture run here, so loading here keeps chat and plan on the fetched image.
+  // §10 openUrl with incognito: adopt incognito IN PLACE (desktop's openSourceHere), NOT a
+  // new tab — the rest of the plan and the §7 continuation run against this editor's picture.
   openIncognito: async (url) => { await window.stencil.load(url, { incognito: true }); },
   // §10 copy: the clipboard write's REAL outcome, so a blocked write becomes a
   // reply warning instead of only a transient toast.

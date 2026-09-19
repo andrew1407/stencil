@@ -47,6 +47,37 @@ export const updateMultiSelectStatus = (app) => {
   app.renderLinesList();
 };
 
+// A click on the letterbox OUTSIDE the image drops the selection; canvasClick() is bound
+// to the <canvas> and needs image coordinates. Guards mirror it.
+export const deselectEmptyArea = (app, e) => {
+  if (!app.image) return;
+  if (app.isDrawing) return;
+  if (app.compareReadOnly()) return;
+  if (app.dragJustEnded) return;
+  if (e && (e.altKey || e.shiftKey || e.ctrlKey || e.metaKey)) return;
+  if (app.selectedLineIdx === -1 && !app.selectedLines.length && app.focusedPtIdx === -1) return;
+  app.deselectLine();
+};
+
+export const applySelectionChange = (app, prop, value) => {
+  if (app.compareReadOnly()) return;
+  if (app.selectedLineIdx === -1) return;
+  const line = app.lines[app.selectedLineIdx];
+// A line still on the inherit fallback ('' pointColor) pins its rendered colour first.
+  if (prop === 'color' && !line.pointColor) line.pointColor = line.color;
+  line[prop] = value;
+  app.saveHistory();
+  app.renderer.redraw();
+};
+
+// The reverse of applyLinesListHover; -1 / out-of-range clears the glow.
+export const setListHoverLine = (app, idx) => {
+  const i = (typeof idx === 'number' && idx >= 0 && idx < app.lines.length) ? idx : -1;
+  if (i === app.listHoverLineIdx) return;
+  app.listHoverLineIdx = i;
+  app.renderer.redraw();
+};
+
 // Select from the Lines tab (or console), keyed by index; clears any multi-selection.
 // `ctrlShift` toggles the multi-select set instead.
 export const selectLineFromList = (app, idx, ctrlShift = false) => {

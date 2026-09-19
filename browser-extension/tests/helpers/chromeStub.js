@@ -48,9 +48,8 @@ export const installChromeStub = ({
           if (storageThrows) throw new Error('no storage');
           return pick(localStore, key);
         },
-        // The payload is recorded synchronously but lands only after a microtask —
-        // the real-latency gap during which a concurrent read-modify-write could race
-        // (the pins/connections write-queue tests depend on it).
+        // Recorded synchronously but landing only after a microtask — the real-latency gap in which a
+        // concurrent read-modify-write can race.
         set: async (obj) => {
           if (storageThrows) throw new Error('no storage');
           sets.push(obj);

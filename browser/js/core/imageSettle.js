@@ -55,9 +55,7 @@ const createRemoteForSession = async (app, address, file) => {
 export const settleLoadedImage = async (app, file, opts, plan) => {
   const { replaceInPlace, keptLines, oldImageSource, oldImageResource,
           remoteCreateAddress, remoteLayout } = plan;
-// Auto-crop to the page aspect unless opts.crop (external launch) or a reopened server
-// project's saved layout says otherwise. Rotation FIRST: the crop rect lives in
-// rotated-original pixel space.
+// Rotation FIRST: the crop rect lives in rotated-original pixel space.
   app.rotationQuarters = (remoteLayout && Number.isInteger(remoteLayout.rotationQuarters))
     ? remoteLayout.rotationQuarters
     : 0;

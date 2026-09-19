@@ -8,10 +8,8 @@ import { escapeHtml as tipEscape } from '../js/ui/tipContent.js';
 import { escapeHtml as oneEscape } from '../js/ui/escapeHtml.js';
 import { projectsModalSource } from './helpers/projectsModalSource.js';
 
-// The project-row / server-row badges interpolate server-provenance strings
-// (meta.address, meta.serverUrl — user-typed connect URLs or server-returned
-// metadata) into innerHTML via escapeHtml. A malicious server returning a crafted
-// serverUrl must not inject markup into the projects modal.
+// The row badges interpolate server-provenance strings (meta.address, meta.serverUrl) into
+// innerHTML via escapeHtml: a malicious server must not inject markup into the projects modal.
 test('escapeHtml neutralizes markup in server-provenance strings', () => {
   const evil = '"><img src=x onerror=alert(1)>';
   const out = escapeHtml(evil);
@@ -55,12 +53,8 @@ test('no runtime-only project row ids in static markup', () => {
   assert.strictEqual(count('project-thumb'), 0, 'no project-thumb markup statically');
 });
 
-// ── Filtering the projects list ─────────────────────────────────────────────
-// Filter / sort / search-mode / name-search all re-list the same rows, so they all
-// play the same symmetric transition (motion.js createFilterAnimator) instead of the
-// silent rebuild they used to do. Pinned against the source: wiring the whole modal
-// takes a project store, a tabs bus and a connection manager — the transition's own
-// behaviour is unit-tested in motion.test.js, and end-to-end in connectModal.test.js.
+// Filter, sort, search-mode and name-search all re-list the same rows, so all play the one symmetric
+// transition (motion.js createFilterAnimator); pinned against the source, its behaviour in motion.test.js.
 import { readFileSync } from 'node:fs';
 
 const projectsSrc = projectsModalSource();
@@ -90,12 +84,8 @@ test('the filter transition and render() agree on the rows by construction', () 
 });
 
 test('what a removal REVEALS arrives, it does not simply appear', () => {
-  // Deleting the project open in this tab blanks the editor, so the settle render brings
-  // the pinned "Temporary (unsaved)" row in. A row that is genuinely NEW to the list
-  // materializes — veiled behind its own motes until they land, the removal played
-  // backwards — which is the arrival the connections list already uses, and the twin of
-  // the desktop's ListFilterFade::dustRowIn. Only the rows the settle ADDED, and on the
-  // desktop's own ROW_ARRIVE_MS rather than the slower filter clock.
+  // Only the rows the settle ADDED materialize — veiled behind their own motes, the removal played
+  // backwards — on the desktop's own ROW_ARRIVE_MS, twin of ListFilterFade::dustRowIn.
   assert.match(projectsSrc, /const before = \[\.\.\.shownKeys\];/,
     'the settle remembers what the list showed before the removal');
   assert.match(projectsSrc, /const \{ entering \} = filterDelta\(before, shownKeys\);[\s\S]{0,400}materialize\(el, \{ \.\.\.rowDustGrid\(entering\.length, i\), dustMs: ROW_ARRIVE_MS \}\)/,
@@ -105,10 +95,8 @@ test('what a removal REVEALS arrives, it does not simply appear', () => {
 });
 
 test('the row and its arrival land together, once the ash has thinned', () => {
-  // Rendering the moment the collapse ends dropped the arrival inside a full-strength
-  // scatter, where its own motes are invisible — and showed the row plain before veiling
-  // it again. So the settle waits the falling leg out, THEN renders and materializes in
-  // one turn; the rest of the wipe is only the hold and the held height.
+  // The settle waits the falling leg out, THEN renders and materializes in one turn: rendering as the
+  // collapse ends drops the arrival inside a full-strength scatter, where its own motes are invisible.
   assert.match(projectsSrc, /await new Promise\(\(r\) => setTimeout\(r, ROW_ARRIVE_DELAY_MS\)\);\n\s+render\(\);/,
     'the ash thins first, then the rebuild');
   assert.match(projectsSrc, /materialize\(el[\s\S]{0,400}await new Promise\(\(r\) => setTimeout\(r, Math\.max\(0, wipeDurationMs\(\) - ROW_ARRIVE_DELAY_MS\)\)\);/,
@@ -116,9 +104,8 @@ test('the row and its arrival land together, once the ash has thinned', () => {
 });
 
 test('a real removal keeps the destructive wipe — a filter is not a delete', () => {
-  // The scatter/disintegrate effect stays on the removal paths only.
-  // …on the ITEM clock: a project card is read, not merely noticed, so its wipe runs
-  // half again as long as the connections list's brisk one (motion.js ITEM_DUST_MS).
+  // The scatter stays on the removal paths only, on the ITEM clock: a project card is read, not merely
+  // noticed, so its wipe runs half again as long as the connections list's (motion.js ITEM_DUST_MS).
   assert.match(projectsSrc, /leaveThenRemove\(rowById\([\s\S]{0,20}\), \(\) => \{\}, rowLeaveDust\(1, 0, ITEM_DUST_MS\)\)/,
     'deleting a project still scatters');
   assert.ok(!/runFilter[\s\S]{0,200}scatterGridFor/.test(projectsSrc),

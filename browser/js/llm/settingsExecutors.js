@@ -28,9 +28,8 @@ export const SETTINGS_RUN = Object.freeze({
     await saveProject(a.name || '');
   },
 
-  // ── §10 editor-settings ops (browser & desktop editors only; forbidden in variants).
-  // Same facade paths as the toolbar/settings UI: theme/accent use the flattened settings
-  // accessors (not in apply()'s whitelist); the rest batch through stencil.apply. ──
+  // §10 editor-settings ops (browser and desktop editors only; forbidden in variants). theme and
+  // accent use the flattened settings accessors, not in apply()'s whitelist; the rest batch.
   theme: (a, { stencil }) => { stencil.darkTheme = a.mode === 'dark'; },
   accent: (a, { stencil, notes }) => {
     if (a.color != null) { stencil.mainTheme = a.color; return; }
@@ -59,9 +58,8 @@ export const SETTINGS_RUN = Object.freeze({
   },
   clear: (_a, { stencil }) => { stencil.newEditor(); },
   openUrl: async (a, { stencil, userText, openIncognito, notes }) => {
-    // The model may only ECHO the user: the exact URL must appear in the user's
-    // own messages this conversation (the `connect` stance — a plan can never
-    // introduce a host, and page/injected content can't smuggle one in).
+    // The model may only ECHO the user: the exact URL must appear in the user's own messages this
+    // conversation, so a plan can never introduce a host.
     const typed = typeof userText === 'function' ? userText() : '';
     if (!typed.includes(a.url)) {
       throw new Error(`openUrl blocked: "${a.url}" is not a URL you gave in this conversation`);
@@ -101,9 +99,8 @@ export const SETTINGS_RUN = Object.freeze({
     }
     // §10: copying nothing is a skipped action, never a failed plan.
     if (!stencil.imageSize) { notes?.push('Skipped copy — no working image to copy'); return; }
-    // The toolbar's DATA-section copy path. `copyRendered` (injected by the chat surface)
-    // exposes the write's real outcome so a blocked clipboard lands in the REPLY as a
-    // warning; without it, the chainable facade path fires as before.
+    // `copyRendered` (injected by the chat surface) exposes the write's real outcome, so a blocked
+    // clipboard lands in the REPLY as a warning.
     try { await (copyRendered ? copyRendered() : stencil.copyImage()); }
     catch (err) { notes?.push(`Copy to clipboard failed — ${err?.message || err}`); }
   },
@@ -168,9 +165,6 @@ export const SETTINGS_RUN = Object.freeze({
     const note = await setBlankColor(a.color);
     if (note) notes?.push(`blankColor: ${note}`);
   },
-  // §10 openProject: the projects modal's open path — resolves like removeProject
-  // (exact, else unique case-insensitive prefix); replacing an unsaved dirty editor
-  // goes through the surface's own confirm inside the injected capability.
   openProject: async (a, { openProjectNamed, notes }) => {
     if (!openProjectNamed) throw new Error('This surface cannot manage projects');
     const note = await openProjectNamed(a.name || '', !!a.last);
@@ -188,26 +182,22 @@ export const SETTINGS_RUN = Object.freeze({
     const note = setVoiceChat(a.on);
     if (note) notes?.push(`voiceChat: ${note}`);
   },
-  // §10 chat: where the assistant panel itself sits. The one op that acts on the chat
-  // window rather than the image — "open the chat on the right" is a thing users ask
-  // for out loud, hands-free, with no hand on the mouse (user report).
+  // §10 chat: the one op that acts on the chat window rather than the image — asked for out
+  // loud, hands-free, with no hand on the mouse (user report).
   chatPanel: async (a, { setChatPlacement, notes }) => {
     if (!setChatPlacement) throw new Error('This surface has no assistant panel to place');
     const note = await setChatPlacement({ open: a.open, dock: a.dock });
     if (note) notes?.push(`chatPanel: ${note}`);
   },
-  // §10 dialog: put one of the editor's own windows in front of the user — the answer to
-  // "show me my projects" / "open the server list". Deferred like clearChat: the dialog
-  // is MODAL, so it opens after the plan's other actions have run and the reply is on
-  // screen, never in the middle of the turn.
+  // §10 dialog, deferred like clearChat: the dialog is MODAL, so it opens after the plan's other
+  // actions have run and the reply is on screen, never mid-turn.
   dialog: async (a, { openDialog, notes }) => {
     if (!openDialog) throw new Error('This surface has no dialogs to open');
     const note = await openDialog(a.close ? null : a.name);
     if (note) notes?.push(`dialog: ${note}`);
   },
-  // §10 clearChat: the surface's clear-conversation flow behind the app's own confirm.
-  // `deferred` runs it at the plan's END (a declined confirm costs nothing already done);
-  // a caller `deferredSink` holds it past the §7 auto-continuation (chatController flushDeferred).
+  // §10 clearChat behind the app's own confirm. `deferred` runs it at the plan's END; a caller
+  // `deferredSink` holds it past the §7 continuation (chatController flushDeferred).
   clearChat: async (_a, { clearChatConversation, notes }) => {
     if (!clearChatConversation) throw new Error('This surface cannot clear the conversation');
     const note = await clearChatConversation();

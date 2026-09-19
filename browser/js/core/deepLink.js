@@ -21,15 +21,13 @@ export const readOpenProjectId = (search = '') => {
 export const buildOpenProjectUrl = (base, id) =>
   `${base}?${OPEN_PARAM}=${encodeURIComponent(id)}`;
 
-// The payload rides in the `#stencil=` fragment (consumed by applyExternalLaunch), not the
-// query, so it stays off server logs and out of history; it is also the only vehicle for
-// incognito launches, which are never persisted.
+// The payload rides the `#stencil=` fragment, not the query, so it stays off server logs
+// and out of history; it is also the only vehicle for incognito launches.
 export const buildExternalLaunchUrl = (base, payload) =>
   `${base}#stencil=${encodeURIComponent(JSON.stringify(payload))}`;
 
-// Cross-front-end "Open in…" links: the desktop's `stencil://` scheme and the Telegram
-// bot's `/start <payload>`, from the same identity the fragment uses — a server reference
-// ({ url, id, version? }, never a token) or inline image + layout.
+// Cross-front-end "Open in…" links (desktop `stencil://`, the bot's `/start <payload>`)
+// carry a server reference ({ url, id, version? }, never a token) or inline image + layout.
 
 // server+id wins over src on the receiving side; empty/absent fields are omitted.
 export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version, src, layout, frame, incognito } = {}) => {
@@ -64,8 +62,7 @@ const toBase64 = (bin) => (typeof btoa === 'function'
   : Buffer.from(bin, 'binary').toString('base64'));
 
 // "1" + base64url("host[:port]|projectId"), padding stripped; null past Telegram's limit.
-// The identical codec lives in desktop/src/app/deepLink.cpp and bot
-// Application/Links/DeepLinkCodec.cs — shared golden vectors in each suite.
+// Twins: desktop/src/app/deepLink.cpp, bot Application/Links/DeepLinkCodec.cs.
 export const encodeTelegramStartPayload = (serverUrl, projectId) => {
   const plain = `${compressOrigin(normalizeUrl(serverUrl))}|${projectId}`;
   const bytes = new TextEncoder().encode(plain);

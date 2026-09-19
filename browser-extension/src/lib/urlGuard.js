@@ -78,11 +78,8 @@ const isBlockedV6 = (g, allowLoopback) => {
     (g[0] & 0xfe00) === 0xfc00;                       // fc00::/7 ULA
 };
 
-// data:/blob: pass; http(s) passes unless the host is a private/loopback/link-local/
-// CGNAT/ULA/unspecified literal or localhost; every other scheme is refused.
-// `allowLoopback` only for URLs the USER typed. `allowSameHostAs` is the TRUSTED page URL
-// (sender.tab.url / a scan-recorded resource, never page-supplied): the browser already
-// talks to that host, so fetching it is no escalation — except the metadata IP.
+// http(s) only (data:/blob: pass); private/loopback/link-local/CGNAT/ULA/localhost hosts are
+// refused. `allowLoopback`: USER-typed URLs only. `allowSameHostAs`: TRUSTED page URL, never the metadata IP.
 export const isAllowedImageUrl = (url, { allowLoopback = false, allowSameHostAs = '' } = {}) => {
   let u;
   try { u = new URL(String(url)); } catch { return false; }

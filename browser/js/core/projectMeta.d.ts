@@ -6,6 +6,8 @@ import type { ProjectMeta } from './projectsStore.js';
 
 /** The full session layout in LAYOUT_FIELDS order (config/layoutFields.json keys). */
 export declare const buildLayoutState: (app: DrawingApp) => Record<string, unknown>;
+/** The export subset the server push and ExportService both send. */
+export declare const currentLayoutPayload: (app: DrawingApp) => Record<string, unknown>;
 /**
  * `prev` carries the fields a plain save preserves (name, colour, expiry…); `layout` feeds
  * lineLengthCm; `thumbnail` (default: rendered inline now) lets the save path keep the last one.

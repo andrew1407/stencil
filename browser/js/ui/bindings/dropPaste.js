@@ -15,9 +15,8 @@ export function wireDropPaste(app) {
   // dropped file (shared with the chat's drop-to-attach — dragImageUrl.js).
   const fetchUrlToFile = (url) => fetchDraggedMediaFile(url);
 
-  // Load a dropped image via the LEFT (save) or RIGHT (incognito) zone; with an image
-  // open, first ask current page vs new one. `from` = the drop point in client coords —
-  // the canvas plays in out of it (ui/motion.js arriveFrom); dialog/paste paths have none.
+  // `from` = the drop point in client coords — the canvas plays in out of it (ui/motion.js
+  // arriveFrom); the dialog and paste paths have none.
   const handleImageDrop = async (file, incognito, from = null) => {
     if (app.image) {
       // Three BUTTONS, not a picker: two answers and a way out, each one click. Desktop
@@ -35,13 +34,11 @@ export function wireDropPaste(app) {
   };
 
   // Internal row-reorder drags (Servers / Projects modals) carry this flag; the image-drop
-  // overlay must ignore them (a connection row's URL would otherwise pop the overlay + try to
-  // fetch it as an image on drop).
+  // overlay must ignore them, or a connection row's URL is fetched as an image.
   const isReorderDrag = (e) => { try { return e.dataTransfer.types.includes('application/x-stencil-reorder'); } catch { return false; } };
 
-  // Drops on an element that wires its OWN drop handlers belong to it — the overlay
-  // would cover it and swallow its events, so it stands down over its rect. Owners
-  // declare themselves with [data-drop-owner] while visible (today: the open chat panel).
+  // Drops on an element wiring its OWN drop handlers belong to it, so the overlay stands down
+  // over its rect. Owners declare themselves with [data-drop-owner] while visible.
   const overDropOwner = (x, y) => {
     for (const el of document.querySelectorAll('[data-drop-owner]')) {
       if (pointInRect(x, y, el.getBoundingClientRect())) return true;
@@ -125,9 +122,8 @@ export function wireDropPaste(app) {
     const cd = e.clipboardData;
     if (!cd) return;
 
-    // 1) Image takes priority. mediaFilesFromData reads the items SYNCHRONOUSLY
-    // (clipboardData is invalid after an await); the chat panel shares it for its
-    // own attach-on-paste, which stops propagation before this handler runs.
+    // mediaFilesFromData reads the items SYNCHRONOUSLY — clipboardData is invalid after an await.
+    // The chat panel shares it for attach-on-paste and stops propagation before this handler.
     const hasImageItem = [...cd.items].some((item) => item.type && item.type.startsWith('image/'));
     if (hasImageItem) {
       e.preventDefault();

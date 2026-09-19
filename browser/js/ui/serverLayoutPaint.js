@@ -6,9 +6,8 @@ import { revealControls } from './motion.js';
 // A server layout arrives as model + screen in one step: the editor state it names and the
 // form fields that show it. Element ids live here, never in js/core's sync controller.
 
-// Adopt a server layout's filter/tint into the editor + filter UI, and clear the
-// dirty flag (the server's filter is now ours). Used by conflict-merge so a line-only
-// edit preserves a peer's filter change instead of clobbering it.
+// Adopt a server layout's filter/tint and clear the dirty flag (its filter is now ours), so a
+// conflict-merge of a line-only edit preserves a peer's filter change instead of clobbering it.
 export const adoptServerFilter = (app, layout) => {
   if (!layout) return;
   app.imageFilter = layout.imageFilter || (layout.blackAndWhite ? 'bw' : 'none');

@@ -22,9 +22,8 @@ export class ExportService {
     URL.revokeObjectURL(url);
   }
 
-// One export variant on a full-resolution offscreen canvas; the renderer writes to app.ctx,
-// so point that at the offscreen ctx, then restore. 'original' = cropped+rotated original
-// alone; 'tint' = filter without lines; 'split' = 'current' plus the compare composite, no divider.
+// The renderer writes to app.ctx, so point that at the full-resolution offscreen ctx and
+// restore it after.
   renderExportCanvas(variant = 'current') {
     const app = this.app;
     const offscreen = document.createElement('canvas');

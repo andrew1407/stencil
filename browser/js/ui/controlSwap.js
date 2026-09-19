@@ -8,9 +8,8 @@ import { markIn, markOut } from './motion.js';
 // The desktop's NO_CONTROL_SWAP_PROPERTY.
 const NO_SWAP_ATTR = 'data-no-mark-dust';
 
-// What the checked state paints, read off the live element and cached: an unchecked box
-// paints nothing, so with no cache the look is probed by ticking it for one synchronous
-// style read (no event fires in between).
+// An unchecked box paints nothing, so with no cache the look is probed by ticking it for one
+// synchronous style read — no event fires in between.
 const checkedInk = (el) => {
   const read = () => getComputedStyle(el).backgroundColor;
   const blank = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);

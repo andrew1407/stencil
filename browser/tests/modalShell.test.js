@@ -1,9 +1,6 @@
-// One window at a time, and its own shortcut closes it.
-//
-// The bugs: a modal's shortcut re-opened the modal that was already showing (nothing appeared
-// to happen), and opening a second window left the first one underneath it. Both are decided
-// by wireModalShell, so they are testable without a real DOM — only classList, listeners and
-// getElementById are exercised here.
+// One window at a time, and its own shortcut closes it: a modal's shortcut must not re-open the modal already
+// showing, and opening a second window must not leave the first one underneath it. Both are decided by
+// wireModalShell, so only classList, listeners and getElementById are exercised here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement, installDom } from './helpers/dom.js';
@@ -95,9 +92,8 @@ test('escapeClose: false keeps the FULL modal open, but its popover shape still 
   overlay.classList.remove('modal-popover');
 });
 
-// A window raised FROM a popover must not dismiss it. The click-outside rule reads the
-// app's stacking order (components.css: overlays 100001, stacked editor 100002, portaled
-// menus + confirm 100003) to tell "a layer I raised" from "the page underneath me".
+// A window raised FROM a popover must not dismiss it: the click-outside rule reads the app's stacking order
+// (components.css: overlays 100001, stacked editor 100002, portaled menus + confirm 100003).
 test('a press in a layer raised over a popover leaves it open; the page below still closes it', () => {
   const zOf = new Map();
   globalThis.getComputedStyle = (node) => ({ zIndex: zOf.get(node) ?? 'auto' });

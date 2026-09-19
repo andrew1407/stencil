@@ -1,9 +1,7 @@
 // Injected confirm for a drop on an OCCUPIED editor: resolves 'replace' | 'newtab' |
 // 'cancel'. executeScript serialises the function and nothing else, so it stays
 // self-contained (no imports); the SW awaits the returned promise.
-// `mode` is the Appearance choice resolved by the panel (lib/shellTheme.js injectedScheme);
-// it falls back to the page's query only when nothing has been mirrored yet. A bare
-// `@media (prefers-color-scheme)` here would ignore the choice outright.
+// `mode` is the panel's already-resolved Appearance choice, never prefers-color-scheme.
 export const mountDropChoice = (accent = '#7c3aed', mode = 'system') => new Promise((resolve) => {
   const ID = 'stencil-ext-dropchoice';
   document.getElementById(ID)?.remove();

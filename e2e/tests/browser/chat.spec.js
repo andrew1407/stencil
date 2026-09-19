@@ -1,9 +1,8 @@
-// Browser-app AI assistant e2e: the chat panel (browser/js/ui/chatPanel.js) against a
-// STUB LLM server (helpers/llm-stub.js) — no real model, no external network. Covers
-// the llm-contract.md seams: §5 settings in localStorage, the §6.2 openai-compat
-// wire shape, and a §1 op-plan whose actions execute against the frozen window.stencil
-// facade (sepia filter) and whose variants render as thumbnail cards. Plus a
-// dock/float placement smoke with cross-page persistence.
+// Browser-app AI assistant e2e: the chat panel (js/ui/chatPanel.js) against a stub LLM server
+// (helpers/llm-stub.js). Covers the llm-contract seams — §5 settings in localStorage, the §6.2
+// openai-compat wire shape, and a §1 op-plan whose actions execute against the frozen
+// window.stencil facade and whose variants render as thumbnail cards — plus a dock/float
+// placement smoke with cross-page persistence.
 import { test, expect } from '@playwright/test';
 import { gotoApp, APP_URL } from '../../helpers/boot.js';
 import { startLlmStub } from '../../helpers/llm-stub.js';
@@ -21,10 +20,6 @@ test.describe('AI assistant chat panel', () => {
   test.afterAll(async () => { await stub?.close(); });
   test.beforeEach(() => stub.reset());
 
-  // Every test in this group starts the same way: boot, point the §5 settings at the
-  // stub, and lay down a working image so plans have something to apply to and
-  // variants can export. (The dock/float smoke at the bottom needs neither, so it
-  // sits outside the group.)
   test.describe(() => {
     test.beforeEach(async ({ page }) => {
       await gotoApp(page);
@@ -35,9 +30,8 @@ test.describe('AI assistant chat panel', () => {
     });
 
     test('op-plan executes on the facade and variants render as cards', async ({ page }) => {
-      // §1 plan: one in-place action (sepia) + two variants. Rotation-only variants keep
-      // the top-level filter setting observable afterwards (variant execution restores
-      // the image snapshot, not the settings).
+      // Rotation-only variants keep the top-level filter setting observable afterwards: variant
+      // execution restores the image snapshot, not the settings.
       stub.queue({
         version: 1,
         reply: 'Applied sepia; here are two rotated variants.',
@@ -150,10 +144,8 @@ test.describe('AI assistant chat panel', () => {
       await expect(page.locator('#ctx-assist-sub')).not.toHaveClass(/ctx-sub-visible/);
     });
 
-    // The regression that shipped once: hovering a parent WHILE the menu's entry pop is
-    // still running. The pop scales the menu, so the hovered item slid out from under the
-    // stationary cursor — the flyout was placed against a transformed ancestor and then
-    // torn down by the layout-induced mouseleave. It looked like submenus stopped working.
+    // Hovering a parent WHILE the menu's entry pop runs: the pop scales the menu, so a flyout
+    // placed against a transformed ancestor slid out from under the stationary cursor.
     test('context menu: a flyout opened DURING the entry animation opens and stays', async ({ page }) => {
       await page.waitForTimeout(400);
       await page.locator('#canvas').click({ button: 'right', position: { x: 40, y: 40 } });
@@ -238,9 +230,8 @@ test.describe('AI assistant chat panel', () => {
     test('context-menu assistant: attach feeds the shared queue, the gear opens the modal', async ({ page }) => {
       await openAssistantFlyout(page);
 
-      // The composer row is Send + "…" (attach and settings moved into the overflow):
-      // both squares, same size, on one row. (Measure after the flyout's pop animation
-      // settles — mid-pop everything is scaled by ~0.95.)
+      // Send and "…" are both squares of the same size on one row — measure after the flyout's pop
+      // settles, mid-pop everything is scaled by ~0.95.
       await settleFlyout(page);
       const sizes = await page.locator('#ctx-assist-send, #ctx-assist-more-btn')
         .evaluateAll((els) => els.map((e) => {
@@ -342,11 +333,8 @@ test.describe('AI assistant chat panel', () => {
       await expect(page.locator('#chat-transcript .chat-config-cta')).toHaveCount(1);
       await expect(page.locator('#ctx-assist-transcript .chat-config-cta')).toHaveCount(1);
 
-      // 5. Clear from the panel empties BOTH and brings each empty state back.
-      // Dismiss the context menu first: it is still open over the floated panel, and
-      // Clear now lives in the composer's "…" overflow, which has to be clickable.
-      // (Escape only closes the chat when it is a compact popover; this one is a
-      // float the user adopted, so it stays open.)
+      // Dismiss the context menu first: Clear lives in the composer's "…" overflow, which has to be
+      // clickable. Escape only closes a compact popover, not a float the user adopted.
       await page.keyboard.press('Escape');
       await expect(page.locator('#ctx-menu')).not.toHaveClass(/ctx-open/);
       await clearConversation(page);
@@ -357,9 +345,8 @@ test.describe('AI assistant chat panel', () => {
       await expect(page.locator('#ctx-assist-transcript .chat-empty')).toHaveCount(1);
     });
 
-    // The empty state is a property of the shared conversation, not of either surface:
-    // chips whenever the log is empty, gone with the first message, back after Clear —
-    // in BOTH transcripts at once, and still clickable after being rebuilt.
+    // The empty state belongs to the shared conversation, not either surface: chips in BOTH
+    // transcripts whenever the log is empty, and still clickable after being rebuilt.
     test('suggestion chips track the shared conversation in both surfaces', async ({ page }) => {
       const chips = (sel) => page.locator(`${sel} .chat-suggest`);
       const panelChips = () => chips('#chat-transcript');
@@ -409,10 +396,8 @@ test.describe('AI assistant chat panel', () => {
       for (const b of [send_, more]) {
         expect({ w: b.w, h: b.h, radius: b.radius }).toEqual({ w: 34, h: 34, radius: '6px' });
       }
-      // Send is the idle one (aria-disabled; with voice supported it stays clickable as
-      // the mic — chatView.js syncComposerControls), and it wears the app's shared idle
-      // palette — the SAME treatment the panel's send has in that state (no bespoke
-      // flyout rule).
+      // With voice supported, idle Send stays clickable as the mic (chatView.js syncComposerControls)
+      // and wears the app's shared idle palette, not a bespoke flyout rule.
       expect(send_.idle).toBe(true);
       expect(more.idle).toBe(false);
       expect(more.disabled).toBe(false);
@@ -502,9 +487,8 @@ test.describe('AI assistant chat panel', () => {
     await openChatPanel(page);
     const panel = page.locator('#chat-panel');
 
-    // ≤680px viewports force a bottom sheet and hide the dock buttons/resizer, so the
-    // placement chrome is only drivable on a desktop-sized viewport (the harness uses
-    // Desktop Chrome 1280×720; this guard keeps the intent explicit).
+    // ≤680px viewports force a bottom sheet and hide the dock buttons/resizer, so the placement
+    // chrome is only drivable at the harness's desktop 1280×720.
     const vp = page.viewportSize();
     test.skip(!vp || vp.width <= 680, 'dock/resize chrome is hidden on small viewports (bottom sheet mode)');
 
@@ -514,9 +498,8 @@ test.describe('AI assistant chat panel', () => {
     await page.locator('#chat-dock-bottom-btn').click();
     await expect(panel).toHaveClass(/chat-dock-bottom/);
 
-    // Float: the panel takes its session rect as inline style. The open/dock
-    // animations (chatSlide*/popIn, animations.css) scale/translate the panel for
-    // ~200ms, so wait for them to finish before trusting any boundingBox.
+    // The open/dock animations scale/translate the panel for ~200ms, so wait them out before
+    // trusting any boundingBox.
     await page.locator('#chat-float-btn').click();
     await expect(panel).toHaveClass(/chat-dock-float/);
     const settle = (p) => p.waitForFunction(() => {
@@ -526,13 +509,8 @@ test.describe('AI assistant chat panel', () => {
     await settle(page);
     const before = await panel.boundingBox();
 
-    // Drag the header (left edge — away from the header buttons) to move the panel.
-    // The drag arms after a 4px threshold and anchors its offset at the FIRST
-    // post-threshold pointermove; pointermoves are rAF-coalesced, so the exact anchor
-    // (and hence the exact delta) is timing-dependent — assert direction/magnitude
-    // leniently (exactness is pinned by the resize below, which anchors at
-    // pointerdown). The release point stays > 72px from every viewport edge so it
-    // lands in no dock zone (which would re-dock instead of keeping float).
+    // The drag arms after 4px and anchors at the first (rAF-coalesced) post-threshold pointermove,
+    // so assert direction leniently; release >72px from every edge or it lands in a dock zone.
     const ARM = 8;                     // first move past the 4px threshold — arms the drag
     const DRAG_DX = 90, DRAG_DY = 50;  // travel after arming; observed delta ∈ (lenient, ARM + travel]
     const header = await page.locator('#chat-header').boundingBox();
@@ -563,9 +541,8 @@ test.describe('AI assistant chat panel', () => {
     expect(Math.round(after.width - before.width)).toBe(RESIZE_DX);
     expect(Math.round(after.height - before.height)).toBe(RESIZE_DY);
 
-    // Layout is deliberately session-only: a fresh page of the same context (shared
-    // origin storage) must come up with the chat CLOSED, and opening it lands at
-    // the defaults — docked left, and the stock float rect after clicking float.
+    // Layout is deliberately session-only: a fresh page of the same context comes up with the chat
+    // closed, and opening it lands at the defaults.
     const page2 = await context.newPage();
     await page2.goto(APP_URL);
     await page2.waitForFunction(() => !!window.stencil, null, { timeout: 15_000 });
@@ -582,10 +559,8 @@ test.describe('AI assistant chat panel', () => {
     await page2.close();
   });
 
-  // Fullscreen hides the real toolbar and shows a CLONE of it (fullscreenLayer.js
-  // clones .controls into #fs-controls-panel), which breaks two things that only a
-  // real browser shows: the clone is a snapshot, so it can't follow the panel's
-  // open state, and the original #chat-btn it forwards clicks to measures 0×0 —
+  // Fullscreen shows a CLONE of the toolbar (fullscreenLayer.js): the clone is a snapshot, so it
+  // cannot follow the panel's open state, and the original #chat-btn it forwards to measures 0×0.
   /* A double-click a HUMAN would make: two presses a beat apart, the second carrying the
    * clickCount that raises `dblclick`. Opening the panel on the FIRST click docked it and
    * pushed #chat-btn ~350px along the toolbar, so the second press landed on empty chrome
@@ -627,14 +602,11 @@ test.describe('AI assistant chat panel', () => {
     await expect(panel).toHaveClass(/chat-open/);
     await expect(panel).toHaveClass(/chat-dock-float/);
 
-    // Enter fullscreen from the KEYBOARD (Alt+F): clicking the toolbar button would
-    // be a press outside the popover, which correctly dismisses it — and then there
-    // would be no stranded shape left to assert about. Blur the composer first
-    // (openCompact focuses it) or the hotkey is swallowed by the text field.
+    // Enter fullscreen from the keyboard (Alt+F): clicking the toolbar button is a press outside the
+    // popover, which dismisses it. Blur the composer first or the hotkey is swallowed by the field.
     await page.evaluate(() => document.activeElement?.blur());
-    // Alt DOWN while the pointer rests on a toolbar icon fires that icon's Alt-glide,
-    // which closes every other mini window (popover.js closeFromGlide) — this popover
-    // included. The dblclick left the cursor on #chat-btn, so park it off the toolbar.
+    // Alt down over a toolbar icon fires that icon's Alt-glide, which closes every other mini
+    // window (popover.js closeFromGlide), so park the cursor off the toolbar.
     const parked = await pointClearOfPanel(page);
     if (parked) await page.mouse.move(parked.x, parked.y);
     await page.keyboard.press('Alt+f');
@@ -660,9 +632,8 @@ test.describe('AI assistant chat panel', () => {
     await expect(panel).toHaveClass(/chat-open/);
     await expect(fsBtn).toHaveClass(/active/);
 
-    // And leaving fullscreen hands the state back to the real toolbar. There is no Exit
-    // button any more — the strip IS the toolbar, so its own fullscreen toggle leaves
-    // (Escape does too). The clone shares the real one's id, so scope to the clone here.
+    // The strip IS the toolbar, so its own fullscreen toggle leaves (Escape does too); the clone
+    // shares the real one's id, so scope to the clone here.
     await page.locator('#fs-controls-panel #fullscreen-toggle').click();
     await expect(page.locator('body')).not.toHaveClass(/fullscreen-mode/);
     await expect(page.locator('#controls-body #chat-btn')).toHaveClass(/active/);

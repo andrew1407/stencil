@@ -2,9 +2,6 @@ import { wireNameEditor } from '../../utils.js';
 import { markIn, markOut } from '../motion.js';
 import { validateProjectName } from '../../core/validation.js';
 export function wireProjectNameField(app) {
-  // Topbar project-name field: double-click (or hover ✎) edits inline; ✓/✗ show ONLY
-  // while editing — ✓ enabled for a changed, valid (non-empty, unique) name; ✓/Enter
-  // commit, ✗/Escape/click-away revert. Incognito / no project never expose ✎ or ✓/✗.
   const nameInput = document.getElementById('project-name-input');
   const nameEdit = document.getElementById('project-name-edit');
   const nameAccept = document.getElementById('project-name-accept');
@@ -51,9 +48,8 @@ export function wireProjectNameField(app) {
     });
     nameInput.addEventListener('dblclick', () => beginEdit());
     if (nameEdit) nameEdit.addEventListener('click', () => beginEdit());
-    // ✎/🎨 hover-reveal as sand (desktop setPaintedOut parity): the .name-hover class
-    // flips their visibility, and the mark dust makes the flip read as forming /
-    // coming apart instead of a hard pop.
+    // ✎/🎨 hover-reveal as sand (desktop parity: setPaintedOut) — the .name-hover class flips
+    // their visibility and the mark dust makes the flip read as forming.
     {
       const field = nameInput.closest('.project-name-field');
       const revealable = () => [nameEdit, document.getElementById('project-color-btn')]

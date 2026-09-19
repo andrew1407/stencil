@@ -5,9 +5,8 @@ import { notify } from '../utils.js';
 import { swapContent } from './motion.js';
 import { subscribe } from '../eventBus/appBus.js';
 
-// Two layers of state: the FACE (`on`, flipped by the "…" item, a double-click or a hold)
-// and LISTENING (the coordinator's, with this surface's target). Dictation lands after
-// whatever was typed; the auto-send goes through the surface's own `send`.
+// Two layers of state: the FACE (`on`) and LISTENING (the coordinator's, with this surface's
+// target). Dictation lands after whatever was typed; auto-send goes through the surface's `send`.
 export const wireComposerVoice = ({ prefix, input, sendBtn, doc = document, app, send, sync, win = (typeof window !== 'undefined' ? window : null) }) => {
   const item = doc.getElementById(`${prefix}-voice`);
   const voice = () => app.voice;

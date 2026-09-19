@@ -45,12 +45,8 @@ test('tolerates a read() that throws for a type', () => {
   assert.equal(extractDraggedImageUrl(read), 'https://cdn/ok.png');
 });
 
-// ── Relative and protocol-relative sources ──────────────────────────────────
-// A dragged URL only works if it addresses the origin it came FROM. Real pages
-// still emit protocol-relative srcs, and a bare fetch of one
-// resolves against OUR scheme — on an http:// dev server that is a plain-http
-// request to an https-only host, which fails and used to be reported as the remote
-// site blocking cross-origin downloads.
+// A dragged URL only works if it addresses the origin it came FROM: a protocol-relative src resolves against
+// OUR scheme, which on an http:// dev server is a plain-http request to an https-only host.
 test('protocol-relative sources are pinned to https, not to our scheme', () => {
   const url = '//raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png';
   assert.equal(extractDraggedImageUrl(reader({ 'text/uri-list': url })), `https:${url}`);
@@ -78,12 +74,8 @@ test('data: and blob: sources pass through untouched', () => {
   assert.equal(extractDraggedImageUrl(reader({ 'text/html': '<img src="blob:https://x.test/abc">' })), 'blob:https://x.test/abc');
 });
 
-// ── A LINKED image: the payload that actually broke gallery drags ──────────
-// Galleries and file browsers wrap every image in an <a> to its own page. Chrome
-// then puts the LINK TARGET in text/uri-list and the real image only
-// in text/html's <img src>. Preferring uri-list by position fetched the article
-// page — HTML, from a host that sends no CORS headers — so the drop failed and
-// reported the site as blocking cross-origin downloads.
+// Galleries wrap every image in an <a>, so Chrome puts the LINK TARGET in text/uri-list and the image only in
+// text/html's <img src>: preferring uri-list by position fetches the article page instead.
 test('a linked image picks the <img src>, not the link target', () => {
   const page = 'https://github.com/andrew1407/stencil/tree/main/bot/assets';
   const img = 'https://raw.githubusercontent.com/andrew1407/stencil/main/bot/assets/icon.png';

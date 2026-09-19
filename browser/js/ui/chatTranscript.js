@@ -135,9 +135,8 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
   });
   restoreEmptyState(transcript, log, wiped);
   if (stick) stickToBottom(transcript);
-// Arrivals last of all: every entry is fully built and the transcript has been told to
-// scroll (chatIn waits two frames before photographing). One grid budget shared with
-// the wipe above.
+// Arrivals last of all, once every entry is built and the transcript has been told to scroll
+// (chatIn waits two frames before photographing). One grid budget shared with the wipe.
   entering.forEach((el, i) => chatIn(el, entering.length + going.length, i));
   transcript._chatPainted = true;
 };

@@ -1,12 +1,7 @@
-// Fullscreen is available on an EMPTY editor (js/core/drawingApp.js updateButtons,
-// js/ui/fullscreenLayer.js toggleFullscreen).
-//
-// It used to be gated on `app.image` in two places at once — the toolbar button was
-// disabled and the toggle itself returned early — so the imageless editor could not go
-// fullscreen from the button, Alt+F, the context menu, or `stencil.fullscreen = true`.
-// There is nothing to protect: the empty canvas carries the "＋ Blank image" card and the
-// whole toolbar, which is exactly when the extra room is most useful. The one rule that
-// stays is that the other image-dependent controls (zoom, undo/redo, crop…) are still off.
+// Fullscreen is available on an EMPTY editor (js/core/drawingApp.js updateButtons, js/ui/fullscreenLayer.js
+// toggleFullscreen): the empty canvas carries the "＋ Blank image" card and the whole toolbar, which is when
+// the extra room is most useful, so no route — the button, Alt+F, the context menu, `stencil.fullscreen` — is
+// gated on `app.image`. The other image-dependent controls (zoom, undo/redo, crop…) stay off.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

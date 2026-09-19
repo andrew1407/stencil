@@ -3,9 +3,8 @@
 import { getSettings } from '../lib/stencil.js';
 import { MENU_ITEMS, STATIC_DESKTOP_ITEMS } from '../lib/contextMenu.js';
 
-// Rebuild the menu from scratch; removeAll first avoids "duplicate id" on repeated
-// builds. onInstalled/onStartup aren't reliable per reload, so this also runs at
-// top level on each worker start (below).
+// removeAll first: onInstalled/onStartup are unreliable per reload, so this also runs at
+// top level on each worker start, and a rebuild would otherwise hit "duplicate id".
 export const buildMenus = () => {
   chrome.contextMenus.removeAll(() => {
     for (const item of MENU_ITEMS) chrome.contextMenus.create(item, () => void chrome.runtime.lastError);
@@ -19,9 +18,8 @@ export const buildMenus = () => {
 // (they no-op without a scheme, so hide them). Cached for the synchronous CTX probe handler.
 export let desktopSchemeSet = true;
 
-// Show/hide the desktop-app hand-off items to match the configured scheme. The STATIC items
-// (image / video-frame) toggle on the scheme alone; MENU.BG_DESKTOP is revealed by the probe
-// (CTX handler) gated on this flag, so it isn't touched here.
+// MENU.BG_DESKTOP is revealed by the right-click probe gated on this flag, so the loop below
+// leaves it alone; the static image / video-frame items toggle on the scheme itself.
 export const syncDesktopMenuVisibility = async () => {
   try { const { desktopScheme } = await getSettings(); desktopSchemeSet = !!desktopScheme; }
   catch { desktopSchemeSet = true; }

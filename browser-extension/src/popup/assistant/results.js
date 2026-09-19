@@ -66,10 +66,8 @@ export const createResults = ({ view, getItems, state }) => {
     for (const c of cards) cardRenderers[c.kind]?.(c);
   };
 
-  // ── §11 choice card ────────────────────────────────────────────────────────
-  // The model's `ask` rendered under its reply: radios (single) / checkboxes (multi) +
-  // an optional free-text row. Submitting sends the answer as the user's NEXT turn —
-  // nothing applies on click; answered cards lock. Model text is DATA: textContent throughout.
+  // §11 choice card: submitting sends the answer as the user's NEXT turn — nothing applies on
+  // click, and answered cards lock. Model text is DATA: textContent throughout.
   const renderAsk = (ask) => {
     const wrap = document.createElement('div');
     wrap.className = 'chat-ask';
@@ -169,9 +167,8 @@ export const createResults = ({ view, getItems, state }) => {
   const renderResult = (result) => {
     renderCards(result.cards);
     addMsg('assistant', result.reply);
-    // A "chat-only" reply that LOOKS like a plan is the model mangling its JSON
-    // (§1 extraction found no parseable object). The raw text still shows above
-    // (it is the reply — data, never executed); this note says why nothing ran.
+    // A "chat-only" reply that LOOKS like a plan is the model mangling its JSON (§1 extraction
+    // found no parseable object); the raw text is the reply — data, never executed.
     if (result.chatOnly && /^\s*[{`]/.test(result.reply || '') && /"(op|actions|version)"/.test(result.reply || '')) {
       addWarn('That answer looks like a plan, but its JSON is malformed — nothing was executed. Small models often mangle plan JSON; try again or switch to a larger model in Options.');
     } else if (result.chatOnly && /^\s*</.test(result.reply || '') && /<\w+[\s>]/.test(result.reply || '')) {
@@ -184,9 +181,8 @@ export const createResults = ({ view, getItems, state }) => {
       addMsg('note', 'Continued automatically with the gathered context…');
       renderResult(result.continuation);
     }
-    // §10 clearChat rides only the OUTERMOST result and resolved after everything
-    // else, so its note lands last. Confirmed = the wipe itself is the feedback
-    // (it runs once busy drops); declined = the contract's "clear canceled" note.
+    // §10 clearChat rides only the OUTERMOST result and resolves after everything else, so its
+    // note lands last; confirmed, the wipe itself is the feedback.
     if (result.clearChat && !result.clearChat.confirmed) {
       addMsg('note', 'Clear canceled — the conversation stays.');
     }

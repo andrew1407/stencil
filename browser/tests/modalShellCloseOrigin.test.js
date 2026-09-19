@@ -1,11 +1,7 @@
-// A modal opened with NO gesture behind it (open(null) — the projects modal's on-boot
-// auto-chooser, see projectsModal.js) still deserves a normal CLOSE: shrinking into the
-// icon that would reopen it, not falling off the top of the screen a second time.
-//
-// The bug: wireModalShell (js/ui/base.js) resolved the flight's origin only in open(),
-// leaving `originEl` null for the rest of the modal's life once it opened with no
-// gesture. close() reused that stale null, so --modal-dy kept the "fell from above"
-// value even though the toolbar icon was right there on screen.
+// A modal opened with NO gesture behind it (open(null) — the projects modal's on-boot auto-chooser)
+// still deserves a normal CLOSE, shrinking into the icon that would reopen it. wireModalShell
+// (js/ui/base.js) therefore resolves the flight's origin at close() too, not only in open(), where a
+// null `originEl` kept --modal-dy at its "fell from above" value for the modal's whole life.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement, installDom } from './helpers/dom.js';
@@ -15,9 +11,8 @@ import { createStubElement, installDom } from './helpers/dom.js';
 const rectOf = (r) => () => ({ ...r, bottom: r.top + r.height });
 
 installDom({}, {
-  // base.js and motion.js now ask the SAME gate (ui/motionPrefs.js), so reduced motion is
-  // off here — setOriginVars must actually run — and the particles are switched off through
-  // the motion mode below instead. The flight math under test happens in setOrigin either way.
+  // base.js and motion.js ask the SAME gate (ui/motionPrefs.js), so reduced motion is off here and
+  // setOriginVars really runs; the particles are switched off through the motion mode instead.
   window: { matchMedia: () => ({ matches: false }), innerWidth: 1000, innerHeight: 800, addEventListener: () => {} },
   matchMedia: () => ({ matches: false }),
 });
@@ -60,19 +55,15 @@ test('closing an open(null) modal flies into its own icon, not off the top again
   shell.open(null);
   assert.deepEqual(readVars(box), expectedVars(boxRect, null), 'open(null) has no gesture to grow out of');
 
-  // The FIRST close, before any real click on the toolbar icon ever happened — this is
-  // exactly the reported repro (a saved project restored, Projects auto-opens, the user
-  // hits its own Close button). It must target the icon, which is plainly on-screen.
+  // The FIRST close, before any real click on the toolbar icon ever happened: it must still target that
+  // icon, which is plainly on screen.
   shell.close();
   assert.deepEqual(readVars(box), expectedVars(boxRect, openBtn.getBoundingClientRect()),
     'close still has the toolbar icon to shrink into, even though open() never claimed one');
 });
 
-// …and the other way round: the control the window BELONGS to can be gone by the time it
-// closes — #load-image-btn goes display:none the moment an image exists, and the projects
-// footer's buttons go with the modal that held them. Falling off the top then is an exit
-// towards nothing (user report: adding any image made the dialog leave upwards). It
-// collapses into the CANVAS instead — where the picture it just opened has landed.
+// The other way round: the control a window BELONGS to can be gone by the time it closes (#load-image-btn
+// hides the moment an image exists), so it collapses into the CANVAS instead (user report).
 test('a window whose opener is gone by close time collapses into the canvas', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const boxRect = { left: 400, top: 300, width: 200, height: 150 };

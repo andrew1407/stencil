@@ -27,9 +27,8 @@ test('extension pages declare a CSP, and it grants no script escape', () => {
   for (const s of ['https:', 'wss:']) assert.ok(directives['connect-src'].includes(s), `connect-src ${s}`);
 });
 
-// The ONLY page a web page ever loads from this extension is the quick-crop modal, framed
-// by lib/overlay.js. Its own subresources load from the chrome-extension:// document, not
-// from the host page, so they need no entry of their own.
+// The only page a web page ever loads from this extension is the quick-crop modal; its own
+// subresources load from the chrome-extension:// document, so they need no entry.
 test('web_accessible_resources exposes only the in-page crop modal', () => {
   assert.deepEqual(exposed, ['src/crop/crop.html']);
 });

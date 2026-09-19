@@ -1,9 +1,7 @@
-// ── Rewrite patterns for the single-file build ──────────────────
-// vite.config.js edits five sources on its way to one self-contained HTML: the app shell
-// (inline the pre-paint script + icons, drop the PWA manifest and the <meta> CSP an all-inline
-// file off disk can't obey) and the three loaders that address a sibling file by URL. Each
-// pattern lives here, dependency-free, so tests/singleFileBuild.test.js can assert they all
-// still match — one that silently stops matching would ship an HTML needing siblings.
+// The rewrite patterns for the single-file build. vite.config.js edits five sources on its way to one
+// self-contained HTML: the app shell (inline the pre-paint script and the icons, drop the PWA manifest and the
+// <meta> CSP an all-inline file off disk cannot obey) and the three loaders that address a sibling file by URL.
+// They live here, dependency-free, so tests/singleFileBuild.test.js can assert they all still match.
 
 export const CSP_META = /^.*<!-- CSP:(?:.*\n)*?.*<meta http-equiv="Content-Security-Policy"[^>]*>\n/m;
 export const PRE_PAINT_TAG = /<script src="js\/prePaintTheme\.js"><\/script>/;

@@ -11,12 +11,8 @@ export function wireBatchActions(deps) {
   } = deps;
   const deleteRemoteProject = (serverUrl, id) => removeRemoteProject(app.connections, serverUrl, id);
 
-  // ── Batch actions over the checked rows ──
-  // Partial failure must be loud and specific: a row whose action failed comes back on
-  // the settle render, so without the summary the batch reads as silently dropping it.
-  // `rows` overrides the checked set for a caller that has already let it go — the
-  // removal clears the selection the moment the rows start leaving, so the bar can fly
-  // with them, and the list of what to act on is captured before that.
+  // `rows` overrides the checked set for a caller that has already let it go: the removal clears
+  // the selection as the rows start leaving, so what to act on is captured before that.
   const runBatch = async (fn, okMsg, failMsg, settle = null, rows = null) => {
     let done = 0;
     const failures = [];
@@ -47,19 +43,16 @@ export function wireBatchActions(deps) {
   batchBtns.remove.addEventListener('click', async () => {
     if (!selected.size) return;
     if (!(await app.confirm(`Remove ${selected.size} selected project(s)? Server projects are deleted from the server.`, { title: 'Remove projects', danger: true, confirmIcon: 'trash' }))) return;
-    // Every selected row scatters at once, then the batch runs — one shared animation.
-    // Budgeted: rowLeaveDust coarsens each row's grain on a mass removal so the
-    // TOTAL mote count stays bounded.
+    // Every selected row scatters at once, then the batch runs. Budgeted: rowLeaveDust coarsens
+    // each row's grain on a mass removal so the TOTAL mote count stays bounded.
     const settle = beginRemoval();
     const keys = [...selected.keys()];
     for (const k of keys) doomed.add(k);
     const rows = sel();
     const leaving = Promise.all(rows.map((s, i) =>
       leaveThenRemove(rowById(s.id), () => {}, rowLeaveDust(rows.length, i, ITEM_DUST_MS))));
-    // …and the bar answers NOW, beside the rows' own dust, rather than after it: the
-    // count, the batch buttons and Select all come apart in the same turn the rows do
-    // (connections modal parity — the rows are already `doomed`, so nothing is left to
-    // select). Without this the strip waited out the whole scatter first.
+    // The bar answers NOW, beside the rows' own dust, rather than after it (connections modal
+    // parity — the rows are already `doomed`, so nothing is left to select).
     selected.clear();
     updateBatchBar();
     await leaving;

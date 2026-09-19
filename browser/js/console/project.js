@@ -41,9 +41,6 @@ export const createProjectWrapper = ({ app, guard, openedIds }) => {
       store().upsert(proj.meta, proj.payload);
       app.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
     };
-    // Normalize `v` (a Date, epoch ms, a parseable date string, or 0/null = keep forever)
-    // and apply it through the shared core setter, which propagates to the server for a
-    // server-linked project.
     const setExpiry = (v, what) => {
       if (incognito) throw new Error('Cannot set expiration on an incognito editor');
       if (v == null || v === 0) { app.setProjectExpiration(id, { expiresAt: 0 }); return; }
@@ -56,9 +53,6 @@ export const createProjectWrapper = ({ app, guard, openedIds }) => {
       get id() { return id; },
       get incognito() { return incognito; },
       get isOpened() { return incognito ? true : openedIds().has(id); },
-      // Expiration. `expiresAt` is epoch ms (or null = kept forever); `expirationDate` is
-      // the same value as a Date. Both setters accept a number (ms), a Date, or a date
-      // string; 0/null keeps forever. Writes take the expiration modal's core path.
       get expiresAt() { const m = meta(); return m ? store().expiresAt(m) : null; },
       set expiresAt(v) { setExpiry(v, 'expiration'); },
       get expirationDate() { const m = meta(); const ms = m ? store().expiresAt(m) : null; return ms ? new Date(ms) : null; },
@@ -106,9 +100,6 @@ export const createProjectWrapper = ({ app, guard, openedIds }) => {
         if (incognito) throw new Error('Cannot describe an incognito editor');
         if (app.setProjectDescription(id, str(v)) == null) throw new Error(`Could not set description on project ${id}`);
       },
-      // Search keywords (string[]). Assign an array — one keyword per entry, a keyword may
-      // be several words — or a comma/newline separated string. Duplicates collapse (case
-      // insensitively) and order is kept; addKeywords / removeKeywords adjust the set.
       get keywords() { return incognito ? [] : (meta()?.keywords ?? []).slice(); },
       set keywords(v) {
         if (incognito) throw new Error('Cannot set keywords on an incognito editor');
@@ -119,9 +110,7 @@ export const createProjectWrapper = ({ app, guard, openedIds }) => {
       // True when this project was opened from a portable .stencil file (drives the bronze
       // projects-list outline / badge). Read-only provenance flag.
       get fromFile() { return incognito ? false : !!meta()?.fromFile; },
-      // Blank-fill colour ("#rrggbb"), or null for a non-blank project. Assigning recolours the
-      // solid background in place (the drawn lines stay). Setting on a non-blank project is a no-op
-      // (throws), per the "only blanks have a blank colour" rule.
+      // Setting a blank colour on a non-blank project throws: only blanks have one.
       get blankColor() { const m = meta(); return (m && m.blank) ? (m.blankColor || '') : null; },
       set blankColor(v) {
         if (incognito) throw new Error('Cannot recolor an incognito editor');
@@ -160,9 +149,6 @@ export const createProjectWrapper = ({ app, guard, openedIds }) => {
       get resource() { return isActive() ? (app.imageResource ?? null) : (meta()?.resource ?? null); },
       set resource(v) { setLink('resource', 'imageResource', v); },
       renew() { app.renewProject(id); return project; },
-      // Set expiry from a free-form duration ("days 23", "fortnight", "off"). No/blank arg
-      // returns the format help. Routes through setProjectExpiration so a server-linked
-      // project propagates the new expiry to the server.
       expire(spec) {
         if (incognito) throw new Error('Cannot set expiration on an incognito editor');
         const s = str(spec).trim();

@@ -2,9 +2,8 @@
 // Escape listener picks the topmost.
 export const modalShells = new Set();
 
-// One Escape listener for every shell: the topmost open window answers, and only it. A
-// shell wired with `escapeClose: false` (settingsModal) keeps its full modal open — its own
-// capture-phase listener owns Escape while a hotkey is rebound — but its popover shape closes.
+// One Escape listener for every shell: the topmost open window answers, and only it. A shell
+// wired `escapeClose: false` (settingsModal) keeps its modal open but closes its popover shape.
 let escapeWired = false;
 export const wireEscapeOnce = () => {
   if (escapeWired) return;

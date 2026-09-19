@@ -10,10 +10,8 @@ const toStr = v => String(v);
 // In cycle order (Alt+O steps through them).
 export const COMPARE_MODES = Object.freeze(['none', 'original', 'vertical', 'horizontal']);
 
-// One descriptor per simple setting; `set(key, …)` drives it: `field` the model field;
-// `parse` (undefined ABORTS); `mirror` bound DOM twins ({ id, kind }, see applyMirror);
-// `afterSet` per-setter side-effects, after the mirrors and before redraw; `redraw` (always,
-// even on persist:false); `save`/`remoteSync`/`filterDirty` gated behind `persist`.
+// One descriptor per simple setting: `field`, `parse` (undefined ABORTS), `mirror` DOM twins,
+// `afterSet`, `redraw` (always, even on persist:false); save/remoteSync/filterDirty gated on `persist`.
 export const SETTINGS = Object.freeze({
   color: {
     field: 'color', parse: toStr,

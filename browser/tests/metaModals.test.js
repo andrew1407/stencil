@@ -1,9 +1,8 @@
-// The toolbar's "Description & attributes" section (js/ui/toolbar.js) and its two windows
-// (descriptionModal.js, keywordsModal.js). Pins: the section sits between Image and Projects
-// and holds description → keywords → links (links-btn moved out of Image); the modals share
-// the app-modal shell (header + × Close, hint-left / Cancel + Save footer) around their own
-// field — a text area for description, keywordChips.js's input + chip well for keywords;
-// and all three buttons gate together on a SAVED, non-incognito project (controlState.js).
+// The toolbar's "Description & attributes" section (js/ui/toolbar.js) and its two windows (descriptionModal.js,
+// keywordsModal.js). Pinned: the section sits between Image and Projects and holds description → keywords →
+// links; both modals wear the app-modal shell (header + × Close, hint-left / Cancel + Save footer) around
+// their own field — a text area, and keywordChips.js's input plus chip well; and all three buttons gate
+// together on a SAVED, non-incognito project (controlState.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom } from './helpers/dom.js';

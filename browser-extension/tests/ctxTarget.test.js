@@ -1,10 +1,8 @@
-// content/ctxTarget.js — the right-click probe injected on <all_urls>. It is a classic
-// IIFE content script (no exports, no imports), so it is run in a vm over a fabricated
-// page: loading it IS arming it, and the listeners it binds are the surface under test.
-//
-// What it decides is what the context menu shows, so the rules that matter are the
-// negative ones: a real <img> must never reveal the background group, and a normal page
-// link must never reveal the menu at all.
+// content/ctxTarget.js — the right-click probe injected on <all_urls>. It is a classic IIFE
+// content script (no exports, no imports), so it is run in a vm over a fabricated page:
+// loading it IS arming it, and the listeners it binds are the surface under test.
+// What it decides is what the context menu shows, so the rules that matter are the negative
+// ones: a real <img> never reveals the background group, a page link never reveals the menu.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -174,9 +172,8 @@ test('the video under an overlay is the SMALLEST box containing the cursor', () 
   assert.equal(data.videoUrl, 'https://cdn.example/small.mp4');
 });
 
-// ── Priming ──
-// The menu group is revealed by UPDATING the menu, which races Chrome's render — so the
-// probe resolves on hover too. Ten tiles of the same background must cost one message.
+// The menu group is revealed by UPDATING the menu, which races Chrome's render, so the probe
+// resolves on hover too. Ten tiles of the same background must cost one message.
 
 test('hovering resolves early, and repeats of the same find are deduped', () => {
   const tile = () => el('div', { bg: 'url("/hero.png")' });

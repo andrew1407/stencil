@@ -51,8 +51,7 @@ export const bindRowGestures = (el, image) => {
 };
 
 // Mirrors browser/js/ui/dragGhost.js: Chrome snapshots the row before any .dragging style
-// applies, so a clone carries the faded look. A bare row's transparent background would
-// read as nothing, hence the solid card.
+// applies, and a bare row's transparent background would read as nothing — hence the card.
 const setTranslucentDragImage = (e, row) => {
   try {
     const ghost = row.cloneNode(true);

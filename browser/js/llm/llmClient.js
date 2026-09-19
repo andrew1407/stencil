@@ -1,36 +1,15 @@
 // ── LLM chat client (llm-contract.md §6 wire mappings) ─────────────────
-// One chat({ system, messages }) method over the three providers. Messages use the
-// stencil-server DTO shape as the canonical form ({ role, text, images: [{ mediaType,
-// data }] }); the ollama / openai-compat bodies are derived from it. fetch is injected
-// for `node --test`, mirroring connectionManager.js.
-//
-// SHARED with browser-extension/src/llm/llmClient.js: the two copies must stay identical
-// below this header (browser-extension/tests/portParity.test.js pins them); anything
-// per-surface lives in llmSurface.js.
+// One chat({ system, messages }) over the three providers. Messages use the stencil-server DTO
+// shape as canonical ({ role, text, images: [{ mediaType, data }] }); the ollama / openai-compat
+// bodies derive from it. fetch is injected for `node --test`. Byte-pinned below this header to
+// browser-extension/src/llm/llmClient.js; anything per-surface lives in llmSurface.js.
 import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
 import { ASSISTANT_OFF_TEXT, defaultGetToken } from './llmSurface.js';
+import { LlmError, postJson } from './llmHttp.js';
+export { LlmError, sanitizeProviderText } from './llmHttp.js';
 
-// Typed error the chat UI renders instead of parsing a plan:
-//   kind 'truncated' — stencil-server stopReason max_tokens (never parsed as a plan)
-//   kind 'refusal'   — stencil-server stopReason refusal (shown as a chat error)
-//   kind 'disabled'  — the server has no LLM key configured (503 llmDisabled)
-//   kind 'badReply'  — a 2xx body outside the documented shape (never an empty reply)
-//   kind 'network'   — fetch itself failed (DNS, refused, CORS), tagged at the call
-//   kind 'http'      — any other transport/HTTP failure
-export class LlmError extends Error {
-  constructor(message, kind) { super(message); this.name = 'LlmError'; this.kind = kind; }
-  static config(message) { return new LlmError(message, 'config'); }
-  static network(message) { return new LlmError(message, 'network'); }
-  static http(message) { return new LlmError(message, 'http'); }
-  static badReply(message) { return new LlmError(message, 'badReply'); }
-  static truncated(message) { return new LlmError(message, 'truncated'); }
-  static refusal(message) { return new LlmError(message, 'refusal'); }
-  static disabled(message) { return new LlmError(message, 'disabled'); }
-}
-
-// Endpoint paths, display names and the probe timeout come from the shared
-// constants file config providers.json (the extension ships a checked-in copy,
-// pinned by its dataParity.test.js).
+// Endpoint paths, display names and the probe timeout come from config providers.json (the
+// extension ships a checked-in copy, pinned by its dataParity.test.js).
 const PROVIDER_INFO = PROVIDERS_ASSET.providers;
 const PROBE_TIMEOUT_MS = PROVIDERS_ASSET.timeouts.probeMs;
 
@@ -40,60 +19,6 @@ export const PROVIDER_LABELS = Object.freeze({
   none: 'None (turned off)',
   ...Object.fromEntries(Object.entries(PROVIDER_INFO).map(([id, p]) => [id, p.displayName])),
 });
-
-// How much of a provider's own prose an error may quote (server upstream.go parity).
-const MAX_PROVIDER_DETAIL = 200;
-
-// A provider's error prose is untrusted text: control characters out, URLs and
-// token-shaped runs redacted (an endpoint may echo the key back), whitespace
-// collapsed, hard-truncated. Port of the server's sanitizeUpstreamText.
-export const sanitizeProviderText = (text) => {
-  let t = String(text ?? '').slice(0, 4 * MAX_PROVIDER_DETAIL);
-  t = t.replace(/[\p{Cc}\p{Cf}]/gu, ' ');
-  t = t.replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, '[redacted]');
-  t = t.replace(/(?:bearer|basic) +[A-Za-z0-9._~+/=-]{8,}|\b(?:sk|pk|api[-_]?key|key|token|secret)[-_=:][A-Za-z0-9._-]{6,}|[A-Za-z0-9_-]{24,}/gi, '[redacted]');
-  t = t.split(/\s+/).filter(Boolean).join(' ');
-  return t.length > MAX_PROVIDER_DETAIL ? `${t.slice(0, MAX_PROVIDER_DETAIL - 1).trim()}…` : t;
-};
-
-const postJson = async (fetchImpl, url, body, headers = {}, signal = undefined) => {
-  if (!fetchImpl) throw LlmError.http('no fetch implementation available');
-  let resp;
-  try {
-    resp = await fetchImpl(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body: JSON.stringify(body),
-      ...(signal ? { signal } : {}),
-    });
-  } catch (err) {
-    if (err?.name === 'AbortError') throw err;   // Stop button — not a failure
-    // fetch's own failures (DNS, refused, CORS) are TypeErrors — tag them HERE
-    // so the error mapping never has to guess from the exception type (a
-    // TypeError thrown later in plan execution must not read as "unreachable").
-    throw LlmError.network(err?.message || String(err));
-  }
-  if (!resp.ok) {
-    let msg = `HTTP ${resp.status}`;
-    let code = '';
-    try {
-      // Every provider's error shape (desktop llmClient parity): server {message, code},
-      // ollama {"error":"…"}, openai-compat {"error":{"message":"…"}} — a missing
-      // model reads as itself, not as a bare status code.
-      const e = await resp.json();
-      if (e && e.message) { msg = e.message; code = e.code || ''; }
-      else if (typeof e?.error === 'string' && e.error) msg = e.error;
-      else if (e?.error?.message) msg = e.error.message;
-      // Only the provider's own words survive, bounded — never the raw body.
-      msg = sanitizeProviderText(msg) || `HTTP ${resp.status}`;
-    } catch { /* non-JSON error body */ }
-    const err = code === 'llmDisabled' ? LlmError.disabled(msg) : LlmError.http(msg);
-    err.answered = true;   // the endpoint responded — this is NOT "unreachable"
-    err.status = resp.status;   // 401/403 = the SESSION is over, not the provider
-    throw err;
-  }
-  return resp.json();
-};
 
 // Canonical message → ollama native chat message (images as bare base64 strings).
 const ollamaMessage = (m) => (m.images && m.images.length
@@ -116,9 +41,8 @@ const serverMessage = (m) => (m.images && m.images.length
   ? { role: m.role, text: m.text, images: m.images }
   : { role: m.role, text: m.text });
 
-// Build a client for the given settings. `getToken(serverUrl)` resolves the existing
-// Stencil bearer token for the stencil-server provider (sync or async); without one
-// the surface's defaultGetToken applies (llmSurface.js). Injectable for `node --test`.
+// `getToken(serverUrl)` resolves the existing Stencil bearer token for stencil-server (sync or
+// async); without one the surface's defaultGetToken applies (llmSurface.js).
 export const createLlmClient = ({ settings, fetchImpl = globalThis.fetch?.bind(globalThis), getToken } = {}) => {
   const s = settings || {};
   const resolveToken = getToken || defaultGetToken(s);
@@ -186,9 +110,8 @@ export const fetchLlmInfo = async (serverUrl, { token = '', fetchImpl = globalTh
   return resp.json();
 };
 
-// Model suggestions for the settings UI's datalist (ollama GET /api/tags, openai-compat
-// GET /models, stencil-server /llm/info's default). Best-effort: NEVER throws, failures
-// resolve [] — the Model field always stays free-form typing.
+// Model suggestions for the settings datalist. Best-effort: NEVER throws, failures resolve [] —
+// the Model field always stays free-form typing.
 export const listModels = async (settings, { fetchImpl = globalThis.fetch?.bind(globalThis), getToken, timeoutMs = PROBE_TIMEOUT_MS } = {}) => {
   const s = settings || {};
   if (!fetchImpl) return [];
@@ -225,10 +148,8 @@ export const listModels = async (settings, { fetchImpl = globalThis.fetch?.bind(
   }
 };
 
-// Cheap reachability probe for the configured provider — no chat tokens spent:
-// ollama GET /api/version · openai-compat GET /models · stencil-server GET /llm/info.
-// NEVER throws: failures resolve { ok: false, detail }. Short timeout so a status
-// refresh can't hang; fetch is injected for `node --test`.
+// Cheap reachability probe, no chat tokens spent. NEVER throws: failures resolve
+// { ok: false, detail }. Short timeout so a status refresh cannot hang.
 export const probeProvider = async (settings, { fetchImpl = globalThis.fetch?.bind(globalThis), getToken, timeoutMs = PROBE_TIMEOUT_MS } = {}) => {
   const s = settings || {};
   const url = s.provider === 'stencil-server' ? (s.serverUrl || '') : (s.baseUrl || '');

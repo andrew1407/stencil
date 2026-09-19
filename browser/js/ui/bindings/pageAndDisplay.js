@@ -13,9 +13,8 @@ export function wirePageAndDisplayControls(app) {
   });
   const unitSel = document.getElementById('unit-select');
   if (unitSel) unitSel.addEventListener('change', e => app.settings.setUnit(e.target.value));
-  // Swap the native popups (whose position and palette macOS controls) for the app's own
-  // dropdown; the native <select>s stay the state source, so the change listeners and
-  // setVal(...) keep working. Page size gets a search bar (33 ISO formats).
+  // The native <select>s stay the state source, so the change listeners and setVal(...) keep
+  // working behind the app's own dropdown.
   enhanceSelect(document.getElementById('page-size'), { search: true });
   enhanceSelect(unitSel);
   document.getElementById('show-points').addEventListener('change', e => app.settings.setShowPoints(e.target.checked));

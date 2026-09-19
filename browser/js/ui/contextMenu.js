@@ -38,9 +38,8 @@ export class StencilContextMenu extends StencilElement {
       bindKbItem, setKbItem, setLastPointer,
     } = createCtxNav({ menu });
 
-    // Keyboard navigation (desktop QMenu parity) walks the same open-flyout state the hover
-    // path owns. Every callback is a thunk: menuIsOpen and friends are `const`s declared
-    // further down wire() (temporal dead zone).
+    // Every callback is a thunk: menuIsOpen and friends are `const`s declared further down wire()
+    // (temporal dead zone).
     bindKbItem(wireCtxKeyboard({
       menu,
       menuIsOpen: () => menuIsOpen(),

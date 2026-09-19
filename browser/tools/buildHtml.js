@@ -1,9 +1,6 @@
 #!/usr/bin/env node
-// ── `npm run build [-- <file.html>]` ────────────────────────────
-// Bundles the app into ONE self-contained HTML file (default: browser/stencil.html)
-// that runs straight off disk — no static server, no sibling assets. All the bundling
-// rules live in vite.config.js; this only picks the output name and moves the result
-// out of the throwaway build directory.
+// `npm run build [-- <file.html>]` bundles the app into ONE self-contained HTML file that runs straight off
+// disk; the bundling rules live in vite.config.js, this only names the output and moves it out of staging.
 import { rm, mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import { dirname, resolve, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';

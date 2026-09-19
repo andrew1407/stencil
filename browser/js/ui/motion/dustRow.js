@@ -9,9 +9,8 @@ import { CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, chipGrid } from './tiles.j
 export const CHIP_DUST = Object.freeze({ ms: CHIP_DUST_MS, drift: CHIP_DUST_DRIFT,
                                          px: CHIP_MOTE_PX, ...chipGrid(1) });
 
-// The box eases around an arriving row, so its control slides out from under its own
-// cloud — which follows by DELTA, keeping the offset a cloud given its own `box` has
-// (tiles.js retargetDust pins absolutely instead, and would lose it).
+// The cloud follows by DELTA, keeping the offset a cloud given its own `box` has — tiles.js
+// retargetDust pins absolutely instead and would lose it.
 export const followCloud = (el) => {
   const host = el.__dustHost;
   if (!host) return true;

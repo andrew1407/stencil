@@ -38,9 +38,8 @@ test('MAX_PAYLOAD is a sane positive ceiling', () => {
   assert.ok(MAX_PAYLOAD > 100000);
 });
 
-// The extension's host_permissions let fetch() reach ANY URL and bypass CORS, so a
-// page-supplied URL must be scheme-gated: only http(s)/blob (and pass-through data:)
-// are fetched — never file:/chrome:/ftp:/javascript:.
+// The extension's host_permissions let fetch() reach ANY URL and bypass CORS, so a page-supplied
+// URL must be scheme-gated: http(s)/blob and pass-through data: only.
 test('fetchAsDataUrl: rejects non-http(s)/blob/data schemes', async () => {
   for (const bad of ['file:///etc/passwd', 'ftp://h/a.png', 'chrome://version', 'javascript:alert(1)']) {
     await assert.rejects(() => fetchAsDataUrl(bad), /unsupported URL scheme/);
@@ -55,9 +54,8 @@ test('fetchAsDataUrl: rejects private/internal hosts', async () => {
   }
 });
 
-// The same-host carve-out: a trusted pageUrl (the scanned page's own URL) lets an
-// image on that SAME host through — cross-host private targets stay blocked, and the
-// metadata IP is never allowed even from itself.
+// The same-host carve-out: a trusted pageUrl lets an image on that SAME host through; cross-host
+// private targets stay blocked, and the metadata IP is never allowed even from itself.
 test('fetchAsDataUrl: pageUrl allows the scanned page\'s own private host only', async () => {
   const origFetch = globalThis.fetch;
   globalThis.fetch = async () => ({

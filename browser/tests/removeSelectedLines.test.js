@@ -1,10 +1,7 @@
-// Tests for DrawingApp.removeSelectedLines() (js/core/drawingApp.js) — the multi-select
-// counterpart of removeLine(), and what a bare Delete / Backspace now calls.
-//
-// The bug these lock down: only the modified chord (Alt+Delete, ⌥⌫ on Mac) was wired to
-// the canvas selection, and it removed a SINGLE index. So on a laptop — where the key
-// labelled "delete" is Backspace and forward-Delete needs Fn — pressing delete with lines
-// selected did nothing, and a multi-select delete removed at most one line.
+// DrawingApp.removeSelectedLines() (js/core/drawingApp.js) — the multi-select counterpart of removeLine(), and
+// what a bare Delete / Backspace calls. Only the modified chord (Alt+Delete, ⌥⌫ on Mac) was wired to the canvas
+// selection and it removed a SINGLE index, so on a laptop — where the key labelled "delete" is Backspace and
+// forward-Delete needs Fn — pressing delete with lines selected did nothing.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

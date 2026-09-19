@@ -1,9 +1,7 @@
-// Select dropdowns escape their container (js/ui/dropdownMenu.js).
-//
-// `.controls` clips its overflow, so a list longer than the panel used to be sliced off
-// at the panel's edge (the page-size picker's search box + options), and nothing kept a
-// list inside the WINDOW either. An open menu is therefore moved to <body> and placed in
-// viewport coordinates; these cases pin the placement, the portal, and the put-back.
+// Select dropdowns escape their container (js/ui/dropdownMenu.js). `.controls` clips its overflow, so a list
+// longer than the panel was sliced off at its edge and nothing kept a list inside the WINDOW either: an open
+// menu is moved to <body> and placed in viewport coordinates. These cases pin the placement, the portal and
+// the put-back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -110,9 +108,8 @@ test('open moves the menu to <body> and close puts it back where it was built', 
   for (const p of ['left', 'top', 'minWidth', 'maxHeight']) assert.equal(menu.style[p], '');
 });
 
-// A list is opened to be clicked, and the page can move under it while it is up: the chat
-// panel sliding in re-lays the page and a modal re-centres with it. `resize`/`scroll` never
-// fire for that, so the list stayed where it opened — a screen away from its control.
+// The page can move under an open list — the chat panel sliding in re-lays it, a modal re-centres with it —
+// and `resize`/`scroll` never fire for that, so the list has to be re-placed on its own.
 test('an open menu follows its trigger when the page moves under it', async () => {
   const { el, body, listeners } = setupDom();
   // A hand-cranked rAF: each tick runs whatever the tracker queued.

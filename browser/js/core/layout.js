@@ -105,9 +105,8 @@ export const sanitizeLines = (rawLines) => {
   return out;
 };
 
-// Pure verdict for an incoming layout; the caller reads needsReplaceConfirm then
-// needsDimMismatchConfirm (in that order). The shared ingress for uploads, pastes,
-// #stencil= fragments and co-edit, so `lines` are sanitized here.
+// The shared ingress for uploads, pastes, #stencil= fragments and co-edit, so `lines` are
+// sanitized here. The caller reads needsReplaceConfirm then needsDimMismatchConfirm.
 export const validateLayout = (data, { hasImage, imgW, imgH, hasExistingLines }) => {
   if (!hasImage) return { ok: false, reason: 'no-image', needsReplaceConfirm: false, needsDimMismatchConfirm: false, lines: [] };
   const d = data && typeof data === 'object' ? data : {};

@@ -3,11 +3,10 @@ import { wireModalOpenGestures } from './popover.js';
 import { notify, PHONE_MEDIA, onWindowResize } from '../utils.js';
 import { icon } from './icons.js';
 import { attachVoiceDust } from './voiceDust.js';
-import { probeProvider } from '../llm/llmClient.js';
-import { loadLlmSettings, serverBearerToken } from '../llm/llmSettings.js';
+import { loadLlmSettings } from '../llm/llmSettings.js';
 import {
   sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments, ATTACHMENT_CAP_NOTICE,
-  cacheProbe, probeStatusClass, chatLog, onChatLog, clearSharedConversation, requeueRowAttachments,
+  chatLog, onChatLog, clearSharedConversation, requeueRowAttachments,
   chatTurnInFlight,
 } from '../llm/chatSession.js';
 import { rowsToMessages } from '../llm/chatStore.js';
@@ -15,8 +14,7 @@ import { MAX_ATTACHMENTS } from '../llm/chatController.js';
 import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../core/dragImageUrl.js';
 import { publish, subscribe, EVENTS } from '../eventBus/appBus.js';
 import { modalShells } from './modalRegistry.js';
-import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter,
-         TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from './motion.js';
+import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter } from './motion.js';
 import {
   renderChatLog, stickToBottom, chatAttachmentChips, wireInputSizer, trackPointer, wireChatSuggestions,
   chatSuggestionsHtml, chatDropCueHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer, wireChatMoreMenu,
@@ -31,6 +29,7 @@ import {
   dockZoneAt, gearStatusRows, gearTipFootText,
 } from './chatGeometry.js';
 import { createChatDock } from './chatDock.js';
+import { createChatStatusTip } from './chatStatusTip.js';
 export {
   FLOAT_MIN_W, FLOAT_MIN_H, clampFloatRect, COMPACT_CHAT_W, COMPACT_CHAT_H, compactChatRect,
   resizeFloatRect, DOCK_ZONE_BAND, dockZoneAt, gearStatusRows, gearTipFootText,
@@ -101,8 +100,6 @@ export class StencilChatPanel extends StencilElement {
     const input = $('chat-input');
     const sendBtn = $('chat-send');
     attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'));
-
-    const tokenFor = (url) => serverBearerToken(app, url);
 
 // The app's one controller (js/llm/chatSession.js), created lazily so it consumes the
 // frozen window.stencil. The context-menu chat shares it.
@@ -191,98 +188,13 @@ export class StencilChatPanel extends StencilElement {
     jumpPills[0].addEventListener('click', () => transcript.scrollTo({ top: 0, behavior: 'smooth' }));
     jumpPills[1].addEventListener('click', () => transcript.scrollTo({ top: transcript.scrollHeight, behavior: 'smooth' }));
 
-// Provider status: a cheap probe on open / after a settings change, shown as the dot on
-// the "…" trigger plus its tooltip. Never blocks sending.
-    const statusDot = $('chat-status-dot');
-    const gearBtn = $('chat-settings-btn');
-// The gear lives inside the menu and is hidden most of the time, so the "…" trigger
-// hosts the tooltip and the dot.
-    const statusHost = $('chat-more-btn') || gearBtn;
-
-// A themed table fixed above the trigger like #app-tooltip; re-rendered live if the
-// probe lands while showing.
-    let lastProbe = null;
-    const gearTip = document.createElement('div');
-    gearTip.className = 'chat-status-tip';
-    document.body.appendChild(gearTip);
-    const renderGearTip = () => {
-      gearTip.textContent = '';
-      const table = document.createElement('table');
-      for (const r of gearStatusRows(lastProbe)) {
-        const tr = document.createElement('tr');
-        const th = document.createElement('th');
-        th.textContent = r.label;
-        const td = document.createElement('td');
-        td.textContent = r.value;
-        if (r.state) td.classList.add(`chat-status-${r.state}`);
-        tr.append(th, td);
-        table.appendChild(tr);
-      }
-      const foot = document.createElement('div');
-      foot.className = 'chat-status-tip-foot';
-      foot.textContent = gearTipFootText(lastProbe);
-      gearTip.append(table, foot);
-    };
-    const placeGearTip = () => {
-      const r = statusHost.getBoundingClientRect();
-      const t = gearTip.getBoundingClientRect();
-      const pad = 8;
-      const x = Math.max(pad, Math.min(r.left + r.width / 2 - t.width / 2, window.innerWidth - t.width - pad));
-      const above = r.top - t.height - pad;
-      gearTip.style.left = `${Math.round(x)}px`;
-      gearTip.style.top = `${Math.round(above >= pad ? above : r.bottom + pad)}px`;
-    };
-// Dust in/out of the trigger on the none↔visible edge only, never on a live re-render.
-    const gearTipDustPoint = () => rectCenter(statusHost);
-    const showGearTip = () => {
-      const wasHidden = !gearTip.classList.contains('visible');
-      renderGearTip();
-      gearTip.classList.add('visible');
-      placeGearTip();
-      if (!wasHidden) return;
-      surfaceIn(gearTip, gearTipDustPoint(), { ms: TIP_DUST_IN_MS });
-    };
-    const hideGearTip = () => {
-      if (!gearTip.classList.contains('visible')) { settleSurface(gearTip); return; }
-      gearTip.classList.remove('visible');
-      surfaceOut(gearTip, gearTipDustPoint(), { ms: TIP_DUST_OUT_MS });
-    };
-// A click focuses the trigger and opens its menu, so `focus` would re-show the tip
-// pointerdown just hid; suppressed for that first click only.
-    let suppressFocusTip = false;
-    statusHost.addEventListener('pointerenter', showGearTip);
-    statusHost.addEventListener('focus', () => {
-      if (suppressFocusTip) { suppressFocusTip = false; return; }
-      showGearTip();
+// Provider status: the dot on the "…" trigger plus its tooltip (ui/chatStatusTip.js).
+// The gear lives inside the menu and is hidden most of the time, so the "…" trigger hosts both.
+    const { refreshStatus, hideGearTip } = createChatStatusTip({
+      app, statusDot: $('chat-status-dot'), statusHost: $('chat-more-btn') || $('chat-settings-btn'),
     });
-    statusHost.addEventListener('pointerleave', hideGearTip);
-    statusHost.addEventListener('blur', () => { suppressFocusTip = false; hideGearTip(); });
-    statusHost.addEventListener('pointerdown', () => { suppressFocusTip = true; hideGearTip(); });
 
-    const setDotState = (state, probe) => {
-      statusDot.className = `conn-status conn-status-${state}`;
-      lastProbe = probe;
-      if (probe) cacheProbe(loadLlmSettings(), probe);
-      if (gearTip.classList.contains('visible')) showGearTip();
-    };
-// A refresh requested mid-probe queues and re-runs once, so the dot reflects the latest settings.
-    let probing = false;
-    let reprobe = false;
-    const refreshStatus = async () => {
-      if (probing) { reprobe = true; return; }
-      probing = true;
-      setDotState('connecting', null);
-      try {
-        const probe = await probeProvider(loadLlmSettings(), { getToken: tokenFor });
-        setDotState(probeStatusClass(probe), probe);
-      } finally {
-        probing = false;
-        if (reprobe) { reprobe = false; refreshStatus(); }
-      }
-    };
-    subscribe(EVENTS.llmSettingsChanged, () => refreshStatus());
-
-// Attachments row: the context-menu composer paints the same queue.
+    // Attachments row: the context-menu composer paints the same queue.
     const renderAttachments = () => {
 // peek, never create: the controller must not exist before window.stencil is frozen.
       chatAttachmentChips(attachList, peekChatController(app));
@@ -574,9 +486,6 @@ export class StencilChatPanel extends StencilElement {
         input.focus();
       }
     };
-// The toolbar icon answers the app-wide popover gestures (ui/popover.js): click toggles,
-// dblclick / right-click / long press open the compact float. `convert` = the deliberate
-// compact gesture, which re-shapes an already-open panel.
     const showCompact = () => {
       const anchor = anchorBtn()?.getBoundingClientRect?.();
 // The popover shape displaces the layout; chatDock restores it when the popover goes.
@@ -599,11 +508,8 @@ export class StencilChatPanel extends StencilElement {
       gestures = wireModalOpenGestures(openBtn, {
         openFull: () => setOpen(!host.classList.contains('chat-open')),
         openPopover: () => openCompact(true),
-// NOT eagerClick: opening on the first click docks the panel, which pushes this very icon
-// ~350px along the toolbar, so the second click of a double-click lands where it no longer is
-// and the compact gesture never arrives. The click waits out DOUBLE_CLICK_MS instead.
-// Hold-to-peek: an Alt+hover-opened compact chat closes on Alt release; the glide only
-// closes what the machine itself opened.
+// NOT eagerClick: opening docks the panel, which pushes this icon ~350px along the toolbar, so
+// a double-click's second press would miss it. The click waits out DOUBLE_CLICK_MS instead.
         closePopover: () => setOpen(false),
         isPopoverOpen: panelIsOpen,
 // Engaged = pointer inside the panel or text typed (focus alone must not count).

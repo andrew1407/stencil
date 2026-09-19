@@ -1,8 +1,7 @@
 // ── open.actions → editor launch options (contract §8 translation) ──────────
 
-// Resolve one §2 crop token to an absolute pixel coordinate on an axis of `length`
-// px (mirrors browser/js/core/units.js resolveAxisPx, minus cm/in — the extension
-// has no page metrics, so physical units can't be resolved here). null = unsupported.
+// One §2 crop token to an absolute pixel coordinate on an axis of `length` px; mirrors
+// core/units.js resolveAxisPx minus cm/in (no page metrics here). null = unsupported.
 const resolveCropToken = (tok, length) => {
   const m = /^(-?)(\d+(?:\.\d+)?|\.\d+)(%|px|cm|in)?$/.exec(String(tok));
   if (!m) return null;
@@ -13,10 +12,8 @@ const resolveCropToken = (tok, length) => {
   return m[1] === '-' ? length - px : px;
 };
 
-// Translate validated open.actions onto the existing `#stencil=` launch options:
-//   crop           → payload `crop` rect (original-image pixels; needs the dims)
-//   filter/layout  → a layout payload with imageFilter/filterColor/lines
-//   page           → payload `page: { size }`; rotate has no slot → dropped w/ warning
+// Validated open.actions → the `#stencil=` launch options (contract §8). crop needs the
+// image dims; rotate has no slot in the payload, so it is dropped with a warning.
 const STEPS = Object.freeze({
   crop: (st, a, width, height) => {
     if (!(width > 0 && height > 0)) {

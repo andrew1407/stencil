@@ -11,18 +11,16 @@ export const HISTORY_LIMIT = 32;
 // Contract §7 image downscale bound — the same long edge every rasterise path uses.
 export { DEFAULT_MAX_EDGE as MAX_IMAGE_EDGE } from '../lib/rasterize.js';
 
-// How many images ONE message may carry (browser chatController.js twin): a turn's
-// images are re-encoded and replayed per turn (§7), and three is already more than a
-// question needs — past that the queue is refused out loud, never silently trimmed.
+// How many images ONE message may carry (browser chatController.js twin): images are
+// re-encoded and replayed per turn (§7), and past three the queue is refused out loud.
 export const MAX_ATTACHMENTS = 3;
 
 export { LISTING_LIMIT, LISTING_NAME_CHARS, LISTING_ALT_CHARS, TABS_LIMIT, TAB_TITLE_CHARS,
          listingKind, buildListing, buildTabsListing, matchListingIndex, attachmentNote } from './chatListing.js';
 export { translateOpenActions } from './openActions.js';
 
-// §13's second enforcement tooth: a forbidden op never executes, even if a registry
-// mistake ever let one through validation — refused with a warning, action skipped.
-// (The first tooth is the registry test; the parser also drops these as unknown ops.)
+// §13's second enforcement tooth: a forbidden op never executes even if validation let one
+// through — refused with a warning. (The first tooth is the registry test.)
 export const rejectForbidden = (action, x) => {
   if (!action || !FORBIDDEN_OPS.has(action.op)) return false;
   x.warnings.push(`Refused "${action.op}" — that operation is never model-drivable`);
@@ -35,9 +33,8 @@ export const splitDataUrl = (u) => {
   return m ? { mediaType: m[1], data: m[2] } : null;
 };
 
-// Image replay rule (contract §7): the current turn keeps its images; of the PRIOR
-// turns only the single most recent image survives; older turns replay text-only.
-// (Mirror of browser/js/llm/chatController.js replayMessages.)
+// Image replay rule (contract §7): the current turn keeps its images; of the PRIOR turns only
+// the most recent image survives. Mirror of browser/js/llm/chatController.js replayMessages.
 export const replayMessages = (history) => {
   const msgs = history.slice(-HISTORY_LIMIT);
   const out = [];
@@ -58,15 +55,6 @@ export const replayMessages = (history) => {
 
 // ── The controller ──────────────────────────────────────────────────────────
 
-// Build the controller. Injected capabilities (assistant.js wires the real ones):
-//   getClient / getListing / formatOfItem / pageUrl — the client, the working listing
-//     and its formatting; getTabs — the §8 tabs listing ([] omits the block).
-//   focusImage / openImage / attachImage (§7 downscale) / pinImage / unpinImage /
-//     openUrlImage — the per-op page/editor capabilities (throw on failure);
-//     scanTab / rescan swap or refresh the working listing (gather ops).
-//   setTheme / setFilters / setAccent — the panel's own controls (§8 panel settings).
-//   clearChat — the surface's §10 confirm, called DEFERRED after the turn's rounds;
-//     on true the controller wipes its replay history.
 export const createChatController = ({
   getClient,
   getListing,
@@ -92,9 +80,8 @@ export const createChatController = ({
   let clearAsked = false;
 
   const pushHistory = (msg) => {
-    // The §7 replay rule only ever sends the current turn's images plus the LAST image
-    // of the most recent prior image-bearing turn — older base64 payloads can never
-    // reach the wire again, so trim them here rather than retain them forever.
+    // The §7 replay rule can never send an older turn's images again, so trim them here
+    // rather than retain the base64 forever.
     if (msg.images && msg.images.length) {
       let keptPrior = false;
       for (let i = history.length - 1; i >= 0; i--) {
@@ -127,9 +114,6 @@ export const createChatController = ({
     setTheme, setAccent, setFilters, scanTab, rescan, askClear: () => { clearAsked = true; },
   });
 
-  // Execute a parsed plan's actions. Returns { cards, warnings, attached, … } where
-  // `attached` is the LlmImages fetched by attach actions (for the continuation) and
-  // `scannedTab` marks a successful listing swap.
   const execute = async (plan, listing, tabs) => {
     const x = { listing, tabs, cards: [], warnings: plan.warnings.slice(), attached: [], attachedIndices: [], scannedTab: null, rescanned: null };
     for (const a of plan.actions) {
@@ -139,10 +123,8 @@ export const createChatController = ({
     return x;
   };
 
-  // One model round: replay history → chat → parse → execute. `continued` marks the
-  // bounded auto-continuation round (contract §8: at most ONE per user turn). The
-  // listing is re-read each round (a scanTab swap feeds the continuation the new set);
-  // the tabs snapshot stays fixed for the whole turn (index stability).
+  // `continued` marks the bounded auto-continuation round (contract §8: at most ONE per turn).
+  // The listing is re-read each round; the tabs snapshot stays fixed (index stability).
   const round = async (client, tabs, continued, signal) => {
     const listing = getListing() || [];
     const raw = await client.chat({ system: buildSystem(listing, tabs), messages: replayMessages(history), signal });
@@ -194,10 +176,8 @@ export const createChatController = ({
     // Start a fresh conversation (history only — settings/scan state stay).
     clearConversation() { history.length = 0; },
 
-    // One user turn. `attachments` are user-dropped images already encoded as LlmImages
-    // (a listing `index` marks a drop matched to a scanned entry). Returns { reply,
-    // warnings, cards, chatOnly, continuation? }; typed LlmErrors and invalid-plan
-    // errors propagate for the page to render as chat errors (never parsed as plans).
+    // `attachments` are images already encoded as LlmImages (`index` marks a drop matched to a
+    // listing entry). Typed LlmErrors and invalid-plan errors propagate for the page to render.
     async send(text, { attachments = [], signal } = {}) {
       const client = getClient();
       // One tabs snapshot per turn (best-effort): the listing the model sees and

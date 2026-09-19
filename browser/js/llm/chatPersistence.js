@@ -1,9 +1,8 @@
-// ── Opt-in per-project chat persistence (llm-contract.md §12) ───────────
+// Opt-in per-project chat persistence (llm-contract.md §12).
 // Glues the shared conversation to the IndexedDB chat store and, for server-linked projects,
-// the server's `chat` file kind. OFF until the user opts in; temporary/incognito editors
-// NEVER persist. Changes snapshot SYNCHRONOUSLY, keyed by the active project id at that
-// instant (no debounce, so a switch cannot misfile a conversation) and write best-effort;
-// an emptied transcript deletes the copy, and a switch restores history AND transcript.
+// the server's `chat` file kind. OFF until the user opts in; temporary/incognito editors NEVER
+// persist. Changes snapshot SYNCHRONOUSLY, keyed by the active project id at that instant (no
+// debounce, so a switch cannot misfile a conversation), and write best-effort.
 import {
   chatLog, onChatLog, appendChatRow, clearChatLog, sharedChatController, peekChatController,
 } from './chatSession.js';
@@ -75,9 +74,8 @@ export const createChatPersistence = ({
     });
   };
 
-  // Swap the conversation to project `id` (null = a fresh temporary/blank editor).
-  // Only meaningful when saving is on — with it off, the session-long conversation
-  // deliberately survives project switches (the pre-§12 behavior).
+  // Only meaningful when saving is on: with it off, the session-long conversation deliberately
+  // survives project switches.
   const projectOpened = (id) => {
     if (!enabled()) return Promise.resolve();
     muted++;
@@ -89,9 +87,8 @@ export const createChatPersistence = ({
       const doc = (await store.load(id)) || (await fetchServer(id));
       if (!doc || !doc.messages?.length) return;
       if (app.storage?.activeId !== id) return;   // switched again mid-load
-      // §12.1 at the point of use: the shared document may have been written by a build
-      // that serialised its MODEL history — a restored transcript must read as a
-      // conversation, never hand the model its own machinery back as user text.
+      // §12.1 at the point of use: a shared document may have been written by a build that
+      // serialised MODEL history — never hand the model its own machinery back as user text.
       const messages = sanitizeChatMessages(doc.messages);
       if (!messages.length) return;
       for (const m of messages) appendChatRow({ role: m.role, text: m.text });
@@ -115,9 +112,8 @@ export const createChatPersistence = ({
   return controller;
 };
 
-// Entry-point wiring: expose the controller to the app and restore the boot project's
-// chat. Lands on `app.chatPersistence`, NOT `app.chat` — the panel publishes its
-// scripting surface as `app.chat` first; sharing the property would break stencil.prompt().
+// Lands on `app.chatPersistence`, NOT `app.chat` — the panel publishes its scripting surface
+// as `app.chat` first, and sharing the property would break stencil.prompt().
 export const wireChatPersistence = (app, opts = {}) => {
   const chat = createChatPersistence({ app, ...opts });
   app.chatPersistence = chat;

@@ -1,21 +1,14 @@
-// ── Contour (Sobel edge-detection) filter — JS reference + fallback ─────────
-// Port of core/raster/imageFilter.cpp applyContourRGBA. The renderer prefers the
-// wasm build of that function; this body is the fallback and must stay
-// byte-identical to the C++ (the pinned integer-only math):
-//   1. luma plane L = trunc((2126*r + 7152*g + 722*b) / 10000), computed from the
-//      ORIGINAL pixels before any output is written
-//   2. Sobel gx/gy with edge-replicated (clamped) neighbor coordinates
-//   3. mag = min(255, |gx| + |gy|)
-//   4. r = g = b = 255 - mag (dark edges on white); the alpha byte is preserved
-// Mutates `data` (an interleaved RGBA8 Uint8ClampedArray/Uint8Array of
-// width × height pixels) in place. Pure — no DOM, importable under Node.
+// Contour (Sobel edge-detection) filter — JS reference + fallback.
+// Port of core/raster/imageFilter.cpp applyContourRGBA; must stay byte-identical to that
+// integer math: L = trunc((2126*r + 7152*g + 722*b) / 10000) over the ORIGINAL pixels,
+// Sobel gx/gy with edge-replicated neighbours, mag = min(255, |gx| + |gy|),
+// r = g = b = 255 - mag with alpha preserved. Mutates RGBA8 `data` in place; no DOM.
 
 export const applyContourRGBA = (data, width, height) => {
   if (!data || width <= 0 || height <= 0) return;
 
-  // Luma plane from the original pixels (truncating division, like the C++).
-  // Every value is provably 0..255 ((2126+7152+722)·255/10000 = 255 exactly), so a
-  // byte plane suffices — the Sobel sums below accumulate in plain Numbers.
+  // Luma from the original pixels, truncating like the C++. Provably 0..255
+  // ((2126+7152+722)·255/10000 = 255 exactly), so a byte plane suffices.
   const count = width * height;
   const luma = new Uint8Array(count);
   for (let i = 0; i < count; i++) {

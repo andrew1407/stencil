@@ -1,9 +1,7 @@
-// Full-stack LIVE update: the collaboration mechanism the smoke visibility test doesn't
-// reach. Client A opens a server-linked project; a *peer* edits that project on the
-// server; A receives the project-event over its live feed and auto-reloads
-// (DrawingApp.onServerProjectEvent → reloadRemoteActive), so A's canvas reflects the
-// peer's change without any user action. The "peer" here is a REST writer, which drives
-// the exact same server event path a second browser would.
+// Full-stack LIVE update: client A opens a server-linked project, a peer edits that project on
+// the server, and A receives the project-event over its live feed and auto-reloads
+// (DrawingApp.onServerProjectEvent → reloadRemoteActive) with no user action.
+// The peer is a REST writer, which drives the same server event path a second browser would.
 import { test, expect } from '@playwright/test';
 import { gotoApp, PNG_DATA_URL, serverProjectIds, waitForNewServerProjectId } from '../../helpers/boot.js';
 import { issueToken, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';

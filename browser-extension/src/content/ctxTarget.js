@@ -250,9 +250,8 @@
     }
   };
 
-  // Priming: an update sent from `contextmenu` races Chrome's menu render (and loses when the
-  // MV3 worker must wake first), so resolve on HOVER too — by right-click time the worker
-  // is warm and the right group is already revealed.
+  // An update sent from `contextmenu` races Chrome's menu render, so hover resolves too — by
+  // right-click time the MV3 worker is warm and the right group is already revealed.
   const PRIME_MS = 150;
   let primeAt = 0;
   let primedEl = null;

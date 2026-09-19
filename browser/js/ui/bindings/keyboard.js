@@ -14,9 +14,8 @@ export function wireKeyboard(app) {
       }
       return;
     }
-    // Bare Delete / Backspace removes the selected line(s) — what every editor does, and
-    // what the coord-table rows already do (coordTable.js). Modifier-free only, so
-    // Alt+Delete keeps its own binding and Ctrl/Cmd+Shift+Backspace still deletes the project file.
+    // Modifier-free only, so Alt+Delete keeps its own binding and Ctrl/Cmd+Shift+Backspace still
+    // deletes the project file.
     if ((e.key === 'Delete' || e.key === 'Backspace') &&
         !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey &&
         !app.isDrawing && !app.compareReadOnly() && app.selectedIndices().length) {
@@ -28,18 +27,16 @@ export function wireKeyboard(app) {
       const combo = hotkeys.get(def.id);
       if (!combo) continue;
       if (!matchHotkey(e, combo)) continue;
-      // Alt+Shift+↑/↓ big-zooms with nothing selected but flips the SELECTED line otherwise;
-      // ↔ rotates it ±90. Route the shared chord by selection: yield big-zoom to the flip
-      // binding (later in the registry) when a line is selected, fall through when none is.
+      // Route the shared chord by selection: yield big-zoom to the flip binding (later in the
+      // registry) when a line is selected, fall through when none is.
       if ((def.id === 'zoomInBig' || def.id === 'zoomOutBig') && app.selectedIndices().length >= 1 && !app.compareReadOnly()) continue;
       if (LINE_TRANSFORM_HOTKEYS.has(def.id) && app.selectedIndices().length === 0) continue;
       // Skip 'paste' here — let the browser fire its native paste event
       if (def.id === 'paste') return;
       // Compare view is read-only — swallow editing shortcuts (but keep view/nav ones).
       if (EDIT_HOTKEYS.has(def.id) && app.compareReadOnly()) { e.preventDefault(); return; }
-      // With text selected, let the native Ctrl+C / Ctrl+Shift+C / Ctrl+Alt+C / Ctrl+Shift+Alt+C
-      // copy that text instead of hijacking for copy-image / copy-layout (the user is
-      // copying a URL/label).
+      // With text selected, let the native Ctrl+C variants copy that text instead of hijacking them
+      // for copy-image / copy-layout.
       if (['copyImage', 'copyImageOriginal', 'copyImageTint', 'copyLayout'].includes(def.id)
           && hasTextSelection()) return;
       e.preventDefault();
@@ -61,9 +58,8 @@ export function wireKeyboard(app) {
     }
   });
 
-  // Refresh tooltip & cursor the instant a modifier key is pressed/released
-  // while hovering the canvas — so Shift (full points list) and Ctrl (live
-  // cursor coordinates) tooltips update at once without re-hovering.
+  // Refresh tooltip and cursor the instant a modifier is pressed or released over the canvas, so
+  // the Shift and Ctrl tooltips update without re-hovering.
   const onModifierChange = e => {
     if (e.key !== 'Shift' && e.key !== 'Control' && e.key !== 'Alt' && e.key !== 'Meta') return;
     const mods = { ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey };
@@ -85,9 +81,8 @@ export function wireKeyboard(app) {
   document.addEventListener('keydown', onModifierChange);
   document.addEventListener('keyup', onModifierChange);
 
-  // Alt+Shift+O — momentary "peek at the original" while held. Physical KeyO (e.code) so
-  // it's layout-independent (Mac Option+key produces special e.key chars); not
-  // registry-driven because it needs key-up.
+  // Physical KeyO (e.code) so it is layout-independent — Mac Option+key produces special e.key
+  // chars. Not registry-driven because it needs key-up.
   const setHoldOriginal = on => {
     if (app.compareHoldOriginal === on) return;
     app.compareHoldOriginal = on;

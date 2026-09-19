@@ -1,3 +1,5 @@
+import { releasePointer } from './pointerRelease.js';
+
 // Mouse interaction wiring: Alt/middle pan, Shift+drag zoom-rect, rect-draw sweep, and
 // point/segment/whole-line drag. Every drag helper + drag-state field lives on the app,
 // shared with the touch path in inputController.js.
@@ -24,6 +26,11 @@ export class PointerController {
   wirePanDrag() {
     const app = this.app;
     const viewport = document.getElementById('canvas-viewport');
+    // The frame the zoom-rect release fits into; the window is the fallback before layout.
+    const availBox = () => ({
+      w: viewport ? viewport.clientWidth : window.innerWidth,
+      h: viewport ? viewport.clientHeight : window.innerHeight,
+    });
 
     const startPan = e => {
       // Compare divider: plain left-drag, checked first so it wins over hits underneath,
@@ -194,101 +201,7 @@ export class PointerController {
       this.#panLastX = e.clientX;
       this.#panLastY = e.clientY;
     });
-    document.addEventListener('mouseup', e => {
-      // Suppress the trailing click so it is not a new point.
-      if (app.isDraggingCompareSplit) {
-        app.isDraggingCompareSplit = false;
-        app.canvas.style.cursor = app.isDrawing ? 'crosshair' : 'default';
-        app.dragJustEnded = true;
-        setTimeout(() => { app.dragJustEnded = false; }, 50);
-        return;
-      }
-
-      if (app.isRectDrawDragging) {
-        app.isRectDrawDragging = false;
-        app.zoomPan.hideZoomRectOverlay();
-        const s = app.rectDrawStart;
-        const en = app.rectDrawEnd;
-        app.rectDrawStart = null; app.rectDrawEnd = null;
-        if (s && en) {
-          const w = Math.abs(en.imgX - s.imgX);
-          const h = Math.abs(en.imgY - s.imgY);
-          if (w > 3 && h > 3) {
-            app.createRect(s.imgX, s.imgY, en.imgX, en.imgY, false);
-          }
-        }
-        // Stay in rect-drawing mode; suppress the trailing click.
-        app.dragJustEnded = true;
-        setTimeout(() => { app.dragJustEnded = false; }, 50);
-        return;
-      }
-
-      if (app.isZoomRectDragging) {
-        app.isZoomRectDragging = false;
-        app.zoomPan.hideZoomRectOverlay();
-        const s = app.zoomRectStart;
-        const en = app.zoomRectEnd;
-        if (s && en) {
-          const x1 = Math.min(s.imgX, en.imgX);
-          const y1 = Math.min(s.imgY, en.imgY);
-          const x2 = Math.max(s.imgX, en.imgX);
-          const y2 = Math.max(s.imgY, en.imgY);
-          const rectW = x2 - x1;
-          const rectH = y2 - y1;
-          if (rectW > 4 && rectH > 4) {
-            const vp = document.getElementById('canvas-viewport');
-            const availW = vp ? vp.clientWidth  : window.innerWidth;
-            const availH = vp ? vp.clientHeight : window.innerHeight;
-            const newScale = Math.min(availW / rectW, availH / rectH, 5);
-
-            // No transition, so scrollLeft/scrollTop see the final canvas size at once.
-            app.canvas.classList.add('zoom-no-transition');
-            app.zoomPan.setZoom(newScale, false);
-            // Force a synchronous layout before assigning scrollLeft/scrollTop.
-            void app.canvas.getBoundingClientRect();
-            if (vp) {
-              vp.scrollLeft = Math.max(0, x1 * newScale - (availW - rectW * newScale) / 2);
-              vp.scrollTop = Math.max(0, y1 * newScale - (availH - rectH * newScale) / 2);
-            }
-            requestAnimationFrame(() => {
-              app.canvas.classList.remove('zoom-no-transition');
-              if (app.image) app.storage.save();
-            });
-          }
-        }
-        app.zoomRectStart = null;
-        app.zoomRectEnd = null;
-        app.canvas.style.cursor = 'crosshair';
-        return;
-      }
-
-      if (app.isDraggingPoint) {
-        app.endPointDrag(app.draggingPoint, e.altKey);
-        return;
-      }
-
-      if (app.isDraggingSegment) {
-        app.endSegmentDrag(e.altKey);
-        return;
-      }
-
-      if (app.isDraggingLine) {
-        app.isDraggingLine = false;
-        app.draggingLine = null;
-        app.saveHistory();
-        app.finishDragGesture(e.altKey);
-        return;
-      }
-      if (!app.isPanning) return;
-      app.isPanning = false;
-      if (app.isDrawing) {
-        app.canvas.style.cursor = 'crosshair';
-      } else {
-        const { x, y } = app.canvasCoords(e.clientX, e.clientY);
-        const overLine = app.findLineAt(x, y) !== -1;
-        app.canvas.style.cursor = overLine ? 'pointer' : 'crosshair';
-      }
-    });
+    document.addEventListener('mouseup', e => releasePointer(app, e, viewport, availBox));
 
     // Middle double-click OR Alt+double-left-click → fit to window.
     const resetZoom = e => {

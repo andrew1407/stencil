@@ -21,9 +21,8 @@ export const cssWithAlpha = (hex, alpha) => {
   return h + Math.round(a * 255).toString(16).padStart(2, '0');
 };
 
-// <input type="color"> cannot carry an alpha byte, so every editable colour is TWO
-// controls — a swatch and a 0-255 opacity box — joined and split here, one seam for the
-// selection panel, the toolbar binder and the fullscreen mirror.
+// <input type="color"> cannot carry an alpha byte, so every editable colour is TWO controls —
+// a swatch and a 0-255 opacity box — joined and split here.
 
 // A blank or out-of-range box reads as fully opaque rather than making the line vanish.
 const alphaFraction = (input) => {

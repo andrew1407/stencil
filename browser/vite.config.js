@@ -7,11 +7,8 @@ import {
   PROJECTS_WORKER_URL, IMAGE_WORKER_URL, WASM_IMPORT, OPEN_IN_CONFIG_URL, NO_SIBLINGS,
 } from './tools/singleFilePatterns.js';
 
-// ── Single-file build ───────────────────────────────────────────
-// The app itself stays a no-build, native-ES-module site (`npm run serve`). This config
-// is only for `npm run build`, which folds the whole module graph, the CSS and the icons
-// into ONE self-contained stencil.html that opens straight off disk — no static server.
-// Written out inline (no plugin packages) so vite stays the single dev dependency.
+// `npm run build` only — the app itself stays a no-build ES-module site: this folds the module graph, the
+// CSS and the icons into one self-contained stencil.html, inline so vite stays the single dev dependency.
 
 const root = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = process.env.STENCIL_SINGLEFILE_OUTDIR
@@ -20,11 +17,8 @@ const OUT_DIR = process.env.STENCIL_SINGLEFILE_OUTDIR
 const dataUri = file =>
   'data:image/svg+xml,' + encodeURIComponent(readFileSync(resolve(root, file), 'utf8'));
 
-// Rewrite the raw HTML before vite:build-html extracts assets out of it: the classic
-// pre-paint script goes inline (it must still run before first paint), the icons become
-// data: URIs, and the PWA manifest link + the <meta> CSP go (one file is all inline
-// script/style, which the served app's policy forbids — see singleFilePatterns.js) — one file has no shell to install, and
-// sw.js registration already no-ops when it can't be fetched.
+// The raw HTML is rewritten before vite:build-html extracts assets out of it: the pre-paint script goes
+// inline, the icons become data: URIs, and the PWA manifest link and <meta> CSP go.
 const prepareHtml = () => ({
   name: 'stencil-singlefile-html',
   enforce: 'pre',
@@ -36,9 +30,7 @@ const prepareHtml = () => ({
       .replace(MANIFEST_LINK, '')
       .replace(PRE_PAINT_TAG, `<script>\n${prePaint}\n</script>`)
       .replace(FAVICON_HREF, `href="${dataUri('favicon.svg')}"`);
-    // index.html moved on and a pattern no longer matches — better a failed build than a
-    // "single" file that quietly needs siblings. (tests/singleFileBuild.test.js catches
-    // this without a build, but only vite sees the real emitted HTML.)
+    // Better a failed build than a "single" file that quietly needs siblings once index.html moves on.
     for (const stale of NO_SIBLINGS) {
       if (out.includes(stale)) this.error(`index.html still references ${stale} after the single-file rewrite`);
     }
@@ -46,22 +38,8 @@ const prepareHtml = () => ({
   },
 });
 
-// Four sibling files can't come along, so their loaders are made to fail fast into the
-// fallbacks the app already has — rather than firing a doomed request that a file:// page
-// reports as a CORS error.
-//   • projectsWorker.js — a SharedWorker is addressed by URL, and a blob: URL is unique
-//     per tab, so inlining it would silently stop it being *shared*. Throwing drops
-//     tabsCoordinator onto its BroadcastChannel path (its route on any browser without
-//     SharedWorker).
-//   • imageWorker.js — vite would emit the module Worker as a second file. Throwing drops
-//     imageTasks onto its inline path (the same imageRaster.js sequence, on the main thread).
-//   • wasm/stencilCore.js — the generated wasm core (gitignored, often absent). The app
-//     already degrades to the JS reference implementations the wasm build is parity-tested
-//     against, so a single file simply always uses them.
-//   • config/openInConfig.json — the operator's gitignored "Open in…" config. Vite treats
-//     `new URL(file, import.meta.url)` as an asset and, with assetsInlineLimit: Infinity,
-//     would bake whoever built the file's local config into a page meant to be handed
-//     around. Throwing drops the loader onto OPEN_IN_DEFAULTS instead.
+// Four siblings cannot come along, so their loaders fail fast into the fallbacks the app already has
+// rather than a doomed file:// request: projectsWorker, imageWorker, wasm/stencilCore, openInConfig.json.
 const useFallbackPaths = () => ({
   name: 'stencil-singlefile-fallbacks',
   enforce: 'pre',
@@ -94,10 +72,8 @@ const useFallbackPaths = () => ({
   },
 });
 
-// Fold the emitted JS chunk and CSS asset back into the HTML. At writeBundle, not
-// generateBundle, so Vite has finished its own chunk rewrites before the code is frozen
-// into the page. The now-redundant app.js / app.css are left behind in the staging
-// directory, which tools/buildHtml.js deletes.
+// Folded back in at writeBundle, not generateBundle, so Vite has finished its own chunk rewrites; the
+// redundant app.js / app.css are left in staging for tools/buildHtml.js to delete.
 const inlineEverything = () => ({
   name: 'stencil-singlefile-inline',
   enforce: 'post',

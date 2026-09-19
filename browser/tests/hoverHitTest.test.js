@@ -1,14 +1,7 @@
-// Regression tests for the canvas hit-test / hover-cache paths (js/core/drawingApp.js).
-//
-// Two bugs these lock down:
-//   1. STALE HOVER CACHE — removePoint/removeLine left `hoverPt` (and the line hover
-//      fields) pointing at pre-removal indices, so the renderer ringed a DIFFERENT
-//      (previous/random) point until the next mousemove.
-//   2. CURSOR MAPPING / HIT RADIUS — canvasCoords divided by `this.scale` even while the
-//      canvas CSS size disagreed with it (mid zoom-transition), and the hit thresholds
-//      were fixed in IMAGE px, so zoomed out the grab radius shrank to nothing (the
-//      desktop's "no highlight at all") and zoomed in it grabbed from half a screen away.
-//      Thresholds are now screen-constant: base / scale.
+// The canvas hit-test and hover-cache paths (js/core/drawingApp.js). Pinned: removePoint/removeLine must not
+// leave `hoverPt` and the line-hover fields on pre-removal indices, or the renderer rings a different point
+// until the next mousemove; and the hit thresholds are screen-constant (base / scale), since fixed IMAGE px
+// shrink the grab radius to nothing zoomed out and grab from half a screen away zoomed in.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

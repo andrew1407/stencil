@@ -39,12 +39,8 @@ export function wireControls(app) {
   wireScrollbarHover();
   wireCanvasPointer(app);
   wireSmoothZoom(app);
-  // Last, so every select the layout rendered (toolbar, panel and each modal, which are
-  // all in the DOM from boot) wears the app's own dropdown rather than the OS one — the
-  // toolbar pair enhanced in wirePageAndDisplayControls above included, since a second
-  // pass over an enhanced select is a no-op.
-  // The image-filter and compare selects preview on hover: resting on a row live-applies
-  // it to the canvas (repaint only); leaving the list puts the current value back.
+  // Last, so every select the layout rendered wears the app's own dropdown rather than the OS
+  // one; a second pass over an already-enhanced select is a no-op.
   enhanceAllSelects(document, {
     search: ['page-size'],
     preview: (sel) => {

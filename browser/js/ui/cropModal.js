@@ -6,9 +6,8 @@ import { icon, spinIconOnce } from './icons.js';
 import { tweenRect } from './motion/rectTween.js';
 const { PAGE_SIZES } = constants;
 
-// The crop modal: a rect over the original image, locked to the page aspect. Confirm
-// stores it via DrawingApp.applyCrop without replacing the original. Geometry runs in
-// the shared core (cropGeometry.js → wasm) so desktop and browser crops match.
+// A rect over the original image, locked to the page aspect; confirm stores it without
+// replacing the original. Geometry runs in the shared core (cropGeometry.js → wasm).
 export class StencilCropModal extends StencilElement {
   static inner() {
     return `
@@ -103,9 +102,8 @@ export class StencilCropModal extends StencilElement {
       renderOrientFace();
     };
 
-    // The orient press's own recompute: swapCropOrientation carries the drag across the
-    // flip instead of resetting it (falls back to centeredCrop with no rect yet), and the
-    // box eases there from its old shape (desktop twin: CropPreview::setAlbum).
+    // swapCropOrientation carries the drag across the flip instead of resetting it (centeredCrop
+    // with no rect yet), and the box eases there (desktop twin: CropPreview::setAlbum).
     const recenter = () => {
       const from = { ...rect };
       aspect = cropAspect(pageDims().width, pageDims().height, album);

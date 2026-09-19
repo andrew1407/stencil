@@ -8,11 +8,8 @@ export const DOUBLE_CLICK_MS = 250;
 export const LONG_PRESS_MS = 500;
 export const PRESS_SLOP_PX = 10;
 
-// Below the anchor, left edges aligned — UNLESS above has more room, which a short box near
-// the bottom of a small container (a modal's own last rows) can still "fit" below by the
-// viewport's own measure while badly overlapping whatever sits under it (user report: a
-// crop-dialog dropdown that fit below the whole browser viewport, but not below the modal's
-// own remaining rows). Clamped inside the viewport either way. Pure: rects in, {left, top} out.
+// Below the anchor unless above has more room: a short box near the bottom of a modal can "fit"
+// below by the viewport's measure while overlapping the modal's own rows (user report). Pure.
 export const popoverPosition = ({ anchor, box, viewport, gap = 8, margin = 8 }) => {
   const roomAbove = anchor.top - gap - margin;
   const roomBelow = viewport.height - anchor.bottom - gap - margin;
@@ -22,11 +19,8 @@ export const popoverPosition = ({ anchor, box, viewport, gap = 8, margin = 8 }) 
   return { left, top };
 };
 
-// The gesture machine behind one modal-opening icon. click → openFull after one double-click
-// interval; dblclick / right-click / long press → openPopover, sticky; Alt+hover → a peek
-// that lives while Alt is down, lingers if released while engaged, and closes on boxLeave.
-// A glide (Alt held) onto another icon closes every other machine's popover-shaped window
-// (the registry); full modals are never touched.
+// The gesture machine behind one modal-opening icon: click → openFull after a double-click
+// interval; dblclick / right-click / long press → sticky popover; Alt+hover → a peek.
 const glideRegistry = new Set();
 
 export const LINGER_CLOSE_MS = 250;
@@ -164,8 +158,7 @@ export const wireModalOpenGestures = (btn, { openFull, openPopover, closePopover
   btn.addEventListener('pointerup', () => g.pressEnd());
   btn.addEventListener('pointercancel', () => g.pressEnd());
   // Both orders: gliding on with Alt held, and pressing Alt while resting on the icon.
-  // preventDefault keeps bare Alt off the browser's menu bar; only the key route defers to a
-  // focused text control.
+  // preventDefault keeps bare Alt off the browser menu bar; only the key route defers to a field.
   btn.addEventListener('mouseenter', (e) => { if (e.altKey && enabled()) g.altHover(); });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Alt' || !btn.matches(':hover') || !enabled()) return;

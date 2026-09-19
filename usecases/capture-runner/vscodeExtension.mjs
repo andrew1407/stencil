@@ -63,9 +63,8 @@ const STEPS = Object.freeze([
     await ctx.page.keyboard.press('Meta+J');
     await ctx.host.runCommand('File: Revert File');
   } },
-  // Run the script through the CLI: the run is over when the binary prints what it wrote.
-  // The first run also creates the terminal, so its command echoes before the shell draws a
-  // prompt — clear it and run again, and the shot shows the sequence as a user sees it.
+  // The run is over when the binary prints what it wrote. The first run also creates the terminal,
+  // so clear it and run again for a shot that reads as a user sees it.
   { name: 'run-terminal', run: async (ctx) => {
     const ran = () => ctx.page.waitForFunction(() => /wrote |error:/.test(
       document.querySelector('.terminal-wrapper.active .xterm-rows')?.innerText ?? ''), null, { timeout: 60_000 });
@@ -122,9 +121,8 @@ const STEPS = Object.freeze([
     console.log('  completion-hints.gif');
     await ctx.host.runCommand('File: Revert File');
   } },
-  // ── the .stcjs flavour and the browser commands ──
-  // The explorer's file list alone — one file per type, and no editor around it: the shot is
-  // about the icons, so it is cropped to the rows that carry them.
+  // The explorer's file list alone — one file per type, no editor around it: the shot is about the
+  // icons, so it is cropped to the rows that carry them.
   { name: 'file-icons', run: async (ctx) => {
     await ctx.page.keyboard.press('Meta+Shift+E');
     const rows = ctx.page.locator(`${FILE_ROW}:not([aria-expanded])`);

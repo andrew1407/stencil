@@ -30,9 +30,8 @@ export const createSettingsFacade = ({ app, guard }) => {
     get pageWidth() { return app.customPageWidth; }, set pageWidth(v) { app.settings.setCustomPageWidth(Number(v)); },     // cm; applies when pageSize='custom'
     get pageHeight() { return app.customPageHeight; }, set pageHeight(v) { app.settings.setCustomPageHeight(Number(v)); },  // cm; applies when pageSize='custom'
     get darkTheme() { return app.theme === 'dark'; }, set darkTheme(v) { app.setTheme(v ? 'dark' : 'light'); },   // dark mode on/off
-    // Brand accent: a preset key (see stencil.mainThemes) persists + syncs across tabs; a
-    // hex like '#ff5623' applies to THIS page only (not saved, not synced). Anything else
-    // throws. The getter returns the active custom hex if set, otherwise the preset key.
+    // A preset key persists and syncs across tabs; a custom hex applies to THIS page only —
+    // not saved, not synced. Anything else throws.
     get mainTheme() { return app.customAccent || app.accent; },
     set mainTheme(v) {
       const s = str(v).trim();
@@ -43,9 +42,6 @@ export const createSettingsFacade = ({ app, guard }) => {
       throw new Error(`Unknown theme "${v}". Use a hex like #ff5623, or one of: ${ACCENTS.map((a) => a.key).join(', ')}`);
     },
     get mainThemes() { return ACCENTS.map((a) => a.key); },                                       // available accent keys
-    // Active project's accent colour — the custom colour its NAME is painted in. Getter
-    // returns the stored "#rrggbb" or '' (no custom colour → theme accent). Setter routes to
-    // DrawingApp.setProjectColor: '' clears it, a valid hex sets it, anything else throws.
     get projectColor() {
       const id = app.activeProjectId;
       return id != null ? (app.storage.store.getMeta(id)?.color || '') : '';
@@ -57,9 +53,6 @@ export const createSettingsFacade = ({ app, guard }) => {
       if (!validateHexColor(s, { allowEmpty: true }).ok) throw new Error(`Invalid project color "${v}" — use a hex like #ff5623, or '' to clear`);
       app.setProjectColor(id, s);
     },
-    // Active project's free-text description ('' when unset) and search keywords (string[]).
-    // Both need an active project to write to (same rule as projectColor); the keywords
-    // setter takes the same shapes stencil.current.keywords does (coerce.js splitKeywords).
     get description() {
       const id = app.activeProjectId;
       return id != null ? (app.storage.store.getMeta(id)?.description || '') : '';
@@ -84,14 +77,8 @@ export const createSettingsFacade = ({ app, guard }) => {
     get allowFormulas() { return app.allowFormulas; }, set allowFormulas(v) { app.settings.setAllowFormulas(v); },
     get formulaX() { return app.formulaX; }, set formulaX(v) { app.settings.setFormula('x', v); },
     get formulaY() { return app.formulaY; }, set formulaY(v) { app.settings.setFormula('y', v); },
-    // ── Motion (ui/motionPrefs.js; the Visuals modal's Motion section) ──
-    // The canvas stroke animation — a new vertex flying to where it was put, its
-    // landing pop and ripple. Off puts every point straight down.
     get drawingAnimations() { return motionPrefs().drawing; },
     set drawingAnimations(v) { app.settings.setMotion('drawing', !!v); },
-    // How the INTERFACE moves: 'particles' | 'water' | 'fire' (the same flights as dust,
-    // drops or embers), 'slide' (each surface's own plain entrance) or 'none'.
-    // prefers-reduced-motion still wins.
     get motionMode() { return motionPrefs().mode; },
     set motionMode(v) { app.settings.setMotion('mode', v); },
     get motionModes() { return MOTION_MODES.slice(); },
@@ -103,9 +90,8 @@ export const createSettingsFacade = ({ app, guard }) => {
     get selectionGlow() { return app.selGlowColor; }, set selectionGlow(v) { app.settings.setVisualColor('selGlow', toHexColor(v)); },
     get hoverRing() { return app.hoverRingColor; }, set hoverRing(v) { app.settings.setVisualColor('hoverRing', toHexColor(v)); },
     get focusRing() { return app.focusRingColor; }, set focusRing(v) { app.settings.setVisualColor('focusRing', toHexColor(v)); },
-    // Voice input (js/llm/voiceSettings.js — its own store, shared by dictation and voice
-    // chat). Language: 'default' (English) or any BCP-47 tag like 'de-DE'; a live
-    // recognizer switches at once. Silence: the pause that sends, clamped 500–10000 ms.
+    // Language: 'default' (English) or any BCP-47 tag; a live recognizer switches at once.
+    // Silence: the pause that sends, clamped 500–10000 ms (js/llm/voiceSettings.js).
     get voiceInputLanguage() { return loadVoiceSettings().language; },
     set voiceInputLanguage(v) {
       const lang = str(v).trim();

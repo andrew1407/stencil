@@ -11,16 +11,12 @@ export const CHAT_DOC_VERSION = 1;
 // §7's history bound — the persisted transcript never exceeds the replay window.
 export const CHAT_MESSAGE_LIMIT = 32;
 
-// §7's continuation note: the internal sentence the controller replays to the MODEL after
-// a plan loaded a new picture. The text is the shared prose asset's, re-exported here —
-// beside the persistence rules — so the place that must never store it and the place that
-// writes it agree by construction. Every bracketed variant is filtered, not just this one.
+// The text is the shared prose asset's, re-exported beside the persistence rules so the place
+// that must never store it and the place that writes it agree by construction.
 export const CONTINUATION_NOTE = PROMPT_ASSET.continuationNote;
 
-// §12.1: "a restored transcript must read as a conversation", so machinery is refused on
-// BOTH sides of the store (never written, never displayed from an older document): §7's
-// continuation note (exact wording or any bracketed variant), and a raw op-plan replayed
-// as the ASSISTANT turn — a user is still entitled to paste JSON and see it again.
+// §12.1: machinery is refused on BOTH sides of the store — §7's continuation note (any
+// bracketed variant) and a raw op-plan as the ASSISTANT turn; a user may still paste JSON.
 export const isInternalChatText = (role, text) => {
   const t = String(text ?? '').trim();
   if (!t) return false;
@@ -39,9 +35,8 @@ const cleanMessage = (m) => {
   return { role: m.role, text: m.text };
 };
 
-// The §12.1 gate over stored messages, applied wherever a document is about to be
-// BELIEVED — the restore sanitises at the point of use too, so a backend handing back
-// an unparsed object cannot bypass it.
+// The §12.1 gate, applied wherever a document is about to be BELIEVED: the restore sanitises
+// at the point of use too, so an unparsed object from a backend cannot bypass it.
 export const sanitizeChatMessages = (messages) => {
   const out = [];
   for (const m of messages || []) {
@@ -77,9 +72,8 @@ export const parseChatDoc = (raw) => {
   return { version: CHAT_DOC_VERSION, savedAt: Number(doc.savedAt) || 0, messages: messages.slice(-CHAT_MESSAGE_LIMIT) };
 };
 
-// The visible transcript rows → persistable turns: only settled user/assistant
-// text survives (no pending "…" row, no error/config cards — an error is not part
-// of the conversation the model should be replayed).
+// Only settled user/assistant text survives: no pending "…" row, no error or config cards —
+// an error is not part of the conversation the model is replayed.
 export const rowsToMessages = (rows) => {
   const out = [];
   for (const r of rows || []) {
@@ -91,10 +85,8 @@ export const rowsToMessages = (rows) => {
   return out;
 };
 
-// ── IndexedDB backend ────────────────────────────────────────────────────────
-// A minimal async {get,set,remove,clear} over one object store. Returns null when
-// IndexedDB is missing (Node) so createChatStore degrades to no-persistence instead of
-// throwing; private-mode quirks land in the same catch-all.
+// Returns null when IndexedDB is missing (Node) so createChatStore degrades to
+// no-persistence instead of throwing; private-mode quirks land in the same catch-all.
 export const createIdbBackend = (idb = (typeof indexedDB !== 'undefined' ? indexedDB : null)) => {
   if (!idb) return null;
   let dbPromise = null;
@@ -119,9 +111,8 @@ export const createIdbBackend = (idb = (typeof indexedDB !== 'undefined' ? index
   };
 };
 
-// The store the editor uses: async load/save/remove/clear keyed by project id.
-// Every call is best-effort — a broken/absent backend yields null/no-op, and the
-// document is validated on the way out so corrupt bytes read as "no saved chat".
+// Every call is best-effort — a broken or absent backend yields null/no-op — and the document
+// is validated on the way out, so corrupt bytes read as "no saved chat".
 export const createChatStore = (backend = createIdbBackend()) => ({
   async load(projectId) {
     if (!backend || projectId == null) return null;

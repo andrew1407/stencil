@@ -25,11 +25,8 @@ test.describe('Open Image crop state', () => {
     await toggle(page).check();
     await expect(cropBox(page)).toBeVisible();
 
-    // A DIFFERENT file, same tab: unlike the URL field (whose own 'input' listener already
-    // clears mediaReady on every keystroke), a file input fires no such signal beforehand —
-    // loadPreviewMedia's own replacing branch is the ONLY thing that can hide the box here.
-    // Fired in-page and read back in the SAME task as the swap: a retrying assertion cannot
-    // tell a real hide from simply waiting out the departure's own timeout.
+    // A file input fires no 'input' signal beforehand, so loadPreviewMedia's replacing branch is the
+    // only thing that can hide the box — read back in the SAME task, or a retry waits out a timeout.
     const result = await page.evaluate(() => new Promise((resolve) => {
       const canvas = document.createElement('canvas');
       canvas.width = 500; canvas.height = 500;
@@ -118,9 +115,8 @@ test.describe('Open Image crop rect persistence', () => {
     await toggle(page).check();
     await expect(cropBox(page)).toBeVisible();
 
-    // Measured relative to the STAGE (the media it's drawn over), so an unrelated layout
-    // shift elsewhere in the column (the read-out sliding, the modal easing) never shows
-    // up as a false divergence here — only the crop rect's OWN position within it.
+    // Measured relative to the STAGE, so a layout shift elsewhere in the column never reads as a
+    // divergence — only the crop rect's own position within it.
     const readRel = () => {
       const stage = document.getElementById('open-image-crop-stage').getBoundingClientRect();
       const b = document.getElementById('open-image-crop-box').getBoundingClientRect();
@@ -138,11 +134,8 @@ test.describe('Open Image crop rect persistence', () => {
     const dragged = await page.evaluate(readRel);
     expect(Math.hypot(dragged.x - before.x, dragged.y - before.y)).toBeGreaterThan(3);
 
-    // A DIFFERENT tab with a DIFFERENTLY-SIZED picture: this is what actually re-fires the
-    // decode-and-reset path (a plain 'blank' tab touches no image dimensions at all, and a
-    // revisit whose <img> never truly reloads would pass even with no persistence). Its OWN
-    // decode is waited out explicitly, so it cannot still be in flight when we come back —
-    // an overlapping decode would race the very state this test reads.
+    // A differently-sized picture is what re-fires the decode-and-reset path; its own decode is
+    // waited out explicitly so it cannot still be in flight and race the state under test.
     await page.setInputFiles('#open-image-file', pngFile(900, 700, 'other.png'));
     await expect(page.locator('#open-image-preview-img')).toHaveJSProperty('complete', true, { timeout: 10_000 });
     await page.waitForTimeout(200);
@@ -158,10 +151,8 @@ test.describe('Open Image crop rect persistence', () => {
 
 test.describe('Open Image video crop through an empty tab', () => {
   test('a URL video crop area survives a visit to an empty Local tab', async ({ page }) => {
-    // cropState.iw/ih are shared by both tabs, zeroed by loadPreviewMedia's first line on ANY
-    // tab visit — even an empty Local one with nothing chosen — and the "already ready"
-    // fast path back to a URL tab used to skip the decode that would set them again,
-    // leaving the crop box's own render branch with nothing to draw against.
+    // cropState.iw/ih are shared by both tabs and zeroed by loadPreviewMedia on ANY tab visit, so
+    // the "already ready" fast path must still re-decode to set them again.
     await gotoApp(page);
     await page.locator('#load-image-btn').click();
     await expect(page.locator('#open-image-modal-overlay')).toHaveClass(/modal-open/);
@@ -179,10 +170,8 @@ test.describe('Open Image video crop through an empty tab', () => {
   });
 
   test('a URL crop area survives a visit to a LOCAL tab that actually loaded its own file', async ({ page }) => {
-    // previewImg/previewVideo are shared between both tabs — the fast path back to an
-    // already-loaded URL tab is only safe if NOTHING ELSE has since loaded its own content
-    // into them. A local file upload in between did, and the fast path used to read that
-    // file's own dimensions (and any stale rect) as if they belonged to the URL's picture.
+    // previewImg/previewVideo are shared between both tabs, so the fast path back to an already
+    // loaded URL tab is only safe if nothing else has since loaded its own content into them.
     await openModal(page);
     await page.locator('#oi-tab-url').click();
     await page.locator('#open-image-url').fill(PICTURE);
@@ -215,9 +204,8 @@ test.describe('Open Image video crop through an empty tab', () => {
   });
 
   test('a LOCAL crop area survives a visit to the URL tab that also loaded and cropped', async ({ page }) => {
-    // Symmetric to the earlier "local clobbers url" case: the URL tab decoding its OWN
-    // picture (and cropping it) into the shared elements must not leave the Local tab's
-    // own crop box mis-scaled or overflowing once it's shown again.
+    // Symmetric to "local clobbers url": the URL tab decoding its own picture into the shared
+    // elements must not leave the Local tab's crop box mis-scaled or overflowing.
     await openModal(page);
     await page.setInputFiles('#open-image-file', pngFile(1018, 720, 'wide.png'));
     await expect(page.locator('#open-image-crop-row')).toBeVisible({ timeout: 10_000 });

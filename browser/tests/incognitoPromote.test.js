@@ -1,11 +1,7 @@
-// Leaving incognito WITHOUT losing the work (llm-contract.md §10 / the desktop's
-// promoteIncognitoToLocal).
-//
-// The bug: an incognito session could be published to a SERVER but never kept locally, so
-// "make this a normal project" and a chat `save` both dead-ended in "incognito mode — saving
-// is disabled" — with the picture and its lines stranded in a session that could not be
-// saved at all. Incognito's promise is that the app writes nothing BY ITSELF; an explicit
-// save from the user is not the app deciding.
+// Leaving incognito WITHOUT losing the work (llm-contract.md §10, the desktop's promoteIncognitoToLocal): an
+// incognito session could be published to a SERVER but never kept locally, so "make this a normal project" and
+// a chat `save` both dead-ended with the picture and its lines stranded. Incognito's promise is that the app
+// writes nothing BY ITSELF; an explicit save from the user is not the app deciding.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom } from './helpers/dom.js';

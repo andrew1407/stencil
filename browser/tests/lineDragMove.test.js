@@ -1,12 +1,7 @@
-// Regression tests for the whole-line move (DrawingApp.dragMove, js/core/drawingApp.js).
-//
-// The bug these lock down: an Alt+Shift line drag used to degrade to the grabbed
-// segment whenever `shiftKey` read false — and the gesture naturally ends with Shift
-// released a beat before the mouse button, so the final dragMove snapped every point
-// except the grabbed segment's two endpoints back to the snapshot. The commit then
-// recorded a line where only the first points had moved. A LINE drag must translate
-// ALL points by the drag delta, whatever the live Shift state; a SEGMENT drag keeps
-// its Shift upgrade (held → whole line).
+// The whole-line move (DrawingApp.dragMove, js/core/drawingApp.js): a LINE drag translates ALL points by the
+// drag delta whatever the live Shift state, while a SEGMENT drag keeps its Shift upgrade (held → whole line).
+// The gesture naturally ends with Shift released a beat before the button, so reading `shiftKey` then snapped
+// every point but the grabbed segment's endpoints back to the snapshot.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

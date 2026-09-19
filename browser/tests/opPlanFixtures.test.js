@@ -1,14 +1,8 @@
-// Walks the shared op-plan conformance corpus (js/config/llm/fixtures/opPlan/) against
-// the REAL browser validator. Every surface re-implements the same plan grammar; the
-// corpus is the cross-language safety net — this file is the reference walker the other
-// surfaces' walkers copy (fixture format: _schema.md in the fixtures dir).
-//
-// Verdict semantics: "valid" = parseOpPlan returns (a chat-only fallback counts as
-// valid), "invalid" = it throws. An object `input` is serialized and fed to the parser
-// exactly as a model reply would arrive; a string `input` is fed verbatim (fence
-// stripping / JSON extraction / duplicate-key cases). The browser asserts fixtures
-// whose profiles include "editor" or "all", honouring a knownDivergence.browser
-// override where a cross-surface disagreement has been measured and pinned.
+// Walks the shared op-plan conformance corpus (js/config/llm/fixtures/opPlan/) against the REAL browser
+// validator, and is the reference walker the other surfaces' walkers copy (fixture format: _schema.md).
+// Verdict semantics: "valid" means parseOpPlan returns, a chat-only fallback included, "invalid" that it
+// throws; an object `input` is serialized as a model reply would arrive, a string `input` fed verbatim. The
+// browser asserts fixtures whose profiles include "editor" or "all", honouring knownDivergence.browser.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
@@ -25,9 +19,8 @@ const SURFACES = new Set(['browser', 'desktop', 'cli', 'pystencil', 'bot', 'mcp'
 const BROWSER_PROFILES = ['editor', 'all'];
 
 const read = (...rel) => readFileSync(path.join(FIXTURES_DIR, ...rel), 'utf8');
-// Two bundles: the hand-written cases (cases.json, each carrying its stable `file` label)
-// and the registry-generated ones (generated/cases.json — tools/genOpPlanFixtures.mjs),
-// which walk as `<name>.json`.
+// Two bundles: the hand-written cases (cases.json, each carrying its stable `file` label) and the
+// registry-generated ones (generated/cases.json — tools/genOpPlanFixtures.mjs), which walk as `<name>.json`.
 const generatedText = read('generated', 'cases.json');
 const hand = JSON.parse(read('cases.json')).cases;
 const generated = JSON.parse(generatedText).cases;

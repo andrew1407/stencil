@@ -1,10 +1,8 @@
-// ── Voice input modes ──────────────────────────────────────────────────────
-// The one coordinator behind every way of talking to the assistant. 'composer' dictates
-// into a chat textarea: ONLY a spoken "send / send it / execute / execute it" sends, and a
-// pause longer than the silence setting ends the dictation with the words left in the box.
-// 'chat' is the toolbar's hands-free VOICE CHAT: it listens with the chat closed, each
-// utterance becomes a logged turn, and a pause OR the phrase sends. One mode listens at a
-// time; the engine and every clock are injected for `node --test`.
+// Voice input modes — the one coordinator behind every way of talking to the assistant.
+// 'composer' dictates into a chat textarea: only a spoken "send / execute" sends, and a pause
+// longer than the silence setting ends the dictation with the words left in the box.
+// 'chat' is the toolbar's hands-free voice chat: it listens with the chat closed and each
+// utterance becomes a logged turn. One mode listens at a time; every clock is injected.
 import { createVoiceInput, voiceErrorText } from './voiceInput.js';
 import { loadVoiceSettings, recognitionLang, VOICE_SETTINGS_EVENT } from './voiceSettings.js';
 import { loadLlmSettings } from './llmSettings.js';
@@ -16,9 +14,8 @@ export const VOICE_STATE_EVENT = EVENTS.voiceStateChanged;
 export const VOICE_ACTIVE_LEVEL = 0.2;   // speech reads 0.4–1.0, room noise stays under 0.1
 export const UNSUPPORTED_TEXT = 'Voice input is not supported in this browser';
 
-// The spoken "send" — only as the WHOLE tail of an utterance, longest phrase first so
-// "send it" is never read as "send" + a dangling "it". Trailing punctuation the
-// recognizer adds ("Send it.") is tolerated; "resend" / "send me the file" are words.
+// The spoken "send" — only as the WHOLE tail of an utterance, longest phrase first so "send
+// it" is never read as "send" plus a dangling "it". Trailing punctuation is tolerated.
 export const SEND_PHRASES = Object.freeze(['send it', 'execute it', 'send', 'execute']);
 const SEND_RE = new RegExp(`(^|[\\s,.;:!?])(${SEND_PHRASES.join('|')})[\\s.,;:!?]*$`, 'i');
 export const splitSendPhrase = (raw) => {
@@ -55,10 +52,8 @@ export const createVoiceModes = ({
             { target: win });
   };
 
-  // ── Silence: one timer, armed by results; loudness only leaves a timestamp so the
-  // 60 Hz level stream never churns timers. A slow speaker mid-word extends the wait
-  // (recent loud audio), but only up to twice the setting — a fan cannot hold an
-  // utterance open forever.
+  // One silence timer, armed by results; loudness only leaves a timestamp, so the 60 Hz level
+  // stream never churns timers. Recent loud audio extends the wait, capped at twice the setting.
   const silenceMs = () => loadSettings().silenceMs;
   const clearSilence = () => { if (timer !== null) { clearTimer(timer); timer = null; } };
   const arm = (ms) => { clearSilence(); timer = setTimer(tick, ms); };
@@ -84,9 +79,8 @@ export const createVoiceModes = ({
     // stand in the textarea. (The face stays a paused mic either way — chatView.js.)
     if (mode === 'composer' && reason === 'silence') { leave('silence'); return; }
     if (mode === 'composer') {
-      // A bare "send it" is a command about what is ALREADY in the box (typed before the
-      // mic went on, or left there by an earlier pause) — but over an EMPTY one it ends
-      // nothing: a stray "send" across a quiet room must not close a live dictation.
+      // A bare "send it" is a command about what is ALREADY in the box, but over an EMPTY one it
+      // ends nothing: a stray "send" across a quiet room must not close a live dictation.
       if (!text && !target?.hasText?.()) return;
       if (text) target?.setText(text);   // …and a bare send never rewrites the box
       target?.submit(reason);
@@ -177,11 +171,8 @@ export const createVoiceModes = ({
       if (on) enter('chat', null);
       else if (mode === 'chat') leave();
     },
-    // A composer takes the mic: { setText, submit, onStop }. False (no throw) when the
-    // browser cannot listen — the surfaces say so in their own words.
-    // True only if the composer really holds the mic afterwards: a platform that refuses
-    // synchronously (no microphone, a blocked page) has already fired the fatal path —
-    // mode is back to 'off' and the toast has said why — before enter() returns.
+    // False (no throw) when the browser cannot listen. True only if the composer really holds the
+    // mic: a platform that refuses synchronously has already fired the fatal path by then.
     startComposer(tgt) {
       if (!engine.supported) return false;
       enter('composer', tgt);
@@ -206,10 +197,8 @@ export const createVoiceModes = ({
   };
 };
 
-// The app's one coordinator, on `app.voice`. Voice-chat turns go through the SAME
-// logged-turn frame the composers use (shared history, transcript rows); with no chat
-// surface showing, a toast marks the send and the answer, and the answer's balloon
-// reopens the panel. Deliberately no unread dot — hands-free means nothing to dismiss.
+// Voice-chat turns go through the SAME logged-turn frame the composers use (shared history,
+// transcript rows). Deliberately no unread dot — hands-free means nothing to dismiss.
 export const installVoiceModes = (app, over = {}) => {
   const surfaceOpen = () => !!(app.chat?.isOpen?.() || app.assistantFlyoutOpen?.());
   const sendTurn = over.sendTurn || ((text) => {
@@ -219,11 +208,8 @@ export const installVoiceModes = (app, over = {}) => {
     return runLoggedChatTurn(sharedChatController(app), text, {
       settings: loadLlmSettings(),
       onResult: (res) => {
-        // §11: an answer that ASKS something back is a card with options to pick — it
-        // cannot be answered from a toast, and hands-free the user has no reason to
-        // think a panel is hiding one. So the panel opens itself for a question, and
-        // only for a question (a plain answer still just toasts — the whole point of
-        // voice chat is not having to look).
+        // §11: an answer that ASKS something back is a card with options, and it cannot be answered
+        // from a toast — so the panel opens itself for a question, and only for a question.
         if (res?.ok && res.entry?.ask && !surfaceOpen()) {
           try { app.chat?.open?.(); } catch { /* no panel on this surface */ }
           return;

@@ -1,6 +1,6 @@
 // Live app → plain state readers: buildLayoutState feeds the pure serializeSession();
 // buildProjectMeta builds the registry row (the projects list reads only this, never the payload).
-import { serializeSession } from './layout.js';
+import { serializeSession, buildLayoutPayload } from './layout.js';
 import { layoutLineLengthCm } from './units.js';
 import { addPeriod, DEFAULT_PERIOD } from './projectsStore.js';
 import { makeThumbnail } from './thumbnail.js';
@@ -52,6 +52,23 @@ export const buildLayoutState = (app) => {
   };
   return serializeSession(state);
 };
+
+// The export subset: what the server push and ExportService's download/copy both send.
+export const currentLayoutPayload = (app) => buildLayoutPayload({
+  imageWidth: app.canvas.width,
+  imageHeight: app.canvas.height,
+  lines: app.lines,
+  imageFilter: app.imageFilter,
+  filterColor: app.filterColor,
+  cropRect: app.cropRect,
+  rotationQuarters: app.rotationQuarters,
+  pageSize: app.pageSize,
+  customPageWidth: app.customPageWidth,
+  customPageHeight: app.customPageHeight,
+  allowFormulas: app.allowFormulas,
+  formulaX: app.formulaX,
+  formulaY: app.formulaY,
+});
 
 export const buildProjectMeta = (app, { prev = {}, id, layout, thumbnail = makeThumbnail(app) }) => ({
   id,

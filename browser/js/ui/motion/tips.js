@@ -31,9 +31,8 @@ export function foldBox(el, scope, cls, on, instant) {
     ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
 }
 export const FOLD_INSTANT_CLASS = 'fold-instant';
-// A fold collapsing is the slower half — with no icon to shrink into, the fold itself is
-// the only thing that reads as leaving. 1.5x SURFACE_OUT_MS, as --fold-out-ms is of
-// --fold-ms in animations/collapse.css.
+// 1.5x SURFACE_OUT_MS, as --fold-out-ms is of --fold-ms in animations/collapse.css: with no
+// icon to shrink into, the fold itself is the only thing that reads as leaving.
 export const FOLD_DUST_OUT_MS = TUNE.FOLD_DUST_OUT_MS;
 
 export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, toggle = null } = {}) {

@@ -1,16 +1,8 @@
-// Characterization pins for the /llm/chat spend controls
-// (server/internal/httpapi/llmlimit.go): a server-wide in-flight gate
-// (LLM_MAX_IN_FLIGHT, default 8) and a per-session token bucket
-// (LLM_RATE_PER_MINUTE, default 30 — a fresh session may burst a full minute's
-// worth). The e2e stack runs both at their defaults (neither compose file sets
-// them), so the gate is tripped with concurrency against a HELD stub upstream
-// (llm-stub.js hold/release) and the bucket by draining a fresh session
-// sequentially. Both answer 429 with the same code, `rateLimited`, told apart
-// here by message + Retry-After — exactly what a client sees.
-//
-// Requests deliberately omit `system`: the server rejects any system prompt not
-// carrying Stencil's pinned head (llmprompt.go), and empty is the allowed
-// direct-REST shape.
+// Characterization pins for the /llm/chat spend controls (server/internal/httpapi/llmlimit.go):
+// a server-wide in-flight gate (LLM_MAX_IN_FLIGHT, default 8) and a per-session token bucket
+// (LLM_RATE_PER_MINUTE, default 30 — a fresh session may burst a minute's worth). Both answer
+// 429 with the code `rateLimited`, told apart here by message + Retry-After. Requests omit
+// `system`: the server rejects any prompt not carrying Stencil's pinned head, and empty is allowed.
 import { test, expect } from '@playwright/test';
 import { issueToken, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
 import { startLlmStub, LLM_STUB_PORT } from '../../helpers/llm-stub.js';
@@ -29,9 +21,8 @@ test.describe('LLM proxy spend controls', () => {
   /** @type {Awaited<ReturnType<typeof startLlmStub>>} */
   let stub;
 
-  // Same fixed port + all-interfaces bind as the fullstack llm-proxy spec: the
-  // server container's LLM_BASE_URL (compose.llm.yml) dials host.docker.internal
-  // at LLM_STUB_PORT, so the stub must be reachable from inside the compose network.
+  // Fixed port + all-interfaces bind, as in the fullstack llm-proxy spec: the server container
+  // dials host.docker.internal at LLM_STUB_PORT from inside the compose network.
   test.beforeAll(async () => {
     try {
       stub = await startLlmStub({ port: LLM_STUB_PORT, host: '0.0.0.0' });
@@ -111,9 +102,8 @@ test.describe('LLM proxy spend controls', () => {
     test.skip(!(await llmEnabled(request, token)),
       'server is running without the LLM env (helpers/compose.llm.yml not applied — e.g. E2E_SKIP_COMPOSE=1)');
 
-    // Sequential (never >1 in flight, so the in-flight gate can't fire): a fresh
-    // bucket holds RATE_PER_MINUTE tokens and refills at that rate, so a small
-    // headroom covers refill during the loop before the 429 must appear.
+    // Sequential, so the in-flight gate cannot fire: a fresh bucket holds RATE_PER_MINUTE tokens and
+    // refills at that rate, so the headroom covers refill during the loop.
     const MAX_TURNS = RATE_PER_MINUTE + 15;
     let limited = null;
     let okCount = 0;

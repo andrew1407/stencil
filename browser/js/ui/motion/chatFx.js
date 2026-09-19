@@ -40,9 +40,7 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows, dustMs = FILTER_DUS
   }, dusted ? wipeDurationMs(dustMs) : ms));
 }
 
-// A chat entry arrives as a toast does: a speck cloud gathered from a point off the edge
-// it belongs to, veiled for the whole flight. A fixed fraction of the row's flight, so
-// shortening DISINTEGRATE_MS shortens this with it.
+// A fixed fraction of the row's flight, so shortening DISINTEGRATE_MS shortens this with it.
 export const CHAT_ENTER_MS = Math.round(ITEM_DUST_MS * 0.58);
 export const CHAT_ENTERING_CLASS = 'chat-entering';
 // The cloud is clipped to the transcript, so the sand streams in over its edge.

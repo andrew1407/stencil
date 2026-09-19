@@ -9,10 +9,8 @@ export const isStr = (v, max = LIMITS.stringChars) => typeof v === 'string' && v
 export const sanitizeLabel = (label) => String(label == null ? '' : label)
   .trim().replace(/[^\w \-]+/g, '').replace(/\s+/g, ' ').slice(0, 40).trim() || 'variant';
 
-// §10 connect/disconnect: resolve `server` against a list the USER owns — exact URL
-// match, else a UNIQUE host match; anything else fails the plan. The model can NEVER
-// introduce a new host, and plans never carry tokens. The matched ENTRY is returned
-// (so a saved server's stored token rides along).
+// §10 connect/disconnect: resolve `server` against a list the USER owns — exact URL, else a
+// UNIQUE host match. The model can NEVER introduce a host, and plans never carry tokens.
 export const resolveServer = (server, entries, what) => {
   const want = String(server ?? '').trim();
   const urlOf = (e) => (typeof e === 'string' ? e : e.url);

@@ -42,9 +42,8 @@ const basenameOf = (item) => {
   }
 };
 
-// Compact numbered listing of the scan results for the system-prompt suffix (contract
-// §8): index, kind, dims, format, truncated basename/alt; capped at LISTING_LIMIT.
-// `formatOfItem` is injected (lib/filters.js; a stub in tests) to keep this module pure.
+// Compact numbered listing for the system-prompt suffix (contract §8), capped at
+// LISTING_LIMIT. `formatOfItem` is injected to keep this module pure.
 export const buildListing = (items, { formatOfItem = () => '' } = {}) => {
   const all = Array.isArray(items) ? items : [];
   const lines = all.slice(0, LISTING_LIMIT).map((it, i) => {
@@ -60,9 +59,8 @@ export const buildListing = (items, { formatOfItem = () => '' } = {}) => {
   return lines.join('\n');
 };
 
-// A listed tab's address, reduced to origin + path: the query/fragment hold session
-// ids and search terms and don't help pick a tab. Truncating wouldn't do it — a
-// length cut keeps the FRONT of a query string.
+// origin + path only: query/fragment hold session ids and search terms, and a length cut
+// would keep the FRONT of a query string.
 const tabUrlForModel = (raw) => {
   const u = (raw || '').trim();
   if (!u) return '';
@@ -74,8 +72,7 @@ const tabUrlForModel = (raw) => {
   }
 };
 
-// Compact numbered listing of the user's OTHER open tabs (contract §8) — what the
-// model references in a scanTab op. Built only when the user opted in (`shareTabs`).
+// Listing of the user's OTHER open tabs (contract §8), built only on the `shareTabs` opt-in.
 // Tab titles/URLs are page-controlled DATA; they ride the suffix as text only.
 export const buildTabsListing = (tabs) => {
   const all = Array.isArray(tabs) ? tabs : [];
@@ -90,9 +87,8 @@ export const buildTabsListing = (tabs) => {
 
 // ── Dropped-attachment routing ──────────────────────────────────────────────
 
-// Index of the scan-listing entry a dropped URL refers to, or -1 — so a matched drop
-// can be referenced by index in focus/open ops afterwards. `sourceOf` keys a video on
-// its media URL; `sameSource` is fragment-insensitive and '' never matches.
+// Index of the scan-listing entry a dropped URL refers to, or -1. `sameSource` is
+// fragment-insensitive and '' never matches.
 export const matchListingIndex = (items, url) =>
   (Array.isArray(items) ? items : []).findIndex((it) => it && sameSource(sourceOf(it), url));
 

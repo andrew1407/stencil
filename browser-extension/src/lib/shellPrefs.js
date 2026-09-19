@@ -24,9 +24,8 @@
   const applyTheme = function (mode) {
     const resolved = resolveTheme(mode);
     document.documentElement.setAttribute('data-theme', resolved);
-    // The RESOLVED scheme travels too: the service worker has no matchMedia, and a page it
-    // injects an overlay into can answer 'system' differently from the extension's own
-    // documents — which is what the user is looking at. lib/shellTheme.js reads it back.
+    // The RESOLVED scheme travels too: the service worker has no matchMedia, and an injected
+    // page can answer 'system' differently. lib/shellTheme.js reads it back.
     mirror({ stencil_theme: mode, stencil_theme_resolved: resolved });
   };
   applyTheme(readTheme());

@@ -1,9 +1,8 @@
-// ── Microphone level meter ─────────────────────────────────────────────────
-// Feeds the voice-input visuals (the logo shine, the toolbar mic) a 0..1 loudness:
+// Microphone level meter: feeds the voice-input visuals a 0..1 loudness.
 // getUserMedia → AudioContext → AnalyserNode, RMS of the time-domain samples on every
-// animation frame, smoothed with an instant attack and a short exponential decay so
-// the reading tracks speech without flickering. Every platform capability is injected
-// (the same rule as chatController.js) so `node --test` drives it with fakes.
+// animation frame, smoothed with an instant attack and a short exponential decay.
+// Every platform capability is injected (the same rule as chatController.js) so
+// `node --test` drives it with fakes.
 export const LEVEL_DECAY_MS = 150;
 export const LEVEL_FFT_SIZE = 256;
 const LEVEL_FLOOR = 0.003;   // below this, a frame is silence and emits nothing

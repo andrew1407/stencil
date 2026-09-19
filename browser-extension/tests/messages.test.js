@@ -60,8 +60,7 @@ for (const [file, msgKeys, srcKeys] of MIRRORS) {
   });
 }
 
-// Two injected functions carry a channel as a bare literal rather than a named mirror:
-// they send exactly one message each, so a table is more ceremony than guard — but the
+// Two injected functions carry a channel as a bare literal — they send one message each — but the
 // literal still has to be the table's.
 test('the injected one-shot senders use the table\'s literal', () => {
   assert.ok(read('lib/highlight.js').includes(`const HL_HOVER = '${MSG.HL_HOVER}'`));

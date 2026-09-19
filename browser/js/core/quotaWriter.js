@@ -78,9 +78,8 @@ const evictOldestOther = (io) => {
   return true;
 };
 
-// Compress image to JPEG at given quality; returns data URL or null. Operates
-// on the ORIGINAL (full) image so the stored image is never the cropped view —
-// the crop is persisted separately as a rectangle and re-applied on load.
+// Operates on the ORIGINAL (full) image, never the cropped view — the crop is persisted
+// separately as a rectangle and re-applied on load.
 const compressImage = (io, quality) => {
   const src = io.app.originalImage || io.app.image;
   if (!src) return null;

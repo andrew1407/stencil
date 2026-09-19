@@ -14,9 +14,8 @@ const customH = (page) => page.locator('#open-image-crop-size-h');
 const dims = (page) => page.locator('#open-image-crop-dims');
 const toggle = (page) => page.locator('#open-image-crop-toggle');
 
-// Every <select> wears the app's own dropdown (js/ui/customSelect.js) — the native node is
-// hidden but still the source of truth, so choosing its option through the rendered menu
-// is what drives the change handler (custom-selects.spec.js's own pattern).
+// Every <select> wears js/ui/customSelect.js — the native node is hidden but still the source of
+// truth, so choosing its option through the rendered menu is what drives the change handler.
 async function chooseRatio(page, text) {
   await sizeSel(page).locator('xpath=..').locator('.accent-dd-trigger').click();
   const menu = page.locator('.accent-dd-menu:visible');
@@ -85,9 +84,8 @@ test('1:1 and 2:3 give distinctly different crops', async ({ page }) => {
   await expect.poll(() => dims(page).textContent()).not.toBe(after11);
 });
 
-// "Page" reads as the default choice, not the project's physical page size — and the row
-// lines up with Crop above it, as one table (user report: it used to show cm/in and drop
-// onto its own line whenever its control didn't fit beside "Aspect ratio").
+// "Page" reads as the default choice, not the project's physical page size, and the row lines up
+// with Crop above it as one table (user report).
 test('"Page" reads as the default, its row lines up with Crop above it, and the short list has no search box', async ({ page }) => {
   await openModal(page);
   await page.setInputFiles('#open-image-file', pngFile(600, 800, 'tall.png'));
@@ -126,10 +124,8 @@ test('the Album/Portrait button keeps one fixed width across the toggle', async 
   expect(w2).toBe(w1);
 });
 
-// The pin itself must be the WIDER face's own real width (js/ui/motion.js pinWidestFace,
-// desktop twin: OpenImageDialog measures both sizeHints and takes the max) — a bare CSS
-// guess read comfortable for one word and cramped for the other (user report, images
-// #117/#118 showed the browser button visibly narrower than its own text needed).
+// The pin must be the WIDER face's own real width (js/ui/motion.js pinWidestFace; desktop twin:
+// OpenImageDialog maxes both sizeHints) — a bare CSS guess cramps one of the words (user report).
 test('the Album/Portrait button is pinned to its own wider face, not a guessed width', async ({ page }) => {
   await openModal(page);
   await page.setInputFiles('#open-image-file', pngFile(600, 800, 'tall.png'));
@@ -182,9 +178,8 @@ test('switching to/from Custom animates its own field group, not just the row', 
   await expect(customGroup(page)).toBeHidden();
 });
 
-// The row's own cloud used to carry the Custom fields along with it — a much taller box
-// than "just the selector", scattering far enough to cover the Incognito row under it
-// (user report, image showed the cloud obscuring that row's own text).
+// The row's cloud covers its own control only: carrying the Custom fields along made a box tall
+// enough to scatter over the Incognito row under it (user report).
 test('disabling Crop while Custom is picked keeps its cloud off the Incognito row', async ({ page }) => {
   await openModal(page);
   await page.setInputFiles('#open-image-file', pngFile(600, 800, 'tall.png'));
@@ -211,9 +206,8 @@ test('disabling Crop while Custom is picked keeps its cloud off the Incognito ro
   expect(overshoot).toBeLessThanOrEqual(4);
 });
 
-// The row's cloud used to be as wide as the ROW — a plain <div> fills its container, so it
-// spanned the whole modal even though only the small control inside it had changed, a wall
-// of motes reading as far too many for "just a selector" (user report, images #109/#110).
+// The cloud is sized to the changed control, not the row — a plain <div> fills its container and
+// spanned the whole modal (user report).
 test('disabling Crop scatters a cloud no wider than the selector, not the whole row', async ({ page }) => {
   await openModal(page);
   await page.setInputFiles('#open-image-file', pngFile(600, 800, 'tall.png'));
@@ -237,12 +231,8 @@ test('disabling Crop scatters a cloud no wider than the selector, not the whole 
   expect(maxWidth).toBeLessThanOrEqual(ctrlWidth + 2);
 });
 
-// The Custom W/H fields sit BESIDE the ratio selector, one row (desktop twin: the crop's
-// page-size picker and its Custom group share one QHBoxLayout). js/ui/numericInput.js
-// flips every enhanced field from type="number" to type="text" at runtime for its own
-// arithmetic support, which silently broke the CSS's `input[type="number"]` width rule —
-// the field fell back to a ~150px default and wrapped onto its own row underneath
-// (user report, image showed W/H stacked below the selector instead of beside it).
+// The Custom W/H fields sit BESIDE the ratio selector. numericInput.js flips enhanced fields to
+// type="text", which silently breaks any `input[type="number"]` width rule (user report).
 test('the Custom W/H fields sit on the same row as the ratio selector, not wrapped below it', async ({ page }) => {
   await openModal(page);
   await page.setInputFiles('#open-image-file', pngFile(600, 800, 'tall.png'));
@@ -257,12 +247,8 @@ test('the Custom W/H fields sit on the same row as the ratio selector, not wrapp
   expect(Math.abs(selTop - wTop)).toBeLessThanOrEqual(2);
 });
 
-// A click's own turn (css/animations/iconClick.css .icm-spun, iconMotion.json
-// swap-click-turn) is a HOVER-rule casualty: iconHover.css's own `:hover` rule reads the
-// same --ic-play custom property at higher specificity (six classes deep) and falls back
-// to "none" — .ic-swap declares no hover play of its own — silently cancelling the turn
-// on exactly the case that always holds right after a real click, the pointer still
-// resting on the button (user report: the arrows never turned).
+// iconHover.css's `:hover` rule reads --ic-play at higher specificity and falls back to "none",
+// cancelling a click's own turn while the pointer still rests on the button (user report).
 test('clicking the Album/Portrait button turns its glyph even while the pointer rests on it', async ({ page }) => {
   await openModal(page);
   await page.setInputFiles('#open-image-file', pngFile(600, 800, 'tall.png'));

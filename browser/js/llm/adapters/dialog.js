@@ -17,10 +17,8 @@ export const dialogAdapters = (app) => ({
     clearSharedConversation(app);
     return null;
   },
-  // §10 dialog: the editor's own windows, opened through the very toolbar buttons
-  // the user would click (controlsBinder's openProjects/openServers/… actions press
-  // the same ids). A disabled button is a note, never a failed plan; null closes
-  // whatever is open, which is the facade's own dismissal path.
+  // §10 dialog: the editor's own windows, through the very toolbar buttons the user would
+  // click. A disabled button is a note, never a failed plan; null closes whatever is open.
   openDialog: async (name) => {
     if (typeof document === 'undefined') return 'no dialogs on this surface';
     if (!name) {
@@ -35,14 +33,12 @@ export const dialogAdapters = (app) => ({
     btn.click();
     return null;
   },
-  // §10 chat: the assistant panel's own placement, through the very buttons its
-  // header carries (app.chat = the panel's public face). A "dock" with no "open"
-  // opens it too — moving a panel nobody can see is not what was asked for.
+  // §10 chat: the panel's own placement, through the buttons its header carries. A "dock"
+  // with no "open" opens it too.
   setChatPlacement: async ({ open, dock } = {}) => {
     if (!app.chat) return 'this surface has no assistant panel';
-    // Show FIRST, then place, then close if that is what was asked: the desktop's
-    // float leg only has a window to lift once the panel is showing, and the two
-    // surfaces must end in the same state for the same plan.
+    // Show FIRST, then place, then close: the desktop's float leg only has a window to lift once
+    // the panel is showing, and both surfaces must end in the same state for the same plan.
     const show = open == null ? !!dock : open === true;
     try {
       if (show) app.chat.open();

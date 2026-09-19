@@ -10,8 +10,7 @@ const BROWSERS = Object.freeze({ chrome: 'chrome', edge: 'msedge' });
 const SESSION_TIMEOUT_MS = 20_000;
 const POLL_MS = 150;
 // js-debug's launcher session never answers `evaluate` — the PAGE is a child it starts a
-// moment later — so a request must be bounded rather than awaited forever. A user's own
-// expression may legitimately take a while; asking which session IS the page may not.
+// moment later — so a request must be bounded rather than awaited forever.
 const EVAL_TIMEOUT_MS = 60_000;
 const PROBE_TIMEOUT_MS = 1000;
 

@@ -99,9 +99,8 @@ export const FILTER_DUST_MS = TUNE.FILTER_DUST_MS;
 // A row the list GAINS forms half again as briskly as a filter's — the desktop's arrival
 // clock, shared (support/filterFade.hpp ROW_ARRIVE_MS).
 export const ROW_ARRIVE_MS = Math.round(FILTER_DUST_MS / 1.5);
-// …once the removal's ash has thinned. Played inside a full-strength scatter the arrival's
-// own motes are simply lost in it, so it waits out the falling leg (the share by which the
-// leaving motes have mostly travelled) — far short of the whole DISINTEGRATE_MS wipe.
+// Waits out the falling leg (the share by which the leaving motes have mostly travelled) —
+// far short of the whole DISINTEGRATE_MS wipe, or the arrival's motes are lost in it.
 export const ROW_ARRIVE_DELAY_MS = Math.round(DISINTEGRATE_MS * TILE_GATHER_SHARE);
 export const FILTER_DUST_DRIFT = TUNE.FILTER_DUST_DRIFT;
 // `index`/`count` share one mesh budget across the rows (scatterGridFor); `box` is an

@@ -1,150 +1,18 @@
 // ── Arithmetic in numeric inputs ────────────────────────────────────────────
-// The extension's numeric fields (the popup/sidepanel size filters, the crop page's
-// custom page W/H) accept a small arithmetic expression instead of a bare number:
-// type "45 + 9" and commit to get 54, or "* 9" against a current value of 3 to get 27.
-//
-// `<input type="number">` DISCARDS any non-numeric text (value reads back ""), so
-// enhance() flips the element to type="text" + inputmode="decimal" at runtime and
-// re-implements ArrowUp/ArrowDown stepping and min/max clamping. The markup keeps
-// type="number" (and its step/min/max attributes) — a runtime upgrade, so existing
-// `el.value` reads still see a plain number.
-//
-// A VERBATIM port of browser/js/ui/numericInput.js (same operator set as
-// core/parse/formulaParser: + - * / ** and parens, ** right-associative, no eval).
-// Change one, change the other — the tests on both sides assert the same cases.
+// Byte-pinned PORT of browser/js/ui/numericInput.js. The size filters and custom page W/H take
+// an expression: "45 + 9" → 54, or "* 9" on 3 → 27. Since `<input type="number">` discards
+// non-numeric text, enhance() flips the element to type="text" at runtime and re-adds stepping
+// and clamping. Operators match core/parse/formulaParser (** right-associative, no eval).
 
-// ── Evaluator (pure — no DOM, so Node tests import it directly) ──────────────
-
-// Tokenize: numbers, operators, parens. Returns null on any unknown character.
-const tokenize = (src) => {
-  const out = [];
-  let i = 0;
-  while (i < src.length) {
-    const c = src[i];
-    if (c === ' ' || c === '\t') { i++; continue; }
-    if (c >= '0' && c <= '9') {
-      let j = i;
-      while (j < src.length && src[j] >= '0' && src[j] <= '9') j++;
-      if (src[j] === '.') { j++; while (j < src.length && src[j] >= '0' && src[j] <= '9') j++; }
-      out.push({ t: 'num', v: Number(src.slice(i, j)) });
-      i = j;
-      continue;
-    }
-    if (c === '.') {                       // a bare ".5"
-      let j = i + 1;
-      while (j < src.length && src[j] >= '0' && src[j] <= '9') j++;
-      if (j === i + 1) return null;
-      out.push({ t: 'num', v: Number(src.slice(i, j)) });
-      i = j;
-      continue;
-    }
-    if (c === '*' && src[i + 1] === '*') { out.push({ t: 'op', v: '**' }); i += 2; continue; }
-    if (c === '^') { out.push({ t: 'op', v: '**' }); i++; continue; }   // a friendlier alias
-    if ('+-*/'.includes(c)) { out.push({ t: 'op', v: c }); i++; continue; }
-    if (c === '(' || c === ')') { out.push({ t: c }); i++; continue; }
-    return null;                            // anything else → not an expression
-  }
-  return out;
-};
-
-// Recursive descent over the token list. Throws on a malformed expression; the
-// single caller below turns that into `null`.
-const parse = (tokens) => {
-  let pos = 0;
-  const peek = () => tokens[pos];
-  const fail = () => { throw new Error('bad expression'); };
-
-  // expr := term (('+'|'-') term)*
-  const expr = () => {
-    let v = term();
-    for (let t = peek(); t && t.t === 'op' && (t.v === '+' || t.v === '-'); t = peek()) {
-      pos++;
-      v = t.v === '+' ? v + term() : v - term();
-    }
-    return v;
-  };
-  // term := unary (('*'|'/') unary)*
-  const term = () => {
-    let v = unary();
-    for (let t = peek(); t && t.t === 'op' && (t.v === '*' || t.v === '/'); t = peek()) {
-      pos++;
-      const rhs = unary();
-      if (t.v === '/' && rhs === 0) fail();          // div-by-zero → invalid, like the core parser
-      v = t.v === '*' ? v * rhs : v / rhs;
-    }
-    return v;
-  };
-  // unary := ('+'|'-') unary | power
-  // Sits ABOVE power, so "-2 ** 2" is -(2**2) — exactly what core/parse/formulaParser
-  // does (parseUnary → parsePower, and parsePower's exponent is itself a parseUnary).
-  const unary = () => {
-    const t = peek();
-    if (t && t.t === 'op' && (t.v === '+' || t.v === '-')) {
-      pos++;
-      const v = unary();
-      return t.v === '-' ? -v : v;
-    }
-    return power();
-  };
-  // power := primary ('**' unary)?   — right-associative
-  const power = () => {
-    const base = primary();
-    const t = peek();
-    if (t && t.t === 'op' && t.v === '**') { pos++; return base ** unary(); }
-    return base;
-  };
-  const primary = () => {
-    const t = peek();
-    if (!t) fail();
-    if (t.t === 'num') { pos++; return t.v; }
-    if (t.t === '(') {
-      pos++;
-      const v = expr();
-      if (!peek() || peek().t !== ')') fail();
-      pos++;
-      return v;
-    }
-    return fail();
-  };
-
-  const value = expr();
-  if (pos !== tokens.length) fail();          // trailing junk
-  return value;
-};
-
-// A leading *, / or ** means "apply this to the value already in the field", so
-// "* 9" on 3 gives 27. A leading + or - is NOT treated that way: "-5" has to keep
-// meaning negative five, which is what someone typing into a number field expects.
-const CONTINUES_CURRENT = /^\s*(\*\*|\^|[*/])/;
-
-/**
- * Evaluate what the user typed into a numeric field.
- * @param {string} text    the raw field text
- * @param {number} [current] the field's value before editing (for "* 9" style input)
- * @returns {number|null} a finite number, or null when the text isn't a valid expression
- */
-export const evalNumericExpression = (text, current = 0) => {
-  if (typeof text !== 'string') return null;
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-  const src = CONTINUES_CURRENT.test(trimmed) ? `${Number(current) || 0}${trimmed}` : trimmed;
-  const tokens = tokenize(src);
-  if (!tokens || !tokens.length) return null;
-  try {
-    const v = parse(tokens);
-    return Number.isFinite(v) ? v : null;
-  } catch {
-    return null;                              // malformed → caller keeps the old value
-  }
-};
+import { evalNumericExpression } from './numericExpr.js';
+export { evalNumericExpression };
 
 // ── DOM wiring ──────────────────────────────────────────────────────────────
 
 const num = (v, fallback) => (v === '' || v == null || Number.isNaN(Number(v)) ? fallback : Number(v));
 
-// Typing pauses for this long and the field commits itself; Enter/blur cancel the timer
-// and commit at once. Long enough to think mid-expression ("45 + " … "9") without the
-// field applying a half-written value under you.
+// Typing pauses this long and the field commits itself; Enter/blur commit at once. Long enough
+// to think mid-expression without the field applying a half-written value.
 export const COMMIT_DEBOUNCE_MS = 1200;
 
 // Round to the precision implied by `step` so 0.1-step fields don't accumulate
@@ -181,9 +49,8 @@ export const enhanceNumericInput = (el) => {
   let emitting = false;   // true only while commit() re-emits the settled value
   const cancelPending = () => { if (timer) { clearTimeout(timer); timer = null; } };
 
-  // `final` says editing has ended (Enter / blur / arrow step). The idle timer passes
-  // false: a half-written field there means "still typing" and is left exactly as typed;
-  // only when editing really ends does an unparseable field fall back to the last good value.
+  // `final` says editing ended (Enter / blur / arrow step). The idle timer passes false: a
+  // half-written field is left as typed; only a real end falls back to the last good value.
   const commit = ({ final = true } = {}) => {
     cancelPending();
     const step = el.dataset.numericStep;
@@ -213,10 +80,8 @@ export const enhanceNumericInput = (el) => {
     commit();
   };
 
-  // Raw keystrokes never reach the app's binders: they assume a parseable number on every
-  // event, and half-typed text ("9 +") would read as NaN and clamp the field out from
-  // under the user. Instead each keystroke restarts the idle timer — stop typing and the
-  // field applies itself. A plain "8" takes the same path, so both behave identically.
+  // Raw keystrokes never reach the app's binders — they assume a parseable number, and "9 +" would
+  // read as NaN and clamp the field. Each keystroke restarts the idle timer instead.
   el.addEventListener('input', (e) => {
     if (emitting) return;                 // our own settled value — let it through
     e.stopImmediatePropagation();

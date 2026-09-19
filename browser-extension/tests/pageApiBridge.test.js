@@ -1,16 +1,8 @@
-// Tests for the page-API relay bridge (src/content/pageApiBridge.js). It's an ISOLATED-world
-// IIFE that shares the page's window message bus with the MAIN-world window.stencil API and
-// relays that API's action requests to the service worker via chrome.runtime.sendMessage. It's
-// a trust boundary: the page is untrusted, so the bridge only relays messages that are
-//   (a) same-window  (e.source === window),
-//   (b) tagged by our MAIN-world API  (data.source === 'stencil-page-api'),
-//   (c) carrying a message  (data.message present),
-// and it handles a couple of types LOCALLY (never relaying them): PAGE_REQUEST_SYNC re-pushes
-// state, PAGE_SET_FILTERS writes shared storage. Everything else is relayed verbatim.
-//
-// No exports — we install a stub window/chrome on globalThis and import for the side effect,
-// busting the ESM cache with a unique ?case= per scenario (same pattern as editorBridge.test.js
-// and pageApiMain.test.js). A fresh window per case also resets the __stencilPageBridge guard.
+// Tests for the page-API relay bridge (src/content/pageApiBridge.js) — an ISOLATED-world IIFE
+// sharing the page's message bus with the MAIN-world window.stencil API and relaying its requests
+// to the service worker. It is a trust boundary: only same-window messages tagged
+// `stencil-page-api` and carrying a message are relayed, while PAGE_REQUEST_SYNC and
+// PAGE_SET_FILTERS are handled locally. No exports — stubs on globalThis, a unique ?case= per run.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

@@ -56,16 +56,14 @@ export class StencilVisualsModal extends StencilElement {
     const accentMount = document.getElementById('vs-accent');
     const accentPicker = buildAccentPicker(accentMount, {
       current: app.customAccent || app.accent,
-      // A #hex value means a custom colour → setCustomAccent; a preset key → setAccent.
-      // The picker is passed as the swap origin: this dialog sits over the toolbar, so the
-      // palette should flood out of the control under the cursor, not the icon behind it.
+      // A #hex value means a custom colour → setCustomAccent; a preset key → setAccent. The picker is
+      // the swap origin, so the palette floods out of the control under the cursor.
       onSelect: (key) => {
         const from = accentMount.querySelector('.accent-dd-trigger') || accentMount;
         return /^#/.test(key) ? app.setCustomAccent(key, from) : app.setAccent(key, from);
       },
-      // Resting on a preset row previews it on the page — with the flood a real change
-      // plays, out of this picker — and leaving/closing without a pick floods back to the
-      // committed accent (accentController).
+      // Resting on a preset row previews it on the page; leaving or closing without a pick floods
+      // back to the committed accent (accentController).
       preview: {
         on: (key) => app.previewAccent?.(key, accentMount.querySelector('.accent-dd-trigger') || accentMount),
         off: () => app.endAccentPreview?.(accentMount.querySelector('.accent-dd-trigger') || accentMount),

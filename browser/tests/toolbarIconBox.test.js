@@ -1,9 +1,6 @@
-// The Settings section's ghost icon buttons share the toolbar's standard icon box.
-//
-// They carried `font-size: 18px; padding: 4px 10px` from the days when the glyph was an
-// emoji, so with a 16px SVG they measured 38x26 next to every other .btn-icon's 40x32 —
-// visibly smaller marks in the same row. Their 1px border is why the padding is 7/11
-// rather than the 8/12 borderless buttons use: 16 + 14 + 2 = 32, 16 + 22 + 2 = 40.
+// The Settings section's ghost icon buttons share the toolbar's standard icon box. Their 1px border
+// is why the padding is 7/11 rather than the 8/12 the borderless buttons use:
+// 16 + 14 + 2 = 32, 16 + 22 + 2 = 40.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,9 +37,8 @@ test('the ghost buttons all agree with each other', () => {
   assert.equal(new Set(pads).size, 1, `the ghost rows disagree: ${pads.join(' vs ')}`);
 });
 
-// The FLOAT chat is its own little window, so it flies out of the toolbar icon and shrinks
-// back into it — the same modalFromIcon/modalToIcon motion the modals use — instead of the
-// old pop-in-place. chatPanel.js feeds the keyframes the icon→panel delta.
+// The FLOAT chat is its own little window, so it flies out of the toolbar icon and shrinks back into
+// it — the modals' own modalFromIcon/modalToIcon; chatPanel.js feeds it the icon→panel delta.
 test('the floating chat panel animates from the toolbar icon', () => {
   const css = ANIMATIONS_CSS;
   const open = css.match(/stencil-chat-panel\.chat-open\.chat-dock-float\s*\{([^}]*)\}/)?.[1] || '';
@@ -55,21 +51,14 @@ test('the floating chat panel animates from the toolbar icon', () => {
   // falls back to the keyframes' plain-pop defaults.
   for (const v of ['--modal-dx', '--modal-dy', '--modal-sx', '--modal-sy'])
     assert.ok(js.includes(v), `chatPanel.js never sets ${v}`);
-  // …and the close timer has to outlast the longer float flight, or the panel is torn
-  // out of the DOM mid-motion. Docked shares the same 510ms now (the dust flight needs
-  // it as much as the float shape does — see CLOSE_MS in chatPanel.js).
+  // The close timer has to outlast the longer float flight, or the panel is torn out of the DOM
+  // mid-motion, so docked shares the same 510ms (CLOSE_MS in chatPanel.js).
   const closeMs = js.match(/const CLOSE_MS = ([^;]+);/)?.[1] || '';
   assert.match(closeMs, /^510$/, `the close timer does not match modalToIcon: "${closeMs}"`);
 });
 
-// Boot starts the editor blank by calling storage.newTemporary(), which also plays the
-// CLEAR animation — dust plus a `canvas-clearing` hold that hides the empty-state card.
-// On a fresh page there is nothing to clear, so the "＋ Blank image" button blinked off
-// and back on during load. The animation now runs only when an image was actually there.
-// Float → mini (compact) chat: the outgoing shape used to be re-pointed at the compact
-// rect while it was still on screen, so the float blinked out with no exit at all — and
-// the eager first click of the double-click had its close CANCELLED by the second. The
-// swap now waits for the close animation, then plays the compact panel's own entrance.
+// The clear animation runs only when an image was actually there, and a float → compact swap waits
+// for the close animation before playing the compact panel's own entrance.
 test('the float → mini chat swap waits for the close animation', () => {
   const js = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
   const at = js.indexOf('const openCompact = (convert = false) => {');
@@ -98,21 +87,16 @@ test('newTemporary only animates when there was an image to clear', () => {
   const guard = body.match(/const hadImage = ([^;]+);/)?.[1];
   assert.ok(guard, 'newTemporary no longer records whether an image was present');
   assert.match(guard, /this\.app\.image/, `the guard reads ${guard}, not the image`);
-  // Both halves of the clear motion sit behind it: the dust and the empty-state hold.
-  // The hold is behind ghostOut's own verdict too — under reduced motion no dust falls,
-  // and holding the emptied editor back anyway just blanks it for a second.
+  // Both halves of the clear motion — the dust and the empty-state hold — sit behind ghostOut's own
+  // verdict: with no dust under reduced motion, holding the emptied editor back only blanks it.
   const cond = body.match(/if \(ctx && hadImage && (.+)\) \{([\s\S]*?)\n    \}/);
   assert.ok(cond, 'the dust is no longer guarded');
   assert.match(cond[1], /ghostOut\(this\.app\.canvas\)/, 'the hold waits on the dust actually playing');
   assert.match(cond[2], /canvas-clearing/, 'the empty-state hold is no longer guarded');
 });
 
-// Regression: clearing an image used to leave the canvas at its old (possibly zoomed)
-// backing-store size and the viewport at its old scroll offset. The idle "+ Blank image"
-// card is position:absolute; inset:0 inside that SAME scrolled box, so it rendered at the
-// stale offset instead of centred — invisible or off past the fold — until the next zoom
-// or scroll touched it (user report: a "clank"/ghost image, scroll and zoom left over
-// after clearing).
+// Clearing resets the canvas backing store and the viewport scroll: the idle "+ Blank image" card is
+// position:absolute inset:0 in that same box and renders at the stale offset (user report).
 test('newTemporary resets the canvas size/zoom and the viewport scroll, not just the pixels', () => {
   const src = readFileSync(new URL('../js/core/storage.js', import.meta.url), 'utf8');
   const at = src.indexOf('  newTemporary({');
@@ -132,10 +116,8 @@ test('newTemporary resets the canvas size/zoom and the viewport scroll, not just
   assert.match(scroll, /vp\.scrollTop = top \|\| 0/);
 });
 
-// Collapsed to its rail, the points/lines panel shows one chevron. As a `display: block`
-// button its height came from the 16px font's line box plus the inline SVG's baseline gap
-// — 24x25 with the glyph riding high and dead space beneath it inside the rail. An
-// explicit flex square takes text metrics out of the box entirely.
+// The collapsed rail's chevron is an explicit flex square: as a `display: block` button its height
+// came from the 16px font's line box plus the inline SVG's baseline gap — 24x25, glyph riding high.
 test('the points-panel chevron is one centred square in both states', () => {
   const css = LAYOUT_CSS;
   const base = css.match(/\n#toggle-coord-panel \{([^}]*)\}/)?.[1] || '';

@@ -40,10 +40,8 @@ const requestIdle = (fn) => (typeof requestIdleCallback === 'function'
   : { timer: setTimeout(fn, 0) });
 const cancelIdle = (h) => (h.idle != null ? cancelIdleCallback(h.idle) : clearTimeout(h.timer));
 
-// The save path's thumbnail scheduler: save() keeps the row's last thumbnail and calls
-// schedule(); the new one renders in idle time and lands with store.setThumbnail. A burst
-// of saves renders once. flush() renders NOW, inline — a project switch or an unload
-// cannot wait for an idle slot. `io` is the Storage instance (store / activeId / app).
+// A burst of saves renders one thumbnail in idle time; flush() renders inline, because a
+// project switch or an unload cannot wait for an idle slot.
 export const createThumbnailScheduler = (io, { idle = requestIdle, cancel = cancelIdle } = {}) => {
   let handle = null;
   let id = null;

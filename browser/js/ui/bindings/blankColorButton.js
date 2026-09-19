@@ -1,9 +1,6 @@
 import { anchorPickerInput } from '../../utils.js';
 import { normalizeHex } from '../../core/accents.js';
 export function wireBlankColorButton(app) {
-  // Blank-background colour swatch: recolours the active BLANK project's solid fill in place
-  // (the drawn lines stay). Shown only for blank projects (gated in updateProjectTitle). A plain
-  // native picker — click opens it, live input recolours; no "clear" (a blank always has a fill).
   const blankBtn = document.getElementById('blank-color-btn');
   const blankInput = document.getElementById('blank-color-input');
   if (blankBtn && blankInput) {

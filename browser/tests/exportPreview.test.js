@@ -1,19 +1,13 @@
-// Unit tests for the Alt-hover export preview (js/ui/exportPreview.js).
-//
-// REGRESSION: the tip's <img> gets a data: URL synchronously, but the browser still
-// decodes it asynchronously — the very FIRST time the tip is shown, place() measured
-// its box before that decode landed, so it laid out at whatever tiny/zero size an
-// empty <img> reports and (with no dust flight playable at that size either) was easy
-// to miss entirely. Only a later re-hover, reusing the by-then-decoded/cached image,
-// ever looked right. Fixed by re-placing once the image's own `load` fires.
+// The Alt-hover export preview (js/ui/exportPreview.js). The tip's <img> gets its data: URL synchronously
+// but the browser decodes it asynchronously, so the first show measured an empty <img> and laid out at
+// zero size: the tip re-places once the image's own `load` fires.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom } from './helpers/dom.js';
 
-// A window that actually keeps its own keydown/keyup/blur listeners — wireAltPreview
-// installs its Alt tracking there once, so the regression tests below need a real
-// dispatch, not the addEventListener-that-does-nothing most suites stub in.
+// A window that actually keeps its keydown/keyup/blur listeners: wireAltPreview installs its Alt
+// tracking there once, so these tests need a real dispatch, not a no-op addEventListener.
 const winListeners = {};
 const win = {
   innerWidth: 100, innerHeight: 100,
@@ -27,10 +21,8 @@ const win = {
 };
 const doc = installDom({}, { window: win });
 
-// document.createElement('canvas') needs a working 2D context stand-in for the
-// preview's own thumbnail render (renderThumbDataUrl); every other element gets
-// the real stub factory plus a minimal tag-only querySelector (the stub's default
-// always returns null), since exportPreview.js reaches into the tip for its <img>.
+// document.createElement('canvas') needs a working 2D context stand-in for renderThumbDataUrl; every other
+// element gets the stub factory plus a tag-only querySelector, since the tip is queried for its <img>.
 const origCreateElement = doc.createElement;
 doc.createElement = (tag) => {
   if (tag === 'canvas') {
@@ -84,9 +76,8 @@ test('showExportPreview: no-ops quietly with no image loaded', () => {
   // Nothing to assert beyond "doesn't throw" — see exportPreview.js's own guard.
 });
 
-// REGRESSION: wireAltPreview used to read Alt only off `mousemove` — pressing or
-// releasing the key while parked on a row (no further pointer motion) did nothing
-// until the next rehover. Alt tracking now rides its own window keydown/keyup.
+// Alt tracking rides its own window keydown/keyup: read off `mousemove` alone, pressing or releasing the
+// key while parked on a row did nothing until the next rehover.
 test('wireAltPreview: pressing Alt while already parked on a row shows the preview — no rehover needed', () => {
   hideExportPreview();
   clearAltPreviewHover();

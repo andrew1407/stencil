@@ -1,9 +1,8 @@
 // Transcript row DOM: classes, text node, shrink-wrap.
 import { CHAT_ENTERING_CLASS, REVEAL_ENTERING_CLASS, REVEAL_IN_CLASS, REVEAL_ITEM_CLASS, REVEAL_MASKED_CLASS, REVEAL_NO_TRIGGER_CLASS, REVEAL_SMOOTH_CLASS } from './motion.js';
 
-// Repaints rewrite className wholesale, so the motion classes motion.js owns are kept
-// here. CHAT_ENTERING_CLASS too: one turn appends two rows, and the second append
-// repaints the first, which would tear its veil off while its dust is still flying.
+// Repaints rewrite className wholesale, so motion.js's classes are kept here — CHAT_ENTERING_CLASS
+// too: a turn appends two rows, and the second repaint would tear the first's veil off mid-flight.
 const MOTION_CLASSES = [REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,
   REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, CHAT_ENTERING_CLASS];
 export const setRowClass = (el, cls) => {
@@ -25,7 +24,6 @@ export const rowTextNode = (el) => {
 
 // A wrapped bubble hugs its longest line, not the max-width cap: line-breaking is a
 // deterministic greedy scan, so a re-wrap at exactly that width breaks the same way.
-// Null for one line, which already hugs its content.
 export const shrinkWrapWidth = (lineWidths) => {
   if (!Array.isArray(lineWidths) || lineWidths.length < 2) return null;
   const max = Math.max(...lineWidths);

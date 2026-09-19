@@ -41,10 +41,8 @@ export const rowDustGrid = (count = 1, index = 0) => ({
 export const rowLeaveDust = (count, index, dustMs) => ({
   ...rowDustGrid(count, index), dustMs, drift: ROW_DUST_DRIFT,
 });
-// Shares of the span (the CSS defaults' 0.48s and 60ms of 0.9s), so a shorter
-// DISINTEGRATE_MS shortens both with it.
-// The KEYWORD-CHIP recipe, shared by everything that should read like one: finer motes than
-// the surface 3px, a short throw, one clock both ways. Desktop twin: KeywordChipsMotion.cpp.
+// Shares of the span (the CSS defaults' 0.48s and 60ms of 0.9s), so a shorter DISINTEGRATE_MS
+// shortens both. The keyword-chip recipe; desktop twin: KeywordChipsMotion.cpp.
 export const CHIP_MOTE_PX = 1.5;
 export const CHIP_DUST_MS = 630;
 export const CHIP_DUST_DRIFT = 0.15;
@@ -80,9 +78,8 @@ export const tileWaypoint = (dx, dy, q) => {
   };
 };
 
-// `reverse` inverts only the sweep (the gather): first out is last home. `drift` scales
-// the throw (desktop: controlSwap.hpp CHECK_SWAP_SPREAD); `span` is the flight's own
-// length — the sweep and jitter are shares of it.
+// `reverse` inverts only the sweep: first out is last home. `drift` scales the throw (desktop:
+// controlSwap.hpp CHECK_SWAP_SPREAD); `span` is the flight's length, sweep and jitter its shares.
 export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false, drift = 1,
                            span = DISINTEGRATE_MS) => {
   const n = tileNoise(cx, cy);

@@ -1,17 +1,8 @@
 // Mirror-equality guard for the MAIN-world window.stencil script.
-//
-// src/lib/pageImages.js is the unit-tested SOURCE OF TRUTH for a handful of pure
-// helpers (bgImageUrl / cssImageUrls / srcsetUrls / nameFromUrl / videoHasFrame).
-// src/content/pageApiMain.js runs
-// in the page's MAIN world, which can't import ES modules, so it carries an inline
-// MIRROR of those same helpers. Nothing forces the two to agree — a fix applied to one
-// copy but not the other would silently drift.
-//
-// This test extracts each inline copy's source out of pageApiMain.js, evaluates it, and
-// asserts it produces IDENTICAL output to the pageImages.js export across a battery of
-// inputs (behavioral equality — the copies are allowed to differ textually, e.g. a
-// ternary vs an early return, as long as they behave the same). If either copy's
-// behavior diverges, CI fails here.
+// src/lib/pageImages.js is the unit-tested source of truth for a handful of pure helpers
+// (bgImageUrl / cssImageUrls / srcsetUrls / nameFromUrl / videoHasFrame). src/content/pageApiMain.js
+// runs in the page's MAIN world, cannot import modules, and so carries an inline MIRROR of them.
+// This extracts each inline copy, evaluates it and asserts identical output — behavioural equality.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,10 +15,8 @@ const MAIN_SRC = readFileSync(
   'utf8',
 );
 
-// Pull `const <name> = <arrow expression>;` out of the MAIN-world IIFE and evaluate it
-// into a callable. The helpers are declared at the IIFE's top level (2-space indent);
-// block-bodied ones close on a line that is exactly `  };`, single-expression ones on
-// the first `;`. Returns the live function so we can run inputs through it.
+// The helpers are declared at the IIFE's top level (2-space indent); block-bodied ones close on a
+// line that is exactly `  };`, single-expression ones on the first `;`.
 const extractFn = (name, { block }) => {
   const re = block
     ? new RegExp(`\\n  const ${name} = ([\\s\\S]*?\\n  };)`)

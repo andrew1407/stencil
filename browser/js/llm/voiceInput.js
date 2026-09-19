@@ -1,9 +1,8 @@
-// ── Speech recognition engine ──────────────────────────────────────────────
-// One continuous Web Speech `SpeechRecognition` session that survives the browser's own
-// end-of-utterance stops (we restart from `onend` while the user still wants to listen),
-// plus the level meter (voiceLevel.js). No send policy here: voiceModes.js decides WHEN an
-// utterance is done, this says WHAT has been heard since the last commit(). The recognizer,
-// timers and meter are injected for `node --test` (tests/helpers/speech.js).
+// Speech recognition engine: one continuous Web Speech `SpeechRecognition` session that
+// survives the browser's own end-of-utterance stops (restarted from `onend` while the user
+// still wants to listen), plus the level meter (voiceLevel.js).
+// No send policy here: voiceModes.js decides WHEN an utterance is done, this says WHAT has
+// been heard since the last commit(). Everything is injected for `node --test`.
 import { createLevelMeter as realLevelMeter } from './voiceLevel.js';
 
 export const isVoiceSupported = (win = globalThis) =>
@@ -58,9 +57,8 @@ export const createVoiceInput = ({
   let rec = null;              // the live recognizer instance (events from any other are ignored)
   let meter = null;
   let restartTimer = null;
-  // Transcript bookkeeping across restarts: a restarted recognizer numbers its results
-  // from 0 again, so what was already reported by a dead instance is `carried`, and
-  // `commitIndex` marks how much of the LIVE instance the caller has consumed.
+  // A restarted recognizer numbers its results from 0 again, so what a dead instance reported is
+  // `carried`; `commitIndex` marks how much of the LIVE instance the caller has consumed.
   let carried = '';
   let commitIndex = 0;
   let results = null;
@@ -166,9 +164,8 @@ export const createVoiceInput = ({
     get state() { return state; },
     get listening() { return state === 'listening'; },
     get transcript() { return transcript(); },
-    // Begin (or, while active, HOT-SWAP) a session: the callbacks are replaced, what was
-    // heard so far is committed, and only a changed `lang` recreates the recognizer —
-    // the mic stays open across a mode switch. False when the browser cannot do this.
+    // While active this HOT-SWAPS: the callbacks are replaced and only a changed `lang` recreates
+    // the recognizer, so the mic stays open across a mode switch.
     start(next) {
       if (!supported) return false;
       const langChanged = active && session?.lang !== next.lang;
@@ -198,9 +195,8 @@ export const createVoiceInput = ({
       startRec();
       return true;
     },
-    // Everything reported so far has been consumed — a later finalization of the
-    // same result index is dropped with it, so a phrase caught on an interim result
-    // can never be sent twice.
+    // Everything reported so far has been consumed, and a later finalization of the same result
+    // index is dropped with it — a phrase caught on an interim result can never be sent twice.
     commit() {
       carried = '';
       commitIndex = results?.length || 0;

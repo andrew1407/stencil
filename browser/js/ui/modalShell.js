@@ -65,9 +65,8 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // A removal's motes are on <body> and outlive the window that started them. The window's
     // own close flight starts after this, so the sweep never catches it.
     sweepDust(overlay);
-    // `modal-open` is what every caller tests, so it comes off now; the shrink runs under
-    // `modal-closing`. Measure first — display:none measures 0. A gestureless open still
-    // shrinks back into the control that would reopen it.
+    // `modal-open` is what every caller tests, so it comes off now and the shrink runs under
+    // `modal-closing`. Measure first — display:none measures 0.
     const home = closeOriginEl || originEl || defaultOrigin();
     const animate = overlay.classList.contains('modal-open') && !reducedMotion()
       && setOriginVars(onScreenRect(rectOf(home)) ? home : canvasHomeRect());
@@ -150,9 +149,8 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
       }
       return false;
     };
-    // Popover shape: the overlay is pointer-transparent (CSS) so an Alt glide reaches other
-    // icons; a press outside the box closes — unless it landed in something the popover
-    // raised (its row menu lives on <body>).
+    // Popover shape: the overlay is pointer-transparent (CSS) so an Alt glide reaches other icons.
+    // A press outside closes, unless it landed in something the popover raised onto <body>.
     document.addEventListener('pointerdown', (e) => {
       if (!overlay.classList.contains('modal-open') || !overlay.classList.contains('modal-popover')) return;
       const box = boxOf();

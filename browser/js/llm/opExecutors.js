@@ -8,8 +8,7 @@ import { composeFrame, mapFramePoint } from './frame.js';
 import { SETTINGS_RUN } from './settingsExecutors.js';
 
 // ── Browser-side normalizers (the few outputs the generic deep-pick can't express) ──
-// The generic normalize() yields { op, ...declared keys, defaults } with `trim` keys
-// trimmed; these run on top of it.
+// They run on top of normalize(), which already trims `trim` keys and applies defaults.
 const NORMALIZE = {
   // "" after trimming is no destination at all.
   save: (out) => { if (out.path === '') delete out.path; return out; },
@@ -20,9 +19,8 @@ const NORMALIZE = {
 
 const IMAGE_RUN = {
   crop: (a, { stencil, frame }) => {
-    // The crop path resolves the spec itself; we only observe the resolved rect.
-    // cropRect before/after are both in rotated-original px, so their origin delta IS
-    // the rect's origin in the pre-crop frame: later plan coords shift by its negation (§1).
+    // cropRect before/after are both in rotated-original px, so their origin delta IS the rect's
+    // origin in the pre-crop frame: later plan coords shift by its negation (§1).
     const before = frame && stencil.cropRect;
     stencil.crop(a.spec);
     const after = frame && stencil.cropRect;
@@ -47,13 +45,11 @@ const IMAGE_RUN = {
     stencil.apply(a.mode === 'custom' ? { filter: 'custom', filterColor: a.tint } : { filter: a.mode });
   },
   layout: (a, { stencil, frame }) => {
-    // setLines(), not `stencil.layout =`: the latter is the clipboard-paste path and
-    // prompts Combine / Replace / Cancel once the image carries lines — a dialog a
-    // plan cannot answer. Merges the current image dims itself.
+    // setLines(), not `stencil.layout =`: the latter is the clipboard-paste path and prompts
+    // Combine / Replace / Cancel once the image carries lines — a dialog a plan cannot answer.
     if (!stencil.imageSize) throw new Error('Layout actions need a working image to draw on');
-    // §1: re-map each point through the plan's accumulated crop/rotate transform,
-    // then clamp into the working image — even at identity, so out-of-frame model
-    // points can never draw outside the picture. The validated action is not mutated.
+    // §1: re-map each point through the plan's accumulated crop/rotate transform, then clamp into
+    // the working image — even at identity, so model points can never draw outside the picture.
     const { width, height } = stencil.imageSize;
     const lines = a.lines.map((l) => ({
       ...l,
@@ -85,9 +81,8 @@ const IMAGE_RUN = {
     if (a.width != null) await stencil.blank(a.color, { size: defaultBlankSizePx({ width: a.width, height: a.height }) });
     else await stencil.blank(a.color);
   },
-  // §2 undo/redo: the surface's OWN edit history, one facade step per history entry.
-  // Top-level only — sandboxed variant/preview renders write history-invisible state,
-  // so stepping history from inside one would tear the sandbox open.
+  // §2 undo/redo, top-level only: sandboxed variant and preview renders write history-invisible
+  // state, so stepping history from inside one would tear the sandbox open.
   undo: (a, { stencil }) => { for (let i = 0; i < a.steps; i++) stencil.undo(); },
   redo: (a, { stencil }) => { for (let i = 0; i < a.steps; i++) stencil.redo(); },
   frame: async (a, { exportImage, loadFrame, results }) => {
@@ -104,11 +99,8 @@ const IMAGE_RUN = {
 // The §2.1 / §10 half of the table lives next door; one registry is built from both.
 const RUN = { ...IMAGE_RUN, ...SETTINGS_RUN };
 
-// ── The op registry: one entry per whitelisted op (contract §13) ──
-// Assembled from the registry's browser entries, in registry order (which IS the prompt's
-// bullet order): bullet / also / alsoOrder / requires / flags are the entry's own;
-// validate(a) is the table-driven check + normalize; run(a, ctx) the executor above.
-// editorSetting marks §10 ops (adjust the EDITOR, not the image — forbidden in variants).
+// The op registry, one entry per whitelisted op (§13), in registry order — which IS the
+// prompt's bullet order. `editorSetting` marks §10 ops, forbidden in variants.
 export const OPS = {};
 for (const entry of SCHEMA.entries) {
   if (!RUN[entry.name]) throw new Error(`opRegistry: the browser registers "${entry.name}" but has no executor for it`);

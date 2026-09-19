@@ -119,10 +119,8 @@ test('renderSuggestions takes a custom chip list', () => {
   assert.equal(wrap.children[0].textContent, 'a');
 });
 
-// ── shrinkWrapWidth / applyShrinkWrap / bindShrinkWrapResize ─────────────────
-// Browser js/ui/chatView.js parity: a wrapped bubble hugs its own longest line, not
-// the max-width cap it never searches a narrower box against (user report: "message
-// width is adjusted wrong").
+// Browser js/ui/chatView.js parity: a wrapped bubble hugs its own longest line, not the
+// max-width cap it never searches a narrower box against (user report).
 test('shrinkWrapWidth: one line already hugs its content — nothing to pin', () => {
   assert.equal(shrinkWrapWidth([142.5]), null);
   assert.equal(shrinkWrapWidth([]), null);

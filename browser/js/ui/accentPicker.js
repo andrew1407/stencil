@@ -23,9 +23,8 @@ const pointerIn = (el) => {
   return lastX >= r.left && lastX <= r.right && lastY >= r.top && lastY <= r.bottom;
 };
 
-// A native <select> cannot paint per-option swatches on every OS. `value` is a preset key
-// or a custom #rrggbb. Shared by the Visuals dropdown and the logo's right-click menu; no
-// "Custom…" row. `preview` = { on(key), off() }: repaint only, a click commits.
+// A native <select> cannot paint per-option swatches on every OS. `value` is a preset key or a
+// custom #rrggbb; `preview` = { on(key), off() } repaints only — a click commits.
 export function fillAccentMenu(menu, onPick, preview = null) {
 // The preview fires only after a rest and when the key changes; the restore waits out
 // the flood before checking the pointer has really left.
@@ -95,9 +94,8 @@ export function fillAccentMenu(menu, onPick, preview = null) {
     afterSwap(() => { committing = false; holdReplays(false); latchHover(null); });
     committedSel = null; shownKey = key; onPick(key);
   };
-// A view transition's snapshot owns the hit test while it plays, so a press on a row
-// mid-wipe answers <html>. Nothing moves in a swap, so the press is resolved against the
-// rows' boxes. On the window, in capture, ahead of any document-level dismissal.
+// A view transition's snapshot owns the hit test while it plays, so a press mid-wipe answers
+// <html>: nothing moves in a swap, so resolve it against the rows' boxes, on the window, in capture.
   const rowAt = (x, y) => {
     if (menu.hidden) return null;
     for (const li of menu.children) {

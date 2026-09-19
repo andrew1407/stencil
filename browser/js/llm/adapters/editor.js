@@ -9,9 +9,8 @@ export const editorAdapters = (app) => ({
   onAttachmentsChanged: () => {
     publish(CHAT_ATTACHMENTS_EVENT);
   },
-  // §2.1 `save`: persist the working image + layout as a LOCAL project (publishing to
-  // a server stays a user action). Each save promotes to a FRESH project id, so a
-  // multi-image plan leaves one project per image instead of overwriting one.
+  // §2.1 `save`: persist as a LOCAL project (publishing stays a user action). Each save
+  // promotes to a FRESH project id, so a multi-image plan leaves one project per image.
   saveProject: async (name) => {
     if (!app.image) throw new Error('there is no image to save');
     const wanted = String(name || app.imageBaseName || 'Untitled').trim() || 'Untitled';

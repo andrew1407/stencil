@@ -61,10 +61,8 @@ test('a missing current value treats the field as 0', () => {
   assert.equal(ev('*9', undefined), 0);
 });
 
-// ── The DOM wiring: what the idle timer is allowed to do to your text ────────
-// The commit timer must never edit text the user is still writing. A minimal stub
-// input (the repo builds these by hand rather than pulling in a DOM) plus node's
-// built-in mock timers is enough to drive enhanceNumericInput's whole lifecycle.
+// The commit timer must never edit text the user is still writing: a hand-built stub input plus node's
+// built-in mock timers drive enhanceNumericInput's whole lifecycle.
 
 globalThis.document ??= { activeElement: null };
 

@@ -61,9 +61,8 @@ await SEL.result(BOT).first().waitFor({ timeout: WAITS.menuMs });
 await SEL.result(BOT).first().click({ timeout: WAITS.menuMs });
 await page.locator(`${SEL.input}, ${SEL.startButton}`).first().waitFor({ timeout: WAITS.menuMs });
 
-// An answer is not always a NEW message: an edit menu rewrites its keyboard and a re-drawn
-// photo replaces the picture in place. This stamps the INCOMING side only (outgoing messages
-// carry `own`), so the typed line itself never counts as the answer.
+// An answer is not always a NEW message — an edit menu rewrites its keyboard in place. This
+// stamps the INCOMING side only, so the typed line never counts as the answer.
 const replyStamp = () => page.evaluate((sel) => {
   const all = [...document.querySelectorAll(sel)].filter((el) => !el.classList.contains('own'));
   const last = all[all.length - 1];
@@ -116,10 +115,8 @@ const upload = async (file) => {
   if (await sendBtn.isVisible().catch(() => false)) await sendBtn.click(); else await page.keyboard.press('Enter');
   await waitForReply(before);
 };
-// Telegram animates every arrival and floats a date pill over the scrolled column: both
-// land in a screenshot as half-painted UI, so they are stilled before any shot.
-// An inline keyboard button is rgba(72,87,97,.4), so the chat wallpaper reads straight
-// through it in a still; the emoji in a label sits flush against its first letter.
+// Telegram animates every arrival and floats a date pill over the column, so both are stilled
+// before any shot. An inline keyboard button is rgba(72,87,97,.4) — the wallpaper reads through.
 const STILL_CSS = `
   .sticky-date, .ripple-container { display: none !important; }
   *, *::before, *::after { animation: none !important; transition: none !important; }

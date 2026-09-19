@@ -11,10 +11,8 @@ import {
 const INLINE_WARN_CHARS = 200_000;
 const INLINE_MAX_CHARS = 1_000_000;
 
-// Mirrors the current session into another front-end: the Desktop app via a `stencil://`
-// link (a server-linked session sends only the server reference — no token; local/incognito
-// embeds image + layout inline), or the Telegram bot via a t.me link whose 64-char `?start=`
-// payload carries (server, project id) — server projects only.
+// A server-linked session sends only the server reference — no token; local and incognito embed
+// image + layout inline. The bot's 64-char `?start=` payload is server projects only.
 export class StencilOpenInModal extends StencilElement {
   #openFor;
   static inner() {

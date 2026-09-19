@@ -4,9 +4,8 @@
 import { parseScript } from '../core/script.js';
 import { DIRECTIVES } from '../core/scriptTypes.js';
 
-// The lexer classifies on the '@' alone, so every word after one arrives as a `directive`;
-// only a REAL one is coloured. Lowercased like the lowering's own comparison, so @CROP stays
-// one. Read off the SOURCE by position, never token.text, which the wasm path leaves empty.
+// The lexer classifies on the '@' alone, so only a REAL directive is coloured, lowercased like
+// the lowering (@CROP stays one). Read off the SOURCE: the wasm path leaves token.text empty.
 const DIRECTIVE_WORDS = new Set(DIRECTIVES);
 const knownDirective = (lines, t) =>
   DIRECTIVE_WORDS.has((lines[t.line - 1] ?? '').slice(t.col, t.col - 1 + t.len).toLowerCase());
@@ -67,9 +66,8 @@ const applyTo = (pre, segs) => {
 export const paintInto = (pre, text, withDiagnostics) => {
   const program = parseScript(text);
   const lines = text.split('\n');
-  // Bucketed by line ONCE: the paint walks lines, and re-filtering every token per line is
-  // quadratic on a long script. Tokens arrive in column order, so a diagnostic's own mark is
-  // spliced in at its column and no bucket needs sorting.
+  // Bucketed by line ONCE: re-filtering every token per line is quadratic on a long script.
+  // Tokens arrive in column order, so a diagnostic splices in at its column and nothing sorts.
   const byLine = Array.from({ length: lines.length + 1 }, () => []);
   const bucket = (line) => byLine[line] ?? (byLine[line] = []);
   for (const t of program.tokens) {

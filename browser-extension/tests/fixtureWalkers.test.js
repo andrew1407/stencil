@@ -1,20 +1,8 @@
-// Extension walkers over the SHARED fixture corpus in browser/js/config/ — the
-// cross-surface conformance safety net (each family's _schema.md documents its
-// format). Node-only: the shipped extension never reads browser/, its tests may.
-// This phase PINS current behavior; measured divergences live in
-// tests/fixtureOverrides.json, never as production edits.
-//
-// Families walked here:
-//   opPlan       — profile "extension", context {listingLength: 8, tabsLength: 4}
-//   providerWire — §6 wire vectors against src/llm/llmClient.js
-//   sanitizer    — sanitizeProviderText vectors (byte-identical to the browser's)
-//   deepLink     — telegramStart vectors against src/lib/openIn.js
-// Families with NO extension implementation, skipped by design:
-//   chatDoc          — the extension's chat history is in-memory only (no chatStore)
-//   deepLink/launchPayload — normalizeLaunchPayload is the RECEIVING side; the
-//                      extension only constructs #stencil= payloads
-//   layout           — no buildLayoutPayload/sanitizeLines port in the extension
-//   stencilProject   — the extension never parses .stencil files
+// Extension walkers over the SHARED fixture corpus in browser/js/config/ — the cross-surface
+// conformance net (each family's _schema.md documents its format). Node-only: the shipped
+// extension never reads browser/, its tests may. Walked here: opPlan (profile "extension"),
+// providerWire, sanitizer, deepLink/telegramStart. Skipped for want of an implementation:
+// chatDoc, launchPayload, layout, stencilProject. Divergences: tests/fixtureOverrides.json.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -48,9 +36,8 @@ const opPlanFixtures = [
   ...opPlanGenerated.map((fx) => ({ file: `${fx.name}.json`, fx })),
 ];
 
-// Corpus-shape check, ported from browser/tests/opPlanFixtures.test.js.
-// Floors per bundle, not on the total: the 444 generated cases alone clear any combined
-// floor, so a vanished cases.json would otherwise walk green.
+// Ported from browser/tests/opPlanFixtures.test.js. Floors per bundle, not on the total: the
+// generated cases alone clear any combined floor, so a vanished cases.json would walk green.
 test('opPlan: the corpus exists and is well-formed', () => {
   assert.ok(opPlanHand.length >= 180, `hand-written cases.json collapsed to ${opPlanHand.length}`);
   assert.ok(opPlanGenerated.length >= 400, `generated/cases.json collapsed to ${opPlanGenerated.length}`);
@@ -174,10 +161,8 @@ test('providerWire: request bodies and reply extraction match the golden vectors
   }
 });
 
-// ── sanitizer ────────────────────────────────────────────────────────────────
-// The extension's sanitizer mirrors the browser's byte-for-byte (same regexes,
-// same UTF-16 caps), so every vector — DIVERGENCE(server,…) ones included —
-// matches the literal browser expectation.
+// The extension's sanitizer mirrors the browser's byte-for-byte (same regexes, same UTF-16 caps),
+// so every vector — DIVERGENCE(server,…) included — matches the literal browser expectation.
 test('sanitizer: provider-error text vectors match sanitizeProviderText', async (t) => {
   for (const fx of loadFamily(path.join(LLM_FIXTURES, 'sanitizer'))) {
     await t.test(`${fx.file}: ${fx.name}`, () => {
@@ -186,9 +171,8 @@ test('sanitizer: provider-error text vectors match sanitizeProviderText', async 
   }
 });
 
-// ── deepLink: telegramStart ──────────────────────────────────────────────────
-// The extension BUILDS t.me start payloads (src/lib/openIn.js); the shared
-// vectors pin its codec byte-compatible with browser/desktop/bot.
+// The extension BUILDS t.me start payloads (src/lib/openIn.js); the shared vectors pin its codec
+// byte-compatible with browser/desktop/bot.
 test('deepLink: telegramStart vectors match encodeTelegramStartPayload', async (t) => {
   const cases = JSON.parse(readFileSync(path.join(CORE_FIXTURES, 'deepLink', 'telegramStart.json'), 'utf8'));
   assert.ok(Array.isArray(cases) && cases.length > 0);

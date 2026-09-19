@@ -41,9 +41,8 @@ export const SWAP_EDGE_POINTS = TUNE.SWAP_EDGE_POINTS;
 
 const swapEdgeJitter = (k, style = styleCode()) => edgeJitter(style, k, SWAP_EDGE_POINTS);
 
-// One end state of the clip as a polygon() in viewport percentages: `grow` 0 is every
-// vertex at the origin, 1 the full ring. The base overshoots by the style's deepest dip
-// (edgeBaseOf) so the finished ring still clears the furthest corner.
+// `grow` 0 is every vertex at the origin, 1 the full ring. The base overshoots by the style's
+// deepest dip (edgeBaseOf) so the finished ring still clears the furthest corner.
 export function swapEdgePolygon(x, y, w, h, grow, style = styleCode()) {
   if (!(w > 0 && h > 0)) return '';   // no viewport to measure (a stub)
   const pc = (v) => Math.round(v * 1000) / 1000;

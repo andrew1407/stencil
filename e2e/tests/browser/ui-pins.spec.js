@@ -1,14 +1,8 @@
-// UI regression pins for the browser app — the guard for a refactor that moves modules
-// and splits stylesheets. Each state is driven into place through the SAME seams the
-// other browser specs use (window.stencil + real clicks), then its subtree is recorded
-// as computed styles + DOM shape and deep-equalled against e2e/pins/<name>.json
-// (helpers/uiPin.js). No screenshots: a pin fails naming the element and the property.
-//
-// The states are grouped over three pages rather than one boot each — the whole file
-// stays a few seconds. Order inside a group is load-bearing (the empty editor before
-// the image, the toolbar before anything enables its image actions).
-//
-// Record/refresh the baselines with UPDATE_PINS=1 (see ../../README.md).
+// UI regression pins for the browser app — the guard for a refactor that moves modules and
+// splits stylesheets. Each state is driven through the same seams the other specs use, then its
+// subtree is recorded as computed styles + DOM shape and deep-equalled against
+// e2e/pins/<name>.json (helpers/uiPin.js). Order inside a group is load-bearing: the empty
+// editor before the image, the toolbar before anything enables its image actions.
 import { test, expect } from '@playwright/test';
 import { gotoApp, settleModalAnimations, expectModalOpen } from '../../helpers/boot.js';
 import { expectPin, freezeMotion } from '../../helpers/uiPin.js';
@@ -33,9 +27,8 @@ test.describe('browser UI pins', () => {
     await expectPin(page, { name: 'toolbar-default', root: '.controls-wrapper' });
     await expectPin(page, { name: 'canvas-empty-idle-card', root: '#idle-create-wrap' });
 
-    // The canvas right-click menu. The canvas is 0x0 until an image exists, so it comes
-    // after the blank — but BEFORE the lines, so no vertex is ever under the pointer and
-    // the menu is always the plain canvas one.
+    // The canvas is 0x0 until an image exists, so this comes after the blank — but before the lines,
+    // so no vertex is ever under the pointer and the menu is the plain canvas one.
     await page.evaluate(() => window.stencil.blank('#ffffff', { size: { width: 240, height: 200 } }));
     await page.locator('#canvas').click({ button: 'right', position: { x: 40, y: 40 } });
     await expect(page.locator('#ctx-menu')).toHaveClass(/ctx-open/);
@@ -55,9 +48,8 @@ test.describe('browser UI pins', () => {
     await expect(page.locator('#coordinates-body tr').first()).toBeVisible();
     await expectPin(page, { name: 'coord-table-with-points', root: '#coord-panel' });
 
-    // The toast stack, through the element utils.js `notify()` delegates to. Wait the
-    // editor's own "Saved" toast out first so the stack holds exactly this one message;
-    // toasts auto-hide after 2.4s, which the pin settles well inside.
+    // Wait the editor's own "Saved" toast out first so the stack holds exactly this one message;
+    // toasts auto-hide after 2.4s.
     const toasts = page.locator('#notify-balloon .notify-toast');
     await expect(toasts).toHaveCount(0, { timeout: 10_000 });
     await page.evaluate(() => document.getElementById('notify-balloon').notify('Pinned toast', 'ok'));
@@ -68,10 +60,8 @@ test.describe('browser UI pins', () => {
   test('modals: projects, shortcuts, visuals + accent picker, servers, open image', async ({ page }) => {
     await boot(page);
 
-    // Every modal is opened and closed through the facade's named openers, which fly the
-    // window out of its own toolbar control — the app's real path, and reachable even for
-    // the controls that are hidden until an image is loaded. The Projects list is pinned
-    // EMPTY: a seeded project would put generated names and relative timestamps in the pin.
+    // Modals are opened through the facade's named openers — the app's real path, reachable even for
+    // image-only controls. Projects is pinned EMPTY: names and timestamps would be generated.
     const openModal = async (opener, overlay) => {
       await page.evaluate((fn) => window.stencil[fn](), opener);
       await expectModalOpen(page, overlay);

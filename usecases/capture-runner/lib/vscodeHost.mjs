@@ -10,9 +10,8 @@ import { chromium } from './playwright.mjs';
 import { CAPTURE, REPO } from './paths.mjs';
 import { waitForStable } from './waits.mjs';
 
-// Outside the home directory and short on purpose: whatever the terminal prints — the cd, the
-// CLI's own path, a saved file — lands in a screenshot, and VS Code's IPC socket path has a
-// 103-character cap. config/shared.json `vscode.roots` names it per platform.
+// Outside the home directory and short on purpose: the terminal's output lands in a screenshot,
+// and VS Code's IPC socket path has a 103-character cap (config/shared.json `vscode.roots`).
 const root = (config) => config.vscode.roots[process.platform] || path.join(os.tmpdir(), 'stencil-capture');
 export const VS_DIR = (config) => root(config);
 export const WORKSPACE = (config) => path.join(root(config), 'ws');

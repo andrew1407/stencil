@@ -30,11 +30,8 @@ const docEl = {
   },
 };
 const store = installMemoryStorage()._map;
-// The favicon path (applyAccentFavicon → applyFaviconHex) touches document; give it enough
-// to run without throwing (querySelector → null → createElement + head.appendChild).
-// The theme button, twice over: the fullscreen layer clones the toolbar with its ids and
-// never removes the clone, so the page really does carry two of these. getElementById
-// hands back the parked clone — the icon has to reach both.
+// The favicon path touches document, so the stub must run without throwing; and the fullscreen layer's
+// never-removed toolbar clone means getElementById can hand back the parked copy — the icon reaches both.
 const themeButtons = [{ innerHTML: '' }, { innerHTML: '' }];
 globalThis.document = {
   documentElement: docEl,
@@ -153,10 +150,8 @@ test('setCustomAccent: normalizes hex + sets inline --accent, no broadcast; inva
   assert.equal(ctrl.setCustomAccent('nope'), null);
 });
 
-// ── On-accent ink (light accents) ───────────────────────────────────────────
-// Labels and currentColor line-art sit on --accent, so the accent picks the ink that
-// reads on it: whichever of white / near-black contrasts more. The controller flags
-// <html data-accent-light> for the dark one and css/theme.css swaps --on-accent.
+// Labels and currentColor line-art sit on --accent, so the accent picks whichever of white / near-black
+// contrasts more: the controller flags <html data-accent-light> and css/theme.css swaps --on-accent.
 
 test('needsDarkGlyph: the accents black reads better on than white', () => {
   assert.equal(needsDarkGlyph('#00ffff'), true);   // cyan — white 1.25:1, black 16.7:1

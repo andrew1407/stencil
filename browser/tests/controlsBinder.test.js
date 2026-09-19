@@ -17,9 +17,8 @@ test('anchorPickerInput pins the hidden colour input under the invoking button',
   assert.deepEqual(untouched.style, {});
 });
 
-// Alt+G opened the assistant but could never close it: opening focuses the chat input, and
-// the keydown handler drops every chord that lands on a text box. A short allow-list gets the
-// toggle back without letting canvas shortcuts fire mid-word.
+// The keydown handler drops every chord that lands on a text box and opening the assistant focuses its
+// input, so a short allow-list keeps the toggle working without firing canvas shortcuts mid-word.
 test('typingHotkeyId lets the chat toggle through a focused text box, nothing else', async () => {
   const { typingHotkeyId } = await import('../js/ui/bindings/hotkeyRules.js');
   const hotkeys = new Map([['toggleChat', 'Alt+G'], ['undo', 'Ctrl+Z'], ['deleteLine', 'Alt+Delete']]);
@@ -36,9 +35,8 @@ test('typingHotkeyId lets the chat toggle through a focused text box, nothing el
   assert.equal(typingHotkeyId(press('g', { altKey: true }), new Map()), null);
 });
 
-// The window shortcuts must survive a focused search box: every one of these panels
-// autofocuses its filter field, so without this they could be opened by shortcut and never
-// closed by it (the Alt+G report, and the same for help/projects/servers).
+// Every one of these panels autofocuses its filter field, so the window shortcuts must survive a focused
+// search box, or a panel opens by shortcut and can never be closed by it.
 test('the window shortcuts, not the editing ones, work from inside a text box', async () => {
   const { typingHotkeyId, HOTKEYS_WHILE_TYPING } = await import('../js/ui/bindings/hotkeyRules.js');
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openHelp'));
@@ -60,9 +58,8 @@ test('the window shortcuts, not the editing ones, work from inside a text box', 
   assert.equal(typingHotkeyId(press('b', { altKey: true }), hotkeys), null);   // stays typing
 });
 
-// Shift+F10 opens the canvas context menu from the keyboard (the desktop binds the same
-// chord): under the pointer while it rests on the canvas, else at the viewport's centre,
-// and always through the real contextmenu event so the two open paths cannot drift.
+// Shift+F10 opens the canvas context menu from the keyboard (the desktop binds the same chord): under the
+// pointer while it rests on the canvas, else at the viewport's centre, always through a real event.
 test('contextMenu hotkey: Shift+F10 in the registry, placed at the pointer or the viewport centre', async () => {
   const { readFileSync } = await import('node:fs');
   const defs = JSON.parse(readFileSync(new URL('../js/config/hotkeysConfig.json', import.meta.url), 'utf8'));

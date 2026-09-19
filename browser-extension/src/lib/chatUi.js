@@ -86,9 +86,8 @@ export const wireThumbPreview = (img, { doc = globalThis.document, caption = '',
   return { show, hide: hideThumbPreview };
 };
 
-// A wrapped bubble hugs its LONGEST LINE, not the max-width cap: pinning at the widest
-// rendered line reproduces the identical break minus the dead space (port of browser
-// chatView.js shrinkWrapWidth/applyShrinkWrap). Null for one line.
+// A wrapped bubble hugs its LONGEST LINE, not the max-width cap (port of browser
+// chatView.js shrinkWrapWidth). Null for one line.
 export const shrinkWrapWidth = (lineWidths) => {
   if (!Array.isArray(lineWidths) || lineWidths.length < 2) return null;
   const max = Math.max(...lineWidths);

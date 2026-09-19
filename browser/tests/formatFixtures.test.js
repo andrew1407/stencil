@@ -35,10 +35,8 @@ const readFamily = (family) => {
 // Structural JSON round-trip: drops undefined-valued keys the way serialization would.
 const jsonClone = (v) => JSON.parse(JSON.stringify(v));
 
-// Expand { $repeat: { prefix, char, length } } recipes (oversize strings are stored as
-// recipes, per deepLink/_schema.md) anywhere in a fixture value. Keys are set with
-// defineProperty so an own "__proto__" fixture key stays an own key (a plain [[Set]]
-// would rewrite the clone's prototype instead).
+// { $repeat: { prefix, char, length } } recipes stand in for oversize strings (deepLink/_schema.md). Keys are
+// set with defineProperty, so an own "__proto__" fixture key stays an own key instead of rewriting a prototype.
 const expand = (v) => {
   if (Array.isArray(v)) return v.map(expand);
   if (v && typeof v === 'object') {
@@ -55,9 +53,8 @@ const expand = (v) => {
   return v;
 };
 
-// ── layout/ ─────────────────────────────────────────────────────────────────
-// Cross-surface per-line defaults, sourced from the app's own config so the corpus
-// and the browser's DEFAULT_VISUALS can never drift apart silently.
+// Cross-surface per-line defaults, sourced from the app's own config so the corpus and the browser's
+// DEFAULT_VISUALS can never drift apart silently.
 const DV = JSON.parse(fs.readFileSync(path.join(CONFIG_DIR, 'constants.json'), 'utf8')).DEFAULT_VISUALS;
 const LINE_DEFAULTS = {
   color: DV.color, thickness: DV.thickness, pointSize: DV.pointSize, style: DV.style,

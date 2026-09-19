@@ -8,10 +8,8 @@
 const inRect = (x, y, rect) =>
   x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 
-// Whether a pointer at (x, y) is on a scrollable element's scrollbar strip: the last
-// `strip` px along its right edge (vertical bar, when `canY`) or bottom edge (horizontal,
-// when `canX`). Overlay bars take no layout space, so the strip is measured off the
-// element's own box. Pure, so the geometry is unit-testable.
+// On the scrollbar strip = within the last `strip` px of the right edge (vertical) or bottom
+// (horizontal). Overlay bars take no layout space, so it is measured off the element's own box.
 export const SCROLLBAR_STRIP_PX = 14;
 export const scrollbarHit = (box, x, y, { canX = false, canY = false, strip = SCROLLBAR_STRIP_PX } = {}) => {
   if (!inRect(x, y, box)) return false;
@@ -20,9 +18,8 @@ export const scrollbarHit = (box, x, y, { canX = false, canY = false, strip = SC
   return false;
 };
 
-// The scrolling element whose own scrollbar is under (x, y), walking up from `target`:
-// one that overflows AND shows a bar for it (overflow auto/scroll; a viewport that hides
-// its native bars behind overlay ones — scrollbar-width: none — is skipped). null when none.
+// The scrolling element whose own bar is under (x, y), walking up from `target`: it must overflow
+// AND show a bar (a viewport hiding native bars behind overlay ones is skipped). null when none.
 export const scrollbarOwnerAt = (target, x, y) => {
   for (let el = target; el && el.nodeType === 1; el = el.parentElement) {
     const overY = el.scrollHeight > el.clientHeight;
@@ -37,12 +34,8 @@ export const scrollbarOwnerAt = (target, x, y) => {
   return null;
 };
 
-// Marks the scrolling element under the pointer with `sb-hover` while the pointer rests
-// on one of ITS scrollbars — the thumb takes the accent ONLY then, not whenever the
-// panel is hovered: the standard scrollbar-color property Chrome/Firefox read has no
-// thumb-hover of its own, and a panel-wide hover made every scroll paint the thumb
-// accent (user report). One document listener covers every scrollable there is or will
-// be (dialogs, menus, the chat) — nothing to wire per panel.
+// The thumb takes the accent ONLY while the pointer rests on a bar, not whenever the panel is
+// hovered: scrollbar-color has no thumb-hover, so panel-wide hover accented every thumb (user report).
 export const wireScrollbarHover = (root = document) => {
   let current = null;
   const set = (el) => {

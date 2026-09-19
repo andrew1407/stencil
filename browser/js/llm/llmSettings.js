@@ -12,9 +12,8 @@ const ls = () => (typeof localStorage !== 'undefined' ? localStorage : null);
 // 'none' is a local-only value: assistant switched off, nothing configured or sent.
 export const PROVIDERS = Object.freeze(['none', ...Object.keys(PROVIDERS_ASSET.providers)]);
 
-// Provider → pre-filled default base URL (providers.json, contract §5 table).
-// stencil-server's is null there — it uses an already-configured collaboration
-// server connection instead, so it pre-fills empty.
+// Provider → default base URL (providers.json, contract §5). stencil-server's is null there:
+// it uses an already-configured collaboration server connection, so it pre-fills empty.
 export const PROVIDER_BASE_URLS = Object.fromEntries(
   Object.entries(PROVIDERS_ASSET.providers).map(([id, p]) => [id, p.defaultBaseUrl || '']),
 );
@@ -24,9 +23,8 @@ export const PROVIDER_BASE_URLS = Object.fromEntries(
 export const URL_KEYS = Object.freeze(['baseUrl', 'serverUrl']);
 export const isHttpUrl = (v) => validateHttpUrl(v).ok;
 
-// Switch `settings` to `provider`, pre-filling its default base URL unless the user
-// overrode it. THE provider-switch rule: the settings modal and the stencil.llm facade
-// both apply this one helper, so they cannot drift.
+// THE provider-switch rule: pre-fill the provider's default base URL unless the user overrode
+// it. The settings modal and the stencil.llm facade both apply this one helper.
 export const withProvider = (settings, provider) => {
   const wasDefault = !settings.baseUrl || settings.baseUrl === PROVIDER_BASE_URLS[settings.provider];
   return {
@@ -36,10 +34,8 @@ export const withProvider = (settings, provider) => {
   };
 };
 
-// First-run defaults: the assistant ships OFF (contract §5) until the user picks a
-// provider; serverUrl pre-fills the FIRST saved Stencil server connection anyway, so
-// switching to "Stencil server" has something to select. saveChats is the §12
-// chat-persistence opt-in — OFF by default, everywhere.
+// First-run defaults: the assistant ships OFF (§5) until the user picks a provider; serverUrl
+// pre-fills the first saved Stencil connection. saveChats, the §12 opt-in, is OFF everywhere.
 export const defaultSettings = () => ({
   provider: 'none',
   baseUrl: '',
@@ -70,9 +66,8 @@ export const loadLlmSettings = () => {
   return out;
 };
 
-// stencil-server auth: the LIVE connection's bearer token, falling back to the saved
-// one so the assistant works before/without an open connection. Shared by the chat
-// panel and the settings modal.
+// stencil-server auth: the LIVE connection's bearer token, falling back to the saved one so
+// the assistant works before or without an open connection.
 export const serverBearerToken = (app, url) => app?.connections?.get(url)?.token
   || loadSavedServers().find((s) => s.url === url)?.token || '';
 

@@ -1,10 +1,7 @@
-// The clip the video shots open. Made here with ffmpeg rather than committed, so no binary
-// rides in git. testsrc2 carries a moving ball and a running timecode, so a picked FRAME
-// reads as one moment of a clip rather than a flat picture.
-//
-// It is written under a NEUTRAL root, not the scratch dir: the desktop dialog shows the
-// chosen file's full path, and the scratch dir sits inside the checkout — under someone's
-// home directory. Same rule, and the same roots, as the VS Code captures.
+// The clip the video shots open, made here with ffmpeg rather than committed so no binary rides
+// in git. testsrc2 carries a moving ball and a running timecode, so a picked FRAME reads as one
+// moment of a clip. Written under a NEUTRAL root, not the scratch dir: the desktop dialog shows
+// the chosen file's full path, and the scratch dir sits inside the checkout.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';

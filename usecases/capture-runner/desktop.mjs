@@ -28,11 +28,8 @@ console.log('desktop build');
 run('cmake', ['-S', repoPath('desktop'), '-B', BUILD, '-DSTENCIL_DOCS_CAPTURE=ON']);
 run('cmake', ['--build', BUILD, '--target', 'stencil_docs_capture', '-j']);
 
-// The offscreen platform's own screen is 800x800, and the tall dialogs take their height
-// from availableGeometry (modalChrome sizeModalTall: 82% of it, capped at 760), so they
-// photographed hundreds of pixels shorter than the app opens them on a real display. The
-// plugin gets a screen the size of one instead — in DEVICE pixels, which QT_SCALE_FACTOR
-// then divides, so the figure is scaled up to leave 1920x1200 of logical room.
+// The offscreen platform's screen is 800x800 and the tall dialogs size off availableGeometry, so
+// the plugin gets a 1920x1200-logical screen in DEVICE pixels, which QT_SCALE_FACTOR divides.
 const SCREEN_PX = { w: 1920, h: 1200 };
 const SCREEN_FILE = scratchPath('desktop-screen.json');
 fs.writeFileSync(SCREEN_FILE, JSON.stringify({

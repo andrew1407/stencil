@@ -18,23 +18,16 @@ test('applyContourRGBA maps a uniform image to all white, keeping alpha', () => 
 });
 
 test('applyContourRGBA marks a hard vertical edge (hand-computed Sobel)', () => {
-  // 4x1: black, black, white, white. Luma L = [0, 0, 255, 255]; with the row
-  // clamped vertically, gy = 0 and gx = 4 * (l(x+1) - l(x-1)):
-  //   x=0: 4*(  0 -   0) =    0 → 255 - 0   = 255
-  //   x=1: 4*(255 -   0) = 1020 → mag clamps to 255 → 0
-  //   x=2: 4*(255 -   0) = 1020 → 0
-  //   x=3: 4*(255 - 255) =    0 → 255  (x+1 clamps to the last column)
+  // 4x1 black, black, white, white: the row clamps vertically, so gy = 0 and gx = 4 * (l(x+1) - l(x-1)) —
+  // 1020 clamps the magnitude to 255 → 0, while both ends come out 255.
   const buf = new Uint8ClampedArray([0, 0, 0, 10, 0, 0, 0, 20, 255, 255, 255, 30, 255, 255, 255, 40]);
   applyContourRGBA(buf, 4, 1);
   assert.deepEqual([...buf], [255, 255, 255, 10, 0, 0, 0, 20, 0, 0, 0, 30, 255, 255, 255, 40]);
 });
 
 test('applyContourRGBA computes exact non-saturating magnitudes', () => {
-  // 3x1 gray ramp 0, 10, 20: L equals the gray value, gy = 0,
-  // gx = 4 * (l(x+1) - l(x-1)) with clamped columns:
-  //   x=0: 4*(10 -  0) = 40 → 215
-  //   x=1: 4*(20 -  0) = 80 → 175
-  //   x=2: 4*(20 - 10) = 40 → 215
+  // 3x1 gray ramp 0, 10, 20 (L is the gray value, gy = 0): gx = 4 * (l(x+1) - l(x-1)) over clamped columns
+  // gives 40, 80, 40 → 215, 175, 215.
   const buf = new Uint8ClampedArray([0, 0, 0, 1, 10, 10, 10, 2, 20, 20, 20, 3]);
   applyContourRGBA(buf, 3, 1);
   assert.deepEqual([...buf], [215, 215, 215, 1, 175, 175, 175, 2, 215, 215, 215, 3]);

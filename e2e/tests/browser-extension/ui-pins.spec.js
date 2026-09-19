@@ -1,12 +1,7 @@
 // UI regression pins for the MV3 extension — the same guard as tests/browser/ui-pins.spec.js
-// (helpers/uiPin.js): each surface is driven into a state and its subtree recorded as
-// computed styles + DOM shape, deep-equalled against e2e/pins/<name>.json. No screenshots.
-//
-// Context setup mirrors popup.smoke.spec.js: a persistent context with the unpacked
-// extension, the editor hand-off pointed at the harness app, and the popup / side panel
-// opened as ordinary chrome-extension:// pages against a fixture host tab.
-//
-// Record/refresh the baselines with UPDATE_PINS=1 (see ../../README.md).
+// (helpers/uiPin.js): each surface is driven into a state and its subtree recorded as computed
+// styles + DOM shape, deep-equalled against e2e/pins/<name>.json. No screenshots.
+// Context setup mirrors popup.smoke.spec.js. UPDATE_PINS=1 records the baselines.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';

@@ -27,9 +27,8 @@ export function themeSwap(apply, origin = null) {
     return swapPercent(p.x, p.y, w, h);
   };
   const paint = swapDustPaint();
-// Handed to the declarative keyframes in animations/themeSwap.css: scripting from
-// ready.then() races the transition's teardown. --swap-x/y/r stay the geometry record
-// (and the circle fallback); the clip actually played is the polygon pair.
+// Handed to the declarative keyframes in animations/themeSwap.css: scripting from ready.then()
+// races the transition's teardown. --swap-x/y/r stay the geometry record and circle fallback.
   const write = ({ x, y, r }) => {
     root.style.setProperty('--swap-x', `${x}%`);
     root.style.setProperty('--swap-y', `${y}%`);

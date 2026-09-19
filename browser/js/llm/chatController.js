@@ -2,127 +2,17 @@
 // Owns the client-side conversation state (contract §7): history is replayed in full on
 // every call (bounded to 32 messages), images follow the replay rule, and attachments are
 // downscaled before base64-encoding. Every DOM capability is INJECTED for `node --test`.
-import { EDITOR_SYSTEM_PROMPT, parseOpPlan, executeOpPlan, renderAskPreviews } from './opPlan.js';
-import { CONTINUATION_NOTE } from './chatStore.js';
-import PROMPT_ASSET from '../config/llm/systemPrompt.json' with { type: 'json' };
 import { isVideoFile } from '../core/videoFrame.js';
 import { loadSavedServers } from '../net/connectionStore.js';
-import { downscaleToDataUrl, contourToDataUrl } from '../worker/imageTasks.js';
-import EVENTS from '../config/events.json' with { type: 'json' };
+import { HISTORY_LIMIT, MAX_ATTACHMENTS, MAX_IMAGE_EDGE, VIDEO_FRAME_COUNT, contourDataUrl,
+  downscaleImageToDataUrl, splitDataUrl, thumbnailDataUrl } from './chatTurn.js';
+import { createResponder } from './chatRespond.js';
+export { CHAT_ATTACHMENTS_EVENT, EDGE_MAP_SENTENCE, HISTORY_LIMIT, MAX_ATTACHMENTS, MAX_IMAGE_EDGE,
+  VIDEO_FRAME_COUNT, contourDataUrl, downscaleImageToDataUrl, planEditsTheImage,
+  planLoadsWithoutTracing, replayMessages, splitDataUrl } from './chatTurn.js';
 
-export const HISTORY_LIMIT = 32;
-export const MAX_IMAGE_EDGE = 1568;
-// How many images ONE message may carry: replayed and paid for per turn (§7); past this
-// the queue is refused with a message rather than silently trimmed on the way out.
-export const MAX_ATTACHMENTS = 3;
-// §7: appended to a turn's system prompt when — and only when — that turn attaches the
-// working image's edge map. Verbatim from the shared prose asset every surface embeds.
-export const EDGE_MAP_SENTENCE = PROMPT_ASSET.edgeMapSentence;
-// Window-event the chat UIs listen on to repaint the composer's attachment chips.
-export const CHAT_ATTACHMENTS_EVENT = EVENTS.chatAttachmentsChanged;
-
-// §2.1 `save` with no name: the attachment the plan is working on names the project.
-// Empty means "no idea from here" — the surface falls back to the editor's own name.
-const attachmentSaveName = (attachment) =>
-  String(attachment?.name || '').replace(/\.[^.]+$/, '').trim();
-
-// Does this plan actually WORK ON the picture? Only then is an attached image worth
-// adopting as the working one — a question/settings-only plan leaves the editor alone.
-// Variants count: they are alternatives OF the working image.
-const IMAGE_OPS = new Set(['crop', 'rotate', 'filter', 'layout', 'page', 'blank', 'clear', 'frame']);
-export const planEditsTheImage = (plan) =>
-  !!plan && ((plan.actions || []).some((a) => IMAGE_OPS.has(a.op)) || (plan.variants || []).length > 0);
-
-export const VIDEO_FRAME_COUNT = 4;
-// Ask-option previews live in the shared chat log for the whole session but render
-// as small thumbs (no download/open affordance) — stored at thumbnail size.
-const ASK_PREVIEW_MAX_EDGE = 256;
-
-// data:mediaType;base64,payload → { mediaType, data } (the LlmImage wire shape).
-export const splitDataUrl = (u) => {
-  const m = /^data:([^;,]+);base64,(.*)$/s.exec(String(u || ''));
-  return m ? { mediaType: m[1], data: m[2] } : null;
-};
-
-// Downscale an image blob/File to ≤ maxEdge px on the long edge and re-encode as
-// PNG (contract §7) — in the image worker. Browser-only default for prepareAttachment.
-export const downscaleImageToDataUrl = async (blob, maxEdge = MAX_IMAGE_EDGE) => {
-  const bmp = await createImageBitmap(blob);
-  try {
-    return await downscaleToDataUrl(bmp, bmp.width, bmp.height, { maxEdge, type: 'image/png' });
-  } finally {
-    bmp.close?.();
-  }
-};
-
-// Re-encode a data URL at thumbnail size (browser default for the injected
-// previewThumb). Best-effort: any failure keeps the original URL.
-const thumbnailDataUrl = async (dataUrl, maxEdge = ASK_PREVIEW_MAX_EDGE) => {
-  try {
-    const img = new Image();
-    img.src = dataUrl;
-    await img.decode();
-    return await downscaleToDataUrl(img, img.naturalWidth, img.naturalHeight, { maxEdge, type: 'image/jpeg', quality: 0.85 });
-  } catch {
-    return dataUrl;
-  }
-};
-
-// Re-render a snapshot data URL with the core `contour` filter — the exact path the
-// user-facing "contour" filter mode uses (the Sobel pass runs in the image worker).
-// Browser-only default for the injected edgeMap.
-export const contourDataUrl = async (dataUrl) => {
-  const img = new Image();
-  img.src = dataUrl;
-  await img.decode();
-  const canvas = document.createElement('canvas');
-  canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0);
-  return contourToDataUrl(() => ctx.getImageData(0, 0, canvas.width, canvas.height));
-};
-
-// A provider/model that has no vision, answering the auto-attached working image.
-// Providers word it differently, so match the shapes rather than one string.
-const isImageRejection = (err) =>
-  /multimodal|vision|image input|does not support image|image_url|images are not/i.test(
-    String(err?.message ?? err ?? ''));
-
-// Image replay rule (contract §7): the current turn keeps its images; of the PRIOR
-// turns only the single most recent image survives; older turns replay text-only.
-export const replayMessages = (history) => {
-  const msgs = history.slice(-HISTORY_LIMIT);
-  const out = [];
-  let keptPrior = false;
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const m = msgs[i];
-    if (i === msgs.length - 1 && m.images && m.images.length) {
-      out.unshift({ role: m.role, text: m.text, images: m.images });
-    } else if (!keptPrior && m.images && m.images.length) {
-      out.unshift({ role: m.role, text: m.text, images: [m.images[m.images.length - 1]] });
-      keptPrior = true;
-    } else {
-      out.unshift({ role: m.role, text: m.text });
-    }
-  }
-  return out;
-};
-
-// §7 auto-continuation: ops that load a picture the model has not seen yet. A plan
-// containing one — that drew NO layout — is re-sent once with the new working image
-// attached: outlining needs pixels, and a plan that already placed lines committed to
-// its coordinates. `openUrl` counts with OR without incognito (adopted in this editor).
-const LOAD_ONLY_OPS = new Set(['openUrl', 'blank', 'frame']);
-export const planLoadsWithoutTracing = (plan) =>
-  !!plan && Array.isArray(plan.actions)
-  && plan.actions.some((a) => LOAD_ONLY_OPS.has(a.op))
-  && !plan.actions.some((a) => a.op === 'layout');
-
-// Build the controller. Every DOM-needing capability is injected; getClient is re-read
-// per send so settings changes take effect; savedServers is the pool §10 `connect`
-// resolves in; workingSnapshot (default: exportImage downscaled) is the §7 auto-attach;
-// edgeMap renders that snapshot with the core contour filter (§7, best-effort).
+// Every DOM-needing capability is injected; getClient is re-read per send so settings changes
+// take effect; savedServers is the pool §10 `connect` resolves in.
 export const createChatController = ({
   stencil,
   getClient,
@@ -153,18 +43,13 @@ export const createChatController = ({
   setVoiceChat,           // §10 voiceChat: (on) => note-string | null (browser-only; unsupported → note)
 } = {}) => {
   const history = [];       // [{ role, text, images? }] — canonical wire shape
-  // This turn's user images, kept past the queue drain so an EDITING plan can adopt
-  // one as the working image when the editor is empty (see the adoption below).
-  let turnAttachments = [];
   const attachments = [];   // pending for the next send: { name, kind, use, dataUrl?, frames?, file? }
-  let videoInput = null;    // the current working-video attachment (frame ops valid)
-  // Latched once a provider rejects images (see send): a text-only model must still be
-  // able to plan text-only edits, so we stop auto-attaching instead of failing forever.
-  let textOnlyModel = false;
+  // Shared by the send loop and the model round: this turn's images (kept past the queue drain so
+  // an EDITING plan can adopt one), the video binding, and a text-only provider's latch.
+  const state = { turnAttachments: [], videoInput: null, textOnlyModel: false };
 
-  // The working image for this turn, downscaled to the attachment limit. Deliberately
-  // NOT the injected previewThumb — that one is the ask-card thumbnailer, and swapping
-  // it must not change what the model sees.
+  // Deliberately NOT the injected previewThumb — that one is the ask-card thumbnailer, and
+  // swapping it must not change what the model sees.
   const snapshot = workingSnapshot
     || (exportImage ? async () => thumbnailDataUrl(await exportImage(), MAX_IMAGE_EDGE) : null);
 
@@ -175,9 +60,8 @@ export const createChatController = ({
   };
 
   const pushHistory = (msg) => {
-    // Reclaim replay-dead image payloads before an image-bearing turn lands: of the
-    // prior turns replayMessages only ever sends the single most recent image, so
-    // keep exactly that one and drop the rest (the wire output stays identical).
+    // Of the prior turns replayMessages only ever sends the single most recent image, so keep
+    // exactly that one and drop the rest; the wire output stays identical.
     if (msg.images && msg.images.length) {
       let keptPrior = false;
       for (let i = history.length - 1; i >= 0; i--) {
@@ -191,26 +75,22 @@ export const createChatController = ({
     if (history.length > HISTORY_LIMIT) history.splice(0, history.length - HISTORY_LIMIT);
   };
 
-  // The editor prompt (§4 + the §10 settings-op block) plus a short dynamic suffix
-  // (contract §4 allows appending). The §7 edge-map sentence rides the suffix when —
-  // and only when — this turn actually attached the edge map.
-  const buildSystem = (withEdgeMap = false) => {
-    let s = EDITOR_SYSTEM_PROMPT;
-    const size = stencil?.imageSize;
-    if (size) s += `\n\nCurrent working image: ${size.width}x${size.height} px.`;
-    if (videoInput) s += `\nThe current input is a video (${videoInput.name}) — "frame" ops are valid.`;
-    if (withEdgeMap) s += `\n${EDGE_MAP_SENTENCE}`;
-    return s;
-  };
+  // The model round itself (§7), handed the mutable turn state and the §10 capability bag.
+  const respond = createResponder({
+    stencil, state, history, pushHistory, edgeOf, snapshot, getClient, loadImage, frameAt,
+    exportImage, previewThumb, savedServers, openIncognito,
+    caps: { saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage,
+      clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, setChatPlacement,
+      openDialog, clearChatConversation, setVoiceChat },
+  });
 
   const controller = {
     history,
     attachments,
-    get videoInput() { return videoInput; },
+    get videoInput() { return state.videoInput; },
 
-    // Queue a File for the next send. Images are downscaled now; videos are sampled
-    // into frames (the video bytes themselves never go to the LLM). `use` starts as
-    // 'analyze'; the panel can flip it to 'working' (load as the working image/video).
+    // Images are downscaled now; videos are sampled into frames — the video bytes themselves
+    // never go to the LLM.
     async addAttachment(file) {
       if (attachments.length >= MAX_ATTACHMENTS) {
         throw new Error(`up to ${MAX_ATTACHMENTS} images per message`);
@@ -244,18 +124,17 @@ export const createChatController = ({
     clearConversation() {
       history.length = 0;
       attachments.length = 0;
-      videoInput = null;
+      state.videoInput = null;
       // A fresh conversation re-tries the working-image attachment: the user may well
       // have switched to a vision model between the two.
-      textOnlyModel = false;
+      state.textOnlyModel = false;
     },
-    // Replace the conversation with a RESTORED one (contract §12): text-only turns in
-    // display form — §7 permits replaying either raw model text or the extracted reply.
-    // Attachments and the working video are per-session — a restore starts without them.
+    // Replace the conversation with a RESTORED one (§12): text-only turns in display form (§7
+    // permits raw model text or the extracted reply). Attachments are per-session.
     seedHistory(messages) {
       history.length = 0;
       attachments.length = 0;
-      videoInput = null;
+      state.videoInput = null;
       for (const m of messages || []) {
         if ((m?.role === 'user' || m?.role === 'assistant') && typeof m?.text === 'string' && m.text) {
           history.push({ role: m.role, text: m.text });
@@ -268,27 +147,24 @@ export const createChatController = ({
     // (no-op if the user queued something new; video stays bound separately).
     requeueLastTurnAttachments() {
       if (attachments.length) return;
-      for (const at of turnAttachments) {
+      for (const at of state.turnAttachments) {
         if (attachments.length >= MAX_ATTACHMENTS) break;
         attachments.push({ name: at.name, kind: 'image', use: 'analyze', dataUrl: at.dataUrl });
       }
     },
 
-    // One turn: build messages → client.chat → parseOpPlan → executeOpPlan.
-    // Returns { reply, warnings, results, chatOnly }; typed LlmErrors and invalid-plan
-    // errors propagate for the panel to render as chat errors (never parsed as plans).
+    // Typed LlmErrors and invalid-plan errors propagate for the panel to render as chat errors,
+    // never parsed as plans.
     async send(text, { signal } = {}) {
       const client = getClient();
 
       const images = [];
-      // Ground the turn in what the editor is showing: the working image rides along
-      // automatically, ahead of the user's own attachments. Without it a request about
-      // the picture is answered from imagination instead of pixels.
+      // The working image rides along automatically, ahead of the user's own attachments.
       const preWarnings = [];
       // The §7 edge map of this turn's snapshot. Wire-only: it rides the request
       // directly after the snapshot but never enters history (see respond).
       let edgeImage = null;
-      if (snapshot && !textOnlyModel && stencil?.imageSize) {
+      if (snapshot && !state.textOnlyModel && stencil?.imageSize) {
         try {
           const url = await snapshot();
           const img = splitDataUrl(url);
@@ -302,22 +178,20 @@ export const createChatController = ({
         }
       }
       const autoAttached = images.length > 0;
-      // THIS turn's user attachments, kept past the queue drain: an editing plan on an
-      // empty editor adopts the first one as the working image. Kept across turns that
-      // queue nothing new — an ask-card answer arrives attachment-less, and the editing
-      // plan it triggers must still be able to adopt the previous turn's image.
-      if (attachments.length) turnAttachments = [];
+      // THIS turn's attachments, kept past the queue drain and across turns that queue nothing new:
+      // an ask-card answer arrives attachment-less, and its editing plan must still adopt the image.
+      if (attachments.length) state.turnAttachments = [];
 
       // Consume pending attachments: 'working' images load into the editor; every
       // image (and every sampled video frame) also attaches to this turn.
       for (const at of attachments) {
         if (at.kind === 'image') {
           if (at.use === 'working') await loadImage(at.dataUrl, at.name);
-          else turnAttachments.push({ dataUrl: at.dataUrl, name: at.name });
+          else state.turnAttachments.push({ dataUrl: at.dataUrl, name: at.name });
           const img = splitDataUrl(at.dataUrl);
           if (img) images.push(img);
         } else {
-          if (at.use === 'working') videoInput = at;
+          if (at.use === 'working') state.videoInput = at;
           for (const f of at.frames || []) {
             const img = splitDataUrl(f);
             if (img) images.push(img);
@@ -335,141 +209,5 @@ export const createChatController = ({
     },
   };
 
-  // §10 clearChat and `dialog` land at the turn's true END — after the §7 continuation
-  // round and the §3 passes, not at the end of the round that asked. Both rounds feed
-  // the same `deferred` list; dedup by op so a clearChat asked twice confirms once, and
-  // one "open the projects window" opens one window.
-  const flushDeferred = async (deferred, warnings) => {
-    if (!deferred.length) return;
-    // One action per deferred op, and it is the LAST one asked for: a plan that closes a
-    // window and opens another ends with the second one open (first-wins left the user
-    // staring at nothing), while a clearChat asked twice still confirms once.
-    const byOp = new Map();
-    for (const a of deferred) byOp.set(a.op, a);
-    const actions = [...byOp.values()];
-    // Every DEFERRED op's capability rides along — a replay missing one would fail the
-    // op at the very end of a turn that had otherwise gone through.
-    const { warnings: w } = await executeOpPlan({ actions, variants: [], warnings: [] }, stencil,
-      { clearChatConversation, openDialog });
-    warnings.push(...w);
-  };
-
-  // One model round against the current history. Split out of send() so an
-  // auto-continuation (§7) can run a second one with the freshly loaded image in place.
-  const respond = async ({ signal, preWarnings, autoAttached, continued, edgeImage = null, deferred = [] }) => {
-      const client = getClient();
-      const messages = replayMessages(history);
-      // §7 edge map: spliced into the WIRE copy of this turn's message, directly after
-      // the working snapshot (images[0]). History never holds it, so the replay rule's
-      // "single most recent prior image" keeps picking a real snapshot/attachment.
-      const withEdgeMap = !!edgeImage && !textOnlyModel;
-      if (withEdgeMap) {
-        const last = messages[messages.length - 1];
-        last.images = [last.images[0], edgeImage, ...last.images.slice(1)];
-      }
-
-      let raw;
-      try {
-        raw = await client.chat({ system: buildSystem(withEdgeMap), messages, signal });
-      } catch (err) {
-        // A text-only model rejects the auto-attached snapshot. Stop attaching it for
-        // the rest of the session, strip the images out of the replayed history, and
-        // retry ONCE — "make it sepia" must still work on a model without vision.
-        if (!autoAttached || !isImageRejection(err)) throw err;
-        textOnlyModel = true;
-        for (const m of history) delete m.images;
-        preWarnings.push('this model is text-only, so the picture was not sent — pick a vision model to ask about the image itself');
-        raw = await client.chat({ system: buildSystem(), messages: replayMessages(history), signal });
-      }
-      // Replay the RAW model text as the assistant turn so the model keeps answering
-      // in pure-JSON form; the parsed `reply` is what the user sees.
-      pushHistory({ role: 'assistant', text: raw });
-
-      const plan = parseOpPlan(raw);
-      // A chat-only fallback that LOOKS like a plan (mangled JSON) or like
-      // MARKUP (the model answered in HTML instead of ops) gets an explicit
-      // note — a bare blob otherwise reads as "the assistant did nothing".
-      if (plan.chatOnly && /^\s*[{`]/.test(raw) && /"(op|actions|version)"/.test(raw)) {
-        plan.warnings.push('That answer looks like a plan, but its JSON is malformed — nothing was executed. Retry, or switch to a larger model.');
-      } else if (plan.chatOnly && /^\s*</.test(raw) && /<\w+[\s>]/.test(raw)) {
-        plan.warnings.push('The model answered with markup instead of a Stencil plan — nothing was executed. Retry, or switch to a larger model.');
-      }
-      // An EDITING plan with nothing on the canvas adopts the just-attached picture as
-      // the working image ("make it b&w" arriving with a photo). Only when the editor is
-      // empty: with an image already open, the attachment stays a reference (§7).
-      if (!autoAttached && turnAttachments.length && planEditsTheImage(plan)) {
-        const adopt = turnAttachments[0];
-        try {
-          await loadImage(adopt.dataUrl, adopt.name);
-          preWarnings.push(`opened ${adopt.name} in the editor first — the actions ran on it`);
-        } catch {
-          // Loading failed: fall through and let the ops report their own trouble.
-        }
-      }
-      const loadFrame = (videoInput && frameAt)
-        ? async (idx) => { await loadImage(await frameAt(videoInput.file, idx), `frame${idx}`); }
-        : null;
-      // §10 openUrl guard: the pool of URLs the model may echo — the user's OWN
-      // messages this conversation (assistant/replayed text never counts).
-      const userText = () => history.filter((m) => m.role === 'user').map((m) => m.text).join('\n');
-      // §2.1: the turn's attachments, 1-based, as the `image` op indexes them — the
-      // same list the empty-canvas adoption above draws from. The one currently loaded
-      // names an unnamed `save`, so a 3-image plan yields 3 distinctly named projects.
-      let activeAttachment = turnAttachments.length === 1 ? turnAttachments[0] : null;
-      const loadAttachment = async (index) => {
-        const at = turnAttachments[index - 1];
-        if (!at) throw new Error(`this message attached ${turnAttachments.length} image(s)`);
-        await loadImage(at.dataUrl, at.name);
-        activeAttachment = at;
-      };
-      const { results, warnings } = await executeOpPlan(plan, stencil, {
-        exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink: deferred,
-        saveProject: saveProject
-          ? (name) => saveProject(name || attachmentSaveName(activeAttachment))
-          : null,
-      });
-      // §7 auto-continuation: the plan loaded a picture the model has not seen (and drew
-      // no layout) — re-send once with the new image attached, so "load, crop, b&w and
-      // outline the face" works in one message.
-      if (!continued && planLoadsWithoutTracing(plan) && snapshot && !textOnlyModel && stencil?.imageSize) {
-        // Wire-only (§7): the persistence layer owns this string and refuses to store
-        // it, so a restored transcript can never show the machinery (§12.1).
-        const note = { role: 'user', text: CONTINUATION_NOTE };
-        let nextEdge = null;
-        try {
-          const url = await snapshot();
-          const img = splitDataUrl(url);
-          if (img) {
-            note.images = [img];
-            nextEdge = await edgeOf(url);   // fresh edge map for the fresh image, wire-only
-          }
-        } catch { /* no snapshot → the note alone still moves the turn along */ }
-        if (note.images) {
-          pushHistory(note);
-          const next = await respond({ signal, preWarnings, autoAttached: true, continued: true, edgeImage: nextEdge, deferred });
-          // The continuation round finished — NOW the turn is over: run what both
-          // rounds deferred, folding its notes into the merged warnings.
-          const combined = warnings.concat(next.warnings);
-          await flushDeferred(deferred, combined);
-          return { ...next, warnings: combined, results: results.concat(next.results) };
-        }
-      }
-      // §3.0: the turn ends HERE — no post-plan model round follows the reply.
-      // §11: a plan may also ASK. Its option previews render AFTER the edits ran (the
-      // choice shows against the image as it now is) and against a copy, so the working
-      // image is untouched by the question itself.
-      const { previews, warnings: askWarnings } =
-        await renderAskPreviews(plan.ask, stencil, { exportImage, loadFrame });
-      // The card shows small thumbs only — never store the full-resolution exports.
-      const askPreviews = [];
-      for (const p of previews) askPreviews.push({ ...p, dataUrl: await previewThumb(p.dataUrl) });
-      // Outermost round only — a continued round hands its deferred actions back
-      // to the caller, which flushes them once the whole turn is over.
-      if (!continued) await flushDeferred(deferred, warnings);
-      return {
-        reply: plan.reply, warnings: preWarnings.concat(warnings, askWarnings), results,
-        ask: plan.ask, askPreviews, chatOnly: plan.chatOnly,
-      };
-  };
   return controller;
 };

@@ -100,9 +100,8 @@ test.describe('cli pipeline', () => {
     expect(r.stderr).toMatch(/^error:/m);
   });
 
-  // Cross-surface: a .stencil project authored in the shared format (fixtures/project.stencil —
-  // an 8x4 image with a quarter-turn in its layout) opens in the CLI and renders exactly what
-  // every other surface would — the embedded layout's rotation is applied, so 8x4 -> 4x8.
+  // Cross-surface: the shared .stencil format's embedded layout rotation is applied, so the
+  // fixture's 8x4 image renders 4x8 — exactly what every other surface renders.
   test('opens a .stencil project as input and renders its embedded layout', async ({}, testInfo) => {
     const dir = testInfo.outputPath();
     const out = path.join(dir, 'from-project.png');

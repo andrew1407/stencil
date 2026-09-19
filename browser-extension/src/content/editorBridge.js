@@ -130,10 +130,8 @@
     return true;   // answering asynchronously — keep the port open
   });
 
-  // Editor page (stencil.extension) → extension: id-tagged EXT_API, answered EXT_API_RES. The
-  // relayable types are a WHITELIST — `e.source === window` only proves same-document, so any
-  // script on the editor origin (an XSS included) can post here, and some types are privileged
-  // (SCAN_TAB, SOURCE_TABS). So the relay also rides on the `editorPageApi` toggle.
+  // The relayable types are a WHITELIST: `e.source === window` only proves same-document, and
+  // some types are privileged. The relay also rides on the `editorPageApi` toggle.
   let pageApiEnabled = false;
   const readPageApiSetting = () => {
     try {

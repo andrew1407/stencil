@@ -59,9 +59,8 @@ test('roundRect: rounds + clamps inside the rotated original', () => {
 
 test('roundRect: adopts canonical {w,h} and legacy {width,height} rects identically', () => {
   const m = new ImageModel(makeApp());
-  // The adoption path (loadImageFromFile / applyProjectFileInPlace) feeds incoming
-  // layout cropRects straight through roundRect — both wire spellings must land
-  // on the same internal crop.
+  // The adoption path (loadImageFromFile / applyProjectFileInPlace) feeds incoming layout cropRects straight
+  // through roundRect, so both wire spellings must land on the same internal crop.
   const canonical = m.roundRect({ x: 10, y: 20, w: 50, h: 40 });
   const legacy = m.roundRect({ x: 10, y: 20, width: 50, height: 40 });
   assert.deepEqual(canonical, { x: 10, y: 20, width: 50, height: 40 });

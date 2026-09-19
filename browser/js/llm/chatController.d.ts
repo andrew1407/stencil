@@ -3,8 +3,11 @@
 // HISTORY_LIMIT), images follow the replay rule, attachments are downscaled before
 // base64-encoding. Every DOM capability is INJECTED for `node --test`.
 import type { Stencil } from '../console/stencilApi.js';
-import type { ChatImage, ChatMessage, LlmClient } from './llmClient.js';
-import type { AskPreview, OpPlan, PlanAsk, SavedServerEntry, VariantResult } from './opPlan.js';
+import type { ChatMessage, LlmClient } from './llmClient.js';
+import type { AskPreview, PlanAsk, SavedServerEntry, VariantResult } from './opPlan.js';
+export { CHAT_ATTACHMENTS_EVENT, EDGE_MAP_SENTENCE, HISTORY_LIMIT, MAX_ATTACHMENTS, MAX_IMAGE_EDGE,
+  VIDEO_FRAME_COUNT, contourDataUrl, downscaleImageToDataUrl, planEditsTheImage,
+  planLoadsWithoutTracing, replayMessages, splitDataUrl } from './chatTurn.js';
 
 /** A queued attachment. Videos are sampled into `frames`; the bytes never reach the model. */
 export interface Attachment {
@@ -91,24 +94,4 @@ export interface ChatController {
   send(text: string, opts?: { signal?: AbortSignal }): Promise<TurnResult>;
 }
 
-export declare const HISTORY_LIMIT: number;
-export declare const MAX_IMAGE_EDGE: number;
-/** Images ONE message may carry — replayed and paid for per turn (§7). */
-export declare const MAX_ATTACHMENTS: number;
-/** Appended to the system prompt only on a turn that attached the working image's edge map. */
-export declare const EDGE_MAP_SENTENCE: string;
-export declare const CHAT_ATTACHMENTS_EVENT: string;
-export declare const VIDEO_FRAME_COUNT: number;
-/** Does the plan WORK ON the picture (an image op, or any variant)? */
-export declare const planEditsTheImage: (plan: OpPlan | null | undefined) => boolean;
-/** data:mediaType;base64,payload → { mediaType, data }, or null. */
-export declare const splitDataUrl: (u: unknown) => ChatImage | null;
-/** Downscale to ≤ maxEdge px on the long edge and re-encode as a PNG data: URL (§7). */
-export declare const downscaleImageToDataUrl: (blob: Blob, maxEdge?: number) => Promise<string>;
-/** Re-render a snapshot with the core `contour` filter — the edge map the model sees. */
-export declare const contourDataUrl: (dataUrl: string) => Promise<string>;
-/** §7 replay rule: the current turn keeps its images, the most recent prior image survives, older turns go text-only. */
-export declare const replayMessages: (history: ReadonlyArray<ChatMessage>) => ChatMessage[];
-/** §7 auto-continuation: the plan loaded a picture the model has not seen and drew no layout. */
-export declare const planLoadsWithoutTracing: (plan: OpPlan | null | undefined) => boolean;
 export declare const createChatController: (opts: ChatControllerOptions) => ChatController;

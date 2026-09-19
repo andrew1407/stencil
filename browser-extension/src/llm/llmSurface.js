@@ -1,11 +1,8 @@
 // ── Per-surface LLM glue (llm-contract.md §5 + §8) ─────────────────────
-// The one module the SHARED llmClient.js is allowed to differ through: the surface's own
-// wording, its default stencil-server token resolver, and the extension-only helpers that
-// have no browser twin — they ride here to keep the client byte-identical.
-//
-// stencil-server auth: the extension already stores server connections (URL +
-// bearer token, lib/connections.js) — serverTokenFor prefers the stored token
-// for the configured serverUrl and falls back to llmSettings.serverToken.
+// The one module the SHARED llmClient.js is allowed to differ through: this surface's own
+// wording, its stencil-server token resolver (stored connections first, lib/connections.js)
+// and the extension-only helpers with no browser twin — they ride here to keep the client
+// byte-identical.
 import { loadConnections, connectionByUrl } from '../lib/connections.js';
 import { LlmError, PROVIDER_LABELS } from './llmClient.js';
 
@@ -23,12 +20,8 @@ export const serverTokenFor = (serverUrl, { connections = [], settings = {} } = 
 export const defaultGetToken = (settings) => async (serverUrl) =>
   serverTokenFor(serverUrl, { connections: await loadConnections(), settings });
 
-// The text a failed turn shows — browser unreachableText parity, so the same
-// error reads the same on every surface. The endpoint is a LABEL on the
-// provider's reason, not a second sentence around it (contract §6.3). An
-// endpoint that ANSWERED (err.answered) is quoted in its own words; a tagged
-// network failure reads as unreachable. A bare TypeError is NOT assumed to be
-// one — plan execution can throw those too. Pure.
+// Browser unreachableText parity. The endpoint is a LABEL on the provider's reason, not a
+// second sentence around it (contract §6.3); a bare TypeError is NOT assumed to be network.
 export const turnFailureText = (settings, err) => {
   const name = PROVIDER_LABELS[settings?.provider] || settings?.provider || 'the assistant';
   const url = (settings?.provider === 'stencil-server' ? settings?.serverUrl : settings?.baseUrl) || '';
@@ -41,10 +34,7 @@ export const turnFailureText = (settings, err) => {
   return `Failed: ${why}`;
 };
 
-// Whether a failed turn's error is the PROVIDER itself unreachable or unconfigured —
-// browser describeChatError's 'unreachable' kind, ported: the transport failed, the base
-// URL is missing, or nothing is configured, so the fix is a different provider/endpoint,
-// not a retry. Drives whether a turn's error bubble also offers the Configure provider CTA
-// (browser chatConfigureButton parity). Pure.
+// The PROVIDER itself unreachable or unconfigured — the 'unreachable' kind of browser
+// describeChatError. Drives the Configure-provider CTA (browser chatConfigureButton parity).
 export const isUnreachableError = (err) =>
   err instanceof LlmError && (err.kind === 'http' || err.kind === 'network' || err.kind === 'config');

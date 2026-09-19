@@ -1,12 +1,7 @@
-// Tests for shortName() (js/utils.js) — the display-shortening applied to project /
-// image names before they go into a dialog sentence or a toast.
-//
-// The bug it fixes: a name derived from a CDN URL basename
-// ("MV5BODg3MzYwMjE4N15BMl5BanBnXkFtZTcwMjU5NzAzNw@@._V1_") went verbatim into the
-// "Remove project …?" confirm, wrapped across three lines and blew out the dialog.
-//
-// Parity: browser-extension/src/lib/displayName.js and desktop/src/support/displayName.hpp are
-// ports of this — same limit, same head/tail split. Their tests mirror these cases.
+// shortName() (js/utils.js) — the display-shortening applied to project and image names before they go into a
+// dialog sentence or a toast, so a CDN-basename name cannot wrap across three lines and blow out a confirm.
+// Parity: browser-extension/src/lib/displayName.js and desktop/src/support/displayName.hpp are ports of this —
+// same limit, same head/tail split, and their tests mirror these cases.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

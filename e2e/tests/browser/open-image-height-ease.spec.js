@@ -23,9 +23,8 @@ test('toggling crop never starts a competing box ease while the read-out is slid
     const check = () => {
       const running = box.getAnimations().length > 0;
       if (running) sawAny = true;
-      // Settled once nothing is running AND the read-out's own row has landed too — a
-      // fight would still be going at that point; a clean run either never touches the
-      // box, or finishes with it.
+      // Settled once nothing is running AND the read-out's own row has landed too — a fight would
+      // still be going at that point.
       const dims = document.getElementById('open-image-crop-dims');
       if (!running && dims.getAnimations().length === 0 && performance.now() - started > 30) {
         resolve(sawAny ? performance.now() - started : 0);
@@ -40,10 +39,8 @@ test('toggling crop never starts a competing box ease while the read-out is slid
   expect(boxFlightMs).toBeLessThan(600);
 });
 
-// A tab switch's own button-color CSSTransition (animations/controls.css's generic
-// `button { transition: color, border-color, … }`) used to trip the guard above too —
-// any transition anywhere in the row, not just the read-out's scripted flight — so every
-// tab switch after a picture loaded snapped straight to the new height instead of easing.
+// The generic `button { transition: color, … }` tripped the guard above on every tab switch, so
+// the height snapped instead of easing: only the read-out's scripted flight may count.
 test('a tab switch still eases the box, even though its own tab button is transitioning', async ({ page }) => {
   await gotoApp(page);
   await page.locator('#load-image-btn').click();

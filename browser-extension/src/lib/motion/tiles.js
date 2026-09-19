@@ -5,9 +5,8 @@
 export const CHAT_DISINTEGRATE_COLS = 32;
 export const CHAT_DISINTEGRATE_ROWS = 16;
 
-// A wipe scatters every row at once and the cost is the sum, not the per-row grid, so
-// the mesh is budgeted: one row keeps the fine grain, a mass clear coarsens each row
-// until the total fits. Pure — unit-tested.
+// A wipe scatters every row at once and the cost is the sum, so one row keeps the fine grain
+// and a mass clear coarsens each row until the total fits. Pure — unit-tested.
 export const SCATTER_TILE_BUDGET = 1200;   // browser motion.js twin
 // …and past this many simultaneous rows the extra ones simply fade: no mesh budget,
 // however coarse, survives 200 of them.
@@ -44,10 +43,8 @@ export const tileNoise = (cx, cy) => {
   return h - Math.floor(h);
 };
 
-// ── The waypoint: no mote flies a straight line (browser motion.js twin) ────
 // Part-way along its throw each mote is pushed off its line by its own amount, to its own
-// side, so a cloud churns instead of radiating in spokes. CSS plays it as the mid keyframe
-// (--mx/--my; animations/reveal.css stTileScatter and kin). Pure — unit-tested.
+// side, so a cloud churns instead of radiating in spokes. CSS plays it as --mx/--my.
 export const WAYPOINT_ALONG = 0.62;
 export const SWIRL_SHARE = 0.32;
 export const SWIRL_MAX_PX = 44;
@@ -61,10 +58,8 @@ export const tileWaypoint = (dx, dy, q) => {
   };
 };
 
-// Where a cell goes and when it starts. The sweep erodes the element from one edge and
-// every cell drifts, further the later it goes. `reverse` inverts only the SWEEP (the
-// gather — see reintegrate); the path is shared, played backwards. `span` is the flight's
-// length, and the sweep and jitter are SHARES of it, so a shorter clock still lands. Pure.
+// `reverse` inverts only the SWEEP (see reintegrate); the path is shared, played backwards.
+// The sweep and jitter are SHARES of `span`, so a shorter clock still lands. Pure.
 export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false,
                            span = DISINTEGRATE_MS) => {
   const n = tileNoise(cx, cy);
@@ -75,9 +70,8 @@ export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
   // 0 at the TOP row (goes first), 1 at the bottom (goes last): the row crumbles from
   // its top edge downward, the way the cleared image does.
   const progress = rows > 1 ? cy / (rows - 1) : 0;
-  // A SCATTER's sweep is half the gather's: the row is gone in LEAVE_MS, and a mote still
-  // at its 0% pose past that reads as a dot screen sitting where the row was. The gather
-  // keeps the full sweep — its motes ARE the row forming.
+  // A SCATTER's sweep is half the gather's: the row is gone in LEAVE_MS, so a mote still at its
+  // 0% pose past that reads as a dot screen sitting where the row was.
   const sweep = span * (reverse ? 0.4 : 0.2);
   const delay = Math.round((reverse ? 1 - progress : progress) * sweep + n * span * TILE_JITTER_SHARE);
   // …and the motes FALL, fanning out as they go. Signed drift, so they spread both
@@ -92,9 +86,8 @@ export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
   };
 };
 
-// Motes sized in PIXELS, not as a share of the element — a fixed grid gives slivers on a
-// wide row. Aim for MOTE_PX; the quoted grid's cell COUNT is the frame-budget ceiling.
-// Pure — unit-tested (browser motion.js twin).
+// Motes are sized in PIXELS — a fixed grid gives slivers on a wide row; the quoted grid's cell
+// COUNT is the frame-budget ceiling. Pure — unit-tested (browser motion.js twin).
 export const MOTE_PX = 7;
 export const reshapeGrid = (cols, rows, w, h, px = MOTE_PX) => {
   const budget = Math.max(1, cols * rows);

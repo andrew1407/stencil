@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-// ── `npm run serve` ────────────────────────────
-// Dev server for the browser app: node's built-in http plus Cache-Control: no-store, so a
-// plain browser refresh always picks up edited JS/CSS (a caching server lets Chrome
-// heuristically cache module files, which made stale UIs look like unfixed bugs).
+// `npm run serve`: node's built-in http plus Cache-Control: no-store, so a plain refresh always picks up edited
+// JS/CSS — a caching server lets Chrome heuristically cache module files.
 import { createReadStream } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';

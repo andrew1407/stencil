@@ -7,7 +7,9 @@ import type { LlmSettings } from './llmSettings.js';
 import type { ProbeResult } from './llmClient.js';
 import type { AskPreview, PlanAsk, VariantResult } from './opPlan.js';
 import type { ChatController, ChatControllerOptions, TurnResult } from './chatController.js';
+import type { ChatErrorDescription } from './chatReply.js';
 export { uniqueProjectName, resolveProjectByName } from './projectNames.js';
+export { replyWithWarnings, EMPTY_REPLY_TEXT, settledReplyText, unreachableText, describeChatError } from './chatReply.js';
 
 /** What a transcript can show of a queued attachment (a video: its first frame). */
 export interface AttachmentPreview { name: string; kind: 'image' | 'video'; dataUrl: string; }
@@ -30,15 +32,6 @@ export interface ChatRow {
   results?: VariantResult[];
   ask?: PlanAsk | null;
   askPreviews?: AskPreview[];
-}
-
-export type ChatErrorKind = 'abort' | 'refusal' | 'notice' | 'expired' | 'unreachable' | 'error';
-
-export interface ChatErrorDescription {
-  kind: ChatErrorKind;
-  text: string;
-  /** Present for 'expired': the collaboration server that refused the token. */
-  serverUrl?: string;
 }
 
 /** runChatTurn's outcome — never thrown, so both surfaces render the same thing. */
@@ -93,14 +86,6 @@ export declare const forgetProbe: () => void;
 /** The .conn-status class suffix: 'connecting' (no probe yet), 'connected', or 'error'. */
 export declare const probeStatusClass: (probe: ProbeResult | null | undefined) => 'connecting' | 'connected' | 'error';
 
-/** The reply plus any warnings appended in parentheses (contract §1). */
-export declare const replyWithWarnings: (entry: Pick<TurnResult, 'reply' | 'warnings'> | null | undefined) => string;
-export declare const EMPTY_REPLY_TEXT: string;
-export declare const settledReplyText: (entry: Pick<TurnResult, 'reply' | 'warnings'> | null | undefined) => string;
-/** "Couldn't reach <provider> at <host> (<why>)", or the endpoint's own words when it answered. */
-export declare const unreachableText: (settings: Partial<LlmSettings> | null | undefined, err: unknown) => string;
-/** Map a failed turn to what the user sees; pure — the DOM decisions live in the views. */
-export declare const describeChatError: (err: unknown, settings: Partial<LlmSettings> | null | undefined) => ChatErrorDescription;
 export declare const runChatTurn: (controller: ChatController, text: string, opts?: { signal?: AbortSignal; settings?: LlmSettings }) => Promise<ChatTurnResult>;
 
 export declare const CHAT_TOAST_CHARS: number;

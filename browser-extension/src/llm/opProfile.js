@@ -5,11 +5,8 @@
 import REGISTRY from '../config/opRegistry.json' with { type: 'json' };
 import { createSchema } from './opSchema.js';
 
-// The table this surface validates against: the checked-in copy of the shared
-// config/llm/opRegistry.json (drift-guarded by tests/dataParity.test.js), filtered to the
-// extension profile (contract §8). Membership, key schemas, caps and the cross-field
-// rules come from the registry; this module keeps the listing-bound checks (an index
-// must point into the scan / tab listing) and the normalizers.
+// The checked-in copy of config/llm/opRegistry.json filtered to the extension profile (§8),
+// drift-guarded by dataParity.test.js; this adds the listing-bound checks and the normalizers.
 export const SCHEMA = createSchema(REGISTRY, 'extension');
 
 // Limits — the same numbers in every client (contract §1) + the §8 attach/pin caps and
@@ -43,10 +40,6 @@ export const validIndex = (v, listingLength, op) => {
   return v;
 };
 
-// ── §13 forbidden ops ──
-// Never model-drivable, on any surface: llm/provider configuration, clipboard reads,
-// hotkey rebinding, session end, chat persistence/consent and server-side destruction —
-// plus the §8 un-drivable extension surface (editor URL, Options, shareTabs, downloads).
-// Teeth: a test pins that no registry entry uses these names, and chatController
-// refuses them at execution even if one somehow appears.
+// ── §13 forbidden ops: never model-drivable, on any surface. Teeth: a test pins that no
+// registry entry uses these names, and chatController refuses them at execution.
 export const FORBIDDEN_OPS = new Set(SCHEMA.forbidden);

@@ -105,9 +105,8 @@ export class StencilMainContent extends StencilElement {
 
     btn.addEventListener('click', () => {
       hidden = !hidden;
-      // foldDust: the table pours out past the edge the panel collapses towards. Its own
-      // gather clock (460): .coord-folding takes the table out of the layout for half the
-      // slide, which restarts the surfaceForm fade.
+      // foldDust has its own gather clock (460): .coord-folding takes the table out of the layout
+      // for half the slide, which restarts the surfaceForm fade.
       clearTimeout(foldTimer);
       panel.classList.remove('coord-folding');
       foldDust(body, panel, 'coord-collapsed', hidden, 'right',

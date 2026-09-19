@@ -1,11 +1,8 @@
 // Voice dust + ray ring: while a mic listens, motes leave its tile and 24 spokes turn and
 // breathe with the level — spawn rate scales as level SQUARED, so room hum stays quiet.
-// One canvas per wearer (a div-per-mote cloud does not scale), punched out under the
-// tile's own rounded rect so both pass behind the icon; the rAF loop runs only while the
-// tile listens or motes are still in flight. Level: the `--voice-level` <html> variable
-// (ui/toolbar.js, ~60Hz); "listening" is the wearer's own class, watched with a
-// MutationObserver. Pure parts (spawn, birth, step) are exported for node tests; the DOM
-// side is guarded.
+// One canvas per wearer, punched out under the tile's own rounded rect so both pass behind the
+// icon; the rAF loop runs only while the tile listens or motes are in flight. Level is the
+// `--voice-level` <html> variable (ui/toolbar.js, ~60Hz); the pure parts are node-testable.
 import { dustEnabled } from './motion.js';
 
 export const DUST_MARGIN = 56;            // canvas room around the tile, px
@@ -62,9 +59,8 @@ export const edgePoint = (w, h, angle) => {
   return { x: c * r, y: sn * r };
 };
 
-// A mote born on the edge of a w×h tile centred at (0,0): a uniformly random direction
-// all the way round, flying on along that ray with a little angular jitter, so the
-// corners fill as evenly as the sides. Louder = faster, a bit larger.
+// A mote born on the edge of a w×h tile centred at (0,0): a uniformly random direction all the
+// way round with a little angular jitter, so the corners fill as evenly as the sides.
 export const newMote = (w, h, level, rnd = Math.random) => {
   const angle = rnd() * 2 * Math.PI;
   const { x, y } = edgePoint(w, h, angle);
@@ -99,9 +95,8 @@ export const moteAlpha = (m) => {
   return p < 0.1 ? p / 0.1 : 1 - (p - 0.1) / 0.9;
 };
 
-// The theme's ink and accent as real colours (canvas fills take no var()): a hidden
-// probe span is painted with each variable and read back. Re-read every second, so a
-// theme or accent swap mid-sentence recolours the next motes.
+// Canvas fills take no var(), so a hidden probe span is painted with each variable and read
+// back. Re-read every second, so a theme or accent swap recolours the next motes.
 let probe = null;
 const themePalette = () => {
   if (!probe) {
@@ -116,9 +111,8 @@ const themePalette = () => {
   return dustPalette(ink, accent);
 };
 
-// The canvas must paint ABOVE the wearer's own layer: the chat panel and the context
-// menu's flyout are stacked far over the page, so a body-level canvas needs a z-index one
-// above the highest on the wearer's ancestor chain, never below 5.
+// The canvas must paint ABOVE the wearer's own layer: a z-index one above the highest on the
+// wearer's ancestor chain, never below 5.
 export const layerAbove = (el, get = (typeof getComputedStyle === 'function' ? getComputedStyle : null)) => {
   let z = 4;
   for (let node = el; node && node.nodeType === 1 && get; node = node.parentElement) {
@@ -213,9 +207,8 @@ export const attachVoiceDust = (el, isOn) => {
       }
       ctx.globalAlpha = 1;
     }
-    // Behind the tile, and ONLY the tile: its rounded rectangle is cleared out of the frame
-    // so ring and motes pass under the icon, while neighbouring controls stay under the
-    // cloud, since the canvas rides above the whole bar.
+    // The tile's rounded rectangle is cleared out of the frame so ring and motes pass under the
+    // icon, while neighbouring controls stay under the cloud.
     const rad = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0;
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();

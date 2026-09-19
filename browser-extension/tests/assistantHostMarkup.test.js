@@ -1,9 +1,8 @@
-// The assistant section is one controller (popup/assistant.js) driving THREE host
-// pages — the popup, the side panel and the DevTools panel. They each carry their own
-// copy of the composer markup, so an id added to one and forgotten in the others makes
-// the controller's getElementById return null and its boot throw on the first
-// `.innerHTML` — taking the whole section down on that surface, silently, in a way no
-// unit test of the controller can see. Assert the three stay in lockstep.
+// The assistant section is one controller (popup/assistant.js) driving THREE host pages — the
+// popup, the side panel and the DevTools panel — each carrying its own copy of the composer
+// markup, with nothing at runtime forcing them to agree.
+// This suite asserts the three stay in lockstep on the ids, markup and CSS the controller
+// needs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -53,9 +52,8 @@ test('the composer keeps attach / clear / settings behind the … on every host'
   }
 });
 
-// Attachments belong to the USER's turn. They used to be rendered as assistant-side
-// "Attached x.jpg" result cards: no image at all, and worded as if the model had said
-// it. They are now a thumbnail strip on the user's side (browser chatView.js parity).
+// Attachments belong to the USER's turn: a thumbnail strip on the user's side, never
+// assistant-side "Attached x.jpg" result cards (browser chatView.js parity).
 test('user attachments render as thumbnails on the user side, not as assistant cards', () => {
   assert.match(src, /if \(attachments\.length\) addAttachments\(attachments\);/,
     'the send loop paints the strip for what the user attached');
@@ -70,9 +68,8 @@ test('user attachments render as thumbnails on the user side, not as assistant c
   assert.match(css, /#sec-assistant \.chat-attached-thumb \{[^}]*object-fit: cover/);
 });
 
-// A successful turn's side-notes (plan warnings) are NOT errors: they render as the
-// dismissible yellow .warn note, never through the red .msg.error bubble — the red
-// style stays reserved for actually failed turns (browser/desktop parity).
+// A successful turn's side-notes are NOT errors: the dismissible .warn note, never the red
+// .msg.error bubble, which stays reserved for failed turns (browser/desktop parity).
 test('plan warnings render as neutral notes, never in the error style', () => {
   assert.match(src, /for \(const w of result\.warnings\) addWarn\(w\);/,
     'renderResult routes warnings through addWarn');
@@ -84,9 +81,8 @@ test('plan warnings render as neutral notes, never in the error style', () => {
   assert.ok(!warn[1].includes('var(--danger)'), '…not the danger red');
 });
 
-// The popup is a fixed-height column and the Assistant is the tallest thing in it:
-// unbounded, it squeezed the found-resources list down to a single clipped row with
-// no scrollbar anywhere to recover it.
+// The popup is a fixed-height column and the Assistant is the tallest thing in it: unbounded,
+// it squeezes the found-resources list to a single clipped row with no scrollbar.
 test('the popup column keeps the resource list alive when the Assistant expands', () => {
   assert.match(css, /\.list \{ flex: 1 1 auto; min-height: 120px; \}/,
     'the list is content-sized so it ABSORBS the shrink (flex: 1 alone cannot), down to a floor');
@@ -100,10 +96,8 @@ test('the popup column keeps the resource list alive when the Assistant expands'
     'inside it, the transcript is what gives up height — it scrolls');
 });
 
-// Dragging an image onto the Assistant used to tint the transcript BEHIND its own
-// messages and chips — the drop area read as sitting under the conversation, and it
-// claimed the whole section when only the composer can take a drop. The cue is now an
-// animated icon + label drawn over the COMPOSER (browser .chat-drop-cue parity).
+// Only the composer can take a drop, so the cue is an animated icon + label drawn over IT
+// rather than a tint behind the conversation (browser .chat-drop-cue parity).
 test('the drop target is the composer, cued by an animated icon over it', () => {
   const cue = /#sec-assistant \.chat-drop-cue \{([^}]*)\}/.exec(css);
   assert.ok(cue, 'the drop-over state paints an overlay in the composer');
@@ -144,9 +138,8 @@ test('hovering a small attachment thumbnail shows it large', () => {
   assert.match(css, /\.chat-thumb-preview img \{[^}]*max-width: 220px;[^}]*max-height: 220px;/);
 });
 
-// Browser parity (chatController.js onAttachmentsChanged): a send must not leave the
-// queued chips behind. Here the queue and the chips live in one place, so the drain
-// and the tray repaint must stay adjacent in send().
+// Browser parity (chatController.js onAttachmentsChanged). Here the queue and the chips live in
+// one place, so the drain and the tray repaint must stay adjacent in send().
 test('send drains the pending attachments and clears their chips at once', () => {
   assert.match(src, /const attachments = pending\.splice\(0\);\n\s*renderTray\(\);/,
     'the tray repaint rides the drain — chips must not survive the send');
@@ -186,9 +179,8 @@ test('every appended entry arrives as dust — armed only after the scroll', () 
   // Derived from the row's flight, not a literal: the two must never meet (motion.js).
   assert.match(motion, /export const CHAT_ENTER_MS = Math\.round\(DISINTEGRATE_MS \* 0\.58\);/);
   assert.match(motion, /export function chatIn\(el, count = 1, index = 0, \{ host = null \} = \{\}\) \{/);
-  // Every route into the transcript — messages / notes / warnings (appendDiv), the
-  // attachment strip, a result-or-failure card, the §11 ask card — funnels through
-  // the single appendEntry ritual, whose one chatEnter covers them all.
+  // Every route into the transcript funnels through the single appendEntry ritual, whose one
+  // chatEnter covers them all.
   assert.strictEqual(src.split('chatEnter(').length - 1, 1,
     'every transcript append rides appendEntry — none is left silent');
   for (const fn of ['appendDiv', 'addAttachments', 'addCard', 'renderAsk']) {
@@ -196,19 +188,16 @@ test('every appended entry arrives as dust — armed only after the scroll', () 
     assert.ok(body.slice(0, body.indexOf('\n  };')).includes('appendEntry('),
       `${fn} must append through appendEntry`);
   }
-  // …except the in-flight "…" placeholder, which opts OUT (browser chatView.js parity):
-  // it lives about as long as the gather itself, so dusting it in kept it veiled for
-  // almost its whole life and the bouncing dots were never seen.
+  // …except the in-flight "…" placeholder, which opts OUT (browser chatView.js parity): it lives
+  // about as long as the gather itself.
   assert.match(src, /const appendDiv = \(className, text, \{ arrive = true \} = \{\}\) => \{/);
   assert.match(src, /appendDiv\('msg assistant typing-row', '', \{ arrive: false \}\)/);
   // A failed turn's bubble STAYS on Retry, as it does in the browser and on the desktop —
   // a retry is another attempt, not an undo. Deleting it also killed it mid-flight.
   assert.match(src, /retry\.addEventListener\('click', \(\) => \{ if \(!state\.busy\) send\(text, attachments\); \}\);/);
   assert.ok(!/el\.remove\(\); send\(text, attachments\)/.test(src), 'no bare delete on retry');
-  // …and it is armed AFTER scrollDown(), never before. chatIn veils the entry
-  // synchronously (it keeps its height, so the transcript grows and scrolls to it as
-  // usual) then photographs it two frames later — a cloud measured before that scroll is
-  // stranded above the entry, or drawn over the composer.
+  // …and armed AFTER scrollDown(): chatIn photographs the entry two frames later, so a cloud
+  // measured before that scroll is stranded above the entry, or drawn over the composer.
   for (const m of src.matchAll(/chatEnter\((\w+), sectionEl\)/g)) {
     // `scrollDown();` immediately before, give or take appendEntry's `if (arrive)` guard.
     const before = src.slice(Math.max(0, m.index - 120), m.index);
@@ -220,8 +209,7 @@ test('every appended entry arrives as dust — armed only after the scroll', () 
   assert.match(src, /observeReveal\(transcriptEl, ':scope > \*:not\(\.disintegrate-host\)'\);/);
 });
 // The … trigger's glyph is INSERTED, never assigned: the button already holds
-// #chat-status-dot (the reachability badge), and innerHTML= deleted it, so the dot
-// silently vanished and the rich provider tooltip lost its badge.
+// #chat-status-dot (the reachability badge), which innerHTML= would delete.
 test('the … trigger keeps its status dot when the glyph is painted in', () => {
   assert.match(src, /moreTrigger\.insertAdjacentHTML\('afterbegin', icon\('dots'/,
     'the dots glyph is inserted alongside the dot, not assigned over it');

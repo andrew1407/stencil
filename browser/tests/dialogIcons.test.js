@@ -3,12 +3,10 @@ import assert from 'node:assert';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Dialog glyphs (js/ui/confirmModal.js). The modal falls back to a generic check mark, so a
-// button that says what it DOES ("Replace", "Delete file", "Move") names its own icon via
-// confirmIcon / altIcon. Two ways that goes wrong silently, both caught here:
-//   1. a typo'd or renamed glyph name → icon() renders nothing and the button loses its icon;
-//   2. a destructive dialog left on the default tick → a check mark next to "This cannot be
-//      undone" reads as reassurance exactly where it should read as a warning.
+// Dialog glyphs (js/ui/confirmModal.js). The modal falls back to a generic check mark, so a button that says
+// what it DOES names its own icon via confirmIcon / altIcon. Two silent failures are caught: a typo'd or
+// renamed glyph name, which renders nothing at all, and a destructive dialog left on the default tick, where
+// a check mark beside "This cannot be undone" reads as reassurance.
 import { ICONS } from '../js/ui/icons.js';
 
 const JS_ROOT = new URL('../js/', import.meta.url).pathname;

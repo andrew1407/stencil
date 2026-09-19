@@ -1,9 +1,7 @@
-// Parity coverage for the project rules shared with core/state/ProjectsStore.cpp:
-// the refresh presets and the expiry predicates, reached through the scalar ABI in
-// core/wasmProjectsApi.cpp. The registry itself is NOT pinned — the browser store is
-// localStorage-backed and the core one is in-memory, so they are different classes;
-// what must agree is the arithmetic, and that is what this drives, from the same
-// inputs, against the JS store's own methods.
+// Parity coverage for the project rules shared with core/state/ProjectsStore.cpp — the refresh presets and the
+// expiry predicates — reached through the scalar ABI in core/wasmProjectsApi.cpp. The registry itself is NOT
+// pinned: the browser store is localStorage-backed and the core one in-memory, so what must agree is the
+// arithmetic, driven from the same inputs against the JS store's own methods.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
 import { existsSync } from 'node:fs';

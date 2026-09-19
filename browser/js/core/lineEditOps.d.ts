@@ -9,3 +9,5 @@ export declare const removePoint: (app: DrawingApp, lineIdx: number, ptIdx: numb
 export declare const removeLine: (app: DrawingApp, idx: number) => unknown;
 /** Every selected line at once, as one history entry. */
 export declare const removeSelectedLines: (app: DrawingApp) => unknown;
+/** Alt+wheel over a line: ±1, clamped 1..20. `scheduleSave` runs only when it moved. */
+export declare const adjustThicknessAtCursor: (app: DrawingApp, e: WheelEvent, scheduleSave: () => void) => boolean;

@@ -5,10 +5,6 @@ export const createConnectApi = ({ app, connMgr }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
 
   const api = {
-    // ── Server connections ──
-    // Connect one or more collaboration servers for this session. Accepts a URL string,
-    // { url, token }, or an array of either; resolves to the facade for chaining.
-    //   await stencil.connect(['a:8090', { url: 'b:8090', token: 't' }])
     async connect(urlOrUrls) { await connMgr.connect(urlOrUrls); return stencil; },
     // Close one connection by URL, or (no arg) the most recently opened one.
     disconnect(url) { connMgr.disconnect(url); return stencil; },

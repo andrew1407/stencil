@@ -70,12 +70,24 @@ Budgets: `browser|browser-extension|vscode-extension/tests/sizeBudget.json`,
 
 ## Comments
 
-At most ~3 lines, and only what the code cannot say: an invariant, a unit, a cross-surface
-coupling, why a constant is that value. The ratchet caps comments as a **share per
-directory**, so padding one file costs you in another.
+**Two lines maximum, in the body of any file, and only when the code cannot say it**: a
+formula, why a constant is that value, a unit, an invariant, a cross-surface coupling. If none
+of those is at stake, there is no comment. A block that narrates what the next lines do, or
+recounts how a bug was found, is deleted rather than shortened.
 
-Never write: a sprint or phase tag, `(user report)`, "used to", "TODO(name)", or a sentence
-that restates the next line.
+**A file's own doc banner is 3–5 lines** — what the file is and its browser/contract twin,
+nothing else. One banner per file; a class or function does not get a second one.
+
+**A comment says what a thing MEANS, never where it is wired.** "Every key works both on the
+facade and under .settings", "also on host.__stop", "exposed on the app too" — the reader can
+see the wiring; it is not content. What earns a line is the meaning: the unit (`ms, clamped
+100–3000`), what the empty value stands for (`'' = points follow lineColor`), the range, the
+axis, the formula. Delete the rest rather than rewording it, and never write a comment that
+refers to itself ("where the comment says so").
+
+The ratchet caps comments as a **share per directory**, so padding one file costs you in
+another. Never write: a sprint or phase tag, `(user report)`, "used to", "TODO(name)", or a
+sentence that restates the next line.
 
 ## Canonical data
 

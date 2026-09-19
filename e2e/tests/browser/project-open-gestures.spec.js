@@ -1,9 +1,8 @@
-// Opening a project from the projects list, by gesture (browser/js/ui/projectsModal.js):
+// Opening a project from the projects list, by gesture (js/ui/projectsModal.js):
 //   MOUSE  click → confirm modal, this tab      dblclick → open now, no modal
 //          ⌘/Ctrl+click → confirm, NEW TAB      ⌘/Ctrl+dblclick → new tab now, no modal
 //   TOUCH  tap → confirm, this tab              long press (≥500ms) → confirm, NEW TAB
-// Driven through the real browser: the modal is the app's shared confirm dialog, and a
-// new tab is a real page in the same context.
+// Driven through the real browser: the app's shared confirm dialog, and a real second page.
 import { test, expect } from '@playwright/test';
 import { gotoApp, seedProjectsAndOpenList } from '../../helpers/boot.js';
 import { finger, ghostBox } from '../../helpers/drag.js';

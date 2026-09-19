@@ -6,9 +6,8 @@ import { getPageDimensions, pixelToPageCoords } from '../core/pageMetrics.js';
 // The two view writers split out of DrawingApp: the live cursor readout under the canvas,
 // and the unit relabelling across the toolbar + coord table. Model values never change here.
 
-// Live cursor-coordinate readout in the status bar below the canvas. Mirrors the desktop
-// status bar (MainWindow.cpp onHovered): ALWAYS shows Pixel + Page (cm) regardless of the
-// tooltip's per-row toggles; appends To edge (cm). No args / no image → idle hint.
+// Mirrors the desktop status bar (MainWindow.cpp onHovered): ALWAYS Pixel + Page (cm) regardless
+// of the tooltip's per-row toggles, plus To edge (cm). No args / no image → idle hint.
 export const updateCoordStatus = (app, x, y) => {
   const el = app.coordStatus ??= document.getElementById('coord-status');
   if (!el) return;
@@ -28,18 +27,14 @@ export const updateCoordStatus = (app, x, y) => {
     `   ·   To edge (${fx(ps.width - page.x)}, ${fx(ps.height - page.y)}) ${lbl}`;
 };
 
-// Reflect the active display unit across the UI: unit dropdown, custom page-size inputs
-// (stored cm → shown in active unit), their unit label, and the coord-table's two
-// page-column headers. Model values are never mutated — only their presentation.
+// Custom page-size inputs are stored in cm and shown in the active unit. Model values are
+// never mutated — only their presentation.
 export const applyUnitToUI = (app) => {
   const lbl = unitLabel(app.unit);
   const sel = document.getElementById('unit-select');
   if (sel) sel.value = app.unit;
-  // Named page-size option labels ("A4 (21 × 29.7 cm)") re-render in the active unit.
-  // Re-asserting the model value routes through enhanceSelect's wrapped setter, which
-  // refreshes the visible dropdown trigger to the relabelled option (and, at boot,
-  // moves the select off its markup default — Custom is the FIRST option — onto the
-  // app's default page).
+  // Re-asserting the model value routes through enhanceSelect's wrapped setter, which refreshes
+  // the trigger and, at boot, moves the select off its markup default (Custom is FIRST).
   const psSel = document.getElementById('page-size');
   if (psSel) {
     for (const opt of psSel.options)

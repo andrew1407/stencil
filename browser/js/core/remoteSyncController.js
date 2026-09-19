@@ -65,9 +65,8 @@ export class RemoteSyncController {
     this.reloadRemoteActive();
   }
 
-  // Re-fetch the active server project and apply it. Original/source is the base + the stored
-  // layout re-applied — never the baked `result` (it would double-draw). Guarded so the
-  // reload's own redraws don't push back.
+  // Original/source is the base + the stored layout re-applied — never the baked `result`,
+  // which would double-draw. Guarded so the reload's own redraws don't push back.
   async reloadRemoteActive() {
     const app = this.app;
     const link = app.remoteLink;

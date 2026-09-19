@@ -8,9 +8,8 @@ export function wireLogoColorPicker(logo, app) {
   logo.style.cursor = 'pointer';
   const wrap = logo.closest?.('.app-logo-wrap') || logo;
 
-// Hover latch: the pulse/ray loop (animations/iconHover.css) keys on .logo-hover, not
-// :hover — the browser drops page hover for the whole accent/theme view transition
-// (themeSwap raises `theme-instant` on <html> for that window).
+// Hover latch: the pulse/ray loop (animations/iconHover.css) keys on .logo-hover, not :hover —
+// the browser drops page hover for the whole accent/theme view transition.
   const setHover = (on) => wrap.classList?.toggle('logo-hover', on);
   wrap.addEventListener('pointerenter', () => setHover(true));
   wrap.addEventListener('pointerleave', () => {

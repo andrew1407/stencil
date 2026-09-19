@@ -20,9 +20,8 @@ export const SURFACE_LEAVING_CLASS = 'surface-leaving';
 // Permanent once dusted: the surface's old CSS pop/slide must stay off for good.
 export const SURFACE_DRIVEN_CLASS = 'dust-driven';
 
-// One mote's flight into or out of a point: the path is the cell's offset to it, the
-// delay rides the distance (nearest edge first). `delayScale` halves the stagger for a
-// scatter — a big surface otherwise sits still for 45% of it, then flicks.
+// The path is the cell's offset to the point and the delay rides the distance (nearest edge
+// first); `delayScale` halves the stagger for a scatter, which otherwise sits still then flicks.
 export const surfaceMotion = (cx, cy, cols, rows, box, point,
                               { span = SURFACE_OUT_MS, spread = SURFACE_SPREAD, delayScale = 1 } = {}) => {
   const n = tileNoise(cx, cy);
@@ -48,9 +47,8 @@ export const surfaceMotion = (cx, cy, cols, rows, box, point,
   };
 };
 
-// Where a docked panel's dust comes from: far past the edge it is docked to, along its
-// slide direction. `reach` is from the panel's CENTRE — 1.7 lands 1.2 widths past the
-// edge, matching the desktop (MainWindow.cpp chatSurfaceFlight `picture.width() * 1.2`).
+// `reach` is from the panel's CENTRE — 1.7 lands 1.2 widths past the edge, matching the
+// desktop (MainWindow.cpp chatSurfaceFlight `picture.width() * 1.2`).
 export const dockAwayPoint = (rect, dock, reach = 1.7) => {
   if (!rect) return null;
   const cx = rect.left + rect.width / 2;

@@ -1,12 +1,7 @@
-// Phone-width layout of the app's two big dialogs — the Projects list
-// (browser/js/ui/projectsModal.js) and the Settings / keyboard-shortcuts sheet — plus the
-// 680px breakpoint that keeps the narrow rules off the desktop ones.
-//
-// Both regressions were invisible in the page's scrollWidth because an .app-modal clips:
-// Projects laid its third filter select ~45px past a Pixel-5's right edge (unreachable,
-// the search box collapsed to ~25px, the footer hint one word per line), and Settings'
-// four minimum-width hotkey columns parked Default and the reset button off to the side
-// of a sideways-scrolling `.settings-body`. So these measure the CONTROLS.
+// Phone-width layout of the app's two big dialogs — the Projects list (js/ui/projectsModal.js)
+// and the Settings / keyboard-shortcuts sheet — plus the 680px breakpoint that keeps the narrow
+// rules off the desktop ones. An .app-modal clips, so overflow never shows in the page's
+// scrollWidth: these measure the CONTROLS instead.
 import { test, expect } from '@playwright/test';
 import { gotoApp, seedProjectsAndOpenList, settleModalAnimations } from '../../helpers/boot.js';
 
@@ -72,9 +67,8 @@ for (const [name, overlay, open] of MODALS) {
 // ── Projects: the filter row, the footer and the drag-out zones. ──
 const FILTER_CONTROLS = ['#projects-search', '#projects-filter', '#projects-sort', '#projects-search-mode'];
 
-// Selects wear the app's own dropdown (customSelect.js): the native control is hidden
-// and `.accent-dd-trigger` is what the user sees and taps — measure THAT. Inputs (the
-// search box) are their own visible control and measure as themselves.
+// Selects wear the app's own dropdown (customSelect.js): the native control is hidden, so
+// measure `.accent-dd-trigger`. Inputs are their own visible control.
 const boxes = (page, sels) => page.evaluate((list) => Object.fromEntries(list.map((s) => {
   const el = document.querySelector(s);
   const vis = (el.dataset.csEnhanced && el.closest('.cs-dd')?.querySelector('.accent-dd-trigger')) || el;
@@ -95,9 +89,8 @@ test.describe('projects modal: phone layout', () => {
       expect(b[sel].right, `${sel} right edge on screen`).toBeLessThanOrEqual(w);
       expect(b[sel].right, `${sel} is inside the dialog card, not clipped by it`)
         .toBeLessThanOrEqual(card.x + card.width + 0.5);
-      // Not squeezed to uselessness either (the search box used to end up ~25px wide).
-      // Custom-select pill triggers are label-driven and narrower than the old native
-      // selects ("All" ≈ 74px grown), so the floor guards the collapse, not the chrome.
+      // Custom-select pill triggers are label-driven and narrower than the old native selects, so the
+      // floor guards the collapse (the search box once ended up ~25px wide), not the chrome.
       expect(b[sel].width, `${sel} is wide enough to use`).toBeGreaterThan(64);
       // The app's touch convention: ≥40px tap targets on a coarse pointer.
       expect(b[sel].height, `${sel} tap target`).toBeGreaterThanOrEqual(40);
@@ -194,9 +187,8 @@ test.describe('modal layout: desktop is unaffected', () => {
   test('the projects filters stay on a single row at 1280px', async ({ page }) => {
     await openProjects(page);
     const b = await boxes(page, FILTER_CONTROLS);
-    // The desktop dialog stacks the search field above the filter row (its own bar,
-    // .projects-filter-row) — the three selects themselves share ONE row: only the
-    // phone breakpoint may wrap them onto more.
+    // The desktop dialog stacks the search field above `.projects-filter-row`, and the three selects
+    // share ONE row: only the phone breakpoint may wrap them onto more.
     const selectTops = FILTER_CONTROLS.slice(1).map((s) => b[s].top);
     expect(Math.max(...selectTops) - Math.min(...selectTops), 'one row of filters').toBeLessThanOrEqual(2);
     expect(b['#projects-search'].top, 'the search bar sits above the filters').toBeLessThan(Math.min(...selectTops));

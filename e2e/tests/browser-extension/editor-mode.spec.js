@@ -1,17 +1,8 @@
 // Extension e2e: EDITOR MODE — what the panel becomes on a tab that IS the configured editor.
-// The editor URL points at the harness app (nothing reaches a real host) and popup.html is
-// driven as an ordinary chrome-extension:// page, exactly as popup.smoke.spec.js does.
-//
-// Deliberately ONE flow, no drag/focus/menu choreography: these runs are headed under xvfb,
-// where pointer sequences are the flakiest thing we own. Markup is asserted only where the
-// surface contract lives (body.editor-mode, the two sections, a row rather than the empty
-// state); WHAT the list holds is asserted over the frozen EDITOR_LIST message, spelled out as
-// a wire literal like the rest of this harness, so restyling a row can't turn this red.
-//
-// The source picker is listed but not fed: the harness serves its fixtures from the app's own
-// ORIGIN, and while an origin match is only the pre-filter (a tab must also answer the bridge
-// to count as an editor), feeding it here would need a second origin the harness has not got.
-// Which pages the picker offers is covered by the pure helpers' unit tests instead.
+// The editor URL points at the harness app and popup.html is driven as an ordinary
+// chrome-extension:// page. Markup is asserted only where the surface contract lives; WHAT the
+// list holds is asserted over the frozen EDITOR_LIST message, as a wire literal. The source
+// picker is listed but not fed — that would need a second origin the harness has not got.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
@@ -51,16 +42,12 @@ test.describe('extension editor mode', () => {
     await ui.goto(`chrome-extension://${extId}/${POPUP}`);
     await ui.waitForSelector('.filters', { timeout: 15_000 });
 
-    // The surface scans the ACTIVE tab of its window, and its first scan ran against itself
-    // (a chrome-extension:// page). Bringing the editor to front and re-scanning is what
-    // hands it an editor tab — and flips the surface.
+    // The surface scans the ACTIVE tab of its window and its first scan ran against itself, so
+    // bringing the editor to front and re-scanning is what flips the surface.
     await editor.bringToFront();
     await ui.evaluate(() => document.getElementById('rescan').click());
     await ui.waitForFunction(() => document.body.classList.contains('editor-mode'), null, { timeout: 15_000 });
 
-    // Both editor sections are ordinary accordion sections (the same .fsection markup as the
-    // filters, so collapse / drag-spring / styling come for free) and are shown — on any
-    // other tab they stay hidden.
     expect(await ui.evaluate(() => ['sec-editors', 'sec-source-tab'].map((id) => {
       const sec = document.getElementById(id);
       return !!sec && sec.classList.contains('fsection')
@@ -69,20 +56,15 @@ test.describe('extension editor mode', () => {
         && getComputedStyle(sec).display !== 'none';
     }))).toEqual([true, true]);
 
-    // The open-editors list renders a real ROW (not its "no editor tabs are open" empty
-    // state), and every row is an editor tab — the row's tooltip carries the tab URL. The
-    // tooltip LEADS with the project name (the row itself ellipsizes it, and the "this tab"
-    // badge was dropped for an accent outline), so the URL is asserted as a line of it
-    // rather than as its prefix. It is the app's own tooltip (lib/tip.js writes
-    // data-title for controlTooltip), not the native title.
+    // The row's tooltip is the app's own (lib/tip.js data-title, not the native title) and LEADS
+    // with the project name, so the tab URL is asserted as a line of it rather than as its prefix.
     await ui.waitForFunction(
       () => document.querySelectorAll('#ed-list .ed-row').length > 0, null, { timeout: 15_000 });
     expect(await ui.evaluate((app) => [...document.querySelectorAll('#ed-list .ed-row')]
       .every((el) => (el.dataset.title || '').split('\n').includes(app)), APP_URL)).toBe(true);
 
-    // …and it is the editor tab we opened that it lists. One request/response round-trip to
-    // the service worker, from the panel page (which has chrome.runtime, like the real popup):
-    // a missing receiver resolves to an error string instead of hanging the test.
+    // One request/response round-trip to the service worker; a missing receiver resolves to an
+    // error string instead of hanging the test.
     const listed = await ui.evaluate((type) => new Promise((resolve) => {
       chrome.runtime.sendMessage({ type, thumbnails: false }, (res) =>
         resolve(res || { ok: false, error: chrome.runtime.lastError?.message || 'no receiver' }));

@@ -63,18 +63,16 @@ export const createLocalRow = ({
     const name = document.createElement('div');
     name.className = 'project-name';
     name.textContent = opts.incognito ? 'Incognito (unsaved)' : (opts.temp ? 'Temporary (unsaved)' : (meta.name || 'Untitled'));
-    // A saved project's custom colour overrides the default grey, but KEEPS the theme-flipped
-    // shadow (from .project-name CSS) so even a light custom colour stays legible on a light
-    // theme. Empty → CSS keeps the fixed grey + the same shadow.
+    // A custom colour overrides the default grey but KEEPS the theme-flipped shadow (.project-name
+    // CSS), so even a light custom colour stays legible on a light theme.
     if (!opts.temp && meta.color) name.style.color = meta.color;
     // Tooltip on the TEXT column, not the row: over the thumbnail the magnified image is
     // the preview, and a native tooltip up the thumb's ancestor chain would cover it.
     if (!opts.temp && meta) { const tip = projectTooltip(meta); if (tip) info.dataset.title = tip; }
     info.appendChild(name);
 
-    // Inline rename (ui/projects/rowRename.js). The name's dblclick stops propagation, so
-    // the ROW's dblclick never fires — but its two clicks did arm the deferred open, which
-    // the editor cancels through the row's own gesture.
+    // The name's dblclick stops propagation, so the ROW's dblclick never fires — but its two
+    // clicks did arm the deferred open, which the editor cancels through the row's own gesture.
     let rowActions = null;
     if (!opts.temp) name.addEventListener('dblclick', e => { e.stopPropagation(); rowActions?.beginRename(); });
 
@@ -97,9 +95,6 @@ export const createLocalRow = ({
         open.innerHTML = `${icon('external', { size: 12 })}<span>opened in another tab</span>`;
         sub.appendChild(open);
       }
-      // Origin badge — one per row, with an icon + tooltip naming where the project lives:
-      // golden server, bronze .stencil file, or (default) a browser-storage globe. Incognito
-      // rows are never persisted, so they get none.
       if (serverLinked) {
         const badge = document.createElement('span');
         badge.className = 'project-remote-badge';
@@ -119,9 +114,6 @@ export const createLocalRow = ({
         badge.innerHTML = `${icon('globe', { size: 12 })}<span>browser</span>`;
         sub.appendChild(badge);
       }
-      // The row for whatever's open in THIS editor right now — right after the origin
-      // badge (browser/server/.stencil), not a separate mark of its own, and no icon:
-      // just the word, in the accent that already means "this one" everywhere else.
       if (meta.id === app.activeProjectId) {
         const cur = document.createElement('span');
         cur.className = 'project-current-badge';

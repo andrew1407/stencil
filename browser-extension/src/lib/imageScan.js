@@ -75,9 +75,8 @@ export const scanPageForImages = async (limit) => {
     if (!link) return [];
     try {
       const manifestUrl = abs(link.getAttribute('href'));
-      // The href is page-supplied and the fetch carries the page's cookies, so it may only
-      // reach the page's OWN origin. This function is injected and cannot import
-      // lib/urlGuard.js; same-origin is strictly tighter than its same-host carve-out.
+      // Page-supplied href fetched with the page's cookies, so same-origin ONLY — strictly tighter
+      // than lib/urlGuard.js, which an injected function cannot import.
       if (new URL(manifestUrl).origin !== location.origin) return [];
       const manifest = await (await fetch(manifestUrl, { credentials: 'include' })).json();
       return (Array.isArray(manifest.icons) ? manifest.icons : [])

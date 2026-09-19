@@ -1,11 +1,7 @@
-// Minimal static file server for the E2E harness — zero non-Node runtime deps
-// (the browser app is dependency-free ES modules; the only requirement is correct
-// MIME types so the module graph loads). Playwright's `webServer` launches this.
-//
-//   /            -> ../browser        (the app under test, served on PORT, default 8188 — see config.js)
-//   /__e2e__/... -> ./fixtures        (host pages the extension scanner needs on an http origin)
-//
-// Not a general-purpose server: no directory listing, path-traversal is blocked.
+// Minimal static file server for the E2E harness, zero non-Node deps — Playwright's
+// `webServer` launches it. `/` serves ../browser (the app under test, on PORT, default 8188)
+// and `/__e2e__/...` serves ./fixtures, the host pages the scanner needs on an http origin.
+// Not general-purpose: no directory listing, path traversal blocked.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
