@@ -1,28 +1,15 @@
-// Regression tests for the bare Delete/Backspace on a focused coordinates row
-// (js/ui/coordTable.js) — the parity port of the desktop points table, whose
-// SelectionPanel::eventFilter takes the same key when that table has focus
-// (desktop/src/app/SelectionPanel.cpp).
-//
-// What must hold, and what these lock down:
-//   1. Delete AND Backspace on a focused row remove that point, through the same
-//      app.removePoint(lineIdx, ptIdx) the row's 🗑 uses — no separate code path.
-//   2. The key is swallowed (preventDefault + stopPropagation) so it never also reaches
-//      the global hotkey dispatcher in controlsBinder.
-//   3. It is INERT while a px cell is being edited: inside the inline <input>, Backspace
-//      means "erase a digit", not "delete the point".
-//   4. It is inert in the read-only compare view, like every other editing path.
-//
-// CoordTable.update() only touches a handful of DOM calls, so rather than a full DOM we
-// stub exactly those (the drawingApp-launch.test.js approach) and capture the listeners
-// the real code registers, then invoke the keydown one with synthetic events.
+// Bare Delete/Backspace on a focused coordinates row (js/ui/coordTable.js), the parity port of the desktop
+// points table, whose SelectionPanel::eventFilter takes the same key. Pinned: both keys remove that point
+// through the same app.removePoint(lineIdx, ptIdx) the row's 🗑 uses; the key is swallowed so it never also
+// reaches the global hotkey dispatcher; it is INERT inside a px cell's inline <input>, where Backspace erases
+// a digit; and inert in the read-only compare view. update()'s few DOM calls are stubbed.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStubElement } from './helpers/dom.js';
 
 // ── Minimal DOM: enough for CoordTable.update() to build its rows ───────────────
-// Each created <tr> is a shared stub element (listeners/focused/dataset/classList all
-// come with it); its querySelector hands back inert cell stubs the real code wires up.
+// Each created <tr> is a shared stub whose querySelector hands back inert cell stubs.
 const makeStubEl = () => createStubElement('td');
 
 let createdRows = [];

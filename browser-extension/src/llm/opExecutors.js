@@ -64,9 +64,8 @@ export const createOpExecutors = ({
     x.cards.push({ kind: 'unpin', indices: a.indices.slice(), unpinned: got });
   },
   openUrl: async (a, x) => {
-    // The model may only ECHO the user: the exact URL must appear in the
-    // user's own messages this conversation — page content, scan results and
-    // the model itself can never introduce a host (browser §10 parity).
+    // The model may only ECHO the user: the exact URL must appear in the user's own messages this
+    // conversation — page content, scan results and the model never introduce a host (§10 parity).
     const typed = history.filter((m) => m.role === 'user').map((m) => m.text).join('\n');
     if (!typed.includes(a.url)) {
       x.warnings.push(`openUrl blocked: "${a.url}" is not a URL you gave in this conversation`);
@@ -81,9 +80,8 @@ export const createOpExecutors = ({
       x.cards.push({ kind: 'openUrl', url: a.url, incognito: !!a.incognito, ok: false });
     }
   },
-  // ── Panel settings: the assistant driving the surface's own controls. They
-  // touch nothing on the page and fetch nothing, so they carry no listing indices
-  // and never gather context (no auto-continuation).
+  // ── Panel settings: the assistant driving the surface's own controls. They touch nothing
+  // on the page, so they carry no listing indices and never gather context.
   theme: async (a, x) => {
     if (!setTheme) { x.warnings.push('Changing the theme is not supported here'); return; }
     try {

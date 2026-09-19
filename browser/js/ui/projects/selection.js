@@ -41,9 +41,8 @@ export function createProjectSelection({ batchBar, batchCount, hasServers }) {
   // The controls fly on the app's control clock (REVEAL_GROUP_OUT_MS), never the rows' 220ms
   // box collapse — but they SET OFF with the rows: a removal re-asks in the same turn.
   const updateBatchBar = () => {
-    // The bar shows whenever the list HAS selectable rows; the controls inside come and go
-    // with the selection. It closes only once those have FLOWN — its slot clips them
-    // (desktop twin: ProjectsDialog::updateBatchBar's deferred hide).
+    // The bar shows whenever the list HAS selectable rows; it closes only once the controls have
+    // FLOWN, since its slot clips them (desktop twin: ProjectsDialog::updateBatchBar).
     const live = anyLiveSelectable();
     revealBar(batchBar, () => selected.size > 0 || anyLiveSelectable());
     // The count rides the buttons' swap; a display flip on the row's FIRST item shoves

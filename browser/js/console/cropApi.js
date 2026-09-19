@@ -8,12 +8,8 @@ export const createCropApi = ({ app }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
 
   const api = {
-    // Crop by axis edges: x1/y1/x2/y2 each a px move, an absolute length ('3cm'/'-4in'/
-    // '50%'; '-' = from the axis end), or omitted. Commits via the UI's own applyCrop.
-    // ONE axis alone derives the other's LENGTH from the page proportion (`album` picks the
-    // orientation); `aspect` ('W:H') then SHRINKS one dimension about its centre to fit.
-    // `{ scale }` instead grows/shrinks the current crop about its centre (the modal's
-    // wheel/pinch) — mutually exclusive with the edge tokens.
+    // ONE axis alone derives the other's LENGTH from the page proportion; `aspect` ('W:H')
+    // then shrinks one dimension about its centre. `{ scale }` excludes the edge tokens.
     crop(spec = {}) {
       if (!app.originalImage) throw new Error('No image loaded to crop');
       const dims = app.imageModel.effectiveOriginalDims();   // { width, height } in rotated-original pixels

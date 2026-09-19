@@ -1,14 +1,8 @@
-// The control tooltip's MOTION (js/ui/controlTooltip.js + components.css):
-//
-//   1. It appears and leaves on a short fade + rise instead of blinking. Deliberately a
-//      TRANSITION, not keyframes — one shared element is re-pointed many times a second
-//      when the pointer sweeps a toolbar, and a transition simply re-aims from wherever
-//      it is: nothing to restart, stack, or leave half-played.
-//   2. It cannot be STRANDED: the control it describes can vanish under the pointer
-//      (a toggle rewrites its face, a row re-renders) and a detached element never fires
-//      pointerout.
-//   3. Pressing the shortcut the visible tooltip is showing shakes that keycap instead of
-//      dismissing the tip. The matching is pure, so it is tested without a keyboard.
+// The control tooltip's MOTION (js/ui/controlTooltip.js + components.css). Pinned: it fades and rises
+// through a TRANSITION, not keyframes, because one shared element is re-pointed many times a second on
+// a toolbar sweep and a transition re-aims from wherever it is; it cannot be STRANDED when the control
+// under the pointer vanishes, since a detached element never fires pointerout; and pressing the
+// shortcut the visible tooltip shows shakes that keycap instead of dismissing the tip.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -42,20 +36,15 @@ test('the tooltip forms from sand and disperses again, on a transition not an an
   const shown = componentsCss.match(/#app-tooltip\.visible \{([\s\S]*?)\n\}/);
   assert.ok(shown, '`.visible` is the whole of the shown state, so removing it plays the exit');
   assert.match(shown[1], /opacity: 1;[\s\S]*transform: none;[\s\S]*--dissolve: 0;/);
-  // Arriving and leaving are timed apart on purpose: a transition is taken from the
-  // state it goes TO, so the base rule is the exit. It must be READABLE fast and come
+  // A transition is taken from the state it goes TO, so the base rule is the exit: readable fast, coming
   // apart slowly — the reverse would make a toolbar sweep wait on the grain.
   const ms = (css) => Number(css.match(/transition: opacity (\d+)ms/)[1]);
   assert.ok(ms(shown[1]) < ms(block[1]),
     'opaque sooner than it fades, so the grain is what you watch either way');
 });
 
-// The tooltip is the ONE overlay that cannot carry a mote layer: it is re-pointed many
-// times a second on a toolbar sweep and it tracks the cursor while it is up, so a layer
-// measured at one position is stranded a frame later. It takes the same sand as a MASK
-// on itself instead — the scroll dissolve's three coprime dot grids (animations.css
-// .reveal-masked) — which rides the box, costs one composited layer, and can neither
-// stack nor strand nor leak a timer.
+// The tooltip is re-pointed many times a second and tracks the cursor while up, so a mote layer measured
+// at one position is stranded a frame later: it wears the sand as a MASK (animations.css .reveal-masked).
 test('the tooltip’s sand is the app’s own grain: three coprime dot grids, unioned', () => {
   const block = componentsCss.match(/#app-tooltip \{([\s\S]*?)\n\}/)[1];
   for (const prop of ['-webkit-mask-image', 'mask-image']) {
@@ -123,139 +112,4 @@ test('a tooltip whose control was removed from the document is dropped', () => {
       `${ev} still dismisses`);
   }
   assert.match(tooltipJs, /window\.addEventListener\('blur', hide\);/);
-});
-
-// ── 3. The keycap shake ─────────────────────────────────────────────────────
-
-test('parseCombo reads both the written and the Apple-glyph forms', () => {
-  const alt = parseCombo('Alt+R');
-  assert.deepEqual([...alt.mods], ['Alt']);
-  assert.equal(alt.key, 'R');
-  const mac = parseCombo('⇧⌘S');
-  assert.deepEqual([...mac.mods].sort(), ['Meta', 'Shift']);
-  assert.equal(mac.key, 'S');
-  assert.equal(parseCombo('Ctrl+Shift+Z').key, 'Z');
-  assert.deepEqual([...parseCombo('Ctrl+Shift+Z').mods].sort(), ['Ctrl', 'Shift']);
-  // Aliases collapse, so "Cmd"/"Meta"/"⌘" are one modifier and "Esc"/"Escape" one key.
-  assert.deepEqual([...parseCombo('Cmd+K').mods], ['Meta']);
-  assert.equal(parseCombo('Esc').key, 'ESCAPE');
-  // Modifier-only combos leave no key behind, so nothing can ever match them.
-  assert.equal(parseCombo('Alt+Shift').key, '');
-  assert.equal(parseCombo('').key, '');
-  // A gesture cap keeps its word instead, which no keystroke reports.
-  assert.equal(parseCombo('Shift+click').key, 'CLICK');
-});
-
-test('eventCombo keeps the physical key as well as the typed one', () => {
-  const e = eventCombo(press('å', { code: 'KeyA', alt: true }));
-  assert.deepEqual([...e.mods], ['Alt']);
-  assert.ok(e.keys.includes('A'), 'the Mac’s accented character does not lose the key');
-  assert.deepEqual(eventCombo(press('0', { code: 'Digit0' })).keys, ['0', '0']);
-});
-
-test('a keystroke matches the cap that spells it — and only that one', () => {
-  assert.ok(comboMatchesEvent('Alt+R', press('r', { code: 'KeyR', alt: true })));
-  assert.ok(comboMatchesEvent('Alt+0', press('º', { code: 'Digit0', alt: true })), 'Mac Alt+0');
-  assert.ok(comboMatchesEvent('⇧⌘S', press('S', { code: 'KeyS', shift: true, meta: true })));
-  assert.ok(comboMatchesEvent('Delete', press('Delete', { code: 'Delete' })));
-  // Wrong modifiers, extra modifiers and the bare key are all misses.
-  assert.ok(!comboMatchesEvent('Alt+R', press('r', { code: 'KeyR' })), 'no modifier');
-  assert.ok(!comboMatchesEvent('Alt+R', press('r', { code: 'KeyR', alt: true, shift: true })), 'one too many');
-  assert.ok(!comboMatchesEvent('Alt+R', press('t', { code: 'KeyT', alt: true })), 'another key');
-  // A gesture cap ("Alt+click") is not a keystroke, and a modifier-only cap never fires.
-  assert.ok(!comboMatchesEvent('Alt+click', press('Alt', { code: 'AltLeft', alt: true })));
-  assert.ok(!comboMatchesEvent('Shift', press('Shift', { code: 'ShiftLeft', shift: true })));
-});
-
-test('every cap nudges once the tooltip has LANDED, announcing the shortcut', () => {
-  // The shake's job is to draw the eye to the shortcut while you are READING the tip,
-  // so it fires on the show — not only when the key happens to be pressed.
-  assert.match(tooltipJs, /t\.classList\.add\('visible'\);[\s\S]{0,600}?place\(lastEvent\);[\s\S]{0,600}?shakeKeys\(t\);/,
-    'shaken on every reveal, once it is placed');
-  // …but only once the motes have arrived: a nudge played while the tip is still
-  // assembling is a movement nobody can see, which is the whole point of it.
-  assert.match(tooltipJs,
-    /if \(dusted\) shakeTimer = setTimeout\(\(\) => \{ shakeTimer = null; shakeKeys\(t\); \}, TIP_IN_MS\);\s*\n\s*else shakeKeys\(t\);/,
-    'the shake waits out the gather, and fires at once when there was none');
-  // …and a tip dismissed or re-pointed mid-flight never shakes the caps of a tip that
-  // has already gone: both routes drop the pending nudge first.
-  assert.match(tooltipJs, /clearTimeout\(shakeTimer\);\s*\n\s*showTimer = shakeTimer = null;/);
-  assert.match(tooltipJs, /clearTimeout\(shakeTimer\);\s*\n\s*if \(dusted\)/);
-  assert.match(tooltipJs,
-    /const shakeKeys = \(t\) => \{\s*\n\s*t\.querySelectorAll\('\.tip-key'\)\.forEach\(cap => flashClass\(cap, SHAKE_CLASS, SHAKE_MS\)\);/);
-  // A tip with no shortcut has no caps, so the query is empty and nothing happens —
-  // no guard needed, and none that could get it wrong.
-  assert.ok(!/shakeKeys[\s\S]{0,200}if \(/.test(tooltipJs.slice(tooltipJs.indexOf('const shakeKeys'))),
-    'no special case for a shortcut-less tooltip');
-});
-
-test('the shake is wired to the tooltip’s own caps, one shot, and Escape still dismisses', () => {
-  // The combos rendered on the live tooltip are kept from the same parse renderTip ran,
-  // so a cap can be matched back to the shortcut it spells.
-  assert.match(tooltipJs, /import \{ renderTip, parseTip \} from '\.\/tipContent\.js';/);
-  assert.match(tooltipJs, /curCombos = parseTip\(txt\)\.keys;/);
-  assert.match(tooltipJs, /curCombos = \[\];/, 'and cleared with the tooltip');
-  // Matching key -> shake and KEEP the tooltip; anything else -> the old dismissal.
-  assert.match(tooltipJs, /if \(e\.key !== 'Escape' && shakeMatchingKeys\(e\)\) return;\s*\n\s*hide\(\);/);
-  assert.match(tooltipJs, /flashClass\(cap, SHAKE_CLASS, SHAKE_MS\)/);
-  // Restart-safe, so pressing the same shortcut twice shakes twice.
-  const flash = tooltipJs.slice(tooltipJs.indexOf('const flashClass ='));
-  assert.match(flash, /classList\.remove\(cls\);\s*\n\s*void el\.offsetWidth;/);
-  assert.match(flash, /el\.__flashTimer = setTimeout\(\(\) => el\.classList\.remove\(cls\), ms\);/);
-});
-
-test('the keycap shake is one brief, non-repeating pass', () => {
-  const rule = componentsCss.match(/\.tip-key\.key-shake \{([\s\S]*?)\n\}/);
-  assert.ok(rule, 'the shake is styled');
-  const [, body] = rule;
-  assert.match(body, /animation: keycapShake 0\.32s [^;]*both;/);
-  assert.ok(!/infinite|alternate/.test(body), 'never loops');
-  const frames = componentsCss.match(/@keyframes keycapShake \{([\s\S]*?)\n\}/);
-  assert.ok(frames, 'and has its keyframes');
-  assert.match(frames[1], /0%, 100% \{ transform: none; \}/, 'it starts and ends put');
-});
-
-// ── Reduced motion ──────────────────────────────────────────────────────────
-
-test('reduced motion: the tooltip appears at once and the cap answers without moving', () => {
-  const block = componentsCss.match(
-    /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?#app-tooltip \{([\s\S]*?)\n    \}/);
-  assert.ok(block, 'the tooltip opts out under the preference');
-  assert.match(block[1], /transition: none;/);
-  assert.match(block[1], /transform: none;/, 'and lands in its end state, not the offset one');
-  assert.match(block[1], /--dissolve: 0;/, 'no half-sanded tooltip either');
-  assert.match(block[1], /mask-image: none;/, 'the grain is off outright, not merely settled');
-  assert.match(componentsCss, /\.tip-key\.key-shake \{ animation: none; \}/);
-  // The cap shakes and nothing else: no repaint, so it reads as the same key throughout.
-  const shake = componentsCss.match(/\.tip-key\.key-shake \{([\s\S]*?)\n\}/)[1];
-  assert.doesNotMatch(shake, /border-color|color:|background/);
-});
-
-// ── 4. Where the sand comes from ────────────────────────────────────────────
-// A button's tip forms out of the button. A control STRETCHED across its row — a
-// connection row, a list item — has its content at one end and its centre in empty
-// space, so sand arriving from the middle of the row read as coming from nowhere (user
-// report). Past DUST_CURSOR_PX the pointer is the origin instead, which is what the
-// desktop already does (AppTooltip.hpp's `stretched` test).
-test('the dust forms at the control centre, or at the cursor once that is far from it', () => {
-  const centre = { x: 100, y: 100 };
-  // A toolbar icon: the pointer is on it, so the centre IS the cursor, near enough.
-  assert.deepEqual(dustOrigin(centre, { x: 108, y: 104 }), centre);
-  assert.deepEqual(dustOrigin(centre, { x: 100 + DUST_CURSOR_PX, y: 100 }), centre,
-    'exactly at the threshold still belongs to the control');
-  // A wide row: the pointer is hundreds of pixels from the middle of it.
-  const far = { x: 420, y: 104 };
-  assert.deepEqual(dustOrigin(centre, far), far);
-  // No pointer yet (a focus-driven reveal), or a detached owner with no box at all.
-  assert.deepEqual(dustOrigin(centre, null), centre);
-  assert.equal(dustOrigin(null, far), null);
-});
-
-// A descendant that describes ITSELF is a different tooltip, not the same one seen
-// through its icon: the connections row puts a status dot (what the dot means) inside
-// the row label (the URL). The "still inside the active target" guard used to swallow it.
-test('a child with its own text takes the tooltip over from its ancestor', () => {
-  assert.match(tooltipJs,
-    /if \(curEl && curEl\.contains\(e\.target\) && \(!el \|\| el === curEl\)\) return;/,
-    'the guard keeps showing only while the child has no text of its own');
 });

@@ -10,8 +10,7 @@ export function hotkeyActions(app) {
     const el = document.getElementById(id);
     if (!el || el.disabled) return;
     // Alt+<letter> presses Alt first, and Alt over an icon opens its window as a hover-peek
-    // (ui/popover.js). Without this the letter would arrive to find the window already open
-    // and toggle it straight back shut. Claiming the peek keeps what the user asked for.
+    // (ui/popover.js); without claiming the peek the letter would toggle it straight back shut.
     if (el.__stencilGestures?.hotkey?.()) return;
     el.click();
   };
@@ -52,9 +51,8 @@ export function hotkeyActions(app) {
     zoomOut: () => app.zoomPan.zoomAroundCenter(app.scale - 0.25),
     zoomInBig: () => app.zoomPan.zoomAroundCenter(app.scale + 1.0),
     zoomOutBig: () => app.zoomPan.zoomAroundCenter(app.scale - 1.0),
-    // Alt+R rotates the IMAGE — but with a line selected it instead arms the line-rotate
-    // chord (Alt+R+←/→, handled in wireArrowPan), so it must not also spin the image.
-    // Deselect to rotate the image again. Alt+Shift+R (right) is unaffected by the chord.
+    // With a line selected Alt+R arms the line-rotate chord (Alt+R+←/→, wireArrowPan), so it must
+    // not also spin the image. Alt+Shift+R is unaffected by the chord.
     rotateImageLeft: () => { if (app.image && app.selectedIndices().length === 0) app.imageModel.rotateImage(-1); },
     rotateImageRight: () => { if (app.image) app.imageModel.rotateImage(1); },
     // Alt+Shift+Arrow transforms of the SELECTED line — flip about / rotate ±90 around its bbox
@@ -63,11 +61,8 @@ export function hotkeyActions(app) {
     flipLineVertical: () => app.flipSelectedLine(false),
     rotateLineCW90: () => app.rotateSelectedLineQuarter(1),
     rotateLineCCW90: () => app.rotateSelectedLineQuarter(-1),
-    // Ctrl+C's OWN slot is 'split' while a split compare view is active — that view is
-    // what's actually on screen right now — and 'current' (plain tint+lines) otherwise.
-    // Resolved HERE, not inside copyImageToClipboard: the write must run synchronously
-    // inside this gesture (exportService.js), so it can't route through the toolbar
-    // button's click (openFull resolves the same way, for the mouse-click/saveImage path).
+    // Ctrl+C's slot is 'split' while a split compare view is active, else 'current'. Resolved HERE,
+    // not in copyImageToClipboard: the write must run synchronously inside this gesture.
     copyImage: () => app.export.copyImageToClipboard(isSplitCompare(app) ? 'split' : 'current'),
     copyImageOriginal: () => app.export.copyImageToClipboard('original'),
     copyImageTint: () => app.export.copyImageToClipboard('tint'),
@@ -75,9 +70,8 @@ export function hotkeyActions(app) {
     // paste is handled by the native 'paste' event listener below — entry here is for hotkey display only
     paste: () => { /* handled by paste event */ },
     clearAllLines: () => app.clearAllLines(),
-    // Deletes the WHOLE selection (selectedIndices() falls back to [selectedLineIdx]);
-    // on Mac the default reads as ⌥⌫. With a POINT focused, the chord narrows to that
-    // point — same route-a-shared-chord-by-selection pattern as Alt+Shift+Arrow.
+    // Deletes the WHOLE selection (selectedIndices() falls back to [selectedLineIdx]); with a
+    // POINT focused the chord narrows to that point.
     deleteLine: () => {
       if (app.isDrawing) return;
       if (app.coordLineIdx >= 0 && app.focusedPtIdx >= 0) {
@@ -91,9 +85,8 @@ export function hotkeyActions(app) {
       if (app.isDrawing) return;
       if (app.coordLineIdx >= 0 && app.focusedPtIdx >= 0) app.removePoint(app.coordLineIdx, app.focusedPtIdx);
     },
-    // Esc clears the selection — the desktop's "Deselect" action bound to the same key.
-    // An open modal owns Escape first: it closes on this very keypress, so also dropping
-    // the canvas selection behind it would be an invisible side effect of closing a dialog.
+    // An open modal owns Escape first: it closes on this very keypress, so also dropping the canvas
+    // selection behind it would be an invisible side effect of closing a dialog.
     deselect: () => { if (!document.querySelector('.modal-open')) app.deselectLine(); },
     // Toolbar/menu openers — each just drives the matching button so the shortcut and the
     // click path stay identical (clickIfActive skips a disabled control, like the UI does).
@@ -129,16 +122,12 @@ export function hotkeyActions(app) {
     toggleIncognito: () => clickIfActive('incognito-toggle'),
     toggleChat: () => clickIfActive('chat-btn'),
     toggleVoiceChat: () => clickIfActive('voice-chat-btn'),
-    // The assistant's gear lives inside the chat composer's "…" menu; its click is the
-    // modal's own opener, so the window flies to/from the "…" (or falls from above when
-    // no chat surface is on screen) exactly as the menu route does.
     openAssistantSettings: () => clickIfActive('chat-settings-btn'),
     openHelp: () => clickIfActive('info-btn'),
     openHotkeys: () => clickIfActive('settings-btn'),
     openVisuals: () => clickIfActive('visuals-btn'),
-    // Shift+F10 opens the canvas context menu from the keyboard, as a REAL contextmenu
-    // event on the viewport so the right-click path (contextMenu.js) is the only path.
-    // An already-open menu keeps its place; Escape closes it.
+    // Shift+F10 raises a REAL contextmenu event on the viewport, so the right-click path
+    // (contextMenu.js) stays the only path.
     contextMenu: () => {
       const viewport = document.getElementById('canvas-viewport');
       if (!viewport || document.getElementById('ctx-menu')?.classList.contains('ctx-open')) return;

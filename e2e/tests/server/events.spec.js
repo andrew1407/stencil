@@ -57,10 +57,8 @@ test.describe('server events + session lifecycle', () => {
       a.close();
       b.close();
     }
-    // NOTE: peer-LEAVE lives in ws-peer-leave.spec.js. The server's WS keepalive
-    // (30s ping + 10s pong timeout, server/internal/transport/ws.go) reaps a dropped
-    // peer within ~40s — bounded, but far too slow for this fast test, so the
-    // dedicated (deliberately slow) spec owns that assertion.
+    // Peer-LEAVE lives in ws-peer-leave.spec.js: the WS keepalive (30s ping + 10s pong timeout)
+    // reaps a dropped peer within ~40s — bounded, but far too slow for this fast test.
   });
 
   test('cursor is relayed to peers, stamped with the origin client', async ({ request }) => {

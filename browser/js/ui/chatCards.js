@@ -167,9 +167,8 @@ export const chatReconnectButton = (serverUrl, onReconnect) => {
   return b;
 };
 
-// Under an unreachable-provider message: opens the LLM settings modal through the modal's
-// own API, so the window flies from the CTA; the rect is captured before onBeforeOpen
-// closes the context-menu flyout.
+// Opens the LLM settings modal through the modal's own API so the window flies from the CTA;
+// the rect is captured before onBeforeOpen closes the context-menu flyout.
 export const chatConfigureButton = (onBeforeOpen) => {
   const cfg = document.createElement('button');
   cfg.className = 'btn-icon-text chat-config-cta';

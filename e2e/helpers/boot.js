@@ -14,13 +14,8 @@ export { APP_URL };
 export const PNG_DATA_URL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
-// Navigate to the app, clear any persisted state so runs are independent, and wait
-// until the scripting facade is live.
-//
-// `motion` seeds the app's own interface-motion switch (ui/motionPrefs.js) before first
-// paint — prePaintTheme.js reads this key in <head> and stamps <html data-motion>, so
-// 'none' means no entrance ever starts and settleModalAnimations is a no-op. Specs that
-// measure geometry pass it; specs that assert on motion must not.
+// `motion` seeds ui/motionPrefs.js before first paint (prePaintTheme.js stamps <html
+// data-motion>), so 'none' means no entrance ever starts; motion specs must not pass it.
 export async function gotoApp(page, { hash = '', motion = '' } = {}) {
   await page.addInitScript((m) => {
     try {
@@ -33,11 +28,8 @@ export async function gotoApp(page, { hash = '', motion = '' } = {}) {
   return page;
 }
 
-// Seed saved local projects via the facade (each blank auto-saves; newEditor starts a
-// fresh one) — two by default, `extra` more when a test needs the list long enough to
-// actually scroll — then open the Projects modal and wait for the rows. Returns the rows
-// plus the row of the project that is NOT active, so every gesture has something real to
-// switch to (clicking the active row just closes the list — it is already open here).
+// Returns the modal rows plus the row of the project that is NOT active — clicking the
+// active row only closes the list.
 export async function seedProjectsAndOpenList(page, { extra = 0 } = {}) {
   await page.evaluate(async (n) => {
     await window.stencil.blank('#ffffff', { size: { width: 200, height: 150 } });
@@ -59,9 +51,8 @@ export async function seedProjectsAndOpenList(page, { extra = 0 } = {}) {
   return { rows, target: rows.nth(idx) };
 }
 
-// Wait until every animation inside a modal overlay has finished — the open flight
-// (modalFromIcon) scales the dialog from its toolbar icon, so boxes measured while it
-// runs are mid-flight. Shared by any spec that measures or gestures right after open.
+// The modal's open flight (modalFromIcon) scales the dialog out of its toolbar icon, so any
+// box measured while it runs is mid-flight.
 export const settleModalAnimations = (page, overlayId) => page.waitForFunction((oid) => {
   const overlay = document.getElementById(oid);
   if (!overlay || !overlay.classList.contains('modal-open')) return false;
@@ -69,9 +60,8 @@ export const settleModalAnimations = (page, overlayId) => page.waitForFunction((
   if (!box) return false;
   const anims = overlay.getAnimations({ subtree: true });
   if (anims.length) return anims.every((a) => a.playState === 'finished');
-  // The flight may not have STARTED yet (the shell computes its icon delta first):
-  // with no animation live, accept only a box whose on-screen rect matches its
-  // untransformed layout size — mid-flight the transform scales it away from that.
+  // The flight may not have STARTED yet, so with no animation live accept only a box whose
+  // on-screen rect matches its untransformed layout size.
   const r = box.getBoundingClientRect();
   return Math.abs(r.width - box.offsetWidth) < 1 && Math.abs(r.height - box.offsetHeight) < 1;
 }, overlayId, { timeout: 5000 });
@@ -85,10 +75,8 @@ export async function expectModalOpen(page, overlayId) {
 export const serverProjectIds = (page) =>
   page.evaluate(async () => (await window.stencil.serverProjects()).map((r) => r.id));
 
-// Poll the page's server projects until one appears whose id isn't in `baseline`, then
-// return it (null if none within the window). A client's local `current.id` can differ
-// from the server id, so the only reliable way to name a fresh project is to diff the
-// server set against a pre-create snapshot.
+// A client's local `current.id` can differ from the server id, so a fresh project is named by
+// diffing the server set against a pre-create snapshot.
 export async function waitForNewServerProjectId(page, baseline, { tries = 30, gapMs = 500 } = {}) {
   for (let i = 0; i < tries; i++) {
     const fresh = (await serverProjectIds(page)).find((id) => !baseline.has(id));

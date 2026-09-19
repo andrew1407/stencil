@@ -1,103 +1,16 @@
 // ── Rich control tooltips: the content model ────────────────────────────────
-// PORT of browser/js/ui/tipContent.js — the extension can't import from browser/ (a
-// separate subproject), so the file is duplicated; keep the two rule-for-rule.
-// tests/tipContent.test.js carries the browser suite's cases for exactly that reason.
-//
-// Every control here carries its tooltip as one plain `title` string, which the native
-// popup can only print flat. This parses the conventions those strings already use into
-// the desktop app's tooltip shape — a bold heading, a keycap for the shortcut,
-// term/description rows, bullets, and the muted disabled-reason note:
-//
-//   "Rescan this page (Alt+R)"       → heading + a keycap
-//   "Shared server project — <url>"  → heading + a muted subtitle
-//   "Drag to reorder · drag out …"   → heading + bullets
-//   "None — normal editing"          → a term/description row
-//   "— add an image first"           → the muted disabled-reason note
-//
-// Pure string in, HTML string out (everything is escaped), so it is testable under
-// `node --test`.
-
-// Modifier and key vocabulary. Case-sensitive on purpose: "Delete every saved project"
-// must not put a keycap on its verb, so bare words are only ever keys in a key context
-// (see KEY_PROSE below) or inside a trailing "(…)" that is nothing but keys.
-const MOD = 'Ctrl|Control|Cmd|Command|Meta|Win|Alt|Option|Shift';
-const NAMED = 'Enter|Return|Escape|Esc|Tab|Space|Backspace|Delete|Del|Home|End|PageUp|PageDown|Arrow(?:Up|Down|Left|Right)|F\\d{1,2}';
-// The key glyphs a platform may hand us instead of a word. The desktop gets these from Qt
-// (QKeySequence::NativeText on macOS renders Escape as ⎋, Tab as ⇥, Page Up as ⇞ …), so the
-// set has to cover what Qt actually emits or those shortcuts never become keycaps.
-const KEYGLYPH = '[⌫⌦↑↓←→⎋⇥↵⌤⇞⇟↖↘␣]';
-// What can end a combo: a named key, a modifier (a combo may stop on one, "Alt+Shift"), a
-// lower-case gesture word the app pairs with a modifier ("Alt+click", "Shift+left-drag",
-// "Alt+wheel"), a single character, a key glyph, or punctuation. The gesture word comes
-// BEFORE the single character so "Alt+click" is not read as "Alt+c" plus "lick".
-const ATOM = `(?:${NAMED}|${MOD}|[a-z][a-z-]{1,11}|[A-Za-z0-9]|${KEYGLYPH}|[-+=\\[\\]/\\\\.,;'\`])`;
-// Nothing may run on past the key, or half a word would end up wearing a keycap.
-const END = '(?![\\w-])';
-// "Ctrl+Shift+Z" / "Alt+0" / "Shift+click"
-const CHAINED = `(?:(?:${MOD})\\+)+${ATOM}${END}`;
-// Mac display form: a run of Apple glyphs then the key ("⇧⌘Z", "⌥↑")
-const GLYPHS = `[⌃⌥⇧⌘]+${ATOM}${END}`;
-// A bare key word only counts as a key when the sentence is talking about keys.
-const KEY_PROSE = '(?:hold|press|hit|tap|with|then|or)\\s+';
-
-// On a Mac a modifier is drawn, not spelled — mapped at RENDER time so the same string
-// reads natively on every platform. Note Ctrl → ⌃, not ⌘: a "Ctrl" that survives to here
-// is a literal Control key (the registry maps its own Ctrl bindings to ⌘ beforehand).
-const MAC_GLYPH = {
-  Ctrl: '⌃', Control: '⌃', Alt: '⌥', Option: '⌥', Shift: '⇧',
-  Cmd: '⌘', Command: '⌘', Meta: '⌘', Win: '⌘',
-};
-const isMacPlatform = () => {
-  if (typeof navigator === 'undefined') return false;   // Node (tests) — spell them out
-  const p = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
-  return /mac/i.test(p || navigator.userAgent || '');
-};
+// Byte-pinned PORT of browser/js/ui/tipContent.js; tests/tipContent.test.js carries the browser
+// suite's cases. Parses the conventions a control's one `title` string already uses into the
+// desktop app's tooltip shape — heading, keycaps, term/description rows, bullets, disabled-reason
+// note. Pure string in, escaped HTML out.
 
 // ONE escaper for the whole surface — a security helper must not exist in two copies.
-import { escapeHtml } from './escapeHtml.js';
-export { escapeHtml };
+export { escapeHtml } from './escapeHtml.js';
+import { highlightKeys, isKeyCombo, isMacPlatform, keysHtml } from './tipKeys.js';
+export { isKeyCombo, keysHtml, highlightKeys };
 
-/** Whether `s` is a key combo and nothing else (what a trailing "(…)" must be to become keycaps). */
-export const isKeyCombo = s =>
-  new RegExp(`^(?:${CHAINED}|${GLYPHS}|${MOD}|${NAMED}|${KEYGLYPH})$`).test(String(s).trim());
-
-// Render one combo (already validated by isKeyCombo) as keycaps: "Ctrl+Shift+Z" →
-// three <kbd>s joined by "+"; the Mac glyph form "⇧⌘Z" → one <kbd> per glyph.
-export const keysHtml = (combo, mac = isMacPlatform()) => {
-  const s = String(combo).trim();
-  const cap = k => `<kbd class="tip-key">${escapeHtml(mac && MAC_GLYPH[k] ? MAC_GLYPH[k] : k)}</kbd>`;
-  const plus = '<span class="tip-plus">+</span>';
-  // Apple prints ⇧⌘S with no joiner, but a tooltip is read at a glance and a run of bare
-  // glyphs looks like one symbol — so every key is separated by a "+", whichever form the
-  // combo arrived in.
-  if (/^[⌃⌥⇧⌘]/.test(s)) {
-    const glyphs = s.match(/^[⌃⌥⇧⌘]+/)[0].split('');
-    const rest = s.slice(glyphs.length);
-    return [...glyphs, ...(rest ? [rest] : [])].map(cap).join(plus);
-  }
-  return s.split('+').filter(Boolean).map(cap).join(plus);
-};
-
-// Escape `text` and put keycaps on the key combos inside it. Combos written with "+" (or
-// in Apple glyphs) are always highlighted; a lone "Shift"/"Enter" only when the prose
-// says it is a key ("hold Shift") — otherwise the app's own verbs would wear keycaps.
-export const highlightKeys = (text, mac = isMacPlatform()) => {
-  const re = new RegExp(`(${KEY_PROSE})?(${CHAINED}|${GLYPHS}|${MOD}|${NAMED})`, 'g');
-  let out = '';
-  let last = 0;
-  for (const m of String(text).matchAll(re)) {
-    const [full, lead, token] = m;
-    const chained = new RegExp(`^(?:${CHAINED}|${GLYPHS})$`).test(token);
-    if (!chained && !lead) continue;  // a bare key word with no key context — leave it alone
-    out += escapeHtml(String(text).slice(last, m.index)) + escapeHtml(lead || '') + keysHtml(token, mac);
-    last = m.index + full.length;
-  }
-  return out + escapeHtml(String(text).slice(last));
-};
-
-// Split a line on the app's " · " separator, which titles use to list alternatives — but
-// NOT inside parentheses: "(Alt+O cycles · hold Alt+Shift+O to peek)" is one heading
-// with a hint in it, not two pieces.
+// Split on the app's " · " separator, but NOT inside parentheses: "(Alt+O cycles · hold …)" is
+// one heading with a hint in it, not two pieces.
 const dotParts = (line) => {
   const s = String(line);
   const out = [];
@@ -122,12 +35,8 @@ const dashSplit = line => {
   return i === -1 ? null : { term: line.slice(0, i).trim(), desc: line.slice(i + 3).trim() };
 };
 
-// A secondary line reads as a sentence of its own: a lowercase fragment under the heading
-// looks unfinished (user report). Only a plain lowercase first WORD is lifted — a token
-// carrying a dot, slash, colon, bracket or quote is a URL, a filename or a code fragment
-// ("http://…", ".stencil file", "f(x,y) …") and means what it is written as, and a lone
-// word is a value, not a sentence. Term/description rows read as one sentence across the
-// dash, so they are left alone.
+// A lowercase fragment under the heading looks unfinished (user report), so a plain lowercase
+// first word is lifted — but not a URL, filename or code fragment, which mean what they say.
 export const sentenceCase = s => {
   const t = String(s == null ? '' : s);
   const end = t.search(/\s/);   // no second token: a VALUE (an axis letter, a filename)
@@ -135,9 +44,8 @@ export const sentenceCase = s => {
     ? t[0].toUpperCase() + t.slice(1) : t;
 };
 
-// Parse a composed `title` into the tooltip's structure: {title, keys, blocks} — title/
-// keys are the heading; blocks are {kind: 'row'|'bullet'|'text'|'hint'|'note', …} in
-// source order.
+// Parse a composed `title` into {title, keys, blocks}: title/keys are the heading, blocks are
+// {kind: 'row'|'bullet'|'text'|'hint'|'note', …} in source order.
 export const parseTip = text => {
   const lines = String(text == null ? '' : text)
     .replace(/\r/g, '')
@@ -147,10 +55,8 @@ export const parseTip = text => {
   const tip = { title: '', keys: [], blocks: [] };
   if (lines.length === 0) return tip;
 
-  // ── the shortcut ──
-  // composeControlTitle appends " (combo)" then the "— reason" line, so the shortcut sits
-  // on the last line that is not the reason — not necessarily the heading. Pull it off
-  // whichever line carries it; a line that was nothing but the combo goes away with it.
+  // composeControlTitle appends " (combo)" then the "— reason" line, so the shortcut sits on the
+  // last line that is not the reason — not necessarily the heading.
   const isNote = l => /^[—–-]{1,2}\s+/.test(l);
   for (let i = lines.length - 1; i >= 0; i--) {
     if (isNote(lines[i])) continue;
@@ -172,9 +78,8 @@ export const parseTip = text => {
 
   // ── heading ──
   let head = lines[0];
-  // "a · b · c" on the heading line: the first piece titles the tooltip, the rest are
-  // bullets — but a single trailing piece has nothing to enumerate against, so a bullet
-  // there would just be a list of one; it reads as a hint instead.
+  // "a · b · c" on the heading line: the first piece titles the tooltip, the rest are bullets — but
+  // a single trailing piece has nothing to enumerate against, so it reads as a hint instead.
   const headParts = dotParts(head);
   const tail = headParts.slice(1);
   head = headParts[0] || head;
@@ -225,9 +130,8 @@ export const parseTip = text => {
   return tip;
 };
 
-// Render a composed `title` as the tooltip's HTML: heading with keycaps, then rows,
-// bullets, hints and the disabled-reason note. Consecutive rows share one grid and
-// consecutive bullets one list, so columns line up. '' when there is nothing to show.
+// Consecutive rows share one grid and consecutive bullets one list, so columns line up.
+// '' when there is nothing to show.
 export const renderTip = (text, mac = isMacPlatform()) => {
   const tip = parseTip(text);
   if (!tip.title && tip.blocks.length === 0) return '';

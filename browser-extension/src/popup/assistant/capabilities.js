@@ -43,9 +43,8 @@ export const createCapabilities = ({ getItems, getTabId, getPageUrl, openHere, p
     },
   }).then((v) => v === true);
 
-  // `focus`: the existing injected page marking (hoverHighlight.js) — outline + scroll
-  // into view; true when found. The target tab is the entry's own provenance
-  // (sourceTabId) when it has one — a scanTab'd entry lives on that other tab.
+  // The target tab is the entry's own provenance (sourceTabId) when it has one — a scanTab'd
+  // entry lives on that other tab.
   const focusImage = async (index, entry) => {
     const src = sourceOf(entry) || (entry && entry.src) || '';
     const tabId = (entry && entry.sourceTabId != null) ? entry.sourceTabId : getTabId();
@@ -54,16 +53,13 @@ export const createCapabilities = ({ getItems, getTabId, getPageUrl, openHere, p
     return highlightSourceOnTab(tabId, src, color);
   };
 
-  // `open`: the `#stencil=` editor hand-off, with validated open.actions translated
-  // onto launch options. In EDITOR mode the image imports INTO that tab (openHere,
-  // contract §8) — except a plan that also asked for a filter/layout: the import
-  // message can't carry annotations, so only the fragment path will do.
+  // In EDITOR mode the image imports INTO that tab (openHere, contract §8) — except a plan that
+  // also asked for a filter/layout: the import message can't carry annotations.
   const openImage = async (action, entry) => {
     const src = editableSrc(entry);
     if (!src) throw new Error('this entry has no openable image source');
-    // §8 open.mode "resume": focus the editor tab ALREADY holding this image instead of
-    // handing off a fresh copy. Requested edits need a fresh hand-off, so they win over
-    // resume; with no open editor holding it, the classic hand-off carries open:'resume'.
+    // §8 open.mode "resume" focuses the editor tab ALREADY holding this image; requested edits
+    // need a fresh hand-off, so they win over resume.
     const resume = action.mode === 'resume' && !(action.actions && action.actions.length);
     const extra = [];
     if (action.mode === 'resume' && !resume) {
@@ -103,8 +99,6 @@ export const createCapabilities = ({ getItems, getTabId, getPageUrl, openHere, p
     return warnings;
   };
 
-  // `attach`: fetch bytes through the extension's host permissions (cross-origin /
-  // hotlink-protected sources work like the popup's thumbnails), rasterise + downscale.
   // SVG rasterises to PNG here — the contract accepts png/jpeg/webp/gif only.
   const attachImage = async (index, entry) => {
     const src = editableSrc(entry);
@@ -117,9 +111,7 @@ export const createCapabilities = ({ getItems, getTabId, getPageUrl, openHere, p
     return toLlmImage({ dataUrl, width: (entry && entry.w) || 0, height: (entry && entry.h) || 0 });
   };
 
-  // `getTabs`: the user's other open http(s) pages (SW SOURCE_TABS). Best-effort: []
-  // on any failure. Gated at the SOURCE on the §8 opt-in, so a caller that forgets
-  // the check still gets nothing.
+  // Gated at the SOURCE on the §8 opt-in, so a caller that forgets the check still gets nothing.
   const getTabs = async () => {
     if (!state.llmSettings || state.llmSettings.shareTabs !== true) return [];
     try {
@@ -130,9 +122,8 @@ export const createCapabilities = ({ getItems, getTabId, getPageUrl, openHere, p
     }
   };
 
-  // `scanTab`: scan another open tab (SW SCAN_TAB) and make its images the working
-  // set. Items get the same shaping as popup.js scan(): name, measured dims, per-row
-  // provenance (sourceTabId + resource) so focus/open/pin work on them unchanged.
+  // Items take popup.js scan()'s shaping — name, measured dims, per-row provenance (sourceTabId
+  // + resource) — so focus/open/pin work on them unchanged.
   const scanTab = async (tabEntry) => {
     if (!tabEntry || typeof tabEntry.tabId !== 'number') return { ok: false, error: 'no such tab' };
     const res = await chrome.runtime.sendMessage({ type: MSG.SCAN_TAB, tabId: tabEntry.tabId });
@@ -163,9 +154,8 @@ export const createCapabilities = ({ getItems, getTabId, getPageUrl, openHere, p
     await unpinEntry(entry);
   };
 
-  // `rescan` (§8): refresh the conversation's CURRENT listing — the swapped tab while
-  // a scanTab swap is live (the same SW scanner keeps the provenance shaping), else
-  // the popup's own scan, which the injected getListing already rides.
+  // §8 rescan refreshes the conversation's CURRENT listing: the swapped tab while a scanTab swap
+  // is live, else the popup's own scan.
   const rescanListing = async () => {
     if (state.workingScan) return scanTab({ tabId: state.workingScan.tabId, title: state.workingScan.title });
     if (!rescanPage) return { ok: false, error: 're-scanning is not available on this surface' };
@@ -173,9 +163,8 @@ export const createCapabilities = ({ getItems, getTabId, getPageUrl, openHere, p
     return { ok: true, count: (getItems() || []).length };
   };
 
-  // `openUrl`: a USER-GIVEN image URL (executor-guarded) → the same editor hand-off
-  // as `open`, on a synthesized entry. Editor mode imports into the current editor
-  // tab unless incognito was asked for (that always needs a new incognito editor).
+  // Editor mode imports into the current editor tab unless incognito was asked for — that always
+  // needs a new incognito editor.
   const openUrlImage = async (action) => {
     const url = action.url;
     const dataUrl = await fetchAsDataUrl(url, { pageUrl: getPageUrl() });
@@ -205,9 +194,8 @@ export const createCapabilities = ({ getItems, getTabId, getPageUrl, openHere, p
     unpinImage,
     rescan: rescanListing,
     openUrlImage,
-    // Panel settings (§8): the host wires these to its own controls, so a plan that
-    // changes the theme, the accent or the filters goes through the very same path a
-    // click does.
+    // §8: the host wires these to its own controls, so a plan changing the theme, the accent or
+    // the filters goes through the very same path a click does.
     setTheme: setTheme ? async (mode) => setTheme(mode) : undefined,
     setFilters: setFilters ? async (patch) => setFilters(patch) : undefined,
     setAccent: setAccent ? async (action) => setAccent(action) : undefined,

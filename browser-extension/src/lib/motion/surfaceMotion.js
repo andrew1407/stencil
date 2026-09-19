@@ -11,9 +11,8 @@ export const SURFACE_OUT_MS = 380;
 export const SURFACE_MENU_IN_MS = 340;
 export const SURFACE_MENU_OUT_MS = 220;
 
-// The grain a mote AIMS for, and the ceiling on how many a flight may cost. A window is
-// tens of times a row's area, so the budget is what sizes its cells: at 1200 an options
-// dialog comes apart into 20px slabs — a mosaic, not sand.
+// The budget is what sizes the cells: at 1200 an options dialog comes apart into 20px slabs —
+// a mosaic, not sand.
 export const SURFACE_MOTE_PX = 6;
 export const SURFACE_COLS = 46;
 export const SURFACE_ROWS = 30;      // 1380 motes; a few thousand promoted layers is lag
@@ -27,9 +26,8 @@ export const SURFACE_LEAVING_CLASS = 'surface-leaving';
 // forming class at the end of the flight replays it.
 export const SURFACE_DRIVEN_CLASS = 'dust-driven';
 
-// One mote's flight when a whole surface gathers into — or bursts out of — a single
-// POINT: the path is the cell's offset to it, and the delay rides the DISTANCE, so the
-// near edge goes first and the far one last. Pure — unit-tested.
+// The path is the cell's offset to the point and the delay rides the DISTANCE, so the near
+// edge goes first and the far one last. Pure — unit-tested.
 export const surfaceMotion = (cx, cy, cols, rows, box, point, { span = SURFACE_OUT_MS, spread = SURFACE_SPREAD } = {}) => {
   const n = tileNoise(cx, cy);
   const m = tileNoise(cx + 41, cy + 17);

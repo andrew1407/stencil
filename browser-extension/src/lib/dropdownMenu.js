@@ -1,32 +1,20 @@
 // ── Dropdown menus that escape their container ──────────────────────────────
-// PORT of browser/js/ui/dropdownMenu.js (the extension can't import across subprojects) —
-// keep the two rule-for-rule; tests/dropdownMenu.test.js carries the browser suite's cases.
-//
-// An open menu is moved to <body> and placed in viewport coordinates: under the trigger,
-// flipped above when it would overflow the bottom, clamped to the window, and capped to
-// the room actually available so a long list scrolls instead of running off. That matters
-// more here than in the app — the popup window is only ~400x600, and several of these
-// selects sit near its bottom edge. hide() puts the menu back where it came from.
-//
-// Callers only have to remember one thing: while a menu is open it is NOT inside the
-// component, so an outside-press check must test the menu as well as the trigger.
+// PORT of browser/js/ui/dropdownMenu.js — keep the two rule-for-rule; tests/dropdownMenu.test.js
+// carries the browser suite's cases. An open menu moves to <body> and is placed in viewport
+// coordinates, capped to the room available so a long list scrolls; that matters more here, since
+// the popup window is only ~400x600. While open the menu is NOT inside the component.
 import { popoverPosition } from './popover.js';
 import { surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
 
 const GAP = 4;        // between trigger and menu
 const MARGIN = 8;     // minimum distance to a viewport edge
 const MAX_H = 280;    // the .accent-dd-menu cap, respected while fitting to the window
-// The list is sand, like every other surface in the app (js/ui/motion.js): it forms
-// from motes streaming out of its trigger and comes apart into motes pouring back in,
-// on the shared MENU clock — brisker than a window's, because a list is opened to be
-// clicked rather than looked at.
+// The list is sand like every other surface (js/ui/motion.js), on the shared MENU clock —
+// brisker than a window's, because a list is opened to be clicked rather than looked at.
 const MENU_IN_MS = SURFACE_MENU_IN_MS;
 const MENU_OUT_MS = SURFACE_MENU_OUT_MS;
-// Where those motes come from and go back to: the CARET at the trigger's right edge —
-// the arrow the user actually pressed — not the trigger's horizontal centre (a wide
-// select had its list forming out of the middle of the label). Clamped to the centre
-// for a trigger too narrow to have a distinct arrow zone. Exported for pickers that
-// drive their own open/close and must grow from the same corner.
+// The motes come from the CARET at the trigger's right edge, not its horizontal centre (a wide
+// select formed out of the middle of its label). Clamped to the centre for a narrow trigger.
 export const menuDustPoint = (trigger) => {
   const r = trigger?.getBoundingClientRect?.();
   if (!r || !(r.width > 0 && r.height > 0)) return null;
@@ -83,11 +71,8 @@ export const showMenu = (menu, trigger) => {
   trackTrigger(menu, trigger);
 };
 
-// …and glued to it for as long as it is open. `resize`/`scroll` miss the moves that
-// happen here — the chat panel sliding in re-lays the page under an open list, and a
-// modal re-centring leaves the list a screen from its control. One rect read per frame
-// while a menu is open, a re-place only when the trigger really moved. No rAF (node
-// tests) just means the placement stays where showMenu put it, as it always did.
+// `resize`/`scroll` miss the moves that happen here — a chat panel sliding in re-lays the page
+// under an open list. One rect read per frame, re-placed only when the trigger really moved.
 const trackTrigger = (menu, trigger) => {
   if (typeof requestAnimationFrame !== 'function') return;
   let last = null;

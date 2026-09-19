@@ -26,9 +26,8 @@ export function beginRowRename({ meta, name, app, render, gesture }) {
   cancel.innerHTML = icon('x', { size: 14 });
   cancel.dataset.title = 'Cancel (Esc)';
   wrap.append(input, accept, cancel);
-  // The editor is INSIDE the row, and the row opens the project on click — so a
-  // press on ✓/✗ reached it and the window closed on the project it just opened
-  // (user report). Nothing inside the editor is a click on the row.
+  // The editor is INSIDE the row, and the row opens the project on click — so a press on ✓/✗
+  // reached it and closed the window (user report). Nothing inside the editor is a row click.
   for (const ev of ['mousedown', 'click', 'dblclick'])
     wrap.addEventListener(ev, (e) => e.stopPropagation());
   name.replaceWith(wrap);

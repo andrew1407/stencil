@@ -1,7 +1,5 @@
-// Shapes for lib/messages.js — the cross-context message table. The channel NAMES are
-// constants there; what travels on each is documented only in prose and in the handlers
-// (background/handlers/*.js), so it is written down once here.
-//
+// Shapes for lib/messages.js — the cross-context message table. The channel NAMES are constants
+// there; what travels on each is written down only here and in background/handlers/*.js.
 // Every request/response channel answers `{ok:true,…}` or `{ok:false,error}` — never a
 // rejection — and a leg waiting on the editor PAGE times out rather than hang.
 

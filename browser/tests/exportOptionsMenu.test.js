@@ -17,9 +17,8 @@ const { hotkeys } = await import('../js/core/hotkeys.js');
 const { formatCombo } = await import('../js/utils.js');
 const { keysHtml } = await import('../js/ui/tipContent.js');
 
-// Expected keycap markup for a hotkey id, platform-formatted exactly like the code under
-// test — this machine's own `navigator` may or may not report macOS, so the expectation
-// has to track hotkeys.isMac rather than assume a platform.
+// Keycap markup for a hotkey id, platform-formatted exactly like the code under test: this machine's own
+// `navigator` may or may not report macOS, so the expectation tracks hotkeys.isMac.
 const expectedKeys = (id) => keysHtml(formatCombo(hotkeys.get(id), hotkeys.isMac), hotkeys.isMac);
 
 // Trigger a `button` that captures whatever gets inserted after it (the popover's <ul>)
@@ -113,14 +112,8 @@ test('download trigger: only "current" carries a hotkey — original/filter show
 });
 
 test('"With Compare" is a FOURTH row while a split compare view is active, alongside (not instead of) "Current" — and disappears once compare turns off', () => {
-  // 'current' and 'split' are independent rows/variants: 'current' is always there
-  // (tint + lines/points, reachable via the menu even while comparing), 'split' only
-  // shows (leading) while comparing — and only THEN carries the shared hotkey chip;
-  // 'current' shows none of its own at that point (user report — a broken earlier
-  // version relabeled "Current" into "With Compare" instead of adding a row beside
-  // it). Two separate triggers (not one reopened) — the point under test is
-  // compareMode at open time, matching this file's own established convention (see
-  // the "no image loaded" test below).
+  // 'current' and 'split' are independent rows: 'current' is always there (tint + lines/points, reachable even
+  // while comparing), 'split' only while comparing — and only then carries the shared hotkey chip (user report).
   const runsSplit = [];
   const comparing = makeTrigger();
   wireExportOptionsMenu(comparing.el, { image: {}, compareMode: 'vertical', imageFilter: 'sepia', lines: [{ points: [] }] }, {

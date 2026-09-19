@@ -1,25 +1,16 @@
-// Stencil E2E — one Node/Playwright harness for every surface.
-//
-// Projects:
-//   browser-app       Chromium against the served browser/ app, driven via window.stencil
-//   browser-extension Chromium persistent context loading the unpacked MV3 browser-extension/
-//   fullstack         browser app + real Go server (compose) — multi-client collaboration
-//   server-protocol   black-box REST/WS/TCP against the running server binary (no browser)
-//   cli               the built Zig binary, driven as a subprocess (self-skips without it)
-//
-// `webServer` serves browser/ (+ e2e fixtures) on APP_URL (127.0.0.1:8188) for every project. `globalSetup`
-// brings up db+redis+server via docker-compose ONLY when E2E_STACK=1; the stack-dependent
-// projects self-skip otherwise (helpers/serverApi.js `stackEnabled`). Run everything with
-// `E2E_STACK=1 npm test`, or just the UI projects with `npm run test:ui`.
+// Stencil E2E — one Node/Playwright harness for every surface: browser-app, browser-extension,
+// fullstack (browser app + real Go server), server-protocol (black-box REST/WS/TCP) and cli.
+// `webServer` serves browser/ + the e2e fixtures on APP_URL (127.0.0.1:8188) for every project;
+// `globalSetup` brings up db+redis+server only when E2E_STACK=1, and the stack-dependent
+// projects self-skip otherwise (helpers/serverApi.js `stackEnabled`).
 import { defineConfig, devices } from '@playwright/test';
 import { APP_URL } from './helpers/config.js';
 
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,        // per-project: the UI projects opt in, the stack ones stay serial
-  // Total cap: the UI projects ask for 4 each, so a run overlaps two of them. A STACK run
-  // stays single-file — `fullstack` and `server-protocol` share one server, and both point
-  // it at one fixed LLM-stub port (helpers/llm-stub.js), so they must never overlap.
+  // A STACK run stays single-file: `fullstack` and `server-protocol` share one server and one
+  // fixed LLM-stub port, so they must never overlap.
   workers: process.env.E2E_STACK === '1' ? 1 : 8,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

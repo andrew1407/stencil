@@ -5,9 +5,8 @@
 const COLOR_NAMES = require('../config/colorNames.json');
 const { CROP_KEYS, MODES, STYLES, groupOf } = require('./vocabulary.js');
 
-// A directive's family → its legend type. Four families, four colours. The types are picked
-// for what the default themes actually paint them: namespace/type/class are one colour, so
-// a block opener cannot be `namespace` while a template is `class`.
+// A directive's family → its legend type. The types are picked for what the default themes
+// paint them: namespace/type/class are one colour, so a block opener cannot be `namespace`.
 const GROUP_TYPE = Object.freeze({
   source: 'macro', template: 'class', edit: 'keyword', output: 'function',
 });

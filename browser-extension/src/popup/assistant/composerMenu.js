@@ -9,9 +9,8 @@ export const wireComposerMenu = ({ transcriptEl, gearTip, queueFiles, state }) =
   const moreBtn = document.getElementById('chat-more-btn');
   const moreMenu = document.getElementById('chat-more-menu');
   const attachInput = document.getElementById('chat-attach-input');
-  // Both edges fly, like every other surface here: the motes stream out of the "…"
-  // and pour back into it. Played while the menu is still up — `hidden` is
-  // display:none — and the cloud is a copy on <body>, so the end state never waits.
+  // Played while the menu is still up — `hidden` is display:none — and the cloud is a copy on
+  // <body>, so the end state never waits.
   const setMoreOpen = (on) => {
     if (on === !moreMenu.hidden) return;
     if (on) moreMenu.hidden = false;
@@ -49,9 +48,8 @@ export const wireComposerMenu = ({ transcriptEl, gearTip, queueFiles, state }) =
   document.getElementById('chat-open-options').addEventListener('click', () => {
     document.getElementById('open-options')?.click();
   });
-  // Swap message sides — scoped to THIS page's own session (chatLayoutPrefs.js):
-  // not persisted, so a fresh popup/side panel/DevTools panel always starts at
-  // the default rather than carrying over another one's last setting.
+  // Scoped to THIS page's session (chatLayoutPrefs.js) and not persisted, so a fresh popup, side
+  // panel or DevTools panel always starts at the default.
   applyChatSide(transcriptEl);
   document.getElementById('chat-swap-sides').addEventListener('click', () => {
     applyChatSide(transcriptEl, toggleChatSide());

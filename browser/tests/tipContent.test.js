@@ -1,10 +1,7 @@
-// Rich control tooltips: the parse/render contract (js/ui/tipContent.js).
-//
-// The app never authored tooltip HTML — it composes ONE `title` string per control
-// (utils.js composeControlTitle). These cases pin how that string becomes the desktop
-// app's tooltip shape: heading + keycaps, term/description rows, bullets, hints and the
-// muted disabled-reason note. browser-extension/tests/tipContent.test.js runs the same cases on
-// the extension's port, so the two can't drift.
+// Rich control tooltips: the parse/render contract (js/ui/tipContent.js). The app never authors tooltip
+// HTML — it composes ONE `title` string per control (utils.js composeControlTitle) — and these cases pin
+// how that string becomes the desktop app's tooltip shape: heading + keycaps, term/description rows,
+// bullets, hints and the muted disabled-reason note. The extension's port runs the same cases.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -157,9 +154,8 @@ test('the tooltip controller renders the structure, and the CSS styles every par
 });
 
 test('the platform key vocabulary: Qt\'s macOS glyphs, and native modifiers on a Mac', () => {
-  // The desktop composes its shortcuts with QKeySequence::NativeText, which on macOS
-  // renders Escape as ⎋, Tab as ⇥, Page Up as ⇞, Home as ↖, Delete as ⌦ … If the parser
-  // does not know those, the trailing "(⎋)" is never recognised and stays as text.
+  // The desktop composes its shortcuts with QKeySequence::NativeText, which on macOS renders Escape as ⎋,
+  // Tab as ⇥, Page Up as ⇞ …: unknown to the parser, a trailing "(⎋)" stays plain text.
   for (const k of ['⎋', '⇥', '↵', '⌤', '⇞', '⇟', '↖', '↘', '⌫', '⌦', '⌘⇥', '⇧⌘S', '⌥R', '⌘⌦'])
     assert.ok(isKeyCombo(k), `${k} is a shortcut`);
   assert.deepEqual(parseTip('Close (⎋)').keys, ['⎋'], 'a lone glyph is lifted off the heading');
@@ -177,14 +173,11 @@ test('the platform key vocabulary: Qt\'s macOS glyphs, and native modifiers on a
   assert.equal(keysHtml('⇧⌘S', true), keysHtml('⇧⌘S', false));
 });
 
-// A secondary line reads as a sentence of its own: "Servers — a saved session expired,
-// reconnect to sign in again" showed a lowercase fragment under the heading, as if
-// someone had forgotten to finish it (user report, with a picture). What must NOT be
-// lifted is anything whose first token is a value rather than a word.
+// A secondary line reads as a sentence of its own, so a lowercase fragment under the heading is lifted
+// (user report); what must NOT be lifted is anything whose first token is a value rather than a word.
 test('a secondary line is sentence-cased; values and code fragments are left alone', () => {
-  // The first block under the heading, whatever it is called: the muted subtitle after a
-  // dash is a `text` block here and a hint on the desktop, and the rule is the same for
-  // every one of them.
+  // The first block under the heading, whatever it is called: a muted subtitle after a dash is a `text`
+  // block here and a hint on the desktop, and the rule is the same for every one of them.
   const hintOf = (s) => parseTip(s).blocks[0]?.text;
   const noteOf = hintOf;
 

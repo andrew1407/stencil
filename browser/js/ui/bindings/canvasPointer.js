@@ -1,18 +1,16 @@
 import { perFrame } from '../../utils.js';
 export function wireCanvasPointer(app) {
   app.canvas.addEventListener('click', e => app.canvasClick(e));
-  // The <canvas> covers only the image; clicking the letterbox padding around it is
-  // still "clicking empty space" and must clear the selection. Fires only when the click
-  // landed on the container itself, so canvas clicks keep flowing through canvasClick().
+  // Fires only when the click landed on the container itself, so canvas clicks keep flowing
+  // through canvasClick() — the letterbox padding around the image counts as empty space.
   const emptyArea = document.getElementById('canvas-viewport');
   if (emptyArea) {
     emptyArea.addEventListener('click', (e) => {
       if (e.target !== e.currentTarget && e.target.id !== 'canvas-container') return;
       app.deselectEmptyArea(e);
     });
-    // Hand focus to the canvas, else it stays on the chat textarea (focused when the panel
-    // opens) and a bare Delete edits chat text instead of the selected line. On the viewport
-    // so the letterbox counts, on pointerdown for pen/touch too, preventScroll to not jump.
+    // Hand focus to the canvas, else it stays on the chat textarea and a bare Delete edits chat
+    // text instead of the selected line. On pointerdown for pen/touch too; preventScroll.
     emptyArea.addEventListener('pointerdown', () => {
       if (document.activeElement !== app.canvas) app.canvas.focus({ preventScroll: true });
     });

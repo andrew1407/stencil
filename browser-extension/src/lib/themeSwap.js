@@ -17,8 +17,7 @@
       return;
     }
     // Handed to the declarative keyframes in lib/animations/themeSwap.css: scripting from
-    // ready.then() races the transition's own teardown. Percentages, never pixels — an
-    // engine measuring the pseudo-element in device pixels paints a px origin at half its offset.
+    // ready.then() races the transition's teardown. Percentages, never pixels (device-px halving).
     let dustAt = null;
     const write = function () {
       const w = window.innerWidth, h = window.innerHeight;

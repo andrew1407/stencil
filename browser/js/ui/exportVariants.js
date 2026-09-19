@@ -12,10 +12,8 @@ export const EXPORT_VARIANT_LABELS = Object.freeze({
 // 'current' keeps whichever action icon the menu passes (copy/download).
 export const EXPORT_VARIANT_ICONS = Object.freeze({ split: 'compare', original: 'image', tint: 'palette' });
 
-// Which variant rows exist now and which owns the primary combo (Ctrl+C / Ctrl+Shift+D).
-// 'split' is a fourth row, first while a split compare is active, and takes the combo from
-// 'current' then (desktop: syncSplitCopyDownloadSlot). 'tint' needs a filter, 'current'
-// something drawn — otherwise they render byte-identical to another row.
+// 'split' is first while a split compare is active and takes the primary combo from 'current'
+// then (desktop: syncSplitCopyDownloadSlot). 'tint' needs a filter, 'current' something drawn.
 export const exportVariantState = (app) => {
   const hasImage = !!app?.image;
   const split = hasImage && isSplitCompare(app);

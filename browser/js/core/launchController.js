@@ -42,9 +42,8 @@ export const importInlineImage = (app, launch, { mode = 'new' } = {}) => {
     });
 };
 
-// A .stc rides the fragment as a top-level `script`, OUTSIDE the normalized shape: the shared
-// codec ignores unknown keys (pinned cross-surface), so desktop and bot stay untouched.
-// The engine's MAX_TOKENS is the next wall; this only keeps a hostile hash out of the parser.
+// A .stc rides the fragment as a top-level `script`, OUTSIDE the normalized shape: the
+// shared codec ignores unknown keys (pinned cross-surface), so desktop and bot stay put.
 export const MAX_LAUNCH_SCRIPT = 200000;
 
 const enterIncognito = (app) => {
@@ -59,9 +58,7 @@ const launchScript = (payload) => {
   return text.length > 0 && text.length <= MAX_LAUNCH_SCRIPT ? text : '';
 };
 
-// Fragment (not query) keeps the payload off servers/logs; consumed once, then stripped.
-// Resolves once the import it started has settled, so the caller can run a handed-over
-// script against the picture rather than ahead of it.
+// Fragment (not query) keeps the payload off servers and logs; consumed once, then stripped.
 export const applyExternalLaunch = (app) => {
   const hash = location.hash || '';
   const prefix = '#stencil=';

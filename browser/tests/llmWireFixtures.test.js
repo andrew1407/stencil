@@ -1,10 +1,8 @@
-// Fixture walker for the LLM conformance corpus in js/config/llm/fixtures/:
-//   providerWire/  — contract §6 request bodies + reply extraction (llmClient.js)
-//   sanitizer/     — provider-error sanitizer vectors (sanitizeProviderText)
-//   chatDoc/       — §12.1 persisted-chat document round-trip/tolerance (chatStore.js)
-// The fixtures are literal JSON (authored by running these same modules); other
-// surfaces walk the identical files, so a behavior change here fails every walker.
-// Self-contained on purpose: no tests/helpers imports.
+// Fixture walker for the LLM conformance corpus in js/config/llm/fixtures/: providerWire/ (contract §6 request
+// bodies and reply extraction, llmClient.js), sanitizer/ (provider-error sanitizer vectors) and chatDoc/
+// (§12.1 persisted-chat document round-trip and tolerance, chatStore.js). The fixtures are literal JSON and
+// other surfaces walk the identical files, so a behaviour change here fails every walker. Self-contained on
+// purpose: no tests/helpers imports.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';

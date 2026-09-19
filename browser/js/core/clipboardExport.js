@@ -5,8 +5,7 @@ import { notify, isSplitCompare } from '../utils.js';
 import { VARIANT_META } from './imageVariants.js';
 
 // write() MUST run synchronously inside the Cmd/Ctrl+C gesture with a Promise-valued
-// ClipboardItem — deferring into toBlob loses the user activation (NotAllowedError on
-// macOS WebKit). variant: 'current' | 'original' | 'tint' | 'split' (compare view).
+// ClipboardItem: deferring into toBlob loses user activation (NotAllowedError, macOS WebKit).
 export const copyImageToClipboard = (svc, variant = 'current') => {
   const outcome = (() => {
     const app = svc.app;

@@ -32,9 +32,8 @@
     return c;
   };
 
-  // The origin is the CONTROL that changed the palette, never the last pointerdown. An id
-  // scans every element carrying it: a cloned toolbar duplicates ids, and a hidden copy
-  // winning getElementById is how the wipe blooms from the wrong place.
+  // The origin is the CONTROL that changed the palette, never the last pointerdown. Scan every
+  // element carrying the id: a cloned toolbar duplicates ids and a hidden copy would win.
   const originOf = function (ref) {
     if (!ref) return null;
     if (typeof ref !== 'string') return centreOf(ref);

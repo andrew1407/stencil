@@ -65,9 +65,8 @@ test('every mic face attaches the dust off its listening class; the level is --v
   assert.ok(!dust.includes('parentElement?.children') && !dust.includes('parentElement.children'), 'no neighbour is punched out');
 });
 
-// Every mote wears its own tint from the theme's range — ink (white on dark, near-black on
-// light) through greys and the light accent to the full accent — the window dust's idea,
-// so the cloud glints instead of reading as one flat colour.
+// Every mote wears its own tint from the theme's range — ink through greys and the light accent to the full
+// accent, the window dust's idea — so the cloud glints instead of reading as one flat colour.
 test('dustPalette runs from the theme ink to the accent; motes pick a stop each', () => {
   assert.deepEqual(parseRgb('rgb(255, 255, 255)'), [255, 255, 255]);
   assert.deepEqual(parseRgb('rgba(124, 58, 237, 0.5)'), [124, 58, 237]);
@@ -92,9 +91,8 @@ test('dustPalette runs from the theme ink to the accent; motes pick a stop each'
   assert.ok(src.includes("probe.style.color = 'var(--text-main)'") && src.includes("probe.style.color = 'var(--accent)'"), 'the range comes from the theme');
 });
 
-// The ray ring rides the same canvas as the dust: 24 hairlines from the tile's centre,
-// turning once per 8s, breathing 0.35 ↔ 0.6 on the 1.2s beat, reaching further with the
-// voice — and clipped by the tile punch-out, so they start at its edge, behind the icon.
+// The ray ring rides the same canvas as the dust: 24 hairlines from the tile's centre, one turn per 8s,
+// breathing 0.35 ↔ 0.6 on the 1.2s beat, clipped by the tile punch-out so they start at its edge.
 test('ring geometry: 24 spokes turning on the logo clocks, reach and shimmer as specified', () => {
   assert.equal(RING_SPOKES, 24);
   assert.equal(ringAngles(0).length, 24);
@@ -108,9 +106,8 @@ test('ring geometry: 24 spokes turning on the logo clocks, reach and shimmer as 
   assert.ok(src.includes('ctx.moveTo(cx, cy);'), 'spokes start at the centre; the punch-out cuts them to the edge');
 });
 
-// The canvas paints one layer above the highest z-index on its wearer's ancestor chain:
-// the chat panel and the flyout stack far over the page, and a body-level canvas at a
-// small fixed z-index vanished under them (user report — the composer mic had no ring).
+// The canvas paints one layer above the highest z-index on its wearer's ancestor chain: the chat panel and
+// the flyout stack far over the page, and a body-level canvas at a small fixed one vanished (user report).
 test('layerAbove: one over the wearer\'s tallest ancestor layer, never below 5', () => {
   const node = (z, parent = null) => ({ nodeType: 1, z, parentElement: parent });
   const get = (n) => ({ zIndex: n.z });

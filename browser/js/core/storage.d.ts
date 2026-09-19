@@ -18,6 +18,8 @@ export declare class Storage {
   /** The idle-time thumbnail render each save() schedules; flush() renders it now. */
   thumbs: ThumbnailScheduler;
   save(): void;
+  /** The debounced cross-tab "this project changed" broadcast; a burst coalesces into one. */
+  scheduleSyncBroadcast(): void;
   /** Re-read the active project after another tab saved it (light path when the image is unchanged). */
   syncActiveFromStorage(): void;
   showImageMissingBanner(show: boolean): void;

@@ -21,9 +21,6 @@ export function wireToolbarButtons(app) {
   document.getElementById('redo').addEventListener('click', () => app.redo());
   document.getElementById('download-json').addEventListener('click', () => app.export.downloadJSON());
   document.getElementById('copy-json-btn').addEventListener('click', () => app.export.copyLayoutToClipboard());
-  // Same treatment as copy-image: click downloads "current" (or the split composite
-  // while a split compare view is active — exportOptionsMenu.js); double-click/
-  // right-click/Alt+hover opens the other variants.
   wireExportOptionsMenu(document.getElementById('save-image'), app, {
     run: (variant) => app.export.saveImage(variant),
     currentIcon: 'download',

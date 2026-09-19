@@ -14,9 +14,8 @@ export const llmSettings = (baseUrl) => ({
   provider: 'openai-compat', baseUrl, model: 'e2e-model', apiKey: '', serverUrl: '',
 });
 
-// The §6.2 openai-compat wire: a text-only message is a plain string, but a turn carrying
-// images (§7 auto-attaches the working snapshot + its edge map) is an array of typed
-// parts — read the text from either shape.
+// llm-contract §6.2: a text-only message is a plain string, a turn carrying images an array
+// of typed parts — read the text from either shape.
 export const contentText = (content) => (typeof content === 'string'
   ? content
   : (content || []).filter((p) => p.type === 'text').map((p) => p.text).join('\n'));
@@ -27,13 +26,8 @@ export const imageUrls = (request) => (request.body.messages || [])
   .filter((p) => p.type === 'image_url')
   .map((p) => p.image_url.url);
 
-// ── Browser app ───────────────────────────────────────────────────────────────
-// The panel re-reads settings on every send (loadLlmSettings inside getClient), so
-// seeding after boot needs no reload. The event is what the settings window itself
-// publishes, and surfaces that only EXIST for a configured provider — the context
-// menu's Assistant row (ctxAssistant syncAssistant) — are built off it: the assistant
-// ships off until a provider is picked (llm-contract §5), so writing the key alone
-// leaves that row absent.
+// The panel re-reads settings on every send, so seeding after boot needs no reload; the
+// assistant stays off (and its surfaces absent) until a provider is picked (llm-contract §5).
 export const seedLlmSettings = async (page, baseUrl) => {
   await page.evaluate(([key, s]) => {
     localStorage.setItem(key, JSON.stringify(s));
@@ -46,9 +40,8 @@ export const openChatPanel = async (page) => {
   await expect(page.locator('#chat-panel')).toHaveClass(/chat-open/);
 };
 
-// Attach / clear / settings live in the composer's "…" overflow (chatView.js
-// chatComposerActionsHtml), so reaching one means opening that menu first. The menu
-// closes itself after an item runs.
+// Attach / clear / settings live in the composer's "…" overflow (chatView.js), which closes
+// itself after an item runs.
 export const clearConversation = async (page, prefix = 'chat') => {
   await page.locator(`#${prefix}-more-btn`).click();
   await page.locator(`#${prefix}-clear`).click();
@@ -61,10 +54,8 @@ export const sendChat = async (page, text) => {
   await page.locator('#chat-input').press('Enter');
 };
 
-// ── The canvas right-click menu's "Assistant ▸" entry (browser/js/ui/contextMenu.js) ──
-// Loading/relaying out an image scrolls the canvas viewport, and a viewport scroll
-// dismisses the menu by design — settle first, and reopen if a stray scroll lands between
-// the right-click and the assertion (same flake as the extension flyouts).
+// A canvas viewport scroll dismisses the context menu by design, so settle first and reopen if
+// a stray scroll lands between the right-click and the assertion.
 export const openCanvasMenu = async (page) => {
   await page.waitForTimeout(400);
   const menu = page.locator('#ctx-menu');
@@ -76,9 +67,8 @@ export const openCanvasMenu = async (page) => {
   await expect(menu).toHaveClass(/ctx-open/);
 };
 
-// The first canvas corner the chat panel does NOT cover — a viewport point clear of the
-// toolbar AND of the panel, so a click there reaches the canvas and a parked pointer
-// rests on no toolbar icon.
+// The first canvas corner the chat panel does not cover, clear of the toolbar too, so a click
+// there reaches the canvas and a parked pointer rests on no icon.
 export const pointClearOfPanel = (page) => page.evaluate(() => {
   const c = document.getElementById('canvas').getBoundingClientRect();
   const panel = document.getElementById('chat-panel');

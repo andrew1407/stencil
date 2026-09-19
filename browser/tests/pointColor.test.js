@@ -1,9 +1,6 @@
-// Tests for the independent point colour (Line.pointColor).
-//
-// Port of the pointColor cases in core/tests/rasterize.test.cpp — the browser strokes
-// lines with canvas 2D rather than through the core rasteriser, so `pointColorOf` is the
-// JS twin of core's `pointColorOr` and the two must agree, including that EMPTY means
-// "inherit the stroke colour" (the behaviour before the field existed).
+// The independent point colour (Line.pointColor), a port of the pointColor cases in
+// core/tests/rasterize.test.cpp: the browser strokes with canvas 2D, so `pointColorOf` is the JS twin of
+// core's `pointColorOr` and the two must agree — including that EMPTY means "inherit the stroke colour".
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -40,9 +37,8 @@ test('sanitizeLines still refuses prototype-polluting keys alongside it', () => 
   assert.equal(line.evil, undefined);
 });
 
-// mergeLines is the co-edit union merge, keyed on a per-line dedupe key. Two lines
-// identical except for their point colour are genuinely different lines, so the key has
-// to include pointColor or one editor's recolour would vanish into the other's copy.
+// mergeLines is the co-edit union merge, keyed on a per-line dedupe key: two lines differing only in point
+// colour are genuinely different lines, so the key includes pointColor or one editor's recolour vanishes.
 const BASE = { points: [{ x: 0, y: 0 }, { x: 5, y: 5 }], color: 'red', thickness: 2,
                pointSize: 4, style: 'solid', locked: false, fillColor: 'transparent' };
 
@@ -63,11 +59,8 @@ test('mergeLines treats an absent pointColor and an empty one as the same line',
   assert.equal(merged.length, 1);
 });
 
-// ── Line-colour / point-colour split ────────────────────────────────────────────
-// Points take the point-colour SETTING at draw time (empty setting → the line colour at
-// that moment), and a later line-colour change must never recolour already-drawn points.
-// New lines therefore materialise their pointColor at creation, and a recolour of an
-// old inherit-fallback line ('' pointColor) pins the rendered colour first.
+// Points take the point-colour SETTING at draw time (empty setting → the line colour then), and a later
+// line-colour change never recolours drawn points: a new line materialises its pointColor at creation.
 import { DrawingApp } from '../js/core/drawingApp.js';
 
 const makeDrawApp = () => {

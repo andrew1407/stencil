@@ -51,9 +51,6 @@ export const createProjectsApi = ({ app, makeProject, openedIds }) => {
         .filter((p) => (p.keywords || []).some((kw) => terms.some((t) => str(kw).toLowerCase().includes(t))))
         .map((p) => makeProject(p.id));
     },
-    // Set when the ACTIVE project expires, from a free-form duration; no argument returns
-    // the accepted formats. Delegates to the same Project.expire() used for chaining,
-    // e.g. stencil.current.expire('months 3').
     expire(spec) {
       const s = str(spec).trim();
       if (!s) return DURATION_HELP;

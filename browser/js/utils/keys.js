@@ -96,9 +96,8 @@ export const formatCombo = (combo, isMac) => {
   return out + (glyphs[key] || key);
 };
 
-// Compose a control's tooltip: data-title, the hotkey via the injected getCombo (hotkeys
-// imports this module), and data-disabled-reason while disabled. Callers write it to
-// data-tip (ui/controlTooltip.js), never the native `title` — the app has none.
+// Callers write the composed tooltip to data-tip (ui/controlTooltip.js), never the native
+// `title` — the app has none. The hotkey arrives via the injected getCombo.
 export const composeControlTitle = (el, isMac, getCombo) => {
   const base = el.dataset.title || '';
   let out = base;

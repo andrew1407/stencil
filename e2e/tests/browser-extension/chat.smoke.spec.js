@@ -1,12 +1,8 @@
-// Extension AI assistant e2e: the popup's embedded "Assistant" section (expanded by
-// the sparkle ✦ header button) chats about the CURRENT scan against a STUB LLM
-// server (helpers/llm-stub.js) — no real model, no external network. Covers the
-// llm-contract.md §8 extension profile: `focus` (the injected on-page highlight
-// marking) and `open` with core actions (the `#stencil=` editor hand-off carrying a
-// layout payload with imageFilter). Settings ride chrome.storage.local `llmSettings`
-// (§5 shape). Persistent context + headed, like the other extension suites; CI wraps
-// the job in xvfb. Editor-internal state is deliberately NOT asserted — the hand-off
-// URL payload is the stable, headless-safe seam.
+// Extension AI assistant e2e: the popup's embedded Assistant section chats about the CURRENT
+// scan against a stub LLM server (helpers/llm-stub.js). Covers the llm-contract §8 extension
+// profile — `focus` (the injected on-page highlight) and `open` (the `#stencil=` editor
+// hand-off) — with settings in chrome.storage.local `llmSettings` (§5 shape). Editor-internal
+// state is deliberately not asserted: the hand-off URL payload is the headless-safe seam.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
@@ -29,9 +25,7 @@ test.describe('extension AI assistant (embedded section)', () => {
     stub = await startLlmStub();
     ({ context, background, extId } = await launchExtension());
     const sw = await background();
-    // Point the editor hand-off at the harness app, and seed the §5 LLM settings
-    // (chrome.storage.local `llmSettings`) at the stub — the assistant reads them
-    // when its section boots and on storage.onChanged.
+    // The §5 `llmSettings` shape, read when the assistant section boots and on storage.onChanged.
     await sw.evaluate(({ editorUrl, llm }) => new Promise((resolve) =>
       chrome.storage.sync.set({ editorUrl }, () =>
         chrome.storage.local.set({ llmSettings: llm }, resolve))),
@@ -74,9 +68,8 @@ test.describe('extension AI assistant (embedded section)', () => {
     await popup.evaluate(() => document.getElementById('open-chat').click());
     await expect(popup.locator('#sec-assistant')).not.toHaveClass(/collapsed/);
 
-    // Ready: the seeded settings show on the … trigger's rich tooltip (the provider
-    // line moved there, onto the status dot — assistant.js refreshSettings). It is a
-    // hover-built table (lib/chatStatusTip.js), not a title attribute.
+    // The provider line lives on the … trigger's rich tooltip (lib/chatStatusTip.js), built on
+    // hover — not a title attribute.
     await popup.locator('#chat-more-btn').hover();
     await expect(popup.locator('.chat-status-tip')).toContainText('OpenAI API', { timeout: 15_000 });
     await expect(popup.locator('.chat-status-tip')).toContainText('e2e-model');
@@ -127,11 +120,8 @@ test.describe('extension AI assistant (embedded section)', () => {
     await popup.close(); // the embedded assistant lives and dies with the popup
   });
 
-  // Regression: attaching an SVG. Chrome's createImageBitmap REFUSES an
-  // `image/svg+xml` blob ("The source image could not be decoded"), so §8 `attach` on
-  // any SVG row (and dragging one into the chat) used to fail outright. src/lib/
-  // rasterize.js decodes it with an <img> at an explicit size instead — this asserts
-  // the bytes that reach the model are PNG, per contract §7's accepted media types.
+  // Chrome's createImageBitmap refuses an `image/svg+xml` blob, so lib/rasterize.js decodes it
+  // with an <img>; the bytes that reach the model must be PNG (contract §7).
   test('popup Assistant section: an SVG image attaches as rasterised PNG', async () => {
     test.slow();
     stub.reset();
@@ -189,10 +179,8 @@ test.describe('extension AI assistant (embedded section)', () => {
     await popup.close();
   });
 
-  // The assistant is OFF when its provider is 'none' (contract §5) — and then the
-  // surfaces must not offer it at all: no collapsed "ASSISTANT" section header and no ✦
-  // header button that would reveal nothing. Flipping the provider back must restore
-  // both live, without a reload (popup.js watches the chrome.storage mirror).
+  // Provider 'none' means the assistant is off (contract §5) and its surfaces must not appear at
+  // all; flipping the provider back restores them live off the chrome.storage mirror.
   test('provider "none" removes the Assistant section and its ✦ button entirely', async () => {
     test.slow();
     const sw = await background();
@@ -239,14 +227,8 @@ test.describe('extension AI assistant (embedded section)', () => {
     await popup.close();
   });
 
-  // A COLLAPSED section's body is display:none, so it can never accept a drop —
-  // dragging an image at the folded Assistant section was a dead end. Sections are now
-  // SPRING-LOADED: the one the pointer dwells on during a drag unfolds (through the
-  // shared section toggler), and only that one; it folds back unless the drop lands
-  // there. Driven by dispatching the drag events — the driver's native drag can't hold
-  // a hover dwell, and the listeners under test are the real popup.js ones. Run on the
-  // SIDE PANEL, where both sections are drop targets, so "only the hovered one opens"
-  // is a meaningful assertion. lib/dragSections.js owns the rules.
+  // Spring-loaded sections: the one the pointer dwells on during a drag unfolds, and only that
+  // one (lib/dragSections.js). Events are dispatched — a native drag can't hold a hover dwell.
   test('a drag springs open only the section it hovers, and folds it back if it ends elsewhere', async () => {
     test.slow();
     stub.reset();

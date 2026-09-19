@@ -3,9 +3,8 @@ import { settleLoadedImage } from './imageSettle.js';
 // DrawingApp.loadImageFromFile's body: the session bookkeeping a load does up front, then
 // the decode. What the decoded image settles is imageSettle.js.
 
-// loadImageFromFile decodes async with no promise; poll until the image is in place.
-// `previous` = the image loaded BEFORE the call, so a REPLACE waits for the swap — not for
-// "some image exists", which would run chained ops against the old picture.
+// loadImageFromFile decodes async with no promise, so poll. `previous` = the image before the
+// call, so a REPLACE waits for the swap, not for "some image exists" (the old picture).
 export const waitForImage = (app, { timeoutMs = 8000, previous = null } = {}) => new Promise((resolve) => {
   const start = Date.now();
   const again = typeof requestAnimationFrame === 'function'
@@ -20,8 +19,7 @@ export const waitForImage = (app, { timeoutMs = 8000, previous = null } = {}) =>
 export const loadImageFromFile = (app, file, opts = {}) => {
   const replaceInPlace = !!opts.replaceInPlace;
 // A fresh load starts a DIFFERENT project: drop the previous .stencil file link, or
-// live-sync auto-save would write the new project into the old file. A .stencil open
-// re-links right after; an in-place replace keeps the same project + link.
+// live-sync auto-save would write the new project into the old file.
   if (!replaceInPlace) app.stencilSync?.unlink();
 // Captured before the swap: the annotations to keep and the OLD image's pin identity to clear.
   const keptLines = (replaceInPlace && opts.keepAnnotations) ? app.lines : null;

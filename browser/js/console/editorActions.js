@@ -55,10 +55,8 @@ export const createEditorActions = ({ app }) => {
     // Fit the image to the window (the toolbar's "fit" button).
     zoomFit() { app.zoomPan.fitToWindow(); return stencil; },
 
-    // Bulk-apply from one object, then return the facade. Every WRITABLE stencil.settings key
-    // routes through it (read-only ones like mainThemes are skipped, and the key list is the
-    // namespace's own — never Object.keys(opts), which would walk a __proto__ payload in);
-    // plus showTooltip, fullscreen, incognito, zoom, crop, move, layout.
+    // The key list is the namespace's own — never Object.keys(opts), which would walk a
+    // __proto__ payload in.
     apply(opts = {}) {
       const set = stencil.settings;
       for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(set))) {

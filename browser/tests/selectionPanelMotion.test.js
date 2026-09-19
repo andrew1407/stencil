@@ -28,9 +28,8 @@ test('the bar imports the shared surface-dust primitives', () => {
     assert.ok(line.includes(fn), `the bar should still take ${fn} from the shared helpers`);
 });
 
-// The fill group is not shown/hidden outright: it SLIDES open and closed and dusts as it
-// goes (motion.js revealControls), so unchaining a line does not make the bar jump. Its
-// own separator travels with it.
+// The fill group SLIDES open and closed and dusts as it goes (motion.js revealControls), its own separator
+// travelling with it, so unchaining a line never makes the bar jump.
 test('the fill group and its separator come and go through revealControls', () => {
   const show = src.slice(src.indexOf('const fillSep ='), src.indexOf('const panel ='));
   assert.match(show, /revealControls\(fillGroup, true, 'flex'\)/);
@@ -85,18 +84,16 @@ test('hideSelectionPanels only scatters a bar that was actually visible, and hid
   assert.match(fn,
     /if \(!surfaceOut\(selPanel, barDustPoint\(selPanel, \/\* closing \*\/ true\)\)\) settleSurface\(selPanel\);/);
   assert.match(fn, /\} else settleSurface\(selPanel\);/);
-  // The real hide still happens unconditionally and outside the branch — surfaceOut's
-  // flying cloud is a snapshot of sand, not the element itself, so it can go at once
-  // (js/ui/motion.js: "A surface NEVER dusts as clones of itself").
+  // The real hide happens unconditionally, outside the branch: surfaceOut's flying cloud is a snapshot of
+  // sand, not the element itself (js/ui/motion.js: "A surface NEVER dusts as clones of itself").
   const hideIdx = fn.indexOf("selPanel.style.display = 'none';");
   const elseIdx = fn.indexOf('} else settleSurface(selPanel);');
   assert.ok(hideIdx > elseIdx, 'display:none comes after the dust decision, unconditionally');
 });
 
 test('the old plain fadeIn keyframe stays as the reduced-motion / dust-declined fallback', () => {
-  // motion.js: "Off again if the dust declines, so a surface that never plays it keeps
-  // its old CSS entrance" — settleSurface() never adds SURFACE_DRIVEN_CLASS, so removing
-  // this rule would leave a declined bar snapping in with no motion at all.
+  // settleSurface() never adds SURFACE_DRIVEN_CLASS, so without this rule a bar whose dust declined would
+  // snap in with no motion at all.
   const css = LAYOUT_CSS;
   assert.match(css, /#selection-panel \{[\s\S]*?animation: fadeIn 0\.15s ease;[\s\S]*?\}/);
 });

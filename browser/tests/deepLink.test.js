@@ -83,9 +83,8 @@ test('buildStencilSchemeUrl accepts a pre-serialized layout string and omits emp
   assert.strictEqual(url, 'stencil://open?src=a.png&layout=%7B%22lines%22%3A%5B%5D%7D');
 });
 
-// ── Telegram start-payload codec ─────────────────────────────────
-// GOLDEN VECTORS — duplicated verbatim in desktop/tests/deepLink.headless.cpp and
-// bot/tests/Stencil.TelegramBot.Tests/DeepLinkCodecTests.cs. Keep the three in sync.
+// GOLDEN VECTORS, duplicated verbatim in desktop/tests/deepLink.headless.cpp and
+// bot/tests/Stencil.TelegramBot.Tests/DeepLinkCodecTests.cs — keep the three in sync.
 
 const TELEGRAM_VECTORS = [
   // loopback keeps http by default → scheme dropped, host|id encoded

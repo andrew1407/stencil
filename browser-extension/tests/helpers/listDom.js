@@ -57,6 +57,21 @@ export const renderKeys = (list, tr, keys, { attr = 'key', ...opts } = {}) => {
   return tr.end(opts);
 };
 
+// A minimal element stand-in for the class-toggling helpers (flashLanding, materialize, chatIn).
+export const classEl = (cls = '') => {
+  const classes = new Set(cls ? cls.split(' ') : []);
+  return {
+    offsetWidth: 0,
+    classList: {
+      add: (...c) => c.forEach((x) => classes.add(x)),
+      remove: (...c) => c.forEach((x) => classes.delete(x)),
+      contains: (c) => classes.has(c),
+      toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)),
+    },
+    has: (c) => classes.has(c),
+  };
+};
+
 // A hand-wound clock, so "after the animation" is a fact and not a sleep.
 export const fakeTimers = () => {
   const pending = new Map();

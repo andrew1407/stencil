@@ -3,9 +3,8 @@
 // ctx-script-* ids, so the window and the flyout can be open at once.
 import { icon } from './icons.js';
 
-// Hung off the static #ctx-script row by ctxScript.js, never written into the menu markup.
-// data-ctx-keep-tab: a code editor owns Tab (it indents), so the flyout's Tab-walks-the-
-// controls navigation (ctxKeyboard.js) steps aside for it.
+// Hung off the static #ctx-script row by ctxScript.js, never in the menu markup. data-ctx-keep-tab:
+// a code editor owns Tab, so the flyout's Tab-walks-the-controls navigation steps aside.
 export const scriptFlyoutHtml = () => `
             <div class="ctx-sub ctx-script-sub" id="ctx-script-sub">
                 <div class="ctx-script" id="ctx-script-pane">

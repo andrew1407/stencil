@@ -1,10 +1,8 @@
-// ── config/svgArt.json ↔ the art it is the one copy of ──────────────────────
-// The asset holds the inline SVG that is NOT a 24-grid toolbar glyph: the draw-mode
-// toggle's 16-grid pair and the accent-tinted favicon. Each piece has a second copy
-// somewhere the browser cannot import from, so each gets pinned here:
-//   favicon  → favicon.svg (the static file the tab loads before JS runs) AND the
-//              extension's pre-paint classic script, browser-extension/src/lib/accent.js.
-//   drawMode → icons.json's canonical `line`/`rect`, which this pair is x1.5 smaller.
+// config/svgArt.json is the one copy of the inline SVG that is NOT a 24-grid toolbar glyph: the draw-mode
+// toggle's 16-grid pair and the accent-tinted favicon. Each has a second copy the browser cannot import
+// from, so each is pinned here — favicon against favicon.svg (the static file the tab loads before JS runs)
+// and the extension's pre-paint classic script (browser-extension/src/lib/accent.js), drawMode against
+// icons.json's canonical `line`/`rect`, which this pair is x1.5 smaller than.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,9 +31,8 @@ test('the favicon art draws exactly what favicon.svg draws', () => {
   const painted = elements(faviconSvg(ACCENTS[0].hex));
   const onDisk = elements(read('favicon.svg'));
   assert.equal(painted.length, onDisk.length, 'the two marks have a different element count');
-  // The root <svg> alone may differ: the file carries role/aria-label a data: URI has no
-  // use for. Everything after it — the panel, the frame, the polyline, the seven points —
-  // must match attribute for attribute.
+  // The root <svg> alone may differ, since the file carries role/aria-label a data: URI has no use for:
+  // everything after it — panel, frame, polyline, the seven points — must match attribute for attribute.
   assert.deepEqual(painted.slice(1), onDisk.slice(1));
   for (const attr of [`viewBox=0 0 64 64`, 'xmlns=http://www.w3.org/2000/svg'])
     for (const root of [painted[0], onDisk[0]]) assert.ok(root.includes(attr), `${root} lost ${attr}`);
@@ -56,9 +53,8 @@ test('%1 is the only placeholder, and it is the accent-stroked panel outline', (
   assert.ok(!faviconSvg('#ff0000').includes('%1'), 'the placeholder is consumed');
 });
 
-// The extension paints the same mark from a pre-paint CLASSIC script, which cannot import
-// JSON — so its copy is string concatenation in the source. Compare the drawing, not the
-// source text: what must never drift is the art.
+// The extension paints the same mark from a pre-paint CLASSIC script, which cannot import JSON, so its copy
+// is string concatenation: compare the drawing, not the source text.
 test('the extension paints the same favicon (src/lib/prefs.js)', () => {
   const src = read('../browser-extension/src/lib/prefs.js');
   const body = src.slice(src.indexOf('const faviconSvg ='), src.indexOf('const applyFavicon'));

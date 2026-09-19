@@ -1,22 +1,8 @@
-// Peer-leave on a half-open WS peer — closes the suite's long-standing known gap.
-// The server now runs a WS keepalive (server/internal/transport/ws.go): every
-// accepted connection is pinged each 30s (wsPingInterval) and hard-closed if the
-// pong doesn't arrive within 10s (wsPongTimeout), so a dead peer is detected
-// within ~40s. The closed conn unblocks the hub's pending Read, the member is
-// unregistered, and the session publishes a `peer-leave` frame to the remaining
-// members (server/internal/hub/session.go).
-//
-// Signal choice: that protocol-level `peer-leave` frame at the surviving client
-// is asserted directly — it is the strongest observable (the same one real
-// clients use for presence), so no indirect proxy (REST delete guard /
-// re-join peer counts) is needed.
-//
-// Half-open simulation: pausing B's underlying TCP socket stops it reading, so
-// it never answers pings — no close frame, no FIN/RST, the connection just goes
-// silent. (Destroying the socket would emit FIN/RST and exercise the ordinary
-// close-detection path instead of the keepalive.) The `ws` lib answers pings
-// automatically only while the socket is being read, so a paused socket is a
-// faithful dead peer.
+// Peer-leave on a half-open WS peer. The server pings every accepted connection each 30s
+// (wsPingInterval) and hard-closes it if no pong arrives within 10s (wsPongTimeout), so the hub
+// unregisters the member and publishes a `peer-leave` frame to the rest within ~40s, which is
+// what this asserts. Half-open is simulated by PAUSING B's TCP socket: it then answers no pings
+// and emits no FIN/RST, where destroying it would exercise ordinary close detection instead.
 import { test, expect } from '@playwright/test';
 import { issueToken, createProject, stackEnabled } from '../../helpers/serverApi.js';
 import { dialWS, join, T } from '../../helpers/wire.js';

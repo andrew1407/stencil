@@ -1,9 +1,8 @@
-// Modal popovers (browser/js/ui/popover.js + base.js wireModalShell): every toolbar icon
-// that opens a covering modal also opens a COMPACT anchored version of it on dblclick /
-// right-click, closed by Escape or a click outside. Single click keeps the full modal.
-// The gesture matrix itself (incl. touch long-press) is unit-tested without a DOM in
-// browser/tests/popover.test.js — this spec pins the real-DOM contract: the classes, the
-// anchored placement, the transparent backdrop, and both close routes.
+// Modal popovers (js/ui/popover.js + base.js wireModalShell): every toolbar icon that opens a
+// covering modal also opens a COMPACT anchored version on dblclick / right-click, closed by
+// Escape or a click outside; single click keeps the full modal. The gesture matrix is unit-tested
+// DOM-free in browser/tests/popover.test.js — this pins the real-DOM classes, placement and both
+// close routes.
 import { test, expect } from '@playwright/test';
 import { gotoApp, settleModalAnimations } from '../../helpers/boot.js';
 

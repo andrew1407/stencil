@@ -14,9 +14,8 @@ export async function shoot(target, dir, name, opts = {}) {
   return file;
 }
 
-// A fresh context records video while `drive(page, mark)` runs, then ffmpeg turns the .webm
-// into the GIF. The clip starts just before the first `mark()` call, so the page-load
-// lead-in never reaches the GIF.
+// The recording starts just before the first `mark()` call, so the page-load lead-in never
+// reaches the GIF.
 export async function recordGif(browser, dir, name, drive, { size = { width: 1280, height: 800 }, ...look } = {}) {
   const videos = path.join(SCRATCH, 'video', name);
   fs.rmSync(videos, { recursive: true, force: true });
@@ -32,8 +31,7 @@ export async function recordGif(browser, dir, name, drive, { size = { width: 128
   console.log(`  ${name}.gif`);
 }
 
-// PNGs every `everyMs` for `ms`, into a scratch dir the caller hands to framesToGif. A
-// screenshot costs real time, so the rate asked for is never the rate achieved: the measured
+// A screenshot costs real time, so the rate asked for is never the rate achieved: the measured
 // one comes back, and a GIF assembled at it plays at life speed.
 export async function film(page, framesDir, ms, everyMs = 100, shotOpts = {}) {
   fs.mkdirSync(framesDir, { recursive: true });

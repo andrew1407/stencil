@@ -22,9 +22,7 @@ const surfaceDust = (el, point, { ms, gather }) => {
   });
 };
 
-// Drop whatever a surface has in flight — the cloud AND the classes driving its opacity —
-// leaving the end state untouched. Every open/close begins here, so a double-clicked menu
-// converges on the true state.
+// Every open/close begins here, so a double-clicked menu converges on the true state.
 export function settleSurface(el) {
   if (!el?.classList) return;
   clearTimeout(el.__surfaceTimer);
@@ -38,9 +36,8 @@ const playSurface = (el, point, { ms, gather }) => {
   if (!el?.classList) return false;
   settleSurface(el);
   if (motionReduced()) return false;
-  // The marker goes on BEFORE the measure: the element's own entrance (action-menu-pop,
-  // stMenuFromAnchor) holds an icon-sized from-state, so a box measured under it is the
-  // ICON's. `.dust-driven` kills that keyframe; off again if the dust declines.
+  // The marker goes on BEFORE the measure: the element's own entrance keyframe holds an
+  // icon-sized from-state, so a box measured under it is the ICON's.
   el.classList.add(SURFACE_DRIVEN_CLASS);
   if (!surfaceDust(el, point, { ms, gather })) {
     el.classList.remove(SURFACE_DRIVEN_CLASS);

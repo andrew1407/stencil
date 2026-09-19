@@ -1,10 +1,8 @@
 // Fakes for the voice-input suites: a scripted SpeechRecognition, a scripted audio
 // stack for the level meter, and a controllable clock. Nothing here touches globals.
 
-// A SpeechRecognition constructor whose instances record their calls and let the
-// test fire the events Chrome would: fire.start(), fire.result([...]), fire.end(),
-// fire.error(code). `results` follow the Web Speech shape — a list of alternatives
-// lists with an `isFinal` flag; each call passes the CUMULATIVE session list.
+// A SpeechRecognition whose instances record their calls and let the test fire Chrome's events.
+// fire.result takes the CUMULATIVE session list of alternatives lists, each with `isFinal`.
 export const createFakeSpeechRecognition = ({ throwOnStart = 0 } = {}) => {
   const instances = [];
   let throwsLeft = throwOnStart;

@@ -4,9 +4,8 @@ import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoin
 
 const { PAGE_SIZES } = constants;
 
-// Non-destructive crop + quarter-turn rotation over `originalImage` (never modified) →
-// the working `image`, tracked by `cropRect` (rotated-original pixels) and
-// `rotationQuarters`. Pure geometry lives in cropGeometry.js (the wasm/JS-parity twin).
+// Non-destructive crop + quarter-turn rotation over `originalImage` (never modified);
+// `cropRect` is in rotated-original pixels. Geometry: cropGeometry.js (wasm/JS twin).
 export class ImageModel {
   constructor(app) {
     this.app = app;

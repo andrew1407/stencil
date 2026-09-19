@@ -29,9 +29,8 @@
     /* storage blocked — keep the default accent */
   }
 
-// The CSS half of ui/motionPrefs.js: animations/motionModes.css keys the no-motion rules
-// off data-motion, which must be on <html> before the entrance plays. Keep the key and
-// values in step with MOTION_STORAGE_KEY / MOTION_MODES there.
+// The CSS half of ui/motionPrefs.js: animations/motionModes.css keys off data-motion, which
+// must be on <html> before the entrance plays. Keep in step with MOTION_STORAGE_KEY/MOTION_MODES.
   try {
     const saved = JSON.parse(localStorage.getItem('drawingApp_motion') || 'null');
     const mode = saved && typeof saved === 'object' ? String(saved.mode) : '';

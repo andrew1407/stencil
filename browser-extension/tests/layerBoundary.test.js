@@ -16,8 +16,9 @@ const TOP = new Set(LAYERS[LAYERS.length - 1]);
 
 // Shrink this list; never add to it. Each entry is "file → target" as reported below.
 const ALLOWANCE = new Map([
-  ['lib/dustCloud.js → config/motion.json',
-    'lib reads a config table; the rule puts config/ right of lib/ (browser has it leftmost)'],
+  ['lib/dustFlight.js → config/motion.json',
+    'lib reads a config table; the rule puts config/ right of lib/ (browser has it leftmost). The'
+    + ' cloud family funnels it through this one file, so dustGrain/dustCloud take TUNE from here'],
   ['lib/videoFrames.js → llm/chatController.js',
     'MAX_IMAGE_EDGE lives in llm/chatController.js; it belongs in a lib/ constants module'],
 ]);

@@ -1,13 +1,8 @@
-// Extension e2e: prove the page scanner finds EVERY way an image URL can appear in a
-// document, not just <img>/background. Loads the unpacked MV3 extension, opens a fixture
-// page that carries one of each reference type (each pointing at the harness pixel with a
-// distinct query string so URLs stay distinct + countable), and reads the injected
-// window.stencil page API. Extensions need a persistent context, so this suite manages its
-// own (same pattern as handoff.smoke.spec.js). Runs headed; CI wraps the job in xvfb.
-//
-// The synchronous window.stencil API does NOT fetch the web-app manifest (that needs an
-// async request), so manifest icons are covered by the pageImages.manifestIconUrls unit
-// test + the inline copy in lib/imageScan.js, not here.
+// Extension e2e: the page scanner finds EVERY way an image URL can appear in a document. A
+// fixture page carries one of each reference type (each pointing at the harness pixel with a
+// distinct query string, so URLs stay distinct and countable) and the injected window.stencil
+// page API is read back. Manages its own persistent context; runs headed. The synchronous API
+// does not fetch the web-app manifest, so manifest icons are covered by unit tests instead.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';

@@ -1,9 +1,8 @@
 // ── Op-plan: extension profile (llm-contract.md §1–§4 + §8 + §13) ──────
-// Pure module — no DOM, no chrome, no fetch. The extension's op set (contract §8)
-// references images by index in the context listing; `open.actions` carries the §2
-// core ops, validated with the same rules as browser/js/llm/opPlan.js (mirrored here,
-// since the extension can't import from browser/ — keep them in sync). LLM output is
-// data, not instructions: plans are strictly validated before anything executes.
+// Pure module — no DOM, no chrome, no fetch. The extension's op set references images by index
+// in the context listing; `open.actions` carries the §2 core ops, validated with the same rules
+// as browser/js/llm/opPlan.js. LLM output is data, not instructions: plans are strictly
+// validated before anything executes.
 import {
   ASK_LIMITS, CORE_OPS, DEFAULT_CUSTOM_LABEL, FORBIDDEN_OPS, LIMITS, SCHEMA, isObj, isStr,
 } from './opProfile.js';
@@ -35,19 +34,8 @@ const firstJsonObject = (text) => {
   return null;
 };
 
-// Parse the raw LLM reply into a validated extension plan { reply, actions, warnings,
-// chatOnly } — see parseOpPlan below. Shared §1 mechanics: Markdown fences stripped,
-// first balanced JSON object wins, no JSON at all = a chat-only turn (not an error).
-// Extension rules (§8): §2 core ops at the top level DROP with a warning, and so do
-// "variants" (§1's leniency clause). Invalid plans THROW.
-// ── §11 interactive replies (`ask`) ─────────────────────────────────────────
-// A question put back to the user as a choice card, validated as strictly as an action:
-// null when absent. The card's STRUCTURE (keys, caps, the image reference's
-// exactly-one-of url / projectId / scanIndex, http(s)-only urls) is the registry's ask
-// schema; what this surface can SHOW is decided here — the extension is not an editor, so
-// an option's PREVIEW can only be an existing image (`image.scanIndex`), and one carrying
-// preview `actions` or a model-supplied `image.url` keeps its label but loses the picture,
-// with a warning (§11.2).
+// §8 extension rules: §2 core ops at the top level DROP with a warning, and so do "variants"
+// (§1's leniency clause). An §11 ask option's preview can only be an existing image.scanIndex.
 export const validateAsk = (ask, listingLength, warnings) => {
   if (ask == null) return null;
   SCHEMA.validateAsk(ask);
@@ -98,17 +86,15 @@ export const parseOpPlan = (text, { listingLength = 0, tabsLength = 0 } = {}) =>
   let obj;
   try { obj = JSON.parse(candidate); } catch { return chatOnly(); }   // not actually JSON → chat-only
 
-  // `version` other than 1 (or absent) is accepted but ignored.
-  // §1 reply tolerance: models routinely omit the reply while planning valid
-  // actions — substitute rather than lose the plan to a missing pleasantry.
+  // `version` other than 1 (or absent) is accepted but ignored. §1 reply tolerance: models
+  // routinely omit the reply while planning valid actions, so substitute rather than lose the plan.
   let reply = obj.reply;
   const replyOmitted = typeof reply !== 'string' || !reply.trim();
   if (obj.variants != null && !Array.isArray(obj.variants)) throw new Error('Invalid plan: "variants" must be an array');
 
   const warnings = [];
-  // §1's leniency clause, applied to §8's "variants must be empty": the extension
-  // has no variants to render, but losing the whole turn to a misplaced one costs
-  // the user everything — drop them with a warning and run the rest.
+  // §1's leniency clause applied to §8's "variants must be empty": the extension has none to
+  // render, and losing the whole turn to a misplaced one costs the user everything.
   const droppedVariants = Array.isArray(obj.variants) ? obj.variants.length : 0;
   if (droppedVariants) {
     warnings.push(`Skipped ${droppedVariants} variant${droppedVariants === 1 ? '' : 's'} — the extension doesn't edit images, so it renders no variants; the rest of the plan ran`);
@@ -128,9 +114,8 @@ export const parseOpPlan = (text, { listingLength = 0, tabsLength = 0 } = {}) =>
     else warnings.push(`Skipped unknown operation "${a.op}"`);
   }
   const ask = validateAsk(obj.ask, listingLength, warnings);
-  // The substitute must not overstate what happened: "Done." only when the plan
-  // actually carries work — an empty plan says so, since a bare "Done." there
-  // reads as a success that never occurred.
+  // The substitute must not overstate what happened: "Done." only when the plan carries work, or
+  // it reads as a success that never occurred.
   if (replyOmitted) {
     if (actions.length || ask) {
       reply = 'Done.';
@@ -148,9 +133,8 @@ export const attachOnly = (plan) =>
   !!plan && Array.isArray(plan.actions) && plan.actions.length > 0
   && plan.actions.every((a) => a.op === 'attach');
 
-// True when every action only GATHERS context (the registry's `gather` flag: attach /
-// scanTab / rescan) — the plan needs another model round to act on what arrived, so it
-// triggers the same single bounded auto-continuation as attach-only plans (contract §8).
+// True when every action only GATHERS context (the registry's `gather` flag), so the plan needs
+// another model round — the same single bounded auto-continuation attach-only plans get (§8).
 export const continuationOnly = (plan) =>
   !!plan && Array.isArray(plan.actions) && plan.actions.length > 0
   && plan.actions.every((a) => GATHER_OPS.has(a.op));

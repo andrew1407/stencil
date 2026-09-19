@@ -41,9 +41,6 @@ export const createSessionApi = ({ app, connMgr }) => {
       return stencil;
     },
 
-    // Load an image (or, with `frame`/a video URL, that frame) by URL. Resolves to the
-    // facade, so `(await stencil.load(url)).crop(...)` chains. `incognito: true` adopts
-    // incognito IN PLACE first — the outgoing project is flushed, the tab stays put.
     async load(url, opts = {}) {
       const address = opts.address || null;
       if (address) requireConnection(connMgr, address);   // validate before fetching

@@ -6,9 +6,8 @@ import { resolveInsertIdx } from './layout.js';
 import { shouldCloseShape } from './lineTransforms.js';
 import { strokeFoot } from '../ui/motion.js';
 
-// A screen radius divided by the zoom (at 25% a fixed image-pixel radius was unhittable).
-// core adds its own +8, so hand it the size that makes the total screen-constant. Zoomed
-// out only: magnifying must never make the dots harder to hit than at 1:1.
+// A screen radius divided by the zoom, zoomed out only: core adds its own +8, so hand it the
+// size that makes the total screen-constant (at 25% a fixed image-pixel radius was unhittable).
 const CLOSE_SLACK = 8;
 export const closeGrabSize = (app, line) => {
   const ps = line.pointSize ?? app.pointSize;

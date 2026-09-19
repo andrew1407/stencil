@@ -11,9 +11,8 @@ import { formatCombo } from '../utils.js';
 import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS,
          exportVariantState } from './exportVariants.js';
 
-// `run(variant)` performs the action; `currentIcon` is the 'current' row's glyph; `hotkeyIds`
-// maps a variant to its hotkeysConfig.json id (a row with no live binding shows none).
-// Rows, order and availability come from exportVariants.js.
+// `hotkeyIds` maps a variant to its hotkeysConfig.json id (a row with no live binding shows
+// none); rows, order and availability come from exportVariants.js.
 export function wireExportOptionsMenu(trigger, app, { run, currentIcon = 'copy', hotkeyIds = {} } = {}) {
   if (!trigger) return;
 

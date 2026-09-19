@@ -1,12 +1,8 @@
-// Pins every CSS declaration the app loads, so the stylesheets can be split, merged or
-// reordered with proof that not one declaration changed.
-//
-// It is FILE-BLIND: it follows index.html's <link rel=stylesheet> hrefs (never a hardcoded
-// list) and inline <style>, then merges every rule into one map keyed by
-// "<at-rule prelude>|<selector>", a repeat merging last-wins as the cascade would at equal
-// specificity. Moving a rule between files is invisible here, an edited value is not, and
-// source order is pinned separately so a real cascade reorder still fails.
-// Re-pin an intended change: UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js
+// Pins every CSS declaration the app loads, so the stylesheets can be split, merged or reordered with proof
+// that not one declaration changed. FILE-BLIND: it follows index.html's <link rel=stylesheet> hrefs and its
+// inline <style>, then merges every rule into one map keyed by "<at-rule prelude>|<selector>", a repeat
+// merging last-wins as the cascade would at equal specificity; source order is pinned separately, so a real
+// cascade reorder still fails. Re-pin: UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,10 +15,8 @@ const ROOT = resolve(HERE, '..');
 const PIN = resolve(HERE, 'pins/css.json');
 const ENTRIES = ['index.html'];
 
-// ── CSS scanner (builtins only) ────────────────────────────────
-// Length of the atomic token starting at i, or -1 when it isn't one. Comments, strings,
-// unquoted url() — which may hold a `;`, as data: URIs do — and `\` escapes are consumed
-// whole, so they never look like syntax.
+// The length of the atomic token starting at i, or -1 when it is not one: comments, strings, unquoted url()
+// — which may hold a `;`, as data: URIs do — and `\` escapes are consumed whole, so none looks like syntax.
 function atomLen(css, i) {
   const c = css[i];
   if (c === '\\') return 2;

@@ -1,9 +1,5 @@
-// The Stencil browser app's console API, as types.
-//
-// Generated from browser/js/console/stencilApi.d.ts by vscode-extension/tools/genTypings.mjs.
-// Drop it beside your JavaScript and the editor types `stencil` itself: hovering a member
-// gives its signature rather than `any`. The Stencil extension writes it here for you with
-// "Stencil: Add facade typings to this workspace".
+// The Stencil browser app's console API as types, generated from stencilApi.d.ts by
+// tools/genTypings.mjs — "Stencil: Add facade typings to this workspace" writes it beside your JS.
 // window.stencil — the console control API (README "Console API"). A frozen, hard-guarded
 // facade over the live DrawingApp: every mutation routes through the same core methods
 // the toolbar uses, most calls return the facade (or a Project / Line / Point) to chain.
@@ -21,7 +17,7 @@ type VariantResult = unknown;
 interface XY { x: number; y: number; }
 interface Size { width: number; height: number; }
 
-/** Any CSS colour on write (normalised to hex); '' where the comment says so. */
+/** Any CSS colour on write, normalised to hex on read. */
 type ColorInput = string;
 
 type LineStyle = 'solid' | 'dashed' | 'dotted';
@@ -33,7 +29,6 @@ type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
 type ExportVariant = 'current' | 'original' | 'tint' | 'split';
 type ChatDock = 'left' | 'right' | 'top' | 'bottom' | 'float';
 
-/** Every key works both on the facade and under .settings, mirroring a toolbar control. */
 interface StencilSettings {
   /**
    * The colour new strokes are drawn in.

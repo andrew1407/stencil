@@ -1,13 +1,8 @@
-// Pointer-based drag for the reorderable modal lists (projects + connections): HTML5
-// DnD never fires on TOUCH, so this layer engages only for touch/pen. Long-press picks
-// a row up (a quick swipe just scrolls); the caller decides the drop target via
-// callbacks; the shared ghost (dragGhost.js) follows the finger, and the trailing
-// synthesized click is swallowed after a real drag.
-// Rows must set `touch-action: pan-y` (CSS) so the list still scrolls — but once a row
-// IS picked up, only a non-passive `touchmove` preventDefault stops the compositor
-// claiming the vertical gesture (`pointermove` preventDefault does not, and a
-// mid-gesture `touch-action` change is ignored). Registered while the finger is DOWN
-// so the moves stay cancelable; it cancels only once dragging.
+// Pointer-based drag for the reorderable modal lists (projects + connections): HTML5 DnD never
+// fires on TOUCH, so this layer engages only for touch/pen. Long-press picks a row up, the
+// caller decides the drop target, and the synthesized click is swallowed after a real drag.
+// Rows must set `touch-action: pan-y` so the list still scrolls, but once a row IS picked up
+// only a non-passive `touchmove` preventDefault stops the compositor claiming the gesture.
 import { createDragGhost } from './dragGhost.js';
 
 export function makeTouchDraggable(row, opts) {
@@ -64,12 +59,8 @@ export function makeTouchDraggable(row, opts) {
     const x = e.clientX, y = e.clientY;
     cleanup();
     if (!wasDragging) return;
-    // Swallow the click the browser synthesizes after this pointer sequence so a drag-drop
-    // doesn't also trigger the row's tap-to-open. It has to be caught on the DOCUMENT: the
-    // drop re-renders the list, so by the time the click lands `row` is detached and a
-    // listener on it would never see it (a hold-and-release would open the project).
-    // Only clicks inside the row's own dialog, though — a drop onto a zone asks to
-    // confirm, and a quick tap on that (sibling) dialog's button must go through.
+    // Swallow the synthesized click, on the DOCUMENT: the drop re-renders the list, so `row` is
+    // detached by the time it lands. Only clicks inside the row's own dialog.
     const scope = (row.closest && row.closest('.app-modal-overlay')) || row.parentElement || document;
     const swallow = (ev) => {
       if (!scope.contains(ev.target)) return;

@@ -6,9 +6,8 @@ const blankPaint = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
 export const MOTE_INK = TUNE.MOTE_INK;
 export const MOTE_RIM_INK = TUNE.MOTE_RIM_INK;
 
-// The element's own background, else the nearest ancestor that paints one, lifted towards
-// the surface's ink: a cloud in the window's exact background dissolves into the page,
-// and ink contrasts with its background in either theme.
+// The element's own background, else the nearest ancestor that paints one, lifted towards the
+// surface's ink: ink contrasts with its background in either theme.
 const surfacePaint = (el, inkOverride = null) => {
   const get = typeof getComputedStyle === 'function' ? getComputedStyle : null;
   const own = get ? get(el) : null;
@@ -28,8 +27,7 @@ const surfacePaint = (el, inkOverride = null) => {
 export const markPaint = (el) => surfacePaint(el, 'var(--text-muted)');
 
 // A painter answers per cell with the grain's colour, opacity and size; rim cells take the
-// border so the cloud keeps the outline for its first frames. The speck is a GRAIN, never
-// the cell. `override` is for a mark whose colour has already left the box (an unticked checkbox).
+// border. The speck is a GRAIN, never the cell. `override` is for a mark whose colour has left.
 export const speckPainter = (el, override = null) => {
   const { fill, edge } = override || surfacePaint(el);
   return ({ cx, cy, cols, rows, cellW, cellH }) => {

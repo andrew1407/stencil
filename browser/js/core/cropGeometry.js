@@ -85,9 +85,8 @@ export const scaleCropCenteredJS = (cur, factor, aspectWoverH, imageW, imageH, m
   return { x, y, width: w, height: h };
 };
 
-// The Album/Portrait press: a width/height swap about the same centre already lands on
-// aspectWoverH (one page's two aspects are exact reciprocals) — the user's own framing
-// carries over instead of resetting. No rect yet falls back to centeredCropJS.
+// The Album/Portrait press is a width/height swap about the same centre, which already lands on
+// aspectWoverH (a page's two aspects are exact reciprocals), so the user's framing carries over.
 export const swapCropOrientationJS = (cur, aspectWoverH, imageW, imageH) => {
   if (cur.width <= 0 || cur.height <= 0 || aspectWoverH <= 0)
     return centeredCropJS(imageW, imageH, aspectWoverH);

@@ -19,9 +19,8 @@ export function replayWaves(el, on, { setTimer = setTimeout } = {}) {
   setTimer(done, WAVES_FLIGHT_MS);
 }
 
-// Toggles that rewrite themselves in place (Start↔Stop, Line↔Rect): the new markup is
-// written FIRST, then the outgoing face leaves as a ghost stacked over it
-// (animations/controls.css .swapping / .swap-ghost).
+// Toggles that rewrite themselves in place: the new markup is written FIRST, then the outgoing
+// face leaves as a ghost stacked over it (animations/controls.css .swapping / .swap-ghost).
 export const SWAP_MS = TUNE.SWAP_MS;
 export const SWAP_CLASS = 'swapping';
 export const SWAP_GHOST_CLASS = 'swap-ghost';
@@ -64,10 +63,8 @@ export function swapContent(el, html, {
   return true;
 }
 
-// Width-pin a face-swapping control so it never resizes under the cursor. Measured, never
-// guessed: each face is written into the button itself at width:auto, synchronously, and
-// the markup put back. Once per element, plus a re-measure when webfonts settle.
-// `prop` is `width` (a pin) or `minWidth` (a floor CSS may stretch); `max` caps it.
+// Measured, never guessed: each face is written into the button itself at width:auto,
+// synchronously. `prop` is `width` (a pin) or `minWidth` (a floor CSS may stretch); `max` caps it.
 const facePinned = new WeakSet();
 export function pinWidestFace(el, faces, { doc = el?.ownerDocument, force = false,
                                            prop = 'width', max = Infinity } = {}) {

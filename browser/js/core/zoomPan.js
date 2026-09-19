@@ -8,9 +8,6 @@ import {
   updateZoomRectOverlay, hideZoomRectOverlay, updateRectDrawOverlay, setZoomInputValue,
 } from '../utils/zoomOverlay.js';
 
-// The zoom LOGIC only: utils/viewportMetrics.js measures and sizes, utils/zoomOverlay.js
-// owns the marquee and the zoom-percent inputs, zoomAnimation.js the scroll-moving zooms.
-// These methods are the app's whole zoom surface (toolbar, context menu, fullscreen, console).
 
 // The centring-margin term every viewport→image conversion needs.
 export { canvasOrigin };

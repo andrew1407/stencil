@@ -19,9 +19,8 @@ test.describe('extension', () => {
 
   test.beforeAll(async () => {
     ({ context, background } = await launchExtension());
-    // Point the extension at the harness app (default editorUrl is :8080) and turn on the
-    // opt-in page API; storage.onChanged (background.js) re-scopes the bridge and registers
-    // the MAIN-world content script for subsequent navigations.
+    // storage.onChanged (background.js) re-scopes the bridge and registers the MAIN-world content
+    // script for subsequent navigations.
     const sw = await background();
     await sw.evaluate((editorUrl) => new Promise((r) =>
       chrome.storage.sync.set({ exposeWindowStencil: true, editorUrl }, r)), EDITOR_URL);
@@ -84,12 +83,8 @@ test.describe('extension', () => {
     await host.close();
   });
 
-  // Right-clicking an element whose media is a CSS background (here the reported repro:
-  // an inline-SVG data-URI background) has NO native image context, so the Stencil
-  // actions are a group the worker reveals from the ctxTarget probe. Playwright can't
-  // open Chrome's native context menu, so this drives the real path underneath it —
-  // content-script probe → runtime message → chrome.contextMenus.update — by wrapping
-  // the API in the service worker and reading back the flips it makes.
+  // An element whose media is a CSS background has no native image context, so the actions are a
+  // group revealed from the ctxTarget probe — driven here through the real path under the menu.
   test('a background-image element reveals the Stencil menu group (and plain text does not)', async () => {
     test.slow();
     const sw = await background();
@@ -123,11 +118,8 @@ test.describe('extension', () => {
     });
     await reset();
 
-    // Merely HOVERING primes the probe — the group is revealed before any right-click,
-    // which is what stops the reveal from racing Chrome's menu render (and from losing
-    // outright when the MV3 worker has to wake up first). Keep the pointer moving while
-    // polling, as a hand does: the probe is a document_idle content script, so a single
-    // move fired before it attached would prime nothing.
+    // Hovering alone primes the probe, which is what stops the reveal racing Chrome's menu render.
+    // Keep the pointer moving: the probe is document_idle, so one early move primes nothing.
     const box = await host.locator('#svgbg').boundingBox();
     let wiggle = 0;
     await expect.poll(async () => {

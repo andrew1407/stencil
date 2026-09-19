@@ -32,14 +32,14 @@ const walk = (rel, out = []) => {
   for (const e of entries.sort((a, b) => (a.name < b.name ? -1 : 1))) {
     const child = `${rel}/${e.name}`;
     if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(child, out); }
-    else if (e.name.endsWith('.js')) out.push(child);
+    // .d.ts too: a shape file is source, and an unchecked one grew to 397 lines unnoticed.
+    else if (e.name.endsWith('.js') || e.name.endsWith('.d.ts')) out.push(child);
   }
   return out;
 };
 
-// Total lines + comment lines. A line counts as a comment when it opens with // or /*,
-// or sits inside a block comment. The scanner tracks strings so a // or /* inside a
-// literal opens nothing; ' and " cannot span lines, ` can.
+// A line counts as a comment when it opens with // or /*, or sits inside a block comment; the scanner tracks
+// strings, so a // or /* inside a literal opens nothing (' and " cannot span lines, ` can).
 const measure = (rel) => {
   const lines = fs.readFileSync(path.join(ROOT, rel), 'utf8').split('\n');
   if (lines.length && lines[lines.length - 1] === '') lines.pop();
@@ -105,9 +105,8 @@ test('comment share per directory did not rise', () => {
   assert.deepStrictEqual(over, [], 'trim the prose, or split the code out of these dirs');
 });
 
-// Test-count floor: green says nothing about how many tests ran, so the suite re-runs itself
-// once and reads the runner's own total. The floor sits ~3% under today's count — raise it
-// when the suite grows a lot. STENCIL_TEST_COUNT_RUN marks the inner run, so it never nests.
+// Test-count floor: the suite re-runs itself once and reads the runner's own total, since green says nothing
+// about how many tests ran. STENCIL_TEST_COUNT_RUN marks the inner run, so it never nests.
 const TEST_FLOOR = 3200;
 const INNER_RUN = 'STENCIL_TEST_COUNT_RUN';
 

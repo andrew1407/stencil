@@ -16,7 +16,7 @@ export { WINDOWS } from './windowsApi.js';
 export interface XY { x: number; y: number; }
 export interface Size { width: number; height: number; }
 
-/** Any CSS colour on write (normalised to hex); '' where the comment says so. */
+/** Any CSS colour on write, normalised to hex on read. */
 export type ColorInput = string;
 
 export type LineStyle = 'solid' | 'dashed' | 'dotted';
@@ -28,7 +28,6 @@ export type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
 export type ExportVariant = 'current' | 'original' | 'tint' | 'split';
 export type ChatDock = 'left' | 'right' | 'top' | 'bottom' | 'float';
 
-/** Every key works both on the facade and under .settings, mirroring a toolbar control. */
 export interface StencilSettings {
   lineColor: ColorInput;
   /** '' = points follow lineColor. */

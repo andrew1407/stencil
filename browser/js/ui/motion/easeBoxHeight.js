@@ -3,12 +3,8 @@ import { motionReduced } from '../motionPrefs.js';
 // The desktop dialog's own height ease (openImageDialogParts.hpp OI_RESIZE_MS).
 export const BOX_RESIZE_MS = 380;
 
-// A box sized by its content SNAPS the moment that content changes; this eases it there
-// instead, its own natural height still deciding where it lands. Restarted rather than
-// queued, so a change arriving mid-flight is chased (desktop: OpenImageDialog::animateHeightTo).
-// Only the ROWS are watched, never the box or the scroller: a flight owns the box's height,
-// and measuring anything that follows it would feed the next target back from the last one.
-// Returns a stop function.
+// Restarted rather than queued, so a change arriving mid-flight is chased (desktop:
+// OpenImageDialog::animateHeightTo). Only the ROWS are watched: the box's height is the flight's.
 export const easeBoxHeight = (box, scroller, ms = BOX_RESIZE_MS) => {
   if (!box || !scroller || typeof ResizeObserver === 'undefined' || !box.animate) return () => {};
   let shown = null, flight = null;
@@ -29,9 +25,8 @@ export const easeBoxHeight = (box, scroller, ms = BOX_RESIZE_MS) => {
     const want = box.offsetHeight;
     shown = want;
     if (from === null || from === want || !want || motionReduced()) return;
-    // The layout is ALREADY at `want` and a WAAPI flight's first frame is the NEXT one, so
-    // the start is pinned here: unpinned, the box paints one frame at the target and the
-    // flight rewinds — a snap followed by a slide.
+    // The layout is ALREADY at `want` and a WAAPI flight's first frame is the NEXT one, so the
+    // start is pinned here — unpinned, the box paints one frame at the target and rewinds.
     box.style.height = `${from}px`;
     const f = box.animate([{ height: `${from}px` }, { height: `${want}px` }],
                           { duration: ms, easing: 'cubic-bezier(0.22,0.61,0.36,1)' });

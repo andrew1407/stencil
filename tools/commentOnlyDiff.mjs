@@ -1,13 +1,8 @@
 // ── commentOnlyDiff: did a comment sweep touch only comments? ────
-// Strips comments and normalizes whitespace on both sides — the file at <gitRef> and the
-// one in the working tree — and compares what is left, exactly. Same file set as the repo:
-//   .js .mjs .cs .go .rs .zig .cpp .hpp .h .c   `//` and `/* */`, string-aware
-//   .py                                          `#` only — a docstring is a statement, kept
-//
+// Strips comments and collapses whitespace on both sides — the file at <gitRef> and the one
+// in the working tree — then compares what is left, exactly. `.py` counts only `#`; a
+// docstring is a statement, kept.
 //   node tools/commentOnlyDiff.mjs <gitRef> <path...>   (exits 1 if any file CHANGED)
-//   node tools/commentOnlyDiff.mjs --self-test
-//
-// C++ has a second opinion available: desktop/tools/cppCommentDiff.sh, via the preprocessor.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -61,9 +56,8 @@ const bareOf = (src, lang) => (lang === 'py'
   ? scanPy(src).map((s) => (s.kind === 'comment' ? ' '.repeat(s.end - s.start) : src.slice(s.start, s.end))).join('')
   : stripComments(src, lang));
 
-// ── the comparison ──────────────────────────────────────────────
-// Comment-free, blank lines dropped, runs of spaces squeezed — but never inside a literal,
-// whose own spacing is code. What survives is what a comment sweep may not change.
+// ── the comparison: comment-free, blank lines dropped, spaces squeezed ──
+// Never inside a literal, whose own spacing is code.
 export const normalizeLines = (src, lang) => {
   const bare = bareOf(src, lang);
   const text = spansOf(bare, lang).map((s) => {

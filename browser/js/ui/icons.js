@@ -5,8 +5,7 @@ import ICONS_DATA from '../config/icons.json' with { type: 'json' };
 import SVG_ART from '../config/svgArt.json' with { type: 'json' };
 
 // 'eraser' wipes drawn lines and is deliberately not the trash can (trash = delete). The
-// class="ic-…" hooks on glyph parts are inert here; config/iconMotion.json moves them via
-// css/animations/iconHover.css.
+// class="ic-…" hooks are inert here; config/iconMotion.json moves them via iconHover.css.
 export const ICONS = ICONS_DATA;
 
 // The draw-mode toggle's two faces: complete <svg> strings on a 16-grid, not built by icon().
@@ -33,11 +32,8 @@ export const setSelectAllFace = (btn, all) => {
   if (ic && !ic.classList?.contains(`ic-${want}`)) ic.outerHTML = icon(want, { size: 13 });
 };
 
-// One clockwise turn of a control's glyph, ON CLICK (iconMotion.json
-// `extras.swap-click-turn`; css/animations/iconClick.css). The class comes off when the
-// play ends, so the NEXT press turns it again — re-adding a class already there does
-// nothing. Re-rendering the glyph mid-turn (the swap buttons relabel themselves) would
-// drop the animation, so callers spin AFTER they repaint.
+// One clockwise turn of a glyph on click (iconMotion.json `extras.swap-click-turn`;
+// css/animations/iconClick.css). Re-rendering mid-turn drops it, so callers spin AFTER repaint.
 export const spinIconOnce = (btn) => {
   if (!btn || btn.classList.contains('icm-spun')) return;
   btn.classList.add('icm-spun');

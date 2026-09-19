@@ -123,10 +123,8 @@ test('non-string saved values are ignored (defaults win)', async () => {
   mock.reset();
 });
 
-// ── The on/off gate (contract §5 provider 'none') ──
-// With the assistant switched off the surfaces must not offer it AT ALL — no collapsed
-// "ASSISTANT" section header, and no ✦ header button that would reveal nothing. Same
-// rule the browser and desktop menus gate on.
+// Contract §5 provider 'none': switched off, the surfaces must not offer the assistant AT ALL — no
+// section header, no ✦ button. The same rule the browser and desktop menus gate on.
 
 test('assistantEnabled: only the local-only "none" provider switches it off', () => {
   assert.equal(assistantEnabled({ provider: 'none' }), false);
@@ -166,9 +164,8 @@ test('applyAssistantVisibility hides BOTH the section and the ✦ button, revers
   assert.doesNotThrow(() => applyAssistantVisibility(true));
 });
 
-// NEGATIVE: chrome.storage is writable by anything running in the extension, so a
-// poisoned entry must not aim the client at another scheme (browser/js/llm/llmSettings.js
-// applies the same isHttpUrl check on its side).
+// NEGATIVE: chrome.storage is writable by anything running in the extension, so a poisoned entry
+// must not aim the client at another scheme (browser/js/llm/llmSettings.js checks the same).
 test('an endpoint saved on a non-http(s) scheme is dropped for the default', async () => {
   const mock = installStorageMock();
   for (const bad of ['javascript:fetch(1)', 'file:///etc/passwd', 'chrome-extension://abc/x',

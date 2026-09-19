@@ -46,10 +46,8 @@ test.describe('Open Image crop read-out', () => {
     await expect(page.locator('#open-image-crop-dims')).toBeHidden();
   });
 
-  // The Album/Portrait button used to display:none until its OWN cloud fired, so the row
-  // it lives in reflowed one whole frame before any mote appeared — a "jump" with no
-  // visible cause. And on the way out it stayed fully opaque under its own falling cloud
-  // for the whole flight, only vanishing at the very end — a lingering ghost of a button.
+  // The Album/Portrait button must not display:none before its own cloud fires (a reflow with no
+  // visible cause), nor stay opaque under the falling cloud for the whole flight.
   test('the Album/Portrait button reserves its space before showing, and fades WITH its own cloud', async ({ page }) => {
     await openWithPicture(page);
     const btn = page.locator('#open-image-crop-orientation');

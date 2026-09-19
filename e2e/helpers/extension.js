@@ -1,9 +1,7 @@
-// Shared launch boilerplate for the extension suites: load the unpacked MV3 extension
-// in a persistent Chromium context (Playwright's default `page` fixture can't load
-// extensions, so each suite manages its own) and resolve the background service worker
-// + the extension id. Launches headed — extensions load most reliably that way; CI
-// wraps the job in xvfb (see ci.yml / README). Storage seeding (editorUrl,
-// exposeWindowStencil, llmSettings, …) stays with each suite: it is per-suite contract.
+// Shared launch boilerplate for the extension suites: load the unpacked MV3 extension in a
+// persistent Chromium context and resolve the background service worker + the extension id.
+// Launches headed — extensions load most reliably that way; CI wraps the job in xvfb.
+// Storage seeding stays with each suite: it is per-suite contract.
 import { chromium } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';

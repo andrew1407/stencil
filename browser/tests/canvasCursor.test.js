@@ -1,12 +1,7 @@
-// The canvas cursor is STATE-DRIVEN (js/core/drawingApp.js updateButtons + css/layout.css).
-//
-// The crosshair says "click here to place a point". It used to be a constant on `canvas`
-// and `.canvas-viewport`, so an EMPTY editor — whose canvas is the drop hint and the
-// "＋ Blank image" card, with nothing to draw on — aimed at nothing, and so did a COMPARE
-// view, which is read-only. Both states were already published/known (body.canvas-empty,
-// compareReadOnly()); the cursor just did not follow them.
-//
-// Element stubs + the updateButtons rig from fullscreenGate.test.js.
+// The canvas cursor is STATE-DRIVEN (js/core/drawingApp.js updateButtons + css/layout.css): the crosshair
+// says "click here to place a point", so an EMPTY editor (body.canvas-empty) and a read-only COMPARE view
+// (compareReadOnly()) must not wear it. Element stubs plus the updateButtons rig from
+// fullscreenGate.test.js.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,9 +12,8 @@ const css = LAYOUT_CSS;
 const blockAt = (at) => css.slice(at, css.indexOf('}', at));
 const cursorIn = (at) => /cursor:\s*([a-z-]+)/.exec(blockAt(at))?.[1];
 
-// Resolve the cursor the way the cascade does, from the real stylesheet: the base
-// declaration, replaced by the state-gated rule when the body classes let it match (it is
-// both more specific and declared later, which the pin below enforces).
+// The cursor is resolved the way the cascade does, from the real stylesheet: the base declaration,
+// replaced by the state-gated rule, which is both more specific and declared later.
 const cursorFor = (bodyClasses, base) => {
   const baseAt = css.indexOf(`${base} {`);
   const gate = `body:not(.canvas-empty):not(.canvas-readonly) ${base}`;
@@ -140,9 +134,8 @@ test('the "＋ Blank image" card owns only its own box — no click/cursor overr
   assert.ok(at >= 0 && btnAt >= 0);
   const overlay = comp.slice(at, comp.indexOf('}', at));
   const btn = comp.slice(btnAt, comp.indexOf('}', btnAt));
-  // The overlay stretches across the whole empty canvas (inset: 0) — that is the LAYOUT,
-  // not the hit target. Without pointer-events:none it would be the desktop's bug: the
-  // whole void clickable, and the card's cursor over all of it.
+  // The overlay stretches across the whole empty canvas (inset: 0) as LAYOUT, not a hit target: without
+  // pointer-events:none the whole void is clickable and wears the card's cursor.
   assert.match(overlay, /inset: 0/);
   assert.match(overlay, /pointer-events: none/, 'the stretched overlay must not take clicks');
   assert.match(btn, /pointer-events: auto/, 'only the card itself does');

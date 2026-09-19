@@ -20,9 +20,8 @@ export const labelControl = (el) => {
   if (name) el.setAttribute('aria-label', name);
 };
 
-// A row is written `<label>Name</label><span><input></span>`, so the field's name is the
-// label just before it — or before the wrapper it sits in. Anything else in between means
-// the label belongs to something else.
+// A row is written `<label>Name</label><span><input></span>`, so a field's name is the label
+// just before it — or before the wrapper it sits in.
 const rowLabel = (el) => {
   for (let node = el; node; node = node.parentElement) {
     const prev = node.previousElementSibling;

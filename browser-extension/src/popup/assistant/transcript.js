@@ -18,22 +18,19 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     if (state.busy) return;
     state.controller.clearConversation();
     state.workingScan = null;   // back to chatting about the panel's own scan
-    // Scatter the entries out, then wipe (leaveThenRemove always calls back). Entries
-    // are removed individually, NOT by wiping textContent: the scatter's particle layer
-    // is itself a child of the transcript, and a wholesale wipe would kill the particles.
+    // Entries are removed individually, NOT by wiping textContent: the scatter's particle layer is
+    // itself a child of the transcript.
     const going = [...transcriptEl.children].filter((el) => !el.classList.contains('disintegrate-host'));
     const wiped = going.length > 0;
     going.forEach((el, i) => chatLeave(el, () => el.remove(), going.length, i));
     pending.splice(0);
     renderTray();
-    // The empty state comes back only once the entries have finished leaving —
-    // prepended in the same tick, the chips would sit under the still-falling particles
-    // (browser chatView.js restoreEmptyState sequences it the same way).
+    // The empty state comes back only once the entries have finished leaving (browser chatView.js
+    // restoreEmptyState sequences it the same way).
     if (wiped) {
       setTimeout(() => {
-        // A turn may have started while the wipe played — then the chips are wrong.
-        // `:scope >` like syncClearBtn: the scatter's clones keep the .msg class, so
-        // an unscoped query would read the dying copies as live conversation.
+        // `:scope >` like syncClearBtn: the scatter's clones keep the .msg class, so an unscoped query
+        // would read the dying copies as live conversation.
         if (state.busy || transcriptEl.querySelector(':scope > .msg, :scope > .card, :scope > .warn')) return;
         showSuggestions();
         syncClearBtn();
@@ -45,9 +42,8 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     inputEl.focus();
   };
 
-  // Pin now and again after the entrance animation settles — a fresh row (the
-  // pending indicator included) grows AFTER the first measure, so one write landed
-  // a row short of the bottom (browser chatView stickToBottom parity).
+  // A fresh row grows AFTER the first measure, so the pin is repeated once the entrance settles
+  // (browser chatView stickToBottom parity).
   const scrollDown = () => {
     const pin = () => { transcriptEl.scrollTop = transcriptEl.scrollHeight; };
     pin();
@@ -55,10 +51,8 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     setTimeout(pin, 220);
   };
 
-  // One ritual for every transcript arrival: append, sync the clear button, pin the
-  // scroll, then dust the entry in. `arrive: false` opts out of the dust (the in-flight
-  // "…" — see addThinking); `wrap` pins a text bubble to its longest line (chatUi.js) —
-  // cards, strips and ask cards keep their natural width.
+  // `arrive: false` opts out of the dust (the in-flight "…" — see addThinking); `wrap` pins a
+  // text bubble to its longest line (chatUi.js).
   const appendEntry = (node, { arrive = true, wrap = false } = {}) => {
     transcriptEl.appendChild(node);
     if (wrap) applyShrinkWrap(node);
@@ -75,9 +69,8 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     return appendEntry(div, { arrive, wrap: true });
   };
 
-  // Side-notes (warnings) stay DISMISSABLE; error MESSAGES carry no × — the browser
-  // panel renders a failed turn as a plain bubble with the retry only, and the three
-  // surfaces read the same.
+  // Side-notes stay DISMISSABLE; error messages carry no × — the browser panel renders a failed
+  // turn as a plain bubble with the retry only.
   const dismissible = (el, autoMs = 0) => {
     makeDismissible(el, { doc: document, autoMs });
     return el;
@@ -94,9 +87,8 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
   };
   const addWarn = (text) => dismissible(appendDiv('warn', text));
 
-  // The images riding the user's turn, as a thumbnail strip on the user's side of
-  // the transcript (browser chatView.js chatAttachmentStrip parity). Names come from
-  // scanned pages, so they stay DATA — alt/title only, never markup.
+  // Browser chatView.js chatAttachmentStrip parity. Names come from scanned pages, so they stay
+  // DATA — alt/title only, never markup.
   const addAttachments = (list) => {
     const strip = document.createElement('div');
     strip.className = 'chat-attached';
@@ -114,10 +106,8 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     return appendEntry(strip);
   };
 
-  // Icon-only Retry inside a bubble: re-sends the SAME turn through the normal path, its
-  // attachments included (nothing is auto-retried). Failed and stopped turns. The failed
-  // bubble STAYS — browser chatView.js onRetry logs a NEW turn, desktop chatRetryTurn just
-  // resends: a retry is another attempt, not an undo, and the transcript records both.
+  // The failed bubble STAYS — a retry is another attempt, not an undo, and the transcript records
+  // both (browser chatView.js onRetry, desktop chatRetryTurn). Nothing is auto-retried.
   const addRetry = (el, text, send, attachments = []) => {
     const retry = document.createElement('button');
     retry.className = 'chat-retry';
@@ -129,11 +119,8 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     applyShrinkWrap(el);   // re-measure now the icon rides beside the pinned text
   };
 
-  // The "Configure provider" call-to-action a failed turn's bubble carries when the
-  // PROVIDER itself is the problem (browser chatConfigureButton parity) — unreachable or
-  // unconfigured, not merely disabled/truncated/refused. Opens the same Options page the
-  // "…" menu's Settings item does (there is no in-panel settings modal here to grow out of
-  // the CTA, unlike the browser's docked panel).
+  // Browser chatConfigureButton parity: carried only when the PROVIDER itself is the problem.
+  // Opens the same Options page the "…" menu's Settings item does.
   const addConfigureCta = (el) => {
     const cfg = document.createElement('button');
     cfg.className = 'btn-icon-text chat-config-cta';
@@ -143,13 +130,10 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     applyShrinkWrap(el);   // never pin narrower than the button that just rode in
   };
 
-  // The in-flight turn's placeholder: an assistant BUBBLE holding three bouncing dots
-  // — the shape the reply will take, in the place it will take it (browser chatView.js
-  // typingDots).
+  // Browser chatView.js typingDots parity: the shape the reply will take, in its place.
   const addThinking = () => {
-    // No arrival for the placeholder (browser chatView.js parity): it lives about as long
-    // as the gather itself, so dusting it in kept it veiled for almost its whole life and
-    // the bouncing dots were never seen. The reply that replaces it is what arrives.
+    // No arrival for the placeholder (browser chatView.js parity): it lives about as long as the
+    // gather itself, so dusting it in kept the bouncing dots veiled for almost its whole life.
     const el = appendDiv('msg assistant typing-row', '', { arrive: false });
     const dots = document.createElement('span');
     dots.className = 'chat-typing';
@@ -161,9 +145,8 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     return el;
   };
 
-  // One executed-action result card. `label` is plain text (entry names come from
-  // scanned pages, so they're untrusted too). Failure cards carry a × and, when
-  // `autoMs` is set (attach failures), clear themselves after a few seconds.
+  // `label` is plain text — entry names come from scanned pages. `autoMs` (attach failures)
+  // clears the card after a few seconds.
   const addCard = (iconName, label, ok = true, autoMs = 0) => {
     const div = document.createElement('div');
     div.className = 'card' + (ok ? '' : ' fail');
@@ -175,9 +158,8 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     return appendEntry(div);
   };
 
-  // ── Empty-state suggestion chips (browser parity, §8 wording) ─────────────
-  // Clicking one PREFILLS the input — it never sends. The block disappears with the
-  // first message and returns when the conversation is cleared.
+  // Clicking a chip PREFILLS the input — it never sends (browser parity, §8 wording). The block
+  // goes with the first message and returns when the conversation is cleared.
   let suggestEl = null;
   const hideSuggestions = () => {
     suggestEl?.remove(); suggestEl = null;

@@ -112,13 +112,8 @@ test('createIdbBackend degrades to null without IndexedDB (Node)', () => {
   assert.strictEqual(createIdbBackend(undefined ?? null), null);
 });
 
-// ── §12.1: the document is a CONVERSATION, never the machinery ──────────────
-// The document is shared across surfaces (the .stencil file and the server's `chat`
-// file kind), so a doc written by ANY surface can land here. The desktop was found
-// building its copy from the MODEL's history, which carries §7's continuation note,
-// the interim round-1 reply and the raw JSON plans. The browser has always written
-// the DISPLAYED rows (audited: its document held only the two visible messages), but
-// the filter now runs on both sides so neither direction can leak.
+// §12.1: the document is a CONVERSATION, never the machinery. It is shared across surfaces, so the filter runs
+// on both the write and the read side: neither direction may leak raw plans or §7's continuation note.
 test('the §7 continuation note is never written and never restored', async () => {
   const { isInternalChatText, CONTINUATION_NOTE, buildChatDoc, parseChatDoc, rowsToMessages } =
     await import('../js/llm/chatStore.js');
@@ -127,8 +122,8 @@ test('the §7 continuation note is never written and never restored', async () =
   assert.strictEqual(isInternalChatText('user',
     '[The working image is now the frame you extracted — carry on.]'), true);
   assert.strictEqual(isInternalChatText('assistant', CONTINUATION_NOTE), true);
-  // …and the controller pushes THAT constant, so the two can never drift.
-  const ctrl = readFileSync(new URL('../js/llm/chatController.js', import.meta.url), 'utf8');
+  // …and the model round pushes THAT constant, so the two can never drift.
+  const ctrl = readFileSync(new URL('../js/llm/chatRespond.js', import.meta.url), 'utf8');
   assert.ok(ctrl.includes("import { CONTINUATION_NOTE } from './chatStore.js'"));
   assert.ok(ctrl.includes('const note = { role: \'user\', text: CONTINUATION_NOTE };'));
   assert.ok(!/text: '\[The working image is now/.test(ctrl), 'no second copy of the wording');

@@ -34,6 +34,7 @@ export interface CoreOps {
   resizeCropFromCorner(cur: CropRect, corner: number, cursorX: number, cursorY: number, aspectWoverH: number, imageW: number, imageH: number, minSize?: number): CropRect;
   moveCropClamped(cur: CropRect, dx: number, dy: number, imageW: number, imageH: number): CropRect;
   scaleCropCentered(cur: CropRect, factor: number, aspectWoverH: number, imageW: number, imageH: number): CropRect;
+  swapCropOrientation(cur: CropRect, aspectWoverH: number, imageW: number, imageH: number): CropRect;
   cropResizeScale(oldWidth: number, newWidth: number): number;
   cropChange(oldRect: CropRect, newRect: CropRect): { orientationChanged: boolean; scale: number };
   rotateCropRectQuarter(r: CropRect, imageW: number, imageH: number, clockwise: boolean): CropRect;

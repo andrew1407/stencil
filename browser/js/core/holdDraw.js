@@ -4,9 +4,8 @@ import { distToSegment } from '../utils.js';
 // resting the cursor drops the next; releasing commits. The host owns timers, coordinates
 // and rendering; this is pure and time-injected. C++ mirror: core/holdDraw.
 
-// 'point' over an existing point → continue that line; 'segment' over a body → insert
-// there; 'new' in empty space. Topmost wins, as in findNearestPointWithIdx /
-// findNearestSegmentWithIdx. ptIdx/ptIdx2 = -1 when not applicable.
+// 'point' over a point → continue that line; 'segment' over a body → insert there; 'new' in
+// empty space. Topmost wins, as in findNearestPointWithIdx. ptIdx/ptIdx2 = -1 if unused.
 export const holdDrawTarget = (lines, x, y, { pointThreshold = 12, segThreshold = 12 } = {}) => {
   const list = Array.isArray(lines) ? lines : [];
   for (let li = list.length - 1; li >= 0; li--) {
@@ -33,9 +32,8 @@ export const holdDrawTarget = (lines, x, y, { pointThreshold = 12, segThreshold 
 
 const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
 
-// idle → armed → drawing → idle (commit), or armed → aborted when the pointer travels too
-// far. Coordinates are host client space, times monotonic ms. The host calls pointerDown,
-// pointerMove, a ~40ms tick while engaged, then pointerUp (cancel() on blur).
+// idle → armed → drawing → idle (commit), or armed → aborted past the travel slop.
+// Coordinates are host client space, times monotonic ms.
 export class HoldDrawController {
   #state = 'idle';
   #holdDelay;

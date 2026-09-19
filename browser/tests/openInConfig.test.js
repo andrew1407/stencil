@@ -1,10 +1,8 @@
-// Tests for the "Open in…" operator-config loader (js/config/openInConfig.js).
-// loadOpenInConfig() fetches a LOCAL, gitignored openInConfig.json at runtime (the static-site
-// equivalent of a .env) and MUST degrade to OPEN_IN_DEFAULTS on every failure mode so a fresh
-// clone with no local file still boots: a missing file / network error, a non-ok response, bad
-// JSON, and per-field type coercion (a non-string field falls back to its default). The result
-// is process-cached (fetched at most once), so each scenario re-imports the module with a unique
-// ?case= query to get a fresh cache — the same ESM-cache-busting pattern the other suites use.
+// The "Open in…" operator-config loader (js/config/openInConfig.js). loadOpenInConfig() fetches a LOCAL,
+// gitignored openInConfig.json at runtime — the static-site equivalent of a .env — and MUST degrade to
+// OPEN_IN_DEFAULTS on every failure mode: a missing file or network error, a non-ok response, bad JSON, and
+// per-field type coercion. The result is process-cached, so each scenario re-imports the module with a unique
+// ?case= query to get a fresh cache.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

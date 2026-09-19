@@ -31,9 +31,8 @@ export const createBoot = ({ sectionEl, transcriptEl, inputEl, sendBtn, clearBtn
   const refreshSettings = async () => {
     state.llmSettings = await loadLlmSettings();
     const s = state.llmSettings;
-    // No provider line in the panel (browser parity): reachability lives on the …
-    // trigger's dot + the rich tooltip above. Amber while probing, green connected,
-    // red unreachable; generation-guarded so a slow probe can't paint over a newer one.
+    // Browser parity: reachability lives on the … trigger's dot, not a provider line.
+    // Generation-guarded so a slow probe can't paint over a newer one.
     const dot = document.getElementById('chat-status-dot');
     const moreBtn = document.getElementById('chat-more-btn');
     if (!dot || !moreBtn) return;
@@ -86,9 +85,8 @@ export const createBoot = ({ sectionEl, transcriptEl, inputEl, sendBtn, clearBtn
     wireComposerMenu({ transcriptEl, gearTip, queueFiles, state });
     wireMsgMenu({ transcriptEl, inputEl, msgMeta, send, state });
 
-    // The COMPOSER is the drop target — not the whole section: over the transcript the
-    // drop belongs to the page behind it (browser chatPanel.js parity). The cue is
-    // built here once rather than in the three host pages.
+    // The COMPOSER is the drop target, not the whole section: over the transcript the drop belongs
+    // to the page behind it (browser chatPanel.js parity).
     const composerEl = sectionEl.querySelector('.chat-composer');
     const cue = document.createElement('div');
     cue.className = 'chat-drop-cue';

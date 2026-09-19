@@ -18,9 +18,7 @@ export const isTypingTarget = (t) => {
   return t.isContentEditable === true;
 };
 
-// A peek IS a popover, with a tighter gap: it defers to popover.js rather than restating
-// the rules, which is how this copy came to keep flipping on overflow alone after the
-// shared one moved to "whichever side has more room".
+// A peek IS a popover with a tighter gap — the rules stay in popover.js, never restated.
 export const peekPosition = ({ anchor, box, viewport, gap = 6, margin = 8 }) =>
   popoverPosition({ anchor, box, viewport, gap, margin });
 

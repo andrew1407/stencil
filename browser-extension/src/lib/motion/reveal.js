@@ -17,9 +17,8 @@ export const revealDissolve = (top, bottom, viewH) => {
   return 1 - visible / h;
 };
 
-// Grain for a row. The dot screen covers the whole element, so the clipped share won't
-// do — a row taller than the scroller would stay speckled. Showing as much as the
-// viewport holds counts as fully visible. Pure.
+// The dot screen covers the whole element, so the clipped share won't do: showing as much as
+// the viewport holds counts as fully visible. Pure.
 export const revealGrain = (top, bottom, viewH) => {
   const h = bottom - top;
   if (viewH <= 0 || h <= 0) return 0;
@@ -27,9 +26,8 @@ export const revealGrain = (top, bottom, viewH) => {
   return 1 - visible / Math.min(h, viewH);
 };
 
-// Watch `root` and ramp every child matching `selector` as it scrolls. Returns a
-// disconnect function; safe in any environment. Scrolling must stay cheap: geometry is
-// measured once per list change, never per frame (rect reads force a layout).
+// Returns a disconnect function. Geometry is measured once per list change, never per frame —
+// a rect read forces a layout.
 export function observeReveal(root, selector) {
   const noop = () => {};
   if (!root?.addEventListener || typeof requestAnimationFrame === 'undefined') return noop;

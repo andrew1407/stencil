@@ -40,9 +40,8 @@ const applyTintFilter = (ctx, hexColor) => {
   ctx.putImageData(imageData, 0, 0);
 };
 
-// One-slot cache for the pixel-transform filters, keyed on (image, filter, tint) identity —
-// valid because every pixel change swaps app.image via rebuildCroppedImage(). Without it
-// getImageData → convolution → putImageData reruns per mousemove (CanvasWidget.cpp filteredImage_).
+// One-slot cache keyed on (image, filter, tint) identity — valid because every pixel
+// change swaps app.image via rebuildCroppedImage(). Desktop: CanvasWidget filteredImage_.
 export class ImageFilterCanvas {
   #filtered = null;
 

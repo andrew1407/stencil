@@ -1,11 +1,7 @@
-// Tests for src/lib/rasterize.js — the decode path every assistant attachment goes
-// through. The bug it exists for: Chrome's createImageBitmap REFUSES an
-// `image/svg+xml` blob ("The source image could not be decoded"), so dragging an SVG
-// row (badges, logos, icons) into the chat failed even though the popup
-// could show a thumbnail for it. SVG must be rasterised to PNG anyway — contract §7
-// accepts png/jpeg/webp/gif only.
-// Every DOM seam is injected, so this runs under plain `node --test`: no DOM, no
-// canvas, no fetch.
+// Tests for src/lib/rasterize.js — the decode path every assistant attachment goes through.
+// Chrome's createImageBitmap REFUSES an `image/svg+xml` blob, and contract §7 accepts
+// png/jpeg/webp/gif only, so SVG is rasterised to PNG here.
+// Every DOM seam is injected, so this runs under plain `node --test`: no DOM, no canvas, no fetch.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -211,9 +207,8 @@ test('decodeSize measures via the bitmap decoder, and via <img> for SVG', async 
   assert.equal(svgState.images.length, 1);
 });
 
-// ── SSRF guard (lib/urlGuard.js) ──
-// NEGATIVE: a page-harvested source naming a private/internal host is refused before
-// EITHER decoder touches the network (fetch, then <img src>); a public one still decodes.
+// NEGATIVE (lib/urlGuard.js): a page-harvested source naming a private/internal host is refused
+// before EITHER decoder touches the network — fetch, then <img src>.
 test('a private or internal source URL is refused before any decode', async () => {
   for (const url of ['http://127.0.0.1/x.png', 'http://10.0.0.5/x.png', 'http://169.254.169.254/latest/',
     'http://[::1]/x.png', 'http://localhost:8080/x.png', 'file:///etc/passwd']) {

@@ -32,18 +32,16 @@ const freeLeft = () => {
   catch { return 0; }
 };
 
-// Past the free area's left edge at the toast's own height; only 0.15 toast-widths past
-// it (not dockAwayPoint's 1.2), or every grain is off screen within the exit's first beat
-// (desktop Notifications.cpp twin).
+// Past the free area's left edge at the toast's own height, and only 0.15 toast-widths past it
+// (not dockAwayPoint's 1.2) — desktop twin: Notifications.cpp.
 const TOAST_REACH = 0.15;
 const toastDustPoint = (toast) => {
   const r = toast.getBoundingClientRect?.();
   if (!r || !(r.width > 0)) return dockAwayPoint(r, 'left');
   return { x: freeLeft() - r.width * TOAST_REACH, y: r.top + r.height / 2 };
 };
-// No curve override: one timing function drives travel and alpha, and the default
-// ease-out is the only shape with no tail. Near-zero stagger: at toast size a wave just
-// leaves stragglers, so the cloud ends with the flight.
+// No curve override: one timing function drives travel and alpha, and the default ease-out is
+// the only shape with no tail. Near-zero stagger: at toast size a wave leaves stragglers.
 const TOAST_LEAVE_STAGGER = 0.12;
 
 // The cloud stays on the free side of the edge: clipped there, motes pour out from behind

@@ -1,10 +1,7 @@
 // Pins every CSS declaration the extension's documents load, so the stylesheets can be split,
 // merged or reordered with proof that not one declaration changed. Twin of
 // browser/tests/cssInventory.test.js over this surface's entry points: every src/**/*.html
-// document (plus any manifest content_scripts CSS), each one's rules merged into one map
-// keyed by "<at-rule prelude>|<selector>", a repeat merging last-wins as the cascade would
-// at equal specificity. Moving a rule between files is invisible here, an edited value is
-// not, and source order is pinned per document so a real reorder still fails.
+// document, its rules keyed by "<at-rule prelude>|<selector>", source order pinned per document.
 // Re-pin an intended change: UPDATE_CSS_PIN=1 node --test tests/cssInventory.test.js
 
 import { test } from 'node:test';
@@ -17,10 +14,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const PIN = resolve(HERE, 'pins/css.json');
 
-// ── CSS scanner (builtins only) ────────────────────────────────
-// Length of the atomic token starting at i, or -1 when it isn't one. Comments, strings,
-// unquoted url() — which may hold a `;`, as data: URIs do — and `\` escapes are consumed
-// whole, so they never look like syntax.
+// Comments, strings, unquoted url() — which may hold a `;`, as data: URIs do — and `\` escapes
+// are consumed whole, so they never look like syntax.
 function atomLen(css, i) {
   const c = css[i];
   if (c === '\\') return 2;

@@ -50,9 +50,8 @@ test('buildStencilSchemeUrl embeds a data: URL inline (the extension hand-off pa
   assert.equal(url, 'stencil://open?src=data%3Aimage%2Fpng%3Bbase64%2CAAA&incognito=1');
 });
 
-// ── Telegram start-payload codec ─────────────────────────────────
-// GOLDEN VECTORS — identical to browser/tests/deepLink.test.js (which duplicates
-// desktop/tests/deepLink.headless.cpp + bot DeepLinkCodecTests.cs). Keep the four in sync.
+// GOLDEN VECTORS — identical to browser/tests/deepLink.test.js, desktop/tests/deepLink.headless.cpp
+// and the bot's DeepLinkCodecTests.cs. Keep the four in sync.
 
 const TELEGRAM_VECTORS = [
   ['localhost:8090', 'p_1a2b3c_x1', '1bG9jYWxob3N0OjgwOTB8cF8xYTJiM2NfeDE'],

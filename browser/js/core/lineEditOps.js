@@ -1,3 +1,5 @@
+import { setVal, notify } from '../utils.js';
+
 // Point / line mutation shared by the coord table, the Lines tab and the console facade.
 // Each keeps the selection, the coord-table target and every cached hover consistent with
 // the indices it just shifted, then saves one history entry.
@@ -88,4 +90,28 @@ export const removeSelectedLines = (app) => {
   const target = app.coordLineIdx >= 0 ? app.lines[app.coordLineIdx] : null;
   app.coordTable.update(target ? target.points : null, app.coordLineIdx);
   return this;
+};
+
+// Alt+wheel: ±1, clamped 1–20. `scheduleSave` is the caller's debounce, so a burst of
+// notches becomes one history entry; it is called only when the value actually moved.
+export const adjustThicknessAtCursor = (app, e, scheduleSave) => {
+  const { x, y } = app.canvasCoords(e.clientX, e.clientY);
+  const delta = e.deltaY > 0 ? -1 : 1;
+  const nearPt = app.findNearestPointWithIdx(x, y);
+  let lineIdx = -1;
+  if (nearPt && nearPt.lineIdx !== -1) lineIdx = nearPt.lineIdx;
+  else { const li = app.findLineAt(x, y); if (li !== -1) lineIdx = li; }
+  if (lineIdx === -1) return false;
+  const line = app.lines[lineIdx];
+  const newT = Math.max(1, Math.min(20, (line.thickness || 1) + delta));
+  if (newT === line.thickness) return true;
+  line.thickness = newT;
+  if (lineIdx === app.selectedLineIdx) {
+    setVal('sel-thickness', newT);
+    setVal('fs-sel-thickness', newT);
+  }
+  app.renderer.redraw();
+  notify('Line thickness: ' + newT, 'info');
+  scheduleSave();
+  return true;
 };

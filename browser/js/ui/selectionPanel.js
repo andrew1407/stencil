@@ -64,10 +64,8 @@ define('stencil-selection-panel', StencilSelectionPanel);
 
 // ── Panel ↔ app sync (extracted from drawingApp.js; DrawingApp keeps thin delegators) ──
 
-// Anchors to #image-info rather than the bar's own (dis)appearing rect — no single
-// control opens the bar, so there's no natural origin element otherwise.
-// `closing`: #image-info's rect is still pre-close here; predict its post-close position
-// (bar's own top + #image-info's height) instead of trusting that stale bottom.
+// Anchors to #image-info rather than the bar's own (dis)appearing rect. `closing`:
+// #image-info's rect is still pre-close, so predict it (bar's top + #image-info's height).
 export const barDustPoint = (el, closing = false) => {
   const info = document.getElementById('image-info');
   const r = info?.getBoundingClientRect?.();

@@ -1,8 +1,7 @@
 import { canvasOrigin } from '../../core/zoomPan.js';
 export function wireSmoothZoom(app) {
-  // ── Smooth zoom via rAF ──
-  // Rapid wheel events accumulate into one rAF loop. IMPORTANT: add `zoom-no-transition`
-  // while the rAF runs so the CSS width/height transition doesn't fight it (causes flicker).
+  // Rapid wheel events accumulate into one rAF loop. Add `zoom-no-transition` while it runs, or
+  // the CSS width/height transition fights it and flickers.
   const smoothZoom = { target: null, focal: null, rafId: null };
 
   const viewport = document.getElementById('canvas-viewport');
@@ -38,10 +37,8 @@ export function wireSmoothZoom(app) {
     // No viewport resize per frame: the frame is full-height at every zoom now.
     app.zoomPan.setZoomInputValue(Math.round(next * 100));
 
-    // Maintain focal point: keep the image pixel under the cursor fixed. Through the
-    // centring margins at THIS scale (originAt), which are what hold a picture smaller
-    // than the frame in the middle — they collapse to 0 exactly when scrolling starts,
-    // so the pixel stays put across that boundary instead of jumping.
+    // Keep the image pixel under the cursor fixed, through the centring margins at THIS scale
+    // (originAt): they collapse to 0 exactly when scrolling starts, so the pixel stays put.
     if (sz.focal && viewport) {
       const { imgX, imgY, clientX, clientY } = sz.focal;
       const org = app.zoomPan.originAt(next);
@@ -81,9 +78,8 @@ export function wireSmoothZoom(app) {
 
     e.preventDefault();
 
-    // Zoom increment scaled by the wheel delta (not a fixed step): a mouse notch steps a
-    // sensible amount while touchpad-pinch micro-deltas sum gently. deltaMode normalizes
-    // line/page units to pixels; the cap keeps a big notch from overshooting.
+    // Zoom increment scales with the wheel delta so touchpad micro-deltas sum gently; deltaMode
+    // normalizes line/page units to pixels, and the cap keeps a big notch from overshooting.
     const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
     const factor = e.shiftKey ? 0.0095 : 0.004;
     const cap = e.shiftKey ? 0.65 : 0.32;
@@ -94,12 +90,8 @@ export function wireSmoothZoom(app) {
     const base = sz.target !== null ? sz.target : app.scale;
     sz.target = app.zoomPan.clampScale(base + delta);
 
-    // Focal point in image-space (unscaled pixels).
-    // Works in both fullscreen (viewport fixed at 0,0) and normal mode.
-    // Through the centring margins (canvasOrigin): with the picture smaller than the
-    // frame the scroll origin is not the image origin, and the cursor would pin the
-    // wrong pixel the moment the zoom grew past the frame. The scroll writes in
-    // runSmoothZoom put the margin back on, at the scale of that frame.
+    // Focal point in image-space (unscaled pixels), through the centring margins (canvasOrigin):
+    // with the picture smaller than the frame the scroll origin is not the image origin.
     const vpRect = viewport.getBoundingClientRect();
     const org = canvasOrigin();
     const contentX = e.clientX - vpRect.left + viewport.scrollLeft;

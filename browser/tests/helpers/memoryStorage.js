@@ -1,20 +1,8 @@
-// Shared in-memory `localStorage` stand-in for the browser test suites.
-//
-// Node has no localStorage, so a dozen suites each grew their own Map-backed shim —
-// with slightly different surfaces (some had no removeItem, some no keys(), one threw
-// a QuotaExceededError). That drift is the bug this module removes: everything the
-// storage-backed modules touch is implemented here once, faithfully.
-//
-// Two ways in:
-//   createMemoryStorage() — a storage OBJECT to inject (ProjectsStore, the projects
-//                           backend and friends take their storage as a constructor
-//                           argument, so nothing global is touched).
-//   installMemoryStorage() — the same object assigned to globalThis.localStorage, for
-//                           modules that read the global directly. Call .restore() to
-//                           put the previous value (usually none) back.
-//
-// `_map` is exposed deliberately: several suites assert on the raw stored strings to
-// prove a payload never reached localStorage.
+// Shared in-memory `localStorage` stand-in for the browser test suites, implementing everything the
+// storage-backed modules touch. Two ways in: createMemoryStorage(), a storage OBJECT to inject (the stores take
+// theirs as a constructor argument, so nothing global is touched), and installMemoryStorage(), the same object
+// on globalThis.localStorage, whose .restore() puts the previous value back. `_map` is exposed deliberately:
+// several suites assert on the raw stored strings to prove a payload never reached localStorage.
 
 /**
  * A faithful subset of the Storage interface, backed by a Map.

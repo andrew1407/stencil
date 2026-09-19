@@ -32,9 +32,8 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.setAttribute('aria-hidden', 'true');
     host.inert = true;
     const span = ms || DISINTEGRATE_MS;
-    // A surface flies on its own (shorter) clock; a row keeps the defaults. A ROW gather
-    // on its own clock keeps the default's proportions, so the last mote to set off still
-    // lands before the veil lifts.
+    // A surface flies on its own (shorter) clock; a row keeps the defaults. The gather holds the
+    // default's proportions, so the last mote to set off still lands before the veil lifts.
     const gatherMs = toward || !gather ? span : Math.round(span * TILE_GATHER_SHARE);
     if (ms) {
       host.style.setProperty('--dust-ms', `${ms}ms`);
@@ -46,8 +45,7 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.style.height = `${r.height}px`;
     const cellW = r.width / cols;
     const cellH = r.height / rows;
-    // Every grain computed once: home, throw and bend (tileMotion / surfaceMotion),
-    // colour, size, clock. ONE canvas then evaluates these per frame (dustCloud.js) — no
+    // Every grain is computed once and ONE canvas evaluates them per frame (dustCloud.js) — no
     // node per mote, so a dialog-sized cloud costs batched fills, not hundreds of layers.
     const motes = [];
     for (let cy = 0; cy < rows; cy++) {
@@ -76,14 +74,11 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     const style = styleCode();
     const paints = paletteCss();
     host.__cloud = { motes, colours: paints, flight: kind, span, style };   // what a test reads
-    // The element's own PARENT, not <body>: a row's cloud is torn down with its list, and
-    // position:fixed still escapes the scroller's clipping. A SURFACE goes on <body> —
-    // its parent (a dialog backdrop) is about to be removed under it. `hostEl` is the chat
-    // entry's middle ground: outside the transcript nothing that walks it meets the layer.
+    // The element's own PARENT, not <body>: a row's cloud is torn down with its list. A SURFACE
+    // goes on <body> — its parent is about to be removed under it; `hostEl` is the middle ground.
     (toBody ? document.body : (hostEl || el.parentElement || document.body)).appendChild(host);
-    // …but only if that parent can host it: an ancestor with a transform/filter becomes
-    // the containing block for position:fixed, re-anchoring the layer and letting
-    // overflow:hidden clip it. Detected by MEASURING; if it missed, re-home on <body>.
+    // An ancestor with a transform/filter becomes the containing block for position:fixed, so the
+    // landing is MEASURED and re-homed on <body> when it moved.
     const got = host.getBoundingClientRect();
     if (Math.abs(got.left - r.left) > 1 || Math.abs(got.top - r.top) > 1) {
       document.body.appendChild(host);
@@ -107,7 +102,6 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
   }
 }
 
-// ── Reintegration: the snap played backwards (browser motion.js twin) ───────
-// Every mote starts where the scatter would have flung it and flies HOME (stTileGather in
-// animations/reveal.css), sweep reversed so the first mote out is the last one in.
+// Reintegration, the snap played backwards (browser motion.js twin): every mote starts where
+// the scatter would have flung it and flies HOME, sweep reversed.
 export const reintegrate = (el, opts = {}) => disintegrate(el, { ...opts, gather: true });

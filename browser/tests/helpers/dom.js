@@ -1,20 +1,8 @@
-// Shared DOM-lite stubs for the browser test suites.
-//
-// Node has no DOM, so two dozen suites each grew their own element factory and
-// `globalThis.document` — with slightly different surfaces (some listeners were maps,
-// some objects; some classLists were variadic, some not). This module is the superset
-// of what those suites actually exercise: NOT a jsdom clone, just the properties the
-// components under test touch, implemented once. A suite with a genuinely bespoke
-// behaviour keeps it as an `overrides` entry, not as a fork of the whole factory.
-//
-// Three ways in:
-//   createStubElement()  — one element to hand to a component directly.
-//   createStubDocument() — a document stub (itself an element, so it can listen).
-//   installDom()         — the document assigned to globalThis.document, plus any
-//                          window/location/history the suite needs. Call .restore()
-//                          to put the previous globals back — though Node runs each
-//                          test FILE in its own process, so a module-level install
-//                          cannot leak across suites and usually needs no teardown.
+// Shared DOM-lite stubs for the browser test suites: not a jsdom clone, but the superset of the properties the
+// components under test actually touch, implemented once. A suite with a genuinely bespoke behaviour keeps it
+// as an `overrides` entry rather than forking the factory. Three ways in: createStubElement(),
+// createStubDocument() (itself an element, so it can listen), and installDom(), whose .restore() puts the
+// previous globals back — though Node runs each test FILE in its own process.
 
 /**
  * A stub element: classList backed by the exposed `classes` Set, attributes in the

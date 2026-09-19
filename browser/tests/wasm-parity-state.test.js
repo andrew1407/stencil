@@ -1,9 +1,8 @@
-// Parity coverage for the core's STATEFUL classes (core/wasmStateApi.cpp, reached
-// through the handle wrappers in js/core/coreHandles.js). wasm-parity.test.js pins
-// the pure ops; this one pins the classes that own state, which were hand-kept twins
-// until they gained an ABI: the JS implementation and the compiled C++ are driven
-// through one script and must agree on every returned event and every observable
-// field, step by step. Node loads the SINGLE_FILE ES module directly.
+// Parity coverage for the core's STATEFUL classes (core/wasmStateApi.cpp, reached through the handle wrappers
+// in js/core/coreHandles.js). wasm-parity.test.js pins the pure ops; this one pins the classes that own state,
+// hand-kept twins until they gained an ABI: the JS implementation and the compiled C++ are driven through one
+// script and must agree on every returned event and every observable field, step by step. Node loads the
+// SINGLE_FILE ES module directly.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
 import { existsSync } from 'node:fs';
@@ -143,9 +142,8 @@ wtest('holdDraw: non-default tolerances and a zero delay cross the ABI intact', 
   ], { holdDelay: 0, moveTolerance: 40, rearmDistance: 100 });
 });
 
-// A long pseudorandom gesture stream: the op-for-op proof the hand-kept twins never had.
-// Deterministic (seeded LCG) and integer-valued, so the two hypot() implementations
-// compare distances that are never a rounding away from a tolerance boundary.
+// A long pseudorandom gesture stream, deterministic (a seeded LCG) and integer-valued, so the two hypot()
+// implementations compare distances that are never a rounding away from a tolerance boundary.
 wtest('holdDraw: 2000 random gesture steps stay identical step for step', () => {
   let seed = 20260912;
   const rnd = (n) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % n; };

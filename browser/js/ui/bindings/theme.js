@@ -8,9 +8,6 @@ export function wireTheme(app) {
     // this toolbar with duplicate ids, so looking it up by id can find a hidden copy.
     app.setTheme(app.theme === 'dark' ? 'light' : 'dark', e.currentTarget);
   });
-  // Follow the OS while the appearance mode is 'system' — the default, and what the app
-  // stays on until someone picks Light or Dark explicitly (toolbar toggle or the
-  // Appearance row in Default Visuals).
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
     if (app.accents.themeMode !== 'system') return;
     document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');

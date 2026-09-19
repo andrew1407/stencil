@@ -30,16 +30,14 @@ const walk = (dir, out = []) => {
     if (entry.name.startsWith('.')) continue;
     const path = join(dir, entry.name);
     if (entry.isDirectory()) { if (!SKIP_DIRS.has(entry.name)) walk(path, out); }
-    else if (entry.name.endsWith('.js')) out.push(path);
+    // .d.ts too: a shape file is source, and the cap has to reach it.
+    else if (entry.name.endsWith('.js') || entry.name.endsWith('.d.ts')) out.push(path);
   }
   return out;
 };
 
-// Total lines, plus lines that are only a comment: a line whose first non-whitespace opens
-// a comment, and every line inside a block comment. The char scan tracks strings so a
-// `//` or `/*` inside a literal doesn't count (` spans lines, ' and " don't) — and
-// regex literals are consumed whole, or a backtick inside one (/[{`]/) reads as a template
-// opening and every comment to the end of the file is silently skipped.
+// Total lines, plus lines that are only a comment. The char scan tracks strings so a `//`
+// inside a literal doesn't count, and regex literals are consumed whole.
 const REGEX_AFTER = /[(,=:[!&|?{};+\-*%^~<>]\s*$|\b(?:return|typeof|case|in|of|new|do|else|void|delete|instanceof|yield|await)\s*$/;
 const endOfRegex = (line, i) => {
   for (let j = i + 1, klass = false; j < line.length; j++) {
@@ -127,9 +125,8 @@ test('comment share per directory did not rise', () => {
   assert.deepEqual(risen, [], 'comments outgrew the code — trim the prose, keep the code');
 });
 
-// Test-count floor: green says nothing about how many tests ran, so the suite re-runs itself
-// once and reads the runner's own total. The floor sits ~3% under today's count — raise it
-// when the suite grows a lot. STENCIL_TEST_COUNT_RUN marks the inner run, so it never nests.
+// Test-count floor: the suite re-runs itself once and reads the runner's own total. The
+// floor sits ~3% under today's count; STENCIL_TEST_COUNT_RUN marks the inner run.
 const TEST_FLOOR = 178;
 const INNER_RUN = 'STENCIL_TEST_COUNT_RUN';
 

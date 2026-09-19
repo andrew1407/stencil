@@ -21,10 +21,8 @@ export const createWindowsApi = () => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
 
   const api = {
-    // ── Windows (the toolbar windows, by title) ──
-    // Titles come from config/uiStrings.json and match loosely (case/punctuation-free;
-    // hotkey ids like 'openProjects' work too). Opens through the window's own shell,
-    // flying out of its toolbar control; a disabled control throws the button's reason.
+    // Window titles come from config/uiStrings.json and match loosely (case/punctuation-free;
+    // hotkey ids work too). A disabled control throws the button's reason.
     get windows() { return WINDOWS.map((w) => w.title); },
     openWindow(title) {
       const w = findWindow(title);

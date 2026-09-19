@@ -11,10 +11,8 @@ export const pinDustStage = (stage, host, baseLeft = 0, baseTop = 0) => {
   return () => host.removeEventListener?.('scroll', onScroll);
 };
 
-// One dust stage over a source element's visible slice, shared by ghostOut/ghostIn.
-// `size` overrides the snapshot's pixel dimensions for a source whose .width/.height
-// aren't its pixel buffer (an <img>/<video> — openImageModal.js's preview arrival);
-// omitted, it reads canvas.width/height as before.
+// `size` overrides the snapshot's pixel dimensions for a source whose .width/.height aren't
+// its pixel buffer (an <img>/<video>); omitted, it reads canvas.width/height.
 export const makeDustStage = (canvas, size = null) => {
   const field = dustField(canvas);
   if (!field) return null;

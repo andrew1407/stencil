@@ -19,9 +19,8 @@ export const captureEditorState = (stencil) => {
     allowFormulas: stencil.allowFormulas,
     formulaX: stencil.formulaX,
     formulaY: stencil.formulaY,
-    // Read from `lines` (the LIVE list), not `layout` — that getter is the persisted
-    // project layout and goes stale. Copied to plain data: the facade hands back proxies
-    // into app.lines, which dereference to nothing once the lines are replaced.
+    // Read from `lines` (the LIVE list), not `layout` — that getter is the persisted project
+    // layout and goes stale. Copied to plain data: facade proxies dereference to nothing.
     lines: (stencil.lines || []).map((l) => {
       const out = { points: (l.points || []).map((p) => ({ x: p.x, y: p.y })) };
       for (const k of LINE_FIELDS) if (k !== 'points' && l[k] != null) out[k] = l[k];
@@ -47,9 +46,8 @@ const applySettings = (stencil, s) => {
   });
 };
 
-// After a reload: load() clears the line list a few frames AFTER it resolves. Wait for
-// that, because installing lines while some still exist raises the editor's "Replace
-// layout?" prompt — this is an internal restore, never a user paste.
+// load() clears the line list a few frames AFTER it resolves; installing lines while some
+// still exist raises the editor's "Replace layout?" prompt.
 const settleLinesAfterReload = async (stencil, s) => {
   for (let i = 0; i < 40 && lineCount(stencil) !== 0; i++) await nextFrame();
   if (!s.lines.length) return;
@@ -62,9 +60,8 @@ const settleLinesAfterReload = async (stencil, s) => {
   }
 };
 
-// exportImage() renders the filter AND the lines into the pixels, so a snapshot taken
-// for RESTORING must have both switched off — reloading a normal export would bake the
-// filter in permanently and burn the annotations into the image.
+// exportImage() renders the filter AND the lines into the pixels, so a snapshot taken for
+// RESTORING must have both switched off.
 export const capturePixels = async (stencil, exportImage) => {
   const { filter, showPoints, showLines } = stencil;
   stencil.apply({ filter: 'none', showPoints: false, showLines: false });
@@ -89,10 +86,8 @@ const netTurns = (actions) => {
   return ((q % 4) + 4) % 4;
 };
 
-// Put the editor back exactly as `state`/`pixels` found it. `actions` are the ops that
-// actually RAN (a variant that threw mid-way is undone only as far as it got): rotates
-// are turned back and the crop re-committed to the saved rect — both exact on the
-// untouched original — so no frame settles and no reload for the common variant.
+// `actions` are the ops that actually RAN. Rotates are turned back and the crop re-committed
+// to the saved rect — both exact on the untouched original — so no frame settles.
 export const restoreWorkingImage = async (stencil, pixels, state, actions) => {
   const ran = actions || [];
   if (needsPixelSnapshot(ran)) {

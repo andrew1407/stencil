@@ -4,19 +4,16 @@
 import { PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, SCHEMA } from './planSchema.js';
 import { OPS } from './opExecutors.js';
 
-// Every capability the browser chat surface wires (chatSession.js), so the shipped prompt
-// promises every registered op. assemblePrompts() with a reduced set drops bullets of ops
-// whose capability is missing (§13 capability truth) — those fall to §1's unknown-op skip.
+// Every capability the browser chat surface wires, so the shipped prompt promises every
+// registered op; a reduced set drops those bullets and §1's unknown-op skip catches them.
 export const BROWSER_CAPABILITIES = new Set([
   'loadAttachment', 'saveProject', 'removeProjectNamed', 'clearLocalProjects',
   'renameActiveProject', 'setBlankColor', 'openProjectNamed', 'clearChatConversation',
   'setChatPlacement', 'openDialog', 'setVoiceChat',
 ]);
 
-// §13 forbidden ops — the "never model-drivable" boundary (the registry's
-// forbidden.perSurface.browser list: provider config, clipboard reads, hotkey rebinding,
-// session end, chat persistence toggles, sharing beyond §10). Two enforcement teeth: a test
-// that no OPS key uses one of these names, and the reject in executeOpPlan.
+// §13 forbidden ops (the registry's forbidden.perSurface.browser list). Two enforcement teeth:
+// a test that no OPS key uses one of these names, and the reject in executeOpPlan.
 export const FORBIDDEN_OPS = new Set(SCHEMA.forbidden);
 
 // The typed error the executor throws for a forbidden op — even one that somehow
@@ -33,9 +30,8 @@ export class ForbiddenOpError extends Error {
 // \btoken\b (not a bare substring) so crop's legitimate "crop tokens" prose passes.
 const CENSORED = /api\s*key|bearer|\btoken\b|base\s*url|endpoint/i;
 
-// Assemble the §4 "Available ops" section and §10 settings block from the registry: entry
-// order IS bullet order, "also accepts" lines follow the settings bullets (alsoOrder), and
-// entries whose `requires` are not all in `available` are never promised.
+// Registry entry order IS bullet order, "also accepts" lines follow the settings bullets
+// (alsoOrder), and entries whose `requires` are not all in `available` are never promised.
 export const assemblePrompts = (available = BROWSER_CAPABILITIES) => {
   const coreBullets = [], settingsBullets = [], alsoEntries = [];
   for (const def of Object.values(OPS)) {
@@ -60,10 +56,8 @@ const ASSEMBLED = assemblePrompts();
 export const LLM_SYSTEM_PROMPT = ASSEMBLED.systemPrompt;
 export const EDITOR_SETTINGS_PROMPT = ASSEMBLED.settingsPrompt;
 
-// The browser editor's full system prompt: §4 + the §10 block at the OP LIST's end — which
-// is the `ask` paragraph's start, since §11 sits between the ops and the chat-only note.
-// The anchor is verified: rewording §4 without updating it must fail loudly here, not
-// silently ship an editor prompt with the §10 block missing.
+// §4 + the §10 block at the OP LIST's end, which is the `ask` paragraph's start. The anchor is
+// verified: rewording §4 without updating it must fail loudly here.
 const SETTINGS_SPLICE_ANCHOR = '\n\nWhen a choice is genuinely';
 if (!LLM_SYSTEM_PROMPT.includes(SETTINGS_SPLICE_ANCHOR)) {
   throw new Error('LLM_SYSTEM_PROMPT no longer contains the editor-settings splice anchor');

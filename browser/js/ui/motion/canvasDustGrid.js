@@ -23,9 +23,8 @@ export const dustVisibleBox = (r, frame) => {
            height: Math.min(r.top + r.height, frame.top + frame.height) - top };
 };
 
-// One canvas of grains in the colour of the pixels they came from; a cell still at home is
-// the picture itself. OUT runs top-down; IN is the same sweep reversed, so the first mote
-// out is the last one home.
+// One canvas of grains in the colour of the pixels they came from. OUT runs top-down; IN is
+// the same sweep reversed, so the first mote out is the last one home.
 export const dustDelay = (cy, rows, n, reverse = false) => {
   const progress = rows > 1 ? cy / (rows - 1) : 0;
   return (reverse ? 1 - progress : progress) * 0.55 + n * 0.12;

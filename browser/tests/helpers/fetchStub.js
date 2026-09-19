@@ -1,20 +1,8 @@
-// Shared `fetch` stub for the browser test suites.
-//
-// Node's real fetch would hit the network, so the suites that drive fetch-using code
-// each grew their own inline stand-in — a fixed `{ ok, json }` object here, a
-// call-recording wrapper there. This module is those stubs unified: a fetch function
-// that answers from a response SPEC (or a queue of them), and records every call.
-//
-// A response spec is any of:
-//   - a plain object of VALUES: { ok?, status?, json?, text?, blob?, arrayBuffer? }
-//     — wrapped into a Response-ish whose json()/text()/blob()/arrayBuffer() resolve
-//     to those values (ok defaults true; text falls back to JSON.stringify(json));
-//   - an Error — the fetch REJECTS with it (the network-failure path);
-//   - a ready-made Response-ish (json/text/blob already functions) — passed through;
-//   - a function (url, options) => Promise<Response-ish> — a full custom impl.
-//
-// Calls are recorded on `stub.calls`, each entry both an array `[url, options]` (for
-// suites that destructure the raw arguments) and an object with `.url`/`.options`.
+// Shared `fetch` stub for the browser test suites: a fetch that answers from a response SPEC, or a queue of
+// them, and records every call on `stub.calls` (each entry both `[url, options]` and an object). A spec is a
+// plain object of VALUES ({ ok?, status?, json?, text?, blob?, arrayBuffer? }, ok defaulting true, text falling
+// back to JSON.stringify(json)), an Error the fetch REJECTS with, a ready-made Response-ish passed through, or
+// a function (url, options) => Promise<Response-ish>.
 
 const isResponseLike = (s) =>
   ['json', 'text', 'blob', 'arrayBuffer'].some((k) => typeof s?.[k] === 'function');

@@ -50,12 +50,8 @@ const rig = () => {
            row: (k) => menu.children.find((r) => r.dataset.key === k) };
 };
 
-// ── The press the wipe swallows (browser accentPicker.test.js twin) ──────────
-// A view transition's snapshot owns the document's hit test while it plays: a press on a
-// row mid-wipe is delivered to <html>, so the row's own click never fires and the outside
-// press check reads it as a dismissal — picking a colour while its own hover preview was
-// still wiping closed the list and put the old accent back (user report). The rescue is a
-// window-level capture listener that resolves the press against the rows' boxes.
+// A view transition's snapshot owns the hit test while it plays: a press mid-wipe goes to <html>,
+// so the row's click never fires and the outside-press check reads it as a dismissal (user report).
 const stacked = (menu) => menu.children.forEach((li, i) => {
   li.getBoundingClientRect = () => ({ left: 100, right: 280, top: 200 + i * 30,
                                       bottom: 230 + i * 30, width: 180, height: 30 });

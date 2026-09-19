@@ -1,20 +1,6 @@
 #!/usr/bin/env node
-// Stencil AI-harness PreToolUse guard.
-//
-// Platform-agnostic (macOS/Linux/Windows) — pure `node:` builtins, no shell-isms.
-// Wired from .claude/settings.json as: `node .claude/hooks/guard.mjs`.
-// Reads the tool call as JSON on stdin, decides allow / ask / deny, and — for a
-// non-allow decision — prints a PreToolUse permission decision on stdout and exits 0.
-//
-// It runs in EVERY permission mode (including bypass/dangerous mode), so it is the
-// mode-independent backstop for the deny-list. Decisions:
-//   - deny : clearly-dangerous & irreversible / exfiltration-shaped. Hard block.
-//   - ask  : medium-risk. Surfaces a confirmation prompt (guarded, not blocked).
-//   - allow: everything else — normal allow-list flow proceeds untouched.
-//
-// The decision logic lives in `decide(payload, ctx)`, exported for unit tests
-// (.claude/hooks/guard.test.mjs). Fail-CLOSED: a malformed payload or an internal
-// error surfaces as an `ask` (with the error in the prompt), never a silent allow.
+// PreToolUse guard (wired from .claude/settings.json): decide() reads the tool call as JSON on
+// stdin and prints allow / ask / deny. Runs in EVERY permission mode; fail-CLOSED — errors ask.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -24,9 +10,6 @@ import { fileURLToPath } from 'node:url';
 
 const DEFAULT_LOCAL_ORIGINS = ['localhost', '127.0.0.1', '0.0.0.0', '::1', 'host.docker.internal'];
 
-// ---------------------------------------------------------------------------
-// context (repo root, home dir, allowed local origins) — overridable in tests
-// ---------------------------------------------------------------------------
 
 export function defaultCtx() {
   const repoRoot = process.env.CLAUDE_PROJECT_DIR || process.cwd();
@@ -45,9 +28,6 @@ const allow = () => ({ decision: 'allow' });
 const ask = (reason) => ({ decision: 'ask', reason });
 const deny = (reason) => ({ decision: 'deny', reason });
 
-// ---------------------------------------------------------------------------
-// path helpers
-// ---------------------------------------------------------------------------
 
 function toPosix(p) {
   return p.split(path.sep).join('/').replace(/\\/g, '/');
@@ -88,15 +68,10 @@ function isSecretPath(abs) {
   return false;
 }
 
-// ---------------------------------------------------------------------------
-// bash command inspection
-// ---------------------------------------------------------------------------
 
 const NETWORK_SINK = /\b(curl|wget|nc|ncat|netcat|scp|rsync|sftp|ftp|telnet|sendmail|Invoke-WebRequest|Invoke-RestMethod)\b/i;
-// Commands that can move a file's bytes into context or to another path. Pervasive
-// tools (grep/sed/cp/node/…) are ONLY consulted when the command ALSO touches a
-// secret path (reader ∧ commandTouchesSecret below) — plain `grep foo src/` stays
-// allowed. `(?<!\.)env` keeps the bare `env` command from matching the ".env" token.
+// Consulted only together with commandTouchesSecret, so `grep foo src/` stays allowed.
+// `(?<!\.)env` keeps the bare `env` command from matching the ".env" token.
 const SECRET_READERS = /\b(cat|bat|head|tail|less|more|strings|xxd|od|hexdump|base64|type|Get-Content|gc|grep|egrep|fgrep|rg|sed|awk|perl|python3?|node|jq|sort|cp|mv|printenv|(?<!\.)env)\b/i;
 
 // A secret path *token* referenced inside a raw command string.
@@ -182,9 +157,6 @@ function bashDecision(cmd, ctx) {
   return allow();
 }
 
-// ---------------------------------------------------------------------------
-// file-tool (Read / Edit / Write / NotebookEdit) inspection
-// ---------------------------------------------------------------------------
 
 function fileDecision(toolName, input, ctx) {
   const fp = input.file_path || input.path || input.notebook_path;
@@ -197,9 +169,6 @@ function fileDecision(toolName, input, ctx) {
   return allow();
 }
 
-// ---------------------------------------------------------------------------
-// chrome-devtools MCP inspection
-// ---------------------------------------------------------------------------
 
 function isLocalHost(hostport, ctx) {
   let h = String(hostport).trim().replace(/^\[/, '').replace(/\].*$/, '').replace(/:\d+$/, '').toLowerCase();
@@ -230,21 +199,15 @@ function uploadFileDecision(input, ctx) {
   return ask('uploads a local file into the page');
 }
 
-// ---------------------------------------------------------------------------
-// web fetch/search + browser navigation — exfil-shaped URL inspection
-// ---------------------------------------------------------------------------
 
-// Secret-path tokens for URL/query text. Deliberately tighter than
-// commandTouchesSecret: no bare `credentials`/`gcloud` words, so ordinary doc
-// lookups ("AWS credentials rotation") don't trip it.
+// Secret tokens for URL/query text — deliberately tighter than commandTouchesSecret:
+// no bare `credentials`/`gcloud` words, so ordinary doc lookups don't trip it.
 const URL_SECRET_TOKEN = /\.env(?![.\w])|\bid_rsa\b|\bid_ed25519\b|\bid_dsa\b|\bid_ecdsa\b|\.ssh\//i;
 
 const BASE64ISH_BLOB = /[A-Za-z0-9+/=_-]{200,}/; // a long unbroken encodable run
 
-// Ask-level checks for a URL an outbound request/navigation will hit. Returns a
-// decision, or null when the URL looks like a normal doc/page load. Local and
-// user-allowlisted origins are always fine — the browser app legitimately takes
-// huge `#stencil=` fragments on localhost.
+// Returns a decision for a URL an outbound request will hit, or null for a normal page load.
+// Local/user-allowlisted origins are always fine — `#stencil=` fragments are huge on localhost.
 function urlExfilDecision(rawUrl, ctx) {
   const s = String(rawUrl || '');
   let u;
@@ -282,9 +245,6 @@ function navigationDecision(input, ctx) {
   return urlExfilDecision(input && input.url, ctx) || allow();
 }
 
-// ---------------------------------------------------------------------------
-// dispatcher
-// ---------------------------------------------------------------------------
 
 export function decide(payload, ctx = defaultCtx()) {
   const tool = payload && payload.tool_name;
@@ -313,9 +273,6 @@ export function decide(payload, ctx = defaultCtx()) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// main (only when executed directly, not when imported by the test)
-// ---------------------------------------------------------------------------
 
 function readStdin() {
   return new Promise((resolve) => {

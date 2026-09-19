@@ -1,12 +1,8 @@
 // ── LLM assistant settings (llm-contract.md §5 + §8) ───────────────────
-// Persisted provider configuration for the extension's assistant, in the contract's
-// shape { provider, baseUrl, model, apiKey, serverUrl } plus one extension extra:
-// `serverToken`, an explicit bearer token for `stencil-server` used only when the
-// configured serverUrl is NOT among the stored server connections (whose tokens are
-// preferred — see llmSurface.js serverTokenFor). Stored under the chrome.storage key
-// `llmSettings` (contract §5/§8 table); chrome.storage.local, like the connection
-// tokens, so the apiKey never syncs across machines. All chrome.* access is guarded
-// (connections.js pattern) so importing this module under `node --test` stays inert.
+// Persisted provider configuration in the contract's shape { provider, baseUrl, model,
+// apiKey, serverUrl } plus the extension's own `serverToken`. Stored under the chrome.storage
+// key `llmSettings`, in storage.local so the apiKey never syncs across machines. All chrome.*
+// access is guarded, so importing this module under `node --test` stays inert.
 import PROVIDERS_ASSET from '../config/providers.json' with { type: 'json' };
 import { loadConnections } from '../lib/connections.js';
 
@@ -15,15 +11,12 @@ export const LLM_SETTINGS_KEY = 'llmSettings';
 // 'none' is a local-only value: assistant switched off, nothing configured or sent.
 export const PROVIDERS = Object.freeze(['none', ...Object.keys(PROVIDERS_ASSET.providers)]);
 
-// Is the assistant switched on? 'none' means OFF (contract §5): nothing is probed or
-// sent, and the surfaces hide their assistant UI entirely rather than offering a chat
-// that can't answer — the same rule the browser and desktop menus gate on. Anything
-// unrecognised counts as ON, matching loadLlmSettings' fallback to the default provider.
+// 'none' means OFF (contract §5): nothing is probed or sent and the assistant UI hides.
+// Anything unrecognised counts as ON, matching loadLlmSettings' provider fallback.
 export const assistantEnabled = (settings) => !!settings && settings.provider !== 'none';
 
-// Provider → pre-filled default base URL (providers.json, contract §5 table).
-// stencil-server's is null there — it uses an already-configured collaboration
-// server connection instead, so it pre-fills empty.
+// Provider → default base URL (providers.json, contract §5). stencil-server's is null there
+// — it reuses a configured collaboration server connection, so it pre-fills empty.
 export const PROVIDER_BASE_URLS = Object.fromEntries(
   Object.entries(PROVIDERS_ASSET.providers).map(([id, p]) => [id, p.defaultBaseUrl || '']),
 );
@@ -39,10 +32,8 @@ const BOOL_KEYS = ['shareTabs'];
 export const URL_KEYS = Object.freeze(['baseUrl', 'serverUrl']);
 export const isHttpUrl = (v) => /^https?:\/\//i.test(String(v == null ? '' : v));
 
-// First-run defaults: ollama on its standard local port, model empty (the user picks),
-// serverUrl pre-filled with the FIRST stored Stencil server connection (empty when none).
-// shareTabs is the §8 tab-listing opt-in — OFF: it sends the one thing the user did not
-// point the assistant at (their other tabs' titles/addresses), on every turn.
+// First-run defaults; serverUrl pre-fills from the FIRST stored server connection.
+// shareTabs (the §8 opt-in) is OFF: it would send other tabs' titles/URLs every turn.
 export const defaultSettings = (connections = []) => ({
   provider: 'ollama',
   baseUrl: PROVIDER_BASE_URLS.ollama,
@@ -55,9 +46,8 @@ export const defaultSettings = (connections = []) => ({
 
 const storage = () => globalThis.chrome?.storage?.local;
 
-// Saved overrides merged over the defaults. Bad/missing data degrades to defaults.
-// `connections` is injectable for tests; by default the stored connection list is
-// read so the stencil-server default URL follows the first configured server.
+// Bad or missing stored data degrades to the defaults. `connections` is injectable for
+// tests; otherwise the stencil-server default URL follows the first configured server.
 export const loadLlmSettings = async ({ connections } = {}) => {
   const conns = connections !== undefined ? connections : await loadConnections();
   const defaults = defaultSettings(conns);

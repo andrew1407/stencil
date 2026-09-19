@@ -1,12 +1,8 @@
-// ── moveCheck: did a JS refactor MOVE code, or change it? ────────
+// ── moveCheck: did a JS refactor MOVE code, or change it? ────
 // Hashes every top-level function / class-method / arrow-const body at <gitRef> and in the
-// working tree — comments stripped, whitespace collapsed — then diffs the two multisets of
-// hashes. A pure move leaves zero LOST and zero NEW, even when the bodies changed file.
-//
+// working tree — comments stripped, whitespace collapsed — then diffs the two multisets.
 //   node tools/moveCheck.mjs <gitRef> <path...>   (paths: files or dirs; exits 1 on LOST)
 //   node tools/moveCheck.mjs --self-test
-//
-// The scanner here is hand-rolled (no parser dependency) and shared with commentOnlyDiff.mjs.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';

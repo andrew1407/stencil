@@ -26,9 +26,8 @@ export const assertSelfContained = (file) => {
   if (modules.length !== 1) problems.push(`expected exactly 1 inline module script, found ${modules.length}`);
   if (!/<style>[\s\S]*?<\/style>/.test(html)) problems.push('no inline <style> — the CSS did not get folded in');
 
-  // The only data: URIs the build makes are the two SVG icons. An inlined JSON asset means
-  // vite resolved a `new URL(x, import.meta.url)` to a file on the builder's disk — the
-  // gitignored operator config, say — and baked it into a page meant to be handed around.
+  // The only data: URIs the build makes are the two SVG icons; an inlined JSON asset means vite resolved a
+  // `new URL(x, import.meta.url)` to a file on the builder's disk and baked it into the page.
   if (/data:application\/json/.test(html)) problems.push('an inlined JSON asset (a local file baked into the page)');
 
   // Parse the inline module the way the browser will. Catches a script cut short by an

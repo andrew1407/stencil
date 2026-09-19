@@ -33,10 +33,8 @@ test('empty text clears both attributes, and a missing element is a no-op', () =
   assert.equal(setTip({}, 'x').tag, undefined, 'an element with no setAttribute is skipped');
 });
 
-// ── The audit: no native tooltips anywhere the custom one runs ──
-// lib/overlay.js is the one exception and says so in its own comment: it is injected into
-// the HOST page (executeScript({func}) — it cannot import), so controlTooltip.js never
-// runs over it and data-title alone would leave its two icons unexplained.
+// lib/overlay.js is the one exception: it is injected into the HOST page (executeScript({func}), so
+// it cannot import), which means controlTooltip.js never runs over it.
 const NATIVE_TITLE_OK = new Set(['src/lib/overlay.js']);
 // controlTooltip.js blanks/restores a native title it finds (a port pinned byte-for-byte
 // against its browser twin); tipContent.js's `tip.title` is a plain object field.

@@ -1,14 +1,8 @@
-// Regression tests for the chat-driven incognito openUrl (llm-contract.md §10).
-//
-// The bug: `openIncognito` launched a SECOND tab (`window.open` + a `#stencil=` fragment
-// at the app's own URL). The browser focused it, so the user was looking at a freshly
-// booted editor with an empty chat — indistinguishable from "the page reloaded and the
-// conversation vanished" — while the rest of the plan kept executing back in the tab they
-// could no longer see, on an editor with no image (crop threw and killed the turn).
-//
-// The fix adopts incognito IN PLACE, like the Open-Image dialog's "Open here" + incognito
-// (and desktop's openSourceHere): flush the outgoing project, reset the editor KEEPING the
-// live conversation, switch incognito on, load here.
+// The chat-driven incognito openUrl (llm-contract.md §10) adopts incognito IN PLACE, like the Open-Image
+// dialog's "Open here" and the desktop's openSourceHere: flush the outgoing project, reset the editor KEEPING
+// the live conversation, switch incognito on, load here. A second tab instead leaves the user looking at a
+// freshly booted editor with an empty chat while the rest of the plan executes in the tab they can no longer
+// see, on an editor with no image.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -53,9 +47,8 @@ test('adoptIncognitoHere: an already-incognito editor has nothing to flush', () 
   assert.deepEqual(mock.calls.map(([n]) => n), ['newEditor', 'updateIncognitoUI']);
 });
 
-// storage.newTemporary swaps the §12 chat scope (projectOpened(null) clears the visible
-// transcript AND the replay history). That is right for a project switch and fatal
-// mid-turn — the adoption is the one caller that opts out.
+// storage.newTemporary swaps the §12 chat scope (projectOpened(null) clears the visible transcript AND the
+// replay history): right for a project switch, fatal mid-turn, so the adoption is the one caller that opts out.
 test('newTemporary({ keepChat }) is what protects the live conversation', () => {
   const body = src('../js/core/storage.js');
   const at = body.indexOf('  newTemporary({');

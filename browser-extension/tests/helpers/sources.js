@@ -39,9 +39,8 @@ const motionDir = fileURLToPath(new URL('../../src/lib/motion/', import.meta.url
 export const motionSrc = () => [read('../../src/lib/motionPrefs.js')]
   .concat(readdirSync(motionDir).sort().map((f) => readFileSync(motionDir + f, 'utf8'))).join('\n');
 
-// The browser's animation sheets are a set too (css/animations/), linked by its index.html;
-// read them in that link order so a parity assertion can slice a section that now spans
-// two of them.
+// The browser's animation sheets are a set, linked by its index.html; read in that link order so
+// a parity assertion can slice a section that now spans two of them.
 export const browserAnimationsCss = () => {
   const root = new URL('../../../browser/', import.meta.url);
   const html = readFileSync(fileURLToPath(new URL('index.html', root)), 'utf8');

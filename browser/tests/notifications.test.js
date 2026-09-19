@@ -78,9 +78,8 @@ test('a toast retired early by the cap does not stage its exit twice', (t) => {
     let removals = 0;
     const realRemove = retired.remove;
     retired.remove = () => { removals++; realRemove(); };
-    // Its own auto-hide timer still fires later; that must be a no-op, not a second exit
-    // (which would re-add the class to an element already gone from the DOM and schedule
-    // another removal).
+    // Its own auto-hide timer still fires later, and that must be a no-op rather than a second exit re-adding
+    // the class to an element already gone from the DOM.
     t.mock.timers.tick(10_000);
     assert.equal(removals, 1, 'the early exit removed it once; the stale timer did nothing');
     // A second tick flushes the removal timers those auto-hides scheduled (mock timers
@@ -139,10 +138,8 @@ test('the cap matches the desktop stack, and the CSS stacks the column', () => {
   assert.match(anims, /\.notify-toast\.notify-leaving \{\n\s*animation: notifyLeave/, 'and the exit is its own');
 });
 
-// ── Coalescing: a duplicate message extends, never stacks ───────────────────
-// A zoom burst raises a "Saved" per step; the stack must show ONE toast whose
-// lifetime keeps extending — same element, so the entrance animation is never
-// replayed and nothing flickers.
+// A duplicate message EXTENDS, never stacks: one toast whose lifetime keeps growing, the same element, so
+// the entrance animation is never replayed and nothing flickers.
 
 test('an identical toast coalesces: same element, extended lifetime, no flicker', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
@@ -191,10 +188,8 @@ test('clickable toasts never coalesce — each carries its own action', (t) => {
   });
 });
 
-// REGRESSION: a toast's exit crawled at full opacity and then snapped out. One timing
-// function drives both the mote's travel and its alpha, and tileScatterSurface holds
-// alpha near 1 until 55%, so linear and ease-in both left a tail. The default ease-out
-// covers the distance early and fades with it, so the toast overrides no curve at all.
+// One timing function drives both a mote's travel and its alpha, and tileScatterSurface holds alpha near 1
+// until 55%, so only the default ease-out fades with the distance: the toast overrides no curve.
 test('the toast exit rides the shared scatter curve, on a short clock', () => {
     const js = readFileSync(new URL('../js/ui/notifications.js', import.meta.url), 'utf8');
     const enter = Number(/const ENTER_DUST_MS = SURFACE_MENU_IN_MS \* (\d+)/.exec(js)[1]) * 340;

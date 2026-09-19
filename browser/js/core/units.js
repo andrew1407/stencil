@@ -46,9 +46,8 @@ const PAGE_NAME_BY_LOWER = Object.fromEntries(
 export const normalizePageSize = (s) =>
   PAGE_NAME_BY_LOWER[String(s || '').trim().toLowerCase()] ?? null;
 
-// Total length of every segment in a saved layout, in cm, by the same named-size +
-// landscape-swap rule as getPageDimensions; independent of the display unit and of any
-// formulas. Cached on the meta as `lineLengthCm` to feed the projects-list tooltip.
+// Total length of every segment in a saved layout, in cm, by getPageDimensions' named-size +
+// landscape-swap rule. Cached on the meta as `lineLengthCm`.
 export const layoutLineLengthCm = (layout) => {
   const lines = layout && layout.lines;
   const cw = layout && layout.imageWidth;
@@ -75,10 +74,8 @@ export const layoutLineLengthCm = (layout) => {
   return total;
 };
 
-// "A4 (21 × 29.7)" / "A4 (8.27 × 11.69)"; unknown names (incl. 'custom') echo back unchanged.
-// No trailing unit word: this label always sits beside its own unit dropdown (#unit-select),
-// which already says "cm"/"in" once for the whole row — repeating it per option said nothing
-// new (user report).
+// "A4 (21 × 29.7)"; unknown names (incl. 'custom') echo back unchanged. No trailing unit word:
+// the label sits beside its own unit dropdown, which says it once per row (user report).
 export const pageFormatLabel = (name, unit = 'cm') => {
   const ps = PAGE_SIZES[name];
   if (!ps) return name;

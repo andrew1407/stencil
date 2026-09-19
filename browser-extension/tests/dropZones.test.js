@@ -23,13 +23,8 @@ test('quadrantAt splits on the exact midpoint (< is top/left)', () => {
 });
 
 
-// ── The zones wear the EXTENSION's theme, not the page's ────────────────────
-// They used to key their light palette off `@media (prefers-color-scheme: light)`, so a
-// dark-set extension still dropped white panels onto a light desktop. The Appearance
-// choice now travels in (unresolved — only the target page can answer 'system').
-// NB: mounting arms the overlay's own 12s self-teardown timer. Left running it fires
-// after the stub document is gone and takes the whole FILE down with it, so every caller
-// mounts under mocked timers.
+// The zones wear the EXTENSION's Appearance choice, which travels in unresolved. NB: mounting
+// arms the overlay's 12s self-teardown — left running it takes the whole FILE down, so mock timers.
 const stylesFor = (mode, prefersDark) => {
   const styles = [];
   const el = () => stubEl('div', { attachShadow: () => ({ append: (...n) => styles.push(...n) }) });

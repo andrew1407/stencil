@@ -6,9 +6,8 @@ import { icon } from './icons.js';
 // One keyword list, edited as chips. The list is the value; the input above it only
 // proposes words. Desktop twin: dialogs/KeywordChips.{hpp,cpp}.
 
-// The chip's own clocks, all twinned in KeywordChipsMotion.cpp and the projectMeta.css
-// keyframes. The mote size, clock, throw and grid are the shared chip recipe
-// (motion/tiles.js), so anything else that should read like a chip flies on the same one.
+// Twinned in KeywordChipsMotion.cpp and the projectMeta.css keyframes. The mote size, clock,
+// throw and grid are the shared chip recipe (motion/tiles.js).
 const CHIP_LEAVE_MS = CHIP_DUST_MS;
 const ENTER_DELAY_MS = 285;
 const CHIP_ENTER_MS = 510;
@@ -110,9 +109,8 @@ export const keywordChipsField = ({ placeholder }) => ({
       const arrived = [];
       for (const word of list)
         if (!nodeFor.has(word)) { const el = makeChip(word); nodeFor.set(word, el); arrived.push(el); }
-// Re-appending an existing node MOVES it, so only restack when the ORDER really changed —
-// an add, or a re-add pulling a word to the front. On a plain removal the survivors keep
-// their places; the chips after the gap still slide, pulled by its collapse.
+// Re-appending an existing node MOVES it, so only restack when the ORDER really changed; on a
+// plain removal the survivors keep their places.
       const shown = laidOut.filter((w) => nodeFor.has(w));
       if (arrived.length || !sameOrder(shown, list))
         for (const word of list) chips.appendChild(nodeFor.get(word));

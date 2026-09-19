@@ -6,9 +6,8 @@ import { TUNE } from './tune.js';
 export const REVEAL_GROUP_IN_MS = TUNE.REVEAL_GROUP_IN_MS;
 export const REVEAL_GROUP_OUT_MS = TUNE.REVEAL_GROUP_OUT_MS;
 
-// A bar holding revealed controls never flies itself — its controls do — so this is a
-// display flip, deferred on the way out by their flight (desktop: updateBatchBar).
-// `want()` is asked now and again on arrival, so a selection made mid-flight keeps it.
+// A bar holding revealed controls never flies itself — its controls do — so this is a display
+// flip, deferred on the way out by their flight (desktop: updateBatchBar).
 export const BAR_CLOSING_CLASS = 'bar-closing';
 // Worn first: held at its measured height so the controls leaving cannot collapse it early.
 export const BAR_HELD_CLASS = 'bar-held';
@@ -54,9 +53,8 @@ export const revealBar = (el, want, { display = 'flex', ms = 0, setTimer = setTi
 };
 const REVEAL_GROUP_TRANSITION_CLASS = 'reveal-group-transition';
 
-// One slide of a revealed group's slot. `defer` waits two painted frames before `to`.
-// `ease` is the slot's own curve: the app's usual bezier is half done in 30ms, which makes
-// a whole slot jump open and crawl; opening rides easeOutCubic, closing the modal's S.
+// `ease` is the slot's own curve: the app's usual bezier is half done in 30ms, which makes a
+// slot jump open and crawl — opening rides easeOutCubic, closing the modal's S.
 const REVEAL_EASE_IN = TUNE.REVEAL_EASE_IN;
 const REVEAL_EASE_OUT = TUNE.REVEAL_EASE_OUT;
 const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0, cleanup = null, ease = REVEAL_EASE_IN } = {}) => {
@@ -83,8 +81,7 @@ const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0,
 };
 
 // Keep a group's cloud anchored to the group for its flight (desktop:
-// DisintegrateOverlay::setFollow): a sibling's slot pushes it along the row meanwhile.
-// Left/top only; stops with the host or on display:none.
+// DisintegrateOverlay::setFollow). Left/top only; stops with the host or on display:none.
 const followDust = (el, ms) => {
   if (typeof requestAnimationFrame !== 'function' || !el.getBoundingClientRect) return;
   const started = Date.now();
@@ -100,9 +97,8 @@ const followDust = (el, ms) => {
   requestAnimationFrame(step);
 };
 
-// `dust: false` slides the slot without a cloud (a wide, mostly empty element; desktop
-// twin: revealControls' `dust`). `ms` overrides the slot's clock so a group can land
-// together with something else.
+// `dust: false` slides the slot without a cloud (desktop twin: revealControls' `dust`); `ms`
+// overrides the slot's clock so a group can land together with something else.
 export function revealControls(el, show, display = 'inline-flex',
                                { vertical: axis = null, dust = true, ms = 0 } = {}) {
   const inMs = ms || REVEAL_GROUP_IN_MS;

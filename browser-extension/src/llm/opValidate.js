@@ -12,9 +12,8 @@ const indicesOp = (entry, a, listingLength) => {
   return { op: entry.name, indices: indices.map((i) => validIndex(i, listingLength, entry.name)) };
 };
 
-// The actions allowed inside `open` (§2 subset, registry opset "extensionOpen"). A §2 op
-// OUTSIDE the subset is a known-but-invalid action → the whole plan fails; a truly
-// unknown op drops with a warning (§1 forward compatibility).
+// A §2 op OUTSIDE the "extensionOpen" opset is known-but-invalid → the whole plan fails;
+// a truly unknown op drops with a warning (§1 forward compatibility).
 const validateOpenActions = (list, warnings) => {
   const out = [];
   for (const a of list || []) {
@@ -59,12 +58,8 @@ const VALIDATE = {
   },
 };
 
-// ── The op registry (contract §8 + §13) ──
-// One ordered entry per op this surface registers, assembled from the shared registry's
-// extension entries: name + prompt bullet + flags (`gather` marks context-gathering ops —
-// §8 auto-continuation; `panelSettings` the panel's own controls) + validate. The
-// prompt's "Available ops" is assembled from the bullets in this order, and
-// chatController.js's executors key on the same names.
+// ── The op registry (contract §8 + §13), from the shared registry's extension entries. The
+// prompt's "Available ops" follows this order; chatController's executors key on the names.
 export const OP_REGISTRY = SCHEMA.entries.map((entry) => {
   const def = {
     name: entry.name,

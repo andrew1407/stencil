@@ -42,18 +42,15 @@ export const PAGE_SIZES = Object.freeze({
 });
 export const DEFAULT_PAGE = 'A3';
 
-// Selector label for a named format, e.g. "A4 (21 × 29.7)" — no trailing unit word: the
-// page in cm is stated once beside the Custom W/H fields, and repeating it per option said
-// nothing new (browser/desktop twin: units.js pageFormatLabel, guiHelpers fillPageSizeCombo).
-// The table values need no rounding/trimming.
+// Selector label for a named format, e.g. "A4 (21 × 29.7)" — no trailing unit word: the page in
+// cm is stated once beside the Custom W/H fields (twin: units.js pageFormatLabel).
 export const pageSizeLabel = (name) => {
   const d = PAGE_SIZES[name];
   return d ? `${name} (${d.width} × ${d.height})` : name;
 };
 
-// <option> markup for every named format (canonical order, labelled via
-// pageSizeLabel) — shared by the options page and the crop dialog; callers
-// prepend extras such as the crop dialog's Custom entry.
+// <option> markup for every named format, in canonical order — shared by the options page and
+// the crop dialog; callers prepend extras such as the crop dialog's Custom entry.
 export const pageSizeOptions = () =>
   Object.keys(PAGE_SIZES).map((n) => `<option value="${n}">${pageSizeLabel(n)}</option>`).join('');
 
@@ -127,10 +124,8 @@ export const moveCropClamped = (cur, dx, dy, imageW, imageH) => {
   };
 };
 
-// Scale a crop about its CENTRE by `factor` (>1 grows), aspect fixed, centre held (so growth
-// is capped by the nearer edge), floored at `minSize`. Mirrors core/geometry/cropGeometry
-// scaleCropCentered (and the editor's browser/js/core/cropGeometry.js) so the quick-crop
-// wheel/pinch resize matches the full editor.
+// Scale a crop about its CENTRE by `factor`, aspect fixed and centre held (so growth is capped by
+// the nearer edge), floored at `minSize`. Mirrors core/geometry/cropGeometry scaleCropCentered.
 export const scaleCropCentered = (cur, factor, aspectWoverH, imageW, imageH, minSize = 16) => {
   if (factor <= 0 || cur.width <= 0 || cur.height <= 0 || aspectWoverH <= 0) return { ...cur };
   const cx = cur.x + cur.width * 0.5;
@@ -161,9 +156,8 @@ export const roundRect = (r, iw, ih) => {
   return { x, y, width: w, height: h };
 };
 
-// Resolve page dimensions (cm). `page` is any ISO format name ('A0'..'C10') or
-// 'custom'; for 'custom' pass the explicit width/height (cm). Unknown names fall
-// back to A4 (mirrors the editor).
+// Page dimensions in cm. `page` is an ISO name ('A0'..'C10') or 'custom' (then pass explicit
+// width/height in cm). Unknown names fall back to A4, mirroring the editor.
 export const pageDims = (page, customW, customH) => {
   if (page === 'custom') return { width: customW, height: customH };
   return PAGE_SIZES[page] || PAGE_SIZES.A4;

@@ -1,21 +1,9 @@
-// ProjectTransferController (js/core/projectTransferController.js): the local ↔ server
-// move/copy flows and the version-guarded field push, driven against a mocked server
-// connection — the unit coverage its extraction from drawingApp.js makes possible.
-
+// ProjectTransferController (js/core/projectTransferController.js): the local ↔ server move and
+// copy flows, driven against a mocked connection. Rig: helpers/projectTransferRig.js.
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { ProjectTransferController } from '../js/core/projectTransferController.js';
 import { installFetchStub } from './helpers/fetchStub.js';
-
-// #blobToDataUrl runs through FileReader, which Node lacks: a minimal stand-in that
-// "reads" any blob to a fixed data URL.
-const FAKE_DATA_URL = 'data:image/png;base64,ZmFrZQ==';
-class FakeFileReader {
-  readAsDataURL() {
-    this.result = FAKE_DATA_URL;
-    queueMicrotask(() => this.onload && this.onload());
-  }
-}
+import { FAKE_DATA_URL, FakeFileReader, makeConn, makeRig } from './helpers/projectTransferRig.js';
 
 let fetchStub;
 beforeEach(() => {
@@ -26,68 +14,6 @@ afterEach(() => {
   delete globalThis.FileReader;
   fetchStub.restore();
 });
-
-// A recording server connection covering the REST surface the transfer flows touch.
-const makeConn = (url = 'https://srv.example', over = {}) => {
-  const conn = {
-    url,
-    calls: [],
-    createProject: async (fields) => { conn.calls.push(['createProject', fields]); return { id: 'r1', version: 1 }; },
-    putFile: async (id, kind, bytes, meta) => { conn.calls.push(['putFile', id, kind, bytes, meta]); },
-    updateProject: async (id, fields) => { conn.calls.push(['updateProject', id, fields]); return { id, version: (fields.version || 0) + 1 }; },
-    getProject: async (id) => { conn.calls.push(['getProject', id]); return { project: { id, name: 'Remote', version: 7, source: '', color: '#112233' }, layout: { imageWidth: 4, imageHeight: 3, lines: [] } }; },
-    deleteProject: async (id) => { conn.calls.push(['deleteProject', id]); },
-    ...over,
-  };
-  return conn;
-};
-
-// A recording projects-store + storage + tabs + host rig with just what the flows read.
-const makeRig = ({ conn, meta = {}, payload = {} } = {}) => {
-  const calls = [];
-  const store = {
-    get: (id) => ({ id, payload }),
-    getMeta: () => ({ id: 'p1', name: 'Local', ...meta }),
-    upsert: (m, p) => { calls.push(['upsert', m, p]); },
-    createId: () => 'new-local',
-    remove: (id) => { calls.push(['remove', id]); },
-    list: () => [],
-  };
-  const storage = {
-    temporary: false,
-    incognito: false,
-    store,
-    save: () => { calls.push(['storage.save']); },
-    newTemporary: () => { calls.push(['storage.newTemporary']); },
-    loadProject: (id) => { calls.push(['storage.loadProject', id]); return true; },
-  };
-  const tabs = {
-    projectsChanged: (d) => { calls.push(['projectsChanged', d]); },
-    reportActive: (id) => { calls.push(['reportActive', id]); },
-  };
-  const remoteSync = {
-    fetchRemoteOriginal: async () => new Blob([new Uint8Array([9])], { type: 'image/png' }),
-    reloadRemoteActive: () => { calls.push(['reloadRemoteActive']); },
-  };
-  const host = {
-    activeProjectId: null,
-    remoteLink: null,
-    blankColor: '',
-    imageBaseName: '',
-    chatPersistence: null,
-    updateProjectTitle: () => { calls.push(['updateProjectTitle']); },
-    updateIncognitoUI: () => { calls.push(['updateIncognitoUI']); },
-    newEditor: () => { calls.push(['newEditor']); },
-    loadImageFromFile: (file, opts) => { calls.push(['loadImageFromFile', file, opts]); },
-    setBlankColor: (c) => { calls.push(['setBlankColor', c]); },
-  };
-  const ctrl = new ProjectTransferController({
-    storage, tabs, remoteSync,
-    getConnections: () => ({ get: (addr) => (addr === conn.url ? conn : null) }),
-    host,
-  });
-  return { ctrl, calls, store, storage, tabs, host };
-};
 
 test('moveProjectToServer creates the project remotely and links the local copy', async () => {
   const conn = makeConn();
@@ -194,38 +120,3 @@ test('copyServerProjectToIncognito flushes, resets, and loads the image as an un
   assert.equal(load[2].remoteId, undefined, 'no server link rides the incognito copy');
 });
 
-test('transfer to an unconnected server rejects up front', async () => {
-  const conn = makeConn();
-  const { ctrl } = makeRig({ conn });
-  await assert.rejects(() => ctrl.moveProjectToServer('p1', 'https://elsewhere.example'), /Not connected/);
-  assert.equal(conn.calls.length, 0);
-});
-
-test('pushProjectFieldToServer retries a 409 with the re-read version and adopts the bump', async () => {
-  let failures = 1;
-  const conn = makeConn('https://srv.example', {
-    updateProject: async (id, fields) => {
-      conn.calls.push(['updateProject', id, fields]);
-      if (failures-- > 0) { const e = new Error('conflict'); e.status = 409; throw e; }
-      return { id, version: fields.version + 1 };
-    },
-  });
-  const { ctrl, host } = makeRig({ conn });
-  host.activeProjectId = 'p1';
-  host.remoteLink = { address: conn.url, remoteId: 'srv-9', version: 2 };
-
-  await ctrl.pushProjectFieldToServer('p1', { color: '#123456' }, 'fail');
-
-  const updates = conn.calls.filter(c => c[0] === 'updateProject');
-  assert.equal(updates.length, 2);
-  assert.equal(updates[0][2].version, 2, 'first attempt uses the cached version');
-  assert.equal(updates[1][2].version, 7, 'retry uses the server\'s re-read version');
-  assert.equal(host.remoteLink.version, 8, 'the bumped version is adopted onto the live link');
-});
-
-test('pushProjectFieldToServer is a no-op for a project with no server link', async () => {
-  const conn = makeConn();
-  const { ctrl } = makeRig({ conn, meta: {} });
-  await ctrl.pushProjectFieldToServer('p1', { color: '#123456' }, 'fail');
-  assert.equal(conn.calls.length, 0);
-});

@@ -1,11 +1,8 @@
-// Parity coverage for the WebAssembly core (js/wasm/stencilCore.js, compiled
-// from core/). The other JS suites exercise the hand-written fallback
-// path (no wasm ops installed); this one loads the real wasm module and asserts:
-//   1. the compiled C++ agrees with the JS reference (so the fallback the other
-//      suites test stays a faithful stand-in, and the shipped .js is in sync), and
-//   2. the js/core/stencilCore.js marshalling (strings, char codes, flat point
-//      arrays, output pointers, the RGBA pixel buffer) round-trips correctly.
-// Node loads the SINGLE_FILE ES module directly — no browser, no emcc needed.
+// Parity coverage for the WebAssembly core (js/wasm/stencilCore.js, compiled from core/). The other JS suites
+// exercise the hand-written fallback path; this one loads the real wasm module and asserts that the compiled
+// C++ agrees with the JS reference — so the fallback stays a faithful stand-in and the shipped .js is in sync
+// — and that the js/core/stencilCore.js marshalling (strings, char codes, flat point arrays, output pointers,
+// the RGBA pixel buffer) round-trips. Node loads the SINGLE_FILE ES module directly, with no emcc.
 import { test, before } from 'node:test';
 import assert from 'node:assert';
 import { existsSync } from 'node:fs';
@@ -15,18 +12,10 @@ import { core } from '../js/core/stencilCore.js';
 import { distToSegment, parseHex } from '../js/utils.js';
 import { FormulaEngine } from '../js/core/formulaEngine.js';
 import { parseDuration } from '../js/core/durationParser.js';
-import { applyContourRGBA } from '../js/core/contourFilter.js';
 import constants from '../js/config/constants.json' with { type: 'json' };
-import {
-  cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS, scaleCropCenteredJS,
-  swapCropOrientationJS, cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS
-} from '../js/core/cropGeometry.js';
 
-// js/wasm/stencilCore.js is a generated artifact (gitignored) — present only after
-// the Emscripten build (CI's WASM job, or a local build per core/WASM.md). When
-// it is missing, skip this whole suite rather than fail the build: the other suites
-// already cover the JS reference path that the wasm core mirrors. core.init() does
-// the dynamic import internally, so it only touches the artifact when built.
+// js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
+// suite skips when it is missing: the other suites already cover the JS reference path it mirrors.
 const MODULE_BUILT = existsSync(fileURLToPath(new URL('../js/wasm/stencilCore.js', import.meta.url)));
 // Register as skipped (not failed) when the artifact is absent.
 const wtest = MODULE_BUILT ? test : test.skip;
@@ -82,11 +71,8 @@ wtest('formula apply/validate: wasm matches JS reference (char-code marshalling)
   assert.strictEqual(apply('x*2', 'x', 5, false), 5);
 });
 
-// Adversarial / large formula strings must be marshalled over the heap, not the
-// fixed ~64KB wasm stack — an oversized cwrap('string') arg used to overflow the
-// stack and corrupt the module (crash on the next call). The parser's depth cap
-// rejects deep nesting; a long *flat* expression stays valid. Both must agree with
-// the JS fallback op-for-op, and none may crash the wasm instance.
+// Long formula strings are marshalled over the heap, never the fixed ~64KB wasm stack that an oversized
+// cwrap('string') arg overflows; the depth cap rejects deep nesting, a long FLAT expression stays valid.
 wtest('formula: long/adversarial strings marshal over the heap without corrupting wasm', () => {
   const apply = core.op('formulaApply');
   const valid = core.op('formulaValidate');
@@ -165,114 +151,4 @@ wtest('shouldCloseShape: wasm matches the JS close gate (flat point array)', () 
   assert.strictEqual(fn(sq, { x: 2, y: 2 }, 4), true);   // ≥3 pts, within pointSize+8
   assert.strictEqual(fn(sq, { x: 50, y: 50 }, 4), false); // too far
   assert.strictEqual(fn(sq.slice(0, 2), { x: 0, y: 0 }, 4), false); // <3 pts
-});
-
-wtest('rotatePoints + boundingBoxCenter: wasm matches JS rotation (in/out array marshalling)', () => {
-  const boundingBoxCenter = core.op('boundingBoxCenter');
-  const rotatePoints = core.op('rotatePoints');
-  const pts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }];
-  assert.deepStrictEqual(boundingBoxCenter(pts), { x: 5, y: 5 });
-  // JS reference rotation about (5,5) by 90°.
-  const ang = Math.PI / 2;
-  const cos = Math.cos(ang), sin = Math.sin(ang);
-  const expect = pts.map(p => ({ x: 5 + (p.x - 5) * cos - (p.y - 5) * sin, y: 5 + (p.x - 5) * sin + (p.y - 5) * cos }));
-  const got = pts.map(p => ({ ...p }));
-  rotatePoints(got, 5, 5, ang);
-  got.forEach((p, i) => {
-    assert.ok(Math.abs(p.x - expect[i].x) < 1e-9 && Math.abs(p.y - expect[i].y) < 1e-9, `point ${i}`);
-  });
-});
-
-wtest('flipPoints: wasm matches JS reflection about the bbox centre (int flag marshalling)', () => {
-  const flipPoints = core.op('flipPoints');
-  const pts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }];
-  const cx = 5, cy = 5;   // bbox centre of the square
-  // Horizontal: x' = 2cx - x (y untouched); vertical: y' = 2cy - y (x untouched).
-  const gotH = pts.map(p => ({ ...p }));
-  flipPoints(gotH, true, cx, cy);
-  gotH.forEach((p, i) => assert.ok(Math.abs(p.x - (2 * cx - pts[i].x)) < 1e-9 && Math.abs(p.y - pts[i].y) < 1e-9, `h point ${i}`));
-  const gotV = pts.map(p => ({ ...p }));
-  flipPoints(gotV, false, cx, cy);
-  gotV.forEach((p, i) => assert.ok(Math.abs(p.x - pts[i].x) < 1e-9 && Math.abs(p.y - (2 * cy - pts[i].y)) < 1e-9, `v point ${i}`));
-});
-
-wtest('crop geometry: wasm matches JS reference (CropRect out-pointer marshalling)', () => {
-  const [isAlbum, cropAspect, centeredCrop, resizeCorner, moveCrop, resizeScale, cropChange,
-         scaleCrop, swapCrop, rotateCrop] = ['isAlbumOrientation', 'cropAspect', 'centeredCrop',
-    'resizeCropFromCorner', 'moveCropClamped', 'cropResizeScale', 'cropChange',
-    'scaleCropCentered', 'swapCropOrientation', 'rotateCropRectQuarter'].map((n) => core.op(n));
-  const A3W = 29.7, A3H = 42.0;
-  const rectClose = (a, b) => ['x', 'y', 'width', 'height'].forEach(k =>
-    assert.ok(Math.abs(a[k] - b[k]) < 1e-9, `${k}: ${a[k]} ≈ ${b[k]}`));
-
-  assert.strictEqual(isAlbum(200, 100), isAlbumOrientationJS(200, 100));
-  assert.ok(Math.abs(cropAspect(A3W, A3H, true) - cropAspectJS(A3W, A3H, true)) < 1e-9);
-  rectClose(centeredCrop(100, 200, cropAspectJS(A3W, A3H, false)), centeredCropJS(100, 200, cropAspectJS(A3W, A3H, false)));
-
-  const cur = { x: 10, y: 10, width: 100, height: 70 };
-  const aspect = cropAspectJS(A3W, A3H, true);
-  rectClose(resizeCorner(cur, 2, 5000, 5000, aspect, 200, 200, 16), resizeCropFromCornerJS(cur, 2, 5000, 5000, aspect, 200, 200, 16));
-  rectClose(moveCrop(cur, 9999, 0, 500, 500), moveCropClampedJS(cur, 9999, 0, 500, 500));
-  assert.ok(Math.abs(resizeScale(100, 250) - cropResizeScaleJS(100, 250)) < 1e-9);
-  const centred = { x: 60, y: 60, width: 80, height: 80 };
-  rectClose(scaleCrop(centred, 1.5, 1, 200, 200), scaleCropCenteredJS(centred, 1.5, 1, 200, 200));   // grow, clamps at nearer edge
-  rectClose(scaleCrop(centred, 0.5, 1, 200, 200), scaleCropCenteredJS(centred, 0.5, 1, 200, 200));   // shrink from centre
-  rectClose(scaleCrop(centred, 100, 1, 200, 200), scaleCropCenteredJS(centred, 100, 1, 200, 200));   // over-grow → capped
-  const framed = { x: 100, y: 40, width: 80, height: 160 }, none = { x: 0, y: 0, width: 0, height: 0 };
-  const wide = centeredCropJS(2880, 2037, A3H / A3W);
-  rectClose(swapCrop(framed, 2, 400, 400), swapCropOrientationJS(framed, 2, 400, 400));   // fits either way — a plain swap
-  rectClose(swapCrop(wide, A3W / A3H, 2880, 2037), swapCropOrientationJS(wide, A3W / A3H, 2880, 2037));   // spills → shrinks about the centre
-  rectClose(swapCrop(none, 1, 200, 100), swapCropOrientationJS(none, 1, 200, 100));   // no rect yet → centeredCrop
-
-  const portrait = { x: 0, y: 0, width: 100, height: 141 };
-  const album = { x: 0, y: 0, width: 141, height: 100 };
-  assert.deepStrictEqual(cropChange(portrait, album), cropChangeJS(portrait, album));
-
-  const r = { x: 10, y: 20, width: 80, height: 40 };
-  rectClose(rotateCrop(r, 200, 100, true), rotateCropRectQuarterJS(r, 200, 100, true));
-  rectClose(rotateCrop(r, 200, 100, false), rotateCropRectQuarterJS(r, 200, 100, false));
-});
-
-wtest('applyFilterRGBA custom: grayscale+tint in one pass, alpha preserved (pixel buffer marshalling)', () => {
-  const fn = core.op('applyFilterRGBA');
-  const data = new Uint8ClampedArray([0, 0, 0, 200, 255, 255, 255, 128]); // black α200, white α128
-  fn('custom', data, 2, 124, 58, 237);
-  // black (luma 0) → tint color exactly; white (luma 254) → ≈white; alpha untouched.
-  assert.deepStrictEqual([data[0], data[1], data[2]], [124, 58, 237]);
-  assert.strictEqual(data[3], 200);
-  assert.ok(data[4] >= 253 && data[5] >= 253 && data[6] >= 254);
-  assert.strictEqual(data[7], 128);
-});
-
-wtest('applyFilterRGBA invert: flips every channel, alpha preserved', () => {
-  const fn = core.op('applyFilterRGBA');
-  const data = new Uint8ClampedArray([10, 20, 30, 200, 255, 0, 128, 128]);
-  fn('invert', data, 2, 0, 0, 0);   // tint ignored for invert
-  assert.deepStrictEqual([...data], [245, 235, 225, 200, 0, 255, 127, 128]);
-});
-
-wtest('applyContourRGBA: wasm matches the JS fallback byte-for-byte on a gradient', () => {
-  // Small deterministic fixture with distinct horizontal/vertical/diagonal ramps
-  // and per-pixel alphas — the pinned integer Sobel must agree exactly.
-  const w = 8, h = 6;
-  const fixture = () => {
-    const d = new Uint8ClampedArray(w * h * 4);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const p = (y * w + x) * 4;
-        d[p] = x * 30;              // horizontal ramp
-        d[p + 1] = y * 40;          // vertical ramp
-        d[p + 2] = (x * y * 7) % 256;
-        d[p + 3] = 100 + x + y;     // distinct alphas (must survive untouched)
-      }
-    }
-    return d;
-  };
-  const wasmBuf = fixture();
-  const jsBuf = fixture();
-  core.op('applyContourRGBA')(wasmBuf, w, h);
-  applyContourRGBA(jsBuf, w, h);
-  assert.deepStrictEqual([...wasmBuf], [...jsBuf]);
-  // Sanity: the filter actually ran (a gradient produces some non-255 output).
-  assert.ok([...wasmBuf].some((v, i) => i % 4 !== 3 && v !== 255));
 });

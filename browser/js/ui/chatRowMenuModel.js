@@ -2,8 +2,7 @@
 import { icon } from './icons.js';
 
 // Styled as the projects modal's row menu (components/projects.css aliases .chat-row-menu).
-// renderChatLog stamps each row element with its log row (el._chatRow), so the menu reads
-// the current row. User rows add Resend.
+// renderChatLog stamps each row element with its log row (el._chatRow); user rows add Resend.
 export const chatRowMenuItems = (row) => {
   if (!row || row.pending) return [];
   const items = [

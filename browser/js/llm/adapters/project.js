@@ -4,9 +4,6 @@
 import { toHexColor } from '../../core/accents.js';
 import { resolveProjectByName } from '../projectNames.js';
 export const projectAdapters = (app) => ({
-  // §10 project management — resolve by name among the SAVED projects, then run
-  // the same guarded flows the projects modal uses (their confirms included).
-  // Returns a note string when nothing was removed (unknown/ambiguous/declined).
   removeProjectNamed: async (name) => {
     const { meta, note } = resolveProjectByName(app, name);
     if (note) return note;
@@ -16,9 +13,6 @@ export const projectAdapters = (app) => ({
     app.removeProject(meta.id);
     return null;
   },
-  // §10 removeProject current:true with NOTHING saved: the `clear` op's own flow
-  // (newEditor) behind removeProject's confirm — worded for what actually goes.
-  // The chat stays (mid-turn; an unsaved/incognito editor never filed one anyway).
   clearWorkingImage: async () => {
     if (!app.image && !app.lines.length) return 'nothing to remove';
     const what = app.storage.incognito
@@ -29,13 +23,9 @@ export const projectAdapters = (app) => ({
     app.newEditor({ keepChat: true });
     return null;
   },
-  // §10 openProject: the projects modal's open path. Replacing an UNSAVED dirty
-  // temporary asks the modal's own confirm first; an already-open project or a
-  // failed switch comes back as a note, never a failed plan.
   openProjectNamed: async (name, last = false) => {
-    // "the last project I worked on": the store lists newest-edited first, so the
-    // head of the list IS the answer — resolved HERE, never by the model (it is
-    // never shown the project list).
+    // "The last project I worked on": the store lists newest-edited first, so the head of the
+    // list IS the answer — resolved HERE, never by the model (it never sees the project list).
     const recent = last ? app.storage.store.list()[0] : null;
     if (last && !recent) return 'there are no saved projects yet';
     const { meta, note } = last ? { meta: recent } : resolveProjectByName(app, name);
@@ -69,10 +59,8 @@ export const projectAdapters = (app) => ({
     app.setBlankColor(hex);
     return null;
   },
-  // §10 clearProjects: every saved local project, or every one BUT the open project
-  // (`keepCurrent`) — "delete the others" used to leave the model clearing the lot
-  // and trying to save the working image back, which lost the project when there was
-  // no image to re-save (user report).
+  // §10 clearProjects: every saved local project, or every one BUT the open one (`keepCurrent`)
+  // — "delete the others" otherwise lost the project when there was nothing to re-save (user report).
   clearLocalProjects: async (keepCurrent = false) => {
     const all = app.storage.store.list();
     const keepId = keepCurrent ? app.activeProjectId : null;

@@ -31,10 +31,8 @@ export async function startAppServer() {
   throw new Error(`the static server never answered on ${APP_URL} (is the port held by another tree?)`);
 }
 
-// One scratch directory over http, for the "open from a link" video shots. CORS is open
-// because the app FETCHES the clip to scrub it locally, and a tainted canvas could not be
-// read back; Range is answered because a <video> asks for one. The port is FIXED
-// (shared.json mediaPort) so the URL in the shot is the same on every re-run.
+// CORS is open because the app FETCHES the clip to scrub it locally (a tainted canvas cannot be
+// read back), Range is answered for <video>, and the port is fixed (shared.json mediaPort).
 export function startMediaServer(dir, port) {
   const server = http.createServer((req, res) => {
     const abs = path.join(dir, decodeURIComponent((req.url || '/').split('?')[0]));

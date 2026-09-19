@@ -39,9 +39,8 @@ function ruleBody(css, selector) {
 // A value the browser computes rather than stores: it names another token.
 const isDerived = (v) => v.includes('var(') || v.includes('color-mix(');
 
-// theme.css → { tokens, derived }, each token name → { light, dark }. `:root` is light,
-// `[data-theme="dark"]` overrides it; a token the dark block omits keeps its light value,
-// exactly as the cascade gives it.
+// theme.css → { tokens, derived }, each token name → { light, dark }: `:root` is light,
+// `[data-theme="dark"]` overrides it, and a token the dark block omits keeps its light value.
 export function splitThemeTokens(css) {
   const source = css.replace(/\/\*[\s\S]*?\*\//g, '');
   const light = declarations(ruleBody(source, ':root'));

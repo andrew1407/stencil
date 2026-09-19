@@ -1,11 +1,7 @@
-// Derives the op-plan conformance corpus's MECHANICAL cases from opRegistry.json — the
-// boundary pairs (N ok / N+1 invalid), unknown fields, wrong types, missing required keys,
-// enum/grammar rejections and the cross-field presence rules — for every op × profile,
-// and writes them as ONE bundle: js/config/llm/fixtures/opPlan/generated/cases.json.
-// Every surface's walker loads the bundle beside the hand-written files (same fixture
-// shape, see ../_schema.md). Run `npm run gen-fixtures` after a registry change;
-// tests/opPlanFixtures.test.js fails when the bundle on disk is stale.
-//
+// Derives the op-plan conformance corpus's MECHANICAL cases from opRegistry.json — boundary pairs (N ok / N+1
+// invalid), unknown fields, wrong types, missing required keys, enum/grammar rejections, the cross-field
+// presence rules — for every op × profile, as ONE bundle: js/config/llm/fixtures/opPlan/generated/cases.json.
+// Every surface's walker loads it beside the hand-written files; opPlanFixtures.test.js fails when it is stale.
 // Usage: node tools/genOpPlanFixtures.mjs [--check]   (--check: exit 1 if stale, write nothing)
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';

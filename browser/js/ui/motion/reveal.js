@@ -65,9 +65,8 @@ export const revealGrain = (top, bottom, viewH) => {
   return 1 - visible / Math.min(h, viewH);
 };
 
-// Ramp every child matching `selector` as `root` scrolls; returns a disconnect. Geometry is
-// measured once per list change and the mask mounts only on rows straddling an edge.
-// `smooth` (text rows) is one clean alpha fade plus the "…"-fits class.
+// Geometry is measured once per list change and the mask mounts only on rows straddling an
+// edge. `smooth` (text rows) is one clean alpha fade plus the "…"-fits class.
 export function observeReveal(root, selector, { smooth = false } = {}) {
   const noop = () => {};
   if (!root?.addEventListener || typeof requestAnimationFrame === 'undefined') return noop;

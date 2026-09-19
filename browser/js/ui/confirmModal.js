@@ -196,9 +196,6 @@ export class StencilConfirmModal extends StencilElement {
       setTimeout(() => sel.focus(), 30);
     });
 
-    // An <input> below the message: resolves the trimmed text, null otherwise. opts: { title,
-    // titleIcon, confirmLabel, defaultValue, multiline, rows, validate }. `multiline` is a
-    // `rows`-tall <textarea> (Ctrl/⌘+Enter saves); `validate(trimmed)` returns the refusal reason.
     this.prompt = (message, opts = {}) => new Promise(resolve => {
       dismissPrevious();
       resolveCurrent = resolve;

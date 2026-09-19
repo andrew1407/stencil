@@ -80,9 +80,8 @@ export const wireChatSideToggle = (prefix, transcript, doc = document) => {
     ?.addEventListener('click', () => applyChatSide(transcript, toggleChatSide()));
 };
 
-// Three faces: Stop while a turn is in flight, the mic in voice mode, otherwise Send. With
-// voice available the empty-box Send is only look-disabled (aria-disabled): a disabled
-// button hears no double-click / hold, which is how an empty composer switches to dictation.
+// With voice available the empty-box Send is only look-disabled (aria-disabled): a disabled
+// button hears no double-click or hold, which is how an empty composer switches to dictation.
 export const syncComposerControls = ({ sendBtn, attachBtn, input }, sending,
   { attachFull = false, voice = null, voiceSupported = false } = {}) => {
   const hasText = !!input.value.trim();
@@ -146,9 +145,6 @@ export const createSendGesture = ({
   };
 };
 
-// Enter sends / Shift+Enter newline, send doubles as Stop, attach drives the hidden file
-// input. `voice` = { isOn, isListening, toggleMode, toggleListening } from wireComposerVoice.
-// Returns `send` so the voice wiring submits through the same path.
 export const wireChatComposer = ({ input, sendBtn, attachBtn, attachInput }, { isSending, abort, submit, attachFiles, onInput, voice = null }) => {
   const send = () => {
     const text = input.value.trim();

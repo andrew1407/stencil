@@ -41,11 +41,8 @@ export const createCropOverlay = ({ state, els, pageDims, media, onDrag }) => {
     shade.style.height = box.style.height;
   };
 
-  // Only when the face actually changes: render runs per drag frame, and rewriting the glyph
-  // there rebuilds the SVG sixty times a second and drops any turn spinIconOnce started.
-  // Pinned to the wider of its two own faces (desktop twin: OpenImageDialog measures both
-  // sizeHints and takes the max) — a bare CSS width guessed at neither face's real metrics,
-  // reading comfortable for one word and cramped for the other.
+  // render runs per drag frame, so rewrite the glyph only when the face changes — it rebuilds the
+  // SVG and drops any turn. Pinned to the wider face (desktop: OpenImageDialog takes the max).
   let shownAlbum = null;
   const renderOrientFace = () => {
     if (shownAlbum === state.album) return;
@@ -77,10 +74,8 @@ export const createCropOverlay = ({ state, els, pageDims, media, onDrag }) => {
     state.scale = state.iw > 0 && r.width > 0 ? r.width / state.iw : 1;
   };
 
-  // Also the Album/Portrait press's own recompute: swapCropOrientation carries the user's
-  // own framing across the flip (no rect yet falls back to centeredCrop, same as before).
-  // `fly`: the press eases the box from its old shape to the new one (desktop twin:
-  // CropPreview::setAlbum); a first fit has no old shape and lands at once.
+  // swapCropOrientation carries the user's framing across the flip (no rect yet falls back to
+  // centeredCrop). `fly` eases the box from its old shape (desktop twin: CropPreview::setAlbum).
   const recenter = (fly = false) => {
     const from = { ...state.rect };
     state.aspect = cropAspect(pageDims().width, pageDims().height, state.album);
@@ -89,9 +84,8 @@ export const createCropOverlay = ({ state, els, pageDims, media, onDrag }) => {
     if (fly && from.width >= 1) flight = tweenRect(from, state.rect, paint);
   };
 
-  // A different page picked for the crop: unlike the orientation flip, an arbitrary new
-  // aspect has no reciprocal to carry the old box across — same fresh default a first Crop
-  // tick gets (browser twin of desktop's own page-size change).
+  // Unlike the orientation flip, an arbitrary new aspect has no reciprocal to carry the old box
+  // across, so it resets to the same fresh default a first Crop tick gets.
   const fitToPage = () => {
     if (!state.iw || !state.ih) return false;
     state.aspect = cropAspect(pageDims().width, pageDims().height, state.album);

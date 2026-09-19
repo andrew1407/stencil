@@ -2,9 +2,8 @@ import { markSwap } from '../motion.js';
 import { showMenu, hideMenu } from '../dropdownMenu.js';
 export function wireZoomControls(app) {
   const zoomInput = document.getElementById('zoom-input');
-  // Apply the typed zoom. `commit` (change/Enter/preset-pick) reverts an out-of-range value to
-  // the current zoom; live typing (input) just skips invalid/partial values so it never fights
-  // the caret. Accepts the full 5%–3200% range (matches the input max, presets, core clampScale).
+  // `commit` (change/Enter/preset-pick) reverts an out-of-range value; live typing just skips
+  // invalid values. Full 5%–3200% range — the input max, the presets and core clampScale.
   const applyZoomInput = (commit = false) => {
     const val = parseFloat(zoomInput.value);
     if (!isNaN(val) && val >= 5 && val <= 3200) {
@@ -40,9 +39,8 @@ export function wireZoomControls(app) {
       const item = e.target.closest('.zoom-menu-item');
       if (!item) return;
       e.preventDefault();
-      // A preset pick is a value EXCHANGE like a select's (customSelect markSwap):
-      // the outgoing number dusts away and the incoming one forms. Typing stays
-      // plain — this fires only from the dropped list.
+      // A preset pick is a value EXCHANGE like a select's (customSelect markSwap); typing stays
+      // plain, so this fires only from the dropped list.
       const to = item.dataset.val;
       if (zoomInput.value !== to) markSwap(zoomInput, () => { zoomInput.value = to; });
       else zoomInput.value = to;

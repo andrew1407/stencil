@@ -1,8 +1,6 @@
 import { isTypingTarget } from '../../utils.js';
 export function wireArrowPan(app) {
-  // ── Arrow-key panning ──────────────────────────────────────
-  // Plain arrows pan the viewport; multiple arrows pan diagonally, opposing pairs
-  // cancel; Shift accelerates. Alt/Ctrl/Meta are reserved (e.g. Alt+ArrowUp = zoom).
+  // Alt/Ctrl/Meta are reserved for other chords (Alt+ArrowUp = zoom); opposing arrows cancel.
   const arrowsHeld = new Set();
   let arrowPanRaf = null;
   // Whether R is currently held — the Alt+R+←/→ line-rotate chord.
@@ -39,9 +37,8 @@ export function wireArrowPan(app) {
     // Don't steal other Alt/Ctrl/Meta+Arrow combos used by other shortcuts (e.g. zoom).
     if (e.ctrlKey || e.altKey || e.metaKey) return;
 
-    // With a line selected, plain arrows NUDGE the selection (1px, Shift = 10px, in image
-    // space); with nothing selected they fall through to panning the viewport. In a compare
-    // (read-only) view, nudging is disabled — arrows always pan.
+    // With a line selected, plain arrows NUDGE the selection (1px, Shift = 10px, in image space);
+    // with nothing selected they pan. In a compare (read-only) view nudging is off.
     if (app.selectedIndices().length >= 1 && !app.compareReadOnly()) {
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;

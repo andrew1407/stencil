@@ -1,10 +1,8 @@
-// ── window.stencil — console control API for the Stencil editor ─────────────
-// Thin chainable facade over the live DrawingApp; NEVER reimplements editor behaviour —
-// every mutation routes through the same core methods the toolbar uses, so console and
-// toolbar stay in sync. A closure factory (not a class): `app` lives in scope and the
-// returned objects carry no fields. index.js builds it after the app → window.stencil.
-//   stencil.apply({ page: 'a3', pointSize: 9 }).rotateLeft().crop({ x1: '10%' })
-//   (await stencil.load(url)).crop({ x2: '-10%' }).apply({ lineColor: 'aqua' })
+// window.stencil — the chainable console control API over the live DrawingApp.
+// NEVER reimplements editor behaviour: every mutation routes through the same core
+// methods the toolbar uses, so console and toolbar stay in sync.
+// A closure factory, not a class — `app` lives in scope and the returned objects carry
+// no fields. index.js builds it after the app → window.stencil.
 import { hotkeys } from '../core/hotkeys.js';
 import { ConnectionManager } from '../net/connectionManager.js';
 import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
@@ -63,9 +61,6 @@ export const createStencil = (app) => {
         const rejected = results
           .map((r, i) => ({ r, url: live[i].url }))
           .filter(({ r }) => r.status === 'rejected');
-        // A REFUSED credential is not an unreachable server: the server answered, this
-        // session is simply over — say it needs a new token and open the Connections
-        // modal on click, rather than sending the user hunting a server that is up.
         const expired = rejected.filter(({ r }) => r.reason?.expired);
         const unreachable = rejected.filter(({ r }) => !r.reason?.expired);
         if (expired.length) {
@@ -89,9 +84,8 @@ export const createStencil = (app) => {
 
   let stencil;   // forward ref so wrappers can return the facade for chaining
 
-  // Hard-guard an API object: real setters write through, but writing a method/read-only
-  // getter (or add/delete) THROWS instead of silently no-opping in the non-strict console.
-  // Applied to the facade and every Line/Point/Project/settings object handed back.
+  // Hard-guard an API object: real setters write through, but writing a method or
+  // read-only getter THROWS instead of silently no-opping in the non-strict console.
   const guard = (obj) => new Proxy(Object.freeze(obj), {
     set(target, prop, value) {
       const d = Object.getOwnPropertyDescriptor(target, prop);
@@ -123,9 +117,8 @@ export const createStencil = (app) => {
   ];
 
   stencil = {
-    // ── Browser extension ──
-    // Its editor-page API, installed on window.__stencilExt by the content script — the
-    // extension owns the shape (browser-extension/README.md). null unless installed and enabled.
+    // The extension's editor-page API on window.__stencilExt — the extension owns its shape
+    // (browser-extension/README.md). null unless installed and enabled.
     get extension() { return (typeof window !== 'undefined' && window.__stencilExt) || null; },
 
     // ── Settings / modes ──

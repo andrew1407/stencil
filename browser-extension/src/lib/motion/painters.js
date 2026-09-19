@@ -9,10 +9,8 @@ const blankPaint = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
 export const MOTE_INK = 42;
 export const MOTE_RIM_INK = 66;
 
-// What the motes are PAINTED in: the element's own background, else the nearest ancestor
-// that actually paints one (a transparent box would dust in a fallback nobody chose), then
-// LIFTED towards that surface's ink — the background alone is the same family of colour as
-// the page and dissolves into it. Mixing in the ink flips with the theme for free.
+// The motes take the nearest ancestor that actually PAINTS a background, lifted towards that
+// surface's ink — mixing in the ink flips with the theme for free.
 const surfacePaint = (el) => {
   const get = typeof getComputedStyle === 'function' ? getComputedStyle : null;
   const own = get ? get(el) : null;
@@ -22,17 +20,14 @@ const surfacePaint = (el) => {
   bg = bg || 'var(--panel)';
   const ink = own && !blankPaint(own.color) ? own.color : 'var(--text)';
   const grain = (pct) => `color-mix(in srgb, ${bg} ${pct}%, ${ink})`;
-  // `border-style: none` still COMPUTES a border colour, and its initial value is
-  // `currentColor` — the TEXT colour, which paints every rim mote near-white on a dark
-  // theme. Without a real border the rim is simply a stronger grain.
+  // `border-style: none` still computes a border colour, and its initial value is
+  // `currentColor` — the TEXT colour, which paints every rim mote near-white on a dark theme.
   const bordered = own && own.borderTopStyle !== 'none' && parseFloat(own.borderTopWidth) > 0;
   return { fill: grain(100 - MOTE_INK), edge: bordered ? own.borderTopColor : grain(100 - MOTE_RIM_INK) };
 };
 
-// Round speck in the surface's own colours; rim cells take its border, so the cloud keeps
-// the window's outline for the first frames, and a few inner grains take that tone too so
-// the field glints. The speck is a GRAIN, not the cell it sits in: past the mote budget a
-// cell-filling square is the "huge rectangles" a scatter must never show.
+// The speck is a GRAIN, not the cell it sits in: past the mote budget a cell-filling square is
+// the "huge rectangles" a scatter must never show. Rim cells take the surface's border.
 export const speckPainter = (el) => {
   const { fill, edge } = surfacePaint(el);
   return ({ cx, cy, cols, rows, cellW, cellH }) => {

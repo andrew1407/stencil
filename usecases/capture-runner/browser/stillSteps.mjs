@@ -25,9 +25,8 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
     run: async (ctx, theme) => {
       const page = await shared(ctx, theme);
       if (image) await withImage(page, image);
-      // The keywords window photographs its CONTENT — empty chips say nothing about what it
-      // holds — through the console facade, the same setter the app itself uses. The
-      // description window keeps an EMPTY field, which shows the prompt instead.
+      // The keywords window photographs its CONTENT, set through the console facade; the description
+      // window keeps an EMPTY field, which shows the prompt instead.
       if (key === 'keywords') {
         await page.evaluate(() => {
           // The setter, not addKeywords: the page is shared across steps, so the list must
@@ -139,9 +138,8 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
       await runner.shot(page, 'projects-modal');
       await closeModal(page, 'projects-modal-overlay');
     } },
-    // Docked and floating, out of one turn: a real model through the collaboration server's
-    // proxy when a token is at hand (the working image rides every turn, so the reply is
-    // about the picture); else the stub's canned plan.
+    // A real model through the collaboration server's proxy when a token is at hand (the working
+    // image rides every turn, so the reply is about the picture), else the stub's canned plan.
     { name: 'assistant', run: async (ctx, theme) => {
       const page = await shared(ctx, theme);
       const token = config.serverToken();
@@ -194,9 +192,8 @@ export function makeStillSteps({ config, runner, pages, stub, appUrl, browser })
         await closeModal(page, 'open-in-modal-overlay');
       } catch (err) { console.warn(`  open-in-modal skipped: ${err.message.split('\n')[0]}`); }
     } },
-    // A script handed over by the VS Code extension: the same `#stencil=` fragment the Chrome
-    // extension writes, carrying a `.stc` beside the picture. The app runs it on arrival and
-    // keeps the source in its script window — which is what this shot is of.
+    // The same `#stencil=` fragment the Chrome extension writes, carrying a `.stc` beside the
+    // picture: the app runs it on arrival and keeps the source in its script window.
     { name: 'script-handoff', run: async (ctx, theme) => {
       const script = `@source ${config.url('botIcon')}:\n    @filter sepia\n    @use line #1e63c8 3px dashed\n    @rect (15%, 15%) (85%, 85%)\n`;
       const hash = `#stencil=${encodeURIComponent(JSON.stringify({ script }))}`;

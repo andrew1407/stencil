@@ -1,14 +1,11 @@
-// Tests for src/lib/filterUi.js — the filter controls extracted from popup.js: the
-// format-pill model, reading the controls, and the persist/restore/mirror machinery.
-// Storage rides tests/helpers/chromeStub.js; the DOM is the usual stub document.
+// src/lib/filterUi.js — the format pill model, the f-* controls it reads, and the round-trip it
+// persists to chrome.storage (with the cross-surface echo it must skip).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { COMMON_FORMATS, FILTERS_KEY, formatListFor, formatPillsHtml, createFilterUi } from '../src/lib/filterUi.js';
-import { UNKNOWN_FORMAT, VIDEO_FORMATS, passesFilters } from '../src/lib/filters.js';
-import { diffListKeys, createFilterTransition, FILTER_OUT_CLASS } from '../src/lib/motion.js';
-import { makeList, renderKeys } from './helpers/listDom.js';
-import { readFileSync } from 'node:fs';
+import { UNKNOWN_FORMAT, VIDEO_FORMATS } from '../src/lib/filters.js';
 import { installChromeStub } from './helpers/chromeStub.js';
+import { stubDom } from './helpers/filterUiDom.js';
 
 // ── Pure: the pill model ──
 
@@ -37,31 +34,6 @@ test('formatPillsHtml: all pills start checked; absent ones are dimmed and title
   assert.match(html, /<label class="chk"><input type="checkbox" value="png" checked>PNG<\/label>/);
   assert.match(html, /<label class="chk absent" data-title="Not present on this page"><input type="checkbox" value="gif" checked>GIF<\/label>/);
 });
-
-// ── Stub DOM: the f-* controls + a pill box that parses its own innerHTML ──
-const control = (value = '', checked = false) => ({ value, checked, textContent: '' });
-const stubDom = () => {
-  const els = {
-    'f-search': control(' cat '), 'f-regex': control('', true),
-    'f-minw': control('10'), 'f-maxw': control(''), 'f-minh': control('abc'), 'f-maxh': control('200'),
-    'f-img': control('', true), 'f-bg': control('', false), 'f-video': control('', true),
-    'f-poster': control('', false), 'f-meta': control('', true),
-    'f-fmt-toggle': control(),
-  };
-  const box = {
-    inputs: [],
-    set innerHTML(html) {
-      this.inputs = [...html.matchAll(/value="([^"]+)"/g)].map((m) => ({
-        value: m[1], checked: true, handlers: [],
-        addEventListener: function (t, fn) { if (t === 'change') this.handlers.push(fn); },
-      }));
-    },
-    get innerHTML() { return ''; },
-    querySelectorAll: function () { return this.inputs; },
-  };
-  els['f-formats'] = box;
-  return { doc: { getElementById: (id) => els[id] || null }, els, box };
-};
 
 // ── Reading ──
 
@@ -160,96 +132,4 @@ test('acceptExternal skips the echo of our own write but adopts another surface\
     assert.equal(gif.checked, false);
     assert.equal(ui.acceptExternal(null), false);
   } finally { stub.restore(); }
-});
-
-// ── What the popup's list actually animates when a filter changes ────────────
-// The scanned-image list is rebuilt wholesale on every pill/search change, so what
-// enters and leaves is decided purely by the keys of the two renders. These pin that
-// decision (and the visible set after a burst of changes) without a browser; the
-// transition's own mechanics live in tests/motion.test.js.
-
-// The stub's controls carry a scenario of their own — start from "nothing filtered".
-const openFilters = (els) => {
-  for (const id of ['f-search', 'f-minw', 'f-maxw', 'f-minh', 'f-maxh']) els[id].value = '';
-  els['f-regex'].checked = false;
-  for (const id of ['f-img', 'f-bg', 'f-video', 'f-poster', 'f-meta']) els[id].checked = true;
-};
-
-const ITEMS = [
-  { kind: 'img', src: 'http://x/cat.png', name: 'cat.png' },
-  { kind: 'img', src: 'http://x/dog.gif', name: 'dog.gif' },
-  { kind: 'bg', src: 'http://x/hero.png', name: 'hero.png' },
-];
-const visibleKeys = (ui) => ITEMS.filter((it) => passesFilters(it, ui.read())).map((it) => it.src);
-
-test('narrowing the search: only the excluded rows leave, nothing else moves', () => {
-  const { doc, els } = stubDom();
-  const ui = createFilterUi({ doc });
-  openFilters(els);
-  ui.populateFormats(ITEMS);
-
-  const before = visibleKeys(ui);
-  assert.deepEqual(before, ITEMS.map((it) => it.src));
-  els['f-search'].value = 'o';                       // cat is out, dog + hero stay
-  const diff = diffListKeys(before, visibleKeys(ui));
-  assert.deepEqual(diff, { entered: [], left: ['http://x/cat.png'] });
-});
-
-test('a format pill off drops exactly its rows; back on brings exactly them back', () => {
-  const { doc, els, box } = stubDom();
-  const ui = createFilterUi({ doc });
-  openFilters(els);
-  ui.populateFormats(ITEMS);
-  const all = visibleKeys(ui);
-
-  const png = box.inputs.find((i) => i.value === 'png');
-  png.checked = false;
-  const off = visibleKeys(ui);
-  assert.deepEqual(diffListKeys(all, off),
-    { entered: [], left: ['http://x/cat.png', 'http://x/hero.png'] });
-
-  png.checked = true;
-  assert.deepEqual(diffListKeys(off, visibleKeys(ui)),
-    { entered: ['http://x/cat.png', 'http://x/hero.png'], left: [] },
-    'a re-admitted row ENTERS — the list is symmetric, not one-way');
-});
-
-test('a kind toggle and the search compose: the set is right after a burst of changes', () => {
-  const { doc, els } = stubDom();
-  const ui = createFilterUi({ doc });
-  openFilters(els);
-  ui.populateFormats(ITEMS);
-
-  const list = makeList();
-  const tr = createFilterTransition({ list, reduced: () => false });
-  renderKeys(list, tr, visibleKeys(ui));
-
-  // Fast typing, then a background-images toggle, then the search cleared again.
-  for (const q of ['d', 'do', 'dog', 'dogx', '']) {
-    els['f-search'].value = q;
-    renderKeys(list, tr, visibleKeys(ui));
-  }
-  els['f-bg'].checked = false;
-  renderKeys(list, tr, visibleKeys(ui));
-
-  const settled = list.children.filter((li) => !li.classList.contains(FILTER_OUT_CLASS));
-  assert.deepEqual(settled.map((li) => li.dataset.key), ['http://x/cat.png', 'http://x/dog.gif'],
-    'the background image is the only one gone, however fast the filters changed');
-  assert.equal(tr.ghostCount, 1, 'exactly one row is on its way out — no leaked animations');
-});
-
-test('the popup wires the transition around its rebuild and keys every row', () => {
-  // The rebuild and the row it keys live in separate modules of the panel.
-  const js = ['filters.js', 'row.js'].map((f) => readFileSync(new URL(`../src/popup/${f}`, import.meta.url), 'utf8')).join('\n');
-  assert.match(js, /filterTransition\.begin\(\);\s*\n\s*listEl\.innerHTML = '';/,
-    'the snapshot is taken before the wipe, or nothing can play out');
-  assert.match(js, /filterTransition\.end\(\);/);
-  // Every branch of applyFilters (both empty states) must reach end(), or a ghost is stranded.
-  const body = js.slice(js.indexOf('const applyFilters = () => {'));
-  assert.equal((body.slice(0, body.indexOf('\n};')).match(/return;/g) || []).length, 0,
-    'applyFilters no longer returns early past the transition');
-  assert.match(js, /li\.dataset\.key = rowKey\(image\)/);
-  // A filter drop is the LIGHT effect; the destructive scatter is not reused for it.
-  assert.match(js, /filterLeave\(li,/, 'a row the measurement disqualifies fades, it is not destroyed');
-  assert.doesNotMatch(js, /disintegrate\(/, 'no particles for a row a filter merely excluded');
 });

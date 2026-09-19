@@ -32,9 +32,8 @@ test('single-file build: the index.html rewrites leave no sibling references', (
 });
 
 test('single-file build: index.html loads nothing the single-file build ignores', () => {
-  // Every relative src/href must be something the build accounts for — vite folds in the
-  // module entry and the stylesheets, vite.config.js rewrites the rest. A new <script src>
-  // or <link> outside this set would ship as a sibling file next to stencil.html.
+  // Every relative src/href must be something the build accounts for — vite folds in the module entry and the
+  // stylesheets, vite.config.js rewrites the rest — or it ships as a sibling file next to stencil.html.
   const handled = new Set([
     'js/index.js',                                                                   // vite: the module graph
     'css/theme.css',                                                                 // vite: the stylesheets

@@ -56,9 +56,8 @@ export const createTurnRunner = ({ sendBtn, inputEl, view, tray, renderResult, s
       else if (err instanceof LlmError && err.kind === 'refusal') addMsg('error', `The model refused: ${err.message}`);
       else if (err instanceof LlmError && err.kind === 'disabled') addMsg('error', 'The assistant is not enabled on this server (no API key configured).');
       else {
-        // A failed turn offers a one-click Retry: the SAME text re-sent through
-        // the normal path (nothing is auto-retried; a Stop never offers one).
-        // turnFailureText: the browser's error voice, same words on every surface.
+        // turnFailureText is the browser's error voice, the same words on every surface. Nothing is
+        // auto-retried, and a Stop never offers a retry.
         const el = addMsg('error', turnFailureText(state.llmSettings, err));
         // The provider itself is the problem: offer Configure ABOVE Retry (browser
         // chatConfigureButton parity — its card renders the CTA before the retry icon).

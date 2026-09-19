@@ -1,9 +1,7 @@
-// Fragment-privacy invariant: the handed-off image (delivered via the #stencil=
-// URL *fragment*, DrawingApp.applyExternalLaunch) is local content and must NEVER
-// leave the machine. A URL fragment is not sent to a server by browsers, but the
-// app also must not itself forward the payload anywhere — so we capture EVERY
-// network request the page makes and assert none carries the fragment sentinel in its
-// URL or its POST body. This is the headline "nothing local goes outward" guard.
+// Fragment-privacy invariant: the handed-off image (the #stencil= URL fragment,
+// DrawingApp.applyExternalLaunch) is local content and must NEVER leave the machine. Browsers
+// do not send a fragment, and the app must not forward the payload either — so every network
+// request the page makes is captured and asserted free of the fragment sentinel, URL and body.
 import { test, expect } from '@playwright/test';
 import { gotoApp, PNG_DATA_URL } from '../../helpers/boot.js';
 
@@ -21,9 +19,8 @@ test('the #stencil= fragment payload never appears in any outgoing request', asy
 
   await gotoApp(page, { hash: `#stencil=${payload}` });
 
-  // Readiness: applyExternalLaunch has both loaded the image (imageSize set) and
-  // stripped the fragment from the URL. Avoid networkidle — the app may hold a live
-  // connection, which would never idle.
+  // Ready once applyExternalLaunch has loaded the image and stripped the fragment. Avoid
+  // networkidle — the app may hold a live connection, which would never idle.
   await page.waitForFunction(
     () => !!(window.stencil && window.stencil.imageSize) && location.hash === '',
     null,

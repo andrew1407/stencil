@@ -38,10 +38,8 @@ test('defaultUnitFromLocale: bare tag is resolved to its likely region (en → U
 });
 
 test('defaultUnitFromLocale: missing/garbage navigator never throws, falls back to cm', () => {
-  // null / {} are the explicit "no locale info" sentinels — they exercise the
-  // metric fallback. (Passing `undefined` would instead trigger the default
-  // parameter and read the live globalThis.navigator, which is not the path
-  // under test here.)
+  // null / {} are the explicit "no locale info" sentinels, exercising the metric fallback; `undefined` would
+  // instead trigger the default parameter and read the live globalThis.navigator.
   assert.equal(defaultUnitFromLocale(null), 'cm');
   assert.equal(defaultUnitFromLocale({}), 'cm');
   assert.equal(defaultUnitFromLocale({ language: '' }), 'cm');

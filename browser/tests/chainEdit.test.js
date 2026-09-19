@@ -1,10 +1,7 @@
-// Closing a shape, and the two ways back out of one
-// (js/core/dragGestures.js ringPoints / openRingAt / unchainLine / pullOutPoint).
-//
-// Clicking a stroke's first point already closed it into a locked, fillable area; what
-// is new is the way back — the selection panel's Unchain, and Alt+Ctrl/⌘+drag, which
-// pulls a new point out of the line and breaks an area open at the spot pulled. A rect
-// is the same thing with no closing duplicate. Desktop twin: canvas/chainEdit.hpp.
+// Closing a shape, and the two ways back out of one (js/core/dragGestures.js ringPoints /
+// openRingAt / unchainLine / pullOutPoint): the selection panel's Unchain, and Alt+Ctrl/⌘+drag,
+// which pulls a new point out of the line and breaks the area open at the spot pulled. A rect is
+// the same thing with no closing duplicate. Desktop twin: canvas/chainEdit.hpp.
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
@@ -60,9 +57,8 @@ test('unchainLine turns an area back into an open line and clears its fill', () 
   assert.equal(unchainLine(shape), true);
   assert.equal(shape.locked, false);
   assert.deepEqual(shape.points, P([0, 0], [10, 0], [10, 10]), 'the closing duplicate is gone');
-  // An open line has no area to paint, so the colour goes with the shape. 'transparent' is
-  // the app's own "no fill" — fillState reads it as unchecked — so if the line is ever
-  // closed again the Fill field comes up CLEARED instead of holding a stale colour.
+  // An open line has no area to paint, so the fill goes to 'transparent' — the app's own "no fill",
+  // which fillState reads as unchecked — and re-closing brings the Fill field up CLEARED.
   assert.equal(shape.fillColor, 'transparent');
   assert.equal(fillState(shape, '#3399ff').enabled, false, 'the panel shows no fill');
 });
@@ -120,9 +116,8 @@ test('pull-out declines when there is nothing under the cursor', () => {
 // ── Closing: every route, and a target you can actually hit ─────────────────
 
 test('the close check is reached from BOTH routes, not just the click', () => {
-  // REGRESSION (user report, with a picture): a triangle drawn by hold-to-draw ended with
-  // a point dropped on top of the first one and stayed an OPEN line that merely looked
-  // closed. The check lived only in canvasClick; both routes go through tryCloseShapeAt.
+  // Both routes go through tryCloseShapeAt: a hold-to-draw triangle ending on its own first point
+  // must close, not stay an open line that merely looks closed (user report).
   assert.match(drawingAppJs, /tryCloseShapeAt\(x, y\)/, 'the click path asks');
   assert.match(inputJs, /app\.tryCloseShapeAt\(x, y\)/, 'and so does the hold-to-draw drop');
   assert.equal((shapeJs.match(/shouldCloseShape\(/g) || []).length, 2,
@@ -137,9 +132,8 @@ test('the close check is reached from BOTH routes, not just the click', () => {
 });
 
 test('closing a shape selects nothing — it ends like an ordinary line', () => {
-  // A finished shape used to select itself and pop the selected-line bar over the picture
-  // just drawn. Finishing an ordinary line (stopDrawingMode) selects nothing, and closing
-  // one now ends the same way: the coordinate table follows it, the bar stays away.
+  // Closing a shape selects nothing, exactly as finishing an ordinary line (stopDrawingMode) does:
+  // the coordinate table follows it, the selected-line bar stays away.
   const close = shapeJs.slice(shapeJs.indexOf('closeShape = (app, { line, idx, isContinuation })'),
                               shapeJs.indexOf('insertPointOnSegment = (app, lineIdx'));
   assert.ok(!/app\.selectedLineIdx = areaIdx/.test(close), 'it does not select the new area');
@@ -152,10 +146,8 @@ test('closing a shape selects nothing — it ends like an ordinary line', () => 
 });
 
 test('a dwell-closed shape swallows the click its own RELEASE leaves behind', () => {
-  // REGRESSION: closing a shape by hold-to-draw flashed the selected-line bar open and
-  // shut — the bar pushes the canvas down, so the press's trailing click landed elsewhere
-  // and deselected the new area. The guard must be armed on the RELEASE, since the
-  // gesture ends at the dwell, well before the button comes up.
+  // The guard is armed on the RELEASE, since the gesture ends at the dwell well before the button
+  // comes up — the bar pushes the canvas down, so a trailing click would land elsewhere.
   const drop = inputJs.slice(inputJs.indexOf('#holdDrop(clientX, clientY)'),
                              inputJs.indexOf('#suppressTrailingClick()'));
   assert.match(drop, /#holdClosedShape = true/, 'the close marks the release as owing a click');
@@ -173,9 +165,8 @@ test('a dwell-closed shape swallows the click its own RELEASE leaves behind', ()
 });
 
 test('the close grab is a constant size ON SCREEN, not in image pixels', () => {
-  // The other half of the same report: `pointSize + 8` image px is ~3 screen px at 25%
-  // zoom, so the first point could not be hit. The grab now divides by the zoom, like
-  // every other hit test here; the desktop's headless twin drives real clicks at 25%.
+  // The grab radius divides by the zoom, like every other hit test here: `pointSize + 8` image px is
+  // ~3 screen px at 25%. The desktop's headless twin drives real clicks at 25%.
   const fn = shapeJs.slice(shapeJs.indexOf('closeGrabSize = (app, line) => {'),
                            shapeJs.indexOf('tryCloseShapeAt = (app, x, y) => {'));
   assert.match(fn, /app\.scale/, 'it reads the zoom');
@@ -193,9 +184,8 @@ test('the close grab is a constant size ON SCREEN, not in image pixels', () => {
 // ── The wiring ──────────────────────────────────────────────────────────────
 
 test('the pull-out chord opens no context menu', () => {
-  // On macOS Ctrl+click IS the secondary click, so the Alt+Ctrl drag fired `contextmenu`
-  // too and the menu opened over the point being dragged (user report). Alt with it means
-  // the gesture; a plain Ctrl+click still gets its menu.
+  // On macOS Ctrl+click IS the secondary click, so the Alt+Ctrl drag has to suppress `contextmenu`
+  // while a plain Ctrl+click still gets its menu (user report).
   const ctxJs = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
   const handler = ctxJs.slice(ctxJs.indexOf("el.addEventListener('contextmenu'"),
                               ctxJs.indexOf('// Close on outside click'));

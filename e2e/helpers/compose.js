@@ -1,12 +1,7 @@
-// Playwright globalSetup/globalTeardown — bring up the backing stack (Postgres +
-// Redis + the Go collaboration server) via the repo-root docker-compose.yml, but
-// ONLY when E2E_STACK=1. The pure-browser and extension projects need no stack, so
-// they run without Docker; fullstack/server-protocol tests self-skip when the flag
-// is unset (see helpers/serverApi.js `stackEnabled`).
-//
-// `docker compose up -d` is idempotent, so re-runs reuse a running stack (fast local
-// iteration). Teardown is opt-in via E2E_STACK_DOWN=1 so local runs keep the DB warm;
-// CI discards the whole VM, so it never needs an explicit down.
+// Playwright globalSetup/globalTeardown — brings the backing stack (Postgres + Redis + the Go
+// collaboration server) up via the repo-root docker-compose.yml, ONLY when E2E_STACK=1.
+// `docker compose up -d` is idempotent, so re-runs reuse a running stack; teardown is opt-in
+// via E2E_STACK_DOWN=1.
 import { execFileSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
@@ -14,11 +9,8 @@ import path from 'node:path';
 
 const HELPERS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const COMPOSE_FILE = path.resolve(HELPERS_DIR, '../../docker-compose.yml');
-// LLM override: enables the server's Anthropic proxy against the harness's stub LLM
-// server (see compose.llm.yml + llm-stub.js) so the fullstack llm-proxy spec can run.
-// Applied on every harness-managed `up`; harmless for everything else. With
-// E2E_SKIP_COMPOSE=1 the override is NOT applied (the server is out-of-band) and the
-// llm-proxy spec self-skips off GET /llm/info.
+// The override points the server's Anthropic proxy at the stub LLM server; with
+// E2E_SKIP_COMPOSE=1 it is not applied and the llm-proxy spec self-skips off /llm/info.
 const LLM_OVERRIDE = path.resolve(HELPERS_DIR, 'compose.llm.yml');
 const HEALTH_URL = process.env.SERVER_URL ? `${process.env.SERVER_URL}/healthz` : 'http://localhost:8090/healthz';
 const SERVICES = ['db', 'redis', 'server'];

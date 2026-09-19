@@ -60,9 +60,8 @@ export const createAttachments = ({ trayEl, transcriptEl, clearBtn, getItems, ge
     syncClearBtn();
   };
 
-  // Pull a media URL and queue evenly-spaced frames from it (videos never go to the
-  // LLM — contract §7). Same scheme allowlist as fetchAsDataUrl: host permissions make
-  // fetch() all-powerful, so only http(s)/blob/data media URLs are pulled.
+  // Videos never go to the LLM (contract §7). Same scheme allowlist as fetchAsDataUrl: host
+  // permissions make fetch() all-powerful, so only http(s)/blob/data media URLs are pulled.
   const addPendingVideoUrl = async (url, baseName = '', pageUrl = '') => {
     if (!/^(https?|blob|data):/i.test(url)) throw new Error('unsupported URL scheme');
     // Scanned/dropped media URL — same SSRF guard as fetchAsDataUrl (urlGuard.js),
@@ -75,9 +74,8 @@ export const createAttachments = ({ trayEl, transcriptEl, clearBtn, getItems, ge
     frames.forEach((f, i) => addPending({ image: splitDataUrl(f), name: `${base} — frame ${i + 1}` }));
   };
 
-  // A dropped URL: when it matches a scan entry, register the attachment AS that
-  // entry (focus/open by index stays possible); otherwise fetch + attach it as a
-  // plain vision image (analysis only). Video URLs are frame-sampled like files.
+  // A URL matching a scan entry is registered AS that entry, so focus/open by index keeps
+  // working; anything else is attached as a plain vision image (analysis only).
   const addPendingUrl = async (url) => {
     const items = getItems() || [];
     const idx = matchListingIndex(items, url);
@@ -112,9 +110,8 @@ export const createAttachments = ({ trayEl, transcriptEl, clearBtn, getItems, ge
     addPending({ image: await toLlmImage({ blob: file }), name: file.name || 'image' });
   };
 
-  // Nothing said yet and nothing queued → there is nothing to clear, so the bin is disabled
-  // rather than offering an action that would visibly do nothing. Re-checked wherever the
-  // transcript or the attachment tray changes; `busy` still wins (no clearing mid-turn).
+  // Re-checked wherever the transcript or the attachment tray changes; `busy` still wins, so
+  // nothing is cleared mid-turn.
   const syncClearBtn = () => {
     // `:scope >` so the scatter's cloned entries (nested inside .disintegrate-host)
     // don't read as live transcript content and keep Clear enabled after a clear.

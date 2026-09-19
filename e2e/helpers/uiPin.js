@@ -1,19 +1,15 @@
 // UI regression pins — the no-screenshot answer to "did anything the user sees move?".
-//
-// capturePin() walks a subtree and records, per element, a stable path, its sorted class
-// list, a fixed set of computed styles, and (for leaves) its text. expectPin() deep-equals
-// that against e2e/pins/<name>.json and prints the first differing paths, so a module move
-// or a stylesheet split that changes the rendered result names itself.
-//
+// capturePin() records, per element, a stable path, its sorted class list, a fixed set of
+// computed styles and (for leaves) its text; expectPin() deep-equals that against
+// e2e/pins/<name>.json and prints the first differing paths.
 // UPDATE_PINS=1 rewrites the baseline instead of asserting.
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Baselines are PER PLATFORM, like the desktop suite's image pins: font metrics differ by
-// OS, text that wraps one line later changes a height, and a native scrollbar takes 10px
-// off the content width — so a pin recorded on one OS never matches another.
+// Baselines are PER PLATFORM, like the desktop image pins: font metrics, a wrap one line later
+// and a native scrollbar's 10px all differ by OS, so a pin from one OS never matches another.
 export const PIN_PLATFORM = process.platform === 'darwin' ? 'macos'
   : process.platform === 'win32' ? 'windows' : 'linux';
 
@@ -29,10 +25,8 @@ export const PIN_PROPS = [
   'justify-content', 'align-items', 'overflow', 'z-index',
 ];
 
-// Values that say "nothing set here" — CSS initial values and the like — are dropped from
-// EVERY capture. It costs no sensitivity: a property that moves AWAY from one of these
-// still appears in the diff (as "—" → the new value, and the reverse), it just keeps the
-// pins from carrying a page of defaults on every node.
+// CSS initial values are dropped from EVERY capture; it costs no sensitivity — a property that
+// moves away from one still appears in the diff, as "—" → the new value.
 const DROPPED = ['none', 'normal', 'auto', '', 'static', 'visible', 'start', 'row',
   '0px', '1', '400', 'rgba(0, 0, 0, 0)'];
 
@@ -141,9 +135,8 @@ export async function expectPin(page, { name, root, props = PIN_PROPS }) {
   return pin;
 }
 
-// Freeze the app's motion through its OWN switches: the browser facade's motionMode /
-// the extension's StencilMotion, plus the OS preference both of them already honour
-// (emulated by the caller). Also pins the theme so a pin never rides the host's palette.
+// Freeze motion through the app's own switches (facade motionMode / StencilMotion) plus the
+// caller-emulated OS preference, and pin the theme so a pin never rides the host palette.
 export async function freezeMotion(page) {
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
   await page.evaluate(() => {

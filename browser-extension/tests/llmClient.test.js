@@ -1,12 +1,8 @@
-// The extension's half of the shared LLM client. src/llm/llmClient.js is a byte-pinned
-// PORT of browser/js/llm/llmClient.js (portParity.test.js), the §6 wire cases are the
-// browser suite's (browser/tests/llmClient.test.js), and the shared providerWire +
-// sanitizer fixture corpus is walked against THIS client by fixtureWalkers.test.js — so
-// none of that is duplicated here.
-//
-// What remains is the one module the client is allowed to differ through:
-// src/llm/llmSurface.js — the extension's stencil-server token resolution off its stored
-// connection list, and the per-surface failure wording.
+// The extension's half of the shared LLM client.
+// src/llm/llmClient.js is a byte-pinned PORT of browser/js/llm/llmClient.js (portParity.test.js),
+// its §6 wire cases are the browser suite's, and the shared providerWire + sanitizer corpus is
+// walked against this client by fixtureWalkers.test.js — so none of that is duplicated here.
+// What remains is src/llm/llmSurface.js: stencil-server token resolution and the failure wording.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { createLlmClient, LlmError } from '../src/llm/llmClient.js';

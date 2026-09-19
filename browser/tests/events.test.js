@@ -46,9 +46,8 @@ test('no module under js/ carries a stencil:* literal — they all read the asse
   assert.deepEqual(strays, [], 'import EVENTS from config/events.json instead');
 });
 
-// The two channels that leave the app. The extension cannot import across subprojects, so
-// its content script keeps the literal; browser-extension/tests/dataParity.test.js pins it against
-// this asset. This is the browser half of that handshake.
+// The two channels that leave the app. The extension cannot import across subprojects, so its content script
+// keeps the literal and its dataParity.test.js pins it against this asset.
 test('the cross-surface channels still match the extension bridge byte-for-byte', () => {
   const bridge = readFileSync(resolve(ROOT, '../browser-extension/src/content/editorBridge.js'), 'utf8');
   assert.ok(bridge.includes(`'${EVENTS.switchToSource}'`), 'the extension dispatches switchToSource');

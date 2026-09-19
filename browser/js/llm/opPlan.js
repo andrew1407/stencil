@@ -17,11 +17,8 @@ export {
 } from './promptAssembly.js';
 export { MisplacedOpError, validateAsk, askAnswerText, parseOpPlan } from './planParser.js';
 
-// Execute a parsed plan against the frozen window.stencil facade — every op routes
-// through the same facade methods the toolbar/console use, never new editor logic.
-// The options are the surface's injected capabilities (chatSession.js wires them all);
-// an absent one makes its op error out or note+skip per §10/§2.1. savedServers is the
-// ONLY pool `connect` may resolve against. Returns { results: [{ label, dataUrl }], warnings }.
+// Execute a parsed plan against the frozen window.stencil facade — every op routes through the
+// facade, never new editor logic. savedServers is the ONLY pool `connect` may resolve against.
 export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink, ranSink } = {}) => {
   const warnings = (plan.warnings || []).slice();
   const results = [];
@@ -37,9 +34,8 @@ export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, sav
     if (OPS[a.op].newFrame) Object.assign(ctx.frame, identityFrame());
   };
 
-  // §10 clearChat defers to the plan's END, wherever it rode in the plan. A caller
-  // `deferredSink` takes the deferred actions UNEXECUTED instead: the turn runner replays
-  // them after the §7 auto-continuation round, at the turn's true end (chatController).
+  // §10 clearChat defers to the plan's END wherever it rode in. A caller `deferredSink` takes
+  // the deferred actions UNEXECUTED, to replay after the §7 continuation round.
   const deferred = deferredSink || [];
   // `ranSink` collects the actions that completed — what a preview sandbox must undo.
   for (const a of plan.actions) {
@@ -49,15 +45,11 @@ export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, sav
 
   if (plan.variants.length) {
     if (!exportImage) throw new Error('Variants need an image export capability');
-    // Variants render IMAGES, so they need a working image — but a plan whose
-    // actions already ran (settings, openUrl, blank…) must not be thrown away
+    // Variants need a working image, but a plan whose actions already ran must not be thrown away
     // for that: skip the renders with a warning instead of failing the turn.
     if (!stencil.imageSize) {
       warnings.push(`Skipped ${plan.variants.length} variant${plan.variants.length === 1 ? '' : 's'} — variants render images and no image is loaded yet`);
     } else {
-      // Branch each variant from the state AFTER the top-level actions: snapshot the
-      // editor state (pixels only for a variant that replaces the original), run the
-      // variant's ops from the frame the top-level actions built up, export, restore.
       const state = captureEditorState(stencil);
       const postActionsFrame = { ...ctx.frame };
       let base = null;
@@ -80,11 +72,8 @@ export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, sav
   return { results, warnings };
 };
 
-// ── §11 preview rendering ───────────────────────────────────────────────────
-// Render the preview for each `ask` option carrying `actions` — same save/restore dance
-// as variants, so a preview SUGGESTS an edit, never performs one. Options with an `image`
-// reference (or nothing) come back without a dataUrl for the surface to resolve. One
-// option's render failing costs that option its picture (+ warning), never the card.
+// §11 preview rendering: the same save/restore dance as variants, so a preview SUGGESTS an
+// edit and never performs one. One option's render failing costs that option its picture.
 export const renderAskPreviews = async (ask, stencil, { exportImage, loadFrame } = {}) => {
   const previews = [];
   const warnings = [];

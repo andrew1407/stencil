@@ -57,9 +57,8 @@ test('applyChatSide stamps the class the CSS swap rules key off, only when swapp
 
 // ── wireChatSideToggle: applies on mount, flips on click ──
 test('wireChatSideToggle applies the current side on mount and toggles on click', async () => {
-  // chatView.js imports chatLayoutPrefs.js by its OWN (unqueried) specifier — reach
-  // that exact same module instance here, not an isolated `?prefsN` one, or setting
-  // the side beforehand would land in a copy wireChatSideToggle never sees.
+  // chatView.js imports chatLayoutPrefs.js by its OWN unqueried specifier, so reach that exact module instance
+  // here: a `?prefsN` copy is one wireChatSideToggle never sees.
   const prefs = await import('../js/ui/chatLayoutPrefs.js');
   prefs.setChatSide(prefs.CHAT_SIDE_SWAPPED);   // mounting while already swapped
   const { wireChatSideToggle } = await import('../js/ui/chatView.js?prefs-wire');

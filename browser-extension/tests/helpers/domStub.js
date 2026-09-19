@@ -1,9 +1,8 @@
 // One stub DOM for every suite that drives a module against a document instead of a page.
-// Node has no DOM and this repo adds no deps, so this is the union of the element and
-// document mocks eleven suites used to hand-roll — nothing speculative beyond it.
-//
-// Defaults are deliberately inert (zero rect, no children, querySelector → null); a suite
-// that needs a live measurement sets `el.rect` / `el.offsetWidth` itself.
+// Node has no DOM and this repo adds no deps, so this is the union of the element and document
+// mocks those suites need — nothing speculative beyond it.
+// Defaults are deliberately inert (zero rect, no children, querySelector → null); a suite that
+// needs a live measurement sets `el.rect` / `el.offsetWidth` itself.
 
 /**
  * One element. `tag` sets both `tag` and `tagName`; everything else is an override for a

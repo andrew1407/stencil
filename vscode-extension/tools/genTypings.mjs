@@ -70,13 +70,10 @@ export const buildTypings = ({ source = readFileSync(SOURCE, 'utf8'),
     out.push(line.replace(/^export /, ''));
   }
 
+  // Two lines, so this plus the source's own three-line banner is one 5-line banner.
   const banner = [
-    '// The Stencil browser app\'s console API, as types.',
-    '//',
-    '// Generated from browser/js/console/stencilApi.d.ts by vscode-extension/tools/genTypings.mjs.',
-    '// Drop it beside your JavaScript and the editor types `stencil` itself: hovering a member',
-    '// gives its signature rather than `any`. The Stencil extension writes it here for you with',
-    '// "Stencil: Add facade typings to this workspace".',
+    '// The Stencil browser app\'s console API as types, generated from stencilApi.d.ts by',
+    '// tools/genTypings.mjs — "Stencil: Add facade typings to this workspace" writes it beside your JS.',
     '',
   ].join('\n');
 

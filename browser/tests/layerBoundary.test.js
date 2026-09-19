@@ -1,11 +1,8 @@
-// Import-direction lint for browser/js. The layer order (ARCHITECTURE.md,
-// .claude/rules/architecture.md) is config/ + utils → core (no DOM) → eventBus → net → llm →
-// console → ui → render; a layer may use everything to its left and nothing to its right.
-// Text only, three rules: (1) js/core touches no `document`/`window`; (2) js/core, js/llm
-// and js/net import nothing from js/ui; (3) `window.stencil` is the console facade's
-// name — only js/console (and the boot shim that installs it) may say it. Where today's
-// tree still crosses a line the site is a frozen allowance: a NEW file or a GROWN count
-// fails, and each entry is deleted as its call site moves behind the right seam.
+// Import-direction lint for browser/js. The layer order (ARCHITECTURE.md) is config/ + utils → core
+// (no DOM) → eventBus → net → llm → console → ui → render; a layer may use everything to its left.
+// Three text-only rules: js/core touches no `document`/`window`; js/core, js/llm and js/net import
+// nothing from js/ui; and only js/console (with the boot shim installing it) may say `window.stencil`.
+// Every site today's tree still crosses is a frozen allowance: a new file or a grown count fails.
 import test from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
@@ -23,9 +20,8 @@ const walk = (rel, out = []) => {
   return out.sort();
 };
 
-// Code only: comments removed and, unless `keepStrings`, string/template bodies too —
-// so a URL in a string or a "window" in prose never counts. Quotes are tracked like
-// sizeBudget.test.js does; import specifiers are strings, so rule 2 keeps them.
+// Code only: comments and, unless `keepStrings`, string/template bodies are stripped, so a URL or a
+// "window" in prose never counts; import specifiers are strings, so rule 2 keeps them.
 const stripped = (rel, keepStrings = false) => {
   const src = fs.readFileSync(path.join(JS, rel), 'utf8');
   let out = '', quote = '', block = false, line = false;
@@ -91,16 +87,14 @@ const measure = (files, re, keepStrings = false) => {
   return m;
 };
 
-// ── Rule 1: js/core is DOM-free ─────────────────────────────────────────────
-// The purest layer still reaches for the DOM in these files (the view paints, the
-// storage adapter reads localStorage's window, the coordinators listen on window).
-// Wave 3's model/controllers split empties this list; nothing may join it.
+// Rule 1 — js/core is DOM-free: these files still reach for the DOM (the view paints, the storage
+// adapter reads localStorage's window, the coordinators listen on window). Nothing may join them.
 const CORE_DOM_ALLOWANCE = {
-  'core/accents.js': 6, 'core/blankImage.js': 1, 'core/drawingApp.js': 19,
+  'core/accents.js': 6, 'core/blankImage.js': 1, 'core/drawingApp.js': 16,
   'core/exportService.js': 3, 'core/extensionBridge.js': 2, 'core/hotkeys.js': 4,
   'core/imageFilterCanvas.js': 1, 'core/imageModel.js': 2, 'core/imageSettle.js': 1,
   'core/inputController.js': 7, 'core/launchController.js': 4, 'core/layoutInstall.js': 1,
-  'core/lineSelection.js': 1, 'core/pointerController.js': 6, 'core/projectFileIO.js': 2,
+  'core/lineSelection.js': 1, 'core/pointerController.js': 5, 'core/projectFileIO.js': 2,
   'core/projectFilePicker.js': 6, 'core/projectMeta.js': 1, 'core/projectServerTransfer.js': 1, 'core/projectTransferController.js': 3,
   'core/quotaWriter.js': 1, 'core/stencilSync.js': 2, 'core/storage.js': 1,
   'core/tabsCoordinator.js': 3, 'core/videoFrame.js': 1,
@@ -111,9 +105,8 @@ test('js/core touches no document/window beyond the frozen allowance', () => {
   ratchet('core DOM', measure(walk('core'), DOM_GLOBAL), CORE_DOM_ALLOWANCE);
 });
 
-// ── Rule 2: core, llm and net import nothing from ui ────────────────────────
-// core still pulls the paint helpers it drives (layoutControls, motion, controlSwap…);
-// each import leaves as the controller behind it gains a view seam. llm and net are clean.
+// Rule 2 — core, llm and net import nothing from ui: core still pulls the paint helpers it drives, each
+// leaving as the controller behind it gains a view seam. llm and net are clean.
 const UI_IMPORT_ALLOWANCE = {
   'core/drawingApp.js': 10, 'core/hotkeys.js': 1, 'core/imageSettle.js': 1,
   'core/launchController.js': 1, 'core/layoutInstall.js': 1, 'core/projectFilePicker.js': 1,
@@ -126,9 +119,8 @@ test('js/core, js/llm and js/net import nothing from js/ui beyond the frozen all
   ratchet('ui import', measure(files, UI_IMPORT, true), UI_IMPORT_ALLOWANCE);
 });
 
-// ── Rule 3: window.stencil is spoken only by the console layer ──────────────
-// index.js installs it by defineProperty and never reads it back; the three surfaces
-// below reach for it where their plan executor should be handed the facade instead.
+// Rule 3 — only the console layer speaks `window.stencil`: index.js installs it by defineProperty and
+// never reads it back; the sites below should be handed the facade instead.
 const FACADE_ALLOWANCE = { 'llm/adapters/media.js': 1, 'llm/chatSession.js': 1, 'ui/chatCards.js': 1 };
 
 test('window.stencil appears outside js/console only in the frozen allowance', () => {

@@ -63,9 +63,8 @@ export class StencilScriptModal extends StencilElement {
       onUpload: (file) => loadScriptFile(file),
     });
 
-    // The window keeps what you wrote: the text is the page's ONE script buffer
-    // (scriptBuffer.js), shared with the menu flyout, so closing either view does not throw
-    // work away. Nothing persists it, so a reload still starts empty — Clear is the way out.
+    // The text is the page's ONE script buffer (scriptBuffer.js), shared with the menu flyout, so
+    // closing either view throws no work away. Nothing persists it — Clear is the way out.
     shell = wireModalShell(overlay, $('script-btn'), $('script-close'), {
       onOpen: () => {
         // A dropped .stc lands in the editor while the window owns the drop.

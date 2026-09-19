@@ -96,9 +96,8 @@ export const createAccentPreview = ({ menu, logo, accent: A, closeMenu }) => {
     afterSwap(() => { committing = false; holdReplays(false); latchHover(null); });
     shownKey = key; A.set(key, logo); markSel(); closeMenu();
   };
-  // A view transition's snapshot tree owns the hit test while it plays: a row pressed
-  // mid-wipe answers <html>, so its click never fires and the outside-press check reads a
-  // dismissal. Nothing MOVES in a swap, so the press resolves against the rows' own boxes.
+  // A view transition's snapshot tree owns the hit test while it plays, so a row's own click
+  // never fires; nothing MOVES in a swap, so hit-test against the rows' boxes.
   const rowAt = (x, y) => {
     if (menu.hidden) return null;
     for (const li of menu.children) {

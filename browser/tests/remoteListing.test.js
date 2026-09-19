@@ -3,12 +3,10 @@ import assert from 'node:assert';
 
 import { createRemoteListing, showsRemoteSkeletons } from '../js/core/remoteListing.js';
 
-// The projects modal's server-listing cache — the state machine behind the two
-// shimmer skeleton rows. The regression pinned here (user screenshot): after
-// "Clear All Local", two skeletons stayed on screen forever. The wipe deferred a
-// connections-changed invalidate into a stale-fetch race; the dropped stale fetch
-// left `loading` latched true, ensure() then refused to start a fresh fetch, the
-// cache stayed null, and render() painted skeletons no fetch would ever fill.
+// The projects modal's server-listing cache — the state machine behind the two shimmer skeleton rows. A wipe
+// that defers a connections-changed invalidate into a stale-fetch race must not latch `loading` true: ensure()
+// then refuses to start a fresh fetch, the cache stays null, and render() paints skeletons no fetch will ever
+// fill (user report, with a screenshot).
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const skeletons = (l) => showsRemoteSkeletons({
@@ -86,9 +84,8 @@ test('invalidate mid-flight unlatches loading; the dropped stale fetch changes n
 });
 
 test('after Clear All settles, skeletons resolve instead of sticking', async () => {
-  // The full screenshot timeline, at logic level: fetch #1 → invalidate mid-wipe →
-  // stale drop → the settle render's ensure() must start a FRESH fetch (this is the
-  // step the latched flag starved), whose resolution finally clears the skeletons.
+  // The whole timeline at logic level: fetch #1 → invalidate mid-wipe → stale drop → the settle render's ensure()
+  // starting a FRESH fetch, whose resolution finally clears the skeletons.
   const fetches = [];
   const listing = createRemoteListing(() => new Promise((res, rej) => fetches.push({ res, rej })));
   listing.ensure();                        // fetch #1

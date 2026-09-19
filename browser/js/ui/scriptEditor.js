@@ -11,9 +11,8 @@ const $ = (id) => document.getElementById(id);
 export const wireScriptEditor = ({ editor, pre, strip, ids, app, onRun, onUpload, busy = () => false }) => {
   let checked = false;   // nothing is reported until the script has been run once
 
-  // Copy, Download and Clear need text; Upload always works. Run needs something to DO — a
-  // script of only comments lowers to no ops, so running it was a no-op with no feedback. An
-  // errored script still runs: the strip and the underlines are how the errors become visible.
+  // Run needs something to DO — a script of only comments lowers to no ops. An errored script
+  // still runs: the strip and the underlines are how the errors become visible.
   const gateActions = (program) => {
     const blank = scriptText().trim().length === 0;
     for (const id of [ids.copy, ids.download, ids.clear]) {

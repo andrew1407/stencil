@@ -11,9 +11,7 @@ import { SETTINGS } from './settingsRegistry.js';
 export { COMPARE_MODES } from './settingsRegistry.js';
 
 
-// The shared editor setters: toolbar handlers AND the console API (window.stencil) reach
-// these through DrawingApp's delegators. `persist:false` is for live-drag (input) events
-// that commit on the trailing change.
+// `persist:false` is the live-drag (input) path that commits on the trailing change.
 export class SettingsController {
   constructor(app) {
     this.app = app;
@@ -101,9 +99,8 @@ export class SettingsController {
 
   setAllowFormulas(b) { this.set('allowFormulas', b); }
 
-  // A formula applies when typing SETTLES, never per keystroke — "(x" must not recompute,
-  // persist or sync. Same delay as the numeric fields (js/ui/numericInput.js); Enter/blur
-  // apply at once. The pair being typed is never written back, so the caret stays put.
+  // A formula applies when typing SETTLES, on the numeric fields' delay (js/ui/numericInput.js);
+  // the pair being typed is never written back, so the caret stays put.
   wireFormulaInputs({ x, y, mirrorX, mirrorY }) {
     const app = this.app;
     const read = (id) => readControl(id);
@@ -169,9 +166,8 @@ export class SettingsController {
     try { app.tooltipMgr?.refresh?.(); } catch { /* tooltip not mounted */ }
   }
 
-  // key ∈ 'mode' (particles | water | fire | slide | none) | 'drawing' | 'backdrop'. App-wide,
-  // not part of the project — the shared store, but still the ONE funnel the visuals modal and
-  // the console facade both come through.
+  // Motion is app-wide, not part of the project: the shared store, and still the one funnel
+  // the visuals modal and the console facade both come through.
   setMotion(key, value) {
     if (key === 'mode') {
       const m = String(value).trim().toLowerCase();

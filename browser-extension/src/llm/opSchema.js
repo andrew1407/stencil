@@ -1,41 +1,11 @@
 // ── Registry-driven op-plan validation (llm-contract.md §1–§2, §8, §11) ──────
-// The generic half of every op validator, table-driven from config/llm/opRegistry.json:
-// profile membership, unknown-field rejection, required keys, types, enums, ranges,
-// string caps, token grammars and the cross-field presence rules (forms / together /
-// exclusive / minFields / onlyWith / requiredWith). Surfaces keep only their
-// normalizers, executors and the native rules named in an entry's `rules`.
-// Pure module — no DOM, no fetch. The extension ships a byte-identical copy
-// (browser-extension/src/llm/opSchema.js, drift-guarded by its dataParity test).
+// Byte-identical copy of browser/js/llm/opSchema.js (drift-guarded by dataParity.test.js): the
+// generic half of every op validator, table-driven from config/llm/opRegistry.json — profile
+// membership, unknown-field rejection, required keys, types, enums, ranges, caps, token grammars
+// and the cross-field presence rules. Pure; surfaces keep only normalizers and native `rules`.
 
-const isObj = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
-const isFiniteNum = (v) => typeof v === 'number' && Number.isFinite(v);
-const isInt = (v) => isFiniteNum(v) && Math.floor(v) === v;
-const quoteList = (xs) => xs.map((x) => (typeof x === 'string' ? `"${x}"` : String(x))).join(', ');
-
-// Thrown inside the checks; the public entry points re-throw it with the surface's
-// "Invalid <op> action:" / "Invalid plan:" prefix.
-class SchemaError extends Error {}
-const bad = (why) => { throw new SchemaError(why); };
-
-// Where a value sits, for messages: `"x1" in spec`, `"label" in ask.options[2]`.
-const where = (p) => (p.key ? `${p.container ? `${p.container}.` : ''}${p.root}${p.key}` : p.root.replace(/\.$/, ''));
-const label = (p) => `"${p.root}${p.key}"${p.container ? ` in ${p.container}` : ''}`;
-const child = (p, key) => (p && p.key ? { root: '', key, container: where(p) } : { root: p ? p.root : '', key, container: null });
-const item = (p, i) => ({ root: p.root, key: `${p.key}[${i}]`, container: p.container });
-
-// ── native cross-field rules an entry may name in `rules` ───────────────────
-const RULES = {
-  // §3.2 tolerance: "aspect" beside "spec" folds into the spec when it lacks one; a
-  // conflicting duplicate fails. The folded copy is what gets validated + normalized.
-  cropAspectFold(a) {
-    if (a.aspect == null || !isObj(a.spec)) return a;
-    const spec = { ...a.spec };
-    if (spec.aspect != null && spec.aspect !== a.aspect) bad('"aspect" appears both beside "spec" and inside it with different values');
-    if (spec.aspect == null) spec.aspect = a.aspect;
-    const { aspect, ...rest } = a;
-    return { ...rest, spec };
-  },
-};
+import { RULES, SchemaError, bad, child, isFiniteNum, isInt, isObj, item, label, quoteList, where }
+  from './opSchemaBase.js';
 
 export const createSchema = (registry, surface) => {
   const profile = registry.$meta.surfaceProfiles[surface];
@@ -54,10 +24,8 @@ export const createSchema = (registry, surface) => {
   }
   const describe = (name) => registry.regexes.describe[name] || name;
 
-  // The entries this surface registers: its profile's ops in the profile's (= prompt)
-  // order, minus entries restricted to other surfaces, each resolved for this surface:
-  // its key schema, prompt bullet and flags where a surface/profile-specific one is
-  // recorded (surfaceKeys / bulletVariants / surfaceFlags).
+  // This surface's registered entries: its profile's ops in prompt order, minus entries restricted
+  // to other surfaces, each resolved via surfaceKeys / bulletVariants / surfaceFlags.
   const order = registry.profiles[profile].ops;
   const forSurface = (map) => (map && (map[surface] ?? map[profile])) ?? undefined;
   const entries = registry.ops

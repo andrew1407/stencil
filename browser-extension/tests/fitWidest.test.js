@@ -1,12 +1,8 @@
-// The filter rows' width contract. Two halves:
-//
-//   1. lib/fitWidest.js — a dropdown whose label swaps must not resize and shove the row,
-//      so it is pinned to the WIDEST of its own options, measured at the real font. Node
-//      has no layout engine and this repo adds no deps, so the stub below carries exactly
-//      the surface the module touches, with a fake type metric standing in for the font.
-//   2. The pages must not go back to guessing that width as a px floor, and a control a
-//      page HIDES must take no width at all (the shared .chk / .accent-dd both set
-//      `display`, which out-specifies the UA's [hidden] rule — an empty box in the row).
+// The filter rows' width contract, in two halves:
+//   1. lib/fitWidest.js — a dropdown is pinned to the WIDEST of its own options so a label swap
+//      cannot resize and shove the row; Node has no layout engine, so the stub below carries
+//      exactly the surface the module touches, with a fake type metric for the font.
+//   2. The pages must not guess that width as a px floor, and a HIDDEN control takes no width.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,9 +11,7 @@ import { themeCss } from './helpers/sources.js';
 import { pinToWidestOption } from '../src/lib/fitWidest.js';
 
 // ── Stub DOM ────────────────────────────────────────────────────────────────
-// A custom-select trigger: the label span reports a width derived from its text (7px a
-// character, the way a real font would), and setting select.value re-syncs that label —
-// exactly what customSelect.js's wrapped setter does.
+// A custom-select trigger whose label is 7px a character and re-syncs on value set.
 const CHAR_PX = 7;
 
 const makeSelect = (labels, { widthOf = (t) => t.length * CHAR_PX } = {}) => {
@@ -130,9 +124,8 @@ test('the options page pins the search-mode list and floors nothing by hand', ()
 });
 
 test('a hidden chip or dropdown takes no width', () => {
-  // Both components set `display` themselves, which out-specifies the UA's [hidden] rule:
-  // without these the popup's "server pins" pill and its per-server list still paint an
-  // (empty) box in the filter row with no server connected.
+  // Both components set `display` themselves, which out-specifies the UA's [hidden] rule — without
+  // these an (empty) box still paints in the filter row.
   const css = themeCss();
   assert.match(css, /\.chk\[hidden\] \{ display: none; \}/);
   assert.match(css, /\.accent-dd\[hidden\] \{ display: none; \}/);

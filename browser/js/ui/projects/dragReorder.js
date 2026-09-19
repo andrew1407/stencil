@@ -13,10 +13,8 @@ export function createDragReorder(deps) {
     loadOrder, saveOrder, confirmOpen, openRemote, invalidateRemotes,
     beginRemoval, retireKey, localKey, remoteKey, rowById,
   } = deps;
-  // ── Per-session manual drag order ──
-  // A drop rewrites the persisted key order and switches the sort to 'manual'. The order is
-  // seeded from the full current ordering (ignoring the search filter) so every project keeps
-  // a slot even when a drag happens while filtered; unknown/added ids fall to the end.
+  // A drop rewrites the persisted key order and switches the sort to 'manual'. Seeded from the
+  // full current ordering (ignoring the filter) so every project keeps a slot; new ids go last.
   let dragKey = null;
   let didReorder = false;
   let dragActive = false;
@@ -34,25 +32,21 @@ export function createDragReorder(deps) {
     setSortMode('manual');
   };
 
-  // ── Drag-out drop zones (ui/projectDropZones.js) ──
-  // Overlay around the dialog while a row is dragged: top 70% splits Open here / Open in
-  // a new tab, bottom 30% is Remove. Zones are PURELY VISUAL (pointer-events:none) — the
-  // action is decided from the pointer's RELEASE position (zoneForPoint). Every zone confirms.
+  // Zones are PURELY VISUAL (pointer-events:none) — the action is decided from the pointer's
+  // RELEASE position (zoneForPoint). Every zone confirms.
   const { showZones, hideZones, zoneForPoint, highlightZone } = createDropZones(overlay);
   let lastX = 0;
   let lastY = 0;
 
-  // Track the pointer + highlight the live zone during a row drag. preventDefault over a zone so
-  // the cursor reads as droppable and the drop is ACCEPTED — that suppresses the browser's
-  // snap-back-to-source animation (the glitch where the row appeared to return to the list).
+  // preventDefault over a zone so the cursor reads as droppable and the drop is ACCEPTED, which
+  // suppresses the browser's snap-back-to-source animation.
   const onDocDragOver = (e) => {
     if (!dragActive) return;
     lastX = e.clientX; lastY = e.clientY;
     const zone = zoneForPoint(lastX, lastY);
     highlightZone(zone);
-    // dropEffect MUST stay compatible with effectAllowed ('move', set in dragstart): a
-    // 'copy' effect makes the browser REJECT the drop (no drop event fires → snap-back,
-    // no action). Keep every zone on 'move'.
+    // dropEffect MUST stay compatible with effectAllowed ('move', set in dragstart): a 'copy'
+    // effect makes the browser REJECT the drop (no drop event, no action). Keep every zone 'move'.
     if (zone) { e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch { /* noop */ } }
   };
   document.addEventListener('dragover', onDocDragOver);

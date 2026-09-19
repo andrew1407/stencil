@@ -35,9 +35,8 @@ export const buildScriptOps = (core, { withCString }) => {
     dump: core.cwrap('stencil_scriptDump', 'string', ['number']),
   };
 
-  // ONE scratch slot for every out-parameter, taken once: a _malloc/_free pair per token,
-  // diagnostic, block, op and number churned the heap on every keystroke. The widest call
-  // writes 7 ints; a double fits in the first two.
+  // ONE scratch slot for every out-parameter, taken once: a _malloc/_free pair per token churned
+  // the heap on every keystroke. The widest call writes 7 ints; a double fits in the first two.
   const out = core._malloc(7 * I32);
   const slot = (i) => out + i * I32;
   const readInt = (i) => core.getValue(out + i * I32, 'i32');

@@ -30,9 +30,8 @@ test('the open menu owns the arrow keys in the capture phase, so the pan never s
   assert.ok(src.includes("if (!menuIsOpen() || chatRowMenuOpen()) return;\n      if (!CTX_NAV_KEYS.includes(e.key)) return;"), 'only while open');
   // The assistant flyout's own text input keeps its keys (Enter sends there).
   assert.ok(block.includes('if (isTypingTarget(e.target) && menu.contains(e.target)) return;'));
-  // → on a parent row reveals its flyout the first time and ENTERS it the second (the
-  // chat's text box, else the first control, else the first row); ← folds the deepest
-  // flyout back onto its parent row; Enter does the same on a parent, picks elsewhere.
+  // → on a parent row reveals its flyout and, the second time, ENTERS it (the chat's text box, else the first
+  // control, else the first row); ← folds the deepest flyout back; Enter does the same on a parent.
   assert.ok(block.includes("ArrowRight: () => { if (kbItem && idx >= 0) openOrEnter(); },"));
   assert.ok(block.includes("if (sub.classList.contains('ctx-sub-visible')) kbEnterSub(sub);\n        else kbOpenSub(kbItem);"));
   assert.ok(block.includes("ArrowLeft: () => kbCloseSub(),"));

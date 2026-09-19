@@ -1,12 +1,7 @@
-// Compare-mode coordinate tooltip (desktop parity, confirmed working there).
-//
-// A split comparison shows the ORIGINAL on the left/top of the divider and the edit on
-// the right/bottom. Hovering a layout point in the edited half shows the usual
-// coordinate tooltip; a point behind the original half shows NOTHING, because the user
-// cannot see it there. The geometry mirrors the desktop's hover gate exactly:
-//   'none' → always · 'original' (incl. the Alt+Shift+O peek) → never
-//   'vertical' → x >= imageW * split · 'horizontal' → y >= imageH * split
-// and it is judged on the POINT's own coordinates, never the cursor's.
+// The compare-mode coordinate tooltip, mirroring the desktop's hover gate: a layout point in the edited
+// half shows its tooltip, one behind the ORIGINAL half shows nothing, since it cannot be seen there.
+// 'none' → always · 'original' (incl. the Alt+Shift+O peek) → never · 'vertical' → x >= imageW * split
+// · 'horizontal' → y >= imageH * split — judged on the POINT's own coordinates, never the cursor's.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -69,9 +64,8 @@ test('compareShowsPoint reads the effective mode, the live split and the canvas 
   assert.equal(moved.compareShowsPoint(10, 200), true);
 });
 
-// ── The tooltip decision itself ─────────────────────────────────────────────
-// applyHover is called directly (it is the shared decision both mousemove and the
-// modifier-refresh use), with a mock app recording what it was asked to show.
+// applyHover is called directly — it is the shared decision both mousemove and the modifier-refresh
+// use — with a mock app recording what it was asked to show.
 const hoverHarness = ({ mode = 'vertical', split = 0.5, point = null, lineIdx = -1, gate } = {}) => {
   const calls = { show: [], line: [], hide: 0 };
   const app = {
@@ -91,9 +85,8 @@ const hoverHarness = ({ mode = 'vertical', split = 0.5, point = null, lineIdx = 
   return { tip, calls, app };
 };
 const NO_MODS = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: false };
-// A hover that WILL show now waits out tooltip.js SHOW_DELAY_MS before show()/showLine()
-// runs; a hover that hides still does so at once. `arm` must run BEFORE the delayed
-// applyHover() call schedules its timer, or `tick` has no mock timer to advance.
+// A hover that WILL show waits out tooltip.js SHOW_DELAY_MS; one that hides does so at once. `arm` must
+// run BEFORE the delayed applyHover() schedules its timer, or `tick` has no mock timer to advance.
 const arm = (t) => t.mock.timers.enable({ apis: ['setTimeout'] });
 const tick = (t) => t.mock.timers.tick(StencilTooltip.SHOW_DELAY_MS);
 
@@ -186,11 +179,8 @@ test('the Ctrl cursor-coordinates tooltip obeys the same visibility', (t) => {
   assert.equal(alt.calls.hide, 1);
 });
 
-// ── The reveal delay itself ──────────────────────────────────────────────────
-// The line/point tooltip now waits out the same delay as the toolbar/menu tooltip
-// (controlTooltip.js SHOW_DELAY_MS) before it appears, so a sweep across the canvas
-// doesn't flash a tooltip per pixel. Sweeping onto a NEW target re-arms the wait; staying
-// on the SAME one (or a keyboard-triggered refresh) never does.
+// The line/point tooltip waits out the same delay as the toolbar/menu tooltip (controlTooltip.js
+// SHOW_DELAY_MS); sweeping onto a NEW target re-arms the wait, the same one never does.
 test('the reveal waits out the toolbar tooltip\'s delay, but only for a genuinely new target', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const h = hoverHarness({ point: { x: 212, y: 270 } });

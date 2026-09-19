@@ -1,10 +1,8 @@
 // The quick-crop modal, handed to executeScript({ func }): Chrome serialises the function
 // and nothing else, so it must stay self-contained (no imports). If the frame never posts
 // 'ready' (CSP/mixed content), the modal drops and a tab opens instead.
-// The palette arrives as DATA (`theme` from lib/shellTheme.js), never prefers-color-scheme:
-// that would frame a dark crop page in white when the Appearance choice disagrees with the
-// OS — and a HOST PAGE can answer the query differently from the extension's own documents,
-// which is why 'system' arrives already resolved (`theme.resolved`).
+// The palette arrives as DATA (`theme` from lib/shellTheme.js) with 'system' already
+// resolved (`theme.resolved`) — never prefers-color-scheme, which a host page answers.
 export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const ID = 'stencil-ext-modal';
   const existing = document.getElementById(ID);
@@ -21,8 +19,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     catch (e) { return false; }
   };
   // Mirror of lib/shellTheme.js injectedScheme + resolveShellMode — an injected fn can't
-  // import. The page's own media query is the last resort, for a profile that has not
-  // opened an extension page yet.
+  // import. The page's own media query is the last resort.
   const resolveMode = (mode) => {
     if (mode === 'dark' || mode === 'light') return mode;
     if (t.resolved === 'dark' || t.resolved === 'light') return t.resolved;
@@ -44,16 +41,14 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   applyTheme(t.mode, t.accent);
 
   // The #app-tooltip mask from lib/theme/tooltip.css: three coprime dot screens dying at
-  // different rates; at 120% the dots overlap, so a settled panel is solid to the pixel.
-  // `d` is 0 (settled) … 1 (dispersed).
+  // different rates; at 120% they overlap, so a settled panel is solid. `d` is 0…1.
   const grain = (d) => {
     const stop = (rate) => `radial-gradient(circle at 50% 50%,#000 ${Math.max(0, 120 - rate * d)}%,`
       + `transparent ${Math.max(0, 128 - rate * d)}%)`;
     return `${stop(160)},${stop(140)},${stop(125)}`;
   };
-  // Chrome does not interpolate gradients inside mask-image, hence discrete steps; and it
-  // resolves mask-size against the FIRST layer while mask-image animates, which would
-  // flatten the three coprime grids into one lattice — so the sizes ride in every step.
+  // Chrome doesn't interpolate gradients in mask-image (hence discrete steps) and resolves
+  // mask-size against the FIRST layer, so the three sizes ride in every keyframe.
   const SIZES = '4px 4px,7px 7px,11px 11px';
   const grainFrames = (name, levels, ends) => `@keyframes ${name}{` + levels.map((d, i) => {
     const pct = Math.round((i / (levels.length - 1)) * 100);

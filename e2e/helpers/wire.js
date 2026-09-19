@@ -14,9 +14,7 @@ export const T = {
   error: 'error', pong: 'pong', projectEvent: 'project-event',
 };
 
-// A tiny promise-based client with a shared read-until helper. `dial` opens the
-// transport; `send` writes one JSON message; `readUntil` resolves the first frame of
-// a wanted type (rejects on timeout). Works for both WS and TCP via a common shape.
+// One shape over both WS and TCP: `readUntil` resolves the first frame of a wanted type.
 class Client {
   constructor(send, close) { this._send = send; this._close = close; this._q = []; this._waiters = []; }
   _push(msg) {
