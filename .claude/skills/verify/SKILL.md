@@ -70,9 +70,10 @@ nice -n 10 ctest --test-dir build -j1 -E 'mainwindow_.*_gui' --output-on-failure
 nice -n 10 ctest --test-dir build -j1 -R 'mainwindow_.*_gui' --output-on-failure  # the GUI areas
 ```
 
-Whole suite at `-j1` is minutes; at **`-j 4` it is ~60 s** and that is the reliable setting.
-`-j 16` is faster still but throws one spurious GUI failure per run unless the machine is
-completely idle — prefer `-j 4` right after a build.
+**Use `-j 2`.** The GUI e2e is now ~80 short binaries, each opening a real MainWindow, so
+higher widths over-subscribe and throw ONE spurious GUI failure per run — a different
+target each time, each passing alone. `-j 2` is ~2 min and clean; `-j 4` was reliable only
+while there were ~23 areas.
 
 **Known flake:** a handful of GUI cases flip under CPU load — `chatdock` and `chrome` most
 often. If exactly one GUI case fails, re-run that target alone on a quiet machine before
