@@ -197,7 +197,9 @@ foreach(area chatCards chatCompact chatDock chatPanel chatTurns canvas chrome co
              menusConverse menusExport menusPill
              menusOpening menusRows menusScript menuKeys motion openImage openImageCrop
              openImageCropEdit openImageCropOrient openImageCropState openImageDust
-             openImageReadout popover projects theme toolbar tooltips)
+             openImageReadout popover projects theme toolbar toolbarCompare
+             toolbarDescription toolbarDraw toolbarDrawPaint toolbarExport toolbarFill
+             toolbarInk toolbarLayout toolbarSettings tooltips)
   string(TOLOWER ${area} _area_lc)
   stencil_headless_test(stencil_mainwindow_${_area_lc}_gui
     SOURCES tests/MainWindow.${area}.gui.cpp
