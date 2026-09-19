@@ -35,7 +35,7 @@
     "desktop/tests/MainWindow.chatTurns.gui.cpp": 2648,
     "desktop/tests/MainWindow.chrome.gui.cpp": 1072,
     "desktop/tests/MainWindow.menuKeys.gui.cpp": 619,
-    "desktop/tests/MainWindow.menus.gui.cpp": 1766,
+    "desktop/tests/MainWindow.menus.gui.cpp": 468,
     "desktop/tests/MainWindow.openImage.gui.cpp":      268,
     "desktop/tests/MainWindow.motion.gui.cpp": 846,
     "desktop/tests/MainWindow.projects.gui.cpp": 1019,
@@ -65,7 +65,6 @@
   },
   "exceptions": {
     "desktop/tests/MainWindow.chatPanel.gui.cpp": "845 -> 858 for one assertion inside the existing §12.2 disclosure case: the note box must sit at the same tight spacing as every other row, not a hole in the form (user report). It belongs with the toggle's own case, and a QtTest binary runs one QObject of slots, so it cannot move without splitting the binary.",
-    "desktop/tests/MainWindow.menus.gui.cpp": "1638 -> 1766 for one case: the Stencil Script row as a flyout — its place under the Assistant, its four actions, typing through the menu's re-dispatch, and a run that edits the canvas with the menu still open. It belongs with the other context-menu cases, and a QtTest binary runs one QObject of slots, so it cannot move without splitting the binary.",
     "desktop/tests/MainWindow.menuKeys.gui.cpp": "557 -> 619 for one case: the script flyout's keys — the two-step Right onto its editor, Tab indenting instead of walking the actions, and Ctrl+Enter running. Same binary rule as above.",
     "desktop/src/support": "comment share was raised 21 -> 23 with no comment added: theme.cpp's 817-line QSS literal moved to resources/app.qss, so the directory lost that many non-comment lines from the denominator. Ratcheted back to 21 once the header bodies moved into .cpp TUs: the declarations left behind are comment-dense, the moved bodies are not, and both live in support/.",
     "desktop/src/llm": "comment share was raised 20 -> 21 with no comment added: ChatPlanTarget.cpp, a 605-line low-comment file, moved to app/ where it belongs in the layer order, so llm/ lost those lines from the denominator. Back to 20 after the llm/ TU splits.",
