@@ -40,7 +40,6 @@
     "desktop/tests/modalChrome.headless.cpp": 354,
     "desktop/tests/motionPrefs.headless.cpp": 288,
     "desktop/tests/ProjectsBatchBar.headless.cpp": 617,
-    "desktop/tests/serverAuth.headless.cpp": 791,
     "desktop/tests/storeFixtures.headless.cpp": 262,
     "desktop/tests/strokeGrowth.headless.cpp": 241,
     "desktop/tests/themeSwapEase.headless.cpp": 265,
