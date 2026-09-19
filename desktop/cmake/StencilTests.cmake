@@ -196,19 +196,23 @@ foreach(area canvas canvasBar canvasBlank canvasChain canvasFilter canvasScroll 
              chatCards chatCardsScroll chatCardsShape chatCompact chatCompactOverflow
              chatCompactShimmer chatCompactSwap chatCompactToast chatDock chatDockClose
              chatDockDrag chatDockEdge chatDockPlace chatPanel chatPanelChrome chatPanelMenu
-             chatPanelOpen chatPanelSync chatTurns chrome chromeFormula chromeFullscreen
-             chromeIncognito chromeIncognitoToggle chromeName chromeNameRing chromeShortcuts
-             composition menuKeys menuKeysFlyout menuKeysScript menuKeysTint menus
-             menusAltHold menusAssistantRows menusCanvas menusChips menusComposer
-             menusConverse menusExport menusOpening menusPill menusRows menusScript motion
-             motionDialogs motionGlyphs motionReveal motionSurfaces openImage openImageCrop
-             openImageCropEdit openImageCropOrient openImageCropState openImageDust
-             openImageFit openImageReadout popover projects projectsFile projectsGestures
-             projectsRemove projectsRows projectsView theme themeAccentClose
-             themeAccentFocus themeAccentKeep themeAccentPick themeAccentRow themeDropHint
-             themeSwap toolbar toolbarCompare toolbarDescription toolbarDraw
-             toolbarDrawPaint toolbarExport toolbarFill toolbarInk toolbarLayout
-             toolbarSettings tooltips tooltipsCursor tooltipsFade tooltipsKeycaps)
+             chatPanelOpen chatPanelSync chatTurns chatTurnsAttach chatTurnsBubble
+             chatTurnsCards chatTurnsClear chatTurnsClearCards chatTurnsContinue
+             chatTurnsDoc chatTurnsEdgeMap chatTurnsLayout chatTurnsMenu chatTurnsPlan
+             chatTurnsProjects chatTurnsRowMenu chatTurnsViewport chrome
+             chromeFormula chromeFullscreen chromeIncognito chromeIncognitoToggle chromeName
+             chromeNameRing chromeShortcuts composition menuKeys menuKeysFlyout
+             menuKeysScript menuKeysTint menus menusAltHold menusAssistantRows menusCanvas
+             menusChips menusComposer menusConverse menusExport menusOpening menusPill
+             menusRows menusScript motion motionDialogs motionGlyphs motionReveal
+             motionSurfaces openImage openImageCrop openImageCropEdit openImageCropOrient
+             openImageCropState openImageDust openImageFit openImageReadout popover projects
+             projectsFile projectsGestures projectsRemove projectsRows projectsView theme
+             themeAccentClose themeAccentFocus themeAccentKeep themeAccentPick
+             themeAccentRow themeDropHint themeSwap toolbar toolbarCompare
+             toolbarDescription toolbarDraw toolbarDrawPaint toolbarExport toolbarFill
+             toolbarInk toolbarLayout toolbarSettings tooltips tooltipsCursor tooltipsFade
+             tooltipsKeycaps)
   string(TOLOWER ${area} _area_lc)
   stencil_headless_test(stencil_mainwindow_${_area_lc}_gui
     SOURCES tests/MainWindow.${area}.gui.cpp
