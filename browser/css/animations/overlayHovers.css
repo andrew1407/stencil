@@ -40,10 +40,10 @@
 /* ── Hotkey cells + visuals/info rows: gentle hover ─────────────────── */
 .hotkey-cell { transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
 .hotkey-table tr td { transition: background 0.15s ease; }
-.vs-row, .info-item { transition: background 0.15s ease; }
-/* .vs-actions rows and the connect dialog's form rows are plain containers of
-   inputs/buttons, not data rows — no hover wash on any of them. */
-.vs-row:not(.vs-actions):not(stencil-connect-modal *):hover,
+.info-item { transition: background 0.15s ease; }
+/* A settings row (.vs-row) used to wash its own gray background on hover too — redundant
+   once its own control already carries the glass shimmer (buttons, swatches) or its own
+   focus ring (inputs, selects); the row itself is not a target (user report). */
 .info-item:hover { background: var(--bg-coord-hover); }
 
 /* ── Idle "create blank image" affordance: invite a click ───────────── */

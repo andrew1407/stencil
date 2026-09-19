@@ -218,11 +218,11 @@ int main(int argc, char** argv) {
   check(!accentNeedsDarkGlyph(QColor()), "an invalid colour keeps the white default");
   check(onAccentInk(QColor("#eab308")) == QColor("#1a1a1a"), "the dark ink is the page ink");
   check(onAccentInk(QColor("#7c3aed")) == QColor(Qt::white), "…and the light one is white");
-  // Exactly the seven presets the other surfaces flag — the parity assertion.
-  int flagged = 0;
+  QString flagged;
   for (const auto& a : stencil::gui::accentPresets())
-    if (accentNeedsDarkGlyph(QColor(a.hex))) ++flagged;
-  check(flagged == 7, "seven presets (pink, yellow, orange, aqua, sky, grass, brown) flip");
+    if (accentNeedsDarkGlyph(QColor(a.hex))) flagged += a.key + QLatin1String(" ");
+  check(flagged == "pink orange brown yellow grass turquoise aqua sky bluegray ",
+        "exactly the light presets flip, in palette order (browser/extension parity)");
 
   // The palette hands the ink out with the theme, tick image included.
   check(stencil::gui::themePalette(false, "yellow").onAccent == QColor("#1a1a1a"),

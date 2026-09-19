@@ -180,8 +180,9 @@ classDiagram
    `{ dataUrl, name, crop?, page?, incognito? }`. The fragment never reaches a server; the
    editor consumes it in `DrawingApp.applyExternalLaunch()` and strips it.
 3. **Ports stay byte-identical.** `controlTooltip`, `numericInput`, `dropdownMenu`,
-   `tipContent`, `scrollbarHover`, `dustCloud`, `motionIcons`, `llmClient` and the three
-   `op*` validator files are copies of the browser's, pinned by `tests/portParity.test.js`.
+   `tipContent`, `scrollbarHover`, `dustCloud`, `motionIcons`, `rectTween`, `llmClient` and
+   the three `op*` validator files are copies of the browser's, pinned by
+   `tests/portParity.test.js`.
 4. **Bridges share one shape.** A MAIN-world script defines a hard-guarded, non-enumerable
    object and postMessages requests to an ISOLATED script that relays them to the worker and
    answers on the same id. "Is this the editor?" is an origin match against the Options

@@ -15,6 +15,8 @@ extern "C" {
                                double, double, double*);
   void stencil_scaleCropCentered(double, double, double, double, double, double,
                                  double, double, double*);
+  void stencil_swapCropOrientation(double, double, double, double, double, double,
+                                   double, double*);
   double stencil_cropResizeScale(double, double);
   void stencil_cropChange(double, double, double, double, double, double, double,
                           double, double*);
@@ -74,6 +76,16 @@ TEST_SUITE("wasmApi") {
     stencil_scaleCropCentered(60, 60, 80, 80, 0.0001, 1.0, 200, 200, out);
     CHECK(out[2] == doctest::Approx(16.0));
     CHECK(out[3] == doctest::Approx(16.0));
+  }
+
+  TEST_CASE("stencil_swapCropOrientation carries the framing across, out[0..3]") {
+    double out[4] = {0, 0, 0, 0};
+    // Centre (140,120) in a 400x400 image, 80x160 -> flipped to 2:1 -> 160x80, same centre.
+    stencil_swapCropOrientation(100, 40, 80, 160, 2.0, 400, 400, out);
+    CHECK(out[2] == doctest::Approx(160.0));
+    CHECK(out[3] == doctest::Approx(80.0));
+    CHECK(out[0] + out[2] / 2.0 == doctest::Approx(140.0));
+    CHECK(out[1] + out[3] / 2.0 == doctest::Approx(120.0));
   }
 
   TEST_CASE("stencil_cropResizeScale / cropChange report rescale vs flip") {

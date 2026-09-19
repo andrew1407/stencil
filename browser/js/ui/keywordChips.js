@@ -1,28 +1,17 @@
 import { FILTER_ENTERING_CLASS, disintegrate, flipFrom, leaveThenRemove,
-         motionReduced, speckPainter } from './motion.js';
+         motionReduced, speckPainter,
+         CHIP_MOTE_PX, CHIP_DUST_MS, CHIP_DUST_DRIFT, chipGrid } from './motion.js';
 import { icon } from './icons.js';
 
 // One keyword list, edited as chips. The list is the value; the input above it only
 // proposes words. Desktop twin: dialogs/KeywordChips.{hpp,cpp}.
 
 // The chip's own clocks, all twinned in KeywordChipsMotion.cpp and the projectMeta.css
-// keyframes. Finer motes than the shared 3px (a chip is a 26px oval) and a short throw:
-// the browser's host does not clip the cloud, so a list-sized one rained below the row.
-const CHIP_MOTE_PX = 1.5;
-const CHIP_DUST_MS = 630;
-const CHIP_DUST_DRIFT = 0.15;
-const CHIP_LEAVE_MS = 630;
+// keyframes. The mote size, clock, throw and grid are the shared chip recipe
+// (motion/tiles.js), so anything else that should read like a chip flies on the same one.
+const CHIP_LEAVE_MS = CHIP_DUST_MS;
 const ENTER_DELAY_MS = 285;
 const CHIP_ENTER_MS = 510;
-// One budget shared by every chip flying at once, with a floor so the last still reads as
-// dust. Not scatterGridFor: that caps a LIST at 12 rows and leaves the rest no cloud.
-const CHIP_TILE_BUDGET = 1380;
-const chipGrid = (sharing) => {
-  const per = Math.max(24, Math.floor(CHIP_TILE_BUDGET / Math.max(1, sharing)));
-  const cols = Math.max(6, Math.round(Math.sqrt(per * 3)));
-  return { cols, rows: Math.max(3, Math.round(per / cols)) };
-};
-
 // Element-wise: a keyword may hold a comma, which would make ['a,b'] and ['a','b'] equal.
 const sameOrder = (a, b) => a.length === b.length && a.every((w, i) => w === b[i]);
 

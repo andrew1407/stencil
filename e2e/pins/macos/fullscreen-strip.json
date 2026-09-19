@@ -2047,7 +2047,7 @@
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
         "padding": "4px 6px",
-        "width": "261px",
+        "width": "244.3px",
         "height": "61px",
         "flex-direction": "column",
         "justify-content": "flex-start"
@@ -2066,7 +2066,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "0px 4px 4px",
         "margin": "0px 0px 4px",
-        "width": "249px",
+        "width": "232.3px",
         "height": "15px",
         "opacity": "0.85"
       },
@@ -2083,7 +2083,7 @@
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
         "gap": "8px",
-        "width": "249px",
+        "width": "232.3px",
         "height": "34px",
         "align-items": "center"
       }
@@ -2099,7 +2099,7 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "16px",
         "font-family": "Arial, sans-serif",
-        "width": "177px",
+        "width": "160.3px",
         "height": "34px"
       }
     },
@@ -2119,7 +2119,7 @@
         "font-family": "Arial, sans-serif",
         "padding": "8px 12px",
         "gap": "6px",
-        "width": "177px",
+        "width": "160.3px",
         "height": "34px",
         "text-align": "left",
         "align-items": "center",
@@ -2136,11 +2136,11 @@
         "border-color": "rgb(0, 0, 0)",
         "font-size": "14px",
         "font-family": "Arial, sans-serif",
-        "width": "132px",
+        "width": "115.3px",
         "height": "16px",
         "text-align": "left"
       },
-      "text": "A3 (11.69 × 16.54 in)"
+      "text": "A3 (11.69 × 16.54)"
     },
     {
       "path": ":root/div[1]/div[11]/div[2]/span[1]/button[1]/span[3]",

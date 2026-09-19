@@ -2,6 +2,7 @@
 // The searchable rows of visual defaults: accent mount, motion mode, drawing colours.
 import { icon } from './icons.js';
 import { MOTION_MODE_LABELS } from './motionPrefs.js';
+import { SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
 
 export const visualsModalInner = () => `
         <div class="app-modal">
@@ -46,6 +47,9 @@ export const visualsModalInner = () => `
                 <div class="vs-row"><label>Area fill (new locked areas)</label><label class="vs-ctrl vs-color"><input type="color" id="vs-fill"><span class="vs-hex"></span></label></div>
                 <div class="vs-section">Drawing behavior</div>
                 <div class="vs-row"><label>Hold-to-draw delay (ms)</label><span class="vs-ctrl"><input type="number" id="vs-hold-delay" min="100" max="3000" step="50"></span></div>
+                <div class="vs-section">Voice input</div>
+                <div class="vs-row"><label data-title="How long a pause ends what you are saying and sends it — dictation in the chat and the hands-free voice chat both use it">Send after a pause of (ms)</label>
+                    <span class="vs-ctrl"><input type="number" id="vs-voice-silence" min="${SILENCE_MS_MIN}" max="${SILENCE_MS_MAX}" step="100"></span></div>
                 <div class="vs-section">Highlight styles</div>
                 <div class="vs-row"><label>Selected line/point glow</label><label class="vs-ctrl vs-color"><input type="color" id="vs-sel-glow"><span class="vs-hex"></span></label></div>
                 <div class="vs-row"><label>Point hover ring</label><label class="vs-ctrl vs-color"><input type="color" id="vs-hover-ring"><span class="vs-hex"></span></label></div>

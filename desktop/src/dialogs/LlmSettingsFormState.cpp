@@ -1,6 +1,7 @@
 #include "../support/modalChrome.hpp"
 #include "../support/SearchCombo.hpp"
 #include "LlmSettingsForm.hpp"
+#include "../support/easeWindowHeight.hpp"
 #include "connectionStore.hpp"
 #include "LlmClient.hpp"
 #include "llmSettings.hpp"
@@ -24,6 +25,7 @@ namespace stencil::gui {
   void LlmSettingsForm::focusProvider() { provider_->setFocus(); }
 
   void LlmSettingsForm::syncRows(const QString& prevProvider) {
+    const int hostH0 = window() ? window()->height() : 0;   // before the rows move
     const QString provider = provider_->currentData().toString();
     const bool off = provider == "none";  // assistant off: every row irrelevant
     const bool viaServer = provider == "stencil-server";
@@ -42,6 +44,14 @@ namespace stencil::gui {
       // The merged note stays (the §12.2 line always applies); only its
       // local-endpoint line is provider-conditional.
       note_->setVisible(direct);
+      // A layout caches each child's height in its own item, and hiding one does not clear
+      // that — the box would keep the vanished line's space. updateGeometry() re-reports it.
+      if (noteBox_) {
+        if (QLayout* l = noteBox_->layout()) l->invalidate();
+        noteBox_->updateGeometry();
+      }
+      updateGeometry();
+      pinNoteHeights();
     } else {
       baseUrl_->setEnabled(direct);
       model_->setEnabled(!off);
@@ -54,10 +64,29 @@ namespace stencil::gui {
     if (direct &&
         (text.isEmpty() || text == stencil::llm::defaultLlmBaseUrl(prevProvider)))
       baseUrl_->setText(stencil::llm::defaultLlmBaseUrl(provider));
-    // The host dialog shrinks/grows with the visible rows — but only once shown:
-    // an adjustSize during construction (before the host installed its layout)
-    // freezes a too-small size that paints the rows on top of each other.
-    if (mode_ == RowMode::HIDE_ROWS && window()->isVisible()) window()->adjustSize();
+    // The host dialog grows and shrinks with the visible rows, EASING there rather than
+    // snapping (browser twin: easeBoxHeight on this same modal) — but only once shown: a
+    // resize during construction freezes a too-small size that stacks the rows.
+    if (mode_ == RowMode::HIDE_ROWS && window()->isVisible()) {
+      if (QLayout* l = window()->layout()) { l->invalidate(); l->activate(); }
+      support::easeWindowHeight(window(), window()->sizeHint().height(), hostH0);
+    }
+  }
+
+  // A wrapped QLabel's hint is measured at a GUESSED width, which the layout then budgets.
+  void LlmSettingsForm::pinNoteHeights() {
+    for (QLabel* l : {saveChatsHint_, note_}) {
+      if (!l || !l->isVisible() || l->width() <= 0) continue;
+      const int h = l->heightForWidth(l->width());
+      if (h > 0 && h != l->minimumHeight()) l->setFixedHeight(h);
+    }
+  }
+
+  // Deferred: the children are laid out AFTER this resize, so their widths are still the
+  // previous pass's here — a pin measured now would use the wrong width.
+  void LlmSettingsForm::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+    QTimer::singleShot(0, this, [this] { pinNoteHeights(); });
   }
 
   void LlmSettingsForm::refreshModels() {

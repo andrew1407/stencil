@@ -522,8 +522,8 @@ namespace stencil::gui {
   }
 
   namespace {
-    // A modal dialog runs its own event loop, so the main window's QActions never fire there: the dialog carries copies
-    // of those chords while showing and the originals are parked (a live twin with the same chord would be ambiguous).
+    // A modal dialog runs its own event loop, so the main window's QActions never fire there: it carries copies of those
+    // chords while showing and the originals are parked (a live twin with the same chord would be ambiguous).
     template <typename Actions>
     void wireWindowSwitching(QDialog& dlg, const Actions& actions, QAction* opener) {
       for (QAction* a : actions) {
@@ -541,19 +541,19 @@ namespace stencil::gui {
     constexpr int POPOVER_OPEN_MS = 450, POPOVER_CLOSE_MS = 360;
   }  // namespace
 
-  // llm-contract.md §5; browser twin llmSettingsModal.js.
+  // llm-contract.md §5. The gear sits in the dock's "…" menu, closed by now — so the "…" anchors the flight.
   void MainWindow::openAssistantSettings() {
-    // The gear sits inside the dock's "…" menu, already closed — the flight belongs to the "…" trigger.
     openAssistantSettingsFrom(chatDock_ ? chatDock_->moreButton() : nullptr);
   }
 
   void MainWindow::openAssistantSettingsFrom(QWidget* anchor, const QRect& anchorRect) {
-    AssistantSettingsDialog dlg(settings_, this);
+    // A FLOATING dock is a tool window, which macOS keeps above ordinary ones; parenting to
+    // it lifts the dialog to that level too, instead of playing its arrival behind the chat.
+    const bool overDock = chatDock_ && chatDock_->isVisible() && chatDock_->isFloating();
+    AssistantSettingsDialog dlg(settings_, overDock ? static_cast<QWidget*>(chatDock_) : this);
     wireWindowSwitching(dlg, pop_.dialogActions, actAssistantSettings_);
     support::revealDialog(dlg, anchor, anchorRect);
-    if (dlg.exec() == QDialog::Accepted) {
-      applySettings(dlg.result(), true);
-    }
+    if (dlg.exec() == QDialog::Accepted) applySettings(dlg.result(), true);
   }
 
   void MainWindow::openSettings() {

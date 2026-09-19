@@ -43,6 +43,19 @@ export const rowLeaveDust = (count, index, dustMs) => ({
 });
 // Shares of the span (the CSS defaults' 0.48s and 60ms of 0.9s), so a shorter
 // DISINTEGRATE_MS shortens both with it.
+// The KEYWORD-CHIP recipe, shared by everything that should read like one: finer motes than
+// the surface 3px, a short throw, one clock both ways. Desktop twin: KeywordChipsMotion.cpp.
+export const CHIP_MOTE_PX = 1.5;
+export const CHIP_DUST_MS = 630;
+export const CHIP_DUST_DRIFT = 0.15;
+// One budget for every chip flying at once (scatterGridFor caps a LIST at 12 rows).
+export const CHIP_TILE_BUDGET = 1380;
+export const chipGrid = (sharing = 1) => {
+  const per = Math.max(24, Math.floor(CHIP_TILE_BUDGET / Math.max(1, sharing)));
+  const cols = Math.max(6, Math.round(Math.sqrt(per * 3)));
+  return { cols, rows: Math.max(3, Math.round(per / cols)) };
+};
+
 export const TILE_GATHER_SHARE = 480 / 900;
 export const TILE_JITTER_SHARE = 60 / 900;
 

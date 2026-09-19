@@ -32,7 +32,11 @@ const captureCurrentFrame = (v) =>
 function captureFramesAt(srcUrl, timesFor) {
   return new Promise((resolve, reject) => {
     const v = document.createElement('video');
-    v.muted = true; v.preload = 'auto'; v.src = srcUrl;
+    v.muted = true; v.preload = 'auto';
+    // Ask for CORS before the src: this element's frames are READ BACK, so without the
+    // ask a permitting host's video still taints the canvas and the capture throws.
+    if (!/^(blob|data):/i.test(srcUrl)) v.crossOrigin = 'anonymous';
+    v.src = srcUrl;
     const out = [];
     let times = [];
     let done = false;
@@ -92,7 +96,7 @@ export function videoFrameSamples(file, count = 4) {
 
 // The browser cannot read a video's true frame rate, so index / 30 s approximates the
 // CLI's exact frame pick (ffmpeg select=eq(n, index)).
-const FRAME_INDEX_FPS = 30;
+export const FRAME_INDEX_FPS = 30;
 export function videoFrameByIndex(file, index) {
   return videoFrameDataUrl(URL.createObjectURL(file), Math.max(0, Number(index) || 0) / FRAME_INDEX_FPS);
 }

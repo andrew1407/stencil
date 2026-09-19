@@ -87,6 +87,7 @@ namespace stencil::gui {
     };
     const auto check = [&](QCheckBox*& box, bool on, const QString& tip) {
       box = new QCheckBox(host);
+      box->setObjectName(QStringLiteral("captionCheck"));   // its caption is the row label
       box->setChecked(on);
       box->setToolTip(tip);
       connect(box, &QCheckBox::toggled, this, [this] { applyLive(); });

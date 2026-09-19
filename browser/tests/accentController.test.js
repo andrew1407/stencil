@@ -195,7 +195,8 @@ test('contrast helpers: the white/black anchors and the crossover', () => {
 test('LIGHT_ACCENT_KEYS matches prePaintTheme.js\'s inlined copy', () => {
   // prePaintTheme.js is a classic script and cannot import accents.js, so it
   // inlines this list. If a preset's hex changes, these two must move together.
-  assert.deepEqual(LIGHT_ACCENT_KEYS, ['pink', 'yellow', 'orange', 'aqua', 'sky', 'grass', 'brown']);
+  assert.deepEqual(LIGHT_ACCENT_KEYS,
+    ['pink', 'orange', 'brown', 'yellow', 'grass', 'turquoise', 'aqua', 'sky', 'bluegray']);
   const inlined = readFileSync(new URL('../js/prePaintTheme.js', import.meta.url), 'utf8')
     .match(/LIGHT_ACCENT_KEYS = \[([^\]]*)\]/)[1]
     .split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);

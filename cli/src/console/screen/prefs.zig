@@ -40,10 +40,10 @@ pub fn nextAccentKey(cur: []const u8) []const u8 {
 const testing = std.testing;
 
 test "nextAccentKey: advances presets, wraps, resets from custom" {
-    try testing.expectEqualStrings("pink", nextAccentKey("violet")); // first -> second
-    try testing.expectEqualStrings("violet", nextAccentKey("grey")); // last wraps to first
+    try testing.expectEqualStrings("burgundy", nextAccentKey("violet")); // first -> second
+    try testing.expectEqualStrings("violet", nextAccentKey("blue")); // last wraps to first
     try testing.expectEqualStrings("violet", nextAccentKey("#ff8800")); // custom -> default
-    try testing.expectEqualStrings("pink", nextAccentKey("VIOLET")); // case-insensitive
+    try testing.expectEqualStrings("burgundy", nextAccentKey("VIOLET")); // case-insensitive
 }
 test "parseRevealSpeed: the 0.01 … 1 scale, and what is not on it" {
     try testing.expectEqual(@as(f64, 0.5), parseRevealSpeed("0.5").?);

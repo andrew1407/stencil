@@ -1363,6 +1363,9 @@
    "@media (prefers-reduced-motion: reduce)|.hotkey-cell:hover .tip-key, .hotkey-default:hover .tip-key, .info-item:hover .info-key .tip-key": {
     "animation": "none"
    },
+   "@media (prefers-reduced-motion: reduce)|.icm-spun :is(.ic, .draw-mode-icon)": {
+    "animation-name": "none"
+   },
    "@media (prefers-reduced-motion: reduce)|.ig-edge": {
     "transition": "none !important"
    },
@@ -1425,6 +1428,7 @@
     "line-height": "1.75",
     "color": "var(--text-main)",
     "background": "var(--bg-info)",
+    "overflow-wrap": "anywhere",
     "border": "1px solid color-mix(in srgb, var(--accent) 45%, var(--border-main))",
     "border-radius": "6px",
     "box-shadow": "0 4px 14px rgba(0, 0, 0, 0.28)",
@@ -2023,6 +2027,12 @@
     "gap": "8px",
     "pointer-events": "none"
    },
+   "|#open-image-crop-orientation": {
+    "justify-content": "flex-start"
+   },
+   "|#open-image-crop-row, #open-image-crop-size-row, #open-image-incognito-row": {
+    "border-bottom": "none"
+   },
    "|#open-image-modal-overlay:not(.modal-popover) .app-modal": {
     "min-height": "min(430px, 82vh)"
    },
@@ -2093,7 +2103,7 @@
     "box-sizing": "border-box"
    },
    "|#selection-panel input:focus-visible, #selection-panel select:focus-visible": {
-    "outline": "2px solid var(--border-sel)",
+    "outline": "2px solid var(--accent)",
     "outline-offset": "1px"
    },
    "|#selection-panel input[type=\"checkbox\"]": {
@@ -2444,7 +2454,7 @@
     "flex": "1",
     "min-width": "0"
    },
-   "|.accent-dd-opt, .accent-dd-trigger, .btn-icon, .btn-icon-text, .connect-row, .coord-tab, .ctx-item, .idle-create-btn, .lines-list-row, .name-edit-btn, .pill-toggle, .project-menu-item, .project-row, .shimmer, button": {
+   "|.accent-dd-opt, .accent-dd-trigger, .btn-icon, .btn-icon-text, .connect-row, .coord-tab, .ctx-item, .idle-create-btn, .lines-list-row, .name-edit-btn, .oi-color, .pill-toggle, .project-menu-item, .project-row, .shimmer, .vs-color, button": {
     "position": "relative",
     "overflow": "hidden"
    },
@@ -2452,7 +2462,7 @@
     "background": "var(--bg-coord-hover)",
     "transform": "translateX(2px)"
    },
-   "|.accent-dd-opt::after, .accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .connect-row::after, .coord-tab::after, .ctx-item::after, .idle-create-btn::after, .lines-list-row::after, .name-edit-btn::after, .pill-toggle::after, .project-menu-item::after, .project-row::after, .shimmer::after, button::after": {
+   "|.accent-dd-opt::after, .accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .connect-row::after, .coord-tab::after, .ctx-item::after, .idle-create-btn::after, .lines-list-row::after, .name-edit-btn::after, .oi-color::after, .pill-toggle::after, .project-menu-item::after, .project-row::after, .shimmer::after, .vs-color::after, button::after": {
     "content": "''",
     "position": "absolute",
     "inset": "0",
@@ -2484,7 +2494,7 @@
    "|.accent-dd-opt:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .ctx-item:hover > .ctx-hotkey .tip-key": {
     "animation": "keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both"
    },
-   "|.accent-dd-opt:hover::after, .accent-dd-trigger:hover::after, .btn-icon-text:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after, .connect-row:hover::after, .coord-tab:hover::after, .ctx-item:hover::after, .idle-create-btn:hover::after, .lines-list-row:hover::after, .name-edit-btn:hover:not(:disabled)::after, .pill-toggle:hover::after, .project-menu-item:hover::after, .project-row:hover::after, .shimmer:hover::after, button:hover:not(:disabled)::after": {
+   "|.accent-dd-opt:hover::after, .accent-dd-trigger:hover::after, .btn-icon-text:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after, .connect-row:hover::after, .coord-tab:hover::after, .ctx-item:hover::after, .idle-create-btn:hover::after, .lines-list-row:hover::after, .name-edit-btn:hover:not(:disabled)::after, .oi-color:hover::after, .pill-toggle:hover::after, .project-menu-item:hover::after, .project-row:hover::after, .shimmer:hover::after, .vs-color:hover::after, button:hover:not(:disabled)::after": {
     "animation": "ui-shimmer 0.75s ease"
    },
    "|.accent-dd-opt[aria-selected=\"true\"]": {
@@ -2526,7 +2536,7 @@
     "cursor": "pointer",
     "transition": "border-color 0.2s ease"
    },
-   "|.accent-dd-trigger:hover": {
+   "|.accent-dd-trigger:hover:not(:disabled)": {
     "border-color": "var(--accent)",
     "background": "var(--input-bg)",
     "color": "var(--input-text)"
@@ -5548,6 +5558,12 @@
    "|.ic-x .ic-stroke:nth-of-type(2)": {
     "--ic-delay": "0.27s"
    },
+   "|.icm-spun :is(.ic, .draw-mode-icon)": {
+    "--ic-play": "icmTurnCw",
+    "--ic-ms": "0.413s",
+    "--ic-ease": "cubic-bezier(0.33, 1, 0.68, 1)",
+    "animation-name": "var(--ic-play)"
+   },
    "|.idle-create": {
     "position": "absolute",
     "inset": "0",
@@ -5573,6 +5589,8 @@
    },
    "|.idle-create-btn:hover": {
     "border-color": "var(--border-main)",
+    "background": "var(--accent)",
+    "color": "var(--on-accent)",
     "transform": "translateY(-3px)",
     "box-shadow": "0 8px 24px var(--shadow)"
    },
@@ -5718,18 +5736,13 @@
     "gap": "10px",
     "padding": "5px 4px",
     "border-bottom": "1px solid var(--border-coord)",
-    "font-size": "13px"
-   },
-   "|.info-item, .vs-row": {
+    "font-size": "13px",
     "transition": "background 0.15s ease"
    },
    "|.info-item.shimmer::after": {
     "border-radius": "0"
    },
    "|.info-item:hover": {
-    "background": "color-mix(in srgb, var(--bg-coord-hover) 50%, var(--bg-container))"
-   },
-   "|.info-item:hover, .vs-row:not(.vs-actions):not(stencil-connect-modal *):hover": {
     "background": "var(--bg-coord-hover)"
    },
    "|.info-key": {
@@ -6178,14 +6191,79 @@
     "animation": "notifyLeave 0.26s cubic-bezier(0.4, 0, 1, 1) both",
     "pointer-events": "none"
    },
+   "|.oi-color": {
+    "display": "inline-flex",
+    "align-items": "center",
+    "gap": "8px",
+    "height": "30px",
+    "padding": "0 10px",
+    "background": "var(--input-bg)",
+    "color": "var(--input-text)",
+    "border": "1px solid var(--border-main)",
+    "border-radius": "6px",
+    "cursor": "pointer",
+    "font-family": "'Menlo','Consolas',monospace",
+    "font-size": "12px"
+   },
+   "|.oi-color input[type=\"color\"]": {
+    "flex": "0 0 auto",
+    "width": "32px",
+    "height": "18px",
+    "padding": "0",
+    "border": "none",
+    "background": "transparent"
+   },
+   "|.oi-color:hover": {
+    "border-color": "var(--accent)"
+   },
    "|.oi-crop-opt": {
+    "flex": "1 1 auto",
+    "min-width": "0"
+   },
+   "|.oi-crop-opt > label.footer-hint": {
+    "flex": "1 1 auto",
+    "min-width": "0"
+   },
+   "|.oi-crop-opt > label.footer-hint, .oi-incognito > label.footer-hint": {
+    "cursor": "pointer"
+   },
+   "|.oi-crop-opt, .oi-incognito": {
     "display": "inline-flex",
     "align-items": "center",
     "gap": "10px",
     "flex-wrap": "wrap"
    },
-   "|.oi-crop-opt .btn-icon-text": {
-    "padding": "3px 8px"
+   "|.oi-crop-size": {
+    "display": "inline-flex",
+    "align-items": "stretch",
+    "gap": "10px",
+    "flex-wrap": "wrap",
+    "flex": "1 1 auto",
+    "min-width": "0"
+   },
+   "|.oi-crop-size-custom": {
+    "display": "inline-flex",
+    "align-items": "stretch",
+    "gap": "6px",
+    "flex": "1 1 0",
+    "min-width": "0"
+   },
+   "|.oi-crop-size-custom input": {
+    "width": "auto",
+    "flex": "1 1 0",
+    "min-width": "0"
+   },
+   "|.oi-crop-size-field": {
+    "display": "flex",
+    "align-items": "stretch",
+    "gap": "4px",
+    "flex": "1 1 0",
+    "min-width": "0"
+   },
+   "|.oi-crop-size-field label": {
+    "font-size": "11px",
+    "color": "var(--text-muted)",
+    "align-self": "center"
    },
    "|.oi-fallback": {
     "display": "inline-flex",
@@ -6193,10 +6271,54 @@
     "gap": "8px",
     "min-width": "0"
    },
+   "|.oi-file": {
+    "display": "inline-flex",
+    "align-items": "stretch",
+    "flex": "1 1 auto",
+    "min-width": "0",
+    "border": "1px solid var(--ui-outline)",
+    "border-radius": "4px",
+    "overflow": "hidden"
+   },
+   "|.oi-file-btn": {
+    "flex": "0 0 auto",
+    "border": "none",
+    "border-radius": "0",
+    "padding": "8px 12px",
+    "font-size": "14px"
+   },
+   "|.oi-file-btn:focus-visible": {
+    "outline": "none"
+   },
+   "|.oi-file-name": {
+    "flex": "1 1 auto",
+    "min-width": "0",
+    "display": "flex",
+    "align-items": "center",
+    "cursor": "pointer",
+    "padding": "0 12px",
+    "font-size": "14px",
+    "color": "var(--input-text)",
+    "background": "var(--input-bg)",
+    "white-space": "nowrap",
+    "overflow": "hidden",
+    "text-overflow": "ellipsis"
+   },
+   "|.oi-file-name.is-empty, .oi-file-name:empty::before": {
+    "color": "var(--text-muted)"
+   },
+   "|.oi-file:has(.oi-file-btn:focus-visible)": {
+    "outline": "2px solid var(--accent)",
+    "outline-offset": "2px"
+   },
+   "|.oi-hex": {
+    "letter-spacing": "0.02em"
+   },
    "|.oi-panel": {
     "margin-bottom": "2px"
    },
    "|.oi-preview": {
+    "position": "relative",
     "display": "flex",
     "flex-direction": "column",
     "align-items": "center",
@@ -6207,6 +6329,66 @@
     "display": "flex",
     "flex-wrap": "wrap",
     "gap": "7px 18px"
+   },
+   "|.oi-scrub": {
+    "-webkit-appearance": "none",
+    "appearance": "none",
+    "height": "13px",
+    "background": "transparent",
+    "cursor": "pointer",
+    "margin": "0"
+   },
+   "|.oi-scrub::-moz-range-progress": {
+    "height": "7px",
+    "border-radius": "4px",
+    "background": "var(--accent)"
+   },
+   "|.oi-scrub::-moz-range-thumb": {
+    "width": "13px",
+    "height": "13px",
+    "box-sizing": "border-box",
+    "border": "1px solid var(--ui-outline)",
+    "border-radius": "7px",
+    "background": "var(--accent)"
+   },
+   "|.oi-scrub::-moz-range-track": {
+    "height": "7px",
+    "box-sizing": "border-box",
+    "border": "1px solid var(--ui-outline)",
+    "border-radius": "4px",
+    "background": "var(--border-main)"
+   },
+   "|.oi-scrub::-webkit-slider-runnable-track": {
+    "height": "7px",
+    "box-sizing": "border-box",
+    "border": "1px solid var(--ui-outline)",
+    "border-radius": "4px",
+    "background": "linear-gradient(to right, var(--accent) 0 var(--scrub-fill, 0%), var(--border-main) var(--scrub-fill, 0%) 100%)"
+   },
+   "|.oi-scrub::-webkit-slider-thumb": {
+    "-webkit-appearance": "none",
+    "appearance": "none",
+    "width": "13px",
+    "height": "13px",
+    "margin-top": "-3px",
+    "box-sizing": "border-box",
+    "border": "1px solid var(--ui-outline)",
+    "border-radius": "7px",
+    "background": "var(--accent)"
+   },
+   "|.oi-scrub:hover::-moz-range-track": {
+    "background": "var(--text-muted)"
+   },
+   "|.oi-scrub:hover::-webkit-slider-runnable-track": {
+    "background": "linear-gradient(to right, var(--accent) 0 var(--scrub-fill, 0%), var(--text-muted) var(--scrub-fill, 0%) 100%)"
+   },
+   "|.oi-status": {
+    "color": "var(--text-muted)",
+    "font-size": "12px",
+    "margin": "10px 0 0 4px"
+   },
+   "|.oi-status:empty": {
+    "display": "none"
    },
    "|.oi-tab": {
     "display": "inline-flex",
@@ -7059,7 +7241,8 @@
     "padding-right": "6px"
    },
    "|.tip-title": {
-    "font-weight": "600"
+    "font-weight": "600",
+    "min-width": "0"
    },
    "|.tooltip": {
     "position": "fixed",
@@ -7214,6 +7397,10 @@
    "|.zoom-menu[hidden]": {
     "display": "none"
    },
+   "|::selection": {
+    "background": "var(--accent)",
+    "color": "var(--on-accent)"
+   },
    "|::view-transition-group(root)": {
     "animation": "none"
    },
@@ -7227,6 +7414,10 @@
    "|::view-transition-old(root)": {
     "z-index": "0",
     "animation": "none"
+   },
+   "|:focus-visible": {
+    "outline": "2px solid var(--accent)",
+    "outline-offset": "2px"
    },
    "|:root": {
     "--accent": "#7c3aed",
@@ -7307,8 +7498,14 @@
    "|:root[data-accent=\"blue\"]": {
     "--accent": "#2563eb"
    },
+   "|:root[data-accent=\"bluegray\"]": {
+    "--accent": "#7394b3"
+   },
    "|:root[data-accent=\"brown\"]": {
     "--accent": "#a87c50"
+   },
+   "|:root[data-accent=\"burgundy\"]": {
+    "--accent": "#660033"
    },
    "|:root[data-accent=\"crimson\"]": {
     "--accent": "#be123c"
@@ -7322,6 +7519,9 @@
    "|:root[data-accent=\"grey\"]": {
     "--accent": "#64748b"
    },
+   "|:root[data-accent=\"maroon\"]": {
+    "--accent": "#550000"
+   },
    "|:root[data-accent=\"orange\"]": {
     "--accent": "#ea580c"
    },
@@ -7330,6 +7530,9 @@
    },
    "|:root[data-accent=\"sky\"]": {
     "--accent": "#0ea5e9"
+   },
+   "|:root[data-accent=\"turquoise\"]": {
+    "--accent": "#40e0d0"
    },
    "|:root[data-accent=\"violet\"]": {
     "--accent": "#7c3aed"
@@ -7845,14 +8048,30 @@
    "|stencil-links-modal": {
     "--vs-label-w": "118px"
    },
-   "|stencil-llm-settings-modal .vs-row select": {
-    "flex": "1 1 auto",
-    "width": "auto",
-    "min-width": "0"
+   "|stencil-llm-settings-modal": {
+    "--vs-ctrl-w": "320px"
    },
-   "|stencil-open-image-modal .vs-row > input[type=\"file\"]": {
-    "flex": "1 1 auto",
-    "min-width": "0"
+   "|stencil-llm-settings-modal .vs-ctrl .accent-dd-trigger, stencil-llm-settings-modal .vs-ctrl > .accent-dd, stencil-llm-settings-modal .vs-ctrl > .cs-dd, stencil-llm-settings-modal .vs-ctrl > input, stencil-llm-settings-modal .vs-ctrl > select, stencil-visuals-modal .vs-ctrl .accent-dd-trigger, stencil-visuals-modal .vs-ctrl > .accent-dd, stencil-visuals-modal .vs-ctrl > .cs-dd, stencil-visuals-modal .vs-ctrl > input, stencil-visuals-modal .vs-ctrl > select": {
+    "width": "100%",
+    "min-width": "0",
+    "box-sizing": "border-box"
+   },
+   "|stencil-llm-settings-modal .vs-ctrl .accent-dd-trigger, stencil-llm-settings-modal .vs-ctrl > input, stencil-llm-settings-modal .vs-ctrl > select, stencil-visuals-modal .vs-ctrl .accent-dd-trigger, stencil-visuals-modal .vs-ctrl > input, stencil-visuals-modal .vs-ctrl > select": {
+    "height": "var(--vs-ctrl-h)",
+    "padding": "0 10px",
+    "font-size": "13px",
+    "border-radius": "6px"
+   },
+   "|stencil-llm-settings-modal .vs-row > .vs-ctrl, stencil-visuals-modal .vs-row > .vs-ctrl": {
+    "flex": "0 0 var(--vs-ctrl-w)",
+    "width": "var(--vs-ctrl-w)",
+    "min-width": "0",
+    "display": "flex",
+    "align-items": "center",
+    "box-sizing": "border-box"
+   },
+   "|stencil-llm-settings-modal, stencil-visuals-modal": {
+    "--vs-ctrl-h": "30px"
    },
    "|stencil-open-image-modal .vs-row > label, stencil-open-in-modal .vs-row > label": {
     "flex": "0 0 auto",
@@ -7860,6 +8079,9 @@
    },
    "|stencil-open-image-modal .vs-row, stencil-open-in-modal .vs-row": {
     "justify-content": "flex-start"
+   },
+   "|stencil-open-image-modal, stencil-open-in-modal": {
+    "--vs-label-w": "88px"
    },
    "|stencil-open-in-modal .oi-slot": {
     "justify-self": "start",
@@ -7875,19 +8097,7 @@
     "min-width": "0"
    },
    "|stencil-visuals-modal": {
-    "--vs-ctrl-w": "180px",
-    "--vs-ctrl-h": "30px"
-   },
-   "|stencil-visuals-modal .vs-ctrl .accent-dd-trigger, stencil-visuals-modal .vs-ctrl > .accent-dd, stencil-visuals-modal .vs-ctrl > .cs-dd, stencil-visuals-modal .vs-ctrl > input, stencil-visuals-modal .vs-ctrl > select": {
-    "width": "100%",
-    "min-width": "0",
-    "box-sizing": "border-box"
-   },
-   "|stencil-visuals-modal .vs-ctrl .accent-dd-trigger, stencil-visuals-modal .vs-ctrl > input, stencil-visuals-modal .vs-ctrl > select": {
-    "height": "var(--vs-ctrl-h)",
-    "padding": "0 10px",
-    "font-size": "13px",
-    "border-radius": "6px"
+    "--vs-ctrl-w": "180px"
    },
    "|stencil-visuals-modal .vs-ctrl.vs-color": {
     "gap": "8px",
@@ -7926,14 +8136,6 @@
     "flex": "1 1 auto",
     "letter-spacing": "0.02em"
    },
-   "|stencil-visuals-modal .vs-row > .vs-ctrl": {
-    "flex": "0 0 var(--vs-ctrl-w)",
-    "width": "var(--vs-ctrl-w)",
-    "min-width": "0",
-    "display": "flex",
-    "align-items": "center",
-    "box-sizing": "border-box"
-   },
    "|textarea.confirm-prompt-input": {
     "font-family": "inherit",
     "line-height": "1.45",
@@ -7958,17 +8160,21 @@
   "order": [
    "|:root",
    "|:root[data-accent=\"violet\"]",
+   "|:root[data-accent=\"burgundy\"]",
    "|:root[data-accent=\"pink\"]",
-   "|:root[data-accent=\"yellow\"]",
-   "|:root[data-accent=\"orange\"]",
    "|:root[data-accent=\"crimson\"]",
-   "|:root[data-accent=\"aqua\"]",
-   "|:root[data-accent=\"sky\"]",
-   "|:root[data-accent=\"blue\"]",
+   "|:root[data-accent=\"maroon\"]",
+   "|:root[data-accent=\"orange\"]",
+   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"yellow\"]",
    "|:root[data-accent=\"grass\"]",
    "|:root[data-accent=\"green\"]",
-   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"turquoise\"]",
+   "|:root[data-accent=\"aqua\"]",
+   "|:root[data-accent=\"sky\"]",
+   "|:root[data-accent=\"bluegray\"]",
    "|:root[data-accent=\"grey\"]",
+   "|:root[data-accent=\"blue\"]",
    "|:root[data-accent-light]",
    "|[data-theme=\"dark\"]",
    "|.canvas-viewport::-webkit-scrollbar",
@@ -7992,6 +8198,8 @@
    "|#coord-body",
    "|#coord-body, #fs-points-panel",
    "|*",
+   "|::selection",
+   "|:focus-visible",
    "|body",
    "|#root",
    "|.container",
@@ -8017,9 +8225,9 @@
    "|#draw-toggle.active:not(:disabled):hover",
    "|.btn-icon",
    "|.btn-icon .ic",
-   "|.accent-dd-opt, .accent-dd-trigger, .btn-icon, .btn-icon-text, .connect-row, .coord-tab, .ctx-item, .idle-create-btn, .lines-list-row, .name-edit-btn, .pill-toggle, .project-menu-item, .project-row, .shimmer, button",
-   "|.accent-dd-opt::after, .accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .connect-row::after, .coord-tab::after, .ctx-item::after, .idle-create-btn::after, .lines-list-row::after, .name-edit-btn::after, .pill-toggle::after, .project-menu-item::after, .project-row::after, .shimmer::after, button::after",
-   "|.accent-dd-opt:hover::after, .accent-dd-trigger:hover::after, .btn-icon-text:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after, .connect-row:hover::after, .coord-tab:hover::after, .ctx-item:hover::after, .idle-create-btn:hover::after, .lines-list-row:hover::after, .name-edit-btn:hover:not(:disabled)::after, .pill-toggle:hover::after, .project-menu-item:hover::after, .project-row:hover::after, .shimmer:hover::after, button:hover:not(:disabled)::after",
+   "|.accent-dd-opt, .accent-dd-trigger, .btn-icon, .btn-icon-text, .connect-row, .coord-tab, .ctx-item, .idle-create-btn, .lines-list-row, .name-edit-btn, .oi-color, .pill-toggle, .project-menu-item, .project-row, .shimmer, .vs-color, button",
+   "|.accent-dd-opt::after, .accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .connect-row::after, .coord-tab::after, .ctx-item::after, .idle-create-btn::after, .lines-list-row::after, .name-edit-btn::after, .oi-color::after, .pill-toggle::after, .project-menu-item::after, .project-row::after, .shimmer::after, .vs-color::after, button::after",
+   "|.accent-dd-opt:hover::after, .accent-dd-trigger:hover::after, .btn-icon-text:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after, .connect-row:hover::after, .coord-tab:hover::after, .ctx-item:hover::after, .idle-create-btn:hover::after, .lines-list-row:hover::after, .name-edit-btn:hover:not(:disabled)::after, .oi-color:hover::after, .pill-toggle:hover::after, .project-menu-item:hover::after, .project-row:hover::after, .shimmer:hover::after, .vs-color:hover::after, button:hover:not(:disabled)::after",
    "@keyframes ui-shimmer|from",
    "@keyframes ui-shimmer|to",
    "@media (prefers-reduced-motion: reduce)|.accent-dd-trigger::after, .btn-icon-text::after, .btn-icon::after, .coord-tab::after, .idle-create-btn::after, .name-edit-btn::after, .pill-toggle::after, .shimmer::after, button::after",
@@ -8417,10 +8625,12 @@
    "|.vs-row label",
    "|.vs-row input[type=\"color\"]",
    "|.vs-row input[type=\"number\"], .vs-row select",
+   "|stencil-llm-settings-modal, stencil-visuals-modal",
    "|stencil-visuals-modal",
-   "|stencil-visuals-modal .vs-row > .vs-ctrl",
-   "|stencil-visuals-modal .vs-ctrl .accent-dd-trigger, stencil-visuals-modal .vs-ctrl > .accent-dd, stencil-visuals-modal .vs-ctrl > .cs-dd, stencil-visuals-modal .vs-ctrl > input, stencil-visuals-modal .vs-ctrl > select",
-   "|stencil-visuals-modal .vs-ctrl .accent-dd-trigger, stencil-visuals-modal .vs-ctrl > input, stencil-visuals-modal .vs-ctrl > select",
+   "|stencil-llm-settings-modal",
+   "|stencil-llm-settings-modal .vs-row > .vs-ctrl, stencil-visuals-modal .vs-row > .vs-ctrl",
+   "|stencil-llm-settings-modal .vs-ctrl .accent-dd-trigger, stencil-llm-settings-modal .vs-ctrl > .accent-dd, stencil-llm-settings-modal .vs-ctrl > .cs-dd, stencil-llm-settings-modal .vs-ctrl > input, stencil-llm-settings-modal .vs-ctrl > select, stencil-visuals-modal .vs-ctrl .accent-dd-trigger, stencil-visuals-modal .vs-ctrl > .accent-dd, stencil-visuals-modal .vs-ctrl > .cs-dd, stencil-visuals-modal .vs-ctrl > input, stencil-visuals-modal .vs-ctrl > select",
+   "|stencil-llm-settings-modal .vs-ctrl .accent-dd-trigger, stencil-llm-settings-modal .vs-ctrl > input, stencil-llm-settings-modal .vs-ctrl > select, stencil-visuals-modal .vs-ctrl .accent-dd-trigger, stencil-visuals-modal .vs-ctrl > input, stencil-visuals-modal .vs-ctrl > select",
    "|stencil-visuals-modal .vs-ctrl.vs-color",
    "|stencil-visuals-modal .vs-ctrl.vs-color:hover",
    "|stencil-visuals-modal .vs-ctrl.vs-color input[type=\"color\"]",
@@ -8430,7 +8640,6 @@
    "|.vs-row.vs-field > label",
    "|stencil-links-modal",
    "|.vs-row select[id$=\"-target\"]",
-   "|stencil-llm-settings-modal .vs-row select",
    "|.links-quickcrop-controls",
    "|.links-inline-check, .vs-inline-check",
    "|.vs-row.vs-checks",
@@ -8472,23 +8681,52 @@
    "|.oi-panel",
    "|#open-image-modal-overlay:not(.modal-popover) .app-modal",
    "|.oi-preview",
+   "|.oi-crop-opt, .oi-incognito",
    "|.oi-crop-opt",
-   "|.oi-crop-opt .btn-icon-text",
+   "|.oi-crop-opt > label.footer-hint",
+   "|#open-image-crop-row, #open-image-crop-size-row, #open-image-incognito-row",
+   "|.oi-crop-opt > label.footer-hint, .oi-incognito > label.footer-hint",
+   "|#open-image-crop-orientation",
+   "|.oi-crop-size",
+   "|.oi-crop-size-custom",
+   "|.oi-crop-size-field",
+   "|.oi-crop-size-field label",
+   "|.oi-crop-size-custom input",
    "|stencil-open-image-modal .vs-row, stencil-open-in-modal .vs-row",
    "|stencil-open-image-modal .vs-row > label, stencil-open-in-modal .vs-row > label",
-   "|stencil-open-image-modal .vs-row > input[type=\"file\"]",
+   "|stencil-open-image-modal, stencil-open-in-modal",
+   "|.oi-file",
+   "|.oi-file-btn",
+   "|.oi-file-name",
+   "|.oi-file-name.is-empty, .oi-file-name:empty::before",
+   "|.oi-file-btn:focus-visible",
+   "|.oi-file:has(.oi-file-btn:focus-visible)",
+   "|.oi-status:empty",
+   "|.oi-status",
    "|stencil-open-in-modal .vs-row.oi-row",
    "|stencil-open-in-modal .vs-row.oi-row > label",
    "|stencil-open-in-modal .oi-slot",
    "|.oi-fallback",
    "|.links-quickcrop-controls select",
    "|.links-inline-check input:disabled + *, .links-quickcrop-controls select:disabled",
+   "|.oi-scrub",
+   "|.oi-scrub::-webkit-slider-runnable-track",
+   "|.oi-scrub:hover::-webkit-slider-runnable-track",
+   "|.oi-scrub::-webkit-slider-thumb",
+   "|.oi-scrub::-moz-range-track",
+   "|.oi-scrub:hover::-moz-range-track",
+   "|.oi-scrub::-moz-range-progress",
+   "|.oi-scrub::-moz-range-thumb",
+   "|.oi-color",
+   "|.oi-color:hover",
+   "|.oi-color input[type=\"color\"]",
+   "|.oi-hex",
    "|.accent-swatch",
    "|.accent-check",
    "|.accent-dd-opt[aria-selected=\"true\"] .accent-check",
    "|.accent-dd",
    "|.accent-dd-trigger",
-   "|.accent-dd-trigger:hover",
+   "|.accent-dd-trigger:hover:not(:disabled)",
    "|.accent-dd-trigger:not(:disabled)",
    "|.accent-dd-trigger:not(:disabled) .ic",
    "|.accent-dd-name",
@@ -9270,6 +9508,8 @@
    "|.app-logo-wrap.logo-hover::before",
    "@media (prefers-reduced-motion: reduce)|.app-logo-wrap.logo-hover .app-logo",
    "@media (prefers-reduced-motion: reduce)|.app-logo-wrap::before",
+   "|.icm-spun :is(.ic, .draw-mode-icon)",
+   "@media (prefers-reduced-motion: reduce)|.icm-spun :is(.ic, .draw-mode-icon)",
    "@keyframes voiceGlowPulse|0%, 100%",
    "@keyframes voiceGlowPulse|50%",
    "|#voice-chat-btn.active .ic, .chat-abtn.chat-voice-listening .ic, .ctx-assist-abtn.chat-voice-listening .ic",
@@ -9385,8 +9625,8 @@
    "|.project-row:hover .project-thumb img",
    "|.hotkey-cell",
    "|.hotkey-table tr td",
-   "|.info-item, .vs-row",
-   "|.info-item:hover, .vs-row:not(.vs-actions):not(stencil-connect-modal *):hover",
+   "|.info-item",
+   "|.info-item:hover",
    "|.idle-create-btn",
    "|.idle-create-btn:hover",
    "|.idle-create-icon",

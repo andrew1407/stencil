@@ -1,8 +1,9 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
-import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered, cropChange, isAlbumOrientation } from '../core/cropGeometry.js';
-import { icon } from './icons.js';
+import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered, cropChange, isAlbumOrientation, swapCropOrientation } from '../core/cropGeometry.js';
+import { icon, spinIconOnce } from './icons.js';
+import { tweenRect } from './motion/rectTween.js';
 const { PAGE_SIZES } = constants;
 
 // The crop modal: a rect over the original image, locked to the page aspect. Confirm
@@ -25,11 +26,11 @@ export class StencilCropModal extends StencilElement {
                     <div id="crop-shade-clip" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
                         <div id="crop-shade" style="position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);display:none;"></div>
                     </div>
-                    <div id="crop-box" style="position:absolute;box-sizing:border-box;border:2px solid #4da3ff;cursor:move;display:none;">
-                        <span class="crop-handle" data-corner="0" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;left:-8px;top:-8px;cursor:nwse-resize;"></span>
-                        <span class="crop-handle" data-corner="1" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;right:-8px;top:-8px;cursor:nesw-resize;"></span>
-                        <span class="crop-handle" data-corner="2" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;right:-8px;bottom:-8px;cursor:nwse-resize;"></span>
-                        <span class="crop-handle" data-corner="3" style="position:absolute;width:14px;height:14px;background:#4da3ff;border:2px solid #fff;border-radius:50%;left:-8px;bottom:-8px;cursor:nesw-resize;"></span>
+                    <div id="crop-box" style="position:absolute;box-sizing:border-box;border:2px solid var(--accent-2);cursor:move;display:none;">
+                        <span class="crop-handle" data-corner="0" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;left:-8px;top:-8px;cursor:nwse-resize;"></span>
+                        <span class="crop-handle" data-corner="1" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;right:-8px;top:-8px;cursor:nesw-resize;"></span>
+                        <span class="crop-handle" data-corner="2" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;right:-8px;bottom:-8px;cursor:nwse-resize;"></span>
+                        <span class="crop-handle" data-corner="3" style="position:absolute;width:14px;height:14px;background:var(--accent-2);border:2px solid #fff;border-radius:50%;left:-8px;bottom:-8px;cursor:nesw-resize;"></span>
                     </div>
                 </div>
                 <div id="crop-dims" style="font-size:13px;color:var(--text-muted);"></div>
@@ -72,25 +73,37 @@ export class StencilCropModal extends StencilElement {
       scale = iw > 0 && r.width > 0 ? r.width / iw : 1;
     };
 
-    const renderBox = () => {
-      box.style.display = 'block';
-      box.style.left = (rect.x * scale) + 'px';
-      box.style.top = (rect.y * scale) + 'px';
-      box.style.width = (rect.width * scale) + 'px';
-      box.style.height = (rect.height * scale) + 'px';
-      shade.style.display = 'block';
+    // The orientation flip's own rect flight; any plain render settles it (rectTween.js).
+    let flight = null;
+    const settle = () => { if (flight) { flight(); flight = null; } };
+    const paintBox = (r) => {
+      box.style.left = (r.x * scale) + 'px';
+      box.style.top = (r.y * scale) + 'px';
+      box.style.width = (r.width * scale) + 'px';
+      box.style.height = (r.height * scale) + 'px';
       shade.style.left = box.style.left;
       shade.style.top = box.style.top;
       shade.style.width = box.style.width;
       shade.style.height = box.style.height;
+    };
+    const renderBox = () => {
+      settle();
+      box.style.display = 'block';
+      shade.style.display = 'block';
+      paintBox(rect);
       dims.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)} px · ${album ? 'Album (landscape)' : 'Portrait'}`;
       orientBtn.innerHTML = icon('swap', { size: 14 }) + `<span>${album ? 'Album' : 'Portrait'}</span>`;
     };
 
+    // The orient press's own recompute: swapCropOrientation carries the drag across the
+    // flip instead of resetting it (falls back to centeredCrop with no rect yet), and the
+    // box eases there from its old shape (desktop twin: CropPreview::setAlbum).
     const recenter = () => {
+      const from = { ...rect };
       aspect = cropAspect(pageDims().width, pageDims().height, album);
-      rect = centeredCrop(iw, ih, aspect);
+      rect = swapCropOrientation(rect, aspect, iw, ih);
       renderBox();
+      if (from.width >= 1) flight = tweenRect(from, rect, paintBox);
     };
 
     const paint = () => { computeScale(); renderBox(); };
@@ -114,7 +127,7 @@ export class StencilCropModal extends StencilElement {
 
     const { open, close } = wireModalShell(overlay, null, document.getElementById('crop-close'), {
       onOpen: seedPreview,
-      onClose: () => { box.style.display = 'none'; }
+      onClose: () => { settle(); box.style.display = 'none'; }
     });
 
     const openCrop = () => {
@@ -176,7 +189,8 @@ export class StencilCropModal extends StencilElement {
       renderBox();
     }, { passive: false });
 
-    orientBtn.addEventListener('click', () => { album = !album; recenter(); });
+    // spun AFTER recenter(): that repaints the glyph, which would drop a running turn.
+    orientBtn.addEventListener('click', () => { album = !album; recenter(); spinIconOnce(orientBtn); });
     document.getElementById('crop-cancel').addEventListener('click', close);
 
     document.getElementById('crop-apply').addEventListener('click', async () => {

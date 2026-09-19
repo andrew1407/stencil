@@ -1,12 +1,11 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
+import { modalBoxEase } from './motion/easeBoxHeight.js';
 import { llmSettingsModalInner } from './llmSettingsMarkup.js';
 import { icon } from './icons.js';
 import { loadLlmSettings, saveLlmSettings, serverBearerToken, withProvider } from '../llm/llmSettings.js';
 import { listModels, probeProvider } from '../llm/llmClient.js';
 import { loadSavedServers } from '../net/connectionStore.js';
 import { visibleChatMoreBtn } from './chatView.js';
-import { enhanceSelect } from './customSelect.js';
-import { loadVoiceSettings, saveVoiceSettings } from '../llm/voiceSettings.js';
 import { publish, EVENTS } from '../eventBus/appBus.js';
 
 // Provider + endpoint configuration (llm-contract.md §5), persisted as drawingApp_llmSettings.
@@ -22,24 +21,15 @@ export class StencilLlmSettingsModal extends StencilElement {
     const baseUrlRow = $('chat-base-url-row');
     const baseUrlEl = $('chat-base-url');
     const modelEl = $('chat-model');
-    const apiKeyRow = $('chat-api-key-row');
-    const apiKeyEl = $('chat-api-key');
-    const serverRow = $('chat-server-row');
-    const serverEl = $('chat-server-select');
-    const statusRow = $('chat-server-status-row');
-    const statusEl = $('chat-server-status');
-    const statusDot = $('chat-settings-status-dot');
-    const corsNote = $('chat-cors-note');
+    const apiKeyRow = $('chat-api-key-row'), apiKeyEl = $('chat-api-key');
+    const serverRow = $('chat-server-row'), serverEl = $('chat-server-select');
+    const statusRow = $('chat-server-status-row'), statusEl = $('chat-server-status');
+    const statusDot = $('chat-settings-status-dot'), corsNote = $('chat-cors-note');
     const saveChatsEl = $('chat-save-chats');
-    const voiceSilenceEl = $('chat-voice-silence');
-    const voiceLangEl = $('chat-voice-lang');
-    // Our own list, not the OS's (ui/customSelect.js).
-    enhanceSelect(voiceLangEl);
 
 // The working copy: edits live here and reach storage only on Save; every close discards,
 // since onOpen reloads from storage (the desktop dialog's commit/discard model).
     let settings = loadLlmSettings();
-    let voice = loadVoiceSettings();
     const persist = () => {
       saveLlmSettings(settings);
       publish(EVENTS.llmSettingsChanged);
@@ -66,7 +56,7 @@ export class StencilLlmSettingsModal extends StencilElement {
         return;
       }
       if (settings.provider === 'stencil-server' && !settings.serverUrl) {
-        setStatus('error', 'No Stencil server configured — connect one first (Servers dialog).');
+        setStatus('error', 'No collaboration server configured — assistant turned off.');
         return;
       }
       setStatus('connecting', 'Checking the configured LLM…');
@@ -87,8 +77,6 @@ export class StencilLlmSettingsModal extends StencilElement {
       modelEl.value = settings.model;
       apiKeyEl.value = settings.apiKey;
       saveChatsEl.checked = settings.saveChats === true;
-      voiceSilenceEl.value = voice.silenceMs;
-      voiceLangEl.value = voice.language;
       const isServer = settings.provider === 'stencil-server';
       const isOff = settings.provider === 'none';
       baseUrlRow.style.display = isServer || isOff ? 'none' : '';
@@ -157,9 +145,12 @@ export class StencilLlmSettingsModal extends StencilElement {
 // §12 opt-in: disabling stops writing but deletes nothing.
     saveChatsEl.addEventListener('change', () => { settings.saveChats = saveChatsEl.checked;  });
 
+    // A provider switch shows and hides rows, so the box's height EASES, as Open Image does.
+    const boxEase = modalBoxEase(overlay);
     const shell = wireModalShell(overlay, $('chat-settings-btn'), $('chat-settings-close'), {
 // Reopening from what is stored is what makes every close a discard.
-      onOpen: () => { settings = loadLlmSettings(); voice = loadVoiceSettings(); render(); },
+      onOpen: () => { settings = loadLlmSettings(); render(); boxEase.start(); },
+      onClose: () => boxEase.stop(),
 // The gear sits inside the composer's "…" menu, which closes as it is clicked.
       originEl: () => visibleChatMoreBtn(),
     });
@@ -171,7 +162,6 @@ export class StencilLlmSettingsModal extends StencilElement {
       settings.apiKey = apiKeyEl.value.trim();
       settings.saveChats = saveChatsEl.checked;
       persist();
-      saveVoiceSettings({ silenceMs: voiceSilenceEl.value, language: voiceLangEl.value });
       shell.close();
     });
     $('chat-settings-cancel').addEventListener('click', () => shell.close());

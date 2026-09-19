@@ -1195,7 +1195,7 @@
       ],
       "bulletVariants": {
         "console": "- {\"op\":\"accent\",\"color\":\"#7c3aed\"} — set the console's colour theme (its accent).\n  \"color\" must be a #rrggbb hex, so translate colour names yourself (cyan =\n  \"#00ffff\"). The console has no light/dark mode — a theme request means this op.\n- \"accent\" also accepts {\"op\":\"accent\",\"preset\":\"green\"} — one of the console's\n  named /theme presets; use a preset when the user names a colour that has one.",
-        "extension": "- {\"op\":\"accent\",\"color\":\"#7c3aed\"} — set the Stencil panel's own accent colour. \"color\"\n  must be # + 6 hex digits (the nearest of the panel's preset accents applies); also\n  accepts {\"op\":\"accent\",\"preset\":\"green\"} — a preset name (violet, pink, yellow, orange,\n  crimson, aqua, sky, blue, grass, green, brown, grey). Panel appearance only."
+        "extension": "- {\"op\":\"accent\",\"color\":\"#7c3aed\"} — set the Stencil panel's own accent colour. \"color\"\n  must be # + 6 hex digits (the nearest of the panel's preset accents applies); also\n  accepts {\"op\":\"accent\",\"preset\":\"green\"} — a preset name (violet, burgundy, pink,\n  crimson, maroon, orange, brown, yellow, grass, green, turquoise, aqua, sky, bluegray,\n  grey, blue). Panel appearance only."
       },
       "id": "accent",
       "forms": [

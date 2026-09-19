@@ -8,7 +8,10 @@ export interface CropStage {
   overlay: HTMLElement;
   fitToWindow(): void;
   resetCrop(): void;
-  layoutOverlay(): void;
+  /** resetCrop, with the box easing there from its old shape (the orientation press). */
+  swapCrop(): void;
+  /** `shown`: a mid-flight rect drawn in place of state.crop; omitted, settles any flight. */
+  layoutOverlay(shown?: { x: number; y: number; width: number; height: number }): void;
   renderPreview(): void;
 }
 

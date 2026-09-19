@@ -3,6 +3,7 @@
 #include "ChatDock.hpp"
 #include "chatDockShared.hpp"
 #include "../support/ShimmerOverlay.hpp"
+#include "../support/clickToToggle.hpp"
 #include "chatWidgets.hpp"
 
 #include <QFrame>
@@ -98,6 +99,7 @@ namespace stencil::gui {
       rowLay->setSpacing(6);
       QAbstractButton* pick = ask.multi ? static_cast<QAbstractButton*>(new QCheckBox(row))
                                         : static_cast<QAbstractButton*>(new QRadioButton(row));
+      pick->setObjectName(QStringLiteral("captionCheck"));   // the choice is the row beside it
       group->addButton(pick, i);
       buttons.push_back(pick);
       rowLay->addWidget(pick, 0);
@@ -109,6 +111,7 @@ namespace stencil::gui {
       }
       auto* label = makePlainLabel(ask.options[i].label, row);
       label->setWordWrap(true);
+      support::captionToggles(label, pick);   // the row's own words are its label
       rowLay->addWidget(label, 1);
       lay->addWidget(row);
     }

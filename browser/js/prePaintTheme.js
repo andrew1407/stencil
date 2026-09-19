@@ -17,7 +17,7 @@
 
 // An unknown accent leaves the :root default (css/theme.css). LIGHT_ACCENT_KEYS mirrors
 // accents.js's derived list (the accent tests assert the two match).
-  const LIGHT_ACCENT_KEYS = ['pink', 'yellow', 'orange', 'aqua', 'sky', 'grass', 'brown'];
+  const LIGHT_ACCENT_KEYS = ['pink', 'orange', 'brown', 'yellow', 'grass', 'turquoise', 'aqua', 'sky', 'bluegray'];
   try {
     const accent = localStorage.getItem('drawingApp_accent');
     if (accent) {

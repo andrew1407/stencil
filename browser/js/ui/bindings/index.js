@@ -46,6 +46,7 @@ export function wireControls(app) {
   // The image-filter and compare selects preview on hover: resting on a row live-applies
   // it to the canvas (repaint only); leaving the list puts the current value back.
   enhanceAllSelects(document, {
+    search: ['page-size'],
     preview: (sel) => {
       if (sel.id === 'image-filter') return (v) => app.settings.preview('imageFilter', v);
       if (sel.id === 'compare-mode') return (v) => app.settings.preview('compareMode', v);

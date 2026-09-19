@@ -1,6 +1,7 @@
 #pragma once
 #include "motionPrefs.hpp"
 
+#include <QApplication>
 #include <QDialog>
 #include <QPainter>
 #include <QPixmap>
@@ -45,6 +46,19 @@ namespace stencil::support {
       bd->raise();
       QObject::connect(dlg, &QDialog::finished, bd, &QWidget::deleteLater);
       return bd;
+    }
+
+    // EVERY app window behind the dialog, not just its parent's: the assistant settings
+    // parent to the chat dock while it floats, and only that dock would dim otherwise.
+    static void behindAll(QDialog* dlg) {
+      if (!dlg) return;
+      for (QWidget* w : QApplication::topLevelWidgets()) {
+        const Qt::WindowType type = w->windowType();
+        if (!w->isVisible() || w == dlg->window() || type == Qt::Popup ||
+            type == Qt::ToolTip || type == Qt::SplashScreen)
+          continue;
+        behind(dlg, w);
+      }
     }
 
    protected:

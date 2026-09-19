@@ -2,8 +2,14 @@ import { StencilElement, hostTag, define } from './base.js';
 import { StencilTooltip } from './tooltip.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
+import { keysHtml } from './tipContent.js';
+import { formatCombo, isMacPlatform } from '../utils/keys.js';
 import { wirePanelResizer } from '../utils.js';
 import { foldDust, motionReduced } from './motion.js';
+
+// The paste combo as KEYCAPS in this platform's glyphs (⌘V on a Mac, Ctrl+V elsewhere);
+// `data-hk` lets hotkeys.updateCtxHints redraw them after a rebind.
+const pasteKeys = () => keysHtml(formatCombo(hotkeys.get('paste') || 'Ctrl+V', isMacPlatform()), isMacPlatform());
 // Canvas section + coordinates panel, and the panel's collapse.
 export class StencilMainContent extends StencilElement {
   static inner() {
@@ -39,7 +45,7 @@ export class StencilMainContent extends StencilElement {
                     </div>
                 </div>
                 <div class="coord-status" id="coord-status"></div>
-                <div class="drop-hint">${icon('lightbulb', { size: 14 })} Drag &amp; drop an <strong>image</strong> or <strong>.json</strong> anywhere on the page — or paste an image with <strong>Ctrl+V</strong></div>
+                <div class="drop-hint">${icon('lightbulb', { size: 14 })} Drag &amp; drop an <strong>image</strong> or <strong>.json</strong> anywhere on the page — or paste an image with <span class="drop-hint-keys" data-hk="paste">${pasteKeys()}</span></div>
             </div>
 
             <!-- Drag handle to resize the coordinates panel (browser parity with the desktop

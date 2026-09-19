@@ -51,6 +51,11 @@ namespace stencil::gui {
       if (!popup) break;
       popup->close();
     }
+    // A menu popped up from an arbitrary button (not addMenu()'d into the chain, e.g. the
+    // chat panel's "…") breaks Qt's own cascade-close — sweep any menu the grab loop missed.
+    for (QWidget* w : QApplication::topLevelWidgets()) {
+      if (auto* m = qobject_cast<QMenu*>(w); m && m->isVisible()) m->close();
+    }
   }
 
   // On macOS the primary delete key emits Backspace, so "Alt+Delete" binds to Backspace (browser platformizeCombo).

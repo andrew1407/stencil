@@ -11,18 +11,21 @@ export const pinDustStage = (stage, host, baseLeft = 0, baseTop = 0) => {
   return () => host.removeEventListener?.('scroll', onScroll);
 };
 
-// One dust stage over a canvas' visible slice, shared by ghostOut/ghostIn.
-export const makeDustStage = (canvas) => {
+// One dust stage over a source element's visible slice, shared by ghostOut/ghostIn.
+// `size` overrides the snapshot's pixel dimensions for a source whose .width/.height
+// aren't its pixel buffer (an <img>/<video> — openImageModal.js's preview arrival);
+// omitted, it reads canvas.width/height as before.
+export const makeDustStage = (canvas, size = null) => {
   const field = dustField(canvas);
   if (!field) return null;
   const { r, vis } = field;
   const { cols, rows } = dustGrid(vis.width, vis.height, DUST_CELL_PX * (styleCode() ? STYLED_CELL_SCALE : 1));
 // Snapshotted once: ghostOut clears the real canvas moments later.
   const snap = document.createElement('canvas');
-  snap.width = canvas.width;
-  snap.height = canvas.height;
+  snap.width = size?.width ?? canvas.width;
+  snap.height = size?.height ?? canvas.height;
   const snapCtx = snap.getContext('2d');
-  snapCtx.drawImage(canvas, 0, 0);
+  snapCtx.drawImage(canvas, 0, 0, snap.width, snap.height);
   const dpr = window.devicePixelRatio || 1;
   const stage = document.createElement('canvas');
   stage.className = 'canvas-dust';
@@ -72,7 +75,13 @@ const sampleDustColours = (st) => {
   pc.imageSmoothingEnabled = true;
   pc.imageSmoothingQuality = 'high';
   pc.drawImage(snap, sox, soy, sw * cols, sh * rows, 0, 0, cols, rows);
-  return pc.getImageData(0, 0, cols, rows).data;
+  try {
+    return pc.getImageData(0, 0, cols, rows).data;
+  } catch {
+// A cross-origin preview taints the snapshot, and this read-back is the ONLY thing that
+// needs its pixels — the cells still blit. Fly them all rather than none.
+    return new Uint8ClampedArray(cols * rows * 4).fill(255);
+  }
 };
 
 // Grains of one colour AND one alpha step batch into a single fill; eight steps on a 3px

@@ -45,7 +45,10 @@
    filled it with the accent while its label kept --input-text — dark text on violet in the
    light theme, with the caret lost too (user report). A field's hover only lights its
    border; the accent-on-white text shadow is not this control's either. */
-.accent-dd-trigger:hover { border-color: var(--accent); background: var(--input-bg); color: var(--input-text); }
+/* :not(:disabled): a disabled trigger (Compare with no image loaded, etc.) must read as
+   dead — this rule's own class specificity otherwise outranks the generic
+   `button:disabled` (shell.css) even while hovering it (user report). */
+.accent-dd-trigger:hover:not(:disabled) { border-color: var(--accent); background: var(--input-bg); color: var(--input-text); }
 .accent-dd-trigger:not(:disabled) { text-shadow: none; }
 .accent-dd-trigger:not(:disabled) .ic { filter: none; }
 .accent-dd-name { flex: 1 1 auto; }

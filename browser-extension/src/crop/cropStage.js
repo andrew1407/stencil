@@ -1,6 +1,7 @@
 // `aspect` is injected — the page format the rect is locked to belongs to the controls.
 import { centeredCrop, moveCropClamped, resizeCropFromCorner, roundRect, scaleCropCentered }
   from '../lib/cropGeometry.js';
+import { tweenRect } from '../lib/rectTween.js';
 
 const VIEWPORT_PAD = 10;   // keep in sync with .viewport padding in crop.css
 
@@ -22,6 +23,16 @@ export const createCropStage = ({ state, aspect }) => {
     state.crop = roundRect(centeredCrop(state.imgW, state.imgH, aspect()), state.imgW, state.imgH);
     layoutOverlay();
     renderPreview();
+  };
+
+  // The Album/Portrait press: the box eases from its old shape to the re-centred one instead
+  // of snapping (browser twin: openImageModal.js recenterCrop); any plain layout settles it.
+  let flight = null;
+  const settle = () => { if (flight) { flight(); flight = null; } };
+  const swapCrop = () => {
+    const from = { ...state.crop };
+    resetCrop();
+    if (from.width) flight = tweenRect(from, state.crop, (r) => layoutOverlay(r));
   };
 
   const fitToWindow = () => {
@@ -89,9 +100,11 @@ export const createCropStage = ({ state, aspect }) => {
 
   const scale = () => (imgEl.getBoundingClientRect().width / state.imgW) || 1;
 
-  const layoutOverlay = () => {
+  // `shown`: a mid-flight rect to draw in place of state.crop (the read-out keeps the real one).
+  const layoutOverlay = (shown) => {
+    if (!shown) settle();
     const s = scale();
-    const c = state.crop;
+    const c = shown || state.crop;
     const left = c.x * s;
     const top = c.y * s;
     const w = c.width * s;
@@ -103,7 +116,7 @@ export const createCropStage = ({ state, aspect }) => {
     Object.assign(masks.bottom.style, { left: 0, top: `${top + h}px`, width: `${W}px`, height: `${H - top - h}px` });
     Object.assign(masks.left.style, { left: 0, top: `${top}px`, width: `${left}px`, height: `${h}px` });
     Object.assign(masks.right.style, { left: `${left + w}px`, top: `${top}px`, width: `${W - left - w}px`, height: `${h}px` });
-    cropInfo.textContent = `${c.width}×${c.height}px from ${state.imgW}×${state.imgH}`;
+    cropInfo.textContent = `${state.crop.width}×${state.crop.height}px from ${state.imgW}×${state.imgH}`;
   };
 
   const renderPreview = () => {
@@ -148,5 +161,5 @@ export const createCropStage = ({ state, aspect }) => {
 
   window.addEventListener('pointerup', () => { drag = null; });
 
-  return { imgEl, overlay, fitToWindow, resetCrop, layoutOverlay, renderPreview };
+  return { imgEl, overlay, fitToWindow, resetCrop, swapCrop, layoutOverlay, renderPreview };
 };

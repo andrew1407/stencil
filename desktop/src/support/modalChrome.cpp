@@ -1,4 +1,8 @@
 #include "modalChrome.hpp"
+
+#include "clickToToggle.hpp"
+#include <QCheckBox>
+#include <QRadioButton>
 #include "modalChromeShared.hpp"
 #include "iconSet.hpp"
 #include "modalReveal.hpp"
@@ -84,7 +88,13 @@ namespace stencil::gui {
     h->setContentsMargins(0, 0, 0, 0);
     if (!grow) h->addStretch(1);   // justify-content: space-between
     h->addWidget(field, grow ? 1 : 0);
-    return modalRow(parent, label, h, labelMinW);
+    QWidget* row = modalRow(parent, label, h, labelMinW);
+    // A row whose field is a CHECK is labelled by the row's own words: clicking them
+    // toggles it (browser `<label for>`). Only checks and radios — a checkable push
+    // button is a control in its own right, not something its row label stands for.
+    if (qobject_cast<QCheckBox*>(field) || qobject_cast<QRadioButton*>(field))
+      support::captionToggles(row->findChild<QLabel*>(), static_cast<QAbstractButton*>(field));
+    return row;
   }
 
   QLabel* modalEmptyLabel(const QString& text, QWidget* parent) {

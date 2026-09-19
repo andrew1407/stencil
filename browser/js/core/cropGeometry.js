@@ -85,6 +85,29 @@ export const scaleCropCenteredJS = (cur, factor, aspectWoverH, imageW, imageH, m
   return { x, y, width: w, height: h };
 };
 
+// The Album/Portrait press: a width/height swap about the same centre already lands on
+// aspectWoverH (one page's two aspects are exact reciprocals) — the user's own framing
+// carries over instead of resetting. No rect yet falls back to centeredCropJS.
+export const swapCropOrientationJS = (cur, aspectWoverH, imageW, imageH) => {
+  if (cur.width <= 0 || cur.height <= 0 || aspectWoverH <= 0)
+    return centeredCropJS(imageW, imageH, aspectWoverH);
+  const cx = cur.x + cur.width * 0.5;
+  const cy = cur.y + cur.height * 0.5;
+  let w = cur.height;
+  let h = cur.width;
+  const maxHalfW = Math.min(cx, imageW - cx);
+  const maxHalfH = Math.min(cy, imageH - cy);
+  const wMax = Math.min(2 * maxHalfW, 2 * maxHalfH * aspectWoverH);
+  if (wMax > 0 && w > wMax) { w = wMax; h = w / aspectWoverH; }
+  let x = cx - w * 0.5;
+  let y = cy - h * 0.5;
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (x + w > imageW) x = imageW - w;
+  if (y + h > imageH) y = imageH - h;
+  return { x, y, width: w, height: h };
+};
+
 export const cropChangeJS = (oldRect, newRect) => {
   const orientationChanged =
     isAlbumOrientationJS(oldRect.width, oldRect.height) !==
@@ -137,6 +160,7 @@ export const resizeCropFromCorner = core.bind('resizeCropFromCorner', resizeCrop
 
 export const moveCropClamped = core.bind('moveCropClamped', moveCropClampedJS);
 export const scaleCropCentered = core.bind('scaleCropCentered', scaleCropCenteredJS);
+export const swapCropOrientation = core.bind('swapCropOrientation', swapCropOrientationJS);
 
 export const cropResizeScale = core.bind('cropResizeScale', cropResizeScaleJS);
 

@@ -116,6 +116,18 @@ test('popoverPosition: flips above when the bottom would overflow', () => {
   assert.strictEqual(p.top, 700 - 8 - 300);
 });
 
+// A short box near a modal's own bottom rows still "fits" below by the whole viewport's
+// measure — no overflow — but flipping it up is what actually avoids covering the rows
+// under it (user report: a crop dialog's ratio dropdown, small, low in the modal).
+test('popoverPosition: flips above when above has more room, even without overflowing below', () => {
+  const p = popoverPosition({
+    anchor: { left: 100, top: 640, bottom: 674 },
+    box: { width: 190, height: 180 },
+    viewport: { width: 1280, height: 900 },
+  });
+  assert.strictEqual(p.top, 640 - 8 - 180);
+});
+
 test('popoverPosition: clamps into the viewport when neither side fits', () => {
   // A box taller than the space above AND below pins to the bottom margin…
   const tall = popoverPosition({

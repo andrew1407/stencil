@@ -314,7 +314,7 @@ namespace stencil::support {
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect, const QRect& closeRect) {
     dlg.setProperty(REVEALED_PROPERTY, true);
     // A WINDOW dims and blurs what it covers; the popover flies itself and stays undimmed.
-    ModalBackdrop::behind(&dlg, dlg.parentWidget() ? dlg.parentWidget()->window() : nullptr);
+    ModalBackdrop::behindAll(&dlg);
     flyDialog(dlg, anchor, anchorRect, closeRect);
   }
 

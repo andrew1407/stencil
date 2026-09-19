@@ -104,11 +104,18 @@ set(STENCIL_LINKSDIALOG_SOURCES
   src/dialogs/LinksDialogPreview.cpp
   src/dialogs/LinksDialogShow.cpp)
 
-# The open dialog (dialogs/OpenImageDialog.hpp) is four TUs behind a private parts
-# header: the build, the preview/scrub player, the tab state and the read-out.
+# The open dialog (dialogs/OpenImageDialog.hpp) is several TUs behind a private parts
+# header: the build, the preview, the video scrub player, the preview's dust flourish, its
+# per-tab cache (a switch re-shows a decode instead of re-fetching it), the tab state and
+# the read-out.
 set(STENCIL_OPENIMAGE_SOURCES
   src/dialogs/OpenImageDialog.cpp
   src/dialogs/OpenImageDialogPreview.cpp
+  src/dialogs/OpenImageDialogFit.cpp
+  src/dialogs/OpenImageDialogScrub.cpp
+  src/dialogs/OpenImageDialogDust.cpp
+  src/dialogs/OpenImageDialogSizeDust.cpp
+  src/dialogs/OpenImageDialogCache.cpp
   src/dialogs/OpenImageDialogState.cpp
   src/dialogs/OpenImageDialogResult.cpp)
 

@@ -7,7 +7,11 @@
 #include "MainWindow.gui.hpp"
 
 #include <QContextMenuEvent>
+#include "OpenImageDialog.hpp"
+#include <QLineEdit>
 #include <QMouseEvent>
+#include <QPushButton>
+#include <QTabWidget>
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -71,6 +75,136 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!wasWindow, "the popover is a child of the overlay, never its own window");
     QCOMPARE(after, before);
   }
+
+  // The same trap one step further in: a dialog that sizes itself to its content and clamps
+  // itself to the screen (OpenImageDialog) must do neither as a popover, or it resizes past
+  // the overlay's cap and moves by screen coordinates that mean nothing to a child.
+  void aSelfSizingDialogStaysInsideItsPopoverOverlay() {
+    MainWindow win(nullptr, false);
+    win.resize(1100, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+
+    QToolButton* icon = nullptr;
+    for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it) {
+      if (it.value() != win.actOpen_) continue;
+      auto* b = static_cast<QToolButton*>(it.key());
+      if (b->isVisible() && it.value()->isEnabled()) { icon = b; break; }
+    }
+    QVERIFY2(icon, "Open Image must be a popover-wired dialog icon");
+
+    bool sawPopover = false;
+    QRect dlgRect, overlayRect;
+    QSize minHint;
+    QString clipped;
+    QPoint dlgPos;
+    QTimer::singleShot(400, &win, [&] {
+      QDialog* dlg = win.pop_.active;
+      QWidget* overlay = win.pop_.overlay;
+      if (!dlg || !overlay) { win.dismissPopover(); return; }
+      sawPopover = true;
+      dlgRect = dlg->rect();
+      minHint = dlg->minimumSizeHint();
+      // Anything laid out past the dialog's own right edge is CLIPPED: the scroll body
+      // keeps its horizontal bar off, so a row that will not compress simply loses its tail.
+      for (QWidget* w : dlg->findChildren<QWidget*>())
+        if (w->isVisible() && w->width() > 8 &&
+            w->mapTo(dlg, QPoint(w->width(), 0)).x() > dlg->width() + 1)
+          clipped += QStringLiteral("%1(%2) right=%3 > %4; ")
+                         .arg(w->metaObject()->className(), w->objectName(),
+                              QString::number(w->mapTo(dlg, QPoint(w->width(), 0)).x()),
+                              QString::number(dlg->width()));
+      dlgPos = dlg->pos();
+      overlayRect = overlay->rect();
+      win.dismissPopover();
+    });
+
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, icon->rect().center(),
+                          icon->mapToGlobal(icon->rect().center()));
+    QApplication::sendEvent(icon, &ctx);
+    settle([&] { return sawPopover && !win.pop_.active; }, 6000);
+
+    QVERIFY2(sawPopover, "right-click on Open Image must open the compact popover");
+    QCOMPARE(dlgPos, QPoint(0, 0));
+    QVERIFY2(dlgRect.width() <= overlayRect.width(),
+             "the popover dialog must not grow wider than the overlay framing it");
+    QVERIFY2(dlgRect.height() <= overlayRect.height(),
+             "the popover dialog must not grow taller than the overlay framing it");
+    // …and its CONTENT has to fit that width. A row that cannot compress — a QCheckBox
+    // carrying a whole sentence, a field asking for 17 characters next to a button — is laid
+    // out wider than the box and loses its tail; the browser's popover reflows instead.
+    QVERIFY2(clipped.isEmpty(), qPrintable("clipped by the popover: " + clipped));
+  }
+  // A PREVIEW must grow the popover, within its cap: the compact shape cannot resize itself
+  // as a window, so left alone it clipped the picture instead (the browser's .modal-popover
+  // grows to its own max-height). Qt Multimedia cannot decode here, so a still stands in.
+  void aPreviewGrowsTheCompactPopoverInsteadOfBeingClipped() {
+    const auto motion = withMotion();   // the height change is EASED; see steps below
+    MainWindow win(nullptr, false);
+    win.resize(1250, 980);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+
+    QToolButton* icon = nullptr;
+    for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it) {
+      if (it.value() != win.actOpen_) continue;
+      auto* b = static_cast<QToolButton*>(it.key());
+      if (b->isVisible() && it.value()->isEnabled()) { icon = b; break; }
+    }
+    QVERIFY2(icon, "Open Image must be a popover-wired dialog icon");
+
+    bool sawPopover = false;
+    int before = 0, after = 0, cap = 0, overlayAfter = 0, away = 0, back = 0, steps = 0;
+    QTimer::singleShot(400, &win, [&] {
+      auto* dlg = qobject_cast<stencil::gui::OpenImageDialog*>(win.pop_.active.data());
+      QWidget* overlay = win.pop_.overlay;
+      if (!dlg || !overlay) { win.dismissPopover(); return; }
+      sawPopover = true;
+      before = dlg->height();
+      cap = dlg->maximumHeight();
+      auto* tabs = dlg->findChild<QTabWidget*>(QStringLiteral("oiTabs"));
+      tabs->setCurrentIndex(1);
+      QWidget* page = tabs->currentWidget();
+      QTest::keyClicks(page->findChild<QLineEdit*>(), guiTestImage());
+      auto* pv = page->findChild<QPushButton*>();
+      settle([&] { return pv->isEnabled(); }, 1000);
+      pv->click();
+      settle([&] { return !dlg->previewedImage().isNull(); }, 4000);
+      settle([] { return false; }, 400);
+      after = dlg->height();
+      overlayAfter = overlay->height();
+      // …and it must come BACK: away to an empty tab, then back to the picture.
+      tabs->setCurrentIndex(2);            // Blank — nothing to show
+      // Sampled, not settled: the panel and its frame EASE to the new height (a flat
+      // resize on the compact shape read as a jump), so the walk down is the assertion.
+      int last = dlg->height();
+      for (int i = 0; i < 14; ++i) {
+        settle([] { return false; }, 35);
+        if (dlg->height() != last) { ++steps; last = dlg->height(); }
+      }
+      away = dlg->height();
+      tabs->setCurrentIndex(1);            // URL again, its picture restored from the cache
+      settle([] { return false; }, 600);
+      back = dlg->height();
+      win.dismissPopover();
+    });
+
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, icon->rect().center(),
+                          icon->mapToGlobal(icon->rect().center()));
+    QApplication::sendEvent(icon, &ctx);
+    settle([&] { return sawPopover && !win.pop_.active; }, 8000);
+
+    QVERIFY2(sawPopover, "right-click on Open Image must open the compact popover");
+    QVERIFY2(after > before,
+             qPrintable(QString("the popover stayed %1px for a picture it had to show").arg(after)));
+    QVERIFY2(after <= cap, qPrintable(QString("grew to %1px past its %2px cap").arg(after).arg(cap)));
+    QCOMPARE(overlayAfter, after);   // the frame grows WITH it, or the picture is clipped
+    QVERIFY2(away < after, qPrintable(QString("an empty tab kept %1px of picture room").arg(away)));
+    QVERIFY2(steps >= 3, qPrintable(QString("the popover jumped in %1 step(s), not eased").arg(steps)));
+    QVERIFY2(back == after,
+             qPrintable(QString("came back %1px for the room it needs (%2)").arg(back).arg(after)));
+  }
+
 };
 
 QTEST_MAIN(MainWindowGuiTest)

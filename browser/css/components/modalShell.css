@@ -118,9 +118,14 @@
 .vs-row input[type="color"] { width: 46px; height: 24px; padding: 2px; cursor: pointer; }
 .vs-row input[type="number"], .vs-row select { width: 90px; }
 /* ONE control column: every control the same width and height, flush right, so the rows
-   read as a table. A colour well is a chip beside its hex (desktop settingsDialog parity). */
-stencil-visuals-modal { --vs-ctrl-w: 180px; --vs-ctrl-h: 30px; }
-stencil-visuals-modal .vs-row > .vs-ctrl {
+   read as a table. A colour well is a chip beside its hex (desktop settingsDialog parity).
+   Shared with the Assistant modal (provider/model/server), same table shape both dialogs —
+   but WIDER there: a base URL, a model name and an API key clip at the Visuals column's 180px. */
+stencil-visuals-modal, stencil-llm-settings-modal { --vs-ctrl-h: 30px; }
+stencil-visuals-modal { --vs-ctrl-w: 180px; }
+stencil-llm-settings-modal { --vs-ctrl-w: 320px; }
+stencil-visuals-modal .vs-row > .vs-ctrl,
+stencil-llm-settings-modal .vs-row > .vs-ctrl {
     flex: 0 0 var(--vs-ctrl-w);
     width: var(--vs-ctrl-w);
     min-width: 0;
@@ -128,18 +133,28 @@ stencil-visuals-modal .vs-row > .vs-ctrl {
     align-items: center;
     box-sizing: border-box;
 }
+/* A styled dropdown wraps its native select in .accent-dd/.cs-dd, so a bare `> select`
+   never reaches the ones the Assistant rows use — both hosts list every wrapper. */
 stencil-visuals-modal .vs-ctrl > input,
 stencil-visuals-modal .vs-ctrl > select,
 stencil-visuals-modal .vs-ctrl > .accent-dd,
 stencil-visuals-modal .vs-ctrl > .cs-dd,
-stencil-visuals-modal .vs-ctrl .accent-dd-trigger {
+stencil-visuals-modal .vs-ctrl .accent-dd-trigger,
+stencil-llm-settings-modal .vs-ctrl > input,
+stencil-llm-settings-modal .vs-ctrl > select,
+stencil-llm-settings-modal .vs-ctrl > .accent-dd,
+stencil-llm-settings-modal .vs-ctrl > .cs-dd,
+stencil-llm-settings-modal .vs-ctrl .accent-dd-trigger {
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
 }
 stencil-visuals-modal .vs-ctrl > input,
 stencil-visuals-modal .vs-ctrl > select,
-stencil-visuals-modal .vs-ctrl .accent-dd-trigger {
+stencil-visuals-modal .vs-ctrl .accent-dd-trigger,
+stencil-llm-settings-modal .vs-ctrl > input,
+stencil-llm-settings-modal .vs-ctrl > select,
+stencil-llm-settings-modal .vs-ctrl .accent-dd-trigger {
     height: var(--vs-ctrl-h);
     padding: 0 10px;
     font-size: 13px;
@@ -187,9 +202,6 @@ stencil-links-modal { --vs-label-w: 118px; }
 /* "Save to" target selects hold longer option labels ("Local (this browser)",
    server URLs) — let them size to content instead of clipping at 90px. */
 .vs-row select[id$="-target"] { width: auto; min-width: 150px; max-width: 240px; }
-/* Assistant modal selects (provider names, server URLs) carry long labels too —
-   fill the field row like its text inputs instead of clipping at 90px. */
-stencil-llm-settings-modal .vs-row select { flex: 1 1 auto; width: auto; min-width: 0; }
 /* Quick pre-load edits row (links modal): inline checkboxes + a small page select. */
 .links-quickcrop-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .links-inline-check, .vs-inline-check { display: inline-flex; align-items: center; gap: 5px; font-weight: normal; white-space: nowrap; cursor: pointer; }

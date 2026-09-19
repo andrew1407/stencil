@@ -25,6 +25,11 @@ using namespace stencil::llm;
 
 #include "support/check.hpp"
 
+// ollama is no longer the default provider (llmSettings.hpp ships "none").
+static LlmSettings ollamaCfg() {
+  LlmSettings c; c.provider = "ollama"; c.baseUrl = defaultLlmBaseUrl("ollama"); return c;
+}
+
 // §13 byte-stability transition proof: the pre-registry hand-embedded op
 // BULLETS, kept HERE (test-only) so assembly order/joins are proven against an
 // independent copy. The §4 prose head/tail load from the SAME qrc canon
@@ -200,7 +205,7 @@ int main(int argc, char** argv) {
     MockTransport t;
     t.response = R"({"message":{"role":"assistant","content":"hello from ollama"}})";
     LlmClient client(&t);
-    LlmSettings cfg;  // defaults: ollama @ http://localhost:11434
+    LlmSettings cfg = ollamaCfg();
     cfg.model = "llama3.2-vision";
     LlmReply got;
     client.chat(cfg, sampleMessages(), "suffix here", [&](LlmReply r) { got = r; });
@@ -257,8 +262,9 @@ int main(int argc, char** argv) {
     MockTransport t;
     t.response = R"({"unexpected":true})";
     LlmClient client(&t);
+    LlmSettings cfg = ollamaCfg();
     LlmReply got;
-    client.chat(LlmSettings{}, sampleMessages(), "", [&](LlmReply r) { got = r; });
+    client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
     check(!got.ok && got.failure == LlmFailure::BAD_RESPONSE, "malformed ollama response");
   }
 
@@ -340,9 +346,7 @@ int main(int argc, char** argv) {
     t.status = 401;
     t.response = R"({"error":{"message":"nope"}})";
     LlmClient client(&t);
-    LlmSettings cfg;
-    cfg.provider = "ollama";
-    cfg.baseUrl = "http://localhost:11434";
+    LlmSettings cfg = ollamaCfg();
     LlmReply got;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
     check(got.failure == LlmFailure::HTTP && got.expiredHost.isEmpty(),
@@ -501,8 +505,9 @@ int main(int argc, char** argv) {
     MockTransport t;
     t.response = R"({"version":"0.6.2"})";
     LlmClient client(&t);
+    LlmSettings cfg = ollamaCfg();
     LlmProbeResult got;
-    client.probe(LlmSettings{}, [&](LlmProbeResult r) { got = r; });
+    client.probe(cfg, [&](LlmProbeResult r) { got = r; });
     check(t.method == "GET" && t.url.toString() == "http://localhost:11434/api/version",
           "ollama probes GET /api/version");
     check(t.headers.isEmpty(), "ollama probe sends no auth");
@@ -568,18 +573,20 @@ int main(int argc, char** argv) {
     t.status = 0;
     t.transportError = "connection refused";
     LlmClient client(&t);
+    LlmSettings cfg = ollamaCfg();
     LlmProbeResult got;
     got.ok = true;
-    client.probe(LlmSettings{}, [&](LlmProbeResult r) { got = r; });
+    client.probe(cfg, [&](LlmProbeResult r) { got = r; });
     check(!got.ok && got.detail == "connection refused", "transport failure probes as not ok");
   }
   {
     MockTransport t;
     t.status = 404;
     LlmClient client(&t);
+    LlmSettings cfg = ollamaCfg();
     LlmProbeResult got;
     got.ok = true;
-    client.probe(LlmSettings{}, [&](LlmProbeResult r) { got = r; });
+    client.probe(cfg, [&](LlmProbeResult r) { got = r; });
     check(!got.ok && got.detail.contains("404"), "HTTP error probes as not ok");
   }
 
@@ -616,8 +623,9 @@ int main(int argc, char** argv) {
     MockTransport t;
     t.response = R"({"models":[{"name":"llava"},{"name":"qwen2.5vl"},{}]})";
     LlmClient client(&t);
+    LlmSettings cfg = ollamaCfg();
     QStringList got{QStringLiteral("sentinel")};
-    client.listModels(LlmSettings{}, [&](QStringList l) { got = l; });
+    client.listModels(cfg, [&](QStringList l) { got = l; });
     check(t.method == "GET" && t.url.toString() == "http://localhost:11434/api/tags",
           "ollama lists GET {base}/api/tags");
     check(got == QStringList({"llava", "qwen2.5vl"}),
@@ -667,8 +675,9 @@ int main(int argc, char** argv) {
     MockTransport t;
     t.status = 500;
     LlmClient client(&t);
+    LlmSettings cfg = ollamaCfg();
     QStringList got{QStringLiteral("sentinel")};
-    client.listModels(LlmSettings{}, [&](QStringList l) { got = l; });
+    client.listModels(cfg, [&](QStringList l) { got = l; });
     check(got.isEmpty(), "listing failure is an empty list, not an error");
   }
 
@@ -692,8 +701,9 @@ int main(int argc, char** argv) {
     t.status = 0;
     t.transportError = "connection refused";
     LlmClient client(&t);
+    LlmSettings cfg = ollamaCfg();
     LlmReply got;
-    client.chat(LlmSettings{}, sampleMessages(), "", [&](LlmReply r) { got = r; });
+    client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
     check(!got.ok && got.failure == LlmFailure::TRANSPORT &&
               got.error.startsWith("Couldn't reach ") &&
               got.error.contains("(connection refused)"),
@@ -703,8 +713,9 @@ int main(int argc, char** argv) {
     MockTransport t;
     t.status = 404;
     LlmClient client(&t);
+    LlmSettings cfg = ollamaCfg();
     LlmReply got;
-    client.chat(LlmSettings{}, sampleMessages(), "", [&](LlmReply r) { got = r; });
+    client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
     check(!got.ok && got.failure == LlmFailure::HTTP && got.error.contains("404"),
           "HTTP error surfaced with the status");
   }

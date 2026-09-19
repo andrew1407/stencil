@@ -23,7 +23,11 @@
     border: 2px dashed var(--border-hint);
     border-radius: 10px;
 }
-.idle-create-btn:hover { border-color: var(--border-main); }
+/* Beats the generic `button:hover { background: var(--accent-2) }` (shell.css) on
+   specificity, which else painted this card the WASHED-OUT accent-2 (dark theme lightens
+   toward white) instead of the solid accent fill its desktop twin blends toward
+   (IdleCard.cpp's `mixSrgb(bgControls, accent, t)`, t=1 at rest-hover). */
+.idle-create-btn:hover { border-color: var(--border-main); background: var(--accent); color: var(--on-accent); }
 .idle-create-icon { font-size: 32px; line-height: 1; }
 /* White/black preset chips in the blank-image modal */
 .bi-presets { display: flex; gap: 8px; }

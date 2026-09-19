@@ -81,21 +81,32 @@
   scrollbar-color: var(--sb-thumb) transparent;
 }
 .sb-hover { scrollbar-color: var(--sb-thumb-hover) transparent; }
+/* Selected text wears the accent, inked with the contrast colour a light accent needs —
+   browser twin css/layout/shell.css, desktop app.qss selection-color. Extension pages
+   only: the injected in-page modal (lib/overlay.js) must not restyle the host's selection. */
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
 /* Accent presets — set only --accent; --accent-2 and the glows derive from it.
    Keys mirror lib/accent.js and apply as <html data-accent="…"> (lib/accent.js
    sets it pre-paint). Violet is the :root default, so no attribute = violet. */
-:root[data-accent="violet"]  { --accent: #7c3aed; }
-:root[data-accent="pink"]    { --accent: #ec4899; }
-:root[data-accent="yellow"]  { --accent: #eab308; }
-:root[data-accent="orange"]  { --accent: #ea580c; }
-:root[data-accent="crimson"] { --accent: #be123c; }
-:root[data-accent="aqua"]    { --accent: #0891b2; }
-:root[data-accent="sky"]     { --accent: #0ea5e9; }
-:root[data-accent="blue"]    { --accent: #2563eb; }
-:root[data-accent="grass"]   { --accent: #16a34a; }
-:root[data-accent="green"]   { --accent: #047857; }
-:root[data-accent="brown"]   { --accent: #a87c50; }
-:root[data-accent="grey"]    { --accent: #64748b; }
+:root[data-accent="violet"]    { --accent: #7c3aed; }
+:root[data-accent="burgundy"]  { --accent: #660033; }
+:root[data-accent="pink"]      { --accent: #ec4899; }
+:root[data-accent="crimson"]   { --accent: #be123c; }
+:root[data-accent="maroon"]    { --accent: #550000; }
+:root[data-accent="orange"]    { --accent: #ea580c; }
+:root[data-accent="brown"]     { --accent: #a87c50; }
+:root[data-accent="yellow"]    { --accent: #eab308; }
+:root[data-accent="grass"]     { --accent: #16a34a; }
+:root[data-accent="green"]     { --accent: #047857; }
+:root[data-accent="turquoise"] { --accent: #40e0d0; }
+:root[data-accent="aqua"]      { --accent: #0891b2; }
+:root[data-accent="sky"]       { --accent: #0ea5e9; }
+:root[data-accent="bluegray"]  { --accent: #7394b3; }
+:root[data-accent="grey"]      { --accent: #64748b; }
+:root[data-accent="blue"]      { --accent: #2563eb; }
 
 /* A light accent — one black reads better on than white does. Set from the RESOLVED
    hex, so custom colours get it too. */

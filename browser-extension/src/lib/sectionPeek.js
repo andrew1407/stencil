@@ -1,6 +1,7 @@
 // Alt+hover peek: a folded section's real body, moved into a small anchored panel for
 // exactly as long as Alt is down (port of browser/js/ui/popover.js). Pure bookkeeping —
 // every DOM action and both clocks are injected.
+import { popoverPosition } from './popover.js';
 
 // Long enough to travel from the folded header into the panel.
 export const PEEK_CLOSE_GRACE_MS = 250;
@@ -17,16 +18,11 @@ export const isTypingTarget = (t) => {
   return t.isContentEditable === true;
 };
 
-// Below the anchor, flipped above on overflow, clamped — browser popoverPosition's rules.
-export const peekPosition = ({ anchor, box, viewport, gap = 6, margin = 8 }) => {
-  let top = anchor.bottom + gap;
-  if (top + box.height > viewport.height - margin) {
-    const above = anchor.top - gap - box.height;
-    top = above >= margin ? above : Math.max(margin, viewport.height - margin - box.height);
-  }
-  const left = Math.max(margin, Math.min(anchor.left, viewport.width - margin - box.width));
-  return { left, top };
-};
+// A peek IS a popover, with a tighter gap: it defers to popover.js rather than restating
+// the rules, which is how this copy came to keep flipping on overflow alone after the
+// shared one moved to "whichever side has more room".
+export const peekPosition = ({ anchor, box, viewport, gap = 6, margin = 8 }) =>
+  popoverPosition({ anchor, box, viewport, gap, margin });
 
 // Section tokens are opaque, so id-less sections peek too.
 export const createSectionPeek = ({

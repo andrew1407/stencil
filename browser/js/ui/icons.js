@@ -32,3 +32,16 @@ export const setSelectAllFace = (btn, all) => {
   const want = all ? 'x' : 'check';
   if (ic && !ic.classList?.contains(`ic-${want}`)) ic.outerHTML = icon(want, { size: 13 });
 };
+
+// One clockwise turn of a control's glyph, ON CLICK (iconMotion.json
+// `extras.swap-click-turn`; css/animations/iconClick.css). The class comes off when the
+// play ends, so the NEXT press turns it again — re-adding a class already there does
+// nothing. Re-rendering the glyph mid-turn (the swap buttons relabel themselves) would
+// drop the animation, so callers spin AFTER they repaint.
+export const spinIconOnce = (btn) => {
+  if (!btn || btn.classList.contains('icm-spun')) return;
+  btn.classList.add('icm-spun');
+  const done = () => btn.classList.remove('icm-spun');
+  btn.addEventListener('animationend', done, { once: true });
+  setTimeout(done, 800);   // a glyph that never animates (reduced motion) still clears
+};

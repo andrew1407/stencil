@@ -164,6 +164,7 @@ namespace stencil::gui {
                                             bool escapeHost = false, bool alwaysEscape = false);
 
     int durationMs() const { return ms_; }   // the clock this cloud was started on
+    QSize grid() const { return QSize(cols_, rows_); }   // cells; the GUI test reads these
     // HOST coordinates; the GUI test reads these.
     QPoint surfaceTarget() const { return target_.toPoint(); }
     QRect surfacePicture() const { return picture_; }

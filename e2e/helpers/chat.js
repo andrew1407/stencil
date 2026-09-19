@@ -29,9 +29,17 @@ export const imageUrls = (request) => (request.body.messages || [])
 
 // ── Browser app ───────────────────────────────────────────────────────────────
 // The panel re-reads settings on every send (loadLlmSettings inside getClient), so
-// seeding after boot needs no reload.
-export const seedLlmSettings = (page, baseUrl) => page.evaluate(
-  ([key, s]) => localStorage.setItem(key, JSON.stringify(s)), [LLM_SETTINGS_KEY, llmSettings(baseUrl)]);
+// seeding after boot needs no reload. The event is what the settings window itself
+// publishes, and surfaces that only EXIST for a configured provider — the context
+// menu's Assistant row (ctxAssistant syncAssistant) — are built off it: the assistant
+// ships off until a provider is picked (llm-contract §5), so writing the key alone
+// leaves that row absent.
+export const seedLlmSettings = async (page, baseUrl) => {
+  await page.evaluate(([key, s]) => {
+    localStorage.setItem(key, JSON.stringify(s));
+    window.dispatchEvent(new Event('stencil:llm-settings-changed'));
+  }, [LLM_SETTINGS_KEY, llmSettings(baseUrl)]);
+};
 
 export const openChatPanel = async (page) => {
   await page.locator('#chat-btn').click();

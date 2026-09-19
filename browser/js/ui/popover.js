@@ -8,14 +8,16 @@ export const DOUBLE_CLICK_MS = 250;
 export const LONG_PRESS_MS = 500;
 export const PRESS_SLOP_PX = 10;
 
-// Below the anchor, left edges aligned, flipped above when the bottom would overflow, and
-// clamped inside the viewport. Pure: rects in, {left, top} out.
+// Below the anchor, left edges aligned — UNLESS above has more room, which a short box near
+// the bottom of a small container (a modal's own last rows) can still "fit" below by the
+// viewport's own measure while badly overlapping whatever sits under it (user report: a
+// crop-dialog dropdown that fit below the whole browser viewport, but not below the modal's
+// own remaining rows). Clamped inside the viewport either way. Pure: rects in, {left, top} out.
 export const popoverPosition = ({ anchor, box, viewport, gap = 8, margin = 8 }) => {
-  let top = anchor.bottom + gap;
-  if (top + box.height > viewport.height - margin) {
-    const above = anchor.top - gap - box.height;
-    top = above >= margin ? above : Math.max(margin, viewport.height - margin - box.height);
-  }
+  const roomAbove = anchor.top - gap - margin;
+  const roomBelow = viewport.height - anchor.bottom - gap - margin;
+  let top = roomBelow >= roomAbove ? anchor.bottom + gap : anchor.top - gap - box.height;
+  top = Math.max(margin, Math.min(top, viewport.height - margin - box.height));
   const left = Math.max(margin, Math.min(anchor.left, viewport.width - margin - box.width));
   return { left, top };
 };

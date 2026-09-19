@@ -17,7 +17,7 @@ test('a saved endpoint on a non-http(s) scheme is refused, not loaded', () => {
     mem.clear();
     mem.set('drawingApp_llmSettings', JSON.stringify({ baseUrl: bad, serverUrl: bad }));
     const out = loadLlmSettings();
-    assert.strictEqual(out.baseUrl, PROVIDER_BASE_URLS.ollama, bad);
+    assert.strictEqual(out.baseUrl, '', bad);
     assert.strictEqual(out.serverUrl, '', bad);
     assert.strictEqual(isHttpUrl(bad), false, bad);
   }
@@ -34,14 +34,15 @@ test('http(s) endpoints still load unchanged', () => {
 test('defaults match the contract §5 table', () => {
   mem.clear();
   assert.deepStrictEqual(defaultSettings(), {
-    provider: 'ollama',
-    baseUrl: 'http://localhost:11434',
+    provider: 'none',
+    baseUrl: '',
     model: '',
     apiKey: '',
     serverUrl: '',
     saveChats: false,   // §12: chat persistence ships OFF
   });
-  // 'none' is the local-only off switch (contract §5) ahead of the three wire providers.
+  // 'none' is the local-only off switch (contract §5) ahead of the three wire providers,
+  // and the first-run default — the assistant is opt-in, not pre-wired to ollama.
   assert.deepStrictEqual(PROVIDERS, ['none', 'ollama', 'openai-compat', 'stencil-server']);
   assert.strictEqual(PROVIDER_BASE_URLS.ollama, 'http://localhost:11434');
   assert.strictEqual(PROVIDER_BASE_URLS['openai-compat'], 'http://localhost:1234/v1');
@@ -112,9 +113,9 @@ test('corrupt or partial saved data degrades to defaults', () => {
   mem.set('drawingApp_llmSettings', JSON.stringify({ model: 'only-model', provider: 42 }));
   const s = loadLlmSettings();
   assert.strictEqual(s.model, 'only-model');            // valid field kept
-  assert.strictEqual(s.provider, 'ollama');             // non-string provider ignored
-  assert.strictEqual(s.baseUrl, 'http://localhost:11434');
+  assert.strictEqual(s.provider, 'none');               // non-string provider ignored
+  assert.strictEqual(s.baseUrl, '');
 
   mem.set('drawingApp_llmSettings', JSON.stringify({ provider: 'not-a-provider' }));
-  assert.strictEqual(loadLlmSettings().provider, 'ollama');
+  assert.strictEqual(loadLlmSettings().provider, 'none');
 });

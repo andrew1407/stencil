@@ -117,6 +117,11 @@ namespace stencil::gui {
                                             settings_.customPageWidth,
                                             settings_.customPageHeight);
     canvas_->setPageCm(pg.width, pg.height);
+    // What the crop stage was left on wins; with nothing dragged the crop centres as before.
+    if (opts.rect.width > 0 && opts.rect.height > 0) {
+      canvas_->applyCrop(opts.rect, /*recalc=*/false);
+      return;
+    }
     const double aspect = core::cropAspect(pg.width, pg.height, opts.album);
     canvas_->applyCrop(core::centeredCrop(iw, ih, aspect), /*recalc=*/false);
   }

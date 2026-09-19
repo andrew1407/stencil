@@ -1,6 +1,7 @@
 // MainWindow construction, phase 1 of 4 — the order is pinned by the composition GUI test; reorder
 // nothing.
 #include "MainWindow.hpp"
+#include "../support/tipContent.hpp"
 #include "CanvasWidget.hpp"
 #include "mainWindowHelpers.hpp"   // CENTRAL_SIDE_MARGIN
 #include "OverlayScrollArea.hpp"
@@ -54,9 +55,7 @@ namespace stencil::gui {
     dropHintText_ = new QLabel(dropHint_);
     dropHintText_->setObjectName("dropHintLabel");
     dropHintText_->setTextFormat(Qt::RichText);
-    dropHintText_->setText(QString("Drag &amp; drop an <b>image</b> or <b>.json</b> anywhere "
-                                   "on the window — or paste an image with <b>%1</b>")
-                                .arg(hotkey("paste", "Ctrl+V").toHtmlEscaped()));
+    refreshDropHint();
     dropHintLay->addWidget(dropHintIcon_, 0, Qt::AlignVCenter);
     dropHintLay->addWidget(dropHintText_, 1);
     centralLayout_->addWidget(dropHint_);

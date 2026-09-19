@@ -22,6 +22,8 @@ const MANIFEST = [
   ['dustCloud', '../../browser/js/ui/dustCloud.js', '../src/lib/dustCloud.js'],
   // The motion modes' glyphs: pure SVG strings, so the copy is the whole file.
   ['motionIcons', '../../browser/js/ui/motionIcons.js', '../src/lib/motionIcons.js'],
+  // The crop rect's flight between two shapes: a pure rAF ramp, so the copy is the whole file.
+  ['rectTween', '../../browser/js/ui/motion/rectTween.js', '../src/lib/rectTween.js'],
   // The shared LLM client: per-surface wording/token defaults live in llmSurface.js,
   // so the client itself differs only in its header + providers.json import path.
   ['llmClient', '../../browser/js/llm/llmClient.js', '../src/llm/llmClient.js'],

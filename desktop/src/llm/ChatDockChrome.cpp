@@ -90,10 +90,8 @@ namespace stencil::gui {
     dot->setStyleSheet(
         QStringLiteral("background:%1;border-radius:3px;border:1px solid rgba(255,255,255,160);")
             .arg(color));
-    const QString tip =
-        richTooltip.isEmpty() ? QStringLiteral("AI assistant settings") : richTooltip;
-    gear->setToolTip(tip);
-    dot->setToolTip(tip);
+    gear->setToolTip(richTooltip);
+    dot->setToolTip(richTooltip);
   }
 
   // Branded title bar (browser header-row parity): sparkle + accent

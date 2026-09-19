@@ -1,6 +1,8 @@
 #pragma once
 // The crop preview's handle metrics, shade and screen fit, private to the CropDialog*.cpp TUs.
+#include "../support/theme.hpp"
 #include <QColor>
+#include <QPalette>
 #include <QWidget>
 #include <QScreen>
 #include <QGuiApplication>
@@ -16,8 +18,16 @@ namespace stencil::gui {
   // The image sits this far inside the widget, so a handle on the image edge draws
   // whole instead of being sliced in half (browser: handles live in the UNclipped stage).
   inline constexpr int INSET = HANDLE + 2;
-  inline const QColor CROP_ACCENT(0x4d, 0xa3, 0xff);   // #4da3ff, the browser's crop blue
+  // The crop box and its handles wear the app accent, like every other surface's crop
+  // (browser cropModal.js --accent-2, extension crop.css .crop-box) — QPalette::Highlight
+  // is the live accent (themePalette), shaded the way --accent-2 is.
+  inline QColor cropAccent(const QWidget* w) {
+    const QPalette pal = w ? w->palette() : QPalette();
+    return accentShade(pal.color(QPalette::Highlight), pal.color(QPalette::Window).lightness() < 128);
+  }
   inline constexpr int SHADE_ALPHA = 115;                   // rgba(0,0,0,0.45)
+  // The box's flight on an Album/Portrait flip (browser twin: motion/rectTween.js).
+  inline constexpr int CROP_TWEEN_MS = 380;
   inline constexpr int MIN_DISP_W = 760;  // the preview fit box never shrinks below this…
   inline constexpr int MIN_DISP_H = 540;
   inline constexpr int MIN_DIALOG_W = 640;   // the dialog's own floor

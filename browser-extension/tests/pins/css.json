@@ -510,6 +510,7 @@
     "line-height": "1.75",
     "color": "var(--text)",
     "background": "var(--panel-2)",
+    "overflow-wrap": "anywhere",
     "border": "1px solid color-mix(in srgb, var(--accent) 45%, var(--line))",
     "border-radius": "6px",
     "box-shadow": "0 4px 14px rgba(0, 0, 0, .28)",
@@ -1523,7 +1524,8 @@
     "padding-right": "6px"
    },
    "|.tip-title": {
-    "font-weight": "600"
+    "font-weight": "600",
+    "min-width": "0"
    },
    "|.viewport": {
     "height": "72vh",
@@ -1564,6 +1566,10 @@
     "gap": "6px",
     "margin-bottom": "8px"
    },
+   "|::selection": {
+    "background": "var(--accent)",
+    "color": "var(--on-accent)"
+   },
    "|::view-transition-group(root)": {
     "animation": "none"
    },
@@ -1577,6 +1583,10 @@
    "|::view-transition-old(root)": {
     "z-index": "0",
     "animation": "none"
+   },
+   "|:focus-visible": {
+    "outline": "2px solid var(--accent)",
+    "outline-offset": "2px"
    },
    "|:root, :root[data-theme=\"light\"]": {
     "color-scheme": "light",
@@ -1611,8 +1621,14 @@
    "|:root[data-accent=\"blue\"]": {
     "--accent": "#2563eb"
    },
+   "|:root[data-accent=\"bluegray\"]": {
+    "--accent": "#7394b3"
+   },
    "|:root[data-accent=\"brown\"]": {
     "--accent": "#a87c50"
+   },
+   "|:root[data-accent=\"burgundy\"]": {
+    "--accent": "#660033"
    },
    "|:root[data-accent=\"crimson\"]": {
     "--accent": "#be123c"
@@ -1626,6 +1642,9 @@
    "|:root[data-accent=\"grey\"]": {
     "--accent": "#64748b"
    },
+   "|:root[data-accent=\"maroon\"]": {
+    "--accent": "#550000"
+   },
    "|:root[data-accent=\"orange\"]": {
     "--accent": "#ea580c"
    },
@@ -1634,6 +1653,9 @@
    },
    "|:root[data-accent=\"sky\"]": {
     "--accent": "#0ea5e9"
+   },
+   "|:root[data-accent=\"turquoise\"]": {
+    "--accent": "#40e0d0"
    },
    "|:root[data-accent=\"violet\"]": {
     "--accent": "#7c3aed"
@@ -1779,20 +1801,26 @@
    "|:root[data-theme=\"dark\"]",
    "|*",
    "|.sb-hover",
+   "|::selection",
    "|:root[data-accent=\"violet\"]",
+   "|:root[data-accent=\"burgundy\"]",
    "|:root[data-accent=\"pink\"]",
-   "|:root[data-accent=\"yellow\"]",
-   "|:root[data-accent=\"orange\"]",
    "|:root[data-accent=\"crimson\"]",
-   "|:root[data-accent=\"aqua\"]",
-   "|:root[data-accent=\"sky\"]",
-   "|:root[data-accent=\"blue\"]",
+   "|:root[data-accent=\"maroon\"]",
+   "|:root[data-accent=\"orange\"]",
+   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"yellow\"]",
    "|:root[data-accent=\"grass\"]",
    "|:root[data-accent=\"green\"]",
-   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"turquoise\"]",
+   "|:root[data-accent=\"aqua\"]",
+   "|:root[data-accent=\"sky\"]",
+   "|:root[data-accent=\"bluegray\"]",
    "|:root[data-accent=\"grey\"]",
+   "|:root[data-accent=\"blue\"]",
    "|:root[data-accent-light]",
    "|*",
+   "|:focus-visible",
    "|input[type=\"checkbox\"], input[type=\"radio\"]",
    "|input[type=\"radio\"]",
    "|input[type=\"checkbox\"]:checked",
@@ -2750,6 +2778,7 @@
     "line-height": "1.75",
     "color": "var(--text)",
     "background": "var(--panel-2)",
+    "overflow-wrap": "anywhere",
     "border": "1px solid color-mix(in srgb, var(--accent) 45%, var(--line))",
     "border-radius": "6px",
     "box-shadow": "0 4px 14px rgba(0, 0, 0, .28)",
@@ -5079,12 +5108,17 @@
     "padding-right": "6px"
    },
    "|.tip-title": {
-    "font-weight": "600"
+    "font-weight": "600",
+    "min-width": "0"
    },
    "|.typing-row": {
     "display": "flex",
     "align-items": "center",
     "gap": "6px"
+   },
+   "|::selection": {
+    "background": "var(--accent)",
+    "color": "var(--on-accent)"
    },
    "|::view-transition-group(root)": {
     "animation": "none"
@@ -5099,6 +5133,10 @@
    "|::view-transition-old(root)": {
     "z-index": "0",
     "animation": "none"
+   },
+   "|:focus-visible": {
+    "outline": "2px solid var(--accent)",
+    "outline-offset": "2px"
    },
    "|:root, :root[data-theme=\"light\"]": {
     "color-scheme": "light",
@@ -5133,8 +5171,14 @@
    "|:root[data-accent=\"blue\"]": {
     "--accent": "#2563eb"
    },
+   "|:root[data-accent=\"bluegray\"]": {
+    "--accent": "#7394b3"
+   },
    "|:root[data-accent=\"brown\"]": {
     "--accent": "#a87c50"
+   },
+   "|:root[data-accent=\"burgundy\"]": {
+    "--accent": "#660033"
    },
    "|:root[data-accent=\"crimson\"]": {
     "--accent": "#be123c"
@@ -5148,6 +5192,9 @@
    "|:root[data-accent=\"grey\"]": {
     "--accent": "#64748b"
    },
+   "|:root[data-accent=\"maroon\"]": {
+    "--accent": "#550000"
+   },
    "|:root[data-accent=\"orange\"]": {
     "--accent": "#ea580c"
    },
@@ -5156,6 +5203,9 @@
    },
    "|:root[data-accent=\"sky\"]": {
     "--accent": "#0ea5e9"
+   },
+   "|:root[data-accent=\"turquoise\"]": {
+    "--accent": "#40e0d0"
    },
    "|:root[data-accent=\"violet\"]": {
     "--accent": "#7c3aed"
@@ -5333,20 +5383,26 @@
    "|:root[data-theme=\"dark\"]",
    "|*",
    "|.sb-hover",
+   "|::selection",
    "|:root[data-accent=\"violet\"]",
+   "|:root[data-accent=\"burgundy\"]",
    "|:root[data-accent=\"pink\"]",
-   "|:root[data-accent=\"yellow\"]",
-   "|:root[data-accent=\"orange\"]",
    "|:root[data-accent=\"crimson\"]",
-   "|:root[data-accent=\"aqua\"]",
-   "|:root[data-accent=\"sky\"]",
-   "|:root[data-accent=\"blue\"]",
+   "|:root[data-accent=\"maroon\"]",
+   "|:root[data-accent=\"orange\"]",
+   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"yellow\"]",
    "|:root[data-accent=\"grass\"]",
    "|:root[data-accent=\"green\"]",
-   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"turquoise\"]",
+   "|:root[data-accent=\"aqua\"]",
+   "|:root[data-accent=\"sky\"]",
+   "|:root[data-accent=\"bluegray\"]",
    "|:root[data-accent=\"grey\"]",
+   "|:root[data-accent=\"blue\"]",
    "|:root[data-accent-light]",
    "|*",
+   "|:focus-visible",
    "|input[type=\"checkbox\"], input[type=\"radio\"]",
    "|input[type=\"radio\"]",
    "|input[type=\"checkbox\"]:checked",
@@ -6501,6 +6557,7 @@
     "line-height": "1.75",
     "color": "var(--text)",
     "background": "var(--panel-2)",
+    "overflow-wrap": "anywhere",
     "border": "1px solid color-mix(in srgb, var(--accent) 45%, var(--line))",
     "border-radius": "6px",
     "box-shadow": "0 4px 14px rgba(0, 0, 0, .28)",
@@ -6842,7 +6899,8 @@
     "text-transform": "none",
     "letter-spacing": "normal",
     "color": "var(--text)",
-    "font-size": "14px"
+    "font-size": "14px",
+    "cursor": "pointer"
    },
    "|.chk:has(> input:checked)": {
     "background": "var(--accent)",
@@ -7709,7 +7767,12 @@
     "padding-right": "6px"
    },
    "|.tip-title": {
-    "font-weight": "600"
+    "font-weight": "600",
+    "min-width": "0"
+   },
+   "|::selection": {
+    "background": "var(--accent)",
+    "color": "var(--on-accent)"
    },
    "|::view-transition-group(root)": {
     "animation": "none"
@@ -7724,6 +7787,10 @@
    "|::view-transition-old(root)": {
     "z-index": "0",
     "animation": "none"
+   },
+   "|:focus-visible": {
+    "outline": "2px solid var(--accent)",
+    "outline-offset": "2px"
    },
    "|:root": {
     "--btn-ink": "var(--accent)",
@@ -7762,8 +7829,14 @@
    "|:root[data-accent=\"blue\"]": {
     "--accent": "#2563eb"
    },
+   "|:root[data-accent=\"bluegray\"]": {
+    "--accent": "#7394b3"
+   },
    "|:root[data-accent=\"brown\"]": {
     "--accent": "#a87c50"
+   },
+   "|:root[data-accent=\"burgundy\"]": {
+    "--accent": "#660033"
    },
    "|:root[data-accent=\"crimson\"]": {
     "--accent": "#be123c"
@@ -7777,6 +7850,9 @@
    "|:root[data-accent=\"grey\"]": {
     "--accent": "#64748b"
    },
+   "|:root[data-accent=\"maroon\"]": {
+    "--accent": "#550000"
+   },
    "|:root[data-accent=\"orange\"]": {
     "--accent": "#ea580c"
    },
@@ -7785,6 +7861,9 @@
    },
    "|:root[data-accent=\"sky\"]": {
     "--accent": "#0ea5e9"
+   },
+   "|:root[data-accent=\"turquoise\"]": {
+    "--accent": "#40e0d0"
    },
    "|:root[data-accent=\"violet\"]": {
     "--accent": "#7c3aed"
@@ -7944,20 +8023,26 @@
    "|:root[data-theme=\"dark\"]",
    "|*",
    "|.sb-hover",
+   "|::selection",
    "|:root[data-accent=\"violet\"]",
+   "|:root[data-accent=\"burgundy\"]",
    "|:root[data-accent=\"pink\"]",
-   "|:root[data-accent=\"yellow\"]",
-   "|:root[data-accent=\"orange\"]",
    "|:root[data-accent=\"crimson\"]",
-   "|:root[data-accent=\"aqua\"]",
-   "|:root[data-accent=\"sky\"]",
-   "|:root[data-accent=\"blue\"]",
+   "|:root[data-accent=\"maroon\"]",
+   "|:root[data-accent=\"orange\"]",
+   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"yellow\"]",
    "|:root[data-accent=\"grass\"]",
    "|:root[data-accent=\"green\"]",
-   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"turquoise\"]",
+   "|:root[data-accent=\"aqua\"]",
+   "|:root[data-accent=\"sky\"]",
+   "|:root[data-accent=\"bluegray\"]",
    "|:root[data-accent=\"grey\"]",
+   "|:root[data-accent=\"blue\"]",
    "|:root[data-accent-light]",
    "|*",
+   "|:focus-visible",
    "|input[type=\"checkbox\"], input[type=\"radio\"]",
    "|input[type=\"radio\"]",
    "|input[type=\"checkbox\"]:checked",
@@ -8944,6 +9029,7 @@
     "line-height": "1.75",
     "color": "var(--text)",
     "background": "var(--panel-2)",
+    "overflow-wrap": "anywhere",
     "border": "1px solid color-mix(in srgb, var(--accent) 45%, var(--line))",
     "border-radius": "6px",
     "box-shadow": "0 4px 14px rgba(0, 0, 0, .28)",
@@ -11273,12 +11359,17 @@
     "padding-right": "6px"
    },
    "|.tip-title": {
-    "font-weight": "600"
+    "font-weight": "600",
+    "min-width": "0"
    },
    "|.typing-row": {
     "display": "flex",
     "align-items": "center",
     "gap": "6px"
+   },
+   "|::selection": {
+    "background": "var(--accent)",
+    "color": "var(--on-accent)"
    },
    "|::view-transition-group(root)": {
     "animation": "none"
@@ -11293,6 +11384,10 @@
    "|::view-transition-old(root)": {
     "z-index": "0",
     "animation": "none"
+   },
+   "|:focus-visible": {
+    "outline": "2px solid var(--accent)",
+    "outline-offset": "2px"
    },
    "|:root, :root[data-theme=\"light\"]": {
     "color-scheme": "light",
@@ -11327,8 +11422,14 @@
    "|:root[data-accent=\"blue\"]": {
     "--accent": "#2563eb"
    },
+   "|:root[data-accent=\"bluegray\"]": {
+    "--accent": "#7394b3"
+   },
    "|:root[data-accent=\"brown\"]": {
     "--accent": "#a87c50"
+   },
+   "|:root[data-accent=\"burgundy\"]": {
+    "--accent": "#660033"
    },
    "|:root[data-accent=\"crimson\"]": {
     "--accent": "#be123c"
@@ -11342,6 +11443,9 @@
    "|:root[data-accent=\"grey\"]": {
     "--accent": "#64748b"
    },
+   "|:root[data-accent=\"maroon\"]": {
+    "--accent": "#550000"
+   },
    "|:root[data-accent=\"orange\"]": {
     "--accent": "#ea580c"
    },
@@ -11350,6 +11454,9 @@
    },
    "|:root[data-accent=\"sky\"]": {
     "--accent": "#0ea5e9"
+   },
+   "|:root[data-accent=\"turquoise\"]": {
+    "--accent": "#40e0d0"
    },
    "|:root[data-accent=\"violet\"]": {
     "--accent": "#7c3aed"
@@ -11526,20 +11633,26 @@
    "|:root[data-theme=\"dark\"]",
    "|*",
    "|.sb-hover",
+   "|::selection",
    "|:root[data-accent=\"violet\"]",
+   "|:root[data-accent=\"burgundy\"]",
    "|:root[data-accent=\"pink\"]",
-   "|:root[data-accent=\"yellow\"]",
-   "|:root[data-accent=\"orange\"]",
    "|:root[data-accent=\"crimson\"]",
-   "|:root[data-accent=\"aqua\"]",
-   "|:root[data-accent=\"sky\"]",
-   "|:root[data-accent=\"blue\"]",
+   "|:root[data-accent=\"maroon\"]",
+   "|:root[data-accent=\"orange\"]",
+   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"yellow\"]",
    "|:root[data-accent=\"grass\"]",
    "|:root[data-accent=\"green\"]",
-   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"turquoise\"]",
+   "|:root[data-accent=\"aqua\"]",
+   "|:root[data-accent=\"sky\"]",
+   "|:root[data-accent=\"bluegray\"]",
    "|:root[data-accent=\"grey\"]",
+   "|:root[data-accent=\"blue\"]",
    "|:root[data-accent-light]",
    "|*",
+   "|:focus-visible",
    "|input[type=\"checkbox\"], input[type=\"radio\"]",
    "|input[type=\"radio\"]",
    "|input[type=\"checkbox\"]:checked",
@@ -12739,6 +12852,7 @@
     "line-height": "1.75",
     "color": "var(--text)",
     "background": "var(--panel-2)",
+    "overflow-wrap": "anywhere",
     "border": "1px solid color-mix(in srgb, var(--accent) 45%, var(--line))",
     "border-radius": "6px",
     "box-shadow": "0 4px 14px rgba(0, 0, 0, .28)",
@@ -15068,12 +15182,17 @@
     "padding-right": "6px"
    },
    "|.tip-title": {
-    "font-weight": "600"
+    "font-weight": "600",
+    "min-width": "0"
    },
    "|.typing-row": {
     "display": "flex",
     "align-items": "center",
     "gap": "6px"
+   },
+   "|::selection": {
+    "background": "var(--accent)",
+    "color": "var(--on-accent)"
    },
    "|::view-transition-group(root)": {
     "animation": "none"
@@ -15088,6 +15207,10 @@
    "|::view-transition-old(root)": {
     "z-index": "0",
     "animation": "none"
+   },
+   "|:focus-visible": {
+    "outline": "2px solid var(--accent)",
+    "outline-offset": "2px"
    },
    "|:root, :root[data-theme=\"light\"]": {
     "color-scheme": "light",
@@ -15122,8 +15245,14 @@
    "|:root[data-accent=\"blue\"]": {
     "--accent": "#2563eb"
    },
+   "|:root[data-accent=\"bluegray\"]": {
+    "--accent": "#7394b3"
+   },
    "|:root[data-accent=\"brown\"]": {
     "--accent": "#a87c50"
+   },
+   "|:root[data-accent=\"burgundy\"]": {
+    "--accent": "#660033"
    },
    "|:root[data-accent=\"crimson\"]": {
     "--accent": "#be123c"
@@ -15137,6 +15266,9 @@
    "|:root[data-accent=\"grey\"]": {
     "--accent": "#64748b"
    },
+   "|:root[data-accent=\"maroon\"]": {
+    "--accent": "#550000"
+   },
    "|:root[data-accent=\"orange\"]": {
     "--accent": "#ea580c"
    },
@@ -15145,6 +15277,9 @@
    },
    "|:root[data-accent=\"sky\"]": {
     "--accent": "#0ea5e9"
+   },
+   "|:root[data-accent=\"turquoise\"]": {
+    "--accent": "#40e0d0"
    },
    "|:root[data-accent=\"violet\"]": {
     "--accent": "#7c3aed"
@@ -15322,20 +15457,26 @@
    "|:root[data-theme=\"dark\"]",
    "|*",
    "|.sb-hover",
+   "|::selection",
    "|:root[data-accent=\"violet\"]",
+   "|:root[data-accent=\"burgundy\"]",
    "|:root[data-accent=\"pink\"]",
-   "|:root[data-accent=\"yellow\"]",
-   "|:root[data-accent=\"orange\"]",
    "|:root[data-accent=\"crimson\"]",
-   "|:root[data-accent=\"aqua\"]",
-   "|:root[data-accent=\"sky\"]",
-   "|:root[data-accent=\"blue\"]",
+   "|:root[data-accent=\"maroon\"]",
+   "|:root[data-accent=\"orange\"]",
+   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"yellow\"]",
    "|:root[data-accent=\"grass\"]",
    "|:root[data-accent=\"green\"]",
-   "|:root[data-accent=\"brown\"]",
+   "|:root[data-accent=\"turquoise\"]",
+   "|:root[data-accent=\"aqua\"]",
+   "|:root[data-accent=\"sky\"]",
+   "|:root[data-accent=\"bluegray\"]",
    "|:root[data-accent=\"grey\"]",
+   "|:root[data-accent=\"blue\"]",
    "|:root[data-accent-light]",
    "|*",
+   "|:focus-visible",
    "|input[type=\"checkbox\"], input[type=\"radio\"]",
    "|input[type=\"radio\"]",
    "|input[type=\"checkbox\"]:checked",

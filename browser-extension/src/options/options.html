@@ -43,7 +43,7 @@
     /* Checkbox option groups share one row while they fit, wrapping (each option
        as a unit) only when the card is too narrow. */
     .chk-row { display:flex; flex-wrap:wrap; gap:8px 24px; }
-    .chk-row label { display:flex; gap:9px; align-items:center; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px; }
+    .chk-row label { display:flex; gap:9px; align-items:center; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px; cursor:pointer; }
     input, select { width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:7px; padding:9px 10px; font-size:14px; }
     .row { display:flex; gap:12px; align-items:center; margin-top:24px; }
     button { background:var(--accent); color:#fff; border:0; border-radius:7px; padding:10px 18px; font-size:14px; cursor:pointer; }
@@ -218,14 +218,14 @@
     <div class="help">The outline colour used when you tick “highlight on page” in the popup. “Main theme” keeps it in sync with the accent above; the mark/hover ring is derived from it.</div>
 
     <label class="f" for="exposeWindowStencil">Page scripting API (advanced)</label>
-    <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px;">
+    <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px; cursor:pointer;">
       <input id="exposeWindowStencil" type="checkbox" style="width:auto; margin-top:3px;">
       <span>Expose a <code>window.stencil</code> object on every page (scan images, open/crop from the console)</span>
     </label>
     <div class="help">Off by default. When on, a scripting API is injected into every page's main world so you can run e.g. <code>stencil.images</code>, <code>stencil.search('logo')</code>, or <code>stencil.open(el)</code> from the DevTools console. Leave off unless you need it.</div>
 
     <label class="f" for="editorPageApi">Editor page scripting API</label>
-    <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px;">
+    <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px; cursor:pointer;">
       <input id="editorPageApi" type="checkbox" style="width:auto; margin-top:3px;" checked>
       <span>Expose <code>stencil.extension</code> on the Stencil editor page (list open editors, scan another page's images, import into this editor)</span>
     </label>
@@ -311,7 +311,7 @@
 
     <div id="llm-tabs-row">
       <label class="f" for="llm-sharetabs">Other open tabs</label>
-      <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px;">
+      <label style="display:flex; gap:9px; align-items:flex-start; text-transform:none; letter-spacing:normal; color:var(--text); font-size:14px; cursor:pointer;">
         <input id="llm-sharetabs" type="checkbox" style="width:auto; margin-top:3px;">
         <span>Let the assistant see the titles and addresses of your other open tabs, so it can scan one on request</span>
       </label>

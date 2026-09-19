@@ -5,7 +5,7 @@ export declare const LINGER_CLOSE_MS: number;
 
 export interface Rect { left: number; top: number; width: number; height: number; bottom?: number }
 
-/** Below the anchor, flipped above on overflow, clamped inside the viewport. Pure. */
+/** Below the anchor, flipped above when above has more room, clamped inside the viewport. Pure. */
 export declare const popoverPosition: (args: {
   anchor: { left: number; top: number; bottom: number };
   box: { width: number; height: number };

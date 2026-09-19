@@ -9,5 +9,5 @@ export interface CropControls {
 }
 
 export declare function createCropControls(
-  opts: { state: CropState; resetCrop: () => void },
+  opts: { state: CropState; resetCrop: () => void; swapCrop?: () => void },
 ): CropControls;

@@ -35,6 +35,9 @@ namespace stencil::gui {
     bool cropToPage = false;
     bool cropAlbum = false;
     QString cropPage;
+    // The rect the crop stage was left on, in original-image pixels; width 0 ⇒ nothing was
+    // dragged and the page crop centres. Plain doubles: this header stays off the core seam.
+    double cropX = 0, cropY = 0, cropW = 0, cropH = 0;
 
     // A bare positional file (OS "Open With"); routed through the drag-and-drop open path. Lower priority than --src.
     QString file;
