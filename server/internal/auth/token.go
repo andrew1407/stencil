@@ -48,9 +48,8 @@ func HashToken(token string) []byte {
 	return sum[:]
 }
 
-// Verify resolves a raw token to its session and checks expiry against nowMs.
-// It is the single verification path used by both the REST middleware and the
-// WebSocket hello handshake.
+// Verify resolves a raw token to its session and checks expiry against nowMs — the single verification
+// path for both the REST middleware and the WebSocket hello handshake.
 func Verify(ctx context.Context, resolver SessionResolver, token string, nowMs int64) (Session, error) {
 	if token == "" {
 		return Session{}, ErrInvalidToken

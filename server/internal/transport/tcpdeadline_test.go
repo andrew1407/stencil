@@ -11,9 +11,8 @@ import (
 	"time"
 )
 
-// The hub's CloseAll cancels each connection's context to unwind a handler
-// blocked in Read. bufio.Scanner has no context awareness, so the adapter pokes
-// the read deadline; the caller must still see the context error.
+// CloseAll cancels each connection's context to unwind a handler blocked in Read. bufio.Scanner has no
+// context awareness, so the adapter pokes the read deadline; the caller must still see the ctx error.
 func TestTCPReadUnblocksOnContextCancel(t *testing.T) {
 	_, server := tcpPair(t)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -50,12 +49,8 @@ func TestTCPReadWithAnAlreadyCancelledContext(t *testing.T) {
 	}
 }
 
-// A per-call deadline is honoured — this is what bounds the hub's hello timeout.
-// The error is context.DeadlineExceeded when the context observes its own expiry
-// first, but the adapter pushes the deadline down to the socket, so the raw
-// os.ErrDeadlineExceeded can surface instead when the socket trips marginally
-// earlier. Both are timeouts; callers only branch on err != nil, so the test
-// pins the timing guarantee and accepts either shape rather than the race.
+// A per-call deadline is honoured — what bounds the hub's hello timeout. Either context.DeadlineExceeded
+// or the raw os.ErrDeadlineExceeded can surface, so the test accepts both rather than pinning the race.
 func TestTCPReadHonoursAPerCallDeadline(t *testing.T) {
 	_, server := tcpPair(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -74,9 +69,8 @@ func TestTCPReadHonoursAPerCallDeadline(t *testing.T) {
 	}
 }
 
-// With no per-call deadline a Read still cannot block forever: a wedged or
-// vanished peer is reaped once tcpIdleTimeout elapses. The production value is
-// generous, so the test shortens the var (which exists for exactly this).
+// With no per-call deadline a Read still cannot block forever: a wedged peer is reaped once
+// tcpIdleTimeout elapses. The production value is generous, so the test shortens the var.
 func TestTCPReadTimesOutAnIdlePeer(t *testing.T) {
 	prev := tcpIdleTimeout
 	tcpIdleTimeout = 100 * time.Millisecond

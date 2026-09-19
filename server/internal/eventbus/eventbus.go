@@ -39,9 +39,8 @@ func EnvelopeOf(msg protocol.WSMessage, data []byte) Envelope {
 type Bus interface {
 	// Publish sends env to every current subscriber of channel.
 	Publish(ctx context.Context, channel string, env Envelope) error
-	// Subscribe returns a receive channel of messages and an unsubscribe func.
-	// The returned channel is closed when unsubscribe is called; the subscription
-	// lives until then (it is not bound to a per-call context).
+	// Subscribe returns a receive channel of messages and an unsubscribe func. The channel closes on
+	// unsubscribe; the subscription is not bound to a per-call context.
 	Subscribe(channel string) (<-chan Envelope, func())
 	// Close releases any backend resources.
 	Close() error
@@ -61,9 +60,8 @@ func PublishProjectEvent(ctx context.Context, b Bus, event string, rec protocol.
 	_ = b.Publish(ctx, ChannelEvents, EnvelopeOf(msg, data))
 }
 
-// subBuffer bounds per-subscriber queueing; a slow consumer drops messages
-// rather than stalling the publisher (edit state is reconciled by version, so a
-// dropped relay is recoverable).
+// subBuffer bounds per-subscriber queueing; a slow consumer drops messages rather than stalling the
+// publisher (edit state is reconciled by version, so a dropped relay is recoverable).
 const subBuffer = 64
 
 // inProc is an in-memory Bus for single-instance deployments and tests.

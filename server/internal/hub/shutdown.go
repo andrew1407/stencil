@@ -37,9 +37,8 @@ func (h *Hub) liveConns() []*connReg {
 	return out
 }
 
-// closeAll notices then cancels every tracked connection, in parallel: the
-// notices are best-effort writes, and one wedged peer must not spend another
-// peer's share of main's shutdown budget.
+// closeAll notices then cancels every tracked connection in parallel: the notices are best-effort writes,
+// and one wedged peer must not spend another peer's share of the shutdown budget.
 func closeAll(regs []*connReg) {
 	var wg sync.WaitGroup
 	for _, reg := range regs {

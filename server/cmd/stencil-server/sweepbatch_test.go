@@ -8,9 +8,6 @@ import (
 	"time"
 )
 
-// A backlog larger than one batch is deleted a batch at a time until a pass comes
-// back short, and the per-id filestore work runs on a bounded pool rather than
-// one id after another.
 func TestSweepBatchesBacklogAndBoundsWorkers(t *testing.T) {
 	const backlog = sweepBatch*2 + 7
 	expires := map[string]int64{}

@@ -131,9 +131,8 @@ func TestTCPAcceptsAFrameAtTheLimit(t *testing.T) {
 	}
 }
 
-// The hub fans out to a member from its write loop while other goroutines may
-// also write; interleaved bytes would corrupt the NDJSON stream, so Write holds
-// a mutex. Run under -race to catch the data race too.
+// The hub fans out to a member from its write loop while other goroutines may also write; interleaved
+// bytes would corrupt the NDJSON stream, so Write holds a mutex. Run under -race for the data race.
 func TestTCPConcurrentWritesDoNotInterleave(t *testing.T) {
 	client, server := tcpPair(t)
 

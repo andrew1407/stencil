@@ -15,9 +15,8 @@ type inbound struct {
 	msg    protocol.WSMessage
 }
 
-// session is the authoritative, single-goroutine owner of a project's live edit
-// state. All fields below the channels are touched only by run() (the worker
-// goroutine touches only immutable fields + the job/result channels).
+// session is the authoritative, single-goroutine owner of a project's live edit state: every field below
+// the channels is touched only by run() (the worker touches immutable fields + the job/result channels).
 type session struct {
 	hub  *Hub
 	id   string
@@ -64,9 +63,8 @@ func newSession(h *Hub, id string) *session {
 // messages, and bus deliveries, so session state needs no locks.
 func (s *session) run() {
 	defer s.busStop()
-	// The worker performs blocking store I/O off the run-loop and posts results
-	// back over persist.results; it exits when s.done closes, so it is bounded by
-	// the session's lifetime and cannot leak.
+	// The worker performs blocking store I/O off the run-loop and posts results back over persist.results; it
+	// exits when s.done closes, so it is bounded by the session's lifetime and cannot leak.
 	go s.persist.run()
 	for {
 		select {
@@ -113,10 +111,8 @@ func (s *session) handle(m *member, msg protocol.WSMessage) {
 	}
 }
 
-// sendWelcome replies with project + layout + version + the current local peer
-// roster. If the one-time snapshot has not loaded yet, the reply is deferred
-// until the load result arrives on the run-loop (see applyResult), so no store
-// I/O ever runs here.
+// sendWelcome replies with project + layout + version + the local peer roster. Before the one-time
+// snapshot loads, the reply is deferred to the run-loop's load result, so no store I/O runs here.
 func (s *session) sendWelcome(m *member) {
 	if !s.loaded {
 		s.ensureLoaded()
@@ -126,9 +122,8 @@ func (s *session) sendWelcome(m *member) {
 	s.replyWelcome(m)
 }
 
-// replyWelcome sends the welcome frame from the cached snapshot. The member may
-// have disconnected while the load was in flight, so it is skipped if no longer
-// present (its out channel would be closed).
+// replyWelcome sends the welcome frame from the cached snapshot. The member may have disconnected while
+// the load was in flight, so it is skipped if no longer present (its out channel would be closed).
 func (s *session) replyWelcome(m *member) {
 	if !s.present(m) {
 		return
@@ -147,10 +142,8 @@ func (s *session) replyWelcome(m *member) {
 	})
 }
 
-// handleEdit relays a live edit op to peers. Edits are ephemeral (not persisted
-// per-op); a stale version means the sender is behind, so it is told to resync.
-// The version is the one loaded once at first join, so this never blocks on the
-// store.
+// handleEdit relays a live edit op to peers. Edits are ephemeral (not persisted per-op); a stale version
+// means the sender is behind, so it is told to resync. The version is the one loaded at first join.
 func (s *session) handleEdit(m *member, msg protocol.WSMessage) {
 	if msg.Version != 0 && msg.Version < s.version {
 		s.sendMsg(m, protocol.WSMessage{Type: protocol.WSError, Code: protocol.CodeBadVersion, Message: "stale; resubscribe"})
@@ -160,16 +153,14 @@ func (s *session) handleEdit(m *member, msg protocol.WSMessage) {
 	s.publish(msg)
 }
 
-// handleSave dispatches the last-writer-wins UpdateProject to the worker; the
-// outcome is applied back on the run-loop (applySaveResult) so version/state
-// stay single-owner and the save never blocks other members' relays.
+// handleSave dispatches the last-writer-wins UpdateProject to the worker; the outcome is applied back on
+// the run-loop (applySaveResult) so version/state stay single-owner.
 func (s *session) handleSave(m *member, msg protocol.WSMessage) {
 	s.persist.dispatch(persistJob{kind: persistSave, member: m, layout: msg.Layout, version: msg.Version})
 }
 
-// applySaveResult applies a completed save on the run-loop: LWW/conflict/error
-// handling, the version bump, the saver ack, the peer broadcast, and the global
-// feed.
+// applySaveResult applies a completed save on the run-loop: LWW/conflict/error handling, the version
+// bump, the saver ack, the peer broadcast, and the global feed.
 func (s *session) applySaveResult(res persistResult) {
 	m := res.member
 	switch {

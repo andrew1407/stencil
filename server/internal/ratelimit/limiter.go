@@ -14,9 +14,8 @@ import (
 // are swept on use rather than growing for the process's lifetime.
 const IdleTTL = 10 * time.Minute
 
-// Limiter is a per-key token bucket: capacity = the per-minute rate, refilled
-// continuously, so a caller may burst up to a minute's worth and then settles to
-// the configured pace.
+// Limiter is a per-key token bucket: capacity = the per-minute rate, refilled continuously, so a caller
+// may burst up to a minute's worth and then settles to the configured pace.
 type Limiter struct {
 	mu      sync.Mutex
 	perMin  float64
@@ -71,8 +70,7 @@ func (l *Limiter) Allow(key string) bool {
 	return true
 }
 
-// Refund returns one spent token to key's bucket, never above capacity. It lets
-// a caller meter outcomes rather than attempts: spend before the work, refund
+// Refund returns one spent token to key's bucket, never above capacity: spend before the work, refund
 // when the work turns out to have been legitimate.
 func (l *Limiter) Refund(key string) {
 	if l == nil {
@@ -90,9 +88,8 @@ func (l *Limiter) Refund(key string) {
 	}
 }
 
-// sweep drops buckets nobody has touched within IdleTTL. Called under the lock,
-// only when a new key appears, so the cost lands on growth rather than on every
-// spend.
+// sweep drops buckets nobody has touched within IdleTTL. Called under the lock, only when a new key
+// appears, so the cost lands on growth rather than on every spend.
 func (l *Limiter) sweep(now time.Time) {
 	for key, b := range l.buckets {
 		if now.Sub(b.last) > IdleTTL {

@@ -44,9 +44,8 @@ type Deps struct {
 	OpTimeout      time.Duration // deadline around ONE store operation
 }
 
-// API holds the resolved dependencies and serves HTTP. The project and file
-// policy it enforces lives in internal/service, composed here from Deps so the
-// handlers stay transport-only.
+// API holds the resolved dependencies and serves HTTP. The project and file policy it enforces lives in
+// internal/service, composed here from Deps so the handlers stay transport-only.
 type API struct {
 	deps      Deps
 	projects  *service.ProjectService
@@ -91,9 +90,8 @@ func liveSessions(deps Deps) service.SessionCounter {
 // defaultOpTimeout is the fallback for Deps.OpTimeout (OP_TIMEOUT_SECONDS).
 const defaultOpTimeout = 10 * time.Second
 
-// opCtx bounds one store operation: the request context alone runs to the
-// server's 5-minute write timeout, which is a long time to pin a pool
-// connection. Streaming a download still uses the request itself.
+// opCtx bounds one store operation: the request context alone runs to the server's 5-minute write
+// timeout, a long time to pin a pool connection. Streaming a download still uses the request itself.
 func (a *API) opCtx(req *http.Request) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(req.Context(), a.deps.OpTimeout)
 }

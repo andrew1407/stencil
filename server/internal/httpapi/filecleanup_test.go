@@ -14,10 +14,8 @@ import (
 	"stencil/server/internal/testutil"
 )
 
-// An upload whose project row is swept mid-flight must answer 404 and leave no
-// bytes behind. The two write paths notice at different points: original/result
-// through the failing SetFile, a filestore-only kind through the re-check the
-// handler does after writing (it never calls SetFile at all).
+// An upload whose project row is swept mid-flight must answer 404 and leave no bytes. original/result
+// notice through the failing SetFile, a filestore-only kind through the handler's post-write re-check.
 func TestUploadOnSweptProjectCleansUpBytes(t *testing.T) {
 	cases := []struct {
 		name, kind, ext, query string

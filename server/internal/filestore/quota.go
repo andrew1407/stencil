@@ -15,9 +15,8 @@ import (
 
 // usageMeter accounts the aggregate bytes held under the store root.
 type usageMeter interface {
-	// reserveReplacing accounts n bytes about to land for (dir, kind), crediting
-	// whatever bytes that write replaces, and returns the accounted delta. Hand
-	// the delta back to release if the write then fails.
+	// reserveReplacing accounts n bytes about to land for (dir, kind), crediting whatever they replace, and
+	// returns the accounted delta. Hand the delta back to release if the write then fails.
 	reserveReplacing(dir, kind string, n int64) (int64, error)
 	// release gives delta bytes back.
 	release(delta int64)

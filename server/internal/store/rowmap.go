@@ -16,9 +16,8 @@ const (
 	withoutPayload = false
 )
 
-// normalizeKeywords is the keyword rule, applied once at the write boundary: trim,
-// drop blanks, dedupe case-insensitively, keep first-seen order. Never nil — a nil
-// slice would encode as SQL NULL, which the UPDATE reads as "unchanged".
+// normalizeKeywords is the keyword rule at the write boundary: trim, drop blanks, dedupe
+// case-insensitively, keep first-seen order. Never nil — a nil slice is SQL NULL, read as "unchanged".
 func normalizeKeywords(kw []string) []string {
 	out := make([]string, 0)
 	seen := map[string]bool{}

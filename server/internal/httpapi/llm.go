@@ -56,9 +56,8 @@ func (a *API) handleLLMChat(rw http.ResponseWriter, req *http.Request) {
 		if req.Context().Err() != nil {
 			return
 		}
-		// Full detail (upstream envelope, dial errors) still goes to the server
-		// log; the client gets the sanitized reason so the user can act on it
-		// instead of guessing (llm-contract.md §6.3).
+		// Full detail (upstream envelope, dial errors) goes to the server log; the client gets the sanitized
+		// reason so the user can act on it (llm-contract.md §6.3).
 		log.Printf("llm: chat proxy failed: %v", err)
 		var up upstreamError
 		if errors.As(err, &up) {

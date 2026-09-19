@@ -9,21 +9,16 @@ import (
 	"time"
 )
 
-// tcpConn adapts a stream net.Conn to Conn using newline-delimited JSON. Compact
-// JSON never contains a literal newline, so '\n' is an unambiguous frame
-// delimiter that any client (Zig std.net, Qt QTcpSocket, Go) can produce and
-// parse trivially.
+// tcpConn adapts a stream net.Conn to Conn using newline-delimited JSON: compact JSON never contains a
+// literal newline, so '\n' is an unambiguous frame delimiter any client can produce and parse.
 type tcpConn struct {
 	conn net.Conn
 	sc   *bufio.Scanner
 	wmu  sync.Mutex
 }
 
-// tcpIdleTimeout bounds how long a Read with no per-call deadline may block with
-// no bytes arriving before the peer is treated as dead and reaped. It is a var
-// (not const) so tests can shorten it; the value is generous so a live but idle
-// editor (still receiving cursor/presence/ping traffic while co-editing) is not
-// dropped, while a wedged or vanished TCP peer is eventually torn down.
+// tcpIdleTimeout bounds how long a Read with no per-call deadline may block with no bytes before the peer
+// is reaped. A var so tests can shorten it; generous, so a live but idle co-editor is not dropped.
 var tcpIdleTimeout = 5 * time.Minute
 
 // NewTCP wraps an accepted/ dialed net.Conn as a Conn.
@@ -36,17 +31,13 @@ func NewTCP(conn net.Conn) Conn {
 }
 
 func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {
-	// An already-cancelled context wins before any bytes are consumed. Without
-	// this, a Read on a torn-down connection still delivers whatever the scanner
-	// had buffered, contradicting the precedence the failure path below applies.
+	// An already-cancelled context wins before any bytes are consumed; without this, a Read on a torn-down
+	// connection still delivers whatever the scanner had buffered.
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	// Set the effective deadline first, then arm ctx cancellation. bufio.Scanner
-	// has no context awareness and Scan() blocks in conn.Read, so cancellation is
-	// delivered by shoving the read deadline into the past, which makes the
-	// blocked Scan return immediately. AfterFunc always sets the *later* value
-	// (now), so it wins over the line below even under a start-time race.
+	// Deadline first, then ctx cancellation: Scan() blocks in conn.Read, so cancellation is delivered by
+	// shoving the read deadline into the past. AfterFunc always sets the later value (now), so it wins.
 	if dl, ok := ctx.Deadline(); ok {
 		_ = t.conn.SetReadDeadline(dl)
 	} else {

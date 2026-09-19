@@ -70,13 +70,11 @@ func (b *redisBus) Publish(ctx context.Context, channel string, env eventbus.Env
 	return b.client.Publish(ctx, channel, payload).Err()
 }
 
-// Subscribe opens a Redis subscription and pumps payloads onto a buffered Go
-// channel. The unsubscribe func closes the subscription, which ends the pump
-// goroutine and closes the returned channel.
+// Subscribe opens a Redis subscription and pumps payloads onto a buffered Go channel. The unsubscribe
+// func closes the subscription, which ends the pump goroutine and closes the returned channel.
 func (b *redisBus) Subscribe(channel string) (<-chan eventbus.Envelope, func()) {
-	// The subscription's lifetime is bounded by the returned unsubscribe func
-	// (which closes the pubsub), not by a per-call context, so use a background
-	// context for the initial SUBSCRIBE command.
+	// The subscription's lifetime is bounded by the returned unsubscribe func, not by a per-call context, so
+	// the initial SUBSCRIBE uses a background context.
 	pubsub := b.client.Subscribe(context.Background(), channel)
 	out := make(chan eventbus.Envelope, subBuffer)
 	go func() {

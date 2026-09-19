@@ -65,9 +65,8 @@ func run() error {
 	}
 	defer b.Close()
 
-	// Reap expired projects on startup and on a timer (Postgres is the source of
-	// truth; the sweep also drops filestore bytes and notifies clients). The
-	// WaitGroup lets shutdown join it before the store/bus close.
+	// Reap expired projects on startup and on a timer; the sweep also drops filestore bytes and notifies
+	// clients. The WaitGroup lets shutdown join it before the store/bus close.
 	var sweepWG sync.WaitGroup
 	startExpirySweep(rootCtx, &sweepWG, st, service.NewProjects(st, fs, nil, b, cfg.ProjectTTL), cfg.SweepInterval)
 

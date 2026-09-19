@@ -40,10 +40,8 @@ func TestAdminTokenGatesIssuance(t *testing.T) {
 	}
 }
 
-// TestOpenAuthIssuance: with AuthOpen (AUTH_OPEN=1) issuance succeeds with no
-// bearer at all; the admin bearer keeps working; everything else stays
-// token-gated. The default (AuthOpen unset) stays closed — see
-// TestAdminTokenGatesIssuance.
+// With AuthOpen (AUTH_OPEN=1) issuance succeeds with no bearer at all, the admin bearer keeps working,
+// and everything else stays token-gated. The default stays closed — see TestAdminTokenGatesIssuance.
 func TestOpenAuthIssuance(t *testing.T) {
 	fs, err := filestore.New(t.TempDir())
 	if err != nil {
@@ -104,9 +102,8 @@ func TestOpenAuthStillRateLimited(t *testing.T) {
 	}
 }
 
-// TestEmptyAdminTokenClosesIssuance pins the fail-closed contract: an API wired
-// with NO admin token refuses issuance outright (config.Load generates a per-boot
-// token so a real server never runs in this state — but if it does, closed > open).
+// Fail-closed: an API wired with NO admin token refuses issuance outright (config.Load generates a
+// per-boot token, so a real server never runs in this state).
 func TestEmptyAdminTokenClosesIssuance(t *testing.T) {
 	fs, err := filestore.New(t.TempDir())
 	if err != nil {

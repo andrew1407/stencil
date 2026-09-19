@@ -31,9 +31,8 @@ func seedProjects(b *testing.B, s *Store, n int) {
 	}
 }
 
-// BenchmarkListProjects measures the projects listing at a realistic corpus
-// size, whole and one keyset page at a time. The gap between them is what the
-// `?limit=&after=` pagination buys a client that only shows the first screen.
+// BenchmarkListProjects measures the projects listing at a realistic corpus size, whole and one keyset
+// page at a time. The gap is what `?limit=&after=` buys a client that only shows the first screen.
 func BenchmarkListProjects(b *testing.B) {
 	s := requireStore(b)
 	ctx := context.Background()

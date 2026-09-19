@@ -23,9 +23,8 @@ type LlmChatRequest struct {
 	MaxTokens int          `json:"maxTokens,omitempty"` // clamped server-side
 }
 
-// LlmChatResponse is returned by POST /llm/chat. StopReason passes through the
-// provider's value: "end_turn" (normal), "max_tokens" (truncated — clients show
-// a note and never parse a plan from it), "refusal" (shown as a chat error).
+// LlmChatResponse is returned by POST /llm/chat. StopReason passes the provider's value through:
+// "end_turn", "max_tokens" (truncated — clients never parse a plan from it) or "refusal".
 type LlmChatResponse struct {
 	Model      string `json:"model"`
 	Text       string `json:"text"`

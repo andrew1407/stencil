@@ -14,10 +14,8 @@ func (s *Store) Put(id, kind, ext string, data []byte) (string, error) {
 	return s.PutStream(id, kind, ext, bytes.NewReader(data))
 }
 
-// PutStream is Put over a reader: the bytes go straight to the temp file instead
-// of being buffered whole in memory first, matching how downloads already stream.
-// The write is atomic (temp + rename) and durable — the temp file is fsynced
-// before the rename, so a crash cannot leave a renamed but empty file.
+// PutStream is Put over a reader, so the bytes never buffer whole in memory. The write is atomic (temp +
+// rename) and durable: the temp file is fsynced first, so a crash cannot leave a renamed empty file.
 func (s *Store) PutStream(id, kind, ext string, r io.Reader) (string, error) {
 	full, err := s.safeJoin(id, kind, ext)
 	if err != nil {
@@ -60,9 +58,8 @@ func (s *Store) PutStream(id, kind, ext string, r io.Reader) (string, error) {
 		return "", err
 	}
 	syncDir(dir) // best effort: makes the rename itself survive a crash
-	// Best-effort: drop same-kind files left by an earlier upload with a
-	// different extension, so kind-based lookups never resolve to stale bytes.
-	// Their bytes were already credited into the reserve delta above.
+	// Best-effort: drop same-kind files left by an earlier upload with a different extension, so kind-based
+	// lookups never resolve to stale bytes. Their bytes were already credited into the reserve delta above.
 	if entries, err := os.ReadDir(dir); err == nil {
 		for _, e := range entries {
 			name := e.Name()

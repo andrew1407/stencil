@@ -32,16 +32,8 @@ type FilePut struct {
 	W, H          int
 }
 
-// Store writes body as the project's bytes for one kind.
-//
-// Three steps over two stores: check the project exists, write the bytes, then
-// record them. Only original/result touch the project record; video/variantN/chat
-// bytes are filestore-only in v1 (llm-contract.md §9) and are removed with the
-// project, so those re-check instead. Either way a project row deleted mid-upload
-// (the expiry sweep running just after the first check) must not orphan the bytes
-// just written: step three compensates by dropping them and reporting gone.
-// RemoveKind, not Remove — the latter would delete the whole project directory
-// over a race on one upload.
+// Store writes body as the project's bytes for one kind. Only original/result touch the project record;
+// a row deleted mid-upload is compensated by RemoveKind (not Remove) and reported gone (§9).
 func (s *FileService) Store(ctx context.Context, put FilePut, body io.Reader) (protocol.FileWriteResponse, error) {
 	if _, err := s.Projects.GetProject(ctx, put.ID); isMissing(err) {
 		return protocol.FileWriteResponse{}, err

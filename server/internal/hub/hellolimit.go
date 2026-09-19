@@ -1,12 +1,7 @@
 package hub
 
-// Throttle for the hello handshake. AcceptWS deliberately skips origin checks
-// (the bearer token in the hello frame is the auth), so any web page can open a
-// socket and try tokens at line rate — hello was the one credential check with
-// no limiter, while AUTH_RATE_PER_MINUTE covered only POST /auth/token. A hello
-// now spends a per-IP token before auth.Verify runs and refunds it when the
-// token was good, so only FAILED handshakes consume the budget and an exhausted
-// bucket is refused without touching the store.
+// Throttle for the hello handshake. AcceptWS skips origin checks (the bearer token in the hello frame is
+// the auth), so a hello spends a per-IP token before auth.Verify and refunds it when the token was good.
 
 import (
 	"context"
@@ -33,19 +28,16 @@ type helloGuard struct {
 // Option configures a Hub at construction time (New).
 type Option func(*Hub)
 
-// WithHelloLimit meters failed hello verifications at perMin per client IP
-// (0 = unlimited). trusted names the proxies whose X-Forwarded-For is believed
-// for WebSocket handshakes; without it every browser behind one proxy would
-// share a single bucket.
+// WithHelloLimit meters failed hello verifications at perMin per client IP (0 = unlimited). trusted names
+// the proxies whose X-Forwarded-For is believed for WebSocket handshakes.
 func WithHelloLimit(perMin int, trusted []netip.Prefix) Option {
 	return func(h *Hub) {
 		h.hello = helloGuard{rate: ratelimit.New(perMin), trusted: trusted}
 	}
 }
 
-// clientIPKey carries the WebSocket handshake's resolved client IP into
-// HandleConn: once upgraded, the conn knows only its peer, which behind a proxy
-// is the proxy.
+// clientIPKey carries the WebSocket handshake's resolved client IP into HandleConn: once upgraded, the
+// conn knows only its peer, which behind a proxy is the proxy.
 type clientIPKey struct{}
 
 func withClientIP(ctx context.Context, ip string) context.Context {
@@ -66,9 +58,8 @@ func (g helloGuard) connIP(ctx context.Context, conn transport.Conn) string {
 	return ratelimit.ClientIP(conn.RemoteAddr(), "", nil)
 }
 
-// checkHello authenticates the hello frame under the per-IP failure limit. It
-// writes the refusal frame and closes the connection itself; a nil return means
-// the caller may join the session.
+// checkHello authenticates the hello frame under the per-IP failure limit. It writes the refusal frame
+// and closes the connection itself; a nil return means the caller may join the session.
 func (h *Hub) checkHello(ctx context.Context, conn transport.Conn, hello protocol.WSMessage) error {
 	ip := h.hello.connIP(ctx, conn)
 	if !h.hello.rate.Allow(ip) {

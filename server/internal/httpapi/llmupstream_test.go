@@ -38,10 +38,8 @@ func TestLLMChatInternalErrorKeepsTheGenericMessage(t *testing.T) {
 	}
 }
 
-// An upstream condition the user can fix answers 502 llmUpstream and SAYS WHY —
-// exactly once: the bare reason, no status and no upstream prose (llm-contract.md
-// §6.3) — end to end through the real llm client against a stub upstream, one
-// shape per provider.
+// An upstream condition the user can fix answers 502 llmUpstream and says why exactly once — the bare
+// reason, no status and no upstream prose (llm-contract.md §6.3), one shape per provider.
 func TestLLMChatUpstreamFailuresSayWhy(t *testing.T) {
 	cases := []struct {
 		name, provider string

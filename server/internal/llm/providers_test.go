@@ -64,9 +64,8 @@ func TestKnownProviderAndDefaults(t *testing.T) {
 	}
 }
 
-// A key named for one vendor must not follow a provider switch to another host:
-// ANTHROPIC_API_KEY is Anthropic-only, LLM_API_KEY is what a local/third-party
-// upstream uses.
+// A key named for one vendor must not follow a provider switch to another host: ANTHROPIC_API_KEY is
+// Anthropic-only, LLM_API_KEY is what a local or third-party upstream uses.
 func TestResolveKeyKeepsTheAnthropicKeyAwayFromOtherProviders(t *testing.T) {
 	for _, p := range []string{"", ProviderAnthropic} {
 		if got := ResolveKey(p, "", "sk-ant"); got != "sk-ant" {

@@ -6,22 +6,16 @@ import (
 	"strings"
 )
 
-// corsHeaders the browser clients (browser/ app and the extension) need to call
-// the REST API cross-origin. Authentication is a bearer token (not cookies), so
-// credentialed CORS is never needed; the default allows only loopback origins
-// (local dev), and anything wider — including "*" — must be configured.
+// Authentication is a bearer token, not cookies, so credentialed CORS is never needed. The default
+// allows only loopback origins; anything wider — including "*" — must be configured.
 const (
 	corsAllowMethods = "GET, POST, PUT, DELETE, OPTIONS"
 	corsAllowHeaders = "Authorization, Content-Type, X-Admin-Token"
 	corsMaxAge       = "600"
 )
 
-// CORS wraps a handler with cross-origin support for the given allowed origins.
-// An empty list (the default) allows loopback origins only; a list containing
-// "*" reflects any Origin. Preflight OPTIONS requests are answered here with 204
-// before they reach the method-pattern mux (which would otherwise 405 them).
-// Requests without an Origin header, and those from a disallowed origin, pass
-// through untouched.
+// CORS wraps a handler for the given allowed origins: empty allows loopback only, "*" reflects any
+// Origin. Preflight OPTIONS are answered here with 204 before the method-pattern mux would 405 them.
 func CORS(origins []string) func(http.Handler) http.Handler {
 	allowAny := false
 	allowed := map[string]struct{}{}
@@ -67,9 +61,8 @@ func originAllowed(origin string, allowAny bool, allowed map[string]struct{}) bo
 	return len(allowed) == 0 && isLoopbackOrigin(origin)
 }
 
-// isLoopbackOrigin reports whether origin is an http(s) page served from the
-// local machine (localhost, 127.0.0.0/8, ::1) — the only origins the default,
-// allowlist-free configuration will answer cross-origin.
+// isLoopbackOrigin reports whether origin is an http(s) page served from this machine (localhost,
+// 127.0.0.0/8, ::1) — the only origins the default, allowlist-free configuration answers.
 func isLoopbackOrigin(origin string) bool {
 	u, err := url.Parse(origin)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {

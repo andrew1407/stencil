@@ -1,9 +1,7 @@
-// Package hub runs live collaborative edit sessions. One ProjectSession exists
-// per open project id; every connection for that project — over WebSocket or TCP
-// — joins the same session. Edits are relayed peer-to-peer through a bus (Redis
-// across instances, in-proc otherwise); durable snapshots are persisted on save
-// under a last-writer-wins version guard. The session run-loop is the sole owner
-// of session state, so there are no shared-memory races (verified with -race).
+// Package hub runs live collaborative edit sessions: one session per open project id, joined by every
+// WebSocket and TCP connection for that project. Edits relay through a bus (Redis across instances,
+// in-proc otherwise); snapshots persist on save under a last-writer-wins version guard. The session
+// run-loop is the sole owner of session state.
 package hub
 
 import (
@@ -46,10 +44,8 @@ type Hub struct {
 	conns    map[*connReg]struct{} // live connection cancels, guarded by mu
 }
 
-// connReg is one tracked live connection; cancelling its context unwinds the
-// connection's handler (both transports honor ctx), which is how shutdown drains
-// hijacked WebSocket editors that httpSrv.Shutdown cannot reach. The conn itself
-// is kept so shutdown can send the notice before cancelling.
+// connReg is one tracked live connection; cancelling its context unwinds the handler (both transports
+// honor ctx), draining hijacked WebSocket editors Shutdown cannot reach. The conn is kept for the notice.
 type connReg struct {
 	cancel context.CancelFunc
 	conn   transport.Conn
@@ -86,9 +82,8 @@ func (h *Hub) trackConn(conn transport.Conn, cancel context.CancelFunc) func() {
 	}
 }
 
-// CloseAll tells every live connection the server is going away (unsaved live
-// edits die with it — shutdown.go) and cancels its context so the handler
-// unwinds and releases the conn.
+// CloseAll tells every live connection the server is going away (unsaved live edits die with it) and
+// cancels its context so the handler unwinds and releases the conn.
 func (h *Hub) CloseAll() {
 	closeAll(h.liveConns())
 }
@@ -120,9 +115,8 @@ func (h *Hub) release(s *session) {
 	}
 }
 
-// ConnectionCount returns how many clients are currently in project id's live edit
-// session (0 when none). It reads the session refcount under the hub lock, so it is
-// safe to call from the REST delete handler.
+// ConnectionCount returns how many clients are in project id's live edit session (0 when none). It reads
+// the session refcount under the hub lock, so the REST delete handler may call it.
 func (h *Hub) ConnectionCount(projectID string) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()

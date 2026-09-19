@@ -7,9 +7,8 @@ const (
 	DisabledMissingKey      = "missingKey"      // the provider needs a key and none resolved
 )
 
-// Enablement decides whether the proxy enables for this configuration: an
-// unknown provider is off, a key-requiring provider without a resolvable key
-// (ResolveKey over LLM_API_KEY / ANTHROPIC_API_KEY) is off, anything else is on.
+// Enablement decides whether the proxy enables for this configuration: an unknown provider is off, a
+// key-requiring provider with no resolvable key is off, anything else is on.
 func Enablement(provider, apiKey, anthropicKey string) (enabled bool, reason string) {
 	switch {
 	case !KnownProvider(provider):

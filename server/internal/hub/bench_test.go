@@ -12,9 +12,8 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// benchSession builds a session with n drained members, mimicking n peers in one
-// project. Each member's writer is a goroutine that discards, so the benchmark
-// measures fan-out and not a socket.
+// benchSession builds a session with n drained members, mimicking n peers in one project. Each member's
+// writer discards, so the benchmark measures fan-out and not a socket.
 func benchSession(b *testing.B, n int) (*session, func()) {
 	b.Helper()
 	s := &session{id: "p_b_a", members: map[string]*member{}}

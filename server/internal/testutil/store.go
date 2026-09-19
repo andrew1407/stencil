@@ -24,13 +24,11 @@ type MemStore struct {
 	// setFileCalls counts SetFile invocations, so tests can assert that
 	// filestore-only kinds (video/variantN) never touch the project record.
 	setFileCalls int
-	// sweptOnWrite[id]=true makes SetFile report the row gone (ErrNotFound) even
-	// though GetProject still sees it — simulating the expiry sweep deleting the
-	// project between the upload handler's existence check and its SetFile write.
+	// sweptOnWrite[id]=true makes SetFile report the row gone while GetProject still sees it — the sweep
+	// deleting the project between the upload handler's existence check and its SetFile write.
 	sweptOnWrite map[string]bool
-	// getsUntilGone[id]=N lets GetProject succeed N more times, then report the
-	// row gone — simulating the sweep firing between the upload handler's
-	// pre-check and its post-write re-check for filestore-only kinds.
+	// getsUntilGone[id]=N lets GetProject succeed N more times, then report the row gone — the sweep firing
+	// between the pre-check and the post-write re-check for filestore-only kinds.
 	getsUntilGone map[string]int
 }
 

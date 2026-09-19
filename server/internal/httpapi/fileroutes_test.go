@@ -72,9 +72,8 @@ func TestFileUploadDownload(t *testing.T) {
 	}
 }
 
-// TestVideoAndVariantUploadSkipsProjectRecord pins the v1 semantics of the
-// LLM-era file kinds: video/variantN bytes round-trip through the filestore,
-// but SetFile is never called (no dimensions/path on the project record).
+// v1 semantics of the LLM-era file kinds: video/variantN bytes round-trip through the filestore, but
+// SetFile is never called (no dimensions or path on the project record).
 func TestVideoAndVariantUploadSkipsProjectRecord(t *testing.T) {
 	api, st := testAPI(t, "")
 	tok := issueToken(t, api, "")
@@ -115,10 +114,8 @@ func TestVideoAndVariantUploadSkipsProjectRecord(t *testing.T) {
 	}
 }
 
-// TestChatFileLifecycle pins the persisted-chat kind (llm-contract.md §12):
-// the JSON document round-trips through the filestore-only branch (no SetFile,
-// application/json downloads), and the per-file DELETE route removes it
-// idempotently while refusing record-backed kinds.
+// The persisted-chat kind (llm-contract.md §12): the JSON document round-trips through the filestore-only
+// branch, and the per-file DELETE removes it idempotently while refusing record-backed kinds.
 func TestChatFileLifecycle(t *testing.T) {
 	api, st := testAPI(t, "")
 	tok := issueToken(t, api, "")
@@ -172,9 +169,8 @@ func TestChatFileLifecycle(t *testing.T) {
 	}
 }
 
-// A download for a filestore-only kind reads the project row and the stored path
-// at once (files.go lookupFile). The row still decides a 404: a missing project
-// must not be reported as a missing file, whichever read finishes first.
+// A filestore-only download reads the project row and the stored path at once (files.go lookupFile); the
+// row still decides a 404, whichever read finishes first.
 func TestFilestoreOnlyKindOnMissingProjectIsProjectNotFound(t *testing.T) {
 	api, _ := testAPI(t, "")
 	tok := issueToken(t, api, "")

@@ -65,9 +65,8 @@ func sweepDropsOn(fs service.ProjectFiles, b eventbus.Bus) *service.ProjectServi
 	return service.NewProjects(nil, fs, nil, b, 0)
 }
 
-// fakeRemover records which project directories were dropped, and how many
-// removals ran at once (the sweep hands them to a bounded worker pool). It is
-// the ProjectFiles half of the service the sweep drives.
+// fakeRemover records which project directories were dropped and how many removals ran at once (the sweep
+// hands them to a bounded worker pool).
 type fakeRemover struct {
 	mu           sync.Mutex
 	removed      []string

@@ -73,10 +73,8 @@ func readUntil(t *testing.T, c transport.Conn, want string) protocol.WSMessage {
 	}
 }
 
-// expectClosed asserts the peer hung up within the deadline. Frames already in
-// flight when the close began (a peer-join broadcast racing the welcome reply,
-// say) are drained rather than read as "still open" — only a read error that is
-// NOT our own deadline proves the server closed the connection.
+// expectClosed asserts the peer hung up within the deadline. Frames already in flight are drained: only
+// a read error that is NOT our own deadline proves the server closed the connection.
 func expectClosed(t *testing.T, c transport.Conn, what string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -139,10 +137,8 @@ func waitFor(t *testing.T, cond func() bool) {
 	t.Fatal("condition not met within timeout")
 }
 
-// TestCloseAllDrainsConnections: on shutdown, CloseAll cancels every live
-// connection's context; a blocked TCP editor's Read is interrupted, the server
-// unwinds the handler, and the session refcount falls to 0. Without ctx-aware
-// TCP reads this would hang until the deadline.
+// On shutdown CloseAll cancels every live connection's context: a blocked TCP editor's Read is
+// interrupted and the session refcount falls to 0. Without ctx-aware TCP reads this would hang.
 func TestCloseAllDrainsConnections(t *testing.T) {
 	h := newTestHub(t)
 	addr := startTCP(t, h)

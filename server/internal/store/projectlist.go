@@ -9,9 +9,8 @@ import (
 	"stencil/server/internal/protocol"
 )
 
-// projectListCols is projectCols minus original_content and layout, same order
-// (scanProject skips exactly that pair). One row's original_content can hold a
-// whole MAX_BODY_BYTES image, and the list returns neither.
+// projectListCols is projectCols minus original_content and layout, same order (scanProject skips exactly
+// that pair). One row's original_content can hold a whole MAX_BODY_BYTES image.
 const projectListCols = `id, name, created_at, updated_at, expires_at, has_image, image_w, image_h,
 	source, resource, color, description, original_path, result_path, owner_session, version, keywords_arr, blank_color`
 

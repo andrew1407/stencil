@@ -10,10 +10,8 @@ import (
 	"unicode"
 )
 
-// secretish matches token-shaped runs so a key (or a base64 payload) echoed back
-// by an upstream never reaches a client, whatever vendor's format it is in.
-// The separators are punctuation (or "bearer ") so ordinary prose — "Incorrect
-// API key provided" — survives intact.
+// secretish matches token-shaped runs so a key or base64 payload echoed by an upstream never reaches a
+// client. The separators are punctuation (or "bearer "), so ordinary prose survives intact.
 var secretish = regexp.MustCompile(`(?i)(?:bearer|basic) +[A-Za-z0-9._~+/=-]{8,}` +
 	`|\b(?:sk|pk|api[-_]?key|key|token|secret)[-_=:][A-Za-z0-9._-]{6,}` +
 	`|[A-Za-z0-9_-]{24,}`)
@@ -21,10 +19,8 @@ var secretish = regexp.MustCompile(`(?i)(?:bearer|basic) +[A-Za-z0-9._~+/=-]{8,}
 // urlish matches absolute URLs — internal endpoints are not the client's business.
 var urlish = regexp.MustCompile(`(?i)[a-z][a-z0-9+.-]*://\S+`)
 
-// sanitizeUpstreamText turns untrusted upstream text into something safe to put
-// in an error message: control characters out, URLs and token-shaped runs
-// redacted, collapsed whitespace, at most maxUpstreamDetail characters. Returns
-// "" when any fragment of secret survives — better silent than leaking a key.
+// sanitizeUpstreamText makes untrusted upstream text safe for an error message: control characters out,
+// URLs and token-shaped runs redacted, capped. Returns "" when any fragment of secret survives.
 func sanitizeUpstreamText(text, secret string) string {
 	if text == "" {
 		return ""

@@ -6,10 +6,8 @@ import (
 	"strconv"
 )
 
-// newID builds a server-allocated id of the form
-// prefix + base36(nowMs) + "_" + base36(random-salt). The base36 encoding mirrors
-// the JS Number.toString(36) convention used by core's ProjectsStore, and the
-// shape is exactly what the filestore's id allowlist accepts.
+// newID builds prefix + base36(nowMs) + "_" + base36(random salt): base36 mirrors the JS
+// Number.toString(36) convention of core's ProjectsStore, and the shape is what the filestore accepts.
 func newID(prefix string, nowMs int64) (string, error) {
 	var saltBytes [6]byte
 	if _, err := rand.Read(saltBytes[:]); err != nil {

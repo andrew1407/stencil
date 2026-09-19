@@ -27,10 +27,8 @@ func TestSessionLifecycle(t *testing.T) {
 	}
 }
 
-// TestExpiredSessionRejectedEndToEnd proves the real Postgres → auth.Verify path (the
-// single verification path shared by the REST middleware and the WS hello handshake)
-// rejects a session whose expiry is in the past, even though ResolveToken itself
-// returns the row unfiltered.
+// The real Postgres → auth.Verify path (shared by the REST middleware and the WS hello handshake) rejects
+// a session whose expiry has passed, even though ResolveToken returns the row unfiltered.
 func TestExpiredSessionRejectedEndToEnd(t *testing.T) {
 	s := requireStore(t)
 	ctx := context.Background()

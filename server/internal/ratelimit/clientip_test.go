@@ -5,9 +5,8 @@ import (
 	"testing"
 )
 
-// ClientIP is what every per-IP bucket is keyed on, so a client must never be
-// able to choose its own key. X-Forwarded-For counts only from a trusted peer,
-// and then only back to the rightmost hop that peer did not vouch for.
+// ClientIP is what every per-IP bucket is keyed on, so a client must never be able to choose its own key:
+// X-Forwarded-For counts only from a trusted peer, back to the rightmost hop it did not vouch for.
 func TestClientIP(t *testing.T) {
 	trusted := []netip.Prefix{
 		netip.MustParsePrefix("127.0.0.0/8"),

@@ -57,10 +57,8 @@ func NeedsKey(provider string) bool {
 	return provider == "" || provider == ProviderAnthropic
 }
 
-// ResolveKey picks the credential for provider. LLM_API_KEY (apiKey) is
-// provider-agnostic; ANTHROPIC_API_KEY (anthropicKey) is honoured ONLY for
-// Anthropic — an operator who named a key for one vendor must never have it put
-// on the wire to a third-party OpenAI-compatible host by a provider switch.
+// ResolveKey picks the credential for provider. LLM_API_KEY is provider-agnostic; ANTHROPIC_API_KEY is
+// honoured ONLY for Anthropic, so a provider switch can never put it on the wire to a third-party host.
 func ResolveKey(provider, apiKey, anthropicKey string) string {
 	if apiKey != "" {
 		return apiKey

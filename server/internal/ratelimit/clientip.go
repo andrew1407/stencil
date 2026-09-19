@@ -6,13 +6,8 @@ import (
 	"strings"
 )
 
-// ClientIP returns the address to key a limiter on. remoteAddr is the peer's
-// "host:port" (or bare host); xff is the raw X-Forwarded-For header.
-//
-// The header is believed ONLY when the peer itself is inside trusted, and then
-// only back to the rightmost hop that is not trusted — a client cannot pick its
-// own bucket by prepending addresses. With no trusted CIDRs (the default) the
-// header is ignored entirely, so a spoofed one changes nothing.
+// ClientIP returns the address to key a limiter on. X-Forwarded-For is believed only when the peer itself
+// is inside trusted, and then only back to the rightmost untrusted hop, so no client can pick its bucket.
 func ClientIP(remoteAddr, xff string, trusted []netip.Prefix) string {
 	peer := hostOf(remoteAddr)
 	if len(trusted) == 0 || xff == "" || !isTrusted(peer, trusted) {

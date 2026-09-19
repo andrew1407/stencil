@@ -7,9 +7,8 @@ import (
 	"github.com/coder/websocket"
 )
 
-// The client halves these tests need. The package exports no dialer — nothing
-// in the server dials itself — so they are built here from the same adapters
-// the accept side uses. internal/testutil carries the twin for other packages.
+// The client halves these tests need: the package exports no dialer (nothing in the server dials itself),
+// so they are built here from the same adapters the accept side uses. internal/testutil has the twin.
 func dialTCP(addr string) (Conn, error) {
 	c, err := net.Dial("tcp", addr)
 	if err != nil {

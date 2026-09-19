@@ -31,10 +31,8 @@ func deleteGuardAPI(t *testing.T, connections int) (*API, *testutil.MemStore) {
 	return api, st
 }
 
-// TestDeleteRefusedWhileMultipleClientsConnected pins the delete rule: a project is a
-// shared workspace (anyone may list/read/edit), and deletion is refused (409) while two
-// or more clients are in its live edit session, so a peer can't delete it out from under
-// the others.
+// A project is a shared workspace (anyone may list/read/edit), so deletion is refused with 409 while two
+// or more clients are in its live edit session.
 func TestDeleteRefusedWhileMultipleClientsConnected(t *testing.T) {
 	api, _ := deleteGuardAPI(t, 2) // two clients connected
 	tok := issueToken(t, api, "")

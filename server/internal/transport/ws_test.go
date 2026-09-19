@@ -29,11 +29,8 @@ func wsPair(t *testing.T) (client, server Conn) {
 		accepted <- c
 		<-release
 	}))
-	// Cleanups run LIFO, so these register outermost-first: srv.Close runs last,
-	// after the handler has been released. Parking on r.Context().Done() instead
-	// would never fire (an upgraded conn is hijacked and detached from the
-	// server's request tracking), leaving srv.Close to wait out its full 5s grace
-	// period on every WS test.
+	// Cleanups run LIFO, so srv.Close runs last, after the handler is released. Parking on r.Context().Done()
+	// would never fire (an upgraded conn is hijacked), leaving srv.Close to wait out its 5s grace period.
 	t.Cleanup(srv.Close)
 	t.Cleanup(func() { close(release) })
 
@@ -47,11 +44,8 @@ func wsPair(t *testing.T) (client, server Conn) {
 	if !ok {
 		t.Fatal("upgrade failed")
 	}
-	// A WebSocket close is a handshake: Close writes its close frame and then
-	// waits for the peer's reply. Closing the two ends one after another leaves
-	// the first with nobody to reply to, so it burns its full 5s timeout on every
-	// test. Closing them concurrently means each is reading while the other
-	// writes, and both return at once.
+	// A WebSocket close is a handshake: Close writes its frame and waits for the peer's reply, so closing the
+	// two ends one after another burns the first's full 5s timeout. Closing them concurrently returns at once.
 	t.Cleanup(func() {
 		var wg sync.WaitGroup
 		wg.Add(2)

@@ -5,9 +5,8 @@ import (
 	"time"
 )
 
-// The bucket must allow a burst up to the per-minute rate, refuse the next
-// spend, refill with elapsed time, cap that refill at one minute's worth, and
-// keep keys independent — one noisy client can't starve another.
+// The bucket must allow a burst up to the per-minute rate, refill with elapsed time, cap that refill at
+// one minute's worth, and keep keys independent — one noisy client can't starve another.
 func TestLimiterBurstsRefillsAndKeepsKeysApart(t *testing.T) {
 	now := time.Unix(1000, 0)
 	l := New(3)

@@ -100,9 +100,8 @@ func TestRemoveAndList(t *testing.T) {
 	}
 }
 
-// TestRemoveKind pins the per-kind delete used by the files DELETE route:
-// exactly the named kind's file goes away (any extension), other kinds'
-// bytes survive, and deleting an absent kind is a no-op.
+// TestRemoveKind pins the per-kind delete used by the files DELETE route: exactly the named kind's file
+// goes away (any extension), other kinds' bytes survive, and deleting an absent kind is a no-op.
 func TestRemoveKind(t *testing.T) {
 	s := newTestStore(t)
 	if _, err := s.Put(validID, protocol.KindChat, "json", []byte(`{"version":1}`)); err != nil {
@@ -129,9 +128,8 @@ func TestRemoveKind(t *testing.T) {
 	}
 }
 
-// TestPutReplacesStaleSiblingExtension pins that re-uploading a kind with a new
-// extension drops the old-extension file, so kind-based lookups (FindByKind)
-// can never resolve to stale bytes. Other kinds' files are untouched.
+// Re-uploading a kind with a new extension drops the old-extension file, so FindByKind can never
+// resolve to stale bytes. Other kinds' files are untouched.
 func TestPutReplacesStaleSiblingExtension(t *testing.T) {
 	s := newTestStore(t)
 	if _, err := s.Put(validID, protocol.KindVideo, "mp4", []byte("old")); err != nil {

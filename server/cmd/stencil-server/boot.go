@@ -91,9 +91,8 @@ func configureLLM(cfg config.Config, deps *httpapi.Deps) {
 	}
 }
 
-// filestoreWarning returns the boot warning for a relative FILESTORE_ROOT (""
-// when absolute): it resolves against the working directory, so in a container
-// with no mounted volume the stored bytes vanish with the container.
+// filestoreWarning returns the boot warning for a relative FILESTORE_ROOT ("" when absolute): it resolves
+// against the working directory, so the stored bytes vanish with an unmounted container.
 func filestoreWarning(root string) string {
 	if root == "" || filepath.IsAbs(root) {
 		return ""
