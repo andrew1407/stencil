@@ -193,7 +193,10 @@ target_link_libraries(stencil_gui_objs PUBLIC stencil_core Qt6::Widgets Qt6::Net
 # window under the test for its first ~200 ms, which is exactly the kind of timing the
 # suite must not depend on.
 foreach(area chatCards chatCompact chatDock chatPanel chatTurns canvas chrome composition
-             menus menuKeys motion openImage openImageCrop openImageCropEdit openImageCropOrient openImageCropState openImageDust openImageReadout popover projects theme toolbar tooltips)
+             menus menusAltHold menusAssistantRows menusCanvas menusChips menusExport
+             menusOpening menusRows menusScript menuKeys motion openImage openImageCrop
+             openImageCropEdit openImageCropOrient openImageCropState openImageDust
+             openImageReadout popover projects theme toolbar tooltips)
   string(TOLOWER ${area} _area_lc)
   stencil_headless_test(stencil_mainwindow_${_area_lc}_gui
     SOURCES tests/MainWindow.${area}.gui.cpp

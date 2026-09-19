@@ -1,0 +1,200 @@
+// MainWindow GUI e2e — The export-option popups: opening them, their width and their chips.
+// Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
+#include "MainWindowMenu.gui.hpp"
+
+class MainWindowGuiTest : public QObject {
+  Q_OBJECT
+
+ private slots:
+  void initTestCase() { prepareGuiTestCase(); }
+
+  // The copy/download-image toolbar buttons open a small variant-options popup on
+  // right-click instead of re-running the plain action (browser parity:
+  // js/ui/exportOptionsMenu.js) — verifies wireExportOptionsPopups(). The copy button's
+  // plain click is also exercised (safe: no blocking dialog, unlike Save's file picker).
+  void toolbarImageButtonsOpenExportOptionsOnRightClick() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(guiTestImage());
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    QWidget* saveBtn = win.buttonForAction(win.actSaveImage_);
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(saveBtn);
+    QVERIFY(copyBtn);
+    QVERIFY(win.saveImageOptionsMenu_);
+    QVERIFY(win.copyImageOptionsMenu_);
+    QVERIFY(win.saveImageOptionsMenu_->actions().contains(win.actSaveImageCurrentRow_));
+    QVERIFY(win.saveImageOptionsMenu_->actions().contains(win.actSaveImageOriginal_));
+    QVERIFY(win.saveImageOptionsMenu_->actions().contains(win.actSaveImageTint_));
+    QVERIFY(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageCurrentRow_));
+    QVERIFY(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageOriginal_));
+    QVERIFY(win.copyImageOptionsMenu_->actions().contains(win.actCopyImageTint_));
+
+    // Right-click the Download button: the popup opens, the plain action does NOT fire
+    // (a real download would pop a blocking file dialog — this must never happen here).
+    int saveTriggers = 0;
+    connect(win.actSaveImage_, &QAction::triggered, &win, [&] { ++saveTriggers; });
+    QContextMenuEvent saveCtx(QContextMenuEvent::Mouse, saveBtn->rect().center(),
+                              saveBtn->mapToGlobal(saveBtn->rect().center()));
+    QApplication::sendEvent(saveBtn, &saveCtx);
+    QVERIFY2(QApplication::activePopupWidget() == win.saveImageOptionsMenu_,
+             "right-click on the download-image button opened no popup, or the wrong one");
+    QCOMPARE(saveTriggers, 0);
+    win.saveImageOptionsMenu_->close();
+
+    // Same gesture on the Copy button.
+    QContextMenuEvent copyCtx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                              copyBtn->mapToGlobal(copyBtn->rect().center()));
+    QApplication::sendEvent(copyBtn, &copyCtx);
+    QVERIFY2(QApplication::activePopupWidget() == win.copyImageOptionsMenu_,
+             "right-click on the copy-image button opened no popup, or the wrong one");
+    win.copyImageOptionsMenu_->close();
+
+    // A plain single click on Copy still runs the default ("current") variant — deferred
+    // briefly (so a following dblclick could still cancel it, though none comes here).
+    int copyTriggers = 0;
+    connect(win.actCopyImage_, &QAction::triggered, &win, [&] { ++copyTriggers; });
+    QTest::mouseClick(copyBtn, Qt::LeftButton);
+    QTRY_COMPARE(copyTriggers, 1);
+    beat();
+  }
+  // Alt+hover over the copy/download-image toolbar buttons themselves opens their
+  // export-options popup, the SAME hold-to-peek gesture every other popover icon
+  // gets (MainWindowEvents.cpp's pop_.peekExportMenu) — not just right-click/dblclick.
+  // Releasing Alt closes it again unless the cursor moved inside it first (engaged).
+  void altHoldOverExportButtonOpensItsOptionsPopup() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    // QCursor::pos() is one process-wide value that outlives any one test/window —
+    // a stray Alt keypress otherwise risks landing on WHATEVER popover button a
+    // PRIOR test last left the (fake, offscreen) cursor sitting over, opening a
+    // modal dialog that then blocks forever in execMaybePopover's QEventLoop::exec()
+    // with nothing left to close it (regression: hung the whole suite, 300s
+    // watchdog abort). Away from every icon before this test touches Alt at all.
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
+    win.openPathFromOS(guiTestImage());
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+    QMenu* menu = win.copyImageOptionsMenu_;
+    QVERIFY(menu && !menu->isVisible());
+
+    // underMouse() backs up the real cursor-position check (MainWindowEvents.cpp) —
+    // same state a real resting pointer leaves, and what an offscreen test can mock.
+    copyBtn->setAttribute(Qt::WA_UnderMouse, true);
+    QTest::keyPress(&win, Qt::Key_Alt);
+    QVERIFY2(menu->isVisible(), "Alt-hover over the copy button never opened its options popup");
+
+    // NOT engaged (cursor stayed on the button, never moved into the popup): the
+    // release closes it, same as any other hold-to-peek icon.
+    QTest::keyRelease(&win, Qt::Key_Alt);
+    QVERIFY2(!menu->isVisible(), "releasing Alt over the button did not close the peeked popup");
+    copyBtn->setAttribute(Qt::WA_UnderMouse, false);
+
+    // ENGAGED: move the cursor onto the popup itself before releasing Alt — it
+    // must survive, exactly like every other peeked popover.
+    copyBtn->setAttribute(Qt::WA_UnderMouse, true);
+    QTest::keyPress(&win, Qt::Key_Alt);
+    QVERIFY(menu->isVisible());
+    QCursor::setPos(menu->mapToGlobal(menu->rect().center()));
+    QTest::qWait(20);
+    copyBtn->setAttribute(Qt::WA_UnderMouse, false);
+    QTest::keyRelease(&win, Qt::Key_Alt);
+    QVERIFY2(menu->isVisible(), "an ENGAGED peek (cursor moved into the popup) must survive Alt release");
+    menu->close();
+    QTest::qWait(260);   // let the row-preview's own dust settle before `win` dies (see above)
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));   // leave it parked for whatever runs next
+  }
+  // The variant popups take MenuHotkeyChips' `compact` mode — a tighter local stylesheet
+  // plus a "\t"+spaces run sized to the chip's own width — rather than theme.cpp's generic
+  // QMenu::item padding, which is sized for the menu bar's wider rows. This bounds the
+  // SLACK only; per-chip fit is downloadPopupChipsAreNotClipped.
+  void exportOptionsPopupIsNotWiderThanItsContent() {
+    QApplication::setStyle(QStyleFactory::create("Fusion"));   // main.cpp forces this app-wide
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(guiTestImage());
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QVERIFY(copyBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                          copyBtn->mapToGlobal(copyBtn->rect().center()));
+    QApplication::sendEvent(copyBtn, &ctx);
+    QMenu* menu = win.copyImageOptionsMenu_;
+    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
+
+    int widestLabel = 0;
+    for (QAction* a : menu->actions()) {
+      if (!a->isVisible()) continue;   // e.g. "Filter Only" with no filter applied
+      const QString label = a->text().left(a->text().indexOf('\t'));
+      widestLabel = std::max(widestLabel, menu->fontMetrics().horizontalAdvance(label));
+    }
+    int widestChip = 0;
+    // Skip HIDDEN chips ("Filter Only" with no filter applied, "With Compare" outside
+    // compare) — MenuHotkeys.hpp's place() hides rather than destroys them, so one can
+    // still be sitting there with a nonzero width that never actually shows on screen.
+    for (QLabel* l : menu->findChildren<QLabel*>())
+      if (auto* chip = dynamic_cast<stencil::gui::TipBody*>(l))
+        if (!chip->isHidden()) widestChip = std::max(widestChip, chip->width());
+    QVERIFY2(widestChip > 0, "no hotkey chips found on the copy-image popup");
+
+    // Icon + paddings + the gap between label and chip + the menu's own frame. A
+    // generous ceiling (not an exact match) — it only has to catch the row coming out
+    // FAR wider than its content, the actual regression.
+    const int slack = menu->width() - (widestLabel + widestChip);
+    // Closed BEFORE asserting, not after — an early QVERIFY2 return must never leave the
+    // menu open, or it outlives `win` and crashes on teardown (downloadPopupChipsAreNotClipped's
+    // own comment has the full story; this test used to assert first, so a failing slack
+    // check here left the popup open and took the whole process down with it — SIGSEGV,
+    // reported).
+    menu->close();
+    QVERIFY2(slack > 0 && slack <= 80,
+             qPrintable(QString("menu is %1 wide for a %2px label + %3px chip — %4px of slack")
+                            .arg(menu->width()).arg(widestLabel).arg(widestChip).arg(slack)));
+  }
+  // Per-chip "does it actually fit inside the menu", not just the aggregate slack the
+  // case above bounds: setFixedWidth clips only the outer widget frame, never
+  // QMenuPrivate's own sizeHint-driven row layout. The menu is closed BEFORE asserting —
+  // a QMenu outliving `win` crashes on teardown.
+  void downloadPopupChipsAreNotClipped() {
+    QApplication::setStyle(QStyleFactory::create("Fusion"));
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(guiTestImage());
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+
+    QWidget* saveBtn = win.buttonForAction(win.actSaveImage_);
+    QVERIFY(saveBtn);
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, saveBtn->rect().center(),
+                          saveBtn->mapToGlobal(saveBtn->rect().center()));
+    QApplication::sendEvent(saveBtn, &ctx);
+    QMenu* menu = win.saveImageOptionsMenu_;
+    const bool opened = menu && menu->isVisible();
+    bool anyOverflow = false;
+    if (opened) {
+      QTest::qWait(60);
+      for (QLabel* l : menu->findChildren<QLabel*>()) {
+        if (auto* chip = dynamic_cast<stencil::gui::TipBody*>(l))
+          if (!chip->isHidden() && chip->geometry().right() > menu->width()) anyOverflow = true;
+      }
+      menu->close();
+      QTest::qWait(50);
+    }
+    QVERIFY2(opened, "the download-image options popup never opened");
+    QVERIFY2(!anyOverflow, "a chip's right edge overflows the menu's own width");
+  }
+};
+
+QTEST_MAIN(MainWindowGuiTest)
+#include "MainWindow.menusExport.gui.moc"
