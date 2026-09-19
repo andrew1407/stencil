@@ -192,14 +192,16 @@ target_link_libraries(stencil_gui_objs PUBLIC stencil_core Qt6::Widgets Qt6::Net
 # grow-from-the-icon flight (support/modalReveal) is off here — it would resize the
 # window under the test for its first ~200 ms, which is exactly the kind of timing the
 # suite must not depend on.
-foreach(area canvas chatCards chatCardsScroll chatCardsShape chatCompact chatCompactOverflow
+foreach(area canvas canvasBar canvasBlank canvasChain canvasFilter canvasScroll canvasSelect
+             chatCards chatCardsScroll chatCardsShape chatCompact chatCompactOverflow
              chatCompactShimmer chatCompactSwap chatCompactToast chatDock chatDockClose
              chatDockDrag chatDockEdge chatDockPlace chatPanel chatPanelChrome chatPanelMenu
-             chatPanelOpen chatPanelSync chatTurns chrome composition menuKeys
-             menuKeysFlyout menuKeysScript menuKeysTint menus menusAltHold
-             menusAssistantRows menusCanvas menusChips menusComposer menusConverse
-             menusExport menusOpening menusPill menusRows menusScript motion motionDialogs
-             motionGlyphs motionReveal motionSurfaces openImage openImageCrop
+             chatPanelOpen chatPanelSync chatTurns chrome chromeFormula chromeFullscreen
+             chromeIncognito chromeIncognitoToggle chromeName chromeNameRing chromeShortcuts
+             composition menuKeys menuKeysFlyout menuKeysScript menuKeysTint menus
+             menusAltHold menusAssistantRows menusCanvas menusChips menusComposer
+             menusConverse menusExport menusOpening menusPill menusRows menusScript motion
+             motionDialogs motionGlyphs motionReveal motionSurfaces openImage openImageCrop
              openImageCropEdit openImageCropOrient openImageCropState openImageDust
              openImageFit openImageReadout popover projects projectsFile projectsGestures
              projectsRemove projectsRows projectsView theme themeAccentClose
