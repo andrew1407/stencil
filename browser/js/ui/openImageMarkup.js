@@ -21,7 +21,7 @@ export const openImageModalInner = () => `
                 <!-- The chooser is OURS, not the platform's: a native file input's button
                      cannot hold an inline glyph, so it could never mime the folder the way
                      every other control mimes its action. The input stays (hidden) as the
-                     one that actually picks the file. Desktop twin: the Choose File… CTA
+                     one that actually picks the file. Desktop twin: the Choose File CTA
                      and its read-only path field, joined into one control. -->
                 <div class="oi-panel" id="oi-panel-file">
                     <div class="vs-row"><label>Choose</label>
