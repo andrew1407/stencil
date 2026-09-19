@@ -73,7 +73,7 @@
     "browser/tests/projectTransferController.test.js": 231,
     "browser/tests/projectsStore.test.js": 414,
     "browser/tests/settingsController.test.js": 399,
-    "browser/tests/stencilApi.test.js": 1276,
+    "browser/tests/stencilApi.test.js": 1282,
     "browser/tests/strokeGrowth.test.js": 311,
     "browser/tests/surfaceDust.test.js": 506,
     "browser/tests/tooltipMotion.test.js": 261,
@@ -104,7 +104,7 @@
     "browser/tests/popover.test.js": "372 -> 384 for one case: popoverPosition flips above when above has more room, even though below would not overflow the viewport (user report: a crop dialog's ratio dropdown covered the modal's own rows under it).",
     "browser/js/ui/dustCloud.js": "Byte-pinned twin of browser-extension/src/lib/dustCloud.js (browser-extension/tests/portParity.test.js) — it can only change in lockstep with the port, so it cannot be split here alone.",
     "browser/js/console/stencilApi.js": "208 -> 210: the facade is a composition list, one line per part. execScript adds the scriptApi import and its entry in `parts`; neither can be traded away without dropping the member from window.stencil.",
-    "browser/tests/stencilApi.test.js": "1243 -> 1276: two behavioural guards the facade had no cover for — blank() must wait for the image SWAP (imageLoadFlow's `previous`), and apply() must route every writable stencil.settings key, which its ApplyOptions type already promised. Both need a mock app, so they live beside the rest of the facade's tests.",
+    "browser/tests/stencilApi.test.js": "1243 -> 1282: two behavioural guards the facade had no cover for — blank() must wait for the image SWAP (imageLoadFlow's `previous`), and apply() must route every writable stencil.settings key, which its ApplyOptions type already promised. Both need a mock app, so they live beside the rest of the facade's tests.",
     "browser/js/ui/openImageModal.js": "455 -> 728 across this dialog's rework: the preview waits for the media to DECODE before it shows (an undecoded <video> reports 300x150 and jumped the modal twice), the Frame field counts frames and drives a scrub bar of our own, a URL video is fetched once and scrubbed locally, the crop rect is drawn on whichever media is up (one stage, no second canvas), each tab keeps its own source and crop choice, the box eases between content heights, and the arrival cloud is cancelled when the tab or the window leaves (a canvas stage the modal shell's sweepDust cannot reach). The crop-overlay geometry and the chip-dust rows have since been split out to js/ui/openImageCrop.js and js/ui/motion/dustRow.js; what is left is the tabs, the media pairs and their decode/preview state, which the DEBT note now names as the one thing still worth extracting from here."
   },
   "_commentPctNote": "browser/js holds only the boot shims now (index.js, prePaintTheme.js, pwa.js) plus the utils barrel — utils.js's ~480 lines of code moved to browser/js/utils/, so the same prose is a bigger share of a much smaller directory. Comment VOLUME did not rise.",
