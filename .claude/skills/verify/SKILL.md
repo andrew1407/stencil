@@ -55,18 +55,19 @@ of this matrix.
 
 ## Desktop (chunk 10) — split it
 
-The GUI e2e is no longer one binary: it is **15 `stencil_mainwindow_<area>_gui` targets**
-(canvas, chatCards, chatCompact, chatDock, chatPanel, chatTurns, chrome, composition, menuKeys,
-menus, motion, projects, theme, toolbar, tooltips) built from one `stencil_gui_objs` object library.
-So `-E mainwindow_gui` no longer excludes anything — the pattern must carry the area wildcard.
+The GUI e2e is no longer one binary: it is one `stencil_mainwindow_<area>_gui` target per
+feature area, built from one `stencil_gui_objs` object library. The area list is the `foreach`
+in `desktop/cmake/StencilTests.cmake` — read it there rather than trusting a copy, since a
+split adds areas. So `-E mainwindow_gui` no longer excludes anything — the pattern must carry
+the area wildcard.
 
 ```
 cd desktop
 rm -rf build/test-state        # a persisted-state trap fails chatBubbleTailRendersFlushNoGap
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 nice -n 10 cmake --build build -j 4
-nice -n 10 ctest --test-dir build -j1 -E 'mainwindow_.*_gui' --output-on-failure  # 51 targets
-nice -n 10 ctest --test-dir build -j1 -R 'mainwindow_.*_gui' --output-on-failure  # 15 targets
+nice -n 10 ctest --test-dir build -j1 -E 'mainwindow_.*_gui' --output-on-failure  # the headless half
+nice -n 10 ctest --test-dir build -j1 -R 'mainwindow_.*_gui' --output-on-failure  # the GUI areas
 ```
 
 Whole suite at `-j1` is ~178 s; at **`-j 16` it is ~14 s** and that is safe here (the GUI

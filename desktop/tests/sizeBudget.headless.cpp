@@ -205,7 +205,7 @@ int main(int argc, char** argv) {
   check(overShare == 0, "no directory raised its comment share");
 
   // Test-count floor, read from ctest's own generated registry: a target that stopped
-  // being registered (the 15 GUI areas share one object library) is invisible to
+  // being registered (the GUI areas share one object library) is invisible to
   // pass/fail — raise it as the suite grows.
   const int minTargets = 64;
   QFile ctestFile(QStringLiteral(STENCIL_CTEST_FILE));
