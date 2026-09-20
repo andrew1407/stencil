@@ -50,6 +50,8 @@ namespace stencil::gui {
     }
   }
 
+  void SelectionPanel::setCollapseChevronVisible(bool on) { if (collapseBtn_) collapseBtn_->setVisible(on); }
+
   void SelectionPanel::spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms) {
     if (collapseBtn_) spinIcon(collapseBtn_, "chevron-right", iconColor_, TOGGLE_GLYPH, fromDeg, toDeg, ms);
   }

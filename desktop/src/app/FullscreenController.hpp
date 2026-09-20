@@ -40,7 +40,10 @@ namespace stencil::gui {
     }
 
     // `p` in window coordinates; `panelWidth` 0 while hidden. Asked separately because the bars move first.
-    bool wantBars(const QPoint& p, int toolbarBottom) const {
+    // The revealed panel's tab row sits inside the band, and the rows would push it out from under the cursor
+    // (the browser's strip is an overlay): from over the panel, the rows never start to reveal.
+    bool wantBars(const QPoint& p, int toolbarBottom, bool isOverPanel = false) const {
+      if (!barsShown && isOverPanel) return false;
       return barsShown ? (p.y() < toolbarKeepBand(toolbarBottom))
                        : (p.y() > REVEAL_TOP && p.y() < REVEAL_BOTTOM);
     }

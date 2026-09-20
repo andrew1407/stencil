@@ -53,6 +53,15 @@ export const populateFsPoints = (fsPointsPanel) => {
     clone.style.maxWidth = '100%';
     clone.style.marginTop = '0';
     clone.style.background = 'transparent';
+    // The hover panel hides on its own: no collapse chevron. A tab click switches the ORIGINAL
+    // and re-clones, since the observer that refreshes the copy watches the points body only.
+    clone.querySelector('#fs-clone-toggle-coord-panel')?.remove();
+    for (const tab of ['coord-tab-points', 'coord-tab-lines']) {
+      clone.querySelector('#fs-clone-' + tab)?.addEventListener('click', () => {
+        document.getElementById(tab)?.click();
+        populateFsPoints(fsPointsPanel);
+      });
+    }
     fsPointsPanel.appendChild(clone);
   }
 };

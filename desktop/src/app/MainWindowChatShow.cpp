@@ -42,7 +42,7 @@ namespace stencil::gui {
     if (!selPanel_ || selPanel_->isHidden()) return;
     if (chatArea != Qt::LeftDockWidgetArea && chatArea != Qt::RightDockWidgetArea) return;
     if (dockWidgetArea(selPanel_) != chatArea) return;
-    if (selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
+    if (!panelAnim_ && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
     selPanel_->setFixedWidth(panelRestoreWidth_ > 120 ? panelRestoreWidth_ : PANEL_DEFAULT_WIDTH);
   }
 

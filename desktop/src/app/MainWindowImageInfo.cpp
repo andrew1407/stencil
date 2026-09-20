@@ -73,6 +73,7 @@ namespace stencil::gui {
 
   // Qt matches property selectors at polish time, so the flag needs a re-polish.
   void MainWindow::markFullscreenBars(bool on) {
+    if (selPanel_) selPanel_->setCollapseChevronVisible(!on);
     for (QToolBar* b : findChildren<QToolBar*>()) {
       if (b == headerToolbar_) continue;
       b->setProperty("fsBar", on);

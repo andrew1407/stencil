@@ -25,9 +25,8 @@ body.fullscreen-mode .info,
 body.fullscreen-mode .drop-hint,
 body.fullscreen-mode .main-content > .coordinates-panel,
 body.fullscreen-mode .panel-resizer,
-/* The install-app affordance floats over the canvas' bottom-right corner (fixed, z 100000)
-   and stayed there in fullscreen — the one thing left on screen beside the image (user
-   report, with a picture). Fullscreen is the canvas and nothing else. */
+/* The install-app affordance floats fixed over the canvas corner and stayed there in fullscreen
+   (user report): fullscreen is the canvas and nothing else. */
 body.fullscreen-mode #install-host,
 body.fullscreen-mode #selection-panel {
     display: none !important;
@@ -38,7 +37,6 @@ body.fullscreen-mode .main-content {
 body.fullscreen-mode .canvas-section {
     display: contents;
 }
-/* Take the viewport completely out of the flex chain so no parent can clip it */
 body.fullscreen-mode .canvas-viewport {
     position: fixed !important;
     inset: 0 !important;
@@ -51,29 +49,22 @@ body.fullscreen-mode .canvas-viewport {
     border-radius: 0 !important;
     background: #000;
     overflow: auto;
-    /* Centring is the shared one from layout/canvasFrame.css: a flex column whose canvas carries
-       `margin: auto`. The old `safe center` pair centred the INCOGNITO FRAME as another
-       row item beside the picture; auto margins leave it where its sticky corner needs it. */
+    /* Centring is layout/canvasFrame.css's: a flex column, the canvas on `margin: auto` (a
+       `safe center` pair centred the incognito frame as a row item beside the picture). */
     display: flex;
     z-index: 0; /* below fixed fullscreen panels (z-index 10000) */
 }
-/* …except when there is nothing to frame. The black above is a viewing ground for an
-   IMAGE; on an empty editor it reads as a hole where the app used to be (and is plainly
-   wrong in light theme), so the imageless canvas keeps its ordinary page ground —
-   the same surface the "＋ Blank image" card sits on outside fullscreen.
-   body.canvas-empty is set by DrawingApp.updateButtons. */
+/* …except when there is nothing to frame: the black is a viewing ground for an IMAGE, and on an
+   empty editor it reads as a hole (plainly wrong in light theme), so the imageless canvas keeps
+   the page ground the "＋ Blank image" card sits on. body.canvas-empty: DrawingApp.updateButtons. */
 body.fullscreen-mode.canvas-empty .canvas-viewport {
     background: var(--bg-page);
 }
 
-/* ── Fullscreen enter/exit flight (js/ui/motion.js flipFrom) ──
-   The viewport is transform-scaled between its in-flow box and the whole window.
-   Two things have to hold for the whole flight, in BOTH directions:
-   · no scrollbars — they belong to the settled state, and appearing/disappearing
-     mid-scale is the flicker;
-   · nothing paints over it — LEAVING starts with the box scaled far beyond its
-     in-flow rect, which would otherwise slide under the toolbars and coordinates
-     panel it is shrinking away from. */
+/* ── Fullscreen enter/exit flight (js/ui/motion.js flipFrom): the viewport is transform-scaled
+   between its in-flow box and the whole window. For the whole flight, both ways: no scrollbars
+   (they belong to the settled state, and a bar appearing mid-scale is the flicker), and nothing
+   paints over it (LEAVING starts far beyond the in-flow rect, under the toolbars and panel). */
 .canvas-viewport.flip-active {
     overflow: hidden !important;
     will-change: transform;
@@ -122,6 +113,9 @@ body:not(.fullscreen-mode).canvas-empty .canvas-viewport.flip-active {
     transform: translateY(0);
     opacity: 1;
 }
+/* Dusted (js/ui/fullscreenPanels.js): the motes are the slide, so the panel holds its revealed
+   place and only fades under them. */
+#fs-controls-panel.dust-driven, #fs-points-panel.dust-driven { transition: none; }
 
 /* Right slide-in: points list. Width follows the user's resized panel width (--coord-panel-width,
    shared with the normal-mode panel + its drag handle), clamped so it never dominates the screen. */
@@ -141,9 +135,8 @@ body:not(.fullscreen-mode).canvas-empty .canvas-viewport.flip-active {
     transform: translateX(0);
     opacity: 1;
 }
-/* Fullscreen panel drag-resizer: sits at the panel's left edge (right = the width var) and only
-   shows while the panel is revealed. Dragging updates --coord-panel-width, which resizes the panel
-   AND moves this handle in lockstep (shared var). */
+/* The drag handle at the panel's left edge: dragging writes --coord-panel-width, which moves
+   panel and handle together. */
 #fs-panel-resizer {
     display: none;
     position: fixed;
@@ -153,9 +146,8 @@ body:not(.fullscreen-mode).canvas-empty .canvas-viewport.flip-active {
     width: 10px;
     z-index: 10001;
     cursor: col-resize;
-    /* Slide in from the right IN LOCKSTEP with the points panel (same distance = the panel
-       width, same 0.25s ease) instead of popping in via a display toggle. Hidden off to the
-       right and non-interactive so it never blocks the right-edge hover trigger. */
+    /* Slides in with the points panel (same distance, same ease); hidden off to the right and
+       non-interactive so it never blocks the right-edge hover trigger. */
     transform: translateX(clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw));
     opacity: 0;
     pointer-events: none;
@@ -167,6 +159,11 @@ body.fullscreen-mode #fs-points-panel.fs-panel-visible ~ #fs-panel-resizer {
     opacity: 1;
     pointer-events: auto;
 }
+/* The handle is part of the dusted panel: it forms and goes with the motes, never on a slide of
+   its own. 460ms is POINTS_DUST_IN_MS (fullscreenPanels.js). */
+body.fullscreen-mode #fs-points-panel.dust-driven ~ #fs-panel-resizer { transition: none; }
+body.fullscreen-mode #fs-points-panel.surface-forming ~ #fs-panel-resizer { animation: surfaceForm 460ms linear both; }
+body.fullscreen-mode #fs-points-panel.surface-leaving ~ #fs-panel-resizer { opacity: 0; pointer-events: none; }
 #fs-panel-resizer::before {
     content: '';
     position: absolute;
@@ -189,14 +186,16 @@ body.fullscreen-mode #fs-points-panel.fs-panel-visible ~ #fs-panel-resizer {
     z-index: 9999;
     pointer-events: auto;
 }
+/* 28px, the desktop's reveal band (FullscreenController PANEL_REVEAL_PX); fullscreenPanels.js
+   shrinks a revealed panel's band into its padding so no control sits under it. */
 #fs-top-trigger {
     top: 0; left: 0; right: 0;
-    height: 8px;
+    height: 28px;
     z-index: 10002;
 }
 #fs-right-trigger {
     top: 0; bottom: 0; right: 0;
-    width: 8px;
+    width: 28px;
     z-index: 10002;
 }
 body.fullscreen-mode #fs-top-trigger,

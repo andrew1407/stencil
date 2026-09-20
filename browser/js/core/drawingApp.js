@@ -249,8 +249,6 @@ export class DrawingApp {
     this.hoveredPtIdx = -1;
     this.focusedPtIdx = -1;
     this.hideSelectionPanels();
-    const trigger = document.getElementById('fs-top-trigger');
-    if (trigger) trigger.style.height = '8px';
     if (redraw) this.renderer.redraw();
   }
 

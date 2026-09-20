@@ -26,7 +26,7 @@ export class StencilFullscreenLayer extends StencilElement {
     const showPoints = () => populateFsPoints(fsPointsPanel);
     const {
       showControlsPanel, hideControlsPanel, showPointsPanel, hidePointsPanel,
-      pauseControlsHide, pausePointsHide,
+      pauseControlsHide, pausePointsHide, reset: resetFsPanels,
     } = createFsPanels({ fsControlsPanel, fsPointsPanel, showPoints });
 
 // The coord table mutates per frame while drawing: coalesce into one rebuild per frame.
@@ -136,12 +136,9 @@ export class StencilFullscreenLayer extends StencilElement {
           }
           vp.style.maxWidth = '';
         }
-        fsControlsPanel.classList.remove('fs-panel-visible');
-        fsPointsPanel.classList.remove('fs-panel-visible');
         const fsSel = document.getElementById('fs-selection-panel');
         if (fsSel) fsSel.style.display = 'none';
-        const trigger = document.getElementById('fs-top-trigger');
-        if (trigger) trigger.style.height = '8px';
+        resetFsPanels();   // after the overlay is gone, so the band it measures is the bare one
         restoreView();
       }
 // Measured last, after both branches settled the viewport's box. Transform-only.

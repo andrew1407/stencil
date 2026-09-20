@@ -44,6 +44,10 @@ int main(int argc, char** argv) {
 #else
     check(fs.wantBars(QPoint(600, 0), 0), "elsewhere the whole top edge is ours");
 #endif
+    // The panel's tab row is in the band: a cursor over the revealed panel never starts the rows.
+    check(!fs.wantBars(QPoint(1100, inBand), 0, true), "over the panel, the band does not reveal the rows");
+    fs.barsShown = true;
+    check(fs.wantBars(QPoint(1100, inBand), 0, true), "rows already shown stay by their keep-zone alone");
   }
 
   // ── Toolbars, once shown: the wider keep-zone holds them, which is the anti-flicker

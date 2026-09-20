@@ -12,6 +12,7 @@
 #include "ShortcutsDialog.hpp"
 #include "../support/DisintegrateOverlay.hpp"
 #include "../support/controlReveal.hpp"
+#include "../support/theme.hpp"
 
 #include <QSignalBlocker>
 #include <QToolBar>
@@ -57,7 +58,7 @@ namespace stencil::gui {
       fs_.wasToolbars = actToolbars_ ? actToolbars_->isChecked() : true;
       fs_.wasPanel = actPanel_ ? actPanel_->isChecked() : true;   // was the panel expanded (vs rail)?
       // Capture the real width BEFORE hiding, or the edge reveal slides to setPanelShown's 320px default and snaps back.
-      if (selPanel_->isVisible() && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
+      if (!panelAnim_ && selPanel_->isVisible() && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
       setToolbarsVisible(false);
       if (menuBar()) menuBar()->setVisible(false);
       if (status_) status_->setVisible(false);     // hide the coord readout so the canvas fills the screen
@@ -65,7 +66,6 @@ namespace stencil::gui {
       // The image-size readout belongs to the tool rows; it returns with them (refreshStatusHintVisibility).
       if (imageInfoHost_) imageInfoHost_->setVisible(false);
       if (imageInfoDock_) imageInfoDock_->setVisible(false);   // …its pinned band with it
-      if (selPanel_->isVisible() && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
       selPanel_->setVisible(false);   // hidden in fullscreen; revealed on right-edge hover
       fs_.barsShown = false;
       fs_.panelShown = false;
@@ -93,7 +93,9 @@ namespace stencil::gui {
     for (QToolBar* b : findChildren<QToolBar*>())
       if (b != headerToolbar_ && b->isVisible())
         tbBottom = std::max(tbBottom, b->mapTo(this, QPoint(0, b->height())).y());
-    const bool wantTb = fs_.wantBars(p, tbBottom);
+    const int panelW = selPanel_->isVisible() ? selPanel_->width() : 0;
+    const bool isOverPanel = fs_.panelShown && p.x() > win.width() - panelW - DOCK_SEPARATOR_PX;
+    const bool wantTb = fs_.wantBars(p, tbBottom, isOverPanel);
     if (wantTb != fs_.barsShown) {
       fs_.barsShown = wantTb;
       // The TOOL rows only — the header row stays away for the whole session, as the browser's fullscreen does.
@@ -105,7 +107,6 @@ namespace stencil::gui {
 
     // A 28px reveal band (5px was near-impossible to hit); the keep-zone is the panel itself, never narrower than a third of
     // the window, so dragging the splitter to resize it never auto-hides it mid-drag.
-    const int panelW = selPanel_->isVisible() ? selPanel_->width() : 0;
     const bool wantPnl = fs_.wantPanel(p, win, panelW);
     if (wantPnl != fs_.panelShown) {
       fs_.panelShown = wantPnl;

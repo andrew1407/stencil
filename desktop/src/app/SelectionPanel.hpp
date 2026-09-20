@@ -45,6 +45,8 @@ namespace stencil::gui {
     void setToggleHint(const QString& hint);
     // ms <= 0 = jump. Every route into the collapse turns it.
     void spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms);
+    // Off in fullscreen, where the panel hides on its own (browser: the clone drops its chevron).
+    void setCollapseChevronVisible(bool on);
 
    signals:
     void pointActivated(int index);        // user clicked / double-clicked a row
