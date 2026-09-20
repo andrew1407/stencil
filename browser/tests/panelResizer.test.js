@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
 import { installDom, createStubElement } from './helpers/dom.js';
 
 // The coordinates-panel resizer's RESTORE path (js/utils.js wirePanelResizer): a saved
@@ -45,4 +46,20 @@ test('a saved width is restored and re-clamped against the live window on every 
     t.resize();
     assert.strictEqual(t.style.getPropertyValue('--coord-panel-width'), '600px', 'the preference comes back with the room');
   } finally { t.doc.restore(); }
+});
+
+// Both drag handles must kill .coordinates-panel's width transition (animations/collapse.css):
+// an easing curve between the pointer and the panel edge reads as lag, not polish.
+test('the suppression rule names both handles, by hooks that exist', () => {
+  const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  const rule = read('../css/animations/collapse.css')
+    .match(/^([^{}]*\.coordinates-panel[^{}]*)\{\s*transition:\s*none;\s*\}/m);
+  assert.ok(rule, 'the mid-drag width-transition suppression rule is gone');
+  const covers = (hook) => rule[1].split(',').some((s) => s.includes(`${hook}.dragging`));
+  assert.ok(covers('.panel-resizer'), `in-flow handle uncovered: ${rule[1]}`);
+  assert.ok(covers('#fs-panel-resizer'), `fullscreen handle uncovered: ${rule[1]}`);
+  const markup = read('../js/ui/mainContent.js') + read('../js/ui/fullscreenMarkup.js');
+  assert.ok(markup.includes('class="panel-resizer"'), 'no element carries .panel-resizer');
+  assert.ok(markup.includes('id="fs-panel-resizer"'), 'no element carries #fs-panel-resizer');
+  assert.ok(read('../js/utils/panelResizer.js').includes("classList.add('dragging')"), 'the drag no longer flags its handle');
 });
