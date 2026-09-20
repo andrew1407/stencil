@@ -3,7 +3,7 @@
 // registry is normative, so it must not drift from the reference it was measured against.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { OPS, LIMITS, ASK_LIMITS, FORBIDDEN_OPS } from '../js/llm/opPlan.js';

@@ -2,7 +2,6 @@ using System.Text;
 using System.Text.Json;
 using Stencil.TelegramBot.Domain.Project;
 using Stencil.TelegramBot.Domain.Serialization;
-using Xunit;
 
 namespace Stencil.TelegramBot.Tests;
 

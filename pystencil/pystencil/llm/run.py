@@ -11,7 +11,6 @@ import re
 from typing import Any, Iterable, Sequence
 
 from .._types import NoneType
-from .limits import MAX_SAVE_NAME
 
 def wire_images(images: (Iterable | NoneType)) -> list:
   """Attachments in their WIRE form: strictly ``(media_type, bytes)`` pairs.

@@ -11,7 +11,6 @@ from .._types import NoneType
 from ..layout import Line
 from .errors import LlmExecutionError
 from .frame import _FrameMap
-from .limits import MAX_LAYOUT_LINES
 from .run import (
   _PlanRun,
   _attachment_parts,

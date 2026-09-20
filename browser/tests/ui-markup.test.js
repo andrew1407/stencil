@@ -1,10 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 
 // Layout transitively requires every ui component and wires them into globalThis.
 import { layout } from '../js/ui/layout.js';
-import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
 
 const markup = layout();
 

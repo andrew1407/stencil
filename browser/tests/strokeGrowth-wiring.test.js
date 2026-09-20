@@ -4,7 +4,6 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
-import { StrokeFx } from '../js/core/strokeFx.js';
 import { recordingCtx, argsOf, indexOf } from './helpers/recordingCtx.js';
 import { harness, lineOf } from './helpers/strokeGrowthHarness.js';
 

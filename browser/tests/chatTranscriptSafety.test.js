@@ -3,7 +3,6 @@
 // innerHTML would hand every reply a DOM-injection primitive, so it is pinned here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { chatViewSource } from './helpers/chatViewSource.js';
 
 const SRC = chatViewSource();

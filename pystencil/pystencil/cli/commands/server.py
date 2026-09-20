@@ -4,9 +4,6 @@ from __future__ import annotations
 /projects, /delete and /fetch.
 """
 
-import urllib.parse
-
-from ... import _net
 from ...editor import Editor
 from ...server import (
   ServerError,
@@ -14,8 +11,6 @@ from ...server import (
   normalize_url,
   parse_credential_filter,
 )
-from ...sitesource import _sub_strict
-from ..console import mask as _mask
 from ..registry import command
 
 

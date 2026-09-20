@@ -3,9 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import {
-  ProjectsStore, shouldPersist, baseProjectName, EXPIRY_MS, WARN_MS,
-  REGISTRY_KEY, PROJECT_PREFIX, MIGRATED_FLAG,
-  periodMs, addPeriod, PERIOD_MS, DEFAULT_PERIOD, normalizeKeywords,
+  ProjectsStore, EXPIRY_MS, REGISTRY_KEY, MIGRATED_FLAG, DEFAULT_PERIOD, normalizeKeywords,
 } from '../js/core/projectsStore.js';
 import { createMemoryStorage } from './helpers/memoryStorage.js';
 

@@ -2,8 +2,7 @@ import { PROJECT_ACTION } from '../worker/messages.js';
 import { normalizePageSize } from './units.js';
 import { normalizeCropRect } from './layout.js';
 import { createTrailingSave } from './zoomPan.js';
-import { ghostOut, flashLanding, playCanvasArrival, revealControls, GHOST_MS } from '../ui/motion.js';
-import { setChecked } from '../ui/controlSwap.js';
+import { ghostOut, flashLanding, playCanvasArrival, GHOST_MS } from '../ui/motion.js';
 import { showImageMissingBanner as paintImageMissingBanner } from '../ui/imageMissingBanner.js';
 import { paintPageSize, paintDrawingControls, paintVisibilityChecks, paintFormulaFields,
          hideSelectionPanels, resetViewportScroll, scrollViewportTo } from '../ui/layoutControls.js';

@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Llm;

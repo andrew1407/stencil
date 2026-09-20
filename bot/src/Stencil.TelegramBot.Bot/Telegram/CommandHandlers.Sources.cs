@@ -1,7 +1,5 @@
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Domain.Editing;
-using Stencil.TelegramBot.Domain.Exceptions;
-using Stencil.TelegramBot.Domain.Sessions;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;

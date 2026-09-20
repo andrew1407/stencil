@@ -13,8 +13,6 @@ import {
   STROKE_FLY_MIN_MS, STROKE_FLY_MAX_MS, STROKE_FLY_PX_PER_MS, STROKE_BOW_MAX,
   STROKE_POP_PEAK, STROKE_FLY_R0, STROKE_RIPPLE_MS, STROKE_RIPPLE_REACH, STROKE_WAKE_ALPHA,
 } from '../js/ui/motion.js';
-import { StrokeFx } from '../js/core/strokeFx.js';
-import { recordingCtx, argsOf, indexOf } from './helpers/recordingCtx.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const drawingAppJs = read('../js/core/drawingApp.js');

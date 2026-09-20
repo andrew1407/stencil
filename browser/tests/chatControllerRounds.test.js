@@ -3,7 +3,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { EDGE_MAP_SENTENCE } from '../js/llm/chatController.js';
 import { makeClient, makeController } from './helpers/chatControllerRig.js';
 
 // §3.0: the turn ends when its plan has executed, and no auxiliary round may hold the send open. No

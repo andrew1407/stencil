@@ -1,9 +1,7 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Editing;
-using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;

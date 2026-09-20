@@ -2,7 +2,7 @@
 // the "unpin" window message, EDITOR_STATE/IMPORT/SWITCH_PROJECT, and the per-leg page timeout.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MSG, SRC, apiRes, flush, loadBridge, pageReqs, setupEnv } from './helpers/editorBridgeEnv.js';
+import { MSG, SRC, flush, loadBridge, pageReqs, setupEnv } from './helpers/editorBridgeEnv.js';
 
 test('relays an unpin window message to a PAGE_PIN with pin:false', async () => {
   const { sent, dispatch } = setupEnv();

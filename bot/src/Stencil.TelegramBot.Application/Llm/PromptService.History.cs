@@ -1,12 +1,4 @@
-using System.Collections.Concurrent;
-using System.Text;
-using Stencil.TelegramBot.Application.Editing;
-using Stencil.TelegramBot.Application.Servers;
-using Stencil.TelegramBot.Domain.Abstractions;
-using Stencil.TelegramBot.Domain.Editing;
-using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
-using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Llm;
 

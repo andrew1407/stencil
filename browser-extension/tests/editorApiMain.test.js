@@ -2,7 +2,7 @@
 // page, and the calls it posts at the bridge — editors, current, focus, tabs, images and open.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MSG, SRC, answer, calls, lastCall, loadApi, refuse, scanRow } from './helpers/editorApiEnv.js';
+import { MSG, answer, calls, lastCall, loadApi, refuse, scanRow } from './helpers/editorApiEnv.js';
 
 test('defines a guarded, non-enumerable window.__stencilExt', async () => {
   const env = await loadApi();

@@ -7,7 +7,6 @@ returns ``self``.
 """
 
 from .._types import NoneType
-from ._snapshot import _Snapshot
 
 
 class _EditApi:

@@ -1,8 +1,5 @@
-using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Projects;
-using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Tests.Doubles;
 using System.Text.Json;
 using System.Text;
 using Telegram.Bot.Requests;

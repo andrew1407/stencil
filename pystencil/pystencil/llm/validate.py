@@ -12,7 +12,7 @@ from typing import Any, Callable
 from .._types import NoneType
 from .._opschema import SchemaError
 from .errors import LlmPlanError
-from .limits import DEFAULT_CUSTOM_LABEL, MAX_ASK_LABEL, SCHEMA
+from .limits import DEFAULT_CUSTOM_LABEL, SCHEMA
 from .registry import (
   OP_REGISTRY,
   _ACTION_VALIDATORS,

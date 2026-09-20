@@ -1,6 +1,5 @@
 using System.Text;
 using Stencil.TelegramBot.Application.Editing;
-using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Llm;

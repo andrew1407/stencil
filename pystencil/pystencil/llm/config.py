@@ -10,7 +10,6 @@ import os
 from dataclasses import dataclass
 
 from .._types import NoneType
-from .errors import LlmError
 
 MAX_ATTACHMENTS = 3
 

@@ -1,5 +1,4 @@
 using Stencil.TelegramBot.Domain.Llm;
-using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 
 namespace Stencil.TelegramBot.Tests;

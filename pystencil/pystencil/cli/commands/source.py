@@ -2,15 +2,12 @@ from __future__ import annotations
 
 """Getting a picture into the session: /upload, /source-upload and the §2.1 upload set."""
 
-
 import urllib.parse
 
 from ..._types import NoneType
 from ... import _net
-from ...editor import Editor
 from ...llm import MAX_UPLOAD_ATTACHMENTS, Chat
 from ...sitesource import scan_page
-from ...server import normalize_url
 from ..registry import command
 
 

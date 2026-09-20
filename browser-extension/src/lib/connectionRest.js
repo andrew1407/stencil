@@ -1,6 +1,5 @@
 // Bearer-authed JSON over server/internal/protocol; a stale session token is re-minted once.
 import { normalizeUrl, parseInviteUrl } from './connectionModel.js';
-import { isAdminConnection } from './connectionStore.js';
 
 export const fetchImpl = () => globalThis.fetch?.bind(globalThis);
 

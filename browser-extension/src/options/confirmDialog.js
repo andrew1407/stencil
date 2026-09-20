@@ -1,4 +1,4 @@
-import { scatterGridFor, surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
+import { surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
 
 // Stands in for window.confirm() (the options page has no native modal). Resolves true on
 // Yes/Enter, false on No/Esc/backdrop. `anchor` is the button the particles fly out of and back into.

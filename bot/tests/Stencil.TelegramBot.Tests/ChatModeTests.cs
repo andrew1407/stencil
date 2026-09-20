@@ -1,7 +1,6 @@
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types.ReplyMarkups;
 

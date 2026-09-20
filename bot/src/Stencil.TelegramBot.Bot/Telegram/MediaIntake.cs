@@ -1,7 +1,6 @@
 using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Configuration;
-using Stencil.TelegramBot.Domain.Sessions;
 using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;

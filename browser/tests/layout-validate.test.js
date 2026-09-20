@@ -2,7 +2,7 @@
 // untrusted ingress (#stencil=, paste, co-edit) passes through. Split from layout.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { buildLayoutPayload, serializeSession, LAYOUT_FIELDS, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines, sanitizeLines } from '../js/core/layout.js';
+import { validateLayout } from '../js/core/layout.js';
 
 // ── validateLayout ──────────────────────────────────────────────
 test('validateLayout rejects when no image is loaded', () => {

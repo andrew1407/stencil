@@ -6,7 +6,6 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { ZoomPan, canvasOrigin } from '../js/core/zoomPan.js';
 import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
 

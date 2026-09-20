@@ -3,15 +3,9 @@
 // overlay (DisintegrateOverlay.hpp legAt) and the extension's copy share.
 import test from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 import {
-  bezierY, easeLut, EASE_STEPS, FLIGHTS, alphaAt, moteFrame, cloudBounds, drawCloud, ALPHA_LEVELS,
-  resolveColour, startCloud, turbulenceAt, twinkleAt, TURBULENCE_MAX_PX, TWINKLE_DEPTH,
-  STYLE_DUST, STYLE_WATER, STYLE_FIRE, PARTICLE_STYLES, PALETTE_STOPS, WATER, FIRE,
-  styleFrame, paletteIndex, paletteCss, dustMix, hashNoise,
-  TINT_SHARE, TINT_STOPS, TINT_CSS, PAINT_STOPS, tintOf, stopOfTint,
-  SHAPE_DISC, SHAPE_OVAL, SHAPE_WAVE, SHAPE_TRIANGLE, SHAPE_STREAK, grainShape, headingOf, shapePolygon, addGrainPath,
-  EDGE_POINTS, edgeJitter, edgeDipOf, edgeReachOf, edgeBaseOf, FILL_CHUNK, fillGrains,
+  bezierY, easeLut, EASE_STEPS, FLIGHTS, alphaAt, moteFrame, cloudBounds, drawCloud, ALPHA_LEVELS, resolveColour,
+  startCloud, turbulenceAt, twinkleAt, TURBULENCE_MAX_PX, TWINKLE_DEPTH,
 } from '../js/ui/dustCloud.js';
 
 const grain = { x: 100, y: 200, dx: 60, dy: -80, mx: 40, my: -45, r: 3, s: 0.3, a: 0.9 };

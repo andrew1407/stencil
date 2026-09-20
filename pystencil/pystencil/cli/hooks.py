@@ -9,7 +9,7 @@ from typing import Protocol, runtime_checkable
 
 from .._types import NoneType
 from .. import codecs
-from ..llm import resolve_server, url_echoed_by_user
+from ..llm import resolve_server
 
 
 @runtime_checkable

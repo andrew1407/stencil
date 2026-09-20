@@ -1,7 +1,6 @@
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 

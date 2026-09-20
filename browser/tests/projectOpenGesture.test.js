@@ -1,17 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 
 // Opening a project row: the gesture → intent mapping and the deferred-single-click machine
 // behind it (js/core/projectOpenGesture.js) — pure/injected, so the whole mouse+touch matrix
 // runs without a DOM.
 import {
-  rowOpenIntent, createOpenGesture, DOUBLE_CLICK_MS, DRAG_SLOP_PX, canRefreshList,
+  rowOpenIntent, createOpenGesture, DOUBLE_CLICK_MS, DRAG_SLOP_PX,
 } from '../js/core/projectOpenGesture.js';
-import { isTouchLike, TOUCH_MEDIA } from '../js/utils.js';
-import { COMPONENTS_CSS } from './helpers/css.js';
-import { contextMenuSource } from './helpers/contextMenuSource.js';
-import { projectsModalSource } from './helpers/projectsModalSource.js';
 
 // A controllable clock: timers fire only when the test advances it.
 const stubTimers = () => {
