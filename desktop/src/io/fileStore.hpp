@@ -1,4 +1,5 @@
 #pragma once
+#include "accentDefaults.hpp"
 #include "../llm/llmSettings.hpp"
 #include "cropGeometry.hpp"
 #include "models.hpp"
@@ -21,7 +22,7 @@ namespace stencil::gui {
     // Tri-state system|light|dark; the legacy `theme` key is migrated on load.
     QString themeMode = "system";     // "system" | "light" | "dark"
     // Accent preset key (theme.hpp accentPresets); browser data-accent twin.
-    QString accentColor = "violet";
+    QString accentColor = DEFAULT_ACCENT_KEY;
     bool autosave = true;
     // Off: edits to a fetched server project stay in this session only — never pushed nor autosaved.
     bool syncToServer = true;
@@ -36,8 +37,8 @@ namespace stencil::gui {
     // Fill for a newly LOCKED area (browser DEFAULT_VISUALS.defaultFillColor).
     QString defaultFillColor = "#ffffff";
     QString selGlowColor = "#ffc800";    // selection highlight glow (lines + points)
-    QString hoverRingColor = "#7c3aed";  // hover ring around points
-    QString focusRingColor = "#7c3aed";  // focused/clicked point ring
+    QString hoverRingColor = DEFAULT_ACCENT_HEX;  // hover ring around points
+    QString focusRingColor = DEFAULT_ACCENT_HEX;  // focused/clicked point ring
     QString pageSize = "A3";          // a named ISO format ("A3", "B5", …) | custom
     double customPageWidth = 21.0;
     double customPageHeight = 29.7;
@@ -53,7 +54,7 @@ namespace stencil::gui {
     bool tooltipShowCoords = true;
     // "none" | "bw" | "sepia" | "invert" | "contour" | "custom"; filterColor is the custom tint.
     QString imageFilter = "none";
-    QString filterColor = "#7c3aed";
+    QString filterColor = DEFAULT_ACCENT_HEX;
     int holdDrawDelay = 500;
     // Motion (browser js/ui/motionPrefs.js; support/modalReveal.hpp drives them).
     bool drawingAnimations = true;
@@ -90,7 +91,7 @@ namespace stencil::gui {
     double customPageHeight = 29.7;
     // drawMode is "line" | "rect" (browser storage.js).
     QString imageFilter = "none";
-    QString filterColor = "#7c3aed";
+    QString filterColor = DEFAULT_ACCENT_HEX;
     QString drawMode = "line";
     // Rotated-image pixels; width 0 = no crop stored → default centered crop on load.
     core::CropRect cropRect;
@@ -162,7 +163,7 @@ namespace stencil::gui {
     // empty/0 so old exports stay byte-identical; parseLayoutJson leaves an absent out-pointer untouched.
     QJsonObject buildLayoutJson(int w, int h, const core::Lines& lines,
                                 const QString& imageFilter = "none",
-                                const QString& filterColor = "#7c3aed",
+                                const QString& filterColor = DEFAULT_ACCENT_HEX,
                                 const core::CropRect& cropRect = {},
                                 int rotationQuarters = 0,
                                 const LayoutMeta& meta = {});

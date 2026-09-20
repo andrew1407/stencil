@@ -18,7 +18,7 @@ namespace stencil::net {
                  [this, done = std::move(done)](int status, QByteArray body) {
                    ServerProject meta;
                    QJsonObject layoutOut;
-                   if (status < 200 || status >= 300) {
+                   if (!isOkStatus(status)) {
                      done(false, meta, layoutOut);
                      return;
                    }
@@ -59,7 +59,7 @@ namespace stencil::net {
                      done(false, 0, true);
                      return;
                    }
-                   if (status < 200 || status >= 300) {
+                   if (!isOkStatus(status)) {
                      done(false, 0, false);
                      return;
                    }
@@ -106,7 +106,7 @@ namespace stencil::net {
     path += "?" + q.toString(QUrl::FullyEncoded);
     requestAsync("POST", path, bytes, "application/octet-stream",
                  [this, done = std::move(done)](int status, QByteArray) {
-                   if (status < 200 || status >= 300) {
+                   if (!isOkStatus(status)) {
                      done(false);
                      return;
                    }
@@ -118,7 +118,7 @@ namespace stencil::net {
                                        std::function<void(bool, QByteArray)> done) {
     requestAsync("GET", QString("/projects/%1/files/%2").arg(id, kind), {}, {},
                  [this, done = std::move(done)](int status, QByteArray data) {
-                   done(status >= 200 && status < 300, data);
+                   done(isOkStatus(status), data);
                  });
   }
 
@@ -128,7 +128,7 @@ namespace stencil::net {
     // idempotent 204 (llm-contract.md §9) and refuses original/result.
     requestAsync("DELETE", QString("/projects/%1/files/%2").arg(id, kind), {}, {},
                  [this, done = std::move(done)](int status, QByteArray) {
-                   if (status < 200 || status >= 300) {
+                   if (!isOkStatus(status)) {
                      done(false);
                      return;
                    }

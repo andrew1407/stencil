@@ -136,7 +136,7 @@ namespace stencil::gui {
     p.setRenderHint(QPainter::Antialiasing);
     const double u = size / 64.0;   // browser viewBox is 0..64
     QColor accent = accentPrimary(settings_.accentColor);
-    if (!accent.isValid()) accent = QColor("#7c3aed");
+    if (!accent.isValid()) accent = QColor(DEFAULT_ACCENT_HEX);
     p.setPen(Qt::NoPen);
     p.setBrush(QColor("#2b2f3a"));
     p.drawRoundedRect(QRectF(2 * u, 2 * u, 60 * u, 60 * u), 13 * u, 13 * u);

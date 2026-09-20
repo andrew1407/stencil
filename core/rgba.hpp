@@ -7,10 +7,14 @@
 // definitions (core/CMakeLists.txt, cli/build.zig, pystencil/build.py).
 namespace stencil::core {
 
+  // Bytes one pixel occupies, and the largest value a channel (or alpha) can hold.
+  inline constexpr std::size_t RGBA_BYTES = 4;
+  inline constexpr int CHANNEL_MAX = 255;
+
   inline std::size_t rgbaOffset(int x, int y, int w) {
     return (static_cast<std::size_t>(y) * static_cast<std::size_t>(w) +
             static_cast<std::size_t>(x)) *
-           4;
+           RGBA_BYTES;
   }
 
   inline void copyPixel(std::uint8_t* dst, const std::uint8_t* src) {

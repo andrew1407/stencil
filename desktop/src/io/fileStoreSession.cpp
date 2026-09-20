@@ -1,5 +1,6 @@
 #include "fileStore.hpp"
 #include "fileStoreIo.hpp"
+#include "accentDefaults.hpp"
 #include "deferredWrite.hpp"
 #include <QDir>
 #include <QFile>
@@ -24,7 +25,7 @@ namespace stencil::gui {
     // Legacy blackAndWhite migration (browser storage.js).
     s.imageFilter = o.value("imageFilter")
                         .toString(o.value("blackAndWhite").toBool(false) ? "bw" : "none");
-    s.filterColor = o.value("filterColor").toString("#7c3aed");
+    s.filterColor = o.value("filterColor").toString(DEFAULT_ACCENT_HEX);
     s.drawMode = o.value("drawMode").toString("line");
     s.lines = linesFromJson(o.value("lines").toArray());
     s.cropRect = cropRectFromJson(o.value("cropRect").toObject());

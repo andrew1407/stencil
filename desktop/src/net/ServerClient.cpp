@@ -113,13 +113,13 @@ namespace stencil::net {
                        const int status =
                            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
                        const QByteArray data = reply->readAll();
-                       if (status < 200 || status >= 300)
+                       if (!isOkStatus(status))
                          err_ = restError(method, path, status, data,
                                           reply->error() == QNetworkReply::NoError
                                               ? QString()
                                               : reply->errorString());
                        reply->deleteLater();
-                       const bool refused = status == 401 || status == 403;
+                       const bool refused = isAuthStatus(status);
                        // A minted session dies with a server restart — re-mint with the credential once and retry in place.
                        if (refused && status_ == Status::CONNECTED && !retried &&
                            !credential_.isEmpty() && path != QLatin1String("/auth/token")) {
@@ -129,7 +129,7 @@ namespace stencil::net {
                                        done = std::move(done)](int mint, QByteArray mb) mutable {
                                         const QString tok = QJsonDocument::fromJson(mb)
                                                                 .object().value("token").toString();
-                                        if (mint < 200 || mint >= 300 || tok.isEmpty()) {
+                                        if (!isOkStatus(mint) || tok.isEmpty()) {
                                           done(mint, {});
                                           return;
                                         }
@@ -138,7 +138,7 @@ namespace stencil::net {
                                             method, path, body, contentType,
                                             [this, done = std::move(done)](int st, QByteArray rb) {
                                               // It minted AND the session works: an admin token (browser parity).
-                                              if (st >= 200 && st < 300)
+                                              if (isOkStatus(st))
                                                 kind_ = CredentialKind::ADMIN;
                                               done(st, rb);
                                             },
@@ -178,7 +178,7 @@ namespace stencil::net {
                                                      ? QString()
                                                      : reply->errorString();
                        reply->deleteLater();
-                       if (status < 200 || status >= 300 || tok.isEmpty()) {
+                       if (!isOkStatus(status) || tok.isEmpty()) {
                          err_ = restError("POST", "/auth/token", status, body, transport);
                          done(false, QString());
                          return;

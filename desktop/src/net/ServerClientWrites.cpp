@@ -15,7 +15,7 @@ namespace stencil::net {
   void ServerClient::deleteProjectAsync(const QString& id, std::function<void(bool)> done) {
     requestAsync("DELETE", QString("/projects/%1").arg(id), {}, {},
                  [this, done = std::move(done)](int status, QByteArray) {
-                   if (status < 200 || status >= 300) {
+                   if (!isOkStatus(status)) {
                      done(false);
                      return;
                    }

@@ -83,7 +83,7 @@ namespace stencil::gui {
         logoBtn_, [this] { return makeLogoPixmap(HEADER_LOGO); },
         [this] {
           const QColor a = accentPrimary(settings_.accentColor);
-          return a.isValid() ? a : QColor("#7c3aed");
+          return a.isValid() ? a : QColor(DEFAULT_ACCENT_HEX);
         });
     headerToolbar_->addWidget(logoBtn_);
     // Routes through actToolbars_ so the View entry + Alt+C stay in sync. ControlsPill paints its

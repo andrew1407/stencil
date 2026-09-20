@@ -1,6 +1,7 @@
 #pragma once
 // The provider wire helpers — endpoint tags, failure replies and text sanitising — private to the LlmClient*.cpp TUs.
 #include "LlmClient.hpp"
+#include "httpStatus.hpp"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -68,7 +69,7 @@ namespace stencil::llm {
                               err.isEmpty() ? QStringLiteral("network error") : err)));
       return true;
     }
-    if (!serverHost.isEmpty() && (status == 401 || status == 403)) {
+    if (!serverHost.isEmpty() && net::isAuthStatus(status)) {
       LlmReply r = failReply(LlmFailure::EXPIRED,
                              QStringLiteral("Your session on %1 has expired — reconnect to "
                                             "that server, then send this again.")
@@ -77,7 +78,7 @@ namespace stencil::llm {
       done(r);
       return true;
     }
-    if (status < 200 || status >= 300) {
+    if (!net::isOkStatus(status)) {
       const QJsonObject o = QJsonDocument::fromJson(body).object();
       const QString detail = o.value("message").toString(
           o.value("error").toObject().value("message").toString(
@@ -126,7 +127,7 @@ namespace stencil::llm {
       LlmProbeResult r;
       if (status == 0) {
         r.detail = err.isEmpty() ? QStringLiteral("network error") : err;
-      } else if (status < 200 || status >= 300) {
+      } else if (!net::isOkStatus(status)) {
         r.detail = QStringLiteral("HTTP %1").arg(status);
       } else {
         fill(QJsonDocument::fromJson(body).object(), r);
