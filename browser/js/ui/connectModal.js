@@ -352,7 +352,7 @@ export class StencilConnectModal extends StencilElement {
       // A selection is a transient of one visit, as in the projects modal.
       onOpen: () => { autoEl.checked = getAutoConnect(); syncEl.checked = getSyncToServer(); selected.clear(); render(); },
       // Closing mid-animation finalizes every pending wipe, so a half-removed row cannot reappear.
-      onClose: () => hold.finalizeAll(),
+      onClose: () => hold.finalizeAll(), focusOnOpen: urlEl,
     });
 
     // A refused saved session must be visible without opening this modal: the Servers

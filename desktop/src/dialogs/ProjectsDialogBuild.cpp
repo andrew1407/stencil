@@ -137,6 +137,8 @@ namespace stencil::gui {
 
   void ProjectsDialog::startRemotePolling() {
     installHoverShimmerIn(this);
+    // The caret lands in the filter box, as the browser window does (InfoDialog parity).
+    if (search_) QTimer::singleShot(0, search_, [s = search_] { s->setFocus(); });
 
     // REST only: this polling stands in for the browser modal's WebSocket project-event feed.
     if (connections_ && !connections_->urls().isEmpty()) {

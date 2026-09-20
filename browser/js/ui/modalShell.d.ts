@@ -16,6 +16,8 @@ export interface ModalShellOptions {
   escapeClose?: boolean;
   originEl?: (() => unknown) | null;
   stacked?: boolean;
+  /** Focused once the window is up: an element, or one resolved at open time. */
+  focusOnOpen?: HTMLElement | null | (() => HTMLElement | null);
 }
 
 /** Wire open/close/overlay-press/Escape for one app modal. */

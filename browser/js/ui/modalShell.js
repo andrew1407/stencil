@@ -9,7 +9,9 @@ import { createModalFlight } from './modalFlight.js';
 // modal-open class toggles. The opener answers the popover gestures (ui/popover.js).
 // `originEl` resolves the control the flight belongs to when it isn't the opener (null: fall
 // from above); `stacked` shells open over what is showing instead of replacing it.
-export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true, originEl: originFor = null, stacked = false } = {}) => {
+const FOCUS_MS = 30;
+
+export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true, originEl: originFor = null, stacked = false, focusOnOpen = null } = {}) => {
   // The shared class, or a shell with its own ids (settingsModal) falls back to the first child.
   const boxOf = () => overlay.querySelector('.app-modal') || overlay.firstElementChild;
 
@@ -58,6 +60,10 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     overlay.classList.add('modal-open');
     // The box has no size while display:none.
     if (!reducedMotion() && setOriginVars()) playDust(true);
+    // A window opens ready to be typed into. Deferred past the entrance, which is where the
+    // windows that already did this put it (infoModal, scriptModal).
+    const focusTarget = typeof focusOnOpen === 'function' ? focusOnOpen() : focusOnOpen;
+    if (focusTarget?.focus) setTimeout(() => { if (api.isOpen()) focusTarget.focus(); }, FOCUS_MS);
   };
   let gestures = null;
   const close = () => {

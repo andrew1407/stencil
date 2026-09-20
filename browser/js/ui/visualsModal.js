@@ -195,7 +195,8 @@ export class StencilVisualsModal extends StencilElement {
     });
 
     wireModalShell(overlay, openBtn, closeBtn, {
-      onOpen: () => { populate(); search.value = ''; applyFilter(); }
+      onOpen: () => { populate(); search.value = ''; applyFilter(); },
+      focusOnOpen: search,
     });
   }
 }

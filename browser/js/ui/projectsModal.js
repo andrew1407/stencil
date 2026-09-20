@@ -169,7 +169,8 @@ export class StencilProjectsModal extends StencilElement {
 
     const { open, close } = wireModalShell(overlay, $('projects-btn'), $('projects-close'), {
       // Re-fetch the server listing on each open.
-      onOpen: () => { search.value = ''; clearSelection(); invalidateRemotes(); syncControls(); render(); }
+      onOpen: () => { search.value = ''; clearSelection(); invalidateRemotes(); syncControls(); render(); },
+      focusOnOpen: search,
     });
 
     // Every filter control re-lists through the same transition (createFilterAnimator): the light
