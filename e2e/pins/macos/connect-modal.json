@@ -217,7 +217,7 @@
         "display": "block",
         "color": "rgb(0, 0, 0)",
         "background-color": "rgb(233, 236, 239)",
-        "border-color": "rgb(221, 221, 221)",
+        "border-color": "rgb(124, 58, 237)",
         "border-width": "1px",
         "border-radius": "4px",
         "font-size": "12.5px",
@@ -225,6 +225,7 @@
         "padding": "4px 7px",
         "width": "454px",
         "height": "24px",
+        "box-shadow": "color(srgb 0.486275 0.227451 0.929412 / 0.25) 0px 0px 0px 3px",
         "overflow": "clip"
       }
     },
