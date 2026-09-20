@@ -1,8 +1,6 @@
 # Telegram bot — use cases
 
-Editing from a chat. Run the bot from [`bot/README.md`](../../../bot/README.md); the images
-here are captured from Telegram Web by
-[`usecases/capture-runner/`](../../capture-runner/README.md), never hand-edited.
+Editing from a chat. Run the bot from [`bot/README.md`](../../../bot/README.md).
 
 ## Say hello
 
