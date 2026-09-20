@@ -85,8 +85,8 @@ test('the draw-mode pair is the canonical line/rect pair, x1.5 smaller', () => {
 
 test('the art never lands in icons.json, whose keys are all glyph-table names', () => {
   // icons.json is iterated whole by every surface's glyph table (desktop iconSet.cpp) and
-  // must be covered exactly by iconMotion.json — so `favicon`/`drawMode` cannot live there.
-  for (const key of ['favicon', 'drawMode', 'draw-mode-line', 'draw-mode-rect'])
+  // must be covered exactly by iconMotion.json — so this art cannot live there.
+  for (const key of ['favicon', 'drawMode', 'draw-mode-line', 'draw-mode-rect', 'secretEgg', 'egg'])
     assert.ok(!(key in ICONS), `${key} belongs in svgArt.json, not icons.json`);
   for (const inner of Object.values(ICONS))
     assert.ok(!inner.includes('<svg'), 'icons.json holds INNER markup only — icon() adds the wrapper');

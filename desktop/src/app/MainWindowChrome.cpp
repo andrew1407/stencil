@@ -61,6 +61,7 @@ namespace stencil::gui {
     panelReopenBtn_->hide();
     // The separator is QMainWindow chrome with no widget, so a mouse-transparent overlay paints the grip (browser .panel-resizer).
     panelGrip_ = new DockGripOverlay(this);
+    panelGrip_->setObjectName(QStringLiteral("panelGrip"));
     {
       const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
       panelGrip_->setColors(pal.borderMain, pal.accent);
@@ -83,7 +84,7 @@ namespace stencil::gui {
   void MainWindow::positionPanelGrip() {
     if (!panelGrip_ || !selPanel_) return;
     const Qt::DockWidgetArea area = dockWidgetArea(selPanel_);
-    const bool on = !selPanel_->isHidden() && !selPanel_->isFloating() && !panelAnim_
+    const bool on = !selPanel_->isHidden() && !selPanel_->isFloating() && !panelAnim_ && !showCovered_
                     && (area == Qt::RightDockWidgetArea || area == Qt::LeftDockWidgetArea);
     panelGrip_->setVisible(on);
     if (!on) {
@@ -102,7 +103,7 @@ namespace stencil::gui {
   // Horizontal separators are a hairline, so the band is drawn to MIN_THICKNESS while the hit rect stays Qt's strip.
   void MainWindow::positionChatEdge() {
     if (!chatEdge_ || !chatDock_) return;
-    const bool on = chatDock_->isVisible() && !chatDock_->isFloating() && !fs_.active;
+    const bool on = chatDock_->isVisible() && !chatDock_->isFloating() && !fs_.active && !showCovered_;
     chatEdge_->setVisible(on);
     if (!on) {
       chatEdge_->setHot(false);

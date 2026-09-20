@@ -32,6 +32,7 @@ const SHELL = [
   './css/components/contextMenu.css',
   './css/components/ctxAssistant.css',
   './css/components/notifications.css',
+  './css/components/logoStage.css',
   './css/components/installButton.css',
   './css/components/settings.css',
   './css/components/panelLayering.css',

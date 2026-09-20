@@ -3,6 +3,11 @@
 #include "DisintegrateOverlay.hpp"
 #include "iconSet.hpp"
 #include "modalReveal.hpp"  // stencil::support::motionReduced()
+#include "logoStageRules.hpp"
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSvgRenderer>
 #include <algorithm>
 #include <QBuffer>
 #include <QGuiApplication>
@@ -21,6 +26,22 @@
 namespace stencil::gui {
 
   namespace {
+    // The mark a show's notice wears is taller than a 16px glyph, and svgArt.json crops the
+    // viewBox to the shell, so it fills this box edge to edge.
+    constexpr int EGG_W = 14, EGG_H = 18;
+
+    // The egg a show's notice wears, sized and inked by the caller (the %1 / %2 / %3 placeholders).
+    QString secretEggSvg(int w, int h, const QColor& ink) {
+      static const QString art = [] {
+        QFile f(":/config/svgArt.json");
+        if (!f.open(QIODevice::ReadOnly)) return QString();
+        return QJsonDocument::fromJson(f.readAll()).object().value("secretEgg").toString();
+      }();
+      return QString(art).replace(QLatin1String("%1"), QString::number(w))
+                         .replace(QLatin1String("%2"), QString::number(h))
+                         .replace(QLatin1String("%3"), ink.name());
+    }
+
     // Middle-ellipsize any whitespace-free run longer than 48 chars (browser squeezeLongTokens parity).
     QString squeezeLongTokens(const QString& text) {
       constexpr int MAX_TOKEN_CHARS = 48;
@@ -36,7 +57,7 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  void Notifications::show(const QString& rawText, Level level, int msec) {
+  void Notifications::show(const QString& rawText, Level level, int msec, bool special) {
     if (!host_) return;
     const QString text = squeezeLongTokens(rawText);
 
@@ -64,9 +85,14 @@ namespace stencil::gui {
     for (int i = 0; i < live.size() + 1 - MAX_VISIBLE && i < live.size(); ++i)
       dismiss(live[i]);
 
-    // Browser toast variants: --danger for a failure, --accent for everything else.
-    const QColor bg = level == Level::ERROR ? errorBg_ : normalBg_;
-    const char* glyph = level == Level::SUCCESS ? "check" : level == Level::ERROR ? "x" : "info";
+    // Browser toast variants: --danger for a failure, --accent for everything else — and gold
+    // for a logo show's own notice (browser .notify-shine).
+    const support::LogoStageConfig& stage = support::logoStageConfig();
+    const QColor bg = special ? QColor(stage.toastGold)
+                     : level == Level::ERROR ? errorBg_ : normalBg_;
+    const QColor ink = special ? QColor(stage.toastInk) : QColor(Qt::white);
+    const char* glyph = special ? "egg"
+                       : level == Level::SUCCESS ? "check" : level == Level::ERROR ? "x" : "info";
 
     auto* toast = new QLabel(host_);
     toast->setTextFormat(Qt::RichText);
@@ -77,27 +103,43 @@ namespace stencil::gui {
       buf.open(QIODevice::WriteOnly);
       // The dpr-AWARE overload — pixmap(16, 16) would give a soft glyph on hi-dpi.
       const qreal dpr = qApp ? qApp->devicePixelRatio() : qreal(1);
-      themedIcon(QString::fromLatin1(glyph), QColor(Qt::white), 16, dpr)
-          .pixmap(QSize(16, 16), dpr)
-          .toImage()
-          .save(&buf, "PNG");
+      if (special) {
+        // Not a glyph-table name: art of its own, rendered straight from the shared table.
+        QImage art(QSize(EGG_W, EGG_H) * dpr, QImage::Format_ARGB32_Premultiplied);
+        art.fill(Qt::transparent);
+        art.setDevicePixelRatio(dpr);
+        QPainter ap(&art);
+        QSvgRenderer(secretEggSvg(EGG_W, EGG_H, ink).toUtf8()).render(&ap, QRectF(0, 0, EGG_W, EGG_H));
+        ap.end();
+        art.save(&buf, "PNG");
+      } else {
+        themedIcon(QString::fromLatin1(glyph), ink, 16, dpr)
+            .pixmap(QSize(16, 16), dpr)
+            .toImage()
+            .save(&buf, "PNG");
+      }
     }
     // A one-row TABLE: Qt aligns an inline image's "middle" to the x-height, not the line
     // centre. The 8px cell padding mirrors the browser's `gap: 8px`.
     toast->setText(QString(
         "<table cellspacing=\"0\" cellpadding=\"0\" width=\"100%\"><tr>"
         "<td style=\"vertical-align: middle;\">"
-        "<img src=\"data:image/png;base64,%1\" width=\"16\" height=\"16\"></td>"
-        "<td style=\"vertical-align: middle; padding-left: 8px;\">%2</td>"
+        "<img src=\"data:image/png;base64,%1\" width=\"%2\" height=\"%3\"></td>"
+        "<td style=\"vertical-align: middle; padding-left: 8px;\">%4</td>"
         "</tr></table>")
-                       .arg(QString::fromLatin1(png.toBase64()), text.toHtmlEscaped()));
+                       .arg(QString::fromLatin1(png.toBase64()))
+                       .arg(special ? EGG_W : 16)
+                       .arg(special ? EGG_H : 16)
+                       .arg(text.toHtmlEscaped()));
     // The plain message, for anything reading a toast back (the GUI tests).
     toast->setProperty(TEXT_PROPERTY, text);
     toast->setObjectName("toast");
-    // Browser .notify-toast padding less the 4px the rich-text document adds itself.
-    toast->setStyleSheet(QString("QLabel#toast { background: %1; color: white; "
-                                 "padding: 6px 8px; border-radius: 6px; }")
-                             .arg(bg.name()));
+    // Browser .notify-toast padding less the 4px the rich-text document adds itself. A show's
+    // notice gives a pixel of it back to its taller mark, so every pill is the same height.
+    toast->setStyleSheet(QString("QLabel#toast { background: %1; color: %2; "
+                                 "padding: %3px 8px; border-radius: 6px; }")
+                             .arg(bg.name(), ink.name())
+                             .arg(special ? 5 : 6));
     toast->setAttribute(Qt::WA_TransparentForMouseEvents);
     // Resolve the stylesheet before measuring, or adjustSize() sizes the unstyled label.
     toast->ensurePolished();

@@ -1,6 +1,9 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { icon } from './icons.js';
 import { surfaceIn, surfaceOut, dockAwayPoint, retargetDust, SURFACE_MENU_IN_MS } from './motion.js';
+import { attachToastGlow } from './toastGlow.js';
+import { STAGE } from './logoStageRules.js';
+import SVG_ART from '../config/svgArt.json' with { type: 'json' };
 // The bottom-left notification stack; utils.js `notify()` delegates here. Each message is
 // its own .notify-toast child, newest at the bottom.
 
@@ -59,13 +62,15 @@ export class StencilNotifications extends StencilElement {
   static template() { return hostTag('stencil-notifications', 'id="notify-balloon"', StencilNotifications.inner()); }
 
   // `onClick` makes the toast an affordance (longer linger). `key` marks a running status: a
-  // new one with the same key replaces its predecessor instead of stacking.
-  notify(msg, type = 'ok', { onClick = null, key = null } = {}) {
+  // new one with the same key replaces its predecessor instead of stacking. `shine` is a logo
+  // show's own notice: the egg on gold, with the golden shining around it.
+  notify(msg, type = 'ok', { onClick = null, key = null, shine = false } = {}) {
     msg = squeezeLongTokens(msg);
     // Coalesce first: an identical clickless message restarts its timer, no replayed entrance.
     if (!onClick) {
       const dup = this.#live().find((el) =>
         el.classList.contains(`notify-${type}`)
+        && el.classList.contains('notify-shine') === !!shine
         && !el.classList.contains('notify-clickable')
         && el.querySelector('.notify-text')?.textContent === msg);
       if (dup) {
@@ -86,12 +91,18 @@ export class StencilNotifications extends StencilElement {
     for (let i = 0; i < live.length + 1 - MAX_VISIBLE; i++) this.#dismiss(live[i]);
 
     const toast = document.createElement('div');
-    toast.className = `notify-toast notify-${type}${onClick ? ' notify-clickable' : ''}`;
+    toast.className = `notify-toast notify-${type}${onClick ? ' notify-clickable' : ''}${shine ? ' notify-shine' : ''}`;
     toast.setAttribute('role', 'status');
     if (key) toast.dataset.notifyKey = key;
     toast.innerHTML = '<span class="notify-icon"></span><span class="notify-text"></span>';
-    toast.querySelector('.notify-icon').innerHTML =
-      icon(type === 'fail' ? 'x' : (type === 'info' ? 'info' : 'check'), { size: 16 });
+    toast.querySelector('.notify-icon').innerHTML = shine
+      ? SVG_ART.secretEgg.replaceAll('%1', '14').replaceAll('%2', '18').replaceAll('%3', STAGE.toastInk)
+      : icon(type === 'fail' ? 'x' : (type === 'info' ? 'info' : 'check'), { size: 16 });
+    // A show's notice is gold, whatever the accent — the aura around it is what carries the colour.
+    if (shine) {
+      toast.style.background = STAGE.toastGold;
+      toast.style.color = STAGE.toastInk;
+    }
     toast.querySelector('.notify-text').textContent = msg;
     if (onClick) {
       toast.addEventListener('click', () => {
@@ -104,6 +115,7 @@ export class StencilNotifications extends StencilElement {
     // A new row bumps every sibling still flying; drag their clouds along.
     for (const el of this.children) if (el !== toast) { retargetDust(el); clipDustToFree(el); }
     surfaceIn(toast, toastDustPoint(toast), { ms: ENTER_DUST_MS });
+    if (shine) toast._glowStop = attachToastGlow(toast);
     clipDustToFree(toast);
     toast._hideTimer = setTimeout(() => this.#dismiss(toast),
       onClick ? CLICKABLE_HIDE_MS : (type === 'fail' ? FAIL_HIDE_MS : OK_HIDE_MS));
@@ -124,6 +136,8 @@ export class StencilNotifications extends StencilElement {
     surfaceOut(toast, toastDustPoint(toast), { ms: LEAVE_DUST_MS, delayScale: TOAST_LEAVE_STAGGER });
     clipDustToFree(toast);
     setTimeout(() => {
+      // The halo rides the exit out with the pill, so it leaves when the pill does.
+      toast._glowStop?.();
       toast.remove();
       // Removing a row shrinks the column too.
       for (const el of this.children) { retargetDust(el); clipDustToFree(el); }

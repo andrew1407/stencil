@@ -208,6 +208,11 @@ set(STENCIL_DUSTKIT_SOURCES
   src/support/dustKit.cpp
   src/support/dustKitSprites.cpp)
 
+set(STENCIL_LOGOSTAGE_SOURCES
+  src/support/logoStageRules.cpp
+  src/support/logoStageMotion.cpp
+  src/support/logoStageCloud.cpp)
+
 set(STENCIL_FILTERFADE_SOURCES
   src/support/filterFade.cpp
   src/support/filterFadeList.cpp)
@@ -331,6 +336,9 @@ set(STENCIL_GUI_SOURCES
   src/app/StayOpenMenuWalk.cpp
   src/app/LogoHoverFx.cpp
   src/app/LogoHoverFxPaint.cpp
+  src/app/LogoStage.cpp
+  src/app/LogoStageInput.cpp
+  src/app/LogoStagePaint.cpp
   src/app/DockZonesOverlay.cpp
   src/app/DataExportController.cpp
   src/app/DataExportImage.cpp
@@ -443,6 +451,7 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_CONTROLREVEAL_SOURCES}
   ${STENCIL_CONTROLSWAP_SOURCES}
   ${STENCIL_DUSTKIT_SOURCES}
+  ${STENCIL_LOGOSTAGE_SOURCES}
   ${STENCIL_FILTERFADE_SOURCES}
   ${STENCIL_THEMESWAP_SOURCES}
   ${STENCIL_DISINTEGRATE_SOURCES}

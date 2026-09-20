@@ -208,7 +208,7 @@ foreach(area canvas canvasBar canvasBlank canvasChain canvasFilter canvasScroll 
              chatTurnsDoc chatTurnsEdgeMap chatTurnsLayout chatTurnsMenu chatTurnsPlan
              chatTurnsProjects chatTurnsRowMenu chatTurnsViewport chrome
              chromeFormula chromeFullscreen chromeIncognito chromeIncognitoToggle chromeName
-             chromeNameRing chromeShortcuts composition menuKeys menuKeysFlyout
+             chromeNameRing chromeShortcuts composition logoStage logoStageChase menuKeys menuKeysFlyout
              menuKeysScript menuKeysTint menus menusAltHold menusAssistantRows menusCanvas
              menusChips menusComposer menusConverse menusExport menusOpening menusPill
              menusRows menusScript motion motionDialogs motionGlyphs motionReveal
@@ -331,6 +331,7 @@ stencil_headless_test(stencil_projecttransfer_headless
     tests/projectTransfer.headless.cpp src/app/ProjectTransferController.cpp src/app/ProjectTransferImport.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} src/support/Notifications.cpp src/support/NotificationsStack.cpp src/support/iconSet.cpp
+    src/support/logoStageRules.cpp
     src/support/modalReveal.cpp   # notifications' toast dust needs motionReduced()
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
@@ -356,6 +357,7 @@ stencil_headless_test(stencil_notifications_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/Notifications.headless.cpp src/support/Notifications.cpp src/support/NotificationsStack.cpp
+    src/support/logoStageRules.cpp
     src/support/iconSet.cpp
     src/support/modalReveal.cpp   # the toast dust flight needs motionReduced()
     resources/app.qrc
@@ -693,8 +695,16 @@ stencil_headless_test(stencil_motionprefs_headless
 # consume — a broken app.qrc alias fails here fast.
 stencil_headless_test(stencil_configcanon_headless
   SOURCES tests/configCanon.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
-    src/support/iconSet.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
+    src/support/iconSet.cpp ${STENCIL_THEME_SOURCES} src/support/logoStageRules.cpp
+    resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
+
+# The logo stage's table and kinematics against the browser's printed values.
+stencil_headless_test(stencil_logostagerules_headless
+  SOURCES tests/logoStageRules.headless.cpp ${STENCIL_LOGOSTAGE_SOURCES}
+    ${STENCIL_DUSTKIT_SOURCES} ${STENCIL_THEME_SOURCES} resources/app.qrc
+  LIBS stencil_core Qt6::Widgets
+  INCLUDE_TESTS)
 
 # Drift guards for the assets the desktop reads instead of embedding: themeTokens.json
 # against the Palette, resources/app.qss against buildStylesheet's token map,

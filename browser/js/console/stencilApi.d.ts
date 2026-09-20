@@ -27,6 +27,9 @@ export type DrawMode = 'line' | 'rect';
 export type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
 export type ExportVariant = 'current' | 'original' | 'tint' | 'split';
 export type ChatDock = 'left' | 'right' | 'top' | 'bottom' | 'float';
+/** A logo show (js/config/logoStage.json), `close` for the one on screen, `what` for the words. */
+export type EasterEggsFacade = Readonly<Record<string, () => Stencil>>
+  & { readonly what: () => readonly string[]; readonly of: (word: string) => Stencil };
 
 export interface StencilSettings {
   lineColor: ColorInput;
@@ -57,8 +60,7 @@ export interface StencilSettings {
   /** Active project's accent colour; '' = neutral. Throws without an active project. */
   projectColor: string;
   description: string;
-  /** Read: string[]. Write one keyword per array entry, or a comma/newline separated
-   *  string — the same shapes Project.keywords takes. */
+  /** Read: string[]. Write an array entry per keyword, or one comma/newline separated string. */
   keywords: string[] | string;
   drawMode: DrawMode;
   /** ms, clamped 100–3000. */
@@ -85,8 +87,7 @@ export interface TooltipSections { enabled: boolean; page: boolean; screen: bool
 export interface Point {
   readonly lineIdx: number;
   readonly ptIdx: number;
-  x: number | undefined;
-  y: number | undefined;
+  x: number | undefined; y: number | undefined;
   apply(opts?: { x?: number; y?: number; size?: number }): Point;
   move(delta?: { x?: number; y?: number }): Point;
   /** Empties the line → the line is dropped; returns the owning Line, else the facade. */
@@ -131,8 +132,7 @@ export interface Project {
   color: string;
   /** The project's description, as the Description window edits it; '' clears it. */
   description: string;
-  /** One keyword per array entry (a keyword may be several words); a string splits on
-   *  commas and newlines. Duplicates collapse case-insensitively, order is kept. */
+  /** One array entry per keyword (which may be several words); a string splits on commas and newlines. */
   keywords: string[] | string;
   readonly blank: boolean;
   readonly fromFile: boolean;
@@ -294,6 +294,7 @@ export interface Stencil extends StencilSettings {
   openHelpWindow(): Stencil;
   openImageWindow(): Stencil;
   openCropWindow(): Stencil;
+  readonly EasterEggs: EasterEggsFacade;
 
   // Editor actions
   rotateLeft(): Stencil;

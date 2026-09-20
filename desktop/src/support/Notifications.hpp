@@ -37,7 +37,10 @@ namespace stencil::gui {
     void success(const QString& text) { show(text, Level::SUCCESS); }
     void error(const QString& text) { show(text, Level::ERROR); }
 
-    void show(const QString& text, Level level, int msec = 3000);
+    // `special` is a logo show's own notice: the egg on gold, whatever the accent.
+    void show(const QString& text, Level level, int msec = 3000, bool special = false);
+    // The newest toast still standing, for a caller that decorates its own notice.
+    QLabel* lastToast() const { return stack_.isEmpty() ? nullptr : stack_.last().data(); }
 
    protected:
     // The host is still narrow when the first toast appears at startup.
