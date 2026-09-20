@@ -10,7 +10,10 @@
     -webkit-backdrop-filter: blur(3px);
 }
 /* The POPOVER shape keeps the page readable: no dim (components/modalShell.css) and no blur —
-   the point of anchoring it at the icon is working with the page still in view. */
+   the point of anchoring it at the icon is working with the page still in view. The
+   data-modal-backdrop prefix is carried here too, or the blur rule above outranks this one. */
+:root[data-modal-backdrop] #settings-modal-overlay.modal-open.modal-popover,
+:root[data-modal-backdrop] .app-modal-overlay.modal-open.modal-popover,
 #settings-modal-overlay.modal-open.modal-popover,
 .app-modal-overlay.modal-open.modal-popover {
     animation: none;
@@ -44,6 +47,8 @@
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
 }
+:root[data-modal-backdrop] #settings-modal-overlay.modal-closing.modal-popover,
+:root[data-modal-backdrop] .app-modal-overlay.modal-closing.modal-popover,
 #settings-modal-overlay.modal-closing.modal-popover,
 .app-modal-overlay.modal-closing.modal-popover {
     animation: none;
