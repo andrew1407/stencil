@@ -28,8 +28,9 @@ type DrawMode = 'line' | 'rect';
 type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
 type ExportVariant = 'current' | 'original' | 'tint' | 'split';
 type ChatDock = 'left' | 'right' | 'top' | 'bottom' | 'float';
-/** A logo show (js/config/logoStage.json), plus `close` for the one on screen. */
-type EasterEggsFacade = Readonly<Record<string, () => Stencil>>;
+/** A logo show (js/config/logoStage.json), `close` for the one on screen, `what` for the words. */
+type EasterEggsFacade = Readonly<Record<string, () => Stencil>>
+  & { readonly what: () => readonly string[]; readonly of: (word: string) => Stencil };
 
 interface StencilSettings {
   /**
