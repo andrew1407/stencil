@@ -3,7 +3,7 @@
 export const modalShells = new Set();
 
 // One Escape listener for every shell: the topmost open window answers, and only it. A shell
-// wired `escapeClose: false` (settingsModal) keeps its modal open but closes its popover shape.
+// may keep the key for itself; no window the app ships does (tests/modalShell.test.js).
 let escapeWired = false;
 export const wireEscapeOnce = () => {
   if (escapeWired) return;
