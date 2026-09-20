@@ -44,7 +44,7 @@ left; `tests/layerBoundary.test.js` enforces it.
 |---|---|---|
 | `index.html` | the single `<script type="module">` entry and the CSS link order | the link order **is** the cascade; the CSP meta is identical to the `nginx.conf` header |
 | `css/` | `theme.css`, then `layout/`, `components/` (+ `chat/`), `animations/` | one file per section; tokens live in `theme.css` and are mirrored in `js/config/themeTokens.json` |
-| `js/config/` | constants, hotkey + help-text registries, and every cross-surface table (`themeTokens`, `mediaTypes`, `uiStrings`, `events`, `motion`, `svgArt`, `llm/`, `script/`) | **the canonical home of shared data**; the other surfaces embed or drift-test it |
+| `js/config/` | constants, hotkey + help-text registries, and every cross-surface table (`themeTokens`, `mediaTypes`, `uiStrings`, `events`, `motion`, `svgArt`, `logoStage`, `llm/`, `script/`) | **the canonical home of shared data**; the other surfaces embed or drift-test it |
 | `js/config/script/fixtures/` | `cases.txt`, the `.stc` corpus: every case as a section of source, canonical dump and expected diagnostics | plain text, never JSON — `core/` has no JSON parser and reads this same file; a case named `err-*` must produce an error |
 | `js/utils.js` + `js/utils/` | DOM, geometry, color, hotkey helpers | one import point; pure |
 | `js/core/` | `DrawingApp` and its collaborators: renderer, storage, history, zoom/pan, coord table, formulas, projects store, `deepLink`, `projectFile`, `extensionBridge`, `stencilCore` (the wasm singleton) | **no DOM access** — it runs under `node --test` |
@@ -205,6 +205,17 @@ classDiagram
   script buffer rather than opening the window on someone else's script.
   `js/core/extensionBridge.js` answers the extension's state/import/switch requests through
   the same core methods.
+- **A logo show.** Holding the header mark, typing a show's name, or calling
+  `stencil.EasterEggs.<show>()` all reach `activateShow` (`ui/logoStageTrigger.js`), which asks
+  `logoStageAllowed()` for a bare window — no stage up, not fullscreen, no open shell — and then
+  either opens the stage or, for the pink show, makes the edit: a page if there is none, the tint
+  through `settings`, and the heart as one `installLayout` step. `config/logoStage.json` is the
+  table both front-ends resolve a show from: which accent opens which effect, the motion mode a
+  styled effect also needs, and the custom hexes. The stage (`ui/logoStage.js`) is one canvas over
+  the whole window painting the mark, its light (`logoStagePaint.js`, the `logoHover.css`
+  keyframes at stage scale) and its cloud (`logoStageCloud.js`, over the shared grain kit); while
+  it is up a capture-phase listener swallows the keyboard except Escape, so the editor is inert
+  until it closes. `motionReduced()` keeps the stage and drops every loop.
 - **Single-file build.** `vite.config.js` carries its rules inline (no plugins);
   `tools/assertSelfContained.js` re-reads the output, and `tests/singleFileBuild.test.js`
   fails `npm test` if a loader outruns `tools/singleFilePatterns.js`.

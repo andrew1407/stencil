@@ -191,9 +191,9 @@ namespace stencil::gui {
     // Call order preserves the addToolBar/addToolBarBreak row sequencing.
     void buildMainToolbar();
     void buildHeaderRow();
+    void buildLogoStage();
     void buildToolSectionsRow();
     void buildFormulaFields();
-
     class QToolBar* toolRow() const;
     class QWidget* makeToolSection(const QString& title, const QList<class QAction*>& actions,
                                    const QList<class QWidget*>& extras = {},
@@ -650,7 +650,7 @@ namespace stencil::gui {
     QWidget* connectionsSection_ = nullptr;
     class QToolButton* panelReopenBtn_ = nullptr;
     class DockGripOverlay* panelGrip_ = nullptr;
-    bool panelGripDrag_ = false;
+    bool panelGripDrag_ = false, showCovered_ = false;
     // chatEdgeHit_ is the separator's real rect: the band paints thicker but lights only where Qt resizes.
     class DockEdgeOverlay* chatEdge_ = nullptr;
     QRect chatEdgeHit_;

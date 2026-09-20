@@ -5,6 +5,11 @@
 #include "CanvasWidget.hpp"
 #include "iconSet.hpp"
 #include "LogoHoverFx.hpp"
+#include "LogoStage.hpp"
+#include "Notifications.hpp"
+#include "ChatPlanTarget.hpp"
+#include "../support/logoStageRules.hpp"
+#include "../support/toastShine.hpp"
 #include "ControlsPill.hpp"
 #include "SearchCombo.hpp"
 #include "OpenImageButton.hpp"
@@ -85,6 +90,7 @@ namespace stencil::gui {
           const QColor a = accentPrimary(settings_.accentColor);
           return a.isValid() ? a : QColor(DEFAULT_ACCENT_HEX);
         });
+    buildLogoStage();
     headerToolbar_->addWidget(logoBtn_);
     // Routes through actToolbars_ so the View entry + Alt+C stay in sync. ControlsPill paints its
     // own chevron + label: a stock icon+text QToolButton reserves ~36px for the icon slot.
@@ -113,6 +119,73 @@ namespace stencil::gui {
     imageSizeInfo_->setContentsMargins(10, 11, 10, 11);
     imageSizeInfo_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     addToolBarBreak();
+  }
+
+  namespace {
+    // The heart the pink show draws: a closed, filled line over the picture's centre square.
+    core::Line heartLine(const QSize& size) {
+      const support::LogoStageConfig& cfg = support::logoStageConfig();
+      core::Line line;
+      line.locked = true;
+      line.color = cfg.heartStroke.toStdString();
+      line.fillColor = cfg.heartFill.toStdString();
+      line.thickness = cfg.heartThickness;
+      for (const QPointF& p : support::heartPoints(size.width(), size.height()))
+        line.points.push_back(core::Point{p.x(), p.y()});
+      return line;
+    }
+  }  // namespace
+
+  // The stage's seam onto the window (browser js/ui/logoStageTrigger.js): it holds no
+  // MainWindow, only what these hooks hand it.
+  void MainWindow::buildLogoStage() {
+    LogoStage::Hooks hooks;
+    hooks.makeMark = [this](int size) { return makeLogoPixmap(size); };
+    hooks.accent = [this] {
+      const QColor a = accentPrimary(settings_.accentColor);
+      return a.isValid() ? a : QColor(DEFAULT_ACCENT_HEX);
+    };
+    hooks.accentKey = [this] { return settings_.accentColor; };
+    hooks.bareWindow = [this] {
+      return !fs_.active && !QApplication::activeModalWidget() &&
+             !QApplication::activePopupWidget() && !pop_.active;
+    };
+    hooks.toast = [this](const QString& text) {
+      if (!notify_) return;
+      notify_->show(text, Notifications::Level::SUCCESS, 3000, /*special=*/true);
+      support::installToastShine(notify_->lastToast());
+    };
+    // Through the same appliers a toolbar click and a script op take.
+    hooks.pinkVibe = [this] {
+      const support::LogoStageConfig& cfg = support::logoStageConfig();
+      ChatPlanTarget target(*this);
+      if (!target.hasImage()) {
+        QString err;
+        target.newBlank(cfg.pinkBlank.name(), QString(), 0, 0, &err);
+      }
+      if (!target.hasImage()) return;
+      target.setImageFilter(QStringLiteral("custom"), cfg.pinkTint.name());
+      core::Lines lines = canvas_->lines();
+      lines.push_back(heartLine(canvas_->image().size()));
+      target.commitLayoutLines(lines);   // one step on the user's own undo stack
+      fitToWindow();   // the heart is the show — a page taller than the viewport hides it
+    };
+    hooks.stopClick = [this] { if (logoClickTimer_) logoClickTimer_->stop(); };
+    // LogoHoverFx re-raises itself on hover, so it would paint over the stage; it stands
+    // down for the show and paints its resting mark again afterwards.
+    hooks.coverChrome = [this](bool on) {
+      showCovered_ = on;
+      if (logoFx_) asLogoFx(logoFx_)->standDown(on);
+      // The dock edges re-raise themselves on every layout pass, so a resize during a show would
+      // put them back over it; they stand down with the header mark and come back with it.
+      positionPanelGrip();
+      positionChatEdge();
+    };
+    hooks.hideNotices = [this](bool on) {
+      for (const QString& n : {QStringLiteral("toast"), QStringLiteral("toastShine")})
+        for (QWidget* w : findChildren<QWidget*>(n)) w->setVisible(!on);
+    };
+    new LogoStage(this, logoBtn_, std::move(hooks));
   }
 
 }  // namespace stencil::gui

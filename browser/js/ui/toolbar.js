@@ -7,6 +7,7 @@ import { subscribe, EVENTS } from '../eventBus/appBus.js';
 import { syncWrappedSeparators } from './toolbarSeparators.js';
 import { wireVoiceChatToggle } from './voiceToggle.js';
 import { wireLogoColorPicker } from './logoAccent.js';
+import { wireLogoHold } from './logoStageTrigger.js';
 import { toolbarTopbarHtml } from './toolbarTopbar.js';
 import { toolbarImageSectionsHtml, toolbarStyleSectionsHtml } from './toolbarSections.js';
 import { toolbarPageSectionsHtml } from './toolbarPageSections.js';
@@ -113,6 +114,7 @@ ${toolbarPageSectionsHtml()}
     refresh();
 
     wireLogoColorPicker(this.querySelector('.app-logo'), _app);
+    wireLogoHold(this.querySelector('.app-logo'), _app);
     wireVoiceChatToggle(this.querySelector('#voice-chat-btn'), _app);
     // The section separators follow the wrap (below): measured again whenever this
     // toolbar, or the window around the fullscreen clone, changes size.

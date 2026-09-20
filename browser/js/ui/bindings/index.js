@@ -18,6 +18,7 @@ import { wireArrowPan } from './arrowPan.js';
 import { wireDropPaste } from './dropPaste.js';
 import { wireCanvasPointer } from './canvasPointer.js';
 import { wireSmoothZoom } from './smoothZoom.js';
+import { wireTypedWords } from './typedWords.js';
 
 // Wire each cohesive control group in source order: document-level listener dispatch
 // order depends on it.
@@ -39,6 +40,7 @@ export function wireControls(app) {
   wireScrollbarHover();
   wireCanvasPointer(app);
   wireSmoothZoom(app);
+  wireTypedWords(app);
   // Last, so every select the layout rendered wears the app's own dropdown rather than the OS
   // one; a second pass over an already-enhanced select is a no-op.
   enhanceAllSelects(document, {

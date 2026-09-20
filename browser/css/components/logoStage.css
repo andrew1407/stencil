@@ -1,0 +1,54 @@
+/* ── The logo stage (js/ui/logoStage.js) ──
+   One full-window canvas above every window, including the confirm overlay: while it is up it
+   is the only thing that takes a pointer, and its own listeners swallow the keyboard. */
+.logo-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 100004;
+    cursor: default;
+    touch-action: none;
+    /* The backdrop a modal puts up (animations/overlays.css); its scrim half is painted on the
+       canvas instead, so it fades in with the show rather than snapping on. */
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+.logo-stage canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* The canvas is what the pointer is actually over, and the app's own `canvas` rule pins every
+       canvas to the default arrow — so it has to be told to take the stage's hand. */
+    cursor: inherit;
+}
+
+/* A show covers every window, so its OWN notice is lifted over it — and it is the only
+   notice that can appear while one is up, since the editor is inert. */
+body.logo-stage-open #notify-balloon { z-index: 100006; }
+
+/* The golden shining a show's notice wears (js/ui/toastGlow.js): over the stage with it, but
+   UNDER the pill, so it rings the notice instead of washing its words out. */
+.toast-glow {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 100005;
+    pointer-events: none;
+}
+
+/* The lit border a show's notice wears (js/ui/notifications.js `shine`) — gold, like the pill
+   and the shining around it: the colour of the secret, never of the theme. */
+.notify-toast.notify-shine {
+    border: 2px solid #b8871f;
+    animation: notifyShine 1.2s ease-in-out infinite;
+}
+/* The mark is drawn taller than the 16px row and overflows into the padding, so it reads at
+   full size without the pill growing round it (desktop Notifications.cpp trims a pixel of
+   padding for the same pill height). */
+.notify-toast.notify-shine .notify-icon { height: 16px; }
+@keyframes notifyShine {
+    0%, 100% { border-color: #b8871f; box-shadow: 0 6px 24px rgba(0,0,0,0.28), 0 0 5px #ffd66b; }
+    50%      { border-color: #ffe9a8; box-shadow: 0 6px 24px rgba(0,0,0,0.28), 0 0 12px #ffd66b; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .notify-toast.notify-shine { animation: none; }
+}

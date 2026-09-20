@@ -22,6 +22,8 @@ namespace stencil::gui {
 
     // The accent can cycle mid-animation: refresh the art and re-blank the button.
     void themeChanged();
+    // Stand down while something covers the header (the logo stage), then paint the mark again.
+    void standDown(bool on);
     bool active() const;
     // The accent popover counts as hovering the logo (browser: the menu lives inside .app-logo-wrap); a short grace covers the anchor gap.
     void holdWhile(QWidget* box);

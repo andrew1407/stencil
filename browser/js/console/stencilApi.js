@@ -20,6 +20,7 @@ import { createExportActions } from './exportActions.js';
 import { createSessionApi } from './sessionApi.js';
 import { createCropApi } from './cropApi.js';
 import { createScriptApi } from './scriptApi.js';
+import { createEasterEggsApi } from './easterEggsApi.js';
 
 export { WINDOWS } from './windowsApi.js';
 
@@ -114,6 +115,7 @@ export const createStencil = (app) => {
     createSessionApi({ app, connMgr }),
     createCropApi({ app }),
     createScriptApi(),
+    createEasterEggsApi({ app, guard }),
   ];
 
   stencil = {

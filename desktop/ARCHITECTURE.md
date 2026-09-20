@@ -50,7 +50,7 @@ the files the lint lists as the core seam. The document state itself lives in `C
 | `src/llm/` | chat dock + widgets, `LlmClient`, `QtLlmTransport`, op registry/schema/plan, `planExecutor` | plans validate against the shared registry before execution; the executor calls the same appliers the toolbar uses |
 | `src/io/` | `fileStore` (settings, projects, autosave, `.stencil` (de)serialization), `mediaLoader` (image/video) | QtCore-only serialization; QImage codec work stays in `MainWindow` |
 | `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore` (0600 tokens), `fetchGuard`, `httpStatus` | `fetchGuard` is the surface's one SSRF guard, a port of `cli/src/net.zig`; tokens never go in `QSettings`; `httpStatus` names the 2xx/401-403 triage both clients share |
-| `src/support/` | theme (the shared ID-selector QSS), motion (`motionPrefs`, `dustKit`, `ThemeSwapOverlay`, `DisintegrateOverlay`, `scrollReveal`), widgets (`modalChrome`, `makeToolSection`), platform helpers | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
+| `src/support/` | theme (the shared ID-selector QSS), motion (`motionPrefs`, `dustKit`, `ThemeSwapOverlay`, `DisintegrateOverlay`, `logoStage*`, `scrollReveal`), widgets (`modalChrome`, `makeToolSection`), platform helpers | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
 | `resources/` | `app.qrc`: `app.qss` and the browser's shared config JSON as qrc aliases | shared tables are aliased from `browser/js/config/`, never copied |
 | `packaging/` | plist template, `.desktop`, mime xml, `make-icns.sh` | nothing binary committed; the icon is derived from `browser/favicon.svg` |
 | `cmake/` | `StencilSources`, `StencilTests`, `StencilPackaging` | source lists live here, not in `CMakeLists.txt` |
@@ -249,6 +249,17 @@ classDiagram
   `OpSchema::desktop()`), builds a `ChatPlanTarget(*this)` and `executePlan`; the
   `ExecResult` notes, variants (rendered in `CanvasPlanTarget` sandboxes) and ask card are
   posted to the dock, and a changed result runs the same refresh and autosave as a toolbar edit.
+- **A logo show.** Holding the header mark, or typing a show's name, reaches `LogoStage`
+  (`app/LogoStage*.cpp`), a full-window child of the window that asks its `Hooks` for a bare
+  window — not fullscreen, nothing modal, no popover — before it opens. `logoStage.json` in the
+  qrc is the table both front-ends resolve a show from: which accent opens which effect, the
+  motion mode a styled effect also needs, and the custom hexes. The stage paints the big mark,
+  its light and its cloud (`support/logoStage{Rules,Motion,Cloud}` over `dustKit`), and while it
+  is up it filters `qApp`: it accepts every `ShortcutOverride` so no action fires, swallows the
+  press that follows, and takes Escape as the way out. The pink show opens no stage — it runs
+  through `ChatPlanTarget`, the same applier a toolbar click and a script op take, so the tint
+  and the heart are one step on the user's own history. `motionReduced()` keeps the stage and
+  drops every loop.
 - **Packaging.** `cmake/StencilPackaging.cmake` drives CPack (`macdeployqt` / `windeployqt`;
   best-effort on Linux, Qt ≥ 6.3). The `.stencil` type and the `stencil://` scheme are
   registered on macOS (`com.stencil.project` UTI, `CFBundleDocumentTypes`, `CFBundleURLTypes`

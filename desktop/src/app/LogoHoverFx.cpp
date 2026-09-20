@@ -61,6 +61,15 @@ namespace stencil::gui {
     if (box_) box_->installEventFilter(this);
   }
 
+  void LogoHoverFx::standDown(bool on) {
+    if (on) {
+      stop();
+      hide();
+    } else {
+      showStatic();
+    }
+  }
+
   void LogoHoverFx::themeChanged() {
     pm_ = makePixmap_();
     blankButtonIcon();

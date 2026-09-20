@@ -16,7 +16,7 @@
 namespace stencil::gui {
 
   // QGraphicsOpacityEffect on the label — no compositor dependency.
-  inline constexpr int FADE_IN_MS = 180;
+  inline constexpr int FADE_IN_MS = 270;
   inline constexpr int FADE_OUT_MS = 160;
   // Browser notifyLeave's 14px — the plain fade+rise fallback only.
   inline constexpr int SLIDE_PX = 14;
@@ -27,8 +27,9 @@ namespace stencil::gui {
   inline constexpr const char* LEAVING_PROPERTY = "stencilToastLeaving";
   inline constexpr const char* TEXT_PROPERTY = "stencilToastText";
 
-  // Toast dust (browser motion.js surfaceIn/surfaceOut): 2x the shared menu clock.
-  inline constexpr int TOAST_IN_MS = 560;   // browser ENTER_DUST_MS 840 / 1.5
+  // Toast dust (browser motion.js surfaceIn/surfaceOut). The entrance runs LONGER than the
+  // browser's 680: at the desktop's size the arrival read as a flash rather than a landing.
+  inline constexpr int TOAST_IN_MS = 840;
   // Shorter than the entrance. Browser twin: js/ui/notifications.js LEAVE_DUST_MS.
   inline constexpr int TOAST_OUT_MS = 420;
 

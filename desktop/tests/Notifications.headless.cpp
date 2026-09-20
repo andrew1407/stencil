@@ -2,6 +2,7 @@
 // is ONE visible toast — the SAME widget, no entrance replay, its lifetime extended past the first
 // timer's expiry — distinct texts still stack, and the coalesced toast still auto-dismisses.
 #include "Notifications.hpp"
+#include "toastShine.hpp"
 
 #include <QApplication>
 #include <QElapsedTimer>
@@ -64,6 +65,30 @@ int main(int argc, char** argv) {
   notify.show(QStringLiteral("Synced to file"), Notifications::Level::INFO, 800);
   pumpFor(50);
   check(standing(host).size() == 2, "distinct texts stack as separate toasts");
+
+  // ── The golden shining tracks the pill's OWN geometry, not a clock: a window resize moves the
+  // stack, and polling left the halo a frame behind at the pill's last place.
+  {
+    QWidget shineHost;
+    shineHost.resize(400, 200);
+    shineHost.show();
+    auto* pill = new QLabel(QStringLiteral("Secret activated"), &shineHost);
+    pill->setObjectName(QStringLiteral("toast"));
+    pill->setGeometry(6, 160, 140, 28);
+    pill->show();
+    stencil::support::installToastShine(pill);
+    QWidget* halo = shineHost.findChild<QWidget*>(QStringLiteral("toastShine"));
+    check(halo, "the notice wears a halo");
+    constexpr int M = stencil::support::ToastShine::MARGIN;
+    const auto pinned = [&] { return halo->geometry() == pill->geometry().adjusted(-M, -M, M, M); };
+    check(pinned(), "it starts on the pill");
+    for (int dy : {40, -90, 25}) {
+      pill->move(pill->x() + 5, pill->y() + dy);   // no event loop between: a poll would lag here
+      check(pinned(), "…and it moves WITH the pill, in the same beat");
+    }
+    pill->resize(200, 36);
+    check(pinned(), "…and grows with it");
+  }
 
   std::printf("%s\n", failures ? "FAILED" : "OK");
   return failures ? 1 : 0;

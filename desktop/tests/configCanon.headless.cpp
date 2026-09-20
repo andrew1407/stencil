@@ -5,6 +5,7 @@
 // llm/providers.json → llmSettings' §5 defaults. A broken alias parses empty, so each block fails fast.
 #include "fileStore.hpp"
 #include "iconSet.hpp"
+#include "logoStageRules.hpp"
 #include "llmSettings.hpp"
 #include "theme.hpp"
 #include "pageMetrics.hpp"
@@ -46,6 +47,33 @@ int main(int argc, char** argv) {
     for (const auto& p : presets)
       if (p.key == "grey") grayOk = (p.label == "Gray" && p.hex == "#64748b");
     check(grayOk, "grey preset spot-check (label \"Gray\", #64748b)");
+  }
+
+  // ── logoStage.json ────────────────────────────────────────────────────────
+  {
+    const QJsonObject canon = readConfig(":/config/logoStage.json").object();
+    const auto& cfg = stencil::support::logoStageConfig();
+    check(!canon.isEmpty(), "logoStage.json qrc alias resolves and parses");
+    const QJsonObject shows = canon.value("shows").toObject();
+    check(shows.size() == cfg.shows.size(), "every show in the canon is read");
+    bool named = true;
+    for (auto it = shows.begin(); it != shows.end(); ++it)
+      if (!stencil::support::showByName(it.key())) {
+        named = false;
+        std::printf("       missing show: %s\n", qPrintable(it.key()));
+      }
+    check(named, "each canon show resolves by name");
+    check(cfg.holdMs == canon.value("holdMs").toInt(), "the hold is the canon's");
+    check(cfg.toast == canon.value("toast").toString(), "…and so is the notice's text");
+    // Every accent preset opens exactly one show — the browser asserts the same table.
+    bool covered = true;
+    for (const auto& p : accentPresets()) {
+      int owners = 0;
+      for (const auto& s : cfg.shows)
+        if (s.accents.contains(p.key)) ++owners;
+      if (owners != 1) { covered = false; std::printf("       %s: %d shows\n", qPrintable(p.key), owners); }
+    }
+    check(covered, "each accent preset is owned by exactly one show");
   }
 
   // ── icons.json ────────────────────────────────────────────────────────────

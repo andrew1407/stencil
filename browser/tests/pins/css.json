@@ -778,6 +778,14 @@
     "opacity": "0",
     "transform": "translateY(14px) scale(0.94)"
    },
+   "@keyframes notifyShine|0%, 100%": {
+    "border-color": "#b8871f",
+    "box-shadow": "0 6px 24px rgba(0,0,0,0.28), 0 0 5px #ffd66b"
+   },
+   "@keyframes notifyShine|50%": {
+    "border-color": "#ffe9a8",
+    "box-shadow": "0 6px 24px rgba(0,0,0,0.28), 0 0 12px #ffd66b"
+   },
    "@keyframes overlayFadeIn|from": {
     "opacity": "0"
    },
@@ -1376,6 +1384,9 @@
     "animation": "none"
    },
    "@media (prefers-reduced-motion: reduce)|.notify-toast.notify-leaving": {
+    "animation": "none"
+   },
+   "@media (prefers-reduced-motion: reduce)|.notify-toast.notify-shine": {
     "animation": "none"
    },
    "@media (prefers-reduced-motion: reduce)|.reveal-group-transition": {
@@ -2160,7 +2171,7 @@
     "animation": "overlayFadeOut 0.34s ease both",
     "pointer-events": "none"
    },
-   "|#settings-modal-overlay.modal-closing.modal-popover, .app-modal-overlay.modal-closing.modal-popover": {
+   "|#settings-modal-overlay.modal-closing.modal-popover, .app-modal-overlay.modal-closing.modal-popover, :root[data-modal-backdrop] #settings-modal-overlay.modal-closing.modal-popover, :root[data-modal-backdrop] .app-modal-overlay.modal-closing.modal-popover": {
     "animation": "none",
     "backdrop-filter": "none",
     "-webkit-backdrop-filter": "none"
@@ -2178,7 +2189,7 @@
    "|#settings-modal-overlay.modal-open, .app-modal-overlay.modal-open": {
     "animation": "overlayFadeIn 0.22s ease both"
    },
-   "|#settings-modal-overlay.modal-open.modal-popover, .app-modal-overlay.modal-open.modal-popover": {
+   "|#settings-modal-overlay.modal-open.modal-popover, .app-modal-overlay.modal-open.modal-popover, :root[data-modal-backdrop] #settings-modal-overlay.modal-open.modal-popover, :root[data-modal-backdrop] .app-modal-overlay.modal-open.modal-popover": {
     "animation": "none",
     "backdrop-filter": "none",
     "-webkit-backdrop-filter": "none"
@@ -6008,6 +6019,21 @@
    "|.logo-accent-menu.dd-closing": {
     "animation": "menuToAnchor 0.18s ease both"
    },
+   "|.logo-stage": {
+    "position": "fixed",
+    "inset": "0",
+    "z-index": "100004",
+    "cursor": "default",
+    "touch-action": "none",
+    "backdrop-filter": "blur(3px)",
+    "-webkit-backdrop-filter": "blur(3px)"
+   },
+   "|.logo-stage canvas": {
+    "display": "block",
+    "width": "100%",
+    "height": "100%",
+    "cursor": "inherit"
+   },
    "|.main-content": {
     "display": "flex",
     "gap": "10px",
@@ -6193,6 +6219,13 @@
    "|.notify-toast.notify-leaving": {
     "animation": "notifyLeave 0.26s cubic-bezier(0.4, 0, 1, 1) both",
     "pointer-events": "none"
+   },
+   "|.notify-toast.notify-shine": {
+    "border": "2px solid #b8871f",
+    "animation": "notifyShine 1.2s ease-in-out infinite"
+   },
+   "|.notify-toast.notify-shine .notify-icon": {
+    "height": "16px"
    },
    "|.oi-color": {
     "display": "inline-flex",
@@ -7247,6 +7280,13 @@
     "font-weight": "600",
     "min-width": "0"
    },
+   "|.toast-glow": {
+    "position": "fixed",
+    "left": "0",
+    "top": "0",
+    "z-index": "100005",
+    "pointer-events": "none"
+   },
    "|.tooltip": {
     "position": "fixed",
     "background": "var(--bg-tooltip)",
@@ -7744,6 +7784,9 @@
    },
    "|body.incognito-mode .ig-t": {
     "--ig-delay": "0ms"
+   },
+   "|body.logo-stage-open #notify-balloon": {
+    "z-index": "100006"
    },
    "|body:has(stencil-chat-panel.chat-closing)": {
     "transition": "background 0.3s, color 0.3s, padding 0.39s ease"
@@ -8529,6 +8572,15 @@
    "|.notify-toast .notify-icon",
    "|.notify-toast.notify-clickable",
    "|.notify-toast.notify-clickable:hover",
+   "|.logo-stage",
+   "|.logo-stage canvas",
+   "|body.logo-stage-open #notify-balloon",
+   "|.toast-glow",
+   "|.notify-toast.notify-shine",
+   "|.notify-toast.notify-shine .notify-icon",
+   "@keyframes notifyShine|0%, 100%",
+   "@keyframes notifyShine|50%",
+   "@media (prefers-reduced-motion: reduce)|.notify-toast.notify-shine",
    "|#install-host[hidden]",
    "|#install-host",
    "|#install-toggle",
@@ -9557,12 +9609,12 @@
    "@media (prefers-reduced-motion: reduce)|#voice-chat-btn.active::after, .btn-icon.chat-abtn.chat-voice-on.chat-voice-listening::after, .btn-icon.ctx-assist-abtn.chat-voice-on.chat-voice-listening::after",
    "|#settings-modal-overlay.modal-open, .app-modal-overlay.modal-open",
    "|:root[data-modal-backdrop] #settings-modal-overlay.modal-open, :root[data-modal-backdrop] .app-modal-overlay.modal-open",
-   "|#settings-modal-overlay.modal-open.modal-popover, .app-modal-overlay.modal-open.modal-popover",
+   "|#settings-modal-overlay.modal-open.modal-popover, .app-modal-overlay.modal-open.modal-popover, :root[data-modal-backdrop] #settings-modal-overlay.modal-open.modal-popover, :root[data-modal-backdrop] .app-modal-overlay.modal-open.modal-popover",
    "|#settings-modal-overlay.modal-open #settings-modal, .app-modal-overlay.modal-open .app-modal",
    "|#settings-modal-overlay.modal-measuring #settings-modal, .app-modal-overlay.modal-measuring .app-modal",
    "|#settings-modal-overlay.modal-closing, .app-modal-overlay.modal-closing",
    "|:root[data-modal-backdrop] #settings-modal-overlay.modal-closing, :root[data-modal-backdrop] .app-modal-overlay.modal-closing",
-   "|#settings-modal-overlay.modal-closing.modal-popover, .app-modal-overlay.modal-closing.modal-popover",
+   "|#settings-modal-overlay.modal-closing.modal-popover, .app-modal-overlay.modal-closing.modal-popover, :root[data-modal-backdrop] #settings-modal-overlay.modal-closing.modal-popover, :root[data-modal-backdrop] .app-modal-overlay.modal-closing.modal-popover",
    "|#settings-modal-overlay.modal-closing #settings-modal, .app-modal-overlay.modal-closing .app-modal",
    "@keyframes menuPop|from",
    "@keyframes menuPop|to",
