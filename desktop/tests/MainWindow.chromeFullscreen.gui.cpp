@@ -158,6 +158,58 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+  // A hide that lands mid-slide must not take the half-open width as the one to come back to: an
+  // edge swipe in fullscreen used to shrink the panel a step per pass, down to its minimum.
+  void interruptedPanelRevealKeepsItsWidth() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1400, 900);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    settle([&] { return win.selPanel_->width() > 300; }, 1000);   // the deferred resizeDocks to the default width
+    const int settledWidth = win.selPanel_->width();
+    QVERIFY(settledWidth > 300);
+    win.toggleFullscreen();
+    settle([&] { return !win.fs_.zoomAnim; }, 1500);
+    if (win.fs_.hoverTimer) win.fs_.hoverTimer->stop();   // the case drives the reveal, not the cursor
+    win.setPanelShown(true, true);
+    settle([&] { return win.selPanel_->width() > 60; }, 1000);
+    QVERIFY2(win.panelAnim_, "the reveal should still be sliding");
+    win.setPanelShown(false, true);
+    settle([&] { return !win.panelAnim_; }, 2000);
+    QCOMPARE(win.panelRestoreWidth_, settledWidth);
+    win.setPanelShown(true, true);
+    settle([&] { return !win.panelAnim_; }, 2000);
+    QCOMPARE(win.selPanel_->width(), settledWidth);
+    win.toggleFullscreen();
+    settle([&] { return win.selPanel_->width() == settledWidth; }, 1500);
+    QCOMPARE(win.selPanel_->width(), settledWidth);
+  }
+
+  // The separator grip is the fullscreen panel's resize affordance too (browser #fs-panel-resizer), and it lands
+  // with the panel: away through the slide, up once it settles.
+  void fullscreenPanelKeepsItsGrip() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1400, 900);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(win.panelGrip_);
+    win.toggleFullscreen();
+    settle([&] { return !win.fs_.zoomAnim; }, 1500);
+    if (win.fs_.hoverTimer) win.fs_.hoverTimer->stop();
+    QVERIFY(!win.panelGrip_->isVisible());
+    win.setPanelShown(true, true);
+    settle([&] { return win.selPanel_->width() > 60; }, 1000);
+    QVERIFY2(!win.panelGrip_->isVisible(), "the grip ran ahead of the sliding panel");
+    settle([&] { return !win.panelAnim_; }, 2000);
+    QVERIFY2(win.panelGrip_->isVisible(), "no grip on the revealed fullscreen panel");
+    QVERIFY(win.selPanel_->maximumWidth() > win.selPanel_->minimumWidth());   // …and it can still be dragged
+    win.toggleFullscreen();
+    settle([&] { return !win.fs_.active && !win.panelAnim_; }, 1500);
+    QVERIFY(win.panelGrip_->isVisible());
+  }
+
 };
 
 QTEST_MAIN(MainWindowGuiTest)

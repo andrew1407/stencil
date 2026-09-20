@@ -4,6 +4,7 @@ import { fillState } from '../core/layout.js';
 import { pointColorOf } from '../core/renderer.js';
 import { notify, cssColorParts, writeColorPair, fillFromPair, NO_FILL } from '../utils.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, revealControls } from './motion.js';
+import { syncFsTriggers } from './fullscreenPanels.js';
 // ── Component: selected-line editor panel ───────────────────────
 // Markup only; its inputs are wired by DrawingApp via global ids.
 export class StencilSelectionPanel extends StencilElement {
@@ -131,6 +132,7 @@ export function hideSelectionPanels() {
   }
   const fsPanel = document.getElementById('fs-selection-panel');
   if (fsPanel) fsPanel.style.display = 'none';
+  syncFsTriggers();
 }
 
 // Apply the locked-area fill from the selection panel controls.
@@ -159,11 +161,7 @@ export function syncFsSelectionPanel(app, line) {
   fsPanel.style.display = 'block';
   // Re-enable transition after placement
   requestAnimationFrame(() => { fsPanel.style.transition = ''; });
-  // Expand top trigger to cover the selection panel
-  requestAnimationFrame(() => {
-    const trigger = document.getElementById('fs-top-trigger');
-    if (trigger) trigger.style.height = Math.max(8, fsPanel.getBoundingClientRect().bottom) + 'px';
-  });
+  requestAnimationFrame(syncFsTriggers);   // the top band spans the overlay too
   const fs = fillState(line, app.defaultFillColor);
   fsPanel.innerHTML = `<div class="selection-panel-inner">
             <span class="selection-label">${icon('pencil', { size: 14 })} Selected Line:</span>

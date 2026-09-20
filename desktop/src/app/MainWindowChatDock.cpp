@@ -134,10 +134,12 @@ namespace stencil::gui {
   // (setFixedWidth) each frame and release the constraint at the end.
   void MainWindow::setPanelShown(bool show, bool animate) {
     if (!selPanel_) return;
+    // A width read mid-slide is not one the user chose: only a settled panel updates the restore width.
+    const bool settled = !panelAnim_;
     if (panelAnim_) { panelAnim_->stop(); panelAnim_->deleteLater(); panelAnim_ = nullptr; }
     releasePanelVeil();   // an interrupted flight must never leave the panel invisible
     const int full = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : PANEL_DEFAULT_WIDTH;
-    if (!show && selPanel_->isVisible() && selPanel_->width() > 120)
+    if (!show && settled && selPanel_->isVisible() && selPanel_->width() > 120)
       panelRestoreWidth_ = selPanel_->width();
     // The two chevrons are different buttons but read as one toggle. Driven here so Alt+X and
     // the View menu turn it too, not only a click on the chevron.
@@ -145,12 +147,14 @@ namespace stencil::gui {
     if (show) spinIcon(panelReopenBtn_, "chevron-left", palette().color(QPalette::WindowText),
                        PANEL_TOGGLE_GLYPH, 0, 180, spinMs);
     else selPanel_->spinCollapseChevron(0, 180, spinMs);
-    auto finish = [this, show] {
+    auto finish = [this, show, full] {
       releasePanelVeil();
       selPanel_->setMinimumWidth(PANEL_MIN_WIDTH);
       selPanel_->setMaximumWidth(QWIDGETSIZE_MAX);
-      if (!show) selPanel_->hide();
+      if (show) resizeDocks({selPanel_}, {full}, Qt::Horizontal);   // the layout's own record, or it drifts a pixel a cycle
+      else selPanel_->hide();
       panelAnim_ = nullptr;
+      positionPanelGrip();
       updatePanelReopenButton();
     };
     int from, to;
@@ -176,6 +180,7 @@ namespace stencil::gui {
         this, from, to, show ? FOLD_MS : FOLD_OUT_MS,
         pinAndRaiseDust([this](int v) { selPanel_->setFixedWidth(v); }, dustFx),
         finish);
+    positionPanelGrip();
   }
 
 }  // namespace stencil::gui

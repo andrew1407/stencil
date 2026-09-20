@@ -1730,6 +1730,9 @@
     "transition": "transform 0.25s ease, opacity 0.25s ease",
     "pointer-events": "auto"
    },
+   "|#fs-controls-panel.dust-driven, #fs-points-panel.dust-driven": {
+    "transition": "none"
+   },
    "|#fs-controls-panel.fs-panel-visible": {
     "transform": "translateY(0)",
     "opacity": "1"
@@ -1787,7 +1790,7 @@
     "top": "0",
     "bottom": "0",
     "right": "0",
-    "width": "8px",
+    "width": "28px",
     "z-index": "10002"
    },
    "|#fs-right-trigger, #fs-top-trigger": {
@@ -1813,7 +1816,7 @@
     "top": "0",
     "left": "0",
     "right": "0",
-    "height": "8px",
+    "height": "28px",
     "z-index": "10002"
    },
    "|#fullscreen-toggle": {
@@ -7661,10 +7664,20 @@
    "|body.fullscreen-mode #fs-panel-resizer": {
     "display": "block"
    },
+   "|body.fullscreen-mode #fs-points-panel.dust-driven ~ #fs-panel-resizer": {
+    "transition": "none"
+   },
    "|body.fullscreen-mode #fs-points-panel.fs-panel-visible ~ #fs-panel-resizer": {
     "transform": "translateX(0)",
     "opacity": "1",
     "pointer-events": "auto"
+   },
+   "|body.fullscreen-mode #fs-points-panel.surface-forming ~ #fs-panel-resizer": {
+    "animation": "surfaceForm 460ms linear both"
+   },
+   "|body.fullscreen-mode #fs-points-panel.surface-leaving ~ #fs-panel-resizer": {
+    "opacity": "0",
+    "pointer-events": "none"
    },
    "|body.fullscreen-mode #fs-right-trigger, body.fullscreen-mode #fs-top-trigger": {
     "display": "block"
@@ -8415,11 +8428,15 @@
    "|#fs-controls-panel, #fs-points-panel",
    "|#fs-controls-panel",
    "|#fs-controls-panel.fs-panel-visible",
+   "|#fs-controls-panel.dust-driven, #fs-points-panel.dust-driven",
    "|#fs-points-panel",
    "|#fs-points-panel.fs-panel-visible",
    "|#fs-panel-resizer",
    "|body.fullscreen-mode #fs-panel-resizer",
    "|body.fullscreen-mode #fs-points-panel.fs-panel-visible ~ #fs-panel-resizer",
+   "|body.fullscreen-mode #fs-points-panel.dust-driven ~ #fs-panel-resizer",
+   "|body.fullscreen-mode #fs-points-panel.surface-forming ~ #fs-panel-resizer",
+   "|body.fullscreen-mode #fs-points-panel.surface-leaving ~ #fs-panel-resizer",
    "|#fs-panel-resizer::before",
    "|#fs-panel-resizer.dragging::before, #fs-panel-resizer:hover::before",
    "|#fs-right-trigger, #fs-top-trigger",

@@ -78,11 +78,12 @@ namespace stencil::gui {
     updatePanelReopenButton();
   }
 
-  // Over the 9px separator strip (theme.cpp QMainWindow::separator); hidden with the panel, while it floats, and in fullscreen.
+  // Over the 9px separator strip (theme.cpp QMainWindow::separator); hidden with the panel, while it floats, and
+  // through a slide, so it lands with the panel rather than ahead of it (browser: #fs-panel-resizer forms with the list).
   void MainWindow::positionPanelGrip() {
     if (!panelGrip_ || !selPanel_) return;
     const Qt::DockWidgetArea area = dockWidgetArea(selPanel_);
-    const bool on = !selPanel_->isHidden() && !selPanel_->isFloating() && !fs_.active
+    const bool on = !selPanel_->isHidden() && !selPanel_->isFloating() && !panelAnim_
                     && (area == Qt::RightDockWidgetArea || area == Qt::LeftDockWidgetArea);
     panelGrip_->setVisible(on);
     if (!on) {
