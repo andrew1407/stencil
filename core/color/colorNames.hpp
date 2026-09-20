@@ -1,4 +1,5 @@
 #pragma once
+#include "rgba.hpp"  // CHANNEL_MAX
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -12,7 +13,7 @@ namespace stencil::core {
     int r = 0;
     int g = 0;
     int b = 0;
-    int a = 255;
+    int a = CHANNEL_MAX;
   };
 
   // Case-insensitive; 'transparent' is {0,0,0,0}; nullopt if unrecognized.

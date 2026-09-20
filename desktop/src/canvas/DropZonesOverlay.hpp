@@ -1,6 +1,7 @@
 #pragma once
 // Split image-drop overlay: LEFT = "Upload & save", RIGHT = "Upload incognito" (browser
 // #global-drop-overlay). Click-through and purely visual; MainWindow::dropEvent decides.
+#include "accentDefaults.hpp"
 #include <QColor>
 #include <QEvent>
 #include <QFont>
@@ -136,7 +137,7 @@ namespace stencil::gui {
     static constexpr int GLYPH_PX = 96;
     static constexpr double GLYPH_DRAW_PX = 46.0;
 
-    QColor accent_{"#7c3aed"};
+    QColor accent_{DEFAULT_ACCENT_HEX};
     QColor muted_{"#80868f"};
     bool activeLeft_ = true;
     QTimer pulse_;

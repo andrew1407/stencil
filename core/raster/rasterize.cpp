@@ -47,13 +47,13 @@ namespace stencil::core {
       if (x < 0 || x >= w || y < 0 || y >= h) return;
       int a = static_cast<int>(coverage * c.a + 0.5);  // effective alpha, 0..255
       if (a <= 0) return;
-      if (a > 255) a = 255;
-      const int ia = 255 - a;
+      if (a > CHANNEL_MAX) a = CHANNEL_MAX;
+      const int ia = CHANNEL_MAX - a;
       std::uint8_t* p = buf + rgbaOffset(x, y, w);
       p[0] = div255(c.r * a + p[0] * ia);
       p[1] = div255(c.g * a + p[1] * ia);
       p[2] = div255(c.b * a + p[2] * ia);
-      p[3] = div255(255 * a + p[3] * ia);
+      p[3] = div255(CHANNEL_MAX * a + p[3] * ia);
     }
 
     void stampDisc(std::uint8_t* buf, int w, int h, double cx, double cy,
@@ -177,7 +177,7 @@ namespace stencil::core {
     const auto own = parseColor(pointColorOr(line));
     const Rgba fill = (own && own->a > 0) ? *own : (strokeOn ? *stroke : Rgba{0, 0, 0, 0});
     if (fill.a == 0) return;
-    const Rgba outline{0, 0, 0, 255};
+    const Rgba outline{0, 0, 0, CHANNEL_MAX};
     for (const Point& p : line.points) {
       stampDisc(buf, w, h, p.x, p.y, line.pointSize, fill);
       stampRing(buf, w, h, p.x, p.y, line.pointSize, 1.0, outline);

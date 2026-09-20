@@ -138,7 +138,7 @@ namespace stencil::gui {
       QColor c(accentKey);
       if (c.isValid()) return displayColor(c);
     }
-    return displayColor(QColor("#7c3aed"));  // unknown key -> violet (the default)
+    return displayColor(QColor(DEFAULT_ACCENT_HEX));  // unknown key -> violet (the default)
   }
 
   bool accentNeedsDarkGlyph(const QColor& accent) {

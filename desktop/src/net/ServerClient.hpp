@@ -1,6 +1,7 @@
 #pragma once
 // REST mirror of server/internal/protocol; live edits ride a raw QTcpSocket NDJSON transport (no WebSocket dependency).
 #include "connectionStore.hpp"
+#include "httpStatus.hpp"
 #include <QByteArray>
 #include <QJsonArray>
 #include <QJsonObject>

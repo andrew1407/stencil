@@ -31,26 +31,26 @@ namespace stencil::core {
 
       case FilterMode::SEPIA: {
         const int sr =
-            std::min(255, static_cast<int>(0.393 * r + 0.769 * g + 0.189 * b));
+            std::min(CHANNEL_MAX, static_cast<int>(0.393 * r + 0.769 * g + 0.189 * b));
         const int sg =
-            std::min(255, static_cast<int>(0.349 * r + 0.686 * g + 0.168 * b));
+            std::min(CHANNEL_MAX, static_cast<int>(0.349 * r + 0.686 * g + 0.168 * b));
         const int sb =
-            std::min(255, static_cast<int>(0.272 * r + 0.534 * g + 0.131 * b));
+            std::min(CHANNEL_MAX, static_cast<int>(0.272 * r + 0.534 * g + 0.131 * b));
         return {sr, sg, sb};
       }
 
       case FilterMode::CUSTOM: {
         const int l = luma::rec709Truncated(r, g, b);
-        const double t = l / 255.0;  // 0 dark->color, 1 light->white
+        const double t = static_cast<double>(l) / CHANNEL_MAX;  // 0 dark->color, 1 light->white
         return {
-            static_cast<int>(std::lround(tintR + (255 - tintR) * t)),
-            static_cast<int>(std::lround(tintG + (255 - tintG) * t)),
-            static_cast<int>(std::lround(tintB + (255 - tintB) * t)),
+            static_cast<int>(std::lround(tintR + (CHANNEL_MAX - tintR) * t)),
+            static_cast<int>(std::lround(tintG + (CHANNEL_MAX - tintG) * t)),
+            static_cast<int>(std::lround(tintB + (CHANNEL_MAX - tintB) * t)),
         };
       }
 
       case FilterMode::INVERT:
-        return {255 - r, 255 - g, 255 - b};
+        return {CHANNEL_MAX - r, CHANNEL_MAX - g, CHANNEL_MAX - b};
 
       case FilterMode::CONTOUR:
         return {r, g, b};
@@ -64,7 +64,7 @@ namespace stencil::core {
     void filterRun(FilterMode mode, std::uint8_t* px, std::size_t count, int tintR,
                    int tintG, int tintB) {
       const auto run = [&](auto fn) {
-        for (std::size_t i = 0; i < count; ++i, px += 4) {
+        for (std::size_t i = 0; i < count; ++i, px += RGBA_BYTES) {
           const Rgb8 o = fn(px[0], px[1], px[2]);
           px[0] = static_cast<std::uint8_t>(o.r);
           px[1] = static_cast<std::uint8_t>(o.g);
@@ -121,7 +121,7 @@ namespace stencil::core {
     for (int y = y0; y < y1; ++y) {
       const std::uint8_t* px = data + rgbaOffset(0, y, width);
       std::uint8_t* out = luma + static_cast<std::size_t>(y) * static_cast<std::size_t>(width);
-      for (int x = 0; x < width; ++x, px += 4)
+      for (int x = 0; x < width; ++x, px += RGBA_BYTES)
         out[x] = core::luma::rec709Scaled(px[0], px[1], px[2]);
     }
   }
@@ -145,9 +145,9 @@ namespace stencil::core {
       const std::uint8_t* dn = luma + static_cast<std::size_t>(std::min(y + 1, height - 1)) * w;
       std::uint8_t* px = data + rgbaOffset(0, y, width);
       const auto write = [&](int x, int gx, int gy) {
-        const int mag = std::min(255, std::abs(gx) + std::abs(gy));
-        const auto v = static_cast<std::uint8_t>(255 - mag);  // dark edge on white
-        std::uint8_t* p = px + static_cast<std::size_t>(x) * 4;
+        const int mag = std::min(CHANNEL_MAX, std::abs(gx) + std::abs(gy));
+        const auto v = static_cast<std::uint8_t>(CHANNEL_MAX - mag);  // dark edge on white
+        std::uint8_t* p = px + static_cast<std::size_t>(x) * RGBA_BYTES;
         p[0] = v;
         p[1] = v;
         p[2] = v;

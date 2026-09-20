@@ -34,10 +34,10 @@ namespace stencil::gui {
     constexpr const char* DEF_STYLE = "solid";
     constexpr const char* DEF_FILL = "#ffffff";
     constexpr const char* DEF_SEL_GLOW = "#ffc800";
-    constexpr const char* DEF_HOVER_RING = "#7c3aed";
-    constexpr const char* DEF_FOCUS_RING = "#7c3aed";
+    constexpr const char* DEF_HOVER_RING = DEFAULT_ACCENT_HEX;
+    constexpr const char* DEF_FOCUS_RING = DEFAULT_ACCENT_HEX;
     constexpr int DEF_HOLD_DELAY = 500;
-    constexpr const char* DEF_ACCENT = "violet";
+    constexpr const char* DEF_ACCENT = DEFAULT_ACCENT_KEY;
     // ui/motionPrefs.js DEFAULT_DRAWING_ANIMATIONS / DEFAULT_MOTION_MODE.
     constexpr bool DEF_DRAW_ANIM = true;
     constexpr const char* DEF_MOTION_MODE = "particles";

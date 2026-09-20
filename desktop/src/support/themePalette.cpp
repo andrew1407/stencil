@@ -49,7 +49,7 @@ namespace stencil::gui {
     p.disabledText = themeToken("--disabled-text", dark);
     // NOT theme.css tokens: constants.json DEFAULT_VISUALS, repainted via Settings.
     p.selGlow = displayColor(QColor("#ffc800"));
-    p.hoverRing = displayColor(QColor("#7c3aed"));
+    p.hoverRing = displayColor(QColor(DEFAULT_ACCENT_HEX));
     // The canon carries only the violet default; the chosen accent is what the app wears.
     const QColor accent = accentPrimary(accentKey);
     p.accent = accent;

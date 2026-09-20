@@ -1,4 +1,5 @@
 #pragma once
+#include "accentDefaults.hpp"
 #include <QPainterPath>
 #include <QRectF>
 #include <QString>
@@ -44,7 +45,7 @@ namespace stencil::gui {
     double progress_ = 0.0;
     QVariantAnimation* anim_ = nullptr;
     bool dark_ = false;
-    QString accentKey_ = "violet";
+    QString accentKey_ = DEFAULT_ACCENT_KEY;
   };
 
 }

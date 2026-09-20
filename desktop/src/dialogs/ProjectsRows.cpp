@@ -1,8 +1,8 @@
 #include "ProjectsDialog.hpp"
 
+#include "accentDefaults.hpp"
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
-#include "ProjectsDialog.hpp"
 #include "guiHelpers.hpp"
 #include "../support/controlReveal.hpp"
 #include "../support/DisintegrateOverlay.hpp"
@@ -128,7 +128,7 @@ namespace stencil::gui {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     const QString cur = currentRowColor();
     const QColor seed = (!cur.isEmpty() && QColor(cur).isValid()) ? QColor(cur)
-                                                                  : QColor("#7c3aed");
+                                                                  : QColor(DEFAULT_ACCENT_HEX);
     // Raised from the row's menu, so it flies like every other window that menu opens: out of the
     // pressed row, back into the chip. Rows are delegate-painted, so both ends are global rects.
     const QRect rowRect(list_->viewport()->mapToGlobal(list_->visualItemRect(it).topLeft()),

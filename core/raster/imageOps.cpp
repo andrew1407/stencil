@@ -29,7 +29,7 @@ namespace stencil::core {
                                   static_cast<long long>(srcW) - rx);
     const int x0 = static_cast<int>(std::min<long long>(lo, rw));
     const int x1 = static_cast<int>(std::max<long long>(hi, 0));
-    const std::size_t rowBytes = static_cast<std::size_t>(rw) * 4;
+    const std::size_t rowBytes = static_cast<std::size_t>(rw) * RGBA_BYTES;
     for (int dy = dy0; dy < dy1; ++dy) {
       const int sy = ry + dy;
       std::uint8_t* o = dst + rgbaOffset(0, dy, rw);
@@ -37,11 +37,12 @@ namespace stencil::core {
         std::memset(o, 0, rowBytes);
         continue;
       }
-      if (x0 > 0) std::memset(o, 0, static_cast<std::size_t>(x0) * 4);
-      std::memcpy(o + static_cast<std::size_t>(x0) * 4, src + rgbaOffset(rx + x0, sy, srcW),
-                  static_cast<std::size_t>(x1 - x0) * 4);
-      if (x1 < rw) std::memset(o + static_cast<std::size_t>(x1) * 4, 0,
-                               static_cast<std::size_t>(rw - x1) * 4);
+      if (x0 > 0) std::memset(o, 0, static_cast<std::size_t>(x0) * RGBA_BYTES);
+      std::memcpy(o + static_cast<std::size_t>(x0) * RGBA_BYTES,
+                  src + rgbaOffset(rx + x0, sy, srcW),
+                  static_cast<std::size_t>(x1 - x0) * RGBA_BYTES);
+      if (x1 < rw) std::memset(o + static_cast<std::size_t>(x1) * RGBA_BYTES, 0,
+                               static_cast<std::size_t>(rw - x1) * RGBA_BYTES);
     }
   }
 
@@ -61,14 +62,14 @@ namespace stencil::core {
     if (q == 0) {  // identity: whole rows are contiguous on both sides
       for (int oy = oy0; oy < oy1; ++oy)
         std::memcpy(dst + rgbaOffset(0, oy, outW), src + rgbaOffset(0, oy, w),
-                    static_cast<std::size_t>(w) * 4);
+                    static_cast<std::size_t>(w) * RGBA_BYTES);
       return;
     }
     if (q == 2) {  // 180°: source row reversed
       for (int oy = oy0; oy < oy1; ++oy) {
         std::uint8_t* o = dst + rgbaOffset(0, oy, outW);
         const std::uint8_t* s = src + rgbaOffset(w - 1, h - 1 - oy, w);
-        for (int ox = 0; ox < outW; ++ox, o += 4, s -= 4) copyPixel(o, s);
+        for (int ox = 0; ox < outW; ++ox, o += RGBA_BYTES, s -= RGBA_BYTES) copyPixel(o, s);
       }
       return;
     }
@@ -80,9 +81,9 @@ namespace stencil::core {
         for (int oy = oyb; oy < oyEnd; ++oy) {
           // dst(ox,oy) reads one src column, walking y with the destination x.
           const std::uint8_t* col = src + rgbaOffset(q == 1 ? oy : w - 1 - oy, 0, w);
-          const std::size_t stride = static_cast<std::size_t>(w) * 4;
+          const std::size_t stride = static_cast<std::size_t>(w) * RGBA_BYTES;
           std::uint8_t* o = dst + rgbaOffset(oxb, oy, outW);
-          for (int ox = oxb; ox < oxEnd; ++ox, o += 4)
+          for (int ox = oxb; ox < oxEnd; ++ox, o += RGBA_BYTES)
             copyPixel(o, col + static_cast<std::size_t>(q == 1 ? h - 1 - ox : ox) * stride);
         }
       }
@@ -98,7 +99,7 @@ namespace stencil::core {
 
   void fillRGBA(std::uint8_t* dst, std::size_t pixelCount, int r, int g, int b, int a) {
     for (std::size_t i = 0; i < pixelCount; ++i) {
-      std::uint8_t* o = dst + i * 4;
+      std::uint8_t* o = dst + i * RGBA_BYTES;
       o[0] = static_cast<std::uint8_t>(r);
       o[1] = static_cast<std::uint8_t>(g);
       o[2] = static_cast<std::uint8_t>(b);

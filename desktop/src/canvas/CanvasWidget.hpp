@@ -1,4 +1,5 @@
 #pragma once
+#include "accentDefaults.hpp"
 #include "cropGeometry.hpp"
 #include "idleCardMotion.hpp"   // the idle card's glyph motion (iconMotion.json "image")
 #include "HistoryStack.hpp"
@@ -345,11 +346,10 @@ namespace stencil::gui {
     QVariantAnimation* idleGlyphAnim_ = nullptr;
     void setIdleCardHover(bool on);
     bool dark_ = false;
-    QString accentKey_ = "violet";  // brand accent for the rubber-band previews
+    QString accentKey_ = DEFAULT_ACCENT_KEY;  // brand accent for the rubber-band previews
     // DEFAULT_VISUALS' own values until setHighlightColors is called.
     QColor selGlow_{"#ffc800"};
-    QColor hoverRing_{"#7c3aed"};
-    QColor focusRing_{"#7c3aed"};
+    QColor hoverRing_{DEFAULT_ACCENT_HEX}, focusRing_{DEFAULT_ACCENT_HEX};
 
     // Canonical selection owner; filters/render/line-edit only consume selectedLineIdx_.
     DrawMode drawMode_ = DrawMode::LINE;
@@ -365,7 +365,7 @@ namespace stencil::gui {
 
     // filteredImage_ is rebuilt lazily on paint when filterDirty_ is set.
     QString imageFilter_ = "none";
-    QColor filterColor_{"#7c3aed"};
+    QColor filterColor_{DEFAULT_ACCENT_HEX};
     QImage filteredImage_;
     bool filterDirty_ = true;
 

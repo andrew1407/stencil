@@ -27,8 +27,8 @@ namespace stencil::net {
     if (token.isEmpty()) {
       requestAsync("POST", "/auth/token", "{}", "application/json",
                    [this, done = std::move(done)](int status, QByteArray body) {
-                     if (status < 200 || status >= 300) {
-                       const bool refused = status == 401 || status == 403;
+                     if (!isOkStatus(status)) {
+                       const bool refused = isAuthStatus(status);
                        if (refused)
                          err_ = QStringLiteral("this server gates token minting (ADMIN_TOKEN) — paste a "
                                                "session token, or the admin token, into the Token field");
@@ -53,7 +53,7 @@ namespace stencil::net {
       token_ = token;
       requestAsync("POST", "/auth/token", "{}", "application/json",
                    [this, done = std::move(done)](int mint, QByteArray body) {
-                     if (mint < 200 || mint >= 300) {
+                     if (!isOkStatus(mint)) {
                        token_.clear();
                        status_ = Status::EXPIRED;
                        qWarning("stencil: admin token refused by %s — reconnect to sign in again",
@@ -76,7 +76,7 @@ namespace stencil::net {
       token_ = token;
       requestAsync("GET", "/projects", {}, {},
                    [this, done = std::move(done)](int status, QByteArray) mutable {
-                     if (status >= 200 && status < 300) {
+                     if (isOkStatus(status)) {
                        kind_ = CredentialKind::SESSION;   // the token IS a session token
                        status_ = Status::CONNECTED;
                        done(true);
@@ -84,7 +84,7 @@ namespace stencil::net {
                      }
                      requestAsync("POST", "/auth/token", "{}", "application/json",
                                   [this, status, done = std::move(done)](int mint, QByteArray body) {
-                                    if (mint >= 200 && mint < 300) {
+                                    if (isOkStatus(mint)) {
                                       token_ = QJsonDocument::fromJson(body).object().value("token").toString();
                                       if (!token_.isEmpty()) {
                                         kind_ = CredentialKind::ADMIN;  // it minted: admin
@@ -135,7 +135,7 @@ namespace stencil::net {
     requestAsync("GET", "/projects", {}, {},
                  [this, done = std::move(done)](int status, QByteArray body) {
                    QVector<ServerProject> out;
-                   if (status < 200 || status >= 300) {
+                   if (!isOkStatus(status)) {
                      done(false, out);
                      return;
                    }
@@ -180,7 +180,7 @@ namespace stencil::net {
     requestAsync("POST", "/projects", QJsonDocument(obj).toJson(QJsonDocument::Compact),
                  "application/json",
                  [this, done = std::move(done)](int status, QByteArray body) {
-                   if (status < 200 || status >= 300) {
+                   if (!isOkStatus(status)) {
                      done(false, QString(), 0);
                      return;
                    }

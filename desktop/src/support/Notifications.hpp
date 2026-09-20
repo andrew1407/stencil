@@ -1,4 +1,5 @@
 #pragma once
+#include "accentDefaults.hpp"
 #include <QColor>
 #include <QHash>
 #include <QLabel>
@@ -49,7 +50,7 @@ namespace stencil::gui {
     QList<QLabel*> liveToasts() const;
 
     QWidget* host_ = nullptr;
-    QColor normalBg_{"#7c3aed"}, errorBg_{"#d6293e"};   // light-theme defaults
+    QColor normalBg_{DEFAULT_ACCENT_HEX}, errorBg_{"#d6293e"};   // light-theme defaults
     int bottomInset_ = 0;
     int leftInset_ = 0;
     // Insertion order is the ONLY reliable "oldest": reflow() raise()s each toast, which

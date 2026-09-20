@@ -64,7 +64,7 @@ namespace stencil::llm {
     const auto handler = [](std::function<void(QStringList)> done, Pick pick) {
       return [done = std::move(done), pick](int status, QByteArray body, QString) mutable {
         QStringList out;
-        if (status >= 200 && status < 300)
+        if (net::isOkStatus(status))
           out = pick(QJsonDocument::fromJson(body).object());
         done(out);
       };

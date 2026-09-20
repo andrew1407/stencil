@@ -111,7 +111,7 @@ namespace stencil::core {
     const unsigned rgb = it->second;
     return Rgba{static_cast<int>((rgb >> 16) & 0xff),
                 static_cast<int>((rgb >> 8) & 0xff),
-                static_cast<int>(rgb & 0xff), 255};
+                static_cast<int>(rgb & 0xff), CHANNEL_MAX};
   }
 
   namespace {

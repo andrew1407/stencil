@@ -1,4 +1,5 @@
 #pragma once
+#include "accentDefaults.hpp"
 #include "colorMix.hpp"   // mixSrgb / blendColors, used with everything below
 #include <QColor>
 #include <QPalette>
@@ -58,7 +59,7 @@ namespace stencil::gui {
   QColor onAccentInk(const QColor& accent);
 
   // Named themePalette, not palette, to avoid shadowing QWidget::palette().
-  Palette themePalette(bool dark, const QString& accentKey = "violet");
+  Palette themePalette(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);
 
   // --bg-info: not in Palette, but the connections rows build their own sheet.
   QColor infoBackground(bool dark);
@@ -78,14 +79,14 @@ namespace stencil::gui {
     return QStringLiteral("QMenu::item{padding:6px 10px 6px 6px;}QMenu::icon{padding-left:4px;}");
   }
 
-  QString buildStylesheet(bool dark, const QString& accentKey = "violet");
+  QString buildStylesheet(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);
 
   // Browser --sb-thumb; read by the painted bars, since QSS on macOS will not round a QScrollBar handle.
   QColor canvasScrollThumb(bool dark);
-  QColor canvasScrollThumbHover(bool dark, const QString& accentKey = "violet");
+  QColor canvasScrollThumbHover(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);
 
   // Set on qApp so native bits follow the theme — needed on Fedora.
-  QPalette buildQPalette(bool dark, const QString& accentKey = "violet");
+  QPalette buildQPalette(bool dark, const QString& accentKey = DEFAULT_ACCENT_KEY);
 
   // Qt 6.5+ QStyleHints::colorScheme(); mirrors matchMedia('(prefers-color-scheme:dark)').
   bool systemPrefersDark();

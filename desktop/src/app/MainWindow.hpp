@@ -1,4 +1,5 @@
 #pragma once
+#include "accentDefaults.hpp"
 #include "ChatDock.hpp"
 #include "FullscreenController.hpp"
 #include "PopoverHost.hpp"
@@ -611,8 +612,7 @@ namespace stencil::gui {
     class QWidget* imageSection_ = nullptr;
     QSet<class QAction*> dangerIcons_;
     class QToolButton* openImageBtn_ = nullptr;
-    QColor lineColorValue_{"#FFFF00"};
-    QColor filterColorValue_{"#7c3aed"};
+    QColor lineColorValue_{"#FFFF00"}, filterColorValue_{DEFAULT_ACCENT_HEX};
 
     QAction* actOpen_ = nullptr;
     QAction* actOpenAnother_ = nullptr;
