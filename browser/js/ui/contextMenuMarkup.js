@@ -1,7 +1,5 @@
 import { icon } from './icons.js';
-import { keysHtml } from './tipContent.js';
 import { ctxArrow } from './ctxArrow.js';
-import { assistantItemHtml } from './ctxAssistantItem.js';
 import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS } from './exportVariants.js';
 
 // The variant rows of a Copy/Download Image flyout (exportVariants.js owns labels, glyphs

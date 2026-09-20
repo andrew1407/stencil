@@ -9,7 +9,6 @@ import assert from 'node:assert/strict';
 import { ACCENTS } from '../js/core/accents.js';
 import { fillAccentMenu, markSelected, buildAccentPicker } from '../js/ui/accentPicker.js';
 import { createStubElement, installDom } from './helpers/dom.js';
-import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
 // ── Stubs ── the shared element factory; contains() must always hit, so the popover
 // containment guards see every dispatched target as "inside".

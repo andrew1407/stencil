@@ -11,7 +11,7 @@ import urllib.parse
 from typing import Any
 
 from .._types import NoneType
-from .diff import _FIELD_DEFAULT, _FIELD_WRITE_RETRIES, _WATCHED_FIELDS, _poll_loop, diff_projects
+from .diff import _FIELD_WRITE_RETRIES, _poll_loop, diff_projects
 from .http import ServerError
 
 

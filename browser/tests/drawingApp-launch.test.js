@@ -6,10 +6,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { installDom } from './helpers/dom.js';
 import { installFetchStub } from './helpers/fetchStub.js';
-import { COMPONENTS_CSS } from './helpers/css.js';
 
 // notify() (utils.js) posts to a #notify-balloon element if present; expose one so we can spy.
 const notifications = [];

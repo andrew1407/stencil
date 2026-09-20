@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { buildLayoutPayload, serializeSession, LAYOUT_FIELDS, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines, sanitizeLines } from '../js/core/layout.js';
+import { resolveInsertIdx, fillState, defaultBlankSizePx, sanitizeLines } from '../js/core/layout.js';
 
 // ── resolveInsertIdx ────────────────────────────────────────────
 const line4 = { points: [{}, {}, {}, {}] };

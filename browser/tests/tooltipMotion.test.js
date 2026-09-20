@@ -7,7 +7,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { parseCombo, eventCombo, comboMatchesEvent, dustOrigin, DUST_CURSOR_PX } from '../js/ui/controlTooltip.js';
 import { TIP_SHOW_DELAY_MS } from '../js/ui/motion.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 

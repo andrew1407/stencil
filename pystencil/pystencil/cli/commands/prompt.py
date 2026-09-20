@@ -2,13 +2,10 @@ from __future__ import annotations
 
 """One /prompt round: build the request, validate the plan, execute it, report."""
 
-import json
-
 from ...llm import (
   CONSOLE_SYSTEM_PROMPT,
   CONTINUATION_NOTE,
   EDGE_MAP_SUFFIX,
-  AskCard,
   Chat,
   LlmError,
   ask_answer_text,

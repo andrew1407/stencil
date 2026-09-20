@@ -5,7 +5,7 @@
 // Mirrors server/internal/httpapi/projects.go and hub_test.go.
 import { test, expect } from '@playwright/test';
 import { issueToken, createProject, bearer, SERVER_URL, stackEnabled } from '../../helpers/serverApi.js';
-import { dialWS, join, T } from '../../helpers/wire.js';
+import { dialWS, join } from '../../helpers/wire.js';
 
 test.describe('server shared-workspace access + delete guard', () => {
   test.skip(!stackEnabled, 'requires the backing stack (E2E_STACK=1)');

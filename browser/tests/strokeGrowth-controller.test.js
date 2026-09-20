@@ -3,9 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert';
 
-import { STROKE_POP_PEAK, STROKE_FLY_R0 } from '../js/ui/motion.js';
+import { STROKE_FLY_R0 } from '../js/ui/motion.js';
 import { StrokeFx } from '../js/core/strokeFx.js';
-import { recordingCtx, argsOf, indexOf } from './helpers/recordingCtx.js';
 import { harness, lineOf } from './helpers/strokeGrowthHarness.js';
 
 

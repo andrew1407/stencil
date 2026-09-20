@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
-import { buildLayoutPayload, serializeSession, LAYOUT_FIELDS, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines, sanitizeLines } from '../js/core/layout.js';
+import { buildLayoutPayload, mergeLines } from '../js/core/layout.js';
 
 // ── mergeLines (concurrent co-edit conflict resolution) ──
 test('mergeLines: unions distinct lines from both editors', () => {

@@ -11,7 +11,7 @@ from typing import Any, Sequence
 
 from .._types import NoneType
 from ..server import _http_open, _json_request, _parse_http_error, _LLM_TIMEOUT
-from .config import ACCEPTED_MEDIA_TYPES, DEFAULT_BASE_URLS, LlmConfig
+from .config import LlmConfig
 from .errors import LlmError, _clean_detail
 from .prompt import LLM_SYSTEM_PROMPT
 

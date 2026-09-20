@@ -1,7 +1,6 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { modalBoxEase } from './motion/easeBoxHeight.js';
 import { llmSettingsModalInner } from './llmSettingsMarkup.js';
-import { icon } from './icons.js';
 import { loadLlmSettings, saveLlmSettings, serverBearerToken, withProvider } from '../llm/llmSettings.js';
 import { listModels, probeProvider } from '../llm/llmClient.js';
 import { loadSavedServers } from '../net/connectionStore.js';

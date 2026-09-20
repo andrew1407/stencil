@@ -2,7 +2,6 @@
 // these drive real buffers rather than hand-built spans.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 
 import { parseScript } from '../src/parser/index.js';
 import { installVscodeStub, makeContext, makeDocument, makeVscode } from './helpers/vscodeStub.js';

@@ -1,6 +1,6 @@
 import { setVal, cmToUnit } from '../utils.js';
 import { normalizePageSize } from './units.js';
-import { applyMirror, paintTintControls, paintCustomSizeGroup } from '../ui/settingMirrors.js';
+import { paintTintControls, paintCustomSizeGroup } from '../ui/settingMirrors.js';
 
 // The numeric parsers return undefined on NaN to ABORT the set.
 const toInt = n => { const v = parseInt(n, 10); return Number.isNaN(v) ? undefined : v; };

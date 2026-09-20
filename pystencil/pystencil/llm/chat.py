@@ -4,15 +4,13 @@ from __future__ import annotations
 replayed in full on every call, since every provider is stateless.
 """
 
-import time
-from typing import Any, Sequence
-
 import json
-from typing import Any, Iterable, Sequence
+import time
+from typing import Any, Iterable
 
 from .._types import NoneType
 from .client import LlmClient
-from .config import ACCEPTED_MEDIA_TYPES, MAX_ATTACHMENTS, LlmConfig
+from .config import ACCEPTED_MEDIA_TYPES, MAX_ATTACHMENTS
 from .errors import LlmError
 from .limits import CHAT_DOC_VERSION, MAX_HISTORY, chat_display_text
 from .plan import parse_op_plan

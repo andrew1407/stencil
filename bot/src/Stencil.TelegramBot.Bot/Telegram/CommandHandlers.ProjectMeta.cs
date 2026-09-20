@@ -1,4 +1,3 @@
-using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Sessions;
 using Telegram.Bot;
 

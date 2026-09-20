@@ -1,14 +1,8 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
-import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../core/accents.js';
-import { fillAccentMenu, markSelected } from './accentPicker.js';
-import { createModalOpenGesture } from './popover.js';
-import { replayWaves, surfaceIn, surfaceOut, wireHoverDust, foldDust, rectCenter,
-         motionReduced, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
-import { isTypingTarget, notify, onWindowResize } from '../utils.js';
-import { VOICE_STATE_EVENT } from '../llm/voiceModes.js';
-import { attachVoiceDust } from './voiceDust.js';
+import { wireHoverDust, foldDust } from './motion.js';
+import { onWindowResize } from '../utils.js';
 import { subscribe, EVENTS } from '../eventBus/appBus.js';
 import { syncWrappedSeparators } from './toolbarSeparators.js';
 import { wireVoiceChatToggle } from './voiceToggle.js';

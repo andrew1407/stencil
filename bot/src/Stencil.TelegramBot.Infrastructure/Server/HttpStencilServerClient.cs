@@ -1,8 +1,6 @@
 using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 using Stencil.TelegramBot.Domain.Abstractions;
-using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Serialization;
 using Stencil.TelegramBot.Domain.Sessions;

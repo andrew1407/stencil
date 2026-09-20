@@ -2,7 +2,6 @@
 // delivered to <html> mid-wipe is still resolved against the rows. From accentPicker.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ACCENTS } from '../js/core/accents.js';
 import { fillAccentMenu } from '../js/ui/accentPicker.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';

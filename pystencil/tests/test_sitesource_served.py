@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import io
 import tempfile
-import unittest
 from pathlib import Path
 
 from pystencil import codecs
 from pystencil.sitesource import download_media, scan_page
-from tests.servedsite import ServedSiteCase, _solid_png
+from tests.servedsite import ServedSiteCase
 
 
 class ServedSiteTests(ServedSiteCase):

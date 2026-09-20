@@ -6,18 +6,10 @@ JSON object from the reply text, then strict validation against the registry.
 
 import json
 import re
-from typing import Any, Callable
 
 from .._types import NoneType
 from .errors import LlmPlanError
-from .limits import (
-  MAX_ACTIONS,
-  MAX_STRING_LENGTH,
-  MAX_VARIANTS,
-  SCHEMA,
-  _PLAN_FIELD_KEY,
-  _PLAN_VERSION_KEY,
-)
+from .limits import SCHEMA
 from .types import OpPlan, Variant
 from .validate import _MisplacedOp, _plan_check, _validate_actions, _validate_ask
 

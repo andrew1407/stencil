@@ -4,12 +4,10 @@ from __future__ import annotations
 console, and turning the user's numeric pick back into answer text.
 """
 
-from typing import Any
-
 import re
 
 from .._types import NoneType
-from .limits import DEFAULT_CUSTOM_LABEL, MAX_ASK_ANSWER
+from .limits import MAX_ASK_ANSWER
 from .types import AskCard
 
 def ask_answer_text(

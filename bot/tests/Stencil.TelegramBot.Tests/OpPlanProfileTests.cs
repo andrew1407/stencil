@@ -1,5 +1,4 @@
 using Stencil.TelegramBot.Application.Llm;
-using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Tests;

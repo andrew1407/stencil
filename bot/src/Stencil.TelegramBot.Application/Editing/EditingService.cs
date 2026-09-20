@@ -1,11 +1,7 @@
-using System.Text.Json;
 using Stencil.TelegramBot.Application.Llm;
-using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
-using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Project;
-using Stencil.TelegramBot.Domain.Serialization;
 using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Editing;

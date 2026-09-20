@@ -12,21 +12,19 @@ import {
 import { rowsToMessages } from '../llm/chatStore.js';
 import { MAX_ATTACHMENTS } from '../llm/chatController.js';
 import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../core/dragImageUrl.js';
-import { publish, subscribe, EVENTS } from '../eventBus/appBus.js';
+import { subscribe, EVENTS } from '../eventBus/appBus.js';
 import { modalShells } from './modalRegistry.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter } from './motion.js';
 import {
-  renderChatLog, stickToBottom, chatAttachmentChips, wireInputSizer, trackPointer, wireChatSuggestions,
-  chatSuggestionsHtml, chatDropCueHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer, wireChatMoreMenu,
-  wireComposerVoice,
-  notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, rowMenuLiftPx, rowMenuLiftFits,
-  chatPopupOpen, CHAT_POPUP_EVENT, wireChatSideToggle,
+  renderChatLog, stickToBottom, chatAttachmentChips, wireInputSizer, wireChatSuggestions, chatSuggestionsHtml,
+  chatDropCueHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer, wireChatMoreMenu, wireComposerVoice,
+  notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, rowMenuLiftPx, rowMenuLiftFits, chatPopupOpen,
+  CHAT_POPUP_EVENT, wireChatSideToggle,
 } from './chatView.js';
 
 import {
-  DOCKS, FLOAT_DEFAULT, DRAG_THRESHOLD_PX, DOCK_MIN_SIZE, DOCK_MAX_FRACTION, FLOAT_MIN_W, FLOAT_MIN_H,
-  clampFloatRect, COMPACT_CHAT_W, COMPACT_CHAT_H, compactChatRect, resizeFloatRect, DOCK_ZONE_BAND,
-  dockZoneAt, gearStatusRows, gearTipFootText,
+  DOCKS, FLOAT_MIN_W, FLOAT_MIN_H, clampFloatRect, COMPACT_CHAT_W, COMPACT_CHAT_H, compactChatRect,
+  resizeFloatRect, DOCK_ZONE_BAND, dockZoneAt, gearStatusRows, gearTipFootText,
 } from './chatGeometry.js';
 import { createChatDock } from './chatDock.js';
 import { createChatStatusTip } from './chatStatusTip.js';

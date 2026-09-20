@@ -2,7 +2,7 @@
 // variant and the saveImage filenames. The rig lives in helpers/exportServiceRig.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ExportService, makeApp, notifications, reset, lastNote } from './helpers/exportServiceRig.js';
+import { ExportService, makeApp, reset, lastNote } from './helpers/exportServiceRig.js';
 test('saveImage: no image → fail notify, no work', () => {
   reset();
   new ExportService(makeApp()).saveImage();

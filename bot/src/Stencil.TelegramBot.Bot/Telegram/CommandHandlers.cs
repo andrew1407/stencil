@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Application.Editing;
@@ -8,8 +7,6 @@ using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Configuration;
 using Stencil.TelegramBot.Domain.Exceptions;
-using Stencil.TelegramBot.Domain.Layout;
-using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
 using Stencil.TelegramBot.Infrastructure.Links;

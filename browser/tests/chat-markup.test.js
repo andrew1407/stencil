@@ -1,13 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
 
 // Layout transitively registers every ui component (chat panel + LLM settings modal
 // included) and must compose their markup exactly once, appended after the original
 // regions (the REGIONS order is load-bearing).
 import { layout } from '../js/ui/layout.js';
-import { clampFloatRect, resizeFloatRect, dockZoneAt, compactChatRect, gearStatusRows, gearTipFootText, FLOAT_MIN_W, FLOAT_MIN_H, DOCK_ZONE_BAND, COMPACT_CHAT_W, COMPACT_CHAT_H } from '../js/ui/chatPanel.js';
-import { COMPONENTS_CSS } from './helpers/css.js';
 
 const markup = layout();
 const count = (needle) => markup.split(needle).length - 1;

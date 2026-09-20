@@ -2,11 +2,7 @@
 // the project/blank colours and findByImage. Split from projectsStore.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import {
-  ProjectsStore, shouldPersist, baseProjectName, EXPIRY_MS, WARN_MS,
-  REGISTRY_KEY, PROJECT_PREFIX, MIGRATED_FLAG,
-  periodMs, addPeriod, PERIOD_MS, DEFAULT_PERIOD, normalizeKeywords,
-} from '../js/core/projectsStore.js';
+import { ProjectsStore, shouldPersist, baseProjectName } from '../js/core/projectsStore.js';
 import { createMemoryStorage } from './helpers/memoryStorage.js';
 
 // Map-backed localStorage shim (shared helper): exposes keys() for the store's

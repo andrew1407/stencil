@@ -3,7 +3,7 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { installFetchStub } from './helpers/fetchStub.js';
-import { FAKE_DATA_URL, FakeFileReader, makeConn, makeRig } from './helpers/projectTransferRig.js';
+import { FakeFileReader, makeConn, makeRig } from './helpers/projectTransferRig.js';
 
 let fetchStub;
 beforeEach(() => {

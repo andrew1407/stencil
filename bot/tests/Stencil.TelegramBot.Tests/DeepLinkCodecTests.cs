@@ -1,5 +1,4 @@
 using Stencil.TelegramBot.Infrastructure.Links;
-using Xunit;
 
 namespace Stencil.TelegramBot.Tests;
 

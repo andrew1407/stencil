@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Sessions;

@@ -4,30 +4,9 @@ from __future__ import annotations
 image and context plumbing one prompt round needs.
 """
 
-import json
-
 from ..._types import NoneType
-from ..._severity import emit_error
 from ...editor import Editor
-from ...llm import (
-  CONSOLE_SYSTEM_PROMPT,
-  CONTINUATION_NOTE,
-  EDGE_MAP_SUFFIX,
-  PROVIDERS,
-  AskCard,
-  Chat,
-  ConsoleServer,
-  LlmClient,
-  LlmConfig,
-  LlmError,
-  ask_answer_text,
-  blocked_open_url,
-  console_context,
-  execute_op_plan,
-  format_ask,
-  parse_op_plan,
-  variant_slugs,
-)
+from ...llm import PROVIDERS, ConsoleServer, LlmClient, console_context
 from ..console import mask as _mask
 from ..registry import command
 

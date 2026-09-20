@@ -8,7 +8,6 @@ import json
 import os
 
 from .._types import NoneType
-from .. import _net
 from ..layout import Layout, Line
 from ..scriptpaths import is_url
 from ._snapshot import _Snapshot, LayoutLike

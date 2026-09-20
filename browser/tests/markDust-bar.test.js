@@ -4,11 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { tileMotion, MARK_IN_MS, MARK_OUT_MS, MARK_MOTE_PX, MARK_DRIFT, MARK_COLS, MARK_ROWS,
-         MARK_FORMING_CLASS, MOTE_PX, SURFACE_COLS, SURFACE_ROWS, SURFACE_IN_MS,
-         FILTER_DUST_MS, FILTER_DUST_DRIFT, FILTER_ENTER_MS, REVEAL_GROUP_IN_MS, REVEAL_GROUP_OUT_MS,
-         reshapeGrid, markIn, markOut, markSwap, revealControls, revealBar, settleMark, filterDust,
-         BAR_HELD_CLASS, BAR_CLOSING_CLASS } from '../js/ui/motion.js';
+import {
+  REVEAL_GROUP_OUT_MS, revealControls, revealBar, BAR_HELD_CLASS, BAR_CLOSING_CLASS,
+} from '../js/ui/motion.js';
 import { motionSource } from './helpers/motionSource.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 

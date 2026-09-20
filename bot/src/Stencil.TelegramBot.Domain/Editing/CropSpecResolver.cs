@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace Stencil.TelegramBot.Domain.Editing;
 
 public sealed record CropRect(int X, int Y, int Width, int Height);

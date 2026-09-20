@@ -3,7 +3,6 @@ using System.Text;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Links;
 using Stencil.TelegramBot.Tests.Doubles;
-using Xunit;
 
 namespace Stencil.TelegramBot.Tests;
 

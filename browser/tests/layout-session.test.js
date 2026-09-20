@@ -2,7 +2,7 @@
 // every descriptor field in table order. Split from layout.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { buildLayoutPayload, serializeSession, LAYOUT_FIELDS, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines, sanitizeLines } from '../js/core/layout.js';
+import { serializeSession, LAYOUT_FIELDS } from '../js/core/layout.js';
 
 const sampleState = () => ({
   imageWidth: 800, imageHeight: 600,

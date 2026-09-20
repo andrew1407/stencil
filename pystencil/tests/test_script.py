@@ -6,7 +6,7 @@ import os
 import tempfile
 import unittest
 
-from tests.nativecase import NativeCase, require_core
+from tests.nativecase import NativeCase
 
 from pystencil import scriptpaths
 from pystencil.editor import Editor

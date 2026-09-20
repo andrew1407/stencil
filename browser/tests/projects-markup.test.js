@@ -55,7 +55,6 @@ test('no runtime-only project row ids in static markup', () => {
 
 // Filter, sort, search-mode and name-search all re-list the same rows, so all play the one symmetric
 // transition (motion.js createFilterAnimator); pinned against the source, its behaviour in motion.test.js.
-import { readFileSync } from 'node:fs';
 
 const projectsSrc = projectsModalSource();
 
