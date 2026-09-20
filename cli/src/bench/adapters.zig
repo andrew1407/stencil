@@ -6,6 +6,8 @@ const std = @import("std");
 const llm = @import("../llm.zig");
 const le = @import("../line_edit.zig");
 const scrape = @import("../scrape.zig");
+const scriptCore = @import("../scriptCore.zig");
+const emit = @import("../script/emit.zig");
 const screen_mod = @import("../console/screen.zig");
 const fixtures = @import("fixtures.zig");
 const timing = @import("timing.zig");
@@ -93,9 +95,47 @@ fn redraw(gpa: std.mem.Allocator, io: std.Io, r: *timing.Ratios) !void {
     r.under("redraw", long_us, short_us, 3, "10x the input, same 8-row cap");
 }
 
+/// `--script-emit` walks the lowered stream once and writes text, so 8x the ops costs about
+/// 8x — and the walk must stay cheaper than the parse that produced the stream.
+fn scriptEmit(gpa: std.mem.Allocator, io: std.Io, r: *timing.Ratios) !void {
+    const small_src = try fixtures.script(gpa, 32);
+    defer gpa.free(small_src);
+    const big_src = try fixtures.script(gpa, 256);
+    defer gpa.free(big_src);
+
+    var small = try scriptCore.Script.parse(small_src);
+    defer small.deinit();
+    var big = try scriptCore.Script.parse(big_src);
+    defer big.deinit();
+
+    const Ctx = struct { gpa: std.mem.Allocator, script: scriptCore.Script };
+    const render = struct {
+        fn run(c: Ctx) void {
+            var bad: emit.Refusal = .{};
+            const text = emit.renderAlloc(c.gpa, c.script, .py, "bench.stc", &bad) catch return;
+            c.gpa.free(text);
+        }
+    }.run;
+    const Source = struct { text: []const u8 };
+    const parse = struct {
+        fn run(c: Source) void {
+            var s = scriptCore.Script.parse(c.text) catch return;
+            s.deinit();
+        }
+    }.run;
+
+    const small_us = timing.perCallUs(io, "scriptEmit (32 shapes)", 2000, Ctx{ .gpa = gpa, .script = small }, render);
+    const big_us = timing.perCallUs(io, "scriptEmit (256 shapes)", 500, Ctx{ .gpa = gpa, .script = big }, render);
+    r.under("scriptEmit", big_us, small_us, 16, "8x the ops: one pass over the stream");
+
+    const parse_us = timing.perCallUs(io, "scriptParse (256 shapes)", 500, Source{ .text = big_src }, parse);
+    r.under("scriptEmit vs parse", big_us, parse_us, 1, "emitting costs less than parsing");
+}
+
 pub fn run(gpa: std.mem.Allocator, io: std.Io, r: *timing.Ratios) !void {
     std.debug.print("\nadapter paths\n", .{});
     try scrapeHtml(gpa, io, r);
     try opPlan(gpa, io, r);
     try redraw(gpa, io, r);
+    try scriptEmit(gpa, io, r);
 }

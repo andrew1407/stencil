@@ -294,7 +294,10 @@ pins the three declarations `index.js` re-composes, `apiVocabulary.test.js` pars
 `interface Stencil` out of `browser/js/console/stencilApi.d.ts` and asserts the documented
 members and their signatures against it in both directions, while `fixtureWalker.test.js` replays the
 shared corpus in `browser/js/config/script/fixtures/cases.txt` — the same file the core and
-the browser walk — through the copies. Data is asserted as data: `grammar.test.js` compiles
+the browser walk — through the copies. Which buffers are Stencil's is
+proved one layer down, with documents rather than an editor: `jsMarker.test.js` for the `//`
+marker, `pySource.test.js` for the `#` one, and `pythonLocator.test.js` for the interpreter
+chain the way `cliLocator.test.js` proves the CLI's. Data is asserted as data: `grammar.test.js` compiles
 every TextMate and language-configuration regex, resolves every `include`, and checks the
 scope names and the directive list; `tokenClassify.test.js` and `hover.test.js` run real buffers through the
 parser copies rather than hand-built spans, so a colour or an explanation is asserted where a

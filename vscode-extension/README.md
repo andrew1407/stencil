@@ -11,10 +11,15 @@ member with what it does beside it:
 
 ![completing the window.stencil API in a .stcjs](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/api-hints.gif)
 
-Each file type is marked in the explorer — a script, its JavaScript flavour, and a saved
-project:
+Each file type is marked in the explorer — a script, its JavaScript and Python flavours, and
+a saved project:
 
-![the three file types in the explorer](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/file-icons.png)
+![the four file types in the explorer](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/file-icons.png)
+
+**Stencil: Emit script as…** writes the open `.stc` out as a script for another surface —
+the suffix you pick is the choice — and a `.pystc` then runs on Python from its own ▶:
+
+![an emitted .pystc, run on Python](https://raw.githubusercontent.com/andrew1407/stencil/main/usecases/docs/vscode-extension/img/python-run.png)
 
 Editor support for the Stencil script language. A `.stc` file is a recipe — crop this, tint
 that, draw a box here, save it there — that [Stencil](https://github.com/andrew1407/stencil)
@@ -58,7 +63,7 @@ editor and a run cannot disagree.
 - **Diagnostics** appear while typing and again on save, each carrying its code
   (`E_UNKNOWN_DIRECTIVE`, `W_EMPTY_BLOCK`, …) into the Problems panel. A script with any
   error runs nothing.
-- **File icons** mark all three file types, and a `.stencil` project opens as the JSON it is.
+- **File icons** mark all four file types, and a `.stencil` project opens as the JSON it is.
 - **`.stcjs`** is JavaScript that drives the web app's `window.stencil` facade: it gets the
   same treatment for the facade that `.stc` gets for the language — every member completed
   after `stencil.`, and hovered with its signature, what it hands back and a worked example.
@@ -67,6 +72,11 @@ editor and a run cannot disagree.
   that marker is coloured where it stands rather than reading as one more comment — and
   hovering it says what it does. It may stand **anywhere** in the file, on a comment line of
   its own; the words with code in front of them are not the marker, and say so when hovered.
+- **`.pystc`** is the Python flavour: what `stencil --script-emit shots.pystc` writes, a file
+  that drives pystencil's `Editor` and runs headlessly. It carries the Stencil icon and its
+  own ▶, which runs it on the interpreter `stencil.pythonPath` names rather than on the CLI.
+  A plain `.py` joins in the same way a `.js` does, by saying `# @use stencil` on a comment
+  line of its own.
 - **Typings** — run **Stencil: Add facade typings to this workspace** and the editor's own
   JavaScript service types `stencil` for you: one tooltip reading `var stencil: Stencil`,
   with the prose, the example and links back to these docs, instead of `any`. The extension
@@ -211,6 +221,8 @@ Running a script through the CLI needs it on the machine: `cd cli && zig build` 
 | Stencil: Run script | `Ctrl+Alt+R` / `⌘⌥R` | `stencil --script <file>` |
 | Stencil: Run script on an image… | — | `stencil -i <image> --script <file>` |
 | Stencil: Check script | — | `stencil --script-check <file>` |
+| Stencil: Emit script as… | — | `stencil --script <file> --script-emit <file>.pystc\|.py\|.stcjs\|.js` |
+| Stencil: Run Python script | — | `<python> <file.pystc>` |
 | Stencil: Configure highlight colours | — | opens the colour setting — see [Colours](#colours) |
 | Stencil: Open in Stencil Web | — | the browser, on `#stencil=<the script>` |
 | Stencil: Open in Stencil Web (incognito) | — | the same, into a session the app keeps nothing from |
@@ -219,10 +231,13 @@ Running a script through the CLI needs it on the machine: `cd cli && zig build` 
 | Stencil: Open an image in Stencil Web… | — | `stencil.load(<url or the file's bytes>)` |
 | Stencil: Add facade typings to this workspace | — | writes `stencil.d.ts` (+ a `jsconfig.json` if needed) |
 
-A `.stc` carries a ▶, a 🌐 and its incognito twin in the editor title bar, and a `.stcjs`
-the console-run button — the only route it has. The three CLI commands save the file first and
-run in a terminal called **Stencil**, from the script's own directory — so a relative
-`@source` path means what it means on the command line.
+A `.stc` carries a ▶, a 🌐 and its incognito twin in the editor title bar, a `.stcjs` the
+console-run button — the only route it has — and a `.pystc` its own ▶. **Emit script as…**
+asks which of the four suffixes to write and puts the file beside the script under its own
+stem; the extension is what picks the language, so a `.pystc` is emitted and then run from the
+same editor. Every terminal command saves the file first and runs in a terminal called
+**Stencil**, from the script's own directory — so a relative `@source` path means what it
+means on the command line.
 
 ## Settings
 
@@ -235,6 +250,7 @@ run in a terminal called **Stencil**, from the script's own directory — so a r
 | `stencil.completion` | `true` | Suggest what is legal at the caret. |
 | `stencil.hover` | `true` | Explain the word under the pointer. |
 | `stencil.colors` | `{}` | An exact colour per family, over the eight the extension already paints — see [Colours](#colours). A named family wins over the theme and applies even with `stencil.highlighting` off. |
+| `stencil.pythonPath` | *(empty)* | The Python that runs a `.pystc`. Empty falls back to `STENCIL_PYTHON`, then `python3` and `python` on `PATH`. A relative path is taken from the workspace folder. |
 | `stencil.webUrl` | *(empty)* | The instance the browser commands open. Empty uses `https://andrew1407.github.io/stencil/`. Must be an `http(s)` URL, and it is never read out of the file being edited. |
 | `stencil.webBrowser` | `chrome` | Which browser the console command launches — `chrome` or `edge`. |
 | `stencil.webInlineImages` | `true` | Let a picked local image travel into the browser as a `data:` URL. Off, only `http(s)` images can be opened. |

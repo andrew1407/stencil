@@ -82,11 +82,14 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             if (opts.script_plan != null or opts.script_check != null) return Error.DuplicateSource;
             opts.script = try value(&st, "--script");
         } else if (eq(arg, "--script-plan")) {
-            if (opts.script != null or opts.script_check != null) return Error.DuplicateSource;
+            if (opts.script != null or opts.script_check != null or opts.script_emit != null) return Error.DuplicateSource;
             opts.script_plan = try value(&st, "--script-plan");
         } else if (eq(arg, "--script-check")) {
-            if (opts.script != null or opts.script_plan != null) return Error.DuplicateSource;
+            if (opts.script != null or opts.script_plan != null or opts.script_emit != null) return Error.DuplicateSource;
             opts.script_check = try value(&st, "--script-check");
+        } else if (eq(arg, "--script-emit")) {
+            if (opts.script_plan != null or opts.script_check != null) return Error.DuplicateSource;
+            opts.script_emit = try value(&st, "--script-emit");
         } else if (eq(arg, "--confine-output")) {
             opts.confine_output = true;
         } else if (eq(arg, "--server")) {
@@ -128,6 +131,10 @@ pub fn parse(argv: []const [:0]const u8) Error!Options {
             // A positional argument is the output path (last one wins).
             opts.output = arg;
         }
+    }
+    if (opts.script_emit != null and opts.script == null) {
+        logo.err("--script-emit needs --script <file> to read\n", .{});
+        return Error.BadValue;
     }
     return opts;
 }
@@ -249,6 +256,22 @@ test "parse: --console / --repl activate console mode" {
     const o4 = try parse(&c4);
     try testing.expect(o4.console and o4.console_full_screen);
     try testing.expect(!(try parse(&c1)).console_full_screen); // plain --console stays line-oriented
+}
+
+test "parse: --script-emit rides with --script, and with neither reporting mode" {
+    const ok = [_][:0]const u8{ "--script", "s.stc", "--script-emit", "s.pystc" };
+    const o = try parse(&ok);
+    try testing.expectEqualStrings("s.stc", o.script.?);
+    try testing.expectEqualStrings("s.pystc", o.script_emit.?);
+
+    // Nothing to read from, so the flag would otherwise be silently ignored.
+    const alone = [_][:0]const u8{ "--script-emit", "s.pystc" };
+    try testing.expectError(Error.BadValue, parse(&alone));
+
+    const with_check = [_][:0]const u8{ "--script-emit", "s.py", "--script-check", "s.stc" };
+    try testing.expectError(Error.DuplicateSource, parse(&with_check));
+    const with_plan = [_][:0]const u8{ "--script-plan", "s.stc", "--script-emit", "s.py" };
+    try testing.expectError(Error.DuplicateSource, parse(&with_plan));
 }
 
 test "parse: input and blank are mutually exclusive" {

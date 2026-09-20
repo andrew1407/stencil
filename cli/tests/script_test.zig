@@ -1,5 +1,6 @@
 //! End-to-end `.stc` script runs: the save-naming matrix, directory and glob sources,
-//! output confinement, the --script-check line grammar and the --script-plan envelope.
+//! output confinement, the --script-check line grammar, the --script-plan envelope and
+//! the --script-emit files.
 const std = @import("std");
 const testing = std.testing;
 
@@ -7,6 +8,7 @@ const check = @import("../src/script/check.zig");
 const image = @import("../src/image.zig");
 const opSchema = @import("../src/llm/opSchema.zig");
 const opplan = @import("../src/llm/opplan.zig");
+const emit = @import("../src/script/emit.zig");
 const plan = @import("../src/script/plan.zig");
 const report = @import("../src/report.zig");
 const run = @import("../src/script/run.zig");
@@ -331,4 +333,48 @@ test "a save that cannot be written says so instead of exiting silently" {
     );
     try testing.expectEqual(report.Severity.err, Cap.sev);
     try testing.expect(std.mem.startsWith(u8, Cap.buf[0..Cap.len], "could not write no-such-dir/out.png"));
+}
+
+test "--script-emit writes the file its extension named, and says which target it was" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+    const dir = std.Io.Dir.cwd();
+
+    const Cap = struct {
+        var buf: [256]u8 = undefined;
+        var len: usize = 0;
+        fn take(_: *anyopaque, _: report.Severity, text: []const u8) void {
+            len = @min(text.len, buf.len);
+            @memcpy(buf[0..len], text[0..len]);
+        }
+    };
+    var unused: u8 = 0;
+    report.install(.{ .ctx = @ptrCast(&unused), .emitFn = Cap.take });
+    defer report.uninstall();
+
+    const in_path = "stencil_emit_in.stc";
+    const out_path = "stencil_emit_out.pystc";
+    try dir.writeFile(io, .{ .sub_path = in_path, .data = "@filter bw\n@save o.png\n" });
+    defer dir.deleteFile(io, in_path) catch {};
+    defer dir.deleteFile(io, out_path) catch {};
+
+    try emit.run(gpa, io, in_path, out_path, false);
+    try testing.expect(std.mem.indexOf(u8, Cap.buf[0..Cap.len], "(python)") != null);
+
+    const written = try dir.readFileAlloc(io, out_path, gpa, .limited(1 << 20));
+    defer gpa.free(written);
+    try testing.expect(std.mem.indexOf(u8, written, "editor.apply_filter(\"bw\")") != null);
+    try testing.expect(std.mem.indexOf(u8, written, "from pystencil import Editor") != null);
+}
+
+test "an output whose extension names no target is refused before anything is read" {
+    const gpa = testing.allocator;
+    var threaded = std.Io.Threaded.init(gpa, .{});
+    defer threaded.deinit();
+    try testing.expectError(
+        emit.Error.UnknownEmitTarget,
+        emit.run(gpa, threaded.io(), "no-such.stc", "out.rb", false),
+    );
 }

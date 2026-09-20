@@ -1,45 +1,25 @@
-// The three commands, all of them one CLI invocation in the reused `Stencil` terminal with
-// the script's own directory as the working directory, so a relative @source resolves the
-// way it does on the command line.
+// The terminal commands: the three `.stc` CLI invocations, emitting the script for another
+// surface, and running an emitted `.pystc` on its interpreter. Each runs in the reused
+// `Stencil` terminal with the script's own directory as the working directory, so a relative
+// @source resolves the way it does on the command line.
 'use strict';
 
-const { dirname } = require('node:path');
 const vscode = require('vscode');
 
 const { COMMANDS, LANGUAGE_ID } = require('./lib/ids.js');
 const { MISSING_CLI_MESSAGE, cliFor } = require('./lib/cliLocator.js');
-const { runInTerminal } = require('./lib/terminal.js');
+const { MISSING_PYTHON_MESSAGE, pythonFor } = require('./lib/pythonLocator.js');
+const { emitTarget, pickEmitTarget } = require('./lib/emitTargets.js');
+const { isPySource } = require('./lib/pySource.js');
+const { activeIn, spawn } = require('./lib/scriptSpawn.js');
 
-const activeScript = () => {
-  const editor = vscode.window.activeTextEditor;
-  if (!editor || editor.document.languageId !== LANGUAGE_ID) return null;
-  return editor.document;
-};
-
-/* Saves first — every mode reads the file from disk — then runs `args(path)`. Returns the
- * terminal, or null when there is no .stc buffer, no CLI, or no file behind the buffer. */
-const spawnFor = async (buildArgs) => {
-  const document = activeScript();
-  if (!document) {
-    vscode.window.showErrorMessage('Open a .stc script first');
-    return null;
-  }
-  const cli = cliFor(vscode, document);
-  if (!cli) {
-    vscode.window.showErrorMessage(MISSING_CLI_MESSAGE);
-    return null;
-  }
-  // A cancelled save answers false; an untitled buffer's fsPath is a label, not a path.
-  if (document.isDirty && !(await document.save())) return null;
-  if (document.uri.scheme !== 'file') {
-    vscode.window.showErrorMessage('Save the script to a file first');
-    return null;
-  }
-  const path = document.uri.fsPath;
-  const args = await buildArgs(path);
-  if (!args) return null;
-  return runInTerminal(vscode, { cli, args, cwd: dirname(path) });
-};
+const spawnCli = (buildArgs) => spawn(vscode, {
+  document: activeIn(vscode, (document) => document.languageId === LANGUAGE_ID),
+  missing: 'Open a .stc script first',
+  locate: (document) => cliFor(vscode, document),
+  missingBinary: MISSING_CLI_MESSAGE,
+  buildArgs,
+});
 
 const pickImage = async () => {
   const picked = await vscode.window.showOpenDialog({
@@ -48,17 +28,31 @@ const pickImage = async () => {
   return picked && picked.length ? picked[0].fsPath : null;
 };
 
-const runScript = () => spawnFor((path) => ['--script', path]);
-const checkScript = () => spawnFor((path) => ['--script-check', path]);
-const runScriptOnImage = () => spawnFor(async (path) => {
+const runScript = () => spawnCli((path) => ['--script', path]);
+const checkScript = () => spawnCli((path) => ['--script-check', path]);
+const runScriptOnImage = () => spawnCli(async (path) => {
   const image = await pickImage();
   return image ? ['-i', image, '--script', path] : null;
+});
+const emitScript = () => spawnCli(async (path) => {
+  const extension = await pickEmitTarget(vscode);
+  return extension ? ['--script', path, '--script-emit', emitTarget(path, extension)] : null;
+});
+
+const runPythonScript = () => spawn(vscode, {
+  document: activeIn(vscode, isPySource),
+  missing: 'Open a .pystc script first',
+  locate: (document) => pythonFor(vscode, document),
+  missingBinary: MISSING_PYTHON_MESSAGE,
+  buildArgs: (path) => [path],
 });
 
 const HANDLERS = Object.freeze({
   [COMMANDS.runScript]: runScript,
   [COMMANDS.checkScript]: checkScript,
   [COMMANDS.runScriptOnImage]: runScriptOnImage,
+  [COMMANDS.emitScript]: emitScript,
+  [COMMANDS.runPythonScript]: runPythonScript,
 });
 
 const register = (context) => {
@@ -68,4 +62,5 @@ const register = (context) => {
   return HANDLERS;
 };
 
-module.exports = { HANDLERS, checkScript, register, runScript, runScriptOnImage };
+module.exports = { HANDLERS, checkScript, emitScript, register, runPythonScript, runScript,
+  runScriptOnImage };

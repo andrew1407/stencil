@@ -79,6 +79,21 @@
           "light": "./icons/stcjs.svg",
           "dark": "./icons/stcjs.svg"
         }
+      },
+      {
+        "id": "stencil-py",
+        "aliases": [
+          "Stencil Python",
+          "pystc"
+        ],
+        "extensions": [
+          ".pystc"
+        ],
+        "configuration": "./language-configuration.pystc.json",
+        "icon": {
+          "light": "./icons/pystc.svg",
+          "dark": "./icons/pystc.svg"
+        }
       }
     ],
     "grammars": [
@@ -98,11 +113,18 @@
         "path": "./syntaxes/stcjs.tmLanguage.json"
       },
       {
+        "language": "stencil-py",
+        "scopeName": "source.pystc",
+        "path": "./syntaxes/pystc.tmLanguage.json"
+      },
+      {
         "scopeName": "stencil.marker.stc",
         "path": "./syntaxes/stencilMarker.tmLanguage.json",
         "injectTo": [
           "source.js",
-          "source.stcjs"
+          "source.stcjs",
+          "source.python",
+          "source.pystc"
         ]
       }
     ],
@@ -163,6 +185,17 @@
         "command": "stencil.addTypings",
         "title": "Stencil: Add facade typings to this workspace",
         "category": "Stencil"
+      },
+      {
+        "command": "stencil.emitScript",
+        "title": "Stencil: Emit script as\u2026",
+        "category": "Stencil"
+      },
+      {
+        "command": "stencil.runPythonScript",
+        "title": "Stencil: Run Python script",
+        "category": "Stencil",
+        "icon": "$(play)"
       }
     ],
     "configuration": {
@@ -243,6 +276,12 @@
           ],
           "markdownDescription": "Which browser **Stencil: Run in Stencil Web Console** opens, through VS Code\u2019s built-in JavaScript debugger. It runs in a throwaway profile, never your everyday one."
         },
+        "stencil.pythonPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Path to the Python that runs a `.pystc`. A relative path is taken from the workspace folder. Empty falls back to `STENCIL_PYTHON`, then `python3` and `python` on `PATH`."
+        },
         "stencil.webInlineImages": {
           "type": "boolean",
           "default": true,
@@ -270,6 +309,11 @@
         {
           "command": "stencil.runInWebConsole",
           "when": "resourceLangId == stencil-js",
+          "group": "navigation"
+        },
+        {
+          "command": "stencil.runPythonScript",
+          "when": "resourceLangId == stencil-py",
           "group": "navigation"
         }
       ]

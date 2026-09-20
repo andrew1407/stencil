@@ -48,6 +48,22 @@ test('the JavaScript flavour is a third language that defers to source.js', () =
   assert.ok(manifest.activationEvents.includes('onLanguage:javascript'));
 });
 
+// .pystc is Python that drives pystencil's Editor — what `--script-emit` writes. The editor's
+// own Python service owns the language; this tree adds an icon and a grammar that defers.
+test('the Python flavour is a fourth language that defers to source.python', () => {
+  const py = contributes.languages.find((l) => l.id === ids.PY_LANGUAGE_ID);
+  assert.ok(py, `no ${ids.PY_LANGUAGE_ID} language`);
+  assert.deepEqual(py.extensions, [ids.PY_FILE_EXTENSION]);
+  const grammar = contributes.grammars.find((g) => g.language === ids.PY_LANGUAGE_ID);
+  assert.equal(grammar.scopeName, ids.PY_SCOPE_NAME);
+  const rules = JSON.parse(readFileSync(here(`../${grammar.path}`), 'utf8'));
+  assert.equal(rules.scopeName, ids.PY_SCOPE_NAME);
+  assert.deepEqual(rules.patterns, [{ include: 'source.python' }]);
+  // The run button belongs to it alone: a .stc runs on the CLI, a .pystc on an interpreter.
+  const button = contributes.menus['editor/title'].find((e) => e.command === ids.COMMANDS.runPythonScript);
+  assert.equal(button.when, `resourceLangId == ${ids.PY_LANGUAGE_ID}`);
+});
+
 // .stencil is contributed for its icon and to open as JSON, and its grammar must defer rather
 // than re-spell the JSON rules. Contributing it already wakes the host, so it is not spelled out.
 test('the project file is a second language that defers to source.json', () => {
@@ -91,7 +107,7 @@ test('every contributed path exists on disk', () => {
   for (const path of paths) assert.ok(existsSync(here(`../${path}`)), `${path} is missing`);
 });
 
-test('the manifest declares exactly the three commands the code registers', () => {
+test('the manifest declares exactly the commands the code registers', () => {
   const declared = contributes.commands.map((c) => c.command).sort();
   assert.deepEqual(declared, Object.values(ids.COMMANDS).sort());
   for (const command of contributes.commands) {

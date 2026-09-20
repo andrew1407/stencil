@@ -1,6 +1,14 @@
 {
   "_doc": "The window.stencil facade, as an editor explains it. Prose is this surface’s own; the MEMBER LIST is not — tests/apiVocabulary.test.js holds it to interface Stencil in browser/js/console/stencilApi.d.ts, both ways, so a new facade member is unexplained until it is written down here. Signatures are that file’s, verbatim.",
   "members": {
+    "EasterEggs": {
+      "group": "windows",
+      "signature": "stencil.EasterEggs: EasterEggsFacade",
+      "summary": "The logo shows, one call each.",
+      "readOnly": true,
+      "detail": "Each call opens its show over the bare window; Escape or a click on the page ends it, as does EasterEggs.close(). EasterEggs.what() lists the words a keyboard can spell, and EasterEggs.of(word) runs one.",
+      "example": "stencil.EasterEggs.neonOn();"
+    },
     "allowFormulas": {
       "group": "settings",
       "signature": "stencil.allowFormulas: boolean",

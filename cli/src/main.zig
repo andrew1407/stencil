@@ -57,6 +57,8 @@ pub fn main(init: std.process.Init) !void {
                 .run => return script.run.run(gpa, io, opts, sc.path) catch std.process.exit(1),
                 .check => return script.check.run(gpa, io, out, sc.path) catch std.process.exit(1),
                 .plan => return script.plan.run(gpa, io, out, opts, sc.path) catch std.process.exit(1),
+                .emit => return script.emit.run(gpa, io, sc.path, opts.script_emit.?, opts.confine_output) catch
+                    std.process.exit(1),
             }
         },
         // A `.stencil` project on either side reuses the console Session so its layout renders

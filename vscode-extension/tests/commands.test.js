@@ -122,14 +122,15 @@ test('no .stc buffer and no CLI each refuse with a message instead of spawning',
 });
 
 // The fourth contributed id, stencil.configureColors, is colors.js's — it spawns no CLI.
-test('register hands VS Code the three script commands', async () => {
+test('register hands VS Code every script command', async () => {
   await withHost({}, async ({ calls, commands, host }) => {
     const context = { subscriptions: [] };
     commands.register(context);
     const { COMMANDS } = host.require('lib/ids.js');
     assert.deepEqual([...calls.commands.keys()].sort(),
-      [COMMANDS.checkScript, COMMANDS.runScript, COMMANDS.runScriptOnImage].sort());
-    assert.equal(context.subscriptions.length, 3);
+      [COMMANDS.checkScript, COMMANDS.emitScript, COMMANDS.runPythonScript, COMMANDS.runScript,
+        COMMANDS.runScriptOnImage].sort());
+    assert.equal(context.subscriptions.length, 5);
   });
 });
 
@@ -176,5 +177,47 @@ test('the handler table and the id table are frozen', async () => {
     assert.ok(Object.isFrozen(ids.COMMANDS) && Object.isFrozen(ids.SETTINGS));
     const tokens = host.require('semanticTokens.js');
     assert.ok(Object.isFrozen(tokens.TOKEN_TYPES) && Object.isFrozen(tokens.KIND_TYPE));
+  });
+});
+
+test('emit hands the CLI the picked extension, and only that', async () => {
+  await withHost({ quickPick: [{ label: '.pystc' }] }, async ({ calls, commands, dir, vscode }) => {
+    const path = openScript(vscode, dir);
+    await commands.emitScript();
+    const line = calls.terminals[0].sent.at(-1);
+    assert.ok(line.includes('--script '), 'the script it reads');
+    assert.ok(line.includes('--script-emit '), 'the flag that writes');
+    assert.ok(line.endsWith(path.replace(/\.stc$/, '.pystc')), 'beside the script, under its stem');
+    assert.deepEqual(calls.picks[0].items.map((i) => i.label), ['.pystc', '.py', '.stcjs', '.js']);
+  });
+});
+
+test('a cancelled emit pick spawns nothing', async () => {
+  await withHost({ quickPick: [undefined] }, async ({ calls, commands, dir, vscode }) => {
+    openScript(vscode, dir);
+    await commands.emitScript();
+    assert.equal(calls.terminals.length, 0);
+  });
+});
+
+test('a .pystc runs on the interpreter, not on the CLI', async () => {
+  await withHost({ settings: { 'stencil.pythonPath': '' } }, async ({ calls, commands, dir, vscode }) => {
+    const path = join(dir, 'shots.pystc');
+    writeFileSync(path, '# @use stencil\n');
+    vscode.window.activeTextEditor = { document: makeDocument({ path, languageId: 'stencil-py' }) };
+    await commands.runPythonScript();
+    const line = calls.terminals[0].sent.at(-1);
+    assert.ok(/python3?/.test(line), 'the interpreter leads');
+    assert.ok(line.endsWith(path), 'and the script is its only argument');
+    assert.ok(!line.includes('--script'), 'no CLI flag reaches it');
+  });
+});
+
+test('running Python over a .stc buffer says which file it wanted', async () => {
+  await withHost({}, async ({ calls, commands, dir, vscode }) => {
+    openScript(vscode, dir);
+    await commands.runPythonScript();
+    assert.equal(calls.terminals.length, 0);
+    assert.deepEqual(calls.errors, ['Open a .pystc script first']);
   });
 });

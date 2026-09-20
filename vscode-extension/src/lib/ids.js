@@ -14,6 +14,13 @@ const JS_SCOPE_NAME = 'source.stcjs';
 const JS_FILE_EXTENSION = '.stcjs';
 const USE_MARKER = '// @use stencil';
 
+// The Python flavour: a file that drives pystencil's Editor, which `--script-emit` writes.
+// A plain .py opts in the same way, with the marker on a comment line of its own.
+const PY_LANGUAGE_ID = 'stencil-py';
+const PY_SCOPE_NAME = 'source.pystc';
+const PY_FILE_EXTENSION = '.pystc';
+const PY_USE_MARKER = '# @use stencil';
+
 // The instance the web commands open, when the setting names none.
 const DEFAULT_WEB_URL = 'https://andrew1407.github.io/stencil/';
 
@@ -28,14 +35,17 @@ const COMMANDS = Object.freeze({
   openInWeb: 'stencil.openInWeb', openInWebIncognito: 'stencil.openInWebIncognito',
   runInWebConsole: 'stencil.runInWebConsole', runSelectionInWebConsole: 'stencil.runSelectionInWebConsole',
   openImageInWeb: 'stencil.openImageInWeb', addTypings: 'stencil.addTypings',
+  emitScript: 'stencil.emitScript', runPythonScript: 'stencil.runPythonScript',
 });
 
 const SETTINGS = Object.freeze({
   cliPath: 'cliPath', checkOnType: 'checkOnType', checkOnSave: 'checkOnSave',
   highlighting: 'highlighting', completion: 'completion', hover: 'hover', colors: 'colors',
   webUrl: 'webUrl', webBrowser: 'webBrowser', webInlineImages: 'webInlineImages',
+  pythonPath: 'pythonPath',
 });
 
 module.exports = { COMMANDS, CONFIG_SECTION, DEFAULT_WEB_URL, FILE_EXTENSION, JS_FILE_EXTENSION,
   JS_LANGUAGE_ID, JS_SCOPE_NAME, LANGUAGE_ID, PROJECT_FILE_EXTENSION, PROJECT_LANGUAGE_ID,
-  PROJECT_SCOPE_NAME, SCOPE_NAME, SETTINGS, USE_MARKER };
+  PROJECT_SCOPE_NAME, PY_FILE_EXTENSION, PY_LANGUAGE_ID, PY_SCOPE_NAME, PY_USE_MARKER,
+  SCOPE_NAME, SETTINGS, USE_MARKER };

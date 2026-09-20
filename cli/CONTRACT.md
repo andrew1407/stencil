@@ -67,6 +67,7 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `--script` | `<path>` value | **Script mode.** Run a `.stc` script (`-` reads stdin). A script with no `@source` block edits the `-i` input. Mutually exclusive with `--script-check` and `--script-plan` (→ `DuplicateSource`). See §4. |
 | `--script-check` | `<path>` value | Print the script's diagnostics **to stdout** and exit 1 if any is an error. See §4. |
 | `--script-plan` | `<path>` value | Print the script lowered to an op-plan envelope, as JSON **on stdout** (`-` reads stdin). Runs nothing and writes no file; exits 1 when the script has an error. See §4.3. |
+| `--script-emit` | `<path>` value | With `--script`, write that `.stc` out as a runnable script for another surface instead of running it. The **output's extension** picks the target — `.js`/`.stcjs` → the browser facade, `.py`/`.pystc` → pystencil — and no other suffix is accepted. Mutually exclusive with `--script-check` and `--script-plan`. See §4.4. |
 | `--console`, `--repl` | switch | Interactive console mode (out of scope for this contract). |
 | `-h`, `--help` | switch | Show help. |
 | `<output>` | positional | Result path (last positional wins) — or, in scrape mode, the **destination directory** (created if missing; default `.`). A missing/unknown extension is auto-filled from the input format. |
@@ -256,14 +257,14 @@ The scrape line shapes are pinned by the shared golden set
 
 ---
 
-## 4. Script mode (`--script`, `--script-check`, `--script-plan`) output contract
+## 4. Script mode (`--script`, `--script-check`, `--script-plan`, `--script-emit`) output contract
 
 The `.stc` language itself is normative in [`contracts/stc/stc-contract.md`](../contracts/stc/stc-contract.md);
 this section fixes only what the CLI prints.
 
 **`--script-check` and `--script-plan` are the only modes that write to stdout.** Every other
-mode keeps stdout empty; `--script` (the run mode) does too, reporting through the same
-`wrote …` / `error: …` lines as the pipeline.
+mode keeps stdout empty; `--script` (the run mode) and `--script-emit` do too, reporting
+through the same `wrote …` / `error: …` lines as the pipeline.
 
 ### 4.1 `--script-check` — one line per diagnostic, on stdout
 
@@ -342,6 +343,46 @@ first local input. Exit code **1** if any diagnostic is an error, **0** otherwis
   replace` drops them instead, and they are never described.
 - `saves` is the concrete destination of every `@save`, one entry per input × save op, named
   by the same rule `--script` uses (§4.2).
+
+### 4.4 `--script-emit` — the script re-written for another surface
+
+`--script <in.stc> --script-emit <out>` writes one file and runs nothing. The target comes
+from `<out>`'s extension alone (no language flag exists):
+
+| Extension | Target | Calls |
+|---|---|---|
+| `.js`, `.stcjs` | the browser app's `window.stencil` facade | the twin of `browser/js/console/scriptRunner.js` |
+| `.py`, `.pystc` | pystencil's `Editor` | the twin of `pystencil/pystencil/editor/script.py` |
+
+Any other suffix is refused with `error: cannot emit '<out>': name it .js, .stcjs, .py or
+.pystc` and nothing is written.
+
+Success prints one line, in the §2.1 shape a non-raster write already uses:
+
+```
+wrote shots.pystc (python)
+wrote shots.stcjs (javascript)
+```
+
+Neither parenthetical carries an `x`, so `parse_wrote` (§2.1) ignores them exactly as it
+ignores `(layout)` and `(project)`.
+
+**Emission is literal.** Length tokens (`10%`, `-1in`), `@source` specs and `@save` targets
+are emitted as the script wrote them and resolved by the generated file when it runs, so an
+emitted script is as general as its `.stc` and needs no input image at emit time. Templates
+are expanded and `@undo`/`@redo` arrive already reconciled, because both are resolved when
+the core lowers the script (stc-contract §6, §7).
+
+**A target that cannot honour a directive refuses it**, rather than emitting something that
+cannot run. The rows are stc-contract §10's, for the surface the file will run on:
+
+```
+error: shots.stc:1:1: the browser can only open a URL — 'shots/' is a local path
+error: shots.stc:3:5: @frame needs a video decoder — use the CLI
+```
+
+Exit code **1** for a refusal, an unknown suffix, or any error diagnostic in the script;
+**0** when the file is written. `--confine-output` applies to `<out>`.
 
 ## 5. Shared golden fixtures
 
