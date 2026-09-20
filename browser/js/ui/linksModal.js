@@ -53,6 +53,7 @@ export class StencilLinksModal extends StencilElement {
     wireModalShell(overlay, $('links-btn'), $('links-close'), {
 // The 🔗 button is disabled without an image (drawingApp refreshActions).
       onOpen: syncLinkFields,
+      focusOnOpen: sourceEl,
     });
 
 // The window event fires for THIS tab too (onProjectsChanged only fires for other tabs).

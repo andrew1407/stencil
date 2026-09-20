@@ -152,6 +152,7 @@ export class StencilLlmSettingsModal extends StencilElement {
       onClose: () => boxEase.stop(),
 // The gear sits inside the composer's "…" menu, which closes as it is clicked.
       originEl: () => visibleChatMoreBtn(),
+      focusOnOpen: baseUrlEl,
     });
     // The only path that writes storage.
     $('chat-settings-save').addEventListener('click', () => {

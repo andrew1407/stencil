@@ -88,6 +88,8 @@ namespace stencil::gui {
                        &ConnectDialog::rebuildList);
 
     rebuildList();
+    // The caret lands in the host field, as the browser window does (InfoDialog parity).
+    QTimer::singleShot(0, urlEdit_, [u = urlEdit_] { u->setFocus(); });
   }
 
   QPushButton* ConnectDialog::buildConnectForm(QVBoxLayout* root) {

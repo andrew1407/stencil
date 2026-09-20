@@ -169,6 +169,8 @@ namespace stencil::gui {
     connect(search_, &QLineEdit::textChanged, this,
             [this](const QString& q) { applyFilter(q); });
     sizeModalTall(this, dialogW_);
+    // …and the caret lands in the search box, as the browser window does (InfoDialog parity).
+    QTimer::singleShot(0, search_, [s = search_] { s->setFocus(); });
   }
 
   bool ShortcutsDialog::eventFilter(QObject* watched, QEvent* event) {

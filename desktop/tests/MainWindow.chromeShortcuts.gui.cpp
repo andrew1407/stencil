@@ -8,6 +8,30 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
+  // A window opens ready to be typed into: the caret lands in its search box, as the browser's
+  // windows do (their shells carry focusOnOpen).
+  void aWindowOpensWithTheCaretInItsSearchBox() {
+    MainWindow win(nullptr, false);
+    openLoaded(win);
+    bool focused = false, checked = false;
+    QTimer::singleShot(0, &win, [&] {
+      QDialog* shown = nullptr;
+      for (QDialog* d : win.findChildren<QDialog*>())
+        if (d->isVisible()) shown = d;
+      if (shown) {
+        // The 0-timer the dialog itself queues lands first; give it one turn.
+        QTest::qWait(30);
+        QWidget* f = shown->focusWidget();
+        focused = qobject_cast<QLineEdit*>(f) != nullptr;
+        checked = true;
+        shown->reject();
+      }
+    });
+    win.actShortcuts_->trigger();
+    QVERIFY2(checked, "the shortcuts window opened");
+    QVERIFY2(focused, "its search box holds the caret");
+  }
+
   // A window shortcut pressed while that window is up CLOSES it, and another window's shortcut SWAPS
   // to it. The dialog carries its own copies: a modal loop never lets the window's actions fire.
   void windowShortcutsToggleAndSwap() {
