@@ -18,7 +18,7 @@ export const WORKSPACE = (config) => path.join(root(config), 'ws');
 export const CLI_BIN = (config) => path.join(root(config), 'bin', 'stencil');
 
 const SOURCE = path.join(CAPTURE, 'vscode');
-const SAMPLES = ['example.stc', 'example.stcjs', 'example.pystc', 'example.stencil'];
+export const SAMPLES = ['example.stc', 'example.stcjs', 'example.pystc', 'example.stencil'];
 const SAMPLE = SAMPLES[0];
 const LANGUAGE_NAME = 'Stencil script';
 const WORKBENCH = '.monaco-workbench';
