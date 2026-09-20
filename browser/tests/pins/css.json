@@ -4957,9 +4957,6 @@
    "|.filter-entering": {
     "animation": "rowFilterIn 0.34s cubic-bezier(0, 0, 0.6, 1) both"
    },
-   "|.fullscreen-layer:has(.panel-resizer.dragging) .coordinates-panel, .main-content:has(.panel-resizer.dragging) .coordinates-panel": {
-    "transition": "none"
-   },
    "|.hints-btn": {
     "display": "none",
     "flex": "0 0 auto",
@@ -6044,6 +6041,9 @@
    },
    "|.main-content:has(.coordinates-panel.coord-collapsed) .panel-resizer": {
     "display": "none"
+   },
+   "|.main-content:has(.panel-resizer.dragging) .coordinates-panel, body:has(#fs-panel-resizer.dragging) .coordinates-panel": {
+    "transition": "none"
    },
    "|.mark-forming": {
     "animation": "markForm var(--mark-ms, 320ms) linear both"
@@ -9768,7 +9768,7 @@
    "|#toggle-controls .ic, #toggle-coord-panel .ic",
    "|.controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic, .coordinates-panel.coord-collapsed #toggle-coord-panel .ic",
    "|.coordinates-panel",
-   "|.fullscreen-layer:has(.panel-resizer.dragging) .coordinates-panel, .main-content:has(.panel-resizer.dragging) .coordinates-panel",
+   "|.main-content:has(.panel-resizer.dragging) .coordinates-panel, body:has(#fs-panel-resizer.dragging) .coordinates-panel",
    "|#coord-body, .coord-tabs",
    "|.coordinates-panel.coord-collapsed #coord-body, .coordinates-panel.coord-collapsed .coord-tabs",
    "@media (min-width: 961px)|.coordinates-panel.coord-folding #coord-body, .coordinates-panel.coord-folding .coord-tabs",

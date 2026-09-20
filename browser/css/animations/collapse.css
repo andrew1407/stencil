@@ -74,7 +74,7 @@
                 padding var(--fold-ms) var(--fold-ease);
 }
 .main-content:has(.panel-resizer.dragging) .coordinates-panel,
-.fullscreen-layer:has(.panel-resizer.dragging) .coordinates-panel { transition: none; }
+body:has(#fs-panel-resizer.dragging) .coordinates-panel { transition: none; }
 #coord-body, .coord-tabs {
     opacity: 1;
     /* `display` is what actually removes them (layout/coordPanel.css); allow-discrete keeps the
