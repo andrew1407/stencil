@@ -3,6 +3,9 @@
 // wireModalShell, so only classList, listeners and getElementById are exercised here.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { createStubElement, installDom } from './helpers/dom.js';
 
 const el = (id = '') => createStubElement('div', {
@@ -75,9 +78,19 @@ test('Escape closes only the stacked window, not the one under it', () => {
   assert.equal(under.isOpen(), false, '…and the next Escape closes it');
 });
 
+// The option below exists for a shell that genuinely owns the key. No window the app ships does:
+// the Shortcuts window records a combo in the CAPTURE phase and stops Escape there while it is
+// recording, so withholding it from the shell only trapped the window open.
+test('no window the app ships withholds Escape from its shell', () => {
+  const dir = fileURLToPath(new URL('../js/ui/', import.meta.url));
+  const guilty = readdirSync(dir)
+    .filter((f) => f.endsWith('.js'))
+    .filter((f) => /escapeClose\s*:\s*false/.test(readFileSync(join(dir, f), 'utf8')));
+  assert.deepEqual(guilty, [], 'these windows cannot be closed with Escape');
+});
+
 test('escapeClose: false keeps the FULL modal open, but its popover shape still closes', () => {
-  // settingsModal owns Escape while a hotkey is being rebound, so the shell's own Escape
-  // must leave the full window alone — the popover shape never rebinds, and always closes.
+  // Kept as a shell CAPABILITY, exercised on a shell of this test's own making.
   const overlay = el('noesc-overlay');
   const shell = wireModalShell(overlay, null, null, { escapeClose: false });
   shell.open();

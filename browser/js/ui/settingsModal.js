@@ -162,7 +162,6 @@ export class StencilSettingsModal extends StencilElement {
     wireModalShell(overlay, openBtn, closeBtn, {
       onOpen: () => { search.value = ''; rebuild(); },
       onClose: () => { if (capturing) stopCapture(false); },
-      escapeClose: false
     });
     resetAll.addEventListener('click', async () => {
       if (!(await app.confirm('Reset ALL keyboard shortcuts to their defaults?', { title: 'Reset shortcuts', danger: true, confirmIcon: 'refresh' }))) return;
