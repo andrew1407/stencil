@@ -25,6 +25,8 @@ Options
                              block it edits the -i input; see contracts/stc/
       --script-check <file>  Print the script's diagnostics and exit 1 on an error
       --script-plan <file>   Print the script lowered to an op plan (JSON, stdout)
+      --script-emit <out>    Re-write --script's .stc as a runnable script for another
+                             surface; <out>'s extension picks it (.js/.stcjs, .py/.pystc)
       --console              Interactive console: /upload, /crop, /rotate, /save, ...
       --console-full-screen  Console in a full-screen TUI: pinned logo header,
                              scrollback (wheel/PgUp/PgDn), click logo to change theme

@@ -4,6 +4,7 @@
 //! blank line before it belongs to the file.
 const std = @import("std");
 const fx = @import("fixture_corpus.zig");
+const emit = @import("../src/script/emit.zig");
 const load = @import("../src/script/load.zig");
 const scriptCore = @import("../src/scriptCore.zig");
 const testing = std.testing;
@@ -169,4 +170,29 @@ test "script corpus: the splitter keeps a case's trailing blank line out of its 
     try testing.expectEqualStrings("", cases[0].dump);
     try testing.expectEqualStrings("@filter bw\n", cases[1].script);
     try testing.expectEqualStrings("1:1:1: warning: w [W_X]\n", cases[1].diagnostics);
+}
+
+test "script corpus: every clean case emits for both targets, or says why it cannot" {
+    var w = fx.Walk.start();
+    defer w.stop();
+
+    for (try loadCases(&w)) |c| {
+        var s = scriptCore.Script.parse(c.script) catch continue;
+        defer s.deinit();
+        if (s.hasErrors()) continue; // an err-* case never reaches the emitter
+        w.walked += 1;
+
+        for ([_]emit.Target{ .js, .py }) |target| {
+            var bad: emit.Refusal = .{};
+            const text = emit.renderAlloc(w.alloc(), s, target, c.name, &bad) catch |e| {
+                // A refusal is a result: it must name the span it refused.
+                if (e == emit.Error.EmitUnsupported and bad.text().len > 0 and bad.line > 0) continue;
+                w.fail("script '{s}' -> {s}: {s}\n", .{ c.name, target.display(), @errorName(e) });
+                continue;
+            };
+            if (text.len == 0 or text[text.len - 1] != '\n')
+                w.fail("script '{s}' -> {s}: the emitted file is empty or unterminated\n", .{ c.name, target.display() });
+        }
+    }
+    try w.report("script emit");
 }

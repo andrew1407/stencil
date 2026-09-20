@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+# What `stencil --script example.stc --script-emit example.pystc` writes: the same edits,
+# as pystencil calls. The lengths stay as the script wrote them and resolve when this runs.
+
+import sys
+
+from pystencil import Editor
+from pystencil.layout import Line, Point
+from pystencil.scriptpaths import base_name, expand_source, resolve_target, save_format
+
+PX_PER_CM = 96.0 / 2.54
+
+
+def _len(token, extent):
+  """One .stc length token against an axis; the twin of core/parse/lengthTokens.cpp."""
+  text = str(token).strip().lower()
+  from_end = text.startswith("-")
+  body = (text[1:] if from_end else text).strip()
+  digits = 0
+  while digits < len(body) and (body[digits].isdigit() or body[digits] == "."): digits += 1
+  if digits == 0: return 0.0
+  value = float(body[:digits])
+  unit = body[digits:].strip()
+  if unit == "": return -value if from_end else value
+  if unit == "%": px = value / 100.0 * extent
+  elif unit == "cm": px = value * PX_PER_CM
+  elif unit == "mm": px = value / 10.0 * PX_PER_CM
+  elif unit == "in": px = value * 2.54 * PX_PER_CM
+  else: px = value
+  return extent - px if from_end else px
+
+
+def _pt(editor, x, y):
+  width, height = editor.image_size
+  return Point(_len(x, width), _len(y, height))
+
+
+def _save(editor, target, source):
+  name = base_name(source)
+  ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
+  path = resolve_target(target, source, None, save_format(ext))
+  editor.save(path)
+  return path
+
+
+def main(source=None):
+  for path in expand_source("./icon.png", "file"):
+    editor = Editor()
+    editor.load(path, source=path)
+    editor.crop("x1=8% x2=-8% y1=8% y2=-8%")
+    editor.apply_filter("sepia")
+    editor.draw([Line(points=[_pt(editor, "10%", "10%"), _pt(editor, "90%", "10%"),
+                              _pt(editor, "90%", "90%"), _pt(editor, "10%", "90%")],
+                      color="#1e63c8", style="dashed", fill_color="aqua", point_color="red",
+                      thickness=3, point_size=4, locked=True)])
+    print("wrote", _save(editor, "out/", path))
+
+
+if __name__ == "__main__":
+  main(sys.argv[1] if len(sys.argv) > 1 else None)

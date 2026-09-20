@@ -15,14 +15,14 @@ const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../../src');
 // `settings` seeds getConfiguration; `calls` collects what was registered or shown.
 export const makeVscode = ({
   settings = {}, openDialog = [], shell = '/bin/sh', themeKind = 2,
-  inputBox = [], debugAnswers = [], startDebugging = true, launcherAnswers = false,
+  inputBox = [], quickPick = [], debugAnswers = [], startDebugging = true, launcherAnswers = false,
   childDelayMs = 0, workspaceFolder = '',
 } = {}) => {
   const calls = {
     collections: [], commands: new Map(), completionProviders: [], errors: [], events: {},
     decorationTypes: [], editors: [], executed: [], hoverProviders: [], semanticProviders: [],
     terminals: [], updates: [], opened: [], warnings: [], infos: [], channels: [],
-    debugConfigs: [], sessions: [],
+    debugConfigs: [], sessions: [], picks: [],
   };
   const on = (name) => (handler) => {
     (calls.events[name] ??= []).push(handler);
@@ -109,6 +109,10 @@ export const makeVscode = ({
       showInformationMessage(message) { calls.infos.push(message); return Promise.resolve(undefined); },
       showOpenDialog() { return Promise.resolve(openDialog); },
       showInputBox() { return Promise.resolve(inputBox.shift()); },
+      showQuickPick(items, options) {
+        calls.picks.push({ items, options });
+        return Promise.resolve(quickPick.shift());
+      },
       createOutputChannel(name) {
         const channel = new OutputChannel(name);
         calls.channels.push(channel);

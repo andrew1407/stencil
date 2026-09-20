@@ -162,6 +162,25 @@ A bare `@save` writes beside the source as `<name>-stencil.<ext>`, so a whole-di
 is safe in place; when the source is a URL it lands in the working directory under that name.
 A script with any error runs nothing and exits 1.
 
+### Emitting it for another surface
+
+`--script-emit <out>` writes the script out as a runnable script somewhere else instead of
+running it. The output's own extension picks the target, so there is no language flag:
+
+```bash
+stencil --script shots.stc --script-emit shots.pystc   # python, over pystencil's Editor
+stencil --script shots.stc --script-emit shots.stcjs   # javascript, over window.stencil
+```
+
+`.js` and `.stcjs` emit the browser facade; `.py` and `.pystc` emit pystencil; any other
+suffix is an error. Lengths (`10%`), `@source` specs and `@save` targets come out **as
+written** and are resolved by the generated file when it runs, so it stays as general as the
+`.stc` — a `@source shots/:` block becomes the same loop over the same files. Templates
+arrive expanded and `@undo` already reconciled, because the core resolves both when it lowers
+the script. Where a target cannot honour a directive it says so and writes nothing: the
+browser has no filesystem, so a local `@source` is refused there, and `@frame` needs the
+decoder only the CLI has.
+
 `--script-plan` writes one JSON object to stdout — the script's blocks, the files each one
 would open, the edits as op-plan actions and the exact paths each `@save` would write — and
 touches nothing. Its shape is pinned in [`CONTRACT.md`](CONTRACT.md) §4.3.

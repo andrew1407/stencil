@@ -18,7 +18,7 @@ export const WORKSPACE = (config) => path.join(root(config), 'ws');
 export const CLI_BIN = (config) => path.join(root(config), 'bin', 'stencil');
 
 const SOURCE = path.join(CAPTURE, 'vscode');
-const SAMPLES = ['example.stc', 'example.stcjs', 'example.stencil'];
+const SAMPLES = ['example.stc', 'example.stcjs', 'example.pystc', 'example.stencil'];
 const SAMPLE = SAMPLES[0];
 const LANGUAGE_NAME = 'Stencil script';
 const WORKBENCH = '.monaco-workbench';
@@ -54,7 +54,10 @@ export class VsCodeHost {
     settings['stencil.cliPath'] = CLI_BIN(config);
     // A shell with no rc files and a bare prompt: no user name, no host name, no home path.
     const shell = config.vscode.shells[process.platform] || config.vscode.shells.linux;
-    const profile = { Capture: { ...shell, env: { PS1: '$ ', BASH_SILENCE_DEPRECATION_WARNING: '1' } } };
+    // PYTHONPATH so a .pystc finds pystencil the way an installed one would; the path is in
+    // the environment, never on the command line the terminal shot carries.
+    const env = { PS1: '$ ', BASH_SILENCE_DEPRECATION_WARNING: '1', PYTHONPATH: path.join(REPO, 'pystencil') };
+    const profile = { Capture: { ...shell, env } };
     settings['terminal.integrated.profiles.osx'] = profile;
     settings['terminal.integrated.profiles.linux'] = profile;
     fs.writeFileSync(path.join(dir, 'user', 'User', 'settings.json'), JSON.stringify(settings, null, 2));

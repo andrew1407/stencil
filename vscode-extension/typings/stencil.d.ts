@@ -28,6 +28,8 @@ type DrawMode = 'line' | 'rect';
 type MotionMode = 'particles' | 'water' | 'fire' | 'slide' | 'none';
 type ExportVariant = 'current' | 'original' | 'tint' | 'split';
 type ChatDock = 'left' | 'right' | 'top' | 'bottom' | 'float';
+/** A logo show (js/config/logoStage.json), plus `close` for the one on screen. */
+type EasterEggsFacade = Readonly<Record<string, () => Stencil>>;
 
 interface StencilSettings {
   /**
@@ -255,8 +257,6 @@ interface StencilSettings {
    * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
    */
   description: string;
-  /** Read: string[]. Write one keyword per array entry, or a comma/newline separated
-   *  string — the same shapes Project.keywords takes. */
   /**
    * The open project’s keywords, which the project search reads.
    *
@@ -423,8 +423,7 @@ interface TooltipSections { enabled: boolean; page: boolean; screen: boolean; co
 interface Point {
   readonly lineIdx: number;
   readonly ptIdx: number;
-  x: number | undefined;
-  y: number | undefined;
+  x: number | undefined; y: number | undefined;
   apply(opts?: { x?: number; y?: number; size?: number }): Point;
   move(delta?: { x?: number; y?: number }): Point;
   /** Empties the line → the line is dropped; returns the owning Line, else the facade. */
@@ -469,8 +468,7 @@ interface Project {
   color: string;
   /** The project's description, as the Description window edits it; '' clears it. */
   description: string;
-  /** One keyword per array entry (a keyword may be several words); a string splits on
-   *  commas and newlines. Duplicates collapse case-insensitively, order is kept. */
+  /** One array entry per keyword (which may be several words); a string splits on commas and newlines. */
   keywords: string[] | string;
   readonly blank: boolean;
   readonly fromFile: boolean;
@@ -1101,6 +1099,18 @@ interface Stencil extends StencilSettings {
    * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
    */
   openCropWindow(): Stencil;
+  /**
+   * The logo shows, one call each.
+   *
+   * Each call opens its show over the bare window; Escape or a click on the page ends it, as does EasterEggs.close(). EasterEggs.what() lists the words a keyboard can spell, and EasterEggs.of(word) runs one.
+   *
+   * ```js
+   * stencil.EasterEggs.neonOn();
+   * ```
+   *
+   * [Stencil console API](https://github.com/andrew1407/stencil/blob/main/browser/README.md#console-api)
+   */
+  readonly EasterEggs: EasterEggsFacade;
 
   // Editor actions
   /**

@@ -241,3 +241,20 @@ model-chosen script still passes `--confine-output`.
 `browser/js/config/script/fixtures/` holds the corpus; `_schema.md` beside it describes the
 file triple and the `err-*` naming rule. The four `tour-*` cases are the language's worked
 examples and are what the READMEs point at. Adding a directive means adding a fixture.
+
+## §12 Emitting a script for another surface
+
+A script can be re-written as a runnable script for one of the surfaces in §10 — today the
+CLI's `--script-emit <out>`, whose flag surface and output lines are normative in
+[`cli/CONTRACT.md`](../../cli/CONTRACT.md) §4.4. The target is read off the output's
+extension: `.js`/`.stcjs` the browser facade, `.py`/`.pystc` pystencil.
+
+Two rules hold whoever emits:
+
+1. **Emission is literal.** Length tokens, `@source` specs and `@save` targets are written
+   out as the script wrote them and resolved by the generated file at run time, so it is as
+   general as the `.stc` and needs no image to emit. Templates (§6) and `@undo`/`@redo` (§7)
+   arrive resolved, because lowering resolves both.
+2. **The target's §10 row governs.** A directive that row cannot honour is refused with the
+   span that named it, and nothing is written — an emitted script that cannot run is never
+   produced.

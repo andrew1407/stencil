@@ -171,6 +171,28 @@ const STEPS = Object.freeze([
     }, [`${FILE_ROW}:not([aria-expanded])`, LABEL_GUTTER]);
     quantizePng(await runner.shot(ctx.page, 'file-icons', { clip }));
   } },
+  // The emit pick: the four suffixes, which are the language choice — the CLI reads the
+  // target off the output's extension.
+  { name: 'emit-targets', run: async (ctx) => {
+    await ctx.host.openFile('example.stc');
+    await ctx.host.runCommand('Stencil: Emit script as');
+    await ctx.page.locator(`${PALETTE} .monaco-list-row`).first().waitFor({ timeout: TIMEOUTS.widgetMs });
+    await settle(400);
+    await still(ctx, 'emit-targets', PALETTE);
+    await ctx.page.keyboard.press('Escape');
+  } },
+  // The emitted file running on its own interpreter: the .pystc's own Run button, and what
+  // it printed in the terminal.
+  { name: 'python-run', run: async (ctx) => {
+    await ctx.host.openFile('example.pystc');
+    await ctx.host.runCommand('Stencil: Run Python script');
+    await ctx.page.locator('.terminal-wrapper').first().waitFor({ timeout: TIMEOUTS.terminalMs });
+    await ctx.page.waitForFunction(() => /wrote |Error|error/.test(
+      document.querySelector('.terminal-wrapper.active .xterm-rows')?.innerText ?? ''), null, { timeout: 60_000 });
+    await waitForStable(ctx.page, terminalText, { idleMs: 500, timeoutMs: 20_000 });
+    await still(ctx, 'python-run', ...EDITOR, PANEL);
+    await ctx.page.keyboard.press('Meta+J');
+  } },
   { name: 'api-completion', run: async (ctx) => {
     await ctx.host.openFile('example.stcjs');
     await lineEnd(ctx, 'stencil.rotateRight()');
