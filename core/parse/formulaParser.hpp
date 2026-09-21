@@ -2,7 +2,7 @@
 #include <optional>
 #include <string>
 
-// Recursive-descent arithmetic parser, twin of browser/js/core/formulaEngine.js (no eval).
+// Recursive-descent arithmetic parser, twin of browser/js/core/parse/formulaEngine.js (no eval).
 //   expr  := term (('+' | '-') term)*        term  := unary (('*' | '/') unary)*
 //   unary := ('+' | '-') unary | power       power := primary ('**' unary)?  // right-assoc
 //   primary := number | var ('x' or 'y') | '(' expr ')'

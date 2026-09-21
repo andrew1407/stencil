@@ -100,7 +100,7 @@ TEST_SUITE("bench") {
     // Re-load per rep so the sweep runs unswept; load-only is the baseline to subtract.
     const auto reg1 = registry(n, now, true);
     const auto reg2 = registry(n * 2, now, true);
-    const double load1 = best_ms(3, [&] { ProjectsStore s; s.load(reg1); sink += s.registry().size(); });
+    const double load1 = best_ms(3, [&] { ProjectsStore s; s.load(reg1); sink += s.getRegistry().size(); });
     const double sweep1 = best_ms(3, [&] { ProjectsStore s; s.load(reg1); sink += s.sweepExpired(now).size(); });
     const double sweep2 = best_ms(3, [&] { ProjectsStore s; s.load(reg2); sink += s.sweepExpired(now).size(); });
 

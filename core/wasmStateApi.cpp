@@ -51,12 +51,12 @@ extern "C" {
   // HoldState code (0 Idle, 1 Armed, 2 Drawing, 3 Aborted), -1 for an unknown handle.
   int stencil_holdDraw_state(int handle) {
     const HoldDrawController* c = holdDraws().get(handle);
-    return c == nullptr ? -1 : static_cast<int>(c->state());
+    return c == nullptr ? -1 : static_cast<int>(c->getState());
   }
 
   double stencil_holdDraw_holdDelay(int handle) {
     const HoldDrawController* c = holdDraws().get(handle);
-    return c == nullptr ? 0.0 : c->holdDelay();
+    return c == nullptr ? 0.0 : c->getHoldDelay();
   }
 
   void stencil_holdDraw_setHoldDelay(int handle, double ms) {

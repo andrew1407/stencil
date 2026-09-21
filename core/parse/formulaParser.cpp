@@ -6,27 +6,27 @@ namespace stencil::core {
 
   namespace {
 
-    // On a syntax error `ok_` clears and the parse unwinds with a zero result.
+    // On a syntax error `ok` clears and the parse unwinds with a zero result.
     class Eval {
      public:
       Eval(const std::string& src, char varName, double varValue)
-        : src_(src), var_(varName), val_(varValue) {}
+        : src(src), var(varName), val(varValue) {}
 
       bool run(double& out) {
         const double v = parseExpr();
         skipSpaces();
-        if (!ok_ || pos_ != src_.size()) return false;
+        if (!ok || pos != src.size()) return false;
         out = v;
         return true;
       }
 
      private:
-      const std::string& src_;
-      char var_;
-      double val_;
-      std::size_t pos_ = 0;
-      bool ok_ = true;
-      int depth_ = 0;
+      const std::string& src;
+      char var;
+      double val;
+      std::size_t pos = 0;
+      bool ok = true;
+      int depth = 0;
 
       // Recursion cap: untrusted '(' runs must not overflow the stack; past it the parse is
       // invalid (-> identity). Identical to formulaEngine.js MAX_DEPTH so wasm and JS agree.
@@ -41,21 +41,21 @@ namespace stencil::core {
       };
 
       void skipSpaces() {
-        while (pos_ < src_.size() &&
-               std::isspace(static_cast<unsigned char>(src_[pos_]))) {
-          ++pos_;
+        while (pos < src.size() &&
+               std::isspace(static_cast<unsigned char>(src[pos]))) {
+          ++pos;
         }
       }
 
       char peek() {
         skipSpaces();
-        return pos_ < src_.size() ? src_[pos_] : '\0';
+        return pos < src.size() ? src[pos] : '\0';
       }
 
       bool match(char a, char b) {  // two-char operator like **
         skipSpaces();
-        if (pos_ + 1 < src_.size() && src_[pos_] == a && src_[pos_ + 1] == b) {
-          pos_ += 2;
+        if (pos + 1 < src.size() && src[pos] == a && src[pos + 1] == b) {
+          pos += 2;
           return true;
         }
         return false;
@@ -63,18 +63,18 @@ namespace stencil::core {
 
       bool match(char a) {
         skipSpaces();
-        if (pos_ < src_.size() && src_[pos_] == a) {
-          ++pos_;
+        if (pos < src.size() && src[pos] == a) {
+          ++pos;
           return true;
         }
         return false;
       }
 
       double parseExpr() {
-        DepthGuard g(depth_);
-        if (!g.ok) { ok_ = false; return 0.0; }
+        DepthGuard g(depth);
+        if (!g.ok) { ok = false; return 0.0; }
         double v = parseTerm();
-        while (ok_) {
+        while (ok) {
           if (match('+')) v += parseTerm();
           else if (match('-')) v -= parseTerm();
           else break;
@@ -85,7 +85,7 @@ namespace stencil::core {
       double parseTerm() {
         // parsePower has already consumed any '**', so '*' here is never half of one.
         double v = parseUnary();
-        while (ok_) {
+        while (ok) {
           if (match('*')) v *= parseUnary();
           else if (match('/')) v /= parseUnary();
           else break;
@@ -94,8 +94,8 @@ namespace stencil::core {
       }
 
       double parseUnary() {
-        DepthGuard g(depth_);
-        if (!g.ok) { ok_ = false; return 0.0; }
+        DepthGuard g(depth);
+        if (!g.ok) { ok = false; return 0.0; }
         skipSpaces();
         if (match('+')) return parseUnary();
         if (match('-')) return -parseUnary();
@@ -114,7 +114,7 @@ namespace stencil::core {
       double parsePrimary() {
         if (match('(')) {
           const double v = parseExpr();
-          if (!match(')')) ok_ = false;
+          if (!match(')')) ok = false;
           return v;
         }
         const char c = peek();
@@ -124,54 +124,54 @@ namespace stencil::core {
         if (std::isalpha(static_cast<unsigned char>(c))) {
           return parseIdentifier();
         }
-        ok_ = false;
+        ok = false;
         return 0.0;
       }
 
       double parseNumber() {
         skipSpaces();
-        const std::size_t start = pos_;
-        while (pos_ < src_.size() &&
-               (std::isdigit(static_cast<unsigned char>(src_[pos_])) ||
-                src_[pos_] == '.')) {
-          ++pos_;
+        const std::size_t start = pos;
+        while (pos < src.size() &&
+               (std::isdigit(static_cast<unsigned char>(src[pos])) ||
+                src[pos] == '.')) {
+          ++pos;
         }
         // optional exponent: e / E [+/-] digits
-        if (pos_ < src_.size() && (src_[pos_] == 'e' || src_[pos_] == 'E')) {
-          std::size_t save = pos_;
-          ++pos_;
-          if (pos_ < src_.size() && (src_[pos_] == '+' || src_[pos_] == '-')) {
-            ++pos_;
+        if (pos < src.size() && (src[pos] == 'e' || src[pos] == 'E')) {
+          std::size_t save = pos;
+          ++pos;
+          if (pos < src.size() && (src[pos] == '+' || src[pos] == '-')) {
+            ++pos;
           }
-          if (pos_ < src_.size() &&
-              std::isdigit(static_cast<unsigned char>(src_[pos_]))) {
-            while (pos_ < src_.size() &&
-                   std::isdigit(static_cast<unsigned char>(src_[pos_]))) {
-              ++pos_;
+          if (pos < src.size() &&
+              std::isdigit(static_cast<unsigned char>(src[pos]))) {
+            while (pos < src.size() &&
+                   std::isdigit(static_cast<unsigned char>(src[pos]))) {
+              ++pos;
             }
           } else {
-            pos_ = save;  // not an exponent after all
+            pos = save;  // not an exponent after all
           }
         }
         try {
-          return std::stod(src_.substr(start, pos_ - start));
+          return std::stod(src.substr(start, pos - start));
         } catch (...) {
-          ok_ = false;
+          ok = false;
           return 0.0;
         }
       }
 
       double parseIdentifier() {
         skipSpaces();
-        const std::size_t start = pos_;
-        while (pos_ < src_.size() &&
-               std::isalpha(static_cast<unsigned char>(src_[pos_]))) {
-          ++pos_;
+        const std::size_t start = pos;
+        while (pos < src.size() &&
+               std::isalpha(static_cast<unsigned char>(src[pos]))) {
+          ++pos;
         }
-        const std::string ident = src_.substr(start, pos_ - start);
+        const std::string ident = src.substr(start, pos - start);
         // Only the bound variable; any other name (`foo`) is a parse error.
-        if (ident.size() == 1 && ident[0] == var_) return val_;
-        ok_ = false;
+        if (ident.size() == 1 && ident[0] == var) return val;
+        ok = false;
         return 0.0;
       }
     };
