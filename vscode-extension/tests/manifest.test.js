@@ -153,7 +153,7 @@ test('every setting the code reads is declared, with its default and an explanat
 });
 
 test('stencil.colors names exactly the families, and takes only a hex colour', () => {
-  const { FAMILIES, HEX } = require('../src/lib/colorFamilies.js');
+  const { FAMILIES, HEX } = require('../src/lib/vocab/colorFamilies.js');
   const colors = contributes.configuration.properties['stencil.colors'];
   assert.deepEqual(Object.keys(colors.properties).sort(), [...FAMILIES].sort(),
     'the settings UI drifted from src/lib/colorFamilies.js');

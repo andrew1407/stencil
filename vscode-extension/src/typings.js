@@ -6,7 +6,7 @@
 const vscode = require('vscode');
 
 const { COMMANDS } = require('./lib/ids.js');
-const { TYPINGS_FILE, install } = require('./lib/typingsFile.js');
+const { TYPINGS_FILE, install } = require('./lib/emit/typingsFile.js');
 
 const NO_FOLDER = 'Open a folder first — the types go beside the JavaScript that uses them';
 

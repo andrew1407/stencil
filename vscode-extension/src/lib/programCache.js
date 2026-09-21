@@ -3,7 +3,7 @@
 'use strict';
 
 const { loadParser } = require('./parserHost.js');
-const { LIMIT, versionCache } = require('./versionCache.js');
+const { LIMIT, versionCache } = require('./spawn/versionCache.js');
 
 const programs = versionCache();
 

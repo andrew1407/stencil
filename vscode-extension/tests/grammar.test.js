@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { DIRECTIVES } from '../src/parser/scriptTypes.js';
+import { DIRECTIVES } from '../src/parser/script/types.js';
 
 const read = (rel) => JSON.parse(readFileSync(new URL(rel, import.meta.url), 'utf8'));
 

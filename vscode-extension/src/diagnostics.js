@@ -6,7 +6,7 @@
 const vscode = require('vscode');
 
 const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { cliFor } = require('./lib/cliLocator.js');
+const { cliFor } = require('./lib/spawn/cliLocator.js');
 const { forget, programFor } = require('./lib/programCache.js');
 const { CHECK_LINE, fromProgram, parseCheckOutput, runCheck } = require('./lib/scriptCheck.js');
 

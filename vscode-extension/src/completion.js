@@ -6,12 +6,12 @@ const vscode = require('vscode');
 
 const COLOR_NAMES = require('./config/colorNames.json');
 const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
-const { contextFor } = require('./lib/completionContext.js');
+const { contextFor } = require('./lib/vocab/completionContext.js');
 const { programFor } = require('./lib/programCache.js');
-const { markdownFor } = require('./lib/vocabularyEntry.js');
+const { markdownFor } = require('./lib/vocab/vocabularyEntry.js');
 const {
   CROP_KEYS, DIRECTIVE_NAMES, MODES, STYLES, UNITS, UNIT_NAMES, explain,
-} = require('./lib/vocabulary.js');
+} = require('./lib/vocab/vocabulary.js');
 
 const KIND = () => vscode.CompletionItemKind;
 const COLOR_WORDS = Object.freeze([...Object.keys(COLOR_NAMES), 'transparent']);
