@@ -1,0 +1,73 @@
+// Every DrawingApp collaborator, constructed in dependency order. The two view-layer ones are
+// injected, so this wiring stays DOM-free; each takes the app and knows none of the others.
+import { HistoryStack } from '../historyStack.js';
+import { FormulaEngine } from '../parse/formulaEngine.js';
+import { Renderer } from '../draw/renderer.js';
+import { StrokeFx } from '../line/strokeFx.js';
+import { Storage } from '../storage/storage.js';
+import { TabsCoordinator } from '../launch/tabsCoordinator.js';
+import { ZoomPan } from '../zoom/pan.js';
+import { ExportService } from '../export/service.js';
+import { SettingsController } from '../settings/controller.js';
+import { ImageModel } from '../image/model.js';
+import { RemoteSyncController } from './syncController.js';
+import { ProjectTransferController } from '../project/transferController.js';
+import { InputController } from '../pointer/inputController.js';
+import { PointerController } from '../pointer/controller.js';
+import { StencilSync } from './stencilSync.js';
+import { publish, EVENTS } from '../../eventBus/appBus.js';
+
+// `host` is the narrow slice of app state/callbacks the transfer controller needs;
+// `getConnections` is a getter because stencilApi creates the manager lazily.
+const transferHost = (app) => ({
+  get activeProjectId() { return app.activeProjectId; },
+  set activeProjectId(id) { app.activeProjectId = id; },
+  get remoteLink() { return app.remoteLink; },
+  set remoteLink(link) { app.remoteLink = link; },
+  set blankColor(color) { app.blankColor = color; },
+  set imageBaseName(name) { app.imageBaseName = name; },
+  get chatPersistence() { return app.chatPersistence; },
+  updateProjectTitle: (force) => app.updateProjectTitle(force),
+  updateIncognitoUI: () => app.updateIncognitoUI(),
+  newEditor: (opts) => app.newEditor(opts),
+  loadImageFromFile: (file, opts) => app.loadImageFromFile(file, opts),
+  setBlankColor: (color) => app.setBlankColor(color),
+});
+
+export const wireCollaborators = (app, { CoordTable, AccentController, onProjectsChanged }) => {
+  app.history = new HistoryStack();
+  app.formula = new FormulaEngine();
+  app.renderer = new Renderer(app);
+// Vertices in flight: every route that adds a point hands it here (strokeFx.js).
+  app.strokeFx = new StrokeFx(app);
+  app.storage = new Storage(app);
+  app.tabs = new TabsCoordinator();
+  app.tabs.onProjectsChanged(detail => onProjectsChanged(detail || {}));
+// A peer's accent change repaints live (no re-broadcast); a local custom accent wins.
+  app.tabs.onAccent(key => {
+    if (app.customAccent) return;
+    const next = app.accents.applyAccent(key);
+    publish(EVENTS.accentChanged, next);
+  });
+  app.coordTable = new CoordTable(app);
+  app.export = new ExportService(app);
+  app.settings = new SettingsController(app);
+  app.accents = new AccentController(app);
+  app.imageModel = new ImageModel(app);
+  app.remoteSync = new RemoteSyncController(app);
+  app.projectTransfer = new ProjectTransferController({
+    storage: app.storage,
+    tabs: app.tabs,
+    remoteSync: app.remoteSync,
+    getConnections: () => app.connections,
+    host: transferHost(app),
+  });
+// Opt-in live sync with a .stencil on disk (File System Access / Chromium only).
+  app.stencilSync = new StencilSync(app);
+  app.input = new InputController(app);
+  app.pointer = new PointerController(app);
+// <stencil-tooltip> owns its render logic; aliased as tooltipMgr for existing callers.
+  app.tooltip.app = app;
+  app.tooltipMgr = app.tooltip;
+  app.zoomPan = new ZoomPan(app);
+};

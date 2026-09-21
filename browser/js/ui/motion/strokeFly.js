@@ -1,8 +1,8 @@
-import { tileNoise } from './tiles.js';
+import { tileNoise } from './surface/tiles.js';
 import { TUNE } from './tune.js';
 // A new vertex leaves the point it extends (or its foot on the segment it splits) and
 // flies to the click on a bowed path, overshooting before it settles.
-// C++ mirror: desktop/src/canvas/strokeGrowth.hpp — keep the two in step.
+// C++ mirror: desktop/src/canvas/draw/strokeGrowth.hpp — keep the two in step.
 
 // Lengths are IMAGE pixels on both sides, so zoom does not change the timing.
 export const STROKE_FLY_MIN_MS = TUNE.STROKE_FLY_MIN_MS;

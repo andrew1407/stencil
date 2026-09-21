@@ -5,9 +5,9 @@ import type { DrawingApp } from '../core/drawingApp.js';
 import type { ConnectionManager } from '../net/connectionManager.js';
 
 export { escapeHtml } from './escapeHtml.js';
-export { closeOpenModal } from './modalRegistry.js';
-export { MODAL_CLOSE_MS, createModalFlight } from './modalFlight.js';
-export { wireModalShell } from './modalShell.js';
+export { closeOpenModal } from './modal/registry.js';
+export { MODAL_CLOSE_MS, createModalFlight } from './modal/flight.js';
+export { wireModalShell } from './modal/shell.js';
 
 /** Register a custom element — only in a browser. */
 export declare const define: (tag: string, klass: CustomElementConstructor) => void;
@@ -16,7 +16,11 @@ export declare class StencilElement extends HTMLElement {
   /** Subclasses provide the region's markup; rendered once on connect when the host is empty. */
   static inner?: () => string;
   connectedCallback(): void;
-  /** Overridden by subclasses that need behaviour. */
+  /** This element's own subtree, by id — never another region's nodes. */
+  $<T extends HTMLElement = HTMLElement>(id: string): T | null;
+  /** A bubbling CustomEvent: how a child tells the region it belongs to what happened. */
+  emit<D = unknown>(type: string, detail?: D): boolean;
+  /** Overridden by subclasses that need behaviour, in `stencil:ready` registration order. */
   wire(app: DrawingApp): void;
 }
 

@@ -2,9 +2,9 @@
 // Opened through the very toolbar buttons the user would click, so a plan and a
 // shortcut take the same path. A disabled button is a note, never a failed plan.
 import UI_STRINGS from '../../config/uiStrings.json' with { type: 'json' };
-import { clearSharedConversation } from '../chatSession.js';
+import { clearSharedConversation } from '../chat/session.js';
 
-// §10 dialog: op `name` (opPlan.js) -> the toolbar button behind that window, from
+// §10 dialog: op `name` (plan.js) -> the toolbar button behind that window, from
 // config/uiStrings.json — the very ids the hotkey actions press.
 const DIALOG_BUTTON_IDS = UI_STRINGS.dialogButtonIds;
 export const dialogAdapters = (app) => ({

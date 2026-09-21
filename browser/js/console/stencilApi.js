@@ -3,7 +3,7 @@
 // methods the toolbar uses, so console and toolbar stay in sync.
 // A closure factory, not a class — `app` lives in scope and the returned objects carry
 // no fields. index.js builds it after the app → window.stencil.
-import { hotkeys } from '../core/hotkeys.js';
+import { hotkeys } from '../core/settings/hotkeys.js';
 import { ConnectionManager } from '../net/connectionManager.js';
 import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
 import { notify } from '../utils.js';
@@ -11,18 +11,18 @@ import { publish, EVENTS } from '../eventBus/appBus.js';
 import { createLineWrappers } from './lineAndPoint.js';
 import { createProjectWrapper } from './project.js';
 import { createSettingsFacade } from './settingsFacade.js';
-import { createProjectsApi } from './projectsApi.js';
-import { createConnectApi } from './connectApi.js';
-import { createAssistantApi } from './assistantApi.js';
-import { createWindowsApi } from './windowsApi.js';
+import { createProjectsApi } from './api/projectsApi.js';
+import { createConnectApi } from './api/connectApi.js';
+import { createAssistantApi } from './api/assistantApi.js';
+import { createWindowsApi } from './api/windowsApi.js';
 import { createEditorActions } from './editorActions.js';
 import { createExportActions } from './exportActions.js';
-import { createSessionApi } from './sessionApi.js';
-import { createCropApi } from './cropApi.js';
-import { createScriptApi } from './scriptApi.js';
-import { createEasterEggsApi } from './easterEggsApi.js';
+import { createSessionApi } from './api/sessionApi.js';
+import { createCropApi } from './api/cropApi.js';
+import { createScriptApi } from './api/scriptApi.js';
+import { createEasterEggsApi } from './api/easterEggsApi.js';
 
-export { WINDOWS } from './windowsApi.js';
+export { WINDOWS } from './api/windowsApi.js';
 
 export const createStencil = (app) => {
   // One ConnectionManager per session, shared with the connection UI via app.connections;
@@ -30,7 +30,7 @@ export const createStencil = (app) => {
   const firstInit = !app.connections;
   const connMgr = app.connections || (app.connections = new ConnectionManager({
     onChange: (change) => {
-      // Persist the live set so it survives reloads (connectionStore.js), then let
+      // Persist the live set so it survives reloads (store.js), then let
       // the connect/projects UI refresh off the same DOM event.
       try { saveServers(connMgr.snapshot()); } catch { /* storage blocked */ }
       // Live co-edit: forward a server project-event to the editor so it can reload the

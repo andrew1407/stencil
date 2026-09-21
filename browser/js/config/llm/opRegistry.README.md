@@ -11,7 +11,7 @@ corpus (`fixtures/opPlan/`) is the cross-language proof that they all agree — 
 half (`fixtures/opPlan/generated/cases.json`) is itself derived from this file by
 `browser/tools/genOpPlanFixtures.mjs` (`npm run gen-fixtures` after any registry change).
 
-Guarded by `browser/tests/opRegistryCanon.test.js` (pins the file to the live browser
+Guarded by `browser/tests/llm/plan/opRegistryCanon.test.js` (pins the file to the live browser
 structures and cross-checks the corpus) and by every surface's fixture walker.
 
 ## Top-level sections
@@ -102,7 +102,7 @@ finite number with no fractional part, `number` a finite number. Then, per type:
 Check order (what a validator implements): native `rules` → unknown keys → `forms` /
 `together` / `exclusive` / `minFields` → per key in declaration order: `required` /
 `requiredWith` when absent, else `onlyWith` then the type check with its properties.
-The reference implementation is `browser/js/llm/opSchema.js` (byte-identical in the
+The reference implementation is `browser/js/llm/plan/schema.js` (byte-identical in the
 extension); the other surfaces port it rule-for-rule in their language.
 
 ## Rules

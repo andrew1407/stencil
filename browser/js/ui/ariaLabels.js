@@ -1,7 +1,7 @@
 // An icon-only control says its name in `data-title` and nowhere else, and a settings field
 // is named by a plain <label> beside it that carries no `for` — a screen reader reads both
 // as unnamed. Both names are already on the page; this points the a11y tree at them.
-import { parseTip } from './tipContent.js';
+import { parseTip } from './tip/content.js';
 
 const FIELD = new Set(['INPUT', 'SELECT', 'TEXTAREA']);
 const FIELD_SEL = 'input, select, textarea';

@@ -1,4 +1,4 @@
-import { motionReduced } from '../motionPrefs.js';
+import { motionReduced } from './motionPrefs.js';
 
 // The crop rect's flight between two shapes (an Album/Portrait flip), on the dialog's
 // height-ease clock (easeBoxHeight.js; desktop twin: cropDialogParts.hpp CROP_TWEEN_MS).

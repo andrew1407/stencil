@@ -3,24 +3,24 @@
 // behaviour behind each delegator from the module its section names. Nothing here is a
 // second implementation — the window.stencil facade and the toolbar call these same names.
 import type { Point, CropRect } from './geometry.js';
-import type { CodecLine } from './linesCodec.js';
-import type { Storage } from './storage.js';
-import type { Renderer } from './renderer.js';
-import type { TabsCoordinator } from './tabsCoordinator.js';
-import type { RemoteSyncController, RemoteLink } from './remoteSyncController.js';
-import type { ProjectTransferController } from './projectTransferController.js';
-import type { ProjectMeta } from './projectsStore.js';
+import type { CodecLine } from './line/linesCodec.js';
+import type { Storage } from './storage/storage.js';
+import type { Renderer } from './draw/renderer.js';
+import type { TabsCoordinator } from './launch/tabsCoordinator.js';
+import type { RemoteSyncController, RemoteLink } from './remote/syncController.js';
+import type { ProjectTransferController } from './project/transferController.js';
+import type { ProjectMeta } from './project/store/projectsStore.js';
 import type { ConnectionManager } from '../net/connectionManager.js';
 import type { HistoryStack } from './historyStack.js';
-import type { FormulaEngine } from './formulaEngine.js';
-import type { StrokeFx } from './strokeFx.js';
-import type { ExportService } from './exportService.js';
-import type { SettingsController } from './settingsController.js';
-import type { ImageModel } from './imageModel.js';
-import type { StencilSync } from './stencilSync.js';
-import type { InputController } from './inputController.js';
-import type { PointerController } from './pointerController.js';
-import type { ZoomPan } from './zoomPan.js';
+import type { FormulaEngine } from './parse/formulaEngine.js';
+import type { StrokeFx } from './line/strokeFx.js';
+import type { ExportService } from './export/service.js';
+import type { SettingsController } from './settings/controller.js';
+import type { ImageModel } from './image/model.js';
+import type { StencilSync } from './remote/stencilSync.js';
+import type { InputController } from './pointer/inputController.js';
+import type { PointerController } from './pointer/controller.js';
+import type { ZoomPan } from './zoom/pan.js';
 
 export type Line = CodecLine;
 export type CompareMode = 'none' | 'original' | 'vertical' | 'horizontal';
@@ -41,7 +41,7 @@ export interface RectAnchor { imgX: number; imgY: number; cssX: number; cssY: nu
 export interface CanvasCoords { cssX: number; cssY: number; x: number; y: number; }
 export interface PageDims { width: number; height: number; }
 
-/** A server project as the projects list rows carry it (remoteListing.js). */
+/** A server project as the projects list rows carry it (listing.js). */
 export interface RemoteProjectRow {
   serverUrl: string; id: string; name?: string; source?: string; version?: number;
 }
@@ -96,7 +96,7 @@ export interface ProjectFileState {
   theme?: { mode: 'dark' | 'light'; accent: string };
 }
 
-/** llm/chatPersistence.js's controller, installed on the app by wireChatPersistence. */
+/** llm/persistence.js's controller, installed on the app by wireChatPersistence. */
 export interface ChatPersistence {
   projectOpened(id: string): Promise<void>;
   projectRemoved(id: string): Promise<void>;
@@ -104,7 +104,7 @@ export interface ChatPersistence {
   flush(): Promise<void>;
 }
 
-/** The two ui/ collaborators the app holds (ui/coordTable.js, ui/accentController.js). */
+/** The two ui/ collaborators the app holds (ui/coordTable.js, ui/controller.js). */
 export interface CoordTableLike { update(points?: Point[], lineIdx?: number): void; }
 export interface AccentControllerLike {
   applyAccent(key: string): string;
@@ -145,7 +145,7 @@ export declare class DrawingApp {
   zoomPan: ZoomPan;
   /** Created lazily by the window.stencil facade (console/stencilApi.js). */
   connections?: ConnectionManager;
-  /** Installed by llm/chatPersistence.js wireChatPersistence. */
+  /** Installed by llm/persistence.js wireChatPersistence. */
   chatPersistence?: ChatPersistence;
   nameEditor: { refresh(): void } | null;
   nameEditing: boolean;
@@ -292,7 +292,7 @@ export declare class DrawingApp {
   currentLayoutPayload(): Record<string, unknown>;
   openInLaunchPayload(opts?: { incognito?: boolean; id?: string | null }): LaunchPayload | null;
 
-  // ── Drawing mode + shapes (drawMode.js, shapeBuilder.js) ──
+  // ── Drawing mode + shapes (mode.js, shapeBuilder.js) ──
   startDrawingMode(opts?: Record<string, unknown>): void;
   stopDrawingMode(): void;
   setDrawMode(mode: DrawModeKind): void;
@@ -302,7 +302,7 @@ export declare class DrawingApp {
   insertPointOnSegment(lineIdx: number, insertIdx: number, x: number, y: number): void;
   createRect(x1: number, y1: number, x2: number, y2: number, connect?: boolean): void;
 
-  // ── Selection (lineSelection.js, ui/selectionPanel.js, ui/linesList.js) ──
+  // ── Selection (selection.js, ui/selectionPanel.js, ui/linesList.js) ──
   selectedIndices(): number[];
   isLineSelected(i: number): boolean;
   updateMultiSelectStatus(): void;
@@ -338,7 +338,7 @@ export declare class DrawingApp {
   dragMove(clientX: number, clientY: number, shiftKey: boolean): void;
   finishDragGesture(altKey: boolean): void;
 
-  // ── Transforms + edits (transformOps.js, lineEditOps.js) ──
+  // ── Transforms + edits (transformOps.js, editOps.js) ──
   rotateSelectedLine(angle: number): void;
   flipSelectedLine(horizontal: boolean): void;
   rotateSelectedLineQuarter(dir: 1 | -1): void;

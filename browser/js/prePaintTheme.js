@@ -29,7 +29,7 @@
     /* storage blocked — keep the default accent */
   }
 
-// The CSS half of ui/motionPrefs.js: animations/motionModes.css keys off data-motion, which
+// The CSS half of ui/prefs.js: animations/motionModes.css keys off data-motion, which
 // must be on <html> before the entrance plays. Keep in step with MOTION_STORAGE_KEY/MOTION_MODES.
   try {
     const saved = JSON.parse(localStorage.getItem('drawingApp_motion') || 'null');

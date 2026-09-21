@@ -23,7 +23,7 @@ test('the app logo sits inside its ray-layer wrap, with the accent menu beside i
         'wrap, logo, accent menu and closing tag present');
     assert.ok(wrapAt < logoAt && logoAt < menuAt && menuAt < closeAt,
         '.app-logo and .logo-accent-menu are children of .app-logo-wrap');
-    // Starts hidden and empty (accentPicker.js fills it lazily on first open).
+    // Starts hidden and empty (picker.js fills it lazily on first open).
     const menuTag = markup.slice(menuAt, markup.indexOf('>', menuAt));
     assert.ok(menuTag.includes('hidden'), 'the accent menu ships hidden');
 });
@@ -55,7 +55,7 @@ test('the status row is the same box with the incognito tag and without it', () 
     // pixel-or-two that moved the canvas on the desktop.
     assert.match(css, /\.info-incognito \.ic \{ display: block; flex: 0 0 auto; \}/);
     // 13px inside a 20px line box: it cannot exceed what is reserved for it.
-    const app = readFileSync(new URL('../js/ui/projectTitle.js', import.meta.url), 'utf8');
+    const app = readFileSync(new URL('../js/ui/projects/window/projectTitle.js', import.meta.url), 'utf8');
     const size = /icon\('incognito', \{ size: (\d+) \}\)/.exec(app);
     assert.ok(size && Number(size[1]) < 20, `the glyph (${size?.[1]}px) must fit the line box`);
     // …and nothing compensates by resizing the canvas: the frame is an overlay, and no
@@ -94,7 +94,7 @@ test('the row menus are sized to their content, not to a wide floor', () => {
 // The selected-line bar is parted into header | colours | geometry | fill | actions by
 // hairlines in its own amber; the fill group's separator comes and goes with the group.
 test('the bar separators part it in four, and the fill one follows its group', () => {
-    const js = readFileSync(new URL('../js/ui/selectionPanel.js', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../js/ui/panel/selectionPanel.js', import.meta.url), 'utf8');
     const inner = js.slice(js.indexOf('static inner()'), js.indexOf('static template()'));
     assert.equal((inner.match(/class="sel-sep"/g) || []).length, 4, 'four separators');
     // The fill group's own one is identified, starts hidden, and is toggled with the group.
@@ -136,7 +136,7 @@ test('no native title attribute anywhere — the custom tooltip is the only tool
     }
   }
   assert.deepEqual(offenders, []);
-  const ct = readFileSync(new URL('../js/ui/controlTooltip.js', import.meta.url), 'utf8');
+  const ct = readFileSync(new URL('../js/ui/tip/controlTooltip.js', import.meta.url), 'utf8');
   assert.ok(ct.includes("closest('[data-tip], [data-title]')"), 'the tooltip listens for data attributes only');
   assert.ok(!ct.includes("getAttribute('title')"), 'and never reads the native one');
 });

@@ -1,7 +1,7 @@
 import { notify, isTypingTarget, pointInRect } from '../../utils.js';
-import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from '../../core/dragImageUrl.js';
-import { showDropOverlay, hideDropOverlay } from '../dropOverlay.js';
-import { loadScriptFile } from '../scriptModal.js';
+import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
+import { showDropOverlay, hideDropOverlay } from '../canvas/dropOverlay.js';
+import { loadScriptFile } from '../script/modal.js';
 export function wireDropPaste(app) {
   // Document-wide drag-and-drop overlay, split into LEFT (upload + save) and RIGHT
   // (upload incognito) zones. The cursor's half of the window decides which.

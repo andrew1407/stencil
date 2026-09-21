@@ -3,11 +3,11 @@
 // file. Derived from the barrel's re-exports, never a hardcoded list, so it can't drift.
 import { readFileSync } from 'node:fs';
 
-const BARREL = new URL('../../js/ui/chatView.js', import.meta.url);
+const BARREL = new URL('../../js/ui/chat/view.js', import.meta.url);
 
 export const chatViewSource = () => {
   const barrel = readFileSync(BARREL, 'utf8');
-  const parts = [...barrel.matchAll(/ from '(\.\/[A-Za-z]+\.js)';$/gm)]
+  const parts = [...barrel.matchAll(/ from '((?:\.\.?\/)+(?:[A-Za-z]+\/)*[A-Za-z]+\.js)';$/gm)]
     .map((m) => readFileSync(new URL(m[1], BARREL), 'utf8'));
   return [barrel, ...parts].join('\n');
 };
