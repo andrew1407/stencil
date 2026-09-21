@@ -30,7 +30,7 @@ export const createStencil = (app) => {
   const firstInit = !app.connections;
   const connMgr = app.connections || (app.connections = new ConnectionManager({
     onChange: (change) => {
-      // Persist the live set so it survives reloads (connectionStore.js), then let
+      // Persist the live set so it survives reloads (store.js), then let
       // the connect/projects UI refresh off the same DOM event.
       try { saveServers(connMgr.snapshot()); } catch { /* storage blocked */ }
       // Live co-edit: forward a server project-event to the editor so it can reload the

@@ -3,7 +3,7 @@
 #include <QDialog>
 
 // Assistant-only settings editor — the desktop counterpart of the browser's dedicated
-// "Assistant" modal (llmSettingsModal.js), opened by the chat dock's gear: the shared
+// "Assistant" modal (modal.js), opened by the chat dock's gear: the shared
 // LlmSettingsForm in HideRows mode, so only the LLM fields (llm-contract.md §5) show.
 // Same keys and persistence path as SettingsDialog — exec(), then feed result() to
 // MainWindow::applySettings on Accepted.

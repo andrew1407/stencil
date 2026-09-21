@@ -22,7 +22,7 @@ public sealed record OpEntry(
         Keys.TryGetProperty(key, out JsonElement spec) ? spec : null;
 }
 
-// The bot's port of browser/js/llm/plan/opSchema.js, rule for rule, over the embedded opRegistry.json.
+// The bot's port of browser/js/llm/plan/schema.js, rule for rule, over the embedded opRegistry.json.
 // The work splits into SchemaLoader, KeySpecChecker, PresenceRules and NativeRules.
 public sealed class OpSchema
 {

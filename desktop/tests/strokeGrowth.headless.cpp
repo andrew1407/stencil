@@ -28,12 +28,12 @@ void canvasWiring();
 int main(int argc, char** argv) {
   QApplication app(argc, argv);   // offscreen via QT_QPA_PLATFORM
 
-  // ── The constants the browser shares (motion.js) ──────────────────────────
+  // ── The constants the browser shares (surface/motion.js) ──────────────────────────
   check(near(fx::FLY_MIN_MS, 150.0) && near(fx::FLY_MAX_MS, 420.0) && near(fx::FLY_PX_PER_MS, 2.4),
-        "flight length matches motion.js STROKE_FLY_*");
+        "flight length matches surface/motion.js STROKE_FLY_*");
   check(near(fx::POP_MS, 240.0) && near(fx::POP_PEAK, 1.5) && near(fx::RIPPLE_MS, 420.0),
-        "landing + ring match motion.js STROKE_POP_* / STROKE_RIPPLE_MS");
-  check(near(fx::BOW_SHARE, 0.13) && near(fx::BOW_MAX, 22.0), "the bow matches motion.js STROKE_BOW_*");
+        "landing + ring match surface/motion.js STROKE_POP_* / STROKE_RIPPLE_MS");
+  check(near(fx::BOW_SHARE, 0.13) && near(fx::BOW_MAX, 22.0), "the bow matches surface/motion.js STROKE_BOW_*");
 
   // ── How long a flight takes: a hop is the floor, a long reach is capped.
   check(near(fx::flyMs(0), fx::FLY_MIN_MS), "a zero-length hop is the floor");

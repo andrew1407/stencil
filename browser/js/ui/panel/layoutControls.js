@@ -1,4 +1,4 @@
-import { setChecked } from '../control/controlSwap.js';
+import { setChecked } from '../control/swap.js';
 import { revealControls } from '../motion.js';
 
 // Writes a saved (or peer-synced) layout to the form fields, so js/core keeps no element ids.

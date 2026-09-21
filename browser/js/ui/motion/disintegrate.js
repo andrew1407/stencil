@@ -1,7 +1,7 @@
 import { dustEnabled } from './motionPrefs.js';
-import { startCloud, resolveColour, paletteCss } from '../dust/dustCloud.js';
+import { startCloud, resolveColour, paletteCss } from '../dust/cloud.js';
 import { speckPainter } from './surface/painters.js';
-import { SURFACE_SPREAD, surfaceMotion } from './surface/surfaceMotion.js';
+import { SURFACE_SPREAD, surfaceMotion } from './surface/motion.js';
 import { DISINTEGRATE_COLS, DISINTEGRATE_MS, DISINTEGRATE_ROWS, MIN_TILE_MS, MOTE_PX, TILE_GATHER_SHARE, cancelDust, flightOf, reshapeGrid, tileMotion, tileNoise } from './surface/tiles.js';
 import { styleCode } from './tune.js';
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
@@ -48,7 +48,7 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     const cellW = r.width / cols;
     const cellH = r.height / rows;
 // Every grain computed once; the cloud is one canvas evaluating these per frame
-// (dustCloud.js) — no node per mote.
+// (cloud.js) — no node per mote.
     const motes = [];
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
@@ -64,13 +64,13 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
           x: r.left + (cx + 0.5) * cellW, y: r.top + (cy + 0.5) * cellH,
           dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha,
           delay: m.delay, dur: gather ? gatherMs : Math.max(MIN_TILE_MS, span - m.delay),
-// Its own hash for the wobble, twinkle and palette stop (dustCloud.js turbulenceAt / dustMix).
+// Its own hash for the wobble, twinkle and palette stop (cloud.js turbulenceAt / dustMix).
           w: tileNoise(cx + 13, cy + 71), t: 1, g: speck.glint ? 1 : 0,
         });
       }
     }
     const kind = flightOf(toward, gather, flight);
-// Painted from the theme's palette, never the surface's colours (dustCloud.js stopOfTint).
+// Painted from the theme's palette, never the surface's colours (cloud.js stopOfTint).
     const style = styleCode();
     const paints = paletteCss();
     host.__cloud = { motes, colours: paints, flight: kind, span, style };   // what a test reads

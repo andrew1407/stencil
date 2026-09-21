@@ -1,4 +1,4 @@
-import type { Attachment } from '../../../llm/chat/chatController.js';
+import type { Attachment } from '../../../llm/chat/controller.js';
 import type { AskPreview, PlanAsk, VariantResult } from '../../../llm/plan/opPlan.js';
 
 export declare const chatAttachmentStrip: (attachments: readonly Attachment[]) => HTMLElement;

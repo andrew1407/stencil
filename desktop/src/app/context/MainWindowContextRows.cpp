@@ -143,7 +143,7 @@ namespace stencil::gui {
   }
 
   // One export-variant menu, identical on every surface: "With Compare" (only while comparing), "Current"'s OWN row,
-  // then the two fixed variants — Copy lists Filter Only before Original, Download the reverse (browser exportOptionsMenu.js).
+  // then the two fixed variants — Copy lists Filter Only before Original, Download the reverse (browser export/optionsMenu.js).
   void MainWindow::populateExportVariantMenu(QMenu* menu, bool copy) {
     if (copy) {
       menu->addAction(actCopyImageSplit);

@@ -1,5 +1,5 @@
-// One composer's voice input: the mic face on the Send button (js/llm/voiceModes.js).
-import { UNSUPPORTED_TEXT, VOICE_STATE_EVENT } from '../../../llm/voice/voiceModes.js';
+// One composer's voice input: the mic face on the Send button (js/llm/modes.js).
+import { UNSUPPORTED_TEXT, VOICE_STATE_EVENT } from '../../../llm/voice/modes.js';
 import { icon } from '../../icons.js';
 import { notify } from '../../../utils.js';
 import { swapContent } from '../../motion.js';
@@ -20,7 +20,7 @@ export const wireComposerVoice = ({ prefix, input, sendBtn, doc = document, app,
     },
     submit: () => { typedPrefix = ''; send(); },
 // Anything to send without this utterance? A spoken "send it" over a full box is a
-// command about exactly that (voiceModes.js flush).
+// command about exactly that (modes.js flush).
     hasText: () => !!input.value.trim(),
 // Ending an utterance ends listening, never the mode; only a fatal error returns the send plane.
     onStop: (reason) => { if (reason === 'error') setFace(false); else sync(); },

@@ -1,5 +1,5 @@
 // Shape of semanticTokens.js — classified parser tokens as VS Code semantic tokens.
-import type { ScriptToken } from './parser/script/scriptTypes.js';
+import type { ScriptToken } from './parser/script/types.js';
 export declare const TOKEN_TYPES: readonly string[];
 export declare const TYPE_INDEX: Record<string, number>;
 export declare const LEGEND: unknown;

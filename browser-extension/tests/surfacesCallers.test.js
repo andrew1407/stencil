@@ -16,7 +16,7 @@ test('every icon-anchored surface dusts from — and back into — its own contr
     // customSelect hands both halves to showMenu/hideMenu, which aim at the trigger too.
     ['../src/lib/control/dropdownMenu.js', 'surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS })',
                                    'surfaceOut(menu, menu.hidden ? null : menuDustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS })'],
-    ['../src/lib/chat/chatMsgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
+    ['../src/lib/chat/msgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
     ['../src/popup/editor/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin);'],
     ['../src/options/confirmDialog.js', 'surfaceIn(box, origin);', 'surfaceOut(box, origin);'],
     // The Main-theme picker drives its own open/close but borrows the SAME caret point showMenu aims

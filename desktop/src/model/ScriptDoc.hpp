@@ -41,7 +41,7 @@ namespace stencil::model {
   enum class ScriptOpKind { OPEN, FRAME, CROP, FILTER, LINE, RECT, LAYOUT, SAVE, UNDO, REDO };
 
   /* One lowered operation. `resolve()` is a separate call because a crop changes the image
-   * size mid-script. See core/script/scriptTypes.hpp for the per-kind payloads. */
+   * size mid-script. See core/script/types.hpp for the per-kind payloads. */
   struct ScriptOp {
     ScriptOpKind kind = ScriptOpKind::CROP;
     int block = 0;

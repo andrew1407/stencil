@@ -1,9 +1,9 @@
-// The connect modal's static markup and render gate (js/ui/connectModal.js): every id once,
+// The connect modal's static markup and render gate (js/ui/modal.js): every id once,
 // a runtime-built list, and createListHold deferring a re-render until the wipe settles.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { createListHold, emptyStateVisible, materialize } from '../js/ui/motion.js';
-import { canRefreshList } from '../js/core/project/projectOpenGesture.js';
+import { canRefreshList } from '../js/core/project/openGesture.js';
 import { rows, markup, count } from './helpers/connectModalRig.js';
 
 // The connections list is runtime-built: nothing render() decides — rows, the

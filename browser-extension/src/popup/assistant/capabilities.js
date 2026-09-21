@@ -5,11 +5,11 @@
 // built from them at the bottom and kept on `state.controller`.
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, buildHandoff, resumeInOpenEditor } from '../../lib/stencil.js';
 import { highlightSourceOnTab } from '../../lib/highlight/hoverHighlight.js';
-import { highlightColorValue } from '../../lib/highlight/highlightColor.js';
-import { sourceOf, editableSrc } from '../../lib/image/imageModel.js';
+import { highlightColorValue } from '../../lib/highlight/color.js';
+import { sourceOf, editableSrc } from '../../lib/image/model.js';
 import { formatOfItem } from '../../lib/highlight/filters.js';
 import { decodeSize } from '../../lib/image/rasterize.js';
-import { createLlmClient } from '../../llm/llmClient.js';
+import { createLlmClient } from '../../llm/client.js';
 import { createChatController, translateOpenActions } from '../../llm/chatController.js';
 import { openPanelDialog } from '../editor/dialogShell.js';
 import { MSG } from '../../lib/messages.js';

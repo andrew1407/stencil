@@ -110,7 +110,7 @@ namespace stencil::gui {
       endpoint.remove(0, 8);
     else if (endpoint.startsWith(QLatin1String("http://"), Qt::CaseInsensitive))
       endpoint.remove(0, 7);
-    // The desktop rendering of the browser's gearStatusRows / gearTipFootText (chatPanel.js).
+    // The desktop rendering of the browser's gearStatusRows / gearTipFootText (chat/panel.js).
     const auto tooltip = [provider, endpoint](const QString& model, const QString& statusHtml,
                                               const QStringList& foot) {
       QString rows = tipRow(QStringLiteral("Provider"), tipValue(provider));

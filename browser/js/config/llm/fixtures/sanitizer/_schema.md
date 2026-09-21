@@ -5,7 +5,7 @@ server's `sanitizeUpstreamText` (browser `sanitizeProviderText`, pystencil
 `_clean_detail`, cli `sanitize`, …): control characters out, URLs and
 token-shaped runs → `[redacted]`, whitespace collapsed, ≤ 800 chars scanned,
 ≤ 200 chars emitted (199 + `…`). Expectations here are the **browser's** output
-(`browser/js/llm/llmClient.js`); walked by `browser/tests/llmWireFixtures.test.js`.
+(`browser/js/llm/client.js`); walked by `browser/tests/llmWireFixtures.test.js`.
 
 Every `*.json` file is an array of:
 

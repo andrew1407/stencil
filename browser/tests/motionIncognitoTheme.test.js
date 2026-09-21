@@ -43,7 +43,7 @@ test('the incognito frame markup ships all four edges, inside the canvas viewpor
 // A three-state theme mode with 'system' as the default, twin of the desktop's
 // io/fileStore.hpp themeMode and the extension's lib/shellTheme.js THEME_MODES.
 test('theme mode: picking a mode that resolves to the painted palette does not animate', () => {
-  const src = readFileSync(new URL('../js/ui/accent/accentController.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/accent/controller.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('setThemeMode('), src.indexOf('get themeMode()'));
   assert.match(body, /resolveThemeMode\(next\) === painted/, 'the resolved palette is compared');
   // …and the setting is still stored + announced on that path, or the picker would snap back.
@@ -56,7 +56,7 @@ test('theme mode: picking a mode that resolves to the painted palette does not a
 });
 
 test('theme mode: three states, system by default, resolved against the OS', async () => {
-  const { THEME_MODES, resolveThemeMode } = await import('../js/ui/accent/accentController.js');
+  const { THEME_MODES, resolveThemeMode } = await import('../js/ui/accent/controller.js');
   assert.deepEqual(THEME_MODES, ['system', 'light', 'dark']);
   // An explicit mode is taken as-is, whatever the OS says.
   assert.equal(resolveThemeMode('dark', false), 'dark');
@@ -87,6 +87,6 @@ const uiPath = (n) => {
   return n.includes('/') ? new URL(n, UI_DIR) : walk(UI_DIR)[0];
 };
 const vis = (f) => readFileSync(uiPath(f), 'utf8');
-  assert.match(vis('visualsMarkup.js'), /id="vs-appearance"/, 'and there is a control to get back to system');
-  assert.match(vis('visualsModal.js'), /setThemeMode\(appearance\.value/, 'which writes the mode');
+  assert.match(vis('visuals/markup.js'), /id="vs-appearance"/, 'and there is a control to get back to system');
+  assert.match(vis('visuals/modal.js'), /setThemeMode\(appearance\.value/, 'which writes the mode');
 });

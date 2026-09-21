@@ -1,4 +1,4 @@
-// The §8 panel-op widening in src/llm/chatController.js — rescan, pin/unpin, accent and
+// The §8 panel-op widening in src/llm/controller.js — rescan, pin/unpin, accent and
 // openUrl — each acting through an injected capability, never auto-continuing.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

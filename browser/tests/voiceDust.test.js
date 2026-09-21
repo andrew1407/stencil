@@ -54,7 +54,7 @@ test('stepMote drifts with drag and dies at the end of its life; alpha rises fas
 test('every mic face attaches the dust off its listening class; the level is --voice-level', () => {
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
   assert.ok(read('../js/ui/visuals/voiceToggle.js').includes("attachVoiceDust(btn, () => btn.classList.contains('active'))"));
-  assert.ok(read('../js/ui/chat/chatPanel.js').includes("attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'))"));
+  assert.ok(read('../js/ui/chat/panel.js').includes("attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'))"));
   assert.ok(contextMenuSource().includes("attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'))"));
   const dust = read('../js/ui/dust/voiceDust.js');
   assert.ok(dust.includes("getPropertyValue('--voice-level')"));

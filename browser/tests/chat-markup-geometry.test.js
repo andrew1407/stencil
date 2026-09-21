@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 
 import { layout } from '../js/ui/layout.js';
-import { clampFloatRect, resizeFloatRect, dockZoneAt, compactChatRect, gearStatusRows, gearTipFootText, FLOAT_MIN_W, FLOAT_MIN_H, DOCK_ZONE_BAND, COMPACT_CHAT_W, COMPACT_CHAT_H } from '../js/ui/chat/chatPanel.js';
+import { clampFloatRect, resizeFloatRect, dockZoneAt, compactChatRect, gearStatusRows, gearTipFootText, FLOAT_MIN_W, FLOAT_MIN_H, DOCK_ZONE_BAND, COMPACT_CHAT_W, COMPACT_CHAT_H } from '../js/ui/chat/panel.js';
 
 const markup = layout();
 const count = (needle) => markup.split(needle).length - 1;

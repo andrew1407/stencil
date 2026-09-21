@@ -1,4 +1,4 @@
-// §3.0 one round per turn (js/llm/chatController.js): nothing follows the reply, and the
+// §3.0 one round per turn (js/llm/controller.js): nothing follows the reply, and the
 // withdrawn refinement/correction machinery is gone from the controller's surface.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -33,7 +33,7 @@ test('a layout plan issues EXACTLY ONE model round — nothing follows the reply
 });
 
 test('the withdrawn machinery is gone from the controller\'s surface', async () => {
-  const mod = await import('../js/llm/chat/chatController.js');
+  const mod = await import('../js/llm/chat/controller.js');
   for (const gone of ['auxDeadline', 'AUX_ROUND_TIMEOUT_MS', 'findSuspectLines',
     'LAYOUT_CORRECTION_PROMPT', 'REFINE_MAX_PARALLEL', 'REFINE_MAX_RENDER_ZOOM']) {
     assert.strictEqual(mod[gone], undefined, `${gone} must not exist`);
@@ -47,7 +47,7 @@ test('the withdrawn machinery is gone from the controller\'s surface', async () 
   assert.strictEqual(typeof mod.EDGE_MAP_SENTENCE, 'string');
   assert.match(mod.EDGE_MAP_SENTENCE, /edge-map render of the working image/);
   assert.strictEqual(typeof mod.contourDataUrl, 'function');
-  const src = readFileSync(new URL('../js/llm/chat/chatController.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/llm/chat/controller.js', import.meta.url), 'utf8');
   assert.ok(!/refineOutlines|correctDrawnLayout|refineDrawnOutlines|startAuxChain/.test(src));
   assert.ok(!/could not be sharpened/.test(src), 'no sharpening note can be produced');
 });

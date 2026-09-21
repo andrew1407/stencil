@@ -9,7 +9,7 @@ import { PROJECT_PREFIX } from './projectsStore.js';
 const PROJECTS_DB_NAME = 'stencil_projects';
 const PROJECTS_DB_STORE = 'payloads';
 
-// Minimal promise KV over one object store (chatStore.js's createIdbBackend shape plus the
+// Minimal promise KV over one object store (store.js's createIdbBackend shape plus the
 // bulk entries() read). Null when IndexedDB is missing.
 const createIdbKv = (idb = (typeof indexedDB !== 'undefined' ? indexedDB : null)) => {
   if (!idb) return null;

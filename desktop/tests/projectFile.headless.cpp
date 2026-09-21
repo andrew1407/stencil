@@ -1,4 +1,4 @@
-// Headless round-trip check for the .stencil format (fileStore::buildProjectFile <-> parseProjectFile), QtCore-only — mirrors the browser projectFile.js round-trip test.
+// Headless round-trip check for the .stencil format (fileStore::buildProjectFile <-> parseProjectFile), QtCore-only — mirrors the browser project/file.js round-trip test.
 #include "fileStore.hpp"
 #include <QCoreApplication>
 #include <QJsonArray>

@@ -1,8 +1,8 @@
-// js/llm/voiceInput.js recovery: no-speech and aborted restart at once, network backs off and
+// js/llm/input.js recovery: no-speech and aborted restart at once, network backs off and
 // turns fatal, each fatal code reports once, and a hot language swap. From voiceInput.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createVoiceInput, voiceErrorText, FATAL_ERRORS, NETWORK_BACKOFF_MS } from '../js/llm/voice/voiceInput.js';
+import { createVoiceInput, voiceErrorText, FATAL_ERRORS, NETWORK_BACKOFF_MS } from '../js/llm/voice/input.js';
 import { createFakeSpeechRecognition, stubClock } from './helpers/speech.js';
 
 // A level meter double: records start/stop, lets the test push a level.

@@ -1,4 +1,4 @@
-// The key vocabulary and the painted keycaps: character for character the browser's tipContent.js,
+// The key vocabulary and the painted keycaps: character for character the browser's tip/content.js,
 // case-SENSITIVE on purpose so an app verb never wears a cap. Qt rich text gives a span only a
 // background, so a cap is an <img> data URI drawn here.
 #include "tipContentParts.hpp"
@@ -16,7 +16,7 @@
 namespace stencil::gui {
 
   namespace {
-    // Character for character the browser's (tipContent.js). Case-SENSITIVE on purpose:
+    // Character for character the browser's (tip/content.js). Case-SENSITIVE on purpose:
     // "Delete every saved project" must not put a keycap on its verb.
     const QString MOD = QStringLiteral("Ctrl|Control|Cmd|Command|Meta|Win|Alt|Option|Shift");
     const QString NAMED = QStringLiteral(

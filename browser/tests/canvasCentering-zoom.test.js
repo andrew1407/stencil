@@ -1,9 +1,9 @@
-// The zoom math through the centring margins (js/core/zoomPan.js): canvasOrigin, originAt, the
+// The zoom math through the centring margins (js/core/pan.js): canvasOrigin, originAt, the
 // focal-pixel pins and the source pins on who sizes the frame. From canvasCentering.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ZoomPan, canvasOrigin } from '../js/core/zoom/zoomPan.js';
+import { ZoomPan, canvasOrigin } from '../js/core/zoom/pan.js';
 
 // A viewport modelled the way the browser lays this out: centred by auto margins while it fits, the
 // scroll offset clamped to the real range. Fullscreen, where the frame is fixed on both axes.
@@ -178,7 +178,7 @@ test('only syncViewportHeight sizes the frame (source pin)', () => {
 // Fullscreen owns the box while it is on (components.css pins it to the window) and hands
 // it back on the way out — through the same rule, not a height of its own.
 test('leaving fullscreen restores the frame through syncViewportHeight (source pin)', () => {
-  const src = readFileSync(new URL('../js/ui/fullscreen/fullscreenLayer.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/fullscreen/layer.js', import.meta.url), 'utf8');
   assert.match(src, /zoomPan\.syncViewportHeight\(\)/, 'the exit path re-measures');
   // The exit flight is animated: measured as it starts, the toolbar rows are still coming
   // back and the frame lands ~60px too tall (a permanent page scrollbar).

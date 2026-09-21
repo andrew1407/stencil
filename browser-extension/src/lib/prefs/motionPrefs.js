@@ -1,4 +1,4 @@
-// Browser js/ui/motionPrefs.js twin. window.StencilMotion (lib/accent.js) is asked live so
+// Browser js/ui/prefs.js twin. window.StencilMotion (lib/accent.js) is asked live so
 // an options-page change reaches an open popup; without it only the OS preference speaks.
 export const prefersReducedMotion = () => {
   try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }

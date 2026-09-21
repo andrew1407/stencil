@@ -23,7 +23,7 @@ test('the app logo sits inside its ray-layer wrap, with the accent menu beside i
         'wrap, logo, accent menu and closing tag present');
     assert.ok(wrapAt < logoAt && logoAt < menuAt && menuAt < closeAt,
         '.app-logo and .logo-accent-menu are children of .app-logo-wrap');
-    // Starts hidden and empty (accentPicker.js fills it lazily on first open).
+    // Starts hidden and empty (picker.js fills it lazily on first open).
     const menuTag = markup.slice(menuAt, markup.indexOf('>', menuAt));
     assert.ok(menuTag.includes('hidden'), 'the accent menu ships hidden');
 });

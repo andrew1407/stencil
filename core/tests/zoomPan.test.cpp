@@ -3,7 +3,7 @@
 
 using namespace stencil::core;
 
-TEST_CASE("clampScale matches zoomPan.js limits [0.05, 32]") {
+TEST_CASE("clampScale matches zoom/pan.js limits [0.05, 32]") {
   CHECK(clampScale(0.0) == doctest::Approx(0.05));
   CHECK(clampScale(100.0) == doctest::Approx(32.0));
   CHECK(clampScale(10.0) == doctest::Approx(10.0));   // below the new ceiling: passes through

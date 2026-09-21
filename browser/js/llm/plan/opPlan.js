@@ -5,17 +5,17 @@
 import { identityFrame } from '../frame.js';
 import { OPS } from './opExecutors.js';
 import { FORBIDDEN_OPS, ForbiddenOpError } from '../promptAssembly.js';
-import { sanitizeLabel } from './planValues.js';
-import { captureEditorState, capturePixels, restoreWorkingImage, needsPixelSnapshot } from './planSandbox.js';
+import { sanitizeLabel } from './values.js';
+import { captureEditorState, capturePixels, restoreWorkingImage, needsPixelSnapshot } from './sandbox.js';
 
-export { PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, SCHEMA, LIMITS, ASK_LIMITS, DEFAULT_CUSTOM_LABEL } from './planSchema.js';
-export { sanitizeLabel, resolveServer } from './planValues.js';
+export { PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, SCHEMA, LIMITS, ASK_LIMITS, DEFAULT_CUSTOM_LABEL } from './schema.js';
+export { sanitizeLabel, resolveServer } from './values.js';
 export { OPS } from './opExecutors.js';
 export {
   BROWSER_CAPABILITIES, FORBIDDEN_OPS, ForbiddenOpError, assemblePrompts,
   LLM_SYSTEM_PROMPT, EDITOR_SETTINGS_PROMPT, EDITOR_SYSTEM_PROMPT,
 } from '../promptAssembly.js';
-export { MisplacedOpError, validateAsk, askAnswerText, parseOpPlan } from './planParser.js';
+export { MisplacedOpError, validateAsk, askAnswerText, parseOpPlan } from './parser.js';
 
 // Execute a parsed plan against the frozen window.stencil facade — every op routes through the
 // facade, never new editor logic. savedServers is the ONLY pool `connect` may resolve against.

@@ -6,7 +6,7 @@
 #include <QStringList>
 #include <QVector>
 
-// LLM op-plan parser, llm-contract.md §1–2; twins: browser js/llm/opPlan.js, pystencil llm.py,
+// LLM op-plan parser, llm-contract.md §1–2; twins: browser js/llm/plan.js, pystencil llm.py,
 // the bot's OpPlanParser, mcp's opplan.rs — the parse matrix must stay identical. Limits come
 // from the registry (OpSchema.hpp); an UNKNOWN op is dropped with a warning, a known bad one fails.
 namespace stencil::llm {
@@ -32,7 +32,7 @@ namespace stencil::llm {
     return op == OpKind::UNDO || op == OpKind::REDO;
   }
 
-  // Browser twin: opPlan.js TOP_LEVEL_ONLY_OPS.
+  // Browser twin: row/plan.js TOP_LEVEL_ONLY_OPS.
   inline bool isTopLevelOnlyOp(OpKind op) { return op >= OpKind::OPEN_URL; }
 
   // Tagged union on `op`; field semantics per contract §2.
@@ -149,7 +149,7 @@ namespace stencil::llm {
   QString askAnswerText(const QStringList& pickedLabels, const QString& custom = QString());
 
   // Only a plan that WORKS ON the picture adopts an attachment as the working image;
-  // variants count. Browser twin: chatController.js planEditsTheImage.
+  // variants count. Browser twin: controller.js planEditsTheImage.
   inline bool planTouchesTheImage(const OpPlan& plan) {
     if (!plan.variants.isEmpty()) return true;
     for (const Action& a : plan.actions) {

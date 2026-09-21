@@ -1,6 +1,6 @@
 #include "ScriptDoc.hpp"
 
-#include "scriptParser.hpp"   // core/script DIRECTIVE_WORDS — never mirrored above this seam
+#include "parser.hpp"   // core/script DIRECTIVE_WORDS — never mirrored above this seam
 #include "scriptProgram.hpp"  // core/script — this file is the seam that may include it
 
 #include <QHash>

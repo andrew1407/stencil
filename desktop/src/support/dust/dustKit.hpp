@@ -18,7 +18,7 @@
 
 namespace stencil::support {
 
-  // Particle styles (browser dustCloud.js styleFrame — keep the numbers in step).
+  // Particle styles (browser dust/cloud.js styleFrame — keep the numbers in step).
   // `mix`: 0 the main colour … 1 its shade. Dust is the identity.
   struct StyleFrame {
     double sx = 0, sy = 0, scale = 1, glow = 1, mix = 0;
@@ -40,7 +40,7 @@ namespace stencil::support {
     inline double wave(const double range[2], double w) { return range[0] + (range[1] - range[0]) * w; }
   }  // namespace style
   StyleFrame styleFrame(ParticleStyle s, double p, double away, double w, double len, double ms);
-  // browser dustCloud.js dustMix: plain grains to halfway by hash, glints wear the shade.
+  // browser dust/cloud.js dustMix: plain grains to halfway by hash, glints wear the shade.
   constexpr double DUST_MIX_SPREAD = 0.5;
   inline double dustMix(double w, bool glint) { return glint ? 1.0 : w * DUST_MIX_SPREAD; }
   inline double fract(double v) { return v - std::floor(v); }
@@ -48,7 +48,7 @@ namespace stencil::support {
   constexpr int PALETTE_STOPS = 6;
   int paletteIndex(double mix, int stops = PALETTE_STOPS);
   QColor paletteStop(const QColor& accent, const QColor& shade, double mix, int stops = PALETTE_STOPS);
-  // Browser twin: dustCloud.js TINT_CSS / tintOf; the share and the mixes are the contract.
+  // Browser twin: dust/cloud.js TINT_CSS / tintOf; the share and the mixes are the contract.
   constexpr double TINT_SHARE = 0.34;
   constexpr int TINT_STOPS = 5;
   constexpr double TINT_ACCENT_SHARE = 0.55;   // …of the accent in the pale and the deep one
@@ -73,10 +73,10 @@ namespace stencil::support {
     std::array<double, STEPS + 1> curve{};
   };
 
-  // Grain shapes (browser dustCloud.js grainShape / shapePolygon / addGrainPath), each
+  // Grain shapes (browser dust/cloud.js grainShape / shapePolygon / addGrainPath), each
   // lying along its heading. Geometry in radii — keep the browser's numbers.
   enum class GrainShape { DISC, OVAL, WAVE, TRIANGLE, STREAK };
-  // browser dustCloud.js STYLED_CELL_SCALE: a styled grain blits more pixels.
+  // browser dust/cloud.js STYLED_CELL_SCALE: a styled grain blits more pixels.
   constexpr double STYLED_CELL_SCALE = 1.4;
   namespace shape {
     constexpr double WATER_WAVE_SHARE = 0.3, FIRE_STREAK_SHARE = 0.4;

@@ -3,7 +3,7 @@
 // (inputController) both come through here.
 import { notify } from '../../utils.js';
 import { resolveInsertIdx } from '../layout.js';
-import { shouldCloseShape } from './lineTransforms.js';
+import { shouldCloseShape } from './transforms.js';
 import { strokeFoot } from '../../ui/motion.js';
 
 // A screen radius divided by the zoom, zoomed out only: core adds its own +8, so hand it the

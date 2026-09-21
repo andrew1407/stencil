@@ -91,7 +91,7 @@ class MainWindowGuiTest : public QObject {
   }
 
   // Entering and leaving fullscreen stretches the canvas out of its old viewport box — the desktop
-  // twin of the FLIP in browser motion.js. The ramp only ever ENDS on the zoom the user picked.
+  // twin of the FLIP in browser surface/motion.js. The ramp only ever ENDS on the zoom the user picked.
   void fullscreenStretchPreservesZoom() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 760);

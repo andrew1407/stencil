@@ -4,7 +4,7 @@
 // two would touch, the hovered bubble's trigger lifts clear of them, or (too
 // little room) hides instead of sitting under them (desktop/browser parity).
 import { icon } from '../../lib/icons.js';
-import { msgMenuLiftPx, msgMenuLiftFits } from '../../lib/chat/chatMsgMenu.js';
+import { msgMenuLiftPx, msgMenuLiftFits } from '../../lib/chat/msgMenu.js';
 
 export const createJumpPills = (transcriptEl) => {
   const jumpsEl = document.getElementById('chat-jumps');
@@ -52,7 +52,7 @@ export const createJumpPills = (transcriptEl) => {
   };
   window.addEventListener('resize', () => { pillRects = null; });
   // The pills float OVER the transcript, so a cursor on one leaves no row hovered —
-  // hovering a pill can never hide it (browser chatPanel.js parity).
+  // hovering a pill can never hide it (browser panel.js parity).
   transcriptEl.addEventListener('mouseover', (e) => {
     const row = e.target?.closest?.('.msg');
     // A lifted trigger sits OUTSIDE its bubble's box, so reaching it crosses bare background; only

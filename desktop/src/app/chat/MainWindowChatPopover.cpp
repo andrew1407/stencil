@@ -35,7 +35,7 @@
 
 namespace stencil::gui {
 
-  // The chat icon's popover shape (browser chatPanel.js openCompact): the SAME dock, floated at its compact size next to the icon.
+  // The chat icon's popover shape (browser chat/panel.js openCompact): the SAME dock, floated at its compact size next to the icon.
   void MainWindow::openChatCompact(QWidget* anchor) {
     if (!chatDock || tearingDown || !anchor) return;
     stopChatAnim();  // a popover open mid-slide wins outright (setChatShown rule)
@@ -69,7 +69,7 @@ namespace stencil::gui {
     return support::popoverRect(anchorRect, chatDock->floatingDefaultSize(), screen);
   }
 
-  // Browser chatPanel.js FLOAT_DEFAULT/clampFloatRect parity; the insets clear the whole toolbar row.
+  // Browser chat/panel.js FLOAT_DEFAULT/clampFloatRect parity; the insets clear the whole toolbar row.
   QRect MainWindow::defaultChatFloatRect() const {
     if (!chatDock) return {};
     const QSize size = chatDock->floatingDefaultSize();

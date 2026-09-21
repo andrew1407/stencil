@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
       if (s == ParticleStyle::DUST) check(hi - lo < 1e-9, "dust: a perfect circle");
       else check(hi - lo > R * 0.03, "water / fire: visibly not a circle");
     }
-    // The browser's edgeJitter, op for op (values printed from node — dustCloud.js).
+    // The browser's edgeJitter, op for op (values printed from node — dust/cloud.js).
     const auto near = [](double a, double b) { return std::abs(a - b) < 1e-9; };
     check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::WATER, 17), -0.015235022) , "water vertex 17 matches the browser");
     check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::FIRE, 17), 0.043404486), "fire vertex 17 matches the browser");
@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
           "the wake is deterministic");
   }
 
-  // The grain's own curve, against the browser (motion.js swapDustEase / swapDustFrame): both surfaces
+  // The grain's own curve, against the browser (surface/motion.js swapDustEase / swapDustFrame): both surfaces
   // evaluate the real cubic-bezier(0.22, 0.55, 0.3, 1), so these rows are the browser's own answers.
   dustGrainCurve(w, h);
 

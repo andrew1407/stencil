@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createLevelMeter, rmsOfTimeDomain, levelFromRms, LEVEL_DECAY_MS, LEVEL_FFT_SIZE } from '../js/llm/voice/voiceLevel.js';
+import { createLevelMeter, rmsOfTimeDomain, levelFromRms, LEVEL_DECAY_MS, LEVEL_FFT_SIZE } from '../js/llm/voice/level.js';
 import { createFakeAudio } from './helpers/speech.js';
 
 const makeMeter = (audio, over = {}) => {

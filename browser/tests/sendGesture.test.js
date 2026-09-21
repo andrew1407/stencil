@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createSendGesture, syncComposerControls, SEND_TITLE, SEND_TITLE_PLAIN, VOICE_TITLE_LISTENING, VOICE_TITLE_PAUSED } from '../js/ui/chat/chatView.js';
+import { createSendGesture, syncComposerControls, SEND_TITLE, SEND_TITLE_PLAIN, VOICE_TITLE_LISTENING, VOICE_TITLE_PAUSED } from '../js/ui/chat/view.js';
 import { DOUBLE_CLICK_MS, LONG_PRESS_MS } from '../js/ui/tip/popover.js';
 import { stubClock } from './helpers/speech.js';
 import { createStubElement } from './helpers/dom.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 
-// The send button's gesture (chatView.js createSendGesture): a plain click acts one
+// The send button's gesture (view.js createSendGesture): a plain click acts one
 // double-click interval later, a double-click or a hold switches typing ↔ dictation.
 const make = () => {
   const clock = stubClock();
@@ -109,7 +109,7 @@ test('switching to voice input lands on a paused mic face — nothing starts lis
   assert.ok(!body.includes('startListening()'), 'the switch never starts the engine');
   assert.ok(body.includes('setFace(true);'), 'it only turns the face');
   assert.ok(body.includes('if (on) { stopListening(); setFace(false);'), 'switching back still stops dictation');
-  const { SEND_TITLE } = await import('../js/ui/chat/chatView.js');
+  const { SEND_TITLE } = await import('../js/ui/chat/view.js');
   assert.match(SEND_TITLE, /Double-click or hold for voice input/);
 });
 

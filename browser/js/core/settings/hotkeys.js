@@ -2,7 +2,7 @@
 // localStorage 'drawingApp_hotkeys'; importing in Node stays inert.
 import HOTKEY_DEFS from '../../config/hotkeysConfig.json' with { type: 'json' };
 import { platformizeCombo, isMacPlatform, formatCombo, composeControlTitle, setHtml } from '../../utils.js';
-import { keysHtml } from '../../ui/tip/tipContent.js';
+import { keysHtml } from '../../ui/tip/content.js';
 
 const STORAGE_KEY = 'drawingApp_hotkeys';
 
@@ -81,7 +81,7 @@ class Hotkeys {
     return html;
   }
 
-// Keycaps (tipContent.js keysHtml) for every .ctx-hotkey[data-hk]. setHtml writes only on a
+// Keycaps (content.js keysHtml) for every .ctx-hotkey[data-hk]. setHtml writes only on a
 // real change, so a hovered row's keycaps are never rebuilt under the pointer.
   updateCtxHints() {
     if (typeof document === 'undefined') return;

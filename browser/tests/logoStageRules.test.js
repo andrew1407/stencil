@@ -1,4 +1,4 @@
-// The logo stage's table and rules (js/ui/logoStageRules.js): every accent preset opens exactly
+// The logo stage's table and rules (js/ui/stageRules.js): every accent preset opens exactly
 // one show, a custom hex picks by value, a styled show needs its motion mode, and the heart fits.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -6,7 +6,7 @@ import ACCENTS from '../js/config/accents.json' with { type: 'json' };
 import {
   STAGE, SHOWS, SHOW_NAMES, TYPED_WORDS, effectOf, resolveShow, showStyle,
   bigLogoSize, minLogoSize, heartPoints, heartLine,
-} from '../js/ui/logo/logoStageRules.js';
+} from '../js/ui/logo/stageRules.js';
 
 test('every accent preset opens exactly one show, and every show name is an identifier', () => {
   for (const { key } of ACCENTS) {

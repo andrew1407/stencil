@@ -21,7 +21,7 @@ from .core import Core, get_core
 
 # CSS pixels per cm at 96 dpi — the basis the crop parser and the browser share.
 PX_PER_CM = 96.0 / 2.54
-# MAX_POINTS_PER_LINE points plus thickness and pointSize (scriptTypes.hpp).
+# MAX_POINTS_PER_LINE points plus thickness and pointSize (types.hpp).
 _RESOLVE_CAP = 2 * 200 + 2
 
 

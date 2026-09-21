@@ -1,12 +1,12 @@
-// Pure helpers both chat surfaces share (js/llm/chatSession.js): replyWithWarnings,
+// Pure helpers both chat surfaces share (js/llm/session.js): replyWithWarnings,
 // unreachableText, describeChatError and runChatTurn's rejected-turn result.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   replyWithWarnings, unreachableText, describeChatError, runChatTurn, chatLog, resetChatLog,
   runLoggedChatTurn,
-} from '../js/llm/chat/chatSession.js';
-import { LlmError } from '../js/llm/llmClient.js';
+} from '../js/llm/chat/session.js';
+import { LlmError } from '../js/llm/client.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 
 // ── Pure helpers shared by both chat surfaces ──

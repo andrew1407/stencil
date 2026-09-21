@@ -1,4 +1,4 @@
-// src/lib/motionIcons.js — the browser's copy (portParity.test.js): one glyph per
+// src/lib/icons.js — the browser's copy (portParity.test.js): one glyph per
 // interface-motion mode, worn by the options page's Interface animation dropdown.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

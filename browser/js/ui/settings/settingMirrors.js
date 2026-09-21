@@ -1,6 +1,6 @@
 import { setVal, setRadioGroup } from '../../utils.js';
 import { icon } from '../icons.js';
-import { setChecked, swapCheckGlyph } from '../control/controlSwap.js';
+import { setChecked, swapCheckGlyph } from '../control/swap.js';
 import { revealControls } from '../motion.js';
 
 // ── How a setting shows on screen ────────────────────────────────
@@ -14,7 +14,7 @@ const el = (id) => document.getElementById(id);
 const PAINTERS = Object.freeze({
   value: (node, value) => { node.value = value; },
   valueSkipFocus: (node, value) => { if (document.activeElement !== node) node.value = value; },
-  // Both marks come and go as sand (ui/controlSwap.js): a programmatic change — Alt+P,
+  // Both marks come and go as sand (ui/swap.js): a programmatic change — Alt+P,
   // the context-menu twin, a restored project — animates exactly as a click does.
   checked: (node, value) => setChecked(node, value),
   checkIcon: (node, value) => swapCheckGlyph(node, value ? icon('check', { size: 14 }) : ''),

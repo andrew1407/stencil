@@ -5,10 +5,10 @@ import {
   PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, LLM_SYSTEM_PROMPT,
   OPS, BROWSER_CAPABILITIES,
 } from '../js/llm/plan/opPlan.js';
-import { EDGE_MAP_SENTENCE } from '../js/llm/chat/chatController.js';
-import { CONTINUATION_NOTE, isInternalChatText } from '../js/llm/chat/chatStore.js';
+import { EDGE_MAP_SENTENCE } from '../js/llm/chat/controller.js';
+import { CONTINUATION_NOTE, isInternalChatText } from '../js/llm/chat/store.js';
 
-// The §4 prose core is a data asset (config/llm/systemPrompt.json): opPlan.js re-exports its strings, and
+// The §4 prose core is a data asset (config/llm/systemPrompt.json): plan.js re-exports its strings, and
 // no module or test carries a second literal of the prompt.
 
 // The four prose blocks plus the §4/§7 sentences. Every value is a plain string, so a surface embeds the

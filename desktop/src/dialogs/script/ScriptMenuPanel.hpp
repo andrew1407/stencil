@@ -12,8 +12,8 @@ namespace stencil::gui {
   struct Palette;
   class ScriptEditorWidget;
 
-  /* The script editor hosted INSIDE the canvas context menu (browser js/ui/ctxScript.js +
-   * ctxScriptEditor.js): the window's own ScriptEditorWidget at menu scale, never a second copy
+  /* The script editor hosted INSIDE the canvas context menu (browser js/ui/script.js +
+   * script/editor.js): the window's own ScriptEditorWidget at menu scale, never a second copy
    * of it. Typing, running and failing leave the menu open, and the text survives its closing. */
   class ScriptMenuPanel : public QWidget {
     Q_OBJECT

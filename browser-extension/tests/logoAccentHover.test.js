@@ -1,4 +1,4 @@
-// The logo accent menu's hover, held through the palette flood (src/lib/logoAccent.js).
+// The logo accent menu's hover, held through the palette flood (src/lib/accent.js).
 // Every preview plays the flood — a View Transition that DROPS real :hover and re-applies
 // it just after — so a resting row snapped back, slid in again and blinked its cursor
 // once per preview. The hover is latched as a class, the replays frozen while a preview

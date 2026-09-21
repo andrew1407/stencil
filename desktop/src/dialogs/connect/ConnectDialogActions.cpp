@@ -163,7 +163,7 @@ namespace stencil::gui {
     }
   }
 
-  // Return connects from wherever the focus is (browser twin: connectModal.js keydown on both
+  // Return connects from wherever the focus is (browser twin: modal.js keydown on both
   // fields). Handled HERE because removing a row can leave the dialog with no focus widget at all.
   void ConnectDialog::keyPressEvent(QKeyEvent* e) {
     if ((e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) &&

@@ -37,8 +37,8 @@ test('empty text clears both attributes, and a missing element is a no-op', () =
 // it cannot import), which means controlTooltip.js never runs over it.
 const NATIVE_TITLE_OK = new Set(['src/lib/drop/overlay.js']);
 // controlTooltip.js blanks/restores a native title it finds (a port pinned byte-for-byte
-// against its browser twin); tipContent.js's `tip.title` is a plain object field.
-const NOT_A_CALL_SITE = new Set(['src/lib/tip/controlTooltip.js', 'src/lib/tip/tipContent.js']);
+// against its browser twin); content.js's `tip.title` is a plain object field.
+const NOT_A_CALL_SITE = new Set(['src/lib/tip/controlTooltip.js', 'src/lib/tip/content.js']);
 
 const walk = (dir, out = []) => {
   for (const name of readdirSync(dir)) {

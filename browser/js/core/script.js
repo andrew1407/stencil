@@ -2,11 +2,11 @@
 // and this body is the fallback, which browser/tests/wasm-parity-script.test.js pins op-for-op.
 import { core } from './abi/stencilCore.js';
 import { resolveAxisPx } from './settings/units.js';
-import { hasErrors } from './script/scriptDiagnostics.js';
-import { dumpDiagnostics, dumpProgram } from './script/scriptDump.js';
-import { lexScript } from './script/scriptLexer.js';
-import { lowerScript } from './script/scriptLower.js';
-import { parseScript as parseStatements } from './script/scriptParser.js';
+import { hasErrors } from './script/diagnostics.js';
+import { dumpDiagnostics, dumpProgram } from './script/dump.js';
+import { lexScript } from './script/lexer.js';
+import { lowerScript } from './script/lower.js';
+import { parseScript as parseStatements } from './script/parser.js';
 
 /* Parses a script into { tokens, diagnostics, blocks, ops }. Diagnostics come in source
  * order; a program with any error must not be executed. */

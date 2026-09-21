@@ -1,4 +1,4 @@
-// §2.1 multi-image ops (js/llm/opPlan.js): `image` switches to a turn attachment,
+// §2.1 multi-image ops (js/llm/plan.js): `image` switches to a turn attachment,
 // `save` persists, and both are top-level only.
 import { test } from 'node:test';
 import assert from 'node:assert';

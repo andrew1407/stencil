@@ -131,7 +131,7 @@ namespace stencil::gui {
     const QRectF iconBox(content.center().x() - ICON_PX / 2.0,
                          content.top() - 2.0 * t, ICON_PX, ICON_PX);
     // Stroked inline rather than via support/iconSet (that would drag Qt6::Svg into the headless
-    // targets). Same 0 0 24 24 geometry + 2px stroke as iconSet.cpp / icons.js; keep in sync.
+    // targets). Same 0 0 24 24 geometry + 2px stroke as iconSet.cpp / motion/icons.js; keep in sync.
     p.save();
     p.translate(iconBox.center());
     p.scale(iconScale, iconScale);

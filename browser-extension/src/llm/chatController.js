@@ -1,17 +1,17 @@
 // ── Chat controller: history, plan execution, auto-continuation ─────────────
 // The extension chat's conversation state (contract §7 + §8): the listing
 // (chatListing.js) rides as a system-prompt suffix, history replays under the §7 image
-// rule, and executed plans (opExecutors.js) surface as chat cards. Every chrome/DOM
+// rule, and executed plans (executors.js) surface as chat cards. Every chrome/DOM
 // capability is INJECTED, so `node --test` drives the controller with stubs.
-import { LLM_SYSTEM_PROMPT, FORBIDDEN_OPS, parseOpPlan, continuationOnly } from './op/opPlan.js';
+import { LLM_SYSTEM_PROMPT, FORBIDDEN_OPS, parseOpPlan, continuationOnly } from './op/plan.js';
 import { attachmentNote, buildListing, buildTabsListing } from './chatListing.js';
-import { createOpExecutors } from './op/opExecutors.js';
+import { createOpExecutors } from './op/executors.js';
 
 export const HISTORY_LIMIT = 32;
 // Contract §7 image downscale bound — the same long edge every rasterise path uses.
 export { DEFAULT_MAX_EDGE as MAX_IMAGE_EDGE } from '../lib/image/rasterize.js';
 
-// How many images ONE message may carry (browser chatController.js twin): images are
+// How many images ONE message may carry (browser controller.js twin): images are
 // re-encoded and replayed per turn (§7), and past three the queue is refused out loud.
 export const MAX_ATTACHMENTS = 3;
 
@@ -34,7 +34,7 @@ export const splitDataUrl = (u) => {
 };
 
 // Image replay rule (contract §7): the current turn keeps its images; of the PRIOR turns only
-// the most recent image survives. Mirror of browser/js/llm/chat/chatController.js replayMessages.
+// the most recent image survives. Mirror of browser/js/llm/chat/controller.js replayMessages.
 export const replayMessages = (history) => {
   const msgs = history.slice(-HISTORY_LIMIT);
   const out = [];

@@ -2,13 +2,13 @@
 // phrases and the silence window that closes a turn. Split from voiceModes.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { VOICE_ACTIVE_LEVEL } from '../js/llm/voice/voiceModes.js';
+import { VOICE_ACTIVE_LEVEL } from '../js/llm/voice/modes.js';
 import { make } from './helpers/voiceModesRig.js';
 
 // Hands-free, the only surface is the toast — and a dictated prompt is a paragraph, not
 // a line. The "Sent" balloon echoes just enough of it to prove the mic heard right.
 test('the sent balloon echoes a stub of the spoken prompt, never the whole of it', async () => {
-  const { spokenEcho, SPOKEN_ECHO_CHARS, CHAT_TOAST_CHARS } = await import('../js/llm/chat/chatSession.js');
+  const { spokenEcho, SPOKEN_ECHO_CHARS, CHAT_TOAST_CHARS } = await import('../js/llm/chat/session.js');
   assert.ok(SPOKEN_ECHO_CHARS < CHAT_TOAST_CHARS, 'shorter than a reply balloon');
   assert.strictEqual(spokenEcho('crop it'), 'crop it', 'a short prompt is shown whole');
   const long = spokenEcho('crop ten percent off every edge and then rotate it right twice please');
@@ -17,7 +17,7 @@ test('the sent balloon echoes a stub of the spoken prompt, never the whole of it
   // One line: a composer's typed prefix can carry newlines into the dictated text.
   assert.strictEqual(spokenEcho('  make it \n  sepia  '), 'make it sepia');
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/llm/voice/voiceModes.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/llm/voice/modes.js', import.meta.url), 'utf8');
   assert.ok(src.includes('`Sent: "${spokenEcho(text)}"`'),
     'the voice-chat toast quotes the stub — it is repeating what the mic heard');
 });
@@ -33,7 +33,7 @@ test('composer: transcripts drive setText, a spoken phrase sends the stripped te
   assert.deepStrictEqual(t.texts.at(-1), 'crop the image');
   assert.deepStrictEqual(t.submits, ['phrase']);
   // One utterance, one message: the spoken send ENDS the dictation (the face stays a
-  // paused mic — chatView.js). Hands-free chaining is voice CHAT mode's job.
+  // paused mic — view.js). Hands-free chaining is voice CHAT mode's job.
   assert.strictEqual(voice.mode, 'off', 'the spoken send stops listening');
   assert.deepStrictEqual(t.stops, ['phrase'], 'and says why it stopped');
   // Once for the utterance itself, once as the teardown lets the engine go.
@@ -58,7 +58,7 @@ test('composer: a bare "send it" sends what is already in the box, without rewri
   engine.hear('send it');
   assert.deepStrictEqual(t.submits, ['phrase'], 'the standing text is sent');
   // The live transcript still streams in, but a bare send never writes WORDS over what stands there:
-  // the composer restores whatever it was holding (chatView.js keeps that prefix).
+  // the composer restores whatever it was holding (view.js keeps that prefix).
   assert.ok(t.texts.every((x) => x === ''), 'the box is never given the send phrase');
   assert.strictEqual(voice.mode, 'off', 'one utterance, one message — the dictation ends');
   assert.deepStrictEqual(t.stops, ['phrase']);

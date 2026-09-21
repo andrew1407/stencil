@@ -154,7 +154,7 @@ test('an open menu follows its trigger when the page moves under it', async () =
 
 test('every select dropdown goes through the portal, and its press-outside sees it', () => {
   const cs = readFileSync(new URL('../js/ui/control/customSelect.js', import.meta.url), 'utf8');
-  const ap = readFileSync(new URL('../js/ui/accent/accentPicker.js', import.meta.url), 'utf8');
+  const ap = readFileSync(new URL('../js/ui/accent/picker.js', import.meta.url), 'utf8');
   for (const [name, src, host] of [['customSelect', cs, 'wrap'], ['accentPicker', ap, 'mount']]) {
     assert.match(src, /showMenu\(menu, trigger\)/, `${name} opens through dropdownMenu`);
     assert.match(src, /hideMenu\(menu\)/, `${name} closes through it`);

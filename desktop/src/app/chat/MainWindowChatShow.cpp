@@ -139,7 +139,7 @@ namespace stencil::gui {
     // Interrupting a hide: grow from where it actually is.
     const int from = show ? (wasVisible && extent() < full ? extent() : 0) : extent();
     const int to = show ? full : 0;
-    // The dust flight and the slide run one clock (chatPanel.js), and leaving is the quicker
+    // The dust flight and the slide run one clock (chat/panel.js), and leaving is the quicker
     // of the two. Shown BEFORE it is measured: a HIDDEN dock contributes no space to the layout.
     const int slideMs = show ? CHAT_SLIDE_IN_MS : CHAT_SLIDE_OUT_MS;
     if (show) chatDock->show();

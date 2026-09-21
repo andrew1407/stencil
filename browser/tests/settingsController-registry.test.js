@@ -1,4 +1,4 @@
-// SettingsController's registry-driven set()/preview() (js/core/settingsController.js): the
+// SettingsController's registry-driven set()/preview() (js/core/controller.js): the
 // coercions, the persist:false path and the page/unit setters. From settingsController.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

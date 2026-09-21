@@ -6,7 +6,7 @@ import {
   swapRadius, swapPercent, THEME_SWAP_MS, swapEase, swapDustSpecs, swapDustFrame, SWAP_DUST_FLARE,
   SWAP_DUST_MOTES, SWAP_DUST_MIN_T, SWAP_DUST_MAX_T, swapEdgePolygon, SWAP_EDGE_POINTS,
 } from '../js/ui/motion.js';
-import { STYLE_DUST, STYLE_WATER, STYLE_FIRE, edgeBaseOf } from '../js/ui/dust/dustCloud.js';
+import { STYLE_DUST, STYLE_WATER, STYLE_FIRE, edgeBaseOf } from '../js/ui/dust/cloud.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { box } from './helpers/motionRig.js';
 
@@ -54,7 +54,7 @@ test('swapEase walks the wipe’s own curve, easing in slightly and never backwa
     'the JS curve and the declared reveal share one set of control points');
 });
 
-// The clip is a polygon ring wearing the particle style (dustCloud.js edgeJitter); even
+// The clip is a polygon ring wearing the particle style (cloud.js edgeJitter); even
 // its deepest dip must clear the furthest corner by the end.
 test('swapEdgePolygon: a ring in the particle style that still covers the whole viewport', () => {
   const [x, y, w, h] = [90, 60, 1440, 900];

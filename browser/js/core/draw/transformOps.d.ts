@@ -1,5 +1,5 @@
 // Transforms over the selection: rotate / flip / quarter-turn / nudge. The point maths is
-// lineTransforms.js; this is the selection plumbing — which pivot, which lines, and the one
+// transforms.js; this is the selection plumbing — which pivot, which lines, and the one
 // debounced history save a burst of them collapses into.
 import type { DrawingApp } from '../drawingApp.js';
 

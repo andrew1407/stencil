@@ -1,9 +1,9 @@
 import { MSG } from '../lib/messages.js';
-import { sourceOf, editableSrc } from '../lib/image/imageModel.js';
+import { sourceOf, editableSrc } from '../lib/image/model.js';
 import { run } from './panelDom.js';
 import { state, isOpened, surfaceTabId } from './list/model.js';
 import { openHere, sendToEditor, openCrop } from './openActions.js';
-import { openMenuAt } from './row/rowMenu.js';
+import { openMenuAt } from './row/menu.js';
 
 // A `dragover` exposes the DataTransfer's TYPES but never its data, so the entry is kept here.
 let draggingRow = null;

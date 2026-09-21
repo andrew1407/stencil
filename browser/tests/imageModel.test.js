@@ -1,4 +1,4 @@
-// Unit tests for ImageModel (js/core/imageModel.js) — the crop/rotation geometry extracted
+// Unit tests for ImageModel (js/core/model.js) — the crop/rotation geometry extracted
 // out of DrawingApp. The pure bits (roundRect, rotatedOriginalDims, defaultCropRect) need only
 // a stub app; the canvas-touching bits (rebuildCroppedImage via rotateImage/applyCrop) run
 // against a minimal document.createElement('canvas') stub so we can assert the crop/rotation
@@ -22,7 +22,7 @@ globalThis.document = {
   createElement: (tag) => (tag === 'canvas' ? makeCanvas() : {}),
 };
 
-const { ImageModel } = await import('../js/core/image/imageModel.js');
+const { ImageModel } = await import('../js/core/image/model.js');
 
 const makeApp = (over = {}) => {
   const rec = { save: 0, redraw: 0, remoteSync: 0 };

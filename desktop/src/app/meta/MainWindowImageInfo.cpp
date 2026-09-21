@@ -62,7 +62,7 @@ namespace stencil::gui {
     syncImageInfoDockHeight();
   }
 
-  // Pins the dock's own height too, or QMainWindow draws a drag grip above the canvas. Brackets OUT to enter, IN to leave (browser fullscreenLayer.js).
+  // Pins the dock's own height too, or QMainWindow draws a drag grip above the canvas. Brackets OUT to enter, IN to leave (browser fullscreen/layer.js).
   void MainWindow::syncFullscreenGlyph() {
     if (!actFullscreen) return;
     const QString name = fs.active ? QStringLiteral("minimize") : QStringLiteral("maximize");

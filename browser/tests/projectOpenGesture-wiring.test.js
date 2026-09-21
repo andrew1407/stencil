@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
-import { DOUBLE_CLICK_MS, DRAG_SLOP_PX } from '../js/core/project/projectOpenGesture.js';
+import { DOUBLE_CLICK_MS, DRAG_SLOP_PX } from '../js/core/project/openGesture.js';
 import { isTouchLike, TOUCH_MEDIA } from '../js/utils.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
@@ -28,7 +28,7 @@ test('the row wires every gesture to the SAME open paths, and stays keyboard-usa
     "row.addEventListener('dragstart', () => gesture.dragStart());",
   ]) assert.ok(src.includes(wire), `wired: ${wire}`);
   // Both drag engines cancel a pending open: HTML5 dragstart (mouse) and the touch
-  // engine's pickup callback (touchDrag.js onStart).
+  // engine's pickup callback (drag.js onStart).
   assert.ok(src.includes('row._openGesture?.dragStart(); dragKey = key;'), 'touch pickup cancels the open');
   // Reordering itself is untouched — the row is still draggable and still carries the
   // reorder flag the global drop overlay ignores.

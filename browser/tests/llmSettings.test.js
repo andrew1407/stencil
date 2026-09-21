@@ -8,7 +8,7 @@ import { installMemoryStorage } from './helpers/memoryStorage.js';
 const mem = installMemoryStorage()._map;
 
 const { defaultSettings, loadLlmSettings, saveLlmSettings, serverBearerToken, PROVIDERS, PROVIDER_BASE_URLS, isHttpUrl } =
-  await import('../js/llm/llmSettings.js');
+  await import('../js/llm/settings.js');
 
 // NEGATIVE: a poisoned store must not aim the client at another scheme. Same check the
 // stencil.llm setup facade applies (isHttpUrl — one validator, both call sites).

@@ -1,4 +1,4 @@
-// Shapes for llm/opSchemaBase.js — the closure-free base of opSchema.js: value predicates, the
+// Shapes for llm/schemaBase.js — the closure-free base of schema.js: value predicates, the
 // SchemaError the checks throw, the message-path builders and the native cross-field rules.
 // The extension ships a byte-identical copy of the module.
 

@@ -4,7 +4,7 @@ import assert from 'node:assert';
 // layout() transitively imports every ui component, including the projects modal.
 import { layout } from '../js/ui/layout.js';
 import { escapeHtml } from '../js/ui/base.js';
-import { escapeHtml as tipEscape } from '../js/ui/tip/tipContent.js';
+import { escapeHtml as tipEscape } from '../js/ui/tip/content.js';
 import { escapeHtml as oneEscape } from '../js/ui/escapeHtml.js';
 import { projectsModalSource } from './helpers/projectsModalSource.js';
 
@@ -111,7 +111,7 @@ test('a real removal keeps the destructive wipe — a filter is not a delete', (
     'nothing on the filter path reaches for the dust');
 });
 
-// ONE escaper: base.js and tipContent.js re-export js/ui/escapeHtml.js rather than each
+// ONE escaper: base.js and content.js re-export js/ui/escapeHtml.js rather than each
 // keeping a copy (browser-extension/tests/portParity.test.js pins the extension's port of it).
 test('escapeHtml is a single implementation, re-exported', () => {
   assert.strictEqual(escapeHtml, oneEscape);

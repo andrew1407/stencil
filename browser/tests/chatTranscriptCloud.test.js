@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { dustFitsScroller } from '../js/ui/motion.js';
-import { shrinkWrapWidth } from '../js/ui/chat/chatView.js';
+import { shrinkWrapWidth } from '../js/ui/chat/view.js';
 import { motionSource } from './helpers/motionSource.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 
@@ -101,7 +101,7 @@ test('dropping the cloud hands the entry over in the SAME frame', () => {
 });
 
 // A wrapped bubble hugs its own longest line, not the 88% max-width cap
-// (js/ui/chatView.js applyShrinkWrap).
+// (js/ui/view.js applyShrinkWrap).
 test('shrinkWrapWidth: one line already hugs its content — nothing to pin', () => {
   assert.strictEqual(shrinkWrapWidth([193.4]), null);
   assert.strictEqual(shrinkWrapWidth([]), null);

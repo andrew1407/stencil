@@ -130,7 +130,7 @@ namespace stencil::gui {
   void ScriptDialog::showRunDiagnostics() { editor->showRunDiagnostics(); }
 
   // Copy, Save and Clear need text; Open always has something to do. Run needs something to
-  // RUN (browser js/ui/scriptEditor.js gateActions).
+  // RUN (browser js/ui/editor.js gateActions).
   void ScriptDialog::gateActions() {
     const bool blank = editor->isEmpty();
     copyBtn->setEnabled(!blank);

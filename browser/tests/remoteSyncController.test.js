@@ -1,4 +1,4 @@
-// Unit tests for RemoteSyncController (js/core/remoteSyncController.js) — the live co-edit
+// Unit tests for RemoteSyncController (js/core/syncController.js) — the live co-edit
 // engine extracted out of DrawingApp. The debounce/conflict paths are timing+network heavy;
 // here we pin the deterministic, side-effect-observable parts: the three server-layout
 // adoption helpers (they restore filter/page/formula state into the app), the renderResultBytes
@@ -13,7 +13,7 @@ import { installDom } from './helpers/dom.js';
 
 installDom();
 
-const { RemoteSyncController } = await import('../js/core/remote/remoteSyncController.js');
+const { RemoteSyncController } = await import('../js/core/remote/syncController.js');
 
 const makeApp = (over = {}) => {
   const rec = { syncFormulaUI: [], showFormulaError: [] };

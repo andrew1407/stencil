@@ -1,4 +1,4 @@
-// The logo stage itself (js/ui/logoStage.js): when it may open, the lock it puts on the
+// The logo stage itself (js/ui/stage.js): when it may open, the lock it puts on the
 // keyboard while it is up, and what a click on the mark does versus a click beside it.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -26,8 +26,8 @@ const setup = ({ fullscreen = false } = {}) => {
 beforeEach(setup);
 
 const { openLogoStage, closeLogoStage, logoStageOpen, logoStageAllowed, currentLogoStage } =
-  await import('../js/ui/logo/logoStage.js');
-const { modalShells } = await import('../js/ui/modal/modalRegistry.js');
+  await import('../js/ui/logo/stage.js');
+const { modalShells } = await import('../js/ui/modal/registry.js');
 
 const app = { accent: 'violet', customAccent: null };
 const open = (name = 'neonOn') => openLogoStage(name, { app, origin: { x: 20, y: 20 }, doc });

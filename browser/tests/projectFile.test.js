@@ -1,4 +1,4 @@
-// Unit tests for the pure .stencil project-file (de)serializer (js/core/projectFile.js).
+// Unit tests for the pure .stencil project-file (de)serializer (js/core/file.js).
 // node --test never touches the DOM/wasm — this exercises the JS reference directly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ import {
   STENCIL_FILE_FORMAT,
   STENCIL_FILE_VERSION,
   MAX_PROJECT_FILE_CHARS,
-} from '../js/core/project/projectFile.js';
+} from '../js/core/project/file.js';
 
 // A real 1×1 red PNG (data-URL) — small enough to inline, valid enough to decode.
 const RED_1x1 =

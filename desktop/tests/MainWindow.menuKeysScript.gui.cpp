@@ -9,7 +9,7 @@ class MainWindowGuiTest : public QObject {
   void initTestCase() { prepareGuiTestCase(); }
 
   // The script flyout: the same two-step → as the Assistant, but the editor then OWNS Tab — it
-  // indents by two rather than walking the four actions (browser ctxScriptItem.js), Ctrl+Enter runs.
+  // indents by two rather than walking the four actions (browser ctx/scriptItem.js), Ctrl+Enter runs.
   void ctxScriptFlyoutOwnsTabAndCtrlEnter() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);

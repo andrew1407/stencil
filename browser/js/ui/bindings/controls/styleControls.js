@@ -1,5 +1,5 @@
 import { supportsShareFiles } from '../../../utils.js';
-import { wireExportOptionsMenu } from '../../export/exportOptionsMenu.js';
+import { wireExportOptionsMenu } from '../../export/optionsMenu.js';
 export function wireStyleControls(app) {
   // The unified Open dialog (openImageModal) owns the Open triggers: #load-image-btn,
   // #open-image-btn and the blank shortcuts all open it.

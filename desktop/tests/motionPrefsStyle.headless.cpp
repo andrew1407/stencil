@@ -48,7 +48,7 @@ namespace motionprefs {
           "paletteIndex rounds and clamps like the browser's");
 
     // The tints: two grains in three ride that ramp, the rest wear one of five colours off
-    // their own hash. Pinned to the browser's dustCloud.js tintOf (printed from node).
+    // their own hash. Pinned to the browser's dust/cloud.js tintOf (printed from node).
     check(support::tintOf(0.0) == -1 && support::tintOf(0.37) == -1 && support::tintOf(0.8) == -1,
           "most grains are the accent");
     check(support::tintOf(0.043) == 0 && support::tintOf(0.048) == 1 && support::tintOf(0.0529) == 2
@@ -83,7 +83,7 @@ namespace motionprefs {
     support::setParticlePalette(violet, shade, false);
     check(!support::isParticleDark(), "…and flips back");
 
-    // styleFrame — the browser's dustCloud.js styleFrame, op for op (the sample values
+    // styleFrame — the browser's dust/cloud.js styleFrame, op for op (the sample values
     // below are that module's, printed from node).
     const auto near = [](double a, double b) { return std::abs(a - b) < 1e-5; };
     using namespace stencil::support;
@@ -114,7 +114,7 @@ namespace motionprefs {
     check(w.sy > 0 && f.sy < 0, "water sags down the screen, fire lifts up it");
     check(support::styleFrame(ParticleStyle::FIRE, 0.5, 0.5, 0.3, 0, 250).sy == 0, "no throw, no lift");
 
-    // The grain shapes — browser dustCloud.js grainShape / shapePolygon, op for op.
+    // The grain shapes — browser dust/cloud.js grainShape / shapePolygon, op for op.
     using support::GrainShape;
     check(support::grainShape(ParticleStyle::DUST, 0.1) == GrainShape::DISC
               && support::grainShape(ParticleStyle::DUST, 0.9) == GrainShape::DISC, "dust is always a disc");

@@ -1,8 +1,8 @@
 // The menu that springs open under a drag hovering the header mark: every item is a
 // drop-only target, and a once-gate guarantees exactly one action per release.
 import { createOnceGate } from '../onceGate.js';
-import { createDragArmer, dragMenuActions } from '../drop/dropEntry.js';
-import { classifyDrop } from '../chat/chatDrop.js';
+import { createDragArmer, dragMenuActions } from '../drop/entry.js';
+import { classifyDrop } from '../chat/drop.js';
 import { icon } from '../icons.js';
 
 export const LOGO_DROP_HINT = 'Drag an image or video here for quick actions';

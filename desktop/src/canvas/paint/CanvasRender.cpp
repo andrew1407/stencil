@@ -8,7 +8,7 @@
 namespace stencil::gui {
 
 
-  // Native-resolution render of an export variant. Mirrors the browser's exportService.js
+  // Native-resolution render of an export variant. Mirrors the browser's export/service.js
   // renderExportCanvas / renderSplitExportCanvas op-for-op.
   QImage CanvasWidget::renderToImage(const QString& variant, bool withDivider) const {
     if (image.isNull()) return QImage();

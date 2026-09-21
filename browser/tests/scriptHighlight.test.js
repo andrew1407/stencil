@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DIRECTIVES } from '../js/core/script/scriptTypes.js';
-import { paintInto } from '../js/ui/script/scriptHighlight.js';
+import { DIRECTIVES } from '../js/core/script/types.js';
+import { paintInto } from '../js/ui/script/highlight.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 
 const doc = installDom({});

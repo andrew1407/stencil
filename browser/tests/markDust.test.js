@@ -1,6 +1,6 @@
 // A control's own mark made of dust: a tick, a chosen word, revealed rows, filtered project
 // rows (js/ui/motion.js markIn / markOut / markSwap / revealControls / filterDust, wired by
-// js/ui/controlSwap.js). Pinned: a mark plays a ROW's fall as the desktop indicator does,
+// js/ui/swap.js). Pinned: a mark plays a ROW's fall as the desktop indicator does,
 // scaled down for a control; the end state is written synchronously in both directions; and
 // the veil hides the mark alone, never the control around it.
 import { test } from 'node:test';
@@ -17,7 +17,7 @@ import { ANIMATIONS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const motionJs = motionSource();
-const swapJs = read('../js/ui/control/controlSwap.js');
+const swapJs = read('../js/ui/control/swap.js');
 const animCss = ANIMATIONS_CSS;
 const selectJs = read('../js/ui/control/customSelect.js');
 

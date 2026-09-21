@@ -3,7 +3,7 @@
 // element's own colours (speckPainter), drifting off in a staggered sweep. Never clones
 // of the element — hundreds of copies of a row's subtree show nothing a speck does not.
 // Mirror of browser motion.js; the layer is FIXED because the row collapses under it.
-import { startCloud, resolveColour, paletteCss } from '../dust/dustCloud.js';
+import { startCloud, resolveColour, paletteCss } from '../dust/cloud.js';
 import { dustEnabled } from '../prefs/motionPrefs.js';
 import { speckPainter } from './painters.js';
 import { SURFACE_SPREAD, surfaceMotion } from './surfaceMotion.js';
@@ -45,7 +45,7 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.style.height = `${r.height}px`;
     const cellW = r.width / cols;
     const cellH = r.height / rows;
-    // Every grain is computed once and ONE canvas evaluates them per frame (dustCloud.js) — no
+    // Every grain is computed once and ONE canvas evaluates them per frame (cloud.js) — no
     // node per mote, so a dialog-sized cloud costs batched fills, not hundreds of layers.
     const motes = [];
     for (let cy = 0; cy < rows; cy++) {
@@ -63,14 +63,14 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
           dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha,
           delay: m.delay, dur: gather ? gatherMs : Math.max(MIN_TILE_MS, span - m.delay),
           // …and its own hash for the wobble, the twinkle and its place in the palette
-          // (dustCloud.js turbulenceAt / dustMix).
+          // (cloud.js turbulenceAt / dustMix).
           w: tileNoise(cx + 13, cy + 71), t: 1, g: speck.glint ? 1 : 0,
         });
       }
     }
     const kind = flightOf(toward, gather);
     // Every cloud is painted from the theme's palette, never in the surface's own colours:
-    // each grain picks its stop by its mix and its tint (dustCloud.js stopOfTint).
+    // each grain picks its stop by its mix and its tint (cloud.js stopOfTint).
     const style = styleCode();
     const paints = paletteCss();
     host.__cloud = { motes, colours: paints, flight: kind, span, style };   // what a test reads

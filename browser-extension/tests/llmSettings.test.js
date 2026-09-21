@@ -1,4 +1,4 @@
-// Tests for the LLM assistant settings (src/llm/llmSettings.js): §5 defaults,
+// Tests for the LLM assistant settings (src/llm/settings.js): §5 defaults,
 // the stencil-server default following the first stored connection, and the
 // chrome.storage round-trip — driven with the storage mock idiom from
 // connections.test.js.
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   LLM_SETTINGS_KEY, PROVIDERS, PROVIDER_BASE_URLS,
   defaultSettings, loadLlmSettings, saveLlmSettings, assistantEnabled, isHttpUrl,
-} from '../src/llm/llmSettings.js';
+} from '../src/llm/settings.js';
 import { applyAssistantVisibility } from '../src/popup/assistant.js';
 
 import { installChromeStub } from './helpers/chromeStub.js';
@@ -165,7 +165,7 @@ test('applyAssistantVisibility hides BOTH the section and the ✦ button, revers
 });
 
 // NEGATIVE: chrome.storage is writable by anything running in the extension, so a poisoned entry
-// must not aim the client at another scheme (browser/js/llm/llmSettings.js checks the same).
+// must not aim the client at another scheme (browser/js/llm/settings.js checks the same).
 test('an endpoint saved on a non-http(s) scheme is dropped for the default', async () => {
   const mock = installStorageMock();
   for (const bad of ['javascript:fetch(1)', 'file:///etc/passwd', 'chrome-extension://abc/x',

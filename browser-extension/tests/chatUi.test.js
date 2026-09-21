@@ -1,4 +1,4 @@
-// Tests for src/lib/chatUi.js — the assistant transcript's two widgets:
+// Tests for src/lib/ui.js — the assistant transcript's two widgets:
 // dismissible error/notice entries (they used to stack up forever) and the
 // empty-state suggestion chips (which PREFILL the input, never send). Driven with a
 // stub document, like the other DOM-adjacent extension suites.
@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   AUTO_DISMISS_MS, SUGGESTIONS, makeDismissible, renderSuggestions,
   shrinkWrapWidth, applyShrinkWrap, bindShrinkWrapResize,
-} from '../src/lib/chat/chatUi.js';
+} from '../src/lib/chat/ui.js';
 import { installDom, stubDoc, stubEl } from './helpers/domStub.js';
 
 // The dismissal is what's under test, not the dissolve it plays out through: declare the
@@ -119,7 +119,7 @@ test('renderSuggestions takes a custom chip list', () => {
   assert.equal(wrap.children[0].textContent, 'a');
 });
 
-// Browser js/ui/chat/chatView.js parity: a wrapped bubble hugs its own longest line, not the
+// Browser js/ui/chat/view.js parity: a wrapped bubble hugs its own longest line, not the
 // max-width cap it never searches a narrower box against (user report).
 test('shrinkWrapWidth: one line already hugs its content — nothing to pin', () => {
   assert.equal(shrinkWrapWidth([142.5]), null);

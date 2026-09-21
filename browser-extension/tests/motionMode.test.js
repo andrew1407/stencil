@@ -1,4 +1,4 @@
-// The motion mode gate (src/lib/shellPrefs.js StencilMotion, the browser motionPrefs.js twin):
+// The motion mode gate (src/lib/shellPrefs.js StencilMotion, the browser prefs.js twin):
 // what src/lib/motion.js reads live, and the one door every cloud is built behind.
 import test from 'node:test';
 import assert from 'node:assert';
@@ -7,7 +7,7 @@ import { animationsCss, motionSrc } from './helpers/sources.js';
 
 const css = animationsCss();
 
-// ── The motion mode (lib/shellPrefs.js StencilMotion; browser motionPrefs.js twin) ──
+// ── The motion mode (lib/shellPrefs.js StencilMotion; browser prefs.js twin) ──
 test('the gates read StencilMotion live, and fall back to the OS preference without it', async () => {
   const m = await import('../src/lib/motion.js');
   const prev = globalThis.StencilMotion;

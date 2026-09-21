@@ -1,4 +1,4 @@
-// Tests for src/lib/dropEntry.js — normalising media DROPPED on the panel (a page
+// Tests for src/lib/entry.js — normalising media DROPPED on the panel (a page
 // <img>/<video> dragged out of the page, a local file, a data:/blob: source) into the
 // same scan-row shape the ⋯ action menu already consumes, so the header logo's drop
 // target reuses the row machinery instead of growing its own. Pure: the object-URL
@@ -9,7 +9,7 @@ import {
   sameSource, isMediaFile, entryFromUrl, entryFromDrop,
   DRAG_MENU_ACTIONS, dragMenuActions, dragActionAllowed,
   INTERNAL_DRAG_TYPE, dragPayloadKind, createDragArmer,
-} from '../src/lib/drop/dropEntry.js';
+} from '../src/lib/drop/entry.js';
 
 const ids = (entry) => dragMenuActions(entry).map((a) => a.id);
 

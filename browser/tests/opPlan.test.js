@@ -1,4 +1,4 @@
-// §13 registry pins for js/llm/opPlan.js: the op names, their flags, one key phrase per
+// §13 registry pins for js/llm/plan.js: the op names, their flags, one key phrase per
 // bullet, capability truth, the prompt censor and the forbidden-name boundary.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -102,7 +102,7 @@ test('§13: every bullet keeps its key semantic phrase', () => {
 // flushDeferred), and that pass needs its own capability bag or the op dies on the replay.
 test('every deferred op\'s capability rides the end-of-turn replay', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/llm/chat/chatRespond.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/llm/chat/respond.js', import.meta.url), 'utf8');
   const flush = src.slice(src.indexOf('const flushDeferred'), src.indexOf('// One model round'));
   // …and the dedup keeps the LAST of each op: "close this window and open that one" is
   // two dialog actions, and first-wins left the user with neither.

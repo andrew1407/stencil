@@ -40,7 +40,7 @@ export const openChatPanel = async (page) => {
   await expect(page.locator('#chat-panel')).toHaveClass(/chat-open/);
 };
 
-// Attach / clear / settings live in the composer's "…" overflow (chatView.js), which closes
+// Attach / clear / settings live in the composer's "…" overflow (view.js), which closes
 // itself after an item runs.
 export const clearConversation = async (page, prefix = 'chat') => {
   await page.locator(`#${prefix}-more-btn`).click();

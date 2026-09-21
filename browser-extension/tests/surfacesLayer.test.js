@@ -9,7 +9,7 @@ import {
   SURFACE_IN_MS, SURFACE_OUT_MS,
   SURFACE_DRIVEN_CLASS, SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
 } from '../src/lib/motion.js';
-import { PAINT_STOPS } from '../src/lib/dust/dustCloud.js';
+import { PAINT_STOPS } from '../src/lib/dust/cloud.js';
 
 const ANIMS = animationsCss();
 const THEME = themeCss();

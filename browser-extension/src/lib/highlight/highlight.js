@@ -71,7 +71,7 @@ export const toggleStencilHighlight = (on, color = '#7c3aed') => {
     'box-shadow:0 0 0 3px ' + glow + ' !important;}';
   (document.head || document.documentElement).appendChild(style);
 
-  // Mirrors lib/imageModel.js sourceOf and the scanner, so the panel can find the row.
+  // Mirrors lib/model.js sourceOf and the scanner, so the panel can find the row.
   const absUrl = (raw) => { try { return new URL(raw, location.href).href; } catch { return ''; } };
   const sourceOfEl = (el) => {
     if (!el) return '';

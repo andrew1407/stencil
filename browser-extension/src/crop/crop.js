@@ -7,9 +7,9 @@ import { watchNumericInputs } from '../lib/control/numericInput.js';
 import { initTooltips } from '../lib/tip/controlTooltip.js';
 import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
 import { enhanceSelect } from '../lib/control/customSelect.js';
-import { createCropStage } from './cropStage.js';
-import { createCropControls } from './cropControls.js';
-import { buildHandoffPayload } from './cropHandoff.js';
+import { createCropStage } from './stage.js';
+import { createCropControls } from './controls.js';
+import { buildHandoffPayload } from './handoff.js';
 
 // Inside the in-page crop modal (an iframe): notify the host overlay on boot and on close.
 const FRAMED = window.parent && window.parent !== window;

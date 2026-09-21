@@ -109,7 +109,7 @@ test('the swap is decoration: updateButtons re-syncing does not replay it', () =
 });
 
 test('updateButtons seeds BOTH faces, so the session’s first Line↔Rect switch animates', () => {
-  const src = read('../js/ui/control/controlState.js');
+  const src = read('../js/ui/control/state.js');
   assert.match(src, /app\.syncDrawToggleUI\(\);[\s\S]{0,400}?app\.syncDrawModeUI\(\);/,
     'the Draw group’s two faces are owned by one place');
   // Without the seed the first swapContent call on the mode button IS its first paint,

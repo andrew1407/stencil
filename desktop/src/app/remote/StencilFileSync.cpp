@@ -88,7 +88,7 @@ namespace stencil::gui {
     }
     const QString path = stencilLink;
     const QString shown = QFileInfo(path).fileName();
-    // The browser's styled confirm (exportService.js confirmIcon): a bin, red.
+    // The browser's styled confirm (export/service.js confirmIcon): a bin, red.
     ConfirmSpec spec;
     spec.title = tr("Delete project file");
     spec.message = tr("Delete “%1” from disk? This can’t be undone. The project stays open here.").arg(shown);

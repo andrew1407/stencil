@@ -1,7 +1,7 @@
 // Popup / side panel / DevTools panel: ./scan.js reads the page, ./filters.js ranks it,
 // ./row.js draws it; this file owns the controls' wiring and the boot order.
 import { setSettings } from '../lib/stencil.js';
-import { highlightColorValue } from '../lib/highlight/highlightColor.js';
+import { highlightColorValue } from '../lib/highlight/color.js';
 import { toggleStencilHighlight } from '../lib/highlight/highlight.js';
 import { icon } from '../lib/icons.js';
 import { MSG } from '../lib/messages.js';
@@ -17,10 +17,10 @@ import { scan, annotateOpened } from './list/scan.js';
 import { syncServerFilterUI } from './pin/sharedPins.js';
 import { runHoverHighlight, highlightListRowForSource } from './row/hoverHighlight.js';
 import './row/row.js';
-import './pin/pinActions.js';
+import './pin/actions.js';
 import './dragWiring.js';
 import './list/sections.js';
-import './editor/editorSection.js';
+import './editor/section.js';
 import './assistantControls.js';
 import './storageSync.js';
 

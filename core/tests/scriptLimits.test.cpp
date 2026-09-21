@@ -1,11 +1,11 @@
 #include "doctest.h"
 
 #include "scriptProgram.hpp"
-#include "scriptTypes.hpp"
+#include "types.hpp"
 
 #include <string>
 
-// The caps in scriptTypes.hpp, each proved by the smallest input that trips it.
+// The caps in types.hpp, each proved by the smallest input that trips it.
 // Mirrors browser/tests/scriptLimits.test.js: both engines must refuse the same way.
 using namespace stencil::core::script;
 

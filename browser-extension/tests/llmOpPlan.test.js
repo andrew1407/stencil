@@ -1,8 +1,8 @@
-// The shared §1 extraction/validation mechanics under the extension profile (src/llm/opPlan.js):
+// The shared §1 extraction/validation mechanics under the extension profile (src/llm/plan.js):
 // chat-only degradation, dropped variants, focus/open/attach, and the action caps.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LIMITS, attachOnly } from '../src/llm/op/opPlan.js';
+import { LIMITS, attachOnly } from '../src/llm/op/plan.js';
 import { parse, plan } from './helpers/opPlanHarness.js';
 
 // ── Shared §1 extraction mechanics ──

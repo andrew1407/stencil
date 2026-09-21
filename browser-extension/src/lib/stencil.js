@@ -9,7 +9,7 @@ export {
 } from './prefs/settings.js';
 export {
   blobToDataUrl, fetchAsDataUrl, filenameFromUrl, guessMime, isImageDataUrl,
-} from './image/imageData.js';
+} from './image/data.js';
 export {
   MAX_PAYLOAD, buildHandoff, buildLaunchUrl, launchEditorModal, openEditorTab,
 } from './menu/editorLaunch.js';

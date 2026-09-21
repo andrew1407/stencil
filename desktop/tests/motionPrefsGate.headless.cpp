@@ -76,7 +76,7 @@ namespace motionprefs {
     support::setMotionMode(MotionMode::PARTICLES);
   }
 
-  // ── The modes' glyphs (support/motionIcons.hpp — browser motionIcons.js) ──
+  // ── The modes' glyphs (support/motionIcons.hpp — browser motion/icons.js) ──
   std::printf("icons:\n");
   {
     const auto inkOf = [](const QString& mode, double ms) {

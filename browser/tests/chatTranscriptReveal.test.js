@@ -43,7 +43,7 @@ test('the mask wipe reads those feathers, and the observer publishes them', () =
 
 test('a repaint keeps the motion classes motion.js owns, mask state included', async () => {
   stubDom();
-  const { renderChatLog } = await import('../js/ui/chat/chatView.js?render-motion');
+  const { renderChatLog } = await import('../js/ui/chat/view.js?render-motion');
   const view = chatViewSource();
   // Taken from motion.js's constants — a retyped list is what dropped .reveal-masked,
   // and the observer's "changed?" cache then never put it back.

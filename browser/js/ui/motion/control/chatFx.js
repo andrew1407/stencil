@@ -2,7 +2,7 @@ import { dustEnabled, motionReduced } from '../motionPrefs.js';
 import { disintegrate } from '../disintegrate.js';
 import { FILTER_DUST_DRIFT, FILTER_DUST_MS, LEAVE_MS, flashLanding, wipeDurationMs } from '../enterLeave.js';
 import { speckPainter } from '../surface/painters.js';
-import { dockAwayPoint } from '../surface/surfaceMotion.js';
+import { dockAwayPoint } from '../surface/motion.js';
 import { surfaceDust } from '../surface/surfaces.js';
 import { ITEM_DUST_MS, TILE_GATHER_SHARE, cancelDust, retargetDust, scatterGridFor } from '../surface/tiles.js';
 import { TUNE } from '../tune.js';

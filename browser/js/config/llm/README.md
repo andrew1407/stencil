@@ -14,7 +14,7 @@
   `browser-extension/tests/dataParity.test.js`.
 
 The assembled prompt is `head + <registry-generated op bullets> + tail` (contract §13);
-`browser/js/llm/plan/opPlan.js` does the assembly and re-exports the strings.
+`browser/js/llm/plan/plan.js` does the assembly and re-exports the strings.
 
 Byte-exactness: JSON escapes newlines but round-trips every byte — consumers get the
 strings byte-identical to the old in-source literals. Do not reflow or "prettify" the
@@ -34,7 +34,7 @@ schema of its own. These were retyped in five clients each before they moved her
   appends to the re-sent turn. **Four wordings, all of them already in production when
   the strings moved into this asset** — this file records the divergence rather than
   hiding it, and converging them is a behaviour change that belongs to its own commit:
-  - `continuationNote` — the editors' (browser `chatStore.js`, desktop
+  - `continuationNote` — the editors' (browser `store.js`, desktop
     `MainWindowChat.cpp`). This is the wording llm-chat.md §12.1 quotes.
   - `continuationNoteConsole` — cli `wire.zig` + mcp `prompt.rs` (`…loaded — continue
     with it, using its real pixel size.]`).

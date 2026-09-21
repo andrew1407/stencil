@@ -9,8 +9,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-import { parseOpPlan } from '../src/llm/op/opPlan.js';
-import { createLlmClient, sanitizeProviderText, LlmError } from '../src/llm/llmClient.js';
+import { parseOpPlan } from '../src/llm/op/plan.js';
+import { createLlmClient, sanitizeProviderText, LlmError } from '../src/llm/client.js';
 import { encodeTelegramStartPayload } from '../src/lib/menu/openIn.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));

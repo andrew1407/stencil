@@ -1,10 +1,10 @@
 // Control tooltip: shows a control's `data-tip` or `data-title` on hover after a short delay.
 // The app authors NO native `title` — the browser's own popup is slow, skips disabled controls
 // and would double this one — so this is the only tooltip. tooltip.js is the canvas readout.
-// tipContent.js parses the composed title into the desktop app's tooltip shape; this only
+// content.js parses the composed title into the desktop app's tooltip shape; this only
 // positions and shows it.
 
-import { renderTip, parseTip } from './tipContent.js';
+import { renderTip, parseTip } from './content.js';
 import { surfaceIn, surfaceOut, settleSurface, rectCenter,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS, TIP_SHOW_DELAY_MS } from '../motion.js';
 import { comboMatchesEvent, eventCombo, parseCombo } from '../control/comboMatch.js';

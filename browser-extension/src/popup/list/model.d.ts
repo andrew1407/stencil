@@ -1,6 +1,6 @@
 // Shapes for popup/model.js — the panel's live scan + UI state, and the merged local/
 // shared image row every other popup module operates on.
-import type { AttributedScanEntry } from '../../lib/image/imageScan.js';
+import type { AttributedScanEntry } from '../../lib/image/scan.js';
 
 /** A scanned row, once annotated with pin/open state, or a server project standing in for one. */
 export interface PopupImage extends AttributedScanEntry {

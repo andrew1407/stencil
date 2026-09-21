@@ -55,7 +55,7 @@ namespace stencil::gui {
 
   namespace {
     // A FIRST-CLASS popover dialog (not a QMenu), so the popover system's Alt-peek/glide/linger rules apply. Presets from theme.cpp accentPresets.
-    // The Settings dropdown's swatch recipe; the CURRENT accent's ✓ is baked into its chip in the chip's OWN ink (browser accentPicker.js).
+    // The Settings dropdown's swatch recipe; the CURRENT accent's ✓ is baked into its chip in the chip's OWN ink (browser accent/picker.js).
     QIcon accentSwatchIcon(const QColor& c, bool current) {
       QPixmap pm(16, 16);
       pm.fill(Qt::transparent);
@@ -106,7 +106,7 @@ namespace stencil::gui {
   }
 
   namespace {
-    // A hop between rows is not a leave; the preview waits for the pointer to settle so the accent flood fires once. Browser twin: accentPicker.js.
+    // A hop between rows is not a leave; the preview waits for the pointer to settle so the accent flood fires once. Browser twin: accent/picker.js.
     class AccentHoverFilter : public QObject {
      public:
       AccentHoverFilter(QObject* parent, QWidget* popover,

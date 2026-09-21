@@ -30,7 +30,7 @@ namespace stencil::gui {
   void CanvasWidget::handleDrawingClick(const core::Point& ip,
                                         Qt::KeyboardModifiers mods,
                                         const QPoint& widgetPos) {
-    // rect-draw press (browser pointerController.js startPan). Picking the rect tool is the intent,
+    // rect-draw press (browser controller.js startPan). Picking the rect tool is the intent,
     // so the press turns drawing on itself - it has no hold-to-draw flow to fall back on.
     if (drawMode == DrawMode::RECT && mods == Qt::NoModifier) {
       if (!isDrawing) startDrawingMode();

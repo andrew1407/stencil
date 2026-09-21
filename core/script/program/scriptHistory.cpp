@@ -1,6 +1,6 @@
-#include "scriptDiagnostics.hpp"
-#include "scriptUndo.hpp"
-#include "scriptValues.hpp"
+#include "diagnostics.hpp"
+#include "undo.hpp"
+#include "values.hpp"
 #include "text.hpp"
 
 namespace stencil::core::script {

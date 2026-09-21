@@ -4,12 +4,12 @@
 //! image pipeline. If ffmpeg isn't installed the caller surfaces a clear hint.
 const std = @import("std");
 const child = @import("../safety/child.zig");
-const mediaTypes = @import("mediaTypes.zig");
+const mediaTypes = @import("types.zig");
 
 pub const Error = error{ FfmpegMissing, FfmpegFailed };
 
 /// Heuristic: does this path/URL look like a video (by extension)? The list is the shared
-/// canon's `surfaces.cli.video` (mediaTypes.zig), not a copy kept here.
+/// canon's `surfaces.cli.video` (media/types.zig), not a copy kept here.
 pub fn looksLikeVideo(path: []const u8) bool {
     // Trim any URL query/fragment before checking the extension.
     var end = path.len;

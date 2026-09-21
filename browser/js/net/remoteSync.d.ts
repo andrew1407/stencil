@@ -3,7 +3,7 @@
 // ServerConnection; a 409 rethrows flagged `conflict`.
 import type { ConnectionManager } from './connectionManager.js';
 import type { ServerConnection, ProjectEventMessage } from './serverConnection.js';
-import type { RemoteLink } from '../core/remote/remoteSyncController.js';
+import type { RemoteLink } from '../core/remote/syncController.js';
 import type { ProjectLayout } from '../core/project/store/projectsStore.js';
 
 export declare const CONFLICT_MESSAGE: string;

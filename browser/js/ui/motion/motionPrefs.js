@@ -1,6 +1,6 @@
 // Two app-wide motion switches (Visuals modal / stencil.drawingAnimations, stencil.motionMode):
 // `drawing` is the canvas stroke motion (core/strokeFx.js); `mode` is how the interface moves —
-// 'particles' | 'water' | 'fire' (dustCloud.js styleFrame), 'slide' (each surface's own CSS
+// 'particles' | 'water' | 'fire' (cloud.js styleFrame), 'slide' (each surface's own CSS
 // entrance), 'none'. prefers-reduced-motion: reduce reads as 'none' whatever is stored.
 // App-wide under its own localStorage key; mirrored onto <html data-motion> (animations/motionModes.css).
 
@@ -20,7 +20,7 @@ const MOTION_FIRE = 'fire';
 const MOTION_SLIDE = 'slide';
 const MOTION_NONE = 'none';
 export const MOTION_MODES = Object.freeze([MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE, MOTION_SLIDE, MOTION_NONE]);
-// The style (dustCloud.js PARTICLE_STYLES) each particle mode paints in.
+// The style (cloud.js PARTICLE_STYLES) each particle mode paints in.
 export const PARTICLE_MODES = Object.freeze([MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE]);
 const PARTICLE_STYLE_OF = { [MOTION_PARTICLES]: 'dust', [MOTION_WATER]: 'water', [MOTION_FIRE]: 'fire' };
 export const DEFAULT_MOTION_MODE = MOTION_PARTICLES;

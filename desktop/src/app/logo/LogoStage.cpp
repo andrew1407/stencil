@@ -106,7 +106,7 @@ namespace stencil::gui {
 
   // The mark is measured FROM the hostWindow, so a resize re-measures it and carries everything
   // placed in the old box across as a fraction of it — otherwise the showWord keeps the markPx and the
-  // centre of the hostWindow it opened in. Browser twin: the tail of logoStage.js `fit`.
+  // centre of the hostWindow it opened in. Browser twin: the tail of logo/stage.js `fit`.
   void LogoStage::relayout() {
     if (!open && leftAt < 0) return;
     const QSize was = size();

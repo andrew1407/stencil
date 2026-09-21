@@ -66,7 +66,7 @@ namespace stencil::gui {
     if (batch.batchCopyServer) batch.batchCopyServer->setVisible(dir.toServer);
     if (batch.batchToLocal) batch.batchToLocal->setVisible(dir.toLocal);
     if (batch.batchCopyLocal) batch.batchCopyLocal->setVisible(dir.toLocal);
-    // Browser motion.js revealControls. Laid out first: the flips above have only QUEUED the re-flow,
+    // Browser surface/motion.js revealControls. Laid out first: the flips above have only QUEUED the re-flow,
     // and the swap photographs the group as it stands.
     if (batch.batchSelectedGroup) {
       if (QLayout* gl = batch.batchSelectedGroup->layout()) gl->activate();
@@ -98,7 +98,7 @@ namespace stencil::gui {
             (it->flags() & Qt::ItemIsUserCheckable);
     }
     revealControls(selectAllBtn, any);
-    // Browser icons.js setSelectAllFace.
+    // Browser motion/icons.js setSelectAllFace.
     const bool all = allFilteredChecked();
     selectAllBtn->setText(all ? tr("Deselect all") : tr("Select all"));
     selectAllBtn->setIcon(labelIcon(all ? "x" : "check", QColor("#ffffff"), 13));

@@ -3,7 +3,7 @@
 // validates the connection BEFORE it resets or fetches anything.
 import { requireConnection } from '../../net/remoteSync.js';
 import { videoFrameDataUrl } from '../../core/export/videoFrame.js';
-import { waitForImage as waitForImageOn } from '../../core/image/imageLoadFlow.js';
+import { waitForImage as waitForImageOn } from '../../core/image/loadFlow.js';
 
 export const createSessionApi = ({ app, connMgr }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard

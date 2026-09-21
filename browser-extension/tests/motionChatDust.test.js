@@ -7,7 +7,7 @@ import {
   tileMotion, DISINTEGRATE_MS,
   chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, dustFitsScroller,
 } from '../src/lib/motion.js';
-import { FLIGHTS, moteFrame } from '../src/lib/dust/dustCloud.js';
+import { FLIGHTS, moteFrame } from '../src/lib/dust/cloud.js';
 import { classEl as el } from './helpers/listDom.js';
 
 const css = animationsCss();
@@ -134,11 +134,11 @@ test('every flight bends through the waypoint on its own first leg, and the clou
     assert.ok(Math.abs(bend.r - 4 * (1 - (1 - 0.4) * 0.5)) < 1e-6, `${name}: half the shrink at the bend`);
     assert.notEqual(f.leg(0.5), f.rest(0.5), `${name}: leg one eases on its own`);
   }
-  // No node per grain any more: the layer holds ONE canvas (lib/dustCloud.js).
+  // No node per grain any more: the layer holds ONE canvas (lib/cloud.js).
   assert.match(css, /\.disintegrate-host > canvas \{ position: absolute; display: block; \}/);
   assert.ok(!/disintegrate-tile/.test(css) && !/@keyframes stTile/.test(css), 'no rule left per tile');
   // The theme wipe's grains are the same round grain, but the STAGE draws them now
-  // (lib/dustWake.js spawnDust): no per-grain rule, and so no layer per grain.
+  // (lib/wake.js spawnDust): no per-grain rule, and so no layer per grain.
   assert.ok(!/\.swap-dust-mote/.test(css) && !/swapDustMote/.test(css), 'no rule left per grain');
   assert.ok(!/will-change/.test(css.match(/\.swap-dust \{([\s\S]*?)\n\}/)[1]),
     'one layer for the whole wake, not one promoted per grain');

@@ -1,5 +1,5 @@
 #pragma once
-#include "scriptTypes.hpp"
+#include "types.hpp"
 
 // The parsed script as the ABI hands it out: the C++ shape behind what parseScript returns.
 namespace stencil::core::script {

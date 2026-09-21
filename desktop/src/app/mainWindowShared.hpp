@@ -19,7 +19,7 @@ namespace stencil::gui {
   // old row breaks.
   inline constexpr int TOOLBAR_LAYOUT_VERSION = 6;   // v6: the four tool rows folded into one wrapping run
 
-  // How long the chat takes to leave; the compact popover waits this out (chatPanel.js closeMs
+  // How long the chat takes to leave; the compact popover waits this out (chat/panel.js closeMs
   // parity).
   inline constexpr int CHAT_SLIDE_IN_MS = 510;
   // Leaving is 1.5x quicker than arriving: a panel you dismissed should be gone.

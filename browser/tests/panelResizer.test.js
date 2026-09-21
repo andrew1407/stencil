@@ -58,7 +58,7 @@ test('the suppression rule names both handles, by hooks that exist', () => {
   const covers = (hook) => rule[1].split(',').some((s) => s.includes(`${hook}.dragging`));
   assert.ok(covers('.panel-resizer'), `in-flow handle uncovered: ${rule[1]}`);
   assert.ok(covers('#fs-panel-resizer'), `fullscreen handle uncovered: ${rule[1]}`);
-  const markup = read('../js/ui/panel/mainContent.js') + read('../js/ui/fullscreen/fullscreenMarkup.js');
+  const markup = read('../js/ui/panel/mainContent.js') + read('../js/ui/fullscreen/markup.js');
   assert.ok(markup.includes('class="panel-resizer"'), 'no element carries .panel-resizer');
   assert.ok(markup.includes('id="fs-panel-resizer"'), 'no element carries #fs-panel-resizer');
   assert.ok(read('../js/utils/panelResizer.js').includes("classList.add('dragging')"), 'the drag no longer flags its handle');

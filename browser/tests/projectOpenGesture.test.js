@@ -2,11 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 
 // Opening a project row: the gesture → intent mapping and the deferred-single-click machine
-// behind it (js/core/projectOpenGesture.js) — pure/injected, so the whole mouse+touch matrix
+// behind it (js/core/openGesture.js) — pure/injected, so the whole mouse+touch matrix
 // runs without a DOM.
 import {
   rowOpenIntent, createOpenGesture, DOUBLE_CLICK_MS, DRAG_SLOP_PX,
-} from '../js/core/project/projectOpenGesture.js';
+} from '../js/core/project/openGesture.js';
 
 // A controllable clock: timers fire only when the test advances it.
 const stubTimers = () => {
@@ -42,7 +42,7 @@ test('rowOpenIntent: the full mouse + touch matrix', () => {
   assert.deepStrictEqual(rowOpenIntent({ type: 'key' }), { confirm: true, target: 'here' });
   assert.deepStrictEqual(rowOpenIntent({ type: 'key', ctrlKey: true }), { confirm: true, target: 'newtab' });
   // Touch: a tap opens, and nothing maps to a long press — the list's press-and-hold picks the
-  // row up for reordering (touchDrag.js), so "open in a new tab" is the ⋯ menu's item there.
+  // row up for reordering (drag.js), so "open in a new tab" is the ⋯ menu's item there.
   assert.deepStrictEqual(rowOpenIntent({ type: 'tap' }), { confirm: true, target: 'here' });
   assert.deepStrictEqual(rowOpenIntent({ type: 'longpress' }), { confirm: true, target: 'here' },
     'no long-press mapping: it degrades to the safe default, it never targets a new tab');
@@ -118,7 +118,7 @@ test('touch: a hold is the list\'s REORDER pickup — it never opens anything', 
   // Press and hold in place, well past any threshold, then release: the touch drag
   // engine owns this (it picks the row up at 280ms and swallows the trailing click).
   g.pressStart({ x: 40, y: 80 });
-  g.dragStart();                                    // touchDrag.js onStart fires
+  g.dragStart();                                    // drag.js onStart fires
   assert.strictEqual(g.pressEnd(), false);
   assert.deepStrictEqual(rec.intents, [], 'a hold never opens a project');
   // The click a drop may synthesize is swallowed…

@@ -174,7 +174,7 @@ everywhere** — persisting a chat is always an explicit user opt-in, per surfac
   raw op-plan stored as an ASSISTANT turn (leading `{`/`[` with `"version"` and an
   `actions`/`reply`/`variants`/`ask` key) are never written and never displayed from an
   older document — a user is still entitled to paste JSON as THEIR turn and see it again.
-  Reference: browser `js/llm/chatStore.js` `isInternalChatText` (+ `sanitizeChatMessages`
+  Reference: browser `js/llm/store.js` `isInternalChatText` (+ `sanitizeChatMessages`
   on restore), which every other surface's reader mirrors. Tolerance vectors:
   `fixtures/chatDoc/`.
 - On restore, `messages` seed both the client's replay history (§7) and its transcript

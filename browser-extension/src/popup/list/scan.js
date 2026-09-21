@@ -1,14 +1,14 @@
 import { filenameFromUrl, getSettings } from '../../lib/stencil.js';
 import { loadLedger, matchEntries, trackableSource } from '../../lib/prefs/ledger.js';
 import { loadPins, isPinnedIn, siteOf } from '../../lib/prefs/pins.js';
-import { scanPageForImages, mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../../lib/image/imageScan.js';
+import { scanPageForImages, mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../../lib/image/scan.js';
 import { isEditorTab } from '../../lib/menu/editorTabs.js';
-import { sourceOf, pinnable } from '../../lib/image/imageModel.js';
+import { sourceOf, pinnable } from '../../lib/image/model.js';
 import { listEl, statusEl, IS_DEVTOOLS } from '../panelDom.js';
 import { state, rowResource } from './model.js';
 import { filterUi, applyFilters } from './filters.js';
 import { loadShared, startSharedPolling } from '../pin/sharedPins.js';
-import { editorMode } from '../editor/editorHandle.js';
+import { editorMode } from '../editor/handle.js';
 
 // A DevTools panel is pinned to the tab it inspects, regardless of focus.
 const getTargetTab = async () => {

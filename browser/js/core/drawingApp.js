@@ -3,36 +3,36 @@ import * as hitTest from './draw/hitTest.js';
 import * as dragGestures from './touch/dragGestures.js';
 import * as shapeBuilder from './line/shapeBuilder.js';
 import * as canvasClickRouter from './pointer/canvasClick.js';
-import * as lineSelection from './line/lineSelection.js';
+import * as lineSelection from './line/selection.js';
 import * as transformOps from './draw/transformOps.js';
-import * as drawMode from './draw/drawMode.js';
-import * as lineEditOps from './line/lineEditOps.js';
+import * as drawMode from './draw/mode.js';
+import * as lineEditOps from './line/editOps.js';
 import * as pageMetrics from './parse/pageMetrics.js';
 import * as unitDisplay from '../ui/panel/unitDisplay.js';
 import * as blankImage from './image/blankImage.js';
-import * as projectFileIO from './project/projectFileIO.js';
+import * as projectFileIO from './project/fileIO.js';
 import * as hoverController from './pointer/hoverController.js';
 import * as selectionPanel from '../ui/panel/selectionPanel.js';
 import * as linesList from '../ui/panel/linesList.js';
 import * as projectTitle from '../ui/projects/window/projectTitle.js';
-import { updateButtons as updateControlState } from '../ui/control/controlState.js';
+import { updateButtons as updateControlState } from '../ui/control/state.js';
 import * as drawToggleUI from '../ui/panel/drawToggleUI.js';
 import * as openFlow from './launch/openFlow.js';
 import * as incognito from './launch/incognitoFlow.js';
 import { askChoose, askAlt, askPrompt } from './modalAsk.js';
 import { wireCollaborators } from './remote/collaborators.js';
 import { canvasCoords, nearCompareDivider } from './pointer/canvasCoords.js';
-import { openInLaunchPayload } from './launch/launchPayload.js';
-import { onRemoteProjectsChange } from './remote/remoteProjectsWatch.js';
+import { openInLaunchPayload } from './launch/payload.js';
+import { onRemoteProjectsChange } from './remote/projectsWatch.js';
 import { currentLayoutPayload } from './project/meta/projectMeta.js';
 import { CoordTable } from '../ui/panel/coordTable.js';
-import { AccentController } from '../ui/accent/accentController.js';
+import { AccentController } from '../ui/accent/controller.js';
 import { wireControls } from '../ui/bindings/index.js';
 import { createEditorState } from './editorState.js';
 import { DEFAULT_ACCENT, isAccent } from './settings/accents.js';
 import { readOpenProjectId, buildExternalLaunchUrl } from './launch/deepLink.js';
-import * as launch from './launch/launchController.js';
-import * as imageLoadFlow from './image/imageLoadFlow.js';
+import * as launch from './launch/controller.js';
+import * as imageLoadFlow from './image/loadFlow.js';
 import { wireExtensionBridge } from './launch/extensionBridge.js';
 import { leaveThenRemove } from '../ui/motion.js';
 import { wireViewportSync } from './zoom/viewportSync.js';
@@ -162,7 +162,7 @@ export class DrawingApp {
 // opts.crop overrides the default page-aspect crop; opts.source/resource are provenance URLs.
   loadImageFromFile(file, opts = {}) { return imageLoadFlow.loadImageFromFile(this, file, opts); }
 
-// External launch (`#stencil=<encodeURIComponent(JSON)>`) lives in launchController.js.
+// External launch (`#stencil=<encodeURIComponent(JSON)>`) lives in controller.js.
   applyExternalLaunch() { return launch.applyExternalLaunch(this); }
 
   importExternalImage(payload, { mode = 'new' } = {}) { return launch.importExternalImage(this, payload, { mode }); }

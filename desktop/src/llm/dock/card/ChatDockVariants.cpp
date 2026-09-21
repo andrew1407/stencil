@@ -87,7 +87,7 @@ namespace stencil::gui {
       fadeOutAndDelete(w);
     }
     clearAttachments();
-    // Rows out first, THEN the placeholder (browser chatView.js restoreEmptyState).
+    // Rows out first, THEN the placeholder (browser chat/view.js restoreEmptyState).
     if (wiped) {
       // A hair past the scatter's duration; the overlay deletes itself on finish.
       QTimer::singleShot(DisintegrateOverlay::ITEM_MS + 60, this, [this] {

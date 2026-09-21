@@ -69,7 +69,7 @@ namespace stencil::gui {
   void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
                          const QRect& avoidGlobal = QRect());
 
-  // Card-arrival dust (browser motion.js chatIn): a finer grid than a list row.
+  // Card-arrival dust (browser surface/motion.js chatIn): a finer grid than a list row.
   inline constexpr int CHAT_SCATTER_COLS = 32;
   inline constexpr int CHAT_SCATTER_ROWS = 16;
   // One frame: the callers' scrollToBottom() is a singleShot(0), so a 0 ms hop measures too early.
@@ -86,11 +86,11 @@ namespace stencil::gui {
                         std::function<void()> onFlight = nullptr,
                         int tries = CHAT_GATHER_TRIES, QSize lastSize = QSize());
 
-  // Drops the snapshot when the card leaves the viewport or resizes (browser motion.js trackDust).
+  // Drops the snapshot when the card leaves the viewport or resizes (browser surface/motion.js trackDust).
   void trackChatCardDust(QWidget* card, DisintegrateOverlay* overlay, QScrollArea* scroll,
                          std::function<void()> settle);
 
-  // Hover preview for a thumbnail (browser chatView.js wireThumbPreview): a top-level tooltip
+  // Hover preview for a thumbnail (browser chat/view.js wireThumbPreview): a top-level tooltip
   // window clamped to a fraction of the screen, like the browser's vw/vh.
   constexpr int PREVIEW_EDGE = 220;
   constexpr double PREVIEW_SCREEN_W = 0.25;
@@ -113,7 +113,7 @@ namespace stencil::gui {
     QPointer<QWidget> popup;
   };
 
-  // Browser .chat-typing (chatView.js typingDots).
+  // Browser .chat-typing (chat/view.js typingDots).
   class TypingDots : public QWidget {
     Q_OBJECT
    public:

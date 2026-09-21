@@ -19,7 +19,7 @@ const drawingAppJs = read('../js/core/drawingApp.js');
 const inputJs = read('../js/core/pointer/inputController.js');
 const shapeJs = read('../js/core/line/shapeBuilder.js');   // insert / rect routes
 const clickJs = read('../js/core/pointer/canvasClick.js');   // the click router
-const exportJs = read('../js/core/export/exportService.js');
+const exportJs = read('../js/core/export/service.js');
 
 // ── 1. The arithmetic ───────────────────────────────────────────────────────
 

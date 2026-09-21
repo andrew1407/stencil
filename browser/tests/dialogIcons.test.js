@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Dialog glyphs (js/ui/confirmModal.js). The modal falls back to a generic check mark, so a button that says
+// Dialog glyphs (js/ui/modal/confirmModal.js). The modal falls back to a generic check mark, so a button that says
 // what it DOES names its own icon via confirmIcon / altIcon. Two silent failures are caught: a typo'd or
 // renamed glyph name, which renders nothing at all, and a destructive dialog left on the default tick, where
 // a check mark beside "This cannot be undone" reads as reassurance.
@@ -39,7 +39,7 @@ test('destructive dialogs do not confirm with a check mark', () => {
   // icon of its own — trash for a delete, crop for one that discards placed lines, and so on.
   const offenders = [];
   for (const [rel, src] of FILES) {
-    if (rel === 'ui/confirmModal.js') continue;   // the component, not a call site
+    if (rel === 'ui/modal/confirmModal.js') continue;   // the component, not a call site
     // Each `danger: true` sits inside one options object: scan from the nearest "{" that
     // opens it to the matching "}" by walking back to the start of the literal.
     for (const m of src.matchAll(/danger:\s*true/g)) {

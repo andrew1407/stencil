@@ -4,7 +4,7 @@ import { installDom } from './dom.js';
 
 installDom();
 
-export const { SettingsController } = await import('../../js/core/settings/settingsController.js');
+export const { SettingsController } = await import('../../js/core/settings/controller.js');
 export const makeApp = (over = {}) => {
   const rec = { save: 0, redraw: 0, remoteSync: 0, coordUpdate: 0 };
   return {

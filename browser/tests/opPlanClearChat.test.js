@@ -1,4 +1,4 @@
-// §10 clearChat (js/llm/opPlan.js): the clear-conversation flow deferred to the plan's
+// §10 clearChat (js/llm/plan.js): the clear-conversation flow deferred to the plan's
 // end, its declined-confirm note, and the deferredSink the turn runner flushes.
 import { test } from 'node:test';
 import assert from 'node:assert';

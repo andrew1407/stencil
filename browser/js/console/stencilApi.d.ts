@@ -7,8 +7,8 @@ import type { LayoutPayload, WireCropRect } from '../core/layout.js';
 import type { RefreshPeriod } from '../core/project/store/projectsStore.js';
 import type { ConnectSpec } from '../net/connectionManager.js';
 import type { TaggedRemoteProject } from '../net/serverConnection.js';
-import type { RemoteProjectMeta } from '../core/project/projectTransferController.js';
-import type { LlmSettings } from '../llm/llmSettings.js';
+import type { RemoteProjectMeta } from '../core/project/transferController.js';
+import type { LlmSettings } from '../llm/settings.js';
 import type { VariantResult } from '../llm/plan/opPlan.js';
 
 export { WINDOWS } from './api/windowsApi.js';

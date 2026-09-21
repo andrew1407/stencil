@@ -1,8 +1,8 @@
-// js/llm/llmClient.js reachability probe (the panel's status dot) and the provider error bodies
+// js/llm/client.js reachability probe (the panel's status dot) and the provider error bodies
 // that surface as themselves, bounded and key-free. Split from llmClient.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createLlmClient, probeProvider, LlmError, sanitizeProviderText } from '../js/llm/llmClient.js';
+import { createLlmClient, probeProvider, LlmError, sanitizeProviderText } from '../js/llm/client.js';
 
 // ── A mock fetch that records every request and replies from a queue ──
 // (the mock-fetch idiom from connections.test.js).

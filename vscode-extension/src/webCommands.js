@@ -1,6 +1,6 @@
 // The browser commands. Two routes: a hand-off the user's own browser opens (the `#stencil=`
 // fragment), and the page's console over VS Code's built-in JS debugger. Neither composes a
-// shell line, and neither reads its target from the document — that is webTarget.js's job.
+// shell line, and neither reads its target from the document — that is target.js's job.
 'use strict';
 
 const vscode = require('vscode');
@@ -8,10 +8,10 @@ const vscode = require('vscode');
 const { COMMANDS, CONFIG_SECTION, LANGUAGE_ID, PROJECT_LANGUAGE_ID, SETTINGS,
 } = require('./lib/ids.js');
 const { isJsSource } = require('./lib/emit/jsSource.js');
-const { BAD_WEB_URL, webUrlFor } = require('./lib/web/webTarget.js');
+const { BAD_WEB_URL, webUrlFor } = require('./lib/web/target.js');
 const { buildLaunchUrl, imageDataUrl, isTooBig, localSources, projectLaunch,
-  scriptLaunch } = require('./lib/web/webLaunch.js');
-const { evaluate, expressionFor, loadExpression, pageSession } = require('./lib/web/webConsole.js');
+  scriptLaunch } = require('./lib/web/launch.js');
+const { evaluate, expressionFor, loadExpression, pageSession } = require('./lib/web/console.js');
 const { programFor } = require('./lib/programCache.js');
 
 const OUTPUT_NAME = 'Stencil';

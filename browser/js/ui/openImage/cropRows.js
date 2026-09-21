@@ -1,7 +1,7 @@
 // The Open-Image crop's aspect choice (page / plain ratio / custom) and the rows that come and
 // go with the Crop tick. Split out of ui/openImageModal.js; the rect itself is openImageCrop.js.
 import constants from '../../config/constants.json' with { type: 'json' };
-import { makeDustRow, makeDustToggle } from '../motion/dust/dustRow.js';
+import { makeDustRow, makeDustToggle } from '../motion/dust/row.js';
 const { PAGE_SIZES } = constants;
 
 // The crop's own aspect affects only this preview, never the project. Plain ratios sit beside
@@ -20,7 +20,7 @@ export function createCropRows({ app, els, fitToPage, persist }) {
       : (PAGE_SIZES[app.pageSize] || PAGE_SIZES.A4);
   };
 
-  // Crop-only rows fly on the KEYWORD-CHIP recipe (motion/dustRow.js) so both surfaces play the
+  // Crop-only rows fly on the KEYWORD-CHIP recipe (motion/row.js) so both surfaces play the
   // same numbers. The play belongs to the CHECKBOX alone, or every tab switch replays an arrival.
   let byUser = false;
   const syncDims = makeDustRow(cropDims);

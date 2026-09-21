@@ -19,8 +19,9 @@ const WASM_SEAM = ['script.js', 'script.d.ts', 'scriptHandles.js', 'scriptHandle
 // Data the copies import. Byte-pinned like any other shared table (.claude/rules/architecture.md).
 const DATA = [['colorNames.json', '../../browser/js/config/colorNames.json', '../src/config/colorNames.json']];
 
+// The folder IS the parser, so every module in it is copied — no name prefix to filter on.
 const scriptFiles = (dir) => readdirSync(dir)
-  .filter((f) => f.startsWith('script') && (f.endsWith('.js') || f.endsWith('.d.ts')))
+  .filter((f) => f.endsWith('.js') || f.endsWith('.d.ts'))
   .sort();
 
 const bytes = (dir, name) => readFileSync(`${dir}${name}`);
@@ -30,13 +31,13 @@ const copies = scriptFiles(COPIES);
 
 test('the browser originals were found', () => {
   assert.ok(originals.filter((f) => f.endsWith('.js')).length >= 12,
-    `only ${originals.length} script* files in browser/js/core/script — the scan missed the tree`);
+    `only ${originals.length} modules in browser/js/core/script — the scan missed the tree`);
 });
 
 test('every browser original is copied here, or excluded on the record', () => {
   const missing = originals.filter((f) => !copies.includes(f));
   assert.deepEqual(missing, [],
-    'a new browser/js/core/script* file — copy it into src/parser/script/, or record why not');
+    'a new browser/js/core/script/ module — copy it into src/parser/script/');
 });
 
 test('every copy here has a browser original', () => {

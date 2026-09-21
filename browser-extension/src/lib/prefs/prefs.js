@@ -46,7 +46,7 @@
   };
   const read = function () { return readPref(KEY, has, DEFAULT); };
 
-  // Interface motion (browser parity: js/ui/motionPrefs.js), stamped on <html data-motion>
+  // Interface motion (browser parity: js/ui/prefs.js), stamped on <html data-motion>
   // before first paint for lib/animations/motionModes.css; prefers-reduced-motion still wins.
   const MKEY = 'stencil_motion';
   const MOTION_DEFAULT = 'particles';

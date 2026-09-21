@@ -10,7 +10,7 @@
 #include <QVector>
 #include <memory>
 
-// Op-plan executor (llm-contract.md §1–2); browser twin: browser/js/llm/plan/opPlan.js executeOpPlan.
+// Op-plan executor (llm-contract.md §1–2); browser twin: browser/js/llm/plan/plan.js executeOpPlan.
 namespace stencil::gui {
   class CanvasWidget;
 }

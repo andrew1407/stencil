@@ -76,7 +76,7 @@ namespace stencil::gui {
   }
 
   void ConnectDialog::buildConnectBatchBar(QVBoxLayout* root) {
-    // The projects bar's shape (browser connectModal.js): it STAYS while the list has rows (it hosts Select all).
+    // The projects bar's shape (browser modal.js): it STAYS while the list has rows (it hosts Select all).
     batchBar = new QWidget;
     {
       // Browser .connect-batch-bar, value for value. min-height is the 14px line box: a QSS min-height IS

@@ -1,4 +1,4 @@
-// The .stencil project-file paths of ExportService (js/core/exportService.js): save, open,
+// The .stencil project-file paths of ExportService (js/core/service.js): save, open,
 // pick-and-open and delete, with the live-sync link. Split from exportService.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

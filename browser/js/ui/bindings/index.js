@@ -2,7 +2,7 @@
 // Pure glue: each binding takes the app and attaches listeners to the app's public
 // methods. Nothing here holds state beyond a gesture's own (arrow-pan keys + rAF,
 // smooth-zoom target); nothing in js/core/ touches the DOM to do it.
-import { wireCanvasScrollbars } from '../canvas/canvasScrollbars.js';
+import { wireCanvasScrollbars } from '../canvas/scrollbars.js';
 import { wireScrollbarHover } from '../control/scrollbarHover.js';
 import { enhanceAllSelects } from '../control/customSelect.js';
 import { wireStyleControls } from './controls/styleControls.js';
@@ -34,7 +34,7 @@ export function wireControls(app) {
   wireKeyboard(app);
   wireArrowPan(app);
   wireDropPaste(app);
-  // The canvas gets its own overlay bars (js/ui/canvasScrollbars.js); every other
+  // The canvas gets its own overlay bars (js/ui/scrollbars.js); every other
   // scrollable's native thumb takes the accent only under the pointer (utils.js).
   wireCanvasScrollbars(document.getElementById('canvas-viewport'));
   wireScrollbarHover();

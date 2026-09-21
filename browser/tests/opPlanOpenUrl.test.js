@@ -1,4 +1,4 @@
-// §10 openUrl (js/llm/opPlan.js): only a URL the user echoed loads, incognito adopts
+// §10 openUrl (js/llm/plan.js): only a URL the user echoed loads, incognito adopts
 // in place, and a fetch failure explains what the editor can reach.
 import { test } from 'node:test';
 import assert from 'node:assert';

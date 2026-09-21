@@ -119,7 +119,7 @@ class MainWindowGuiTest : public QObject {
     }
   }
 
-  // §10 chatPanel: the assistant panel's own placement, driven by a plan (browser opPlan.js
+  // §10 chatPanel: the assistant panel's own placement, driven by a plan (browser row/plan.js
   // chatPanel parity), run through the real parser and executor, not the target method alone.
   void chatPanelOpDocksAndOpensThePanel() {
     MainWindow win(nullptr, false);

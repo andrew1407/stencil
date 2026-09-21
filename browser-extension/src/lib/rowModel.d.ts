@@ -1,4 +1,4 @@
-import type { ImageRow } from './image/imageModel.js';
+import type { ImageRow } from './image/model.js';
 
 export interface Badge { cls: string; text?: string; html?: string; title?: string; }
 

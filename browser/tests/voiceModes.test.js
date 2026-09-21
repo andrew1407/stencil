@@ -1,10 +1,10 @@
-// js/llm/voiceModes.js: the send-phrase split, the unsupported-platform guard and the
+// js/llm/modes.js: the send-phrase split, the unsupported-platform guard and the
 // composer/chat exclusivity. The rig lives in helpers/voiceModesRig.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   splitSendPhrase, SEND_PHRASES, UNSUPPORTED_TEXT,
-} from '../js/llm/voice/voiceModes.js';
+} from '../js/llm/voice/modes.js';
 import { make } from './helpers/voiceModesRig.js';
 
 test('splitSendPhrase: the four phrases only as the whole tail, case and punctuation tolerant', () => {

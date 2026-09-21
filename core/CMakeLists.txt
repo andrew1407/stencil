@@ -50,19 +50,19 @@ set(STENCIL_CORE_SOURCES
   state/ProjectsStore.cpp
   state/zoomPan.cpp
   state/holdDraw.cpp
-  script/scriptDiagnostics.cpp
-  script/scriptLexer.cpp
-  script/scriptParser.cpp
-  script/scriptValues.cpp
-  script/scriptArgs.cpp
-  script/scriptCrop.cpp
-  script/scriptLineStyle.cpp
-  script/scriptTemplates.cpp
-  script/scriptUndo.cpp
+  script/diagnostics.cpp
+  script/lexer.cpp
+  script/parser.cpp
+  script/values.cpp
+  script/args.cpp
+  script/crop.cpp
+  script/lineStyle.cpp
+  script/templates.cpp
+  script/undo.cpp
   script/program/scriptHistory.cpp
-  script/scriptLower.cpp
+  script/lower.cpp
   script/program/scriptProgram.cpp
-  script/scriptDump.cpp
+  script/dump.cpp
 )
 
 # Every group dir (plus the core root for models.hpp + the extern "C" API files) is on

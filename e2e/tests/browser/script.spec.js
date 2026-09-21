@@ -1,4 +1,4 @@
-// Browser .stc e2e: the script window (browser/js/ui/script/scriptModal.js) and the facade's
+// Browser .stc e2e: the script window (browser/js/ui/script/modal.js) and the facade's
 // stencil.execScript, driven with the SHARED fixture corpus
 // (browser/js/config/script/fixtures/cases.txt) — the same scripts the core is proved on.
 // The highlight layer and the diagnostics strip both come from the core's own token stream,

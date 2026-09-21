@@ -1,4 +1,4 @@
-// §13 forbidden ops and the §10 clearChat op in src/llm/chatController.js: the
+// §13 forbidden ops and the §10 clearChat op in src/llm/controller.js: the
 // executor-level refusal, and the clear deferred to the very end of the turn.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

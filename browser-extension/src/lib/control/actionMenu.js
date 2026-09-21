@@ -1,6 +1,6 @@
 // The floating ⋯ action menu: one shared element per surface, which popup.js and
-// editorMode.js fill from the same builders.
-import { menuTransformOrigin } from '../chat/chatMsgMenu.js';
+// mode.js fill from the same builders.
+import { menuTransformOrigin } from '../chat/msgMenu.js';
 import { surfaceIn, surfaceOut, settleSurface, centerOf } from '../motion.js';
 import { icon } from '../icons.js';
 

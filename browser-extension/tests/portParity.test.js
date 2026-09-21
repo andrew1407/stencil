@@ -12,9 +12,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 const MANIFEST = [
   // The one HTML escaper both surfaces (and tipContent below) re-export.
   ['escapeHtml', '../../browser/js/ui/escapeHtml.js', '../src/lib/escapeHtml.js'],
-  ['tipContent', '../../browser/js/ui/tip/tipContent.js', '../src/lib/tip/tipContent.js'],
+  ['tipContent', '../../browser/js/ui/tip/content.js', '../src/lib/tip/content.js'],
   // tipContent's keys half: the key vocabulary and the keycaps it draws.
-  ['tipKeys', '../../browser/js/ui/tip/tipKeys.js', '../src/lib/tip/tipKeys.js'],
+  ['tipKeys', '../../browser/js/ui/tip/keys.js', '../src/lib/tip/keys.js'],
   ['numericInput', '../../browser/js/ui/control/numericInput.js', '../src/lib/control/numericInput.js'],
   // The numeric field's evaluator, pure and DOM-free, so the copy is the whole file.
   ['numericExpr', '../../browser/js/ui/control/numericExpr.js', '../src/lib/control/numericExpr.js'],
@@ -27,28 +27,28 @@ const MANIFEST = [
   ['thumbMetrics', '../../browser/js/ui/control/thumbMetrics.js', '../src/lib/control/thumbMetrics.js'],
   ['menuScrollbar', '../../browser/js/ui/control/menuScrollbar.js', '../src/lib/control/menuScrollbar.js'],
   // The cloud's two halves: the flight table a grain is posed by, and the shape it wears.
-  ['dustFlight', '../../browser/js/ui/dust/dustFlight.js', '../src/lib/dust/dustFlight.js'],
-  ['dustGrain', '../../browser/js/ui/dust/dustGrain.js', '../src/lib/dust/dustGrain.js'],
+  ['dustFlight', '../../browser/js/ui/dust/flight.js', '../src/lib/dust/flight.js'],
+  ['dustGrain', '../../browser/js/ui/dust/grain.js', '../src/lib/dust/grain.js'],
   // The one-canvas dust cloud every element-sized flight rides: pure flight table +
   // painter, so the copy is the whole file.
-  ['dustCloud', '../../browser/js/ui/dust/dustCloud.js', '../src/lib/dust/dustCloud.js'],
+  ['dustCloud', '../../browser/js/ui/dust/cloud.js', '../src/lib/dust/cloud.js'],
   // The motion modes' glyphs: pure SVG strings, so the copy is the whole file.
-  ['motionIcons', '../../browser/js/ui/motion/motionIcons.js', '../src/lib/motionIcons.js'],
+  ['motionIcons', '../../browser/js/ui/motion/icons.js', '../src/lib/motionIcons.js'],
   // The crop rect's flight between two shapes: a pure rAF ramp, so the copy is the whole file.
   ['rectTween', '../../browser/js/ui/motion/rectTween.js', '../src/lib/rectTween.js'],
-  // The shared LLM client: per-surface wording/token defaults live in llmSurface.js,
+  // The shared LLM client: per-surface wording/token defaults live in surface.js,
   // so the client itself differs only in its header + providers.json import path.
-  ['llmClient', '../../browser/js/llm/llmClient.js', '../src/llm/llmClient.js'],
+  ['llmClient', '../../browser/js/llm/client.js', '../src/llm/client.js'],
   // The typed LlmError and the one JSON POST every provider goes through.
-  ['llmHttp', '../../browser/js/llm/llmHttp.js', '../src/llm/llmHttp.js'],
+  ['llmHttp', '../../browser/js/llm/http.js', '../src/llm/http.js'],
   // The registry-driven validation engine: pure, registry-in/verdict-out, so the copy
   // is the whole file.
-  ['opSchema', '../src/llm/op/opSchema.js', '../src/llm/op/opSchema.js'],
+  ['opSchema', '../src/llm/op/schema.js', '../src/llm/op/schema.js'],
   // Its closure-free base: predicates, the SchemaError, message paths, the native rules.
-  ['opSchemaBase', '../src/llm/op/opSchemaBase.js', '../src/llm/op/opSchemaBase.js'],
+  ['opSchemaBase', '../src/llm/op/schemaBase.js', '../src/llm/op/schemaBase.js'],
   // The un-persisted "Swap message sides" preference: pure module state, so the copy is
   // the whole file.
-  ['chatLayoutPrefs', '../../browser/js/ui/chat/chatLayoutPrefs.js', '../src/lib/chat/chatLayoutPrefs.js'],
+  ['chatLayoutPrefs', '../../browser/js/ui/chat/layoutPrefs.js', '../src/lib/chat/layoutPrefs.js'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -98,9 +98,9 @@ const FUNCTIONS = [
     'MATERIALIZE_CLASS', 'MATERIALIZE_VEIL_CLASS', 'CHAT_ENTERING_CLASS', 'CHAT_SLIDE_CLASS',
     'SURFACE_FORMING_CLASS', 'SURFACE_LEAVING_CLASS', 'SURFACE_DRIVEN_CLASS',
   ]],
-  // opPlan.js shares the §1 mechanics and then applies the extension's own §8/§11.2 rules, so
+  // plan.js shares the §1 mechanics and then applies the extension's own §8/§11.2 rules, so
   // `validateAsk` and `parseOpPlan` stay out.
-  ['planParser', '../../browser/js/llm/plan/planParser.js', '../src/llm/op/opPlan.js',
+  ['planParser', '../../browser/js/llm/plan/parser.js', '../src/llm/op/plan.js',
     ['firstJsonObject', 'askAnswerText']],
 ];
 

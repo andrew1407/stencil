@@ -1,5 +1,5 @@
 // Drag ghost for the reorderable lists. Ours, not `setDragImage`'s: a native drag image
-// mis-applies the grab offset on HiDPI, and mouse + touch (touchDrag.js) share this one.
+// mis-applies the grab offset on HiDPI, and mouse + touch (drag.js) share this one.
 const GHOST_Z = '100005';
 const GHOST_OPACITY = 0.6;
 

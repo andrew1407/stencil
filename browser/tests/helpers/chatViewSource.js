@@ -3,7 +3,7 @@
 // file. Derived from the barrel's re-exports, never a hardcoded list, so it can't drift.
 import { readFileSync } from 'node:fs';
 
-const BARREL = new URL('../../js/ui/chat/chatView.js', import.meta.url);
+const BARREL = new URL('../../js/ui/chat/view.js', import.meta.url);
 
 export const chatViewSource = () => {
   const barrel = readFileSync(BARREL, 'utf8');

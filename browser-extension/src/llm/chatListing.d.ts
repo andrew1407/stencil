@@ -1,7 +1,7 @@
 // Shapes for llm/chatListing.js — the context listing the model reads (contract §8):
 // the scanned-image set and the open-tabs set as prompt text, plus the dropped-URL →
-// listing-index routing. Re-exported through chatController.js.
-import type { ScanEntry } from '../lib/image/imageScan.js';
+// listing-index routing. Re-exported through controller.js.
+import type { ScanEntry } from '../lib/image/scan.js';
 import type { Attachment } from './chatController.js';
 
 export type ListingKind = 'img' | 'background' | 'poster' | 'video' | 'icon';

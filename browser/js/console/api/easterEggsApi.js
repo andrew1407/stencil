@@ -1,9 +1,9 @@
 // ── window.stencil.EasterEggs — the logo shows, one call each ─────────────────
 // The same entry the header mark's hold and a typed word take, so a call runs the show the
 // accent would not: the table is config/logoStage.json.
-import { SHOW_NAMES } from '../../ui/logo/logoStageRules.js';
-import { activateShow } from '../../ui/logo/logoStageTrigger.js';
-import { closeLogoStage, markOrigin } from '../../ui/logo/logoStage.js';
+import { SHOW_NAMES } from '../../ui/logo/stageRules.js';
+import { activateShow } from '../../ui/logo/stageTrigger.js';
+import { closeLogoStage, markOrigin } from '../../ui/logo/stage.js';
 
 export const createEasterEggsApi = ({ app, guard }) => {
   let stencil;

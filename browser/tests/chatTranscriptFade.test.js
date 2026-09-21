@@ -53,7 +53,7 @@ test('the trigger reads --visible-bottom, and the observer publishes it for EVER
     'BEFORE the masked-only bailout — an unmasked row needs it too');
   assert.ok(apply.includes('if (vb !== row.visBottom)'), 'written only when it moves');
   // One scroll listener, not two: it rides the reveal observer already bound per
-  // transcript (chatView.js), so nothing else has to watch the scroller.
+  // transcript (view.js), so nothing else has to watch the scroller.
   const view = chatViewSource();
   assert.ok(view.includes("observeReveal(transcript, '[data-row]'"));
   assert.ok(!view.includes("transcript.addEventListener('scroll'"),

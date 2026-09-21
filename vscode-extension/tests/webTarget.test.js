@@ -11,7 +11,7 @@ const withHost = async (settings, body) => {
   const { vscode } = makeVscode({ settings });
   const host = installVscodeStub(vscode);
   try {
-    return await body({ vscode, webTarget: host.require('lib/web/webTarget.js') });
+    return await body({ vscode, webTarget: host.require('lib/web/target.js') });
   } finally {
     host.restore();
   }

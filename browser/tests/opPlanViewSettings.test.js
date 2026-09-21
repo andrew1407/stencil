@@ -1,4 +1,4 @@
-// §10 view-only settings (js/llm/opPlan.js): compare and zoom, the accent preset path,
+// §10 view-only settings (js/llm/plan.js): compare and zoom, the accent preset path,
 // the extended lineStyle fields and copy's "what".
 import { test } from 'node:test';
 import assert from 'node:assert';

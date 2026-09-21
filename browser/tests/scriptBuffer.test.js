@@ -5,8 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
-import { scriptText, setScriptText } from '../js/ui/script/scriptBuffer.js';
-import { wireScriptEditor } from '../js/ui/script/scriptEditor.js';
+import { scriptText, setScriptText } from '../js/ui/script/buffer.js';
+import { wireScriptEditor } from '../js/ui/script/editor.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 
 // ui/ is split into feature folders, so a bare module name is looked up, not assumed flat.
@@ -102,26 +102,26 @@ test('Clear empties the buffer for every view at once, and re-gates them all', a
 });
 
 test('Copy and Download act on the buffer, so they cannot disagree with the screen', () => {
-  const wiring = src('scriptEditor.js');
+  const wiring = src('script/editor.js');
   assert.match(wiring, /navigator\.clipboard\.writeText\(scriptText\(\)\)/);
   assert.match(wiring, /new Blob\(\[scriptText\(\)\]/);
   assert.match(wiring, /paintInto\(pre, scriptText\(\), checked\)/, 'the paint reads it too');
 });
 
 test('the script survives closing the window — nothing clears it on the way in or out', () => {
-  const modal = src('scriptModal.js');
+  const modal = src('script/modal.js');
   const shell = modal.slice(modal.indexOf('shell = wireModalShell'));
   assert.ok(!/editor\.value = ''/.test(shell), 'onOpen/onClose no longer empty the editor');
   assert.match(modal, /Clear is the way out/, 'and the file says so, instead of the opposite');
 });
 
 test('the buffer is session memory: no storage, nothing that survives a reload', () => {
-  const code = src('scriptBuffer.js');
+  const code = src('script/buffer.js');
   assert.doesNotMatch(code, /localStorage|sessionStorage|indexedDB|cookie|fetch\(/,
     'a script is untrusted text — persisting it silently is not wanted');
   assert.match(code, /^let text = '';$/m, 'a fresh module starts empty');
   // Neither host may quietly keep its own copy, or the two could drift.
-  for (const name of ['scriptModal.js', 'ctxScriptEditor.js']) {
+  for (const name of ['script/modal.js', 'ctx/scriptEditor.js']) {
     assert.doesNotMatch(src(name), /localStorage|sessionStorage/, name);
   }
 });

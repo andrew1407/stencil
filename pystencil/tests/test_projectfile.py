@@ -49,7 +49,7 @@ class ProjectFileTests(ProjectFileCase):
 
   def test_keywords_round_trip(self):
     ed = self._authored()
-    # set_keywords trims and drops empties/non-strings (mirrors projectFile.js cleanKeywords).
+    # set_keywords trims and drops empties/non-strings (mirrors project/file.js cleanKeywords).
     ed.set_keywords(["  alpha ", "beta", "", 5, "alpha"])
     self.assertEqual(ed.keywords, ["alpha", "beta", "alpha"])
     with tempfile.TemporaryDirectory() as d:

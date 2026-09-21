@@ -1,9 +1,9 @@
-// The REAL capability closures sharedChatController injects (js/llm/chatSession.js), driven
+// The REAL capability closures sharedChatController injects (js/llm/session.js), driven
 // against a recording stub app. Split from chatSession.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
 
-import { sharedChatController, forgetChatController } from '../js/llm/chat/chatSession.js';
+import { sharedChatController, forgetChatController } from '../js/llm/chat/session.js';
 
 // The REAL injected capabilities, captured off sharedChatController: `create` is the test seam, so the
 // closures under test are the production ones.

@@ -1,6 +1,6 @@
 // Shared rig for the projectTransferController specs: a recording server connection and a
 // projects-store / storage / tabs / host stand-in, plus the FileReader Node lacks.
-import { ProjectTransferController } from '../../js/core/project/projectTransferController.js';
+import { ProjectTransferController } from '../../js/core/project/transferController.js';
 
 export const FAKE_DATA_URL = 'data:image/png;base64,ZmFrZQ==';
 export class FakeFileReader {

@@ -1,4 +1,4 @@
-// Invariant: the chat transcript renders MODEL text as data. js/ui/chatView.js writes it
+// Invariant: the chat transcript renders MODEL text as data. js/ui/view.js writes it
 // into the row's one text node with textContent; a markdown renderer dropped in behind
 // innerHTML would hand every reply a DOM-injection primitive, so it is pinned here.
 import { test } from 'node:test';
@@ -33,6 +33,6 @@ test('every innerHTML value is a built-in icon or literal, escaping what it inte
 
 test('the transcript parses no HTML by any other route', () => {
   for (const sink of ['insertAdjacentHTML', 'outerHTML =', 'createContextualFragment', 'document.write', 'DOMParser']) {
-    assert.ok(!SRC.includes(sink), `${sink} in chatView.js`);
+    assert.ok(!SRC.includes(sink), `${sink} in view.js`);
   }
 });

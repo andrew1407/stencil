@@ -5,7 +5,7 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Tests;
 
-/// <summary>The shared <c>.stencil</c> (de)serializer: a project round-trips through Build/Parse and foreign, malformed or too-new documents parse to null rather than throw. Cross-surface parity with browser projectFile.js, the CLI project.zig and the desktop fileStore round-trip.</summary>
+/// <summary>The shared <c>.stencil</c> (de)serializer: a project round-trips through Build/Parse and foreign, malformed or too-new documents parse to null rather than throw. Cross-surface parity with browser project/file.js, the CLI project.zig and the desktop fileStore round-trip.</summary>
 public class StencilProjectFileTests
 {
     private static readonly byte[] _imageBytes = [0xDE, 0xAD, 0xBE, 0xEF];

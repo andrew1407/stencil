@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import {
   buildChatDoc, parseChatDoc, rowsToMessages, createChatStore, createIdbBackend,
   CHAT_MESSAGE_LIMIT, CHAT_DOC_VERSION,
-} from '../js/llm/chat/chatStore.js';
+} from '../js/llm/chat/store.js';
 
 // Async Map-backed shim for the injected backend — the same injection idiom as
 // projectsStore.test.js's localStorage shim, just promise-shaped like IndexedDB.
@@ -116,15 +116,15 @@ test('createIdbBackend degrades to null without IndexedDB (Node)', () => {
 // on both the write and the read side: neither direction may leak raw plans or §7's continuation note.
 test('the §7 continuation note is never written and never restored', async () => {
   const { isInternalChatText, CONTINUATION_NOTE, buildChatDoc, parseChatDoc, rowsToMessages } =
-    await import('../js/llm/chat/chatStore.js');
+    await import('../js/llm/chat/store.js');
   // The exact wire sentence, and any bracketed variant another surface might use.
   assert.strictEqual(isInternalChatText('user', CONTINUATION_NOTE), true);
   assert.strictEqual(isInternalChatText('user',
     '[The working image is now the frame you extracted — carry on.]'), true);
   assert.strictEqual(isInternalChatText('assistant', CONTINUATION_NOTE), true);
   // …and the model round pushes THAT constant, so the two can never drift.
-  const ctrl = readFileSync(new URL('../js/llm/chat/chatRespond.js', import.meta.url), 'utf8');
-  assert.ok(ctrl.includes("import { CONTINUATION_NOTE } from './chatStore.js'"));
+  const ctrl = readFileSync(new URL('../js/llm/chat/respond.js', import.meta.url), 'utf8');
+  assert.ok(ctrl.includes("import { CONTINUATION_NOTE } from './store.js'"));
   assert.ok(ctrl.includes('const note = { role: \'user\', text: CONTINUATION_NOTE };'));
   assert.ok(!/text: '\[The working image is now/.test(ctrl), 'no second copy of the wording');
   // Refused on the way IN…
@@ -154,7 +154,7 @@ test('the §7 continuation note is never written and never restored', async () =
 });
 
 test('a raw op-plan replayed as an assistant turn never survives into the transcript', async () => {
-  const { isInternalChatText, parseChatDoc } = await import('../js/llm/chat/chatStore.js');
+  const { isInternalChatText, parseChatDoc } = await import('../js/llm/chat/store.js');
   const plan = '{"version":1,"reply":"Outlined it.","actions":[{"op":"layout","lines":[]}]}';
   // §7 permits the raw text on the WIRE; §12.1 forbids it in the document.
   assert.strictEqual(isInternalChatText('assistant', plan), true);
@@ -179,7 +179,7 @@ test('a raw op-plan replayed as an assistant turn never survives into the transc
 });
 
 test('a document this build writes round-trips identically', async () => {
-  const { buildChatDoc, parseChatDoc, rowsToMessages, CHAT_MESSAGE_LIMIT } = await import('../js/llm/chat/chatStore.js');
+  const { buildChatDoc, parseChatDoc, rowsToMessages, CHAT_MESSAGE_LIMIT } = await import('../js/llm/chat/store.js');
   // The rows a turn leaves behind, late chain note included (it lives IN the reply).
   const rows = [
     { id: 1, role: 'user', text: 'outline the face and the body' },
@@ -204,7 +204,7 @@ test('a document this build writes round-trips identically', async () => {
 });
 
 test('sanitizeChatMessages is the same gate, for a doc handed over unparsed', async () => {
-  const { sanitizeChatMessages, CONTINUATION_NOTE, CHAT_MESSAGE_LIMIT } = await import('../js/llm/chat/chatStore.js');
+  const { sanitizeChatMessages, CONTINUATION_NOTE, CHAT_MESSAGE_LIMIT } = await import('../js/llm/chat/store.js');
   assert.deepStrictEqual(sanitizeChatMessages([
     { role: 'user', text: 'hi' },
     { role: 'user', text: CONTINUATION_NOTE },

@@ -2,7 +2,7 @@
 // settings, prompt(), the frozen members, image adoption and the retry re-queue.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { splitDataUrl } from '../js/llm/chat/chatController.js';
+import { splitDataUrl } from '../js/llm/chat/controller.js';
 import { installMemoryStorage } from './helpers/memoryStorage.js';
 import {
   makeClient, chatOnlyReply, variantPlan, pngUrl, makeController,

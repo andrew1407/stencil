@@ -5,7 +5,7 @@ namespace connectrow {
 
   void checkToastAndHint(QTcpServer& server, quint16 port, QWidget* row) {
   // The row's Reconnect toast NAMES the server: with more than one saved connection a bare
-  // "Reconnected" says nothing. Browser twin: connectModal.js `Reconnected to ${url}`.
+  // "Reconnected" says nothing. Browser twin: modal.js `Reconnected to ${url}`.
   {
     ConnectionManager fresh;
     QString rerr;

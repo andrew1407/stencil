@@ -1,6 +1,6 @@
 import { surfaceIn, surfaceOut, centerOf } from '../motion.js';
 import { icon } from '../icons.js';
-import { createAccentPreview } from './accentPreview.js';
+import { createAccentPreview } from './preview.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
 
 export function wireLogoAccent(logo) {

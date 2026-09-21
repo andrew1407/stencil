@@ -1,11 +1,11 @@
-// The fullscreen hover panels come and go as dust past their own edge (js/ui/fullscreenPanels.js):
+// The fullscreen hover panels come and go as dust past their own edge (js/ui/panels.js):
 // a panel keeps its box for the whole out-flight and drops the class with the last motes; with
 // the dust declined the class flips at once and the CSS slide plays as before.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installDom, createStubElement } from './helpers/dom.js';
-import { createFsPanels, panelDust, syncFsTriggers, FS_TRIGGER_PX, POINTS_DUST_IN_MS } from '../js/ui/fullscreen/fullscreenPanels.js';
+import { createFsPanels, panelDust, syncFsTriggers, FS_TRIGGER_PX, POINTS_DUST_IN_MS } from '../js/ui/fullscreen/panels.js';
 import { FOLD_DUST_OUT_MS, SURFACE_IN_MS } from '../js/ui/motion.js';
 
 const GRACE_MS = 400;
@@ -94,7 +94,7 @@ test('reset settles both panels for the exit, so the next reveal forms again', (
 });
 
 test('the cloned points panel drops its collapse chevron and relays a tab click to the original', () => {
-  const clonesJs = readFileSync(new URL('../js/ui/fullscreen/fullscreenClones.js', import.meta.url), 'utf8');
+  const clonesJs = readFileSync(new URL('../js/ui/fullscreen/clones.js', import.meta.url), 'utf8');
   assert.match(clonesJs, /clone\.querySelector\('#fs-clone-toggle-coord-panel'\)\?\.remove\(\);/,
     'the hover panel hides on its own, so the chevron goes');
   // A tab in the copy has no handler of its own: the original switches, then the copy is rebuilt.

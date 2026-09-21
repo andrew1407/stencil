@@ -1,11 +1,11 @@
 import { fetchAsDataUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, buildHandoff, resumeInOpenEditor } from '../lib/stencil.js';
-import { sourceOf, editableSrc } from '../lib/image/imageModel.js';
+import { sourceOf, editableSrc } from '../lib/image/model.js';
 import { rasterizeToPngDataUrl, isSvgType, isSvgUrl, mediaTypeOf } from '../lib/image/rasterize.js';
 import { buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink, INLINE_WARN_CHARS, INLINE_MAX_CHARS } from '../lib/menu/openIn.js';
 import { statusEl, dismiss } from './panelDom.js';
 import { state, rowResource, surfaceTabId } from './list/model.js';
 import { sharedDataUrl } from './pin/sharedPins.js';
-import { editorMode } from './editor/editorHandle.js';
+import { editorMode } from './editor/handle.js';
 
 // An SVG is rasterised first: raw markup has no pixels to hand the editor.
 export const imageDataUrl = async (image) => {

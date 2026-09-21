@@ -18,7 +18,7 @@ const fetchStub = installFetchStub((...args) => fetchImpl(...args));
 const fetchCalls = fetchStub.calls;
 
 const { DrawingApp } = await import('../js/core/drawingApp.js');
-const { MAX_LAUNCH_SCRIPT } = await import('../js/core/launch/launchController.js');
+const { MAX_LAUNCH_SCRIPT } = await import('../js/core/launch/controller.js');
 
 const resetGlobals = () => {
   notifications.length = 0;

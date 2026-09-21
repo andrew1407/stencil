@@ -1,7 +1,7 @@
 // Source-text assertions read whole surfaces, and several of them are split across files:
 // the popup's and the shared stylesheet sets (each document links them in this order), the
 // assistant controller (popup/assistant.js plus the modules beside it) and the motion layer
-// (lib/motionPrefs.js plus lib/motion/). Read each as one string, so an assertion never
+// (lib/prefs.js plus lib/motion/). Read each as one string, so an assertion never
 // has to know which sheet or module of a set now carries the thing it pins.
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

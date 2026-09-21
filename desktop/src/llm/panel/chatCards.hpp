@@ -1,7 +1,7 @@
 #pragma once
 // The chat-card vocabulary the dock and the compact composer both draw with: a bubble's colours and
 // side, its "…" row menu, the widths a wrapped label needs and the sheet a swap re-styles it with.
-// Browser twin: browser/js/ui/chat/chatView.js. Included from ChatDock.hpp, so callers keep their spelling.
+// Browser twin: browser/js/ui/chat/view.js. Included from ChatDock.hpp, so callers keep their spelling.
 #include <QColor>
 #include <QImage>
 #include <QList>
@@ -48,7 +48,7 @@ namespace stencil::gui {
   void applyChatSwapToCards(QWidget* transcript, QLayout* layout, bool swapped,
                             const QColor& accent, const QColor& chip, const QColor& border,
                             const QColor& danger, const QColor& pageBg);
-  // Browser chatView.js chatRowMenuItems; only these hooks differ per surface.
+  // Browser chat/view.js chatRowMenuItems; only these hooks differ per surface.
   struct ChatCardMenuHooks {
     QWidget* owner = nullptr;
     QScrollArea* scroll = nullptr;

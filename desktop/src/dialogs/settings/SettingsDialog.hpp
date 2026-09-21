@@ -15,7 +15,7 @@ class QSpinBox;
 class QVBoxLayout;
 class QWidget;
 
-// Settings editor — the browser's "Visuals & Settings" modal (js/ui/visualsModal.js):
+// Settings editor — the browser's "Visuals & Settings" modal (js/ui/modal.js):
 // the shared shell, its search box, .vs-section captions over hairline .vs-row rows,
 // and a footer hint beside Reset All. Live-apply, like the browser — no Save/Cancel,
 // just Close. Desktop-only preferences ride along as extra sections. The AI-assistant

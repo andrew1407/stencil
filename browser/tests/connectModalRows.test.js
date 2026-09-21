@@ -1,8 +1,8 @@
-// The rendered connection rows (js/ui/connectModal.js): the batch bar and its selection, the
+// The rendered connection rows (js/ui/modal.js): the batch bar and its selection, the
 // golden admin row with its invite, and the three-way credential filter's subsets.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { matchesConnFilter } from '../js/ui/connect/connectModal.js';
+import { matchesConnFilter } from '../js/ui/connect/modal.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 import { conn, openModal, rows, rowUrls, hasClass, find, markup, count } from './helpers/connectModalRig.js';
 

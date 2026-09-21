@@ -2,11 +2,11 @@
 
 #include "cropSpec.hpp"
 #include "lengthTokens.hpp"
-#include "scriptDiagnostics.hpp"
-#include "scriptDump.hpp"
-#include "scriptLexer.hpp"
-#include "scriptLower.hpp"
-#include "scriptParser.hpp"
+#include "diagnostics.hpp"
+#include "dump.hpp"
+#include "lexer.hpp"
+#include "lower.hpp"
+#include "parser.hpp"
 
 #include <algorithm>
 #include <utility>

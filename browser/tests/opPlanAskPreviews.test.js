@@ -1,4 +1,4 @@
-// §11 renderAskPreviews (js/llm/opPlan.js) against a recording facade: one picture per
+// §11 renderAskPreviews (js/llm/plan.js) against a recording facade: one picture per
 // actions-bearing option, and the working image restored after every one.
 import { test } from 'node:test';
 import assert from 'node:assert';

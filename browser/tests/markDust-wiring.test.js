@@ -1,4 +1,4 @@
-// The mark's veil and its wiring (js/ui/controlSwap.js, customSelect.js): one delegated
+// The mark's veil and its wiring (js/ui/swap.js, customSelect.js): one delegated
 // listener per checkbox, a word exchanged only on a real change, filtered rows in as sand.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,7 +13,7 @@ import { ANIMATIONS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const motionJs = motionSource();
-const swapJs = read('../js/ui/control/controlSwap.js');
+const swapJs = read('../js/ui/control/swap.js');
 const animCss = ANIMATIONS_CSS;
 const selectJs = read('../js/ui/control/customSelect.js');
 

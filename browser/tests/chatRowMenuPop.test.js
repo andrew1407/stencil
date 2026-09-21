@@ -1,4 +1,4 @@
-// The entry pop and Resend's requeue (js/ui/chatView.js): the menu grows out of the click
+// The entry pop and Resend's requeue (js/ui/view.js): the menu grows out of the click
 // point, refills an empty queue only, and both surfaces wire the one shared menu.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -37,8 +37,8 @@ test('the opened menu carries the click-point transform-origin, and CSS pops it 
 
 // ── Resend's requeue mirrors requeueLastTurnAttachments ──
 test('requeueRowAttachments refills an EMPTY queue only, capped, as analyze-images', async () => {
-  const { requeueRowAttachments } = await import('../js/llm/chat/chatSession.js');
-  const { MAX_ATTACHMENTS } = await import('../js/llm/chat/chatController.js');
+  const { requeueRowAttachments } = await import('../js/llm/chat/session.js');
+  const { MAX_ATTACHMENTS } = await import('../js/llm/chat/controller.js');
   const rowAts = [
     { name: 'cat.jpg', kind: 'image', dataUrl: 'data:image/jpeg;base64,AAA' },
     { name: 'clip.mp4', kind: 'video', dataUrl: 'data:image/jpeg;base64,BBB' },   // first frame
@@ -64,7 +64,7 @@ test('requeueRowAttachments refills an EMPTY queue only, capped, as analyze-imag
 
 // ── Both surfaces wire it, and the chrome matches the app's other row menus ──
 test('the panel and the flyout wire the SHARED row menu with insert + resend hooks', () => {
-  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8');
   const menu = contextMenuSource();
   for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
     assert.ok(src.includes('wireChatRowMenu(transcript, {'), `${name} wires the shared menu`);

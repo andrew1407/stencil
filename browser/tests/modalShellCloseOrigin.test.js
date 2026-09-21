@@ -11,7 +11,7 @@ import { createStubElement, installDom } from './helpers/dom.js';
 const rectOf = (r) => () => ({ ...r, bottom: r.top + r.height });
 
 installDom({}, {
-  // base.js and motion.js ask the SAME gate (ui/motionPrefs.js), so reduced motion is off here and
+  // base.js and motion.js ask the SAME gate (ui/prefs.js), so reduced motion is off here and
   // setOriginVars really runs; the particles are switched off through the motion mode instead.
   window: { matchMedia: () => ({ matches: false }), innerWidth: 1000, innerHeight: 800, addEventListener: () => {} },
   matchMedia: () => ({ matches: false }),

@@ -1,4 +1,4 @@
-// §10 blankColor / openProject / incognito (js/llm/opPlan.js): each capability's note
+// §10 blankColor / openProject / incognito (js/llm/plan.js): each capability's note
 // path, and the variant-drop table every settings op obeys.
 import { test } from 'node:test';
 import assert from 'node:assert';

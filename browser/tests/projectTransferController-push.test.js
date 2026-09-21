@@ -1,4 +1,4 @@
-// ProjectTransferController's version-guarded field push (js/core/projectTransferController.js):
+// ProjectTransferController's version-guarded field push (js/core/transferController.js):
 // a 409 is retried with the re-read version, and an unlinked project is a no-op.
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';

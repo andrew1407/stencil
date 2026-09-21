@@ -8,7 +8,7 @@
 
 class QAction;
 
-// PORT of browser/js/ui/tip/tipContent.js (and extension src/lib/tipContent.js) — keep the
+// PORT of browser/js/ui/tip/content.js (and extension src/lib/content.js) — keep the
 // three rule-for-rule; tests/tipContent.headless.cpp runs the browser suite's cases.
 namespace stencil::gui {
 

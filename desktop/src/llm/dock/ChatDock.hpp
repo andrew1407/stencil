@@ -38,7 +38,7 @@ class QToolButton;
 class QVBoxLayout;
 class QWidget;
 
-// Assistant chat panel (llm-contract.md); browser twin: browser/js/ui/chat/chatPanel.js. Pure UI:
+// Assistant chat panel (llm-contract.md); browser twin: browser/js/ui/chat/panel.js. Pure UI:
 // MainWindow owns the history, the LlmClient, plan execution and the reachability probes.
 namespace stencil::gui {
 

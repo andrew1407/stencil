@@ -27,7 +27,7 @@ namespace stencil::gui {
     // The browser's ONE control column (components.css --vs-ctrl-w / --vs-ctrl-h).
     constexpr int CTRL_W = 180;
     constexpr int CTRL_H = 30;
-    // The browser's VIS_DEFAULTS (visualsModal.js) — what Reset All restores.
+    // The browser's VIS_DEFAULTS (modal.js) — what Reset All restores.
     constexpr const char* DEF_COLOR = "#FFFF00";
     constexpr double DEF_THICKNESS = 2;
     constexpr double DEF_POINT_SIZE = 4;
@@ -38,7 +38,7 @@ namespace stencil::gui {
     constexpr const char* DEF_FOCUS_RING = DEFAULT_ACCENT_HEX;
     constexpr int DEF_HOLD_DELAY = 500;
     constexpr const char* DEF_ACCENT = DEFAULT_ACCENT_KEY;
-    // ui/motionPrefs.js DEFAULT_DRAWING_ANIMATIONS / DEFAULT_MOTION_MODE.
+    // ui/prefs.js DEFAULT_DRAWING_ANIMATIONS / DEFAULT_MOTION_MODE.
     constexpr bool DEF_DRAW_ANIM = true;
     constexpr const char* DEF_MOTION_MODE = "particles";
   }  // namespace
@@ -64,7 +64,7 @@ namespace stencil::gui {
     buildPreferenceRows(r, current);
 
     // The AI assistant's own rows (provider, endpoint, model, key) live in the chat
-    // dock's Assistant dialog, as the browser's do — not here (visualsModal.js).
+    // dock's Assistant dialog, as the browser's do — not here (modal.js).
 
     empty = modalEmptyLabel(tr("No matching settings."), r.host);
     empty->hide();

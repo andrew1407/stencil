@@ -1,4 +1,4 @@
-// The §8 tabs listing and the scanTab op in src/llm/chatController.js: what the model is
+// The §8 tabs listing and the scanTab op in src/llm/controller.js: what the model is
 // shown about other open tabs, and the bounded auto-continuation a tab swap earns.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

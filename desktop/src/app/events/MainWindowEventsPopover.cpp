@@ -54,7 +54,7 @@ namespace stencil::gui {
     if (!aMenuPopupIsOpen && event->type() == QEvent::KeyPress &&
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Alt &&
         !static_cast<QKeyEvent*>(event)->isAutoRepeat() && !typingFocus()) {
-      // Export-options popups (browser exportOptionsMenu.js altHover) are plain QMenus, so there is no exec()/pop.active
+      // Export-options popups (browser export/optionsMenu.js altHover) are plain QMenus, so there is no exec()/pop.active
       // to fold them into. Checked FIRST and exclusive per keypress: one Alt hover opens at most one thing.
       bool openedExportMenu = false;
       if (!pop.active && !pop.peekExportMenu) {

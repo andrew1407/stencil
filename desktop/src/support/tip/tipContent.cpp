@@ -1,5 +1,5 @@
 // Parsing a composed `title` string into a Tip: the "·" alternatives, the " — " term/description
-// split, the "— reason" note line and the sentence-casing, all twins of browser/js/ui/tip/tipContent.js.
+// split, the "— reason" note line and the sentence-casing, all twins of browser/js/ui/tip/content.js.
 #include "tipContent.hpp"
 #include <QRegularExpression>
 
@@ -32,7 +32,7 @@ namespace stencil::gui {
       return true;
     }
     // Only a plain lowercase first WORD is lifted: a token with a dot, slash, colon,
-    // bracket or quote is a URL/filename/code fragment. Browser twin: tipContent.js sentenceCase.
+    // bracket or quote is a URL/filename/code fragment. Browser twin: tip/content.js sentenceCase.
     QString sentenceCase(const QString& s) {
       static const QRegularExpression ws("\\s");
       const int end = s.indexOf(ws);   // no second token: a VALUE, not a sentence

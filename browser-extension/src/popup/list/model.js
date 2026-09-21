@@ -1,4 +1,4 @@
-import { sourceOf } from '../../lib/image/imageModel.js';
+import { sourceOf } from '../../lib/image/model.js';
 import { listEl } from '../panelDom.js';
 
 // `mode` 'editor': the panel stands on the Stencil editor and the scan follows `sourceTabId`.

@@ -1,10 +1,10 @@
-// Tests for the assistant section's drag-and-drop layer (src/lib/chatDrop.js):
+// Tests for the assistant section's drag-and-drop layer (src/lib/drop.js):
 // payload classification (which must REUSE lib/dragUrl.js extractDraggedUrl for
 // cross-page image drags) and the drop-highlight wiring — driven with stub
 // DataTransfer objects and stub elements, no real DnD.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DRAG_TYPES, isDropCandidate, isVideoFile, classifyDrop, wireDropTarget, leftTarget } from '../src/lib/chat/chatDrop.js';
+import { DRAG_TYPES, isDropCandidate, isVideoFile, classifyDrop, wireDropTarget, leftTarget } from '../src/lib/chat/drop.js';
 
 // ── Test doubles ──
 const stubDataTransfer = ({ types = [], data = {}, files = [] } = {}) => ({

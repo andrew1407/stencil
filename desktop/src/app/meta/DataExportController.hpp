@@ -30,7 +30,7 @@ namespace stencil::gui {
     void saveImageFile(const QString& variant = "current");
     // Same four variants, same meaning (browser/desktop parity): "current" is always the plain edited image, compare or not.
     void copyImageToClipboard(const QString& variant = "current");
-    // Native share sheet (browser exportService.js shareImage()) over a session-lifetime temp file. `anchor` is the Share BUTTON,
+    // Native share sheet (browser export/service.js shareImage()) over a session-lifetime temp file. `anchor` is the Share BUTTON,
     // not the window: macOS positions the picker relative to the anchor's bounds.
     void shareImage(QWidget* anchor);
 

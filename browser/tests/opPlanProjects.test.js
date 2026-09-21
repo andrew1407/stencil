@@ -1,4 +1,4 @@
-// §10 project management (js/llm/opPlan.js): removeProject (named and current),
+// §10 project management (js/llm/plan.js): removeProject (named and current),
 // clearProjects, renameProject and projectColor over their guarded flows.
 import { test } from 'node:test';
 import assert from 'node:assert';

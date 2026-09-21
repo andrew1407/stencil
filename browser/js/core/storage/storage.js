@@ -1,15 +1,15 @@
 import { PROJECT_ACTION } from '../../worker/messages.js';
 import { normalizePageSize } from '../settings/units.js';
 import { normalizeCropRect } from '../layout.js';
-import { createTrailingSave } from '../zoom/zoomPan.js';
+import { createTrailingSave } from '../zoom/pan.js';
 import { ghostOut, flashLanding, playCanvasArrival, GHOST_MS } from '../../ui/motion.js';
 import { showImageMissingBanner as paintImageMissingBanner } from '../../ui/shell/imageMissingBanner.js';
 import { paintPageSize, paintDrawingControls, paintVisibilityChecks, paintFormulaFields,
          hideSelectionPanels, resetViewportScroll, scrollViewportTo } from '../../ui/panel/layoutControls.js';
 import { createThumbnailScheduler } from '../image/thumbnail.js';
-import { saveBlockedReason, writeActiveProject } from './storageSave.js';
+import { saveBlockedReason, writeActiveProject } from './save.js';
 import { attachProjectsStore, restoreProjects, autoRefreshOnOpen,
-         promoteTemporary, clearEditorState } from './storageSession.js';
+         promoteTemporary, clearEditorState } from './session.js';
 import { applyStoredPage, applyStoredDrawing, applyStoredProvenance, applyStoredFormulas,
          applyStoredTools, applyImagelessPayload } from './storedLayout.js';
 

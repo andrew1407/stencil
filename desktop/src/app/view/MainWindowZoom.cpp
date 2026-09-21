@@ -57,7 +57,7 @@ namespace stencil::gui {
       QSignalBlocker block(zoom);
       zoom->setEditText(pct);
     }
-    // The single debounced persistence path for every zoom route (browser zoomPan.js persistZoom).
+    // The single debounced persistence path for every zoom route (browser zoom/pan.js persistZoom).
     scheduleViewSave();
     revealCanvasScrollbars();   // a zoom can grow/shrink the scrollable range — show it
   }
@@ -179,7 +179,7 @@ namespace stencil::gui {
     vb->setValue(std::clamp(y, vb->minimum(), vb->maximum()));
   }
 
-  // Keeps the image pixel under the cursor fixed; mirrors zoomPan.js zoomToward via
+  // Keeps the image pixel under the cursor fixed; mirrors zoom/pan.js zoomToward via
   // core::anchoredZoom.
   void MainWindow::setZoomAnchored(double newScale,
                                    const QPoint& cursorInViewport) {

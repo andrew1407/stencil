@@ -16,7 +16,7 @@
 
 // The Data section's script window and the context menu's script flyout. Neither edits the
 // project itself: both run through the SAME PlanTarget the assistant's op plans drive.
-// Browser twins: js/ui/scriptModal.js and js/ui/ctxScript.js.
+// Browser twins: js/ui/modal.js and js/ui/script.js.
 namespace stencil::gui {
 
   namespace {

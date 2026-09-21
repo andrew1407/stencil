@@ -1,6 +1,6 @@
 // Shapes for llm/openActions.js — translates validated open.actions (contract §8)
 // onto the existing `#stencil=` editor launch options.
-import type { PlanAction } from './op/opPlan.js';
+import type { PlanAction } from './op/plan.js';
 
 export interface OpenLaunch {
   crop?: { x: number; y: number; w: number; h: number };

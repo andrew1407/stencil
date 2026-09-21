@@ -83,7 +83,7 @@ test('every cap nudges once the tooltip has LANDED, announcing the shortcut', ()
 test('the shake is wired to the tooltip’s own caps, one shot, and Escape still dismisses', () => {
   // The combos rendered on the live tooltip are kept from the same parse renderTip ran,
   // so a cap can be matched back to the shortcut it spells.
-  assert.match(tooltipJs, /import \{ renderTip, parseTip \} from '[^']*tipContent\.js';/);
+  assert.match(tooltipJs, /import \{ renderTip, parseTip \} from '[^']*content\.js';/);
   assert.match(tooltipJs, /curCombos = parseTip\(txt\)\.keys;/);
   assert.match(tooltipJs, /curCombos = \[\];/, 'and cleared with the tooltip');
   // Matching key -> shake and KEEP the tooltip; anything else -> the old dismissal.

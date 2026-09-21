@@ -4,13 +4,13 @@ import { icon } from '../icons.js';
 import { wireHoverDust, foldDust } from '../motion.js';
 import { onWindowResize } from '../../utils.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
-import { syncWrappedSeparators } from './toolbarSeparators.js';
+import { syncWrappedSeparators } from './separators.js';
 import { wireVoiceChatToggle } from '../visuals/voiceToggle.js';
-import { wireLogoColorPicker } from '../logo/logoAccent.js';
-import { wireLogoHold } from '../logo/logoStageTrigger.js';
-import { toolbarTopbarHtml } from './toolbarTopbar.js';
-import { toolbarImageSectionsHtml, toolbarStyleSectionsHtml } from './toolbarSections.js';
-import { toolbarPageSectionsHtml } from './toolbarPageSections.js';
+import { wireLogoColorPicker } from '../logo/accent.js';
+import { wireLogoHold } from '../logo/stageTrigger.js';
+import { toolbarTopbarHtml } from './topbar.js';
+import { toolbarImageSectionsHtml, toolbarStyleSectionsHtml } from './sections.js';
+import { toolbarPageSectionsHtml } from './pageSections.js';
 // Owns the controls markup and the collapse/hints behaviour; the individual inputs and buttons
 // are wired by DrawingApp via global ids.
 export class StencilToolbar extends StencilElement {
@@ -138,7 +138,7 @@ ${toolbarPageSectionsHtml()}
 
 // The pieces the toolbar wires but does not own — re-exported, since the suites and
 // appContainer.js always found them here.
-export { syncWrappedSeparators, WRAPPED_SEP_CLASS } from './toolbarSeparators.js';
-export { wireLogoColorPicker } from '../logo/logoAccent.js';
+export { syncWrappedSeparators, WRAPPED_SEP_CLASS } from './separators.js';
+export { wireLogoColorPicker } from '../logo/accent.js';
 
 define('stencil-toolbar', StencilToolbar);

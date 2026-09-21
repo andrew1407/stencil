@@ -1,7 +1,7 @@
 // What the Open-Image dialog's three buttons do: resolve the chosen source to a still-image
 // File, then open it here, in a new tab, or over the current project. Split out of openImageModal.
 import { notify } from '../../utils.js';
-import { fetchUrlToFile, toFrameIfVideo } from '../../core/image/imageSourceLoader.js';
+import { fetchUrlToFile, toFrameIfVideo } from '../../core/image/sourceLoader.js';
 
 export function wireOpenActions({ app, els, preview, src, frameSeconds, openOpts, target, canReplace, close }) {
   const { hereBtn, newTabBtn, replaceBtn, incog, renameEl, keepEl } = els;

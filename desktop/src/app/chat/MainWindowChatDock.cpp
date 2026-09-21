@@ -122,7 +122,7 @@ namespace stencil::gui {
       stopChatAnim();
       chatDock->setFloating(true);
       // setFloating() alone derives the top-level placement from the collapsed 0-width docked
-      // geometry, which lands off-screen - pin position AND size (browser chatPanel.js parity).
+      // geometry, which lands off-screen - pin position AND size (browser chat/panel.js parity).
       chatDock->setGeometry(chatFloatRect.isValid() ? chatFloatRect : defaultChatFloatRect());
       support::revealWindow(*chatDock, icon);
     };

@@ -53,7 +53,7 @@ test('the composer keeps attach / clear / settings behind the … on every host'
 });
 
 // Attachments belong to the USER's turn: a thumbnail strip on the user's side, never
-// assistant-side "Attached x.jpg" result cards (browser chatView.js parity).
+// assistant-side "Attached x.jpg" result cards (browser view.js parity).
 test('user attachments render as thumbnails on the user side, not as assistant cards', () => {
   assert.match(src, /if \(attachments\.length\) addAttachments\(attachments\);/,
     'the send loop paints the strip for what the user attached');
@@ -128,7 +128,7 @@ test('hovering a small attachment thumbnail shows it large', () => {
   const chips = readFileSync(new URL('../src/popup/assistant/attachments.js', import.meta.url), 'utf8');
   assert.match(src, /wireThumbPreview\(img, \{ caption \}\);/, 'the transcript strip is wired');
   assert.match(chips, /wireThumbPreview\(img, \{ caption: p\.name \}\);/, 'and so are the pending chips');
-  const ui = readFileSync(new URL('../src/lib/chat/chatUi.js', import.meta.url), 'utf8');
+  const ui = readFileSync(new URL('../src/lib/chat/ui.js', import.meta.url), 'utf8');
   assert.match(ui, /export const wireThumbPreview = \(img, \{ doc = globalThis\.document/);
   assert.match(ui, /cap\.textContent = caption;/, 'a scanned filename stays data, never markup');
   assert.match(ui, /doc\.body\.appendChild\(box\);/, 'on the body — the popup clips its regions');
@@ -138,7 +138,7 @@ test('hovering a small attachment thumbnail shows it large', () => {
   assert.match(css, /\.chat-thumb-preview img \{[^}]*max-width: 220px;[^}]*max-height: 220px;/);
 });
 
-// Browser parity (chatController.js onAttachmentsChanged). Here the queue and the chips live in
+// Browser parity (controller.js onAttachmentsChanged). Here the queue and the chips live in
 // one place, so the drain and the tray repaint must stay adjacent in send().
 test('send drains the pending attachments and clears their chips at once', () => {
   assert.match(src, /const attachments = pending\.splice\(0\);\n\s*renderTray\(\);/,
@@ -188,7 +188,7 @@ test('every appended entry arrives as dust — armed only after the scroll', () 
     assert.ok(body.slice(0, body.indexOf('\n  };')).includes('appendEntry('),
       `${fn} must append through appendEntry`);
   }
-  // …except the in-flight "…" placeholder, which opts OUT (browser chatView.js parity): it lives
+  // …except the in-flight "…" placeholder, which opts OUT (browser view.js parity): it lives
   // about as long as the gather itself.
   assert.match(src, /const appendDiv = \(className, text, \{ arrive = true \} = \{\}\) => \{/);
   assert.match(src, /appendDiv\('msg assistant typing-row', '', \{ arrive: false \}\)/);

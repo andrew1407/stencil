@@ -1,5 +1,5 @@
 #pragma once
-// Native OS share sheet (browser parity: js/core/exportService.js shareImage() — same
+// Native OS share sheet (browser parity: js/core/service.js shareImage() — same
 // file name "<base>-drawing.png", same title "<base> — Stencil"). One declaration,
 // three bodies picked at configure time: shareImageMac.mm, shareImageWin.cpp,
 // shareImageLinux.cpp (no OS share sheet; isShareSheetAvailable() is false there).

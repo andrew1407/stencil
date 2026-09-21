@@ -1,5 +1,5 @@
 import { dustEnabled } from '../motionPrefs.js';
-import { resolveColour, paletteCss, styleFrame, tintOf, stopOfTint, dustMix, grainShape, headingOf, fillGrains, edgeDipOf } from '../../dust/dustCloud.js';
+import { resolveColour, paletteCss, styleFrame, tintOf, stopOfTint, dustMix, grainShape, headingOf, fillGrains, edgeDipOf } from '../../dust/cloud.js';
 import { DUST_ALPHA_LEVELS } from './canvasDustStage.js';
 import { THEME_SWAP_MS, bezierY, swapEase, swapRadius } from '../surface/themeSwap.js';
 import { tileNoise } from '../surface/tiles.js';

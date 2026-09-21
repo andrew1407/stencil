@@ -1,8 +1,8 @@
-// ZoomPan.availContentHeight() (js/core/zoomPan.js): `below` is summed from the viewport's own
+// ZoomPan.availContentHeight() (js/core/pan.js): `below` is summed from the viewport's own
 // column, never `.container`, whose box also encloses the coordinates panel.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ZoomPan } from '../js/core/zoom/zoomPan.js';
+import { ZoomPan } from '../js/core/zoom/pan.js';
 import { installDom, ROOMY, ROOMY_AVAIL, MIN_VIEWPORT_H, CONTAINER_PAD, BODY_PAD } from './helpers/zoomPanViewportDom.js';
 
 test('uses the space from the viewport top to the window bottom, less its own column footer', () => {

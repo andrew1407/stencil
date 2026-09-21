@@ -25,7 +25,7 @@ namespace stencil::gui {
 
   class ThemeSwapOverlay : public QWidget {
    public:
-    // One length across all three surfaces (browser motion.js THEME_SWAP_MS, extension accent.js SWAP_MS).
+    // One length across all three surfaces (browser surface/motion.js THEME_SWAP_MS, extension logo/accent.js SWAP_MS).
     static constexpr int SWAP_MS = 280;
 
     static double bezierY(double t, double x1, double y1, double x2, double y2);
@@ -38,7 +38,7 @@ namespace stencil::gui {
     // Q_OBJECT-free, so findChildren<T>() can't reach it — tests locate a live wipe by this name.
     static constexpr const char* OBJECT_NAME = "stencilThemeSwap";
 
-    // The front (browser motion.js swapEdgePolygon ← dustCloud.js edgeJitter). Keep the
+    // The front (browser surface/motion.js swapEdgePolygon ← dust/cloud.js edgeJitter). Keep the
     // numbers in step with the browser's EDGE table.
     static constexpr int EDGE_POINTS = 240;
     static constexpr double TAU = 6.28318530717958648;   // M_PI is not portable (MSVC)
@@ -50,14 +50,14 @@ namespace stencil::gui {
 
     static double edgeRadiusAt(int k, double e, double full, support::ParticleStyle s = support::ParticleStyle::DUST);
 
-    // Dust in the wake (browser motion.js swapDustSpecs — keep in step). Always just INSIDE
+    // Dust in the wake (browser surface/motion.js swapDustSpecs — keep in step). Always just INSIDE
     // the clip: the browser renders through the clip, so motes are never seen ahead of the front.
     static constexpr int DUST_MOTES = 4500;
     static constexpr int DUST_LIFE_MS = 340;
     // Never at the very ends: at t=0 the ring is a point, and the last ones need their whole life.
     static constexpr double DUST_MIN_T = 0.06;
     static constexpr double DUST_MAX_T = 0.94;
-    // Flares over the first 18% of a grain's life (browser motion.js SWAP_DUST_FLARE).
+    // Flares over the first 18% of a grain's life (browser surface/motion.js SWAP_DUST_FLARE).
     static constexpr double GRAIN_FLARE = 0.18;
 
     static double dustNoise(int a, int b);

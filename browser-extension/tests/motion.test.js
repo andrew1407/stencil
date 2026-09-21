@@ -12,7 +12,7 @@ import {
   createListHold, emptyStateVisible, tileMotion, materialize,
   MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS, TILE_JITTER_SHARE,
 } from '../src/lib/motion.js';
-import { FLIGHTS, moteFrame, alphaAt } from '../src/lib/dust/dustCloud.js';
+import { FLIGHTS, moteFrame, alphaAt } from '../src/lib/dust/cloud.js';
 import { classEl as el } from './helpers/listDom.js';
 
 // revealDissolve/revealGrain are shared with the app to the letter (portParity.test.js pins them),
@@ -176,7 +176,7 @@ test('animations/: materialize is the leave reversed, veil outranks keyframes', 
     'the expansion starts from the collapsed end-state of stRowLeave');
   assert.match(css, /\.materialize-veil \{ opacity: 0 !important; \}/,
     'the veil must outrank stRowMaterialize’s animated opacity');
-  // The gather is the scatter reversed on the one canvas (lib/dustCloud.js): a grain starts where
+  // The gather is the scatter reversed on the one canvas (lib/cloud.js): a grain starts where
   // the scatter would have flung it and flies home to identity — stTileGather, as numbers.
   assert.equal(FLIGHTS.gather.from, 'far', 'a gather grain starts where the scatter would have flung it');
   const grain = { x: 10, y: 20, dx: 30, dy: 40, mx: 18, my: 25, r: 3, s: 0.5, a: 1 };

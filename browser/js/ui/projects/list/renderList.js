@@ -1,9 +1,9 @@
 // Rebuilding the projects list, and holding it steady while rows fly out. The plan it paints is
-// rowPlan.js; what a wipe must outlive is here, so an out-of-band refresh cannot cut in.
+// plan.js; what a wipe must outlive is here, so an out-of-band refresh cannot cut in.
 import {
   wipeDurationMs, materialize, filterDelta, rowDustGrid, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS,
 } from '../../motion.js';
-import { showsRemoteSkeletons } from '../../../core/remote/remoteListing.js';
+import { showsRemoteSkeletons } from '../../../core/remote/listing.js';
 import { makeSkeletonRow, emptyLabelFor } from '../row/placeholderRows.js';
 
 export function createRenderList(ctx) {

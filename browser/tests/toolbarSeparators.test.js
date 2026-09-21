@@ -5,7 +5,7 @@ import { installDom, createStubElement } from './helpers/dom.js';
 
 // The toolbar's hairlines are painted by .ctrl-section::before inside the column gap, so
 // they take no width: a section that begins a wrapped row drops the one in front of it
-// (js/ui/toolbarSeparators.js) and nothing about that choice can move the wrap.
+// (js/ui/separators.js) and nothing about that choice can move the wrap.
 const GAP = 21;
 
 // A wrapping row of sections only — the real toolbar's flow. Each section is `secW` wide

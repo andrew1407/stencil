@@ -1,4 +1,4 @@
-// The shared accent row builders (js/ui/accentPicker.js): the preset rows themselves,
+// The shared accent row builders (js/ui/picker.js): the preset rows themselves,
 // the ACTIVE-preset mark, and the Visuals dropdown built on top of them. The logo's copy
 // of the same list is covered by logoAccentMenu.test.js — both go through fillAccentMenu /
 // markSelected here, so the two can never drift.
@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ACCENTS } from '../js/core/settings/accents.js';
-import { fillAccentMenu, markSelected, buildAccentPicker } from '../js/ui/accent/accentPicker.js';
+import { fillAccentMenu, markSelected, buildAccentPicker } from '../js/ui/accent/picker.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 
 // ── Stubs ── the shared element factory; contains() must always hit, so the popover
@@ -88,7 +88,7 @@ test('the Visuals picker marks the active preset on build, and set() moves the m
   assert.deepEqual(markedKeys(menu), ['sky']);
   assert.equal(curName.textContent, 'Sky blue');
 
-  // Changed from the OTHER surface (logo cycle / another tab) — visualsModal.js re-syncs
+  // Changed from the OTHER surface (logo cycle / another tab) — modal.js re-syncs
   // the picker through set(), which must move the mark, not just the trigger swatch.
   api.set('brown');
   assert.deepEqual(markedKeys(menu), ['brown']);

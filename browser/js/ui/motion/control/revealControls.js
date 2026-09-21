@@ -107,7 +107,7 @@ export function revealControls(el, show, display = 'inline-flex',
   const wasShown = el.style.display !== 'none';
   if (wasShown === !!show) return false;   // already there: nothing comes or goes
 // A block collapses its height, an inline group its width; a full-width flex bar must
-// still open downward, hence the override (connectModal.js's selection bar).
+// still open downward, hence the override (modal.js's selection bar).
   const vertical = axis === null ? display === 'block' : !!axis;
   const sizeProp = vertical ? 'maxHeight' : 'maxWidth';
   if (show) {

@@ -1,4 +1,4 @@
-// ProjectTransferController (js/core/projectTransferController.js): the local ↔ server move and
+// ProjectTransferController (js/core/transferController.js): the local ↔ server move and
 // copy flows, driven against a mocked connection. Rig: helpers/projectTransferRig.js.
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';

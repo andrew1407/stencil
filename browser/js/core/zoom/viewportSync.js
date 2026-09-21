@@ -14,7 +14,7 @@ export function wireViewportSync(app) {
   // Again after the first paint: before the shell's layout is real the empty editor is
   // slightly too tall (permanent scrollbar).
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(syncViewport);
-  // The measure already discounts the appReveal translate (zoomPan.js layoutTop).
+  // The measure already discounts the appReveal translate (pan.js layoutTop).
   const shell = document.querySelector('.container');
   shell?.addEventListener('animationend', (e) => {
     if (e.target === shell && e.animationName === 'appReveal') syncViewport();

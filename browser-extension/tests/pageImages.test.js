@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { bgImageUrl, cssImageUrls, srcsetUrls, manifestIconUrls, nameFromUrl, videoHasFrame } from '../src/lib/image/pageImages.js';
-import { mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../src/lib/image/imageScan.js';
+import { mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../src/lib/image/scan.js';
 
 test('bgImageUrl: extracts url(...) in any quoting; rejects svg data URLs', () => {
   assert.equal(bgImageUrl('url("https://a.example/x.png")'), 'https://a.example/x.png');
@@ -61,7 +61,7 @@ test('videoHasFrame: needs decoded data, real dims, not poster-at-0', () => {
   assert.equal(videoHasFrame(null), false);
 });
 
-// ── mergeScanFrames (src/lib/imageScan.js): flatten all-frames scan results ──
+// ── mergeScanFrames (src/lib/scan.js): flatten all-frames scan results ──
 test('mergeScanFrames dedupes by src across frames and keeps frame order', () => {
   const results = [
     { result: [{ src: 'a' }, { src: 'b' }] },

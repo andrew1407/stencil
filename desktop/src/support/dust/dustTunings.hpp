@@ -4,7 +4,7 @@
 
 namespace stencil::gui {
 
-  // The floating-tip clock family (browser controlTooltip.js / exportPreview.js).
+  // The floating-tip clock family (browser controlTooltip.js / export/preview.js).
   inline constexpr int TIP_DUST_IN_MS = 213;
   inline constexpr int TIP_DUST_OUT_MS = 157;
   // browser surfaceForm's invisible hold while motes gather; surfaceLeave's hand-over beat.
@@ -30,10 +30,10 @@ namespace stencil::gui {
     static constexpr int CONN_MS = DUST_MS * 2 / 3; // browser CONN_DUST_MS
     static constexpr int COLS = 22;     // browser DISINTEGRATE_COLS
     static constexpr int ROWS = 11;     // browser DISINTEGRATE_ROWS
-    static constexpr int DUST_CELL_PX = 7;   // browser motion.js MOTE_PX — keep the two in step
+    static constexpr int DUST_CELL_PX = 7;   // browser surface/motion.js MOTE_PX — keep the two in step
     static constexpr int DUST_MAX_CELLS = 7000;
     static constexpr const char* OBJECT_NAME = "stencilDisintegrate";
-    // Surface flights (browser motion.js surfaceIn / surfaceOut): every mote aims at ONE point.
+    // Surface flights (browser surface/motion.js surfaceIn / surfaceOut): every mote aims at ONE point.
     static constexpr int SURFACE_IN_MS = 507;    // browser SURFACE_IN_MS 760 / 1.5
     static constexpr int SURFACE_OUT_MS = 313;   // browser SURFACE_OUT_MS 470 / 1.5
     static constexpr int SURFACE_CELL_PX = 6;    // browser SURFACE_MOTE_PX
@@ -49,12 +49,12 @@ namespace stencil::gui {
     static constexpr double GLINT_MIX = (0.66 - 0.42) / (1.0 - 0.42);
     static constexpr double GLINT_HASH = 0.86;
     static constexpr int SPECK_PX = 7;   // browser SURFACE_SPECK_PX; scaled 0.62..1.12 by hash
-    // The bend off the throw line (browser motion.js tileWaypoint), peaking mid-flight.
+    // The bend off the throw line (browser surface/motion.js tileWaypoint), peaking mid-flight.
     static constexpr double SWIRL_SHARE = 0.32;
     static constexpr double SWIRL_MAX_PX = 44;
     static constexpr double WAYPOINT_ALONG = 0.62;   // browser WAYPOINT_ALONG: the two-leg turn
     static constexpr int MIN_TILE_MS = 160;           // browser MIN_TILE_MS: a late mote's floor
-    // Turbulence and twinkle (browser dustCloud.js turbulenceAt / twinkleAt), off a fourth hash.
+    // Turbulence and twinkle (browser dust/cloud.js turbulenceAt / twinkleAt), off a fourth hash.
     static constexpr double TURBULENCE_SHARE = 0.06;   // of the throw…
     static constexpr double TURBULENCE_MAX_PX = 6;      // …capped
     static constexpr double TURBULENCE_WAVES[2] = {2.5, 4.5};   // waves per flight, by hash

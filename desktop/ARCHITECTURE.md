@@ -156,7 +156,7 @@ classDiagram
 | `Settings` | Persisted preferences and default visuals (`io/fileStore.hpp`); the browser's `DEFAULT_VISUALS` plus the desktop-only keys | `MainWindow::settings`, loaded at boot, saved on change | `LlmSettings` is derived from its `llm*` fields |
 | `Session` | The autosaved in-progress drawing, the browser's localStorage layout blob twin | Written by `SessionController`'s debounce, read once at boot | `CanvasWidget` state, `activeProjectId` |
 | `Project` | One saved local project: `core::ProjectMeta` plus layout, crop, chat and view | `MainWindow::projectList`, persisted by `fileStore::saveProjects` | `core::ProjectsStore` for the registry; `ProjectFileData` for export |
-| `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat); canonical definition `browser/js/core/project/projectFile.js` | Transient, built by `buildStencilBytes` or parsed by `openProjectFile` | `Project`, the linked file watcher |
+| `ProjectFileData` | The portable `.stencil` document (image bytes, layout, metadata, theme, optional chat); canonical definition `browser/js/core/project/file.js` | Transient, built by `buildStencilBytes` or parsed by `openProjectFile` | `Project`, the linked file watcher |
 | `ScriptDoc` | One parsed `.stc`: its token stream in QChar columns, its diagnostics and the op stream the core lowered it to, plus the resolvers that turn an op into a `core::CropRect` or a `core::Line` | Held by the `ScriptEditorWidget` that parsed it, rebuilt on every keystroke | `ScriptHighlighter` colours from its tokens; `scriptRun` drives `PlanTarget` from its ops |
 | `ScriptBuffer` | The one `.stc` both script hosts edit: a session-scoped `QString` with a `changed` signal, so the window and the flyout never diverge | A process-wide instance, alive for the run; never written to settings, a project or a file | `ScriptEditorWidget` reads it at construction and writes it on every keystroke |
 | `EditState` | One checkpoint of the editable state — crop, filter and committed lines — the `.stc` runner keeps per numbered edit, since the canvas history holds lines alone | Transient, one per applied edit for the length of a run | `PlanTarget::captureEdit` / `restoreEdit`, the `@undo` of `contracts/stc` §7 |
@@ -278,7 +278,7 @@ classDiagram
 4. **Secrets.** Connection tokens live in the 0600 `connectionStore`; the LLM API key in the
    settings JSON only. `STENCIL_LLM_*` is never forwarded to child processes.
 5. **Motion** is gated by `support/motionPrefs.hpp` (`drawingAnimations`, `motionMode`,
-   `STENCIL_NO_ANIM=1` overrides) and mirrors `browser/js/ui/dust/dustCloud.js` value for value.
+   `STENCIL_NO_ANIM=1` overrides) and mirrors `browser/js/ui/dust/cloud.js` value for value.
    Sprite blits, not `drawEllipse`; a `QTimer` at the screen's refresh rate, not
    `QVariantAnimation`.
 6. **State directory** is baked at build time (`STENCIL_STATE_DIR`): the gitignored

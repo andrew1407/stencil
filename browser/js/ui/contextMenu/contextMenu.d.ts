@@ -1,7 +1,7 @@
 import type { StencilElement } from '../base.js';
 
-export { assistantEnabled, assistantItemHtml } from '../ctx/ctxAssistantItem.js';
-export { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from '../ctx/ctxKeyboard.js';
+export { assistantEnabled, assistantItemHtml } from '../ctx/assistantItem.js';
+export { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from '../ctx/keyboard.js';
 
 /** The custom right-click context menu. */
 export declare class StencilContextMenu extends StencilElement {

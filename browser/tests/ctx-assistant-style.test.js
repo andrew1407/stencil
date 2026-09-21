@@ -45,7 +45,7 @@ test('the flyout composer is resizable with the panel\'s slider handle', () => {
   assert.strictEqual(src.split('placeMenu').length - 1, 2, 'and the ROOT menu is still placed once per open');
   // …and the drag marks the surface engaged, so a moving flyout is never "left".
   assert.ok(src.includes('hold: (on) => { resizing = on; },'));
-  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8');
   assert.ok(panel.includes('wireInputSizer(inputSizer, input, { host });'), 'the panel uses the same helper');
   // Clamped by CSS (session-only: the drag writes an inline height, nothing persists).
   const css = COMPONENTS_CSS;

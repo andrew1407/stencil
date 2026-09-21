@@ -9,7 +9,7 @@ export declare const wireChatMoreMenu: (
   prefix: string, doc?: Document, opts?: { onOpen?: () => void },
 ) => void;
 
-/** Both surfaces share the one chatLayoutPrefs.js preference. */
+/** Both surfaces share the one layoutPrefs.js preference. */
 export declare const wireChatSideToggle: (prefix: string, transcript: HTMLElement | null, doc?: Document) => void;
 
 export interface ComposerVoiceUi {

@@ -72,11 +72,11 @@
       applyMotion(next);
       return next;
     },
-    // The gates lib/motion.js asks (browser motionPrefs.js motionReduced / dustEnabled / particleStyle).
+    // The gates lib/motion.js asks (browser prefs.js motionReduced / dustEnabled / particleStyle).
     reduced: motionReduced,
     particles: function () { return particleStyle() !== null; },
     style: particleStyle,
-    // Classic-script twin of lib/dustCloud.js styleFrame; the tests pin the two frame for frame.
+    // Classic-script twin of lib/cloud.js styleFrame; the tests pin the two frame for frame.
     styleFrame: function (style, p, away, w, len, tMs) { return styleFrame(style, p, away, w, len, tMs, {}); },
     edgeJitter: function (style, k, points) { return edgeJitter(style, k, points || EDGE_POINTS); },
     edgePolygon: function (x, y, w, h, grow, style) { return edgePolygon(x, y, w, h, grow, style); },

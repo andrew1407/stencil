@@ -1,5 +1,5 @@
 import { setZoomInputValue } from '../../../utils/zoomOverlay.js';
-import { zoomAroundCenter } from '../../../core/zoom/zoomAnimation.js';
+import { zoomAroundCenter } from '../../../core/zoom/animation.js';
 
 // Press-and-hold zoom for the +/− buttons. sign is +1 zoom-in, −1 zoom-out.
 // Single press → small step; double-press → large step; hold → continuous zoom.
