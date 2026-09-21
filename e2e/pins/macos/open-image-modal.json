@@ -159,7 +159,19 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]",
+      "tag": "stencil-tabs",
+      "classes": "",
+      "style": {
+        "display": "contents",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]",
       "tag": "div",
       "classes": "oi-tabs",
       "style": {
@@ -176,7 +188,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]/button[1]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[1]",
       "tag": "button",
       "classes": "is-active oi-tab",
       "style": {
@@ -200,7 +212,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]/button[1]/svg[1]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[1]/svg[1]",
       "tag": "svg",
       "classes": "ic ic-file-text",
       "style": {
@@ -216,7 +228,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]/button[1]/span[1]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[1]/span[1]",
       "tag": "span",
       "classes": "",
       "style": {
@@ -233,7 +245,7 @@
       "text": "Local file"
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]/button[2]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[2]",
       "tag": "button",
       "classes": "oi-tab",
       "style": {
@@ -257,7 +269,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]/button[2]/svg[1]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[2]/svg[1]",
       "tag": "svg",
       "classes": "ic ic-link",
       "style": {
@@ -273,7 +285,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]/button[2]/span[1]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[2]/span[1]",
       "tag": "span",
       "classes": "",
       "style": {
@@ -290,7 +302,7 @@
       "text": "URL link"
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]/button[3]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[3]",
       "tag": "button",
       "classes": "oi-tab",
       "style": {
@@ -314,7 +326,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]/button[3]/svg[1]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[3]/svg[1]",
       "tag": "svg",
       "classes": "ic ic-plus-circle",
       "style": {
@@ -330,7 +342,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[1]/button[3]/span[1]",
+      "path": ":root/div[1]/div[2]/stencil-tabs[1]/div[1]/button[3]/span[1]",
       "tag": "span",
       "classes": "",
       "style": {
@@ -347,7 +359,19 @@
       "text": "Blank"
     },
     {
-      "path": ":root/div[1]/div[2]/div[2]",
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]",
+      "tag": "stencil-oi-file-source",
+      "classes": "",
+      "style": {
+        "display": "contents",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]",
       "tag": "div",
       "classes": "oi-panel",
       "style": {
@@ -362,7 +386,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[2]/div[1]",
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]",
       "tag": "div",
       "classes": "vs-row",
       "style": {
@@ -381,7 +405,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[2]/div[1]/label[1]",
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/label[1]",
       "tag": "label",
       "classes": "",
       "style": {
@@ -396,7 +420,7 @@
       "text": "Choose"
     },
     {
-      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]",
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]",
       "tag": "span",
       "classes": "oi-file",
       "style": {
@@ -414,7 +438,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]/button[1]",
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]/button[1]",
       "tag": "button",
       "classes": "btn-icon-text oi-file-btn",
       "style": {
@@ -435,7 +459,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]/button[1]/svg[1]",
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]/button[1]/svg[1]",
       "tag": "svg",
       "classes": "ic ic-folder",
       "style": {
@@ -451,7 +475,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]/button[1]/span[1]",
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]/button[1]/span[1]",
       "tag": "span",
       "classes": "",
       "style": {
@@ -467,7 +491,7 @@
       "text": "Choose File"
     },
     {
-      "path": ":root/div[1]/div[2]/div[2]/div[1]/span[1]/span[1]",
+      "path": ":root/div[1]/div[2]/stencil-oi-file-source[1]/div[1]/div[1]/span[1]/span[1]",
       "tag": "span",
       "classes": "is-empty oi-file-name",
       "style": {
@@ -486,7 +510,31 @@
       "text": "No file chosen"
     },
     {
-      "path": ":root/div[1]/div[2]/div[10]",
+      "path": ":root/div[1]/div[2]/stencil-oi-url-source[1]",
+      "tag": "stencil-oi-url-source",
+      "classes": "",
+      "style": {
+        "display": "contents",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/stencil-oi-blank-tab[1]",
+      "tag": "stencil-oi-blank-tab",
+      "classes": "",
+      "style": {
+        "display": "contents",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif"
+      }
+    },
+    {
+      "path": ":root/div[1]/div[2]/div[6]",
       "tag": "div",
       "classes": "vs-row",
       "style": {
@@ -504,7 +552,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[10]/label[1]",
+      "path": ":root/div[1]/div[2]/div[6]/label[1]",
       "tag": "label",
       "classes": "",
       "style": {
@@ -519,7 +567,7 @@
       "text": "Incognito"
     },
     {
-      "path": ":root/div[1]/div[2]/div[10]/span[1]",
+      "path": ":root/div[1]/div[2]/div[6]/span[1]",
       "tag": "span",
       "classes": "oi-incognito",
       "style": {
@@ -535,7 +583,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[10]/span[1]/input[1]",
+      "path": ":root/div[1]/div[2]/div[6]/span[1]/input[1]",
       "tag": "input",
       "classes": "",
       "style": {
@@ -551,7 +599,7 @@
       }
     },
     {
-      "path": ":root/div[1]/div[2]/div[10]/span[1]/label[1]",
+      "path": ":root/div[1]/div[2]/div[6]/span[1]/label[1]",
       "tag": "label",
       "classes": "footer-hint",
       "style": {
