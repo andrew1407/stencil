@@ -17,9 +17,9 @@ test('the ? hints badge owns its bubble and opts out of the floating tooltip', (
     assert.ok(/data-no-tooltip/.test(openTag), '#hints-btn opts out of the shared tooltip');
     assert.ok(!/\stitle=/.test(openTag) && !/data-title=/.test(openTag),
         'no second copy of the shortcut text on the badge itself');
-    const src = readFileSync(new URL('../js/ui/toolbar.js', import.meta.url), 'utf8');
+    const src = readFileSync(new URL('../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
     assert.ok(!/hintsBtn\.title\s*=/.test(src), 'and the toggle handler must not put one back');
-    const tt = readFileSync(new URL('../js/ui/controlTooltip.js', import.meta.url), 'utf8');
+    const tt = readFileSync(new URL('../js/ui/tip/controlTooltip.js', import.meta.url), 'utf8');
     assert.ok(/data-no-tooltip/.test(tt), 'controlTooltip honours the opt-out');
 });
 
@@ -38,7 +38,7 @@ test('the ? badge sits inside the project-name field, right after the name', () 
 });
 
 test('the ? bubble carries the size and the incognito line — and nothing else', () => {
-    const src = readFileSync(new URL('../js/ui/toolbar.js', import.meta.url), 'utf8');
+    const src = readFileSync(new URL('../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
     // The old shortcut wall is gone; those hints live in the ℹ info modal (infoConfig.json).
     assert.ok(!/SHORTCUTS_HINT/.test(src), 'the shortcut wall is back in the bubble');
     assert.ok(!/Ctrl\+Scroll|Alt\+Scroll|for full help/.test(src), 'shortcut text is back in the bubble');
@@ -94,7 +94,7 @@ test('the info line carries the incognito tag, and keeps its size text separable
     assert.match(div, /color: var\(--text-muted\)/, 'muted, not competing with the facts');
     assert.match(div, /user-select: none/);
     // …and the "?" bubble carries the same glyph, not the emoji.
-    const bar = readFileSync(new URL('../js/ui/toolbar.js', import.meta.url), 'utf8');
+    const bar = readFileSync(new URL('../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
     assert.match(bar, /line\.innerHTML = `\$\{icon\('incognito', \{ size: 13 \}\)\}/);
     assert.ok(!/🕶/.test(bar), 'the emoji is gone from the bubble too');
     const hints = css.slice(css.indexOf('.hints-incognito {'), css.indexOf('}', css.indexOf('.hints-incognito {')));

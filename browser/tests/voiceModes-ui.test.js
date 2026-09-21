@@ -61,11 +61,11 @@ test('a voice answer that asks a question opens the chat; a plain one still just
 // must not light it (user report). Only the two mic faces wear the voice shine.
 test('activating the microphone never latches the logo shine', async () => {
   const { readFileSync } = await import('node:fs');
-  const toolbar = readFileSync(new URL('../js/ui/toolbar.js', import.meta.url), 'utf8');
+  const toolbar = readFileSync(new URL('../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
   const css = ANIMATIONS_CSS;
   assert.ok(!toolbar.includes('voice-live'), 'no voice latch on the logo wrap');
   assert.ok(!css.includes('voice-live'), 'no voice rule targets the logo');
-  const dust = readFileSync(new URL('../js/ui/voiceDust.js', import.meta.url), 'utf8');
+  const dust = readFileSync(new URL('../js/ui/dust/voiceDust.js', import.meta.url), 'utf8');
   assert.ok(dust.includes('ringAngles(now)'), 'the mics keep their ring — on the dust canvas');
 });
 

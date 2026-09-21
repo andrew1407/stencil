@@ -12,7 +12,7 @@ import { makeEl, stubDom, rowsOf } from './helpers/chatTranscriptRig.js';
 test('an appearing entry plays the gather; a transcript’s FIRST paint does not', async () => {
   stubDom();
   globalThis.matchMedia = () => ({ matches: false });
-  const { renderChatLog } = await import('../js/ui/chatView.js?render-enter');
+  const { renderChatLog } = await import('../js/ui/chat/chatView.js?render-enter');
   const { CHAT_ENTERING_CLASS } = await import('../js/ui/motion.js');
   const transcript = makeEl();
   // Opening a surface onto history it MISSED is not a conversation happening in front

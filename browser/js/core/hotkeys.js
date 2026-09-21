@@ -2,7 +2,7 @@
 // localStorage 'drawingApp_hotkeys'; importing in Node stays inert.
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 import { platformizeCombo, isMacPlatform, formatCombo, composeControlTitle, setHtml } from '../utils.js';
-import { keysHtml } from '../ui/tipContent.js';
+import { keysHtml } from '../ui/tip/tipContent.js';
 
 const STORAGE_KEY = 'drawingApp_hotkeys';
 

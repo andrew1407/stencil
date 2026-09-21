@@ -2,7 +2,7 @@
 // in ./core/hotkeys.js.
 export { onWindowResize, perFrame } from './ui/frameSync.js';
 // Lives in ui/scrollbarHover.js (an extension port); re-exported for its old callers.
-export { SCROLLBAR_STRIP_PX, scrollbarHit, scrollbarOwnerAt, wireScrollbarHover } from './ui/scrollbarHover.js';
+export { SCROLLBAR_STRIP_PX, scrollbarHit, scrollbarOwnerAt, wireScrollbarHover } from './ui/control/scrollbarHover.js';
 export * from './utils/dom.js';
 export * from './utils/math.js';
 export * from './utils/appQueries.js';

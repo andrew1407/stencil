@@ -37,7 +37,7 @@ const setupDom = ({ vw = 1200, vh = 800 } = {}) => {
 
 test('a menu drops below its trigger, left edges aligned, at least as wide', async () => {
   const { el } = setupDom();
-  const { placeMenu } = await import('../js/ui/dropdownMenu.js');
+  const { placeMenu } = await import('../js/ui/control/dropdownMenu.js');
   const trigger = el({ left: 300, top: 100, bottom: 130, width: 190 });
   const menu = el({ width: 190, height: 200 });
   placeMenu(menu, trigger);
@@ -48,7 +48,7 @@ test('a menu drops below its trigger, left edges aligned, at least as wide', asy
 
 test('a trigger low in the window flips its menu above instead of running off', async () => {
   const { el } = setupDom({ vh: 400 });
-  const { placeMenu } = await import('../js/ui/dropdownMenu.js');
+  const { placeMenu } = await import('../js/ui/control/dropdownMenu.js');
   const trigger = el({ left: 20, top: 330, bottom: 360, width: 120 });
   const menu = el({ width: 120, height: 200 });
   placeMenu(menu, trigger);
@@ -63,7 +63,7 @@ test('a trigger low in the window flips its menu above instead of running off', 
 
 test('the height cap follows the room on the roomier side, so a long list scrolls', async () => {
   const { el } = setupDom({ vh: 300 });
-  const { placeMenu } = await import('../js/ui/dropdownMenu.js');
+  const { placeMenu } = await import('../js/ui/control/dropdownMenu.js');
   const menu = el({ width: 120, height: 260 });
   placeMenu(menu, el({ left: 20, top: 200, bottom: 230, width: 120 }));
   assert.equal(menu.style.maxHeight, '188px', 'above-the-trigger room, less gap and margin');
@@ -71,7 +71,7 @@ test('the height cap follows the room on the roomier side, so a long list scroll
 
 test('a menu wider than the space left of the edge is clamped inside the viewport', async () => {
   const { el } = setupDom({ vw: 500 });
-  const { placeMenu } = await import('../js/ui/dropdownMenu.js');
+  const { placeMenu } = await import('../js/ui/control/dropdownMenu.js');
   const trigger = el({ left: 430, top: 10, bottom: 40, width: 60 });
   const menu = el({ width: 300, height: 100 });
   placeMenu(menu, trigger);
@@ -80,7 +80,7 @@ test('a menu wider than the space left of the edge is clamped inside the viewpor
 
 test('the cap never exceeds the stylesheet\'s 280px, however tall the window', async () => {
   const { el } = setupDom({ vh: 2000 });
-  const { placeMenu } = await import('../js/ui/dropdownMenu.js');
+  const { placeMenu } = await import('../js/ui/control/dropdownMenu.js');
   const menu = el({ width: 200, height: 100 });
   placeMenu(menu, el({ left: 0, top: 10, bottom: 40, width: 100 }));
   assert.equal(menu.style.maxHeight, '280px');
@@ -88,7 +88,7 @@ test('the cap never exceeds the stylesheet\'s 280px, however tall the window', a
 
 test('open moves the menu to <body> and close puts it back where it was built', async () => {
   const { el, body, listeners } = setupDom();
-  const { showMenu, hideMenu } = await import('../js/ui/dropdownMenu.js');
+  const { showMenu, hideMenu } = await import('../js/ui/control/dropdownMenu.js');
   const sibling = {};
   const wrap = { insertBefore(n, before) { this.last = [n, before]; n.parentElement = wrap; } };
   const menu = el({ width: 100, height: 80 }, { parentElement: wrap, nextSibling: sibling });
@@ -130,7 +130,7 @@ test('an open menu follows its trigger when the page moves under it', async () =
   const home = { insertBefore: (node) => { node.parentElement = home; } };
   menu.parentElement = home;
 
-  const { showMenu, hideMenu } = await import('../js/ui/dropdownMenu.js');
+  const { showMenu, hideMenu } = await import('../js/ui/control/dropdownMenu.js');
   showMenu(menu, trigger);
   assert.equal(menu.style.left, '300px');
   tick(2);
@@ -153,8 +153,8 @@ test('an open menu follows its trigger when the page moves under it', async () =
 });
 
 test('every select dropdown goes through the portal, and its press-outside sees it', () => {
-  const cs = readFileSync(new URL('../js/ui/customSelect.js', import.meta.url), 'utf8');
-  const ap = readFileSync(new URL('../js/ui/accentPicker.js', import.meta.url), 'utf8');
+  const cs = readFileSync(new URL('../js/ui/control/customSelect.js', import.meta.url), 'utf8');
+  const ap = readFileSync(new URL('../js/ui/accent/accentPicker.js', import.meta.url), 'utf8');
   for (const [name, src, host] of [['customSelect', cs, 'wrap'], ['accentPicker', ap, 'mount']]) {
     assert.match(src, /showMenu\(menu, trigger\)/, `${name} opens through dropdownMenu`);
     assert.match(src, /hideMenu\(menu\)/, `${name} closes through it`);

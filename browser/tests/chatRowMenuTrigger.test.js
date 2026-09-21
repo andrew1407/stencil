@@ -8,7 +8,7 @@ import { stubDom, menuOn, itemLabels, wiredRow } from './helpers/chatRowMenuRig.
 // ── The hover "…" trigger ──
 test('chatRowMenuButton: a trigger per settled row, on the corner facing the panel centre', async () => {
   stubDom();
-  const { chatRowMenuButton } = await import('../js/ui/chatView.js?rowmenu-btn');
+  const { chatRowMenuButton } = await import('../js/ui/chat/chatView.js?rowmenu-btn');
   const user = chatRowMenuButton({ role: 'user', text: 'hi' });
   assert.ok(String(user.className).split(/\s+/).includes('chat-row-menu-btn'));
   assert.ok(String(user.className).includes('chat-row-menu-btn-left'),
@@ -29,7 +29,7 @@ test('chatRowMenuButton: a trigger per settled row, on the corner facing the pan
 test('clicking the "…" button opens the SAME menu as right-click, anchored at the button', async () => {
   const row = { role: 'user', text: 'hello' };
   const { body, transcript, rowEl } = await wiredRow(row, {}, '-btn-open');
-  const { chatRowMenuButton } = await import('../js/ui/chatView.js?rowmenu-btn-open');
+  const { chatRowMenuButton } = await import('../js/ui/chat/chatView.js?rowmenu-btn-open');
   const btn = rowEl.appendChild(chatRowMenuButton(row));
   transcript.fire('click', { target: btn, preventDefault() {}, stopPropagation() {} });
   const menu = menuOn(body);
@@ -40,7 +40,7 @@ test('clicking the "…" button opens the SAME menu as right-click, anchored at 
 
 // ── Touch gestures (no hover there) ──
 test('touchMenuGesture: long-press fires at the threshold; movement or early release cancels', async () => {
-  const { touchMenuGesture } = await import('../js/ui/chatView.js?rowmenu-touch');
+  const { touchMenuGesture } = await import('../js/ui/chat/chatView.js?rowmenu-touch');
   const opened = [];
   let armed = null;
   const g = touchMenuGesture((x, y) => opened.push([x, y]), {
@@ -68,7 +68,7 @@ test('touchMenuGesture: long-press fires at the threshold; movement or early rel
 });
 
 test('touchMenuGesture: two quick taps on the same row open; slow or cross-row taps don\'t', async () => {
-  const { touchMenuGesture } = await import('../js/ui/chatView.js?rowmenu-touch2');
+  const { touchMenuGesture } = await import('../js/ui/chat/chatView.js?rowmenu-touch2');
   const opened = [];
   const g = touchMenuGesture((x, y) => opened.push([x, y]), { setTimer: () => 1, clearTimer: () => {} });
   g.start('rowA', 10, 20);

@@ -33,7 +33,7 @@ doc.createElement = (tag) => {
   return el;
 };
 
-const { showExportPreview, hideExportPreview, wireAltPreview, clearAltPreviewHover } = await import('../js/ui/exportPreview.js');
+const { showExportPreview, hideExportPreview, wireAltPreview, clearAltPreviewHover } = await import('../js/ui/export/exportPreview.js');
 
 const makeApp = () => ({
   image: {},

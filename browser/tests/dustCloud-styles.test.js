@@ -7,7 +7,7 @@ import {
   FLIGHTS, moteFrame, drawCloud, STYLE_DUST, STYLE_WATER, STYLE_FIRE, PARTICLE_STYLES, PALETTE_STOPS, WATER, FIRE,
   styleFrame, paletteIndex, paletteCss, dustMix, hashNoise, TINT_SHARE, TINT_STOPS, TINT_CSS, PAINT_STOPS, tintOf,
   stopOfTint, grainShape,
-} from '../js/ui/dustCloud.js';
+} from '../js/ui/dust/dustCloud.js';
 
 const grain = { x: 100, y: 200, dx: 60, dy: -80, mx: 40, my: -45, r: 3, s: 0.3, a: 0.9 };
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;

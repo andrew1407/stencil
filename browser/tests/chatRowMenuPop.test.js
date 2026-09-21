@@ -64,7 +64,7 @@ test('requeueRowAttachments refills an EMPTY queue only, capped, as analyze-imag
 
 // ── Both surfaces wire it, and the chrome matches the app's other row menus ──
 test('the panel and the flyout wire the SHARED row menu with insert + resend hooks', () => {
-  const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
   const menu = contextMenuSource();
   for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
     assert.ok(src.includes('wireChatRowMenu(transcript, {'), `${name} wires the shared menu`);

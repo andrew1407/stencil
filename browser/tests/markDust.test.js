@@ -17,9 +17,9 @@ import { ANIMATIONS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const motionJs = motionSource();
-const swapJs = read('../js/ui/controlSwap.js');
+const swapJs = read('../js/ui/control/controlSwap.js');
 const animCss = ANIMATIONS_CSS;
-const selectJs = read('../js/ui/customSelect.js');
+const selectJs = read('../js/ui/control/customSelect.js');
 
 test('the throw scales with the control: a 15px tick cannot fling motes like a list row', () => {
   // Same cell, same hashes — only the distance differs, so the two are the SAME scatter.

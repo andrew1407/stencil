@@ -1,5 +1,5 @@
 import { dustEnabled } from '../motionPrefs.js';
-import { resolveColour, paletteCss, styleFrame, tintOf, stopOfTint, dustMix, grainShape, headingOf, fillGrains } from '../dustCloud.js';
+import { resolveColour, paletteCss, styleFrame, tintOf, stopOfTint, dustMix, grainShape, headingOf, fillGrains } from '../dust/dustCloud.js';
 import { GHOST_MS, dustEase } from './canvasDustGrid.js';
 import { DUST_ALPHA_LEVELS, dustParts, makeDustStage } from './canvasDustStage.js';
 import { styleCode } from './tune.js';

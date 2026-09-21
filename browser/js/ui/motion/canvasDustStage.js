@@ -1,4 +1,4 @@
-import { STYLED_CELL_SCALE } from '../dustCloud.js';
+import { STYLED_CELL_SCALE } from '../dust/dustCloud.js';
 import { DUST_CELL_PX, dustDelay, dustField, dustGrid } from './canvasDustGrid.js';
 import { SWIRL_MAX_PX, SWIRL_SHARE, tileNoise } from './tiles.js';
 import { TUNE, styleCode } from './tune.js';

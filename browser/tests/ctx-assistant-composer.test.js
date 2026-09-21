@@ -2,7 +2,7 @@
 // hands over to the panel, the action row, queued attachments and the cached provider probe.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { assistantItemHtml } from '../js/ui/contextMenu.js';
+import { assistantItemHtml } from '../js/ui/contextMenu/contextMenu.js';
 import { isTouchLike, TOUCH_MEDIA } from '../js/utils.js';
 import {
   sharedChatController, queueAttachments, cacheProbe, cachedProbe, forgetProbe, probeStatusClass,

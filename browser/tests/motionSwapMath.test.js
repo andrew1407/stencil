@@ -6,7 +6,7 @@ import {
   swapRadius, swapPercent, THEME_SWAP_MS, swapEase, swapDustSpecs, swapDustFrame, SWAP_DUST_FLARE,
   SWAP_DUST_MOTES, SWAP_DUST_MIN_T, SWAP_DUST_MAX_T, swapEdgePolygon, SWAP_EDGE_POINTS,
 } from '../js/ui/motion.js';
-import { STYLE_DUST, STYLE_WATER, STYLE_FIRE, edgeBaseOf } from '../js/ui/dustCloud.js';
+import { STYLE_DUST, STYLE_WATER, STYLE_FIRE, edgeBaseOf } from '../js/ui/dust/dustCloud.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { box } from './helpers/motionRig.js';
 

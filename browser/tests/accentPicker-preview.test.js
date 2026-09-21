@@ -2,7 +2,7 @@
 // a preview holds the replays and the cursor across the palette flood. From accentPicker.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fillAccentMenu } from '../js/ui/accentPicker.js';
+import { fillAccentMenu } from '../js/ui/accent/accentPicker.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 
 const makeEl = () => createStubElement('div', { contains: () => true });

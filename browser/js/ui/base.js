@@ -33,9 +33,9 @@ export const hostTag = (tag, attrs, inner) => `<${tag}${attrs ? ' ' + attrs : ''
 // For any server-supplied or user-typed value interpolated into innerHTML.
 export { escapeHtml } from './escapeHtml.js';
 
-export { closeOpenModal } from './modalRegistry.js';
-export { MODAL_CLOSE_MS, createModalFlight } from './modalFlight.js';
-export { wireModalShell } from './modalShell.js';
+export { closeOpenModal } from './modal/modalRegistry.js';
+export { MODAL_CLOSE_MS, createModalFlight } from './modal/modalFlight.js';
+export { wireModalShell } from './modal/modalShell.js';
 
 export const attachSearchFilter = (searchInput, applyFilterFn) => {
   searchInput.addEventListener('input', applyFilterFn);

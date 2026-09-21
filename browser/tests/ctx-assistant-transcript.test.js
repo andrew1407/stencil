@@ -58,7 +58,7 @@ test('a surface renders the history that already exists (not only live appends)'
   onChatLog((rows) => painted.push(rows.length));
   const atWireTime = chatLog().map((r) => r.text);
   assert.deepStrictEqual(atWireTime, ['from the menu', 'Done.'], 'the log carries the backlog');
-  const src = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
   assert.ok(src.includes('paint();   // renders whatever the conversation already holds'),
     'the panel paints once at wire time, not only on change');
   const ctx = contextMenuSource();
@@ -68,7 +68,7 @@ test('a surface renders the history that already exists (not only live appends)'
 });
 
 test('both send loops run the SAME shared logged-turn frame', () => {
-  const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
   const menu = contextMenuSource();
   for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
     assert.ok(src.includes('await runLoggedChatTurn('), `${name} runs the shared logged-turn frame`);
@@ -89,7 +89,7 @@ test('both send loops run the SAME shared logged-turn frame', () => {
 // An image dragged from another PAGE carries no File — only a URL in uri-list/html.
 // The composer used to read Files alone, so such a drop silently attached nothing.
 test('a dropped image URL is fetched into an attachment, not silently dropped', () => {
-  const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
   assert.ok(panel.includes('const files = mediaFilesFromData(e.dataTransfer);'), 'Files still win');
   assert.ok(panel.includes('const url = extractDraggedImageUrl((t) => e.dataTransfer.getData(t));'),
     'and a File-less drag falls back to its URL');
@@ -106,7 +106,7 @@ test('a dropped image URL is fetched into an attachment, not silently dropped', 
 });
 
 test('the composer ACTS on a drop; the panel SWALLOWS one (never the canvas)', () => {
-  const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
   // Attaching is the composer's.
   assert.ok(panel.includes("const dropRow = $('chat-input-wrap');"));
   for (const ev of ['dragover', 'dragleave', 'drop']) {

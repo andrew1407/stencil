@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { addKeywords, normalizeKeyword, parseKeywords } from '../js/ui/keywordChips.js';
+import { addKeywords, normalizeKeyword, parseKeywords } from '../js/ui/meta/keywordChips.js';
 
 test('a keyword is whatever was typed, however many words — never split', () => {
   assert.equal(normalizeKeyword('kitchen remodel'), 'kitchen remodel');

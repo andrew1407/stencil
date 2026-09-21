@@ -23,7 +23,7 @@ const stubImageInfo = (t, r) => {
 test('the bar imports the shared surface-dust primitives', () => {
   // Pinned by NAME, not as a verbatim import line — the list grows (revealControls, for
   // the fill group's own slide), and a line-shaped regex only says the file was edited.
-  const line = /import \{([^}]*)\} from '\.\/motion\.js';/.exec(src)[1];
+  const line = /import \{([^}]*)\} from '[^']*motion\.js';/.exec(src)[1];
   for (const fn of ['surfaceIn', 'surfaceOut', 'settleSurface', 'dockAwayPoint'])
     assert.ok(line.includes(fn), `the bar should still take ${fn} from the shared helpers`);
 });

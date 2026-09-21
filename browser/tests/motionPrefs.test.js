@@ -144,11 +144,11 @@ test('every cloud in the app is built behind the dust gate, and the strokes behi
   assert.match(motion, /const runDust = [\s\S]*?const style = styleCode\(\);[\s\S]*?style, ms, palette: paletteCss\(\)\.map/, 'the canvas ghost');
   assert.match(motion, /return \{ palette: paletteCss\(\)\.map\(\(css\) => resolveColour\(document, css\)\) \};/, 'the theme wake, in the OLD palette');
   // The voice mic's motes and ray ring are particles too.
-  assert.match(read('../js/ui/voiceDust.js'), /isOn\(\) && dustEnabled\(\)/);
+  assert.match(read('../js/ui/dust/voiceDust.js'), /isOn\(\) && dustEnabled\(\)/);
   // The canvas stroke flight answers the drawing switch instead.
   assert.match(read('../js/core/strokeFx.js'), /if \(!this\.#schedule \|\| !drawMotionEnabled\(\)\) return null;/);
   // One gate, asked in one place: no component still reads the media query by hand.
-  for (const f of ['../js/ui/modalFlight.js', '../js/ui/toolbar.js', '../js/ui/motion.js'])
+  for (const f of ['../js/ui/modal/modalFlight.js', '../js/ui/toolbar/toolbar.js', '../js/ui/motion.js'])
     assert.ok(!read(f).includes("matchMedia('(prefers-reduced-motion: reduce)')"), f);
 });
 
@@ -166,12 +166,12 @@ test('the mode reaches the CSS before first paint, and stops what CSS alone driv
 });
 
 test('every switch is in the Visuals modal and on the console facade', () => {
-  const markup = read('../js/ui/visualsMarkup.js');
+  const markup = read('../js/ui/visuals/visualsMarkup.js');
   assert.match(markup, /<div class="vs-section">Motion<\/div>/);
   assert.match(markup, /id="vs-draw-anim"/);
   assert.match(markup, /id="vs-modal-backdrop"/);
   assert.match(markup, /id="vs-motion-mode"/);
-  const modal = read('../js/ui/visualsModal.js');
+  const modal = read('../js/ui/visuals/visualsModal.js');
   // The checkboxes are one table — id ↔ motionPrefs key — read on sync, written on change.
   assert.match(modal, /\['vs-draw-anim', 'drawing'\], \['vs-modal-backdrop', 'backdrop'\]/);
   assert.match(modal, /setMotion\(key, box\.checked\)/);

@@ -4,7 +4,7 @@ import assert from 'node:assert';
 // layout() transitively imports every ui component, including the projects modal.
 import { layout } from '../js/ui/layout.js';
 import { escapeHtml } from '../js/ui/base.js';
-import { escapeHtml as tipEscape } from '../js/ui/tipContent.js';
+import { escapeHtml as tipEscape } from '../js/ui/tip/tipContent.js';
 import { escapeHtml as oneEscape } from '../js/ui/escapeHtml.js';
 import { projectsModalSource } from './helpers/projectsModalSource.js';
 
@@ -59,7 +59,7 @@ test('no runtime-only project row ids in static markup', () => {
 const projectsSrc = projectsModalSource();
 
 test('every projects filter control re-lists through the shared transition', () => {
-  assert.match(projectsSrc, /import \{[^}]*createFilterAnimator[^}]*\} from '\.\/motion\.js'/,
+  assert.match(projectsSrc, /import \{[^}]*createFilterAnimator[^}]*\} from '[^']*motion\.js'/,
     'the projects list uses the shared helper, not its own animation');
   assert.match(projectsSrc, /const runFilter = createFilterAnimator\(\{[\s\S]*?keys: \(\) => shownKeys,[\s\S]*?next: \(\) => rowPlan\(\)\.map/,
     'the "before" set is the last render’s keys, the "after" one the pending plan');
@@ -89,7 +89,7 @@ test('what a removal REVEALS arrives, it does not simply appear', () => {
     'the settle remembers what the list showed before the removal');
   assert.match(projectsSrc, /const \{ entering \} = filterDelta\(before, shownKeys\);[\s\S]{0,400}materialize\(el, \{ \.\.\.rowDustGrid\(entering\.length, i\), dustMs: ROW_ARRIVE_MS \}\)/,
     'and materializes the keys it ADDED — the shared delta and grain, on the arrival clock');
-  assert.match(projectsSrc, /import \{[^}]*materialize[^}]*\} from '\.\/motion\.js'/,
+  assert.match(projectsSrc, /import \{[^}]*materialize[^}]*\} from '[^']*motion\.js'/,
     'through the shared helper, not an animation of its own');
 });
 

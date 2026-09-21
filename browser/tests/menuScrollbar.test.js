@@ -2,7 +2,7 @@
 // cap, and its length and travel follow the scroll.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { syncMenuScrollbar, attachMenuScrollbar } from '../js/ui/menuScrollbar.js';
+import { syncMenuScrollbar, attachMenuScrollbar } from '../js/ui/control/menuScrollbar.js';
 
 const menuOf = (clientHeight, scrollHeight, scrollTop = 0) => {
   const props = new Map();

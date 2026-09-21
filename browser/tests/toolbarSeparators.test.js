@@ -47,7 +47,7 @@ const fixedRow = (tops) => {
 test('every pair of sections sharing a row keeps its hairline', async () => {
   const dom = installDom();
   try {
-    const { syncWrappedSeparators, WRAPPED_SEP_CLASS } = await import('../js/ui/toolbar.js');
+    const { syncWrappedSeparators, WRAPPED_SEP_CLASS } = await import('../js/ui/toolbar/toolbar.js');
     // The reported bug: Formula and Data side by side with the line between them gone,
     // because hiding it was what pulled Data up beside Formula in the first place.
     for (const cap of [230, 260, 350, 480, 620, 1000]) {
@@ -67,7 +67,7 @@ test('every pair of sections sharing a row keeps its hairline', async () => {
 test('one pass is a fixed point: a second call at the same geometry changes nothing', async () => {
   const dom = installDom();
   try {
-    const { syncWrappedSeparators, WRAPPED_SEP_CLASS } = await import('../js/ui/toolbar.js');
+    const { syncWrappedSeparators, WRAPPED_SEP_CLASS } = await import('../js/ui/toolbar/toolbar.js');
     const { root, els } = fixedRow([0, 0, 60, 60, 120]);   // rows: A B | C D | E
     const marks = () => els.map((s) => s.classList.contains(WRAPPED_SEP_CLASS));
     syncWrappedSeparators(root);
@@ -87,7 +87,7 @@ test('one pass is a fixed point: a second call at the same geometry changes noth
 
 test('the hairline is painted out of flow, so marking it cannot move the wrap', () => {
   const css = readFileSync(new URL('../css/layout/controlRows.css', import.meta.url), 'utf8');
-  const toolbar = readFileSync(new URL('../js/ui/toolbar.js', import.meta.url), 'utf8');
+  const toolbar = readFileSync(new URL('../js/ui/toolbar/toolbar.js', import.meta.url), 'utf8');
   assert.match(css, /\.ctrl-section \+ \.ctrl-section::before \{[^}]*position: absolute;/);
   assert.match(css, /\.ctrl-section\.ctrl-sep-wrapped::before \{ content: none; \}/);
   // No separator ELEMENT anywhere: one between two sections would put its own width back

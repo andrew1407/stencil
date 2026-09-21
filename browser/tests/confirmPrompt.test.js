@@ -31,7 +31,7 @@ const setup = () => {
   return { doc, body, overlay, confirm: doc.getElementById('confirm-modal-confirm') };
 };
 
-const { StencilConfirmModal } = await import('../js/ui/confirmModal.js');
+const { StencilConfirmModal } = await import('../js/ui/modal/confirmModal.js');
 
 // The injected row is a wrapper div holding the field and (when validating) the reason.
 const fieldOf = (body) => body.children.at(-1).children.find((c) => c.tagName !== 'DIV');

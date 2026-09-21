@@ -5,9 +5,9 @@ import type { DrawingApp } from '../core/drawingApp.js';
 import type { ConnectionManager } from '../net/connectionManager.js';
 
 export { escapeHtml } from './escapeHtml.js';
-export { closeOpenModal } from './modalRegistry.js';
-export { MODAL_CLOSE_MS, createModalFlight } from './modalFlight.js';
-export { wireModalShell } from './modalShell.js';
+export { closeOpenModal } from './modal/modalRegistry.js';
+export { MODAL_CLOSE_MS, createModalFlight } from './modal/modalFlight.js';
+export { wireModalShell } from './modal/modalShell.js';
 
 /** Register a custom element — only in a browser. */
 export declare const define: (tag: string, klass: CustomElementConstructor) => void;

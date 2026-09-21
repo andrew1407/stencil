@@ -8,22 +8,22 @@ import { motionSource } from './helpers/motionSource.js';
 import {
   tileNoise, SURFACE_IN_MS, SURFACE_OUT_MS,
 } from '../js/ui/motion.js';
-import { FLIGHTS, alphaAt } from '../js/ui/dustCloud.js';
+import { FLIGHTS, alphaAt } from '../js/ui/dust/dustCloud.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
 import { modalShellSource } from './helpers/modalShellSource.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const cloudJs = read('../js/ui/dustCloud.js');
+const cloudJs = read('../js/ui/dust/dustCloud.js');
 const animCss = ANIMATIONS_CSS;
 const baseJs = modalShellSource();
-const chatPanelJs = read('../js/ui/chatPanel.js');
-const confirmJs = read('../js/ui/confirmModal.js');
+const chatPanelJs = read('../js/ui/chat/chatPanel.js');
+const confirmJs = read('../js/ui/modal/confirmModal.js');
 const ctxJs = contextMenuSource();
 const rowMenuJs = read('../js/ui/projectRowMenu.js');
 const chatViewJs = chatViewSource();
-const llmSettingsJs = read('../js/ui/llmSettingsModal.js');
+const llmSettingsJs = read('../js/ui/llmSettings/llmSettingsModal.js');
 const motionJs = motionSource();
 
 // ── 5. The CSS contract ─────────────────────────────────────────────────────

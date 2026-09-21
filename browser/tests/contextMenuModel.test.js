@@ -3,7 +3,7 @@ import assert from 'node:assert';
 
 // The flyout placement rules, on numbers alone — the DOM half (measure, write styles) is
 // ui/contextMenuNav.js, and the behaviour it rests on is pinned here.
-import { submenuPlacement, samePoint, SUB_GAP, SUB_EDGE_PAD, SUB_MIN_INSET } from '../js/ui/contextMenuModel.js';
+import { submenuPlacement, samePoint, SUB_GAP, SUB_EDGE_PAD, SUB_MIN_INSET } from '../js/ui/contextMenu/contextMenuModel.js';
 
 const row = (left, right, top) => ({ left, right, top });
 

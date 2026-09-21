@@ -1,5 +1,5 @@
 import { isSplitCompare } from '../../utils.js';
-import { setChecked } from '../controlSwap.js';
+import { setChecked } from '../control/controlSwap.js';
 import { COMPARE_MODES } from '../../core/settingsController.js';
 import { contextMenuPoint } from './hotkeyRules.js';
 // Every hotkey id the editor answers to, as one table of actions — plus the two sets

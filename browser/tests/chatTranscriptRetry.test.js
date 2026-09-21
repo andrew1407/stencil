@@ -53,7 +53,7 @@ test('ONE turn at a time: the shared in-flight flag every surface reads', async 
 
   // Both retry/resend entry points consult it, so a click in one surface cannot start a
   // second turn over one the OTHER surface is running (that logged the prompt twice).
-  for (const [name, src] of [['panel', readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8')],
+  for (const [name, src] of [['panel', readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8')],
     ['flyout', contextMenuSource()]]) {
     assert.ok(src.includes('chatTurnInFlight()'), `${name} guards on the shared flag`);
     assert.strictEqual(src.split('chatTurnInFlight()').length - 1, 2,
@@ -64,7 +64,7 @@ test('ONE turn at a time: the shared in-flight flag every surface reads', async 
 // ── §3.0: nothing is rendered after the reply ───────────────────────────────
 test('a settled reply carries no progress line and no cancel — the turn is over', async () => {
   stubDom();
-  const { renderChatLog } = await import('../js/ui/chatView.js?render-no-aux');
+  const { renderChatLog } = await import('../js/ui/chat/chatView.js?render-no-aux');
   const transcript = makeEl();
   const log = [
     { id: 1, role: 'user', text: 'outline everything' },

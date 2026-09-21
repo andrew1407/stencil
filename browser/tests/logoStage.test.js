@@ -26,8 +26,8 @@ const setup = ({ fullscreen = false } = {}) => {
 beforeEach(setup);
 
 const { openLogoStage, closeLogoStage, logoStageOpen, logoStageAllowed, currentLogoStage } =
-  await import('../js/ui/logoStage.js');
-const { modalShells } = await import('../js/ui/modalRegistry.js');
+  await import('../js/ui/logo/logoStage.js');
+const { modalShells } = await import('../js/ui/modal/modalRegistry.js');
 
 const app = { accent: 'violet', customAccent: null };
 const open = (name = 'neonOn') => openLogoStage(name, { app, origin: { x: 20, y: 20 }, doc });

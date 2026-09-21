@@ -1,5 +1,5 @@
 import { unitToCm } from '../../utils.js';
-import { enhanceSelect } from '../customSelect.js';
+import { enhanceSelect } from '../control/customSelect.js';
 export function wirePageAndDisplayControls(app) {
   document.getElementById('page-size').addEventListener('change', e => app.settings.setPageSize(e.target.value));
   document.getElementById('custom-page-width').addEventListener('change', e => {

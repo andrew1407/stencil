@@ -1,5 +1,5 @@
 import { markSwap } from '../motion.js';
-import { showMenu, hideMenu } from '../dropdownMenu.js';
+import { showMenu, hideMenu } from '../control/dropdownMenu.js';
 export function wireZoomControls(app) {
   const zoomInput = document.getElementById('zoom-input');
   // `commit` (change/Enter/preset-pick) reverts an out-of-range value; live typing just skips

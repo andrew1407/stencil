@@ -20,9 +20,9 @@ const setup = () => {
 };
 beforeEach(setup);
 
-const { wireLogoHold, heldShow, activateShow, pinkVibe } = await import('../js/ui/logoStageTrigger.js');
-const { logoStageOpen, closeLogoStage } = await import('../js/ui/logoStage.js');
-const { STAGE } = await import('../js/ui/logoStageRules.js');
+const { wireLogoHold, heldShow, activateShow, pinkVibe } = await import('../js/ui/logo/logoStageTrigger.js');
+const { logoStageOpen, closeLogoStage } = await import('../js/ui/logo/logoStage.js');
+const { STAGE } = await import('../js/ui/logo/logoStageRules.js');
 
 // A logo whose wrap is its own element, as .app-logo-wrap is in the topbar.
 const makeLogo = () => {

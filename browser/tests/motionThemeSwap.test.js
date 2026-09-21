@@ -6,7 +6,7 @@ import {
   themeSwap, originOf, THEME_SWAP_MS, THEME_SWAP_CLASS, SWAP_DUST_LIFE_MS, SWAP_EDGE_POINTS,
   DUST_ALPHA_LEVELS,
 } from '../js/ui/motion.js';
-import { FILL_CHUNK } from '../js/ui/dustCloud.js';
+import { FILL_CHUNK } from '../js/ui/dust/dustCloud.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { el, withDoc, rootStub } from './helpers/motionRig.js';
 

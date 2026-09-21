@@ -18,7 +18,7 @@ beforeEach(() => {
 });
 
 const { wireTypedWords, matchTypedWord } = await import('../js/ui/bindings/typedWords.js');
-const { logoStageOpen, closeLogoStage } = await import('../js/ui/logoStage.js');
+const { logoStageOpen, closeLogoStage } = await import('../js/ui/logo/logoStage.js');
 
 const type = (text, over = {}) => {
   for (const key of text) doc.dispatch('keydown', { key, target: body, ...over });

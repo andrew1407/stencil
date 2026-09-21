@@ -12,7 +12,7 @@ import { COMPONENTS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const componentsCss = COMPONENTS_CSS;
-const tooltipJs = read('../js/ui/controlTooltip.js');
+const tooltipJs = read('../js/ui/tip/controlTooltip.js');
 
 // A keydown as the DOM reports it. `code` is the PHYSICAL key, which is the only side
 // that still says "A" when a Mac turns Alt+A into "å".

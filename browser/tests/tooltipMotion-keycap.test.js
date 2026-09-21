@@ -4,12 +4,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { parseCombo, eventCombo, comboMatchesEvent, dustOrigin, DUST_CURSOR_PX } from '../js/ui/controlTooltip.js';
+import { parseCombo, eventCombo, comboMatchesEvent, dustOrigin, DUST_CURSOR_PX } from '../js/ui/tip/controlTooltip.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const componentsCss = COMPONENTS_CSS;
-const tooltipJs = read('../js/ui/controlTooltip.js');
+const tooltipJs = read('../js/ui/tip/controlTooltip.js');
 
 // A keydown as the DOM reports it. `code` is the PHYSICAL key, which is the only side
 // that still says "A" when a Mac turns Alt+A into "å".
@@ -83,7 +83,7 @@ test('every cap nudges once the tooltip has LANDED, announcing the shortcut', ()
 test('the shake is wired to the tooltip’s own caps, one shot, and Escape still dismisses', () => {
   // The combos rendered on the live tooltip are kept from the same parse renderTip ran,
   // so a cap can be matched back to the shortcut it spells.
-  assert.match(tooltipJs, /import \{ renderTip, parseTip \} from '\.\/tipContent\.js';/);
+  assert.match(tooltipJs, /import \{ renderTip, parseTip \} from '[^']*tipContent\.js';/);
   assert.match(tooltipJs, /curCombos = parseTip\(txt\)\.keys;/);
   assert.match(tooltipJs, /curCombos = \[\];/, 'and cleared with the tooltip');
   // Matching key -> shake and KEEP the tooltip; anything else -> the old dismissal.

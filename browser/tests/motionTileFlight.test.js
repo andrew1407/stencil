@@ -6,7 +6,7 @@ import {
   tileWaypoint, tileMotion, surfaceMotion, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
   DUST_ALPHA_LEVELS, DISINTEGRATE_MS, MIN_TILE_MS,
 } from '../js/ui/motion.js';
-import { FLIGHTS, moteFrame } from '../js/ui/dustCloud.js';
+import { FLIGHTS, moteFrame } from '../js/ui/dust/dustCloud.js';
 import { motionSource } from './helpers/motionSource.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { box } from './helpers/motionRig.js';

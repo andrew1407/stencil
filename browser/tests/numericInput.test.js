@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   evalNumericExpression as ev, enhanceNumericInput, COMMIT_DEBOUNCE_MS,
-} from '../js/ui/numericInput.js';
+} from '../js/ui/control/numericInput.js';
 
 test('plain numbers pass straight through', () => {
   assert.equal(ev('54'), 54);
