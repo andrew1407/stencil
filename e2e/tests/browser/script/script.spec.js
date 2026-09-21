@@ -1,12 +1,12 @@
-// Browser .stc e2e: the script window (browser/js/ui/scriptModal.js) and the facade's
+// Browser .stc e2e: the script window (browser/js/ui/script/modal.js) and the facade's
 // stencil.execScript, driven with the SHARED fixture corpus
 // (browser/js/config/script/fixtures/cases.txt) — the same scripts the core is proved on.
 // The highlight layer and the diagnostics strip both come from the core's own token stream,
 // so a span in the editor and a run of the script can never disagree about a line.
 import { test, expect } from '@playwright/test';
-import { gotoApp, expectModalOpen, settleModalAnimations } from '../../helpers/boot.js';
+import { gotoApp, expectModalOpen, settleModalAnimations } from '../../../helpers/boot.js';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { stcCase } from '../../helpers/stcCases.js';
+import { stcCase } from '../../../helpers/stcCases.js';
 
 const LAYOUT_URL = 'https://example.com/layout.json';
 

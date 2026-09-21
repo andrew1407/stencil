@@ -4,8 +4,8 @@
 //   TOUCH  tap → confirm, this tab              long press (≥500ms) → confirm, NEW TAB
 // Driven through the real browser: the app's shared confirm dialog, and a real second page.
 import { test, expect } from '@playwright/test';
-import { gotoApp, seedProjectsAndOpenList } from '../../helpers/boot.js';
-import { finger, ghostBox } from '../../helpers/drag.js';
+import { gotoApp, seedProjectsAndOpenList } from '../../../helpers/boot.js';
+import { finger, ghostBox } from '../../../helpers/drag.js';
 
 // Two saved local projects, then the Projects modal open (helpers/boot.js). Returns the
 // row of the project that is NOT active, so every gesture has something real to switch to.
@@ -132,7 +132,7 @@ test.describe('projects list: touch gestures', () => {
     expect(await activeId(page)).toBe(before);
 
     // 2. "Open in a new tab" on touch lives in the row's ⋯ menu — the hold belongs to
-    // drag-to-reorder (touchDrag.js picks the row up at 280ms), so it is NOT overloaded.
+    // drag-to-reorder (drag.js picks the row up at 280ms), so it is NOT overloaded.
     await expect(page.locator('#projects-modal-overlay')).toHaveClass(/modal-open/);
     await target.locator('.project-more').click();
     const item = page.locator('.project-menu-item', { hasText: 'Open in new tab' });

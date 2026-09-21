@@ -1,8 +1,8 @@
-// The canvas viewport's own overlay scrollbars (js/ui/canvasScrollbars.js): revealed by a
+// The canvas viewport's own overlay scrollbars (js/ui/scrollbars.js): revealed by a
 // scroll, thin grey pills at rest, and only the bar under the real pointer swells to the
 // accent — the other stays grey — then both fade after the idle spell.
 import { test, expect } from '@playwright/test';
-import { gotoApp } from '../../helpers/boot.js';
+import { gotoApp } from '../../../helpers/boot.js';
 
 test('only the hovered bar takes the accent, and the bars fade when idle', async ({ page }) => {
   await gotoApp(page);
@@ -54,7 +54,7 @@ test('only the hovered bar takes the accent, and the bars fade when idle', async
   await expect(barX).not.toHaveClass(/canvas-sb-on/);
 
   // The viewport keeps its pinned height across zooms — the bars never count as
-  // content under it (zoomPan.js sums the viewport's following siblings).
+  // content under it (pan.js sums the viewport's following siblings).
   const heightAt200 = await viewport.evaluate((el) => el.getBoundingClientRect().height);
   await page.evaluate(() => { window.stencil.zoomLevel = 50; });
   await expect.poll(() => page.evaluate(() => window.stencil.zoomLevel)).toBe(50);

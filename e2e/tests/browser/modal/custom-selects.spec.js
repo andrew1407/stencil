@@ -4,7 +4,7 @@
 // desktop app makes the same swap (support/SearchCombo.hpp), and the exception on both
 // sides is the ZOOM control, which is a number field with a preset list attached.
 import { test, expect } from '@playwright/test';
-import { gotoApp } from '../../helpers/boot.js';
+import { gotoApp } from '../../../helpers/boot.js';
 
 test('every selector opens the app dropdown, and hovers as a pointer', async ({ page }) => {
   await gotoApp(page);

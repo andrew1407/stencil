@@ -4,8 +4,8 @@
 // not the browser's `setDragImage` snapshot — which rasterized at the device scale on HiDPI and
 // was unreachable from the DOM. Right size, right place, gone afterwards, on mouse and finger.
 import { test, expect } from '@playwright/test';
-import { gotoApp, seedProjectsAndOpenList } from '../../helpers/boot.js';
-import { finger, ghostBox, spyOnDragImage } from '../../helpers/drag.js';
+import { gotoApp, seedProjectsAndOpenList } from '../../../helpers/boot.js';
+import { finger, ghostBox, spyOnDragImage } from '../../../helpers/drag.js';
 
 // Create N distinct saved local projects via the facade (each blank auto-saves; newEditor
 // starts a fresh one), then open the Projects modal and wait for the draggable rows.

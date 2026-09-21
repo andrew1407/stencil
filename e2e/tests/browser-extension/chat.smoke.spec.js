@@ -68,7 +68,7 @@ test.describe('extension AI assistant (embedded section)', () => {
     await popup.evaluate(() => document.getElementById('open-chat').click());
     await expect(popup.locator('#sec-assistant')).not.toHaveClass(/collapsed/);
 
-    // The provider line lives on the … trigger's rich tooltip (lib/chatStatusTip.js), built on
+    // The provider line lives on the … trigger's rich tooltip (lib/statusTip.js), built on
     // hover — not a title attribute.
     await popup.locator('#chat-more-btn').hover();
     await expect(popup.locator('.chat-status-tip')).toContainText('OpenAI API', { timeout: 15_000 });

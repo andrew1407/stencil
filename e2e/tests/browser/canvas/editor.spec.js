@@ -3,7 +3,7 @@
 // tokens + the px↔page coordinate mapping, bulk settings apply, and save→reload
 // persistence. All driven against the served app in a real browser.
 import { test, expect } from '@playwright/test';
-import { gotoApp, APP_URL } from '../../helpers/boot.js';
+import { gotoApp, APP_URL } from '../../../helpers/boot.js';
 
 test('real pointer drawing builds a line on the canvas', async ({ page }) => {
   await gotoApp(page);

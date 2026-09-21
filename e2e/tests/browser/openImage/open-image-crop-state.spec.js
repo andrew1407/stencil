@@ -3,8 +3,8 @@
 // Both used to drop the row (and the rect) while the picture stayed, so a ticked Crop
 // simply vanished. Desktop twin: OpenImageDialog::stalePreview / applyMode.
 import { test, expect } from '@playwright/test';
-import { gotoApp, APP_URL } from '../../helpers/boot.js';
-import { pngFile } from '../../helpers/png.js';
+import { gotoApp, APP_URL } from '../../../helpers/boot.js';
+import { pngFile } from '../../../helpers/png.js';
 
 const PICTURE = `${APP_URL}__e2e__/preview.png`;
 const cropRow = (page) => page.locator('#open-image-crop-row');
