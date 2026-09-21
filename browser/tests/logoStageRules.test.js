@@ -41,7 +41,7 @@ test('a preset resolves by its row; a styled row needs its motion mode', () => {
 test('a custom hex resolves by value: white follows, black escapes, anything else flies', () => {
   assert.equal(resolveShow('violet', '#ffffff', 'particles'), 'chaseMe');
   assert.equal(resolveShow('violet', ' #FFFFFF ', 'particles'), 'chaseMe', 'case and space do not matter');
-  assert.equal(resolveShow('violet', '#000000', 'particles'), 'ranaway');
+  assert.equal(resolveShow('violet', '#000000', 'particles'), 'runaway');
   assert.equal(resolveShow('violet', '#123456', 'particles'), 'randomWalk');
   assert.equal(resolveShow('violet', '', 'particles'), 'neonOn', 'an empty custom is no custom');
 });
@@ -56,7 +56,7 @@ test('a styled show wears its own cloud; every other one wears the style in use'
   assert.equal(showStyle('pushToBloat', 'water'), 'water');
   assert.equal(showStyle('makeItSmall', 'fire'), 'fire');
   // Particles off: no cloud anywhere, and the light does the whole show.
-  assert.equal(showStyle('ranaway', null), null);
+  assert.equal(showStyle('runaway', null), null);
   // Neon IS the light and sun its own ring of beams: no cloud however the particles are set.
   assert.equal(showStyle('neonOn', 'dust'), null);
   assert.equal(showStyle('makeSomeSunshine', 'dust'), null);
