@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   parseOpPlan, validateAsk, askAnswerText, ASK_LIMITS, DEFAULT_CUSTOM_LABEL,
-} from '../js/llm/opPlan.js';
+} from '../js/llm/plan/opPlan.js';
 import { askPlan, askOf } from './helpers/opPlanRig.js';
 
 // ── §11 interactive replies (`ask`) ─────────────────────────────────────────

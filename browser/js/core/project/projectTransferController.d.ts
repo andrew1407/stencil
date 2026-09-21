@@ -4,7 +4,7 @@
 import type { Storage } from '../storage/storage.js';
 import type { TabsCoordinator } from '../tabsCoordinator.js';
 import type { RemoteSyncController, RemoteLink } from '../remote/remoteSyncController.js';
-import type { ProjectMeta, ProjectLayout } from './projectsStore.js';
+import type { ProjectMeta, ProjectLayout } from './store/projectsStore.js';
 import type { ConnectionManager } from '../../net/connectionManager.js';
 import type { RemoteProjectRecord } from '../../net/serverConnection.js';
 

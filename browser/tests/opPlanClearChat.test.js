@@ -2,7 +2,7 @@
 // end, its declined-confirm note, and the deferredSink the turn runner flushes.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan, EDITOR_SETTINGS_PROMPT, FORBIDDEN_OPS } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan, EDITOR_SETTINGS_PROMPT, FORBIDDEN_OPS } from '../js/llm/plan/opPlan.js';
 import { plan, bad, makeStub, dropsWithWarning } from './helpers/opPlanRig.js';
 
 // ── §10 clearChat: the clear-conversation flow, deferred to the plan's end ──

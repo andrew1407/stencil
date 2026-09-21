@@ -2,7 +2,7 @@
 // `save` persists, and both are top-level only.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan } from '../js/llm/plan/opPlan.js';
 import { plan, makeStub, dropsWithWarning, askPlan } from './helpers/opPlanRig.js';
 
 // ── §2.1 multi-image ops: `image` switches to a turn attachment, `save` persists ──

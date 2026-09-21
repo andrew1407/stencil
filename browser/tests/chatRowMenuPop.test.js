@@ -37,8 +37,8 @@ test('the opened menu carries the click-point transform-origin, and CSS pops it 
 
 // ── Resend's requeue mirrors requeueLastTurnAttachments ──
 test('requeueRowAttachments refills an EMPTY queue only, capped, as analyze-images', async () => {
-  const { requeueRowAttachments } = await import('../js/llm/chatSession.js');
-  const { MAX_ATTACHMENTS } = await import('../js/llm/chatController.js');
+  const { requeueRowAttachments } = await import('../js/llm/chat/chatSession.js');
+  const { MAX_ATTACHMENTS } = await import('../js/llm/chat/chatController.js');
   const rowAts = [
     { name: 'cat.jpg', kind: 'image', dataUrl: 'data:image/jpeg;base64,AAA' },
     { name: 'clip.mp4', kind: 'video', dataUrl: 'data:image/jpeg;base64,BBB' },   // first frame

@@ -2,7 +2,7 @@
 // dot on the "…" trigger plus its themed tooltip. Never blocks sending. Split out of chatPanel.js.
 import { probeProvider } from '../../llm/llmClient.js';
 import { loadLlmSettings, serverBearerToken } from '../../llm/llmSettings.js';
-import { cacheProbe, probeStatusClass } from '../../llm/chatSession.js';
+import { cacheProbe, probeStatusClass } from '../../llm/chat/chatSession.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { surfaceIn, surfaceOut, settleSurface, rectCenter,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from '../motion.js';

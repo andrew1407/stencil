@@ -2,7 +2,7 @@
 // servers for connect, live connections for disconnect, and resolveServer itself.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan, resolveServer } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan, resolveServer } from '../js/llm/plan/opPlan.js';
 import { plan, makeStub } from './helpers/opPlanRig.js';
 
 test('executor: settings ops route through the facade settings paths, in plan order', async () => {

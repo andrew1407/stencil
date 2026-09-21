@@ -1,6 +1,6 @@
 import { replayWaves } from '../motion.js';
 import { notify } from '../../utils.js';
-import { VOICE_STATE_EVENT } from '../../llm/voiceModes.js';
+import { VOICE_STATE_EVENT } from '../../llm/voice/voiceModes.js';
 import { attachVoiceDust } from '../dust/voiceDust.js';
 import { subscribe } from '../../eventBus/appBus.js';
 // The hands-free voice chat toggle (js/llm/voiceModes.js): `--voice-level` on <html>

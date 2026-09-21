@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { parseOpPlan } from '../js/llm/opPlan.js';
+import { parseOpPlan } from '../js/llm/plan/opPlan.js';
 
 const FIXTURES_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'config', 'llm', 'fixtures', 'opPlan');

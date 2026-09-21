@@ -2,7 +2,7 @@
 // top-level only, and custom cm sizes drive the setters at 96 dpi.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan } from '../js/llm/plan/opPlan.js';
 import { plan, ok, bad, makeStub, dropsWithWarning } from './helpers/opPlanRig.js';
 
 // ── §2 undo/redo: the surface's own edit history, top-level only ──

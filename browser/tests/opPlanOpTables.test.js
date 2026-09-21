@@ -2,7 +2,7 @@
 // crop, rotate, filter, layout, formula, page, blank and frame.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan } from '../js/llm/plan/opPlan.js';
 import { plan, ok, bad, makeStub } from './helpers/opPlanRig.js';
 
 // ── Per-op acceptance / rejection tables ──

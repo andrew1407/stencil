@@ -2,7 +2,7 @@
 // actions-bearing option, and the working image restored after every one.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { renderAskPreviews } from '../js/llm/opPlan.js';
+import { renderAskPreviews } from '../js/llm/plan/opPlan.js';
 import { askOf } from './helpers/opPlanRig.js';
 
 // §11 renderAskPreviews, against a mock facade recording what the executor did: every preview

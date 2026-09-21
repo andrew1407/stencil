@@ -2,7 +2,7 @@
 // it repaints, a "…" trigger on every settled row, and no row left spinning.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { resetChatLog, chatLog, runLoggedChatTurn, chatTurnInFlight } from '../js/llm/chatSession.js';
+import { resetChatLog, chatLog, runLoggedChatTurn, chatTurnInFlight } from '../js/llm/chat/chatSession.js';
 import { descendants, makeEl, stubDom, rowsOf, textNodesOf, PROMPT } from './helpers/chatTranscriptRig.js';
 
 // ── The reported bug: a bubble showing its prompt twice ─────────────────────
@@ -114,7 +114,7 @@ test('a turn that settles with an EMPTY reply still drops its typing indicator',
 
 test('a blank model answer becomes WORDS, not an empty bubble', async () => {
   const { settledReplyText, EMPTY_REPLY_TEXT, replyWithWarnings } =
-    await import('../js/llm/chatSession.js');
+    await import('../js/llm/chat/chatSession.js');
   // Nothing at all to show → say so; anything else is passed straight through.
   assert.strictEqual(settledReplyText({ reply: '', warnings: [] }), EMPTY_REPLY_TEXT);
   assert.strictEqual(settledReplyText({ reply: '   ' }), EMPTY_REPLY_TEXT);

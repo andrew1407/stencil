@@ -1,7 +1,7 @@
 // A stored layout back into editor state, in the groups the window-side adapter paints
 // between, plus the two shapes a payload with no image takes.
 import type { DrawingApp } from '../drawingApp.js';
-import type { ProjectLayout } from '../project/projectsStore.js';
+import type { ProjectLayout } from '../project/store/projectsStore.js';
 import type { Storage } from './storage.js';
 
 /** Custom page size and the unit, then the unit sweep over the UI. */

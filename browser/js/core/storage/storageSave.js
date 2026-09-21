@@ -1,9 +1,9 @@
 // Writing the ACTIVE project: what blocks a save, and the one payload write — through the
 // quota-retrying upsert, which puts the payload key down before the registry row.
-import { shouldPersist } from '../project/projectsStore.js';
+import { shouldPersist } from '../project/store/projectsStore.js';
 import { getSyncToServer } from '../../net/connectionStore.js';
 import { upsertWithQuota } from './quotaWriter.js';
-import { buildLayoutState, buildProjectMeta } from '../project/projectMeta.js';
+import { buildLayoutState, buildProjectMeta } from '../project/meta/projectMeta.js';
 
 // Nothing persists when sync is off on a fetched server project, or in a temporary editor.
 export const saveBlockedReason = (storage) =>

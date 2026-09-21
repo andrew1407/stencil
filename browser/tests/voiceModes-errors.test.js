@@ -2,7 +2,7 @@
 // fatal engine error, a live language swap and the level subscribers. From voiceModes.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { VOICE_SETTINGS_EVENT } from '../js/llm/voiceSettings.js';
+import { VOICE_SETTINGS_EVENT } from '../js/llm/voice/voiceSettings.js';
 import { make } from './helpers/voiceModesRig.js';
 
 test('voice chat serializes utterances behind a slow turn; a failed turn breaks neither chain nor mode', async () => {

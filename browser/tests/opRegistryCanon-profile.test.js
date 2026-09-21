@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { OPS, FORBIDDEN_OPS } from '../js/llm/opPlan.js';
+import { OPS, FORBIDDEN_OPS } from '../js/llm/plan/opPlan.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const registry = JSON.parse(readFileSync(

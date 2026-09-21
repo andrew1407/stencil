@@ -6,7 +6,7 @@ import assert from 'node:assert';
 import {
   chatLog, resetChatLog, chatTurnInFlight,
   runLoggedChatTurn, unreachableText, queueAttachments, ATTACHMENT_CAP_NOTICE,
-} from '../js/llm/chatSession.js';
+} from '../js/llm/chat/chatSession.js';
 import { LlmError } from '../js/llm/llmClient.js';
 
 // ── The logged-turn frame: error paths, Stop, and the spinning-row guard ────

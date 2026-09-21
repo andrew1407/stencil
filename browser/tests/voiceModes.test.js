@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   splitSendPhrase, SEND_PHRASES, UNSUPPORTED_TEXT,
-} from '../js/llm/voiceModes.js';
+} from '../js/llm/voice/voiceModes.js';
 import { make } from './helpers/voiceModesRig.js';
 
 test('splitSendPhrase: the four phrases only as the whole tail, case and punctuation tolerant', () => {

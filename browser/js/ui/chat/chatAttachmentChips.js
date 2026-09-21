@@ -1,7 +1,7 @@
 // The composer's queued-attachment chips; whoever mutates attachments fires
 // CHAT_ATTACHMENTS_EVENT so both surfaces repaint.
 import { ATTACH_SETTLE_STEP_MS, ATTACH_SETTLE_TRIES, chipLeave } from './chatLeave.js';
-import { CHAT_ATTACHMENTS_EVENT } from '../../llm/chatController.js';
+import { CHAT_ATTACHMENTS_EVENT } from '../../llm/chat/chatController.js';
 import { LEAVING_CLASS, wipeDurationMs } from '../motion.js';
 import { icon } from '../icons.js';
 import { publish } from '../../eventBus/appBus.js';

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { describeChatError } from '../js/llm/chatSession.js';
+import { describeChatError } from '../js/llm/chat/chatSession.js';
 import { LlmError } from '../js/llm/llmClient.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
@@ -35,7 +35,7 @@ test('a turn landing on a closed chat toasts, and only WORK IN FLIGHT marks the 
 // stencil-server posts to /llm/chat with the same bearer the projects list uses, so a stale
 // token 401s there too: the session is over and reconnect is the cure, not "unreachable".
 test('an expired stencil-server session is named as such in the chat card', async () => {
-  const { describeChatError } = await import('../js/llm/chatSession.js');
+  const { describeChatError } = await import('../js/llm/chat/chatSession.js');
   const { LlmError } = await import('../js/llm/llmClient.js');
   const http = (msg, status) => Object.assign(new LlmError(msg, 'http'), { status, answered: true });
   const settings = { provider: 'stencil-server', serverUrl: 'http://localhost:8090' };
@@ -57,7 +57,7 @@ test('an expired stencil-server session is named as such in the chat card', asyn
 test('the expired card carries a Reconnect CTA instead of Configure provider', async () => {
   const view = chatViewSource();
   // The row patch marks it, the renderer picks the CTA off that mark…
-  const session = readFileSync(new URL('../js/llm/chatSession.js', import.meta.url), 'utf8');
+  const session = readFileSync(new URL('../js/llm/chat/chatSession.js', import.meta.url), 'utf8');
   assert.match(session, /card: res\.kind === 'unreachable' \|\| res\.kind === 'expired'/);
   assert.match(session, /reconnect: res\.kind === 'expired' \? \(res\.serverUrl \|\| ''\) : null/);
   assert.ok(view.includes("const cta = row.reconnect ? '.chat-reconnect-cta' : '.chat-config-cta';"));

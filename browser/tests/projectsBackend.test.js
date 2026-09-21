@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createProjectsBackend } from '../js/core/project/projectsBackend.js';
-import { ProjectsStore, REGISTRY_KEY, PROJECT_PREFIX } from '../js/core/project/projectsStore.js';
+import { createProjectsBackend } from '../js/core/project/store/projectsBackend.js';
+import { ProjectsStore, REGISTRY_KEY, PROJECT_PREFIX } from '../js/core/project/store/projectsStore.js';
 import { createMemoryStorage } from './helpers/memoryStorage.js';
 
 // The backend splits ProjectsStore's keys across two homes: payload keys

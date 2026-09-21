@@ -1,7 +1,7 @@
 // Another tab changed the project set: what the editor does when the project it is showing
 // is removed, cleared, closed, or saved again by a peer.
 import { notify } from '../../utils.js';
-import { getProjectsBackend } from '../project/projectsBackend.js';
+import { getProjectsBackend } from '../project/store/projectsBackend.js';
 import { PROJECT_ACTION } from '../../worker/messages.js';
 
 // Safe to swap content under the user.

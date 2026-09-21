@@ -7,12 +7,12 @@ import { installMemoryStorage } from './helpers/memoryStorage.js';
 
 const mem = installMemoryStorage()._map;
 
-const { createChatPersistence, wireChatPersistence } = await import('../js/llm/chatPersistence.js');
-const { createChatStore, buildChatDoc } = await import('../js/llm/chatStore.js');
+const { createChatPersistence, wireChatPersistence } = await import('../js/llm/chat/chatPersistence.js');
+const { createChatStore, buildChatDoc } = await import('../js/llm/chat/chatStore.js');
 const {
   appendChatRow, updateChatRow, clearChatLog, chatLog, resetChatLog, forgetChatController, peekChatController,
   clearSharedConversation,
-} = await import('../js/llm/chatSession.js');
+} = await import('../js/llm/chat/chatSession.js');
 
 const makeStore = () => {
   const m = new Map();
@@ -106,7 +106,7 @@ test('wiring persistence does not replace the panel scripting surface', async ()
 // The §12 doc rides the .stencil file and the server's `chat` file kind, so a doc another surface built from
 // its MODEL history must restore as a conversation — no continuation note, no raw plan — and seed the replay.
 test('an old-style document with internal turns restores clean, both sides', async () => {
-  const { CONTINUATION_NOTE } = await import('../js/llm/chatStore.js');
+  const { CONTINUATION_NOTE } = await import('../js/llm/chat/chatStore.js');
   const store = makeStore();
   // Exactly what a surface serialising its MODEL history produces (the desktop's bug):
   // the interim round-1 reply, the raw plans, and §7's continuation note.

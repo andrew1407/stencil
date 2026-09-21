@@ -5,7 +5,7 @@ import assert from 'node:assert';
 import {
   LLM_SYSTEM_PROMPT, EDITOR_SETTINGS_PROMPT, OPS, FORBIDDEN_OPS, ForbiddenOpError,
   assemblePrompts, BROWSER_CAPABILITIES, parseOpPlan, executeOpPlan,
-} from '../js/llm/opPlan.js';
+} from '../js/llm/plan/opPlan.js';
 import { plan, makeStub } from './helpers/opPlanRig.js';
 
 // §13 registry pins: op names, flags and one key phrase per bullet, never block bytes — the
@@ -102,7 +102,7 @@ test('§13: every bullet keeps its key semantic phrase', () => {
 // flushDeferred), and that pass needs its own capability bag or the op dies on the replay.
 test('every deferred op\'s capability rides the end-of-turn replay', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/llm/chatRespond.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/llm/chat/chatRespond.js', import.meta.url), 'utf8');
   const flush = src.slice(src.indexOf('const flushDeferred'), src.indexOf('// One model round'));
   // …and the dedup keeps the LAST of each op: "close this window and open that one" is
   // two dialog actions, and first-wins left the user with neither.

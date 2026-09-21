@@ -2,7 +2,7 @@
 // in place, and a fetch failure explains what the editor can reach.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan } from '../js/llm/plan/opPlan.js';
 import { plan, ok, bad, makeStub, dropsWithWarning } from './helpers/opPlanRig.js';
 
 // ── §10 openUrl: user-echoed URLs only ──

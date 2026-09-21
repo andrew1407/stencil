@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 
-import { sharedChatController, forgetChatController } from '../js/llm/chatSession.js';
+import { sharedChatController, forgetChatController } from '../js/llm/chat/chatSession.js';
 
 // The REAL injected capabilities, captured off sharedChatController: `create` is the test seam, so the
 // closures under test are the production ones.

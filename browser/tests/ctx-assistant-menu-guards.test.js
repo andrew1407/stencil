@@ -5,7 +5,7 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import {
   unreachableText, describeChatError, chatLog, resetChatLog, runLoggedChatTurn,
-} from '../js/llm/chatSession.js';
+} from '../js/llm/chat/chatSession.js';
 import { LlmError } from '../js/llm/llmClient.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
 
@@ -81,7 +81,7 @@ test('every bare identifier contextMenu.js uses from other llm modules is import
 // The closed-chat balloon is built once for every surface: the flyout's toast frames the
 // outcome and carries a click action, exactly as the panel's does.
 test('closedTurnToast: one framing for both surfaces, and silence for an abort', async () => {
-  const { closedTurnToast, CHAT_TOAST_CHARS, EMPTY_REPLY_TEXT } = await import('../js/llm/chatSession.js');
+  const { closedTurnToast, CHAT_TOAST_CHARS, EMPTY_REPLY_TEXT } = await import('../js/llm/chat/chatSession.js');
   assert.deepStrictEqual(closedTurnToast({ ok: true, entry: { reply: 'Cropped it.', results: [] } }),
     { text: 'Assistant finished — Cropped it.', type: 'ok' });
   // The image count rides the framing, pluralised.

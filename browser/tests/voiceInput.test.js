@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createVoiceInput, isVoiceSupported } from '../js/llm/voiceInput.js';
+import { createVoiceInput, isVoiceSupported } from '../js/llm/voice/voiceInput.js';
 import { createFakeSpeechRecognition, stubClock } from './helpers/speech.js';
 
 // A level meter double: records start/stop, lets the test push a level.

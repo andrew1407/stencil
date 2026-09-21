@@ -2,7 +2,7 @@
 // the conflict-merge retry loop and the server layout-adoption helpers. Holds only sync
 // timing state; the session link, connections and the editor model live on the app.
 import type { DrawingApp } from '../drawingApp.js';
-import type { ProjectLayout } from '../project/projectsStore.js';
+import type { ProjectLayout } from '../project/store/projectsStore.js';
 import type { ServerConnection, ProjectEventMessage } from '../../net/serverConnection.js';
 
 /** The editor's link to a server project; version is the save-back guard. */

@@ -33,7 +33,7 @@ test('a layout plan issues EXACTLY ONE model round — nothing follows the reply
 });
 
 test('the withdrawn machinery is gone from the controller\'s surface', async () => {
-  const mod = await import('../js/llm/chatController.js');
+  const mod = await import('../js/llm/chat/chatController.js');
   for (const gone of ['auxDeadline', 'AUX_ROUND_TIMEOUT_MS', 'findSuspectLines',
     'LAYOUT_CORRECTION_PROMPT', 'REFINE_MAX_PARALLEL', 'REFINE_MAX_RENDER_ZOOM']) {
     assert.strictEqual(mod[gone], undefined, `${gone} must not exist`);
@@ -47,7 +47,7 @@ test('the withdrawn machinery is gone from the controller\'s surface', async () 
   assert.strictEqual(typeof mod.EDGE_MAP_SENTENCE, 'string');
   assert.match(mod.EDGE_MAP_SENTENCE, /edge-map render of the working image/);
   assert.strictEqual(typeof mod.contourDataUrl, 'function');
-  const src = readFileSync(new URL('../js/llm/chatController.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/llm/chat/chatController.js', import.meta.url), 'utf8');
   assert.ok(!/refineOutlines|correctDrawnLayout|refineDrawnOutlines|startAuxChain/.test(src));
   assert.ok(!/could not be sharpened/.test(src), 'no sharpening note can be produced');
 });

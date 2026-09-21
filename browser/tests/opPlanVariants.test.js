@@ -2,7 +2,7 @@
 // per variant, the clean restore snapshot and the frame fan-out.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan } from '../js/llm/plan/opPlan.js';
 import { plan, ok, bad, makeStub, dropsWithWarning } from './helpers/opPlanRig.js';
 
 // "Remove the image" must actually remove it. Without this op a model reaches for

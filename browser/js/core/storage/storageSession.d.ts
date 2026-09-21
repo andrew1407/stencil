@@ -1,7 +1,7 @@
 // The active-project session over ProjectsStore: attaching the store, the boot sweep, the
 // refresh-on-open snap, promoting a temporary editor, and clearing the editor.
 import type { DrawingApp } from '../drawingApp.js';
-import type { ProjectsStore } from '../project/projectsStore.js';
+import type { ProjectsStore } from '../project/store/projectsStore.js';
 import type { Storage } from './storage.js';
 
 /** The store over the IndexedDB-mirroring backend, with its write-error hint wired. */

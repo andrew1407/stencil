@@ -2,7 +2,7 @@
 // fallbacks, the plan-level count limits and sanitizeLabel.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, sanitizeLabel } from '../js/llm/opPlan.js';
+import { parseOpPlan, sanitizeLabel } from '../js/llm/plan/opPlan.js';
 import { plan } from './helpers/opPlanRig.js';
 
 // ── Extraction tolerance ──

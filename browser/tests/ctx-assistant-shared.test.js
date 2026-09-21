@@ -5,7 +5,7 @@ import assert from 'node:assert';
 import {
   sharedChatController, peekChatController, forgetChatController, runChatTurn, chatLog,
   appendChatRow, resetChatLog, clearSharedConversation,
-} from '../js/llm/chatSession.js';
+} from '../js/llm/chat/chatSession.js';
 
 // ── One controller for the whole app: the panel and the menu share the history ──
 const recordingController = () => ({

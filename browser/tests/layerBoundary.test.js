@@ -95,7 +95,7 @@ const CORE_DOM_ALLOWANCE = {
   'core/image/imageFilterCanvas.js': 1, 'core/image/imageModel.js': 2, 'core/image/imageSettle.js': 1,
   'core/pointer/inputController.js': 7, 'core/launchController.js': 4, 'core/layoutInstall.js': 1,
   'core/line/lineSelection.js': 1, 'core/pointer/pointerController.js': 5, 'core/project/projectFileIO.js': 2,
-  'core/project/projectFilePicker.js': 6, 'core/project/projectMeta.js': 1, 'core/project/projectServerTransfer.js': 1, 'core/project/projectTransferController.js': 3,
+  'core/project/projectFilePicker.js': 6, 'core/project/meta/projectMeta.js': 1, 'core/project/projectServerTransfer.js': 1, 'core/project/projectTransferController.js': 3,
   'core/storage/quotaWriter.js': 1, 'core/remote/stencilSync.js': 2, 'core/storage/storage.js': 1,
   'core/tabsCoordinator.js': 3, 'core/videoFrame.js': 1,
   'core/zoom/viewportSync.js': 6, 'core/zoom/zoomAnimation.js': 2, 'core/zoom/zoomPan.js': 1,
@@ -121,7 +121,7 @@ test('js/core, js/llm and js/net import nothing from js/ui beyond the frozen all
 
 // Rule 3 — only the console layer speaks `window.stencil`: index.js installs it by defineProperty and
 // never reads it back; the sites below should be handed the facade instead.
-const FACADE_ALLOWANCE = { 'llm/adapters/media.js': 1, 'llm/chatSession.js': 1, 'ui/chat/chatCards.js': 1 };
+const FACADE_ALLOWANCE = { 'llm/adapters/media.js': 1, 'llm/chat/chatSession.js': 1, 'ui/chat/chatCards.js': 1 };
 
 test('window.stencil appears outside js/console only in the frozen allowance', () => {
   const files = walk('').filter((rel) => !rel.startsWith('console/'));

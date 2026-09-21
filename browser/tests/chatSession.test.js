@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 
-import { uniqueProjectName, resolveProjectByName } from '../js/llm/chatSession.js';
+import { uniqueProjectName, resolveProjectByName } from '../js/llm/chat/chatSession.js';
 
 // ── §10 name helpers (pure) ─────────────────────────────────────────────────
 test('uniqueProjectName suffixes until the name is free', () => {

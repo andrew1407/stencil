@@ -2,7 +2,7 @@
 // the §1 coordinate re-mapping that puts plan points where the model saw them.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan } from '../js/llm/plan/opPlan.js';
 import { rotateLinePointsQuarter } from '../js/core/cropGeometry.js';
 import { plan, makeStub, drawnBy } from './helpers/opPlanRig.js';
 

@@ -7,7 +7,7 @@ import { isTouchLike, TOUCH_MEDIA } from '../js/utils.js';
 import {
   sharedChatController, queueAttachments, cacheProbe, cachedProbe, forgetProbe, probeStatusClass,
   PROBE_TTL_MS,
-} from '../js/llm/chatSession.js';
+} from '../js/llm/chat/chatSession.js';
 import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';

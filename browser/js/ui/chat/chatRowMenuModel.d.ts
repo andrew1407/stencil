@@ -1,5 +1,5 @@
-import type { AskPreview, PlanAsk, VariantResult } from '../../llm/opPlan.js';
-import type { Attachment } from '../../llm/chatController.js';
+import type { AskPreview, PlanAsk, VariantResult } from '../../llm/plan/opPlan.js';
+import type { Attachment } from '../../llm/chat/chatController.js';
 
 /** One transcript row, as chatSession.js's shared log stores it. */
 export interface ChatRow {

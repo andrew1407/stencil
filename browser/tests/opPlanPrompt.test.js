@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   LLM_SYSTEM_PROMPT, EDITOR_SETTINGS_PROMPT, EDITOR_SYSTEM_PROMPT, LIMITS,
-} from '../js/llm/opPlan.js';
+} from '../js/llm/plan/opPlan.js';
 import PROMPT_ASSET from '../js/config/llm/systemPrompt.json' with { type: 'json' };
 
 // ── System prompt (contract §4: embedded verbatim) ──

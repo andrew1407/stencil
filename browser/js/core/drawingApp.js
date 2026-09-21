@@ -24,7 +24,7 @@ import { wireCollaborators } from './remote/collaborators.js';
 import { canvasCoords, nearCompareDivider } from './pointer/canvasCoords.js';
 import { openInLaunchPayload } from './launchPayload.js';
 import { onRemoteProjectsChange } from './remote/remoteProjectsWatch.js';
-import { currentLayoutPayload } from './project/projectMeta.js';
+import { currentLayoutPayload } from './project/meta/projectMeta.js';
 import { CoordTable } from '../ui/coordTable.js';
 import { AccentController } from '../ui/accent/accentController.js';
 import { wireControls } from '../ui/bindings/index.js';
