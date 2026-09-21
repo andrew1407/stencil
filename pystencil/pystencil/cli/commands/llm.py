@@ -4,7 +4,7 @@ from __future__ import annotations
 image and context plumbing one prompt round needs.
 """
 
-from ..._types import NoneType
+from ..._ffi.types import NoneType
 from ...editor import Editor
 from ...llm import PROVIDERS, ConsoleServer, LlmClient, console_context
 from ..console import mask as _mask

@@ -1,4 +1,4 @@
-"""The registry-driven schema engine's own semantics (a port of opSchema.js).
+"""The registry-driven schema engine's own semantics (a port of plan/schema.js).
 
 The fixture corpus (test_fixture_conformance.py) proves the verdicts; these pin the
 engine rules the corpus cannot see from outside — null-as-absent, 3.0 as an integer,

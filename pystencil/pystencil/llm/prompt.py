@@ -12,7 +12,7 @@ import importlib.resources
 import json
 import re
 
-from .registry import OP_REGISTRY, OpSpec
+from .plan.registry import OP_REGISTRY, OpSpec
 
 # ── canonical system prompt (contract §4 + §13) ──
 # The prose core is the checked-in canonical asset; "Available ops" is generated from OP_REGISTRY.

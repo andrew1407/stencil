@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import ctypes
 
-from ._types import NoneType
+from ._ffi.types import NoneType
 from . import _native
-from ._bindings import bind
-from ._marshal import _encode
-from ._rasterops import RasterOps
+from ._ffi.bindings import bind
+from ._ffi.marshal import _encode
+from ._raster.ops import RasterOps
 
 
 class Core(RasterOps):

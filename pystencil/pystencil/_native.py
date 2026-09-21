@@ -14,7 +14,7 @@ import importlib.util
 import os
 from pathlib import Path
 
-from ._types import NoneType
+from ._ffi.types import NoneType
 
 
 # build.py sits at the package root (pystencil/build.py), one dir above this file's package.

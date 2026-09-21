@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .path import (
   _bad,
   _child,

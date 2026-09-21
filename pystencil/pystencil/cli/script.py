@@ -13,7 +13,7 @@ from typing import TextIO
 
 from .._script import Diagnostics, ScriptError, parse_script
 from .._severity import emit_error, emit_note
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..core import get_core
 from ..script import run_program
 from ..scriptpaths import MAX_SCRIPT_BYTES, read_script

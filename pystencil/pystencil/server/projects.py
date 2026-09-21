@@ -10,7 +10,7 @@ in for the /ws feed this REST-only client does not open.
 import urllib.parse
 from typing import Any
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .diff import _FIELD_WRITE_RETRIES, _poll_loop, diff_projects
 from .http import ServerError
 

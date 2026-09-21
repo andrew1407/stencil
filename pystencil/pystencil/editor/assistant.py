@@ -4,7 +4,7 @@ from __future__ import annotations
 this editor through the same op-plan validator every surface uses.
 """
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 
 class _AssistantApi:

@@ -6,7 +6,7 @@ table the mixins below register into.
 
 from typing import TextIO
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..editor import Editor
 from ..llm import AskCard, Chat, LlmConfig
 from ..server import ConnectionManager, ServerError

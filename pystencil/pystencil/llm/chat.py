@@ -8,12 +8,12 @@ import json
 import time
 from typing import Any, Iterable
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .client import LlmClient
 from .config import ACCEPTED_MEDIA_TYPES, MAX_ATTACHMENTS
 from .errors import LlmError
-from .limits import CHAT_DOC_VERSION, MAX_HISTORY, chat_display_text
-from .plan import parse_op_plan
+from .plan.limits import CHAT_DOC_VERSION, MAX_HISTORY, chat_display_text
+from .plan.parse import parse_op_plan
 from .prompt import LLM_SYSTEM_PROMPT
 from .run import wire_images
 from .types import OpPlan

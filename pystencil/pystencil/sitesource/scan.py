@@ -8,7 +8,7 @@ DESIGN scan order and dedupes first-wins.
 import urllib.parse
 from html.parser import HTMLParser
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .._net import _is_http
 from .format import MediaItem, _extract_css_urls, format_of
 

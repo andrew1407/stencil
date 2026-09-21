@@ -2,7 +2,7 @@
 
 Python port of the layout JSON the browser exports (``browser/js/core/layout.js``
 ``buildLayoutPayload``) and the CLI/MCP server parse (``mcp/src/layout.rs`` ←
-``cli/src/layout.zig`` ← ``core/raster``). Coordinates are **image pixels**; JSON keys
+``cli/src/media/layout.zig`` ← ``core/raster``). Coordinates are **image pixels**; JSON keys
 are camelCase to match the other front-ends. Like ``buildLayoutPayload``,
 :meth:`Layout.to_dict` always emits ``imageWidth``/``imageHeight``/``lines`` and omits
 the optional geometry/filter fields when ``None``. Parsing is tolerant: missing keys
@@ -15,8 +15,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from ._types import NoneType
-from ._coerce import _as_float, _as_int, _as_str, _opt_bool, _opt_float, _opt_int, _opt_str
+from ._ffi.types import NoneType
+from ._ffi.coerce import _as_float, _as_int, _as_str, _opt_bool, _opt_float, _opt_int, _opt_str
 
 
 # Per-line defaults, applied when a field is omitted. Kept as module constants so

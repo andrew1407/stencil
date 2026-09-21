@@ -9,7 +9,7 @@ import json
 import urllib.error
 from typing import Any, Sequence
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..server import _http_open, _json_request, _parse_http_error, _LLM_TIMEOUT
 from .config import LlmConfig
 from .errors import LlmError, _clean_detail

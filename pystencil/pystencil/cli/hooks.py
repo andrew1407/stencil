@@ -7,7 +7,7 @@ implementation of it.
 
 from typing import Protocol, runtime_checkable
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .. import codecs
 from ..llm import resolve_server
 
