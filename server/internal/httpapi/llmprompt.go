@@ -19,8 +19,8 @@ const promptShapeMarker = `{"version":1,"reply":`
 //go:embed assets/systemPrompt.json
 var systemPromptAsset []byte
 
-// The editor head is browser/js/llm/opPlan.js PROMPT_CORE_HEAD (byte-identical in desktop, cli, pystencil,
-// mcp, bot and contract §4); the extension head is browser-extension/src/llm/opPlan.js (contract §8).
+// The editor head is browser/js/llm/plan/plan.js PROMPT_CORE_HEAD (byte-identical in desktop, cli, pystencil,
+// mcp, bot and contract §4); the extension head is browser-extension/src/llm/op/plan.js (contract §8).
 var llmEditorPromptHead, llmExtensionPromptHead = promptHeads()
 
 // promptHeads cuts both heads out of the embedded asset. A corrupt asset is a

@@ -3,7 +3,7 @@ package llm
 // Who the proxy can talk to: the provider ids, their defaults and credentials,
 // and the table of wire mappings (llm-contract.md §6). protocol.LlmChatRequest/
 // Response is canonical for all of them — only the wire shape differs (cf.
-// browser llmClient.js).
+// browser llm/client.js).
 
 // Provider identifiers (the §5 values the clients use, minus the client-only
 // "stencil-server" — from this process's side that IS the upstream choice).
