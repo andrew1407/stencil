@@ -14,7 +14,7 @@
     "makeItSmall": { "effect": "shrink", "accents": ["grass", "green"] },
     "pushToBloat": { "effect": "grow",   "accents": ["brown"] },
     "chaseMe":     { "effect": "follow", "customHex": "#ffffff" },
-    "ranaway":     { "effect": "escape", "customHex": "#000000" },
+    "runaway":     { "effect": "escape", "customHex": "#000000" },
     "pinkVibe":    { "effect": "pink",   "accents": ["pink"] },
     "randomWalk":  { "effect": "fly",    "customHex": "*" }
   },

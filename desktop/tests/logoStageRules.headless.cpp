@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
     check(resolveShow("brown", MotionMode::NONE) == "pushToBloat", "brown: grow");
     check(resolveShow("pink", MotionMode::NONE) == "pinkVibe", "pink: the edit");
     check(resolveShow("#ffffff", MotionMode::PARTICLES) == "chaseMe", "white follows");
-    check(resolveShow("#000000", MotionMode::PARTICLES) == "ranaway", "black escapes");
+    check(resolveShow("#000000", MotionMode::PARTICLES) == "runaway", "black escapes");
     check(resolveShow("#123456", MotionMode::PARTICLES) == "randomWalk", "any other custom flies");
     check(resolveShow("nosuch", MotionMode::PARTICLES).isEmpty(), "an unknown accent opens nothing");
     check(showByName("neonOn") && !showByName("nope"), "a show is found by name, and only a real one");

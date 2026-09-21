@@ -55,7 +55,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     LogoStage* stage = stageOf(win);
-    QVERIFY2(stage->activateByName("ranaway"), "black opens the fleeing show");
+    QVERIFY2(stage->activateByName("runaway"), "black opens the fleeing show");
 
     const QPoint beside = stage->markPos().toPoint() + QPoint(12, 10);   // well inside its radius
     const double opening = gap(stage->markPos(), beside);
