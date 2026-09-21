@@ -2,7 +2,7 @@
 //! adopted uploads; `pending` is the drop the user has not confirmed yet.
 const Session = @import("../session.zig").Session;
 const max_pending = Session.max_pending;
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const llm = @import("../../llm.zig");
 const Attachment = @import("../session.zig").Attachment;
 

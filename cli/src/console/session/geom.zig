@@ -1,7 +1,7 @@
 //! Rect geometry the console's derived view needs: clamping a crop into an image and
 //! mapping one through clockwise quarter-turns, plus the free-on-error image helper.
 const std = @import("std");
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const core = @import("../../core.zig");
 
 pub fn freeImg(gpa: std.mem.Allocator, img: image.Rgba8, e: anyerror) anyerror {

@@ -2,7 +2,7 @@
 //! be (session / admin / none) and the session token the client then runs on. Only a URL
 //! the USER named is ever dialled (see .claude/rules/security.md).
 const std = @import("std");
-const report = @import("../report.zig");
+const report = @import("../app/report.zig");
 const errors = @import("errors.zig");
 const urls = @import("urls.zig");
 const parse = @import("parse.zig");

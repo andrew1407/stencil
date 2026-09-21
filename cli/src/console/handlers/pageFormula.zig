@@ -1,9 +1,9 @@
 //! `/format` and `/formula`: the page format the header and `/blank` default to, and the
 //! coordinate-transform formulas that ride the saved layout (validated by the core parser).
 const std = @import("std");
-const logo = @import("../../logo.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
-const msg = @import("../../messages.zig");
+const msg = @import("../../app/messages.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 

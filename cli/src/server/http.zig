@@ -2,7 +2,7 @@
 //! so a non-2xx response's status and (sanitized) message are parked here for the caller.
 const std = @import("std");
 const net = @import("../net.zig");
-const sanitize = @import("../sanitize.zig");
+const sanitize = @import("../safety/sanitize.zig");
 const errors = @import("errors.zig");
 const parse = @import("parse.zig");
 

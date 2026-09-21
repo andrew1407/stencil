@@ -2,7 +2,7 @@
 //! tokens and a history step count. Twin of the per-op reading in browser/js/core/script.js.
 const std = @import("std");
 
-const scriptCore = @import("../../scriptCore.zig");
+const scriptCore = @import("../core.zig");
 
 pub const Error = error{EmitUnsupported};
 

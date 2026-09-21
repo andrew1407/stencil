@@ -2,8 +2,8 @@
 //! removing the last line, and freeing it all. logo's print sink feeds this.
 const sc = @import("../screen.zig");
 const Screen = sc.Screen;
-const ansi = @import("../ansi.zig");
-const logoFx = @import("../logoFx.zig");
+const ansi = @import("../render/ansi.zig");
+const logoFx = @import("../render/logoFx.zig");
 const pushChunk = sc.pushChunk;
 const max_lines = sc.max_lines;
 

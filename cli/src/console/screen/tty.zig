@@ -1,7 +1,7 @@
 //! Writing to the terminal: the retrying raw write every frame goes through, cursor
 //! placement, and splitting arriving output into scrollback lines.
 const std = @import("std");
-const logo = @import("../../logo.zig");
+const logo = @import("../../app/logo.zig");
 
 /// libc write to a raw fd (std.posix.write is unavailable here the same way line_edit uses).
 pub fn ttyWrite(fd: std.posix.fd_t, bytes: []const u8) void {

@@ -6,8 +6,8 @@ const SelRange = screen_mod.Screen.SelRange;
 const readByteTimeout = screen_mod.Screen.readByteTimeout;
 const ttyWrite = screen_mod.ttyWrite;
 const std = @import("std");
-const logo = @import("../../logo.zig");
-const ansi = @import("../ansi.zig");
+const logo = @import("../../app/logo.zig");
+const ansi = @import("../render/ansi.zig");
 
 pub fn selActive(self: *Screen) bool {
     return self.sel_active;

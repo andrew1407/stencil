@@ -1,7 +1,7 @@
 //! The working image and its undo/redo stack: loading a picture, pushing one edit state,
 //! stepping back and forth, and dropping everything.
 const Session = @import("../session.zig").Session;
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const EditState = @import("../session.zig").EditState;
 const max_states = @import("../session.zig").max_states;
 const freeImg = @import("../session.zig").freeImg;

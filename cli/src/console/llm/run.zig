@@ -2,12 +2,12 @@
 //! transport with the spinner, then hand the reply to plan.zig. The turn owns its upload
 //! set and its deferred §10 chat clear.
 const std = @import("std");
-const image = @import("../../image.zig");
-const logo = @import("../../logo.zig");
+const image = @import("../../media/image.zig");
+const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
 const Session = @import("../session.zig").Session;
 const handlers = @import("../handlers.zig");
-const spinner = @import("../spinner.zig");
+const spinner = @import("../render/spinner.zig");
 const config = @import("config.zig");
 const attach = @import("attach.zig");
 const plan = @import("plan.zig");

@@ -119,6 +119,24 @@ test "size budget: every cli .zig stays within its pinned production line count"
         gop.value_ptr.*[0] += f.counts.comment;
         gop.value_ptr.*[1] += f.counts.total;
     }
+    // Files per directory: at thirteen a folder splits, so its parts stay readable together.
+    var fan = std.StringHashMap(usize).init(a);
+    for (found.items) |f| {
+        const gop = try fan.getOrPut(dirOf(f.path));
+        if (!gop.found_existing) gop.value_ptr.* = 0;
+        gop.value_ptr.* += 1;
+    }
+    const per_dir = intOf(budget.object.get("maxFilesPerDir").?);
+    const frozen = budget.object.get("dirs").?.object;
+    var fan_it = fan.iterator();
+    while (fan_it.next()) |kv| {
+        const cap = if (frozen.get(kv.key_ptr.*)) |v| intOf(v) else per_dir;
+        if (kv.value_ptr.* > cap) {
+            std.debug.print("FOLDER OVER CAP: {s} holds {d} files (cap {d}) — split it by feature\n", .{ kv.key_ptr.*, kv.value_ptr.*, cap });
+            failures += 1;
+        }
+    }
+
     var pct_it = budget.object.get("commentPct").?.object.iterator();
     while (pct_it.next()) |kv| {
         const tally = shares.get(kv.key_ptr.*) orelse {

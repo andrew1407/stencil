@@ -5,7 +5,7 @@
 const std = @import("std");
 
 const load = @import("load.zig");
-const scriptCore = @import("../scriptCore.zig");
+const scriptCore = @import("core.zig");
 
 /// Writes the diagnostics of `source` to `out`. Returns true when the script has an error.
 pub fn checkInto(out: *std.Io.Writer, source: []const u8, label: []const u8) !bool {

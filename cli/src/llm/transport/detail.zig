@@ -1,7 +1,7 @@
 //! What a failed provider response is allowed to say: the sanitized detail (no key, no URL,
 //! bounded) and the clip every raw body goes through before it can be printed.
 const std = @import("std");
-const sanitize = @import("../../sanitize.zig");
+const sanitize = @import("../../safety/sanitize.zig");
 const wire = @import("../wire.zig");
 
 const member = wire.member;

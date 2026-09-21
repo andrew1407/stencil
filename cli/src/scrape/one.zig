@@ -2,8 +2,8 @@
 //! and decode the one item the user asked for.
 const std = @import("std");
 const net = @import("../net.zig");
-const image = @import("../image.zig");
-const report = @import("../report.zig");
+const image = @import("../media/image.zig");
+const report = @import("../app/report.zig");
 const windowing = @import("window.zig");
 const sniffer = @import("sniff.zig");
 const page = @import("html.zig");

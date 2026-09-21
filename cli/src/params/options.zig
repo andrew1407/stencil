@@ -3,7 +3,7 @@
 //! which one a parsed Options actually selected, so main.zig switches instead of
 //! re-deriving the mutual exclusions.
 const std = @import("std");
-const logo = @import("../logo.zig");
+const logo = @import("../app/logo.zig");
 
 pub const Blank = struct {
     page: ?[]const u8 = null, // named page format ("A4".."C10", canonical); null = default

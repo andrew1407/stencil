@@ -1,8 +1,8 @@
 //! The session⇄file bridge both the console handlers and the one-shot pipeline share, so a
 //! project's load and save cannot drift between the two entry points.
 const std = @import("std");
-const image = @import("../image.zig");
-const report = @import("../report.zig");
+const image = @import("../media/image.zig");
+const report = @import("../app/report.zig");
 const llm = @import("../llm.zig");
 const net = @import("../net.zig");
 const pipeline = @import("../pipeline.zig");

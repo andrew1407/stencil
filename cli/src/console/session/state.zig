@@ -1,7 +1,7 @@
 //! The session's state records: one undoable `EditState` snapshot (rotation + crop +
 //! filter + lines — the browser-compatible model) and one `Attachment` the turn will send.
 const std = @import("std");
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const core = @import("../../core.zig");
 
 pub const max_states = 64; // pristine + up to 63 undoable edits; older edits drop off the front

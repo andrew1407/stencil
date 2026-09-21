@@ -7,10 +7,10 @@ const console = @import("console.zig");
 const scrape = @import("scrape.zig");
 const script = @import("script.zig");
 const project = @import("project.zig");
-const project_cli = @import("project_cli.zig");
+const project_cli = @import("project/cli.zig");
 const llm = @import("llm.zig");
-const logo = @import("logo.zig");
-const child = @import("child.zig");
+const logo = @import("app/logo.zig");
+const child = @import("safety/child.zig");
 
 pub fn main(init: std.process.Init) !void {
     // Colour off when NO_COLOR is set; the severity prefixes also need stderr (the human
@@ -75,34 +75,34 @@ pub fn main(init: std.process.Init) !void {
 
 test {
     // Pull every module into the test build so their `test` blocks run.
-    _ = @import("logo.zig");
+    _ = @import("app/logo.zig");
     _ = @import("args.zig");
     _ = @import("core.zig");
-    _ = @import("scriptCore.zig");
+    _ = @import("script/core.zig");
     _ = @import("script.zig");
-    _ = @import("image.zig");
-    _ = @import("layout.zig");
-    _ = @import("video.zig");
+    _ = @import("media/image.zig");
+    _ = @import("media/layout.zig");
+    _ = @import("media/video.zig");
     _ = @import("net.zig");
     _ = @import("llm.zig");
     _ = @import("scrape.zig");
-    _ = @import("serverClient.zig");
+    _ = @import("server/client.zig");
     _ = @import("pipeline.zig");
     _ = @import("project.zig");
-    _ = @import("project_cli.zig");
+    _ = @import("project/cli.zig");
     _ = @import("console.zig");
-    _ = @import("theme.zig");
+    _ = @import("app/theme.zig");
     _ = @import("line_edit.zig");
     _ = @import("clipboard.zig");
-    _ = @import("child.zig");
-    _ = @import("confine.zig");
-    _ = @import("sanitize.zig");
-    _ = @import("page.zig");
-    _ = @import("brand.zig");
-    _ = @import("host.zig");
-    _ = @import("messages.zig");
-    _ = @import("mediaTypes.zig");
-    _ = @import("fetchPool.zig");
-    _ = @import("imageRows.zig");
-    _ = @import("report.zig");
+    _ = @import("safety/child.zig");
+    _ = @import("safety/confine.zig");
+    _ = @import("safety/sanitize.zig");
+    _ = @import("media/page.zig");
+    _ = @import("app/brand.zig");
+    _ = @import("net/host.zig");
+    _ = @import("app/messages.zig");
+    _ = @import("media/types.zig");
+    _ = @import("net/fetchPool.zig");
+    _ = @import("media/imageRows.zig");
+    _ = @import("app/report.zig");
 }

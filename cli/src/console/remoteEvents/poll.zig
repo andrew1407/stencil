@@ -1,9 +1,9 @@
 //! The live events feed: what a peer's edit means for the working image (pull it, warn
 //! that local edits would be lost, or ignore our own echo), and the metadata refresh.
 const std = @import("std");
-const image = @import("../../image.zig");
-const server = @import("../../serverClient.zig");
-const logo = @import("../../logo.zig");
+const image = @import("../../media/image.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
 const project = @import("../../project.zig");
 const ui = @import("../ui.zig");

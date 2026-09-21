@@ -1,5 +1,5 @@
 //! Registry-driven op-plan schema (contract §1–§2, §11): the cli port of
-//! browser/js/llm/opSchema.js over the embedded opRegistry.json. Generic checks only —
+//! browser/js/llm/plan/schema.js over the embedded opRegistry.json. Generic checks only —
 //! profile membership, unknown keys, required/types/enums/ranges/caps/grammars and the
 //! cross-field rules (forms / together / exclusive / minFields / onlyWith /
 //! requiredWith). opplan.zig keeps the typed normalizers, executors and cli extras.

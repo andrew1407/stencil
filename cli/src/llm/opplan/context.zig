@@ -2,7 +2,7 @@
 //! resolving a named server against the ones this session already connected to (§10), and
 //! the console context suffix the assistant is told about.
 const std = @import("std");
-const host = @import("../../host.zig");
+const host = @import("../../net/host.zig");
 const testing = std.testing;
 const model = @import("model.zig");
 const CropEdges = model.CropEdges;

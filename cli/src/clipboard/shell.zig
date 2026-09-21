@@ -3,7 +3,7 @@
 //! a real failure.
 const std = @import("std");
 const builtin = @import("builtin");
-const child = @import("../child.zig");
+const child = @import("../safety/child.zig");
 
 pub const Error = error{ Unsupported, ToolMissing, NoImage, Failed };
 

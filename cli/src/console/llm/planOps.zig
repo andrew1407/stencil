@@ -2,10 +2,10 @@
 //! server pool (§2/§10), and the pure helpers that turn a plan's fields into the arguments
 //! the console's existing operations take.
 const std = @import("std");
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const pipeline = @import("../../pipeline.zig");
-const server = @import("../../serverClient.zig");
-const logo = @import("../../logo.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
 const commands = @import("../commands.zig");
 const llm = @import("../../llm.zig");

@@ -5,10 +5,10 @@
 const std = @import("std");
 
 const args = @import("../args.zig");
-const image = @import("../image.zig");
+const image = @import("../media/image.zig");
 const net = @import("../net.zig");
-const scriptCore = @import("../scriptCore.zig");
-const video = @import("../video.zig");
+const scriptCore = @import("core.zig");
+const video = @import("../media/video.zig");
 
 const load = @import("load.zig");
 const planActions = @import("planActions.zig");

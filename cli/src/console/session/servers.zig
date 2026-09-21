@@ -2,7 +2,7 @@
 //! active, and the live edit-events feed. Only URLs the user typed ever enter the pool.
 const Session = @import("../session.zig").Session;
 const std = @import("std");
-const server = @import("../../serverClient.zig");
+const server = @import("../../server/client.zig");
 const llm = @import("../../llm.zig");
 
 /// True when a fetched server project is active (a target for sync / manual push).
