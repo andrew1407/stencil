@@ -5,7 +5,7 @@ import assert from 'node:assert';
 import {
   replyWithWarnings, unreachableText, describeChatError, runChatTurn, chatLog, resetChatLog,
   runLoggedChatTurn,
-} from '../js/llm/chatSession.js';
+} from '../js/llm/chat/chatSession.js';
 import { LlmError } from '../js/llm/llmClient.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 

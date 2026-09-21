@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import PROMPT_ASSET from '../js/config/llm/systemPrompt.json' with { type: 'json' };
-import { splitDataUrl } from '../js/llm/chatController.js';
+import { splitDataUrl } from '../js/llm/chat/chatController.js';
 import {
   makeClient, chatOnlyReply, variantPlan, pngUrl, makeController,
 } from './helpers/chatControllerRig.js';

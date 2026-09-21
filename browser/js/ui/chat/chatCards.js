@@ -1,5 +1,5 @@
 // Chat cards. Every card is built from DOM nodes with textContent — model output is data, never markup.
-import { askAnswerText, sanitizeLabel } from '../../llm/opPlan.js';
+import { askAnswerText, sanitizeLabel } from '../../llm/plan/opPlan.js';
 import { escapeHtml } from '../base.js';
 import { icon } from '../icons.js';
 import { notify } from '../../utils.js';

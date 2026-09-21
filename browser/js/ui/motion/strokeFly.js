@@ -1,4 +1,4 @@
-import { tileNoise } from './tiles.js';
+import { tileNoise } from './surface/tiles.js';
 import { TUNE } from './tune.js';
 // A new vertex leaves the point it extends (or its foot on the segment it splits) and
 // flies to the click on a bowed path, overshooting before it settles.

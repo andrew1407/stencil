@@ -36,7 +36,7 @@ test('a listening mic uncovers its ray ring: no overflow clip, isolated stacking
 // never leaves the unread dot on the chat icon (user report).
 test('voice-chat answers behind a closed panel toast but never mark the chat icon unread', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/llm/voiceModes.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/llm/voice/voiceModes.js', import.meta.url), 'utf8');
   const install = src.slice(src.indexOf('export const installVoiceModes'));
   assert.ok(install.includes('appNotify(toast.text, toast.type, { onClick: () => app.chat?.open?.() });'));
   // (There is no unread dot on either surface any more — an answer that lands while the
@@ -48,7 +48,7 @@ test('voice-chat answers behind a closed panel toast but never mark the chat ico
 // card cannot be answered from a balloon.
 test('a voice answer that asks a question opens the chat; a plain one still just toasts', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/llm/voiceModes.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/llm/voice/voiceModes.js', import.meta.url), 'utf8');
   const onResult = src.slice(src.indexOf('onResult: (res) => {'), src.indexOf('const voice = createVoiceModes'));
   assert.ok(onResult.includes('res?.ok && res.entry?.ask && !surfaceOpen()'),
     'the ask card is what opens the panel');

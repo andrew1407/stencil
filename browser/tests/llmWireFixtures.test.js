@@ -9,7 +9,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { createLlmClient, sanitizeProviderText, LlmError } from '../js/llm/llmClient.js';
-import { parseChatDoc, buildChatDoc, CHAT_DOC_VERSION } from '../js/llm/chatStore.js';
+import { parseChatDoc, buildChatDoc, CHAT_DOC_VERSION } from '../js/llm/chat/chatStore.js';
 
 const FIXTURES = fileURLToPath(new URL('../js/config/llm/fixtures/', import.meta.url));
 

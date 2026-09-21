@@ -12,7 +12,7 @@ const field = createStubElement('input');
 installDom().register('vs-voice-silence', field);
 
 const { loadVoiceSettings, saveVoiceSettings, SILENCE_MS_DEFAULT, SILENCE_MS_MIN, SILENCE_MS_MAX } =
-  await import('../js/llm/voiceSettings.js');
+  await import('../js/llm/voice/voiceSettings.js');
 const { wireVoiceSilenceRow } = await import('../js/ui/visuals/visualsVoiceRow.js');
 
 const row = wireVoiceSilenceRow();

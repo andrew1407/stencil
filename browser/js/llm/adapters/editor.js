@@ -1,7 +1,7 @@
 // ── §2.1 editor adapters: saving the working image, and the composer nudge ──
 // A save promotes to a FRESH project id, so a multi-image plan leaves one project
 // per image instead of overwriting one.
-import { CHAT_ATTACHMENTS_EVENT } from '../chatController.js';
+import { CHAT_ATTACHMENTS_EVENT } from '../chat/chatController.js';
 import { publish } from '../../eventBus/appBus.js';
 import { uniqueProjectName } from '../projectNames.js';
 export const editorAdapters = (app) => ({

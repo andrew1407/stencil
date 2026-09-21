@@ -1,7 +1,7 @@
 // ── §10 media adapters: the picture, its frames, and the clipboard ──────────
 // The slice of the chat controller's bag that reads or writes the working image.
 // Every one is a thin call onto the same app methods the toolbar uses.
-import { downscaleImageToDataUrl } from '../chatController.js';
+import { downscaleImageToDataUrl } from '../chat/chatController.js';
 import { videoFrameSamples, videoFrameByIndex } from '../../core/videoFrame.js';
 export const mediaAdapters = (app) => ({
   // Guarded: a plan wanting variants / ask previews on an EMPTY editor must

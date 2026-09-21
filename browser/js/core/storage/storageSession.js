@@ -1,7 +1,7 @@
 // The active-project session over ProjectsStore: attaching the store, the boot sweep, the
 // refresh-on-open snap, promoting a temporary editor, and clearing the editor.
-import { ProjectsStore, addPeriod, DEFAULT_PERIOD } from '../project/projectsStore.js';
-import { getProjectsBackend } from '../project/projectsBackend.js';
+import { ProjectsStore, addPeriod, DEFAULT_PERIOD } from '../project/store/projectsStore.js';
+import { getProjectsBackend } from '../project/store/projectsBackend.js';
 
 // Payload keys ride an IndexedDB mirror, the registry stays in localStorage
 // (projectsBackend.js); a failed async persist surfaces on the save-status line.

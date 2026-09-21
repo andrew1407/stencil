@@ -2,7 +2,7 @@
 // analyze-only images, sampled video frames and the errors that never reach the facade.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { replayMessages, splitDataUrl, HISTORY_LIMIT } from '../js/llm/chatController.js';
+import { replayMessages, splitDataUrl, HISTORY_LIMIT } from '../js/llm/chat/chatController.js';
 import { makeClient, chatOnlyReply, pngUrl, stubFile, makeController } from './helpers/chatControllerRig.js';
 
 test('replayMessages bounds history to the most recent 32 messages', () => {

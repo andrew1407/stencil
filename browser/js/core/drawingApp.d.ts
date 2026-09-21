@@ -9,7 +9,7 @@ import type { Renderer } from './renderer.js';
 import type { TabsCoordinator } from './tabsCoordinator.js';
 import type { RemoteSyncController, RemoteLink } from './remote/remoteSyncController.js';
 import type { ProjectTransferController } from './project/projectTransferController.js';
-import type { ProjectMeta } from './project/projectsStore.js';
+import type { ProjectMeta } from './project/store/projectsStore.js';
 import type { ConnectionManager } from '../net/connectionManager.js';
 import type { HistoryStack } from './historyStack.js';
 import type { FormulaEngine } from './formulaEngine.js';

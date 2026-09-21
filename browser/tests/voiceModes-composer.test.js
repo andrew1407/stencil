@@ -2,13 +2,13 @@
 // phrases and the silence window that closes a turn. Split from voiceModes.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { VOICE_ACTIVE_LEVEL } from '../js/llm/voiceModes.js';
+import { VOICE_ACTIVE_LEVEL } from '../js/llm/voice/voiceModes.js';
 import { make } from './helpers/voiceModesRig.js';
 
 // Hands-free, the only surface is the toast — and a dictated prompt is a paragraph, not
 // a line. The "Sent" balloon echoes just enough of it to prove the mic heard right.
 test('the sent balloon echoes a stub of the spoken prompt, never the whole of it', async () => {
-  const { spokenEcho, SPOKEN_ECHO_CHARS, CHAT_TOAST_CHARS } = await import('../js/llm/chatSession.js');
+  const { spokenEcho, SPOKEN_ECHO_CHARS, CHAT_TOAST_CHARS } = await import('../js/llm/chat/chatSession.js');
   assert.ok(SPOKEN_ECHO_CHARS < CHAT_TOAST_CHARS, 'shorter than a reply balloon');
   assert.strictEqual(spokenEcho('crop it'), 'crop it', 'a short prompt is shown whole');
   const long = spokenEcho('crop ten percent off every edge and then rotate it right twice please');
@@ -17,7 +17,7 @@ test('the sent balloon echoes a stub of the spoken prompt, never the whole of it
   // One line: a composer's typed prefix can carry newlines into the dictated text.
   assert.strictEqual(spokenEcho('  make it \n  sepia  '), 'make it sepia');
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/llm/voiceModes.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/llm/voice/voiceModes.js', import.meta.url), 'utf8');
   assert.ok(src.includes('`Sent: "${spokenEcho(text)}"`'),
     'the voice-chat toast quotes the stub — it is repeating what the mic heard');
 });

@@ -2,7 +2,7 @@
 // payload from live app state, reads payloads back into the DOM, and owns the
 // temporary / incognito flags. save() is a no-op (with a throttled hint) in temp mode.
 import type { DrawingApp } from '../drawingApp.js';
-import type { ProjectsStore, ProjectPayload } from '../project/projectsStore.js';
+import type { ProjectsStore, ProjectPayload } from '../project/store/projectsStore.js';
 import type { ThumbnailScheduler } from '../image/thumbnail.js';
 
 export declare class Storage {

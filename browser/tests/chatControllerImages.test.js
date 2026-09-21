@@ -2,7 +2,7 @@
 // the snapshot every turn carries, and an empty editor sending none.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createChatController, splitDataUrl } from '../js/llm/chatController.js';
+import { createChatController, splitDataUrl } from '../js/llm/chat/chatController.js';
 import {
   makeClient, makeStencil, chatOnlyReply, pngUrl, stubFile, makeController,
 } from './helpers/chatControllerRig.js';

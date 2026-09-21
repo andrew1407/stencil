@@ -2,7 +2,7 @@
 // the extended lineStyle fields and copy's "what".
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan } from '../js/llm/plan/opPlan.js';
 import { plan, ok, bad, makeStub } from './helpers/opPlanRig.js';
 
 // ── §10 compare / zoom: view-only editor settings ──

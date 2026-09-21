@@ -4,12 +4,12 @@ import { notify } from '../../utils.js';
 import { attachVoiceDust } from '../dust/voiceDust.js';
 import { loadLlmSettings, serverBearerToken } from '../../llm/llmSettings.js';
 import { probeProvider } from '../../llm/llmClient.js';
-import { MAX_ATTACHMENTS } from '../../llm/chatController.js';
+import { MAX_ATTACHMENTS } from '../../llm/chat/chatController.js';
 import {
   sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments,
   ATTACHMENT_CAP_NOTICE, cacheProbe, cachedProbe, probeStatusClass, chatLog, onChatLog,
   clearSharedConversation, requeueRowAttachments, chatTurnInFlight,
-} from '../../llm/chatSession.js';
+} from '../../llm/chat/chatSession.js';
 import {
   renderChatLog, chatAttachmentChips, wireInputSizer, wireChatSuggestions, wireChatMoreMenu,
   wireChatSideToggle, syncComposerControls, wireChatComposer, wireComposerVoice,

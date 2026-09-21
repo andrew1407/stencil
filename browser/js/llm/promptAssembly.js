@@ -1,8 +1,8 @@
 // ── §13 registry-driven prompt assembly ─────────────────────────
 // The capability set, the forbidden-op boundary, and the §4/§10 prompts assembled from the
 // OPS registry — so the prompt can never promise an op this surface cannot run.
-import { PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, SCHEMA } from './planSchema.js';
-import { OPS } from './opExecutors.js';
+import { PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, SCHEMA } from './plan/planSchema.js';
+import { OPS } from './plan/opExecutors.js';
 
 // Every capability the browser chat surface wires, so the shipped prompt promises every
 // registered op; a reduced set drops those bullets and §1's unknown-op skip catches them.

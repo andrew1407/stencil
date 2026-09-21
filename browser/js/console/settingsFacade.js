@@ -4,7 +4,7 @@
 // `stencil.lineColor` and `stencil.settings.lineColor` are one setter.
 import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/accents.js';
 import { motionPrefs, MOTION_MODES } from '../ui/motionPrefs.js';
-import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
+import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voice/voiceSettings.js';
 import { validateHexColor } from '../core/validation.js';
 import { splitKeywords, str } from './coerce.js';
 

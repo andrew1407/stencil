@@ -3,7 +3,7 @@
 // browser/tests/wasm-parity-state.test.js drives both through one script.
 
 import { encodeLines, decodeLines } from '../line/linesCodec.js';
-import { buildProjectRules, projectRuleExports } from '../project/projectRules.js';
+import { buildProjectRules, projectRuleExports } from '../project/meta/projectRules.js';
 
 const F64 = 8;
 const I32 = 4;

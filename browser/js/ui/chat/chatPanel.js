@@ -8,9 +8,9 @@ import {
   sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments, ATTACHMENT_CAP_NOTICE,
   chatLog, onChatLog, clearSharedConversation, requeueRowAttachments,
   chatTurnInFlight,
-} from '../../llm/chatSession.js';
-import { rowsToMessages } from '../../llm/chatStore.js';
-import { MAX_ATTACHMENTS } from '../../llm/chatController.js';
+} from '../../llm/chat/chatSession.js';
+import { rowsToMessages } from '../../llm/chat/chatStore.js';
+import { MAX_ATTACHMENTS } from '../../llm/chat/chatController.js';
 import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { modalShells } from '../modal/modalRegistry.js';

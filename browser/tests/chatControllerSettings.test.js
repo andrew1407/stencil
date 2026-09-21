@@ -2,7 +2,7 @@
 // clearChat deferred to the turn's end, and server resolution for connect/disconnect.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createChatController } from '../js/llm/chatController.js';
+import { createChatController } from '../js/llm/chat/chatController.js';
 import { makeClient, makeStencil, makeController } from './helpers/chatControllerRig.js';
 
 test('editor-settings ops dispatch through the facade; connect resolves the injected saved servers', async () => {

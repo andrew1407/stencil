@@ -2,7 +2,7 @@
 // clearProjects, renameProject and projectColor over their guarded flows.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseOpPlan, executeOpPlan } from '../js/llm/opPlan.js';
+import { parseOpPlan, executeOpPlan } from '../js/llm/plan/opPlan.js';
 import { plan, ok, bad, makeStub, dropsWithWarning } from './helpers/opPlanRig.js';
 
 // ── §10 project management: removeProject / clearProjects ──

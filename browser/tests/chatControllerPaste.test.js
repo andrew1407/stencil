@@ -2,7 +2,7 @@
 // media files off the event, and how they flow into the controller's attachments.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { splitDataUrl } from '../js/llm/chatController.js';
+import { splitDataUrl } from '../js/llm/chat/chatController.js';
 import { makeClient, chatOnlyReply, pngUrl, stubFile, makeController } from './helpers/chatControllerRig.js';
 
 // ── Clipboard / drop extraction shared with the global paste wiring ──

@@ -3,8 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { chatDropCueHtml } from '../js/ui/chat/chatView.js';
-import { chatLog, resetChatLog, runLoggedChatTurn, attachmentPreviews } from '../js/llm/chatSession.js';
-import { buildChatDoc, rowsToMessages } from '../js/llm/chatStore.js';
+import { chatLog, resetChatLog, runLoggedChatTurn, attachmentPreviews } from '../js/llm/chat/chatSession.js';
+import { buildChatDoc, rowsToMessages } from '../js/llm/chat/chatStore.js';
 import { motionSource } from './helpers/motionSource.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';

@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildProjectMeta } from '../js/core/project/projectMeta.js';
+import { buildProjectMeta } from '../js/core/project/meta/projectMeta.js';
 
 // Only what buildProjectMeta reads. `thumbnail` is passed explicitly so makeThumbnail —
 // the one DOM/canvas caller — never runs.

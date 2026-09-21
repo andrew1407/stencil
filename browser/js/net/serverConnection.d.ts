@@ -1,7 +1,7 @@
 // One connected Stencil server: a token, a live /ws events feed and the REST surface
 // (server/internal/protocol). fetch + WebSocket are injected so `node --test` can drive
 // it without either. A refused credential lands in the 'expired' status, not 'error'.
-import type { ProjectLayout } from '../core/project/projectsStore.js';
+import type { ProjectLayout } from '../core/project/store/projectsStore.js';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'error' | 'expired' | 'disconnected';
 

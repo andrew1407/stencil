@@ -4,12 +4,12 @@
 import type { DrawingApp } from '../core/drawingApp.js';
 import type { CodecLine } from '../core/line/linesCodec.js';
 import type { LayoutPayload, WireCropRect } from '../core/layout.js';
-import type { RefreshPeriod } from '../core/project/projectsStore.js';
+import type { RefreshPeriod } from '../core/project/store/projectsStore.js';
 import type { ConnectSpec } from '../net/connectionManager.js';
 import type { TaggedRemoteProject } from '../net/serverConnection.js';
 import type { RemoteProjectMeta } from '../core/project/projectTransferController.js';
 import type { LlmSettings } from '../llm/llmSettings.js';
-import type { VariantResult } from '../llm/opPlan.js';
+import type { VariantResult } from '../llm/plan/opPlan.js';
 
 export { WINDOWS } from './windowsApi.js';
 

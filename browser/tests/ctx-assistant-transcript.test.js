@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import {
   chatLog, onChatLog, appendChatRow, updateChatRow, clearChatLog, resetChatLog,
   clearSharedConversation, runLoggedChatTurn, attachmentPreviews,
-} from '../js/llm/chatSession.js';
+} from '../js/llm/chat/chatSession.js';
 import { fileNameForUrl } from '../js/core/pointer/dragImageUrl.js';
 import { scatterGridFor, SCATTER_TILE_BUDGET, SCATTER_MAX_ROWS } from '../js/ui/motion.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
@@ -76,7 +76,7 @@ test('both send loops run the SAME shared logged-turn frame', () => {
   }
   // The frame itself (chatSession.js) owns the row writes: user turn, pending "…"
   // reply, and the in-place ok/error patch — so the surfaces cannot drift.
-  const session = readFileSync(new URL('../js/llm/chatSession.js', import.meta.url), 'utf8');
+  const session = readFileSync(new URL('../js/llm/chat/chatSession.js', import.meta.url), 'utf8');
   assert.ok(session.includes("appendChatRow({ role: 'user', text, attachments: attachmentPreviews(controller) });"),
     'the frame logs the user turn, carrying the images the user attached to it');
   assert.ok(session.includes("const pending = appendChatRow({ role: 'assistant', text: '…', pending: true });"),

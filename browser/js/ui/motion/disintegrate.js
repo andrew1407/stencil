@@ -1,8 +1,8 @@
 import { dustEnabled } from '../motionPrefs.js';
 import { startCloud, resolveColour, paletteCss } from '../dust/dustCloud.js';
-import { speckPainter } from './painters.js';
-import { SURFACE_SPREAD, surfaceMotion } from './surfaceMotion.js';
-import { DISINTEGRATE_COLS, DISINTEGRATE_MS, DISINTEGRATE_ROWS, MIN_TILE_MS, MOTE_PX, TILE_GATHER_SHARE, cancelDust, flightOf, reshapeGrid, tileMotion, tileNoise } from './tiles.js';
+import { speckPainter } from './surface/painters.js';
+import { SURFACE_SPREAD, surfaceMotion } from './surface/surfaceMotion.js';
+import { DISINTEGRATE_COLS, DISINTEGRATE_MS, DISINTEGRATE_ROWS, MIN_TILE_MS, MOTE_PX, TILE_GATHER_SHARE, cancelDust, flightOf, reshapeGrid, tileMotion, tileNoise } from './surface/tiles.js';
 import { styleCode } from './tune.js';
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
                                    gather = false, toward = null, ms = 0, px = MOTE_PX,

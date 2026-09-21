@@ -1,4 +1,4 @@
-import type { ChatController } from '../../llm/chatController.js';
+import type { ChatController } from '../../llm/chat/chatController.js';
 
 export declare const CHAT_ATTACHMENTS_EVENT: string;
 export declare const notifyAttachmentsChanged: () => void;

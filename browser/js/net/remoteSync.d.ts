@@ -4,7 +4,7 @@
 import type { ConnectionManager } from './connectionManager.js';
 import type { ServerConnection, ProjectEventMessage } from './serverConnection.js';
 import type { RemoteLink } from '../core/remote/remoteSyncController.js';
-import type { ProjectLayout } from '../core/project/projectsStore.js';
+import type { ProjectLayout } from '../core/project/store/projectsStore.js';
 
 export declare const CONFLICT_MESSAGE: string;
 

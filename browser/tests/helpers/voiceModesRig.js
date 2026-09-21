@@ -1,6 +1,6 @@
 // Shared rig for the voiceModes specs: an engine double, a window double and the
 // createVoiceModes factory wired to a stub clock. Extracted from voiceModes.test.js.
-import { createVoiceModes } from '../../js/llm/voiceModes.js';
+import { createVoiceModes } from '../../js/llm/voice/voiceModes.js';
 import { stubClock } from './speech.js';
 
 // An engine double with the real engine's surface: the test drives transcripts,

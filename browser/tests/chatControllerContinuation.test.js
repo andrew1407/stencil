@@ -2,7 +2,7 @@
 // once, a layout plan does not, and the chain is bounded to one extra round.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { splitDataUrl } from '../js/llm/chatController.js';
+import { splitDataUrl } from '../js/llm/chat/chatController.js';
 import { makeClient, chatOnlyReply, pngUrl, makeController } from './helpers/chatControllerRig.js';
 
 // ── §7 auto-continuation: a plan that loads (and drew no layout) continues once ──

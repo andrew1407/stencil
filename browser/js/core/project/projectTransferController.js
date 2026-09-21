@@ -1,7 +1,7 @@
 import { PROJECT_ACTION } from '../../worker/messages.js';
 import { buildOpenProjectUrl, buildExternalLaunchUrl } from '../deepLink.js';
 import { requireConnection } from '../../net/remoteSync.js';
-import * as meta from './projectMetaOps.js';
+import * as meta from './meta/projectMetaOps.js';
 import * as xfer from './projectServerTransfer.js';
 
 // Project lifecycle + local ↔ server transfer; the meta writes live in projectMetaOps.js,

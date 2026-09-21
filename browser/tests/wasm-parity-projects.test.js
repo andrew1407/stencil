@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { core } from '../js/core/abi/stencilCore.js';
 import {
   ProjectsStore, periodMs, addPeriod, shouldPersist, PERIOD_ORDER, EXPIRY_MS, WARN_MS,
-} from '../js/core/project/projectsStore.js';
+} from '../js/core/project/store/projectsStore.js';
 import { createMemoryStorage } from './helpers/memoryStorage.js';
 
 const MODULE_BUILT = existsSync(fileURLToPath(new URL('../js/wasm/stencilCore.js', import.meta.url)));

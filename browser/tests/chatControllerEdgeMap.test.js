@@ -2,7 +2,7 @@
 // text-only-model latch strips it along with the rest of the images.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { splitDataUrl, EDGE_MAP_SENTENCE } from '../js/llm/chatController.js';
+import { splitDataUrl, EDGE_MAP_SENTENCE } from '../js/llm/chat/chatController.js';
 import { makeClient, chatOnlyReply, pngUrl, stubFile, makeController } from './helpers/chatControllerRig.js';
 
 // ── §7 edge map: a contour render of the snapshot rides second, wire-only ──
