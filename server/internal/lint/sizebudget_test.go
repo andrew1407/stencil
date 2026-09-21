@@ -14,12 +14,14 @@ import (
 // budget is the committed ratchet in sizebudget.json.
 type budget struct {
 	MaxNewFileLines int               `json:"maxNewFileLines"`
+	MaxFilesPerDir  int               `json:"maxFilesPerDir"`
+	Dirs            map[string]int    `json:"dirs"`
 	Files           map[string]int    `json:"files"`
 	CommentPct      map[string]int    `json:"commentPct"`
 	Exceptions      map[string]string `json:"exceptions"`
 }
 
-type counts struct{ Total, Comment int }
+type counts struct{ Total, Comment, Files int }
 
 // skipDirs are never scanned: vendor is third-party, data is runtime output.
 var skipDirs = map[string]bool{"vendor": true, "data": true, "node_modules": true, ".git": true}
@@ -181,9 +183,9 @@ func TestFileSizeBudget(t *testing.T) {
 		recorded, listed := b.Files[path]
 		switch {
 		case !listed && total > b.MaxNewFileLines:
-			t.Errorf("%s is %d lines, over the %d-line cap for unlisted files; split it or add it to sizebudget.json", path, total, b.MaxNewFileLines)
+			t.Errorf("%s is %d lines, over the %d-line cap; split it or list it", path, total, b.MaxNewFileLines)
 		case listed && total > recorded:
-			t.Errorf("%s grew to %d lines, budget is %d; shrink it instead of raising the number", path, total, recorded)
+			t.Errorf("%s grew to %d lines, budget is %d; shrink it", path, total, recorded)
 		case listed && total <= recorded*9/10:
 			t.Logf("%s shrank to %d lines (budget %d) — ratchet sizebudget.json down", path, total, recorded)
 		}
@@ -198,11 +200,23 @@ func TestCommentShareBudget(t *testing.T) {
 		dir := filepath.ToSlash(filepath.Dir(path))
 		agg := dirs[dir]
 		agg.Total, agg.Comment = agg.Total+c.Total, agg.Comment+c.Comment
+		if !strings.HasSuffix(path, "_test.go") {
+			agg.Files++ // a Go test sits beside its package, so it is not fan-out
+		}
 		dirs[dir] = agg
 	}
 	for _, dir := range sortedKeys(b.CommentPct) {
 		if got := pct(dirs[dir]); got > b.CommentPct[dir] {
 			t.Errorf("%s comment share is %d%%, budget is %d%%", dir, got, b.CommentPct[dir])
+		}
+	}
+	for _, dir := range sortedKeys(dirs) {
+		cap, ok := b.Dirs[dir]
+		if !ok {
+			cap = b.MaxFilesPerDir
+		}
+		if n := dirs[dir].Files; n > cap {
+			t.Errorf("%s holds %d files (cap %d) — split it", dir, n, cap)
 		}
 	}
 }
