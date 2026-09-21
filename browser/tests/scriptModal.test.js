@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { layout } from '../js/ui/layout.js';
-import { HOTKEYS_WHILE_TYPING } from '../js/ui/bindings/hotkeyRules.js';
+import { HOTKEYS_WHILE_TYPING } from '../js/ui/bindings/keys/hotkeyRules.js';
 import hotkeysConfig from '../js/config/hotkeysConfig.json' with { type: 'json' };
 import uiStrings from '../js/config/uiStrings.json' with { type: 'json' };
 
@@ -60,7 +60,7 @@ test('the hotkey is registered, openable while typing, and drives the opener', (
   assert.equal(entry.default, 'Alt+Shift+S');
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openScript'),
     'the window must close from inside its own editor');
-  assert.match(src('../js/ui/bindings/hotkeyActions.js'), /openScript: \(\) => clickIfActive\('script-btn'\)/);
+  assert.match(src('../js/ui/bindings/keys/hotkeyActions.js'), /openScript: \(\) => clickIfActive\('script-btn'\)/);
 });
 
 test('the window is in the openWindow registry, pointing at its own overlay and opener', () => {

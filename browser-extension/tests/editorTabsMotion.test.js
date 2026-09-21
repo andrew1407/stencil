@@ -49,7 +49,7 @@ test('the source-page filter animates the same way, and reduced motion just land
 });
 
 test('editor mode wraps both rebuilds and keys its rows by tab id', () => {
-  const js = ['editorList.js', 'sourceTabsList.js'].map((f) => readFileSync(new URL(`../src/popup/${f}`, import.meta.url), 'utf8')).join('\n');
+  const js = ['editor/editorList.js', 'list/sourceTabsList.js'].map((f) => readFileSync(new URL(`../src/popup/${f}`, import.meta.url), 'utf8')).join('\n');
   assert.match(js, /edTransition\.begin\(\);\s*\n\s*listEl\.textContent = '';/);
   assert.match(js, /srcTransition\.begin\(\);\s*\n\s*listedEl\.textContent = '';/);
   assert.match(js, /edTransition\.end\(\)/);

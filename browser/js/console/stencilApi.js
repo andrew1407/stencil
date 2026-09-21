@@ -11,18 +11,18 @@ import { publish, EVENTS } from '../eventBus/appBus.js';
 import { createLineWrappers } from './lineAndPoint.js';
 import { createProjectWrapper } from './project.js';
 import { createSettingsFacade } from './settingsFacade.js';
-import { createProjectsApi } from './projectsApi.js';
-import { createConnectApi } from './connectApi.js';
-import { createAssistantApi } from './assistantApi.js';
-import { createWindowsApi } from './windowsApi.js';
+import { createProjectsApi } from './api/projectsApi.js';
+import { createConnectApi } from './api/connectApi.js';
+import { createAssistantApi } from './api/assistantApi.js';
+import { createWindowsApi } from './api/windowsApi.js';
 import { createEditorActions } from './editorActions.js';
 import { createExportActions } from './exportActions.js';
-import { createSessionApi } from './sessionApi.js';
-import { createCropApi } from './cropApi.js';
-import { createScriptApi } from './scriptApi.js';
-import { createEasterEggsApi } from './easterEggsApi.js';
+import { createSessionApi } from './api/sessionApi.js';
+import { createCropApi } from './api/cropApi.js';
+import { createScriptApi } from './api/scriptApi.js';
+import { createEasterEggsApi } from './api/easterEggsApi.js';
 
-export { WINDOWS } from './windowsApi.js';
+export { WINDOWS } from './api/windowsApi.js';
 
 export const createStencil = (app) => {
   // One ConnectionManager per session, shared with the connection UI via app.connections;

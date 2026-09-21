@@ -81,7 +81,7 @@ test('a kind toggle and the search compose: the set is right after a burst of ch
 
 test('the popup wires the transition around its rebuild and keys every row', () => {
   // The rebuild and the row it keys live in separate modules of the panel.
-  const js = ['filters.js', 'row.js'].map((f) => readFileSync(new URL(`../src/popup/${f}`, import.meta.url), 'utf8')).join('\n');
+  const js = ['list/filters.js', 'row/row.js'].map((f) => readFileSync(new URL(`../src/popup/${f}`, import.meta.url), 'utf8')).join('\n');
   assert.match(js, /filterTransition\.begin\(\);\s*\n\s*listEl\.innerHTML = '';/,
     'the snapshot is taken before the wipe, or nothing can play out');
   assert.match(js, /filterTransition\.end\(\);/);

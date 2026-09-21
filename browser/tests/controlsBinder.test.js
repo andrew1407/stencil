@@ -20,7 +20,7 @@ test('anchorPickerInput pins the hidden colour input under the invoking button',
 // The keydown handler drops every chord that lands on a text box and opening the assistant focuses its
 // input, so a short allow-list keeps the toggle working without firing canvas shortcuts mid-word.
 test('typingHotkeyId lets the chat toggle through a focused text box, nothing else', async () => {
-  const { typingHotkeyId } = await import('../js/ui/bindings/hotkeyRules.js');
+  const { typingHotkeyId } = await import('../js/ui/bindings/keys/hotkeyRules.js');
   const hotkeys = new Map([['toggleChat', 'Alt+G'], ['undo', 'Ctrl+Z'], ['deleteLine', 'Alt+Delete']]);
   const press = (key, mods = {}) => ({ key, code: `Key${key.toUpperCase()}`, altKey: false,
     ctrlKey: false, metaKey: false, shiftKey: false, ...mods });
@@ -38,7 +38,7 @@ test('typingHotkeyId lets the chat toggle through a focused text box, nothing el
 // Every one of these panels autofocuses its filter field, so the window shortcuts must survive a focused
 // search box, or a panel opens by shortcut and can never be closed by it.
 test('the window shortcuts, not the editing ones, work from inside a text box', async () => {
-  const { typingHotkeyId, HOTKEYS_WHILE_TYPING } = await import('../js/ui/bindings/hotkeyRules.js');
+  const { typingHotkeyId, HOTKEYS_WHILE_TYPING } = await import('../js/ui/bindings/keys/hotkeyRules.js');
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openHelp'));
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openProjects'));
   // Voice chat must be switchable from inside the composer too (its own dictation lands there).
@@ -66,14 +66,14 @@ test('contextMenu hotkey: Shift+F10 in the registry, placed at the pointer or th
   const def = defs.find(d => d.id === 'contextMenu');
   assert.ok(def, 'contextMenu is a rebindable registry entry');
   assert.equal(def.default, 'Shift+F10');
-  const { contextMenuPoint } = await import('../js/ui/bindings/hotkeyRules.js');
+  const { contextMenuPoint } = await import('../js/ui/bindings/keys/hotkeyRules.js');
   const vp = { left: 100, top: 50, width: 600, height: 400 };
   assert.deepEqual(contextMenuPoint({ mouseOverCanvas: true, lastMouseClientX: 320, lastMouseClientY: 240 }, vp),
     { x: 320, y: 240 });
   assert.deepEqual(contextMenuPoint({ mouseOverCanvas: false, lastMouseClientX: 320, lastMouseClientY: 240 }, vp),
     { x: 400, y: 250 });
   // The handler dispatches a contextmenu MouseEvent on the viewport and never opens a second menu.
-  const src = readFileSync(new URL('../js/ui/bindings/hotkeyActions.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/bindings/keys/hotkeyActions.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('contextMenu: () => {'), src.indexOf('};', src.indexOf('contextMenu: () => {')));
   assert.ok(body.includes("new MouseEvent('contextmenu'"), 'goes through the right-click path');
   assert.ok(body.includes("classList.contains('ctx-open')"), 'an open menu is left alone');

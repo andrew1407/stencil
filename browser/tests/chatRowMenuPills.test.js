@@ -10,7 +10,7 @@ import { stubDom } from './helpers/chatRowMenuRig.js';
 
 test('a chat popup is announced on BOTH edges, and the pills stand down while it is open', async () => {
   stubDom();
-  const { CHAT_POPUP_EVENT, chatPopupOpen, chatRowMenuOpen } = await import('../js/ui/chat/chatRowMenu.js?menu-events');
+  const { CHAT_POPUP_EVENT, chatPopupOpen, chatRowMenuOpen } = await import('../js/ui/chat/row/chatRowMenu.js?menu-events');
   assert.strictEqual(CHAT_POPUP_EVENT, 'stencil:chat-popup');
   assert.strictEqual(chatPopupOpen(), false, 'nothing open to begin with');
   assert.strictEqual(chatRowMenuOpen(), false);

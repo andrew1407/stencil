@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
   LLM_SYSTEM_PROMPT, OP_REGISTRY, FORBIDDEN_OPS, buildSystemPrompt, LIMITS,
-} from '../src/llm/opPlan.js';
+} from '../src/llm/op/opPlan.js';
 // The prompt's prose core is data: content expectations point at the checked-in copy (drift-guarded
 // by dataParity.test.js), so no second prompt literal rides the tests.
 import PROMPT_ASSET from '../src/config/systemPrompt.json' with { type: 'json' };

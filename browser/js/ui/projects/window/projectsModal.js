@@ -16,19 +16,19 @@ import { createRemoteListing, showsRemoteSkeletons } from '../../../core/remote/
 import { createProjectRowMenu } from './projectRowMenu.js';
 import { createThumbZoom } from './projectThumbZoom.js';
 import { projectsModalInner } from '../markup.js';
-import { createRemoteRow } from '../remoteRow.js';
-import { attachRowActions, attachIncognitoActions } from '../rowActions.js';
-import { createDragReorder } from '../dragReorder.js';
-import { wireBatchActions } from '../batchActions.js';
-import { createProjectSelection } from '../selection.js';
-import { createLocalRow } from '../localRow.js';
-import { createListPrefs } from '../listPrefs.js';
-import { createRowMeta } from '../rowMeta.js';
+import { createRemoteRow } from '../row/remoteRow.js';
+import { attachRowActions, attachIncognitoActions } from '../row/rowActions.js';
+import { createDragReorder } from '../list/dragReorder.js';
+import { wireBatchActions } from '../list/batchActions.js';
+import { createProjectSelection } from '../list/selection.js';
+import { createLocalRow } from '../row/localRow.js';
+import { createListPrefs } from '../list/listPrefs.js';
+import { createRowMeta } from '../row/rowMeta.js';
 import { createColorPicker } from '../colorPicker.js';
-import { createRowPlan } from '../rowPlan.js';
-import { createRenderList } from '../renderList.js';
-import { wireListActions } from '../listActions.js';
-import { wireLiveRefresh } from '../liveRefresh.js';
+import { createRowPlan } from '../row/rowPlan.js';
+import { createRenderList } from '../list/renderList.js';
+import { wireListActions } from '../list/listActions.js';
+import { wireLiveRefresh } from '../list/liveRefresh.js';
 
 // The projects chooser / switcher. Rows are built at runtime (the static #projects-list
 // stays comment-only) to keep the markup tests green.

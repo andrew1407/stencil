@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   LLM_SYSTEM_PROMPT, askAnswerText, ASK_LIMITS, DEFAULT_CUSTOM_LABEL,
-} from '../src/llm/opPlan.js';
+} from '../src/llm/op/opPlan.js';
 import { parse } from './helpers/opPlanHarness.js';
 
 // §11, extension profile: the extension is not an editor, so an option may NAME an existing image

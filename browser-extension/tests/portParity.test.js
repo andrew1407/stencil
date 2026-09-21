@@ -43,9 +43,9 @@ const MANIFEST = [
   ['llmHttp', '../../browser/js/llm/llmHttp.js', '../src/llm/llmHttp.js'],
   // The registry-driven validation engine: pure, registry-in/verdict-out, so the copy
   // is the whole file.
-  ['opSchema', '../src/llm/opSchema.js', '../src/llm/opSchema.js'],
+  ['opSchema', '../src/llm/op/opSchema.js', '../src/llm/op/opSchema.js'],
   // Its closure-free base: predicates, the SchemaError, message paths, the native rules.
-  ['opSchemaBase', '../src/llm/opSchemaBase.js', '../src/llm/opSchemaBase.js'],
+  ['opSchemaBase', '../src/llm/op/opSchemaBase.js', '../src/llm/op/opSchemaBase.js'],
   // The un-persisted "Swap message sides" preference: pure module state, so the copy is
   // the whole file.
   ['chatLayoutPrefs', '../../browser/js/ui/chat/chatLayoutPrefs.js', '../src/lib/chat/chatLayoutPrefs.js'],
@@ -100,7 +100,7 @@ const FUNCTIONS = [
   ]],
   // opPlan.js shares the §1 mechanics and then applies the extension's own §8/§11.2 rules, so
   // `validateAsk` and `parseOpPlan` stay out.
-  ['planParser', '../../browser/js/llm/plan/planParser.js', '../src/llm/opPlan.js',
+  ['planParser', '../../browser/js/llm/plan/planParser.js', '../src/llm/op/opPlan.js',
     ['firstJsonObject', 'askAnswerText']],
 ];
 

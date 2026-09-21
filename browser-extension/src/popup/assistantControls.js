@@ -5,12 +5,12 @@ import { ASSISTANT_SECTION } from '../lib/drop/dragSections.js';
 import { loadLlmSettings, assistantEnabled, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
 import { createAssistant, applyAssistantVisibility } from './assistant.js';
 import { themePref } from './panelDom.js';
-import { state } from './model.js';
-import { filterUi, applyFilters } from './filters.js';
-import { scan } from './scan.js';
-import { setPinnedState } from './pinActions.js';
-import { editorMode } from './editorHandle.js';
-import { sections } from './sections.js';
+import { state } from './list/model.js';
+import { filterUi, applyFilters } from './list/filters.js';
+import { scan } from './list/scan.js';
+import { setPinnedState } from './pin/pinActions.js';
+import { editorMode } from './editor/editorHandle.js';
+import { sections } from './list/sections.js';
 
 // §8 theme / filter ops go through the same DOM controls a click would use, so the
 // controls, persisted state and list can never disagree with the model.

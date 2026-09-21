@@ -1,4 +1,4 @@
-import type { ChatRow } from './chatRowMenuModel.js';
+import type { ChatRow } from './row/chatRowMenuModel.js';
 
 /** Keyed by row id, incremental; both surfaces call this on every log change. */
 export declare const renderChatLog: (

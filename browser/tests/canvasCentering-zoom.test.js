@@ -159,7 +159,7 @@ test('zoomToImagePoint pins the focal pixel through the centring margins', () =>
 // controlsBinder's Ctrl+wheel zoom writes the scroll offset itself, frame by frame, so it has to
 // include the centring margin: in a full-height frame it is real once a zoom crosses into overflow.
 test('the wheel zoom pins the cursor through the centring margins (source pin)', () => {
-  const src = readFileSync(new URL('../js/ui/bindings/smoothZoom.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/bindings/viewport/smoothZoom.js', import.meta.url), 'utf8');
   const fn = src.slice(src.indexOf('const runSmoothZoom'), src.indexOf("document.addEventListener('wheel'"));
   assert.equal((fn.match(/zoomPan\.originAt\(/g) || []).length, 2,
     'both the per-frame write and the final snap go through originAt');

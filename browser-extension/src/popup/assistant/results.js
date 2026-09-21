@@ -3,7 +3,7 @@
 // entry builders are destructured, so every call here reads as it did inside the
 // panel; `state.send` is late-bound because the ask card's Submit starts the NEXT turn.
 import { editableSrc } from '../../lib/image/imageModel.js';
-import { askAnswerText } from '../../llm/opPlan.js';
+import { askAnswerText } from '../../llm/op/opPlan.js';
 import { AUTO_DISMISS_MS } from '../../lib/chat/chatUi.js';
 import { entryName } from './shared.js';
 

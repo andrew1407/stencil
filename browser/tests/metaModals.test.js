@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { installDom } from './helpers/dom.js';
 
 import { layout } from '../js/ui/layout.js';
-import { HOTKEYS_WHILE_TYPING } from '../js/ui/bindings/hotkeyRules.js';
+import { HOTKEYS_WHILE_TYPING } from '../js/ui/bindings/keys/hotkeyRules.js';
 
 const markup = layout();
 const count = (needle) => markup.split(needle).length - 1;
