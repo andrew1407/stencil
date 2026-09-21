@@ -9,6 +9,7 @@
 #include <QPointF>
 #include <QWidget>
 #include <functional>
+#include <utility>
 
 #include "logoStageCloud.hpp"
 #include "logoStageMotion.hpp"
@@ -56,10 +57,16 @@ namespace stencil::gui {
     void keyPressEvent(QKeyEvent* e) override;
 
    private:
+    static constexpr int REFIT_MS = 120;   // ms of quiet that ends a resize drag
     void start(const QString& name);
     void relayout();
     void syncCursor();
     void takeBackdrop();
+    // The costly half of a resize, once the drag has settled (LogoStagePaint.cpp).
+    void refit();
+    // The two sizes this show travels between: the one it rests at, and the far end of its bounce.
+    std::pair<double, double> ends(int w, int h) const;
+    void remakeMark();
     // The big end of this show: a bounce fills the window, anything else rests at logoShare.
     int bigEnd(int w, int h) const;
     void tick();
@@ -96,6 +103,7 @@ namespace stencil::gui {
     QPointer<QWidget> priorFocus_;   // whatever held the keyboard before the show took it
     double size_ = 0;
     double last_ = 0;
+    double refitAt_ = 0;   // ms on `since_` when the deferred refit falls due, 0 = none
     double leftAt_ = -1;   // ms since `since_` when the hide began, else -1
     bool open_ = false;
     double boost_ = 1.0;     // eased toward the press, never stepped
