@@ -5,6 +5,7 @@ using Stencil.TelegramBot.Bot;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Telegram.Bot;
+using Stencil.TelegramBot.Bot.Telegram.Commands;
 
 LoadDotEnvFiles();
 

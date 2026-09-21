@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Serialization;
+using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Infrastructure.Llm;
 

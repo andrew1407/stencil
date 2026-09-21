@@ -77,19 +77,33 @@ public sealed class SizeBudgetTests
     }
 
     [Fact]
+    public void Should_Not_Let_A_Folder_Hold_More_Files_Than_The_Cap()
+    {
+        // A partial class spread over Name.Part.cs files is one module to the reader.
+        int cap = Root.GetProperty("maxFilesPerDir").GetInt32();
+        JsonElement frozen = Root.GetProperty("dirs");
+        List<string> over = _sources.Value.GroupBy(f => dirOf(f.Path))
+            .Select(g => (g.Key, N: g.Select(f => Path.GetFileName(f.Path).Split('.')[0]).Distinct().Count(),
+                Cap: frozen.TryGetProperty(g.Key, out JsonElement e) ? e.GetInt32() : cap))
+            .Where(x => x.N > x.Cap)
+            .Select(x => $"{x.Key}: {x.N} modules > {x.Cap} — split it by feature")
+            .ToList();
+        Assert.True(over.Count == 0, "folder fan-out:\n  " + string.Join("\n  ", over));
+    }
+
+    [Fact]
     public void Should_Not_Let_The_Comment_Share_Rise()
     {
         List<string> risen = [];
         foreach (JsonProperty dir in Root.GetProperty("commentPct").EnumerateObject())
         {
             Measured[] inDir = _sources.Value.Where(f => dirOf(f.Path) == dir.Name).ToArray();
-            if (inDir.Length == 0)
+            int total = inDir.Sum(f => f.Lines);
+            if (total == 0)
             {
                 continue;
             }
-            int total = inDir.Sum(f => f.Lines);
-            int comments = inDir.Sum(f => f.CommentLines);
-            int pct = total == 0 ? 0 : comments * 100 / total;
+            int pct = inDir.Sum(f => f.CommentLines) * 100 / total;
             if (pct > dir.Value.GetInt32())
             {
                 risen.Add($"{dir.Name}: {pct}% > budgeted {dir.Value.GetInt32()}%");
