@@ -1,6 +1,6 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches } from './base.js';
 import { notify, comboFromEvent, formatCombo } from '../utils.js';
-import { hotkeys } from '../core/hotkeys.js';
+import { hotkeys } from '../core/settings/hotkeys.js';
 import { icon } from './icons.js';
 import { keysHtml } from './tip/tipContent.js';
 import { markIn } from './motion.js';

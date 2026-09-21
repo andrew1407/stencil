@@ -3,7 +3,7 @@
 // methods the toolbar uses, so console and toolbar stay in sync.
 // A closure factory, not a class — `app` lives in scope and the returned objects carry
 // no fields. index.js builds it after the app → window.stencil.
-import { hotkeys } from '../core/hotkeys.js';
+import { hotkeys } from '../core/settings/hotkeys.js';
 import { ConnectionManager } from '../net/connectionManager.js';
 import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
 import { notify } from '../utils.js';

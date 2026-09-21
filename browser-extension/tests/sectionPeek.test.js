@@ -4,7 +4,7 @@
 // pattern), so the whole matrix runs under plain `node --test`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { peekPosition, createSectionPeek, isTypingTarget, PEEK_CLOSE_GRACE_MS } from '../src/lib/sectionPeek.js';
+import { peekPosition, createSectionPeek, isTypingTarget, PEEK_CLOSE_GRACE_MS } from '../src/lib/highlight/sectionPeek.js';
 
 // ── Placement (the popoverPosition rules, kept case-for-case) ──
 test('peekPosition: below the anchor, left-aligned, with the gap', () => {

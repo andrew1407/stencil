@@ -1,7 +1,7 @@
 // The assistant driving the panel's own controls (llm-contract.md §8).
 import { icon } from '../lib/icons.js';
-import { pinnable } from '../lib/imageModel.js';
-import { ASSISTANT_SECTION } from '../lib/dragSections.js';
+import { pinnable } from '../lib/image/imageModel.js';
+import { ASSISTANT_SECTION } from '../lib/drop/dragSections.js';
 import { loadLlmSettings, assistantEnabled, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
 import { createAssistant, applyAssistantVisibility } from './assistant.js';
 import { themePref } from './panelDom.js';

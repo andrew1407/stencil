@@ -113,7 +113,7 @@ test('anything that is not a project with an inline image is not a hand-off', ()
 test('the cap is Chrome\'s navigation ceiling, well under the validator\'s 32 MiB', () => {
   assert.equal(web.MAX_PAYLOAD, 1_800_000);
   // The Chrome extension writes the same fragment, so it holds the same number.
-  const twin = readFileSync(new URL('../../browser-extension/src/lib/editorLaunch.js', import.meta.url), 'utf8');
+  const twin = readFileSync(new URL('../../browser-extension/src/lib/menu/editorLaunch.js', import.meta.url), 'utf8');
   const declared = /const MAX_PAYLOAD = ([0-9_]+);/.exec(twin);
   assert.ok(declared, 'editorLaunch.js no longer declares MAX_PAYLOAD');
   assert.equal(Number(declared[1].replaceAll('_', '')), web.MAX_PAYLOAD);

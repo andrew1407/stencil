@@ -2,7 +2,7 @@
 // name/alt truncation), the open.actions → launch-option table, and the §7 replay rule.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatOfItem } from '../src/lib/filters.js';
+import { formatOfItem } from '../src/lib/highlight/filters.js';
 import {
   LISTING_LIMIT, LISTING_NAME_CHARS, LISTING_ALT_CHARS,
   buildListing, listingKind, translateOpenActions, replayMessages, splitDataUrl,

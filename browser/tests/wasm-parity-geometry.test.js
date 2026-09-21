@@ -9,7 +9,7 @@ import { core } from '../js/core/abi/stencilCore.js';
 import {
   cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS, scaleCropCenteredJS,
   swapCropOrientationJS, cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS
-} from '../js/core/cropGeometry.js';
+} from '../js/core/parse/cropGeometry.js';
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
 // suite skips when it is missing: the other suites already cover the JS reference path it mirrors.

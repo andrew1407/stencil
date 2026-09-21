@@ -55,6 +55,6 @@ test('the mode is wired: the one cloud door, the chat slide, and the CSS half', 
   assert.match(css, /:root\[data-motion="none"\] \*,/);
   assert.match(css, /\.chat-slide-in \{ animation: chatRiseIn/);
   // Every extension page stamps the mode pre-paint through the accent script set.
-  const prefs = readFileSync(new URL('../src/lib/prefs.js', import.meta.url), 'utf8');
+  const prefs = readFileSync(new URL('../src/lib/prefs/prefs.js', import.meta.url), 'utf8');
   assert.match(prefs, /setAttribute\('data-motion'/);
 });

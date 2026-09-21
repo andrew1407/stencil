@@ -1,6 +1,6 @@
 // shortName() (js/utils.js) — the display-shortening applied to project and image names before they go into a
 // dialog sentence or a toast, so a CDN-basename name cannot wrap across three lines and blow out a confirm.
-// Parity: browser-extension/src/lib/displayName.js and desktop/src/support/displayName.hpp are ports of this —
+// Parity: src/lib/displayName.js and desktop/src/support/displayName.hpp are ports of this —
 // same limit, same head/tail split, and their tests mirror these cases.
 
 import { test } from 'node:test';

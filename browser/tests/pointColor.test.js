@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pointColorOf } from '../js/core/renderer.js';
+import { pointColorOf } from '../js/core/draw/renderer.js';
 import { sanitizeLines, mergeLines } from '../js/core/layout.js';
 
 test('pointColorOf falls back to the stroke colour when unset', () => {

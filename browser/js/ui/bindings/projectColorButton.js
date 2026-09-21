@@ -1,7 +1,7 @@
 import { anchorPickerInput } from '../../utils.js';
 import { surfaceIn, surfaceOut, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
 import { icon } from '../icons.js';
-import { normalizeHex } from '../../core/accents.js';
+import { normalizeHex } from '../../core/settings/accents.js';
 export function wireProjectColorButton(app) {
   // Project-colour swatch: a native colour picker that paints the project NAME. Live while
   // dragging; a right-click (or holding Alt at open) clears the colour back to the theme accent.

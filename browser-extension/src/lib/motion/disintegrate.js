@@ -3,8 +3,8 @@
 // element's own colours (speckPainter), drifting off in a staggered sweep. Never clones
 // of the element — hundreds of copies of a row's subtree show nothing a speck does not.
 // Mirror of browser motion.js; the layer is FIXED because the row collapses under it.
-import { startCloud, resolveColour, paletteCss } from '../dustCloud.js';
-import { dustEnabled } from '../motionPrefs.js';
+import { startCloud, resolveColour, paletteCss } from '../dust/dustCloud.js';
+import { dustEnabled } from '../prefs/motionPrefs.js';
 import { speckPainter } from './painters.js';
 import { SURFACE_SPREAD, surfaceMotion } from './surfaceMotion.js';
 import { DISINTEGRATE_COLS, DISINTEGRATE_MS, DISINTEGRATE_ROWS, MIN_TILE_MS, MOTE_PX,

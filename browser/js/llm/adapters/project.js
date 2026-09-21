@@ -1,7 +1,7 @@
 // ── §10 project adapters: resolve by name, then the modal's own guarded flows ──
 // Each returns a NOTE string when nothing happened (unknown / ambiguous / declined),
 // so a refused plan reads as words rather than failing.
-import { toHexColor } from '../../core/accents.js';
+import { toHexColor } from '../../core/settings/accents.js';
 import { resolveProjectByName } from '../projectNames.js';
 export const projectAdapters = (app) => ({
   removeProjectNamed: async (name) => {

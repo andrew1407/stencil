@@ -12,7 +12,7 @@ import {
   createListHold, emptyStateVisible, tileMotion, materialize,
   MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS, TILE_JITTER_SHARE,
 } from '../src/lib/motion.js';
-import { FLIGHTS, moteFrame, alphaAt } from '../src/lib/dustCloud.js';
+import { FLIGHTS, moteFrame, alphaAt } from '../src/lib/dust/dustCloud.js';
 import { classEl as el } from './helpers/listDom.js';
 
 // revealDissolve/revealGrain are shared with the app to the letter (portParity.test.js pins them),

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   msgMenuItems, appendToPrompt, createMsgMenu, msgMenuBtnSide, createMsgMenuButton,
-} from '../src/lib/chatMsgMenu.js';
+} from '../src/lib/chat/chatMsgMenu.js';
 import { ICONS } from '../src/lib/icons.js';
 import { stubDoc, stubEl } from './helpers/domStub.js';
 

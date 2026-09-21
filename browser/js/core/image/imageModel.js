@@ -1,6 +1,6 @@
 import { notify } from '../../utils.js';
 import constants from '../../config/constants.json' with { type: 'json' };
-import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from '../cropGeometry.js';
+import { cropAspect, centeredCrop, cropChange, isAlbumOrientation, scaleLinePoints, rotateCropRectQuarter, rotateLinePointsQuarter } from '../parse/cropGeometry.js';
 
 const { PAGE_SIZES } = constants;
 

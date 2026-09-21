@@ -33,7 +33,7 @@ class MainWindowGuiTest : public QObject {
   }
 
   // Every selector opens the app's OWN popup, never the platform one (macOS draws a native combo
-  // popup itself); the browser makes the same swap (js/ui/customSelect.js). Zoom is the exception.
+  // popup itself); the browser makes the same swap (js/ui/control/customSelect.js). Zoom is the exception.
   void everySelectorUsesTheAppsOwnPopup() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 900);

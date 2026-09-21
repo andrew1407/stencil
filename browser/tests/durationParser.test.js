@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { parseDuration } from '../js/core/durationParser.js';
+import { parseDuration } from '../js/core/parse/durationParser.js';
 
 // Mirrors core/tests/DurationParser.test.cpp. node --test runs the JS fallback;
 // the wasm build is checked against it by wasm-parity.test.js.

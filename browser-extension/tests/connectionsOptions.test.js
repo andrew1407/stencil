@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { filterConnections } from '../src/lib/connections.js';
+import { filterConnections } from '../src/lib/connection/connections.js';
 import { createFilterTransition } from '../src/lib/motion.js';
 import { makeList, renderKeys } from './helpers/listDom.js';
 

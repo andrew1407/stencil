@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isVideoFile, isVideoUrl } from '../js/core/videoFrame.js';
+import { isVideoFile, isVideoUrl } from '../js/core/export/videoFrame.js';
 
 // videoFrameDataUrl / videoFileToImageFile need a DOM <video> + canvas, so only the
 // pure isVideoFile predicate (which decides whether to capture a frame) is unit-tested.

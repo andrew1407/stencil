@@ -1,6 +1,6 @@
 import { matchHotkey, isTypingTarget, hasTextSelection } from '../../utils.js';
 import HOTKEY_DEFS from '../../config/hotkeysConfig.json' with { type: 'json' };
-import { hotkeys } from '../../core/hotkeys.js';
+import { hotkeys } from '../../core/settings/hotkeys.js';
 import { hotkeyActions } from './hotkeyActions.js';
 import { typingHotkeyId } from './hotkeyRules.js';
 export function wireKeyboard(app) {

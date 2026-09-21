@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { HoldDrawController, holdDrawTarget } from '../js/core/holdDraw.js';
+import { HoldDrawController, holdDrawTarget } from '../js/core/draw/holdDraw.js';
 
 // ── holdDrawTarget: what an initial hold over (x,y) targets ──────
 // Mirrors core/tests/holdDraw.test.cpp.

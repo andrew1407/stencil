@@ -1,5 +1,5 @@
 import { setVal, setRadioGroup, cmToUnit } from '../utils.js';
-import { normalizePageSize } from '../core/units.js';
+import { normalizePageSize } from '../core/settings/units.js';
 import { revealControls } from './motion.js';
 
 // ── Adopting a peer's (or the server's) layout onto the controls ─────────────

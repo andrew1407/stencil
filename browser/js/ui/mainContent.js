@@ -1,6 +1,6 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { StencilTooltip } from './tip/tooltip.js';
-import { hotkeys } from '../core/hotkeys.js';
+import { hotkeys } from '../core/settings/hotkeys.js';
 import { icon } from './icons.js';
 import { keysHtml } from './tip/tipContent.js';
 import { formatCombo, isMacPlatform } from '../utils/keys.js';

@@ -4,7 +4,7 @@
 // DataTransfer objects and stub elements, no real DnD.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DRAG_TYPES, isDropCandidate, isVideoFile, classifyDrop, wireDropTarget, leftTarget } from '../src/lib/chatDrop.js';
+import { DRAG_TYPES, isDropCandidate, isVideoFile, classifyDrop, wireDropTarget, leftTarget } from '../src/lib/chat/chatDrop.js';
 
 // ── Test doubles ──
 const stubDataTransfer = ({ types = [], data = {}, files = [] } = {}) => ({

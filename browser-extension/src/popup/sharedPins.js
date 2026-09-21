@@ -1,6 +1,6 @@
 import { blobToDataUrl } from '../lib/stencil.js';
-import { loadConnections, collectSharedPins, connectionByUrl, fetchProjectImage } from '../lib/connections.js';
-import { hostLabel } from '../lib/imageModel.js';
+import { loadConnections, collectSharedPins, connectionByUrl, fetchProjectImage } from '../lib/connection/connections.js';
+import { hostLabel } from '../lib/image/imageModel.js';
 import { pollClock } from '../lib/pollClock.js';
 import { state } from './model.js';
 import { previewCache } from './preview.js';

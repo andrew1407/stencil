@@ -7,7 +7,7 @@ import {
   VALID, invalid, validateProjectName, validateHexColor, validateAccent, validatePageSize,
   validateLengthToken, validateDuration, validateHttpUrl, validateHotkey, validateFormula,
   validateProjectFileText,
-} from '../js/core/validation.js';
+} from '../js/core/parse/validation.js';
 
 const rejects = (res, what) => {
   assert.strictEqual(res.ok, false, `${what} must be rejected`);

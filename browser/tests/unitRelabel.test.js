@@ -15,7 +15,7 @@ const elements = installDom({}, {
 }).els;
 
 const { DrawingApp } = await import('../js/core/drawingApp.js');
-const { pageFormatLabel } = await import('../js/core/units.js');
+const { pageFormatLabel } = await import('../js/core/settings/units.js');
 const constants = (await import('../js/config/constants.json', { with: { type: 'json' } })).default;
 const { PAGE_SIZES } = constants;
 

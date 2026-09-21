@@ -2,7 +2,7 @@
 // directions. `c` is the ProjectTransferController.
 import { PROJECT_ACTION } from '../../worker/messages.js';
 import { buildLayoutPayload, normalizeCropRect } from '../layout.js';
-import { buildExternalLaunchUrl } from '../deepLink.js';
+import { buildExternalLaunchUrl } from '../launch/deepLink.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../../net/remoteSync.js';
 
 // A NEW server project from a local project's content under `name`; shared by move

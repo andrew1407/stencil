@@ -1,12 +1,12 @@
 // The .stc entry point. Port of core/script/scriptProgram.cpp; the wasm build runs the C++
 // and this body is the fallback, which browser/tests/wasm-parity-script.test.js pins op-for-op.
 import { core } from './abi/stencilCore.js';
-import { resolveAxisPx } from './units.js';
-import { hasErrors } from './scriptDiagnostics.js';
-import { dumpDiagnostics, dumpProgram } from './scriptDump.js';
-import { lexScript } from './scriptLexer.js';
-import { lowerScript } from './scriptLower.js';
-import { parseScript as parseStatements } from './scriptParser.js';
+import { resolveAxisPx } from './settings/units.js';
+import { hasErrors } from './script/scriptDiagnostics.js';
+import { dumpDiagnostics, dumpProgram } from './script/scriptDump.js';
+import { lexScript } from './script/scriptLexer.js';
+import { lowerScript } from './script/scriptLower.js';
+import { parseScript as parseStatements } from './script/scriptParser.js';
 
 /* Parses a script into { tokens, diagnostics, blocks, ops }. Diagnostics come in source
  * order; a program with any error must not be executed. */

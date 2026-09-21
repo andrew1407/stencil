@@ -11,12 +11,12 @@ const css = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 test('every icon-anchored surface dusts from — and back into — its own control', () => {
   const cases = [
     // [file, what opens it, the point it is aimed at]
-    ['../src/lib/actionMenu.js', 'surfaceIn(menuEl, openOrigin);', 'surfaceOut(menuEl, openOrigin);'],
-    ['../src/lib/actionMenu.js', 'surfaceIn(fly, centerOf(head));', 'surfaceOut(fly, centerOf(head));'],
+    ['../src/lib/control/actionMenu.js', 'surfaceIn(menuEl, openOrigin);', 'surfaceOut(menuEl, openOrigin);'],
+    ['../src/lib/control/actionMenu.js', 'surfaceIn(fly, centerOf(head));', 'surfaceOut(fly, centerOf(head));'],
     // customSelect hands both halves to showMenu/hideMenu, which aim at the trigger too.
-    ['../src/lib/dropdownMenu.js', 'surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS })',
+    ['../src/lib/control/dropdownMenu.js', 'surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS })',
                                    'surfaceOut(menu, menu.hidden ? null : menuDustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS })'],
-    ['../src/lib/chatMsgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
+    ['../src/lib/chat/chatMsgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
     ['../src/popup/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin);'],
     ['../src/options/confirmDialog.js', 'surfaceIn(box, origin);', 'surfaceOut(box, origin);'],
     // The Main-theme picker drives its own open/close but borrows the SAME caret point showMenu aims
@@ -32,7 +32,7 @@ test('every icon-anchored surface dusts from — and back into — its own contr
     assert.ok(s.includes(closes), `${rel} comes apart into ${closes}`);
   }
   // The logo's drag menu names the MARK as its point, not the menu's top-left corner.
-  assert.match(css('../src/lib/logoDragMenu.js'),
+  assert.match(css('../src/lib/accent/logoDragMenu.js'),
     /placeMenu\(r\.left, r\.bottom \+ 6, \{ x: r\.left \+ r\.width \/ 2, y: r\.top \+ r\.height \/ 2 \}\)/);
 });
 
@@ -50,7 +50,7 @@ test('the composer "…" is unhidden before it forms, and hidden right after it 
 });
 
 test('a close is SYNCHRONOUS: the motes are the surface leaving, nothing waits on them', () => {
-  const menu = readFileSync(new URL('../src/lib/actionMenu.js', import.meta.url), 'utf8');
+  const menu = readFileSync(new URL('../src/lib/control/actionMenu.js', import.meta.url), 'utf8');
   const close = menu.slice(menu.indexOf('const close = () =>'));
   // Dusted while it is still on screen and measurable, hidden on the very same frame —
   // which is what lets a burst of open/close land on the true state.

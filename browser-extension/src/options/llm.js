@@ -1,5 +1,5 @@
 import { originPattern } from '../lib/stencil.js';
-import { loadConnections } from '../lib/connections.js';
+import { loadConnections } from '../lib/connection/connections.js';
 import { icon } from '../lib/icons.js';
 import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
 import { listModels } from '../llm/llmClient.js';

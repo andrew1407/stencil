@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { layoutLineLengthCm } from '../js/core/units.js';
+import { layoutLineLengthCm } from '../js/core/settings/units.js';
 
 // A4 portrait: 21 × 29.7 cm. Canvas 210 × 297 px ⇒ exactly 0.1 cm/px on both axes.
 const A4 = (lines) => ({

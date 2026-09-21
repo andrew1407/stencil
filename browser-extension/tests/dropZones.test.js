@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { quadrantAt, mountDropZones } from '../src/lib/dropZones.js';
+import { quadrantAt, mountDropZones } from '../src/lib/drop/dropZones.js';
 import { installDom, stubDoc, stubEl, stubWin } from './helpers/domStub.js';
 
 // The 4-quadrant map the on-page drop overlay uses (see lib/dropZones.js / popup drag).

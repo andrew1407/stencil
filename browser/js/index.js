@@ -2,7 +2,7 @@ import { mountHTML } from './utils.js';
 import { layout } from './ui/layout.js';
 import { DrawingApp } from './core/drawingApp.js';
 import { core } from './core/abi/stencilCore.js';
-import { hotkeys } from './core/hotkeys.js';
+import { hotkeys } from './core/settings/hotkeys.js';
 import { registerServiceWorker } from './pwa.js';
 import { createStencil } from './console/stencilApi.js';
 import { runScriptHere } from './console/scriptRunner.js';

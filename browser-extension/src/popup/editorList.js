@@ -1,10 +1,10 @@
 // "Open editors": one row per open Stencil editor tab. Every capability is injected;
 // nothing here writes the editor's registry.
 import { MSG } from '../lib/messages.js';
-import { matchEditors } from '../lib/editorTabs.js';
+import { matchEditors } from '../lib/menu/editorTabs.js';
 import { icon } from '../lib/icons.js';
 import { createFilterTransition } from '../lib/motion.js';
-import { setTip } from '../lib/tip.js';
+import { setTip } from '../lib/tip/tip.js';
 import { confirmDialog } from './editorDialogs.js';
 
 // Long edge (px) of the hover magnifier's re-capture: readable, yet crosses three

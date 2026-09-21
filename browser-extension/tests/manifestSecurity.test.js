@@ -38,7 +38,11 @@ test('web_accessible_resources exposes only the in-page crop modal', () => {
 test('nothing else in the extension is web-reachable', () => {
   const wide = ['src/lib/*', 'src/lib/', 'icons/*', 'src/crop/*', 'src/popup/', 'src/options/', '*'];
   for (const pat of wide) assert.ok(!exposed.includes(pat), `${pat} must not be web-accessible`);
-  const libModules = readdirSync(here('../src/lib')).filter((f) => f.endsWith('.js'));
+  // lib/ holds its modules in feature folders, so the walk is recursive.
+  const walkJs = (dir, base = '') => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    (e.isDirectory() ? walkJs(new URL(`${e.name}/`, dir), `${base}${e.name}/`)
+                     : (e.name.endsWith('.js') ? [base + e.name] : [])));
+  const libModules = walkJs(new URL('../src/lib/', import.meta.url));
   assert.ok(libModules.length > 20);
   for (const f of libModules) {
     assert.ok(!exposed.some((r) => r === `src/lib/${f}` || r.startsWith('src/lib/')), `src/lib/${f} is exposed`);

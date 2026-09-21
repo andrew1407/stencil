@@ -4,7 +4,7 @@
 // two would touch, the hovered bubble's trigger lifts clear of them, or (too
 // little room) hides instead of sitting under them (desktop/browser parity).
 import { icon } from '../../lib/icons.js';
-import { msgMenuLiftPx, msgMenuLiftFits } from '../../lib/chatMsgMenu.js';
+import { msgMenuLiftPx, msgMenuLiftFits } from '../../lib/chat/chatMsgMenu.js';
 
 export const createJumpPills = (transcriptEl) => {
   const jumpsEl = document.getElementById('chat-jumps');

@@ -1,12 +1,12 @@
 // Quick crop page: a rect in ORIGINAL-image pixels, aspect locked to the page format. The
 // stage, the controls and the editor hand-off live beside this file; here: load, rotate, boot.
-import { cropAspect, isAlbumOrientation, pageDims } from '../lib/cropGeometry.js';
+import { cropAspect, isAlbumOrientation, pageDims } from '../lib/image/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
 import { SRC } from '../lib/messages.js';
-import { watchNumericInputs } from '../lib/numericInput.js';
-import { initTooltips } from '../lib/controlTooltip.js';
-import { wireScrollbarHover } from '../lib/scrollbarHover.js';
-import { enhanceSelect } from '../lib/customSelect.js';
+import { watchNumericInputs } from '../lib/control/numericInput.js';
+import { initTooltips } from '../lib/tip/controlTooltip.js';
+import { wireScrollbarHover } from '../lib/control/scrollbarHover.js';
+import { enhanceSelect } from '../lib/control/customSelect.js';
 import { createCropStage } from './cropStage.js';
 import { createCropControls } from './cropControls.js';
 import { buildHandoffPayload } from './cropHandoff.js';

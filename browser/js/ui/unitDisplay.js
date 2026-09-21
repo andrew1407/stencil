@@ -1,6 +1,6 @@
 import { cmToUnit, unitLabel } from '../utils.js';
-import { pageFormatLabel } from '../core/units.js';
-import { getPageDimensions, pixelToPageCoords } from '../core/pageMetrics.js';
+import { pageFormatLabel } from '../core/settings/units.js';
+import { getPageDimensions, pixelToPageCoords } from '../core/parse/pageMetrics.js';
 
 // ── The active unit, as the page shows it ───────────────────────
 // The two view writers split out of DrawingApp: the live cursor readout under the canvas,

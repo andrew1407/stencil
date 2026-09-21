@@ -86,7 +86,7 @@ test('every inline glyph copy in a host page names itself, so it animates too', 
 });
 
 test('the injected overlay shell mimes the same two actions', () => {
-  const src = read('../src/lib/overlay.js');
+  const src = read('../src/lib/drop/overlay.js');
   // It is injected into the host page and cannot link lib/animations/, so it carries
   // the two designs inline — on the canonical numbers.
   assert.ok(src.includes('<g class="ic-arrow">'), 'the "open in a tab" arrow carries its hook');

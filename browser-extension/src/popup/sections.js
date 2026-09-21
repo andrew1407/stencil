@@ -1,6 +1,6 @@
-import { createCollapsibleSections } from '../lib/collapsibleSections.js';
-import { createSectionPeek, peekPosition, isTypingTarget } from '../lib/sectionPeek.js';
-import { ASSISTANT_SECTION, SEARCH_SECTION } from '../lib/dragSections.js';
+import { createCollapsibleSections } from '../lib/control/collapsibleSections.js';
+import { createSectionPeek, peekPosition, isTypingTarget } from '../lib/highlight/sectionPeek.js';
+import { ASSISTANT_SECTION, SEARCH_SECTION } from '../lib/drop/dragSections.js';
 import { dragSections } from './dragWiring.js';
 
 // The peek must send a borrowed body home BEFORE the class flips; a user toggle cancels

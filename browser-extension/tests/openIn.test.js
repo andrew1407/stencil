@@ -1,5 +1,5 @@
 // Unit tests for the extension's ported "Open in…" deep-link builders (src/lib/openIn.js).
-// These are a PORT of browser/js/core/deepLink.js — the assertions below are the SAME
+// These are a PORT of browser/js/core/launch/deepLink.js — the assertions below are the SAME
 // expectations (and the SAME Telegram golden vectors) as browser/tests/deepLink.test.js,
 // so the extension's stencil:// and t.me links stay byte-compatible with the browser app's,
 // the desktop app (deepLink.cpp), and the Telegram bot (DeepLinkCodec.cs). Keep them in sync.
@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import {
   buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink,
   TELEGRAM_START_LIMIT, INLINE_WARN_CHARS, INLINE_MAX_CHARS,
-} from '../src/lib/openIn.js';
+} from '../src/lib/menu/openIn.js';
 
 // ── stencil:// scheme URLs (desktop inbound) ─────────────────────
 

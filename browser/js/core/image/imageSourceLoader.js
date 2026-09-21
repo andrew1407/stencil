@@ -1,5 +1,5 @@
 // The bytes half of the Open-Image dialog: fetch a URL, turn a video into a captured frame.
-import { isVideoFile, videoFileToImageFile } from '../videoFrame.js';
+import { isVideoFile, videoFileToImageFile } from '../export/videoFrame.js';
 
 // Same-origin / data: / CORS-enabled; a canvas readback would taint without CORS.
 export const fetchUrlToFile = async (url) => {

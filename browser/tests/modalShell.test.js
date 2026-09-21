@@ -82,10 +82,14 @@ test('Escape closes only the stacked window, not the one under it', () => {
 // the Shortcuts window records a combo in the CAPTURE phase and stops Escape there while it is
 // recording, so withholding it from the shell only trapped the window open.
 test('no window the app ships withholds Escape from its shell', () => {
-  const dir = fileURLToPath(new URL('../js/ui/', import.meta.url));
-  const guilty = readdirSync(dir)
-    .filter((f) => f.endsWith('.js'))
-    .filter((f) => /escapeClose\s*:\s*false/.test(readFileSync(join(dir, f), 'utf8')));
+  // ui/ is split into feature folders, so the walk is recursive.
+  const walk = (d) => readdirSync(d, { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? walk(join(d, e.name))
+      : (e.name.endsWith('.js') ? [join(d, e.name)] : [])));
+  const dir = fileURLToPath(new URL('../js/ui', import.meta.url));
+  const guilty = walk(dir)
+    .filter((f) => /escapeClose\s*:\s*false/.test(readFileSync(f, 'utf8')))
+    .map((f) => f.slice(dir.length + 1));
   assert.deepEqual(guilty, [], 'these windows cannot be closed with Escape');
 });
 

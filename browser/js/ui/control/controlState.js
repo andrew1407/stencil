@@ -1,5 +1,5 @@
 import { composeControlTitle } from '../../utils.js';
-import { hotkeys } from '../../core/hotkeys.js';
+import { hotkeys } from '../../core/settings/hotkeys.js';
 import { revealControls, settleMark } from '../motion.js';
 
 // One sweep reflecting the editor state onto every toolbar/panel control; DrawingApp's

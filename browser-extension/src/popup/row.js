@@ -1,10 +1,10 @@
 import { fetchAsDataUrl } from '../lib/stencil.js';
-import { projectNameColor } from '../lib/pins.js';
+import { projectNameColor } from '../lib/prefs/pins.js';
 import { icon } from '../lib/icons.js';
-import { setTip } from '../lib/tip.js';
-import { editableSrc, pinnable } from '../lib/imageModel.js';
-import { pinTargetMode } from '../lib/connections.js';
-import { passesFilters } from '../lib/filters.js';
+import { setTip } from '../lib/tip/tip.js';
+import { editableSrc, pinnable } from '../lib/image/imageModel.js';
+import { pinTargetMode } from '../lib/connection/connections.js';
+import { passesFilters } from '../lib/highlight/filters.js';
 import { rowTitle, thumbInitialSrc, dimText, rowBadges, rowOutlineClass } from '../lib/rowModel.js';
 import { filterLeave, createFilterTransition } from '../lib/motion.js';
 import { listEl, PLAY_THUMB } from './panelDom.js';

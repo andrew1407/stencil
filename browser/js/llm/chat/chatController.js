@@ -2,7 +2,7 @@
 // Owns the client-side conversation state (contract §7): history is replayed in full on
 // every call (bounded to 32 messages), images follow the replay rule, and attachments are
 // downscaled before base64-encoding. Every DOM capability is INJECTED for `node --test`.
-import { isVideoFile } from '../../core/videoFrame.js';
+import { isVideoFile } from '../../core/export/videoFrame.js';
 import { loadSavedServers } from '../../net/connectionStore.js';
 import { HISTORY_LIMIT, MAX_ATTACHMENTS, MAX_IMAGE_EDGE, VIDEO_FRAME_COUNT, contourDataUrl,
   downscaleImageToDataUrl, splitDataUrl, thumbnailDataUrl } from './chatTurn.js';

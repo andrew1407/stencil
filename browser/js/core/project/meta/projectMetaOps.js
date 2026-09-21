@@ -2,7 +2,7 @@
 // version-guarded single-field server push they all ride. `c` is the ProjectTransferController.
 import { notify } from '../../../utils.js';
 import { PROJECT_ACTION } from '../../../worker/messages.js';
-import { normalizeHex } from '../../accents.js';
+import { normalizeHex } from '../../settings/accents.js';
 import { requireConnection } from '../../../net/remoteSync.js';
 import { getSyncToServer } from '../../../net/connectionStore.js';
 

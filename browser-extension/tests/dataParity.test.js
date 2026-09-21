@@ -10,9 +10,9 @@ import { readFileSync } from 'node:fs';
 
 import { loadAccent } from './helpers/accentSandbox.js';
 import { ICONS } from '../src/lib/icons.js';
-import { PAGE_SIZES, DEFAULT_PAGE } from '../src/lib/cropGeometry.js';
-import { VIDEO_FORMATS } from '../src/lib/filters.js';
-import { COMMON_FORMATS } from '../src/lib/filterUi.js';
+import { PAGE_SIZES, DEFAULT_PAGE } from '../src/lib/image/cropGeometry.js';
+import { VIDEO_FORMATS } from '../src/lib/highlight/filters.js';
+import { COMMON_FORMATS } from '../src/lib/highlight/filterUi.js';
 
 const canonical = (rel) => JSON.parse(readFileSync(new URL(rel, import.meta.url), 'utf8'));
 
@@ -118,7 +118,7 @@ const source = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
 test('every stencil:* literal in src/ is a channel from config/events.json', () => {
   const channels = new Set(Object.values(canonical('../../browser/js/config/events.json')));
-  const files = ['../src/content/editorBridge.js', '../src/lib/accent.js', '../src/options/options.js'];
+  const files = ['../src/content/editorBridge.js', '../src/lib/accent/accent.js', '../src/options/options.js'];
   const found = new Set();
   for (const rel of files)
     for (const m of source(rel).matchAll(/['"`](stencil:[a-z-]+)['"`]/g)) {
@@ -143,6 +143,6 @@ test('pageApiMain VIDEO_FMTS matches config/mediaTypes.json surfaces.extension.v
 test('both format normalizers apply exactly the canonical rewrites, in order', () => {
   const rules = Object.entries(canonical('../../browser/js/config/mediaTypes.json').normalize);
   const chain = rules.map(([from, to]) => `.replace('${from}', '${to}')`).join('');
-  for (const rel of ['../src/lib/filters.js', '../src/content/pageApiMain.js'])
+  for (const rel of ['../src/lib/highlight/filters.js', '../src/content/pageApiMain.js'])
     assert.ok(source(rel).includes(`ext.toLowerCase()${chain}`), `${rel} drifted from mediaTypes.normalize`);
 });

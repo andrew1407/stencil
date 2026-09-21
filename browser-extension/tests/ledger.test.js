@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { matchEntries, trackableSource, reconcileLedger, originOf } from '../src/lib/ledger.js';
+import { matchEntries, trackableSource, reconcileLedger, originOf } from '../src/lib/prefs/ledger.js';
 
 const e = (over = {}) => ({ source: '', resource: '', name: '', count: 1, t: 0, ...over });
 

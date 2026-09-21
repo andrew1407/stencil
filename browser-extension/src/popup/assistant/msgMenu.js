@@ -3,7 +3,7 @@
 // .action-menu language as the popup's row menu; Resend only on the user's own turns
 // (their attachments requeue too).
 import { icon } from '../../lib/icons.js';
-import { createMsgMenu, createMsgMenuButton, appendToPrompt } from '../../lib/chatMsgMenu.js';
+import { createMsgMenu, createMsgMenuButton, appendToPrompt } from '../../lib/chat/chatMsgMenu.js';
 
 export const wireMsgMenu = ({ transcriptEl, inputEl, msgMeta, send, state }) => {
   const msgTargetOf = (el) => {

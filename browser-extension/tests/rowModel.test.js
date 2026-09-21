@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rowTitle, thumbInitialSrc, dimText, rowBadges, rowOutlineClass } from '../src/lib/rowModel.js';
-import { UNKNOWN_FORMAT } from '../src/lib/filters.js';
+import { UNKNOWN_FORMAT } from '../src/lib/highlight/filters.js';
 
 // ── rowTitle ──
 

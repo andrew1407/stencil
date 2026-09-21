@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 import MEDIA from '../js/config/mediaTypes.json' with { type: 'json' };
-import { isVideoFile, isVideoUrl } from '../js/core/videoFrame.js';
+import { isVideoFile, isVideoUrl } from '../js/core/export/videoFrame.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(resolve(ROOT, rel), 'utf8');

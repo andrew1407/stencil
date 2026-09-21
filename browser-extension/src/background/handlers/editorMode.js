@@ -2,10 +2,10 @@
 // are open and what each holds, which other tabs are scannable, one tab's images, and an
 // import INTO an open editor. Every handler here answers (request/response).
 import { getSettings, editorOriginPattern, fetchAsDataUrl, filenameFromUrl, focusTab } from '../../lib/stencil.js';
-import { isEditorTab, editorRow, sourceTabChoices, importModeFor } from '../../lib/editorTabs.js';
-import { scanPageForImages, mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../../lib/imageScan.js';
-import { sourceOf, editableSrc } from '../../lib/imageModel.js';
-import { recordOpened } from '../../lib/ledger.js';
+import { isEditorTab, editorRow, sourceTabChoices, importModeFor } from '../../lib/menu/editorTabs.js';
+import { scanPageForImages, mergeScanFrames, MAX_IMAGES, BLOCKED_SCHEMES } from '../../lib/image/imageScan.js';
+import { sourceOf, editableSrc } from '../../lib/image/imageModel.js';
+import { recordOpened } from '../../lib/prefs/ledger.js';
 import { MSG } from '../../lib/messages.js';
 import { answers, privileged, getTab, askEditorTab, probeEditorTabs, targetTabId, editorTabFor } from '../editorRelay.js';
 

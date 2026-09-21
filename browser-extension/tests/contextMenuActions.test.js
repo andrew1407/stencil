@@ -2,7 +2,7 @@
 // and the Pin/Unpin label the probe's record decides.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MENU, resolveContextAction, pinItemTitle } from '../src/lib/contextMenu.js';
+import { MENU, resolveContextAction, pinItemTitle } from '../src/lib/menu/contextMenu.js';
 
 test('resolveContextAction: background/link items mirror the <img> open/crop actions', () => {
   assert.deepEqual(resolveContextAction({ menuItemId: MENU.BG_OPEN, srcUrl: 'https://x/bg.jpg' }),

@@ -11,8 +11,19 @@
     "browser-extension/src/content": 13,
     "browser-extension/src/crop": 8,
     "browser-extension/src/devtools": 37,
-    "browser-extension/src/lib": 12,
+    "browser-extension/src/lib": 17,
+    "browser-extension/src/lib/accent": 10,
+    "browser-extension/src/lib/chat": 11,
+    "browser-extension/src/lib/connection": 8,
+    "browser-extension/src/lib/control": 14,
+    "browser-extension/src/lib/drop": 13,
+    "browser-extension/src/lib/dust": 13,
+    "browser-extension/src/lib/highlight": 7,
+    "browser-extension/src/lib/image": 14,
+    "browser-extension/src/lib/menu": 12,
     "browser-extension/src/lib/motion": 20,
+    "browser-extension/src/lib/prefs": 10,
+    "browser-extension/src/lib/tip": 22,
     "browser-extension/src/llm": 17,
     "browser-extension/src/options": 10,
     "browser-extension/src/popup": 9,
@@ -26,10 +37,19 @@
     "browser-extension/src/content/pageApiMain.js": "MAIN-world classic content script: no import, and a module graph would need web_accessible_resources widened (Phase 1 narrowed it to one file) or a shared global on the PAGE's window. Not splittable without giving up one of the two.",
     "browser-extension/src/content/editorApiMain.js": "Same MAIN-world constraint as pageApiMain.js.",
     "browser-extension/src/content/ctxTarget.js": "Classic content script (manifest content_scripts + executeScript into open tabs): one world-shared scope, no import. A split needs an isolated-world global AND ordered injection, which registrars.js's fire-and-forget loop does not guarantee.",
-    "browser-extension/src/lib/overlay.js": "One function handed to executeScript({ func }) \u2014 Chrome serialises the function and nothing else, so it must stay self-contained (tests/injectedFuncs.test.js pins that).",
-    "browser-extension/src/lib/customSelect.js": "One closure, and every test on it reads its SOURCE \u2014 pins before motion: it needs a behavioural DOM harness before it can be split."
+    "browser-extension/src/lib/overlay.js": "One function handed to executeScript({ func }) — Chrome serialises the function and nothing else, so it must stay self-contained (tests/injectedFuncs.test.js pins that).",
+    "browser-extension/src/lib/customSelect.js": "One closure, and every test on it reads its SOURCE — pins before motion: it needs a behavioural DOM harness before it can be split."
   },
   "_notes": {
-    "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added \u2014 the measured scope grew. These are the new floors."
-  }
+    "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added — the measured scope grew. These are the new floors."
+  },
+  "maxFilesPerDir": 12,
+  "dirs": {
+    "browser-extension/src/llm": 14,
+    "browser-extension/src/popup": 27,
+    "browser-extension/tests": 105,
+    "browser-extension/tests/helpers": 15
+  },
+  "_splitShareNote": "browser-extension/src/lib 12 -> 17: 70 modules moved into feature folders, so the same banners sit over a fraction of the code (comments 1153 -> 101, lines 8823 -> 577). Nothing added.",
+  "_dirsNote": "Folder fan-out ratchet. A module and its .d.ts count once; a folder past the cap is split by feature, never recorded."
 }

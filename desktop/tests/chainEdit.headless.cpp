@@ -1,5 +1,5 @@
 // Closing a shape, and the two ways back out of one (src/canvas/chainEdit.hpp) — the
-// desktop port of browser/js/core/dragGestures.js, carrying that suite's cases, plus the
+// desktop port of browser/js/core/touch/dragGestures.js, carrying that suite's cases, plus the
 // wiring on the real widget: Alt+Ctrl+drag pulls a new point out of the line under the
 // cursor and breaks a closed area open at that spot. Runs offscreen.
 #include "CanvasWidget.hpp"

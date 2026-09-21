@@ -1,8 +1,8 @@
 // ── window.stencil's crop and page-coordinate conversions ──────────────────
 // crop() resolves axis tokens to rotated-original pixels and commits through the
 // UI's own applyCrop, so a scripted crop and the modal's crop are one code path.
-import { resolveAxisPx } from '../core/units.js';
-import { cropAspect, scaleCropCentered } from '../core/cropGeometry.js';
+import { resolveAxisPx } from '../core/settings/units.js';
+import { cropAspect, scaleCropCentered } from '../core/parse/cropGeometry.js';
 
 export const createCropApi = ({ app }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { parseScript, resolveShape, cropSpecOf } from '../js/core/script.js';
-import { isHexColorWord } from '../js/core/scriptLexer.js';
+import { isHexColorWord } from '../js/core/script/scriptLexer.js';
 
 const hasCode = (p, code) => p.diagnostics.some((d) => d.code === code);
 const codesOf = (src) => parseScript(src).diagnostics.map((d) => d.code);

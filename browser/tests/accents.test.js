@@ -2,7 +2,7 @@
 // (non-preset) accent path (logo double-click picker + stencil.mainTheme = '#hex').
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeHex, isAccent, accentHex, DEFAULT_ACCENT } from '../js/core/accents.js';
+import { normalizeHex, isAccent, accentHex, DEFAULT_ACCENT } from '../js/core/settings/accents.js';
 
 test('normalizeHex: accepts #rrggbb / #rgb (# optional), normalizes case + expands shorthand', () => {
   assert.equal(normalizeHex('#ff5623'), '#ff5623');

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   MENU, MENU_ITEMS, resolveContextAction, menuVisibilityFor, visibleMenu,
   DYNAMIC_ITEMS, PREVIEW_ITEMS, PIN_ITEMS, STATIC_DESKTOP_ITEMS, pinItemTitle,
-} from '../src/lib/contextMenu.js';
+} from '../src/lib/menu/contextMenu.js';
 
 test('MENU_ITEMS: a "Stencil" parent per group holds every item; Preview nests one deeper', () => {
   // Two top-level parents, both titled "Stencil" so the submenu isn't auto-grouped under the

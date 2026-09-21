@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SettingsController, makeApp } from './helpers/settingsControllerRig.js';
 
-const { FormulaEngine } = await import('../js/core/formulaEngine.js');
+const { FormulaEngine } = await import('../js/core/parse/formulaEngine.js');
 const { COMMIT_DEBOUNCE_MS } = await import('../js/ui/control/numericInput.js');
 
 const stubEl = () => {

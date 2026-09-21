@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import {
   THEME_STORAGE_KEY, THEME_MODES, SHELL_PALETTES,
   resolveShellMode, shellPalette, shellAccent, loadShellTheme,
-} from '../src/lib/shellTheme.js';
-import { ACCENT_HEX, ACCENT_STORAGE_KEY } from '../src/lib/highlightColor.js';
+} from '../src/lib/prefs/shellTheme.js';
+import { ACCENT_HEX, ACCENT_STORAGE_KEY } from '../src/lib/highlight/highlightColor.js';
 
 test('the mirrored storage keys match the localStorage names lib/accent.js writes', () => {
   assert.equal(THEME_STORAGE_KEY, 'stencil_theme');

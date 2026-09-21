@@ -2,8 +2,8 @@
 // Extracted from stencilApi.js. Mutually recursive (a Line lists Points, a removed Point
 // hands back its Line), so they share one factory. `setFacade` supplies the frozen facade
 // the wrappers fall back to for chaining — it exists only after createStencil finishes.
-import { pointColorOf } from '../core/renderer.js';
-import { toHexColor } from '../core/accents.js';
+import { pointColorOf } from '../core/draw/renderer.js';
+import { toHexColor } from '../core/settings/accents.js';
 import { str } from './coerce.js';
 
 export const createLineWrappers = ({ app, guard }) => {

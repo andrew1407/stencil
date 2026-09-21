@@ -3,7 +3,7 @@
 // factory is driven with a stub document like the other DOM-adjacent suites.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gearStatusRows, gearTipFootText, createChatStatusTip } from '../src/lib/chatStatusTip.js';
+import { gearStatusRows, gearTipFootText, createChatStatusTip } from '../src/lib/chat/chatStatusTip.js';
 import { stubDoc, stubEl, stubWin } from './helpers/domStub.js';
 
 const LABELS = { none: 'None (assistant off)', ollama: 'Ollama', anthropic: 'Anthropic' };

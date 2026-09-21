@@ -1,6 +1,6 @@
-import { HoldDrawController, holdDrawTarget } from '../holdDraw.js';
+import { HoldDrawController, holdDrawTarget } from '../draw/holdDraw.js';
 import { classifyEnd } from '../touch/touchGestures.js';
-import { nowMs, setHoldPreview, clearHoldPreview, holdAnchor } from '../holdDrawView.js';
+import { nowMs, setHoldPreview, clearHoldPreview, holdAnchor } from '../draw/holdDrawView.js';
 import { touchHandlers } from '../touch/touchInput.js';
 
 // Hold-to-draw: the machine's wiring plus the seam the touch flow (touchInput.js) drives.

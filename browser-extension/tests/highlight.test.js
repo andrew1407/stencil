@@ -4,8 +4,8 @@
 // and are driven here over a fabricated document.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { toggleStencilHighlight } from '../src/lib/highlight.js';
-import { highlightSourceOnTab } from '../src/lib/hoverHighlight.js';
+import { toggleStencilHighlight } from '../src/lib/highlight/highlight.js';
+import { highlightSourceOnTab } from '../src/lib/highlight/hoverHighlight.js';
 import { installDom } from './helpers/domStub.js';
 import { MSG } from '../src/lib/messages.js';
 

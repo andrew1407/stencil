@@ -3,7 +3,7 @@
 // private/internal literal class a page could name must be refused.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isAllowedImageUrl } from '../src/lib/urlGuard.js';
+import { isAllowedImageUrl } from '../src/lib/connection/urlGuard.js';
 
 test('public http(s) URLs are allowed', () => {
   for (const url of [

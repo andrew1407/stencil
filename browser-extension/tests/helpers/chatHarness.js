@@ -1,6 +1,6 @@
 // Scripted-client harness shared by the llmChat*.test.js suites: a queued mock client
 // plus stub focus/open/attach capabilities (no chrome, no fetch).
-import { formatOfItem } from '../../src/lib/filters.js';
+import { formatOfItem } from '../../src/lib/highlight/filters.js';
 import { createChatController } from '../../src/llm/chatController.js';
 
 export const LISTING = [

@@ -1,7 +1,7 @@
 // Three routes to a still of the right-clicked <video>, tried in order by ctxActions: in-page
 // canvas readback, an extension-side byte re-fetch, and a screenshot crop as a last resort.
 import { blobToDataUrl } from '../lib/stencil.js';
-import { isAllowedImageUrl } from '../lib/urlGuard.js';
+import { isAllowedImageUrl } from '../lib/connection/urlGuard.js';
 
 // An un-capped retina crop, as a data URL in the editor launch URL, overflows Chrome's limit.
 const FRAME_MAX_SIDE = 1920;

@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
     if (edit) edit->setPlainText(QStringLiteral("   \n"));
     check(run && !run->isEnabled(), "whitespace alone is still empty");
 
-    // Browser twin: gateActions() in js/ui/scriptEditor.js.
+    // Browser twin: gateActions() in js/ui/script/scriptEditor.js.
     QPushButton* copy = nullptr;
     for (QPushButton* b : dlg.findChildren<QPushButton*>())
       if (b->text() == QStringLiteral("Copy")) copy = b;

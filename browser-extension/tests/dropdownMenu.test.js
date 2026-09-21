@@ -1,4 +1,4 @@
-// src/lib/dropdownMenu.js is a rule-for-rule PORT of browser/js/ui/dropdownMenu.js. Its
+// src/lib/dropdownMenu.js is a rule-for-rule PORT of browser/js/ui/control/dropdownMenu.js. Its
 // behavioural cases (placement, flip, clamp, height cap, portal + put-back) live in
 // browser/tests/dropdownMenu.test.js; portParity.test.js pins the two sources identical,
 // so the extension no longer duplicates that suite. What remains here is the
@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { themeCss } from './helpers/sources.js';
 
 test('every page replaces its native selects, and the list is themed + portaled', () => {
-  const cs = readFileSync(new URL('../src/lib/customSelect.js', import.meta.url), 'utf8');
+  const cs = readFileSync(new URL('../src/lib/control/customSelect.js', import.meta.url), 'utf8');
   assert.match(cs, /showMenu\(menu, trigger\)/, 'customSelect opens through dropdownMenu');
   assert.match(cs, /hideMenu\(menu\)/, 'and closes through it');
   // The menu is on <body> while open, so an outside press must test it too.

@@ -2,9 +2,9 @@
 // The executed-action cards, the §11 choice card, and the reply itself. The view's
 // entry builders are destructured, so every call here reads as it did inside the
 // panel; `state.send` is late-bound because the ask card's Submit starts the NEXT turn.
-import { editableSrc } from '../../lib/imageModel.js';
+import { editableSrc } from '../../lib/image/imageModel.js';
 import { askAnswerText } from '../../llm/opPlan.js';
-import { AUTO_DISMISS_MS } from '../../lib/chatUi.js';
+import { AUTO_DISMISS_MS } from '../../lib/chat/chatUi.js';
 import { entryName } from './shared.js';
 
 export const createResults = ({ view, getItems, state }) => {

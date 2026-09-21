@@ -4,11 +4,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { parseScript } from '../js/core/script.js';
-import { lexScript } from '../js/core/scriptLexer.js';
+import { lexScript } from '../js/core/script/scriptLexer.js';
 import {
   MAX_BLOCKS, MAX_LINES, MAX_OPS, MAX_POINTS_PER_LINE, MAX_SOURCE_CHARS, MAX_TEMPLATES,
   MAX_TOKENS,
-} from '../js/core/scriptTypes.js';
+} from '../js/core/script/scriptTypes.js';
 
 // The one error code a capped script reports, or '' when it reports none.
 const onlyErrorCode = (src) => {

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   AUTO_DISMISS_MS, SUGGESTIONS, makeDismissible, renderSuggestions,
   shrinkWrapWidth, applyShrinkWrap, bindShrinkWrapResize,
-} from '../src/lib/chatUi.js';
+} from '../src/lib/chat/chatUi.js';
 import { installDom, stubDoc, stubEl } from './helpers/domStub.js';
 
 // The dismissal is what's under test, not the dissolve it plays out through: declare the
@@ -119,7 +119,7 @@ test('renderSuggestions takes a custom chip list', () => {
   assert.equal(wrap.children[0].textContent, 'a');
 });
 
-// Browser js/ui/chatView.js parity: a wrapped bubble hugs its own longest line, not the
+// Browser js/ui/chat/chatView.js parity: a wrapped bubble hugs its own longest line, not the
 // max-width cap it never searches a narrower box against (user report).
 test('shrinkWrapWidth: one line already hugs its content — nothing to pin', () => {
   assert.equal(shrinkWrapWidth([142.5]), null);

@@ -1,6 +1,6 @@
 // What the ctxTarget probe last resolved, per tab, plus the pins cache the probe reads
 // synchronously to relabel Pin ↔ Unpin before the native menu appears.
-import { loadPins, PINS_KEY } from '../lib/pins.js';
+import { loadPins, PINS_KEY } from '../lib/prefs/pins.js';
 
 // What the probe last resolved under the cursor, per tab: info.srcUrl is absent for a
 // background and wrong for a <video> (its media file, not the captured frame).

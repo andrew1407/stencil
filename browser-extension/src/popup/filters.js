@@ -1,6 +1,6 @@
-import { passesFilters } from '../lib/filters.js';
-import { sharedMatchesSearch } from '../lib/imageModel.js';
-import { createFilterUi } from '../lib/filterUi.js';
+import { passesFilters } from '../lib/highlight/filters.js';
+import { sharedMatchesSearch } from '../lib/image/imageModel.js';
+import { createFilterUi } from '../lib/highlight/filterUi.js';
 import { listEl, countEl, clearStatus } from './panelDom.js';
 import { state, isPinned, isOpened } from './model.js';
 import { renderRow, filterTransition } from './row.js';

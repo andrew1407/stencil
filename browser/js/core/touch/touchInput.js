@@ -1,7 +1,7 @@
 // The touchscreen flow's gesture machine: which of tap / point / segment / pinch a press
 // became, and how each follows and ends. The hold-draw half stays in inputController.js.
 import { TOUCH_DEFAULTS } from './touchGestures.js';
-import { nowMs } from '../holdDrawView.js';
+import { nowMs } from '../draw/holdDrawView.js';
 import { beginPinch, pinchTo, applyPinchFrame, endPinch } from './touchPinch.js';
 import { findTouchById, grabTouchTarget, touchDragTo, touchDragEnd,
          releaseTouchGrab, tapClickAt } from './touchDrag.js';

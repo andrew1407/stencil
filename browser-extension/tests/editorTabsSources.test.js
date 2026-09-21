@@ -2,7 +2,7 @@
 // labelled and filtered, and the import mode an editor's own state earns.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { editorRow, importModeFor, matchSourceTabs, sourceTabChoices } from '../src/lib/editorTabs.js';
+import { editorRow, importModeFor, matchSourceTabs, sourceTabChoices } from '../src/lib/menu/editorTabs.js';
 
 test('sourceTabChoices: keeps scannable http(s) pages, labelled "title — host"', () => {
   const tabs = [

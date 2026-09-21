@@ -1,4 +1,4 @@
-// lib/scrollbarHover.js is a rule-for-rule PORT of browser/js/ui/scrollbarHover.js
+// lib/scrollbarHover.js is a rule-for-rule PORT of browser/js/ui/control/scrollbarHover.js
 // (portParity.test.js pins the bodies identical; the geometry cases live in
 // browser/tests/canvas-scrollbar.test.js). What remains here is the extension-specific
 // wiring: every page calls it once, and the theme carries the tokens + the app-wide rule
@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { popupCss, themeCss } from './helpers/sources.js';
 import { readFileSync } from 'node:fs';
-import { scrollbarHit } from '../src/lib/scrollbarHover.js';
+import { scrollbarHit } from '../src/lib/control/scrollbarHover.js';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -23,7 +23,7 @@ test('the bar strip is the last 14px of the box on the axis that scrolls', () =>
 test('every page wires the document listener once', () => {
   for (const script of ['popup/popup.js', 'crop/crop.js', 'options/options.js']) {
     const src = read(`../src/${script}`);
-    assert.match(src, /import \{ wireScrollbarHover \} from '\.\.\/lib\/scrollbarHover\.js';/, `${script} imports it`);
+    assert.match(src, /import \{ wireScrollbarHover \} from '[^']*scrollbarHover\.js';/, `${script} imports it`);
     assert.equal((src.match(/^wireScrollbarHover\(\);/gm) || []).length, 1, `${script} calls it exactly once`);
   }
   // The side panel and the devtools panel run popup.js, so they are covered by it.

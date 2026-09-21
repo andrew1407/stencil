@@ -4,7 +4,7 @@ import {
   isAlbumOrientationJS, cropAspectJS, centeredCropJS, resizeCropFromCornerJS,
   moveCropClampedJS, scaleCropCenteredJS, swapCropOrientationJS, cropResizeScaleJS, cropChangeJS,
   scaleLinePoints, rotateCropRectQuarterJS, rotateLinePointsQuarter
-} from '../js/core/cropGeometry.js';
+} from '../js/core/parse/cropGeometry.js';
 
 // A3 page in cm (aspect ≈ √2), matching desktop/tests/cropGeometry.test.cpp.
 const A3W = 29.7;

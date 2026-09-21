@@ -4,7 +4,7 @@ import { icon } from './icons.js';
 import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../config/openInConfig.js';
 import {
   buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink,
-} from '../core/deepLink.js';
+} from '../core/launch/deepLink.js';
 
 // Inline hand-offs ride the OS launch machinery (LaunchServices / xdg-open argv), which
 // tolerates far less than an in-page URL.

@@ -3,7 +3,7 @@
 // gate, the grace countdown, and the file-MIME menu hint.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileEntryHint, createLogoDragMenu, LOGO_DROP_HINT } from '../src/lib/logoDragMenu.js';
+import { fileEntryHint, createLogoDragMenu, LOGO_DROP_HINT } from '../src/lib/accent/logoDragMenu.js';
 import { stubDoc, stubEl as sharedEl } from './helpers/domStub.js';
 
 const tick = (ms) => new Promise((r) => setTimeout(r, ms));

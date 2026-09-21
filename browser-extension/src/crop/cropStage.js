@@ -1,6 +1,6 @@
 // `aspect` is injected — the page format the rect is locked to belongs to the controls.
 import { centeredCrop, moveCropClamped, resizeCropFromCorner, roundRect, scaleCropCentered }
-  from '../lib/cropGeometry.js';
+  from '../lib/image/cropGeometry.js';
 import { tweenRect } from '../lib/rectTween.js';
 
 const VIEWPORT_PAD = 10;   // keep in sync with .viewport padding in crop.css

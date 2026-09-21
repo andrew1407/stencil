@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { animationsCss, themeCss } from './helpers/sources.js';
-import { wireLogoAccent } from '../src/lib/logoAccent.js';
+import { wireLogoAccent } from '../src/lib/accent/logoAccent.js';
 import { installDom, stubEl as el } from './helpers/domStub.js';
 
 const ACCENTS = [{ key: 'violet', label: 'Violet', hex: '#8b5cf6' },

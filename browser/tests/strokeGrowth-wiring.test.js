@@ -12,7 +12,7 @@ const drawingAppJs = read('../js/core/drawingApp.js');
 const inputJs = read('../js/core/pointer/inputController.js');
 const shapeJs = read('../js/core/line/shapeBuilder.js');
 const clickJs = read('../js/core/pointer/canvasClick.js');
-const exportJs = read('../js/core/exportService.js');
+const exportJs = read('../js/core/export/exportService.js');
 
 // ── 3. The wiring ───────────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ test('a restored or wiped set of lines grounds every flight', () => {
 });
 
 test('the renderer draws the flown positions, at their flown size', async () => {
-  const { Renderer } = await import('../js/core/renderer.js');
+  const { Renderer } = await import('../js/core/draw/renderer.js');
   const { ctx, calls } = recordingCtx();
   const line = lineOf([0, 0], [100, 0]);
   const flown = [{ x: 7, y: 8 }, { x: 40, y: 9 }];

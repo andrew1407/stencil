@@ -1,5 +1,5 @@
 // Headless check of the rich control tooltips (src/support/tipContent.cpp) — the desktop port of
-// browser/js/ui/tipContent.js, carrying that suite's cases so the three renderings of a tooltip
+// browser/js/ui/tip/tipContent.js, carrying that suite's cases so the three renderings of a tooltip
 // cannot drift. Split across tipContent*.headless.cpp; this TU owns the palette they render in.
 #include "tipContentParts.hpp"
 

@@ -1,18 +1,18 @@
 // Shared extension helpers; service-worker-safe (no FileReader / DOM).
-import { mountStencilModal } from './overlay.js';
-import { loadShellTheme } from './shellTheme.js';
+import { mountStencilModal } from './drop/overlay.js';
+import { loadShellTheme } from './prefs/shellTheme.js';
 import { MSG } from './messages.js';
-import { editorOriginPattern } from './settings.js';
+import { editorOriginPattern } from './prefs/settings.js';
 
 export {
   DEFAULT_EDITOR_URL, DEFAULT_PAGE, editorOriginPattern, getSettings, originPattern, setSettings,
-} from './settings.js';
+} from './prefs/settings.js';
 export {
   blobToDataUrl, fetchAsDataUrl, filenameFromUrl, guessMime, isImageDataUrl,
-} from './imageData.js';
+} from './image/imageData.js';
 export {
   MAX_PAYLOAD, buildHandoff, buildLaunchUrl, launchEditorModal, openEditorTab,
-} from './editorLaunch.js';
+} from './menu/editorLaunch.js';
 
 // Selecting a tab in a background window leaves it hidden, hence the second call.
 export const focusTab = async (tab) => {

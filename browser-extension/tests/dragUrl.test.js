@@ -1,7 +1,7 @@
 // Unit tests for the side-panel drag-to-pin URL extractor (src/lib/dragUrl.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractDraggedUrl, guessKindFromUrl } from '../src/lib/dragUrl.js';
+import { extractDraggedUrl, guessKindFromUrl } from '../src/lib/drop/dragUrl.js';
 
 const reader = (map) => (t) => map[t] || '';
 

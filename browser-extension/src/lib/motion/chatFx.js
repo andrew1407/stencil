@@ -2,7 +2,7 @@
 // Call right after the render that inserted the row: its box expands on the short timer
 // while a dust copy gathers into its final rect, and it stays veiled until the motes land
 // (the dust IS the row forming). Decoration only — reduced motion resolves at once.
-import { motionReduced, dustEnabled } from '../motionPrefs.js';
+import { motionReduced, dustEnabled } from '../prefs/motionPrefs.js';
 import { reintegrate } from './disintegrate.js';
 import { LEAVE_MS, flashLanding, wipeDurationMs } from './enterLeave.js';
 import { DISINTEGRATE_MS, cancelDust, scatterGridFor } from './tiles.js';

@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { core } from '../js/core/abi/stencilCore.js';
-import { HoldDrawController } from '../js/core/holdDraw.js';
+import { HoldDrawController } from '../js/core/draw/holdDraw.js';
 
 // Generated artifact (gitignored) — skip rather than fail when it has not been built.
 const MODULE_BUILT = existsSync(fileURLToPath(new URL('../js/wasm/stencilCore.js', import.meta.url)));

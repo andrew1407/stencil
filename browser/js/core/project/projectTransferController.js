@@ -1,5 +1,5 @@
 import { PROJECT_ACTION } from '../../worker/messages.js';
-import { buildOpenProjectUrl, buildExternalLaunchUrl } from '../deepLink.js';
+import { buildOpenProjectUrl, buildExternalLaunchUrl } from '../launch/deepLink.js';
 import { requireConnection } from '../../net/remoteSync.js';
 import * as meta from './meta/projectMetaOps.js';
 import * as xfer from './projectServerTransfer.js';

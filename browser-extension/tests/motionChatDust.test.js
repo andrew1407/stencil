@@ -7,7 +7,7 @@ import {
   tileMotion, DISINTEGRATE_MS,
   chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, dustFitsScroller,
 } from '../src/lib/motion.js';
-import { FLIGHTS, moteFrame } from '../src/lib/dustCloud.js';
+import { FLIGHTS, moteFrame } from '../src/lib/dust/dustCloud.js';
 import { classEl as el } from './helpers/listDom.js';
 
 const css = animationsCss();

@@ -1,4 +1,4 @@
-import { ACCENTS, accentHex, normalizeHex, onAccentInk } from '../../core/accents.js';
+import { ACCENTS, accentHex, normalizeHex, onAccentInk } from '../../core/settings/accents.js';
 import { icon } from '../icons.js';
 import { showMenu, hideMenu } from '../control/dropdownMenu.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';

@@ -2,7 +2,7 @@
 // the main accent, a hex is used verbatim, and an unknown accent falls back to the default.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveHighlightColor, highlightColorValue, ACCENT_HEX, DEFAULT_HL } from '../src/lib/highlightColor.js';
+import { resolveHighlightColor, highlightColorValue, ACCENT_HEX, DEFAULT_HL } from '../src/lib/highlight/highlightColor.js';
 
 test('resolveHighlightColor: "theme" maps to the accent hex', () => {
   assert.equal(resolveHighlightColor('theme', 'pink'), ACCENT_HEX.pink);

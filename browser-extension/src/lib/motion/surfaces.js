@@ -3,7 +3,7 @@
 // copies of a menu is a few hundred more elements answering to `.action-menu` and kin, and
 // everything that queries the page would have to know about a decoration. Flat specks
 // carry no identity, and at a 6px grain show all a clone would.
-import { motionReduced } from '../motionPrefs.js';
+import { motionReduced } from '../prefs/motionPrefs.js';
 import { disintegrate } from './disintegrate.js';
 import { speckPainter } from './painters.js';
 import { SURFACE_COLS, SURFACE_DRIVEN_CLASS, SURFACE_FORMING_CLASS, SURFACE_IN_MS,

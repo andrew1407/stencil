@@ -2,7 +2,7 @@
 // matching those rows against a query.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isEditorTab, editorRow, matchEditors } from '../src/lib/editorTabs.js';
+import { isEditorTab, editorRow, matchEditors } from '../src/lib/menu/editorTabs.js';
 
 test('isEditorTab: origin match, ignoring path/query/fragment on either side', () => {
   const editorUrl = 'http://localhost:8080/';

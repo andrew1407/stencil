@@ -4,7 +4,7 @@
 // state object and this draws it, so nothing here has to know which tab it belongs to.
 // Desktop twin: OpenImageDialog's CropPreview.
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, swapCropOrientation }
-  from '../../core/cropGeometry.js';
+  from '../../core/parse/cropGeometry.js';
 import { tweenRect } from '../motion/rectTween.js';
 import { icon } from '../icons.js';
 import { pinWidestFace } from '../motion.js';

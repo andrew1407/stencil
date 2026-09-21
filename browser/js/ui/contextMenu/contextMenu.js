@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define } from '../base.js';
-import { hotkeys } from '../../core/hotkeys.js';
+import { hotkeys } from '../../core/settings/hotkeys.js';
 import { chatRowMenuOpen } from '../chat/chatView.js';
 import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced,
          SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';

@@ -1,6 +1,6 @@
 import { icon } from '../icons.js';
 import { wireNameEditor } from '../../utils.js';
-import { validateProjectName } from '../../core/validation.js';
+import { validateProjectName } from '../../core/parse/validation.js';
 import { markIn, markOut } from '../motion.js';
 
 // The row's inline rename editor: ✓/✗ form out of dust, live validation against the store's

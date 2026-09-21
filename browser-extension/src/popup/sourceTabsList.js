@@ -1,9 +1,9 @@
 // "Images from another page": a multi-select of open pages; nothing is ticked to begin with.
 import { MSG } from '../lib/messages.js';
-import { matchSourceTabs } from '../lib/editorTabs.js';
+import { matchSourceTabs } from '../lib/menu/editorTabs.js';
 import { icon } from '../lib/icons.js';
 import { createFilterTransition } from '../lib/motion.js';
-import { setTip } from '../lib/tip.js';
+import { setTip } from '../lib/tip/tip.js';
 
 export const createSourceTabs = ({ listedEl, srcFilterEl, srcRegexEl, allBtn, noneBtn,
                                    noteEl, ask, menu, setStatus, dismiss, onSourceTab }) => {

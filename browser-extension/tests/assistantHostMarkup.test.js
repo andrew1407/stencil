@@ -128,7 +128,7 @@ test('hovering a small attachment thumbnail shows it large', () => {
   const chips = readFileSync(new URL('../src/popup/assistant/attachments.js', import.meta.url), 'utf8');
   assert.match(src, /wireThumbPreview\(img, \{ caption \}\);/, 'the transcript strip is wired');
   assert.match(chips, /wireThumbPreview\(img, \{ caption: p\.name \}\);/, 'and so are the pending chips');
-  const ui = readFileSync(new URL('../src/lib/chatUi.js', import.meta.url), 'utf8');
+  const ui = readFileSync(new URL('../src/lib/chat/chatUi.js', import.meta.url), 'utf8');
   assert.match(ui, /export const wireThumbPreview = \(img, \{ doc = globalThis\.document/);
   assert.match(ui, /cap\.textContent = caption;/, 'a scanned filename stays data, never markup');
   assert.match(ui, /doc\.body\.appendChild\(box\);/, 'on the body — the popup clips its regions');

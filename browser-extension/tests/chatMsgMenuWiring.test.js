@@ -59,7 +59,7 @@ test('the shared pop keyframe lives on .action-menu and respects reduced motion'
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.action-menu \{ animation: none; \}/);
 });
 
-const actionMenu = readFileSync(new URL('../src/lib/actionMenu.js', import.meta.url), 'utf8');
+const actionMenu = readFileSync(new URL('../src/lib/control/actionMenu.js', import.meta.url), 'utf8');
 const theme = themeCss();
 const anim = animationsCss();
 

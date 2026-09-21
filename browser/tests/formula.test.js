@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { FormulaEngine } from '../js/core/formulaEngine.js';
+import { FormulaEngine } from '../js/core/parse/formulaEngine.js';
 
 const fe = new FormulaEngine();
 

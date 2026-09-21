@@ -1,5 +1,5 @@
 // The extension's crop geometry (src/lib/cropGeometry.js).
-// The six functions ported from browser/js/core/cropGeometry.js are pinned to that original by
+// The six functions ported from browser/js/core/parse/cropGeometry.js are pinned to that original by
 // portParity.test.js and behaviourally by the browser suite, so none of those run twice here.
 // What remains is the extension's own half: the page-format table (a checked-in copy that
 // dataParity.test.js pins to config/constants.json) and the three helpers built on it.
@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   roundRect, pageDims, pageSizeLabel, pageSizeOptions, PAGE_SIZES, DEFAULT_PAGE,
-} from '../src/lib/cropGeometry.js';
+} from '../src/lib/image/cropGeometry.js';
 
 test('roundRect: integers, clamped inside the image', () => {
   assert.deepEqual(roundRect({ x: 10.6, y: 5.2, width: 99.4, height: 70.8 }, 200, 200), { x: 11, y: 5, width: 99, height: 71 });

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatOf, formatOfItem, distinctFormats, extractCssUrls, passesFilters, matchesSearch, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../src/lib/filters.js';
+import { formatOf, formatOfItem, distinctFormats, extractCssUrls, passesFilters, matchesSearch, UNKNOWN_FORMAT, VIDEO_FORMATS } from '../src/lib/highlight/filters.js';
 
 test('formatOf: extensions, query strings, data URIs, normalisation', () => {
   assert.equal(formatOf('https://a.example/x/cat.PNG'), 'png');

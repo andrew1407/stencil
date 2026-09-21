@@ -3,7 +3,7 @@
 // per-section hooks, and the hidden ≠ collapsed rule the drag spring relies on.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createCollapsibleSections } from '../src/lib/collapsibleSections.js';
+import { createCollapsibleSections } from '../src/lib/control/collapsibleSections.js';
 import { stubDoc, stubEl } from './helpers/domStub.js';
 
 const stubSection = (id, { collapsed = false, hidden = false } = {}) => {

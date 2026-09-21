@@ -1,6 +1,6 @@
-import { createActionMenu } from '../lib/actionMenu.js';
+import { createActionMenu } from '../lib/control/actionMenu.js';
 import { icon } from '../lib/icons.js';
-import { posterImage, editableSrc, pinnable } from '../lib/imageModel.js';
+import { posterImage, editableSrc, pinnable } from '../lib/image/imageModel.js';
 import { listEl, menuEl, run } from './panelDom.js';
 import { state, isOpened } from './model.js';
 import { openHere, sendToEditor, openCrop, resumeInEditor, openInDesktop, openInTelegram } from './openActions.js';

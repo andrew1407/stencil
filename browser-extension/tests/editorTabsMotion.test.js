@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { editorRow, matchEditors, matchSourceTabs, sourceTabChoices } from '../src/lib/editorTabs.js';
+import { editorRow, matchEditors, matchSourceTabs, sourceTabChoices } from '../src/lib/menu/editorTabs.js';
 import { createFilterTransition } from '../src/lib/motion.js';
 import { makeList, renderKeys } from './helpers/listDom.js';
 

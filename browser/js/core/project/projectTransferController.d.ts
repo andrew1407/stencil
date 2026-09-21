@@ -2,7 +2,7 @@
 // clear, and the deps every part of the subsystem reads. The meta writes live in
 // projectMetaOps.js, the move/copy flows in projectServerTransfer.js — this delegates.
 import type { Storage } from '../storage/storage.js';
-import type { TabsCoordinator } from '../tabsCoordinator.js';
+import type { TabsCoordinator } from '../launch/tabsCoordinator.js';
 import type { RemoteSyncController, RemoteLink } from '../remote/remoteSyncController.js';
 import type { ProjectMeta, ProjectLayout } from './store/projectsStore.js';
 import type { ConnectionManager } from '../../net/connectionManager.js';

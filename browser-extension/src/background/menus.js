@@ -1,7 +1,7 @@
 // The menu is rebuilt from scratch on every worker start; the desktop-app items are
 // revealed only when a URL scheme is configured.
 import { getSettings } from '../lib/stencil.js';
-import { MENU_ITEMS, STATIC_DESKTOP_ITEMS } from '../lib/contextMenu.js';
+import { MENU_ITEMS, STATIC_DESKTOP_ITEMS } from '../lib/menu/contextMenu.js';
 
 // removeAll first: onInstalled/onStartup are unreliable per reload, so this also runs at
 // top level on each worker start, and a rebuild would otherwise hit "duplicate id".

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLengthToken, resolveAxisPx, normalizePageSize, isDeltaToken } from '../js/core/units.js';
+import { parseLengthToken, resolveAxisPx, normalizePageSize, isDeltaToken } from '../js/core/settings/units.js';
 
 // Pure length-token parsing used by the console API (window.stencil) for crop/move.
 

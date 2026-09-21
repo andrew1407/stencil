@@ -4,11 +4,11 @@
 // open a URL, change the panel's own settings, clear the chat. The chat controller is
 // built from them at the bottom and kept on `state.controller`.
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, buildHandoff, resumeInOpenEditor } from '../../lib/stencil.js';
-import { highlightSourceOnTab } from '../../lib/hoverHighlight.js';
-import { highlightColorValue } from '../../lib/highlightColor.js';
-import { sourceOf, editableSrc } from '../../lib/imageModel.js';
-import { formatOfItem } from '../../lib/filters.js';
-import { decodeSize } from '../../lib/rasterize.js';
+import { highlightSourceOnTab } from '../../lib/highlight/hoverHighlight.js';
+import { highlightColorValue } from '../../lib/highlight/highlightColor.js';
+import { sourceOf, editableSrc } from '../../lib/image/imageModel.js';
+import { formatOfItem } from '../../lib/highlight/filters.js';
+import { decodeSize } from '../../lib/image/rasterize.js';
 import { createLlmClient } from '../../llm/llmClient.js';
 import { createChatController, translateOpenActions } from '../../llm/chatController.js';
 import { openPanelDialog } from '../dialogShell.js';

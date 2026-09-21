@@ -1,9 +1,9 @@
 // Blank projects: a solid-colour raster generated on a scratch canvas and handed to the
 // normal load path, so a blank behaves like any other image.
 import { notify } from '../../utils.js';
-import { normalizeHex } from '../accents.js';
+import { normalizeHex } from '../settings/accents.js';
 import { defaultBlankSizePx } from '../layout.js';
-import { cropAspect, centeredCrop, isAlbumOrientation } from '../cropGeometry.js';
+import { cropAspect, centeredCrop, isAlbumOrientation } from '../parse/cropGeometry.js';
 import { requireConnection } from '../../net/remoteSync.js';
 import { PROJECT_ACTION } from '../../worker/messages.js';
 import constants from '../../config/constants.json' with { type: 'json' };

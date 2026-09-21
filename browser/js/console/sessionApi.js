@@ -2,7 +2,7 @@
 // The members that replace what the editor is holding. Each one that names a server
 // validates the connection BEFORE it resets or fetches anything.
 import { requireConnection } from '../net/remoteSync.js';
-import { videoFrameDataUrl } from '../core/videoFrame.js';
+import { videoFrameDataUrl } from '../core/export/videoFrame.js';
 import { waitForImage as waitForImageOn } from '../core/image/imageLoadFlow.js';
 
 export const createSessionApi = ({ app, connMgr }) => {
