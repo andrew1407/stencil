@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types.ReplyMarkups;
+using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Tests;
 

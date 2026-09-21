@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 from .. import codecs
 from .._script import Script, ScriptError
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..scriptpaths import expand_source, is_url, resolve_target, save_format
 
 VERSION = 1

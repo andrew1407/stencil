@@ -8,7 +8,7 @@ characters, URLs and secret-shaped runs are stripped and it is length-capped.
 
 import re
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 # ── errors ────────────────────────────────────────────────────────────────────
 #: How much of a provider's own prose an error may quote (contract §6.3).

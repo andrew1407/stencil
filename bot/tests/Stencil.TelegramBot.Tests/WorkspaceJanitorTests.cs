@@ -6,6 +6,7 @@ using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;
 using Stencil.TelegramBot.Tests.Doubles;
+using Stencil.TelegramBot.Bot.Telegram.Sync;
 
 namespace Stencil.TelegramBot.Tests;
 

@@ -6,7 +6,7 @@ Each mutator snapshots history through the ``_push`` that :class:`Editor` owns a
 returns ``self``.
 """
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 
 class _EditApi:

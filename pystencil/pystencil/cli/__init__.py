@@ -35,7 +35,7 @@ names where callers expect them.
 import sys
 from typing import Sequence
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .. import codecs
 from .._severity import emit_error
 from ..server import ServerError

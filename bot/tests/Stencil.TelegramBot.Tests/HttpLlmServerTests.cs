@@ -4,6 +4,7 @@ using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Llm;
 using Stencil.TelegramBot.Tests.Doubles;
 using static Stencil.TelegramBot.Tests.LlmWireRig;
+using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Tests;
 

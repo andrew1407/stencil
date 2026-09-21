@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Union
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..image import Image
 from ..layout import Layout, Line
 

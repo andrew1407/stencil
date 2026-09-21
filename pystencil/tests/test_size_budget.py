@@ -161,10 +161,32 @@ class SizeBudgetTests(unittest.TestCase):
       pct = comments * 100 // total
       self.assertLessEqual(pct, recorded, "%s comment share rose: %d%% > %d%%" % (directory, pct, recorded))
 
+  def test_no_folder_is_over_the_cap(self):
+    """A folder holds at most maxFilesPerDir modules; today's over-cap ones are frozen."""
+    per_dir = dict()
+    for rel in self.files:
+      parent = str(Path(rel).parent.as_posix())
+      per_dir[parent] = per_dir.get(parent, 0) + 1
+    cap = self.budget["maxFilesPerDir"]
+    frozen = self.budget["dirs"]
+    over, grew = [], []
+    for directory, n in sorted(per_dir.items()):
+      allowed = frozen.get(directory)
+      if allowed is None:
+        if n > cap:
+          over.append("%s holds %d modules (cap %d)" % (directory, n, cap))
+      elif n > allowed:
+        grew.append("%s grew to %d (budget %d)" % (directory, n, allowed))
+    self.assertEqual(over, [], "split these by feature, never record them")
+    self.assertEqual(grew, [], "listed folders may shrink, never grow")
+    self.assertEqual(
+      [d for d in frozen if d not in per_dir], [], "drop these — the folder is gone")
+
   def test_budget_shape(self):
     self.assertEqual(
       sorted(self.budget),
-      ["_doc", "commentPct", "exceptions", "files", "maxNewFileLines"],
+      ["_dirsNote", "_doc", "commentPct", "dirs", "exceptions", "files",
+       "maxFilesPerDir", "maxNewFileLines"],
     )
     for rel, why in self.budget["exceptions"].items():
       self.assertTrue(why, "%s needs a reason" % rel)

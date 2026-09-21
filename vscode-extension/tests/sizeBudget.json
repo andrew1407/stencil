@@ -1,6 +1,10 @@
 {
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the tree shrinks; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
+  "maxFilesPerDir": 12,
+  "dirs": {
+    "vscode-extension/tests": 33
+  },
   "files": {
     "vscode-extension/src/commands.js": 66,
     "vscode-extension/src/diagnostics.js": 89,
@@ -44,5 +48,6 @@
   "filesNotes": "src/ only. The tests grow as the suite does; the 230-line cap is their ratchet.",
   "_notes": {
     "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added — the measured scope grew. These are the new floors."
-  }
+  },
+  "_dirsNote": "A test folder mirrors the source it covers, and a case that spans modules has no one home, so these are frozen at today's count rather than split by kind. They may shrink, never grow."
 }

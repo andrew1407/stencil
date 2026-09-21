@@ -2,6 +2,7 @@ using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Projects;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Tests;
 

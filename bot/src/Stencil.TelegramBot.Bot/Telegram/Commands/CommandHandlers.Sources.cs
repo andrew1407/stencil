@@ -1,0 +1,149 @@
+using Stencil.TelegramBot.Application.Editing;
+using Stencil.TelegramBot.Domain.Editing;
+using Telegram.Bot;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
+
+namespace Stencil.TelegramBot.Bot.Telegram.Commands;
+
+public sealed partial class CommandHandlers
+{
+    private async Task urlAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        if (cmd.Args.Count == 0)
+        {
+            await _bot.SendMessage(chatId, "Usage: /url <http(s) image link>, e.g. /url https://example.com/photo.png", cancellationToken: ct);
+            return;
+        }
+        string url = cmd.Args[0];
+        await _editing.SetImageFromUrlAsync(userId, url, labelFromUrl(url), ct);
+        await RenderAndSendAsync(userId, chatId, ct);
+    }
+
+    // Each image comes back as a photo, each video as a document. The URL is SSRF-vetted like /url.
+    private async Task sourceSiteAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        if (cmd.Args.Count == 0)
+        {
+            await _bot.SendMessage(chatId, _sourceSiteUsage, cancellationToken: ct);
+            return;
+        }
+        string url = cmd.Args[0];
+        if (!tryParseScrapeArgs(url, cmd.Args, out ScrapeRequest request, out string? error))
+        {
+            await _bot.SendMessage(chatId, $"{error}\n\n{_sourceSiteUsage}", cancellationToken: ct);
+            return;
+        }
+        // Same trust boundary as /url.
+        await RemoteImageUrl.ValidateAsync(url, ct);
+        string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ? uri.Host : url;
+        // The notice clears itself once the results land, whether the scrape succeeded or threw.
+        ProgressNotice progress = await ProgressNotice.StartAsync(
+            _bot, chatId, $"Scraping {host}…", ChatAction.UploadPhoto, ct);
+        ScrapeResult result;
+        try
+        {
+            result = await _editing.ScrapeAsync(userId, request, ct);
+        }
+        finally
+        {
+            await progress.StopAsync();
+        }
+        foreach (ScrapedFile file in result.Files)
+        {
+            string name = Path.GetFileName(file.Path);
+            await using FileStream stream = File.OpenRead(file.Path);
+            if (file.Width is int w && file.Height is int h)
+            {
+                InputFileStream photo = InputFile.FromStream(stream, name);
+                await _bot.SendPhoto(chatId, photo, caption: $"{name} — {w}x{h}", cancellationToken: ct);
+            }
+            else
+            {
+                InputFileStream document = InputFile.FromStream(stream, name);
+                await _bot.SendDocument(chatId, document, caption: name, cancellationToken: ct);
+            }
+        }
+        await _bot.SendMessage(
+            chatId,
+            Replies.Tag(Replies.Tone.SUCCESS, $"Scraped {result.Files.Count} file(s) from {host}."),
+            cancellationToken: ct);
+    }
+
+    private const string _sourceSiteUsage =
+        "Usage: /sourcesite <http(s) link> [count (default 5, 0 = all)] "
+        + "[filter=img|video|background|poster] "
+        + "[format=png|jpg|…] [name=<regex>] [minw=…] [maxw=…] [minh=…] [maxh=…] [group=N]\n"
+        + "name= is a case-insensitive regex matched on each media URL.\n"
+        + "e.g. /sourcesite https://example.com 6 filter=img format=png|jpg name=cat minw=200";
+
+    // A bare integer is the item count, everything else a key=value option.
+    private static bool tryParseScrapeArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out string? error)
+    {
+        error = null;
+        request = new ScrapeRequest { Url = url };
+        int? count = null, group = null, minW = null, maxW = null, minH = null, maxH = null;
+        string? filter = null, format = null, name = null;
+        for (int i = 1; i < args.Count; i++)
+        {
+            string token = args[i];
+            int eq = token.IndexOf('=');
+            if (eq < 0)
+            {
+                if (int.TryParse(token, out int bare) && bare >= 0)
+                {
+                    count = bare;
+                    continue;
+                }
+                error = $"Unrecognised option '{token}'.";
+                return false;
+            }
+            string key = token[..eq].ToLowerInvariant();
+            string value = token[(eq + 1)..];
+            switch (key)
+            {
+                case "count": if (!setInt(ref count, value, key, out error)) return false; break;
+                case "group": if (!setInt(ref group, value, key, out error)) return false; break;
+                case "minw" or "minwidth": if (!setInt(ref minW, value, key, out error)) return false; break;
+                case "maxw" or "maxwidth": if (!setInt(ref maxW, value, key, out error)) return false; break;
+                case "minh" or "minheight": if (!setInt(ref minH, value, key, out error)) return false; break;
+                case "maxh" or "maxheight": if (!setInt(ref maxH, value, key, out error)) return false; break;
+                case "filter": filter = value; break;
+                case "format": format = value; break;
+                case "name": name = value; break;
+                default:
+                    error = $"Unrecognised option '{key}'.";
+                    return false;
+            }
+        }
+        request = new ScrapeRequest
+        {
+            Url = url,
+            // No count defaults to 5 (a chat-sized page); an explicit 0 rides through as
+            // --source-count 0 = every match.
+            Count = count ?? 5,
+            Group = group,
+            Filter = filter,
+            Format = format,
+            Name = name,
+            MinWidth = minW,
+            MaxWidth = maxW,
+            MinHeight = minH,
+            MaxHeight = maxH,
+        };
+        return true;
+    }
+
+    private static bool setInt(ref int? target, string value, string key, out string? error)
+    {
+        if (int.TryParse(value, out int parsed) && parsed >= 0)
+        {
+            target = parsed;
+            error = null;
+            return true;
+        }
+        error = $"'{key}' needs a non-negative number (got '{value}').";
+        return false;
+    }
+}

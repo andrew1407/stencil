@@ -2,6 +2,7 @@ using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types.Enums;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Tests;
 

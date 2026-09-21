@@ -26,7 +26,7 @@ cursor every mixin reads and pushes through.
 
 import os
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..core import Core, get_core
 from ..image import Image
 from ._snapshot import _Snapshot, _clean_keywords

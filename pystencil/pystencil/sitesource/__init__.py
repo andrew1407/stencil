@@ -26,7 +26,7 @@ Split at its section banners across ``format`` / ``scan`` / ``filter`` / ``downl
 import re
 import urllib.parse
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .. import _net
 from .._net import USER_AGENT
 from .download import download_media

@@ -7,7 +7,7 @@ import json
 import re
 from typing import Any
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .checks import ValueChecks
 from .path import SchemaError, _anchor, _bad, _is_num, _is_obj
 from .rules import _RULES

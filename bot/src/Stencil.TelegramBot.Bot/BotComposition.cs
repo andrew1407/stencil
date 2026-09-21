@@ -6,6 +6,10 @@ using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.DependencyInjection;
 using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
+using Stencil.TelegramBot.Bot.Telegram.Access;
+using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
+using Stencil.TelegramBot.Bot.Telegram.Sync;
 
 namespace Stencil.TelegramBot.Bot;
 

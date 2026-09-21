@@ -15,8 +15,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from ._types import NoneType
-from ._coerce import _as_float, _as_int, _as_str, _opt_bool, _opt_float, _opt_int, _opt_str
+from ._ffi.types import NoneType
+from ._ffi.coerce import _as_float, _as_int, _as_str, _opt_bool, _opt_float, _opt_int, _opt_str
 
 
 # Per-line defaults, applied when a field is omitted. Kept as module constants so

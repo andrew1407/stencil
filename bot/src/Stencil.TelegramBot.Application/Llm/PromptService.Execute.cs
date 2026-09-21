@@ -1,5 +1,7 @@
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
+using Stencil.TelegramBot.Application.Llm.Plan;
+using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Application.Llm;
 

@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .._net import _unverified_ssl_context
 from .files import _FileApi
 from .http import ServerError, _http_open, _json_request, _parse_http_error

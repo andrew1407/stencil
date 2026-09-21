@@ -60,9 +60,9 @@ STENCIL_CORE_SOURCES = [
   "script/scriptLineStyle.cpp",
   "script/scriptTemplates.cpp",
   "script/scriptUndo.cpp",
-  "script/scriptHistory.cpp",
+  "script/program/scriptHistory.cpp",
   "script/scriptLower.cpp",
-  "script/scriptProgram.cpp",
+  "script/program/scriptProgram.cpp",
   "script/scriptDump.cpp",
 ]
 
@@ -72,7 +72,7 @@ ABI_SOURCE = "cliApi.cpp"
 # Include dirs mirror STENCIL_CORE_INCLUDE_DIRS: the core root (for models.hpp + the ABI
 # headers) plus each concern group, so headers are included bare regardless of group.
 INCLUDE_DIRS = [".", "abi", "geometry", "raster", "color", "parse", "page", "format",
-                "state", "script"]
+                "state", "script", "script/program"]
 
 
 def lib_filename() -> str:

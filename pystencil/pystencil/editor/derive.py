@@ -7,7 +7,7 @@ rasterize lines — and the geometry helpers below are ported one-to-one from
 ``session.zig`` / ``pipeline.zig``.
 """
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..image import Image
 from ._snapshot import _A4_FALLBACK, _Snapshot
 

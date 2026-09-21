@@ -3,6 +3,8 @@ using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types.ReplyMarkups;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
+using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Tests;
 
