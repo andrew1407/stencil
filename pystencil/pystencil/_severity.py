@@ -1,4 +1,4 @@
-"""Severity prefixes for the console channel — the Python twin of ``cli/src/logo.zig``.
+"""Severity prefixes for the console channel — the Python twin of ``cli/src/app/logo.zig``.
 
 The whole vocabulary is two word prefixes: ``error: `` (the command did not do what was
 asked) and ``note: `` (it went ahead, with something worth saying). Word prefixes, never

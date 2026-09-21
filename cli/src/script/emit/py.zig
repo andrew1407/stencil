@@ -3,7 +3,7 @@
 //! pystencil/pystencil/script.py, so an emitted file batches exactly as `--script` does.
 const std = @import("std");
 
-const scriptCore = @import("../../scriptCore.zig");
+const scriptCore = @import("../core.zig");
 const common = @import("common.zig");
 
 pub const display = "python";

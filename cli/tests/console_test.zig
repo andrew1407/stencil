@@ -4,8 +4,8 @@
 // working image, its undo history, and the saved output.
 const std = @import("std");
 const console = @import("../src/console.zig");
-const image = @import("../src/image.zig");
-const logo = @import("../src/logo.zig");
+const image = @import("../src/media/image.zig");
+const logo = @import("../src/app/logo.zig");
 const testing = std.testing;
 const sample = @embedFile("fixtures/sample.png");
 

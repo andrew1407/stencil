@@ -1,9 +1,9 @@
 //! The clipboard commands: /copy writes the working image out, /paste reads one in, and
 //! /unpaste takes the newest attachment back. An EMPTY clipboard is not a failure.
 const std = @import("std");
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const pipeline = @import("../../pipeline.zig");
-const logo = @import("../../logo.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
 const clipboard = @import("../../clipboard.zig");
 const commands = @import("../commands.zig");

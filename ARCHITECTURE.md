@@ -198,7 +198,7 @@ right. The order per surface, and what enforces it:
 | browser-extension | `lib/` → `config/` → `llm/` → `background/` → `content/` → `popup/`, `options/`, `crop/` | `browser-extension/tests/layerBoundary.test.js` |
 | vscode-extension | `src/config/` + `src/parser/` → `src/lib/` → `src/*.js` → `src/extension.js` | `vscode-extension/tests/layerBoundary.test.js` |
 | desktop | core seam (the `core/` includes the lint allows) → controllers → `net/`, `io/` → `support/` → `canvas/`, `dialogs/`, `llm/` → `app/` | `desktop/tests/layerBoundary.headless.cpp` |
-| cli | `core.zig` → `args.zig` + `params/` → `net.zig` → ops → `llm/` → `console/` → `main.zig` | the layer lint in `logo.zig` |
+| cli | `core.zig` → `args.zig` + `params/` → `net.zig` → ops → `llm/` → `console/` → `app/` → `main.zig` | the layer lint in `app/logo.zig` |
 | pystencil | `_native` + `core` → `image`, `codecs/`, `layout` → `editor/` → `llm/`, `server/`, `sitesource/` → `cli/` | `pystencil/tests/test_layer_boundary.py` |
 | server | `cmd/` → `httpapi` (transport only) → `service` → `store` + `filestore` → `hub` → `protocol` | convention |
 | bot | `Domain` ← `Application` ← `Infrastructure` ← `Bot` (dependencies point inward) | project references + `LayerBoundaryTests.cs` |

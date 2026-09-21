@@ -5,15 +5,15 @@ const std = @import("std");
 const testing = std.testing;
 
 const check = @import("../src/script/check.zig");
-const image = @import("../src/image.zig");
+const image = @import("../src/media/image.zig");
 const opSchema = @import("../src/llm/opSchema.zig");
 const opplan = @import("../src/llm/opplan.zig");
 const emit = @import("../src/script/emit.zig");
 const plan = @import("../src/script/plan.zig");
-const report = @import("../src/report.zig");
+const report = @import("../src/app/report.zig");
 const run = @import("../src/script/run.zig");
 const save = @import("../src/script/save.zig");
-const scriptCore = @import("../src/scriptCore.zig");
+const scriptCore = @import("../src/script/core.zig");
 const sources = @import("../src/script/sources.zig");
 const steps = @import("../src/pipeline/steps.zig");
 

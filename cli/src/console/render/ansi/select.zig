@@ -1,8 +1,8 @@
 //! The mouse selection's wash: the accent laid over the terminal ground at a fixed opacity,
 //! and the plain visible slice of a row within a column range.
 const std = @import("std");
-const logo = @import("../../logo.zig");
-const theme = @import("../../theme.zig");
+const logo = @import("../../../app/logo.zig");
+const theme = @import("../../../app/theme.zig");
 const scan = @import("scan.zig");
 
 const visColumns = scan.visColumns;

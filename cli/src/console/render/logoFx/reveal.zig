@@ -2,9 +2,9 @@
 //! arriving before the quiet window lapses — sweeps in fewer, larger jumps, so a flood of
 //! lines still lands promptly.
 const std = @import("std");
-const logo = @import("../../logo.zig");
+const logo = @import("../../../app/logo.zig");
 const ansi = @import("../ansi.zig");
-const screen_mod = @import("../screen.zig");
+const screen_mod = @import("../../screen.zig");
 const Screen = screen_mod.Screen;
 const Span = ansi.Span;
 const timing = @import("timing.zig");

@@ -1,12 +1,12 @@
 //! Contract §9 variants: render each alternative of a plan beside the working image,
 //! writing `<stem>.png` per variant without touching the session's own edit state.
 const std = @import("std");
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const pipeline = @import("../../pipeline.zig");
-const logo = @import("../../logo.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
 const llm = @import("../../llm.zig");
-const layout_mod = @import("../../layout.zig");
+const layout_mod = @import("../../media/layout.zig");
 const Session = @import("../session.zig").Session;
 const planOps = @import("planOps.zig");
 const resolvePlanCrop = planOps.resolvePlanCrop;

@@ -4,7 +4,7 @@
 //! host (console.zig) owns the pictures, through the PendingImages hooks. Echoing is by hand (ECHO is
 //! off) so the prompt renders in the brand accent. TTY only; piped input keeps the plain reader.
 const std = @import("std");
-const logo = @import("logo.zig");
+const logo = @import("app/logo.zig");
 const screen_mod = @import("console/screen.zig");
 const wrap = @import("line_edit/wrap.zig");
 const markers = @import("line_edit/markers.zig");

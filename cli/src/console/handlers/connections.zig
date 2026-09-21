@@ -1,11 +1,11 @@
 //! `/connect`, `/disconnect`, `/reconnect` and `/connections`: the session's pool of
 //! collaboration-server clients. Only URLs the user typed are ever dialled.
 const std = @import("std");
-const server = @import("../../serverClient.zig");
-const logo = @import("../../logo.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
 const commands = @import("../commands.zig");
 const project = @import("../../project.zig");
-const msg = @import("../../messages.zig");
+const msg = @import("../../app/messages.zig");
 const Session = @import("../session.zig").Session;
 
 /// `/connect <url [token][ url2 ...]>` — open one or more server connections; a token word after a

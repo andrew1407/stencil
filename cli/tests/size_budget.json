@@ -1,31 +1,35 @@
 {
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'. Zig convention: inline `test { }` blocks are idiomatic and not penalised, so 'files' records PRODUCTION lines (everything before the first column-0 `test \"` / `test {`), and maxNewFileLines applies to that count; 'commentPct' is over TOTAL lines.",
   "maxNewFileLines": 230,
+  "maxFilesPerDir": 12,
+  "dirs": {
+    "cli/tests": 29
+  },
   "files": {
-    "cli/src/scrape.zig": 22,
-    "cli/src/llm/registry.zig": 37,
-    "cli/src/llm/opSchema.zig": 183,
-    "cli/src/llm/wire.zig": 41,
-    "cli/src/llm/opplan.zig": 39,
-    "cli/src/llm/transport.zig": 215,
-    "cli/src/serverClient.zig": 140,
-    "cli/src/clipboard.zig": 22,
-    "cli/src/line_edit.zig": 190,
+    "cli/src/app/logo.zig": 204,
     "cli/src/args.zig": 14,
+    "cli/src/clipboard.zig": 22,
+    "cli/src/console.zig": 69,
+    "cli/src/console/attachments.zig": 71,
+    "cli/src/console/handlers.zig": 80,
+    "cli/src/console/llmPrompt.zig": 18,
+    "cli/src/console/remoteEvents.zig": 25,
+    "cli/src/console/render/ansi.zig": 30,
+    "cli/src/console/render/logoFx.zig": 14,
+    "cli/src/console/screen.zig": 209,
+    "cli/src/console/session.zig": 188,
+    "cli/src/console/ui.zig": 207,
+    "cli/src/line_edit.zig": 190,
+    "cli/src/llm/opSchema.zig": 183,
+    "cli/src/llm/opplan.zig": 39,
+    "cli/src/llm/registry.zig": 37,
+    "cli/src/llm/transport.zig": 215,
+    "cli/src/llm/wire.zig": 41,
     "cli/src/net.zig": 129,
     "cli/src/pipeline.zig": 37,
     "cli/src/project.zig": 34,
-    "cli/src/console/remoteEvents.zig": 25,
-    "cli/src/console/ansi.zig": 30,
-    "cli/src/console/session.zig": 188,
-    "cli/src/console/attachments.zig": 71,
-    "cli/src/console/llmPrompt.zig": 18,
-    "cli/src/console/logoFx.zig": 14,
-    "cli/src/console/ui.zig": 207,
-    "cli/src/console/handlers.zig": 80,
-    "cli/src/console/screen.zig": 209,
-    "cli/src/logo.zig": 204,
-    "cli/src/console.zig": 69
+    "cli/src/scrape.zig": 22,
+    "cli/src/server/client.zig": 140
   },
   "commentPct": {
     "cli/src": 11,
@@ -48,6 +52,7 @@
   "_notes": {
     "cli/src/llm commentPct 10 -> 12": "Splitting opSchema.zig into opSchema/ moved 666 comment-sparse lines out of cli/src/llm. The directory's ABSOLUTE comment count FELL from 288 to 254; only the denominator moved. No comment was added.",
     "cli/src/console commentPct 14 -> 15": "Phase 6 moved ~4,600 lines of comment-sparse implementation out of cli/src/console into console/{handlers,llm,screen,session}/ (each newly pinned at its own measured share). The directory's ABSOLUTE comment count fell from ~1289 to 640; only the denominator moved. No comment was added to the files that stayed.",
-    "cli/src/console/handlers.zig 77 -> 80": "handlers.zig is a dispatch surface: one line per handler, no logic. /script and /script-run add two handlers and the import of handlers/script.zig that binds them. Nothing can be traded away without hiding a command from the surface console.zig binds to."
+    "cli/src/console/handlers.zig 77 -> 80": "handlers.zig is a dispatch surface: one line per handler, no logic. /script and /script-run add two handlers and the import of handlers/script.zig that binds them. Nothing can be traded away without hiding a command from the surface console.zig binds to.",
+    "dirs": "cli/tests mirrors the src seams rather than the folders; it is frozen at today's count, never raised."
   }
 }

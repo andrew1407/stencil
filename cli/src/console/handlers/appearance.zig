@@ -1,10 +1,10 @@
 //! Session-wide look and history steps: `/undo`/`/redo` acks, `/reset`, `/drop`, `/theme`
 //! (and the logo-click accent cycle), `/mouse` and `/reveal-speed`.
 const std = @import("std");
-const logo = @import("../../logo.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
-const theme = @import("../../theme.zig");
-const msg = @import("../../messages.zig");
+const theme = @import("../../app/theme.zig");
+const msg = @import("../../app/messages.zig");
 const ui = @import("../ui.zig");
 const screen = @import("../screen.zig");
 const Session = @import("../session.zig").Session;

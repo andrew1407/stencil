@@ -257,11 +257,9 @@ test "err/note colour only the prefix on a terminal, and NO_COLOR turns it off" 
 /// Files that may paint a terminal: this module, the sink in front of it, the entry points,
 /// and the two interactive surfaces (see presentation_dirs for their packages).
 const presentation = [_][]const u8{
-    "logo.zig",        "report.zig",    "main.zig",     "bench.zig",
-    "args.zig",        "brand.zig",     "messages.zig", "theme.zig",
-    "project_cli.zig", "line_edit.zig", "console.zig",
+    "main.zig", "args.zig", "line_edit.zig", "console.zig", "project/cli.zig",
 };
-const presentation_dirs = [_][]const u8{ "bench/", "console/", "line_edit/", "logo/", "params/" };
+const presentation_dirs = [_][]const u8{ "app/", "bench/", "console/", "line_edit/", "params/" };
 
 fn isPresentation(rel: []const u8) bool {
     for (presentation) |p| if (std.mem.eql(u8, rel, p)) return true;
@@ -309,7 +307,7 @@ test "layering: severity has one definition, and only the presentation layer pri
         seen += 1;
 
         // Every layer: the `error: `/`note: ` wording and colouring live in err()/note().
-        if (!std.mem.eql(u8, rel, "logo.zig")) {
+        if (!std.mem.eql(u8, rel, "app/logo.zig")) {
             for (literals) |lit| if (std.mem.indexOf(u8, prod, lit) != null) {
                 std.debug.print("LITERAL PREFIX: {s} spells {s} itself — call err()/note()\n", .{ rel, lit });
                 failures += 1;

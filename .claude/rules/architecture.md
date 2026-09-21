@@ -47,9 +47,9 @@ A layer may use everything to its left, nothing to its right.
   `src/lib/` (`vscode`-free) → `src/*.js` → `src/extension.js`.
 - **desktop** — the core seam (`core/` includes the layer lint allows) → controllers → `net/`, `io/` →
   `support/` (motion, theme, widgets, platform) → `canvas/`, `dialogs/`, `llm/` → `app/`.
-- **cli** — `core.zig` → `args.zig` → `net.zig` → ops (`pipeline`, `image`, `layout`, `page`,
-  `video`) → `llm/` → `console/` → `main.zig`. **`console/` is the only layer allowed to write
-  to a terminal**; lower layers return values and errors.
+- **cli** — `core.zig` → `args.zig` → `net.zig` → ops (`pipeline`, `media`) → `llm/` →
+  `console/` → `app/` → `main.zig`. **`console/` and `app/` are the only layers allowed to
+  write to a terminal**; lower layers return values and errors.
 - **server** — `cmd/` → `internal/httpapi` (**transport only** — decode, authorize, encode) →
   service → `store`/`filestore` → `hub` → `protocol`. No business rule in a handler.
 - **bot** — `Domain` ← `Application` ← `Infrastructure` ← `Bot`. Dependencies point inward;

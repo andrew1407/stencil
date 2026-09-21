@@ -13,7 +13,7 @@ pub fn usage() void {
 
 // The `--help` prose lives in the embedded help.txt, cross-checked against args.zig's flag table by
 // tests/help_flags_test.zig. `{b}`/`{r}` are the only markers — bold on, bold off.
-const help_text = @embedFile("../help.txt");
+const help_text = @embedFile("../../help.txt");
 
 /// Print `text`, expanding the `{b}`/`{r}` markers; any other `{` is literal.
 fn emitMarked(text: []const u8, bold: []const u8, reset: []const u8) void {

@@ -1,10 +1,10 @@
 //! The `/projects` listing table: gathering per-server project rows and rendering
 //! them as an aligned, colour-aware columnar table.
 const std = @import("std");
-const server = @import("../serverClient.zig");
-const logo = @import("../logo.zig");
-const theme = @import("../theme.zig");
-const project = @import("../project.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
+const theme = @import("../../app/theme.zig");
+const project = @import("../../project.zig");
 
 /// One rendered project row, all fields owned so rows outlive the per-server lists they came from.
 /// `color` "" = none (paint in the theme accent); `description` "" = none (else a dimmed note).

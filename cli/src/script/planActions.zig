@@ -4,7 +4,7 @@
 const std = @import("std");
 
 const core = @import("../core.zig");
-const scriptCore = @import("../scriptCore.zig");
+const scriptCore = @import("core.zig");
 
 const decode = @import("decode.zig");
 

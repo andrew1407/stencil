@@ -1,13 +1,13 @@
 //! `/project-color`, `/blank-color` and `/project-description`: the active server project's
 //! metadata fields, each PUT version-guarded with a 409 re-read-and-retry.
 const std = @import("std");
-const image = @import("../../image.zig");
-const server = @import("../../serverClient.zig");
-const logo = @import("../../logo.zig");
+const image = @import("../../media/image.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
-const theme = @import("../../theme.zig");
+const theme = @import("../../app/theme.zig");
 const project = @import("../../project.zig");
-const msg = @import("../../messages.zig");
+const msg = @import("../../app/messages.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 

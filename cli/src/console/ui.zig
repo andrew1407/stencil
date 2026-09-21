@@ -3,8 +3,8 @@
 //! we're driving a TTY, and the current accent key) plus the Tab-completion word list.
 //! All human output goes to stderr via logo.print, keeping a piped `/save` stdout clean.
 const std = @import("std");
-const logo = @import("../logo.zig");
-const theme = @import("../theme.zig");
+const logo = @import("../app/logo.zig");
+const theme = @import("../app/theme.zig");
 const core = @import("../core.zig");
 const screen = @import("screen.zig");
 const commands = @import("commands.zig");

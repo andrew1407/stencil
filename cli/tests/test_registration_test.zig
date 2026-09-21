@@ -7,7 +7,7 @@ const std = @import("std");
 const testing = std.testing;
 
 /// Roots of their own build: main.zig is the test root, bench.zig is the `zig build bench` exe.
-const roots = [_][]const u8{ "main.zig", "bench.zig" };
+const roots = [_][]const u8{ "main.zig", "bench/bench.zig" };
 
 fn openSrc(io: std.Io) !std.Io.Dir {
     return std.Io.Dir.cwd().openDir(io, "src", .{ .iterate = true }) catch

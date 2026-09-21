@@ -4,7 +4,7 @@
 const std = @import("std");
 
 const net = @import("../../net.zig");
-const scriptCore = @import("../../scriptCore.zig");
+const scriptCore = @import("../core.zig");
 const common = @import("common.zig");
 
 pub const display = "javascript";

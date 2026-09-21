@@ -4,13 +4,13 @@
 //! layout the browser/desktop editors render, making every CLI edit sync to peers rather than baked
 //! into a `result`. `/undo`, `/redo`, `/reset` move a cursor over the snapshots and rebuild the view.
 const std = @import("std");
-const image = @import("../image.zig");
-const server = @import("../serverClient.zig");
+const image = @import("../media/image.zig");
+const server = @import("../server/client.zig");
 const core = @import("../core.zig");
 const pipeline = @import("../pipeline.zig");
-const layout_mod = @import("../layout.zig");
+const layout_mod = @import("../media/layout.zig");
 const llm = @import("../llm.zig");
-const derivedView = @import("derivedView.zig");
+const derivedView = @import("render/derivedView.zig");
 const geom = @import("session/geom.zig");
 const layoutJson = @import("session/layoutJson.zig");
 const state_mod = @import("session/state.zig");

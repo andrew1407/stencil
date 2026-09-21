@@ -4,8 +4,8 @@
 //! belongs to the picture, the lines are an overlay — the layering the console, pystencil and the GUIs
 //! share. The steps are `pub` building blocks (steps.zig); `run` (oneshot.zig) composes the one-shot.
 const std = @import("std");
-const confine = @import("confine.zig");
-const page_mod = @import("page.zig");
+const confine = @import("safety/confine.zig");
+const page_mod = @import("media/page.zig");
 
 const sources = @import("pipeline/sources.zig");
 const steps = @import("pipeline/steps.zig");

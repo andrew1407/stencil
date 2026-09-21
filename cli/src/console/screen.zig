@@ -4,9 +4,9 @@
 //! every `logo.print` is routed here via the output sink, and everything degrades to the
 //! plain line editor when the terminal is too small or size detection fails.
 const std = @import("std");
-const logo = @import("../logo.zig");
-const ansi = @import("ansi.zig");
-const logoFx = @import("logoFx.zig");
+const logo = @import("../app/logo.zig");
+const ansi = @import("render/ansi.zig");
+const logoFx = @import("render/logoFx.zig");
 const tty = @import("screen/tty.zig");
 const prefs = @import("screen/prefs.zig");
 const mouse = @import("screen/mouse.zig");

@@ -1,8 +1,8 @@
 //! The recolour splice: one row rendered half in the new accent and half in the old, with
 //! the seam landing exactly on a visible column — for the wipe and the icon's clock spans.
 const std = @import("std");
-const logo = @import("../../logo.zig");
-const theme = @import("../../theme.zig");
+const logo = @import("../../../app/logo.zig");
+const theme = @import("../../../app/theme.zig");
 const scan = @import("scan.zig");
 const clip_mod = @import("clip.zig");
 

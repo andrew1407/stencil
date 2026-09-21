@@ -4,11 +4,11 @@
 //! tests/pins/<name>.<variant>.txt, SGR escapes included: they are user-visible output.
 //! `STENCIL_UPDATE_PINS=1 zig build test` rewrites the goldens.
 const std = @import("std");
-const logo = @import("../src/logo.zig");
-const theme = @import("../src/theme.zig");
-const server = @import("../src/serverClient.zig");
+const logo = @import("../src/app/logo.zig");
+const theme = @import("../src/app/theme.zig");
+const server = @import("../src/server/client.zig");
 const ui = @import("../src/console/ui.zig");
-const projectsTable = @import("../src/console/projectsTable.zig");
+const projectsTable = @import("../src/console/render/projectsTable.zig");
 const Session = @import("../src/console/session.zig").Session;
 const testing = std.testing;
 

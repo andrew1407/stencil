@@ -2,8 +2,8 @@
 //! counting, clipping/splitting coloured lines, the selection wash, and the recolour
 //! splice helpers. No terminal IO — everything renders into caller buffers.
 const std = @import("std");
-const logo = @import("../logo.zig");
-const theme = @import("../theme.zig");
+const logo = @import("../../app/logo.zig");
+const theme = @import("../../app/theme.zig");
 const scan = @import("ansi/scan.zig");
 const select = @import("ansi/select.zig");
 const clip_mod = @import("ansi/clip.zig");

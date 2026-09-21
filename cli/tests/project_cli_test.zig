@@ -3,9 +3,9 @@
 // paths that refuse. Real files in the cwd, no network.
 const std = @import("std");
 const args = @import("../src/args.zig");
-const image = @import("../src/image.zig");
+const image = @import("../src/media/image.zig");
 const project = @import("../src/project.zig");
-const project_cli = @import("../src/project_cli.zig");
+const project_cli = @import("../src/project/cli.zig");
 const testing = std.testing;
 
 fn decodeFile(a: std.mem.Allocator, io: std.Io, path: []const u8) !image.Rgba8 {

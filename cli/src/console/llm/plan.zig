@@ -1,10 +1,10 @@
 //! From a model reply to a finished turn: parse + validate the op-plan (§3), run its
 //! actions in order, show an `ask` card (§11), and render any §9 variants.
 const std = @import("std");
-const image = @import("../../image.zig");
-const logo = @import("../../logo.zig");
+const image = @import("../../media/image.zig");
+const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
-const layout_mod = @import("../../layout.zig");
+const layout_mod = @import("../../media/layout.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 const remoteEvents = @import("../remoteEvents.zig");

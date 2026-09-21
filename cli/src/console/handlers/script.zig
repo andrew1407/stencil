@@ -4,11 +4,11 @@
 const std = @import("std");
 
 const core = @import("../../core.zig");
-const logo = @import("../../logo.zig");
-const msg = @import("../../messages.zig");
+const logo = @import("../../app/logo.zig");
+const msg = @import("../../app/messages.zig");
 const pipeline = @import("../../pipeline.zig");
 const script_mod = @import("../../script.zig");
-const scriptCore = @import("../../scriptCore.zig");
+const scriptCore = @import("../../script/core.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 

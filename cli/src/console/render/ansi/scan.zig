@@ -2,8 +2,8 @@
 //! width), the escape/codepoint lengths every clipper steps by, and how far right a row's
 //! accent actually reaches.
 const std = @import("std");
-const logo = @import("../../logo.zig");
-const theme = @import("../../theme.zig");
+const logo = @import("../../../app/logo.zig");
+const theme = @import("../../../app/theme.zig");
 
 /// Count visible columns: one per UTF-8 codepoint, skipping CSI/SGR escapes and the zero-width
 /// accent sentinel (0x01) — counting those would land computed columns far to the right.

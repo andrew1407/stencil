@@ -82,14 +82,14 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     // the --source-name filter (Zig can't embed the opaque translated regex_t by value).
     mod.addCSourceFiles(.{
         .root = b.path("src"),
-        .files = &.{ "stb_read_impl.c", "regex_shim.c" },
+        .files = &.{ "media/stb_read_impl.c", "scrape/regex_shim.c" },
         .flags = &.{"-std=c11"},
     });
     // stb's JPEG encoder relies on signed-shift wraparound; Zig instruments C with UBSan in Debug
     // and would trap on it. Its own TU so the exemption never reaches the decoder.
     mod.addCSourceFiles(.{
         .root = b.path("src"),
-        .files = &.{"stb_write_impl.c"},
+        .files = &.{"media/stb_write_impl.c"},
         .flags = &.{ "-std=c11", "-fno-sanitize=undefined" },
     });
 }
@@ -137,7 +137,7 @@ pub fn build(b: *std.Build) void {
     // `zig build bench` prints timings, it does not assert them, so it is deliberately out of `test`.
     // ReleaseFast whatever the top-level optimize choice, so the numbers reflect a shipped build.
     const bench_mod = b.createModule(.{
-        .root_source_file = b.path("src/bench.zig"),
+        .root_source_file = b.path("src/bench/bench.zig"),
         .target = target,
         .optimize = .ReleaseFast,
     });

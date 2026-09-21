@@ -2,9 +2,9 @@
 //! `[Image #N <label>]` markers, the session owns the bytes behind them, and on submit they
 //! become the turn's uploads.
 const std = @import("std");
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const pipeline = @import("../../pipeline.zig");
-const logo = @import("../../logo.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
 const clipboard = @import("../../clipboard.zig");
 const commands = @import("../commands.zig");

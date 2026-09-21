@@ -1,12 +1,12 @@
 //! The expanded console op set: §2 undo/redo/reset + custom dims, §10 clear/reconnect/…
 const std = @import("std");
-const image = @import("../src/image.zig");
-const server = @import("../src/serverClient.zig");
-const logo = @import("../src/logo.zig");
+const image = @import("../src/media/image.zig");
+const server = @import("../src/server/client.zig");
+const logo = @import("../src/app/logo.zig");
 const core = @import("../src/core.zig");
 const llm = @import("../src/llm.zig");
-const layout_mod = @import("../src/layout.zig");
-const theme = @import("../src/theme.zig");
+const layout_mod = @import("../src/media/layout.zig");
+const theme = @import("../src/app/theme.zig");
 const handlers = @import("../src/console/handlers.zig");
 const Session = @import("../src/console/session.zig").Session;
 const fixture = @import("../src/console/llm/fixture.zig");

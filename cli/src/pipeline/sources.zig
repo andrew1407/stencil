@@ -3,12 +3,12 @@
 //! scheme is refused before anything reaches ffmpeg or the in-process fetcher.
 const std = @import("std");
 const core = @import("../core.zig");
-const image = @import("../image.zig");
-const video = @import("../video.zig");
+const image = @import("../media/image.zig");
+const video = @import("../media/video.zig");
 const net = @import("../net.zig");
 const args = @import("../args.zig");
-const report = @import("../report.zig");
-const page_mod = @import("../page.zig");
+const report = @import("../app/report.zig");
+const page_mod = @import("../media/page.zig");
 
 const MAX_FILE = 256 << 20; // 256 MiB read cap for inputs
 const BLANK_MIN = 1;

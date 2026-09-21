@@ -3,19 +3,19 @@
 //! the layout payload, response parsing, the live edit channel and the `/projects` time
 //! spans. Only a URL the USER named is ever dialled (see .claude/rules/security.md).
 const std = @import("std");
-const report = @import("report.zig");
-const net = @import("net.zig");
-const sanitize = @import("sanitize.zig");
-const errors = @import("server/errors.zig");
-const urls = @import("server/urls.zig");
-const layout_payload = @import("server/payload.zig");
-const parse = @import("server/parse.zig");
-const editchan = @import("server/edit.zig");
-const timespan = @import("server/format.zig");
-const http = @import("server/http.zig");
-const rest = @import("server/rest.zig");
-const meta = @import("server/meta.zig");
-const connection = @import("server/connect.zig");
+const report = @import("../app/report.zig");
+const net = @import("../net.zig");
+const sanitize = @import("../safety/sanitize.zig");
+const errors = @import("errors.zig");
+const urls = @import("urls.zig");
+const layout_payload = @import("payload.zig");
+const parse = @import("parse.zig");
+const editchan = @import("edit.zig");
+const timespan = @import("format.zig");
+const http = @import("http.zig");
+const rest = @import("rest.zig");
+const meta = @import("meta.zig");
+const connection = @import("connect.zig");
 
 pub const Error = errors.Error;
 pub const TransportError = errors.TransportError;

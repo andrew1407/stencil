@@ -2,9 +2,9 @@
 // transport (no network). tests/pins/projects*.txt pin how the rows LOOK; this pins what
 // goes into them, and the listing failure that must not take the other servers down.
 const std = @import("std");
-const server = @import("../src/serverClient.zig");
-const projectsTable = @import("../src/console/projectsTable.zig");
-const logo = @import("../src/logo.zig");
+const server = @import("../src/server/client.zig");
+const projectsTable = @import("../src/console/render/projectsTable.zig");
+const logo = @import("../src/app/logo.zig");
 const testing = std.testing;
 
 const now_ms: i64 = 1_700_000_000_000;

@@ -4,8 +4,8 @@
 //! cross-asset claims themeTokens' own brandNotes make — brand.accent is accents.json's
 //! violet preset and the `--accent` light token — so the three canons cannot drift apart.
 const std = @import("std");
-const brand = @import("../src/brand.zig");
-const theme = @import("../src/theme.zig");
+const brand = @import("../src/app/brand.zig");
+const theme = @import("../src/app/theme.zig");
 const testing = std.testing;
 
 const theme_tokens_json = @embedFile("themeTokens.json");
