@@ -4,7 +4,7 @@
 // `stencil.lineColor` and `stencil.settings.lineColor` are one setter.
 import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/settings/accents.js';
 import { motionPrefs, MOTION_MODES } from '../ui/motion/motionPrefs.js';
-import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voice/voiceSettings.js';
+import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voice/settings.js';
 import { validateHexColor } from '../core/parse/validation.js';
 import { splitKeywords, str } from './coerce.js';
 
@@ -91,7 +91,7 @@ export const createSettingsFacade = ({ app, guard }) => {
     get hoverRing() { return app.hoverRingColor; }, set hoverRing(v) { app.settings.setVisualColor('hoverRing', toHexColor(v)); },
     get focusRing() { return app.focusRingColor; }, set focusRing(v) { app.settings.setVisualColor('focusRing', toHexColor(v)); },
     // Language: 'default' (English) or any BCP-47 tag; a live recognizer switches at once.
-    // Silence: the pause that sends, clamped 500–10000 ms (js/llm/voiceSettings.js).
+    // Silence: the pause that sends, clamped 500–10000 ms (js/llm/settings.js).
     get voiceInputLanguage() { return loadVoiceSettings().language; },
     set voiceInputLanguage(v) {
       const lang = str(v).trim();

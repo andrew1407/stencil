@@ -20,7 +20,7 @@
 namespace stencil::gui {
   // §10 openProject: the projects dialog's open path, unsaved-replace confirm included.
   bool ChatPlanTarget::openProjectNamed(const QString& name, bool last, QString* note) {
-    // "the last project I worked on" resolves HERE off updatedAt — the model never sees the list (chatSession.js parity).
+    // "the last project I worked on" resolves HERE off updatedAt — the model never sees the list (session.js parity).
     const Project* pick = nullptr;
     if (last) {
       for (const auto& p : w.projectList)
@@ -71,7 +71,7 @@ namespace stencil::gui {
       w.actIncognito->setChecked(on);  // its toggled handler applies + notifies
     return true;
   }
-  // §10 chatPanel: the panel's OWN placement calls (browser chatSession.js setChatPlacement parity).
+  // §10 chatPanel: the panel's OWN placement calls (browser session.js setChatPlacement parity).
   bool ChatPlanTarget::setChatPlacement(int open, const QString& dock, QString* note) {
     if (!w.chatDock || !w.actChat) {
       *note = QStringLiteral("there is no assistant panel here");

@@ -56,7 +56,7 @@ stencil_headless_test(stencil_easewindowheight_headless
   LIBS Qt6::Widgets)
 
 # Rich control tooltips (support/tipContent.cpp) — the desktop port of the browser's
-# tipContent.js, carrying that suite's parse/render cases. Needs theme.cpp for the palette.
+# tip/content.js, carrying that suite's parse/render cases. Needs theme.cpp for the palette.
 stencil_headless_test(stencil_tipcontent_headless
   SOURCES tests/tipContent.headless.cpp tests/tipContentParse.headless.cpp
     tests/tipContentRender.headless.cpp tests/tipContentCompose.headless.cpp
@@ -316,7 +316,7 @@ stencil_headless_test(stencil_projectkeywords_headless
   LIBS stencil_core Qt6::Widgets)
 
 # .stencil portable project file round-trip (fileStore::buildProjectFile <-> parseProjectFile):
-# image + layout + metadata + optional theme, cross-surface parity with browser projectFile.js.
+# image + layout + metadata + optional theme, cross-surface parity with browser project/file.js.
 stencil_headless_test(stencil_projectfile_headless
   SOURCES tests/projectFile.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc

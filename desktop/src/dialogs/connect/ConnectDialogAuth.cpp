@@ -68,7 +68,7 @@ namespace stencil::gui {
     if (!batchBar) return;
     const int n = selected.size();
     // The bar hosts Select all too, so it shows whenever the view has rows; only the selection-only
-    // controls inside come and go with the checked set (connectModal.js updateBatchBar).
+    // controls inside come and go with the checked set (modal.js updateBatchBar).
     const QStringList shown = shownUrls();
     // Opens at once, closes only once its contents have flown (support/controlReveal). NOT the
     // browser's animated bar slot: an animating bar re-lays out the list every frame.
@@ -83,7 +83,7 @@ namespace stencil::gui {
     if (selectAllBtn) {
       revealControls(selectAllBtn, !shown.isEmpty());
       // Label AND glyph say which way it goes: a check gathers, a cross lets go
-      // (browser icons.js setSelectAllFace).
+      // (browser motion/icons.js setSelectAllFace).
       const bool all = allShownSelected();
       selectAllBtn->setText(all ? tr("Deselect all") : tr("Select all"));
       selectAllBtn->setIcon(labelIcon(all ? "x" : "check", QColor("#ffffff"), 13));
@@ -101,7 +101,7 @@ namespace stencil::gui {
         return;
       }
       Q_UNUSED(err);   // the browser's wording names the server, not the refusal
-      // The token prompt on the shell (browser connectModal.js), echoing dots.
+      // The token prompt on the shell (browser modal.js), echoing dots.
       PromptSpec spec;
       spec.title = tr("Session expired");
       spec.message = tr("%1 refused the saved session. Paste an access token — or the "

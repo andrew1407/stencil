@@ -1,6 +1,6 @@
 // Shapes for popup/assistant/shared.js — the transcript's arrive/leave gestures and the
 // two small entry adapters used across popup/assistant/*.
-import type { ChatImage } from '../../llm/llmClient.js';
+import type { ChatImage } from '../../llm/client.js';
 
 /** Scatters `el` out (a whole-transcript clear coarsens the mesh via `count`/`index`). */
 export declare const chatLeave: (el: Element, done: () => void, count?: number, index?: number) => unknown;

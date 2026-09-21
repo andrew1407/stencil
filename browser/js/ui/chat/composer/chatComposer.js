@@ -5,11 +5,11 @@ import UI_STRINGS from '../../../config/uiStrings.json' with { type: 'json' };
 import { DOUBLE_CLICK_MS, LONG_PRESS_MS, PRESS_SLOP_PX } from '../../tip/popover.js';
 import { SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, rectCenter, replayWaves, surfaceIn, surfaceOut, swapContent } from '../../motion.js';
 import { announcePopup, openComposerMenus } from '../row/chatRowMenu.js';
-import { applyChatSide, toggleChatSide } from '../chatLayoutPrefs.js';
+import { applyChatSide, toggleChatSide } from '../layoutPrefs.js';
 import { icon } from '../../icons.js';
 
 // Only Send stays inline; attach / clear / settings live behind the "…" trigger, in the
-// DOM, so existing ids and listeners keep working. `·` in a title reads as bullets (tipContent.js).
+// DOM, so existing ids and listeners keep working. `·` in a title reads as bullets (content.js).
 export const { sendTitle: SEND_TITLE, sendTitlePlain: SEND_TITLE_PLAIN,
   voiceTitleListening: VOICE_TITLE_LISTENING, voiceTitlePaused: VOICE_TITLE_PAUSED } = UI_STRINGS.chat;
 
@@ -72,7 +72,7 @@ export const wireChatMoreMenu = (prefix, doc = document, { onOpen } = {}) => {
   doc.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) close(); });
 };
 
-// Both surfaces share the one preference (chatLayoutPrefs.js).
+// Both surfaces share the one preference (layoutPrefs.js).
 export const wireChatSideToggle = (prefix, transcript, doc = document) => {
   if (!transcript) return;
   applyChatSide(transcript);

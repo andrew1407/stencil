@@ -1,6 +1,6 @@
 #include "doctest.h"
 
-#include "scriptDump.hpp"
+#include "dump.hpp"
 #include "scriptProgram.hpp"
 
 #include <filesystem>

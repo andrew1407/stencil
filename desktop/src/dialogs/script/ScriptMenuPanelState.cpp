@@ -14,7 +14,7 @@ namespace stencil::gui {
   void ScriptMenuPanel::showRunDiagnostics() { edit->showRunDiagnostics(); }
 
   // Copy, Download and Clear need text; Upload always has something to do. Run needs
-  // something to RUN (browser js/ui/scriptEditor.js gateActions).
+  // something to RUN (browser js/ui/editor.js gateActions).
   void ScriptMenuPanel::gateActions() {
     const bool blank = edit->isEmpty();
     copyBtn->setEnabled(!blank);

@@ -83,7 +83,7 @@ namespace stencil::gui {
   }
 
 
-  // Anonymous SPECKS in the control's own colours (browser motion.js speckPainter / markPaint):
+  // Anonymous SPECKS in the control's own colours (browser surface/motion.js speckPainter / markPaint):
   // tiles cut from a glyph are nearly all transparent. MOTE_INK 42%, MOTE_RIM_INK 66% on the rim.
   QPixmap ctl::markSpecks(const QSize& size, int cols, int rows, qreal dpr, const QColor& bg,
                           const QColor& ink) {

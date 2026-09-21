@@ -2,7 +2,7 @@
 // the popover shape (lib/popover.js placement). The Escape listener must be removed on
 // EVERY close route, or it lingers for the panel's lifetime.
 import { popoverPosition } from '../../lib/tip/popover.js';
-import { menuTransformOrigin } from '../../lib/chat/chatMsgMenu.js';
+import { menuTransformOrigin } from '../../lib/chat/msgMenu.js';
 import { surfaceIn, surfaceOut, centerOf } from '../../lib/motion.js';
 
 // Resolves exactly once; `finish(undefined)` is a cancel, as click-away / Escape are.

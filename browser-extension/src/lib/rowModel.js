@@ -1,6 +1,6 @@
 // What a scanned image's row shows; the DOM assembly stays with the panel.
 import { formatOf, UNKNOWN_FORMAT } from './highlight/filters.js';
-import { sourceOf } from './image/imageModel.js';
+import { sourceOf } from './image/model.js';
 import { icon } from './icons.js';
 
 // A data: URI shows only its mime prefix — the whole blob would fill the screen.

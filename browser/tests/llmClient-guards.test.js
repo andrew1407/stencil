@@ -1,8 +1,8 @@
-// js/llm/llmClient.js guards: the off switch, the AbortSignal, missing configuration and
+// js/llm/client.js guards: the off switch, the AbortSignal, missing configuration and
 // fetchLlmInfo's bearer token. Split from llmClient.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { createLlmClient, fetchLlmInfo, probeProvider, listModels, LlmError } from '../js/llm/llmClient.js';
+import { createLlmClient, fetchLlmInfo, probeProvider, listModels, LlmError } from '../js/llm/client.js';
 
 // ── A mock fetch that records every request and replies from a queue ──
 // (the mock-fetch idiom from connections.test.js).

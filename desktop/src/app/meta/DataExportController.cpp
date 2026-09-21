@@ -121,7 +121,7 @@ namespace stencil::gui {
       notify->error("Load an image first");
       return;
     }
-    // Existing lines: offer to KEEP them (browser Combine/Replace/Cancel, exportService.js #applyValidatedLayout).
+    // Existing lines: offer to KEEP them (browser Combine/Replace/Cancel, export/service.js #applyValidatedLayout).
     bool combine = false;
     if (!canvas->allLines().empty()) {
       // Replace is the confirm, Combine the alt.

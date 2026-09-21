@@ -119,7 +119,7 @@ namespace stencil::gui {
   void LlmSettingsForm::refreshStatus() {
     const QString provider = this->provider->currentData().toString();
     // "none" is local-only (contract §5): nothing is probed or sent anywhere.
-    // Text matches the browser's llmSettingsModal.js renderStatus() verbatim.
+    // Text matches the browser's modal.js renderStatus() verbatim.
     if (provider == QLatin1String("none")) {
       ++probeGen;  // invalidate any probe still in flight
       setStatus(STATUS_ERROR_COLOR,

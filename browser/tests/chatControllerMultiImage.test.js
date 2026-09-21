@@ -1,4 +1,4 @@
-// §2.1 multi-image plans (js/llm/chatController.js): each attachment becomes the working
+// §2.1 multi-image plans (js/llm/controller.js): each attachment becomes the working
 // image in turn, one project saved per image, and an out-of-range index warns.
 import { test } from 'node:test';
 import assert from 'node:assert';

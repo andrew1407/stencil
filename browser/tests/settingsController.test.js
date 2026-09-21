@@ -1,4 +1,4 @@
-// SettingsController (js/core/settingsController.js): the direct setters — colour, thickness,
+// SettingsController (js/core/controller.js): the direct setters — colour, thickness,
 // filter, page size, formula text and the visual-colour map. Rig: helpers/settingsControllerRig.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

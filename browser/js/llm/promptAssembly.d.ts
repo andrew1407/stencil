@@ -2,7 +2,7 @@
 // the §4/§10 prompts assembled from the OPS registry — so the prompt can never promise an
 // op this surface cannot run.
 
-/** Every capability the browser chat surface wires (chatSession.js). */
+/** Every capability the browser chat surface wires (session.js). */
 export declare const BROWSER_CAPABILITIES: Set<string>;
 /** The registry's browser forbidden list — never model-drivable. */
 export declare const FORBIDDEN_OPS: Set<string>;

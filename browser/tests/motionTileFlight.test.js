@@ -1,4 +1,4 @@
-// The tile flight maths (js/ui/motion.js + js/ui/dustCloud.js): the waypoint, the span a
+// The tile flight maths (js/ui/motion.js + js/ui/cloud.js): the waypoint, the span a
 // late mote has left, and the batched fills one canvas cloud paints with.
 import test from 'node:test';
 import assert from 'node:assert';
@@ -6,7 +6,7 @@ import {
   tileWaypoint, tileMotion, surfaceMotion, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
   DUST_ALPHA_LEVELS, DISINTEGRATE_MS, MIN_TILE_MS,
 } from '../js/ui/motion.js';
-import { FLIGHTS, moteFrame } from '../js/ui/dust/dustCloud.js';
+import { FLIGHTS, moteFrame } from '../js/ui/dust/cloud.js';
 import { motionSource } from './helpers/motionSource.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { box } from './helpers/motionRig.js';
@@ -88,7 +88,7 @@ test('every flight bends through the waypoint on its own first leg, and the clou
     // (a mark's fall rides one curve throughout, like the desktop's Sweep::FALL).
     if (name !== 'fall') assert.notEqual(f.leg(0.5), f.rest(0.5), `${name}: leg one eases on its own`);
   }
-  // No node per grain any more: the layer holds ONE canvas (js/ui/dustCloud.js) and the
+  // No node per grain any more: the layer holds ONE canvas (js/ui/cloud.js) and the
   // flights above are its table — nothing is left in the stylesheet per tile.
   assert.match(css, /\.disintegrate-host > canvas \{ position: absolute; display: block; \}/);
   assert.ok(!/disintegrate-tile/.test(css) && !/@keyframes tile/.test(css), 'no rule left per tile');

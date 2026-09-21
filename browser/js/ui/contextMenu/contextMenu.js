@@ -1,20 +1,20 @@
 import { StencilElement, hostTag, define } from '../base.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
-import { chatRowMenuOpen } from '../chat/chatView.js';
+import { chatRowMenuOpen } from '../chat/view.js';
 import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced,
          SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
-import { hideExportPreview, clearAltPreviewHover } from '../export/exportPreview.js';
-import { assistantEnabled, assistantItemHtml } from '../ctx/ctxAssistantItem.js';
-import { wireCtxAssistant } from '../ctx/ctxAssistant.js';
-import { wireCtxScript } from '../ctx/ctxScript.js';
+import { hideExportPreview, clearAltPreviewHover } from '../export/preview.js';
+import { assistantEnabled, assistantItemHtml } from '../ctx/assistantItem.js';
+import { wireCtxAssistant } from '../ctx/assistant.js';
+import { wireCtxScript } from '../ctx/script.js';
 export { assistantEnabled, assistantItemHtml };
-export { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from '../ctx/ctxKeyboard.js';
-import { wireCtxKeyboard } from '../ctx/ctxKeyboard.js';
-import { contextMenuInner } from './contextMenuMarkup.js';
-import { createCtxNav } from './contextMenuNav.js';
-import { ctxSyncState } from '../ctx/ctxState.js';
-import { wireCtxActions } from '../ctx/ctxActions.js';
-import { wireCtxStyleActions } from '../ctx/ctxStyleActions.js';
+export { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from '../ctx/keyboard.js';
+import { wireCtxKeyboard } from '../ctx/keyboard.js';
+import { contextMenuInner } from './markup.js';
+import { createCtxNav } from './nav.js';
+import { ctxSyncState } from '../ctx/state.js';
+import { wireCtxActions } from '../ctx/actions.js';
+import { wireCtxStyleActions } from '../ctx/styleActions.js';
 
 // The custom right-click context menu.
 const SUBMENU_HIDE_DELAY_MS = 180; // grace period before a submenu closes on mouseleave
@@ -31,7 +31,7 @@ export class StencilContextMenu extends StencilElement {
     const canvas = document.getElementById('canvas');
     const viewport = document.getElementById('canvas-viewport');
 
-    // Submenu navigation — ui/contextMenuNav.js.
+    // Submenu navigation — ui/nav.js.
     const {
       closeSub, closeAllSubs, positionSub, repositionActiveSub, hideSub, closeActiveSub,
       wireSubmenu, wirePlainItem, setPointerTracking, activeSub, setActiveSub,
@@ -54,7 +54,7 @@ export class StencilContextMenu extends StencilElement {
     menu.querySelectorAll(':scope > .ctx-item').forEach(item => {
       const sub = item.querySelector(':scope > .ctx-sub');
       if (sub) wireSubmenu(item, sub);
-      // #ctx-script's flyout is hung off it later (ctxScript.js) and wires itself as a
+      // #ctx-script's flyout is hung off it later (script.js) and wires itself as a
       // submenu; wiring it as a plain item too would shut its own flyout on re-entry.
       else if (item.id !== 'ctx-script') wirePlainItem(item);
     });

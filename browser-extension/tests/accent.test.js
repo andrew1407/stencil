@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { loadAccent } from './helpers/accentSandbox.js';
-import { ACCENT_STORAGE_KEY } from '../src/lib/highlight/highlightColor.js';
+import { ACCENT_STORAGE_KEY } from '../src/lib/highlight/color.js';
 import { THEME_STORAGE_KEY } from '../src/lib/prefs/shellTheme.js';
 
 // ── The accent list ──
@@ -27,7 +27,7 @@ test('the storage keys are the ones every other surface reads', () => {
   const { accent, theme } = loadAccent();
   assert.equal(accent.storageKey, 'stencil_accent');
   assert.equal(theme.storageKey, 'stencil_theme');
-  // The mirrors in lib/highlightColor.js and lib/shellTheme.js must name the same keys.
+  // The mirrors in lib/color.js and lib/shellTheme.js must name the same keys.
   assert.equal(accent.storageKey, ACCENT_STORAGE_KEY);
   assert.equal(theme.storageKey, THEME_STORAGE_KEY);
 });

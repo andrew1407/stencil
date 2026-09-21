@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { animationsCss, motionSrc, themeCss } from './helpers/sources.js';
-import { FLIGHTS, alphaAt } from '../src/lib/dust/dustCloud.js';
+import { FLIGHTS, alphaAt } from '../src/lib/dust/cloud.js';
 
 const css = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const ANIMS = animationsCss();

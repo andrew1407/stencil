@@ -11,8 +11,8 @@
     "browser/js/console/stencilApi.d.ts": 357,
     "browser/js/core/drawingApp.d.ts": 397,
     "browser/js/core/drawingApp.js": 601,
-    "browser/js/ui/chat/chatPanel.js": 620,
-    "browser/js/ui/connect/connectModal.js": 383
+    "browser/js/ui/chat/panel.js": 620,
+    "browser/js/ui/connect/modal.js": 383
   },
   "commentPct": {
     "browser/js": 29,

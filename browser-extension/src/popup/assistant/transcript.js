@@ -5,7 +5,7 @@
 // menu hook) lives on `state`; everything else arrives as a collaborator.
 import { icon } from '../../lib/icons.js';
 import { setTip } from '../../lib/tip/tip.js';
-import { makeDismissible, renderSuggestions, wireThumbPreview, applyShrinkWrap } from '../../lib/chat/chatUi.js';
+import { makeDismissible, renderSuggestions, wireThumbPreview, applyShrinkWrap } from '../../lib/chat/ui.js';
 import { wipeDurationMs } from '../../lib/motion.js';
 import { chatLeave, chatEnter } from './shared.js';
 
@@ -25,7 +25,7 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     going.forEach((el, i) => chatLeave(el, () => el.remove(), going.length, i));
     pending.splice(0);
     renderTray();
-    // The empty state comes back only once the entries have finished leaving (browser chatView.js
+    // The empty state comes back only once the entries have finished leaving (browser view.js
     // restoreEmptyState sequences it the same way).
     if (wiped) {
       setTimeout(() => {
@@ -52,7 +52,7 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
   };
 
   // `arrive: false` opts out of the dust (the in-flight "…" — see addThinking); `wrap` pins a
-  // text bubble to its longest line (chatUi.js).
+  // text bubble to its longest line (ui.js).
   const appendEntry = (node, { arrive = true, wrap = false } = {}) => {
     transcriptEl.appendChild(node);
     if (wrap) applyShrinkWrap(node);
@@ -87,7 +87,7 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
   };
   const addWarn = (text) => dismissible(appendDiv('warn', text));
 
-  // Browser chatView.js chatAttachmentStrip parity. Names come from scanned pages, so they stay
+  // Browser view.js chatAttachmentStrip parity. Names come from scanned pages, so they stay
   // DATA — alt/title only, never markup.
   const addAttachments = (list) => {
     const strip = document.createElement('div');
@@ -107,7 +107,7 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
   };
 
   // The failed bubble STAYS — a retry is another attempt, not an undo, and the transcript records
-  // both (browser chatView.js onRetry, desktop chatRetryTurn). Nothing is auto-retried.
+  // both (browser view.js onRetry, desktop chatRetryTurn). Nothing is auto-retried.
   const addRetry = (el, text, send, attachments = []) => {
     const retry = document.createElement('button');
     retry.className = 'chat-retry';
@@ -130,9 +130,9 @@ export const createTranscript = ({ sectionEl, transcriptEl, inputEl, tray, state
     applyShrinkWrap(el);   // never pin narrower than the button that just rode in
   };
 
-  // Browser chatView.js typingDots parity: the shape the reply will take, in its place.
+  // Browser view.js typingDots parity: the shape the reply will take, in its place.
   const addThinking = () => {
-    // No arrival for the placeholder (browser chatView.js parity): it lives about as long as the
+    // No arrival for the placeholder (browser view.js parity): it lives about as long as the
     // gather itself, so dusting it in kept the bouncing dots veiled for almost its whole life.
     const el = appendDiv('msg assistant typing-row', '', { arrive: false });
     const dots = document.createElement('span');

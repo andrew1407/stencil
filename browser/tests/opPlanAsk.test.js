@@ -1,4 +1,4 @@
-// §11 interactive replies (js/llm/opPlan.js): the `ask` card's parse defaults, its
+// §11 interactive replies (js/llm/plan.js): the `ask` card's parse defaults, its
 // option references, the malformed-card errors and askAnswerText.
 import { test } from 'node:test';
 import assert from 'node:assert';

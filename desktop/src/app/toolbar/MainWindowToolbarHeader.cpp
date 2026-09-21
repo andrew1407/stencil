@@ -136,7 +136,7 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  // The stage's seam onto the window (browser js/ui/logoStageTrigger.js): it holds no
+  // The stage's seam onto the window (browser js/ui/stageTrigger.js): it holds no
   // MainWindow, only what these hooks hand it.
   void MainWindow::buildLogoStage() {
     LogoStage::Hooks hooks;

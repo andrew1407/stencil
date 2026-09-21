@@ -1,5 +1,5 @@
 import { notify } from '../../../utils.js';
-import { wireExportOptionsMenu } from '../../export/exportOptionsMenu.js';
+import { wireExportOptionsMenu } from '../../export/optionsMenu.js';
 import { wireBlankColorButton } from './blankColorButton.js';
 import { wireProjectColorButton } from './projectColorButton.js';
 import { wireProjectNameField } from './projectNameField.js';

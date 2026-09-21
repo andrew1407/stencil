@@ -12,10 +12,10 @@ those documents on purpose.
 2. `cd browser && npm run gen-fixtures` — regenerates the mechanical fixture bundle. Add a
    hand-written fixture under `browser/js/config/llm/fixtures/opPlan/` for the interesting case.
 3. Normalizer + executor, per surface in the op's profiles (**the validator is table-driven —
-   you write no schema code**): browser `js/llm/opPlan.js` + `js/console/stencilApi.js`;
+   you write no schema code**): browser `js/llm/plan.js` + `js/console/stencilApi.js`;
    desktop `src/llm/opPlan.cpp` + `src/llm/planExecutor.cpp`; cli `src/llm/opplan.zig`;
    mcp `src/opplan/{parse,lower,actions}.rs`; bot `Application/Llm/OpPlanParser*.cs` +
-   `PromptService.Actions.cs`; pystencil `pystencil/llm.py`; extension `src/llm/opPlan.js`.
+   `PromptService.Actions.cs`; pystencil `pystencil/llm.py`; extension `src/llm/plan.js`.
 4. `contracts/llm/llm-contract.md` (and the split §-files) — the normative prose.
 5. Run every surface's fixture walker. They are the cross-language proof.
 
@@ -32,18 +32,18 @@ those documents on purpose.
 
 1. `contracts/stc/stc-contract.md` — §3 for the directive and its argument grammar, §8 for
    any new diagnostic code (codes are stable — never re-spell one), §9 if it needs a cap.
-2. `core/script/` — the word in `kDirectives` (`scriptParser.cpp`), its grammar in
-   `scriptArgs.cpp` (reuse `parseLengthToken`, `parseColor`, `filterModeFromString`,
-   `parseCropSpec`), the lowering in `scriptLower.cpp`. A new `OpKind` belongs in
-   `scriptTypes.hpp`; a new `.cpp` means **the three source lists**, and a new ABI name means
+2. `core/script/` — the word in `kDirectives` (`parser.cpp`), its grammar in
+   `args.cpp` (reuse `parseLengthToken`, `parseColor`, `filterModeFromString`,
+   `parseCropSpec`), the lowering in `lower.cpp`. A new `OpKind` belongs in
+   `types.hpp`; a new `.cpp` means **the three source lists**, and a new ABI name means
    `EXPORTED_FUNCTIONS` as well.
-3. The JS fallback — `browser/js/core/script*.js` + its `.d.ts`, op-for-op with the C++
+3. The JS fallback — the modules in `browser/js/core/script/` + their `.d.ts`, op-for-op with the C++
    (`DIRECTIVES` is the twin of `kDirectives`). `wasm-parity-script.test.js` is the proof.
 4. A fixture pair in `browser/js/config/script/fixtures/cases.txt`: the correct case, and an
    `err-*` case for the way it will most often be written wrong.
 5. cli **only if** the directive needs a flag or a console verb — otherwise `--script` already
    runs it through `cli/src/script/apply.zig`.
-6. Re-copy `browser/js/core/script*.js` into `vscode-extension/src/parser/` byte-for-byte, and
+6. Re-copy `browser/js/core/script/` into `vscode-extension/src/parser/script/` byte-for-byte, and
    add the word to `syntaxes/stc.tmLanguage.json` (its directive list is asserted equal to
    `DIRECTIVES`).
 7. The adapters **only if the lowered op is new** — the runners: browser
@@ -73,12 +73,12 @@ those documents on purpose.
    `wire`.
 2. `contracts/llm/llm-providers.md` — the wire mapping, normatively.
 3. The mapping in each client, using its platform's built-in HTTP (**no new dependency**):
-   browser `js/llm/llmClient.js`; extension `src/llm/llmClient.js`; desktop
+   browser `js/llm/client.js`; extension `src/llm/client.js`; desktop
    `src/llm/LlmClient.cpp`; cli `src/llm/wire.zig` + `transport.zig`; mcp
    `src/llmtransport.rs`; bot `Infrastructure` ring, `Llm/HttpLlmClient.cs`; pystencil
    `pystencil/llm.py`; server `server/internal/llm/`.
-4. Settings UI per surface (browser `js/llm/llmSettings.js`, desktop
-   `dialogs/LlmSettingsForm.cpp`, extension `src/llm/llmSettings.js`, cli `/llm`).
+4. Settings UI per surface (browser `js/llm/settings.js`, desktop
+   `dialogs/LlmSettingsForm.cpp`, extension `src/llm/settings.js`, cli `/llm`).
 5. Fixtures under `browser/js/config/llm/fixtures/providerWire/`, plus each surface's walker.
 6. An endpoint is **always explicit user configuration** — never discovered from fetched or
    scanned content. Keys live in env, never in a URL. See `.claude/rules/security.md`.

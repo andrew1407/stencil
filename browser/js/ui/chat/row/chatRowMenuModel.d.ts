@@ -1,7 +1,7 @@
 import type { AskPreview, PlanAsk, VariantResult } from '../../../llm/plan/opPlan.js';
-import type { Attachment } from '../../../llm/chat/chatController.js';
+import type { Attachment } from '../../../llm/chat/controller.js';
 
-/** One transcript row, as chatSession.js's shared log stores it. */
+/** One transcript row, as session.js's shared log stores it. */
 export interface ChatRow {
   id: string | number;
   role: 'user' | 'assistant' | 'error';

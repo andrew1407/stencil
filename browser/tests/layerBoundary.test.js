@@ -91,14 +91,14 @@ const measure = (files, re, keepStrings = false) => {
 // adapter reads localStorage's window, the coordinators listen on window). Nothing may join them.
 const CORE_DOM_ALLOWANCE = {
   'core/settings/accents.js': 6, 'core/image/blankImage.js': 1, 'core/drawingApp.js': 16,
-  'core/export/exportService.js': 3, 'core/launch/extensionBridge.js': 2, 'core/settings/hotkeys.js': 4,
-  'core/image/imageFilterCanvas.js': 1, 'core/image/imageModel.js': 2, 'core/image/imageSettle.js': 1,
-  'core/pointer/inputController.js': 7, 'core/launch/launchController.js': 4, 'core/layoutInstall.js': 1,
-  'core/line/lineSelection.js': 1, 'core/pointer/pointerController.js': 5, 'core/project/projectFileIO.js': 2,
-  'core/project/projectFilePicker.js': 6, 'core/project/meta/projectMeta.js': 1, 'core/project/projectServerTransfer.js': 1, 'core/project/projectTransferController.js': 3,
+  'core/export/service.js': 3, 'core/launch/extensionBridge.js': 2, 'core/settings/hotkeys.js': 4,
+  'core/image/filterCanvas.js': 1, 'core/image/model.js': 2, 'core/image/settle.js': 1,
+  'core/pointer/inputController.js': 7, 'core/launch/controller.js': 4, 'core/layoutInstall.js': 1,
+  'core/line/selection.js': 1, 'core/pointer/controller.js': 5, 'core/project/fileIO.js': 2,
+  'core/project/filePicker.js': 6, 'core/project/meta/projectMeta.js': 1, 'core/project/serverTransfer.js': 1, 'core/project/transferController.js': 3,
   'core/storage/quotaWriter.js': 1, 'core/remote/stencilSync.js': 2, 'core/storage/storage.js': 1,
   'core/launch/tabsCoordinator.js': 3, 'core/export/videoFrame.js': 1,
-  'core/zoom/viewportSync.js': 6, 'core/zoom/zoomAnimation.js': 2, 'core/zoom/zoomPan.js': 1,
+  'core/zoom/viewportSync.js': 6, 'core/zoom/animation.js': 2, 'core/zoom/pan.js': 1,
 };
 
 test('js/core touches no document/window beyond the frozen allowance', () => {
@@ -108,9 +108,9 @@ test('js/core touches no document/window beyond the frozen allowance', () => {
 // Rule 2 — core, llm and net import nothing from ui: core still pulls the paint helpers it drives, each
 // leaving as the controller behind it gains a view seam. llm and net are clean.
 const UI_IMPORT_ALLOWANCE = {
-  'core/drawingApp.js': 10, 'core/settings/hotkeys.js': 1, 'core/image/imageSettle.js': 1,
-  'core/launch/launchController.js': 1, 'core/layoutInstall.js': 1, 'core/project/projectFilePicker.js': 1,
-  'core/remote/remoteSyncController.js': 1, 'core/settings/settingsController.js': 3, 'core/settings/settingsRegistry.js': 1,
+  'core/drawingApp.js': 10, 'core/settings/hotkeys.js': 1, 'core/image/settle.js': 1,
+  'core/launch/controller.js': 1, 'core/layoutInstall.js': 1, 'core/project/filePicker.js': 1,
+  'core/remote/syncController.js': 1, 'core/settings/controller.js': 3, 'core/settings/registry.js': 1,
   'core/line/shapeBuilder.js': 1, 'core/storage/storage.js': 4, 'core/line/strokeFx.js': 2,
 };
 
@@ -121,7 +121,7 @@ test('js/core, js/llm and js/net import nothing from js/ui beyond the frozen all
 
 // Rule 3 — only the console layer speaks `window.stencil`: index.js installs it by defineProperty and
 // never reads it back; the sites below should be handed the facade instead.
-const FACADE_ALLOWANCE = { 'llm/adapters/media.js': 1, 'llm/chat/chatSession.js': 1, 'ui/chat/row/chatCards.js': 1 };
+const FACADE_ALLOWANCE = { 'llm/adapters/media.js': 1, 'llm/chat/session.js': 1, 'ui/chat/row/chatCards.js': 1 };
 
 test('window.stencil appears outside js/console only in the frozen allowance', () => {
   const files = walk('').filter((rel) => !rel.startsWith('console/'));
@@ -139,18 +139,18 @@ const UI_ID_ALLOWANCE = {
   'ui/bindings/index.js': 1, 'ui/bindings/controls/pageAndDisplay.js': 8, 'ui/bindings/controls/projectColorButton.js': 3,
   'ui/bindings/controls/projectNameField.js': 6, 'ui/bindings/viewport/scrollPersist.js': 1, 'ui/bindings/selectionPanel.js': 10,
   'ui/bindings/viewport/smoothZoom.js': 1, 'ui/bindings/controls/styleControls.js': 14, 'ui/bindings/theme.js': 1,
-  'ui/bindings/controls/toolbarButtons.js': 20, 'ui/bindings/viewport/zoom.js': 2, 'ui/chat/row/chatCards.js': 1, 'ui/chat/chatPanel.js': 22,
-  'ui/modal/confirmModal.js': 9, 'ui/connect/connectModal.js': 19, 'ui/contextMenu/contextMenu.js': 3, 'ui/control/controlState.js': 16,
-  'ui/modal/cropModal.js': 11, 'ui/ctx/ctxActions.js': 22, 'ui/ctx/ctxAssistant.js': 6, 'ui/ctx/ctxAssistantChat.js': 15,
-  'ui/ctx/ctxScript.js': 3, 'ui/ctx/ctxScriptEditor.js': 7, 'ui/ctx/ctxState.js': 22, 'ui/ctx/ctxStyleActions.js': 21,
-  'ui/panel/drawToggleUI.js': 2, 'ui/meta/expirationModal.js': 2, 'ui/fullscreen/fullscreenClones.js': 2, 'ui/fullscreen/fullscreenLayer.js': 9,
-  'ui/fullscreen/fullscreenPanels.js': 2, 'ui/shell/imageMissingBanner.js': 3, 'ui/meta/infoModal.js': 5, 'ui/meta/keywordChips.js': 5,
-  'ui/panel/layoutControls.js': 1, 'ui/panel/linesList.js': 2, 'ui/meta/linksModal.js': 10, 'ui/llmSettings/llmSettingsModal.js': 21,
-  'ui/panel/mainContent.js': 9, 'ui/modal/modalShell.js': 1, 'ui/openImage/modal.js': 5, 'ui/modal/openInModal.js': 12,
+  'ui/bindings/controls/toolbarButtons.js': 20, 'ui/bindings/viewport/zoom.js': 2, 'ui/chat/row/chatCards.js': 1, 'ui/chat/panel.js': 22,
+  'ui/modal/confirmModal.js': 9, 'ui/connect/modal.js': 19, 'ui/contextMenu/contextMenu.js': 3, 'ui/control/state.js': 16,
+  'ui/modal/cropModal.js': 11, 'ui/ctx/actions.js': 22, 'ui/ctx/assistant.js': 6, 'ui/ctx/assistantChat.js': 15,
+  'ui/ctx/script.js': 3, 'ui/ctx/scriptEditor.js': 7, 'ui/ctx/state.js': 22, 'ui/ctx/styleActions.js': 21,
+  'ui/panel/drawToggleUI.js': 2, 'ui/meta/expirationModal.js': 2, 'ui/fullscreen/clones.js': 2, 'ui/fullscreen/layer.js': 9,
+  'ui/fullscreen/panels.js': 2, 'ui/shell/imageMissingBanner.js': 3, 'ui/meta/infoModal.js': 5, 'ui/meta/keywordChips.js': 5,
+  'ui/panel/layoutControls.js': 1, 'ui/panel/linesList.js': 2, 'ui/meta/linksModal.js': 10, 'ui/llmSettings/modal.js': 21,
+  'ui/panel/mainContent.js': 9, 'ui/modal/shell.js': 1, 'ui/openImage/modal.js': 5, 'ui/modal/openInModal.js': 12,
   'ui/meta/projectMetaModal.js': 7, 'ui/projects/window/projectTitle.js': 10, 'ui/projects/list/batchActions.js': 1, 'ui/projects/list/selection.js': 8,
-  'ui/projects/window/projectsModal.js': 13, 'ui/script/scriptEditor.js': 11, 'ui/script/scriptModal.js': 10, 'ui/panel/selectionPanel.js': 17,
-  'ui/canvas/serverLayoutPaint.js': 3, 'ui/settings/settingMirrors.js': 1, 'ui/settings/settingsModal.js': 5, 'ui/toolbar/toolbar.js': 7,
-  'ui/panel/unitDisplay.js': 5, 'ui/visuals/visualsModal.js': 18, 'ui/visuals/visualsVoiceRow.js': 1,
+  'ui/projects/window/projectsModal.js': 13, 'ui/script/editor.js': 11, 'ui/script/modal.js': 10, 'ui/panel/selectionPanel.js': 17,
+  'ui/canvas/serverLayoutPaint.js': 3, 'ui/settings/settingMirrors.js': 1, 'ui/settings/modal.js': 5, 'ui/toolbar/toolbar.js': 7,
+  'ui/panel/unitDisplay.js': 5, 'ui/visuals/modal.js': 18, 'ui/visuals/voiceRow.js': 1,
 };
 
 test('js/ui reaches the document by id only in the frozen allowance', () => {

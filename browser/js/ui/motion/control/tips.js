@@ -1,5 +1,5 @@
 import { motionReduced } from '../motionPrefs.js';
-import { SURFACE_IN_MS, dockAwayPoint } from '../surface/surfaceMotion.js';
+import { SURFACE_IN_MS, dockAwayPoint } from '../surface/motion.js';
 import { settleSurface, surfaceIn, surfaceOut } from '../surface/surfaces.js';
 import { TUNE } from '../tune.js';
 // Every cursor-adjacent popup dusts in and out of the control it describes, fast enough

@@ -1,4 +1,4 @@
-import { SURFACE_SPECK_PX } from './surfaceMotion.js';
+import { SURFACE_SPECK_PX } from './motion.js';
 import { tileNoise } from './tiles.js';
 import { TUNE } from '../tune.js';
 const blankPaint = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);

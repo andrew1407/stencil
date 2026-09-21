@@ -1,12 +1,12 @@
 #pragma once
-// Desktop counterpart of browser/js/net/connectionStore.js. Backed by QSettings, except each
+// Desktop counterpart of browser/js/net/store.js. Backed by QSettings, except each
 // token: a secret, so it lives in fileStore's owner-only (0600) secrets file.
 #include <QString>
 #include <QVector>
 
 namespace stencil::net {
 
-  // Mirrors connectionStore.js's { url, token, kind }.
+  // Mirrors chat/store.js's { url, token, kind }.
   struct SavedServer {
     QString url;
     QString token;

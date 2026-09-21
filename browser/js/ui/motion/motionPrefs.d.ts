@@ -6,7 +6,7 @@ export declare const MOTION_STORAGE_KEY: string;
 /** Fired after every change (eventBus/appBus.js EVENTS.motionChanged). */
 export declare const MOTION_EVENT: string;
 export declare const MOTION_MODES: MotionMode[];
-/** The motion modes that paint through dustCloud.js styleFrame. */
+/** The motion modes that paint through cloud.js styleFrame. */
 export declare const PARTICLE_MODES: MotionMode[];
 export declare const DEFAULT_MOTION_MODE: MotionMode;
 export declare const DEFAULT_DRAWING_ANIMATIONS: boolean;

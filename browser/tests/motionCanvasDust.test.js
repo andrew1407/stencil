@@ -57,7 +57,7 @@ test('playCanvasArrival survives having no DOM to reach for', () => {
 });
 
 test('both routes that put an image on the canvas play the arrival', () => {
-  const loader = readFileSync(new URL('../js/core/image/imageSettle.js', import.meta.url), 'utf8');
+  const loader = readFileSync(new URL('../js/core/image/settle.js', import.meta.url), 'utf8');
   assert.match(loader, /playCanvasArrival\(app\.canvas, \{ from: opts\.from \}\)/,
     'a freshly loaded file arrives');
   const storage = readFileSync(new URL('../js/core/storage/storage.js', import.meta.url), 'utf8');

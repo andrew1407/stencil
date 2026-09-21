@@ -14,7 +14,7 @@ namespace stencil::gui {
     setWindowTitle("Assistant");
 
     // The browser modal's shell: sparkle + "Assistant" + the Close pill over a hairline, the form as
-    // the body, footer hint + Cancel/Save under a second hairline (llmSettingsModal.js structure).
+    // the body, footer hint + Cancel/Save under a second hairline (modal.js structure).
     ModalChrome chrome = installModalChrome(this, "sparkle", tr("Assistant"));
     form = new LlmSettingsForm(current, LlmSettingsForm::RowMode::HIDE_ROWS, this);
     chrome.body->addWidget(form);

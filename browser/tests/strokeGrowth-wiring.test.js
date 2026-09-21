@@ -12,7 +12,7 @@ const drawingAppJs = read('../js/core/drawingApp.js');
 const inputJs = read('../js/core/pointer/inputController.js');
 const shapeJs = read('../js/core/line/shapeBuilder.js');
 const clickJs = read('../js/core/pointer/canvasClick.js');
-const exportJs = read('../js/core/export/exportService.js');
+const exportJs = read('../js/core/export/service.js');
 
 // ── 3. The wiring ───────────────────────────────────────────────────────────
 

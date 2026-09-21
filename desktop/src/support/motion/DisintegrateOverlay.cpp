@@ -3,7 +3,7 @@
 namespace stencil::gui {
 
 
-  // Browser motion.js dockAwayPoint: the centre pushed `reach`x the edge's extent past it.
+  // Browser surface/motion.js dockAwayPoint: the centre pushed `reach`x the edge's extent past it.
   QPoint dockAwayPoint(const QRect& picture, Qt::DockWidgetArea area, double reach) {
     const bool horiz = area != Qt::TopDockWidgetArea && area != Qt::BottomDockWidgetArea;
     const int reachPx = qRound((horiz ? picture.width() : picture.height()) * reach);
@@ -161,7 +161,7 @@ namespace stencil::gui {
   }
 
 
-  // Browser motion.js reshapeGrid.
+  // Browser surface/motion.js reshapeGrid.
   void DisintegrateOverlay::dustGrid(const QSize& size, int cellPx, int maxCells, int* cols,
                                      int* rows) {
     *cols = std::max(1, qRound(double(size.width()) / cellPx));

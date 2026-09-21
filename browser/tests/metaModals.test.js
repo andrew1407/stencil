@@ -2,7 +2,7 @@
 // keywordsModal.js). Pinned: the section sits between Image and Projects and holds description → keywords →
 // links; both modals wear the app-modal shell (header + × Close, hint-left / Cancel + Save footer) around
 // their own field — a text area, and keywordChips.js's input plus chip well; and all three buttons gate
-// together on a SAVED, non-incognito project (controlState.js).
+// together on a SAVED, non-incognito project (state.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { installDom } from './helpers/dom.js';

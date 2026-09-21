@@ -6,12 +6,12 @@ import { installMemoryStorage } from './helpers/memoryStorage.js';
 
 const mem = installMemoryStorage()._map;
 
-const { createChatPersistence, wireChatPersistence } = await import('../js/llm/chat/chatPersistence.js');
-const { createChatStore, buildChatDoc } = await import('../js/llm/chat/chatStore.js');
+const { createChatPersistence, wireChatPersistence } = await import('../js/llm/chat/persistence.js');
+const { createChatStore, buildChatDoc } = await import('../js/llm/chat/store.js');
 const {
   appendChatRow, updateChatRow, clearChatLog, chatLog, resetChatLog, forgetChatController, peekChatController,
   clearSharedConversation,
-} = await import('../js/llm/chat/chatSession.js');
+} = await import('../js/llm/chat/session.js');
 
 // Recording chat store over an async Map — counts calls so tests can assert the
 // muted-restore rule (a restore must not write back what it just read).

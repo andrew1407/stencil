@@ -3,7 +3,7 @@
 import { isAccent, normalizeHex } from '../settings/accents.js';
 import { normalizePageSize, parseLengthToken } from '../settings/units.js';
 import { parseDuration } from './durationParser.js';
-import { parseProjectFile } from '../project/projectFile.js';
+import { parseProjectFile } from '../project/file.js';
 import { parseHotkey } from '../../utils/keys.js';
 
 // Frozen: callers pass it around and must not edit it.

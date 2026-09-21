@@ -80,7 +80,7 @@ namespace stencil::gui {
   void closeBarSlot(QWidget* bar, int ms);
 
   // A bar never flies, only its controls: IN is a plain show, OUT waits for their
-  // flight then closes the slot. `want()` is asked again on arrival. Browser: motion.js revealBar.
+  // flight then closes the slot. `want()` is asked again on arrival. Browser: surface/motion.js revealBar.
   template <typename Want>
   inline void revealBar(QWidget* bar, Want want) {
     if (!bar) return;

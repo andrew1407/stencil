@@ -1,4 +1,4 @@
-// The row's own dust (js/ui/connectModal.js + js/ui/dustCloud.js): the expired-session prompt,
+// The row's own dust (js/ui/modal.js + js/ui/cloud.js): the expired-session prompt,
 // the labelled dot, and a 44px row's finer grid, smaller throw and brisker clock.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -43,7 +43,7 @@ test('the connection row labels the dot and the URL separately', () => {
 // The row and the selection bar leave together: retire the row, disconnect and re-ask the
 // bar in ONE turn, as ConnectDialog.cpp's rebuildList/updateBatchBar do (user report).
 test('removing a connection retires the row and re-asks the bar in the same turn', () => {
-  const src = readFileSync(new URL('../js/ui/connect/connectModal.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/connect/modal.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('const confirmDisconnect'), src.indexOf('// Build the new url order'));
   // The leave is STARTED, not awaited, before the disconnect and the bar update…
   assert.match(body, /const leaving = leaveThenRemove\(/);
@@ -62,7 +62,7 @@ test('removing a connection retires the row and re-asks the bar in the same turn
 // A connections row plays the same flight as a project row, but finer, tighter and brisker:
 // 44px of row against a 74px project row makes the default grid a mosaic (user report).
 test('the connections list dusts on its own finer grid, smaller throw and brisk clock', () => {
-  const src = readFileSync(new URL('../js/ui/connect/connectModal.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/connect/modal.js', import.meta.url), 'utf8');
   // All four row flights share the list-row grid and grain (motion.js rowDustGrid); the
   // removals add the brisk clock and the smaller throw (rowLeaveDust).
   assert.equal((src.match(/rowLeaveDust\([^)]*CONN_DUST_MS\)/g) || []).length, 2);

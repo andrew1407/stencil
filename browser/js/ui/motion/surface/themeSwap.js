@@ -1,4 +1,4 @@
-import { edgeJitter, edgeBaseOf } from '../../dust/dustCloud.js';
+import { edgeJitter, edgeBaseOf } from '../../dust/cloud.js';
 import { TUNE, styleCode } from '../tune.js';
 // The new palette floods out of the control that changed it: View Transitions where they
 // exist, a cross-fade elsewhere; `apply` runs exactly once, synchronously. One length across
@@ -35,7 +35,7 @@ export const bezierY = (t, x1, y1, x2, y2) => {
 };
 export const swapEase = (t) => bezierY(t, 0.4, 0.25, 0.95, 1);
 
-// The wipe's edge wears the particle style (dustCloud.js edgeJitter). Twins:
+// The wipe's edge wears the particle style (cloud.js edgeJitter). Twins:
 // ThemeSwapOverlay.hpp edgeRadiusAt, extension accent.js edgePolygon.
 export const SWAP_EDGE_POINTS = TUNE.SWAP_EDGE_POINTS;
 

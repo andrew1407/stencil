@@ -1,4 +1,4 @@
-// The §10 settings executor routes and server resolution (js/llm/opPlan.js): saved
+// The §10 settings executor routes and server resolution (js/llm/plan.js): saved
 // servers for connect, live connections for disconnect, and resolveServer itself.
 import { test } from 'node:test';
 import assert from 'node:assert';

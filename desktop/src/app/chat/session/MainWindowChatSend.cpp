@@ -135,7 +135,7 @@ namespace stencil::gui {
                      });
   }
 
-  // §7 shape test: continue once when the actions CONTAIN a load op and drew NO layout. Browser twin: chatController.js planLoadsWithoutTracing.
+  // §7 shape test: continue once when the actions CONTAIN a load op and drew NO layout. Browser twin: controller.js planLoadsWithoutTracing.
   bool MainWindow::chatPlanLoadsWithoutTracing(const llm::OpPlan& plan) const {
     const bool loadsNew =
         std::any_of(plan.actions.cbegin(), plan.actions.cend(), [](const llm::Action& a) {

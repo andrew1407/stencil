@@ -1,4 +1,4 @@
-// The hold on the header mark and the pink edit (js/ui/logoStageTrigger.js): the hold opens the
+// The hold on the header mark and the pink edit (js/ui/stageTrigger.js): the hold opens the
 // accent's show without cycling the accent, and the pink show tints the page and draws its heart.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
@@ -20,9 +20,9 @@ const setup = () => {
 };
 beforeEach(setup);
 
-const { wireLogoHold, heldShow, activateShow, pinkVibe } = await import('../js/ui/logo/logoStageTrigger.js');
-const { logoStageOpen, closeLogoStage } = await import('../js/ui/logo/logoStage.js');
-const { STAGE } = await import('../js/ui/logo/logoStageRules.js');
+const { wireLogoHold, heldShow, activateShow, pinkVibe } = await import('../js/ui/logo/stageTrigger.js');
+const { logoStageOpen, closeLogoStage } = await import('../js/ui/logo/stage.js');
+const { STAGE } = await import('../js/ui/logo/stageRules.js');
 
 // A logo whose wrap is its own element, as .app-logo-wrap is in the topbar.
 const makeLogo = () => {

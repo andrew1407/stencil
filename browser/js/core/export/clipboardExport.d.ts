@@ -1,4 +1,4 @@
-import type { ExportHost } from '../project/projectFilePicker.js';
+import type { ExportHost } from '../project/filePicker.js';
 
 /** Copy one export variant of the image. Resolves on a successful write, rejects on failure. */
 export declare function copyImageToClipboard(svc: ExportHost, variant?: string): Promise<void>;

@@ -6,7 +6,7 @@
 #include <QVector>
 #include <functional>
 
-// LLM chat client, llm-contract.md §6 wire mappings; browser twin: js/llm/llmClient.js.
+// LLM chat client, llm-contract.md §6 wire mappings; browser twin: js/llm/client.js.
 namespace stencil::llm {
 
   // The system prompt (§4) is ASSEMBLED from the §13 op registry; clients may append a suffix, never prepend.

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { executeOpPlan, parseOpPlan, renderAskPreviews } from '../js/llm/plan/opPlan.js';
-import { captureEditorState, capturePixels, needsPixelSnapshot, restoreWorkingImage } from '../js/llm/plan/planSandbox.js';
+import { captureEditorState, capturePixels, needsPixelSnapshot, restoreWorkingImage } from '../js/llm/plan/sandbox.js';
 import { rotateCropRectQuarterJS, rotateLinePointsQuarter, cropChangeJS, scaleLinePoints } from '../js/core/parse/cropGeometry.js';
 
 // A facade stub with REAL pixels: an RGBA original, the editor's own quarter-turn and

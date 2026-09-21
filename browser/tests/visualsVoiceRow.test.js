@@ -1,4 +1,4 @@
-// The Visuals dialog's one voice knob (js/ui/visualsVoiceRow.js): Send-after-pause. The row
+// The Visuals dialog's one voice knob (js/ui/voiceRow.js): Send-after-pause. The row
 // is a wire between the number field and the shared store, so what is pinned is that it
 // CLAMPS what was typed before it saves, and that reset goes back to the documented default.
 import test from 'node:test';
@@ -12,8 +12,8 @@ const field = createStubElement('input');
 installDom().register('vs-voice-silence', field);
 
 const { loadVoiceSettings, saveVoiceSettings, SILENCE_MS_DEFAULT, SILENCE_MS_MIN, SILENCE_MS_MAX } =
-  await import('../js/llm/voice/voiceSettings.js');
-const { wireVoiceSilenceRow } = await import('../js/ui/visuals/visualsVoiceRow.js');
+  await import('../js/llm/voice/settings.js');
+const { wireVoiceSilenceRow } = await import('../js/ui/visuals/voiceRow.js');
 
 const row = wireVoiceSilenceRow();
 const type = (v) => { field.value = v; field.dispatch('change', { target: field }); };

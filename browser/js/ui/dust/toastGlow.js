@@ -1,8 +1,8 @@
 // The golden shining a show's notice wears. The same for every show — the colour of the secret,
 // not of the theme — and it follows the pill's own rounded rectangle instead of ringing a circle
 // around it. Desktop twin: support/toastShine.hpp.
-import { beatAt } from '../logo/logoStagePaint.js';
-import { STAGE } from '../logo/logoStageRules.js';
+import { beatAt } from '../logo/stagePaint.js';
+import { STAGE } from '../logo/stageRules.js';
 
 const MARGIN = 30;        // canvas room around the pill for the halo
 const RINGS = 8;          // expanding outlines stand in for a blur (desktop IdleCard does the same)

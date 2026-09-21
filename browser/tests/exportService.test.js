@@ -1,4 +1,4 @@
-// ExportService (js/core/exportService.js): the empty-state guards, the export canvas per
+// ExportService (js/core/service.js): the empty-state guards, the export canvas per
 // variant and the saveImage filenames. The rig lives in helpers/exportServiceRig.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

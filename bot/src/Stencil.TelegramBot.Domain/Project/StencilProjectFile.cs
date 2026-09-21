@@ -19,7 +19,7 @@ public sealed record StencilProject
     public JsonElement? Layout { get; init; }
 }
 
-// Mirrors projectFile.js and the CLI's project.zig.
+// Mirrors project/file.js and the CLI's project.zig.
 public static class StencilProjectFile
 {
     public const string FORMAT = "stencil-project";

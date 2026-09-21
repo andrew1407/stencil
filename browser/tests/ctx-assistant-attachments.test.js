@@ -1,10 +1,10 @@
-// A turn's images belong to the user's row (js/llm/chatSession.js): the previews, what
+// A turn's images belong to the user's row (js/llm/session.js): the previews, what
 // §12.1 persists, and the composer drop target the rows leave before the empty state returns.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { chatDropCueHtml } from '../js/ui/chat/chatView.js';
-import { chatLog, resetChatLog, runLoggedChatTurn, attachmentPreviews } from '../js/llm/chat/chatSession.js';
-import { buildChatDoc, rowsToMessages } from '../js/llm/chat/chatStore.js';
+import { chatDropCueHtml } from '../js/ui/chat/view.js';
+import { chatLog, resetChatLog, runLoggedChatTurn, attachmentPreviews } from '../js/llm/chat/session.js';
+import { buildChatDoc, rowsToMessages } from '../js/llm/chat/store.js';
 import { motionSource } from './helpers/motionSource.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';

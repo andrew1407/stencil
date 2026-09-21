@@ -5,10 +5,10 @@
 #include <vector>
 
 // Cursor hit tests over drawn lines. Port of browser/js/core/draw/hitTest.js plus
-// shouldCloseShape (core/lineTransforms.js) and holdDrawTarget (core/holdDraw.js).
+// shouldCloseShape (core/transforms.js) and holdDrawTarget (core/holdDraw.js).
 namespace stencil::core {
 
-  // lineTransforms.js shouldCloseShape: >= 3 points and the click within (pointSize + 8)
+  // line/transforms.js shouldCloseShape: >= 3 points and the click within (pointSize + 8)
   // image px of the first point.
   bool shouldCloseShape(const std::vector<Point>& points, const Point& click,
                         double pointSize);

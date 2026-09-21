@@ -55,7 +55,7 @@
 
 namespace stencil::gui {
 
-  // Browser connectModal.js `shownUrls`. Read off the rows, never manager->urls() by index: a row
+  // Browser modal.js `shownUrls`. Read off the rows, never manager->urls() by index: a row
   // retired under its removal dust keeps its slot after the manager has let go.
   QStringList ConnectDialog::shownUrls() const {
     QStringList out;

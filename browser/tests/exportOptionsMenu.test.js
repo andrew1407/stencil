@@ -1,4 +1,4 @@
-// Unit tests for the copy/download toolbar options list (js/ui/exportOptionsMenu.js):
+// Unit tests for the copy/download toolbar options list (js/ui/optionsMenu.js):
 // row content per variant, and that the hotkey hint shown on each row comes from the
 // LIVE hotkeys registry (platform-formatted, bordered keycaps) rather than a hardcoded
 // guess — a hardcoded "Ctrl+C" next to the Download button's Original/Tint rows would be
@@ -12,10 +12,10 @@ const doc = installDom({}, {
   window: { innerWidth: 1200, innerHeight: 800, addEventListener() {}, removeEventListener() {} },
 });
 
-const { wireExportOptionsMenu } = await import('../js/ui/export/exportOptionsMenu.js');
+const { wireExportOptionsMenu } = await import('../js/ui/export/optionsMenu.js');
 const { hotkeys } = await import('../js/core/settings/hotkeys.js');
 const { formatCombo } = await import('../js/utils.js');
-const { keysHtml } = await import('../js/ui/tip/tipContent.js');
+const { keysHtml } = await import('../js/ui/tip/content.js');
 
 // Keycap markup for a hotkey id, platform-formatted exactly like the code under test: this machine's own
 // `navigator` may or may not report macOS, so the expectation tracks hotkeys.isMac.

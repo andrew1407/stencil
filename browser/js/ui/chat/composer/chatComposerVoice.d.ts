@@ -1,4 +1,4 @@
-import type { VoiceModes } from '../../../llm/voice/voiceModes.js';
+import type { VoiceModes } from '../../../llm/voice/modes.js';
 
 export interface ComposerVoiceApi {
   isOn(): boolean;

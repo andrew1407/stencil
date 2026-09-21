@@ -1,12 +1,12 @@
 // The canvas is CENTRED in its viewport whenever the picture is smaller than the frame
-// (css/layout.css), and the zoom math goes through that offset (js/core/zoomPan.js). The idiom is
+// (css/layout.css), and the zoom math goes through that offset (js/core/pan.js). The idiom is
 // auto margins, never `text-align: center` / `justify-content: center`, which centre an OVERFLOWING
 // child too and put its top-left corner out of scroll range for good. Centring moves the image
 // origin off the SCROLL origin, so every viewport→image conversion subtracts canvasOrigin().
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ZoomPan, canvasOrigin } from '../js/core/zoom/zoomPan.js';
+import { ZoomPan, canvasOrigin } from '../js/core/zoom/pan.js';
 import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
 
 // ── The CSS contract ─────────────────────────────────────────────────────────

@@ -36,7 +36,7 @@ void renderCases(const Palette& pal) {
 
   {  // A secondary line reads as a sentence of its own: "Servers — a saved session
      // A reason beginning lowercase is sentence-cased under the heading, but never when its first token is a
-     // value rather than a word. Browser twin: tipContent.js sentenceCase, the same cases in its own test.
+     // value rather than a word. Browser twin: tip/content.js sentenceCase, the same cases in its own test.
     const auto firstBlock = [](const QString& title) {
       const Tip t = parseTip(title);
       return t.blocks.isEmpty() ? QString() : t.blocks[0].text;

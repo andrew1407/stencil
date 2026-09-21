@@ -1,4 +1,4 @@
-// executeOpPlan over the facade stub (js/llm/opPlan.js): the op-to-facade mapping and
+// executeOpPlan over the facade stub (js/llm/plan.js): the op-to-facade mapping and
 // the §1 coordinate re-mapping that puts plan points where the model saw them.
 import { test } from 'node:test';
 import assert from 'node:assert';

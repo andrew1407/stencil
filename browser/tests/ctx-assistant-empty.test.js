@@ -1,11 +1,11 @@
-// The empty state both chat surfaces share (js/ui/chatView.js): one suggestion list, owned
+// The empty state both chat surfaces share (js/ui/view.js): one suggestion list, owned
 // by renderChatLog, and a flyout that adds no duplicate panel ids.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { layout } from '../js/ui/layout.js';
 import { assistantItemHtml } from '../js/ui/contextMenu/contextMenu.js';
-import { CHAT_SUGGESTIONS, chatSuggestionsHtml } from '../js/ui/chat/chatView.js';
+import { CHAT_SUGGESTIONS, chatSuggestionsHtml } from '../js/ui/chat/view.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
 import { layoutWith } from './helpers/ctxAssistantRig.js';
@@ -29,7 +29,7 @@ test('BOTH surfaces ship the SAME suggestion chips, from one list', () => {
   assert.ok(panel.length >= 4 && panel.includes('Make it sepia'));
   // Both templates interpolate the shared helper — neither hand-rolls its own chips.
   for (const [name, src] of [
-    ['panel', readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8')],
+    ['panel', readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8')],
     ['flyout', contextMenuSource()],
   ]) {
     assert.ok(src.includes('${chatSuggestionsHtml()}'), `${name} uses the shared chip markup`);
@@ -47,7 +47,7 @@ test('renderChatLog OWNS the empty state: chips whenever the log is empty', () =
   assert.ok(view.includes("if (!transcript.querySelector('.chat-empty')) transcript.prepend(chatEmptyState());"));
   // No per-surface restore hack left: neither surface passes its own empty-state node.
   for (const [name, src] of [
-    ['panel', readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8')],
+    ['panel', readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8')],
     ['flyout', contextMenuSource()],
   ]) {
     assert.strictEqual(src.split('emptyState').length - 1, 0, `${name} no longer owns an empty state`);

@@ -8,7 +8,7 @@ const {
   defaultVoiceSettings, loadVoiceSettings, saveVoiceSettings,
   clampSilenceMs, normalizeLanguage, recognitionLang, isLanguageTag,
   SILENCE_MS_DEFAULT, SILENCE_MS_MIN, SILENCE_MS_MAX, VOICE_SETTINGS_EVENT, VOICE_LANGUAGES,
-} = await import('../js/llm/voice/voiceSettings.js');
+} = await import('../js/llm/voice/settings.js');
 
 test('defaults: 1000 ms of silence, the default (English) language', () => {
   mem.clear();

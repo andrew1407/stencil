@@ -1,7 +1,7 @@
 // A drawn scrollbar for a capped menu. macOS renders its overlay bar only while the content is
 // moving, so a list that scrolls read as one merely cut off; this one is there from the open.
 // The thumb is a background LAYER placed by two custom properties, never a child: these menus
-// address their rows as `children`. Canvas parity: ui/canvasScrollbars.js.
+// address their rows as `children`. Canvas parity: ui/scrollbars.js.
 // Byte-pinned to browser-extension/src/lib.
 import { thumbMetrics } from './thumbMetrics.js';
 

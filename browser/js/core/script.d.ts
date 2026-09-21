@@ -1,5 +1,5 @@
 // Shape of script.js — the .stc entry point: parse, dump, and resolve geometry.
-import type { ScriptBlock, ScriptDiagnostic, ScriptOp, ScriptToken } from './script/scriptTypes.js';
+import type { ScriptBlock, ScriptDiagnostic, ScriptOp, ScriptToken } from './script/types.js';
 export interface ScriptProgram {
   tokens: ScriptToken[];
   diagnostics: ScriptDiagnostic[];

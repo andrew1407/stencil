@@ -6,10 +6,10 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
 import { layout } from '../js/ui/layout.js';
-import { scriptFlyoutHtml } from '../js/ui/ctx/ctxScriptItem.js';
-import { wireCtxScript } from '../js/ui/ctx/ctxScript.js';
-import { setScriptText } from '../js/ui/script/scriptBuffer.js';
-import { ctxKeepsTab } from '../js/ui/ctx/ctxKeyboard.js';
+import { scriptFlyoutHtml } from '../js/ui/ctx/scriptItem.js';
+import { wireCtxScript } from '../js/ui/ctx/script.js';
+import { setScriptText } from '../js/ui/script/buffer.js';
+import { ctxKeepsTab } from '../js/ui/ctx/keyboard.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 
@@ -193,7 +193,7 @@ test('Run, Copy, Download and Clear need something to act on; Upload always does
 
 // ── The rules that make an editor in a menu possible ─────────────────────────
 test('the flyout counts as engaged while a caret is in it or a script runs', () => {
-  const code = src('ctxScriptEditor.js');
+  const code = src('ctx/scriptEditor.js');
   assert.ok(code.includes('flyout._keepOpen = () => running || flyout.contains(document.activeElement);'),
     'the hover-out timers must not yank the editor away mid-script');
   assert.equal((code.match(/host\.closeMenu/g) || []).length, 1,
@@ -204,13 +204,13 @@ test('the editor keeps Tab for itself — it indents, it does not leave', () => 
   assert.match(FLYOUT, /data-ctx-keep-tab="1"/);
   assert.ok(ctxKeepsTab({ dataset: { ctxKeepTab: '1' } }));
   assert.ok(!ctxKeepsTab({ dataset: {} }), 'every other control lets Tab walk the flyout');
-  assert.match(src('ctxKeyboard.js'), /if \(e\.key === 'Tab' && !ctxKeepsTab\(document\.activeElement\)\)/);
-  assert.match(src('scriptEditor.js'), /editor\.selectionStart = a \+ 2;/);
+  assert.match(src('ctx/keyboard.js'), /if \(e\.key === 'Tab' && !ctxKeepsTab\(document\.activeElement\)\)/);
+  assert.match(src('script/editor.js'), /editor\.selectionStart = a \+ 2;/);
 });
 
 test('the flyout is a ui/ module: no llm, no facade of its own', () => {
-  for (const name of ['ctxScript.js', 'ctxScriptItem.js', 'ctxScriptEditor.js', 'scriptEditor.js',
-    'scriptHighlight.js']) {
+  for (const name of ['ctx/script.js', 'ctx/scriptItem.js', 'ctx/scriptEditor.js',
+    'script/editor.js', 'script/highlight.js']) {
     assert.ok(!/from '\.\.\/llm\//.test(src(name)), `${name} may not reach the llm layer`);
     assert.ok(!/window\.stencil/.test(src(name)), `${name} runs scripts through console/scriptRunner.js`);
   }

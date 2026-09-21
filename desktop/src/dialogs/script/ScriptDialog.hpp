@@ -12,7 +12,7 @@ namespace stencil::gui {
   class ScriptEditorWidget;
 
   /* The script window: write a .stc, see it coloured as you type, run it on the open project.
-   * Browser twin js/ui/scriptModal.js — nothing is reported until the script has been RUN, and
+   * Browser twin js/ui/modal.js — nothing is reported until the script has been RUN, and
    * Copy / Download / Run are dead while the editor is empty. Accepted means "run it". */
   class ScriptDialog : public QDialog {
     Q_OBJECT

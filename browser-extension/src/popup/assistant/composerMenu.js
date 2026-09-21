@@ -1,7 +1,7 @@
 // ── The composer's "…" overflow: attach / clear / settings ──────────────────
 // Browser + desktop parity: the items reuse the existing handlers, only the affordance
 // moved. Both edges of the menu fly, like every other surface here.
-import { applyChatSide, toggleChatSide } from '../../lib/chat/chatLayoutPrefs.js';
+import { applyChatSide, toggleChatSide } from '../../lib/chat/layoutPrefs.js';
 import { dismissTip } from '../../lib/tip/controlTooltip.js';
 import { surfaceIn, surfaceOut, centerOf, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../../lib/motion.js';
 
@@ -26,8 +26,8 @@ export const wireComposerMenu = ({ transcriptEl, gearTip, queueFiles, state }) =
     setMoreOpen(opening);
     if (opening) { dismissTip(); gearTip.hide(); }   // their tiers would sit over the menu
   });
-  // The trigger's rich status tooltip (browser chatPanel.js statusHost parity):
-  // hover/focus reveal it, one click's focus suppressed (chatStatusTip.js wire).
+  // The trigger's rich status tooltip (browser panel.js statusHost parity):
+  // hover/focus reveal it, one click's focus suppressed (statusTip.js wire).
   gearTip.wire(moreBtn);
   for (const item of moreMenu.querySelectorAll('.chat-more-item'))
     item.addEventListener('click', closeMore);
@@ -48,7 +48,7 @@ export const wireComposerMenu = ({ transcriptEl, gearTip, queueFiles, state }) =
   document.getElementById('chat-open-options').addEventListener('click', () => {
     document.getElementById('open-options')?.click();
   });
-  // Scoped to THIS page's session (chatLayoutPrefs.js) and not persisted, so a fresh popup, side
+  // Scoped to THIS page's session (layoutPrefs.js) and not persisted, so a fresh popup, side
   // panel or DevTools panel always starts at the default.
   applyChatSide(transcriptEl);
   document.getElementById('chat-swap-sides').addEventListener('click', () => {

@@ -1,8 +1,8 @@
-// History bounds and attachments (js/llm/chatController.js): the 32-message cap, working vs
+// History bounds and attachments (js/llm/controller.js): the 32-message cap, working vs
 // analyze-only images, sampled video frames and the errors that never reach the facade.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { replayMessages, splitDataUrl, HISTORY_LIMIT } from '../js/llm/chat/chatController.js';
+import { replayMessages, splitDataUrl, HISTORY_LIMIT } from '../js/llm/chat/controller.js';
 import { makeClient, chatOnlyReply, pngUrl, stubFile, makeController } from './helpers/chatControllerRig.js';
 
 test('replayMessages bounds history to the most recent 32 messages', () => {

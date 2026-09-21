@@ -1,4 +1,4 @@
-// Unit tests for AccentController (js/ui/accentController.js) — the theme/accent writes
+// Unit tests for AccentController (js/ui/controller.js) — the theme/accent writes
 // extracted out of DrawingApp. State lives on the document element (data-theme / data-accent /
 // inline --accent) + localStorage, so we build a minimal stub document + localStorage and
 // assert the writes, the preset-vs-custom split, and the cross-tab broadcast (app.tabs).
@@ -42,7 +42,7 @@ globalThis.document = {
   head: { appendChild() {} },
 };
 
-const { AccentController } = await import('../js/ui/accent/accentController.js');
+const { AccentController } = await import('../js/ui/accent/controller.js');
 
 const makeApp = () => {
   const broadcasts = [];

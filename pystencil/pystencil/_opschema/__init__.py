@@ -1,6 +1,6 @@
 """Registry-driven op-plan schema engine (llm-contract.md §1-§2, §8, §11).
 
-A rule-for-rule port of ``browser/js/llm/plan/opSchema.js`` over the checked-in copy of
+A rule-for-rule port of ``browser/js/llm/plan/schema.js`` over the checked-in copy of
 ``browser/js/config/llm/opRegistry.json`` (``tests/test_canonical_drift.py`` byte-pins
 the copy): profile membership, unknown-field rejection, required keys, types, enums,
 ranges, string caps, token grammars and the cross-field presence rules (forms /

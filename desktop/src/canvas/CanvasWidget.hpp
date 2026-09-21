@@ -22,7 +22,7 @@
 class QNativeGestureEvent;
 class QVariantAnimation;  // not transitively declared by <QWidget> (unlike QWheelEvent)
 
-// The drawing surface — browser twin renderer.js (what to draw) + zoomPan.js (scale).
+// The drawing surface — browser twin renderer.js (what to draw) + zoom/pan.js (scale).
 namespace stencil::gui {
 
   struct Palette;  // theme.hpp; used by the drawLineScaled paint helpers below
@@ -141,7 +141,7 @@ namespace stencil::gui {
     // True where the EDITED image shows — the only place the layout is drawn; gates the hover tip.
     bool compareShowsEdited(double imageX, double imageY) const;
 
-    // Export variants (browser exportService.js): "current" filter + lines, "original" crop/rotation
+    // Export variants (browser export/service.js): "current" filter + lines, "original" crop/rotation
     // only, "tint" filter only, "split" the compare composite (`withDivider` bakes the bar in).
     QImage renderToImage(const QString& variant, bool withDivider = false) const;
     QImage renderToImage(bool withOverlay) const;

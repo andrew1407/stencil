@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyEnd, isLongPress, dist, midpoint, touchDist, TOUCH_DEFAULTS } from '../js/core/touch/touchGestures.js';
+import { classifyEnd, isLongPress, dist, midpoint, touchDist, TOUCH_DEFAULTS } from '../js/core/touch/gestures.js';
 
 const T = (x, y) => ({ clientX: x, clientY: y });
 

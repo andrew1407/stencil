@@ -14,7 +14,7 @@ export const MSG = Object.freeze({
   OPEN_OPTIONS: 'stencil-open-options', // devtools panel → SW: open the options page (runtime.openOptionsPage is absent in devtools contexts)
   DROPZONES_ARM: 'stencil-dropzones-arm',   // panel → SW: inject the on-page 4-quadrant drop overlay on `tabId` (a row drag started)
   DROPZONES_DISARM: 'stencil-dropzones-disarm', // panel → SW: remove the drop overlay on `tabId` (drag ended without a page drop)
-  PAGE_DROP: 'stencil-page-drop',       // drop overlay (dropZones.js) → SW: a row was dropped in a quadrant → run its action
+  PAGE_DROP: 'stencil-page-drop',       // drop overlay (zones.js) → SW: a row was dropped in a quadrant → run its action
   PAGE_OPEN: 'stencil-page-open',       // page API → bridge → SW: open a target in the editor
   PAGE_CROP: 'stencil-page-crop',       // page API → bridge → SW: open a target in quick-crop
   PAGE_PIN: 'stencil-page-pin',         // page API → bridge → SW: pin / unpin a target

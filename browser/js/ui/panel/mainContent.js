@@ -2,7 +2,7 @@ import { StencilElement, hostTag, define } from '../base.js';
 import { StencilTooltip } from '../tip/tooltip.js';
 import { hotkeys } from '../../core/settings/hotkeys.js';
 import { icon } from '../icons.js';
-import { keysHtml } from '../tip/tipContent.js';
+import { keysHtml } from '../tip/content.js';
 import { formatCombo, isMacPlatform } from '../../utils/keys.js';
 import { wirePanelResizer } from '../../utils.js';
 import { foldDust, motionReduced } from '../motion.js';

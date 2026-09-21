@@ -1,5 +1,5 @@
 #pragma once
-// True overlay scrollbars for the canvas viewport; browser parity: js/ui/canvasScrollbars.js.
+// True overlay scrollbars for the canvas viewport; browser parity: js/ui/scrollbars.js.
 // theme.cpp's QScrollBar stylesheet turns off Qt's native transient mode app-wide, and
 // QAbstractScrollArea then shrinks the viewport to make room on every re-layout. So the base
 // class's own bars are switched off for good - they stay the scroll MODEL that wheel/keyboard/

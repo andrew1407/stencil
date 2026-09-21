@@ -1,12 +1,12 @@
 import { createDragSectionOpener, ASSISTANT_SECTION, SEARCH_SECTION, SPRING_DWELL_MS } from '../lib/drop/dragSections.js';
 import { createLogoDragMenu } from '../lib/accent/logoDragMenu.js';
-import { entryFromDrop, dragActionAllowed, dragPayloadKind } from '../lib/drop/dropEntry.js';
+import { entryFromDrop, dragActionAllowed, dragPayloadKind } from '../lib/drop/entry.js';
 import { shortName } from '../lib/displayName.js';
-import { sourceOf } from '../lib/image/imageModel.js';
+import { sourceOf } from '../lib/image/model.js';
 import { listEl, menuEl, statusEl, run, IS_SIDE_PANEL, IS_DEVTOOLS } from './panelDom.js';
 import { state } from './list/model.js';
 import { openHere, openCrop } from './openActions.js';
-import { placeMenu, closeMenu } from './row/rowMenu.js';
+import { placeMenu, closeMenu } from './row/menu.js';
 import { getDraggingRow } from './gestures.js';
 import { sections } from './list/sections.js';
 

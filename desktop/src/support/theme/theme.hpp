@@ -40,7 +40,7 @@ namespace stencil::gui {
     QColor onAccent;
   };
 
-  // Mirrors the browser (accents.js) / extension (accent.js) data-accent presets.
+  // Mirrors the browser (accents.js) / extension (logo/accent.js) data-accent presets.
   struct AccentPreset {
     QString key;
     QString label;
@@ -53,7 +53,7 @@ namespace stencil::gui {
   // Defaults to violet for unknown keys.
   QColor accentPrimary(const QString& accentKey);
 
-  // Mirrors browser accents.js needsDarkGlyph / extension accent.js — all three flip on the same accents.
+  // Mirrors browser accents.js needsDarkGlyph / extension logo/accent.js — all three flip on the same accents.
   bool accentNeedsDarkGlyph(const QColor& accent);
 
   QColor onAccentInk(const QColor& accent);

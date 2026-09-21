@@ -1,4 +1,4 @@
-// The flyout composer (js/ui/contextMenu.js + js/llm/chatSession.js): the touch rule that
+// The flyout composer (js/ui/contextMenu.js + js/llm/session.js): the touch rule that
 // hands over to the panel, the action row, queued attachments and the cached provider probe.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -7,7 +7,7 @@ import { isTouchLike, TOUCH_MEDIA } from '../js/utils.js';
 import {
   sharedChatController, queueAttachments, cacheProbe, cachedProbe, forgetProbe, probeStatusClass,
   PROBE_TTL_MS,
-} from '../js/llm/chat/chatSession.js';
+} from '../js/llm/chat/session.js';
 import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
@@ -85,7 +85,7 @@ test('composer action row: send + a … menu holding attach · clear · settings
 
 test('attach queues into the shared controller; the gear opens the one settings modal', () => {
   const src = contextMenuSource();
-  // The picker wiring is the SHARED composer helper (chatView.js), fed by the shared
+  // The picker wiring is the SHARED composer helper (view.js), fed by the shared
   // queueing helper on the SHARED controller, then both rows repaint.
   const view = chatViewSource();
   assert.ok(view.includes("attachBtn.addEventListener('click', () => attachInput.click());"), 'picker wiring lives in the shared composer');

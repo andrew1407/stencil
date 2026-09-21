@@ -28,7 +28,7 @@ namespace stencil::gui {
   inline constexpr double REVEAL_MAX_VISIBLE_DISSOLVE = 0.75;
 
   // 0 while wholly on screen, rising with the CLIPPED share, 1 once gone. Only the part
-  // the viewport already cuts off dissolves — legibility first. Mirrors motion.js. Pure.
+  // the viewport already cuts off dissolves — legibility first. Mirrors surface/motion.js. Pure.
   inline double revealDissolve(int top, int bottom, int viewH) {
     const int h = bottom - top;
     if (viewH <= 0 || h <= 0) return 0.0;
@@ -37,7 +37,7 @@ namespace stencil::gui {
   }
 
   // NOT revealDissolve: a card TALLER than the viewport is clipped by definition and
-  // would sit permanently speckled. Browser motion.js revealGrain. Pure.
+  // would sit permanently speckled. Browser surface/motion.js revealGrain. Pure.
   inline double revealGrain(int top, int bottom, int viewH) {
     const int h = bottom - top;
     if (viewH <= 0 || h <= 0) return 0.0;

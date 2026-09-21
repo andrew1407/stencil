@@ -1,4 +1,4 @@
-// The closure-free base of opSchema.js: the value predicates, the SchemaError `bad` throws, the
+// The closure-free base of schema.js: the value predicates, the SchemaError `bad` throws, the
 // message-path builders and the native cross-field `rules`. Pure. Byte-pinned to the extension's.
 
 export const isObj = (v) => v != null && typeof v === 'object' && !Array.isArray(v);

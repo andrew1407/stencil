@@ -8,7 +8,7 @@ class MainWindowGuiTest : public QObject {
  private slots:
   void initTestCase() { prepareGuiTestCase(); }
 
-  // Browser parity (ui/chatDock.js): compact, the dock sits beside its icon but its title bar
+  // Browser parity (ui/dock.js): compact, the dock sits beside its icon but its title bar
   // still DRAGS and adopts the layout. Only the bar's double-click toggle stays dead.
   void chatCompactPopoverDragsAndAdoptsTheLayout() {
     MainWindow win;

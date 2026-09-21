@@ -1,5 +1,5 @@
 #pragma once
-// The logo stage (browser js/ui/logoStage.js): a full-hostWindow child of the main hostWindow paints the
+// The logo stage (browser js/ui/stage.js): a full-hostWindow child of the main hostWindow paints the
 // big mark, its light and its cloud, and while it is up it swallows every key and click the
 // editor would have taken. The hostWindow passes what it needs as Hooks, so it holds no MainWindow.
 #include <QElapsedTimer>

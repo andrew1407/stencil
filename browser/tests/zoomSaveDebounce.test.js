@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
-import { createTrailingSave, ZOOM_SAVE_DEBOUNCE_MS } from '../js/core/zoom/zoomPan.js';
+import { createTrailingSave, ZOOM_SAVE_DEBOUNCE_MS } from '../js/core/zoom/pan.js';
 
 // The zoom persistence debounce. Every wheel tick / hold-repeat used to call
 // storage.save() directly — a full layout + thumbnail write per notch, each raising
@@ -61,10 +61,10 @@ test('flush runs a pending save NOW, once — and is a no-op when idle', () => {
   assert.strictEqual(saves, 1, 'no ghost save from the flushed cycle');
 });
 
-// Both halves: zoomPan.js owns setZoom, zoomAnimation.js the animated zoom's final snap.
+// Both halves: pan.js owns setZoom, animation.js the animated zoom's final snap.
 test('every zoom persist route rides the debounce (source pin)', () => {
-  const pan = readFileSync(new URL('../js/core/zoom/zoomPan.js', import.meta.url), 'utf8');
-  const anim = readFileSync(new URL('../js/core/zoom/zoomAnimation.js', import.meta.url), 'utf8');
+  const pan = readFileSync(new URL('../js/core/zoom/pan.js', import.meta.url), 'utf8');
+  const anim = readFileSync(new URL('../js/core/zoom/animation.js', import.meta.url), 'utf8');
   const src = pan + anim;
   assert.strictEqual((src.match(/storage\.save\(\)/g) || []).length, 1,
     'exactly one direct storage save call — the one inside the trailing runner');

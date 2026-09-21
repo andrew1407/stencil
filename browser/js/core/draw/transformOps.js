@@ -1,7 +1,7 @@
-import { bboxCenterOf, rotatePointsAbout, flipPointsAbout } from '../line/lineTransforms.js';
+import { bboxCenterOf, rotatePointsAbout, flipPointsAbout } from '../line/transforms.js';
 
 // Rotate / flip / quarter-turn / nudge over the selection: which pivot, which lines, and
-// the one debounced history save a burst collapses into (the point maths is lineTransforms.js).
+// the one debounced history save a burst collapses into (the point maths is transforms.js).
 
 // A burst of key-repeats or wheel steps collapses into a single undo step / persist.
 const scheduleTransformSave = (app) => {

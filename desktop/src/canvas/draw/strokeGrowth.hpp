@@ -13,7 +13,7 @@
 
 namespace stencil::gui::stroke {
 
-  // Lengths are IMAGE px on both sides, so zoom does not change the timing (motion.js strokeFlyMs).
+  // Lengths are IMAGE px on both sides, so zoom does not change the timing (surface/motion.js strokeFlyMs).
   constexpr double FLY_MIN_MS = 150.0;
   constexpr double FLY_MAX_MS = 420.0;
   constexpr double FLY_PX_PER_MS = 2.4;

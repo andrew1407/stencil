@@ -2,8 +2,8 @@
 import { mountStencilModal } from '../drop/overlay.js';
 import { loadShellTheme } from '../prefs/shellTheme.js';
 import { recordOpened } from '../prefs/ledger.js';
-import { sourceOf } from '../image/imageModel.js';
-import { blobToDataUrl } from '../image/imageData.js';
+import { sourceOf } from '../image/model.js';
+import { blobToDataUrl } from '../image/data.js';
 import { getSettings } from '../prefs/settings.js';
 
 export const buildLaunchUrl = (editorUrl, payload) => {

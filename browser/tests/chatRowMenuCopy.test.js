@@ -1,4 +1,4 @@
-// Copying and opening (js/ui/chatView.js): the exact text to the clipboard with an
+// Copying and opening (js/ui/view.js): the exact text to the clipboard with an
 // execCommand fallback, the native menu kept where it belongs, and the surface hooks.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -7,7 +7,7 @@ import { docListeners, stubDom, menuOn, itemLabels, clickItem, wiredRow } from '
 // ── Copy ──
 test('copyChatText hands the EXACT text to the async clipboard API', async () => {
   stubDom();
-  const { copyChatText } = await import('../js/ui/chat/chatView.js?rowmenu-copy');
+  const { copyChatText } = await import('../js/ui/chat/view.js?rowmenu-copy');
   const writes = [];
   const nav = { clipboard: { writeText: async (t) => writes.push(t) } };
   const text = 'multi\nline — reply © exact';
@@ -17,7 +17,7 @@ test('copyChatText hands the EXACT text to the async clipboard API', async () =>
 
 test('copyChatText falls back to execCommand, and reports failure instead of lying', async () => {
   const { body } = stubDom();
-  const { copyChatText } = await import('../js/ui/chat/chatView.js?rowmenu-copy2');
+  const { copyChatText } = await import('../js/ui/chat/view.js?rowmenu-copy2');
   // No async API at all → the hidden-textarea path, with the exact text in it.
   const cmds = [];
   globalThis.document.execCommand = (c) => { cmds.push({ c, v: body.children.at(-1)?.value }); return true; };

@@ -1,4 +1,4 @@
-// parseOpPlan's extraction tolerance (js/llm/opPlan.js): fences, prose, chat-only
+// parseOpPlan's extraction tolerance (js/llm/plan.js): fences, prose, chat-only
 // fallbacks, the plan-level count limits and sanitizeLabel.
 import { test } from 'node:test';
 import assert from 'node:assert';

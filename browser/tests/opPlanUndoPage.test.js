@@ -1,4 +1,4 @@
-// §2 undo/redo and the page/blank centimetre dims (js/llm/opPlan.js): history steps are
+// §2 undo/redo and the page/blank centimetre dims (js/llm/plan.js): history steps are
 // top-level only, and custom cm sizes drive the setters at 96 dpi.
 import { test } from 'node:test';
 import assert from 'node:assert';

@@ -1,11 +1,11 @@
-// Rich control tooltips: the parse/render contract (js/ui/tipContent.js). The app never authors tooltip
+// Rich control tooltips: the parse/render contract (js/ui/content.js). The app never authors tooltip
 // HTML — it composes ONE `title` string per control (utils.js composeControlTitle) — and these cases pin
 // how that string becomes the desktop app's tooltip shape: heading + keycaps, term/description rows,
 // bullets, hints and the muted disabled-reason note. The extension's port runs the same cases.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseTip, renderTip, keysHtml, highlightKeys, isKeyCombo } from '../js/ui/tip/tipContent.js';
+import { parseTip, renderTip, keysHtml, highlightKeys, isKeyCombo } from '../js/ui/tip/content.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 
 test('a trailing "(combo)" becomes keycaps, and only when it really is a combo', () => {

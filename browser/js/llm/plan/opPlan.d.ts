@@ -1,4 +1,4 @@
-// Shapes for llm/opPlan.js — the validated op plan and its executor (llm-contract.md
+// Shapes for llm/plan.js — the validated op plan and its executor (llm-contract.md
 // §1–§4, §8, §11). Model output is DATA: nothing here is trusted until parseOpPlan has
 // returned it, and executeOpPlan maps each op 1:1 onto a window.stencil facade call.
 import type { Stencil } from '../../console/stencilApi.js';
@@ -6,16 +6,16 @@ import type { createSchema } from './opSchema.js';
 
 export {
   PROMPT_CORE_HEAD, PROMPT_CORE_TAIL, SCHEMA, LIMITS, ASK_LIMITS, DEFAULT_CUSTOM_LABEL,
-} from './planSchema.js';
-export { sanitizeLabel, resolveServer } from './planValues.js';
+} from './schema.js';
+export { sanitizeLabel, resolveServer } from './values.js';
 export { OPS } from './opExecutors.js';
 export {
   BROWSER_CAPABILITIES, FORBIDDEN_OPS, ForbiddenOpError, assemblePrompts,
   LLM_SYSTEM_PROMPT, EDITOR_SETTINGS_PROMPT, EDITOR_SYSTEM_PROMPT,
 } from '../promptAssembly.js';
-export { MisplacedOpError, validateAsk, askAnswerText, parseOpPlan } from './planParser.js';
+export { MisplacedOpError, validateAsk, askAnswerText, parseOpPlan } from './parser.js';
 
-/** The registry-filtered validator planSchema.js builds for the browser profile. */
+/** The registry-filtered validator schema.js builds for the browser profile. */
 export type Schema = ReturnType<typeof createSchema>;
 
 /** One validated action; `op` is always a name the browser profile registers. */

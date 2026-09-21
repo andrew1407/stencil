@@ -84,7 +84,7 @@ namespace stencil::gui {
     setTipBase(zoom, "Zoom %");   // browser #zoom-input: greyed with nothing to zoom
     setTipReason(zoom, "Load an image to zoom");
     zoom->setMaximumWidth(88);   // "3200%" plus the arrow; the rest was slack
-    // NoInsert so reflecting a programmatic zoom never appends list items (browser zoomPan.js
+    // NoInsert so reflecting a programmatic zoom never appends list items (browser zoom/pan.js
     // setZoom).
     zoom->setEditable(true);
     zoom->setInsertPolicy(QComboBox::NoInsert);

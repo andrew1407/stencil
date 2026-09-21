@@ -79,6 +79,11 @@ then leaves the file names: `ui/openImage/tabs.js`, not `ui/openImage/openImageT
 class split across translation units keeps the class name on each
 (`app/mainWindow/MainWindowChat.cpp`), because every unit defines `MainWindow::`.
 
+A file a byte-pinned port imports keeps its name too: `portParity.test.js` reduces a specifier
+to its basename so either tree's layout is allowed, which only works while both spell it the
+same. `ui/motion/prefs.js` stays as it is for that reason — `lib/rectTween.js` imports it
+on both sides.
+
 Nesting stops three levels below the surface's source root. Tests mirror the split one for one.
 A new folder is a new `commentPct` key in that surface's budget, recorded from the lint's own
 output and never raised.
@@ -130,7 +135,7 @@ sentence that restates the next line.
 read back out of the core over the C ABI, do that instead of mirroring it.
 
 The same rule covers copied **code**: the `browser/js/ui` + `llm/llmClient` modules in
-`browser-extension/src/lib/`, and `browser/js/core/script*.js` in
+`browser-extension/src/lib/`, and the modules of `browser/js/core/script/` in
 `vscode-extension/src/parser/`, are byte-equal copies pinned in both directions
 (`portParity.test.js`, `parserParity.test.js`). Edit the original and re-copy; never fix a
 copy in place.

@@ -7,7 +7,7 @@ class QImage;
 class QWidget;
 
 // Floating thumbnail shown while Alt is held over an export variant row — port of
-// browser js/ui/exportPreview.js. One window shared by every export menu.
+// browser js/ui/preview.js. One window shared by every export menu.
 namespace stencil::support {
 
   // `ownerRect` is the row in the menu's own coordinates (QMenu::actionGeometry), the dust's origin

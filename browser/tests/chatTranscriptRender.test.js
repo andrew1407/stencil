@@ -1,8 +1,8 @@
-// renderChatLog over a live tree (js/llm/chatSession.js): one text node per row however often
+// renderChatLog over a live tree (js/llm/session.js): one text node per row however often
 // it repaints, a "…" trigger on every settled row, and no row left spinning.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { resetChatLog, chatLog, runLoggedChatTurn, chatTurnInFlight } from '../js/llm/chat/chatSession.js';
+import { resetChatLog, chatLog, runLoggedChatTurn, chatTurnInFlight } from '../js/llm/chat/session.js';
 import { descendants, makeEl, stubDom, rowsOf, textNodesOf, PROMPT } from './helpers/chatTranscriptRig.js';
 
 // ── The reported bug: a bubble showing its prompt twice ─────────────────────
@@ -10,7 +10,7 @@ import { descendants, makeEl, stubDom, rowsOf, textNodesOf, PROMPT } from './hel
 
 test('a bubble renders its text exactly ONCE, however often the log repaints', async () => {
   stubDom();
-  const { renderChatLog } = await import('../js/ui/chat/chatView.js?render-once');
+  const { renderChatLog } = await import('../js/ui/chat/view.js?render-once');
   const transcript = makeEl();
   const log = [
     { id: 1, role: 'user', text: PROMPT },
@@ -40,7 +40,7 @@ test('a bubble renders its text exactly ONCE, however often the log repaints', a
 
 test('the "…" trigger exists on EVERY settled row, the first/oldest included', async () => {
   stubDom();
-  const { renderChatLog } = await import('../js/ui/chat/chatView.js?render-menu');
+  const { renderChatLog } = await import('../js/ui/chat/view.js?render-menu');
   const transcript = makeEl();
   const log = [
     { id: 1, role: 'user', text: 'first' },
@@ -66,7 +66,7 @@ test('the "…" trigger exists on EVERY settled row, the first/oldest included',
 
 test('a FAILED turn — error card or Stop — gets the "…" too, beside its own Retry', async () => {
   stubDom();
-  const { renderChatLog } = await import('../js/ui/chat/chatView.js?render-menu-error');
+  const { renderChatLog } = await import('../js/ui/chat/view.js?render-menu-error');
   const transcript = makeEl();
   const log = [
     { id: 1, role: 'user', text: 'crop to portrait' },
@@ -96,7 +96,7 @@ test('a FAILED turn — error card or Stop — gets the "…" too, beside its ow
 // write-only-when-it-changed settle never fires for an empty reply (user report).
 test('a turn that settles with an EMPTY reply still drops its typing indicator', async () => {
   stubDom();
-  const { renderChatLog } = await import('../js/ui/chat/chatView.js?render-empty-settle');
+  const { renderChatLog } = await import('../js/ui/chat/view.js?render-empty-settle');
   const transcript = makeEl();
   const log = [{ id: 1, role: 'assistant', text: '…', pending: true }];
   renderChatLog(transcript, log, {});
@@ -114,7 +114,7 @@ test('a turn that settles with an EMPTY reply still drops its typing indicator',
 
 test('a blank model answer becomes WORDS, not an empty bubble', async () => {
   const { settledReplyText, EMPTY_REPLY_TEXT, replyWithWarnings } =
-    await import('../js/llm/chat/chatSession.js');
+    await import('../js/llm/chat/session.js');
   // Nothing at all to show → say so; anything else is passed straight through.
   assert.strictEqual(settledReplyText({ reply: '', warnings: [] }), EMPTY_REPLY_TEXT);
   assert.strictEqual(settledReplyText({ reply: '   ' }), EMPTY_REPLY_TEXT);

@@ -9,7 +9,7 @@ class MainWindowGuiTest : public QObject {
   void initTestCase() { prepareGuiTestCase(); }
 
   // A chat card arrives the way a toast does: its dust gathers out of a point off the side it
-  // sits against, the bubble held behind the motes (browser twin: motion.js chatIn).
+  // sits against, the bubble held behind the motes (browser twin: surface/motion.js chatIn).
   void chatCardsArriveOutOfDustOnEverySurface() {
     const auto motion = withMotion();   // the suite runs with STENCIL_NO_ANIM on
     const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;

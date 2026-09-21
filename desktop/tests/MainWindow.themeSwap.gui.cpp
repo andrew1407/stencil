@@ -9,7 +9,7 @@ class MainWindowGuiTest : public QObject {
   void initTestCase() { prepareGuiTestCase(); }
 
   // A palette change gets the flood-from-the-centre wipe (support/ThemeSwapOverlay.hpp, the twin of
-  // themeSwap in motion.js): it plays on a real change only, never on boot or a same-palette re-apply.
+  // themeSwap in surface/motion.js): it plays on a real change only, never on boot or a same-palette re-apply.
   void themeSwapWipesOnlyOnRealChanges() {
     const auto motion = withMotion();   // the wipe is motion: reduced motion just restyles
     MainWindow win(nullptr, /*restoreLast=*/false);

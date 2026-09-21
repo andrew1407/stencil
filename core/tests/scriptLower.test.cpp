@@ -1,8 +1,8 @@
 #include "doctest.h"
 
-#include "scriptDiagnostics.hpp"
-#include "scriptDump.hpp"
-#include "scriptLexer.hpp"
+#include "diagnostics.hpp"
+#include "dump.hpp"
+#include "lexer.hpp"
 #include "scriptProgram.hpp"
 
 #include <string>

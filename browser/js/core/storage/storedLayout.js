@@ -33,7 +33,7 @@ export const applyStoredProvenance = (app, layout) => {
   if (layout.tooltipShowCoords !== undefined) app.tooltipShowCoords = layout.tooltipShowCoords;
 };
 
-// The shared sync (settingsController.js) keeps the toolbar pill's .on class in step.
+// The shared sync (controller.js) keeps the toolbar pill's .on class in step.
 export const applyStoredFormulas = (app, layout) => {
   app.allowFormulas = layout.allowFormulas !== undefined ? layout.allowFormulas : false;
   app.settings.syncFormulaUI(app.allowFormulas);

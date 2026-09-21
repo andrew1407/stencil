@@ -1,4 +1,4 @@
-// The variant sandbox and its neighbours (js/llm/opPlan.js): clear, copy, one result
+// The variant sandbox and its neighbours (js/llm/plan.js): clear, copy, one result
 // per variant, the clean restore snapshot and the frame fan-out.
 import { test } from 'node:test';
 import assert from 'node:assert';

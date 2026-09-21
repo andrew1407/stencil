@@ -64,7 +64,7 @@ for (const [file, msgKeys, srcKeys] of MIRRORS) {
 // literal still has to be the table's.
 test('the injected one-shot senders use the table\'s literal', () => {
   assert.ok(read('lib/highlight/highlight.js').includes(`const HL_HOVER = '${MSG.HL_HOVER}'`));
-  assert.ok(read('lib/drop/dropZones.js').includes(`type: '${MSG.PAGE_DROP}'`));
+  assert.ok(read('lib/drop/zones.js').includes(`type: '${MSG.PAGE_DROP}'`));
   assert.ok(read('lib/drop/overlay.js').includes(`type: '${MSG.OPEN_TAB}'`));
   assert.ok(read('lib/drop/overlay.js').includes(`d.source !== '${SRC.MODAL}'`));
 });
@@ -73,13 +73,13 @@ test('the injected one-shot senders use the table\'s literal', () => {
 // the drift the table exists to prevent.
 test('no importing module writes a channel literal instead of using the table', () => {
   const MIRRORED = new Set(MIRRORS.map(([f]) => `src/${f}`)
-    .concat(['../src/lib/messages.js', '../src/lib/highlight/highlight.js', 'src/lib/drop/dropZones.js', '../src/lib/drop/overlay.js']));
+    .concat(['../src/lib/messages.js', '../src/lib/highlight/highlight.js', 'background/handlers/dropZones.js', '../src/lib/drop/overlay.js']));
   const values = new Set(Object.values(ALL));
   const offenders = [];
   for (const file of ['lib/menu/contextMenu.js', 'lib/stencil.js', 'lib/connection/connections.js',
     'background/background.js', 'background/menus.js', 'background/registrars.js',
     'background/editorRelay.js', 'background/ctxActions.js', 'popup/popup.js',
-    'popup/editor/editorMode.js', 'options/options.js', 'crop/crop.js']) {
+    'background/handlers/editorMode.js', 'options/options.js', 'crop/crop.js']) {
     if (MIRRORED.has(`src/${file}`)) continue;
     for (const m of read(file).matchAll(/'(stencil-[a-z-]+)'/g))
       if (values.has(m[1])) offenders.push(`${file}: '${m[1]}'`);

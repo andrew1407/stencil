@@ -1,7 +1,7 @@
 // The questions editor mode asks of a plain tab list.
 import { originPattern } from '../stencil.js';
 import { matchesSearch } from '../highlight/filters.js';
-import { BLOCKED_SCHEMES } from '../image/imageScan.js';
+import { BLOCKED_SCHEMES } from '../image/scan.js';
 
 // An ORIGIN match (the rule that also scopes the editorBridge). Only a PRE-filter: an
 // ordinary page beside the editor matches too, so callers confirm via a bridge round-trip.

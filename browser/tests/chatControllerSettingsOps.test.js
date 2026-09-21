@@ -1,4 +1,4 @@
-// The §10 expansion end-to-end (js/llm/chatController.js): compare/zoom/undo, the project
+// The §10 expansion end-to-end (js/llm/controller.js): compare/zoom/undo, the project
 // capabilities and copy's layout write, each note surfacing instead of failing the turn.
 import { test } from 'node:test';
 import assert from 'node:assert';

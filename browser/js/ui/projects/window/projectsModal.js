@@ -11,23 +11,23 @@ import {
 import { normalizeHex } from '../../../core/settings/accents.js';
 import { subscribe, EVENTS } from '../../../eventBus/appBus.js';
 
-import { DOUBLE_CLICK_MS, DRAG_SLOP_PX, rowOpenIntent, createOpenGesture, canRefreshList } from '../../../core/project/projectOpenGesture.js';
-import { createRemoteListing, showsRemoteSkeletons } from '../../../core/remote/remoteListing.js';
+import { DOUBLE_CLICK_MS, DRAG_SLOP_PX, rowOpenIntent, createOpenGesture, canRefreshList } from '../../../core/project/openGesture.js';
+import { createRemoteListing, showsRemoteSkeletons } from '../../../core/remote/listing.js';
 import { createProjectRowMenu } from './projectRowMenu.js';
 import { createThumbZoom } from './projectThumbZoom.js';
 import { projectsModalInner } from '../markup.js';
 import { createRemoteRow } from '../row/remoteRow.js';
-import { attachRowActions, attachIncognitoActions } from '../row/rowActions.js';
+import { attachRowActions, attachIncognitoActions } from '../row/actions.js';
 import { createDragReorder } from '../list/dragReorder.js';
 import { wireBatchActions } from '../list/batchActions.js';
 import { createProjectSelection } from '../list/selection.js';
 import { createLocalRow } from '../row/localRow.js';
-import { createListPrefs } from '../list/listPrefs.js';
-import { createRowMeta } from '../row/rowMeta.js';
+import { createListPrefs } from '../list/prefs.js';
+import { createRowMeta } from '../row/meta.js';
 import { createColorPicker } from '../colorPicker.js';
-import { createRowPlan } from '../row/rowPlan.js';
+import { createRowPlan } from '../row/plan.js';
 import { createRenderList } from '../list/renderList.js';
-import { wireListActions } from '../list/listActions.js';
+import { wireListActions } from '../list/actions.js';
 import { wireLiveRefresh } from '../list/liveRefresh.js';
 
 // The projects chooser / switcher. Rows are built at runtime (the static #projects-list

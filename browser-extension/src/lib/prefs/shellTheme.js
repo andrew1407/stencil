@@ -3,7 +3,7 @@
 // the extension's own documents, because a target page can answer the media query
 // differently (an emulated or forced scheme) and then an overlay would disagree with the
 // panel that opened it.
-import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../highlight/highlightColor.js';
+import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../highlight/color.js';
 
 // Same string as the localStorage key in lib/accent.js.
 export const THEME_STORAGE_KEY = 'stencil_theme';

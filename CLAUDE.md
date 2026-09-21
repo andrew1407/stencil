@@ -15,7 +15,7 @@ four front-ends**, plus a family of adapters that wrap the CLI or the collaborat
 | `cli/` | Zig tool — **recompiles** `core/` and drives it over `extern "C"` | yes (recompiled) |
 | `pystencil/` | stdlib-only Python package — **recompiles** `core/`, drives it via ctypes | yes (recompiled) |
 | `browser-extension/` | Chrome MV3 — scans page images, hands them to `browser/` via a URL fragment | no |
-| `vscode-extension/` | VS Code editor support for `.stc`, `.stcjs` and `.pystc` (and a `.stencil` project icon) — spawns the `cli/` binary (including `--script-emit`) and the Python that runs a `.pystc`, hands scripts to `browser/` over `#stencil=` or drives its console through VS Code's built-in JS debugger, and carries a byte-equal copy of `browser/js/core/script*.js` for in-editor parsing | no |
+| `vscode-extension/` | VS Code editor support for `.stc`, `.stcjs` and `.pystc` (and a `.stencil` project icon) — spawns the `cli/` binary (including `--script-emit`) and the Python that runs a `.pystc`, hands scripts to `browser/` over `#stencil=` or drives its console through VS Code's built-in JS debugger, and carries a byte-equal copy of `browser/js/core/script/` for in-editor parsing | no |
 | `mcp/` | Rust MCP server — shells out to the `cli/` binary | no |
 | `server/` | Go collaboration server — projects + live multi-client sessions over REST/WS/TCP; Postgres + a secured file store | no |
 | `bot/` | .NET Telegram bot (clean architecture) — wraps the CLI + server REST | no |
@@ -56,7 +56,7 @@ CMake + Doctest; each other surface uses its platform's default.
   `ADDR=0.0.0.0 PORT=3000 npm run serve`.
 - Docker images compile `core/`, so **build from the repo root** with `-f`:
   `docker build -f browser/Dockerfile -t stencil-browser .`.
-- After editing `browser/js/core/script*.js`: re-copy them into `vscode-extension/src/parser/`
+- After editing `browser/js/core/script/`: re-copy it into `vscode-extension/src/parser/script/`
   (`parserParity.test.js` pins them byte-for-byte, both directions).
 
 ## The parity contract (the most important thing to know)

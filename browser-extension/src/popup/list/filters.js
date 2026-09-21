@@ -1,5 +1,5 @@
 import { passesFilters } from '../../lib/highlight/filters.js';
-import { sharedMatchesSearch } from '../../lib/image/imageModel.js';
+import { sharedMatchesSearch } from '../../lib/image/model.js';
 import { createFilterUi } from '../../lib/highlight/filterUi.js';
 import { listEl, countEl, clearStatus } from '../panelDom.js';
 import { state, isPinned, isOpened } from './model.js';

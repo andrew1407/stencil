@@ -3,7 +3,7 @@
 // new editor logic. Everything else about an op is its registry entry's.
 import { defaultBlankSizePx } from '../../core/layout.js';
 import { clamp } from '../../utils/math.js';
-import { SCHEMA } from './planSchema.js';
+import { SCHEMA } from './schema.js';
 import { composeFrame, mapFramePoint } from '../frame.js';
 import { SETTINGS_RUN } from './settingsExecutors.js';
 

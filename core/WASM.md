@@ -51,8 +51,8 @@ core, follow *Build the wasm module* below and copy `stencil_core.js` to
 | `renderer.js` `drawImageWithFilter` (custom duotone) | `stencil_applyFilterRGBA` |
 | `renderer.js` `drawImageWithFilter` (contour) / `contourFilter.js` | `stencil_applyContourRGBA` |
 | `drawingApp.js` `#rotateSelectedLine` rotation + bbox pivot | `stencil_rotatePoints`, `stencil_boundingBoxCenter` |
-| `zoomPan.js` `clampScale` | `stencil_clampScale` (`anchoredZoom` / `rectZoom` available) |
-| `core/cropGeometry.js` — the crop window math behind `cropModal.js` / `imageModel.js` | `stencil_cropAspect`, `stencil_centeredCrop`, `stencil_resizeCropFromCorner`, `stencil_moveCropClamped`, `stencil_scaleCropCentered`, `stencil_cropResizeScale`, `stencil_cropChange`, `stencil_rotateCropRectQuarter`, `stencil_isAlbumOrientation` |
+| `zoom/pan.js` `clampScale` | `stencil_clampScale` (`anchoredZoom` / `rectZoom` available) |
+| `core/cropGeometry.js` — the crop window math behind `cropModal.js` / `model.js` | `stencil_cropAspect`, `stencil_centeredCrop`, `stencil_resizeCropFromCorner`, `stencil_moveCropClamped`, `stencil_scaleCropCentered`, `stencil_cropResizeScale`, `stencil_cropChange`, `stencil_rotateCropRectQuarter`, `stencil_isAlbumOrientation` |
 
 The bw/sepia/invert filters stay on the browser's native CSS `ctx.filter`
 (GPU-fast, exact); the custom duotone — which the JS already did as a per-pixel
@@ -160,7 +160,7 @@ output pointer: `stencilCore.js` allocates a small Float64 buffer with `_malloc`
 passes it, reads it back with `getValue(ptr + i*8, 'double')` and `_free`s it.
 
 Each consumer (`formulaEngine.js`, the geometry/color helpers in `utils.js`, the
-page-calc + rotate + close-shape helpers in `drawingApp.js`, `zoomPan.js`'s
+page-calc + rotate + close-shape helpers in `drawingApp.js`, `zoom/pan.js`'s
 clamp, `renderer.js`'s custom filter) calls through the `core` singleton and keeps
 its JS body as the fallback. Because the wasm is compiled from the same source the
 desktop uses, the two front-ends stay in lock-step by construction.

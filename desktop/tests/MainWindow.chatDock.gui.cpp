@@ -30,7 +30,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dock->features().testFlag(QDockWidget::DockWidgetClosable));
     QCOMPARE(win.dockWidgetArea(dock), Qt::LeftDockWidgetArea);  // first-run default
     // The COMPOSER acts on a drop; the DOCK swallows the ones that miss it, so a gesture aimed at
-    // the chat never reaches the window (browser chatPanel.js parity). Its editor declines drops.
+    // the chat never reaches the window (browser chat/panel.js parity). Its editor declines drops.
     QVERIFY(dock->acceptDrops());
     auto* inputArea = dock->findChild<QWidget*>("chatInputArea");
     QVERIFY(inputArea);

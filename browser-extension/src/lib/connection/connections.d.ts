@@ -1,5 +1,5 @@
-// The single import point for server connections — re-exports connectionModel.js,
-// connectionStore.js and connectionRest.js, plus its own combinators.
+// The single import point for server connections — re-exports model.js,
+// store.js and rest.js, plus its own combinators.
 export declare const CONNECTIONS_KEY: string;
 export declare const isLoopbackHost: (host: string) => boolean;
 export declare const normalizeUrl: (raw: string) => string;

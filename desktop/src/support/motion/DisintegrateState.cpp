@@ -10,7 +10,7 @@ namespace stencil::gui {
   }
 
 
-  // Browser twin: motion.js followDust. A tile flight IS its geometry; a surface flight
+  // Browser twin: surface/motion.js followDust. A tile flight IS its geometry; a surface flight
   // shifts picture and target.
   void DisintegrateOverlay::setFollow(QWidget* w) {
     follow = w;
@@ -90,7 +90,7 @@ namespace stencil::gui {
 
 
   void DisintegrateOverlay::sizeGridForDust(const QSize& size, int maxCells, int cellPx) {
-    // Water and fire grid coarser (browser motion.js makeDustStage).
+    // Water and fire grid coarser (browser surface/motion.js makeDustStage).
     if (style != support::ParticleStyle::DUST) cellPx = qRound(cellPx * support::STYLED_CELL_SCALE);
     dustGrid(size, cellPx, maxCells, &cols, &rows);
   }

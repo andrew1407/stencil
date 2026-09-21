@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 
-import { canRefreshList } from '../js/core/project/projectOpenGesture.js';
+import { canRefreshList } from '../js/core/project/openGesture.js';
 import { projectsModalSource } from './helpers/projectsModalSource.js';
 
 // removing the ACTIVE project echoes straight back through onPeers and cuts the leave short.
@@ -35,7 +35,7 @@ test('every out-of-band trigger routes through the shared gate, held while a wip
     'no trigger keeps the old drag-only guard (it let the peers echo render mid-wipe)');
 });
 
-// The selection bar is a REVEAL, not a display flip, twin of connectModal.js updateBatchBar: a
+// The selection bar is a REVEAL, not a display flip, twin of modal.js updateBatchBar: a
 // flip cuts Select all's own out-flight. Pinned at the source — reduced motion hides it.
 test('the projects batch bar opens and closes on the shared control flight', () => {
   const src = projectsModalSource();

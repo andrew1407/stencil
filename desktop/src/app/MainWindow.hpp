@@ -334,7 +334,7 @@ namespace stencil::gui {
     QScrollBar* canvasScrollBar(Qt::Orientation o) const;
     void openProjects();
     QHash<QString, QPixmap> buildProjectThumbs() const;
-    // Browser connectModal.js.
+    // Browser modal.js.
     void openConnections();
     stencil::net::ConnectionManager* ensureConnections();
     void autoConnectServers();

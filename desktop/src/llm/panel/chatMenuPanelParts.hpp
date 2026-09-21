@@ -14,7 +14,7 @@ namespace stencil::gui {
   inline constexpr int MENU_CHAT_COMPOSER_HEIGHT = 96;  // initial composer slot
   inline constexpr int MENU_CHAT_COMPOSER_MIN = 62;     // splitter floor for it
   // A mirrored row fades while its dust flies, like the dock's cards
-  // (ChatDock.cpp CHAT_LEAVE_MS / browser motion.js CHAT_LEAVE_MS).
+  // (ChatDock.cpp CHAT_LEAVE_MS / browser surface/motion.js CHAT_LEAVE_MS).
   inline constexpr int CHAT_ROW_LEAVE_MS = 260;
   inline constexpr int MENU_CHAT_BUTTON_EDGE = 30;      // the dock's action-button box
   inline constexpr int MENU_CHAT_ICON = 20;

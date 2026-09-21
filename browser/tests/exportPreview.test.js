@@ -1,4 +1,4 @@
-// The Alt-hover export preview (js/ui/exportPreview.js). The tip's <img> gets its data: URL synchronously
+// The Alt-hover export preview (js/ui/preview.js). The tip's <img> gets its data: URL synchronously
 // but the browser decodes it asynchronously, so the first show measured an empty <img> and laid out at
 // zero size: the tip re-places once the image's own `load` fires.
 
@@ -33,7 +33,7 @@ doc.createElement = (tag) => {
   return el;
 };
 
-const { showExportPreview, hideExportPreview, wireAltPreview, clearAltPreviewHover } = await import('../js/ui/export/exportPreview.js');
+const { showExportPreview, hideExportPreview, wireAltPreview, clearAltPreviewHover } = await import('../js/ui/export/preview.js');
 
 const makeApp = () => ({
   image: {},
@@ -73,7 +73,7 @@ test('showExportPreview: first-ever show still repositions once the image actual
 
 test('showExportPreview: no-ops quietly with no image loaded', () => {
   showExportPreview({ image: null }, 'current', 0, 0, null);
-  // Nothing to assert beyond "doesn't throw" — see exportPreview.js's own guard.
+  // Nothing to assert beyond "doesn't throw" — see preview.js's own guard.
 });
 
 // Alt tracking rides its own window keydown/keyup: read off `mousemove` alone, pressing or releasing the

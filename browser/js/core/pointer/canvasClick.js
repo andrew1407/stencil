@@ -1,5 +1,5 @@
 import * as shapeBuilder from '../line/shapeBuilder.js';
-import { toggleLineSelection } from '../line/lineSelection.js';
+import { toggleLineSelection } from '../line/selection.js';
 
 // One router for a canvas click: extend/close the stroke while drawing, Ctrl/Cmd inserts
 // or adds a point, a plain click selects the point or line under the cursor.

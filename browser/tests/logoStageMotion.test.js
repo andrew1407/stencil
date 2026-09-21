@@ -1,11 +1,11 @@
-// The logo stage's kinematics (js/ui/logoStageMotion.js), stepped with fixed clocks.
+// The logo stage's kinematics (js/ui/stageMotion.js), stepped with fixed clocks.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   revealTween, clampCentre, bounceState, bounceImpulse, bounceStep,
   chaseState, chaseStep, headingOfState, flyState, flyPunch, flyStep,
-} from '../js/ui/logo/logoStageMotion.js';
-import { STAGE } from '../js/ui/logo/logoStageRules.js';
+} from '../js/ui/logo/stageMotion.js';
+import { STAGE } from '../js/ui/logo/stageRules.js';
 
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;
 

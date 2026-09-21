@@ -1,9 +1,9 @@
 import { originPattern } from '../lib/stencil.js';
 import { loadConnections } from '../lib/connection/connections.js';
 import { icon } from '../lib/icons.js';
-import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
-import { listModels } from '../llm/llmClient.js';
-import { serverTokenFor } from '../llm/llmSurface.js';
+import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY } from '../llm/settings.js';
+import { listModels } from '../llm/client.js';
+import { serverTokenFor } from '../llm/surface.js';
 
 // chrome.storage key `llmSettings` (llm-contract.md §5/§8). ensureLlmHostPermission stays as
 // a guard in case <all_urls> ever narrows.

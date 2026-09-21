@@ -1,5 +1,5 @@
 // Clipboard copy variants and the pasted-layout prompt/install paths of ExportService
-// (js/core/exportService.js). Split from exportService.test.js.
+// (js/core/service.js). Split from exportService.test.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ExportService, makeApp, notifications, reset, lastNote } from './helpers/exportServiceRig.js';

@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyAccentActionIcon, watchAccentActionIcon } from '../src/lib/control/actionIcon.js';
-import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../src/lib/highlight/highlightColor.js';
+import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../src/lib/highlight/color.js';
 import { installChromeStub } from './helpers/chromeStub.js';
 import { installDom } from './helpers/domStub.js';
 

@@ -1,4 +1,4 @@
-// Pins js/config/llm/opRegistry.json to the LIVE browser structures (js/llm/opPlan.js
+// Pins js/config/llm/opRegistry.json to the LIVE browser structures (js/llm/plan.js
 // OPS/LIMITS/ASK_LIMITS/FORBIDDEN_OPS) and to the shared op-plan fixture corpus: the
 // registry is normative, so it must not drift from the reference it was measured against.
 import { test } from 'node:test';

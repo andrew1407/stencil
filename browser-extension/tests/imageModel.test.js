@@ -1,8 +1,8 @@
-// Unit tests for src/lib/imageModel.js — the pure provenance/pin/search predicates extracted
+// Unit tests for src/lib/model.js — the pure provenance/pin/search predicates extracted
 // out of popup/popup.js (which is DOM/chrome-bound and untestable under node --test).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { sourceOf, posterImage, editableSrc, pinnable, sharedMatchesSearch, hostLabel } from '../src/lib/image/imageModel.js';
+import { sourceOf, posterImage, editableSrc, pinnable, sharedMatchesSearch, hostLabel } from '../src/lib/image/model.js';
 
 test('sourceOf: video → its media URL; image → its src; missing → empty', () => {
   assert.equal(sourceOf({ kind: 'video', videoUrl: 'https://a/v.mp4', src: 'x' }), 'https://a/v.mp4');

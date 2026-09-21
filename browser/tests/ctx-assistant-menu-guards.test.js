@@ -5,8 +5,8 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import {
   unreachableText, describeChatError, chatLog, resetChatLog, runLoggedChatTurn,
-} from '../js/llm/chat/chatSession.js';
-import { LlmError } from '../js/llm/llmClient.js';
+} from '../js/llm/chat/session.js';
+import { LlmError } from '../js/llm/client.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
 
 // ── Menu-open guards (the behaviour that makes chatting in a menu possible) ──
@@ -29,9 +29,9 @@ test('contextMenu.js keeps the menu open while chatting', () => {
     'typing, resizing the composer, an open row menu, or a running turn all count as engaged');
   assert.match(src, /const keepSubOpen = \(sub\) => !!sub\._keepOpen\?\.\(\);/);
   assert.ok(src.includes('if (keepSubOpen(sub)) return;'), 'hideSub honours the engaged flyout');
-  // The only closeMenu() calls in ctxAssistantChat.js are the four that open something else on
+  // The only closeMenu() calls in assistantChat.js are the four that open something else on
   // top (gear, Configure provider, Reconnect, the phone hand-over); chatting never closes it.
-  const assist = readFileSync(new URL('../js/ui/ctx/ctxAssistantChat.js', import.meta.url), 'utf8');
+  const assist = readFileSync(new URL('../js/ui/ctx/assistantChat.js', import.meta.url), 'utf8');
   assert.strictEqual((assist.match(/host\.closeMenu/g) || []).length, 4,
     'gear + settings CTA + reconnect CTA + phone hand-over only');
 });
@@ -74,14 +74,14 @@ test('stopping a turn leaves a Retry with the original text', async () => {
 test('every bare identifier contextMenu.js uses from other llm modules is imported', () => {
   const src = contextMenuSource();
   // Regression: attachFull referenced MAX_ATTACHMENTS without importing it (runtime-only crash).
-  assert.match(src, /import \{ MAX_ATTACHMENTS \} from '[^']*chatController\.js';/,
+  assert.match(src, /import \{ MAX_ATTACHMENTS \} from '[^']*chat\/controller\.js';/,
     'MAX_ATTACHMENTS is imported where the attach-cap check uses it');
 });
 
 // The closed-chat balloon is built once for every surface: the flyout's toast frames the
 // outcome and carries a click action, exactly as the panel's does.
 test('closedTurnToast: one framing for both surfaces, and silence for an abort', async () => {
-  const { closedTurnToast, CHAT_TOAST_CHARS, EMPTY_REPLY_TEXT } = await import('../js/llm/chat/chatSession.js');
+  const { closedTurnToast, CHAT_TOAST_CHARS, EMPTY_REPLY_TEXT } = await import('../js/llm/chat/session.js');
   assert.deepStrictEqual(closedTurnToast({ ok: true, entry: { reply: 'Cropped it.', results: [] } }),
     { text: 'Assistant finished — Cropped it.', type: 'ok' });
   // The image count rides the framing, pluralised.
@@ -103,7 +103,7 @@ test('closedTurnToast: one framing for both surfaces, and silence for an abort',
 });
 
 test('both surfaces toast through the shared builder, each with a way back to the chat', () => {
-  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8');
   const menu = contextMenuSource();
   for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
     assert.ok(src.includes('closedTurnToast('), `${name} builds its toast from the shared helper`);

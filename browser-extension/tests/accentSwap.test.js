@@ -33,8 +33,8 @@ test('the wipe starts at the theme button, and no press is remembered to overrid
   assert.ok(Math.max(...radii) - Math.min(...radii) < 0.1, 'dust: a perfect circle');
 });
 
-test('water and fire cut their own front, and the classic-script twins match dustCloud.js', async () => {
-  const dc = await import('../src/lib/dust/dustCloud.js');
+test('water and fire cut their own front, and the classic-script twins match cloud.js', async () => {
+  const dc = await import('../src/lib/dust/cloud.js');
   const page = loadAccent();
   const parse = (poly) => [...poly.matchAll(/([\d.-]+)% ([\d.-]+)%/g)]
     .map((m) => Math.hypot((parseFloat(m[1]) / 100) * 480 - 290, (parseFloat(m[2]) / 100) * 700 - 40));
@@ -116,7 +116,7 @@ test('the wipe seeds a dust layer on <body> once ready, in the OLD palette', asy
   assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 100%, var(--accent-2))'), 'accent grains');
   assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))'), 'shade grains');
   // The whole point of the stage: batched fills — one per (stop, alpha step), each in
-  // chunks of 32 grains (lib/dustCloud.js FILL_CHUNK) — not one per grain.
+  // chunks of 32 grains (lib/cloud.js FILL_CHUNK) — not one per grain.
   assert.ok(stage.fills.length <= 6 * 8 + Math.ceil(grains / 32), `batched into ${stage.fills.length} fills, not ${grains}`);
   assert.ok(lit.every((f) => f.arcs <= 32), 'no path longer than a chunk');
   assert.ok(lit.every((f) => f.alpha > 0 && f.alpha <= 1), 'every batch carries its own alpha');

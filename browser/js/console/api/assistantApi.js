@@ -1,10 +1,10 @@
 // ── window.stencil's assistant half — llm / prompt / chat ────────────────────
 // Settings share the gear dialog's store (llm-contract.md §5) and the chat members
 // delegate to the panel's own scripting surface, so UI and scripting never diverge.
-import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider, URL_KEYS, isHttpUrl } from '../../llm/llmSettings.js';
+import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider, URL_KEYS, isHttpUrl } from '../../llm/settings.js';
 import {
   chatSide, setChatSide, applyChatSide, CHAT_SIDE_SWAPPED,
-} from '../../ui/chat/chatLayoutPrefs.js';
+} from '../../ui/chat/layoutPrefs.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
 import { str } from '../coerce.js';
 
@@ -12,7 +12,7 @@ export const createAssistantApi = ({ app, guard }) => {
   let stencil;   // the frozen facade, handed over by setFacade after the guard
 
   // Validate + persist a partial LLM-settings update through the SAME store the
-  // assistant's gear dialog uses (llmSettings.js), so UI and scripting stay in sync.
+  // assistant's gear dialog uses (settings.js), so UI and scripting stay in sync.
   const applyLlmSetup = (opts = {}) => {
     const cur = loadLlmSettings();
     let next = { ...cur };
@@ -44,7 +44,7 @@ export const createAssistantApi = ({ app, guard }) => {
     return app.chat;
   };
 
-  // "Swap message sides" (chatLayoutPrefs.js) is deliberately NOT persisted. Both
+  // "Swap message sides" (layoutPrefs.js) is deliberately NOT persisted. Both
   // transcripts share the one preference, so restamp whichever is mounted.
   const applyChatSideEverywhere = (side) => {
     if (typeof document === 'undefined') return;
@@ -92,7 +92,7 @@ export const createAssistantApi = ({ app, guard }) => {
         clear() { chatPanel().clear(); return stencil; },
         get isSending() { return !!app.chat && app.chat.isSending; },
         // Which side chat bubbles draw on. Scoped to THIS tab's session — never persisted
-        // (chatLayoutPrefs.js).
+        // (layoutPrefs.js).
         get swapSides() { return chatSide() === CHAT_SIDE_SWAPPED; },
         set swapSides(v) {
           setChatSide(v ? CHAT_SIDE_SWAPPED : 'normal');

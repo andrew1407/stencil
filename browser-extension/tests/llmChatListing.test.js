@@ -1,4 +1,4 @@
-// The pure halves of src/llm/chatController.js: the §8 context listing (100-entry cap,
+// The pure halves of src/llm/controller.js: the §8 context listing (100-entry cap,
 // name/alt truncation), the open.actions → launch-option table, and the §7 replay rule.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

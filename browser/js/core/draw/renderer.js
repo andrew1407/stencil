@@ -1,7 +1,7 @@
-import { ImageFilterCanvas } from '../image/imageFilterCanvas.js';
-import { drawLine as paintLine, drawPoint as paintPoint, pointColorOf } from '../line/lineRender.js';
+import { ImageFilterCanvas } from '../image/filterCanvas.js';
+import { drawLine as paintLine, drawPoint as paintPoint, pointColorOf } from '../line/render.js';
 // Per-frame composition: filtered image, lines, points, compare split. The filter chain
-// lives in imageFilterCanvas.js, one line/point in lineRender.js.
+// lives in filterCanvas.js, one line/point in render.js.
 export { pointColorOf };
 
 export class Renderer {

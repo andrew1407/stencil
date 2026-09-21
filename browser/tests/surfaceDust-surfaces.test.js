@@ -8,28 +8,28 @@ import { motionSource } from './helpers/motionSource.js';
 import {
   tileNoise, SURFACE_IN_MS, SURFACE_OUT_MS,
 } from '../js/ui/motion.js';
-import { FLIGHTS, alphaAt } from '../js/ui/dust/dustCloud.js';
+import { FLIGHTS, alphaAt } from '../js/ui/dust/cloud.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
 import { modalShellSource } from './helpers/modalShellSource.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const cloudJs = read('../js/ui/dust/dustCloud.js');
+const cloudJs = read('../js/ui/dust/cloud.js');
 const animCss = ANIMATIONS_CSS;
 const baseJs = modalShellSource();
-const chatPanelJs = read('../js/ui/chat/chatPanel.js');
+const chatPanelJs = read('../js/ui/chat/panel.js');
 const confirmJs = read('../js/ui/modal/confirmModal.js');
 const ctxJs = contextMenuSource();
 const rowMenuJs = read('../js/ui/projects/window/projectRowMenu.js');
 const chatViewJs = chatViewSource();
-const llmSettingsJs = read('../js/ui/llmSettings/llmSettingsModal.js');
+const llmSettingsJs = read('../js/ui/llmSettings/modal.js');
 const motionJs = motionSource();
 
 // ── 5. The CSS contract ─────────────────────────────────────────────────────
 
 test('the surface flights are the row’s scatter, re-timed and re-aimed', () => {
-  // Same grain, same waypoint arithmetic as a row's (dustCloud.js FLIGHTS): a gather
+  // Same grain, same waypoint arithmetic as a row's (cloud.js FLIGHTS): a gather
   // starts at the far end and flies home, a scatter the other way.
   assert.equal(FLIGHTS.surfaceGather.from, 'far');
   assert.equal(FLIGHTS.surfaceScatter.from, 'home');
@@ -60,7 +60,7 @@ test('the layer can never take a click or hold focus, and never moves the page',
   const host = animCss.match(/\.disintegrate-host \{([\s\S]*?)\n\}/)[1];
   assert.match(host, /position: fixed;/, 'out of flow — no reflow, ever');
   assert.match(host, /pointer-events: none;/);
-  // The motes are pixels on ONE canvas inside the layer (dustCloud.js) — no node per
+  // The motes are pixels on ONE canvas inside the layer (cloud.js) — no node per
   // grain, nothing with text or a tabindex, so there is nothing focusable at all.
   assert.match(motionJs, /startCloud\(host, motes, \{ flight: kind, span, colours: fills, origin/);
   assert.match(cloudJs, /canvas\.style\.cssText = `position:absolute;[\s\S]{0,200}?pointer-events:none;`/);

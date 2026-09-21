@@ -2,7 +2,7 @@ import { StencilElement, hostTag, define } from '../base.js';
 import { icon } from '../icons.js';
 import { surfaceIn, surfaceOut, dockAwayPoint, retargetDust, SURFACE_MENU_IN_MS } from '../motion.js';
 import { attachToastGlow } from '../dust/toastGlow.js';
-import { STAGE } from '../logo/logoStageRules.js';
+import { STAGE } from '../logo/stageRules.js';
 import SVG_ART from '../../config/svgArt.json' with { type: 'json' };
 // The bottom-left notification stack; utils.js `notify()` delegates here. Each message is
 // its own .notify-toast child, newest at the bottom.
@@ -29,7 +29,7 @@ export const squeezeLongTokens = (msg, max = 48) =>
     return tok.slice(0, keep) + '…' + tok.slice(-keep);
   }).join('');
 
-// A left-docked chat owns everything left of --chat-inset-left (chatPanel.js updateNotifyInset).
+// A left-docked chat owns everything left of --chat-inset-left (panel.js updateNotifyInset).
 const freeLeft = () => {
   try { return parseFloat(getComputedStyle(document.body).getPropertyValue('--chat-inset-left')) || 0; }
   catch { return 0; }

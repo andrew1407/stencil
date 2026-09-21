@@ -35,7 +35,7 @@ namespace stencil::gui {
   }
 
 
-  // A FALL / GATHER grain (browser motion.js ghostOut / ghostIn). false = at home, the
+  // A FALL / GATHER grain (browser surface/motion.js ghostOut / ghostIn). false = at home, the
   // picture; true = cut out, `out` is the grain (radius 0 once gone).
   bool DisintegrateOverlay::fallingMote(const QRectF& box, int cx, int cy, double cw, double ch,
                                         Mote* out) const {
@@ -76,7 +76,7 @@ namespace stencil::gui {
   }
 
 
-  // A SURFACE grain - browser motion.js surfaceMotion + tileGatherSurface/tileScatterSurface. The
+  // A SURFACE grain - browser surface/motion.js surfaceMotion + tileGatherSurface/tileScatterSurface. The
   // delay rides the DISTANCE to the target, halved for a scatter. false = the picture.
   bool DisintegrateOverlay::surfaceMote(const QRectF& box, int cx, int cy, double cw, double ch,
                                         Mote* out) const {
@@ -116,7 +116,7 @@ namespace stencil::gui {
                   cellNoise(cx + 13, cy + 71), tintAt(cx, cy), 1.0, 0.0, toX, toY, true, home);
       return true;
     }
-    // Ramps ride the clock (browser dustCloud.js FLIGHTS surfaceGather / surfaceScatter).
+    // Ramps ride the clock (browser dust/cloud.js FLIGHTS surfaceGather / surfaceScatter).
     // A scatter is gone by 82%: a tail converging on one point piled into a blob.
     const double alpha = host * (gather ? (t < 0.45 ? 0.55 + 0.45 * (t / 0.45) : 1.0)
                                         : (t < 0.5 ? 1.0 - t * 0.3

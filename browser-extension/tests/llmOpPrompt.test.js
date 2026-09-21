@@ -1,11 +1,11 @@
-// The assembled extension system prompt (src/llm/opPlan.js): the §4 prose core pinned to the
+// The assembled extension system prompt (src/llm/plan.js): the §4 prose core pinned to the
 // checked-in copy, the §13 registry bullets, the capability censor and the forbidden names.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
   LLM_SYSTEM_PROMPT, OP_REGISTRY, FORBIDDEN_OPS, buildSystemPrompt, LIMITS,
-} from '../src/llm/op/opPlan.js';
+} from '../src/llm/op/plan.js';
 // The prompt's prose core is data: content expectations point at the checked-in copy (drift-guarded
 // by dataParity.test.js), so no second prompt literal rides the tests.
 import PROMPT_ASSET from '../src/config/systemPrompt.json' with { type: 'json' };

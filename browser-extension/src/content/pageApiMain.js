@@ -91,7 +91,7 @@
     } catch { return null; }   // cross-origin / tainted
   };
 
-  // CSS properties whose value can hold an image url() — mirrors imageScan.js.
+  // CSS properties whose value can hold an image url() — mirrors scan.js.
   const CSS_IMG_PROPS = ['backgroundImage', 'content', 'borderImageSource', 'listStyleImage', 'maskImage', 'webkitMaskImage', 'cursor', 'shapeOutside'];
   const PSEUDOS = [null, '::before', '::after'];
   const firstCssImageUrl = (el, pseudo = null) => {

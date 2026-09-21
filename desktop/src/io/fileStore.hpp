@@ -56,7 +56,7 @@ namespace stencil::gui {
     QString imageFilter = "none";
     QString filterColor = DEFAULT_ACCENT_HEX;
     int holdDrawDelay = 500;
-    // Motion (browser js/ui/motionPrefs.js; support/modalReveal.hpp drives them).
+    // Motion (browser js/ui/prefs.js; support/modalReveal.hpp drives them).
     bool drawingAnimations = true;
     bool modalBackdrop = true;
     // "particles" | "water" | "fire" | "slide" | "none"; unknown reads as "particles".
@@ -73,7 +73,7 @@ namespace stencil::gui {
     QString llmServerUrl;               // stencil-server only ("" = first saved connection)
     // Chat persistence opt-in (llm-contract.md §12): OFF by default; incognito never persists.
     bool saveChatsWithProject = false;
-    // false = user right, assistant left (browser chatLayoutPrefs.js CHAT_SIDE_SWAPPED twin).
+    // false = user right, assistant left (browser chat/layoutPrefs.js CHAT_SIDE_SWAPPED twin).
     bool chatSwapSides = false;
     // Platform menu bar (macOS/Unity global bar); inert on Windows.
     bool nativeMenuBar = true;
@@ -171,7 +171,7 @@ namespace stencil::gui {
     core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
                                 core::CropRect* cropOut = nullptr, int* rotOut = nullptr);
 
-    // .stencil portable project file — browser/js/core/project/projectFile.js twin; QtCore-only (image as base64).
+    // .stencil portable project file — browser/js/core/project/file.js twin; QtCore-only (image as base64).
     inline constexpr int STENCIL_FILE_VERSION = 1;
     struct ProjectFileData {
       QString name = "Untitled";

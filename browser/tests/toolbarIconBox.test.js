@@ -38,7 +38,7 @@ test('the ghost buttons all agree with each other', () => {
 });
 
 // The FLOAT chat is its own little window, so it flies out of the toolbar icon and shrinks back into
-// it — the modals' own modalFromIcon/modalToIcon; chatPanel.js feeds it the icon→panel delta.
+// it — the modals' own modalFromIcon/modalToIcon; panel.js feeds it the icon→panel delta.
 test('the floating chat panel animates from the toolbar icon', () => {
   const css = ANIMATIONS_CSS;
   const open = css.match(/stencil-chat-panel\.chat-open\.chat-dock-float\s*\{([^}]*)\}/)?.[1] || '';
@@ -46,13 +46,13 @@ test('the floating chat panel animates from the toolbar icon', () => {
   assert.match(open, /modalFromIcon/, `float open is "${open.trim()}"`);
   assert.match(close, /modalToIcon/, `float close is "${close.trim()}"`);
 
-  const js = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8');
   // The keyframes read these four; all of them have to be set, or the flight silently
   // falls back to the keyframes' plain-pop defaults.
   for (const v of ['--modal-dx', '--modal-dy', '--modal-sx', '--modal-sy'])
-    assert.ok(js.includes(v), `chatPanel.js never sets ${v}`);
+    assert.ok(js.includes(v), `panel.js never sets ${v}`);
   // The close timer has to outlast the longer float flight, or the panel is torn out of the DOM
-  // mid-motion, so docked shares the same 510ms (CLOSE_MS in chatPanel.js).
+  // mid-motion, so docked shares the same 510ms (CLOSE_MS in panel.js).
   const closeMs = js.match(/const CLOSE_MS = ([^;]+);/)?.[1] || '';
   assert.match(closeMs, /^510$/, `the close timer does not match modalToIcon: "${closeMs}"`);
 });
@@ -60,7 +60,7 @@ test('the floating chat panel animates from the toolbar icon', () => {
 // The clear animation runs only when an image was actually there, and a float → compact swap waits
 // for the close animation before playing the compact panel's own entrance.
 test('the float → mini chat swap waits for the close animation', () => {
-  const js = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8');
   const at = js.indexOf('const openCompact = (convert = false) => {');
   assert.ok(at > 0, 'openCompact is gone');
   const body = js.slice(at, at + 1400);

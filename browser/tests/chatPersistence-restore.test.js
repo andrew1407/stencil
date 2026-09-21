@@ -1,4 +1,4 @@
-// Restoring a persisted chat (js/llm/chatPersistence.js): removal cleanup, a silent server-push
+// Restoring a persisted chat (js/llm/persistence.js): removal cleanup, a silent server-push
 // failure, the scripting surface, and what this build writes. From chatPersistence.test.js.
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert';
@@ -7,12 +7,12 @@ import { installMemoryStorage } from './helpers/memoryStorage.js';
 
 const mem = installMemoryStorage()._map;
 
-const { createChatPersistence, wireChatPersistence } = await import('../js/llm/chat/chatPersistence.js');
-const { createChatStore, buildChatDoc } = await import('../js/llm/chat/chatStore.js');
+const { createChatPersistence, wireChatPersistence } = await import('../js/llm/chat/persistence.js');
+const { createChatStore, buildChatDoc } = await import('../js/llm/chat/store.js');
 const {
   appendChatRow, updateChatRow, clearChatLog, chatLog, resetChatLog, forgetChatController, peekChatController,
   clearSharedConversation,
-} = await import('../js/llm/chat/chatSession.js');
+} = await import('../js/llm/chat/session.js');
 
 const makeStore = () => {
   const m = new Map();
@@ -88,7 +88,7 @@ test('server push failures degrade silently (the local copy still lands)', async
 test('wiring persistence does not replace the panel scripting surface', async () => {
   const store = makeStore();
   const app = makeApp({ activeId: 'p_1' });
-  // What chatPanel.js installs on stencil:ready.
+  // What panel.js installs on stencil:ready.
   const panel = { open() {}, close() {}, isOpen: () => false, dock() {}, prompt: async () => ({}) };
   app.chat = panel;
 
@@ -106,7 +106,7 @@ test('wiring persistence does not replace the panel scripting surface', async ()
 // The §12 doc rides the .stencil file and the server's `chat` file kind, so a doc another surface built from
 // its MODEL history must restore as a conversation — no continuation note, no raw plan — and seed the replay.
 test('an old-style document with internal turns restores clean, both sides', async () => {
-  const { CONTINUATION_NOTE } = await import('../js/llm/chat/chatStore.js');
+  const { CONTINUATION_NOTE } = await import('../js/llm/chat/store.js');
   const store = makeStore();
   // Exactly what a surface serialising its MODEL history produces (the desktop's bug):
   // the interim round-1 reply, the raw plans, and §7's continuation note.

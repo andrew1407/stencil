@@ -1,10 +1,10 @@
 // Per-frame composition: the filtered image, the lines and points, the compare split and
-// the hold-to-draw preview. The filter chain lives in imageFilterCanvas.js, one line or
-// point in lineRender.js — this owns the order they paint in.
+// the hold-to-draw preview. The filter chain lives in filterCanvas.js, one line or
+// point in render.js — this owns the order they paint in.
 import type { DrawingApp } from '../drawingApp.js';
 import type { CodecLine } from '../line/linesCodec.js';
 
-export { pointColorOf } from '../line/lineRender.js';
+export { pointColorOf } from '../line/render.js';
 
 export type CompareMode = 'none' | 'original' | 'vertical' | 'horizontal';
 

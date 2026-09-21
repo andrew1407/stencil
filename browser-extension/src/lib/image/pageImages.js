@@ -66,6 +66,6 @@ export const nameFromUrl = (url, fallback = 'image') => {
   }
 };
 
-// Decoded, sized, and not paused on frame 0 (the poster). Mirrors imageScan.js.
+// Decoded, sized, and not paused on frame 0 (the poster). Mirrors scan.js.
 export const videoHasFrame = (v) =>
   !!(v && v.videoWidth && v.videoHeight && v.readyState >= 2 && !(v.paused && !v.currentTime));

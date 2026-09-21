@@ -47,7 +47,7 @@ namespace stencil::llm {
 
   struct LlmSettings {
     // First-run default: the assistant ships OFF (contract §5) until the user picks
-    // a provider — browser/js/llm/llmSettings.js defaultSettings() parity.
+    // a provider — browser/js/llm/settings.js defaultSettings() parity.
     QString provider = "none";
     QString baseUrl = defaultLlmBaseUrl(QStringLiteral("none"));
     // Empty = provider default.

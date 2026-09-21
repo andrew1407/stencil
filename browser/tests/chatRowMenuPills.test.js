@@ -1,4 +1,4 @@
-// Popups over the chat panel (js/ui/chatView.js): a menu is announced on both edges and the
+// Popups over the chat panel (js/ui/view.js): a menu is announced on both edges and the
 // jump pills stand down, the composer menu outranks them, and every popup declares its level.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -26,7 +26,7 @@ test('a chat popup is announced on BOTH edges, and the pills stand down while it
   assert.ok(clearAt > -1 && announceAt > clearAt, 'closed state is visible before the event fires');
   // The panel reacts to both edges: an open popup stands the PILLS down (they are
   // never hidden by the row-overlap reason any more — that yields the TRIGGER instead).
-  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8');
   assert.ok(panel.includes('const standDown = chatPopupOpen();'));
   assert.ok(panel.includes('subscribe(CHAT_POPUP_EVENT, syncJumps);'));
   // …and standDown gates BOTH classes, so neither arrow can survive an open menu.
@@ -85,7 +85,7 @@ test('the composer menu joins the popup accounting on both edges', async () => {
   // …and the pills read one predicate covering row menu AND composer menus.
   assert.match(view, /export const chatPopupOpen = \(\) => !!rowMenuEl \|\| openComposerMenus\.size > 0;/);
   // Both surfaces wire a composer menu, so both feed the same accounting.
-  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8');
   const flyout = contextMenuSource();
   assert.match(panel, /wireChatMoreMenu\('chat'/);
   assert.match(flyout, /wireChatMoreMenu\('ctx-assist'/);

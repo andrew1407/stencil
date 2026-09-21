@@ -1,7 +1,7 @@
 // Live two-way sync between a project and its linked .stencil file (Chromium File System
 // Access only): debounced auto-save on edit + a polled watch that applies external writes
 // in place, or prompts (mine/theirs/merge) on a conflict.
-import { parseProjectFile, serializeProjectFile } from '../project/projectFile.js';
+import { parseProjectFile, serializeProjectFile } from '../project/file.js';
 
 const LIVE_KEY = 'drawingApp_stencilLiveSync';
 const POLL_MS = 2000;

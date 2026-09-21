@@ -1,18 +1,18 @@
 // The single import point for server connections; model, store and REST client re-exported.
-import { normalizeUrl, sharedPinsFromProjects } from './connectionModel.js';
+import { normalizeUrl, sharedPinsFromProjects } from './model.js';
 import {
   dropConnection, isAdminConnection, loadConnections, saveConnections, upsertConnection,
-} from './connectionStore.js';
-import { connect, fetchImpl, listProjects } from './connectionRest.js';
+} from './store.js';
+import { connect, fetchImpl, listProjects } from './rest.js';
 
 export {
   CONNECTIONS_KEY, isLoopbackHost, mergePins, normalizeUrl, parseInviteUrl,
   sharedPinFromProject, sharedPinsFromProjects,
-} from './connectionModel.js';
+} from './model.js';
 export {
   dropConnection, filterConnections, isAdminConnection, loadConnections, upsertConnection,
-} from './connectionStore.js';
-export { connect, createProject, fetchProjectImage, listProjects } from './connectionRest.js';
+} from './store.js';
+export { connect, createProject, fetchProjectImage, listProjects } from './rest.js';
 
 // 'none' (local only) | 'one' (a "store on server" checkbox) | 'many' (a server picker).
 export const pinTargetMode = (connections) => {

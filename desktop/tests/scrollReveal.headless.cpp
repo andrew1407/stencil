@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
   check(near(revealDissolve(-50, 50, 495), 0.5), "half cut off the top = half dissolved");
 
   // GRAIN vs the clipped share: a card TALLER than the viewport is clipped by definition, so the grain
-  // measures against what the viewport can hold instead (browser motion.js revealGrain).
+  // measures against what the viewport can hold instead (browser surface/motion.js revealGrain).
   using stencil::gui::revealGrain;
   check(near(revealGrain(-100, 100, 400), 0.5), "half off the top is half grainy either way");
   check(near(revealDissolve(-100, 100, 400), 0.5), "…and the clipped share agrees while it fits");

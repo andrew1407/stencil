@@ -62,7 +62,7 @@ namespace stencil::gui {
     // The browser .app-modal width — also what fits the footer hint on one line.
     setMinimumWidth(MODAL_WIDTH);
 
-    // Browser connectModal.js parity: shared modal shell (glyph + title + Close pill).
+    // Browser modal.js parity: shared modal shell (glyph + title + Close pill).
     ModalChrome chrome = installModalChrome(this, "server", tr("Servers"));
     QVBoxLayout* root = chrome.body;
 
@@ -70,7 +70,7 @@ namespace stencil::gui {
     buildConnectionPrefs(root);
     buildConnectBatchBar(root);
     buildConnectionList(root);
-    // Footer (browser settings-footer): the browser's exact sentence (connectModal.js .footer-hint) -
+    // Footer (browser settings-footer): the browser's exact sentence (modal.js .footer-hint) -
     // the longer invite-token clause made the desktop hint wrap to a second line.
     addModalFooter(chrome,
                    tr("Connections are saved and (optionally) restored on open · "

@@ -3,8 +3,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { parseScript } from '../js/core/script.js';
-import { editDistance, didYouMean } from '../js/core/script/scriptDiagnostics.js';
-import { MAX_LINES, MAX_OPS, MAX_POINTS_PER_LINE, MAX_TEMPLATE_DEPTH } from '../js/core/script/scriptTypes.js';
+import { editDistance, didYouMean } from '../js/core/script/diagnostics.js';
+import { MAX_LINES, MAX_OPS, MAX_POINTS_PER_LINE, MAX_TEMPLATE_DEPTH } from '../js/core/script/types.js';
 
 const codesOf = (src) => parseScript(src).diagnostics.map((d) => d.code);
 const kindOf = (src) => parseScript(src).blocks[0].kind;

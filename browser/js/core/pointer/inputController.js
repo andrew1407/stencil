@@ -1,10 +1,10 @@
 import { HoldDrawController, holdDrawTarget } from '../draw/holdDraw.js';
-import { classifyEnd } from '../touch/touchGestures.js';
+import { classifyEnd } from '../touch/gestures.js';
 import { nowMs, setHoldPreview, clearHoldPreview, holdAnchor } from '../draw/holdDrawView.js';
-import { touchHandlers } from '../touch/touchInput.js';
+import { touchHandlers } from '../touch/input.js';
 
-// Hold-to-draw: the machine's wiring plus the seam the touch flow (touchInput.js) drives.
-// The mouse drag path stays in pointerController.js; both reuse the app's drag-state fields.
+// Hold-to-draw: the machine's wiring plus the seam the touch flow (input.js) drives.
+// The mouse drag path stays in controller.js; both reuse the app's drag-state fields.
 // A hold needs an image, drawing mode off, no other gesture, and not the rect tool (a hold
 // there would seed a freehand line). Desktop twin: mousePressEvent's eligibleHold.
 export const holdDrawEligible = (app) =>
@@ -29,7 +29,7 @@ export class InputController {
 // Keeps the tooltip off a mid-hold ghost line (canvasMouseMove's drag guard).
   get holdEngaged() { return !!this.#holdDraw && this.#holdDraw.engaged; }
 
-// The live touch gesture; touchInput.js drives it, this class only ends a tap.
+// The live touch gesture; input.js drives it, this class only ends a tap.
   get touchSession() { return this.#touch; }
   set touchSession(st) { this.#touch = st; }
 

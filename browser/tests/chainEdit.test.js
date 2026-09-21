@@ -11,7 +11,7 @@ import { fillState } from '../js/core/layout.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const drawingAppJs = read('../js/core/drawingApp.js');
-const pointerJs = read('../js/core/pointer/pointerController.js');
+const pointerJs = read('../js/core/pointer/controller.js');
 const inputJs = read('../js/core/pointer/inputController.js');
 const shapeJs = read('../js/core/line/shapeBuilder.js');   // closing / inserting / rects
 const panelJs = read('../js/ui/panel/selectionPanel.js');
@@ -121,7 +121,7 @@ test('the close check is reached from BOTH routes, not just the click', () => {
   assert.match(drawingAppJs, /tryCloseShapeAt\(x, y\)/, 'the click path asks');
   assert.match(inputJs, /app\.tryCloseShapeAt\(x, y\)/, 'and so does the hold-to-draw drop');
   assert.equal((shapeJs.match(/shouldCloseShape\(/g) || []).length, 2,
-    'the raw check (lineTransforms.js) has ONE caller here — tryCloseShapeAt, twice');
+    'the raw check (transforms.js) has ONE caller here — tryCloseShapeAt, twice');
   // Closing ends the gesture: the stroke is committed, so nothing may drop into it after.
   // From the DEFINITION, not the call site in #holdTick that appears earlier.
   const drop = inputJs.slice(inputJs.indexOf('#holdDrop(clientX, clientY)'),

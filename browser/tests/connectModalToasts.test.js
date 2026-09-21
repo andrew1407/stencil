@@ -1,10 +1,10 @@
-// What a connection change says (js/ui/connectModal.js): a reconnect toast names the server,
+// What a connection change says (js/ui/modal.js): a reconnect toast names the server,
 // a disconnect posts none, and a refused or unreachable one plays its own arrival.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { MATERIALIZE_CLASS, LEAVE_MS } from '../js/ui/motion.js';
-import { batchNote } from '../js/ui/connect/connectModal.js';
+import { batchNote } from '../js/ui/connect/modal.js';
 import { conn, openModal, rows, hasClass, find, sleep } from './helpers/connectModalRig.js';
 
 // A reconnect toast must name WHICH server signed back in (user report); a disconnect posts
@@ -53,7 +53,7 @@ test('disconnecting posts no toast — the row leaving the list is the notice', 
 // The selection bar is a REVEAL, not a display flip, which would cut Select all's own
 // out-flight (user report); under this suite's reduced motion the two look alike.
 test('the batch bar opens and closes on the shared control flight', () => {
-  const src = readFileSync(new URL('../js/ui/connect/connectModal.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/connect/modal.js', import.meta.url), 'utf8');
   assert.match(src, /revealBar\(batchBar, \(\) => selected\.size > 0 \|\| anyLiveShown\(\)\)/);
   // The pool is the shown set MINUS the rows playing their removal dust, so the bar leaves
   // beside them instead of a flight later (desktop parity: connectDialog's `doomed_`).

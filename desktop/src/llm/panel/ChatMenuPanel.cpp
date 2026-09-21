@@ -162,7 +162,7 @@ namespace stencil::gui {
     applyChatBubbleWidths(body, scroll);   // the dock's wrap/measure pass
     scrollToBottom();
     // It arrives out of its own dust, the leave played backwards (the dock's animateCardIn / browser
-    // motion.js chatIn). Measured widths AND the scroll first: the gather is a photograph.
+    // surface/motion.js chatIn). Measured widths AND the scroll first: the gather is a photograph.
     gatherRow(card);
   }
 

@@ -1,4 +1,4 @@
-// The DOM writers ZoomPan (core/zoomPan.js) drives; #zoom-rect-overlay serves both the
+// The DOM writers ZoomPan (core/pan.js) drives; #zoom-rect-overlay serves both the
 // zoom-to-rect marquee and the rectangle being drawn.
 
 export const updateZoomRectOverlay = (s, en) => {

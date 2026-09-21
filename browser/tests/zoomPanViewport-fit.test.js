@@ -1,9 +1,9 @@
-// ZoomPan.fitToWindow and clampPanelWidth (js/core/zoomPan.js): the fit is measured off the
+// ZoomPan.fitToWindow and clampPanelWidth (js/core/pan.js): the fit is measured off the
 // viewport box, and the panel width is one token every fallback reads.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ZoomPan } from '../js/core/zoom/zoomPan.js';
+import { ZoomPan } from '../js/core/zoom/pan.js';
 import { LAYOUT_CSS, COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 import { installDom, ROOMY, ROOMY_AVAIL } from './helpers/zoomPanViewportDom.js';
 

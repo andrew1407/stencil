@@ -4,7 +4,7 @@ import { fillState } from '../../core/layout.js';
 import { pointColorOf } from '../../core/draw/renderer.js';
 import { notify, cssColorParts, writeColorPair, fillFromPair, NO_FILL } from '../../utils.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, revealControls } from '../motion.js';
-import { syncFsTriggers } from '../fullscreen/fullscreenPanels.js';
+import { syncFsTriggers } from '../fullscreen/panels.js';
 // ── Component: selected-line editor panel ───────────────────────
 // Markup only; its inputs are wired by DrawingApp via global ids.
 export class StencilSelectionPanel extends StencilElement {

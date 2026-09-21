@@ -36,14 +36,14 @@ re-derive the checks.
 | cli | `cli/src/net.zig` |
 | desktop | `desktop/src/net/fetchGuard.{hpp,cpp}` (a port of `net.zig`) |
 | browser-extension | `browser-extension/src/lib/connection/urlGuard.js` |
-| vscode-extension | `vscode-extension/src/lib/spawn/{cliLocator,terminal}.js` + `lib/web/webTarget.js` |
+| vscode-extension | `vscode-extension/src/lib/spawn/{cliLocator,terminal}.js` + `lib/web/target.js` |
 | pystencil | `pystencil/pystencil/_net.py` |
 | bot | `Editing/RemoteImageUrl.cs` in `bot/src/Stencil.TelegramBot.Application/` |
 | server | `internal/ratelimit` + `internal/auth` on the request path |
 
 The `vscode-extension` trio is the same idea one step out: **the CLI path is explicit user
 configuration** (the `stencil.cliPath` setting, then `STENCIL_CLI`, then `PATH`) and never a
-path read out of the document being edited; `webTarget.js` is the same rule for the browser
+path read out of the document being edited; `web/target.js` is the same rule for the browser
 instance the web commands open (`stencil.webUrl`, else the published default, `http(s)` only);
 and `terminal.js` is the one place a command line is composed, so document text never reaches
 a shell unquoted.

@@ -1,8 +1,8 @@
-// Where src/lib/chatMsgMenu.js puts the menu: the clamp against the viewport edges, the pop's
+// Where src/lib/msgMenu.js puts the menu: the clamp against the viewport edges, the pop's
 // transform-origin under the cursor, and the Escape listener armed per open.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clampMenuPosition, createMsgMenu, menuTransformOrigin } from '../src/lib/chat/chatMsgMenu.js';
+import { clampMenuPosition, createMsgMenu, menuTransformOrigin } from '../src/lib/chat/msgMenu.js';
 import { stubDoc, stubEl } from './helpers/domStub.js';
 
 // The menu measures itself to clamp; the shared stub is inert, so give it a size.

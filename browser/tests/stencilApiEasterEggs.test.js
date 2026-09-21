@@ -4,8 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createStencil, makeApp } from './helpers/stencilApiRig.js';
 import { createStubElement } from './helpers/dom.js';
-import { SHOW_NAMES } from '../js/ui/logo/logoStageRules.js';
-import { logoStageOpen, closeLogoStage } from '../js/ui/logo/logoStage.js';
+import { SHOW_NAMES } from '../js/ui/logo/stageRules.js';
+import { logoStageOpen, closeLogoStage } from '../js/ui/logo/stage.js';
 
 // The rig's body only answers the fullscreen class; a stage needs one that takes a child.
 const body = createStubElement('body', { classList: { contains: () => false } });

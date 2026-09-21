@@ -132,7 +132,7 @@ test.describe('projects list: touch gestures', () => {
     expect(await activeId(page)).toBe(before);
 
     // 2. "Open in a new tab" on touch lives in the row's ⋯ menu — the hold belongs to
-    // drag-to-reorder (touchDrag.js picks the row up at 280ms), so it is NOT overloaded.
+    // drag-to-reorder (drag.js picks the row up at 280ms), so it is NOT overloaded.
     await expect(page.locator('#projects-modal-overlay')).toHaveClass(/modal-open/);
     await target.locator('.project-more').click();
     const item = page.locator('.project-menu-item', { hasText: 'Open in new tab' });

@@ -6,7 +6,7 @@ import {
   themeSwap, originOf, THEME_SWAP_MS, THEME_SWAP_CLASS, SWAP_DUST_LIFE_MS, SWAP_EDGE_POINTS,
   DUST_ALPHA_LEVELS,
 } from '../js/ui/motion.js';
-import { FILL_CHUNK } from '../js/ui/dust/dustCloud.js';
+import { FILL_CHUNK } from '../js/ui/dust/cloud.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { el, withDoc, rootStub } from './helpers/motionRig.js';
 
@@ -34,7 +34,7 @@ test('themeSwap spawns the wake once the transition is ready, in the OLD palette
   };
   const doc = {
     documentElement: root,
-    // The palette probe spans (dustCloud.js resolveColour) come and go on <body> too.
+    // The palette probe spans (cloud.js resolveColour) come and go on <body> too.
     createElement: (tag) => (tag === 'canvas' ? mkCanvas() : {
       style: { setProperty() {} }, appendChild() {},
       remove() { const i = bodyChildren.indexOf(this); if (i >= 0) bodyChildren.splice(i, 1); },
@@ -80,7 +80,7 @@ test('themeSwap spawns the wake once the transition is ready, in the OLD palette
     assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 100%, var(--accent-2))'), 'accent grains');
     assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))'), 'shade grains');
     // The whole point of the stage: batched fills — one per (stop, alpha step), each in
-    // chunks of FILL_CHUNK grains (dustCloud.js) — not one per grain.
+    // chunks of FILL_CHUNK grains (cloud.js) — not one per grain.
     const grains = lit.reduce((n, f) => n + f.arcs, 0);
     assert.ok(stage.fills.length <= 6 * DUST_ALPHA_LEVELS + Math.ceil(grains / FILL_CHUNK),
       `batched into ${stage.fills.length} fills, not ${grains}`);

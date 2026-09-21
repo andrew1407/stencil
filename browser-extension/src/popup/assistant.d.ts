@@ -1,5 +1,5 @@
 // Shapes for popup/assistant.js — the panel's "Assistant" section (llm-contract.md §8),
-// composed from popup/assistant/* around llm/chatController.js.
+// composed from popup/assistant/* around llm/controller.js.
 export declare const applyAssistantVisibility: (
   enabled: unknown, opts?: { section?: HTMLElement | null; button?: HTMLElement | null },
 ) => boolean;

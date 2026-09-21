@@ -1,6 +1,6 @@
 import { icon } from '../../icons.js';
 import { escapeHtml } from '../../base.js';
-import { attachRowActions, attachIncognitoActions } from './rowActions.js';
+import { attachRowActions, attachIncognitoActions } from './actions.js';
 
 // One LOCAL project row — ported from projectsModal.js's makeRow. Twin of remoteRow.js:
 // the deps bag crosses as thunks, because `render`/`close` are declared after the factory.

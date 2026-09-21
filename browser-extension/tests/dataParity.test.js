@@ -58,7 +58,7 @@ const MANIFEST = [
     canonical: () => canonical('../../browser/js/config/llm/providers.json'),
   },
   {
-    // The motion tuning both copies of dustCloud.js read (portParity pins the module
+    // The motion tuning both copies of cloud.js read (portParity pins the module
     // itself; this pins the numbers it now imports).
     name: 'motion tuning: src/config/motion.json ↔ config/motion.json',
     mode: 'full',

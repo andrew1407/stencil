@@ -1,8 +1,8 @@
 // A word typed into the bare window opens its logo show. One listener, one string compare per
 // printable key: no timers, and a focused field keeps every key it is given.
 import { isTypingTarget } from '../../../utils.js';
-import { TYPED_WORDS, SHOW_NAMES } from '../../logo/logoStageRules.js';
-import { activateShow } from '../../logo/logoStageTrigger.js';
+import { TYPED_WORDS, SHOW_NAMES } from '../../logo/stageRules.js';
+import { activateShow } from '../../logo/stageTrigger.js';
 
 const LONGEST = TYPED_WORDS.reduce((n, w) => Math.max(n, w.length), 0);
 

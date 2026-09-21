@@ -43,7 +43,7 @@ test('the OTHER active controls keep the green light — the repaint was scoped'
   assert.match(layoutCss, /button\.active \{\s*background: var\(--success\);\s*color: #fff;\s*\}/,
     'the global active rule is untouched — a fixed green ground, so white whatever the accent');
   // The controls that rely on it, by their own class toggles.
-  assert.match(read('../js/ui/fullscreen/fullscreenLayer.js'), /fsBtn\.classList\.toggle\('active', isFullscreen\)/);
+  assert.match(read('../js/ui/fullscreen/layer.js'), /fsBtn\.classList\.toggle\('active', isFullscreen\)/);
   assert.match(read('../js/core/drawingApp.js'), /btn\.classList\.toggle\('active', this\.storage\.incognito\)/);
   for (const id of ['#fullscreen-toggle', '#incognito-toggle']) {
     assert.equal(blocksFor(layoutCss, `${id}.active`).length, 0, `${id} was not repainted`);

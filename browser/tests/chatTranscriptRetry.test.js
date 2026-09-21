@@ -1,9 +1,9 @@
-// Retry and the turn's end (js/llm/chatSession.js): one turn per click logged once, the shared
+// Retry and the turn's end (js/llm/session.js): one turn per click logged once, the shared
 // in-flight flag both surfaces read, and a settled reply carrying no progress line.
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { resetChatLog, chatLog, runLoggedChatTurn, chatTurnInFlight } from '../js/llm/chat/chatSession.js';
+import { resetChatLog, chatLog, runLoggedChatTurn, chatTurnInFlight } from '../js/llm/chat/session.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
@@ -53,7 +53,7 @@ test('ONE turn at a time: the shared in-flight flag every surface reads', async 
 
   // Both retry/resend entry points consult it, so a click in one surface cannot start a
   // second turn over one the OTHER surface is running (that logged the prompt twice).
-  for (const [name, src] of [['panel', readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8')],
+  for (const [name, src] of [['panel', readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8')],
     ['flyout', contextMenuSource()]]) {
     assert.ok(src.includes('chatTurnInFlight()'), `${name} guards on the shared flag`);
     assert.strictEqual(src.split('chatTurnInFlight()').length - 1, 2,
@@ -64,7 +64,7 @@ test('ONE turn at a time: the shared in-flight flag every surface reads', async 
 // ── §3.0: nothing is rendered after the reply ───────────────────────────────
 test('a settled reply carries no progress line and no cancel — the turn is over', async () => {
   stubDom();
-  const { renderChatLog } = await import('../js/ui/chat/chatView.js?render-no-aux');
+  const { renderChatLog } = await import('../js/ui/chat/view.js?render-no-aux');
   const transcript = makeEl();
   const log = [
     { id: 1, role: 'user', text: 'outline everything' },

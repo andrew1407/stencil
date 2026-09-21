@@ -27,7 +27,7 @@ namespace stencil::gui {
 
   void ProjectsDialog::refresh() {
     const int prevRow = list->currentRow();
-    // A row the rebuild ADDS arrives out of the filter's sand (browser motion.js filterDust); the very
+    // A row the rebuild ADDS arrives out of the filter's sand (browser surface/motion.js filterDust); the very
     // first build dusts nothing.
     QSet<QString> keysBefore;
     for (int i = 0; i < list->count(); ++i) {

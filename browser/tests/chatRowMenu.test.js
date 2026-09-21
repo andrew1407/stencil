@@ -1,4 +1,4 @@
-// The transcript row menu (js/ui/chatView.js wireChatRowMenu): Copy / Insert on every settled
+// The transcript row menu (js/ui/view.js wireChatRowMenu): Copy / Insert on every settled
 // row, Resend on a user row, and the "…" trigger's lift clear of the jump pills.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -8,7 +8,7 @@ import { stubDom } from './helpers/chatRowMenuRig.js';
 // ── Items per role ──
 test('chatRowMenuItems: every settled row gets Copy / Insert; user rows add Resend', async () => {
   stubDom();
-  const { chatRowMenuItems } = await import('../js/ui/chat/chatView.js?rowmenu-items');
+  const { chatRowMenuItems } = await import('../js/ui/chat/view.js?rowmenu-items');
   assert.deepStrictEqual(
     chatRowMenuItems({ role: 'assistant', text: 'hi' }).map((i) => i.label),
     ['Copy message', 'Insert into prompt'], 'assistant rows never offer Resend');
@@ -33,7 +33,7 @@ test('chatRowMenuItems: every settled row gets Copy / Insert; user rows add Rese
 // hides when the bubble is too short to lift it to (user report).
 test('rowMenuLiftPx: the lift clears exactly the overlap, plus the gap', async () => {
   stubDom();
-  const { rowMenuLiftPx } = await import('../js/ui/chat/chatView.js?rowmenu-jumps');
+  const { rowMenuLiftPx } = await import('../js/ui/chat/view.js?rowmenu-jumps');
   // The measured collision from the live repro: the card's trigger under the ⌄ pill.
   const btn = { left: 296, right: 317, top: 181, bottom: 202, width: 21, height: 21 };
   const jumpTop = { left: 263, right: 291, top: 182, bottom: 210, width: 28, height: 28 };
@@ -52,7 +52,7 @@ test('rowMenuLiftPx: the lift clears exactly the overlap, plus the gap', async (
 
 test('rowMenuLiftFits: only when the lifted trigger stays inside its own row', async () => {
   stubDom();
-  const { rowMenuLiftFits } = await import('../js/ui/chat/chatView.js?rowmenu-jumps-fits');
+  const { rowMenuLiftFits } = await import('../js/ui/chat/view.js?rowmenu-jumps-fits');
   const row = { top: 100, bottom: 300 };
   const btn = { top: 260, bottom: 281 };
   assert.strictEqual(rowMenuLiftFits(row, btn, 40), true);    // 260-40=220, still >= 100
@@ -63,7 +63,7 @@ test('rowMenuLiftFits: only when the lifted trigger stays inside its own row', a
 });
 
 test('the panel feeds the hovered row\'s trigger to the lift, and a pill hover can\'t hide it', () => {
-  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8');
   const sync = panel.slice(panel.indexOf('const syncRowMenuLift = () => {'), panel.indexOf('const syncJumps = () => {'));
   assert.ok(sync.includes('rowMenuLiftPx(btn, pills)'), 'the pure test decides how far');
   assert.ok(sync.includes('rowMenuLiftFits(hoverRow.getBoundingClientRect(), btn, lift)'),
@@ -88,7 +88,7 @@ test('the panel feeds the hovered row\'s trigger to the lift, and a pill hover c
 // A LIFTED trigger sits outside its row's own box, so reaching it crosses bare transcript first:
 // only an actual different row, or a real mouseleave, may change what is hovered (user report).
 test('reaching a lifted trigger never snaps it back: a no-row mouseover is ignored', () => {
-  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/panel.js', import.meta.url), 'utf8');
   const over = panel.slice(panel.indexOf("transcript.addEventListener('mouseover'"),
     panel.indexOf("transcript.addEventListener('mouseleave'"));
   assert.match(over, /if \(!row \|\| !transcript\.contains\(row\) \|\| row === hoverRow\) return;/,

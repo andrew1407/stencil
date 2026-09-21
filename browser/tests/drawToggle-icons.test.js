@@ -52,7 +52,7 @@ test('the canonical line/rect pair is the inline pair, scaled onto the 24-grid',
 // Picking the rect tool is the intent, so the press turns drawing on itself: the sweep required
 // drawing mode to be on already, and rect has no hold-to-draw flow to fall back on.
 test('the rect tool starts its sweep on the press, turning drawing on by itself', () => {
-    const js = readFileSync(new URL('../js/core/pointer/pointerController.js', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../js/core/pointer/controller.js', import.meta.url), 'utf8');
     const branch = js.slice(js.indexOf('// Rect-draw mode:'), js.indexOf("// Alt+Ctrl/⌘+left"));
     // The gate no longer demands isDrawing…
     assert.ok(!/if \(app\.isDrawing && app\.drawMode === 'rect'/.test(branch),

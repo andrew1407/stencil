@@ -1,7 +1,7 @@
 #pragma once
 // The logo stage's table (browser/js/config/logoStage.json over the qrc) and the pure rules over
 // it: which show an accent + motion mode opens, the cloud it wears, the stage sizes and the heart
-// the pink show draws. Twin of browser/js/ui/logo/logoStageRules.js, value for value.
+// the pink show draws. Twin of browser/js/ui/logo/stageRules.js, value for value.
 #include <QColor>
 #include <QPointF>
 #include <QString>

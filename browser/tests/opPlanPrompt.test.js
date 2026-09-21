@@ -1,4 +1,4 @@
-// The op-plan system prompts (js/llm/opPlan.js): the contract §4 prose core pinned
+// The op-plan system prompts (js/llm/plan.js): the contract §4 prose core pinned
 // against the config asset, the limit numbers, and the §10 settings-block splice.
 import { test } from 'node:test';
 import assert from 'node:assert';

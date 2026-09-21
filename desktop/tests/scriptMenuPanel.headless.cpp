@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
     panel.setScript(QStringLiteral("   \n"));
     check(run && !run->isEnabled(), "whitespace alone is still empty");
 
-    // Browser twin: gateActions() in js/ui/script/scriptEditor.js.
+    // Browser twin: gateActions() in js/ui/script/editor.js.
     panel.setScript(QStringLiteral("# just a comment\n"));
     check(run && !run->isEnabled(), "a comment-only script lowers to no ops: nothing to run");
     check(copy && copy->isEnabled(), "but there is text to copy");

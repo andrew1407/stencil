@@ -1,4 +1,4 @@
-// src/lib/accent.js's list against the two copies that cannot import it — lib/highlightColor.js
+// src/lib/accent.js's list against the two copies that cannot import it — lib/color.js
 // and browser/js/config/accents.json — plus the on-accent ink the same list decides.
 
 import { test } from 'node:test';
@@ -7,17 +7,17 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { loadAccent } from './helpers/accentSandbox.js';
-import { ACCENT_HEX, DEFAULT_HL } from '../src/lib/highlight/highlightColor.js';
+import { ACCENT_HEX, DEFAULT_HL } from '../src/lib/highlight/color.js';
 
 // ── Parity with the two copies that cannot import this file ──
 
-test('ACCENT_HEX in lib/highlightColor.js matches the list exactly', () => {
+test('ACCENT_HEX in lib/color.js matches the list exactly', () => {
   const { accent } = loadAccent();
   const fromAccentJs = Object.fromEntries(accent.list.map((a) => [a.key, a.hex]));
   assert.deepEqual(
     fromAccentJs,
     ACCENT_HEX,
-    'lib/highlightColor.js ACCENT_HEX drifted from lib/accent.js — both say "keep in sync"',
+    'lib/color.js ACCENT_HEX drifted from lib/accent.js — both say "keep in sync"',
   );
   assert.equal(DEFAULT_HL, accent.hexOf('violet'), 'the default highlight is the default accent');
 });

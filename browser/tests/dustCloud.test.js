@@ -1,4 +1,4 @@
-// js/ui/dustCloud.js — the one-canvas cloud every element-sized flight rides. The
+// js/ui/cloud.js — the one-canvas cloud every element-sized flight rides. The
 // flights are the old tile keyframes as numbers; these pin the contract the desktop
 // overlay (DisintegrateOverlay.hpp legAt) and the extension's copy share.
 import test from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert';
 import {
   bezierY, easeLut, EASE_STEPS, FLIGHTS, alphaAt, moteFrame, cloudBounds, drawCloud, ALPHA_LEVELS, resolveColour,
   startCloud, turbulenceAt, twinkleAt, TURBULENCE_MAX_PX, TWINKLE_DEPTH,
-} from '../js/ui/dust/dustCloud.js';
+} from '../js/ui/dust/cloud.js';
 
 const grain = { x: 100, y: 200, dx: 60, dy: -80, mx: 40, my: -45, r: 3, s: 0.3, a: 0.9 };
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;

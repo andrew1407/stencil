@@ -91,7 +91,7 @@ namespace stencil::gui {
       std::function<QImage(QAction*)> renderFor;
     };
 
-    // Double-click / right-click on a copy/download TOOLBAR button opens its export-options popup (browser exportOptionsMenu.js);
+    // Double-click / right-click on a copy/download TOOLBAR button opens its export-options popup (browser export/optionsMenu.js);
     // a plain click is deferred so a following dblclick can cancel it. The button's defaultAction sync is untouched.
     class ExportPopupFilter : public QObject {
      public:
@@ -165,7 +165,7 @@ namespace stencil::gui {
     menu->installEventFilter(new AltPreviewFilter(menu, renderFor));
   }
 
-  // The toolbar buttons' export-options popups (browser exportOptionsMenu.js), built once after buildToolbar().
+  // The toolbar buttons' export-options popups (browser export/optionsMenu.js), built once after buildToolbar().
   void MainWindow::wireExportOptionsPopups() {
     auto buildMenu = [this](bool copy) {
       auto* m = new QMenu(this);

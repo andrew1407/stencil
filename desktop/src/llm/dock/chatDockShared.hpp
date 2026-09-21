@@ -18,12 +18,12 @@ namespace stencil::gui::chatdock {
   // The context menu's assistant panel mirrors these exact numbers.
   inline constexpr int ACCENT_EDGE = 30;
   inline constexpr int ACCENT_ICON = 20;
-  // browser css/animations.css chatCardLeave, motion.js CHAT_LEAVE_MS
+  // browser css/animations.css chatCardLeave, surface/motion.js CHAT_LEAVE_MS
   inline constexpr int CHAT_LEAVE_MS = 260;
   inline constexpr int CHIP_NAME_MAX_PX = 150;
   // A removed chip HOLDS its slot so the scatter reads before the neighbours slide.
   inline constexpr int CHAT_CHIP_HOLD_MS = 140;
-  // browser/extension chatController.js MAX_ATTACHMENTS; past it the queue is refused (§7).
+  // browser/extension controller.js MAX_ATTACHMENTS; past it the queue is refused (§7).
   inline constexpr int MAX_ATTACHMENTS = 3;
   // browser .chat-jump-btn / .chat-row-menu-btn rest opacity on all three surfaces
   inline constexpr double GHOST_REST_OPACITY = 0.7;

@@ -1,4 +1,4 @@
-// The grain's own curve against the browser's own answers (motion.js swapDustEase / swapDustFrame),
+// The grain's own curve against the browser's own answers (surface/motion.js swapDustEase / swapDustFrame),
 // and the rule that no mote is ever handed back with nothing to show.
 #include "themeSwapEaseParts.hpp"
 

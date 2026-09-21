@@ -42,7 +42,7 @@ namespace stencil::support {
   double motionIconMs(const QString& mode);
   // The longest — how long a row's hover keeps repainting.
   constexpr int MOTION_ICON_HOVER_MS = static_cast<int>(1200 / MOTION_ICON_SPEEDUP);
-  // Browser js/ui/motionIcons.js: viewBox 0 0 16 16.
+  // Browser js/ui/icons.js: viewBox 0 0 16 16.
   constexpr int MOTION_ICON_PX = 16;
 
   void paintMotionIcon(QPainter& p, const QRectF& box, const QString& mode, const QColor& colour,

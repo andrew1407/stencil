@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { makePage } from './accentDom.js';
 
-const SRC = ['prefs/prefs.js', 'dust/swapGeometry.js', 'dust/dustGrains.js', 'dust/dustWake.js', 'dust/themeSwap.js',
+const SRC = ['prefs/prefs.js', 'dust/swapGeometry.js', 'dust/grains.js', 'dust/wake.js', 'dust/themeSwap.js',
   'accent/accent.js', 'prefs/shellPrefs.js']
   .map((f) => readFileSync(fileURLToPath(new URL(`../../src/lib/${f}`, import.meta.url)), 'utf8')).join('\n');
 

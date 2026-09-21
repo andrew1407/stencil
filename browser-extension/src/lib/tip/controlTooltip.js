@@ -1,10 +1,10 @@
 // ── Control tooltip ──────────────────────────────────────────────────────────
 // PORT of browser/js/ui/tip/controlTooltip.js (the extension cannot import across subprojects):
 // shows a control's `data-tip` or `data-title` on hover after a short delay. No surface authors
-// a native `title`. tipContent.js parses the title into the tooltip shape; this positions and
+// a native `title`. content.js parses the title into the tooltip shape; this positions and
 // shows it. `[data-no-tooltip]` opts out a control that owns its own hover popup.
 
-import { renderTip, parseTip } from './tipContent.js';
+import { renderTip, parseTip } from './content.js';
 import { surfaceIn, surfaceOut, settleSurface, rectCenter,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS, TIP_SHOW_DELAY_MS } from '../motion.js';
 import { comboMatchesEvent, eventCombo, parseCombo } from '../control/comboMatch.js';

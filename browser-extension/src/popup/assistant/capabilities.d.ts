@@ -1,6 +1,6 @@
 // Shapes for popup/assistant/capabilities.js — what each whitelisted §8 op does on this
-// surface. Builds llm/chatController.js's controller and keeps it on `state.controller`.
-import type { ChatImage } from '../../llm/llmClient.js';
+// surface. Builds llm/controller.js's controller and keeps it on `state.controller`.
+import type { ChatImage } from '../../llm/client.js';
 
 export interface CapabilitiesResult {
   attachImage(index: number, entry: unknown): Promise<ChatImage>;

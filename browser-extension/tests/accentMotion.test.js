@@ -1,4 +1,4 @@
-// StencilMotion inside src/lib/accent.js — the browser js/ui/motionPrefs.js twin: the five modes,
+// StencilMotion inside src/lib/accent.js — the browser js/ui/prefs.js twin: the five modes,
 // the gates they open, and the wake each style paints from the accent palette.
 
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import { loadAccent } from './helpers/accentSandbox.js';
 
-// ── Interface motion (StencilMotion — browser js/ui/motionPrefs.js twin) ──
+// ── Interface motion (StencilMotion — browser js/ui/prefs.js twin) ──
 
 test('the motion mode defaults to particles, is stamped before first paint, and mirrors the browser list', async () => {
   const page = loadAccent();
@@ -65,8 +65,8 @@ test('a mode changed on another page lands here through the storage event', () =
   assert.equal(seen, 'water', 'and the listener told');
 });
 
-test('the classic-script styleFrame is dustCloud.js styleFrame, frame for frame', async () => {
-  const { styleFrame } = await import('../src/lib/dust/dustCloud.js');
+test('the classic-script styleFrame is cloud.js styleFrame, frame for frame', async () => {
+  const { styleFrame } = await import('../src/lib/dust/cloud.js');
   const page = loadAccent();
   for (const style of [0, 1, 2]) {
     for (const p of [0, 0.13, 0.5, 0.87, 1]) {
@@ -92,7 +92,7 @@ test('a water or fire wake is painted from the accent palette; slide keeps the w
   const lit = stage.fills.filter((f) => f.arcs > 0);
   assert.ok(lit.length > 0, 'grains were painted');
   // Every fill is a palette colour — a stop of the accent ramp or one of its tints
-  // (lib/dustCloud.js paletteCss) — never a pixel of the page.
+  // (lib/cloud.js paletteCss) — never a pixel of the page.
   const ramp = /^color-mix\(in srgb, var\(--accent\) \d+%, var\(--accent-2\)\)$/;
   const tint = /^(#b4b4b4|#6e6e6e|color-mix\(in srgb, var\(--accent\) 55%, #ffffff\)|var\(--dust-(ink|accent-alt), #\w{6}\))$/;
   for (const f of lit) assert.ok(ramp.test(f.colour) || tint.test(f.colour), `palette fill, got ${f.colour}`);

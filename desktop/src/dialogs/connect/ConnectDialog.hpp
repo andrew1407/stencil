@@ -1,5 +1,5 @@
 #pragma once
-// Connect dialog (browser connectModal.js), backed by the window's net::ConnectionManager.
+// Connect dialog (browser modal.js), backed by the window's net::ConnectionManager.
 #include <QDialog>
 #include <QSet>
 #include <QString>
@@ -31,7 +31,7 @@ namespace stencil::gui {
     explicit ConnectDialog(stencil::net::ConnectionManager* manager, QWidget* parent = nullptr);
     // Pending removal slots collapse at once so nothing stale survives into a later show.
     void done(int r) override;
-    // Browser connectModal.js #connect-sync; the setting is MainWindow's (Settings.syncToServer).
+    // Browser modal.js #connect-sync; the setting is MainWindow's (Settings.syncToServer).
     void setSyncToServer(bool on);
 
    signals:

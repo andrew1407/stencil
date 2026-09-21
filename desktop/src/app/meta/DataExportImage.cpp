@@ -17,7 +17,7 @@
 
 namespace stencil::gui {
 
-  // Per-variant suffix and clipboard label (browser exportService.js #VARIANT_META).
+  // Per-variant suffix and clipboard label (browser export/service.js #VARIANT_META).
   namespace {
     struct VariantMeta { const char* variant; const char* suffix; const char* copiedLabel; };
     constexpr VariantMeta VARIANT_META[] = {
@@ -36,7 +36,7 @@ namespace stencil::gui {
     }
   }
 
-  // Extension drives the encoder (jpg/png/webp/bmp; else png) — browser saveImage mime map (exportService.js).
+  // Extension drives the encoder (jpg/png/webp/bmp; else png) — browser saveImage mime map (export/service.js).
   void DataExportController::saveImageFile(const QString& variant) {
     if (!canvas->hasImage()) {
       notify->error("Load an image first");  // drawingApp.js:2037 "No image"
@@ -58,7 +58,7 @@ namespace stencil::gui {
     else if (ext == "webp") fmt = "WEBP";
     else if (ext == "bmp") fmt = "BMP";
     else if (ext == "png") fmt = "PNG";
-    // "split" is a CLEAN composite — no divider bar or knob (browser exportService.js renderSplitExportCanvas).
+    // "split" is a CLEAN composite — no divider bar or knob (browser export/service.js renderSplitExportCanvas).
     if (canvas->renderToImage(variant, /*withDivider=*/false).save(path, fmt)) {
       notify->success("Image saved");
     } else {
@@ -66,7 +66,7 @@ namespace stencil::gui {
     }
   }
 
-  // Native share sheet (browser exportService.js shareImage()). The picker needs a FILE and reads it asynchronously,
+  // Native share sheet (browser export/service.js shareImage()). The picker needs a FILE and reads it asynchronously,
   // so it goes into one session-lifetime QTemporaryDir.
   void DataExportController::shareImage(QWidget* anchor) {
     if (!canvas->hasImage()) {

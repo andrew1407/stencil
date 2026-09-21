@@ -1,4 +1,4 @@
-// The two motion switches (js/ui/motionPrefs.js): the canvas stroke animation, and the
+// The two motion switches (js/ui/prefs.js): the canvas stroke animation, and the
 // five interface modes — particles (dust) / water / fire / slide / none. Everything that
 // moves asks one of the two gates below, so these pin what each mode means.
 import { test } from 'node:test';
@@ -148,13 +148,13 @@ test('every cloud in the app is built behind the dust gate, and the strokes behi
   // The canvas stroke flight answers the drawing switch instead.
   assert.match(read('../js/core/line/strokeFx.js'), /if \(!this\.#schedule \|\| !drawMotionEnabled\(\)\) return null;/);
   // One gate, asked in one place: no component still reads the media query by hand.
-  for (const f of ['../js/ui/modal/modalFlight.js', '../js/ui/toolbar/toolbar.js', '../js/ui/motion.js'])
+  for (const f of ['../js/ui/modal/flight.js', '../js/ui/toolbar/toolbar.js', '../js/ui/motion.js'])
     assert.ok(!read(f).includes("matchMedia('(prefers-reduced-motion: reduce)')"), f);
 });
 
 test('the mode reaches the CSS before first paint, and stops what CSS alone drives', () => {
   const prePaint = read('../js/prePaintTheme.js');
-  assert.ok(prePaint.includes("localStorage.getItem('drawingApp_motion')"), 'same key as motionPrefs.js');
+  assert.ok(prePaint.includes("localStorage.getItem('drawingApp_motion')"), 'same key as prefs.js');
   assert.match(prePaint, /root\.setAttribute\('data-motion',/);
   assert.ok(prePaint.includes(`[${MOTION_MODES.map((m) => `'${m}'`).join(', ')}]`), 'the inlined mode list is the module\'s');
   const css = ANIMATIONS_CSS;
@@ -166,12 +166,12 @@ test('the mode reaches the CSS before first paint, and stops what CSS alone driv
 });
 
 test('every switch is in the Visuals modal and on the console facade', () => {
-  const markup = read('../js/ui/visuals/visualsMarkup.js');
+  const markup = read('../js/ui/visuals/markup.js');
   assert.match(markup, /<div class="vs-section">Motion<\/div>/);
   assert.match(markup, /id="vs-draw-anim"/);
   assert.match(markup, /id="vs-modal-backdrop"/);
   assert.match(markup, /id="vs-motion-mode"/);
-  const modal = read('../js/ui/visuals/visualsModal.js');
+  const modal = read('../js/ui/visuals/modal.js');
   // The checkboxes are one table — id ↔ motionPrefs key — read on sync, written on change.
   assert.match(modal, /\['vs-draw-anim', 'drawing'\], \['vs-modal-backdrop', 'backdrop'\]/);
   assert.match(modal, /setMotion\(key, box\.checked\)/);
@@ -186,7 +186,7 @@ test('every switch is in the Visuals modal and on the console facade', () => {
   assert.match(api, /set modalBackdrop\(v\) \{ app\.settings\.setMotion\('backdrop', !!v\); \}/);
   assert.match(api, /set motionMode\(v\) \{ app\.settings\.setMotion\('mode', v\); \}/);
   // Both surfaces come through the ONE setter, which is also what rejects a bad mode.
-  const controller = read('../js/core/settings/settingsController.js');
+  const controller = read('../js/core/settings/controller.js');
   assert.match(controller, /if \(!MOTION_MODES\.includes\(m\)\)\s*\n?\s*throw new Error\(`Unknown motion mode/);
   assert.match(controller, /paintMotionMode\(m\)/);
   // …which is the modal's own control (ui/settingMirrors.js owns the element).

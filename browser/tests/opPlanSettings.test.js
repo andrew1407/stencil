@@ -1,4 +1,4 @@
-// §10 editor-settings ops (js/llm/opPlan.js): theme, accent, lineStyle, units, view,
+// §10 editor-settings ops (js/llm/plan.js): theme, accent, lineStyle, units, view,
 // connect/disconnect shapes, and the §1 leniency that drops a misplaced variant.
 import { test } from 'node:test';
 import assert from 'node:assert';

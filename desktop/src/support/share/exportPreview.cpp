@@ -22,7 +22,7 @@ namespace stencil::support {
 
   namespace {
     constexpr int PREVIEW_MAX = 220;  // px, longest edge of the rendered thumbnail
-    // The preview is sand too (browser js/ui/exportPreview.js), on the shared tip clock.
+    // The preview is sand too (browser js/ui/preview.js), on the shared tip clock.
 
     QWidget* tipWindow() {
       static QWidget* w = nullptr;

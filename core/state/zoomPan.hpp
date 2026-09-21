@@ -2,9 +2,9 @@
 
 namespace stencil::core {
 
-  // Zoom/pan math. Port of browser/js/core/zoom/zoomPan.js (clamp / zoomToward / zoomToRect).
+  // Zoom/pan math. Port of browser/js/core/zoom/pan.js (clamp / zoomToward / zoomToRect).
 
-  // zoomPan.js MIN/MAX/STEP/STEP_FAST.
+  // zoom/pan.js MIN/MAX/STEP/STEP_FAST.
   constexpr double ZOOM_MIN = 0.05;
   constexpr double ZOOM_MAX = 32.0;   // 3200% — headroom to magnify small images/pixels
   constexpr double ZOOM_STEP = 0.1;

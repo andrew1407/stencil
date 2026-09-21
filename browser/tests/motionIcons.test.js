@@ -1,10 +1,10 @@
-// js/ui/motionIcons.js — one glyph per interface-motion mode, and the dropdown that
+// js/ui/icons.js — one glyph per interface-motion mode, and the dropdown that
 // wears them (customSelect.js `icons`): the row shows its glyph before the label, the
 // trigger the current one, and the CSS plays each mode on hover.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } from '../js/ui/motion/motionIcons.js';
+import { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } from '../js/ui/motion/icons.js';
 import { MOTION_MODES } from '../js/ui/motion/motionPrefs.js';
 import { ANIMATIONS_CSS, extensionAnimationsCss } from './helpers/css.js';
 
@@ -52,7 +52,7 @@ test('the CSS plays each mode on hover, in the direction asked for', () => {
 });
 
 test('the Visuals dropdown wears the glyphs; the dropdown puts them before the label and on the trigger', () => {
-  assert.match(read('../js/ui/visuals/visualsModal.js'), /enhanceSelect\(motionMode, \{ icons: motionModeIcon \}\)/);
+  assert.match(read('../js/ui/visuals/modal.js'), /enhanceSelect\(motionMode, \{ icons: motionModeIcon \}\)/);
   const cs = read('../js/ui/control/customSelect.js');
   assert.match(cs, /export function enhanceSelect\(selectEl, \{ search = false, icons = null, preview = null \} = \{\}\)/);
   assert.match(cs, /slot\.className = 'cs-opt-icon';/);

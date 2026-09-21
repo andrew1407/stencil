@@ -1,10 +1,10 @@
-// lib/imageScan.js runs INJECTED in the scanned page and pulls its web-app manifest with
+// lib/scan.js runs INJECTED in the scanned page and pulls its web-app manifest with
 // the page's cookies. The href is page-supplied, so that credentialed fetch may only ever
 // reach the page's OWN origin — lib/urlGuard.js is the guard everywhere else, but an
 // injected function can't import, and same-origin is tighter than its same-host carve-out.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scanPageForImages } from '../src/lib/image/imageScan.js';
+import { scanPageForImages } from '../src/lib/image/scan.js';
 import { installDom, stubDoc } from './helpers/domStub.js';
 
 const scan = async (manifestHref, pageUrl = 'https://shop.example/cart') => {

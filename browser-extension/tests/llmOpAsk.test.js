@@ -1,10 +1,10 @@
-// The §11 `ask` card in the extension profile (src/llm/opPlan.js): an option may NAME an
+// The §11 `ask` card in the extension profile (src/llm/plan.js): an option may NAME an
 // existing image, but a preview the extension would have to RENDER or FETCH is dropped.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   LLM_SYSTEM_PROMPT, askAnswerText, ASK_LIMITS, DEFAULT_CUSTOM_LABEL,
-} from '../src/llm/op/opPlan.js';
+} from '../src/llm/op/plan.js';
 import { parse } from './helpers/opPlanHarness.js';
 
 // §11, extension profile: the extension is not an editor, so an option may NAME an existing image

@@ -20,7 +20,7 @@ namespace stencil::gui {
     return QRect(scroll->viewport()->mapTo(host, QPoint(0, 0)), scroll->viewport()->size());
   }
 
-  // browser motion.js clipDustToScroller
+  // browser surface/motion.js clipDustToScroller
   void clipChatDustToScroller(DisintegrateOverlay* dust, QScrollArea* scroll, QWidget* host) {
     if (dust) dust->setPaintClip(scrollViewportInHost(scroll, host));
   }

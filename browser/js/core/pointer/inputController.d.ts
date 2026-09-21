@@ -1,9 +1,9 @@
 // Hold-to-draw (a near-stationary press auto-enters drawing) plus the seam the touchscreen
-// flow (touchInput.js) drives. The mouse path stays in pointerController.js; all three
+// flow (input.js) drives. The mouse path stays in controller.js; all three
 // share the app's drag-state fields.
 import type { DrawingApp } from '../drawingApp.js';
-import type { PinchSession } from '../touch/touchPinch.js';
-import type { TouchSession } from '../touch/touchDrag.js';
+import type { PinchSession } from '../touch/pinch.js';
+import type { TouchSession } from '../touch/drag.js';
 
 /** An image to draw on, drawing off, no gesture running, and not the rect tool. */
 export declare const holdDrawEligible: (app: DrawingApp | null | undefined) => boolean;
@@ -13,7 +13,7 @@ export declare class InputController {
   constructor(app: DrawingApp);
   /** True while press-and-hold is armed or drawing (mouse or touch). */
   readonly holdEngaged: boolean;
-  /** The live touch gesture; touchInput.js drives it, this class only ends a tap. */
+  /** The live touch gesture; input.js drives it, this class only ends a tap. */
   touchSession: TouchSession | PinchSession | null;
   wireHoldDraw(): void;
   wireTouch(): void;

@@ -42,7 +42,7 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The chat toolbar icon answers every dialog icon's popover gestures (browser chatPanel.js
+  // The chat toolbar icon answers every dialog icon's popover gestures (browser chat/panel.js
   // openCompact): a double-click opens the compact float and re-pins it; a click toggles.
   void chatIconPopoverGesture() {
     MainWindow win(nullptr, false);

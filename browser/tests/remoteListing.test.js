@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 
-import { createRemoteListing, showsRemoteSkeletons } from '../js/core/remote/remoteListing.js';
+import { createRemoteListing, showsRemoteSkeletons } from '../js/core/remote/listing.js';
 
 // The projects modal's server-listing cache — the state machine behind the two shimmer skeleton rows. A wipe
 // that defers a connections-changed invalidate into a stale-fetch race must not latch `loading` true: ensure()

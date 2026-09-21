@@ -98,7 +98,7 @@ namespace stencil::gui {
     set(actToolbars, "chevron-up");   // top-menu (toolbars) show/hide, View menu only
     set(actChat, "sparkle");          // AI Assistant chat dock (browser sparkle parity)
     // Each toggle's hover moves the way the click will (iconMotion.json maximize / minimize;
-    // browser: fullscreenLayer.js).
+    // browser: fullscreen/layer.js).
     set(actFullscreen, fs.active ? "minimize" : "maximize");
     set(actTooltip, "message");
     set(actAllowFormulas, "function");
@@ -123,7 +123,7 @@ namespace stencil::gui {
     set(actScript, "script");
     set(actCopyLayout, "clipboard");
     set(actPasteLayout, "paste");
-    // Always the "Current" glyph, whichever variant they perform (browser: exportOptionsMenu.js
+    // Always the "Current" glyph, whichever variant they perform (browser: export/optionsMenu.js
     // VARIANT_ICONS).
     set(actSaveImage, "download");        // browser save-image glyph (download)
     set(actCopyImage, "copy");

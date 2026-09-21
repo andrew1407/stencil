@@ -173,7 +173,7 @@ namespace stencil::llm {
     }
     if (hasDialog) {
       // §10: a window in front of the user is the LAST thing a turn does — the edits
-      // and the reply land first, then the dialog (browser opPlan.js `deferred`).
+      // and the reply land first, then the dialog (browser row/plan.js `deferred`).
       QString note;
       if (!target.openDialog(dialogLast.current ? QString() : dialogLast.dialog, &note)) {
         res.error = note;

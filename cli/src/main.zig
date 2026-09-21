@@ -101,7 +101,7 @@ test {
     _ = @import("app/brand.zig");
     _ = @import("net/host.zig");
     _ = @import("app/messages.zig");
-    _ = @import("media/mediaTypes.zig");
+    _ = @import("media/types.zig");
     _ = @import("net/fetchPool.zig");
     _ = @import("media/imageRows.zig");
     _ = @import("app/report.zig");

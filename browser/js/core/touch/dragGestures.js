@@ -1,5 +1,5 @@
 // Alt-drag gestures (point / segment / whole-line) over the app's shared drag state, driven
-// by the mouse (pointerController.js) and touch (inputController.js) paths. A click-closed
+// by the mouse (controller.js) and touch (inputController.js) paths. A click-closed
 // shape repeats its first point at the end; "the ring" is the points minus that duplicate.
 // Desktop twin: chainEdit.hpp.
 

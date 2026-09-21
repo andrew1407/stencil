@@ -2,7 +2,7 @@ import { fetchAsDataUrl } from '../../lib/stencil.js';
 import { projectNameColor } from '../../lib/prefs/pins.js';
 import { icon } from '../../lib/icons.js';
 import { setTip } from '../../lib/tip/tip.js';
-import { editableSrc, pinnable } from '../../lib/image/imageModel.js';
+import { editableSrc, pinnable } from '../../lib/image/model.js';
 import { pinTargetMode } from '../../lib/connection/connections.js';
 import { passesFilters } from '../../lib/highlight/filters.js';
 import { rowTitle, thumbInitialSrc, dimText, rowBadges, rowOutlineClass } from '../../lib/rowModel.js';
@@ -12,9 +12,9 @@ import { state, rowKey, rowResource, isPinned, isOpened, isProjectRow } from '..
 import { previewCache, bindPreview } from './preview.js';
 import { resolveSharedThumb } from '../pin/sharedPins.js';
 import { filters, renderCount } from '../list/filters.js';
-import { openMenu, openMenuAt } from './rowMenu.js';
-import { togglePin } from '../pin/pinActions.js';
-import { pinWithPrompt } from '../pin/pinDialog.js';
+import { openMenu, openMenuAt } from './menu.js';
+import { togglePin } from '../pin/actions.js';
+import { pinWithPrompt } from '../pin/dialog.js';
 import { bindRowGestures, bindRowDrag } from '../gestures.js';
 import { bindHoverHighlight } from './hoverHighlight.js';
 

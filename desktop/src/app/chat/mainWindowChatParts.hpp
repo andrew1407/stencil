@@ -142,7 +142,7 @@ namespace stencil::gui {
   inline constexpr const char* TIP_ERROR_COLOR = "#dc3545";
   inline constexpr const char* TIP_CONNECTING_COLOR = "#e0a800";
 
-  // Browser PROBE_TTL_MS (llm/chatSession.js).
+  // Browser PROBE_TTL_MS (llm/session.js).
   inline constexpr qint64 LLM_PROBE_TTL_MS = 15000;
 
   inline QString tipColored(const char* color, const QString& text) {

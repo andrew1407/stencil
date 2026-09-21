@@ -1,7 +1,7 @@
 // ── The §2.1 and §10 op executors ───────────────────────────────
 // The ops that act on the SESSION rather than the pixels: turn attachments, project
 // save/rename/remove, and the §10 editor settings. Same facade paths as the toolbar.
-import { resolveServer } from './planValues.js';
+import { resolveServer } from './values.js';
 
 export const SETTINGS_RUN = Object.freeze({
   // ── §2.1 multi-image ops: switch to a turn attachment / persist the result.

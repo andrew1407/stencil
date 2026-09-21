@@ -128,7 +128,7 @@ test.describe('extension popup + side panel UI', () => {
   });
 
   // The header logo is spring-loaded: hovering it mid-drag opens a menu whose items are each drop
-  // targets (lib/dropEntry.js). Events are dispatched — a native drag can't enter a surface.
+  // targets (lib/entry.js). Events are dispatched — a native drag can't enter a surface.
   test('side panel: dragging page media over the logo springs a 4-item menu you drop onto', async () => {
     test.slow();
     const { host, ui } = await openSurface(SIDEPANEL);
