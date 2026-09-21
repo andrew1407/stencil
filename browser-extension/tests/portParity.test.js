@@ -23,6 +23,9 @@ const MANIFEST = [
   // A written shortcut against a keystroke: pure, so the copy is the whole file.
   ['comboMatch', '../../browser/js/ui/comboMatch.js', '../src/lib/comboMatch.js'],
   ['scrollbarHover', '../../browser/js/ui/scrollbarHover.js', '../src/lib/scrollbarHover.js'],
+  // A thumb's arithmetic and the menu bar it draws: pure, so each copy is the whole file.
+  ['thumbMetrics', '../../browser/js/ui/thumbMetrics.js', '../src/lib/thumbMetrics.js'],
+  ['menuScrollbar', '../../browser/js/ui/menuScrollbar.js', '../src/lib/menuScrollbar.js'],
   // The cloud's two halves: the flight table a grain is posed by, and the shape it wears.
   ['dustFlight', '../../browser/js/ui/dustFlight.js', '../src/lib/dustFlight.js'],
   ['dustGrain', '../../browser/js/ui/dustGrain.js', '../src/lib/dustGrain.js'],
