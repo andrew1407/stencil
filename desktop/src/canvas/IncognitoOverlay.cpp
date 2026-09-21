@@ -39,42 +39,42 @@ namespace stencil::gui {
   }
 
   void IncognitoOverlay::setActive(bool on) {
-    if (active_ == on) return;
-    active_ = on;
+    if (active == on) return;
+    active = on;
     if (on) {
       fitToParent();
       raise();  // stay above the canvas sibling
       show();
     }
-    if (!anim_) {
-      anim_ = new QVariantAnimation(this);
-      anim_->setEasingCurve(QEasingCurve::OutCubic);
-      connect(anim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-        progress_ = v.toDouble();
+    if (!anim) {
+      anim = new QVariantAnimation(this);
+      anim->setEasingCurve(QEasingCurve::OutCubic);
+      connect(anim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+        progress = v.toDouble();
         update();
       });
       // Hide only once the frame has finished retracting.
-      connect(anim_, &QVariantAnimation::finished, this, [this] {
-        if (!active_) hide();
+      connect(anim, &QVariantAnimation::finished, this, [this] {
+        if (!active) hide();
       });
     }
     // Capture the frame's position BEFORE touching the animation: setStartValue/setEndValue emit
-    // valueChanged into progress_, so reading it after them yields the END value (an instant snap).
-    const double from = progress_;
+    // valueChanged into progress, so reading it after them yields the END value (an instant snap).
+    const double from = progress;
     const double to = on ? 1.0 : 0.0;
     const int ms = std::max(1, int(DRAW_MS * std::abs(to - from)));
-    anim_->stop();
-    anim_->setDuration(ms);
-    anim_->setStartValue(from);
-    anim_->setEndValue(to);
-    anim_->start();
+    anim->stop();
+    anim->setDuration(ms);
+    anim->setStartValue(from);
+    anim->setEndValue(to);
+    anim->start();
     update();
   }
 
   void IncognitoOverlay::setTheme(bool dark, const QString& accentKey) {
-    dark_ = dark;
-    accentKey_ = accentKey;
-    if (active_) update();
+    this->dark = dark;
+    this->accentKey = accentKey;
+    if (active) update();
   }
 
   void IncognitoOverlay::fitToParent() {
@@ -84,16 +84,16 @@ namespace stencil::gui {
   bool IncognitoOverlay::eventFilter(QObject* watched, QEvent* event) {
     if (watched == parentWidget() && event->type() == QEvent::Resize) {
       fitToParent();
-      if (active_) { raise(); update(); }
+      if (active) { raise(); update(); }
     }
     return QWidget::eventFilter(watched, event);
   }
 
   void IncognitoOverlay::paintEvent(QPaintEvent*) {
-    if (progress_ <= 0.0) return;
+    if (progress <= 0.0) return;
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
-    const QColor accent = themePalette(dark_, accentKey_).accent;
+    const QColor accent = themePalette(dark, accentKey).accent;
 
     // Browser: 3px dashed outline, outline-offset -3px. Qt strokes centred, so the only inset is
     // PEN_PX/2. The dash pattern rides ON the partial path, so dashes are REVEALED, not stretched.
@@ -103,7 +103,7 @@ namespace stencil::gui {
     pen.setCapStyle(Qt::FlatCap);
     p.setPen(pen);
     p.setBrush(Qt::NoBrush);
-    p.drawPath(framePath(frameBox(QRectF(rect())), progress_));
+    p.drawPath(framePath(frameBox(QRectF(rect())), progress));
   }
 
 }

@@ -68,16 +68,16 @@ namespace stencil::gui {
     // One popover wiring (Alt-peek / dblclick / right-click), shared by the action loop and
     // leading widgets like Open Image.
     const auto wirePopover = [this](QToolButton* btn, QAction* a) {
-      if (!a || !pop_.dialogActions.contains(a)) return;
-      pop_.buttons.insert(btn, a);
+      if (!a || !pop.dialogActions.contains(a)) return;
+      pop.buttons.insert(btn, a);
       btn->installEventFilter(this);
       btn->setContextMenuPolicy(Qt::CustomContextMenu);
       connect(btn, &QToolButton::customContextMenuRequested, this, [this, a, btn] {
         if (!a->isEnabled()) return;   // a disabled icon opens nothing — mini window included
-        if (pop_.clickTimer) pop_.clickTimer->stop();
-        pop_.peekAction.clear();   // a deliberate open is sticky — Alt release keeps it
+        if (pop.clickTimer) pop.clickTimer->stop();
+        pop.peekAction.clear();   // a deliberate open is sticky — Alt release keeps it
         stopLingerPoll();         // a lingering window's poll must not close THIS open
-        pop_.anchor = btn;
+        pop.anchor = btn;
         a->trigger();
       });
     };
@@ -110,8 +110,8 @@ namespace stencil::gui {
         btn->setCursor(a->isEnabled() ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
       });
       btn->setCursor(a->isEnabled() ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
-      if (a == actStartDraw_) {
-        startDrawBtn_ = btn;   // styled accent while a draw session is active
+      if (a == actStartDraw) {
+        startDrawBtn = btn;   // styled accent while a draw session is active
         // The browser's #draw-toggle: label beside the icon (iconText() is the short
         // "Start"/"Stop"). Width pinned later by refreshActions, once icons and padding exist.
         btn->setObjectName("drawFaceBtn");   // theme.cpp: the pair's larger word

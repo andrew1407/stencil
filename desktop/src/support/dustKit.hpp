@@ -67,10 +67,10 @@ namespace stencil::support {
     static constexpr int STEPS = 256;
     EaseLut(double x1, double y1, double x2, double y2);
     double at(double t) const {
-      return curve_[std::clamp(int(std::lround(t * STEPS)), 0, STEPS)];
+      return curve[std::clamp(int(std::lround(t * STEPS)), 0, STEPS)];
     }
    private:
-    std::array<double, STEPS + 1> curve_{};
+    std::array<double, STEPS + 1> curve{};
   };
 
   // Grain shapes (browser dustCloud.js grainShape / shapePolygon / addGrainPath), each
@@ -104,7 +104,7 @@ namespace stencil::support {
     void draw(QPainter& p, const QPointF& at, double radius, const QColor& colour,
               GrainShape shape = GrainShape::DISC, double a = 0.0);
 
-    int cached() const { return int(cache_.size()); }
+    int cached() const { return int(cache.size()); }
 
    private:
     static quint32 colourKey(const QColor& c);
@@ -114,8 +114,8 @@ namespace stencil::support {
 
     QImage build(double radius, int px, int py, const QColor& colour, GrainShape shape, double a) const;
 
-    QHash<quint32, QImage> cache_;
-    double dpr_ = 0;
+    QHash<quint32, QImage> cache;
+    double dpr = 0;
   };
 
   int frameIntervalMs(const QWidget* w);

@@ -36,7 +36,7 @@ inline void pumpFor(int ms) {
   while (t.elapsed() < ms) QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
 }
 
-// Poll `ready` instead of sleeping a fixed span (the QTRY_* idea, usable outside QtTest).
+// Poll `ready` instead of sleeping a fixed span (the QTRY* idea, usable outside QtTest).
 inline bool waitUntil(const std::function<bool()>& ready, int timeoutMs = 4000) {
   QElapsedTimer t;
   t.start();

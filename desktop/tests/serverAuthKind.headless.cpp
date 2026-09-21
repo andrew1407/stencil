@@ -80,7 +80,7 @@ namespace serverauth {
                         ServerClient::CredentialKind::ADMIN),
           "a RESTORED admin credential connects");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->isAdmin() && cl->token() == QStringLiteral("sess-h"),
+    check(cl && cl->isAdmin() && cl->getToken() == QStringLiteral("sess-h"),
           "…minting its session at once");
     check(mock.requests == before + 1,
           "…in ONE request: a known admin credential never probes /projects");

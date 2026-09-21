@@ -41,16 +41,16 @@ namespace stencil::gui {
     void leaveSoon();
     bool hoveredAnywhere() const;
 
-    QToolButton* logo_;
-    std::function<QPixmap()> makePixmap_;
-    std::function<QColor()> accent_;
-    QVariantAnimation* pulse_ = nullptr;
-    QVariantAnimation* spin_ = nullptr;
-    QPointer<QWidget> box_;           // the open accent popover's in-window box, if any
-    QTimer* grace_ = nullptr;         // deferred stop across the logo → popover crossing
-    QPixmap pm_;      // the mark at the CURRENT accent (cached per hover / theme change)
-    qreal beat_ = 0.0;
-    qreal angle_ = 0.0;
+    QToolButton* logo;
+    std::function<QPixmap()> makePixmap;
+    std::function<QColor()> accent;
+    QVariantAnimation* pulse = nullptr;
+    QVariantAnimation* spin = nullptr;
+    QPointer<QWidget> box;           // the open accent popover's in-window box, if any
+    QTimer* grace = nullptr;         // deferred stop across the logo → popover crossing
+    QPixmap pm;      // the mark at the CURRENT accent (cached per hover / theme change)
+    qreal beat = 0.0;
+    qreal angle = 0.0;
   };
 
   inline LogoHoverFx* asLogoFx(QWidget* w) { return static_cast<LogoHoverFx*>(w); }

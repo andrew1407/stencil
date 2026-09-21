@@ -68,8 +68,8 @@ namespace stencil::gui {
     }
     const llm::OpPlan& plan = parsed.plan;
     const bool hasWork = !plan.actions.isEmpty() || !plan.variants.isEmpty();
-    const bool adoptAttachment = hasWork && !canvas_->hasImage() &&
-                                 !chatTurnAttachments_.isEmpty() &&
+    const bool adoptAttachment = hasWork && !canvas->hasImage() &&
+                                 !chatTurnAttachments.isEmpty() &&
                                  llm::planTouchesTheImage(plan);
     postChatReplyBubble(plan, hasWork, adoptAttachment);
     const auto finishedText = [](int images, const QString& replyText) {
@@ -82,19 +82,19 @@ namespace stencil::gui {
     // A no-op turn still falls through to the §11 ask card. An EDITING plan on an empty canvas adopts the attachment as the working image (§7).
     if (adoptAttachment) {
       // The same entry the .stencil / server paths use; an empty layout means "just the picture".
-      loadImageWithLayout(chatTurnAttachments_.first(), QJsonObject());
+      loadImageWithLayout(chatTurnAttachments.first(), QJsonObject());
       playImageArrival();   // it lands on the canvas like any other fresh image
     }
     ChatPlanTarget target(*this);
     llm::ExecResult res;
     if (hasWork) {
       // §2.1: with exactly one attachment an unnamed `save` names itself after it; with several, only an `image` op decides.
-      chatActiveAttachment_ = chatTurnAttachments_.size() == 1 ? 1 : 0;
+      chatActiveAttachment = chatTurnAttachments.size() == 1 ? 1 : 0;
       res = llm::executePlan(plan, target);
       // Skipped actions (§2.1) are reported, never silent.
       for (const QString& n : res.notes) {
-        if (chatReplyHeld_) {  // held turn: ride inside the eventual (one) bubble
-          chatHeldNotes_ << n;
+        if (chatReplyHeld) {  // held turn: ride inside the eventual (one) bubble
+          chatHeldNotes << n;
           continue;
         }
         chatLateNote(n);
@@ -130,15 +130,15 @@ namespace stencil::gui {
   // The two ways a turn ends before a plan. True when the turn is over. Kinds mirror browser describeChatError.
   bool MainWindow::settleFailedChatReply(const llm::LlmReply& reply, bool toastWanted) {
     // User-aborted: the pending card becomes "Stopped." — no error card, no history push, no toast.
-    if (chatStopRequested_) {
-      chatStopRequested_ = false;
+    if (chatStopRequested) {
+      chatStopRequested = false;
       flushHeldChatReply();  // a stopped continuation must not swallow round 1's reply
-      chatDock_->markPendingStopped(chatLastPrompt_);
-      chatMirrorStopped(chatLastPrompt_);
+      chatDock->markPendingStopped(chatLastPrompt);
+      chatMirrorStopped(chatLastPrompt);
       chatTurnSettled();  // a stopped turn is over — a deferred clear still runs
       return true;
     }
-    chatDock_->clearPending();
+    chatDock->clearPending();
     chatMirrorPending(false);
     if (!reply.ok) {
       flushHeldChatReply();  // a failed continuation must not swallow round 1's reply
@@ -159,8 +159,8 @@ namespace stencil::gui {
           break;
         case llm::LlmFailure::EXPIRED: {
           // A refused SESSION, not a broken assistant: say which server and give the way back in.
-          const QString retryText = lastUserTurn(chatHistory_);
-          chatDock_->appendExpiredSession(reply.error, reply.expiredHost, retryText);
+          const QString retryText = lastUserTurn(chatHistory);
+          chatDock->appendExpiredSession(reply.error, reply.expiredHost, retryText);
           chatMirror(QStringLiteral("Error"), reply.error, true, retryText);
           break;
         }

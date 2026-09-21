@@ -23,7 +23,7 @@ namespace stencil::support {
    protected:
     // Leaving or hiding a level clears its "already swept" mark, so re-entering sweeps again.
     bool eventFilter(QObject* o, QEvent* e) override {
-      if (e->type() == QEvent::Leave || e->type() == QEvent::Hide) current_.remove(o);
+      if (e->type() == QEvent::Leave || e->type() == QEvent::Hide) current.remove(o);
       return QObject::eventFilter(o, e);
     }
 
@@ -34,7 +34,7 @@ namespace stencil::support {
       menu->installEventFilter(this);
       connect(menu, &QMenu::hovered, this, [this, overlay, menu](QAction* a) {
         // hovered(QAction*) re-fires for the row ALREADY being swept; only a new row restarts.
-        QPointer<QAction>& cur = current_[menu];
+        QPointer<QAction>& cur = current[menu];
         if (a == cur) return;
         cur = a;
         const QRect band = menu->actionGeometry(a);
@@ -46,7 +46,7 @@ namespace stencil::support {
       }
     }
 
-    QHash<QObject*, QPointer<QAction>> current_;   // hovered row, per menu level
+    QHash<QObject*, QPointer<QAction>> current;   // hovered row, per menu level
   };
 
 }  // namespace stencil::support

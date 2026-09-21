@@ -28,7 +28,7 @@ namespace stencil::llm {
       msgs.append(o);
     }
     const QJsonObject body{{"model", cfg.model}, {"stream", false}, {"messages", msgs}};
-    transport_->postJson(
+    transport->postJson(
         QUrl(trimSlash(cfg.baseUrl) + QStringLiteral("/api/chat")), {},
         QJsonDocument(body).toJson(QJsonDocument::Compact),
         textReplyHandler(
@@ -65,7 +65,7 @@ namespace stencil::llm {
     if (!cfg.apiKey.isEmpty())
       headers.append({QByteArrayLiteral("Authorization"),
                       QByteArrayLiteral("Bearer ") + cfg.apiKey.toUtf8()});
-    transport_->postJson(
+    transport->postJson(
         QUrl(trimSlash(cfg.baseUrl) + QStringLiteral("/chat/completions")), headers,
         QJsonDocument(body).toJson(QJsonDocument::Compact),
         textReplyHandler(
@@ -86,7 +86,7 @@ namespace stencil::llm {
       done(failReply(LlmFailure::HTTP, QStringLiteral("no collaboration server configured")));
       return;
     }
-    const QString token = tokenResolver_(cfg.serverUrl);
+    const QString token = tokenResolver(cfg.serverUrl);
     if (token.isEmpty()) {
       done(failReply(LlmFailure::HTTP,
                      QStringLiteral("not connected to %1 (no token)").arg(base)));
@@ -107,7 +107,7 @@ namespace stencil::llm {
       msgs.append(o);
     }
     const QJsonObject body{{"system", system}, {"messages", msgs}, {"model", cfg.model}};
-    transport_->postJson(
+    transport->postJson(
         QUrl(base + QStringLiteral("/llm/chat")),
         {{QByteArrayLiteral("Authorization"), QByteArrayLiteral("Bearer ") + token.toUtf8()}},
         QJsonDocument(body).toJson(QJsonDocument::Compact),

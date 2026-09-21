@@ -21,7 +21,7 @@ class MainWindowGuiTest : public QObject {
     bool sawAssistantWhenOff = true, sawNormalAction = false, doubleSeparator = false;
     bool styleOpenedOff = false, filterOpenedOff = false;
     int separatorsOff = 0;
-    win.settings_.llmProvider = "none";
+    win.settings.llmProvider = "none";
     QTimer::singleShot(0, [&] {
       QMenu* menu = findMenu();
       if (!menu) return;
@@ -43,13 +43,13 @@ class MainWindowGuiTest : public QObject {
     win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
     QVERIFY2(!sawAssistantWhenOff, "the Assistant entry showed with the assistant off");
     QVERIFY2(sawNormalAction, "the rest of the context menu went missing");
-    QVERIFY2(!win.chatMenuAction_, "the chat panel was built despite provider=none");
+    QVERIFY2(!win.chatMenuAction, "the chat panel was built despite provider=none");
     QVERIFY2(styleOpenedOff && filterOpenedOff, "submenus did not open (assistant off)");
     QVERIFY2(!doubleSeparator, "the hidden Assistant entry left a dangling separator");
 
     // ── assistant ON ──
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     // A mock transport answers synchronously with a canned op-plan, so nothing
     // touches the network (the same seam LlmClient.headless.cpp uses).
     MockChatTransport mock;
@@ -61,7 +61,7 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Sepia applied\","
                       "\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     bool styleOpened = false, filterOpened = false, assistantOpened = false;
     bool tooltipByKey = false, assistantBeforeDrawing = false;
@@ -124,7 +124,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(separatorsOn, separatorsOff);
     QCOMPARE(dustClocks, QList<int>(2, stencil::support::CONTEXT_MENU_DUST_MS));
 
-    win.llmClient_.reset();  // drop the mock before it goes out of scope
+    win.llmClient.reset();  // drop the mock before it goes out of scope
     beat();
   }
 };

@@ -30,11 +30,11 @@ namespace stencil::gui {
     const QColor muted = palette().color(QPalette::PlaceholderText);
 
     ModalChrome chrome = installModalChrome(this, "gear", tr("Keyboard Shortcuts"));
-    search_ = addModalSearchBar(chrome, tr("Search shortcuts…"));
-    search_->setToolTip("Filter the shortcut list by name");
+    search = addModalSearchBar(chrome, tr("Search shortcuts…"));
+    search->setToolTip("Filter the shortcut list by name");
     // The head takes the body's top padding (#settings-modal .settings-body padding-top: 0).
     ModalScrollBody body = makeModalScrollBody(chrome, /*topPad=*/0);
-    scroll_ = body.scroll;
+    scroll = body.scroll;
 
     // Column geometry shared by the head and every row.
     const auto tableRow = [](QWidget* parent) {
@@ -50,13 +50,13 @@ namespace stencil::gui {
     QList<QWidget*> comboCol, defaultCol;   // every widget in each keycap column
 
     // The table head, pinned ABOVE the scrolling rows (the browser's sticky <thead>).
-    head_ = new QWidget(this);
-    head_->setObjectName(QStringLiteral("hotkeyHead"));
-    head_->setAttribute(Qt::WA_StyledBackground, true);
+    head = new QWidget(this);
+    head->setObjectName(QStringLiteral("hotkeyHead"));
+    head->setAttribute(Qt::WA_StyledBackground, true);
     {
-      auto* h = tableRow(head_);
+      auto* h = tableRow(head);
       const auto th = [this](const QString& text, bool centred = false) {
-        auto* l = new QLabel(text, head_);
+        auto* l = new QLabel(text, head);
         l->setObjectName(QStringLiteral("hotkeyTh"));
         if (centred) l->setAlignment(Qt::AlignCenter);
         return l;
@@ -66,15 +66,15 @@ namespace stencil::gui {
       defaultCol << fixedCol(th(tr("Default"), true), DEFAULT_COL_W);
       h->addWidget(comboCol.last());
       h->addWidget(defaultCol.last());
-      h->addWidget(fixedCol(new QWidget(head_), RESET_COL_W));
+      h->addWidget(fixedCol(new QWidget(head), RESET_COL_W));
     }
-    headWrap_ = new QHBoxLayout;
-    headWrap_->setContentsMargins(SIDE_PAD, 0, SIDE_PAD, 0);
-    headWrap_->addWidget(head_);
-    chrome.body->insertLayout(0, headWrap_);
+    headWrap = new QHBoxLayout;
+    headWrap->setContentsMargins(SIDE_PAD, 0, SIDE_PAD, 0);
+    headWrap->addWidget(head);
+    chrome.body->insertLayout(0, headWrap);
     // The scrollbar narrows the rows but not the head: watch the VIEWPORT (it resizes
     // whenever the bar comes or goes) and pad the head to match.
-    scroll_->viewport()->installEventFilter(this);
+    scroll->viewport()->installEventFilter(this);
 
     int idx = 0;
     for (const auto& e : entries) {
@@ -126,13 +126,13 @@ namespace stencil::gui {
 
       body.layout->addWidget(row);
       installHoverShimmer(row);   // the app-wide glass sweep, as on a list row
-      rows_.push_back({e.id, portable(QKeySequence(e.defaultSeq)), labelText,
+      rows.push_back({e.id, portable(QKeySequence(e.defaultSeq)), labelText,
                        portable(QKeySequence(e.currentSeq)), row, cell, reset});
-      reset->setVisible(rows_.last().lastSeq != rows_.last().defaultSeq);
+      reset->setVisible(rows.last().lastSeq != rows.last().defaultSeq);
 
       cell->onCaptured = [this, idx](const QString& seq) { captured(idx, seq); };
       connect(reset, &QToolButton::clicked, this, [this, idx] {
-        setRowSeq(rows_[idx], rows_[idx].defaultSeq, /*formed=*/true);
+        setRowSeq(rows[idx], rows[idx].defaultSeq, /*formed=*/true);
         emit overridesChanged();
       });
       ++idx;
@@ -150,11 +150,11 @@ namespace stencil::gui {
     // Wide enough for the two keycap columns and a readable Action column.
     const int needW = 2 * SIDE_PAD + 2 * CELL_PAD_X + 3 * (2 * CELL_PAD_X) + RESET_COL_W +
                       comboW + defaultW + ACTION_MIN_W;
-    dialogW_ = qMax(SHORTCUTS_WIDTH, needW);
+    dialogW = qMax(SHORTCUTS_WIDTH, needW);
 
-    empty_ = modalEmptyLabel(tr("No matching shortcuts."), body.content);
-    empty_->hide();
-    body.layout->addWidget(empty_);
+    empty = modalEmptyLabel(tr("No matching shortcuts."), body.content);
+    empty->hide();
+    body.layout->addWidget(empty);
     body.layout->addStretch(1);
 
     // Footer (browser .settings-footer): the how-to hint beside Reset All.
@@ -166,15 +166,15 @@ namespace stencil::gui {
     connect(resetAll, &QPushButton::clicked, this, &ShortcutsDialog::resetAll);
     footer->addWidget(resetAll);
 
-    connect(search_, &QLineEdit::textChanged, this,
+    connect(search, &QLineEdit::textChanged, this,
             [this](const QString& q) { applyFilter(q); });
-    sizeModalTall(this, dialogW_);
+    sizeModalTall(this, dialogW);
     // …and the caret lands in the search box, as the browser window does (InfoDialog parity).
-    QTimer::singleShot(0, search_, [s = search_] { s->setFocus(); });
+    QTimer::singleShot(0, search, [s = search] { s->setFocus(); });
   }
 
   bool ShortcutsDialog::eventFilter(QObject* watched, QEvent* event) {
-    if (watched == scroll_->viewport() && event->type() == QEvent::Resize) {
+    if (watched == scroll->viewport() && event->type() == QEvent::Resize) {
       reserveHeadGutter();
       return false;
     }
@@ -184,10 +184,10 @@ namespace stencil::gui {
   // Pad the pinned head by the vertical scrollbar's slot so its columns line up with the scrolling
   // rows. SYNCHRONOUSLY off the bar's own extent: the viewport-vs-scrollarea delta lags mid-layout.
   void ShortcutsDialog::reserveHeadGutter() {
-    QScrollBar* vbar = scroll_->verticalScrollBar();
+    QScrollBar* vbar = scroll->verticalScrollBar();
     const bool needed = vbar->maximum() > vbar->minimum();
     const int bar = needed ? vbar->sizeHint().width() : 0;
-    headWrap_->setContentsMargins(SIDE_PAD, 0, SIDE_PAD + bar, 0);
+    headWrap->setContentsMargins(SIDE_PAD, 0, SIDE_PAD + bar, 0);
   }
 
   // A combo in the tooltips' keycaps (NativeText, so macOS draws ⌥⇧⌘ as glyphs), or

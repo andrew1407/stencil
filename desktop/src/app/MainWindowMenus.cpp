@@ -16,61 +16,61 @@ namespace stencil::gui {
   // Native = the platform's own bar (macOS, Unity/GNOME appmenu). The opt-out exists because Qt's export leaves
   // an EMPTY in-window bar on some GNOME setups; Windows ignores the flag.
   void MainWindow::applyMenuBarPlacement() {
-    menuBar()->setNativeMenuBar(settings_.nativeMenuBar);
+    menuBar()->setNativeMenuBar(settings.nativeMenuBar);
   }
 
   void MainWindow::buildMenus() {
     applyMenuBarPlacement();
     // Mnemonics avoid the Alt+letter hotkeys (Alt+F fullscreen, Alt+P points, Alt+L lines, …).
     auto* file = menuBar()->addMenu("F&ile");
-    file->addAction(actOpen_);
-    file->addAction(actCrop_);
-    file->addAction(actRotateLeft_);
-    file->addAction(actRotateRight_);
-    file->addAction(actSaveSession_);
+    file->addAction(actOpen);
+    file->addAction(actCrop);
+    file->addAction(actRotateLeft);
+    file->addAction(actRotateRight);
+    file->addAction(actSaveSession);
     file->addSeparator();
-    file->addAction(actQuit_);
+    file->addAction(actQuit);
     support::revealMenuBarMenu(*file, *menuBar());
 
     auto* edit = menuBar()->addMenu("&Edit");
-    edit->addAction(actStartDraw_);
-    edit->addAction(actStopDraw_);
+    edit->addAction(actStartDraw);
+    edit->addAction(actStopDraw);
     // Instant line/rect sit beside Start/Stop, as the browser's Draw section pairs them. A plain QAction can be shared
     // across menus; the Image Filter rows below cannot (QWidgetActions).
-    edit->addAction(actDrawLineNow_);
-    edit->addAction(actDrawRectNow_);
-    // Same exclusive lineStyleGroup_ as the context menu's copy, so the two stay in sync.
+    edit->addAction(actDrawLineNow);
+    edit->addAction(actDrawRectNow);
+    // Same exclusive lineStyleGroup as the context menu's copy, so the two stay in sync.
     auto* lineStyle = edit->addMenu("Line St&yle");
-    lineStyle->addAction(actStyleSolid_);
-    lineStyle->addAction(actStyleDashed_);
-    lineStyle->addAction(actStyleDotted_);
+    lineStyle->addAction(actStyleSolid);
+    lineStyle->addAction(actStyleDashed);
+    lineStyle->addAction(actStyleDotted);
     support::revealSubmenu(*lineStyle, *edit, *lineStyle->menuAction());
     edit->addSeparator();
-    edit->addAction(actUndo_);
-    edit->addAction(actRedo_);
+    edit->addAction(actUndo);
+    edit->addAction(actRedo);
     edit->addSeparator();
-    edit->addAction(actNewLine_);
-    edit->addAction(actDeleteLast_);
-    edit->addAction(actDeleteLine_);
-    edit->addAction(actDeletePoint_);
-    edit->addAction(actClearAll_);
-    edit->addAction(actDeselect_);
+    edit->addAction(actNewLine);
+    edit->addAction(actDeleteLast);
+    edit->addAction(actDeleteLine);
+    edit->addAction(actDeletePoint);
+    edit->addAction(actClearAll);
+    edit->addAction(actDeselect);
     support::revealMenuBarMenu(*edit, *menuBar());
 
     // Data menu (browser toolbar.js Image/Layout cluster).
     auto* data = menuBar()->addMenu("&Data");
-    data->addAction(actScript_);
+    data->addAction(actScript);
     data->addSeparator();
-    data->addAction(actDownloadJson_);
-    data->addAction(actUploadJson_);
+    data->addAction(actDownloadJson);
+    data->addAction(actUploadJson);
     data->addSeparator();
-    data->addAction(actOpenProjectFile_);
-    data->addAction(actSaveProjectFile_);
-    data->addAction(actStencilLiveSync_);
-    data->addAction(actDeleteProjectFile_);
+    data->addAction(actOpenProjectFile);
+    data->addAction(actSaveProjectFile);
+    data->addAction(actStencilLiveSync);
+    data->addAction(actDeleteProjectFile);
     data->addSeparator();
-    data->addAction(actCopyLayout_);
-    data->addAction(actPasteLayout_);
+    data->addAction(actCopyLayout);
+    data->addAction(actPasteLayout);
     data->addSeparator();
     // Same variant actions as the context menu and the toolbar options popups.
     QMenu* copyImgMenu = data->addMenu("Copy Image");
@@ -81,26 +81,26 @@ namespace stencil::gui {
     for (QMenu* m : {copyImgMenu, dlImgMenu}) support::wireMenuRowPolish(m, this, /*compact=*/true);
     support::revealSubmenu(*copyImgMenu, *data, *copyImgMenu->menuAction());
     support::revealSubmenu(*dlImgMenu, *data, *dlImgMenu->menuAction());
-    data->addAction(actPasteImage_);
+    data->addAction(actPasteImage);
     support::revealMenuBarMenu(*data, *menuBar());
 
     auto* view = menuBar()->addMenu("&View");
-    view->addAction(actZoomIn_);
-    view->addAction(actZoomOut_);
-    view->addAction(actFit_);
+    view->addAction(actZoomIn);
+    view->addAction(actZoomOut);
+    view->addAction(actFit);
     view->addSeparator();
-    view->addAction(actShowPoints_);
-    view->addAction(actShowLines_);
+    view->addAction(actShowPoints);
+    view->addAction(actShowLines);
     // The context menu's radio submenu is QWidgetActions, which cannot appear in a second menu, so the menu bar gets the plain cycle action (Alt+B).
-    view->addAction(actCycleFilter_);
+    view->addAction(actCycleFilter);
     auto* compareMenu = view->addMenu("&Compare");
-    compareGroup_ = new QActionGroup(this);
+    compareGroup = new QActionGroup(this);
     auto mkCompare = [&](const QString& text, const QString& value) {
       auto* a = compareMenu->addAction(text);
       a->setCheckable(true);
       a->setData(value);
       a->setChecked(value == "none");
-      compareGroup_->addAction(a);
+      compareGroup->addAction(a);
       connect(a, &QAction::triggered, this, [this, value] { setCompareModeUi(value); });
     };
     mkCompare("None", "none");
@@ -108,50 +108,50 @@ namespace stencil::gui {
     mkCompare("Vertical split (original | edit)", "vertical");
     mkCompare("Horizontal split (original / edit)", "horizontal");
     compareMenu->addSeparator();
-    compareMenu->addAction(actCycleCompare_);
+    compareMenu->addAction(actCycleCompare);
     support::revealSubmenu(*compareMenu, *view, *compareMenu->menuAction());
-    view->addAction(actPanel_);
-    view->addAction(actChat_);
-    view->addAction(actAssistantSettings_);
-    view->addAction(actToolbars_);
-    view->addAction(actTooltip_);
-    view->addAction(actAllowFormulas_);
+    view->addAction(actPanel);
+    view->addAction(actChat);
+    view->addAction(actAssistantSettings);
+    view->addAction(actToolbars);
+    view->addAction(actTooltip);
+    view->addAction(actAllowFormulas);
     auto* units = view->addMenu("&Units");
-    units->addAction(units_.unitCm);
-    units->addAction(units_.unitIn);
+    units->addAction(this->units.unitCm);
+    units->addAction(this->units.unitIn);
     support::revealSubmenu(*units, *view, *units->menuAction());
     view->addSeparator();
-    view->addAction(actTheme_);
-    view->addAction(actFullscreen_);
+    view->addAction(actTheme);
+    view->addAction(actFullscreen);
     view->addSeparator();
-    view->addAction(actIncognito_);
-    view->addAction(actSettings_);
+    view->addAction(actIncognito);
+    view->addAction(actSettings);
     support::revealMenuBarMenu(*view, *menuBar());
 
     auto* project = menuBar()->addMenu("P&roject");
-    project->addAction(actProjects_);
-    project->addAction(actConnect_);
-    project->addAction(actNewProject_);
-    project->addAction(actSaveProject_);
-    project->addAction(actClearProject_);
+    project->addAction(actProjects);
+    project->addAction(actConnect);
+    project->addAction(actNewProject);
+    project->addAction(actSaveProject);
+    project->addAction(actClearProject);
     project->addSeparator();
-    project->addAction(actRenameProject_);
+    project->addAction(actRenameProject);
     // Per-project name colour; enabled only with an active project (updateProjectTitle).
-    actProjectColor_ = project->addAction("Project &color…", this, [this] { chooseProjectColor(); });
-    actProjectColorClear_ =
+    actProjectColor = project->addAction("Project &color…", this, [this] { chooseProjectColor(); });
+    actProjectColorClear =
         project->addAction("Use theme &default color", this, [this] { setActiveProjectColor(QString()); });
-    actProjectColor_->setEnabled(false);
-    actProjectColorClear_->setEnabled(false);
+    actProjectColor->setEnabled(false);
+    actProjectColorClear->setEnabled(false);
     project->addSeparator();
-    project->addAction(actDescription_);
-    project->addAction(actKeywords_);
-    project->addAction(actLinks_);
-    project->addAction(actOpenIn_);
+    project->addAction(actDescription);
+    project->addAction(actKeywords);
+    project->addAction(actLinks);
+    project->addAction(actOpenIn);
     support::revealMenuBarMenu(*project, *menuBar());
 
     auto* help = menuBar()->addMenu("&Help");
-    help->addAction(actInfo_);
-    help->addAction(actShortcuts_);
+    help->addAction(actInfo);
+    help->addAction(actShortcuts);
     support::revealMenuBarMenu(*help, *menuBar());
 
     // Remember WHICH ROW a menu command came from, so its dialog grows out of that row when the toolbar icon is hidden.
@@ -159,12 +159,12 @@ namespace stencil::gui {
     for (QMenu* m : menuBar()->findChildren<QMenu*>()) {
       connect(m, &QMenu::hovered, this, [this, m](QAction* a) {
         const QRect r = m->actionGeometry(a);
-        pop_.menuRowAction = a;
-        pop_.menuRowRect = r.isValid() ? QRect(m->mapToGlobal(r.topLeft()), r.size()) : QRect();
+        pop.menuRowAction = a;
+        pop.menuRowRect = r.isValid() ? QRect(m->mapToGlobal(r.topLeft()), r.size()) : QRect();
       });
       // Drop it once the menu is gone, or a hovered row keeps claiming to be the origin; deferred because triggered() lands AFTER the hide.
       connect(m, &QMenu::aboutToHide, this, [this] {
-        QTimer::singleShot(0, this, [this] { pop_.menuRowAction = nullptr; pop_.menuRowRect = QRect(); });
+        QTimer::singleShot(0, this, [this] { pop.menuRowAction = nullptr; pop.menuRowRect = QRect(); });
       });
     }
   }

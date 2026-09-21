@@ -16,18 +16,18 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 300);
-    win.actToolbars_->setChecked(false);   // collapsed: the header is all there is
+    win.actToolbars->setChecked(false);   // collapsed: the header is all there is
     settleLayout(&win, 400);
-    QToolBar* hdr = win.headerToolbar_;
+    QToolBar* hdr = win.headerToolbar;
     QVERIFY(hdr);
     const int before = hdr->height();
-    win.nameBar_.hover = true;
+    win.nameBar.hover = true;
     win.refreshProjectNameButtons();
     QTest::qWait(200);
     QCOMPARE(hdr->height(), before);
     // …and the same going into edit mode, where ✓/✗ take their place.
-    win.nameBar_.field->setEnabled(true);
-    QTest::mouseClick(win.nameBar_.edit, Qt::LeftButton);
+    win.nameBar.field->setEnabled(true);
+    QTest::mouseClick(win.nameBar.edit, Qt::LeftButton);
     QTest::qWait(200);
     QCOMPARE(hdr->height(), before);
   }
@@ -42,7 +42,7 @@ class MainWindowGuiTest : public QObject {
 
     int checked = 0;
     for (QComboBox* c : win.findChildren<QComboBox*>()) {
-      if (c == win.zoom_) { QVERIFY2(c->isEditable(), "zoom is the editable exception"); continue; }
+      if (c == win.zoom) { QVERIFY2(c->isEditable(), "zoom is the editable exception"); continue; }
       // dynamic_cast, not qobject_cast: SearchComboBox is deliberately MOC-free.
       QVERIFY2(dynamic_cast<stencil::gui::SearchComboBox*>(c),
                qPrintable(QString("%1 still opens the platform popup").arg(c->objectName())));
@@ -52,8 +52,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(checked >= 4, "no toolbar selectors were found to check");
 
     // …and opening one really puts OUR popup on screen, with the rows in it.
-    QVERIFY(win.lineStyle_);
-    win.lineStyle_->showPopup();
+    QVERIFY(win.lineStyle);
+    win.lineStyle->showPopup();
     QTRY_VERIFY(QApplication::activePopupWidget());
     QWidget* popup = nullptr;
     for (QWidget* w : QApplication::topLevelWidgets())
@@ -61,19 +61,19 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(popup, "the themed popup never appeared");
     auto* list = popup->findChild<QListView*>("searchComboList");
     QVERIFY(list);
-    QCOMPARE(list->model()->rowCount(), win.lineStyle_->count());
+    QCOMPARE(list->model()->rowCount(), win.lineStyle->count());
     // A short list carries no search box — three rows need no filter.
     QVERIFY2(!popup->findChild<QLineEdit*>("searchComboSearch"), "a 3-row list grew a search box");
-    win.lineStyle_->hidePopup();
+    win.lineStyle->hidePopup();
     // The long ISO page list keeps its search box, which is what it was built for.
-    win.units_.pageSize->showPopup();
+    win.units.pageSize->showPopup();
     QTRY_VERIFY(QApplication::activePopupWidget());
     QWidget* pagePopup = nullptr;
     for (QWidget* w : QApplication::topLevelWidgets())
       if (w->isVisible() && w->findChild<QWidget*>("searchComboPopup")) pagePopup = w;
     QVERIFY(pagePopup);
     QVERIFY2(pagePopup->findChild<QLineEdit*>("searchComboSearch"), "page formats lost their search");
-    win.units_.pageSize->hidePopup();
+    win.units.pageSize->hidePopup();
   }
 
   // The window opens at the size it asked for: the wrapping tool run (support/WrapRow.hpp) hints its

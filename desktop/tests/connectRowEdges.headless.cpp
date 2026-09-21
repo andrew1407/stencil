@@ -36,8 +36,8 @@ namespace connectrow {
             dynamic_cast<DissolveEffect*>(tl->itemWidget(tl->item(whole))->graphicsEffect());
         auto* cutFx =
             dynamic_cast<DissolveEffect*>(tl->itemWidget(tl->item(cut))->graphicsEffect());
-        check(!wholeFx || wholeFx->dissolve() <= 0.0, "a fully visible row is not dissolved");
-        check(cutFx && cutFx->dissolve() > 0.0, "…while the clipped row fades at the edge");
+        check(!wholeFx || wholeFx->getDissolve() <= 0.0, "a fully visible row is not dissolved");
+        check(cutFx && cutFx->getDissolve() > 0.0, "…while the clipped row fades at the edge");
       }
     }
 

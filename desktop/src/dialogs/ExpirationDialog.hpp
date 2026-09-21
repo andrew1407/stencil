@@ -39,23 +39,23 @@ namespace stencil::gui {
     void renderCalendar();
     void renderAll() { renderControls(); renderCalendar(); }
 
-    long long nowMs_ = 0;
-    long long expiresAt_ = 0;           // working value (0 = keep forever)
-    int viewY_ = 0;                     // the month the grid is showing
-    int viewM_ = 0;
+    long long nowMs = 0;
+    long long expiresAt = 0;           // working value (0 = keep forever)
+    int viewY = 0;                     // the month the grid is showing
+    int viewM = 0;
 
-    QCheckBox* keepBox_ = nullptr;
-    QWidget* periodRow_ = nullptr;
-    QComboBox* period_ = nullptr;
-    QPushButton* refresh_ = nullptr;
+    QCheckBox* keepBox = nullptr;
+    QWidget* periodRow = nullptr;
+    QComboBox* period = nullptr;
+    QPushButton* refresh = nullptr;
     QCheckBox* auto_ = nullptr;
-    QFrame* calendar_ = nullptr;
-    QLabel* calTitle_ = nullptr;
-    QGridLayout* calGrid_ = nullptr;
-    QToolButton* prev_ = nullptr;
-    QToolButton* next_ = nullptr;
-    QLabel* today_ = nullptr;
-    QLabel* when_ = nullptr;
+    QFrame* calendar = nullptr;
+    QLabel* calTitle = nullptr;
+    QGridLayout* calGrid = nullptr;
+    QToolButton* prev = nullptr;
+    QToolButton* next = nullptr;
+    QLabel* today = nullptr;
+    QLabel* when = nullptr;
   };
 
 }

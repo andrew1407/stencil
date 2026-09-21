@@ -58,7 +58,7 @@ namespace stencil::gui {
   }  // namespace
 
   void Notifications::show(const QString& rawText, Level level, int msec, bool special) {
-    if (!host_) return;
+    if (!host) return;
     const QString text = squeezeLongTokens(rawText);
 
     // Coalesce: an identical standing message just lives longer (browser parity).
@@ -70,12 +70,12 @@ namespace stencil::gui {
 
     // A repeat landing while the LAST one is leaving finishes that label outright; its
     // dust cloud is a separate overlay and keeps playing.
-    for (const QPointer<QLabel>& t : stack_) {
+    for (const QPointer<QLabel>& t : stack) {
       if (!t || !t->property(LEAVING_PROPERTY).toBool()
              || t->property(TEXT_PROPERTY).toString() != text)
         continue;
       for (QPropertyAnimation* a : t->findChildren<QPropertyAnimation*>()) a->stop();
-      stack_.removeAll(t);
+      stack.removeAll(t);
       t->deleteLater();
       break;   // text is unique among live toasts, but a stale leaving one is a one-off
     }
@@ -89,12 +89,12 @@ namespace stencil::gui {
     // for a logo show's own notice (browser .notify-shine).
     const support::LogoStageConfig& stage = support::logoStageConfig();
     const QColor bg = special ? QColor(stage.toastGold)
-                     : level == Level::ERROR ? errorBg_ : normalBg_;
+                     : level == Level::ERROR ? errorBg : normalBg;
     const QColor ink = special ? QColor(stage.toastInk) : QColor(Qt::white);
     const char* glyph = special ? "egg"
                        : level == Level::SUCCESS ? "check" : level == Level::ERROR ? "x" : "info";
 
-    auto* toast = new QLabel(host_);
+    auto* toast = new QLabel(host);
     toast->setTextFormat(Qt::RichText);
     // Inline image so one widget carries the whole toast (this target links a minimal source set).
     QByteArray png;
@@ -145,7 +145,7 @@ namespace stencil::gui {
     toast->ensurePolished();
     toast->adjustSize();
     // Never wider than the browser toast cap (or the host).
-    const int cap = qMin(380, qMax(120, host_->width() - 36));
+    const int cap = qMin(380, qMax(120, host->width() - 36));
     if (toast->width() > cap) {
       toast->setWordWrap(true);
       toast->setFixedWidth(cap);
@@ -159,11 +159,11 @@ namespace stencil::gui {
     toast->setGraphicsEffect(fx);
     toast->show();
     toast->raise();
-    stack_.push_back(toast);
+    stack.push_back(toast);
     reflow();
     const QRect rest = toast->geometry();
-    if (auto* overlay = dustToastIn(toast, fx, host_, rest, leftInset_)) {
-      entering_[toast] = overlay;
+    if (auto* overlay = dustToastIn(toast, fx, host, rest, leftInset)) {
+      entering[toast] = overlay;
     } else {
       fx->setOpacity(0.0);
       auto* fadeIn = new QPropertyAnimation(fx, "opacity", toast);
@@ -194,7 +194,7 @@ namespace stencil::gui {
   // Oldest first; the ones already leaving are filtered out by LEAVING_PROPERTY.
   QList<QLabel*> Notifications::liveToasts() const {
     QList<QLabel*> live;
-    for (const QPointer<QLabel>& t : stack_)
+    for (const QPointer<QLabel>& t : stack)
       if (t && !t->property(LEAVING_PROPERTY).toBool()) live.push_back(t.data());
     return live;
   }

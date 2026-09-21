@@ -87,11 +87,11 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.canvas_->clearImage();
+    win.canvas->clearImage();
     win.refreshActions();
-    QTRY_VERIFY2(win.openImageBtn_->isVisible(), "the labelled button is not on screen");
+    QTRY_VERIFY2(win.openImageBtn->isVisible(), "the labelled button is not on screen");
     settleLayout(&win, 200);
-    const QImage im = win.openImageBtn_->grab().toImage();
+    const QImage im = win.openImageBtn->grab().toImage();
     // Ink is everything that is not the button's own fill (glyph + label are white on it).
     const QColor fill = im.pixelColor(1, im.height() / 2);
     int minx = im.width(), maxx = -1;
@@ -107,7 +107,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(qAbs(left - right) <= 2,
              qPrintable(QString("icon+text is off-centre: %1px left, %2px right").arg(left).arg(right)));
     // …and the label is the browser's 14px, not the smaller platform default.
-    QCOMPARE(win.openImageBtn_->font().pixelSize(), 14);
+    QCOMPARE(win.openImageBtn->font().pixelSize(), 14);
   }
   // Nothing to zoom without an image, so the whole ZOOM cluster is dead until one is loaded — the
   // browser gates zoom-in / zoom-out / zoom-fit / zoom-input on exactly that (updateButtons).
@@ -117,16 +117,16 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 150);
-    QVERIFY(win.zoom_);
-    for (QAction* a : {win.actZoomIn_, win.actZoomOut_, win.actFit_}) {
+    QVERIFY(win.zoom);
+    for (QAction* a : {win.actZoomIn, win.actZoomOut, win.actFit}) {
       QVERIFY(a);
       QVERIFY2(!a->isEnabled(), qPrintable(a->text() + " is live with no image loaded"));
     }
-    QVERIFY2(!win.zoom_->isEnabled(), "the % field is live with no image loaded");
+    QVERIFY2(!win.zoom->isEnabled(), "the % field is live with no image loaded");
     win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.actFit_->isEnabled());
-    QVERIFY(win.actZoomIn_->isEnabled() && win.actZoomOut_->isEnabled());
-    QVERIFY2(win.zoom_->isEnabled(), "the % field stayed dead with an image loaded");
+    QTRY_VERIFY(win.actFit->isEnabled());
+    QVERIFY(win.actZoomIn->isEnabled() && win.actZoomOut->isEnabled());
+    QVERIFY2(win.zoom->isEnabled(), "the % field stayed dead with an image loaded");
   }
 };
 

@@ -27,7 +27,7 @@ class MainWindowGuiTest : public QObject {
         shown->reject();
       }
     });
-    win.actShortcuts_->trigger();
+    win.actShortcuts->trigger();
     QVERIFY2(checked, "the shortcuts window opened");
     QVERIFY2(focused, "its search box holds the caret");
   }
@@ -37,18 +37,18 @@ class MainWindowGuiTest : public QObject {
   void windowShortcutsToggleAndSwap() {
     MainWindow win(nullptr, false);
     openLoaded(win);
-    QVERIFY2(!win.actInfo_->shortcut().isEmpty(), "help carries a shortcut");
-    QVERIFY2(!win.actShortcuts_->shortcut().isEmpty(),
+    QVERIFY2(!win.actInfo->shortcut().isEmpty(), "help carries a shortcut");
+    QVERIFY2(!win.actShortcuts->shortcut().isEmpty(),
              "the shortcuts window has one of its own now");
-    QVERIFY2(!win.actSettings_->shortcut().isEmpty(), "…and so does Settings");
-    QVERIFY(win.hotkeyActions_.contains(QStringLiteral("openHotkeys")));
-    QVERIFY(win.hotkeyActions_.contains(QStringLiteral("openVisuals")));
-    QVERIFY(win.hotkeyActions_.contains(QStringLiteral("openAssistantSettings")));
-    QVERIFY2(!win.actInfo_->shortcut().toString().contains(QStringLiteral("F1")),
+    QVERIFY2(!win.actSettings->shortcut().isEmpty(), "…and so does Settings");
+    QVERIFY(win.hotkeyActions.contains(QStringLiteral("openHotkeys")));
+    QVERIFY(win.hotkeyActions.contains(QStringLiteral("openVisuals")));
+    QVERIFY(win.hotkeyActions.contains(QStringLiteral("openAssistantSettings")));
+    QVERIFY2(!win.actInfo->shortcut().toString().contains(QStringLiteral("F1")),
              "help left the lone F1 for the Alt+letter family");
 
     int settingsAsked = 0;
-    connect(win.actSettings_, &QAction::triggered, &win, [&] { settingsAsked++; });
+    connect(win.actSettings, &QAction::triggered, &win, [&] { settingsAsked++; });
 
     bool sawOwn = false, sawOther = false, parked = false;
     QTimer::singleShot(0, &win, [&] {
@@ -58,22 +58,22 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(shown);
       // While it is up, the main window's own copies of these chords are parked, so the two
       // cannot fire ambiguously at each other.
-      parked = win.actInfo_->shortcutContext() == Qt::WidgetShortcut;
+      parked = win.actInfo->shortcutContext() == Qt::WidgetShortcut;
       // Its own chord…
       for (QShortcut* sc : shown->findChildren<QShortcut*>()) {
-        if (sc->key() == win.actInfo_->shortcut()) { sawOwn = true; emit sc->activated(); }
+        if (sc->key() == win.actInfo->shortcut()) { sawOwn = true; emit sc->activated(); }
       }
       QVERIFY2(!shown->isVisible(), "its own shortcut closed the window");
       // …and another window's chord is wired too, queued to open after this one unwinds.
       for (QShortcut* sc : shown->findChildren<QShortcut*>())
-        if (sc->key() == win.actSettings_->shortcut()) sawOther = true;
+        if (sc->key() == win.actSettings->shortcut()) sawOther = true;
     });
     win.openInfo();
 
     QVERIFY2(sawOwn, "the dialog carried its own opener's chord");
     QVERIFY2(sawOther, "…and the other windows' chords, for swapping");
     QVERIFY2(parked, "the main window's duplicate was parked while the dialog owned it");
-    QVERIFY2(win.actInfo_->shortcutContext() != Qt::WidgetShortcut,
+    QVERIFY2(win.actInfo->shortcutContext() != Qt::WidgetShortcut,
              "…and handed back when the dialog closed");
     QCOMPARE(settingsAsked, 0);   // nothing was swapped to in this pass
     beat();
@@ -85,7 +85,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QLabel* hint = win.statusHint_;
+    QLabel* hint = win.statusHint;
     QVERIFY(hint);
     QCOMPARE(hint->text(), QStringLiteral("?"));
     // It is the COLLAPSED state's readout: with the tool rows up, the size line under them
@@ -98,28 +98,28 @@ class MainWindowGuiTest : public QObject {
 
     // Collapsed tool rows: the header row stays, and NOW the hint appears — with the size
     // line hidden alongside the rows, its bubble is the only place these facts are left.
-    win.actToolbars_->setChecked(false);
-    QTRY_VERIFY(!win.actToolbars_->isChecked());
+    win.actToolbars->setChecked(false);
+    QTRY_VERIFY(!win.actToolbars->isChecked());
     // Exactly ONE of the two readouts is up — polled for, not timed: the size line reads as gone only
     // once the fold's finish step hides the rows, and the fold's duration is not this test's business.
-    QTRY_VERIFY_WITH_TIMEOUT(hint->isVisible() && !win.imageSizeInfo_->isVisible(), 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(hint->isVisible() && !win.imageSizeInfo->isVisible(), 3000);
     QVERIFY2(hint->toolTip().contains(size), "…still carrying the size");
 
     // Incognito adds its line — and only its line.
-    win.actIncognito_->setChecked(true);
-    QTRY_VERIFY(win.incognito_);
+    win.actIncognito->setChecked(true);
+    QTRY_VERIFY(win.incognito);
     const QStringList lines = hint->toolTip().split('\n');
     QCOMPARE(lines.size(), 2);
     QVERIFY2(lines[0].contains(size), "the size stays first");
     QCOMPARE(lines[1], QStringLiteral("Incognito — not saved"));
 
     // …and it leaves again when incognito does.
-    win.actIncognito_->setChecked(false);
-    QTRY_VERIFY(!win.incognito_);
+    win.actIncognito->setChecked(false);
+    QTRY_VERIFY(!win.incognito);
     QVERIFY2(!hint->toolTip().contains("Incognito"),
              "the incognito line goes with the mode");
     QCOMPARE(hint->toolTip().split('\n').size(), 1);
-    win.actToolbars_->setChecked(true);
+    win.actToolbars->setChecked(true);
     beat();
   }
 
@@ -140,7 +140,7 @@ class MainWindowGuiTest : public QObject {
                              "Assistant settings saved", "Shortcuts updated", "Blank recoloured",
                              "Crop canceled", "Blank image canceled"};
     for (const QString& msg : banned)
-      QVERIFY2(!src.contains("notify_->success(\"" + msg) && !src.contains("notify_->info(\"" + msg),
+      QVERIFY2(!src.contains("notify->success(\"" + msg) && !src.contains("notify->info(\"" + msg),
                qPrintable(QString("\"%1\" has no twin in the browser — it should not toast").arg(msg)));
     // …while the ones the browser DOES show are still there.
     QVERIFY2(src.contains("Project saved"), "Project saved has a browser twin and must stay");

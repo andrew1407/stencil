@@ -32,17 +32,17 @@ namespace stencil::gui {
   }  // namespace
 
   ScriptMenuPanel::ScriptMenuPanel(QWidget* parent, Hooks hooks)
-      : QWidget(parent), hooks_(std::move(hooks)) {
+      : QWidget(parent), hooks(std::move(hooks)) {
     setObjectName(QStringLiteral("scriptMenuPanel"));
     auto* col = new QVBoxLayout(this);
     col->setContentsMargins(MENU_SCRIPT_EDGE, 2, MENU_SCRIPT_EDGE, 6);
     col->setSpacing(0);
 
-    edit_ = new ScriptEditorWidget(this, menuStyle());
+    edit = new ScriptEditorWidget(this, menuStyle());
 
     // Run / Copy / Download / Upload / Clear, ABOVE the editor like the window's bar. Clear wears the
     // shared danger red at the far END, because it throws work away and must sit clear of Run.
-    auto* row = actions_ = new QHBoxLayout;
+    auto* row = actions = new QHBoxLayout;
     row->setSpacing(6);
     row->addStretch(1);
     const auto mk = [this, row](const char* name, const QString& label, const QString& tip) {
@@ -54,34 +54,34 @@ namespace stencil::gui {
       row->addWidget(b);
       return b;
     };
-    runBtn_ = mk("scriptMenuRun", tr("Run"),
+    runBtn = mk("scriptMenuRun", tr("Run"),
                  tr("Run this script on the open project (Ctrl+Enter)"));
-    makeModalGo(runBtn_);   // the one GO action: green, not the accent the others wear
-    copyBtn_ = mk("scriptMenuCopy", tr("Copy"), tr("Copy this script to the clipboard"));
-    downloadBtn_ = mk("scriptMenuDownload", tr("Download"), tr("Save this script as a .stc file"));
-    uploadBtn_ = mk("scriptMenuUpload", tr("Upload"), tr("Load a .stc file into the editor"));
-    clearBtn_ = new QPushButton(tr("Clear"), this);
-    clearBtn_->setObjectName(QStringLiteral("scriptMenuClear"));
-    clearBtn_->setToolTip(tr("Empty the script editor"));
-    clearBtn_->setFocusPolicy(Qt::TabFocus);
-    makeModalDanger(clearBtn_);
-    row->addWidget(clearBtn_);
+    makeModalGo(runBtn);   // the one GO action: green, not the accent the others wear
+    copyBtn = mk("scriptMenuCopy", tr("Copy"), tr("Copy this script to the clipboard"));
+    downloadBtn = mk("scriptMenuDownload", tr("Download"), tr("Save this script as a .stc file"));
+    uploadBtn = mk("scriptMenuUpload", tr("Upload"), tr("Load a .stc file into the editor"));
+    clearBtn = new QPushButton(tr("Clear"), this);
+    clearBtn->setObjectName(QStringLiteral("scriptMenuClear"));
+    clearBtn->setToolTip(tr("Empty the script editor"));
+    clearBtn->setFocusPolicy(Qt::TabFocus);
+    makeModalDanger(clearBtn);
+    row->addWidget(clearBtn);
     col->addLayout(row);
     col->addSpacing(8);
-    col->addWidget(edit_, 1);   // the editor takes whatever the strip and the row leave
+    col->addWidget(edit, 1);   // the editor takes whatever the strip and the row leave
 
-    connect(copyBtn_, &QPushButton::clicked, this, [this] {
-      edit_->copyToClipboard();
-      if (hooks_.notice) hooks_.notice(tr("Script copied"));
+    connect(copyBtn, &QPushButton::clicked, this, [this] {
+      edit->copyToClipboard();
+      if (this->hooks.notice) this->hooks.notice(tr("Script copied"));
     });
-    connect(downloadBtn_, &QPushButton::clicked, this,
-            [this] { if (hooks_.download) hooks_.download(); });
-    connect(uploadBtn_, &QPushButton::clicked, this,
-            [this] { if (hooks_.upload) hooks_.upload(); });
-    connect(clearBtn_, &QPushButton::clicked, this, [this] { edit_->setScript(QString()); });
-    connect(runBtn_, &QPushButton::clicked, this, &ScriptMenuPanel::run);
-    connect(edit_, &ScriptEditorWidget::runRequested, this, &ScriptMenuPanel::run);
-    connect(edit_, &ScriptEditorWidget::edited, this, &ScriptMenuPanel::gateActions);
+    connect(downloadBtn, &QPushButton::clicked, this,
+            [this] { if (this->hooks.download) this->hooks.download(); });
+    connect(uploadBtn, &QPushButton::clicked, this,
+            [this] { if (this->hooks.upload) this->hooks.upload(); });
+    connect(clearBtn, &QPushButton::clicked, this, [this] { edit->setScript(QString()); });
+    connect(runBtn, &QPushButton::clicked, this, &ScriptMenuPanel::run);
+    connect(edit, &ScriptEditorWidget::runRequested, this, &ScriptMenuPanel::run);
+    connect(edit, &ScriptEditorWidget::edited, this, &ScriptMenuPanel::gateActions);
 
     setFixedWidth(rowWidth());   // provisional; restyle() re-derives it once the glyphs are on
     setFixedHeight(menuScriptHeight(this));
@@ -91,14 +91,14 @@ namespace stencil::gui {
   // The flyout IS its action row: the five buttons plus the panel's gutters. A layout caches its
   // size hint, so it is invalidated first - restyle() asks again once the glyphs and QSS font land.
   int ScriptMenuPanel::rowWidth() const {
-    actions_->invalidate();
-    return actions_->sizeHint().width() + 2 * MENU_SCRIPT_EDGE;
+    actions->invalidate();
+    return actions->sizeHint().width() + 2 * MENU_SCRIPT_EDGE;
   }
 
-  QWidget* ScriptMenuPanel::editor() const { return edit_->editor(); }
+  QWidget* ScriptMenuPanel::editor() const { return edit->editor(); }
 
-  QString ScriptMenuPanel::script() const { return edit_->script(); }
+  QString ScriptMenuPanel::script() const { return edit->script(); }
 
-  void ScriptMenuPanel::setScript(const QString& text) { edit_->setScript(text); }
+  void ScriptMenuPanel::setScript(const QString& text) { edit->setScript(text); }
 
 }  // namespace stencil::gui

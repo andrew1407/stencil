@@ -37,7 +37,7 @@ class MainWindowGuiTest : public QObject {
     QAction* start = actionByText(&win, "Start Drawing");
     QVERIFY(start);
     start->trigger();
-    QTRY_VERIFY(canvas->isDrawing());
+    QTRY_VERIFY(canvas->getIsDrawing());
     // The SAME button now stops — not a second button appearing beside it.
     QTRY_COMPARE(draw->defaultAction()->text(), QString("Stop Drawing"));
     QCOMPARE(buttonsFor("Start Drawing").size(), 0);
@@ -51,7 +51,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(draw->isEnabled(), "must stay clickable while drawing — that is how you stop");
 
     draw->defaultAction()->trigger();
-    QTRY_VERIFY(!canvas->isDrawing());
+    QTRY_VERIFY(!canvas->getIsDrawing());
     QTRY_COMPARE(draw->defaultAction()->text(), QString("Start Drawing"));
     beat();
 
@@ -90,8 +90,8 @@ class MainWindowGuiTest : public QObject {
     };
     struct Case { QToolButton* btn; QStringList faces; const char* what; };
     const QList<Case> cases = {
-        {win.startDrawBtn_, {QStringLiteral("Start"), QStringLiteral("Stop")}, "Start/Stop"},
-        {win.drawModeBtn_, {QStringLiteral("Line"), QStringLiteral("Rect")}, "Line/Rect"}};
+        {win.startDrawBtn, {QStringLiteral("Start"), QStringLiteral("Stop")}, "Start/Stop"},
+        {win.drawModeBtn, {QStringLiteral("Line"), QStringLiteral("Rect")}, "Line/Rect"}};
     for (const Case& c : cases) {
       QVERIFY(c.btn);
       QVERIFY2(c.btn->minimumWidth() == c.btn->maximumWidth(),
@@ -116,8 +116,8 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QToolButton* btn = win.startDrawBtn_;
-    QToolButton* mode = win.drawModeBtn_;
+    QToolButton* btn = win.startDrawBtn;
+    QToolButton* mode = win.drawModeBtn;
     QVERIFY(btn && mode);
     const QSize drawSize = btn->size();
     const QSize modeSize = mode->size();
@@ -126,7 +126,7 @@ class MainWindowGuiTest : public QObject {
     QAction* start = actionByText(&win, "Start Drawing");
     QVERIFY(start);
     start->trigger();
-    QVERIFY2(canvas->isDrawing(), "the drawing state itself must not wait for the animation");
+    QVERIFY2(canvas->getIsDrawing(), "the drawing state itself must not wait for the animation");
     QVERIFY2(stencil::gui::faceSwapping(btn), "the toggle snapped instead of swapping");
     QCOMPARE(btn->text(), QString("Start"));   // still the outgoing face
     QCOMPARE(btn->size(), drawSize);           // …and the row has not shifted
@@ -163,13 +163,13 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(stencil::gui::FACE_SWAP_MS / 5);
     }
     QTRY_VERIFY(!stencil::gui::faceSwapping(btn) && !stencil::gui::faceSwapping(mode));
-    QCOMPARE(btn->text(), canvas->isDrawing() ? QString("Stop") : QString("Start"));
+    QCOMPARE(btn->text(), canvas->getIsDrawing() ? QString("Stop") : QString("Start"));
     QCOMPARE(btn->property("drawToggle").toString(),
-             canvas->isDrawing() ? QString("on") : QString("idle"));
+             canvas->getIsDrawing() ? QString("on") : QString("idle"));
     QCOMPARE(btn->defaultAction()->text(),
-             canvas->isDrawing() ? QString("Stop Drawing") : QString("Start Drawing"));
+             canvas->getIsDrawing() ? QString("Stop Drawing") : QString("Start Drawing"));
     QCOMPARE(mode->text(),
-             canvas->drawMode() == CanvasWidget::DrawMode::RECT ? QString("Rect")
+             canvas->getDrawMode() == CanvasWidget::DrawMode::RECT ? QString("Rect")
                                                                 : QString("Line"));
     QCOMPARE(btn->size(), drawSize);
     QCOMPARE(mode->size(), modeSize);
@@ -177,17 +177,17 @@ class MainWindowGuiTest : public QObject {
 
     // ── Reduced motion: the end state at once, no animation to wait on.
     qputenv("STENCIL_NO_ANIM", "1");
-    const bool wasDrawing = canvas->isDrawing();
+    const bool wasDrawing = canvas->getIsDrawing();
     btn->defaultAction()->trigger();
-    QCOMPARE(canvas->isDrawing(), !wasDrawing);
+    QCOMPARE(canvas->getIsDrawing(), !wasDrawing);
     QVERIFY2(!stencil::gui::faceSwapping(btn), "reduced motion still animated the swap");
-    QCOMPARE(btn->text(), canvas->isDrawing() ? QString("Stop") : QString("Start"));
+    QCOMPARE(btn->text(), canvas->getIsDrawing() ? QString("Stop") : QString("Start"));
     QCOMPARE(btn->property("drawToggle").toString(),
-             canvas->isDrawing() ? QString("on") : QString("idle"));
+             canvas->getIsDrawing() ? QString("on") : QString("idle"));
     mode->click();
     QVERIFY2(!stencil::gui::faceSwapping(mode), "reduced motion still animated the mode swap");
     QCOMPARE(mode->text(),
-             canvas->drawMode() == CanvasWidget::DrawMode::RECT ? QString("Rect")
+             canvas->getDrawMode() == CanvasWidget::DrawMode::RECT ? QString("Rect")
                                                                 : QString("Line"));
     beat();
   }

@@ -45,15 +45,15 @@ namespace stencil::gui {
   class ProjectsDialog : public QDialog {
     Q_OBJECT
    public:
-    void setDragZones(ProjectDragZones* z) { dragZones_ = z; }
+    void setDragZones(ProjectDragZones* z) { dragZones = z; }
 
     void setOpenInAvailable(bool local, bool server) {
-      openInLocalOk_ = local;
-      openInServerOk_ = server;
+      openInLocalOk = local;
+      openInServerOk = server;
     }
 
-    // Beyond action(): OpenRemote → selectedServerUrl() + selectedId(); transfers add newName();
-    // Batch* → batchItems(); SetColor → selectedColor(). BatchRemove emits removeRequested instead.
+    // Beyond getAction(): OpenRemote → getSelectedServerUrl() + getSelectedId(); transfers add getNewName();
+    // Batch* → batchItems(); SetColor → getSelectedColor(). BatchRemove emits removeRequested instead.
     enum class Action { NONE, OPEN, OPEN_IN_NEW_WINDOW, NEW, RENAME, NEW_BLANK,
                         OPEN_REMOTE, MOVE_TO_SERVER, MOVE_TO_LOCAL, MAKE_LOCAL_COPY, COPY_TO_SERVER,
                         SET_COLOR,
@@ -70,12 +70,12 @@ namespace stencil::gui {
 
     void setTemporary(bool temporary, bool incognito = false);
 
-    Action action() const { return action_; }
-    QString selectedId() const { return selectedId_; }
-    QString selectedServerUrl() const { return selectedServerUrl_; }
-    QString newName() const { return newName_; }
-    QString selectedColor() const { return selectedColor_; }
-    const QVector<QPair<QString, QString>>& batchItems() const { return batch_.batchItems; }
+    Action getAction() const { return action; }
+    QString getSelectedId() const { return selectedId; }
+    QString getSelectedServerUrl() const { return selectedServerUrl; }
+    QString getNewName() const { return newName; }
+    QString getSelectedColor() const { return selectedColor; }
+    const QVector<QPair<QString, QString>>& batchItems() const { return batch.batchItems; }
 
     // Called after acting on a signalled request, so the dialog STAYS OPEN; the overload carries
     // the session state in the SAME repaint.
@@ -124,7 +124,7 @@ namespace stencil::gui {
                               const QString& origin) const;
     void refreshRemote();
     QPixmap remoteThumb(const stencil::net::ServerProject& sp);
-    // Asynchronous, each swapping the row icon in on arrival; `key` is the remoteThumbs_ cache key.
+    // Asynchronous, each swapping the row icon in on arrival; `key` is the remoteThumbs cache key.
     void fetchServerThumbAsync(const QString& key, const stencil::net::ServerProject& sp);
     void fetchSourceThumbAsync(const QString& key, const stencil::net::ServerProject& sp);
     void applyRemoteThumb(const QString& key, const QString& id, const QString& serverUrl,
@@ -149,7 +149,7 @@ namespace stencil::gui {
     void scheduleRowOpen(QListWidgetItem* it);
     void fireRowOpen();
     void openRow(QListWidgetItem* it, bool newWindow, bool confirm);
-    // confirmOpen_ false accepts straight away; Cancel keeps the dialog up.
+    // confirmOpen false accepts straight away; Cancel keeps the dialog up.
     void finishOpen(Action act, bool newWindow, const QString& name);
     void deleteSelected();
     void moveToServerSelected();
@@ -158,7 +158,7 @@ namespace stencil::gui {
     void makeLocalCopySelected();
     void applyFilter();
     // Rows that are LEFT arrive out of sand via the shared ListFilterFade::dustRowIn.
-    ListFilterFade* filterFade();
+    ListFilterFade* getFilterFade();
     void rebuildFilterOptions();
     void onItemChanged(QListWidgetItem* it);
     void updateBatchBar();
@@ -182,48 +182,48 @@ namespace stencil::gui {
     void createNew();
     void createBlank();
 
-    ProjectsBatchParts batch_;   // furniture in projectsDialogState.hpp
-    ProjectsHoverParts hover_;
-    ProjectsPressParts press_;
+    ProjectsBatchParts batch;   // furniture in projectsDialogState.hpp
+    ProjectsHoverParts hover;
+    ProjectsPressParts press;
     // The open menu's "⋯" chip in global coords — where a window raised from that menu flies back to.
-    bool openInLocalOk_ = false;
-    bool openInServerOk_ = false;
-    std::vector<Project> projects_;
-    long long now_ = 0;
-    stencil::net::ConnectionManager* connections_ = nullptr;
-    QString activeProjectId_;
-    QVBoxLayout* barSlot_ = nullptr;
-    bool built_ = false;
-    bool temporary_ = false;
-    bool incognito_ = false;
-    QHash<QString, QPixmap> thumbs_;
+    bool openInLocalOk = false;
+    bool openInServerOk = false;
+    std::vector<Project> projects;
+    long long now = 0;
+    stencil::net::ConnectionManager* connections = nullptr;
+    QString activeProjectId;
+    QVBoxLayout* barSlot = nullptr;
+    bool built = false;
+    bool temporary = false;
+    bool incognito = false;
+    QHash<QString, QPixmap> thumbs;
     // Keyed "serverUrl|id|version"; bounded because every edit anywhere bumps a version.
-    LruCache<QString, QPixmap> remoteThumbs_{128};
-    QVector<stencil::net::ServerProject> remote_;
-    QSet<QString> thumbInFlight_;
+    LruCache<QString, QPixmap> remoteThumbs{128};
+    QVector<stencil::net::ServerProject> remote;
+    QSet<QString> thumbInFlight;
     // -1 = none. Only its OWN hover styles the chip.
     void setKebabHover(int row);
-    QTimer* remoteTimer_ = nullptr;
-    bool remoteBusy_ = false;
-    bool remoteLoaded_ = false;
-    QListWidget* list_ = nullptr;
-    QPushButton* clearAllBtn_ = nullptr;
-    QComboBox* filter_ = nullptr;
-    ListFilterFade* filterFade_ = nullptr;
-    ProjectDragZones* dragZones_ = nullptr;
-    QComboBox* sortCombo_ = nullptr;
-    QComboBox* searchModeCombo_ = nullptr;
-    QLineEdit* search_ = nullptr;
-    QPushButton* selectAllBtn_ = nullptr;
-    QStringList knownServerUrls_;
-    bool building_ = false;
-    QWidget* renameBox_ = nullptr;
-    bool confirmOpen_ = true;
-    Action action_ = Action::NONE;
-    QString selectedId_;
-    QString selectedServerUrl_;
-    QString newName_;
-    QString selectedColor_;
+    QTimer* remoteTimer = nullptr;
+    bool remoteBusy = false;
+    bool remoteLoaded = false;
+    QListWidget* list = nullptr;
+    QPushButton* clearAllBtn = nullptr;
+    QComboBox* filter = nullptr;
+    ListFilterFade* filterFade = nullptr;
+    ProjectDragZones* dragZones = nullptr;
+    QComboBox* sortCombo = nullptr;
+    QComboBox* searchModeCombo = nullptr;
+    QLineEdit* search = nullptr;
+    QPushButton* selectAllBtn = nullptr;
+    QStringList knownServerUrls;
+    bool building = false;
+    QWidget* renameBox = nullptr;
+    bool confirmOpen = true;
+    Action action = Action::NONE;
+    QString selectedId;
+    QString selectedServerUrl;
+    QString newName;
+    QString selectedColor;
   };
 
 }

@@ -44,13 +44,13 @@ namespace stencil::gui {
   }  // namespace
 
   SettingsDialog::SettingsDialog(const Settings& current, QWidget* parent)
-      : QDialog(parent), base_(current), colorHex_(current.defaultColor),
-        fillHex_(current.defaultFillColor), selGlowHex_(current.selGlowColor),
-        hoverRingHex_(current.hoverRingColor), focusRingHex_(current.focusRingColor) {
+      : QDialog(parent), base(current), colorHex(current.defaultColor),
+        fillHex(current.defaultFillColor), selGlowHex(current.selGlowColor),
+        hoverRingHex(current.hoverRingColor), focusRingHex(current.focusRingColor) {
     setWindowTitle("Visuals & Settings");
     ModalChrome chrome = installModalChrome(this, "palette", tr("Visuals & Settings"));
-    search_ = addModalSearchBar(chrome, tr("Search settings…"));
-    search_->setToolTip("Filter the settings by name");
+    search = addModalSearchBar(chrome, tr("Search settings…"));
+    search->setToolTip("Filter the settings by name");
     ModalScrollBody body = makeModalScrollBody(chrome);
     Rows r;
     r.host = body.content;
@@ -66,9 +66,9 @@ namespace stencil::gui {
     // The AI assistant's own rows (provider, endpoint, model, key) live in the chat
     // dock's Assistant dialog, as the browser's do — not here (visualsModal.js).
 
-    empty_ = modalEmptyLabel(tr("No matching settings."), r.host);
-    empty_->hide();
-    r.col->addWidget(empty_);
+    empty = modalEmptyLabel(tr("No matching settings."), r.host);
+    empty->hide();
+    r.col->addWidget(empty);
     r.col->addStretch(1);
 
     // Footer (browser .settings-footer): the live-apply hint beside Reset All.
@@ -81,7 +81,7 @@ namespace stencil::gui {
     connect(resetAll, &QPushButton::clicked, this, &SettingsDialog::resetVisuals);
     footer->addWidget(resetAll);
 
-    connect(search_, &QLineEdit::textChanged, this,
+    connect(search, &QLineEdit::textChanged, this,
             [this](const QString& q) { applyFilter(q); });
     // The browser's max-height: 82vh shell; the sections scroll inside it.
     sizeModalTall(this, MODAL_WIDTH);
@@ -89,9 +89,9 @@ namespace stencil::gui {
 
   // Sections and rows register themselves for the search filter as they are built.
   void SettingsDialog::addSection(Rows& r, const QString& text) {
-    QLabel* l = modalSectionLabel(text, r.host, groups_.isEmpty());
+    QLabel* l = modalSectionLabel(text, r.host, groups.isEmpty());
     r.col->addWidget(l);
-    groups_.push_back({l, {}});
+    groups.push_back({l, {}});
   }
 
   // Every control lands in the column at the column's size; checkboxes and the
@@ -100,7 +100,7 @@ namespace stencil::gui {
     if (column) field->setFixedSize(CTRL_W, CTRL_H);
     QWidget* w = modalRow(r.host, label, field, /*grow=*/false);
     r.col->addWidget(w);
-    groups_.last().rows.push_back({label, w});
+    groups.last().rows.push_back({label, w});
   }
 
   QComboBox* SettingsDialog::addCombo(Rows& r, const QString& tip) {
@@ -131,7 +131,7 @@ namespace stencil::gui {
   void SettingsDialog::buildAppearanceRows(Rows& r, const Settings& current) {
     addSection(r, tr("App appearance"));
 
-    accent_ = addCombo(r, "Accent color used for highlights across the app");
+    accent = addCombo(r, "Accent color used for highlights across the app");
     // Brand-accent presets (theme.hpp) - violet first/default, the same choices as the browser and
     // extension dropdowns. Each item carries a rounded colour swatch icon.
     const auto swatch = [](const QColor& c) {
@@ -146,58 +146,58 @@ namespace stencil::gui {
       return QIcon(pm);
     };
     for (const AccentPreset& a : accentPresets())
-      accent_->addItem(swatch(QColor(a.hex)), a.label, a.key);
+      accent->addItem(swatch(QColor(a.hex)), a.label, a.key);
     {
-      const int idx = accent_->findData(current.accentColor);
+      const int idx = accent->findData(current.accentColor);
       if (idx >= 0) {
-        accent_->setCurrentIndex(idx);
+        accent->setCurrentIndex(idx);
       } else if (current.accentColor.startsWith('#') && QColor(current.accentColor).isValid()) {
         // A custom (non-preset) accent is set ONLY from the header logo, never here: add a "Custom" entry
         // so the COLLAPSED combo reflects it, but HIDE that row in the popup.
-        accent_->addItem(swatch(QColor(current.accentColor)), "Custom", current.accentColor);
-        const int customIdx = accent_->count() - 1;
-        accent_->setCurrentIndex(customIdx);
-        if (auto* view = qobject_cast<QListView*>(accent_->view()))
+        accent->addItem(swatch(QColor(current.accentColor)), "Custom", current.accentColor);
+        const int customIdx = accent->count() - 1;
+        accent->setCurrentIndex(customIdx);
+        if (auto* view = qobject_cast<QListView*>(accent->view()))
           view->setRowHidden(customIdx, true);
       } else {
-        accent_->setCurrentIndex(0);
+        accent->setCurrentIndex(0);
       }
     }
-    addRow(r, tr("Main theme"), accent_);
+    addRow(r, tr("Main theme"), accent);
     // activated(), not currentIndexChanged(): only a real user pick, not the
     // setCurrentIndex() above (every combo row below follows the same rule).
-    connect(accent_, &QComboBox::activated, this, [this] { applyLive(); });
+    connect(accent, &QComboBox::activated, this, [this] { applyLive(); });
 
-    theme_ = addCombo(r, "Light/dark appearance — System follows the OS scheme");
+    theme = addCombo(r, "Light/dark appearance — System follows the OS scheme");
     // Tri-state theme to match the browser: System (auto) follows the OS scheme.
-    theme_->addItem("System (follow the OS)", "system");
-    theme_->addItem("Light", "light");
-    theme_->addItem("Dark", "dark");
+    theme->addItem("System (follow the OS)", "system");
+    theme->addItem("Light", "light");
+    theme->addItem("Dark", "dark");
     {
-      const int idx = theme_->findData(current.themeMode);
-      theme_->setCurrentIndex(idx >= 0 ? idx : 0);
+      const int idx = theme->findData(current.themeMode);
+      theme->setCurrentIndex(idx >= 0 ? idx : 0);
     }
-    addRow(r, tr("Appearance"), theme_);
-    connect(theme_, &QComboBox::activated, this, [this] { applyLive(); });
+    addRow(r, tr("Appearance"), theme);
+    connect(theme, &QComboBox::activated, this, [this] { applyLive(); });
   }
 
   void SettingsDialog::resetVisuals() {
     const struct { QPushButton* btn; QString* hex; const char* def; } wells[] = {
-        {color_, &colorHex_, DEF_COLOR},         {fillColor_, &fillHex_, DEF_FILL},
-        {selGlow_, &selGlowHex_, DEF_SEL_GLOW},   {hoverRing_, &hoverRingHex_, DEF_HOVER_RING},
-        {focusRing_, &focusRingHex_, DEF_FOCUS_RING},
+        {color, &colorHex, DEF_COLOR},         {fillColor, &fillHex, DEF_FILL},
+        {selGlow, &selGlowHex, DEF_SEL_GLOW},   {hoverRing, &hoverRingHex, DEF_HOVER_RING},
+        {focusRing, &focusRingHex, DEF_FOCUS_RING},
     };
     for (const auto& w : wells) {
       *w.hex = QString::fromLatin1(w.def);
       setColorSwatch(w.btn, QColor(*w.hex), QSize(CTRL_W, CTRL_H), /*withHex=*/true);
     }
-    thickness_->setValue(DEF_THICKNESS);
-    pointSize_->setValue(DEF_POINT_SIZE);
-    holdDelay_->setValue(DEF_HOLD_DELAY);
-    style_->setCurrentIndex(qMax(0, style_->findData(DEF_STYLE)));
-    accent_->setCurrentIndex(qMax(0, accent_->findData(DEF_ACCENT)));
-    drawAnim_->setChecked(DEF_DRAW_ANIM);
-    motionMode_->setCurrentIndex(qMax(0, motionMode_->findData(QLatin1String(DEF_MOTION_MODE))));
+    thickness->setValue(DEF_THICKNESS);
+    pointSize->setValue(DEF_POINT_SIZE);
+    holdDelay->setValue(DEF_HOLD_DELAY);
+    style->setCurrentIndex(qMax(0, style->findData(DEF_STYLE)));
+    accent->setCurrentIndex(qMax(0, accent->findData(DEF_ACCENT)));
+    drawAnim->setChecked(DEF_DRAW_ANIM);
+    motionMode->setCurrentIndex(qMax(0, motionMode->findData(QLatin1String(DEF_MOTION_MODE))));
     applyLive();
     emit visualsReset();
   }

@@ -13,9 +13,9 @@ class MainWindowGuiTest : public QObject {
   void openingTheChatFocusesItsInput() {
     MainWindow win(nullptr, false);
     openLoaded(win);
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    QTRY_VERIFY_WITH_TIMEOUT(win.chatDock_->input_->hasFocus(), 3000);
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    QTRY_VERIFY_WITH_TIMEOUT(win.chatDock->input->hasFocus(), 3000);
     beat();
   }
 
@@ -29,11 +29,11 @@ class MainWindowGuiTest : public QObject {
     seeded.push_back(stencil::core::Line{{{10, 10}, {40, 40}}});
     canvas->setLines(seeded);
     canvas->selectLineByIndex(0);
-    const int lines = static_cast<int>(canvas->lines().size());
+    const int lines = static_cast<int>(canvas->getLines().size());
 
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    QPlainTextEdit* input = win.chatDock_->input_;
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    QPlainTextEdit* input = win.chatDock->input;
     input->setFocus();
     QTRY_VERIFY(input->hasFocus());
     input->setPlainText(QStringLiteral("crop the portrait"));
@@ -42,7 +42,7 @@ class MainWindowGuiTest : public QObject {
     QTest::keyClick(input, Qt::Key_Backspace, Qt::AltModifier);
 
     QCOMPARE(input->toPlainText(), QStringLiteral("crop the "));
-    QCOMPARE(static_cast<int>(canvas->lines().size()), lines);   // the drawing is untouched
+    QCOMPARE(static_cast<int>(canvas->getLines().size()), lines);   // the drawing is untouched
     beat();
   }
 
@@ -55,23 +55,23 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     // Whatever this machine's settings.json already holds — restored at the end,
     // like every other test here that touches real persisted settings.
-    const bool wasSwapped = win.settings_.chatSwapSides;
-    if (wasSwapped) win.chatDock_->setChatSwapSides(false);   // start from a known state
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    win.chatDock_->appendUser(QStringLiteral("hi"), {});
-    win.chatDock_->appendAssistant(QStringLiteral("hello"));
+    const bool wasSwapped = win.settings.chatSwapSides;
+    if (wasSwapped) win.chatDock->setChatSwapSides(false);   // start from a known state
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    win.chatDock->appendUser(QStringLiteral("hi"), {});
+    win.chatDock->appendAssistant(QStringLiteral("hello"));
     // The entrance holds each card's opacity effect and drops the claim when it lands
     // (ENTERING_PROPERTY), so that IS the slide's own completion flag.
-    QTRY_VERIFY(noneEntering(win.chatDock_));
+    QTRY_VERIFY(noneEntering(win.chatDock));
     // A short bubble's width can settle over a couple more layout passes (viewport/scrollbar
     // interplay in applyChatBubbleWidths), so one explicit re-sync makes the geometry checks firm.
-    win.chatDock_->applyBubbleWidths();
+    win.chatDock->applyBubbleWidths();
 
     QFrame* userCard = nullptr;
     QFrame* asstCard = nullptr;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) userCard = f;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardAssistant")) asstCard = f;
+    for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardUser")) userCard = f;
+    for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardAssistant")) asstCard = f;
     QVERIFY(userCard && asstCard);
     auto* transcriptLayout = qobject_cast<QVBoxLayout*>(userCard->parentWidget()->layout());
     QVERIFY(transcriptLayout);
@@ -102,16 +102,16 @@ class MainWindowGuiTest : public QObject {
              "the assistant bubble's tail must poke out past its LEFT edge");
     if (qEnvironmentVariableIsSet("STENCIL_GUI_SHOTS")) {
       QTest::qWait(50);
-      win.chatDock_->grab().save(QString::fromLocal8Bit(qgetenv("STENCIL_GUI_SHOTS")) + "/dock-tails.png");
+      win.chatDock->grab().save(QString::fromLocal8Bit(qgetenv("STENCIL_GUI_SHOTS")) + "/dock-tails.png");
     }
 
     // Flip it — through the REAL menu action, not the setter directly, so the
     // persistence signal is exercised too.
     bool signaled = false;
     bool signaledValue = false;
-    connect(win.chatDock_, &stencil::gui::ChatDock::chatSwapSidesChanged, &win,
+    connect(win.chatDock, &stencil::gui::ChatDock::chatSwapSidesChanged, &win,
             [&](bool on) { signaled = true; signaledValue = on; });
-    auto* moreBtn = win.chatDock_->findChild<QToolButton*>("chatMore");
+    auto* moreBtn = win.chatDock->findChild<QToolButton*>("chatMore");
     QVERIFY(moreBtn && moreBtn->menu());
     QAction* swapAction = nullptr;
     for (QAction* a : moreBtn->menu()->actions())
@@ -120,8 +120,8 @@ class MainWindowGuiTest : public QObject {
     swapAction->trigger();
 
     QVERIFY2(signaled && signaledValue, "the dock must emit chatSwapSidesChanged(true)");
-    QVERIFY2(win.settings_.chatSwapSides, "MainWindow must persist the flip into settings_");
-    QVERIFY(win.chatDock_->chatSwapSides());
+    QVERIFY2(win.settings.chatSwapSides, "MainWindow must persist the flip into settings");
+    QVERIFY(win.chatDock->getChatSwapSides());
 
     // The EXISTING cards moved — this is the whole point (a browser/extension
     // parity CSS class would do this for free; Qt has to re-skin by hand).
@@ -140,9 +140,9 @@ class MainWindowGuiTest : public QObject {
     // not the pre-flip default.
     win.ensureChatMenuPanel();
     win.chatMirror(QStringLiteral("Assistant"), QStringLiteral("mirrored"), false);
-    QTRY_VERIFY(win.chatMenuPanel_->findChild<QFrame*>("chatCardAssistant"));
+    QTRY_VERIFY(win.chatMenuPanel->findChild<QFrame*>("chatCardAssistant"));
     QFrame* mirroredAsst = nullptr;
-    for (QFrame* f : win.chatMenuPanel_->findChildren<QFrame*>("chatCardAssistant"))
+    for (QFrame* f : win.chatMenuPanel->findChildren<QFrame*>("chatCardAssistant"))
       mirroredAsst = f;
     QVERIFY2(mirroredAsst, "the mirror panel never rendered the appended row");
     auto* mirrorLayout = qobject_cast<QVBoxLayout*>(mirroredAsst->parentWidget()->layout());
@@ -151,9 +151,9 @@ class MainWindowGuiTest : public QObject {
 
     // Restore whatever this machine's settings.json held before the test, exactly
     // (an even number of clicks isn't enough if it started true).
-    win.chatDock_->setChatSwapSides(wasSwapped);
-    win.settings_.chatSwapSides = wasSwapped;
-    stencil::gui::fileStore::saveSettings(win.settings_);
+    win.chatDock->setChatSwapSides(wasSwapped);
+    win.settings.chatSwapSides = wasSwapped;
+    stencil::gui::fileStore::saveSettings(win.settings);
     beat();
   }
 

@@ -32,15 +32,15 @@ namespace stencil::gui {
   class RowHoverSlide : public QObject {
    public:
     explicit RowHoverSlide(QAbstractItemView* view, int px = ROW_SLIDE_PX, int ms = ROW_SLIDE_MS)
-        : QObject(view), view_(view), px_(px), ms_(ms) {
+        : QObject(view), view(view), px(px), ms(ms) {
       setObjectName(QString::fromLatin1(ROW_SLIDE_NAME));
-      anim_.setEasingCurve(QEasingCurve::InOutQuad);   // CSS `ease`
-      QObject::connect(&anim_, &QVariantAnimation::valueChanged, this,
+      anim.setEasingCurve(QEasingCurve::InOutQuad);   // CSS `ease`
+      QObject::connect(&anim, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) {
-                         at_ = v.toDouble();
-                         if (!view_) return;
-                         view_->setProperty(ROW_SLIDE_PX_PROPERTY, int(std::lround(px_ * at_)));
-                         view_->viewport()->update();
+                         at = v.toDouble();
+                         if (!this->view) return;
+                         this->view->setProperty(ROW_SLIDE_PX_PROPERTY, int(std::lround(this->px * at)));
+                         this->view->viewport()->update();
                        });
       view->setMouseTracking(true);
       view->viewport()->setMouseTracking(true);
@@ -48,16 +48,16 @@ namespace stencil::gui {
     }
 
     int offsetFor(const QModelIndex& idx) const {
-      if (!row_.isValid() || QModelIndex(row_) != idx) return 0;
-      return int(std::lround(px_ * at_));
+      if (!row.isValid() || QModelIndex(row) != idx) return 0;
+      return int(std::lround(px * at));
     }
 
    protected:
     bool eventFilter(QObject* o, QEvent* e) override {
-      if (view_ && o == view_->viewport()) {
+      if (view && o == view->viewport()) {
         switch (e->type()) {
           case QEvent::MouseMove:
-            enter(view_->indexAt(static_cast<QMouseEvent*>(e)->position().toPoint()));
+            enter(view->indexAt(static_cast<QMouseEvent*>(e)->position().toPoint()));
             break;
           case QEvent::Leave:
           case QEvent::Hide:
@@ -72,58 +72,58 @@ namespace stencil::gui {
 
    private:
     void enter(const QModelIndex& idx) {
-      if (row_.isValid() && QModelIndex(row_) == idx) return;
+      if (row.isValid() && QModelIndex(row) == idx) return;
       // The row left behind drops back at once: two rows easing reads as the list wobbling.
-      row_ = idx;
-      at_ = 0.0;
-      anim_.stop();
-      if (view_) view_->setProperty(ROW_SLIDE_PX_PROPERTY, 0);
-      if (!idx.isValid()) { if (view_) view_->viewport()->update(); return; }
+      row = idx;
+      at = 0.0;
+      anim.stop();
+      if (view) view->setProperty(ROW_SLIDE_PX_PROPERTY, 0);
+      if (!idx.isValid()) { if (view) view->viewport()->update(); return; }
       if (support::motionReduced()) {
-        at_ = 1.0;
-        view_->setProperty(ROW_SLIDE_PX_PROPERTY, px_);
-        view_->viewport()->update();
+        at = 1.0;
+        view->setProperty(ROW_SLIDE_PX_PROPERTY, px);
+        view->viewport()->update();
         return;
       }
-      anim_.setStartValue(0.0);
-      anim_.setEndValue(1.0);
-      anim_.setDuration(ms_);
-      anim_.start();
+      anim.setStartValue(0.0);
+      anim.setEndValue(1.0);
+      anim.setDuration(ms);
+      anim.start();
     }
 
-    QPointer<QAbstractItemView> view_;
-    int px_;
-    int ms_;
-    QPersistentModelIndex row_;
-    double at_ = 0.0;
-    QVariantAnimation anim_;
+    QPointer<QAbstractItemView> view;
+    int px;
+    int ms;
+    QPersistentModelIndex row;
+    double at = 0.0;
+    QVariantAnimation anim;
   };
 
   class SlidingRowDelegate : public QStyledItemDelegate {
    public:
     SlidingRowDelegate(RowHoverSlide* slide, QAbstractItemDelegate* inner, QObject* parent)
-        : QStyledItemDelegate(parent), slide_(slide), inner_(inner) {
+        : QStyledItemDelegate(parent), slide(slide), inner(inner) {
       setObjectName(QString::fromLatin1(SLIDING_DELEGATE_NAME));
     }
 
-    QAbstractItemDelegate* inner() const { return inner_; }
+    QAbstractItemDelegate* getInner() const { return inner; }
 
     void paint(QPainter* p, const QStyleOptionViewItem& opt,
                const QModelIndex& idx) const override {
       QStyleOptionViewItem o = opt;
-      const int dx = slide_ ? slide_->offsetFor(idx) : 0;
+      const int dx = slide ? slide->offsetFor(idx) : 0;
       o.rect.translate(dx, 0);
-      if (inner_) inner_->paint(p, o, idx);
+      if (inner) inner->paint(p, o, idx);
       else QStyledItemDelegate::paint(p, o, idx);
     }
 
     QSize sizeHint(const QStyleOptionViewItem& opt, const QModelIndex& idx) const override {
-      return inner_ ? inner_->sizeHint(opt, idx) : QStyledItemDelegate::sizeHint(opt, idx);
+      return inner ? inner->sizeHint(opt, idx) : QStyledItemDelegate::sizeHint(opt, idx);
     }
 
    private:
-    QPointer<RowHoverSlide> slide_;
-    QPointer<QAbstractItemDelegate> inner_;
+    QPointer<RowHoverSlide> slide;
+    QPointer<QAbstractItemDelegate> inner;
   };
 
   // Call again after changing the delegate. Guarded: a second call re-wraps rather than stacking.
@@ -134,7 +134,7 @@ namespace stencil::gui {
     if (!slide) slide = new RowHoverSlide(view);
     QAbstractItemDelegate* have = view->itemDelegate();
     if (have && have->objectName() == QLatin1String(SLIDING_DELEGATE_NAME))
-      have = static_cast<SlidingRowDelegate*>(have)->inner();
+      have = static_cast<SlidingRowDelegate*>(have)->getInner();
     view->setItemDelegate(new SlidingRowDelegate(slide, have, view));
   }
 

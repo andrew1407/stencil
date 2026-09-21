@@ -33,35 +33,35 @@ namespace stencil::gui {
   // "Open in…": a server-linked session sends only the server reference (no token in any link); a local session embeds
   // image + layout in the browser fragment. Telegram is server-projects-only (a 64-char start payload).
   void MainWindow::openInAnotherApp() {
-    if (!canvas_->hasImage()) {
-      notify_->error("Load an image first");
+    if (!canvas->hasImage()) {
+      notify->error("Load an image first");
       return;
     }
-    const bool serverProject = !remoteSession_->link().address.isEmpty() && !remoteSession_->link().id.isEmpty();
-    const QString botUsername = settings_.telegramBotUsername.trimmed();
-    const bool browserAvailable = !settings_.browserBaseUrl.trimmed().isEmpty();
+    const bool serverProject = !remoteSession->getLink().address.isEmpty() && !remoteSession->getLink().id.isEmpty();
+    const QString botUsername = settings.telegramBotUsername.trimmed();
+    const bool browserAvailable = !settings.browserBaseUrl.trimmed().isEmpty();
     const bool telegramAvailable = !botUsername.isEmpty() && serverProject;
     if (!browserAvailable && !telegramAvailable) {
-      // Guard (actOpenIn_ is hidden when nothing's available).
-      notify_->info("Nothing to open into — set a browser URL in Settings "
+      // Guard (actOpenIn is hidden when nothing's available).
+      notify->info("Nothing to open into — set a browser URL in Settings "
                     "(or a Telegram bot for server projects).");
       return;
     }
     OpenInSource src;
-    src.serverUrl = remoteSession_->link().address;
-    src.serverId = remoteSession_->link().id;
-    src.version = remoteSession_->link().version;
+    src.serverUrl = remoteSession->getLink().address;
+    src.serverId = remoteSession->getLink().id;
+    src.version = remoteSession->getLink().version;
     if (!serverProject) {
-      src.image = canvas_->originalImage();
+      src.image = canvas->getOriginalImage();
       src.name = projectBaseName();
-      src.source = currentSource_;
-      src.resource = currentResource_;
+      src.source = currentSource;
+      src.resource = currentResource;
       src.layout = fileStore::buildLayoutJson(
-          canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
-          settings_.imageFilter, settings_.filterColor, canvas_->cropRect(),
-          canvas_->rotationQuarters(), currentLayoutMeta());
+          canvas->imageWidth(), canvas->imageHeight(), canvas->allLines(),
+          settings.imageFilter, settings.filterColor, canvas->getCropRect(),
+          canvas->getRotationQuarters(), currentLayoutMeta());
     }
-    src.startIncognito = incognito_;
+    src.startIncognito = incognito;
     dispatchOpenIn(src, browserAvailable, telegramAvailable,
                    [this](OpenInDialog& dlg) { return execMaybePopover(dlg); });
   }
@@ -70,7 +70,7 @@ namespace stencil::gui {
   void MainWindow::dispatchOpenIn(const OpenInSource& src, bool browserAvailable,
                                   bool telegramAvailable,
                                   const std::function<int(OpenInDialog&)>& run) {
-    const QString botUsername = settings_.telegramBotUsername.trimmed();
+    const QString botUsername = settings.telegramBotUsername.trimmed();
     const bool serverProject = !src.serverUrl.isEmpty() && !src.serverId.isEmpty();
     OpenInDialog dlg(this, serverProject, src.serverUrl, browserAvailable, telegramAvailable,
                      src.startIncognito, src.serverId);
@@ -80,13 +80,13 @@ namespace stencil::gui {
     });
     connect(&dlg, &OpenInDialog::toast, this,
             [this](const QString& text, bool fail) {
-              if (fail) notify_->error(text);
-              else notify_->success(text);
+              if (fail) notify->error(text);
+              else notify->success(text);
             });
     if (run(dlg) != QDialog::Accepted) return;
-    const bool incog = dlg.incognito();
+    const bool incog = dlg.getIncognito();
 
-    if (dlg.outcome() == OpenInDialog::Outcome::TELEGRAM) {
+    if (dlg.getOutcome() == OpenInDialog::Outcome::TELEGRAM) {
       if (!serverProject) return;  // the dialog disables this outcome anyway
       const QString payload =
           deepLink::encodeTelegramStartPayload(src.serverUrl, src.serverId);
@@ -117,30 +117,30 @@ namespace stencil::gui {
     if (incog) payload["incognito"] = true;
 
     const QString url =
-        deepLink::buildBrowserLaunchUrl(settings_.browserBaseUrl, payload);
+        deepLink::buildBrowserLaunchUrl(settings.browserBaseUrl, payload);
     // The OS launcher's argv tolerates far less than an in-page URL: refuse absurd payloads, warn on large ones.
     if (!serverProject && url.size() > 1000000) {
-      notify_->error(
+      notify->error(
           "Image too large to hand off inline — save it to a server and share the server link");
       return;
     }
     if (!serverProject && url.size() > 200000)
-      notify_->info("Large image — the hand-off may fail; prefer saving to a server");
+      notify->info("Large image — the hand-off may fail; prefer saving to a server");
     QDesktopServices::openUrl(QUrl(url));
   }
 
   // The projects list's per-row hand-off (browser projectsModal.js); the session's filter and page ride along since a project does not persist them.
   void MainWindow::openInAnotherAppFor(const QString& id, const QString& serverUrl,
                                       const QRect& closeRect) {
-    const bool browserAvailable = !settings_.browserBaseUrl.trimmed().isEmpty();
+    const bool browserAvailable = !settings.browserBaseUrl.trimmed().isEmpty();
     const bool serverProject = !serverUrl.isEmpty();
-    const bool telegramAvailable = !settings_.telegramBotUsername.trimmed().isEmpty() && serverProject;
+    const bool telegramAvailable = !settings.telegramBotUsername.trimmed().isEmpty() && serverProject;
     if (!browserAvailable && !telegramAvailable) {
-      notify_->info("Nothing to open into — set a browser URL in Settings "
+      notify->info("Nothing to open into — set a browser URL in Settings "
                     "(or a Telegram bot for server projects).");
       return;
     }
-    if (!serverProject && id == activeProjectId_ && canvas_->hasImage()) {
+    if (!serverProject && id == activeProjectId && canvas->hasImage()) {
       openInAnotherApp();
       return;
     }
@@ -150,7 +150,7 @@ namespace stencil::gui {
     src.serverId = id;
     if (!serverProject) {
       Project* pr = findProject(id.toStdString());
-      if (!pr) { notify_->error("That project could not be read"); return; }
+      if (!pr) { notify->error("That project could not be read"); return; }
       src.name = support::shortName(QString::fromStdString(pr->meta.name));
       src.source = QString::fromStdString(pr->meta.source);
       src.resource = QString::fromStdString(pr->meta.resource);
@@ -162,9 +162,9 @@ namespace stencil::gui {
         const QColor fill(QString::fromStdString(pr->meta.blankColor));
         src.image.fill(fill.isValid() ? fill : QColor(Qt::white));
       }
-      if (src.image.isNull()) { notify_->error("That project's image could not be loaded"); return; }
+      if (src.image.isNull()) { notify->error("That project's image could not be loaded"); return; }
       src.layout = fileStore::buildLayoutJson(src.image.width(), src.image.height(), pr->lines,
-                                              settings_.imageFilter, settings_.filterColor,
+                                              settings.imageFilter, settings.filterColor,
                                               pr->cropRect, pr->rotationQuarters, currentLayoutMeta());
     }
     dispatchOpenIn(src, browserAvailable, telegramAvailable, [&](OpenInDialog& dlg) {

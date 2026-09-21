@@ -15,45 +15,45 @@ namespace stencil::gui {
 
   // Hide rows the storage filter excludes. Placeholders (no project id) always show.
   void ProjectsDialog::rebuildFilterOptions() {
-    if (!filter_) return;
-    const QString prev = filter_->currentData().toString();  // preserve the selection
-    filter_->blockSignals(true);
-    filter_->clear();
-    filter_->addItem(tr("All"), "all");
-    filter_->addItem(tr("Local"), "local");
-    const QStringList urls = connections_ ? connections_->urls() : QStringList();
+    if (!filter) return;
+    const QString prev = filter->currentData().toString();  // preserve the selection
+    filter->blockSignals(true);
+    filter->clear();
+    filter->addItem(tr("All"), "all");
+    filter->addItem(tr("Local"), "local");
+    const QStringList urls = connections ? connections->urls() : QStringList();
     if (!urls.isEmpty()) {
-      filter_->addItem(tr("All servers"), "server");
-      for (const QString& u : urls) filter_->addItem(u, u);  // one entry per specific server URL
+      filter->addItem(tr("All servers"), "server");
+      for (const QString& u : urls) filter->addItem(u, u);  // one entry per specific server URL
     }
-    knownServerUrls_ = urls;
-    const int idx = filter_->findData(prev.isEmpty() ? QStringLiteral("all") : prev);
-    filter_->setCurrentIndex(idx < 0 ? 0 : idx);
-    filter_->blockSignals(false);
+    knownServerUrls = urls;
+    const int idx = filter->findData(prev.isEmpty() ? QStringLiteral("all") : prev);
+    filter->setCurrentIndex(idx < 0 ? 0 : idx);
+    filter->blockSignals(false);
   }
 
   // The filter/sort/search transition (support/filterFade): an excluded row fades and collapses its
   // slot, an included one plays that backwards. Lighter than the scatter - filtered is not deleted.
-  ListFilterFade* ProjectsDialog::filterFade() {
-    if (filterFade_ || !list_) return filterFade_;
-    filterFade_ = new ListFilterFade(list_);
+  ListFilterFade* ProjectsDialog::getFilterFade() {
+    if (filterFade || !list) return filterFade;
+    filterFade = new ListFilterFade(list);
     // setData fires itemChanged; the check-state bookkeeping must ignore our frames.
-    filterFade_->beforeFrame = [this] { building_ = true; };
-    filterFade_->afterFrame = [this] {
-      building_ = false;
-      list_->viewport()->update();   // the delegate paints the fade; setData relayouts
+    filterFade->beforeFrame = [this] { building = true; };
+    filterFade->afterFrame = [this] {
+      building = false;
+      list->viewport()->update();   // the delegate paints the fade; setData relayouts
     };
     // …and each row that is LEFT arrives out of sand as well as a fade — the shared
     // ListFilterFade::dustRowIn (browser js/ui/motion.js filterDust).
-    filterFade_->onArrive = [this](QListWidgetItem* it) { filterFade_->dustRowIn(it, window()); };
-    return filterFade_;
+    filterFade->onArrive = [this](QListWidgetItem* it) { filterFade->dustRowIn(it, window()); };
+    return filterFade;
   }
 
   void ProjectsDialog::applyFilter() {
-    if (!filter_) return;
-    const QString mode = filter_->currentData().toString();
-    const QString needle = search_ ? search_->text().trimmed() : QString();
-    const QString smode = searchModeCombo_ ? searchModeCombo_->currentData().toString()
+    if (!filter) return;
+    const QString mode = filter->currentData().toString();
+    const QString needle = search ? search->text().trimmed() : QString();
+    const QString smode = searchModeCombo ? searchModeCombo->currentData().toString()
                                            : QStringLiteral("common");
     auto wanted = [&](QListWidgetItem* it) {
       if (it->data(TEMP_ROLE).toBool()) {   // this window's session: a local thing, by name
@@ -76,23 +76,23 @@ namespace stencil::gui {
       }
       return show;
     };
-    if (auto* fade = filterFade()) fade->apply(wanted);
+    if (auto* fade = getFilterFade()) fade->apply(wanted);
     updateBatchBar();   // the filtered view IS the select-all pool (and the bar's reason to show)
   }
 
   // Point the delegate at the row whose "..." is under the cursor and sweep the app's own glass
   // shimmer across the chip (support/ShimmerOverlay.hpp, 325ms InOutSine), once per entry.
   void ProjectsDialog::setKebabHover(int row) {
-    if (row == hover_.kebabHoverRow) return;
-    hover_.kebabHoverRow = row;
-    auto* del = static_cast<ProjectRowDelegate*>(list_->itemDelegate());
+    if (row == hover.kebabHoverRow) return;
+    hover.kebabHoverRow = row;
+    auto* del = static_cast<ProjectRowDelegate*>(list->itemDelegate());
     if (del) del->setKebabHover(row);
-    list_->viewport()->update();
-    if (row < 0) { if (hover_.kebabSweep) hover_.kebabSweep->cancel(); return; }
-    if (!hover_.kebabSweep)
-      hover_.kebabSweep = new gui::ShimmerOverlay(nullptr, list_, /*externalBands=*/true);
-    if (QListWidgetItem* it = list_->item(row))
-      hover_.kebabSweep->sweepBand(del ? del->kebabChipFor(list_->visualItemRect(it)) : QRect());
+    list->viewport()->update();
+    if (row < 0) { if (hover.kebabSweep) hover.kebabSweep->cancel(); return; }
+    if (!hover.kebabSweep)
+      hover.kebabSweep = new gui::ShimmerOverlay(nullptr, list, /*externalBands=*/true);
+    if (QListWidgetItem* it = list->item(row))
+      hover.kebabSweep->sweepBand(del ? del->kebabChipFor(list->visualItemRect(it)) : QRect());
   }
 
 }  // namespace stencil::gui

@@ -13,7 +13,7 @@ namespace stencil::gui {
   // with a non-transparent fill while lines are shown.
   void CanvasWidget::drawFill(QPainter& p, const core::Line& line,
                               const QPolygonF& poly) const {
-    if (showLines_ && line.locked && line.points.size() >= 3 &&
+    if (showLines && line.locked && line.points.size() >= 3 &&
         line.fillColor != "transparent" && !line.fillColor.empty()) {
       p.setBrush(paintColor(line.fillColor));
       p.setPen(Qt::NoPen);
@@ -28,7 +28,7 @@ namespace stencil::gui {
                               const Palette& pal) const {
     // Lines-list row hover: a thinner, fainter glow than the selection's, so the
     // two states stay distinguishable (browser renderer.js listHoverLineIdx).
-    if (highlight && showLines_ && lineIdx >= 0 && lineIdx == listHoverLineIdx_ &&
+    if (highlight && showLines && lineIdx >= 0 && lineIdx == listHoverLineIdx &&
         !isLineSelected(lineIdx) && line.points.size() >= 2) {
       QColor glow = pal.hoverRing;
       glow.setAlphaF(0.35);
@@ -41,7 +41,7 @@ namespace stencil::gui {
       if (line.locked) p.drawPolygon(poly);
       else p.drawPolyline(poly);
     }
-    if (highlight && showLines_ && lineIdx >= 0 && isLineSelected(lineIdx) &&
+    if (highlight && showLines && lineIdx >= 0 && isLineSelected(lineIdx) &&
         line.points.size() >= 2) {
       QColor glow = pal.selGlow;
       glow.setAlphaF(0.6);
@@ -60,7 +60,7 @@ namespace stencil::gui {
   void CanvasWidget::drawStroke(QPainter& p, const core::Line& line,
                                 const QPolygonF& poly,
                                 const QColor& stroke) const {
-    if (showLines_) {
+    if (showLines) {
       QPen pen(stroke);
       pen.setWidthF(line.thickness);
       pen.setCapStyle(Qt::RoundCap);
@@ -82,7 +82,7 @@ namespace stencil::gui {
                                  const QPolygonF& poly, int lineIdx,
                                  bool highlight, const QColor& stroke,
                                  const Palette& pal, bool live) const {
-    if (!showPoints_) return;
+    if (!showPoints) return;
 
     const bool isActive = highlight && (&line == panelLine());
     const double r = line.pointSize;
@@ -91,18 +91,18 @@ namespace stencil::gui {
       const QPointF v = poly[i];
       // Focused point: filled selection glow + bold ring (renderer.js state 2,
       // focusRingColor — Settings-backed, browser DEFAULT_VISUALS.focusRingColor).
-      if (isActive && i == selectedPoint_) {
+      if (isActive && i == selectedPoint) {
         p.setBrush(pal.selGlow);
-        p.setPen(QPen(focusRing_, 2));
+        p.setPen(QPen(focusRing, 2));
         p.drawEllipse(v, r + 3, r + 3);
         p.setPen(QPen(pal.textMain, 1));
       }
       // Hovered point: thin translucent ring (renderer.js state 1). Skipped on the focused point,
       // which has the bolder ring above.
       else if (highlight &&
-               ((lineIdx == hoverLineIdx_ && i == hoverPointIdx_) ||
-                (isActive && i == listHoverPointIdx_) ||
-                (lineIdx >= 0 && lineIdx == listHoverLineIdx_))) {
+               ((lineIdx == hoverLineIdx && i == hoverPointIdx) ||
+                (isActive && i == listHoverPointIdx) ||
+                (lineIdx >= 0 && lineIdx == listHoverLineIdx))) {
         QColor ring = pal.hoverRing;
         ring.setAlphaF(0.55);
         QPen rpen(ring);

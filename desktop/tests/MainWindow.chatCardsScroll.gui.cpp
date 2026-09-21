@@ -16,14 +16,14 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 660);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
+    win.actChat->setChecked(true);
     QScrollArea* scroll = openTranscript(win);
     const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
 
     // Fill it well past one viewport, so every further append really does scroll.
     for (int i = 0; i < 10; ++i) {
-      win.chatDock_->appendUser(QStringLiteral("question %1 long enough to wrap onto a second line").arg(i), {});
-      win.chatDock_->appendAssistant(QStringLiteral("reply %1, also long enough to take real height in the column").arg(i));
+      win.chatDock->appendUser(QStringLiteral("question %1 long enough to wrap onto a second line").arg(i), {});
+      win.chatDock->appendAssistant(QStringLiteral("reply %1, also long enough to take real height in the column").arg(i));
     }
     fillUntilScrollable(win, scroll);
     QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
@@ -31,14 +31,14 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(scroll->verticalScrollBar()->maximum() > 0, "the transcript never became scrollable");
 
     // ── 1. no mote may reach the composer ──
-    win.chatDock_->appendUser(QStringLiteral("one more, which has to scroll into view"), {});
+    win.chatDock->appendUser(QStringLiteral("one more, which has to scroll into view"), {});
     // The cloud that belongs to THIS card: the fill above can still have arrivals in flight
     // (gatherChatCardIn waits the layout out in hops), so whichever overlay exists will not do.
     QFrame* card = nullptr;
     stencil::gui::DisintegrateOverlay* fx = nullptr;
     QTRY_VERIFY_WITH_TIMEOUT(([&] {
       card = nullptr;
-      for (QFrame* f : win.chatDock_->findChildren<QFrame*>(QStringLiteral("chatCardUser"))) card = f;
+      for (QFrame* f : win.chatDock->findChildren<QFrame*>(QStringLiteral("chatCardUser"))) card = f;
       if (!card) return false;
       const QRect box(card->mapTo(&win, QPoint(0, 0)), card->size());
       for (QWidget* w : win.findChildren<QWidget*>(QString::fromLatin1(DUST))) {
@@ -59,7 +59,7 @@ class MainWindowGuiTest : public QObject {
              "the dusted card is not wholly in the viewport");
     // An arrival is a surface cloud, so the layer is the whole window; what matters is where it
     // may PAINT. The clip is the transcript's viewport, so no mote reaches the composer.
-    QCOMPARE(fx->paintClip(),
+    QCOMPARE(fx->getPaintClip(),
              QRect(scroll->viewport()->mapTo(&win, QPoint(0, 0)), scroll->viewport()->size()));
     QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr,
                              stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
@@ -67,9 +67,9 @@ class MainWindowGuiTest : public QObject {
       QTRY_COMPARE(fx->opacity(), 1.0);
     // 2. the cloud follows its own card, never stranding between two: a turn's two cards land
     // back to back, and the second append is what scrolls the first one's snapshot off it.
-    win.chatDock_->appendUser(QStringLiteral("Give me 3 variants: rotated, tinted, cropped"), {});
+    win.chatDock->appendUser(QStringLiteral("Give me 3 variants: rotated, tinted, cropped"), {});
     QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) != nullptr, 3000);
-    win.chatDock_->appendError(QStringLiteral("not connected to http://localhost:8090 (no token)"),
+    win.chatDock->appendError(QStringLiteral("not connected to http://localhost:8090 (no token)"),
                                QStringLiteral("retry me"));
 
     // Every live cloud must sit on a card. The widget follows its card by retargeting what it
@@ -87,7 +87,7 @@ class MainWindowGuiTest : public QObject {
         if (!pic.isValid()) continue;
         ++sampled;
         bool onACard = false;
-        for (QFrame* c : win.chatDock_->findChildren<QFrame*>()) {
+        for (QFrame* c : win.chatDock->findChildren<QFrame*>()) {
           if (!c->objectName().startsWith(QLatin1String("chatCard"))) continue;
           const QPoint cTL = c->mapTo(&win, QPoint(0, 0));
           // The picture IS the card's box, retargeted by the exact delta, so a tracked
@@ -109,12 +109,12 @@ class MainWindowGuiTest : public QObject {
     // moment, or a cancelled flight leaves the message invisible. Resizing the dock drops it.
     QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
                              stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
-    win.chatDock_->appendUser(QStringLiteral("resized mid-flight"), {});
+    win.chatDock->appendUser(QStringLiteral("resized mid-flight"), {});
     QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) != nullptr, 3000);
-    win.chatDock_->resize(win.chatDock_->width() - 90, win.chatDock_->height());
-    settleLayout(win.chatDock_, 120);
+    win.chatDock->resize(win.chatDock->width() - 90, win.chatDock->height());
+    settleLayout(win.chatDock, 120);
     QFrame* resized = nullptr;
-    for (QFrame* c : win.chatDock_->findChildren<QFrame*>("chatCardUser")) resized = c;
+    for (QFrame* c : win.chatDock->findChildren<QFrame*>("chatCardUser")) resized = c;
     QVERIFY(resized);
     if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(resized->graphicsEffect()))
       QTRY_VERIFY2_WITH_TIMEOUT(fx->opacity() == 1.0,
@@ -124,7 +124,7 @@ class MainWindowGuiTest : public QObject {
     // …and nothing is left behind: every card lands visible, at its resting margins.
     QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
                              stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
-    for (QFrame* c : win.chatDock_->findChildren<QFrame*>()) {
+    for (QFrame* c : win.chatDock->findChildren<QFrame*>()) {
       if (!c->objectName().startsWith(QLatin1String("chatCard"))) continue;
       if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(c->graphicsEffect()))
         QTRY_COMPARE(fx->opacity(), 1.0);
@@ -139,10 +139,10 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    awaitAnim(win.chatAnim_);   // the open slide, on its own end
-    QWidget* chips = win.chatDock_->findChild<QWidget*>(QStringLiteral("chatSuggest"));
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    awaitAnim(win.chatAnim);   // the open slide, on its own end
+    QWidget* chips = win.chatDock->findChild<QWidget*>(QStringLiteral("chatSuggest"));
     QVERIFY(chips);
     const auto btns = chips->findChildren<QPushButton*>(QStringLiteral("chatSuggestChip"));
     QCOMPARE(btns.size(), 4);

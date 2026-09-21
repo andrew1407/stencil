@@ -14,22 +14,22 @@ namespace stencil::support {
 
   class ClickToToggle : public QObject {
    public:
-    ClickToToggle(QAbstractButton* box, QObject* parent) : QObject(parent), box_(box) {}
+    ClickToToggle(QAbstractButton* box, QObject* parent) : QObject(parent), box(box) {}
 
    protected:
     bool eventFilter(QObject* obj, QEvent* ev) override {
-      if (ev->type() == QEvent::MouseButtonRelease && box_ && box_->isEnabled()) {
+      if (ev->type() == QEvent::MouseButtonRelease && box && box->isEnabled()) {
         auto* me = static_cast<QMouseEvent*>(ev);
         auto* w = qobject_cast<QWidget*>(obj);
         // Inside the words only: a release that wandered off the label is a cancelled press.
         if (me->button() == Qt::LeftButton && w && w->rect().contains(me->position().toPoint()))
-          box_->click();   // click(), so the box's own signal chain runs unchanged
+          box->click();   // click(), so the box's own signal chain runs unchanged
       }
       return QObject::eventFilter(obj, ev);
     }
 
    private:
-    QPointer<QAbstractButton> box_;
+    QPointer<QAbstractButton> box;
   };
 
   inline void captionToggles(QLabel* caption, QAbstractButton* box) {

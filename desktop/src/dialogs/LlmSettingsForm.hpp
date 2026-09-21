@@ -54,28 +54,28 @@ namespace stencil::gui {
     void refreshStatus();
     void setStatus(const char* color, const QString& text);
 
-    RowMode mode_;
-    QFormLayout* form_ = nullptr;
-    QComboBox* provider_ = nullptr;
-    QLineEdit* baseUrl_ = nullptr;
-    QComboBox* model_ = nullptr;
-    QLineEdit* apiKey_ = nullptr;
-    QComboBox* server_ = nullptr;
-    QCheckBox* saveChats_ = nullptr;
-    QLabel* note_ = nullptr;
-    QLabel* saveChatsHint_ = nullptr;
-    QFrame* baseUrlDiv_ = nullptr;
-    QFrame* modelDiv_ = nullptr;
-    QFrame* apiKeyDiv_ = nullptr;
-    QFrame* serverDiv_ = nullptr;
-    QFrame* noteBox_ = nullptr;
-    QLabel* statusDot_ = nullptr;
-    QLabel* status_ = nullptr;
-    QTimer* probeDebounce_ = nullptr;
-    int probeGen_ = 0;
+    RowMode mode;
+    QFormLayout* form = nullptr;
+    QComboBox* provider = nullptr;
+    QLineEdit* baseUrl = nullptr;
+    QComboBox* model = nullptr;
+    QLineEdit* apiKey = nullptr;
+    QComboBox* server = nullptr;
+    QCheckBox* saveChats = nullptr;
+    QLabel* note = nullptr;
+    QLabel* saveChatsHint = nullptr;
+    QFrame* baseUrlDiv = nullptr;
+    QFrame* modelDiv = nullptr;
+    QFrame* apiKeyDiv = nullptr;
+    QFrame* serverDiv = nullptr;
+    QFrame* noteBox = nullptr;
+    QLabel* statusDot = nullptr;
+    QLabel* status = nullptr;
+    QTimer* probeDebounce = nullptr;
+    int probeGen = 0;
     // A child of the form, so pending model fetches are severed when the host dialog closes.
-    stencil::llm::QtLlmTransport* transport_ = nullptr;
-    std::unique_ptr<stencil::llm::LlmClient> client_;
+    stencil::llm::QtLlmTransport* transport = nullptr;
+    std::unique_ptr<stencil::llm::LlmClient> client;
   };
 
 }

@@ -34,7 +34,7 @@
 namespace stencil::gui {
 
   bool LinksDialog::eventFilter(QObject* obj, QEvent* event) {
-    if ((obj == urlEdit_ || obj == urlResourceEdit_) &&
+    if ((obj == urlEdit || obj == urlResourceEdit) &&
         event->type() == QEvent::KeyPress) {
       const auto* k = static_cast<QKeyEvent*>(event);
       if (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) {
@@ -49,66 +49,66 @@ namespace stencil::gui {
     const QUrl u = QUrl::fromUserInput(field->text().trimmed());
     // http(s) only — a typed file:/smb: URL must never reach the OS handler.
     if (stencil::net::fetchGuard::isWebScheme(u)) QDesktopServices::openUrl(u);
-    else if (u.isValid()) previewHint_->setText("Only http(s) links can be opened.");
+    else if (u.isValid()) previewHint->setText("Only http(s) links can be opened.");
   }
 
   void LinksDialog::doPreview() {
-    const QString url = urlEdit_->text().trimmed();
+    const QString url = urlEdit->text().trimmed();
     if (url.isEmpty()) {
-      previewHint_->setText("Enter an image or video URL first.");
+      previewHint->setText("Enter an image or video URL first.");
       return;
     }
-    previewHint_->setText("Loading…");
-    loadBtn_->setEnabled(false);
-    preview_->load(url, frame_->value());
+    previewHint->setText("Loading…");
+    loadBtn->setEnabled(false);
+    preview->load(url, frame->value());
   }
 
   void LinksDialog::resetPreviewState() {
-    if (fetchTimer_) fetchTimer_->stop();
+    if (fetchTimer) fetchTimer->stop();
     teardownScrubPlayer();
-    previewImage_ = QImage();
-    frameImage_ = QImage();
-    thumbImage_ = QImage();
-    previewIsVideo_ = false;
-    previewLabel_->clear();
-    previewLabel_->setVisible(false);
-    previewHint_->clear();
-    frameRow_->setVisible(false);
-    quickcropRow_->setVisible(false);
-    usePreview_->setEnabled(false);
-    frame_->setEnabled(true);
-    frameTotal_->clear();
-    loadBtn_->setEnabled(false);
+    previewImage = QImage();
+    frameImage = QImage();
+    thumbImage = QImage();
+    previewIsVideo = false;
+    previewLabel->clear();
+    previewLabel->setVisible(false);
+    previewHint->clear();
+    frameRow->setVisible(false);
+    quickcropRow->setVisible(false);
+    usePreview->setEnabled(false);
+    frame->setEnabled(true);
+    frameTotal->clear();
+    loadBtn->setEnabled(false);
   }
 
   // Mirror a chosen frame to BOTH the slider and the spin box, then schedule a debounced seek
   // (QSignalBlocker keeps the set from echoing back, so both land on the same final value).
   void LinksDialog::setFrame(int n) {
-    n = std::clamp(n, frame_->minimum(), frame_->maximum());
+    n = std::clamp(n, frame->minimum(), frame->maximum());
     {
-      const QSignalBlocker bs(frameSlider_);
-      frameSlider_->setValue(n);
+      const QSignalBlocker bs(frameSlider);
+      frameSlider->setValue(n);
     }
     {
-      const QSignalBlocker bf(frame_);
-      frame_->setValue(n);
+      const QSignalBlocker bf(frame);
+      frame->setValue(n);
     }
-    if (previewIsVideo_ && !usePreview_->isChecked()) fetchTimer_->start();
+    if (previewIsVideo && !usePreview->isChecked()) fetchTimer->start();
   }
 
   // Bound the slider + spin box to the video's frame count (best-effort: a stream
   // with no known duration leaves a generous open range so any frame can be typed).
   void LinksDialog::applyFrameBounds() {
-    const int count = preview_->frameCount();
+    const int count = preview->frameCount();
     const int maxFrame = count > 0 ? count - 1 : 1'000'000;
-    const QSignalBlocker bs(frameSlider_);
-    const QSignalBlocker bf(frame_);
-    frameSlider_->setMaximum(maxFrame);
-    frame_->setMaximum(maxFrame);
-    const int cur = std::min(frame_->value(), maxFrame);
-    frameSlider_->setValue(cur);
-    frame_->setValue(cur);
-    frameTotal_->setText(count > 0 ? QString("/ %1").arg(maxFrame) : QString());
+    const QSignalBlocker bs(frameSlider);
+    const QSignalBlocker bf(frame);
+    frameSlider->setMaximum(maxFrame);
+    frame->setMaximum(maxFrame);
+    const int cur = std::min(frame->value(), maxFrame);
+    frameSlider->setValue(cur);
+    frame->setValue(cur);
+    frameTotal->setText(count > 0 ? QString("/ %1").arg(maxFrame) : QString());
   }
 
   // Load the video once into a persistent player + sink so scrubbing seeks a ready
@@ -116,65 +116,65 @@ namespace stencil::gui {
   void LinksDialog::setupScrubPlayer(const QUrl& url) {
     teardownScrubPlayer();
     if (url.isEmpty()) return;
-    scrubPlayer_ = new QMediaPlayer(this);
-    scrubAudio_ = new QAudioOutput(this);
-    scrubAudio_->setMuted(true);
-    scrubPlayer_->setAudioOutput(scrubAudio_);
-    scrubSink_ = new QVideoSink(this);
-    scrubPlayer_->setVideoSink(scrubSink_);
-    connect(scrubSink_, &QVideoSink::videoFrameChanged, this, &LinksDialog::onScrubFrame);
-    connect(scrubPlayer_, &QMediaPlayer::mediaStatusChanged, this,
+    scrubPlayer = new QMediaPlayer(this);
+    scrubAudio = new QAudioOutput(this);
+    scrubAudio->setMuted(true);
+    scrubPlayer->setAudioOutput(scrubAudio);
+    scrubSink = new QVideoSink(this);
+    scrubPlayer->setVideoSink(scrubSink);
+    connect(scrubSink, &QVideoSink::videoFrameChanged, this, &LinksDialog::onScrubFrame);
+    connect(scrubPlayer, &QMediaPlayer::mediaStatusChanged, this,
             [this](QMediaPlayer::MediaStatus s) {
               if (s == QMediaPlayer::LoadedMedia || s == QMediaPlayer::BufferedMedia)
-                seekScrub(frame_->value());  // render the current frame once ready
+                seekScrub(frame->value());  // render the current frame once ready
             });
-    scrubPlayer_->setSource(url);
+    scrubPlayer->setSource(url);
   }
 
   void LinksDialog::teardownScrubPlayer() {
-    scrubPending_ = false;
-    if (scrubPlayer_) {
-      scrubPlayer_->stop();
-      scrubPlayer_->setVideoSink(nullptr);
-      scrubPlayer_->deleteLater();
-      scrubPlayer_ = nullptr;
+    scrubPending = false;
+    if (scrubPlayer) {
+      scrubPlayer->stop();
+      scrubPlayer->setVideoSink(nullptr);
+      scrubPlayer->deleteLater();
+      scrubPlayer = nullptr;
     }
-    if (scrubSink_) {
-      scrubSink_->deleteLater();
-      scrubSink_ = nullptr;
+    if (scrubSink) {
+      scrubSink->deleteLater();
+      scrubSink = nullptr;
     }
-    if (scrubAudio_) {
-      scrubAudio_->deleteLater();
-      scrubAudio_ = nullptr;
+    if (scrubAudio) {
+      scrubAudio->deleteLater();
+      scrubAudio = nullptr;
     }
   }
 
   // Seek the persistent player to a frame. Playback is briefly required for the sink
   // to emit a frame at the new position; onScrubFrame() grabs it and pauses.
   void LinksDialog::seekScrub(int frame) {
-    if (!scrubPlayer_) return;
-    const double fps = scrubFps_ > 0 ? scrubFps_ : 30.0;
-    scrubTargetMs_ = static_cast<qint64>(frame / fps * 1000.0 + 0.5);
-    if (scrubDurationMs_ > 0)
-      scrubTargetMs_ = std::min(scrubTargetMs_, std::max<qint64>(0, scrubDurationMs_ - 1));
-    scrubPending_ = true;
-    scrubPlayer_->setPosition(scrubTargetMs_);
-    scrubPlayer_->play();
+    if (!scrubPlayer) return;
+    const double fps = scrubFps > 0 ? scrubFps : 30.0;
+    scrubTargetMs = static_cast<qint64>(frame / fps * 1000.0 + 0.5);
+    if (scrubDurationMs > 0)
+      scrubTargetMs = std::min(scrubTargetMs, std::max<qint64>(0, scrubDurationMs - 1));
+    scrubPending = true;
+    scrubPlayer->setPosition(scrubTargetMs);
+    scrubPlayer->play();
   }
 
   // A frame rendered by the scrub player: once playback reaches the seek target, grab
   // it, pause, and show it (unless the embedded preview image is the chosen source).
   void LinksDialog::onScrubFrame(const QVideoFrame& frame) {
-    if (!scrubPending_ || !frame.isValid()) return;
-    if (scrubTargetMs_ > 0 && scrubPlayer_ &&
-        scrubPlayer_->position() + 60 < scrubTargetMs_)
+    if (!scrubPending || !frame.isValid()) return;
+    if (scrubTargetMs > 0 && scrubPlayer &&
+        scrubPlayer->position() + 60 < scrubTargetMs)
       return;  // still streaming up to the seek point — wait for the target frame
     const QImage img = frame.toImage();
     if (img.isNull()) return;
-    scrubPending_ = false;
-    if (scrubPlayer_) scrubPlayer_->pause();
-    frameImage_ = img.copy();
-    if (previewIsVideo_ && !usePreview_->isChecked()) updateVideoPreview();
+    scrubPending = false;
+    if (scrubPlayer) scrubPlayer->pause();
+    frameImage = img.copy();
+    if (previewIsVideo && !usePreview->isChecked()) updateVideoPreview();
   }
 }
 

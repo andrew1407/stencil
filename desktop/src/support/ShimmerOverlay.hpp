@@ -38,42 +38,42 @@ namespace stencil::gui {
     explicit ShimmerOverlay(QWidget* target, QAbstractItemView* view = nullptr,
                             bool externalBands = false)
         : QWidget(view ? view->viewport() : target),
-          target_(view ? view->viewport() : target), view_(view),
-          externalBands_(externalBands) {
+          target(view ? view->viewport() : target), view(view),
+          externalBands(externalBands) {
       // NO WA_TranslucentBackground (a top-level attribute that stops a child rendering);
       // WA_NoSystemBackground so the target shows through the unpainted parts.
       setAttribute(Qt::WA_TransparentForMouseEvents);
       setAttribute(Qt::WA_NoSystemBackground);
       // Progress mirrored to a dynamic property so the GUI test can assert the band ADVANCES.
       setObjectName(QStringLiteral("shimmerOverlay"));
-      anim_ = new QVariantAnimation(this);
-      anim_->setStartValue(0.0);
-      anim_->setEndValue(1.0);
-      anim_->setDuration(325);
-      anim_->setEasingCurve(QEasingCurve::InOutSine);
-      QObject::connect(anim_, &QVariantAnimation::valueChanged, this,
+      anim = new QVariantAnimation(this);
+      anim->setStartValue(0.0);
+      anim->setEndValue(1.0);
+      anim->setDuration(325);
+      anim->setEasingCurve(QEasingCurve::InOutSine);
+      QObject::connect(anim, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) { setProgress(v.toReal()); });
-      QObject::connect(anim_, &QVariantAnimation::finished, this,
+      QObject::connect(anim, &QVariantAnimation::finished, this,
                        [this] { setProgress(-1.0); });
-      target_->installEventFilter(this);
-      if (view_) target_->setMouseTracking(true);   // so we get MouseMove without a button held
-      setGeometry(target_->rect());
+      this->target->installEventFilter(this);
+      if (this->view) this->target->setMouseTracking(true);   // so we get MouseMove without a button held
+      setGeometry(this->target->rect());
       raise();
       show();   // stays present (transparent); paints only while the sweep animates
     }
 
   protected:
     bool eventFilter(QObject* o, QEvent* e) override {
-      if (o == target_) {
+      if (o == target) {
         switch (e->type()) {
           case QEvent::Resize:
           case QEvent::Move:
           case QEvent::Show:
-            setGeometry(target_->rect());
+            setGeometry(target->rect());
             raise();
             break;
           case QEvent::Enter:
-            if (!view_ && !externalBands_ && target_->isEnabled()) startSweep(rect());
+            if (!view && !externalBands && target->isEnabled()) startSweep(rect());
             break;
           case QEvent::Leave:
             // Cancel the instant the cursor leaves, or a fast pass leaves a trail of sweeps.
@@ -84,18 +84,18 @@ namespace stencil::gui {
           case QEvent::WindowDeactivate:
             // …and on disable / window loss: a suspended window would keep a frozen streak.
             // NOT in external-band mode — a popup menu's activation churn is not a hover-out.
-            if (!externalBands_) cancelSweep();
+            if (!externalBands) cancelSweep();
             break;
           case QEvent::MouseMove:
-            if (view_) {
-              const QModelIndex idx = view_->indexAt(static_cast<QMouseEvent*>(e)->pos());
+            if (view) {
+              const QModelIndex idx = view->indexAt(static_cast<QMouseEvent*>(e)->pos());
               const int row = idx.isValid() ? idx.row() : -1;
-              if (row != hoveredRow_) {
-                hoveredRow_ = row;
+              if (row != hoveredRow) {
+                hoveredRow = row;
                 if (row >= 0) {
-                  QRect r = view_->visualRect(idx);
+                  QRect r = view->visualRect(idx);
                   r.setLeft(0);
-                  r.setRight(target_->width());
+                  r.setRight(target->width());
                   startSweep(r);
                 }
               }
@@ -109,18 +109,18 @@ namespace stencil::gui {
     }
     void paintEvent(QPaintEvent*) override {
       // Paint ONLY while running — a stopped animation must not leave a static band.
-      if (progress_ < 0.0 || anim_->state() != QAbstractAnimation::Running) return;
-      const QRect b = band_.isEmpty() ? rect() : band_;
+      if (progress < 0.0 || anim->state() != QAbstractAnimation::Running) return;
+      const QRect b = band.isEmpty() ? rect() : band;
       if (b.width() <= 0 || b.height() <= 0) return;
       const qreal bw = b.width() * 0.5;
-      const qreal cx = b.left() - bw + progress_ * (b.width() + 2 * bw);   // off-left → off-right
+      const qreal cx = b.left() - bw + progress * (b.width() + 2 * bw);   // off-left → off-right
       QLinearGradient g(cx - bw, b.top(), cx + bw, b.bottom());            // diagonal light band
       g.setColorAt(0.0, QColor(255, 255, 255, 0));
       g.setColorAt(0.5, QColor(255, 255, 255, 95));
       g.setColorAt(1.0, QColor(255, 255, 255, 0));
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing);
-      const QVariant own = target_->property(SHIMMER_RADIUS_PROPERTY);
+      const QVariant own = target->property(SHIMMER_RADIUS_PROPERTY);
       const qreal r = std::min<qreal>(own.isValid() ? own.toReal() : SHIMMER_RADIUS,
                                       std::min(b.width(), b.height()) / 2.0);
       if (r > 0.5) {
@@ -139,27 +139,27 @@ namespace stencil::gui {
     // Reduced motion: no sweep at all — pure feedback with no end state (faceSwap / filterFade rule).
     void startSweep(const QRect& band) {
       if (support::motionReduced()) return;
-      band_ = band;
-      anim_->stop();
-      anim_->start();
+      this->band = band;
+      anim->stop();
+      anim->start();
     }
     void cancelSweep() {
-      hoveredRow_ = -1;
-      anim_->stop();
+      hoveredRow = -1;
+      anim->stop();
       setProgress(-1.0);
     }
     void setProgress(qreal p) {
-      progress_ = p;
+      progress = p;
       setProperty("sweepProgress", p);  // observable by the GUI test
       update();
     }
-    QWidget* target_;
-    QAbstractItemView* view_;
-    bool externalBands_ = false;
-    QVariantAnimation* anim_ = nullptr;
-    qreal progress_ = -1.0;
-    QRect band_;
-    int hoveredRow_ = -1;
+    QWidget* target;
+    QAbstractItemView* view;
+    bool externalBands = false;
+    QVariantAnimation* anim = nullptr;
+    qreal progress = -1.0;
+    QRect band;
+    int hoveredRow = -1;
   };
 
   inline void installHoverShimmer(QWidget* target) {

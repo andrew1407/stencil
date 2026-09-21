@@ -77,10 +77,10 @@ int main(int argc, char** argv) {
 
   // An https origin can't speak the plaintext feed — declined, no subscription left behind.
   check(feed.subscribe("https://example.com:8090", "tok") == false, "https base declined");
-  check(feed.base().isEmpty(), "declined https leaves no subscription");
+  check(feed.getBase().isEmpty(), "declined https leaves no subscription");
 
   check(feed.subscribe(base, "tok-123"), "subscribe to an http base");
-  check(feed.base() == base, "base() reflects the subscription");
+  check(feed.getBase() == base, "getBase() reflects the subscription");
   pumpUntil([&] { return got.size() >= 3; });
 
   check(got.size() == 3, "three project-events delivered (welcome + garbage ignored)");
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
   }
 
   feed.unsubscribe();
-  check(feed.base().isEmpty(), "unsubscribe clears the subscription");
+  check(feed.getBase().isEmpty(), "unsubscribe clears the subscription");
 
   // ── #1 connection-security policy (ServerClient::normalizeBase / isInsecureRemote) ──
   {

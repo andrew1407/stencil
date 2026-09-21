@@ -168,21 +168,21 @@ class MainWindowGuiTest : public QObject {
       // Stand in for a decoded video: a frame, flagged as one, straight into the preview.
       QImage frame(320, 180, QImage::Format_RGB32);
       frame.fill(Qt::darkMagenta);
-      dlg->previewIsVideo_ = true;
-      dlg->frameImage_ = frame;
+      dlg->previewIsVideo = true;
+      dlg->frameImage = frame;
       dlg->updateVideoPreview();
       dlg->showQuickcrop(frame.width(), frame.height());
       settle([] { return false; }, 300);
-      dlg->cropPage_->setChecked(true);
+      dlg->cropPage->setChecked(true);
       settle([] { return false; }, 700);
       auto* stage = dlg->findChild<stencil::gui::CropPreview*>();
       stageUp = stage && stage->isVisible();
-      labelHidden = !dlg->previewLabel_->isVisible();
-      dimsUp = dlg->cropDims_->isVisible();
+      labelHidden = !dlg->previewLabel->isVisible();
+      dimsUp = dlg->cropDims->isVisible();
       if (stage) {
         stageW = stage->paintedRect().width();
-        barW = dlg->frameSlider_->width();
-        barMatchesStage = dlg->frameSlider_->isVisible() && barW == stageW;
+        barW = dlg->frameSlider->width();
+        barMatchesStage = dlg->frameSlider->isVisible() && barW == stageW;
       }
       dlg->reject();
     });
@@ -209,9 +209,9 @@ class MainWindowGuiTest : public QObject {
     opts.cropToPage = true;
     opts.cropX = 11; opts.cropY = 22; opts.cropW = 120; opts.cropH = 84;
     win.applyLaunchOptions(opts);
-    settle([&] { return win.canvas_->hasImage() && win.canvas_->cropRect().width > 0; }, 6000);
-    const stencil::core::CropRect got = win.canvas_->cropRect();
-    QVERIFY2(win.canvas_->hasImage(), "the handoff never loaded its image");
+    settle([&] { return win.canvas->hasImage() && win.canvas->getCropRect().width > 0; }, 6000);
+    const stencil::core::CropRect got = win.canvas->getCropRect();
+    QVERIFY2(win.canvas->hasImage(), "the handoff never loaded its image");
     QCOMPARE(qRound(got.x), 11);
     QCOMPARE(qRound(got.y), 22);
     QCOMPARE(qRound(got.width), 120);

@@ -15,19 +15,19 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     mock.response = QJsonDocument(QJsonObject{
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"hi there\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
-    auto* dock = win.chatDock_;
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    auto* dock = win.chatDock;
     QVERIFY(dock);
-    win.actChat_->setChecked(true);   // the menu only pops on a VISIBLE surface
+    win.actChat->setChecked(true);   // the menu only pops on a VISIBLE surface
     QTRY_VERIFY(dock->isVisible());
-    awaitAnim(win.chatAnim_);   // the open slide, on its own end
+    awaitAnim(win.chatAnim);   // the open slide, on its own end
     QImage att(24, 24, QImage::Format_RGB32);
     att.fill(Qt::green);
     dock->addAttachmentImage(att, "cat.png");
@@ -138,11 +138,11 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    auto* dock = win.chatDock_;
+    auto* dock = win.chatDock;
     QVERIFY(dock);
-    win.actChat_->setChecked(true);   // the menu only pops on a VISIBLE surface
+    win.actChat->setChecked(true);   // the menu only pops on a VISIBLE surface
     QTRY_VERIFY(dock->isVisible());
-    awaitAnim(win.chatAnim_);   // the open slide, on its own end
+    awaitAnim(win.chatAnim);   // the open slide, on its own end
     dock->appendNote(QStringLiteral("escape me"));
     QFrame* noteCard = nullptr;
     for (QFrame* f : dock->findChildren<QFrame*>("chatCardMuted")) noteCard = f;

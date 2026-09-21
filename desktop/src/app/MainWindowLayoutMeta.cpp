@@ -34,12 +34,12 @@ namespace stencil::gui {
 
   fileStore::LayoutMeta MainWindow::currentLayoutMeta() const {
     fileStore::LayoutMeta m;
-    m.pageSize = settings_.pageSize;
-    m.customPageWidth = settings_.customPageWidth;
-    m.customPageHeight = settings_.customPageHeight;
-    m.allowFormulas = settings_.allowFormulas;
-    m.formulaX = settings_.formulaX;
-    m.formulaY = settings_.formulaY;
+    m.pageSize = settings.pageSize;
+    m.customPageWidth = settings.customPageWidth;
+    m.customPageHeight = settings.customPageHeight;
+    m.allowFormulas = settings.allowFormulas;
+    m.formulaX = settings.formulaX;
+    m.formulaY = settings.formulaY;
     return m;
   }
 
@@ -47,20 +47,20 @@ namespace stencil::gui {
   void MainWindow::adoptServerLayoutMeta(const QJsonObject& layout) {
     if (layout.contains("pageSize")) {
       const fileStore::LayoutMeta m = fileStore::parseLayoutMeta(layout);
-      if (m.customPageWidth > 0) settings_.customPageWidth = m.customPageWidth;
-      if (m.customPageHeight > 0) settings_.customPageHeight = m.customPageHeight;
+      if (m.customPageWidth > 0) settings.customPageWidth = m.customPageWidth;
+      if (m.customPageHeight > 0) settings.customPageHeight = m.customPageHeight;
       {
-        QSignalBlocker bs(units_.pageSize);
-        const int idx = units_.pageSize->findData(m.pageSize);
-        if (idx >= 0) units_.pageSize->setCurrentIndex(idx);
+        QSignalBlocker bs(units.pageSize);
+        const int idx = units.pageSize->findData(m.pageSize);
+        if (idx >= 0) units.pageSize->setCurrentIndex(idx);
       }
-      settings_.pageSize = pageSizeValue();
-      revealControls(units_.customGroup, settings_.pageSize == "custom");
-      if (units_.customW && units_.customH) {
-        QSignalBlocker bw(units_.customW), bh(units_.customH);
+      settings.pageSize = pageSizeValue();
+      revealControls(units.customGroup, settings.pageSize == "custom");
+      if (units.customW && units.customH) {
+        QSignalBlocker bw(units.customW), bh(units.customH);
         const double f = unitFormat().factor;
-        units_.customW->setValue(settings_.customPageWidth * f);
-        units_.customH->setValue(settings_.customPageHeight * f);
+        units.customW->setValue(settings.customPageWidth * f);
+        units.customH->setValue(settings.customPageHeight * f);
       }
     }
     if (layout.contains("allowFormulas") || layout.contains("formulaX") ||
@@ -69,24 +69,24 @@ namespace stencil::gui {
       // Keep the expressions regardless of the toggle.
       const QString fx = layout.value("formulaX").toString();
       const QString fy = layout.value("formulaY").toString();
-      settings_.allowFormulas = allow;
-      settings_.formulaX = fx;
-      settings_.formulaY = fy;
+      settings.allowFormulas = allow;
+      settings.formulaX = fx;
+      settings.formulaY = fy;
       {
-        QSignalBlocker ba(allowFormulas_);
-        allowFormulas_->setChecked(allow);
+        QSignalBlocker ba(allowFormulas);
+        allowFormulas->setChecked(allow);
       }
-      if (actAllowFormulas_) {
-        QSignalBlocker b(actAllowFormulas_);
-        actAllowFormulas_->setChecked(allow);
+      if (actAllowFormulas) {
+        QSignalBlocker b(actAllowFormulas);
+        actAllowFormulas->setChecked(allow);
       }
-      revealControls(formulaGroup_, allow);
+      revealControls(formulaGroup, allow);
       {
-        QSignalBlocker bx(formulaX_), by(formulaY_);
-        formulaX_->setText(fx);
-        formulaY_->setText(fy);
+        QSignalBlocker bx(formulaX), by(formulaY);
+        formulaX->setText(fx);
+        formulaY->setText(fy);
       }
-      if (formulaError_) formulaError_->setVisible(false);
+      if (formulaError) formulaError->setVisible(false);
     }
     persistSettings();
   }
@@ -97,7 +97,7 @@ namespace stencil::gui {
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();
     if (!win->loadProjectIntoCanvas(id)) {
-      notify_->error("Could not open the project in a new window");
+      notify->error("Could not open the project in a new window");
       win->close();  // auto-close the failed load
     }
   }
@@ -106,11 +106,11 @@ namespace stencil::gui {
     if (id.isEmpty()) return false;
     for (QWidget* w : QApplication::topLevelWidgets()) {
       auto* mw = qobject_cast<MainWindow*>(w);
-      if (mw && mw != this && mw->activeProjectId_ == id) return true;
+      if (mw && mw != this && mw->activeProjectId == id) return true;
     }
     return false;
   }
 
-  // Local↔server transfer lives in ProjectTransferController (projectTransfer_).
+  // Local↔server transfer lives in ProjectTransferController (projectTransfer).
 
 }  // namespace stencil::gui

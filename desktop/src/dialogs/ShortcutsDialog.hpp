@@ -54,13 +54,13 @@ namespace stencil::gui {
       class ComboCell* cell = nullptr;   // the combo, as keycaps that capture on click
       QToolButton* reset = nullptr;
     };
-    QVector<Row> rows_;
-    QLineEdit* search_ = nullptr;
-    QLabel* empty_ = nullptr;
-    QWidget* head_ = nullptr;
-    QHBoxLayout* headWrap_ = nullptr;   // pads the head to the rows' side edges
-    int dialogW_ = 0;                   // the shell width the keycap columns need
-    QScrollArea* scroll_ = nullptr;
+    QVector<Row> rows;
+    QLineEdit* search = nullptr;
+    QLabel* empty = nullptr;
+    QWidget* head = nullptr;
+    QHBoxLayout* headWrap = nullptr;   // pads the head to the rows' side edges
+    int dialogW = 0;                   // the shell width the keycap columns need
+    QScrollArea* scroll = nullptr;
 
     // Show only rows whose action, combo or default contains `query` (case-insensitive).
     void applyFilter(const QString& query);

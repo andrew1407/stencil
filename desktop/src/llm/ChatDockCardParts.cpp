@@ -79,13 +79,13 @@ namespace stencil::gui {
   ChatCardMenuHooks ChatDock::cardMenuHooks() {
     ChatCardMenuHooks h;
     h.owner = this;
-    h.scroll = scroll_;
+    h.scroll = scroll;
     h.busy = [this] { return isBusy(); };
     h.insertIntoPrompt = [this](const QString& text) {
-      const QString existing = input_->toPlainText();
-      input_->setPlainText(existing.isEmpty() ? text : existing + QLatin1Char('\n') + text);
-      input_->moveCursor(QTextCursor::End);
-      QTimer::singleShot(0, input_, [this] { focusInput(); });  // after the menu's focus restore
+      const QString existing = input->toPlainText();
+      input->setPlainText(existing.isEmpty() ? text : existing + QLatin1Char('\n') + text);
+      input->moveCursor(QTextCursor::End);
+      QTimer::singleShot(0, input, [this] { focusInput(); });  // after the menu's focus restore
     };
     h.resend = [this](QFrame* card, const QString& text) {
       // Requeue the turn's own images as fresh tray attachments (the browser's
@@ -97,12 +97,12 @@ namespace stencil::gui {
     // No h.moreMoved: the pills win and the trigger gets out of THEIR way, so a moved trigger has
     // nothing to tell them - and wiring it back to updateJumpButtons would be reentrant.
     h.avoidRect = [this] { return jumpPillsGlobalRect(); };
-    h.leaving = [this] { return closing_; };
-    h.text = textCache_.isValid() ? textCache_ : palette().color(QPalette::Text);
-    h.chip = chipCache_.isValid() ? chipCache_ : palette().color(QPalette::AlternateBase);
-    h.border = borderCache_.isValid() ? borderCache_ : palette().color(QPalette::Mid);
-    h.accent = accentCache_.isValid() ? accentCache_ : palette().highlight().color();
-    h.muted = mutedCache_.isValid() ? mutedCache_ : palette().color(QPalette::PlaceholderText);
+    h.leaving = [this] { return closing; };
+    h.text = textCache.isValid() ? textCache : palette().color(QPalette::Text);
+    h.chip = chipCache.isValid() ? chipCache : palette().color(QPalette::AlternateBase);
+    h.border = borderCache.isValid() ? borderCache : palette().color(QPalette::Mid);
+    h.accent = accentCache.isValid() ? accentCache : palette().highlight().color();
+    h.muted = mutedCache.isValid() ? mutedCache : palette().color(QPalette::PlaceholderText);
     return h;
   }
 

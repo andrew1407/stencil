@@ -83,9 +83,9 @@ int main(int argc, char** argv) {
     check(canvas && !canvas->hasImage(), "the window starts empty");
     win.openPathFromOS(drawsRect);
     check(canvas->hasImage(), "the script's @source filled the canvas");
-    check(canvas->lines().size() == 1, "the @rect landed as a layout line");
-    if (canvas->lines().size() == 1)
-      check(canvas->lines()[0].locked, "a @rect is closed, so it fills");
+    check(canvas->getLines().size() == 1, "the @rect landed as a layout line");
+    if (canvas->getLines().size() == 1)
+      check(canvas->getLines()[0].locked, "a @rect is closed, so it fills");
   }
 
   std::printf("a dropped .stc runs where a dropped image would open:\n");
@@ -94,9 +94,9 @@ int main(int argc, char** argv) {
     CanvasWidget* canvas = showWindow(win);
     check(dropPath(&win, drawsLine), "the window took the drop");
     check(canvas->hasImage(), "the dropped script opened its own source");
-    check(canvas->lines().size() == 1, "the @line landed as a layout line");
-    if (canvas->lines().size() == 1)
-      check(canvas->lines()[0].points.size() == 3, "@line kept its three points");
+    check(canvas->getLines().size() == 1, "the @line landed as a layout line");
+    if (canvas->getLines().size() == 1)
+      check(canvas->getLines()[0].points.size() == 3, "@line kept its three points");
   }
 
   std::printf("a dropped .stc is never opened as a picture:\n");

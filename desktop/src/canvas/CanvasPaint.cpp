@@ -12,83 +12,83 @@ namespace stencil::gui {
   void CanvasWidget::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
-    const Palette& pal = paintPalette(dark_, accentKey_, selGlow_, hoverRing_);
-    if (image_.isNull()) {
+    const Palette& pal = paintPalette(dark, accentKey, selGlow, hoverRing);
+    if (image.isNull()) {
       paintIdleCard(p, pal);
       return;
     }
     if (!toolTip().isEmpty()) setToolTip(QString());
     // "original" shows the cropped+rotated original alone (a BLANK page keeps fill + tint); the
     // split modes render the edit and overlay the original on one half at the end.
-    if (filterDirty_) rebuildFilteredImage();
+    if (filterDirty) rebuildFilteredImage();
     const QString compare = effectiveCompareMode();
     if (compare == "original") {
-      p.drawImage(QRectF(0, 0, image_.width() * scale_, image_.height() * scale_),
+      p.drawImage(QRectF(0, 0, image.width() * scale, image.height() * scale),
                   compareBaseImage());
       return;
     }
 
-    const QImage& shown = (imageFilter_ == "none" || filteredImage_.isNull())
-                              ? image_
-                              : filteredImage_;
-    p.drawImage(QRectF(0, 0, image_.width() * scale_, image_.height() * scale_),
+    const QImage& shown = (imageFilter == "none" || filteredImage.isNull())
+                              ? image
+                              : filteredImage;
+    p.drawImage(QRectF(0, 0, image.width() * scale, image.height() * scale),
                 shown);
     // A split compare view is read-only: no selection glow, no hover/focus rings.
     const bool hl = compare == "none";
-    for (int i = 0; i < static_cast<int>(lines_.size()); ++i)
-      drawLineScaled(p, lines_[i], i, scale_, /*highlight=*/hl);
-    drawLineScaled(p, currentLine_, -1, scale_, /*highlight=*/hl);
+    for (int i = 0; i < static_cast<int>(lines.size()); ++i)
+      drawLineScaled(p, lines[i], i, scale, /*highlight=*/hl);
+    drawLineScaled(p, currentLine, -1, scale, /*highlight=*/hl);
 
-    if (zoomRectActive_) {
+    if (zoomRectActive) {
       QPen pen(pal.accent);
       pen.setStyle(Qt::DashLine);
       pen.setWidth(1);
       p.setPen(pen);
       p.setBrush(Qt::NoBrush);
-      p.drawRect(QRectF(zoomRectStart_, zoomRectEnd_).normalized());
+      p.drawRect(QRectF(zoomRectStart, zoomRectEnd).normalized());
     }
 
     // Rect-draw rubber band (browser drawingApp.js), same dashed-accent style as the zoom band.
-    if (rectDrawActive_) {
+    if (rectDrawActive) {
       QPen pen(pal.accent);
       pen.setStyle(Qt::DashLine);
       pen.setWidth(1);
       p.setPen(pen);
       p.setBrush(Qt::NoBrush);
-      p.drawRect(QRectF(rectDrawStart_, rectDrawEnd_).normalized());
+      p.drawRect(QRectF(rectDrawStart, rectDrawEnd).normalized());
     }
 
     // Hold-to-draw ghost segment + point (renderer.js drawHoldPreview). Transient.
-    if (holdHasPreview_) {
+    if (holdHasPreview) {
       const QColor base(QString::fromStdString(
-          currentLine_.points.empty() && selectedLine()
+          currentLine.points.empty() && selectedLine()
               ? selectedLine()->color
-              : defColor_.toStdString()));
-      const QPointF cur(holdPreview_.x * scale_, holdPreview_.y * scale_);
+              : defColor.toStdString()));
+      const QPointF cur(holdPreview.x * scale, holdPreview.y * scale);
       if (const core::Point* a = holdAnchor()) {
         QColor line = base; line.setAlphaF(0.45);
         QPen pen(line);
         pen.setStyle(Qt::DashLine);
-        pen.setWidthF(std::max(1.0, defThickness_));
+        pen.setWidthF(std::max(1.0, defThickness));
         pen.setCapStyle(Qt::RoundCap);
         p.setPen(pen);
         p.setBrush(Qt::NoBrush);
-        p.drawLine(QPointF(a->x * scale_, a->y * scale_), cur);
+        p.drawLine(QPointF(a->x * scale, a->y * scale), cur);
       }
       QColor dot = base; dot.setAlphaF(0.6);
       p.setPen(Qt::NoPen);
       p.setBrush(dot);
-      p.drawEllipse(cur, defPointSize_, defPointSize_);
+      p.drawEllipse(cur, defPointSize, defPointSize);
     }
 
-    if (compare == "vertical" || compare == "horizontal") paintCompareSplit(p, compare, scale_);
+    if (compare == "vertical" || compare == "horizontal") paintCompareSplit(p, compare, scale);
   }
 
   // Divider metrics are in widget space: constant on-screen thickness at any zoom.
   void CanvasWidget::paintCompareSplit(QPainter& p, const QString& mode, double scale, bool withDivider) const {
-    const double w = image_.width() * scale;
-    const double h = image_.height() * scale;
-    const double f = std::clamp(compareSplit_, 0.0, 1.0);
+    const double w = image.width() * scale;
+    const double h = image.height() * scale;
+    const double f = std::clamp(compareSplit, 0.0, 1.0);
 
     p.save();
     p.setClipRect(mode == "vertical" ? QRectF(0, 0, w * f, h) : QRectF(0, 0, w, h * f));
@@ -132,19 +132,19 @@ namespace stencil::gui {
   bool CanvasWidget::compareShowsEdited(double imageX, double imageY) const {
     const QString mode = effectiveCompareMode();
     if (mode == QLatin1String("none")) return true;
-    const double f = std::clamp(compareSplit_, 0.0, 1.0);
-    if (mode == QLatin1String("vertical")) return imageX >= image_.width() * f;
-    if (mode == QLatin1String("horizontal")) return imageY >= image_.height() * f;
+    const double f = std::clamp(compareSplit, 0.0, 1.0);
+    if (mode == QLatin1String("vertical")) return imageX >= image.width() * f;
+    if (mode == QLatin1String("horizontal")) return imageY >= image.height() * f;
     return false;  // "original": the edit (and its layout) is nowhere on screen
   }
 
   bool CanvasWidget::nearCompareDivider(const QPoint& widgetPos) const {
-    if (compareMode_ != "vertical" && compareMode_ != "horizontal") return false;
-    const double f = std::clamp(compareSplit_, 0.0, 1.0);
+    if (compareMode != "vertical" && compareMode != "horizontal") return false;
+    const double f = std::clamp(compareSplit, 0.0, 1.0);
     const double tol = 8.0;
-    if (compareMode_ == "vertical")
-      return std::abs(widgetPos.x() - image_.width() * scale_ * f) <= tol;
-    return std::abs(widgetPos.y() - image_.height() * scale_ * f) <= tol;
+    if (compareMode == "vertical")
+      return std::abs(widgetPos.x() - image.width() * scale * f) <= tol;
+    return std::abs(widgetPos.y() - image.height() * scale * f) <= tol;
   }
 
 }  // namespace stencil::gui

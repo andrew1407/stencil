@@ -18,7 +18,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 820);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    auto* dock = win.chatDock_;
+    auto* dock = win.chatDock;
     QVERIFY(dock);
     QToolButton* closeBtn = dock->findChild<QToolButton*>();
     // The X is the last ghost in the title bar; find it by its tooltip.
@@ -26,12 +26,12 @@ class MainWindowGuiTest : public QObject {
     for (QToolButton* b : dock->findChildren<QToolButton*>())
       if (b->toolTip() == QLatin1String("Close assistant")) closeBtn = b;
     QVERIFY2(closeBtn, "no X in the chat title bar");
-    win.chatDock_->appendUser(QStringLiteral("kept across the close"));
+    win.chatDock->appendUser(QStringLiteral("kept across the close"));
 
     // The float's exit is a cloud of its own pixels flown inside the main window, every
     // mote pouring back into the icon.
     const auto flight = [&win] { return surfaceFlight(&win); };
-    const auto settle = [&win] { awaitAnim(win.chatAnim_); awaitFlights(&win); };
+    const auto settle = [&win] { awaitAnim(win.chatAnim); awaitFlights(&win); };
 
     struct Area { Qt::DockWidgetArea area; const char* name; };
     const QVector<Area> areas{{Qt::LeftDockWidgetArea, "left"},
@@ -41,7 +41,7 @@ class MainWindowGuiTest : public QObject {
     for (const Area& a : areas) {
       win.addDockWidget(a.area, dock);
       dock->setFloating(false);
-      win.actChat_->setChecked(true);
+      win.actChat->setChecked(true);
       win.setChatShown(true, false);
       QTRY_VERIFY(dock->isVisible());
       settle();
@@ -49,7 +49,7 @@ class MainWindowGuiTest : public QObject {
 
       closeBtn->click();
       // Mid-slide: the extent animation is running and it has NOT blinked out.
-      QVERIFY2(win.chatAnim_ != nullptr,
+      QVERIFY2(win.chatAnim != nullptr,
                qPrintable(QString("%1: the X closed with no animation").arg(a.name)));
       QVERIFY2(dock->isVisible(),
                qPrintable(QString("%1: the dock vanished before the slide").arg(a.name)));
@@ -64,12 +64,12 @@ class MainWindowGuiTest : public QObject {
                                                .arg(before)), 1500);
       QTRY_VERIFY2_WITH_TIMEOUT(!dock->isVisible(),
                                 qPrintable(QString("%1: it never finished closing").arg(a.name)), 3000);
-      QVERIFY2(!win.actChat_->isChecked(),
+      QVERIFY2(!win.actChat->isChecked(),
                qPrintable(QString("%1: the toolbar toggle stayed lit").arg(a.name)));
       settle();
 
       // …and it reopens cleanly, transcript intact.
-      win.actChat_->setChecked(true);
+      win.actChat->setChecked(true);
       QTRY_VERIFY2(dock->isVisible(), qPrintable(QString("%1: it would not reopen").arg(a.name)));
       settle();
       bool kept = false;
@@ -80,20 +80,20 @@ class MainWindowGuiTest : public QObject {
 
     // Floating: the X flies the window into the icon.
     dock->setFloating(true);
-    win.actChat_->setChecked(true);
+    win.actChat->setChecked(true);
     QTRY_VERIFY(dock->isVisible() && dock->isFloating());
     settle();
     const QRect windowBox(dock->mapToGlobal(QPoint(0, 0)), dock->size());
     closeBtn->click();
     stencil::gui::DisintegrateOverlay* from = nullptr;
     QTRY_VERIFY2((from = flight()) != nullptr, "floating: the X closed with no flight");
-    QWidget* icon = win.buttonForAction(win.actChat_);
+    QWidget* icon = win.buttonForAction(win.actChat);
     QVERIFY(icon);
     QVERIFY2(!from->gathering(), "floating: the X must scatter the window INTO the icon");
     QCOMPARE(from->surfaceTarget(), flightPointOf(icon, &win));
     QTRY_VERIFY2(!dock->isVisible(), "floating: it never finished closing");
     settle();
-    win.actChat_->setChecked(true);
+    win.actChat->setChecked(true);
     QTRY_VERIFY2(dock->isVisible(), "floating: it would not reopen");
     Q_UNUSED(windowBox);
     beat();

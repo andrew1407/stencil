@@ -79,29 +79,29 @@ namespace stencil::gui {
     // …and permanently via "stencilRevealExempt": floating chrome pinned at the edge.
     static constexpr const char* EXEMPT_PROPERTY = "stencilRevealExempt";
 
-    explicit ScrollReveal(QScrollArea* area) : QObject(area), area_(area) {
-      if (!area_) return;
-      connect(area_->verticalScrollBar(), &QScrollBar::valueChanged, this, [this] { apply(); });
-      connect(area_->verticalScrollBar(), &QScrollBar::rangeChanged, this, [this] { apply(); });
-      if (area_->viewport()) area_->viewport()->installEventFilter(this);
-      if (area_->widget()) area_->widget()->installEventFilter(this);
+    explicit ScrollReveal(QScrollArea* area) : QObject(area), area(area) {
+      if (!this->area) return;
+      connect(this->area->verticalScrollBar(), &QScrollBar::valueChanged, this, [this] { apply(); });
+      connect(this->area->verticalScrollBar(), &QScrollBar::rangeChanged, this, [this] { apply(); });
+      if (this->area->viewport()) this->area->viewport()->installEventFilter(this);
+      if (this->area->widget()) this->area->widget()->installEventFilter(this);
       apply();
     }
 
     void apply() {
-      if (!area_ || !area_->widget() || !area_->viewport()) return;
-      QWidget* content = area_->widget();
-      const int viewH = area_->viewport()->height();
+      if (!area || !area->widget() || !area->viewport()) return;
+      QWidget* content = area->widget();
+      const int viewH = area->viewport()->height();
       // A transcript that fits its viewport has no edges to dissolve at.
-      const bool scrollable = area_->verticalScrollBar() &&
-                              area_->verticalScrollBar()->maximum() > 0;
+      const bool scrollable = area->verticalScrollBar() &&
+                              area->verticalScrollBar()->maximum() > 0;
       for (QObject* o : content->children()) {
         auto* child = qobject_cast<QWidget*>(o);
         if (!child || child->isHidden()) continue;
         if (child->property(ENTERING_PROPERTY).toBool()) continue;
         if (child->property(EXEMPT_PROPERTY).toBool()) continue;
         if (!scrollable) { setDissolveOn(child, 0.0, 0.0, 1.0); continue; }
-        const int top = child->mapTo(area_->viewport(), QPoint(0, 0)).y();
+        const int top = child->mapTo(area->viewport(), QPoint(0, 0)).y();
         const int h = child->height();
         // GRAIN uses the viewport-relative measure so a tall card is not speckled forever;
         // the visible SPAN still comes from the clipped share.
@@ -144,7 +144,7 @@ namespace stencil::gui {
 
    private:
 
-    QScrollArea* area_ = nullptr;
+    QScrollArea* area = nullptr;
   };
 
 }  // namespace stencil::gui

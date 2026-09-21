@@ -45,7 +45,7 @@ namespace stencil::gui {
 
   void ProjectRowDelegate::recordIconRect(const QStyleOptionViewItem& o, const QModelIndex& idx) const {
     QStyle* st = o.widget ? o.widget->style() : QApplication::style();
-    iconRects_[idx.row()] =
+    iconRects[idx.row()] =
         st->subElementRect(QStyle::SE_ItemViewItemDecoration, &o, o.widget);
   }
 
@@ -53,47 +53,47 @@ namespace stencil::gui {
     const bool realRow = !idx.data(Qt::UserRole).isNull();
     const int key = idx.row();
     const bool over = realRow && (opt.state & QStyle::State_MouseOver);
-    if (over) slideHover_ = key;
-    else if (slideHover_ == key) slideHover_ = -1;
+    if (over) slideHover = key;
+    else if (slideHover == key) slideHover = -1;
     if (support::motionReduced()) {  // the end state, at once
       if (over) return SLIDE_PX;
-      slide_.remove(key);
+      slide.remove(key);
       return 0.0;
     }
-    double v = slide_.value(key, 0.0);
-    if (over && !slide_.contains(key)) slide_.insert(key, v);
+    double v = slide.value(key, 0.0);
+    if (over && !slide.contains(key)) slide.insert(key, v);
     if ((over && v < 1.0) || (!over && v > 0.0)) {
       if (const auto* av = qobject_cast<const QAbstractItemView*>(opt.widget))
-        slideView_ = const_cast<QAbstractItemView*>(av);
+        slideView = const_cast<QAbstractItemView*>(av);
       startSlideTick();
     }
     return SLIDE_PX * v;
   }
 
   void ProjectRowDelegate::startSlideTick() const {
-    if (!slideTick_) {
+    if (!slideTick) {
       auto* self = const_cast<ProjectRowDelegate*>(this);
-      slideTick_ = new QTimer(self);
-      slideTick_->setInterval(16);
-      QObject::connect(slideTick_, &QTimer::timeout, self, [this] {
+      slideTick = new QTimer(self);
+      slideTick->setInterval(16);
+      QObject::connect(slideTick, &QTimer::timeout, self, [this] {
         const double step = 16.0 / SLIDE_MS;
         bool active = false;
-        for (auto it = slide_.begin(); it != slide_.end();) {
-          const bool toward = it.key() == slideHover_;
+        for (auto it = slide.begin(); it != slide.end();) {
+          const bool toward = it.key() == slideHover;
           double v = std::clamp(it.value() + (toward ? step : -step), 0.0, 1.0);
           it.value() = v;
           if ((toward && v < 1.0) || (!toward && v > 0.0)) active = true;
           // Repaint only THIS row — a full-viewport update() repainted every
           // row per frame while only one or two animate.
-          if (slideView_ && slideView_->model())
-            slideView_->update(slideView_->model()->index(it.key(), 0));
-          if (!toward && v <= 0.0) it = slide_.erase(it);
+          if (slideView && slideView->model())
+            slideView->update(slideView->model()->index(it.key(), 0));
+          if (!toward && v <= 0.0) it = slide.erase(it);
           else ++it;
         }
-        if (!active) slideTick_->stop();
+        if (!active) slideTick->stop();
       });
     }
-    if (!slideTick_->isActive()) slideTick_->start();
+    if (!slideTick->isActive()) slideTick->start();
   }
 
   void ProjectRowDelegate::paintFaded(QPainter* p, const QStyleOptionViewItem& opt,

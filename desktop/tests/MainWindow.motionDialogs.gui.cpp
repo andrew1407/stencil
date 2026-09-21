@@ -18,10 +18,10 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.canvas_->clearImage();
+    win.canvas->clearImage();
     win.refreshActions();
     QVERIFY2(waitForIdleCard(win), "the blank-image card never came back after the clear");
-    const QRect card = win.canvas_->idleCardGlobalRect();
+    const QRect card = win.canvas->idleCardGlobalRect();
     QVERIFY2(card.isValid(), "the blank-image card is not on screen");
 
     QPoint start(-1, -1);
@@ -39,7 +39,7 @@ class MainWindowGuiTest : public QObject {
         closeScatters = !fx->gathering();
       }
     });
-    emit win.canvas_->blankImageRequested();
+    emit win.canvas->blankImageRequested();
     settle([&] { return closeEnd != QPoint(-1, -1); }, 500);
     const QPoint want = win.mapFromGlobal(card.center());
     QCOMPARE(start, want);

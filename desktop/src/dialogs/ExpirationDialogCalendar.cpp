@@ -22,39 +22,39 @@
 namespace stencil::gui {
 
   void ExpirationDialog::renderControls() {
-    periodRow_->setEnabled(!keep());   // takes the select + Refresh with it
-    calendar_->setEnabled(!keep());
-    today_->setText(tr("Today: <b>%1</b>").arg(fmtDate(dateFromMs(nowMs_))));
-    when_->setText(keep() ? tr("Expires: <b>never (kept forever)</b>")
-                         : tr("Expires: <b>%1</b>").arg(fmtDate(dateFromMs(expiresAt_))));
+    periodRow->setEnabled(!keep());   // takes the select + Refresh with it
+    calendar->setEnabled(!keep());
+    today->setText(tr("Today: <b>%1</b>").arg(fmtDate(dateFromMs(nowMs))));
+    when->setText(keep() ? tr("Expires: <b>never (kept forever)</b>")
+                         : tr("Expires: <b>%1</b>").arg(fmtDate(dateFromMs(expiresAt))));
   }
 
   void ExpirationDialog::renderCalendar() {
-    calTitle_->setText(QString("%1 %2").arg(MONTHS[viewM_]).arg(viewY_));
-    prev_->setEnabled(!atFloor());   // no navigating into fully-past months
+    calTitle->setText(QString("%1 %2").arg(MONTHS[viewM]).arg(viewY));
+    prev->setEnabled(!atFloor());   // no navigating into fully-past months
 
     // Rebuilt whole, like the browser rebuilds the grid's innerHTML: the day states are
     // QSS property selectors, and re-polishing 42 live buttons is the longer road.
-    while (QLayoutItem* item = calGrid_->takeAt(0)) {
+    while (QLayoutItem* item = calGrid->takeAt(0)) {
       if (QWidget* w = item->widget()) w->deleteLater();
       delete item;
     }
     for (int i = 0; i < 7; ++i) {
-      auto* h = new QLabel(WEEKDAYS[i], calendar_);
+      auto* h = new QLabel(WEEKDAYS[i], calendar);
       h->setObjectName(QStringLiteral("expCalWeekday"));
       h->setAlignment(Qt::AlignCenter);
-      calGrid_->addWidget(h, 0, i);
+      calGrid->addWidget(h, 0, i);
     }
 
-    const QDate today = dateFromMs(nowMs_);
-    const QDate first(viewY_, viewM_ + 1, 1);
+    const QDate today = dateFromMs(nowMs);
+    const QDate first(viewY, viewM + 1, 1);
     const int lead = first.dayOfWeek() - 1;   // Monday-first, like the browser grid
     const int days = first.daysInMonth();
-    const QDate expiry = (!keep() && expiresAt_) ? dateFromMs(expiresAt_) : QDate();
+    const QDate expiry = (!keep() && expiresAt) ? dateFromMs(expiresAt) : QDate();
     for (int d = 1; d <= days; ++d) {
-      const QDate cellDate(viewY_, viewM_ + 1, d);
+      const QDate cellDate(viewY, viewM + 1, d);
       const int slot = lead + d - 1;
-      auto* cell = new QToolButton(calendar_);
+      auto* cell = new QToolButton(calendar);
       cell->setObjectName(QStringLiteral("expCalDay"));
       cell->setText(QString::number(d));
       cell->setCursor(Qt::PointingHandCursor);
@@ -68,19 +68,19 @@ namespace stencil::gui {
       } else {
         connect(cell, &QToolButton::clicked, this, [this, cellDate] {
           if (keep()) return;
-          expiresAt_ = msEndOfDay(cellDate);
+          expiresAt = msEndOfDay(cellDate);
           renderAll();
         });
       }
-      calGrid_->addWidget(cell, 1 + slot / 7, slot % 7);
+      calGrid->addWidget(cell, 1 + slot / 7, slot % 7);
     }
   }
 
-  bool ExpirationDialog::keep() const { return keepBox_ && keepBox_->isChecked(); }
+  bool ExpirationDialog::keep() const { return keepBox && keepBox->isChecked(); }
 
-  long long ExpirationDialog::expiresAtMs() const { return keep() ? 0 : expiresAt_; }
+  long long ExpirationDialog::expiresAtMs() const { return keep() ? 0 : expiresAt; }
   QString ExpirationDialog::refreshPeriod() const {
-    return period_->currentData().toString();
+    return period->currentData().toString();
   }
   bool ExpirationDialog::autoRefresh() const { return auto_->isChecked(); }
 }

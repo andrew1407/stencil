@@ -20,11 +20,11 @@ namespace stencil::gui {
 
   void ProjectsDialog::buildProjectList(QVBoxLayout* layout) {
     auto* reList = new ReorderableListWidget(this);
-    list_ = reList;
+    list = reList;
     // Rows are delegate-painted (no grip), so drags are view-initiated.
     reList->setDragEnabled(true);
     reList->onReorder = [this](int from, int to) {
-      const int n = list_->count();
+      const int n = list->count();
       if (from < 0 || from >= n) return;
       QVector<QString> keys(n);
       for (int i = 0; i < n; ++i) keys[i] = rowKeyAt(i);
@@ -37,25 +37,25 @@ namespace stencil::gui {
       for (const auto& k : keys) if (!k.isEmpty()) order << k;
       g_projectsManualOrder = order;
       g_projectsSortMode = QStringLiteral("manual");
-      if (sortCombo_) { const int mi = sortCombo_->findData(g_projectsSortMode); if (mi >= 0) { QSignalBlocker b(sortCombo_); sortCombo_->setCurrentIndex(mi); } }
+      if (sortCombo) { const int mi = sortCombo->findData(g_projectsSortMode); if (mi >= 0) { QSignalBlocker b(sortCombo); sortCombo->setCurrentIndex(mi); } }
       refresh();
     };
     reList->onDragStart = [this] {
-      press_.rowDragging = true;
-      if (press_.clickTimer) press_.clickTimer->stop();
-      if (dragZones_) dragZones_->begin(frameGeometry());
+      press.rowDragging = true;
+      if (press.clickTimer) press.clickTimer->stop();
+      if (dragZones) dragZones->begin(frameGeometry());
     };
     reList->onDragEnd = [this] {
-      press_.rowDragging = false;
-      if (dragZones_) dragZones_->end();
+      press.rowDragging = false;
+      if (dragZones) dragZones->end();
     };
     // New-window + Remove are LOCAL-only (mirrors the ⋯ menu).
     reList->onDragOut = [this](int rowIdx) {
-      const auto zone = dragZones_ ? dragZones_->zoneAt(QCursor::pos()) : ProjectDragZones::Zone::NONE;
+      const auto zone = dragZones ? dragZones->zoneAt(QCursor::pos()) : ProjectDragZones::Zone::NONE;
       if (zone == ProjectDragZones::Zone::NONE) return;
-      QListWidgetItem* it = list_->item(rowIdx);
+      QListWidgetItem* it = list->item(rowIdx);
       if (!it || it->data(Qt::UserRole).isNull()) return;
-      list_->setCurrentItem(it);
+      list->setCurrentItem(it);
       const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
       typedef ProjectDragZones::Zone Zone;
       // Open's confirm is shown by MainWindow AFTER the dialog closes — inside the drag release it was dismissed.
@@ -68,47 +68,47 @@ namespace stencil::gui {
         if (!remote) deleteSelected();
       }
     };
-    list_->setObjectName("projectsList");
-    list_->setIconSize(QSize(56, 56));
-    list_->setSpacing(4);
-    list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    list_->setItemDelegate(new ProjectRowDelegate(list_));
-    list_->viewport()->setMouseTracking(true);
-    list_->viewport()->installEventFilter(this);
-    installRowShimmer(list_);
-    list_->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(list_, &QListWidget::customContextMenuRequested, this,
+    list->setObjectName("projectsList");
+    list->setIconSize(QSize(56, 56));
+    list->setSpacing(4);
+    list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    list->setItemDelegate(new ProjectRowDelegate(list));
+    list->viewport()->setMouseTracking(true);
+    list->viewport()->installEventFilter(this);
+    installRowShimmer(list);
+    list->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(list, &QListWidget::customContextMenuRequested, this,
             [this](const QPoint& pos) {
-              QListWidgetItem* it = list_->itemAt(pos);
+              QListWidgetItem* it = list->itemAt(pos);
               if (!it || it->data(Qt::UserRole).isNull()) return;
-              list_->setCurrentItem(it);
-              showRowMenu(it, list_->viewport()->mapToGlobal(pos));
+              list->setCurrentItem(it);
+              showRowMenu(it, list->viewport()->mapToGlobal(pos));
             });
-    barSlot_->addWidget(list_, 1);
+    barSlot->addWidget(list, 1);
     refresh();
   }
 
   void ProjectsDialog::wireRowGestures() {
-    connect(list_, &QListWidget::itemClicked, this, &ProjectsDialog::scheduleRowOpen);
-    connect(list_, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* it) {
+    connect(list, &QListWidget::itemClicked, this, &ProjectsDialog::scheduleRowOpen);
+    connect(list, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem* it) {
       // The pending single-click open must die before it can raise the confirmation.
-      if (press_.clickTimer) press_.clickTimer->stop();
-      if (press_.pressOnCheck) return;
+      if (press.clickTimer) press.clickTimer->stop();
+      if (press.pressOnCheck) return;
       // Browser parity: the name's dblclick renames inline (local rows) and never opens.
       if (it && !it->data(Qt::UserRole).isNull() &&
           it->data(Qt::UserRole + 1).toString().isEmpty()) {
-        auto* del = static_cast<ProjectRowDelegate*>(list_->itemDelegate());
-        if (del && del->nameRectFor(list_->row(it)).adjusted(-4, -3, 4, 3).contains(press_.pressPos)) {
+        auto* del = static_cast<ProjectRowDelegate*>(list->itemDelegate());
+        if (del && del->nameRectFor(list->row(it)).adjusted(-4, -3, 4, 3).contains(press.pressPos)) {
           beginInlineRename(it);
           return;
         }
       }
-      openRow(it, isNewWindowMod(press_.pressMods), /*confirm=*/false);
+      openRow(it, isNewWindowMod(press.pressMods), /*confirm=*/false);
     });
     // Consumed so it cannot also trigger the dialog's default button.
-    list_->installEventFilter(this);
+    list->installEventFilter(this);
     installEventFilter(this);
-    connect(list_, &QListWidget::itemChanged, this, &ProjectsDialog::onItemChanged);
+    connect(list, &QListWidget::itemChanged, this, &ProjectsDialog::onItemChanged);
   }
 
   void ProjectsDialog::buildFooter(ModalChrome& chrome) {
@@ -123,7 +123,7 @@ namespace stencil::gui {
     newBtn->setToolTip("Create a new empty project from the current canvas");
     // "Clear All Local" while a server is connected — the removal is local-only.
     auto* clearAllBtn = new QPushButton("Clear All", this);
-    clearAllBtn_ = clearAllBtn;
+    this->clearAllBtn = clearAllBtn;
     clearAllBtn->setObjectName("dangerButton");
     clearAllBtn->setIcon(labelIcon("trash", QColor("#ffffff"), 15));
     clearAllBtn->setToolTip("Remove all local projects (server projects are not affected)");
@@ -135,7 +135,7 @@ namespace stencil::gui {
     connect(blankBtn, &QPushButton::clicked, this, &ProjectsDialog::createBlank);
     connect(clearAllBtn, &QPushButton::clicked, this, [this] {
       // Parented to this dialog so the question sits ON TOP of the still-open list.
-      const int n = static_cast<int>(projects_.size());
+      const int n = static_cast<int>(projects.size());
       if (n == 0) return;
       ConfirmSpec spec;
       spec.title = tr("Clear all projects");
@@ -149,15 +149,15 @@ namespace stencil::gui {
       emit clearAllRequested();
     });
 
-    if (connections_) {
+    if (connections) {
       auto syncClearAllLabel = [this] {
-        clearAllBtn_->setText(connections_->urls().isEmpty() ? "Clear All" : "Clear All Local");
+        this->clearAllBtn->setText(connections->urls().isEmpty() ? "Clear All" : "Clear All Local");
       };
       syncClearAllLabel();
-      connect(connections_, &stencil::net::ConnectionManager::changed, this, syncClearAllLabel);
+      connect(connections, &stencil::net::ConnectionManager::changed, this, syncClearAllLabel);
     }
     // Browser parity: disabled when only the synthetic temporary row is on screen.
-    clearAllBtn->setEnabled(!projects_.empty());
+    clearAllBtn->setEnabled(!projects.empty());
   }
 
 }  // namespace stencil::gui

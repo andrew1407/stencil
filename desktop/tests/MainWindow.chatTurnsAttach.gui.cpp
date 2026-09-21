@@ -15,13 +15,13 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     mock.status = 0;
     mock.netError = "network down";
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
-    auto* dock = win.chatDock_;
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    auto* dock = win.chatDock;
     QVERIFY(dock);
     QImage att(24, 24, QImage::Format_RGB32);
     att.fill(Qt::green);
@@ -59,8 +59,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     // Turn 1: attachment queued, but the model only asks back — nothing to run,
     // so nothing is adopted and the canvas stays empty.
@@ -68,15 +68,15 @@ class MainWindowGuiTest : public QObject {
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"Which photo first?\",\"actions\":[]}"}}}})
                        .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
-    auto* dock = win.chatDock_;
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    auto* dock = win.chatDock;
     QVERIFY(dock);
     QImage att(64, 48, QImage::Format_RGB32);
     att.fill(Qt::darkMagenta);
     dock->addAttachmentImage(att, "cat.png");
     win.onChatSend("edit these photos");
     QTRY_VERIFY(!dock->isBusy());
-    QVERIFY(!win.canvas_->hasImage());
+    QVERIFY(!win.canvas->hasImage());
     QCOMPARE(dock->attachedImages().size(), 0);   // the send drained the tray
     // Turn 2: the attachment-less answer triggers an editing plan — it must still
     // adopt turn 1's image instead of failing on the empty canvas.
@@ -87,7 +87,7 @@ class MainWindowGuiTest : public QObject {
                       "[{\"op\":\"filter\",\"mode\":\"bw\"}]}"}}}})
                        .toJson(QJsonDocument::Compact);
     win.onChatSend("the first one");
-    QTRY_VERIFY(win.canvas_->hasImage());
+    QTRY_VERIFY(win.canvas->hasImage());
     beat();
   }
 
@@ -98,8 +98,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     const auto wrap = [](const char* plan) {
       return QJsonDocument(QJsonObject{{"message", QJsonObject{{"content", plan}}}})
@@ -110,8 +110,8 @@ class MainWindowGuiTest : public QObject {
         "{\"op\":\"image\",\"index\":1},{\"op\":\"filter\",\"mode\":\"bw\"},{\"op\":\"save\"},"
         "{\"op\":\"image\",\"index\":2},{\"op\":\"filter\",\"mode\":\"sepia\"},"
         "{\"op\":\"save\",\"name\":\"second\"}]}"));
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
-    auto* dock = win.chatDock_;
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    auto* dock = win.chatDock;
     QVERIFY(dock);
     QImage shore(64, 48, QImage::Format_RGB32);
     shore.fill(Qt::darkCyan);
@@ -122,33 +122,33 @@ class MainWindowGuiTest : public QObject {
     // An unnamed save takes its attachment's name, and a TAKEN name suffixes — so a
     // leftover "shore" in the shared state dir would rename everything asserted below.
     QStringList stale;
-    for (const auto& p : win.projectList_) {
+    for (const auto& p : win.projectList) {
       const QString name = QString::fromStdString(p.meta.name);
       if (name.startsWith(QStringLiteral("shore")) || name.startsWith(QStringLiteral("second")))
         stale << QString::fromStdString(p.meta.id);
     }
     for (const QString& id : stale) win.eraseLocalProject(id);
-    const int before = int(win.projectList_.size());
+    const int before = int(win.projectList.size());
     win.onChatSend("make the first b&w and the second sepia, then save both");
     QTRY_VERIFY(!dock->isBusy());
     // One project per image, in plan order: the unnamed save took the name of
     // the attachment it was working on, the named one kept its own.
-    QTRY_COMPARE(int(win.projectList_.size()), before + 2);
-    QCOMPARE(QString::fromStdString(win.projectList_.at(before).meta.name),
+    QTRY_COMPARE(int(win.projectList.size()), before + 2);
+    QCOMPARE(QString::fromStdString(win.projectList.at(before).meta.name),
              QStringLiteral("shore"));
-    QCOMPARE(QString::fromStdString(win.projectList_.at(before + 1).meta.name),
+    QCOMPARE(QString::fromStdString(win.projectList.at(before + 1).meta.name),
              QStringLiteral("second"));
-    QVERIFY2(win.projectList_.at(before).meta.id != win.projectList_.at(before + 1).meta.id,
+    QVERIFY2(win.projectList.at(before).meta.id != win.projectList.at(before + 1).meta.id,
              "each save must promote to a FRESH project, never overwrite the last");
     // …and each one holds ITS image, not the last one processed.
     QImage firstSaved, secondSaved;
-    QVERIFY(firstSaved.load(win.projectList_.at(before).imagePath));
-    QVERIFY(secondSaved.load(win.projectList_.at(before + 1).imagePath));
+    QVERIFY(firstSaved.load(win.projectList.at(before).imagePath));
+    QVERIFY(secondSaved.load(win.projectList.at(before + 1).imagePath));
     QCOMPARE(firstSaved.size(), shore.size());
     QCOMPARE(secondSaved.size(), dunes.size());
     // The LAST processed image stays in the editor, with its own filter.
-    QVERIFY(win.canvas_->hasImage());
-    QCOMPARE(win.settings_.imageFilter, QStringLiteral("sepia"));
+    QVERIFY(win.canvas->hasImage());
+    QCOMPARE(win.settings.imageFilter, QStringLiteral("sepia"));
     QCOMPARE(win.activeProjectName(), QStringLiteral("second"));
 
     // A follow-up turn saving image 1 again cannot reuse the taken name: it
@@ -158,8 +158,8 @@ class MainWindowGuiTest : public QObject {
         "{\"op\":\"image\",\"index\":1},{\"op\":\"save\"}]}"));
     win.onChatSend("save the first one again");
     QTRY_VERIFY(!dock->isBusy());
-    QTRY_COMPARE(int(win.projectList_.size()), before + 3);
-    QCOMPARE(QString::fromStdString(win.projectList_.at(before + 2).meta.name),
+    QTRY_COMPARE(int(win.projectList.size()), before + 3);
+    QCOMPARE(QString::fromStdString(win.projectList.at(before + 2).meta.name),
              QStringLiteral("shore 2"));
     beat();
   }
@@ -171,8 +171,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     mock.response = QJsonDocument(QJsonObject{
         {"message",
@@ -182,8 +182,8 @@ class MainWindowGuiTest : public QObject {
                       "{\"points\":[{\"x\":4,\"y\":4},{\"x\":20,\"y\":4},"
                       "{\"x\":20,\"y\":20},{\"x\":4,\"y\":4}]}]}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
-    auto* dock = win.chatDock_;
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    auto* dock = win.chatDock;
     QVERIFY(dock);
     QImage att(64, 48, QImage::Format_RGB32);
     att.fill(Qt::darkYellow);

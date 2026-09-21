@@ -47,34 +47,34 @@ namespace stencil::gui {
 
   // The panel re-opens from a floating chevron flush to the canvas' right edge — shown ONLY while the panel is hidden.
   void MainWindow::buildOverlayArrows() {
-    panelReopenBtn_ = new QToolButton(this);
-    panelReopenBtn_->setCursor(Qt::PointingHandCursor);
-    panelReopenBtn_->setFocusPolicy(Qt::NoFocus);   // ditto: no focus halo over the canvas
-    panelReopenBtn_->setFixedSize(PANEL_TOGGLE_BOX, PANEL_TOGGLE_BOX);   // same rounded square as the panel-header chevron
-    panelReopenBtn_->setIconSize(QSize(PANEL_TOGGLE_GLYPH, PANEL_TOGGLE_GLYPH));
-    panelReopenBtn_->setToolTip(QString("Show panel (%1)").arg(hotkey("togglePointsList", "Alt+X")));
-    panelReopenBtn_->setStyleSheet(panelToggleQss());
+    panelReopenBtn = new QToolButton(this);
+    panelReopenBtn->setCursor(Qt::PointingHandCursor);
+    panelReopenBtn->setFocusPolicy(Qt::NoFocus);   // ditto: no focus halo over the canvas
+    panelReopenBtn->setFixedSize(PANEL_TOGGLE_BOX, PANEL_TOGGLE_BOX);   // same rounded square as the panel-header chevron
+    panelReopenBtn->setIconSize(QSize(PANEL_TOGGLE_GLYPH, PANEL_TOGGLE_GLYPH));
+    panelReopenBtn->setToolTip(QString("Show panel (%1)").arg(hotkey("togglePointsList", "Alt+X")));
+    panelReopenBtn->setStyleSheet(panelToggleQss());
     // Its angle is STATE — no icon-motion on hover.
-    panelReopenBtn_->setProperty(NO_ICON_MOTION_PROPERTY, true);
-    connect(panelReopenBtn_, &QToolButton::clicked, this,
-            [this] { if (actPanel_) actPanel_->setChecked(true); });
-    panelReopenBtn_->hide();
+    panelReopenBtn->setProperty(NO_ICON_MOTION_PROPERTY, true);
+    connect(panelReopenBtn, &QToolButton::clicked, this,
+            [this] { if (actPanel) actPanel->setChecked(true); });
+    panelReopenBtn->hide();
     // The separator is QMainWindow chrome with no widget, so a mouse-transparent overlay paints the grip (browser .panel-resizer).
-    panelGrip_ = new DockGripOverlay(this);
-    panelGrip_->setObjectName(QStringLiteral("panelGrip"));
+    panelGrip = new DockGripOverlay(this);
+    panelGrip->setObjectName(QStringLiteral("panelGrip"));
     {
-      const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
-      panelGrip_->setColors(pal.borderMain, pal.accent);
+      const Palette pal = themePalette(resolveDark(settings.themeMode), settings.accentColor);
+      panelGrip->setColors(pal.borderMain, pal.accent);
     }
-    panelGrip_->hide();
+    panelGrip->hide();
     // The chat dock's resize edge (browser .chat-resizer), same trick.
-    chatEdge_ = new DockEdgeOverlay(this);
-    chatEdge_->setObjectName(QStringLiteral("chatResizeEdge"));
+    chatEdge = new DockEdgeOverlay(this);
+    chatEdge->setObjectName(QStringLiteral("chatResizeEdge"));
     {
-      const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
-      chatEdge_->setAccent(pal.accent);
+      const Palette pal = themePalette(resolveDark(settings.themeMode), settings.accentColor);
+      chatEdge->setAccent(pal.accent);
     }
-    chatEdge_->hide();
+    chatEdge->hide();
     spinControlsPill(false);   // seed the pill's angle from the current toolbar state
     updatePanelReopenButton();
   }
@@ -82,72 +82,72 @@ namespace stencil::gui {
   // Over the 9px separator strip (theme.cpp QMainWindow::separator); hidden with the panel, while it floats, and
   // through a slide, so it lands with the panel rather than ahead of it (browser: #fs-panel-resizer forms with the list).
   void MainWindow::positionPanelGrip() {
-    if (!panelGrip_ || !selPanel_) return;
-    const Qt::DockWidgetArea area = dockWidgetArea(selPanel_);
-    const bool on = !selPanel_->isHidden() && !selPanel_->isFloating() && !panelAnim_ && !showCovered_
+    if (!panelGrip || !selPanel) return;
+    const Qt::DockWidgetArea area = dockWidgetArea(selPanel);
+    const bool on = !selPanel->isHidden() && !selPanel->isFloating() && !panelAnim && !showCovered
                     && (area == Qt::RightDockWidgetArea || area == Qt::LeftDockWidgetArea);
-    panelGrip_->setVisible(on);
+    panelGrip->setVisible(on);
     if (!on) {
-      panelGrip_->setHot(false);
-      panelGripDrag_ = false;
+      panelGrip->setHot(false);
+      panelGripDrag = false;
       return;
     }
-    const QRect pr = selPanel_->geometry();
+    const QRect pr = selPanel->geometry();
     constexpr int SEP_W = DOCK_SEPARATOR_PX;   // the QSS QMainWindow::separator width
-    panelGrip_->setGeometry(area == Qt::LeftDockWidgetArea
+    panelGrip->setGeometry(area == Qt::LeftDockWidgetArea
                                 ? QRect(pr.right() + 1, pr.top(), SEP_W, pr.height())
                                 : QRect(pr.left() - SEP_W, pr.top(), SEP_W, pr.height()));
-    panelGrip_->raise();
+    panelGrip->raise();
   }
 
   // Horizontal separators are a hairline, so the band is drawn to MIN_THICKNESS while the hit rect stays Qt's strip.
   void MainWindow::positionChatEdge() {
-    if (!chatEdge_ || !chatDock_) return;
-    const bool on = chatDock_->isVisible() && !chatDock_->isFloating() && !fs_.active && !showCovered_;
-    chatEdge_->setVisible(on);
+    if (!chatEdge || !chatDock) return;
+    const bool on = chatDock->isVisible() && !chatDock->isFloating() && !fs.active && !showCovered;
+    chatEdge->setVisible(on);
     if (!on) {
-      chatEdge_->setHot(false);
-      chatEdgeDrag_ = false;
-      chatEdgeHit_ = QRect();
+      chatEdge->setHot(false);
+      chatEdgeDrag = false;
+      chatEdgeHit = QRect();
       return;
     }
-    const QRect r = chatDock_->geometry();
-    const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
+    const QRect r = chatDock->geometry();
+    const Qt::DockWidgetArea area = dockWidgetArea(chatDock);
     constexpr int SEP_W = DOCK_SEPARATOR_PX;   // QSS QMainWindow::separator width
     constexpr int SEP_H = 1;                  // …and its height (theme.cpp)
     switch (area) {
-      case Qt::LeftDockWidgetArea:   chatEdgeHit_ = QRect(r.right() + 1, r.top(), SEP_W, r.height()); break;
-      case Qt::RightDockWidgetArea:  chatEdgeHit_ = QRect(r.left() - SEP_W, r.top(), SEP_W, r.height()); break;
-      case Qt::TopDockWidgetArea:    chatEdgeHit_ = QRect(r.left(), r.bottom() + 1, r.width(), SEP_H); break;
-      case Qt::BottomDockWidgetArea: chatEdgeHit_ = QRect(r.left(), r.top() - SEP_H, r.width(), SEP_H); break;
-      default: chatEdgeHit_ = QRect(); chatEdge_->hide(); return;
+      case Qt::LeftDockWidgetArea:   chatEdgeHit = QRect(r.right() + 1, r.top(), SEP_W, r.height()); break;
+      case Qt::RightDockWidgetArea:  chatEdgeHit = QRect(r.left() - SEP_W, r.top(), SEP_W, r.height()); break;
+      case Qt::TopDockWidgetArea:    chatEdgeHit = QRect(r.left(), r.bottom() + 1, r.width(), SEP_H); break;
+      case Qt::BottomDockWidgetArea: chatEdgeHit = QRect(r.left(), r.top() - SEP_H, r.width(), SEP_H); break;
+      default: chatEdgeHit = QRect(); chatEdge->hide(); return;
     }
-    QRect band = chatEdgeHit_;
+    QRect band = chatEdgeHit;
     const int grow = DockEdgeOverlay::MIN_THICKNESS;
     if (band.height() < grow && band.width() > band.height())
       band.adjust(0, -(grow - band.height()) / 2, 0, (grow - band.height() + 1) / 2);
     else if (band.width() < grow && band.height() > band.width())
       band.adjust(-(grow - band.width()) / 2, 0, (grow - band.width() + 1) / 2, 0);
-    chatEdge_->setGeometry(band);
-    chatEdge_->raise();
+    chatEdge->setGeometry(band);
+    chatEdge->raise();
   }
 
   // The stack hangs off the WINDOW's bottom-left, so it is told to clear the status bar's coord readout.
   void MainWindow::syncToastInset() {
     // Late dock signals during ~MainWindow land after the layout died.
-    if (tearingDown_ || !notify_) return;
+    if (tearingDown || !notify) return;
     // findChild, not statusBar() — the accessor lazily CREATES the empty strip this window deliberately doesn't keep.
     const QWidget* bar = findChild<QStatusBar*>();
     int bottom = bar && bar->isVisible() ? bar->height() : 0;
     int left = 0;
     // A docked chat panel owns its corner: the stack moves beside or above it.
-    if (chatDock_ && chatDock_->isVisible() && !chatDock_->isFloating()) {
-      const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
-      if (area == Qt::LeftDockWidgetArea) left = chatDock_->width();   // the gap is the stack's own
-      else if (area == Qt::BottomDockWidgetArea) bottom += chatDock_->height() + 8;
+    if (chatDock && chatDock->isVisible() && !chatDock->isFloating()) {
+      const Qt::DockWidgetArea area = dockWidgetArea(chatDock);
+      if (area == Qt::LeftDockWidgetArea) left = chatDock->width();   // the gap is the stack's own
+      else if (area == Qt::BottomDockWidgetArea) bottom += chatDock->height() + 8;
     }
-    notify_->setLeftInset(left);
-    notify_->setBottomInset(bottom);
+    notify->setLeftInset(left);
+    notify->setBottomInset(bottom);
   }
 
 }  // namespace stencil::gui

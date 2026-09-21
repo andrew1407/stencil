@@ -21,9 +21,9 @@ namespace stencil::gui {
 
   void ChatDock::addRetryButton(QVBoxLayout* lay, const QString& retryText) {
     if (!lay || retryText.isEmpty()) return;
-    const QColor glyph = mutedCache_.isValid()
-        ? mutedCache_
-        : (textCache_.isValid() ? textCache_
+    const QColor glyph = mutedCache.isValid()
+        ? mutedCache
+        : (textCache.isValid() ? textCache
                                 : palette().color(QPalette::PlaceholderText));
     addChatRetryButton(lay, glyph, [this, retryText] { emit retryRequested(retryText); });
     // The card was measured before this button existed, so its wrapped text ends up
@@ -51,7 +51,7 @@ namespace stencil::gui {
     // The reveal flies from THIS button — it lives in the transcript and stays on
     // screen through the click, unlike the gear behind "…".
     QPointer<ChatDock> self(this);
-    addChatConfigureCta(lay, accentCache_, [self](QPushButton* cta) {
+    addChatConfigureCta(lay, accentCache, [self](QPushButton* cta) {
       if (self) emit self->configureProviderRequested(cta);
     });
     addRetryButton(lay, retryText);
@@ -65,15 +65,15 @@ namespace stencil::gui {
   void ChatDock::appendLateNote(const QString& text) {
     // Anything the turn has to say about its own reply reports INTO that reply's bubble (a separate
     // card read as a second assistant message); falls back to a plain note with no bubble.
-    if (lastAssistantCard_) {
-      if (auto* lay = qobject_cast<QVBoxLayout*>(lastAssistantCard_->layout())) {
-        auto* note = makePlainLabel(text, lastAssistantCard_);
+    if (lastAssistantCard) {
+      if (auto* lay = qobject_cast<QVBoxLayout*>(lastAssistantCard->layout())) {
+        auto* note = makePlainLabel(text, lastAssistantCard);
         note->setObjectName(QStringLiteral("chatNoteLabel"));
         note->setWordWrap(true);
         note->setProperty("chatNote", text);
         applyMutedText(note);
         lay->addWidget(note);
-        installCardMenu(qobject_cast<QFrame*>(lastAssistantCard_.data()));
+        installCardMenu(qobject_cast<QFrame*>(lastAssistantCard.data()));
         applyBubbleWidths();
         emit lateNotePosted(text);
         return;

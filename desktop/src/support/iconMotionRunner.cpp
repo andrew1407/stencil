@@ -4,150 +4,150 @@ namespace stencil::gui {
 
   IconMotionRunner::IconMotionRunner(QAbstractButton* btn, const IconRequest& req,
                                      const IconMotionSpec* spec,
-                                     const QVector<IconMotionPart>* parts) : QObject(btn), btn_(btn), req_(req), spec_(spec), parts_(parts) {
+                                     const QVector<IconMotionPart>* parts) : QObject(btn), btn(btn), req(req), spec(spec), parts(parts) {
     setObjectName(QString::fromLatin1(ICON_MOTION_ANIM_NAME));
-    anim_ = new QVariantAnimation(this);
-    anim_->setStartValue(0.0);
-    anim_->setEndValue(0.0);
-    connect(anim_, &QVariantAnimation::valueChanged, this,
+    anim = new QVariantAnimation(this);
+    anim->setStartValue(0.0);
+    anim->setEndValue(0.0);
+    connect(anim, &QVariantAnimation::valueChanged, this,
             [this](const QVariant& v) { paint(v.toDouble()); });
-    connect(anim_, &QVariantAnimation::finished, this, [this] {
-      elapsed_ = anim_->endValue().toDouble();
-      if (elapsed_ <= 0.0 || !spec_->hold) restPaint();
+    connect(anim, &QVariantAnimation::finished, this, [this] {
+      elapsed = anim->endValue().toDouble();
+      if (elapsed <= 0.0 || !this->spec->hold) restPaint();
     });
   }
 
 
   // Hold eases out to the pose; a settle plays once and is spent until the pointer leaves.
   void IconMotionRunner::enter() {
-    if (spec_->hold) { run(spec_->totalMs); return; }
-    if (spent_) return;
-    spent_ = true;
-    elapsed_ = 0;
-    run(spec_->totalMs);
+    if (spec->hold) { run(spec->totalMs); return; }
+    if (spent) return;
+    spent = true;
+    elapsed = 0;
+    run(spec->totalMs);
   }
 
 
   void ActionIconMotionRunner::enter() {
-    if (spec_->hold) { run(spec_->totalMs); return; }
-    if (spent_) return;
-    spent_ = true;
-    elapsed_ = 0;
-    run(spec_->totalMs);
+    if (spec->hold) { run(spec->totalMs); return; }
+    if (spent) return;
+    spent = true;
+    elapsed = 0;
+    run(spec->totalMs);
   }
 
   // A hold eases back on the same curve; a settle is CANCELLED, the way the browser's
   // animation-name reverting off :hover drops its glyph straight back to the base style.
   void IconMotionRunner::leave() {
-    if (spec_->hold) run(0);
+    if (spec->hold) run(0);
     else rest();
   }
 
 
   void ActionIconMotionRunner::leave() {
-    if (spec_->hold) run(0);
+    if (spec->hold) run(0);
     else rest();
   }
 
   // The cached QIcon, so the next hover can trace it to its glyph again — and re-armed, so
   // that hover plays its settle afresh.
   void IconMotionRunner::rest() {
-    spent_ = false;
+    spent = false;
     restPaint();
   }
 
   void ActionIconMotionRunner::rest() {
-    spent_ = false;
+    spent = false;
     restPaint();
   }
 
   void IconMotionRunner::restPaint() {
-    anim_->stop();
-    elapsed_ = 0;
-    if (!btn_ || hasTakenOver()) return;   // a theme flip already put a proper glyph there
-    btn_->setIcon(themedIcon(req_.name, req_.color, req_.size, req_.dpr, req_.gap));
+    anim->stop();
+    elapsed = 0;
+    if (!btn || hasTakenOver()) return;   // a theme flip already put a proper glyph there
+    btn->setIcon(themedIcon(req.name, req.color, req.size, req.dpr, req.gap));
   }
 
   void ActionIconMotionRunner::restPaint() {
-    anim_->stop();
-    elapsed_ = 0;
-    if (!act_ || hasTakenOver()) return;   // a theme flip already put a proper glyph there
+    anim->stop();
+    elapsed = 0;
+    if (!act || hasTakenOver()) return;   // a theme flip already put a proper glyph there
     // A bound toolbar button mirrors the action's icon via changed(); a posed/rest repaint
     // here must never leak onto it.
-    const QSignalBlocker block(act_);
-    act_->setIcon(themedIcon(req_.name, req_.color, req_.size, req_.dpr, req_.gap));
+    const QSignalBlocker block(act);
+    act->setIcon(themedIcon(req.name, req.color, req.size, req.dpr, req.gap));
   }
 
   void IconMotionRunner::run(double target) {
-    anim_->stop();
-    const double from = elapsed_;
+    anim->stop();
+    const double from = elapsed;
     if (qFuzzyCompare(from + 1, target + 1)) { paint(target); return; }
-    anim_->setStartValue(from);
-    anim_->setEndValue(target);
+    anim->setStartValue(from);
+    anim->setEndValue(target);
     // Linear: the shaping lives per part, in poseAt()'s easings.
-    anim_->setDuration(std::max(1, int(std::abs(target - from))));
-    anim_->start();
+    anim->setDuration(std::max(1, int(std::abs(target - from))));
+    anim->start();
   }
 
 
   void ActionIconMotionRunner::run(double target) {
-    anim_->stop();
-    const double from = elapsed_;
+    anim->stop();
+    const double from = elapsed;
     if (qFuzzyCompare(from + 1, target + 1)) { paint(target); return; }
-    anim_->setStartValue(from);
-    anim_->setEndValue(target);
-    anim_->setDuration(std::max(1, int(std::abs(target - from))));
-    anim_->start();
+    anim->setStartValue(from);
+    anim->setEndValue(target);
+    anim->setDuration(std::max(1, int(std::abs(target - from))));
+    anim->start();
   }
 
   // A frame WE painted is never a registered themedIcon.
   bool IconMotionRunner::hasTakenOver() const {
     IconRequest now;
-    return btn_ && iconRequestForKey(btn_->icon().cacheKey(), &now)
-           && (now.name != req_.name || now.color != req_.color || now.size != req_.size);
+    return btn && iconRequestForKey(btn->icon().cacheKey(), &now)
+           && (now.name != req.name || now.color != req.color || now.size != req.size);
   }
 
   bool ActionIconMotionRunner::hasTakenOver() const {
     IconRequest now;
-    return act_ && iconRequestForKey(act_->icon().cacheKey(), &now)
-           && (now.name != req_.name || now.color != req_.color || now.size != req_.size);
+    return act && iconRequestForKey(act->icon().cacheKey(), &now)
+           && (now.name != req.name || now.color != req.color || now.size != req.size);
   }
 
   void IconMotionRunner::paint(double elapsed) {
-    elapsed_ = elapsed;
-    if (!btn_) return;
+    this->elapsed = elapsed;
+    if (!btn) return;
     // A face mid-swap already owns this glyph — step out.
-    if (faceSwapping(btn_) || hasTakenOver()) { anim_->stop(); return; }
-    const QString posed = iconMotionMarkup(req_.name, *spec_, *parts_, elapsed);
+    if (faceSwapping(btn) || hasTakenOver()) { anim->stop(); return; }
+    const QString posed = iconMotionMarkup(req.name, *spec, *parts, elapsed);
     // A disabled control renders the Disabled variant, so only then is it built.
-    btn_->setIcon(iconFromMarkup(posed, req_.color, req_.size, req_.dpr,
-                                 /*withDisabled=*/!btn_->isEnabled(), req_.gap));
+    btn->setIcon(iconFromMarkup(posed, req.color, req.size, req.dpr,
+                                 /*withDisabled=*/!btn->isEnabled(), req.gap));
   }
 
   void ActionIconMotionRunner::paint(double elapsed) {
-    elapsed_ = elapsed;
-    if (!act_) return;
-    if (hasTakenOver()) { anim_->stop(); return; }
-    const QString posed = iconMotionMarkup(req_.name, *spec_, *parts_, elapsed);
-    const QSignalBlocker block(act_);  // never let a bound toolbar button see this frame
+    this->elapsed = elapsed;
+    if (!act) return;
+    if (hasTakenOver()) { anim->stop(); return; }
+    const QString posed = iconMotionMarkup(req.name, *spec, *parts, elapsed);
+    const QSignalBlocker block(act);  // never let a bound toolbar button see this frame
     // A disabled row renders the Disabled variant, so only then is it built.
-    act_->setIcon(iconFromMarkup(posed, req_.color, req_.size, req_.dpr,
-                                 /*withDisabled=*/!act_->isEnabled(), req_.gap));
+    act->setIcon(iconFromMarkup(posed, req.color, req.size, req.dpr,
+                                 /*withDisabled=*/!act->isEnabled(), req.gap));
   }
 
 
   ActionIconMotionRunner::ActionIconMotionRunner(QAction* act, const IconRequest& req,
                                                  const IconMotionSpec* spec,
-                                                 const QVector<IconMotionPart>* parts) : QObject(act), act_(act), req_(req), spec_(spec), parts_(parts) {
+                                                 const QVector<IconMotionPart>* parts) : QObject(act), act(act), req(req), spec(spec), parts(parts) {
     setObjectName(QString::fromLatin1(ICON_MOTION_ANIM_NAME));
-    anim_ = new QVariantAnimation(this);
-    anim_->setStartValue(0.0);
-    anim_->setEndValue(0.0);
-    connect(anim_, &QVariantAnimation::valueChanged, this,
+    anim = new QVariantAnimation(this);
+    anim->setStartValue(0.0);
+    anim->setEndValue(0.0);
+    connect(anim, &QVariantAnimation::valueChanged, this,
             [this](const QVariant& v) { paint(v.toDouble()); });
-    connect(anim_, &QVariantAnimation::finished, this, [this] {
-      elapsed_ = anim_->endValue().toDouble();
-      if (elapsed_ <= 0.0 || !spec_->hold) restPaint();
+    connect(anim, &QVariantAnimation::finished, this, [this] {
+      elapsed = anim->endValue().toDouble();
+      if (elapsed <= 0.0 || !this->spec->hold) restPaint();
     });
   }
 }  // namespace stencil::gui

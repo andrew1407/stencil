@@ -88,12 +88,12 @@ int main(int argc, char** argv) {
   // ── The restore guard is plain, sticky state: set around the apply, cleared after.
   {
     SessionController sc;
-    check(!sc.restoring(), "a fresh controller is not restoring");
+    check(!sc.getRestoring(), "a fresh controller is not restoring");
     sc.setRestoring(true);
-    check(sc.restoring() && !SessionController::wantsViewSchedule(ready(), sc.restoring()),
+    check(sc.getRestoring() && !SessionController::wantsViewSchedule(ready(), sc.getRestoring()),
           "while restoring, nothing schedules");
     sc.setRestoring(false);
-    check(!sc.restoring(), "and the guard lifts again");
+    check(!sc.getRestoring(), "and the guard lifts again");
   }
 
   // ── The debounces themselves: single-shot, coalescing, and gated by the same rules.

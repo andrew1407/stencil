@@ -43,7 +43,7 @@ namespace stencil::gui {
   LinksDialog::LinksDialog(const QString& source, const QString& resource,
                            bool hasImage, const QString& pageSeed,
                            const QString& units, QWidget* parent)
-      : QDialog(parent), pageSeed_(pageSeed) {
+      : QDialog(parent), pageSeed(pageSeed) {
     setWindowTitle("Image links");
     setMinimumWidth(540);
     const QColor txt = palette().color(QPalette::WindowText);
@@ -87,14 +87,14 @@ namespace stencil::gui {
       row->setToolTip(labelTip);
       linksCol->addWidget(row);
     };
-    sourceEdit_ = new QLineEdit(source, this);
-    sourceEdit_->setPlaceholderText("(empty — local upload)");
-    addLinkRow(sourceEdit_, tr("Source"), tr("The image/video’s own URL"),
+    sourceEdit = new QLineEdit(source, this);
+    sourceEdit->setPlaceholderText("(empty — local upload)");
+    addLinkRow(sourceEdit, tr("Source"), tr("The image/video’s own URL"),
                "Open source in the default browser", "Remove source link");
 
-    resourceEdit_ = new QLineEdit(resource, this);
-    resourceEdit_->setPlaceholderText("(empty)");
-    addLinkRow(resourceEdit_, tr("Resource"), tr("The web page the image was found on"),
+    resourceEdit = new QLineEdit(resource, this);
+    resourceEdit->setPlaceholderText("(empty)");
+    addLinkRow(resourceEdit, tr("Resource"), tr("The web page the image was found on"),
                "Open resource page in the default browser", "Remove resource link");
     layout->addWidget(linksBox);
 
@@ -111,57 +111,57 @@ namespace stencil::gui {
     addCol->addLayout(addForm);
 
     // URL + an inline Preview button (mirrors the browser modal's 👁 Preview).
-    urlEdit_ = new QLineEdit(this);
-    urlEdit_->setPlaceholderText("https://… (image or video)");
+    urlEdit = new QLineEdit(this);
+    urlEdit->setPlaceholderText("https://… (image or video)");
     auto* previewBtn = new QPushButton("Preview", this);
     makeModalCta(previewBtn, "eye");
     previewBtn->setToolTip("Fetch and show the image / first video frame");
     auto* urlRow = new QHBoxLayout;
-    urlRow->addWidget(urlEdit_, 1);
+    urlRow->addWidget(urlEdit, 1);
     urlRow->addWidget(previewBtn);
     addForm->addRow("Image / video URL:", urlRow);
 
-    urlResourceEdit_ = new QLineEdit(this);
-    urlResourceEdit_->setPlaceholderText("(optional — page the image is on)");
-    addForm->addRow("Resource URL:", urlResourceEdit_);
+    urlResourceEdit = new QLineEdit(this);
+    urlResourceEdit->setPlaceholderText("(optional — page the image is on)");
+    addForm->addRow("Resource URL:", urlResourceEdit);
 
-    previewLabel_ = new QLabel(this);
-    previewLabel_->setAlignment(Qt::AlignCenter);
-    previewLabel_->setMinimumHeight(120);
-    previewLabel_->setMaximumSize(PREVIEW_MAX_W, PREVIEW_MAX_H);
-    previewLabel_->setFrameShape(QFrame::StyledPanel);
+    previewLabel = new QLabel(this);
+    previewLabel->setAlignment(Qt::AlignCenter);
+    previewLabel->setMinimumHeight(120);
+    previewLabel->setMaximumSize(PREVIEW_MAX_W, PREVIEW_MAX_H);
+    previewLabel->setFrameShape(QFrame::StyledPanel);
     // Hidden until a preview lands (openImageDialog parity) — an empty bordered box
     // held a 120px void open in the middle of the dialog.
-    previewLabel_->setVisible(false);
-    addForm->addRow(previewLabel_);
+    previewLabel->setVisible(false);
+    addForm->addRow(previewLabel);
 
     // "Video frame" controls, UNDER the preview like a player's scrubber; hidden until a preview
     // resolves the URL as a video. Slider and spin box stay mirrored on the persistent scrub player.
-    frameRow_ = new QWidget(this);
-    auto* frameV = new QVBoxLayout(frameRow_);
+    frameRow = new QWidget(this);
+    auto* frameV = new QVBoxLayout(frameRow);
     frameV->setContentsMargins(0, 0, 0, 0);
     auto* frameH = new QHBoxLayout;
-    frameSlider_ = new QSlider(Qt::Horizontal, frameRow_);
-    frameSlider_->setRange(0, 0);
-    frameH->addWidget(frameSlider_, 1);
-    frameH->addWidget(new QLabel("Frame", frameRow_));
-    frame_ = new QSpinBox(frameRow_);
-    frame_->setRange(0, 0);
-    frameH->addWidget(frame_);
-    frameTotal_ = new QLabel(frameRow_);
-    frameTotal_->setStyleSheet(mutedCss);
-    frameH->addWidget(frameTotal_);
+    frameSlider = new QSlider(Qt::Horizontal, frameRow);
+    frameSlider->setRange(0, 0);
+    frameH->addWidget(frameSlider, 1);
+    frameH->addWidget(new QLabel("Frame", frameRow));
+    frame = new QSpinBox(frameRow);
+    frame->setRange(0, 0);
+    frameH->addWidget(frame);
+    frameTotal = new QLabel(frameRow);
+    frameTotal->setStyleSheet(mutedCss);
+    frameH->addWidget(frameTotal);
     frameV->addLayout(frameH);
-    usePreview_ = new QCheckBox("Use the video's preview image instead of a frame", frameRow_);
-    usePreview_->setEnabled(false);  // off + disabled until a preview image is found
-    frameV->addWidget(usePreview_);
-    frameRow_->setVisible(false);  // shown only for videos
-    addForm->addRow(frameRow_);
+    usePreview = new QCheckBox("Use the video's preview image instead of a frame", frameRow);
+    usePreview->setEnabled(false);  // off + disabled until a preview image is found
+    frameV->addWidget(usePreview);
+    frameRow->setVisible(false);  // shown only for videos
+    addForm->addRow(frameRow);
 
-    previewHint_ = new QLabel(this);
-    previewHint_->setStyleSheet(mutedCss + " font-size: 11px;");
-    previewHint_->setWordWrap(true);
-    addForm->addRow(previewHint_);
+    previewHint = new QLabel(this);
+    previewHint->setStyleSheet(mutedCss + " font-size: 11px;");
+    previewHint->setWordWrap(true);
+    addForm->addRow(previewHint);
 
     buildQuickCrop(addForm, units);
     layout->addWidget(addBox);

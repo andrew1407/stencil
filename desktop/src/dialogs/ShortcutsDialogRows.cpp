@@ -46,14 +46,14 @@ namespace stencil::gui {
   }
 
   void ShortcutsDialog::captured(int rowIndex, const QString& seq) {
-    Row& row = rows_[rowIndex];
+    Row& row = rows[rowIndex];
     if (seq == row.lastSeq) return;
     if (!seq.isEmpty()) {
       // A combo another action owns is refused — the other is never silently unbound.
-      for (int i = 0; i < rows_.size(); ++i) {
-        if (i == rowIndex || rows_[i].lastSeq != seq) continue;
+      for (int i = 0; i < rows.size(); ++i) {
+        if (i == rowIndex || rows[i].lastSeq != seq) continue;
         emit conflict(tr("\"%1\" is already used by \"%2\" — the old shortcut was kept")
-                          .arg(native(seq), rows_[i].label));
+                          .arg(native(seq), rows[i].label));
         return;
       }
     }
@@ -71,7 +71,7 @@ namespace stencil::gui {
     // Only rows that actually change form again, and past the mark budget the rest
     // simply appear: one gesture, not thirty clouds.
     int formed = 0;
-    for (Row& r : rows_) {
+    for (Row& r : rows) {
       const bool changes = r.lastSeq != r.defaultSeq;
       setRowSeq(r, r.defaultSeq, /*formed=*/changes && formed < 8);
       if (changes) ++formed;
@@ -83,19 +83,19 @@ namespace stencil::gui {
   void ShortcutsDialog::applyFilter(const QString& query) {
     const QString q = query.trimmed().toLower();
     bool any = false;
-    for (const Row& row : rows_) {
+    for (const Row& row : rows) {
       const bool match = q.isEmpty() || row.label.toLower().contains(q) ||
                          native(row.lastSeq).toLower().contains(q) ||
                          native(row.defaultSeq).toLower().contains(q);
       fadeFiltered(row.widget, match);
       any = any || match;
     }
-    empty_->setVisible(!any);
+    empty->setVisible(!any);
   }
 
   QHash<QString, QString> ShortcutsDialog::overrides() const {
     QHash<QString, QString> out;
-    for (const auto& row : rows_) {
+    for (const auto& row : rows) {
       // Only persist an override when it differs from the config default.
       if (row.lastSeq != row.defaultSeq) out.insert(row.id, row.lastSeq);
     }

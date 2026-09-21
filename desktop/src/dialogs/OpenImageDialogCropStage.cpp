@@ -17,10 +17,10 @@ namespace stencil::gui {
   // Reveal the quick-crop row for a previewed image/frame: the orientation follows the
   // media (wider-than-tall => album) and the page size the app's current one. Crop stays OFF.
   void OpenImageDialog::showQuickcrop(int w, int h) {
-    cropAlbum_->setChecked((w >= h) && (w > 0));
+    cropAlbum->setChecked((w >= h) && (w > 0));
     // SHOWN before the sync: syncQuickcropEnabled ends in the refit, and a row still hidden
     // then is left out of the hint — the window came up one row short of its own content.
-    quickcropRow_->setVisible(true);
+    quickcropRow->setVisible(true);
     syncQuickcropEnabled();
     refreshOpenEnabled();
   }
@@ -28,51 +28,51 @@ namespace stencil::gui {
   // The page and its crop only matter while cropping. The read-out is the crop editor's own
   // line (CropDialogDrag.cpp) over the same core geometry, so the two cannot drift apart.
   void OpenImageDialog::syncQuickcropEnabled() {
-    const bool on = cropPage_->isChecked();
-    const int tab = tabs_->currentIndex();   // the choice belongs to the tab that made it
-    if (tab == TabFile || tab == TabUrl) tabCrop_[tab] = on;
-    cropAlbum_->setText(cropAlbum_->isChecked() ? tr("Album") : tr("Portrait"));
+    const bool on = cropPage->isChecked();
+    const int tab = tabs->currentIndex();   // the choice belongs to the tab that made it
+    if (tab == TabFile || tab == TabUrl) tabCrop[tab] = on;
+    cropAlbum->setText(cropAlbum->isChecked() ? tr("Album") : tr("Portrait"));
     cropAlbumDust(on);
     cropSizeRowDust(on);
-    cropSizeCustomDust(on && cropPageSize_->currentData().toString() == QLatin1String("custom"));
+    cropSizeCustomDust(on && cropPageSize->currentData().toString() == QLatin1String("custom"));
     syncCropStage();
   }
 
-  // cropPageSize_/cropSizeW_/H_ resolved — the CROP's own ratio, never pageSeed_.
+  // cropPageSize/cropSizeW/H resolved — the CROP's own ratio, never pageSeed.
   // Browser twin: openImageModal.js pageDims()/CROP_RATIOS.
   core::PageSize OpenImageDialog::cropPageDims() const {
-    if (!cropPageSize_) return core::PageSize{29.7, 42.0};
-    const QString key = cropPageSize_->currentData().toString();
+    if (!cropPageSize) return core::PageSize{29.7, 42.0};
+    const QString key = cropPageSize->currentData().toString();
     if (key == QLatin1String("custom"))
-      return core::PageSize{cropSizeW_->value(), cropSizeH_->value()};
+      return core::PageSize{cropSizeW->value(), cropSizeH->value()};
     if (key == QLatin1String("1:1")) return core::PageSize{1.0, 1.0};
     if (key == QLatin1String("2:3")) return core::PageSize{2.0, 3.0};
-    const core::PageSize page = core::namedPageSize(pageSeed_.toStdString());
+    const core::PageSize page = core::namedPageSize(pageSeed.toStdString());
     return page.width > 0 ? page : core::PageSize{29.7, 42.0};
   }
 
   // A different ratio (or Custom width/height) picked while the stage is already up.
   void OpenImageDialog::syncCropPageChoice() {
-    if (!cropStage_) return;
+    if (!cropStage) return;
     const core::PageSize page = cropPageDims();
-    cropStage_->setPageSize(page.width, page.height);
+    cropStage->setPageSize(page.width, page.height);
   }
 
   // The stage TAKES THE PICTURE'S PLACE while Crop is on (the browser's cropStage); a VIDEO's frame
   // is no different. Rebuilt per image: the rect lives in that image's pixels.
   void OpenImageDialog::syncCropStage() {
-    const bool on = cropPage_->isChecked() && !previewImage_.isNull();
-    if (cropStage_) {
+    const bool on = cropPage->isChecked() && !previewImage.isNull();
+    if (cropStage) {
       // HIDDEN first: deleteLater leaves it a live child past the measure below, and a
       // flip would count both stages — one extra picture of height.
-      cropStage_->hide();
-      cropStage_->deleteLater();
-      cropStage_ = nullptr;
+      cropStage->hide();
+      cropStage->deleteLater();
+      cropStage = nullptr;
     }
-    cropStageHost_->setVisible(on);
+    cropStageHost->setVisible(on);
     // What the LABEL has, not what we still hold pixels for: a URL edited after a preview
-    // keeps its picture on screen (stalePreview) though previewImage_ has gone.
-    previewLabel_->setVisible(!previewLabel_->pixmap().isNull() && !on);
+    // keeps its picture on screen (stalePreview) though previewImage has gone.
+    previewLabel->setVisible(!previewLabel->pixmap().isNull() && !on);
     if (!on) {
       // The fall is photographed and raised while the line still stands, and only then does
       // the window take its room back — a resize first drags the cloud with it.
@@ -81,8 +81,8 @@ namespace stencil::gui {
       cropAlbumDust(false);
       cropSizeCustomDust(false);
       // The rows' room comes back to the picture, if the stage had to give any up.
-      if (size_.previewCapH > 0) { size_.previewCapH = 0; applyPreviewFit(); }
-      if (previewIsVideo_) frameSlider_->setFixedWidth(previewLabel_->pixmap().width());
+      if (size.previewCapH > 0) { size.previewCapH = 0; applyPreviewFit(); }
+      if (previewIsVideo) frameSlider->setFixedWidth(previewLabel->pixmap().width());
       refitWindowHeight();
       return;
     }
@@ -91,37 +91,37 @@ namespace stencil::gui {
     const double ph = page.height;
     // The tab's OWN last-dragged rect, if this is the same decode - a fresh centeredCrop() threw the
     // drag away on every tab switch. Its own shape says Album or Portrait and the checkbox follows THAT.
-    const int tab = tabs_->currentIndex();
-    const TabPreviewCache* cache = (tab == TabFile || tab == TabUrl) ? &tabCache_[tab] : nullptr;
-    const bool hasSaved = cache && cache->cropRectValid && cache->previewImage.size() == previewImage_.size();
+    const int tab = tabs->currentIndex();
+    const TabPreviewCache* cache = (tab == TabFile || tab == TabUrl) ? &tabCache[tab] : nullptr;
+    const bool hasSaved = cache && cache->cropRectValid && cache->previewImage.size() == previewImage.size();
     // The FIRST crop on this decode starts from ITS OWN orientation (showQuickcrop's w>=h rule), never
-    // cropAlbum_'s current state - one checkbox is shared by every tab.
-    const int iw = previewImage_.width(), ih = previewImage_.height();
+    // cropAlbum's current state - one checkbox is shared by every tab.
+    const int iw = previewImage.width(), ih = previewImage.height();
     const bool defaultAlbum = (iw >= ih) && (iw > 0);
     const core::CropRect initial = hasSaved
         ? cache->cropRect
-        : core::centeredCrop(previewImage_.width(), previewImage_.height(),
+        : core::centeredCrop(previewImage.width(), previewImage.height(),
                              core::cropAspect(pw, ph, defaultAlbum));
     // autoFitScreen=false: CropPreview's OWN screen-relative sizing is for the standalone Crop tool;
     // this stage's box comes from previewFitBox() alone (grows with the window, resizeEvent).
-    cropStage_ = new CropPreview(previewImage_, pw, ph, initial, cropStageHost_,
+    cropStage = new CropPreview(previewImage, pw, ph, initial, cropStageHost,
                                  /*autoFitScreen=*/false);
-    // The constructor already derived album_ from `initial`'s own shape — no second,
+    // The constructor already derived album from `initial`'s own shape — no second,
     // stale-checkbox opinion on top of it.
     {
-      const QSignalBlocker block(cropAlbum_);
-      cropAlbum_->setChecked(cropStage_->album());
-      cropAlbum_->setText(cropStage_->album() ? tr("Album") : tr("Portrait"));
+      const QSignalBlocker block(cropAlbum);
+      cropAlbum->setChecked(cropStage->getAlbum());
+      cropAlbum->setText(cropStage->getAlbum() ? tr("Album") : tr("Portrait"));
     }
-    cropStage_->setFitBox(previewFitBox());
-    cropStageHost_->layout()->addWidget(cropStage_);
+    cropStage->setFitBox(previewFitBox());
+    cropStageHost->layout()->addWidget(cropStage);
     // A child born into an already-visible parent stays hidden, and a hidden item is left
     // out of the layout's hint — the window would shrink instead of making room.
-    cropStage_->show();
-    connect(cropStage_, &CropPreview::cropChanged, this, &OpenImageDialog::refreshCropDims);
-    connect(cropStage_, &CropPreview::cropChanged, this, &OpenImageDialog::persistCropRect);
+    cropStage->show();
+    connect(cropStage, &CropPreview::cropChanged, this, &OpenImageDialog::refreshCropDims);
+    connect(cropStage, &CropPreview::cropChanged, this, &OpenImageDialog::persistCropRect);
     // The scrub bar keeps the picture's width, which is now the STAGE's painted picture.
-    if (previewIsVideo_) frameSlider_->setFixedWidth(cropStage_->paintedRect().width());
+    if (previewIsVideo) frameSlider->setFixedWidth(cropStage->paintedRect().width());
     refreshCropDims();     // the words first: the cloud is a photograph of them
     cropDimsDust(true);    // …the line takes its final place in the column, then slides in
     refitWindowHeight();   // …so the window is measured against the shape this lands on
@@ -130,20 +130,20 @@ namespace stencil::gui {
   // The tab's own copy of the drag, keyed to the decode's own size - a later, differently-sized
   // picture on the same tab must never reuse a rect fitted to the one before it.
   void OpenImageDialog::persistCropRect() {
-    const int tab = tabs_->currentIndex();
-    if (!cropStage_ || (tab != TabFile && tab != TabUrl)) return;
-    TabPreviewCache& cache = tabCache_[tab];
-    cache.cropRect = cropStage_->cropRect();
+    const int tab = tabs->currentIndex();
+    if (!cropStage || (tab != TabFile && tab != TabUrl)) return;
+    TabPreviewCache& cache = tabCache[tab];
+    cache.cropRect = cropStage->cropRect();
     cache.cropRectValid = true;
-    cache.previewImage = previewImage_;   // the size stamp the restore checks against
+    cache.previewImage = previewImage;   // the size stamp the restore checks against
   }
 
   // The stage's own line, in the crop editor's words (CropDialogDrag.cpp).
   void OpenImageDialog::refreshCropDims() {
-    if (!cropStage_) return;
-    const core::CropRect r = cropStage_->cropRect();
-    cropDims_->setText(QStringLiteral("%1 \u00d7 %2 px \u00b7 %3")
+    if (!cropStage) return;
+    const core::CropRect r = cropStage->cropRect();
+    cropDims->setText(QStringLiteral("%1 \u00d7 %2 px \u00b7 %3")
                            .arg(qRound(r.width)).arg(qRound(r.height))
-                           .arg(cropStage_->album() ? tr("Album (landscape)") : tr("Portrait")));
+                           .arg(cropStage->getAlbum() ? tr("Album (landscape)") : tr("Portrait")));
   }
 }

@@ -22,8 +22,8 @@ class MainWindowGuiTest : public QObject {
     chat->setChecked(true);
     QTRY_VERIFY(dock->isVisible());
     QTRY_VERIFY(dock->width() > 200);
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     mock.response = QJsonDocument(QJsonObject{
         {"message",
@@ -31,16 +31,16 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Making it black and white.\",\"actions\":"
                       "[{\"op\":\"filter\",\"mode\":\"bw\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     // An editing plan arriving with an EMPTY canvas + an attachment adopts the
     // attachment as the working image and says so (the adoption note).
-    QVERIFY(!win.canvas_->hasImage());
+    QVERIFY(!win.canvas->hasImage());
     QImage att(64, 48, QImage::Format_RGB32);
     att.fill(Qt::darkCyan);
     dock->addAttachmentImage(att, QStringLiteral("cat.png"));
     win.onChatSend("make it b&w");
-    QTRY_VERIFY(win.canvas_->hasImage());
+    QTRY_VERIFY(win.canvas->hasImage());
 
     auto* scrollArea = dock->findChild<QScrollArea*>();
     QVERIFY(scrollArea && scrollArea->widget());
@@ -112,10 +112,10 @@ class MainWindowGuiTest : public QObject {
     const QString base =
         QStringLiteral("chat view src %1").arg(QDateTime::currentMSecsSinceEpoch());
     win.createLocalProject(base, /*announce=*/false);
-    QVERIFY(!win.activeProjectId_.isEmpty());
+    QVERIFY(!win.activeProjectId.isEmpty());
 
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     const QString renamed = base + QStringLiteral(" renamed");
     mock.response = QJsonDocument(QJsonObject{
@@ -128,21 +128,21 @@ class MainWindowGuiTest : public QObject {
                           "{\"op\":\"renameProject\",\"name\":\"%1\"}]}")
                           .arg(renamed)}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
-    const QSize sizeBefore = win.canvas_->image().size();
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
+    const QSize sizeBefore = win.canvas->getImage().size();
     win.onChatSend("compare it side by side, zoom in, and rename the project");
 
     // The compare view: canvas mode + divider, and the toolbar combo followed.
-    QTRY_COMPARE(win.canvas_->compareMode(), QStringLiteral("vertical"));
-    QCOMPARE(win.canvas_->compareSplit(), 0.3);
-    QCOMPARE(win.compareCombo_->currentData().toString(), QStringLiteral("vertical"));
+    QTRY_COMPARE(win.canvas->getCompareMode(), QStringLiteral("vertical"));
+    QCOMPARE(win.canvas->getCompareSplit(), 0.3);
+    QCOMPARE(win.compareCombo->currentData().toString(), QStringLiteral("vertical"));
     // The zoom landed on the canvas scale (view-only — the image is untouched).
-    QVERIFY(std::abs(win.canvas_->scale() - 1.5) < 1e-9);
-    QCOMPARE(win.canvas_->image().size(), sizeBefore);
+    QVERIFY(std::abs(win.canvas->getScale() - 1.5) < 1e-9);
+    QCOMPARE(win.canvas->getImage().size(), sizeBefore);
     // The rename went through the real registry path.
     QCOMPARE(win.activeProjectName(), renamed);
     bool inRegistry = false;
-    for (const auto& p : win.projectList_)
+    for (const auto& p : win.projectList)
       if (p.meta.name == renamed.toStdString()) inRegistry = true;
     QVERIFY2(inRegistry, "the renamed project is in the persisted registry");
     // The turn resolved as ONE assistant bubble with the plan's reply.
@@ -151,10 +151,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dock);
     QTRY_VERIFY(assistantBubbleTexts(dock).contains(QStringLiteral("View set")));
     // Leave the shared registry tidy for the other cases.
-    const QString id = win.activeProjectId_;
+    const QString id = win.activeProjectId;
     win.setCompareModeUi(QStringLiteral("none"));
     win.eraseLocalProject(id);
-    stencil::gui::fileStore::saveProjects(win.projectList_);
+    stencil::gui::fileStore::saveProjects(win.projectList);
     beat();
   }
 
@@ -168,8 +168,8 @@ class MainWindowGuiTest : public QObject {
     QImage img(64, 48, QImage::Format_RGB32);
     img.fill(Qt::darkCyan);
     win.loadImageWithLayout(img, QJsonObject());
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     const auto plan = [](const char* json) {
       return QJsonDocument(QJsonObject{
@@ -185,18 +185,18 @@ class MainWindowGuiTest : public QObject {
         "{\"x\":400,\"y\":100},{\"x\":400,\"y\":300},{\"x\":100,\"y\":300},"
         "{\"x\":100,\"y\":100}],\"color\":\"#000000\"}]},"
         "{\"op\":\"compare\",\"mode\":\"vertical\",\"split\":0.4}]}"));
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     win.onChatSend("red album page with a rectangle, compared side by side");
-    QTRY_COMPARE(win.canvas_->compareMode(), QStringLiteral("vertical"));
+    QTRY_COMPARE(win.canvas->getCompareMode(), QStringLiteral("vertical"));
     mock.queue.clear();
     // The follow-up carries the mode alone: an echoed "split" beside "none" is a
     // parse failure since the registry's onlyWith rule (fixture 160).
     mock.response = plan("{\"version\":1,\"reply\":\"cleared\",\"actions\":["
                          "{\"op\":\"compare\",\"mode\":\"none\"}]}");
     win.onChatSend("turn the comparison off");
-    QTRY_COMPARE(win.canvas_->compareMode(), QStringLiteral("none"));
-    QVERIFY2(!win.canvas_->compareReadOnly(), "compare 'none' left the canvas read-only");
-    QCOMPARE(win.compareCombo_->currentData().toString(), QStringLiteral("none"));
+    QTRY_COMPARE(win.canvas->getCompareMode(), QStringLiteral("none"));
+    QVERIFY2(!win.canvas->compareReadOnly(), "compare 'none' left the canvas read-only");
+    QCOMPARE(win.compareCombo->currentData().toString(), QStringLiteral("none"));
     beat();
   }
 

@@ -16,21 +16,21 @@ namespace stencil::gui {
   public:
     using QSortFilterProxyModel::QSortFilterProxyModel;
     void setQuery(const QString& query) {
-      query_ = query.trimmed();
+      this->query = query.trimmed();
       invalidate();  // re-run filterAcceptsRow (portable across Qt 6.x)
     }
 
   protected:
     bool filterAcceptsRow(int row, const QModelIndex& parent) const override {
-      if (query_.isEmpty()) return true;
+      if (query.isEmpty()) return true;
       const QModelIndex idx = sourceModel()->index(row, 0, parent);
       const QString hay = idx.data(Qt::DisplayRole).toString() + ' ' +
                           idx.data(Qt::UserRole).toString();
-      return hay.contains(query_, Qt::CaseInsensitive);
+      return hay.contains(query, Qt::CaseInsensitive);
     }
 
   private:
-    QString query_;
+    QString query;
   };
 
 

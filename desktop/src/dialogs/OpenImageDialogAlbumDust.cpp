@@ -16,47 +16,47 @@
 namespace stencil::gui {
 
   // The button falls INLINE beside the always-shown checkbox, so it has no height to slide - just
-  // the chip cloud. Both directions FOLLOW size_.anim, or the cloud is stranded over the stage.
+  // the chip cloud. Both directions FOLLOW size.anim, or the cloud is stranded over the stage.
   void OpenImageDialog::cropAlbumDust(bool arriving) {
-    if (arriving == motion_.albumShown) return;
-    motion_.albumShown = arriving;
-    QWidget* host = cropAlbum_->parentWidget();
-    if (!host || support::motionReduced() || motion_.quietCrop) {
-      cropAlbum_->setVisible(arriving);
+    if (arriving == motion.albumShown) return;
+    motion.albumShown = arriving;
+    QWidget* host = cropAlbum->parentWidget();
+    if (!host || support::motionReduced() || motion.quietCrop) {
+      cropAlbum->setVisible(arriving);
       return;
     }
-    QPointer<QPushButton> btn(cropAlbum_);
-    const int gen = motion_.gen;
+    QPointer<QPushButton> btn(cropAlbum);
+    const int gen = motion.gen;
     if (!arriving) {
-      // SYNCHRONOUS, like cropDims_'s own pin(0): syncCropStage() measures the wanted height in THIS
+      // SYNCHRONOUS, like cropDims's own pin(0): syncCropStage() measures the wanted height in THIS
       // SAME call, and a button still occupying the row's width read as "still here".
-      const QPixmap shot = cropAlbum_->grab();   // before it goes
-      cropAlbum_->setVisible(false);
+      const QPixmap shot = cropAlbum->grab();   // before it goes
+      cropAlbum->setVisible(false);
       if (!shot.isNull()) {
-        DisintegrateOverlay* fx = chipCloud(host, cropAlbum_, shot, DisintegrateOverlay::Sweep::FALL);
-        if (fx && size_.anim) {
+        DisintegrateOverlay* fx = chipCloud(host, cropAlbum, shot, DisintegrateOverlay::Sweep::FALL);
+        if (fx && size.anim) {
           const auto follow = [fx, btn, host] { if (btn && host) fx->move(btn->mapTo(host, QPoint())); };
-          connect(size_.anim, &QVariantAnimation::valueChanged, fx, follow);
+          connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
         }
       }
       return;
     }
-    cropAlbum_->setVisible(true);
+    cropAlbum->setVisible(true);
     if (QLayout* l = host->layout()) l->activate();
-    const QPixmap shot = cropAlbum_->grab();
-    auto* veil = new QGraphicsOpacityEffect(cropAlbum_);
+    const QPixmap shot = cropAlbum->grab();
+    auto* veil = new QGraphicsOpacityEffect(cropAlbum);
     veil->setOpacity(0.0);
-    cropAlbum_->setGraphicsEffect(veil);
+    cropAlbum->setGraphicsEffect(veil);
     QTimer::singleShot(0, btn, [this, btn, veil, shot, gen, host] {
       const auto lift = [btn, veil] {
         if (btn && btn->graphicsEffect() == veil) btn->setGraphicsEffect(nullptr);
       };
       if (!btn) return;
-      if (gen != motion_.gen || shot.isNull()) { lift(); return; }
+      if (gen != motion.gen || shot.isNull()) { lift(); return; }
       DisintegrateOverlay* fx = chipCloud(host, btn, shot, DisintegrateOverlay::Sweep::GATHER);
       if (!fx) { lift(); return; }
       const auto follow = [fx, btn, host] { if (btn && host) fx->move(btn->mapTo(host, QPoint())); };
-      if (size_.anim) connect(size_.anim, &QVariantAnimation::valueChanged, fx, follow);
+      if (size.anim) connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
       QTimer::singleShot(int(CHIP_DUST_MS * FILTER_DUST_VEIL_STOP), btn, lift);
     });
   }

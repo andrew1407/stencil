@@ -99,12 +99,12 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, /*restoreLast=*/false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QVERIFY(win.actContextMenu_);
-    QCOMPARE(win.actContextMenu_->shortcut(), QKeySequence("Shift+F10"));
+    QVERIFY(win.actContextMenu);
+    QCOMPARE(win.actContextMenu->shortcut(), QKeySequence("Shift+F10"));
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();
     win.activateWindow();
     QVERIFY(QTest::qWaitForWindowActive(&win));   // a WindowShortcut needs the active window
-    QWidget* vp = win.scroll_->viewport();
+    QWidget* vp = win.scroll->viewport();
     const QRect vpGlobal(vp->mapToGlobal(QPoint(0, 0)), vp->size());
     // The menu exec()s: a poll (armed BEFORE the press — the platform key path flushes
     // pending events, so a one-shot would fire too early) records where it opened and closes it.
@@ -148,7 +148,7 @@ class MainWindowGuiTest : public QObject {
     QRect vpAt2;
     bool opened2 = false;
     armCloser(opened2, at2, vpAt2);
-    win.actContextMenu_->trigger();
+    win.actContextMenu->trigger();
     QTRY_VERIFY2_WITH_TIMEOUT(opened2, "the context-menu action did not open the menu", 4000);
     // Against the viewport as it was AT THAT INSTANT: the panel settles into its width after the window
     // opens. x lands on the centre exactly; y may be pulled up to keep the menu on screen.

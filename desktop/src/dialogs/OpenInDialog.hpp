@@ -9,7 +9,7 @@ class QWidget;
 
 // "Open in..." dialog. Mirrors browser/js/ui/openInModal.js: mirror the CURRENT session into
 // another Stencil front-end - the browser app or the Telegram bot. Unusable targets are HIDDEN,
-// not greyed. exec(); on QDialog::Accepted read outcome()/incognito().
+// not greyed. exec(); on QDialog::Accepted read getOutcome()/getIncognito().
 // A Telegram link that cannot fit the 64-char start payload keeps the dialog open and shows the
 // browser's fallback row (the two bot commands + copy) instead.
 namespace stencil::gui {
@@ -25,8 +25,8 @@ namespace stencil::gui {
                  bool browserAvailable, bool telegramAvailable, bool startIncognito,
                  const QString& serverId = QString());
 
-    bool incognito() const;
-    Outcome outcome() const { return outcome_; }
+    bool getIncognito() const;
+    Outcome getOutcome() const { return outcome; }
     // The fallback row is showing (the Telegram link did not fit).
     bool fallbackShown() const;
     QString fallbackCommands() const;
@@ -39,15 +39,15 @@ namespace stencil::gui {
    private:
     void showTelegramFallback();
 
-    QString serverUrl_;
-    QString serverId_;
-    QCheckBox* incognito_ = nullptr;
-    QPushButton* browser_ = nullptr;
-    QPushButton* telegram_ = nullptr;
-    QWidget* fallbackRow_ = nullptr;
-    QLabel* fallbackCmds_ = nullptr;
-    QLabel* hint_ = nullptr;
-    Outcome outcome_ = Outcome::BROWSER;
+    QString serverUrl;
+    QString serverId;
+    QCheckBox* incognito = nullptr;
+    QPushButton* browser = nullptr;
+    QPushButton* telegram = nullptr;
+    QWidget* fallbackRow = nullptr;
+    QLabel* fallbackCmds = nullptr;
+    QLabel* hint = nullptr;
+    Outcome outcome = Outcome::BROWSER;
   };
 
 }

@@ -16,22 +16,22 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 30);
-    QToolButton* logo = win.logoBtn_;
+    QToolButton* logo = win.logoBtn;
     QVERIFY(logo);
-    const QString original = win.settings_.accentColor;
+    const QString original = win.settings.accentColor;
     const auto& presets = stencil::gui::accentPresets();
     QVERIFY(presets.size() >= 2);
     QString other;
     for (const auto& a : presets) if (a.key != original) { other = a.key; break; }
     bool opened = false, markedBefore = false, markedAfter = false, oneMark = true;
     QTimer::singleShot(120, &win, [&] {
-      QDialog* pop = win.pop_.active.data();
+      QDialog* pop = win.pop.active.data();
       opened = pop && pop->objectName() == QLatin1String("accentPopover") && pop->isVisible();
       if (pop) {
         auto* was = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + original);
         markedBefore = was && was->property("currentAccent").toBool();
         // The accent moves OUTSIDE the popover — the logo click-cycle's own path.
-        auto next = win.settings_;
+        auto next = win.settings;
         next.accentColor = other;
         win.applySettings(next, true);
         settleLayout(&win, 30);
@@ -53,7 +53,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(markedBefore, "the current accent's row starts marked");
     QVERIFY2(markedAfter, "an accent applied from outside the popover must move its tick");
     QVERIFY2(oneMark, "exactly one row carries the tick");
-    auto restore = win.settings_;
+    auto restore = win.settings;
     restore.accentColor = original;
     win.applySettings(restore, true);
   }
@@ -66,19 +66,19 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 30);
-    QToolButton* logo = win.logoBtn_;
+    QToolButton* logo = win.logoBtn;
     QVERIFY(logo);
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
     const QPoint cursorWas = QCursor::pos();
     bool opened = false, covered = false, stayed = false, armed = true;
     QTimer::singleShot(700, &win, [&] {   // past the popover's open flight
-      QWidget* box = win.pop_.overlay.data();
-      opened = box && box->isVisible() && win.pop_.active &&
-               win.pop_.active->objectName() == QLatin1String("accentPopover");
+      QWidget* box = win.pop.overlay.data();
+      opened = box && box->isVisible() && win.pop.active &&
+               win.pop.active->objectName() == QLatin1String("accentPopover");
       if (opened) {
         const QRect boxGlobal(box->mapToGlobal(QPoint(0, 0)), box->size());
         QPoint on;   // a point on the box AND on a popover icon it covers
-        for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it) {
+        for (auto it = win.pop.buttons.cbegin(); it != win.pop.buttons.cend(); ++it) {
           auto* b = static_cast<QToolButton*>(it.key());
           if (b == logo || !b->isVisible() || !it.value()->isEnabled()) continue;
           const QRect hit = QRect(b->mapToGlobal(QPoint(0, 0)), b->size()).intersected(boxGlobal);
@@ -88,19 +88,19 @@ class MainWindowGuiTest : public QObject {
           break;
         }
         if (covered) {
-          win.altHeldForTest_ = true;   // the glide poll's stand-in for a held Alt
+          win.altHeldForTest = true;   // the glide poll's stand-in for a held Alt
           QCursor::setPos(on);
           QTest::qWait(300);            // several glide ticks (80ms)
-          stayed = win.pop_.active &&
-                   win.pop_.active->objectName() == QLatin1String("accentPopover");
-          armed = !win.pop_.peekNextAction.isNull();
-          win.altHeldForTest_ = false;
+          stayed = win.pop.active &&
+                   win.pop.active->objectName() == QLatin1String("accentPopover");
+          armed = !win.pop.peekNextAction.isNull();
+          win.altHeldForTest = false;
           // Never leave a peek queued: it would open (and block) after this unwinds.
-          win.pop_.peekNextAction.clear();
-          win.pop_.peekNextButton.clear();
+          win.pop.peekNextAction.clear();
+          win.pop.peekNextButton.clear();
         }
       }
-      if (win.pop_.active) win.pop_.active->reject();
+      if (win.pop.active) win.pop.active->reject();
     });
     const QPoint c = logo->rect().center();
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
@@ -120,17 +120,17 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 30);
-    QToolButton* logo = win.logoBtn_;
+    QToolButton* logo = win.logoBtn;
     QVERIFY(logo);
     const auto& presets = stencil::gui::accentPresets();
     QVERIFY(presets.size() >= 2);
-    const QString original = win.settings_.accentColor;
+    const QString original = win.settings.accentColor;
     QString other;
     for (const auto& a : presets) if (a.key != original) { other = a.key; break; }
     bool opened = false, foundRow = false;
     int restX = 0, hoverX = 0, floodedX = 0, backX = 0;
     QTimer::singleShot(120, &win, [&] {
-      QDialog* pop = win.pop_.active.data();
+      QDialog* pop = win.pop.active.data();
       opened = pop && pop->objectName() == QLatin1String("accentPopover") && pop->isVisible();
       if (pop) {
         auto* row = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + presets.front().key);
@@ -143,7 +143,7 @@ class MainWindowGuiTest : public QObject {
           QTest::qWait(200);            // the 120ms slide, with room to spare
           hoverX = row->x();
           // The accent flood the preview plays, straight through applySettings.
-          auto next = win.settings_;
+          auto next = win.settings;
           next.accentColor = other;
           win.applySettings(next, true);
           QTest::qWait(150);
@@ -164,7 +164,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(hoverX, restX + 2);
     QCOMPARE(floodedX, restX + 2);
     QCOMPARE(backX, restX);
-    auto restore = win.settings_;
+    auto restore = win.settings;
     restore.accentColor = original;
     win.applySettings(restore, true);
   }

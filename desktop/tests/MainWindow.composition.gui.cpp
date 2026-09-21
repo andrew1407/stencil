@@ -106,8 +106,8 @@ class MainWindowGuiTest : public QObject {
 
     // The central column: the canvas row, then the coord readout, then the drop hint.
     QStringList central;
-    for (int i = 0; i < win.centralLayout_->count(); ++i) {
-      QLayoutItem* it = win.centralLayout_->itemAt(i);
+    for (int i = 0; i < win.centralLayout->count(); ++i) {
+      QLayoutItem* it = win.centralLayout->itemAt(i);
       central << (it->widget() ? tag(it->widget()) : QStringLiteral("<layout>"));
     }
     QCOMPARE(central.join(u' '),
@@ -134,9 +134,9 @@ class MainWindowGuiTest : public QObject {
 
     // The controllers and overlays the ctor owns all exist, and the window is wired to
     // its own filters (Escape leaves fullscreen from any focus; the viewport zooms).
-    QVERIFY(win.notify_ && win.remoteSession_ && win.dataExport_ && win.remoteSync_ &&
-            win.projectTransfer_ && win.tooltip_ && win.arrowPanTimer_ &&
-            win.scrollbarHideTimer_ && win.chatNaturalMin_.width() > 0);
+    QVERIFY(win.notify && win.remoteSession && win.dataExport && win.remoteSync &&
+            win.projectTransfer && win.tooltip && win.arrowPanTimer &&
+            win.scrollbarHideTimer && win.chatNaturalMin.width() > 0);
     QVERIFY(win.testAttribute(Qt::WA_Hover));
     QVERIFY(win.acceptDrops());
     QCOMPARE(win.windowTitle(), QStringLiteral("Stencil"));
@@ -156,10 +156,10 @@ class MainWindowGuiTest : public QObject {
     // the blocked-cursor handler after it sees the very same event.
     QEnterEvent enter(QPointF(1, 1), QPointF(1, 1), QPointF(1, 1));
     QCOMPARE(win.eventFilter(bar, &enter), false);
-    QVERIFY(win.scrollbarHovered_);
+    QVERIFY(win.scrollbarHovered);
     QEvent leave(QEvent::Leave);
     QCOMPARE(win.eventFilter(bar, &leave), false);
-    QVERIFY(!win.scrollbarHovered_);
+    QVERIFY(!win.scrollbarHovered);
 
     // A text box owns the standard editing chords: ShortcutOverride is CLAIMED there, so the
     // canvas action sharing the chord never fires. The same key elsewhere is left alone.
@@ -177,7 +177,7 @@ class MainWindowGuiTest : public QObject {
     // The zoom field opens its preset list on a keyboard focus, and never consumes — its
     // caret and typing must behave like any line edit's.
     QFocusEvent tabIn(QEvent::FocusIn, Qt::TabFocusReason);
-    QCOMPARE(win.eventFilter(win.zoom_->lineEdit(), &tabIn), false);
+    QCOMPARE(win.eventFilter(win.zoom->lineEdit(), &tabIn), false);
 
     // A left press on the empty viewport margin is left alone while nothing is selected…
     QWidget* viewport = win.findChild<QScrollArea*>("canvasViewport")->viewport();
@@ -190,11 +190,11 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.eventFilter(viewport, &wheel), false);
 
     // A double-click on the read-only project name enters the inline edit and is consumed.
-    QVERIFY(win.nameBar_.field);
+    QVERIFY(win.nameBar.field);
     QMouseEvent dbl(QEvent::MouseButtonDblClick, QPointF(2, 2), QPointF(2, 2), Qt::LeftButton,
                     Qt::LeftButton, Qt::NoModifier);
-    const bool wasEditing = win.nameBar_.editing;
-    QCOMPARE(win.eventFilter(win.nameBar_.field, &dbl), !wasEditing);
+    const bool wasEditing = win.nameBar.editing;
+    QCOMPARE(win.eventFilter(win.nameBar.field, &dbl), !wasEditing);
     if (!wasEditing) win.cancelProjectName();
   }
 };

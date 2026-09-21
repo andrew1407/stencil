@@ -30,7 +30,7 @@ class MainWindowGuiTest : public QObject {
       for (const QPoint& p : shape) { QTest::mouseClick(canvas, Qt::LeftButton, Qt::NoModifier, p); beat(); }
       newLine->trigger();
     }
-    QCOMPARE(static_cast<int>(canvas->lines().size()), 2);
+    QCOMPARE(static_cast<int>(canvas->getLines().size()), 2);
 
     // --- Lines tab: Delete on the current row removes that line ---
     auto* linesList = win.findChild<QListWidget*>("linesList");
@@ -39,11 +39,11 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(linesList->focusPolicy() != Qt::NoFocus, "the list must accept focus for a scoped Delete");
     linesList->setCurrentRow(0);
     QTest::keyClick(linesList, Qt::Key_Delete);
-    QTRY_COMPARE(static_cast<int>(canvas->lines().size()), 1);
+    QTRY_COMPARE(static_cast<int>(canvas->getLines().size()), 1);
     // The current row survives the repopulate, so a second press deletes again.
     QCOMPARE(linesList->currentRow(), 0);
     QTest::keyClick(linesList, Qt::Key_Backspace);
-    QTRY_COMPARE(static_cast<int>(canvas->lines().size()), 0);
+    QTRY_COMPARE(static_cast<int>(canvas->getLines().size()), 0);
 
     // --- Points table: same key, unchanged behaviour ---
     start->trigger();
@@ -69,11 +69,11 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     QTRY_VERIFY(canvas->width() > 0 && canvas->height() > 0);
 
-    const double s = canvas->scale();
+    const double s = canvas->getScale();
     stencil::core::Line line;
     line.points = {{20, 20}, {60, 20}, {100, 40}, {140, 60}};
     canvas->setLines({line});
-    const auto orig = canvas->lines()[0].points;
+    const auto orig = canvas->getLines()[0].points;
 
     auto sendMouse = [&](QEvent::Type t, const QPointF& pos, Qt::MouseButton btn,
                          Qt::MouseButtons btns, Qt::KeyboardModifiers mods) {
@@ -91,7 +91,7 @@ class MainWindowGuiTest : public QObject {
     sendMouse(QEvent::MouseButtonRelease, drop, Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
     beat();
 
-    const auto& moved = canvas->lines()[0].points;
+    const auto& moved = canvas->getLines()[0].points;
     QCOMPARE(static_cast<int>(moved.size()), 4);
     for (std::size_t i = 0; i < moved.size(); ++i) {
       QVERIFY2(std::abs(moved[i].x - (orig[i].x + 30)) < 0.5 &&
@@ -116,16 +116,16 @@ class MainWindowGuiTest : public QObject {
 
     // Click-select a POINT → the chord deletes just that point.
     canvas->selectLineAt(30, 30);
-    QCOMPARE(canvas->selectedPoint(), 0);
+    QCOMPARE(canvas->getSelectedPoint(), 0);
     del->trigger();
-    QTRY_COMPARE(static_cast<int>(canvas->lines().size()), 1);
-    QCOMPARE(static_cast<int>(canvas->lines()[0].points.size()), 2);
+    QTRY_COMPARE(static_cast<int>(canvas->getLines().size()), 1);
+    QCOMPARE(static_cast<int>(canvas->getLines()[0].points.size()), 2);
 
     // Select the LINE via a segment (no focused point) → the chord deletes the line.
     canvas->selectLineAt(80, 55);
-    QVERIFY(canvas->selectedLineIdx() == 0 && canvas->selectedPoint() == -1);
+    QVERIFY(canvas->getSelectedLineIdx() == 0 && canvas->getSelectedPoint() == -1);
     del->trigger();
-    QTRY_COMPARE(static_cast<int>(canvas->lines().size()), 0);
+    QTRY_COMPARE(static_cast<int>(canvas->getLines().size()), 0);
   }
 
   // Hover cross-highlight plumbing: moving over a point emits canvasHoverChanged (panel rows
@@ -135,7 +135,7 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
 
-    const double s = canvas->scale();
+    const double s = canvas->getScale();
     stencil::core::Line line;
     line.points = {{40, 40}, {90, 40}};
     canvas->setLines({line});

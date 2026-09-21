@@ -85,9 +85,9 @@ namespace stencil::gui {
                                  QWidget* parent,
                                  const QString& activeProjectId,
                                  const QColor& accentColor)
-      : QDialog(parent), projects_(projects), now_(now),
-        connections_(connections), thumbs_(thumbs),
-        activeProjectId_(activeProjectId) {
+      : QDialog(parent), projects(projects), now(now),
+        connections(connections), thumbs(thumbs),
+        activeProjectId(activeProjectId) {
     // `accentColor` is unused: the delegate reads the installed palette's Highlight/Link (theme.cpp
     // publishes accent + accent-2 there). Kept in the signature so callers stay untouched.
     Q_UNUSED(accentColor);
@@ -98,7 +98,7 @@ namespace stencil::gui {
     resize(MODAL_WIDTH, 560);
 
     // Most-recently-updated first, matching the browser store ordering.
-    std::sort(projects_.begin(), projects_.end(),
+    std::sort(this->projects.begin(), this->projects.end(),
               [](const Project& a, const Project& b) {
                 return a.meta.updatedAt > b.meta.updatedAt;
               });
@@ -121,17 +121,17 @@ namespace stencil::gui {
   // Replace the listed projects and repaint (see the header): lets the owner act on a
   // request without the dialog having to close and be reopened.
   void ProjectsDialog::setProjects(const std::vector<Project>& projects) {
-    setProjects(projects, temporary_, incognito_);
+    setProjects(projects, temporary, incognito);
   }
 
   // …and the same repaint carrying the owner window's session state, so a removal that
   // also blanks the editor lands as ONE frame (see the header).
   void ProjectsDialog::setProjects(const std::vector<Project>& projects, bool temporary,
                                    bool incognito) {
-    projects_ = projects;
-    temporary_ = temporary;
-    incognito_ = incognito;
-    if (clearAllBtn_) clearAllBtn_->setEnabled(!projects_.empty());   // nothing left to clear
+    this->projects = projects;
+    this->temporary = temporary;
+    this->incognito = incognito;
+    if (clearAllBtn) clearAllBtn->setEnabled(!this->projects.empty());   // nothing left to clear
     refresh();
   }
 

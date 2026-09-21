@@ -45,7 +45,7 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = win.findChild<CanvasWidget*>();
     QVERIFY(canvas);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QCOMPARE(canvas->rotationQuarters(), 1);                 // layout rotation adopted
+    QCOMPARE(canvas->getRotationQuarters(), 1);                 // layout rotation adopted
     QVERIFY(totalPoints(canvas) > 0);                        // the line was adopted
     beat();
   }
@@ -72,7 +72,7 @@ class MainWindowGuiTest : public QObject {
     CanvasWidget* canvas = win.findChild<CanvasWidget*>();
     QVERIFY(canvas);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QCOMPARE(canvas->rotationQuarters(), 0);
+    QCOMPARE(canvas->getRotationQuarters(), 0);
 
     QAction* live = actionByText(&win, "Live Sync with File");
     QVERIFY(live);
@@ -82,7 +82,7 @@ class MainWindowGuiTest : public QObject {
     QAction* rotate = actionByText(&win, "Rotate Right");
     QVERIFY(rotate);
     rotate->trigger();
-    QCOMPARE(canvas->rotationQuarters(), 1);
+    QCOMPARE(canvas->getRotationQuarters(), 1);
 
     // Auto-save is debounced (~800ms) — wait for the linked file to reflect the rotation.
     auto fileRotation = [&]() -> int {

@@ -41,17 +41,17 @@ class MainWindowGuiTest : public QObject {
       settle([&] { return flyout->isVisible(); }, 1000);
       opened = flyout->isVisible();
       QTest::qWait(80);
-      revealedOnly = QApplication::focusWidget() != win.scriptMenuEditor_;
+      revealedOnly = QApplication::focusWidget() != win.scriptMenuEditor;
       if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);
       QTest::qWait(30);
-      entered = QApplication::focusWidget() == win.scriptMenuEditor_;
+      entered = QApplication::focusWidget() == win.scriptMenuEditor;
 
       auto* edit = flyout->findChild<QPlainTextEdit*>("scriptMenuText");
       if (!edit) { root->close(); return; }
       edit->clear();
       QTest::keyClick(flyout, Qt::Key_Tab);
       indented = edit->toPlainText() == QLatin1String("  ");
-      stillInEditor = QApplication::focusWidget() == win.scriptMenuEditor_;
+      stillInEditor = QApplication::focusWidget() == win.scriptMenuEditor;
 
       const int before = int(canvas->allLines().size());
       edit->setPlainText(QStringLiteral("@line (1,1) (10,1) (10,8)"));

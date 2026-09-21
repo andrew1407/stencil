@@ -57,20 +57,20 @@ namespace stencil::gui {
     setWindowTitle("Controls & Shortcuts Info");
     // Browser infoModal.js parity: the shared shell, a search box, a scrolling body.
     ModalChrome chrome = installModalChrome(this, "help", tr("Controls & Shortcuts Info"));
-    search_ = addModalSearchBar(chrome, tr("Search controls…"));
-    search_->setToolTip("Filter the controls and tips by keyword");
+    search = addModalSearchBar(chrome, tr("Search controls…"));
+    search->setToolTip("Filter the controls and tips by keyword");
     ModalScrollBody body = makeModalScrollBody(chrome);
-    content_ = body.content;
+    content = body.content;
 
     loadSections();
     build();
     body.layout->addStretch(1);
-    connect(search_, &QLineEdit::textChanged, this,
+    connect(search, &QLineEdit::textChanged, this,
             [this](const QString& q) { applyFilter(q); });
     // The browser's max-height: 82vh shell with the list scrolling inside it.
     sizeModalTall(this, MODAL_WIDTH);
     // …and the caret lands in the search box, as the browser modal's onOpen does.
-    QTimer::singleShot(0, search_, [s = search_] { s->setFocus(); });
+    QTimer::singleShot(0, search, [s = search] { s->setFocus(); });
   }
 
   // Parse the embedded config into sections once (infoConfig.json:
@@ -88,25 +88,25 @@ namespace stencil::gui {
         if (row.size() < 2) continue;
         sec.rows.push_back({row[0].toString(), row[1].toString(), nullptr});
       }
-      sections_.push_back(sec);
+      sections.push_back(sec);
     }
   }
 
   // Build every group title and row once; the filter only shows/hides them.
   void InfoDialog::build() {
-    auto* col = qobject_cast<QVBoxLayout*>(content_->layout());
+    auto* col = qobject_cast<QVBoxLayout*>(content->layout());
     // Caps with no face of their own — outline and glyph only, like the shortcut table's.
     Palette pal = currentPalette();
     pal.bgContainer = QColor(0, 0, 0, 0);
     bool first = true;
-    for (Section& sec : sections_) {
-      sec.titleWidget = modalSectionLabel(sec.title, content_, first);
+    for (Section& sec : sections) {
+      sec.titleWidget = modalSectionLabel(sec.title, content, first);
       first = false;
       // .info-group-title sits 4px (not 6) over its rows.
       sec.titleWidget->setContentsMargins(0, sec.titleWidget->contentsMargins().top(), 0, 4);
       col->addWidget(sec.titleWidget);
       for (Row& r : sec.rows) {
-        auto* row = new QWidget(content_);
+        auto* row = new QWidget(content);
         row->setProperty("infoRow", true);
         row->setAttribute(Qt::WA_StyledBackground, true);
         auto* h = new QHBoxLayout(row);
@@ -131,9 +131,9 @@ namespace stencil::gui {
         r.widget = row;
       }
     }
-    empty_ = modalEmptyLabel(tr("No matching controls."), content_);
-    empty_->hide();
-    col->addWidget(empty_);
+    empty = modalEmptyLabel(tr("No matching controls."), content);
+    empty->hide();
+    col->addWidget(empty);
   }
 
   // Hide rows (and emptied groups) that don't match `filter`, case-insensitively on
@@ -141,7 +141,7 @@ namespace stencil::gui {
   void InfoDialog::applyFilter(const QString& filter) {
     const QString q = filter.trimmed().toLower();
     bool any = false;
-    for (Section& sec : sections_) {
+    for (Section& sec : sections) {
       bool secAny = false;
       for (Row& r : sec.rows) {
         const bool match = q.isEmpty() || r.left.toLower().contains(q) ||
@@ -152,7 +152,7 @@ namespace stencil::gui {
       sec.titleWidget->setVisible(secAny);
       any = any || secAny;
     }
-    empty_->setVisible(!any);
+    empty->setVisible(!any);
   }
 
 }

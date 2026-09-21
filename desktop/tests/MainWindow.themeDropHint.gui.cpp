@@ -15,9 +15,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 720);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(win.dropHintText_);
+    QVERIFY(win.dropHintText);
 
-    const QString dark = win.dropHintText_->text();
+    const QString dark = win.dropHintText->text();
     QVERIFY2(dark.contains(QLatin1String(stencil::gui::KEYCAP_CLASS)),
              "the paste combo must be drawn as keycaps, not spelled out");
 #ifdef Q_OS_MACOS
@@ -25,15 +25,15 @@ class MainWindowGuiTest : public QObject {
              "a Mac's paste cap is Command, never the Control caret");
 #endif
 
-    Settings flipped = win.settings_;
-    flipped.themeMode = win.paintedDark_ ? "light" : "dark";
+    Settings flipped = win.settings;
+    flipped.themeMode = win.paintedDark ? "light" : "dark";
     win.applySettings(flipped, /*persist=*/false);
-    QVERIFY2(win.dropHintText_->text() != dark,
+    QVERIFY2(win.dropHintText->text() != dark,
              "the caps carry their colours in the picture — a theme change must repaint them");
 
     // …and the SENTENCE sits centred beside them: a keycap is taller than the type and an inline image
     // inflates the line box downwards, so the line is one middle-aligned table row.
-    QLabel* hint = win.dropHintText_;
+    QLabel* hint = win.dropHintText;
     QImage ink(hint->size() * 2, QImage::Format_ARGB32_Premultiplied);
     ink.setDevicePixelRatio(2);
     ink.fill(Qt::transparent);

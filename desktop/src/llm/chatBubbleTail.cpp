@@ -61,15 +61,15 @@ namespace stencil::gui {
   }
 
   void ChatBubbleTail::setColors(const QColor& fill, const QColor& border) {
-    if (fill_ == fill && border_ == border) return;
-    fill_ = fill;
-    border_ = border;
+    if (this->fill == fill && this->border == border) return;
+    this->fill = fill;
+    this->border = border;
     update();
   }
 
   void ChatBubbleTail::setSide(bool right) {
-    if (right_ == right) return;
-    right_ = right;
+    if (this->right == right) return;
+    this->right = right;
     update();
   }
 
@@ -96,10 +96,10 @@ namespace stencil::gui {
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(Qt::NoPen);
     p.translate(TAIL_PAD, TAIL_PAD);
-    p.setBrush(border_);
-    p.drawPath(tailTriangle(right_, TAIL_LEG, TAIL_SHIFT, TAIL_W));
-    p.setBrush(fill_);
-    p.drawPath(tailTriangle(right_, TAIL_FILL_LEG, 0, TAIL_W));
+    p.setBrush(border);
+    p.drawPath(tailTriangle(right, TAIL_LEG, TAIL_SHIFT, TAIL_W));
+    p.setBrush(fill);
+    p.drawPath(tailTriangle(right, TAIL_FILL_LEG, 0, TAIL_W));
   }
 
   static void placeChatBubbleTailAt(QFrame* card, ChatBubbleTail* tail) {

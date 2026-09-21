@@ -6,12 +6,12 @@
 namespace stencil::gui {
 
   RemoteSession::RemoteSession(QObject* parent, Notifications* notify)
-      : QObject(parent), notify_(notify) {}
+      : QObject(parent), notify(notify) {}
 
   stencil::net::ServerClient* RemoteSession::requireClient(const QString& url, const QString& msg) {
-    stencil::net::ServerClient* c = connections_ ? connections_->find(url) : nullptr;
+    stencil::net::ServerClient* c = connections ? connections->find(url) : nullptr;
     if (!c) {
-      notify_->error(msg);
+      notify->error(msg);
       return nullptr;
     }
     return c;

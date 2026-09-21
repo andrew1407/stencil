@@ -50,8 +50,8 @@ class MainWindowGuiTest : public QObject {
                  QString::fromLatin1(stencil::gui::CONTROL_SWAP_FILTER_NAME),
                  Qt::FindDirectChildrenOnly),
              "MainWindow never installed the app-wide control-swap filter");
-    auto* box = win.showPointsCheck_;
-    auto* combo = win.units_.pageSize;
+    auto* box = win.showPointsCheck;
+    auto* combo = win.units.pageSize;
     QVERIFY(box && combo);
     QTRY_VERIFY(box->property(stencil::gui::CONTROL_SWAP_WIRED_PROPERTY).toBool());
     QVERIFY2(combo->property(stencil::gui::CONTROL_SWAP_WIRED_PROPERTY).toBool(),
@@ -121,12 +121,12 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     auto* dock = win.findChild<QDockWidget*>("llmChatDock");
     QVERIFY(dock);
-    win.actChat_->setChecked(true);
+    win.actChat->setChecked(true);
     QTRY_VERIFY(dock->isVisible());
     dock->setFloating(true);
     QTRY_VERIFY(dock->isFloating());
     settleLayout(&win, 300);
-    win.actChat_->setChecked(false);
+    win.actChat->setChecked(false);
     QTRY_VERIFY(surfaceFlight(&win));
     auto* fx = surfaceFlight(&win);
     QVERIFY2(fx, "the floating chat's flight did not play");

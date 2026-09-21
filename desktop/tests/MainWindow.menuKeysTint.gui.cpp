@@ -38,17 +38,17 @@ class MainWindowGuiTest : public QObject {
       settle([&] { return filter->isVisible(); }, 1000);
       opened = filter->isVisible();
       QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
-      hiddenAtStart = !win.tintColorAction_->isVisible();
+      hiddenAtStart = !win.tintColorAction->isVisible();
       if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);   // enter: None
       QTest::qWait(50);
       for (int i = 0; i < 5; ++i) { QTest::keyClick(QApplication::focusWidget(), Qt::Key_Down); QTest::qWait(60); }
       QTest::qWait(100);
-      shownOnCustom = win.settings_.imageFilter == "custom" && win.tintColorAction_->isVisible();
-      rowLaidOut = filter->actionGeometry(win.tintColorAction_).isValid()
-                   && filter->height() >= filter->actionGeometry(win.tintColorAction_).bottom();
+      shownOnCustom = win.settings.imageFilter == "custom" && win.tintColorAction->isVisible();
+      rowLaidOut = filter->actionGeometry(win.tintColorAction).isValid()
+                   && filter->height() >= filter->actionGeometry(win.tintColorAction).bottom();
       QTest::keyClick(QApplication::focusWidget(), Qt::Key_Up);
       QTest::qWait(100);
-      hiddenAgain = win.settings_.imageFilter == "contour" && !win.tintColorAction_->isVisible();
+      hiddenAgain = win.settings.imageFilter == "contour" && !win.tintColorAction->isVisible();
       root->close();
     });
     win.showContextMenu(at);
@@ -86,11 +86,11 @@ class MainWindowGuiTest : public QObject {
       lowOpened = filter->isVisible();
       QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
       QAbstractButton* custom = nullptr;
-      for (QAbstractButton* b : win.filterButtons_->buttons()) if (b->property("filterValue") == "custom") custom = b;
+      for (QAbstractButton* b : win.filterButtons->buttons()) if (b->property("filterValue") == "custom") custom = b;
       QTest::mouseClick(custom, Qt::LeftButton, Qt::NoModifier, custom->rect().center());
       QTest::qWait(300);
       onScreen = avail.contains(filter->geometry());
-      const QRect row = filter->actionGeometry(win.tintColorAction_);
+      const QRect row = filter->actionGeometry(win.tintColorAction);
       rowOnScreen = row.isValid() && avail.contains(QRect(filter->mapToGlobal(row.topLeft()), row.size()));
       root->close();
     });
@@ -166,7 +166,7 @@ class MainWindowGuiTest : public QObject {
       QWidget* focused = popup->focusWidget();
       QTest::keyClick(focused ? focused : popup, Qt::Key_Down);
       QTest::qWait(80);
-      enteredPick = win.settings_.imageFilter == "bw" && filter->isVisible();
+      enteredPick = win.settings.imageFilter == "bw" && filter->isVisible();
       root->close();
     });
     win.showContextMenu(at);

@@ -83,7 +83,7 @@ class MainWindowGuiTest : public QObject {
     const stencil::gui::Settings before = stencil::gui::fileStore::loadSettings();
     // Pick a provider that differs from whatever is configured now.
     const QString target =
-        win.settings_.llmProvider == QLatin1String("openai-compat") ? "ollama"
+        win.settings.llmProvider == QLatin1String("openai-compat") ? "ollama"
                                                                    : "openai-compat";
     // The dialog is modal (exec blocks the click), so inspect + drive it from a
     // timer, the way dismissModal does for the confirmations.
@@ -125,7 +125,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(sawProvider);
     QVERIFY2(!wrongControls, "the assistant dialog carries unrelated settings");
     // Saved through the same path as the full dialog: live settings + the file.
-    QCOMPARE(win.settings_.llmProvider, target);
+    QCOMPARE(win.settings.llmProvider, target);
     QCOMPARE(stencil::gui::fileStore::loadSettings().llmProvider, target);
 
     stencil::gui::fileStore::saveSettings(before);  // leave the user's config alone

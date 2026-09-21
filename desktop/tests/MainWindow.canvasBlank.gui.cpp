@@ -18,17 +18,17 @@ class MainWindowGuiTest : public QObject {
     // A pixel test owns its palette: on the LIGHT theme the card's dashed border is paler than
     // its accent fill, so the brightest-pixel search locks onto the border. Not persisted.
     {
-      Settings s = win.settings_;
+      Settings s = win.settings;
       s.themeMode = QStringLiteral("dark");
       win.applySettings(s, /*persist=*/false);
       settleLayout(&win, 60);
     }
-    win.canvas_->clearImage();
+    win.canvas->clearImage();
     win.refreshActions();
     QVERIFY(waitForIdleCard(win));   // past the clear-dust hold that hides the card
     // Brightest column of the card's mid row — where the band is right now.
     const auto bandX = [&] {
-      const QImage im = win.canvas_->grab().toImage();
+      const QImage im = win.canvas->grab().toImage();
       const QColor ground = im.pixelColor(0, im.height() / 2);   // canvas backdrop
       const auto offCard = [&](const QColor& c) {
         return qAbs(c.red() - ground.red()) + qAbs(c.green() - ground.green())
@@ -56,10 +56,10 @@ class MainWindowGuiTest : public QObject {
       }
       return best;
     };
-    const QPoint c(win.canvas_->width() / 2, win.canvas_->height() / 2);
-    QMouseEvent move(QEvent::MouseMove, QPointF(c), win.canvas_->mapToGlobal(c),
+    const QPoint c(win.canvas->width() / 2, win.canvas->height() / 2);
+    QMouseEvent move(QEvent::MouseMove, QPointF(c), win.canvas->mapToGlobal(c),
                      Qt::NoButton, Qt::NoButton, Qt::NoModifier);
-    QApplication::sendEvent(win.canvas_, &move);
+    QApplication::sendEvent(win.canvas, &move);
     QTest::qWait(150);
     const int first = bandX();
     QTest::qWait(220);
@@ -75,7 +75,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    CanvasWidget* canvas = win.canvas_;
+    CanvasWidget* canvas = win.canvas;
     QVERIFY(canvas && !canvas->hasImage());
     canvas->grab();   // painting the card is what computes its rect
     const QRect cardGlobal = canvas->idleCardGlobalRect();

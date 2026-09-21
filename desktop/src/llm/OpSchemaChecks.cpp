@@ -46,14 +46,14 @@ namespace stencil::llm {
       bool any = false;
       QStringList what;
       for (const QString& n : names) {
-        if (regexes_.value(n).match(s).hasMatch()) any = true;
+        if (regexes.value(n).match(s).hasMatch()) any = true;
         what << describe(n);
       }
       if (!any) return fail(err, label(path) + QStringLiteral(" must be ") + what.join(QStringLiteral(" or ")));
     }
     if (spec.contains("regexNot")) {
       const QString n = spec.value("regexNot").toString();
-      if (regexes_.value(n).match(s).hasMatch())
+      if (regexes.value(n).match(s).hasMatch())
         return fail(err, label(path) + QStringLiteral(" must be a local value, not ") + describe(n));
     }
     return true;

@@ -16,13 +16,13 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 150);
-    QAction* chat = win.actChat_;
+    QAction* chat = win.actChat;
     QVERIFY(chat && chat->isCheckable());
     QToolButton* btn = qobject_cast<QToolButton*>(win.buttonForAction(chat));
     QVERIFY2(btn, "the AI Assistant icon is not on the toolbar");
     QVERIFY2(btn->property("toolFill").toString().isEmpty(),
              "a checkable toggle must not carry a permanent fill");
-    const QColor accent = stencil::gui::accentPrimary(win.settings_.accentColor);
+    const QColor accent = stencil::gui::accentPrimary(win.settings.accentColor);
     // The button's own background, read from a corner well inside the chip.
     const auto ground = [&] {
       QTest::qWait(30);
@@ -61,7 +61,7 @@ class MainWindowGuiTest : public QObject {
     };
     // Both directions on the SAME button — a hard-coded ink cannot pass twice.
     for (const QString& accentKey : {QStringLiteral("violet"), QStringLiteral("yellow")}) {
-      auto s = win.settings_;
+      auto s = win.settings;
       s.accentColor = accentKey;
       win.applySettings(s, /*persist=*/false);
       const QColor ink = stencil::gui::onAccentInk(stencil::gui::accentPrimary(accentKey));
@@ -76,13 +76,13 @@ class MainWindowGuiTest : public QObject {
                                 qPrintable("a filled button's glyph is not the accent's ink" + why), 3000);
 
       // …and the stylesheet hands the same ink to every label on the accent.
-      const QString qss = stencil::gui::buildStylesheet(win.paintedDark_, accentKey);
+      const QString qss = stencil::gui::buildStylesheet(win.paintedDark, accentKey);
       QVERIFY2(qss.contains("color: " + ink.name()),
                qPrintable("the QSS carries no on-accent ink" + why));
       // The empty state's "Open Image" paints its own label (support/OpenImageButton.hpp),
       // so it reads that ink out of the palette the sheet filled rather than the sheet.
-      QVERIFY(win.openImageBtn_);
-      QTRY_VERIFY2(win.openImageBtn_->palette().color(QPalette::ButtonText) == ink,
+      QVERIFY(win.openImageBtn);
+      QTRY_VERIFY2(win.openImageBtn->palette().color(QPalette::ButtonText) == ink,
                    qPrintable("Open Image's own painter has no on-accent ink" + why));
     }
   }
@@ -94,13 +94,13 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     settleLayout(&win, 150);
-    QToolButton* btn = win.zoomFitBtn_;
+    QToolButton* btn = win.zoomFitBtn;
     QVERIFY(btn);
-    auto* stepper = qobject_cast<QToolButton*>(win.buttonForAction(win.actZoomOut_));
+    auto* stepper = qobject_cast<QToolButton*>(win.buttonForAction(win.actZoomOut));
     QVERIFY(stepper);
     const stencil::gui::Palette pal =
-        stencil::gui::themePalette(win.paintedDark_, win.settings_.accentColor);
-    const QColor accent = stencil::gui::accentPrimary(win.settings_.accentColor);
+        stencil::gui::themePalette(win.paintedDark, win.settings.accentColor);
+    const QColor accent = stencil::gui::accentPrimary(win.settings.accentColor);
     // Dead (no image yet): the shared grey chip, the stepper's own face, no accent in it.
     QVERIFY2(!btn->isEnabled(), "the fit button should start disabled, with no image");
     QVERIFY2(!stepper->isEnabled(), "the − stepper should start disabled too");
@@ -114,7 +114,7 @@ class MainWindowGuiTest : public QObject {
     }
     // …and once it can act, the fill every other acting button carries.
     openLoaded(win);
-    QTRY_VERIFY(win.actFit_->isEnabled());
+    QTRY_VERIFY(win.actFit->isEnabled());
     QTRY_COMPARE(btn->property("toolFill").toString(), QStringLiteral("accent"));
     const QImage live = btn->grab().toImage();
     QVERIFY2(nearColor(live.pixelColor(live.width() / 2, 3), accent, 50),
@@ -152,10 +152,10 @@ class MainWindowGuiTest : public QObject {
       }
     QVERIFY2(live > 5, "expected several live toolbar controls");
     // A control that goes dead swaps to the refusal cursor.
-    QToolButton* crop = qobject_cast<QToolButton*>(win.buttonForAction(win.actCrop_));
+    QToolButton* crop = qobject_cast<QToolButton*>(win.buttonForAction(win.actCrop));
     QVERIFY(crop);
     QCOMPARE(crop->cursor().shape(), Qt::PointingHandCursor);
-    win.canvas_->clearImage();
+    win.canvas->clearImage();
     win.refreshActions();
     QCOMPARE(crop->cursor().shape(), Qt::ForbiddenCursor);
   }

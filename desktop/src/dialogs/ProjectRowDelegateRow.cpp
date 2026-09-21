@@ -92,7 +92,7 @@ namespace stencil::gui {
                   Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine,
                   nfm.elidedText(nameStr, Qt::ElideRight, colWidth));
       const int nameW = std::min(nfm.horizontalAdvance(nameStr), colWidth);
-      nameRects_[idx.row()] = QRect(colLeft, y, nameW, nfm.height());
+      nameRects[idx.row()] = QRect(colLeft, y, nameW, nfm.height());
       y += nfm.height() + LINE_GAP;
       if (!meta.isEmpty()) {
         p->setFont(metaF);
@@ -138,7 +138,7 @@ namespace stencil::gui {
 
     // Browser "…" more-actions button: reacts to ITS OWN hover only, then a band of glass sweeps across it.
     const QRect chip = kebabChip(opt.rect);
-    const bool onKebab = idx.row() == kebabRow_;
+    const bool onKebab = idx.row() == kebabRow;
     p->save();
     p->setRenderHint(QPainter::Antialiasing, true);
     p->setPen(Qt::NoPen);

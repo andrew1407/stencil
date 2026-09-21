@@ -26,18 +26,18 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(rename, "Rename Project is discoverable as an action, not just a chord");
     QCOMPARE(rename->shortcut(), QKeySequence("Ctrl+Alt+N"));
     // Gated by the name field itself: a fresh window has no project, so nothing to rename.
-    QVERIFY(!win.nameBar_.field->isEnabled());
+    QVERIFY(!win.nameBar.field->isEnabled());
     QVERIFY(!rename->isEnabled());
     // An active project makes the name editable (updateProjectTitle), and the action follows.
-    win.activeProjectId_ = QStringLiteral("test-project");
+    win.activeProjectId = QStringLiteral("test-project");
     win.refreshActions();
-    QVERIFY(win.nameBar_.field->isEnabled());
+    QVERIFY(win.nameBar.field->isEnabled());
     QVERIFY2(rename->isEnabled(), "the action did not follow the name field");
-    QVERIFY(!win.nameBar_.editing);
+    QVERIFY(!win.nameBar.editing);
     rename->trigger();
-    QTRY_VERIFY2(win.nameBar_.editing, "the chord did not enter inline rename");
-    QVERIFY(!win.nameBar_.field->isReadOnly());
-    QCOMPARE(win.nameBar_.field, win.focusWidget());
+    QTRY_VERIFY2(win.nameBar.editing, "the chord did not enter inline rename");
+    QVERIFY(!win.nameBar.field->isReadOnly());
+    QCOMPARE(win.nameBar.field, win.focusWidget());
     win.cancelProjectName();
   }
 
@@ -47,16 +47,16 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    const int before = static_cast<int>(win.projectList_.size());
-    win.actIncognito_->setChecked(true);
-    QTRY_VERIFY(win.incognito_);
+    const int before = static_cast<int>(win.projectList.size());
+    win.actIncognito->setChecked(true);
+    QTRY_VERIFY(win.incognito);
 
     // The assistant's pathless save: it promotes rather than failing.
     QString err;
     QVERIFY2(win.chatSaveProject(QString(), QString(), &err),
              qPrintable(QStringLiteral("save refused while incognito: %1").arg(err)));
-    QVERIFY2(!win.incognito_, "the session left incognito with the save");
-    QCOMPARE(static_cast<int>(win.projectList_.size()), before + 1);
+    QVERIFY2(!win.incognito, "the session left incognito with the save");
+    QCOMPARE(static_cast<int>(win.projectList.size()), before + 1);
     QVERIFY2(canvas->hasImage(), "the picture survived the promotion");
     beat();
   }
@@ -67,9 +67,9 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    win.actIncognito_->setChecked(true);
-    QTRY_VERIFY(win.incognito_);
-    const int before = static_cast<int>(win.projectList_.size());
+    win.actIncognito->setChecked(true);
+    QTRY_VERIFY(win.incognito);
+    const int before = static_cast<int>(win.projectList.size());
 
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
@@ -78,8 +78,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.chatSaveProject(QStringLiteral("shot"), out, &err),
              qPrintable(QStringLiteral("file save refused: %1").arg(err)));
     QVERIFY2(QFileInfo::exists(out), "the file the user asked for is on disk");
-    QVERIFY2(win.incognito_, "an export is not a promotion — the session stays incognito");
-    QCOMPARE(static_cast<int>(win.projectList_.size()), before);
+    QVERIFY2(win.incognito, "an export is not a promotion — the session stays incognito");
+    QCOMPARE(static_cast<int>(win.projectList.size()), before);
     beat();
   }
 
@@ -116,7 +116,7 @@ class MainWindowGuiTest : public QObject {
     dismissModal("OK");      // blocks on the confirm until the timer answers it
     clear->trigger();
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);   // reset to a blank editor
-    QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
+    QCOMPARE(static_cast<int>(canvas->getLines().size()), 0);
     beat();
   }
 
@@ -135,7 +135,7 @@ class MainWindowGuiTest : public QObject {
     const QString idB = win.addImageProjectEntry(img, "keep-me");
     QVERIFY(!idA.isEmpty() && !idB.isEmpty());
     const auto hasProject = [&win](const QString& id) {
-      for (const auto& p : win.projectList_)
+      for (const auto& p : win.projectList)
         if (QString::fromStdString(p.meta.id) == id) return true;
       return false;
     };

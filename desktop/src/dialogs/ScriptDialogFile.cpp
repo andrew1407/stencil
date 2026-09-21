@@ -29,7 +29,7 @@ namespace stencil::gui {
   bool ScriptDialog::readInto(const QString& path) {
     QString text;
     if (!readScriptFile(path, &text)) return false;
-    editor_->setScript(text);
+    editor->setScript(text);
     return true;
   }
 
@@ -55,7 +55,7 @@ namespace stencil::gui {
                                                       QStringLiteral("stencil.stc"),
                                                       scriptFileFilter());
     if (path.isEmpty()) return;
-    writeScriptFile(path, editor_->script());
+    writeScriptFile(path, editor->script());
   }
 
 }  // namespace stencil::gui

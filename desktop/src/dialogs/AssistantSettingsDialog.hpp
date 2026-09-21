@@ -19,8 +19,8 @@ namespace stencil::gui {
     Settings result() const;
 
    private:
-    Settings base_;  // every field this dialog doesn't edit rides through
-    LlmSettingsForm* form_ = nullptr;
+    Settings base;  // every field this dialog doesn't edit rides through
+    LlmSettingsForm* form = nullptr;
   };
 
 }

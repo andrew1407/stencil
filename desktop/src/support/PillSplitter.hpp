@@ -26,23 +26,23 @@ namespace stencil::gui {
     PillSplitterHandle(Qt::Orientation o, QSplitter* parent)
         : QSplitterHandle(o, parent) {
       setAttribute(Qt::WA_Hover, true);
-      anim_ = new QVariantAnimation(this);
-      anim_->setDuration(PILL_MS);
-      anim_->setEasingCurve(QEasingCurve::OutCubic);
-      QObject::connect(anim_, &QVariantAnimation::valueChanged, this,
+      anim = new QVariantAnimation(this);
+      anim->setDuration(PILL_MS);
+      anim->setEasingCurve(QEasingCurve::OutCubic);
+      QObject::connect(anim, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) {
-                         hot_ = v.toDouble();
+                         hot = v.toDouble();
                          update();
                        });
     }
     void setPillColors(const QColor& rest, const QColor& accent) {
-      rest_ = rest;
-      accent_ = accent;
+      this->rest = rest;
+      this->accent = accent;
       update();
     }
     // Centre the pill on THIS widget: the handle spans input AND action buttons.
     void setPillReference(QWidget* ref) {
-      ref_ = ref;
+      this->ref = ref;
       update();
     }
 
@@ -55,7 +55,7 @@ namespace stencil::gui {
       QSplitterHandle::enterEvent(e);
     }
     void leaveEvent(QEvent* e) override {
-      if (!dragging_) animateTo(0.0);
+      if (!dragging) animateTo(0.0);
       popCursor();
       QSplitterHandle::leaveEvent(e);
     }
@@ -64,32 +64,32 @@ namespace stencil::gui {
       QSplitterHandle::hideEvent(e);
     }
     void mousePressEvent(QMouseEvent* e) override {
-      dragging_ = true;
+      dragging = true;
       animateTo(1.0);
       QSplitterHandle::mousePressEvent(e);
     }
     void mouseReleaseEvent(QMouseEvent* e) override {
-      dragging_ = false;
+      dragging = false;
       const bool stillOver = rect().contains(e->position().toPoint());
       animateTo(stillOver ? 1.0 : 0.0);
       if (!stillOver) popCursor();
       QSplitterHandle::mouseReleaseEvent(e);
     }
     void paintEvent(QPaintEvent*) override {
-      if (!rest_.isValid()) return;
+      if (!rest.isValid()) return;
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing);
-      const int w = qRound(PILL_W + (PILL_HOT_W - PILL_W) * hot_);
+      const int w = qRound(PILL_W + (PILL_HOT_W - PILL_W) * hot);
       int cx = width() / 2;
-      if (ref_ && ref_->isVisible()) {
+      if (ref && ref->isVisible()) {
         // width()/2, NOT rect().center(): QRect::center() rounds DOWN for even widths.
-        cx = mapFromGlobal(ref_->mapToGlobal(QPoint(ref_->width() / 2, 0))).x();
+        cx = mapFromGlobal(ref->mapToGlobal(QPoint(ref->width() / 2, 0))).x();
         cx = qBound(w / 2, cx, width() - w / 2);  // never overhang the handle
       }
-      QColor c = rest_;
-      c.setRed(qRound(rest_.red() + (accent_.red() - rest_.red()) * hot_));
-      c.setGreen(qRound(rest_.green() + (accent_.green() - rest_.green()) * hot_));
-      c.setBlue(qRound(rest_.blue() + (accent_.blue() - rest_.blue()) * hot_));
+      QColor c = rest;
+      c.setRed(qRound(rest.red() + (accent.red() - rest.red()) * hot));
+      c.setGreen(qRound(rest.green() + (accent.green() - rest.green()) * hot));
+      c.setBlue(qRound(rest.blue() + (accent.blue() - rest.blue()) * hot));
       const QRect pill(cx - w / 2, (height() - PILL_H) / 2, w, PILL_H);
       p.setPen(Qt::NoPen);
       p.setBrush(c);
@@ -100,43 +100,43 @@ namespace stencil::gui {
     // A widget's own cursor is ignored while a QMenu holds the popup grab; an application
     // override does take effect, pushed/popped strictly on enter/leave of THIS handle.
     void pushCursor() {
-      if (cursorPushed_) return;
+      if (cursorPushed) return;
       QApplication::setOverrideCursor(
           orientation() == Qt::Horizontal ? Qt::SplitHCursor : Qt::SplitVCursor);
-      cursorPushed_ = true;
+      cursorPushed = true;
     }
     void popCursor() {
-      if (!cursorPushed_) return;
+      if (!cursorPushed) return;
       QApplication::restoreOverrideCursor();
-      cursorPushed_ = false;
+      cursorPushed = false;
     }
     void animateTo(double target) {
-      if (qFuzzyCompare(hot_, target)) return;
-      anim_->stop();
-      anim_->setStartValue(hot_);
-      anim_->setEndValue(target);
-      anim_->start();
+      if (qFuzzyCompare(hot, target)) return;
+      anim->stop();
+      anim->setStartValue(hot);
+      anim->setEndValue(target);
+      anim->start();
     }
-    QVariantAnimation* anim_ = nullptr;
-    double hot_ = 0.0;
-    bool dragging_ = false;
-    bool cursorPushed_ = false;
-    QPointer<QWidget> ref_;  // pill centres on this (the input column)
-    QColor rest_, accent_;
+    QVariantAnimation* anim = nullptr;
+    double hot = 0.0;
+    bool dragging = false;
+    bool cursorPushed = false;
+    QPointer<QWidget> ref;  // pill centres on this (the input column)
+    QColor rest, accent;
   };
 
   class PillSplitter : public QSplitter {
    public:
     using QSplitter::QSplitter;
     void setPillReference(QWidget* ref) {
-      ref_ = ref;
+      this->ref = ref;
       for (int i = 0; i < count(); ++i)
         if (QSplitterHandle* h = handle(i))
           static_cast<PillSplitterHandle*>(h)->setPillReference(ref);
     }
     void setPillColors(const QColor& rest, const QColor& accent) {
-      rest_ = rest;
-      accent_ = accent;
+      this->rest = rest;
+      this->accent = accent;
       // Every handle comes from createHandle(); qobject_cast would need Q_OBJECT (no moc here).
       for (int i = 0; i < count(); ++i)
         if (QSplitterHandle* h = handle(i))
@@ -146,14 +146,14 @@ namespace stencil::gui {
    protected:
     QSplitterHandle* createHandle() override {
       auto* h = new PillSplitterHandle(orientation(), this);
-      if (rest_.isValid()) h->setPillColors(rest_, accent_);
-      if (ref_) h->setPillReference(ref_);
+      if (rest.isValid()) h->setPillColors(rest, accent);
+      if (ref) h->setPillReference(ref);
       return h;
     }
 
    private:
-    QPointer<QWidget> ref_;
-    QColor rest_, accent_;
+    QPointer<QWidget> ref;
+    QColor rest, accent;
   };
 
 }  // namespace stencil::gui

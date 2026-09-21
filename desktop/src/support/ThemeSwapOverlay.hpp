@@ -88,18 +88,18 @@ namespace stencil::gui {
    private:
     ThemeSwapOverlay(QWidget* host, const QPixmap& snap);
 
-    QPixmap snap_;
-    QPoint origin_{-1, -1};   // host coords; -1 = fall back to the centre
-    double full_ = 0.0;       // the radius that reaches the furthest corner (start())
-    double timeMs_ = 0.0;     // the shared clock: wipe over [0, SWAP_MS], wake beyond it
-    QElapsedTimer clock_;     // …read off this wall clock (start())
-    support::MoteSprites sprites_;   // the wake's grains, drawn once each and blitted
-    bool dust_ = false;       // armed by seedDust — without it the overlay is the old wipe
-    QColor dustAccent_;       // the departing accent…
-    QColor dustShade_;        // …and its shade: the wake's palette
-    bool dustDark_ = false;   // …from the theme it is erasing, which two tints follow
+    QPixmap snap;
+    QPoint origin{-1, -1};   // host coords; -1 = fall back to the centre
+    double full = 0.0;       // the radius that reaches the furthest corner (start())
+    double timeMs = 0.0;     // the shared clock: wipe over [0, SWAP_MS], wake beyond it
+    QElapsedTimer clock;     // …read off this wall clock (start())
+    support::MoteSprites sprites;   // the wake's grains, drawn once each and blitted
+    bool dust = false;       // armed by seedDust — without it the overlay is the old wipe
+    QColor dustAccent;       // the departing accent…
+    QColor dustShade;        // …and its shade: the wake's palette
+    bool dustDark = false;   // …from the theme it is erasing, which two tints follow
     // Read when the wipe is captured, so a 'slide' swap still cuts its style's edge.
-    support::ParticleStyle style_ = support::particleStyle();
+    support::ParticleStyle style = support::particleStyle();
   };
 
 }  // namespace stencil::gui

@@ -21,29 +21,29 @@ namespace stencil::gui {
     pushChatHistory(assistant);
     QStringList notes;
     if (adoptAttachment) {
-      const QString name = chatTurnAttachmentNames_.value(0);
+      const QString name = chatTurnAttachmentNames.value(0);
       notes << QStringLiteral("Opened %1 in the editor first — the actions ran on it.")
                    .arg(name.isEmpty() ? QStringLiteral("the attached image") : name);
     }
     // §7: a plan shaped to auto-continue gets ONE final bubble — round 1's reply is held (no card, no mirror, no persist)
     // until the continuation settles; every path where it never fires flushes the stash instead.
-    const bool holdReply = hasWork && !chatContinued_ && chatPlanLoadsWithoutTracing(plan);
+    const bool holdReply = hasWork && !chatContinued && chatPlanLoadsWithoutTracing(plan);
     QStringList warnings = plan.warnings;
     if (holdReply) {
-      chatReplyHeld_ = true;
-      chatHeldReply_ = plan.reply;
-      chatHeldWarnings_ = plan.warnings;
-      chatHeldNotes_ = notes;
+      chatReplyHeld = true;
+      chatHeldReply = plan.reply;
+      chatHeldWarnings = plan.warnings;
+      chatHeldNotes = notes;
     } else {
-      if (chatReplyHeld_) {   // the continuation's reply: prepend round 1's stash
-        warnings = chatHeldWarnings_ + warnings;
-        notes = chatHeldNotes_ + notes;
-        chatReplyHeld_ = false;
-        chatHeldReply_.clear();
-        chatHeldWarnings_.clear();
-        chatHeldNotes_.clear();
+      if (chatReplyHeld) {   // the continuation's reply: prepend round 1's stash
+        warnings = chatHeldWarnings + warnings;
+        notes = chatHeldNotes + notes;
+        chatReplyHeld = false;
+        chatHeldReply.clear();
+        chatHeldWarnings.clear();
+        chatHeldNotes.clear();
       }
-      chatDock_->appendAssistant(plan.reply, warnings, notes);
+      chatDock->appendAssistant(plan.reply, warnings, notes);
       // The dock's shape EXACTLY, or the two transcripts drift apart.
       chatMirror(QStringLiteral("Assistant"), withChatWarnings(plan.reply, warnings), false,
                  QString(), notes);
@@ -72,7 +72,7 @@ namespace stencil::gui {
         for (int i = 0; i < pr.variants.size() && i < previewFor.size(); ++i)
           previews[previewFor[i]] = pr.variants[i].second;
       }
-      chatDock_->appendAsk(plan.ask, previews);
+      chatDock->appendAsk(plan.ask, previews);
       // ANSWERED in the dock; the menu panel mirrors the question and options.
       QStringList optionLabels;
       for (const llm::AskOption& o : plan.ask.options) optionLabels << o.label;
@@ -97,10 +97,10 @@ namespace stencil::gui {
       }
       // ONE registry write + dock-menu rebuild for the whole reply.
       if (registryChanged) {
-        fileStore::saveProjects(projectList_);
+        fileStore::saveProjects(projectList);
         refreshDockMenu();
       }
-      chatDock_->appendVariants(cards);
+      chatDock->appendVariants(cards);
       // The menu row announces the variants compactly; the thumbnails live in the dock.
       chatMirror(QStringLiteral("Assistant"),
                  QStringLiteral("%1 variant(s) created as projects — open the Assistant "

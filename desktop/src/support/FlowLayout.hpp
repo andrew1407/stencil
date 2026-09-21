@@ -10,46 +10,46 @@ namespace stencil::gui {
   class FlowLayout : public QLayout {
    public:
     explicit FlowLayout(QWidget* parent, int margin = 0, int hSpacing = 8, int vSpacing = 6)
-        : QLayout(parent), hSpace_(hSpacing), vSpace_(vSpacing) {
+        : QLayout(parent), hSpace(hSpacing), vSpace(vSpacing) {
       setContentsMargins(margin, margin, margin, margin);
     }
     // sizeHint = the whole row on ONE line: what a controlReveal slot slides open to.
-    void setLineSizeHint(bool on) { lineHint_ = on; }
+    void setLineSizeHint(bool on) { lineHint = on; }
     // One line while the owner's maximumWidth is capped, so a controlReveal slot wipes
     // edge-on instead of re-flowing into a column (browser .reveal-group-transition nowrap).
-    void setHoldsLineWhileCapped(bool on) { holdWhileCapped_ = on; }
+    void setHoldsLineWhileCapped(bool on) { holdWhileCapped = on; }
     ~FlowLayout() override {
       QLayoutItem* item;
       while ((item = takeAt(0))) delete item;
     }
 
-    void addItem(QLayoutItem* item) override { items_.append(item); }
+    void addItem(QLayoutItem* item) override { items.append(item); }
     Qt::Orientations expandingDirections() const override { return {}; }
     bool hasHeightForWidth() const override { return true; }
     int heightForWidth(int width) const override { return doLayout(QRect(0, 0, width, 0), true); }
-    int count() const override { return items_.size(); }
-    QLayoutItem* itemAt(int index) const override { return items_.value(index); }
+    int count() const override { return items.size(); }
+    QLayoutItem* itemAt(int index) const override { return items.value(index); }
     QLayoutItem* takeAt(int index) override {
-      return (index >= 0 && index < items_.size()) ? items_.takeAt(index) : nullptr;
+      return (index >= 0 && index < items.size()) ? items.takeAt(index) : nullptr;
     }
     QSize minimumSize() const override {
       QSize size;
-      for (QLayoutItem* item : items_) size = size.expandedTo(item->minimumSize());
+      for (QLayoutItem* item : items) size = size.expandedTo(item->minimumSize());
       const QMargins m = contentsMargins();
       return size + QSize(m.left() + m.right(), m.top() + m.bottom());
     }
     QSize sizeHint() const override {
-      if (!lineHint_) return minimumSize();
+      if (!lineHint) return minimumSize();
       QSize size(0, 0);   // NOT QSize(): that is (-1,-1), and the width sum starts short
       int n = 0;
-      for (QLayoutItem* item : items_) {
+      for (QLayoutItem* item : items) {
         if (item->isEmpty()) continue;
         const QSize sz = item->sizeHint();
         size.setWidth(size.width() + sz.width());
         size.setHeight(qMax(size.height(), sz.height()));
         ++n;
       }
-      size.rwidth() += hSpace_ * qMax(0, n - 1);
+      size.rwidth() += hSpace * qMax(0, n - 1);
       const QMargins m = contentsMargins();
       return size + QSize(m.left() + m.right(), m.top() + m.bottom());
     }
@@ -64,7 +64,7 @@ namespace stencil::gui {
       const QMargins m = contentsMargins();
       const QRect area = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom());
       const QWidget* owner = parentWidget();
-      const bool wrap = !(holdWhileCapped_ && owner && owner->maximumWidth() < QWIDGETSIZE_MAX);
+      const bool wrap = !(holdWhileCapped && owner && owner->maximumWidth() < QWIDGETSIZE_MAX);
       int x = area.x(), y = area.y(), lineHeight = 0, totalHeight = 0;
       QList<QLayoutItem*> rowItems;
       QList<int> rowX;
@@ -72,7 +72,7 @@ namespace stencil::gui {
       bool firstRow = true;
 
       auto flushRow = [&] {
-        if (!firstRow) { y += vSpace_; totalHeight += vSpace_; }
+        if (!firstRow) { y += vSpace; totalHeight += vSpace; }
         if (!testOnly) {
           for (int i = 0; i < rowItems.size(); ++i) {
             const QSize sz = rowSize[i];
@@ -92,20 +92,20 @@ namespace stencil::gui {
         rowSize.clear();
       };
 
-      for (QLayoutItem* item : items_) {
-        if (item->isEmpty()) continue;  // hidden widgets (e.g. fillGroup_) take no space
+      for (QLayoutItem* item : items) {
+        if (item->isEmpty()) continue;  // hidden widgets (e.g. fillGroup) take no space
         QSize sz = item->sizeHint();
         if (wrap && sz.width() > area.width()) {   // wider than the row: take the row
           sz.setWidth(qMax(area.width(), item->minimumSize().width()));
           if (item->hasHeightForWidth()) sz.setHeight(item->heightForWidth(sz.width()));
         }
-        int nextX = x + sz.width() + hSpace_;
+        int nextX = x + sz.width() + hSpace;
         // An item occupying [x, x + w - 1] FITS while its last pixel is on area.right();
         // `x + w > right()` wrapped a row that fitted exactly, one pixel short of sizeHint().
-        if (wrap && nextX - hSpace_ - 1 > area.right() && !rowItems.isEmpty()) {
+        if (wrap && nextX - hSpace - 1 > area.right() && !rowItems.isEmpty()) {
           flushRow();
           x = area.x();
-          nextX = x + sz.width() + hSpace_;
+          nextX = x + sz.width() + hSpace;
           lineHeight = 0;
         }
         rowItems.append(item);
@@ -119,10 +119,10 @@ namespace stencil::gui {
       return totalHeight + m.top() + m.bottom();
     }
 
-    QList<QLayoutItem*> items_;
-    int hSpace_, vSpace_;
-    bool lineHint_ = false;
-    bool holdWhileCapped_ = false;
+    QList<QLayoutItem*> items;
+    int hSpace, vSpace;
+    bool lineHint = false;
+    bool holdWhileCapped = false;
   };
 
 }  // namespace stencil::gui

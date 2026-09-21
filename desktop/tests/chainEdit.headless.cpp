@@ -135,19 +135,19 @@ int main(int argc, char** argv) {
     QMouseEvent press(QEvent::MouseButtonPress, QPointF(at), canvas.mapToGlobal(at),
                       Qt::LeftButton, Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier);
     QCoreApplication::sendEvent(&canvas, &press);
-    check(!canvas.lines()[0].locked, "Alt+Ctrl+press broke the area open");
-    check(canvas.lines()[0].points.size() == 4, "three ring points plus the free end");
-    check(same(canvas.lines()[0].points, Pts{{60, 0}, {60, 60}, {0, 0}, {60, 0}}),
+    check(!canvas.getLines()[0].locked, "Alt+Ctrl+press broke the area open");
+    check(canvas.getLines()[0].points.size() == 4, "three ring points plus the free end");
+    check(same(canvas.getLines()[0].points, Pts{{60, 0}, {60, 60}, {0, 0}, {60, 0}}),
           "…seamed at the vertex grabbed");
-    check(canvas.selectedPoint() == 3, "the free end is focused for the drag");
+    check(canvas.getSelectedPoint() == 3, "the free end is focused for the drag");
 
     // Dragging really moves that end, and only it.
     const QPoint to(100, 80);
     QMouseEvent move(QEvent::MouseMove, QPointF(to), canvas.mapToGlobal(to), Qt::NoButton,
                      Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier);
     QCoreApplication::sendEvent(&canvas, &move);
-    check(same(canvas.lines()[0].points[3], 100, 80), "the pulled end followed the cursor");
-    check(same(canvas.lines()[0].points[0], 60, 0), "and the vertex it came from stayed put");
+    check(same(canvas.getLines()[0].points[3], 100, 80), "the pulled end followed the cursor");
+    check(same(canvas.getLines()[0].points[0], 60, 0), "and the vertex it came from stayed put");
     QMouseEvent rel(QEvent::MouseButtonRelease, QPointF(to), canvas.mapToGlobal(to),
                     Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
     QCoreApplication::sendEvent(&canvas, &rel);
@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
                            Qt::AltModifier | Qt::ControlModifier);
     QCoreApplication::sendEvent(&canvas, &rightPress);
     check(contextMenus == 0, "the pull-out chord asked for no context menu");
-    check(!canvas.lines()[0].locked, "…and it pulled out, as the left-button press does");
+    check(!canvas.getLines()[0].locked, "…and it pulled out, as the left-button press does");
 
     // A plain right-click still opens the menu.
     QMouseEvent plainRight(QEvent::MouseButtonPress, QPointF(vertex), canvas.mapToGlobal(vertex),
@@ -177,10 +177,10 @@ int main(int argc, char** argv) {
     canvas.setLines({rect()});
     canvas.selectLineByIndex(0);
     canvas.unchainSelectedLine();
-    check(!canvas.lines()[0].locked && canvas.lines()[0].points.size() == 4,
+    check(!canvas.getLines()[0].locked && canvas.getLines()[0].points.size() == 4,
           "unchainSelectedLine opens a rect");
     canvas.unchainSelectedLine();
-    check(canvas.lines()[0].points.size() == 4, "…and asking again changes nothing");
+    check(canvas.getLines()[0].points.size() == 4, "…and asking again changes nothing");
   }
 
   // The counter every check() feeds — without this the suite passed with failures in it.

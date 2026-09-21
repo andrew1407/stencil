@@ -45,18 +45,18 @@ namespace stencil::gui {
 
   // Parented to the WINDOW so the per-right-click rebuild can re-add it (QWidgetAction releases, never deletes, its default widget).
   void MainWindow::ensureChatMenuPanel() {
-    if (chatMenuAction_) return;
+    if (chatMenuAction) return;
     auto* panel = new ChatMenuPanel(
         this, [this](QString text) { onChatSend(text); }, [this] { onChatStop(); },
         // A modal cannot open under the menu's popup grab: dismiss the chain first and run a turn later.
         [this] {
           closeOpenPopupMenus();
           QTimer::singleShot(0, this, [this] {
-            if (!chatDock_) return;
-            const int before = chatDock_->attachedImages().size();
-            chatDock_->pickMedia();  // the dock's ONE image+video picker
-            const int added = chatDock_->attachedImages().size() - before;
-            const QString video = chatDock_->attachedVideoPath();
+            if (!chatDock) return;
+            const int before = chatDock->attachedImages().size();
+            chatDock->pickMedia();  // the dock's ONE image+video picker
+            const int added = chatDock->attachedImages().size() - before;
+            const QString video = chatDock->attachedVideoPath();
             // The menu is closed by now, so say what was staged in the transcript.
             if (added > 0 || !video.isEmpty()) {
               QStringList parts;
@@ -78,37 +78,37 @@ namespace stencil::gui {
         },
         // Resend runs the dock's retry path, so both surfaces requeue the same attachments.
         [this](QString text) { chatRetryTurn(text); });
-    chatMenuPanel_ = panel;
-    chatMenuInput_ = panel->input();
-    chatMenuAction_ = new QWidgetAction(this);
-    chatMenuAction_->setDefaultWidget(panel);  // takes ownership of the panel
-    panel->restyle(themePalette(resolveDark(settings_.themeMode), settings_.accentColor));
-    panel->setChatSwapSides(settings_.chatSwapSides);   // the same preference the dock's row drives
+    chatMenuPanel = panel;
+    chatMenuInput = panel->getInput();
+    chatMenuAction = new QWidgetAction(this);
+    chatMenuAction->setDefaultWidget(panel);  // takes ownership of the panel
+    panel->restyle(themePalette(resolveDark(settings.themeMode), settings.accentColor));
+    panel->setChatSwapSides(settings.chatSwapSides);   // the same preference the dock's row drives
     connect(panel, &ChatMenuPanel::chatSwapSidesChanged, this, [this](bool on) {
-      settings_.chatSwapSides = on;
-      fileStore::saveSettings(settings_);
-      if (chatDock_) chatDock_->setChatSwapSides(on);
+      settings.chatSwapSides = on;
+      fileStore::saveSettings(settings);
+      if (chatDock) chatDock->setChatSwapSides(on);
     });
-    // Created LAZILY: replay what the dock DISPLAYED — never chatHistory_, which carries the §7 continuation note and interim rounds.
-    for (const MirrorRow& r : chatMirrorLog_)
+    // Created LAZILY: replay what the dock DISPLAYED — never chatHistory, which carries the §7 continuation note and interim rounds.
+    for (const MirrorRow& r : chatMirrorLog)
       panel->appendRow(r.role, r.text, r.muted, r.retryText, false, r.notes);
     // A turn may already be in flight from the dock.
-    panel->setBusy(chatDock_ && chatDock_->isBusy());
-    if (chatDock_ && chatDock_->isBusy()) panel->showPending();
+    panel->setBusy(chatDock && chatDock->isBusy());
+    if (chatDock && chatDock->isBusy()) panel->showPending();
   }
 
   void MainWindow::resetChatState() {
     // Everything describing THIS conversation goes, the encoded working-image cache included.
-    chatHistory_.clear();
-    chatVideoPath_.clear();
-    chatVideoFrames_ = 0;
-    chatImageDigest_.clear();
-    chatImageEncoded_ = llm::ChatImage();
-    chatReplyHeld_ = false;   // a held round-1 bubble dies with its conversation
-    chatHeldReply_.clear();
-    chatHeldWarnings_.clear();
-    chatHeldNotes_.clear();
-    chatTextOnlyKey_.clear();  // §7: clearing the conversation re-arms the latch
+    chatHistory.clear();
+    chatVideoPath.clear();
+    chatVideoFrames = 0;
+    chatImageDigest.clear();
+    chatImageEncoded = llm::ChatImage();
+    chatReplyHeld = false;   // a held round-1 bubble dies with its conversation
+    chatHeldReply.clear();
+    chatHeldWarnings.clear();
+    chatHeldNotes.clear();
+    chatTextOnlyKey.clear();  // §7: clearing the conversation re-arms the latch
     chatMirrorClear();  // the dock's trash clears BOTH views of the conversation
   }
 
@@ -119,8 +119,8 @@ namespace stencil::gui {
 
   // A turn is over once its plan executed and its reply is on screen (§3.0); only a §10 clearChat is left to run here.
   void MainWindow::chatTurnSettled() {
-    if (!chatClearPending_) return;
-    chatClearPending_ = false;
+    if (!chatClearPending) return;
+    chatClearPending = false;
     // Queued, so a synchronously-settling pipeline never blocks on the modal mid-flow.
     QTimer::singleShot(0, this, &MainWindow::runDeferredChatClear);
   }
@@ -132,7 +132,7 @@ namespace stencil::gui {
       chatLateNote(QStringLiteral("clear canceled"));   // in the last card, on both views
       return;
     }
-    if (chatDock_) chatDock_->clearConversation();
+    if (chatDock) chatDock->clearConversation();
     onChatClear();
   }
 }  // namespace stencil::gui

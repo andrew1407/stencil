@@ -13,7 +13,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 900);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    CanvasWidget* canvas = win.canvas_;
+    CanvasWidget* canvas = win.canvas;
     QVERIFY(canvas);
     const QSize idle = canvas->size();
 
@@ -21,14 +21,14 @@ class MainWindowGuiTest : public QObject {
     big.fill(Qt::darkCyan);
     canvas->loadFromImage(big);
     QTRY_VERIFY(canvas->hasImage());
-    QVERIFY2(canvas->height() > win.scroll_->viewport()->height(),
+    QVERIFY2(canvas->height() > win.scroll->viewport()->height(),
              "the fixture must be taller than the viewport, or this proves nothing");
 
     canvas->clearImage();
     QTRY_VERIFY(!canvas->hasImage());
     QCOMPARE(canvas->size(), idle);
-    QVERIFY2(canvas->width() <= win.scroll_->viewport()->width()
-                 && canvas->height() <= win.scroll_->viewport()->height(),
+    QVERIFY2(canvas->width() <= win.scroll->viewport()->width()
+                 && canvas->height() <= win.scroll->viewport()->height(),
              "the cleared canvas must fit its viewport, or the idle hint is scrolled away");
   }
 
@@ -52,7 +52,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
 
     const int w0 = canvas->imageWidth(), h0 = canvas->imageHeight();
-    const int r0 = canvas->rotationQuarters();
+    const int r0 = canvas->getRotationQuarters();
     // The page crop of our landscape test image is non-square, so a quarter turn
     // produces an observable W↔H swap below (guards the swap assertion's premise).
     QVERIFY2(w0 != h0, "the page crop should be non-square so the rotation swap is observable");
@@ -63,7 +63,7 @@ class MainWindowGuiTest : public QObject {
 
     beat();
     right->trigger();
-    QCOMPARE(canvas->rotationQuarters(), (r0 + 1) % 4);
+    QCOMPARE(canvas->getRotationQuarters(), (r0 + 1) % 4);
     // A quarter turn swaps the visible (cropped) dimensions — proof the rotation
     // actually transformed the image, not merely bumped the quarter-turn counter.
     QCOMPARE(canvas->imageWidth(), h0);
@@ -71,7 +71,7 @@ class MainWindowGuiTest : public QObject {
     beat();
 
     left->trigger();                                       // undo the quarter turn
-    QCOMPARE(canvas->rotationQuarters(), r0);
+    QCOMPARE(canvas->getRotationQuarters(), r0);
     beat();
     QCOMPARE(canvas->imageWidth(), w0);                    // exact state restored
     QCOMPARE(canvas->imageHeight(), h0);
@@ -102,7 +102,7 @@ class MainWindowGuiTest : public QObject {
     QAction* newLine = actionByText(&win, "New Line");
     QVERIFY(newLine);
     newLine->trigger();
-    QCOMPARE(static_cast<int>(canvas->lines().size()), 1);   // committed line landed
+    QCOMPARE(static_cast<int>(canvas->getLines().size()), 1);   // committed line landed
     QVERIFY(canvas->canUndo());
     QVERIFY(!canvas->canRedo());
     beat();
@@ -111,7 +111,7 @@ class MainWindowGuiTest : public QObject {
     QAction* undo = actionByText(&win, "Undo");
     QVERIFY(undo);
     undo->trigger();
-    QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
+    QCOMPARE(static_cast<int>(canvas->getLines().size()), 0);
     QVERIFY(canvas->canRedo());          // undo made a redo available
     beat();
 
@@ -120,7 +120,7 @@ class MainWindowGuiTest : public QObject {
     QAction* redo = actionByText(&win, "Redo");
     QVERIFY(redo && redo->isEnabled());
     redo->trigger();
-    QCOMPARE(static_cast<int>(canvas->lines().size()), 1);
+    QCOMPARE(static_cast<int>(canvas->getLines().size()), 1);
     QVERIFY(!canvas->canRedo());
     beat();
   }

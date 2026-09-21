@@ -59,20 +59,20 @@ namespace stencil::gui {
   // GEOMETRIC, not underMouse(): the three widgets have gaps between them, and every gap flickered the hover.
   void MainWindow::updateNameHover() {
     // The container's own rect (browser .project-name-field parity), gaps INSIDE it.
-    const bool over = nameBar_.group && nameBar_.group->isVisible()
-        && nameBar_.group->rect().contains(nameBar_.group->mapFromGlobal(QCursor::pos()));
-    if (over != nameBar_.hover) {
-      nameBar_.hover = over;
+    const bool over = nameBar.group && nameBar.group->isVisible()
+        && nameBar.group->rect().contains(nameBar.group->mapFromGlobal(QCursor::pos()));
+    if (over != nameBar.hover) {
+      nameBar.hover = over;
       refreshProjectNameButtons();
     }
   }
 
   // Exactly one override on the stack, ever: the flag, not the caller, decides.
   void MainWindow::setBlockedCursor(bool on) {
-    if (on == blockedCursorOn_) return;
+    if (on == blockedCursorOn) return;
     if (on) QApplication::setOverrideCursor(Qt::ForbiddenCursor);
     else QApplication::restoreOverrideCursor();
-    blockedCursorOn_ = on;
+    blockedCursorOn = on;
   }
 
   void MainWindow::setActionTip(QAction* a, const QString& desc) {
@@ -81,24 +81,24 @@ namespace stencil::gui {
   }
 
   void MainWindow::enterNameEdit() {
-    if (!nameBar_.field || !nameBar_.field->isEnabled() || nameBar_.editing) return;
-    nameBar_.editing = true;
-    nameBar_.field->setReadOnly(false);
+    if (!nameBar.field || !nameBar.field->isEnabled() || nameBar.editing) return;
+    nameBar.editing = true;
+    nameBar.field->setReadOnly(false);
     applyProjectNameStyle(true);  // show the accent-outlined input look
-    nameBar_.field->setFocus();
-    nameBar_.field->selectAll();
+    nameBar.field->setFocus();
+    nameBar.field->selectAll();
     refreshProjectNameButtons();  // reveal ✓/✗, hide ✎
   }
 
   void MainWindow::commitProjectName() {
-    const QString newName = nameBar_.field->text().trimmed();
+    const QString newName = nameBar.field->text().trimmed();
     // Server-linked session: push the rename to the server, version-guarded (mirrors setActiveProjectColor); else rename locally.
-    if (!remoteSession_->link().id.isEmpty()) {
-      stencil::net::ServerClient* c = connections_ ? connections_->find(remoteSession_->link().address) : nullptr;
-      if (!newName.isEmpty() && newName != remoteSession_->link().name && c) {
+    if (!remoteSession->getLink().id.isEmpty()) {
+      stencil::net::ServerClient* c = connections ? connections->find(remoteSession->getLink().address) : nullptr;
+      if (!newName.isEmpty() && newName != remoteSession->getLink().name && c) {
         QPointer<MainWindow> self(this);
-        const QString id = remoteSession_->link().id;
-        remoteSession_->putVersionGuardedAsync(
+        const QString id = remoteSession->getLink().id;
+        remoteSession->putVersionGuardedAsync(
             c, id,
             [c, id, newName](qint64 version, std::function<void(bool, qint64, bool)> cb) {
               c->updateProjectNameAsync(id, newName, version, cb);
@@ -106,26 +106,26 @@ namespace stencil::gui {
             [this, self, c, newName](bool ok, qint64 newVersion) {
               if (!self) return;
               if (ok) {
-                remoteSession_->link().name = newName;
-                remoteSession_->link().version = newVersion;
-                notify_->success(QString("Renamed to \"%1\"").arg(newName));
+                remoteSession->getLink().name = newName;
+                remoteSession->getLink().version = newVersion;
+                notify->success(QString("Renamed to \"%1\"").arg(newName));
               } else {
-                notify_->error(QString("Rename failed: %1").arg(c->lastError()));
+                notify->error(QString("Rename failed: %1").arg(c->lastError()));
               }
               updateProjectTitle();   // reflect the stored name (renamed, or reverted on failure)
             });
       }
-    } else if (!activeProjectId_.isEmpty()) {
-      renameProjectById(activeProjectId_, nameBar_.field->text());
+    } else if (!activeProjectId.isEmpty()) {
+      renameProjectById(activeProjectId, nameBar.field->text());
     }
-    nameBar_.editing = false;   // leave edit mode → field back to read-only, ✎ returns
-    nameBar_.field->clearFocus();
+    nameBar.editing = false;   // leave edit mode → field back to read-only, ✎ returns
+    nameBar.field->clearFocus();
     updateProjectTitle();   // force the field/title back to the stored name
   }
 
   void MainWindow::cancelProjectName() {
-    nameBar_.editing = false;   // leave edit mode
-    nameBar_.field->clearFocus();
+    nameBar.editing = false;   // leave edit mode
+    nameBar.field->clearFocus();
     updateProjectTitle();   // revert the field to the stored name
   }
 

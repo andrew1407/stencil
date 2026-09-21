@@ -14,7 +14,7 @@ namespace stencil::gui {
   // Live-editor PlanTarget: every op goes through the SAME appliers the toolbar / dialogs use, persistence and co-edit pushes included. Friend of MainWindow.
   class ChatPlanTarget : public llm::PlanTarget {
    public:
-    explicit ChatPlanTarget(MainWindow& w) : w_(w) {}
+    explicit ChatPlanTarget(MainWindow& w) : w(w) {}
     bool hasImage() const override;
     bool isVideoInput() const override;
     QSize effectiveOriginalSize() const override;
@@ -73,7 +73,7 @@ namespace stencil::gui {
    private:
     const Project* resolveLocalProject(const QString& name, QString* note) const;
 
-    MainWindow& w_;
+    MainWindow& w;
   };
 
 }  // namespace stencil::gui

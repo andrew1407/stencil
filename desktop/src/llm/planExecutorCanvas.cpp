@@ -13,12 +13,12 @@ namespace stencil::llm {
 
 
   CanvasPlanTarget::CanvasPlanTarget(const QImage& image, const core::PageSize& pageCm)
-      : canvas_(std::make_unique<gui::CanvasWidget>()), page_(pageCm) {
-    canvas_->setPageCm(page_.width, page_.height);
+      : canvas(std::make_unique<gui::CanvasWidget>()), page(pageCm) {
+    canvas->setPageCm(page.width, page.height);
     if (!image.isNull()) {
       // Adopt the snapshot 1:1 — a FULL-frame crop, so a variant starts from
       // exactly the working image (no default page-aspect auto-crop).
-      canvas_->loadFromImage(
+      canvas->loadFromImage(
           image,
           core::CropRect{0, 0, static_cast<double>(image.width()),
                          static_cast<double>(image.height())},
@@ -28,40 +28,40 @@ namespace stencil::llm {
 
   CanvasPlanTarget::~CanvasPlanTarget() = default;
 
-  bool CanvasPlanTarget::hasImage() const { return canvas_->hasImage(); }
+  bool CanvasPlanTarget::hasImage() const { return canvas->hasImage(); }
 
   QSize CanvasPlanTarget::effectiveOriginalSize() const {
-    return canvas_->effectiveOriginalImage().size();
+    return canvas->effectiveOriginalImage().size();
   }
 
-  QSize CanvasPlanTarget::workingSize() const { return canvas_->image().size(); }
+  QSize CanvasPlanTarget::workingSize() const { return canvas->getImage().size(); }
 
   bool CanvasPlanTarget::applyCropRect(const core::CropRect& rect) {
-    canvas_->applyCrop(rect, /*recalc=*/true);
+    canvas->applyCrop(rect, /*recalc=*/true);
     return true;
   }
 
-  void CanvasPlanTarget::rotateQuarter(bool clockwise) { canvas_->rotateImage(clockwise); }
+  void CanvasPlanTarget::rotateQuarter(bool clockwise) { canvas->rotateImage(clockwise); }
 
   void CanvasPlanTarget::setImageFilter(const QString& mode, const QString& tintHex) {
-    if (tintHex.isEmpty()) canvas_->setFilter(mode);
-    else canvas_->setImageFilter(mode, QColor(tintHex));
+    if (tintHex.isEmpty()) canvas->setFilter(mode);
+    else canvas->setImageFilter(mode, QColor(tintHex));
   }
 
   void CanvasPlanTarget::setLayoutLines(const core::Lines& lines) {
-    canvas_->setLines(lines);
+    canvas->setLines(lines);
   }
 
   void CanvasPlanTarget::commitLayoutLines(const core::Lines& lines) {
-    canvas_->commitLines(lines);
+    canvas->commitLines(lines);
   }
 
   bool CanvasPlanTarget::captureEdit(EditState& out) const {
     out.valid = true;
-    out.crop = canvas_->cropRect();
-    out.filterMode = canvas_->imageFilter();
-    out.filterTint = canvas_->filterColor().name();
-    out.lines = canvas_->lines();
+    out.crop = canvas->getCropRect();
+    out.filterMode = canvas->getImageFilter();
+    out.filterTint = canvas->getFilterColor().name();
+    out.lines = canvas->getLines();
     return true;
   }
 
@@ -73,15 +73,15 @@ namespace stencil::llm {
     pageFormat = isoName;
     const core::PageSize ps = core::namedPageSize(isoName.toStdString());
     if (ps.width > 0) {
-      page_ = ps;
-      canvas_->setPageCm(page_.width, page_.height);
+      page = ps;
+      canvas->setPageCm(page.width, page.height);
     }
   }
 
-  bool CanvasPlanTarget::hasDrawnLines() const { return !canvas_->lines().empty(); }
+  bool CanvasPlanTarget::hasDrawnLines() const { return !canvas->getLines().empty(); }
 
   QImage CanvasPlanTarget::renderResult() const {
-    return canvas_->renderToImage(/*withOverlay=*/true);
+    return canvas->renderToImage(/*withOverlay=*/true);
   }
 }  // namespace stencil::llm
 

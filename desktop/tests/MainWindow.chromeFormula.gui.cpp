@@ -20,22 +20,22 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     auto* pill = win.findChild<QCheckBox*>("formulaPill");
-    QVERIFY(pill && win.formulaX_ && win.formulaY_);
+    QVERIFY(pill && win.formulaX && win.formulaY);
     if (!pill->isChecked()) pill->setChecked(true);
-    QTRY_VERIFY(win.formulaX_->isVisible());
+    QTRY_VERIFY(win.formulaX->isVisible());
     // The reveal is ANIMATED, so every width here is settled with a QTRY — a plain
     // compare beside the first one reads the pair mid-slide on a slow machine.
-    QTRY_COMPARE(win.formulaX_->width(), 180);
-    QTRY_COMPARE(win.formulaY_->width(), 180);
+    QTRY_COMPARE(win.formulaX->width(), 180);
+    QTRY_COMPARE(win.formulaY->width(), 180);
     // …side by side on the browser's 6px gap, not spread out over the row's leftover width.
-    QTRY_COMPARE(win.formulaY_->x() - (win.formulaX_->x() + win.formulaX_->width()), 6);
+    QTRY_COMPARE(win.formulaY->x() - (win.formulaX->x() + win.formulaX->width()), 6);
     // A row with no slack wraps around them: the pair keeps the browser's width and stays
     // on the toolbar, down to the narrowest window the layout allows.
     for (const int w : {1100, 920, 850}) {
       win.resize(w, 800);
-      QTRY_COMPARE(win.formulaX_->width(), 180);
-      QCOMPARE(win.formulaY_->width(), 180);
-      QVERIFY2(win.formulaX_->isVisible(),
+      QTRY_COMPARE(win.formulaX->width(), 180);
+      QCOMPARE(win.formulaY->width(), 180);
+      QVERIFY2(win.formulaX->isVisible(),
                qPrintable(QString("the formula fields hid at %1px").arg(w)));
     }
   }
@@ -91,26 +91,26 @@ class MainWindowGuiTest : public QObject {
     // A window restores the persisted formulas, so start from a known-empty field and let
     // that clear settle (leaving no pending commit to race the assertions below).
     fx->clear();
-    QVERIFY(awaitTimer(win.formulaCommitTimer_, FORMULA_SETTLE_MS));
+    QVERIFY(awaitTimer(win.formulaCommitTimer, FORMULA_SETTLE_MS));
     QVERIFY(!err->isVisible());
 
     fx->setFocus();
     QTest::keyClicks(fx, "(x+", Qt::NoModifier, 40);   // half-written, a key at a time
     QVERIFY2(!err->isVisible(), "an expression still being typed must not be flagged");
-    QVERIFY2(win.formulaCommitTimer_->isActive()
-                 && awaitTimer(win.formulaCommitTimer_, FORMULA_SETTLE_MS),
+    QVERIFY2(win.formulaCommitTimer->isActive()
+                 && awaitTimer(win.formulaCommitTimer, FORMULA_SETTLE_MS),
              "typing then pausing armed no commit");
     QVERIFY2(err->isVisible(), "a settled, unparseable expression IS flagged");
 
     QTest::keyClicks(fx, "1)", Qt::NoModifier, 40);    // finish it: valid again
     QCOMPARE(fx->text(), QStringLiteral("(x+1)"));
     QVERIFY2(!err->isVisible(), "fixing the expression clears the error indicator on the spot");
-    QVERIFY(awaitTimer(win.formulaCommitTimer_, FORMULA_SETTLE_MS));
+    QVERIFY(awaitTimer(win.formulaCommitTimer, FORMULA_SETTLE_MS));
     QVERIFY(!err->isVisible());
 
     // Leave the persisted formula as we found it — the settings are shared across tests.
     fx->clear();
-    QVERIFY(awaitTimer(win.formulaCommitTimer_, FORMULA_SETTLE_MS));
+    QVERIFY(awaitTimer(win.formulaCommitTimer, FORMULA_SETTLE_MS));
   }
 
 };

@@ -101,19 +101,19 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
 
     win.setZoom(0.5);
-    const double chosen = canvas->scale();
+    const double chosen = canvas->getScale();
     QCOMPARE(chosen, 0.5);
 
     QAction* fs = actionByText(&win, "Enter Fullscreen");
     QVERIFY(fs);
     fs->trigger();
     // Outlast the ramp itself plus the bounded wait for the window manager's resize.
-    QTRY_VERIFY_WITH_TIMEOUT(!win.fs_.zoomAnim, 3000);
-    QCOMPARE(canvas->scale(), chosen);  // entering never changed the user's zoom
+    QTRY_VERIFY_WITH_TIMEOUT(!win.fs.zoomAnim, 3000);
+    QCOMPARE(canvas->getScale(), chosen);  // entering never changed the user's zoom
 
     fs->trigger();
-    QTRY_VERIFY_WITH_TIMEOUT(!win.fs_.zoomAnim, 3000);
-    QCOMPARE(canvas->scale(), chosen);  // …and neither did leaving
+    QTRY_VERIFY_WITH_TIMEOUT(!win.fs.zoomAnim, 3000);
+    QCOMPARE(canvas->getScale(), chosen);  // …and neither did leaving
   }
 
   // Fullscreen pulls every toolbar out from under whatever they had in the air, and takes the logo's
@@ -127,15 +127,15 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     openLoaded(win);
-    settle([&] { return win.canvas_->hasImage(); }, 500);
-    QVERIFY(win.logoBtn_);
-    QWidget* fx = win.logoFx_;
+    settle([&] { return win.canvas->hasImage(); }, 500);
+    QVERIFY(win.logoBtn);
+    QWidget* fx = win.logoFx;
     QVERIFY(fx);
     // The mark is up (the overlay paints the logo, blanked on the button itself).
     QTRY_VERIFY_WITH_TIMEOUT(fx->isVisible(), 2000);
 
     // Something is in the air when the switch happens — a control's own cloud.
-    stencil::gui::DisintegrateOverlay::over(win.logoBtn_, &win,
+    stencil::gui::DisintegrateOverlay::over(win.logoBtn, &win,
                                            stencil::gui::DisintegrateOverlay::Sweep::FALL);
     const auto cloudsUp = [&win] {
       int n = 0;
@@ -149,11 +149,11 @@ class MainWindowGuiTest : public QObject {
 
     win.toggleFullscreen();
     QTRY_VERIFY2(cloudsUp() == 0, "a cloud was left flying over the fullscreen canvas");
-    QVERIFY2(!win.logoBtn_->isVisible(), "fullscreen kept the header row");
+    QVERIFY2(!win.logoBtn->isVisible(), "fullscreen kept the header row");
     QVERIFY2(!fx->isVisible(), "the logo's mark stayed up with its button gone");
 
     win.toggleFullscreen();   // …and back, with the header row and its mark restored
-    QTRY_VERIFY_WITH_TIMEOUT(win.logoBtn_->isVisible(), 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.logoBtn->isVisible(), 2000);
     QTRY_VERIFY_WITH_TIMEOUT(fx->isVisible(), 2000);
     beat();
   }
@@ -166,24 +166,24 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 900);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    settle([&] { return win.selPanel_->width() > 300; }, 1000);   // the deferred resizeDocks to the default width
-    const int settledWidth = win.selPanel_->width();
+    settle([&] { return win.selPanel->width() > 300; }, 1000);   // the deferred resizeDocks to the default width
+    const int settledWidth = win.selPanel->width();
     QVERIFY(settledWidth > 300);
     win.toggleFullscreen();
-    settle([&] { return !win.fs_.zoomAnim; }, 1500);
-    if (win.fs_.hoverTimer) win.fs_.hoverTimer->stop();   // the case drives the reveal, not the cursor
+    settle([&] { return !win.fs.zoomAnim; }, 1500);
+    if (win.fs.hoverTimer) win.fs.hoverTimer->stop();   // the case drives the reveal, not the cursor
     win.setPanelShown(true, true);
-    settle([&] { return win.selPanel_->width() > 60; }, 1000);
-    QVERIFY2(win.panelAnim_, "the reveal should still be sliding");
+    settle([&] { return win.selPanel->width() > 60; }, 1000);
+    QVERIFY2(win.panelAnim, "the reveal should still be sliding");
     win.setPanelShown(false, true);
-    settle([&] { return !win.panelAnim_; }, 2000);
-    QCOMPARE(win.panelRestoreWidth_, settledWidth);
+    settle([&] { return !win.panelAnim; }, 2000);
+    QCOMPARE(win.panelRestoreWidth, settledWidth);
     win.setPanelShown(true, true);
-    settle([&] { return !win.panelAnim_; }, 2000);
-    QCOMPARE(win.selPanel_->width(), settledWidth);
+    settle([&] { return !win.panelAnim; }, 2000);
+    QCOMPARE(win.selPanel->width(), settledWidth);
     win.toggleFullscreen();
-    settle([&] { return win.selPanel_->width() == settledWidth; }, 1500);
-    QCOMPARE(win.selPanel_->width(), settledWidth);
+    settle([&] { return win.selPanel->width() == settledWidth; }, 1500);
+    QCOMPARE(win.selPanel->width(), settledWidth);
   }
 
   // The separator grip is the fullscreen panel's resize affordance too (browser #fs-panel-resizer), and it lands
@@ -194,20 +194,20 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 900);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(win.panelGrip_);
+    QVERIFY(win.panelGrip);
     win.toggleFullscreen();
-    settle([&] { return !win.fs_.zoomAnim; }, 1500);
-    if (win.fs_.hoverTimer) win.fs_.hoverTimer->stop();
-    QVERIFY(!win.panelGrip_->isVisible());
+    settle([&] { return !win.fs.zoomAnim; }, 1500);
+    if (win.fs.hoverTimer) win.fs.hoverTimer->stop();
+    QVERIFY(!win.panelGrip->isVisible());
     win.setPanelShown(true, true);
-    settle([&] { return win.selPanel_->width() > 60; }, 1000);
-    QVERIFY2(!win.panelGrip_->isVisible(), "the grip ran ahead of the sliding panel");
-    settle([&] { return !win.panelAnim_; }, 2000);
-    QVERIFY2(win.panelGrip_->isVisible(), "no grip on the revealed fullscreen panel");
-    QVERIFY(win.selPanel_->maximumWidth() > win.selPanel_->minimumWidth());   // …and it can still be dragged
+    settle([&] { return win.selPanel->width() > 60; }, 1000);
+    QVERIFY2(!win.panelGrip->isVisible(), "the grip ran ahead of the sliding panel");
+    settle([&] { return !win.panelAnim; }, 2000);
+    QVERIFY2(win.panelGrip->isVisible(), "no grip on the revealed fullscreen panel");
+    QVERIFY(win.selPanel->maximumWidth() > win.selPanel->minimumWidth());   // …and it can still be dragged
     win.toggleFullscreen();
-    settle([&] { return !win.fs_.active && !win.panelAnim_; }, 1500);
-    QVERIFY(win.panelGrip_->isVisible());
+    settle([&] { return !win.fs.active && !win.panelAnim; }, 1500);
+    QVERIFY(win.panelGrip->isVisible());
   }
 
 };

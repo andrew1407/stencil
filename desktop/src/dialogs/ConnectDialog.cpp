@@ -57,7 +57,7 @@ namespace stencil::gui {
 
 
   ConnectDialog::ConnectDialog(stencil::net::ConnectionManager* manager, QWidget* parent)
-      : QDialog(parent), manager_(manager) {
+      : QDialog(parent), manager(manager) {
     setWindowTitle(tr("Servers"));
     // The browser .app-modal width — also what fits the footer hint on one line.
     setMinimumWidth(MODAL_WIDTH);
@@ -76,20 +76,20 @@ namespace stencil::gui {
                    tr("Connections are saved and (optionally) restored on open · "
                       "server projects show a golden outline."));
 
-    QObject::connect(reconnectAllBtn_, &QPushButton::clicked, this, [this] {
-      if (manager_) manager_->reconnectAllAsync();  // changed() → rebuildList() as each resolves
+    QObject::connect(reconnectAllBtn, &QPushButton::clicked, this, [this] {
+      if (this->manager) this->manager->reconnectAllAsync();  // changed() → rebuildList() as each resolves
       rebuildList();
     });
     // Return belongs to the DEFAULT button, from either field. Deliberately no returnPressed beside
     // it: a QLineEdit emits that AND lets the key reach the default button, firing doConnect twice.
     QObject::connect(connectBtn, &QPushButton::clicked, this, &ConnectDialog::doConnect);
-    if (manager_)
-      QObject::connect(manager_, &stencil::net::ConnectionManager::changed, this,
+    if (this->manager)
+      QObject::connect(this->manager, &stencil::net::ConnectionManager::changed, this,
                        &ConnectDialog::rebuildList);
 
     rebuildList();
     // The caret lands in the host field, as the browser window does (InfoDialog parity).
-    QTimer::singleShot(0, urlEdit_, [u = urlEdit_] { u->setFocus(); });
+    QTimer::singleShot(0, urlEdit, [u = urlEdit] { u->setFocus(); });
   }
 
   QPushButton* ConnectDialog::buildConnectForm(QVBoxLayout* root) {
@@ -100,15 +100,15 @@ namespace stencil::gui {
     auto* urlLbl = new QLabel(tr("URL"));
     urlLbl->setToolTip(tr("Server URL, e.g. http://localhost:8090"));
     form->addWidget(urlLbl, 0, 0);
-    urlEdit_ = new QLineEdit;
-    urlEdit_->setPlaceholderText("http://localhost:8090");
-    form->addWidget(urlEdit_, 0, 1);
+    urlEdit = new QLineEdit;
+    urlEdit->setPlaceholderText("http://localhost:8090");
+    form->addWidget(urlEdit, 0, 1);
     auto* tokenLbl = new QLabel(tr("Token"));
     tokenLbl->setToolTip(tr("Optional access token (issued otherwise)"));
     form->addWidget(tokenLbl, 1, 0);
-    tokenEdit_ = new QLineEdit;
-    tokenEdit_->setPlaceholderText(tr("(optional)"));
-    form->addWidget(tokenEdit_, 1, 1);
+    tokenEdit = new QLineEdit;
+    tokenEdit->setPlaceholderText(tr("(optional)"));
+    form->addWidget(tokenEdit, 1, 1);
     root->addLayout(form);
 
     // Connect (left) + Reconnect all (right), grouped on one row.
@@ -123,7 +123,7 @@ namespace stencil::gui {
     connectBtn->setDefault(true);
     actions->addStretch(1);
     auto* reconnectAllBtn = new QPushButton(tr("Reconnect all"));
-    reconnectAllBtn_ = reconnectAllBtn;
+    this->reconnectAllBtn = reconnectAllBtn;
     makeModalCta(reconnectAllBtn, "refresh");
     reconnectAllBtn->setToolTip(tr("Re-establish every connection (re-validate / reissue tokens)"));
     actions->addWidget(reconnectAllBtn);
@@ -132,27 +132,27 @@ namespace stencil::gui {
   }
 
   void ConnectDialog::rebuildList() {
-    if (!manager_ || !list_) return;
+    if (!manager || !list) return;
     // While removal dust is playing, the retired rows keep their blank slots and the
     // empty state must NOT appear yet — the settle callback in scatterRows finalizes.
-    if (!doomed_.isEmpty()) {
+    if (!doomed.isEmpty()) {
       updateBatchBar();
       return;
     }
-    list_->clear();
+    list->clear();
     // Nothing to re-establish -> the button could only fail.
-    if (reconnectAllBtn_) reconnectAllBtn_->setEnabled(!manager_->clients().isEmpty());
-    const QStringList urls = manager_->urls();
+    if (reconnectAllBtn) reconnectAllBtn->setEnabled(!manager->getClients().isEmpty());
+    const QStringList urls = manager->urls();
     // Rows the previous build didn't have — they get the gather-in below.
     QSet<QString> fresh;
     for (const QString& u : urls)
-      if (!known_.contains(u)) fresh.insert(u);
-    known_ = QSet<QString>(urls.begin(), urls.end());
+      if (!known.contains(u)) fresh.insert(u);
+    known = QSet<QString>(urls.begin(), urls.end());
     // Drop any selected urls that are no longer connected.
-    for (const QString& u : selected_.values())
-      if (!urls.contains(u)) selected_.remove(u);
+    for (const QString& u : selected.values())
+      if (!urls.contains(u)) selected.remove(u);
     if (urls.isEmpty()) {
-      auto* empty = new QListWidgetItem(tr("No servers connected."), list_);
+      auto* empty = new QListWidgetItem(tr("No servers connected."), list);
       empty->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
       empty->setFlags(Qt::NoItemFlags);
       updateBatchBar();
@@ -169,12 +169,12 @@ namespace stencil::gui {
     if (!fresh.isEmpty() && isVisible() && !support::motionReduced()) {
       // Deferred a turn so the view has laid the new rows out (the grab needs geometry).
       QTimer::singleShot(0, this, [this, fresh] {
-        list_->doItemsLayout();   // geometry first — the grab is only as good as it
-        const QStringList now = manager_ ? manager_->urls() : QStringList();
+        list->doItemsLayout();   // geometry first — the grab is only as good as it
+        const QStringList now = manager ? manager->urls() : QStringList();
         for (const QString& u : fresh) {
           const int row = now.indexOf(u);
-          QListWidgetItem* it = (row >= 0 && row < list_->count()) ? list_->item(row) : nullptr;
-          QWidget* w = it ? list_->itemWidget(it) : nullptr;
+          QListWidgetItem* it = (row >= 0 && row < list->count()) ? list->item(row) : nullptr;
+          QWidget* w = it ? list->itemWidget(it) : nullptr;
           if (!w) continue;
           if (!w->isVisible()) w->show();   // the view may not have polished it yet
           // On the CONTROL clock, not the row's: Select all arrives in the same turn, and a row still

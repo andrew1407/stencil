@@ -26,10 +26,10 @@ namespace stencil::llm {
     if (cfg.provider == QLatin1String("stencil-server")) {
       const QString base = net::ServerClient::normalizeBase(cfg.serverUrl);
       if (base.isEmpty()) return fail(QStringLiteral("no collaboration server configured"));
-      const QString token = tokenResolver_(cfg.serverUrl);
+      const QString token = tokenResolver(cfg.serverUrl);
       if (token.isEmpty())
         return fail(QStringLiteral("not connected (no token for %1)").arg(base));
-      transport_->getJson(
+      transport->getJson(
           QUrl(base + QStringLiteral("/llm/info")),
           {{QByteArrayLiteral("Authorization"),
             QByteArrayLiteral("Bearer ") + token.toUtf8()}},
@@ -47,7 +47,7 @@ namespace stencil::llm {
                       QByteArrayLiteral("Bearer ") + cfg.apiKey.toUtf8()});
     const QUrl url(trimSlash(cfg.baseUrl) +
                    (openai ? QStringLiteral("/models") : QStringLiteral("/api/version")));
-    transport_->getJson(
+    transport->getJson(
         url, headers,
         probeHandler(std::move(done), [](const QJsonObject& o, LlmProbeResult& r) {
           r.ok = true;
@@ -75,12 +75,12 @@ namespace stencil::llm {
     }
     if (cfg.provider == QLatin1String("stencil-server")) {
       const QString base = net::ServerClient::normalizeBase(cfg.serverUrl);
-      const QString token = base.isEmpty() ? QString() : tokenResolver_(cfg.serverUrl);
+      const QString token = base.isEmpty() ? QString() : tokenResolver(cfg.serverUrl);
       if (token.isEmpty()) {
         done({});
         return;
       }
-      transport_->getJson(
+      transport->getJson(
           QUrl(base + QStringLiteral("/llm/info")),
           {{QByteArrayLiteral("Authorization"),
             QByteArrayLiteral("Bearer ") + token.toUtf8()}},
@@ -97,7 +97,7 @@ namespace stencil::llm {
                       QByteArrayLiteral("Bearer ") + cfg.apiKey.toUtf8()});
     const QUrl url(trimSlash(cfg.baseUrl) +
                    (openai ? QStringLiteral("/models") : QStringLiteral("/api/tags")));
-    transport_->getJson(
+    transport->getJson(
         url, headers,
         handler(std::move(done),
                 openai ? Pick([](const QJsonObject& o) {

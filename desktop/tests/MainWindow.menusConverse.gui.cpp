@@ -18,8 +18,8 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());  // a working image, so a plan has something to hit
 
     // ── assistant ON ──
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     // A mock transport answers synchronously with a canned op-plan, so nothing
     // touches the network (the same seam LlmClient.headless.cpp uses).
     MockChatTransport mock;
@@ -31,12 +31,12 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Sepia applied\","
                       "\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     // The menu's attach button feeds the DOCK's attachment state; stage one
     // there and the menu-driven turn must carry it (working image + this one).
     QImage att(12, 8, QImage::Format_RGB32);
     att.fill(Qt::green);
-    win.chatDock_->addAttachmentImage(att);
+    win.chatDock->addAttachmentImage(att);
 
     bool typedThrough = false, subAliveAfterSend = false, rootAliveAfterSend = false;
     bool sendWasStop = false, stopSeen = false, stoppedRowSeen = false;
@@ -76,15 +76,15 @@ class MainWindowGuiTest : public QObject {
 
       // Busy → the send button becomes STOP; clicking it THROUGH the menu
       // aborts without closing anything.
-      win.chatDock_->setBusy(true);
+      win.chatDock->setBusy(true);
       win.chatMirrorBusy(true);
       win.chatMirrorPending(true);
       sendWasStop = sendBtn->toolTip() == QString("Stop the response");
       QTest::mouseClick(sub, Qt::LeftButton, {},
                         sendBtn->mapTo(sub, sendBtn->rect().center()));
-      stopSeen = win.chatStopRequested_ && sub->isVisible() && menu->isVisible();
+      stopSeen = win.chatStopRequested && sub->isVisible() && menu->isVisible();
       // The canceled reply turns the in-flight row into a muted "Stopped.".
-      win.chatDock_->setBusy(false);
+      win.chatDock->setBusy(false);
       win.chatMirrorBusy(false);
       stencil::llm::LlmReply canceled;
       canceled.ok = false;
@@ -118,10 +118,10 @@ class MainWindowGuiTest : public QObject {
 
     // ONE conversation: the turn typed in the menu is in the shared history AND
     // rendered in the dock.
-    QCOMPARE(win.chatHistory_.size(), 2);  // user + assistant
-    QCOMPARE(win.chatHistory_.first().text, QString("make it sepia"));
+    QCOMPARE(win.chatHistory.size(), 2);  // user + assistant
+    QCOMPARE(win.chatHistory.first().text, QString("make it sepia"));
     bool dockSawIt = false;
-    for (QLabel* l : win.chatDock_->findChildren<QLabel*>())
+    for (QLabel* l : win.chatDock->findChildren<QLabel*>())
       if (l->text().contains("make it sepia")) dockSawIt = true;
     QVERIFY2(dockSawIt, "the menu turn never reached the dock transcript");
 
@@ -143,18 +143,18 @@ class MainWindowGuiTest : public QObject {
 
     // The dock's trash clears both surfaces.
     win.onChatClear();
-    QVERIFY(win.chatHistory_.isEmpty());
-    QVERIFY(win.chatMenuPanel_);
+    QVERIFY(win.chatHistory.isEmpty());
+    QVERIFY(win.chatMenuPanel);
     // The mirrored rows scatter and then go (dock parity), so they leave on the
     // event loop — a hidden row is already on its way out and doesn't count.
     const auto menuRowsLeft = [&win] {
-      for (QLabel* l : win.chatMenuPanel_->findChildren<QLabel*>())
+      for (QLabel* l : win.chatMenuPanel->findChildren<QLabel*>())
         if (!l->isHidden() && l->text().contains("make it sepia")) return true;
       return false;
     };
     QTRY_VERIFY2(!menuRowsLeft(), "clearing the conversation left the menu transcript");
 
-    win.llmClient_.reset();  // drop the mock before it goes out of scope
+    win.llmClient.reset();  // drop the mock before it goes out of scope
     beat();
   }
 };

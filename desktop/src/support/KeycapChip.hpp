@@ -19,18 +19,18 @@ namespace stencil::gui {
    public:
     explicit KeycapChip(QWidget* parent = nullptr) : TipBody(parent) {
       setAttribute(Qt::WA_Hover, true);
-      shake_ = new QVariantAnimation(this);
-      shake_->setDuration(AppTooltip::SHAKE_MS);
-      shake_->setStartValue(0.0);
-      shake_->setEndValue(1.0);
-      QObject::connect(shake_, &QVariantAnimation::valueChanged, this,
+      shake = new QVariantAnimation(this);
+      shake->setDuration(AppTooltip::SHAKE_MS);
+      shake->setStartValue(0.0);
+      shake->setEndValue(1.0);
+      QObject::connect(shake, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) { setShake(v.toDouble()); });
-      QObject::connect(shake_, &QVariantAnimation::finished, this, [this] { settle(); });
+      QObject::connect(shake, &QVariantAnimation::finished, this, [this] { settle(); });
     }
 
     // New caps: the hunt runs again on the next hover.
     void setCaps(const QString& rich) {
-      shake_->stop();
+      shake->stop();
       setTip(rich);
     }
 
@@ -38,18 +38,18 @@ namespace stencil::gui {
     void enterEvent(QEnterEvent* e) override {
       TipBody::enterEvent(e);
       if (support::motionReduced() || capCount() == 0) return;
-      shake_->stop();
+      shake->stop();
       settle();
-      shake_->start();
+      shake->start();
     }
     void leaveEvent(QEvent* e) override {
       TipBody::leaveEvent(e);
-      shake_->stop();
+      shake->stop();
       settle();
     }
 
    private:
-    QVariantAnimation* shake_ = nullptr;
+    QVariantAnimation* shake = nullptr;
   };
 
   class ComboCell : public KeycapChip {
@@ -63,10 +63,10 @@ namespace stencil::gui {
     std::function<void(const QString&)> onCaptured;
     // A capture swaps in the placeholder.
     void setResting(const QString& rich) {
-      resting_ = rich;
-      if (!capturing_) setCaps(rich);
+      resting = rich;
+      if (!capturing) setCaps(rich);
     }
-    void setPlaceholder(const QString& rich) { placeholder_ = rich; }
+    void setPlaceholder(const QString& rich) { placeholder = rich; }
 
    protected:
     void mousePressEvent(QMouseEvent* e) override {
@@ -75,17 +75,17 @@ namespace stencil::gui {
     }
     void focusInEvent(QFocusEvent* e) override {
       KeycapChip::focusInEvent(e);
-      capturing_ = true;
+      capturing = true;
       setProperty("capturing", true);
       repolish();
-      setCaps(placeholder_);
+      setCaps(placeholder);
     }
     void focusOutEvent(QFocusEvent* e) override {
       KeycapChip::focusOutEvent(e);
       endCapture();
     }
     void keyPressEvent(QKeyEvent* e) override {
-      if (!capturing_) { KeycapChip::keyPressEvent(e); return; }
+      if (!capturing) { KeycapChip::keyPressEvent(e); return; }
       const int key = e->key();
       if (key == Qt::Key_Escape) {   // Esc cancels (browser parity) — never binds "Esc"
         e->accept();
@@ -109,20 +109,20 @@ namespace stencil::gui {
 
    private:
     void endCapture() {
-      if (!capturing_) return;
-      capturing_ = false;
+      if (!capturing) return;
+      capturing = false;
       setProperty("capturing", false);
       repolish();
-      setCaps(resting_);
+      setCaps(resting);
     }
     void repolish() {
       style()->unpolish(this);
       style()->polish(this);
       update();
     }
-    QString resting_;
-    QString placeholder_;
-    bool capturing_ = false;
+    QString resting;
+    QString placeholder;
+    bool capturing = false;
   };
 
 }  // namespace stencil::gui

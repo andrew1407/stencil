@@ -52,14 +52,14 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
-    awaitAnim(win.chatAnim_);
+    win.actChat->setChecked(true);
+    awaitAnim(win.chatAnim);
     auto* dock = win.findChild<stencil::gui::ChatDock*>();
     QVERIFY2(dock, "no chat dock");
     QLabel* title = dock->findChild<QLabel*>("chatHeaderTitle");
     QVERIFY2(title, "no header title");
     const stencil::gui::Palette pal = stencil::gui::themePalette(
-        stencil::gui::resolveDark(win.settings_.themeMode), win.settings_.accentColor);
+        stencil::gui::resolveDark(win.settings.themeMode), win.settings.accentColor);
     QVERIFY2(title->styleSheet().contains(pal.textMain.name()),
              qPrintable("the Assistant label is not theme text: " + title->styleSheet()));
     QVERIFY2(!title->styleSheet().contains(pal.accent.name()),
@@ -147,7 +147,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(chat->isChecked());
     // The open and the side switch both FLY (chatSurfaceFlight) — the area is what it
     // settles at, not what it holds mid-flight.
-    QTRY_VERIFY(!win.chatAnim_);
+    QTRY_VERIFY(!win.chatAnim);
     QVERIFY(!dock->isFloating());
     QTRY_COMPARE(win.dockWidgetArea(dock), Qt::RightDockWidgetArea);
 
@@ -156,7 +156,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(win.dockWidgetArea(dock), Qt::BottomDockWidgetArea);
     // The side switch flies (chatSurfaceFlight) and its finish SHOWS the dock again —
     // let it land before asking for a close, exactly as a user's second sentence would.
-    QTRY_VERIFY(!win.chatAnim_);
+    QTRY_VERIFY(!win.chatAnim);
 
     // "open": false closes it and leaves the placement alone.
     run(R"({"reply":"ok","actions":[{"op":"chatPanel","open":false}]})");

@@ -172,7 +172,7 @@ namespace stencil::gui {
     void syncExportActions();
     QImage exportVariantPreviewImage(QAction* act) const;
     void buildMenus();
-    // Qt reads settings_.nativeMenuBar only on (re)creation, so a runtime switch rebuilds.
+    // Qt reads settings.nativeMenuBar only on (re)creation, so a runtime switch rebuilds.
     void applyMenuBarPlacement();
     void buildToolbar();
     // Ctor phases in exactly this order: construction order is observable (tab order, stacking,
@@ -246,7 +246,7 @@ namespace stencil::gui {
     void positionPanelGrip();
     void positionChatEdge();
     void setPanelShown(bool show, bool animate);
-    // Browser mainContent.js surface flight; panelVeil_ hides the panel so the motes ARE it.
+    // Browser mainContent.js surface flight; panelVeil hides the panel so the motes ARE it.
     QPointer<gui::DisintegrateOverlay> panelSurfaceFlight(bool gather, int ms, int full);
     void releasePanelVeil();
     QPointer<gui::DisintegrateOverlay> barsSurfaceFlight(const QList<class QToolBar*>& bars,
@@ -293,7 +293,7 @@ namespace stencil::gui {
     // macOS menu-bar icons follow the SYSTEM appearance, not our theme.
     void retintMenuIconsForSystem(bool appDark, const QColor& appIconColor);
     QWidget* buttonForAction(QAction* act) const;
-    QHash<QAction*, QString> actionIconNames_;
+    QHash<QAction*, QString> actionIconNames;
     void restyleContextToggles(const QColor& textColor);
     void toggleTheme();
     void applySettings(const Settings& s, bool persist);
@@ -427,7 +427,7 @@ namespace stencil::gui {
     void saveProjectFileAs();
     void deleteProjectFile();   // delete the linked .stencil file from disk (confirm), then unlink
 
-    // Opt-in .stencil live sync (browser twin StencilSync); `stencilLink_` empty ⇒ not linked.
+    // Opt-in .stencil live sync (browser twin StencilSync); `stencilLink` empty ⇒ not linked.
     QByteArray buildStencilBytes();
     void linkStencilFile(const QString& path, const QByteArray& baseline);
     void unlinkStencilFile();
@@ -533,161 +533,161 @@ namespace stencil::gui {
     // Closing is immediate on every path — no confirmation modal, a deliberate decision.
     void closeEvent(QCloseEvent* event) override;
 
-    bool rKeyHeld_ = false;
+    bool rKeyHeld = false;
     // Two held keys arrive as independent native auto-repeat streams; combined on our own tick.
-    bool panLeftHeld_ = false;
-    bool panRightHeld_ = false;
-    bool panUpHeld_ = false;
-    bool panDownHeld_ = false;
-    bool panShiftHeld_ = false;
-    QTimer* arrowPanTimer_ = nullptr;
-    CanvasWidget* canvas_ = nullptr;
-    QScrollArea* scroll_ = nullptr;
-    SelectionPanel* selPanel_ = nullptr;
-    SelectedLineBar* selectedLineBar_ = nullptr;
+    bool panLeftHeld = false;
+    bool panRightHeld = false;
+    bool panUpHeld = false;
+    bool panDownHeld = false;
+    bool panShiftHeld = false;
+    QTimer* arrowPanTimer = nullptr;
+    CanvasWidget* canvas = nullptr;
+    QScrollArea* scroll = nullptr;
+    SelectionPanel* selPanel = nullptr;
+    SelectedLineBar* selectedLineBar = nullptr;
     // A dock area, not a QToolBar row: it stretches to the full width the FlowLayout wraps against.
-    class QDockWidget* selectedLineDock_ = nullptr;
-    class QVBoxLayout* centralLayout_ = nullptr;
-    ChatDock* chatDock_ = nullptr;
-    // QPointer: notify_ dies with the scroll viewport while dock signals can still fire in teardown.
-    QPointer<Notifications> notify_;
-    CanvasTooltip* tooltip_ = nullptr;
-    QTimer* hoverTooltipTimer_ = nullptr;
-    QString hoverPendingKey_;
-    QString hoverShownKey_;
-    std::function<void()> hoverPendingReveal_;
-    IncognitoOverlay* incognitoOverlay_ = nullptr;
-    DropZonesOverlay* dropZones_ = nullptr;
-    ProjectDragZones* projectZones_ = nullptr;
-    QLabel* status_ = nullptr;
-    QComboBox* zoom_ = nullptr;
-    SessionController session_;
+    class QDockWidget* selectedLineDock = nullptr;
+    class QVBoxLayout* centralLayout = nullptr;
+    ChatDock* chatDock = nullptr;
+    // QPointer: notify dies with the scroll viewport while dock signals can still fire in teardown.
+    QPointer<Notifications> notify;
+    CanvasTooltip* tooltip = nullptr;
+    QTimer* hoverTooltipTimer = nullptr;
+    QString hoverPendingKey;
+    QString hoverShownKey;
+    std::function<void()> hoverPendingReveal;
+    IncognitoOverlay* incognitoOverlay = nullptr;
+    DropZonesOverlay* dropZones = nullptr;
+    ProjectDragZones* projectZones = nullptr;
+    QLabel* status = nullptr;
+    QComboBox* zoom = nullptr;
+    SessionController session;
     // QPointer: QWidget::setGraphicsEffect DELETES the previous effect, so a re-install dangles.
-    QPointer<QGraphicsOpacityEffect> vScrollOpacity_;
-    QPointer<QGraphicsOpacityEffect> hScrollOpacity_;
-    QTimer* scrollbarHideTimer_ = nullptr;
-    bool scrollbarHovered_ = false;
+    QPointer<QGraphicsOpacityEffect> vScrollOpacity;
+    QPointer<QGraphicsOpacityEffect> hScrollOpacity;
+    QTimer* scrollbarHideTimer = nullptr;
+    bool scrollbarHovered = false;
     // Reentrancy flags, read by RemoteSyncController as const bool*.
-    bool remotePushing_ = false;
-    bool remoteReloading_ = false;
-    bool filterDirty_ = false;
+    bool remotePushing = false;
+    bool remoteReloading = false;
+    bool filterDirty = false;
 
-    ProjectNameBar nameBar_;
-    class QLabel* statusHint_ = nullptr;
-    QAction* statusHintAction_ = nullptr;
-    bool toolbarsShown_ = true;
+    ProjectNameBar nameBar;
+    class QLabel* statusHint = nullptr;
+    QAction* statusHintAction = nullptr;
+    bool toolbarsShown = true;
 
-    bool tearingDown_ = false;
+    bool tearingDown = false;
 
-    UnitsController units_;
-    QCheckBox* allowFormulas_ = nullptr;
-    QWidget* formulaGroup_ = nullptr;
-    QLineEdit* formulaX_ = nullptr;
-    QLineEdit* formulaY_ = nullptr;
-    QLabel* formulaError_ = nullptr;
+    UnitsController units;
+    QCheckBox* allowFormulas = nullptr;
+    QWidget* formulaGroup = nullptr;
+    QLineEdit* formulaX = nullptr;
+    QLineEdit* formulaY = nullptr;
+    QLabel* formulaError = nullptr;
     // Commits when typing settles, never per keystroke; browser twin settingsController.wireFormulaInputs, same delay.
-    QTimer* formulaCommitTimer_ = nullptr;
-    QWidgetAction* ctxAllowFormulasAct_ = nullptr;
-    QCheckBox* ctxAllowFormulas_ = nullptr;
-    QWidgetAction* ctxFormulaXAct_ = nullptr;
-    QWidgetAction* ctxFormulaYAct_ = nullptr;
-    QLineEdit* ctxFormulaX_ = nullptr;
-    QLineEdit* ctxFormulaY_ = nullptr;
+    QTimer* formulaCommitTimer = nullptr;
+    QWidgetAction* ctxAllowFormulasAct = nullptr;
+    QCheckBox* ctxAllowFormulas = nullptr;
+    QWidgetAction* ctxFormulaXAct = nullptr;
+    QWidgetAction* ctxFormulaYAct = nullptr;
+    QLineEdit* ctxFormulaX = nullptr;
+    QLineEdit* ctxFormulaY = nullptr;
 
     // Browser toolbar.js sections; these set canvas DEFAULTS only — selected-line editing is SelectionPanel's.
-    QToolButton* drawModeBtn_ = nullptr;
-    QToolButton* zoomFitBtn_ = nullptr;
-    QCheckBox* showPointsCheck_ = nullptr;
-    QCheckBox* showLinesCheck_ = nullptr;
-    QToolButton* startDrawBtn_ = nullptr;
-    QToolButton* lineColorBtn_ = nullptr;
-    QToolButton* pointColorBtn_ = nullptr;
-    QSpinBox* lineThickness_ = nullptr;
-    QSpinBox* pointSize_ = nullptr;
-    QComboBox* lineStyle_ = nullptr;
-    QComboBox* imageFilter_ = nullptr;
-    QComboBox* compareCombo_ = nullptr;
-    QToolButton* filterColorBtn_ = nullptr;
-    class QToolBar* styleToolbar_ = nullptr;
-    class QWidget* imageSection_ = nullptr;
-    QSet<class QAction*> dangerIcons_;
-    class QToolButton* openImageBtn_ = nullptr;
-    QColor lineColorValue_{"#FFFF00"}, filterColorValue_{DEFAULT_ACCENT_HEX};
+    QToolButton* drawModeBtn = nullptr;
+    QToolButton* zoomFitBtn = nullptr;
+    QCheckBox* showPointsCheck = nullptr;
+    QCheckBox* showLinesCheck = nullptr;
+    QToolButton* startDrawBtn = nullptr;
+    QToolButton* lineColorBtn = nullptr;
+    QToolButton* pointColorBtn = nullptr;
+    QSpinBox* lineThickness = nullptr;
+    QSpinBox* pointSize = nullptr;
+    QComboBox* lineStyle = nullptr;
+    QComboBox* imageFilter = nullptr;
+    QComboBox* compareCombo = nullptr;
+    QToolButton* filterColorBtn = nullptr;
+    class QToolBar* styleToolbar = nullptr;
+    class QWidget* imageSection = nullptr;
+    QSet<class QAction*> dangerIcons;
+    class QToolButton* openImageBtn = nullptr;
+    QColor lineColorValue{"#FFFF00"}, filterColorValue{DEFAULT_ACCENT_HEX};
 
-    QAction* actOpen_ = nullptr;
-    QAction* actOpenAnother_ = nullptr;
-    QAction* actCrop_ = nullptr;
-    QAction* actRotateLeft_ = nullptr;
-    QAction* actRotateRight_ = nullptr;
-    QAction* actCycleFilter_ = nullptr;
-    QAction* actCycleCompare_ = nullptr;
-    QAction* actStartDraw_ = nullptr;
-    QAction* actStopDraw_ = nullptr;
-    QAction* actNewLine_ = nullptr;
-    QAction* actUndo_ = nullptr;
-    QAction* actRedo_ = nullptr;
-    QAction* actDeleteLast_ = nullptr;
-    QAction* actDeleteLine_ = nullptr;
-    QAction* actDeletePoint_ = nullptr;
-    QAction* actClearAll_ = nullptr;
-    QAction* actDeselect_ = nullptr;
-    QAction* actZoomIn_ = nullptr;
-    QAction* actZoomOut_ = nullptr;
-    QAction* actFit_ = nullptr;
-    QAction* actShowPoints_ = nullptr;
-    QAction* actShowLines_ = nullptr;
-    QAction* actAllowFormulas_ = nullptr;
-    QAction* actTooltip_ = nullptr;
-    QAction* actTheme_ = nullptr;
-    QAction* actPanel_ = nullptr;
-    QAction* actToolbars_ = nullptr;
-    QAction* actFullscreen_ = nullptr;
-    class QToolButton* controlsPill_ = nullptr;
-    qreal pillChevronDeg_ = 0;
-    QVariantAnimation* pillSpinAnim_ = nullptr;
-    class QToolBar* headerToolbar_ = nullptr;
-    QWidget* settingsSection_ = nullptr;
-    QWidget* connectionsSection_ = nullptr;
-    class QToolButton* panelReopenBtn_ = nullptr;
-    class DockGripOverlay* panelGrip_ = nullptr;
-    bool panelGripDrag_ = false, showCovered_ = false;
-    // chatEdgeHit_ is the separator's real rect: the band paints thicker but lights only where Qt resizes.
-    class DockEdgeOverlay* chatEdge_ = nullptr;
-    QRect chatEdgeHit_;
-    bool chatEdgeDrag_ = false;
-    class QLabel* imageSizeInfo_ = nullptr;
-    QWidget* imageInfoBar_ = nullptr;
-    QWidget* imageInfoHost_ = nullptr;
-    class QDockWidget* imageInfoDock_ = nullptr;
-    QString imageInfoHeightKey_;
-    QWidget* dropHint_ = nullptr;
-    class QLabel* dropHintIcon_ = nullptr;
-    class QLabel* dropHintText_ = nullptr;
-    class QToolButton* logoBtn_ = nullptr;
-    QTimer* logoClickTimer_ = nullptr;
-    QAction* actAccent_ = nullptr;
-    bool altHeldForTest_ = false;
-    QWidget* logoFx_ = nullptr;
+    QAction* actOpen = nullptr;
+    QAction* actOpenAnother = nullptr;
+    QAction* actCrop = nullptr;
+    QAction* actRotateLeft = nullptr;
+    QAction* actRotateRight = nullptr;
+    QAction* actCycleFilter = nullptr;
+    QAction* actCycleCompare = nullptr;
+    QAction* actStartDraw = nullptr;
+    QAction* actStopDraw = nullptr;
+    QAction* actNewLine = nullptr;
+    QAction* actUndo = nullptr;
+    QAction* actRedo = nullptr;
+    QAction* actDeleteLast = nullptr;
+    QAction* actDeleteLine = nullptr;
+    QAction* actDeletePoint = nullptr;
+    QAction* actClearAll = nullptr;
+    QAction* actDeselect = nullptr;
+    QAction* actZoomIn = nullptr;
+    QAction* actZoomOut = nullptr;
+    QAction* actFit = nullptr;
+    QAction* actShowPoints = nullptr;
+    QAction* actShowLines = nullptr;
+    QAction* actAllowFormulas = nullptr;
+    QAction* actTooltip = nullptr;
+    QAction* actTheme = nullptr;
+    QAction* actPanel = nullptr;
+    QAction* actToolbars = nullptr;
+    QAction* actFullscreen = nullptr;
+    class QToolButton* controlsPill = nullptr;
+    qreal pillChevronDeg = 0;
+    QVariantAnimation* pillSpinAnim = nullptr;
+    class QToolBar* headerToolbar = nullptr;
+    QWidget* settingsSection = nullptr;
+    QWidget* connectionsSection = nullptr;
+    class QToolButton* panelReopenBtn = nullptr;
+    class DockGripOverlay* panelGrip = nullptr;
+    bool panelGripDrag = false, showCovered = false;
+    // chatEdgeHit is the separator's real rect: the band paints thicker but lights only where Qt resizes.
+    class DockEdgeOverlay* chatEdge = nullptr;
+    QRect chatEdgeHit;
+    bool chatEdgeDrag = false;
+    class QLabel* imageSizeInfo = nullptr;
+    QWidget* imageInfoBar = nullptr;
+    QWidget* imageInfoHost = nullptr;
+    class QDockWidget* imageInfoDock = nullptr;
+    QString imageInfoHeightKey;
+    QWidget* dropHint = nullptr;
+    class QLabel* dropHintIcon = nullptr;
+    class QLabel* dropHintText = nullptr;
+    class QToolButton* logoBtn = nullptr;
+    QTimer* logoClickTimer = nullptr;
+    QAction* actAccent = nullptr;
+    bool altHeldForTest = false;
+    QWidget* logoFx = nullptr;
 
-    PopoverHost pop_;
+    PopoverHost pop;
     int execMaybePopover(QDialog& dlg, QAction* opener = nullptr);
     void dismissPopover();
     // The popover is this window's child, so its frameGeometry() is not a screen rect.
     QRect popoverRectGlobal() const;
     bool handlePopoverPress(class QWidget* target, const QPoint& globalPos,
                             Qt::MouseButton button);
-    FullscreenController fs_;
-    bool themePainted_ = false;
-    bool paintedDark_ = false;
-    QString paintedAccent_;
-    QString accentPreviewSaved_;
-    bool accentPreviewActive_ = false;
-    bool blockedCursorOn_ = false;
-    QPointer<QWidget> blockedRow_;
+    FullscreenController fs;
+    bool themePainted = false;
+    bool paintedDark = false;
+    QString paintedAccent;
+    QString accentPreviewSaved;
+    bool accentPreviewActive = false;
+    bool blockedCursorOn = false;
+    QPointer<QWidget> blockedRow;
     void setBlockedCursor(bool on);
     // The wipe in flight; a second toggle is ignored. QPointer — it deleteLater()s itself.
-    QPointer<QWidget> themeWipe_;
-    bool themeSwapping() const { return !themeWipe_.isNull(); }
+    QPointer<QWidget> themeWipe;
+    bool themeSwapping() const { return !themeWipe.isNull(); }
 
     // FLIP out of / into the viewport box (js/ui/motion.js); the chosen zoom is preserved.
     void beginFullscreenZoom();
@@ -696,19 +696,19 @@ namespace stencil::gui {
     static constexpr int PANEL_DEFAULT_WIDTH = 405;
     // The coordinate columns elide below this; browser .coordinates-panel has the same floor.
     static constexpr int PANEL_MIN_WIDTH = 240;
-    int panelRestoreWidth_ = PANEL_DEFAULT_WIDTH;
-    QVariantAnimation* panelAnim_ = nullptr;
-    QVariantAnimation* chatAnim_ = nullptr;
-    int chatRestoreExtent_ = 0;
-    QSize chatNaturalMin_;
-    QPointer<QGraphicsOpacityEffect> chatVeil_;
-    QPointer<QGraphicsOpacityEffect> panelVeil_;
-    QString chatTextOnlyKey_;
-    bool chatClearPending_ = false;
+    int panelRestoreWidth = PANEL_DEFAULT_WIDTH;
+    QVariantAnimation* panelAnim = nullptr;
+    QVariantAnimation* chatAnim = nullptr;
+    int chatRestoreExtent = 0;
+    QSize chatNaturalMin;
+    QPointer<QGraphicsOpacityEffect> chatVeil;
+    QPointer<QGraphicsOpacityEffect> panelVeil;
+    QString chatTextOnlyKey;
+    bool chatClearPending = false;
     // Always through setChatCompactPopover: the dock must hear it too, or it stays undraggable.
-    bool chatCompactPopover_ = false;
+    bool chatCompactPopover = false;
     void setChatCompactPopover(bool on);
-    bool chatClosing_ = false;
+    bool chatClosing = false;
     struct MirrorRow {
       QString role;
       QString text;
@@ -716,134 +716,134 @@ namespace stencil::gui {
       QStringList notes;
       bool muted = false;
     };
-    QVector<MirrorRow> chatMirrorLog_;
-    Qt::DockWidgetArea chatCompactPrevArea_ = Qt::LeftDockWidgetArea;
-    QRect chatFloatRect_;
+    QVector<MirrorRow> chatMirrorLog;
+    Qt::DockWidgetArea chatCompactPrevArea = Qt::LeftDockWidgetArea;
+    QRect chatFloatRect;
     // Browser FLOAT_DEFAULT, ported to this window's top-left; clamped to its own screen.
     QRect defaultChatFloatRect() const;
     bool chatCompactShowing() const;
-    QVariantAnimation* barsAnim_ = nullptr;
-    QAction* actSettings_ = nullptr;
-    QAction* actProjects_ = nullptr;
-    QAction* actConnect_ = nullptr;
-    QAction* actLinks_ = nullptr;
-    QAction* actDescription_ = nullptr;
-    QAction* actKeywords_ = nullptr;
-    QAction* actNewProject_ = nullptr;
-    QAction* actSaveProject_ = nullptr;
-    QAction* actClearProject_ = nullptr;
-    QAction* actRenameProject_ = nullptr;
-    QAction* actProjectColor_ = nullptr;
-    QAction* actProjectColorClear_ = nullptr;
-    QAction* actSaveSession_ = nullptr;
-    QAction* actInfo_ = nullptr;
-    QAction* actIncognito_ = nullptr;
-    QAction* actShortcuts_ = nullptr;
-    QAction* actContextMenu_ = nullptr;
-    QAction* actOpenIn_ = nullptr;
-    QAction* actChat_ = nullptr;
-    QAction* actAssistantSettings_ = nullptr;
-    QAction* actQuit_ = nullptr;
+    QVariantAnimation* barsAnim = nullptr;
+    QAction* actSettings = nullptr;
+    QAction* actProjects = nullptr;
+    QAction* actConnect = nullptr;
+    QAction* actLinks = nullptr;
+    QAction* actDescription = nullptr;
+    QAction* actKeywords = nullptr;
+    QAction* actNewProject = nullptr;
+    QAction* actSaveProject = nullptr;
+    QAction* actClearProject = nullptr;
+    QAction* actRenameProject = nullptr;
+    QAction* actProjectColor = nullptr;
+    QAction* actProjectColorClear = nullptr;
+    QAction* actSaveSession = nullptr;
+    QAction* actInfo = nullptr;
+    QAction* actIncognito = nullptr;
+    QAction* actShortcuts = nullptr;
+    QAction* actContextMenu = nullptr;
+    QAction* actOpenIn = nullptr;
+    QAction* actChat = nullptr;
+    QAction* actAssistantSettings = nullptr;
+    QAction* actQuit = nullptr;
 
     // Browser toolbar.js Image/Layout buttons and the paste listener.
-    QAction* actDownloadJson_ = nullptr;
-    QAction* actUploadJson_ = nullptr;
-    QAction* actScript_ = nullptr;
-    QAction* actSaveProjectFile_ = nullptr;
-    QAction* actOpenProjectFile_ = nullptr;
-    QAction* actDeleteProjectFile_ = nullptr;
-    QAction* actCopyLayout_ = nullptr;
-    QAction* actPasteLayout_ = nullptr;
+    QAction* actDownloadJson = nullptr;
+    QAction* actUploadJson = nullptr;
+    QAction* actScript = nullptr;
+    QAction* actSaveProjectFile = nullptr;
+    QAction* actOpenProjectFile = nullptr;
+    QAction* actDeleteProjectFile = nullptr;
+    QAction* actCopyLayout = nullptr;
+    QAction* actPasteLayout = nullptr;
     // Only ONE of a pair holds the real shortcut at a time — Qt disallows ambiguous shortcuts.
-    QAction* actSaveImage_ = nullptr;
-    QAction* actSaveImageSplit_ = nullptr;
-    QAction* actSaveImageOriginal_ = nullptr;
-    QAction* actSaveImageTint_ = nullptr;
-    QAction* actCopyImage_ = nullptr;
-    QAction* actCopyImageSplit_ = nullptr;
-    QAction* actCopyImageOriginal_ = nullptr;
-    QAction* actCopyImageTint_ = nullptr;
-    QAction* actSaveImageCurrentRow_ = nullptr;
-    QAction* actCopyImageCurrentRow_ = nullptr;
-    QAction* actShareImage_ = nullptr;
-    QAction* actPasteImage_ = nullptr;
-    QMenu* copyImageOptionsMenu_ = nullptr;
-    QMenu* saveImageOptionsMenu_ = nullptr;
+    QAction* actSaveImage = nullptr;
+    QAction* actSaveImageSplit = nullptr;
+    QAction* actSaveImageOriginal = nullptr;
+    QAction* actSaveImageTint = nullptr;
+    QAction* actCopyImage = nullptr;
+    QAction* actCopyImageSplit = nullptr;
+    QAction* actCopyImageOriginal = nullptr;
+    QAction* actCopyImageTint = nullptr;
+    QAction* actSaveImageCurrentRow = nullptr;
+    QAction* actCopyImageCurrentRow = nullptr;
+    QAction* actShareImage = nullptr;
+    QAction* actPasteImage = nullptr;
+    QMenu* copyImageOptionsMenu = nullptr;
+    QMenu* saveImageOptionsMenu = nullptr;
 
     // Browser js/ui/contextMenu.js; owned by `this` and reused on every right-click.
 
-    QAction* actDrawLineNow_ = nullptr;
-    QAction* actDrawRectNow_ = nullptr;
+    QAction* actDrawLineNow = nullptr;
+    QAction* actDrawRectNow = nullptr;
 
-    QActionGroup* lineStyleGroup_ = nullptr;
-    QAction* actStyleSolid_ = nullptr;
-    QAction* actStyleDashed_ = nullptr;
-    QAction* actStyleDotted_ = nullptr;
-    QWidgetAction* pointSizeAction_ = nullptr;
-    QWidgetAction* thicknessAction_ = nullptr;
-    QSpinBox* pointSpin_ = nullptr;
-    QSpinBox* thickSpin_ = nullptr;
+    QActionGroup* lineStyleGroup = nullptr;
+    QAction* actStyleSolid = nullptr;
+    QAction* actStyleDashed = nullptr;
+    QAction* actStyleDotted = nullptr;
+    QWidgetAction* pointSizeAction = nullptr;
+    QWidgetAction* thicknessAction = nullptr;
+    QSpinBox* pointSpin = nullptr;
+    QSpinBox* thickSpin = nullptr;
 
     // Plain muted text, NOT QMenu::addSection(): that QAction isSeparator(), so the QSS paints a line.
-    QWidgetAction* secImageAct_ = nullptr;
-    QWidgetAction* secLayoutJsonAct_ = nullptr;
-    QWidgetAction* secLineStyleAct_ = nullptr;
-    QWidgetAction* secFilterAct_ = nullptr;
-    QWidgetAction* secCoordFormulasAct_ = nullptr;
-    QWidgetAction* secShowInTooltipAct_ = nullptr;
+    QWidgetAction* secImageAct = nullptr;
+    QWidgetAction* secLayoutJsonAct = nullptr;
+    QWidgetAction* secLineStyleAct = nullptr;
+    QWidgetAction* secFilterAct = nullptr;
+    QWidgetAction* secCoordFormulasAct = nullptr;
+    QWidgetAction* secShowInTooltipAct = nullptr;
 
     // Hosted radios in an exclusive QButtonGroup keep the menu open, like the browser's inline radios.
-    QButtonGroup* filterButtons_ = nullptr;
-    QActionGroup* compareGroup_ = nullptr;
-    QWidgetAction* actFilterNone_ = nullptr;
-    QWidgetAction* actFilterBW_ = nullptr;
-    QWidgetAction* actFilterSepia_ = nullptr;
-    QWidgetAction* actFilterInvert_ = nullptr;
-    QWidgetAction* actFilterContour_ = nullptr;
-    QWidgetAction* actFilterCustom_ = nullptr;
-    QAction* tintColorAction_ = nullptr;
+    QButtonGroup* filterButtons = nullptr;
+    QActionGroup* compareGroup = nullptr;
+    QWidgetAction* actFilterNone = nullptr;
+    QWidgetAction* actFilterBW = nullptr;
+    QWidgetAction* actFilterSepia = nullptr;
+    QWidgetAction* actFilterInvert = nullptr;
+    QWidgetAction* actFilterContour = nullptr;
+    QWidgetAction* actFilterCustom = nullptr;
+    QAction* tintColorAction = nullptr;
 
     // Real QCheckBoxes in QWidgetActions, so a click flips them WITHOUT closing the menu.
-    QWidgetAction* actTooltipEnable_ = nullptr;
-    QCheckBox* tooltipEnableCheck_ = nullptr;
-    QWidgetAction* actTtPage_ = nullptr;
-    QWidgetAction* actTtScreen_ = nullptr;
-    QWidgetAction* actTtCoords_ = nullptr;
-    QCheckBox* ttPageCheck_ = nullptr;
-    QCheckBox* ttScreenCheck_ = nullptr;
-    QCheckBox* ttCoordsCheck_ = nullptr;
+    QWidgetAction* actTooltipEnable = nullptr;
+    QCheckBox* tooltipEnableCheck = nullptr;
+    QWidgetAction* actTtPage = nullptr;
+    QWidgetAction* actTtScreen = nullptr;
+    QWidgetAction* actTtCoords = nullptr;
+    QCheckBox* ttPageCheck = nullptr;
+    QCheckBox* ttScreenCheck = nullptr;
+    QCheckBox* ttCoordsCheck = nullptr;
 
-    QHash<QString, QString> hotkeys_;
-    QHash<QString, QString> hotkeyDefaults_;
-    QHash<QString, QString> hotkeyLabels_;
-    QStringList hotkeyOrder_;
-    QHash<QString, QAction*> hotkeyActions_;
+    QHash<QString, QString> hotkeys;
+    QHash<QString, QString> hotkeyDefaults;
+    QHash<QString, QString> hotkeyLabels;
+    QStringList hotkeyOrder;
+    QHash<QString, QAction*> hotkeyActions;
 
-    Settings settings_;
-    core::ProjectsStore projectsStore_;
-    std::vector<Project> projectList_;
-    QString activeProjectId_;
-    stencil::net::ConnectionManager* connections_ = nullptr;
-    RemoteSession* remoteSession_ = nullptr;
-    QString currentSource_;
-    QString currentResource_;
+    Settings settings;
+    core::ProjectsStore projectsStore;
+    std::vector<Project> projectList;
+    QString activeProjectId;
+    stencil::net::ConnectionManager* connections = nullptr;
+    RemoteSession* remoteSession = nullptr;
+    QString currentSource;
+    QString currentResource;
 
-    QByteArray sourceBytes_;
-    QString sourceExt_;
+    QByteArray sourceBytes;
+    QString sourceExt;
     void setSourceBytes(const QByteArray& bytes, const QString& ext);
     void retainSourceFromFile(const QString& path);
 
-    QString stencilLink_;
-    QByteArray stencilBaseline_;
-    bool stencilLiveSync_ = false;
-    bool stencilApplying_ = false;
-    QFileSystemWatcher* stencilWatcher_ = nullptr;
-    QTimer* stencilAutosaveTimer_ = nullptr;
-    QAction* actStencilLiveSync_ = nullptr;
-    QString blankColor_;
-    QString pendingProvSource_;
-    QString pendingProvResource_;
-    QString pendingServerTarget_;
+    QString stencilLink;
+    QByteArray stencilBaseline;
+    bool stencilLiveSync = false;
+    bool stencilApplying = false;
+    QFileSystemWatcher* stencilWatcher = nullptr;
+    QTimer* stencilAutosaveTimer = nullptr;
+    QAction* actStencilLiveSync = nullptr;
+    QString blankColor;
+    QString pendingProvSource;
+    QString pendingProvResource;
+    QString pendingServerTarget;
     struct QuickCropOpts {
       enum class Mode { AUTO, PAGE, NONE };
       Mode mode = Mode::AUTO;
@@ -853,58 +853,58 @@ namespace stencil::gui {
       // means none was dragged, and the page-aspect crop is centred as it always was.
       core::CropRect rect;
     };
-    QuickCropOpts pendingCrop_;
-    bool incognito_ = false;
+    QuickCropOpts pendingCrop;
+    bool incognito = false;
     // NaN until the cursor really hovers the canvas; the refreshers replay onHovered with these.
-    double lastHoverX_ = std::numeric_limits<double>::quiet_NaN();
-    double lastHoverY_ = std::numeric_limits<double>::quiet_NaN();
-    QColor iconColor_{Qt::black};
-    bool firstShow_ = true;
+    double lastHoverX = std::numeric_limits<double>::quiet_NaN();
+    double lastHoverY = std::numeric_limits<double>::quiet_NaN();
+    QColor iconColor{Qt::black};
+    bool firstShow = true;
 
-    stencil::llm::QtLlmTransport* llmTransport_ = nullptr;
-    std::unique_ptr<stencil::llm::LlmClient> llmClient_;
+    stencil::llm::QtLlmTransport* llmTransport = nullptr;
+    std::unique_ptr<stencil::llm::LlmClient> llmClient;
     // Short-TTL probe cache (browser chatSession cacheProbe), keyed by the effective settings.
-    QString llmProbeKey_;
-    qint64 llmProbeAt_ = 0;
-    stencil::llm::LlmProbeResult llmProbeCache_;
-    QString chatLastPrompt_;
-    QVector<stencil::llm::ChatMessage> chatHistory_;
-    QList<QImage> chatTurnAttachments_;
-    QStringList chatTurnAttachmentNames_;
-    int chatActiveAttachment_ = 0;
-    QString chatVideoPath_;
-    int chatVideoFrames_ = 0;
-    MediaLoader* chatMedia_ = nullptr;
-    QByteArray chatImageDigest_;
-    stencil::llm::ChatImage chatImageEncoded_;
-    stencil::llm::ChatImage chatEdgeMapEncoded_;
-    QWidget* chatToast_ = nullptr;
+    QString llmProbeKey;
+    qint64 llmProbeAt = 0;
+    stencil::llm::LlmProbeResult llmProbeCache;
+    QString chatLastPrompt;
+    QVector<stencil::llm::ChatMessage> chatHistory;
+    QList<QImage> chatTurnAttachments;
+    QStringList chatTurnAttachmentNames;
+    int chatActiveAttachment = 0;
+    QString chatVideoPath;
+    int chatVideoFrames = 0;
+    MediaLoader* chatMedia = nullptr;
+    QByteArray chatImageDigest;
+    stencil::llm::ChatImage chatImageEncoded;
+    stencil::llm::ChatImage chatEdgeMapEncoded;
+    QWidget* chatToast = nullptr;
     // The ACTION is parented to the window, not the menu, so it outlives the per-right-click rebuild.
-    QWidgetAction* chatMenuAction_ = nullptr;
-    QWidget* chatMenuPanel_ = nullptr;
-    QWidget* chatMenuInput_ = nullptr;
-    QWidgetAction* scriptMenuAction_ = nullptr;   // the script flyout, same arrangement
-    QWidget* scriptMenuPanel_ = nullptr;
-    QWidget* scriptMenuEditor_ = nullptr;
-    QPoint contextMenuAt_;            // where the last canvas menu was raised
-    bool reopenScriptFlyout_ = false; // …and whether to land on the script row this time
-    QWidget* dockZones_ = nullptr;
-    bool chatStopRequested_ = false;
-    bool chatContinued_ = false;
-    bool chatReplyHeld_ = false;
-    QString chatHeldReply_;
-    QStringList chatHeldWarnings_;
-    QStringList chatHeldNotes_;
+    QWidgetAction* chatMenuAction = nullptr;
+    QWidget* chatMenuPanel = nullptr;
+    QWidget* chatMenuInput = nullptr;
+    QWidgetAction* scriptMenuAction = nullptr;   // the script flyout, same arrangement
+    QWidget* scriptMenuPanel = nullptr;
+    QWidget* scriptMenuEditor = nullptr;
+    QPoint contextMenuAt;            // where the last canvas menu was raised
+    bool reopenScriptFlyoutPending = false; // …and whether to land on the script row this time
+    QWidget* dockZones = nullptr;
+    bool chatStopRequested = false;
+    bool chatContinued = false;
+    bool chatReplyHeld = false;
+    QString chatHeldReply;
+    QStringList chatHeldWarnings;
+    QStringList chatHeldNotes;
 
-    MediaLoader* mediaLoader_ = nullptr;
-    std::unique_ptr<DataExportController> dataExport_;
-    std::unique_ptr<RemoteSyncController> remoteSync_;
-    std::unique_ptr<ProjectTransferController> projectTransfer_;
-    QString pendingLaunchLayout_;
-    QString pendingLaunchLayoutJson_;
+    MediaLoader* mediaLoader = nullptr;
+    std::unique_ptr<DataExportController> dataExport;
+    std::unique_ptr<RemoteSyncController> remoteSync;
+    std::unique_ptr<ProjectTransferController> projectTransfer;
+    QString pendingLaunchLayout;
+    QString pendingLaunchLayoutJson;
 
     // Last setAsDockMenu wins; owned by the app, not any window, so a closing window never dangles it.
-    static QMenu* sDockMenu_;
+    static QMenu* sDockMenu;
   };
 
 }

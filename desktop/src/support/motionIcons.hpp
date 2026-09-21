@@ -64,10 +64,10 @@ namespace stencil::support {
     bool eventFilter(QObject* watched, QEvent* e) override;
 
    private:
-    QAbstractItemView* view_;
-    int hoverRow_ = -1;
-    QElapsedTimer clock_;
-    QTimer tick_;
+    QAbstractItemView* view;
+    int hoverRow = -1;
+    QElapsedTimer clock;
+    QTimer tick;
   };
 
   // The combo FACE's glyph: once when the value changes (browser .mm-play) and on hover.
@@ -83,10 +83,10 @@ namespace stencil::support {
 
    private:
     void frame();
-    QComboBox* combo_;
-    QColor inked_;      // the ink the rows' glyphs were last drawn in
-    QElapsedTimer clock_;
-    QTimer tick_;
+    QComboBox* combo;
+    QColor inked;      // the ink the rows' glyphs were last drawn in
+    QElapsedTimer clock;
+    QTimer tick;
   };
 
 }  // namespace stencil::support

@@ -15,21 +15,21 @@ namespace stencil::gui {
    public:
     explicit WrapRow(QWidget* parent) : QWidget(parent) {
       setObjectName("toolWrapRow");
-      flow_ = new FlowLayout(this, 0, 6, 4);
+      flow = new FlowLayout(this, 0, 6, 4);
       setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     }
-    FlowLayout* flow() const { return flow_; }
-    void add(QWidget* w) { flow_->addWidget(w); }
+    FlowLayout* getFlow() const { return flow; }
+    void add(QWidget* w) { flow->addWidget(w); }
     // A hidden row gets no resize, so its pinned height is stale until asked.
     void remeasure() { sync(); }
 
     // Both hints are the WRAPPED height: the stacked first-pass hint becomes the bar's
     // minimum, and the window never gives that height back.
     bool hasHeightForWidth() const override { return true; }
-    int heightForWidth(int w) const override { return flow_->heightForWidth(w); }
+    int heightForWidth(int w) const override { return flow->heightForWidth(w); }
     QSize sizeHint() const override {
       const int w = measureWidth();
-      return w > 0 ? QSize(flow_->minimumSize().width(), flow_->heightForWidth(w))
+      return w > 0 ? QSize(flow->minimumSize().width(), flow->heightForWidth(w))
                    : QWidget::sizeHint();
     }
     QSize minimumSizeHint() const override { return sizeHint(); }
@@ -55,10 +55,10 @@ namespace stencil::gui {
     void sync() {
       const int w = measureWidth();
       if (w <= 0) return;
-      const int h = flow_->heightForWidth(w);
+      const int h = flow->heightForWidth(w);
       if (h > 0 && h != height()) setFixedHeight(h);
     }
-    FlowLayout* flow_ = nullptr;
+    FlowLayout* flow = nullptr;
   };
 
   // Browser .ctrl-sep align-self: stretch — a wrapped line's height is only known after placement.

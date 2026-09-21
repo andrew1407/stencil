@@ -44,7 +44,7 @@ class MainWindowGuiTest : public QObject {
       for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
         if (c->isVisible() && c->text().isEmpty()) { crop = c; break; }
       if (!crop) { dlg->reject(); return; }
-      QLabel* dims = dlg->cropDims_;
+      QLabel* dims = dlg->cropDims;
       int last = dlg->height();
       crop->setChecked(true);
       for (int i = 0; i < 14; ++i) {
@@ -102,7 +102,7 @@ class MainWindowGuiTest : public QObject {
       for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
         if (c->isVisible() && c->text().isEmpty()) { crop = c; break; }
       if (!crop) { dlg->reject(); return; }
-      QLabel* dims = dlg->cropDims_;
+      QLabel* dims = dlg->cropDims;
       QWidget* host = dims->parentWidget();
       crop->setChecked(true);
       settle([] { return false; }, 120);
@@ -197,7 +197,7 @@ class MainWindowGuiTest : public QObject {
       for (QCheckBox* c : dlg->findChildren<QCheckBox*>())
         if (c->isVisible() && c->text().isEmpty()) { crop = c; break; }
       if (!crop) { dlg->reject(); return; }
-      QLabel* dims = dlg->cropDims_;
+      QLabel* dims = dlg->cropDims;
       before = dlg->height();
       crop->setChecked(true);
       for (int i = 0; i < 12; ++i) { settle([] { return false; }, 50); inward << dims->height(); }

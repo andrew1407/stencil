@@ -47,7 +47,7 @@ namespace stencil::gui {
   OpenImageDialog::OpenImageDialog(QWidget* parent, bool canReplace,
                                    int blankW, int blankH, bool startBlank,
                                    const QString& pageSeed)
-      : QDialog(parent), pageSeed_(pageSeed), canReplace_(canReplace) {
+      : QDialog(parent), pageSeed(pageSeed), canReplace(canReplace) {
     setWindowTitle("Open Image");
     // The browser's shared modal width; the four-button footer a replaceable project
     // adds paints tighter than the layout's minimum reports, so it gets more room.
@@ -58,8 +58,8 @@ namespace stencil::gui {
     // A crop stage over a tall picture outgrows the screen, so the body SCROLLS rather
     // than the window running off the bottom (the browser's .app-modal does the same).
     ModalScrollBody body = makeModalScrollBody(chrome, /*topPad=*/0);
-    size_.bodyScroll = body.scroll;
-    size_.bodyContent = body.content;   // a QScrollArea's own sizeHint is a fixed default, so
+    size.bodyScroll = body.scroll;
+    size.bodyContent = body.content;   // a QScrollArea's own sizeHint is a fixed default, so
     QVBoxLayout* layout = body.layout;
 
 
@@ -68,41 +68,41 @@ namespace stencil::gui {
     buildCropRows(layout);
 
     // Applies to a file/URL open; hidden on the Blank tab (never honored there).
-    incogRow_ = vsRow(this, tr("Incognito"),
-                      checkCaptionRow(this, incognito_,
+    incogRow = vsRow(this, tr("Incognito"),
+                      checkCaptionRow(this, incognito,
                                       tr("Edit without saving — the image is never "
                                          "written to storage.")));
-    incogRow_->setObjectName(QStringLiteral("oiNoDivider"));
-    layout->addWidget(incogRow_);
+    incogRow->setObjectName(QStringLiteral("oiNoDivider"));
+    layout->addWidget(incogRow);
     // Incognito never offers a server target (browser: fillTargetSelect(!incog)).
-    connect(incognito_, &QCheckBox::toggled, this, &OpenImageDialog::refreshTargetRow);
+    connect(incognito, &QCheckBox::toggled, this, &OpenImageDialog::refreshTargetRow);
 
     // Save target (browser #open-image-target-row): only shown when at least one server
     // is connected — setServerTargets fills it.
-    target_ = new SearchComboBox(this, /*searchable=*/false);
-    target_->setObjectName(QStringLiteral("openImageTarget"));
-    target_->setToolTip("Open here locally or create on a connected server");
-    targetRow_ = vsRow(this, tr("Save to"), target_);
-    targetRow_->setVisible(false);
-    layout->addWidget(targetRow_);
+    target = new SearchComboBox(this, /*searchable=*/false);
+    target->setObjectName(QStringLiteral("openImageTarget"));
+    target->setToolTip("Open here locally or create on a connected server");
+    targetRow = vsRow(this, tr("Save to"), target);
+    targetRow->setVisible(false);
+    layout->addWidget(targetRow);
 
     // Replace options: only shown on the Local file tab over a replaceable project.
     // The two checks stack (browser .oi-replace wraps them onto their own lines).
-    act_.replaceRow = new QWidget(this);
-    if (canReplace_) {
-      rename_ = new QCheckBox("Rename project to the new image", this);
-      keep_ = new QCheckBox("Keep existing annotations", this);
-      keep_->setChecked(true);
+    act.replaceRow = new QWidget(this);
+    if (this->canReplace) {
+      rename = new QCheckBox("Rename project to the new image", this);
+      keep = new QCheckBox("Keep existing annotations", this);
+      keep->setChecked(true);
       auto* checks = new QVBoxLayout;
       checks->setContentsMargins(0, 0, 0, 0);
       checks->setSpacing(7);
-      checks->addWidget(rename_);
-      checks->addWidget(keep_);
-      auto* wrap = new QVBoxLayout(act_.replaceRow);
+      checks->addWidget(rename);
+      checks->addWidget(keep);
+      auto* wrap = new QVBoxLayout(act.replaceRow);
       wrap->setContentsMargins(0, 0, 0, 0);
-      wrap->addWidget(vsRow(act_.replaceRow, tr("Replace"), checks));
+      wrap->addWidget(vsRow(act.replaceRow, tr("Replace"), checks));
     }
-    layout->addWidget(act_.replaceRow);
+    layout->addWidget(act.replaceRow);
     // Slack at the BOTTOM (browser: rows stack at the top of the body) — mid-body it
     // split the URL row from the Incognito row with a band of empty space.
     layout->addStretch(1);
@@ -114,87 +114,87 @@ namespace stencil::gui {
     makeModalCta(cancel, "x");
     cancel->setToolTip("Close without opening an image");
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
-    act_.here = new QPushButton("Open here", this);
-    makeModalCta(act_.here, "image");
-    connect(act_.here, &QPushButton::clicked, this, [this] { outcome_ = Outcome::HERE; accept(); });
-    act_.newWindow = new QPushButton("Open in new window", this);
-    makeModalCta(act_.newWindow, "external");
-    connect(act_.newWindow, &QPushButton::clicked, this, [this] { outcome_ = Outcome::NEW_WINDOW; accept(); });
-    act_.createBlank = new QPushButton("Create blank", this);
-    makeModalCta(act_.createBlank, "image");   // browser #blank-image-create
-    connect(act_.createBlank, &QPushButton::clicked, this, [this] { outcome_ = Outcome::BLANK; accept(); });
+    act.here = new QPushButton("Open here", this);
+    makeModalCta(act.here, "image");
+    connect(act.here, &QPushButton::clicked, this, [this] { outcome = Outcome::HERE; accept(); });
+    act.newWindow = new QPushButton("Open in new window", this);
+    makeModalCta(act.newWindow, "external");
+    connect(act.newWindow, &QPushButton::clicked, this, [this] { outcome = Outcome::NEW_WINDOW; accept(); });
+    act.createBlank = new QPushButton("Create blank", this);
+    makeModalCta(act.createBlank, "image");   // browser #blank-image-create
+    connect(act.createBlank, &QPushButton::clicked, this, [this] { outcome = Outcome::BLANK; accept(); });
     btnRow->addWidget(cancel);
-    if (canReplace_) {
-      act_.replace = new QPushButton("Replace image", this);
-      makeModalCta(act_.replace, "refresh");
-      connect(act_.replace, &QPushButton::clicked, this, [this] { outcome_ = Outcome::REPLACE; accept(); });
-      btnRow->addWidget(act_.replace);
+    if (this->canReplace) {
+      act.replace = new QPushButton("Replace image", this);
+      makeModalCta(act.replace, "refresh");
+      connect(act.replace, &QPushButton::clicked, this, [this] { outcome = Outcome::REPLACE; accept(); });
+      btnRow->addWidget(act.replace);
     }
-    btnRow->addWidget(act_.here);
-    btnRow->addWidget(act_.newWindow);
-    btnRow->addWidget(act_.createBlank);
+    btnRow->addWidget(act.here);
+    btnRow->addWidget(act.newWindow);
+    btnRow->addWidget(act.createBlank);
 
     // Preview wiring (mirrors LinksDialog)
-    preview_ = new MediaLoader(this);
-    connect(preview_, &MediaLoader::loaded, this,
+    preview = new MediaLoader(this);
+    connect(preview, &MediaLoader::loaded, this,
             [this](const QImage& img, const QString&) {
-              previewIsVideo_ = preview_->isVideoSource();
-              if (previewIsVideo_) {
-                frameImage_ = img;
-                scrub_.fps = preview_->frameRate() > 0 ? preview_->frameRate() : 30.0;
-                scrub_.durationMs = preview_->durationMs();
-                frameRow_->setVisible(true);
+              previewIsVideo = preview->isVideoSource();
+              if (previewIsVideo) {
+                frameImage = img;
+                scrub.fps = preview->frameRate() > 0 ? preview->frameRate() : 30.0;
+                scrub.durationMs = preview->getDurationMs();
+                frameRow->setVisible(true);
                 applyFrameBounds();  // size the slider / spin box to this video
                 updateVideoPreview();
-                showQuickcrop(frameImage_.width(), frameImage_.height());
+                showQuickcrop(frameImage.width(), frameImage.height());
                 // Load the video ONCE into a persistent player for live scrubbing
                 // (re-streaming per frame, as the detector does, never seeks reliably).
-                setupScrubPlayer(preview_->resolvedUrl());
+                setupScrubPlayer(preview->resolvedUrl());
               } else {
                 teardownScrubPlayer();
-                frameImage_ = QImage();
-                frameRow_->setVisible(false);
+                frameImage = QImage();
+                frameRow->setVisible(false);
                 showPreview(img, QString());   // no size line; the browser has none
                 showQuickcrop(img.width(), img.height());
               }
             });
-    connect(preview_, &MediaLoader::failed, this, [this](const QString& msg) {
+    connect(preview, &MediaLoader::failed, this, [this](const QString& msg) {
       teardownScrubPlayer();
-      previewImage_ = QImage();
-      frameImage_ = QImage();
-      previewIsVideo_ = false;
+      previewImage = QImage();
+      frameImage = QImage();
+      previewIsVideo = false;
       clearPreviewImage();
-      frameRow_->setVisible(false);
-      quickcropRow_->setVisible(false);
+      frameRow->setVisible(false);
+      quickcropRow->setVisible(false);
       setHint("Could not load that source — " + msg);
     });
 
     // Debounce seeks lightly so a fast drag coalesces into the latest position.
-    fetchTimer_ = new QTimer(this);
-    fetchTimer_->setSingleShot(true);
-    fetchTimer_->setInterval(80);
-    connect(fetchTimer_, &QTimer::timeout, this, [this] {
-      if (previewIsVideo_) seekScrub(frame_->value());
+    fetchTimer = new QTimer(this);
+    fetchTimer->setSingleShot(true);
+    fetchTimer->setInterval(80);
+    connect(fetchTimer, &QTimer::timeout, this, [this] {
+      if (previewIsVideo) seekScrub(frame->value());
     });
     // Slider ↔ spin box stay mirrored; either changing schedules a debounced seek.
-    connect(frameSlider_, &QSlider::valueChanged, this, [this](int v) { setFrame(v); });
-    connect(frame_, QOverload<int>::of(&QSpinBox::valueChanged), this,
+    connect(frameSlider, &QSlider::valueChanged, this, [this](int v) { setFrame(v); });
+    connect(frame, QOverload<int>::of(&QSpinBox::valueChanged), this,
             [this](int v) { setFrame(v); });
-    connect(frameSlider_, &QSlider::sliderReleased, this, [this] {
-      fetchTimer_->stop();
-      if (previewIsVideo_) seekScrub(frame_->value());
+    connect(frameSlider, &QSlider::sliderReleased, this, [this] {
+      fetchTimer->stop();
+      if (previewIsVideo) seekScrub(frame->value());
     });
     // A URL edit keeps the picture on screen while the text is corrected - it only stops counting as
     // THIS url's preview, and opening re-resolves the typed url. Enter previews it again.
-    connect(url_, &QLineEdit::textEdited, this, [this] {
-      if (source() != previewedSource_) stalePreview();
+    connect(url, &QLineEdit::textEdited, this, [this] {
+      if (source() != previewedSource) stalePreview();
       refreshButtons();
     });
-    url_->installEventFilter(this);
-    connect(tabs_, &QTabWidget::currentChanged, this, [this] { applyMode(); });
-    tabs_->setCurrentIndex(startBlank ? TabBlank : TabFile);
+    url->installEventFilter(this);
+    connect(tabs, &QTabWidget::currentChanged, this, [this] { applyMode(); });
+    tabs->setCurrentIndex(startBlank ? TabBlank : TabFile);
     applyMode();
-    constructed_ = true;   // tab switches from here on are USER switches — they fade
+    constructed = true;   // tab switches from here on are USER switches — they fade
   }
 }
 

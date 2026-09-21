@@ -21,84 +21,84 @@
 namespace stencil::gui {
 
   void LlmSettingsForm::buildProviderRows(const Settings& current) {
-    if (mode_ == RowMode::HIDE_ROWS)
-      form_->addRow(modalSectionLabel(QStringLiteral("Provider"), this));
+    if (mode == RowMode::HIDE_ROWS)
+      form->addRow(modalSectionLabel(QStringLiteral("Provider"), this));
 
     // Labels come from the providers.json canon; "none" is the local-only assistant-off value (contract §5 note).
-    provider_ = new SearchComboBox(this, /*searchable=*/false);
-    provider_->setObjectName("llmProvider");
-    provider_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-    provider_->addItem("None (turned off)", "none");
+    provider = new SearchComboBox(this, /*searchable=*/false);
+    provider->setObjectName("llmProvider");
+    provider->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    provider->addItem("None (turned off)", "none");
     for (const char* id : {"ollama", "openai-compat", "stencil-server"})
-      provider_->addItem(stencil::llm::llmProviderDisplayName(id), id);
+      provider->addItem(stencil::llm::llmProviderDisplayName(id), id);
     {
       // Unknown values fall back to "None" (the contract default — llmSettings.hpp).
-      const int idx = provider_->findData(current.llmProvider);
-      provider_->setCurrentIndex(idx >= 0 ? idx : provider_->findData("none"));
+      const int idx = provider->findData(current.llmProvider);
+      provider->setCurrentIndex(idx >= 0 ? idx : provider->findData("none"));
     }
-    provider_->setToolTip(
+    provider->setToolTip(
         "Where the chat assistant runs: a local Ollama, any OpenAI-compatible "
         "server, or a Stencil collaboration server");
-    form_->addRow("Provider", provider_);
-    hugRight(provider_);
+    form->addRow("Provider", provider);
+    hugRight(provider);
     rowDivider();
 
-    baseUrl_ = new QLineEdit(current.llmBaseUrl, this);
-    baseUrl_->setObjectName("llmBaseUrl");
-    baseUrl_->setPlaceholderText(stencil::llm::defaultLlmBaseUrl("ollama"));
-    baseUrl_->setToolTip(
+    baseUrl = new QLineEdit(current.llmBaseUrl, this);
+    baseUrl->setObjectName("llmBaseUrl");
+    baseUrl->setPlaceholderText(stencil::llm::defaultLlmBaseUrl("ollama"));
+    baseUrl->setToolTip(
         QStringLiteral("Provider base URL (Ollama default %1; "
                        "OpenAI-compatible default %2)")
             .arg(stencil::llm::defaultLlmBaseUrl("ollama"),
                  stencil::llm::defaultLlmBaseUrl("openai-compat")));
-    form_->addRow("Base URL", baseUrl_);
-    hugRight(baseUrl_);
-    baseUrlDiv_ = rowDivider();
+    form->addRow("Base URL", baseUrl);
+    hugRight(baseUrl);
+    baseUrlDiv = rowDivider();
 
     // Suggestions arrive asynchronously (refreshModels); free-typed text always wins (NoInsert).
-    model_ = new SearchComboBox(this, /*searchable=*/false);
-    model_->setObjectName("llmModel");
-    model_->setEditable(true);
-    model_->setInsertPolicy(QComboBox::NoInsert);
-    model_->lineEdit()->setPlaceholderText("(provider default)");
-    model_->setToolTip(
+    model = new SearchComboBox(this, /*searchable=*/false);
+    model->setObjectName("llmModel");
+    model->setEditable(true);
+    model->setInsertPolicy(QComboBox::NoInsert);
+    model->lineEdit()->setPlaceholderText("(provider default)");
+    model->setToolTip(
         "Model name; leave empty to use whatever the server serves — pick a "
         "suggestion or type any name");
-    model_->setCurrentIndex(-1);
-    model_->setEditText(current.llmModel);
-    form_->addRow("Model", model_);
-    hugRight(model_);
-    modelDiv_ = rowDivider();
+    model->setCurrentIndex(-1);
+    model->setEditText(current.llmModel);
+    form->addRow("Model", model);
+    hugRight(model);
+    modelDiv = rowDivider();
 
-    apiKey_ = new QLineEdit(current.llmApiKey, this);
-    apiKey_->setObjectName("llmApiKey");
-    apiKey_->setEchoMode(QLineEdit::Password);
-    apiKey_->setPlaceholderText("(optional — most local servers need none)");
-    apiKey_->setToolTip(
+    apiKey = new QLineEdit(current.llmApiKey, this);
+    apiKey->setObjectName("llmApiKey");
+    apiKey->setEchoMode(QLineEdit::Password);
+    apiKey->setPlaceholderText("(optional — most local servers need none)");
+    apiKey->setToolTip(
         "Optional API key, sent as a Bearer token (OpenAI-compatible providers only).\n"
         "Local servers (LM Studio, llama.cpp) need none; hosted OpenAI-compatible\n"
         "services issue keys in their dashboards.");
-    form_->addRow("API key", apiKey_);
-    hugRight(apiKey_);
-    apiKeyDiv_ = rowDivider();
+    form->addRow("API key", apiKey);
+    hugRight(apiKey);
+    apiKeyDiv = rowDivider();
 
-    server_ = new SearchComboBox(this, /*searchable=*/false);
-    server_->setObjectName("llmServer");
-    server_->setToolTip(
+    server = new SearchComboBox(this, /*searchable=*/false);
+    server->setObjectName("llmServer");
+    server->setToolTip(
         "Which configured Stencil collaboration server proxies the LLM "
         "(uses your existing connection token)");
     {
       const auto saved = stencil::net::connectionStore::loadSavedServers();
-      for (const auto& s : saved) server_->addItem(s.url, s.url);
-      if (server_->count() == 0)
-        server_->addItem("(no saved servers — connect first)", QString());
-      const int idx = server_->findData(current.llmServerUrl);
-      server_->setCurrentIndex(idx >= 0 ? idx : 0);
+      for (const auto& s : saved) server->addItem(s.url, s.url);
+      if (server->count() == 0)
+        server->addItem("(no saved servers — connect first)", QString());
+      const int idx = server->findData(current.llmServerUrl);
+      server->setCurrentIndex(idx >= 0 ? idx : 0);
     }
-    server_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-    form_->addRow("Server", server_);
-    hugRight(server_);
-    serverDiv_ = rowDivider();
+    server->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    form->addRow("Server", server);
+    hugRight(server);
+    serverDiv = rowDivider();
 
     // Browser #chat-server-status-row: no "Status" label, just the dot and the muted text.
     auto* statusRow = new QWidget(this);
@@ -106,36 +106,36 @@ namespace stencil::gui {
     auto* statusLay = new QHBoxLayout(statusRow);
     statusLay->setContentsMargins(0, 0, 0, 0);
     statusLay->setSpacing(8);
-    statusDot_ = new QLabel(statusRow);
-    statusDot_->setObjectName("llmStatusDot");
-    statusDot_->setTextFormat(Qt::RichText);
-    statusLay->addWidget(statusDot_);
-    status_ = new QLabel(statusRow);
-    status_->setObjectName("llmStatus");
-    status_->setWordWrap(true);
-    status_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    statusDot = new QLabel(statusRow);
+    statusDot->setObjectName("llmStatusDot");
+    statusDot->setTextFormat(Qt::RichText);
+    statusLay->addWidget(statusDot);
+    status = new QLabel(statusRow);
+    status->setObjectName("llmStatus");
+    status->setWordWrap(true);
+    status->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     // No trailing stretch: a word-wrapped label handed only its sizeHint width breaks into three lines.
-    statusLay->addWidget(status_, 1);
-    form_->addRow(statusRow);
+    statusLay->addWidget(status, 1);
+    form->addRow(statusRow);
     rowDivider();
   }
 
   void LlmSettingsForm::buildChatHistoryRows(const Settings& current) {
 
-    if (mode_ == RowMode::HIDE_ROWS)
-      form_->addRow(modalSectionLabel(QStringLiteral("Chat history"), this));
+    if (mode == RowMode::HIDE_ROWS)
+      form->addRow(modalSectionLabel(QStringLiteral("Chat history"), this));
 
     // llm-contract.md §12: provider-independent, ships OFF. Browser .vs-inline-check.
-    saveChats_ = new QCheckBox(tr("Save chats with projects"), this);
-    saveChats_->setObjectName("llmSaveChats");
-    saveChats_->setChecked(current.saveChatsWithProject);
-    saveChats_->setToolTip(
+    saveChats = new QCheckBox(tr("Save chats with projects"), this);
+    saveChats->setObjectName("llmSaveChats");
+    saveChats->setChecked(current.saveChatsWithProject);
+    saveChats->setToolTip(
         "Save the assistant conversation with the active project and restore it "
         "when the project is reopened. Text only, most recent 32 turns; incognito "
         "never saves.\n\nFor a project on a server the transcript is stored with it, "
         "so everyone that project is shared with can read it. Local projects stay "
         "on this machine.");
-    form_->addRow(saveChats_);
+    form->addRow(saveChats);
     rowDivider();
     // §12.2 requires the sharing consequence to be visible, not only on hover.
     auto* saveChatsHint = new QLabel(
@@ -144,7 +144,7 @@ namespace stencil::gui {
         this);
     saveChatsHint->setObjectName("llmSaveChatsHint");
     saveChatsHint->setWordWrap(true);
-    saveChatsHint_ = saveChatsHint;   // resizeEvent pins its height to its real width
+    this->saveChatsHint = saveChatsHint;   // resizeEvent pins its height to its real width
     // heightForWidth, or the layout budgets the label's height from a narrower width than it renders at.
     {
       QSizePolicy sp = saveChatsHint->sizePolicy();
@@ -152,38 +152,38 @@ namespace stencil::gui {
       saveChatsHint->setSizePolicy(sp);
     }
 
-    if (mode_ == RowMode::HIDE_ROWS) {
+    if (mode == RowMode::HIDE_ROWS) {
       // ONE tinted help note (browser .chat-cors-note, merged per user decision). The desktop calls the
       // endpoint over Qt Network, so CORS is not its problem.
-      noteBox_ = new QFrame(this);
-      noteBox_->setObjectName("llmNoteBox");
+      noteBox = new QFrame(this);
+      noteBox->setObjectName("llmNoteBox");
       QSizePolicy boxSp(QSizePolicy::Preferred, QSizePolicy::Fixed);
       boxSp.setHeightForWidth(true);
-      noteBox_->setSizePolicy(boxSp);
-      auto* noteLay = new QVBoxLayout(noteBox_);
+      noteBox->setSizePolicy(boxSp);
+      auto* noteLay = new QVBoxLayout(noteBox);
       noteLay->setContentsMargins(10, 6, 10, 6);
       noteLay->setSpacing(4);
       noteLay->addWidget(saveChatsHint);
-      note_ = new QLabel(
+      note = new QLabel(
           QStringLiteral("Local providers must be running at the URL above "
                          "(Ollama on port %1, LM Studio on %2).")
               .arg(QUrl(stencil::llm::defaultLlmBaseUrl("ollama")).port())
               .arg(QUrl(stencil::llm::defaultLlmBaseUrl("openai-compat")).port()),
-          noteBox_);
-      note_->setObjectName("llmNote");
-      note_->setWordWrap(true);
+          noteBox);
+      note->setObjectName("llmNote");
+      note->setWordWrap(true);
       {
-        QSizePolicy sp = note_->sizePolicy();
+        QSizePolicy sp = note->sizePolicy();
         sp.setHeightForWidth(true);
-        note_->setSizePolicy(sp);
+        note->setSizePolicy(sp);
       }
-      noteLay->addWidget(note_);
+      noteLay->addWidget(note);
       // A FORM row, so its top rides the SAME explicit 9px verticalSpacing every other row shares; on
       // the outer QVBoxLayout it inherits the QStyle's own metric, a real ~70px gap (user report).
-      form_->addRow(noteBox_);
+      form->addRow(noteBox);
     } else {
       saveChatsHint->setStyleSheet("color: palette(mid);");
-      form_->addRow(saveChatsHint);
+      form->addRow(saveChatsHint);
     }
   }
 

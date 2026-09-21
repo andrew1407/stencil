@@ -19,23 +19,23 @@ namespace stencil::gui {
 
 
   SearchComboBox::SearchComboBox(QWidget* parent, bool searchable)
-      : QComboBox(parent), searchable_(searchable) {
+      : QComboBox(parent), searchable(searchable) {
     setCursor(Qt::PointingHandCursor);   // browser parity: every selector is a pointer
   }
 
   // Lazy, so the model is already filled and themed when first opened.
   void SearchComboBox::ensurePopup() {
-    if (popup_) return;
+    if (popup) return;
 
     // Translucent Qt::Popup shell so the inner frame's rounded corners clip (QMenu's trick).
-    popup_ = new QWidget(this, Qt::Popup | Qt::FramelessWindowHint |
+    popup = new QWidget(this, Qt::Popup | Qt::FramelessWindowHint |
                                    Qt::NoDropShadowWindowHint);
-    popup_->setAttribute(Qt::WA_TranslucentBackground);
-    popup_->installEventFilter(this);
-    auto* shell = new QVBoxLayout(popup_);
+    popup->setAttribute(Qt::WA_TranslucentBackground);
+    popup->installEventFilter(this);
+    auto* shell = new QVBoxLayout(popup);
     shell->setContentsMargins(0, 0, 0, 0);
 
-    auto* frame = new QWidget(popup_);
+    auto* frame = new QWidget(popup);
     frame->setObjectName("searchComboPopup");
     frame->setAttribute(Qt::WA_StyledBackground);
     shell->addWidget(frame);
@@ -46,106 +46,106 @@ namespace stencil::gui {
     layout->setSpacing(POPUP_PADDING);
 
     // Browser .accent-dd-search-row hairline. A short list has no search row.
-    if (searchable_) {
+    if (searchable) {
       auto* searchRow = new QWidget(frame);
       searchRow->setObjectName("searchComboSearchRow");
       searchRow->setAttribute(Qt::WA_StyledBackground);
       auto* searchLayout = new QVBoxLayout(searchRow);
       searchLayout->setContentsMargins(POPUP_PADDING, POPUP_PADDING,
                                        POPUP_PADDING, POPUP_PADDING * 2);
-      search_ = new QLineEdit(searchRow);
-      search_->setObjectName("searchComboSearch");
-      search_->setPlaceholderText(tr("Search…"));
-      search_->setClearButtonEnabled(true);
-      search_->installEventFilter(this);
-      searchLayout->addWidget(search_);
+      search = new QLineEdit(searchRow);
+      search->setObjectName("searchComboSearch");
+      search->setPlaceholderText(tr("Search…"));
+      search->setClearButtonEnabled(true);
+      search->installEventFilter(this);
+      searchLayout->addWidget(search);
       layout->addWidget(searchRow);
     }
 
-    proxy_ = new LabelValueFilterProxy(this);
-    proxy_->setSourceModel(model());
+    proxy = new LabelValueFilterProxy(this);
+    proxy->setSourceModel(model());
 
-    list_ = new QListView(frame);
-    list_->setObjectName("searchComboList");
+    list = new QListView(frame);
+    list->setObjectName("searchComboList");
     // No scroll-area MINIMUM: QAbstractScrollArea's ~66px minimumSizeHint outranked
     // positionPopup()'s geometry and left a blank band under a 2-row list.
-    list_->setFrameShape(QFrame::NoFrame);
-    list_->setMinimumSize(1, 1);
-    list_->setModel(proxy_);
-    list_->setUniformItemSizes(true);
-    list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    list_->setSelectionMode(QAbstractItemView::SingleSelection);
-    list_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    list->setFrameShape(QFrame::NoFrame);
+    list->setMinimumSize(1, 1);
+    list->setModel(proxy);
+    list->setUniformItemSizes(true);
+    list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    list->setSelectionMode(QAbstractItemView::SingleSelection);
+    list->setEditTriggers(QAbstractItemView::NoEditTriggers);
     // QSS ::item:hover needs it.
-    list_->setMouseTracking(true);
-    if (delegate_) list_->setItemDelegate(delegate_);
+    list->setMouseTracking(true);
+    if (delegate) list->setItemDelegate(delegate);
     // The slide WRAPS whatever delegate is installed, so a popup with its own painter keeps it.
-    installRowShimmer(list_);
-    installRowHoverSlide(list_);
-    list_->setFocusPolicy(searchable_ ? Qt::NoFocus : Qt::StrongFocus);   // keys go to
-    if (!searchable_) list_->installEventFilter(this);                    // whoever has focus
+    installRowShimmer(list);
+    installRowHoverSlide(list);
+    list->setFocusPolicy(searchable ? Qt::NoFocus : Qt::StrongFocus);   // keys go to
+    if (!searchable) list->installEventFilter(this);                    // whoever has focus
     // Hover preview (repaint only); waits for the pointer to settle so skimming does not repaint per row.
-    previewTimer_.setSingleShot(true);
-    previewTimer_.setInterval(280);
-    connect(&previewTimer_, &QTimer::timeout, this, [this] {
-      if (preview_ && !pendingPreview_.isEmpty()) { previewing_ = true; preview_(pendingPreview_); }
+    previewTimer.setSingleShot(true);
+    previewTimer.setInterval(280);
+    connect(&previewTimer, &QTimer::timeout, this, [this] {
+      if (preview && !pendingPreview.isEmpty()) { previewing = true; preview(pendingPreview); }
     });
-    connect(list_, &QListView::entered, this, [this](const QModelIndex& idx) {
-      if (!preview_) return;
-      pendingPreview_ = idx.data(Qt::UserRole).toString();
-      previewTimer_.start();   // fires once the pointer settles on the row
+    connect(list, &QListView::entered, this, [this](const QModelIndex& idx) {
+      if (!preview) return;
+      pendingPreview = idx.data(Qt::UserRole).toString();
+      previewTimer.start();   // fires once the pointer settles on the row
     });
-    list_->viewport()->installEventFilter(this);
-    layout->addWidget(list_, 1);
+    list->viewport()->installEventFilter(this);
+    layout->addWidget(list, 1);
 
-    noMatch_ = new QLabel(tr("No matching format."), frame);
-    noMatch_->setObjectName("searchComboNoMatch");
-    noMatch_->hide();
-    layout->addWidget(noMatch_);
+    noMatch = new QLabel(tr("No matching format."), frame);
+    noMatch->setObjectName("searchComboNoMatch");
+    noMatch->hide();
+    layout->addWidget(noMatch);
 
-    if (search_)
-      connect(search_, &QLineEdit::textChanged, this,
+    if (search)
+      connect(search, &QLineEdit::textChanged, this,
               [this](const QString& text) { applyFilter(text); });
-    connect(list_, &QListView::clicked, this,
+    connect(list, &QListView::clicked, this,
             [this](const QModelIndex& idx) { choose(idx.row()); });
   }
 
   // Browser applySearch().
   void SearchComboBox::applyFilter(const QString& query) {
-    static_cast<LabelValueFilterProxy*>(proxy_)->setQuery(query);
-    const int rows = proxy_->rowCount();
+    static_cast<LabelValueFilterProxy*>(proxy)->setQuery(query);
+    const int rows = proxy->rowCount();
     const bool any = rows > 0;
-    list_->setVisible(any);
-    noMatch_->setVisible(!any);
-    if (any && !list_->currentIndex().isValid())
-      list_->setCurrentIndex(proxy_->index(0, 0));
+    list->setVisible(any);
+    noMatch->setVisible(!any);
+    if (any && !list->currentIndex().isValid())
+      list->setCurrentIndex(proxy->index(0, 0));
     positionPopup();
   }
 
   void SearchComboBox::moveHighlight(int delta) {
-    const int rows = proxy_->rowCount();
+    const int rows = proxy->rowCount();
     if (rows <= 0) return;
-    const int cur = list_->currentIndex().isValid() ? list_->currentIndex().row()
+    const int cur = list->currentIndex().isValid() ? list->currentIndex().row()
                                                     : (delta > 0 ? -1 : rows);
     const int next = qBound(0, cur + delta, rows - 1);
-    list_->setCurrentIndex(proxy_->index(next, 0));
+    list->setCurrentIndex(proxy->index(next, 0));
   }
 
   void SearchComboBox::setPreview(std::function<void(const QString&)> fn) {
-    preview_ = std::move(fn);
+    preview = std::move(fn);
   }
 
   void SearchComboBox::restorePreview() {
-    previewTimer_.stop();          // cancel a hover that had not yet fired
-    pendingPreview_.clear();
-    if (!preview_ || !previewing_) return;
-    previewing_ = false;
-    preview_(currentData().toString());   // the committed value the trigger still holds
+    previewTimer.stop();          // cancel a hover that had not yet fired
+    pendingPreview.clear();
+    if (!preview || !previewing) return;
+    previewing = false;
+    preview(currentData().toString());   // the committed value the trigger still holds
   }
 
   void SearchComboBox::choose(int proxyRow) {
-    previewing_ = false;   // the pick commits the real value; no revert on the hide below
-    const QModelIndex src = proxy_->mapToSource(proxy_->index(proxyRow, 0));
+    previewing = false;   // the pick commits the real value; no revert on the hide below
+    const QModelIndex src = proxy->mapToSource(proxy->index(proxyRow, 0));
     if (src.isValid()) {
       setCurrentIndex(src.row());   // → currentIndexChanged / currentTextChanged
       // setCurrentIndex alone emits neither. Emitted BEFORE the popup leaves, so its exit

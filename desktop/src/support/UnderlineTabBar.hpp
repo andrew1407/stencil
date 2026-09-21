@@ -54,13 +54,13 @@ namespace stencil::gui {
 
     void animateHover(int i, double to);
 
-    QHash<int, QString> glyphs_;
-    QHash<int, double> hoverVal_;
-    QHash<int, QVariantAnimation*> hoverAnims_;
-    QVariantAnimation* slide_ = nullptr;
-    ShimmerOverlay* sweep_ = nullptr;   // the hovered tab's glass sweep
-    QRectF underline_;
-    int hoverIdx_ = -1;
+    QHash<int, QString> glyphs;
+    QHash<int, double> hoverVal;
+    QHash<int, QVariantAnimation*> hoverAnims;
+    QVariantAnimation* slide = nullptr;
+    ShimmerOverlay* sweep = nullptr;   // the hovered tab's glass sweep
+    QRectF underline;
+    int hoverIdx = -1;
   };
 
 }  // namespace stencil::gui

@@ -71,7 +71,7 @@ class MainWindowGuiTest : public QObject {
     // ANY key retires it — Escape included. The shake announces the shortcut; it is not a
     // way to pin the tooltip open.
     QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
-    QApplication::sendEvent(win.canvas_, &esc);
+    QApplication::sendEvent(win.canvas, &esc);
     QTRY_VERIFY_WITH_TIMEOUT(!tip->isVisible(), 1500);
 
     // A tooltip with NO shortcut draws no caps, so it has nothing to announce.

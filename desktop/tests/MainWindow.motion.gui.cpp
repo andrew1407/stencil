@@ -15,7 +15,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    stencil::gui::SettingsDialog dlg(win.settings_, &win);
+    stencil::gui::SettingsDialog dlg(win.settings, &win);
     dlg.resize(dlg.width(), 320);   // short enough that the body must scroll
     dlg.show();
     auto* scroll = dlg.findChild<QScrollArea*>();
@@ -83,7 +83,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    stencil::gui::SettingsDialog dlg(win.settings_, &win);
+    stencil::gui::SettingsDialog dlg(win.settings, &win);
     dlg.show();
     settleLayout(&dlg, 30);
     auto* combo = static_cast<stencil::gui::SearchComboBox*>(   // no Q_OBJECT on the combo: found as its base

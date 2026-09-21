@@ -46,9 +46,9 @@ namespace stencil::gui {
 #ifdef Q_OS_MACOS
     const bool sysDark = systemPrefersDark();
     if (sysDark == appDark) return;   // nothing to reconcile
-    const QColor menuCol = themePalette(sysDark, settings_.accentColor).textMain;
+    const QColor menuCol = themePalette(sysDark, settings.accentColor).textMain;
     const int s = TOOL_ICON;
-    for (auto it = actionIconNames_.constBegin(); it != actionIconNames_.constEnd(); ++it) {
+    for (auto it = actionIconNames.constBegin(); it != actionIconNames.constEnd(); ++it) {
       if (it.key()) it.key()->setIcon(themedIcon(it.value(), menuCol, s));
     }
     // After the actions, since a QToolButton mirrors its default action's icon on every change.
@@ -58,13 +58,13 @@ namespace stencil::gui {
       // A toggle that paints its own face (support/faceSwap.hpp) is re-synced below; its glyph
       // colour is its state.
       if (b->property(FACE_GLYPH_PROPERTY).isValid()) continue;
-      const auto name = actionIconNames_.constFind(a);
-      if (name != actionIconNames_.constEnd()) {
+      const auto name = actionIconNames.constFind(a);
+      if (name != actionIconNames.constEnd()) {
         const QColor ink = toolButtonIconColor(a, appIconColor);
         b->setIcon(themedIcon(name.value(), ink, s));
       }
     }
-    syncDrawToggleFace(canvas_ && canvas_->isDrawing(), false);
+    syncDrawToggleFace(canvas && canvas->getIsDrawing(), false);
 #else
     Q_UNUSED(appDark);
     Q_UNUSED(appIconColor);
@@ -74,13 +74,13 @@ namespace stencil::gui {
   // Start ▶ / Stop ■: the functional half lands at once, the face and accent state cross over
   // through the shared swap. Browser: #draw-toggle / .active.
   void MainWindow::syncDrawToggleFace(bool drawing, bool animate) {
-    if (!startDrawBtn_ || !actStartDraw_ || !actStopDraw_) return;
-    QAction* want = drawing ? actStopDraw_ : actStartDraw_;
-    const bool flipped = startDrawBtn_->defaultAction() != want;
+    if (!startDrawBtn || !actStartDraw || !actStopDraw) return;
+    QAction* want = drawing ? actStopDraw : actStartDraw;
+    const bool flipped = startDrawBtn->defaultAction() != want;
     // A swap already heading for this face owns the button until it lands.
-    if (!flipped && animate && faceSwapping(startDrawBtn_)) return;
-    if (flipped) startDrawBtn_->setDefaultAction(want);   // icon/tooltip/enabled/click target
-    const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
+    if (!flipped && animate && faceSwapping(startDrawBtn)) return;
+    if (flipped) startDrawBtn->setDefaultAction(want);   // icon/tooltip/enabled/click target
+    const Palette pal = themePalette(resolveDark(settings.themeMode), settings.accentColor);
     FaceSpec face;
     face.glyph = drawing ? QStringLiteral("stop") : QStringLiteral("play");
     face.label = want->iconText();   // the short toolbar word; the menus keep the long one
@@ -92,18 +92,18 @@ namespace stencil::gui {
     // The fill flip hides at the swap's pivot; it sets the state, so a superseded swap can be
     // dropped.
     auto applyFill = [this, drawing] {
-      startDrawBtn_->setProperty("drawToggle", drawing ? QStringLiteral("on")
+      startDrawBtn->setProperty("drawToggle", drawing ? QStringLiteral("on")
                                                        : QStringLiteral("idle"));
-      startDrawBtn_->style()->unpolish(startDrawBtn_);
-      startDrawBtn_->style()->polish(startDrawBtn_);
+      startDrawBtn->style()->unpolish(startDrawBtn);
+      startDrawBtn->style()->polish(startDrawBtn);
     };
-    swapFace(startDrawBtn_, face, applyFill, animate && flipped ? FACE_SWAP_MS : 0);
+    swapFace(startDrawBtn, face, applyFill, animate && flipped ? FACE_SWAP_MS : 0);
   }
 
   // Line ✎ / Rect ▭: the same swap with a permanent accent fill, like the browser's bare
   // `<button>` #draw-mode-toggle. Port of drawingApp.js syncDrawModeUI.
   void MainWindow::syncDrawModeFace(bool rect, bool animate) {
-    if (!drawModeBtn_) return;
+    if (!drawModeBtn) return;
     FaceSpec face;
     // Siblings from the shared canon (browser/js/config/icons.json), so they carry the motion
     // hooks too.
@@ -111,14 +111,14 @@ namespace stencil::gui {
     face.label = rect ? QStringLiteral("Rect") : QStringLiteral("Line");
     face.iconSize = 16;   // a touch under TOOL_ICON: this glyph reads heavier than the rest
     face.gapPx = FACE_ICON_GAP;   // …and the same air before the word as its twin
-    const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
+    const Palette pal = themePalette(resolveDark(settings.themeMode), settings.accentColor);
     face.glyphColor = pal.onAccent;
     face.textColor = pal.onAccent;
-    setTipBase(drawModeBtn_, rect ? "Drawing mode: Rectangle (click to switch to Line)"
+    setTipBase(drawModeBtn, rect ? "Drawing mode: Rectangle (click to switch to Line)"
                                   : "Drawing mode: Line (click to switch to Rectangle)");
     const bool flipped =
-        drawModeBtn_->property(FACE_LABEL_PROPERTY).toString() != face.label;
-    swapFace(drawModeBtn_, face, {}, animate && flipped ? FACE_SWAP_MS : 0);
+        drawModeBtn->property(FACE_LABEL_PROPERTY).toString() != face.label;
+    swapFace(drawModeBtn, face, {}, animate && flipped ? FACE_SWAP_MS : 0);
   }
 }  // namespace stencil::gui
 

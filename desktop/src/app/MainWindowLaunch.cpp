@@ -34,18 +34,18 @@ namespace stencil::gui {
     if (opts.empty()) return;
 
     // Incognito set FIRST so it gates the theme persist and every later write.
-    if (opts.incognito && opts.project.isEmpty() && actIncognito_->isEnabled())
-      actIncognito_->setChecked(true);  // drives incognito_ via its toggled slot
+    if (opts.incognito && opts.project.isEmpty() && actIncognito->isEnabled())
+      actIncognito->setChecked(true);  // drives incognito via its toggled slot
 
     if (opts.hasTheme) {
-      settings_.themeMode = (opts.theme == "dark") ? "dark" : "light";
-      applySettings(settings_, /*persist=*/true);
+      settings.themeMode = (opts.theme == "dark") ? "dark" : "light";
+      applySettings(settings, /*persist=*/true);
     }
 
     // Priority: --project > stencil:// server reference > --src > positional file.
     if (!opts.project.isEmpty()) {
       if (!openProjectByName(opts.project))
-        notify_->error(QString("No project named \"%1\"").arg(opts.project));
+        notify->error(QString("No project named \"%1\"").arg(opts.project));
     } else if (!opts.serverUrl.isEmpty() && !opts.serverProjectId.isEmpty()) {
       // Queued so the connect + download run after show().
       const QString url = opts.serverUrl, id = opts.serverProjectId;
@@ -54,18 +54,18 @@ namespace stencil::gui {
         openServerLaunch(url, id, incog);
       });
     } else if (!opts.src.isEmpty()) {
-      pendingLaunchLayout_ = opts.layout;  // applied after the image loads
-      pendingLaunchLayoutJson_ = opts.layoutJson;
+      pendingLaunchLayout = opts.layout;  // applied after the image loads
+      pendingLaunchLayoutJson = opts.layoutJson;
       // Quick-crop override from the "Open in new window" handoff; consumed by applyQuickCrop().
       if (opts.hasCropOverride)
-        pendingCrop_ =
+        pendingCrop =
             opts.cropToPage
                 ? QuickCropOpts{QuickCropOpts::Mode::PAGE, opts.cropAlbum, opts.cropPage,
                                 {opts.cropX, opts.cropY, opts.cropW, opts.cropH}}
                 : QuickCropOpts{QuickCropOpts::Mode::NONE, false, QString()};
       openImageSource(opts.src, opts.frame);
     } else if (!opts.file.isEmpty()) {
-      pendingLaunchLayout_ = opts.layout;
+      pendingLaunchLayout = opts.layout;
       openPathFromOS(opts.file, opts.frame);
     }
 
@@ -77,7 +77,7 @@ namespace stencil::gui {
   void MainWindow::openStencilUrl(const QUrl& url) {
     const LaunchOptions opts = parseStencilUrl(url);
     if (opts.empty()) {
-      notify_->error("Could not read the stencil:// link");
+      notify->error("Could not read the stencil:// link");
       return;
     }
     applyLaunchOptions(opts);
@@ -88,10 +88,10 @@ namespace stencil::gui {
     // normalizeBase yields "" on junk.
     const QString url = stencil::net::ServerClient::normalizeBase(serverUrl);
     if (url.isEmpty()) {
-      notify_->error("Bad server URL in the link");
+      notify->error("Bad server URL in the link");
       return;
     }
-    if (incognito && actIncognito_->isEnabled()) actIncognito_->setChecked(true);
+    if (incognito && actIncognito->isEnabled()) actIncognito->setChecked(true);
     auto* mgr = ensureConnections();
     if (!mgr->find(url)) {
       // Reuse the saved token for this origin; else connect tokenless and the server mints one.
@@ -121,7 +121,7 @@ namespace stencil::gui {
         if (!self) return;
         if (!ok) {
           // The normal connect path: surface the failure and open the Servers dialog.
-          notify_->error(QString("Could not connect to %1 — %2").arg(url, err));
+          notify->error(QString("Could not connect to %1 — %2").arg(url, err));
           openConnections();
           return;
         }

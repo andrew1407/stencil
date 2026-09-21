@@ -37,9 +37,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(!win.canvas_->hasImage());
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    QVERIFY(!win.canvas->hasImage());
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     // The unknown op yields a round-1 WARNING, which must survive into the
     // single final bubble (§7 one-reply parity below).
@@ -52,15 +52,15 @@ class MainWindowGuiTest : public QObject {
     // The continuation round answers chat-only.
     mock.queue.append(QJsonDocument(QJsonObject{
         {"message", QJsonObject{{"content", "All done."}}}}).toJson(QJsonDocument::Compact));
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     win.onChatSend(QStringLiteral("open %1, then make it b&w").arg(url));
-    QTRY_VERIFY(!win.chatDock_->isBusy());
+    QTRY_VERIFY(!win.chatDock->isBusy());
     // openUrl waited for the download: the fetched picture IS the working image…
-    QVERIFY(win.canvas_->hasImage());
-    QCOMPARE(win.canvas_->effectiveOriginalImage().size(), QSize(20, 14));
+    QVERIFY(win.canvas->hasImage());
+    QCOMPARE(win.canvas->effectiveOriginalImage().size(), QSize(20, 14));
     // …and the filter landed on it (a grayscale pixel, not the blue source).
-    const QImage out = win.canvas_->renderToImage(false);
+    const QImage out = win.canvas->renderToImage(false);
     const QRgb px = out.pixel(out.width() / 2, out.height() / 2);
     QVERIFY2(qRed(px) == qGreen(px) && qGreen(px) == qBlue(px),
              "the b&w filter did not land on the loaded image");
@@ -72,16 +72,16 @@ class MainWindowGuiTest : public QObject {
              "the continuation round must attach the fresh snapshot");
     // ONE final reply (browser parity): round 1's bubble was held, its warnings
     // folded into the continuation's bubble; the intermediate reply never rendered.
-    const QStringList bubbles = assistantBubbleTexts(win.chatDock_);
+    const QStringList bubbles = assistantBubbleTexts(win.chatDock);
     QCOMPARE(bubbles.size(), 1);
     QVERIFY2(bubbles.first().contains(QStringLiteral("All done.")),
              "the single bubble must carry the FINAL round's reply");
     QVERIFY2(bubbles.first().contains(QStringLiteral("Skipped unknown op \"sparkle\".")),
              "round 1's warnings must ride in the final bubble");
-    QVERIFY2(!chatTranscriptHas(win.chatDock_, QStringLiteral("Loading and filtering.")),
+    QVERIFY2(!chatTranscriptHas(win.chatDock, QStringLiteral("Loading and filtering.")),
              "round 1's reply must not render as its own bubble");
     // …while the model-side history still keeps round 1's own answer per round.
-    QCOMPARE(win.chatHistory_.at(1).text, QStringLiteral("Loading and filtering."));
+    QCOMPARE(win.chatHistory.at(1).text, QStringLiteral("Loading and filtering."));
     beat();
   }
 
@@ -92,10 +92,10 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     const stencil::llm::LlmSettings cfg = win.currentLlmSettings();
-    win.chatTextOnlyKey_ =
+    win.chatTextOnlyKey =
         QStringList{cfg.provider, cfg.baseUrl, cfg.model, cfg.serverUrl}.join(QLatin1Char('|'));
     MockChatTransport mock;
     mock.response = QJsonDocument(QJsonObject{
@@ -104,12 +104,12 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Here is your page.\",\"actions\":"
                       "[{\"op\":\"blank\",\"color\":\"#ffffff\",\"format\":\"a6\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     win.onChatSend("blank a6 page");
-    QTRY_VERIFY(!win.chatDock_->isBusy());
-    QVERIFY(win.canvas_->hasImage());
+    QTRY_VERIFY(!win.chatDock->isBusy());
+    QVERIFY(win.canvas->hasImage());
     QCOMPARE(mock.allBodies.size(), 1);   // no continuation round launched
-    const QStringList bubbles = assistantBubbleTexts(win.chatDock_);
+    const QStringList bubbles = assistantBubbleTexts(win.chatDock);
     QCOMPARE(bubbles.size(), 1);
     QVERIFY2(bubbles.first().contains(QStringLiteral("Here is your page.")),
              "the held round-1 reply must flush when no continuation fires");
@@ -123,9 +123,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(!win.canvas_->hasImage());
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    QVERIFY(!win.canvas->hasImage());
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     mock.queue.append(QJsonDocument(QJsonObject{
         {"message",
@@ -137,17 +137,17 @@ class MainWindowGuiTest : public QObject {
     mock.queue.append(QJsonDocument(QJsonObject{
         {"message", QJsonObject{{"content", "All done drawing."}}}})
                           .toJson(QJsonDocument::Compact));
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     win.onChatSend("blank 20x20 page with a smiley");
-    QTRY_VERIFY(!win.chatDock_->isBusy());
-    QVERIFY(win.canvas_->hasImage());
+    QTRY_VERIFY(!win.chatDock->isBusy());
+    QVERIFY(win.canvas->hasImage());
     QCOMPARE(mock.allBodies.size(), 2);   // the turn + exactly one continuation
     const QJsonArray msgs2 = mock.allBodies.at(1).value("messages").toArray();
     QVERIFY2(msgs2.last().toObject().value("content").toString().contains(
                  QStringLiteral("continue with it")),
              "round 2 must be the §7 continuation, carrying its note");
     // One final bubble (browser parity): round 1's reply was held and folded in.
-    const QStringList bubbles = assistantBubbleTexts(win.chatDock_);
+    const QStringList bubbles = assistantBubbleTexts(win.chatDock);
     QCOMPARE(bubbles.size(), 1);
     QVERIFY(bubbles.first().contains(QStringLiteral("All done drawing.")));
     beat();
@@ -160,9 +160,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QVERIFY(!win.canvas_->hasImage());
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    QVERIFY(!win.canvas->hasImage());
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     // Full-frame line (huge coords clamp to the blank's bounds): drawn for real.
     mock.queue.append(QJsonDocument(QJsonObject{
@@ -173,11 +173,11 @@ class MainWindowGuiTest : public QObject {
                       "{\"op\":\"layout\",\"lines\":[{\"points\":[{\"x\":0,\"y\":0},"
                       "{\"x\":99999,\"y\":0},{\"x\":99999,\"y\":99999},{\"x\":0,\"y\":0}]}]}]}"}}}})
                           .toJson(QJsonDocument::Compact));
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     win.onChatSend("blank page with a box drawn on it");
-    QTRY_VERIFY(!win.chatDock_->isBusy());
-    QVERIFY(win.canvas_->hasImage());
-    QCOMPARE(int(win.canvas_->allLines().size()), 1);   // the line really drew
+    QTRY_VERIFY(!win.chatDock->isBusy());
+    QVERIFY(win.canvas->hasImage());
+    QCOMPARE(int(win.canvas->allLines().size()), 1);   // the line really drew
     QCOMPARE(mock.allBodies.size(), 1);   // the turn, and nothing behind it
     for (const QJsonObject& b : mock.allBodies)
       for (const QJsonValue& m : b.value("messages").toArray())

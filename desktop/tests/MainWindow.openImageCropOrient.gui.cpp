@@ -48,7 +48,7 @@ class MainWindowGuiTest : public QObject {
       wide.fill(Qt::darkRed);
       QVERIFY(wide.save(localImg, "PNG"));
       tabs->setCurrentIndex(0);
-      dlg->path_->setText(localImg);
+      dlg->path->setText(localImg);
       dlg->resetPreviewState();
       dlg->refreshButtons();
       dlg->doPreview();
@@ -56,22 +56,22 @@ class MainWindowGuiTest : public QObject {
       QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
-      settle([&] { return dlg->cropStage_ != nullptr; }, 2000);
-      localAlbum = dlg->cropStage_->album();
+      settle([&] { return dlg->cropStage != nullptr; }, 2000);
+      localAlbum = dlg->cropStage->getAlbum();
       // URL: a cached PORTRAIT video (its own default is Portrait), crop ticked fresh.
       const QString urlSrc = QStringLiteral("https://example.com/vid.mp4");
       QImage frame(2874, 4064, QImage::Format_RGB32);
       frame.fill(Qt::darkGreen);
-      dlg->url_->setText(urlSrc);
-      auto& urlCache = dlg->tabCache_[stencil::gui::TabUrl];
+      dlg->url->setText(urlSrc);
+      auto& urlCache = dlg->tabCache[stencil::gui::TabUrl];
       urlCache.valid = true; urlCache.source = urlSrc; urlCache.isVideo = true;
       urlCache.frameImage = frame; urlCache.previewImage = frame; urlCache.scrubFps = 30.0;
       tabs->setCurrentIndex(1);
       settle([] { return false; }, 300);
       QCheckBox* crop2 = cropBox(dlg);
       if (crop2 && !crop2->isChecked()) crop2->setChecked(true);
-      settle([&] { return dlg->cropStage_ != nullptr; }, 2000);
-      urlAlbum = dlg->cropStage_ ? dlg->cropStage_->album() : true;
+      settle([&] { return dlg->cropStage != nullptr; }, 2000);
+      urlAlbum = dlg->cropStage ? dlg->cropStage->getAlbum() : true;
       dlg->reject();
     });
     win.openImage();
@@ -95,7 +95,7 @@ class MainWindowGuiTest : public QObject {
       QImage wide(2400, 1600, QImage::Format_RGB32);
       wide.fill(Qt::darkBlue);
       QVERIFY(wide.save(img, "PNG"));
-      dlg->path_->setText(img);
+      dlg->path->setText(img);
       dlg->resetPreviewState();
       dlg->refreshButtons();
       dlg->doPreview();
@@ -103,14 +103,14 @@ class MainWindowGuiTest : public QObject {
       QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
-      settle([&] { return dlg->cropStage_ != nullptr; }, 2000);
-      if (!dlg->cropStage_) { dlg->reject(); return; }
-      albumBefore = dlg->cropStage_->album();
-      const auto rectBefore = dlg->cropStage_->cropRect();
-      dlg->cropAlbum_->click();
+      settle([&] { return dlg->cropStage != nullptr; }, 2000);
+      if (!dlg->cropStage) { dlg->reject(); return; }
+      albumBefore = dlg->cropStage->getAlbum();
+      const auto rectBefore = dlg->cropStage->cropRect();
+      dlg->cropAlbum->click();
       settle([] { return false; }, 100);
-      albumAfter = dlg->cropStage_ ? dlg->cropStage_->album() : albumBefore;
-      const auto rectAfter = dlg->cropStage_ ? dlg->cropStage_->cropRect() : rectBefore;
+      albumAfter = dlg->cropStage ? dlg->cropStage->getAlbum() : albumBefore;
+      const auto rectAfter = dlg->cropStage ? dlg->cropStage->cropRect() : rectBefore;
       rectChanged = rectAfter.width != rectBefore.width || rectAfter.height != rectBefore.height;
       dlg->reject();
     });
@@ -134,8 +134,8 @@ class MainWindowGuiTest : public QObject {
       QImage wide(2400, 1600, QImage::Format_RGB32);
       wide.fill(Qt::darkBlue);
       QVERIFY(wide.save(img, "PNG"));
-      const QString projectPage = dlg->cropPageSize();
-      dlg->path_->setText(img);
+      const QString projectPage = dlg->getCropPageSize();
+      dlg->path->setText(img);
       dlg->resetPreviewState();
       dlg->refreshButtons();
       dlg->doPreview();
@@ -143,31 +143,31 @@ class MainWindowGuiTest : public QObject {
       QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
-      settle([&] { return dlg->cropStage_ != nullptr; }, 2000);
-      if (!dlg->cropStage_) { dlg->reject(); return; }
+      settle([&] { return dlg->cropStage != nullptr; }, 2000);
+      if (!dlg->cropStage) { dlg->reject(); return; }
 
-      const int idx11 = dlg->cropPageSize_->findData(QStringLiteral("1:1"));
+      const int idx11 = dlg->cropPageSize->findData(QStringLiteral("1:1"));
       QVERIFY(idx11 >= 0);
-      dlg->cropPageSize_->setCurrentIndex(idx11);
+      dlg->cropPageSize->setCurrentIndex(idx11);
       // cropAspect normalizes by ORIENTATION, not argument order: album (still the stage's
       // own choice — a ratio change is never a flip) puts the LONG side horizontal.
-      const auto after11 = dlg->cropStage_->cropRect();
+      const auto after11 = dlg->cropStage->cropRect();
       ratio11 = qAbs(after11.width / after11.height - 1.0) < 0.05;
 
-      const int idx23 = dlg->cropPageSize_->findData(QStringLiteral("2:3"));
+      const int idx23 = dlg->cropPageSize->findData(QStringLiteral("2:3"));
       QVERIFY(idx23 >= 0);
-      dlg->cropPageSize_->setCurrentIndex(idx23);
-      const auto after23 = dlg->cropStage_->cropRect();
+      dlg->cropPageSize->setCurrentIndex(idx23);
+      const auto after23 = dlg->cropStage->cropRect();
       ratio23Distinct = qAbs(after23.width / after23.height - 1.5) < 0.05;
 
-      const int customIdx = dlg->cropPageSize_->findData(QStringLiteral("custom"));
+      const int customIdx = dlg->cropPageSize->findData(QStringLiteral("custom"));
       QVERIFY(customIdx >= 0);
-      dlg->cropPageSize_->setCurrentIndex(customIdx);
-      dlg->cropSizeW_->setValue(10.0);
-      dlg->cropSizeH_->setValue(80.0);
-      const auto afterCustom = dlg->cropStage_->cropRect();
+      dlg->cropPageSize->setCurrentIndex(customIdx);
+      dlg->cropSizeW->setValue(10.0);
+      dlg->cropSizeH->setValue(80.0);
+      const auto afterCustom = dlg->cropStage->cropRect();
       customReshaped = qAbs(afterCustom.width / afterCustom.height - 8.0) < 0.1;
-      projectPageUntouched = dlg->cropPageSize() == projectPage;
+      projectPageUntouched = dlg->getCropPageSize() == projectPage;
       dlg->reject();
     });
     win.openImage();
@@ -193,7 +193,7 @@ class MainWindowGuiTest : public QObject {
       QImage wide(2400, 1600, QImage::Format_RGB32);
       wide.fill(Qt::darkBlue);
       QVERIFY(wide.save(img, "PNG"));
-      dlg->path_->setText(img);
+      dlg->path->setText(img);
       dlg->resetPreviewState();
       dlg->refreshButtons();
       dlg->doPreview();
@@ -201,15 +201,15 @@ class MainWindowGuiTest : public QObject {
       QCheckBox* crop = cropBox(dlg);
       if (!crop) { dlg->reject(); return; }
       crop->setChecked(true);
-      settle([&] { return dlg->cropStage_ != nullptr; }, 2000);
-      pageLabel = dlg->cropPageSize_->itemText(dlg->cropPageSize_->findData(QStringLiteral("page")));
-      wPortrait = dlg->cropAlbum_->width();
-      dlg->cropAlbum_->click();
+      settle([&] { return dlg->cropStage != nullptr; }, 2000);
+      pageLabel = dlg->cropPageSize->itemText(dlg->cropPageSize->findData(QStringLiteral("page")));
+      wPortrait = dlg->cropAlbum->width();
+      dlg->cropAlbum->click();
       settle([] { return false; }, 100);
-      wAlbum = dlg->cropAlbum_->width();
-      wSelector = dlg->cropPageSize_->width();
-      wHint = dlg->cropPageSize_->sizeHint().width();
-      wRow = dlg->cropSizeRow_->width();
+      wAlbum = dlg->cropAlbum->width();
+      wSelector = dlg->cropPageSize->width();
+      wHint = dlg->cropPageSize->sizeHint().width();
+      wRow = dlg->cropSizeRow->width();
       dlg->reject();
     });
     win.openImage();

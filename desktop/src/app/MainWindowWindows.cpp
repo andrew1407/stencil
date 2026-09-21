@@ -30,8 +30,8 @@ namespace stencil::gui {
     // restoreLast=false → a brand-new empty editor.
     auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
     win->setAttribute(Qt::WA_DeleteOnClose);
-    if (win->actIncognito_->isEnabled())
-      win->actIncognito_->setChecked(true);  // no image yet → toggle allowed
+    if (win->actIncognito->isEnabled())
+      win->actIncognito->setChecked(true);  // no image yet → toggle allowed
     win->show();
   }
 
@@ -52,29 +52,29 @@ namespace stencil::gui {
   // Connected to qApp so the lambdas outlive the window that built the menu. A no-op off macOS.
   void MainWindow::refreshDockMenu() {
 #ifdef Q_OS_MACOS
-    if (!sDockMenu_) {
-      sDockMenu_ = new QMenu();  // app-lifetime; owned by neither window
-      sDockMenu_->setAsDockMenu();
+    if (!sDockMenu) {
+      sDockMenu = new QMenu();  // app-lifetime; owned by neither window
+      sDockMenu->setAsDockMenu();
     }
-    sDockMenu_->clear();
-    connect(sDockMenu_->addAction("New Incognito Editor"), &QAction::triggered,
+    sDockMenu->clear();
+    connect(sDockMenu->addAction("New Incognito Editor"), &QAction::triggered,
             qApp, [] { MainWindow::openIncognitoWindow(); });
-    connect(sDockMenu_->addAction("Open Projects…"), &QAction::triggered, qApp,
+    connect(sDockMenu->addAction("Open Projects…"), &QAction::triggered, qApp,
             [] { MainWindow::openProjectsWindow(); });
 
     // Most recently updated first; each opens in its own window.
-    std::vector<Project> recents = projectList_;
+    std::vector<Project> recents = projectList;
     std::sort(recents.begin(), recents.end(), [](const Project& a, const Project& b) {
       return a.meta.updatedAt > b.meta.updatedAt;
     });
     constexpr std::size_t MAX_RECENTS = 8;
     if (recents.size() > MAX_RECENTS) recents.resize(MAX_RECENTS);
     if (!recents.empty()) {
-      sDockMenu_->addSeparator();
+      sDockMenu->addSeparator();
       for (const auto& pr : recents) {
         const QString id = QString::fromStdString(pr.meta.id);
         const QString name = QString::fromStdString(pr.meta.name);
-        connect(sDockMenu_->addAction(name), &QAction::triggered, qApp,
+        connect(sDockMenu->addAction(name), &QAction::triggered, qApp,
                 [id] { MainWindow::openProjectWindowById(id); });
       }
     }

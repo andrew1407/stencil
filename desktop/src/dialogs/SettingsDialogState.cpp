@@ -28,7 +28,7 @@ namespace stencil::gui {
   void SettingsDialog::applyFilter(const QString& query) {
     const QString q = query.trimmed().toLower();
     bool any = false;
-    for (Group& g : groups_) {
+    for (Group& g : groups) {
       bool groupAny = false;
       for (const auto& [label, w] : g.rows) {
         const bool match = q.isEmpty() || label.toLower().contains(q);
@@ -38,38 +38,38 @@ namespace stencil::gui {
       g.title->setVisible(groupAny);
       any = any || groupAny;
     }
-    empty_->setVisible(!any);
+    empty->setVisible(!any);
   }
 
   void SettingsDialog::applyLive() {
-    if (onChange_) onChange_(result());
+    if (onChange) onChange(result());
   }
 
   Settings SettingsDialog::result() const {
-    Settings s = base_;  // keep fields not exposed here (formulas, tooltip, llm*…)
-    s.themeMode = theme_->currentData().toString();
-    s.accentColor = accent_->currentData().toString();
-    s.nativeMenuBar = nativeMenuBar_->isChecked();
-    s.autosave = autosave_->isChecked();
-    s.showPoints = showPoints_->isChecked();
-    s.showLines = showLines_->isChecked();
-    s.defaultColor = colorHex_;
-    s.defaultThickness = thickness_->value();
-    s.defaultPointSize = pointSize_->value();
-    s.defaultStyle = style_->currentData().toString();
-    s.defaultFillColor = fillHex_;
-    s.selGlowColor = selGlowHex_;
-    s.hoverRingColor = hoverRingHex_;
-    s.focusRingColor = focusRingHex_;
-    s.pageSize = page_->currentData().toString();
-    s.customPageWidth = customW_->value();
-    s.customPageHeight = customH_->value();
-    s.holdDrawDelay = holdDelay_->value();
-    s.drawingAnimations = drawAnim_->isChecked();
-    s.modalBackdrop = modalBackdrop_->isChecked();
-    s.motionMode = motionMode_->currentData().toString();
-    s.browserBaseUrl = browserUrl_->text().trimmed();
-    s.telegramBotUsername = botUsername_->text().trimmed().remove(QLatin1Char('@'));
+    Settings s = base;  // keep fields not exposed here (formulas, tooltip, llm*…)
+    s.themeMode = theme->currentData().toString();
+    s.accentColor = accent->currentData().toString();
+    s.nativeMenuBar = nativeMenuBar->isChecked();
+    s.autosave = autosave->isChecked();
+    s.showPoints = showPoints->isChecked();
+    s.showLines = showLines->isChecked();
+    s.defaultColor = colorHex;
+    s.defaultThickness = thickness->value();
+    s.defaultPointSize = pointSize->value();
+    s.defaultStyle = style->currentData().toString();
+    s.defaultFillColor = fillHex;
+    s.selGlowColor = selGlowHex;
+    s.hoverRingColor = hoverRingHex;
+    s.focusRingColor = focusRingHex;
+    s.pageSize = page->currentData().toString();
+    s.customPageWidth = customW->value();
+    s.customPageHeight = customH->value();
+    s.holdDrawDelay = holdDelay->value();
+    s.drawingAnimations = drawAnim->isChecked();
+    s.modalBackdrop = modalBackdrop->isChecked();
+    s.motionMode = motionMode->currentData().toString();
+    s.browserBaseUrl = browserUrl->text().trimmed();
+    s.telegramBotUsername = botUsername->text().trimmed().remove(QLatin1Char('@'));
     return s;
   }
 }

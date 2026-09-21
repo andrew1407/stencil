@@ -12,11 +12,11 @@ namespace stencil::gui {
 
   void MainWindow::filterPointerChrome(QObject* obj, QEvent* event) {
     // Hovering a scrollbar directly must never let it fade out from under the cursor.
-    if (scroll_ && (obj == canvasScrollBar(Qt::Horizontal) || obj == canvasScrollBar(Qt::Vertical))) {
-      if (event->type() == QEvent::Enter) { scrollbarHovered_ = true; revealCanvasScrollbars(); }
-      else if (event->type() == QEvent::Leave) { scrollbarHovered_ = false; scheduleScrollbarHide(); }
+    if (scroll && (obj == canvasScrollBar(Qt::Horizontal) || obj == canvasScrollBar(Qt::Vertical))) {
+      if (event->type() == QEvent::Enter) { scrollbarHovered = true; revealCanvasScrollbars(); }
+      else if (event->type() == QEvent::Leave) { scrollbarHovered = false; scheduleScrollbarHide(); }
     }
-    if (obj == chatDock_ && event->type() == QEvent::Resize) syncToastInset();
+    if (obj == chatDock && event->type() == QEvent::Resize) syncToastInset();
     // Disabled controls show `not-allowed` (browser rule): Qt never sends a disabled widget the move, so an app-wide filter + override cursor is the one way.
     if (event->type() == QEvent::MouseMove || event->type() == QEvent::Enter ||
         event->type() == QEvent::HoverEnter || event->type() == QEvent::HoverMove) {
@@ -39,12 +39,12 @@ namespace stencil::gui {
       }
       if (row) {
         setBlockedCursor(overDead);
-        blockedRow_ = overDead ? row : nullptr;
-      } else if (event->type() == QEvent::MouseMove && blockedCursorOn_ && w &&
-                 !(blockedRow_ && w->isAncestorOf(blockedRow_))) {
+        blockedRow = overDead ? row : nullptr;
+      } else if (event->type() == QEvent::MouseMove && blockedCursorOn && w &&
+                 !(blockedRow && w->isAncestorOf(blockedRow))) {
         // One physical move is delivered again to each ANCESTOR; treating those copies as "somewhere else" flipped the cursor off and on.
         setBlockedCursor(false);
-        blockedRow_ = nullptr;
+        blockedRow = nullptr;
       }
     }
     if (event->type() == QEvent::Leave || event->type() == QEvent::WindowDeactivate ||
@@ -54,61 +54,61 @@ namespace stencil::gui {
 
   void MainWindow::filterDockChrome(QObject* obj, QEvent* event) {
     // The grip must FOLLOW the panel through every geometry change, not only viewport resizes.
-    if (obj == selPanel_ && panelGrip_) {
+    if (obj == selPanel && panelGrip) {
       const QEvent::Type t = event->type();
       if (t == QEvent::Resize || t == QEvent::Move || t == QEvent::Show || t == QEvent::Hide)
         positionPanelGrip();
     }
-    if (obj == chatDock_ && chatEdge_) {
+    if (obj == chatDock && chatEdge) {
       const QEvent::Type t = event->type();
       if (t == QEvent::Resize || t == QEvent::Move || t == QEvent::Show || t == QEvent::Hide)
         positionChatEdge();
     }
     // The separator belongs to the QMainWindow itself, so ITS hover and drag arrive here; hot through a drag (browser .panel-resizer `.dragging`).
-    if (obj == this && panelGrip_ && panelGrip_->isVisible()) {
+    if (obj == this && panelGrip && panelGrip->isVisible()) {
       const QEvent::Type t = event->type();
       if (t == QEvent::HoverEnter || t == QEvent::HoverMove) {
         const QPoint p = static_cast<QHoverEvent*>(event)->position().toPoint();
-        panelGrip_->setHot(panelGripDrag_ || panelGrip_->geometry().contains(p));
+        panelGrip->setHot(panelGripDrag || panelGrip->geometry().contains(p));
       } else if (t == QEvent::MouseButtonPress &&
                  static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
-        if (panelGrip_->geometry().contains(
+        if (panelGrip->geometry().contains(
                 static_cast<QMouseEvent*>(event)->position().toPoint())) {
-          panelGripDrag_ = true;
-          panelGrip_->setHot(true);
+          panelGripDrag = true;
+          panelGrip->setHot(true);
         }
-      } else if (t == QEvent::MouseButtonRelease && panelGripDrag_) {
-        panelGripDrag_ = false;
-        panelGrip_->setHot(panelGrip_->geometry().contains(
+      } else if (t == QEvent::MouseButtonRelease && panelGripDrag) {
+        panelGripDrag = false;
+        panelGrip->setHot(panelGrip->geometry().contains(
             static_cast<QMouseEvent*>(event)->position().toPoint()));
       } else if (t == QEvent::HoverLeave || t == QEvent::Leave) {
-        if (!panelGripDrag_) panelGrip_->setHot(false);
+        if (!panelGripDrag) panelGrip->setHot(false);
       }
     }
     // The chat dock's resize edge (browser .chat-resizer), hit-tested against the separator's own rect, not the painted band.
-    if (obj == this && chatEdge_ && chatEdge_->isVisible()) {
+    if (obj == this && chatEdge && chatEdge->isVisible()) {
       const QEvent::Type t = event->type();
       if (t == QEvent::HoverEnter || t == QEvent::HoverMove) {
         const QPoint p = static_cast<QHoverEvent*>(event)->position().toPoint();
-        chatEdge_->setHot(chatEdgeDrag_ || chatEdgeHit_.contains(p));
+        chatEdge->setHot(chatEdgeDrag || chatEdgeHit.contains(p));
       } else if (t == QEvent::MouseButtonPress &&
                  static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
-        if (chatEdgeHit_.contains(static_cast<QMouseEvent*>(event)->position().toPoint())) {
-          chatEdgeDrag_ = true;
-          chatEdge_->setHot(true);
+        if (chatEdgeHit.contains(static_cast<QMouseEvent*>(event)->position().toPoint())) {
+          chatEdgeDrag = true;
+          chatEdge->setHot(true);
         }
-      } else if (t == QEvent::MouseButtonRelease && chatEdgeDrag_) {
-        chatEdgeDrag_ = false;
-        chatEdge_->setHot(
-            chatEdgeHit_.contains(static_cast<QMouseEvent*>(event)->position().toPoint()));
+      } else if (t == QEvent::MouseButtonRelease && chatEdgeDrag) {
+        chatEdgeDrag = false;
+        chatEdge->setHot(
+            chatEdgeHit.contains(static_cast<QMouseEvent*>(event)->position().toPoint()));
       } else if (t == QEvent::HoverLeave || t == QEvent::Leave) {
-        if (!chatEdgeDrag_) chatEdge_->setHot(false);
+        if (!chatEdgeDrag) chatEdge->setHot(false);
       }
     }
     // A lost-focus window never delivers the held arrows' key-up (browser controlsBinder.js blur listener).
     if (obj == this && event->type() == QEvent::WindowDeactivate) {
-      panLeftHeld_ = panRightHeld_ = panUpHeld_ = panDownHeld_ = panShiftHeld_ = false;
-      if (arrowPanTimer_) arrowPanTimer_->stop();
+      panLeftHeld = panRightHeld = panUpHeld = panDownHeld = panShiftHeld = false;
+      if (arrowPanTimer) arrowPanTimer->stop();
     }
   }
 

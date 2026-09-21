@@ -38,7 +38,7 @@ namespace stencil::gui {
       "The second attached image is an edge-map render of the working image at the "
       "same pixel coordinates: use it to place outline points on real edges.";
 
-  // §7 auto-continuation user-text: a message to the MODEL. It rides in chatHistory_, so every display path filters it out.
+  // §7 auto-continuation user-text: a message to the MODEL. It rides in chatHistory, so every display path filters it out.
   constexpr char CHAT_CONTINUATION_NOTE[] =
       "[The working image is now the picture those actions loaded — continue with it.]";
 
@@ -83,35 +83,35 @@ namespace stencil::gui {
       setCursor(Qt::PointingHandCursor);
       auto* lay = new QHBoxLayout(this);
       lay->setContentsMargins(14, 10, 14, 10);
-      label_ = new QLabel(this);
-      lay->addWidget(label_);
-      timer_ = new QTimer(this);
-      timer_->setSingleShot(true);
-      QObject::connect(timer_, &QTimer::timeout, this, &QWidget::hide);
+      label = new QLabel(this);
+      lay->addWidget(label);
+      timer = new QTimer(this);
+      timer->setSingleShot(true);
+      QObject::connect(timer, &QTimer::timeout, this, &QWidget::hide);
       parent->installEventFilter(this);  // keep the bottom-left anchor on resize
       hide();
     }
 
     void showToast(const QString& text, bool success, std::function<void()> onClick) {
-      onClick_ = std::move(onClick);
+      this->onClick = std::move(onClick);
       setStyleSheet(
           QStringLiteral(
               "#chatToast{background:rgba(40,46,60,242);border:1px solid rgba(255,255,255,42);"
               "border-left:3px solid %1;border-radius:8px;}"
               "#chatToast QLabel{color:white;background:transparent;}")
               .arg(QLatin1String(success ? CHAT_STATUS_OK_COLOR : CHAT_STATUS_BAD_COLOR)));
-      label_->setText(text);
+      label->setText(text);
       reposition();
       show();
       raise();
-      timer_->start(TOAST_MS);
+      timer->start(TOAST_MS);
     }
 
    protected:
     void mousePressEvent(QMouseEvent*) override {
-      timer_->stop();
+      timer->stop();
       hide();
-      if (onClick_) onClick_();
+      if (onClick) onClick();
     }
     bool eventFilter(QObject* o, QEvent* e) override {
       if (o == parentWidget() && e->type() == QEvent::Resize && isVisible()) reposition();
@@ -125,9 +125,9 @@ namespace stencil::gui {
         move(TOAST_MARGIN, p->height() - height() - TOAST_MARGIN);
     }
 
-    QLabel* label_ = nullptr;
-    QTimer* timer_ = nullptr;
-    std::function<void()> onClick_;
+    QLabel* label = nullptr;
+    QTimer* timer = nullptr;
+    std::function<void()> onClick;
   };
 
   // Retry re-sends the most recent USER message (pushed before the request went out).

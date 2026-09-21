@@ -74,7 +74,7 @@ int filterTransitions(const std::vector<Project>& locals) {
     dlg.reject();
   }
 
-  // A live re-list landing mid dust-flight must not crash: setProjects() does list_->clear(), so a
+  // A live re-list landing mid dust-flight must not crash: setProjects() does list->clear(), so a
   // pending veil-lift timer must not touch the QListWidgetItem it started with.
   {
     std::printf("a live re-list mid dust-flight (crash regression):\n");

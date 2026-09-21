@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     ScriptBuffer::instance().setText(QString());
     ScriptMenuPanel panel(nullptr, {});
     panel.setScript(QStringLiteral("@filter bw\n"));
-    check(ScriptBuffer::instance().text() == QStringLiteral("@filter bw\n"),
+    check(ScriptBuffer::instance().getText() == QStringLiteral("@filter bw\n"),
           "what the flyout holds IS the shared buffer");
 
     ScriptDialog dlg{QString()};
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
       dlg.findChild<QPlainTextEdit*>(QStringLiteral("scriptText"))
           ->setPlainText(QStringLiteral("@save\n"));
     }
-    check(ScriptBuffer::instance().text() == QStringLiteral("@save\n"),
+    check(ScriptBuffer::instance().getText() == QStringLiteral("@save\n"),
           "the window closing does not take the script with it");
     ScriptMenuPanel panel(nullptr, {});
     check(panel.script() == QStringLiteral("@save\n"), "a later flyout opens on it");
@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
 
     clear->click();
     check(panel.script().isEmpty(), "Clear empties the editor");
-    check(ScriptBuffer::instance().text().isEmpty(), "…and the shared buffer with it");
+    check(ScriptBuffer::instance().getText().isEmpty(), "…and the shared buffer with it");
     check(diag && diag->text().isEmpty() && !diag->property("state").isValid(),
           "the diagnostics strip resets");
     check(clear && !clear->isEnabled(), "Clear goes dead, gated like Copy and Download");

@@ -21,17 +21,17 @@ class MainWindowGuiTest : public QObject {
     const QString id = win.addImageProjectEntry(img, "name-row");
     QVERIFY(!id.isEmpty());
     QVERIFY(win.loadProjectIntoCanvas(id, false));
-    QVERIFY(win.nameBar_.field && win.nameBar_.edit && win.nameBar_.colorBtn);
-    QTRY_VERIFY(win.nameBar_.colorBtn->isVisible());   // the chips slide in after the bind
+    QVERIFY(win.nameBar.field && win.nameBar.edit && win.nameBar.colorBtn);
+    QTRY_VERIFY(win.nameBar.colorBtn->isVisible());   // the chips slide in after the bind
     settleLayout(&win, 300);
 
     // The chips: the browser's box, and its 4px gaps either side.
-    QCOMPARE(win.nameBar_.edit->size(), QSize(stencil::gui::NAME_CHIP_BOX,
+    QCOMPARE(win.nameBar.edit->size(), QSize(stencil::gui::NAME_CHIP_BOX,
                                                  stencil::gui::NAME_CHIP_BOX));
-    QCOMPARE(win.nameBar_.colorBtn->size(), win.nameBar_.edit->size());
-    const QRect f(win.nameBar_.field->mapTo(&win, QPoint(0, 0)), win.nameBar_.field->size());
-    const QRect e(win.nameBar_.edit->mapTo(&win, QPoint(0, 0)), win.nameBar_.edit->size());
-    const QRect c(win.nameBar_.colorBtn->mapTo(&win, QPoint(0, 0)), win.nameBar_.colorBtn->size());
+    QCOMPARE(win.nameBar.colorBtn->size(), win.nameBar.edit->size());
+    const QRect f(win.nameBar.field->mapTo(&win, QPoint(0, 0)), win.nameBar.field->size());
+    const QRect e(win.nameBar.edit->mapTo(&win, QPoint(0, 0)), win.nameBar.edit->size());
+    const QRect c(win.nameBar.colorBtn->mapTo(&win, QPoint(0, 0)), win.nameBar.colorBtn->size());
     // 8px of air either side — at 4 the chips sat right against the field's edge (user
     // report, with a picture). Browser twin: .project-name-field's `gap`.
     QCOMPARE(e.left() - f.right() - 1, 8);
@@ -42,7 +42,7 @@ class MainWindowGuiTest : public QObject {
       const QImage im = win.grab(f).toImage();
       return im.pixelColor(im.width() / 2, 1);
     };
-    const QColor accent = stencil::gui::accentPrimary(win.settings_.accentColor);
+    const QColor accent = stencil::gui::accentPrimary(win.settings.accentColor);
     const QColor rest = edge();
     // The ring is the accent at the shared 45% (the browser's two stacked layers come to the same on
     // screen), so the edge lands between the ground and the accent, never the flat accent.
@@ -53,17 +53,17 @@ class MainWindowGuiTest : public QObject {
                        qRound(0.45 * accent.green() + 0.55 * rest.green()),
                        qRound(0.45 * accent.blue() + 0.55 * rest.blue()));
     QVERIFY2(!near(rest, accent, 60), "the title wears the ring at rest");
-    win.nameBar_.field->setAttribute(Qt::WA_UnderMouse, true);
-    QEnterEvent enter(QPointF(5, 5), QPointF(5, 5), win.nameBar_.field->mapToGlobal(QPointF(5, 5)));
-    QApplication::sendEvent(win.nameBar_.field, &enter);
-    win.nameBar_.field->update();
+    win.nameBar.field->setAttribute(Qt::WA_UnderMouse, true);
+    QEnterEvent enter(QPointF(5, 5), QPointF(5, 5), win.nameBar.field->mapToGlobal(QPointF(5, 5)));
+    QApplication::sendEvent(win.nameBar.field, &enter);
+    win.nameBar.field->update();
     QTest::qWait(150);
     const QColor hovered = edge();
     QVERIFY2(!near(hovered, rest, 24), "no ring appeared under the pointer");
     QVERIFY2(near(hovered, blend, 40),
              qPrintable(QString("the ring is not the shared 45%% accent: %1 (wanted ~%2)")
                             .arg(hovered.name(), blend.name())));
-    win.nameBar_.field->setAttribute(Qt::WA_UnderMouse, false);
+    win.nameBar.field->setAttribute(Qt::WA_UnderMouse, false);
     beat();
   }
 
@@ -75,9 +75,9 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());
-    settle([&] { return win.canvas_->hasImage(); }, 500);
+    settle([&] { return win.canvas->hasImage(); }, 500);
     const auto motion = withMotion();   // the slide is the whole point here
-    const int box = win.nameBar_.accept->maximumWidth();
+    const int box = win.nameBar.accept->maximumWidth();
     QVERIFY(box > 20);
     for (int i = 0; i < 6; ++i) {   // in and straight back out, mid-slide every time
       win.enterNameEdit();
@@ -86,9 +86,9 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(60);
     }
     win.enterNameEdit();
-    QTRY_COMPARE(win.nameBar_.accept->width(), box);
-    QCOMPARE(win.nameBar_.cancel->width(), box);
-    QVERIFY2(!win.nameBar_.accept->icon().isNull(), "the tick lost its glyph");
+    QTRY_COMPARE(win.nameBar.accept->width(), box);
+    QCOMPARE(win.nameBar.cancel->width(), box);
+    QVERIFY2(!win.nameBar.accept->icon().isNull(), "the tick lost its glyph");
     win.cancelProjectName();
   }
 
@@ -103,7 +103,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     openLoaded(win);
-    settle([&] { return win.canvas_->hasImage(); }, 500);
+    settle([&] { return win.canvas->hasImage(); }, 500);
     stencil::gui::SearchComboBox* combo = nullptr;
     for (QComboBox* c : win.findChildren<QComboBox*>())
       if (c->isVisible() && c->count() > 2) {

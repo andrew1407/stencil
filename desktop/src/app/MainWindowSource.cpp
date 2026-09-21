@@ -21,17 +21,17 @@
 namespace stencil::gui {
 
   void MainWindow::ensureMediaLoader() {
-    if (mediaLoader_) return;
-    mediaLoader_ = new MediaLoader(this);
-    connect(mediaLoader_, &MediaLoader::loaded, this,
+    if (mediaLoader) return;
+    mediaLoader = new MediaLoader(this);
+    connect(mediaLoader, &MediaLoader::loaded, this,
             &MainWindow::onLaunchImageLoaded);
-    connect(mediaLoader_, &MediaLoader::failed, this, [this](const QString& msg) {
-      pendingLaunchLayout_.clear();
-      pendingLaunchLayoutJson_.clear();
-      pendingProvSource_.clear();
-      pendingProvResource_.clear();
-      pendingServerTarget_.clear();
-      notify_->error(msg);
+    connect(mediaLoader, &MediaLoader::failed, this, [this](const QString& msg) {
+      pendingLaunchLayout.clear();
+      pendingLaunchLayoutJson.clear();
+      pendingProvSource.clear();
+      pendingProvResource.clear();
+      pendingServerTarget.clear();
+      notify->error(msg);
     });
   }
 
@@ -51,16 +51,16 @@ namespace stencil::gui {
         ok = img.loadFromData(bytes);
       }
       if (!ok) {
-        pendingLaunchLayout_.clear();
-        pendingLaunchLayoutJson_.clear();
-        notify_->error("Could not decode the inline image");
+        pendingLaunchLayout.clear();
+        pendingLaunchLayoutJson.clear();
+        notify->error("Could not decode the inline image");
         return;
       }
       onLaunchImageLoaded(img, QString());
       return;
     }
     ensureMediaLoader();
-    mediaLoader_->load(src, frame);
+    mediaLoader->load(src, frame);
   }
 
   // From the OS shell: a *.json is a layout, anything else goes via the --src path.
@@ -86,36 +86,36 @@ namespace stencil::gui {
   void MainWindow::openProjectFile(const QString& path) {
     QByteArray bytes;
     if (!readFileBytes(path, bytes)) {
-      notify_->error("Could not read the project file");
+      notify->error("Could not read the project file");
       return;
     }
     fileStore::ProjectFileData pf;
     QString err;
     if (!fileStore::parseProjectFile(bytes, pf, &err)) {
-      notify_->error("Invalid .stencil file: " + err);
+      notify->error("Invalid .stencil file: " + err);
       return;
     }
     QImage img;
     if (!img.loadFromData(pf.imageBytes)) {
-      notify_->error("Could not decode the project image");
+      notify->error("Could not decode the project image");
       return;
     }
-    activeProjectId_.clear();   // an opened project file is a fresh editor (Save to Project keeps it)
+    activeProjectId.clear();   // an opened project file is a fresh editor (Save to Project keeps it)
     loadImageWithLayout(img, pf.layout, pf.imageBytes, pf.imageExt);
-    currentSource_ = pf.source;
-    currentResource_ = pf.resource;
+    currentSource = pf.source;
+    currentResource = pf.resource;
     // Only a file that carried a theme changes the user's; a custom-hex accent is ignored (desktop
     // uses presets).
     if (pf.hasTheme) {
       bool changed = false;
       if (pf.themeMode == "light" || pf.themeMode == "dark") {
-        settings_.themeMode = pf.themeMode;
+        settings.themeMode = pf.themeMode;
         changed = true;
       }
       if (!pf.themeAccent.isEmpty()) {
         for (const auto& preset : accentPresets()) {
           if (pf.themeAccent == preset.key) {
-            settings_.accentColor = pf.themeAccent;
+            settings.accentColor = pf.themeAccent;
             changed = true;
             break;
           }
@@ -123,18 +123,18 @@ namespace stencil::gui {
       }
       if (changed) {
         applyTheme();
-        fileStore::saveSettings(settings_);
+        fileStore::saveSettings(settings);
       }
     }
     createLocalProject(pf.name, /*announce=*/false, /*fromFile=*/true);
     linkStencilFile(path, bytes);
     // Chat persistence (§12.3): adopt the file's saved chat when the opt-in is on.
-    if (settings_.saveChatsWithProject) {
+    if (settings.saveChatsWithProject) {
       restoreChatFromDoc(pf.chat);
       if (!pf.chat.isEmpty()) {
-        if (Project* pr = findProject(activeProjectId_.toStdString())) {
+        if (Project* pr = findProject(activeProjectId.toStdString())) {
           pr->chat = buildActiveChatDoc();
-          fileStore::saveProjects(projectList_);
+          fileStore::saveProjects(projectList);
         }
       }
     }
@@ -145,8 +145,8 @@ namespace stencil::gui {
   // .stencil bytes (original image + layout + metadata + theme); mirrors browser
   // ExportService.saveProjectFile.
   void MainWindow::setSourceBytes(const QByteArray& bytes, const QString& ext) {
-    sourceBytes_ = bytes;
-    sourceExt_ = ext.trimmed().toLower();
+    sourceBytes = bytes;
+    sourceExt = ext.trimmed().toLower();
   }
 
   // Retained raw bytes so a .stencil bundle embeds the untouched original; cleared on a read
@@ -160,7 +160,7 @@ namespace stencil::gui {
 
   bool MainWindow::openProjectByName(const QString& name) {
     const QString want = name.trimmed();
-    for (const auto& p : projectList_) {
+    for (const auto& p : projectList) {
       if (QString::fromStdString(p.meta.name).compare(want, Qt::CaseInsensitive) ==
           0)
         return loadProjectIntoCanvas(QString::fromStdString(p.meta.id));

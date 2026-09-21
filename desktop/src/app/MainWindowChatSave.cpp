@@ -47,8 +47,8 @@ namespace stencil::gui {
 
   QString MainWindow::uniqueLocalProjectName(const QString& wanted) const {
     std::vector<core::ProjectMeta> metas;
-    for (const auto& p : projectList_) metas.push_back(p.meta);
-    core::ProjectsStore store;   // local; never disturbs projectsStore_
+    for (const auto& p : projectList) metas.push_back(p.meta);
+    core::ProjectsStore store;   // local; never disturbs projectsStore
     store.load(metas);
     if (!store.nameExists(wanted.toStdString())) return wanted;
     for (int n = 2; n < 1000; ++n) {
@@ -61,18 +61,18 @@ namespace stencil::gui {
   QString MainWindow::chatSaveBaseName(const QString& requested) const {
     QString name = requested.trimmed();
     // The attachment the plan works on names it — a 3-image plan leaves 3 named projects.
-    if (name.isEmpty() && chatActiveAttachment_ >= 1)
-      name = QFileInfo(chatTurnAttachmentNames_.value(chatActiveAttachment_ - 1))
+    if (name.isEmpty() && chatActiveAttachment >= 1)
+      name = QFileInfo(chatTurnAttachmentNames.value(chatActiveAttachment - 1))
                  .completeBaseName()
                  .trimmed();
     if (name.isEmpty()) name = activeProjectName();
-    if (name.isEmpty() && canvas_ && canvas_->hasImage()) name = canvas_->imageBaseName();
+    if (name.isEmpty() && canvas && canvas->hasImage()) name = canvas->imageBaseName();
     if (name.isEmpty()) name = QStringLiteral("Untitled");
     return name.left(core::ProjectsStore::MAX_NAME_LENGTH);  // core validateName's cap
   }
 
   bool MainWindow::chatSaveProject(const QString& name, const QString& dest, QString* err) {
-    if (!canvas_->hasImage()) {   // the executor notes this case before calling
+    if (!canvas->hasImage()) {   // the executor notes this case before calling
       if (err) *err = QStringLiteral("save: there is no image to save");
       return false;
     }
@@ -92,23 +92,23 @@ namespace stencil::gui {
           if (err) *err = QStringLiteral("save: could not write %1").arg(path);
           return false;
         }
-      } else if (!canvas_->renderToImage(true).save(path)) {
+      } else if (!canvas->renderToImage(true).save(path)) {
         if (err) *err = QStringLiteral("save: could not write %1").arg(path);
         return false;
       }
-      notify_->success(QStringLiteral("Saved %1").arg(support::shortName(path)));
+      notify->success(QStringLiteral("Saved %1").arg(support::shortName(path)));
       return true;
     }
-    if (incognito_) {   // leaving incognito IS the save the user asked for
+    if (incognito) {   // leaving incognito IS the save the user asked for
       const QString promoted = promoteIncognitoToLocal(chatSaveBaseName(name));
-      notify_->success(QStringLiteral("Left incognito — saved \"%1\"")
+      notify->success(QStringLiteral("Left incognito — saved \"%1\"")
                            .arg(support::shortName(promoted)));
       return true;
     }
     // A FRESH project per save, so each image of a multi-image plan lands as its own.
     const QString unique = uniqueLocalProjectName(chatSaveBaseName(name));
     createLocalProject(unique, /*announce=*/false);
-    notify_->success(QStringLiteral("Saved \"%1\"").arg(support::shortName(unique)));
+    notify->success(QStringLiteral("Saved \"%1\"").arg(support::shortName(unique)));
     return true;
   }
 
@@ -124,16 +124,16 @@ namespace stencil::gui {
       return true;
     }
     if (path.endsWith(QStringLiteral(".json"), Qt::CaseInsensitive)) {
-      if (!canvas_->hasImage()) {
+      if (!canvas->hasImage()) {
         if (err) *err = QStringLiteral("openFile: load a picture before applying a layout");
         return false;
       }
       applyLayoutFromSource(path);
       return true;
     }
-    notify_->info(QStringLiteral("Opening %1").arg(support::shortName(path)));
+    notify->info(QStringLiteral("Opening %1").arg(support::shortName(path)));
     QString why;
-    if (chatLoadSource(path, incognito_, &why)) return true;
+    if (chatLoadSource(path, incognito, &why)) return true;
     if (err) *err = QStringLiteral("openFile: %1").arg(why);
     return false;
   }
@@ -144,12 +144,12 @@ namespace stencil::gui {
     ensureMediaLoader();  // before OUR connects, so the canvas adopts first
     QEventLoop loop;
     bool loaded = false, failed = false;
-    const auto cLoaded = QObject::connect(mediaLoader_, &MediaLoader::loaded, &loop,
+    const auto cLoaded = QObject::connect(mediaLoader, &MediaLoader::loaded, &loop,
                                           [&](const QImage&, const QString&) {
                                             loaded = true;
                                             loop.quit();
                                           });
-    const auto cFailed = QObject::connect(mediaLoader_, &MediaLoader::failed, &loop,
+    const auto cFailed = QObject::connect(mediaLoader, &MediaLoader::failed, &loop,
                                           [&](const QString& msg) {
                                             failed = true;
                                             if (why) *why = msg;

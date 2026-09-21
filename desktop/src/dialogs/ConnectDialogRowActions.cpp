@@ -40,7 +40,7 @@ namespace stencil::gui {
                                              stencil::net::ServerClient* cl, bool expired,
                                              bool admin) {
     const QColor rowTxt("#ffffff");
-    const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::ERROR;
+    const auto st = cl ? cl->getStatus() : stencil::net::ServerClient::Status::ERROR;
     // One reconnect control per row, the SAME icon-only square in every state (browser
     // .connect-reconnect-one). On an expired session it runs reauthenticate(): session, then token.
     auto* recon = makeRowActionButton(themedIcon("refresh", expired ? QColor("#1f1f1f") : rowTxt, 15),
@@ -61,7 +61,7 @@ namespace stencil::gui {
       h->addWidget(invite);
       h->addSpacing(6);   // browser .connect-actions gap
       QObject::connect(invite, &QPushButton::clicked, this, [this, url, invite, rowTxt] {
-        stencil::net::ServerClient* c = manager_ ? manager_->find(url) : nullptr;
+        stencil::net::ServerClient* c = manager ? manager->find(url) : nullptr;
         if (!c) return;
         QPointer<ConnectDialog> self(this);
         QPointer<QPushButton> btn(invite);
@@ -95,7 +95,7 @@ namespace stencil::gui {
         return;
       }
       QPointer<ConnectDialog> self(this);
-      manager_->reconnectAsync(url, [this, self, url](bool ok, QString err) {
+      manager->reconnectAsync(url, [this, self, url](bool ok, QString err) {
         if (!self) return;
         // Named, not a bare "Reconnected": with more than one saved server the toast
         // has to say WHICH one signed back in (browser parity).

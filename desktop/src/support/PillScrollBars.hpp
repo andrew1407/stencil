@@ -41,13 +41,13 @@ namespace stencil::gui {
 
    protected:
     bool eventFilter(QObject* watched, QEvent* e) override {
-      if (watched != bar_) return false;
+      if (watched != bar) return false;
       switch (e->type()) {
         case QEvent::Paint: return paint();
         case QEvent::Enter: swellTo(HOVER_THICK); break;
         // Qt withholds the Leave during a drag past the edge; settle once the pointer really left.
-        case QEvent::Leave: if (!bar_->isSliderDown()) swellTo(REST_THICK); break;
-        case QEvent::MouseButtonRelease: if (!bar_->underMouse()) swellTo(REST_THICK); break;
+        case QEvent::Leave: if (!bar->isSliderDown()) swellTo(REST_THICK); break;
+        case QEvent::MouseButtonRelease: if (!bar->underMouse()) swellTo(REST_THICK); break;
         default: break;
       }
       return false;
@@ -75,15 +75,15 @@ namespace stencil::gui {
       qApp->installEventFilter(a);
     }
 
-    explicit ScrollBarPill(QScrollBar* bar) : QObject(bar), bar_(bar) {
-      swell_ = new QVariantAnimation(this);
-      swell_->setDuration(150);
-      swell_->setEasingCurve(QEasingCurve::OutCubic);
-      connect(swell_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-        thick_ = v.toReal();
-        bar_->update();
+    explicit ScrollBarPill(QScrollBar* bar) : QObject(bar), bar(bar) {
+      swell = new QVariantAnimation(this);
+      swell->setDuration(150);
+      swell->setEasingCurve(QEasingCurve::OutCubic);
+      connect(swell, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
+        thick = v.toReal();
+        this->bar->update();
       });
-      bar_->installEventFilter(this);
+      this->bar->installEventFilter(this);
     }
 
     // true = painted here; false = unthemed, Qt paints.
@@ -92,44 +92,44 @@ namespace stencil::gui {
       if (!c.thumb.isValid()) return false;
       // What QScrollBar::initStyleOption (protected) fills in, so the QSS sizing rules apply.
       QStyleOptionSlider opt;
-      opt.initFrom(bar_);
+      opt.initFrom(bar);
       opt.subControls = QStyle::SC_All;
-      opt.orientation = bar_->orientation();
+      opt.orientation = bar->orientation();
       if (opt.orientation == Qt::Horizontal) opt.state |= QStyle::State_Horizontal;
-      opt.minimum = bar_->minimum();
-      opt.maximum = bar_->maximum();
-      opt.sliderPosition = bar_->sliderPosition();
-      opt.sliderValue = bar_->value();
-      opt.singleStep = bar_->singleStep();
-      opt.pageStep = bar_->pageStep();
-      opt.upsideDown = bar_->invertedAppearance();
-      const QRect slider = bar_->style()->subControlRect(QStyle::CC_ScrollBar, &opt,
-                                                         QStyle::SC_ScrollBarSlider, bar_);
+      opt.minimum = bar->minimum();
+      opt.maximum = bar->maximum();
+      opt.sliderPosition = bar->sliderPosition();
+      opt.sliderValue = bar->value();
+      opt.singleStep = bar->singleStep();
+      opt.pageStep = bar->pageStep();
+      opt.upsideDown = bar->invertedAppearance();
+      const QRect slider = bar->style()->subControlRect(QStyle::CC_ScrollBar, &opt,
+                                                         QStyle::SC_ScrollBarSlider, bar);
       if (!slider.isValid()) return true;   // nothing to scroll: a bare, transparent slot
       const QRectF pill =
           opt.orientation == Qt::Vertical
-              ? QRectF(slider.center().x() + 0.5 - thick_ / 2.0, slider.top(), thick_, slider.height())
-              : QRectF(slider.left(), slider.center().y() + 0.5 - thick_ / 2.0, slider.width(), thick_);
-      const bool hot = bar_->underMouse() || bar_->isSliderDown();
-      QPainter p(bar_);
+              ? QRectF(slider.center().x() + 0.5 - thick / 2.0, slider.top(), thick, slider.height())
+              : QRectF(slider.left(), slider.center().y() + 0.5 - thick / 2.0, slider.width(), thick);
+      const bool hot = bar->underMouse() || bar->isSliderDown();
+      QPainter p(bar);
       p.setRenderHint(QPainter::Antialiasing);
       p.setPen(Qt::NoPen);
       p.setBrush(hot && c.hover.isValid() ? c.hover : c.thumb);
-      p.drawRoundedRect(pill, thick_ / 2.0, thick_ / 2.0);
+      p.drawRoundedRect(pill, thick / 2.0, thick / 2.0);
       return true;
     }
 
     void swellTo(qreal target) {
-      if (support::motionReduced()) { swell_->stop(); thick_ = target; bar_->update(); return; }
-      swell_->stop();
-      swell_->setStartValue(thick_);
-      swell_->setEndValue(target);
-      swell_->start();
+      if (support::motionReduced()) { swell->stop(); thick = target; bar->update(); return; }
+      swell->stop();
+      swell->setStartValue(thick);
+      swell->setEndValue(target);
+      swell->start();
     }
 
-    QScrollBar* bar_ = nullptr;
-    qreal thick_ = REST_THICK;
-    QVariantAnimation* swell_ = nullptr;
+    QScrollBar* bar = nullptr;
+    qreal thick = REST_THICK;
+    QVariantAnimation* swell = nullptr;
   };
 
 }  // namespace stencil::gui

@@ -12,13 +12,13 @@ namespace stencil::gui {
         QStringLiteral("keywords"), QStringLiteral("keywords"), tr("Project keywords"),
         QString(), QString(), tr("Cancel"), tr("Save"), 5};
     ModalChrome chrome = startProjectMetaDialog(this, spec);
-    chips_ = new KeywordChips(current, this);
-    chrome.body->addWidget(chips_, 1);
-    finishProjectMetaDialog(this, chrome, spec, chips_->clearButton(), chips_->input());
-    chips_->input()->setFocus();
+    chips = new KeywordChips(current, this);
+    chrome.body->addWidget(chips, 1);
+    finishProjectMetaDialog(this, chrome, spec, chips->clearButton(), chips->getInput());
+    chips->getInput()->setFocus();
   }
 
-  QStringList KeywordsDialog::keywords() const { return chips_->keywords(); }
+  QStringList KeywordsDialog::keywords() const { return chips->keywords(); }
 
   bool KeywordsDialog::apply(std::vector<Project>& projects, const QString& id,
                              const QStringList& keywords, long long now) {

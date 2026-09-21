@@ -118,11 +118,11 @@ class MainWindowGuiTest : public QObject {
       delete t;
       QVERIFY2(w.seen, "single click did not ask for confirmation");
       QTRY_COMPARE(mainWindowCount(), baseWindows);  // same window
-      QVERIFY(win.canvas_->hasImage());
+      QVERIFY(win.canvas->hasImage());
     }
 
     // ── 2. single click, confirmation DECLINED → nothing opens ──
-    win.canvas_->clearImage();
+    win.canvas->clearImage();
     {
       BoxWatch w;
       w.accept = false;
@@ -131,7 +131,7 @@ class MainWindowGuiTest : public QObject {
       t->stop();
       delete t;
       QVERIFY(w.seen);
-      QVERIFY2(!win.canvas_->hasImage(), "declining the confirmation still opened it");
+      QVERIFY2(!win.canvas->hasImage(), "declining the confirmation still opened it");
       QCOMPARE(mainWindowCount(), baseWindows);
     }
 
@@ -143,7 +143,7 @@ class MainWindowGuiTest : public QObject {
       t->stop();
       delete t;
       QVERIFY2(!w.seen, "double click still raised a confirmation dialog");
-      QTRY_VERIFY(win.canvas_->hasImage());
+      QTRY_VERIFY(win.canvas->hasImage());
       QCOMPARE(mainWindowCount(), baseWindows);
     }
 

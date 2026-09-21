@@ -33,7 +33,7 @@ namespace stencil::gui {
     class FooterWrap : public QObject {
      public:
       FooterWrap(QWidget* host, QVBoxLayout* stack, QHBoxLayout* actions, QLabel* hint)
-          : QObject(host), host_(host), stack_(stack), actions_(actions), hint_(hint) {
+          : QObject(host), host(host), stack(stack), actions(actions), hint(hint) {
         host->installEventFilter(this);
       }
 
@@ -41,8 +41,8 @@ namespace stencil::gui {
       void apply() {
         const QList<QWidget*> all = buttons();
         if (all.isEmpty()) return;   // the caller has not added its buttons yet
-        const int avail = host_->width() - 2 - PAD_X * 2;
-        const int gap = actions_->spacing();
+        const int avail = host->width() - 2 - PAD_X * 2;
+        const int gap = actions->spacing();
         // Greedy lines (flex-wrap); hidden buttons ride along, taking no room.
         QList<QList<QWidget*>> lines{{}};
         int x = 0, firstLineW = 0;
@@ -61,7 +61,7 @@ namespace stencil::gui {
 
      protected:
       bool eventFilter(QObject* o, QEvent* e) override {
-        if (o == host_ && e->type() == QEvent::Resize) apply();
+        if (o == host && e->type() == QEvent::Resize) apply();
         return QObject::eventFilter(o, e);
       }
 
@@ -71,34 +71,34 @@ namespace stencil::gui {
         const auto take = [&](const QHBoxLayout* row) {
           for (int i = 0; i < row->count(); ++i) {
             QWidget* w = row->itemAt(i)->widget();
-            if (w && w != hint_) out.append(w);
+            if (w && w != hint) out.append(w);
           }
         };
-        take(actions_);
-        for (QHBoxLayout* row : extra_) take(row);
+        take(actions);
+        for (QHBoxLayout* row : extra) take(row);
         return out;
       }
 
       void setWrapped(bool on) {
-        if (on == wrapped_) return;
-        wrapped_ = on;
+        if (on == wrapped) return;
+        wrapped = on;
         if (on) {
-          actions_->removeWidget(hint_);
-          actions_->insertStretch(0, 1);   // the buttons pack RIGHT on a line of their own
-          stack_->insertWidget(0, hint_);
+          actions->removeWidget(hint);
+          actions->insertStretch(0, 1);   // the buttons pack RIGHT on a line of their own
+          stack->insertWidget(0, hint);
         } else {
-          stack_->removeWidget(hint_);
-          if (actions_->count() > 0 && actions_->itemAt(0)->spacerItem()) delete actions_->takeAt(0);
-          actions_->insertWidget(0, hint_, 1);   // addModalFooter's slot: first in the row
+          stack->removeWidget(hint);
+          if (actions->count() > 0 && actions->itemAt(0)->spacerItem()) delete actions->takeAt(0);
+          actions->insertWidget(0, hint, 1);   // addModalFooter's slot: first in the row
         }
       }
 
       // The first line stays the actions row; a no-op when nothing moves.
       void setLines(const QList<QList<QWidget*>>& lines) {
         QList<QList<QWidget*>> have{{}};
-        for (int i = 0; i < actions_->count(); ++i)
-          if (QWidget* w = actions_->itemAt(i)->widget(); w && w != hint_) have.last().append(w);
-        for (QHBoxLayout* row : extra_) {
+        for (int i = 0; i < actions->count(); ++i)
+          if (QWidget* w = actions->itemAt(i)->widget(); w && w != hint) have.last().append(w);
+        for (QHBoxLayout* row : extra) {
           have.append(QList<QWidget*>());
           for (int i = 0; i < row->count(); ++i)
             if (QWidget* w = row->itemAt(i)->widget()) have.last().append(w);
@@ -108,35 +108,35 @@ namespace stencil::gui {
           for (QWidget* w : line) {
             if (QLayout* l = layoutOf(w)) l->removeWidget(w);
           }
-        for (QHBoxLayout* row : extra_) { stack_->removeItem(row); delete row; }
-        extra_.clear();
+        for (QHBoxLayout* row : extra) { stack->removeItem(row); delete row; }
+        extra.clear();
         for (int i = 0; i < lines.size(); ++i) {
-          QHBoxLayout* row = actions_;
+          QHBoxLayout* row = actions;
           if (i > 0) {
             row = new QHBoxLayout;
             row->setContentsMargins(0, 0, 0, 0);
-            row->setSpacing(actions_->spacing());
+            row->setSpacing(actions->spacing());
             row->addStretch(1);
-            stack_->addLayout(row);
-            extra_.append(row);
+            stack->addLayout(row);
+            extra.append(row);
           }
           for (QWidget* w : lines[i]) row->addWidget(w);
         }
       }
 
       QLayout* layoutOf(QWidget* w) const {
-        if (actions_->indexOf(w) >= 0) return actions_;
-        for (QHBoxLayout* row : extra_)
+        if (actions->indexOf(w) >= 0) return actions;
+        for (QHBoxLayout* row : extra)
           if (row->indexOf(w) >= 0) return row;
         return nullptr;
       }
 
-      QWidget* host_;
-      QVBoxLayout* stack_;
-      QHBoxLayout* actions_;
-      QLabel* hint_;
-      QList<QHBoxLayout*> extra_;   // the buttons' further lines, when even they don't fit
-      bool wrapped_ = false;
+      QWidget* host;
+      QVBoxLayout* stack;
+      QHBoxLayout* actions;
+      QLabel* hint;
+      QList<QHBoxLayout*> extra;   // the buttons' further lines, when even they don't fit
+      bool wrapped = false;
     };
   }  // namespace
 

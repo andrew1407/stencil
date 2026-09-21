@@ -20,29 +20,29 @@
 namespace stencil::gui {
 
   void ProjectsDialog::scheduleRowOpen(QListWidgetItem* it) {
-    if (press_.rowDragging || press_.pressOnCheck || !it || it->data(Qt::UserRole).isNull()) return;
-    press_.pendingRow = list_->row(it);
-    press_.pendingNewWindow = isNewWindowMod(press_.pressMods);
-    if (!press_.clickTimer) {
-      press_.clickTimer = new QTimer(this);
-      press_.clickTimer->setSingleShot(true);
-      connect(press_.clickTimer, &QTimer::timeout, this, &ProjectsDialog::fireRowOpen);
+    if (press.rowDragging || press.pressOnCheck || !it || it->data(Qt::UserRole).isNull()) return;
+    press.pendingRow = list->row(it);
+    press.pendingNewWindow = isNewWindowMod(press.pressMods);
+    if (!press.clickTimer) {
+      press.clickTimer = new QTimer(this);
+      press.clickTimer->setSingleShot(true);
+      connect(press.clickTimer, &QTimer::timeout, this, &ProjectsDialog::fireRowOpen);
     }
     // Wait out the platform's double-click window before acting.
-    press_.clickTimer->start(QApplication::doubleClickInterval());
+    press.clickTimer->start(QApplication::doubleClickInterval());
   }
 
   void ProjectsDialog::fireRowOpen() {
     // The double click that cancelled us may already have accepted the dialog
     // (the second release re-emits itemClicked, re-arming this timer).
     if (!isVisible()) return;
-    openRow(list_->item(press_.pendingRow), press_.pendingNewWindow, /*confirm=*/true);
+    openRow(list->item(press.pendingRow), press.pendingNewWindow, /*confirm=*/true);
   }
 
   void ProjectsDialog::openRow(QListWidgetItem* it, bool newWindow, bool confirm) {
     if (!it || it->data(Qt::UserRole).isNull()) return;
-    list_->setCurrentItem(it);
-    confirmOpen_ = confirm;
+    list->setCurrentItem(it);
+    confirmOpen = confirm;
     // Remote rows have no new-window path (same rule as the drag-out zones and
     // the ⋯ menu) — open them here instead of doing nothing.
     const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
@@ -51,12 +51,12 @@ namespace stencil::gui {
   }
 
   void ProjectsDialog::openSelected() {
-    auto* it = list_->currentItem();
+    auto* it = list->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
-    selectedId_ = it->data(Qt::UserRole).toString();
+    selectedId = it->data(Qt::UserRole).toString();
     const QString server = it->data(Qt::UserRole + 1).toString();
     if (!server.isEmpty()) {  // golden remote row → fetch + open from the server
-      selectedServerUrl_ = server;
+      selectedServerUrl = server;
       finishOpen(Action::OPEN_REMOTE, /*newWindow=*/false,
                  it->data(Qt::UserRole + 3).toString());
       return;
@@ -65,11 +65,11 @@ namespace stencil::gui {
   }
 
   void ProjectsDialog::openSelectedInNewWindow() {
-    auto* it = list_->currentItem();
+    auto* it = list->currentItem();
     if (!it || it->data(Qt::UserRole).isNull()) return;
     // New-window / delete / rename / renew apply to LOCAL projects only.
     if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;
-    selectedId_ = it->data(Qt::UserRole).toString();
+    selectedId = it->data(Qt::UserRole).toString();
     finishOpen(Action::OPEN_IN_NEW_WINDOW, /*newWindow=*/true,
                it->data(Qt::UserRole + 3).toString());
   }
@@ -77,14 +77,14 @@ namespace stencil::gui {
   // The open-confirm sits OVER the still-open dialog (browser parity). Deferred a turn so a drag
   // release or menu click in the same turn cannot dismiss the question. A double click skips it.
   void ProjectsDialog::finishOpen(Action act, bool newWindow, const QString& name) {
-    if (!confirmOpen_) {
-      action_ = act;
+    if (!confirmOpen) {
+      action = act;
       accept();
       return;
     }
     const QString nm = support::shortName(name.isEmpty() ? tr("Untitled") : name);
     QPointer<ProjectsDialog> self(this);
-    QTimer::singleShot(0, this, [this, self, act, newWindow, nm, closeTo = hover_.menuKebabRect] {
+    QTimer::singleShot(0, this, [this, self, act, newWindow, nm, closeTo = hover.menuKebabRect] {
       if (!self) return;
       ConfirmSpec spec;
       spec.flight.closeRect = closeTo;
@@ -96,8 +96,8 @@ namespace stencil::gui {
       spec.confirmIcon = QStringLiteral("folder");
       if (!confirmModal(this, spec)) return;   // cancelled — the list stays up
       if (!self) return;
-      confirmOpen_ = false;   // answered here — the owner must not ask again
-      action_ = act;
+      confirmOpen = false;   // answered here — the owner must not ask again
+      action = act;
       accept();
     });
   }

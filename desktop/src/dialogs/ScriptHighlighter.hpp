@@ -46,10 +46,10 @@ namespace stencil::gui {
 
     void buildFormats();
 
-    QVector<QVector<Span>> byLine_;   // index = 0-based line, so no hash per block
-    std::array<QTextCharFormat, KINDS> formats_;
-    QTextCharFormat errorFormat_;
-    QTextCharFormat warningFormat_;
+    QVector<QVector<Span>> byLine;   // index = 0-based line, so no hash per block
+    std::array<QTextCharFormat, KINDS> formats;
+    QTextCharFormat errorFormat;
+    QTextCharFormat warningFormat;
   };
 
 }  // namespace stencil::gui

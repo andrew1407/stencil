@@ -24,7 +24,7 @@ namespace stencil::gui {
   // The button for the CURRENT placement is accent-filled and inert (browser
   // .chat-dock-btn-active) — you can't dock where you already are.
   void ChatDock::updatePlacementState() {
-    if (chrome_.dockBtns.size() < 4 || !chrome_.floatBtn || !accentCache_.isValid()) return;
+    if (chrome.dockBtns.size() < 4 || !chrome.floatBtn || !accentCache.isValid()) return;
     static const char* GLYPHS[] = {"chevron-left", "chevron-up", "chevron-down",
                                     "chevron-right"};
     static const Qt::DockWidgetArea AREAS[] = {
@@ -34,9 +34,9 @@ namespace stencil::gui {
     const Qt::DockWidgetArea current =
         (!isFloating() && mw) ? mw->dockWidgetArea(this) : Qt::NoDockWidgetArea;
     const QString activeQss = QStringLiteral("background:%1;border:none;border-radius:5px;")
-                                  .arg(chipCache_.name());
+                                  .arg(chipCache.name());
     const auto paint = [&](QToolButton* b, const char* glyph, bool active) {
-      b->setIcon(themedIcon(glyph, active ? accentCache_ : textCache_, HEADER_ICON));
+      b->setIcon(themedIcon(glyph, active ? accentCache : textCache, HEADER_ICON));
       b->setStyleSheet(active ? activeQss : QString());
       // The float button's `maximize` glyph has a second motion for the ALREADY-floating
       // state: its corners retract instead of extending (iconMotion.json variants.active).
@@ -46,29 +46,29 @@ namespace stencil::gui {
       b->setEnabled(true);
     };
     for (int i = 0; i < 4; ++i)
-      paint(chrome_.dockBtns[i], GLYPHS[i], !isFloating() && current == AREAS[i]);
-    paint(chrome_.floatBtn, "maximize", isFloating());
+      paint(chrome.dockBtns[i], GLYPHS[i], !isFloating() && current == AREAS[i]);
+    paint(chrome.floatBtn, "maximize", isFloating());
   }
 
   // Entering compact cancels a press that never became a move, so the grab cannot strand.
   // The cursor stays the open hand either way: a compact popover is draggable too.
   void ChatDock::setCompactPopover(bool on) {
-    if (compactPopover_ == on) return;
-    compactPopover_ = on;
-    if (on && manualDrag_) {
-      manualDrag_ = manualDragging_ = false;
-      if (chrome_.titleBar) chrome_.titleBar->releaseMouse();
+    if (compactPopover == on) return;
+    compactPopover = on;
+    if (on && manualDrag) {
+      manualDrag = manualDragging = false;
+      if (chrome.titleBar) chrome.titleBar->releaseMouse();
     }
   }
 
-  bool ChatDock::dragPollActive() const { return dragPoll_ && dragPoll_->isActive(); }
+  bool ChatDock::dragPollActive() const { return dragPoll && dragPoll->isActive(); }
 
-  bool ChatDock::dragActive() const { return manualDragging_ || dragPollActive(); }
+  bool ChatDock::getDragActive() const { return manualDragging || dragPollActive(); }
 
   void ChatDock::setDragProbesForTest(std::function<QPoint()> cursorPos,
                                       std::function<bool()> leftButtonDown) {
-    dragPosProbe_ = std::move(cursorPos);
-    dragDownProbe_ = std::move(leftButtonDown);
+    dragPosProbe = std::move(cursorPos);
+    dragDownProbe = std::move(leftButtonDown);
   }
 
   void ChatDock::setNativeDockingSuppressed(bool on) {
@@ -78,38 +78,38 @@ namespace stencil::gui {
   }
 
   void ChatDock::startDragPoll() {
-    if (!dragPoll_) {
-      dragPoll_ = new QTimer(this);
-      dragPoll_->setInterval(16);
-      connect(dragPoll_, &QTimer::timeout, this, &ChatDock::pollDrag);
+    if (!dragPoll) {
+      dragPoll = new QTimer(this);
+      dragPoll->setInterval(16);
+      connect(dragPoll, &QTimer::timeout, this, &ChatDock::pollDrag);
     }
-    if (dragPoll_->isActive()) return;
-    dragStartCursor_ = dragPosProbe_ ? dragPosProbe_() : QCursor::pos();
-    dragMoved_ = false;
-    dragActive_ = false;
+    if (dragPoll->isActive()) return;
+    dragStartCursor = dragPosProbe ? dragPosProbe() : QCursor::pos();
+    dragMoved = false;
+    dragActive = false;
     setNativeDockingSuppressed(true);
-    dragPoll_->start();
+    dragPoll->start();
   }
 
   void ChatDock::pollDrag() {
-    const QPoint pos = dragPosProbe_ ? dragPosProbe_() : QCursor::pos();
-    const bool down = dragDownProbe_
-                          ? dragDownProbe_()
+    const QPoint pos = dragPosProbe ? dragPosProbe() : QCursor::pos();
+    const bool down = dragDownProbe
+                          ? dragDownProbe()
                           : QGuiApplication::mouseButtons().testFlag(Qt::LeftButton);
-    if (!dragMoved_ && (pos - dragStartCursor_).manhattanLength() >= 4)
-      dragMoved_ = true;
+    if (!dragMoved && (pos - dragStartCursor).manhattanLength() >= 4)
+      dragMoved = true;
     if (down) {
       // Past the platform drag threshold the dock is OURS: force (and keep) it floating, so a tear-off
       // flows straight into the zone flow and a native mid-drag dock can never stick.
-      if (dragMoved_ && !isFloating() &&
-          (pos - dragStartCursor_).manhattanLength() >=
+      if (dragMoved && !isFloating() &&
+          (pos - dragStartCursor).manhattanLength() >=
               QApplication::startDragDistance())
         setFloating(true);
       // Zones only for a genuine FLOATING drag — a plain click never shows
       // them (and can therefore never dock on release).
-      if (dragMoved_ && isFloating()) {
-        if (!dragActive_) {
-          dragActive_ = true;
+      if (dragMoved && isFloating()) {
+        if (!dragActive) {
+          dragActive = true;
           emit titleDragStarted();
         }
         emit titleDragMoved(pos);
@@ -118,18 +118,18 @@ namespace stencil::gui {
     }
     // Button released: restore native docking FIRST, then the LAST cursor
     // position decides the drop (zone docking or stay floating).
-    dragPoll_->stop();
+    dragPoll->stop();
     setNativeDockingSuppressed(false);
-    const bool wasActive = dragActive_;
-    dragActive_ = false;
+    const bool wasActive = dragActive;
+    dragActive = false;
     if (wasActive) emit titleDragFinished(pos);
   }
 
   void ChatDock::cancelDragPoll() {
-    if (dragPoll_) dragPoll_->stop();
+    if (dragPoll) dragPoll->stop();
     setNativeDockingSuppressed(false);  // never leave the dock undockable
-    if (dragActive_) {
-      dragActive_ = false;
+    if (dragActive) {
+      dragActive = false;
       emit titleDragCanceled();
     }
   }
@@ -138,11 +138,11 @@ namespace stencil::gui {
     QDockWidget::moveEvent(event);
     // A floating dock being dragged moves continuously — start the poll even
     // when the native drag consumed the title-bar press.
-    const bool down = dragDownProbe_
-                          ? dragDownProbe_()
+    const bool down = dragDownProbe
+                          ? dragDownProbe()
                           : QGuiApplication::mouseButtons().testFlag(Qt::LeftButton);
     // Not while WE drive the drag (the event path owns it end to end).
-    if (isFloating() && down && !manualDrag_) startDragPoll();
+    if (isFloating() && down && !manualDrag) startDragPoll();
   }
 
   void ChatDock::closeEvent(QCloseEvent* event) {

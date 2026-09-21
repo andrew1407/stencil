@@ -17,53 +17,53 @@ namespace stencil::gui {
   using namespace chatdock;
   // An item shows only while it can act (browser hides .chat-more-item the same way).
   void ChatDock::syncMoreMenuItems() {
-    if (moreRows_.attach)
-      moreRows_.attach->setVisible(!cmp_.busyFlag && cmp_.images.size() < MAX_ATTACHMENTS
-                                   && cmp_.videoPath.isEmpty());
-    if (moreRows_.clear) moreRows_.clear->setVisible(!cmp_.busyFlag && transcriptHasCards());
+    if (moreRows.attach)
+      moreRows.attach->setVisible(!cmp.busyFlag && cmp.images.size() < MAX_ATTACHMENTS
+                                   && cmp.videoPath.isEmpty());
+    if (moreRows.clear) moreRows.clear->setVisible(!cmp.busyFlag && transcriptHasCards());
   }
 
   void ChatDock::setBusy(bool on) {
     // State, NOT the progress bar's visibility: a hidden widget is never isVisible().
-    cmp_.busyFlag = on;
-    cmp_.busy->setVisible(on);
-    cmp_.attach->setEnabled(!on);
-    if (chrome_.clearBtn) chrome_.clearBtn->setEnabled(!on);
+    cmp.busyFlag = on;
+    cmp.busy->setVisible(on);
+    cmp.attach->setEnabled(!on);
+    if (chrome.clearBtn) chrome.clearBtn->setEnabled(!on);
     syncMoreMenuItems();
     // While in flight, the send button IS the stop button.
-    cmp_.send->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, ACCENT_ICON));
-    cmp_.send->setToolTip(on ? QStringLiteral("Stop the response")
+    cmp.send->setIcon(themedIcon(on ? "stop" : "send", paletteCache.onAccent, ACCENT_ICON));
+    cmp.send->setToolTip(on ? QStringLiteral("Stop the response")
                          : QString());
     updateSendEnabled();
   }
 
-  bool ChatDock::isBusy() const { return cmp_.busyFlag; }
+  bool ChatDock::isBusy() const { return cmp.busyFlag; }
 
   QSize ChatDock::floatingDefaultSize() const { return FLOATING_SIZE.expandedTo(minimumSize()); }
 
-  void ChatDock::focusInput() { input_->setFocus(); }
+  void ChatDock::focusInput() { input->setFocus(); }
 
-  bool ChatDock::hasComposerText() const { return !input_->toPlainText().trimmed().isEmpty(); }
+  bool ChatDock::hasComposerText() const { return !input->toPlainText().trimmed().isEmpty(); }
 
   void ChatDock::updateSendEnabled() {
-    cmp_.send->setEnabled(isBusy() || !input_->toPlainText().trimmed().isEmpty());
+    cmp.send->setEnabled(isBusy() || !input->toPlainText().trimmed().isEmpty());
   }
 
   void ChatDock::setProviderStatus(const QString& richTooltip, ProviderStatus status) {
     // The tooltip belongs on the … TRIGGER: the gear lives hidden inside the menu.
-    styleProviderStatusDot(cmp_.statusDot, cmp_.more, richTooltip, status, palette());
-    if (cmp_.gear && !richTooltip.isEmpty()) cmp_.gear->setToolTip(richTooltip);
+    styleProviderStatusDot(cmp.statusDot, cmp.more, richTooltip, status, palette());
+    if (cmp.gear && !richTooltip.isEmpty()) cmp.gear->setToolTip(richTooltip);
   }
 
   void ChatDock::restyleIcons(const Palette& pal) {
     // Browser .chat-panel parity; values ported from browser/css/components.css.
-    paletteCache_ = pal;
-    accentCache_ = pal.accent;
-    chipCache_ = pal.bgContainer;
-    borderCache_ = pal.borderMain;
-    textCache_ = pal.textMain;
-    dangerCache_ = pal.danger;
-    mutedCache_ = pal.textMuted;
+    paletteCache = pal;
+    accentCache = pal.accent;
+    chipCache = pal.bgContainer;
+    borderCache = pal.borderMain;
+    textCache = pal.textMain;
+    dangerCache = pal.danger;
+    mutedCache = pal.textMuted;
     setStyleSheet(
         QStringLiteral(
             "#chatTitleBar{background:%1;border:1px solid %2;border-bottom:1px solid %2;}"
@@ -94,53 +94,53 @@ namespace stencil::gui {
                      .arg(pal.textMuted.blue())
                      .arg(pal.textMuted.alphaF()))
         // The bubbles come from the SHARED sheet the context menu's panel applies too.
-        + chatCardStyleSheet(pal, chatSwapSides_));
+        + chatCardStyleSheet(pal, chatSwapSides));
     const QColor onAccent = pal.onAccent;
-    cmp_.send->setIcon(themedIcon(isBusy() ? "stop" : "send", onAccent, ACCENT_ICON));
-    cmp_.attach->setIcon(themedIcon("image", onAccent, ACCENT_ICON));
-    cmp_.gear->setIcon(themedIcon("gear", onAccent, ACCENT_ICON));
-    chrome_.clearBtn->setIcon(themedIcon("trash", onAccent, ACCENT_ICON));
-    if (cmp_.more) cmp_.more->setIcon(themedIcon("dots", onAccent, ACCENT_ICON));
-    restyleChatMoreMenu(moreRows_, pal.textMain);
-    chrome_.closeBtn->setIcon(themedIcon("x", pal.textMain, 14));
+    cmp.send->setIcon(themedIcon(isBusy() ? "stop" : "send", onAccent, ACCENT_ICON));
+    cmp.attach->setIcon(themedIcon("image", onAccent, ACCENT_ICON));
+    cmp.gear->setIcon(themedIcon("gear", onAccent, ACCENT_ICON));
+    chrome.clearBtn->setIcon(themedIcon("trash", onAccent, ACCENT_ICON));
+    if (cmp.more) cmp.more->setIcon(themedIcon("dots", onAccent, ACCENT_ICON));
+    restyleChatMoreMenu(moreRows, pal.textMain);
+    chrome.closeBtn->setIcon(themedIcon("x", pal.textMain, 14));
     updatePlacementState();
-    chrome_.headerIcon->setPixmap(themedIcon("sparkle", pal.textMain, 16).pixmap(16, 16));
+    chrome.headerIcon->setPixmap(themedIcon("sparkle", pal.textMain, 16).pixmap(16, 16));
     // browser .chat-drop-cue
-    if (log_.splitter) log_.splitter->setPillColors(pal.borderMain, pal.accent);
-    if (cmp_.dropCue) {
+    if (log.splitter) log.splitter->setPillColors(pal.borderMain, pal.accent);
+    if (cmp.dropCue) {
       // SOLID, blended: a translucent slab let the placeholder text show through.
-      cmp_.dropCue->setStyleSheet(
+      cmp.dropCue->setStyleSheet(
           QStringLiteral("#chatDropCue{border:2px dashed %1;border-radius:10px;background:%2;}")
               .arg(pal.accent.name(), blendColors(pal.accent, pal.inputBg, 0.16).name()));
-      if (cmp_.dropCueIcon) cmp_.dropCueIcon->setPixmap(themedIcon("image", pal.accent, 16).pixmap(16, 16));
-      if (cmp_.dropCueText)
-        cmp_.dropCueText->setStyleSheet(
+      if (cmp.dropCueIcon) cmp.dropCueIcon->setPixmap(themedIcon("image", pal.accent, 16).pixmap(16, 16));
+      if (cmp.dropCueText)
+        cmp.dropCueText->setStyleSheet(
             QStringLiteral("color:%1;background:transparent;font-weight:600;").arg(pal.accent.name()));
     }
-    chrome_.headerTitle->setStyleSheet(
+    chrome.headerTitle->setStyleSheet(
         QStringLiteral("color:%1;background:transparent;").arg(pal.textMain.name()));
     // browser .chat-jump-btn: its hover fill comes from the app-wide generic `button:hover`
     // rule, which QSS has no equivalent of, so it is stated here. pal.textKey doubles as --accent-2.
-    if (log_.jumpTop && log_.jumpBottom) {
+    if (log.jumpTop && log.jumpBottom) {
       const QString jumpQss =
           QStringLiteral(
               "QToolButton{border:1px solid %1;border-radius:14px;background:%2;}"
               "QToolButton:hover{border-color:%3;background:%4;}")
               .arg(pal.borderMain.name(), pal.bgControls.name(), pal.accent.name(),
                    pal.textKey.name());
-      log_.jumpTop->setIcon(themedIcon("chevron-up", pal.textMuted, 14));
-      log_.jumpBottom->setIcon(themedIcon("chevron-down", pal.textMuted, 14));
-      log_.jumpTop->setStyleSheet(jumpQss);
-      log_.jumpBottom->setStyleSheet(jumpQss);
+      log.jumpTop->setIcon(themedIcon("chevron-up", pal.textMuted, 14));
+      log.jumpBottom->setIcon(themedIcon("chevron-down", pal.textMuted, 14));
+      log.jumpTop->setStyleSheet(jumpQss);
+      log.jumpBottom->setStyleSheet(jumpQss);
     }
-    styleSuggestionChips(cmp_.suggest, pal);
+    styleSuggestionChips(cmp.suggest, pal);
   }
 
   void ChatDock::scrollToBottom() {
-    stickToBottom_ = true;
+    stickToBottom = true;
     // Deferred until the layout has run so the new card's height is included.
-    QTimer::singleShot(0, scroll_, [this] {
-      scroll_->verticalScrollBar()->setValue(scroll_->verticalScrollBar()->maximum());
+    QTimer::singleShot(0, scroll, [this] {
+      scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());
     });
   }
 }  // namespace stencil::gui

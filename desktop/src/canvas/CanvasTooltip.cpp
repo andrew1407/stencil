@@ -28,17 +28,17 @@ namespace stencil::gui {
         " #canvasTooltip QLabel { color:#eee; padding:4px 8px; }");
     auto* lay = new QVBoxLayout(this);
     lay->setContentsMargins(0, 0, 0, 0);
-    body_ = new QLabel(this);
-    body_->setTextFormat(Qt::RichText);
-    lay->addWidget(body_);
+    body = new QLabel(this);
+    body->setTextFormat(Qt::RichText);
+    lay->addWidget(body);
     hide();
 
-    fade_ = new QVariantAnimation(this);
-    fade_->setDuration(FADE_MS);
-    connect(fade_, &QVariantAnimation::valueChanged, this,
+    fade = new QVariantAnimation(this);
+    fade->setDuration(FADE_MS);
+    connect(fade, &QVariantAnimation::valueChanged, this,
             [this](const QVariant& v) { setWindowOpacity(v.toDouble()); });
-    connect(fade_, &QVariantAnimation::finished, this, [this] {
-      if (closing_) { closing_ = false; QFrame::hide(); }
+    connect(fade, &QVariantAnimation::finished, this, [this] {
+      if (closing) { closing = false; QFrame::hide(); }
     });
   }
 
@@ -54,7 +54,7 @@ namespace stencil::gui {
                   .arg(r.first.toHtmlEscaped(), r.second.toHtmlEscaped());
     }
     html += "</table>";
-    body_->setText(html);
+    body->setText(html);
     adjustSize();
   }
 
@@ -62,7 +62,7 @@ namespace stencil::gui {
     // Not window(): this widget's OWN Qt::ToolTip flag makes it a top-level in its own
     // right, so that would just return itself. The real host is the app window above it.
     QWidget* host = parentWidget() ? parentWidget()->window() : nullptr;
-    return flyTipDust(this, host, lastCursor_, gather,
+    return flyTipDust(this, host, lastCursor, gather,
                       gather ? TOOLTIP_DUST_IN_MS : TOOLTIP_DUST_OUT_MS, /*escapeHost=*/true)
            != nullptr;
   }
@@ -70,7 +70,7 @@ namespace stencil::gui {
   // Port of tooltip.js position(): cursor + 15, flip when it would overflow the
   // screen, clamp to a 10 px minimum.
   void CanvasTooltip::showAt(const QPoint& globalCursor) {
-    lastCursor_ = globalCursor;
+    lastCursor = globalCursor;
     adjustSize();
     const QRect scr = QApplication::primaryScreen()->availableGeometry();
     int left = globalCursor.x() + 15;
@@ -85,8 +85,8 @@ namespace stencil::gui {
     // the cursor (already visible) we just move(), so there's no per-frame flicker.
     const bool wasHidden = !isVisible();
     if (wasHidden) {
-      closing_ = false;
-      fade_->stop();
+      closing = false;
+      fade->stop();
       setWindowOpacity(support::motionReduced() ? 1.0 : 0.0);
     }
     show();
@@ -94,29 +94,29 @@ namespace stencil::gui {
     if (!wasHidden || support::motionReduced()) return;
 
     if (dust(true)) {
-      holdFadeKeys(fade_, TOOLTIP_DUST_IN_MS);
+      holdFadeKeys(fade, TOOLTIP_DUST_IN_MS);
     } else {
-      fade_->setKeyValues({});
-      fade_->setDuration(FADE_MS);
-      fade_->setKeyValueAt(0.0, 0.0);
-      fade_->setKeyValueAt(1.0, 1.0);
+      fade->setKeyValues({});
+      fade->setDuration(FADE_MS);
+      fade->setKeyValueAt(0.0, 0.0);
+      fade->setKeyValueAt(1.0, 1.0);
     }
-    fade_->start();
+    fade->start();
   }
 
   void CanvasTooltip::hideTip() {
     if (!isVisible()) return;
-    fade_->stop();
-    if (support::motionReduced()) { closing_ = false; QFrame::hide(); return; }
+    fade->stop();
+    if (support::motionReduced()) { closing = false; QFrame::hide(); return; }
     // Photographed and dusted while still on screen — the cloud is what the tip
     // leaves behind, so it hands over in one beat rather than blinking out.
     const bool dusted = dust(false);
-    closing_ = true;
-    fade_->setKeyValues({});
-    fade_->setDuration(dusted ? gui::TOOLTIP_HAND_OVER_MS : FADE_MS);
-    fade_->setKeyValueAt(0.0, windowOpacity());
-    fade_->setKeyValueAt(1.0, 0.0);
-    fade_->start();
+    closing = true;
+    fade->setKeyValues({});
+    fade->setDuration(dusted ? gui::TOOLTIP_HAND_OVER_MS : FADE_MS);
+    fade->setKeyValueAt(0.0, windowOpacity());
+    fade->setKeyValueAt(1.0, 0.0);
+    fade->start();
   }
 
 }

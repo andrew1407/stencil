@@ -25,30 +25,30 @@ class MainWindowGuiTest : public QObject {
       win.show();
       QVERIFY2(QTest::qWaitForWindowExposed(&win), name);
       // Away from every icon before Alt is touched: QCursor::pos() is one process-wide value, and a stray
-      // pop_.buttons match opens a modal that blocks forever in execMaybePopover's event loop.
+      // pop.buttons match opens a modal that blocks forever in execMaybePopover's event loop.
       QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
       win.openPathFromOS(guiTestImage());
       QTRY_VERIFY2(win.findChild<CanvasWidget*>()->hasImage(), name);
-      QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+      QWidget* copyBtn = win.buttonForAction(win.actCopyImage);
       QVERIFY2(copyBtn, name);
 
       if (route == TOOLBAR_POPUP) {
-        // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
+        // "Current"'s own row (actCopyImageCurrentRow) only shows once something is
         // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays.
         stencil::core::Line line;
         line.points.push_back({4.0, 20.0});
         line.points.push_back({36.0, 20.0});
-        win.canvas_->setLines({line});
+        win.canvas->setLines({line});
         win.refreshActions();
         QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
                               copyBtn->mapToGlobal(copyBtn->rect().center()));
         QApplication::sendEvent(copyBtn, &ctx);
-        QMenu* menu = win.copyImageOptionsMenu_;
+        QMenu* menu = win.copyImageOptionsMenu;
         QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
         // Hover the first row (QMenu::hovered is what wireExportPreviewHover listens on) so AltPreviewFilter
         // has an activeAction(); set it directly, as QMenu does internally, since mouseMove is unreliable.
-        menu->setActiveAction(win.actCopyImageCurrentRow_);
-        QCOMPARE(menu->activeAction(), win.actCopyImageCurrentRow_);
+        menu->setActiveAction(win.actCopyImageCurrentRow);
+        QCOMPARE(menu->activeAction(), win.actCopyImageCurrentRow);
         QTest::keyPress(menu, Qt::Key_Alt);
         QVERIFY2(menu->isVisible(), "holding Alt over an export row closed the menu");
         QTest::keyRelease(menu, Qt::Key_Alt);
@@ -84,9 +84,9 @@ class MainWindowGuiTest : public QObject {
         QMenu* copyMenu = copyAct->menu();
         settle([&] { return copyMenu->isVisible(); }, 1000);
         if (!copyMenu->isVisible()) { root->close(); return; }
-        // actCopyImageOriginal_, not actCopyImage_: the latter is no longer a row in this submenu, while
+        // actCopyImageOriginal, not actCopyImage: the latter is no longer a row in this submenu, while
         // Original always is, and this route's point is Alt-key ROUTING, not which row it lands on.
-        copyMenu->setActiveAction(win.actCopyImageOriginal_);
+        copyMenu->setActiveAction(win.actCopyImageOriginal);
         reached = true;
         // underMouse() backs up the cursor-position check in MainWindowEvents.cpp and is what an
         // offscreen-adjacent test can mock — a real QCursor::setPos warp may not land in time.
@@ -94,7 +94,7 @@ class MainWindowGuiTest : public QObject {
         QTest::keyPress(root, Qt::Key_Alt);
         if (overButton) {
           QTest::qWait(30);
-          hijacked = win.copyImageOptionsMenu_ && win.copyImageOptionsMenu_->isVisible();
+          hijacked = win.copyImageOptionsMenu && win.copyImageOptionsMenu->isVisible();
         } else {
           // Checked directly, not just "did the menu survive" — a filter that does nothing
           // at all would trivially pass that half too.
@@ -106,7 +106,7 @@ class MainWindowGuiTest : public QObject {
         QTest::keyRelease(root, Qt::Key_Alt);
         if (overButton) copyBtn->setAttribute(Qt::WA_UnderMouse, false);
         root->close();
-        if (overButton && win.copyImageOptionsMenu_) win.copyImageOptionsMenu_->close();
+        if (overButton && win.copyImageOptionsMenu) win.copyImageOptionsMenu->close();
       });
       win.showContextMenu(win.mapToGlobal(QPoint(500, 400)));
       QVERIFY2(reached, "never reached the nested Copy Image submenu");

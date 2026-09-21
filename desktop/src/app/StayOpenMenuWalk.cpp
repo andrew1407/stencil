@@ -50,13 +50,13 @@ namespace stencil::gui {
   }
 
   bool StayOpenMenu::enterControls() {
-    QWidget* target = keyTarget_ && keyTarget_->isVisible() && keyTarget_->isEnabled() ? keyTarget_ : nullptr;
+    QWidget* target = keyTarget && keyTarget->isVisible() && keyTarget->isEnabled() ? keyTarget : nullptr;
     if (!target) {
       const QList<QWidget*> stops = tabStops();
       if (!stops.isEmpty()) target = stops.first();
     }
     if (!target) return false;
-    entered_ = true;
+    entered = true;
     focusStop(target, Qt::TabFocusReason);
     return true;
   }
@@ -66,7 +66,7 @@ namespace stencil::gui {
   bool StayOpenMenu::walkTab(bool back) {
     const QList<QWidget*> stops = tabStops();
     if (stops.isEmpty()) return false;
-    entered_ = true;
+    entered = true;
     const int at = stops.indexOf(QApplication::focusWidget());
     const int n = stops.size();
     const QList<QAction*> rows = rowActions();
@@ -95,9 +95,9 @@ namespace stencil::gui {
     if (e->button() == Qt::LeftButton) {
       // A drag that wandered off the panel still ends on its target, or the splitter stays
       // latched.
-      if (pressTarget_ && !area_->geometry().contains(e->position().toPoint())) {
-        QWidget* target = pressTarget_;
-        pressTarget_ = nullptr;
+      if (pressTarget && !area->geometry().contains(e->position().toPoint())) {
+        QWidget* target = pressTarget;
+        pressTarget = nullptr;
         forward(target, e);
         e->accept();
         return;

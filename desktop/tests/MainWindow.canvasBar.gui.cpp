@@ -18,7 +18,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QVERIFY2(!win.selectedLineDock_->isVisible(), "nothing selected yet");
+    QVERIFY2(!win.selectedLineDock->isVisible(), "nothing selected yet");
 
     stencil::core::Line line;
     line.points = {{20, 20}, {80, 80}};
@@ -26,16 +26,16 @@ class MainWindowGuiTest : public QObject {
 
     // Select it: the bar comes up (and, off this platform, dust would gather into it).
     canvas->selectLineByIndex(0);
-    QTRY_VERIFY_WITH_TIMEOUT(win.selectedLineDock_->isVisible(), 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.selectedLineDock->isVisible(), 2000);
     beat();
 
     // selectedLineBarDustPoint() is plain geometry, so it runs fine offscreen even
     // though the flight it feeds does not.
-    QVERIFY2(win.imageInfoBar_ && win.imageInfoBar_->isVisible(), "no image-info row to anchor to");
-    const QRect barPicture(win.selectedLineBar_->mapTo(&win, QPoint(0, 0)),
-                           win.selectedLineBar_->size());
-    const QRect infoRectNow(win.imageInfoBar_->mapTo(&win, QPoint(0, 0)), win.imageInfoBar_->size());
-    const int dockTop = win.selectedLineDock_->mapTo(&win, QPoint(0, 0)).y();
+    QVERIFY2(win.imageInfoBar && win.imageInfoBar->isVisible(), "no image-info row to anchor to");
+    const QRect barPicture(win.selectedLineBar->mapTo(&win, QPoint(0, 0)),
+                           win.selectedLineBar->size());
+    const QRect infoRectNow(win.imageInfoBar->mapTo(&win, QPoint(0, 0)), win.imageInfoBar->size());
+    const int dockTop = win.selectedLineDock->mapTo(&win, QPoint(0, 0)).y();
 
     // The x is the BAR's own centre — both bars span the full window width (each its own
     // Qt::TopDockWidgetArea dock), so this already IS the window's centre.
@@ -61,17 +61,17 @@ class MainWindowGuiTest : public QObject {
     line2.points = {{100, 20}, {160, 80}};
     canvas->setLines({line, line2});
     canvas->selectLineByIndex(1);
-    QTRY_VERIFY2(win.selectedLineDock_->isVisible(), "the bar stays up across a re-selection");
+    QTRY_VERIFY2(win.selectedLineDock->isVisible(), "the bar stays up across a re-selection");
     beat();
 
     // Deselect: the bar goes away (and, off this platform, dust would scatter out of it).
     canvas->deselect();
-    QTRY_VERIFY_WITH_TIMEOUT(!win.selectedLineDock_->isVisible(), 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.selectedLineDock->isVisible(), 2000);
     beat();
 
     // Re-selecting after a full hide brings it straight back — nothing latched stuck.
     canvas->selectLineByIndex(0);
-    QTRY_VERIFY_WITH_TIMEOUT(win.selectedLineDock_->isVisible(), 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.selectedLineDock->isVisible(), 2000);
     beat();
   }
 
@@ -82,7 +82,7 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QVERIFY(!canvas->idleHintHidden());
+    QVERIFY(!canvas->getIdleHintHidden());
 
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
@@ -91,21 +91,21 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
 
     // Image gone, dust falling, invitation still off screen.
-    QVERIFY2(canvas->idleHintHidden(), "the blank-image affordance must wait for the dust");
+    QVERIFY2(canvas->getIdleHintHidden(), "the blank-image affordance must wait for the dust");
     QSignalSpy asked(canvas, &CanvasWidget::blankImageRequested);
     QTest::mouseClick(canvas, Qt::LeftButton, Qt::NoModifier, canvas->rect().center());
     QCOMPARE(asked.count(), 0);   // nothing visible to click, so nothing opens
 
     // …and it comes back once the animation is over. NOT clicked here: accepting it opens the
     // blank-image creator, whose modal loop would hold this test until it timed out.
-    QTRY_VERIFY_WITH_TIMEOUT(!canvas->idleHintHidden(),
+    QTRY_VERIFY_WITH_TIMEOUT(!canvas->getIdleHintHidden(),
                              stencil::gui::DisintegrateOverlay::DUST_MS + 1500);
     QCOMPARE(asked.count(), 0);
     beat();
   }
 
   // A REAL click through the compare combo's own themed popup, not setCompareModeUi(): the
-  // connect() has to live in buildDrawViewToolbar, after compareCombo_ is built.
+  // connect() has to live in buildDrawViewToolbar, after compareCombo is built.
   void compareComboClickActuallyChangesTheCanvas() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -115,9 +115,9 @@ class MainWindowGuiTest : public QObject {
     img.fill(Qt::darkCyan);
     win.loadImageWithLayout(img, QJsonObject());
 
-    QVERIFY(win.compareCombo_);
-    QCOMPARE(win.compareCombo_->currentData().toString(), QStringLiteral("none"));
-    win.compareCombo_->showPopup();
+    QVERIFY(win.compareCombo);
+    QCOMPARE(win.compareCombo->currentData().toString(), QStringLiteral("none"));
+    win.compareCombo->showPopup();
     QTRY_VERIFY(QApplication::activePopupWidget());
     QWidget* popup = nullptr;
     for (QWidget* w : QApplication::topLevelWidgets())
@@ -129,8 +129,8 @@ class MainWindowGuiTest : public QObject {
     const QModelIndex idx = list->model()->index(2, 0);
     QCOMPARE(idx.data(Qt::DisplayRole).toString(), QString::fromUtf8("Split ↔"));
     QTest::mouseClick(list->viewport(), Qt::LeftButton, {}, list->visualRect(idx).center());
-    QTRY_COMPARE(win.compareCombo_->currentData().toString(), QStringLiteral("vertical"));
-    QCOMPARE(win.canvas_->compareMode(), QStringLiteral("vertical"));
+    QTRY_COMPARE(win.compareCombo->currentData().toString(), QStringLiteral("vertical"));
+    QCOMPARE(win.canvas->getCompareMode(), QStringLiteral("vertical"));
   }
 
   // A split compare of a BLANK page shows the blank's own fill on BOTH halves: the untouched
@@ -141,8 +141,8 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.applyImageFilter("none");   // the filter persists across sessions/tests
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     mock.response = QJsonDocument(QJsonObject{
         {"message",
@@ -154,12 +154,12 @@ class MainWindowGuiTest : public QObject {
                       "{\"x\":200,\"y\":300}],\"color\":\"#000000\"}]},"
                       "{\"op\":\"compare\",\"mode\":\"vertical\",\"split\":0.5}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
     win.onChatSend("red page with a centred rectangle, compared side by side");
-    QTRY_COMPARE(win.canvas_->compareMode(), QStringLiteral("vertical"));
+    QTRY_COMPARE(win.canvas->getCompareMode(), QStringLiteral("vertical"));
     // The arrival effect hides the canvas briefly; grab only once it is gone.
-    QTRY_VERIFY(win.canvas_->graphicsEffect() == nullptr);
-    const QImage shot = win.canvas_->grab().toImage();
+    QTRY_VERIFY(win.canvas->graphicsEffect() == nullptr);
+    const QImage shot = win.canvas->grab().toImage();
     // Sample well inside each half, away from the rectangle and the divider.
     const QColor left = shot.pixelColor(
         QPoint(int(shot.width() * 0.10), int(shot.height() * 0.5)));
@@ -176,7 +176,7 @@ class MainWindowGuiTest : public QObject {
     // its colour IS the page, so only the lines may differ.
     win.applyImageFilter("bw");
     QTest::qWait(30);
-    const QImage shotF = win.canvas_->grab().toImage();
+    const QImage shotF = win.canvas->grab().toImage();
     const QColor leftF = shotF.pixelColor(
         QPoint(int(shotF.width() * 0.10), int(shotF.height() * 0.5)));
     const QColor rightF = shotF.pixelColor(

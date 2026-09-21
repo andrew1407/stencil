@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   canvas.loadFromImage(img);
 
   std::printf("default crop of 400x200 @ A3:\n");
-  const CropRect c0 = canvas.cropRect();
+  const CropRect c0 = canvas.getCropRect();
   check(canvas.imageWidth() == 283, "working width == 283 (sides cut to album √2)");
   check(canvas.imageHeight() == 200, "working height == 200 (full height kept)");
   check(near(c0.width, 283) && near(c0.height, 200), "cropRect is 283x200");
@@ -37,24 +37,24 @@ int main(int argc, char** argv) {
   stencil::core::Line line;
   line.points = {{10.0, 10.0}, {20.0, 20.0}};
   canvas.setLines({line});
-  const double oldW = canvas.cropRect().width;
+  const double oldW = canvas.getCropRect().width;
   const double newH = std::round(400.0 * 200.0 / 283.0);  // keep album aspect
   canvas.applyCrop(CropRect{0, 0, 400, newH}, /*recalc=*/true);
-  const double scale = canvas.cropRect().width / oldW;
+  const double scale = canvas.getCropRect().width / oldW;
   std::printf("resize within album (scale=%.4f):\n", scale);
-  check(canvas.lines().size() == 1, "line preserved on same-orientation resize");
-  check(canvas.lines().size() == 1 &&
-            near(canvas.lines()[0].points[0].x, 10.0 * scale) &&
-            near(canvas.lines()[0].points[0].y, 10.0 * scale),
+  check(canvas.getLines().size() == 1, "line preserved on same-orientation resize");
+  check(canvas.getLines().size() == 1 &&
+            near(canvas.getLines()[0].points[0].x, 10.0 * scale) &&
+            near(canvas.getLines()[0].points[0].y, 10.0 * scale),
         "point rescaled by the width ratio (page relation preserved)");
 
   // Flip to portrait (height > width): orientation changed -> lines cleared.
   canvas.applyCrop(CropRect{0, 0, 120, 200}, /*recalc=*/true);
   std::printf("flip to portrait:\n");
-  check(canvas.lines().empty(), "lines removed on orientation change");
+  check(canvas.getLines().empty(), "lines removed on orientation change");
   check(canvas.imageWidth() == 120 && canvas.imageHeight() == 200,
         "working image is the portrait crop (120x200)");
-  check(canvas.originalImage().width() == 400 && canvas.originalImage().height() == 200,
+  check(canvas.getOriginalImage().width() == 400 && canvas.getOriginalImage().height() == 200,
         "original image kept untouched at 400x200");
 
   std::printf("\n%s (%d failure%s)\n", failures ? "FAILURE" : "SUCCESS", failures,

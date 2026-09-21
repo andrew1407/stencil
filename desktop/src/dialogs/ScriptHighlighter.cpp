@@ -27,7 +27,7 @@ namespace stencil::gui {
       f.setForeground(colour);
       if (italic) f.setFontItalic(true);
       if (bold) f.setFontWeight(QFont::DemiBold);
-      formats_[static_cast<int>(kind)] = f;
+      formats[static_cast<int>(kind)] = f;
     };
 
     set(ScriptTokenKind::DIRECTIVE, p.accent, false, true);
@@ -46,13 +46,13 @@ namespace stencil::gui {
 
     // Browser parity (.stk-error / .stk-warning): an ERROR recolours the text danger AND
     // squiggles it; a WARNING only squiggles, so the token keeps its own meaning.
-    errorFormat_ = QTextCharFormat();
-    errorFormat_.setUnderlineStyle(QTextCharFormat::WaveUnderline);
-    errorFormat_.setUnderlineColor(p.danger);
-    errorFormat_.setForeground(p.danger);
-    warningFormat_ = QTextCharFormat();
-    warningFormat_.setUnderlineStyle(QTextCharFormat::WaveUnderline);
-    warningFormat_.setUnderlineColor(p.warning);
+    errorFormat = QTextCharFormat();
+    errorFormat.setUnderlineStyle(QTextCharFormat::WaveUnderline);
+    errorFormat.setUnderlineColor(p.danger);
+    errorFormat.setForeground(p.danger);
+    warningFormat = QTextCharFormat();
+    warningFormat.setUnderlineStyle(QTextCharFormat::WaveUnderline);
+    warningFormat.setUnderlineColor(p.warning);
   }
 
   void ScriptHighlighter::restyle() {
@@ -66,7 +66,7 @@ namespace stencil::gui {
       if (next.size() < line) next.resize(line);
       return next[line - 1];
     };
-    for (const model::ScriptToken& t : program.tokens()) {
+    for (const model::ScriptToken& t : program.getTokens()) {
       Span s;
       s.col = t.col;
       s.len = t.len;
@@ -74,7 +74,7 @@ namespace stencil::gui {
       lineAt(t.line).push_back(s);
     }
     if (withDiagnostics) {
-      for (const model::ScriptDiagnostic& d : program.diagnostics()) {
+      for (const model::ScriptDiagnostic& d : program.getDiagnostics()) {
         const int len = d.len > 0 ? d.len : 1;
         const Mark mark = d.isError ? Mark::ERROR : Mark::WARNING;
         QVector<Span>& spans = lineAt(d.line);
@@ -94,7 +94,7 @@ namespace stencil::gui {
       }
       // A bad line reads as bad WHOLE: the squiggle stays on the token the diagnostic names,
       // but every span on that line takes the danger ink (browser .stk-line-error).
-      for (const model::ScriptDiagnostic& d : program.diagnostics()) {
+      for (const model::ScriptDiagnostic& d : program.getDiagnostics()) {
         if (!d.isError) continue;
         for (Span& s : lineAt(d.line)) s.lineErrored = true;
       }
@@ -103,11 +103,11 @@ namespace stencil::gui {
     /* Only the lines whose spans actually moved are repainted: QSyntaxHighlighter has already
      * re-coloured the edited block from the stale spans, and a full rehighlight() would paint
      * every other line a second time on every keystroke. */
-    const QVector<QVector<Span>> was = std::move(byLine_);
-    byLine_ = std::move(next);
+    const QVector<QVector<Span>> was = std::move(byLine);
+    byLine = std::move(next);
     QVector<int> dirty;
-    for (int i = 0, span = qMax(was.size(), byLine_.size()); i < span; ++i)
-      if (!(i < was.size() && i < byLine_.size() && was.at(i) == byLine_.at(i))) dirty.push_back(i);
+    for (int i = 0, span = qMax(was.size(), byLine.size()); i < span; ++i)
+      if (!(i < was.size() && i < byLine.size() && was.at(i) == byLine.at(i))) dirty.push_back(i);
 
     QTextDocument* doc = document();
     // Each rehighlightBlock is its own edit block, so past half the document one pass is cheaper.
@@ -123,8 +123,8 @@ namespace stencil::gui {
 
   void ScriptHighlighter::highlightBlock(const QString& text) {
     const int line = currentBlock().blockNumber();
-    if (line < 0 || line >= byLine_.size()) return;
-    for (const Span& s : byLine_.at(line)) {
+    if (line < 0 || line >= byLine.size()) return;
+    for (const Span& s : byLine.at(line)) {
       const int start = s.col - 1;
       if (start < 0 || start >= text.size()) continue;
       const int len = qMin(s.len, text.size() - start);
@@ -135,14 +135,14 @@ namespace stencil::gui {
       const bool known =
           s.kind != ScriptTokenKind::DIRECTIVE ||
           model::ScriptDoc::isDirectiveWord(QStringView(text).mid(start + 1, len - 1));
-      QTextCharFormat f = formats_[static_cast<int>(known ? s.kind : ScriptTokenKind::IDENT)];
+      QTextCharFormat f = formats[static_cast<int>(known ? s.kind : ScriptTokenKind::IDENT)];
       if (s.mark != Mark::NONE) {
-        const QTextCharFormat& mark = s.mark == Mark::ERROR ? errorFormat_ : warningFormat_;
+        const QTextCharFormat& mark = s.mark == Mark::ERROR ? errorFormat : warningFormat;
         f.setUnderlineStyle(mark.underlineStyle());
         f.setUnderlineColor(mark.underlineColor());
         if (mark.foreground().style() != Qt::NoBrush) f.setForeground(mark.foreground());
       }
-      if (s.lineErrored) f.setForeground(errorFormat_.foreground());
+      if (s.lineErrored) f.setForeground(errorFormat.foreground());
       setFormat(start, len, f);
     }
   }

@@ -18,8 +18,8 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());  // a working image, so a plan has something to hit
 
     // ── assistant ON ──
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     // A mock transport answers synchronously with a canned op-plan, so nothing
     // touches the network (the same seam LlmClient.headless.cpp uses).
     MockChatTransport mock;
@@ -31,7 +31,7 @@ class MainWindowGuiTest : public QObject {
                       "{\"version\":1,\"reply\":\"Sepia applied\","
                       "\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     bool splitterResized = false;
     QList<int> splitterSizes;
@@ -152,10 +152,10 @@ class MainWindowGuiTest : public QObject {
 
     // The panel outlives the menu, so the composer size the user dragged to
     // persists for the session.
-    if (auto* sp = win.chatMenuPanel_->findChild<QSplitter*>("chatMenuSplitter"))
+    if (auto* sp = win.chatMenuPanel->findChild<QSplitter*>("chatMenuSplitter"))
       QCOMPARE(sp->sizes(), splitterSizes);
 
-    win.llmClient_.reset();  // drop the mock before it goes out of scope
+    win.llmClient.reset();  // drop the mock before it goes out of scope
     beat();
   }
 };

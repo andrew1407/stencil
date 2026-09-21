@@ -21,46 +21,46 @@ namespace stencil::gui {
 
   void MainWindow::buildDrawNowActions() {
     // contextMenu.js ctx-draw-line/ctx-draw-rect: two fixed actions, each with its own outline glyph (browser parity).
-    actDrawLineNow_ = new QAction("Draw Line", this);
-    connect(actDrawLineNow_, &QAction::triggered, this, [this] {
-      if (!canvas_->hasImage()) {
-        notify_->error("Load an image first");
+    actDrawLineNow = new QAction("Draw Line", this);
+    connect(actDrawLineNow, &QAction::triggered, this, [this] {
+      if (!canvas->hasImage()) {
+        notify->error("Load an image first");
         return;
       }
-      canvas_->setDrawMode(CanvasWidget::DrawMode::LINE);
-      canvas_->startDrawingMode();  // continues the selected line if one is set
-      notify_->info("Drag to draw a line");
+      canvas->setDrawMode(CanvasWidget::DrawMode::LINE);
+      canvas->startDrawingMode();  // continues the selected line if one is set
+      notify->info("Drag to draw a line");
     });
 
-    actDrawRectNow_ = new QAction("Draw Rectangle", this);
-    connect(actDrawRectNow_, &QAction::triggered, this, [this] {
-      if (!canvas_->hasImage()) {
-        notify_->error("Load an image first");
+    actDrawRectNow = new QAction("Draw Rectangle", this);
+    connect(actDrawRectNow, &QAction::triggered, this, [this] {
+      if (!canvas->hasImage()) {
+        notify->error("Load an image first");
         return;
       }
-      canvas_->setDrawMode(CanvasWidget::DrawMode::RECT);
-      canvas_->startDrawingMode();  // continues the selected line if one is set
-      notify_->info("Drag to draw a rectangle");
+      canvas->setDrawMode(CanvasWidget::DrawMode::RECT);
+      canvas->startDrawingMode();  // continues the selected line if one is set
+      notify->info("Drag to draw a rectangle");
     });
   }
 
   void MainWindow::buildContextTooltipActions() {
     // contextMenu.js:96-107, 546-557. Real QCheckBoxes in QWidgetActions so a click flips them WITHOUT dismissing the menu.
-    // The enable toggle mirrors the View-menu actTooltip_.
-    addContextCheckRow("Show Tooltips", settings_.tooltipEnabled, tooltipEnableCheck_, actTooltipEnable_);
-    connect(tooltipEnableCheck_, &QCheckBox::toggled, this, [this](bool on) {
-      settings_.tooltipEnabled = on;
+    // The enable toggle mirrors the View-menu actTooltip.
+    addContextCheckRow("Show Tooltips", settings.tooltipEnabled, tooltipEnableCheck, actTooltipEnable);
+    connect(tooltipEnableCheck, &QCheckBox::toggled, this, [this](bool on) {
+      settings.tooltipEnabled = on;
       {
-        QSignalBlocker b(actTooltip_);
-        actTooltip_->setChecked(on);  // keep the View-menu item in lock-step
+        QSignalBlocker b(actTooltip);
+        actTooltip->setChecked(on);  // keep the View-menu item in lock-step
       }
       persistSettings();
       if (!on)
-        tooltip_->hide();
+        tooltip->hide();
       else if (!QApplication::activePopupWidget())
-        onHovered(lastHoverX_, lastHoverY_);  // re-show at the current hover (not while the menu's up)
+        onHovered(lastHoverX, lastHoverY);  // re-show at the current hover (not while the menu's up)
     });
-    // Binding `backing` to the settings_ field keeps the toggles in sync with the source of truth.
+    // Binding `backing` to the settings field keeps the toggles in sync with the source of truth.
     auto mkRowToggle = [this](const QString& text, bool& backing,
                                            QCheckBox*& box, QWidgetAction*& act) {
       addContextCheckRow(text, backing, box, act);
@@ -68,19 +68,19 @@ namespace stencil::gui {
         backing = on;
         persistSettings();
         // Showing the tooltip window while the menu is up would steal the popup's grab and dismiss it.
-        if (!QApplication::activePopupWidget()) onHovered(lastHoverX_, lastHoverY_);
+        if (!QApplication::activePopupWidget()) onHovered(lastHoverX, lastHoverY);
       });
     };
-    mkRowToggle("Page (cm)", settings_.tooltipShowPage, ttPageCheck_, actTtPage_);
-    mkRowToggle("Screen (px)", settings_.tooltipShowScreen, ttScreenCheck_, actTtScreen_);
-    mkRowToggle("To Edge (cm)", settings_.tooltipShowCoords, ttCoordsCheck_, actTtCoords_);
+    mkRowToggle("Page (cm)", settings.tooltipShowPage, ttPageCheck, actTtPage);
+    mkRowToggle("Screen (px)", settings.tooltipShowScreen, ttScreenCheck, actTtScreen);
+    mkRowToggle("To Edge (cm)", settings.tooltipShowCoords, ttCoordsCheck, actTtCoords);
 
     // contextMenu.js:84-100. Twins of the toolbar formula widgets — edits here drive those, so the validate/apply/persist pipeline runs unchanged.
-    addContextCheckRow("Allow Formulas", settings_.allowFormulas, ctxAllowFormulas_, ctxAllowFormulasAct_);
-    connect(ctxAllowFormulas_, &QCheckBox::toggled, this, [this](bool on) {
-      allowFormulas_->setChecked(on);   // the canonical toolbar handler does settings/persist/apply
-      if (ctxFormulaXAct_) ctxFormulaXAct_->setVisible(on);
-      if (ctxFormulaYAct_) ctxFormulaYAct_->setVisible(on);
+    addContextCheckRow("Allow Formulas", settings.allowFormulas, ctxAllowFormulas, ctxAllowFormulasAct);
+    connect(ctxAllowFormulas, &QCheckBox::toggled, this, [this](bool on) {
+      allowFormulas->setChecked(on);   // the canonical toolbar handler does settings/persist/apply
+      if (ctxFormulaXAct) ctxFormulaXAct->setVisible(on);
+      if (ctxFormulaYAct) ctxFormulaYAct->setVisible(on);
     });
     auto mkFormulaRow = [this](const QString& label, const QString& placeholder,
                                              QLineEdit*& edit, QWidgetAction*& act) {
@@ -93,14 +93,14 @@ namespace stencil::gui {
       lay->addStretch(1);
       lay->addWidget(edit);
     };
-    mkFormulaRow("x(x)=", "e.g. x + 9", ctxFormulaX_, ctxFormulaXAct_);
-    mkFormulaRow("y(y)=", "e.g. (y-7)*4", ctxFormulaY_, ctxFormulaYAct_);
+    mkFormulaRow("x(x)=", "e.g. x + 9", ctxFormulaX, ctxFormulaXAct);
+    mkFormulaRow("y(y)=", "e.g. (y-7)*4", ctxFormulaY, ctxFormulaYAct);
     // Mirror into the canonical toolbar inputs (guarded against a feedback loop).
-    connect(ctxFormulaX_, &QLineEdit::textChanged, this, [this](const QString& t) {
-      if (formulaX_->text() != t) formulaX_->setText(t);
+    connect(ctxFormulaX, &QLineEdit::textChanged, this, [this](const QString& t) {
+      if (formulaX->text() != t) formulaX->setText(t);
     });
-    connect(ctxFormulaY_, &QLineEdit::textChanged, this, [this](const QString& t) {
-      if (formulaY_->text() != t) formulaY_->setText(t);
+    connect(ctxFormulaY, &QLineEdit::textChanged, this, [this](const QString& t) {
+      if (formulaY->text() != t) formulaY->setText(t);
     });
   }
 
@@ -111,34 +111,34 @@ namespace stencil::gui {
     auto mkUnit = [this, unitGroup](const QString& text, const QString& code) {
       auto* a = new QAction(text, this);
       a->setCheckable(true);
-      a->setChecked(settings_.units == code);
+      a->setChecked(settings.units == code);
       unitGroup->addAction(a);
       connect(a, &QAction::toggled, this, [this, code](bool on) {
         if (on) applyUnits(code);
       });
       return a;
     };
-    units_.unitCm = mkUnit("Centimeters (cm)", "cm");
-    units_.unitIn = mkUnit("Inches (in)", "in");
+    units.unitCm = mkUnit("Centimeters (cm)", "cm");
+    units.unitIn = mkUnit("Inches (in)", "in");
   }
 
   // The rendered preview for one export-variant QAction; null for any action that isn't one of ours.
   QImage MainWindow::exportVariantPreviewImage(QAction* act) const {
     struct Spec { QAction* action; const char* variant; };
     const Spec specs[] = {
-        {actCopyImage_, "current"},
-        {actSaveImage_, "current"},
-        {actCopyImageCurrentRow_, "current"},
-        {actSaveImageCurrentRow_, "current"},
-        {actCopyImageSplit_, "split"},
-        {actSaveImageSplit_, "split"},
-        {actCopyImageOriginal_, "original"},
-        {actCopyImageTint_, "tint"},
-        {actSaveImageOriginal_, "original"},
-        {actSaveImageTint_, "tint"},
+        {actCopyImage, "current"},
+        {actSaveImage, "current"},
+        {actCopyImageCurrentRow, "current"},
+        {actSaveImageCurrentRow, "current"},
+        {actCopyImageSplit, "split"},
+        {actSaveImageSplit, "split"},
+        {actCopyImageOriginal, "original"},
+        {actCopyImageTint, "tint"},
+        {actSaveImageOriginal, "original"},
+        {actSaveImageTint, "tint"},
     };
     for (const auto& s : specs)
-      if (s.action == act) return canvas_->renderToImage(QString::fromLatin1(s.variant));
+      if (s.action == act) return canvas->renderToImage(QString::fromLatin1(s.variant));
     return QImage();
   }
 
@@ -146,15 +146,15 @@ namespace stencil::gui {
   // then the two fixed variants — Copy lists Filter Only before Original, Download the reverse (browser exportOptionsMenu.js).
   void MainWindow::populateExportVariantMenu(QMenu* menu, bool copy) {
     if (copy) {
-      menu->addAction(actCopyImageSplit_);
-      menu->addAction(actCopyImageCurrentRow_);
-      menu->addAction(actCopyImageTint_);
-      menu->addAction(actCopyImageOriginal_);
+      menu->addAction(actCopyImageSplit);
+      menu->addAction(actCopyImageCurrentRow);
+      menu->addAction(actCopyImageTint);
+      menu->addAction(actCopyImageOriginal);
     } else {
-      menu->addAction(actSaveImageSplit_);
-      menu->addAction(actSaveImageCurrentRow_);
-      menu->addAction(actSaveImageOriginal_);
-      menu->addAction(actSaveImageTint_);
+      menu->addAction(actSaveImageSplit);
+      menu->addAction(actSaveImageCurrentRow);
+      menu->addAction(actSaveImageOriginal);
+      menu->addAction(actSaveImageTint);
     }
     wireExportPreviewHover(menu);
   }

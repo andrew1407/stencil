@@ -68,11 +68,11 @@ class MainWindowGuiTest : public QObject {
                              stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     QCOMPARE(dock->attachedImages().size(), 0);
     QVERIFY(dock->attachedVideoPath().isEmpty());
-    QVERIFY(win.chatHistory_.isEmpty());
-    QVERIFY(win.chatVideoPath_.isEmpty());
-    QCOMPARE(win.chatVideoFrames_, 0);
-    QVERIFY(win.chatImageDigest_.isEmpty());
-    QVERIFY(win.chatImageEncoded_.data.isEmpty());
+    QVERIFY(win.chatHistory.isEmpty());
+    QVERIFY(win.chatVideoPath.isEmpty());
+    QCOMPARE(win.chatVideoFrames, 0);
+    QVERIFY(win.chatImageDigest.isEmpty());
+    QVERIFY(win.chatImageEncoded.data.isEmpty());
     QCOMPARE(win.currentLlmSettings().provider, providerBefore);
 
     // Appear: a fresh card is claimed by its own opacity effect and ends fully visible, overlapping

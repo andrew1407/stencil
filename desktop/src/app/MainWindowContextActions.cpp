@@ -57,12 +57,12 @@ namespace stencil::gui {
       lay->addWidget(label);
       return act;
     };
-    secImageAct_ = makeSectionLabel("Image");
-    secLayoutJsonAct_ = makeSectionLabel("Layout (JSON)");
-    secLineStyleAct_ = makeSectionLabel("Line Style");
-    secFilterAct_ = makeSectionLabel("Filter");
-    secCoordFormulasAct_ = makeSectionLabel("Coordinate Formulas");
-    secShowInTooltipAct_ = makeSectionLabel("Show in Tooltip");
+    secImageAct = makeSectionLabel("Image");
+    secLayoutJsonAct = makeSectionLabel("Layout (JSON)");
+    secLineStyleAct = makeSectionLabel("Line Style");
+    secFilterAct = makeSectionLabel("Filter");
+    secCoordFormulasAct = makeSectionLabel("Coordinate Formulas");
+    secShowInTooltipAct = makeSectionLabel("Show in Tooltip");
 
     auto styleRow = [this](const QString& label, QSpinBox*& spin, int lo, int hi,
                                          QWidgetAction*& act) {
@@ -74,53 +74,53 @@ namespace stencil::gui {
       lay->addStretch(1);
       lay->addWidget(spin);
     };
-    styleRow("Point Size", pointSpin_, 1, 30, pointSizeAction_);
-    styleRow("Line Thickness", thickSpin_, 1, 20, thicknessAction_);
+    styleRow("Point Size", pointSpin, 1, 30, pointSizeAction);
+    styleRow("Line Thickness", thickSpin, 1, 20, thicknessAction);
     // contextMenu.js:467-491
-    connect(pointSpin_, QOverload<int>::of(&QSpinBox::valueChanged), this,
+    connect(pointSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
             [this](int v) {
-              settings_.defaultPointSize = v;
-              if (pointSize_) {
-                QSignalBlocker b(pointSize_);
-                pointSize_->setValue(v);  // keep toolbar control in sync
+              settings.defaultPointSize = v;
+              if (pointSize) {
+                QSignalBlocker b(pointSize);
+                pointSize->setValue(v);  // keep toolbar control in sync
               }
               onLineStyleControlChanged();
             });
-    connect(thickSpin_, QOverload<int>::of(&QSpinBox::valueChanged), this,
+    connect(thickSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
             [this](int v) {
-              settings_.defaultThickness = v;
-              if (lineThickness_) {
-                QSignalBlocker b(lineThickness_);
-                lineThickness_->setValue(v);
+              settings.defaultThickness = v;
+              if (lineThickness) {
+                QSignalBlocker b(lineThickness);
+                lineThickness->setValue(v);
               }
               onLineStyleControlChanged();
             });
 
     // contextMenu.js:51-55, 494-501
-    lineStyleGroup_ = new QActionGroup(this);
-    lineStyleGroup_->setExclusive(true);
+    lineStyleGroup = new QActionGroup(this);
+    lineStyleGroup->setExclusive(true);
     auto mkStyle = [this](const QString& text, const QString& value) {
       auto* a = new QAction(text, this);
       a->setCheckable(true);
       a->setData(value);
-      lineStyleGroup_->addAction(a);
+      lineStyleGroup->addAction(a);
       connect(a, &QAction::triggered, this,
               [this, value] { applyLineStyle(value); });
       return a;
     };
-    actStyleSolid_ = mkStyle("Solid", "solid");
-    actStyleDashed_ = mkStyle("Dashed", "dashed");
-    actStyleDotted_ = mkStyle("Dotted", "dotted");
+    actStyleSolid = mkStyle("Solid", "solid");
+    actStyleDashed = mkStyle("Dashed", "dashed");
+    actStyleDotted = mkStyle("Dotted", "dotted");
 
     // contextMenu.js:59-74, 504-526; the tint picker shows only when "custom" is active.
-    filterButtons_ = new QButtonGroup(this);
-    filterButtons_->setExclusive(true);
+    filterButtons = new QButtonGroup(this);
+    filterButtons->setExclusive(true);
     auto mkFilter = [this](const QString& text, const QString& value) {
       QWidgetAction* act;
       auto* lay = makeContextMenuRow(act);
       auto* rb = new QRadioButton(text, lay->parentWidget());
       rb->setProperty("filterValue", value);
-      filterButtons_->addButton(rb);
+      filterButtons->addButton(rb);
       // Expand across the row so the whole strip is the hit area; the radio consumes the click.
       rb->setSizePolicy(QSizePolicy::Expanding, rb->sizePolicy().verticalPolicy());
       lay->addWidget(rb);
@@ -128,22 +128,22 @@ namespace stencil::gui {
       connect(rb, &QRadioButton::toggled, this, [this, value](bool on) {
         if (!on) return;
         applyImageFilter(value);
-        if (tintColorAction_) tintColorAction_->setVisible(value == "custom");
+        if (tintColorAction) tintColorAction->setVisible(value == "custom");
       });
       return act;
     };
-    actFilterNone_ = mkFilter("None", "none");
-    actFilterBW_ = mkFilter("Black && White", "bw");
-    actFilterSepia_ = mkFilter("Sepia", "sepia");
-    actFilterInvert_ = mkFilter("Invert", "invert");
-    actFilterContour_ = mkFilter("Contour", "contour");
-    actFilterCustom_ = mkFilter("Custom Tint", "custom");
+    actFilterNone = mkFilter("None", "none");
+    actFilterBW = mkFilter("Black && White", "bw");
+    actFilterSepia = mkFilter("Sepia", "sepia");
+    actFilterInvert = mkFilter("Invert", "invert");
+    actFilterContour = mkFilter("Contour", "contour");
+    actFilterCustom = mkFilter("Custom Tint", "custom");
     // contextMenu.js:518-526
-    tintColorAction_ = new QAction("Tint Color…", this);
-    connect(tintColorAction_, &QAction::triggered, this, [this] {
+    tintColorAction = new QAction("Tint Color…", this);
+    connect(tintColorAction, &QAction::triggered, this, [this] {
       // Anchor on the toolbar tint swatch; revealDialog falls back when it is hidden.
       const QColor c =
-          support::pickColorAnimated(filterColorValue_, this, "Tint color", filterColorBtn_);
+          support::pickColorAnimated(filterColorValue, this, "Tint color", filterColorBtn);
       if (c.isValid()) applyTintColor(c);
     });
 

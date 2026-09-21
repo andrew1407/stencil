@@ -47,29 +47,29 @@ namespace stencil::gui {
 
 
   void MainWindow::ensureLlmClient() {
-    if (llmClient_) return;
-    llmTransport_ = new llm::QtLlmTransport(this);
-    llmClient_ = std::make_unique<llm::LlmClient>(llmTransport_);
+    if (llmClient) return;
+    llmTransport = new llm::QtLlmTransport(this);
+    llmClient = std::make_unique<llm::LlmClient>(llmTransport);
     // Prefer the LIVE connection's token (it may have been re-issued); fall back to the persisted one.
-    llmClient_->setServerTokenResolver([this](const QString& url) -> QString {
-      if (connections_)
-        if (auto* c = connections_->find(url)) return c->token();
+    llmClient->setServerTokenResolver([this](const QString& url) -> QString {
+      if (connections)
+        if (auto* c = connections->find(url)) return c->getToken();
       return llm::LlmClient::savedServerToken(url);
     });
   }
 
   llm::LlmSettings MainWindow::currentLlmSettings() const {
     llm::LlmSettings cfg;
-    cfg.provider = settings_.llmProvider;
-    cfg.baseUrl = settings_.llmBaseUrl.isEmpty() ? llm::defaultLlmBaseUrl(cfg.provider)
-                                                 : settings_.llmBaseUrl;
-    cfg.model = settings_.llmModel;
-    cfg.apiKey = settings_.llmApiKey;
-    cfg.serverUrl = settings_.llmServerUrl;
+    cfg.provider = settings.llmProvider;
+    cfg.baseUrl = settings.llmBaseUrl.isEmpty() ? llm::defaultLlmBaseUrl(cfg.provider)
+                                                 : settings.llmBaseUrl;
+    cfg.model = settings.llmModel;
+    cfg.apiKey = settings.llmApiKey;
+    cfg.serverUrl = settings.llmServerUrl;
     // Contract §5: an empty serverUrl means the first configured connection — live first, then saved.
     if (cfg.provider == QLatin1String("stencil-server") && cfg.serverUrl.isEmpty()) {
-      if (connections_ && !connections_->urls().isEmpty()) {
-        cfg.serverUrl = connections_->urls().first();
+      if (connections && !connections->urls().isEmpty()) {
+        cfg.serverUrl = connections->urls().first();
       } else {
         const auto saved = stencil::net::connectionStore::loadSavedServers();
         if (!saved.isEmpty()) cfg.serverUrl = saved.first().url;
@@ -80,7 +80,7 @@ namespace stencil::gui {
 
 
   void MainWindow::refreshLlmStatus() {
-    if (!chatDock_) return;
+    if (!chatDock) return;
     const llm::LlmSettings cfg = currentLlmSettings();
     const QString clickHint = QStringLiteral("Click to configure the assistant");
     // "assistant off" (§5): nothing probed or sent; only the Provider + Status rows (browser gearStatusRows parity).
@@ -125,12 +125,12 @@ namespace stencil::gui {
     chatMirrorProviderStatus(tooltip(cfg.model, checking, {clickHint}),
                              ChatDock::ProviderStatus::UNKNOWN);
     // Probe only while SOMETHING shows the result.
-    if (!chatDock_->isVisible() && !chatMenuPanel_) return;
+    if (!chatDock->isVisible() && !chatMenuPanel) return;
     ensureLlmClient();
     QPointer<MainWindow> self(this);
     const auto applyProbe = [self, tooltip, cfg, url,
                              clickHint](const llm::LlmProbeResult& r) {
-      if (!self || !self->chatDock_) return;
+      if (!self || !self->chatDock) return;
       const QString model = !r.model.isEmpty() ? r.model : cfg.model;
       QString statusHtml;
       QStringList foot;
@@ -159,15 +159,15 @@ namespace stencil::gui {
         QStringList{cfg.provider, cfg.baseUrl, cfg.model, cfg.serverUrl}
             .join(QLatin1Char('|'));
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (probeKey == llmProbeKey_ && now - llmProbeAt_ <= LLM_PROBE_TTL_MS) {
-      applyProbe(llmProbeCache_);
+    if (probeKey == llmProbeKey && now - llmProbeAt <= LLM_PROBE_TTL_MS) {
+      applyProbe(llmProbeCache);
       return;
     }
-    llmClient_->probe(cfg, [self, probeKey, applyProbe](llm::LlmProbeResult r) {
+    llmClient->probe(cfg, [self, probeKey, applyProbe](llm::LlmProbeResult r) {
       if (!self) return;
-      self->llmProbeKey_ = probeKey;
-      self->llmProbeAt_ = QDateTime::currentMSecsSinceEpoch();
-      self->llmProbeCache_ = r;
+      self->llmProbeKey = probeKey;
+      self->llmProbeAt = QDateTime::currentMSecsSinceEpoch();
+      self->llmProbeCache = r;
       applyProbe(r);
     });
   }
@@ -177,28 +177,28 @@ namespace stencil::gui {
     // Wording from llm/systemPrompt.json contextSuffix*.
     const auto tpl = [](const char* key) { return llm::promptText(QLatin1String(key)); };
     QStringList parts;
-    parts << (canvas_->hasImage() ? tpl("contextSuffixImage")
-                                        .arg(canvas_->imageWidth())
-                                        .arg(canvas_->imageHeight())
+    parts << (canvas->hasImage() ? tpl("contextSuffixImage")
+                                        .arg(canvas->imageWidth())
+                                        .arg(canvas->imageHeight())
                                   : tpl("contextSuffixNoImage"));
-    if (!chatVideoPath_.isEmpty())
-      parts << (chatVideoFrames_ > 0 ? tpl("contextSuffixVideoFrames").arg(chatVideoFrames_)
+    if (!chatVideoPath.isEmpty())
+      parts << (chatVideoFrames > 0 ? tpl("contextSuffixVideoFrames").arg(chatVideoFrames)
                                      : tpl("contextSuffixVideo"));
     return parts.join(QLatin1Char(' '));
   }
 
   QVector<llm::ChatMessage> MainWindow::wireChatMessages() const {
     // The most recent 32, with the §7 image replay rule: the current turn keeps its images, one earlier image survives.
-    QVector<llm::ChatMessage> wire = chatHistory_;
+    QVector<llm::ChatMessage> wire = chatHistory;
     trimPriorImages(wire, wire.size() - 1);
     return wire;
   }
 
   void MainWindow::pushChatHistory(const llm::ChatMessage& m) {
     // Drop prior images to what §7 would send anyway; wire output is unchanged.
-    if (!m.images.isEmpty()) trimPriorImages(chatHistory_, chatHistory_.size());
-    chatHistory_.append(m);
-    while (chatHistory_.size() > CHAT_HISTORY_BOUND) chatHistory_.removeFirst();
+    if (!m.images.isEmpty()) trimPriorImages(chatHistory, chatHistory.size());
+    chatHistory.append(m);
+    while (chatHistory.size() > CHAT_HISTORY_BOUND) chatHistory.removeFirst();
   }
 }  // namespace stencil::gui
 

@@ -13,10 +13,10 @@ class MainWindowGuiTest : public QObject {
   void assistantSettingsShortcutOpensAndClosesTheDialog() {
     MainWindow win(nullptr, false);
     openLoaded(win);
-    QVERIFY2(!win.actAssistantSettings_->shortcut().isEmpty(), "the dialog has a chord");
-    QCOMPARE(win.hotkeyLabels_.value(QStringLiteral("openAssistantSettings")),
+    QVERIFY2(!win.actAssistantSettings->shortcut().isEmpty(), "the dialog has a chord");
+    QCOMPARE(win.hotkeyLabels.value(QStringLiteral("openAssistantSettings")),
              QStringLiteral("AI Assistant Settings"));   // the Shortcuts window lists it
-    QVERIFY(!win.chatDock_->isVisible());
+    QVERIFY(!win.chatDock->isVisible());
 
     QString dialogName;
     bool sawOwn = false, closedByOwn = false;
@@ -29,12 +29,12 @@ class MainWindowGuiTest : public QObject {
       if (!dlg) return;
       dialogName = dlg->objectName();
       for (QShortcut* sc : dlg->findChildren<QShortcut*>()) {
-        if (sc->key() == win.actAssistantSettings_->shortcut()) { sawOwn = true; emit sc->activated(); }
+        if (sc->key() == win.actAssistantSettings->shortcut()) { sawOwn = true; emit sc->activated(); }
       }
       closedByOwn = !dlg->isVisible();
       if (!closedByOwn) dlg->reject();
     });
-    win.actAssistantSettings_->trigger();   // blocks in exec() until the timer closes it
+    win.actAssistantSettings->trigger();   // blocks in exec() until the timer closes it
 
     QCOMPARE(dialogName, QString("assistantSettingsDialog"));
     QVERIFY2(sawOwn, "the dialog carried its own opener's chord");
@@ -80,20 +80,20 @@ class MainWindowGuiTest : public QObject {
     // While a text control has FOCUS, Alt belongs to the typing: over the icon it must NOT peek.
     // Checked FIRST — floating-dock activation, which offscreen QPA cannot give, unsets focus.
     win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.zoom_->isEnabled());
+    QTRY_VERIFY(win.zoom->isEnabled());
     QCursor::setPos(btn->mapToGlobal(hit));
-    QLineEdit* zoomEdit = win.zoom_->lineEdit();
+    QLineEdit* zoomEdit = win.zoom->lineEdit();
     QVERIFY(zoomEdit);
     zoomEdit->setFocus();
     // The guard reads QApplication::focusWidget() — the editable combo is its
     // line edit's FOCUS PROXY, so that is what focus lands on.
-    QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(win.zoom_));
+    QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(win.zoom));
     QTest::keyPress(zoomEdit, Qt::Key_Alt);
     QTest::keyRelease(zoomEdit, Qt::Key_Alt);
     QTest::qWait(50);
     QVERIFY2(!dock->isVisible(), "Alt while typing must not open the peek");
-    win.zoom_->clearFocus();
-    QTRY_VERIFY(QApplication::focusWidget() != win.zoom_);
+    win.zoom->clearFocus();
+    QTRY_VERIFY(QApplication::focusWidget() != win.zoom);
 
     doubleClick();
     QTRY_VERIFY(dock->isVisible());
@@ -102,7 +102,7 @@ class MainWindowGuiTest : public QObject {
     // Pinned next to the icon at the compact size — the shared placement rule.
     const QRect btnRect(btn->mapToGlobal(QPoint(0, 0)), btn->size());
     const QRect expect = stencil::support::popoverRect(
-        btnRect, win.chatDock_->floatingDefaultSize(), btn->screen()->availableGeometry());
+        btnRect, win.chatDock->floatingDefaultSize(), btn->screen()->availableGeometry());
     QTRY_COMPARE(dock->geometry().topLeft(), expect.topLeft());
     QCOMPARE(dock->size(), expect.size());
     // The deferred single-click must NOT fire off the dblclick's trailing release

@@ -46,12 +46,12 @@ namespace stencil::gui {
     // One hover treatment across every toolbar control, not just the makeToolSection icons.
     for (QToolBar* tb : findChildren<QToolBar*>()) {
       for (QToolButton* b : tb->findChildren<QToolButton*>())
-        if (b != logoBtn_) installHoverShimmer(b);   // skip the logo (its own art/affordance)
+        if (b != logoBtn) installHoverShimmer(b);   // skip the logo (its own art/affordance)
       for (QComboBox* c : tb->findChildren<QComboBox*>()) installHoverShimmer(c);
       for (QAbstractSpinBox* s : tb->findChildren<QAbstractSpinBox*>()) installHoverShimmer(s);
       for (QCheckBox* c : tb->findChildren<QCheckBox*>()) installHoverShimmer(c);   // f(x,y) pill
       for (QLineEdit* le : tb->findChildren<QLineEdit*>())
-        if (le != nameBar_.field) installHoverShimmer(le);   // skip the rename field
+        if (le != nameBar.field) installHoverShimmer(le);   // skip the rename field
     }
     // Hand cursor on everything clickable (browser `cursor: pointer`); combos and fields keep
     // Qt's.
@@ -78,15 +78,15 @@ namespace stencil::gui {
   }  // namespace
 
   void MainWindow::buildFormulaFields() {
-    formulaGroup_ = new QWidget(this);
+    formulaGroup = new QWidget(this);
     // Maximum, not Expanding: Expanding swallowed the row's leftover and left the lone pill
     // floating mid-box once the fields hid.
-    formulaGroup_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
-    auto* fl = new QHBoxLayout(formulaGroup_);
+    formulaGroup->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+    auto* fl = new QHBoxLayout(formulaGroup);
     fl->setContentsMargins(0, 0, 0, 0);
     fl->setSpacing(6);   // the browser's gap between the two fields
     const auto makeField = [this](const char* placeholder, const char* tip) {
-      auto* e = new FormulaField(formulaGroup_);
+      auto* e = new FormulaField(formulaGroup);
       e->setPlaceholderText(placeholder);
       e->setToolTip(tip);
       QFont f = e->font();
@@ -99,20 +99,20 @@ namespace stencil::gui {
       e->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
       return e;
     };
-    formulaX_ = makeField("x(x)=", "Transform formula for x — e.g. x*2 + 1 (empty = identity)");
-    formulaY_ = makeField("y(y)=", "Transform formula for y — e.g. y/2 (empty = identity)");
+    formulaX = makeField("x(x)=", "Transform formula for x — e.g. x*2 + 1 (empty = identity)");
+    formulaY = makeField("y(y)=", "Transform formula for y — e.g. y/2 (empty = identity)");
     // Icon-only like the browser's #formula-error; named so tests find it without matching on
     // text.
-    formulaError_ = new QLabel("\u26A0", formulaGroup_);
-    formulaError_->setObjectName("formulaError");
-    formulaError_->setToolTip("Invalid formula");
-    formulaError_->setStyleSheet("color:#d9534f;");
-    formulaError_->setVisible(false);
+    formulaError = new QLabel("\u26A0", formulaGroup);
+    formulaError->setObjectName("formulaError");
+    formulaError->setToolTip("Invalid formula");
+    formulaError->setStyleSheet("color:#d9534f;");
+    formulaError->setVisible(false);
     // The fields carry the stretch, the tail none: with no tail the excess became spacing and the
     // pair drifted apart.
-    fl->addWidget(formulaX_, 1);
-    fl->addWidget(formulaY_, 1);
-    fl->addWidget(formulaError_);
+    fl->addWidget(formulaX, 1);
+    fl->addWidget(formulaY, 1);
+    fl->addWidget(formulaError);
     fl->addStretch(0);
   }
 

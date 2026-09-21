@@ -28,7 +28,7 @@ class MainWindowGuiTest;
 
 // Unified "Open Image" dialog (browser/js/ui/openImageModal.js): the single way into the editor -
 // a local FILE, a web URL/reference, or a NEW BLANK canvas - with a live preview (video frames
-// seek-able) and an optional page-aspect crop. exec(); on Accepted read outcome() + the getters.
+// seek-able) and an optional page-aspect crop. exec(); on Accepted read getOutcome() + the getters.
 // Preview, scrub and quick-crop mirror LinksDialog's add-by-URL section, accessor names included,
 // so MainWindow consumes the two dialogs identically.
 namespace stencil::core { struct PageSize; }
@@ -54,9 +54,9 @@ namespace stencil::gui {
     QString source() const;
     bool isUrl() const;     // a URL was typed (vs a local file)
     bool isVideo() const;   // the source is a video (local or URL) → grab a frame
-    int frame() const;      // 0-based video frame to grab (ignored for still images)
-    bool incognito() const;
-    bool rename() const;
+    int getFrame() const;      // 0-based video frame to grab (ignored for still images)
+    bool getIncognito() const;
+    bool getRename() const;
     bool keepAnnotations() const;
     // The browser's "Save to" row (base.js fillTargetSelect): the connected servers a
     // file/URL open can create on — shown only with servers, never incognito. Empty = local.
@@ -69,16 +69,16 @@ namespace stencil::gui {
 
     // The image/frame decoded for the preview — null until one succeeds. The caller adopts
     // these exact pixels (no second download/seek), as LinksDialog::previewedImage() does.
-    QImage previewedImage() const { return previewImage_; }
+    QImage previewedImage() const { return previewImage; }
     // Quick crop (mirrors LinksDialog): cropToPage() off loads the full frame; on, it crops
-    // to cropPageSize() in cropAlbum() or portrait.
+    // to getCropPageSize() in getCropAlbum() or portrait.
     bool cropToPage() const;
-    bool cropAlbum() const;
-    QString cropPageSize() const;
+    bool getCropAlbum() const;
+    QString getCropPageSize() const;
     // The dragged rect in ORIGINAL-image pixels; empty ⇒ the caller centres the crop.
     core::CropRect cropRect() const;
 
-    Outcome outcome() const { return outcome_; }
+    Outcome getOutcome() const { return outcome; }
 
    protected:
     bool eventFilter(QObject* obj, QEvent* event) override;   // Enter previews the URL
@@ -124,10 +124,10 @@ namespace stencil::gui {
     QSize previewFitBox() const;   // the preview/crop stage's box (OpenImageDialogFit.cpp)
     void applyPreviewFit();        // re-fit the picture and the stage into it
     int shrinkPreviewToFit(int over);   // …smaller by `over` px, so the body needn't scroll
-    HeightEase size_;     // the window-height ease and what it measures
+    HeightEase size;     // the window-height ease and what it measures
     void animateHeightTo(int h);        // ease the window there instead of jumping
     void setHeightNow(int h);           // …and the popover's frame moves with it
-    RowMotion motion_;    // one clock per row that forms and falls
+    RowMotion motion;    // one clock per row that forms and falls
     void dropDerived();                 // the fetch, pixels, video read and frame row
     void stalePreview();                // …dropped, the picture kept (the url moved on)
     void setHint(const QString& text);   // muted status line, hidden when empty
@@ -153,8 +153,8 @@ namespace stencil::gui {
     void showQuickcrop(int w, int h);  // reveal + default the quick-crop row for a preview
     void syncCropStage();              // build / drop the crop stage as Crop is toggled
     void refreshCropDims();            // the stage's size line under it
-    core::PageSize cropPageDims() const;   // cropPageSize_/cropSizeW_/H_ resolved — the
-                                            // CROP's own ratio, never pageSeed_ (the project's)
+    core::PageSize cropPageDims() const;   // cropPageSize/cropSizeW/H resolved — the
+                                            // CROP's own ratio, never pageSeed (the project's)
     void syncCropPageChoice();         // a different ratio picked: refit the stage to it
     void persistCropRect();            // …and its tab's own copy of the drag
     void syncQuickcropEnabled();       // album/page shown only while cropping to page
@@ -162,60 +162,60 @@ namespace stencil::gui {
     void refreshTargetRow();           // the Save-to row follows servers / incognito / tab
 
     // Source tabs: 0 = Local file, 1 = URL link, 2 = Blank.
-    QTabWidget* tabs_ = nullptr;
+    QTabWidget* tabs = nullptr;
 
-    QLineEdit* path_ = nullptr;
-    QLineEdit* url_ = nullptr;
-    QSpinBox* frame_ = nullptr;
-    QSlider* frameSlider_ = nullptr;  // scrub the frame; synced with frame_ (video only)
-    QWidget* frameRow_ = nullptr;     // video frame controls — shown only for video
-    QCheckBox* incognito_ = nullptr;
-    QWidget* incogRow_ = nullptr;  // the Incognito .vs-row (hidden on the Blank tab)
-    QCheckBox* rename_ = nullptr;
-    QCheckBox* keep_ = nullptr;
-    QComboBox* target_ = nullptr;     // "Save to": local or a connected server
-    QWidget* targetRow_ = nullptr;
-    QStringList serverUrls_;
+    QLineEdit* path = nullptr;
+    QLineEdit* url = nullptr;
+    QSpinBox* frame = nullptr;
+    QSlider* frameSlider = nullptr;  // scrub the frame; synced with frame (video only)
+    QWidget* frameRow = nullptr;     // video frame controls — shown only for video
+    QCheckBox* incognito = nullptr;
+    QWidget* incogRow = nullptr;  // the Incognito .vs-row (hidden on the Blank tab)
+    QCheckBox* rename = nullptr;
+    QCheckBox* keep = nullptr;
+    QComboBox* target = nullptr;     // "Save to": local or a connected server
+    QWidget* targetRow = nullptr;
+    QStringList serverUrls;
 
-    QPushButton* previewBtn_ = nullptr;
-    QLabel* previewLabel_ = nullptr;  // the rendered image/frame
-    QLabel* previewHint_ = nullptr;   // status / dimensions / errors
+    QPushButton* previewBtn = nullptr;
+    QLabel* previewLabel = nullptr;  // the rendered image/frame
+    QLabel* previewHint = nullptr;   // status / dimensions / errors
 
-    QWidget* quickcropRow_ = nullptr;
-    QCheckBox* cropPage_ = nullptr;
-    QLabel* cropDims_ = nullptr;         // the read-out, centred UNDER the stage
-    CropPreview* cropStage_ = nullptr;   // the draggable crop box over the preview
-    QWidget* cropStageHost_ = nullptr;   // its slot in the preview column
-    QPushButton* cropAlbum_ = nullptr;   // the Album / Portrait toggle (checked = album)
-    // The CROP's own page choice — starts from pageSeed_, but picking a different one (Custom
+    QWidget* quickcropRow = nullptr;
+    QCheckBox* cropPage = nullptr;
+    QLabel* cropDims = nullptr;         // the read-out, centred UNDER the stage
+    CropPreview* cropStage = nullptr;   // the draggable crop box over the preview
+    QWidget* cropStageHost = nullptr;   // its slot in the preview column
+    QPushButton* cropAlbum = nullptr;   // the Album / Portrait toggle (checked = album)
+    // The CROP's own page choice — starts from pageSeed, but picking a different one (Custom
     // included) here affects only this preview's aspect, never the project's own page.
-    QWidget* cropSizeRow_ = nullptr;
-    QComboBox* cropPageSize_ = nullptr;
-    QWidget* cropSizeCustomGroup_ = nullptr;   // W × H, shown only when "custom" is picked
-    QDoubleSpinBox* cropSizeW_ = nullptr;
-    QDoubleSpinBox* cropSizeH_ = nullptr;
-    QString pageSeed_ = "A3";  // canonical format name (findData miss ⇒ A3)
+    QWidget* cropSizeRow = nullptr;
+    QComboBox* cropPageSize = nullptr;
+    QWidget* cropSizeCustomGroup = nullptr;   // W × H, shown only when "custom" is picked
+    QDoubleSpinBox* cropSizeW = nullptr;
+    QDoubleSpinBox* cropSizeH = nullptr;
+    QString pageSeed = "A3";  // canonical format name (findData miss ⇒ A3)
 
-    BlankControls blank_;  // the blank tab's fill and size
+    BlankControls blank;  // the blank tab's fill and size
 
-    OpenActions act_;     // the footer outcomes + the replace options
+    OpenActions act;     // the footer outcomes + the replace options
 
-    MediaLoader* preview_ = nullptr;    // detects image vs video, grabs the first frame
-    QTimer* fetchTimer_ = nullptr;      // debounce seeks while scrubbing
-    ScrubPlayer scrub_;   // the persistent player a video is scrubbed with
-    QImage previewImage_;       // pixels the open will adopt (frame or preview)
-    QString previewedSource_;   // the source the shown preview was fetched for
-    QImage frameImage_;                 // last grabbed video frame
-    bool previewIsVideo_ = false;       // last preview resolved as a video
+    MediaLoader* preview = nullptr;    // detects image vs video, grabs the first frame
+    QTimer* fetchTimer = nullptr;      // debounce seeks while scrubbing
+    ScrubPlayer scrub;   // the persistent player a video is scrubbed with
+    QImage previewImage;       // pixels the open will adopt (frame or preview)
+    QString previewedSource;   // the source the shown preview was fetched for
+    QImage frameImage;                 // last grabbed video frame
+    bool previewIsVideo = false;       // last preview resolved as a video
 
-    TabPreviewCache tabCache_[2];
-    bool tabCrop_[2] = {false, false};   // each tab's own Crop choice (browser tabCrop)
+    TabPreviewCache tabCache[2];
+    bool tabCrop[2] = {false, false};   // each tab's own Crop choice (browser tabCrop)
 
-    bool canReplace_ = false;
-    bool constructed_ = false;  // gates the tab-switch fade until the dialog is built
-    bool measured_ = false;     // first-show tallest-tab measurement ran (showEvent)
-    bool measuring_ = false;    // …and is running right now (no fade on its switches)
-    Outcome outcome_ = Outcome::HERE;
+    bool canReplace = false;
+    bool constructed = false;  // gates the tab-switch fade until the dialog is built
+    bool measured = false;     // first-show tallest-tab measurement ran (showEvent)
+    bool measuring = false;    // …and is running right now (no fade on its switches)
+    Outcome outcome = Outcome::HERE;
   };
 
 }

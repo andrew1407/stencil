@@ -38,40 +38,40 @@ namespace stencil::gui {
   void MainWindow::buildDrawViewToolbar() {
     QToolBar* row = toolRow();
     addWrappedSeparator(row);
-    addWrapped(row, makeToolSection("Draw", {actStartDraw_}, {drawModeBtn_}));
+    addWrapped(row, makeToolSection("Draw", {actStartDraw}, {drawModeBtn}));
     addWrappedSeparator(row);
     // Kept in sync with the View → Compare submenu radio set.
-    compareCombo_ = new SearchComboBox(this, /*searchable=*/false);
+    compareCombo = new SearchComboBox(this, /*searchable=*/false);
     // Short labels: the closed combo is sized by its widest item; the tooltip spells each out.
-    compareCombo_->addItem("None", "none");
-    compareCombo_->addItem("Original", "original");
-    compareCombo_->addItem(QString::fromUtf8("Split ↔"), "vertical");
-    compareCombo_->addItem(QString::fromUtf8("Split ↕"), "horizontal");
+    compareCombo->addItem("None", "none");
+    compareCombo->addItem("Original", "original");
+    compareCombo->addItem(QString::fromUtf8("Split ↔"), "vertical");
+    compareCombo->addItem(QString::fromUtf8("Split ↕"), "horizontal");
     // The browser's words (toolbar.js #compare-mode); the cycle chord is the trailing "(…)"
     // tipContent draws as the keycap, so not named in the prose.
-    setTipBase(compareCombo_,
+    setTipBase(compareCombo,
                "Compare with original\n"
                "• None — normal editing\n"
                "• Original — the original only (crop + rotation)\n"
                "• Vertical split — original left, edit right\n"
                "• Horizontal split — original top, edit bottom\n"
                "(hold Alt+Shift+O to peek)");
-    setTipHotkey(compareCombo_, actCycleCompare_);
-    setTipReason(compareCombo_, "Load an image to compare");
+    setTipHotkey(compareCombo, actCycleCompare);
+    setTipReason(compareCombo, "Load an image to compare");
     // Wired here, not in buildStyleToolbar, which runs before this one: a connect() on a null
-    // compareCombo_ is silently dropped.
-    connect(compareCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+    // compareCombo is silently dropped.
+    connect(compareCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int) {
-              setCompareModeUi(compareCombo_->currentData().toString());
+              setCompareModeUi(compareCombo->currentData().toString());
             });
     // Hover-preview repaints only; leaving without a pick reverts to the committed mode.
-    static_cast<SearchComboBox*>(compareCombo_)->setPreview(
-        [this](const QString& mode) { canvas_->setCompareMode(mode); });
+    static_cast<SearchComboBox*>(compareCombo)->setPreview(
+        [this](const QString& mode) { canvas->setCompareMode(mode); });
 
     // Points/Lines are real checkboxes (browser parity); the menu actions stay the source of
     // truth.
-    showPointsCheck_ = new QCheckBox("Points", this);
-    showLinesCheck_ = new QCheckBox("Lines", this);
+    showPointsCheck = new QCheckBox("Points", this);
+    showLinesCheck = new QCheckBox("Lines", this);
     const auto bindCheck = [this](QCheckBox* box, QAction* act) {
       box->setChecked(act->isChecked());
       box->setToolTip(act->toolTip().isEmpty() ? act->text() : act->toolTip());
@@ -83,11 +83,11 @@ namespace stencil::gui {
         box->setChecked(on);
       });
     };
-    bindCheck(showPointsCheck_, actShowPoints_);
-    bindCheck(showLinesCheck_, actShowLines_);
+    bindCheck(showPointsCheck, actShowPoints);
+    bindCheck(showLinesCheck, actShowLines);
     // Built here so it lands at the end of the cluster (makeToolSection puts actions first).
     auto* clearLinesBtn = new QToolButton(this);
-    clearLinesBtn->setDefaultAction(actClearAll_);
+    clearLinesBtn->setDefaultAction(actClearAll);
     clearLinesBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
     clearLinesBtn->setAutoRaise(true);
     clearLinesBtn->setIconSize(QSize(TOOL_ICON, TOOL_ICON));
@@ -95,10 +95,10 @@ namespace stencil::gui {
     auto* compareLabel = new QLabel("Compare", this);
     compareLabel->setStyleSheet("padding-right: 2px;");
     addWrapped(row, makeToolSection("View", {}, {
-        compareLabel, compareCombo_, showPointsCheck_, showLinesCheck_, clearLinesBtn }));
+        compareLabel, compareCombo, showPointsCheck, showLinesCheck, clearLinesBtn }));
   }
 
-  // browser #image-info. A real top dock like selectedLineDock_, so it spans the full window width
+  // browser #image-info. A real top dock like selectedLineDock, so it spans the full window width
   // above both dock corners.
   void MainWindow::buildImageInfoBar() {
     auto* bar = new QWidget(this);
@@ -106,26 +106,26 @@ namespace stencil::gui {
     bar->setAttribute(Qt::WA_StyledBackground, true);
     auto* lay = new QHBoxLayout(bar);
     lay->setContentsMargins(0, 0, 0, 0);
-    lay->addWidget(imageSizeInfo_);   // left-aligned label; the bar spans the window width
+    lay->addWidget(imageSizeInfo);   // left-aligned label; the bar spans the window width
     lay->addStretch(1);
-    imageInfoBar_ = bar;
+    imageInfoBar = bar;
 
     // The host carries the gaps: no side margin, a top gap of 0 while "Selected Line:" shows and 8
     // otherwise (onSelectionChanged), 3px below.
-    imageInfoHost_ = new QWidget(this);
-    imageInfoHost_->setObjectName("imageInfoHost");
-    auto* hostLay = new QVBoxLayout(imageInfoHost_);
+    imageInfoHost = new QWidget(this);
+    imageInfoHost->setObjectName("imageInfoHost");
+    auto* hostLay = new QVBoxLayout(imageInfoHost);
     hostLay->setContentsMargins(0, 8, 0, 3);
     hostLay->setSpacing(0);
     hostLay->addWidget(bar);
 
-    imageInfoDock_ = new QDockWidget(this);
-    imageInfoDock_->setObjectName("imageInfoDock");
-    imageInfoDock_->setFeatures(QDockWidget::NoDockWidgetFeatures);
-    imageInfoDock_->setTitleBarWidget(new QWidget(imageInfoDock_));   // no title bar of its own
-    imageInfoDock_->setWidget(imageInfoHost_);
-    addDockWidget(Qt::TopDockWidgetArea, imageInfoDock_);
-    // splitDockWidget against the still-hidden selectedLineDock_ does not register;
+    imageInfoDock = new QDockWidget(this);
+    imageInfoDock->setObjectName("imageInfoDock");
+    imageInfoDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    imageInfoDock->setTitleBarWidget(new QWidget(imageInfoDock));   // no title bar of its own
+    imageInfoDock->setWidget(imageInfoHost);
+    addDockWidget(Qt::TopDockWidgetArea, imageInfoDock);
+    // splitDockWidget against the still-hidden selectedLineDock does not register;
     // onSelectionChanged re-affirms it once shown.
   }
 }  // namespace stencil::gui

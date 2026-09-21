@@ -34,9 +34,9 @@ namespace stencil::gui {
 
 
   QString MainWindow::activeProjectColor() const {
-    if (activeProjectId_.isEmpty()) return {};
-    for (const auto& p : projectList_)
-      if (QString::fromStdString(p.meta.id) == activeProjectId_)
+    if (activeProjectId.isEmpty()) return {};
+    for (const auto& p : projectList)
+      if (QString::fromStdString(p.meta.id) == activeProjectId)
         return QString::fromStdString(p.meta.color);
     return {};
   }
@@ -44,7 +44,7 @@ namespace stencil::gui {
   // The linked server record for a server session, else the active local project; callers apply
   // the incognito gate.
   QString MainWindow::currentProjectColor() const {
-    return !remoteSession_->link().id.isEmpty() ? remoteSession_->link().color : activeProjectColor();
+    return !remoteSession->getLink().id.isEmpty() ? remoteSession->getLink().color : activeProjectColor();
   }
 
   std::optional<QString> MainWindow::normalizeProjectColor(const QString& color) const {
@@ -64,7 +64,7 @@ namespace stencil::gui {
                             : QColor("#80868f");
     // Non-native: the macOS shared NSColorPanel gets dismissed by our event filters.
     const QColor picked =
-        support::pickColorAnimated(seed, this, "Project name color", nameBar_.colorBtn);
+        support::pickColorAnimated(seed, this, "Project name color", nameBar.colorBtn);
     if (!picked.isValid()) return;   // user cancelled
     setActiveProjectColor(picked.name());
   }
@@ -84,9 +84,9 @@ namespace stencil::gui {
     QAction* def = menu.addAction(themedIcon("x", mtxt, 15), "Use theme default color");
     // The same dust and shimmer every other popup gets (browser .project-menu-item parity).
     support::MenuShimmer shimmer(&menu);
-    support::revealMenuFrom(menu, nameBar_.colorBtn);
+    support::revealMenuFrom(menu, nameBar.colorBtn);
     QAction* chosen =
-        menu.exec(nameBar_.colorBtn->mapToGlobal(QPoint(0, nameBar_.colorBtn->height())));
+        menu.exec(nameBar.colorBtn->mapToGlobal(QPoint(0, nameBar.colorBtn->height())));
     if (chosen == pick) {
       // Defer so the menu's mouse grab is released before the modal picker opens, or it dismisses
       // the dialog.

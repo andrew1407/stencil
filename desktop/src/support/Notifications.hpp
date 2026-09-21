@@ -40,7 +40,7 @@ namespace stencil::gui {
     // `special` is a logo show's own notice: the egg on gold, whatever the accent.
     void show(const QString& text, Level level, int msec = 3000, bool special = false);
     // The newest toast still standing, for a caller that decorates its own notice.
-    QLabel* lastToast() const { return stack_.isEmpty() ? nullptr : stack_.last().data(); }
+    QLabel* lastToast() const { return stack.isEmpty() ? nullptr : stack.last().data(); }
 
    protected:
     // The host is still narrow when the first toast appears at startup.
@@ -52,15 +52,15 @@ namespace stencil::gui {
     void dismiss(QLabel* toast);
     QList<QLabel*> liveToasts() const;
 
-    QWidget* host_ = nullptr;
-    QColor normalBg_{DEFAULT_ACCENT_HEX}, errorBg_{"#d6293e"};   // light-theme defaults
-    int bottomInset_ = 0;
-    int leftInset_ = 0;
+    QWidget* host = nullptr;
+    QColor normalBg{DEFAULT_ACCENT_HEX}, errorBg{"#d6293e"};   // light-theme defaults
+    int bottomInset = 0;
+    int leftInset = 0;
     // Insertion order is the ONLY reliable "oldest": reflow() raise()s each toast, which
     // moves it to the end of the child list. QPointer, so a deleted toast drops out.
-    QList<QPointer<QLabel>> stack_;
+    QList<QPointer<QLabel>> stack;
     // The still-flying entrance cloud, so reflow() can drag it along to a new slot.
-    QHash<QLabel*, QPointer<DisintegrateOverlay>> entering_;
+    QHash<QLabel*, QPointer<DisintegrateOverlay>> entering;
   };
 
 }

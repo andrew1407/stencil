@@ -31,24 +31,24 @@ class MainWindowGuiTest : public QObject {
     QList<QAction*> got;
     for (QToolButton* b : section->findChildren<QToolButton*>())
       if (b->defaultAction()) got << b->defaultAction();
-    const QList<QAction*> want{win.actDescription_, win.actKeywords_, win.actLinks_};
+    const QList<QAction*> want{win.actDescription, win.actKeywords, win.actLinks};
     QCOMPARE(got, want);
-    QVERIFY2(!win.imageSection_->isAncestorOf(win.buttonForAction(win.actLinks_)),
+    QVERIFY2(!win.imageSection->isAncestorOf(win.buttonForAction(win.actLinks)),
              "Links is still in the IMAGE section");
     // Menu bar: the trio sits together where Links lives.
     QMenu* projectMenu = nullptr;
     for (QMenu* m : win.menuBar()->findChildren<QMenu*>())
-      if (m->actions().contains(win.actLinks_)) projectMenu = m;
+      if (m->actions().contains(win.actLinks)) projectMenu = m;
     QVERIFY(projectMenu);
-    const int di = projectMenu->actions().indexOf(win.actDescription_);
+    const int di = projectMenu->actions().indexOf(win.actDescription);
     QVERIFY(di >= 0);
-    QCOMPARE(projectMenu->actions().at(di + 1), win.actKeywords_);
-    QCOMPARE(projectMenu->actions().at(di + 2), win.actLinks_);
+    QCOMPARE(projectMenu->actions().at(di + 1), win.actKeywords);
+    QCOMPARE(projectMenu->actions().at(di + 2), win.actLinks);
     // The shared registry's chords are on the actions.
-    QCOMPARE(win.actDescription_->shortcut(), QKeySequence(win.hotkey("openDescription", "Alt+Shift+D")));
-    QCOMPARE(win.actKeywords_->shortcut(), QKeySequence(win.hotkey("openKeywords", "Alt+Shift+K")));
+    QCOMPARE(win.actDescription->shortcut(), QKeySequence(win.hotkey("openDescription", "Alt+Shift+D")));
+    QCOMPARE(win.actKeywords->shortcut(), QKeySequence(win.hotkey("openKeywords", "Alt+Shift+K")));
     // …and the popover gestures reach all three.
-    for (QAction* a : want) QVERIFY(win.pop_.dialogActions.contains(a));
+    for (QAction* a : want) QVERIFY(win.pop.dialogActions.contains(a));
 
     // No project: all three dead, each with its reason on the tooltip.
     const auto reasonShown = [](QAction* a) {
@@ -58,33 +58,33 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(!a->isEnabled(), qPrintable(a->text() + " is enabled with no project"));
       QVERIFY2(reasonShown(a), qPrintable(a->text() + ": no reason on the tooltip"));
     }
-    QCOMPARE(win.actDescription_->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
+    QCOMPARE(win.actDescription->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
              QStringLiteral("Save the project first to add a description"));
-    QCOMPARE(win.actKeywords_->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
+    QCOMPARE(win.actKeywords->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
              QStringLiteral("Save the project first to add keywords"));
-    QCOMPARE(win.actLinks_->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
+    QCOMPARE(win.actLinks->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
              QStringLiteral("Save the project first to add links"));
 
     // A saved project: all three live, the reason gone. Idempotent against the persisted test store,
     // where a copy left by an earlier run (the dialog writes through fileStore) would be found first.
-    win.projectList_.erase(std::remove_if(win.projectList_.begin(), win.projectList_.end(),
+    win.projectList.erase(std::remove_if(win.projectList.begin(), win.projectList.end(),
                                           [](const stencil::gui::Project& p) { return p.meta.id == "meta-gui"; }),
-                           win.projectList_.end());
+                           win.projectList.end());
     stencil::gui::Project pr;
     pr.meta.id = "meta-gui";
     pr.meta.name = "Meta";
     pr.meta.description = "Before";
-    win.projectList_.push_back(pr);
-    win.activeProjectId_ = "meta-gui";
+    win.projectList.push_back(pr);
+    win.activeProjectId = "meta-gui";
     win.refreshActions();
     for (QAction* a : want) {
       QVERIFY2(a->isEnabled(), qPrintable(a->text() + " is dead with a saved project"));
       QVERIFY2(!reasonShown(a), qPrintable(a->text() + ": the reason lingers"));
     }
     // Incognito takes them away again.
-    win.actIncognito_->setChecked(true);
+    win.actIncognito->setChecked(true);
     for (QAction* a : want) QVERIFY2(!a->isEnabled(), qPrintable(a->text() + " survives incognito"));
-    win.actIncognito_->setChecked(false);
+    win.actIncognito->setChecked(false);
     for (QAction* a : want) QVERIFY(a->isEnabled());
 
     // The dialogs open pre-filled and write back through the store.
@@ -108,7 +108,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(area);
       QVERIFY(save);
     });
-    win.actDescription_->trigger();
+    win.actDescription->trigger();
     QTRY_COMPARE(QString::fromStdString(win.findProject("meta-gui")->meta.description),
                  QStringLiteral("After"));
     QTimer::singleShot(0, [&] {
@@ -133,15 +133,15 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(input);
       QVERIFY(save);
     });
-    win.actKeywords_->trigger();
+    win.actKeywords->trigger();
     // "Kitchen Plan" is ONE keyword, not two; the later "plan" is its own, listed first.
     QTRY_COMPARE(win.findProject("meta-gui")->meta.keywords,
                  std::vector<std::string>({"plan", "kitchen plan"}));
     // …and leave no trace in the store for the next run.
-    win.projectList_.erase(std::remove_if(win.projectList_.begin(), win.projectList_.end(),
+    win.projectList.erase(std::remove_if(win.projectList.begin(), win.projectList.end(),
                                           [](const stencil::gui::Project& p) { return p.meta.id == "meta-gui"; }),
-                           win.projectList_.end());
-    stencil::gui::fileStore::saveProjects(win.projectList_);
+                           win.projectList.end());
+    stencil::gui::fileStore::saveProjects(win.projectList);
   }
 };
 

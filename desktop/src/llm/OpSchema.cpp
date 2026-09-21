@@ -27,10 +27,10 @@ namespace stencil::llm {
   }
 
   OpSchema::OpSchema(const QJsonObject& registry, const QString& surface)
-      : registry_(registry), surface_(surface) {
-    profile_ = registry.value("$meta").toObject().value("surfaceProfiles").toObject()
+      : registry(registry), surface(surface) {
+    profile = registry.value("$meta").toObject().value("surfaceProfiles").toObject()
                    .value(surface).toString();
-    limits_ = registry.value("limits").toObject();
+    limits = registry.value("limits").toObject();
     const QJsonObject regexes = registry.value("regexes").toObject();
     for (auto it = regexes.begin(); it != regexes.end(); ++it) {
       if (it.key() == "describe" || it.key() == "note") continue;
@@ -39,16 +39,16 @@ namespace stencil::llm {
       QString src = it.value().toString();
       if (src.endsWith(QLatin1Char('$')) && !src.endsWith(QStringLiteral("\\$")))
         src = src.chopped(1) + QStringLiteral("\\z");
-      regexes_.insert(it.key(), QRegularExpression(src));
+      this->regexes.insert(it.key(), QRegularExpression(src));
     }
     for (const QJsonValue& f : registry.value("forbidden").toObject().value("perSurface")
                                    .toObject().value(surface).toArray())
-      forbidden_ << f.toString();
+      forbidden << f.toString();
 
     // The entries this surface registers: its profile's ops in the profile's (= prompt)
     // order, minus entries restricted to other surfaces, each resolved for this surface.
     QStringList order;
-    for (const QJsonValue& n : registry.value("profiles").toObject().value(profile_)
+    for (const QJsonValue& n : registry.value("profiles").toObject().value(profile)
                                    .toObject().value("ops").toArray())
       order << n.toString();
     QVector<OpEntry> found;
@@ -56,7 +56,7 @@ namespace stencil::llm {
       const QJsonObject e = ev.toObject();
       bool inProfile = false;
       for (const QJsonValue& p : e.value("profiles").toArray())
-        if (p.toString() == profile_) inProfile = true;
+        if (p.toString() == profile) inProfile = true;
       if (!inProfile) continue;
       if (e.contains("surfaces")) {
         bool mine = false;
@@ -67,7 +67,7 @@ namespace stencil::llm {
       const auto forSurface = [&](const char* map) -> QJsonValue {
         const QJsonObject m = e.value(QLatin1String(map)).toObject();
         if (m.contains(surface)) return m.value(surface);
-        if (m.contains(profile_)) return m.value(profile_);
+        if (m.contains(profile)) return m.value(profile);
         return QJsonValue::Undefined;
       };
       OpEntry entry;
@@ -90,34 +90,34 @@ namespace stencil::llm {
     std::stable_sort(found.begin(), found.end(), [&](const OpEntry& a, const OpEntry& b) {
       return order.indexOf(a.name) < order.indexOf(b.name);
     });
-    entries_ = found;
+    entries = found;
   }
 
   const OpEntry* OpSchema::entry(const QString& op) const {
-    for (const OpEntry& e : entries_)
+    for (const OpEntry& e : entries)
       if (e.name == op) return &e;
     return nullptr;
   }
 
   int OpSchema::limit(const QString& name) const {
-    QJsonValue v = limits_;
+    QJsonValue v = limits;
     for (const QString& k : name.split(QLatin1Char('.'))) v = v.toObject().value(k);
     return v.isDouble() ? v.toInt() : -1;
   }
 
   QString OpSchema::defaultCustomLabel() const {
-    return registry_.value("ask").toObject().value("defaultCustomLabel").toString();
+    return registry.value("ask").toObject().value("defaultCustomLabel").toString();
   }
 
   QString OpSchema::describe(const QString& regexName) const {
-    const QString d = registry_.value("regexes").toObject().value("describe").toObject()
+    const QString d = registry.value("regexes").toObject().value("describe").toObject()
                           .value(regexName).toString();
     return d.isEmpty() ? regexName : d;
   }
 
   OpSchema::Opset OpSchema::opsetEntry(const QString& opset, const QString& op,
                                        OpEntry* out) const {
-    const QJsonObject os = registry_.value("opsets").toObject().value(opset).toObject();
+    const QJsonObject os = registry.value("opsets").toObject().value(opset).toObject();
     const QJsonObject overrides = os.value("overrides").toObject();
     if (overrides.contains(op)) {
       const QJsonObject o = overrides.value(op).toObject();
@@ -131,7 +131,7 @@ namespace stencil::llm {
       return Opset::ENTRY;
     }
     if (os.value("ops").toArray().contains(op)) {
-      for (const QJsonValue& ev : registry_.value("ops").toArray()) {
+      for (const QJsonValue& ev : registry.value("ops").toArray()) {
         const QJsonObject e = ev.toObject();
         if (e.value("id").toString() != op) continue;
         if (out) {

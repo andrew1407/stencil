@@ -71,7 +71,7 @@ namespace stencil::gui {
         else if (type == QEvent::Leave)
           hoverMenuAction(menu, nullptr);
         else {  // hidden mid-motion: the row snaps to its rest glyph for the next open
-          if (QAction* cur = menuHover_.take(menu))
+          if (QAction* cur = menuHover.take(menu))
             if (ActionIconMotionRunner* r = icm::runnerOfAction(cur)) r->rest();
         }
         return QObject::eventFilter(o, e);
@@ -114,7 +114,7 @@ namespace stencil::gui {
     // hovered() is emitted along the whole caused stack, so a SUBMENU's row arrives here for its
     // parent too. Each level owns only its own rows, so a row is entered once, not once per level.
     if (a && !menu->actionGeometry(a).isValid()) return;
-    QPointer<QAction>& cur = menuHover_[menu];
+    QPointer<QAction>& cur = menuHover[menu];
     if (cur == a) return;
     if (cur)
       if (ActionIconMotionRunner* r = icm::runnerOfAction(cur)) r->leave();

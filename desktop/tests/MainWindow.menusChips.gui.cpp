@@ -19,17 +19,17 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
-    // actCopyImageOriginal_, not actCopyImage_: the latter is no longer a row in this popup, and
+    // actCopyImageOriginal, not actCopyImage: the latter is no longer a row in this popup, and
     // Original's Ctrl+Shift+C is exactly as real and as much MenuHotkeyChips' job to silence.
-    const QKeySequence realShortcut = win.actCopyImageOriginal_->shortcut();
-    QVERIFY2(!realShortcut.isEmpty(), "actCopyImageOriginal_ should carry a real shortcut to chip");
+    const QKeySequence realShortcut = win.actCopyImageOriginal->shortcut();
+    QVERIFY2(!realShortcut.isEmpty(), "actCopyImageOriginal should carry a real shortcut to chip");
 
-    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+    QWidget* copyBtn = win.buttonForAction(win.actCopyImage);
     QVERIFY(copyBtn);
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
                           copyBtn->mapToGlobal(copyBtn->rect().center()));
     QApplication::sendEvent(copyBtn, &ctx);
-    QMenu* menu = win.copyImageOptionsMenu_;
+    QMenu* menu = win.copyImageOptionsMenu;
     const bool opened = menu && menu->isVisible();
     // Captured into locals and the menu closed BEFORE any assertion: an early QVERIFY2 return must never
     // leave the menu open, or it outlives `win` and crashes on teardown (reported SIGSEGV).
@@ -37,9 +37,9 @@ class MainWindowGuiTest : public QObject {
     QString cachedCombo;
     if (opened) {
       // While chipped: the native shortcut is silenced (that's the actual fix)...
-      silencedWhileChipped = win.actCopyImageOriginal_->shortcut().isEmpty();
+      silencedWhileChipped = win.actCopyImageOriginal->shortcut().isEmpty();
       // ...but the row still knows the real combo (property-cache, MenuHotkeys.hpp).
-      cachedCombo = win.actCopyImageOriginal_->property("stencilHotkeyCombo").toString();
+      cachedCombo = win.actCopyImageOriginal->property("stencilHotkeyCombo").toString();
       menu->close();
       QTest::qWait(50);
     }
@@ -47,7 +47,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(silencedWhileChipped,
              "the action's native shortcut must be cleared while its row is chipped");
     QCOMPARE(cachedCombo, realShortcut.toString(QKeySequence::NativeText));
-    QCOMPARE(win.actCopyImageOriginal_->shortcut(), realShortcut);   // restored once the chip is torn down
+    QCOMPARE(win.actCopyImageOriginal->shortcut(), realShortcut);   // restored once the chip is torn down
   }
   // A chipped row's keycaps shake once on hover (browser .ctx-item:hover .tip-key), read through
   // capOffset() and driven with setActiveAction(); the guard advances only on a genuinely NEW row.
@@ -63,27 +63,27 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(QTest::qWaitForWindowExposed(&win), name);
       win.openPathFromOS(guiTestImage());
       QTRY_VERIFY2(win.findChild<CanvasWidget*>()->hasImage(), name);
-      // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
+      // "Current"'s own row (actCopyImageCurrentRow) only shows once something is
       // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays.
       {
         stencil::core::Line line;
         line.points.push_back({4.0, 20.0});
         line.points.push_back({36.0, 20.0});
-        win.canvas_->setLines({line});
+        win.canvas->setLines({line});
         win.refreshActions();
       }
 
-      QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+      QWidget* copyBtn = win.buttonForAction(win.actCopyImage);
       QVERIFY2(copyBtn, name);
       QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
                             copyBtn->mapToGlobal(copyBtn->rect().center()));
       QApplication::sendEvent(copyBtn, &ctx);
-      QMenu* menu = win.copyImageOptionsMenu_;
+      QMenu* menu = win.copyImageOptionsMenu;
       QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
 
-      QAction* row = win.actCopyImageCurrentRow_;
+      QAction* row = win.actCopyImageCurrentRow;
       QAction* other = nullptr;
-      // Skip invisible rows too (actCopyImageSplit_ stays hidden outside compare mode): setActiveAction on
+      // Skip invisible rows too (actCopyImageSplit stays hidden outside compare mode): setActiveAction on
       // a row with no real geometry would not make the later move onto `row` a genuine transition.
       for (QAction* a : menu->actions())
         if (a != row && !a->isSeparator() && a->isVisible()) { other = a; break; }

@@ -105,12 +105,12 @@ namespace stencil::support {
   }
 
   MotionIconDelegate::MotionIconDelegate(QAbstractItemView* view,
-                                         QObject* parent) : QStyledItemDelegate(parent), view_(view) {
-    view_->viewport()->installEventFilter(this);
-    tick_.setInterval(16);
-    QObject::connect(&tick_, &QTimer::timeout, view_->viewport(), [this] {
-      if (clock_.elapsed() > HOVER_MS) tick_.stop();
-      view_->viewport()->update();
+                                         QObject* parent) : QStyledItemDelegate(parent), view(view) {
+    this->view->viewport()->installEventFilter(this);
+    tick.setInterval(16);
+    QObject::connect(&tick, &QTimer::timeout, this->view->viewport(), [this] {
+      if (clock.elapsed() > HOVER_MS) tick.stop();
+      this->view->viewport()->update();
     });
   }
 
@@ -120,8 +120,8 @@ namespace stencil::support {
     QStyleOptionViewItem opt = option;
     initStyleOption(&opt, index);
     const QString mode = index.data(Qt::UserRole).toString();
-    const bool hovered = index.row() == hoverRow_;
-    const double ms = hovered ? double(clock_.elapsed()) : 1e9;
+    const bool hovered = index.row() == hoverRow;
+    const double ms = hovered ? double(clock.elapsed()) : 1e9;
     // The browser's 16px, not PM_SmallIconSize (half again as big on a Mac).
     opt.decorationSize = QSize(MOTION_ICON_PX, MOTION_ICON_PX);
     const double dpr = p->device() ? p->device()->devicePixelRatio() : 1.0;
@@ -134,46 +134,46 @@ namespace stencil::support {
   }
 
   bool MotionIconDelegate::eventFilter(QObject* watched, QEvent* e) {
-    if (watched == view_->viewport() && (e->type() == QEvent::MouseMove || e->type() == QEvent::HoverMove)) {
+    if (watched == view->viewport() && (e->type() == QEvent::MouseMove || e->type() == QEvent::HoverMove)) {
       const QPoint pos = e->type() == QEvent::MouseMove ? static_cast<QMouseEvent*>(e)->pos()
                                                         : static_cast<QHoverEvent*>(e)->position().toPoint();
-      const int row = view_->indexAt(pos).row();
-      if (row != hoverRow_) { hoverRow_ = row; clock_.restart(); tick_.start(); }
-    } else if (watched == view_->viewport() && e->type() == QEvent::Leave) {
-      hoverRow_ = -1;
-      tick_.stop();
-      view_->viewport()->update();
+      const int row = view->indexAt(pos).row();
+      if (row != hoverRow) { hoverRow = row; clock.restart(); tick.start(); }
+    } else if (watched == view->viewport() && e->type() == QEvent::Leave) {
+      hoverRow = -1;
+      tick.stop();
+      view->viewport()->update();
     }
     return QStyledItemDelegate::eventFilter(watched, e);
   }
 
-  MotionIconFace::MotionIconFace(QComboBox* combo) : QObject(combo), combo_(combo) {
-    combo_->installEventFilter(this);
-    tick_.setInterval(16);
-    QObject::connect(&tick_, &QTimer::timeout, combo_, [this] { frame(); });
-    QObject::connect(combo_, &QComboBox::currentIndexChanged, combo_, [this](int) { play(); });
+  MotionIconFace::MotionIconFace(QComboBox* combo) : QObject(combo), combo(combo) {
+    this->combo->installEventFilter(this);
+    tick.setInterval(16);
+    QObject::connect(&tick, &QTimer::timeout, this->combo, [this] { frame(); });
+    QObject::connect(this->combo, &QComboBox::currentIndexChanged, this->combo, [this](int) { play(); });
   }
 
   void MotionIconFace::play() {
-    clock_.restart();
-    tick_.start();
+    clock.restart();
+    tick.start();
     frame();
   }
 
   // A QIcon bakes its pixels, so a theme flip left these in the OLD ink; the popup rows
   // are painted live by MotionIconDelegate.
   void MotionIconFace::reink() {
-    const QColor ink = combo_->palette().color(QPalette::Text);
-    if (ink == inked_) return;   // …and only when it really moved: setItemIcon repaints
-    inked_ = ink;
-    const double dpr = combo_->devicePixelRatioF();
-    for (int i = 0; i < combo_->count(); ++i)
-      combo_->setItemIcon(i, motionIconFrame(combo_->itemData(i).toString(), ink, 1e9,
+    const QColor ink = combo->palette().color(QPalette::Text);
+    if (ink == inked) return;   // …and only when it really moved: setItemIcon repaints
+    inked = ink;
+    const double dpr = combo->devicePixelRatioF();
+    for (int i = 0; i < combo->count(); ++i)
+      combo->setItemIcon(i, motionIconFrame(combo->itemData(i).toString(), ink, 1e9,
                                              MOTION_ICON_PX, dpr));
   }
 
   bool MotionIconFace::eventFilter(QObject* watched, QEvent* e) {
-    if (watched == combo_) {
+    if (watched == combo) {
       if (e->type() == QEvent::Enter) play();
       else if (e->type() == QEvent::PaletteChange) reink();
     }
@@ -181,15 +181,15 @@ namespace stencil::support {
   }
 
   void MotionIconFace::frame() {
-    const int row = combo_->currentIndex();
-    if (row < 0) { tick_.stop(); return; }
-    const QString mode = combo_->itemData(row).toString();
-    const double ms = clock_.elapsed();
+    const int row = combo->currentIndex();
+    if (row < 0) { tick.stop(); return; }
+    const QString mode = combo->itemData(row).toString();
+    const double ms = clock.elapsed();
     const bool done = ms >= motionIconMs(mode);
-    const double dpr = combo_->devicePixelRatioF();
-    combo_->setItemIcon(row, motionIconFrame(mode, combo_->palette().color(QPalette::Text),
+    const double dpr = combo->devicePixelRatioF();
+    combo->setItemIcon(row, motionIconFrame(mode, combo->palette().color(QPalette::Text),
                                             done ? 1e9 : ms, 16, dpr));
-    if (done) tick_.stop();
+    if (done) tick.stop();
   }
 
 }  // namespace stencil::support

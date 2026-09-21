@@ -30,21 +30,21 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(overlays(), 0);
 
     // A real flip does wipe…
-    Settings flipped = win.settings_;
-    flipped.themeMode = win.paintedDark_ ? "light" : "dark";
+    Settings flipped = win.settings;
+    flipped.themeMode = win.paintedDark ? "light" : "dark";
     win.applySettings(flipped, /*persist=*/false);
     QCOMPARE(overlays(), 1);
     // …and reaps itself when the animation lands, leaving no lingering child.
     QTRY_VERIFY_WITH_TIMEOUT(overlays() == 0, 3000);
 
     // An accent change is a palette change too.
-    Settings accented = win.settings_;
-    accented.accentColor = win.settings_.accentColor == "grass" ? "violet" : "grass";
+    Settings accented = win.settings;
+    accented.accentColor = win.settings.accentColor == "grass" ? "violet" : "grass";
     win.applySettings(accented, /*persist=*/false);
     QCOMPARE(overlays(), 1);
     QTRY_VERIFY_WITH_TIMEOUT(overlays() == 0, 3000);
     // The wipe is decoration: it must never swallow input from the live window under it.
-    QCOMPARE(win.settings_.accentColor, accented.accentColor);
+    QCOMPARE(win.settings.accentColor, accented.accentColor);
   }
 
   // …but ONE flip at a time: a second press mid-wipe would restyle the window under an overlay still
@@ -59,25 +59,25 @@ class MainWindowGuiTest : public QObject {
       return win.findChildren<QWidget*>(QString::fromLatin1(ThemeSwapOverlay::OBJECT_NAME),
                                         Qt::FindDirectChildrenOnly).size();
     };
-    const QString original = win.settings_.themeMode;
+    const QString original = win.settings.themeMode;
     QTRY_COMPARE(overlays(), 0);
 
     win.toggleTheme();
-    const QString mid = win.settings_.themeMode;
+    const QString mid = win.settings.themeMode;
     QCOMPARE(overlays(), 1);
     // Dropped, not queued: two presses mid-wipe leave the palette exactly where it was.
     win.toggleTheme();
     win.toggleTheme();
-    QCOMPARE(win.settings_.themeMode, mid);
+    QCOMPARE(win.settings.themeMode, mid);
     QCOMPARE(overlays(), 1);
     // …and the toggle is live again the moment the wipe has reaped itself.
     QTRY_VERIFY_WITH_TIMEOUT(overlays() == 0, 3000);
     win.toggleTheme();
-    QVERIFY2(win.settings_.themeMode != mid, "the toggle stayed blocked after the wipe ended");
+    QVERIFY2(win.settings.themeMode != mid, "the toggle stayed blocked after the wipe ended");
 
     // Leave the persisted theme as we found it — the settings are shared across tests.
     QTRY_VERIFY_WITH_TIMEOUT(overlays() == 0, 3000);
-    auto restore = win.settings_;
+    auto restore = win.settings;
     restore.themeMode = original;
     win.applySettings(restore, true);
   }
@@ -95,11 +95,11 @@ class MainWindowGuiTest : public QObject {
                                         Qt::FindDirectChildrenOnly).size();
     };
     QTRY_COMPARE(overlays(), 0);
-    QVERIFY(win.lineColorBtn_ && win.lineColorBtn_->isVisible());
+    QVERIFY(win.lineColorBtn && win.lineColorBtn->isVisible());
 
     const QImage before = win.grab().toImage();
-    Settings flipped = win.settings_;
-    flipped.themeMode = win.paintedDark_ ? "light" : "dark";
+    Settings flipped = win.settings;
+    flipped.themeMode = win.paintedDark ? "light" : "dark";
     win.applySettings(flipped, /*persist=*/false);
     QCOMPARE(overlays(), 1);
     // The wipe has not ticked yet, so the whole window is still the snapshot.
@@ -111,7 +111,7 @@ class MainWindowGuiTest : public QObject {
       return QRect(qRound(r.x() * dpr), qRound(r.y() * dpr),
                    qRound(r.width() * dpr), qRound(r.height() * dpr));
     };
-    for (QToolButton* chip : {win.lineColorBtn_, win.pointColorBtn_}) {
+    for (QToolButton* chip : {win.lineColorBtn, win.pointColorBtn}) {
       const QRect r = deviceRect(chip, &win);
       QVERIFY2(before.rect().contains(r), "the chip is off-window; nothing was compared");
       QCOMPARE(during.copy(r), before.copy(r));

@@ -16,16 +16,16 @@ namespace serverauth {
     ServerClient* cl = mgr.find(mock.url());
     check(cl != nullptr, "the connection is KEPT after a refusal");
     if (cl) {
-      check(cl->status() == ServerClient::Status::EXPIRED,
+      check(cl->getStatus() == ServerClient::Status::EXPIRED,
             "a refused credential is Expired, not Error");
       check(cl->needsReauth(), "…and says it needs re-authentication");
-      check(cl->base() == ServerClient::normalizeBase(mock.url()), "the URL survives");
+      check(cl->getBase() == ServerClient::normalizeBase(mock.url()), "the URL survives");
 
       // ── no retry loop: further work leaves it expired and mints nothing ──
       const int before = mock.tokenRequests;
       cl->listProjectsAsync([](bool, QVector<stencil::net::ServerProject>) {});
       pumpFor(150);
-      check(cl->status() == ServerClient::Status::EXPIRED, "it stays expired");
+      check(cl->getStatus() == ServerClient::Status::EXPIRED, "it stays expired");
       check(mock.tokenRequests == before,
             "an expired client does not re-auth behind the user's back");
     }
@@ -40,7 +40,7 @@ namespace serverauth {
     stencil::test::connectNow(mgr, dead, QString(), err);
     ServerClient* cl = mgr.find(dead);
     if (cl) {
-      check(cl->status() != ServerClient::Status::EXPIRED,
+      check(cl->getStatus() != ServerClient::Status::EXPIRED,
             "an unreachable host is not an expired session");
       check(!cl->needsReauth(), "…and offers no re-auth");
     } else {
@@ -74,13 +74,13 @@ namespace serverauth {
     QString err;
     check(stencil::test::connectNow(mgr, mock.url(), QString(), err), "a fresh session connects");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->status() == ServerClient::Status::CONNECTED, "…and reads as connected");
+    check(cl && cl->getStatus() == ServerClient::Status::CONNECTED, "…and reads as connected");
     mock.projectsStatus = 401;   // the session lapses on the server
     const int mintsBefore = mock.tokenRequests;
     bool done = false;
     cl->listProjectsAsync([&](bool, QVector<stencil::net::ServerProject>) { done = true; });
     pumpUntil([&] { return done; });
-    check(cl->status() == ServerClient::Status::EXPIRED,
+    check(cl->getStatus() == ServerClient::Status::EXPIRED,
           "a live session refused mid-flight becomes Expired");
     check(mock.tokenRequests == mintsBefore,
           "…with no re-mint: an anonymous session has no credential to mint with");
@@ -95,7 +95,7 @@ namespace serverauth {
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("admin-token"), err),
           "an admin token connects by minting a session");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->status() == ServerClient::Status::CONNECTED, "…and lands Connected");
+    check(cl && cl->getStatus() == ServerClient::Status::CONNECTED, "…and lands Connected");
   }
 
   // ── a valid token connects normally ──
@@ -107,7 +107,7 @@ namespace serverauth {
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("good-token"), err),
           "a valid session token connects");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->status() == ServerClient::Status::CONNECTED && !cl->needsReauth(),
+    check(cl && cl->getStatus() == ServerClient::Status::CONNECTED && !cl->needsReauth(),
           "…with no re-auth needed");
   }
 

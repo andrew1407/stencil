@@ -28,7 +28,7 @@ namespace stencil::gui {
     explicit SettingsDialog(const Settings& current, QWidget* parent = nullptr);
     Settings result() const;
     // Fired with result() on every change — MainWindow wires this to applySettings().
-    void setOnChange(std::function<void(const Settings&)> cb) { onChange_ = std::move(cb); }
+    void setOnChange(std::function<void(const Settings&)> cb) { onChange = std::move(cb); }
 
    signals:
     void visualsReset();                    // Reset All was applied (the owner toasts it)
@@ -56,7 +56,7 @@ namespace stencil::gui {
     // Opens an animated picker anchored on `btn`, writes the chosen color into
     // `hex`, repaints the swatch, and applies live.
     void pickColorInto(QPushButton* btn, QString& hex, const QString& title);
-    void applyLive();  // fires onChange_ with the current result()
+    void applyLive();  // fires onChange with the current result()
     void applyFilter(const QString& query);
     void resetVisuals();   // the browser's VIS_DEFAULTS + the default accent
 
@@ -65,40 +65,40 @@ namespace stencil::gui {
       QLabel* title = nullptr;
       QVector<QPair<QString, QWidget*>> rows;   // label text, row widget
     };
-    QVector<Group> groups_;
-    QLabel* empty_ = nullptr;
-    QLineEdit* search_ = nullptr;
+    QVector<Group> groups;
+    QLabel* empty = nullptr;
+    QLineEdit* search = nullptr;
 
-    std::function<void(const Settings&)> onChange_;
-    Settings base_;  // preserves fields this dialog doesn't edit (formulas, llm*…)
-    QComboBox* theme_ = nullptr;
-    QComboBox* accent_ = nullptr;
-    QCheckBox* nativeMenuBar_ = nullptr;
-    QCheckBox* autosave_ = nullptr;
-    QCheckBox* showPoints_ = nullptr;
-    QCheckBox* showLines_ = nullptr;
-    QPushButton* color_ = nullptr;
-    QDoubleSpinBox* thickness_ = nullptr;
-    QDoubleSpinBox* pointSize_ = nullptr;
-    QComboBox* style_ = nullptr;
-    QPushButton* fillColor_ = nullptr;      // area fill for newly-locked shapes
-    QComboBox* page_ = nullptr;
-    QDoubleSpinBox* customW_ = nullptr;
-    QDoubleSpinBox* customH_ = nullptr;
-    QSpinBox* holdDelay_ = nullptr;
-    QCheckBox* drawAnim_ = nullptr;         // canvas stroke motion (browser vs-draw-anim)
-    QCheckBox* modalBackdrop_ = nullptr;    // dim+blur behind windows (browser vs-modal-backdrop)
-    QComboBox* motionMode_ = nullptr;       // particles | water | fire | slide | none (browser vs-motion-mode)
-    QPushButton* selGlow_ = nullptr;        // selection highlight glow
-    QPushButton* hoverRing_ = nullptr;      // point hover ring
-    QPushButton* focusRing_ = nullptr;      // focused/clicked point ring
-    QLineEdit* browserUrl_ = nullptr;   // "Open in…" browser-app base URL
-    QLineEdit* botUsername_ = nullptr;  // "Open in…" Telegram bot username
-    QString colorHex_;
-    QString fillHex_;
-    QString selGlowHex_;
-    QString hoverRingHex_;
-    QString focusRingHex_;
+    std::function<void(const Settings&)> onChange;
+    Settings base;  // preserves fields this dialog doesn't edit (formulas, llm*…)
+    QComboBox* theme = nullptr;
+    QComboBox* accent = nullptr;
+    QCheckBox* nativeMenuBar = nullptr;
+    QCheckBox* autosave = nullptr;
+    QCheckBox* showPoints = nullptr;
+    QCheckBox* showLines = nullptr;
+    QPushButton* color = nullptr;
+    QDoubleSpinBox* thickness = nullptr;
+    QDoubleSpinBox* pointSize = nullptr;
+    QComboBox* style = nullptr;
+    QPushButton* fillColor = nullptr;      // area fill for newly-locked shapes
+    QComboBox* page = nullptr;
+    QDoubleSpinBox* customW = nullptr;
+    QDoubleSpinBox* customH = nullptr;
+    QSpinBox* holdDelay = nullptr;
+    QCheckBox* drawAnim = nullptr;         // canvas stroke motion (browser vs-draw-anim)
+    QCheckBox* modalBackdrop = nullptr;    // dim+blur behind windows (browser vs-modal-backdrop)
+    QComboBox* motionMode = nullptr;       // particles | water | fire | slide | none (browser vs-motion-mode)
+    QPushButton* selGlow = nullptr;        // selection highlight glow
+    QPushButton* hoverRing = nullptr;      // point hover ring
+    QPushButton* focusRing = nullptr;      // focused/clicked point ring
+    QLineEdit* browserUrl = nullptr;   // "Open in…" browser-app base URL
+    QLineEdit* botUsername = nullptr;  // "Open in…" Telegram bot username
+    QString colorHex;
+    QString fillHex;
+    QString selGlowHex;
+    QString hoverRingHex;
+    QString focusRingHex;
   };
 
 }

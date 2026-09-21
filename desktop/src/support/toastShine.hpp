@@ -27,14 +27,14 @@ namespace stencil::support {
     static constexpr double ALPHA = 0.3;   // the innermost ring at full breath
     static constexpr double RADIUS = 6;    // the pill's own corner
 
-    explicit ToastShine(QWidget* toast) : QWidget(toast->parentWidget()), toast_(toast) {
+    explicit ToastShine(QWidget* toast) : QWidget(toast->parentWidget()), toast(toast) {
       setObjectName("toastShine");
       setAttribute(Qt::WA_TransparentForMouseEvents);
       setAttribute(Qt::WA_NoSystemBackground);
       // The pill's OWN move/resize places the halo, so a window resize never leaves it a frame
       // behind at the pill's last position. Polling it on the clock did exactly that.
-      toast_->installEventFilter(this);
-      connect(toast_, &QObject::destroyed, this, &QObject::deleteLater);
+      this->toast->installEventFilter(this);
+      connect(this->toast, &QObject::destroyed, this, &QObject::deleteLater);
       follow();
       if (!motionReduced()) {
         auto* clock = new QTimer(this);
@@ -42,14 +42,14 @@ namespace stencil::support {
         connect(clock, &QTimer::timeout, this, [this] { tick(); });
         clock->start(frameIntervalMs(this));
       }
-      since_.restart();
-      stackUnder(toast_);   // just under the pill: a halo round it, never over the words
+      since.restart();
+      stackUnder(this->toast);   // just under the pill: a halo round it, never over the words
       show();
     }
 
    protected:
     bool eventFilter(QObject* o, QEvent* e) override {
-      if (o == toast_)
+      if (o == toast)
         switch (e->type()) {
           case QEvent::Move:
           case QEvent::Resize:
@@ -57,7 +57,7 @@ namespace stencil::support {
             follow();
             [[fallthrough]];
           case QEvent::ZOrderChange:
-            stackUnder(toast_);   // the stack raises its toasts as they arrive; stay just beneath
+            stackUnder(toast);   // the stack raises its toasts as they arrive; stay just beneath
             break;
           case QEvent::Hide:
             hide();
@@ -69,11 +69,11 @@ namespace stencil::support {
     }
 
     void paintEvent(QPaintEvent*) override {
-      if (!toast_) return;
+      if (!toast) return;
       const LogoStageConfig& cfg = logoStageConfig();
       const double beat = motionReduced()
           ? 0.5
-          : 0.5 - 0.5 * std::cos((2 * 3.14159265358979323846 * since_.elapsed()) / cfg.beatMs);
+          : 0.5 - 0.5 * std::cos((2 * 3.14159265358979323846 * since.elapsed()) / cfg.beatMs);
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing);
       p.setBrush(Qt::NoBrush);
@@ -81,7 +81,7 @@ namespace stencil::support {
       // hang lit in mid-air before the notice had arrived (browser toastGlow.js does the same).
       p.setOpacity(toastOpacity());
       const QColor gold(cfg.toastGlow);
-      const QRectF pill(MARGIN, MARGIN, toast_->width(), toast_->height());
+      const QRectF pill(MARGIN, MARGIN, toast->width(), toast->height());
       const double reach = REACH * (0.45 + 0.55 * beat);
       for (int i = RINGS; i >= 1; --i) {
         const double t = double(i) / RINGS;
@@ -95,19 +95,19 @@ namespace stencil::support {
 
    private:
     double toastOpacity() const {
-      auto* fx = toast_ ? qobject_cast<QGraphicsOpacityEffect*>(toast_->graphicsEffect()) : nullptr;
+      auto* fx = toast ? qobject_cast<QGraphicsOpacityEffect*>(toast->graphicsEffect()) : nullptr;
       return fx ? fx->opacity() : 1.0;
     }
     void follow() {
-      if (toast_) setGeometry(toast_->geometry().adjusted(-MARGIN, -MARGIN, MARGIN, MARGIN));
+      if (toast) setGeometry(toast->geometry().adjusted(-MARGIN, -MARGIN, MARGIN, MARGIN));
     }
     void tick() {
-      if (!toast_) { deleteLater(); return; }
+      if (!toast) { deleteLater(); return; }
       update();   // the breath only: the filter above owns where the halo sits
     }
 
-    QPointer<QWidget> toast_;
-    QElapsedTimer since_;
+    QPointer<QWidget> toast;
+    QElapsedTimer since;
   };
 
   inline void installToastShine(QLabel* toast) {

@@ -16,12 +16,12 @@
 namespace stencil::gui {
 
   // Floored at PREVIEW_MAX_W/H, grown with a wider window, never past the screen, capped by
-  // size_.previewCapH. From width(), the WINDOW's: bodyContent's is laid out FROM this box.
+  // size.previewCapH. From width(), the WINDOW's: bodyContent's is laid out FROM this box.
   QSize OpenImageDialog::previewFitBox() const {
     int w = std::max(PREVIEW_MAX_W, width() - 2 * PREVIEW_COL_GAP - 40);
     int h = std::max(PREVIEW_MAX_H, w * PREVIEW_MAX_H / PREVIEW_MAX_W);
     if (QScreen* scr = screen()) h = std::min(h, int(scr->availableGeometry().height() * 0.6));
-    if (size_.previewCapH > 0) h = std::min(h, size_.previewCapH);
+    if (size.previewCapH > 0) h = std::min(h, size.previewCapH);
     return { w, h };
   }
 
@@ -29,52 +29,52 @@ namespace stencil::gui {
   // (never the already-shrunk label pixmap); the scrub bar keeps the picture's width.
   void OpenImageDialog::applyPreviewFit() {
     const QSize box = previewFitBox();
-    previewLabel_->setMaximumSize(box);
-    if (!previewImage_.isNull() && previewLabel_->isVisible())
-      previewLabel_->setPixmap(QPixmap::fromImage(previewImage_).scaled(
+    previewLabel->setMaximumSize(box);
+    if (!previewImage.isNull() && previewLabel->isVisible())
+      previewLabel->setPixmap(QPixmap::fromImage(previewImage).scaled(
           box.width(), box.height(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    if (cropStage_) {
-      cropStage_->setFitBox(box);
-      if (previewIsVideo_) frameSlider_->setFixedWidth(cropStage_->paintedRect().width());
+    if (cropStage) {
+      cropStage->setFitBox(box);
+      if (previewIsVideo) frameSlider->setFixedWidth(cropStage->paintedRect().width());
     }
   }
 
   // The dialog wants `over` px more than the screen allows: the PICTURE gives them up, not the body
   // (user report; browser max-height 38vh). Under PREVIEW_MIN_H the body scrolls instead.
   int OpenImageDialog::shrinkPreviewToFit(int over) {
-    const int picH = cropStage_ ? cropStage_->paintedRect().height()
-                                : (previewLabel_->isVisible() ? previewLabel_->pixmap().height() : 0);
+    const int picH = cropStage ? cropStage->paintedRect().height()
+                                : (previewLabel->isVisible() ? previewLabel->pixmap().height() : 0);
     const int target = picH - over;
     if (target >= PREVIEW_MIN_H) {
-      size_.previewCapH = target;
+      size.previewCapH = target;
       applyPreviewFit();
-      if (size_.bodyContent) {
-        size_.bodyContent->updateGeometry();
-        if (QLayout* cl = size_.bodyContent->layout()) { cl->invalidate(); cl->activate(); }
+      if (size.bodyContent) {
+        size.bodyContent->updateGeometry();
+        if (QLayout* cl = size.bodyContent->layout()) { cl->invalidate(); cl->activate(); }
       }
       if (QLayout* l = layout()) { l->invalidate(); l->activate(); }
     }
-    return std::max(wantedHeight(), size_.floorH);
+    return std::max(wantedHeight(), size.floorH);
   }
 
-  // A wider window fits a bigger preview. size_.floorH <= 0: showEvent's own first-show resize
+  // A wider window fits a bigger preview. size.floorH <= 0: showEvent's own first-show resize
   // lands here before it sets the floor, and a refit then settled the window short.
   void OpenImageDialog::resizeEvent(QResizeEvent* event) {
     QDialog::resizeEvent(event);
-    if (!size_.bodyContent || !previewLabel_ || measuring_ || !measured_ || size_.floorH <= 0) return;
+    if (!size.bodyContent || !previewLabel || measuring || !measured || size.floorH <= 0) return;
     const int w = width();
-    if (w == size_.previewFitWidth) return;
-    size_.previewFitWidth = w;
-    size_.previewCapH = 0;   // a new width, a fresh fit: the refit below re-derives any cap
+    if (w == size.previewFitWidth) return;
+    size.previewFitWidth = w;
+    size.previewCapH = 0;   // a new width, a fresh fit: the refit below re-derives any cap
     applyPreviewFit();
     // Deferred and coalesced: refitWindowHeight() resizes the window itself, and the height
     // ease's per-frame resize re-entered this handler and restarted the flight every frame.
-    if (!size_.refitPending) {
-      size_.refitPending = true;
+    if (!size.refitPending) {
+      size.refitPending = true;
       QPointer<OpenImageDialog> guard(this);
       QTimer::singleShot(0, this, [guard] {
         if (!guard) return;
-        guard->size_.refitPending = false;
+        guard->size.refitPending = false;
         guard->refitWindowHeight();
       });
     }

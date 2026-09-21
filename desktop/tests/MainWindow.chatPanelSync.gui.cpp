@@ -17,19 +17,19 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());   // the canvas menu opens for an image, and only then
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
     mock.response = QJsonDocument(QJsonObject{
         {"message", QJsonObject{{"content",
                                  "{\"version\":1,\"reply\":\"ok reply\",\"actions\":[]}"}}}})
                         .toJson(QJsonDocument::Compact);
-    win.llmClient_ = std::make_unique<stencil::llm::LlmClient>(&mock);
+    win.llmClient = std::make_unique<stencil::llm::LlmClient>(&mock);
 
     // The rendered rows of each surface, as (role, body) pairs.
     auto dockRows = [&win] {
       QList<QPair<QString, QString>> rows;
-      auto* scrollArea = win.chatDock_->findChild<QScrollArea*>();
+      auto* scrollArea = win.chatDock->findChild<QScrollArea*>();
       if (!scrollArea || !scrollArea->widget()) return rows;
       // Read the row's IDENTITY from the widget properties: the bubbles carry the role as colour and
       // side (browser parity), so there is no role caption label to read.
@@ -46,8 +46,8 @@ class MainWindowGuiTest : public QObject {
     };
     auto menuRows = [&win] {
       QList<QPair<QString, QString>> rows;
-      if (!win.chatMenuPanel_) return rows;
-      for (QLabel* l : win.chatMenuPanel_->findChildren<QLabel*>()) {
+      if (!win.chatMenuPanel) return rows;
+      for (QLabel* l : win.chatMenuPanel->findChildren<QLabel*>()) {
         const QString role = l->property("chatRole").toString();
         if (role.isEmpty()) continue;  // the empty-state hint, not a row
         rows.append({role, l->property("chatBody").toString()});
@@ -85,25 +85,25 @@ class MainWindowGuiTest : public QObject {
     auto* chat = win.findChild<QAction*>("actChat");
     QVERIFY(chat);
     chat->setChecked(false);
-    QTRY_VERIFY(!win.chatDock_->isVisible());
+    QTRY_VERIFY(!win.chatDock->isVisible());
     sendFromMenu("from the menu");
-    QCOMPARE(win.chatHistory_.size(), 2);
+    QCOMPARE(win.chatHistory.size(), 2);
 
     // The dock was hidden throughout, yet holds the whole exchange — opening it
     // must not need a replay.
     chat->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    // QTRY_: the dock retires its pending "…" card with deleteLater (it can be
+    QTRY_VERIFY(win.chatDock->isVisible());
+    // QTRY: the dock retires its pending "…" card with deleteLater (it can be
     // mid-appear-animation), so the two renderings converge a turn later.
     QTRY_COMPARE(dockRows(), menuRows());
     QCOMPARE(dockRows().size(), 2);
 
     // ── 2. now send from the DOCK, with both surfaces alive ──
-    auto* dockInput = win.chatDock_->findChild<QPlainTextEdit*>("chatInput");
+    auto* dockInput = win.chatDock->findChild<QPlainTextEdit*>("chatInput");
     QVERIFY(dockInput);
     dockInput->setPlainText("from the dock");
     QTest::keyClick(dockInput, Qt::Key_Return);
-    QCOMPARE(win.chatHistory_.size(), 4);
+    QCOMPARE(win.chatHistory.size(), 4);
     QTRY_COMPARE(dockRows(), menuRows());      // the menu saw the dock's turn
     QCOMPARE(dockRows().size(), 4);            // no duplicates on either side
     QCOMPARE(dockRows().at(2).second, QString("from the dock"));
@@ -117,12 +117,12 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(dockRows(), menuRows());
     QCOMPARE(dockRows().last().first, QString("Error"));
 
-    win.chatDock_->showPending();
+    win.chatDock->showPending();
     win.chatMirrorPending(true);
-    win.chatDock_->setBusy(true);
+    win.chatDock->setBusy(true);
     win.chatMirrorBusy(true);
-    win.chatStopRequested_ = true;
-    win.chatDock_->setBusy(false);
+    win.chatStopRequested = true;
+    win.chatDock->setBusy(false);
     win.chatMirrorBusy(false);
     stencil::llm::LlmReply canceled;
     canceled.ok = false;
@@ -133,19 +133,19 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(dockRows().last().second, QString("Stopped."));
     if (qEnvironmentVariableIsSet("STENCIL_GUI_SHOTS")) {
       QTest::qWait(50);
-      win.chatDock_->grab().save(QString::fromLocal8Bit(qgetenv("STENCIL_GUI_SHOTS")) + "/dock-stopped.png");
+      win.chatDock->grab().save(QString::fromLocal8Bit(qgetenv("STENCIL_GUI_SHOTS")) + "/dock-stopped.png");
     }
 
     // ── 4. the dock's trash button (composer row) clears both surfaces and the history ──
-    auto* clearBtn = win.chatDock_->findChild<QToolButton*>("chatClear");
+    auto* clearBtn = win.chatDock->findChild<QToolButton*>("chatClear");
     QVERIFY(clearBtn);
     QTest::mouseClick(clearBtn, Qt::LeftButton);
-    QVERIFY(win.chatHistory_.isEmpty());
+    QVERIFY(win.chatHistory.isEmpty());
     QTRY_COMPARE(dockRows().size(), 0);
     QCOMPARE(menuRows().size(), 0);
     // …and BOTH empty states return, chips included (dock parity).
-    auto* dockChips = win.chatDock_->findChild<QWidget*>("chatSuggest");
-    auto* menuChips = win.chatMenuPanel_->findChild<QWidget*>("chatSuggest");
+    auto* dockChips = win.chatDock->findChild<QWidget*>("chatSuggest");
+    auto* menuChips = win.chatMenuPanel->findChild<QWidget*>("chatSuggest");
     QVERIFY(dockChips && menuChips);
     // Both empty states return — after their wipe, not during it (clearConversation
     // holds them back for the scatter's length, so this has to be a TRY).
@@ -157,7 +157,7 @@ class MainWindowGuiTest : public QObject {
                               stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     QCOMPARE(menuChips->findChildren<QPushButton*>("chatSuggestChip").size(), 4);
 
-    win.llmClient_.reset();
+    win.llmClient.reset();
     beat();
   }
 

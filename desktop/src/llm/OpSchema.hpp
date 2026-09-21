@@ -37,13 +37,13 @@ namespace stencil::llm {
     static const OpSchema& desktop();
     OpSchema(const QJsonObject& registry, const QString& surface);
 
-    const QString& surface() const { return surface_; }
-    const QString& profile() const { return profile_; }
+    const QString& getSurface() const { return surface; }
+    const QString& getProfile() const { return profile; }
     // This surface's entries in the profile's (= prompt) order.
-    const QVector<OpEntry>& entries() const { return entries_; }
+    const QVector<OpEntry>& getEntries() const { return entries; }
     const OpEntry* entry(const QString& op) const;
     // §13 forbidden op names (forbidden.perSurface.<surface>), registry order.
-    const QStringList& forbidden() const { return forbidden_; }
+    const QStringList& getForbidden() const { return forbidden; }
     // A cap by name or dotted path ("MAX_ACTIONS", "ask.label"); -1 when unknown.
     int limit(const QString& name) const;
     QString defaultCustomLabel() const;
@@ -85,13 +85,13 @@ namespace stencil::llm {
     QJsonObject pickFields(const QJsonObject& obj, const QJsonObject& fields) const;
     QString describe(const QString& regexName) const;
 
-    QJsonObject registry_;
-    QString surface_;
-    QString profile_;
-    QJsonObject limits_;
-    QMap<QString, QRegularExpression> regexes_;
-    QVector<OpEntry> entries_;
-    QStringList forbidden_;
+    QJsonObject registry;
+    QString surface;
+    QString profile;
+    QJsonObject limits;
+    QMap<QString, QRegularExpression> regexes;
+    QVector<OpEntry> entries;
+    QStringList forbidden;
   };
 
 }  // namespace stencil::llm

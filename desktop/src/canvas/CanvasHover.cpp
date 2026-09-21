@@ -11,23 +11,23 @@
 namespace stencil::gui {
 
   // Alt -> move/grab depending on what's under the cursor; otherwise a pointer
-  // over a line. Uses the current hoverPointIdx_ (refreshed by updateHover).
+  // over a line. Uses the current hoverPointIdx (refreshed by updateHover).
   void CanvasWidget::applyHoverCursor(const core::Point& ip,
                                       Qt::KeyboardModifiers mods) {
     if (mods & Qt::AltModifier) {
       bool overTarget;
       if (mods & Qt::ShiftModifier) {
-        overTarget = core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0)) != -1;
+        overTarget = core::findLineAt(lines, ip.x, ip.y, hitRadius(8.0)) != -1;
       } else {
-        overTarget = (hoverPointIdx_ >= 0) ||
-                     core::findNearestSegment(lines_, ip.x, ip.y, hitRadius(12.0))
+        overTarget = (hoverPointIdx >= 0) ||
+                     core::findNearestSegment(lines, ip.x, ip.y, hitRadius(12.0))
                          .has_value();
       }
       setCursor(overTarget ? Qt::SizeAllCursor : Qt::OpenHandCursor);
-    } else if (!isDrawing_) {
+    } else if (!isDrawing) {
       // Crosshair says "click to place a point" (browser parity: layout.css's unconditional
       // `cursor: crosshair` whenever the canvas is drawable). A line still gets its pointing hand.
-      setCursor(core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0)) != -1
+      setCursor(core::findLineAt(lines, ip.x, ip.y, hitRadius(8.0)) != -1
                     ? Qt::PointingHandCursor
                     : Qt::CrossCursor);
     } else {
@@ -57,9 +57,9 @@ namespace stencil::gui {
 
   void CanvasWidget::refreshHoverForModifiers() {
     // Only while idly hovering the canvas — never mid-gesture.
-    if (image_.isNull() || !underMouse()) return;
-    if (panning_ || rectDrawActive_ || zoomRectActive_ ||
-        dragKind_ != DragKind::NONE) {
+    if (image.isNull() || !underMouse()) return;
+    if (panning || rectDrawActive || zoomRectActive ||
+        dragKind != DragKind::NONE) {
       return;
     }
     const QPoint wp = mapFromGlobal(QCursor::pos());
@@ -84,68 +84,68 @@ namespace stencil::gui {
   // Hover the idle card the way the browser does (.idle-create-btn transitions colour,
   // lift and shadow over 0.2s) rather than snapping between two states.
   void CanvasWidget::setIdleCardHover(bool on) {
-    if (idleCardHover_ == on) return;
-    idleCardHover_ = on;
+    if (idleCardHover == on) return;
+    idleCardHover = on;
     // The hand belongs to the button, so it appears exactly where the click works.
     if (on) setCursor(Qt::PointingHandCursor);
     else unsetCursor();
-    if (!idleCardAnim_) {
-      idleCardAnim_ = new QVariantAnimation(this);
-      idleCardAnim_->setDuration(200);
-      idleCardAnim_->setEasingCurve(QEasingCurve::OutCubic);
-      connect(idleCardAnim_, &QVariantAnimation::valueChanged, this,
-              [this](const QVariant& v) { idleCardHoverT_ = v.toDouble(); update(); });
+    if (!idleCardAnim) {
+      idleCardAnim = new QVariantAnimation(this);
+      idleCardAnim->setDuration(200);
+      idleCardAnim->setEasingCurve(QEasingCurve::OutCubic);
+      connect(idleCardAnim, &QVariantAnimation::valueChanged, this,
+              [this](const QVariant& v) { idleCardHoverT = v.toDouble(); update(); });
     }
-    idleCardAnim_->stop();
+    idleCardAnim->stop();
     // Start from wherever the previous run got to, so a quick in-out doesn't jump.
-    idleCardAnim_->setStartValue(idleCardHoverT_);
-    idleCardAnim_->setEndValue(on ? 1.0 : 0.0);
-    idleCardAnim_->start();
+    idleCardAnim->setStartValue(idleCardHoverT);
+    idleCardAnim->setEndValue(on ? 1.0 : 0.0);
+    idleCardAnim->start();
 
     // The glyph's own settle (iconMotion.json "image"). Restarted from 0 on every enter and LEFT TO
     // FINISH on leave - a settle ends at the rest pose (iconMotion.hpp IconMotionRunner).
     if (on && !support::motionReduced()) {
-      if (!idleGlyphAnim_) {
-        idleGlyphAnim_ = new QVariantAnimation(this);
-        idleGlyphAnim_->setDuration(int(IDLE_GLYPH_PLAY_MS));
-        idleGlyphAnim_->setStartValue(0.0);
-        idleGlyphAnim_->setEndValue(IDLE_GLYPH_PLAY_MS);
-        connect(idleGlyphAnim_, &QVariantAnimation::valueChanged, this,
-                [this](const QVariant& v) { idleGlyphMs_ = v.toDouble(); update(); });
+      if (!idleGlyphAnim) {
+        idleGlyphAnim = new QVariantAnimation(this);
+        idleGlyphAnim->setDuration(int(IDLE_GLYPH_PLAY_MS));
+        idleGlyphAnim->setStartValue(0.0);
+        idleGlyphAnim->setEndValue(IDLE_GLYPH_PLAY_MS);
+        connect(idleGlyphAnim, &QVariantAnimation::valueChanged, this,
+                [this](const QVariant& v) { idleGlyphMs = v.toDouble(); update(); });
         // Back to the canon's own rest markup, so nothing marks a settled glyph as posed.
-        connect(idleGlyphAnim_, &QVariantAnimation::finished, this,
-                [this] { idleGlyphMs_ = -1.0; update(); });
+        connect(idleGlyphAnim, &QVariantAnimation::finished, this,
+                [this] { idleGlyphMs = -1.0; update(); });
       }
-      idleGlyphAnim_->stop();
-      idleGlyphAnim_->start();
+      idleGlyphAnim->stop();
+      idleGlyphAnim->start();
     }
 
     // …and the glass sweep the browser gives every button on hover-enter
     // (layout.css ui-shimmer, 0.75s: a light band crossing from -135% to 135%).
     if (!on) return;
-    if (!idleShimmerAnim_) {
-      idleShimmerAnim_ = new QVariantAnimation(this);
-      idleShimmerAnim_->setDuration(750);
-      idleShimmerAnim_->setStartValue(0.0);
-      idleShimmerAnim_->setEndValue(1.0);
-      idleShimmerAnim_->setEasingCurve(QEasingCurve::InOutQuad);
-      connect(idleShimmerAnim_, &QVariantAnimation::valueChanged, this,
-              [this](const QVariant& v) { idleShimmerT_ = v.toDouble(); update(); });
-      connect(idleShimmerAnim_, &QVariantAnimation::finished, this,
-              [this] { idleShimmerT_ = -1.0; update(); });
+    if (!idleShimmerAnim) {
+      idleShimmerAnim = new QVariantAnimation(this);
+      idleShimmerAnim->setDuration(750);
+      idleShimmerAnim->setStartValue(0.0);
+      idleShimmerAnim->setEndValue(1.0);
+      idleShimmerAnim->setEasingCurve(QEasingCurve::InOutQuad);
+      connect(idleShimmerAnim, &QVariantAnimation::valueChanged, this,
+              [this](const QVariant& v) { idleShimmerT = v.toDouble(); update(); });
+      connect(idleShimmerAnim, &QVariantAnimation::finished, this,
+              [this] { idleShimmerT = -1.0; update(); });
     }
-    idleShimmerAnim_->stop();
-    idleShimmerT_ = 0.0;
-    idleShimmerAnim_->start();
+    idleShimmerAnim->stop();
+    idleShimmerT = 0.0;
+    idleShimmerAnim->start();
   }
 
   void CanvasWidget::leaveEvent(QEvent* event) {
     emit hoverLeft();
     emit canvasLeft();
-    if (hoverLineIdx_ != -1 || hoverPointIdx_ != -1 || hoverOverLineIdx_ != -1) {
-      hoverLineIdx_ = -1;
-      hoverPointIdx_ = -1;
-      hoverOverLineIdx_ = -1;
+    if (hoverLineIdx != -1 || hoverPointIdx != -1 || hoverOverLineIdx != -1) {
+      hoverLineIdx = -1;
+      hoverPointIdx = -1;
+      hoverOverLineIdx = -1;
       emit canvasHoverChanged(-1, -1, -1);   // panel row tints clear too
       update();
     }

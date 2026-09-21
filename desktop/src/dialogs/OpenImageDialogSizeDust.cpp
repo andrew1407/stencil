@@ -19,7 +19,7 @@ namespace stencil::gui {
   // which slide clock they run on.
   void OpenImageDialog::rowChipDust(QWidget* row, QVariantAnimation*& slide, bool arriving) {
     QWidget* host = row->parentWidget();
-    if (!host || support::motionReduced() || motion_.quietCrop) {
+    if (!host || support::motionReduced() || motion.quietCrop) {
       if (slide) slide->stop();
       row->setMinimumHeight(0);
       row->setMaximumHeight(QWIDGETSIZE_MAX);
@@ -39,14 +39,14 @@ namespace stencil::gui {
     veil->setOpacity(0.0);
     row->setGraphicsEffect(veil);
     QPointer<QWidget> w(row);
-    const int gen = motion_.gen;
+    const int gen = motion.gen;
     QVariantAnimation** slidePtr = &slide;
     QTimer::singleShot(0, w, [this, w, veil, shot, gen, slidePtr] {
       const auto lift = [w, veil] {
         if (w && w->graphicsEffect() == veil) w->setGraphicsEffect(nullptr);
       };
       if (!w) return;
-      if (gen != motion_.gen) { lift(); return; }
+      if (gen != motion.gen) { lift(); return; }
       QWidget* under = w->parentWidget();
       DisintegrateOverlay* fx = (shot.isNull() || !under)
           ? nullptr : chipCloud(under, w, shot, DisintegrateOverlay::Sweep::GATHER);
@@ -55,7 +55,7 @@ namespace stencil::gui {
         if (w && under) fx->move(w->mapTo(under, QPoint()));
       };
       if (*slidePtr) connect(*slidePtr, &QVariantAnimation::valueChanged, fx, follow);
-      if (size_.anim) connect(size_.anim, &QVariantAnimation::valueChanged, fx, follow);
+      if (size.anim) connect(size.anim, &QVariantAnimation::valueChanged, fx, follow);
       QTimer::singleShot(int(CHIP_DUST_MS * FILTER_DUST_VEIL_STOP), w, lift);
     });
   }
@@ -63,17 +63,17 @@ namespace stencil::gui {
   // The page-size row's own arrival/departure — a second widget on its own clock (dust and
   // slide can be mid-flight on both rows at once).
   void OpenImageDialog::cropSizeRowDust(bool arriving) {
-    if (arriving == motion_.sizeRowShown) return;
-    motion_.sizeRowShown = arriving;
-    rowChipDust(cropSizeRow_, motion_.sizeRowAnim, arriving);
+    if (arriving == motion.sizeRowShown) return;
+    motion.sizeRowShown = arriving;
+    rowChipDust(cropSizeRow, motion.sizeRowAnim, arriving);
   }
 
   // The Custom W×H group's own arrival/departure. Browser twin: openImageModal.js's
   // syncCropSizeCustom.
   void OpenImageDialog::cropSizeCustomDust(bool arriving) {
-    if (arriving == motion_.sizeCustomShown) return;
-    motion_.sizeCustomShown = arriving;
-    rowChipDust(cropSizeCustomGroup_, motion_.sizeCustomAnim, arriving);
+    if (arriving == motion.sizeCustomShown) return;
+    motion.sizeCustomShown = arriving;
+    rowChipDust(cropSizeCustomGroup, motion.sizeCustomAnim, arriving);
   }
 
 }  // namespace stencil::gui

@@ -49,7 +49,7 @@ namespace stencil::gui {
 
     int capCount();
     // 0 at rest — what the tests watch.
-    int capOffset() const { return dx_; }
+    int capOffset() const { return dx; }
 
     void setShake(double t);
     void settle() { setShake(0.0); }
@@ -70,13 +70,13 @@ namespace stencil::gui {
     void findCaps();
     QPixmap cut(const QRect& r, qreal dpr) const;
 
-    QString tip_;
-    QList<QRect> caps_;
-    QList<QPixmap> pieces_;
-    QPixmap flat_;
-    bool hunted_ = false;
-    int dx_ = 0;
-    double deg_ = 0;
+    QString tip;
+    QList<QRect> caps;
+    QList<QPixmap> pieces;
+    QPixmap flat;
+    bool hunted = false;
+    int dx = 0;
+    double deg = 0;
   };
 
   class AppTooltip : public QFrame {
@@ -93,7 +93,7 @@ namespace stencil::gui {
 
     explicit AppTooltip(QWidget* parent = nullptr);
 
-    QWidget* owner() const { return owner_.data(); }
+    QWidget* getOwner() const { return owner.data(); }
 
     void showFor(QWidget* owner, const QString& text, const QPoint& globalPos,
                  const QRect& originGlobal = QRect());
@@ -104,11 +104,11 @@ namespace stencil::gui {
 
     void shakeKeys();
 
-    int shakeOffset() const { return body_->capOffset(); }
-    int keycapsShown() const { return body_->capCount(); }
-    bool shaking() const { return shake_ && shake_->state() == QAbstractAnimation::Running; }
-    bool shakePending() const { return shakeDelay_ && shakeDelay_->isActive(); }
-    bool fadingOut() const { return closing_; }
+    int shakeOffset() const { return body->capOffset(); }
+    int keycapsShown() const { return body->capCount(); }
+    bool shaking() const { return shake && shake->state() == QAbstractAnimation::Running; }
+    bool shakePending() const { return shakeDelay && shakeDelay->isActive(); }
+    bool fadingOut() const { return closing; }
 
    private:
     bool dust(bool gather);
@@ -116,23 +116,23 @@ namespace stencil::gui {
     void place(const QPoint& cursor);
     void settleShake();
 
-    QTimer* shakeDelay();
+    QTimer* getShakeDelay();
 
-    TipBody* body_ = nullptr;
-    QVariantAnimation* fade_ = nullptr;
-    QVariantAnimation* shake_ = nullptr;
-    QTimer* shakeDelay_ = nullptr;
-    QPointer<QWidget> owner_;
-    bool closing_ = false;
-    QDeadlineTimer placeHold_{0};   // moveTo is refused until this lapses (the gather)
-    QRect origin_;   // global; invalid = the owner's centre
+    TipBody* body = nullptr;
+    QVariantAnimation* fade = nullptr;
+    QVariantAnimation* shake = nullptr;
+    QTimer* shakeDelay = nullptr;
+    QPointer<QWidget> owner;
+    bool closing = false;
+    QDeadlineTimer placeHold{0};   // moveTo is refused until this lapses (the gather)
+    QRect origin;   // global; invalid = the owner's centre
   };
 
   class AppTooltipFilter : public QObject {
    public:
     explicit AppTooltipFilter(QObject* parent = nullptr) : QObject(parent) {}
 
-    AppTooltip* tip();
+    AppTooltip* getTip();
 
    protected:
     bool eventFilter(QObject* o, QEvent* e) override;
@@ -140,8 +140,8 @@ namespace stencil::gui {
    private:
     void dismiss();
 
-    AppTooltip* tip_ = nullptr;
-    QPointer<QWidget> tracked_;   // the widget this tip switched mouse tracking on for
+    AppTooltip* tip = nullptr;
+    QPointer<QWidget> tracked;   // the widget this tip switched mouse tracking on for
   };
 
   AppTooltipFilter* installAppTooltips();

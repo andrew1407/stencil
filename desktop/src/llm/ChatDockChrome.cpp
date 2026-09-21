@@ -97,29 +97,29 @@ namespace stencil::gui {
   // Branded title bar (browser header-row parity). QDockWidget keeps its native title drag through
   // a custom title-bar widget; an event filter OBSERVES press/move/release without disturbing it.
   void ChatDock::buildTitleBar() {
-    chrome_.titleBar = new QWidget(this);
-    chrome_.titleBar->setObjectName("chatTitleBar");
-    chrome_.titleBar->setAttribute(Qt::WA_StyledBackground);  // part of the card
+    chrome.titleBar = new QWidget(this);
+    chrome.titleBar->setObjectName("chatTitleBar");
+    chrome.titleBar->setAttribute(Qt::WA_StyledBackground);  // part of the card
     // The header IS the drag handle (browser .chat-header): say so with the
     // cursor, and switch to the closed hand while a drag is actually running.
-    chrome_.titleBar->setCursor(Qt::OpenHandCursor);
-    auto* row = new QHBoxLayout(chrome_.titleBar);
+    chrome.titleBar->setCursor(Qt::OpenHandCursor);
+    auto* row = new QHBoxLayout(chrome.titleBar);
     row->setContentsMargins(8, 5, 8, 5);   // .chat-header padding: 5px 8px
     row->setSpacing(3);     // .chat-header gap: 3px (the placement chips tighten to 1 below)
-    chrome_.headerIcon = new QLabel(chrome_.titleBar);
+    chrome.headerIcon = new QLabel(chrome.titleBar);
     // Optical vertical centering: the bubble glyph's tail row is mostly empty, so a
     // box-centered 16px icon reads ~2px high next to the title's cap height.
-    chrome_.headerIcon->setFixedSize(16, 18);
-    chrome_.headerIcon->setContentsMargins(0, 2, 0, 0);
-    row->addWidget(chrome_.headerIcon);
-    chrome_.headerTitle = new QLabel("Assistant", chrome_.titleBar);
-    chrome_.headerTitle->setObjectName("chatHeaderTitle");
+    chrome.headerIcon->setFixedSize(16, 18);
+    chrome.headerIcon->setContentsMargins(0, 2, 0, 0);
+    row->addWidget(chrome.headerIcon);
+    chrome.headerTitle = new QLabel("Assistant", chrome.titleBar);
+    chrome.headerTitle->setObjectName("chatHeaderTitle");
     {
-      QFont f = chrome_.headerTitle->font();
+      QFont f = chrome.headerTitle->font();
       f.setBold(true);
-      chrome_.headerTitle->setFont(f);
+      chrome.headerTitle->setFont(f);
     }
-    row->addWidget(chrome_.headerTitle);
+    row->addWidget(chrome.headerTitle);
     row->addStretch(1);
     // Placement buttons, browser header parity: dock left / top / bottom / right, then float.
     // Clicking pins the dock to that side directly (dragging to a zone does the same thing).
@@ -133,7 +133,7 @@ namespace stencil::gui {
         {Qt::BottomDockWidgetArea, "Dock bottom — or drag the header to an edge"},
         {Qt::RightDockWidgetArea, "Dock right — or drag the header to an edge"},
     };
-    auto* dockGroup = new QWidget(chrome_.titleBar);
+    auto* dockGroup = new QWidget(chrome.titleBar);
     auto* dockRow = new QHBoxLayout(dockGroup);
     dockRow->setContentsMargins(0, 0, 0, 0);
     dockRow->setSpacing(1);   // .chat-dock-btns gap: 1px
@@ -142,21 +142,21 @@ namespace stencil::gui {
       const Qt::DockWidgetArea area = p.area;
       connect(b, &QToolButton::clicked, this, [this, area] { emit dockRequested(area); });
       dockRow->addWidget(b);
-      chrome_.dockBtns.append(b);
+      chrome.dockBtns.append(b);
     }
     row->addWidget(dockGroup);
-    chrome_.floatBtn = makeGhostButton(chrome_.titleBar, "Float — drag the header to move");
+    chrome.floatBtn = makeGhostButton(chrome.titleBar, "Float — drag the header to move");
     // NOT a raw setFloating() here: that teleports the panel with no animation. The owner answers with
     // the same dust flight a side switch plays, ending in setFloating (or a re-dock) itself.
-    connect(chrome_.floatBtn, &QToolButton::clicked, this, [this] { emit floatToggleRequested(); });
-    row->addWidget(chrome_.floatBtn);
-    chrome_.closeBtn = makeGhostButton(chrome_.titleBar, "Close assistant");
+    connect(chrome.floatBtn, &QToolButton::clicked, this, [this] { emit floatToggleRequested(); });
+    row->addWidget(chrome.floatBtn);
+    chrome.closeBtn = makeGhostButton(chrome.titleBar, "Close assistant");
     // NOT QWidget::close(): that hides the dock on the spot. The owner runs the same animated path
     // the toolbar toggle uses (closeEvent below routes every OTHER close the same way).
-    connect(chrome_.closeBtn, &QToolButton::clicked, this, [this] { emit closeRequested(); });
-    row->addWidget(chrome_.closeBtn);
-    setTitleBarWidget(chrome_.titleBar);
-    chrome_.titleBar->installEventFilter(this);  // drag observation (drag dock zones)
+    connect(chrome.closeBtn, &QToolButton::clicked, this, [this] { emit closeRequested(); });
+    row->addWidget(chrome.closeBtn);
+    setTitleBarWidget(chrome.titleBar);
+    chrome.titleBar->installEventFilter(this);  // drag observation (drag dock zones)
   }
 
   // Empty-state suggestions (browser parity): clicking PREFILLS the caller's composer, never sends.
@@ -205,12 +205,12 @@ namespace stencil::gui {
   void ChatDock::buildSuggestions() {
     // The empty state is the prompt chips, nothing more: the composer's own cue
     // (showDropCue) is what says a drop attaches, right where it lands.
-    cmp_.suggest = makeSuggestionChips(log_.transcript, 6, [this](QString prompt) {
-      input_->setPlainText(prompt);  // prefill only — never send
-      input_->moveCursor(QTextCursor::End);
-      input_->setFocus();
+    cmp.suggest = makeSuggestionChips(log.transcript, 6, [this](QString prompt) {
+      input->setPlainText(prompt);  // prefill only — never send
+      input->moveCursor(QTextCursor::End);
+      input->setFocus();
     });
-    log_.transcriptLayout->addWidget(cmp_.suggest);
+    log.transcriptLayout->addWidget(cmp.suggest);
   }
 }  // namespace stencil::gui
 

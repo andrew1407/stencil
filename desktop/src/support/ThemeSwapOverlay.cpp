@@ -95,9 +95,9 @@ namespace stencil::gui {
   // Call with the colours as they stood BEFORE the restyle (browser motion.js swapDustPaint palette).
   void ThemeSwapOverlay::seedDust(const QColor& accent, const QColor& shade, bool dark) {
     if (!accent.isValid()) return;
-    dustAccent_ = accent;
-    dustShade_ = shade.isValid() ? shade : accent;
-    dustDark_ = dark;
-    dust_ = true;
+    dustAccent = accent;
+    dustShade = shade.isValid() ? shade : accent;
+    dustDark = dark;
+    dust = true;
   }
 }  // namespace stencil::gui

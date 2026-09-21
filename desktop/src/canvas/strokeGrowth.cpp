@@ -112,7 +112,7 @@ namespace stencil::gui::stroke {
     f.bow = bowSign(to.x(), to.y());
     f.fly = flyMs(std::hypot(to.x() - src.x(), to.y() - src.y()));
     f.start = now;
-    flights_.push_back(f);
+    flights.push_back(f);
   }
 
   // Several points at once (a rect's corners): each leaves the one before it and waits for it to
@@ -123,47 +123,47 @@ namespace stencil::gui::stroke {
       const int idx = startIdx + i;
       if (idx < 0 || idx >= static_cast<int>(line.points.size())) continue;
       const QPointF self(line.points[idx].x, line.points[idx].y);
-      const size_t before = flights_.size();
+      const size_t before = flights.size();
       flyIn(lineIdx, line, idx, now + delay, idx == 0 ? &self : nullptr);
-      if (flights_.size() > before) delay += flights_.back().fly * 0.55;
+      if (flights.size() > before) delay += flights.back().fly * 0.55;
     }
   }
 
   // Follow a line to its new number — committing the in-progress line moves it into
-  // lines_, and its vertices must keep flying on the line they became.
+  // lines, and its vertices must keep flying on the line they became.
   void Fx::rekey(int fromIdx, int toIdx) {
-    for (Flight& f : flights_)
+    for (Flight& f : flights)
       if (f.lineIdx == fromIdx) f.lineIdx = toIdx;
   }
 
   // Drop everything that has landed; true while anything is still in the air.
   bool Fx::step(double now) {
-    flights_.erase(std::remove_if(flights_.begin(), flights_.end(),
+    flights.erase(std::remove_if(flights.begin(), flights.end(),
                                   [&](const Flight& f) { return phase(now - f.start, f.fly).done; }),
-                   flights_.end());
+                   flights.end());
     return active();
   }
 
   // The flight a point is on, if any — matched on its resting coordinates.
   const Flight* Fx::at(int lineIdx, const core::Point& p) const {
-    for (const Flight& f : flights_) {
+    for (const Flight& f : flights) {
       if (f.lineIdx == lineIdx && f.to.x() == p.x && f.to.y() == p.y) return &f;
     }
     return nullptr;
   }
 
   bool Fx::touches(int lineIdx) const {
-    for (const Flight& f : flights_)
+    for (const Flight& f : flights)
       if (f.lineIdx == lineIdx) return true;
     return false;
   }
 
   void Fx::drop(int lineIdx, const QPointF& to) {
-    flights_.erase(std::remove_if(flights_.begin(), flights_.end(),
+    flights.erase(std::remove_if(flights.begin(), flights.end(),
                                   [&](const Flight& f) {
                                     return f.lineIdx == lineIdx && f.to == to;
                                   }),
-                   flights_.end());
+                   flights.end());
   }
 
 }  // namespace stencil::gui::stroke

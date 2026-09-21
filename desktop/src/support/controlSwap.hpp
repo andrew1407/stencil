@@ -98,7 +98,7 @@ namespace stencil::gui {
       bool eventFilter(QObject* o, QEvent* e) override;
 
      private:
-      QPointer<QComboBox> cb_;
+      QPointer<QComboBox> cb;
     };
 
     void wireComboPopupDust(QComboBox* cb);
@@ -125,19 +125,19 @@ namespace stencil::gui {
    private:
     ValueSwapOverlay(QComboBox* cb, const QPixmap& out, const QPixmap& in, const QRect& clip);
 
-    QPixmap out_, in_;
-    QImage cellsOut_, cellsIn_;
-    QImage layerOut_, layerIn_;     // per-frame scratch
-    QRect clip_;
-    double t_ = 0.0;
-    int ms_ = 1;
-    bool dark_ = support::isParticleDark();
-    support::MoteSprites sprites_;   // shaped grains only — discs draw direct, antialiased
+    QPixmap out, in;
+    QImage cellsOut, cellsIn;
+    QImage layerOut, layerIn;     // per-frame scratch
+    QRect clip;
+    double t = 0.0;
+    int ms = 1;
+    bool dark = support::isParticleDark();
+    support::MoteSprites sprites;   // shaped grains only — discs draw direct, antialiased
     // Read at the FIRST FRAME, not build time: the motion-mode combo swaps its face in
     // the same call that applies the new mode.
-    bool styled_ = false;
-    support::ParticleStyle style_ = support::ParticleStyle::DUST;
-    QColor accent_, shade_;
+    bool styled = false;
+    support::ParticleStyle style = support::ParticleStyle::DUST;
+    QColor accent, shade;
   };
 
   namespace ctl {

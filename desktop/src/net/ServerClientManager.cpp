@@ -15,8 +15,8 @@ namespace stencil::net {
   ConnectionManager::ConnectionManager(QObject* parent) : QObject(parent) {}
 
   ConnectionManager::~ConnectionManager() {
-    qDeleteAll(clients_);
-    qDeleteAll(pending_);   // severs any handshake still in flight
+    qDeleteAll(clients);
+    qDeleteAll(pending);   // severs any handshake still in flight
   }
 
   void ConnectionManager::connectToAsync(const QString& url, const QString& token,
@@ -32,9 +32,9 @@ namespace stencil::net {
       return;
     }
     auto* client = new ServerClient(base);
-    pending_.push_back(client);
+    pending.push_back(client);
     client->connectAsync(cred, [this, client, done](bool ok) {
-      pending_.removeOne(client);
+      pending.removeOne(client);
       // A REFUSED CREDENTIAL keeps its place so the row can offer a sign-in; an unreachable host is dropped.
       if (!ok && !client->needsReauth()) {
         const QString err = client->lastError();
@@ -42,23 +42,23 @@ namespace stencil::net {
         done(false, err);
         return;
       }
-      clients_.push_back(client);
+      clients.push_back(client);
       emit changed();
       done(ok, ok ? QString() : client->lastError());
     }, kindHint);
   }
 
   void ConnectionManager::disconnectFrom(const QString& url) {
-    if (clients_.isEmpty()) return;
+    if (clients.isEmpty()) return;
     if (url.isEmpty()) {
-      delete clients_.takeLast();
+      delete clients.takeLast();
       emit changed();
       return;
     }
     const QString base = ServerClient::normalizeBase(url);
-    for (int i = 0; i < clients_.size(); ++i) {
-      if (clients_[i]->base() == base) {
-        delete clients_.takeAt(i);
+    for (int i = 0; i < clients.size(); ++i) {
+      if (clients[i]->getBase() == base) {
+        delete clients.takeAt(i);
         emit changed();
         return;
       }
@@ -66,11 +66,11 @@ namespace stencil::net {
   }
 
   void ConnectionManager::reorder(int from, int to) {
-    if (from < 0 || from >= clients_.size()) return;
+    if (from < 0 || from >= clients.size()) return;
     if (to < 0) to = 0;
-    if (to >= clients_.size()) to = clients_.size() - 1;
+    if (to >= clients.size()) to = clients.size() - 1;
     if (from == to) return;
-    clients_.move(from, to);
+    clients.move(from, to);
     emit changed();
   }
 
@@ -89,13 +89,13 @@ namespace stencil::net {
   }
 
   void ConnectionManager::reconnectAllAsync(std::function<void()> done) {
-    if (clients_.isEmpty()) {
+    if (clients.isEmpty()) {
       emit changed();
       if (done) done();
       return;
     }
-    auto remaining = std::make_shared<int>(clients_.size());
-    for (auto* c : clients_) {
+    auto remaining = std::make_shared<int>(clients.size());
+    for (auto* c : clients) {
       c->reconnectAsync([this, remaining, done](bool) {
         if (--*remaining == 0) {
           emit changed();
@@ -107,35 +107,35 @@ namespace stencil::net {
 
   QStringList ConnectionManager::urls() const {
     QStringList out;
-    for (auto* c : clients_) out << c->base();
+    for (auto* c : clients) out << c->getBase();
     return out;
   }
 
   ServerClient* ConnectionManager::find(const QString& url) const {
     const QString base = ServerClient::normalizeBase(url);
-    for (auto* c : clients_)
-      if (c->base() == base) return c;
+    for (auto* c : clients)
+      if (c->getBase() == base) return c;
     return nullptr;
   }
 
   QVector<SavedServer> ConnectionManager::snapshot() const {
     QVector<SavedServer> out;
-    out.reserve(clients_.size());
+    out.reserve(clients.size());
     // Persist the CREDENTIAL (a minted session dies with a server restart) and its KIND.
-    for (auto* c : clients_)
-      out.push_back({c->base(), c->credential(), ServerClient::kindTag(c->credentialKind())});
+    for (auto* c : clients)
+      out.push_back({c->getBase(), c->getCredential(), ServerClient::kindTag(c->credentialKind())});
     return out;
   }
 
   void ConnectionManager::sharedProjectsAsync(
       std::function<void(QVector<ServerProject>)> done) const {
-    if (clients_.isEmpty()) {
+    if (clients.isEmpty()) {
       done({});
       return;
     }
-    auto remaining = std::make_shared<int>(clients_.size());
+    auto remaining = std::make_shared<int>(clients.size());
     auto out = std::make_shared<QVector<ServerProject>>();
-    for (auto* c : clients_) {
+    for (auto* c : clients) {
       c->listProjectsAsync([remaining, out, done](bool ok, QVector<ServerProject> ps) {
         if (ok)
           for (const auto& p : ps)

@@ -1,6 +1,6 @@
 #pragma once
 // The ChatDock's own furniture, grouped as plain value-type bags the dock holds by value — the
-// same shape MainWindow uses for pop_/fs_/units_. Keeps the moc'd ChatDock.hpp to its interface.
+// same shape MainWindow uses for pop/fs/units. Keeps the moc'd ChatDock.hpp to its interface.
 #include <QImage>
 #include <QList>
 #include <QString>

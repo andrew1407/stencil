@@ -84,9 +84,9 @@ namespace stencil::support {
   }
 
   EaseLut::EaseLut(double x1, double y1, double x2, double y2) {
-    for (int i = 0; i <= STEPS; i++) curve_[i] = bezierY(double(i) / STEPS, x1, y1, x2, y2);
-    curve_.front() = 0.0;
-    curve_.back() = 1.0;
+    for (int i = 0; i <= STEPS; i++) curve[i] = bezierY(double(i) / STEPS, x1, y1, x2, y2);
+    curve.front() = 0.0;
+    curve.back() = 1.0;
   }
 
   // A browser's motes ride the compositor at the display's rate; this ticks one frame

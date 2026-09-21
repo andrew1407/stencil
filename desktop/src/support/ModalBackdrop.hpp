@@ -38,7 +38,7 @@ namespace stencil::support {
       const QPixmap shot = host->grab();
       if (shot.isNull()) return nullptr;
       auto* bd = new ModalBackdrop(host);
-      bd->shot_ = blurred(shot, BLUR_PX);
+      bd->shot = blurred(shot, BLUR_PX);
       bd->show();
       bd->raise();
       QObject::connect(dlg, &QDialog::finished, bd, &QWidget::deleteLater);
@@ -61,7 +61,7 @@ namespace stencil::support {
    protected:
     void paintEvent(QPaintEvent*) override {
       QPainter p(this);
-      if (!shot_.isNull()) p.drawPixmap(rect(), shot_);
+      if (!shot.isNull()) p.drawPixmap(rect(), shot);
       p.fillRect(rect(), QColor(0, 0, 0, int(255 * SCRIM_ALPHA)));
     }
 
@@ -71,7 +71,7 @@ namespace stencil::support {
       setAttribute(Qt::WA_TransparentForMouseEvents);   // the dialog is modal; this only paints
       setGeometry(host->rect());
     }
-    QPixmap shot_;
+    QPixmap shot;
   };
 
 }  // namespace stencil::support

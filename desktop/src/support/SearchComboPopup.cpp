@@ -19,15 +19,15 @@ namespace stencil::gui {
 
   // Below the trigger, up to the browser's 280px cap; flipped above when the screen runs out.
   void SearchComboBox::positionPopup() {
-    const int rows = proxy_->rowCount();
-    const int rowH = rows > 0 ? list_->sizeHintForRow(0) : 0;
+    const int rows = proxy->rowCount();
+    const int rowH = rows > 0 ? list->sizeHintForRow(0) : 0;
     const int chromeH = POPUP_PADDING * 2 +
-                        (search_ ? search_->parentWidget()->sizeHint().height() + POPUP_PADDING : 0);
-    const int bodyH = rows > 0 ? rowH * rows + 2 * list_->frameWidth()
-                               : noMatch_->sizeHint().height();
+                        (search ? search->parentWidget()->sizeHint().height() + POPUP_PADDING : 0);
+    const int bodyH = rows > 0 ? rowH * rows + 2 * list->frameWidth()
+                               : noMatch->sizeHint().height();
     const int h = qMin(MAX_POPUP_HEIGHT, chromeH + bodyH);
-    const int w = qMax(width(), list_->sizeHintForColumn(0) + POPUP_PADDING * 4 +
-                                    list_->verticalScrollBar()->sizeHint().width());
+    const int w = qMax(width(), list->sizeHintForColumn(0) + POPUP_PADDING * 4 +
+                                    list->verticalScrollBar()->sizeHint().width());
     QPoint pos = mapToGlobal(QPoint(0, height() + 2));
     if (QScreen* scr = screen()) {
       const QRect avail = scr->availableGeometry();
@@ -35,65 +35,65 @@ namespace stencil::gui {
         pos.setY(mapToGlobal(QPoint(0, 0)).y() - h - 2);  // open upward
       pos.setX(qBound(avail.left(), pos.x(), avail.right() - w));
     }
-    popup_->setGeometry(QRect(pos, QSize(w, h)));
+    popup->setGeometry(QRect(pos, QSize(w, h)));
   }
 
   // Each open starts like the browser's: empty query, current item highlighted, focus in the search.
   void SearchComboBox::setListDelegate(QAbstractItemDelegate* delegate) {
-    delegate_ = delegate;
-    if (!list_) return;
-    list_->setItemDelegate(delegate);
-    installRowHoverSlide(list_);   // …re-wrapped around the new painter, never stacked
+    this->delegate = delegate;
+    if (!list) return;
+    list->setItemDelegate(delegate);
+    installRowHoverSlide(list);   // …re-wrapped around the new painter, never stacked
   }
 
   QListView* SearchComboBox::popupList() {
     ensurePopup();
-    return list_;
+    return list;
   }
 
   void SearchComboBox::showPopup() {
-    if (popup_ && popup_->isVisible()) {  // trigger acts as a toggle
+    if (popup && popup->isVisible()) {  // trigger acts as a toggle
       hidePopup();
       return;
     }
     // The outside-press that closed the popup also lands on the trigger: treat it as "toggle closed".
-    if (lastHide_.isValid() && lastHide_.elapsed() < 150) return;
+    if (lastHide.isValid() && lastHide.elapsed() < 150) return;
     ensurePopup();
-    if (search_) {
-      const QSignalBlocker block(search_);
-      search_->clear();
+    if (search) {
+      const QSignalBlocker block(search);
+      search->clear();
     }
-    static_cast<LabelValueFilterProxy*>(proxy_)->setQuery(QString());
-    list_->show();
-    noMatch_->hide();
+    static_cast<LabelValueFilterProxy*>(proxy)->setQuery(QString());
+    list->show();
+    noMatch->hide();
     const QModelIndex src = model()->index(currentIndex(), modelColumn());
-    const QModelIndex cur = proxy_->mapFromSource(src);
-    list_->setCurrentIndex(cur);
+    const QModelIndex cur = proxy->mapFromSource(src);
+    list->setCurrentIndex(cur);
     positionPopup();
-    popup_->show();
+    popup->show();
     // 1.5x the menu clock.
-    support::revealPopup(*popup_, this, support::SELECT_POPUP_DUST_MS);
-    if (cur.isValid()) list_->scrollTo(cur, QAbstractItemView::PositionAtCenter);
-    (search_ ? static_cast<QWidget*>(search_) : static_cast<QWidget*>(list_))
+    support::revealPopup(*popup, this, support::SELECT_POPUP_DUST_MS);
+    if (cur.isValid()) list->scrollTo(cur, QAbstractItemView::PositionAtCenter);
+    (search ? static_cast<QWidget*>(search) : static_cast<QWidget*>(list))
         ->setFocus(Qt::PopupFocusReason);
   }
 
   void SearchComboBox::hidePopup() {
-    // The dust hangs off popup_'s Hide event — where every close path funnels through.
-    if (popup_) popup_->hide();
+    // The dust hangs off popup's Hide event — where every close path funnels through.
+    if (popup) popup->hide();
     QComboBox::hidePopup();
   }
 
   bool SearchComboBox::eventFilter(QObject* watched, QEvent* event) {
-    if (list_ && watched == list_->viewport() && event->type() == QEvent::Leave)
+    if (list && watched == list->viewport() && event->type() == QEvent::Leave)
       restorePreview();   // pointer left the rows while the popup is still up
-    if (watched == popup_ && event->type() == QEvent::Hide) {
+    if (watched == popup && event->type() == QEvent::Hide) {
       restorePreview();   // however it closed without a pick, revert to the committed value
-      lastHide_.start();
-      // An outside click hides popup_ via Qt's grab-loss handling, which never calls hidePopup().
-      support::dismissPopup(*popup_, this, support::SELECT_POPUP_DUST_MS);
+      lastHide.start();
+      // An outside click hides popup via Qt's grab-loss handling, which never calls hidePopup().
+      support::dismissPopup(*popup, this, support::SELECT_POPUP_DUST_MS);
     }
-    if ((watched == search_ || (!searchable_ && watched == list_)) &&
+    if ((watched == search || (!searchable && watched == list)) &&
         event->type() == QEvent::KeyPress) {
       auto* ke = static_cast<QKeyEvent*>(event);
       switch (ke->key()) {
@@ -111,8 +111,8 @@ namespace stencil::gui {
           return true;
         case Qt::Key_Return:
         case Qt::Key_Enter:
-          if (list_->currentIndex().isValid())
-            choose(list_->currentIndex().row());
+          if (list->currentIndex().isValid())
+            choose(list->currentIndex().row());
           else
             hidePopup();
           return true;

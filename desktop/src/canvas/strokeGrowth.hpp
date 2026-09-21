@@ -72,7 +72,7 @@ namespace stencil::gui::stroke {
 
   // The flights themselves (browser js/core/strokeFx.js)
   struct Flight {
-    int lineIdx = -1;      // index into lines_, or -1 for the in-progress line
+    int lineIdx = -1;      // index into lines, or -1 for the in-progress line
     QPointF to;            // the vertex's resting place — also its identity
     QPointF from;
     double bow = 0.0;
@@ -82,8 +82,8 @@ namespace stencil::gui::stroke {
 
   class Fx {
    public:
-    bool active() const { return !flights_.empty(); }
-    void clear() { flights_.clear(); }
+    bool active() const { return !flights.empty(); }
+    void clear() { flights.clear(); }
 
     void flyIn(int lineIdx, const core::Line& line, int ptIdx, double now,
                const QPointF* from = nullptr);
@@ -101,7 +101,7 @@ namespace stencil::gui::stroke {
    private:
     void drop(int lineIdx, const QPointF& to);
 
-    std::vector<Flight> flights_;
+    std::vector<Flight> flights;
   };
 
 }  // namespace stencil::gui::stroke

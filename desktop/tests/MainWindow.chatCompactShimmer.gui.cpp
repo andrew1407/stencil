@@ -16,16 +16,16 @@ class MainWindowGuiTest : public QObject {
     win.resize(1100, 760);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.llmProvider = "ollama";
-    win.settings_.llmBaseUrl = "http://localhost:11434";
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    win.chatDock_->appendUser(QStringLiteral("shimmer me"));
+    win.settings.llmProvider = "ollama";
+    win.settings.llmBaseUrl = "http://localhost:11434";
+    win.actChat->setChecked(true);
+    QTRY_VERIFY(win.chatDock->isVisible());
+    win.chatDock->appendUser(QStringLiteral("shimmer me"));
     win.ensureChatMenuPanel();
-    win.chatMenuPanel_->setGeometry(20, 20, 340, 640);
-    win.chatMenuPanel_->show();
+    win.chatMenuPanel->setGeometry(20, 20, 340, 640);
+    win.chatMenuPanel->show();
     win.chatMirror(QStringLiteral("You"), QStringLiteral("shimmer me too"), false);
-    settleLayout(win.chatMenuPanel_, 200);
+    settleLayout(win.chatMenuPanel, 200);
 
     const auto overlayOf = [](QWidget* w) {
       return w ? w->findChild<QWidget*>("shimmerOverlay") : nullptr;
@@ -59,13 +59,13 @@ class MainWindowGuiTest : public QObject {
     // An ENABLED dock control (the composer's send is disabled on an empty box —
     // it is the disabled case below).
     QToolButton* live = nullptr;
-    for (QToolButton* b : win.chatDock_->findChildren<QToolButton*>())
+    for (QToolButton* b : win.chatDock->findChildren<QToolButton*>())
       if (b->isVisible() && b->isEnabled() && overlayOf(b)) { live = b; break; }
     QVERIFY2(live, "no shimmered enabled button in the chat dock");
     sweeps(live, "dock composer/header button");
 
     QFrame* card = nullptr;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) card = f;
+    for (QFrame* f : win.chatDock->findChildren<QFrame*>("chatCardUser")) card = f;
     QVERIFY(card);
     auto* more = qobject_cast<QToolButton*>(card->property("chatMoreBtn").value<QObject*>());
     QVERIFY2(more, "the card has no \"…\"");
@@ -75,13 +75,13 @@ class MainWindowGuiTest : public QObject {
     wired(more, "row-menu \"…\"");
 
     QToolButton* panelBtn = nullptr;
-    for (QToolButton* b : win.chatMenuPanel_->findChildren<QToolButton*>())
+    for (QToolButton* b : win.chatMenuPanel->findChildren<QToolButton*>())
       if (b->isEnabled() && overlayOf(b)) { panelBtn = b; break; }
     QVERIFY2(panelBtn, "no shimmered button in the menu panel");
     sweeps(panelBtn, "menu panel composer button");
 
     // A DISABLED control stays quiet: send, with nothing typed.
-    QToolButton* send = win.chatDock_->findChild<QToolButton*>("chatSend");
+    QToolButton* send = win.chatDock->findChild<QToolButton*>("chatSend");
     QVERIFY(send);
     QVERIFY2(!send->isEnabled(), "the empty composer's send should be disabled");
     QWidget* sendFx = overlayOf(send);

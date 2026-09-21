@@ -15,7 +15,7 @@ class MainWindowGuiTest : public QObject {
   static void holdLogo(MainWindow& win, LogoStage* stage) {
     auto* hold = stage->findChild<QTimer*>("logoHold");
     QVERIFY(hold);
-    QToolButton* logo = win.logoBtn_;
+    QToolButton* logo = win.logoBtn;
     const QPoint c = logo->rect().center();
     QMouseEvent press(QEvent::MouseButtonPress, QPointF(c), logo->mapToGlobal(c),
                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
@@ -36,7 +36,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.accentColor = "violet";
+    win.settings.accentColor = "violet";
     LogoStage* stage = stageOf(win);
     QVERIFY2(stage, "the stage is not installed");
     QCOMPARE(stage->isOpen(), false);
@@ -49,13 +49,13 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(stage->size(), win.rect().size());
 
     // The release after a hold is consumed, so the 250ms accent cycle never arms.
-    QToolButton* logo = win.logoBtn_;
+    QToolButton* logo = win.logoBtn;
     const QPoint c = logo->rect().center();
     QMouseEvent release(QEvent::MouseButtonRelease, QPointF(c), logo->mapToGlobal(c),
                         Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
     QApplication::sendEvent(logo, &release);
-    QVERIFY2(!win.logoClickTimer_->isActive(), "the accent cycle must not follow a hold");
-    QCOMPARE(win.settings_.accentColor, QString("violet"));
+    QVERIFY2(!win.logoClickTimer->isActive(), "the accent cycle must not follow a hold");
+    QCOMPARE(win.settings.accentColor, QString("violet"));
   }
 
   // While it is up the editor hears nothing; Escape is the way out.
@@ -64,7 +64,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.accentColor = "violet";
+    win.settings.accentColor = "violet";
     LogoStage* stage = stageOf(win);
     QVERIFY(stage->activateByName("neonOn"));
 
@@ -82,11 +82,11 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.accentColor = "violet";
+    win.settings.accentColor = "violet";
     LogoStage* stage = stageOf(win);
-    win.fs_.active = true;
+    win.fs.active = true;
     QVERIFY2(!stage->activateByName("neonOn"), "fullscreen opens nothing");
-    win.fs_.active = false;
+    win.fs.active = false;
     QVERIFY(stage->activateByName("neonOn"));
     QVERIFY2(!stage->activateByName("makeSomeSunshine"), "one stage at a time");
     stage->dismiss();
@@ -101,7 +101,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.accentColor = "violet";
+    win.settings.accentColor = "violet";
     LogoStage* stage = stageOf(win);
     QVERIFY(stage->activateByName("neonOn"));
     QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
@@ -139,7 +139,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.accentColor = "violet";
+    win.settings.accentColor = "violet";
     LogoStage* stage = stageOf(win);
     QVERIFY(stage->activateByName("neonOn"));
     const double full = support::logoStageConfig().holdBoost;
@@ -172,7 +172,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.settings_.accentColor = "violet";
+    win.settings.accentColor = "violet";
     LogoStage* stage = stageOf(win);
     QVERIFY(stage);
     qWarning("focus at rest: %s", QApplication::focusWidget()
@@ -199,25 +199,25 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, /*restoreLast=*/false);
     CanvasWidget* canvas = openLoaded(win);
     QVERIFY(canvas->hasImage());
-    const int before = int(canvas->lines().size());
+    const int before = int(canvas->getLines().size());
     LogoStage* stage = stageOf(win);
     QVERIFY(stage->activateByName("pinkVibe"));
     QVERIFY2(!stage->isOpen(), "the pink show opens no stage");
 
     const support::LogoStageConfig& cfg = support::logoStageConfig();
-    QCOMPARE(win.settings_.imageFilter, QString("custom"));
-    QCOMPARE(canvas->filterColor().name(), cfg.pinkTint.name());
-    QCOMPARE(int(canvas->lines().size()), before + 1);
-    const stencil::core::Line& heart = canvas->lines().back();
+    QCOMPARE(win.settings.imageFilter, QString("custom"));
+    QCOMPARE(canvas->getFilterColor().name(), cfg.pinkTint.name());
+    QCOMPARE(int(canvas->getLines().size()), before + 1);
+    const stencil::core::Line& heart = canvas->getLines().back();
     QVERIFY2(heart.locked, "the heart is a closed shape");
     QCOMPARE(QString::fromStdString(heart.fillColor), cfg.heartFill);
     QCOMPARE(int(heart.points.size()), cfg.heartPoints);
     QVERIFY2(canvas->canUndo(), "…and it is one undoable step");
     // The heart IS the show: a page taller than the viewport would hide it, so the view fits.
-    const QSize view = win.scroll_->viewport()->size();
-    const double scale = canvas->scale();
-    QVERIFY2(canvas->image().width() * scale <= view.width() + 1
-                 && canvas->image().height() * scale <= view.height() + 1,
+    const QSize view = win.scroll->viewport()->size();
+    const double scale = canvas->getScale();
+    QVERIFY2(canvas->getImage().width() * scale <= view.width() + 1
+                 && canvas->getImage().height() * scale <= view.height() + 1,
              "the whole page is in view when the show ends");
   }
 

@@ -87,7 +87,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!has(layoutTitles, "Copy Layout JSON"), "Copy Layout showed with no lines to copy");
     QVERIFY2(!has(layoutTitles, "Export Layout JSON"), "Download Layout showed with no lines to download");
     // "Copy Image"/"Download Image" are the SUBMENU-OPENER titles — a different, always-enabled QAction
-    // than actCopyImage_/actSaveImage_, whose own text is the "Current" row nested inside.
+    // than actCopyImage/actSaveImage, whose own text is the "Current" row nested inside.
     QVERIFY2(has(layoutTitles, "Copy Image"), "Copy Image hid with an image loaded");
     QVERIFY2(has(layoutTitles, "Download Image"), "Download Image hid with an image loaded");
     QVERIFY2(has(layoutTitles, "Paste Layout JSON"), "Paste Layout hid with an image loaded");

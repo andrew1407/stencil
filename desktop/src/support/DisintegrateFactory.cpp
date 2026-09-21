@@ -14,11 +14,11 @@ namespace stencil::gui {
     // Parented to the host: the victim is about to be destroyed.
     const QPoint at = victim->mapTo(host, QPoint(0, 0));
     auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
-    fx->ink_ = ink;
-    fx->sweep_ = sweep;
+    fx->ink = ink;
+    fx->sweep = sweep;
     if (sweep != Sweep::ROWS) fx->sizeGridForDust(victim->size());
-    if (cols > 0) fx->cols_ = cols;
-    if (rows > 0) fx->rows_ = rows;
+    if (cols > 0) fx->cols = cols;
+    if (rows > 0) fx->rows = rows;
     fx->setGeometry(QRect(at, victim->size()));
     fx->show();
     fx->raise();
@@ -42,8 +42,8 @@ namespace stencil::gui {
     if (snap.isNull()) return nullptr;
     const QPoint at = source->mapTo(host, rect.topLeft());
     auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
-    fx->ink_ = ink;
-    fx->sweep_ = sweep;
+    fx->ink = ink;
+    fx->sweep = sweep;
     if (dust || sweep != Sweep::ROWS) fx->sizeGridForDust(rect.size(), dustCells);
     fx->setGeometry(QRect(at, rect.size()));
     fx->show();
@@ -65,13 +65,13 @@ namespace stencil::gui {
     if (!host || particles.isNull() || at.width() < 2 || at.height() < 2) return nullptr;
     auto* fx = new DisintegrateOverlay(host, particles);
     if (!name.isEmpty()) fx->setObjectName(name);
-    fx->base_ = base;
-    fx->sweep_ = sweep;
-    fx->cols_ = std::max(1, cols);
-    fx->rows_ = std::max(1, rows);
-    fx->spread_ = spread;
-    fx->pad_ = std::max(0, pad);
-    fx->setGeometry(at.adjusted(-fx->pad_, -fx->pad_, fx->pad_, fx->pad_));
+    fx->base = base;
+    fx->sweep = sweep;
+    fx->cols = std::max(1, cols);
+    fx->rows = std::max(1, rows);
+    fx->spread = spread;
+    fx->pad = std::max(0, pad);
+    fx->setGeometry(at.adjusted(-fx->pad, -fx->pad, fx->pad, fx->pad));
     fx->show();
     fx->raise();
     QTimer::singleShot(0, fx, [fx] { fx->raise(); });
@@ -101,10 +101,10 @@ namespace stencil::gui {
     // NOT liftedToInk(): the snapshot is the cross-fade the window forms out of, and a
     // lifted one flashed the wrong tone at the hand-off.
     auto* fx = new DisintegrateOverlay(host, snap);
-    fx->ink_ = ink;
-    fx->sweep_ = gather ? Sweep::SURFACE_IN : Sweep::SURFACE_OUT;
-    fx->picture_ = picture;
-    fx->target_ = QPointF(target);
+    fx->ink = ink;
+    fx->sweep = gather ? Sweep::SURFACE_IN : Sweep::SURFACE_OUT;
+    fx->picture = picture;
+    fx->target = QPointF(target);
     fx->sizeGridForDust(picture.size(), maxCells, SURFACE_CELL_PX);
     fx->placeForSurface(host, picture, target, escapeHost, alwaysEscape);
     fx->show();

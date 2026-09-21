@@ -60,7 +60,7 @@ namespace stencil::gui {
 
     // The block's own source, reloaded at that frame — not the chat's frames-as-projects.
     bool runFrame(Run& r, const ScriptOp& op) {
-      const QVector<ScriptBlock>& blocks = r.program.blocks();
+      const QVector<ScriptBlock>& blocks = r.program.getBlocks();
       const ScriptBlock block = op.block >= 0 && op.block < blocks.size() ? blocks.at(op.block)
                                                                          : ScriptBlock{};
       const int frame = op.nums.isEmpty() ? block.frame : static_cast<int>(op.nums[0]);
@@ -141,7 +141,7 @@ namespace stencil::gui {
   ScriptRunResult runScript(const ScriptDoc& program, llm::PlanTarget& target) {
     Run r{program, target, {}, {}};
 
-    for (const model::ScriptDiagnostic& d : program.diagnostics()) {
+    for (const model::ScriptDiagnostic& d : program.getDiagnostics()) {
       if (!d.isError) continue;
       r.out.isOk = false;
       r.out.error = d.message;
@@ -150,7 +150,7 @@ namespace stencil::gui {
       return r.out;   // an erroring script runs nothing at all
     }
 
-    const auto& ops = program.ops();
+    const auto& ops = program.getOps();
     const bool bringsItsOwn = !ops.isEmpty() && ops.front().kind == ScriptOpKind::OPEN;
     if (!bringsItsOwn && !target.hasImage()) {
       r.out.isOk = false;

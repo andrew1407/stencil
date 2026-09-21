@@ -4,13 +4,13 @@ namespace stencil::support {
 
   // `compact` is for a FLAT list of hotkey rows, never one with submenu-opener rows. Never
   // setFixedWidth: calcActionRects() sizes the shortcut column from sizeHint, so the chip spills.
-  MenuHotkeyChips::MenuHotkeyChips(QMenu* root, bool compact) : compact_(compact) {
-    if (compact_ && root) root->setStyleSheet(gui::compactMenuQss());
+  MenuHotkeyChips::MenuHotkeyChips(QMenu* root, bool compact) : compact(compact) {
+    if (this->compact && root) root->setStyleSheet(gui::compactMenuQss());
     wire(root, gui::currentPalette());
   }
 
   MenuHotkeyChips::~MenuHotkeyChips() {
-    for (auto& row : rows_) {
+    for (auto& row : rows) {
       // The menu outlives this object (rebuilt per aboutToShow): an orphaned chip would
       // overlap a later wiring's row. The shake closes over the raw pointer — stop it first.
       if (row.shake) row.shake->stop();
@@ -26,8 +26,8 @@ namespace stencil::support {
   // reads as fresh.
   bool MenuHotkeyChips::eventFilter(QObject* o, QEvent* e) {
     if (e->type() == QEvent::Leave || e->type() == QEvent::Hide) {
-      stopShake(current_.value(o));
-      current_.remove(o);
+      stopShake(current.value(o));
+      current.remove(o);
     }
     return false;
   }
@@ -87,7 +87,7 @@ namespace stencil::support {
       // Under Fusion a "\t" padding text plus a live native shortcut makes QMenuPrivate
       // reserve the shortcut column twice.
       a->setShortcut(QKeySequence());
-      rows_.push_back(row);
+      rows.push_back(row);
     }
     installPlacer(menu);
     QObject::connect(menu, &QMenu::hovered, this,
@@ -106,20 +106,20 @@ namespace stencil::support {
     });
     QObject::connect(menu, &QMenu::aboutToHide, this, [this, menu, liveSync] {
       liveSync->stop();
-      stopShake(current_.value(menu));
-      current_.remove(menu);
+      stopShake(current.value(menu));
+      current.remove(menu);
     });
     place(menu);
   }
 
   void MenuHotkeyChips::place(QMenu* menu) {
-    for (auto& row : rows_) {
+    for (auto& row : rows) {
       if (row.menu != menu || !row.chip || !row.action) continue;
       const QRect r = menu->actionGeometry(row.action);
       if (!r.isValid() || !row.action->isVisible()) { row.chip->hide(); continue; }
       if (row.chip->isHidden()) row.chip->show();
       // Right-pinned like the browser's .ctx-hotkey; compact menus have no submenu arrow.
-      const int MENU_RIGHT_PAD = compact_ ? 10 : gui::MENU_ITEM_RIGHT_PAD_PX;
+      const int MENU_RIGHT_PAD = compact ? 10 : gui::MENU_ITEM_RIGHT_PAD_PX;
       const int x = r.right() - MENU_RIGHT_PAD - row.chip->width();
       const QPoint at(qMax(r.left(), x), r.top() + (r.height() - row.chip->height()) / 2);
       if (row.chip->pos() != at) row.chip->move(at);
@@ -130,11 +130,11 @@ namespace stencil::support {
     // hovered() re-fires for the row already shaking on every mouse move, and reaches every menu in
     // the caused stack, so a SUBMENU's row arrives here for its parent too. Only this level restarts.
     if (!menu->actionGeometry(a).isValid()) return;
-    QPointer<QAction>& cur = current_[menu];
+    QPointer<QAction>& cur = current[menu];
     if (a == cur) return;
     stopShake(cur);   // the row being left settles rather than shaking on without a pointer
     cur = a;
-    for (auto& row : rows_) {
+    for (auto& row : rows) {
       if (row.action != a || !row.chip) continue;
       if (!row.shake) {
         row.shake = new QVariantAnimation(this);
@@ -155,7 +155,7 @@ namespace stencil::support {
 
   void MenuHotkeyChips::stopShake(QAction* a) {
     if (!a) return;
-    for (auto& row : rows_) {
+    for (auto& row : rows) {
       if (row.action != a || !row.chip) continue;
       if (row.shake) row.shake->stop();
       row.chip->settle();

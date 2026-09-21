@@ -17,7 +17,7 @@ namespace serverauth {
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("admin-token"), err),
           "the admin credential connects by minting");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->token() == QStringLiteral("sess1"), "…and holds the minted session");
+    check(cl && cl->getToken() == QStringLiteral("sess1"), "…and holds the minted session");
 
     // The server restarts: it forgets "sess1" and mints "sess2" now.
     mock.goodBearer = "sess2";
@@ -27,9 +27,9 @@ namespace serverauth {
     cl->listProjectsAsync([&](bool o, QVector<stencil::net::ServerProject>) { ok = o; called = true; });
     pumpUntil([&] { return called; });
     check(ok, "a lapsed session re-mints with the credential and retries in place");
-    check(cl->token() == QStringLiteral("sess2"), "…adopting the fresh session token");
-    check(cl->credential() == QStringLiteral("admin-token"), "…never replacing the credential");
-    check(cl->status() == ServerClient::Status::CONNECTED, "…without ever reading as expired");
+    check(cl->getToken() == QStringLiteral("sess2"), "…adopting the fresh session token");
+    check(cl->getCredential() == QStringLiteral("admin-token"), "…never replacing the credential");
+    check(cl->getStatus() == ServerClient::Status::CONNECTED, "…without ever reading as expired");
     check(mock.tokenRequests == mintsBefore + 1, "exactly one mint for the rescue");
   }
 
@@ -50,7 +50,7 @@ namespace serverauth {
     cl->listProjectsAsync([&](bool o, QVector<stencil::net::ServerProject>) { ok = o; called = true; });
     pumpUntil([&] { return called; });
     check(!ok, "the rescue fails when the credential no longer mints");
-    check(cl->status() == ServerClient::Status::EXPIRED, "…and lands Expired");
+    check(cl->getStatus() == ServerClient::Status::EXPIRED, "…and lands Expired");
     check(mock.tokenRequests == mintsBefore + 1, "…after exactly ONE mint attempt (no loop)");
     mock.goodBearer.clear();  // back to the scripted per-path statuses
     mock.mintToken = "tok";
@@ -65,7 +65,7 @@ namespace serverauth {
     QString err;
     stencil::test::connectNow(mgr, mock.url(), QStringLiteral("stale-token"), err);
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->status() == ServerClient::Status::EXPIRED, "the row's client is expired");
+    check(cl && cl->getStatus() == ServerClient::Status::EXPIRED, "the row's client is expired");
 
     ConnectDialog dlg(&mgr);
     dlg.resize(520, 420);
@@ -105,10 +105,10 @@ namespace serverauth {
     if (signIn) signIn->click();
     pumpUntil([&] {
       ServerClient* c = mgr.find(mock.url());
-      return c && c->status() == ServerClient::Status::CONNECTED;
+      return c && c->getStatus() == ServerClient::Status::CONNECTED;
     });
     ServerClient* after = mgr.find(mock.url());
-    check(after && after->status() == ServerClient::Status::CONNECTED,
+    check(after && after->getStatus() == ServerClient::Status::CONNECTED,
           "reconnect signs in again without a prompt");
     pumpFor(60);
     check(dlg.findChild<QLabel*>(QStringLiteral("expiredNote")) == nullptr,
@@ -125,7 +125,7 @@ namespace serverauth {
     QString err0;
     stencil::test::connectNow(m2, mock.url(), QStringLiteral("stale-token"), err0);
     ServerClient* c = m2.find(mock.url());
-    check(c && c->status() == ServerClient::Status::EXPIRED, "an expired row to sign in");
+    check(c && c->getStatus() == ServerClient::Status::EXPIRED, "an expired row to sign in");
 
     QString cerr;
     check(!stencil::test::connectNow(m2, mock.url(), QStringLiteral("admin-token"), cerr),
@@ -138,7 +138,7 @@ namespace serverauth {
     check(stencil::test::reauthNow(m2, mock.url(), QStringLiteral("admin-token"), rerr),
           "…but reauthenticate signs the same row in with the pasted token");
     ServerClient* back = m2.find(mock.url());
-    check(back && back->status() == ServerClient::Status::CONNECTED,
+    check(back && back->getStatus() == ServerClient::Status::CONNECTED,
           "…and the connection is live again");
     check(m2.urls().size() == 1, "…in the one row it always was");
   }

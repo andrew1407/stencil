@@ -78,12 +78,12 @@ namespace stencil::gui {
   // Move the ✓ in an OPEN popover to the accent settings now hold (browser toolbar.js onAccentMoved twin). Touches only the row icons.
   void MainWindow::remarkAccentPopover() {
     // The popover being exec'd may sit under the overlay layer, so it is not looked up by parent.
-    QDialog* pop = pop_.active.data();
+    QDialog* pop = this->pop.active.data();
     if (!pop || pop->objectName() != QLatin1String("accentPopover")) return;
     for (QPushButton* r : pop->findChildren<QPushButton*>()) {
       const QString rowKey = r->property("accentKey").toString();
       if (rowKey.isEmpty()) continue;
-      const bool now = rowKey == settings_.accentColor;   // a custom #… accent marks nothing
+      const bool now = rowKey == settings.accentColor;   // a custom #… accent marks nothing
       if (r->property("currentAccent").toBool() == now) continue;
       r->setIcon(accentSwatchIcon(QColor(accentPrimary(rowKey)), now));
       r->setProperty("currentAccent", now);
@@ -91,17 +91,17 @@ namespace stencil::gui {
   }
 
   void MainWindow::previewAccent(const QString& key) {
-    if (!accentPreviewActive_) { accentPreviewSaved_ = settings_.accentColor; accentPreviewActive_ = true; }
-    if (key == settings_.accentColor) return;
-    settings_.accentColor = key;
+    if (!accentPreviewActive) { accentPreviewSaved = settings.accentColor; accentPreviewActive = true; }
+    if (key == settings.accentColor) return;
+    settings.accentColor = key;
     applyTheme();   // floods the palette out of the logo, exactly as a real change does
   }
 
   void MainWindow::endAccentPreview() {
-    if (!accentPreviewActive_) return;
-    accentPreviewActive_ = false;
-    if (settings_.accentColor == accentPreviewSaved_) return;
-    settings_.accentColor = accentPreviewSaved_;
+    if (!accentPreviewActive) return;
+    accentPreviewActive = false;
+    if (settings.accentColor == accentPreviewSaved) return;
+    settings.accentColor = accentPreviewSaved;
     applyTheme();   // …and floods back to the committed accent on leave
   }
 
@@ -111,10 +111,10 @@ namespace stencil::gui {
      public:
       AccentHoverFilter(QObject* parent, QWidget* popover,
                         std::function<void(const QString&)> onEnter, std::function<void()> onLeave)
-          : QObject(parent), popover_(popover), enter_(std::move(onEnter)), leave_(std::move(onLeave)) {
-        timer_.setSingleShot(true);
-        timer_.setInterval(280);   // rested-intent delay — matches the JS surfaces (PREVIEW_HOVER_MS)
-        QObject::connect(&timer_, &QTimer::timeout, this, [this] { if (!pending_.isEmpty()) enter_(pending_); });
+          : QObject(parent), popover(popover), enter(std::move(onEnter)), leave(std::move(onLeave)) {
+        timer.setSingleShot(true);
+        timer.setInterval(280);   // rested-intent delay — matches the JS surfaces (PREVIEW_HOVER_MS)
+        QObject::connect(&timer, &QTimer::timeout, this, [this] { if (!pending.isEmpty()) enter(pending); });
       }
 
      protected:
@@ -122,18 +122,18 @@ namespace stencil::gui {
         if (e->type() == QEvent::Enter) {
           auto* w = qobject_cast<QWidget*>(o);
           const QString key = w ? w->property("accentKey").toString() : QString();
-          if (!key.isEmpty()) { pending_ = key; timer_.start(); }   // fires once the pointer rests
-        } else if (e->type() == QEvent::Leave && popover_) {
-          const QPoint p = popover_->mapFromGlobal(QCursor::pos());
-          if (!popover_->rect().contains(p)) { timer_.stop(); pending_.clear(); leave_(); }  // truly left
+          if (!key.isEmpty()) { pending = key; timer.start(); }   // fires once the pointer rests
+        } else if (e->type() == QEvent::Leave && popover) {
+          const QPoint p = popover->mapFromGlobal(QCursor::pos());
+          if (!popover->rect().contains(p)) { timer.stop(); pending.clear(); leave(); }  // truly left
         }
         return QObject::eventFilter(o, e);
       }
-      QWidget* popover_;
-      std::function<void(const QString&)> enter_;
-      std::function<void()> leave_;
-      QTimer timer_;
-      QString pending_;
+      QWidget* popover;
+      std::function<void(const QString&)> enter;
+      std::function<void()> leave;
+      QTimer timer;
+      QString pending;
     };
   }  // namespace
 
@@ -149,7 +149,7 @@ namespace stencil::gui {
     col->setSpacing(1);
     // Rows are built once and RE-MARKED in place whenever the accent moves: picking must not rebuild or move the popover.
     for (const AccentPreset& a : accentPresets()) {
-      const bool current = a.key == settings_.accentColor;   // a custom #… accent marks nothing
+      const bool current = a.key == settings.accentColor;   // a custom #… accent marks nothing
       auto* row = new QPushButton(&dlg);
       row->setObjectName(QStringLiteral("accentRow-") + a.key);
       row->setFlat(true);
@@ -164,8 +164,8 @@ namespace stencil::gui {
       // The browser row's `transform: translateX(2px)`; after the preview filter so the preview sees Enter first.
       installHoverSlide(row);
       connect(row, &QPushButton::clicked, &dlg, [this, key = a.key] {
-        accentPreviewActive_ = false;   // a pick commits; the close below must not revert it
-        auto next = settings_;
+        accentPreviewActive = false;   // a pick commits; the close below must not revert it
+        auto next = settings;
         next.accentColor = key;
         applySettings(next, true);   // the click-cycle's apply + persist path; re-marks the ✓ via applyTheme
         // A pick CLOSES the popover (hovering already previews live). Browser twin: the logo menu.

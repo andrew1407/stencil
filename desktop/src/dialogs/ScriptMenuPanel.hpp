@@ -43,14 +43,14 @@ namespace stencil::gui {
     void run();
     int rowWidth() const;   // what the action row needs, gutters included
 
-    Hooks hooks_;
-    ScriptEditorWidget* edit_ = nullptr;
-    QHBoxLayout* actions_ = nullptr;   // the row the panel's width is re-derived from
-    QPushButton* copyBtn_ = nullptr;
-    QPushButton* downloadBtn_ = nullptr;
-    QPushButton* uploadBtn_ = nullptr;
-    QPushButton* clearBtn_ = nullptr;
-    QPushButton* runBtn_ = nullptr;
+    Hooks hooks;
+    ScriptEditorWidget* edit = nullptr;
+    QHBoxLayout* actions = nullptr;   // the row the panel's width is re-derived from
+    QPushButton* copyBtn = nullptr;
+    QPushButton* downloadBtn = nullptr;
+    QPushButton* uploadBtn = nullptr;
+    QPushButton* clearBtn = nullptr;
+    QPushButton* runBtn = nullptr;
   };
 
   // MainWindow stores the panel as a plain QWidget* member — this types it back.
