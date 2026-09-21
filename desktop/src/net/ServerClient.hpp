@@ -54,7 +54,7 @@ namespace stencil::net {
     explicit ServerClient(const QString& url);
     ~ServerClient();
 
-    bool needsReauth() const { return status_ == Status::EXPIRED; }
+    bool needsReauth() const { return status == Status::EXPIRED; }
 
     static QString normalizeBase(const QString& raw);
     // Split "<url>#token=<tok>" BEFORE normalizeBase, which drops the fragment.
@@ -65,20 +65,20 @@ namespace stencil::net {
     // http to a non-loopback host sends the bearer token in cleartext — the UI warns.
     static bool isInsecureRemote(const QString& base);
 
-    const QString& base() const { return base_; }
-    const QString& token() const { return token_; }
+    const QString& getBase() const { return base; }
+    const QString& getToken() const { return token; }
     // Outlives server restarts (a minted session token does not), so snapshot() persists it.
-    const QString& credential() const { return credential_; }
-    const QString& lastError() const { return err_; }
-    Status status() const { return status_; }
-    CredentialKind credentialKind() const { return kind_; }
-    bool isAdmin() const { return kind_ == CredentialKind::ADMIN; }
+    const QString& getCredential() const { return credential; }
+    const QString& lastError() const { return err; }
+    Status getStatus() const { return status; }
+    CredentialKind credentialKind() const { return kind; }
+    bool isAdmin() const { return kind == CredentialKind::ADMIN; }
 
     static QString kindTag(CredentialKind k);
     static CredentialKind kindFromTag(const QString& tag);
 
     // Completions run on the GUI thread; callers guard captures with QPointer. After the client
-    // dies the reply is a no-op — the connection is bound to nam_.
+    // dies the reply is a no-op — the connection is bound to nam.
     void connectAsync(const QString& token, std::function<void(bool ok)> done,
                       CredentialKind hint = CredentialKind::NONE);
     void reconnectAsync(std::function<void(bool ok)> done);
@@ -126,7 +126,7 @@ namespace stencil::net {
         std::function<void(GuardOutcome)> done);
 
    private:
-    // `bearer` overrides the session token (invite mint); empty = token_.
+    // `bearer` overrides the session token (invite mint); empty = token.
     QNetworkRequest buildRequest(const QString& path, const QString& contentType,
                                  const QString& bearer = QString()) const;
     // `retried` marks the one credential re-mint retry, so a refusal never mints twice.
@@ -138,13 +138,13 @@ namespace stencil::net {
     void putGuarded(const QString& id, QJsonObject obj, qint64 version, const char* verb,
                     std::function<void(bool, qint64, bool)> done);
 
-    QNetworkAccessManager* nam_;
-    QString base_;
-    QString token_;
-    QString credential_;
-    CredentialKind kind_ = CredentialKind::NONE;
-    QString err_;
-    Status status_ = Status::CONNECTING;
+    QNetworkAccessManager* nam;
+    QString base;
+    QString token;
+    QString credential;
+    CredentialKind kind = CredentialKind::NONE;
+    QString err;
+    Status status = Status::CONNECTING;
   };
 
   class ConnectionManager : public QObject {
@@ -170,7 +170,7 @@ namespace stencil::net {
 
     QStringList urls() const;
     ServerClient* find(const QString& url) const;
-    const QVector<ServerClient*>& clients() const { return clients_; }
+    const QVector<ServerClient*>& getClients() const { return clients; }
 
     QVector<SavedServer> snapshot() const;
 
@@ -181,9 +181,9 @@ namespace stencil::net {
     void changed();
 
    private:
-    QVector<ServerClient*> clients_;
-    // Held so this manager's destruction takes their nam_ with them, severing the in-flight callback.
-    QVector<ServerClient*> pending_;
+    QVector<ServerClient*> clients;
+    // Held so this manager's destruction takes their nam with them, severing the in-flight callback.
+    QVector<ServerClient*> pending;
   };
 
 }  // namespace stencil::net

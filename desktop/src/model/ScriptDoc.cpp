@@ -1,6 +1,6 @@
 #include "ScriptDoc.hpp"
 
-#include "scriptParser.hpp"   // core/script DIRECTIVE_WORDS — never mirrored above this seam
+#include "parser.hpp"   // core/script DIRECTIVE_WORDS — never mirrored above this seam
 #include "scriptProgram.hpp"  // core/script — this file is the seam that may include it
 
 #include <QHash>
@@ -39,7 +39,7 @@ namespace stencil::model {
       int len(int line, int byteCol, int byteLen) const;
 
      private:
-      QHash<int, QVector<int>> maps_;   // 1-based line -> byte offset -> QChar offset
+      QHash<int, QVector<int>> maps;   // 1-based line -> byte offset -> QChar offset
     };
 
     ByteColumns::ByteColumns(const QString& text) {
@@ -62,18 +62,18 @@ namespace stencil::model {
           j += pair ? 2 : 1;
         }
         map.push_back(static_cast<int>(line.size()));   // one past the end
-        maps_.insert(i + 1, map);
+        maps.insert(i + 1, map);
       }
     }
 
     int ByteColumns::col(int line, int byteCol) const {
-      const auto it = maps_.constFind(line);
-      if (it == maps_.constEnd()) return byteCol;
+      const auto it = maps.constFind(line);
+      if (it == maps.constEnd()) return byteCol;
       return it->at(qBound(0, byteCol - 1, static_cast<int>(it->size()) - 1)) + 1;
     }
 
     int ByteColumns::len(int line, int byteCol, int byteLen) const {
-      if (!maps_.contains(line) || byteLen <= 0) return byteLen;
+      if (!maps.contains(line) || byteLen <= 0) return byteLen;
       return col(line, byteCol + byteLen) - col(line, byteCol);
     }
 
@@ -131,17 +131,17 @@ namespace stencil::model {
     const ByteColumns cols(text);
 
     ScriptDoc out;
-    for (const cs::Token& t : p.tokens()) out.tokens_.push_back(toToken(t, cols));
-    for (const cs::Diagnostic& d : p.diagnostics()) out.diagnostics_.push_back(toDiagnostic(d, cols));
-    for (const cs::Op& op : p.ops()) out.ops_.push_back(toOp(op, cols));
-    for (const cs::Block& b : p.blocks()) {
+    for (const cs::Token& t : p.getTokens()) out.tokens.push_back(toToken(t, cols));
+    for (const cs::Diagnostic& d : p.getDiagnostics()) out.diagnostics.push_back(toDiagnostic(d, cols));
+    for (const cs::Op& op : p.getOps()) out.ops.push_back(toOp(op, cols));
+    for (const cs::Block& b : p.getBlocks()) {
       ScriptBlock block;
       block.source = qstr(b.source);
       block.kind = static_cast<ScriptSourceKind>(static_cast<int>(b.kind));
       block.frame = b.frame;
       block.opStart = b.opStart;
       block.opCount = b.opCount;
-      out.blocks_.push_back(block);
+      out.blocks.push_back(block);
     }
     return out;
   }
@@ -157,7 +157,7 @@ namespace stencil::model {
   }
 
   bool ScriptDoc::hasErrors() const {
-    for (const ScriptDiagnostic& d : diagnostics_)
+    for (const ScriptDiagnostic& d : diagnostics)
       if (d.isError) return true;
     return false;
   }

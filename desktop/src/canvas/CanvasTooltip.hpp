@@ -9,7 +9,7 @@ class QLabel;
 class QVariantAnimation;
 
 // Floating, frameless tooltip shown over the canvas on hover. Port of
-// browser/js/ui/tooltip.js: it renders rows (label -> value pairs) and positions
+// browser/js/ui/tip/tooltip.js: it renders rows (label -> value pairs) and positions
 // itself near the cursor, flipping to stay on screen. The decision of WHAT to
 // show (cursor coords / nearest point / line endpoints) is made by MainWindow,
 // mirroring tooltip.js applyHover; this widget only renders + positions.
@@ -34,10 +34,10 @@ namespace stencil::gui {
     // window's coords so escapeHost can carry the cloud past it. False -> the caller plain-fades.
     bool dust(bool gather);
 
-    QLabel* body_ = nullptr;
-    QVariantAnimation* fade_ = nullptr;
-    QPoint lastCursor_;      // where the dust flies out of / back into
-    bool closing_ = false;   // fade_ is mid fade-OUT; its finished handler should hide()
+    QLabel* body = nullptr;
+    QVariantAnimation* fade = nullptr;
+    QPoint lastCursor;      // where the dust flies out of / back into
+    bool closing = false;   // fade is mid fade-OUT; its finished handler should hide()
   };
 
 }

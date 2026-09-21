@@ -22,28 +22,28 @@ namespace stencil::gui {
     explicit DockHoverOverlay(QWidget* parent) : QWidget(parent) {
       setAttribute(Qt::WA_TransparentForMouseEvents, true);   // the separator keeps the drag
       setAttribute(Qt::WA_NoSystemBackground, true);
-      anim_ = new QVariantAnimation(this);
-      anim_->setDuration(HOVER_MS);
-      anim_->setEasingCurve(QEasingCurve::OutCubic);
-      QObject::connect(anim_, &QVariantAnimation::valueChanged, this,
-                       [this](const QVariant& v) { hot_ = v.toDouble(); update(); });
+      anim = new QVariantAnimation(this);
+      anim->setDuration(HOVER_MS);
+      anim->setEasingCurve(QEasingCurve::OutCubic);
+      QObject::connect(anim, &QVariantAnimation::valueChanged, this,
+                       [this](const QVariant& v) { hot = v.toDouble(); update(); });
     }
 
     void setHot(bool on) {
       const double to = on ? 1.0 : 0.0;
-      if (qFuzzyCompare(hot_, to)) return;
-      anim_->stop();
-      if (support::motionReduced()) { hot_ = to; update(); return; }
-      anim_->setStartValue(hot_);
-      anim_->setEndValue(to);
-      anim_->start();
+      if (qFuzzyCompare(hot, to)) return;
+      anim->stop();
+      if (support::motionReduced()) { hot = to; update(); return; }
+      anim->setStartValue(hot);
+      anim->setEndValue(to);
+      anim->start();
     }
 
    protected:
-    double hot_ = 0.0;      // 0 at rest … 1 fully hovered
+    double hot = 0.0;      // 0 at rest … 1 fully hovered
 
    private:
-    QVariantAnimation* anim_ = nullptr;
+    QVariantAnimation* anim = nullptr;
   };
 
 
@@ -58,8 +58,8 @@ namespace stencil::gui {
     using DockHoverOverlay::DockHoverOverlay;
 
     void setColors(const QColor& rest, const QColor& accent) {
-      rest_ = rest;
-      accent_ = accent;
+      this->rest = rest;
+      this->accent = accent;
       update();
     }
 
@@ -67,18 +67,18 @@ namespace stencil::gui {
     void paintEvent(QPaintEvent*) override {
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing, true);
-      const auto ch = [this](int a, int b) { return int(std::lround(a + (b - a) * hot_)); };
-      const QColor c(ch(rest_.red(), accent_.red()), ch(rest_.green(), accent_.green()),
-                     ch(rest_.blue(), accent_.blue()));
-      const double h = BAR_H + (BAR_HOT_H - BAR_H) * hot_;
+      const auto ch = [this](int a, int b) { return int(std::lround(a + (b - a) * hot)); };
+      const QColor c(ch(rest.red(), accent.red()), ch(rest.green(), accent.green()),
+                     ch(rest.blue(), accent.blue()));
+      const double h = BAR_H + (BAR_HOT_H - BAR_H) * hot;
       p.setPen(Qt::NoPen);
       p.setBrush(c);
       p.drawRoundedRect(QRectF((width() - BAR_W) / 2.0, (height() - h) / 2.0, BAR_W, h), 2, 2);
     }
 
    private:
-    QColor rest_;
-    QColor accent_;
+    QColor rest;
+    QColor accent;
   };
 
   // The chat dock's resize EDGE (browser .chat-resizer): a mouse-transparent band over
@@ -91,20 +91,20 @@ namespace stencil::gui {
 
     using DockHoverOverlay::DockHoverOverlay;
 
-    void setAccent(const QColor& accent) { accent_ = accent; update(); }
+    void setAccent(const QColor& accent) { this->accent = accent; update(); }
 
    protected:
     void paintEvent(QPaintEvent*) override {
-      if (hot_ <= 0.001 || !accent_.isValid()) return;
-      QColor c = accent_;
-      c.setAlphaF(ALPHA * hot_);
+      if (hot <= 0.001 || !accent.isValid()) return;
+      QColor c = accent;
+      c.setAlphaF(ALPHA * hot);
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing, true);
       p.fillRect(rect(), c);
     }
 
    private:
-    QColor accent_;
+    QColor accent;
   };
 
 }  // namespace stencil::gui

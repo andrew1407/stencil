@@ -13,7 +13,7 @@ namespace stencil::support {
   // flight) / None (what STENCIL_NO_ANIM has always meant).
   enum class MotionMode { PARTICLES, WATER, FIRE, SLIDE, NONE };
 
-  // Browser dustCloud.js PARTICLE_STYLES.
+  // Browser dust/cloud.js PARTICLE_STYLES.
   enum class ParticleStyle { DUST, WATER, FIRE };
 
   namespace detail {
@@ -27,7 +27,7 @@ namespace stencil::support {
       return on;
     }
     inline bool& modalBackdropState() {
-      static bool on = true;   // browser motionPrefs.js DEFAULT_MODAL_BACKDROP
+      static bool on = true;   // browser list/prefs.js DEFAULT_MODAL_BACKDROP
       return on;
     }
     // Pushed by MainWindow::applyTheme; violet and its shade until then.
@@ -82,7 +82,7 @@ namespace stencil::support {
   inline void setDrawingAnimations(bool on) { detail::drawingAnimationsState() = on; }
 
   // Whether an open window dims and blurs what is behind it (support/ModalBackdrop).
-  // Browser twin: motionPrefs.js modalBackdrop().
+  // Browser twin: list/prefs.js modalBackdrop().
   inline bool modalBackdrop() { return detail::modalBackdropState(); }
   inline void setModalBackdrop(bool on) { detail::modalBackdropState() = on; }
 

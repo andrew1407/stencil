@@ -12,7 +12,7 @@ namespace stencil::net {
 
   LiveFeed::LiveFeed(QObject* parent) : QObject(parent) {
     // The server only relays this id back as fromClientId; mirrors the CLI/browser client-id contract.
-    clientId_ = QStringLiteral("desktop-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+    clientId = QStringLiteral("desktop-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
   }
 
   LiveFeed::~LiveFeed() { unsubscribe(); }
@@ -23,59 +23,59 @@ namespace stencil::net {
       unsubscribe();
       return false;
     }
-    if (base_ == base && sock_) {
-      token_ = token;
+    if (this->base == base && sock) {
+      this->token = token;
       return true;
     }
     unsubscribe();
     const QUrl u(base);
-    host_ = u.host();
-    if (host_.isEmpty()) return false;
-    port_ = static_cast<quint16>(u.port(80) + 1);  // edit channel = REST port + 1
-    base_ = base;
-    token_ = token;
+    host = u.host();
+    if (host.isEmpty()) return false;
+    port = static_cast<quint16>(u.port(80) + 1);  // edit channel = REST port + 1
+    this->base = base;
+    this->token = token;
     dial();
     return true;
   }
 
   void LiveFeed::unsubscribe() {
-    if (retry_) retry_->stop();
-    if (sock_) {
-      sock_->disconnect(this);  // silence our slots during teardown (no reconnect)
-      sock_->abort();
-      sock_->deleteLater();
-      sock_ = nullptr;
+    if (retry) retry->stop();
+    if (sock) {
+      sock->disconnect(this);  // silence our slots during teardown (no reconnect)
+      sock->abort();
+      sock->deleteLater();
+      sock = nullptr;
     }
-    rbuf_.clear();
-    base_.clear();
-    host_.clear();
-    port_ = 0;
-    token_.clear();
+    rbuf.clear();
+    base.clear();
+    host.clear();
+    port = 0;
+    token.clear();
   }
 
   void LiveFeed::dial() {
-    if (host_.isEmpty() || port_ == 0) return;
-    if (!sock_) {
-      sock_ = new QTcpSocket(this);
-      connect(sock_, &QTcpSocket::connected, this, &LiveFeed::onConnected);
-      connect(sock_, &QTcpSocket::readyRead, this, &LiveFeed::onReadyRead);
-      connect(sock_, &QTcpSocket::errorOccurred, this, &LiveFeed::onError);
-      connect(sock_, &QTcpSocket::disconnected, this, &LiveFeed::onError);
+    if (host.isEmpty() || port == 0) return;
+    if (!sock) {
+      sock = new QTcpSocket(this);
+      connect(sock, &QTcpSocket::connected, this, &LiveFeed::onConnected);
+      connect(sock, &QTcpSocket::readyRead, this, &LiveFeed::onReadyRead);
+      connect(sock, &QTcpSocket::errorOccurred, this, &LiveFeed::onError);
+      connect(sock, &QTcpSocket::disconnected, this, &LiveFeed::onError);
     }
-    rbuf_.clear();
-    sock_->connectToHost(host_, port_);
+    rbuf.clear();
+    sock->connectToHost(host, port);
   }
 
   void LiveFeed::onConnected() {
-    if (!sock_) return;
+    if (!sock) return;
     // An empty projectId selects the global events feed (hub.serveEvents).
     const QJsonObject hello{
         {QLatin1String("type"), QLatin1String("hello")},
-        {QLatin1String("token"), token_},
+        {QLatin1String("token"), token},
         {QLatin1String("projectId"), QString()},
-        {QLatin1String("clientId"), clientId_},
+        {QLatin1String("clientId"), clientId},
     };
-    sock_->write(QJsonDocument(hello).toJson(QJsonDocument::Compact) + '\n');
+    sock->write(QJsonDocument(hello).toJson(QJsonDocument::Compact) + '\n');
   }
 
   namespace {
@@ -84,12 +84,12 @@ namespace stencil::net {
   }  // namespace
 
   void LiveFeed::onReadyRead() {
-    if (!sock_) return;
-    rbuf_ += sock_->readAll();
+    if (!sock) return;
+    rbuf += sock->readAll();
     // abort() trips onError(), which schedules a reconnect; the poll backstop covers the gap.
-    if (rbuf_.size() > MAX_BUFFER_BYTES && !rbuf_.contains('\n')) {
-      rbuf_.clear();
-      if (sock_) sock_->abort();
+    if (rbuf.size() > MAX_BUFFER_BYTES && !rbuf.contains('\n')) {
+      rbuf.clear();
+      if (sock) sock->abort();
       onError();
       return;
     }
@@ -98,9 +98,9 @@ namespace stencil::net {
 
   void LiveFeed::parseFrames() {
     int nl;
-    while ((nl = rbuf_.indexOf('\n')) >= 0) {
-      const QByteArray line = rbuf_.left(nl);
-      rbuf_.remove(0, nl + 1);
+    while ((nl = rbuf.indexOf('\n')) >= 0) {
+      const QByteArray line = rbuf.left(nl);
+      rbuf.remove(0, nl + 1);
       if (line.trimmed().isEmpty()) continue;
       const QJsonDocument doc = QJsonDocument::fromJson(line);
       if (!doc.isObject()) continue;  // skip welcome/synced/other frames
@@ -116,16 +116,16 @@ namespace stencil::net {
   }
 
   void LiveFeed::onError() {
-    // One reconnect per drop; unsubscribe() clears base_ so this stops.
-    if (base_.isEmpty()) return;
-    if (!retry_) {
-      retry_ = new QTimer(this);
-      retry_->setSingleShot(true);
-      connect(retry_, &QTimer::timeout, this, [this] {
-        if (!base_.isEmpty()) dial();
+    // One reconnect per drop; unsubscribe() clears base so this stops.
+    if (base.isEmpty()) return;
+    if (!retry) {
+      retry = new QTimer(this);
+      retry->setSingleShot(true);
+      connect(retry, &QTimer::timeout, this, [this] {
+        if (!base.isEmpty()) dial();
       });
     }
-    if (!retry_->isActive()) retry_->start(3000);
+    if (!retry->isActive()) retry->start(3000);
   }
 
 }  // namespace stencil::net

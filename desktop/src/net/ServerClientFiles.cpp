@@ -34,7 +34,7 @@ namespace stencil::net {
                    meta.source = p.value("source").toString();
                    meta.resource = p.value("resource").toString();
                    meta.version = static_cast<qint64>(p.value("version").toDouble());
-                   meta.serverUrl = base_;
+                   meta.serverUrl = base;
                    layoutOut = root.value("layout").toObject();
                    done(true, meta, layoutOut);
                  });
@@ -55,7 +55,7 @@ namespace stencil::net {
                  "application/json",
                  [this, verb, done = std::move(done)](int status, QByteArray body) {
                    if (status == 409) {
-                     err_ = "stale version (edited elsewhere)";
+                     err = "stale version (edited elsewhere)";
                      done(false, 0, true);
                      return;
                    }

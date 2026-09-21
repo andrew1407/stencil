@@ -4,28 +4,28 @@
 // answer a modal. The per-area suites carry the cases themselves.
 #include "MainWindow.hpp"
 #include "support/browserCopy.hpp"
-#include "../src/support/ThemeSwapOverlay.hpp"
-#include "../src/support/Notifications.hpp"
-#include "../src/support/DisintegrateOverlay.hpp"
+#include "../src/support/dust/ThemeSwapOverlay.hpp"
+#include "../src/support/notify/Notifications.hpp"
+#include "../src/support/motion/DisintegrateOverlay.hpp"
 #include "../src/support/dockGrip.hpp"   // DockEdgeOverlay: the chat dock's resize-edge tint
-#include "../src/canvas/DropZonesOverlay.hpp"
+#include "../src/canvas/overlay/DropZonesOverlay.hpp"
 #include "../src/canvas/CanvasTooltip.hpp"
 #include "CanvasWidget.hpp"
 #include "ChatDock.hpp"
-#include "../src/app/DataExportController.hpp"
+#include "../src/app/meta/DataExportController.hpp"
 #include "PillSplitter.hpp"
-#include "../src/app/SelectionPanel.hpp"
-#include "../src/app/SelectedLineBar.hpp"
-#include "../src/support/scrollReveal.hpp"
+#include "../src/app/selection/SelectionPanel.hpp"
+#include "../src/app/selection/SelectedLineBar.hpp"
+#include "../src/support/motion/scrollReveal.hpp"
 #include "fileStore.hpp"
 #include "ConnectDialog.hpp"
-#include "../src/support/AppTooltip.hpp"
-#include "../src/support/shareImage.hpp"   // isShareSheetAvailable — the Share button's gate
+#include "../src/support/tip/AppTooltip.hpp"
+#include "../src/support/share/shareImage.hpp"   // isShareSheetAvailable — the Share button's gate
 #include "ServerClient.hpp"
 #include "LlmSettingsForm.hpp"
-#include "../src/app/ChatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock
-#include "../src/llm/opPlan.hpp"
-#include "../src/llm/planExecutor.hpp"
+#include "../src/app/chat/planTarget/ChatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock
+#include "../src/llm/plan/opPlan.hpp"
+#include "../src/llm/plan/executor/planExecutor.hpp"
 #include "MediaLoader.hpp"
 #include "popover.hpp"
 #include "iconSet.hpp"
@@ -38,7 +38,7 @@
 #include "modalReveal.hpp"
 #include "SettingsDialog.hpp"
 #include "../src/app/mainWindowHelpers.hpp"   // NAME_CHIP_BOX
-#include "../src/support/SearchCombo.hpp"
+#include "../src/support/menu/SearchCombo.hpp"
 #include <QScopeGuard>
 #include <QtTest>
 #include <QStyleOptionSlider>
@@ -55,7 +55,7 @@
 #include <QLabel>
 #include <QListView>
 #include <QRegularExpression>
-#include "../src/support/tipContent.hpp"
+#include "../src/support/tip/tipContent.hpp"
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -103,7 +103,7 @@
 #include <QVariantAnimation>
 #include <memory>
 
-#include "../src/canvas/IncognitoOverlay.hpp"
+#include "../src/canvas/overlay/IncognitoOverlay.hpp"
 
 using stencil::gui::MainWindow;
 using stencil::gui::CanvasWidget;

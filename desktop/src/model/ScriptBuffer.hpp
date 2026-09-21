@@ -14,7 +14,7 @@ namespace stencil::model {
    public:
     static ScriptBuffer& instance();
 
-    const QString& text() const { return text_; }
+    const QString& getText() const { return text; }
     // No-op when the text is unchanged, so a host echoing its own write starts no loop.
     void setText(const QString& text);
 
@@ -22,7 +22,7 @@ namespace stencil::model {
     void changed(const QString& text);
 
    private:
-    QString text_;
+    QString text;
   };
 
 }  // namespace stencil::model

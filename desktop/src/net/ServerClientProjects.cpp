@@ -15,12 +15,12 @@ namespace stencil::net {
 
   void ServerClient::connectAsync(const QString& token, std::function<void(bool)> done,
                                   CredentialKind hint) {
-    credential_ = token;
-    kind_ = CredentialKind::NONE;   // re-proven below by whichever path gets in
-    status_ = Status::CONNECTING;
-    if (base_.isEmpty()) {
-      err_ = "empty server URL";
-      status_ = Status::ERROR;
+    credential = token;
+    kind = CredentialKind::NONE;   // re-proven below by whichever path gets in
+    status = Status::CONNECTING;
+    if (base.isEmpty()) {
+      err = "empty server URL";
+      status = Status::ERROR;
       done(false);
       return;
     }
@@ -30,79 +30,79 @@ namespace stencil::net {
                      if (!isOkStatus(status)) {
                        const bool refused = isAuthStatus(status);
                        if (refused)
-                         err_ = QStringLiteral("this server gates token minting (ADMIN_TOKEN) — paste a "
+                         err = QStringLiteral("this server gates token minting (ADMIN_TOKEN) — paste a "
                                                "session token, or the admin token, into the Token field");
-                       status_ = refused ? Status::EXPIRED : Status::ERROR;
+                       this->status = refused ? Status::EXPIRED : Status::ERROR;
                        if (refused)
-                         qWarning("stencil: %s needs a token (ADMIN_TOKEN gate)", qPrintable(base_));
+                         qWarning("stencil: %s needs a token (ADMIN_TOKEN gate)", qPrintable(base));
                        done(false);
                        return;
                      }
-                     token_ = QJsonDocument::fromJson(body).object().value("token").toString();
-                     if (token_.isEmpty()) {
-                       err_ = "server returned no token";
-                       status_ = Status::ERROR;
+                     this->token = QJsonDocument::fromJson(body).object().value("token").toString();
+                     if (this->token.isEmpty()) {
+                       err = "server returned no token";
+                       this->status = Status::ERROR;
                        done(false);
                        return;
                      }
-                     status_ = Status::CONNECTED;
+                     this->status = Status::CONNECTED;
                      done(true);
                    });
     } else if (hint == CredentialKind::ADMIN) {
       // Known admin credential: mint straight away, no doomed probe (sync-path parity).
-      token_ = token;
+      this->token = token;
       requestAsync("POST", "/auth/token", "{}", "application/json",
                    [this, done = std::move(done)](int mint, QByteArray body) {
                      if (!isOkStatus(mint)) {
-                       token_.clear();
-                       status_ = Status::EXPIRED;
+                       this->token.clear();
+                       this->status = Status::EXPIRED;
                        qWarning("stencil: admin token refused by %s — reconnect to sign in again",
-                                qPrintable(base_));
+                                qPrintable(base));
                        done(false);
                        return;
                      }
-                     token_ = QJsonDocument::fromJson(body).object().value("token").toString();
-                     if (token_.isEmpty()) {
-                       err_ = "server returned no token";
-                       status_ = Status::ERROR;
+                     this->token = QJsonDocument::fromJson(body).object().value("token").toString();
+                     if (this->token.isEmpty()) {
+                       err = "server returned no token";
+                       this->status = Status::ERROR;
                        done(false);
                        return;
                      }
-                     kind_ = CredentialKind::ADMIN;
-                     status_ = Status::CONNECTED;
+                     kind = CredentialKind::ADMIN;
+                     this->status = Status::CONNECTED;
                      done(true);
                    });
     } else {
-      token_ = token;
+      this->token = token;
       requestAsync("GET", "/projects", {}, {},
                    [this, done = std::move(done)](int status, QByteArray) mutable {
                      if (isOkStatus(status)) {
-                       kind_ = CredentialKind::SESSION;   // the token IS a session token
-                       status_ = Status::CONNECTED;
+                       kind = CredentialKind::SESSION;   // the token IS a session token
+                       this->status = Status::CONNECTED;
                        done(true);
                        return;
                      }
                      requestAsync("POST", "/auth/token", "{}", "application/json",
                                   [this, status, done = std::move(done)](int mint, QByteArray body) {
                                     if (isOkStatus(mint)) {
-                                      token_ = QJsonDocument::fromJson(body).object().value("token").toString();
-                                      if (!token_.isEmpty()) {
-                                        kind_ = CredentialKind::ADMIN;  // it minted: admin
-                                        status_ = Status::CONNECTED;
+                                      this->token = QJsonDocument::fromJson(body).object().value("token").toString();
+                                      if (!this->token.isEmpty()) {
+                                        kind = CredentialKind::ADMIN;  // it minted: admin
+                                        this->status = Status::CONNECTED;
                                         done(true);
                                         return;
                                       }
-                                      err_ = "server returned no token";
-                                      token_.clear();
-                                      status_ = Status::ERROR;
+                                      err = "server returned no token";
+                                      this->token.clear();
+                                      this->status = Status::ERROR;
                                       done(false);
                                       return;
                                     }
                                     // Neither a session nor the admin token: a refused CREDENTIAL, so the row offers a sign-in.
-                                    token_.clear();
-                                    status_ = Status::EXPIRED;
+                                    this->token.clear();
+                                    this->status = Status::EXPIRED;
                                     qWarning("stencil: token refused by %s — reconnect to sign in again",
-                                             qPrintable(base_));
+                                             qPrintable(base));
                                     done(false);
                                   });
                    });
@@ -110,22 +110,22 @@ namespace stencil::net {
   }
 
   void ServerClient::reconnectAsync(std::function<void(bool)> done) {
-    // Reconnect with the CREDENTIAL (it outlives a restart); the session token would overwrite credential_.
-    if (!credential_.isEmpty()) {
+    // Reconnect with the CREDENTIAL (it outlives a restart); the session token would overwrite credential.
+    if (!credential.isEmpty()) {
       // A REUSED credential keeps its kind (browser reconnectOne parity).
-      connectAsync(credential_, std::move(done), kind_);
+      connectAsync(credential, std::move(done), kind);
       return;
     }
-    if (token_.isEmpty()) {
+    if (token.isEmpty()) {
       connectAsync(QString(), std::move(done));
       return;
     }
-    connectAsync(token_, [this, done](bool ok) {
+    connectAsync(token, [this, done](bool ok) {
       if (ok) {
         done(true);
         return;
       }
-      token_.clear();
+      token.clear();
       connectAsync(QString(), done);
     });
   }
@@ -160,7 +160,7 @@ namespace stencil::net {
                      p.updatedAt = static_cast<qint64>(o.value("updatedAt").toDouble());
                      p.expiresAt = static_cast<qint64>(o.value("expiresAt").toDouble());
                      p.version = static_cast<qint64>(o.value("version").toDouble());
-                     p.serverUrl = base_;
+                     p.serverUrl = base;
                      out.push_back(p);
                    }
                    done(true, out);

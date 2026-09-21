@@ -19,7 +19,7 @@ namespace stencil::gui {
   // old row breaks.
   inline constexpr int TOOLBAR_LAYOUT_VERSION = 6;   // v6: the four tool rows folded into one wrapping run
 
-  // How long the chat takes to leave; the compact popover waits this out (chatPanel.js closeMs
+  // How long the chat takes to leave; the compact popover waits this out (chat/panel.js closeMs
   // parity).
   inline constexpr int CHAT_SLIDE_IN_MS = 510;
   // Leaving is 1.5x quicker than arriving: a panel you dismissed should be gone.
@@ -41,7 +41,7 @@ namespace stencil::gui {
   inline constexpr int FOLD_OUT_MS = 630;
   inline constexpr int FOLD_DUST_IN_MS = 450;
   inline constexpr int FOLD_DUST_OUT_MS = 585;   // browser FOLD_DUST_OUT_MS, same 1.5x ratio
-  // Mirrors the browser's COMMIT_DEBOUNCE_MS (browser/js/ui/numericInput.js).
+  // Mirrors the browser's COMMIT_DEBOUNCE_MS (browser/js/ui/control/numericInput.js).
   inline constexpr int FORMULA_COMMIT_MS = 1200;
 
   // GET with a 10s deadline; `ctx` owns the manager — destroying it severs the reply, so `done`

@@ -16,7 +16,7 @@
 
 // The Data section's script window and the context menu's script flyout. Neither edits the
 // project itself: both run through the SAME PlanTarget the assistant's op plans drive.
-// Browser twins: js/ui/scriptModal.js and js/ui/ctxScript.js.
+// Browser twins: js/ui/modal.js and js/ui/script.js.
 namespace stencil::gui {
 
   namespace {
@@ -45,23 +45,23 @@ namespace stencil::gui {
       ChatPlanTarget target(*this);
       // The dialog's own parse — the one it coloured from — so a Run lexes the text once.
       const ScriptRunResult result = runScript(dlg.program(), target);
-      reportRun(notify_, result);
+      reportRun(notify, result);
       if (!result.isOk) dlg.showRunDiagnostics();
       if (result.isOk || result.ops > 0) refreshAfterScript();   // part-ran still stands
     });
-    execMaybePopover(dlg, actScript_);
+    execMaybePopover(dlg, actScript);
   }
 
   // The QWidgetAction owns the panel, so the per-right-click menu rebuild can re-add it and
   // the typed script outlives the menu.
   void MainWindow::ensureScriptMenuPanel() {
-    if (scriptMenuAction_) return;
+    if (scriptMenuAction) return;
     ScriptMenuPanel::Hooks hooks;
     // In place: the menu stays open, with the strip and the underlines on the text that ran.
     hooks.run = [this](QString text) {
       ChatPlanTarget target(*this);
       const ScriptRunResult result = runScript(text, target);
-      reportRun(notify_, result);
+      reportRun(notify, result);
       if (result.ops > 0) refreshAfterScript();
     };
     // Qt closes every popup the moment a file dialog opens, native or not, so the chain is
@@ -75,44 +75,44 @@ namespace stencil::gui {
         if (path.isEmpty()) {
           reopenScriptFlyout();
         } else if (!readScriptFile(path, &text)) {
-          if (notify_) notify_->error(tr("Could not read %1").arg(QFileInfo(path).fileName()));
+          if (notify) notify->error(tr("Could not read %1").arg(QFileInfo(path).fileName()));
           reopenScriptFlyout();
         } else {
-          asScriptMenu(scriptMenuPanel_)->setScript(text);
-          if (notify_)
-            notify_->info(tr("Loaded %1 into the script flyout").arg(QFileInfo(path).fileName()));
+          asScriptMenu(scriptMenuPanel)->setScript(text);
+          if (notify)
+            notify->info(tr("Loaded %1 into the script flyout").arg(QFileInfo(path).fileName()));
           reopenScriptFlyout();
         }
       });
     };
     hooks.download = [this] {
-      const QString text = asScriptMenu(scriptMenuPanel_)->script();
+      const QString text = asScriptMenu(scriptMenuPanel)->script();
       closeOpenPopupMenus();
       QTimer::singleShot(0, this, [this, text] {
         const QString path = QFileDialog::getSaveFileName(this, tr("Save script"),
                                                           QStringLiteral("stencil.stc"),
                                                           scriptFileFilter());
-        if (!path.isEmpty() && !writeScriptFile(path, text) && notify_)
-          notify_->error(tr("Could not write %1").arg(QFileInfo(path).fileName()));
+        if (!path.isEmpty() && !writeScriptFile(path, text) && notify)
+          notify->error(tr("Could not write %1").arg(QFileInfo(path).fileName()));
         reopenScriptFlyout();
       });
     };
-    hooks.notice = [this](QString text) { if (notify_) notify_->success(text); };
+    hooks.notice = [this](QString text) { if (notify) notify->success(text); };
 
     auto* panel = new ScriptMenuPanel(this, std::move(hooks));
-    scriptMenuPanel_ = panel;
-    scriptMenuEditor_ = panel->editor();
-    scriptMenuAction_ = new QWidgetAction(this);
-    scriptMenuAction_->setDefaultWidget(panel);   // takes ownership of the panel
-    panel->restyle(themePalette(resolveDark(settings_.themeMode), settings_.accentColor));
+    scriptMenuPanel = panel;
+    scriptMenuEditor = panel->editor();
+    scriptMenuAction = new QWidgetAction(this);
+    scriptMenuAction->setDefaultWidget(panel);   // takes ownership of the panel
+    panel->restyle(themePalette(resolveDark(settings.themeMode), settings.accentColor));
   }
 
   // The chain the file dialog took down, back where it was and on the script row. Queued, so
   // the picker's own modal loop is fully unwound before the menu's begins.
   void MainWindow::reopenScriptFlyout() {
-    if (contextMenuAt_.isNull() || !canvas_ || !canvas_->hasImage()) return;
-    reopenScriptFlyout_ = true;
-    const QPoint at = contextMenuAt_;
+    if (contextMenuAt.isNull() || !canvas || !canvas->hasImage()) return;
+    reopenScriptFlyoutPending = true;
+    const QPoint at = contextMenuAt;
     QTimer::singleShot(0, this, [this, at] { showContextMenu(at); });
   }
 
@@ -128,7 +128,7 @@ namespace stencil::gui {
   void MainWindow::runScriptFromFile(const QString& path) {
     ChatPlanTarget target(*this);
     const ScriptRunResult result = runScriptFile(path, target);
-    reportRun(notify_, result);
+    reportRun(notify, result);
     if (result.ops > 0) refreshAfterScript();
   }
 

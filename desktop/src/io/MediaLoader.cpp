@@ -22,24 +22,24 @@ namespace stencil::gui {
 
   void MediaLoader::load(const QString& src, int frame) {
     cleanupVideo();
-    src_ = src;
-    frame_ = std::max(0, frame);
-    done_ = false;
-    isVideo_ = false;
-    thumbnail_ = QImage();
-    fps_ = 0;
-    durationMs_ = 0;
-    seekIssued_ = false;
+    this->src = src;
+    this->frame = std::max(0, frame);
+    done = false;
+    isVideo = false;
+    thumbnail = QImage();
+    fps = 0;
+    durationMs = 0;
+    seekIssued = false;
 
     // Resolve to a URL: an existing local file wins (so relative paths and odd names are not misread
     // as URLs); otherwise fromUserInput turns a bare "example.com/x.png" into a proper http URL.
     const QFileInfo fi(src);
     if (fi.exists()) {
-      localPath_ = fi.absoluteFilePath();
-      url_ = QUrl::fromLocalFile(localPath_);
+      localPath = fi.absoluteFilePath();
+      url = QUrl::fromLocalFile(localPath);
     } else {
-      localPath_.clear();
-      url_ = QUrl::fromUserInput(src);
+      localPath.clear();
+      url = QUrl::fromUserInput(src);
     }
     resolve();
   }
@@ -84,52 +84,52 @@ namespace stencil::gui {
   }
 
   void MediaLoader::resolve() {
-    if (!url_.isValid()) {
-      fail(QStringLiteral("Invalid --src: %1").arg(src_));
+    if (!url.isValid()) {
+      fail(QStringLiteral("Invalid --src: %1").arg(src));
       return;
     }
-    const bool video = looksLikeVideo(src_, url_);
+    const bool video = looksLikeVideo(src, url);
 
-    if (!isHttp(url_)) {
+    if (!isHttp(url)) {
       if (video) {
-        startVideo(url_);
+        startVideo(url);
         return;
       }
-      QImage img(localPath_.isEmpty() ? url_.toLocalFile() : localPath_);
+      QImage img(localPath.isEmpty() ? url.toLocalFile() : localPath);
       if (!img.isNull()) {
-        const QString path = localPath_;
-        done_ = true;
+        const QString path = localPath;
+        done = true;
         emit loaded(img, path);
         return;
       }
       // Extensionless or misdetected — give the media decoder a chance.
-      startVideo(url_);
+      startVideo(url);
       return;
     }
 
     // Remote URL — refuse an internal target before EITHER branch reaches it.
-    const QString why = guard::blockedReason(url_, /*strict=*/false);
+    const QString why = guard::blockedReason(url, /*strict=*/false);
     if (!why.isEmpty()) {
       fail(QStringLiteral("Could not fetch --src: %1").arg(why));
       return;
     }
     if (video) {
-      startVideo(url_);  // QMediaPlayer streams a direct media URL itself
+      startVideo(url);  // QMediaPlayer streams a direct media URL itself
       return;
     }
     // Unknown remote: download and try to decode as an image; if that fails,
     // fall back to treating the URL as streamable video.
-    const QUrl u = url_;
+    const QUrl u = url;
     guard::get(this, u, /*strict=*/false, [this, u](const QByteArray& bytes, const QString& err) {
-      if (done_) return;
+      if (done) return;
       QImage img;
       if (err.isEmpty() && img.loadFromData(bytes)) {
-        done_ = true;
+        done = true;
         emit loaded(img, QString());
         return;
       }
       startVideo(u);  // not an image (or no bytes): a media stream may still work
-      if (!player_ && !err.isEmpty()) fail(QStringLiteral("Could not fetch --src: %1").arg(err));
+      if (!player && !err.isEmpty()) fail(QStringLiteral("Could not fetch --src: %1").arg(err));
     });
   }
 }
