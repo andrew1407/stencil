@@ -1,3 +1,4 @@
+using Stencil.TelegramBot.Application.Llm.Plan;
 namespace Stencil.TelegramBot.Application.Llm;
 
 public sealed partial class PromptService

@@ -4,6 +4,10 @@ using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Configuration;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Stencil.TelegramBot.Bot.Telegram.Access;
+using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Bot.Telegram.Intake;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 

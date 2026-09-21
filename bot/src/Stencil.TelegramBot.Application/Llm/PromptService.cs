@@ -5,6 +5,8 @@ using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
+using Stencil.TelegramBot.Domain.Llm.Wire;
+using Stencil.TelegramBot.Application.Llm.Plan;
 
 namespace Stencil.TelegramBot.Application.Llm;
 

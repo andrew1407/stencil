@@ -4,7 +4,7 @@ using Stencil.TelegramBot.Infrastructure.Server;
 namespace Stencil.TelegramBot.Infrastructure.Links;
 
 // The Telegram ?start= payload: "1" + base64url("host[:port]|projectId"), unpadded, capped at 64 chars.
-// The identical codec lives in browser/js/core/deepLink.js and desktop/src/app/deepLink.cpp.
+// The identical codec lives in browser/js/core/launch/deepLink.js and desktop/src/io/deepLink.cpp.
 public static class DeepLinkCodec
 {
     // Telegram's cap, charset [A-Za-z0-9_-].
