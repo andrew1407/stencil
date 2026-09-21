@@ -7,6 +7,9 @@ using Stencil.TelegramBot.Infrastructure.Workspace;
 using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
+using Stencil.TelegramBot.Bot.Telegram.Access;
+using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Tests;
 

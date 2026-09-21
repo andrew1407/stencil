@@ -7,7 +7,7 @@ project to browser-compatible layout JSON, and coercing whatever the caller pass
 import json
 import os
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from ..layout import Layout, Line
 from ..scriptpaths import is_url
 from ._snapshot import _Snapshot, LayoutLike

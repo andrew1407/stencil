@@ -9,7 +9,7 @@ through :mod:`pystencil.codecs` (pure-Python PNG/BMP); the core stays codec-free
 by design, exactly like the browser/wasm and Zig CLI front-ends.
 """
 
-from ._types import NoneType
+from ._ffi.types import NoneType
 from . import codecs
 
 

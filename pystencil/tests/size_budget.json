@@ -1,13 +1,6 @@
 {
+  "_dirsNote": "A test folder mirrors the source it covers, and a case that spans modules has no one home, so tests/ is frozen at today's count rather than split by kind.",
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
-  "maxNewFileLines": 230,
-  "files": {
-    "pystencil/pystencil/core.py": 146,
-    "pystencil/pystencil/layout.py": 193,
-    "pystencil/tests/test_editor.py": 143,
-    "pystencil/tests/test_image.py": 144,
-    "pystencil/tests/test_projectfile.py": 132
-  },
   "commentPct": {
     "pystencil": 4,
     "pystencil/pystencil": 2,
@@ -21,5 +14,17 @@
     "pystencil/pystencil/sitesource": 3,
     "pystencil/tests": 4
   },
-  "exceptions": {}
+  "dirs": {
+    "pystencil/tests": 88
+  },
+  "exceptions": {},
+  "files": {
+    "pystencil/pystencil/core.py": 146,
+    "pystencil/pystencil/layout.py": 193,
+    "pystencil/tests/test_editor.py": 143,
+    "pystencil/tests/test_image.py": 144,
+    "pystencil/tests/test_projectfile.py": 132
+  },
+  "maxFilesPerDir": 12,
+  "maxNewFileLines": 230
 }

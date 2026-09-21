@@ -39,7 +39,7 @@ public sealed class BotOptionsTests
     [Fact]
     public void Should_Follow_The_Contract_For_Llm_Defaults()
     {
-        Stencil.TelegramBot.Domain.Llm.LlmOptions llm = new BotOptions().Llm;
+        Stencil.TelegramBot.Domain.Llm.Wire.LlmOptions llm = new BotOptions().Llm;
         Assert.Equal("ollama", llm.Provider);
         Assert.Equal("http://localhost:11434", llm.BaseUrl);
         Assert.Equal("", llm.Model);

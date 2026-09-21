@@ -11,7 +11,7 @@ batch one.
 from dataclasses import dataclass, field
 
 from ._script import Diagnostic, Diagnostics, Script, ScriptError, parse_script
-from ._types import NoneType
+from ._ffi.types import NoneType
 from .editor import Editor
 from .editor.script import ScriptResult
 from .scriptpaths import expand_source, read_script

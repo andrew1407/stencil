@@ -15,6 +15,8 @@ using Stencil.TelegramBot.Infrastructure.DependencyInjection;
 using Stencil.TelegramBot.Infrastructure.Llm;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Telegram.Bot;
+using Stencil.TelegramBot.Bot.Telegram.Sync;
+using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Tests;
 

@@ -10,7 +10,7 @@ this type instead of each destructuring an anonymous tuple. Port of the Zig CLI'
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 
 def _is_int(tok: str) -> bool:

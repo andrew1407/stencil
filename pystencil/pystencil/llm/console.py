@@ -7,8 +7,8 @@ applier that calls them, and the helpers that guard and describe console state.
 from dataclasses import dataclass
 from typing import Any, Sequence
 
-from .._types import NoneType
-from .frame import _FrameMap
+from .._ffi.types import NoneType
+from .plan.frame import _FrameMap
 from .types import OpPlan
 
 Messages = Sequence[dict]

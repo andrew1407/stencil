@@ -31,7 +31,7 @@ the core leaves out — codecs, HTTP, JSON, the edit/history model, the server p
 ## Layers
 
 `_native.py` + `core.py` → `image.py`, `codecs/`, `layout.py`, `scriptpaths.py` →
-`editor/` → `llm/`, `script.py`, `server/`, `sitesource/` → `cli/`. `_net.py` is the single
+`editor/` → `llm/` (+ `plan/`), `script.py`, `server/`, `sitesource/` → `cli/`. `_net.py` is the single
 fetch guard every network path goes through. The other `_`-prefixed helpers sit with `_native` at the bottom. Enforced by
 `tests/test_layer_boundary.py`, an AST import-direction lint over the package; its two
 `editor → llm` crossings (`assistant.py`, `project.py`) are an explicit allowance in that test.
@@ -41,14 +41,14 @@ fetch guard every network path goes through. The other `_`-prefixed helpers sit 
 | Path | Holds | Rule |
 |---|---|---|
 | `build.py` | compiles `core/` + `cliApi.cpp` into the shared lib | its source list mirrors `STENCIL_CORE_SOURCES`; rebuilds when any source **or header** is newer than the artifact |
-| `pystencil/_native.py`, `core.py`, `_rasterops.py`, `_bindings.py`, `_marshal.py` | locate → (lazily) build → load; `class Core` (scalar half) + the pixel-buffer half; the `argtypes`/`restype` table; the C-view marshalling and buffer guards | every ABI function gets an explicit `argtypes`/`restype` row; bytes move as flat RGBA8 buffers and C strings |
-| `pystencil/_net.py`, `_parallel.py` | the one fetch guard (scheme, SSRF, redirects, size cap); the one bounded fan-out | fan-out results land in submission order so output matches a serial run |
+| `pystencil/_native.py`, `core.py`, `_raster/` (`ops.py`, `parallel.py`), `_ffi/` (`bindings.py`, `marshal.py`, `coerce.py`, `types.py`) | locate → (lazily) build → load; `class Core` (scalar half) + the pixel-buffer half; the `argtypes`/`restype` table; the C-view marshalling and buffer guards | every ABI function gets an explicit `argtypes`/`restype` row; bytes move as flat RGBA8 buffers and C strings |
+| `pystencil/_net.py`, `_raster/parallel.py` | the one fetch guard (scheme, SSRF, redirects, size cap); the one bounded fan-out | fan-out results land in submission order so output matches a serial run |
 | `pystencil/_script.py`, `_scripttypes.py`, `scriptpaths.py`, `script.py` | the `.stc` handle over `stencil_cli_script*`; the handle-free value types it reads out (twin of `core/script/scriptTypes.hpp`); which file a script is read from, what a `@source` names and where a `@save` writes; the whole-file block loop | the core lowers, the adapter opens — directory listing, the one-segment glob, the `-stencil` rule, the two `..` refusals and the png/bmp `save_format` fallback live outside `core/`, each spelled once |
-| `pystencil/_severity.py`, `_types.py` | the `error: ` / `note: ` prefixes (twin of `cli/src/app/logo.zig`); the 3.9 `NoneType` spelling | |
+| `pystencil/_severity.py`, `_ffi/types.py` | the `error: ` / `note: ` prefixes (twin of `cli/src/app/logo.zig`); the 3.9 `NoneType` spelling | |
 | `pystencil/_data/`, `_opschema/` | the embedded copies of `browser/js/config/llm/`; the registry-driven op-plan schema engine | copies are byte-pinned by `tests/test_canonical_drift.py` |
 | `pystencil/image.py`, `layout.py`, `codecs/` | the RGBA8 buffer, the camelCase layout dataclasses (tolerant coercion), pure-Python PNG/BMP | JPEG decoding belongs to the CLI |
 | `pystencil/editor/` | the chainable `Editor` over history, derive, project, layout_io, edits, script, assistant and source collaborators | the view is derived on demand (`rotate → crop → filter → rasterise`), memoised on a `revision`; history capped at 64 (`LIMITS.historyMax`), never evicting the pristine state |
-| `pystencil/llm/` | config · plan · registry · execute · client · chat | plans validate against `_opschema` before execution; execution calls `Editor` methods, never pixels |
+| `pystencil/llm/` (+ `plan/`) | config · client · chat, and under `plan/` the parse, registry, validation and execution halves | plans validate against `_opschema` before execution; execution calls `Editor` methods, never pixels |
 | `pystencil/server/` | `ServerConnection` + `ConnectionManager` (urllib REST) | mirrors `server/internal/protocol`; REST only, changes are polled |
 | `pystencil/sitesource/` | scraping: format · scan · filter · download · net | prints the shared stderr grammar (`cli/CONTRACT.md` §3) |
 | `pystencil/cli/` | `python -m pystencil`: the one-shot pipeline, the three script modes (`script.py`, `scriptplan.py`), the console I/O surface, `commands/` | each command is the twin of a `cli/src/console/handlers/` file |
@@ -140,7 +140,7 @@ classDiagram
 
 | Entity | What it is | Owned by / lifetime | Relates to |
 |---|---|---|---|
-| `Core` (`core.py` + `_rasterops.py`) | The typed ctypes wrapper over the `stencil_cli_*` ABI: scalar calls (colour, page, formula, duration) plus the RGBA8 kernels | One process singleton from `get_core()`, or injected into an `Editor`; holds the cached `CDLL` | Called by `Editor` and `Image.blank`; never holds pixels |
+| `Core` (`core.py` + `_raster/ops.py`) | The typed ctypes wrapper over the `stencil_cli_*` ABI: scalar calls (colour, page, formula, duration) plus the RGBA8 kernels | One process singleton from `get_core()`, or injected into an `Editor`; holds the cached `CDLL` | Called by `Editor` and `Image.blank`; never holds pixels |
 | `Image` (`image.py`) | A flat RGBA8 `bytearray` with its dimensions, the buffer shape the core reads and writes | Value type; the `Editor` keeps one pristine original and derives views | Encoded/decoded by `codecs/`; uploaded by `ServerConnection` |
 | `Layout` / `Line` / `Point` (`layout.py`) | The structured drawing payload: dimensions, lines, optional filter, crop, rotation, page and formula fields | Value dataclasses built by `Editor.layout()` or parsed from JSON | Cross-surface twin; the browser's `buildLayoutPayload` (`browser/js/core/layout.js`) is canonical |
 | `_Snapshot` (`editor/_snapshot.py`) | One editing state: rotation, crop rect in rotated-original space, filter mode + colour, drawn lines | Immutable-by-copy entries on the `Editor` history stack | Mirror of the CLI's `EditState` (`cli/src/console/session`) |
@@ -164,7 +164,7 @@ classDiagram
 | Observer | `_poll_loop` + `diff_projects` (`server/diff.py`) | REST only, so observation is a poll: `watch_projects(on_change)` fires `created`/`updated`/`deleted` events from list diffs |
 | Repository | `_ProjectApi` + `_FileApi` (`server/projects.py`, `server/files.py`); `_ProjectApi.save_project`/`open_project` (`editor/project.py`) | Server projects and the `.stencil` file behind method calls; the version-guarded write and the 409 conflict never leak past `ServerError` |
 | Chain of Responsibility | `_net._fetch` (`_net.py`) | `_is_http` → `_assert_fetchable` → `_NoRedirect` opener → `MAX_FETCH_BYTES` cap; each link refuses on its own |
-| Adapter | `bind` + `_marshal` (`_bindings.py`, `_marshal.py`); `LlmClient` (`llm/client.py`) | ctypes signatures and buffer views turn Python values into the C ABI's pointers and C strings; the client turns internal messages into each provider's JSON |
+| Adapter | `bind` + `_marshal` (`_ffi/bindings.py`, `_ffi/marshal.py`); `LlmClient` (`llm/client.py`) | ctypes signatures and buffer views turn Python values into the C ABI's pointers and C strings; the client turns internal messages into each provider's JSON |
 | Table-driven registry | `OP_REGISTRY` of `OpSpec` (`llm/registry.py`); `_Repl._TABLE`/`_HELP` from `@command` (`cli/registry.py`); `HANDLERS` (`editor/script.py`) and `ACTIONS` (`cli/scriptplan.py`) keyed by `Op.kind` | Validation, execution and the prompt bullets dispatch on one table; the verb table and `/help` come from one declaration; a lowered script op reaches its editor call or its plan action by lookup, never a kind chain |
 | Mixin composition | `Editor`, `ServerConnection`, `_Repl` | Each facade is a bare class plus `_*Api` / `_*Commands` mixins that share its state and nothing else |
 | Fixture walker / Golden pin | `tests/test_fixture_*.py` over `fixturebase.py`; `tests/test_text_goldens.py` over `tests/goldens/` | The canonical `browser/js/config/llm/fixtures/` corpus is walked verbatim; console and argparse text is byte-pinned |

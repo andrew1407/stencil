@@ -16,7 +16,7 @@ from __future__ import annotations
 import os
 from typing import TextIO
 
-from ._types import NoneType
+from ._ffi.types import NoneType
 
 _RESET = "\x1b[0m"
 _RED = "\x1b[1;38;2;239;68;68m"  # #ef4444 `error:` prefix

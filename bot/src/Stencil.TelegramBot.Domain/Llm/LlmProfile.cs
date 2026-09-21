@@ -1,3 +1,4 @@
+using Stencil.TelegramBot.Domain.Llm.Wire;
 namespace Stencil.TelegramBot.Domain.Llm;
 
 // A PICKER, deliberately: every endpoint comes from the operator's environment, never from a chat

@@ -6,6 +6,9 @@ using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
+using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
+using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Tests;
 

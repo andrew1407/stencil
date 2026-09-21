@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Llm;
 using Stencil.TelegramBot.Tests.Doubles;
+using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Tests;
 

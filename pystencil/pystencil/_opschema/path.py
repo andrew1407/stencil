@@ -11,7 +11,7 @@ import math
 import re
 from typing import Any
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 
 class SchemaError(Exception):

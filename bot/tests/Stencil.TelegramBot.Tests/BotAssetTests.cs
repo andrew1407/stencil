@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using Stencil.TelegramBot.Bot.Telegram;
+using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Bot.Telegram.Messaging;
 
 namespace Stencil.TelegramBot.Tests;
 

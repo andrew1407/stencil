@@ -5,7 +5,7 @@ from __future__ import annotations
 Pure predicates over :class:`MediaItem`; the page scan applies them in that order.
 """
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .format import MediaItem
 
 

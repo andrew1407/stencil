@@ -10,6 +10,7 @@ using Stencil.TelegramBot.Infrastructure.Media;
 using Stencil.TelegramBot.Infrastructure.Server;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;
+using Stencil.TelegramBot.Domain.Llm.Wire;
 
 namespace Stencil.TelegramBot.Infrastructure.DependencyInjection;
 

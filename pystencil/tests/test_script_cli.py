@@ -220,7 +220,7 @@ class ScriptPlanTests(_ScriptFixture):
     self.assertEqual([len(p["actions"]) for p in plans], [MAX_ACTIONS, 4])
 
   def test_max_actions_matches_the_canonical_op_registry(self):
-    from pystencil.llm import limits
+    from pystencil.llm.plan import limits
 
     self.assertEqual(MAX_ACTIONS, limits.MAX_ACTIONS)
 

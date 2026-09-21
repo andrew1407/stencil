@@ -6,8 +6,8 @@ console, and turning the user's numeric pick back into answer text.
 
 import re
 
-from .._types import NoneType
-from .limits import MAX_ASK_ANSWER
+from .._ffi.types import NoneType
+from .plan.limits import MAX_ASK_ANSWER
 from .types import AskCard
 
 def ask_answer_text(

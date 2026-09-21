@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Stencil.TelegramBot.Application.Llm;
+using Stencil.TelegramBot.Application.Llm.Plan;
 
 namespace Stencil.TelegramBot.Tests;
 

@@ -10,6 +10,10 @@ using Stencil.TelegramBot.Infrastructure.Links;
 using Stencil.TelegramBot.Infrastructure.Sessions;
 using Stencil.TelegramBot.Infrastructure.Workspace;
 using Stencil.TelegramBot.Tests.Doubles;
+using Stencil.TelegramBot.Bot.Telegram.Access;
+using Stencil.TelegramBot.Bot.Telegram.Commands;
+using Stencil.TelegramBot.Domain.Llm.Wire;
+using Stencil.TelegramBot.Bot.Telegram.Sync;
 
 namespace Stencil.TelegramBot.Tests;
 

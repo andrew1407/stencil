@@ -1,4 +1,5 @@
 using Stencil.TelegramBot.Bot.Telegram;
+using Stencil.TelegramBot.Bot.Telegram.Intake;
 
 namespace Stencil.TelegramBot.Tests;
 

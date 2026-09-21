@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 
 # Bound every REST call so a hostile/slow/hung server can't block the caller

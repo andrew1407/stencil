@@ -20,7 +20,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from ._parallel import map_parallel
+from ._raster.parallel import map_parallel
 
 
 # A browser-like User-Agent so plain static hosts (and CDNs that 403 the urllib default)

@@ -4,6 +4,8 @@ using System.Text.Json;
 using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Domain.Editing;
 using Xunit.Abstractions;
+using Stencil.TelegramBot.Application.Llm.Schema;
+using Stencil.TelegramBot.Application.Llm.Plan;
 
 namespace Stencil.TelegramBot.Tests;
 

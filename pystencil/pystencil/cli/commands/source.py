@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import urllib.parse
 
-from ..._types import NoneType
+from ..._ffi.types import NoneType
 from ... import _net
 from ...llm import MAX_UPLOAD_ATTACHMENTS, Chat
 from ...sitesource import scan_page

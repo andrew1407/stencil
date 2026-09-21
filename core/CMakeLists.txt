@@ -59,9 +59,9 @@ set(STENCIL_CORE_SOURCES
   script/scriptLineStyle.cpp
   script/scriptTemplates.cpp
   script/scriptUndo.cpp
-  script/scriptHistory.cpp
+  script/program/scriptHistory.cpp
   script/scriptLower.cpp
-  script/scriptProgram.cpp
+  script/program/scriptProgram.cpp
   script/scriptDump.cpp
 )
 
@@ -79,7 +79,8 @@ set(STENCIL_CORE_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/page
   ${CMAKE_CURRENT_SOURCE_DIR}/format
   ${CMAKE_CURRENT_SOURCE_DIR}/state
-  ${CMAKE_CURRENT_SOURCE_DIR}/script)
+  ${CMAKE_CURRENT_SOURCE_DIR}/script
+  ${CMAKE_CURRENT_SOURCE_DIR}/script/program)
 
 # ── stencil_core: the shared, GUI-free logic library (STL only) ───────────────
 add_library(stencil_core STATIC ${STENCIL_CORE_SOURCES})

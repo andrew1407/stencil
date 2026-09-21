@@ -9,7 +9,7 @@ import json
 import os
 from dataclasses import dataclass
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 
 MAX_ATTACHMENTS = 3
 

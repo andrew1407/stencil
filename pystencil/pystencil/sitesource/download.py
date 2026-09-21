@@ -7,7 +7,7 @@ import re
 import urllib.parse
 from typing import TextIO
 
-from .._types import NoneType
+from .._ffi.types import NoneType
 from .. import _net
 from .._severity import emit_error
 from .. import codecs
