@@ -226,7 +226,7 @@ classDiagram
    all reach the same `DrawingApp` methods via `window.stencil`; the facade is typed in
    `stencilApi.d.ts`.
 2. **wasm with a fallback.** Each module that calls the core keeps its JS body as the
-   fallback and the two match op-for-op (`tests/wasm-parity.test.js`). No `eval` /
+   fallback and the two match op-for-op (`tests/wasm/wasm-parity.test.js`). No `eval` /
    `new Function` anywhere.
 3. **`js/config/` is canonical.** A value another surface needs is a table here, never a
    literal in code.

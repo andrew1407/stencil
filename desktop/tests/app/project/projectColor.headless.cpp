@@ -1,0 +1,68 @@
+// Headless round-trip check for the per-project accent `color` field (fileStore::projectToJson <->
+// projectFromJson): the desktop emits and reads back the SAME "color" the browser/CLI/server carry, and
+// omits it from the JSON when empty so a plain project's bytes are unchanged. Mirrors the browser's
+// projectsStore color persistence and the server ProjectRecord.Color. Built only when Qt is present.
+#include "fileStore.hpp"
+#include <QCoreApplication>
+#include <QJsonObject>
+#include <cstdio>
+
+using namespace stencil::gui;
+
+#include "../../support/check.hpp"
+
+int main(int argc, char** argv) {
+  QCoreApplication app(argc, argv);
+
+  // A project with no colour → the "color" key is omitted (byte-stable with old files).
+  {
+    Project pr;
+    pr.meta.id = "p1";
+    pr.meta.name = "Bare";
+    const QJsonObject o = fileStore::projectToJson(pr);
+    check(!o.contains("color"), "empty colour: no color key emitted");
+    const Project r = fileStore::projectFromJson(o);
+    check(r.meta.color.empty(), "empty colour: round-trips empty");
+  }
+
+  // A project WITH a colour → emitted + round-trips unchanged (lower-case "#rrggbb").
+  {
+    Project pr;
+    pr.meta.id = "p2";
+    pr.meta.name = "Tinted";
+    pr.meta.color = "#3366ff";
+    const QJsonObject o = fileStore::projectToJson(pr);
+    check(o.value("color").toString() == "#3366ff", "colour emitted as #rrggbb");
+    const Project r = fileStore::projectFromJson(o);
+    check(r.meta.color == "#3366ff", "colour round-trips");
+  }
+
+  // A record missing the key (legacy / no-colour) parses to an empty colour.
+  {
+    QJsonObject o;
+    o["id"] = "p3";
+    o["name"] = "Legacy";
+    const Project r = fileStore::projectFromJson(o);
+    check(r.meta.color.empty(), "absent color key → empty colour");
+  }
+
+  // Provenance (fromFile): omitted when false, emitted + round-trips when true (drives the
+  // bronze projects-list outline for .stencil-opened projects).
+  {
+    Project bare;
+    bare.meta.id = "p4";
+    bare.meta.name = "Local";
+    check(!fileStore::projectToJson(bare).contains("fromFile"), "fromFile omitted when false");
+
+    Project fromFile;
+    fromFile.meta.id = "p5";
+    fromFile.meta.name = "FromStencil";
+    fromFile.meta.fromFile = true;
+    const QJsonObject o = fileStore::projectToJson(fromFile);
+    check(o.value("fromFile").toBool(), "fromFile emitted when true");
+    check(fileStore::projectFromJson(o).meta.fromFile, "fromFile round-trips");
+  }
+
+  std::printf("%s (%d failure(s))\n", failures ? "FAILED" : "OK", failures);
+  return failures ? 1 : 0;
+}

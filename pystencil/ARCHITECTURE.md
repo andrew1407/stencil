@@ -278,7 +278,7 @@ The suites are ports of their browser and CLI twins by subject (`test_editor*`,
 diagnostics and the load-bearing `err-*` naming — exactly as the C++ and browser walkers do.
 The other `test_fixture_*.py`
 walkers run the canonical `browser/js/config/llm/fixtures/` corpus through `fixturebase.py`,
-with `tests/fixture_overrides.json` naming this surface's deviations. `test_canonical_drift.py`
+with `tests/helpers/fixture_overrides.json` naming this surface's deviations. `test_canonical_drift.py`
 byte-pins the `_data/` copies, `test_build.py` the source list and the script ABI's ctypes
 signature rows, `test_layer_boundary.py` the import direction, and `tests/goldens/` the console `/help` and argparse text. The network is
 stubbed at the `_open` seam (`_StubClient`, `_StubConn`, `_MockLlmClient`), the editor at

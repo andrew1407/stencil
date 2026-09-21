@@ -44,5 +44,5 @@
     "mcp/src/server/tools/prompt/response.rs": "90 production lines; the rest is the inline #[cfg(test)] mod tests, which this ratchet measures separately (see _doc). Listed so the test half cannot grow either.",
     "mcp/src/server/mod.rs 140 -> 122": "The #[cfg(test)] testwire helpers moved to src/server/testwire.rs, so the file shrank even as stencil_script's #[tool] landed in it."
   },
-  "_dirsNote": "Cargo only discovers an integration test that sits directly in tests/, so that folder cannot be split; it is frozen at today's count and may only shrink."
+  "_dirsNote": "tests/ mirrors its source folder for folder. A module commonly carries several test files, so a mirrored test folder can sit above the source cap; helpers/ is shared by the whole suite and has no one feature, and Cargo can only see an integration test directly in tests/. These are frozen at today's counts and may only shrink."
 }

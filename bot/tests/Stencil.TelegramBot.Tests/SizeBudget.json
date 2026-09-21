@@ -1,5 +1,5 @@
 {
-  "_dirsNote": "A test folder mirrors the source it covers, and a case that spans modules has no one home, so the suite folder is frozen at today's count rather than split by kind.",
+  "_dirsNote": "tests/ mirrors its source folder for folder. A module commonly carries several test files, so a mirrored test folder can sit above the source cap; helpers/ is shared by the whole suite and has no one feature, and Cargo can only see an integration test directly in tests/. These are frozen at today's counts and may only shrink.",
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "commentPct": {
     "bot/src/Stencil.TelegramBot.Application/DependencyInjection": 9,
@@ -37,10 +37,33 @@
     "bot/src/Stencil.TelegramBot.Infrastructure/Sessions": 3,
     "bot/src/Stencil.TelegramBot.Infrastructure/Workspace": 3,
     "bot/tests/Stencil.TelegramBot.Tests": 4,
-    "bot/tests/Stencil.TelegramBot.Tests/Doubles": 12
+    "bot/tests/Stencil.TelegramBot.Tests/Cli": 3,
+    "bot/tests/Stencil.TelegramBot.Tests/Configuration": 4,
+    "bot/tests/Stencil.TelegramBot.Tests/Doubles": 12,
+    "bot/tests/Stencil.TelegramBot.Tests/Editing": 4,
+    "bot/tests/Stencil.TelegramBot.Tests/Editing/Script": 3,
+    "bot/tests/Stencil.TelegramBot.Tests/Fixtures": 5,
+    "bot/tests/Stencil.TelegramBot.Tests/Links": 8,
+    "bot/tests/Stencil.TelegramBot.Tests/Llm": 3,
+    "bot/tests/Stencil.TelegramBot.Tests/Llm/Conversation": 4,
+    "bot/tests/Stencil.TelegramBot.Tests/Llm/Plan": 5,
+    "bot/tests/Stencil.TelegramBot.Tests/Llm/Prompt": 5,
+    "bot/tests/Stencil.TelegramBot.Tests/Llm/Wire": 3,
+    "bot/tests/Stencil.TelegramBot.Tests/Media": 2,
+    "bot/tests/Stencil.TelegramBot.Tests/Project": 1,
+    "bot/tests/Stencil.TelegramBot.Tests/Server": 1,
+    "bot/tests/Stencil.TelegramBot.Tests/Servers": 4,
+    "bot/tests/Stencil.TelegramBot.Tests/Sessions": 1,
+    "bot/tests/Stencil.TelegramBot.Tests/Telegram": 4,
+    "bot/tests/Stencil.TelegramBot.Tests/Telegram/Access": 2,
+    "bot/tests/Stencil.TelegramBot.Tests/Telegram/Commands": 3,
+    "bot/tests/Stencil.TelegramBot.Tests/Telegram/Intake": 3,
+    "bot/tests/Stencil.TelegramBot.Tests/Telegram/Messaging": 4,
+    "bot/tests/Stencil.TelegramBot.Tests/Telegram/Sync": 2,
+    "bot/tests/Stencil.TelegramBot.Tests/Workspace": 5
   },
   "dirs": {
-    "bot/tests/Stencil.TelegramBot.Tests": 130
+    "bot/tests/Stencil.TelegramBot.Tests/Llm/Prompt": 20
   },
   "exceptions": {
     "_folderSplit": "Telegram/, Application/Llm/ and Domain/Llm/ were split into feature folders and the namespaces followed, so a consumer that used to see a type by enclosing scope now names one `using` for it. Six files grew by exactly those lines; their numbers were re-recorded, not exempted, so they still cannot grow. The two parent folders' comment share rose because the smaller files and their banners stayed behind while the bulk left — volume fell in both."
@@ -68,15 +91,15 @@
     "bot/src/Stencil.TelegramBot.Infrastructure/Configuration/BotOptions.cs": 104,
     "bot/src/Stencil.TelegramBot.Infrastructure/Llm/HttpLlmClient.cs": 170,
     "bot/src/Stencil.TelegramBot.Infrastructure/Server/HttpStencilServerClient.cs": 168,
-    "bot/tests/Stencil.TelegramBot.Tests/ChatModeTests.cs": 168,
-    "bot/tests/Stencil.TelegramBot.Tests/ChatPersistenceTests.cs": 110,
-    "bot/tests/Stencil.TelegramBot.Tests/CliArgvBuilderTests.cs": 200,
-    "bot/tests/Stencil.TelegramBot.Tests/CliOutcomeParserTests.cs": 125,
-    "bot/tests/Stencil.TelegramBot.Tests/EditingServiceTests.cs": 192,
-    "bot/tests/Stencil.TelegramBot.Tests/HttpLlmClientTests.cs": 81,
-    "bot/tests/Stencil.TelegramBot.Tests/HttpStencilServerClientTests.cs": 114,
-    "bot/tests/Stencil.TelegramBot.Tests/PromptHandlerTests.cs": 99,
-    "bot/tests/Stencil.TelegramBot.Tests/ServerServiceTests.cs": 149
+    "bot/tests/Stencil.TelegramBot.Tests/Cli/CliArgvBuilderTests.cs": 200,
+    "bot/tests/Stencil.TelegramBot.Tests/Cli/CliOutcomeParserTests.cs": 125,
+    "bot/tests/Stencil.TelegramBot.Tests/Editing/EditingServiceTests.cs": 192,
+    "bot/tests/Stencil.TelegramBot.Tests/Llm/Conversation/ChatModeTests.cs": 168,
+    "bot/tests/Stencil.TelegramBot.Tests/Llm/Conversation/ChatPersistenceTests.cs": 110,
+    "bot/tests/Stencil.TelegramBot.Tests/Llm/HttpLlmClientTests.cs": 81,
+    "bot/tests/Stencil.TelegramBot.Tests/Llm/Prompt/PromptHandlerTests.cs": 99,
+    "bot/tests/Stencil.TelegramBot.Tests/Server/HttpStencilServerClientTests.cs": 114,
+    "bot/tests/Stencil.TelegramBot.Tests/Servers/ServerServiceTests.cs": 149
   },
   "maxFilesPerDir": 12,
   "maxNewFileLines": 230

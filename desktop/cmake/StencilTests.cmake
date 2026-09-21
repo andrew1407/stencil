@@ -30,14 +30,14 @@ endfunction()
 stencil_headless_test(stencil_crop_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/cropCanvas.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
+    tests/dialogs/crop/cropCanvas.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # Modal-popover placement (support/popover.hpp) — the pure clamp behind the anchored
 # compact dialogs; header-only, so the test is the only extra compile unit.
 stencil_headless_test(stencil_popover_headless
-  SOURCES tests/popover.headless.cpp
+  SOURCES tests/support/tip/popover.headless.cpp
   LIBS Qt6::Core)
 
 # The theme wipe's easing (support/ThemeSwapOverlay.hpp) — header-only, so the test is
@@ -46,20 +46,20 @@ stencil_headless_test(stencil_popover_headless
 stencil_headless_test(stencil_themeswapease_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_THEMESWAP_SOURCES}
-    tests/themeSwapEase.headless.cpp tests/themeSwapEaseDust.headless.cpp
+    tests/support/theme/themeSwapEase.headless.cpp tests/support/theme/themeSwapEaseDust.headless.cpp
   LIBS Qt6::Widgets)
 
 # The shared window-height ease (support/easeWindowHeight.hpp): the Assistant settings
 # form rides it on a provider swap. Header-only, so the test IS its only compile unit.
 stencil_headless_test(stencil_easewindowheight_headless
-  SOURCES tests/easeWindowHeight.headless.cpp
+  SOURCES tests/support/easeWindowHeight.headless.cpp
   LIBS Qt6::Widgets)
 
 # Rich control tooltips (support/tipContent.cpp) — the desktop port of the browser's
 # tip/content.js, carrying that suite's parse/render cases. Needs theme.cpp for the palette.
 stencil_headless_test(stencil_tipcontent_headless
-  SOURCES tests/tipContent.headless.cpp tests/tipContentParse.headless.cpp
-    tests/tipContentRender.headless.cpp tests/tipContentCompose.headless.cpp
+  SOURCES tests/support/tip/tipContent.headless.cpp tests/support/tip/tipContentParse.headless.cpp
+    tests/support/tip/tipContentRender.headless.cpp tests/support/tip/tipContentCompose.headless.cpp
     ${STENCIL_TIPCONTENT_SOURCES} ${STENCIL_THEME_SOURCES}
     resources/app.qrc
   LIBS Qt6::Widgets)
@@ -68,7 +68,7 @@ stencil_headless_test(stencil_tipcontent_headless
 # parse, and the vocabulary it disagrees with core on. Header-only, but it resolves
 # through core::parseColor so the screen and the export path read a colour the same way.
 stencil_headless_test(stencil_csscolor_headless
-  SOURCES tests/cssColor.headless.cpp
+  SOURCES tests/support/theme/cssColor.headless.cpp
   LIBS stencil_core Qt6::Gui)
 
 # Closing a shape and the ways back out of one (canvas/draw/chainEdit.hpp) — the ring
@@ -76,7 +76,7 @@ stencil_headless_test(stencil_csscolor_headless
 stencil_headless_test(stencil_chainedit_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/chainEdit.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
+    tests/canvas/draw/chainEdit.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -86,7 +86,7 @@ stencil_headless_test(stencil_chainedit_headless
 stencil_headless_test(stencil_strokegrowth_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/strokeGrowth.headless.cpp tests/strokeGrowthCanvas.headless.cpp
+    tests/canvas/draw/strokeGrowth.headless.cpp tests/canvas/draw/strokeGrowthCanvas.headless.cpp
     ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
@@ -94,43 +94,43 @@ stencil_headless_test(stencil_strokegrowth_headless
 # Fullscreen band + zoom-handoff arithmetic (app/FullscreenController.hpp) — the edge
 # hysteresis and the viewport ratio; header-only, so the test is the only compile unit.
 stencil_headless_test(stencil_fullscreencontroller_headless
-  SOURCES tests/FullscreenController.headless.cpp
+  SOURCES tests/app/view/FullscreenController.headless.cpp
   LIBS Qt6::Core)
 
 # Persistence gates + debounces (app/SessionController.hpp) — what stops a write, and
 # that a burst of edits coalesces into one; header-only, so the test is the only unit.
 stencil_headless_test(stencil_sessioncontroller_headless
-  SOURCES tests/SessionController.headless.cpp
+  SOURCES tests/app/remote/SessionController.headless.cpp
   LIBS Qt6::Core)
 
 # What a press outside an open compact popover means (app/PopoverHost.hpp) — including
 # the logo/accent exception; header-only, so the test is the only compile unit.
 stencil_headless_test(stencil_popoverhost_headless
-  SOURCES tests/PopoverHost.headless.cpp
+  SOURCES tests/app/events/PopoverHost.headless.cpp
   LIBS Qt6::Widgets)
 
 # The project-name group's chip visibility (app/ProjectNameBar.hpp) — which of ✓/✗/✎/🎨
 # belong in the header row per state; header-only, so the test is the only compile unit.
 stencil_headless_test(stencil_projectnamebar_headless
-  SOURCES tests/ProjectNameBar.headless.cpp
+  SOURCES tests/app/project/ProjectNameBar.headless.cpp
   LIBS Qt6::Core)
 
 # Display-unit and px→cm arithmetic (app/UnitsController.hpp) — the twin of the browser's
 # units.js length rule; header-only, so the test is the only compile unit.
 stencil_headless_test(stencil_unitscontroller_headless
-  SOURCES tests/UnitsController.headless.cpp
+  SOURCES tests/app/view/UnitsController.headless.cpp
   LIBS Qt6::Core)
 
 # Scroll-reveal curve (support/scrollReveal.hpp) — how dim a row is at a given spot in its
 # scroller; header-only, so the test is the only extra compile unit.
 stencil_headless_test(stencil_scrollreveal_headless
-  SOURCES tests/scrollReveal.headless.cpp
+  SOURCES tests/support/motion/scrollReveal.headless.cpp
   LIBS Qt6::Widgets)
 
 # Name display-shortening (support/displayName.hpp) — the middle-ellipsis behind the
 # project dialogs/notifications; header-only, so the test is the only extra compile unit.
 stencil_headless_test(stencil_displayname_headless
-  SOURCES tests/displayName.headless.cpp
+  SOURCES tests/support/displayName.headless.cpp
   LIBS Qt6::Core)
 
 # The toggle face swap (support/faceSwap.hpp) — the shared exchange behind Draw's
@@ -139,7 +139,7 @@ stencil_headless_test(stencil_displayname_headless
 stencil_headless_test(stencil_faceswap_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/faceSwap.headless.cpp ${STENCIL_FACESWAP_SOURCES}
+    tests/support/theme/faceSwap.headless.cpp ${STENCIL_FACESWAP_SOURCES}
     src/support/icon/iconSet.cpp       # the glyphs it turns
     src/support/modal/modalReveal.cpp   # motionReduced()
     resources/app.qrc
@@ -156,8 +156,8 @@ stencil_headless_test(stencil_controlswap_headless
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_CONTROLSWAP_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/controlSwap.headless.cpp tests/controlSwapCheck.headless.cpp
-    tests/controlSwapValue.headless.cpp tests/controlSwapReduced.headless.cpp
+    tests/support/control/swap/controlSwap.headless.cpp tests/support/control/swap/controlSwapCheck.headless.cpp
+    tests/support/control/swap/controlSwapValue.headless.cpp tests/support/control/swap/controlSwapReduced.headless.cpp
     ${STENCIL_THEME_SOURCES} src/support/icon/iconSet.cpp
     ${STENCIL_FACESWAP_SOURCES} src/support/menu/menuReveal.cpp src/support/modal/modalReveal.cpp
     resources/app.qrc
@@ -172,8 +172,8 @@ stencil_headless_test(stencil_iconmotion_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_ICONMOTION_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/iconMotion.headless.cpp tests/iconMotionCanon.headless.cpp
-    tests/iconMotionGlyphs.headless.cpp tests/iconMotionDriver.headless.cpp
+    tests/support/icon/iconMotion.headless.cpp tests/support/icon/iconMotionCanon.headless.cpp
+    tests/support/icon/iconMotionGlyphs.headless.cpp tests/support/icon/iconMotionDriver.headless.cpp
     src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
     ${STENCIL_FACESWAP_SOURCES} resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg
@@ -199,36 +199,23 @@ target_link_libraries(stencil_gui_objs PUBLIC stencil_core Qt6::Widgets Qt6::Net
 # grow-from-the-icon flight (support/modalReveal) is off here — it would resize the
 # window under the test for its first ~200 ms, which is exactly the kind of timing the
 # suite must not depend on.
-foreach(area canvas canvasBar canvasBlank canvasChain canvasFilter canvasScroll canvasSelect
-             chatCards chatCardsScroll chatCardsShape chatCompact chatCompactOverflow
-             chatCompactShimmer chatCompactSwap chatCompactToast chatDock chatDockClose
-             chatDockDrag chatDockEdge chatDockPlace chatPanel chatPanelChrome chatPanelMenu
-             chatPanelOpen chatPanelSync chatTurns chatTurnsAttach chatTurnsBubble
-             chatTurnsCards chatTurnsClear chatTurnsClearCards chatTurnsContinue
-             chatTurnsDoc chatTurnsEdgeMap chatTurnsLayout chatTurnsMenu chatTurnsPlan
-             chatTurnsProjects chatTurnsRowMenu chatTurnsViewport chrome
-             chromeFormula chromeFullscreen chromeIncognito chromeIncognitoToggle chromeName
-             chromeNameRing chromeShortcuts composition logoStage logoStageChase menuKeys menuKeysFlyout
-             menuKeysScript menuKeysTint menus menusAltHold menusAssistantRows menusCanvas
-             menusChips menusComposer menusConverse menusExport menusOpening menusPill
-             menusRows menusScript motion motionDialogs motionGlyphs motionReveal
-             motionSurfaces openImage openImageCrop openImageCropEdit openImageCropOrient
-             openImageCropState openImageDust openImageFit openImageReadout popover projects
-             projectsFile projectsGestures projectsRemove projectsRows projectsView theme
-             themeAccentClose themeAccentFocus themeAccentKeep themeAccentPick
-             themeAccentRow themeDropHint themeSwap toolbar toolbarCompare
-             toolbarDescription toolbarDraw toolbarDrawPaint toolbarExport toolbarFill
-             toolbarInk toolbarLayout toolbarSettings tooltips tooltipsCursor tooltipsFade
-             tooltipsKeycaps)
-  string(TOLOWER ${area} _area_lc)
+# The areas are read off disk: each MainWindow.<area>.gui.cpp sits in the tests/ folder
+# named for the source it drives, so the list cannot drift from the files. A dropped file
+# shows up in the test-count floor, which parses the generated CTestTestfile.cmake.
+file(GLOB_RECURSE _mw_gui CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_SOURCE_DIR}/tests/MainWindow.*.gui.cpp)
+foreach(_src IN LISTS _mw_gui)
+  get_filename_component(_name ${_src} NAME)
+  string(REGEX REPLACE "^MainWindow\\.(.+)\\.gui\\.cpp$" "\\1" _area ${_name})
+  string(TOLOWER ${_area} _area_lc)
   stencil_headless_test(stencil_mainwindow_${_area_lc}_gui
-    SOURCES tests/MainWindow.${area}.gui.cpp
+    SOURCES ${_src}
     LIBS stencil_gui_objs Qt6::Test
     ENV STENCIL_NO_ANIM=1)
 endforeach()
 
 stencil_headless_test(stencil_cropfit_headless
-  SOURCES tests/cropPreviewFitBox.headless.cpp
+  SOURCES tests/dialogs/crop/cropPreviewFitBox.headless.cpp
   LIBS stencil_gui_objs Qt6::Widgets)
 
 # The use-case screenshot capture behind usecases/docs/desktop/img (usecases/capture-runner/desktop):
@@ -250,7 +237,7 @@ endif()
 # and are cancelled when it leaves — QMenu::hovered re-fires and climbs the caused stack, so
 # neither can be driven straight off it. Drives a real QMenu, so it links the GUI objects.
 stencil_headless_test(stencil_menuhover_headless
-  SOURCES tests/menuHover.headless.cpp
+  SOURCES tests/support/menu/menuHover.headless.cpp
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
@@ -258,7 +245,7 @@ stencil_headless_test(stencil_menuhover_headless
 # browser sheet they are a port of: the chips and the composer are the chat panel at MENU
 # scale there, and the dock keeps its own, larger, chip.
 stencil_headless_test(stencil_chatmenupanel_headless
-  SOURCES tests/chatMenuPanel.headless.cpp
+  SOURCES tests/llm/panel/chatMenuPanel.headless.cpp
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
@@ -280,7 +267,7 @@ set_tests_properties(stencil_uipins_hidpi_headless PROPERTIES
 stencil_headless_test(stencil_holddraw_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/holdDrawCanvas.headless.cpp tests/holdDrawSelection.headless.cpp ${STENCIL_CANVAS_SOURCES}
+    tests/canvas/holdDrawCanvas.headless.cpp tests/canvas/holdDrawSelection.headless.cpp ${STENCIL_CANVAS_SOURCES}
     src/canvas/overlay/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -289,7 +276,7 @@ stencil_headless_test(stencil_holddraw_headless
 stencil_headless_test(stencil_image_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/imageFixture.headless.cpp tests/imageFixtureInk.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
+    tests/canvas/imageFixture.headless.cpp tests/canvas/imageFixtureInk.headless.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     src/canvas/overlay/IncognitoOverlay.cpp src/support/icon/iconSet.cpp src/support/control/numericInput.cpp
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   DEFS "STENCIL_FIXTURES_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures\""
@@ -298,27 +285,27 @@ stencil_headless_test(stencil_image_headless
 # Layout-envelope test: the page format + x/y formulas round-trip through
 # fileStore::buildLayoutJson <-> parseLayoutMeta (server save/load parity with browser + CLI).
 stencil_headless_test(stencil_layout_headless
-  SOURCES tests/layoutMeta.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+  SOURCES tests/io/layoutMeta.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # fileStore::projectToJson <-> projectFromJson per-project `color` round-trip
 # (browser/server colour-persistence parity).
 stencil_headless_test(stencil_projectcolor_headless
-  SOURCES tests/projectColor.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+  SOURCES tests/app/project/projectColor.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # Per-project keywords persistence round-trip (browser/server keywords parity).
 stencil_headless_test(stencil_projectkeywords_headless
-  SOURCES tests/projectKeywords.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+  SOURCES tests/app/project/projectKeywords.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # .stencil portable project file round-trip (fileStore::buildProjectFile <-> parseProjectFile):
 # image + layout + metadata + optional theme, cross-surface parity with browser project/file.js.
 stencil_headless_test(stencil_projectfile_headless
-  SOURCES tests/projectFile.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+  SOURCES tests/app/project/projectFile.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -328,7 +315,7 @@ stencil_headless_test(stencil_projectfile_headless
 stencil_headless_test(stencil_projecttransfer_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/projectTransfer.headless.cpp src/app/project/ProjectTransferController.cpp src/app/project/ProjectTransferImport.cpp
+    tests/app/project/projectTransfer.headless.cpp src/app/project/ProjectTransferController.cpp src/app/project/ProjectTransferImport.cpp
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/overlay/IdleCard.cpp
     ${STENCIL_THEME_SOURCES} src/support/notify/Notifications.cpp src/support/notify/NotificationsStack.cpp src/support/icon/iconSet.cpp
     src/support/logo/logoStageRules.cpp
@@ -341,14 +328,14 @@ stencil_headless_test(stencil_projecttransfer_headless
 # deepLink.test.js and the bot's DeepLinkCodecTests.cs) + the browser-fragment
 # URL builder's percent-encoding.
 stencil_headless_test(stencil_deeplink_headless
-  SOURCES tests/deepLink.headless.cpp src/io/deepLink.cpp src/app/open/launchOptions.cpp
+  SOURCES tests/io/deepLink.headless.cpp src/io/deepLink.cpp src/app/open/launchOptions.cpp
     ${STENCIL_SERVERCLIENT_SOURCES}
   LIBS stencil_core Qt6::Network)
 
 # Live push-feed check (net/liveFeed) — drives LiveFeed against a mock QTcpServer that
 # speaks the NDJSON project-events protocol. Links Qt6::Network for QTcpServer/QTcpSocket.
 stencil_headless_test(stencil_livefeed_headless
-  SOURCES tests/LiveFeed.headless.cpp src/net/LiveFeed.cpp ${STENCIL_SERVERCLIENT_SOURCES}
+  SOURCES tests/net/LiveFeed.headless.cpp src/net/LiveFeed.cpp ${STENCIL_SERVERCLIENT_SOURCES}
   LIBS stencil_core Qt6::Network)
 
 # Toast coalescing (support/notifications): identical texts refresh the standing
@@ -356,7 +343,7 @@ stencil_headless_test(stencil_livefeed_headless
 stencil_headless_test(stencil_notifications_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/Notifications.headless.cpp src/support/notify/Notifications.cpp src/support/notify/NotificationsStack.cpp
+    tests/support/notify/Notifications.headless.cpp src/support/notify/Notifications.cpp src/support/notify/NotificationsStack.cpp
     src/support/logo/logoStageRules.cpp
     src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp   # the toast dust flight needs motionReduced()
@@ -373,9 +360,9 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/connectRow.headless.cpp tests/connectRowLayout.headless.cpp
-    tests/connectRowMotion.headless.cpp tests/connectRowEdges.headless.cpp
-    tests/connectRowConnect.headless.cpp tests/connectRowToast.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    tests/dialogs/connect/connectRow.headless.cpp tests/dialogs/connect/connectRowLayout.headless.cpp
+    tests/dialogs/connect/connectRowMotion.headless.cpp tests/dialogs/connect/connectRowEdges.headless.cpp
+    tests/dialogs/connect/connectRowConnect.headless.cpp tests/dialogs/connect/connectRowToast.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     ${STENCIL_CONNECTDIALOG_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
@@ -393,8 +380,8 @@ stencil_headless_test(stencil_connectrow_headless
 stencil_headless_test(stencil_modalchrome_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/modalChrome.headless.cpp tests/modalChromePrompt.headless.cpp
-    tests/modalChromeFooter.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    tests/support/modal/modalChrome.headless.cpp tests/support/modal/modalChromePrompt.headless.cpp
+    tests/support/modal/modalChromeFooter.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/meta/OpenInDialog.cpp src/io/deepLink.cpp
     ${STENCIL_SERVERCLIENT_SOURCES}      # deepLink's origin normalisation
     src/support/icon/iconSet.cpp
@@ -407,7 +394,7 @@ stencil_headless_test(stencil_modalchrome_headless
 stencil_headless_test(stencil_modalheaderdrag_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/modalHeaderDrag.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    tests/support/modal/modalHeaderDrag.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/support/icon/iconSet.cpp
     src/support/modal/modalReveal.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
@@ -418,7 +405,7 @@ stencil_headless_test(stencil_modalheaderdrag_headless
 stencil_headless_test(stencil_projectmeta_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/projectMetaDialogs.headless.cpp src/dialogs/meta/DescriptionDialog.cpp
+    tests/dialogs/meta/projectMetaDialogs.headless.cpp src/dialogs/meta/DescriptionDialog.cpp
     src/dialogs/meta/keywords/KeywordsDialog.cpp src/dialogs/meta/keywords/KeywordChips.cpp
     src/dialogs/meta/keywords/KeywordChipsMotion.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp
@@ -428,7 +415,7 @@ stencil_headless_test(stencil_projectmeta_headless
 
 # The window backdrop (support/ModalBackdrop): the browser's scrim + blur, on its switch.
 stencil_headless_test(stencil_modalbackdrop_headless
-  SOURCES tests/modalBackdrop.headless.cpp
+  SOURCES tests/support/modal/modalBackdrop.headless.cpp
   LIBS stencil_core Qt6::Widgets)
 
 # The keywords FIELD (dialogs/KeywordChips): add / move-to-front / ✕ / Clear all, and the
@@ -436,7 +423,7 @@ stencil_headless_test(stencil_modalbackdrop_headless
 stencil_headless_test(stencil_keywordchips_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/keywordChips.headless.cpp
+    tests/dialogs/meta/keywords/keywordChips.headless.cpp
     src/dialogs/meta/keywords/KeywordsDialog.cpp src/dialogs/meta/keywords/KeywordChips.cpp
     src/dialogs/meta/keywords/KeywordChipsMotion.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp
@@ -452,9 +439,9 @@ stencil_headless_test(stencil_serverauth_headless
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/serverAuth.headless.cpp tests/serverAuthClassify.headless.cpp
-    tests/serverAuthKind.headless.cpp tests/serverAuthRemint.headless.cpp
-    tests/serverAuthInvite.headless.cpp tests/serverAuthAdmin.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    tests/net/serverAuth.headless.cpp tests/net/serverAuthClassify.headless.cpp
+    tests/net/serverAuthKind.headless.cpp tests/net/serverAuthRemint.headless.cpp
+    tests/net/serverAuthInvite.headless.cpp tests/net/serverAuthAdmin.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     ${STENCIL_CONNECTDIALOG_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
@@ -478,9 +465,9 @@ stencil_headless_test(stencil_projectsbatch_headless
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_APPTOOLTIP_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/ProjectsBatchBar.headless.cpp tests/ProjectsBatchBarRows.headless.cpp
-    tests/ProjectsBatchBarBar.headless.cpp tests/ProjectsBatchBarRemove.headless.cpp
-    tests/ProjectsBatchBarFilter.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    tests/dialogs/projects/list/ProjectsBatchBar.headless.cpp tests/dialogs/projects/list/ProjectsBatchBarRows.headless.cpp
+    tests/dialogs/projects/list/ProjectsBatchBarBar.headless.cpp tests/dialogs/projects/list/ProjectsBatchBarRemove.headless.cpp
+    tests/dialogs/projects/list/ProjectsBatchBarFilter.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     ${STENCIL_TIPCONTENT_SOURCES}   # the rows' rich tooltips (AppTooltip.hpp calls into it)
     ${STENCIL_PROJECTS_DIALOG_SOURCES}
     src/dialogs/meta/ExpirationDialog.cpp src/dialogs/meta/ExpirationDialogCalendar.cpp  # the ⋯ menu's "Expiration…" opens it in place now
@@ -501,7 +488,7 @@ stencil_headless_test(stencil_projectsdialogrows_headless
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_APPTOOLTIP_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/ProjectsDialogRows.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    tests/dialogs/projects/list/ProjectsDialogRows.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     ${STENCIL_TIPCONTENT_SOURCES}   # the rows' rich tooltips (AppTooltip.hpp calls into it)
     ${STENCIL_PROJECTS_DIALOG_SOURCES}
     src/dialogs/meta/ExpirationDialog.cpp src/dialogs/meta/ExpirationDialogCalendar.cpp  # the ⋯ menu's "Expiration…" opens it in place now
@@ -519,17 +506,17 @@ stencil_headless_test(stencil_projectsdialogrows_headless
 # connections as two editors (self-skips when no server is reachable — point it at one
 # with STENCIL_TEST_SERVER, default http://localhost:8090). Qt6::Gui for QImage decode.
 stencil_headless_test(stencil_coedit_headless
-  SOURCES tests/coEdit.headless.cpp ${STENCIL_SERVERCLIENT_SOURCES}
+  SOURCES tests/net/coEdit.headless.cpp ${STENCIL_SERVERCLIENT_SOURCES}
   LIBS stencil_core Qt6::Gui Qt6::Network)
 
 # LLM op-plan parser check (src/llm/opPlan) — the llm-contract.md §1-2
 # parse matrix (extraction tolerance, strict per-op validation, limits).
 stencil_headless_test(stencil_llmopplan_headless
-  SOURCES tests/llmOpPlan.headless.cpp tests/llmOpPlanExtract.headless.cpp
-    tests/llmOpPlanCrop.headless.cpp tests/llmOpPlanShapes.headless.cpp
-    tests/llmOpPlanPage.headless.cpp tests/llmOpPlanSettings.headless.cpp
-    tests/llmOpPlanProjects.headless.cpp tests/llmOpPlanRows.headless.cpp
-    tests/llmOpPlanImages.headless.cpp tests/llmOpPlanAsk.headless.cpp
+  SOURCES tests/llm/plan/llmOpPlan.headless.cpp tests/llm/plan/llmOpPlanExtract.headless.cpp
+    tests/llm/plan/llmOpPlanCrop.headless.cpp tests/llm/plan/llmOpPlanShapes.headless.cpp
+    tests/llm/plan/llmOpPlanPage.headless.cpp tests/llm/plan/llmOpPlanSettings.headless.cpp
+    tests/llm/plan/llmOpPlanProjects.headless.cpp tests/llm/plan/llmOpPlanRows.headless.cpp
+    tests/llm/plan/llmOpPlanImages.headless.cpp tests/llm/plan/llmOpPlanAsk.headless.cpp
     ${STENCIL_OPPLAN_SOURCES} ${STENCIL_OPREGISTRY_SOURCES}
     ${STENCIL_OPSCHEMA_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Core)
@@ -544,7 +531,7 @@ set(STENCIL_FIXTURE_WALKER_DEFS
 # through the real desktop parseOpPlan, honouring knownDivergence.desktop and
 # the local override map (the desktop drift inventory).
 stencil_headless_test(stencil_opplanfixtures_headless
-  SOURCES tests/opPlanFixtures.headless.cpp ${STENCIL_OPPLAN_SOURCES} ${STENCIL_OPREGISTRY_SOURCES}
+  SOURCES tests/llm/plan/opPlanFixtures.headless.cpp ${STENCIL_OPPLAN_SOURCES} ${STENCIL_OPREGISTRY_SOURCES}
     ${STENCIL_OPSCHEMA_SOURCES} resources/app.qrc
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Core)
@@ -554,7 +541,7 @@ stencil_headless_test(stencil_opplanfixtures_headless
 # LlmClient.cpp is #included by the test TU for sanitizer access, not compiled here; its
 # sibling TUs (the probes and the per-provider chat calls) still are.
 stencil_headless_test(stencil_llmwirefixtures_headless
-  SOURCES tests/llmWireFixtures.headless.cpp tests/llmWireFixturesWalk.headless.cpp src/llm/client/LlmClientProbe.cpp
+  SOURCES tests/llm/client/llmWireFixtures.headless.cpp tests/llm/client/llmWireFixturesWalk.headless.cpp src/llm/client/LlmClientProbe.cpp
     src/llm/client/LlmClientChat.cpp ${STENCIL_OPPLAN_SOURCES} ${STENCIL_OPREGISTRY_SOURCES}
     ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
@@ -565,10 +552,10 @@ stencil_headless_test(stencil_llmwirefixtures_headless
 # LLM client check (src/llm/llmClient) — the contract §6 wire mappings driven
 # through a mock transport (canned responses; no network).
 stencil_headless_test(stencil_llmclient_headless
-  SOURCES tests/LlmClient.headless.cpp tests/LlmClientOllama.headless.cpp
-    tests/LlmClientServer.headless.cpp tests/LlmClientProbe.headless.cpp
-    tests/LlmClientModels.headless.cpp tests/LlmClientRegistry.headless.cpp
-    tests/LlmClientAssembly.headless.cpp tests/LlmClientPrompt.headless.cpp src/llm/client/LlmClient.cpp src/llm/client/LlmClientProbe.cpp
+  SOURCES tests/llm/client/LlmClient.headless.cpp tests/llm/client/LlmClientOllama.headless.cpp
+    tests/llm/client/LlmClientServer.headless.cpp tests/llm/client/LlmClientProbe.headless.cpp
+    tests/llm/client/LlmClientModels.headless.cpp tests/llm/client/LlmClientRegistry.headless.cpp
+    tests/llm/client/LlmClientAssembly.headless.cpp tests/llm/client/LlmClientPrompt.headless.cpp src/llm/client/LlmClient.cpp src/llm/client/LlmClientProbe.cpp
     src/llm/client/LlmClientChat.cpp ${STENCIL_OPPLAN_SOURCES}
     ${STENCIL_OPREGISTRY_SOURCES} ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES}
     src/net/connectionStore.cpp
@@ -579,7 +566,7 @@ stencil_headless_test(stencil_llmclient_headless
 # Persistence-corpus walker: the shared chatDoc / layout / stencilProject
 # fixtures through the real io/fileStore serializers and parsers.
 stencil_headless_test(stencil_storefixtures_headless
-  SOURCES tests/storeFixtures.headless.cpp tests/storeFixturesWalkers.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+  SOURCES tests/io/storeFixtures.headless.cpp tests/io/storeFixturesWalkers.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Widgets)
@@ -587,7 +574,7 @@ stencil_headless_test(stencil_storefixtures_headless
 # Deep-link corpus walker: the shared telegramStart golden vectors through the
 # real codec (the launchPayload receiver vectors don't apply — builders only).
 stencil_headless_test(stencil_deeplinkfixtures_headless
-  SOURCES tests/deepLinkFixtures.headless.cpp src/io/deepLink.cpp ${STENCIL_SERVERCLIENT_SOURCES}
+  SOURCES tests/io/deepLinkFixtures.headless.cpp src/io/deepLink.cpp ${STENCIL_SERVERCLIENT_SOURCES}
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Network)
 
@@ -597,11 +584,11 @@ stencil_headless_test(stencil_deeplinkfixtures_headless
 stencil_headless_test(stencil_llmexecutor_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/llmExecutor.headless.cpp tests/llmExecutorPlan.headless.cpp
-    tests/llmExecutorCoords.headless.cpp tests/llmExecutorSettings.headless.cpp
-    tests/llmExecutorFiles.headless.cpp tests/llmExecutorProject.headless.cpp
-    tests/llmExecutorImages.headless.cpp tests/llmExecutorHistory.headless.cpp
-    tests/llmExecutorAccent.headless.cpp tests/llmExecutorRows.headless.cpp
+    tests/llm/plan/executor/llmExecutor.headless.cpp tests/llm/plan/executor/llmExecutorPlan.headless.cpp
+    tests/llm/plan/executor/llmExecutorCoords.headless.cpp tests/llm/plan/executor/llmExecutorSettings.headless.cpp
+    tests/llm/plan/executor/llmExecutorFiles.headless.cpp tests/llm/plan/executor/llmExecutorProject.headless.cpp
+    tests/llm/plan/executor/llmExecutorImages.headless.cpp tests/llm/plan/executor/llmExecutorHistory.headless.cpp
+    tests/llm/plan/executor/llmExecutorAccent.headless.cpp tests/llm/plan/executor/llmExecutorRows.headless.cpp
     ${STENCIL_OPPLAN_SOURCES} ${STENCIL_OPREGISTRY_SOURCES}
     ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_PLANEXECUTOR_SOURCES} ${STENCIL_CANVAS_SOURCES}
     src/canvas/overlay/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -613,7 +600,7 @@ stencil_headless_test(stencil_llmexecutor_headless
 stencil_headless_test(stencil_scriptdialog_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/scriptDialog.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
+    tests/dialogs/script/scriptDialog.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
     src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptHighlighter.cpp
     src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
@@ -625,7 +612,7 @@ stencil_headless_test(stencil_scriptdialog_headless
 stencil_headless_test(stencil_scriptmenupanel_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/scriptMenuPanel.headless.cpp src/dialogs/script/ScriptMenuPanel.cpp
+    tests/dialogs/script/scriptMenuPanel.headless.cpp src/dialogs/script/ScriptMenuPanel.cpp
     src/dialogs/script/ScriptMenuPanelState.cpp src/dialogs/script/ScriptEditorWidget.cpp
     src/dialogs/script/ScriptHighlighter.cpp src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
     ${STENCIL_MODALCHROME_SOURCES} src/support/icon/iconSet.cpp src/support/modal/modalReveal.cpp
@@ -637,7 +624,7 @@ stencil_headless_test(stencil_scriptmenupanel_headless
 stencil_headless_test(stencil_scriptbuffer_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/scriptBuffer.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
+    tests/model/scriptBuffer.headless.cpp src/dialogs/script/ScriptDialog.cpp src/dialogs/script/ScriptDialogFile.cpp
     src/dialogs/script/ScriptMenuPanel.cpp src/dialogs/script/ScriptMenuPanelState.cpp
     src/dialogs/script/ScriptEditorWidget.cpp src/dialogs/script/ScriptHighlighter.cpp
     src/model/ScriptBuffer.cpp src/model/ScriptDoc.cpp
@@ -650,7 +637,7 @@ stencil_headless_test(stencil_scriptbuffer_headless
 stencil_headless_test(stencil_scriptrunner_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/scriptRunner.headless.cpp src/app/scriptRun.cpp src/model/ScriptDoc.cpp
+    tests/app/scriptRunner.headless.cpp src/app/scriptRun.cpp src/model/ScriptDoc.cpp
     ${STENCIL_OPPLAN_SOURCES} ${STENCIL_OPREGISTRY_SOURCES}
     ${STENCIL_OPSCHEMA_SOURCES} ${STENCIL_PLANEXECUTOR_SOURCES} ${STENCIL_CANVAS_SOURCES}
     src/canvas/overlay/IdleCard.cpp ${STENCIL_THEME_SOURCES} resources/app.qrc
@@ -660,21 +647,21 @@ stencil_headless_test(stencil_scriptrunner_headless
 # The canvas image's own dust clock (support/DisintegrateOverlay CANVAS_DUST_MS): the
 # arrival and the clear run 1.5x faster than every other cloud. Motion is left ON.
 stencil_headless_test(stencil_canvasdust_headless
-  SOURCES tests/canvasDust.headless.cpp
+  SOURCES tests/canvas/canvasDust.headless.cpp
   LIBS stencil_gui_objs Qt6::Test
   INCLUDE_TESTS)
 
 # The two OS-driven .stc entries on the real MainWindow (rule 7's one path): a file handed
 # over by the shell and a file dropped on the window both RUN the script.
 stencil_headless_test(stencil_scriptopen_headless
-  SOURCES tests/scriptOpen.headless.cpp
+  SOURCES tests/dialogs/script/scriptOpen.headless.cpp
   LIBS stencil_gui_objs
   ENV STENCIL_NO_ANIM=1)
 
 # LLM settings defaults + fileStore Settings JSON round-trip of the contract
 # §5 llm* keys (and the windowState dock blob).
 stencil_headless_test(stencil_llmsettings_headless
-  SOURCES tests/llmSettings.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+  SOURCES tests/llm/client/llmSettings.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -685,8 +672,8 @@ stencil_headless_test(stencil_motionprefs_headless
   SOURCES src/support/icon/motionIcons.cpp
     ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/motionPrefs.headless.cpp tests/motionPrefsStyle.headless.cpp
-    tests/motionPrefsGate.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+    tests/support/motionPrefs.headless.cpp tests/support/motionPrefsStyle.headless.cpp
+    tests/support/motionPrefsGate.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -694,14 +681,14 @@ stencil_headless_test(stencil_motionprefs_headless
 # layoutFields) parses and matches what theme.cpp / iconSet.cpp / fileStore
 # consume — a broken app.qrc alias fails here fast.
 stencil_headless_test(stencil_configcanon_headless
-  SOURCES tests/configCanon.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
+  SOURCES tests/support/theme/configCanon.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     src/support/icon/iconSet.cpp ${STENCIL_THEME_SOURCES} src/support/logo/logoStageRules.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
 # The logo stage's table and kinematics against the browser's printed values.
 stencil_headless_test(stencil_logostagerules_headless
-  SOURCES tests/logoStageRules.headless.cpp ${STENCIL_LOGOSTAGE_SOURCES}
+  SOURCES tests/support/logo/logoStageRules.headless.cpp ${STENCIL_LOGOSTAGE_SOURCES}
     ${STENCIL_DUSTKIT_SOURCES} ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets
   INCLUDE_TESTS)
@@ -710,7 +697,7 @@ stencil_headless_test(stencil_logostagerules_headless
 # against the Palette, resources/app.qss against buildStylesheet's token map,
 # mediaTypes.json against the suffix sniffers, and the prompt canon's context suffixes.
 stencil_headless_test(stencil_canonassets_headless
-  SOURCES tests/canonAssets.headless.cpp src/app/open/launchOptions.cpp ${STENCIL_FILESTORE_SOURCES}
+  SOURCES tests/support/theme/canonAssets.headless.cpp src/app/open/launchOptions.cpp ${STENCIL_FILESTORE_SOURCES}
     src/io/deferredWrite.cpp src/io/mediaTypes.cpp ${STENCIL_OPREGISTRY_SOURCES} ${STENCIL_OPSCHEMA_SOURCES}
     ${STENCIL_THEME_SOURCES} resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
@@ -719,7 +706,7 @@ stencil_headless_test(stencil_canonassets_headless
 # in QSettings, an older build's plaintext row is migrated out of it on load, and every
 # stored shape still round-trips.
 stencil_headless_test(stencil_connectionsecrets_headless
-  SOURCES tests/connectionSecrets.headless.cpp src/net/connectionStore.cpp
+  SOURCES tests/dialogs/connect/connectionSecrets.headless.cpp src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Core)
 
@@ -728,7 +715,7 @@ stencil_headless_test(stencil_connectionsecrets_headless
 # loopback, the scheme gate, and the shape of the request it hands out. Nothing is
 # fetched; the one DNS case resolves `localhost`.
 stencil_headless_test(stencil_fetchguard_headless
-  SOURCES tests/fetchGuard.headless.cpp src/net/fetchGuard.cpp
+  SOURCES tests/net/fetchGuard.headless.cpp src/net/fetchGuard.cpp
   LIBS Qt6::Network)
 
 # Import-direction lint (tests/layerBoundary.headless.cpp): reads the #include lines of

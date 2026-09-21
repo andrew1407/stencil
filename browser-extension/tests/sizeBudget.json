@@ -72,5 +72,5 @@
     "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added — the measured scope grew. These are the new floors."
   },
   "_splitShareNote": "browser-extension/src/lib 12 -> 17: 70 modules moved into feature folders, so the same banners sit over a fraction of the code (comments 1153 -> 101, lines 8823 -> 577). Nothing added. src/popup 9→10: the folder kept the panel shell and its banners while 19 modules left for editor/, pin/, row/ and list/. Volume fell.",
-  "_dirsNote": "tests/ mirrors src/ folder for folder. A module commonly carries several test files, so a mirrored test folder can sit above the source cap; helpers/ is shared by the whole suite and has no one feature."
+  "_dirsNote": "tests/ mirrors its source folder for folder. A module commonly carries several test files, so a mirrored test folder can sit above the source cap; helpers/ is shared by the whole suite and has no one feature, and Cargo can only see an integration test directly in tests/. These are frozen at today's counts and may only shrink."
 }
