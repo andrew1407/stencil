@@ -1,9 +1,9 @@
 // Page-API (window.stencil) relays + two small utility messages. Fire-and-forget
 // handlers: the page asks, the worker does it, the port closes.
 import { fetchAsDataUrl, isImageDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, buildHandoff } from '../../lib/stencil.js';
-import { buildStencilSchemeUrl, INLINE_MAX_CHARS } from '../../lib/openIn.js';
-import { pruneLedger } from '../../lib/ledger.js';
-import { setPinned, siteOf } from '../../lib/pins.js';
+import { buildStencilSchemeUrl, INLINE_MAX_CHARS } from '../../lib/menu/openIn.js';
+import { pruneLedger } from '../../lib/prefs/ledger.js';
+import { setPinned, siteOf } from '../../lib/prefs/pins.js';
 import { MSG } from '../../lib/messages.js';
 
 export const pageApiHandlers = {

@@ -1,4 +1,4 @@
-// Shapes for background/handlers/editorMode.js — what only chrome.* can answer for the
+// Shapes for background/handlers/mode.js — what only chrome.* can answer for the
 // panel and `stencil.extension`: open editor tabs, other scannable tabs, one tab's
 // images, and importing into an open editor. Every handler here is request/response.
 import type { MessageListener } from '../editorRelay.js';

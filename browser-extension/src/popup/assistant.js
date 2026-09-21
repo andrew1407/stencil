@@ -2,7 +2,7 @@
 // src/llm/chatController. Conversation state lives with this document only, never
 // persisted. LLM output is DATA: it renders via textContent, never innerHTML.
 import { getSettings } from '../lib/stencil.js';
-import { bindShrinkWrapResize } from '../lib/chatUi.js';
+import { bindShrinkWrapResize } from '../lib/chat/ui.js';
 import { observeReveal } from '../lib/motion.js';
 import { createJumpPills } from './assistant/jumpPills.js';
 import { createAttachments } from './assistant/attachments.js';

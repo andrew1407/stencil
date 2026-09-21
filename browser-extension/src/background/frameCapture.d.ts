@@ -1,5 +1,5 @@
 // Shapes for background/frameCapture.js — the three routes to a still of the
-// right-clicked <video>, tried in order by ctxActions.js.
+// right-clicked <video>, tried in order by actions.js.
 
 /** A same-origin/CORS in-page draw succeeded, or it fell back to `{src,t}` for a
  * caller-side re-fetch when the canvas came back tainted. */

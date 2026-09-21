@@ -3,7 +3,7 @@
 // .action-menu language as the popup's row menu; Resend only on the user's own turns
 // (their attachments requeue too).
 import { icon } from '../../lib/icons.js';
-import { createMsgMenu, createMsgMenuButton, appendToPrompt } from '../../lib/chatMsgMenu.js';
+import { createMsgMenu, createMsgMenuButton, appendToPrompt } from '../../lib/chat/msgMenu.js';
 
 export const wireMsgMenu = ({ transcriptEl, inputEl, msgMeta, send, state }) => {
   const msgTargetOf = (el) => {
@@ -35,7 +35,7 @@ export const wireMsgMenu = ({ transcriptEl, inputEl, msgMeta, send, state }) => 
     if (!el || el.classList.contains('note') || el.classList.contains('typing-row')) return;
     if (el.closest('.disintegrate-host')) return;   // a leaving clone, not a live message
     // Only OUR default is suppressed; any selection the right-click landed on
-    // stays as it is (the menu's own mousedown is inert — see chatMsgMenu.js).
+    // stays as it is (the menu's own mousedown is inert — see msgMenu.js).
     e.preventDefault();
     openMenuAt(el, e.clientX, e.clientY);
   });
@@ -56,6 +56,6 @@ export const wireMsgMenu = ({ transcriptEl, inputEl, msgMeta, send, state }) => 
   document.addEventListener('pointerdown', (e) => {
     if (msgMenu.isOpen() && !msgMenu.el.contains(e.target)) msgMenu.close();
   });
-  // Escape dismissal lives in the menu itself (chatMsgMenu.js, open-scoped).
+  // Escape dismissal lives in the menu itself (msgMenu.js, open-scoped).
   transcriptEl.addEventListener('scroll', () => msgMenu.close());
 };

@@ -109,6 +109,40 @@ test('listed files did not grow', () => {
   assert.deepEqual(grew, [], 'listed files may only shrink — split the growth out instead');
 });
 
+// A module and its .d.ts are one thing to the reader, so they count once.
+const stemsPerDir = () => {
+  const dirs = new Map();
+  for (const rel of measured.keys()) {
+    const at = rel.lastIndexOf('/');
+    const dir = rel.slice(0, at);
+    const base = rel.slice(at + 1);
+    const stem = base.endsWith('.d.ts') ? base.slice(0, -5) : base.slice(0, -3);
+    if (!dirs.has(dir)) dirs.set(dir, new Set());
+    dirs.get(dir).add(stem);
+  }
+  return dirs;
+};
+
+test('folder fan-out: no directory over the cap, no listed directory grew', () => {
+  const cap = budget.maxFilesPerDir;
+  const appeared = [], grew = [], shrank = [];
+  for (const [dir, stems] of stemsPerDir()) {
+    const n = stems.size;
+    const allowed = budget.dirs[dir];
+    if (allowed === undefined) {
+      if (n > cap) appeared.push(`${dir} holds ${n} modules (cap ${cap}) — split it by feature`);
+      continue;
+    }
+    if (n > allowed) grew.push(`${dir} grew to ${n} modules (budget ${allowed})`);
+    else if (n < allowed) shrank.push(`'${dir}': ${n}`);
+  }
+  const gone = Object.keys(budget.dirs).filter((d) => !stemsPerDir().has(d));
+  if (shrank.length) console.log(`  note: lower these in sizeBudget.json —\n    ${shrank.join('\n    ')}`);
+  assert.deepStrictEqual(appeared, [], 'a new folder over the cap must be split, never recorded');
+  assert.deepStrictEqual(grew, [], 'listed folders may shrink, never grow');
+  assert.deepStrictEqual(gone, [], 'drop these from sizeBudget.json — the folder is gone');
+});
+
 test('comment share per directory did not rise', () => {
   const risen = [];
   for (const [dir, cap] of Object.entries(budget.commentPct)) {

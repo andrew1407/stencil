@@ -1,7 +1,7 @@
 // The wrappers the editor-mode handlers are built from: answer-exactly-once, the
 // privileged-sender gate, and the timeboxed ask-one-editor-tab leg.
 import { getSettings } from '../lib/stencil.js';
-import { isEditorTab } from '../lib/editorTabs.js';
+import { isEditorTab } from '../lib/menu/editorTabs.js';
 import { MSG } from '../lib/messages.js';
 
 // How long a leg waiting on the editor PAGE gets before it's declared silent (an older editor

@@ -1,7 +1,7 @@
-import { setPinned, setPinKeywords, pinKeywords } from '../lib/pins.js';
+import { setPinned, setPinKeywords, pinKeywords } from '../lib/prefs/pins.js';
 import { leaveThenRemove, scatterGridFor } from '../lib/motion.js';
 import { icon } from '../lib/icons.js';
-import { setTip } from '../lib/tip.js';
+import { setTip } from '../lib/tip/tip.js';
 import { hostLabel, liftDust, recoverThumb, pinKey } from './pinsDom.js';
 import { renderPins } from './pins.js';
 

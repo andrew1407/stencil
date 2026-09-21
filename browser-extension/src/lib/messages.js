@@ -14,7 +14,7 @@ export const MSG = Object.freeze({
   OPEN_OPTIONS: 'stencil-open-options', // devtools panel → SW: open the options page (runtime.openOptionsPage is absent in devtools contexts)
   DROPZONES_ARM: 'stencil-dropzones-arm',   // panel → SW: inject the on-page 4-quadrant drop overlay on `tabId` (a row drag started)
   DROPZONES_DISARM: 'stencil-dropzones-disarm', // panel → SW: remove the drop overlay on `tabId` (drag ended without a page drop)
-  PAGE_DROP: 'stencil-page-drop',       // drop overlay (dropZones.js) → SW: a row was dropped in a quadrant → run its action
+  PAGE_DROP: 'stencil-page-drop',       // drop overlay (zones.js) → SW: a row was dropped in a quadrant → run its action
   PAGE_OPEN: 'stencil-page-open',       // page API → bridge → SW: open a target in the editor
   PAGE_CROP: 'stencil-page-crop',       // page API → bridge → SW: open a target in quick-crop
   PAGE_PIN: 'stencil-page-pin',         // page API → bridge → SW: pin / unpin a target
@@ -42,7 +42,7 @@ export const SRC = Object.freeze({
   MODAL: 'stencil-modal',               // quick-crop frame → overlay host (ready/close handshake)
   // Id-correlated request/response; arguments nest under `payload` so the envelope's
   // `source` tag cannot collide with a hand-off's `source` URL. Same-window only.
-  EXT_REQ: 'stencil-ext-req',           // editorBridge (ISOLATED) → editor page (browser/js/core/extensionBridge.js): state / import / switch
+  EXT_REQ: 'stencil-ext-req',           // editorBridge (ISOLATED) → editor page (browser/js/core/launch/extensionBridge.js): state / import / switch
   EXT_RES: 'stencil-ext-res',           // editor page → editorBridge: the reply to one EXT_REQ
   EXT_API: 'stencil-ext-api',           // editorApiMain (MAIN world, stencil.extension) → editorBridge (ISOLATED): a facade call to relay
   EXT_API_RES: 'stencil-ext-api-res',   // editorBridge → editorApiMain: the reply to one EXT_API call

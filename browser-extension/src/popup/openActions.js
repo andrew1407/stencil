@@ -1,11 +1,11 @@
 import { fetchAsDataUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, buildHandoff, resumeInOpenEditor } from '../lib/stencil.js';
-import { sourceOf, editableSrc } from '../lib/imageModel.js';
-import { rasterizeToPngDataUrl, isSvgType, isSvgUrl, mediaTypeOf } from '../lib/rasterize.js';
-import { buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink, INLINE_WARN_CHARS, INLINE_MAX_CHARS } from '../lib/openIn.js';
+import { sourceOf, editableSrc } from '../lib/image/model.js';
+import { rasterizeToPngDataUrl, isSvgType, isSvgUrl, mediaTypeOf } from '../lib/image/rasterize.js';
+import { buildStencilSchemeUrl, encodeTelegramStartPayload, buildTelegramLink, INLINE_WARN_CHARS, INLINE_MAX_CHARS } from '../lib/menu/openIn.js';
 import { statusEl, dismiss } from './panelDom.js';
-import { state, rowResource, surfaceTabId } from './model.js';
-import { sharedDataUrl } from './sharedPins.js';
-import { editorMode } from './editorHandle.js';
+import { state, rowResource, surfaceTabId } from './list/model.js';
+import { sharedDataUrl } from './pin/sharedPins.js';
+import { editorMode } from './editor/handle.js';
 
 // An SVG is rasterised first: raw markup has no pixels to hand the editor.
 export const imageDataUrl = async (image) => {
@@ -17,7 +17,7 @@ export const imageDataUrl = async (image) => {
 };
 
 // A custom scheme goes through an in-document anchor click: chrome.tabs.create on it
-// leaves a dead blank tab (mirrors browser/js/ui/openInModal.js).
+// leaves a dead blank tab (mirrors browser/js/ui/modal/openInModal.js).
 const openExternalUrl = (url) => {
   if (/^https?:/i.test(url)) { chrome.tabs.create({ url }); return; }
   const a = document.createElement('a');

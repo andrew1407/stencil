@@ -1,4 +1,4 @@
-// Shapes for background/ctxActions.js — the per-click-group async handler that
+// Shapes for background/actions.js — the per-click-group async handler that
 // chrome.contextMenus.onClicked dispatches to. info/tab stay opaque (chrome's own
 // OnClickData/Tab); the handlers only read a few fields, never the whole shape.
 

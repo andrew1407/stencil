@@ -3,9 +3,9 @@
 // controller behind the stop button, render what came back — or a failed bubble with
 // Retry (and Configure, when the provider itself is what is wrong).
 import { icon } from '../../lib/icons.js';
-import { setTip } from '../../lib/tip.js';
-import { LlmError } from '../../llm/llmClient.js';
-import { turnFailureText, isUnreachableError } from '../../llm/llmSurface.js';
+import { setTip } from '../../lib/tip/tip.js';
+import { LlmError } from '../../llm/client.js';
+import { turnFailureText, isUnreachableError } from '../../llm/surface.js';
 
 export const createTurnRunner = ({ sendBtn, inputEl, view, tray, renderResult, state }) => {
   const { pending, renderTray, syncClearBtn } = tray;

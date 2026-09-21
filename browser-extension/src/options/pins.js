@@ -1,9 +1,9 @@
 // Pinned-images viewer, grouped by pinning site. Thumbnails a bare <img> can't load
 // (hotlink-protected) are re-fetched through the extension's host permissions.
-import { loadPins, matchPinsForSite, sitesOf, clearPins, pinMatchesSearch } from '../lib/pins.js';
-import { loadConnections, collectSharedPins } from '../lib/connections.js';
+import { loadPins, matchPinsForSite, sitesOf, clearPins, pinMatchesSearch } from '../lib/prefs/pins.js';
+import { loadConnections, collectSharedPins } from '../lib/connection/connections.js';
 import { leaveThenRemove, scatterGridFor } from '../lib/motion.js';
-import { setTip } from '../lib/tip.js';
+import { setTip } from '../lib/tip/tip.js';
 import { siteSel, pinListEl, pinEmptyEl, pinClearBtn, pinSearchEl, pinSearchModeEl, hostLabel, pinTransition, liftDust } from './pinsDom.js';
 import { renderPinRow } from './pinRow.js';
 import { confirmDialog } from './confirmDialog.js';

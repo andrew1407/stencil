@@ -12,40 +12,43 @@ import { readdirSync, readFileSync } from 'node:fs';
 const MANIFEST = [
   // The one HTML escaper both surfaces (and tipContent below) re-export.
   ['escapeHtml', '../../browser/js/ui/escapeHtml.js', '../src/lib/escapeHtml.js'],
-  ['tipContent', '../../browser/js/ui/tipContent.js', '../src/lib/tipContent.js'],
+  ['tipContent', '../../browser/js/ui/tip/content.js', '../src/lib/tip/content.js'],
   // tipContent's keys half: the key vocabulary and the keycaps it draws.
-  ['tipKeys', '../../browser/js/ui/tipKeys.js', '../src/lib/tipKeys.js'],
-  ['numericInput', '../../browser/js/ui/numericInput.js', '../src/lib/numericInput.js'],
+  ['tipKeys', '../../browser/js/ui/tip/keys.js', '../src/lib/tip/keys.js'],
+  ['numericInput', '../../browser/js/ui/control/numericInput.js', '../src/lib/control/numericInput.js'],
   // The numeric field's evaluator, pure and DOM-free, so the copy is the whole file.
-  ['numericExpr', '../../browser/js/ui/numericExpr.js', '../src/lib/numericExpr.js'],
-  ['dropdownMenu', '../../browser/js/ui/dropdownMenu.js', '../src/lib/dropdownMenu.js'],
-  ['controlTooltip', '../../browser/js/ui/controlTooltip.js', '../src/lib/controlTooltip.js'],
+  ['numericExpr', '../../browser/js/ui/control/numericExpr.js', '../src/lib/control/numericExpr.js'],
+  ['dropdownMenu', '../../browser/js/ui/control/dropdownMenu.js', '../src/lib/control/dropdownMenu.js'],
+  ['controlTooltip', '../../browser/js/ui/tip/controlTooltip.js', '../src/lib/tip/controlTooltip.js'],
   // A written shortcut against a keystroke: pure, so the copy is the whole file.
-  ['comboMatch', '../../browser/js/ui/comboMatch.js', '../src/lib/comboMatch.js'],
-  ['scrollbarHover', '../../browser/js/ui/scrollbarHover.js', '../src/lib/scrollbarHover.js'],
+  ['comboMatch', '../../browser/js/ui/control/comboMatch.js', '../src/lib/control/comboMatch.js'],
+  ['scrollbarHover', '../../browser/js/ui/control/scrollbarHover.js', '../src/lib/control/scrollbarHover.js'],
+  // A thumb's arithmetic and the menu bar it draws: pure, so each copy is the whole file.
+  ['thumbMetrics', '../../browser/js/ui/control/thumbMetrics.js', '../src/lib/control/thumbMetrics.js'],
+  ['menuScrollbar', '../../browser/js/ui/control/menuScrollbar.js', '../src/lib/control/menuScrollbar.js'],
   // The cloud's two halves: the flight table a grain is posed by, and the shape it wears.
-  ['dustFlight', '../../browser/js/ui/dustFlight.js', '../src/lib/dustFlight.js'],
-  ['dustGrain', '../../browser/js/ui/dustGrain.js', '../src/lib/dustGrain.js'],
+  ['dustFlight', '../../browser/js/ui/dust/flight.js', '../src/lib/dust/flight.js'],
+  ['dustGrain', '../../browser/js/ui/dust/grain.js', '../src/lib/dust/grain.js'],
   // The one-canvas dust cloud every element-sized flight rides: pure flight table +
   // painter, so the copy is the whole file.
-  ['dustCloud', '../../browser/js/ui/dustCloud.js', '../src/lib/dustCloud.js'],
+  ['dustCloud', '../../browser/js/ui/dust/cloud.js', '../src/lib/dust/cloud.js'],
   // The motion modes' glyphs: pure SVG strings, so the copy is the whole file.
-  ['motionIcons', '../../browser/js/ui/motionIcons.js', '../src/lib/motionIcons.js'],
+  ['motionIcons', '../../browser/js/ui/motion/icons.js', '../src/lib/motionIcons.js'],
   // The crop rect's flight between two shapes: a pure rAF ramp, so the copy is the whole file.
   ['rectTween', '../../browser/js/ui/motion/rectTween.js', '../src/lib/rectTween.js'],
-  // The shared LLM client: per-surface wording/token defaults live in llmSurface.js,
+  // The shared LLM client: per-surface wording/token defaults live in surface.js,
   // so the client itself differs only in its header + providers.json import path.
-  ['llmClient', '../../browser/js/llm/llmClient.js', '../src/llm/llmClient.js'],
+  ['llmClient', '../../browser/js/llm/client.js', '../src/llm/client.js'],
   // The typed LlmError and the one JSON POST every provider goes through.
-  ['llmHttp', '../../browser/js/llm/llmHttp.js', '../src/llm/llmHttp.js'],
+  ['llmHttp', '../../browser/js/llm/http.js', '../src/llm/http.js'],
   // The registry-driven validation engine: pure, registry-in/verdict-out, so the copy
   // is the whole file.
-  ['opSchema', '../../browser/js/llm/opSchema.js', '../src/llm/opSchema.js'],
+  ['opSchema', '../src/llm/op/schema.js', '../src/llm/op/schema.js'],
   // Its closure-free base: predicates, the SchemaError, message paths, the native rules.
-  ['opSchemaBase', '../../browser/js/llm/opSchemaBase.js', '../src/llm/opSchemaBase.js'],
+  ['opSchemaBase', '../src/llm/op/schemaBase.js', '../src/llm/op/schemaBase.js'],
   // The un-persisted "Swap message sides" preference: pure module state, so the copy is
   // the whole file.
-  ['chatLayoutPrefs', '../../browser/js/ui/chatLayoutPrefs.js', '../src/lib/chatLayoutPrefs.js'],
+  ['chatLayoutPrefs', '../../browser/js/ui/chat/layoutPrefs.js', '../src/lib/chat/layoutPrefs.js'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -59,7 +62,7 @@ const stripHeader = (src) => {
   return lines.slice(i).join('\n');
 };
 
-// Reduce import specifiers to their basename, so './popover.js' compares equal from
+// Reduce import specifiers to their basename, so '../src/lib/tip/popover.js' compares equal from
 // either directory layout.
 const normalizeImports = (src) =>
   src.replace(/(from\s+['"])([^'"]+)(['"])/g, (_, pre, spec, post) => pre + spec.split('/').pop() + post);
@@ -80,8 +83,8 @@ for (const [name, browserPath, extPath] of MANIFEST) {
 // A module that ports only PART of a browser module lists functions instead: each must match its
 // browser original verbatim, mid-body comments included. A wasm-routed original keeps a `JS` suffix.
 const FUNCTIONS = [
-  ['popover', '../../browser/js/ui/popover.js', '../src/lib/popover.js', ['popoverPosition']],
-  ['cropGeometry', '../../browser/js/core/cropGeometry.js', '../src/lib/cropGeometry.js',
+  ['popover', '../../browser/js/ui/tip/popover.js', '../src/lib/tip/popover.js', ['popoverPosition']],
+  ['cropGeometry', '../../browser/js/core/parse/cropGeometry.js', '../src/lib/image/cropGeometry.js',
     ['isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
      'moveCropClamped', 'scaleCropCentered']],
   // motion/ is the extension's own implementation, split along the browser's own file boundaries;
@@ -95,9 +98,9 @@ const FUNCTIONS = [
     'MATERIALIZE_CLASS', 'MATERIALIZE_VEIL_CLASS', 'CHAT_ENTERING_CLASS', 'CHAT_SLIDE_CLASS',
     'SURFACE_FORMING_CLASS', 'SURFACE_LEAVING_CLASS', 'SURFACE_DRIVEN_CLASS',
   ]],
-  // opPlan.js shares the §1 mechanics and then applies the extension's own §8/§11.2 rules, so
+  // plan.js shares the §1 mechanics and then applies the extension's own §8/§11.2 rules, so
   // `validateAsk` and `parseOpPlan` stay out.
-  ['planParser', '../../browser/js/llm/planParser.js', '../src/llm/opPlan.js',
+  ['planParser', '../../browser/js/llm/plan/parser.js', '../src/llm/op/plan.js',
     ['firstJsonObject', 'askAnswerText']],
 ];
 
@@ -125,12 +128,16 @@ const declaration = (src, name) => {
   return null;
 };
 
-// A port as one string: a file, or every .js in a directory.
+// A port as one string: a file, or every .js under a directory — either side may hold its
+// modules in feature folders, so the walk is recursive.
+const jsUnder = (dir) => readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))
+  .flatMap((e) => (e.isDirectory()
+    ? jsUnder(new URL(`${e.name}/`, dir))
+    : (e.name.endsWith('.js') ? [readFileSync(new URL(e.name, dir), 'utf8')] : [])));
+
 const sourceOf = (rel) => {
   if (!rel.endsWith('/')) return read(rel);
-  const dir = new URL(rel, import.meta.url);
-  return readdirSync(dir).filter((f) => f.endsWith('.js')).sort()
-    .map((f) => readFileSync(new URL(f, dir), 'utf8')).join('\n');
+  return jsUnder(new URL(rel, import.meta.url)).join('\n');
 };
 
 for (const [name, browserPath, extPath, fns] of FUNCTIONS) {
