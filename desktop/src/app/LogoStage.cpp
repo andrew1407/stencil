@@ -74,10 +74,7 @@ namespace stencil::gui {
     takeBackdrop();
     setGeometry(window_->rect());
     const int w = width(), h = height();
-    const bool roaming = support::roams(name);
-    const double rest = roaming ? support::roamLogoSize(w, h)
-                      : effect_ == StageEffect::GROW ? support::minLogoSize(w, h) : bigEnd(w, h);
-    const double other = effect_ == StageEffect::GROW ? bigEnd(w, h) : support::minLogoSize(w, h);
+    const auto [rest, other] = ends(w, h);
     size_ = rest;
     bounce_ = support::bounceState(rest, other);
     fly_ = support::flyState(w / 2.0, h / 2.0, angle());
@@ -85,14 +82,14 @@ namespace stencil::gui {
     heading_ = QPointF(0, 0);
     pos_ = QPointF(w / 2.0, h / 2.0);
     cursor_ = pos_;
-    mark_ = hooks_.makeMark ? hooks_.makeMark(int(std::ceil(rest))) : QPixmap();
+    remakeMark();
     support::ParticleStyle style = support::ParticleStyle::DUST;
     hasCloud_ = support::showHasCloud(name, &style) && !reduced_;
     cloud_.setStyle(style, hasCloud_);
     // The mark grows out of the header logo, as the browser's does.
     const QPoint at = logo_ && logo_->isVisible() ? logo_->mapTo(window_, logo_->rect().center()) : rect().center();
     from_ = support::StagePose{double(at.x()), double(at.y()), double(logo_ ? logo_->iconSize().width() : 32)};
-    last_ = 0;
+    last_ = refitAt_ = 0;
     leftAt_ = -1;
     open_ = true;
     held_ = false;
@@ -118,13 +115,10 @@ namespace stencil::gui {
     const double kx = was.width() > 0 ? double(w) / was.width() : 1.0;
     const double ky = was.height() > 0 ? double(h) / was.height() : 1.0;
     if (kx == 1.0 && ky == 1.0) return;
-    takeBackdrop();
-    const double rest = support::roams(show_) ? support::roamLogoSize(w, h)
-                      : effect_ == StageEffect::GROW ? support::minLogoSize(w, h) : bigEnd(w, h);
-    const double other = effect_ == StageEffect::GROW ? bigEnd(w, h) : support::minLogoSize(w, h);
+    const auto [rest, other] = ends(w, h);
     support::bounceResize(bounce_, rest, other);
     size_ = effect_ == StageEffect::SHRINK || effect_ == StageEffect::GROW ? bounce_.size : rest;
-    mark_ = hooks_.makeMark ? hooks_.makeMark(int(std::ceil(size_))) : QPixmap();
+    refitAt_ = since_.elapsed() + REFIT_MS;
     pos_ = QPointF(pos_.x() * kx, pos_.y() * ky);
     chase_.x *= kx;  chase_.y *= ky;
     fly_.x *= kx;    fly_.y *= ky;
@@ -157,6 +151,7 @@ namespace stencil::gui {
     const double t = since_.elapsed();
     const double dt = std::min(50.0, last_ > 0 ? t - last_ : 16.7);
     last_ = t;
+    if (refitAt_ > 0 && t >= refitAt_) refit();
     rampBoost(dt);
     if (leftAt_ >= 0 && t - leftAt_ >= cfg.hideMs) {
       clock_->stop();

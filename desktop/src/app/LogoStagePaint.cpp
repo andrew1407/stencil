@@ -40,6 +40,29 @@ namespace stencil::gui {
     backdrop_ = support::ModalBackdrop::blurred(shot, support::ModalBackdrop::BLUR_PX);
   }
 
+  // A drag sends a resize per frame and both of these cost a whole window render, so they wait
+  // for its settle: until then the old shot stretches under its blur and the mark scales.
+  void LogoStage::refit() {
+    refitAt_ = 0;
+    if (!open_ && leftAt_ < 0) return;
+    takeBackdrop();
+    remakeMark();
+    update();
+  }
+
+  std::pair<double, double> LogoStage::ends(int w, int h) const {
+    const double rest = support::roams(show_) ? support::roamLogoSize(w, h)
+                      : effect_ == StageEffect::GROW ? support::minLogoSize(w, h) : bigEnd(w, h);
+    return {rest, effect_ == StageEffect::GROW ? bigEnd(w, h) : support::minLogoSize(w, h)};
+  }
+
+  // Built at the BIGGEST size this show draws it, not the resting one: the mark is a pixmap where
+  // the browser's is an SVG that re-rasterises, and `grow` ends nine times the size it rests at.
+  void LogoStage::remakeMark() {
+    const auto [rest, other] = ends(width(), height());
+    mark_ = hooks_.makeMark ? hooks_.makeMark(int(std::ceil(std::max(rest, other)))) : QPixmap();
+  }
+
   void LogoStage::paintCloud(QPainter& p, const support::StagePose& pose) {
     const QColor accent = hooks_.accent ? hooks_.accent() : QColor(0x7c, 0x3a, 0xed);
     // The cloud wears the mark's own scale, so it grows out of the logo and shrinks back into it.
@@ -92,10 +115,6 @@ namespace stencil::gui {
       const double a = std::min(cfg.glowAlphaMax,
           (cfg.glowAlphaMin + (cfg.glowAlphaMax - cfg.glowAlphaMin) * lit) * boost) * fade;
       const double corner = pose.size * cfg.markCornerShare;
-      const auto box = [&](double grow) {
-        return QRectF(centre.x() - half - grow, centre.y() - half - grow,
-                      2 * (half + grow), 2 * (half + grow));
-      };
       p.setPen(Qt::NoPen);
       // ONE smooth gradient, computed per pixel: the alpha falls from `a` at the mark's own
       // rounded edge to nothing `reach` beyond it. Stacked fills gave the same falloff but cost a
