@@ -1,9 +1,9 @@
 import { notify, isSplitCompare } from '../utils.js';
-import { VARIANT_META } from './imageVariants.js';
+import { VARIANT_META } from './image/imageVariants.js';
 import { copyImageToClipboard, copyLayoutToClipboard } from './clipboardExport.js';
 import {
   saveProjectFile, openProjectFile, pickAndOpenProjectFile, deleteProjectFile,
-} from './projectFilePicker.js';
+} from './project/projectFilePicker.js';
 import { uploadJSON, applyPastedLayout, installLayout } from './layoutInstall.js';
 
 // Image/layout export, clipboard and file IO. Holds no state: reads the app's editor state

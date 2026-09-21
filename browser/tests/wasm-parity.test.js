@@ -8,7 +8,7 @@ import assert from 'node:assert';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { core } from '../js/core/stencilCore.js';
+import { core } from '../js/core/abi/stencilCore.js';
 import { distToSegment, parseHex } from '../js/utils.js';
 import { FormulaEngine } from '../js/core/formulaEngine.js';
 import { parseDuration } from '../js/core/durationParser.js';

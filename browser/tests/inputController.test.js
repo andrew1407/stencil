@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { InputController, holdDrawEligible } = await import('../js/core/inputController.js');
+const { InputController, holdDrawEligible } = await import('../js/core/pointer/inputController.js');
 
 const makeApp = (over = {}) => {
   const rec = { save: 0 };

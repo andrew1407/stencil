@@ -1,4 +1,4 @@
-import { canvasOrigin } from '../../core/zoomPan.js';
+import { canvasOrigin } from '../../core/zoom/zoomPan.js';
 export function wireSmoothZoom(app) {
   // Rapid wheel events accumulate into one rAF loop. Add `zoom-no-transition` while it runs, or
   // the CSS width/height transition fights it and flickers.

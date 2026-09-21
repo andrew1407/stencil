@@ -90,15 +90,15 @@ const measure = (files, re, keepStrings = false) => {
 // Rule 1 — js/core is DOM-free: these files still reach for the DOM (the view paints, the storage
 // adapter reads localStorage's window, the coordinators listen on window). Nothing may join them.
 const CORE_DOM_ALLOWANCE = {
-  'core/accents.js': 6, 'core/blankImage.js': 1, 'core/drawingApp.js': 16,
+  'core/accents.js': 6, 'core/image/blankImage.js': 1, 'core/drawingApp.js': 16,
   'core/exportService.js': 3, 'core/extensionBridge.js': 2, 'core/hotkeys.js': 4,
-  'core/imageFilterCanvas.js': 1, 'core/imageModel.js': 2, 'core/imageSettle.js': 1,
-  'core/inputController.js': 7, 'core/launchController.js': 4, 'core/layoutInstall.js': 1,
-  'core/lineSelection.js': 1, 'core/pointerController.js': 5, 'core/projectFileIO.js': 2,
-  'core/projectFilePicker.js': 6, 'core/projectMeta.js': 1, 'core/projectServerTransfer.js': 1, 'core/projectTransferController.js': 3,
-  'core/quotaWriter.js': 1, 'core/stencilSync.js': 2, 'core/storage.js': 1,
+  'core/image/imageFilterCanvas.js': 1, 'core/image/imageModel.js': 2, 'core/image/imageSettle.js': 1,
+  'core/pointer/inputController.js': 7, 'core/launchController.js': 4, 'core/layoutInstall.js': 1,
+  'core/line/lineSelection.js': 1, 'core/pointer/pointerController.js': 5, 'core/project/projectFileIO.js': 2,
+  'core/project/projectFilePicker.js': 6, 'core/project/projectMeta.js': 1, 'core/project/projectServerTransfer.js': 1, 'core/project/projectTransferController.js': 3,
+  'core/storage/quotaWriter.js': 1, 'core/remote/stencilSync.js': 2, 'core/storage/storage.js': 1,
   'core/tabsCoordinator.js': 3, 'core/videoFrame.js': 1,
-  'core/viewportSync.js': 6, 'core/zoomAnimation.js': 2, 'core/zoomPan.js': 1,
+  'core/zoom/viewportSync.js': 6, 'core/zoom/zoomAnimation.js': 2, 'core/zoom/zoomPan.js': 1,
 };
 
 test('js/core touches no document/window beyond the frozen allowance', () => {
@@ -108,10 +108,10 @@ test('js/core touches no document/window beyond the frozen allowance', () => {
 // Rule 2 — core, llm and net import nothing from ui: core still pulls the paint helpers it drives, each
 // leaving as the controller behind it gains a view seam. llm and net are clean.
 const UI_IMPORT_ALLOWANCE = {
-  'core/drawingApp.js': 10, 'core/hotkeys.js': 1, 'core/imageSettle.js': 1,
-  'core/launchController.js': 1, 'core/layoutInstall.js': 1, 'core/projectFilePicker.js': 1,
-  'core/remoteSyncController.js': 1, 'core/settingsController.js': 3, 'core/settingsRegistry.js': 1,
-  'core/shapeBuilder.js': 1, 'core/storage.js': 4, 'core/strokeFx.js': 2,
+  'core/drawingApp.js': 10, 'core/hotkeys.js': 1, 'core/image/imageSettle.js': 1,
+  'core/launchController.js': 1, 'core/layoutInstall.js': 1, 'core/project/projectFilePicker.js': 1,
+  'core/remote/remoteSyncController.js': 1, 'core/settingsController.js': 3, 'core/settingsRegistry.js': 1,
+  'core/line/shapeBuilder.js': 1, 'core/storage/storage.js': 4, 'core/line/strokeFx.js': 2,
 };
 
 test('js/core, js/llm and js/net import nothing from js/ui beyond the frozen allowance', () => {

@@ -1,7 +1,7 @@
 // Incognito: adopting the current turn into an unsaved editor, and the two ways out of it —
 // publishing to a server, or keeping it as a local project. Both are explicit user acts.
 import type { DrawingApp } from './drawingApp.js';
-import type { RemoteLink } from './remoteSyncController.js';
+import type { RemoteLink } from './remote/remoteSyncController.js';
 
 /** Only while the editor is blank: adding content auto-saves. */
 export declare const canToggleIncognito: (app: DrawingApp) => boolean;

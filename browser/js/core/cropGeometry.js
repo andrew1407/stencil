@@ -1,4 +1,4 @@
-import { core } from './stencilCore.js';
+import { core } from './abi/stencilCore.js';
 // Port of core/cropGeometry.{hpp,cpp}. A crop is a rect in ORIGINAL-image pixel space; the
 // original is never modified, so moves/resizes/flips are lossless. Aspect is fixed to the
 // page → corner-only resize. Public functions route to wasm when loaded, else the JS reference.

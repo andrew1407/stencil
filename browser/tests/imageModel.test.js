@@ -22,7 +22,7 @@ globalThis.document = {
   createElement: (tag) => (tag === 'canvas' ? makeCanvas() : {}),
 };
 
-const { ImageModel } = await import('../js/core/imageModel.js');
+const { ImageModel } = await import('../js/core/image/imageModel.js');
 
 const makeApp = (over = {}) => {
   const rec = { save: 0, redraw: 0, remoteSync: 0 };

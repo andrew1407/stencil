@@ -81,7 +81,7 @@ test('the float → mini chat swap waits for the close animation', () => {
 });
 
 test('newTemporary only animates when there was an image to clear', () => {
-  const src = readFileSync(new URL('../js/core/storage.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/core/storage/storage.js', import.meta.url), 'utf8');
   const at = src.indexOf('  newTemporary({');
   const body = src.slice(at, at + 3000);
   const guard = body.match(/const hadImage = ([^;]+);/)?.[1];
@@ -98,7 +98,7 @@ test('newTemporary only animates when there was an image to clear', () => {
 // Clearing resets the canvas backing store and the viewport scroll: the idle "+ Blank image" card is
 // position:absolute inset:0 in that same box and renders at the stale offset (user report).
 test('newTemporary resets the canvas size/zoom and the viewport scroll, not just the pixels', () => {
-  const src = readFileSync(new URL('../js/core/storage.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/core/storage/storage.js', import.meta.url), 'utf8');
   const at = src.indexOf('  newTemporary({');
   const body = src.slice(at, at + 3000);
   assert.match(body, /this\.app\.canvas\.width = 0/, 'the backing store keeps its old (zoomed) footprint');

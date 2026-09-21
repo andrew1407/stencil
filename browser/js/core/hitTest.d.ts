@@ -2,7 +2,7 @@
 // (twin: core/geometry/hitTest.cpp). Results are topmost-first; thresholds are in image
 // pixels, so callers divide a screen radius by the zoom.
 import type { Point } from './geometry.js';
-import type { CodecLine } from './linesCodec.js';
+import type { CodecLine } from './line/linesCodec.js';
 
 type Lines = readonly Pick<CodecLine, 'points'>[];
 

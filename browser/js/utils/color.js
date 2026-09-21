@@ -1,4 +1,4 @@
-import { core } from '../core/stencilCore.js';
+import { core } from '../core/abi/stencilCore.js';
 // Colours are CSS strings written straight into a canvas context: `#rrggbb` opaque,
 // `#rrggbbaa` translucent; core's parseHex checks `< 7`, so the CLI and pystencil read
 // the RGB and ignore the alpha. Desktop twin: support/cssColor.hpp — keep in step.

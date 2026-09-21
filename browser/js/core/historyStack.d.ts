@@ -1,7 +1,7 @@
 // Line-snapshot history: DrawingApp's `history` array + `historyStep` cursor semantics,
 // deep-copied on push/undo/redo, with the "step 0 → empty lines, step -1" undo stop.
 // Depth-capped at MAX_STEPS, shared with core/state/HistoryStack.hpp's MAX_STEPS.
-import type { CodecLine } from './linesCodec.js';
+import type { CodecLine } from './line/linesCodec.js';
 
 export declare const MAX_STEPS: number;
 

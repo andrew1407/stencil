@@ -9,9 +9,9 @@ import { harness, lineOf } from './helpers/strokeGrowthHarness.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const drawingAppJs = read('../js/core/drawingApp.js');
-const inputJs = read('../js/core/inputController.js');
-const shapeJs = read('../js/core/shapeBuilder.js');
-const clickJs = read('../js/core/canvasClick.js');
+const inputJs = read('../js/core/pointer/inputController.js');
+const shapeJs = read('../js/core/line/shapeBuilder.js');
+const clickJs = read('../js/core/pointer/canvasClick.js');
 const exportJs = read('../js/core/exportService.js');
 
 // ── 3. The wiring ───────────────────────────────────────────────────────────

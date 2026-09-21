@@ -13,7 +13,7 @@ import { installDom } from './helpers/dom.js';
 
 installDom();
 
-const { RemoteSyncController } = await import('../js/core/remoteSyncController.js');
+const { RemoteSyncController } = await import('../js/core/remote/remoteSyncController.js');
 
 const makeApp = (over = {}) => {
   const rec = { syncFormulaUI: [], showFormulaError: [] };

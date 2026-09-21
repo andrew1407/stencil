@@ -9,7 +9,7 @@ import {
   STENCIL_FILE_FORMAT,
   STENCIL_FILE_VERSION,
   MAX_PROJECT_FILE_CHARS,
-} from '../js/core/projectFile.js';
+} from '../js/core/project/projectFile.js';
 
 // A real 1×1 red PNG (data-URL) — small enough to inline, valid enough to decode.
 const RED_1x1 =

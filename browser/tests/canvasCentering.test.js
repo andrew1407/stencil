@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ZoomPan, canvasOrigin } from '../js/core/zoomPan.js';
+import { ZoomPan, canvasOrigin } from '../js/core/zoom/zoomPan.js';
 import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
 
 // ── The CSS contract ─────────────────────────────────────────────────────────

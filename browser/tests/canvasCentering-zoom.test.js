@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ZoomPan, canvasOrigin } from '../js/core/zoomPan.js';
+import { ZoomPan, canvasOrigin } from '../js/core/zoom/zoomPan.js';
 
 // A viewport modelled the way the browser lays this out: centred by auto margins while it fits, the
 // scroll offset clamped to the real range. Fullscreen, where the frame is fixed on both axes.

@@ -2,7 +2,7 @@
 // whole available height, and the panel is capped to the room below its own top.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ZoomPan } from '../js/core/zoomPan.js';
+import { ZoomPan } from '../js/core/zoom/zoomPan.js';
 import { installDom, ROOMY, ROOMY_AVAIL, MIN_PANEL_H, CONTAINER_PAD, BODY_PAD } from './helpers/zoomPanViewportDom.js';
 
 

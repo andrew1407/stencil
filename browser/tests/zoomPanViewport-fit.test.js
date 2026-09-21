@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ZoomPan } from '../js/core/zoomPan.js';
+import { ZoomPan } from '../js/core/zoom/zoomPan.js';
 import { LAYOUT_CSS, COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 import { installDom, ROOMY, ROOMY_AVAIL } from './helpers/zoomPanViewportDom.js';
 

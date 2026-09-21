@@ -1,6 +1,6 @@
 // Shared harness for the strokeGrowth specs: a clock and frame scheduler under the test's
 // control, a counting renderer, and a line factory. No DOM, no timers.
-import { StrokeFx } from '../../js/core/strokeFx.js';
+import { StrokeFx } from '../../js/core/line/strokeFx.js';
 
 export const harness = () => {
   let now = 0;

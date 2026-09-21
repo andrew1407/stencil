@@ -8,7 +8,7 @@ import assert from 'node:assert';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { core } from '../js/core/stencilCore.js';
+import { core } from '../js/core/abi/stencilCore.js';
 import { HoldDrawController } from '../js/core/holdDraw.js';
 
 // Generated artifact (gitignored) — skip rather than fail when it has not been built.

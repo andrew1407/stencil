@@ -2,7 +2,7 @@
 // bridge's import into THIS tab. Schema and precedence live in deepLink.js
 // (normalizeLaunchPayload); each function takes the app and reuses its loaders.
 import type { DrawingApp } from './drawingApp.js';
-import type { CropRectInput, RemoteLayout } from './imageLoadFlow.js';
+import type { CropRectInput, RemoteLayout } from './image/imageLoadFlow.js';
 
 /** A page size handed in by a launch; width/height are cm, read only for 'custom'. */
 export interface LaunchPage { size?: string; width?: number | string; height?: number | string; }

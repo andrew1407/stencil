@@ -2,7 +2,7 @@
 // Schema/precedence live in deepLink.js (normalizeLaunchPayload).
 import { notify, shortName } from '../utils.js';
 import { normalizeLaunchPayload, LAUNCH_DATA_URL_MAX } from './deepLink.js';
-import { waitForImage } from './imageLoadFlow.js';
+import { waitForImage } from './image/imageLoadFlow.js';
 import { normalizePageSize } from './units.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { loadSavedServers } from '../net/connectionStore.js';

@@ -1,8 +1,8 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { createThumbnailScheduler, makeThumbnail, renderThumbnail } from '../js/core/thumbnail.js';
-import { buildProjectMeta } from '../js/core/projectMeta.js';
-import { ProjectsStore } from '../js/core/projectsStore.js';
+import { createThumbnailScheduler, makeThumbnail, renderThumbnail } from '../js/core/image/thumbnail.js';
+import { buildProjectMeta } from '../js/core/project/projectMeta.js';
+import { ProjectsStore } from '../js/core/project/projectsStore.js';
 import { createMemoryStorage } from './helpers/memoryStorage.js';
 
 // A document whose canvases encode "what was drawn" into the data URL, so a render can be

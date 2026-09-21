@@ -1,4 +1,4 @@
-import { core } from './stencilCore.js';
+import { core } from './abi/stencilCore.js';
 
 // Port of core/parse/formulaParser.cpp: a recursive-descent evaluator (never `new
 // Function`/`eval`) over `+ - * / ** ( )` and one variable, so server-supplied formulas stay

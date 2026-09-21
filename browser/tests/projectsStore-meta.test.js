@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import {
   ProjectsStore, EXPIRY_MS, REGISTRY_KEY, MIGRATED_FLAG, DEFAULT_PERIOD, normalizeKeywords,
-} from '../js/core/projectsStore.js';
+} from '../js/core/project/projectsStore.js';
 import { createMemoryStorage } from './helpers/memoryStorage.js';
 
 // Map-backed localStorage shim (shared helper): exposes keys() for the store's

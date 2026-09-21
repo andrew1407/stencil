@@ -2,9 +2,9 @@
 // the hold-to-draw preview. The filter chain lives in imageFilterCanvas.js, one line or
 // point in lineRender.js — this owns the order they paint in.
 import type { DrawingApp } from './drawingApp.js';
-import type { CodecLine } from './linesCodec.js';
+import type { CodecLine } from './line/linesCodec.js';
 
-export { pointColorOf } from './lineRender.js';
+export { pointColorOf } from './line/lineRender.js';
 
 export type CompareMode = 'none' | 'original' | 'vertical' | 'horizontal';
 

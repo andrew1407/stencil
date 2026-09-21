@@ -2,7 +2,7 @@
 // rect in ORIGINAL-image pixels; the public names route to the wasm core when loaded and
 // to the *JS references otherwise (the parity tests drive both).
 import type { CropRect } from './geometry.js';
-import type { CodecLine } from './linesCodec.js';
+import type { CodecLine } from './line/linesCodec.js';
 
 /** Corners: 0 top-left, 1 top-right, 2 bottom-right, 3 bottom-left. */
 export type CropCorner = 0 | 1 | 2 | 3;
