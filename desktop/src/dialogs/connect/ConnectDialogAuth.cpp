@@ -8,7 +8,7 @@
 #include "../../support/guiHelpers.hpp"           // confirmYesNo()
 #include "../../support/modal/modalChrome.hpp"          // the browser modal shell
 #include "../../support/modal/modalReveal.hpp"          // motionReduced()
-#include "../../support/control/controlReveal.hpp"     // the batch bar comes and goes as sand
+#include "../../support/control/reveal/controlReveal.hpp"     // the batch bar comes and goes as sand
 #include "../../support/motion/ShimmerOverlay.hpp"       // the row's glass hover sweep
 
 #include "connectionStore.hpp"

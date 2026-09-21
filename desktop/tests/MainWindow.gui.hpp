@@ -23,9 +23,9 @@
 #include "../src/support/share/shareImage.hpp"   // isShareSheetAvailable — the Share button's gate
 #include "ServerClient.hpp"
 #include "LlmSettingsForm.hpp"
-#include "../src/app/chat/ChatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock
+#include "../src/app/chat/planTarget/ChatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock
 #include "../src/llm/plan/opPlan.hpp"
-#include "../src/llm/plan/planExecutor.hpp"
+#include "../src/llm/plan/executor/planExecutor.hpp"
 #include "MediaLoader.hpp"
 #include "popover.hpp"
 #include "iconSet.hpp"

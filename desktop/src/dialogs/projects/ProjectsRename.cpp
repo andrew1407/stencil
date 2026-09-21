@@ -8,7 +8,7 @@
 #include "iconSet.hpp"
 #include "ExpirationDialog.hpp"
 #include "../../support/motion/scrollReveal.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/control/FlowLayout.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/guiHelpers.hpp"

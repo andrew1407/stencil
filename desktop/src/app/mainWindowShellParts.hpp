@@ -91,8 +91,8 @@
 #include "../support/dust/ThemeSwapOverlay.hpp"  // palette-swap wipe
 #include "../support/tip/AppTooltip.hpp"           // the fading control tooltip
 #include "../support/motion/DisintegrateOverlay.hpp"  // the canvas scatters when cleared
-#include "../support/control/controlSwap.hpp"         // checkbox particles + combo value swap
-#include "../support/control/controlReveal.hpp"        // a group of fields comes and goes as sand
+#include "../support/control/swap/controlSwap.hpp"         // checkbox particles + combo value swap
+#include "../support/control/reveal/controlReveal.hpp"        // a group of fields comes and goes as sand
 #include "../support/control/WrapRow.hpp"               // the tool rows wrap, so their height follows the width
 #include "../support/dockGrip.hpp"             // animated canvas↔panel separator grip
 #include "../support/modal/modalChrome.hpp"          // confirmModal — the browser-styled question

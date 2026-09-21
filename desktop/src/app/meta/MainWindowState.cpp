@@ -23,7 +23,7 @@
 #include "SelectedLineBar.hpp"
 #include "SettingsDialog.hpp"
 #include "ShortcutsDialog.hpp"
-#include "../../support/control/controlSwap.hpp"
+#include "../../support/control/swap/controlSwap.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/icon/iconMotion.hpp"
 

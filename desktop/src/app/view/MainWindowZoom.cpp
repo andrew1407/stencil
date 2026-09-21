@@ -27,7 +27,7 @@
 #include "ShortcutsDialog.hpp"
 #include "../../support/tip/AppTooltip.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/control/controlSwap.hpp"
+#include "../../support/control/swap/controlSwap.hpp"
 #include "../../support/control/WrapRow.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/icon/iconMotion.hpp"

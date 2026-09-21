@@ -13,7 +13,7 @@
 #include "ProjectsDialog.hpp"
 #include "RemoteSyncController.hpp"
 #include "LiveFeed.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 
 #include <QAction>

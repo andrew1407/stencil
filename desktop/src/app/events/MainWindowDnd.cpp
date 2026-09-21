@@ -21,7 +21,7 @@
 #include "LiveFeed.hpp"
 #include "ServerClient.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/modal/modalChrome.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 

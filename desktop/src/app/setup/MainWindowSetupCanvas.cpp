@@ -8,7 +8,7 @@
 #include "ChatDock.hpp"
 #include "SelectionPanel.hpp"
 #include "SelectedLineBar.hpp"
-#include "../../support/control/controlSwap.hpp"
+#include "../../support/control/swap/controlSwap.hpp"
 #include "../../support/icon/iconMotion.hpp"
 #include "../../support/modal/modalReveal.hpp"
 #include <QApplication>

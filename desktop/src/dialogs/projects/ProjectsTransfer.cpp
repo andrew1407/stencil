@@ -3,7 +3,7 @@
 #include "ProjectRowDelegate.hpp"
 #include "projectsRowChrome.hpp"
 #include "ProjectsDialog.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
 #include "../../support/displayName.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"

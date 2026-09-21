@@ -50,7 +50,9 @@ struct JsonReader {
 
 struct Budget {
   int maxNewFileLines = 0;
+  int maxFilesPerDir = 0;
   std::map<std::string, int> files;
+  std::map<std::string, int> dirs;
   std::map<std::string, int> commentPct;
   std::map<std::string, std::string> exceptions;
 };
@@ -66,15 +68,16 @@ Budget loadBudget(const fs::path& path) {
   while (!r.eat('}')) {
     const std::string key = r.str();
     REQUIRE(r.eat(':'));
-    if (key == "maxNewFileLines") {
-      b.maxNewFileLines = r.num();
-    } else if (key == "files" || key == "commentPct" || key == "exceptions") {
+    if (key == "maxNewFileLines") b.maxNewFileLines = r.num();
+    else if (key == "maxFilesPerDir") b.maxFilesPerDir = r.num();
+    else if (key == "files" || key == "commentPct" || key == "exceptions" || key == "dirs") {
       REQUIRE(r.eat('{'));
       while (!r.eat('}')) {
         const std::string entry = r.str();
         REQUIRE(r.eat(':'));
         if (key == "exceptions") b.exceptions[entry] = r.str();
         else if (key == "files") b.files[entry] = r.num();
+        else if (key == "dirs") b.dirs[entry] = r.num();
         else b.commentPct[entry] = r.num();
         r.eat(',');
       }
@@ -114,7 +117,7 @@ std::vector<fs::path> scopedFiles(const fs::path& root) {
   return out;
 }
 
-struct Counts { int total = 0; int comment = 0; };
+struct Counts { int total = 0; int comment = 0; int files = 0; };
 
 // A comment line opens with // or /*, or sits inside a block comment. String and char
 // literals are skipped so a // or /* inside one never flips the state.
@@ -187,7 +190,7 @@ TEST_CASE("size budget: no core file exceeds its recorded line count") {
   }
 }
 
-TEST_CASE("size budget: comment share per core directory has not risen") {
+TEST_CASE("size budget: comment share and folder fan-out per core directory") {
   const fs::path root = repoRoot();
   REQUIRE(!root.empty());
   const Budget b = loadBudget(root / "core/tests/sizeBudget.json");
@@ -198,27 +201,29 @@ TEST_CASE("size budget: comment share per core directory has not risen") {
     Counts& d = byDir[rel(root, p.parent_path())];
     d.total += c.total;
     d.comment += c.comment;
+    // A header and its .cpp are one module to the reader, so they count once.
+    if (p.extension() != ".cpp" || !fs::exists(fs::path(p).replace_extension(".hpp"))) ++d.files;
+  }
+  for (const auto& e : byDir) {
+    const auto f = b.dirs.find(e.first);
+    const int cap = f == b.dirs.end() ? b.maxFilesPerDir : f->second;
+    CHECK_MESSAGE(e.second.files <= cap, e.first << " holds " << e.second.files
+                  << " (cap " << cap << ") — split it");
   }
   for (const auto& entry : b.commentPct) {
     const auto found = byDir.find(entry.first);
     REQUIRE_MESSAGE(found != byDir.end(), "budget lists an empty dir: " << entry.first);
     const int pct = found->second.comment * 100 / found->second.total;
-    CHECK_MESSAGE(pct <= entry.second,
-                  entry.first << " is " << pct << "% comments (budget " << entry.second << "%)");
+    CHECK_MESSAGE(pct <= entry.second, entry.first << " is " << pct << "% (budget "
+                  << entry.second << "%)");
   }
 }
 
 TEST_CASE("size budget: measured tree numbers" * doctest::skip()) {
   const fs::path root = repoRoot();
   REQUIRE(!root.empty());
-  std::map<std::string, Counts> byDir;
   for (const fs::path& p : scopedFiles(root)) {
     const Counts c = countFile(p);
     MESSAGE("  \"" << rel(root, p) << "\": " << c.total << ",");
-    Counts& d = byDir[rel(root, p.parent_path())];
-    d.total += c.total;
-    d.comment += c.comment;
   }
-  for (const auto& entry : byDir)
-    MESSAGE("  \"" << entry.first << "\": " << entry.second.comment * 100 / entry.second.total << ",");
 }

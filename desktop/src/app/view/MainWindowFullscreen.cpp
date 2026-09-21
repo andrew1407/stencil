@@ -11,7 +11,7 @@
 #include "SelectionPanel.hpp"
 #include "ShortcutsDialog.hpp"
 #include "../../support/motion/DisintegrateOverlay.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/theme/theme.hpp"
 
 #include <QSignalBlocker>

@@ -14,7 +14,7 @@
 #include "SearchCombo.hpp"
 #include "OpenImageButton.hpp"
 #include "theme.hpp"
-#include "../../support/control/controlReveal.hpp"
+#include "../../support/control/reveal/controlReveal.hpp"
 #include "../../support/icon/iconMotion.hpp"
 #include "../../support/motion/ShimmerOverlay.hpp"
 #include "../../support/control/WrapRow.hpp"
