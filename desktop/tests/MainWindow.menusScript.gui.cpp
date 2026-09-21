@@ -1,7 +1,7 @@
 // MainWindow GUI e2e — The Stencil Script flyout, and a submenu keeping the root menu's own chips.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindowMenu.gui.hpp"
-#include "../src/dialogs/ScriptMenuPanel.hpp"
+#include "../src/dialogs/script/ScriptMenuPanel.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT

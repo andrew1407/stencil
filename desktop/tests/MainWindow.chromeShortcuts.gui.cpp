@@ -2,6 +2,8 @@
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindow.gui.hpp"
 
+#include <QDirIterator>
+
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
 
@@ -126,11 +128,13 @@ class MainWindowGuiTest : public QObject {
   // The desktop stays as quiet as the browser: no toast for a routine success the user can
   // already see (an image appearing, settings applying, the session restoring).
   void routineActionsDoNotToast() {
-    // MainWindow's definitions are split across several TUs — scan them all.
+    // MainWindow's definitions are split across TUs in feature folders — scan them all.
     const QString appDir = QStringLiteral(__FILE__).section('/', 0, -3) + "/src/app";
     QString src;
-    for (const QString& name : QDir(appDir).entryList({"MainWindow*.cpp", "StencilFileSync.cpp"})) {
-      QFile f(appDir + '/' + name);
+    QDirIterator it(appDir, {"MainWindow*.cpp", "StencilFileSync.cpp"}, QDir::Files,
+                    QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+      QFile f(it.next());
       QVERIFY2(f.open(QIODevice::ReadOnly), qPrintable("cannot read " + f.fileName()));
       src += QString::fromUtf8(f.readAll());
     }

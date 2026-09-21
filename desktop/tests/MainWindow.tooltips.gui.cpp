@@ -13,8 +13,8 @@ class MainWindowGuiTest : public QObject {
   void toolbarTooltipsMatchTheBrowser() {
     // The browser's toolbar markup + the shared copy canon it interpolates from.
     stencil::test::BrowserMarkup browser;
-    for (const char* part : {"browser/js/ui/toolbar.js", "browser/js/ui/toolbarTopbar.js",
-                             "browser/js/ui/toolbarSections.js", "browser/js/ui/toolbarPageSections.js"})
+    for (const char* part : {"browser/js/ui/toolbar/toolbar.js", "browser/js/ui/toolbar/toolbarTopbar.js",
+                             "browser/js/ui/toolbar/toolbarSections.js", "browser/js/ui/toolbar/toolbarPageSections.js"})
       QVERIFY2(browser.load(QString::fromLatin1(part)), part);
     const auto browserTag = [&browser](const QString& id) { return browser.tag(id); };
     const auto attrOf = [&browser](const QString& t, const QString& a) {

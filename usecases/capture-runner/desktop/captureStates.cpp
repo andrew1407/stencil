@@ -6,7 +6,7 @@
 #include "ChatDock.hpp"
 #include "OpenImageDialog.hpp"
 #include "ProjectDragZones.hpp"
-#include "../../../desktop/src/llm/LlmClient.hpp"
+#include "../../../desktop/src/llm/client/LlmClient.hpp"
 
 #include <QCheckBox>
 #include <QDockWidget>

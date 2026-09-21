@@ -1,7 +1,7 @@
 #pragma once
 // Reading a surface flight, for the MainWindow GUI suites: the dust/ghost overlay a
 // window, menu or tooltip forms out of, and the point it is aimed at.
-#include "../src/support/DisintegrateOverlay.hpp"
+#include "../src/support/motion/DisintegrateOverlay.hpp"
 #include <QCoreApplication>
 #include <QEvent>
 #include <QLabel>

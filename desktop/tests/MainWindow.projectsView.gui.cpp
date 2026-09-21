@@ -1,7 +1,7 @@
 // MainWindow GUI e2e — Per-project pan/zoom, the gated danger action, and what a session restore carries.
 // Shared ground (helpers, the loaded window, the motion pins) is in MainWindow.gui.hpp.
 #include "MainWindow.gui.hpp"
-#include "../src/support/filterFade.hpp"
+#include "../src/support/theme/filterFade.hpp"
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT

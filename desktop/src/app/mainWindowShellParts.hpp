@@ -88,17 +88,17 @@
 #include <QEventLoop>
 #include <QGraphicsOpacityEffect>
 
-#include "../support/ThemeSwapOverlay.hpp"  // palette-swap wipe
-#include "../support/AppTooltip.hpp"           // the fading control tooltip
-#include "../support/DisintegrateOverlay.hpp"  // the canvas scatters when cleared
-#include "../support/controlSwap.hpp"         // checkbox particles + combo value swap
-#include "../support/controlReveal.hpp"        // a group of fields comes and goes as sand
-#include "../support/WrapRow.hpp"               // the tool rows wrap, so their height follows the width
+#include "../support/dust/ThemeSwapOverlay.hpp"  // palette-swap wipe
+#include "../support/tip/AppTooltip.hpp"           // the fading control tooltip
+#include "../support/motion/DisintegrateOverlay.hpp"  // the canvas scatters when cleared
+#include "../support/control/controlSwap.hpp"         // checkbox particles + combo value swap
+#include "../support/control/controlReveal.hpp"        // a group of fields comes and goes as sand
+#include "../support/control/WrapRow.hpp"               // the tool rows wrap, so their height follows the width
 #include "../support/dockGrip.hpp"             // animated canvas↔panel separator grip
-#include "../support/modalChrome.hpp"          // confirmModal — the browser-styled question
-#include "../support/iconMotion.hpp"          // the per-icon hover motion
-#include "../support/HoverSlide.hpp"          // the row hover slide (browser translateX)
-#include "../support/ShimmerOverlay.hpp"      // the shared hover sweep
+#include "../support/modal/modalChrome.hpp"          // confirmModal — the browser-styled question
+#include "../support/icon/iconMotion.hpp"          // the per-icon hover motion
+#include "../support/motion/HoverSlide.hpp"          // the row hover slide (browser translateX)
+#include "../support/motion/ShimmerOverlay.hpp"      // the shared hover sweep
 #include <QHBoxLayout>
 #include <QLayout>
 #include <QVBoxLayout>

@@ -5,7 +5,7 @@
 #include "OpenImageDialog.hpp"
 #include "launchOptions.hpp"
 #include "CanvasWidget.hpp"
-#include "../src/support/DisintegrateOverlay.hpp"
+#include "../src/support/motion/DisintegrateOverlay.hpp"
 #include <QGraphicsOpacityEffect>
 #include <QCheckBox>
 #include <QLabel>
