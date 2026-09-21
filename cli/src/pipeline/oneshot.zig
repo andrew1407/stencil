@@ -2,14 +2,14 @@
 //! encode it, and — when --remote-update / --remote ask for it — deliver the result to a
 //! server project.
 const std = @import("std");
-const image = @import("../image.zig");
-const layout_mod = @import("../layout.zig");
-const confine = @import("../confine.zig");
+const image = @import("../media/image.zig");
+const layout_mod = @import("../media/layout.zig");
+const confine = @import("../safety/confine.zig");
 const net = @import("../net.zig");
-const server = @import("../serverClient.zig");
+const server = @import("../server/client.zig");
 const args = @import("../args.zig");
-const report = @import("../report.zig");
-const page_mod = @import("../page.zig");
+const report = @import("../app/report.zig");
+const page_mod = @import("../media/page.zig");
 const sources = @import("sources.zig");
 const steps_mod = @import("steps.zig");
 

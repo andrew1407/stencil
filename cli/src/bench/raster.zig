@@ -3,8 +3,8 @@
 //! micro-benchmarks seen through the adapter, so the ratios are asserted over there.
 const std = @import("std");
 const core = @import("../core.zig");
-const image = @import("../image.zig");
-const imageRows = @import("../imageRows.zig");
+const image = @import("../media/image.zig");
+const imageRows = @import("../media/imageRows.zig");
 const fixtures = @import("fixtures.zig");
 const timing = @import("timing.zig");
 

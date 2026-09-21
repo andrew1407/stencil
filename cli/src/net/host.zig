@@ -207,7 +207,7 @@ test "hostOf extracts the bare host" {
 }
 
 test "authorityOf: one split for userinfo, ports, IPv6 brackets and a bare authority" {
-    const serverClient = @import("serverClient.zig"); // the other call site, kept honest below
+    const serverClient = @import("../server/client.zig"); // the other call site, kept honest below
     const Case = struct { url: []const u8, raw: []const u8, host: []const u8, port: ?u16 };
     for ([_]Case{
         .{ .url = "https://example.com/a.png", .raw = "example.com", .host = "example.com", .port = null },

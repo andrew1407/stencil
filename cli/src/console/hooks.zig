@@ -2,7 +2,7 @@
 //! peer's change while the user sits at the prompt, the logo's click/double-click accent
 //! changes, the pending-image hooks behind Ctrl-V, and Ctrl-S's selection copy.
 const std = @import("std");
-const logo = @import("../logo.zig");
+const logo = @import("../app/logo.zig");
 const line_edit = @import("../line_edit.zig");
 const clipboard = @import("../clipboard.zig");
 const session_mod = @import("session.zig");

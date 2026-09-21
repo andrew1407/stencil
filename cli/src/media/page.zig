@@ -3,7 +3,7 @@
 //! console (session header, /blank, /format) and the LLM plan executor are the other
 //! callers. Pure: no image, no io.
 const std = @import("std");
-const core = @import("core.zig");
+const core = @import("../core.zig");
 
 const BLANK_DPI = 96.0; // the screen DPI every blank is rasterized at (mirrors the browser)
 

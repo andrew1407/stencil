@@ -1,8 +1,8 @@
 //! `/llm` — the console's provider configuration (contract §5) and the context suffix the
 //! assistant sees: which servers this session connected to, and the active project.
 const std = @import("std");
-const server = @import("../../serverClient.zig");
-const logo = @import("../../logo.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
 const Session = @import("../session.zig").Session;
 

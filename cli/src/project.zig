@@ -3,10 +3,10 @@
 //! single home for the session⇄file bridge (loadInto/saveInto) both the console handlers and the
 //! one-shot pipeline share, so a project's load/save can't drift between the two entry points.
 const std = @import("std");
-const image = @import("image.zig");
+const image = @import("media/image.zig");
 const net = @import("net.zig");
 const pipeline = @import("pipeline.zig");
-const report = @import("report.zig");
+const report = @import("app/report.zig");
 const llm = @import("llm.zig");
 const Session = @import("console/session.zig").Session;
 const shape = @import("project/shape.zig");

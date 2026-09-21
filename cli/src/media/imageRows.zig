@@ -4,7 +4,7 @@
 //! else calls it, and core.zig stays the whole-image/scalar bridge.
 //! Bands write disjoint rows, so the output is byte-identical to the serial call.
 const std = @import("std");
-const core = @import("core.zig");
+const core = @import("../core.zig");
 
 const c = @cImport({
     @cInclude("core/cliApi.h");

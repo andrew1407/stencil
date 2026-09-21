@@ -2,9 +2,9 @@
 //! the screen left to right (a fixed number of JUMPS, so it lasts the same at any width)
 //! while the wordmark lights letter by letter and the icon turns as a clock (clock.zig).
 const std = @import("std");
-const logo = @import("../../logo.zig");
+const logo = @import("../../../app/logo.zig");
 const ansi = @import("../ansi.zig");
-const screen_mod = @import("../screen.zig");
+const screen_mod = @import("../../screen.zig");
 const Screen = screen_mod.Screen;
 const Span = ansi.Span;
 const clock = @import("clock.zig");

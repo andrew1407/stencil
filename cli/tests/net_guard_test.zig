@@ -3,7 +3,7 @@
 // (net.RequestOptions.allow_named_host) and must still cap the body and refuse a redirect.
 const std = @import("std");
 const net = @import("../src/net.zig");
-const server = @import("../src/serverClient.zig");
+const server = @import("../src/server/client.zig");
 const testing = std.testing;
 
 test "a response over the fetch cap is refused, not buffered" {

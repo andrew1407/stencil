@@ -1,9 +1,9 @@
 //! The S icon's clock turn: a hand pivots on the icon's middle and sweeps the new accent
 //! round it while the seam takes the rest of the row. Pure geometry over the cell grid.
 const std = @import("std");
-const logo = @import("../../logo.zig");
+const logo = @import("../../../app/logo.zig");
 const ansi = @import("../ansi.zig");
-const screen_mod = @import("../screen.zig");
+const screen_mod = @import("../../screen.zig");
 const Screen = screen_mod.Screen;
 const Span = ansi.Span;
 

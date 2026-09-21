@@ -4,7 +4,7 @@
 // (`cliLines`): an empty-points line is skipped, every point OBJECT kept with missing coordinates 0, a
 // numeric-string field falls back, non-bool locked is false. Canonical "imageFilter" beats "filter".
 const std = @import("std");
-const layout = @import("../src/layout.zig");
+const layout = @import("../src/media/layout.zig");
 const core = @import("../src/core.zig");
 const fx = @import("fixture_corpus.zig");
 const testing = std.testing;

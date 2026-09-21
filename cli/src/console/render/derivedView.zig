@@ -4,9 +4,9 @@
 //! and hands out copies — which is what stops a `/line` re-running a contour convolution. Costs one
 //! image of memory on top of the original and the current view.
 const std = @import("std");
-const image = @import("../image.zig");
-const core = @import("../core.zig");
-const pipeline = @import("../pipeline.zig");
+const image = @import("../../media/image.zig");
+const core = @import("../../core.zig");
+const pipeline = @import("../../pipeline.zig");
 
 /// The snapshot fields the base is derived from — everything but the lines.
 pub const Recipe = struct {

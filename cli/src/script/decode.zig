@@ -4,7 +4,7 @@
 const std = @import("std");
 
 const core = @import("../core.zig");
-const scriptCore = @import("../scriptCore.zig");
+const scriptCore = @import("core.zig");
 
 pub const Filter = struct {
     mode: []const u8,

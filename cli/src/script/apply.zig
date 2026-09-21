@@ -3,10 +3,10 @@
 const std = @import("std");
 
 const core = @import("../core.zig");
-const image = @import("../image.zig");
+const image = @import("../media/image.zig");
 const pipeline = @import("../pipeline.zig");
-const report = @import("../report.zig");
-const scriptCore = @import("../scriptCore.zig");
+const report = @import("../app/report.zig");
+const scriptCore = @import("core.zig");
 
 const decode = @import("decode.zig");
 

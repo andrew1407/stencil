@@ -2,7 +2,7 @@
 //! per-platform tools the reader drives.
 const std = @import("std");
 const builtin = @import("builtin");
-const child = @import("../child.zig");
+const child = @import("../safety/child.zig");
 const shell = @import("shell.zig");
 
 const Error = shell.Error;

@@ -4,8 +4,8 @@
 //! so the asset cannot silently change what the CLI accepts — and hold the asset's own
 //! internal claims (the cli surface list is a subset of the contract set).
 const std = @import("std");
-const mediaTypes = @import("../src/mediaTypes.zig");
-const video = @import("../src/video.zig");
+const mediaTypes = @import("../src/media/mediaTypes.zig");
+const video = @import("../src/media/video.zig");
 const scrape = @import("../src/scrape.zig");
 const testing = std.testing;
 

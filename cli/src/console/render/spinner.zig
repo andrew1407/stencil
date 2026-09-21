@@ -2,8 +2,8 @@
 //! leading glyph circles through `frames` while the request runs, erased the moment the
 //! reply — or any other output — lands. The bot's ProgressNotice, in terminal form.
 const std = @import("std");
-const logo = @import("../logo.zig");
-const screen = @import("screen.zig");
+const logo = @import("../../app/logo.zig");
+const screen = @import("../screen.zig");
 
 /// The spinner frames, in order — a filled quarter circling clockwise (the bot's set).
 pub const frames = [_][]const u8{ "◐", "◓", "◑", "◒" };

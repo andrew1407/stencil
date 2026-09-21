@@ -2,9 +2,9 @@
 //! an adapter can pipe a script without writing a temp file.
 const std = @import("std");
 
-const confine = @import("../confine.zig");
-const report = @import("../report.zig");
-const scriptCore = @import("../scriptCore.zig");
+const confine = @import("../safety/confine.zig");
+const report = @import("../app/report.zig");
+const scriptCore = @import("core.zig");
 
 pub const Error = error{ ScriptUnreadable, ScriptHasErrors };
 

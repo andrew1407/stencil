@@ -1,8 +1,8 @@
 //! §2.1 multi-image ops: `/upload` attachments, switching the working image, .stencil saves.
 const std = @import("std");
-const image = @import("../src/image.zig");
-const logo = @import("../src/logo.zig");
-const layout_mod = @import("../src/layout.zig");
+const image = @import("../src/media/image.zig");
+const logo = @import("../src/app/logo.zig");
+const layout_mod = @import("../src/media/layout.zig");
 const project = @import("../src/project.zig");
 const Session = @import("../src/console/session.zig").Session;
 const run = @import("../src/console/llm/run.zig");

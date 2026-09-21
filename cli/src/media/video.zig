@@ -3,7 +3,7 @@
 //! frame and writes a single PNG to stdout, which we capture as bytes for the normal
 //! image pipeline. If ffmpeg isn't installed the caller surfaces a clear hint.
 const std = @import("std");
-const child = @import("child.zig");
+const child = @import("../safety/child.zig");
 const mediaTypes = @import("mediaTypes.zig");
 
 pub const Error = error{ FfmpegMissing, FfmpegFailed };

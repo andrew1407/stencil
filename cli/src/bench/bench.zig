@@ -4,9 +4,9 @@
 //! wall-clock threshold. Opt-in and hermetic, NOT in `zig build test`:
 //!     zig build bench -- 6000 4000 8000   # width height line-count
 const std = @import("std");
-const adapters = @import("bench/adapters.zig");
-const raster = @import("bench/raster.zig");
-const timing = @import("bench/timing.zig");
+const adapters = @import("adapters.zig");
+const raster = @import("raster.zig");
+const timing = @import("timing.zig");
 
 /// `argv` excludes the program name (just the `--`-forwarded args): width height lines.
 fn parseArgs(argv: []const []const u8) raster.Dims {
@@ -39,8 +39,8 @@ pub fn main(init: std.process.Init) !void {
 // Registration only (tests/test_registration_test.zig): these reach the `zig build bench`
 // exe, not the test build, so a compile error here surfaces on a bench run.
 test {
-    _ = @import("bench/adapters.zig");
-    _ = @import("bench/fixtures.zig");
-    _ = @import("bench/raster.zig");
-    _ = @import("bench/timing.zig");
+    _ = @import("adapters.zig");
+    _ = @import("fixtures.zig");
+    _ = @import("raster.zig");
+    _ = @import("timing.zig");
 }

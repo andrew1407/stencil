@@ -6,7 +6,7 @@ const std = @import("std");
 const fx = @import("fixture_corpus.zig");
 const emit = @import("../src/script/emit.zig");
 const load = @import("../src/script/load.zig");
-const scriptCore = @import("../src/scriptCore.zig");
+const scriptCore = @import("../src/script/core.zig");
 const testing = std.testing;
 
 const corpus_path = "script/fixtures/cases.txt";

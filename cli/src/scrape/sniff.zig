@@ -1,7 +1,7 @@
 //! Pixel dimensions straight from an image header — PNG/GIF/BMP/JPEG/WebP — so the
 //! dimension filter can judge a candidate without decoding it.
 const std = @import("std");
-const image = @import("../image.zig");
+const image = @import("../media/image.zig");
 const testing = std.testing;
 
 pub const Sniff = struct { width: u32, height: u32, fmt: []const u8 };

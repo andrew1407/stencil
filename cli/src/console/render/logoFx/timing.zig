@@ -1,9 +1,9 @@
 //! Frame pacing for the console animations: busy-waits that stay honest about queued
 //! input, so a keystroke cuts an animation short instead of being swallowed by it.
 const std = @import("std");
-const logo = @import("../../logo.zig");
+const logo = @import("../../../app/logo.zig");
 const ansi = @import("../ansi.zig");
-const screen_mod = @import("../screen.zig");
+const screen_mod = @import("../../screen.zig");
 const Screen = screen_mod.Screen;
 const Span = ansi.Span;
 

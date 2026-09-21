@@ -1,7 +1,7 @@
 //! One command line against the session: the verb/action dispatch every input loop and the
 //! integration tests go through.
 const std = @import("std");
-const logo = @import("../logo.zig");
+const logo = @import("../app/logo.zig");
 const line_edit = @import("../line_edit.zig");
 const clipboard = @import("../clipboard.zig");
 const session_mod = @import("session.zig");

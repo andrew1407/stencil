@@ -23,7 +23,7 @@ those documents on purpose.
 
 1. `cli/src/console/commands.zig` — the `Verb` enum member and its word match in the parser.
 2. `cli/src/console/handlers.zig` — the handler. It returns values; it does not print.
-3. `cli/src/console/ui.zig` / `screen.zig` — the rendering. Terminal output lives only here.
+3. `cli/src/console/ui.zig`, `screen.zig`, `render/` — the rendering. Terminal output lives only here.
 4. Help text, then re-record the TUI goldens: `STENCIL_UPDATE_PINS=1 zig build test`.
 5. If the command is part of the shared console profile, mirror it in
    `pystencil/pystencil/cli.py`. Update `cli/README.md`.

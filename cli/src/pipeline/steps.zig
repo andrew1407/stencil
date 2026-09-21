@@ -3,15 +3,15 @@
 //! encode. The C++ core does every pixel and geometry transform.
 const std = @import("std");
 const core = @import("../core.zig");
-const image = @import("../image.zig");
-const layout_mod = @import("../layout.zig");
-const video = @import("../video.zig");
+const image = @import("../media/image.zig");
+const layout_mod = @import("../media/layout.zig");
+const video = @import("../media/video.zig");
 const net = @import("../net.zig");
 const args = @import("../args.zig");
-const report = @import("../report.zig");
-const confine = @import("../confine.zig");
-const page_mod = @import("../page.zig");
-const imageRows = @import("../imageRows.zig");
+const report = @import("../app/report.zig");
+const confine = @import("../safety/confine.zig");
+const page_mod = @import("../media/page.zig");
+const imageRows = @import("../media/imageRows.zig");
 const sources = @import("sources.zig");
 
 const expandHome = sources.expandHome;

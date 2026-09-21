@@ -2,7 +2,7 @@
 //! (and every rejection) is unit-tested directly.
 const std = @import("std");
 const core = @import("../core.zig");
-const logo = @import("../logo.zig");
+const logo = @import("../app/logo.zig");
 const testing = std.testing;
 const options = @import("options.zig");
 const Blank = options.Blank;

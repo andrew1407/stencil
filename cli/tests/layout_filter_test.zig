@@ -1,7 +1,7 @@
 // Parse the layout fixture, rasterise it onto a buffer, and apply a filter.
 const std = @import("std");
 const core = @import("../src/core.zig");
-const layout_mod = @import("../src/layout.zig");
+const layout_mod = @import("../src/media/layout.zig");
 const testing = std.testing;
 const layout_json = @embedFile("fixtures/layout.json");
 

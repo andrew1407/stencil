@@ -2,15 +2,15 @@
 //! `stencil -i photo.png … out.stencil` (bundle); reuses the console `Session` so a project's
 //! crop/rotation/filter/lines derive exactly as the browser/desktop editors render them.
 const std = @import("std");
-const args = @import("args.zig");
-const pipeline = @import("pipeline.zig");
-const layout_mod = @import("layout.zig");
-const net = @import("net.zig");
-const project = @import("project.zig");
-const logo = @import("logo.zig");
-const confine = @import("confine.zig");
-const commands = @import("console/commands.zig");
-const Session = @import("console/session.zig").Session;
+const args = @import("../args.zig");
+const pipeline = @import("../pipeline.zig");
+const layout_mod = @import("../media/layout.zig");
+const net = @import("../net.zig");
+const project = @import("../project.zig");
+const logo = @import("../app/logo.zig");
+const confine = @import("../safety/confine.zig");
+const commands = @import("../console/commands.zig");
+const Session = @import("../console/session.zig").Session;
 
 /// Split a `--filter` value into a Session filter (mode, color): named modes pass through,
 /// anything else is a custom tint colour.

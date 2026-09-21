@@ -2,11 +2,11 @@
 //! it is the adapter's job, so directory listing, globbing and the fetch guard live here.
 const std = @import("std");
 
-const image = @import("../image.zig");
+const image = @import("../media/image.zig");
 const net = @import("../net.zig");
-const report = @import("../report.zig");
-const scriptCore = @import("../scriptCore.zig");
-const video = @import("../video.zig");
+const report = @import("../app/report.zig");
+const scriptCore = @import("core.zig");
+const video = @import("../media/video.zig");
 
 pub const Error = error{ NoSuchSource, ForeignScheme, TooManyInputs };
 

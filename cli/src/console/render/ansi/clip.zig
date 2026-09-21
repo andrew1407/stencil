@@ -1,8 +1,8 @@
 //! Clipping a coloured line to a column budget: the plain clip, one sweep frame's prefix,
 //! the padded row, and the outgoing accent escape a recolour writes with.
 const std = @import("std");
-const logo = @import("../../logo.zig");
-const theme = @import("../../theme.zig");
+const logo = @import("../../../app/logo.zig");
+const theme = @import("../../../app/theme.zig");
 const scan = @import("scan.zig");
 
 const appendBytes = scan.appendBytes;

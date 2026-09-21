@@ -4,7 +4,7 @@
 //! "filter" is still read, canonical wins) is honoured unless --filter overrides it; an optional
 //! "pageSize" is surfaced so the wrote line can report the page. Owned by an internal arena.
 const std = @import("std");
-const core = @import("core.zig");
+const core = @import("../core.zig");
 
 pub const Layout = struct {
     arena: std.heap.ArenaAllocator,

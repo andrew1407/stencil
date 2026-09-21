@@ -2,11 +2,11 @@
 //! llm_prompt_*_test.zig files under cli/tests/): a logo-sink capture, a scratch session
 //! and the tiny PNGs that stand in for uploads. Test-only — nothing in the app calls it.
 const std = @import("std");
-const image = @import("../../image.zig");
-const server = @import("../../serverClient.zig");
-const logo = @import("../../logo.zig");
+const image = @import("../../media/image.zig");
+const server = @import("../../server/client.zig");
+const logo = @import("../../app/logo.zig");
 const llm = @import("../../llm.zig");
-const layout_mod = @import("../../layout.zig");
+const layout_mod = @import("../../media/layout.zig");
 const Session = @import("../session.zig").Session;
 const plan = @import("plan.zig");
 const applyPlanAction = plan.applyPlanAction;

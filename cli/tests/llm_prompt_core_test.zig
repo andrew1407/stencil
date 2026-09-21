@@ -1,8 +1,8 @@
 //! §3/§7 `/prompt` turn behaviour: what rides with a turn, and where a plan stops.
 const std = @import("std");
-const logo = @import("../src/logo.zig");
+const logo = @import("../src/app/logo.zig");
 const llm = @import("../src/llm.zig");
-const layout_mod = @import("../src/layout.zig");
+const layout_mod = @import("../src/media/layout.zig");
 const Session = @import("../src/console/session.zig").Session;
 const attach = @import("../src/console/llm/attach.zig");
 const promptImageB64 = attach.promptImageB64;

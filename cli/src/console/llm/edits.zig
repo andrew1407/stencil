@@ -2,12 +2,12 @@
 //! operation the matching console command uses, so a plan and a typed command leave the
 //! session in the same state.
 const std = @import("std");
-const image = @import("../../image.zig");
+const image = @import("../../media/image.zig");
 const pipeline = @import("../../pipeline.zig");
-const logo = @import("../../logo.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
 const llm = @import("../../llm.zig");
-const layout_mod = @import("../../layout.zig");
+const layout_mod = @import("../../media/layout.zig");
 const project = @import("../../project.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;

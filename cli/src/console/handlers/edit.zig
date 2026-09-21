@@ -3,11 +3,11 @@
 //! view, so the exact edit serializes to a browser-compatible layout.
 const std = @import("std");
 const pipeline = @import("../../pipeline.zig");
-const logo = @import("../../logo.zig");
+const logo = @import("../../app/logo.zig");
 const core = @import("../../core.zig");
 const commands = @import("../commands.zig");
-const layout_mod = @import("../../layout.zig");
-const msg = @import("../../messages.zig");
+const layout_mod = @import("../../media/layout.zig");
+const msg = @import("../../app/messages.zig");
 const ui = @import("../ui.zig");
 const Session = @import("../session.zig").Session;
 const Action = @import("../commands.zig").Action;

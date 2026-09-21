@@ -4,7 +4,7 @@
 // real decoded pixels, and the decode guards that run before any buffer is allocated.
 const std = @import("std");
 const core = @import("../src/core.zig");
-const image = @import("../src/image.zig");
+const image = @import("../src/media/image.zig");
 const testing = std.testing;
 const sample = @embedFile("fixtures/sample.png");
 

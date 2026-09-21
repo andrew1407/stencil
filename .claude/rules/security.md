@@ -53,7 +53,7 @@ Also:
 - **Secrets live in env, never in a file the app writes and never in a URL query.**
   Connection tokens go in the existing 0600 store (`desktop/src/net/connectionStore.*`), not
   plaintext `QSettings`. `STENCIL_LLM_*` is scrubbed from child process environments
-  (`cli/src/child.zig`) — keep it scrubbed.
+  (`cli/src/safety/child.zig`) — keep it scrubbed.
 - **Adapters that forward model-chosen paths pass `--confine-output`** to the CLI, so output
   and scrape directories stay inside the working directory. `mcp` and `bot` already do; any
   new adapter must.
