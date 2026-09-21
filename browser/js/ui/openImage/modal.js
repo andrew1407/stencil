@@ -1,6 +1,5 @@
 import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from '../base.js';
 import { wireModalOpenGestures } from '../popover.js';
-import { notify } from '../../utils.js';
 import { spinIconOnce } from '../icons.js';
 import { isVideoFile, isVideoUrl } from '../../core/videoFrame.js';
 import { createCropOverlay, freshCropState, hasCropRect } from './crop.js';
@@ -10,38 +9,32 @@ import { createPreviewDust } from './previewDust.js';
 import { createFrameScrub } from './frameScrub.js';
 import { createCropRows } from './cropRows.js';
 import { createOpenImageTabs } from './tabs.js';
-import { createBlankTab } from './blank.js';
 import { wireOpenActions } from './actions.js';
+import { notify } from '../../utils.js';
 
-// The single way to get an image into the editor (Local file / URL link / Blank tabs); the DOM is built once and reused, so onOpen MUST reset every field.
+// The single way to get an image into the editor. The three tabs are their own elements under
+// sources/ and speak up on the bubbling `source-change` / `preview-request` / `create-blank`;
+// this window owns the preview, the crop and the footer. The DOM is built once and reused, so
+// onOpen MUST reset every field.
 export class StencilOpenImageModal extends StencilElement {
   static inner() { return openImageModalInner(); }
   static template() { return hostTag('stencil-open-image-modal', 'id="open-image-modal-overlay" class="app-modal-overlay"', StencilOpenImageModal.inner()); }
 
   wire(app) {
-    const $ = id => document.getElementById(id);
-    const overlay = $('open-image-modal-overlay');
-    const closeBtn = $('open-image-close');
-    const fileEl = $('open-image-file');
-    const chooseBtn = $('open-image-choose');
-    const fileNameEl = $('open-image-file-name');
-    // The hidden input holds the pick; this span is what the reader sees.
-    const showFileName = () => {
-      const picked = fileEl.files && fileEl.files[0];
-      fileNameEl.textContent = picked ? picked.name : 'No file chosen';
-      fileNameEl.classList.toggle('is-empty', !picked);
-    };
-    const urlEl = $('open-image-url');
-    const urlPreviewBtn = $('open-image-url-preview');
-    const incog = $('open-image-incognito');
-    const hereBtn = $('open-image-here'), newTabBtn = $('open-image-newtab');
-    const replaceBtn = $('open-image-replace'), replaceRow = $('open-image-replace-row');
-    const renameEl = $('open-image-rename'), keepEl = $('open-image-keep');
-    const targetEl = $('open-image-target'), targetRow = $('open-image-target-row');
-    const frameEl = $('open-image-frame'), frameRow = $('open-image-frame-row');
-    const scrubEl = $('open-image-frame-scrub');
-    const cropToggle = $('open-image-crop-toggle');
-    const cropDims = $('open-image-crop-dims'), orientBtn = $('open-image-crop-orientation');
+    const overlay = this;
+    const fileSrc = this.querySelector('stencil-oi-file-source');
+    const urlSrc = this.querySelector('stencil-oi-url-source');
+    const blank = this.querySelector('stencil-oi-blank-tab');
+    const tabs = this.querySelector('stencil-tabs');
+    const incog = this.$('open-image-incognito');
+    const hereBtn = this.$('open-image-here'), newTabBtn = this.$('open-image-newtab');
+    const replaceBtn = this.$('open-image-replace'), replaceRow = this.$('open-image-replace-row');
+    const renameEl = this.$('open-image-rename'), keepEl = this.$('open-image-keep');
+    const targetEl = this.$('open-image-target'), targetRow = this.$('open-image-target-row');
+    const frameEl = this.$('open-image-frame'), frameRow = this.$('open-image-frame-row');
+    const scrubEl = this.$('open-image-frame-scrub');
+    const cropToggle = this.$('open-image-crop-toggle');
+    const cropDims = this.$('open-image-crop-dims'), orientBtn = this.$('open-image-crop-orientation');
     const target = () => (targetEl && targetEl.value) || null;
     const boxEase = modalBoxEase(overlay);   // the box eases between its content heights
 
@@ -49,8 +42,8 @@ export class StencilOpenImageModal extends StencilElement {
     const canReplace = () => !!(app.image && !app.storage.incognito
       && (app.activeProjectId != null || app.remoteLink));
 
-    const urlVal = () => urlEl.value.trim();
-    const chosenFile = () => fileEl.files && fileEl.files[0];
+    const urlVal = () => urlSrc.url;
+    const chosenFile = () => fileSrc.file;
     // What the chosen source IS, asked per tab — the tab controller carries the active one.
     const src = {
       urlVal, chosenFile,
@@ -62,26 +55,21 @@ export class StencilOpenImageModal extends StencilElement {
         ? (chosenFile() ? `${chosenFile().name}:${chosenFile().size}:${chosenFile().lastModified}` : '')
         : urlVal()),
     };
-    // A half-typed URL never triggers a fetch: the explicit Preview button is gated on this.
-    const isPreviewableUrl = (v) => {
-      if (!v) return false;
-      try { return /^(https?:|data:|blob:)$/i.test(new URL(v).protocol); } catch { return false; }
-    };
 
-    // The crop rect and everything that draws it (openImageCrop.js); the tabs and the media
-    // the rect is drawn ON are openImageTabs.js.
+    // The crop rect and everything that draws it (crop.js); the tabs and the media the rect is
+    // drawn ON are tabs.js.
     const cropState = freshCropState();
     const crop = createCropOverlay({
       state: cropState,
-      els: { box: $('open-image-crop-box'), shade: $('open-image-crop-shade'), dims: cropDims, orient: orientBtn },
+      els: { box: this.$('open-image-crop-box'), shade: this.$('open-image-crop-shade'), dims: cropDims, orient: orientBtn },
       pageDims: () => cropRows.pageDims(), media: () => preview.cropMedia(),
       onDrag: () => preview.persistCropRect(),
     });
     const cropRows = createCropRows({
       app,
-      els: { cropDims, orientBtn, cropSizeRow: $('open-image-crop-size-row'),
-        cropSizeCustom: $('open-image-crop-size-custom'), cropSizeSel: $('open-image-crop-size'),
-        cropSizeW: $('open-image-crop-size-w'), cropSizeH: $('open-image-crop-size-h') },
+      els: { cropDims, orientBtn, cropSizeRow: this.$('open-image-crop-size-row'),
+        cropSizeCustom: this.$('open-image-crop-size-custom'), cropSizeSel: this.$('open-image-crop-size'),
+        cropSizeW: this.$('open-image-crop-size-w'), cropSizeH: this.$('open-image-crop-size-h') },
       fitToPage: () => crop.fitToPage(), persist: () => preview.persistCropRect(),
     });
     const dust = createPreviewDust({
@@ -94,20 +82,18 @@ export class StencilOpenImageModal extends StencilElement {
     });
     const preview = createOpenImageTabs({
       els: {
-        previewImg: $('open-image-preview-img'), previewVideo: $('open-image-preview-video'),
-        previewWrap: $('open-image-preview'), statusEl: $('open-image-preview-status'),
-        cropStage: $('open-image-crop-stage'), cropRow: $('open-image-crop-row'),
-        cropToggle, scrubEl, chooseBtn, urlEl, hereBtn, newTabBtn, replaceRow, replaceBtn,
-        tabBtns: [$('oi-tab-file'), $('oi-tab-url'), $('oi-tab-blank')],
-        panels: { file: $('oi-panel-file'), url: $('oi-panel-url'), blank: $('oi-panel-blank') },
-        incogRow: $('open-image-incognito-row'), createBtn: $('blank-image-create'),
+        previewImg: this.$('open-image-preview-img'), previewVideo: this.$('open-image-preview-video'),
+        previewWrap: this.$('open-image-preview'), statusEl: this.$('open-image-preview-status'),
+        cropStage: this.$('open-image-crop-stage'), cropRow: this.$('open-image-crop-row'),
+        cropToggle, scrubEl, chooseBtn: fileSrc.field, urlEl: urlSrc.field,
+        hereBtn, newTabBtn, replaceRow, replaceBtn,
+        incogRow: this.$('open-image-incognito-row'), createBtn: this.$('blank-image-create'),
       },
       src, cropState, crop, cropRows, dust, frame, canReplace, refresh: () => refresh(),
     });
 
     // Blank tab has its own Create button and no source concept.
     const refresh = () => {
-      urlPreviewBtn.disabled = !isPreviewableUrl(urlVal());
       if (preview.tab() === 'blank') { frameRow.style.display = 'none'; return; }
       const has = src.hasSource();
       hereBtn.disabled = !has;
@@ -126,18 +112,17 @@ export class StencilOpenImageModal extends StencilElement {
       return o;
     };
 
-    const { open, close, openPopover } = wireModalShell(overlay, $('load-image-btn'), closeBtn, {
+    const { open, close, openPopover } = wireModalShell(overlay, document.getElementById('load-image-btn'), this.$('open-image-close'), {
       onOpen: () => {
-        fileEl.value = '';
-        showFileName();
-        urlEl.value = '';
+        fileSrc.reset();
+        urlSrc.reset();
         if (frameEl) frameEl.value = '0';
         preview.reset();
         Object.assign(cropState, freshCropState());
         cropRows.reset();
         cropRows.hideAll();
         incog.checked = false;
-        blank.reset();
+        blank.reset(cropRows.pageDims());
         renameEl.checked = false;
         keepEl.checked = true;
         hereBtn.disabled = true;
@@ -145,17 +130,10 @@ export class StencilOpenImageModal extends StencilElement {
         replaceBtn.disabled = true;
         // Incognito content isn't created on a server.
         fillTargetSelect(targetEl, targetRow, app.connections, !incog.checked);
-        preview.setTab('file');
+        tabs.select('file');
         boxEase.start();
       },
       onClose: () => { preview.closeUp(); boxEase.stop(); },
-    });
-    const blank = createBlankTab({
-      app, close: () => close(), target,
-      els: { colorEl: $('blank-image-color'), colorHexEl: $('blank-image-color-hex'),
-        widthEl: $('blank-image-width'), heightEl: $('blank-image-height'),
-        createBtn: $('blank-image-create'), whiteBtn: $('blank-image-white'), blackBtn: $('blank-image-black') },
-      pageDims: () => cropRows.pageDims(),
     });
     wireOpenActions({
       app, preview, src, canReplace, openOpts, target, close: () => close(),
@@ -164,45 +142,52 @@ export class StencilOpenImageModal extends StencilElement {
     });
 
     // `from` = the control that asked, so the dialog grows out of that, not the toolbar icon.
-    const openBlank = (from) => { open(from); preview.setTab('blank'); };
+    const openBlank = (from) => { open(from); tabs.select('blank'); };
 
-    $('open-image-cancel').addEventListener('click', close);
+    this.$('open-image-cancel').addEventListener('click', close);
     // The open-ANOTHER icon answers the same gestures too (#load-image-btn hides once an image exists).
-    const anotherBtn = $('open-image-btn');
+    const anotherBtn = document.getElementById('open-image-btn');
     if (anotherBtn) wireModalOpenGestures(anotherBtn, { openFull: () => open(anotherBtn), openPopover: () => openPopover(anotherBtn) });
-    $('create-blank-btn')?.addEventListener('click', () => openBlank($('create-blank-btn')));
-    // Close the projects modal via its own close, so its handlers run.
-    $('projects-blank-image')?.addEventListener('click', () => {
-      $('projects-close')?.click();
-      openBlank($('projects-blank-image'));
+    const blankBtn = document.getElementById('create-blank-btn');
+    blankBtn?.addEventListener('click', () => openBlank(blankBtn));
+    const projectsBlank = document.getElementById('projects-blank-image');
+    projectsBlank?.addEventListener('click', () => {
+      // Close the projects modal via its own close, so its handlers run.
+      document.getElementById('projects-close')?.click();
+      openBlank(projectsBlank);
     });
 
-    for (const t of [$('oi-tab-file'), $('oi-tab-url'), $('oi-tab-blank')])
-      t.addEventListener('click', () => preview.setTab(t.dataset.tab));
+    // ── What the tabs say ──────────────────────────────────────────────
+    this.addEventListener('tab-change', (e) => preview.setTab(e.detail.tab));
+    this.addEventListener('source-change', (e) => {
+      if (e.detail.kind === 'file') {
+        refresh();
+        preview.loadPreviewMedia(/*replacing=*/true);
+        return;
+      }
+      // Editing the URL retires the preview (no crop/scrubber) without taking it off the screen.
+      preview.retireUrlPreview();
+      refresh();
+      preview.syncPreview();
+    });
+    this.addEventListener('preview-request', () => {
+      preview.markUrlPreviewed();
+      refresh();
+      preview.loadPreviewMedia(/*replacing=*/true);
+    });
+    this.addEventListener('create-blank', async (e) => {
+      const { color, width, height } = e.detail;
+      if (app.image && !(await app.confirm('Replace the current image with a new blank image?', { title: 'Replace image', confirmIcon: 'swap' }))) return;
+      app.createBlankImage({ color, width, height, address: target() || undefined })
+        .then(() => { close(); notify(`Blank ${width}×${height} image created`, 'ok'); })
+        .catch((err) => notify(err && err.message ? err.message : 'Could not create the image', 'fail'));
+    });
+    this.$('blank-image-create').addEventListener('click', () => blank.requestCreate());
 
     // Incognito and a server target are mutually exclusive.
     incog.addEventListener('change', () => {
       fillTargetSelect(targetEl, targetRow, app.connections, !incog.checked);
     });
-
-    // Bound to the NAME, not the box, or a click on the button would open the picker twice
-    // (desktop twin: clickActivates on the dialog's path field).
-    for (const el of [chooseBtn, fileNameEl]) el.addEventListener('click', () => fileEl.click());
-    fileEl.addEventListener('change', () => {
-      showFileName();
-      refresh();
-      preview.loadPreviewMedia(/*replacing=*/true);
-    });
-    // Editing the URL retires the preview (no crop/scrubber) without taking it off the screen.
-    urlEl.addEventListener('input', () => { preview.retireUrlPreview(); refresh(); preview.syncPreview(); });
-    const doUrlPreview = () => {
-      if (!isPreviewableUrl(urlVal())) { notify('Enter a valid image or video URL (http/https or data:).', 'fail'); return; }
-      preview.markUrlPreviewed();
-      refresh();
-      preview.loadPreviewMedia(/*replacing=*/true);
-    };
-    urlPreviewBtn.addEventListener('click', doUrlPreview);
-    urlEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doUrlPreview(); } });
 
     cropToggle.addEventListener('change', () => {
       preview.rememberCropChoice();
