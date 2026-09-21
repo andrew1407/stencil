@@ -1,6 +1,7 @@
 import { ACCENTS, accentHex, normalizeHex, onAccentInk } from '../core/accents.js';
 import { icon } from './icons.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
+import { attachMenuScrollbar } from './menuScrollbar.js';
 
 const PREVIEW_HOVER_MS = 280;
 
@@ -193,6 +194,7 @@ export function buildAccentPicker(mount, { current, onSelect, preview = null }) 
   const onKey = (e) => { if (e.key === 'Escape') { close(); trigger.focus(); } };
   const open = () => {
     showMenu(menu, trigger);
+    attachMenuScrollbar(menu);   // only a list too tall for its cap draws a thumb
     trigger.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', onDocClick, true);
     document.addEventListener('keydown', onKey);

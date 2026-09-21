@@ -3,19 +3,13 @@
 // both bars and the webkit pseudo-elements are ignored once scrollbar-width is set.
 import { motionReduced } from './motion.js';
 import { onWindowResize } from './frameSync.js';
+import { SB_MIN_THUMB_PX, thumbMetrics } from './thumbMetrics.js';
+
+// The thumb's arithmetic stays part of this module's surface: the canvas suite reaches for it here.
+export { SB_MIN_THUMB_PX, thumbMetrics };
 
 const SB_SLOT_PX = 12;      // the strip each bar owns along the viewport edge
-export const SB_MIN_THUMB_PX = 28;
 const SB_HIDE_MS = 900;     // idle before the bars fade (desktop: revealCanvasScrollbars)
-
-// A thumb's length and offset along `track` px; null when nothing overflows.
-export const thumbMetrics = (client, scroll, offset, track) => {
-  if (!(scroll > client) || !(track > 0)) return null;
-  const len = Math.min(track, Math.max(SB_MIN_THUMB_PX, Math.round(track * client / scroll)));
-  const range = scroll - client;
-  const at = Math.min(Math.max(offset, 0), range);
-  return { len, pos: Math.round((track - len) * at / range) };
-};
 
 export const wireCanvasScrollbars = (vp) => {
   if (!vp || vp.__canvasSb) return vp?.__canvasSb || null;
