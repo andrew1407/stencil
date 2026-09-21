@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/andrew1407/stencil/actions/workflows/ci.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/ci.yml)
 [![Desktop packages](https://github.com/andrew1407/stencil/actions/workflows/desktop-packages.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/desktop-packages.yml)
-[![Deploy to GitHub Pages](https://github.com/andrew1407/stencil/actions/workflows/pages.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/pages.yml)
+[![GitHub Pages](https://github.com/andrew1407/stencil/actions/workflows/pages.yml/badge.svg)](https://github.com/andrew1407/stencil/actions/workflows/pages.yml)
 
 An image annotation / drawing tool: load an image, draw polylines and rectangles over
 it, edit points numerically, convert pixel coordinates to page (cm) coordinates with
