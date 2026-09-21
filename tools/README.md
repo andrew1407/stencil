@@ -55,15 +55,3 @@ prove it unchanged. Diff those files normally.
 The scanner is string-aware in both tools (they share it): a `//` inside a string, a template
 literal, a regex, a Rust raw string, a C# verbatim string or a Zig `\\` line is content, not a
 comment — as the self-tests assert.
-
-## `../desktop/tools/cppCommentDiff.sh` — the same, from the compiler
-
-```sh
-desktop/tools/cppCommentDiff.sh <gitRef> <file...>   # exits 1 on any difference
-```
-
-A second opinion on a C++ sweep that owes nothing to the hand-rolled scanner: it
-preprocesses each side with `gcc -fpreprocessed -dD -E -P` (`-fpreprocessed` leaves includes
-and macros alone) and diffs the result. Needs a **real gcc** — Apple's clang-as-gcc rejects
-the flag, and the script exits 2 saying so rather than compare two empty files. Use
-`commentOnlyDiff.mjs` on macOS.

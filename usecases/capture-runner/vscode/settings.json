@@ -19,7 +19,5 @@
   "workbench.tips.enabled": false,
   "editor.quickSuggestionsDelay": 10,
   "stencil.cliPath": "",
-  "terminal.integrated.defaultProfile.osx": "Capture",
-  "terminal.integrated.defaultProfile.linux": "Capture",
   "terminal.integrated.shellIntegration.enabled": false
 }

@@ -156,6 +156,6 @@ you create a module or rework its exports.
 - Prove a move with `node tools/moveCheck.mjs <gitRef> <path…>` and a comment sweep with
   `node tools/commentOnlyDiff.mjs <gitRef> <path…>` (every file `OK`). `LOST 0  NEW 0` holds for
   whole-function and data moves; an extract-class reports one LOST/NEW pair per converted method,
-  so the signal is **`LOST 0`, only the wrapper NEW**. For C++, `cppCommentDiff.sh` exits 2 where
-  `gcc` is the clang shim and a raw `-fpreprocessed` diff emits EMPTY files — a false pass; use
-  `normalizeLines` and check the stripped text is non-empty.
+  so the signal is **`LOST 0`, only the wrapper NEW**. For C++, use `commentOnlyDiff.mjs` too: a
+  hand-rolled `gcc -fpreprocessed` diff emits EMPTY files where `gcc` is the clang shim, and two
+  empty sides compare equal — a false pass. Check the stripped text is non-empty.

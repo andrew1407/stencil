@@ -27,8 +27,7 @@ node usecases/capture-runner/cliTerminal.mjs         # the console in VS Code's 
 node usecases/capture-runner/desktop.mjs             # builds+runs the Qt binary, offscreen
 node usecases/capture-runner/vscodeExtension.mjs     # one VS Code launch per theme; ~1 min
 node usecases/capture-runner/bot.mjs                 # see below
-./usecases/capture-runner/runAll.sh                  # all of the above but the bot
-usecases\capture-runner\runAll.bat                   # the same, on Windows
+python3 usecases/capture-runner/main.py              # all of the above but the bot
 ```
 
 Add `--only <name-prefix>` to the Node scripts to redo one shot while iterating.

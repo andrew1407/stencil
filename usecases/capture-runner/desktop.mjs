@@ -26,7 +26,7 @@ const run = (cmd, args, env = {}) => execFileSync(cmd, args, { stdio: 'inherit',
 
 console.log('desktop build');
 run('cmake', ['-S', repoPath('desktop'), '-B', BUILD, '-DSTENCIL_DOCS_CAPTURE=ON']);
-run('cmake', ['--build', BUILD, '--target', 'stencil_docs_capture', '-j']);
+run('cmake', ['--build', BUILD, '--config', 'Release', '--target', 'stencil_docs_capture', '-j']);
 
 // The offscreen platform's screen is 800x800 and the tall dialogs size off availableGeometry, so
 // the plugin gets a 1920x1200-logical screen in DEVICE pixels, which QT_SCALE_FACTOR divides.
@@ -54,7 +54,11 @@ const env = {
   STENCIL_DOCS_PLAN: JSON.stringify(config.stubPlan('sepiaOutline')),
   ...(token ? { STENCIL_DOCS_SERVER_URL: config.serverUrl, STENCIL_DOCS_SERVER_TOKEN: token } : {}),
 };
-const binary = path.join(BUILD, 'stencil_docs_capture');
+// MSVC's generators put the binary under a per-config directory and give it an extension;
+// a single-config build has it straight in BUILD.
+const exeName = process.platform === 'win32' ? 'stencil_docs_capture.exe' : 'stencil_docs_capture';
+const binary = [path.join(BUILD, exeName), path.join(BUILD, 'Release', exeName)]
+  .find((p) => fs.existsSync(p)) ?? path.join(BUILD, exeName);
 
 // Every shot this run wants, grouped by the theme it is taken in.
 const wantedNames = [

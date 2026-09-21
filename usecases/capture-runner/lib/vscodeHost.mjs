@@ -10,12 +10,25 @@ import { chromium } from './playwright.mjs';
 import { CAPTURE, REPO } from './paths.mjs';
 import { waitForStable } from './waits.mjs';
 
+const WIN = process.platform === 'win32';
+
 // Outside the home directory and short on purpose: the terminal's output lands in a screenshot,
 // and VS Code's IPC socket path has a 103-character cap (config/shared.json `vscode.roots`).
 const root = (config) => config.vscode.roots[process.platform] || path.join(os.tmpdir(), 'stencil-capture');
 export const VS_DIR = (config) => root(config);
 export const WORKSPACE = (config) => path.join(root(config), 'ws');
-export const CLI_BIN = (config) => path.join(root(config), 'bin', 'stencil');
+const CLI_NAME = WIN ? 'stencil.exe' : 'stencil';
+export const CLI_BIN = (config) => path.join(root(config), 'bin', CLI_NAME);
+
+// The terminal shots type real shell lines, and cmd.exe shares none of bash's spelling.
+// `$$$S` is cmd's PROMPT for "$ ", so either shell prints the same bare prompt.
+export const SHELL = WIN
+  ? { env: { PROMPT: '$$$S' },
+      setEnv: (v) => Object.entries(v).map(([n, x]) => `set ${n}=${x}`).join(' & '),
+      clearThen: (cmd) => `cls & ${cmd}` }
+  : { env: { PS1: '$ ', BASH_SILENCE_DEPRECATION_WARNING: '1' },
+      setEnv: (v) => `export ${Object.entries(v).map(([n, x]) => `${n}=${x}`).join(' ')}`,
+      clearThen: (cmd) => `clear; ${cmd}` };
 
 const SOURCE = path.join(CAPTURE, 'vscode');
 export const SAMPLES = ['example.stc', 'example.stcjs', 'example.pystc', 'example.stencil'];
@@ -23,8 +36,10 @@ const SAMPLE = SAMPLES[0];
 const LANGUAGE_NAME = 'Stencil script';
 const WORKBENCH = '.monaco-workbench';
 
+// config/shared.json spells the Windows path with %LOCALAPPDATA%; no one else expands it.
+const expandVars = (p) => p.replace(/%([^%]+)%/g, (_, name) => process.env[name] ?? '');
 const binaryFor = (config) => process.env.STENCIL_VSCODE
-  || path.resolve(config.vscode.binaries[process.platform] || config.vscode.binaries.linux);
+  || path.resolve(expandVars(config.vscode.binaries[process.platform] || config.vscode.binaries.linux));
 
 export class VsCodeHost {
   #proc;
@@ -47,8 +62,8 @@ export class VsCodeHost {
     for (const sub of ['user/User', 'ext', 'ws/out', 'bin']) fs.mkdirSync(path.join(dir, sub), { recursive: true });
     for (const name of SAMPLES) fs.copyFileSync(path.join(SOURCE, 'sample', name), path.join(WORKSPACE(config), name));
     fs.copyFileSync(path.join(REPO, config.shared.urls.localBotIcon), path.join(WORKSPACE(config), 'icon.png'));
-    fs.copyFileSync(path.join(REPO, 'cli', 'zig-out', 'bin', 'stencil'), CLI_BIN(config));
-    fs.chmodSync(CLI_BIN(config), 0o755);
+    fs.copyFileSync(path.join(REPO, 'cli', 'zig-out', 'bin', CLI_NAME), CLI_BIN(config));
+    if (!WIN) fs.chmodSync(CLI_BIN(config), 0o755);
     const settings = JSON.parse(fs.readFileSync(path.join(SOURCE, 'settings.json'), 'utf8'));
     settings['workbench.colorTheme'] = config.vscode.themes[theme];
     settings['stencil.cliPath'] = CLI_BIN(config);
@@ -56,17 +71,28 @@ export class VsCodeHost {
     const shell = config.vscode.shells[process.platform] || config.vscode.shells.linux;
     // PYTHONPATH so a .pystc finds pystencil the way an installed one would; the path is in
     // the environment, never on the command line the terminal shot carries.
-    const env = { PS1: '$ ', BASH_SILENCE_DEPRECATION_WARNING: '1', PYTHONPATH: path.join(REPO, 'pystencil') };
+    const env = { ...SHELL.env, PYTHONPATH: path.join(REPO, 'pystencil') };
     const profile = { Capture: { ...shell, env } };
-    settings['terminal.integrated.profiles.osx'] = profile;
-    settings['terminal.integrated.profiles.linux'] = profile;
+    for (const slot of ['osx', 'linux', 'windows']) {
+      settings[`terminal.integrated.profiles.${slot}`] = profile;
+      settings[`terminal.integrated.defaultProfile.${slot}`] = 'Capture';
+    }
     fs.writeFileSync(path.join(dir, 'user', 'User', 'settings.json'), JSON.stringify(settings, null, 2));
   }
 
   // proc.kill() reaches the main process only: every process on our user-data-dir goes, and
   // the debug port must be free again before the next launch (else VS Code hands off).
   static async freePort(port, dir) {
-    try { execFileSync('pkill', ['-9', '-f', `${dir}/user`]); } catch { /* none left */ }
+    const held = path.join(dir, 'user');
+    try {
+      if (WIN) {
+        execFileSync('powershell', ['-NoProfile', '-Command', 'Get-CimInstance Win32_Process'
+          + ` | Where-Object { $_.CommandLine -like '*${held}*' }`
+          + ' | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }'], { stdio: 'ignore' });
+      } else {
+        execFileSync('pkill', ['-9', '-f', held]);
+      }
+    } catch { /* none left */ }
     for (let i = 0; i < 40; i++) {
       const busy = await fetch(`http://127.0.0.1:${port}/json/version`).then(() => true, () => false);
       if (!busy) return;

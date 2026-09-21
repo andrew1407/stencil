@@ -52,7 +52,7 @@ the files the lint lists as the core seam. The document state itself lives in `C
 | `src/net/` | `serverClient` (REST + `ConnectionManager`), `connectionStore` (0600 tokens), `fetchGuard`, `httpStatus` | `fetchGuard` is the surface's one SSRF guard, a port of `cli/src/net.zig`; tokens never go in `QSettings`; `httpStatus` names the 2xx/401-403 triage both clients share |
 | `src/support/` | one folder per shared concern — `theme/` (the shared ID-selector QSS), `motion/`, `dust/`, `icon/`, `control/` (with `reveal/` + `swap/`), `tip/`, `menu/`, `modal/`, `logo/`, `share/`, `notify/` — plus the platform helpers | QSS lives here only — a widget's own `setStyleSheet` silently changes child metrics |
 | `resources/` | `app.qrc`: `app.qss` and the browser's shared config JSON as qrc aliases | shared tables are aliased from `browser/js/config/`, never copied |
-| `packaging/` | plist template, `.desktop`, mime xml, `make-icns.sh` | nothing binary committed; the icon is derived from `browser/favicon.svg` |
+| `packaging/` | plist template, `.desktop`, mime xml, `mkicon.cpp` | nothing binary committed; every icon is rasterised from `browser/favicon.svg` |
 | `cmake/` | `StencilSources`, `StencilTests`, `StencilPackaging` | source lists live here, not in `CMakeLists.txt` |
 | `tests/` | headless suites per concern, `MainWindow.<area>.gui.cpp` (one QtTest binary per area over one `stencil_gui_objs` library) and the layer lint | every suite reports its own failures |
 
@@ -264,7 +264,11 @@ classDiagram
   best-effort on Linux, Qt ≥ 6.3). The `.stencil` type and the `stencil://` scheme are
   registered on macOS (`com.stencil.project` UTI, `CFBundleDocumentTypes`, `CFBundleURLTypes`
   in `packaging/MacOSXBundleInfo.plist.in`) and Linux (`stencil-mime.xml`, `stencil.desktop`).
-  The macOS icon is a flat `.icns` generated at configure time from `browser/favicon.svg`.
+  Icons come from one host tool, `packaging/mkicon.cpp`, built against Qt and run at build
+  time: it rasterises `browser/favicon.svg` straight into a macOS `.icns` or a Windows `.ico`,
+  both of which are typed containers around PNG frames, so no OS image tool takes part. macOS
+  additionally names a themed `AppIcon` where `actool` is present (full Xcode only), compiled
+  from an `.icon` layer bundle whose foreground the same tool renders.
 
 ## Rules
 
