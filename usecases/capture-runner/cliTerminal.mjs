@@ -6,7 +6,7 @@ import path from 'node:path';
 import { loadCaptureConfig } from './lib/captureConfig.mjs';
 import { outDir, scratchDir } from './lib/paths.mjs';
 import { makeShotRunner } from './lib/shotRunner.mjs';
-import { CLI_BIN, VsCodeHost } from './lib/vscodeHost.mjs';
+import { CLI_BIN, SHELL, VsCodeHost } from './lib/vscodeHost.mjs';
 import { film } from './lib/shots.mjs';
 import { framesToGif, quantizePng } from './lib/gifTools.mjs';
 import { settle, waitForStable } from './lib/waits.mjs';
@@ -67,14 +67,17 @@ const clipGif = async (name, drive) => {
   console.log(`  ${name}.gif`);
 };
 
-// The server-backed assistant rides the CLI's env; the export line is typed before `clear`
+// The server-backed assistant rides the CLI's env; the env line is typed before the clear
 // and the console's alternate screen hides the shell's scrollback anyway.
 const token = config.serverToken();
 if (token) {
-  await type(`export STENCIL_LLM_PROVIDER=stencil-server STENCIL_LLM_SERVER_URL=${config.serverUrl}`
-    + ` STENCIL_LLM_SERVER_TOKEN=${token}`);
+  await type(SHELL.setEnv({
+    STENCIL_LLM_PROVIDER: 'stencil-server',
+    STENCIL_LLM_SERVER_URL: config.serverUrl,
+    STENCIL_LLM_SERVER_TOKEN: token,
+  }));
 }
-await type(`clear; ${CLI_BIN(config)} --console-full-screen out/console.png`);
+await type(SHELL.clearThen(`${CLI_BIN(config)} --console-full-screen out/console.png`));
 // `clear` empties the buffer, which reads as "idle" long before the console has drawn:
 // wait for its own intro line instead.
 await waitForText(/Console mode/, TERMINAL.maxWaitMs);

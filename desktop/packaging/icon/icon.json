@@ -1,0 +1,7 @@
+{
+  "fill" : { "automatic-gradient" : "extended-srgb:0.16,0.18,0.23,1.0" },
+  "groups" : [
+    { "layers" : [ { "image-name" : "foreground.png", "name" : "Foreground" } ] }
+  ],
+  "supported-platforms" : { "circles" : [], "squares" : "shared" }
+}

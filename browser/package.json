@@ -8,7 +8,7 @@
     "test": "node --test",
     "build": "node tools/buildHtml.js",
     "serve": "node tools/serve.js",
-    "build-wasm": "cd ../core && emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release && emmake cmake --build build-wasm -j --target stencil_wasm && mkdir -p ../browser/js/wasm && cp build-wasm/stencil_core.js ../browser/js/wasm/stencilCore.js",
+    "build-wasm": "cd ../core && emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release && emmake cmake --build build-wasm -j --target stencil_wasm && cmake -E make_directory ../browser/js/wasm && cmake -E copy build-wasm/stencil_core.js ../browser/js/wasm/stencilCore.js",
     "gen-fixtures": "node tools/genOpPlanFixtures.mjs"
   },
   "devDependencies": {
