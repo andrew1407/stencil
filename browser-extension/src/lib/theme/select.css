@@ -21,7 +21,19 @@
 .accent-dd-menu {
   position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50;
   margin: 0; padding: 4px; list-style: none; max-height: 280px; overflow-y: auto;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 9px;
+  /* macOS hides its overlay scrollbar until it moves, so a capped list looked simply cut off.
+     The two `local` covers ride the content and uncover a `scroll` shadow only while rows remain. */
+  background:
+    /* The thumb (lib/menuScrollbar.js): `scroll` holds it against the box while the two custom
+       properties carry its length and travel. Zero-length — absent — when it fits. */
+    linear-gradient(var(--muted), var(--muted))
+      right 3px top var(--dd-sb-pos, 0px) / 6px var(--dd-sb-len, 0px) no-repeat scroll,
+    linear-gradient(var(--panel) 40%, rgba(0, 0, 0, 0)) top / 100% 20px no-repeat local,
+    linear-gradient(rgba(0, 0, 0, 0), var(--panel) 60%) bottom / 100% 20px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, .35), rgba(0, 0, 0, 0)) top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, .35), rgba(0, 0, 0, 0)) bottom / 100% 10px no-repeat scroll,
+    var(--panel);
+  border: 1px solid var(--line); border-radius: 9px;
   box-shadow: 0 10px 28px rgba(0, 0, 0, .35);
 }
 .accent-dd-menu[hidden] { display: none; }

@@ -1,6 +1,7 @@
 import { surfaceIn, surfaceOut, centerOf } from './motion.js';
 import { icon } from './icons.js';
 import { createAccentPreview } from './accentPreview.js';
+import { attachMenuScrollbar } from './menuScrollbar.js';
 
 export function wireLogoAccent(logo) {
   const A = typeof window !== 'undefined' && window.StencilAccent;
@@ -50,6 +51,7 @@ export function wireLogoAccent(logo) {
     if (r && typeof window !== 'undefined' && typeof window.innerHeight === 'number')
       menu.style.maxHeight = `${Math.max(120, window.innerHeight - r.bottom - 16)}px`;
     menu.hidden = false;
+    attachMenuScrollbar(menu);   // measurable only once shown
     wrap.classList.add('logo-menu-open');   // lifts the badge's stacking context over the page
     surfaceIn(menu, centerOf(wrap));
     document.addEventListener('pointerdown', onDocDown, true);
