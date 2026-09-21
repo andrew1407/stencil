@@ -1,6 +1,6 @@
 //! Op-plan parser/validator and its mapping onto the CLI pipeline.
 //!
-//! Port of `llm-contract.md` §1–§3, behaviorally mirroring `browser/js/llm/opPlan.js`;
+//! Port of `llm-contract.md` §1–§3, behaviorally mirroring `browser/js/llm/plan/plan.js`;
 //! limits, key schemas, enums and token grammars are table-driven from the shared
 //! `browser/js/config/llm/opRegistry.json`. `to_edit_requests` maps a plan onto CLI runs.
 
