@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { matchListingIndex, attachmentNote } from '../src/llm/chatController.js';
-import { LLM_SYSTEM_PROMPT } from '../src/llm/opPlan.js';
+import { LLM_SYSTEM_PROMPT } from '../src/llm/op/opPlan.js';
 import { ATTACH_PLAN, LISTING, makeController } from './helpers/chatHarness.js';
 
 // ── Controller: execution + bounded auto-continuation ──

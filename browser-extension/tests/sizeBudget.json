@@ -25,9 +25,14 @@
     "browser-extension/src/lib/prefs": 10,
     "browser-extension/src/lib/tip": 22,
     "browser-extension/src/llm": 17,
+    "browser-extension/src/llm/op": 17,
     "browser-extension/src/options": 10,
-    "browser-extension/src/popup": 9,
+    "browser-extension/src/popup": 10,
     "browser-extension/src/popup/assistant": 16,
+    "browser-extension/src/popup/editor": 9,
+    "browser-extension/src/popup/list": 8,
+    "browser-extension/src/popup/pin": 8,
+    "browser-extension/src/popup/row": 7,
     "browser-extension/tests": 9,
     "browser-extension/tests/helpers": 16
   },
@@ -50,6 +55,6 @@
     "browser-extension/tests": 105,
     "browser-extension/tests/helpers": 15
   },
-  "_splitShareNote": "browser-extension/src/lib 12 -> 17: 70 modules moved into feature folders, so the same banners sit over a fraction of the code (comments 1153 -> 101, lines 8823 -> 577). Nothing added.",
+  "_splitShareNote": "browser-extension/src/lib 12 -> 17: 70 modules moved into feature folders, so the same banners sit over a fraction of the code (comments 1153 -> 101, lines 8823 -> 577). Nothing added. src/popup 9→10: the folder kept the panel shell and its banners while 19 modules left for editor/, pin/, row/ and list/. Volume fell.",
   "_dirsNote": "Folder fan-out ratchet. A module and its .d.ts count once; a folder past the cap is split by feature, never recorded."
 }

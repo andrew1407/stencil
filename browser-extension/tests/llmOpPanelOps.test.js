@@ -2,7 +2,7 @@
 // open.mode, scanTab, theme/accent/filter, clearChat, openUrl — and what gathers vs acts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FORBIDDEN_OPS, LIMITS, continuationOnly } from '../src/llm/opPlan.js';
+import { FORBIDDEN_OPS, LIMITS, continuationOnly } from '../src/llm/op/opPlan.js';
 import { bulletOf, parse, parseT, plan } from './helpers/opPlanHarness.js';
 
 // ── §8 pin + scanTab (tab-aware ops) ──

@@ -11,7 +11,7 @@ import { formatOfItem } from '../../lib/highlight/filters.js';
 import { decodeSize } from '../../lib/image/rasterize.js';
 import { createLlmClient } from '../../llm/llmClient.js';
 import { createChatController, translateOpenActions } from '../../llm/chatController.js';
-import { openPanelDialog } from '../dialogShell.js';
+import { openPanelDialog } from '../editor/dialogShell.js';
 import { MSG } from '../../lib/messages.js';
 import { toLlmImage } from './shared.js';
 

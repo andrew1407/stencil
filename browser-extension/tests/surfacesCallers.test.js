@@ -17,7 +17,7 @@ test('every icon-anchored surface dusts from — and back into — its own contr
     ['../src/lib/control/dropdownMenu.js', 'surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS })',
                                    'surfaceOut(menu, menu.hidden ? null : menuDustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS })'],
     ['../src/lib/chat/chatMsgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
-    ['../src/popup/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin);'],
+    ['../src/popup/editor/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin);'],
     ['../src/options/confirmDialog.js', 'surfaceIn(box, origin);', 'surfaceOut(box, origin);'],
     // The Main-theme picker drives its own open/close but borrows the SAME caret point showMenu aims
     // at: its trigger is a full-width field, so the centre put the motes in the middle of the label.
@@ -55,6 +55,6 @@ test('a close is SYNCHRONOUS: the motes are the surface leaving, nothing waits o
   // Dusted while it is still on screen and measurable, hidden on the very same frame —
   // which is what lets a burst of open/close land on the true state.
   assert.ok(close.indexOf('surfaceOut(menuEl, openOrigin);') < close.indexOf('menuEl.hidden = true;'));
-  const dlg = readFileSync(new URL('../src/popup/dialogShell.js', import.meta.url), 'utf8');
+  const dlg = readFileSync(new URL('../src/popup/editor/dialogShell.js', import.meta.url), 'utf8');
   assert.ok(dlg.indexOf('surfaceOut(box, origin);') < dlg.indexOf('back.remove();'));
 });

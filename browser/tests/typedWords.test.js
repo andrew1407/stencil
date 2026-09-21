@@ -17,7 +17,7 @@ beforeEach(() => {
   globalThis.performance = { now: () => 0 };
 });
 
-const { wireTypedWords, matchTypedWord } = await import('../js/ui/bindings/typedWords.js');
+const { wireTypedWords, matchTypedWord } = await import('../js/ui/bindings/keys/typedWords.js');
 const { logoStageOpen, closeLogoStage } = await import('../js/ui/logo/logoStage.js');
 
 const type = (text, over = {}) => {

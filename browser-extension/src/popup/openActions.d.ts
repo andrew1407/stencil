@@ -1,6 +1,6 @@
 // Shapes for popup/openActions.js — every way a row hands its image off: into an editor
 // tab, a new editor tab, crop, or an external app.
-import type { PopupImage } from './model.js';
+import type { PopupImage } from './list/model.js';
 
 /** SVGs rasterise first, so the hand-off always carries pixels. */
 export declare const imageDataUrl: (image: PopupImage) => Promise<string>;

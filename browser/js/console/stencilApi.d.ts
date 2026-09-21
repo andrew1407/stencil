@@ -11,7 +11,7 @@ import type { RemoteProjectMeta } from '../core/project/projectTransferControlle
 import type { LlmSettings } from '../llm/llmSettings.js';
 import type { VariantResult } from '../llm/plan/opPlan.js';
 
-export { WINDOWS } from './windowsApi.js';
+export { WINDOWS } from './api/windowsApi.js';
 
 export interface XY { x: number; y: number; }
 export interface Size { width: number; height: number; }

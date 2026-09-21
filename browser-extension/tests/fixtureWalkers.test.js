@@ -9,7 +9,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-import { parseOpPlan } from '../src/llm/opPlan.js';
+import { parseOpPlan } from '../src/llm/op/opPlan.js';
 import { createLlmClient, sanitizeProviderText, LlmError } from '../src/llm/llmClient.js';
 import { encodeTelegramStartPayload } from '../src/lib/menu/openIn.js';
 

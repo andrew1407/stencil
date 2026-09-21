@@ -4,11 +4,11 @@ import { entryFromDrop, dragActionAllowed, dragPayloadKind } from '../lib/drop/d
 import { shortName } from '../lib/displayName.js';
 import { sourceOf } from '../lib/image/imageModel.js';
 import { listEl, menuEl, statusEl, run, IS_SIDE_PANEL, IS_DEVTOOLS } from './panelDom.js';
-import { state } from './model.js';
+import { state } from './list/model.js';
 import { openHere, openCrop } from './openActions.js';
-import { placeMenu, closeMenu } from './rowMenu.js';
+import { placeMenu, closeMenu } from './row/rowMenu.js';
 import { getDraggingRow } from './gestures.js';
-import { sections } from './sections.js';
+import { sections } from './list/sections.js';
 
 // Spring-loaded drop targets: a collapsed section cannot accept a drop, so the one the
 // pointer dwells on unfolds (lib/dragSections.js owns the rules).

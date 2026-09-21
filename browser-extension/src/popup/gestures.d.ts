@@ -1,5 +1,5 @@
 // Shapes for popup/gestures.js — click/double-click disambiguation and drag-out for a row.
-import type { PopupImage } from './model.js';
+import type { PopupImage } from './list/model.js';
 
 export declare const bindRowGestures: (el: Element, image: PopupImage) => void;
 export declare const bindRowDrag: (row: Element, image: PopupImage) => void;

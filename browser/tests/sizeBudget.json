@@ -4,10 +4,6 @@
   "maxFilesPerDir": 12,
   "_dirsNote": "Folder fan-out ratchet. A module and its .d.ts count once. These folders predate the 12-file cap; each may shrink, never grow, and a new folder over the cap is split rather than recorded here.",
   "dirs": {
-    "browser/js/console": 17,
-    "browser/js/ui/bindings": 21,
-    "browser/js/ui/chat": 17,
-    "browser/js/ui/projects": 16,
     "browser/tests": 303,
     "browser/tests/helpers": 33
   },
@@ -22,6 +18,7 @@
     "browser/js": 29,
     "browser/js/config": 12,
     "browser/js/console": 16,
+    "browser/js/console/api": 17,
     "browser/js/core": 11,
     "browser/js/core/abi": 10,
     "browser/js/core/image": 17,
@@ -43,9 +40,14 @@
     "browser/js/net": 15,
     "browser/js/ui": 19,
     "browser/js/ui/accent": 12,
-    "browser/js/ui/bindings": 16,
+    "browser/js/ui/bindings": 18,
+    "browser/js/ui/bindings/controls": 11,
+    "browser/js/ui/bindings/keys": 19,
+    "browser/js/ui/bindings/viewport": 17,
     "browser/js/ui/canvas": 13,
-    "browser/js/ui/chat": 12,
+    "browser/js/ui/chat": 14,
+    "browser/js/ui/chat/composer": 10,
+    "browser/js/ui/chat/row": 9,
     "browser/js/ui/connect": 10,
     "browser/js/ui/contextMenu": 12,
     "browser/js/ui/control": 19,
@@ -65,6 +67,8 @@
     "browser/js/ui/openImage/sources": 16,
     "browser/js/ui/panel": 11,
     "browser/js/ui/projects": 13,
+    "browser/js/ui/projects/list": 15,
+    "browser/js/ui/projects/row": 13,
     "browser/js/ui/projects/window": 14,
     "browser/js/ui/script": 17,
     "browser/js/ui/settings": 11,
@@ -87,5 +91,5 @@
     "commentPct": "commentPct was re-measured when the walker began counting .d.ts files: a shape file is mostly declarations with a documenting line above each, so every directory holding one reads a few points higher. No prose was added — the measured scope grew. These are the new floors.",
     "browser/js/console/stencilApi.d.ts": "357 and single-file on purpose: vscode-extension/tools/genTypings.mjs reads THIS file as its one SOURCE to generate the shipped vscode-extension/typings/stencil.d.ts, and vscode-extension/tests/apiVocabulary.test.js pins the vocabulary's presence here. Splitting the type vocabulary out silently stripped it from the generated typings, so the facade and its vocabulary stay together."
   },
-  "_splitShareNote": "Shares that rose purely because code left the directory, never because prose was added: browser/js/ui 13->14 (comments 2316->560 of 16613->3970), browser/js/ui/openImage 12->13 (180->173 of 1433->1326), browser/js/llm 19->22 (844->143 of 4269->643), browser/js/ui/motion 15->16 (371->119 of 2417->734). Each folder keeps the same banners over far less code. browser/js/ui 14→19 and ui/motion 16→17: the ui/ root kept seven foundational modules and their banners while 35 modules left, and motion/ gained two that arrived with theirs. Comment VOLUME fell from 560 lines to 80 in ui/; nothing was written."
+  "_splitShareNote": "Shares that rose purely because code left the directory, never because prose was added: browser/js/ui 13->14 (comments 2316->560 of 16613->3970), browser/js/ui/openImage 12->13 (180->173 of 1433->1326), browser/js/llm 19->22 (844->143 of 4269->643), browser/js/ui/motion 15->16 (371->119 of 2417->734). Each folder keeps the same banners over far less code. browser/js/ui 14→19 and ui/motion 16→17: the ui/ root kept seven foundational modules and their banners while 35 modules left, and motion/ gained two that arrived with theirs. Comment VOLUME fell from 560 lines to 80 in ui/; nothing was written. ui/bindings 16→18 and ui/chat 12→14: each folder kept its smaller modules and their banners while the larger ones left for the new subfolders. Volume fell in both."
 }

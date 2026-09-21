@@ -1,11 +1,11 @@
 // Rendering the shared transcript log. Model output is DATA — every string lands via
 // textContent, never innerHTML.
 import { LEAVING_CLASS, chatIn, observeReveal, wipeDurationMs } from '../motion.js';
-import { applyShrinkWrap, bindShrinkWrapResize, rowTextNode, setRowClass } from './chatRowDom.js';
-import { chatAskCard, chatAttachmentStrip, chatConfigureButton, chatReconnectButton, chatResultCard } from './chatCards.js';
+import { applyShrinkWrap, bindShrinkWrapResize, rowTextNode, setRowClass } from './row/chatRowDom.js';
+import { chatAskCard, chatAttachmentStrip, chatConfigureButton, chatReconnectButton, chatResultCard } from './row/chatCards.js';
 import { chatEmptyState, typingDots } from './chatEmpty.js';
 import { chatLeave } from './chatLeave.js';
-import { chatRowMenuButton } from './chatRowMenuModel.js';
+import { chatRowMenuButton } from './row/chatRowMenuModel.js';
 import { icon } from '../icons.js';
 
 // Keyed by row id and incremental; both surfaces call this on every log change.

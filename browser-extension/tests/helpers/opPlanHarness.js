@@ -1,6 +1,6 @@
 // Plan wrappers shared by the llmOp*.test.js suites: a 10-image listing (and a 5-tab one)
 // unless a test narrows it, plus the registry bullet lookup.
-import { OP_REGISTRY, parseOpPlan } from '../../src/llm/opPlan.js';
+import { OP_REGISTRY, parseOpPlan } from '../../src/llm/op/opPlan.js';
 
 export const parse = (obj, listingLength = 10) =>
   parseOpPlan(typeof obj === 'string' ? obj : JSON.stringify(obj), { listingLength });

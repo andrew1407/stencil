@@ -5,20 +5,20 @@
 import { wireCanvasScrollbars } from '../canvas/canvasScrollbars.js';
 import { wireScrollbarHover } from '../control/scrollbarHover.js';
 import { enhanceAllSelects } from '../control/customSelect.js';
-import { wireStyleControls } from './styleControls.js';
+import { wireStyleControls } from './controls/styleControls.js';
 import { wireSelectionPanelControls } from './selectionPanel.js';
-import { wirePageAndDisplayControls } from './pageAndDisplay.js';
-import { wireFormulaControls } from './formula.js';
-import { wireToolbarButtons } from './toolbarButtons.js';
-import { wireZoomControls } from './zoom.js';
-import { wireScrollPersist } from './scrollPersist.js';
+import { wirePageAndDisplayControls } from './controls/pageAndDisplay.js';
+import { wireFormulaControls } from './controls/formula.js';
+import { wireToolbarButtons } from './controls/toolbarButtons.js';
+import { wireZoomControls } from './viewport/zoom.js';
+import { wireScrollPersist } from './viewport/scrollPersist.js';
 import { wireTheme } from './theme.js';
-import { wireKeyboard } from './keyboard.js';
-import { wireArrowPan } from './arrowPan.js';
+import { wireKeyboard } from './keys/keyboard.js';
+import { wireArrowPan } from './viewport/arrowPan.js';
 import { wireDropPaste } from './dropPaste.js';
 import { wireCanvasPointer } from './canvasPointer.js';
-import { wireSmoothZoom } from './smoothZoom.js';
-import { wireTypedWords } from './typedWords.js';
+import { wireSmoothZoom } from './viewport/smoothZoom.js';
+import { wireTypedWords } from './keys/typedWords.js';
 
 // Wire each cohesive control group in source order: document-level listener dispatch
 // order depends on it.

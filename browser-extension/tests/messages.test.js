@@ -79,7 +79,7 @@ test('no importing module writes a channel literal instead of using the table', 
   for (const file of ['lib/menu/contextMenu.js', 'lib/stencil.js', 'lib/connection/connections.js',
     'background/background.js', 'background/menus.js', 'background/registrars.js',
     'background/editorRelay.js', 'background/ctxActions.js', 'popup/popup.js',
-    'popup/editorMode.js', 'options/options.js', 'crop/crop.js']) {
+    'popup/editor/editorMode.js', 'options/options.js', 'crop/crop.js']) {
     if (MIRRORED.has(`src/${file}`)) continue;
     for (const m of read(file).matchAll(/'(stencil-[a-z-]+)'/g))
       if (values.has(m[1])) offenders.push(`${file}: '${m[1]}'`);

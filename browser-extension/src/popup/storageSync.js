@@ -3,11 +3,11 @@ import { LEDGER_KEY } from '../lib/prefs/ledger.js';
 import { PINS_KEY } from '../lib/prefs/pins.js';
 import { CONNECTIONS_KEY } from '../lib/connection/connections.js';
 import { FILTERS_KEY } from '../lib/highlight/filterUi.js';
-import { state } from './model.js';
-import { annotateOpened, annotatePinned, loadOpenInSettings } from './scan.js';
-import { filterUi, applyFilters } from './filters.js';
-import { loadShared, startSharedPolling } from './sharedPins.js';
-import { runHoverHighlight, highlightListRowForSource } from './hoverHighlight.js';
+import { state } from './list/model.js';
+import { annotateOpened, annotatePinned, loadOpenInSettings } from './list/scan.js';
+import { filterUi, applyFilters } from './list/filters.js';
+import { loadShared, startSharedPolling } from './pin/sharedPins.js';
+import { runHoverHighlight, highlightListRowForSource } from './row/hoverHighlight.js';
 
 // Re-annotate in place, so badges and outlines update without a re-scan.
 chrome.storage.onChanged.addListener((changes, area) => {

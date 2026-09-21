@@ -121,7 +121,7 @@ test('js/core, js/llm and js/net import nothing from js/ui beyond the frozen all
 
 // Rule 3 — only the console layer speaks `window.stencil`: index.js installs it by defineProperty and
 // never reads it back; the sites below should be handed the facade instead.
-const FACADE_ALLOWANCE = { 'llm/adapters/media.js': 1, 'llm/chat/chatSession.js': 1, 'ui/chat/chatCards.js': 1 };
+const FACADE_ALLOWANCE = { 'llm/adapters/media.js': 1, 'llm/chat/chatSession.js': 1, 'ui/chat/row/chatCards.js': 1 };
 
 test('window.stencil appears outside js/console only in the frozen allowance', () => {
   const files = walk('').filter((rel) => !rel.startsWith('console/'));
@@ -134,12 +134,12 @@ test('window.stencil appears outside js/console only in the frozen allowance', (
 const GLOBAL_ID = /(?<![\w$.])(?:document\.getElementById|\$)\(/g;
 
 const UI_ID_ALLOWANCE = {
-  'ui/base.js': 1, 'ui/bindings/arrowPan.js': 1, 'ui/bindings/blankColorButton.js': 2, 'ui/bindings/canvasPointer.js': 1,
-  'ui/bindings/dropPaste.js': 1, 'ui/bindings/formula.js': 1, 'ui/bindings/hotkeyActions.js': 9,
-  'ui/bindings/index.js': 1, 'ui/bindings/pageAndDisplay.js': 8, 'ui/bindings/projectColorButton.js': 3,
-  'ui/bindings/projectNameField.js': 6, 'ui/bindings/scrollPersist.js': 1, 'ui/bindings/selectionPanel.js': 10,
-  'ui/bindings/smoothZoom.js': 1, 'ui/bindings/styleControls.js': 14, 'ui/bindings/theme.js': 1,
-  'ui/bindings/toolbarButtons.js': 20, 'ui/bindings/zoom.js': 2, 'ui/chat/chatCards.js': 1, 'ui/chat/chatPanel.js': 22,
+  'ui/base.js': 1, 'ui/bindings/viewport/arrowPan.js': 1, 'ui/bindings/controls/blankColorButton.js': 2, 'ui/bindings/canvasPointer.js': 1,
+  'ui/bindings/dropPaste.js': 1, 'ui/bindings/controls/formula.js': 1, 'ui/bindings/keys/hotkeyActions.js': 9,
+  'ui/bindings/index.js': 1, 'ui/bindings/controls/pageAndDisplay.js': 8, 'ui/bindings/controls/projectColorButton.js': 3,
+  'ui/bindings/controls/projectNameField.js': 6, 'ui/bindings/viewport/scrollPersist.js': 1, 'ui/bindings/selectionPanel.js': 10,
+  'ui/bindings/viewport/smoothZoom.js': 1, 'ui/bindings/controls/styleControls.js': 14, 'ui/bindings/theme.js': 1,
+  'ui/bindings/controls/toolbarButtons.js': 20, 'ui/bindings/viewport/zoom.js': 2, 'ui/chat/row/chatCards.js': 1, 'ui/chat/chatPanel.js': 22,
   'ui/modal/confirmModal.js': 9, 'ui/connect/connectModal.js': 19, 'ui/contextMenu/contextMenu.js': 3, 'ui/control/controlState.js': 16,
   'ui/modal/cropModal.js': 11, 'ui/ctx/ctxActions.js': 22, 'ui/ctx/ctxAssistant.js': 6, 'ui/ctx/ctxAssistantChat.js': 15,
   'ui/ctx/ctxScript.js': 3, 'ui/ctx/ctxScriptEditor.js': 7, 'ui/ctx/ctxState.js': 22, 'ui/ctx/ctxStyleActions.js': 21,
@@ -147,7 +147,7 @@ const UI_ID_ALLOWANCE = {
   'ui/fullscreen/fullscreenPanels.js': 2, 'ui/shell/imageMissingBanner.js': 3, 'ui/meta/infoModal.js': 5, 'ui/meta/keywordChips.js': 5,
   'ui/panel/layoutControls.js': 1, 'ui/panel/linesList.js': 2, 'ui/meta/linksModal.js': 10, 'ui/llmSettings/llmSettingsModal.js': 21,
   'ui/panel/mainContent.js': 9, 'ui/modal/modalShell.js': 1, 'ui/openImage/modal.js': 5, 'ui/modal/openInModal.js': 12,
-  'ui/meta/projectMetaModal.js': 7, 'ui/projects/window/projectTitle.js': 10, 'ui/projects/batchActions.js': 1, 'ui/projects/selection.js': 8,
+  'ui/meta/projectMetaModal.js': 7, 'ui/projects/window/projectTitle.js': 10, 'ui/projects/list/batchActions.js': 1, 'ui/projects/list/selection.js': 8,
   'ui/projects/window/projectsModal.js': 13, 'ui/script/scriptEditor.js': 11, 'ui/script/scriptModal.js': 10, 'ui/panel/selectionPanel.js': 17,
   'ui/canvas/serverLayoutPaint.js': 3, 'ui/settings/settingMirrors.js': 1, 'ui/settings/settingsModal.js': 5, 'ui/toolbar/toolbar.js': 7,
   'ui/panel/unitDisplay.js': 5, 'ui/visuals/visualsModal.js': 18, 'ui/visuals/visualsVoiceRow.js': 1,
