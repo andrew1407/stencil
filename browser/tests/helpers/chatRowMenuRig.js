@@ -70,7 +70,7 @@ export const clickItem = (menu, label) => byClass(menu, 'chat-row-menu-item')
 // with the given hooks; returns what a right-click on the row needs.
 export const wiredRow = async (row, hooks, tag = '') => {
   const { body } = stubDom();
-  const { wireChatRowMenu } = await import(`../../js/ui/chatView.js?rowmenu${tag}`);
+  const { wireChatRowMenu } = await import(`../../js/ui/chat/chatView.js?rowmenu${tag}`);
   const transcript = makeEl();
   const rowEl = makeEl();
   rowEl.className = `chat-msg chat-msg-${row?.role || 'assistant'}`;

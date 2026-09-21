@@ -136,7 +136,7 @@ test('no native title attribute anywhere — the custom tooltip is the only tool
     }
   }
   assert.deepEqual(offenders, []);
-  const ct = readFileSync(new URL('../js/ui/controlTooltip.js', import.meta.url), 'utf8');
+  const ct = readFileSync(new URL('../js/ui/tip/controlTooltip.js', import.meta.url), 'utf8');
   assert.ok(ct.includes("closest('[data-tip], [data-title]')"), 'the tooltip listens for data attributes only');
   assert.ok(!ct.includes("getAttribute('title')"), 'and never reads the native one');
 });

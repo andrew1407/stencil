@@ -4,7 +4,7 @@
 import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider, URL_KEYS, isHttpUrl } from '../llm/llmSettings.js';
 import {
   chatSide, setChatSide, applyChatSide, CHAT_SIDE_SWAPPED,
-} from '../ui/chatLayoutPrefs.js';
+} from '../ui/chat/chatLayoutPrefs.js';
 import { publish, EVENTS } from '../eventBus/appBus.js';
 import { str } from './coerce.js';
 

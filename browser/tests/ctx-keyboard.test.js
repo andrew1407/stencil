@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from '../js/ui/contextMenu.js';
+import { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from '../js/ui/contextMenu/contextMenu.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
 

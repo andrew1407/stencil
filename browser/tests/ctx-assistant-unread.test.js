@@ -11,7 +11,7 @@ import { contextMenuSource } from './helpers/contextMenuSource.js';
 
 // ── Unread affordance on the toolbar button ────────────────────────────────
 test('a turn landing on a closed chat toasts, and only WORK IN FLIGHT marks the button', () => {
-  const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
   // The toast fires only while no surface can show the answer…
   const closed = panel.slice(panel.indexOf('const closedToast = (res) => {'), panel.indexOf('// ── Send loop'));
   assert.ok(closed.includes('if (panelIsOpen() || !toast) return;'), 'never while the chat is visible');
@@ -66,7 +66,7 @@ test('the expired card carries a Reconnect CTA instead of Configure provider', a
   assert.ok(view.includes("if (!row.card || row.reconnect) el.querySelector('.chat-config-cta')?.remove();"));
   assert.ok(view.includes("if (!row.card || !row.reconnect) el.querySelector('.chat-reconnect-cta')?.remove();"));
   // Both surfaces route it to the Connections modal.
-  for (const [f, src] of [['chatPanel.js', readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8')],
+  for (const [f, src] of [['chatPanel.js', readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8')],
     ['contextMenu.js', contextMenuSource()]]) {
     assert.ok(/onReconnect: \(\) =>/.test(src), `${f} wires the hook`);
     assert.ok(src.includes("document.getElementById('connect-btn')?.click()"), `${f} opens Connections`);
@@ -78,7 +78,7 @@ test('chatReconnectButton names the server it will sign in to', async () => {
     createElement: () => ({ className: '', innerHTML: '', _l: {},
       addEventListener(t, fn) { this._l[t] = fn; }, click() { this._l.click?.(); } }),
   };
-  const { chatReconnectButton } = await import('../js/ui/chatView.js?reconnect-cta');
+  const { chatReconnectButton } = await import('../js/ui/chat/chatView.js?reconnect-cta');
   let asked = null;
   const b = chatReconnectButton('http://localhost:8090', (u) => { asked = u; });
   assert.ok(b.className.includes('chat-reconnect-cta'));

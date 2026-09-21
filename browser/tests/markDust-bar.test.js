@@ -12,9 +12,9 @@ import { ANIMATIONS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const motionJs = motionSource();
-const swapJs = read('../js/ui/controlSwap.js');
+const swapJs = read('../js/ui/control/controlSwap.js');
 const animCss = ANIMATIONS_CSS;
-const selectJs = read('../js/ui/customSelect.js');
+const selectJs = read('../js/ui/control/customSelect.js');
 
 // The bar's slot CLIPS its controls (overflow:hidden under a collapsing max-height), so its
 // hide is deferred and its open immediate, as ConnectDialog::updateBatchBar does (user report).
@@ -166,8 +166,8 @@ test('sweepDust takes down the clouds a window started, and only those', async (
 
 // …and the shell is what calls it: every window closes the same way (modalShell.js close()).
 test('every modal shell sweeps its own dust as it closes', () => {
-  const shell = read('../js/ui/modalShell.js');
+  const shell = read('../js/ui/modal/modalShell.js');
   assert.match(shell, /const close = \(\) => \{[\s\S]{0,400}sweepDust\(overlay\);/,
     'the shared close sweeps, so no window has to remember to');
-  assert.match(shell, /import \{[^}]*sweepDust[^}]*\} from '\.\/motion\.js'/);
+  assert.match(shell, /import \{[^}]*sweepDust[^}]*\} from '[^']*motion\.js'/);
 });

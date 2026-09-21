@@ -121,7 +121,7 @@ test('js/core, js/llm and js/net import nothing from js/ui beyond the frozen all
 
 // Rule 3 — only the console layer speaks `window.stencil`: index.js installs it by defineProperty and
 // never reads it back; the sites below should be handed the facade instead.
-const FACADE_ALLOWANCE = { 'llm/adapters/media.js': 1, 'llm/chatSession.js': 1, 'ui/chatCards.js': 1 };
+const FACADE_ALLOWANCE = { 'llm/adapters/media.js': 1, 'llm/chatSession.js': 1, 'ui/chat/chatCards.js': 1 };
 
 test('window.stencil appears outside js/console only in the frozen allowance', () => {
   const files = walk('').filter((rel) => !rel.startsWith('console/'));
@@ -139,18 +139,18 @@ const UI_ID_ALLOWANCE = {
   'ui/bindings/index.js': 1, 'ui/bindings/pageAndDisplay.js': 8, 'ui/bindings/projectColorButton.js': 3,
   'ui/bindings/projectNameField.js': 6, 'ui/bindings/scrollPersist.js': 1, 'ui/bindings/selectionPanel.js': 10,
   'ui/bindings/smoothZoom.js': 1, 'ui/bindings/styleControls.js': 14, 'ui/bindings/theme.js': 1,
-  'ui/bindings/toolbarButtons.js': 20, 'ui/bindings/zoom.js': 2, 'ui/chatCards.js': 1, 'ui/chatPanel.js': 22,
-  'ui/confirmModal.js': 9, 'ui/connectModal.js': 19, 'ui/contextMenu.js': 3, 'ui/controlState.js': 16,
-  'ui/cropModal.js': 11, 'ui/ctxActions.js': 22, 'ui/ctxAssistant.js': 6, 'ui/ctxAssistantChat.js': 15,
-  'ui/ctxScript.js': 3, 'ui/ctxScriptEditor.js': 7, 'ui/ctxState.js': 22, 'ui/ctxStyleActions.js': 21,
-  'ui/drawToggleUI.js': 2, 'ui/expirationModal.js': 2, 'ui/fullscreenClones.js': 2, 'ui/fullscreenLayer.js': 9,
-  'ui/fullscreenPanels.js': 2, 'ui/imageMissingBanner.js': 3, 'ui/infoModal.js': 5, 'ui/keywordChips.js': 5,
-  'ui/layoutControls.js': 1, 'ui/linesList.js': 2, 'ui/linksModal.js': 10, 'ui/llmSettingsModal.js': 21,
-  'ui/mainContent.js': 9, 'ui/modalShell.js': 1, 'ui/openImage/modal.js': 5, 'ui/openInModal.js': 12,
-  'ui/projectMetaModal.js': 7, 'ui/projectTitle.js': 10, 'ui/projects/batchActions.js': 1, 'ui/projects/selection.js': 8,
-  'ui/projectsModal.js': 13, 'ui/scriptEditor.js': 11, 'ui/scriptModal.js': 10, 'ui/selectionPanel.js': 17,
-  'ui/serverLayoutPaint.js': 3, 'ui/settingMirrors.js': 1, 'ui/settingsModal.js': 5, 'ui/toolbar.js': 7,
-  'ui/unitDisplay.js': 5, 'ui/visualsModal.js': 18, 'ui/visualsVoiceRow.js': 1,
+  'ui/bindings/toolbarButtons.js': 20, 'ui/bindings/zoom.js': 2, 'ui/chat/chatCards.js': 1, 'ui/chat/chatPanel.js': 22,
+  'ui/modal/confirmModal.js': 9, 'ui/connect/connectModal.js': 19, 'ui/contextMenu/contextMenu.js': 3, 'ui/control/controlState.js': 16,
+  'ui/cropModal.js': 11, 'ui/ctx/ctxActions.js': 22, 'ui/ctx/ctxAssistant.js': 6, 'ui/ctx/ctxAssistantChat.js': 15,
+  'ui/ctx/ctxScript.js': 3, 'ui/ctx/ctxScriptEditor.js': 7, 'ui/ctx/ctxState.js': 22, 'ui/ctx/ctxStyleActions.js': 21,
+  'ui/drawToggleUI.js': 2, 'ui/meta/expirationModal.js': 2, 'ui/fullscreen/fullscreenClones.js': 2, 'ui/fullscreen/fullscreenLayer.js': 9,
+  'ui/fullscreen/fullscreenPanels.js': 2, 'ui/imageMissingBanner.js': 3, 'ui/meta/infoModal.js': 5, 'ui/meta/keywordChips.js': 5,
+  'ui/layoutControls.js': 1, 'ui/linesList.js': 2, 'ui/meta/linksModal.js': 10, 'ui/llmSettings/llmSettingsModal.js': 21,
+  'ui/mainContent.js': 9, 'ui/modal/modalShell.js': 1, 'ui/openImage/modal.js': 5, 'ui/openInModal.js': 12,
+  'ui/meta/projectMetaModal.js': 7, 'ui/projectTitle.js': 10, 'ui/projects/batchActions.js': 1, 'ui/projects/selection.js': 8,
+  'ui/projectsModal.js': 13, 'ui/script/scriptEditor.js': 11, 'ui/script/scriptModal.js': 10, 'ui/selectionPanel.js': 17,
+  'ui/serverLayoutPaint.js': 3, 'ui/settingMirrors.js': 1, 'ui/settingsModal.js': 5, 'ui/toolbar/toolbar.js': 7,
+  'ui/unitDisplay.js': 5, 'ui/visuals/visualsModal.js': 18, 'ui/visuals/visualsVoiceRow.js': 1,
 };
 
 test('js/ui reaches the document by id only in the frozen allowance', () => {

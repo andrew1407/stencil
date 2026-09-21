@@ -72,7 +72,7 @@ test('the window is in the openWindow registry, pointing at its own overlay and 
 });
 
 test('the highlight layer is built from nodes, never from markup', () => {
-  const code = src('../js/ui/scriptHighlight.js');
+  const code = src('../js/ui/script/scriptHighlight.js');
   assert.ok(!/innerHTML/.test(code), 'a script is untrusted text — it never becomes markup');
   assert.match(code, /createElement\('span'\)/);
   assert.match(code, /textContent = /);
@@ -81,11 +81,11 @@ test('the highlight layer is built from nodes, never from markup', () => {
 test('the window and the context-menu flyout paint through the ONE highlighter', () => {
   // Two copies of a token painter — or of the editor wiring around it — would let the two
   // editors disagree about a line.
-  assert.match(src('../js/ui/scriptEditor.js'),
-    /import \{ paintInto, showDiagnostic \} from '\.\/scriptHighlight\.js'/);
-  for (const module of ['scriptModal.js', 'ctxScriptEditor.js']) {
+  assert.match(src('../js/ui/script/scriptEditor.js'),
+    /import \{ paintInto, showDiagnostic \} from '[^']*scriptHighlight\.js'/);
+  for (const module of ['script/scriptModal.js', 'ctx/ctxScriptEditor.js']) {
     assert.match(src(`../js/ui/${module}`),
-      /import \{ wireScriptEditor \} from '\.\/scriptEditor\.js'/, module);
+      /import \{ wireScriptEditor \} from '[^']*scriptEditor\.js'/, module);
     assert.ok(!/paintInto|showDiagnostic/.test(src(`../js/ui/${module}`)),
       `${module} wires the shared editor instead of painting for itself`);
   }
@@ -99,7 +99,7 @@ test('a dropped .stc is routed to the one loader, and the overlay says so', () =
 });
 
 test('Run is gated on the script having something to do, and Ctrl+Enter obeys the same gate', () => {
-  const wiring = src('../js/ui/scriptEditor.js');
+  const wiring = src('../js/ui/script/scriptEditor.js');
   // A comment-only script lowers to no ops: running it did nothing and said nothing.
   assert.match(wiring, /program\.ops\.length === 0 && program\.diagnostics\.length === 0/);
   // An errored script keeps Run live — the strip and the underlines are how errors surface.

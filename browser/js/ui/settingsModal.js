@@ -2,7 +2,7 @@ import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, ro
 import { notify, comboFromEvent, formatCombo } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
-import { keysHtml } from './tipContent.js';
+import { keysHtml } from './tip/tipContent.js';
 import { markIn } from './motion.js';
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 // ── Component: settings modal (hotkey editor) ───────────────────

@@ -12,26 +12,26 @@ import { readdirSync, readFileSync } from 'node:fs';
 const MANIFEST = [
   // The one HTML escaper both surfaces (and tipContent below) re-export.
   ['escapeHtml', '../../browser/js/ui/escapeHtml.js', '../src/lib/escapeHtml.js'],
-  ['tipContent', '../../browser/js/ui/tipContent.js', '../src/lib/tipContent.js'],
+  ['tipContent', '../../browser/js/ui/tip/tipContent.js', '../src/lib/tipContent.js'],
   // tipContent's keys half: the key vocabulary and the keycaps it draws.
-  ['tipKeys', '../../browser/js/ui/tipKeys.js', '../src/lib/tipKeys.js'],
-  ['numericInput', '../../browser/js/ui/numericInput.js', '../src/lib/numericInput.js'],
+  ['tipKeys', '../../browser/js/ui/tip/tipKeys.js', '../src/lib/tipKeys.js'],
+  ['numericInput', '../../browser/js/ui/control/numericInput.js', '../src/lib/numericInput.js'],
   // The numeric field's evaluator, pure and DOM-free, so the copy is the whole file.
-  ['numericExpr', '../../browser/js/ui/numericExpr.js', '../src/lib/numericExpr.js'],
-  ['dropdownMenu', '../../browser/js/ui/dropdownMenu.js', '../src/lib/dropdownMenu.js'],
-  ['controlTooltip', '../../browser/js/ui/controlTooltip.js', '../src/lib/controlTooltip.js'],
+  ['numericExpr', '../../browser/js/ui/control/numericExpr.js', '../src/lib/numericExpr.js'],
+  ['dropdownMenu', '../../browser/js/ui/control/dropdownMenu.js', '../src/lib/dropdownMenu.js'],
+  ['controlTooltip', '../../browser/js/ui/tip/controlTooltip.js', '../src/lib/controlTooltip.js'],
   // A written shortcut against a keystroke: pure, so the copy is the whole file.
-  ['comboMatch', '../../browser/js/ui/comboMatch.js', '../src/lib/comboMatch.js'],
-  ['scrollbarHover', '../../browser/js/ui/scrollbarHover.js', '../src/lib/scrollbarHover.js'],
+  ['comboMatch', '../../browser/js/ui/control/comboMatch.js', '../src/lib/comboMatch.js'],
+  ['scrollbarHover', '../../browser/js/ui/control/scrollbarHover.js', '../src/lib/scrollbarHover.js'],
   // A thumb's arithmetic and the menu bar it draws: pure, so each copy is the whole file.
   ['thumbMetrics', '../../browser/js/ui/thumbMetrics.js', '../src/lib/thumbMetrics.js'],
-  ['menuScrollbar', '../../browser/js/ui/menuScrollbar.js', '../src/lib/menuScrollbar.js'],
+  ['menuScrollbar', '../../browser/js/ui/control/menuScrollbar.js', '../src/lib/menuScrollbar.js'],
   // The cloud's two halves: the flight table a grain is posed by, and the shape it wears.
-  ['dustFlight', '../../browser/js/ui/dustFlight.js', '../src/lib/dustFlight.js'],
-  ['dustGrain', '../../browser/js/ui/dustGrain.js', '../src/lib/dustGrain.js'],
+  ['dustFlight', '../../browser/js/ui/dust/dustFlight.js', '../src/lib/dustFlight.js'],
+  ['dustGrain', '../../browser/js/ui/dust/dustGrain.js', '../src/lib/dustGrain.js'],
   // The one-canvas dust cloud every element-sized flight rides: pure flight table +
   // painter, so the copy is the whole file.
-  ['dustCloud', '../../browser/js/ui/dustCloud.js', '../src/lib/dustCloud.js'],
+  ['dustCloud', '../../browser/js/ui/dust/dustCloud.js', '../src/lib/dustCloud.js'],
   // The motion modes' glyphs: pure SVG strings, so the copy is the whole file.
   ['motionIcons', '../../browser/js/ui/motionIcons.js', '../src/lib/motionIcons.js'],
   // The crop rect's flight between two shapes: a pure rAF ramp, so the copy is the whole file.
@@ -48,7 +48,7 @@ const MANIFEST = [
   ['opSchemaBase', '../../browser/js/llm/opSchemaBase.js', '../src/llm/opSchemaBase.js'],
   // The un-persisted "Swap message sides" preference: pure module state, so the copy is
   // the whole file.
-  ['chatLayoutPrefs', '../../browser/js/ui/chatLayoutPrefs.js', '../src/lib/chatLayoutPrefs.js'],
+  ['chatLayoutPrefs', '../../browser/js/ui/chat/chatLayoutPrefs.js', '../src/lib/chatLayoutPrefs.js'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');

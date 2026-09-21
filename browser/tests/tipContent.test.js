@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseTip, renderTip, keysHtml, highlightKeys, isKeyCombo } from '../js/ui/tipContent.js';
+import { parseTip, renderTip, keysHtml, highlightKeys, isKeyCombo } from '../js/ui/tip/tipContent.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 
 test('a trailing "(combo)" becomes keycaps, and only when it really is a combo', () => {
@@ -141,7 +141,7 @@ test('empty / whitespace titles render nothing at all', () => {
 });
 
 test('the tooltip controller renders the structure, and the CSS styles every part', () => {
-  const js = readFileSync(new URL('../js/ui/controlTooltip.js', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../js/ui/tip/controlTooltip.js', import.meta.url), 'utf8');
   assert.match(js, /renderTip/, 'the controller goes through the content model');
   assert.ok(!/\.textContent\s*=\s*txt/.test(js), 'and no longer prints the title flat');
   const css = COMPONENTS_CSS;

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { DIRECTIVES } from '../js/core/scriptTypes.js';
-import { paintInto } from '../js/ui/scriptHighlight.js';
+import { paintInto } from '../js/ui/script/scriptHighlight.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 
 const doc = installDom({});

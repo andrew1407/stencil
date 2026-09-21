@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { StencilToolbar } from './toolbar.js';
+import { StencilToolbar } from './toolbar/toolbar.js';
 import { StencilSelectionPanel } from './selectionPanel.js';
 import { StencilImageInfo } from './imageInfo.js';
 import { StencilMainContent } from './mainContent.js';

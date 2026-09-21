@@ -2,7 +2,7 @@
 // flyout is a compact chat, gated on the configured provider and built by syncAssistant.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { assistantEnabled, assistantItemHtml } from '../js/ui/contextMenu.js';
+import { assistantEnabled, assistantItemHtml } from '../js/ui/contextMenu/contextMenu.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
 import { layoutWith } from './helpers/ctxAssistantRig.js';

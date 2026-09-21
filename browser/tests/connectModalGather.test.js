@@ -6,7 +6,7 @@ import {
   tileMotion, materialize, MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS,
   TILE_JITTER_SHARE,
 } from '../js/ui/motion.js';
-import { FLIGHTS, moteFrame, alphaAt } from '../js/ui/dustCloud.js';
+import { FLIGHTS, moteFrame, alphaAt } from '../js/ui/dust/dustCloud.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 import { rows } from './helpers/connectModalRig.js';
 

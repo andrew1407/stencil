@@ -6,7 +6,7 @@ import ACCENTS from '../js/config/accents.json' with { type: 'json' };
 import {
   STAGE, SHOWS, SHOW_NAMES, TYPED_WORDS, effectOf, resolveShow, showStyle,
   bigLogoSize, minLogoSize, heartPoints, heartLine,
-} from '../js/ui/logoStageRules.js';
+} from '../js/ui/logo/logoStageRules.js';
 
 test('every accent preset opens exactly one show, and every show name is an identifier', () => {
   for (const { key } of ACCENTS) {

@@ -2,7 +2,7 @@
 // three modes, system by default, resolved the same way by the pre-paint script.
 import test from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { themeSwap } from '../js/ui/motion.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 
@@ -43,7 +43,7 @@ test('the incognito frame markup ships all four edges, inside the canvas viewpor
 // A three-state theme mode with 'system' as the default, twin of the desktop's
 // io/fileStore.hpp themeMode and the extension's lib/shellTheme.js THEME_MODES.
 test('theme mode: picking a mode that resolves to the painted palette does not animate', () => {
-  const src = readFileSync(new URL('../js/ui/accentController.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/accent/accentController.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('setThemeMode('), src.indexOf('get themeMode()'));
   assert.match(body, /resolveThemeMode\(next\) === painted/, 'the resolved palette is compared');
   // …and the setting is still stored + announced on that path, or the picker would snap back.
@@ -56,7 +56,7 @@ test('theme mode: picking a mode that resolves to the painted palette does not a
 });
 
 test('theme mode: three states, system by default, resolved against the OS', async () => {
-  const { THEME_MODES, resolveThemeMode } = await import('../js/ui/accentController.js');
+  const { THEME_MODES, resolveThemeMode } = await import('../js/ui/accent/accentController.js');
   assert.deepEqual(THEME_MODES, ['system', 'light', 'dark']);
   // An explicit mode is taken as-is, whatever the OS says.
   assert.equal(resolveThemeMode('dark', false), 'dark');
@@ -79,7 +79,14 @@ test('theme mode: the pre-paint script and the app agree on what "system" means'
   // The OS listener has to test the MODE: keyed on "nothing stored", it stopped following
   // the moment the toggle wrote a value.
   assert.match(binder, /themeMode !== 'system'/, 'the OS is followed while the mode is system');
-  const vis = (f) => readFileSync(new URL(`../js/ui/${f}`, import.meta.url), 'utf8');
+  // ui/ is split into feature folders, so a bare module name is looked up, not assumed flat.
+const UI_DIR = new URL('../js/ui/', import.meta.url);
+const uiPath = (n) => {
+  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walk(new URL(`${e.name}/`, d)) : (e.name === n ? [new URL(e.name, d)] : []));
+  return n.includes('/') ? new URL(n, UI_DIR) : walk(UI_DIR)[0];
+};
+const vis = (f) => readFileSync(uiPath(f), 'utf8');
   assert.match(vis('visualsMarkup.js'), /id="vs-appearance"/, 'and there is a control to get back to system');
   assert.match(vis('visualsModal.js'), /setThemeMode\(appearance\.value/, 'which writes the mode');
 });

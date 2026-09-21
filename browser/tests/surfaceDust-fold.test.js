@@ -11,7 +11,7 @@ import { ANIMATIONS_CSS } from './helpers/css.js';
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const animCss = ANIMATIONS_CSS;
 const motionJs = motionSource();
-const toolbarJs = read('../js/ui/toolbar.js');
+const toolbarJs = read('../js/ui/toolbar/toolbar.js');
 const mainContentJs = read('../js/ui/mainContent.js');
 
 

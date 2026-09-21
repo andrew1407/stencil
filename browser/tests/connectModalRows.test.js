@@ -2,7 +2,7 @@
 // golden admin row with its invite, and the three-way credential filter's subsets.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { matchesConnFilter } from '../js/ui/connectModal.js';
+import { matchesConnFilter } from '../js/ui/connect/connectModal.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 import { conn, openModal, rows, rowUrls, hasClass, find, markup, count } from './helpers/connectModalRig.js';
 

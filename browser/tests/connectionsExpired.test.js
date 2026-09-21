@@ -96,7 +96,7 @@ test('boot reports an expired session as such — one warning, one clickable toa
 });
 
 test('the connections modal shows expired rows with a labelled Reconnect', () => {
-  const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/connect/connectModal.js', import.meta.url), 'utf8');
   assert.ok(src.includes('const known = cm ? cm.knownUrls : []'), 'expired rows are listed too');
   assert.match(src, /expired: 'Session expired — reconnect to sign in again'/);
   assert.ok(src.includes("row.classList.add('connect-expired')"));
@@ -164,7 +164,7 @@ test('boot adopts known-dead sessions instead of re-requesting them', () => {
 });
 
 test('the Servers button says a session needs signing in again — in its tooltip, not a dot', () => {
-  const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/connect/connectModal.js', import.meta.url), 'utf8');
   assert.ok(src.includes('const syncExpiredBadge = ()'));
   assert.match(src, /a saved session expired, reconnect to sign in again/, 'the tooltip says what to do');
   // Runs at wire time AND on every connections change, and covers the fullscreen clone.

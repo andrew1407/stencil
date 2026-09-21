@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { compareEditedShows } from '../js/utils.js';
 import { DrawingApp } from '../js/core/drawingApp.js';
-import { StencilTooltip } from '../js/ui/tooltip.js';
+import { StencilTooltip } from '../js/ui/tip/tooltip.js';
 
 const W = 400, H = 300;
 
@@ -202,12 +202,12 @@ test('the reveal waits out the toolbar tooltip\'s delay, but only for a genuinel
 });
 
 test('the tooltip formatting is the app\'s own — no second implementation', () => {
-  const src = readFileSync(new URL('../js/ui/tooltip.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/tip/tooltip.js', import.meta.url), 'utf8');
   // One show()/showLine() pair, using the shared unit helpers; the gate only decides
   // WHETHER to call them.
   assert.equal((src.match(/\n  show\(/g) || []).length, 1);
   assert.equal((src.match(/\n  showLine\(/g) || []).length, 1);
-  assert.match(src, /import \{ cmToUnit, unitLabel \} from '\.\.\/utils\.js';/);
+  assert.match(src, /import \{ cmToUnit, unitLabel \} from '[^']*utils\.js';/);
   assert.ok(!/compareEditedShows/.test(src), 'the geometry lives once, in the app');
   // …and the app method is the single caller of the shared predicate.
   const app = readFileSync(new URL('../js/core/drawingApp.js', import.meta.url), 'utf8');

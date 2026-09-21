@@ -16,7 +16,7 @@ import { layout } from '../js/ui/layout.js';
 import {
   CHAT_SUGGESTIONS, chatSuggestionsHtml,
   SEND_TITLE, SEND_TITLE_PLAIN, VOICE_TITLE_LISTENING, VOICE_TITLE_PAUSED,
-} from '../js/ui/chatView.js';
+} from '../js/ui/chat/chatView.js';
 import { WINDOWS } from '../js/console/stencilApi.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');

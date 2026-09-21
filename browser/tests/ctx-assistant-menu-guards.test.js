@@ -31,7 +31,7 @@ test('contextMenu.js keeps the menu open while chatting', () => {
   assert.ok(src.includes('if (keepSubOpen(sub)) return;'), 'hideSub honours the engaged flyout');
   // The only closeMenu() calls in ctxAssistantChat.js are the four that open something else on
   // top (gear, Configure provider, Reconnect, the phone hand-over); chatting never closes it.
-  const assist = readFileSync(new URL('../js/ui/ctxAssistantChat.js', import.meta.url), 'utf8');
+  const assist = readFileSync(new URL('../js/ui/ctx/ctxAssistantChat.js', import.meta.url), 'utf8');
   assert.strictEqual((assist.match(/host\.closeMenu/g) || []).length, 4,
     'gear + settings CTA + reconnect CTA + phone hand-over only');
 });
@@ -74,7 +74,7 @@ test('stopping a turn leaves a Retry with the original text', async () => {
 test('every bare identifier contextMenu.js uses from other llm modules is imported', () => {
   const src = contextMenuSource();
   // Regression: attachFull referenced MAX_ATTACHMENTS without importing it (runtime-only crash).
-  assert.ok(src.includes("import { MAX_ATTACHMENTS } from '../llm/chatController.js';"),
+  assert.match(src, /import \{ MAX_ATTACHMENTS \} from '[^']*chatController\.js';/,
     'MAX_ATTACHMENTS is imported where the attach-cap check uses it');
 });
 
@@ -103,7 +103,7 @@ test('closedTurnToast: one framing for both surfaces, and silence for an abort',
 });
 
 test('both surfaces toast through the shared builder, each with a way back to the chat', () => {
-  const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
+  const panel = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
   const menu = contextMenuSource();
   for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
     assert.ok(src.includes('closedTurnToast('), `${name} builds its toast from the shared helper`);

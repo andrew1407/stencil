@@ -1,6 +1,6 @@
 import { setVal, setRadioGroup } from '../utils.js';
 import { icon } from './icons.js';
-import { setChecked, swapCheckGlyph } from './controlSwap.js';
+import { setChecked, swapCheckGlyph } from './control/controlSwap.js';
 import { revealControls } from './motion.js';
 
 // ── How a setting shows on screen ────────────────────────────────

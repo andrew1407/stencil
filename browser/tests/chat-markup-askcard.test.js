@@ -41,7 +41,7 @@ const byClass = (root, cls) => walk(root).filter((e) => String(e.className).spli
 
 test('chatAskCard: single mode renders radios, a preview per rendered option, and a gated Submit', async () => {
   stubDom();
-  const { chatAskCard } = await import('../js/ui/chatView.js');
+  const { chatAskCard } = await import('../js/ui/chat/chatView.js');
   const ask = { question: 'Which tint?', mode: 'single', allowCustom: false, customLabel: 'Other',
     options: [{ label: 'Sepia' }, { label: 'B&W' }] };
   const sent = [];
@@ -71,7 +71,7 @@ test('chatAskCard: single mode renders radios, a preview per rendered option, an
 
 test('chatAskCard: multi mode renders checkboxes and joins every pick', async () => {
   stubDom();
-  const { chatAskCard } = await import('../js/ui/chatView.js?multi');
+  const { chatAskCard } = await import('../js/ui/chat/chatView.js?multi');
   const ask = { question: 'Which images?', mode: 'multi', allowCustom: false, customLabel: 'Other',
     options: [{ label: 'Cat' }, { label: 'Rabbit' }, { label: 'Hare' }] };
   const sent = [];
@@ -86,7 +86,7 @@ test('chatAskCard: multi mode renders checkboxes and joins every pick', async ()
 
 test('chatAskCard: the custom row wins, and typing in it selects it', async () => {
   stubDom();
-  const { chatAskCard } = await import('../js/ui/chatView.js?custom');
+  const { chatAskCard } = await import('../js/ui/chat/chatView.js?custom');
   const ask = { question: 'Which tint?', mode: 'single', allowCustom: true, customLabel: 'Something else…',
     options: [{ label: 'Sepia' }, { label: 'B&W' }] };
   const sent = [];
@@ -104,7 +104,7 @@ test('chatAskCard: the custom row wins, and typing in it selects it', async () =
 
 test('chatAskCard: answering locks the card — it can never fire twice', async () => {
   stubDom();
-  const { chatAskCard } = await import('../js/ui/chatView.js?lock');
+  const { chatAskCard } = await import('../js/ui/chat/chatView.js?lock');
   const ask = { question: 'Q', mode: 'single', allowCustom: false, customLabel: 'Other',
     options: [{ label: 'A' }, { label: 'B' }] };
   const sent = [];
@@ -123,7 +123,7 @@ test('chatAskCard: answering locks the card — it can never fire twice', async 
 // app.chat's wiring is DOM-bound, so the source is asserted: history rides the SETTLED-transcript path
 // (rowsToMessages), abort the Stop button's turnAbort. stencil.chat is driven for real elsewhere.
 test('app.chat exposes history (rowsToMessages over the log), abort, and isSending', () => {
-  const src = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/chat/chatPanel.js', import.meta.url), 'utf8');
   assert.ok(src.includes('history: () => rowsToMessages(chatLog()).map((m) => ({ role: m.role, text: m.text }))'));
   assert.match(src, /abort: \(\) => \{[\s\S]{0,120}turnAbort\?\.abort\(\);/);
   assert.ok(src.includes('get isSending() { return sending; }'));
@@ -134,7 +134,7 @@ test('app.chat exposes history (rowsToMessages over the log), abort, and isSendi
 // ── Assistant modal commits on Save (desktop dialog parity) ──
 test('assistant settings modal has Cancel/Save and only Save writes storage', () => {
   for (const id of ['chat-settings-cancel', 'chat-settings-save']) once(id);
-  const src = readFileSync(new URL('../js/ui/llmSettingsModal.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/llmSettings/llmSettingsModal.js', import.meta.url), 'utf8');
   // Exactly one persist() call site — the Save handler; field edits only touch
   // the working copy, so every other close path discards.
   assert.strictEqual(src.split('persist();').length - 1, 1, 'a single persist() call site');

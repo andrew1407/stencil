@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { dustFitsScroller } from '../js/ui/motion.js';
-import { shrinkWrapWidth } from '../js/ui/chatView.js';
+import { shrinkWrapWidth } from '../js/ui/chat/chatView.js';
 import { motionSource } from './helpers/motionSource.js';
 import { ANIMATIONS_CSS } from './helpers/css.js';
 

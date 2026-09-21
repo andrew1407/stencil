@@ -186,7 +186,7 @@ test('the close grab is a constant size ON SCREEN, not in image pixels', () => {
 test('the pull-out chord opens no context menu', () => {
   // On macOS Ctrl+click IS the secondary click, so the Alt+Ctrl drag has to suppress `contextmenu`
   // while a plain Ctrl+click still gets its menu (user report).
-  const ctxJs = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const ctxJs = readFileSync(new URL('../js/ui/contextMenu/contextMenu.js', import.meta.url), 'utf8');
   const handler = ctxJs.slice(ctxJs.indexOf("el.addEventListener('contextmenu'"),
                               ctxJs.indexOf('// Close on outside click'));
   assert.match(handler, /if \(e\.altKey\) return;/, 'Alt means the gesture, not a menu');

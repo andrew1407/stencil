@@ -86,7 +86,7 @@ test('the invite round-trips: minting on one side, connecting with the link on t
 });
 
 test('the connect modal offers Invite on credentialed connected rows', () => {
-  const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/connect/connectModal.js', import.meta.url), 'utf8');
   assert.ok(src.includes('conn && conn.connected && conn.credential'), 'gated to credentialed live rows');
   assert.ok(src.includes('conn.mintInvite()'));
   assert.ok(src.includes('navigator.clipboard.writeText(link)'));

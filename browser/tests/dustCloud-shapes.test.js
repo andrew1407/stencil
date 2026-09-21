@@ -6,7 +6,7 @@ import {
   drawCloud, STYLE_DUST, STYLE_WATER, STYLE_FIRE, SHAPE_DISC, SHAPE_OVAL, SHAPE_WAVE, SHAPE_TRIANGLE, SHAPE_STREAK,
   grainShape, headingOf, shapePolygon, addGrainPath, EDGE_POINTS, edgeJitter, edgeDipOf, edgeReachOf, edgeBaseOf,
   FILL_CHUNK, fillGrains,
-} from '../js/ui/dustCloud.js';
+} from '../js/ui/dust/dustCloud.js';
 
 const grain = { x: 100, y: 200, dx: 60, dy: -80, mx: 40, my: -45, r: 3, s: 0.3, a: 0.9 };
 const near = (a, b, eps = 1e-6) => Math.abs(a - b) < eps;

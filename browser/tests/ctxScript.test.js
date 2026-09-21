@@ -3,19 +3,26 @@
 // the markup is pinned as text, the behaviour is driven through the DOM-lite stubs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 import { layout } from '../js/ui/layout.js';
-import { scriptFlyoutHtml } from '../js/ui/ctxScriptItem.js';
-import { wireCtxScript } from '../js/ui/ctxScript.js';
-import { setScriptText } from '../js/ui/scriptBuffer.js';
-import { ctxKeepsTab } from '../js/ui/ctxKeyboard.js';
+import { scriptFlyoutHtml } from '../js/ui/ctx/ctxScriptItem.js';
+import { wireCtxScript } from '../js/ui/ctx/ctxScript.js';
+import { setScriptText } from '../js/ui/script/scriptBuffer.js';
+import { ctxKeepsTab } from '../js/ui/ctx/ctxKeyboard.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 
 const MARKUP = layout();
 const FLYOUT = scriptFlyoutHtml();
-const src = (name) => readFileSync(new URL(`../js/ui/${name}`, import.meta.url), 'utf8');
+// ui/ is split into feature folders, so a bare module name is looked up, not assumed flat.
+const UI_DIR = new URL('../js/ui/', import.meta.url);
+const uiPath = (n) => {
+  const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walk(new URL(`${e.name}/`, d)) : (e.name === n ? [new URL(e.name, d)] : []));
+  return n.includes('/') ? new URL(n, UI_DIR) : walk(UI_DIR)[0];
+};
+const src = (name) => readFileSync(uiPath(name), 'utf8');
 const IDS = ['ctx-script-sub', 'ctx-script-pane', 'ctx-script-wrap', 'ctx-script-highlight',
   'ctx-script-editor', 'ctx-script-diag', 'ctx-script-copy', 'ctx-script-download',
   'ctx-script-upload', 'ctx-script-upload-btn', 'ctx-script-clear', 'ctx-script-run'];

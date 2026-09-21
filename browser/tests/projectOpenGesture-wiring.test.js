@@ -46,7 +46,7 @@ test('the row wires every gesture to the SAME open paths, and stays keyboard-usa
   assert.ok(src.includes("{ icon: 'external', label: 'Open in new tab', onClick:"), 'the touch route exists');
   // Touch detection is the app-wide helper, never a user-agent sniff; matched on the named import
   // rather than the whole statement, which another helper in it would break.
-  assert.match(src, /import \{[^}]*\bisTouchLike\b[^}]*\} from '\.\.\/utils\.js';/);
+  assert.match(src, /import \{[^}]*\bisTouchLike\b[^}]*\} from '[^']*utils\.js';/);
   assert.ok(!/navigator\.userAgent/.test(src), 'no UA sniffing');
 });
 

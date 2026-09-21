@@ -13,9 +13,9 @@ import { ANIMATIONS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const motionJs = motionSource();
-const swapJs = read('../js/ui/controlSwap.js');
+const swapJs = read('../js/ui/control/controlSwap.js');
 const animCss = ANIMATIONS_CSS;
-const selectJs = read('../js/ui/customSelect.js');
+const selectJs = read('../js/ui/control/customSelect.js');
 
 test('the veil hides the MARK, never the control around it', () => {
   assert.equal(MARK_FORMING_CLASS, 'mark-forming');

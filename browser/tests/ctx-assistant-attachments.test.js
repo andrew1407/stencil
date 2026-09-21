@@ -2,7 +2,7 @@
 // §12.1 persists, and the composer drop target the rows leave before the empty state returns.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { chatDropCueHtml } from '../js/ui/chatView.js';
+import { chatDropCueHtml } from '../js/ui/chat/chatView.js';
 import { chatLog, resetChatLog, runLoggedChatTurn, attachmentPreviews } from '../js/llm/chatSession.js';
 import { buildChatDoc, rowsToMessages } from '../js/llm/chatStore.js';
 import { motionSource } from './helpers/motionSource.js';

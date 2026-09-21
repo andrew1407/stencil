@@ -178,7 +178,7 @@ test('only syncViewportHeight sizes the frame (source pin)', () => {
 // Fullscreen owns the box while it is on (components.css pins it to the window) and hands
 // it back on the way out — through the same rule, not a height of its own.
 test('leaving fullscreen restores the frame through syncViewportHeight (source pin)', () => {
-  const src = readFileSync(new URL('../js/ui/fullscreenLayer.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/fullscreen/fullscreenLayer.js', import.meta.url), 'utf8');
   assert.match(src, /zoomPan\.syncViewportHeight\(\)/, 'the exit path re-measures');
   // The exit flight is animated: measured as it starts, the toolbar rows are still coming
   // back and the frame lands ~60px too tall (a permanent page scrollbar).

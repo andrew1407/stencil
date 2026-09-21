@@ -12,10 +12,10 @@ const doc = installDom({}, {
   window: { innerWidth: 1200, innerHeight: 800, addEventListener() {}, removeEventListener() {} },
 });
 
-const { wireExportOptionsMenu } = await import('../js/ui/exportOptionsMenu.js');
+const { wireExportOptionsMenu } = await import('../js/ui/export/exportOptionsMenu.js');
 const { hotkeys } = await import('../js/core/hotkeys.js');
 const { formatCombo } = await import('../js/utils.js');
-const { keysHtml } = await import('../js/ui/tipContent.js');
+const { keysHtml } = await import('../js/ui/tip/tipContent.js');
 
 // Keycap markup for a hotkey id, platform-formatted exactly like the code under test: this machine's own
 // `navigator` may or may not report macOS, so the expectation tracks hotkeys.isMac.

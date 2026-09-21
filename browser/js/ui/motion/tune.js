@@ -1,6 +1,6 @@
 import MOTION from '../../config/motion.json' with { type: 'json' };
 import { particleStyle } from '../motionPrefs.js';
-import { PARTICLE_STYLES } from '../dustCloud.js';
+import { PARTICLE_STYLES } from '../dust/dustCloud.js';
 // config/motion.json is the one home for the tuning.
 export const TUNE = MOTION.ui;
 

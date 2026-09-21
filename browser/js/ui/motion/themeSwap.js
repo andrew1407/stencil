@@ -1,4 +1,4 @@
-import { edgeJitter, edgeBaseOf } from '../dustCloud.js';
+import { edgeJitter, edgeBaseOf } from '../dust/dustCloud.js';
 import { TUNE, styleCode } from './tune.js';
 // The new palette floods out of the control that changed it: View Transitions where they
 // exist, a cross-fade elsewhere; `apply` runs exactly once, synchronously. One length across

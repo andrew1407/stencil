@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
 import { spawnCount, newMote, edgePoint, stepMote, moteAlpha, parseRgb, mixRgb, dustPalette, ringRadius, ringAlpha, ringAngles, layerAbove,
-         DUST_SILENCE, DUST_RATE, DUST_LIFE_MS, DUST_TINTS, RING_SPOKES, RING_SPIN_MS, RING_BEAT_MS } from '../js/ui/voiceDust.js';
+         DUST_SILENCE, DUST_RATE, DUST_LIFE_MS, DUST_TINTS, RING_SPOKES, RING_SPIN_MS, RING_BEAT_MS } from '../js/ui/dust/voiceDust.js';
 
 // While a mic listens, motes leave its tile with the voice: none in silence, a trickle on
 // quiet speech, a swarm on a shout — the rate follows the level squared.
@@ -53,10 +53,10 @@ test('stepMote drifts with drag and dies at the end of its life; alpha rises fas
 // toolbar's live --voice-level, so no second voice subscription exists.
 test('every mic face attaches the dust off its listening class; the level is --voice-level', () => {
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-  assert.ok(read('../js/ui/voiceToggle.js').includes("attachVoiceDust(btn, () => btn.classList.contains('active'))"));
-  assert.ok(read('../js/ui/chatPanel.js').includes("attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'))"));
+  assert.ok(read('../js/ui/visuals/voiceToggle.js').includes("attachVoiceDust(btn, () => btn.classList.contains('active'))"));
+  assert.ok(read('../js/ui/chat/chatPanel.js').includes("attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'))"));
   assert.ok(contextMenuSource().includes("attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'))"));
-  const dust = read('../js/ui/voiceDust.js');
+  const dust = read('../js/ui/dust/voiceDust.js');
   assert.ok(dust.includes("getPropertyValue('--voice-level')"));
   assert.ok(dust.includes('dustEnabled()'), 'no dust under reduced motion, nor in a mode without particles');
   // Behind the icon: the tile's rounded rectangle is punched out of every frame.
@@ -86,7 +86,7 @@ test('dustPalette runs from the theme ink to the accent; motes pick a stop each'
   const seq = (vals) => { let i = 0; return () => vals[i++ % vals.length]; };
   const m = newMote(40, 32, 0.5, seq([0.3, 0.5, 0.5, 0.5, 0.5, 0.5, 0.99]));
   assert.ok(Number.isInteger(m.tint) && m.tint >= 0 && m.tint < DUST_TINTS);
-  const src = readFileSync(new URL('../js/ui/voiceDust.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/dust/voiceDust.js', import.meta.url), 'utf8');
   assert.ok(src.includes('ctx.fillStyle = palette[m.tint % palette.length]'), 'each mote is painted in its own stop');
   assert.ok(src.includes("probe.style.color = 'var(--text-main)'") && src.includes("probe.style.color = 'var(--accent)'"), 'the range comes from the theme');
 });
@@ -100,7 +100,7 @@ test('ring geometry: 24 spokes turning on the logo clocks, reach and shimmer as 
   assert.ok(Math.abs(ringAngles(0)[1] - ringAngles(0)[0] - (2 * Math.PI) / 24) < 1e-9, 'evenly spaced');
   assert.ok(Math.abs(ringAlpha(0) - 0.35) < 1e-9 && Math.abs(ringAlpha(RING_BEAT_MS / 2) - 0.6) < 1e-9);
   assert.ok(ringRadius(40, 32, 1) > ringRadius(40, 32, 0) && ringRadius(40, 32, 0) > Math.hypot(20, 16), 'past the corners, further when loud');
-  const src = readFileSync(new URL('../js/ui/voiceDust.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/dust/voiceDust.js', import.meta.url), 'utf8');
   const ring = src.indexOf('for (const a of ringAngles(now))'), punch = src.indexOf("ctx.globalCompositeOperation = 'destination-out'");
   assert.ok(ring > 0 && punch > ring, 'the ring is drawn before the tile is punched out — so it sits behind the icon');
   assert.ok(src.includes('ctx.moveTo(cx, cy);'), 'spokes start at the centre; the punch-out cuts them to the edge');
@@ -116,6 +116,6 @@ test('layerAbove: one over the wearer\'s tallest ancestor layer, never below 5',
   const panel = node('120', page);
   assert.equal(layerAbove(node('auto', node('2', panel)), get), 121, 'above the panel it lives in');
   assert.equal(layerAbove(node('3', page), get), 5, 'a small own layer still lands on the floor');
-  const src = readFileSync(new URL('../js/ui/voiceDust.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/dust/voiceDust.js', import.meta.url), 'utf8');
   assert.ok(src.includes('zIndex: String(layerAbove(el))'), 'the canvas takes that layer');
 });

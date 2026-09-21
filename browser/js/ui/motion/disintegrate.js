@@ -1,5 +1,5 @@
 import { dustEnabled } from '../motionPrefs.js';
-import { startCloud, resolveColour, paletteCss } from '../dustCloud.js';
+import { startCloud, resolveColour, paletteCss } from '../dust/dustCloud.js';
 import { speckPainter } from './painters.js';
 import { SURFACE_SPREAD, surfaceMotion } from './surfaceMotion.js';
 import { DISINTEGRATE_COLS, DISINTEGRATE_MS, DISINTEGRATE_ROWS, MIN_TILE_MS, MOTE_PX, TILE_GATHER_SHARE, cancelDust, flightOf, reshapeGrid, tileMotion, tileNoise } from './tiles.js';

@@ -42,7 +42,7 @@ globalThis.document = {
   head: { appendChild() {} },
 };
 
-const { AccentController } = await import('../js/ui/accentController.js');
+const { AccentController } = await import('../js/ui/accent/accentController.js');
 
 const makeApp = () => {
   const broadcasts = [];

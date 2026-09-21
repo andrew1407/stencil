@@ -1,5 +1,5 @@
 import { setVal } from '../utils.js';
-import { COMMIT_DEBOUNCE_MS } from '../ui/numericInput.js';
+import { COMMIT_DEBOUNCE_MS } from '../ui/control/numericInput.js';
 import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../ui/motionPrefs.js';
 import {
   applyMirror, paintFormulaToggle, paintFormulaError,

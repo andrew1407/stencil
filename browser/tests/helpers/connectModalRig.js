@@ -1,6 +1,6 @@
 // Shared rig for the connectModal.test.js family: a wired StencilConnectModal over the DOM
 // stub, plus the row/descendant readers its assertions walk the rendered list with.
-import { StencilConnectModal } from '../../js/ui/connectModal.js';
+import { StencilConnectModal } from '../../js/ui/connect/connectModal.js';
 import { createStubElement, installDom } from './dom.js';
 import { layout } from '../../js/ui/layout.js';
 

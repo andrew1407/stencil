@@ -1,8 +1,8 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { icon } from './icons.js';
 import { surfaceIn, surfaceOut, dockAwayPoint, retargetDust, SURFACE_MENU_IN_MS } from './motion.js';
-import { attachToastGlow } from './toastGlow.js';
-import { STAGE } from './logoStageRules.js';
+import { attachToastGlow } from './dust/toastGlow.js';
+import { STAGE } from './logo/logoStageRules.js';
 import SVG_ART from '../config/svgArt.json' with { type: 'json' };
 // The bottom-left notification stack; utils.js `notify()` delegates here. Each message is
 // its own .notify-toast child, newest at the bottom.

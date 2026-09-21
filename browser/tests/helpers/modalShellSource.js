@@ -7,7 +7,7 @@ const BASE = new URL('../../js/ui/base.js', import.meta.url);
 
 export const modalShellSource = () => {
   const base = readFileSync(BASE, 'utf8');
-  const parts = [...base.matchAll(/^export \{[^}]*\} from '\.\/([A-Za-z]+\.js)';$/gm)].map((m) => m[1]);
-  return [base, ...parts.map((n) => readFileSync(new URL(`../../js/ui/${n}`, import.meta.url), 'utf8'))]
-    .join('\n');
+  // The specifier is resolved against base.js, so the modules may sit in a folder of their own.
+  const parts = [...base.matchAll(/^export \{[^}]*\} from '((?:\.\.?\/)+(?:[A-Za-z]+\/)*[A-Za-z]+\.js)';$/gm)];
+  return [base, ...parts.map((m) => readFileSync(new URL(m[1], BASE), 'utf8'))].join('\n');
 };
