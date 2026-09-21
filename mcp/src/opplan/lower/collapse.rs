@@ -83,12 +83,7 @@ pub fn collapse<'a>(
     let layout = if lines.is_empty() {
         None
     } else {
-        Some(LayoutArg::Inline(Layout {
-            image_width: None,
-            image_height: None,
-            filter: None,
-            lines,
-        }))
+        Some(LayoutArg::Inline(Layout { lines, ..Layout::default() }))
     };
     // Snapshot-frame plan coordinates ride with `--layout-frame source` so the CLI
     // re-maps them through the run's own crop/rotate (contract §1).

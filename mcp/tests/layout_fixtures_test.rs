@@ -15,9 +15,21 @@ use common::walk::Walk;
 const FIXTURES_DIR: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/fixtures/layout");
 
-/// Top-level corpus keys mcp's `Layout` can represent at all; serde silently drops the rest
-/// on round-trip. `imageFilter` is the canonical wire key (legacy `filter` is read-only).
-const MCP_VISIBLE_KEYS: [&str; 4] = ["imageWidth", "imageHeight", "imageFilter", "lines"];
+/// `layoutFields.json`, the canonical table every surface's export order comes from.
+const FIELDS_PATH: &str =
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/layoutFields.json");
+
+/// Top-level corpus keys mcp's `Layout` can represent at all, in struct order; serde silently
+/// drops the rest. `imageFilter` is the canonical wire key (legacy `filter` is read-only).
+const MCP_VISIBLE_KEYS: [&str; 7] = [
+    "imageWidth",
+    "imageHeight",
+    "lines",
+    "imageFilter",
+    "pageSize",
+    "customPageWidth",
+    "customPageHeight",
+];
 
 static PAYLOAD: LazyLock<Vec<Value>> = LazyLock::new(|| load("payload.json"));
 static SPARSE: LazyLock<Vec<Value>> = LazyLock::new(|| load("sparse.json"));
@@ -152,6 +164,21 @@ fn filter_reads_canonical_and_legacy_keys() {
     assert!(both.is_err(), "both spellings at once is a duplicate-field error");
 }
 
+/// The struct's field order is a subsequence of the canonical export order, so every document
+/// mcp writes carries the browser's key order with the unrepresented fields left out.
+fn visible_keys_follow_the_canonical_export_order() {
+    let raw = std::fs::read_to_string(FIELDS_PATH).expect("cannot read layoutFields.json");
+    let fields: Vec<Value> = serde_json::from_str(&raw).expect("layoutFields.json is an array");
+    let mut canon: Vec<(u64, &str)> = fields
+        .iter()
+        .filter_map(|f| Some((f["export"].as_u64()?, f["key"].as_str()?)))
+        .collect();
+    canon.sort_unstable();
+    let ordered: Vec<&str> =
+        canon.iter().map(|&(_, k)| k).filter(|k| MCP_VISIBLE_KEYS.contains(k)).collect();
+    assert_eq!(ordered, MCP_VISIBLE_KEYS, "Layout's field order drifted from layoutFields.json");
+}
+
 /// A layout with no `lines` key is legal (`#[serde(default)]`) and means "draw nothing" —
 /// a filter-only layout is a real use of the flag.
 fn missing_lines_defaults_to_empty() {
@@ -187,6 +214,7 @@ fn main() {
     }
     walk.case("parses_the_document_the_cli_parser_test_uses", parses_the_document_the_cli_parser_test_uses);
     walk.case("filter_reads_canonical_and_legacy_keys", filter_reads_canonical_and_legacy_keys);
+    walk.case("visible_keys_follow_the_canonical_export_order", visible_keys_follow_the_canonical_export_order);
     walk.case("missing_lines_defaults_to_empty", missing_lines_defaults_to_empty);
     walk.case("a_line_with_no_points_round_trips", a_line_with_no_points_round_trips);
     walk.case("unknown_fields_are_ignored", unknown_fields_are_ignored);
