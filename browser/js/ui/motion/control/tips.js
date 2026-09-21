@@ -1,4 +1,4 @@
-import { motionReduced } from '../../motionPrefs.js';
+import { motionReduced } from '../motionPrefs.js';
 import { SURFACE_IN_MS, dockAwayPoint } from '../surface/surfaceMotion.js';
 import { settleSurface, surfaceIn, surfaceOut } from '../surface/surfaces.js';
 import { TUNE } from '../tune.js';

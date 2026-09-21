@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { scrollbarHit } from '../js/utils.js';
-import { thumbMetrics, SB_MIN_THUMB_PX } from '../js/ui/canvasScrollbars.js';
+import { thumbMetrics, SB_MIN_THUMB_PX } from '../js/ui/canvas/canvasScrollbars.js';
 import { LAYOUT_CSS } from './helpers/css.js';
 
 // The canvas viewport draws its own overlay scrollbars (js/ui/canvasScrollbars.js, the
@@ -35,7 +35,7 @@ test('the canvas hides its native bars and styles its own, accent only on the ho
   assert.ok(css.includes('.canvas-sb.canvas-sb-on { opacity: 1; pointer-events: auto; }'));
   // The bars live on the body: zoomPan.js's belowInColumn sums the viewport's following
   // siblings' heights, and a bar beside it collapsed the viewport on every zoom.
-  const mod = readFileSync(new URL('../js/ui/canvasScrollbars.js', import.meta.url), 'utf8');
+  const mod = readFileSync(new URL('../js/ui/canvas/canvasScrollbars.js', import.meta.url), 'utf8');
   assert.ok(mod.includes('const host = document.body;'), 'the bars are appended to the body');
   const bindings = readFileSync(new URL('../js/ui/bindings/index.js', import.meta.url), 'utf8');
   assert.ok(bindings.includes("wireCanvasScrollbars(document.getElementById('canvas-viewport'));"), 'the canvas is wired');

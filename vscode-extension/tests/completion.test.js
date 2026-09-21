@@ -8,7 +8,7 @@ import { parseScript } from '../src/parser/index.js';
 import { installVscodeStub, makeContext, makeDocument, makeVscode } from './helpers/vscodeStub.js';
 
 const require = createRequire(import.meta.url);
-const { contextFor } = require('../src/lib/completionContext.js');
+const { contextFor } = require('../src/lib/vocab/completionContext.js');
 
 const withHost = (body, settings) => {
   const { vscode, calls } = makeVscode({ settings });

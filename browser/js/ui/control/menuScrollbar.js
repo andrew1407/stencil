@@ -3,7 +3,7 @@
 // The thumb is a background LAYER placed by two custom properties, never a child: these menus
 // address their rows as `children`. Canvas parity: ui/canvasScrollbars.js.
 // Byte-pinned to browser-extension/src/lib.
-import { thumbMetrics } from '../thumbMetrics.js';
+import { thumbMetrics } from './thumbMetrics.js';
 
 const INSET_PX = 3;   // the track's margin from the menu's top and bottom edges
 

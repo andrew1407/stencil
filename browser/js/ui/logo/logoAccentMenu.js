@@ -1,6 +1,6 @@
 import { isTypingTarget } from '../../utils.js';
 import { fillAccentMenu, markSelected } from '../accent/accentPicker.js';
-import { createModalOpenGesture } from '../popover.js';
+import { createModalOpenGesture } from '../tip/popover.js';
 import { surfaceIn, surfaceOut, rectCenter, motionReduced, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';

@@ -25,7 +25,7 @@ const doc = installDom({}, {
   CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
 });
 
-const prefs = await import('../js/ui/motionPrefs.js');
+const prefs = await import('../js/ui/motion/motionPrefs.js');
 const {
   MOTION_MODES, MOTION_STORAGE_KEY, MOTION_EVENT, DEFAULT_MOTION_MODE,
   motionPrefs, setMotionPrefs, reloadMotionPrefs, normalizeMotionMode,
@@ -190,5 +190,5 @@ test('every switch is in the Visuals modal and on the console facade', () => {
   assert.match(controller, /if \(!MOTION_MODES\.includes\(m\)\)\s*\n?\s*throw new Error\(`Unknown motion mode/);
   assert.match(controller, /paintMotionMode\(m\)/);
   // …which is the modal's own control (ui/settingMirrors.js owns the element).
-  assert.match(read('../js/ui/settingMirrors.js'), /setVal\('vs-motion-mode', mode\)/);
+  assert.match(read('../js/ui/settings/settingMirrors.js'), /setVal\('vs-motion-mode', mode\)/);
 });

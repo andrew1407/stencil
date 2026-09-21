@@ -1,4 +1,4 @@
-import { dustEnabled, motionReduced } from '../motionPrefs.js';
+import { dustEnabled, motionReduced } from './motionPrefs.js';
 import { disintegrate } from './disintegrate.js';
 import { flipFrom } from './flip.js';
 import { speckPainter } from './surface/painters.js';

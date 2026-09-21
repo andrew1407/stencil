@@ -1,4 +1,4 @@
-import { motionReduced } from '../../motionPrefs.js';
+import { motionReduced } from '../motionPrefs.js';
 import { disintegrate } from '../disintegrate.js';
 import { markPaint, speckPainter } from './painters.js';
 import { cancelDust, reshapeGrid } from './tiles.js';

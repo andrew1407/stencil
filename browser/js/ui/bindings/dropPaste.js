@@ -1,6 +1,6 @@
 import { notify, isTypingTarget, pointInRect } from '../../utils.js';
 import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
-import { showDropOverlay, hideDropOverlay } from '../dropOverlay.js';
+import { showDropOverlay, hideDropOverlay } from '../canvas/dropOverlay.js';
 import { loadScriptFile } from '../script/scriptModal.js';
 export function wireDropPaste(app) {
   // Document-wide drag-and-drop overlay, split into LEFT (upload + save) and RIGHT

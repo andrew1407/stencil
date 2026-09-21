@@ -21,7 +21,7 @@ const canvasStub = (tainted) => createStubElement('canvas', {
 let tainted = false;
 const doc = installDom({ createElement: (tag) => (tag === 'canvas' ? canvasStub(tainted) : createStubElement(tag)) });
 
-const { loadMediaCors, retryWithoutCors, canReadPixels } = await import('../js/ui/mediaCors.js');
+const { loadMediaCors, retryWithoutCors, canReadPixels } = await import('../js/ui/canvas/mediaCors.js');
 
 const media = () => createStubElement('img');
 

@@ -2,7 +2,7 @@
 // Pure glue: each binding takes the app and attaches listeners to the app's public
 // methods. Nothing here holds state beyond a gesture's own (arrow-pan keys + rAF,
 // smooth-zoom target); nothing in js/core/ touches the DOM to do it.
-import { wireCanvasScrollbars } from '../canvasScrollbars.js';
+import { wireCanvasScrollbars } from '../canvas/canvasScrollbars.js';
 import { wireScrollbarHover } from '../control/scrollbarHover.js';
 import { enhanceAllSelects } from '../control/customSelect.js';
 import { wireStyleControls } from './styleControls.js';

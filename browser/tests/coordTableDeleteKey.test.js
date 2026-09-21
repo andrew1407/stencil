@@ -22,7 +22,7 @@ globalThis.document = {
   },
 };
 
-const { CoordTable } = await import('../js/ui/coordTable.js');
+const { CoordTable } = await import('../js/ui/panel/coordTable.js');
 
 // A stub editor exposing only what update() + the handler read.
 const makeApp = ({ readOnly = false } = {}) => {

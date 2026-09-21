@@ -4,7 +4,7 @@
 // Callers: while a menu is open it is NOT inside the component, so an outside-press check
 // must test the menu as well as the trigger.
 
-import { popoverPosition } from '../popover.js';
+import { popoverPosition } from '../tip/popover.js';
 import { surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from '../motion.js';
 
 const GAP = 4;        // between trigger and menu

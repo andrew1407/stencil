@@ -2,7 +2,7 @@
 // modal, a double click takes the popover, a right-click cancels the pending click.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { DOUBLE_CLICK_MS } from '../js/ui/popover.js';
+import { DOUBLE_CLICK_MS } from '../js/ui/tip/popover.js';
 import { machine } from './helpers/popoverGestureRig.js';
 
 test('mouse: a single click opens the FULL modal, after one double-click interval', () => {

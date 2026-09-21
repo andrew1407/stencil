@@ -3,7 +3,7 @@
 import { makeDustStage } from '../motion/dust/canvasDustStage.js';
 import { runDust } from '../motion/dust/canvasDustDraw.js';
 import { GHOST_MS } from '../motion/dust/canvasDustGrid.js';
-import { dustEnabled } from '../motionPrefs.js';
+import { dustEnabled } from '../motion/motionPrefs.js';
 
 export function createPreviewDust({ img, video, isVideo, sourceKey }) {
   // ghostIn IDENTICAL (motion/canvasFx.js). Plays ONCE per source ever seen this session.

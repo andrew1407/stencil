@@ -1,6 +1,6 @@
 // ── Popover placement (panel dialogs) ───────────────────────────────────────
 // Below the anchor with left edges aligned, flipped above when above has more room,
-// clamped inside the viewport on both axes. Port of browser/js/ui/popover.js
+// clamped inside the viewport on both axes. Port of browser/js/ui/tip/popover.js
 // popoverPosition — keep the two rule-for-rule (tests/popover.test.js carries the
 // browser suite's placement cases).
 

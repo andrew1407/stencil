@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 
 import { tweenRect, easeOutCubic, RECT_TWEEN_MS } from '../js/ui/motion/rectTween.js';
-import { setMotionPrefs, reloadMotionPrefs } from '../js/ui/motionPrefs.js';
+import { setMotionPrefs, reloadMotionPrefs } from '../js/ui/motion/motionPrefs.js';
 
 // A hand-cranked rAF: `step(ms)` runs whatever the last frame asked for, at that timestamp.
 const installRaf = () => {

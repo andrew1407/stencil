@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 
 import { DIRECTIVES as PARSER_DIRECTIVES, isUnitWord } from '../src/parser/script/scriptTypes.js';
 
-const vocabulary = createRequire(import.meta.url)('../src/lib/vocabulary.js');
+const vocabulary = createRequire(import.meta.url)('../src/lib/vocab/vocabulary.js');
 
 test('every directive the parser knows is documented, and no other', () => {
   assert.deepEqual([...vocabulary.DIRECTIVE_NAMES].sort(), [...PARSER_DIRECTIVES].sort());

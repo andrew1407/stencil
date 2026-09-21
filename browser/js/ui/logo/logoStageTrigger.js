@@ -1,8 +1,8 @@
 // The one way into a logo show: the header mark's hold, a typed word and the console facade all
 // arrive here. Desktop twin: the LogoStage hooks in app/MainWindowToolbarHeader.cpp.
 import { notify } from '../../utils.js';
-import { PRESS_SLOP_PX } from '../popover.js';
-import { motionMode } from '../motionPrefs.js';
+import { PRESS_SLOP_PX } from '../tip/popover.js';
+import { motionMode } from '../motion/motionPrefs.js';
 import { originOf } from '../motion.js';
 import { waitForImage } from '../../core/image/imageLoadFlow.js';
 import { STAGE, HOLD_MS, TOAST_TEXT, effectOf, resolveShow, heartLine } from './logoStageRules.js';

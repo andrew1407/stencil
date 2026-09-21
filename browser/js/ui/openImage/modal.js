@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } from '../base.js';
-import { wireModalOpenGestures } from '../popover.js';
+import { wireModalOpenGestures } from '../tip/popover.js';
 import { spinIconOnce } from '../icons.js';
 import { isVideoFile, isVideoUrl } from '../../core/export/videoFrame.js';
 import { createCropOverlay, freshCropState, hasCropRect } from './crop.js';

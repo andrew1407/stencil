@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
-import { StencilNotifications, MAX_VISIBLE } from '../js/ui/notifications.js';
+import { StencilNotifications, MAX_VISIBLE } from '../js/ui/shell/notifications.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 import { desktopSource } from './helpers/desktopSource.js';
 
@@ -191,7 +191,7 @@ test('clickable toasts never coalesce — each carries its own action', (t) => {
 // One timing function drives both a mote's travel and its alpha, and tileScatterSurface holds alpha near 1
 // until 55%, so only the default ease-out fades with the distance: the toast overrides no curve.
 test('the toast exit rides the shared scatter curve, on a short clock', () => {
-    const js = readFileSync(new URL('../js/ui/notifications.js', import.meta.url), 'utf8');
+    const js = readFileSync(new URL('../js/ui/shell/notifications.js', import.meta.url), 'utf8');
     const enter = Number(/const ENTER_DUST_MS = SURFACE_MENU_IN_MS \* (\d+)/.exec(js)[1]) * 340;
     const leave = Number(/const LEAVE_DUST_MS = (\d+)/.exec(js)[1]);
     assert.ok(leave < enter, `the exit (${leave}ms) must not outlast the entrance (${enter}ms)`);

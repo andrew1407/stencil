@@ -2,7 +2,7 @@
 // its lifetime — release, linger, blur and the swap's synthetic events.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LINGER_CLOSE_MS } from '../js/ui/popover.js';
+import { LINGER_CLOSE_MS } from '../js/ui/tip/popover.js';
 import { rig, marked } from './helpers/logoAccentMenuRig.js';
 
 // ── Alt peek: opens like every other icon's mini window ─────────────────

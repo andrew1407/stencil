@@ -79,7 +79,7 @@ test('buildTelegramLink composes the t.me deep link', () => {
   assert.equal(buildTelegramLink('stencil_bot', '1abc'), 'https://t.me/stencil_bot?start=1abc');
 });
 
-// ── Inline size guards (mirror browser/js/ui/openInModal.js) ─────
+// ── Inline size guards (mirror browser/js/ui/modal/openInModal.js) ─────
 
 test('inline size guards match the browser app', () => {
   assert.equal(INLINE_WARN_CHARS, 200_000);

@@ -1,5 +1,5 @@
 // ── A written shortcut vs a keystroke ────────────────────────────────────────
-// Byte-pinned PORT of browser/js/ui/comboMatch.js: a written combo vs a KeyboardEvent. Pure.
+// Byte-pinned PORT of browser/js/ui/control/comboMatch.js: a written combo vs a KeyboardEvent. Pure.
 
 // A shortcut is written to be READ ("⇧⌘S", "Alt+0"), so both sides are reduced to the same
 // shape — modifiers plus one key — before comparing. Pure, so it is tested without a keyboard.

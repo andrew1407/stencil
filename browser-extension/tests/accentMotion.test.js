@@ -13,7 +13,7 @@ test('the motion mode defaults to particles, is stamped before first paint, and 
   assert.equal(page.motion.get(), 'particles');
   assert.equal(page.dataMotion(), 'particles', 'data-motion is on <html> at load');
   assert.equal(page.motion.storageKey, 'stencil_motion');
-  const browser = await import('../../browser/js/ui/motionPrefs.js');
+  const browser = await import('../../browser/js/ui/motion/motionPrefs.js');
   // Through JSON: values built inside the vm context carry their own Array prototype.
   const plain = (v) => JSON.parse(JSON.stringify(v));
   assert.deepEqual(plain(page.motion.modes), browser.MOTION_MODES, 'the same five modes, in the same order');

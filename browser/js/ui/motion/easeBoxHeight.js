@@ -1,4 +1,4 @@
-import { motionReduced } from '../motionPrefs.js';
+import { motionReduced } from './motionPrefs.js';
 
 // The desktop dialog's own height ease (openImageDialogParts.hpp OI_RESIZE_MS).
 export const BOX_RESIZE_MS = 380;

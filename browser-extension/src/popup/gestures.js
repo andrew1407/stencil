@@ -50,7 +50,7 @@ export const bindRowGestures = (el, image) => {
   bindGestures(el, onClick, onDouble);
 };
 
-// Mirrors browser/js/ui/dragGhost.js: Chrome snapshots the row before any .dragging style
+// Mirrors browser/js/ui/canvas/dragGhost.js: Chrome snapshots the row before any .dragging style
 // applies, and a bare row's transparent background would read as nothing — hence the card.
 const setTranslucentDragImage = (e, row) => {
   try {

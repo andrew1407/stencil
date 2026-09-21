@@ -1,5 +1,5 @@
 // ── Control tooltip ──────────────────────────────────────────────────────────
-// PORT of browser/js/ui/controlTooltip.js (the extension cannot import across subprojects):
+// PORT of browser/js/ui/tip/controlTooltip.js (the extension cannot import across subprojects):
 // shows a control's `data-tip` or `data-title` on hover after a short delay. No surface authors
 // a native `title`. tipContent.js parses the title into the tooltip shape; this positions and
 // shows it. `[data-no-tooltip]` opts out a control that owns its own hover popup.

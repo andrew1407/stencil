@@ -1,5 +1,5 @@
 // ── Arithmetic in numeric inputs: the evaluator ─────────────────────────────
-// Byte-pinned PORT of browser/js/ui/numericExpr.js. Pure — no DOM; operators match the core.
+// Byte-pinned PORT of browser/js/ui/control/numericExpr.js. Pure — no DOM; operators match the core.
 
 // Tokenize: numbers, operators, parens. Returns null on any unknown character.
 const tokenize = (src) => {

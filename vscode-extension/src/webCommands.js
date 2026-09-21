@@ -7,11 +7,11 @@ const vscode = require('vscode');
 
 const { COMMANDS, CONFIG_SECTION, LANGUAGE_ID, PROJECT_LANGUAGE_ID, SETTINGS,
 } = require('./lib/ids.js');
-const { isJsSource } = require('./lib/jsSource.js');
-const { BAD_WEB_URL, webUrlFor } = require('./lib/webTarget.js');
+const { isJsSource } = require('./lib/emit/jsSource.js');
+const { BAD_WEB_URL, webUrlFor } = require('./lib/web/webTarget.js');
 const { buildLaunchUrl, imageDataUrl, isTooBig, localSources, projectLaunch,
-  scriptLaunch } = require('./lib/webLaunch.js');
-const { evaluate, expressionFor, loadExpression, pageSession } = require('./lib/webConsole.js');
+  scriptLaunch } = require('./lib/web/webLaunch.js');
+const { evaluate, expressionFor, loadExpression, pageSession } = require('./lib/web/webConsole.js');
 const { programFor } = require('./lib/programCache.js');
 
 const OUTPUT_NAME = 'Stencil';

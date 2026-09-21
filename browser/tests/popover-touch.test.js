@@ -2,7 +2,7 @@
 // press the popover, travel past the slop turns it into a scroll.
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { LONG_PRESS_MS, PRESS_SLOP_PX } from '../js/ui/popover.js';
+import { LONG_PRESS_MS, PRESS_SLOP_PX } from '../js/ui/tip/popover.js';
 import { machine } from './helpers/popoverGestureRig.js';
 
 // ── Touch ──

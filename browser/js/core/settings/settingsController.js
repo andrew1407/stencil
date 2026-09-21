@@ -1,11 +1,11 @@
 import { setVal } from '../../utils.js';
 import { COMMIT_DEBOUNCE_MS } from '../../ui/control/numericInput.js';
-import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../../ui/motionPrefs.js';
+import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../../ui/motion/motionPrefs.js';
 import {
   applyMirror, paintFormulaToggle, paintFormulaError,
   readControl, forEachControl, paintTooltipOption, paintMotionMode, paintMotionDrawing,
   paintMotionBackdrop,
-} from '../../ui/settingMirrors.js';
+} from '../../ui/settings/settingMirrors.js';
 import { SETTINGS } from './settingsRegistry.js';
 
 export { COMPARE_MODES } from './settingsRegistry.js';

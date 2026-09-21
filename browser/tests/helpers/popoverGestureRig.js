@@ -1,6 +1,6 @@
 // Shared rig for the popover specs: a clock whose timers fire only when advanced, plus the
 // deferring and eager modal-open gesture machines. Extracted from popover.test.js.
-import { createModalOpenGesture } from '../../js/ui/popover.js';
+import { createModalOpenGesture } from '../../js/ui/tip/popover.js';
 
 export const stubTimers = () => {
   const jobs = new Map();

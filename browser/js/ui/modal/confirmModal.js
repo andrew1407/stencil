@@ -1,6 +1,6 @@
 import { StencilElement, hostTag, define, createModalFlight } from '../base.js';
 import { icon } from '../icons.js';
-import { gestureAnchorRect } from '../gesturePoint.js';
+import { gestureAnchorRect } from '../canvas/gesturePoint.js';
 
 // The reusable yes/no modal behind app.confirm(): ask(message, opts) → Promise<boolean>,
 // false on Cancel / Close / overlay-click / Escape. `confirmIcon` / `altIcon` name a glyph

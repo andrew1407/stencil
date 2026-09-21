@@ -1,4 +1,4 @@
-// Custom <select> dropdown — PORT of browser/js/ui/customSelect.js, kept rule-for-rule.
+// Custom <select> dropdown — PORT of browser/js/ui/control/customSelect.js, kept rule-for-rule.
 // The native list is drawn by the OS, so no page style reaches it; this one is built
 // from the SAME <select>, which stays the source of truth (wrapped `.value` setter, a
 // bubbling `change` on pick, `hidden` mirrored onto the wrapper).

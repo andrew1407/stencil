@@ -3,7 +3,7 @@
 // modal-opening toolbar icon uses (popover.js). Alt+hover previews a row (exportPreview.js).
 import { showMenu, hideMenu } from '../control/dropdownMenu.js';
 import { attachMenuScrollbar } from '../control/menuScrollbar.js';
-import { wireModalOpenGestures } from '../popover.js';
+import { wireModalOpenGestures } from '../tip/popover.js';
 import { wireAltPreview, hideExportPreview, clearAltPreviewHover } from './exportPreview.js';
 import { icon } from '../icons.js';
 import { keysHtml } from '../tip/tipContent.js';

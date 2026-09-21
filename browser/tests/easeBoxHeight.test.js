@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 
-import { setMotionPrefs } from '../js/ui/motionPrefs.js';
+import { setMotionPrefs } from '../js/ui/motion/motionPrefs.js';
 
 // A WAAPI-shaped flight that never resolves on its own; `settle()` finishes it.
 class StubAnimation {

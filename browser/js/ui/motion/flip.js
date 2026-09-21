@@ -1,4 +1,4 @@
-import { motionReduced } from '../motionPrefs.js';
+import { motionReduced } from './motionPrefs.js';
 import { TUNE } from './tune.js';
 // transform-origin for a fixed menu popping out of its open point: the click clamped
 // into the placed box, relative to its top-left.

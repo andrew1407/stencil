@@ -1,6 +1,6 @@
 // Chat panel geometry + gear tip text: pure, no DOM; the panel wires window.inner*.
 import { clamp } from '../../utils/math.js';
-import { popoverPosition } from '../popover.js';
+import { popoverPosition } from '../tip/popover.js';
 import { PROVIDER_LABELS } from '../../llm/llmClient.js';
 export const DOCKS = Object.freeze(['left', 'right', 'top', 'bottom', 'float']);
 

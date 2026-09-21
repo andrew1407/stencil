@@ -1,5 +1,5 @@
 // ── Chat message side placement ("Swap message sides") ──────────────────────
-// PORT of browser/js/ui/chatLayoutPrefs.js (the extension can't import across
+// PORT of browser/js/ui/chat/chatLayoutPrefs.js (the extension can't import across
 // subprojects) — keep the two rule-for-rule. Deliberately NOT persisted, so each freshly
 // opened popup / side panel / DevTools panel starts at the default.
 let side = 'normal';

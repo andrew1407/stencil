@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { createSendGesture, syncComposerControls, SEND_TITLE, SEND_TITLE_PLAIN, VOICE_TITLE_LISTENING, VOICE_TITLE_PAUSED } from '../js/ui/chat/chatView.js';
-import { DOUBLE_CLICK_MS, LONG_PRESS_MS } from '../js/ui/popover.js';
+import { DOUBLE_CLICK_MS, LONG_PRESS_MS } from '../js/ui/tip/popover.js';
 import { stubClock } from './helpers/speech.js';
 import { createStubElement } from './helpers/dom.js';
 import { chatViewSource } from './helpers/chatViewSource.js';

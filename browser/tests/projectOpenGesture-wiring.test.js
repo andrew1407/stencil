@@ -71,7 +71,7 @@ test('constants + focus ring; the hold stays the reorder pickup, unstyled by us'
   // The list still scrolls by finger and the drag pickup keeps its own dim state.
   assert.ok(css.includes('touch-action: pan-y') && css.includes('.project-row.project-dragging'));
   // The touch reorder engine still owns the hold (its own threshold, unchanged).
-  const drag = readFileSync(new URL('../js/ui/touchDrag.js', import.meta.url), 'utf8');
+  const drag = readFileSync(new URL('../js/ui/canvas/touchDrag.js', import.meta.url), 'utf8');
   assert.ok(drag.includes('longPressMs = 280'), 'reorder pickup threshold untouched');
 });
 
@@ -86,7 +86,7 @@ test('the metadata tooltip is on the text column, not the row', () => {
 // The stored thumbnail is only ~160 px wide, so a max-width can never enlarge it: the
 // preview sets an explicit width, scaled from the thumbnail's own pixels.
 test('the hover preview renders larger than the thumbnail', () => {
-  const src = readFileSync(new URL('../js/ui/projectThumbZoom.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/projects/window/projectThumbZoom.js', import.meta.url), 'utf8');
   assert.match(src, /const PREVIEW_ZOOM = 1\.67;/, 'the factor is named, not buried');
   assert.match(src, /const PREVIEW_MAX_VW = 0\.25;/, 'and so is the width ceiling');
   assert.match(src, /const PREVIEW_MAX_VH = 0\.20;/, 'and the height ceiling');

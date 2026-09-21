@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const api = require('../src/lib/apiVocabulary.js');
+const api = require('../src/lib/vocab/apiVocabulary.js');
 const TABLE = require('../src/config/stencilApiVocabulary.json');
 
 const DTS = readFileSync(new URL('../../browser/js/console/stencilApi.d.ts', import.meta.url), 'utf8');

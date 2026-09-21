@@ -1,4 +1,4 @@
-import { popoverPosition, wireModalOpenGestures } from '../popover.js';
+import { popoverPosition, wireModalOpenGestures } from '../tip/popover.js';
 import { wireModalDrag } from './modalDrag.js';
 import { sweepDust } from '../motion.js';
 import { isTypingTarget } from '../../utils.js';

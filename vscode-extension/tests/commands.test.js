@@ -88,7 +88,7 @@ test('a path holding a quote, a space or a semicolon cannot break out of its arg
         'the whole path is one quoted argument');
 
       // The real proof: a shell reading the composed line hands the argument back whole.
-      const { commandLine } = host.require('lib/terminal.js');
+      const { commandLine } = host.require('lib/spawn/terminal.js');
       const echoed = spawnSync('/bin/sh', ['-c', commandLine('printf', ['%s', nasty])],
         { encoding: 'utf8' });
       assert.equal(echoed.stdout, nasty);

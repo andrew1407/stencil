@@ -6,7 +6,7 @@ const vscode = require('vscode');
 
 const { CONFIG_SECTION, LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
 const { programFor } = require('./lib/programCache.js');
-const { explain } = require('./lib/vocabulary.js');
+const { explain } = require('./lib/vocab/vocabulary.js');
 
 // The token covering a 0-based (line, character), or undefined. Tokens carry 1-based spans.
 const tokenAt = (tokens, position) => (tokens ?? []).find((token) => (

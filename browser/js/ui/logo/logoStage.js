@@ -1,7 +1,7 @@
 // The logo stage: one full-window canvas holding the big mark, its light and its cloud, and the
 // lock that makes it the only thing the editor listens to until Escape or a click ends it.
 // Desktop twin: app/LogoStage.{hpp,cpp}.
-import { motionReduced, particleStyle } from '../motionPrefs.js';
+import { motionReduced, particleStyle } from '../motion/motionPrefs.js';
 import { modalShells } from '../modal/modalRegistry.js';
 import { STAGE, effectOf, showStyle, bigLogoSize, bounceBigSize, minLogoSize, roams, roamLogoSize, markEdge } from './logoStageRules.js';
 import { beatAt, spinAt, stageMark, markHex, paintBackdrop, paintGlow, paintSpokes, paintMark } from './logoStagePaint.js';

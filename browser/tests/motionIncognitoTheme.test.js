@@ -28,7 +28,7 @@ test('the incognito frame is four edges that grow, not a stretched outline', () 
 });
 
 test('the incognito frame markup ships all four edges, inside the canvas viewport', async () => {
-  const src = readFileSync(new URL('../js/ui/mainContent.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/panel/mainContent.js', import.meta.url), 'utf8');
   for (const e of ['ig-t', 'ig-r', 'ig-b', 'ig-l'])
     assert.ok(src.includes(e), `mainContent renders .${e}`);
   assert.ok(!src.includes('ig-badge'), 'the on-canvas incognito pill is back');

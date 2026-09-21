@@ -7,10 +7,10 @@ const vscode = require('vscode');
 
 const { CONFIG_SECTION, JS_LANGUAGE_ID, SETTINGS } = require('./lib/ids.js');
 const { JS_LANGUAGE, MARKER_DOC, MARKER_TRAILING_DOC, inLineComment, isJsDocument, isJsSource,
-  markerSpan, markerWordsAt } = require('./lib/jsSource.js');
-const { installedIn } = require('./lib/typingsFile.js');
+  markerSpan, markerWordsAt } = require('./lib/emit/jsSource.js');
+const { installedIn } = require('./lib/emit/typingsFile.js');
 const { FACADE_DOC, MEMBER_NAMES, entryFor, explain, facadeAt, memberAt,
-  prefixAt } = require('./lib/apiVocabulary.js');
+  prefixAt } = require('./lib/vocab/apiVocabulary.js');
 
 // Both flavours are offered to VS Code; `isJsSource` then decides per request, so turning a
 // plain .js into a Stencil one needs no reload.

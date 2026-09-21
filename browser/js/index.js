@@ -14,7 +14,7 @@ import { initProjectsBackend } from './core/project/store/projectsBackend.js';
 import { watchNumericInputs } from './ui/control/numericInput.js';
 import { installControlSwap } from './ui/control/controlSwap.js';
 import { installVoiceModes } from './llm/voice/voiceModes.js';
-import { applyMotionAttr } from './ui/motionPrefs.js';
+import { applyMotionAttr } from './ui/motion/motionPrefs.js';
 import EVENTS from './config/events.json' with { type: 'json' };
 import { publishReady } from './eventBus/appBus.js';
 // Application entrypoint. Loaded LAST — importing layout registers every custom element.

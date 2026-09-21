@@ -1,4 +1,4 @@
-// Mirrored byte-for-byte with browser/js/ui/dustCloud.js (portParity.test.js): one
+// Mirrored byte-for-byte with browser/js/ui/dust/dustCloud.js (portParity.test.js): one
 // canvas's worth of animated dust, shared by every element-sized flight in the app.
 export interface Flight {
   from: 'home' | 'far'; split: number; leg: (t: number) => number; rest: (t: number) => number;

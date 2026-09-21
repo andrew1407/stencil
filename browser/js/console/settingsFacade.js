@@ -3,7 +3,7 @@
 // the app); the same descriptors are also spread onto the facade itself, so
 // `stencil.lineColor` and `stencil.settings.lineColor` are one setter.
 import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/settings/accents.js';
-import { motionPrefs, MOTION_MODES } from '../ui/motionPrefs.js';
+import { motionPrefs, MOTION_MODES } from '../ui/motion/motionPrefs.js';
 import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voice/voiceSettings.js';
 import { validateHexColor } from '../core/parse/validation.js';
 import { splitKeywords, str } from './coerce.js';

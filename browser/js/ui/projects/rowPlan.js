@@ -1,7 +1,7 @@
 // Every row the current filter, search and sort would list, in order — the one source of truth
 // for both render() and the filter transition's key delta (motion.js createFilterAnimator).
 import { rowMatches } from '../base.js';
-import { sortProjectItems } from '../projectSort.js';
+import { sortProjectItems } from './window/projectSort.js';
 import { makeIncognitoPeerRow } from './placeholderRows.js';
 
 // One flat, sortable item list: a stable key, a lowercased name + date for the

@@ -1,5 +1,5 @@
 // ── Rich control tooltips: the keys half ────────────────────────────────────
-// Byte-pinned PORT of browser/js/ui/tipKeys.js: which strings ARE keys, and the caps they draw.
+// Byte-pinned PORT of browser/js/ui/tip/tipKeys.js: which strings ARE keys, and the caps they draw.
 
 import { escapeHtml } from '../escapeHtml.js';
 

@@ -95,7 +95,7 @@ test('a dropped .stc is routed to the one loader, and the overlay says so', () =
   const drop = src('../js/ui/bindings/dropPaste.js');
   assert.match(drop, /endsWith\('\.stc'\)/);
   assert.match(drop, /loadScriptFile\(file\)/);
-  assert.match(src('../js/ui/dropOverlay.js'), /\.stc script/);
+  assert.match(src('../js/ui/canvas/dropOverlay.js'), /\.stc script/);
 });
 
 test('Run is gated on the script having something to do, and Ctrl+Enter obeys the same gate', () => {

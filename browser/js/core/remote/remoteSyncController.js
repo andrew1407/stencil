@@ -1,5 +1,5 @@
 import { notify } from '../../utils.js';
-import { adoptServerFilter, adoptServerPageFormat, adoptServerFormulas } from '../../ui/serverLayoutPaint.js';
+import { adoptServerFilter, adoptServerPageFormat, adoptServerFormulas } from '../../ui/canvas/serverLayoutPaint.js';
 import { mergeLines } from '../layout.js';
 import { getSyncToServer } from '../../net/connectionStore.js';
 import { requireConnection, saveRemoteProject, shouldReloadFromEvent } from '../../net/remoteSync.js';

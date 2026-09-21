@@ -1,4 +1,4 @@
-import { dustEnabled, motionReduced } from '../../motionPrefs.js';
+import { dustEnabled, motionReduced } from '../motionPrefs.js';
 import { disintegrate } from '../disintegrate.js';
 import { FILTER_DUST_DRIFT, FILTER_DUST_MS, LEAVE_MS, flashLanding, wipeDurationMs } from '../enterLeave.js';
 import { speckPainter } from '../surface/painters.js';

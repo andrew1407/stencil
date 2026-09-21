@@ -1,5 +1,5 @@
 // Alt+hover peek: a folded section's real body, moved into a small anchored panel for
-// exactly as long as Alt is down (port of browser/js/ui/popover.js). Pure bookkeeping —
+// exactly as long as Alt is down (port of browser/js/ui/tip/popover.js). Pure bookkeeping —
 // every DOM action and both clocks are injected.
 import { popoverPosition } from '../tip/popover.js';
 

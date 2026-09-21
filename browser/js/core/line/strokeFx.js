@@ -2,7 +2,7 @@ import {
   strokeBowSign, strokeFlyMs, strokeFlyPoint, strokePhase, strokeRipple,
   strokeSpark, strokeVertexScale, strokeWake,
 } from '../../ui/motion.js';
-import { drawMotionEnabled } from '../../ui/motionPrefs.js';
+import { drawMotionEnabled } from '../../ui/motion/motionPrefs.js';
 import { pointColorOf } from '../draw/renderer.js';
 
 // The vertices currently in flight (maths in ui/motion.js). A record holds the point

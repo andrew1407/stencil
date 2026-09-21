@@ -3,9 +3,9 @@ import { normalizePageSize } from '../settings/units.js';
 import { normalizeCropRect } from '../layout.js';
 import { createTrailingSave } from '../zoom/zoomPan.js';
 import { ghostOut, flashLanding, playCanvasArrival, GHOST_MS } from '../../ui/motion.js';
-import { showImageMissingBanner as paintImageMissingBanner } from '../../ui/imageMissingBanner.js';
+import { showImageMissingBanner as paintImageMissingBanner } from '../../ui/shell/imageMissingBanner.js';
 import { paintPageSize, paintDrawingControls, paintVisibilityChecks, paintFormulaFields,
-         hideSelectionPanels, resetViewportScroll, scrollViewportTo } from '../../ui/layoutControls.js';
+         hideSelectionPanels, resetViewportScroll, scrollViewportTo } from '../../ui/panel/layoutControls.js';
 import { createThumbnailScheduler } from '../image/thumbnail.js';
 import { saveBlockedReason, writeActiveProject } from './storageSave.js';
 import { attachProjectsStore, restoreProjects, autoRefreshOnOpen,
