@@ -2,7 +2,7 @@
 // BroadcastChannel roll-call, else single-tab assumptions. Never touches localStorage.
 import { MSG } from '../worker/messages.js';
 import { Emitter } from './emitter.js';
-import { PeerRoster } from './peerRoster.js';
+import { PeerRoster } from './remote/peerRoster.js';
 import EVENTS from '../config/events.json' with { type: 'json' };
 
 const CHANNEL_NAME = 'stencil_projects';

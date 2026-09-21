@@ -1,7 +1,7 @@
 import { mountHTML } from './utils.js';
 import { layout } from './ui/layout.js';
 import { DrawingApp } from './core/drawingApp.js';
-import { core } from './core/stencilCore.js';
+import { core } from './core/abi/stencilCore.js';
 import { hotkeys } from './core/hotkeys.js';
 import { registerServiceWorker } from './pwa.js';
 import { createStencil } from './console/stencilApi.js';
@@ -10,7 +10,7 @@ import { setScriptText } from './ui/script/scriptBuffer.js';
 import { initTooltips } from './ui/tip/controlTooltip.js';
 import { watchControlLabels } from './ui/ariaLabels.js';
 import { wireChatPersistence } from './llm/chatPersistence.js';
-import { initProjectsBackend } from './core/projectsBackend.js';
+import { initProjectsBackend } from './core/project/projectsBackend.js';
 import { watchNumericInputs } from './ui/control/numericInput.js';
 import { installControlSwap } from './ui/control/controlSwap.js';
 import { installVoiceModes } from './llm/voiceModes.js';

@@ -3,7 +3,7 @@ import { hotkeys } from '../../core/hotkeys.js';
 import { icon } from '../icons.js';
 import { wirePanelResizer, onWindowResize } from '../../utils.js';
 import { flipFrom, FLIP_MS } from '../motion.js';
-import { canvasOrigin } from '../../core/zoomPan.js';
+import { canvasOrigin } from '../../core/zoom/zoomPan.js';
 import { publish, EVENTS } from '../../eventBus/appBus.js';
 import { fullscreenLayerInner } from './fullscreenMarkup.js';
 import { populateFsControls, populateFsPoints } from './fullscreenClones.js';

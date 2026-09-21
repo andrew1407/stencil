@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyContourRGBA } from '../js/core/contourFilter.js';
+import { applyContourRGBA } from '../js/core/image/contourFilter.js';
 
 // JS reference for the core's contour (Sobel edge) filter. These cases mirror
 // core/tests/imageFilter.test.cpp's applyContourRGBA suite — the two must stay

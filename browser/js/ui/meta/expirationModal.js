@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell } from '../base.js';
 import { expirationModalInner } from './expirationMarkup.js';
 import { notify } from '../../utils.js';
-import { PERIOD_ORDER, DEFAULT_PERIOD, addPeriod } from '../../core/projectsStore.js';
+import { PERIOD_ORDER, DEFAULT_PERIOD, addPeriod } from '../../core/project/projectsStore.js';
 
 // A local project's expiration: period + Refresh seed "now + period", a calendar picks any
 // future day, keep-forever clears it, auto-refresh restarts the window on every open.

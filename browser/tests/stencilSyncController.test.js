@@ -3,7 +3,7 @@
 // resolves. Exercises the actual write/read/classify/apply paths (no browser needed).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { StencilSync } from '../js/core/stencilSync.js';
+import { StencilSync } from '../js/core/remote/stencilSync.js';
 
 // Node has no localStorage; give the controller an in-memory one so liveSync persists.
 import { installMemoryStorage } from './helpers/memoryStorage.js';

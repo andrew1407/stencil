@@ -5,7 +5,7 @@ import assert from 'node:assert';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { core } from '../js/core/stencilCore.js';
+import { core } from '../js/core/abi/stencilCore.js';
 import {
   cropAspectJS, centeredCropJS, resizeCropFromCornerJS, moveCropClampedJS, scaleCropCenteredJS,
   swapCropOrientationJS, cropResizeScaleJS, cropChangeJS, isAlbumOrientationJS, rotateCropRectQuarterJS

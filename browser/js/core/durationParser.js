@@ -1,4 +1,4 @@
-import { core } from './stencilCore.js';
+import { core } from './abi/stencilCore.js';
 
 // Port of core/parse/DurationParser.cpp. Grammar (1–2 whitespace tokens, case-insensitive):
 // off|never|none → 0; a unit (day/week/fortnight/month/year, trailing 's' ok) alone means

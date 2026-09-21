@@ -2,7 +2,7 @@
 // side branch so a fire-and-forget caller never trips unhandledrejection, while an
 // awaiting caller (the §10 `copy` op) still observes the real result.
 import { notify, isSplitCompare } from '../utils.js';
-import { VARIANT_META } from './imageVariants.js';
+import { VARIANT_META } from './image/imageVariants.js';
 
 // write() MUST run synchronously inside the Cmd/Ctrl+C gesture with a Promise-valued
 // ClipboardItem: deferring into toBlob loses user activation (NotAllowedError, macOS WebKit).

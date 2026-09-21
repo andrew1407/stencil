@@ -2,8 +2,8 @@
 // Downscale, thumbnail and contour renders go to worker/imageWorker.js with transferable
 // bitmaps/buffers; without Workers or OffscreenCanvas — or in the single-file build, where
 // the worker URL throws — the same imageRaster.js sequence runs inline on a document canvas.
-import { core } from '../core/stencilCore.js';
-import { applyContourRGBA } from '../core/contourFilter.js';
+import { core } from '../core/abi/stencilCore.js';
+import { applyContourRGBA } from '../core/image/contourFilter.js';
 import { IMAGE_TASK } from './imageMessages.js';
 import { fitSize, paintScaled, contourCanvas } from './imageRaster.js';
 

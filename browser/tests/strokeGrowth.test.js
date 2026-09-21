@@ -16,9 +16,9 @@ import {
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const drawingAppJs = read('../js/core/drawingApp.js');
-const inputJs = read('../js/core/inputController.js');
-const shapeJs = read('../js/core/shapeBuilder.js');   // insert / rect routes
-const clickJs = read('../js/core/canvasClick.js');   // the click router
+const inputJs = read('../js/core/pointer/inputController.js');
+const shapeJs = read('../js/core/line/shapeBuilder.js');   // insert / rect routes
+const clickJs = read('../js/core/pointer/canvasClick.js');   // the click router
 const exportJs = read('../js/core/exportService.js');
 
 // ── 1. The arithmetic ───────────────────────────────────────────────────────

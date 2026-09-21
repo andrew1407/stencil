@@ -11,7 +11,7 @@ import {
 } from '../../llm/chatSession.js';
 import { rowsToMessages } from '../../llm/chatStore.js';
 import { MAX_ATTACHMENTS } from '../../llm/chatController.js';
-import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../../core/dragImageUrl.js';
+import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
 import { subscribe, EVENTS } from '../../eventBus/appBus.js';
 import { modalShells } from '../modal/modalRegistry.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter } from '../motion.js';

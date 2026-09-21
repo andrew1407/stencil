@@ -8,7 +8,7 @@ import assert from 'node:assert';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { core } from '../js/core/stencilCore.js';
+import { core } from '../js/core/abi/stencilCore.js';
 import { parseScript, scriptDiagnostics, scriptDump } from '../js/core/script.js';
 import { readScriptCases } from './helpers/scriptCases.js';
 

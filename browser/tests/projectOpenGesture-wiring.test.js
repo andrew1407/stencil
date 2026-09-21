@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
-import { DOUBLE_CLICK_MS, DRAG_SLOP_PX } from '../js/core/projectOpenGesture.js';
+import { DOUBLE_CLICK_MS, DRAG_SLOP_PX } from '../js/core/project/projectOpenGesture.js';
 import { isTouchLike, TOUCH_MEDIA } from '../js/utils.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';

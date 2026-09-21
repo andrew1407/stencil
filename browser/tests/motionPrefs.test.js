@@ -146,7 +146,7 @@ test('every cloud in the app is built behind the dust gate, and the strokes behi
   // The voice mic's motes and ray ring are particles too.
   assert.match(read('../js/ui/dust/voiceDust.js'), /isOn\(\) && dustEnabled\(\)/);
   // The canvas stroke flight answers the drawing switch instead.
-  assert.match(read('../js/core/strokeFx.js'), /if \(!this\.#schedule \|\| !drawMotionEnabled\(\)\) return null;/);
+  assert.match(read('../js/core/line/strokeFx.js'), /if \(!this\.#schedule \|\| !drawMotionEnabled\(\)\) return null;/);
   // One gate, asked in one place: no component still reads the media query by hand.
   for (const f of ['../js/ui/modal/modalFlight.js', '../js/ui/toolbar/toolbar.js', '../js/ui/motion.js'])
     assert.ok(!read(f).includes("matchMedia('(prefers-reduced-motion: reduce)')"), f);

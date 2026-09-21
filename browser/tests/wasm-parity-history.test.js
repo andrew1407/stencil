@@ -8,9 +8,9 @@ import assert from 'node:assert';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { core } from '../js/core/stencilCore.js';
+import { core } from '../js/core/abi/stencilCore.js';
 import { HistoryStack, MAX_STEPS } from '../js/core/historyStack.js';
-import { encodeLines } from '../js/core/linesCodec.js';
+import { encodeLines } from '../js/core/line/linesCodec.js';
 
 const MODULE_BUILT = existsSync(fileURLToPath(new URL('../js/wasm/stencilCore.js', import.meta.url)));
 const wtest = MODULE_BUILT ? test : test.skip;

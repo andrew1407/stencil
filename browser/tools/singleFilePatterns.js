@@ -17,7 +17,7 @@ export const REWRITES = Object.freeze({
   'index.html': [CSP_META, PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF],
   'js/core/tabsCoordinator.js': [PROJECTS_WORKER_URL],
   'js/worker/imageTasks.js': [IMAGE_WORKER_URL],
-  'js/core/stencilCore.js': [WASM_IMPORT],
+  'js/core/abi/stencilCore.js': [WASM_IMPORT],
   'js/config/openInConfig.js': [OPEN_IN_CONFIG_URL],
 });
 

@@ -4,7 +4,7 @@ import { notify } from '../../utils.js';
 import { PRESS_SLOP_PX } from '../popover.js';
 import { motionMode } from '../motionPrefs.js';
 import { originOf } from '../motion.js';
-import { waitForImage } from '../../core/imageLoadFlow.js';
+import { waitForImage } from '../../core/image/imageLoadFlow.js';
 import { STAGE, HOLD_MS, TOAST_TEXT, effectOf, resolveShow, heartLine } from './logoStageRules.js';
 import { openLogoStage, logoStageAllowed } from './logoStage.js';
 

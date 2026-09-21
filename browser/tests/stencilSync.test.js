@@ -3,7 +3,7 @@
 // decides apply-vs-prompt when the linked .stencil changes.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyFileChange } from '../js/core/stencilSync.js';
+import { classifyFileChange } from '../js/core/remote/stencilSync.js';
 
 test('classifyFileChange: nothing changed → none', () => {
   assert.equal(classifyFileChange('A', 'A', 'A'), 'none');

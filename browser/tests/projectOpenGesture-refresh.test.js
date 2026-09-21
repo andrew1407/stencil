@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 
-import { canRefreshList } from '../js/core/projectOpenGesture.js';
+import { canRefreshList } from '../js/core/project/projectOpenGesture.js';
 import { projectsModalSource } from './helpers/projectsModalSource.js';
 
 // removing the ACTIVE project echoes straight back through onPeers and cuts the leave short.

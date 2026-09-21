@@ -1,8 +1,8 @@
 // Hold-to-draw: the pure target decision and the time-injected gesture state machine
 // (idle → armed → drawing → idle, or armed → aborted). The host owns timers, coordinate
 // conversion and rendering. C++ mirror: core/holdDraw; wasm twin in coreHandles.d.ts.
-import type { CodecLine } from './linesCodec.js';
-import type { HoldEvent, HoldDrawOptions } from './coreHandles.js';
+import type { CodecLine } from './line/linesCodec.js';
+import type { HoldEvent, HoldDrawOptions } from './abi/coreHandles.js';
 
 /** What an initial hold over (x, y) targets; ptIdx / ptIdx2 are -1 when not applicable. */
 export interface HoldTarget {

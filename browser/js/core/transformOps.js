@@ -1,4 +1,4 @@
-import { bboxCenterOf, rotatePointsAbout, flipPointsAbout } from './lineTransforms.js';
+import { bboxCenterOf, rotatePointsAbout, flipPointsAbout } from './line/lineTransforms.js';
 
 // Rotate / flip / quarter-turn / nudge over the selection: which pivot, which lines, and
 // the one debounced history save a burst collapses into (the point maths is lineTransforms.js).

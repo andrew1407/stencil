@@ -1,7 +1,7 @@
 // Unit tests for the cross-page drag image-URL extractor (js/core/dragImageUrl.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractDraggedImageUrl, looksLikeImageUrl } from '../js/core/dragImageUrl.js';
+import { extractDraggedImageUrl, looksLikeImageUrl } from '../js/core/pointer/dragImageUrl.js';
 
 // Build a read(type) backed by a { type: value } map (missing types return '').
 const reader = (map) => (t) => map[t] || '';

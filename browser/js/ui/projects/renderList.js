@@ -3,7 +3,7 @@
 import {
   wipeDurationMs, materialize, filterDelta, rowDustGrid, ROW_ARRIVE_MS, ROW_ARRIVE_DELAY_MS,
 } from '../motion.js';
-import { showsRemoteSkeletons } from '../../core/remoteListing.js';
+import { showsRemoteSkeletons } from '../../core/remote/remoteListing.js';
 import { makeSkeletonRow, emptyLabelFor } from './placeholderRows.js';
 
 export function createRenderList(ctx) {

@@ -50,7 +50,7 @@ test('adoptIncognitoHere: an already-incognito editor has nothing to flush', () 
 // storage.newTemporary swaps the §12 chat scope (projectOpened(null) clears the visible transcript AND the
 // replay history): right for a project switch, fatal mid-turn, so the adoption is the one caller that opts out.
 test('newTemporary({ keepChat }) is what protects the live conversation', () => {
-  const body = src('../js/core/storage.js');
+  const body = src('../js/core/storage/storage.js');
   const at = body.indexOf('  newTemporary({');
   assert.ok(at > 0, 'newTemporary no longer takes options');
   const method = body.slice(at, at + 1200);

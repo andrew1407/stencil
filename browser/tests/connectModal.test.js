@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { createListHold, emptyStateVisible, materialize } from '../js/ui/motion.js';
-import { canRefreshList } from '../js/core/projectOpenGesture.js';
+import { canRefreshList } from '../js/core/project/projectOpenGesture.js';
 import { rows, markup, count } from './helpers/connectModalRig.js';
 
 // The connections list is runtime-built: nothing render() decides — rows, the

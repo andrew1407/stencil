@@ -3,24 +3,24 @@
 // behaviour behind each delegator from the module its section names. Nothing here is a
 // second implementation — the window.stencil facade and the toolbar call these same names.
 import type { Point, CropRect } from './geometry.js';
-import type { CodecLine } from './linesCodec.js';
-import type { Storage } from './storage.js';
+import type { CodecLine } from './line/linesCodec.js';
+import type { Storage } from './storage/storage.js';
 import type { Renderer } from './renderer.js';
 import type { TabsCoordinator } from './tabsCoordinator.js';
-import type { RemoteSyncController, RemoteLink } from './remoteSyncController.js';
-import type { ProjectTransferController } from './projectTransferController.js';
-import type { ProjectMeta } from './projectsStore.js';
+import type { RemoteSyncController, RemoteLink } from './remote/remoteSyncController.js';
+import type { ProjectTransferController } from './project/projectTransferController.js';
+import type { ProjectMeta } from './project/projectsStore.js';
 import type { ConnectionManager } from '../net/connectionManager.js';
 import type { HistoryStack } from './historyStack.js';
 import type { FormulaEngine } from './formulaEngine.js';
-import type { StrokeFx } from './strokeFx.js';
+import type { StrokeFx } from './line/strokeFx.js';
 import type { ExportService } from './exportService.js';
 import type { SettingsController } from './settingsController.js';
-import type { ImageModel } from './imageModel.js';
-import type { StencilSync } from './stencilSync.js';
-import type { InputController } from './inputController.js';
-import type { PointerController } from './pointerController.js';
-import type { ZoomPan } from './zoomPan.js';
+import type { ImageModel } from './image/imageModel.js';
+import type { StencilSync } from './remote/stencilSync.js';
+import type { InputController } from './pointer/inputController.js';
+import type { PointerController } from './pointer/pointerController.js';
+import type { ZoomPan } from './zoom/zoomPan.js';
 
 export type Line = CodecLine;
 export type CompareMode = 'none' | 'original' | 'vertical' | 'horizontal';

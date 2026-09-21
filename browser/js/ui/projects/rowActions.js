@@ -1,7 +1,7 @@
 import { icon } from '../icons.js';
 import { notify, shortName } from '../../utils.js';
 import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../motion.js';
-import { createOpenGesture } from '../../core/projectOpenGesture.js';
+import { createOpenGesture } from '../../core/project/projectOpenGesture.js';
 import { beginRowRename } from './rowRename.js';
 
 // Everything a SAVED project row can do: the ⋯ / right-click menu, its prompts, and the open

@@ -2,7 +2,7 @@
 // Extracted from stencilApi.js. Wraps one registry row (or this tab's incognito editor)
 // and routes every mutation through the same app methods the projects modal uses.
 import { PROJECT_ACTION } from '../worker/messages.js';
-import { PERIOD_ORDER, DEFAULT_PERIOD } from '../core/projectsStore.js';
+import { PERIOD_ORDER, DEFAULT_PERIOD } from '../core/project/projectsStore.js';
 import { parseDuration } from '../core/durationParser.js';
 import { normalizeHex } from '../core/accents.js';
 import { publish, EVENTS } from '../eventBus/appBus.js';

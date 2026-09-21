@@ -57,10 +57,10 @@ test('playCanvasArrival survives having no DOM to reach for', () => {
 });
 
 test('both routes that put an image on the canvas play the arrival', () => {
-  const loader = readFileSync(new URL('../js/core/imageSettle.js', import.meta.url), 'utf8');
+  const loader = readFileSync(new URL('../js/core/image/imageSettle.js', import.meta.url), 'utf8');
   assert.match(loader, /playCanvasArrival\(app\.canvas, \{ from: opts\.from \}\)/,
     'a freshly loaded file arrives');
-  const storage = readFileSync(new URL('../js/core/storage.js', import.meta.url), 'utf8');
+  const storage = readFileSync(new URL('../js/core/storage/storage.js', import.meta.url), 'utf8');
   // The open passes it; the cross-tab sync path (the other caller) deliberately does not.
   assert.match(storage, /this\.loadPayloadIntoApp\(proj\.payload, \{ landing: true \}\)/,
     'opening a saved project arrives too — this is the regression');

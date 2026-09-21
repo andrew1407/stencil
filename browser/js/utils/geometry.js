@@ -1,4 +1,4 @@
-import { core } from '../core/stencilCore.js';
+import { core } from '../core/abi/stencilCore.js';
 // The shared C++ core (wasm) when loaded; the JS body is the reference + fallback.
 export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
   const dx = b.x - a.x;

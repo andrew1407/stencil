@@ -1,5 +1,5 @@
 import { notify, isTypingTarget, pointInRect } from '../../utils.js';
-import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from '../../core/dragImageUrl.js';
+import { extractDraggedImageUrl, mediaFilesFromData, fetchDraggedMediaFile } from '../../core/pointer/dragImageUrl.js';
 import { showDropOverlay, hideDropOverlay } from '../dropOverlay.js';
 import { loadScriptFile } from '../script/scriptModal.js';
 export function wireDropPaste(app) {

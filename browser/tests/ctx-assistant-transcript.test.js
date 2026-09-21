@@ -7,7 +7,7 @@ import {
   chatLog, onChatLog, appendChatRow, updateChatRow, clearChatLog, resetChatLog,
   clearSharedConversation, runLoggedChatTurn, attachmentPreviews,
 } from '../js/llm/chatSession.js';
-import { fileNameForUrl } from '../js/core/dragImageUrl.js';
+import { fileNameForUrl } from '../js/core/pointer/dragImageUrl.js';
 import { scatterGridFor, SCATTER_TILE_BUDGET, SCATTER_MAX_ROWS } from '../js/ui/motion.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
@@ -98,7 +98,7 @@ test('a dropped image URL is fetched into an attachment, not silently dropped', 
   assert.ok(panel.includes("notify(`Couldn't attach that image — ${err.message}`, 'fail');"));
   assert.ok(panel.includes("notify('Nothing to attach from that drop', 'fail');"));
   // The fetch itself is the canvas's, shared rather than re-implemented.
-  const drag = readFileSync(new URL('../js/core/dragImageUrl.js', import.meta.url), 'utf8');
+  const drag = readFileSync(new URL('../js/core/pointer/dragImageUrl.js', import.meta.url), 'utf8');
   assert.match(drag, /export const fetchDraggedMediaFile = async \(url, \{ accept = \/\^image\\\/\/ \} = \{\}\)/);
   const binder = readFileSync(new URL('../js/ui/bindings/dropPaste.js', import.meta.url), 'utf8');
   assert.ok(binder.includes('const fetchUrlToFile = (url) => fetchDraggedMediaFile(url);'),

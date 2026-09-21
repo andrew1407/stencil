@@ -11,8 +11,8 @@ import {
 import { normalizeHex } from '../core/accents.js';
 import { subscribe, EVENTS } from '../eventBus/appBus.js';
 
-import { DOUBLE_CLICK_MS, DRAG_SLOP_PX, rowOpenIntent, createOpenGesture, canRefreshList } from '../core/projectOpenGesture.js';
-import { createRemoteListing, showsRemoteSkeletons } from '../core/remoteListing.js';
+import { DOUBLE_CLICK_MS, DRAG_SLOP_PX, rowOpenIntent, createOpenGesture, canRefreshList } from '../core/project/projectOpenGesture.js';
+import { createRemoteListing, showsRemoteSkeletons } from '../core/remote/remoteListing.js';
 import { createProjectRowMenu } from './projectRowMenu.js';
 import { createThumbZoom } from './projectThumbZoom.js';
 import { projectsModalInner } from './projects/markup.js';

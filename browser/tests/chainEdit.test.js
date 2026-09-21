@@ -6,14 +6,14 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
-import { ringPoints, openRingAt, unchainLine, pullOutPoint } from '../js/core/dragGestures.js';
+import { ringPoints, openRingAt, unchainLine, pullOutPoint } from '../js/core/touch/dragGestures.js';
 import { fillState } from '../js/core/layout.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const drawingAppJs = read('../js/core/drawingApp.js');
-const pointerJs = read('../js/core/pointerController.js');
-const inputJs = read('../js/core/inputController.js');
-const shapeJs = read('../js/core/shapeBuilder.js');   // closing / inserting / rects
+const pointerJs = read('../js/core/pointer/pointerController.js');
+const inputJs = read('../js/core/pointer/inputController.js');
+const shapeJs = read('../js/core/line/shapeBuilder.js');   // closing / inserting / rects
 const panelJs = read('../js/ui/selectionPanel.js');
 const binderJs = read('../js/ui/bindings/selectionPanel.js');
 

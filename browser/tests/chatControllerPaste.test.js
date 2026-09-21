@@ -6,7 +6,7 @@ import { splitDataUrl } from '../js/llm/chatController.js';
 import { makeClient, chatOnlyReply, pngUrl, stubFile, makeController } from './helpers/chatControllerRig.js';
 
 // ── Clipboard / drop extraction shared with the global paste wiring ──
-const { mediaFilesFromData } = await import('../js/core/dragImageUrl.js');
+const { mediaFilesFromData } = await import('../js/core/pointer/dragImageUrl.js');
 
 test('mediaFilesFromData: pulls image/video FILES from clipboardData items, synchronously', () => {
   const img = stubFile('shot.png', 'image/png');

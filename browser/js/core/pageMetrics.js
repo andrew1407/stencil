@@ -1,4 +1,4 @@
-import { core } from './stencilCore.js';
+import { core } from './abi/stencilCore.js';
 import constants from '../config/constants.json' with { type: 'json' };
 const { PAGE_SIZES } = constants;
 

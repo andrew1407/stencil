@@ -3,7 +3,7 @@
 // `blank`/`frame` replace the original and reload the pixel snapshot.
 import type { Stencil } from '../console/stencilApi.js';
 import type { PlanAction } from './opPlan.js';
-import type { CodecLine } from '../core/linesCodec.js';
+import type { CodecLine } from '../core/line/linesCodec.js';
 
 /** What a sandboxed run may disturb besides the pixels — copied to plain data. */
 export interface EditorStateSnapshot {

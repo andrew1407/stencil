@@ -6,7 +6,7 @@ import assert from 'node:assert';
 // runs without a DOM.
 import {
   rowOpenIntent, createOpenGesture, DOUBLE_CLICK_MS, DRAG_SLOP_PX,
-} from '../js/core/projectOpenGesture.js';
+} from '../js/core/project/projectOpenGesture.js';
 
 // A controllable clock: timers fire only when the test advances it.
 const stubTimers = () => {

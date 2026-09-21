@@ -5,8 +5,8 @@ import assert from 'node:assert';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { core } from '../js/core/stencilCore.js';
-import { applyContourRGBA } from '../js/core/contourFilter.js';
+import { core } from '../js/core/abi/stencilCore.js';
+import { applyContourRGBA } from '../js/core/image/contourFilter.js';
 
 // js/wasm/stencilCore.js is a generated, gitignored artifact, present only after the Emscripten build, so the
 // suite skips when it is missing: the other suites already cover the JS reference path it mirrors.

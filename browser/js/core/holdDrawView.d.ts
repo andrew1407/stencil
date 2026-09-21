@@ -1,7 +1,7 @@
 // The app-side view of a hold-draw stroke: the ghost vertex under the finger, where the
 // preview line emanates from, and the clock both input paths time holds against.
 import type { DrawingApp } from './drawingApp.js';
-import type { XY } from './stencilCore.js';
+import type { XY } from './abi/stencilCore.js';
 
 /** performance.now() where there is one, else Date.now(). */
 export declare const nowMs: () => number;
